@@ -1,8 +1,8 @@
 module adi_initiators
   use adi_data, only: ilutRefAdi, nRefs, tAllDoubsInitiators, tAllSingsInitiators, tAdiActive
-  use bit_rep_data, only: test_flag, NIfTot
-  use bit_reps, only: set_flag, clr_flag
-  use constants, only: lenof_sign, n_int, dp, inum_runs
+  use bit_rep_data, only: test_flag, NIfTot, extract_sign
+  use bit_reps, only: set_flag, clr_flag, decode_bit_det
+  use constants, only: lenof_sign, n_int, dp, inum_runs, eps
   use SystemData, only: nel
 
 contains
@@ -21,14 +21,15 @@ contains
     staticInit = .false.
     ! Doubles are always initiators if the corresponding flag is set
     if(tAdiActive) then
-       if(test_flag(ilut, flag_adi_checked)) then
+       if(.not. test_flag(ilut, flag_adi_checked)) &
+          call set_adi_flags(ilut, nI, sgn)
           ! Check if the sign of the determinant changed, if yes, re-evaluate the adi flags
           ! only for this run
-          if(check_sign_changed(ilut, sgn, run)) call set_adi_flags_run(ilut, nI, sgn, run)
-       else
-          ! else, evaluate all adi flags and then set flag_adi_checked
-          call set_adi_flags(ilut, nI, sgn)
-       endif
+          ! suspend the sign change check for now
+!       else
+!          if(check_sign_changed(ilut, sgn, run)) &
+!               call set_adi_flags_run(ilut, nI, sgn, run)
+!       endif
        ! If the adi check was not done yet, do it now for all runs and then
        ! set the corresponding flags
        ! By doing so, we ensure the check is done exactly one per run
@@ -41,7 +42,7 @@ contains
 
   subroutine set_adi_flags(ilut, nI, sgn)
     use bit_rep_data, only: flag_adi_checked
-    ! This sets the adi flags (flag_positive, flag_adi_checked and flag_static_init) 
+    ! This sets the adi flags (flag_adi_checked and flag_static_init) 
     ! for a given ilut
     implicit none
     integer(n_int), intent(inout) :: ilut(0:NIfTot)
@@ -78,8 +79,6 @@ contains
        ! else, clear it
        call clr_flag(ilut, flag_static_init(ir))
     endif
-    ! and set the flag_positive
-    call assign_flag_positive(ilut, sgn, ir)
 
   end subroutine set_adi_flags_run
 
@@ -88,15 +87,19 @@ contains
   function adi_criterium(ilut, nI, sgn, run) result(staticInit)
     ! This is the adi-initiator criterium expansion
     ! I expect it to grow further
-    use adi_references, only: giovannis_check
-    use adi_data, only: tInitiatorsSubspace
+    use adi_references, only: giovannis_check, initialize_c_caches,update_coherence_check, &
+         eval_coherence
+    use adi_data, only: tInitiatorsSubspace, tWeakCoherentDoubles, tAvCoherentDoubles
     use DetBitOps, only: FindBitExcitLevel
     implicit none
     integer(n_int), intent(in) :: ilut(0:NIfTot)
     real(dp), intent(in) :: sgn(lenof_sign)
     integer, intent(in) :: run, nI(nel)
     integer :: exLevel, i
-    logical :: staticInit
+    logical :: staticInit, tCCache
+    ! cache for the weak coherence check
+    HElement_t(dp) :: signedCache
+    real(dp) :: unsignedCache
 
     staticInit = .false.
     ! This is Giovanni's CAS-initiator criterium
@@ -105,8 +108,10 @@ contains
           staticInit = .true.
        endif
     endif
+    tCCache = tWeakCoherentDoubles .or. tAvCoherentDoubles
     
     exLevel = 0
+    if(tCCache) call initialize_c_caches(signedCache, unsignedCache)
     ! Important : Only compare to the already initialized reference
     do i = 1, nRefs
        ! TODO: Check if i marks a superinitiator for the current run
@@ -119,6 +124,10 @@ contains
                                 ! the ADI rules and instead 
                return
 
+          if(tCCache)&
+               call update_coherence_check(exLevel, ilut, nI, i, run, &
+               signedCache, unsignedCache)
+
           ! Set the doubles to initiators
           call set_double_initiator(exLevel, staticInit)
 
@@ -126,6 +135,9 @@ contains
           call set_single_initiator(exLevel, staticInit)
        endif
     enddo
+
+    if(tCCache) &
+    call eval_coherence(signedCache, unsignedCache, sgn(run), staticInit)
 
   end function adi_criterium
 
@@ -188,47 +200,6 @@ contains
        nCoherentSingles = nCoherentSingles + 1
     endif
   end subroutine set_single_initiator
-
-  !------------------------------------------------------------------------------------------!
-
-  function check_sign_changed(ilut, sgn, run) result(changed)
-    use bit_rep_data, only: flag_positive
-    implicit none
-    integer(n_int), intent(inout) :: ilut(0:NIfTot)
-    real(dp), intent(in) :: sgn(lenof_sign)
-    integer, intent(in) :: run
-    logical :: changed
-
-#ifdef __CMPLX
-    ! in the complex code, the "sign" i.e. the phase always changed as 
-    ! soon as some walker is created
-    ! I think the complex coherence check has to be approximated, else basically
-    ! nothing will ever be coherent
-    changed = .true.
-#else
-    changed = .true.
-    if((test_flag(ilut, flag_positive) .eq. sgn(run) > 0)) changed = .false.
-#endif
-    ! If the sign changed, adjust the sign flag
-    if(changed) call assign_flag_positive(ilut, sgn, run)
-  end function check_sign_changed
-
-!------------------------------------------------------------------------------------------!
-
-
-  subroutine assign_flag_positive(ilut, sgn, run)
-    use bit_rep_data, only: flag_positive
-    implicit none
-    integer(n_int), intent(inout) :: ilut(0:NIfTot)
-    real(dp), intent(in) :: sgn(lenof_sign)
-    integer, intent(in) :: run
-
-    if(sgn(run) > 0) then 
-       call set_flag(ilut, flag_positive)
-    else
-       call clr_flag(ilut, flag_positive)
-    endif
-  end subroutine assign_flag_positive
 
   !------------------------------------------------------------------------------------------!
 end module adi_initiators

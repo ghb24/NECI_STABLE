@@ -5,7 +5,7 @@ use FciMCData, only: ilutRef
 use adi_data, only: ilutRefAdi, nRefs, nIRef, signsRef, nRefsSings, nRefsDoubs, &
      nTZero, SIHash, tAdiActive, tSetupSIs, NoTypeN, superInitiatorLevel, tSetupSIs
 use CalcData, only: InitiatorWalkNo
-use bit_rep_data, only: niftot, nifdbo
+use bit_rep_data, only: niftot, nifdbo, extract_sign
 use bit_reps, only: decode_bit_det
 use constants
 use SystemData, only: nel
@@ -183,7 +183,6 @@ contains
     subroutine set_additional_references(mpi_buf)
       use DetBitOps, only: DetBitEQ, sign_lt, sign_gt
       use sort_mod, only: sort
-      use bit_rep_data, only: extract_sign
       implicit none
       integer(n_int), intent(inout) :: mpi_buf(0:NIfTot,nRefs)
       integer :: i, k, run
@@ -277,7 +276,6 @@ contains
 !------------------------------------------------------------------------------------------!
     
     subroutine print_bit_rep(ilut)
-      use bit_rep_data, only: extract_sign
       implicit none
       integer(n_int), intent(in) :: ilut(0:NIfTot)
       real(dp) :: temp_sgn(lenof_sign)
@@ -310,7 +308,6 @@ contains
       ! Get the signs of the references from the currentdets. Used both in the final
       ! output and in generating the product excitations
       use bit_reps, only: decode_bit_det, encode_sign
-      use bit_rep_data, only:  extract_sign
       use hash, only: hash_table_lookup
       use FciMCData, only: CurrentDets, HashIndex
       use Parallel_neci, only: MPISumAll
@@ -480,7 +477,6 @@ contains
 
     subroutine generate_type_n_refs()
       use FciMCData, only: CurrentDets, TotWalkers
-      use bit_reps, only: extract_sign
       implicit none
       integer :: i, nTOne, nBlocks, ierr
       integer(n_int), allocatable :: refBuf(:,:)
@@ -604,7 +600,6 @@ contains
 !------------------------------------------------------------------------------------------!
 
     function check_sign_coherence(ilut, nI, ilut_sign, iRef, run) result(is_coherent)
-      use bit_rep_data, only: extract_sign
       use Determinants, only: get_helement
       use SystemData, only: tHPHF
       use hphf_integrals, only: hphf_off_diag_helement
@@ -659,7 +654,117 @@ contains
     end function check_sign_coherence
 
 !------------------------------------------------------------------------------------------!
+  
+  subroutine initialize_c_caches(signedCache, unsignedCache)
+    implicit none
+    HElement_t(dp), intent(out) :: signedCache
+    real(dp), intent(out) :: unsignedCache
+    
+    ! We potentially want to add the diagonal terms here
+    signedCache = 0.0_dp
+    unsignedCache = 0.0_dp
+  end subroutine initialize_c_caches
 
+!------------------------------------------------------------------------------------------!
+
+  subroutine update_coherence_check(exLevel, ilut, nI, i, run, signedCache, unsignedCache)
+    use SystemData, only: tHPHF 
+    use Determinants, only: get_helement
+    use hphf_integrals, only: hphf_off_diag_helement
+    implicit none
+    integer, intent(in) :: exLevel, nI(nel), i, run
+    integer(n_int), intent(in) :: ilut(0:NIfTot)
+    HElement_t(dp), intent(inout) :: signedCache
+    real(dp), intent(inout) :: unsignedCache
+    HElement_t(dp) :: h_el, tmp
+    integer :: nIRef(nel)
+    real(dp) :: sgnRef(lenof_sign)
+
+    ! Only those determinants are coupled
+    if(exLevel < 3) then
+       call decode_bit_det(nIRef, ilutRefAdi(:,i))
+       ! First, get the matrix element
+       if(tHPHF) then
+          h_el = hphf_off_diag_helement(nI,nIRef,ilut,ilutRefAdi(:,i))
+       else
+          h_el = get_helement(nI,nIRef,ilut,ilutRefAdi(:,i))
+       endif
+       ! Only proceed if the determinants are coupled
+       if(abs(h_el) < eps) return
+       
+       call extract_sign(ilutRefAdi(:,i), sgnRef)
+! Add tmp = Hij cj to the caches
+#ifdef __CMPLX
+       tmp = h_el * cmplx(sgnRef(min_part_type(run)),&
+            sgnRef(max_part_type(run)),dp)
+#else
+       tmp = h_el * sgnRef(run)
+#endif
+       signedCache = signedCache + tmp
+       unsignedCache = unsignedCache + abs(tmp)
+    endif
+  end subroutine update_coherence_check
+
+!------------------------------------------------------------------------------------------!
+
+  subroutine eval_coherence(signedCache, unsignedCache, sgn, staticInit)
+    ! Note that tweakcoherentdoubles and tavcoherentdoubles are mutually exclusive 
+    ! in the current implementation
+    use adi_data, only: tWeakCoherentDoubles, tAvCoherentDoubles, coherenceThreshold
+    implicit none
+    HElement_t(dp), intent(in) :: signedCache
+    real(dp), intent(in) :: unsignedCache, sgn
+    logical, intent(inout) :: staticInit
+
+    ! Only need to check if we are looking at a double
+    if(unsignedCache > eps) then
+       ! We disable superinitiator-related initiators if they fail the coherence check
+       ! else, we leave it as it is
+       if(tWeakCoherentDoubles) then
+          if(abs(signedCache) < coherenceThreshold*unsignedCache) staticInit = .false.
+       endif
+
+       ! If we do averaged coherence check, we check versus the sign of the ilut
+       if(tAvCoherentDoubles) then
+          if(real(signedCache * sgn,dp) > 0.0_dp) staticInit = .false.
+       endif
+    endif
+
+  end subroutine eval_coherence
+
+!------------------------------------------------------------------------------------------!
+
+  function get_sign_op(ilut, run) result(xi)
+    use DetBitOps, only: FindBitExcitLevel
+    ! compute the sign problem indicator xi for a given determinant
+    implicit none
+    integer(n_int), intent(in) :: ilut(0:NIfTot)
+    integer, intent(in) :: run
+    real(dp) :: xi
+    integer :: iRef, nI(nel), exLevel
+    real(dp) :: unsignedCache
+    HElement_t(dp) :: signedCache
+    
+    call initialize_c_caches(signedCache, unsignedCache)
+    ! Sum up all Hij cj for all superinitiators j
+    do iRef = 1, nRefs
+       exLevel = FindBitExcitLevel(ilutRefAdi(:,iRef), ilut)
+       ! Of course, only singles/doubles of ilut can contribute
+       if(exLevel < 3) then
+          call decode_bit_det(nI, ilut)
+          call update_coherence_check(exLevel, ilut, nI, iRef, run, &
+               signedCache, unsignedCache)
+       endif
+    enddo
+    ! Get the ratio of the caches, which is xi
+    if(abs(unsignedCache) > eps) then
+       xi = abs(signedCache) / unsignedCache
+    else
+       xi = 0.0_dp
+    endif
+  end function get_sign_op
+
+!------------------------------------------------------------------------------------------!
 
     subroutine resize_ilutRefAdi(newSize)
       implicit none

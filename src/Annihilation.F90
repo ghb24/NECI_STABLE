@@ -19,7 +19,7 @@ module AnnihilationMod
                         encode_sign, test_flag, set_flag, &
                         flag_initiator, encode_part_sign, &
                         extract_part_sign, extract_bit_rep, &
-                        nullify_ilut_part, &
+                        nullify_ilut_part, clr_flag, &
                         encode_flags, bit_parent_zero, get_initiator_flag
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData, only: tNoNewRDMContrib
@@ -602,6 +602,10 @@ module AnnihilationMod
                     ! Transfer new sign across.
                     call encode_sign(CurrentDets(:,PartInd), SpawnedSign+CurrentSign)
                     call encode_sign(SpawnedParts(:,i), null_part)
+
+                    ! If the sign changed, the adi check has to be redone
+                    if(any(real(SignProd,dp) < 0.0_dp)) &
+                         call clr_flag(CurrentDets(:,PartInd), flag_adi_checked)
 
                     do j = 1, lenof_sign
                         run = part_type_to_run(j)

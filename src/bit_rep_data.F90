@@ -62,14 +62,12 @@ module bit_rep_data
                           flag_static_init(lenof_sign_max) &
                             = (/28, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, &
                                 42, 43, 44, 45, 46, 47, 48/), &
-                          flag_positive = 49, &
-                          num_flags = 50
+                          num_flags = 49
 #else
     integer, parameter :: flag_initiator(2) = (/ 6, 7/), &
                           flag_adi_checked = 8, &
                           flag_static_init(2) = (/9, 10/), &
-                          flag_positive = 11, &
-                          num_flags = 12
+                          num_flags = 11
 #endif
 
 contains

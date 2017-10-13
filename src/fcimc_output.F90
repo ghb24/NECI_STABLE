@@ -26,7 +26,7 @@ module fcimc_output
     use fcimc_helper, only: LanczosFindGroundE
     use Determinants, only: write_det
     use adi_data, only: AllCoherentSingles, AllCoherentDoubles, AllIncoherentDets, nRefs, &
-         ilutRefAdi
+         ilutRefAdi, tAdiActive
     use Parallel_neci
     use FciMCData
     use constants
@@ -1326,7 +1326,7 @@ contains
         enddo
         
         ! This has to be done by all procs
-        call update_ref_signs()
+        if(tAdiActive) call update_ref_signs()
         if(iProcIndex.eq.Root) then
             !Now print out the info contained in GlobalLargestWalkers and GlobalProc
 

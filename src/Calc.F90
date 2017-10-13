@@ -30,9 +30,10 @@ MODULE Calc
                          alloc_popsfile_dets, tSearchTauOption 
     use adi_data, only: nRefsDoubs, nRefsSings, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
          tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits, tSetDelayAllDoubsInits, &
-         tSetDelayAllSingsInits, nExProd, tCoherentDoubles, NoTypeN, tAdiActive, tReadRefs, &
+         tSetDelayAllSingsInits, nExProd, NoTypeN, tAdiActive, tReadRefs, &
          tProductReferences, tAccessibleDoubles, tAccessibleSingles, tInitiatorsSubspace, &
-         tReferenceChanged, superInitiatorLevel, allDoubsInitsDelay, tStrictCoherentDoubles
+         tReferenceChanged, superInitiatorLevel, allDoubsInitsDelay, tStrictCoherentDoubles, &
+         tWeakCoherentDoubles, tAvCoherentDoubles, coherenceThreshold
     use ras_data, only: core_ras, trial_ras
     use load_balance, only: tLoadBalanceBlocks
     use ftlm_neci
@@ -343,9 +344,11 @@ contains
           tAccessibleDoubles = .false.
           nExProd = 2
           NoTypeN = 3
-          tCoherentDoubles = .false.
           tStrictCoherentDoubles = .false.
+          tWeakCoherentDoubles = .false.
+          tAvCoherentDoubles = .false.
           superInitiatorLevel = 0
+          coherenceThreshold = 0.4
           tAdiActive = .false.
 
           ! And disable the initiators subspace
@@ -2458,7 +2461,21 @@ contains
              case("COHERENT-REFERENCES")
                 ! Only make those doubles/singles initiators that are sign coherent
                 ! with their reference(s)
-                tCoherentDoubles = .true.
+                if(item < nitems) then
+                   call readu(w)
+                   select case(w)
+                   case("STRICT")
+                      tStrictCoherentDoubles = .true.
+                   case("WEAK")
+                      tWeakCoherentDoubles = .true.
+                   case("AV")
+                      tAvCoherentDoubles = .true.
+                   case default
+                      tWeakCoherentDoubles = .true.
+                   end select
+                else
+                   tWeakCoherentDoubles = .true.
+                endif                   
 
              case("SECONDARY-SUPERINITIATORS")
                 superInitiatorLevel = 1
