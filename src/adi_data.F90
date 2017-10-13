@@ -1,0 +1,36 @@
+module adi_data
+
+  use iso_c_hack
+  use constants
+  use FciMCData, only: ll_node
+  implicit none
+  save
+  
+  ! Number of references for all-doubs-initiators and (important) number of references 
+  ! currently to check
+  integer :: nRefs, nRefsSings, nRefsDoubs, nTZero
+  ! References for the purpose of the ADI scheme
+  integer(n_int), allocatable :: ilutRefAdi(:,:)
+  ! Store the signs and determinants separately, so they dont need to be 
+  ! reconstructed on each coherence check
+  integer, allocatable :: nIRef(:,:)
+  real(dp), allocatable :: signsRef(:,:)
+  integer :: nIncoherentDets, nCoherentDoubles, nCoherentSingles, &
+       AllCoherentSingles, AllCoherentDoubles, AllIncoherentDets, htBlock
+  type(ll_node), pointer :: SIHash(:)
+  logical :: tReferenceChanged, tSetupSIs
+
+  ! Flags for the alldoublesinitiators feature
+  logical :: tAllDoubsInitiators, tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits
+  logical :: tSetDelayAllSingsInits, tSetDelayAllDoubsInits, tDelayGetRefs
+  integer :: allDoubsInitsDelay, nExProd, superInitiatorLevel
+  logical :: tAdiActive, tStrictCoherentDoubles, tWeakCoherentDoubles, tAvCoherentDoubles
+  real(dp) :: NoTypeN, coherenceThreshold, SIThreshold
+  logical :: tReadRefs, tProductReferences, tAccessibleDoubles, tAccessibleSingles
+
+  ! Additional variables for giovannis check
+  integer(n_int), allocatable :: g_markers(:)
+  integer :: g_markers_num
+  logical :: tInitiatorsSubspace
+
+end module adi_data
