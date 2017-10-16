@@ -136,7 +136,7 @@ contains
                   return
 
              if(tCCache)&
-                  call update_coherence_check(exLevel, ilut, nI, i, run, &
+                  call update_coherence_check(ilut, nI, i, run, &
                   signedCache, unsignedCache)
 
              ! Set the doubles to initiators

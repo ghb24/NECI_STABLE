@@ -739,49 +739,40 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-  subroutine update_coherence_check(exLevel, ilut, nI, i, run, signedCache, unsignedCache)
+  subroutine update_coherence_check(ilut, nI, i, run, signedCache, unsignedCache)
     use SystemData, only: tHPHF 
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_off_diag_helement
     implicit none
-    integer, intent(in) :: exLevel, nI(nel), i, run
+    integer, intent(in) :: nI(nel), i, run
     integer(n_int), intent(in) :: ilut(0:NIfTot)
     HElement_t(dp), intent(inout) :: signedCache
     real(dp), intent(inout) :: unsignedCache
     HElement_t(dp) :: h_el, tmp
-    integer :: nJRef(nel)
-    real(dp) :: sgnRef(lenof_sign)
+    character(*), parameter :: this_routine = "upadte_coherence_check"
 
     ! TODO: Only if ilutRefAdi(:,i) is a SI on this run
 
-    ! Only those determinants are coupled
-    if(exLevel < 3) then
-       if(tUseCaches) then
-          nJRef = nIRef(:,i)
-          sgnRef = signsRef(:,i)
-       else
-          call decode_bit_det(nJRef, ilutRefAdi(:,i))
-       endif
-       ! First, get the matrix element
-       if(tHPHF) then
-          h_el = hphf_off_diag_helement(nI,nJRef,ilut,ilutRefAdi(:,i))
-       else
-          h_el = get_helement(nI,nJRef,ilut,ilutRefAdi(:,i))
-       endif
-       ! Only proceed if the determinants are coupled
-       if(abs(h_el) < eps) return
-       
-       if(.not. tUseCaches) call extract_sign(ilutRefAdi(:,i), sgnRef)
-! Add tmp = Hij cj to the caches
-#ifdef __CMPLX
-       tmp = h_el * cmplx(sgnRef(min_part_type(run)),&
-            sgnRef(max_part_type(run)),dp)
-#else
-       tmp = h_el * sgnRef(run)
-#endif
-       signedCache = signedCache + tmp
-       unsignedCache = unsignedCache + abs(tmp)
+    ! We require cached data here
+    if(.not. tUseCaches) call fill_adi_caches
+    ! First, get the matrix element
+    if(tHPHF) then
+       h_el = hphf_off_diag_helement(nI,nIRef(:,i),ilut,ilutRefAdi(:,i))
+    else
+       h_el = get_helement(nI,nIRef(:,i),ilut,ilutRefAdi(:,i))
     endif
+    ! Only proceed if the determinants are coupled
+    if(abs(h_el) < eps) return
+
+    ! Add tmp = Hij cj to the caches
+#ifdef __CMPLX
+    tmp = h_el * cmplx(signsRef(min_part_type(run),i),&
+         signsRef(max_part_type(run),i),dp)
+#else
+    tmp = h_el * signsRef(run,i)
+#endif
+    signedCache = signedCache + tmp
+    unsignedCache = unsignedCache + abs(tmp)
   end subroutine update_coherence_check
 
 !------------------------------------------------------------------------------------------!
@@ -846,7 +837,7 @@ contains
        ! Of course, only singles/doubles of ilut can contribute
        if(exLevel < 3) then
           call decode_bit_det(nI, ilut)
-          call update_coherence_check(exLevel, ilut, nI, iRef, run, &
+          call update_coherence_check(ilut, nI, iRef, run, &
                signedCache, unsignedCache)
        endif
     enddo
@@ -1075,7 +1066,7 @@ contains
       use hash, only: init_hash_table
       implicit none
       
-      htBlock = 5000*HashLengthFrac*nRefs
+      htBlock = 50000*HashLengthFrac*nRefs
       allocate(SIHash(htBlock))
       call init_hash_table(SIHash)
     end subroutine setup_SIHash
