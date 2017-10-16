@@ -2008,14 +2008,14 @@ r_loop: do while(.not.tStoreDet)
 
             if (tPrintInitiators) then
                is_init = .false.
-               call decode_bit_det(nI, det)
                do k = 1, inum_runs
                   ! Testing with the TestInititator routine to prevent code
                   ! duplication
                   is_init_tmp = test_flag(det,get_initiator_flag_by_run(k))
-                  is_init = is_init .or. TestInitiator(det,nI,is_init_tmp,real_sgn,k)
+                  is_init = is_init .or. TestInitiator(det,is_init_tmp,k)
                enddo
                if(is_init) then
+                  call decode_bit_det(nI, det)
                   ex_level = FindBitExcitLevel(ilutRef(:,1), det, nel)
                   nopen = count_open_orbs(det)
                   if(tHPHF)then

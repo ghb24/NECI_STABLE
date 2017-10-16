@@ -2491,8 +2491,20 @@ contains
                 endif                   
 
              case("SECONDARY-SUPERINITIATORS")
+                ! Enable superinitiators by coherence criteria
                 superInitiatorLevel = 1
+                ! As the secondary SIs are now self-consistently determined, it is
+                ! highly unlikely that a level above 1 will do anything more
                 if(item < nItems) call readi(superInitiatorLevel)
+
+             case("INITIATOR-COHERENCE-THRESHOLD")
+                ! Set the minimal coherence parameter for superinitiator-related
+                ! initiators
+                call readf(coherenceThreshold)
+
+             case("SUPERINITIATOR-COHERENCE-THRESHOLD")
+                ! set the minimal coherence parameter for superinitiators
+                call readf(SIThreshold)
 
             case default
                 call report("Keyword "                                &

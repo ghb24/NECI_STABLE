@@ -68,6 +68,11 @@ module fcimc_helper
        module procedure CalcParentFlag_det
     end interface CalcParentFlag
 
+    interface TestInitiator
+       module procedure TestInitiator_ilut
+       module procedure TestInitiator_explicit
+    end interface TestInitiator
+
 contains
             
     function TestMCExit(Iter,RDMSamplingIter) result(ExitCriterion)
@@ -696,15 +701,16 @@ contains
       implicit none
       integer, intent(in) :: j
       integer, intent(out) :: parent_flags
-      integer :: nI(nel)
+      integer :: nI(nel), exLvl
 
       ! If we do not supply nI externally, get it now.
       ! This routine mainly exists for compatibility
       call decode_bit_det(nI, CurrentDets(:,j))
-      call CalcParentFlag_det(j, nI, parent_flags)
+      exLvl = FindBitExcitLevel(ilutRef(:,1), CurrentDets(:,j))
+      call CalcParentFlag_det(j, nI, exLvl, parent_flags)
     end subroutine CalcParentFlag_normal
 
-    subroutine CalcParentFlag_det(j, nI,  parent_flags)
+    subroutine CalcParentFlag_det(j, nI,  exLvl, parent_flags)
 
         ! In the CurrentDets array, the flag at NIfTot refers to whether that
         ! determinant *itself* is an initiator or not. We need to decide if 
@@ -715,7 +721,7 @@ contains
         ! the SpawnedDets array and refers to whether or not the walkers 
         ! *parent* is an initiator or not.
 
-        integer, intent(in) :: j, nI(nel)
+        integer, intent(in) :: j, nI(nel), exLvl
         integer, intent(out) :: parent_flags
         real(dp) :: CurrentSign(lenof_sign)
         integer :: run, nopen
@@ -738,8 +744,8 @@ contains
 
                 ! Should this particle be considered to be an initiator
                 ! for spawning purposes.
-                parent_init = TestInitiator(CurrentDets(:,j), nI, parent_init, &
-                                            CurrentSign, run)
+                parent_init = TestInitiator_explicit(CurrentDets(:,j), nI, parent_init, &
+                                            CurrentSign, exLvl, run)
 
                 ! Update counters as required.
                 if (parent_init) then
@@ -777,10 +783,26 @@ contains
       end subroutine CalcParentFlag_det
 
 
-    function TestInitiator(ilut, nI, is_init, sgn, run) result(initiator)
-      use adi_initiators, only: check_static_init
-      use adi_references, only: check_superinitiator
-      implicit none
+      function TestInitiator_ilut(ilut, is_init, run) result(initiator)
+        implicit none
+        integer(n_int), intent(inout) :: ilut(0:NIfTot)
+        integer, intent(in) :: run
+        logical, intent(in) :: is_init
+        integer :: nI(nel), exLvl
+        real(dp) :: sgn(lenof_sign)
+        logical :: initiator
+
+        exLvl = FindBitExcitLevel(ilut, ilutRef(:,run))
+        call decode_bit_det(nI,ilut)
+        call extract_sign(ilut, sgn)
+        initiator = TestInitiator_explicit(ilut, nI, is_init, sgn, exLvl, run)
+        
+      end function TestInitiator_ilut
+
+      function TestInitiator_explicit(ilut, nI, is_init, sgn, exLvl, run) result(initiator)
+        use adi_initiators, only: check_static_init
+        use adi_references, only: check_superinitiator
+        implicit none
         ! For a given particle (with its given particle type), should it
         ! be considered as an initiator for the purposes of spawning.
         !
@@ -793,7 +815,7 @@ contains
 
         integer(n_int), intent(inout) :: ilut(0:NIfTot)
         logical, intent(in) :: is_init
-        integer, intent(in) :: run, nI(nel)
+        integer, intent(in) :: run, nI(nel), exLvl
         real(dp), intent(in) :: sgn(lenof_sign)
 
         ! the following value is either a single sgn or an aggregate
@@ -805,46 +827,46 @@ contains
         initiator = is_init
 
         tot_sgn = mag_of_run(sgn,run)
-        
+
         ! If we are allowed to unset the initiator flag
-        staticInit = check_static_init(ilut, nI, sgn, run)
+        staticInit = check_static_init(ilut, nI, sgn, exLvl, run)
         ! reference-caused initiators also have the initiator flag
         if(staticInit) initiator = .true.
 
         if (.not. initiator) then
 
-            ! Determinant wasn't previously initiator 
-            ! - want to test if it has now got a large enough 
-            !   population to become an initiator.
-            if (tot_sgn > InitiatorWalkNo) then
-                initiator = .true.
-                NoAddedInitiators = NoAddedInitiators + 1_int64
-            endif
+           ! Determinant wasn't previously initiator 
+           ! - want to test if it has now got a large enough 
+           !   population to become an initiator.
+           if (tot_sgn > InitiatorWalkNo) then
+              initiator = .true.
+              NoAddedInitiators = NoAddedInitiators + 1_int64
+           endif
 
         else
 
-            ! The determinants become 
-            ! non-initiators again if their population falls below 
-            ! n_add (this is on by default).
+           ! The determinants become 
+           ! non-initiators again if their population falls below 
+           ! n_add (this is on by default).
 
            ! All of the references stay initiators
            if(DetBitEQ(ilut, ilutRef(:,run),NIfDBO)) staticInit = .true.
            call check_superinitiator(ilut, nI, staticInit)
-            ! If det. is the HF det, or it
-            ! is in the deterministic space, then it must remain an initiator.
-            if ( .not. (staticInit) &
+           ! If det. is the HF det, or it
+           ! is in the deterministic space, then it must remain an initiator.
+           if ( .not. (staticInit) &
                 .and. .not. test_flag(ilut, flag_deterministic) &
                 .and. (tot_sgn <= InitiatorWalkNo )) then
-                ! Population has fallen too low. Initiator status 
-                ! removed.
-                initiator = .false.
-                NoAddedInitiators = NoAddedInitiators - 1_int64
-            endif
+              ! Population has fallen too low. Initiator status 
+              ! removed.
+              initiator = .false.
+              NoAddedInitiators = NoAddedInitiators - 1_int64
+           endif
 
         end if
 
-    end function TestInitiator
-
+      end function TestInitiator_explicit
+      
 
 
     subroutine rezero_iter_stats_each_iter(iter_data, rdm_defs)

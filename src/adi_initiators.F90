@@ -9,13 +9,13 @@ contains
 
   !------------------------------------------------------------------------------------------!
 
-  function check_static_init(ilut, nI, sgn, run) result(staticInit)
+  function check_static_init(ilut, nI, sgn, ex, run) result(staticInit)
     use bit_rep_data, only: flag_adi_checked, flag_static_init
     use adi_data, only: tReferenceChanged
     implicit none
     integer(n_int), intent(inout) :: ilut(0:NIfTot)
     real(dp), intent(in) :: sgn(lenof_sign)
-    integer, intent(in) :: run, nI(nel)
+    integer, intent(in) ::  nI(nel), ex, run
     logical :: staticInit
 
     staticInit = .false.
@@ -24,7 +24,7 @@ contains
        ! Only check for the adi flags if this was not done before, or
        ! if the superinitiator pool changed
        if(.not. test_flag(ilut, flag_adi_checked) .or. tReferenceChanged) &
-          call set_adi_flags(ilut, nI, sgn)
+          call set_adi_flags(ilut, nI, sgn, ex)
           ! Check if the sign of the determinant changed, if yes, re-evaluate the adi flags
           ! only for this run
           ! suspend the sign change check for now
@@ -42,18 +42,18 @@ contains
 
   !------------------------------------------------------------------------------------------!
 
-  subroutine set_adi_flags(ilut, nI, sgn)
+  subroutine set_adi_flags(ilut, nI, sgn, ex)
     use bit_rep_data, only: flag_adi_checked
     ! This sets the adi flags (flag_adi_checked and flag_static_init) 
     ! for a given ilut
     implicit none
     integer(n_int), intent(inout) :: ilut(0:NIfTot)
     real(dp), intent(in) :: sgn(lenof_sign)
-    integer, intent(in) :: nI(nel)
+    integer, intent(in) :: nI(nel), ex
     integer :: ir
 
     do ir = 1, inum_runs
-       call set_adi_flags_run(ilut, nI, sgn, ir)
+       call set_adi_flags_run(ilut, nI, sgn, ex, ir)
     end do
 
     ! Now, the adi criterium was checked
@@ -63,17 +63,17 @@ contains
 
   !------------------------------------------------------------------------------------------!
 
-  subroutine set_adi_flags_run(ilut, nI, sgn, ir)
+  subroutine set_adi_flags_run(ilut, nI, sgn, ex, ir)
     use bit_rep_data, only: flag_static_init
     ! This sets the adi flags for a given run ir
     implicit none
     integer(n_int), intent(inout) :: ilut(0:NIfTot)
     real(dp), intent(in) :: sgn(lenof_sign)
-    integer, intent(in) :: ir, nI(nel)
+    integer, intent(in) :: ir, nI(nel), ex
     logical :: staticInit
 
     ! Check if its a static initiator on run ir
-    staticInit = adi_criterium(ilut, nI, sgn, ir)
+    staticInit = adi_criterium(ilut, nI, sgn, ex, ir)
     if(staticInit) then
        ! if so, set the flag
        call set_flag(ilut, flag_static_init(ir))
@@ -86,19 +86,20 @@ contains
 
   !------------------------------------------------------------------------------------------!
 
-  function adi_criterium(ilut, nI, sgn, run) result(staticInit)
+  function adi_criterium(ilut, nI, sgn, ex, run) result(staticInit)
     ! This is the adi-initiator criterium expansion
     ! I expect it to grow further
     use adi_references, only: giovannis_check, initialize_c_caches,update_coherence_check, &
          eval_coherence
-    use adi_data, only: tInitiatorsSubspace, tWeakCoherentDoubles, tAvCoherentDoubles
+    use adi_data, only: tInitiatorsSubspace, tWeakCoherentDoubles, tAvCoherentDoubles, &
+         tUseCaches, exLvlRef
     use DetBitOps, only: FindBitExcitLevel
     implicit none
     integer(n_int), intent(in) :: ilut(0:NIfTot)
     real(dp), intent(in) :: sgn(lenof_sign)
-    integer, intent(in) :: run, nI(nel)
+    integer, intent(in) :: run, nI(nel), ex
     integer :: exLevel, i
-    logical :: staticInit, tCCache
+    logical :: staticInit, tCCache, tCouplingPossible
     ! cache for the weak coherence check
     HElement_t(dp) :: signedCache
     real(dp) :: unsignedCache
@@ -116,25 +117,32 @@ contains
     if(tCCache) call initialize_c_caches(signedCache, unsignedCache)
     ! Important : Only compare to the already initialized reference
     do i = 1, nRefs
+       ! First, check if the excitation level differs by more than 2
+       tCouplingPossible = .true.
+       if(tUseCaches) then
+          if(abs(ex - exLvlRef(i)) > 2) tCouplingPossible = .false.
+       endif
        ! TODO: Check if i marks a superinitiator for the current run
-       exLevel = FindBitExcitLevel(ilutRefAdi(:,i),ilut)
-       ! We only need to do this if the excitation level is below 3
-       if(exLevel < 3) then
-          ! Check if we are sign-coherent if this is desired
-          if(unset_incoherent_initiator(exLevel, ilut, nI, sgn, i, staticInit, run)) &
+       if(tCouplingPossible) then
+          exLevel = FindBitExcitLevel(ilutRefAdi(:,i),ilut)
+          ! We only need to do this if the excitation level is below 3
+          if(exLevel < 3) then
+             ! Check if we are sign-coherent if this is desired
+             if(unset_incoherent_initiator(exLevel, ilut, nI, sgn, i, staticInit, run)) &
                                 ! If we find the determinant to be incoherent, we do not apply
                                 ! the ADI rules and instead 
-               return
+                  return
 
-          if(tCCache)&
-               call update_coherence_check(exLevel, ilut, nI, i, run, &
-               signedCache, unsignedCache)
+             if(tCCache)&
+                  call update_coherence_check(exLevel, ilut, nI, i, run, &
+                  signedCache, unsignedCache)
 
-          ! Set the doubles to initiators
-          call set_double_initiator(exLevel, staticInit)
+             ! Set the doubles to initiators
+             call set_double_initiator(exLevel, staticInit)
 
-          ! If desired, also set singles as initiators
-          call set_single_initiator(exLevel, staticInit)
+             ! If desired, also set singles as initiators
+             call set_single_initiator(exLevel, staticInit)
+          endif
        endif
     enddo
 

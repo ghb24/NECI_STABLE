@@ -4,7 +4,7 @@ use Parallel_neci
 use FciMCData, only: ilutRef
 use adi_data, only: ilutRefAdi, nRefs, nIRef, signsRef, nRefsSings, nRefsDoubs, &
      nTZero, SIHash, tAdiActive, tSetupSIs, NoTypeN, superInitiatorLevel, tSetupSIs, &
-     tReferenceChanged, SIThreshold
+     tReferenceChanged, SIThreshold, tUseCaches, nIRef, signsRef, exLvlRef
 use CalcData, only: InitiatorWalkNo
 use bit_rep_data, only: niftot, nifdbo, extract_sign
 use bit_reps, only: decode_bit_det
@@ -82,6 +82,8 @@ contains
        ! If we also used t-n (n>0) references (now called superinitiators), add them now
        if(superInitiatorLevel > 0) call add_derived_refs()
 
+       call fill_adi_caches()
+
        tSetupSIs = .true.
        tReferenceChanged = .true.
     endif
@@ -97,7 +99,7 @@ contains
     integer, intent(out) :: nRead
     character(255), intent(in) :: filename
     logical, intent(in) :: tPopPresent
-    integer :: iunit, i, run, stat
+    integer :: iunit, i, stat
     integer(n_int) :: tmp(0:NIfTot)
     logical :: exists
     character(*), parameter :: this_routine = "read_in_refs"
@@ -193,7 +195,7 @@ contains
       use sort_mod, only: sort
       implicit none
       integer(n_int), intent(inout) :: mpi_buf(0:NIfTot,nRefs)
-      integer :: i, k, run
+      integer :: i, k
       integer(n_int) :: tmp_ilut(0:NIfTot)
       real(dp) :: minOcc, tmp_sgn(lenof_sign)
       logical :: get_sign
@@ -291,7 +293,7 @@ contains
       implicit none
       integer(n_int), intent(in) :: ilut(0:NIfTot)
       real(dp) :: temp_sgn(lenof_sign)
-      integer :: j, exLevel
+      integer :: j
       ! First, print the determinant (bitwise)
       call WriteDetBit(iout,ilut,.false.)
       ! Then, the excitation level
@@ -331,7 +333,7 @@ contains
       use Parallel_neci, only: MPISumAll
       implicit none
       integer, intent(in) :: iRef
-      integer:: nI(nel), hash_val, index, run
+      integer:: nI(nel), hash_val, index
       real(dp) :: tmp_sgn(lenof_sign), mpi_sgn(lenof_sign)
       logical :: tSuccess      
       
@@ -360,7 +362,7 @@ contains
       ! This is a bit cumbersome to implement, as the spinflipped version might or
       ! might not be already in the references
       implicit none
-      integer :: iRef, jRef,  cRef, run
+      integer :: iRef, jRef,  cRef
       integer(n_int) :: ilutRef_new(0:NIfTot,2*nRefs), tmp_ilut(0:NIfTot)
       logical :: missing
       
@@ -398,7 +400,7 @@ contains
       integer, intent(in) :: prodLvl
       integer(n_int) :: tmp_ilut(0:NIfTot)
       integer(n_int), allocatable :: prod_buffer(:,:)
-      integer :: nProdsMax, nProds, i, run, cLvl
+      integer :: nProdsMax, nProds, i, cLvl
       logical :: t_is_valid
 
       ! Get the maximum number of product excitations
@@ -542,7 +544,7 @@ contains
       integer, intent(in) :: listSize
       integer(n_int), intent(in) :: list(0:NIfTot,listSize)
       integer(n_int), allocatable :: mpi_buf(:,:), buffer(:,:)
-      integer :: nRCOld, i, nNew, all_refs_found, ierr, index
+      integer :: nRCOld, i, nNew, all_refs_found, ierr
       integer(MPIArg) :: refs_found_per_proc(0:nProcessors-1), refs_displs(0:nProcessors-1)
       logical :: tSuccess
       integer(MPIArg) :: mpi_refs_found
@@ -594,7 +596,6 @@ contains
       ! We pass the sign as an extra argument to prevent redundant extraction
       real(dp), intent(in) :: ilut_sign(lenof_sign)
       integer, intent(in) :: run
-      integer :: iRef, exLevel, nI(nel)
       real(dp) :: xi
       logical :: is_coherent
       logical :: is_tone
@@ -748,24 +749,29 @@ contains
     HElement_t(dp), intent(inout) :: signedCache
     real(dp), intent(inout) :: unsignedCache
     HElement_t(dp) :: h_el, tmp
-    integer :: nIRef(nel)
+    integer :: nJRef(nel)
     real(dp) :: sgnRef(lenof_sign)
 
     ! TODO: Only if ilutRefAdi(:,i) is a SI on this run
 
     ! Only those determinants are coupled
     if(exLevel < 3) then
-       call decode_bit_det(nIRef, ilutRefAdi(:,i))
+       if(tUseCaches) then
+          nJRef = nIRef(:,i)
+          sgnRef = signsRef(:,i)
+       else
+          call decode_bit_det(nJRef, ilutRefAdi(:,i))
+       endif
        ! First, get the matrix element
        if(tHPHF) then
-          h_el = hphf_off_diag_helement(nI,nIRef,ilut,ilutRefAdi(:,i))
+          h_el = hphf_off_diag_helement(nI,nJRef,ilut,ilutRefAdi(:,i))
        else
-          h_el = get_helement(nI,nIRef,ilut,ilutRefAdi(:,i))
+          h_el = get_helement(nI,nJRef,ilut,ilutRefAdi(:,i))
        endif
        ! Only proceed if the determinants are coupled
        if(abs(h_el) < eps) return
        
-       call extract_sign(ilutRefAdi(:,i), sgnRef)
+       if(.not. tUseCaches) call extract_sign(ilutRefAdi(:,i), sgnRef)
 ! Add tmp = Hij cj to the caches
 #ifdef __CMPLX
        tmp = h_el * cmplx(sgnRef(min_part_type(run)),&
@@ -854,14 +860,54 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
+  subroutine fill_adi_caches()
+    implicit none
+    integer :: iRef
+
+    call allocate_adi_caches()
+    
+    do iRef = 1, nRefs
+       call decode_bit_det(nIRef(:,iRef),ilutRefAdi(:,iRef))
+       call extract_sign(ilutRefAdi(:,iRef), signsRef(:,iRef))
+       exLvlRef(iRef) = FindBitExcitLevel(ilutRef(:,1), ilutRefAdi(:,iRef))
+    end do
+
+    tUseCaches = .true.
+  end subroutine fill_adi_caches
+!------------------------------------------------------------------------------------------!
+
+  subroutine allocate_adi_caches()
+    implicit none
+
+    call deallocate_adi_caches()
+
+    allocate(nIRef(nel, nRefs))
+    allocate(signsRef(lenof_sign, nRefs))
+    allocate(exLvlRef(nRefs))
+  end subroutine allocate_adi_caches
+
+!------------------------------------------------------------------------------------------!
+
+  subroutine deallocate_adi_caches()
+    implicit none
+    
+    if(allocated(nIRef)) deallocate(nIRef)
+    if(allocated(signsRef)) deallocate(signsRef)
+    if(allocated(exLvlRef)) deallocate(exLvlRef)
+  end subroutine deallocate_adi_caches
+
+!------------------------------------------------------------------------------------------!
+
     subroutine resize_ilutRefAdi(newSize)
       implicit none
       integer, intent(in) :: newSize
 
       ! see resize_ilut_list for the implementation
-      call resize_ilut_list(ilutRefAdi, nRefs, newSize)
+      call resize_ilut_list(ilutRefAdi, nRefs, newSize)      
       ! The new number of references
       nRefs = newSize
+
+      tUseCaches = .false.
          
     end subroutine resize_ilutRefAdi
 
@@ -907,15 +953,9 @@ contains
       if(allocated(ilutRefAdi)) deallocate(ilutRefAdi)
       allocate(ilutRefAdi(0:NIfTot,size))
       ilutRefAdi = 0_n_int
-
-      ! and then the corresponding chaches for signs and determinants
-      if(allocated(nIRef)) deallocate(nIRef)
-      allocate(nIRef(nel,size))
-      
-      if(allocated(signsRef)) deallocate(signsRef)
-      allocate(signsRef(lenof_sign,size))
       
       tSetupSIs = .false.
+      tUseCaches = .false.
       
     end subroutine reallocate_ilutRefAdi
 
@@ -1031,10 +1071,11 @@ contains
 
     subroutine setup_SIHash()
       use adi_data, only:  htBlock
+      use CalcData, only: HashLengthFrac
       use hash, only: init_hash_table
       implicit none
       
-      htBlock = 5000
+      htBlock = 5000*HashLenghtFrac*nRefs
       allocate(SIHash(htBlock))
       call init_hash_table(SIHash)
     end subroutine setup_SIHash
@@ -1042,10 +1083,10 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine remove_superinitiator(iRef)
-      use hash, only: remove_hash_table_entry
+      ! calling this once changes the indices of the entries, the hash-table
+      ! is hence invalidated
       implicit none
       integer, intent(in) :: iRef
-      integer :: nI(nel)
       integer(n_int) :: tmp(0:NIfTot)
 
       ! then, shrink ilutRefAdi
@@ -1084,7 +1125,7 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine assign_SIHash_TZero()
-      use hash, only: clear_hash_table
+      use hash, only: clear_hash_table, fill_in_hash_table
       implicit none
       integer :: iRef
       logical :: tSuccess
@@ -1144,5 +1185,17 @@ contains
       init = (nOrbs == g_markers_num)
 
     end function giovannis_check
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine clean_adi()
+      use adi_data, only: g_markers
+      implicit none
+      
+      call deallocate_adi_caches()
+      if(associated(SIHash)) deallocate(SIHash)
+      if(allocated(ilutRefAdi)) deallocate(ilutRefAdi)
+      if(allocated(g_markers)) deallocate(g_markers)
+    end subroutine clean_adi
     
 end module adi_references

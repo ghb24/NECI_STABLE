@@ -13,12 +13,12 @@ module adi_data
   integer(n_int), allocatable :: ilutRefAdi(:,:)
   ! Store the signs and determinants separately, so they dont need to be 
   ! reconstructed on each coherence check
-  integer, allocatable :: nIRef(:,:)
+  integer, allocatable :: nIRef(:,:), exLvlRef(:)
   real(dp), allocatable :: signsRef(:,:)
   integer :: nIncoherentDets, nCoherentDoubles, nCoherentSingles, &
        AllCoherentSingles, AllCoherentDoubles, AllIncoherentDets, htBlock
   type(ll_node), pointer :: SIHash(:)
-  logical :: tReferenceChanged, tSetupSIs
+  logical :: tReferenceChanged, tSetupSIs, tUseCaches
 
   ! Flags for the alldoublesinitiators feature
   logical :: tAllDoubsInitiators, tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits
