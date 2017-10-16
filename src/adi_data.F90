@@ -33,4 +33,6 @@ module adi_data
   integer :: g_markers_num
   logical :: tInitiatorsSubspace
 
+  integer :: nExCheckFails, nExChecks, allNExCheckFails, allNExChecks
+
 end module adi_data

@@ -276,7 +276,7 @@ contains
       logical, optional :: legend
       integer :: i
       
-      if(iProcIndex==root) then
+      if(iProcIndex==root .or. .true.) then
          write(iout,*) title
          if(present(legend)) write(iout,"(4A25)") &
               ! TODO: Adapt legend for multiple runs
@@ -1071,11 +1071,11 @@ contains
 
     subroutine setup_SIHash()
       use adi_data, only:  htBlock
-      use CalcData, only: HashLengthFrac
+      use FciMCData, only: HashLengthFrac
       use hash, only: init_hash_table
       implicit none
       
-      htBlock = 5000*HashLenghtFrac*nRefs
+      htBlock = 5000*HashLengthFrac*nRefs
       allocate(SIHash(htBlock))
       call init_hash_table(SIHash)
     end subroutine setup_SIHash

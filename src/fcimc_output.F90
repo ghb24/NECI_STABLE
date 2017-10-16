@@ -26,7 +26,7 @@ module fcimc_output
     use fcimc_helper, only: LanczosFindGroundE
     use Determinants, only: write_det
     use adi_data, only: AllCoherentSingles, AllCoherentDoubles, AllIncoherentDets, nRefs, &
-         ilutRefAdi, tAdiActive
+         ilutRefAdi, tAdiActive, allNExChecks, allNExCheckFails, nExChecks, nExCheckFails
     use Parallel_neci
     use FciMCData
     use constants
@@ -1356,6 +1356,10 @@ contains
                 call print_reference_notification(1,nRefs,"Used Superinitiators",.true.)
                 write(iout,*) "Number of superinitiators", nRefs
             end if
+            
+            call MPISumAll(nExChecks,allNExChecks)
+            call MPISumAll(nExCheckFails, allNExCheckFails)
+            write(iout,*) "SI check ratio", 1.0-real(allNExCheckFails)/real(nExChecks)
 
             write(iout,*)
             write(iout,'("Input DEFINEDET line (includes frozen orbs):")')

@@ -1,5 +1,6 @@
 module adi_initiators
-  use adi_data, only: ilutRefAdi, nRefs, tAllDoubsInitiators, tAllSingsInitiators, tAdiActive
+  use adi_data, only: ilutRefAdi, nRefs, tAllDoubsInitiators, tAllSingsInitiators, tAdiActive, &
+       nExChecks, nExCheckFails
   use bit_rep_data, only: test_flag, NIfTot, extract_sign
   use bit_reps, only: set_flag, clr_flag, decode_bit_det
   use constants, only: lenof_sign, n_int, dp, inum_runs, eps
@@ -123,6 +124,7 @@ contains
           if(abs(ex - exLvlRef(i)) > 2) tCouplingPossible = .false.
        endif
        ! TODO: Check if i marks a superinitiator for the current run
+       nExChecks = nExChecks + 1
        if(tCouplingPossible) then
           exLevel = FindBitExcitLevel(ilutRefAdi(:,i),ilut)
           ! We only need to do this if the excitation level is below 3
@@ -143,6 +145,8 @@ contains
              ! If desired, also set singles as initiators
              call set_single_initiator(exLevel, staticInit)
           endif
+       else
+          nExCheckFails = nExCheckFails + 1
        endif
     enddo
 

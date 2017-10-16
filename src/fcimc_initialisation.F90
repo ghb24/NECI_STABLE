@@ -37,7 +37,8 @@ module fcimc_initialisation
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, &
                         t_back_spawn_flex, back_spawn_delay
-    use adi_data, only: g_markers, tReferenceChanged, tInitiatorsSubspace, tAdiActive
+    use adi_data, only: g_markers, tReferenceChanged, tInitiatorsSubspace, tAdiActive, &
+         nExChecks, nExCheckFails
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -858,6 +859,9 @@ contains
         ! Initialise the fciqmc counters
         iter_data_fciqmc%update_growth = 0.0_dp
         iter_data_fciqmc%update_iters = 0
+
+        nExChecks = 0
+        nExCheckFails = 0
 
 !            if (tReltvy) then
 !                ! write out the column headings for the MSWALKERCOUNTS
