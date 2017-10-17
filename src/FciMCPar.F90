@@ -17,7 +17,8 @@ module FciMCParMod
                         t_back_spawn_flex, t_back_spawn_flex_option, &
                         t_back_spawn_option
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
-                        tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged
+                        tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
+                        SIUpdateInterval
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, tOldRDMs, &
@@ -335,6 +336,13 @@ module FciMCParMod
                 .not. tSemiStochastic .and. .not. tFillingStochRDMOnFly) then
                 call adjust_load_balance(iter_data_fciqmc)
             end if
+
+            if(SIUpdateInterval > 0) then
+               ! Regular update of the superinitiators. Use with care as it 
+               ! is still rather expensive if secondary superinitiators are used
+               if(mod(iter,SIUpdateInterval) == 0 .and. all(.not. &
+                    tSinglePartPhase)) call setup_reference_space(.true.)
+            endif
 
             if (mod(Iter, StepsSft) == 0) then
 

@@ -23,7 +23,7 @@ module adi_data
   ! Flags for the alldoublesinitiators feature
   logical :: tAllDoubsInitiators, tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits
   logical :: tSetDelayAllSingsInits, tSetDelayAllDoubsInits, tDelayGetRefs
-  integer :: allDoubsInitsDelay, nExProd, superInitiatorLevel
+  integer :: allDoubsInitsDelay, nExProd, superInitiatorLevel, SIUpdateInterval
   logical :: tAdiActive, tStrictCoherentDoubles, tWeakCoherentDoubles, tAvCoherentDoubles
   real(dp) :: NoTypeN, coherenceThreshold, SIThreshold
   logical :: tReadRefs, tProductReferences, tAccessibleDoubles, tAccessibleSingles

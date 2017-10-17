@@ -30,7 +30,7 @@ MODULE Calc
                          alloc_popsfile_dets, tSearchTauOption 
     use adi_data, only: nRefsDoubs, nRefsSings, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
          tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits, tSetDelayAllDoubsInits, &
-         tSetDelayAllSingsInits, nExProd, NoTypeN, tAdiActive, tReadRefs, &
+         tSetDelayAllSingsInits, nExProd, NoTypeN, tAdiActive, tReadRefs, SIUpdateInterval, &
          tProductReferences, tAccessibleDoubles, tAccessibleSingles, tInitiatorsSubspace, &
          tReferenceChanged, superInitiatorLevel, allDoubsInitsDelay, tStrictCoherentDoubles, &
          tWeakCoherentDoubles, tAvCoherentDoubles, coherenceThreshold, SIThreshold
@@ -350,6 +350,7 @@ contains
           superInitiatorLevel = 0
           coherenceThreshold = 0.5
           SIThreshold = 0.95
+          SIUpdateInterval = 0
           tAdiActive = .false.
 
           ! And disable the initiators subspace
@@ -2447,14 +2448,6 @@ contains
                 ! Also add all excitation products of references to the reference space
                 tProductReferences = .true.
 
-             case("ACCESSIBLE-DOUBLES")
-                ! Allow all determinants to spawn onto the doubles of the references
-                tAccessibleDoubles = .true.
-
-             case("ACCESSIBLE-SINGLES")
-                ! Allow all determinants to spawn onto the singles of the references
-                tAccessibleSingles = .true.
-
              case("INITIATORS-SUBSPACE")
                 ! Use Giovannis check to add initiators
                 tInitiatorsSubspace = .true.
@@ -2482,7 +2475,7 @@ contains
                       tAvCoherentDoubles = .true.
                    case default
                       ! default is WEAK
-                      tWeakCoherentDoubles = .true.
+                      tAvCoherentDoubles = .true.
                       tWeakCoherentDoubles = .true.
                    end select
                 else
@@ -2496,6 +2489,11 @@ contains
                 ! As the secondary SIs are now self-consistently determined, it is
                 ! highly unlikely that a level above 1 will do anything more
                 if(item < nItems) call readi(superInitiatorLevel)
+                
+             case("DYNAMIC-SUPERINITIATORS")
+                ! Re-evaluate the superinitiators every SIUpdateInterval steps
+                ! Beware, this can be very expensive
+                call readi(SIUpdateInterval)
 
              case("INITIATOR-COHERENCE-THRESHOLD")
                 ! Set the minimal coherence parameter for superinitiator-related
