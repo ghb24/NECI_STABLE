@@ -144,6 +144,9 @@ contains
 
              ! If desired, also set singles as initiators
              call set_single_initiator(exLevel, staticInit)
+             ! We have to keep looping over the SIs, even if we already have a double, 
+             ! if we want to compute Xi. Else, we can exit if we found a valid double
+             if(staticInit .and. .not. tCCache) exit
           endif
        else
           nExCheckFails = nExCheckFails + 1
