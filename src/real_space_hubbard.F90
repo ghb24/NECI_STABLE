@@ -133,7 +133,7 @@ contains
                 tGenHelWeighted, tGen_4ind_weighted, tGen_4ind_reverse, &
                 tUEGNewGenerator, tGen_4ind_part_exact, tGen_4ind_lin_exact, &
                 tGen_4ind_2, tGen_4ind_2_symmetric, tGen_4ind_unbound, tStoreSpinOrbs, &
-                tReal
+                tReal, tHPHF
         use umatcache, only : tTransGTid
         use OneEInts, only: tcpmdsymtmat, tOneelecdiag
 

@@ -274,6 +274,11 @@ MODULE FciMCData
       real(dp) :: pDoubles, pSingles, pParallel
       real(dp) :: pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2
       integer :: nSingles, nDoubles
+      
+      ! Bath and impurity orbital information
+      integer :: nBath, nImp
+      real(dp) :: pBath
+      
       ! The number of determinants connected to the Hartree-Fock determinant.
       integer :: HFConn
       
