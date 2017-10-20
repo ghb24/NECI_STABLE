@@ -603,14 +603,13 @@ contains
       is_tone = .false.
       is_coherent = .false.
 
+      ! Only consider those determinants with a sufficient population
+      if(mag_of_run(ilut_sign, run) < NoTypeN) return
+
       ! obtain the xi-parameter
       xi = get_sign_op_run(ilut, run) 
       ! and compare it to the superinitiator threshold
-      if(xi> SIThreshold) is_tone = .true.
-
-      if(is_tone) then
-         if(mag_of_run(ilut_sign, run) < NoTypeN) is_tone = .false.
-      endif
+      if(xi > SIThreshold) is_tone = .true.
     end function check_type_n_ref
     
 !------------------------------------------------------------------------------------------!
@@ -1066,7 +1065,7 @@ contains
       use hash, only: init_hash_table
       implicit none
       
-      htBlock = 50000*HashLengthFrac*nRefs
+      htBlock = 5*HashLengthFrac*nRefs
       allocate(SIHash(htBlock))
       call init_hash_table(SIHash)
     end subroutine setup_SIHash
