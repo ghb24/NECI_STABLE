@@ -571,6 +571,7 @@ contains
       ! we need to allocate the buffer to maximum size because adding to the
       ! hashtable requires the target array (here: ilutRefAdi) to have sufficient size
       call resize_ilutRefAdi(nRefs + all_refs_found)
+      ! note that we only need the allocation, the reassignment of nRefs is pointless
       ! First, pick those iluts from list, which are not already present in ilutRefAdi
       do i = 1, all_refs_found
          call add_superinitiator_to_hashtable(mpi_buf(:,i), nRCOld + nNew + 1, tSuccess)
@@ -580,7 +581,7 @@ contains
          endif
       enddo
       ! resize the ilutRefAdi array
-      call resize_ilutRefAdi(nRefs + nNew)
+      call resize_ilutRefAdi(nRCOld + nNew)
       ! and add the new iluts
       ilutRefAdi(:,(nRCOld + 1):(nRCOld + nNew)) = buffer(:,1:nNew)
 
