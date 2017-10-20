@@ -3559,8 +3559,6 @@ contains
            tAdiActive = .true. 
 
       NoTypeN = NoTypeN * InitiatorWalkNo
-      ! initialize the superinitiator hashtable
-      call setup_SIHash()
 
     end subroutine setup_adi
 

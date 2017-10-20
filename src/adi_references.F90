@@ -1066,6 +1066,7 @@ contains
       implicit none
       
       htBlock = 5*HashLengthFrac*nRefs
+      if(associated(SIHash)) deallocate(SIHash)
       allocate(SIHash(htBlock))
       call init_hash_table(SIHash)
     end subroutine setup_SIHash
@@ -1122,7 +1123,8 @@ contains
       character(*), parameter :: this_routine = "assign_SIHash_TZero"
       
       tSuccess = .false.
-      call clear_hash_table(SIHash)
+      ! make sure the hash table has an appropiate size
+      call setup_SIHash()
       do iRef = 1, nRefs
          call add_superinitiator_to_hashtable(ilutRefAdi(:,iRef), iRef, tSuccess)
          ! By construction, there can't be duplicates within the type-0 SIs
