@@ -16,8 +16,8 @@
 module real_space_hubbard
 
     use SystemData, only: t_new_real_space_hubbard, lattice_type, length_x, &
-                          length_y, uhub, nbasis, bhub, t_open_bc_x, &
-                          t_open_bc_y, G1, ecore, nel, nOccAlpha, nOccBeta
+                          length_y, length_z, uhub, nbasis, bhub, t_open_bc_x, &
+                          t_open_bc_y, t_open_bc_z, G1, ecore, nel, nOccAlpha, nOccBeta
     use lattice_mod, only: lattice
     use constants, only: dp, EPS
     use procedure_pointers, only: get_umat_el, generate_excitation
@@ -67,12 +67,12 @@ contains
             ! then i have to construct tmat first 
             call init_tmat() 
             ! and then construct the lattice 
-            lat => lattice(lattice_type, length_x, length_y, .not. t_open_bc_x, &
-                .not. t_open_bc_y)
+            lat => lattice(lattice_type, length_x, length_y, length_z, .not. t_open_bc_x, &
+                .not. t_open_bc_y, .not. t_open_bc_z)
         else 
             ! otherwise i have to do it the other way around 
-            lat => lattice(lattice_type, length_x, length_y, .not. t_open_bc_x, &
-                .not. t_open_bc_y)
+            lat => lattice(lattice_type, length_x, length_y, length_z, .not. t_open_bc_x, &
+                .not. t_open_bc_y, .not. t_open_bc_z)
      
             ! if nbaiss was not yet provided:
             if (nbasis <= 0) then 

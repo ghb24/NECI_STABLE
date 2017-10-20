@@ -113,6 +113,7 @@ module lattice_mod
         ! but not y.. 
         logical :: t_periodic_x = .true. 
         logical :: t_periodic_y = .true. 
+        logical :: t_periodic(3) = .true. 
         ! and i think additionally i want to store which type of lattice 
         ! this is in a string or? so i do not always have to 
         ! use the select type functionality 
@@ -234,6 +235,26 @@ module lattice_mod
 
     end type chain
 
+    type, extends(lattice) :: rectangle 
+        private 
+
+        ! how to encode the length? 
+        integer :: length(2) = -1
+    contains 
+        private 
+
+        procedure, public :: get_length => get_length_rect
+        procedure, public :: is_periodic => is_periodic_rect
+
+!         procedure, public :: get_length_x, get_length_y
+
+        procedure :: set_length => set_length_rect
+        procedure :: calc_nsites => calc_nsites_rect
+        procedure :: initialize_sites => init_sites_rect
+
+
+    end type rectangle
+
     ! can i just extend the chain class to make an impurity chain? 
     ! argh this is annoying without multiple inheritance.. 
     type, extends(aim) :: aim_chain 
@@ -324,28 +345,34 @@ module lattice_mod
     ! abstract type: lattice
     abstract interface
 
-        function get_length_t(this) result(length)
+        function get_length_t(this, dimen) result(length)
             import :: lattice 
             class(lattice) :: this 
+            integer, intent(in), optional :: dimen 
+            ! fix our self to 3 dimensions.. thats not good i know, but 
+            ! atleast it gives us more flexibility
             integer :: length
         end function get_length_t
 
-        subroutine set_length_t(this, length_x, length_y) 
+        subroutine set_length_t(this, length_x, length_y, length_z)
             import :: lattice 
             class(lattice) :: this 
             integer, intent(in) :: length_x, length_y
+            integer, intent(in), optional :: length_z
         end subroutine set_length_t
 
-        function calc_nsites_t(this, length_x, length_y) result(n_sites) 
+        function calc_nsites_t(this, length_x, length_y, length_z) result(n_sites) 
             import :: lattice
             class(lattice) :: this 
             integer, intent(in) :: length_x, length_y
+            integer, intent(in), optional :: length_z
             integer :: n_sites
         end function calc_nsites_t
 
-        logical function is_periodic_t(this) 
+        logical function is_periodic_t(this, dimen) 
             import :: lattice
             class(lattice) :: this 
+            integer, intent(in), optional :: dimen
         end function is_periodic_t
 
         subroutine initialize_sites_t(this) 
@@ -388,7 +415,8 @@ module lattice_mod
     integer, parameter :: DIM_CHAIN = 1, & 
                           DIM_STAR = 1, &
                           N_CONNECT_MAX_CHAIN = 2, &
-                          STAR_LENGTH = 1
+                          STAR_LENGTH = 1, &
+                          DIM_RECT = 2
 
 contains 
 
@@ -506,8 +534,9 @@ contains
 
     end subroutine init_sites_cluster_aim_test
 
-    integer function get_length_aim_star(this) 
+    integer function get_length_aim_star(this, dimen)
         class(aim_star) :: this 
+        integer, intent(in), optional :: dimen
 
         get_length_aim_star = STAR_LENGTH 
 
@@ -573,9 +602,10 @@ contains
 
     end subroutine init_sites_aim_chain
 
-    function calc_nsites_aim(this, length_x, length_y) result(n_sites)
+    function calc_nsites_aim(this, length_x, length_y, length_z) result(n_sites)
         class(aim) :: this
         integer, intent(in) :: length_x, length_y
+        integer, intent(in), optional :: length_z
         integer :: n_sites
         character(*), parameter :: this_routine = "calc_nsites_aim"
 
@@ -731,9 +761,11 @@ contains
     end function get_n_bath
 
     ! for the beginning set the aim periodicity to false all the time! 
-    logical function is_periodic_aim(this) 
+    logical function is_periodic_aim(this, dimen)
         class(aim) :: this 
+        integer, intent(in), optional :: dimen
 
+        ! this function should never get called with dimension input or?
         is_periodic_aim = .false.
 
     end function is_periodic_aim
@@ -927,6 +959,179 @@ contains
 
     end subroutine init_sites_chain
 
+    subroutine init_sites_rect(this)
+        class(rectangle) :: this 
+        character(*), parameter :: this_routine = "init_sites_rect"
+
+        integer :: i, temp_neigh(4), x, y, min_val, max_val, j
+        integer :: temp_array(this%length(1),this%length(2))
+        integer :: down(this%length(1),this%length(2))
+        integer :: up(this%length(1),this%length(2))
+        integer :: left(this%length(1),this%length(2))
+        integer :: right(this%length(1),this%length(2))
+        integer :: unique(4)
+        integer, allocatable :: neigh(:)
+        integer :: sort_array_3(3), sort_array_2(2), sort_array(4)
+
+        ! this is the important routine.. 
+        ! store lattice like that: 
+        ! 1 4 7
+        ! 2 5 8
+        ! 3 6 9
+
+        ASSERT(this%get_nsites() >= 4)
+
+        ! use cshift intrinsic of fortran.. 
+        ! how do i efficiently set that up? 
+        temp_array =  reshape([(i, i = 1, this%get_nsites())], &
+            [this%length(1), this%length(2)])
+
+        up = cshift(temp_array, -1, 1)
+        down = cshift(temp_array, 1, 1)
+        right = cshift(temp_array, 1, 2)
+        left = cshift(temp_array, -1, 2)
+
+        if (this%is_periodic()) then 
+
+            do i = 1, this%get_nsites() 
+                ! create the neighbor list 
+                x = mod(i-1,this%length(2)) + 1
+                y = (i-1)/this%length(1) + 1
+
+                temp_neigh = [up(x,y),down(x,y),left(x,y),right(x,y)]
+
+                neigh = sort_unique(temp_neigh)
+
+                this%sites(i) = site(i, size(neigh), neigh)
+
+                deallocate(neigh)
+
+            end do
+
+        else if (this%is_periodic(1)) then 
+            ! only periodic in x-direction
+            do i = 1, this%get_nsites()
+
+                x = mod(i-1,this%length(1)) + 1
+                y = (i-1)/this%length(1) + 1
+
+                ! now definetly always take the left and right neighbors 
+                ! but up and down if we are not jumping boundaries 
+                if (x  == 1) then 
+                    ! dont take upper neighbor -> just repeat an neighbor, 
+                    ! which will get removed from unique
+                    temp_neigh  = [down(x,y), down(x,y), left(x,y), right(x,y)]
+                else if (x == this%length(1)) then 
+                    temp_neigh  = [up(x,y), up(x,y), left(x,y), right(x,y)]
+
+                else
+                    ! take all
+                    temp_neigh = [up(x,y),down(x,y),left(x,y),right(x,y)]
+                end if
+
+                neigh = sort_unique(temp_neigh)
+
+                this%sites(i) = site(i, size(neigh), neigh)
+
+                deallocate(neigh)
+            end do
+
+        else if (this%is_periodic(2)) then 
+            ! only periodic in the y-direction
+            do i = 1, this%get_nsites()
+
+                x = mod(i-1,this%length(1)) + 1
+                y = (i-1)/this%length(1) + 1
+
+                ! now definetly always take the left and right neighbors 
+                ! but up and down if we are not jumping boundaries 
+                if (y  == 1) then 
+                    ! dont take upper neighbor -> just repeat an neighbor, 
+                    ! which will get removed from unique
+                    temp_neigh  = [up(x,y), down(x,y), right(x,y), right(x,y)]
+                else if (y == this%length(2)) then 
+                    temp_neigh  = [up(x,y), down(x,y), left(x,y), left(x,y)]
+
+                else
+                    ! take all
+                    temp_neigh = [up(x,y),down(x,y),left(x,y),right(x,y)]
+                end if
+
+                neigh = sort_unique(temp_neigh)
+
+                this%sites(i) = site(i, size(neigh), neigh)
+
+                deallocate(neigh)
+            end do
+
+        else 
+            ! non-periodic
+            do i = 1, this%get_nsites()
+
+                x = mod(i-1,this%length(1)) + 1
+                y = (i-1)/this%length(1) + 1
+
+                ! now definetly always take the left and right neighbors 
+                ! but up and down if we are not jumping boundaries 
+                if (x == 1 .and. y  == 1) then 
+                    ! dont take upper neighbor -> just repeat an neighbor, 
+                    ! which will get removed from unique
+                    temp_neigh  = [down(x,y), down(x,y), right(x,y), right(x,y)]
+                else if (y == this%length(2) .and. x == this%length(1)) then 
+                    temp_neigh  = [up(x,y), up(x,y), left(x,y), left(x,y)]
+
+                else if (x == this%length(1) .and. y == 1) then 
+                    temp_neigh = [up(x,y),up(x,y),right(x,y),right(x,y)]
+                else if (y == this%length(2) .and. x == 1) then 
+                    temp_neigh = [down(x,y),down(x,y),left(x,y),left(x,y)]
+
+                else if (x == 1) then 
+                    temp_neigh = [left(x,y), right(x,y), down(x,y),down(x,y)]
+
+                else if (x == this%length(1)) then 
+                    temp_neigh = [left(x,y),right(x,y),up(x,y),up(x,y)]
+
+                else if (y == 1) then 
+                    temp_neigh = [right(x,y),right(x,y),up(x,y),down(x,y)]
+
+                else if (y == this%length(2)) then 
+                    temp_neigh = [left(x,y),left(x,y),up(x,y),down(x,y)]
+
+                else
+                    ! take all
+                    temp_neigh = [up(x,y),down(x,y),left(x,y),right(x,y)]
+                end if
+
+                neigh = sort_unique(temp_neigh)
+
+                this%sites(i) = site(i, size(neigh), neigh)
+
+                deallocate(neigh)
+            end do
+
+        end if
+
+    end subroutine init_sites_rect
+
+    function sort_unique(list) result(output)
+        integer, intent(in) :: list(4)
+        integer, allocatable :: output(:)
+
+        integer :: i, min_val,  max_val, unique(4)
+
+        i = 0 
+        min_val = minval(list) - 1
+        max_val = maxval(list) 
+
+        do while (min_val < max_val) 
+            i = i + 1 
+            min_val = minval(list, mask=list>min_val) 
+            unique(i) = min_val 
+        end do
+        allocate(output(i), source=unique(1:i))
+
+    end function sort_unique
+
     subroutine init_aim(this, length_x, length_y) 
         class(aim) :: this 
         integer, intent(in) :: length_x, length_y
@@ -934,21 +1139,21 @@ contains
 
     end subroutine init_aim
 
-    subroutine init_lattice(this, length_x, length_y, t_periodic_x, t_periodic_y) 
+    subroutine init_lattice(this, length_x, length_y, length_z, & 
+            t_periodic_x, t_periodic_y, t_periodic_z)
         ! and write the first dummy initialize 
         class(lattice) :: this 
-        integer, intent(in) :: length_x, length_y
-        logical, intent(in) :: t_periodic_x, t_periodic_y
+        integer, intent(in) :: length_x, length_y, length_z
+        logical, intent(in) :: t_periodic_x, t_periodic_y, t_periodic_z
         character(*), parameter :: this_routine = "init_lattice"
 
         integer :: n_sites, i
 
-
-        n_sites = this%calc_nsites(length_x, length_y)
+        n_sites = this%calc_nsites(length_x, length_y, length_z)
 
         ! and for the rest i can call general routines:
         call this%set_nsites(n_sites) 
-        call this%set_periodic(t_periodic_x, t_periodic_y)
+        call this%set_periodic(t_periodic_x, t_periodic_y, t_periodic_z)
 
         select type (this) 
 
@@ -960,7 +1165,7 @@ contains
             call this%set_ndim(DIM_CHAIN)
 
             call this%set_length(length_x, length_y)
-            ! if incorrect lenght input it is caught in the calc_nsites above..
+            ! if incorrect length input it is caught in the calc_nsites above..
             if (this%get_length() == 1) then 
                 call this%set_nconnect_max(0)
             else if (this%get_length() == 2 .and. (.not. this%is_periodic())) then 
@@ -970,12 +1175,31 @@ contains
             end if
 
             ! the type specific routine deal with the check of the 
-            ! lenghts! 
+            ! length! 
 
             ! i should not call this set_nsites since this really should 
             ! just imply that it set the variable 
             ! introduce a second routine, which first determines the 
             ! number of sites depending on the lattice type 
+
+        class is (rectangle) 
+
+            call this%set_ndim(DIM_RECT)
+            call this%set_length(length_x, length_y)
+
+            if (this%get_length(1) == 2 .and. this%get_length(2) == 2) then 
+                if (.not. this%is_periodic(1) .and. this%is_periodic(2)) then 
+                    call this%set_nconnect_max(3)
+                else if (.not. this%is_periodic(2) .and. this%is_periodic(1)) then 
+                    call this%set_nconnect_max(3)
+                else if (this%is_periodic()) then 
+                    call this%set_nconnect_max(4)
+                else if (.not. this%is_periodic()) then 
+                    call this%set_nconnect_max(2)
+                end if 
+            else 
+                call this%set_nconnect_max(4)
+            end if 
 
         class is (star) 
             call this%set_ndim(DIM_STAR)
@@ -1119,20 +1343,20 @@ contains
 
         ! the initializer deals with the different types then.. 
 !         call this%initialize(length_x, length_y)
-        call this%initialize(length_x, length_y, .false., .false.)
+        call this%initialize(length_x, length_y, 1, .false., .false., .false.)
 
     end function aim_lattice_constructor
 
-    function lattice_constructor(lat_typ, length_x, length_y, t_periodic_x , &
-            t_periodic_y) result(this)
+    function lattice_constructor(lat_typ, length_x, length_y, length_z, t_periodic_x , &
+            t_periodic_y, t_periodic_z) result(this)
         ! write a general public lattice_constructor for lattices 
         ! the number of inputs are still undecided.. do we always have 
         ! the same number or differing number of inputs? 
         ! i guess, since we will be using global variables which are either 
         ! read in or set as default to init it.. 
         character(*), intent(in) :: lat_typ
-        integer, intent(in) :: length_x, length_y
-        logical, intent(in) :: t_periodic_x, t_periodic_y
+        integer, intent(in) :: length_x, length_y, length_z
+        logical, intent(in) :: t_periodic_x, t_periodic_y, t_periodic_z
         class(lattice), pointer :: this 
         character(*), parameter :: this_routine = "lattice_constructor"
 
@@ -1147,9 +1371,25 @@ contains
 
             allocate(star :: this) 
 
-        case ('aim-chain') 
+!         case ('aim-chain') 
+! 
+!             allocate(aim_chain :: this)
 
-            allocate(aim_chain :: this)
+        case ('square')
+            ! i guess i want to make a seperate case for the tilted 
+            ! square, although just the boundary conditions change, but also 
+            ! the length input changes
+            if (length_x /= length_y) then 
+                call stop_all(this_routine, &
+                    "incorrect length input for square lattice!")
+
+            end if
+
+            allocate(rectangle :: this)
+
+        case('rectangle')
+
+            allocate(rectangle :: this)
 
         case default 
             ! stop here because a incorrect lattice type was given 
@@ -1159,7 +1399,8 @@ contains
         end select 
 
         ! the initializer deals with the different types then.. 
-        call this%initialize(length_x, length_y, t_periodic_x, t_periodic_y)
+        call this%initialize(length_x, length_y, length_z, &
+            t_periodic_x, t_periodic_y, t_periodic_z)
 
     end function lattice_constructor
 
@@ -1405,10 +1646,11 @@ contains
 
     end function get_neighbors_lattice
 
-    function calc_nsites_aim_star(this, length_x, length_y) result(n_sites) 
+    function calc_nsites_aim_star(this, length_x, length_y, length_z) result(n_sites) 
         ! for the star geometry with maybe 
         class(aim_star) :: this 
         integer, intent(in) :: length_x, length_y
+        integer, intent(in), optional :: length_z
         integer :: n_sites
         character(*), parameter :: this_routine = "calc_nsites_aim_star"
 
@@ -1423,19 +1665,20 @@ contains
 
     end function calc_nsites_aim_star 
 
-    function calc_nsites_star(this, length_x, length_y) result(n_sites) 
+    function calc_nsites_star(this, length_x, length_y, length_z) result(n_sites) 
         ! the maximum of the input is used as the n_sites parameter! 
         ! this is the same function as the one for "chain" below.. 
         ! but i cannot use it somehow.. 
         class(star) :: this 
         integer, intent(in) :: length_x, length_y
+        integer, intent(in), optional :: length_z
         integer :: n_sites 
         character(*), parameter :: this_routine = "calc_nsites_star"
 
         if (max(length_x,length_y) < 1 .or. min(length_x, length_y) > 1 .or. & 
             min(length_x,length_y) < 0) then 
             n_sites = -1 
-            call stop_all(this_routine, "something went wrong in lenght input!")
+            call stop_all(this_routine, "something went wrong in length input!")
 
         else 
             n_sites = max(length_x, length_y)
@@ -1445,14 +1688,15 @@ contains
 
     end function calc_nsites_star
 
-    logical function is_periodic_aim_star(this) 
+    logical function is_periodic_aim_star(this, dimen)
         class(aim_star) :: this 
+        integer, intent(in), optional :: dimen
 
         is_periodic_aim_star = .false.
 
     end function is_periodic_aim_star
 
-    function calc_nsites_chain(this, length_x, length_y) result(n_sites) 
+    function calc_nsites_chain(this, length_x, length_y, length_z) result(n_sites) 
         ! i acually do not want to rely on the previous calculated 
         ! length object in the class, since it is easy to recalc from 
         ! here and so i remove some dependencies.. 
@@ -1460,13 +1704,14 @@ contains
         ! since the length equal the number of sites in the chain! 
         class(chain) :: this 
         integer, intent(in) :: length_x, length_y 
+        integer, intent(in), optional :: length_z
         integer :: n_sites 
         character(*), parameter :: this_routine = "calc_nsites_chain" 
 
         if (max(length_x,length_y) < 1 .or. min(length_x, length_y) > 1 .or. & 
             min(length_x,length_y) < 0) then 
             n_sites = -1 
-            call stop_all(this_routine, "something went wrong in lenght input!")
+            call stop_all(this_routine, "something went wrong in length input!")
 
         else 
             n_sites = max(length_x, length_y)
@@ -1474,6 +1719,25 @@ contains
         end if
 
     end function calc_nsites_chain
+
+    function calc_nsites_rect(this, length_x, length_y, length_z) result(n_sites) 
+        class(rectangle) :: this 
+        integer, intent(in) :: length_x, length_y
+        integer, intent(in), optional :: length_z
+        integer :: n_sites
+        character(*), parameter :: this_routine = "calc_nsites_rect"
+
+        if (length_x < 1 .or. length_y < 1) then 
+            print *, "length_x: ", length_x
+            print *, "length_y: ", length_y
+            call stop_all(this_routine, "length input wrong for type rectangle!")
+
+        else 
+            n_sites = length_x * length_y
+
+        end if
+
+    end function calc_nsites_rect
 
     function calc_nsites_lattice(this, length_x, length_y) result(n_sites) 
         class(lattice) :: this 
@@ -1507,9 +1771,10 @@ contains
 
     end subroutine set_length_lattice
 
-    subroutine set_length_aim_star(this, length_x, length_y)
+    subroutine set_length_aim_star(this, length_x, length_y, length_z)
         class(aim_star) :: this 
         integer, intent(in) :: length_x, length_y
+        integer, intent(in), optional :: length_z
         character(*), parameter :: this_routine = "set_length_aim_star"
 
         ! actually the length of a start is not really defined.. 
@@ -1518,9 +1783,10 @@ contains
         call stop_all(this_routine, "length not defined for 'star' geometry!")
     end subroutine set_length_aim_star
 
-    subroutine set_length_star(this, length_x, length_y)
+    subroutine set_length_star(this, length_x, length_y, length_z)
         class(star) :: this 
         integer, intent(in) :: length_x, length_y
+        integer, intent(in), optional :: length_z
         character(*), parameter :: this_routine = "set_length_star"
 
         ! actually the length of a start is not really defined.. 
@@ -1529,9 +1795,10 @@ contains
         call stop_all(this_routine, "length not defined for 'star' geometry!")
     end subroutine set_length_star
 
-    subroutine set_length_chain(this, length_x, length_y) 
+    subroutine set_length_chain(this, length_x, length_y, length_z) 
         class(chain) :: this 
         integer, intent(in) :: length_x, length_y 
+        integer, intent(in), optional :: length_z
         character(*), parameter :: this_routine = "set_length_chain"
 
         ! the input checkin is all done in the calc_nsites routine!
@@ -1539,6 +1806,15 @@ contains
 
     end subroutine set_length_chain
 
+    subroutine set_length_rect(this, length_x, length_y, length_z) 
+        class(rectangle) :: this 
+        integer, intent(in) :: length_x, length_y
+        integer, intent(in), optional :: length_z
+
+        this%length(1) = length_x
+        this%length(2) = length_y
+
+    end subroutine set_length_rect
 
     subroutine set_nsites(this, n_sites) 
         class(lattice) :: this 
@@ -1564,9 +1840,10 @@ contains
 
     end subroutine set_nconnect_max
 
-    subroutine set_periodic(this, t_periodic_x, t_periodic_y) 
+    subroutine set_periodic(this, t_periodic_x, t_periodic_y, t_periodic_z)
         class(lattice) :: this 
         logical, intent(in) :: t_periodic_x, t_periodic_y
+        logical, intent(in), optional :: t_periodic_z
 
         ! how do we decide which periodic flag to take? 
         ! well we just set it like that! the user has to be specific! 
@@ -1581,6 +1858,12 @@ contains
         this%t_periodic_x = t_periodic_x
         this%t_periodic_y = t_periodic_y
 
+        this%t_periodic(1) = t_periodic_x
+        this%t_periodic(2) = t_periodic_y
+        if (present(t_periodic_z)) then 
+            this%t_periodic(3) = t_periodic_z
+        end if
+
     end subroutine set_periodic
 
     integer function get_nconnect_max(this) 
@@ -1592,49 +1875,110 @@ contains
 
     ! the star does not really have a concept of length.. 
     ! so always ouput STAR_LENGTH
-    integer function get_length_star(this)
+    integer function get_length_star(this, dimen)
         class(star) :: this 
+        integer, intent(in), optional:: dimen 
+
         get_length_star = STAR_LENGTH
+
     end function get_length_star
 
-    integer function get_length_chain(this) 
+    integer function get_length_chain(this, dimen)
         class(chain) :: this 
+        integer, intent(in), optional :: dimen
 
-        get_length_chain = this%length
+        if (present(dimen)) then 
+            if (dimen > 1) then 
+                get_length_chain = 1
+            else 
+                get_length_chain = this%length
+            end if
+        else
+            get_length_chain = this%length
+        end if
 
     end function get_length_chain
 
-    integer function get_length_aim_chain(this)
-        class(aim_chain) :: this 
+    integer function get_length_rect(this, dimen)
+        class(rectangle) :: this 
+        integer, intent(in), optional :: dimen 
+        character(*), parameter :: this_routine = "get_length_rect"
 
-        get_length_aim_chain = this%length
+        ASSERT(present(dimen)) 
+        ASSERT(dimen > 0) 
+
+        if (dimen > 2) then 
+            get_length_rect = 1 
+        else 
+            get_length_rect = this%length(dimen)
+        end if
+
+    end function get_length_rect
+
+    integer function get_length_aim_chain(this, dimen)
+        class(aim_chain) :: this 
+        integer, intent(in), optional :: dimen
+
+        if (present(dimen) .and. dimen > 1) then 
+            get_length_aim_chain = 1 
+        else 
+            get_length_aim_chain = this%length
+        end if
 
     end function get_length_aim_chain
 
-    subroutine set_length_aim_chain(this, length_x, length_y) 
+    subroutine set_length_aim_chain(this, length_x, length_y, length_z)
         class(aim_chain) :: this 
         integer, intent(in) :: length_x, length_y
+        integer, intent(in), optional :: length_z
 
-        ! as a definition make the lenght, even for multiple impurity chains 
+        ! as a definition make the length, even for multiple impurity chains 
         ! as bath_sites + 1
         this%length = length_y + 1
 
     end subroutine set_length_aim_chain
 
-    logical function is_periodic_star(this)
+    logical function is_periodic_star(this, dimen)
         ! this is always false.. the star geometry can't be periodic
         class(star) :: this 
+        integer, intent(in), optional :: dimen
+
         is_periodic_star = .false.
+
     end function is_periodic_star
 
-    logical function is_periodic_chain(this)
+    logical function is_periodic_chain(this, dimen)
         class(chain) :: this 
+        integer, intent(in), optional :: dimen
 
+        ! we do not want to deal with two dimensional flags for chains or? 
+        is_periodic_chain = this%t_periodic(1)
         ! the chain is only treated as periodic if both the flags are set 
         ! to be periodic!
-        is_periodic_chain = (this%is_periodic_x() .and. this%is_periodic_y())
+!         is_periodic_chain = (this%is_periodic_x() .and. this%is_periodic_y())
 
     end function is_periodic_chain
+
+    logical function is_periodic_rect(this, dimen) 
+        class(rectangle) :: this
+        integer, intent(in), optional :: dimen 
+        character(*), parameter :: this_routine = "is_periodic_rect"
+
+        ! depending if we want to have a certain periodic flag or 
+        ! a check for full periodicity 
+        if (present(dimen)) then
+            ! we only consider the first 2 dimensions here
+            ASSERT(dimen > 0)
+            ASSERT(dimen <= 3)
+
+            is_periodic_rect = this%t_periodic(dimen)
+
+        else 
+            is_periodic_rect = all(this%t_periodic)
+
+        end if
+
+    end function is_periodic_rect
 
     logical function is_periodic_lattice(this)
         class(lattice) :: this 

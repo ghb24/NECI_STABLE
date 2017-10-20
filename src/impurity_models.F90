@@ -96,7 +96,7 @@ contains
           ! for each bath orbital, check if it really does not have 1-el integrals with other bathsites
           if(isBath(i)) then
              do j=1,nBasis
-                if(isBath(j) .and. abs(getTMatEl(i,j)>eps)) then
+                if(isBath(j) .and. abs(getTMatEl(i,j))>eps) then
                    ! here, we count how many 1-el integrals to the bath there are for i
                    connectionCount(i) = connectionCount(i) + 1
                 endif

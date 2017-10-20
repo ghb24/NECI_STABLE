@@ -30,6 +30,7 @@ contains
         call run_test_case(test_init_lattice_aim_chain, "test_init_lattice_aim_chain")
         call run_test_case(test_init_lattice_aim_star, "test_init_lattice_aim_star")
         call run_test_case(test_init_cluster_lattice_aim, "test_init_cluster_lattice_aim")
+        call run_test_case(test_init_lattice_rect, "test_init_lattice_rect")
 
     end subroutine lattice_mod_test_driver 
 
@@ -221,6 +222,356 @@ contains
 
     end subroutine test_init_cluster_lattice_aim
 
+    subroutine test_init_lattice_rect
+
+        class(lattice), pointer :: ptr
+
+        print *, ""
+        print *, "initialize a 2x2 square lattice with periodic boundary conditions"
+
+        ptr => lattice('square',2,2,1,.true.,.true.,.true.)
+        call assert_equals(2, ptr%get_ndim())
+        ! this would be nice: how do i implement that??
+        call assert_equals(2, ptr%get_length(1))
+        call assert_equals(2, ptr%get_length(2))
+        call assert_equals(4, ptr%get_nsites())
+        call assert_equals(4, ptr%get_nconnect_max())
+        call assert_true( ptr%is_periodic())
+        call assert_true( ptr%is_periodic(1))
+        call assert_true( ptr%is_periodic(2))
+
+        ! now check the connectivity 
+        call assert_equals(1, ptr%get_site_index(1))
+        call assert_equals(2, ptr%get_site_index(2))
+        call assert_equals(3, ptr%get_site_index(3))
+        call assert_equals(4, ptr%get_site_index(4))
+
+        call assert_equals([2,3], ptr%get_neighbors(1),2)
+        call assert_equals([1,4], ptr%get_neighbors(2),2)
+        call assert_equals([1,4], ptr%get_neighbors(3),2)
+        call assert_equals([2,3], ptr%get_neighbors(4),2)
+
+        call assert_equals(2, ptr%get_num_neighbors(1))
+        call assert_equals(2, ptr%get_num_neighbors(2))
+        call assert_equals(2, ptr%get_num_neighbors(3))
+        call assert_equals(2, ptr%get_num_neighbors(4))
+
+        call lattice_deconstructor(ptr)
+
+        print *, ""
+        print *, "initialize a 3x3 square lattice with periodic boundary conditions"
+
+        ptr => lattice('square',3,3,1,.true.,.true.,.true.)
+        call assert_equals(2, ptr%get_ndim())
+        ! this would be nice: how do i implement that??
+        call assert_equals(3, ptr%get_length(1))
+        call assert_equals(3, ptr%get_length(2))
+        call assert_equals(9, ptr%get_nsites())
+        call assert_equals(4, ptr%get_nconnect_max())
+        call assert_true( ptr%is_periodic())
+        call assert_true( ptr%is_periodic(1))
+        call assert_true( ptr%is_periodic(2))
+
+        ! now check the connectivity 
+        call assert_equals(1, ptr%get_site_index(1))
+        call assert_equals(2, ptr%get_site_index(2))
+        call assert_equals(3, ptr%get_site_index(3))
+        call assert_equals(4, ptr%get_site_index(4))
+        call assert_equals(9, ptr%get_site_index(9))
+
+        call assert_equals([2,3,4,7], ptr%get_neighbors(1),4)
+        call assert_equals([1,3,5,8], ptr%get_neighbors(2),4)
+        call assert_equals([1,2,6,9], ptr%get_neighbors(3),4)
+        call assert_equals([1,5,6,7], ptr%get_neighbors(4),4)
+
+        call assert_equals(4, ptr%get_num_neighbors(1))
+        call assert_equals(4, ptr%get_num_neighbors(2))
+        call assert_equals(4, ptr%get_num_neighbors(3))
+        call assert_equals(4, ptr%get_num_neighbors(4))
+
+        call lattice_deconstructor(ptr)
+
+        print *, ""
+        print *, "initialize a 2x2 square lattice with closed boundary conditions in y"
+
+        ptr => lattice('square',2,2,1,.true.,.false.,.true.)
+        call assert_equals(2, ptr%get_ndim())
+        ! this would be nice: how do i implement that??
+        call assert_equals(2, ptr%get_length(1))
+        call assert_equals(2, ptr%get_length(2))
+        call assert_equals(4, ptr%get_nsites())
+        call assert_equals(3, ptr%get_nconnect_max())
+        call assert_true( .not.ptr%is_periodic())
+        call assert_true( ptr%is_periodic(1))
+        call assert_true( .not.ptr%is_periodic(2))
+
+        ! now check the connectivity 
+        call assert_equals(1, ptr%get_site_index(1))
+        call assert_equals(2, ptr%get_site_index(2))
+        call assert_equals(3, ptr%get_site_index(3))
+        call assert_equals(4, ptr%get_site_index(4))
+
+        call assert_equals([2,3], ptr%get_neighbors(1),2)
+        call assert_equals([1,4], ptr%get_neighbors(2),2)
+        call assert_equals([1,4], ptr%get_neighbors(3),2)
+        call assert_equals([2,3], ptr%get_neighbors(4),2)
+
+        call assert_equals(2, ptr%get_num_neighbors(1))
+        call assert_equals(2, ptr%get_num_neighbors(2))
+        call assert_equals(2, ptr%get_num_neighbors(3))
+        call assert_equals(2, ptr%get_num_neighbors(4))
+
+        call lattice_deconstructor(ptr)
+
+        print *, ""
+        print *, "initialize a 2x2 square lattice with closed boundary conditions in x"
+
+        ptr => lattice('square',2,2,1,.false.,.true.,.true.)
+        call assert_equals(2, ptr%get_ndim())
+        ! this would be nice: how do i implement that??
+        call assert_equals(2, ptr%get_length(1))
+        call assert_equals(2, ptr%get_length(2))
+        call assert_equals(4, ptr%get_nsites())
+        call assert_equals(3, ptr%get_nconnect_max())
+        call assert_true( .not.ptr%is_periodic())
+        call assert_true( .not.ptr%is_periodic(1))
+        call assert_true( ptr%is_periodic(2))
+
+        ! now check the connectivity 
+        call assert_equals(1, ptr%get_site_index(1))
+        call assert_equals(2, ptr%get_site_index(2))
+        call assert_equals(3, ptr%get_site_index(3))
+        call assert_equals(4, ptr%get_site_index(4))
+
+        call assert_equals([2,3], ptr%get_neighbors(1),2)
+        call assert_equals([1,4], ptr%get_neighbors(2),2)
+        call assert_equals([1,4], ptr%get_neighbors(3),2)
+        call assert_equals([2,3], ptr%get_neighbors(4),2)
+
+        call assert_equals(2, ptr%get_num_neighbors(1))
+        call assert_equals(2, ptr%get_num_neighbors(2))
+        call assert_equals(2, ptr%get_num_neighbors(3))
+        call assert_equals(2, ptr%get_num_neighbors(4))
+
+        call lattice_deconstructor(ptr)
+
+        print *, ""
+        print *, "initialize a 2x2 square lattice with closed boundary conditions "
+
+        ptr => lattice('square',2,2,1,.false.,.false.,.true.)
+        call assert_equals(2, ptr%get_ndim())
+        ! this would be nice: how do i implement that??
+        call assert_equals(2, ptr%get_length(1))
+        call assert_equals(2, ptr%get_length(2))
+        call assert_equals(4, ptr%get_nsites())
+        call assert_equals(2, ptr%get_nconnect_max())
+        call assert_true( .not.ptr%is_periodic())
+        call assert_true( .not.ptr%is_periodic(1))
+        call assert_true( .not.ptr%is_periodic(2))
+
+        ! now check the connectivity 
+        call assert_equals(1, ptr%get_site_index(1))
+        call assert_equals(2, ptr%get_site_index(2))
+        call assert_equals(3, ptr%get_site_index(3))
+        call assert_equals(4, ptr%get_site_index(4))
+
+        call assert_equals([2,3], ptr%get_neighbors(1),2)
+        call assert_equals([1,4], ptr%get_neighbors(2),2)
+        call assert_equals([1,4], ptr%get_neighbors(3),2)
+        call assert_equals([2,3], ptr%get_neighbors(4),2)
+
+        call assert_equals(2, ptr%get_num_neighbors(1))
+        call assert_equals(2, ptr%get_num_neighbors(2))
+        call assert_equals(2, ptr%get_num_neighbors(3))
+        call assert_equals(2, ptr%get_num_neighbors(4))
+
+        call lattice_deconstructor(ptr)
+
+        print *, ""
+        print *, "initialize a 3x3 square lattice with closed boundary conditions in y"
+
+        ptr => lattice('square',3,3,1,.true.,.false.,.true.)
+        call assert_equals(2, ptr%get_ndim())
+        ! this would be nice: how do i implement that??
+        call assert_equals(3, ptr%get_length(1))
+        call assert_equals(3, ptr%get_length(2))
+        call assert_equals(9, ptr%get_nsites())
+        call assert_equals(4, ptr%get_nconnect_max())
+        call assert_true( .not.ptr%is_periodic())
+        call assert_true( ptr%is_periodic(1))
+        call assert_true( .not.ptr%is_periodic(2))
+
+        ! now check the connectivity 
+        call assert_equals(1, ptr%get_site_index(1))
+        call assert_equals(2, ptr%get_site_index(2))
+        call assert_equals(3, ptr%get_site_index(3))
+        call assert_equals(4, ptr%get_site_index(4))
+        call assert_equals(9, ptr%get_site_index(9))
+
+        call assert_equals([2,4,7], ptr%get_neighbors(1),3)
+        call assert_equals([1,3,5,8], ptr%get_neighbors(2),4)
+        call assert_equals([2,6,9], ptr%get_neighbors(3),3)
+        call assert_equals([1,5,7], ptr%get_neighbors(4),3)
+        call assert_equals([2,4,6,8], ptr%get_neighbors(5),4)
+
+        call assert_equals(3, ptr%get_num_neighbors(1))
+        call assert_equals(4, ptr%get_num_neighbors(2))
+        call assert_equals(3, ptr%get_num_neighbors(3))
+        call assert_equals(3, ptr%get_num_neighbors(4))
+        call assert_equals(4, ptr%get_num_neighbors(5))
+
+        call lattice_deconstructor(ptr)
+
+        print *, ""
+        print *, "initialize a 3x3 square lattice with closed boundary conditions in x"
+
+        ptr => lattice('square',3,3,1,.false.,.true.,.true.)
+        call assert_equals(2, ptr%get_ndim())
+        ! this would be nice: how do i implement that??
+        call assert_equals(3, ptr%get_length(1))
+        call assert_equals(3, ptr%get_length(2))
+        call assert_equals(9, ptr%get_nsites())
+        call assert_equals(4, ptr%get_nconnect_max())
+        call assert_true( .not.ptr%is_periodic())
+        call assert_true( .not.ptr%is_periodic(1))
+        call assert_true( ptr%is_periodic(2))
+
+        ! now check the connectivity 
+        call assert_equals(1, ptr%get_site_index(1))
+        call assert_equals(2, ptr%get_site_index(2))
+        call assert_equals(3, ptr%get_site_index(3))
+        call assert_equals(4, ptr%get_site_index(4))
+        call assert_equals(9, ptr%get_site_index(9))
+
+        call assert_equals([2,3,4], ptr%get_neighbors(1),3)
+        call assert_equals([1,3,5], ptr%get_neighbors(2),3)
+        call assert_equals([1,2,6], ptr%get_neighbors(3),3)
+        call assert_equals([1,5,6,7], ptr%get_neighbors(4),4)
+        call assert_equals([2,4,6,8], ptr%get_neighbors(5),4)
+        call assert_equals([6,7,8], ptr%get_neighbors(9),3)
+
+        call assert_equals(3, ptr%get_num_neighbors(1))
+        call assert_equals(3, ptr%get_num_neighbors(2))
+        call assert_equals(3, ptr%get_num_neighbors(3))
+        call assert_equals(4, ptr%get_num_neighbors(4))
+        call assert_equals(4, ptr%get_num_neighbors(5))
+        call assert_equals(3, ptr%get_num_neighbors(9))
+
+        call lattice_deconstructor(ptr)
+
+        print *, ""
+        print *, "initialize a 3x3 square lattice with closed boundary conditions"
+
+        ptr => lattice('square',3,3,1,.false.,.false.,.true.)
+        call assert_equals(2, ptr%get_ndim())
+        ! this would be nice: how do i implement that??
+        call assert_equals(3, ptr%get_length(1))
+        call assert_equals(3, ptr%get_length(2))
+        call assert_equals(9, ptr%get_nsites())
+        call assert_equals(4, ptr%get_nconnect_max())
+        call assert_true( .not.ptr%is_periodic())
+        call assert_true( .not.ptr%is_periodic(1))
+        call assert_true( .not.ptr%is_periodic(2))
+
+        ! now check the connectivity 
+        call assert_equals(1, ptr%get_site_index(1))
+        call assert_equals(2, ptr%get_site_index(2))
+        call assert_equals(3, ptr%get_site_index(3))
+        call assert_equals(4, ptr%get_site_index(4))
+        call assert_equals(9, ptr%get_site_index(9))
+
+        call assert_equals([2,4], ptr%get_neighbors(1),2)
+        call assert_equals([1,3,5], ptr%get_neighbors(2),3)
+        call assert_equals([2,6], ptr%get_neighbors(3),2)
+        call assert_equals([1,5,7], ptr%get_neighbors(4),3)
+        call assert_equals([2,4,6,8], ptr%get_neighbors(5),4)
+        call assert_equals([6,8], ptr%get_neighbors(9),2)
+
+        call assert_equals(2, ptr%get_num_neighbors(1))
+        call assert_equals(3, ptr%get_num_neighbors(2))
+        call assert_equals(2, ptr%get_num_neighbors(3))
+        call assert_equals(3, ptr%get_num_neighbors(4))
+        call assert_equals(4, ptr%get_num_neighbors(5))
+        call assert_equals(2, ptr%get_num_neighbors(9))
+
+        call lattice_deconstructor(ptr)
+
+        print *, ""
+        print *, "initialize a 3x2 square lattice with closed boundary conditions"
+
+        ptr => lattice('rectangle',3,2,1,.false.,.false.,.true.)
+        call assert_equals(2, ptr%get_ndim())
+        ! this would be nice: how do i implement that??
+        call assert_equals(3, ptr%get_length(1))
+        call assert_equals(2, ptr%get_length(2))
+        call assert_equals(6, ptr%get_nsites())
+        call assert_equals(4, ptr%get_nconnect_max())
+        call assert_true( .not.ptr%is_periodic())
+        call assert_true( .not.ptr%is_periodic(1))
+        call assert_true( .not.ptr%is_periodic(2))
+
+        ! now check the connectivity 
+        call assert_equals(1, ptr%get_site_index(1))
+        call assert_equals(2, ptr%get_site_index(2))
+        call assert_equals(3, ptr%get_site_index(3))
+        call assert_equals(4, ptr%get_site_index(4))
+        call assert_equals(6, ptr%get_site_index(6))
+
+        call assert_equals([2,4], ptr%get_neighbors(1),2)
+        call assert_equals([1,3,5], ptr%get_neighbors(2),3)
+        call assert_equals([2,6], ptr%get_neighbors(3),2)
+        call assert_equals([1,5], ptr%get_neighbors(4),2)
+        call assert_equals([2,4,6], ptr%get_neighbors(5),3)
+
+        call assert_equals(2, ptr%get_num_neighbors(1))
+        call assert_equals(3, ptr%get_num_neighbors(2))
+        call assert_equals(2, ptr%get_num_neighbors(3))
+        call assert_equals(2, ptr%get_num_neighbors(4))
+        call assert_equals(3, ptr%get_num_neighbors(5))
+
+        call lattice_deconstructor(ptr)
+
+
+        print *, ""
+        print *, "initialize a 2x3 square lattice with closed boundary conditions in x"
+
+        ptr => lattice('rectangle',2,3,1,.false.,.true.,.true.)
+        call assert_equals(2, ptr%get_ndim())
+        ! this would be nice: how do i implement that??
+        call assert_equals(2, ptr%get_length(1))
+        call assert_equals(3, ptr%get_length(2))
+        call assert_equals(6, ptr%get_nsites())
+        call assert_equals(4, ptr%get_nconnect_max())
+        call assert_true( .not.ptr%is_periodic())
+        call assert_true( .not.ptr%is_periodic(1))
+        call assert_true( ptr%is_periodic(2))
+
+        ! now check the connectivity 
+        call assert_equals(1, ptr%get_site_index(1))
+        call assert_equals(2, ptr%get_site_index(2))
+        call assert_equals(3, ptr%get_site_index(3))
+        call assert_equals(4, ptr%get_site_index(4))
+        call assert_equals(6, ptr%get_site_index(6))
+
+        call assert_equals([2,3], ptr%get_neighbors(1),2)
+        call assert_equals([1,4], ptr%get_neighbors(2),2)
+        call assert_equals([1,4,5], ptr%get_neighbors(3),3)
+        call assert_equals([2,3,6], ptr%get_neighbors(4),3)
+        call assert_equals([3,6], ptr%get_neighbors(5),2)
+
+        call assert_equals(2, ptr%get_num_neighbors(1))
+        call assert_equals(2, ptr%get_num_neighbors(2))
+        call assert_equals(3, ptr%get_num_neighbors(3))
+        call assert_equals(3, ptr%get_num_neighbors(4))
+        call assert_equals(2, ptr%get_num_neighbors(5))
+
+        call lattice_deconstructor(ptr)
+
+
+
+
+    end subroutine test_init_lattice_rect
+
     subroutine test_init_lattice_star
         class(lattice), pointer :: ptr
 
@@ -228,7 +579,7 @@ contains
 
         print *, ""
         print *, "initialize a 1 site 'star' geometry lattice: "
-        ptr => lattice('star', 1, 1, .false., .false.)
+        ptr => lattice('star', 1, 1, 1, .false., .false., .false.)
 
         call assert_equals(1, ptr%get_ndim())
         call assert_equals(1, ptr%get_length())
@@ -245,7 +596,7 @@ contains
 
         print *, "" 
         print *, "initialize a 2-site 'star' geometry lattice: "
-        ptr => lattice('star', 2, 1, .false., .false.)
+        ptr => lattice('star', 2, 1, 1, .false., .false., .false.)
         call assert_equals(1, ptr%get_ndim())
         call assert_equals(1, ptr%get_length())
         call assert_equals(2, ptr%get_nsites())
@@ -266,7 +617,7 @@ contains
 
         print *, "" 
         print *, "initialize a 100 site 'star' geometry lattice: " 
-        ptr => lattice('star', 100, 1, .false., .false.) 
+        ptr => lattice('star', 100, 1, 1, .false., .false., .false.)
         call assert_equals(1, ptr%get_ndim())
         call assert_equals(1, ptr%get_length())
         call assert_equals(100, ptr%get_nsites())
@@ -476,7 +827,7 @@ contains
         class(lattice), pointer :: ptr 
 
         print *, "initialize a periodic one-site 'chain' lattice: " 
-        ptr => lattice('chain', 1, 1, .true., .true.) 
+        ptr => lattice('chain', 1, 1, 1, .true., .true., .true.)
 
         call assert_equals(ptr%get_ndim(), 1) 
         call assert_equals(ptr%get_nsites(), 1) 
@@ -510,7 +861,7 @@ contains
 
         print *, ""
         print *, "initialize a non-periodic two-site 'chain' lattice: " 
-        ptr => lattice('chain', 2, 1, .false., .false.) 
+        ptr => lattice('chain', 2, 1, 1, .false., .false., .false.)
         call assert_equals(ptr%get_ndim(), 1) 
         call assert_equals(ptr%get_nsites(), 2)
         call assert_equals(ptr%get_length(), 2) 
@@ -527,11 +878,11 @@ contains
 
         call lattice_deconstructor(ptr) 
 
-        call assert_true(.not. associated(ptr))
+    call assert_true(.not. associated(ptr))
 
         print *, "" 
         print *, "initialize a periodic 100 site 'chain' lattice: "
-        ptr => lattice('chain', 0, 100, .true., .true.)
+        ptr => lattice('chain', 0, 100, 1, .true., .true., .true.)
         call assert_equals(ptr%get_ndim(), 1) 
         call assert_equals(ptr%get_nsites(), 100)
         call assert_equals(ptr%get_length(), 100) 
