@@ -13,7 +13,7 @@ module lattice_mod
 
     implicit none 
     private 
-    public :: lattice, lattice_deconstructor, aim, aim_deconstructor
+    public :: lattice, lattice_deconstructor, aim, aim_deconstructor, sort_unique
 
     type :: site 
         ! the basic site type for my lattice
@@ -254,6 +254,19 @@ module lattice_mod
 
 
     end type rectangle
+
+    type, extends(rectangle) :: tilted
+        ! can i just extend rectangle and change the boundary conditions? 
+        private
+
+    contains
+        private 
+
+! 
+        procedure :: calc_nsites => calc_nsites_tilted
+        procedure :: initialize_sites => init_sites_tilted
+
+    end type tilted
 
     ! can i just extend the chain class to make an impurity chain? 
     ! argh this is annoying without multiple inheritance.. 
@@ -1113,12 +1126,322 @@ contains
 
     end subroutine init_sites_rect
 
+    subroutine init_sites_tilted(this)
+        class(tilted) :: this 
+        character(*), parameter :: this_routine = "init_sites_tilted"
+
+        integer :: temp_array(-this%length(1):this%length(1),&
+                              -this%length(1):this%length(1)+1)
+        integer :: up(-this%length(1):this%length(1),&
+                              -this%length(1):this%length(1)+1)
+        integer :: down(-this%length(1):this%length(1),&
+                              -this%length(1):this%length(1)+1)
+        integer :: left(-this%length(1):this%length(1),&
+                              -this%length(1):this%length(1)+1)
+        integer :: right(-this%length(1):this%length(1),&
+                              -this%length(1):this%length(1)+1)
+        integer :: right_ul(-this%length(1):this%length(1),&
+                              -this%length(1):this%length(1)+1)
+        integer :: right_ur(-this%length(1):this%length(1),&
+                              -this%length(1):this%length(1)+1)
+        integer :: right_dl(-this%length(1):this%length(1),&
+                              -this%length(1):this%length(1)+1)
+        integer :: right_dr(-this%length(1):this%length(1),&
+                              -this%length(1):this%length(1)+1)
+        integer :: right_rr(-this%length(1):this%length(1),&
+                              -this%length(1):this%length(1)+1)
+        integer :: right_ll(-this%length(1):this%length(1),&
+                              -this%length(1):this%length(1)+1)
+        integer :: up_ul(-this%length(1):this%length(1),&
+                              -this%length(1):this%length(1)+1)
+        integer :: up_ur(-this%length(1):this%length(1),&
+                              -this%length(1):this%length(1)+1)
+        integer :: up_dl(-this%length(1):this%length(1),&
+                              -this%length(1):this%length(1)+1)
+        integer :: up_dr(-this%length(1):this%length(1),&
+                              -this%length(1):this%length(1)+1)
+        integer :: up_rr(-this%length(1):this%length(1),&
+                              -this%length(1):this%length(1)+1)
+        integer :: up_ll(-this%length(1):this%length(1),&
+                              -this%length(1):this%length(1)+1)
+        integer :: down_ul(-this%length(1):this%length(1),&
+              -this%length(1):this%length(1)+1)
+        integer :: down_ur(-this%length(1):this%length(1),&
+              -this%length(1):this%length(1)+1)
+        integer :: down_dl(-this%length(1):this%length(1),&
+              -this%length(1):this%length(1)+1)
+        integer :: down_dr(-this%length(1):this%length(1),&
+             -this%length(1):this%length(1)+1)
+        integer :: down_rr(-this%length(1):this%length(1),&
+              -this%length(1):this%length(1)+1)
+        integer :: down_ll(-this%length(1):this%length(1),&
+              -this%length(1):this%length(1)+1)
+        integer :: left_ul(-this%length(1):this%length(1),&
+                              -this%length(1):this%length(1)+1)
+        integer :: left_ur(-this%length(1):this%length(1),&
+                              -this%length(1):this%length(1)+1)
+        integer :: left_dl(-this%length(1):this%length(1),&
+                              -this%length(1):this%length(1)+1)
+        integer :: left_dr(-this%length(1):this%length(1),&
+                              -this%length(1):this%length(1)+1)
+        integer :: left_rr(-this%length(1):this%length(1),&
+                              -this%length(1):this%length(1)+1)
+        integer :: left_ll(-this%length(1):this%length(1),&
+                              -this%length(1):this%length(1)+1)
+        integer :: i, j, k, l, pbc, temp_neigh(4)
+        integer :: right_nn, left_nn, up_nn, down_nn
+        integer, allocatable :: neigh(:)
+        ! convention of lattice storage: 
+        ! 
+        !   2 5
+        ! 1 3 6 8
+        !   4 7
+
+        ASSERT(this%get_nsites() >= 8) 
+
+        ! set up the lattice indices, via the use of "k-vectors"
+        temp_array(:,:) = 0
+
+        k = 0
+        l = 1
+        do i = -this%length(1)+1, 0
+
+            do j = -k, k
+
+                temp_array(j,i) = l 
+
+                l = l + 1
+            end do
+            k = k + 1
+        end do
+
+        k = k - 1
+        do i = 1, this%length(1)
+
+            do j = -k, k
+
+                temp_array(j,i) = l
+
+                l = l + 1
+
+            end do
+
+            k = k - 1
+        end do
+
+        up = cshift(temp_array, -1, 1)
+        down = cshift(temp_array, 1, 1)
+        right = cshift(temp_array, 1, 2)
+        left = cshift(temp_array, -1, 2)
+
+        ! apply the periodic boundary conditions to the neighbors
+        pbc = this%length(1)
+        up_ur = cshift(cshift(up, -pbc, 1), pbc, 2)
+        up_dr= cshift(cshift(up, pbc, 1), pbc, 2)
+        up_ul = cshift(cshift(up, -pbc, 1), -pbc, 2)
+        up_dl = cshift(cshift(up, pbc, 1), -pbc, 2)
+        up_rr = cshift(up, 2*pbc, 2)
+        up_ll = cshift(up, -2*pbc, 2)
+
+
+        down_ur = cshift(cshift(down, -pbc, 1), pbc, 2)
+        down_dr= cshift(cshift(down, pbc, 1), pbc, 2)
+        down_ul = cshift(cshift(down, -pbc, 1), -pbc, 2)
+        down_dl = cshift(cshift(down, pbc, 1), -pbc, 2)
+        down_rr = cshift(down, 2*pbc, 2)
+        down_ll = cshift(down, -2*pbc, 2)
+
+        right_ur = cshift(cshift(right, -pbc, 1), pbc, 2)
+        right_dr= cshift(cshift(right, pbc, 1), pbc, 2)
+        right_ul = cshift(cshift(right, -pbc, 1), -pbc, 2)
+        right_dl = cshift(cshift(right, pbc, 1), -pbc, 2)
+        right_rr = cshift(right, 2*pbc, 2)
+        right_ll = cshift(right, -2*pbc, 2)
+
+        left_ur = cshift(cshift(left, -pbc, 1), pbc, 2)
+        left_dr= cshift(cshift(left, pbc, 1), pbc, 2)
+        left_ul = cshift(cshift(left, -pbc, 1), -pbc, 2)
+        left_dl = cshift(cshift(left, pbc, 1), -pbc, 2)
+        left_rr = cshift(left, 2*pbc, 2)
+        left_ll = cshift(left, -2*pbc, 2)
+
+        k = 0
+        l = 1
+        ! now get the neighbors
+        if (this%is_periodic()) then
+            ! fully periodic case 
+            do i = -this%length(1)+1, 0
+                do j = -k, k 
+                    ! make the neigbors list 
+                    up_nn = maxval([up(j,i), up_ur(j,i), up_dr(j,i), up_ul(j,i), &
+                                    up_dl(j,i)])
+
+                    if (up_nn == 0) then
+                        up_nn = maxval([up_rr(j,i), up_ll(j,i)])
+                        if (up_nn == 0) then
+                            print *, "smth wrong!"
+                        end if
+                    end if
+                        
+                    down_nn = maxval([down(j,i), down_ur(j,i), down_dr(j,i), down_ul(j,i), &
+                        down_dl(j,i)])
+                    
+                    if (down_nn == 0) then 
+                        down_nn = maxval([down_rr(j,i), down_ll(j,i)])
+
+                        if (down_nn == 0) then 
+                            print *, "smth wrong!"
+                        end if
+                    end if
+
+                    right_nn = maxval([right(j,i), right_ur(j,i), right_dr(j,i), right_ul(j,i), &
+                        right_dl(j,i)])
+                    
+                    if (right_nn == 0) then 
+!                         right_nn = maxval([right_rr(j,i), right_ll(j,i)])
+                        right_nn = right_ll(j,i)
+                        if (right_nn == 0) then 
+                            print *, "smth wrong!"
+                        end if
+                    end if
+
+                    left_nn = maxval([left(j,i), left_ur(j,i), left_dr(j,i), left_ul(j,i), &
+                        left_dl(j,i)])
+                    
+                    if (left_nn == 0) then 
+!                         left_nn = maxval([left_rr(j,i), left_ll(j,i)])
+                        left_nn = left_rr(j,i)
+                        if (left_nn == 0) then 
+                            print *, "smth wrong!"
+                        end if
+                    end if
+
+                
+                    neigh = sort_unique([up_nn, down_nn, left_nn, right_nn])
+
+                    this%sites(l) = site(l, size(neigh), neigh)
+
+                    l = l + 1
+
+                    deallocate(neigh)
+
+                end do
+                k = k + 1
+            end do
+
+            k = k - 1
+            do i = 1, this%length(1)
+                do j = -k, k 
+                    ! make the neigbors list 
+                    up_nn = maxval([up(j,i), up_ur(j,i), up_dr(j,i), up_ul(j,i), &
+                                    up_dl(j,i)])
+
+                    if (up_nn == 0) then
+                        up_nn = maxval([up_rr(j,i), up_ll(j,i)])
+                        if (up_nn == 0) then
+                            print *, "smth wrong!"
+                        end if
+                    end if
+                        
+                    down_nn = maxval([down(j,i), down_ur(j,i), down_dr(j,i), down_ul(j,i), &
+                        down_dl(j,i)])
+                    
+                    if (down_nn == 0) then 
+                        down_nn = maxval([down_rr(j,i), down_ll(j,i)])
+
+                        if (down_nn == 0) then 
+                            print *, "smth wrong!"
+                        end if
+                    end if
+
+                    right_nn = maxval([right(j,i), right_ur(j,i), right_dr(j,i), right_ul(j,i), &
+                        right_dl(j,i)])
+                    
+                    if (right_nn == 0) then 
+!                         right_nn = maxval([right_rr(j,i), right_ll(j,i)])
+                        right_nn = right_ll(j,i)
+                        if (right_nn == 0) then 
+                            print *, "smth wrong!"
+                        end if
+                    end if
+
+                    left_nn = maxval([left(j,i), left_ur(j,i), left_dr(j,i), left_ul(j,i), &
+                        left_dl(j,i)])
+                    
+                    if (left_nn == 0) then 
+!                         left_nn = maxval([left_rr(j,i), left_ll(j,i)])
+                        left_nn = left_rr(j,i)
+                        if (left_nn == 0) then 
+                            print *, "smth wrong!"
+                        end if
+                    end if
+
+                    neigh = sort_unique([up_nn, down_nn, left_nn, right_nn])
+
+                    this%sites(l) = site(l, size(neigh), neigh)
+
+                    l = l + 1
+
+                    deallocate(neigh)
+
+                end do
+                k = k -1
+            end do
+        else if (this%is_periodic(1)) then 
+            ! todo
+        else if (this%is_periodic(2)) then 
+            ! todo
+        else
+            ! non-periodic case
+            do i = -this%length(1) + 1, 0 
+                do j = -k,k 
+                    ! only a neighbor if the index is non-zero! 
+                    temp_neigh = [up(j,i), down(j,i), left(j,i), right(j,i)] 
+
+                    neigh = sort_unique(pack(temp_neigh, temp_neigh > 0)) 
+
+                    this%sites(l) = site(l, size(neigh), neigh)
+
+                    l = l + 1
+
+                    deallocate(neigh)
+
+                end do
+                k = k + 1
+            end do
+
+            k = k - 1
+            do i = 1, this%length(1)
+                do j = -k, k
+                    ! only a neighbor if the index is non-zero! 
+                    temp_neigh = [up(j,i), down(j,i), left(j,i), right(j,i)] 
+
+                    neigh = sort_unique(pack(temp_neigh, temp_neigh > 0)) 
+
+                    this%sites(l) = site(l, size(neigh), neigh)
+
+                    l = l + 1
+
+                    deallocate(neigh)
+
+                end do
+                k = k - 1
+            end do
+        end if
+
+
+    end subroutine init_sites_tilted
+
     function sort_unique(list) result(output)
-        integer, intent(in) :: list(4)
+        integer, intent(in) :: list(:)
         integer, allocatable :: output(:)
 
-        integer :: i, min_val,  max_val, unique(4)
+        integer :: i, min_val,  max_val, unique(size(list))
+!         integer, allocatable :: unique(:)
 
+!         allocate(unique(size(list)))
+
+        unique = 0
         i = 0 
         min_val = minval(list) - 1
         max_val = maxval(list) 
@@ -1200,6 +1523,12 @@ contains
             else 
                 call this%set_nconnect_max(4)
             end if 
+
+        class is (tilted)
+            
+            call this%set_ndim(DIM_RECT) 
+            call this%set_length(length_x, length_y) 
+            call this%set_nconnect_max(4) 
 
         class is (star) 
             call this%set_ndim(DIM_STAR)
@@ -1390,6 +1719,15 @@ contains
         case('rectangle')
 
             allocate(rectangle :: this)
+
+        case('tilted','tilted-square','square-tilted')
+
+            if (length_x /= length_y) then 
+                call stop_all(this_routine, &
+                    "incorrect length_x /= length_y input for tilted lattice!")
+            end if
+
+            allocate(tilted :: this)
 
         case default 
             ! stop here because a incorrect lattice type was given 
@@ -1727,7 +2065,7 @@ contains
         integer :: n_sites
         character(*), parameter :: this_routine = "calc_nsites_rect"
 
-        if (length_x < 1 .or. length_y < 1) then 
+        if (length_x < 2 .or. length_y < 2) then 
             print *, "length_x: ", length_x
             print *, "length_y: ", length_y
             call stop_all(this_routine, "length input wrong for type rectangle!")
@@ -1738,6 +2076,24 @@ contains
         end if
 
     end function calc_nsites_rect
+
+    function calc_nsites_tilted(this, length_x, length_y, length_z) result(n_sites)
+        class(tilted) :: this 
+        integer, intent(in) :: length_x, length_y
+        integer, intent(in), optional :: length_z
+        integer :: n_sites 
+        character(*), parameter :: this_routine = "calc_nsites_tilted" 
+
+        if (length_x < 2 .or. length_y < 2) then 
+            print *, "length_x: ", length_x
+            print *, "length_y: ", length_y
+            call stop_all(this_routine, "length input wrong for type tilted!")
+
+        else 
+            n_sites = 2 * length_x * length_y
+        end if
+
+    end function calc_nsites_tilted
 
     function calc_nsites_lattice(this, length_x, length_y) result(n_sites) 
         class(lattice) :: this 
@@ -1914,7 +2270,7 @@ contains
         end if
 
     end function get_length_rect
-
+        
     integer function get_length_aim_chain(this, dimen)
         class(aim_chain) :: this 
         integer, intent(in), optional :: dimen
@@ -1979,7 +2335,7 @@ contains
         end if
 
     end function is_periodic_rect
-
+    
     logical function is_periodic_lattice(this)
         class(lattice) :: this 
         character(*), parameter :: this_routine = "is_periodic_lattice"
