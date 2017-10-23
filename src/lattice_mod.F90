@@ -235,6 +235,7 @@ module lattice_mod
 
     end type chain
 
+    
     type, extends(lattice) :: cube
         private 
 
@@ -271,6 +272,20 @@ module lattice_mod
 
 
     end type rectangle
+
+    type, extends(rectangle) :: triangular
+        ! use the length quantitiy and periodicity of the rectangle
+        private 
+
+    contains 
+        private 
+
+        ! number of sites is also the same! atleast in this definition of 
+        ! the triangular lattice 
+        ! so only init_sites must be made new 
+        procedure :: initialize_sites => init_sites_triangular
+
+    end type triangular
 
     type, extends(rectangle) :: tilted
         ! can i just extend rectangle and change the boundary conditions? 
@@ -992,9 +1007,7 @@ contains
 
     subroutine init_sites_cube(this)
         class(cube) :: this
-#ifdef __DEBUG
         character(*), parameter :: this_routine = "init_sites_cube" 
-#endif
         integer :: temp_array(this%length(1),this%length(2),this%length(3))
         integer :: i, x, y, z, temp_neigh(6)
         integer :: up(this%length(1),this%length(2),this%length(3))
@@ -1037,9 +1050,58 @@ contains
                 deallocate(neigh) 
 
             end do
+        else
+            call stop_all(this_routine, &
+                "closed boundary conditions not yet implemented for cubic lattice!")
         end if
 
     end subroutine init_sites_cube
+
+    subroutine init_sites_triangular(this)
+        class(triangular) :: this 
+        integer :: temp_array(this%length(1),this%length(2))
+        integer :: down(this%length(1),this%length(2))
+        integer :: up(this%length(1),this%length(2))
+        integer :: left(this%length(1),this%length(2))
+        integer :: right(this%length(1),this%length(2))
+        integer :: lu(this%length(1),this%length(2))
+        integer :: rd(this%length(1),this%length(2))
+        integer :: i, temp_neigh(6), x, y
+        integer, allocatable :: neigh(:)
+        character(*), parameter :: this_routine = "init_sites_triangular"
+        
+        ASSERT(this%get_nsites() >= 4) 
+
+        temp_array = reshape([(i, i = 1, this%get_nsites())], this%length)
+
+        up = cshift(temp_array, -1, 1)
+        down = cshift(temp_array, 1, 1)
+        right = cshift(temp_array, 1, 2)
+        left = cshift(temp_array, -1, 2)
+        lu = cshift(up, -1, 2)
+        rd = cshift(down, 1, 2) 
+
+        if (this%is_periodic()) then 
+            do i = 1, this%get_nsites()
+
+                x = mod(i-1,this%length(1)) + 1
+                y = (i-1)/this%length(1) + 1
+            
+                temp_neigh = [up(x,y),down(x,y),left(x,y),right(x,y),lu(x,y),rd(x,y)]
+
+                neigh = sort_unique(temp_neigh)
+
+                this%sites(i) = site(i, size(neigh), neigh)
+
+                deallocate(neigh)
+
+            end do
+        else
+            call stop_all(this_routine, &
+                "closed boundary conditions not yet implemented for triangular lattice!")
+        end if
+
+    end subroutine init_sites_triangular
 
     subroutine init_sites_rect(this)
         class(rectangle) :: this 
@@ -1690,6 +1752,13 @@ contains
             call this%set_length(length_x, length_y, length_z)
             call this%set_nconnect_max(6)
 
+        class is (triangular) 
+            call this%set_ndim(DIM_RECT)
+            call this%set_length(length_x, length_y)
+            ! for a filling with triangles the maximum connection is 6! 
+
+            call this%set_nconnect_max(6)
+
         class is (star) 
             call this%set_ndim(DIM_STAR)
             call this%set_nconnect_max(n_sites - 1)
@@ -1899,6 +1968,15 @@ contains
             end if
 
             allocate(cube :: this)
+
+        case ('triangular','triangle')
+
+            if (any([length_x, length_y] < 2)) then 
+                call stop_all(this_routine, &
+                    "too short lengths for triangular lattice! < 2!")
+            end if
+
+            allocate( triangular :: this )
 
         case default 
             ! stop here because a incorrect lattice type was given 

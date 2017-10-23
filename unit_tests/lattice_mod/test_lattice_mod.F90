@@ -34,6 +34,7 @@ contains
         call run_test_case(test_sort_unique, "test_sort_unique")
         call run_test_case(test_init_lattice_tilted, "test_init_lattice_tilted")
         call run_test_case(test_init_lattice_cube, "test_init_lattice_cube")
+        call run_test_case(test_init_lattice_triangular, "test_init_lattice_triangular")
 
     end subroutine lattice_mod_test_driver 
 
@@ -568,6 +569,118 @@ contains
 
 
     end subroutine test_init_lattice_tilted
+
+    subroutine test_init_lattice_triangular
+        class(lattice), pointer :: ptr
+
+        print *, ""
+        print *, "initialize a 2x2 triangular lattice with periodic boundary conditions"
+        ptr => lattice('triangle',2,2,1,.true.,.true.,.true.)
+        call assert_equals(2, ptr%get_ndim())
+        ! this would be nice: how do i implement that??
+        call assert_equals(2, ptr%get_length(1))
+        call assert_equals(2, ptr%get_length(2))
+        call assert_equals(4, ptr%get_nsites())
+        call assert_equals(6, ptr%get_nconnect_max())
+        call assert_true( ptr%is_periodic())
+        call assert_true( ptr%is_periodic(1))
+        call assert_true( ptr%is_periodic(2))
+
+        ! now check the connectivity 
+        call assert_equals(1, ptr%get_site_index(1))
+        call assert_equals(2, ptr%get_site_index(2))
+        call assert_equals(3, ptr%get_site_index(3))
+        call assert_equals(4, ptr%get_site_index(4))
+
+        call assert_equals([2,3,4], ptr%get_neighbors(1),3)
+        call assert_equals([1,3,4], ptr%get_neighbors(2),3)
+        call assert_equals([1,2,4], ptr%get_neighbors(3),3)
+        call assert_equals([1,2,3], ptr%get_neighbors(4),3)
+
+        call lattice_deconstructor(ptr)
+
+        print *, "" 
+        print *, "initialize a 2x3 triangular lattice with PBC"
+        ptr => lattice('triangle',2,3,1,.true.,.true.,.true.)
+        call assert_equals(2, ptr%get_ndim())
+        ! this would be nice: how do i implement that??
+        call assert_equals(2, ptr%get_length(1))
+        call assert_equals(3, ptr%get_length(2))
+        call assert_equals(6, ptr%get_nsites())
+        call assert_equals(6, ptr%get_nconnect_max())
+        call assert_true( ptr%is_periodic())
+        call assert_true( ptr%is_periodic(1))
+        call assert_true( ptr%is_periodic(2))
+
+        ! now check the connectivity 
+        call assert_equals(1, ptr%get_site_index(1))
+        call assert_equals(2, ptr%get_site_index(2))
+        call assert_equals(3, ptr%get_site_index(3))
+        call assert_equals(4, ptr%get_site_index(4))
+
+        call assert_equals([2,3,4,5,6], ptr%get_neighbors(1),5)
+        call assert_equals([1,3,4,5,6], ptr%get_neighbors(2),5)
+        call assert_equals([1,2,4,5,6], ptr%get_neighbors(3),5)
+        call assert_equals([1,2,3,4,5], ptr%get_neighbors(6),5)
+
+        call lattice_deconstructor(ptr)
+
+        print *, "" 
+        print *, "initialize a 3x2 triangular lattice with PBC"
+        ptr => lattice('triangle',3,2,1,.true.,.true.,.true.)
+        call assert_equals(2, ptr%get_ndim())
+        ! this would be nice: how do i implement that??
+        call assert_equals(3, ptr%get_length(1))
+        call assert_equals(2, ptr%get_length(2))
+        call assert_equals(6, ptr%get_nsites())
+        call assert_equals(6, ptr%get_nconnect_max())
+        call assert_true( ptr%is_periodic())
+        call assert_true( ptr%is_periodic(1))
+        call assert_true( ptr%is_periodic(2))
+
+        ! now check the connectivity 
+        call assert_equals(1, ptr%get_site_index(1))
+        call assert_equals(2, ptr%get_site_index(2))
+        call assert_equals(3, ptr%get_site_index(3))
+        call assert_equals(4, ptr%get_site_index(4))
+
+        call assert_equals([2,3,4,5,6], ptr%get_neighbors(1),5)
+        call assert_equals([1,3,4,5,6], ptr%get_neighbors(2),5)
+        call assert_equals([1,2,4,5,6], ptr%get_neighbors(3),5)
+        call assert_equals([1,2,3,4,5], ptr%get_neighbors(6),5)
+
+        call lattice_deconstructor(ptr)
+
+
+        print *, "" 
+        print *, "initialize a 3x3 triangular lattice with PBC"
+        ptr => lattice('triangle',3,3,1,.true.,.true.,.true.)
+        call assert_equals(2, ptr%get_ndim())
+        ! this would be nice: how do i implement that??
+        call assert_equals(3, ptr%get_length(1))
+        call assert_equals(3, ptr%get_length(2))
+        call assert_equals(9, ptr%get_nsites())
+        call assert_equals(6, ptr%get_nconnect_max())
+        call assert_true( ptr%is_periodic())
+        call assert_true( ptr%is_periodic(1))
+        call assert_true( ptr%is_periodic(2))
+
+        ! now check the connectivity 
+        call assert_equals(1, ptr%get_site_index(1))
+        call assert_equals(2, ptr%get_site_index(2))
+        call assert_equals(3, ptr%get_site_index(3))
+        call assert_equals(4, ptr%get_site_index(4))
+
+        call assert_equals([2,3,4,5,7,9], ptr%get_neighbors(1),6)
+        call assert_equals([1,3,5,6,7,8], ptr%get_neighbors(2),6)
+        call assert_equals([1,2,4,6,8,9], ptr%get_neighbors(3),6)
+        call assert_equals([1,2,4,6,8,9], ptr%get_neighbors(5),6)
+        call assert_equals([1,3,5,6,7,8], ptr%get_neighbors(9),6)
+
+        call lattice_deconstructor(ptr)
+
+
+    end subroutine test_init_lattice_triangular
 
     subroutine test_init_lattice_rect
 
