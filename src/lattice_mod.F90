@@ -235,6 +235,23 @@ module lattice_mod
 
     end type chain
 
+    type, extends(lattice) :: cube
+        private 
+
+        integer :: length(3) = -1 
+
+    contains 
+        private 
+
+        procedure, public :: get_length => get_length_cube
+        procedure, public :: is_periodic => is_periodic_cube
+
+        procedure :: set_length => set_length_cube
+        procedure :: calc_nsites => calc_nsites_cube
+        procedure :: initialize_sites => init_sites_cube
+
+    end type cube
+
     type, extends(lattice) :: rectangle 
         private 
 
@@ -429,7 +446,8 @@ module lattice_mod
                           DIM_STAR = 1, &
                           N_CONNECT_MAX_CHAIN = 2, &
                           STAR_LENGTH = 1, &
-                          DIM_RECT = 2
+                          DIM_RECT = 2, &
+                          DIM_CUBE = 3
 
 contains 
 
@@ -971,6 +989,57 @@ contains
         end do
 
     end subroutine init_sites_chain
+
+    subroutine init_sites_cube(this)
+        class(cube) :: this
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "init_sites_cube" 
+#endif
+        integer :: temp_array(this%length(1),this%length(2),this%length(3))
+        integer :: i, x, y, z, temp_neigh(6)
+        integer :: up(this%length(1),this%length(2),this%length(3))
+        integer :: down(this%length(1),this%length(2),this%length(3))
+        integer :: left(this%length(1),this%length(2),this%length(3))
+        integer :: right(this%length(1),this%length(2),this%length(3))
+        integer :: in(this%length(1),this%length(2),this%length(3))
+        integer :: out(this%length(1),this%length(2),this%length(3))
+        integer, allocatable :: neigh(:) 
+
+        ! minumum cube size:
+        ASSERT(this%get_nsites() >= 8)
+
+        ! encode the lattice with the fortran intrinsic ordering of matrices
+        temp_array = reshape([(i, i = 1, this%get_nsites())], & 
+            this%length)
+
+        up = cshift(temp_array, -1, 1)
+        down = cshift(temp_array, 1, 1)
+        right = cshift(temp_array, 1, 2)
+        left = cshift(temp_array, -1, 2)
+        in = cshift(temp_array, -1, 3)
+        out = cshift(temp_array, 1, 3)
+
+        if (this%is_periodic()) then 
+            do i = 1, this%get_nsites()
+                ! find conversion to 3D matrix indices..
+                ! i am not yet sure about that: but seems to work
+                x = mod(i-1, this%length(1)) + 1
+                z = (i-1)/(this%length(1)*this%length(2)) + 1
+                y = mod((i-1)/this%length(1), this%length(2)) + 1
+
+                temp_neigh = [up(x,y,z),down(x,y,z),left(x,y,z),right(x,y,z), &
+                                in(x,y,z), out(x,y,z)]
+
+                neigh = sort_unique(temp_neigh)
+
+                this%sites(i) = site(i, size(neigh), neigh)
+
+                deallocate(neigh) 
+
+            end do
+        end if
+
+    end subroutine init_sites_cube
 
     subroutine init_sites_rect(this)
         class(rectangle) :: this 
@@ -1616,6 +1685,11 @@ contains
             call this%set_length(length_x, length_y) 
             call this%set_nconnect_max(4) 
 
+        class is (cube) 
+            call this%set_ndim(DIM_CUBE)
+            call this%set_length(length_x, length_y, length_z)
+            call this%set_nconnect_max(6)
+
         class is (star) 
             call this%set_ndim(DIM_STAR)
             call this%set_nconnect_max(n_sites - 1)
@@ -1814,6 +1888,17 @@ contains
             end if
 
             allocate(tilted :: this)
+
+        case ('cube','cubic') 
+            ! for the sake of no better name also use "cube" even if the 
+            ! sides are not the same length
+
+            if (any([length_x, length_y, length_z] < 2)) then 
+                call stop_all(this_routine, &
+                    "too short cube side lengths < 2!")
+            end if
+
+            allocate(cube :: this)
 
         case default 
             ! stop here because a incorrect lattice type was given 
@@ -2144,6 +2229,21 @@ contains
 
     end function calc_nsites_chain
 
+    function calc_nsites_cube(this, length_x, length_y, length_z) result(n_sites)
+        class(cube) :: this
+        integer, intent(in) :: length_x, length_y
+        integer, intent(in), optional :: length_z
+        integer :: n_sites
+        character(*), parameter :: this_routine = "calc_nsites_cube"
+        
+        if (max(length_x, length_y, length_z) < 2) then 
+            call stop_all(this_routine, "too small cube lengths specified! (< 2)")
+        end if
+
+        n_sites = length_x * length_y * length_z
+
+    end function calc_nsites_cube
+
     function calc_nsites_rect(this, length_x, length_y, length_z) result(n_sites) 
         class(rectangle) :: this 
         integer, intent(in) :: length_x, length_y
@@ -2248,6 +2348,25 @@ contains
 
     end subroutine set_length_chain
 
+    subroutine set_length_cube(this, length_x, length_y, length_z)
+        class(cube) :: this 
+        integer, intent(in) :: length_x, length_y
+        integer, intent(in), optional :: length_z
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "set_length_cube"
+#endif
+
+        ASSERT(present(length_z))
+        ASSERT(length_x > 1)
+        ASSERT(length_y > 1)
+        ASSERT(length_z > 1) 
+
+        this%length(1) = length_x
+        this%length(2) = length_y
+        this%length(3) = length_z
+
+    end subroutine set_length_cube
+
     subroutine set_length_rect(this, length_x, length_y, length_z) 
         class(rectangle) :: this 
         integer, intent(in) :: length_x, length_y
@@ -2341,6 +2460,21 @@ contains
 
     end function get_length_chain
 
+    integer function get_length_cube(this, dimen) 
+        class(cube) :: this 
+        integer, intent(in), optional :: dimen
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "get_length_cube"
+#endif
+
+        ASSERT(present(dimen))
+        ASSERT(dimen > 0)
+        ASSERT(dimen <= 3)
+
+        get_length_cube = this%length(dimen) 
+
+    end function get_length_cube
+
     integer function get_length_rect(this, dimen)
         class(rectangle) :: this 
         integer, intent(in), optional :: dimen 
@@ -2400,6 +2534,26 @@ contains
 !         is_periodic_chain = (this%is_periodic_x() .and. this%is_periodic_y())
 
     end function is_periodic_chain
+
+    logical function is_periodic_cube(this, dimen) 
+        class(cube) :: this 
+        integer, intent(in), optional :: dimen 
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "is_periodic_cube"
+#endif 
+
+        if (present(dimen)) then 
+            ASSERT(dimen > 0) 
+            ASSERT(dimen <= 3) 
+
+            is_periodic_cube = this%t_periodic(dimen)
+
+        else 
+            is_periodic_cube = all(this%t_periodic)
+
+        end if
+
+    end function is_periodic_cube
 
     logical function is_periodic_rect(this, dimen) 
         class(rectangle) :: this
