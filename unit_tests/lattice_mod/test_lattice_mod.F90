@@ -301,6 +301,66 @@ contains
         call lattice_deconstructor(ptr)
 
         print *, "" 
+        print *, "initialize a 2x2 tilted square lattice with closed BC in (1,-1)"
+
+        ptr => lattice('tilted', 2, 2, 1, .true., .false., .false.)
+        call assert_equals(2, ptr%get_ndim())
+        ! this would be nice: how do i implement that??
+        call assert_equals(2, ptr%get_length(1))
+        call assert_equals(2, ptr%get_length(2))
+        call assert_equals(8, ptr%get_nsites())
+        call assert_equals(4, ptr%get_nconnect_max())
+        call assert_true( .not.ptr%is_periodic())
+        call assert_true( ptr%is_periodic(1))
+        call assert_true( .not.ptr%is_periodic(2))
+
+        ! now check the connectivity 
+        call assert_equals(1, ptr%get_site_index(1))
+        call assert_equals(2, ptr%get_site_index(2))
+        call assert_equals(3, ptr%get_site_index(3))
+        call assert_equals(8, ptr%get_site_index(8))
+        call assert_equals([3,5], ptr%get_neighbors(1),2)
+        call assert_equals([3,5], ptr%get_neighbors(2),2)
+        call assert_equals([1,2,4,6], ptr%get_neighbors(3),4)
+        call assert_equals([3,5,7,8], ptr%get_neighbors(4),4)
+        call assert_equals([1,2,4,6], ptr%get_neighbors(5),4)
+        call assert_equals([3,5,7,8], ptr%get_neighbors(6),4)
+        call assert_equals([4,6], ptr%get_neighbors(7),2)
+        call assert_equals([4,6], ptr%get_neighbors(8),2)
+
+        call lattice_deconstructor(ptr)
+
+        print *, "" 
+        print *, "initialize a 2x2 tilted square lattice with closed BC in (1,1)"
+
+        ptr => lattice('tilted', 2, 2, 1, .false., .true., .false.)
+        call assert_equals(2, ptr%get_ndim())
+        ! this would be nice: how do i implement that??
+        call assert_equals(2, ptr%get_length(1))
+        call assert_equals(2, ptr%get_length(2))
+        call assert_equals(8, ptr%get_nsites())
+        call assert_equals(4, ptr%get_nconnect_max())
+        call assert_true( .not.ptr%is_periodic())
+        call assert_true( .not.ptr%is_periodic(1))
+        call assert_true( ptr%is_periodic(2))
+
+        ! now check the connectivity 
+        call assert_equals(1, ptr%get_site_index(1))
+        call assert_equals(2, ptr%get_site_index(2))
+        call assert_equals(3, ptr%get_site_index(3))
+        call assert_equals(8, ptr%get_site_index(8))
+        call assert_equals([3,7], ptr%get_neighbors(1),2)
+        call assert_equals([3,5,7,8], ptr%get_neighbors(2),4)
+        call assert_equals([1,2,4,6], ptr%get_neighbors(3),2)
+        call assert_equals([3,7], ptr%get_neighbors(4),2)
+        call assert_equals([2,6], ptr%get_neighbors(5),2)
+        call assert_equals([3,5,7,8], ptr%get_neighbors(6),4)
+        call assert_equals([1,2,4,6], ptr%get_neighbors(7),4)
+        call assert_equals([2,6], ptr%get_neighbors(8),2)
+
+        call lattice_deconstructor(ptr)
+
+        print *, "" 
         print *, "initialize a 3x3 tilted square lattice with closed BC"
 
         ptr => lattice('tilted', 3, 3, 1, .false., .false., .false.)
@@ -362,6 +422,39 @@ contains
         call assert_equals([7,11,13,16], ptr%get_neighbors(12),4)
 
         call lattice_deconstructor(ptr)
+
+        print *, "" 
+        print *, "initialize a 3x3 tilted square lattice with closed BC in (x,-x)"
+
+        ptr => lattice('tilted', 3, 3, 1, .true., .false., .false.)
+        call assert_equals(2, ptr%get_ndim())
+        ! this would be nice: how do i implement that??
+        call assert_equals(3, ptr%get_length(1))
+        call assert_equals(3, ptr%get_length(2))
+        call assert_equals(18, ptr%get_nsites())
+        call assert_equals(4, ptr%get_nconnect_max())
+        call assert_true( .not.ptr%is_periodic())
+        call assert_true(  ptr%is_periodic(1))
+        call assert_true( .not.ptr%is_periodic(2))
+
+        ! now check the connectivity 
+        call assert_equals(1, ptr%get_site_index(1))
+        call assert_equals(2, ptr%get_site_index(2))
+        call assert_equals(3, ptr%get_site_index(3))
+        call assert_equals(8, ptr%get_site_index(8))
+        call assert_equals([3,10], ptr%get_neighbors(1),2)
+        call assert_equals([3,6], ptr%get_neighbors(2),2)
+        call assert_equals([1,2,4,7], ptr%get_neighbors(3),4)
+        call assert_equals([3,8,10,15], ptr%get_neighbors(4),4)
+        call assert_equals([6,10], ptr%get_neighbors(5),2)
+        call assert_equals([2,5,7,11], ptr%get_neighbors(6),4)
+        call assert_equals([3,6,8,12], ptr%get_neighbors(7),4)
+        call assert_equals([4,7,9,13], ptr%get_neighbors(8),4)
+        call assert_equals([9,16], ptr%get_neighbors(18),2)
+        call assert_equals([1,4,5,11], ptr%get_neighbors(10),4)
+
+        call lattice_deconstructor(ptr)
+
 
     end subroutine test_init_lattice_tilted
 

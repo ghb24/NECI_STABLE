@@ -1388,9 +1388,95 @@ contains
                 k = k -1
             end do
         else if (this%is_periodic(1)) then 
-            ! todo
+            ! only apply (x,x) periodicity 
+            do i = -this%length(1) + 1, 0
+                do j = -k, k
+
+                    up_nn = maxval([up(j,i),up_ur(j,i),up_dl(j,i)])
+                    down_nn = maxval([down(j,i),down_ur(j,i),down_dl(j,i)])
+                    left_nn = maxval([left(j,i),left_ur(j,i),left_dl(j,i)])
+                    right_nn = maxval([right(j,i),right_ur(j,i),right_dl(j,i)])
+
+                    temp_neigh = [up_nn, down_nn, left_nn, right_nn]
+
+                    neigh = sort_unique(pack(temp_neigh, temp_neigh > 0))
+
+                    this%sites(l) = site(l, size(neigh), neigh)
+
+                    l = l + 1 
+
+                    deallocate(neigh)
+                end do
+                k = k + 1
+            end do
+            k = k - 1 
+            
+            do i = 1, this%length(1)
+                do j = -k, k
+
+                    up_nn = maxval([up(j,i),up_ur(j,i),up_dl(j,i)])
+                    down_nn = maxval([down(j,i),down_ur(j,i),down_dl(j,i)])
+                    left_nn = maxval([left(j,i),left_ur(j,i),left_dl(j,i)])
+                    right_nn = maxval([right(j,i),right_ur(j,i),right_dl(j,i)])
+
+                    temp_neigh = [up_nn, down_nn, left_nn, right_nn]
+
+                    neigh = sort_unique(pack(temp_neigh, temp_neigh > 0))
+
+                    this%sites(l) = site(l, size(neigh), neigh)
+
+                    l = l + 1 
+
+                    deallocate(neigh)
+                end do
+                k = k - 1
+            end do
+
         else if (this%is_periodic(2)) then 
-            ! todo
+            ! only apply (x,-x) periodicity
+            do i = -this%length(1) + 1, 0
+                do j = -k, k
+
+                    up_nn = maxval([up(j,i),up_ul(j,i),up_dr(j,i)])
+                    down_nn = maxval([down(j,i),down_ul(j,i),down_dr(j,i)])
+                    left_nn = maxval([left(j,i),left_ul(j,i),left_dr(j,i)])
+                    right_nn = maxval([right(j,i),right_ul(j,i),right_dr(j,i)])
+
+                    temp_neigh = [up_nn, down_nn, left_nn, right_nn]
+
+                    neigh = sort_unique(pack(temp_neigh, temp_neigh > 0))
+
+                    this%sites(l) = site(l, size(neigh), neigh)
+
+                    l = l + 1 
+
+                    deallocate(neigh)
+                end do
+                k = k + 1
+            end do
+            k = k - 1 
+            
+            do i = 1, this%length(1)
+                do j = -k, k
+
+                    up_nn = maxval([up(j,i),up_ul(j,i),up_dr(j,i)])
+                    down_nn = maxval([down(j,i),down_ul(j,i),down_dr(j,i)])
+                    left_nn = maxval([left(j,i),left_ul(j,i),left_dr(j,i)])
+                    right_nn = maxval([right(j,i),right_ul(j,i),right_dr(j,i)])
+
+                    temp_neigh = [up_nn, down_nn, left_nn, right_nn]
+
+                    neigh = sort_unique(pack(temp_neigh, temp_neigh > 0))
+
+                    this%sites(l) = site(l, size(neigh), neigh)
+
+                    l = l + 1 
+
+                    deallocate(neigh)
+                end do
+                k = k - 1
+            end do
+
         else
             ! non-periodic case
             do i = -this%length(1) + 1, 0 
