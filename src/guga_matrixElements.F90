@@ -190,6 +190,7 @@ contains
         ! the b-vector is also needed for these calculations:
         bVector = calcB_vector_nI(nI)
         ! probably could use current b vector.. or reference b vector even...
+        ! yes definitly 
 
 
         exchange = 1.0_dp

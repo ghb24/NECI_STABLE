@@ -52,4 +52,14 @@ build*/
 .*F90
 \\
 .nfs*
+UMAT
+TMAT
 *.swp
+build*
+OneRDM.*
+contribs_guga.*
+pgen_vs_*
+dmrg.conf
+dmrg_out
+ROFCIDUMP
+testcode_data*

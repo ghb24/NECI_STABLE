@@ -3101,6 +3101,7 @@ contains
         integer :: excitLvl, ierr
         integer(n_int), pointer :: excitations(:,:)
         real(dp) :: orb_pgen, branch_pgen
+        type(weight_obj) :: weights
 ! #ifdef __DEBUG
         logical :: compFlag
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -3159,7 +3160,13 @@ contains
         ! profiler tells me this takes a lot of time..
         ! and if i have to do it, i could get rid of all the other uncessary 
         ! call of calcRemainingSwitches ..
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        !todo: since the weights also get initialized within the
+        !checkcompatibility function, i should maybe output it also, similar to
+        !the posSwitches and negSwitches quantitites..
+        ! or just dont do a compatibility check, since it will get aborted
+        ! anyway if it does not work in the excitation generation.. 
+        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches, &
+            weights)
 ! 
 !         if ( excitInfo%typ == 8 ) then
 !             print *,"ijkl:", excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l
@@ -3185,27 +3192,32 @@ contains
             ! similar to a single excitation except the (predetermined) 
             ! single overlap site.
             call calcSingleOverlapMixedStochastic(ilut, excitInfo, excitation, &
-                branch_pgen, posSwitches, negSwitches)
+                branch_pgen, posSwitches, negSwitches, weights)
 
             pgen = orb_pgen * branch_pgen
 
         case (7) ! single overlap raising into lowering
             ! similar to a single excitation except the (predetermined) 
             ! single overlap site.
+            !todo: mention on the weight input here: in some routines below, 
+            ! the weights get reinitialized in the different sectors! so be 
+            ! careful to just input the weights everywhere, and also check the 
+            ! checkCompatibility function, if the weights get reinitialized
+            ! there correctly! 
             call calcSingleOverlapMixedStochastic(ilut, excitInfo, excitation,&
-                branch_pgen, posSwitches, negSwitches)
+                branch_pgen, posSwitches, negSwitches, weights)
 
             pgen = orb_pgen * branch_pgen
   
         case (8) ! normal double two lowering
             call calcDoubleLoweringStochastic(ilut, excitInfo, excitation, branch_pgen, &
-                posSwitches, negSwitches)
+                posSwitches, negSwitches, weights)
 
             pgen = orb_pgen * branch_pgen
 
         case (9) ! normal double two raising
             call calcDoubleRaisingStochastic(ilut, excitInfo, excitation, branch_pgen, &
-                posSwitches, negSwitches)
+                posSwitches, negSwitches, weights)
 
             pgen = orb_pgen * branch_pgen
 
@@ -4832,12 +4844,13 @@ contains
     end subroutine calcDoubleL2R2L_stochastic
 
     subroutine calcDoubleRaisingStochastic(ilut, excitInfo, t, branch_pgen, &
-            posSwitches, negSwitches)
+            posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+        type(weight_obj), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcDoubleRaisingStochastic"
 
         integer :: iOrb, start2, ende1, ende2, start1
@@ -4859,9 +4872,13 @@ contains
 !         end if
 
         ! : create correct weights:
-        weights = init_fullDoubleWeight(ilut, start2, ende1, ende2, negSwitches(start2), &
-            negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
-            currentB_ilut(start2), currentB_ilut(ende1))
+        if (present(opt_weight))then 
+            weight = opt_weight
+        else
+            weights = init_fullDoubleWeight(ilut, start2, ende1, ende2, negSwitches(start2), &
+                negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
+                currentB_ilut(start2), currentB_ilut(ende1))
+        end if
         
         call createStochasticStart_single(ilut, excitInfo, weights, posSwitches,&
             negSwitches, t, branch_pgen)
@@ -5085,13 +5102,14 @@ contains
 
 
     subroutine calcDoubleLoweringStochastic(ilut, excitInfo, t, branch_pgen, &
-            posSwitches, negSwitches)
+            posSwitches, negSwitches, opt_weights)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcDoubleLoweringStochastic"
+        type(weight_obj), intent(in), optional :: opt_weights
 
         integer :: iOrb, start2, ende1, ende2, start1
         type(weight_obj) :: weights
@@ -5120,9 +5138,13 @@ contains
 !         end if
 
         ! : create correct weights:
-        weights = init_fullDoubleWeight(ilut, start2, ende1, ende2, negSwitches(start2), &
-            negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
-            currentB_ilut(start2), currentB_ilut(ende1))
+        if (present(opt_weights)) then 
+            weights = opt_weights
+        else 
+            weights = init_fullDoubleWeight(ilut, start2, ende1, ende2, negSwitches(start2), &
+                negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
+                currentB_ilut(start2), currentB_ilut(ende1))
+        end if
 
         call createStochasticStart_single(ilut, excitInfo, weights, posSwitches,&
             negSwitches, t, branch_pgen)
@@ -5140,8 +5162,11 @@ contains
 
         ! change weights... maybe need both single and double type weights
         ! then do lowering semi start
-        weights = init_fullStartWeight(ilut, ende1, ende2, negSwitches(ende1), &
-            posSwitches(ende1), currentB_ilut(ende1))
+        ! can i just do: 
+        weights = weights%ptr
+
+!         weights = init_fullStartWeight(ilut, ende1, ende2, negSwitches(ende1), &
+!             posSwitches(ende1), currentB_ilut(ende1))
 
         ! branch_pgen gets update insde the routine!
         call calcLoweringSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
@@ -5161,7 +5186,8 @@ contains
         end do
 
         ! then update weights and and to lowering semi-stop
-        weights = init_singleWeight(ilut, ende2)
+        weights = weights%ptr
+!         weights = init_singleWeight(ilut, ende2)
 
         ! branch_pgen gets updated inside funciton
         call calcLoweringSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
@@ -5221,12 +5247,13 @@ contains
     end subroutine calcDoubleLoweringStochastic
 
     subroutine calcFullStopL2R_stochastic(ilut,excitInfo, t, pgen, &
-            posSwitches, negSwitches)
+            posSwitches, negSwitches, opt_weights)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+        type(weight_obj), intent(in), optional :: opt_weights
         character(*), parameter :: this_routine = "calcFullStopL2R_stochastic"
 
         type(weight_obj) :: weights
@@ -5246,8 +5273,12 @@ contains
 !         end if
 
         ! init weights
-        weights = init_semiStartWeight(ilut, se, e, negSwitches(se), &
-            posSwitches(se), currentB_ilut(se))
+        if (present(opt_weights)) then
+            weights = opt_weights
+        else 
+            weights = init_semiStartWeight(ilut, se, e, negSwitches(se), &
+                posSwitches(se), currentB_ilut(se))
+        end if
 
         ! create st
         call createStochasticStart_single(ilut, excitInfo, weights, posSwitches,&
@@ -5268,11 +5299,12 @@ contains
         end do
 
         ! do the specific se-st
-        weights = init_doubleWeight(ilut, e)
+        ! try the new reusing of the weights object.. 
+!         weights = init_doubleWeight(ilut, e)
 
         if (excitInfo%typ == 0) print *, ""
 
-        call calcRaisingSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
+        call calcRaisingSemiStartStochastic(ilut, excitInfo, weights%ptr, negSwitches, &
             posSwitches, t, branch_pgen)
 
         ! check validity
@@ -5284,7 +5316,7 @@ contains
         ! but would unjust favor certain types of excitaitons..
         do i = se + 1, e -1
             call doubleUpdateStochastic(ilut, i, excitInfo, &
-                weights, negSwitches, posSwitches, t, branch_pgen)
+                weights%ptr, negSwitches, posSwitches, t, branch_pgen)
             if (abs(extract_matrix_element(t,2))<EPS .or. branch_pgen<EPS) then
                 t = 0_n_int
                 return
@@ -8071,6 +8103,10 @@ contains
 
         ! then deal with specific semi-stop
         ! and update weights here
+        ! i also could use the fact that the single weights are already 
+        ! initialized within the fullstart weights or?
+        ! and then use smth like
+!         weights = weights%single
         weights = init_singleWeight(ilut, en)
         call calcRaisingSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, branch_pgen)
@@ -9888,7 +9924,7 @@ contains
     end subroutine mixedFullStartStochastic
 
     subroutine calcSingleOverlapMixedStochastic(ilut, excitInfo, t, branch_pgen, &
-            posSwitches, negSwitches)
+            posSwitches, negSwitches, opt_weights)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
@@ -9896,6 +9932,7 @@ contains
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcSingleOverlapMixedStochastic"
 
+        type(weight_obj), intent(in), optional :: opt_weights
         type(weight_obj) :: weights
         real(dp) :: tempWeight, bVal, umat, temp_pgen
         integer :: iOrb, deltaB, iEx
@@ -9939,7 +9976,11 @@ contains
         ! in the mixed single overlap case its just like a regular single 
         ! excitation except the special change in stepvector at the 
         ! single overlap site!
-        weights = init_singleWeight(ilut, excitInfo%fullEnd)
+        if (present(opt_weights)) then
+            weights = opt_weights
+        else
+            weights = init_singleWeight(ilut, excitInfo%fullEnd)
+        end if
 
         call createStochasticStart_single(ilut, excitInfo, weights, posSwitches,&
             negSwitches, t, branch_pgen)
@@ -10950,17 +10991,23 @@ contains
 
         ! did some stupid double counting down there...
         ! still something wrong down there...
-        if (i < j) then
-            ! raising + weight
-            integral = integral + get_umat_el(i,i,j,i) * currentOcc_ilut(st)
-            integral = integral + get_umat_el(i,j,j,j) * &
-                (currentOcc_ilut(en) - 1.0_dp)
-        else
-            ! lowering + weight:
-            integral = integral + get_umat_el(i,i,j,i) * &
-                (currentOcc_ilut(en))
-            integral = integral + get_umat_el(i,j,j,j) * (currentOcc_ilut(st)-1.0_dp)
-        end if
+        ! i should be able to formulate that in terms of st and en.. 
+        integral = integral + get_umat_el(i,i,j,i) * currentOcc_ilut(i) 
+        integral = integral + get_umat_el(i,j,j,j) * (currentOcc_ilut(j) - 1.0_dp)
+
+!         if (i < j) then
+!             ! raising + weight
+!             ! st = i, en = j 
+!             integral = integral + get_umat_el(i,i,j,i) * currentOcc_ilut(st)
+!             integral = integral + get_umat_el(i,j,j,j) * &
+!                 (currentOcc_ilut(en) - 1.0_dp)
+!         else
+!             ! lowering + weight:
+!             ! st = j, en = i 
+!             integral = integral + get_umat_el(i,i,j,i) * &
+!                 (currentOcc_ilut(en))
+!             integral = integral + get_umat_el(i,j,j,j) * (currentOcc_ilut(st)-1.0_dp)
+!         end if
 ! 
 !         if (i < j) then
 !             ! its a raising start so n' = n + 1
@@ -11708,7 +11755,7 @@ contains
         type(weight_obj) :: fullStart
         character(*), parameter :: this_routine = "init_fullStartWeight"
 
-        type(weight_obj) :: single
+        type(weight_obj), target :: single
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
         ASSERT(pOrb > 0 .and. pOrb <= nSpatOrbs)
@@ -11721,6 +11768,10 @@ contains
 
         ! have to set up a single weight obj. 
         single = init_singleWeight(ilut, pOrb)
+
+        ! try to reuse the already initialized singles weight in the cause of
+        ! an excitation, i hope this works with the pointers and stuff. 
+        fullstart%ptr => single
 
         fullStart%dat%minus = single%proc%minus(negSwitches, bVal, single%dat)
         fullStart%dat%plus = single%proc%plus(posSwitches, bVal, single%dat)
@@ -11812,7 +11863,7 @@ contains
         type(weight_obj) :: semiStart
         character(*), parameter :: this_routine = "init_semiStartWeight"
 
-        type(weight_obj) :: double
+        type(weight_obj), target :: double
 
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
@@ -11825,6 +11876,8 @@ contains
         semiStart%dat%G = endGx(ilut,sOrb)
 
         double = init_doubleWeight(ilut,pOrb)
+
+        semiStart%ptr => double
 
         semiStart%dat%minus = double%proc%minus(negSwitches, bVal, double%dat)
         semiStart%dat%plus = double%proc%plus(posSwitches, bVal, double%dat)
@@ -11892,7 +11945,7 @@ contains
         type(weight_obj) :: fullDouble
         character(*), parameter :: this_routine = "init_fullDoubleWeight"
 
-        type(weight_obj) :: fullStart
+        type(weight_obj), target :: fullStart
 
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
@@ -11910,6 +11963,8 @@ contains
 
         fullStart = init_fullStartWeight(ilut, pOrb, oOrb, negSwitches2, &
             posSwitches2, bVal2)
+
+        fullDouble%ptr => fullStart
 
         fullDouble%dat%minus = fullStart%proc%minus(negSwitches1, bVal1, fullStart%dat)
         fullDouble%dat%plus = fullStart%proc%plus(posSwitches1, bVal1, fullStart%dat)
@@ -20575,10 +20630,11 @@ contains
         logical, intent(out) :: flag
         real(dp), intent(out), optional :: posSwitches(nSpatOrbs), &
                                            negSwitches(nSpatOrbs)
+
+        type(weight_obj), intent(out), optional :: weights
         character(*), parameter :: this_routine = "checkCompatibility"
 
         real(dp) :: pw, mw, zw
-        type(weight_obj) :: weights
         logical :: fl0, flS, fl2
         integer ::  we, st, ss, fe, en, i,j,k,lO
         
@@ -21284,16 +21340,32 @@ contains
                     return
                 end if
 
-                weights = init_fullStartWeight(L, fe, en, negSwitches(fe), posSwitches(fe), &
-                    currentB_ilut(fe))
+                ! in the actual excitation generation i use the the 
+                ! single weights here.. and this make more sense i must 
+                ! admit. 
+!                 weights = init_fullStartWeight(L, fe, en, negSwitches(fe), posSwitches(fe), &
+!                     currentB_ilut(fe))
+                weights = init_singleWeight(L, en)
 
                 ! update! here i shouldnt use the real available switches for 
                 ! the double overlap region since switches are not allowed in 
                 ! this kind of excitation! -> just put in 0
-                zw = weights%proc%zero(0.0_dp, 0.0_dp, currentB_ilut(st), weights%dat)
-
+                ! doesnt this mean i could just use the singles weight for 
+                ! the non-overlap region? 
+                ! and no.. i should check the weights of the single excitation
+                ! region.. 
+!                 zw = weights%proc%zero(0.0_dp, 0.0_dp, currentB_ilut(st), weights%dat)
+                pw = weights%proc%plus(posSwitches(fe), currentB_ilut(fe), weights%dat)
+                mw = weights%proc%minus(negSwitches(fe), currentB_ilut(fe), weights%dat)
+                
                 ! only 0 deltab branch valid
-                if (zw < EPS) flag = .false.
+!                 if (zw < EPS) flag = .false.
+                if ((mw < EPS .and. pw < EPS) .or. & 
+                    (current_stepvector(fe) == 1 .and. pw < EPS) .or. 
+                    (current_stepvector(fe) == 2 .and. mw < EPS)) then 
+                    flag = .false. 
+                    return 
+                end if
 
             ! full start two raising
             case(19)
@@ -21309,15 +21381,31 @@ contains
                     return
                 end if
 
-                weights = init_fullStartWeight(L, fe, en, negSwitches(fe), posSwitches(fe), &
-                    currentB_ilut(fe))
+                ! i can actually use just the singles weight.. 
+!                 weights = init_fullStartWeight(L, fe, en, negSwitches(fe), posSwitches(fe), &
+!                     currentB_ilut(fe))
+! 
+!                 ! same as above with switches
+!                 zw = weights%proc%zero(0.0_dp, 0.0_dp, currentB_ilut(st), weights%dat)
+! 
+!                 ! only 0 deltab branch valid
+!                 if (zw < EPS) flag = .false.
 
-                ! same as above with switches
-                zw = weights%proc%zero(0.0_dp, 0.0_dp, currentB_ilut(st), weights%dat)
+                weights = init_singleWeight(L, en)
 
+                pw = weights%proc%plus(posSwitches(fe), currentB_ilut(fe), weights%dat)
+                mw = weights%proc%minus(negSwitches(fe), currentB_ilut(fe), weights%dat)
+                
                 ! only 0 deltab branch valid
-                if (zw < EPS) flag = .false.
-            
+!                 if (zw < EPS) flag = .false.
+                if ((mw < EPS .and. pw < EPS) .or. & 
+                    (current_stepvector(fe) == 1 .and. pw < EPS) .or. 
+                    (current_stepvector(fe) == 2 .and. mw < EPS)) then 
+                    flag = .false. 
+                    return 
+                end if
+
+
 
             ! full start lowering into raising
             case(20)
@@ -21435,6 +21523,9 @@ contains
                     return
                 end if
 
+                ! here i essentially do not need to check the weights.. 
+                ! since no switch is possible anyway and there is only one 
+                ! connecting CSF.. 
                 weights = init_doubleWeight(L, en)
 
                 zw = weights%proc%zero(negSwitches(st), posSwitches(st), currentB_ilut(st ), &
@@ -21473,7 +21564,11 @@ contains
                 pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
                 mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
 
-                if ((mw < EPS .and. pw < EPS .and. zw < EPS) .or. &
+                ! if only the 0 branch is non-zero, and both + and - branch are
+                ! zero, we should abort too, since this means we would produce a
+                ! diagonal contribution.. 
+!                 if ((mw < EPS .and. pw < EPS .and. zw < EPS) .or. &
+                if ((mw < EPS .and. pw < EPS) .or. &
                     (current_stepvector(st) == 1 .and. zw + pw < EPS) .or. &
                     (current_stepvector(st) == 2 .and. zw + mw < EPS) .or. &
                     (current_stepvector(st) == 3 .and. zw < EPS)) then
@@ -22696,6 +22791,8 @@ contains
         ! fill in orbital j, depending if a switch is possible
         ! check if orbital (i) is valid to choose from
         if (tSwitch) then
+            !todo: think about, that this is actually the same as the 
+            ! RL > RL considered above, just picked in different order.. 
             ! do not have to deal specifically with orbital 1 ...or? 
             ! do i need to consider kb restriction... yes i do think so..
             kb = ki 
@@ -23219,7 +23316,11 @@ contains
 !                 end if
                 if (a == b) then 
                     ! then orb a has to be empty!
+                    ! actually this type of excitation is not even possible 
+                    ! with momentum conservation.. todo!
                     if (current_stepvector(a) == 0) then
+                        !todo: remove this possibility then! 
+                        print *, "is this actually reached?"
                         ! _RR_(ab) > ^RR^(ij)
                         excitInfo = assign_excitInfo_values(22,1,1,1,1,1,&
                             a,i,a,i,a,a,i,i,0,2,1.0_dp,1.0_dp)
@@ -23337,7 +23438,10 @@ contains
                 ! this should work as we pick beta orbital first 
                 ! as i realised this possibility below is possible!
                 if (a == b) then
+                    !todo: i think with momentum conservation this below is not
+                    ! even possible, if really not -> remove it
                     if (current_stepvector(a) == 0) then
+                        print *, "is this actually possible?"
                         ! _LL_(ij) > ^LL^(ab) 
                         excitInfo = assign_excitInfo_values(22,-1,-1,-1,-1,-1,&
                             a,i,a,i,i,i,a,a,0,2,1.0_dp,1.0_dp)
@@ -23524,6 +23628,10 @@ contains
              ! depending where a and b are compared to I/J
 
              ! additional there are no restrictions on picking b
+             ! todo: i could move the determination of the excitation
+             ! information into the pick_b orb function. since there i 
+             ! already have to check the relation to the other already picked
+             ! orbitals.. but not now i guess.. 
              call pick_b_orb_guga_mol(ilut, occ_orbs, a, cc_b, int_contrib(2), &
                  cum_sum(2), b)
              ! TODO: still have to decide if i output SPATIAL or SPIN orbital 
@@ -23597,6 +23705,8 @@ contains
                  ! but thats probably a not valid bias towards those type 
                  ! of excitations... -> have to think of a new way to pick 
                  ! occupied spatial orbitals 
+                 !TODO: yes definetly not pick based on spin-orbitals then. 
+                 ! i unnaturally pick towards doubly occupied sites.. hm.. 
                  pgen = 2.0_dp * pgen 
                  if (current_stepvector(j) == 3) then
 
@@ -29319,6 +29429,8 @@ contains
         case (1)
             ! not quite sure anymore why, but have to treat single overlap 
             ! excitations with alike generators different then mixed
+            ! because it is like a single excitation over the whole excitation
+            ! range
             if (excitInfo%gen1 /= excitInfo%gen2) then
                 end1 = 0
             else
@@ -29342,6 +29454,9 @@ contains
             end do
 
             ! reset the switch number if alike generators are present.
+            ! now i am confused.. no its fine.. we actually never want to 
+            ! go into single overlap with alike generators, since it is 
+            ! actually a single excitation then! 
             if (excitInfo%gen1 == excitInfo%gen2) then
                 oneCount = 0.0_dp
                 twoCount = 0.0_dp 
