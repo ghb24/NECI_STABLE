@@ -18,7 +18,7 @@ module FciMCParMod
                         t_back_spawn_option
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
                         tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
-                        SIUpdateInterval
+                        SIUpdateInterval, tSuppressSIOutput
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, tOldRDMs, &
@@ -537,6 +537,9 @@ module FciMCParMod
 
         ! End of MC cycle
         end do
+
+        ! Final output is always enabled
+        tSuppressSIOutput = .false.
 
         ! We are at the end - get the stop-time. Output the timing details
         stop_time = neci_etime(tend)

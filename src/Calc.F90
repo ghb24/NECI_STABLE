@@ -33,7 +33,7 @@ MODULE Calc
          tSetDelayAllSingsInits, nExProd, NoTypeN, tAdiActive, tReadRefs, SIUpdateInterval, &
          tProductReferences, tAccessibleDoubles, tAccessibleSingles, tInitiatorsSubspace, &
          tReferenceChanged, superInitiatorLevel, allDoubsInitsDelay, tStrictCoherentDoubles, &
-         tWeakCoherentDoubles, tAvCoherentDoubles, coherenceThreshold, SIThreshold
+         tWeakCoherentDoubles, tAvCoherentDoubles, coherenceThreshold, SIThreshold, tSuppressSIOutput
     use ras_data, only: core_ras, trial_ras
     use load_balance, only: tLoadBalanceBlocks
     use ftlm_neci
@@ -342,6 +342,7 @@ contains
           tProductReferences = .false.
           tAccessibleSingles = .false.
           tAccessibleDoubles = .false.
+          tSuppressSIOutput = .false.
           nExProd = 2
           NoTypeN = 3
           tStrictCoherentDoubles = .false.
@@ -2503,6 +2504,10 @@ contains
              case("SUPERINITIATOR-COHERENCE-THRESHOLD")
                 ! set the minimal coherence parameter for superinitiators
                 call readf(SIThreshold)
+
+             case("SUPPRESS-SUPERINITIATOR-OUTPUT")
+                ! Do not output the newly generated superinitiators upon generation
+                tSuppressSIOutput = .true.
 
             case default
                 call report("Keyword "                                &

@@ -26,7 +26,7 @@ module adi_data
   integer :: allDoubsInitsDelay, nExProd, superInitiatorLevel, SIUpdateInterval
   logical :: tAdiActive, tStrictCoherentDoubles, tWeakCoherentDoubles, tAvCoherentDoubles
   real(dp) :: NoTypeN, coherenceThreshold, SIThreshold
-  logical :: tReadRefs, tProductReferences, tAccessibleDoubles, tAccessibleSingles
+  logical :: tReadRefs, tProductReferences, tAccessibleDoubles, tAccessibleSingles, tSuppressSIOutput
 
   ! Additional variables for giovannis check
   integer(n_int), allocatable :: g_markers(:)

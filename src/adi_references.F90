@@ -4,7 +4,7 @@ use Parallel_neci
 use FciMCData, only: ilutRef
 use adi_data, only: ilutRefAdi, nRefs, nIRef, signsRef, nRefsSings, nRefsDoubs, &
      nTZero, SIHash, tAdiActive, tSetupSIs, NoTypeN, superInitiatorLevel, tSetupSIs, &
-     tReferenceChanged, SIThreshold, tUseCaches, nIRef, signsRef, exLvlRef
+     tReferenceChanged, SIThreshold, tUseCaches, nIRef, signsRef, exLvlRef, tSuppressSIOutput
 use CalcData, only: InitiatorWalkNo
 use bit_rep_data, only: niftot, nifdbo, extract_sign
 use bit_reps, only: decode_bit_det
@@ -276,7 +276,7 @@ contains
       logical, optional :: legend
       integer :: i
       
-      if(iProcIndex==root .or. .true.) then
+      if(iProcIndex==root .and. .not. tSuppressSIOutput) then
          write(iout,*) title
          if(present(legend)) write(iout,"(4A25)") &
               ! TODO: Adapt legend for multiple runs
