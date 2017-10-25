@@ -330,7 +330,7 @@ contains
        function sumFunc(i,j,k,l,nI)
          use constants, only: dp
          use SystemData, only: nel
-         real(dp) :: sumFunc
+         HElement_t(dp) :: sumFunc
          integer, intent(in) :: i,j,k,l,nI(nel)
        end function sumFunc
     end interface sf
