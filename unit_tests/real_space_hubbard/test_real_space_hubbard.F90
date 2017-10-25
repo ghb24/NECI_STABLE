@@ -96,7 +96,88 @@ contains
         call assert_equals(0.0_dp, max_death_cpt)
         call assert_true(associated(get_umat_el))
         call assert_true(associated(generate_excitation))
-        call assert_equals(0.25, tau)
+        call assert_equals(0.25 * lat_tau_factor, tau)
+
+        call lattice_deconstructor(lat)
+
+        lattice_type = '' 
+        length_x = -1 
+        length_y = -1 
+        nel = -1 
+        bhub = 0
+        nbasis = -1
+        tau = 0.0_dp
+        deallocate(tmat2d)
+        nullify(get_umat_el)
+        nullify(generate_excitation)
+
+        print *, "" 
+        print *, "testing: 3x3 square lattice with 2 electrons" 
+        lattice_type = 'square'
+        length_x = 3
+        length_y = 3 
+        nel = 2
+        bhub = 1 
+
+        call init_real_space_hubbard() 
+        call assert_equals(2, lat%get_ndim()) 
+        call assert_equals(9, lat%get_nsites())
+        call assert_true(lat%is_periodic())
+        call assert_equals(4, lat%get_nconnect_max())
+
+        call assert_equals(18, nbasis)
+        call assert_true(associated(tmat2d))
+        call assert_true(associated(g1))
+        call assert_equals(0.0_dp, ecore)
+        call assert_equals(1.0_dp, pSingles)
+        call assert_equals(0.0_dp, pDoubles)
+        call assert_true(.not. tsearchtau)
+        call assert_true(tsearchtauoption)
+        call assert_equals(0.0_dp, max_death_cpt)
+        call assert_true(associated(get_umat_el))
+        call assert_true(associated(generate_excitation))
+        call assert_equals(1.0/8.0 * lat_tau_factor, tau)
+
+
+        call lattice_deconstructor(lat)
+
+        lattice_type = '' 
+        length_x = -1 
+        length_y = -1 
+        nel = -1 
+        bhub = 0
+        nbasis = -1
+        tau = 0.0
+        deallocate(tmat2d)
+        nullify(get_umat_el)
+        nullify(generate_excitation)
+
+        print *, "" 
+        print *, "testing: 3x3 square lattice with 2 electrons" 
+        lattice_type = 'triangle'
+        length_x = 3
+        length_y = 3 
+        nel = 2
+        bhub = 1 
+
+        call init_real_space_hubbard() 
+        call assert_equals(2, lat%get_ndim()) 
+        call assert_equals(9, lat%get_nsites())
+        call assert_true(lat%is_periodic())
+        call assert_equals(6, lat%get_nconnect_max())
+
+        call assert_equals(18, nbasis)
+        call assert_true(associated(tmat2d))
+        call assert_true(associated(g1))
+        call assert_equals(0.0_dp, ecore)
+        call assert_equals(1.0_dp, pSingles)
+        call assert_equals(0.0_dp, pDoubles)
+        call assert_true(.not. tsearchtau)
+        call assert_true(tsearchtauoption)
+        call assert_equals(0.0_dp, max_death_cpt)
+        call assert_true(associated(get_umat_el))
+        call assert_true(associated(generate_excitation))
+        call assert_equals(1.0/12.0 * lat_tau_factor, tau)
 
         call lattice_deconstructor(lat)
 
@@ -127,13 +208,13 @@ contains
         integer :: ex(2,2), ic 
         logical :: tpar 
         real(dp) :: pgen 
-        real(dp) :: hel
+        HElement_t(dp) :: hel
         type(excit_gen_store_type) :: store
-        logical :: found_all, t_1, t_2, t_3, t_4
+        logical :: found_all, t_found(6)
         
         print *, "" 
         print *, "testing gen_excit_rs_hubbard"
-        lat => lattice('chain', 4, 1, .false., .false.)
+        lat => lattice('chain', 4, 1, 1, .false., .false., .false.)
         nel = 2 
         call dsfmt_init(1)
         allocate(nI(nel))
@@ -147,16 +228,15 @@ contains
         call encodebitdet(nI, ilutI)
         
         found_all = .false.
-        t_1 = .false. 
-        t_2 = .false. 
+        t_found = .false.
 
         ! try to get all the excitations here. 
         do while(.not. found_all)
             call gen_excit_rs_hubbard(nI, ilutI, nJ, ilutJ, 1, ic, ex, tpar, pgen,  & 
                 hel, store)
 
-            if (all(nJ == [2,3]) .and. .not. t_1) then 
-                t_1 = .true.
+            if (all(nJ == [2,3]) .and. .not. t_found(1)) then 
+                t_found(1) = .true.
                 call assert_equals([2,3], nJ, 2)
                 call assert_equals(1, ic) 
                 call assert_equals(1, ex(1,1))
@@ -165,8 +245,8 @@ contains
                 call assert_true(tpar)
                 call assert_equals(0.5_dp, pgen)
             end if
-            if (all(nJ == [1,4]) .and. .not. t_2) then 
-                t_2 = .true. 
+            if (all(nJ == [1,4]) .and. .not. t_found(2)) then 
+                t_found(2) = .true. 
                 call assert_equals([1,4], nJ, 2)
                 call assert_equals(1, ic) 
                 call assert_equals(2, ex(1,1))
@@ -175,25 +255,22 @@ contains
                 call assert_true(.not.tpar)
                 call assert_equals(0.5_dp, pgen)
             end if
-            found_all = (t_1 .and. t_2)
+            found_all = all(t_found(1:2))
         end do
 
         nI = [3,4]
         call encodebitdet(nI, ilutI)
 
         found_all = .false. 
-        t_1 = .false. 
-        t_2 = .false. 
-        t_3 = .false. 
-        t_4 = .false. 
+        t_found = .false. 
 
         ! try to get all the excitations here. 
         do while(.not. found_all)
             call gen_excit_rs_hubbard(nI, ilutI, nJ, ilutJ, 1, ic, ex, tpar, pgen,  & 
                 hel, store)
 
-            if (all(nJ == [2,3]) .and. .not. t_1) then 
-                t_1 = .true.
+            if (all(nJ == [2,3]) .and. .not. t_found(1)) then 
+                t_found(1) = .true.
                 call assert_equals([2,3], nJ, 2)
                 call assert_equals(1, ic) 
                 call assert_equals(4, ex(1,1))
@@ -202,8 +279,8 @@ contains
                 call assert_true(tpar)
                 call assert_equals(0.25, pgen)
             end if
-            if (all(nJ == [1,4]) .and. .not. t_2) then 
-                t_2 = .true. 
+            if (all(nJ == [1,4]) .and. .not. t_found(2)) then 
+                t_found(2) = .true. 
                 call assert_equals([1,4], nJ, 2)
                 call assert_equals(1, ic) 
                 call assert_equals(3, ex(1,1))
@@ -213,8 +290,8 @@ contains
                 call assert_equals(0.25_dp, pgen)
             end if
 
-            if (all(nJ == [3,6]) .and. .not. t_3) then 
-                t_3 = .true.
+            if (all(nJ == [3,6]) .and. .not. t_found(3)) then 
+                t_found(3) = .true.
                 call assert_equals([3,6], nJ, 2)
                 call assert_equals(1, ic) 
                 call assert_equals(4, ex(1,1))
@@ -223,8 +300,8 @@ contains
                 call assert_true(.not.tpar)
                 call assert_equals(0.25, pgen)
             end if
-            if (all(nJ == [4,5]) .and. .not. t_4) then 
-                t_4 = .true. 
+            if (all(nJ == [4,5]) .and. .not. t_found(4)) then 
+                t_found(4) = .true. 
                 call assert_equals([4,5], nJ, 2)
                 call assert_equals(1, ic) 
                 call assert_equals(3, ex(1,1))
@@ -234,28 +311,25 @@ contains
                 call assert_equals(0.25_dp, pgen)
             end if
 
-            found_all = (t_1 .and. t_2 .and. t_3 .and. t_4)
+            found_all = all(t_found(1:4))
         end do
 
         ! and also try it on a periodic chain 
-        lat => lattice('chain', 3, 1, .true., .true.)
+        lat => lattice('chain', 3, 1, 1, .true., .true., .true.)
 
         nI = [1,2]
         call encodebitdet(nI, ilutI) 
 
         found_all = .false. 
-        t_1 = .false. 
-        t_2 = .false. 
-        t_3 = .false. 
-        t_4 = .false.
+        t_found = .false. 
 
         ! try to get all the excitations here. 
         do while(.not. found_all)
             call gen_excit_rs_hubbard(nI, ilutI, nJ, ilutJ, 1, ic, ex, tpar, pgen,  & 
                 hel, store)
 
-            if (all(nJ == [2,3]) .and. .not. t_1) then 
-                t_1 = .true.
+            if (all(nJ == [2,3]) .and. .not. t_found(1)) then 
+                t_found(1) = .true.
                 call assert_equals([2,3], nJ, 2)
                 call assert_equals(1, ic) 
                 call assert_equals(1, ex(1,1))
@@ -264,8 +338,8 @@ contains
                 call assert_true(tpar)
                 call assert_equals(0.25_dp, pgen)
             end if
-            if (all(nJ == [1,4]) .and. .not. t_2) then 
-                t_2 = .true. 
+            if (all(nJ == [1,4]) .and. .not. t_found(2)) then 
+                t_found(2) = .true. 
                 call assert_equals([1,4], nJ, 2)
                 call assert_equals(1, ic) 
                 call assert_equals(2, ex(1,1))
@@ -275,8 +349,8 @@ contains
                 call assert_equals(0.25_dp, pgen)
             end if
 
-            if (all(nJ == [1,6]) .and. .not. t_3) then 
-                t_3 = .true.
+            if (all(nJ == [1,6]) .and. .not. t_found(3)) then 
+                t_found(3) = .true.
                 call assert_equals([1,6], nJ, 2)
                 call assert_equals(1, ic) 
                 call assert_equals(2, ex(1,1))
@@ -285,8 +359,8 @@ contains
                 call assert_true(.not.tpar)
                 call assert_equals(0.25_dp, pgen)
             end if
-            if (all(nJ == [2,5]) .and. .not. t_4) then 
-                t_4 = .true. 
+            if (all(nJ == [2,5]) .and. .not. t_found(4)) then 
+                t_found(4) = .true. 
                 call assert_equals([2,5], nJ, 2)
                 call assert_equals(1, ic) 
                 call assert_equals(1, ex(1,1))
@@ -296,7 +370,140 @@ contains
                 call assert_equals(0.25_dp, pgen)
             end if
 
-            found_all = (t_1 .and. t_2 .and. t_3 .and. t_4)
+            found_all = all(t_found(1:4))
+        end do
+
+        nel = -1 
+        call lattice_deconstructor(lat)
+
+        print *, "" 
+        print *, "for a periodic 2x2 square lattice with 2 electrons" 
+        lat => lattice('square', 2, 2, 1, .true., .true., .true.) 
+        nel = 2 
+
+        nI = [1,2] 
+        found_all = .false. 
+        t_found = .false. 
+
+        do while(.not. found_all) 
+            call gen_excit_rs_hubbard(nI, ilutI, nJ, ilutJ, 1, ic, ex, tpar, pgen,  & 
+                hel, store)
+
+            if (all(nJ == [1,4]) .and. .not. t_found(1)) then 
+                t_found(1) = .true. 
+                call assert_equals([1,4], nJ, 2)
+                call assert_equals(1, ic) 
+                call assert_equals(2, ex(1,1))
+                call assert_equals(4, ex(2,1))
+                call assert_equals(9, ilutJ(0))
+                call assert_true(.not.tpar)
+                call assert_equals(0.25, pgen)
+            end if
+            if (all(nJ == [2,3]) .and. .not. t_found(2)) then
+                t_found(2) = .true.
+                call assert_equals([2,3], nJ, 2)
+                call assert_equals(1, ic) 
+                call assert_equals(1, ex(1,1))
+                call assert_equals(3, ex(2,1))
+                call assert_equals(6, ilutJ(0))
+                call assert_true(tpar)
+                call assert_equals(0.25_dp, pgen)
+            end if
+            if (all(nJ == [1,6]) .and. .not. t_found(3)) then 
+                t_found(3) = .true. 
+                call assert_equals([1,6], nJ, 2)
+                call assert_equals(1, ic)
+                call assert_equals(2, ex(1,1))
+                call assert_equals(6, ex(2,1))
+                call assert_equals(33, ilutJ(0))
+                call assert_true(.not.tpar)
+                call assert_equals(0.25, pgen)
+            end if
+            if (all(nJ == [2,5]) .and. .not. t_found(4)) then
+                t_found(4) = .true.
+                call assert_equals([2,5], nJ, 2)
+                call assert_equals(1, ic)
+                call assert_equals(1, ex(1,1))
+                call assert_equals(5, ex(2,1))
+                call assert_equals(18, ilutJ(0))
+                call assert_true(tpar)
+                call assert_equals(0.25, pgen)
+            end if
+            found_all = all(t_found(1:4))
+        end do
+
+        print *, "" 
+        print *, "for a periodic 2x2 triangular lattice: "
+        t_found = .false. 
+        found_all = .false.
+        lat => lattice('triangle', 2,2,1,.true.,.true.,.true.)
+
+        do while(.not. found_all) 
+            call gen_excit_rs_hubbard(nI, ilutI, nJ, ilutJ, 1, ic, ex, tpar, pgen,  & 
+                hel, store)
+
+            if (all(nJ == [1,4]) .and. .not. t_found(1)) then 
+                t_found(1) = .true. 
+                call assert_equals([1,4], nJ, 2)
+                call assert_equals(1, ic) 
+                call assert_equals(2, ex(1,1))
+                call assert_equals(4, ex(2,1))
+                call assert_equals(9, ilutJ(0))
+                call assert_true(.not.tpar)
+                call assert_equals(1.0/6.0, pgen)
+            end if
+            if (all(nJ == [2,3]) .and. .not. t_found(2)) then
+                t_found(2) = .true.
+                call assert_equals([2,3], nJ, 2)
+                call assert_equals(1, ic) 
+                call assert_equals(1, ex(1,1))
+                call assert_equals(3, ex(2,1))
+                call assert_equals(6, ilutJ(0))
+                call assert_true(tpar)
+                call assert_equals(1.0/6.0, pgen)
+            end if
+            if (all(nJ == [1,6]) .and. .not. t_found(3)) then 
+                t_found(3) = .true. 
+                call assert_equals([1,6], nJ, 2)
+                call assert_equals(1, ic)
+                call assert_equals(2, ex(1,1))
+                call assert_equals(6, ex(2,1))
+                call assert_equals(33, ilutJ(0))
+                call assert_true(.not.tpar)
+                call assert_equals(1.0/6.0, pgen)
+            end if
+            if (all(nJ == [2,5]) .and. .not. t_found(4)) then
+                t_found(4) = .true.
+                call assert_equals([2,5], nJ, 2)
+                call assert_equals(1, ic)
+                call assert_equals(1, ex(1,1))
+                call assert_equals(5, ex(2,1))
+                call assert_equals(18, ilutJ(0))
+                call assert_true(tpar)
+                call assert_equals(1.0/6.0, pgen)
+            end if
+            if (all(nJ == [1,8]) .and. .not. t_found(5)) then 
+                t_found(5) = .true. 
+                call assert_equals([1,8], nJ, 2)
+                call assert_equals(1, ic)
+                call assert_equals(2, ex(1,1))
+                call assert_equals(8, ex(2,1))
+                call assert_equals(129, ilutJ(0))
+                call assert_true(.not.tpar)
+                call assert_equals(1.0/6.0, pgen)
+            end if
+            if (all(nJ == [2,7]) .and. .not. t_found(6)) then 
+                t_found(6) = .true. 
+                call assert_equals([2,7], nJ, 2)
+                call assert_equals(1, ic)
+                call assert_equals(1, ex(1,1))
+                call assert_equals(7, ex(2,1))
+                call assert_equals(66, ilutJ(0))
+                call assert_true(tpar)
+                call assert_equals(1.0/6.0, pgen)
+            end if
+
+            found_all = all(t_found)
         end do
 
         nel = -1 
@@ -313,8 +520,8 @@ contains
 
         print *, ""
         print *, "testing determine_optimal_time_step"
-
-        lat => lattice('chain', 4, 1, .true., .true.)
+        print *, "for a 4x1 periodic chain: "
+        lat => lattice('chain', 4, 1, 1, .true., .true., .true.)
 
         nel = 6
         nOccAlpha = 3
@@ -344,6 +551,38 @@ contains
         time = determine_optimal_time_step(time_death)
         call assert_equals(1.0_dp/real(abs(uhub * nOccBeta),dp), time_death)
         
+        print *, ""
+        print *, "for a 3x3 periodic square: "
+        lat => lattice('square', 3,3,1,.true.,.true.,.true.)
+
+        nel = 6
+        nOccAlpha = 3
+        nOccBeta = 3 
+        uhub = 1 
+        bhub = 1
+
+        call assert_equals(1.0_dp/real(abs(bhub) * nel * 4, dp), determine_optimal_time_step())
+
+        bhub = 2 
+        call assert_equals(1.0_dp/real(abs(bhub) * nel * 4, dp), determine_optimal_time_step())
+
+        nel = 8 
+        call assert_equals(1.0_dp/real(abs(bhub) * nel * 4, dp), determine_optimal_time_step())
+
+        bhub = -2 
+        call assert_equals(1.0_dp/real(abs(bhub) * nel * 4, dp), determine_optimal_time_step())
+
+        time = determine_optimal_time_step(time_death)
+        call assert_equals(1.0_dp/real(abs(uhub * nOccAlpha),dp), time_death)
+
+        uhub = 4
+        time = determine_optimal_time_step(time_death)
+        call assert_equals(1.0_dp/real(abs(uhub * nOccAlpha),dp), time_death)
+
+        nOccAlpha = 4 
+        time = determine_optimal_time_step(time_death)
+        call assert_equals(1.0_dp/real(abs(uhub * nOccBeta),dp), time_death)
+
         nel = -1
         nOccAlpha = -1
         nOccBeta = -1
@@ -379,21 +618,21 @@ contains
         G1([1,3])%ms = -1 
         G1([2,4])%ms = 1
 
-        ptr => lattice('chain', 2, 1, .false., .false.)
+        ptr => lattice('chain', 2, 1, 1, .false., .false., .false.)
         call init_tmat(ptr)
 
-        call assert_equals(0.0_dp, get_helement([1,2],[1,2],0))
-        call assert_equals(0.0_dp, get_helement([1,2],[1,2]))
+        call assert_equals(h_cast(0.0_dp), get_helement([1,2],[1,2],0))
+        call assert_equals(h_cast(0.0_dp), get_helement([1,2],[1,2]))
 
         uhub = 1.0
-        call assert_equals(1.0_dp, get_helement([1,2],[1,2],0))
-        call assert_equals(1.0_dp, get_helement([1,2],[1,2]))
+        call assert_equals(h_cast(1.0_dp), get_helement([1,2],[1,2],0))
+        call assert_equals(h_cast(1.0_dp), get_helement([1,2],[1,2]))
 
-        call assert_equals(1.0_dp, get_helement([1,2],[1,4],1))
-        call assert_equals(-1.0_dp, get_helement([1,2],[2,3],1))
+        call assert_equals(h_cast(1.0_dp), get_helement([1,2],[1,4],1))
+        call assert_equals(h_cast(-1.0_dp), get_helement([1,2],[2,3],1))
 
-        call assert_equals(1.0_dp, get_helement([1,2],[1,4]))
-        call assert_equals(-1.0_dp, get_helement([1,2],[2,3]))
+        call assert_equals(h_cast(1.0_dp), get_helement([1,2],[1,4]))
+        call assert_equals(h_cast(-1.0_dp), get_helement([1,2],[2,3]))
 
         nbasis = 6 
         deallocate(g1)
@@ -401,17 +640,17 @@ contains
         g1([1,3,5])%ms = -1 
         g1([2,4,6])%ms = 1 
 
-        ptr => lattice('chain', 3, 1, .true., .true.)
+        ptr => lattice('chain', 3, 1, 1, .true., .true., .true.)
         call init_tmat(ptr)
 
-        call assert_equals(0.0, get_helement([1,3],[1,3],0))
-        call assert_equals(0.0, get_helement([1,3],[1,3]))
+        call assert_equals(h_cast(0.0), get_helement([1,3],[1,3],0))
+        call assert_equals(h_cast(0.0), get_helement([1,3],[1,3]))
 
-        call assert_equals(1.0, get_helement([1,3],[1,5],1))
-        call assert_equals(-1.0, get_helement([1,3],[3,5],1))
+        call assert_equals(h_cast(1.0), get_helement([1,3],[1,5],1))
+        call assert_equals(h_cast(-1.0), get_helement([1,3],[3,5],1))
 
-        call assert_equals(1.0, get_helement([1,3],[1,5]))
-        call assert_equals(-1.0, get_helement([1,3],[3,5]))
+        call assert_equals(h_cast(1.0), get_helement([1,3],[1,5]))
+        call assert_equals(h_cast(-1.0), get_helement([1,3],[3,5]))
 
         niftot = 0
         nifd = 0
@@ -421,28 +660,45 @@ contains
         call encodebitdet([1,2],ilutI)
         call encodebitdet([1,2],ilutJ)
 
-        call assert_equals(1.0, get_helement([1,2],[1,2],ilutI,ilutJ))
+        call assert_equals(h_cast(1.0), get_helement([1,2],[1,2],ilutI,ilutJ))
 
         call encodebitdet([2,4],ilutJ)
-        call assert_equals(0.0, get_helement([1,2],[2,4],ilutI,ilutJ))
+        call assert_equals(h_cast(0.0), get_helement([1,2],[2,4],ilutI,ilutJ))
 
         call encodebitdet([2,3],ilutJ)
-        call assert_equals(-1.0, get_helement([1,2],[2,3],ilutI,ilutJ))
+        call assert_equals(h_cast(-1.0), get_helement([1,2],[2,3],ilutI,ilutJ))
 
         call encodebitdet([1,4],ilutJ)
-        call assert_equals(1.0, get_helement([1,2],[1,4],ilutJ,ilutJ))
+        call assert_equals(h_cast(1.0), get_helement([1,2],[1,4],ilutJ,ilutJ))
 
         nel = 4 
-        call assert_equals(2.0, get_helement([1,2,3,4],[1,2,3,4]))
-        call assert_equals(2.0, get_helement([1,2,3,4],[1,2,3,4],0))
+        call assert_equals(h_cast(2.0), get_helement([1,2,3,4],[1,2,3,4]))
+        call assert_equals(h_cast(2.0), get_helement([1,2,3,4],[1,2,3,4],0))
 
-        call assert_equals(1.0, get_helement([1,2,3,4],[1,2,3,6]))
-        call assert_equals(1.0, get_helement([1,2,3,4],[1,2,3,6],1))
+        call assert_equals(h_cast(1.0), get_helement([1,2,3,4],[1,2,3,6]))
+        call assert_equals(h_cast(1.0), get_helement([1,2,3,4],[1,2,3,6],1))
 
-        call assert_equals(1.0, get_helement([1,2,3,4],[1,3,4,6],1))
-        call assert_equals(1.0, get_helement([1,2,3,4],[1,3,4,6]))
-        call assert_equals(-1.0, get_helement([1,2,3,4],[2,3,4,5],1))
-        call assert_equals(-1.0, get_helement([1,2,3,4],[2,3,4,5]))
+        call assert_equals(h_cast(1.0), get_helement([1,2,3,4],[1,3,4,6],1))
+        call assert_equals(h_cast(1.0), get_helement([1,2,3,4],[1,3,4,6]))
+        call assert_equals(h_cast(-1.0), get_helement([1,2,3,4],[2,3,4,5],1))
+        call assert_equals(h_cast(-1.0), get_helement([1,2,3,4],[2,3,4,5]))
+
+        ! for a 2x2 square lattice 
+        ptr => lattice('square', 2,2,1,.true.,.true.,.true.)
+        nel = 2
+        nbasis = 8 
+        call init_tmat(ptr) 
+
+        deallocate(g1)
+        allocate(g1(nbasis))
+        g1(1:7:2)%ms = -1 
+        g1(2:8:2)%ms = 1 
+
+        call assert_equals(h_cast(1.0), get_helement([1,2],[1,2]))
+        call assert_equals(h_cast(1.0), get_helement([1,2],[1,4]))
+        call assert_equals(h_cast(1.0), get_helement([1,2],[1,6]))
+        call assert_equals(h_cast(0.0), get_helement([1,2],[1,8]))
+        call assert_equals(h_cast(-1.0), get_helement([1,2],[2,3]))
 
         nel = -1 
         nbasis = -1 
@@ -465,31 +721,58 @@ contains
         print *, "for a 4 site, non-periodic chain geometry"
         nbasis = 8 
         bhub = 1.0
-        ptr => lattice('chain', 4, 1, .false., .false.)
+        ptr => lattice('chain', 4, 1, 1, .false., .false., .false.)
 
         call init_tmat(ptr)
 
-        call assert_equals([0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0], tmat2d(1,:), 8)
-        call assert_equals([0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0], tmat2d(2,:), 8)
-        call assert_equals([1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0], tmat2d(3,:), 8)
-        call assert_equals([0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0], tmat2d(4,:), 8)
-        call assert_equals([0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0], tmat2d(7,:), 8)
-        call assert_equals([0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0], tmat2d(8,:), 8)
+        call assert_equals([h_cast(0.0), h_cast(0.0), h_cast(1.0), h_cast(0.0), &
+            h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(0.0)], tmat2d(1,:), 8)
+        call assert_equals([h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(1.0), &
+            h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(0.0)], tmat2d(2,:), 8)
+        call assert_equals([h_cast(1.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), &
+            h_cast(1.0), h_cast(0.0), h_cast(0.0), h_cast(0.0)], tmat2d(3,:), 8)
+        call assert_equals([h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(0.0), & 
+            h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(0.0)], tmat2d(4,:), 8)
+        call assert_equals([h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), &
+            h_cast(1.0), h_cast(0.0), h_cast(0.0), h_cast(0.0)], tmat2d(7,:), 8)
+        call assert_equals([h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), &
+            h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(0.0)], tmat2d(8,:), 8)
 
         print *, ""
         print *, "for a 4 site periodic chain geometry: "
-        ptr => lattice('chain', 4, 1, .true., .true.)
+        ptr => lattice('chain', 4, 1, 1, .true., .true., .true.)
 
         call init_tmat(ptr)
 
-        call assert_equals([0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0], tmat2d(1,:), 8)
-        call assert_equals([0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0], tmat2d(2,:), 8)
-        call assert_equals([1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0], tmat2d(3,:), 8)
-        call assert_equals([0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0], tmat2d(4,:), 8)
-        call assert_equals([1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0], tmat2d(7,:), 8)
-        call assert_equals([0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0], tmat2d(8,:), 8)
+        call assert_equals([h_cast(0.0), h_cast(0.0), h_cast(1.0), h_cast(0.0), &
+            h_cast(0.0), h_cast(0.0), h_cast(1.0), h_cast(0.0)], tmat2d(1,:), 8)
+        call assert_equals([h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(1.0),&
+            h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(1.0)], tmat2d(2,:), 8)
+        call assert_equals([h_cast(1.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), &
+            h_cast(1.0), h_cast(0.0), h_cast(0.0), h_cast(0.0)], tmat2d(3,:), 8)
+        call assert_equals([h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(0.0), &
+            h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(0.0)], tmat2d(4,:), 8)
+        call assert_equals([h_cast(1.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), &
+            h_cast(1.0), h_cast(0.0), h_cast(0.0), h_cast(0.0)], tmat2d(7,:), 8)
+        call assert_equals([h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(0.0), &
+            h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(0.0)], tmat2d(8,:), 8)
 
         ! todo: more tests for other lattices later!
+
+        print *, "" 
+        print *, "for a 2x2 periodic square lattice" 
+        ptr => lattice('square', 2,2, 1, .true., .true., .true.) 
+
+        call init_tmat(ptr) 
+
+        call assert_equals([h_cast(0.0), h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(0.0), h_cast(0.0)], tmat2d(1,:), 8)
+        call assert_equals([h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(0.0)], tmat2d(2,:), 8)
+        call assert_equals([h_cast(1.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(1.0), h_cast(0.0)], tmat2d(3,:), 8)
+        call assert_equals([h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(1.0)], tmat2d(4,:), 8)
+        call assert_equals([h_cast(1.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(1.0), h_cast(0.0)], tmat2d(5,:), 8)
+        call assert_equals([h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(1.0)], tmat2d(6,:), 8)
+        call assert_equals([h_cast(0.0), h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(0.0), h_cast(0.0)], tmat2d(7,:), 8)
+        call assert_equals([h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(0.0)], tmat2d(8,:), 8)
 
         nbasis = -1 
         bhub = 0.0
@@ -519,15 +802,15 @@ contains
 
         uhub = 1.0
         nbasis = 8
-
-        call assert_equals(1.0, get_umat_el_hub(1,1,1,1))
-        call assert_equals(1.0, get_umat_el_hub(2,2,2,2))
-        call assert_equals(1.0, get_umat_el_hub(3,3,3,3))
-        call assert_equals(1.0, get_umat_el_hub(4,4,4,4))
-        call assert_equals(0.0, get_umat_el_hub(1,2,3,4))
-        call assert_equals(0.0, get_umat_el_hub(1,1,1,4))
-        call assert_equals(0.0, get_umat_el_hub(2,2,3,4))
-        call assert_equals(0.0, get_umat_el_hub(3,2,3,4))
+        
+        call assert_equals(h_cast(1.0), get_umat_el_hub(1,1,1,1))
+        call assert_equals(h_cast(1.0), get_umat_el_hub(2,2,2,2))
+        call assert_equals(h_cast(1.0), get_umat_el_hub(3,3,3,3))
+        call assert_equals(h_cast(1.0), get_umat_el_hub(4,4,4,4))
+        call assert_equals(h_cast(0.0), get_umat_el_hub(1,2,3,4))
+        call assert_equals(h_cast(0.0), get_umat_el_hub(1,1,1,4))
+        call assert_equals(h_cast(0.0), get_umat_el_hub(2,2,3,4))
+        call assert_equals(h_cast(0.0), get_umat_el_hub(3,2,3,4))
 
         uhub = 0.0
         nbasis = -1

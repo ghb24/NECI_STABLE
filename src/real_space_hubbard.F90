@@ -33,6 +33,8 @@ module real_space_hubbard
 ! and this is the global lattice class
     class(lattice), pointer :: lat
 
+    real(dp) :: lat_tau_factor = 0.5_dp
+
 contains 
 
     ! some brainstorming: 
@@ -45,7 +47,7 @@ contains
         ! routine, which does all of the necessary initialisation
         character(*), parameter :: this_routine = "init_real_space_hubbard"
         ! especially do some stop_all here so no wrong input is used 
-        real(dp) :: tau_opt, tau_factor
+        real(dp) :: tau_opt
 
         print *, "using new real-space hubbard implementation: "
 
@@ -104,16 +106,14 @@ contains
         ! the optimal time-step
         tau_opt = determine_optimal_time_step()
         if (tau < EPS) then 
-            tau_factor = 0.5_dp
             print *, "setting time-step to optimally determined time-step: ", tau_opt
-            print *, "times: ", tau_factor
-            tau = tau_factor * tau_opt
+            print *, "times: ", lat_tau_factor
+            tau = lat_tau_factor * tau_opt
 
         else 
             print *, "optimal time-step would be: ", tau_opt
             print *, "but tau specified in input!"
         end if
-
 
         ! and i have to turn off the time-step search for the hubbard 
         tsearchtau = .false.
