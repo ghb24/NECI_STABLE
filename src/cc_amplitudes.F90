@@ -17,19 +17,25 @@ module cc_amplitudes
     implicit none 
 
     logical :: t_cc_amplitudes = .false. 
+    logical :: t_plot_cc_amplitudes = .false.
 
     ! we need the order of cluster operators..
     integer :: cc_order = 0 
 
     integer :: cc_delay = 1000
 
-    integer :: est_triples = 0, est_quads = 0, est_doubles = 0
+    integer :: est_triples = 0
     integer :: n_singles = 0, n_doubles = 0
     integer :: n_triples = 0, n_quads = 0
+    ! also store the L0, L1 and L2 norm of the cc-amps up to quadrupels
+    ! so i dont need the est_ quantities from above
+    real(dp) :: cc_amp_norm(0:2,4) = 0.0_dp
 
     logical :: t_store_hash_quadrupels = .true. 
     integer :: quad_hash_size
 
+    ! hard code for now which norm should be compared..
+    integer :: norm_comp = 2
     ! i guess i need a new hash table for cc amplitudes, since i also 
     ! want the amplitudes.. but how do i deal with clashes here? 
     type cc_hash
@@ -68,7 +74,8 @@ module cc_amplitudes
     end type cc_amplitude
 
     ! and make a global cc_ops 
-    type(cc_amplitude), allocatable :: cc_ops(:)
+    type(cc_amplitude), allocatable :: cc_ops(:), disc_cc_ops(:)
+    logical :: t_store_disc_ops = .true.
 
     integer, allocatable :: ind_matrix_singles(:,:)
     integer, allocatable :: ind_matrix_doubles(:,:) 
@@ -78,6 +85,106 @@ module cc_amplitudes
     integer, allocatable :: elec_ind_mat(:,:), orb_ind_mat(:,:)
 
 contains 
+
+    subroutine print_cc_amplitudes 
+        ! routine to print out the cc-amplitudes to check there 
+        ! magnitude 
+        use util_mod, only: get_free_unit, get_unique_filename
+        integer :: i, j, iunit
+        character(12) :: filename
+        character(1) :: x1
+        type(cc_hash), pointer :: temp_node
+        
+        if (.not. allocated(cc_ops)) then 
+            print *, "cc amplitudes not yet allocated! cant print!"
+            return
+        end if
+
+        do i = 1, 3
+            ! open 4 files to print the cc-amps
+            iunit = get_free_unit() 
+            write(x1,'(I1)') i 
+            call get_unique_filename('cc_amps_'//trim(x1), .true., .true., 1, &
+                filename)
+            open(iunit, file = filename, status = 'unknown')
+
+            do j = 1, cc_ops(i)%n_ops
+                if (abs(cc_ops(i)%get_amp(j)) < EPS) cycle
+                write(iunit, '(f15.7)') abs(cc_ops(i)%get_amp(j))
+            end do
+
+            close(iunit)
+
+        end do
+
+        iunit = get_free_unit() 
+        call get_unique_filename('cc_amps_4', .true., .true., 1, &
+            filename)
+
+        open(iunit, file = filename, status = 'unknown')
+
+        ! i have to do the quads special since it is stored in a hash.. 
+        print *, "hash size: ", quad_hash_size
+        do i = 1, quad_hash_size
+            temp_node => quad_hash(i) 
+            
+            if (temp_node%found) then 
+                write(iunit, '(f15.7)') abs(temp_node%amp)
+            
+            end if 
+
+            do while(associated(temp_node%next)) 
+                if (temp_node%next%found) then 
+                    write(iunit, '(f15.7)') abs(temp_node%next%amp)
+                end if
+
+                temp_node => temp_node%next
+
+            end do
+        end do
+        close(iunit)
+        
+    end subroutine print_cc_amplitudes
+
+    subroutine calc_cc_quad_norm()
+        ! need specific routine to calculate the quads norm, since it is 
+        ! stored in a hash-table format 
+        integer :: i, n_test
+        type(cc_hash), pointer :: temp_node 
+
+        n_test = 0
+        do i = 1, quad_hash_size 
+            temp_node => quad_hash(i) 
+
+            if (temp_node%found) then 
+                ! for now check if the loop over the hash table works:
+                n_test = n_test + 1 
+                cc_amp_norm(1,4) = cc_amp_norm(1,4) + abs(temp_node%amp)
+                cc_amp_norm(2,4) = cc_amp_norm(2,4) + temp_node%amp**2
+
+            end if
+
+            do while (associated(temp_node%next)) 
+                temp_node => temp_node%next
+
+                if (temp_node%found) then 
+                    n_test = n_test + 1 
+
+                    cc_amp_norm(1,4) = cc_amp_norm(1,4) + abs(temp_node%amp)
+                    cc_amp_norm(2,4) = cc_amp_norm(2,4) + temp_node%amp**2
+
+                end if
+            end do
+        end do
+
+        print *, "checking if loop over hash table works as intented: " 
+        print *, "counted quads: ", n_test
+        print *, "L0 norm quads: ", cc_amp_norm(0,4)
+
+        ! and apply square root to L2 Norm 
+        cc_amp_norm(2,4) = sqrt(cc_amp_norm(2,4))
+
+    end subroutine calc_cc_quad_norm
 
     function cc_singles_factor() result(factor) 
         ! this function should provide the correct factor to the 
@@ -93,10 +200,10 @@ contains
         ! the singles should be influenced by the triples and doubles.. 
         ! but this i have not figured out correctly.. 
         ! so for now return 1 always 
-        factor = 1.0_dp 
-        return
+!         factor = 1.0_dp 
+!         return
 
-        if (est_triples == 0) then 
+        if (cc_amp_norm(norm_comp,3) < EPS) then 
             fac_triples = 0.0_dp 
 
             ! fix the weight in this case
@@ -104,13 +211,14 @@ contains
 
         else 
             ! for now just deal with the L^0 norm of the triples 
-            fac_triples = min(AllEXLEVEL_WNorm(0,3,1) / real(est_triples, dp), 1.0_dp)
+            fac_triples = min(AllEXLEVEL_WNorm(norm_comp,3,1) & 
+                 / cc_amp_norm(norm_comp,3), 1.0_dp)
 
         end if
 
         ! with the doubles i am scared that the estimated number of 
         ! doubles could actually be lower then the sampled ones.. 
-        if (est_doubles == 0) then
+        if (cc_amp_norm(norm_comp,2) < EPS) then
 
             fac_doubles = 0.0_dp
 
@@ -118,7 +226,8 @@ contains
 
         else
             ! but 1 should be the maximum..
-            fac_doubles = min(AllEXLEVEL_WNorm(0,2,1) / real(est_doubles, dp), 1.0_dp)
+            fac_doubles = min(AllEXLEVEL_WNorm(0,2,1) & 
+                 / cc_amp_norm(norm_comp,2), 1.0_dp)
         end if
 
         ! and then we have to combine the two factors with some weighting
@@ -136,18 +245,20 @@ contains
 
         ! essentiall we would need the triples influence too.. 
         ! but Manu said this is not necessary.. hm.. lets try 
-        if (est_triples == 0) then 
+        if (cc_amp_norm(norm_comp,3) < EPS) then 
             fac_triples = 0.0_dp 
             weight = 0.0_dp 
         else
-            fac_triples = min(AllEXLEVEL_WNorm(0,3,1) / real(est_triples, dp), 1.0_dp)
+            fac_triples = min(AllEXLEVEL_WNorm(0,3,1)/  &
+                cc_amp_norm(norm_comp,3), 1.0_dp)
         end if
 
-        if (est_quads == 0) then 
+        if (cc_amp_norm(norm_comp,4) < EPS) then 
             fac_quads = 0.0_dp 
             weight = 1.0_dp 
         else
-            fac_quads = min(AllEXLEVEL_WNorm(0,4,1) / real(est_quads, dp), 1.0_dp)
+            fac_quads = min(AllEXLEVEL_WNorm(0,4,1) / &
+                cc_amp_norm(norm_comp,4), 1.0_dp)
 
         end if
 
@@ -441,18 +552,54 @@ contains
             call init_cc_hash(quad_hash, quad_hash_size)
         end if
         call calc_n_quads()
+        call calc_cc_quad_norm()
 
         print *, "number of hash clashes: ", n_clashes
 
-        print *, "sampled singles: ", n_singles
-        print *, "sampled doubles: ", n_doubles
+        print *, " ---------- Singles -----------------" 
+        print *, "sampled singles in FCIQMC wavefunction: ", n_singles
+        print *, "L0 Norm of singles in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(0,1,1)
+        print *, "L1 Norm of singles in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(1,1,1)
+        print *, "L2 Norm of singles in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(2,1,1)
 
-        print *, "est. triples: ", est_triples
-        print *, "est. quads:   ", est_quads
-        print *, "act. singles: ", AllEXLEVEL_WNorm(0,1,1)
-        print *, "act. doubles: ", AllEXLEVEL_WNorm(0,2,1)
-        print *, "act. triples: ", AllEXLEVEL_WNorm(0,3,1)
-        print *, "act. quads:   ", AllEXLEVEL_WNorm(0,4,1)
+        print *, "L0 Norm of singles in CC-wavefunction: ", cc_amp_norm(0,1)
+        print *, "L1 Norm of singles in CC-wavefunction: ", cc_amp_norm(1,1)
+        print *, "L2 Norm of singles in CC-wavefunction: ", cc_amp_norm(2,1)
+
+        print *, "" 
+        print *, " ------------ Doubles -----------------" 
+        print *, "sampled doubles in FCIQMC wavefunction: ", n_doubles
+        print *, "L0 Norm of doubles in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(0,2,1)
+        print *, "L1 Norm of doubles in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(1,2,1)
+        print *, "L2 Norm of doubles in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(2,2,1)
+
+        print *, "L0 Norm of doubles in CC-wavefunction: ", cc_amp_norm(0,2)
+        print *, "L1 Norm of doubles in CC-wavefunction: ", cc_amp_norm(1,2)
+        print *, "L2 Norm of doubles in CC-wavefunction: ", cc_amp_norm(2,2)
+        
+        print *, "" 
+        print *, " ------------ Triples ------------------ " 
+        print *, "est. triples from T1^2 and T1*T2 ", est_triples
+        print *, "L0 Norm of triples in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(0,3,1)
+        print *, "L1 Norm of triples in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(1,3,1)
+        print *, "L2 Norm of triples in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(2,3,1)
+
+        print *, "L0 Norm of triples in CC-wavefunction: ", cc_amp_norm(0,3)
+        print *, "L1 Norm of triples in CC-wavefunction: ", cc_amp_norm(1,3)
+        print *, "L2 Norm of triples in CC-wavefunction: ", cc_amp_norm(2,3)
+
+        print *, "" 
+        print *, " ----------- Quadruples ----------------- " 
+        print *, "L0 Norm of quadrupels in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(0,4,1)
+        print *, "L1 Norm of quadrupels in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(1,4,1)
+        print *, "L2 Norm of quadrupels in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(2,4,1)
+
+        print *, "estimated quadrupels from T2^2: " 
+        print *, "L0 Norm of quadrupels in CC-wavefunction: ", cc_amp_norm(0,4)
+        print *, "L1 Norm of quadrupels in CC-wavefunction: ", cc_amp_norm(1,4)
+        print *, "L2 Norm of quadrupels in CC-wavefunction: ", cc_amp_norm(2,4)
+
+        print *, "" 
 
     end subroutine init_cc_amplitudes
 
@@ -535,14 +682,13 @@ contains
         integer(n_int) :: temp_int(0:nifdbo)
         real(dp) :: phase, amp
         logical :: t_found
+        integer :: ijk_abc(2,3), l_d(2,1)
 
         if (t_store_hash_quadrupels) then 
           do i = 1, cc_ops(2)%n_ops 
                 if (cc_ops(2)%set_flag(i)) then 
 
                     ij_ab = cc_ops(2)%get_ex(i)
-
-                    amp = cc_ops(2)%get_amp(i)
 
                     do j = i + 1, cc_ops(2)%n_ops 
 
@@ -551,33 +697,34 @@ contains
                             kl_cd = cc_ops(2)%get_ex(j)
 
                             ! can i just: any(a==b)
-                            if (unique_quad_ind(ij_ab, kl_cd)) then
+                            if (unique_quad_ind_2_2(ij_ab, kl_cd)) then
 
                                 ! i also want to store the amplitudes 
                                 ! i gues.. 
-                                amp = amp * cc_ops(2)%get_amp(j)
-
                                 ! here i have to first order the indices 
                                 ! so i < j < k < l and a < b < c < d 
                                 ! and find the phase factor between them 
-                                call order_quad_indices(ij_ab, kl_cd, phase, &
+                                call order_quad_indices_2_2(ij_ab, kl_cd, phase, &
                                     ijab_klcd)
 
-                                amp = amp * phase 
+                                amp = phase * cc_ops(2)%get_amp(i) * cc_ops(2)%get_amp(j) 
 
                                 ! and i need a unique quantity associated with 
                                 ! these 8 orbital -> just set all the 
                                 ! corresponding orbitals 
-                                temp_int = ilutref(0:nifdbo,1)
-                                clr_orb(temp_int, ij_ab(1,1))
-                                clr_orb(temp_int, ij_ab(1,2))
-                                clr_orb(temp_int, kl_cd(1,1))
-                                clr_orb(temp_int, kl_cd(1,2))
+                                temp_int = apply_excit_ops(ilutRef, & 
+                                    [ij_ab(1,:),kl_cd(1,:)],[ij_ab(2,:),kl_cd(2,:)])
 
-                                set_orb(temp_int, ij_ab(2,1))
-                                set_orb(temp_int, ij_ab(2,2))
-                                set_orb(temp_int, kl_cd(2,1))
-                                set_orb(temp_int, kl_cd(2,2))
+!                                 temp_int = ilutref(0:nifdbo,1)
+!                                 clr_orb(temp_int, ij_ab(1,1))
+!                                 clr_orb(temp_int, ij_ab(1,2))
+!                                 clr_orb(temp_int, kl_cd(1,1))
+!                                 clr_orb(temp_int, kl_cd(1,2))
+! 
+!                                 set_orb(temp_int, ij_ab(2,1))
+!                                 set_orb(temp_int, ij_ab(2,2))
+!                                 set_orb(temp_int, kl_cd(2,1))
+!                                 set_orb(temp_int, kl_cd(2,2))
 
                                 call cc_hash_look_up(ijab_klcd, temp_int, quad_hash, &
                                     hash_ind, t_found)
@@ -594,13 +741,58 @@ contains
 
                                     ! and only in this case we found a new 
                                     ! quadruple coefficient
-                                    est_quads = est_quads + 1
+                                    cc_amp_norm(0,4) = cc_amp_norm(0,4) + 1
                                 end if
                             end if
                         end if
                     end do
                 end if
             end do
+
+            print *, "cc-4 L0 norm after T2^2", cc_amp_norm(0,4)
+
+            ! do i also want to do the T1*T3, T1^2*T2 T1^4
+            do i = 1, cc_ops(3)%n_ops 
+                ijk_abc = cc_ops(3)%get_ex(i)
+
+                do j = 1, cc_ops(1)%n_ops 
+                    if (cc_ops(1)%set_flag(j)) then 
+                        l_d = cc_ops(1)%get_ex(j) 
+
+                        if (unique_quad_ind_3_1(ijk_abc, l_d)) then 
+                            
+                            call order_quad_indices_3_1(ijk_abc, l_d, phase, ijab_klcd)
+
+                            amp = phase * cc_ops(3)%get_amp(i) * cc_ops(1)%get_amp(j)
+
+                            temp_int = apply_excit_ops(ilutRef, &
+                                [ijk_abc(1,:),l_d(1,1)], [ijk_abc(2,:),l_d(2,1)])
+
+                            call cc_hash_look_up(ijab_klcd, temp_int, quad_hash, & 
+                                hash_ind, t_found)
+
+                            ! it it is found in the hash-table i want to 
+                            ! update the amplitude 
+                            if (t_found) then 
+                                call cc_hash_update(quad_hash, hash_ind, & 
+                                    temp_int, amp)
+                            else 
+                                ! otherwise i want to add the entry 
+                                call cc_hash_add(quad_hash, hash_ind, & 
+                                    temp_int, amp)
+
+                                ! and only in this case we found a new 
+                                ! quadruple coefficient
+                                cc_amp_norm(0,4) = cc_amp_norm(0,4) + 1
+                            end if
+
+                        end if
+                    end if
+                end do
+            end do
+            print *, "cc-4 L0 norm after T3*T1", cc_amp_norm(0,4)
+
+
         else 
             do i = 1, cc_ops(2)%n_ops 
                 if (cc_ops(2)%set_flag(i)) then 
@@ -614,9 +806,9 @@ contains
                             kl_cd = cc_ops(2)%get_ex(j)
 
                             ! can i just: any(a==b)
-                            if (unique_quad_ind(ij_ab, kl_cd)) then
+                            if (unique_quad_ind_2_2(ij_ab, kl_cd)) then
 
-                                est_quads = est_quads + 1
+                                cc_amp_norm(0,4) = cc_amp_norm(0,4) + 1
 
                             end if
                         end if
@@ -726,11 +918,21 @@ contains
 
     end subroutine cc_hash_add
 
-    subroutine order_quad_indices(ij_ab, kl_cd, phase, ijab_klcd)
+
+    subroutine order_quad_indices_3_1(ijk_abc, l_d, phase, ijab_klcd)
+        integer, intent(inout) :: ijk_abc(2,3), l_d(2,1)
+        real(dp), intent(out) :: phase 
+        integer, intent(out) :: ijab_klcd(8)
+        character(*), parameter :: this_routine = "order_quad_indices_3_1"
+
+    end subroutine order_quad_indices_3_1
+
+
+    subroutine order_quad_indices_2_2(ij_ab, kl_cd, phase, ijab_klcd)
         integer, intent(inout) :: ij_ab(2,2), kl_cd(2,2)
         real(dp), intent(out) :: phase 
         integer, intent(out) :: ijab_klcd(8)
-        character(*), parameter :: this_routine = "order_quad_indices"
+        character(*), parameter :: this_routine = "order_quad_indices_2_2"
 
         integer :: ij(2), ab(2), kl(2), cd(2), i, j, k, l, a, b, c, d
         integer :: n 
@@ -843,15 +1045,41 @@ contains
         ! and calculate the appropriate phase
         phase = (-1.0_dp)**n
 
-    end subroutine order_quad_indices
+    end subroutine order_quad_indices_2_2
 
-    logical function unique_quad_ind(ij_ab, kl_cd)
+    logical function unique_quad_ind_3_1(ijk_abc, l_d)
+        integer, intent(in) :: ijk_abc(2,3), l_d(2,1)
+        
+        unique_quad_ind_3_1 = all(l_d(1,1) /= ijk_abc(1,:) .and. & 
+                                  l_d(2,1) /= ijk_abc(2,:))
+
+    end function unique_quad_ind_3_1
+
+    logical function unique_quad_ind_2_2(ij_ab, kl_cd)
         integer, intent(in) :: ij_ab(2,2), kl_cd(2,2)
 
-        unique_quad_ind = all(ij_ab(1,1) /= kl_cd(1,:) .and. ij_ab(1,2) /= kl_cd(1,:) & 
+        unique_quad_ind_2_2 = all(ij_ab(1,1) /= kl_cd(1,:) .and. ij_ab(1,2) /= kl_cd(1,:) & 
                     .and. ij_ab(2,1) /= kl_cd(2,:) .and. ij_ab(2,2) /= kl_cd(2,:))
 
-    end function unique_quad_ind
+    end function unique_quad_ind_2_2
+
+    function apply_excit_ops(ilut_in, elecs, orbs) result(ilut_out)
+        integer(n_int), intent(in) :: ilut_in(0:niftot) 
+        integer, intent(in) :: elecs(:), orbs(:) 
+        integer(n_int) :: ilut_out(0:niftot)
+
+        integer :: i 
+
+        ilut_out = ilut_in 
+
+        do i = 1, size(elecs)
+            associate(j => elecs(i), k => orbs(i))
+                clr_orb(ilut_out, j)
+                set_orb(ilut_out, k)
+            end associate
+        end do
+
+    end function apply_excit_ops
 
     ! do it other way.. only store the possible non-zero cluster operators! 
     subroutine fill_cc_amplitudes() 
@@ -879,6 +1107,8 @@ contains
         integer(n_int) :: temp_ilut(0:niftot)
         integer :: dummy_ind, dummy_hash, temp_nI(nel)
         logical :: tSuccess
+        integer :: ijk_abc(2,3), l_d(2,1), i_a(2,1), j_b(2,1)
+        integer :: n_disc_1, n_disc_2
 
         HElement_t(dp) :: sign_tmp(lenof_sign) 
 
@@ -890,6 +1120,14 @@ contains
             nbasis/2)
 
         allocate(cc_ops(cc_order))
+
+        if (t_store_full_doubles .and. cc_order > 2 .and. t_store_hash_quadrupels) then
+            ! also store the intermediate T1^2 and T2^2 in operator form to 
+            ! make my life easier 
+            allocate(disc_cc_ops(2))
+            disc_cc_ops(1)%order = 2
+            disc_cc_ops(2)%order = 4
+        end if
 
         ! and do a nice initialization depending on the order 
         do i = 1, cc_order 
@@ -915,32 +1153,41 @@ contains
         do idet = 1, int(totwalkers) 
             ! for now also count the exact number of triples and quadrupels
             ic = FindBitExcitLevel(ilutRef(:,1), CurrentDets(:,idet))
-            select case (ic) 
-            case (1) 
-                n_singles = n_singles + 1 
-                call extract_sign(CurrentDets(:,idet), sign_tmp)
-                call get_bit_excitmat(iLutRef(:,1), CurrentDets(:,idet), ex, ic)
-                ind = cc_ops(1)%get_ind(ex(1,1),ex(2,1))
+            call extract_sign(CurrentDets(:,idet), sign_tmp)
 
-                ! for now only do it for single runs.. do i need the normalising?
-                amp = sign_tmp(1) / AllNoatHf(1)
-                if (abs(amp) > EPS) then 
+            ! for some strange reason there are zero elements stored.. 
+            if (abs(sign_tmp(1)) > EPS) then 
+                select case (ic) 
+                case (1) 
+                    n_singles = n_singles + 1 
+                    call get_bit_excitmat(iLutRef(:,1), CurrentDets(:,idet), ex, ic)
+                    ind = cc_ops(1)%get_ind(ex(1,1),ex(2,1))
+
+                    ! for now only do it for single runs.. do i need the normalising?
+                    amp = sign_tmp(1)
+
                     cc_ops(1)%amplitudes(ind) = amp
-                    cc_ops(1)%operators(ind,:,1) = ex(:,1)
+                    cc_ops(1)%operators(ind,1,1) = ex(1,1)
+                    cc_ops(1)%operators(ind,2,1) = ex(2,1)
                     cc_ops(1)%set_flag(ind) = .true. 
-                end if
+                    cc_amp_norm(0,1) = cc_amp_norm(0,1) + 1
+                    cc_amp_norm(1,1) = cc_amp_norm(1,1) + abs(amp)
+                    cc_amp_norm(2,1) = cc_amp_norm(2,1) + amp**2
 
-            case (2) 
-                n_doubles = n_doubles + 1
+                case (2) 
+                    n_doubles = n_doubles + 1
 
-            case (3)
-                n_triples = n_triples + 1
+                case (3)
+                    n_triples = n_triples + 1
 
-            case (4) 
-                n_quads = n_quads + 1
+                case (4) 
+                    n_quads = n_quads + 1
 
-            end select
+                end select
+            end if 
         end do
+
+        cc_amp_norm(2,1) = sqrt(cc_amp_norm(2,1))
 
         print *, "direct sampled doubles: ", n_doubles
 
@@ -957,6 +1204,17 @@ contains
             allocate(cc_ops(2)%amplitudes(n_excits(2)))
             allocate(cc_ops(2)%set_flag(n_excits(2)))
             cc_ops(2)%n_ops = n_excits(2)
+
+            ! then also store the intermediate 
+            allocate(disc_cc_ops(1)%operators(n_excits(2), 2, 2))
+            allocate(disc_cc_ops(1)%amplitudes(n_excits(2)))
+            allocate(disc_cc_ops(1)%set_flag(n_excits(2)))
+            disc_cc_ops(1)%n_ops = n_excits(2)
+
+            disc_cc_ops(1)%operators = 0
+            disc_cc_ops(1)%amplitudes = 0 
+            disc_cc_ops(1)%set_flag = .false.
+
         else
             allocate(cc_ops(2)%operators(n_doubles, 2, 2))
             allocate(cc_ops(2)%amplitudes(n_doubles))
@@ -964,6 +1222,70 @@ contains
             cc_ops(2)%n_ops = n_doubles
         end if
 
+        if (t_store_disc_ops) then 
+            n_disc_1 = 0 
+            n_disc_2 = 0
+            do i = 1, cc_ops(1)%n_ops 
+                if (cc_ops(1)%set_flag(i)) then 
+                    do j = i + 1, cc_ops(1)%n_ops 
+                        if (cc_ops(1)%set_flag(j)) then 
+                            i_a = cc_ops(1)%get_ex(i) 
+                            j_b = cc_ops(1)%get_ex(j) 
+
+                            ! ensure ordering, they should be ordered by 
+                            ! electrons but electron index can still be the 
+                            ! same .. 
+                            if (i_a(1,1) > j_b(1,1)) then 
+                                call stop_all(this_routine, &
+                                    "i did smth wrong with the ordering")
+                            end if
+
+                            if (i_a(1,1) /= j_b(1,1)) then 
+                                amp = cc_ops(1)%get_amp(i) * cc_ops(1)%get_amp(j)
+
+                                if (i_a(2,1) < j_b(2,1)) then 
+                                    ind = cc_ops(2)%get_ind([i_a(1,1),j_b(1,1)],&
+                                        [i_a(2,1),j_b(2,1)])
+                                    amp = -amp 
+
+                                else if (i_a(2,1) > j_b(2,1)) then 
+                                    ind = cc_ops(2)%get_ind([i_a(1,1),j_b(1,1)], &
+                                        [j_b(2,1),i_a(2,1)])
+
+                                else 
+                                    ! orbitals are the same.. 
+                                end if
+
+                                ! did i already find that: 
+                                if (disc_cc_ops(1)%set_flag(ind)) then 
+                                    disc_cc_ops(1)%amplitudes(ind) = & 
+                                        disc_cc_ops(1)%amplitudes(ind) + amp 
+
+                                    ! if it cancelled: remove the entry: 
+                                    if (abs(disc_cc_ops(1)%amplitudes(ind)) < EPS) then 
+                                        disc_cc_ops(1)%set_flag(ind) = .false.
+                                        disc_cc_ops(1)%operators(ind,:,:) = 0
+                                        disc_cc_ops(1)%amplitudes(ind) = 0.0_dp
+                                        ! and lower ofc.. 
+                                        n_disc_1 = n_disc_1 - 1
+                                    end if
+                                else
+                                    ! otherwise set it.. 
+                                    disc_cc_ops(1)%amplitudes(ind) = amp
+                                    disc_cc_ops(1)%set_flag(ind) = .true. 
+                                    disc_cc_ops(1)%operators(ind,1,:) = [i_a(1,1),j_b(1,1)]
+                                    disc_cc_ops(1)%operators(ind,2,:) = & 
+                                        [min(i_a(2,1),j_b(2,1)),max(i_a(2,1),j_b(2,1))]
+                                    n_disc_1 = n_disc_1 + 1 
+                                end if
+                            end if
+                        end if
+                    end do
+                end if 
+            end do
+        end if
+
+        print *, "number of disconnected T1^2: ", n_disc_1
         cc_ops(2)%operators = 0
         cc_ops(2)%amplitudes = 0.0_dp
         cc_ops(2)%set_flag = .false.
@@ -983,7 +1305,7 @@ contains
                 jb = cc_ops(1)%get_ind(ex(1,2),ex(2,2))
 
                 ! check first if the amp gets 0 due to the singles
-                amp = sign_tmp(1)/AllNoatHf(1) + & 
+                amp = sign_tmp(1) + & 
                     cc_ops(1)%get_amp(ja)*cc_ops(1)%get_amp(ib) -  & 
                     cc_ops(1)%get_amp(ia)*cc_ops(1)%get_amp(jb)
 
@@ -995,9 +1317,16 @@ contains
                         j = j + 1
                     end if
 
-                    cc_ops(2)%operators(ind,:,:) = ex(:,1:2)
+                    cc_ops(2)%operators(ind,1,:) = ex(1,:) 
+                    cc_ops(2)%operators(ind,2,:) = ex(2,:)
                     cc_ops(2)%amplitudes(ind) = amp
                     cc_ops(2)%set_flag(ind) = .true.
+
+                    ! i think i can already sum up the norms here.. 
+                    ! since we have all the necessary contribs 
+                    cc_amp_norm(0,2) = cc_amp_norm(0,2) + 1 
+                    cc_amp_norm(1,2) = cc_amp_norm(1,2) + abs(amp)
+                    cc_amp_norm(2,2) = cc_amp_norm(2,2) + amp**2
 
                 end if
             end if
@@ -1007,6 +1336,29 @@ contains
         ! excitations, since t_ij^ab = c_ij^ab - t_i^a... could be 
         ! non-zero, just from the single contribution.. 
         if (t_store_full_doubles) then 
+!             if (t_store_disc_ops) then 
+!                 do i = 1, disc_cc_ops(1)%n_ops
+!                     if (disc_cc_ops(1)%set_flag(i)) then 
+!                         if (.not. cc_ops(2)%set_flag(i)) then 
+!                             print *, "here?", cc_ops(2)%get_ex(i), disc_cc_ops(1)%get_ex(i)
+! 
+!                             ASSERT(abs(disc_cc_ops(1)%amplitudes(i)) > EPS)
+! 
+!                             amp = disc_cc_ops(1)%amplitudes(i)
+! 
+!                             cc_ops(2)%amplitudes(i) = amp
+! 
+!                             cc_ops(2)%operators(i,:,:) = disc_cc_ops(1)%operators(i,:,:)
+!                             cc_ops(2)%set_flag = .true. 
+!                             n_doubles = n_doubles + 1
+!                             cc_amp_norm(0,2) = cc_amp_norm(0,2) + 1
+!                             cc_amp_norm(1,2) = cc_amp_norm(1,2) + abs(amp) 
+!                             cc_amp_norm(2,2) = cc_amp_norm(2,2) + amp**2
+! 
+!                         endif
+!                     end if
+!                 end do
+!             else
             do i = 1, nel 
                 elec_i = projedet(i,1)
                 do j = i + 1, nel 
@@ -1025,24 +1377,42 @@ contains
                                     ind = cc_ops(2)%get_ind([elec_i,elec_j], &
                                         [orb_a,orb_b]) 
 
-                                    if (.not. cc_ops(2)%set_flag(ind)) then 
+                                    ASSERT(elec_i < elec_j)
+                                    ASSERT(orb_a < orb_b)
 
-                                        ia = cc_ops(1)%get_ind([elec_i],[orb_a])
-                                        ib = cc_ops(1)%get_ind([elec_i],[orb_b])
-                                        ja = cc_ops(1)%get_ind([elec_j],[orb_a])
-                                        jb = cc_ops(1)%get_ind([elec_j],[orb_b])
+                                    ! do the disc op storage here! 
+                                    ia = cc_ops(1)%get_ind([elec_i],[orb_a])
+                                    ib = cc_ops(1)%get_ind([elec_i],[orb_b])
+                                    ja = cc_ops(1)%get_ind([elec_j],[orb_a])
+                                    jb = cc_ops(1)%get_ind([elec_j],[orb_b])
 
-                                        
-                                        amp = cc_ops(1)%get_amp(ja)*cc_ops(1)%get_amp(ib) -  & 
-                                              cc_ops(1)%get_amp(ia)*cc_ops(1)%get_amp(jb)
+                                    
+                                    amp = cc_ops(1)%get_amp(ja)*cc_ops(1)%get_amp(ib) -  & 
+                                          cc_ops(1)%get_amp(ia)*cc_ops(1)%get_amp(jb)
 
-                                        if (abs(amp) > EPS) then 
+                                    if (abs(amp) > EPS) then 
+                                        if (.not. cc_ops(2)%set_flag(ind)) then 
+                                            print *, "para: ", elec_i, elec_j, orb_a, orb_b
                                             cc_ops(2)%operators(ind,1,:) = [elec_i, elec_j]
                                             cc_ops(2)%operators(ind,2,:) = [orb_a, orb_b] 
                                             cc_ops(2)%amplitudes(ind) = amp 
                                             cc_ops(2)%set_flag(ind) = .true. 
 
                                             n_doubles = n_doubles + 1
+
+                                            cc_amp_norm(0,2) = cc_amp_norm(0,2) + 1 
+                                            cc_amp_norm(1,2) = cc_amp_norm(1,2) + abs(amp)
+                                            cc_amp_norm(2,2) = cc_amp_norm(2,2) + amp**2
+                                        end if
+                                        if (t_store_disc_ops) then 
+
+                                            disc_cc_ops(1)%operators(ind,1,:) = [elec_i, elec_j]
+                                            disc_cc_ops(1)%operators(ind,2,:) = [orb_a, orb_b] 
+                                            disc_cc_ops(1)%amplitudes(ind) = amp 
+                                            disc_cc_ops(1)%set_flag(ind) = .true. 
+
+                                            n_disc_2 = n_disc_2 + 1
+
                                         end if
                                     end if
                                 end if
@@ -1059,25 +1429,43 @@ contains
                                     ind = cc_ops(2)%get_ind([elec_i,elec_j], &
                                         [orb_a,orb_b]) 
 
-                                    if (.not. cc_ops(2)%set_flag(ind)) then 
+                                    ASSERT(elec_i < elec_j)
+                                    ASSERT(orb_a < orb_b)
 
-                                        ia = cc_ops(1)%get_ind([elec_i],[orb_a])
-                                        ib = cc_ops(1)%get_ind([elec_i],[orb_b])
-                                        ja = cc_ops(1)%get_ind([elec_j],[orb_a])
-                                        jb = cc_ops(1)%get_ind([elec_j],[orb_b])
+                                    ia = cc_ops(1)%get_ind([elec_i],[orb_a])
+                                    ib = cc_ops(1)%get_ind([elec_i],[orb_b])
+                                    ja = cc_ops(1)%get_ind([elec_j],[orb_a])
+                                    jb = cc_ops(1)%get_ind([elec_j],[orb_b])
 
-                                        
-                                        amp = cc_ops(1)%get_amp(ja)*cc_ops(1)%get_amp(ib) -  & 
-                                              cc_ops(1)%get_amp(ia)*cc_ops(1)%get_amp(jb)
+                                    amp = cc_ops(1)%get_amp(ja)*cc_ops(1)%get_amp(ib) -  & 
+                                          cc_ops(1)%get_amp(ia)*cc_ops(1)%get_amp(jb)
 
-                                        if (abs(amp) > EPS) then 
+                                    if (abs(amp) > EPS) then 
+
+                                        if (.not. cc_ops(2)%set_flag(ind)) then 
+
+                                            print *, "anti: ", elec_i, elec_j, orb_a, orb_b
                                             cc_ops(2)%operators(ind,1,:) = [elec_i, elec_j]
                                             cc_ops(2)%operators(ind,2,:) = [orb_a, orb_b] 
                                             cc_ops(2)%amplitudes(ind) = amp 
                                             cc_ops(2)%set_flag(ind) = .true. 
 
                                             n_doubles = n_doubles + 1
+
+                                            cc_amp_norm(0,2) = cc_amp_norm(0,2) + 1 
+                                            cc_amp_norm(1,2) = cc_amp_norm(1,2) + abs(amp)
+                                            cc_amp_norm(2,2) = cc_amp_norm(2,2) + amp**2
                                         end if
+                                        if (t_store_disc_ops) then 
+
+                                            disc_cc_ops(1)%operators(ind,1,:) = [elec_i, elec_j]
+                                            disc_cc_ops(1)%operators(ind,2,:) = [orb_a, orb_b] 
+                                            disc_cc_ops(1)%amplitudes(ind) = amp 
+                                            disc_cc_ops(1)%set_flag(ind) = .true. 
+
+                                            n_disc_2 = n_disc_2 + 1
+                                        end if
+
                                     end if
                                 end if
                             end do
@@ -1085,7 +1473,11 @@ contains
                     end if
                 end do
             end do
+!             end if
         end if
+
+        print *, "disconnecte T1^2 calc. differently: ", n_disc_2
+        cc_amp_norm(2,2) = sqrt(cc_amp_norm(2,2))
         
         print *, "doubles after singles contribution: ", n_doubles
 
@@ -1145,7 +1537,7 @@ contains
                    ij_ac = cc_ops(2)%get_ind(ij,ac)
                    ij_ab = cc_ops(2)%get_ind(ij,ab)
 
-                   amp = sign_tmp(1)/AllNoatHf(1) &
+                   amp = sign_tmp(1) &
                        - cc_ops(1)%get_amp(ia)*cc_ops(2)%get_amp(jk_bc) &
                        + cc_ops(1)%get_amp(ib)*cc_ops(2)%get_amp(jk_ac) & 
                        - cc_ops(1)%get_amp(ic)*cc_ops(2)%get_amp(jk_ab) & 
@@ -1169,11 +1561,28 @@ contains
 
                        n = n + 1
 
+                       ! also here i can add the norms up already.. 
+                       cc_amp_norm(0,3) = cc_amp_norm(0,3) + 1
+                       cc_amp_norm(1,3) = cc_amp_norm(1,3) + abs(amp) 
+                       cc_amp_norm(2,3) = cc_amp_norm(2,3) + amp**2
+
                    end if
                end if
             end do
             print *, "direct sampled triples: ", n - 1
 
+            if (t_store_disc_ops) then 
+
+                ! maybe try the new feature with the stored T1^2
+                do i = 1, cc_ops(1)%n_ops 
+                    if (cc_ops(1)%set_flag(i)) then 
+                        do j = 1, disc_cc_ops(1)%n_ops 
+                            if (disc_cc_ops(1)%set_flag(j)) then 
+
+                                
+
+
+            else
             do i = 1, nel 
                 elec_i = projedet(i,1)
                 do j = i + 1, nel 
@@ -1224,14 +1633,17 @@ contains
                                     ! triple excitation (ijk|abc) is in the 
                                     ! wallker list! use the hash-table!
                                     ! todo 
-                                    temp_ilut = iLutRef(:,1) 
-                                    ! make the excitation and search! 
-                                    clr_orb(temp_ilut, elec_i)
-                                    clr_orb(temp_ilut, elec_j)
-                                    clr_orb(temp_ilut, elec_k)
-                                    set_orb(temp_ilut, orb_a)
-                                    set_orb(temp_ilut, orb_b)
-                                    set_orb(temp_ilut, orb_c)
+                                    temp_ilut = apply_excit_ops(iLutRef, & 
+                                        [elec_i,elec_j,elec_k],[orb_a,orb_b,orb_c])
+
+!                                     temp_ilut = iLutRef(:,1) 
+!                                     ! make the excitation and search! 
+!                                     clr_orb(temp_ilut, elec_i)
+!                                     clr_orb(temp_ilut, elec_j)
+!                                     clr_orb(temp_ilut, elec_k)
+!                                     set_orb(temp_ilut, orb_a)
+!                                     set_orb(temp_ilut, orb_b)
+!                                     set_orb(temp_ilut, orb_c)
 
                                     call decode_bit_det(temp_nI, temp_ilut)
 
@@ -1262,6 +1674,10 @@ contains
                                            temp_ops(n,1,:) = [elec_i,elec_j,elec_k]
                                            temp_ops(n,2,:) = [orb_a,orb_b,orb_c]
                                            n = n + 1
+
+                                           cc_amp_norm(0,3) = cc_amp_norm(0,3) + 1
+                                           cc_amp_norm(1,3) = cc_amp_norm(1,3) + abs(amp) 
+                                           cc_amp_norm(2,3) = cc_amp_norm(2,3) + amp**2
                                        end if
                                    end if
                                 end do
@@ -1270,6 +1686,9 @@ contains
                     end do
                 end do
             end do
+            end if
+
+            cc_amp_norm(2,3) = sqrt(cc_amp_norm(2,3))
 
             print *, "triples after T1*T2 and T1^3: ", n - 1
             ! and then allocate the actual array: 
@@ -1281,8 +1700,8 @@ contains
             cc_ops(3)%n_ops = n - 1
         end if
 
-
     end subroutine fill_cc_amplitudes
+
 
     function get_ex(this, ind) result(ex) 
         ! this function gives the specific excitation, if present in the 
@@ -1369,6 +1788,10 @@ contains
 
             print *, "(i,j): ", i,j 
             print *, "(a,b): ", a, b
+
+        case (3)
+            ex = this%operators(ind,:,:)
+
         case default 
             call stop_all(this_routine, "higher than cc_order 2 not yet implemented!")
 

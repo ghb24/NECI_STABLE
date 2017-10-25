@@ -73,7 +73,8 @@ module FciMCParMod
 
     use tau_search_hist, only: print_frequency_histograms, deallocate_histograms
     use back_spawn, only: init_back_spawn
-    use cc_amplitudes, only: t_cc_amplitudes, init_cc_amplitudes, cc_delay
+    use cc_amplitudes, only: t_cc_amplitudes, init_cc_amplitudes, cc_delay, &
+                            t_plot_cc_amplitudes, print_cc_amplitudes
 
 #ifdef MOLPRO
     use outputResult
@@ -533,6 +534,10 @@ module FciMCParMod
 
             ! also deallocate here after no use of the histograms anymore
             call deallocate_histograms()
+        end if
+
+        if (t_cc_amplitudes .and. t_plot_cc_amplitudes) then
+            call print_cc_amplitudes()
         end if
 
         ! Remove the signal handlers now that there is no way for the
