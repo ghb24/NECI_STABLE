@@ -11,6 +11,7 @@ MODULE System
     use iso_c_hack
     use read_fci, only: FCIDUMP_name
     use util_mod, only: error_function, error_function_c
+    use real_space_hubbard, only: trans_corr_param, t_trans_corr
 
     IMPLICIT NONE
 
@@ -474,6 +475,17 @@ system: do
             if (t_new_real_space_hubbard) then 
                length_x = NMAXX 
                length_y = NMAXY
+           end if
+
+       case ('TRANSCORRELATED', 'TRANSCORR', 'TRANS-CORR')
+           ! activate the transcorrelated Hamiltonian idea from hongjun for 
+           ! the real-space hubbard model 
+           t_trans_corr = .true. 
+           if (item < nitems) then 
+               call getf(trans_corr_param)
+           else 
+               ! defaul value 1 for now, since i have no clue how this behaves
+               trans_corr_param = 1.0_dp
            end if
 
        ! Options for the type of the reciprocal lattice (eg sc, fcc, bcc)

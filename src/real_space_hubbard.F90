@@ -19,14 +19,15 @@ module real_space_hubbard
                           length_y, length_z, uhub, nbasis, bhub, t_open_bc_x, &
                           t_open_bc_y, t_open_bc_z, G1, ecore, nel, nOccAlpha, nOccBeta
     use lattice_mod, only: lattice
-    use constants, only: dp, EPS
+    use constants, only: dp, EPS, n_int
     use procedure_pointers, only: get_umat_el, generate_excitation
-    use OneEInts, only: tmat2d
+    use OneEInts, only: tmat2d, GetTMatEl
     use fcimcdata, only: pSingles, pDoubles, tsearchtau, tsearchtauoption
     use CalcData, only: t_hist_tau_search, t_hist_tau_search_option, tau
-    use tau_search, only: max_death_cpt
     use umatcache, only: gtid
     use dsfmt_interface, only: genrand_real2_dsfmt
+    use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
+    use bit_rep_data, only: NIfTot
 
     implicit none 
 
@@ -34,6 +35,22 @@ module real_space_hubbard
     class(lattice), pointer :: lat
 
     real(dp) :: lat_tau_factor = 0.5_dp
+    
+    ! honjuns idea with the transcorrelated Hamiltonian we have a modified 
+    ! hopping term: 
+    ! t_ij^s = t exp[K(n_j^s' - n_i^s')] 
+    ! so we need this K as an input parameter 
+    real(dp) :: trans_corr_param = 1.0_dp 
+    ! and a flag to start it 
+    logical :: t_trans_corr = .false. 
+    ! as one can see this modification is dependent on the current 
+    ! occupation of the involved hopping orbitals! so it is not just a 
+    ! change in the Hamiltonian 
+
+    interface get_helement_rs_hub
+        module procedure get_helement_rs_hub_ex_mat
+        module procedure get_helement_rs_hub_general
+    end interface get_helement_rs_hub
 
 contains 
 
@@ -123,7 +140,8 @@ contains
         t_hist_tau_search = .false. 
         t_hist_tau_search_option = .false. 
         
-        max_death_cpt = 0.0_dp
+        ! do not set that here, due to circular dependencies
+!         max_death_cpt = 0.0_dp
 
     end subroutine init_real_space_hubbard
 
@@ -377,20 +395,145 @@ contains
 
     end subroutine gen_excit_rs_hubbard
 
+    function get_helement_rs_hub_ex_mat(nI, nJ, ic, ex, tpar) result(hel)
+        integer, intent(in) :: nI(nel), nJ(nel)
+        integer, intent(in) :: ic, ex(2,2)
+        logical, intent(in) :: tpar
+        HElement_t(dp) :: hel 
+
+        if (ic == 0) then 
+            ! diagonal matrix element -> sum over doubly occupied orbitals! 
+            hel = get_diag_helemen_rs_hub(nI) 
+
+        else if (ic == 1) then 
+            ! one-body operator: 
+            ! here we need to make the distinction, if we are doing a 
+            ! transcorrelated hamiltonian or not 
+            hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar)
+
+        else 
+            ! zero matrix element! 
+            hel = h_cast(0.0_dp)
+
+        end if
+
+    end function get_helement_rs_hub_ex_mat
+
+    function get_helement_rs_hub_general(nI, nJ, ic_ret) result(hel)
+        integer, intent(in) :: nI(nel), nJ(nel) 
+        integer, intent(inout), optional :: ic_ret 
+        HElement_t(dp) :: hel
+        
+        integer :: ic, ex(2,2)
+        logical :: tpar
+        integer(n_int) :: ilutI(0:NIfTot), ilutJ(0:NIfTot)
+
+        if (present(ic_ret)) then 
+            if (ic_ret == 0) then 
+                hel = get_diag_helemen_rs_hub(nI)
+
+            else if (ic_ret == 1) then 
+                ex(1,1) = 1
+                call GetExcitation(nI, nJ, nel, ex, tpar)
+                hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar) 
+
+            else if (ic_ret == -1) then 
+                ! this indicates that ic_ret wants to get returned instead of 
+                ! beeing calculated 
+                ! its the same as if no ic_ret is present 
+                call EncodeBitDet(nI, ilutI)
+                call EncodeBitDet(nJ, ilutJ)
+
+                ic_ret = FindBitExcitLevel(ilutI, ilutJ)
+
+                if (ic_ret == 0) then 
+                    hel = get_diag_helemen_rs_hub(nI)
+                else if (ic_ret == 1) then 
+                    ex(1,1) = 1
+                    call GetBitExcitation(ilutI, ilutJ, ex, tpar)
+
+                    hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar)
+
+                else 
+                    hel = h_cast(0.0_dp)
+
+                end if
+            else
+                hel = h_cast(0.0_dp)
+            end if
+        else
+            call EncodeBitDet(nI, ilutI)
+            call EncodeBitDet(nJ, ilutJ)
+
+            ic = FindBitExcitLevel(ilutI, ilutJ)
+
+            if (ic == 0) then 
+                hel = get_diag_helemen_rs_hub(nI)
+            else if (ic == 1) then 
+                ex(1,1) = 1
+                call GetBitExcitation(ilutI, ilutJ, ex, tpar)
+                hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar) 
+
+            else
+                hel = h_cast(0.0_dp)
+            end if
+        end if
+    
+    end function get_helement_rs_hub_general
+
     ! also optimize the matrix element calculation
-    subroutine calc_diag_mat_ele_rsh() 
+    function get_diag_helemen_rs_hub(nI) result(hel)
+        use double_occ_mod, only: count_double_orbs
+        integer, intent(in) :: nI(nel)
+        HElement_t(dp) :: hel
+
+        integer(n_int) :: ilut(0:NIfTot)
         ! the diagonal matrix element is essentialy just the number of 
         ! doubly occupied sites times U
-        character(*), parameter :: this_routine = "calc_diag_mat_ele_rsh"
 
-    end subroutine calc_diag_mat_ele_rsh
+        call EncodeBitDet(nI, ilut)
 
-    subroutine calc_off_diag_mat_ele_rsh()
+        hel = h_cast(uhub * count_double_orbs(ilut))
+
+    end function get_diag_helemen_rs_hub
+
+    function get_offdiag_helement_rs_hub(nI, ex, tpar) result(hel)
+        integer, intent(in) :: nI(nel), ex(2)
+        logical, intent(in) :: tpar
+        HElement_t(dp) :: hel
+
+        real(dp) :: ni_opp, nj_opp
+
         ! in case we need it, the off-diagonal, except parity is just 
         ! -t if the hop is possible
-        character(*), parameter :: this_routine = "calc_off_diag_mat_ele_rsh"
+        hel = GetTMatEl(ex(1),ex(2))
 
-    end subroutine calc_off_diag_mat_ele_rsh
+        if (tpar) hel = -hel
+
+        ! put the transcorrelated stuff here for now, alhtough it would be 
+        ! better to do it as a procedure pointer.. 
+        if (t_trans_corr) then 
+            if (is_beta(ex(1))) then 
+                if (any(get_alpha(ex(1)) == nI)) then 
+                    nj_opp = 1.0_dp
+                end if 
+                if (any(get_alpha(ex(2)) == nI)) then 
+                    ni_opp = 1.0_dp
+                end if
+            else 
+                if (any(get_beta(ex(1)) == nI)) then 
+                    nj_opp = 1.0_dp
+                end if 
+                if (any(get_beta(ex(2)) == nI)) then 
+                    ni_opp = 1.0_dp 
+                end if
+            end if
+
+            hel = hel * exp(trans_corr_param * (nj_opp - ni_opp))
+
+        end if
+
+    end function get_offdiag_helement_rs_hub
 
     ! what else?
     subroutine create_neel_state() 

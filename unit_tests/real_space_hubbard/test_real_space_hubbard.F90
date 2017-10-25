@@ -12,11 +12,13 @@ program test_real_space_hubbard
     use real_space_hubbard
     use constants 
     use fruit 
-    use SystemData, only: lattice_type
+    use SystemData, only: lattice_type, t_new_real_space_hubbard
 
     implicit none 
 
     integer :: failed_count 
+
+    t_new_real_space_hubbard = .true.
 
     call init_fruit()
     ! run the test-driver 
@@ -44,7 +46,7 @@ contains
 
     subroutine init_real_space_hubbard_test
         use SystemData, only: lattice_type, length_x, length_y, nbasis, nel, &
-                              bhub, uhub, ecore
+                              bhub, uhub, ecore, t_new_real_space_hubbard
         use OneEInts, only: tmat2d
         use fcimcdata, only: pSingles, pDoubles, tsearchtau, tsearchtauoption
         use CalcData, only: tau
@@ -700,11 +702,24 @@ contains
         call assert_equals(h_cast(0.0), get_helement([1,2],[1,8]))
         call assert_equals(h_cast(-1.0), get_helement([1,2],[2,3]))
 
+        print *, "" 
+        print *, "and now for transcorrelated hamiltonian with K = 1" 
+        t_trans_corr = .true.
+        call assert_equals(h_cast(1.0 * exp(1.0)), get_helement([1,2],[1,4]))
+        call assert_equals(h_cast(1.0 * exp(-1.0)), get_helement([1,4],[1,2]))
+        call assert_equals(h_cast(-1.0 * exp(1.0)), get_helement([1,2],[2,3]))
+        call assert_equals(h_cast(-1.0 * exp(-1.0)), get_helement([2,3],[1,2]))
+        call assert_equals(h_cast(0.0), get_helement([2,3],[2,5]))
+        call assert_equals(h_cast(1.0), get_helement([2,3],[2,7]))
+        call assert_equals(h_cast(0.0), get_helement([2,3],[3,8]))
+        call assert_equals(h_cast(-1.0), get_helement([2,3],[3,6]))
+
         nel = -1 
         nbasis = -1 
         nullify(get_umat_el)
         deallocate(g1) 
         deallocate(tmat2d)
+        t_trans_corr = .false.
 
     end subroutine get_helement_test
 
