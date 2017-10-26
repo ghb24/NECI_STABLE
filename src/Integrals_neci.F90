@@ -3,7 +3,8 @@ module Integrals_neci
 
     use SystemData, only: tStoreSpinOrbs, nBasisMax, iSpinSkip, &
                           tFixLz, nBasis, G1, Symmetry, tCacheFCIDUMPInts, &
-                          tRIIntegrals, tVASP,tComplexOrbs_RealInts, NEl, LMS, ECore
+                          tRIIntegrals, tVASP,tComplexOrbs_RealInts, NEl, LMS, ECore, &
+                          t_new_real_space_hubbard
     use UmatCache, only: tUmat2D, UMatInd, UMatConj, umat2d, tTransFIndx, nHits, &
                          nMisses, GetCachedUMatEl, HasKPoints, TransTable, &
                          nTypes, gen2CPMDInts, tDFInts
@@ -515,15 +516,23 @@ contains
                IF(THUB.AND.TREAL) THEN
     !!C.. Real space hubbard
     !!C.. we pre-compute the 2-e integrals
-                  WRITE(6,*) "Generating 2e integrals"
-    !!C.. Generate the 2e integrals (UMAT)
-                  CALL GetUMatSize(nBasis,nEl,UMATINT)
-                  call shared_allocate ("umat", umat, (/UMatInt/))
-                  !Allocate(UMat(UMatInt), stat=ierr)
-                  LogAlloc(ierr, 'UMat', int(UMatInt),HElement_t_SizeB, tagUMat)
-                  UMat = 0.0_dp
-                  WRITE(6,*) "Size of UMat is: ",UMATINT
-                  CALL CALCUMATHUBREAL(NBASIS,UHUB,UMAT)
+                  if (t_new_real_space_hubbard) then 
+                     WRITE(6,*) "Not precomputing HUBBARD 2-e integrals"
+                     call shared_allocate ("umat", umat, (/1_int64/))
+                     !Allocate(UMat(1), stat=ierr)
+                     LogAlloc(ierr, 'UMat', 1,HElement_t_SizeB, tagUMat)
+                     UMAT(1)=UHUB
+                  else
+                      WRITE(6,*) "Generating 2e integrals"
+        !!C.. Generate the 2e integrals (UMAT)
+                      CALL GetUMatSize(nBasis,nEl,UMATINT)
+                      call shared_allocate ("umat", umat, (/UMatInt/))
+                      !Allocate(UMat(UMatInt), stat=ierr)
+                      LogAlloc(ierr, 'UMat', int(UMatInt),HElement_t_SizeB, tagUMat)
+                      UMat = 0.0_dp
+                      WRITE(6,*) "Size of UMat is: ",UMATINT
+                      CALL CALCUMATHUBREAL(NBASIS,UHUB,UMAT)
+                  end if
                ELSEIF(THUB.AND..NOT.TPBC) THEN
     !!C.. we pre-compute the 2-e integrals
                   WRITE(6,*) "Generating 2e integrals"
