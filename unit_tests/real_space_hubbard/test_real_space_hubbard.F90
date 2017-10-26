@@ -41,8 +41,83 @@ contains
         call run_test_case(determine_optimal_time_step_test, "determine_optimal_time_step_test")
         call run_test_case(gen_excit_rs_hubbard_test, "gen_excit_rs_hubbard_test")
         call run_test_case(init_real_space_hubbard_test, "init_real_space_hubbard_test")
+        call run_test_case(trans_corr_fac_test, "trans_corr_fac_test")
+        call run_test_case(create_cum_list_rs_hubbard_test, "create_cum_list_rs_hubbard_test")
+        call run_test_case(create_avail_neighbors_list_test, "create_avail_neighbors_list_test")
+        call run_test_case(calc_pgen_rs_hubbard_test, "calc_pgen_rs_hubbard_test")
 
     end subroutine real_space_hubbard_test_driver
+
+    subroutine create_cum_list_rs_hubbard_test
+
+        print *, ""
+        print *, "testing: create_cum_list_rs_hubbard" 
+
+        call assert_true(.false.)
+
+    end subroutine create_cum_list_rs_hubbard_test
+
+    subroutine create_avail_neighbors_list_test
+
+        print *, "" 
+        print *, "testing: create_avail_neighbors_list"
+
+        call assert_true(.false.)
+
+    end subroutine create_avail_neighbors_list_test
+
+    subroutine calc_pgen_rs_hubbard_test
+
+        print *, "" 
+        print *, "testing: calc_pgen_rs_hubbard" 
+
+        call assert_true(.false.)
+
+    end subroutine calc_pgen_rs_hubbard_test
+
+    subroutine trans_corr_fac_test
+        use Detbitops, only: encodebitdet
+        use constants, only: n_int
+        use SystemData, only: nel
+
+        integer(n_int), allocatable :: ilut(:)
+
+        print *, "" 
+        print *, "Testing transcorrelation factor" 
+
+        niftot = 0 
+        trans_corr_param = 1.0_dp
+
+        allocate(ilut(0:niftot))
+
+        ilut = 0
+
+        nel = 2
+        call encodebitdet([1,2],ilut)
+
+        call assert_equals(exp(1.0), trans_corr_fac(ilut,1,3))
+        call assert_equals(exp(1.0), trans_corr_fac(ilut,2,4))
+        call assert_equals(exp(-1.0), trans_corr_fac(ilut,3,1))
+        call assert_equals(exp(-1.0), trans_corr_fac(ilut,4,2))
+
+        ilut = 0
+        call encodebitdet([1,4],ilut)
+
+        call assert_equals(exp(-1.0), trans_corr_fac(ilut,1,3))
+        call assert_equals(exp(-1.0), trans_corr_fac(ilut,4,2))
+        call assert_equals(1.0, trans_corr_fac(ilut,1,5))
+        call assert_equals(1.0, trans_corr_fac(ilut,4,6))
+
+        ilut = 0
+        nel = 4
+        call encodebitdet([1,2,3,6], ilut)
+        call assert_equals(1.0, trans_corr_fac(ilut,2,4))
+        call assert_equals(1.0, trans_corr_fac(ilut,1,5))
+
+        niftot = -1
+        trans_corr_param = 0.0
+
+    end subroutine trans_corr_fac_test
 
     subroutine init_real_space_hubbard_test
         use SystemData, only: lattice_type, length_x, length_y, nbasis, nel, &
@@ -510,6 +585,9 @@ contains
 
         nel = -1 
         call lattice_deconstructor(lat)
+
+        print *, "" 
+        print *, "and now with the transcorrelated Hamiltonian with K = 1"
 
     end subroutine gen_excit_rs_hubbard_test
 

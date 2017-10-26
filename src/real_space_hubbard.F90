@@ -19,7 +19,7 @@ module real_space_hubbard
                           length_y, length_z, uhub, nbasis, bhub, t_open_bc_x, &
                           t_open_bc_y, t_open_bc_z, G1, ecore, nel, nOccAlpha, nOccBeta
     use lattice_mod, only: lattice
-    use constants, only: dp, EPS, n_int
+    use constants, only: dp, EPS, n_int, bits_n_int
     use procedure_pointers, only: get_umat_el, generate_excitation
     use OneEInts, only: tmat2d, GetTMatEl
     use fcimcdata, only: pSingles, pDoubles, tsearchtau, tsearchtauoption
@@ -28,6 +28,7 @@ module real_space_hubbard
     use dsfmt_interface, only: genrand_real2_dsfmt
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
     use bit_rep_data, only: NIfTot
+    use util_mod, only: binary_search_first_ge
 
     implicit none 
 
@@ -335,6 +336,8 @@ contains
 
         integer :: iunused, ind , elec, id, src, orb, n_avail, n_orbs, i
         integer, allocatable :: neighbors(:), orbs(:)
+        real(dp), allocatable :: cum_arr(:)
+        real(dp) :: cum_sum, elem, r, p_elec, p_orb
 
         iunused = exflag; 
 
@@ -345,6 +348,7 @@ contains
         ! the first plan is to choose an electron at random 
         elec = 1 + int(genrand_real2_dsfmt() * nel) 
 
+        p_elec = 1.0_dp / real(nel, dp)
         ! and then from the neighbors of this electron we pick an empty 
         ! spinorbital randomly, since all have the same matrix element 
         src = nI(elec) 
@@ -353,39 +357,56 @@ contains
         id = gtid(src) 
 
         ! now get neighbors
-        n_orbs = lat%get_num_neighbors(id)
-        allocate(neighbors(n_orbs)) 
-        allocate(orbs(n_orbs))
-        neighbors = lat%get_neighbors(id) 
+!         n_orbs = lat%get_num_neighbors(id)
+        neighbors = lat%get_spinorb_neighbors(src)
 
-        if (is_beta(src)) then 
-            neighbors = 2 * neighbors - 1
-        else 
-            neighbors = 2 * neighbors
-        end if
+!         allocate(neighbors(n_orbs)) 
+!         allocate(orbs(n_orbs))
+!         neighbors = lat%get_neighbors(id) 
 
-        n_avail = 0 
-        orbs = -1 
+!         if (is_beta(src)) then 
+!             neighbors = 2 * neighbors - 1
+!         else 
+!             neighbors = 2 * neighbors
+!         end if
 
-        ! check which neighbors are empty 
-        do i = 1, n_orbs 
-            if (IsNotOcc(ilutI,neighbors(i))) then 
-                n_avail = n_avail + 1 
-                orbs(n_avail) = neighbors(i)
+
+        if (t_trans_corr) then 
+            call create_cum_list_rs_hubbard(ilutI, src, neighbors, cum_arr, cum_sum)
+
+            if (cum_sum < EPS) then 
+                nJ(1) = 0
+                pgen = 0.0_dp 
+                return
             end if
-        end do
+            r = genrand_real2_dsfmt() * cum_sum 
+            ind = binary_search_first_ge(cum_arr, r)
 
-        if (n_avail == 0) then 
-            ! no possible hoppings! so abort 
-            nJ(1) = 0 
-            pgen = 0.0_dp 
-            return 
+            if (ind == 1) then 
+                p_orb = cum_arr(1) / cum_sum
+            else
+                p_orb = (cum_arr(ind) - cum_arr(ind-1)) / cum_sum 
+            end if
+
+            orb = neighbors(ind)
+        else
+
+            call create_avail_neighbors_list(ilutI, neighbors, orbs, n_avail)
+
+            if (n_avail == 0) then 
+                nJ(1) = 0
+                pgen = 0.0_dp 
+                return
+            end if
+
+            ind = 1 + int(genrand_real2_dsfmt() * n_avail)
+            p_orb = 1.0_dp / real(n_avail, dp) 
+
+            orb = orbs(ind) 
+
         end if
 
-        ! otherwise pick a random orbital 
-        ind = 1 + int(genrand_real2_dsfmt() * n_avail) 
-        orb = orbs(ind) 
-        pgen = 1.0_dp / real(n_avail * nel, dp) 
+        pgen = p_elec * p_orb
 
         call make_single(nI, nJ, elec, orb, ex, tParity) 
 
@@ -394,6 +415,134 @@ contains
         set_orb(ilutJ, orb)
 
     end subroutine gen_excit_rs_hubbard
+
+    function calc_pgen_rs_hubbard(nI, ilutI, ex, ic) result(pgen) 
+        ! i also need a pgen recalculator.. specifically for the HPHF 
+        ! implementation and i need to take the transcorrelated keyword 
+        ! into account here! 
+        integer, intent(in) :: nI(nel), ex(2,2), ic 
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        real(dp) :: pgen 
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "calc_pgen_rs_hubbard"
+#endif
+        integer :: src, tgt, n_orbs
+        real(dp) :: p_elec, p_orb, cum_sum
+        real(dp), allocatable :: cum_arr(:)
+        integer, allocatable :: orbs(:)
+
+        ! only single excitations in the real-space hubbard
+        if (ic /= 1) then 
+            pgen = 0.0_dp 
+            return
+        end if
+
+        src = ex(1,1)
+        tgt = ex(2,1)
+
+        ! can i assert the same spin of the 2 involved orbitals? 
+        ! just return 0 if both have different spin? 
+        ASSERT(is_beta(src) .eqv. is_beta(tgt))
+
+        p_elec = 1.0_dp / real(nel, dp) 
+
+        if (t_trans_corr) then 
+            call create_cum_list_rs_hubbard(ilutI, src, lat%get_spinorb_neighbors(src), &
+                cum_arr, cum_sum) 
+            if (cum_sum < EPS) then 
+                pgen = 0.0_dp 
+                return
+            end if
+            if (tgt == 1) then 
+                p_orb = cum_arr(1) / cum_sum 
+            else 
+                p_orb = (cum_arr(tgt) - cum_arr(tgt-1)) / cum_sum
+            end if
+        else 
+            ! i should also write a routine which gives me the 
+            ! neighboring orbitals and the number of possible hops 
+            call create_avail_neighbors_list(ilutI, lat%get_spinorb_neighbors(src), & 
+                orbs, n_orbs) 
+
+                p_orb = 1.0_dp / real(n_orbs, dp) 
+
+        end if
+
+        pgen = p_elec * p_orb
+
+    end function calc_pgen_rs_hubbard
+
+    subroutine create_cum_list_rs_hubbard(ilutI, src, neighbors, cum_arr, cum_sum)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(in) :: src, neighbors(:)
+        real(dp), intent(out) :: cum_sum 
+        real(dp), intent(out), allocatable :: cum_arr(:)
+
+        integer :: i 
+
+        allocate(cum_arr(size(neighbors)))
+        cum_arr = 0.0_dp
+        cum_sum = 0.0_dp
+        do i = 1, ubound(neighbors,1)
+            if (IsNotOcc(ilutI,neighbors(i))) then 
+                cum_sum = cum_sum + abs(trans_corr_fac(ilutI, src, neighbors(i)))
+            end if
+            cum_arr(i) = cum_sum
+        end do
+        
+    end subroutine create_cum_list_rs_hubbard
+
+    subroutine create_avail_neighbors_list(ilutI, neighbors, orbs, n_orbs)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(in) :: neighbors(:) 
+        integer, intent(out), allocatable :: orbs(:)
+        integer, intent(out) :: n_orbs 
+
+        integer :: i, temp_orbs(size(neighbors))
+
+        n_orbs = 0
+        temp_orbs = 0
+
+        do i = 1, ubound(neighbors,1)
+            if (IsNotOcc(ilutI,neighbors(i))) then 
+                n_orbs = n_orbs + 1
+                temp_orbs(n_orbs) = neighbors(i)
+            end if
+        end do
+
+        allocate(orbs(n_orbs), source=temp_orbs(1:n_orbs))
+
+    end subroutine create_avail_neighbors_list
+
+    function trans_corr_fac(ilutI, src, tgt) result(weight)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(in) :: src, tgt
+        real(dp) :: weight 
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "trans_corr_fac"
+#endif
+        real(dp) :: ni_opp, nj_opp 
+
+        ! if the spins are not the same, something went wrong..
+        ASSERT(is_beta(src) .eqv. is_beta(tgt))
+
+        ni_opp = 0.0_dp
+        nj_opp = 0.0_dp
+
+        if (is_beta(src)) then 
+            ! check if alpha orbital (i) and (j) in ilutI is occupied
+            if (IsOcc(ilutI,get_alpha(src))) then 
+                nj_opp = 1.0_dp
+            end if
+            if (IsOcc(ilutI,get_alpha(tgt))) ni_opp = 1.0_dp
+        else 
+            if (IsOcc(ilutI,get_beta(src))) nj_opp = 1.0_dp
+            if (IsOcc(ilutI,get_beta(tgt))) ni_opp = 1.0_dp
+        end if
+
+        weight = exp(trans_corr_param*(nj_opp - ni_opp))
+
+    end function trans_corr_fac
 
     function get_helement_rs_hub_ex_mat(nI, nJ, ic, ex, tpar) result(hel)
         integer, intent(in) :: nI(nel), nJ(nel)
