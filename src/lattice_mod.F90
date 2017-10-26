@@ -159,6 +159,7 @@ module lattice_mod
         ! make the get neighbors function public on the lattice level 
         procedure, public :: get_neighbors => get_neighbors_lattice
         procedure, public :: get_num_neighbors => get_num_neighbors_lattice
+        procedure, public :: get_spinorb_neighbors => get_spinorb_neighbors_lat
 
         ! i definetly also want to have a print function! 
         procedure, public :: print 
@@ -2232,6 +2233,29 @@ contains
         end if
 
     end function get_neighbors_lattice
+
+    function get_spinorb_neighbors_lat(this, spinorb) result(neighbors)
+        class(lattice) :: this 
+        integer, intent(in) :: spinorb
+        integer, allocatable :: neighbors(:) 
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "get_spinorb_neighbors_lat"
+#endif
+
+        ASSERT(spinorb <= 2*this%get_nsites())
+        ASSERT(spinorb > 0) 
+        ASSERT(allocated(this%sites))
+        ASSERT(allocated(this%sites(gtid(spinorb))%neighbors))
+
+        neighbors = this%get_neighbors(gtid(spinorb))
+
+        if (is_beta(spinorb)) then
+            neighbors = 2 * neighbors - 1
+        else 
+            neighbors = 2 * neighbors
+        end if
+
+    end function get_spinorb_neighbors_lat
 
     function calc_nsites_aim_star(this, length_x, length_y, length_z) result(n_sites) 
         ! for the star geometry with maybe 

@@ -82,6 +82,11 @@ contains
         call assert_equals([2], ptr%get_neighbors(1), 1)
         call assert_equals([1], ptr%get_neighbors(2), 1) 
 
+        call assert_equals([3], ptr%get_spinorb_neighbors(1), 1)
+        call assert_equals([4], ptr%get_spinorb_neighbors(2), 1) 
+        call assert_equals([1], ptr%get_spinorb_neighbors(3), 1)
+        call assert_equals([2], ptr%get_spinorb_neighbors(4), 1) 
+
         call assert_true( ptr%is_impurity_site(1) )
         call assert_true( .not. ptr%is_impurity_site(2) ) 
         call assert_true( ptr%is_bath_site(2) )
@@ -124,6 +129,15 @@ contains
         call assert_equals([1], ptr%get_neighbors(2), 1) 
         call assert_equals([1], ptr%get_neighbors(3), 1) 
         call assert_equals([1], ptr%get_neighbors(101), 1) 
+
+        call assert_equals( [ (i, i = 3, 201, 2) ], ptr%get_spinorb_neighbors(1), 100)
+        call assert_equals( [ (i, i = 4, 202, 2) ], ptr%get_spinorb_neighbors(2), 100)
+        call assert_equals([1], ptr%get_spinorb_neighbors(3), 1) 
+        call assert_equals([2], ptr%get_spinorb_neighbors(4), 1) 
+        call assert_equals([1], ptr%get_spinorb_neighbors(5), 1) 
+        call assert_equals([2], ptr%get_spinorb_neighbors(6), 1) 
+        call assert_equals([1], ptr%get_spinorb_neighbors(201), 1) 
+        call assert_equals([2], ptr%get_spinorb_neighbors(202), 1) 
 
         call assert_equals(100, ptr%get_num_neighbors(1))
         call assert_equals(1, ptr%get_num_neighbors(2))
@@ -272,6 +286,8 @@ contains
         call assert_equals([3,5,8], ptr%get_neighbors(7), 3)
         call assert_equals([4,6,7], ptr%get_neighbors(8), 3)
 
+        call assert_equals([8,12,14], ptr%get_spinorb_neighbors(16), 3)
+
         call lattice_deconstructor(ptr)
 
         print *, ""
@@ -308,6 +324,8 @@ contains
         call assert_equals([3,7,9,12], ptr%get_neighbors(11), 4)
         call assert_equals([4,8,10,11], ptr%get_neighbors(12), 4)
 
+        call assert_equals([7,15,19,21], ptr%get_spinorb_neighbors(23), 4)
+
         call lattice_deconstructor(ptr)
 
         print *, ""
@@ -318,7 +336,7 @@ contains
         call assert_equals(3, ptr%get_length(1))
         call assert_equals(3, ptr%get_length(2))
         call assert_equals(3, ptr%get_length(3))
-        call assert_equals(27, ptr%get_nsites())
+        call assert_equals(27,ptr%get_nsites())
         call assert_equals(6, ptr%get_nconnect_max())
         call assert_true( ptr%is_periodic())
         call assert_true( ptr%is_periodic(1))
@@ -344,6 +362,8 @@ contains
         call assert_equals([2,10,12,14,17,20], ptr%get_neighbors(11), 6)
         call assert_equals([3,10,11,15,18,21], ptr%get_neighbors(12), 6)
         call assert_equals([5,14,20,22,24,26], ptr%get_neighbors(23), 6)
+
+        call assert_equals([10,28,40,44,48,52], ptr%get_spinorb_neighbors(46), 6)
 
         call lattice_deconstructor(ptr)
 
@@ -379,6 +399,8 @@ contains
         call assert_equals([3,5,7,8], ptr%get_neighbors(6),4)
         call assert_equals([1,2,4,6], ptr%get_neighbors(7),4)
         call assert_equals([1,2,4,6], ptr%get_neighbors(8),4)
+        
+        call assert_equals([1,3,7,11], ptr%get_spinorb_neighbors(15),4)
 
         call lattice_deconstructor(ptr)
 
