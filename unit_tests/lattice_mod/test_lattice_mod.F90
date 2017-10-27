@@ -1049,8 +1049,83 @@ contains
 
         call lattice_deconstructor(ptr)
 
+        print *, "" 
+        print *, "initialize a 4x2 square lattice with pbc"
+        ptr => lattice('rectangle', 4, 2, 1, .true., .true., .true.)
+        call assert_equals(4, ptr%get_length(1))
+        call assert_equals(2, ptr%get_length(2))
+        call assert_equals(8, ptr%get_nsites())
+        call assert_equals(4, ptr%get_nconnect_max())
+        call assert_true( ptr%is_periodic())
+        call assert_true( ptr%is_periodic(1))
+        call assert_true( ptr%is_periodic(2))
 
+        ! now check the connectivity 
+        call assert_equals(1, ptr%get_site_index(1))
+        call assert_equals(2, ptr%get_site_index(2))
+        call assert_equals(3, ptr%get_site_index(3))
+        call assert_equals(4, ptr%get_site_index(4))
+        call assert_equals(6, ptr%get_site_index(6))
 
+        call assert_equals([2,4,5], ptr%get_neighbors(1),3)
+        call assert_equals([1,3,6], ptr%get_neighbors(2),3)
+        call assert_equals([2,4,7], ptr%get_neighbors(3),3)
+        call assert_equals([1,3,8], ptr%get_neighbors(4),3)
+        call assert_equals([1,6,8], ptr%get_neighbors(5),3)
+
+        call lattice_deconstructor(ptr)
+
+        print *, "" 
+        print *, "initialize a 4x3 square lattice with pbc"
+        ptr => lattice('rectangle', 4, 3, 1, .true., .true., .true.)
+        call assert_equals(4, ptr%get_length(1))
+        call assert_equals(3, ptr%get_length(2))
+        call assert_equals(12, ptr%get_nsites())
+        call assert_equals(4, ptr%get_nconnect_max())
+        call assert_true( ptr%is_periodic())
+        call assert_true( ptr%is_periodic(1))
+        call assert_true( ptr%is_periodic(2))
+
+        ! now check the connectivity 
+        call assert_equals(1, ptr%get_site_index(1))
+        call assert_equals(2, ptr%get_site_index(2))
+        call assert_equals(3, ptr%get_site_index(3))
+        call assert_equals(4, ptr%get_site_index(4))
+        call assert_equals(6, ptr%get_site_index(6))
+
+        call assert_equals([2,4,5,9], ptr%get_neighbors(1),4)
+        call assert_equals([1,3,6,10], ptr%get_neighbors(2),4)
+        call assert_equals([2,4,7,11], ptr%get_neighbors(3),4)
+        call assert_equals([1,3,8,12], ptr%get_neighbors(4),4)
+        call assert_equals([1,6,8,9], ptr%get_neighbors(5),4)
+
+        call lattice_deconstructor(ptr)
+
+        print *, "" 
+        print *, "initialize a 2x4 square lattice with pbc"
+        ptr => lattice('rectangle', 2, 4, 1, .true., .true., .true.)
+        call assert_equals(2, ptr%get_length(1))
+        call assert_equals(4, ptr%get_length(2))
+        call assert_equals(8, ptr%get_nsites())
+        call assert_equals(4, ptr%get_nconnect_max())
+        call assert_true( ptr%is_periodic())
+        call assert_true( ptr%is_periodic(1))
+        call assert_true( ptr%is_periodic(2))
+
+        ! now check the connectivity 
+        call assert_equals(1, ptr%get_site_index(1))
+        call assert_equals(2, ptr%get_site_index(2))
+        call assert_equals(3, ptr%get_site_index(3))
+        call assert_equals(4, ptr%get_site_index(4))
+        call assert_equals(6, ptr%get_site_index(6))
+
+        call assert_equals([2,3,7], ptr%get_neighbors(1),3)
+        call assert_equals([1,4,8], ptr%get_neighbors(2),3)
+        call assert_equals([1,4,5], ptr%get_neighbors(3),3)
+        call assert_equals([2,3,6], ptr%get_neighbors(4),3)
+        call assert_equals([3,6,7], ptr%get_neighbors(5),3)
+
+        call lattice_deconstructor(ptr)
 
     end subroutine test_init_lattice_rect
 

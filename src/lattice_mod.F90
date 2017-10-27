@@ -1130,7 +1130,7 @@ contains
         ! use cshift intrinsic of fortran.. 
         ! how do i efficiently set that up? 
         temp_array =  reshape([(i, i = 1, this%get_nsites())], &
-            [this%length(1), this%length(2)])
+            this%length)
 
         up = cshift(temp_array, -1, 1)
         down = cshift(temp_array, 1, 1)
@@ -1141,9 +1141,10 @@ contains
 
             do i = 1, this%get_nsites() 
                 ! create the neighbor list 
-                x = mod(i-1,this%length(2)) + 1
+                x = mod(i-1,this%length(1)) + 1
                 y = (i-1)/this%length(1) + 1
 
+!                 print *, "i, (x,y): ", i, x, y
                 temp_neigh = [up(x,y),down(x,y),left(x,y),right(x,y)]
 
                 neigh = sort_unique(temp_neigh)
