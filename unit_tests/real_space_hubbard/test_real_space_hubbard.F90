@@ -45,8 +45,110 @@ contains
         call run_test_case(create_cum_list_rs_hubbard_test, "create_cum_list_rs_hubbard_test")
         call run_test_case(create_avail_neighbors_list_test, "create_avail_neighbors_list_test")
         call run_test_case(calc_pgen_rs_hubbard_test, "calc_pgen_rs_hubbard_test")
+        call run_test_case(create_neel_state_chain_test, "create_neel_state_chain_test")
+        call run_test_case(create_neel_state_test, "create_neel_state_test")
 
     end subroutine real_space_hubbard_test_driver
+
+    subroutine create_neel_state_test
+        use SystemData, only: nel, lattice_type
+        use lattice_mod, only: lattice
+
+
+        print *, "" 
+        print *, "testing: create_neel_state" 
+        lat => lattice('chain', 4, 1, 1, .true., .true., .true.)
+        lattice_type = 'chain'
+        nel = 4
+        call assert_equals([1,4,5,8], create_neel_state(), 4)
+
+        nel = 3
+        call assert_equals([1,4,5], create_neel_state(), 3)
+
+        lat => lattice('square', 2, 2, 1, .true., .true., .true.)
+        lattice_type = 'square'
+        nel = 4
+        call assert_equals([1,4,6,7], create_neel_state(), 4) 
+
+        nel = 3
+        call assert_equals([1,4,6], create_neel_state(), 3) 
+
+        lat => lattice('rectangle', 3, 2, 1, .true.,.true.,.true.)
+        lattice_type = 'rectangle'
+        nel = 6
+        call assert_equals([1,4,5,8,9,12], create_neel_state(), 6)
+
+        nel = 4
+        call assert_equals([1,4,5,8], create_neel_state(), 4)
+
+        nel = 3
+        call assert_equals([1,4,5], create_neel_state(), 3)
+
+        lat => lattice('rectangle', 2,4,1,.true.,.true.,.true.)
+        nel = 8 
+        call assert_equals([1, 4, 6, 7, 9, 12, 14, 15], create_neel_state(), 8)
+
+        nel = 7 
+        call assert_equals([1, 4, 6, 7, 9, 12, 14], create_neel_state(), 7)
+
+        nel = 6
+        call assert_equals([1, 4, 6, 7, 9, 12], create_neel_state(), 6)
+
+        lat => lattice('rectangle', 3, 4, 1, .true., .true., .true.)
+        nel = 12 
+        call assert_equals([1, 4, 5, 8, 9, 12, 13, 16, 17, 20, 21, 24], & 
+            create_neel_state(), 12)
+
+        lattice_type = 'tilted'
+        lat => lattice(lattice_type, 2, 2, 1, .true., .true., .true.)
+        nel = 8 
+        call assert_equals([1, 3, 6, 7, 10, 11, 14, 16], create_neel_state(),8)
+
+        nel = 7 
+        call assert_equals([1, 3, 6, 7, 10, 11, 14], create_neel_state(),7)
+
+        nel = 6 
+        call assert_equals([1, 3, 6, 7, 10, 11], create_neel_state(),6)
+
+        nel = 5
+        call assert_equals([1, 3, 6, 7, 10], create_neel_state(),5)
+
+        lat => lattice(lattice_type, 3, 3, 1, .true., .true., .true.)
+        nel = 18 
+        call assert_equals([1,  3, 6, 7,  9, 12, 13, 16, 17,  20, 21, 24, 25, 28, & 
+            30, 31, 34, 36], create_neel_state(), 18)
+
+        nel = 17 
+        call assert_equals([1,  3, 6, 7,  9, 12, 13, 16, 17,  20, 21, 24, 25, 28, & 
+            30, 31, 34], create_neel_state(), 17)
+
+        nel = 16
+        call assert_equals([1,  3, 6, 7,  9, 12, 13, 16, 17,  20, 21, 24, 25, 28, & 
+            30, 31], create_neel_state(), 16)
+
+        nel = 10
+        call assert_equals([1,  3, 6, 7,  9, 12, 13, 16, 17,  20], create_neel_state(), 10)
+
+    end subroutine create_neel_state_test
+
+    subroutine create_neel_state_chain_test
+        use SystemData, only: nel
+
+        print *, "" 
+        print *, "testing: create_neel_state_chain"
+
+        nel = 1
+        call assert_equals([1], create_neel_state_chain(), 1)
+        nel = 2 
+        call assert_equals([1,4], create_neel_state_chain(), 2)
+        nel = 3 
+        call assert_equals([1,4,5], create_neel_state_chain(), 3)
+        nel = 4
+        call assert_equals([1,4,5,8], create_neel_state_chain(), 4)
+
+        nel = -1
+
+    end subroutine create_neel_state_chain_test
 
     subroutine create_cum_list_rs_hubbard_test
 

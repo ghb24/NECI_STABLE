@@ -48,6 +48,9 @@ module real_space_hubbard
     ! occupation of the involved hopping orbitals! so it is not just a 
     ! change in the Hamiltonian 
 
+    ! create a flag which indicate to start in a neel state 
+    logical :: t_start_neel_state = .false. 
+
     interface get_helement_rs_hub
         module procedure get_helement_rs_hub_ex_mat
         module procedure get_helement_rs_hub_general
@@ -685,12 +688,137 @@ contains
     end function get_offdiag_helement_rs_hub
 
     ! what else?
-    subroutine create_neel_state() 
+    function create_neel_state() result(neel_state)
         ! probably a good idea to have a routine which creates a neel state
         ! (or one of them if it is ambigous)
+        integer :: neel_state(nel)
+#ifdef __DEBUG
         character(*), parameter :: this_routine = "create_neel_state"
+#endif
+        integer :: i, j, k, l, spin, ind
+        
 
-    end subroutine create_neel_state
+        ASSERT(associated(lat))
+
+        ! also assert that we have at most half-filling.. otherwise it does 
+        ! not make so much sense to do this 
+        ASSERT(nel <= lat%get_nsites())
+        ! there is no neel state for all lattice, but atleast something 
+        ! similar to it.. 
+        ! atleast for the lattice where there is a neel state, i should 
+        ! create it automaticall and for the other a similar one 
+        ! the lattice should already be intialized 
+        ! i was thinking of putting this functionality into the 
+        ! lattice_mod, but i guess i should keep it seperate, since it 
+        ! actually has to do more with the system or?
+        neel_state = 0
+
+        select case (lattice_type) 
+
+        case ('chain')
+            neel_state = create_neel_state_chain()
+
+        case ('square','rectangle','triangle')
+            ! check if length_x is mod 2 
+            if (mod(lat%get_length(1), 2) == 0) then 
+
+                neel_state = create_neel_state_chain()
+
+                ! and flip the spins in every other column 
+                do i = 1, lat%get_length(2), 2
+                    ! loop over every second column 
+                    if (i*lat%get_length(1) >= nel) exit
+                    do j = 1, lat%get_length(1)
+                        ! whats the total index? 
+                        ind = i*lat%get_length(1) + j
+                        if (ind > nel) exit
+
+                        ! flip the spins.. this should be way easier.. 
+                        if (is_beta(neel_state(ind))) then
+                            neel_state(ind) = neel_state(ind) + 1
+                        else
+                            neel_state(ind) = neel_state(ind) - 1
+                        end if
+                    end do
+                end do
+            else 
+                ! here it is easy it is just like the chain case 
+                neel_state = create_neel_state_chain()
+
+            end if
+
+        case ('cube') 
+            ! not yet implemented
+            ASSERT(.false.)
+
+        case ('tilted','tilted-square','square-tilted')
+            ! do is similar to the actual construction of the lattice 
+            ! but way nicer as this stuff below..
+            k = 0
+            l = 1 
+            spin = 1
+            do i = -lat%get_length(1)+1, 0
+                do j = -k, k
+
+                    neel_state(l) = spin 
+                    l = l + 1
+                    if (l > nel) exit 
+
+                    if (is_beta(spin)) then 
+                        spin = spin + 3 
+                    else 
+                        spin = spin + 1 
+                    end if 
+                end do
+                k = k + 1 
+                if (l > nel) exit 
+
+                ! in the first half we need the same starting spin 
+                spin = spin - 1
+
+            end do
+            k = k - 1
+
+            ! finished already?
+            if (l > nel) return
+
+            spin = spin + 1
+
+            do i = 1, lat%get_length(1) 
+                do j = -k, k
+
+                    neel_state(l) = spin 
+
+                    l = l + 1 
+
+                    if (l > nel) exit 
+
+                    if (is_beta(spin)) then 
+                        spin = spin + 3 
+                    else 
+                        spin = spin + 1
+                    end if
+                end do
+                k = k - 1 
+                if (l > nel) exit 
+
+                spin = spin + 1
+
+            end do
+
+        end select 
+
+    end function create_neel_state
+
+    function create_neel_state_chain() result(neel_state)
+        integer :: neel_state(nel)
+
+        integer :: i
+
+        neel_state = [(i, i = 1, 2*nel-1,2)]
+        neel_state(2:nel:2) = neel_state(2:nel:2) + 1
+
+    end function create_neel_state_chain
 
     function get_umat_el_hub(i,j,k,l) result(hel)
         integer, intent(in) :: i, j, k, l
