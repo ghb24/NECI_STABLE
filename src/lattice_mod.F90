@@ -150,7 +150,8 @@ module lattice_mod
         procedure, public :: get_nsites
         procedure, public :: get_ndim
         procedure, public :: get_nconnect_max
-        procedure, public :: is_periodic_x, is_periodic_y
+        procedure, public :: is_periodic_x
+        procedure, public :: is_periodic_y
         procedure(is_periodic_t), public, deferred :: is_periodic
         procedure(get_length_t), public, deferred :: get_length
 !         procedure, public :: get_length => get_length_lattice
