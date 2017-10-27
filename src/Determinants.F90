@@ -3,7 +3,8 @@ MODULE Determinants
     use constants, only: dp, n_int, bits_n_int
     use SystemData, only: BasisFN, tCSF, nel, G1, Brr, ECore, ALat, NMSH, &
                           nBasis, nBasisMax, tStoreAsExcitations, tHPHFInts, &
-                          tCSF, tCPMD, tPickVirtUniform, LMS, modk_offdiag
+                          tCSF, tCPMD, tPickVirtUniform, LMS, modk_offdiag, &
+                          t_new_real_space_hubbard
     use IntegralsData, only: UMat, FCK, NMAX
     use csf, only: det_to_random_csf, iscsf, csf_orbital_mask, &
                    csf_yama_bit, CSFGetHelement
@@ -15,6 +16,7 @@ MODULE Determinants
     use DeterminantData
     use bit_reps, only: NIfTot
     use MemoryManager, only: TagIntType
+    use real_space_hubbard, only: get_helement_rs_hub
     implicit none
 
     ! TODO: Add an interface for getting a diagonal helement with an ordered
@@ -49,7 +51,6 @@ MODULE Determinants
       integer(TagIntType) :: tagDefDet=0
 
 contains
-
 
     Subroutine DetPreFreezeInit()
         Use global_utilities
@@ -317,6 +318,8 @@ contains
 
         character(*), parameter :: this_routine = 'get_helement_compat'
 
+        integer :: temp_ic
+
         if (tHPHFInts) &
             call stop_all (this_routine, "Should not be calling HPHF &
                           &integrals from here.")
@@ -327,6 +330,12 @@ contains
                 return
             endif
         endif
+        
+        if (t_new_real_space_hubbard) then
+            temp_ic = ic
+            hel = get_helement_rs_hub(nI, nJ, temp_ic)
+            return
+        end if
 
         if (tStoreAsExcitations) &
             call stop_all(this_routine, "tStoreExcitations not supported")
@@ -375,6 +384,17 @@ contains
                 return
             endif
         endif
+
+        if (t_new_real_space_hubbard) then 
+            if (present(ICret)) then
+                ic = -1
+                hel = get_helement_rs_hub(nI, nJ, ic)
+                ICret = ic
+            else
+                hel = get_helement_rs_hub(nI, nJ)
+            end if
+            return 
+        end if
          
         if (tStoreAsExcitations .and. nI(1) == -1 .and. nJ(1) == -1) then
             ! TODO: how to express requirement for double?
@@ -429,6 +449,16 @@ contains
 
         character(*), parameter :: this_routine = 'get_helement_excit'
 
+        ! intermediately put the special call to the hubbard matrix elements 
+        ! here. Although I want to change that in the whole code to have 
+        ! procedure pointers similar to the excitation generator, which gets 
+        ! intialized to the correct function at the beginning of the 
+        ! excitations
+        if (t_new_real_space_hubbard) then 
+            hel = get_helement_rs_hub(nI, nJ, ic, ExcitMat, TParity) 
+            return
+        end if
+
         ! If we are using CSFs, then call the csf routine.
         ! TODO: Passing through of ExcitMat to CSFGetHelement
         if (tCSF) then
@@ -478,6 +508,11 @@ contains
         ! Eliminate compiler warnings
         integer(n_int) :: iUnused; integer :: iUnused2; HElement_t(dp) :: hUnused
         iUnused=iLutJ(1); iUnused=iLutI(1); iUnused2=nJ(1); hUnused = helgen
+
+        if (t_new_real_space_hubbard) then 
+            hel = get_helement_rs_hub(ni, nJ, ic, ex, tParity) 
+            return 
+        end if
 
         hel = sltcnd_excit (nI, IC, ex, tParity)
 

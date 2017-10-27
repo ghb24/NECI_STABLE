@@ -4,13 +4,13 @@ foreach( _config ${${PROJECT_NAME}_CONFIGURATIONS} )
     # this is a bit cumbersome.. the whole unit test setup can i optimize that 
     # or template it? i guess and try that! 
     neci_add_test(
-        TARGET test_${_config}_real_space_hubbard
-        SOURCES test_real_space_hubbard.F90
+        TARGET test_${_config}_impurity_excit_gen
+        SOURCES test_impurity_excit_gen.F90
         LIBS lib${_config} fruit
         LINKER_LANGUAGE Fortran
         META_TARGET test_${_config}
 	DEFINITIONS
-	    "${${PROJECT_NAME}_${_config}_DEFINITIONS}"
+		"${${PROJECT_NAME}_${_config}_DEFINITIONS}"
     )
 
 

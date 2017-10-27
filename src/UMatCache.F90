@@ -305,7 +305,6 @@ MODULE UMatCache
       end function UMatConj
 
 
-
       SUBROUTINE GetUMatSize(nBasis,nEl,iSize)
         use SystemData, only: tStoreSpinOrbs
       ! Get the prospective size of a UMat (not a UMatCache) for completely

@@ -127,6 +127,7 @@ module fcimc_pointed_fns
         real(dp) :: temp_prob, pgen_a, dummy_arr(nBasis), cum_sum
         integer :: ispn
 
+        integer :: temp_ex(2,2)
         ! Just in case
         child = 0.0_dp
 
@@ -139,9 +140,15 @@ module fcimc_pointed_fns
         ! element is calculated at the time of the excitation generation, 
         ! and returned in HElGen. In this case, get_spawn_helement simply
         ! returns HElGen, rather than recomputing the matrix element.
-        rh = get_spawn_helement (DetCurr, nJ, iLutCurr, iLutnJ, ic, ex, &
-                                 tParity, HElGen)
+!         rh = get_spawn_helement (DetCurr, nJ, iLutCurr, iLutnJ, ic, ex, &
+!                                  tParity, HElGen)
 
+        
+        temp_ex(1,:) = ex(2,:)
+        temp_ex(2,:) = ex(1,:)
+
+        rh = get_spawn_helement (nJ, DetCurr, ilutnJ, iLutCurr,  ic, temp_ex, &
+                                 tParity, HElGen)
 !         if (abs(rh) > EPS) then
 !             print *, "HElGen: ", rh
 !             print *, "prob: ", prob

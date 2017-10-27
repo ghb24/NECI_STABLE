@@ -236,6 +236,7 @@ logical :: tGiovannisBrokenInit
 ! full open BC are implemented
 logical :: t_open_bc_x = .false.
 logical :: t_open_bc_y = .false.
+logical :: t_open_bc_z = .false.
 
 ! use an intermediate flag for a new implementation of the newest excitation
 ! generator
@@ -244,8 +245,9 @@ logical :: tGen_4ind_unbound = .false.
 ! implement a more efficient real-space hubbard implementation 
 logical :: t_new_real_space_hubbard = .false.
 character(20) :: lattice_type
+
 ! i need 
-integer :: length_x = 1, length_y = 1
+integer :: length_x = 1, length_y = 1, length_z = 1
 ! also implement a next-nearest neighbor Hubbard model implementation: 
 ! for k-space hubbard, this only affects the diagonal part! 
 real(dp) :: nn_bhub = 0.0_dp

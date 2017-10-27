@@ -13,9 +13,14 @@ add_subdirectory( det_bit_ops )
 add_subdirectory( real_space_hubbard )
 
 add_subdirectory( lattice_mod )
+
+
+add_subdirectory( impurity_excit_gen )
+
 # finally do some unit-testing also with my newly added features 
 add_subdirectory( back_spawn )
 
 add_subdirectory( back_spawn_excit_gen ) 
 
 add_subdirectory( ueg_excit_gens )
+
