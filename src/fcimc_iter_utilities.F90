@@ -12,7 +12,7 @@ module fcimc_iter_utils
                         nShiftEquilSteps, TargetGrowRateWalk, tContTimeFCIMC, &
                         tContTimeFull, pop_change_min, tPositiveHFSign, &
                         qmc_trial_wf, nEquilSteps, t_hist_tau_search, &
-                        t_hist_tau_search_option
+                        t_hist_tau_search_option, tFixedN0, tSkipRef
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tFCIMCStats2, tPrintDataTables, tLogEXLEVELStats
     use semi_stoch_procs, only: recalc_core_hamil_diag
@@ -677,6 +677,10 @@ contains
         logical, dimension(inum_runs) :: defer_update
         logical :: start_varying_shift
 
+        !The reference det is allowed to be fixed only when the shift is settup
+        !correctly.
+        tSkipRef = .False.
+
         ! Normally we allow the shift to vary depending on the conditions
         ! tested. Sometimes we want to defer this to the next cycle...
         defer_update(:) = .false.
@@ -847,6 +851,14 @@ contains
                     DiagSftIm(run) = DiagSftIm(run) - (log(AllGrowRateIm(run)-TargetGrowRate(run)) * SftDamp) / &
                                                 (Tau * StepsSft)
 #endif
+                    if(tFixedN0)then
+                        !Use the projected energy as the shift to fix the
+                        !population of the reference det and thus reduce the
+                        !fluctuations of the projected energy.
+                        DiagSft(run) = (AllENumCyc(run)) / (AllHFCyc(run))+proje_ref_energy_offsets(run)
+                        !Keep the population of reference det fixed.
+                        tSkipRef = .True.
+                     end if
 
                     ! Update the shift averages
                     if ((iter - VaryShiftIter(run)) >= nShiftEquilSteps) then
@@ -930,7 +942,8 @@ contains
         call MPIBcast (tSinglePartPhase)
         call MPIBcast (VaryShiftIter)
         call MPIBcast (DiagSft)
-        
+        call MPIBcast (tSkipRef)
+
         do run=1,inum_runs
             if(.not.tSinglePartPhase(run)) then
                 TargetGrowRate(run)=0.0_dp

@@ -121,6 +121,8 @@ contains
           TProjEMP2=.false.
           THFRetBias=.false.
           TSignShift=.false.
+          tFixedN0 = .false.
+          tSkipRef = .false.
           NEquilSteps=0
           NShiftEquilSteps=1000
           TRhoElems=.false.
@@ -1385,6 +1387,8 @@ contains
             case("STEPSSHIFT")
 !For FCIMC, this is the number of steps taken before the Diag shift is updated
                 call geti(StepsSft)
+            case("FIXED-N0")
+                tFixedN0 = .true.
             case("EXITWALKERS")
 !For FCIMC, this is an exit criterion based on the total number of walkers in the system.
                 call getiLong(iExitWalkers)
