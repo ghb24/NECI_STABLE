@@ -29,6 +29,8 @@ module real_space_hubbard
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
     use bit_rep_data, only: NIfTot
     use util_mod, only: binary_search_first_ge
+!     use fcimc_helper, only: update_run_reference
+!     use Determinants, only: write_det
 
     implicit none 
 
@@ -69,6 +71,8 @@ contains
         character(*), parameter :: this_routine = "init_real_space_hubbard"
         ! especially do some stop_all here so no wrong input is used 
         real(dp) :: tau_opt
+        integer :: neel_state_ni(nel)
+        integer(n_int) :: ilut_neel(0:NIfTot)
 
         print *, "using new real-space hubbard implementation: "
 
@@ -144,6 +148,15 @@ contains
         t_hist_tau_search = .false. 
         t_hist_tau_search_option = .false. 
         
+        if (t_start_neel_state) then 
+            neel_state_ni = create_neel_state(ilut_neel)
+
+            print *, "starting from the Neel state: " 
+!             call write_det(6, neel_state_ni, .true.)
+            call changerefdet(neel_state_ni)
+!             call update_run_reference(ilut_neel, 1)
+
+        end if
         ! do not set that here, due to circular dependencies
 !         max_death_cpt = 0.0_dp
 
@@ -446,21 +459,21 @@ contains
         ! can i assert the same spin of the 2 involved orbitals? 
         ! just return 0 if both have different spin? 
         ASSERT(is_beta(src) .eqv. is_beta(tgt))
+        ! and assert that we actually take a valid excitation:
+        ASSERT(any(tgt == lat%get_spinorb_neighbors(src)))
+        ASSERT(IsOcc(ilutI, src))
+        ASSERT(IsNotOcc(ilutI, tgt))
 
         p_elec = 1.0_dp / real(nel, dp) 
 
         if (t_trans_corr) then 
             call create_cum_list_rs_hubbard(ilutI, src, lat%get_spinorb_neighbors(src), &
-                cum_arr, cum_sum) 
+                cum_arr, cum_sum, tgt, p_orb) 
             if (cum_sum < EPS) then 
                 pgen = 0.0_dp 
                 return
             end if
-            if (tgt == 1) then 
-                p_orb = cum_arr(1) / cum_sum 
-            else 
-                p_orb = (cum_arr(tgt) - cum_arr(tgt-1)) / cum_sum
-            end if
+
         else 
             ! i should also write a routine which gives me the 
             ! neighboring orbitals and the number of possible hops 
@@ -475,23 +488,51 @@ contains
 
     end function calc_pgen_rs_hubbard
 
-    subroutine create_cum_list_rs_hubbard(ilutI, src, neighbors, cum_arr, cum_sum)
+    subroutine create_cum_list_rs_hubbard(ilutI, src, neighbors, cum_arr, cum_sum, &
+            tgt, cpt)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(in) :: src, neighbors(:)
         real(dp), intent(out) :: cum_sum 
         real(dp), intent(out), allocatable :: cum_arr(:)
+        integer, intent(in), optional :: tgt
+        real(dp), intent(out), optional :: cpt
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "create_cum_list_rs_hubbard"
+#endif
 
+        real(dp) :: elem
         integer :: i 
+
+        ASSERT(IsOcc(ilutI,src))
 
         allocate(cum_arr(size(neighbors)))
         cum_arr = 0.0_dp
         cum_sum = 0.0_dp
-        do i = 1, ubound(neighbors,1)
+        if (present(tgt)) then 
+            ASSERT(present(cpt))
+            do i = 1, ubound(neighbors,1)
+                ASSERT(is_beta(src) .eqv. is_beta(neighbors(i)))
+                if (IsNotOcc(ilutI, neighbors(i))) then 
+                    cum_sum = cum_sum + abs(trans_corr_fac(ilutI, src, neighbors(i)))
+                end if
+                if (neighbors(i) == tgt) then 
+                    cpt = abs(trans_corr_fac(ilutI, src, neighbors(i)))
+                end if
+            end do
+            if (cum_sum < EPS) then
+                cpt = 0.0
+            else 
+                cpt = cpt / cum_sum
+            end if
+        else
+            do i = 1, ubound(neighbors,1)
+            ASSERT(is_beta(src) .eqv. is_beta(neighbors(i)))
             if (IsNotOcc(ilutI,neighbors(i))) then 
                 cum_sum = cum_sum + abs(trans_corr_fac(ilutI, src, neighbors(i)))
             end if
             cum_arr(i) = cum_sum
-        end do
+            end do
+        end if
         
     end subroutine create_cum_list_rs_hubbard
 
@@ -688,9 +729,10 @@ contains
     end function get_offdiag_helement_rs_hub
 
     ! what else?
-    function create_neel_state() result(neel_state)
+    function create_neel_state(ilut_neel) result(neel_state)
         ! probably a good idea to have a routine which creates a neel state
         ! (or one of them if it is ambigous)
+        integer(n_int), intent(out), optional :: ilut_neel(0:NIfTot)
         integer :: neel_state(nel)
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "create_neel_state"
@@ -808,6 +850,9 @@ contains
 
         end select 
 
+        if (present(ilut_neel)) then 
+            call EncodeBitDet(neel_state, ilut_neel)
+        end if
     end function create_neel_state
 
     function create_neel_state_chain() result(neel_state)

@@ -151,29 +151,200 @@ contains
     end subroutine create_neel_state_chain_test
 
     subroutine create_cum_list_rs_hubbard_test
+        use SystemData, only: nel 
+        use bit_rep_data, only: niftot
+        use Detbitops, only: encodebitdet
+        use constants, only: n_int, dp
+
+        integer(n_int), allocatable :: ilut(:)
+        real(dp) :: cum_sum
+        real(dp), allocatable :: cum_arr(:)
+        integer, allocatable :: neighbors(:)
+
+        trans_corr_param = 0.0
+        nel = 2
+        niftot = 0
+
+        allocate(ilut(0:niftot))
 
         print *, ""
         print *, "testing: create_cum_list_rs_hubbard" 
+        call encodebitdet([1,2], ilut)
+!         neighbors = [3,5,7,9]
 
-        call assert_true(.false.)
+        call create_cum_list_rs_hubbard(ilut, 1, [3,5,7,9], cum_arr, cum_sum)
+        call assert_equals([1.0,2.0,3.0,4.0], cum_arr, 4)
+        call assert_equals(4.0, cum_sum)
+        
+        call create_cum_list_rs_hubbard(ilut, 2, [4,6,8,10], cum_arr, cum_sum)
+        call assert_equals([1.0,2.0,3.0,4.0], cum_arr, 4)
+        call assert_equals(4.0, cum_sum)
+
+        call create_cum_list_rs_hubbard(ilut, 2, [4,6,8], cum_arr, cum_sum)
+        call assert_equals([1.0,2.0,3.0], cum_arr, 3)
+        call assert_equals(3.0, cum_sum)
+
+        call create_cum_list_rs_hubbard(ilut, 1, [1,3,5], cum_arr, cum_sum)
+        call assert_equals([0.0,1.0,2.0], cum_arr, 3)
+        call assert_equals(2.0, cum_sum)
+
+        call create_cum_list_rs_hubbard(ilut, 2, [4,2,6], cum_arr, cum_sum)
+        call assert_equals([1.0,1.0,2.0], cum_arr, 3)
+        call assert_equals(2.0, cum_sum)
+
+        call encodebitdet([1,3], ilut)
+        call create_cum_list_rs_hubbard(ilut, 1, [9,3,5,1], cum_arr, cum_sum)
+        call assert_equals([1.0,1.0,2.0,2.0], cum_arr, 4)
+        call assert_equals(2.0, cum_sum)
+
+        print *, ""
+        print *, "and now with a transcorrelated hamiltonian with K = 1.0"
+        trans_corr_param = 1.0 
+        call encodebitdet([1,2], ilut)
+
+        call create_cum_list_rs_hubbard(ilut, 1, [3,5,7,9], cum_arr, cum_sum)
+        call assert_equals([exp(1.0),2*exp(1.0),3*exp(1.0),4*exp(1.0)], cum_arr, 4)
+        call assert_equals(4*exp(1.0), cum_sum)
+
+        call create_cum_list_rs_hubbard(ilut, 2, [4,6,8,10], cum_arr, cum_sum)
+        call assert_equals([exp(1.0),2*exp(1.0),3*exp(1.0),4*exp(1.0)], cum_arr, 4)
+        call assert_equals(4*exp(1.0), cum_sum)
+
+        call encodebitdet([1,3], ilut)
+        call create_cum_list_rs_hubbard(ilut, 1, [9,3,5,1], cum_arr, cum_sum)
+        call assert_equals([1.0,1.0,2.0,2.0], cum_arr, 4)
+        call assert_equals(2.0, cum_sum)
+
+        nel = 4 
+        call encodebitdet([1,2,3,6],ilut)
+        call create_cum_list_rs_hubbard(ilut, 1, [3,5,7,9], cum_arr, cum_sum)
+        call assert_equals([0.0,1.0,1.0+exp(1.0),1.0+2*exp(1.0)], cum_arr, 4)
+        call assert_equals(1.0+2*exp(1.0), cum_sum)
+
+        call create_cum_list_rs_hubbard(ilut, 3, [1,5,7,9], cum_arr, cum_sum)
+        call assert_equals([0.0,exp(-1.0),exp(-1.0)+1.0,exp(-1.0)+2.0],&
+            cum_arr, 4)
+        call assert_equals(exp(-1.0)+2.0, cum_sum)
+
+        nel = 3 
+        call encodebitdet([1,2,3], ilut)
+        call create_cum_list_rs_hubbard(ilut, 2, [4,8], cum_arr, cum_sum) 
+        call assert_equals([1.0, 1.0+exp(1.0)], cum_arr, 2)
+        call assert_equals(1.0+exp(1.0), cum_sum)
+
+        nel = -1 
+        niftot = -1
 
     end subroutine create_cum_list_rs_hubbard_test
 
     subroutine create_avail_neighbors_list_test
+        use SystemData, only: nel
+        use constants, only: n_int 
+        use Detbitops, only: encodebitdet 
+        use bit_rep_data, only: niftot
+
+        integer(n_int), allocatable :: ilut(:)
+        integer, allocatable :: orbs(:)
+        integer :: n_orbs
+
+        nel = 2 
+        niftot = 0
+
+        allocate(ilut(0:niftot))
 
         print *, "" 
         print *, "testing: create_avail_neighbors_list"
 
-        call assert_true(.false.)
+        call encodebitdet([1,2], ilut)
+
+        call create_avail_neighbors_list(ilut, [3,5,7,9], orbs, n_orbs)
+        call assert_equals(4, n_orbs)
+        call assert_equals([3,5,7,9], orbs, 4)
+
+        call create_avail_neighbors_list(ilut, [2,4,6,8], orbs, n_orbs)
+        call assert_equals(3, n_orbs)
+        call assert_equals([4,6,8], orbs, 3)
+
+        call create_avail_neighbors_list(ilut, [1,3,5,7,9], orbs, n_orbs)
+        call assert_equals(4, n_orbs)
+        call assert_equals([3,5,7,9], orbs, 4)
+
+        call create_avail_neighbors_list(ilut, [1,2,3,5,7,9], orbs, n_orbs)
+        call assert_equals(4, n_orbs)
+        call assert_equals([3,5,7,9], orbs, 4)
+
+        call create_avail_neighbors_list(ilut, [1,2], orbs, n_orbs)
+        call assert_equals(0, n_orbs)
+
+        nel = -1 
+        niftot = -1
 
     end subroutine create_avail_neighbors_list_test
 
     subroutine calc_pgen_rs_hubbard_test
+        use SystemData, only: nel
+        use constants, only: n_int, dp
+        use lattice_mod, only: lattice
+        use bit_rep_data, only: niftot 
+        use Detbitops, only: encodebitdet 
+
+        integer(n_int), allocatable :: ilut(:)
+        integer :: ex(2,2)
+        integer, allocatable :: nI(:)
+
+        ex = 0
+
+        nel = 2
+        niftot = 0
+        allocate(ilut(0:niftot))
 
         print *, "" 
         print *, "testing: calc_pgen_rs_hubbard" 
+        lat => lattice('chain', 4, 1, 1, .true., .true., .true.)
 
-        call assert_true(.false.)
+        trans_corr_param = 0.0 
+        t_trans_corr = .false. 
+        allocate(ni(nel))
+        nI = [1,2]
+        call encodebitdet(nI, ilut) 
+        ex(1,1) = 1 
+        ex(2,1) = 3
+
+        call assert_equals(0.0, calc_pgen_rs_hubbard(ni, ilut, ex, 2))
+        call assert_equals(0.0, calc_pgen_rs_hubbard(ni, ilut, ex, 0))
+        call assert_equals(0.0, calc_pgen_rs_hubbard(ni, ilut, ex, -1))
+        call assert_equals(0.0, calc_pgen_rs_hubbard(ni, ilut, ex, 3))
+
+        call assert_equals(0.25, calc_pgen_rs_hubbard(ni,ilut,ex,1))
+
+        ex(1,1) = 2
+        ex(2,1) = 8
+
+        call assert_equals(0.25, calc_pgen_rs_hubbard(ni,ilut,ex,1))
+
+        t_trans_corr = .true. 
+
+        call assert_equals(0.25, calc_pgen_rs_hubbard(ni,ilut,ex,1))
+
+        ex(1,1) = 1 
+        ex(2,1) = 3
+
+        call assert_equals(0.25, calc_pgen_rs_hubbard(ni,ilut,ex,1))
+
+        ex(1,1) = 2
+        ex(2,1) = 8
+        call assert_equals(0.25, calc_pgen_rs_hubbard(ni,ilut,ex,1))
+
+        trans_corr_param = 1.0 
+        call assert_equals(1.0/(4.0), calc_pgen_rs_hubbard(ni,ilut,ex,1))
+
+        nel = 3 
+        nI = [1,2,3]
+        call encodebitdet(nI, ilut) 
+        ex(1,1) = 2
+        ex(2,1) = 4
+        ! think about the 
+        call assert_equals(1.0/(2.0*(1.0+exp(1.0))), calc_pgen_rs_hubbard(ni, ilut, ex,1))
 
     end subroutine calc_pgen_rs_hubbard_test
 
@@ -181,6 +352,7 @@ contains
         use Detbitops, only: encodebitdet
         use constants, only: n_int
         use SystemData, only: nel
+        use bit_rep_data, only: niftot
 
         integer(n_int), allocatable :: ilut(:)
 

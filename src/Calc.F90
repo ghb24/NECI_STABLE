@@ -35,6 +35,7 @@ MODULE Calc
     use spectral_lanczos, only: n_lanc_vecs_sl
     use exact_spectrum
     use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
+    use real_space_hubbard, only: t_start_neel_state
 
     implicit none
 
@@ -1136,6 +1137,11 @@ contains
                     print *, "TEST cutoff: ", matele_cutoff
                 end if
 
+            case("START-NEEL-STATE")
+                ! in the new real-space hubbard implementation this keyword
+                ! causes the starting state to be the neel-state if possible,
+                ! for the lattice, or otherwise still a state close to it.. 
+                t_start_neel_state = .true.
 
             case("MAXWALKERBLOOM")
                 !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.
