@@ -472,10 +472,10 @@ system: do
 
             ! misuse the cell keyword to set this up to also have the 
             ! hubbard setup already provided..
-            if (t_new_real_space_hubbard) then 
-               length_x = NMAXX 
-               length_y = NMAXY
-           end if
+!             if (t_new_real_space_hubbard) then 
+!                length_x = NMAXX 
+!                length_y = NMAXY
+!            end if
 
        case ('TRANSCORRELATED', 'TRANSCORR', 'TRANS-CORR')
            ! activate the transcorrelated Hamiltonian idea from hongjun for 
@@ -602,9 +602,9 @@ system: do
 
             ! maybe i have to reuse the cell input functionality or set it 
             ! here also, so that the setup is not messed up 
-            nmaxx = length_x
-            nmaxy = length_y
-            nmaxz = 1
+!             nmaxx = length_x
+!             nmaxy = length_y
+!             nmaxz = 1
 
         case("UEG-OFFSET")
             tUEGOffset=.true.
