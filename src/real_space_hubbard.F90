@@ -64,7 +64,6 @@ contains
     ! i want to change the input so that one specifies the lattice type 
     ! in the System input by 
     ! system hubbard [lattice-type] 
-
     subroutine init_real_space_hubbard() 
         use SystemData, only: tExch, thub, treal, tHPHF
         ! routine, which does all of the necessary initialisation

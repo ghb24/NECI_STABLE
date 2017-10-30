@@ -12,6 +12,7 @@ MODULE System
     use read_fci, only: FCIDUMP_name
     use util_mod, only: error_function, error_function_c
     use real_space_hubbard, only: trans_corr_param, t_trans_corr
+    use tJ_model, only: exchange_j, t_tJ_model
 
     IMPLICIT NONE
 
@@ -278,6 +279,14 @@ MODULE System
               end select
           end if
                   
+      case ('TJ','TJ-MODEL')
+          t_tJ_model = .true. 
+
+          ! should i misuse the already provided setup for the hubbard 
+          ! model again? .. maybe.. 
+          ! maybe i should use a general flag like t_lattice_model 
+          ! especially for the matrix element evaluation and stuff
+
       case("RIINTEGRALS")
           tRIIntegrals = .true.
           tReadInt=.true.
@@ -518,6 +527,11 @@ system: do
             call getf(UHUB)
         case("B")
             call getf(BHUB)
+
+        case ("J")
+            ! specify the tJ exchange here, the default is 1.0 
+            ! this could also be used for the heisenberg model.. 
+            call getf(exchange_j)
 
         case ("NEXT-NEAREST-HOPPING")
             call getf(nn_bhub)
