@@ -12,7 +12,7 @@ MODULE HPHFRandExcitMod
     use SystemData, only: nel, tCSF, Alat, G1, nbasis, nbasismax, nmsh, arr, &
                           tOddS_HPHF, modk_offdiag, tGen_4ind_weighted, &
                           tGen_4ind_reverse, tLatticeGens, tGen_4ind_2, tHUB, & 
-                          tUEG, tUEGNewGenerator
+                          tUEG, tUEGNewGenerator, t_new_real_space_hubbard
     use IntegralsData, only: UMat, fck, nMax
     use SymData, only: nSymLabels
     use dSFMT_interface, only : genrand_real2_dSFMT
@@ -39,6 +39,8 @@ MODULE HPHFRandExcitMod
                                     gen_excit_back_spawn_ueg, calc_pgen_back_spawn_ueg, & 
                                     calc_pgen_back_spawn_hubbard, gen_excit_back_spawn_hubbard, &
                                     gen_excit_back_spawn_ueg_new, calc_pgen_back_spawn_ueg_new
+    use real_space_hubbard, only: gen_excit_rs_hubbard, get_helement_rs_hub, calc_pgen_rs_hubbard
+
     IMPLICIT NONE
 !    SAVE
 !    INTEGER :: Count=0
@@ -179,6 +181,10 @@ MODULE HPHFRandExcitMod
                                           ExcitMat, tSignOrig, pgen, Hel, store, part_type)
             end if
 
+        else if (t_new_real_space_hubbard) then 
+            call gen_excit_rs_hubbard(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
+                                      ExcitMat, tSignOrig, pgen, Hel, store, part_type)
+
         else if (tGen_4ind_weighted) then
             call gen_excit_4ind_weighted (nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
                                           ExcitMat, tSignOrig, pGen, Hel,&
@@ -226,7 +232,15 @@ MODULE HPHFRandExcitMod
                     if(tOddS_HPHF) then
                         call stop_all("gen_hphf_excit","Should not be at closed shell det with Odd S")
                     else
-                        HEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
+                        ! [W.D. 30.10.2017] 
+                        ! have to change here to use the real-space hubbard 
+                        ! routines.. thats why this whole HPHF should be 
+                        ! reworked.
+                        if (t_new_real_space_hubbard) then 
+                            hel = get_helement_rs_hub(nI, ic, ExcitMat, tSignOrig)
+                        else 
+                            HEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
+                        end if
                     endif
                 ELSE
                     !Open shell -> Closed Shell
@@ -234,7 +248,11 @@ MODULE HPHFRandExcitMod
                         !Odd S States cannot have CS components
                         HEl=0.0_dp
                     else
-                        MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
+                        if (t_new_real_space_hubbard) then
+                            MatEl = get_helement_rs_hub(nI, ic, ExcitMat, tSignOrig)
+                        else
+                            MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
+                        end if
                         HEl=MatEl*SQRT(2.0_dp)
                     endif
                 ENDIF
@@ -279,24 +297,40 @@ MODULE HPHFRandExcitMod
                             !Cannot have CS components
                             HEl=0.0_dp
                         else
-                            IF(tSwapped) THEN
-                                MatEl = sltcnd_excit (nI, IC, Ex2, tSign)
-                            ELSE
-                                MatEl = sltcnd_excit (nI, IC, ExcitMat, &
-                                                      tSignOrig)
-                            ENDIF
+                            if (t_new_real_space_hubbard) then 
+                                if (tSwapped) then 
+                                    MatEl = get_helement_rs_hub(nI, ic, ex2, tSign)
+                                else
+                                    MatEl = get_helement_rs_hub(nI, ic, ExcitMat, tSignOrig)
+                                end if
+                            else
+                                IF(tSwapped) THEN
+                                    MatEl = sltcnd_excit (nI, IC, Ex2, tSign)
+                                ELSE
+                                    MatEl = sltcnd_excit (nI, IC, ExcitMat, &
+                                                          tSignOrig)
+                                ENDIF
+                            endif
                             HEl=MatEl*SQRT(2.0_dp)
                         endif
                     ELSE     !Open shell -> Open shell
 
 !First find nI -> nJ. If nJ has swapped, then this will be different.
-                        IF(tSwapped) THEN
-                            MatEl = sltcnd_excit (nI, ExcitLevel, Ex2, &
-                                                  tSign)
-                        ELSE
-                            MatEl = sltcnd_excit (nI, IC, ExcitMat, &
-                                                  tSignOrig)
-                        ENDIF
+                        if (t_new_real_space_hubbard) then 
+                            if (tSwapped) then 
+                                MatEl = get_helement_rs_hub(nI, ExcitLevel, Ex2, tSign)
+                            else 
+                                MatEl = get_helement_rs_hub(nI, ic, ExcitMat, tSignOrig)
+                            end if
+                        else
+                            IF(tSwapped) THEN
+                                MatEl = sltcnd_excit (nI, ExcitLevel, Ex2, &
+                                                      tSign)
+                            ELSE
+                                MatEl = sltcnd_excit (nI, IC, ExcitMat, &
+                                                      tSignOrig)
+                            ENDIF
+                        end if
 
                         !now nI2 -> nJ (modelled as nI -> nJ2 with appropriate sign modifications)
 
@@ -313,14 +347,22 @@ MODULE HPHFRandExcitMod
                                 IF((OpenOrbsJ+OpenOrbsI).eq.3) tSignOrig=.not.tSignOrig  
  !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
 
-                                MatEl2 = sltcnd_excit (nI, IC, ExcitMat, &
+                                if (t_new_real_space_hubbard) then 
+                                    MatEl2 = get_helement_rs_hub(nI, ic, ExcitMat, tSignOrig)
+                                else 
+                                    MatEl2 = sltcnd_excit (nI, IC, ExcitMat, &
                                                        tSignOrig)
+                               end if
                             ELSE
 !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
                                 IF((OpenOrbsJ+OpenOrbsI).eq.3) tSign=.not.tSign     
 
-                                MatEl2 = sltcnd_excit (nI,  ExcitLevel, &
+                                if (t_new_real_space_hubbard) then 
+                                    MatEl2 = get_helement_rs_hub(nI, ExcitLevel, Ex2, tSign)
+                                else
+                                    MatEl2 = sltcnd_excit (nI,  ExcitLevel, &
                                                        Ex2, tSign)
+                                end if
                             ENDIF
 
                             IF(tOddS_HPHF) THEN
@@ -379,9 +421,17 @@ MODULE HPHFRandExcitMod
                                 tSignOrig=.not.tSignOrig
                             ENDIF
                         ENDIF
-                        MatEl = sltcnd_excit(nI,  IC, ExcitMat, tSignOrig)
+                        if (t_new_real_space_hubbard) then 
+                            MatEl = get_helement_rs_hub(nI, ic, ExcitMat, tSignOrig)
+                        else
+                            MatEl = sltcnd_excit(nI,  IC, ExcitMat, tSignOrig)
+                        endif
                     ELSE
-                        MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
+                        if (t_new_real_space_hubbard) then
+                            MatEl = get_helement_rs_hub(nI, ic, ExcitMat, tSignOrig)
+                        else
+                            MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
+                        end if
                     ENDIF
 
                     HEl=MatEl
@@ -1010,6 +1060,8 @@ MODULE HPHFRandExcitMod
                                                 ClassCountUnocc2)
             else if (tGen_4ind_reverse) then
                 pgen = calc_pgen_4ind_reverse (nI, ilutI, ex, ic)
+            else if (t_new_real_space_hubbard) then 
+                pgen = calc_pgen_rs_hubbard(nI, ilutI, ex, ic)
             else
                 ! Here we assume that the normal excitation generators in
                 ! symrandexcit2.F90 are being used.

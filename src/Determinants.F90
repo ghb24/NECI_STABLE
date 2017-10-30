@@ -455,7 +455,7 @@ contains
         ! intialized to the correct function at the beginning of the 
         ! excitations
         if (t_new_real_space_hubbard) then 
-            hel = get_helement_rs_hub(nI, nJ, ic, ExcitMat, TParity) 
+            hel = get_helement_rs_hub(nI, ic, ExcitMat, TParity) 
             return
         end if
 
@@ -510,7 +510,7 @@ contains
         iUnused=iLutJ(1); iUnused=iLutI(1); iUnused2=nJ(1); hUnused = helgen
 
         if (t_new_real_space_hubbard) then 
-            hel = get_helement_rs_hub(ni, nJ, ic, ex, tParity) 
+            hel = get_helement_rs_hub(ni, ic, ex, tParity) 
             return 
         end if
 

@@ -66,7 +66,7 @@ contains
     ! system hubbard [lattice-type] 
 
     subroutine init_real_space_hubbard() 
-        use SystemData, only: tExch, thub, treal
+        use SystemData, only: tExch, thub, treal, tHPHF
         ! routine, which does all of the necessary initialisation
         character(*), parameter :: this_routine = "init_real_space_hubbard"
         ! especially do some stop_all here so no wrong input is used 
@@ -124,7 +124,9 @@ contains
 
         ! and i have to calculate the optimal time-step for the hubbard models. 
         ! where i need the connectivity of the lattice i guess? 
-        generate_excitation => gen_excit_rs_hubbard
+        if (.not. tHPHF) then
+            generate_excitation => gen_excit_rs_hubbard
+        end if
         
         ! i have to calculate the optimal time-step
         ! and maybe i have to be a bit more safe here and not be too near to 
@@ -168,14 +170,12 @@ contains
                 tGenHelWeighted, tGen_4ind_weighted, tGen_4ind_reverse, &
                 tUEGNewGenerator, tGen_4ind_part_exact, tGen_4ind_lin_exact, &
                 tGen_4ind_2, tGen_4ind_2_symmetric, tGen_4ind_unbound, tStoreSpinOrbs, &
-                tReal, tHPHF
+                tReal
         use umatcache, only : tTransGTid
         use OneEInts, only: tcpmdsymtmat, tOneelecdiag
 
         character(*), parameter :: this_routine = "check_real_space_hubbard_input"
         ! do all the input checking here, so no wrong input is used!
-
-        if (thphf) call stop_all(this_routine, "hphf not yet implemented!")
 
         if (tCSF)             call stop_all(this_routine, "tCSF set to true!")
         if (tReltvy)          call stop_all(this_routine, "tReltvy set to true!")
@@ -588,8 +588,8 @@ contains
 
     end function trans_corr_fac
 
-    function get_helement_rs_hub_ex_mat(nI, nJ, ic, ex, tpar) result(hel)
-        integer, intent(in) :: nI(nel), nJ(nel)
+    function get_helement_rs_hub_ex_mat(nI, ic, ex, tpar) result(hel)
+        integer, intent(in) :: nI(nel)
         integer, intent(in) :: ic, ex(2,2)
         logical, intent(in) :: tpar
         HElement_t(dp) :: hel 

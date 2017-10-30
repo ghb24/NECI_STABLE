@@ -1,13 +1,14 @@
 module hphf_integrals
     use constants, only: dp,n_int,sizeof_int
     use SystemData, only: NEl, nBasisMax, G1, nBasis, Brr, tHub, ECore, &
-                          ALat, NMSH, tOddS_HPHF, modk_offdiag
+                          ALat, NMSH, tOddS_HPHF, modk_offdiag, t_new_real_space_hubbard
     use IntegralsData, only: UMat,FCK,NMAX
     use HPHFRandExcitMod, only: FindDetSpinSym, FindExcitBitDetSym
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel, &
                          TestClosedShellDet, CalcOpenOrbs
     use sltcnd_mod, only: sltcnd, sltcnd_excit
-    use bit_reps, only: NIfD, NIfTot, NIfDBO
+    use bit_reps, only: NIfD, NIfTot, NIfDBO, decode_bit_det
+    use real_space_hubbard, only: get_helement_rs_hub, get_diag_helemen_rs_hub
     implicit none
 
     interface hphf_off_diag_helement
@@ -88,7 +89,12 @@ module hphf_integrals
             return
         endif
 
-        hel = sltcnd (nI, iLutnI, iLutnJ)
+        if (t_new_real_space_hubbard) then 
+            hel = get_helement_rs_hub(nI, nJ) 
+        else
+            hel = sltcnd (nI, iLutnI, iLutnJ)
+        end if
+
         if (TestClosedShellDet(iLutnI)) then
             if(tOddS_HPHF) then
                 !For odd S states, all matrix elements to CS determinants should be 0
@@ -132,7 +138,11 @@ module hphf_integrals
                     Ex(1,1)=ExcitLevel
                     call GetBitExcitation(iLutnI2,iLutnJ,Ex,tSign)
 
-                    MatEl2 = sltcnd_excit (nI2, ExcitLevel, Ex, tSign)
+                    if (t_new_real_space_hubbard) then 
+                        MatEl2 = get_helement_rs_hub(nI2, ExcitLevel, Ex, tSign)
+                    else
+                        MatEl2 = sltcnd_excit (nI2, ExcitLevel, Ex, tSign)
+                    end if
 
                     if(tOddS_HPHF) then
                         if (((mod(OpenOrbsI,2) == 1).and.(mod(OpenOrbsJ,2) == 1))&
@@ -174,8 +184,14 @@ module hphf_integrals
         integer(kind=n_int) :: iLutnI2(0:NIfTot)
         integer :: ExcitLevel, OpenOrbs
         HElement_t(dp) :: MatEl2
+        integer :: nJ(nel)
 
-        hel = sltcnd_excit (nI, 0)
+        if (t_new_real_space_hubbard) then
+            hel = get_diag_helemen_rs_hub(nI)
+        else
+            hel = sltcnd_excit (nI, 0)
+        end if
+
         if (.not. TestClosedShellDet(iLutnI)) then
             ! <i|H|i> = <j|H|j>, so no need to calculate both.
             ! <X|H|X> = 1/2 [ <i|H|i> + <j|H|j> ] + <i|H|j> where i and j are
@@ -188,7 +204,12 @@ module hphf_integrals
             if (ExcitLevel.le.2) then
                 call CalcOpenOrbs (iLutnI, OpenOrbs)
 !                call FindDetSpinSym (nI, nI2, nel)
-                MatEl2 = sltcnd (nI,  iLutnI, iLutnI2)
+                if (t_new_real_space_hubbard) then 
+                    call decode_bit_det(nJ, iLutnI2)
+                    MatEl2 = get_helement_rs_hub(nI, nJ) 
+                else
+                    MatEl2 = sltcnd (nI,  iLutnI, iLutnI2)
+                end if
 
                 if (tOddS_HPHF) then
                     if (mod(OpenOrbs,2).eq.1) then
