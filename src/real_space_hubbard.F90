@@ -767,7 +767,7 @@ contains
         case ('chain')
             neel_state = create_neel_state_chain()
 
-        case ('square','rectangle','triangle')
+        case ('square','rectangle','triangle','triangular')
             ! check if length_x is mod 2 
             if (mod(length_x, 2) == 0) then 
 
