@@ -35,7 +35,7 @@ MODULE Calc
     use spectral_lanczos, only: n_lanc_vecs_sl
     use exact_spectrum
     use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
-    use real_space_hubbard, only: t_start_neel_state
+    use real_space_hubbard, only: t_start_neel_state, create_neel_state
 
     implicit none
 
@@ -1142,6 +1142,15 @@ contains
                 ! causes the starting state to be the neel-state if possible,
                 ! for the lattice, or otherwise still a state close to it.. 
                 t_start_neel_state = .true.
+                ! also reuse the define det functionality
+                tDefineDet = .true. 
+                if(.not.allocated(DefDet)) then
+                  ALLOCATE(DefDet(NEl),stat=ierr)
+                  CALL LogMemAlloc('DefDet',NEl,4,t_r,tagDefDet,ierr)
+                end if
+                ! i hope everything is setup already
+                DefDet = create_neel_state()
+
 
             case("MAXWALKERBLOOM")
                 !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.

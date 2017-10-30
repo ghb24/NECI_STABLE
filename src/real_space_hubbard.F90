@@ -151,11 +151,15 @@ contains
         t_hist_tau_search_option = .false. 
         
         if (t_start_neel_state) then 
-            neel_state_ni = create_neel_state(ilut_neel)
+!             neel_state_ni = create_neel_state(ilut_neel)
 
             print *, "starting from the Neel state: " 
+            if (nel > nbasis/2) then 
+                call stop_all(this_routine, &
+                    "more than half-filling! does neel state make sense?")
+            end if
 !             call write_det(6, neel_state_ni, .true.)
-            call changerefdet(neel_state_ni)
+!             call changerefdet(neel_state_ni)
 !             call update_run_reference(ilut_neel, 1)
 
         end if
@@ -740,11 +744,14 @@ contains
         integer :: i, j, k, l, spin, ind
         
 
-        ASSERT(associated(lat))
+        ! make this independent of the lattice mod, to call it as early 
+        ! as possible in the initialization
+!         ASSERT(associated(lat))
 
         ! also assert that we have at most half-filling.. otherwise it does 
         ! not make so much sense to do this 
-        ASSERT(nel <= lat%get_nsites())
+!         ASSERT(nel <= nBasis/2)
+!         ASSERT(nel <= lat%get_nsites())
         ! there is no neel state for all lattice, but atleast something 
         ! similar to it.. 
         ! atleast for the lattice where there is a neel state, i should 
@@ -762,17 +769,17 @@ contains
 
         case ('square','rectangle','triangle')
             ! check if length_x is mod 2 
-            if (mod(lat%get_length(1), 2) == 0) then 
+            if (mod(length_x, 2) == 0) then 
 
                 neel_state = create_neel_state_chain()
 
                 ! and flip the spins in every other column 
-                do i = 1, lat%get_length(2), 2
+                do i = 1, length_y, 2
                     ! loop over every second column 
-                    if (i*lat%get_length(1) >= nel) exit
-                    do j = 1, lat%get_length(1)
+                    if (i*length_x >= nel) exit
+                    do j = 1, length_x
                         ! whats the total index? 
-                        ind = i*lat%get_length(1) + j
+                        ind = i*length_x + j
                         if (ind > nel) exit
 
                         ! flip the spins.. this should be way easier.. 
@@ -799,7 +806,7 @@ contains
             k = 0
             l = 1 
             spin = 1
-            do i = -lat%get_length(1)+1, 0
+            do i = -length_x+1, 0
                 do j = -k, k
 
                     neel_state(l) = spin 
@@ -826,7 +833,7 @@ contains
 
             spin = spin + 1
 
-            do i = 1, lat%get_length(1) 
+            do i = 1, length_x 
                 do j = -k, k
 
                     neel_state(l) = spin 

@@ -51,21 +51,27 @@ contains
     end subroutine real_space_hubbard_test_driver
 
     subroutine create_neel_state_test
-        use SystemData, only: nel, lattice_type
+        use SystemData, only: nel, lattice_type, nbasis, length_x, length_y
         use lattice_mod, only: lattice
 
 
         print *, "" 
         print *, "testing: create_neel_state" 
         lat => lattice('chain', 4, 1, 1, .true., .true., .true.)
+        length_x = 4
+        length_y = 1
+
         lattice_type = 'chain'
         nel = 4
+        nbasis = 8
         call assert_equals([1,4,5,8], create_neel_state(), 4)
 
         nel = 3
         call assert_equals([1,4,5], create_neel_state(), 3)
 
         lat => lattice('square', 2, 2, 1, .true., .true., .true.)
+        length_x = 2
+        length_y = 2
         lattice_type = 'square'
         nel = 4
         call assert_equals([1,4,6,7], create_neel_state(), 4) 
@@ -74,8 +80,11 @@ contains
         call assert_equals([1,4,6], create_neel_state(), 3) 
 
         lat => lattice('rectangle', 3, 2, 1, .true.,.true.,.true.)
+        length_x = 3
+
         lattice_type = 'rectangle'
         nel = 6
+        nbasis = 12
         call assert_equals([1,4,5,8,9,12], create_neel_state(), 6)
 
         nel = 4
@@ -85,7 +94,10 @@ contains
         call assert_equals([1,4,5], create_neel_state(), 3)
 
         lat => lattice('rectangle', 2,4,1,.true.,.true.,.true.)
+        length_x = 2
+        length_y = 4
         nel = 8 
+        nbasis = 16
         call assert_equals([1, 4, 6, 7, 9, 12, 14, 15], create_neel_state(), 8)
 
         nel = 7 
@@ -95,12 +107,18 @@ contains
         call assert_equals([1, 4, 6, 7, 9, 12], create_neel_state(), 6)
 
         lat => lattice('rectangle', 3, 4, 1, .true., .true., .true.)
+        length_x = 3
         nel = 12 
+        nbasis = 24
         call assert_equals([1, 4, 5, 8, 9, 12, 13, 16, 17, 20, 21, 24], & 
             create_neel_state(), 12)
 
         lattice_type = 'tilted'
         lat => lattice(lattice_type, 2, 2, 1, .true., .true., .true.)
+        length_x = 2
+        length_y = 2
+
+        nbasis = 16
         nel = 8 
         call assert_equals([1, 3, 6, 7, 10, 11, 14, 16], create_neel_state(),8)
 
@@ -114,6 +132,10 @@ contains
         call assert_equals([1, 3, 6, 7, 10], create_neel_state(),5)
 
         lat => lattice(lattice_type, 3, 3, 1, .true., .true., .true.)
+        length_x = 3
+        length_y = 3
+
+        nbasis  = 36
         nel = 18 
         call assert_equals([1,  3, 6, 7,  9, 12, 13, 16, 17,  20, 21, 24, 25, 28, & 
             30, 31, 34, 36], create_neel_state(), 18)
@@ -128,6 +150,11 @@ contains
 
         nel = 10
         call assert_equals([1,  3, 6, 7,  9, 12, 13, 16, 17,  20], create_neel_state(), 10)
+
+        length_x = -1 
+        length_y = -1 
+        nel = -1 
+        nbasis = -1
 
     end subroutine create_neel_state_test
 
@@ -234,6 +261,7 @@ contains
 
         nel = -1 
         niftot = -1
+        trans_corr_param = 0.0
 
     end subroutine create_cum_list_rs_hubbard_test
 
@@ -354,6 +382,10 @@ contains
         ex(1,1) = 1
         ex(2,1) = 7
         call assert_equals(1.0/3.0, calc_pgen_rs_hubbard(ni, ilut, ex,1))
+
+        nel = -1
+        niftot = -1
+        trans_corr_param = 0.0
 
     end subroutine calc_pgen_rs_hubbard_test
 
