@@ -4,17 +4,29 @@ module tJ_model
 
     use SystemData, only: bhub, nel, nbasis
     use constants, only: dp, n_int, EPS, bits_n_int
-    use real_space_hubbard, only: lat
+    use real_space_hubbard, only: lat, get_offdiag_helement_rs_hub
     use bit_rep_data, only: NIfTot
     use umatcache, only: gtid
     use util_mod, only: binary_search_first_ge
     use OneEInts, only: GetTMatEl
+    use lattice_mod, only: lattice 
+    use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
     implicit none 
 
     logical :: t_tJ_model = .false.
     real(dp) :: exchange_j = 1.0_dp
 
     real(dp), allocatable :: exchange_matrix(:,:) 
+
+    interface get_helement_tJ
+        module procedure get_helement_tJ_ex_mat
+        module procedure get_helement_tJ_general
+    end interface get_helement_tJ
+
+    interface get_helement_heisenberg
+        module procedure get_helement_heisenberg_ex_mat
+        module procedure get_helement_heisenberg_general
+    end interface get_helement_heisenberg
 
 contains 
 
@@ -25,6 +37,12 @@ contains
         print *, "J: ", exchange_j 
 
     end subroutine init_tJ_model 
+
+    subroutine init_heisenberg_model
+        print *, "initialising Heisenberg model with " 
+        print *, "J: ", exchange_j
+
+    end subroutine init_heisenberg_model
 
     subroutine gen_excit_tJ_model (nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                       ex, tParity, pGen, hel, store, run)
@@ -114,7 +132,6 @@ contains
             ilutJ =  make_ilutJ(ilutI, ex, 1)
 
         else if (ic == 2) then 
-            ASSERT(get_beta(src) .neqv. get_beta(spin_orb))
 
             ! here i have to recalc the contribution if i would have picked 
             ! the electron in orbital spin_orb first 
@@ -135,6 +152,7 @@ contains
                 tgt_2 = 2 * neighbors(ind)
 
             end if
+            ASSERT(is_beta(src) .neqv. is_beta(tgt_2))
 
             call create_cum_list_tJ_model(ilutI, nI(elec_2), &
                 lat%get_neighbors(gtid(nI(elec_2))), cum_arr_opp, cum_sum_opp, & 
@@ -142,7 +160,7 @@ contains
 
             p_orb = p_orb + cpt_opp
 
-            call make_double(nI, nJ, src, elec_2, tgt_1, tgt_2, ex, tParity)
+            call make_double(nI, nJ, elec, elec_2, tgt_1, tgt_2, ex, tParity)
 
             ilutJ = make_ilutJ(ilutI, ex, 2)
 
@@ -175,6 +193,7 @@ contains
         logical :: t_single, t_flip
 
         ASSERT(IsOcc(ilutI,src))
+        ASSERT(allocated(exchange_matrix))
 
         allocate(cum_arr(size(neighbors)))
         allocate(ic_list(size(neighbors)))
@@ -206,6 +225,7 @@ contains
 
             ASSERT(present(cpt))
             do i = 1, ubound(neighbors,1)
+                elem = 0.0_dp
                 if (IsNotOcc(ilutI, single_excits(i)) .and. &
                     IsNotOcc(ilutI, spin_flips(i))) then 
                     ! just to be sure use the tmat, so both orbitals are 
@@ -235,6 +255,7 @@ contains
         else
             ! create the list depending on the possible excitations 
             do i = 1, ubound(neighbors,1)
+                elem = 0.0_dp
                 if (IsNotOcc(ilutI,single_excits(i)) .and. &
                     IsNotOcc(ilutI, spin_flips(i))) then 
                     ! then the orbital is empty an we can do a hopping 
@@ -265,15 +286,15 @@ contains
 
     end subroutine create_cum_list_tJ_model
 
-    function calc_pgen_tJ_model(nI, ilutI, ex, ic) result(pgen)
-        integer, intent(in) :: nI(nel), ex(2,2), ic
+    function calc_pgen_tJ_model(ilutI, ex, ic) result(pgen)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(in) :: ex(2,2), ic
         real(dp) :: pgen
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "calc_pgen_tJ_model"
 #endif
 
-        integer :: src(2), tgt(2), tgt_orb
+        integer :: src(2), tgt(2)
         real(dp) :: p_elec, p_orb, cum_sum, cpt_1, cpt_2
         real(dp), allocatable :: cum_arr(:)
         integer, allocatable :: tmp_list(:) 
@@ -342,6 +363,219 @@ contains
 
     end function calc_pgen_tJ_model
 
+    subroutine gen_excit_heisenberg_model (nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                                      ex, tParity, pGen, hel, store, run)
+        ! the heisenberg excitation generator is only a small modification of 
+        ! the t-J excitation generator without single excitation hoppings, 
+        ! due to half-filling 
+        use SystemData, only: nel
+        use bit_rep_data, only: NIfTot
+        use FciMCData, only: excit_gen_store_type
+        use constants, only: n_int, dp, bits_n_int
+        use get_excit, only: make_single, make_double
+        use back_spawn, only: make_ilutJ
+        use dsfmt_interface, only: genrand_real2_dsfmt
+
+        implicit none
+
+        integer, intent(in) :: nI(nel), exFlag
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: nJ(nel), ic, ex(2,2)
+        integer(n_int), intent(out) :: ilutJ(0:NifTot)
+        real(dp), intent(out) :: pGen
+        logical, intent(out) :: tParity
+        HElement_t(dp), intent(out) :: hel
+        type(excit_gen_store_type), intent(inout), target :: store
+        integer, intent(in), optional :: run
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "gen_excit_heisenberg_model"
+#endif
+        integer :: elec, src, ind, tgt, src_opp, tgt_opp, elec_opp
+        real(dp) :: p_elec, cum_sum, r, p_orb, cpt_opp
+        integer, allocatable :: neighbors(:) 
+        real(dp), allocatable :: cum_arr(:)
+
+        ASSERT(associated(lat))
+        ASSERT(nel == nbasis/2)
+
+        ! still pick the first electron at random 
+        elec = 1 + int(genrand_real2_dsfmt() * nel)
+
+        p_elec = 1.0_dp / real(nel, dp)
+
+        src = nI(elec) 
+
+        ! in the heisenberg model i am sure that every site is occupied.. 
+        ! so i could pick the spin-orbit neighbors and check if the spin-orbital 
+        ! is empty, this would indicate opposite neighboring spins.. 
+        neighbors = lat%get_spinorb_neighbors(src)
+
+        call create_cum_list_heisenberg(ilutI, src, neighbors, cum_arr, cum_sum)
+
+        if (cum_sum < EPS) then 
+            nJ(1) = 0
+            pgen = 0.0_dp
+            return 
+        end if
+
+        r = genrand_real2_dsfmt() * cum_sum 
+
+        ind = binary_search_first_ge(cum_arr, r) 
+
+        tgt = neighbors(ind) 
+
+        if (ind == 1) then 
+            p_orb = cum_arr(1) / cum_sum 
+        else 
+            p_orb = (cum_arr(ind) - cum_arr(ind-1)) / cum_sum 
+        end if
+
+        ! and then i have to check for the opposite order generation prob 
+        if (is_beta(src)) then 
+            src_opp = neighbors(ind) + 1 
+            tgt_opp = src + 1
+        else 
+            src_opp = neighbors(ind) - 1
+            tgt_opp = src - 1 
+        end if
+
+        ASSERT(IsOcc(ilutI,src_opp))
+        ASSERT(IsNotOcc(ilutI, tgt_opp))
+
+        call create_cum_list_heisenberg(ilutI, src_opp, lat%get_spinorb_neighbors(src_opp), & 
+            cum_arr, cum_sum, tgt_opp, cpt_opp) 
+
+        pgen = p_elec * (p_orb + cpt_opp) 
+
+        elec_opp = find_elec_in_ni(nI, src_opp) 
+
+        call make_double(nI, nJ, elec, elec_opp, tgt, tgt_opp, ex, tParity)
+
+        ilutJ = make_ilutJ(ilutI, ex, 2)
+
+    end subroutine gen_excit_heisenberg_model
+
+    subroutine create_cum_list_heisenberg(ilutI, src, neighbors, cum_arr, cum_sum, &
+            tgt, cpt) 
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(in) :: src, neighbors(:)
+        real(dp), intent(out), allocatable :: cum_arr(:)
+        real(dp), intent(out) :: cum_sum 
+        integer, intent(in), optional :: tgt 
+        real(dp), intent(out), optional :: cpt 
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "create_cum_list_heisenberg"
+#endif 
+        integer :: flip, i
+        real(dp) :: elem
+
+        ASSERT(IsOcc(ilutI,src))
+
+        allocate(cum_arr(size(neighbors)))
+        cum_arr = 0.0_dp
+        cum_sum = 0.0_dp
+
+        ! for the heisenberg model, where we know that every site is singly 
+        ! occupied, we search for empty spin-orbital neighbors, to see if 
+        ! a spin-flip is possible! so we do not need to check for the type 
+        ! of spin of orbital src here! 
+        ! although for the matrix element i need the opposite spin! 
+        ! add the according flip to get the other spin!
+        if (is_beta(src)) then 
+            flip = +1
+        else 
+            flip = -1
+        end if
+
+        if (present(tgt)) then
+            ASSERT(present(cpt))
+
+            do i = 1, ubound(neighbors,1)
+                elem = 0.0_dp
+                if (IsNotOcc(ilutI,neighbors(i))) then 
+                    elem = abs(get_heisenberg_exchange(src, neighbors(i)+flip))
+                end if
+                if (neighbors(i) == tgt) then 
+                    cpt = elem 
+                end if
+                cum_sum = cum_sum + elem 
+            end do
+            if (cum_sum < EPS) then 
+                cpt = 0.0_dp
+            else
+                cpt = cpt / cum_sum 
+            end if
+
+        else 
+            do i = 1, ubound(neighbors,1)
+                elem = 0.0_dp
+                if (IsNotOcc(ilutI,neighbors(i))) then 
+                    ! this is a valid orbital to choose from 
+                    ! but for the matrix element calculation, we need to 
+                    ! have the opposite spin of the neighboring orbital! 
+                    elem = abs(get_heisenberg_exchange(src, neighbors(i)+flip))
+                end if
+                cum_sum = cum_sum + elem 
+                cum_arr(i) = cum_sum 
+            end do
+        end if
+
+    end subroutine create_cum_list_heisenberg
+
+    function calc_pgen_heisenberg_model(ilutI, ex, ic) result(pgen)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(in) :: ex(2,2), ic
+        real(dp) :: pgen
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "calc_pgen_heisenberg_model"
+#endif
+        integer :: src(2), tgt(2) 
+        real(dp) :: p_elec, cum_sum, cpt_1, cpt_2
+        real(dp), allocatable :: cum_arr(:)
+
+        ASSERT(ic >= 0)
+        ASSERT(associated(lat)) 
+        if (ic /= 2) then 
+            pgen = 0.0_dp
+            return
+        end if
+
+        src = get_src(ex)
+        tgt = get_tgt(ex)
+
+        ASSERT(.not. same_spin(src(1),src(2)))
+        ASSERT(.not. same_spin(tgt(1),tgt(2)))
+
+        p_elec = 1.0_dp / real(nel, dp)
+
+        if (is_beta(src(1)) .eqv. is_beta(tgt(1))) then 
+            ASSERT(is_in_pair(src(1),tgt(2)))
+            ASSERT(is_in_pair(src(2),tgt(1)))
+            ASSERT(same_spin(src(2),tgt(2)))
+
+            call create_cum_list_heisenberg(ilutI, src(1), lat%get_spinorb_neighbors(src(1)), &
+                cum_arr, cum_sum, tgt(1), cpt_1)
+            call create_cum_list_heisenberg(ilutI, src(2), lat%get_spinorb_neighbors(src(2)), &
+                cum_arr, cum_sum, tgt(2), cpt_2) 
+
+        else if (is_beta(src(1)) .eqv. is_beta(tgt(2))) then 
+            ASSERT(is_in_pair(src(1),tgt(1)))
+            ASSERT(is_in_pair(src(2),tgt(2)))
+            ASSERT(same_spin(src(2),tgt(1)))
+            call create_cum_list_heisenberg(ilutI, src(1), lat%get_spinorb_neighbors(src(1)), &
+                cum_arr, cum_sum, tgt(2), cpt_1)
+            call create_cum_list_heisenberg(ilutI, src(2), lat%get_spinorb_neighbors(src(2)), &
+                cum_arr, cum_sum, tgt(1), cpt_2)
+#ifdef __DEBUG 
+        else 
+            call stop_all(this_routine, "something went wrong!")
+#endif
+        end if
+
+        pgen = p_elec * (cpt_1 + cpt_2)
+
+    end function calc_pgen_heisenberg_model
+
     function find_elec_in_ni(nI, orb) result(elec)
         ! routine to find the number of the elctron in spin-orbital orb
         integer, intent(in) :: nI(nel), orb
@@ -395,5 +629,261 @@ contains
         hel = h_cast(exchange_matrix(src, tgt))
 
     end function get_heisenberg_exchange
+
+    subroutine setup_exchange_matrix(lat)
+        ! by convention encode the exchange matrix element by the two 
+        ! involved electrons with opposite spins! so we can encode this 
+        ! as a 2D matrix 
+        class(lattice), optional :: lat 
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "setup_exchange_matrix"
+#endif
+        integer :: i, ind 
+
+        if (present(lat)) then 
+            ! create the exchange matrix from the given lattice 
+            ! connections 
+            if (allocated(exchange_matrix)) deallocate(exchange_matrix)
+            allocate(exchange_matrix(nbasis,nbasis))
+            exchange_matrix = 0.0_dp
+
+            ASSERT(lat%get_nsites() == nbasis/2)
+            do i = 1, lat%get_nsites() 
+                ind = lat%get_site_index(i)
+                associate(next => lat%get_neighbors(i))
+                    exchange_matrix(2*ind - 1, 2*next) = exchange_j
+                    exchange_matrix(2*ind, 2*next - 1) = exchange_j
+
+                    ASSERT(all(next > 0))
+                    ASSERT(all(next <= nbasis/2))
+                end associate
+                ASSERT(ind > 0) 
+                ASSERT(ind <= nbasis/2)
+            end do
+
+        else 
+#ifdef __DEBUG 
+            call stop_all(this_routine, "start from a fcidump not yet implemented!")
+#endif
+        end if
+
+    end subroutine setup_exchange_matrix
+
+    function get_helement_tJ_ex_mat(nI, ic, ex, tpar) result(hel)
+        integer, intent(in) :: nI(nel), ic, ex(2,2)
+        logical, intent(in) :: tpar 
+        HElement_t(dp) :: hel
+
+        if (ic == 0) then 
+            ! is the diagonal element the same as in the pure 
+            ! heisenberg model? yes or?
+            hel = get_diag_helement_heisenberg(nI) 
+
+        else if (ic == 1) then 
+            ! the single excitation is the same as in the hubbard model
+            hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar)
+
+        else if (ic == 2) then 
+            hel = get_offdiag_helement_heisenberg(nI, ex, tpar)
+
+        else 
+            hel = h_cast(0.0_dp)
+
+        end if
+    end function get_helement_tJ_ex_mat
+
+    function get_helement_tJ_general(nI, nJ, ic_ret) result(hel) 
+        integer, intent(in) :: nI(nel), nJ(nel) 
+        integer, intent(inout), optional :: ic_ret
+        HElement_t(dp) :: hel 
+        
+        integer :: ic, ex(2,2)
+        logical :: tpar 
+        integer(n_int) :: ilutI(0:NIfTot), ilutJ(0:NIfTot)
+
+        if (present(ic_ret)) then 
+            if (ic_ret == 0) then 
+                hel = get_diag_helement_heisenberg(nI) 
+
+            else if (ic_ret == 1) then 
+                ex(1,1) = 1 
+                call GetExcitation(nI, nJ, nel, ex, tpar)
+                hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar)
+
+            else if (ic_ret == 2) then 
+                ex(1,1) = 2
+                call GetExcitation(nI, nJ, nel, ex, tpar) 
+                hel = get_offdiag_helement_heisenberg(nI, ex, tpar)
+
+            else if (ic_ret == -1) then 
+                call EncodeBitDet(nI, ilutI)
+                call EncodeBitDet(nJ, ilutJ)
+
+                ic_ret = FindBitExcitLevel(ilutI,ilutJ)
+
+                if (ic_ret == 0) then 
+                    hel = get_diag_helement_heisenberg(nI) 
+
+                else if (ic_ret == 1) then 
+                    ex(1,1) = 1
+                    call GetBitExcitation(ilutI,ilutJ,ex,tpar)
+                    hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar)
+
+                else if (ic_ret == 2) then 
+                    ex(1,1) = 2 
+                    hel = get_offdiag_helement_heisenberg(nI, ex, tpar) 
+
+                else 
+                    hel = h_cast(0.0_dp)
+                end if
+            else 
+                hel = h_cast(0.0_dp)
+            end if
+        else 
+            call EncodeBitDet(nI, ilutI)
+            call EncodeBitDet(nJ, ilutJ)
+
+            ic = FindBitExcitLevel(ilutI,ilutJ)
+
+            if (ic == 0) then 
+                hel = get_diag_helement_heisenberg(nI)
+            else if (ic == 1) then 
+                ex(1,1) = 1 
+                call GetBitExcitation(ilutI,ilutJ,ex,tpar)
+                hel = get_offdiag_helement_rs_hub(nI,ex(:,1),tPar)
+            else if (ic == 2) then 
+                ex(1,1) = 2 
+                call GetBitExcitation(ilutI,ilutJ,ex,tpar)
+                hel = get_offdiag_helement_heisenberg(nI,ex,tpar)
+            else 
+                hel = h_cast(0.0_dp)
+            end if
+        end if
+
+    end function get_helement_tJ_general
+
+    function get_helement_heisenberg_ex_mat(nI, ic, ex, tpar) result(hel)
+        integer, intent(in) :: nI(nel), ic, ex(2,2)
+        logical, intent(in) :: tpar 
+        HElement_t(dp) :: hel 
+
+        if (ic == 0) then 
+            hel = get_diag_helement_heisenberg(nI)
+
+        else if (ic == 2) then 
+            hel = get_offdiag_helement_heisenberg(nI, ex, tpar) 
+
+        else 
+            hel = h_cast(0.0_dp)
+
+        end if
+
+    end function get_helement_heisenberg_ex_mat
+
+    function get_helement_heisenberg_general(nI, nJ, ic_ret) result(hel) 
+        integer, intent(in) :: nI(nel), nJ(nel)
+        integer, intent(inout), optional :: ic_ret
+        HElement_t(dp) :: hel 
+ 
+        integer :: ic, ex(2,2)
+        logical :: tpar
+        integer(n_int) :: ilutI(0:NIfTot), ilutJ(0:NIfTot)
+
+        if (present(ic_ret)) then
+            if (ic_ret == 0) then 
+                hel = get_diag_helement_heisenberg(nI) 
+
+            else if (ic_ret == 2) then 
+                ex(1,1) = 2 
+                call GetExcitation(nI, nJ, nel, ex, tpar)
+                hel = get_offdiag_helement_heisenberg(nI, ex, tpar)
+
+            else if (ic_ret == -1) then 
+                call EncodeBitDet(nI, ilutI)
+                call EncodeBitDet(nJ, ilutJ)
+
+                ic_ret = FindBitExcitLevel(ilutI,ilutJ)
+
+                if (ic_ret == 0) then 
+                    hel = get_diag_helement_heisenberg(nI)
+
+                else if (ic_ret == 2) then 
+                    ex(1,1) = 2
+                    call GetBitExcitation(ilutI,ilutJ,ex,tpar) 
+
+                    hel = get_offdiag_helement_heisenberg(nI, ex, tpar) 
+
+                else 
+                    hel = h_cast(0.0_dp) 
+                end if
+            else 
+                hel = h_cast(0.0_dp)
+            end if
+        else 
+            call EncodeBitDet(nI, ilutI)
+            call EncodeBitDet(nJ, ilutJ) 
+
+            ic = FindBitExcitLevel(ilutI,ilutJ) 
+
+            if (ic == 0) then 
+                hel = get_diag_helement_heisenberg(nI) 
+
+            else if (ic == 2) then 
+                ex(1,1) = 2 
+                call GetBitExcitation(ilutI,ilutJ,ex,tpar) 
+                hel = get_offdiag_helement_heisenberg(nI, ex, tpar) 
+
+            else 
+                hel = h_cast(0.0_dp) 
+            end if 
+        end if
+
+    end function get_helement_heisenberg_general
+
+    function get_diag_helement_heisenberg(nI) result(hel)
+        integer, intent(in) :: nI(nel) 
+        HElement_t(dp) :: hel 
+
+        ! here i have to sum over all the nearest neigbhor pairs and 
+        ! find the spin alignment, if it is parallel or not.. 
+        !todo
+
+    end function get_diag_helement_heisenberg
+
+    function get_offdiag_helement_heisenberg(nI, ex, tpar) result(hel)
+        integer, intent(in) :: nI(nel), ex(2,2)
+        logical, intent(in) :: tpar 
+        HElement_t(dp) :: hel 
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "get_offdiag_helement_heisenberg"
+#endif
+        integer :: src(2), tgt(2) 
+
+        src = get_src(ex)
+        tgt = get_tgt(ex) 
+
+        ! should i assert the same "same-spinness" here or just return 
+        ! zero is spins and orbitals do not fit?? i guess that would be 
+        ! better 
+        if (same_spin(src(1),src(2))) then 
+            hel = h_cast(0.0_dp)
+        else 
+            ! i have to check if the orbitals fit.. ex is sorted here or? 
+            ASSERT(src(1) < src(2)) 
+            ASSERT(tgt(1) < tgt(2))
+
+            if (.not. (is_in_pair(src(1),tgt(1)) .and. is_in_pair(src(2),tgt(2)))) then 
+                hel = h_cast(0.0_dp)
+
+            else 
+                ! this matrix access checks if the orbitals are connected
+                hel = get_heisenberg_exchange(src(1),src(2))
+
+            end if
+        end if
+
+        if (tpar) hel = -hel
+
+    end function get_offdiag_helement_heisenberg
 
 end module tJ_model

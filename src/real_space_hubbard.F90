@@ -281,12 +281,12 @@ contains
                 ASSERT(ind > 0) 
             ASSERT(ind <= nbasis/2)
             
-        end do
+            end do
 
-    else
-        ! this indicates that tmat has to be created from an fcidump 
-        ! and the lattice is set up afterwards!
-    end if
+        else
+            ! this indicates that tmat has to be created from an fcidump 
+            ! and the lattice is set up afterwards!
+        end if
 
     end subroutine init_tmat
 
