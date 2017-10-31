@@ -8,10 +8,13 @@ module tJ_model
     use bit_rep_data, only: NIfTot
     use umatcache, only: gtid
     use util_mod, only: binary_search_first_ge
+    use OneEInts, only: GetTMatEl
     implicit none 
 
     logical :: t_tJ_model = .false.
     real(dp) :: exchange_j = 1.0_dp
+
+    real(dp), allocatable :: exchange_matrix(:,:) 
 
 contains 
 
@@ -48,10 +51,10 @@ contains
 
         character(*), parameter :: this_routine = "gen_excit_tJ_model"
 
-        integer :: elec, src, id, ind, orb, elec_2, tgt_1, tgt_2
-        real(dp) :: p_elec, p_orb, cum_sum, r
-        integer, allocatable :: neighbors(:), ic_list(:)
-        real(dp), allocatable :: cum_arr(:)
+        integer :: elec, src, id, ind, elec_2, tgt_1, tgt_2
+        real(dp) :: p_elec, p_orb, cum_sum, r, cum_sum_opp, cpt_opp
+        integer, allocatable :: neighbors(:), ic_list(:), tmp_ic_list(:)
+        real(dp), allocatable :: cum_arr(:), cum_arr_opp(:)
 
         ! the idea for the tJ excitation generator on a lattice is to 
         ! still pick the electron at random and then check for its 
@@ -85,14 +88,19 @@ contains
         
         ind = binary_search_first_ge(cum_arr, r) 
 
+        ! i just realised that for spin-flip excitation we have to take the 
+        ! opposite order of orbital picking into account too.. 
+        ! because the same excitation could have been picked with the spin 
+        ! opposite electron in the neighborhood of the first electron too.. 
+
+        ic = ic_list(ind) 
+
+        ! for spin-flips i have to add a contribution down below!
         if (ind == 1) then 
             p_orb = cum_arr(1) / cum_sum 
         else 
             p_orb = (cum_arr(ind) - cum_arr(ind-1)) / cum_sum 
         end if 
-
-        orb = neighbors(ind) 
-        ic = ic_list(ind) 
 
         if (ic == 1) then 
             if (is_beta(src)) then 
@@ -107,6 +115,9 @@ contains
 
         else if (ic == 2) then 
             ASSERT(get_beta(src) .neqv. get_beta(spin_orb))
+
+            ! here i have to recalc the contribution if i would have picked 
+            ! the electron in orbital spin_orb first 
 
             if (is_beta(src)) then 
                 ! need to the the index of electron 2 in nI 
@@ -124,6 +135,12 @@ contains
                 tgt_2 = 2 * neighbors(ind)
 
             end if
+
+            call create_cum_list_tJ_model(ilutI, nI(elec_2), &
+                lat%get_neighbors(gtid(nI(elec_2))), cum_arr_opp, cum_sum_opp, & 
+                tmp_ic_list, tgt_1, cpt_opp)
+
+            p_orb = p_orb + cpt_opp
 
             call make_double(nI, nJ, src, elec_2, tgt_1, tgt_2, ex, tParity)
 
@@ -147,14 +164,14 @@ contains
         real(dp), intent(out) :: cum_sum
         integer, intent(out), allocatable :: ic_list(:) 
         integer, intent(in), optional :: tgt
-        real(dp), intent(in), optional :: cpt
+        real(dp), intent(out), optional :: cpt
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "create_cum_list_tJ_model"
 #endif
         integer :: i
         integer, allocatable :: single_excits(:)
         integer, allocatable :: spin_flips(:)
-        HElement_t(dp) :: helem
+        real(dp) :: elem
         logical :: t_single, t_flip
 
         ASSERT(IsOcc(ilutI,src))
@@ -191,11 +208,13 @@ contains
             do i = 1, ubound(neighbors,1)
                 if (IsNotOcc(ilutI, single_excits(i)) .and. &
                     IsNotOcc(ilutI, spin_flips(i))) then 
-                    elem = abs(get_offdiag_helement_rs_hub(ilutI, src, single_excits(i)))
+                    ! just to be sure use the tmat, so both orbitals are 
+                    ! definetly connected
+                    elem = abs(GetTMatEl(src, single_excits(i)))
 
                 else if (IsOcc(ilutI, spin_flips(i)) .and. &
                          IsNotOcc(ilutI, single_excits(i))) then 
-                     elem = abs(get_offdiag_helement_heisenberg(ilutI, src, spin_flips(i))
+                     elem = abs(get_heisenberg_exchange(src, spin_flips(i)))
 
                  else 
                      elem = 0.0_dp
@@ -224,11 +243,15 @@ contains
                     ! since we only need absolute value of matrix element 
                     ! it would be better to just use -t .. anyway.. keep it 
                     ! general
-                    elem = abs(get_offdiag_helement_rs_hub(ilutI, src, single_excits(i)))
+                    elem = abs(GetTMatEl(src, single_excits(i)))
+                    ic_list(i) = 1
+
                 else if (IsOcc(IlutI,spin_flips(i)) .and. &
                          IsNotOcc(IlutI,single_excits(i))) then 
                      ! then we can do a spin flip 
-                     elem = abs(get_offdiag_helement_heisenberg(ilutI, src, spin_flips(i)))
+                     elem = abs(get_heisenberg_exchange(src, spin_flips(i)))
+                     ic_list(i) = 2
+
                  else 
                      ! if the spin-parallel is occupied, no exciation 
                      ! possible, and also prohibit double occupancies
@@ -240,8 +263,84 @@ contains
              end do
          end if
 
-
     end subroutine create_cum_list_tJ_model
+
+    function calc_pgen_tJ_model(nI, ilutI, ex, ic) result(pgen)
+        integer, intent(in) :: nI(nel), ex(2,2), ic
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        real(dp) :: pgen
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "calc_pgen_tJ_model"
+#endif
+
+        integer :: src(2), tgt(2), tgt_orb
+        real(dp) :: p_elec, p_orb, cum_sum, cpt_1, cpt_2
+        real(dp), allocatable :: cum_arr(:)
+        integer, allocatable :: tmp_list(:) 
+
+        ASSERT(ic >= 0 )
+
+        if (ic == 0 .or. ic > 2) then 
+            pgen = 0.0_dp
+            return
+        end if
+
+        src = get_src(ex)
+        tgt = get_tgt(ex) 
+
+        ASSERT(associated(lat))
+
+        p_elec = 1.0_dp / real(nel, dp)
+
+        if (ic == 1) then 
+            ! here it is easy.. 
+            ASSERT(is_beta(src(1)) .eqv. is_beta(tgt(1)))
+            ASSERT(any(tgt(1) == lat%get_spinorb_neighbors(src(1))))
+            ASSERT(IsOcc(ilutI, src(1)))
+            ASSERT(IsNotOcc(ilutI,tgt(1)))
+
+            call create_cum_list_tJ_model(ilutI, src(1), lat%get_neighbors(gtid(src(1))), & 
+                cum_arr, cum_sum, tmp_list, tgt(1), p_orb)
+
+        else if (ic == 2) then 
+            ! here we have to find the correct orbital.. 
+            ! and i just realised that we maybe have to take into account 
+            ! of having picked the orbitals in a different order.. 
+            ASSERT(is_beta(src(1)) .neqv. is_beta(src(2)))
+            ASSERT(is_beta(tgt(1)) .neqv. is_beta(tgt(2)))
+            ASSERT(is_in_pair(src(1),tgt(1)) .or. is_in_pair(src(1),tgt(2)))
+            ASSERT(is_in_pair(src(2),tgt(1)) .or. is_in_pair(src(2),tgt(2)))
+
+            if (is_beta(src(1)) .eqv. is_beta(tgt(1))) then 
+                ! then those to orbitls were chosen 
+                ASSERT(is_beta(src(2)) .eqv. is_beta(tgt(2)))
+
+                call create_cum_list_tJ_model(ilutI, src(1), lat%get_neighbors(gtid(src(1))), &
+                    cum_arr, cum_sum, tmp_list, tgt(1), cpt_1)
+                call create_cum_list_tJ_model(ilutI, src(2), lat%get_neighbors(gtid(src(2))), &
+                    cum_arr, cum_sum, tmp_list, tgt(2), cpt_2)
+
+            else if (is_beta(src(1)) .eqv. is_beta(tgt(2))) then 
+                ASSERT(is_beta(src(2)) .eqv. is_beta(tgt(1)))
+
+                call create_cum_list_tJ_model(ilutI, src(1), lat%get_neighbors(gtid(src(1))), &
+                    cum_arr, cum_sum, tmp_list, tgt(2), cpt_1)
+                call create_cum_list_tJ_model(ilutI, src(2), lat%get_neighbors(gtid(src(2))), & 
+                    cum_arr, cum_sum, tmp_list, tgt(1), cpt_2)
+#ifdef __DEBUG
+            else 
+                ! something went wrong 
+                call stop_all(this_routine, "something went wrong!")
+#endif
+            end if 
+
+            p_orb = cpt_1 + cpt_2 
+
+        end if
+
+        pgen = p_elec * p_orb
+
+    end function calc_pgen_tJ_model
 
     function find_elec_in_ni(nI, orb) result(elec)
         ! routine to find the number of the elctron in spin-orbital orb
@@ -265,5 +364,36 @@ contains
         end if
 
     end function find_elec_in_ni
+
+    function get_heisenberg_exchange(src, tgt) result(hel) 
+        ! this is the wrapper function to get the heisenberg exchange 
+        ! contribution. which will substitute get_umat in the 
+        ! necessary places.. 
+        ! NOTE: only in the debug mode the neighboring condition is tested
+        ! also that that both orbitals src and tgt are occupied by opposite 
+        ! spins have to be checked before this function call! 
+        integer, intent(in) :: src, tgt 
+        HElement_t(dp) :: hel 
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "get_heisenberg_exchange"
+
+        ASSERT(src > 0) 
+        ASSERT(src <= nbasis)
+        ASSERT(tgt > 0)
+        ASSERT(tgt <= nbasis)
+
+        ASSERT(associated(lat)) 
+        ASSERT(is_beta(src) .neqv. is_beta(tgt)) 
+        if (is_beta(src)) then 
+            ASSERT(any(tgt == lat%get_spinorb_neighbors(src)-1))
+        else 
+            ASSERT(any(tgt == lat%get_spinorb_neighbors(src)+1))
+        end if
+        ASSERT(allocated(exchange_matrix))
+#endif
+
+        hel = h_cast(exchange_matrix(src, tgt))
+
+    end function get_heisenberg_exchange
 
 end module tJ_model

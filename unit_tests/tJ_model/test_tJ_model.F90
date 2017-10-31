@@ -25,6 +25,7 @@ contains
         call run_test_case(gen_excit_tJ_model_test, "gen_excit_tJ_model_test")
         call run_test_case(create_cum_list_tJ_model_test, "create_cum_list_tJ_model_test")
         call run_test_case(find_elec_in_ni_test, "find_elec_in_ni_test")
+        call run_test_case(calc_pgen_tJ_model_test, "calc_pgen_tJ_model_test")
 
     end subroutine tJ_model_test_driver
 
@@ -43,6 +44,15 @@ contains
         call assert_true(.false.)
 
     end subroutine gen_excit_tJ_model_test
+
+    subroutine calc_pgen_tJ_model_test
+
+        print *, ""
+        print *, "testing: calc_pgen_tJ_model"
+
+        call assert_true(.false.)
+
+    end subroutine calc_pgen_tJ_model_test
 
     subroutine create_cum_list_tJ_model_test
 
