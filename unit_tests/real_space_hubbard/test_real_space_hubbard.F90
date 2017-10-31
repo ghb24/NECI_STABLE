@@ -1107,6 +1107,10 @@ contains
         call assert_equals(h_cast(0.0), get_helement([2,3],[3,8]))
         call assert_equals(h_cast(-1.0), get_helement([2,3],[3,6]))
 
+        print *, ""
+        print *, "<1,4|H|1,2>", get_helement([1,2],[1,4])
+        print *, "<1,2|H|1,4>", get_helement([1,4],[1,2])
+
         nel = -1 
         nbasis = -1 
         nullify(get_umat_el)
