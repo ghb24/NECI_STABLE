@@ -158,6 +158,7 @@ MODULE HPHFRandExcitMod
         HElement_t(dp) :: MatEl, MatEl2
         logical :: tSign, tSignOrig
         logical :: tSwapped
+        integer :: temp_ex(2,2)
 
         ! Avoid warnings
         tParity = .false.
@@ -237,7 +238,10 @@ MODULE HPHFRandExcitMod
                         ! routines.. thats why this whole HPHF should be 
                         ! reworked.
                         if (t_new_real_space_hubbard) then 
-                            hel = get_helement_rs_hub(nI, ic, ExcitMat, tSignOrig)
+!                             hel = get_helement_rs_hub(nI, ic, ExcitMat, tSignOrig)
+                            temp_ex(1,:) = ExcitMat(2,:)
+                            temp_ex(2,:) = ExcitMat(1,:) 
+                            hel = get_helement_rs_hub(nJ, ic, temp_ex, tSignOrig)
                         else 
                             HEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
                         end if
@@ -249,7 +253,10 @@ MODULE HPHFRandExcitMod
                         HEl=0.0_dp
                     else
                         if (t_new_real_space_hubbard) then
-                            MatEl = get_helement_rs_hub(nI, ic, ExcitMat, tSignOrig)
+!                             MatEl = get_helement_rs_hub(nI, ic, ExcitMat, tSignOrig)
+                            temp_ex(1,:) = ExcitMat(2,:)
+                            temp_ex(2,:) = ExcitMat(1,:) 
+                            hel = get_helement_rs_hub(nJ, ic, temp_ex, tSignOrig)
                         else
                             MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
                         end if
@@ -287,6 +294,7 @@ MODULE HPHFRandExcitMod
                 CALL CalcNonUniPGen(nI, ilutnI, Ex2, ExcitLevel, &
                                     store%ClassCountOcc, &
                                     store%ClassCountUnocc, pDoubles, pGen2, part_type)
+
 !!We cannot guarentee that the pGens are going to be the same - in fact, generally, they wont be.
                 pGen=pGen+pGen2
 
@@ -299,9 +307,15 @@ MODULE HPHFRandExcitMod
                         else
                             if (t_new_real_space_hubbard) then 
                                 if (tSwapped) then 
-                                    MatEl = get_helement_rs_hub(nI, ic, ex2, tSign)
+!                                     MatEl = get_helement_rs_hub(nI, ic, ex2, tSign)
+                                    temp_ex(1,:) = ex2(2,:)
+                                    temp_ex(2,:) = ex2(1,:) 
+                                    MatEl = get_helement_rs_hub(nJ, ic, temp_ex, tSign)
                                 else
-                                    MatEl = get_helement_rs_hub(nI, ic, ExcitMat, tSignOrig)
+!                                     MatEl = get_helement_rs_hub(nI, ic, ExcitMat, tSignOrig)
+                                    temp_ex(1,:) = ExcitMat(2,:)
+                                    temp_ex(2,:) = ExcitMat(1,:) 
+                                    MatEl = get_helement_rs_hub(nJ, ic, temp_ex, tSignOrig)
                                 end if
                             else
                                 IF(tSwapped) THEN
@@ -318,9 +332,15 @@ MODULE HPHFRandExcitMod
 !First find nI -> nJ. If nJ has swapped, then this will be different.
                         if (t_new_real_space_hubbard) then 
                             if (tSwapped) then 
-                                MatEl = get_helement_rs_hub(nI, ExcitLevel, Ex2, tSign)
+!                                 MatEl = get_helement_rs_hub(nI, ExcitLevel, Ex2, tSign)
+                                temp_ex(1,:) = ex2(2,:)
+                                temp_ex(2,:) = ex2(1,:)
+                                MatEl = get_helement_rs_hub(nJ, ExcitLevel, temp_ex, tSign)
                             else 
-                                MatEl = get_helement_rs_hub(nI, ic, ExcitMat, tSignOrig)
+!                                 MatEl = get_helement_rs_hub(nI, ic, ExcitMat, tSignOrig)
+                                temp_ex(1,:) = ExcitMat(2,:)
+                                temp_ex(2,:) = ExcitMat(2,:)
+                                MatEl = get_helement_rs_hub(nJ, ic, temp_ex, tSignOrig)
                             end if
                         else
                             IF(tSwapped) THEN
@@ -344,11 +364,16 @@ MODULE HPHFRandExcitMod
                             CALL CalcOpenOrbs(iLutnI,OpenOrbsI)
 
                             IF(tSwapped) THEN
+                                ! [W.D.] what exactly is this doing??
+                                ! why 3?
                                 IF((OpenOrbsJ+OpenOrbsI).eq.3) tSignOrig=.not.tSignOrig  
  !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
 
                                 if (t_new_real_space_hubbard) then 
-                                    MatEl2 = get_helement_rs_hub(nI, ic, ExcitMat, tSignOrig)
+!                                     MatEl2 = get_helement_rs_hub(nI, ic, ExcitMat, tSignOrig)
+                                    temp_ex(1,:) = ExcitMat(2,:)
+                                    temp_ex(2,:) = ExcitMat(1,:) 
+                                    MatEl2 = get_helement_rs_hub(nJ, ic, temp_ex, tSignOrig)
                                 else 
                                     MatEl2 = sltcnd_excit (nI, IC, ExcitMat, &
                                                        tSignOrig)
@@ -358,7 +383,10 @@ MODULE HPHFRandExcitMod
                                 IF((OpenOrbsJ+OpenOrbsI).eq.3) tSign=.not.tSign     
 
                                 if (t_new_real_space_hubbard) then 
-                                    MatEl2 = get_helement_rs_hub(nI, ExcitLevel, Ex2, tSign)
+!                                     MatEl2 = get_helement_rs_hub(nI, ExcitLevel, Ex2, tSign)
+                                    temp_ex(1,:) = ex2(2,:)
+                                    temp_ex(2,:) = ex2(1,:)
+                                    MatEl2 = get_helement_rs_hub(nJ, ExcitLevel, temp_ex, tSign)
                                 else
                                     MatEl2 = sltcnd_excit (nI,  ExcitLevel, &
                                                        Ex2, tSign)

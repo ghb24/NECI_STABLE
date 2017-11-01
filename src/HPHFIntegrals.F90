@@ -77,6 +77,7 @@ module hphf_integrals
         integer :: ExcitLevel, OpenOrbsI, OpenOrbsJ, Ex(2,2)
         HElement_t(dp) :: MatEl2
         logical :: tSign
+        integer :: temp_ex(2,2)
 
         ! Avoid warnings
         iUnused = nJ(1)
@@ -90,7 +91,9 @@ module hphf_integrals
         endif
 
         if (t_new_real_space_hubbard) then 
-            hel = get_helement_rs_hub(nI, nJ) 
+            ! test hermiticity
+!             hel = get_helement_rs_hub(nI, nJ) 
+            hel = get_helement_rs_hub(nJ, nI)
         else
             hel = sltcnd (nI, iLutnI, iLutnJ)
         end if
@@ -139,7 +142,10 @@ module hphf_integrals
                     call GetBitExcitation(iLutnI2,iLutnJ,Ex,tSign)
 
                     if (t_new_real_space_hubbard) then 
-                        MatEl2 = get_helement_rs_hub(nI2, ExcitLevel, Ex, tSign)
+!                         MatEl2 = get_helement_rs_hub(nI2, ExcitLevel, Ex, tSign)
+                        temp_ex(1,:) = Ex(2,:)
+                        temp_ex(2,:) = Ex(1,:) 
+                        MatEl2 = get_helement_rs_hub(nJ, ExcitLevel, temp_ex, tSign)
                     else
                         MatEl2 = sltcnd_excit (nI2, ExcitLevel, Ex, tSign)
                     end if
@@ -206,7 +212,8 @@ module hphf_integrals
 !                call FindDetSpinSym (nI, nI2, nel)
                 if (t_new_real_space_hubbard) then 
                     call decode_bit_det(nJ, iLutnI2)
-                    MatEl2 = get_helement_rs_hub(nI, nJ) 
+!                     MatEl2 = get_helement_rs_hub(nI, nJ) 
+                    MatEl2 = get_helement_rs_hub(nJ, nI) 
                 else
                     MatEl2 = sltcnd (nI,  iLutnI, iLutnI2)
                 end if
