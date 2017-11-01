@@ -35,6 +35,9 @@ contains
         call run_test_case(get_helement_heisenberg_test, "get_helement_heisenberg_test")
         call run_test_case(get_diag_helement_heisenberg_test, "get_diag_helement_heisenberg_test")
         call run_test_case(get_offdiag_helement_heisenberg_test, "get_offdiag_helement_heisenberg_test")
+        call run_test_case(determine_optimal_time_step_tJ_test, "determine_optimal_time_step_tJ_test")
+        call run_test_case(determine_optimal_time_step_heisenberg_test, "determine_optimal_time_step_heisenberg_test")
+        call run_test_case(get_umat_el_heisenberg_test, "get_umat_el_heisenberg_test")
 
     end subroutine tJ_model_test_driver
 
@@ -205,5 +208,28 @@ contains
         call assert_true(.false.)
 
     end subroutine get_offdiag_helement_heisenberg_test
+    
+    subroutine determine_optimal_time_step_tJ_test 
+
+        print *, ""
+        print *, "testing: determine_optimal_time_step_tJ"
+        call assert_true(.false.) 
+
+    end subroutine determine_optimal_time_step_tJ_test 
+
+    subroutine determine_optimal_time_step_heisenberg_test 
+
+        print *, "" 
+        print *, "testing: determine_optimal_time_step_heisenberg" 
+        call assert_true(.false.) 
+
+    end subroutine determine_optimal_time_step_heisenberg_test 
+
+    subroutine get_umat_el_heisenberg_test
+
+        print *, "" 
+        print *, "testing: get_umat_el_heisenberg"
+        call assert_true(.false.)
+    end subroutine get_umat_el_heisenberg_test
 
 end program test_tJ_model

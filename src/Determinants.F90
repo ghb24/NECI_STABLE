@@ -17,6 +17,8 @@ MODULE Determinants
     use bit_reps, only: NIfTot
     use MemoryManager, only: TagIntType
     use real_space_hubbard, only: get_helement_rs_hub
+    use tJ_model, only: t_tJ_model, t_heisenberg_model, get_helement_tJ, &
+                        get_helement_heisenberg 
     implicit none
 
     ! TODO: Add an interface for getting a diagonal helement with an ordered
@@ -337,6 +339,18 @@ contains
             return
         end if
 
+        if (t_tJ_model) then 
+            temp_ic = ic 
+            hel = get_helement_tJ(nI,nJ, temp_ic) 
+            return 
+        end if
+
+        if (t_heisenberg_model) then 
+            temp_ic = ic 
+            hel = get_helement_heisenberg(nI,nJ, temp_ic)
+            return
+        end if
+
         if (tStoreAsExcitations) &
             call stop_all(this_routine, "tStoreExcitations not supported")
 
@@ -395,6 +409,30 @@ contains
             end if
             return 
         end if
+
+        if (t_tJ_model) then 
+            if (present(ICret)) then 
+                ic = -1 
+                hel = get_helement_tJ(nI, nJ, ic)
+                ICret = ic 
+            else 
+                hel = get_helement_tJ(nI, nJ) 
+            end if 
+            return
+        end if
+
+        if (t_heisenberg_model) then 
+            if (present(ICret)) then 
+                ic = -1 
+                hel = get_helement_heisenberg(nI,nJ,ic)
+                ICret = ic 
+            else 
+                hel = get_helement_heisenberg(nI,nJ)
+            end if
+            return 
+        end if
+            
+
          
         if (tStoreAsExcitations .and. nI(1) == -1 .and. nJ(1) == -1) then
             ! TODO: how to express requirement for double?
@@ -459,6 +497,16 @@ contains
             return
         end if
 
+        if (t_tJ_model) then 
+            hel = get_helement_tJ(nI, ic, ExcitMat, tParity) 
+            return 
+        end if
+
+        if (t_heisenberg_model) then 
+            hel = get_helement_heisenberg(nI, ic, ExcitMat, tParity) 
+            return 
+        end if
+
         ! If we are using CSFs, then call the csf routine.
         ! TODO: Passing through of ExcitMat to CSFGetHelement
         if (tCSF) then
@@ -511,6 +559,15 @@ contains
 
         if (t_new_real_space_hubbard) then 
             hel = get_helement_rs_hub(ni, ic, ex, tParity) 
+            return 
+        end if
+
+        if (t_tJ_model) then 
+            hel = get_helement_tJ(nI, ic, ex, tParity)
+            return 
+        end if
+        if (t_heisenberg_model) then 
+            hel = get_helement_heisenberg(nI, ic, ex, tParity)
             return 
         end if
 

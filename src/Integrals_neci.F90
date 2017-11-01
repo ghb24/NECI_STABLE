@@ -20,6 +20,7 @@ module Integrals_neci
     use bit_reps, only: init_bit_rep
     use procedure_pointers, only: get_umat_el, get_umat_el_secondary
     use constants
+    use tJ_model, only: t_tJ_model, t_heisenberg_model
 
     implicit none
 
@@ -516,7 +517,7 @@ contains
                IF(THUB.AND.TREAL) THEN
     !!C.. Real space hubbard
     !!C.. we pre-compute the 2-e integrals
-                  if (t_new_real_space_hubbard) then 
+                  if (t_new_real_space_hubbard .or. t_tJ_model .or. t_heisenberg_model) then 
                      WRITE(6,*) "Not precomputing HUBBARD 2-e integrals"
                      call shared_allocate ("umat", umat, (/1_int64/))
                      !Allocate(UMat(1), stat=ierr)

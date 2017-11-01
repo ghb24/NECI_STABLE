@@ -1151,7 +1151,6 @@ contains
                 ! i hope everything is setup already
                 DefDet = create_neel_state()
 
-
             case("MAXWALKERBLOOM")
                 !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.
                 call getf(MaxWalkerBloom)

@@ -12,7 +12,7 @@ MODULE System
     use read_fci, only: FCIDUMP_name
     use util_mod, only: error_function, error_function_c
     use real_space_hubbard, only: trans_corr_param, t_trans_corr
-    use tJ_model, only: exchange_j, t_tJ_model
+    use tJ_model, only: exchange_j, t_tJ_model, t_heisenberg_model
 
     IMPLICIT NONE
 
@@ -281,11 +281,20 @@ MODULE System
                   
       case ('TJ','TJ-MODEL')
           t_tJ_model = .true. 
+          ! misuse the hubbard initialisation 
+          tHub = .true. 
+          tpbc = .true. 
+          treal = .true.
 
+      case ('HEISENBERG')
           ! should i misuse the already provided setup for the hubbard 
           ! model again? .. maybe.. 
           ! maybe i should use a general flag like t_lattice_model 
           ! especially for the matrix element evaluation and stuff
+          t_heisenberg_model = .true. 
+          thub = .true. 
+          tpbc = .true. 
+          treal = .true. 
 
       case("RIINTEGRALS")
           tRIIntegrals = .true.
@@ -591,7 +600,7 @@ system: do
 !             treal = .false.
 !             lNoSymmetry = .true.
             treal = .true.
-            t_new_real_space_hubbard = .true.
+!             t_new_real_space_hubbard = .true.
 
             ! set some defaults: 
             lattice_type = "read"

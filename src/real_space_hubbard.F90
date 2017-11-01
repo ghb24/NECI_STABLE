@@ -307,7 +307,12 @@ contains
         ! and for a picked electron the possible neighbors are looked for 
         ! open holes so the lowest probability is determined by the 
         ! maximum numbers of connections 
-        p_hole = 1.0_dp / real(lat%get_nconnect_max(), dp) 
+        if (t_trans_corr) then 
+            print *, "todo! optimal time-step is different for transcorrelated"
+            p_hole = 1.0_dp / real(lat%get_nconnect_max(), dp) 
+        else 
+            p_hole = 1.0_dp / real(lat%get_nconnect_max(), dp) 
+        end if
 
         ! the matrix element is always just |t| 
         mat_ele = real(abs(bhub), dp)
@@ -884,13 +889,13 @@ contains
         end if
 
         ASSERT(i > 0)
-            ASSERT(i <= nbasis/2)
-            ASSERT(j > 0) 
-            ASSERT(j <= nbasis/2)
-            ASSERT(k > 0) 
-            ASSERT(k <= nbasis/2)
-            ASSERT(l > 0) 
-            ASSERT(l <= nbasis/2)
+        ASSERT(i <= nbasis/2)
+        ASSERT(j > 0) 
+        ASSERT(j <= nbasis/2)
+        ASSERT(k > 0) 
+        ASSERT(k <= nbasis/2)
+        ASSERT(l > 0) 
+        ASSERT(l <= nbasis/2)
 
     end function get_umat_el_hub
 

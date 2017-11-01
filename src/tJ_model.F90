@@ -2,16 +2,32 @@
 
 module tJ_model 
 
-    use SystemData, only: bhub, nel, nbasis
+    use SystemData, only: bhub, nel, nbasis, G1, lattice_type, length_x, &
+                          length_y, length_z, nbasis, t_open_bc_x, t_open_bc_y, &
+                          t_open_bc_z, ecore, tHPHF, tHub, tReal
     use constants, only: dp, n_int, EPS, bits_n_int
-    use real_space_hubbard, only: lat, get_offdiag_helement_rs_hub
+    use real_space_hubbard, only: lat, get_offdiag_helement_rs_hub, lat_tau_factor, &
+                                  t_start_neel_state, check_real_space_hubbard_input, & 
+                                  init_tmat
+    use procedure_pointers, only: get_umat_el, generate_excitation
+    use FciMCData, only: tsearchtau, tsearchtauoption
+    use CalcData, only: t_hist_tau_search_option, t_hist_tau_search, tau
     use bit_rep_data, only: NIfTot
     use umatcache, only: gtid
     use util_mod, only: binary_search_first_ge
     use OneEInts, only: GetTMatEl
     use lattice_mod, only: lattice 
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
+    use double_occ_mod, only: count_double_orbs
+    use FciMCData, only: ilutref
     implicit none 
+
+    ! i guess it would be nice to have again a flag for lattice excit gens 
+    ! and then decide which model we are looking at 
+    logical :: t_lattice_model = .false. 
+    ! and then point to the corresponding functions depending on the 
+    ! actual model we are looking at.. but todo.. 
+    logical :: t_heisenberg_model = .false.
 
     logical :: t_tJ_model = .false.
     real(dp) :: exchange_j = 1.0_dp
@@ -31,16 +47,206 @@ module tJ_model
 contains 
 
     subroutine init_tJ_model 
+        character(*), parameter :: this_routine = "init_tJ_model"
+        real(dp) :: tau_opt
 
         print *, "initializing tJ-model with parameters: "
         print *, "t: ", bhub
         print *, "J: ", exchange_j 
 
+        ! after having used the tHub and treal parameters set them to false 
+        ! now 
+        thub = .false. 
+        treal = .false. 
+
+        ! reuse real-space-hubbard stugg
+        call check_real_space_hubbard_input() 
+
+        get_umat_el => get_umat_el_heisenberg
+
+        if (trim(adjustl(lattice_type)) == 'read') then 
+            ! then i have to construct tmat first 
+            call init_tmat() 
+            call setup_exchange_matrix()
+            ! and then construct the lattice 
+            lat => lattice(lattice_type, length_x, length_y, length_z, .not. t_open_bc_x, &
+                .not. t_open_bc_y, .not. t_open_bc_z)
+        else 
+            ! otherwise i have to do it the other way around 
+            lat => lattice(lattice_type, length_x, length_y, length_z, .not. t_open_bc_x, &
+                .not. t_open_bc_y, .not. t_open_bc_z)
+     
+            ! if nbasis was not yet provided:
+            if (nbasis <= 0) then 
+                nbasis = 2 * lat%get_nsites() 
+            end if
+
+            call init_tmat(lat)
+            call setup_exchange_matrix(lat)
+
+        end if
+
+        if (nel >= nbasis/2) then 
+            call stop_all(this_routine, &
+                " too many electrons for the tJ model! nel >= nbasis/2")
+        end if
+        
+        ! and also check the double occupancy in the starting det, 
+        ! no double occupancy allowed! 
+        if (count_double_orbs(ilutRef) > 0) then 
+            call stop_all(this_routine, &
+                "incorrect starting state for tJ model: there is an doubly occupied site!")
+        end if
+
+        ! i guess i have to setup G1 also.. argh.. i hate this! 
+        allocate(G1(nbasis)) 
+        G1(1:nbasis-1:2)%ms = -1
+        G1(2:nbasis:2)%ms = 1
+
+        ! Ecore should default to 0, but be sure anyway! 
+        ecore = 0.0_dp
+
+        ! and i have to calculate the optimal time-step for the hubbard models. 
+        ! where i need the connectivity of the lattice i guess? 
+        if (.not. tHPHF) then
+            generate_excitation => gen_excit_tJ_model
+        else 
+            call stop_all(this_routine, &
+                "hphf not yet implemented! since it is a pain in the ass")
+        end if
+
+        tau_opt = determine_optimal_time_step_tJ()
+        if (tau < EPS) then 
+            print *, "setting time-step to optimally determined time-step: ", tau_opt
+            print *, "times: ", lat_tau_factor
+            tau = lat_tau_factor * tau_opt
+
+        else 
+            print *, "optimal time-step would be: ", tau_opt
+            print *, "but tau specified in input!"
+        end if
+
+        ! and i have to turn off the time-step search for the hubbard 
+        tsearchtau = .false.
+        ! set tsearchtauoption to true to use the death-tau search option
+        tsearchtauoption = .true.
+
+        t_hist_tau_search = .false. 
+        t_hist_tau_search_option = .false. 
+        
+        if (t_start_neel_state) then 
+!             neel_state_ni = create_neel_state(ilut_neel)
+
+            print *, "starting from the Neel state: " 
+            if (nel > nbasis/2) then 
+                call stop_all(this_routine, &
+                    "more than half-filling! does neel state make sense?")
+            end if
+!             call write_det(6, neel_state_ni, .true.)
+!             call changerefdet(neel_state_ni)
+!             call update_run_reference(ilut_neel, 1)
+
+        end if
+
+
     end subroutine init_tJ_model 
 
     subroutine init_heisenberg_model
+        character(*), parameter :: this_routine = "init_heisenberg_model"
+        real(dp) :: tau_opt
+
         print *, "initialising Heisenberg model with " 
         print *, "J: ", exchange_j
+
+        thub = .false. 
+        treal = .false. 
+
+        call check_real_space_hubbard_input() 
+
+        get_umat_el => get_umat_el_heisenberg
+
+        if (trim(adjustl(lattice_type)) == 'read') then 
+            ! then i have to construct tmat first 
+            ! no need for tmat in the heisenberg model 
+!             call init_tmat() 
+            call setup_exchange_matrix()
+            ! and then construct the lattice 
+            lat => lattice(lattice_type, length_x, length_y, length_z, .not. t_open_bc_x, &
+                .not. t_open_bc_y, .not. t_open_bc_z)
+        else 
+            ! otherwise i have to do it the other way around 
+            lat => lattice(lattice_type, length_x, length_y, length_z, .not. t_open_bc_x, &
+                .not. t_open_bc_y, .not. t_open_bc_z)
+     
+            ! if nbasis was not yet provided:
+            if (nbasis <= 0) then 
+                nbasis = 2 * lat%get_nsites() 
+            end if
+
+!             call init_tmat(lat)
+            call setup_exchange_matrix(lat)
+
+        end if
+
+        if (nel /= nbasis/2) then 
+            call stop_all(this_routine, &
+                "heisenberg model need half filling nel == nbasis/2")
+        end if
+
+        if (count_double_orbs(ilutref) > 0) then 
+            call stop_all(this_routine, &
+                " no double occupancies allowed in the heisenberg model")
+        end if
+
+        ! i guess i have to setup G1 also.. argh.. i hate this! 
+        allocate(G1(nbasis)) 
+        G1(1:nbasis-1:2)%ms = -1
+        G1(2:nbasis:2)%ms = 1
+
+        ! Ecore should default to 0, but be sure anyway! 
+        ecore = 0.0_dp
+
+        ! and i have to calculate the optimal time-step for the hubbard models. 
+        ! where i need the connectivity of the lattice i guess? 
+        if (.not. tHPHF) then
+            generate_excitation => gen_excit_heisenberg_model
+        else 
+            call stop_all(this_routine, &
+                "hphf not yet implemented! since it is a pain in the ass")
+        end if
+
+        tau_opt = determine_optimal_time_step_heisenberg()
+        if (tau < EPS) then 
+            print *, "setting time-step to optimally determined time-step: ", tau_opt
+            print *, "times: ", lat_tau_factor
+            tau = lat_tau_factor * tau_opt
+
+        else 
+            print *, "optimal time-step would be: ", tau_opt
+            print *, "but tau specified in input!"
+        end if
+
+        ! and i have to turn off the time-step search for the hubbard 
+        tsearchtau = .false.
+        ! set tsearchtauoption to true to use the death-tau search option
+        tsearchtauoption = .true.
+
+        t_hist_tau_search = .false. 
+        t_hist_tau_search_option = .false. 
+        
+        if (t_start_neel_state) then 
+!             neel_state_ni = create_neel_state(ilut_neel)
+
+            print *, "starting from the Neel state: " 
+            if (nel > nbasis/2) then 
+                call stop_all(this_routine, &
+                    "more than half-filling! does neel state make sense?")
+            end if
+!             call write_det(6, neel_state_ni, .true.)
+!             call changerefdet(neel_state_ni)
+!             call update_run_reference(ilut_neel, 1)
+
+        end if
 
     end subroutine init_heisenberg_model
 
@@ -885,5 +1091,55 @@ contains
         if (tpar) hel = -hel
 
     end function get_offdiag_helement_heisenberg
+
+    function determine_optimal_time_step_tJ(time_step_death) result(time_step)
+        real(dp), intent(out), optional :: time_step_death 
+        real(dp) :: time_step
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "determine_optimal_time_step_tJ"
+#endif
+
+        print *, "todo! have to find out which contribution of excitations is bigger"
+
+    end function determine_optimal_time_step_tJ
+
+    function determine_optimal_time_step_heisenberg(time_step_death) result(time_step) 
+        real(dp), intent(out), optional :: time_step_death 
+        real(dp) :: time_step 
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "determine_optimal_time_step_heisenberg" 
+#endif 
+
+        print *, "todo! do this first and the the tJ model is just a mix of the heisenberg and hubbard!"
+
+    end function determine_optimal_time_step_heisenberg
+
+    function get_umat_el_heisenberg(i,j,k,l) result(hel) 
+        integer, intent(in) :: i,j,k,l
+        HElement_t(dp) :: hel 
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "get_umat_el_heisenberg" 
+#endif
+        ! how exactly do i do that? i access umat with spatial orbitals 
+        ! so i lose the info if the spins fit.. al i know is that 
+        ! <ij|kl> i and j are the electrons which must be neighors 
+        ! and k and l must be in the same orbital as one of the electrons 
+        ! and what about <ij|kl> = -<ij|lk> symmetry? hm.. 
+        ! i have to think about that and the influence on the matrix element 
+        ASSERT(allocated(exchange_matrix)) 
+
+        if (i == j) then 
+            hel = h_cast(0.0_dp) 
+        else 
+            if (i == k .and. j == l) then 
+                hel = h_cast(exchange_matrix(2*i, 2*j-1))
+            else if (i == l .and. j == k) then 
+                hel = h_cast(exchange_matrix(2*i, 2*j-1))
+            else 
+                hel = h_cast(0.0_dp)
+            end if
+        end if
+
+    end function get_umat_el_heisenberg
 
 end module tJ_model

@@ -75,6 +75,8 @@ module FciMCParMod
     use tau_search_hist, only: print_frequency_histograms, deallocate_histograms
     use back_spawn, only: init_back_spawn
     use real_space_hubbard, only: init_real_space_hubbard
+    use tj_model, only: t_tJ_model, t_heisenberg_model, init_tJ_model, & 
+                        init_heisenberg_model
 
 #ifdef MOLPRO
     use outputResult
@@ -150,6 +152,12 @@ module FciMCParMod
         call init_fcimc_fn_pointers() 
         if (t_new_real_space_hubbard) then 
             call init_real_space_hubbard()
+        end if
+        if (t_tJ_model) then 
+            call init_tJ_model()
+        end if
+        if (t_heisenberg_model) then 
+            call init_heisenberg_model()
         end if
 
         ! Attach signal handlers to give a more graceful death-mannerism
