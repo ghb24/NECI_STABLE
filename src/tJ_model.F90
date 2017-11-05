@@ -341,6 +341,8 @@ contains
 
             ! here i have to recalc the contribution if i would have picked 
             ! the electron in orbital spin_orb first 
+            ! but i made some assumptions about the order of the picked 
+            ! electrons and holes, which is not valid to do.. 
 
             if (is_beta(src)) then 
                 ! need to the the index of electron 2 in nI 
@@ -358,7 +360,12 @@ contains
                 tgt_2 = 2 * neighbors(ind)
 
             end if
-            ASSERT(is_beta(src) .neqv. is_beta(tgt_2))
+
+!             print *, "nI: ", nI
+!             print *, "src, elect_2: ", src, elec_2
+!             print *, "tgt_1, tgt_2: ", tgt_1, tgt_2
+! 
+!             ASSERT(is_beta(src) .neqv. is_beta(tgt_2))
 
             call create_cum_list_tJ_model(ilutI, nI(elec_2), &
                 lat%get_neighbors(gtid(nI(elec_2))), cum_arr_opp, cum_sum_opp, & 
@@ -825,9 +832,9 @@ contains
         ASSERT(associated(lat)) 
         ASSERT(is_beta(src) .neqv. is_beta(tgt)) 
         if (is_beta(src)) then 
-            ASSERT(any(tgt == lat%get_spinorb_neighbors(src)-1))
-        else 
             ASSERT(any(tgt == lat%get_spinorb_neighbors(src)+1))
+        else 
+            ASSERT(any(tgt == lat%get_spinorb_neighbors(src)-1))
         end if
         ASSERT(allocated(exchange_matrix))
 #endif
@@ -1049,10 +1056,70 @@ contains
     function get_diag_helement_heisenberg(nI) result(hel)
         integer, intent(in) :: nI(nel) 
         HElement_t(dp) :: hel 
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "get_diag_helement_heisenberg"
+#endif 
+        integer :: i, j, src, flip
+        integer, allocatable :: spin_neighbors(:)
+        integer(n_int) :: ilut(0:NIfTot)
 
         ! here i have to sum over all the nearest neigbhor pairs and 
         ! find the spin alignment, if it is parallel or not.. 
-        !todo
+        ! in the heisenberg case the contribution form n_i n_j form 
+        ! nearest neighbors is always the same for every determinant nI 
+        ! but for the tJ model with less than half-filling this quantitiy is 
+        ! not a constant.. so i should differentiate in here between tJ 
+        ! and heisenberg models ..
+        ! and what about double counting? should i loop over all the 
+        ! orbitals and their neighbors or must i differentiate between already 
+        ! counted contributions? 
+
+        ! it is easier to check occupancy in the ilut format
+
+        ASSERT(associated(lat))
+
+        call EncodeBitDet(nI, ilut)
+        hel = h_cast(0.0_dp)
+
+        if (t_tJ_model) then 
+            do i = 1, nel 
+                src = ni(i) 
+                spin_neighbors = lat%get_spinorb_neighbors(src) 
+                if (is_beta(src)) then 
+                    flip = +1
+                else 
+                    flip = -1
+                end if
+                do j = 1, size(spin_neighbors) 
+                    if (IsOcc(ilut, spin_neighbors(j))) then 
+                        ! then it is same spin 
+                        ! but i really think that we have to take the 
+                        ! occupancy into account 
+                        hel = hel + h_cast(exchange_j - 1.0_dp / 4.0_dp)
+                    else if (IsOcc(ilut, spin_neighbors(j)+flip)) then 
+                        hel = hel - h_cast(exchange_j - 1.0_dp / 4.0_dp)
+
+                        ! it can be empty too, then there is no contribution 
+                    end if
+                end do
+
+            end do
+        else
+            do i = 1, nel 
+                ! in the heisenberg model every site is singly occupied 
+                spin_neighbors = lat%get_spinorb_neighbors(ni(i))
+                do j = 1, size(spin_neighbors)
+                    if (IsOcc(ilut, spin_neighbors(j))) then 
+                        ! if same spin S_i^z S_j^z is positive 
+                        hel = hel + h_cast(exchange_j)
+                    else 
+                        ! if opposite spin its negative 
+                        hel = hel - h_cast(exchange_j)
+                    end if
+                end do
+            end do 
+        end if
+
 
     end function get_diag_helement_heisenberg
 

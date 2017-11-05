@@ -11,8 +11,9 @@ MODULE System
     use iso_c_hack
     use read_fci, only: FCIDUMP_name
     use util_mod, only: error_function, error_function_c
-    use real_space_hubbard, only: trans_corr_param, t_trans_corr
+    use real_space_hubbard, only: trans_corr_param, t_trans_corr, lat
     use tJ_model, only: exchange_j, t_tJ_model, t_heisenberg_model
+    use lattice_mod, only: lattice
 
     IMPLICIT NONE
 
@@ -622,6 +623,13 @@ system: do
             if (item < nitems) then 
                 call geti(length_y)
             end if
+
+            if (item < nitems) then 
+                call geti(length_z)
+            end if
+
+            lat => lattice(lattice_type, length_x, length_y, length_z, & 
+                .not. t_open_bc_x, .not. t_open_bc_y, .not. t_open_bc_z)
 
             ! maybe i have to reuse the cell input functionality or set it 
             ! here also, so that the setup is not messed up 

@@ -143,12 +143,12 @@ module fcimc_pointed_fns
 !         rh = get_spawn_helement (DetCurr, nJ, iLutCurr, iLutnJ, ic, ex, &
 !                                  tParity, HElGen)
 
-        
         temp_ex(1,:) = ex(2,:)
         temp_ex(2,:) = ex(1,:)
 
         rh = get_spawn_helement (nJ, DetCurr, ilutnJ, iLutCurr,  ic, temp_ex, &
                                  tParity, HElGen)
+
 !         if (abs(rh) > EPS) then
 !             print *, "HElGen: ", rh
 !             print *, "prob: ", prob
@@ -283,6 +283,7 @@ module fcimc_pointed_fns
 #endif
             end if
 #endif
+
             nSpawn = - tau * MatEl * walkerweight / prob
 !            write(66,*) part_type, nspawn, RealSpawnCutoff, RealSpawnCutoff, stochastic_round (nSpawn / RealSpawnCutoff)
 !            write(66,*) part_type, nspawn, RealSpawnCutoff, RealSpawnCutoff, stochastic_round (nSpawn / RealSpawnCutoff)
