@@ -508,14 +508,13 @@ contains
         call assert_equals(h_cast(1.0), get_helement([1,4],[2,3]))
         call assert_equals(h_cast(1.0), get_helement([1,6],[2,5]))
 
-        call assert_equals(h_cast(-2.0), get_helement([1,4],[4,5]))
-        call assert_equals(h_cast(2.0), get_helement([1,4],[1,6]))
+        call assert_equals(h_cast(-0.0), get_helement([1,4],[4,5]))
+        call assert_equals(h_cast(0.0), get_helement([1,4],[1,6]))
 
         call assert_equals(h_cast(0.0), get_helement([1,4],[3,6]))
 
         call assert_equals(h_cast(0.0), get_helement([1,3],[2,4]))
         call assert_equals(h_cast(0.0), get_helement([1,3],[2,3]))
-
 
         NIfTot = -1 
         nifd = -1
@@ -525,10 +524,64 @@ contains
     end subroutine get_helement_heisenberg_test
 
     subroutine get_diag_helement_heisenberg_test
+        use SystemData, only: nel, nbasis
+        use bit_rep_data, only: NIfTot
+        use real_space_hubbard, only: lat 
+        
+        nel = 4 
+        lat => lattice('square', 2, 2, 1, .true., .true., .true.) 
+        nbasis = 8
+        NIfTot = 0
+        exchange_j = 1.0
+
+        call setup_exchange_matrix(lat) 
 
         print *, ""
         print *, "testing: get_diag_helement_heisenberg" 
-        call assert_true(.false.)
+        t_tJ_model = .true. 
+        t_heisenberg_model = .false. 
+
+        call assert_equals(h_cast(0.0), get_diag_helement_heisenberg([1,3,5,7]))
+        call assert_equals(h_cast(0.0), get_diag_helement_heisenberg([2,4,6,8]))
+
+        call assert_equals(h_cast(0.0), get_diag_helement_heisenberg([1,2,3,4]))
+        call assert_equals(h_cast(-1.0), get_diag_helement_heisenberg([1,3,6,8]))
+        call assert_equals(h_cast(-2.0), get_diag_helement_heisenberg([1,4,6,7]))
+
+        t_tJ_model = .false. 
+        t_heisenberg_model = .true. 
+
+        call assert_equals(h_cast(1.0), get_diag_helement_heisenberg([1,3,5,7]))
+        call assert_equals(h_cast(1.0), get_diag_helement_heisenberg([2,4,6,8]))
+
+        call assert_equals(h_cast(-0.0), get_diag_helement_heisenberg([1,3,6,8]))
+        call assert_equals(h_cast(-1.0), get_diag_helement_heisenberg([1,4,6,7]))
+
+
+
+        lat => lattice('triangle',2,2,1,.true.,.true.,.true.)
+        call setup_exchange_matrix(lat)
+
+        t_tJ_model = .true.
+        t_heisenberg_model = .false.
+
+        call assert_equals(h_cast(-2.0),get_diag_helement_heisenberg([1,3,6,8]))
+        call assert_equals(h_cast(-2.0), get_diag_helement_heisenberg([1,4,6,7]))
+
+        call assert_equals(h_cast(0.0), get_diag_helement_heisenberg([1,3,5,7]))
+
+        t_tJ_model = .false. 
+        t_heisenberg_model = .true. 
+
+        call assert_equals(h_cast(6.0/4.0), get_diag_helement_heisenberg([1,3,5,7]))
+
+        call assert_equals(h_cast(-0.5),get_diag_helement_heisenberg([1,3,6,8]))
+        call assert_equals(h_cast(-0.5), get_diag_helement_heisenberg([1,4,6,7]))
+
+
+        nel = -1
+        nbasis = -1
+        NIfTot = -1
 
     end subroutine get_diag_helement_heisenberg_test
 
