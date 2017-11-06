@@ -805,6 +805,8 @@ contains
 
         ! it already make the fail case.. or?
         ! and then make a fail-case: 
+        if (elec == -1) return 
+
         if (nI(elec) /= orb) then 
             ! it is actually not found? 
             elec = -1 
@@ -1081,45 +1083,38 @@ contains
         call EncodeBitDet(nI, ilut)
         hel = h_cast(0.0_dp)
 
-        if (t_tJ_model) then 
-            do i = 1, nel 
-                src = ni(i) 
-                spin_neighbors = lat%get_spinorb_neighbors(src) 
-                if (is_beta(src)) then 
-                    flip = +1
-                else 
-                    flip = -1
-                end if
-                do j = 1, size(spin_neighbors) 
-                    if (IsOcc(ilut, spin_neighbors(j))) then 
-                        ! then it is same spin 
-                        ! but i really think that we have to take the 
-                        ! occupancy into account 
-                        hel = hel + h_cast(exchange_j - 1.0_dp / 4.0_dp)
-                    else if (IsOcc(ilut, spin_neighbors(j)+flip)) then 
-                        hel = hel - h_cast(exchange_j - 1.0_dp / 4.0_dp)
-
-                        ! it can be empty too, then there is no contribution 
+        do i = 1, nel 
+            src = ni(i) 
+            spin_neighbors = lat%get_spinorb_neighbors(src) 
+            if (is_beta(src)) then 
+                flip = +1
+            else 
+                flip = -1
+            end if
+            do j = 1, size(spin_neighbors) 
+                if (IsOcc(ilut, spin_neighbors(j))) then 
+                    ! then it is same spin 
+                    ! but i really think that we have to take the 
+                    ! occupancy into account 
+                    ! and in the tJ model this cancels for parallel spin 
+                    if (t_heisenberg_model) then 
+                        hel = hel + h_cast(exchange_j/4.0_dp)
                     end if
-                end do
-
-            end do
-        else
-            do i = 1, nel 
-                ! in the heisenberg model every site is singly occupied 
-                spin_neighbors = lat%get_spinorb_neighbors(ni(i))
-                do j = 1, size(spin_neighbors)
-                    if (IsOcc(ilut, spin_neighbors(j))) then 
-                        ! if same spin S_i^z S_j^z is positive 
-                        hel = hel + h_cast(exchange_j)
+                else if (IsOcc(ilut, spin_neighbors(j)+flip)) then 
+                    if (t_heisenberg_model) then 
+                        hel = hel - h_cast(exchange_j/4.0_dp) 
                     else 
-                        ! if opposite spin its negative 
-                        hel = hel - h_cast(exchange_j)
+                        hel = hel - h_cast(exchange_j/2.0_dp)
                     end if
-                end do
-            end do 
-        end if
+                    ! it can be empty too, then there is no contribution 
+                end if
+            end do
 
+        end do
+
+        ! i think i would double count if i do not divide by 2.. 
+        ! i hope i am right.. 
+        hel = hel / 2.0_dp 
 
     end function get_diag_helement_heisenberg
 

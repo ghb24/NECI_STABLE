@@ -202,7 +202,6 @@ contains
         if (tTransGTid)         call stop_all(this_routine, "tTransGTid")
         if (tcpmdsymtmat)        call stop_all(this_routine, "tcpmdsymmat")
         if (tOneelecdiag)       call stop_all(this_routine, "tOneelecdiag")
-        if (abs(bhub) < EPS)         call stop_all(this_routine, "bhub == 0!")
             
     end subroutine check_real_space_hubbard_input
 
