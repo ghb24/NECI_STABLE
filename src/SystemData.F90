@@ -244,6 +244,28 @@ logical :: tGen_4ind_unbound = .false.
 
 ! implement a more efficient real-space hubbard implementation 
 logical :: t_new_real_space_hubbard = .false.
+ 
+! honjuns idea with the transcorrelated Hamiltonian we have a modified 
+! hopping term: 
+! t_ij^s = t exp[K(n_j^s' - n_i^s')] 
+! so we need this K as an input parameter 
+real(dp) :: trans_corr_param = 0.0_dp 
+! and a flag to start it 
+logical :: t_trans_corr = .false. 
+! as one can see this modification is dependent on the current 
+! occupation of the involved hopping orbitals! so it is not just a 
+! change in the Hamiltonian 
+
+! and the other lattice models: 
+logical :: t_tJ_model = .false. 
+logical :: t_heisenberg_model = .false. 
+
+! and also the exchange strength
+real(dp) :: exchange_j = 0.0_dp
+
+! use a general flag for lattice models in the future: 
+logical :: t_lattice_model = .false. 
+
 character(20) :: lattice_type
 
 ! i need 

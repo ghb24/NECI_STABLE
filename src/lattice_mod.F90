@@ -10,10 +10,12 @@ module lattice_mod
 
     use OneEInts, only: tmat2d
     use UmatCache, only: gtid
+    use constants, only: dp
 
     implicit none 
     private 
-    public :: lattice, lattice_deconstructor, aim, aim_deconstructor, sort_unique
+    public :: lattice, lattice_deconstructor, aim, aim_deconstructor, sort_unique, & 
+              lat, determine_optimal_time_step
 
     type :: site 
         ! the basic site type for my lattice
@@ -465,6 +467,9 @@ module lattice_mod
                           STAR_LENGTH = 1, &
                           DIM_RECT = 2, &
                           DIM_CUBE = 3
+
+    ! define the global lattice class here or? this makes more sense
+    class(lattice), pointer :: lat
 
 contains 
 
@@ -2739,6 +2744,74 @@ contains
         end select 
 
     end subroutine print
+
+    function determine_optimal_time_step(time_step_death) result(time_step)
+        use SystemData, only: nel, bhub, uhub, t_new_real_space_hubbard, & 
+                              t_tJ_model, t_heisenberg_model, exchange_j, & 
+                              nOccAlpha, nOccBeta, t_trans_corr
+
+        real(dp), optional, intent(out) :: time_step_death
+        real(dp) :: time_step
+        ! move this time-step determination to this routine for the real
+        ! space hubbard to have it fully conained
+        character(*), parameter :: this_routine = "determine_optimal_time_step"
+
+        real(dp) :: p_elec, p_hole, mat_ele, max_diag
+
+        ! determine the optimal hubbard time-step for an optimized 
+        ! hubbard excitation generation 
+        ! the first electron is chosen at random 
+        p_elec = 1.0_dp / real(nel, dp)
+
+        ! and for a picked electron the possible neighbors are looked for 
+        ! open holes so the lowest probability is determined by the 
+        ! maximum numbers of connections 
+        if (t_new_real_space_hubbard) then 
+            if (t_trans_corr) then 
+                print *, "todo! optimal time-step is different for transcorrelated"
+                p_hole = 1.0_dp / real(lat%get_nconnect_max(), dp) 
+            else 
+                p_hole = 1.0_dp / real(lat%get_nconnect_max(), dp) 
+            end if
+
+            mat_ele = real(abs(bhub), dp)
+
+        else if (t_tJ_model) then 
+            print *, "todo" 
+
+        else if (t_heisenberg_model) then 
+            p_hole = 1.0_dp / real(lat%get_nconnect_max(), dp) 
+
+            mat_ele = real(abs(exchange_j), dp)
+
+        end if
+
+        ! so the time-step is 
+        time_step = p_elec * p_hole / mat_ele
+
+        if (present(time_step_death)) then 
+            ! the maximum death contribution is max(H_ii) - shift 
+            ! and the maximum diagonal matrix element we know it is 
+            ! the maximum possible number of doubly occupied sites times U 
+            ! but this might be a too hard limit, since especially for high U 
+            ! such an amount of double occupations is probably never reached 
+            ! and the shift must also be included in the calculation.. 
+            if (t_new_real_space_hubbard) then 
+                max_diag = real(abs(uhub) * min(nOccAlpha, nOccBeta), dp)
+            else if (t_tJ_model) then 
+                print *, "todo!" 
+            else if (t_heisenberg_model) then 
+                ! we have to find the maximum number of non-frustrated 
+                ! nearest neighbor spins! 
+                print *, "todo: "
+
+            end if
+
+            time_step_death = 1.0_dp / max_diag
+        end if
+
+    end function determine_optimal_time_step
+
 
     ! general non-type bound routines
 !     subroutine get_lattice_type(this, string) 

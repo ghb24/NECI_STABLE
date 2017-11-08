@@ -2,8 +2,10 @@
 
 program test_tJ_model 
 
+    use SystemData, only: t_tJ_model, t_heisenberg_model, exchange_j
     use tJ_model 
     use fruit 
+    use lattice_mod, only: lat
 
     implicit none 
 
@@ -589,11 +591,14 @@ contains
         use SystemData, only: nel, nbasis 
         use real_space_hubbard, only: lat 
         use lattice_mod, only: lattice
+        use bit_rep_data, only: NIfTot
 
         integer :: ex(2,2) 
 
         nel = 2 
         nbasis = 4 
+        NIfTot = 0
+
         lat => lattice('chain', 2, 1, 1, .true., .true., .true.) 
         call setup_exchange_matrix(lat) 
 
@@ -602,8 +607,59 @@ contains
         ex(1,:) = [1,2]
         ex(2,:) = [3,4]
 
-        call assert_equals(h_cast(0.0), get_offdiag_helement_heisenberg([1,2],
+        exchange_j = 1.0 
 
+        call assert_equals(h_cast(0.0), get_offdiag_helement_heisenberg([1,2],ex,.true.))
+        call assert_equals(h_cast(0.0), get_offdiag_helement_heisenberg([1,2],ex,.false.))
+
+        ex(1,:) = [1,4]
+        ex(2,:) = [2,3]
+
+        call assert_equals(h_cast(1.0), get_offdiag_helement_heisenberg([1,4], ex,.false.))
+        call assert_equals(h_cast(-1.0), get_offdiag_helement_heisenberg([1,4], ex,.true.))
+
+        ex(1,:) = [2,3]
+        ex(2,:) = [1,4]
+
+        call assert_equals(h_cast(1.0), get_offdiag_helement_heisenberg([2,3], ex,.false.))
+
+        nel = 4 
+        nbasis = 8 
+        lat => lattice('triangle', 2, 2, 1, .true., .true., .true.)
+        call setup_exchange_matrix(lat) 
+
+        ex(1,:) = [3,6]
+        ex(2,:) = [4,5]
+        call assert_equals(h_cast(1.0), get_offdiag_helement_heisenberg([1,2,3,6],ex,.false.))
+        call assert_equals(h_cast(-1.0), get_offdiag_helement_heisenberg([1,2,3,6],ex,.true.))
+
+        ex(2,:) = [7,8]
+
+        call assert_equals(h_cast(0.0), get_offdiag_helement_heisenberg([1,2,3,6],ex,.false.))
+
+        ex(1,:) = [1,2] 
+
+        call assert_equals(h_cast(0.0), get_offdiag_helement_heisenberg([1,2,3,6],ex,.false.))
+
+        ex(2,:) = [4,5]
+
+        call assert_equals(h_cast(0.0), get_offdiag_helement_heisenberg([1,2,3,6],ex,.false.))
+
+        ex(1,:) = [4,5]
+        ex(2,:) = [3,6] 
+
+        call assert_equals(h_cast(1.0), get_offdiag_helement_heisenberg([1,2,4,5],ex,.false.))
+
+        ex(1,:) = [5,8]
+        ex(2,:) = [2,3]
+        call assert_equals(h_cast(0.0), get_offdiag_helement_heisenberg([1,4,5,8],ex,.false.))
+
+        ex(2,:) = [1,4]
+        call assert_equals(h_cast(0.0), get_offdiag_helement_heisenberg([2,3,5,8],ex,.false.))
+
+        nel = -1 
+        nbasis = -1 
+        NIfTot = -1 
 
     end subroutine get_offdiag_helement_heisenberg_test
     

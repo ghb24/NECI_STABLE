@@ -4,9 +4,10 @@ module tJ_model
 
     use SystemData, only: bhub, nel, nbasis, G1, lattice_type, length_x, &
                           length_y, length_z, nbasis, t_open_bc_x, t_open_bc_y, &
-                          t_open_bc_z, ecore, tHPHF, tHub, tReal
+                          t_open_bc_z, ecore, tHPHF, tHub, tReal, t_tJ_model, & 
+                          t_heisenberg_model, t_new_real_space_hubbard, exchange_j
     use constants, only: dp, n_int, EPS, bits_n_int
-    use real_space_hubbard, only: lat, get_offdiag_helement_rs_hub, lat_tau_factor, &
+    use real_space_hubbard, only: get_offdiag_helement_rs_hub, lat_tau_factor, &
                                   t_start_neel_state, check_real_space_hubbard_input, & 
                                   init_tmat
     use procedure_pointers, only: get_umat_el, generate_excitation
@@ -16,21 +17,11 @@ module tJ_model
     use umatcache, only: gtid
     use util_mod, only: binary_search_first_ge
     use OneEInts, only: GetTMatEl
-    use lattice_mod, only: lattice 
+    use lattice_mod, only: lattice, lat
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
     use double_occ_mod, only: count_double_orbs
     use FciMCData, only: ilutref
     implicit none 
-
-    ! i guess it would be nice to have again a flag for lattice excit gens 
-    ! and then decide which model we are looking at 
-    logical :: t_lattice_model = .false. 
-    ! and then point to the corresponding functions depending on the 
-    ! actual model we are looking at.. but todo.. 
-    logical :: t_heisenberg_model = .false.
-
-    logical :: t_tJ_model = .false.
-    real(dp) :: exchange_j = 1.0_dp
 
     real(dp), allocatable :: exchange_matrix(:,:) 
 
@@ -58,6 +49,8 @@ contains
         ! now 
         thub = .false. 
         treal = .false. 
+
+        t_new_real_space_hubbard = .false. 
 
         ! reuse real-space-hubbard stugg
         call check_real_space_hubbard_input() 
@@ -832,12 +825,13 @@ contains
         ASSERT(tgt <= nbasis)
 
         ASSERT(associated(lat)) 
-        ASSERT(is_beta(src) .neqv. is_beta(tgt)) 
-        if (is_beta(src)) then 
-            ASSERT(any(tgt == lat%get_spinorb_neighbors(src)+1))
-        else 
-            ASSERT(any(tgt == lat%get_spinorb_neighbors(src)-1))
-        end if
+        ! i also want to get 0 matrix elements ofc.. so leave the possibility
+!         ASSERT(is_beta(src) .neqv. is_beta(tgt)) 
+!         if (is_beta(src)) then 
+!             ASSERT(any(tgt == lat%get_spinorb_neighbors(src)+1))
+!         else 
+!             ASSERT(any(tgt == lat%get_spinorb_neighbors(src)-1))
+!         end if
         ASSERT(allocated(exchange_matrix))
 #endif
 
@@ -1124,11 +1118,24 @@ contains
         HElement_t(dp) :: hel 
 #ifdef __DEBUG 
         character(*), parameter :: this_routine = "get_offdiag_helement_heisenberg"
+        integer(n_int) :: ilutI(0:NIfTot)
 #endif
         integer :: src(2), tgt(2) 
 
         src = get_src(ex)
         tgt = get_tgt(ex) 
+
+        ! oh and i have to check the occupancy of nI here or? otherwise this 
+        ! does not make any sense and is just based on the ex-matrix 
+        ! it is done in the same way in the slater condon routines, to not 
+        ! check occupancy.. do it in the debug mode atleast. .
+#ifdef __DEBUG 
+        call EncodeBitDet(nI, ilutI) 
+#endif
+        ASSERT(IsOcc(ilutI, src(1)))
+        ASSERT(IsOcc(ilutI, src(2)))
+        ASSERT(IsNotOcc(ilutI,tgt(1)))
+        ASSERT(IsNotOcc(ilutI, tgt(2)))
 
         ! should i assert the same "same-spinness" here or just return 
         ! zero is spins and orbitals do not fit?? i guess that would be 
@@ -1137,6 +1144,7 @@ contains
             hel = h_cast(0.0_dp)
         else 
             ! i have to check if the orbitals fit.. ex is sorted here or? 
+            ! can i be sure about that?? check that! 
             ASSERT(src(1) < src(2)) 
             ASSERT(tgt(1) < tgt(2))
 
@@ -1171,8 +1179,20 @@ contains
 #ifdef __DEBUG 
         character(*), parameter :: this_routine = "determine_optimal_time_step_heisenberg" 
 #endif 
+        real(dp) :: p_elec, p_hole, mat_ele, max_diag 
 
-        print *, "todo! do this first and the the tJ model is just a mix of the heisenberg and hubbard!"
+        ASSERT(associated(lat)) 
+
+        p_elec = 1.0_dp / real(nel, dp) 
+
+        p_hole = 1.0_dp / real(lat%get_nconnect_max(), dp) 
+
+        mat_ele = real(abs(exchange_j),dp) 
+
+        time_step = p_elec * p_hole / mat_ele 
+
+
+        
 
     end function determine_optimal_time_step_heisenberg
 

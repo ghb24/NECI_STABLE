@@ -17,8 +17,9 @@ module real_space_hubbard
 
     use SystemData, only: t_new_real_space_hubbard, lattice_type, length_x, &
                           length_y, length_z, uhub, nbasis, bhub, t_open_bc_x, &
-                          t_open_bc_y, t_open_bc_z, G1, ecore, nel, nOccAlpha, nOccBeta
-    use lattice_mod, only: lattice
+                          t_open_bc_y, t_open_bc_z, G1, ecore, nel, nOccAlpha, nOccBeta, & 
+                          t_trans_corr, trans_corr_param
+    use lattice_mod, only: lattice, determine_optimal_time_step, lat
     use constants, only: dp, EPS, n_int, bits_n_int
     use procedure_pointers, only: get_umat_el, generate_excitation
     use OneEInts, only: tmat2d, GetTMatEl
@@ -34,21 +35,7 @@ module real_space_hubbard
 
     implicit none 
 
-! and this is the global lattice class
-    class(lattice), pointer :: lat
-
     real(dp) :: lat_tau_factor = 0.5_dp
-    
-    ! honjuns idea with the transcorrelated Hamiltonian we have a modified 
-    ! hopping term: 
-    ! t_ij^s = t exp[K(n_j^s' - n_i^s')] 
-    ! so we need this K as an input parameter 
-    real(dp) :: trans_corr_param = 1.0_dp 
-    ! and a flag to start it 
-    logical :: t_trans_corr = .false. 
-    ! as one can see this modification is dependent on the current 
-    ! occupation of the involved hopping orbitals! so it is not just a 
-    ! change in the Hamiltonian 
 
     ! create a flag which indicate to start in a neel state 
     logical :: t_start_neel_state = .false. 
@@ -288,51 +275,6 @@ contains
         end if
 
     end subroutine init_tmat
-
-    function determine_optimal_time_step(time_step_death) result(time_step)
-        real(dp), optional, intent(out) :: time_step_death
-        real(dp) :: time_step
-        ! move this time-step determination to this routine for the real
-        ! space hubbard to have it fully conained
-        character(*), parameter :: this_routine = "determine_optimal_time_step"
-
-        real(dp) :: p_elec, p_hole, mat_ele, max_diag
-
-        ! determine the optimal hubbard time-step for an optimized 
-        ! hubbard excitation generation 
-        ! the first electron is chosen at random 
-        p_elec = 1.0_dp / real(nel, dp)
-
-        ! and for a picked electron the possible neighbors are looked for 
-        ! open holes so the lowest probability is determined by the 
-        ! maximum numbers of connections 
-        if (t_trans_corr) then 
-            print *, "todo! optimal time-step is different for transcorrelated"
-            p_hole = 1.0_dp / real(lat%get_nconnect_max(), dp) 
-        else 
-            p_hole = 1.0_dp / real(lat%get_nconnect_max(), dp) 
-        end if
-
-        ! the matrix element is always just |t| 
-        mat_ele = real(abs(bhub), dp)
-
-        ! so the time-step is 
-        time_step = p_elec * p_hole / mat_ele
-
-        if (present(time_step_death)) then 
-            ! the maximum death contribution is max(H_ii) - shift 
-            ! and the maximum diagonal matrix element we know it is 
-            ! the maximum possible number of doubly occupied sites times U 
-            ! but this might be a too hard limit, since especially for high U 
-            ! such an amount of double occupations is probably never reached 
-            ! and the shift must also be included in the calculation.. 
-            max_diag = real(abs(uhub) * min(nOccAlpha, nOccBeta), dp)
-
-            time_step_death = 1.0_dp / max_diag
-        end if
-
-    end function determine_optimal_time_step
-
     !
     ! Generic excitaiton generator
     subroutine gen_excit_rs_hubbard (nI, ilutI, nJ, ilutJ, exFlag, ic, &

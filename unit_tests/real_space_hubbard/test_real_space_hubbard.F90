@@ -12,7 +12,9 @@ program test_real_space_hubbard
     use real_space_hubbard
     use constants 
     use fruit 
-    use SystemData, only: lattice_type, t_new_real_space_hubbard
+    use SystemData, only: lattice_type, t_new_real_space_hubbard, t_trans_corr, & 
+                          trans_corr_param
+    use lattice_mod, only: lat
 
     implicit none 
 
@@ -38,7 +40,6 @@ contains
         call run_test_case(get_umat_el_hub_test, "get_umat_el_hub_test")
         call run_test_case(init_tmat_test, "init_tmat_test")
         call run_test_case(get_helement_test, "get_helement_test")
-        call run_test_case(determine_optimal_time_step_test, "determine_optimal_time_step_test")
         call run_test_case(gen_excit_rs_hubbard_test, "gen_excit_rs_hubbard_test")
         call run_test_case(init_real_space_hubbard_test, "init_real_space_hubbard_test")
         call run_test_case(trans_corr_fac_test, "trans_corr_fac_test")
@@ -47,6 +48,7 @@ contains
         call run_test_case(calc_pgen_rs_hubbard_test, "calc_pgen_rs_hubbard_test")
         call run_test_case(create_neel_state_chain_test, "create_neel_state_chain_test")
         call run_test_case(create_neel_state_test, "create_neel_state_test")
+        call run_test_case(determine_optimal_time_step_test, "determine_optimal_time_step_test")
 
     end subroutine real_space_hubbard_test_driver
 
@@ -906,86 +908,6 @@ contains
 
     end subroutine gen_excit_rs_hubbard_test
 
-    subroutine determine_optimal_time_step_test 
-        use SystemData, only: nel, nOccAlpha, nOccBeta, uhub, bhub
-        use lattice_mod, only: lattice
-
-        real(dp) :: time, time_death
-        class(lattice), pointer :: ptr
-
-        print *, ""
-        print *, "testing determine_optimal_time_step"
-        print *, "for a 4x1 periodic chain: "
-        lat => lattice('chain', 4, 1, 1, .true., .true., .true.)
-
-        nel = 6
-        nOccAlpha = 3
-        nOccBeta = 3 
-        uhub = 1 
-        bhub = 1
-
-        call assert_equals(1.0_dp/real(abs(bhub) * nel * 2, dp), determine_optimal_time_step())
-
-        bhub = 2 
-        call assert_equals(1.0_dp/real(abs(bhub) * nel * 2, dp), determine_optimal_time_step())
-
-        nel = 8 
-        call assert_equals(1.0_dp/real(abs(bhub) * nel * 2, dp), determine_optimal_time_step())
-
-        bhub = -2 
-        call assert_equals(1.0_dp/real(abs(bhub) * nel * 2, dp), determine_optimal_time_step())
-
-        time = determine_optimal_time_step(time_death)
-        call assert_equals(1.0_dp/real(abs(uhub * nOccAlpha),dp), time_death)
-
-        uhub = 4
-        time = determine_optimal_time_step(time_death)
-        call assert_equals(1.0_dp/real(abs(uhub * nOccAlpha),dp), time_death)
-
-        nOccAlpha = 4 
-        time = determine_optimal_time_step(time_death)
-        call assert_equals(1.0_dp/real(abs(uhub * nOccBeta),dp), time_death)
-        
-        print *, ""
-        print *, "for a 3x3 periodic square: "
-        lat => lattice('square', 3,3,1,.true.,.true.,.true.)
-
-        nel = 6
-        nOccAlpha = 3
-        nOccBeta = 3 
-        uhub = 1 
-        bhub = 1
-
-        call assert_equals(1.0_dp/real(abs(bhub) * nel * 4, dp), determine_optimal_time_step())
-
-        bhub = 2 
-        call assert_equals(1.0_dp/real(abs(bhub) * nel * 4, dp), determine_optimal_time_step())
-
-        nel = 8 
-        call assert_equals(1.0_dp/real(abs(bhub) * nel * 4, dp), determine_optimal_time_step())
-
-        bhub = -2 
-        call assert_equals(1.0_dp/real(abs(bhub) * nel * 4, dp), determine_optimal_time_step())
-
-        time = determine_optimal_time_step(time_death)
-        call assert_equals(1.0_dp/real(abs(uhub * nOccAlpha),dp), time_death)
-
-        uhub = 4
-        time = determine_optimal_time_step(time_death)
-        call assert_equals(1.0_dp/real(abs(uhub * nOccAlpha),dp), time_death)
-
-        nOccAlpha = 4 
-        time = determine_optimal_time_step(time_death)
-        call assert_equals(1.0_dp/real(abs(uhub * nOccBeta),dp), time_death)
-
-        nel = -1
-        nOccAlpha = -1
-        nOccBeta = -1
-        uhub = 0
-        bhub = 0
-        
-    end subroutine determine_optimal_time_step_test 
-
     subroutine get_helement_test
         use SystemData, only: nel, tCSF, bhub, uhub, nbasis, G1
         use bit_rep_data, only: nifd, niftot
@@ -1098,6 +1020,7 @@ contains
         print *, "" 
         print *, "and now for transcorrelated hamiltonian with K = 1" 
         t_trans_corr = .true.
+        trans_corr_param = 1.0
         call assert_equals(h_cast(1.0 * exp(1.0)), get_helement([1,2],[1,4]))
         call assert_equals(h_cast(1.0 * exp(-1.0)), get_helement([1,4],[1,2]))
         call assert_equals(h_cast(-1.0 * exp(1.0)), get_helement([1,2],[2,3]))
@@ -1108,8 +1031,6 @@ contains
         call assert_equals(h_cast(-1.0), get_helement([2,3],[3,6]))
 
         print *, ""
-        print *, "<1,4|H|1,2>", get_helement([1,2],[1,4])
-        print *, "<1,2|H|1,4>", get_helement([1,4],[1,2])
 
         nel = -1 
         nbasis = -1 
@@ -1228,6 +1149,90 @@ contains
         nbasis = -1
 
     end subroutine
+
+    subroutine determine_optimal_time_step_test 
+        use SystemData, only: nel, nOccAlpha, nOccBeta, uhub, bhub, & 
+                              t_new_real_space_hubbard, t_tJ_model, t_heisenberg_model
+        use lattice_mod, only: lattice, determine_optimal_time_step
+
+        real(dp) :: time, time_death
+        class(lattice), pointer :: ptr
+
+        t_new_real_space_hubbard = .true.
+        t_trans_corr = .false.
+
+        print *, ""
+        print *, "testing determine_optimal_time_step"
+        print *, "for a 4x1 periodic chain: "
+        lat => lattice('chain', 4, 1, 1, .true., .true., .true.)
+
+        nel = 6
+        nOccAlpha = 3
+        nOccBeta = 3 
+        uhub = 1 
+        bhub = 1
+
+        call assert_equals(1.0_dp/real(abs(bhub) * nel * 2, dp), determine_optimal_time_step())
+
+        bhub = 2 
+        call assert_equals(1.0_dp/real(abs(bhub) * nel * 2, dp), determine_optimal_time_step())
+
+        nel = 8 
+        call assert_equals(1.0_dp/real(abs(bhub) * nel * 2, dp), determine_optimal_time_step())
+
+        bhub = -2 
+        call assert_equals(1.0_dp/real(abs(bhub) * nel * 2, dp), determine_optimal_time_step())
+
+        time = determine_optimal_time_step(time_death)
+        call assert_equals(1.0_dp/real(abs(uhub * nOccAlpha),dp), time_death)
+
+        uhub = 4
+        time = determine_optimal_time_step(time_death)
+        call assert_equals(1.0_dp/real(abs(uhub * nOccAlpha),dp), time_death)
+
+        nOccAlpha = 4 
+        time = determine_optimal_time_step(time_death)
+        call assert_equals(1.0_dp/real(abs(uhub * nOccBeta),dp), time_death)
+        
+        print *, ""
+        print *, "for a 3x3 periodic square: "
+        lat => lattice('square', 3,3,1,.true.,.true.,.true.)
+
+        nel = 6
+        nOccAlpha = 3
+        nOccBeta = 3 
+        uhub = 1 
+        bhub = 1
+
+        call assert_equals(1.0_dp/real(abs(bhub) * nel * 4, dp), determine_optimal_time_step())
+
+        bhub = 2 
+        call assert_equals(1.0_dp/real(abs(bhub) * nel * 4, dp), determine_optimal_time_step())
+
+        nel = 8 
+        call assert_equals(1.0_dp/real(abs(bhub) * nel * 4, dp), determine_optimal_time_step())
+
+        bhub = -2 
+        call assert_equals(1.0_dp/real(abs(bhub) * nel * 4, dp), determine_optimal_time_step())
+
+        time = determine_optimal_time_step(time_death)
+        call assert_equals(1.0_dp/real(abs(uhub * nOccAlpha),dp), time_death)
+
+        uhub = 4
+        time = determine_optimal_time_step(time_death)
+        call assert_equals(1.0_dp/real(abs(uhub * nOccAlpha),dp), time_death)
+
+        nOccAlpha = 4 
+        time = determine_optimal_time_step(time_death)
+        call assert_equals(1.0_dp/real(abs(uhub * nOccBeta),dp), time_death)
+
+        nel = -1
+        nOccAlpha = -1
+        nOccBeta = -1
+        uhub = 0
+        bhub = 0
+        
+    end subroutine determine_optimal_time_step_test 
 
 
 

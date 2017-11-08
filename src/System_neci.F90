@@ -11,9 +11,7 @@ MODULE System
     use iso_c_hack
     use read_fci, only: FCIDUMP_name
     use util_mod, only: error_function, error_function_c
-    use real_space_hubbard, only: trans_corr_param, t_trans_corr, lat
-    use tJ_model, only: exchange_j, t_tJ_model, t_heisenberg_model
-    use lattice_mod, only: lattice
+    use lattice_mod, only: lattice, lat
 
     IMPLICIT NONE
 
