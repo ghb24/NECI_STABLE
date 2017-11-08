@@ -59,11 +59,11 @@ contains
         ! Magic! Avoids conditional tests.
         tParity = .not. btest(elec - i, 0)
 
-! #ifdef __DEBUG
-!         ! This is a useful (but O[N]) check to test the generated determinant.
-!         if (.not. SymAllowedExcit(nI, nJ, 1, ex)) &
-!             call stop_all(this_routine, 'Generating invalid excitation')
-! #endif
+#ifdef __DEBUG
+        ! This is a useful (but O[N]) check to test the generated determinant.
+        if (.not. SymAllowedExcit(nI, nJ, 1, ex)) &
+            call stop_all(this_routine, 'Generating invalid excitation')
+#endif
 
     end subroutine
 
