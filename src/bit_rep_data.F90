@@ -48,6 +48,8 @@ module bit_rep_data
     ! RT_M_Merge: Adapted real-time flags
     logical :: tUseFlags
 
+    integer :: flag_counter
+
     integer, parameter :: flag_deterministic = 0, &
                           flag_determ_parent = 1, &
                           flag_trial = 2, &
@@ -57,13 +59,18 @@ module bit_rep_data
                           ! use these unused to mark diagonal "spawns"
 #ifdef __PROG_NUMRUNS
     integer, parameter :: flag_initiator(lenof_sign_max) &
-                            = (/ 5, 6, 7,  8,  9, 10, 11, 12, 13, 14, 15, &
-                                16, 17, 18, 19, 20, 21, 22, 23, 24/), &
-                                num_flags = 25
-    ! rmneci_setup: removed flag_diag_spawn as it was unused
-#else 
-    integer, parameter :: flag_initiator(2) = (/7,8/), &
-         num_flags = 9
+                            = (/6, 7, 8, 10, 11, 12, 13, 14, 15, &
+                                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26/), &
+                          flag_adi_checked = 27, &
+                          flag_static_init(lenof_sign_max) &
+                            = (/28, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, &
+                                42, 43, 44, 45, 46, 47, 48/), &
+                          num_flags = 49
+#else
+    integer, parameter :: flag_initiator(2) = (/ 6, 7/), &
+                          flag_adi_checked = 8, &
+                          flag_static_init(2) = (/9, 10/), &
+                          num_flags = 11
 #endif
 
 contains

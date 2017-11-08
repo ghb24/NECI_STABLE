@@ -26,6 +26,8 @@ module fcimc_output
     use hist, only: calc_s_squared_star, calc_s_squared
     use fcimc_helper, only: LanczosFindGroundE
     use Determinants, only: write_det
+    use adi_data, only: AllCoherentSingles, AllCoherentDoubles, AllIncoherentDets, nRefs, &
+         ilutRefAdi, tAdiActive
     use Parallel_neci
     use FciMCData
     use constants
@@ -1319,7 +1321,8 @@ endif
 
     !Routine to print the highest populated determinants at the end of a run
     SUBROUTINE PrintHighPops()
-      use adi_references, only: update_ref_signs
+      use adi_references, only: update_ref_signs, print_reference_notification, nRefs
+      use adi_data, only: tSetupSIs
         real(dp), dimension(lenof_sign) :: SignCurr, LowSign
         integer :: ierr,i,j,counter,ExcitLev,SmallestPos,HighPos,nopen
         integer :: full_orb, run
@@ -1400,7 +1403,7 @@ endif
         enddo
         
         ! This has to be done by all procs
-        call update_ref_signs()
+        if(tAdiActive) call update_ref_signs()
         if(iProcIndex.eq.Root) then
             !Now print out the info contained in GlobalLargestWalkers and GlobalProc
 
@@ -1427,13 +1430,11 @@ endif
             else
                 write(iout,'(A)') "Current reference: "
                 call write_det (iout, ProjEDet(:,1), .true.)
-                do i = 1, nRefsCurrent
-                   call writeDetBit(iout,iLutRefAdi(:,1,i),.false.)
-                   call extract_sign(ilutRefAdi(:,1,i),SignCurr)
-                   write(iout,*) SignCurr(1)
-                enddo
+                if(tSetupSIs) call print_reference_notification(&
+                     1,nRefs,"Used Superinitiators",.true.)
+                write(iout,*) "Number of superinitiators", nRefs
             end if
-
+            
             write(iout,*)
             write(iout,'("Input DEFINEDET line (includes frozen orbs):")')
             do run = 1, inum_runs

@@ -1666,7 +1666,7 @@ r_loop: do while(.not.tStoreDet)
         use CalcData, only: iPopsFileNoWrite
         use MemoryManager, only: TagIntType
         integer(int64),intent(in) :: nDets !The number of occupied entries in Dets
-        integer(kind=n_int),intent(in) :: Dets(0:nIfTot,1:nDets)
+        integer(kind=n_int),intent(inout) :: Dets(0:nIfTot,1:nDets)
         character(255), intent(in), optional :: filename_stem
         INTEGER :: error
         integer(int64) :: WalkersonNodes(0:nNodes-1),writeoutdet
@@ -2085,7 +2085,7 @@ r_loop: do while(.not.tStoreDet)
         ! Output a particle to a popsfile in format acceptable for popsfile v4
 
         integer, intent(in) :: iunit, iunit_2
-        integer(n_int), intent(in) :: det(0:NIfTot)
+        integer(n_int), intent(inout) :: det(0:NIfTot)
         real(dp) :: real_sgn(lenof_sign), detenergy
         integer :: flg, j, k, ex_level, nopen, nI(nel)
         logical :: bWritten, is_init, is_init_tmp
@@ -2134,12 +2134,12 @@ r_loop: do while(.not.tStoreDet)
                   ! Testing with the TestInititator routine to prevent code
                   ! duplication
                   is_init_tmp = test_flag(det,get_initiator_flag_by_run(k))
-                  is_init = is_init .or. TestInitiator(det,is_init_tmp,real_sgn,k)
+                  is_init = is_init .or. TestInitiator(det,is_init_tmp,k)
                enddo
                if(is_init) then
+                  call decode_bit_det(nI, det)
                   ex_level = FindBitExcitLevel(ilutRef(:,1), det, nel)
                   nopen = count_open_orbs(det)
-                  call decode_bit_det(nI, det)
                   if(tHPHF)then
                      detenergy = hphf_diag_helement(nI, det)
                   else

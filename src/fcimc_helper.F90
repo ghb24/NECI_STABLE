@@ -33,13 +33,14 @@ module fcimc_helper
     use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, &
                         tAddToInitiator, InitiatorWalkNo, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
-                        tRealCoeffByExcitLevel, tKeepDoubSpawns, tAccessibleDoubles, &
+                        tRealCoeffByExcitLevel, tKeepDoubSpawns, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
-                        MaxWalkerBloom, tMultiSpawnThreshold, multiSpawnThreshold, &
-                        tAllDoubsInitiators, tAccessibleSingles, tInitiatorsSubspace, &
+                        MaxWalkerBloom,tMultiSpawnThreshold, multiSpawnThreshold, &
                         NMCyc, iSampleRDMIters, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
-                        t_back_spawn_flex, tAllSingsInitiators
+                        t_back_spawn_flex
+    use adi_data, only: tAccessibleDoubles, tAccessibleSingles, tInitiatorsSubspace, &
+         tAllDoubsInitiators, tAllSingsInitiators
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
     use procedure_pointers, only: attempt_die, extract_bit_rep_avsign
@@ -66,6 +67,16 @@ module fcimc_helper
     use back_spawn, only: setup_virtual_mask
     implicit none
     save
+
+    interface CalcParentFlag
+       module procedure CalcParentFlag_normal
+       module procedure CalcParentFlag_det
+    end interface CalcParentFlag
+
+    interface TestInitiator
+       module procedure TestInitiator_ilut
+       module procedure TestInitiator_explicit
+    end interface TestInitiator
 
 contains
             
@@ -809,8 +820,20 @@ contains
 
     end subroutine SumEContrib_different_refs
 
+    subroutine CalcParentFlag_normal(j, parent_flags)
+      implicit none
+      integer, intent(in) :: j
+      integer, intent(out) :: parent_flags
+      integer :: nI(nel), exLvl
 
-    subroutine CalcParentFlag(j, parent_flags)
+      ! If we do not supply nI externally, get it now.
+      ! This routine mainly exists for compatibility
+      call decode_bit_det(nI, CurrentDets(:,j))
+      exLvl = FindBitExcitLevel(ilutRef(:,1), CurrentDets(:,j))
+      call CalcParentFlag_det(j, nI, exLvl, parent_flags)
+    end subroutine CalcParentFlag_normal
+
+    subroutine CalcParentFlag_det(j, nI,  exLvl, parent_flags)
 
         ! In the CurrentDets array, the flag at NIfTot refers to whether that
         ! determinant *itself* is an initiator or not. We need to decide if 
@@ -821,7 +844,7 @@ contains
         ! the SpawnedDets array and refers to whether or not the walkers 
         ! *parent* is an initiator or not.
 
-        integer, intent(in) :: j
+        integer, intent(in) :: j, nI(nel), exLvl
         integer, intent(out) :: parent_flags
         real(dp) :: CurrentSign(lenof_sign)
         integer :: run, nopen
@@ -844,8 +867,8 @@ contains
 
                 ! Should this particle be considered to be an initiator
                 ! for spawning purposes.
-                parent_init = TestInitiator(CurrentDets(:,j), parent_init, &
-                                            CurrentSign, run)
+                parent_init = TestInitiator_explicit(CurrentDets(:,j), nI, parent_init, &
+                                            CurrentSign, exLvl, run)
 
                 ! Update counters as required.
                 if (parent_init) then
@@ -880,24 +903,42 @@ contains
              call HistInitPopulations (CurrentSign(1), j)
         endif
 
-    end subroutine CalcParentFlag
+      end subroutine CalcParentFlag_det
 
 
-    function TestInitiator(ilut, is_init, sgn, run) result(initiator)
-      implicit none
+      function TestInitiator_ilut(ilut, is_init, run) result(initiator)
+        implicit none
+        integer(n_int), intent(inout) :: ilut(0:NIfTot)
+        integer, intent(in) :: run
+        logical, intent(in) :: is_init
+        integer :: nI(nel), exLvl
+        real(dp) :: sgn(lenof_sign)
+        logical :: initiator
+
+        exLvl = FindBitExcitLevel(ilut, ilutRef(:,run))
+        call decode_bit_det(nI,ilut)
+        call extract_sign(ilut, sgn)
+        initiator = TestInitiator_explicit(ilut, nI, is_init, sgn, exLvl, run)
+        
+      end function TestInitiator_ilut
+
+      function TestInitiator_explicit(ilut, nI, is_init, sgn, exLvl, run) result(initiator)
+        use adi_initiators, only: check_static_init
+        use adi_references, only: check_superinitiator
+        implicit none
         ! For a given particle (with its given particle type), should it
         ! be considered as an initiator for the purposes of spawning.
         !
-        ! Inputs: The determinant, the particles sign, and if the particle
+        ! Inputs: The ilut, the determinant, the particles sign, and if the particle
         !         is currently considered to be an initiator.
 
         ! N.B. This intentionally DOES NOT directly reference part_type.
         !      This means we can call it for individual, or aggregate,
         !      particles.
 
-        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer(n_int), intent(inout) :: ilut(0:NIfTot)
         logical, intent(in) :: is_init
-        integer, intent(in) :: run
+        integer, intent(in) :: run, nI(nel), exLvl
         real(dp), intent(in) :: sgn(lenof_sign)
 
         ! the following value is either a single sgn or an aggregate
@@ -909,163 +950,47 @@ contains
         initiator = is_init
 
         tot_sgn = mag_of_run(sgn,run)
-        
+
         ! If we are allowed to unset the initiator flag
-        staticInit = .false.
-        call adi_criterium(ilut, sgn, run, initiator, staticInit)
+        staticInit = check_static_init(ilut, nI, sgn, exLvl, run)
+        ! reference-caused initiators also have the initiator flag
+        if(staticInit) initiator = .true.
 
         if (.not. initiator) then
 
-            ! Determinant wasn't previously initiator 
-            ! - want to test if it has now got a large enough 
-            !   population to become an initiator.
-            if (tot_sgn > InitiatorWalkNo) then
-                initiator = .true.
-                NoAddedInitiators = NoAddedInitiators + 1_int64
-            endif
+           ! Determinant wasn't previously initiator 
+           ! - want to test if it has now got a large enough 
+           !   population to become an initiator.
+           if (tot_sgn > InitiatorWalkNo) then
+              initiator = .true.
+              NoAddedInitiators = NoAddedInitiators + 1_int64
+           endif
 
         else
 
-            ! The determinants become 
-            ! non-initiators again if their population falls below 
-            ! n_add (this is on by default).
+           ! The determinants become 
+           ! non-initiators again if their population falls below 
+           ! n_add (this is on by default).
 
            ! All of the references stay initiators
-           do i = 1, nRefsCurrent
-              if(DetBitEQ(ilut,ilutRefAdi(:,run,i),NIfDBO)) staticInit = .true.
-           enddo
-            ! If det. is the HF det, or it
-            ! is in the deterministic space, then it must remain an initiator.
-            if ( .not. (staticInit) &
+           if(DetBitEQ(ilut, ilutRef(:,run),NIfDBO)) staticInit = .true.
+           call check_superinitiator(ilut, nI, staticInit)
+           ! If det. is the HF det, or it
+           ! is in the deterministic space, then it must remain an initiator.
+           if ( .not. (staticInit) &
                 .and. .not. test_flag(ilut, flag_deterministic) &
                 .and. (tot_sgn <= InitiatorWalkNo )) then
-                ! Population has fallen too low. Initiator status 
-                ! removed.
-                initiator = .false.
-                NoAddedInitiators = NoAddedInitiators - 1_int64
-            endif
+              ! Population has fallen too low. Initiator status 
+              ! removed.
+              initiator = .false.
+              NoAddedInitiators = NoAddedInitiators - 1_int64
+           endif
+
         end if
 
-    end function TestInitiator
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine adi_criterium(ilut, sign, run, initiator, staticInit) 
-      ! This is the adi-initiator criterium expansion
-      ! I expect it to grow further
-      use adi_references, only: giovannis_check
-      implicit none
-      integer(n_int), intent(in) :: ilut(0:NIfTot)
-      real(dp), intent(in) :: sign(lenof_sign)
-      integer, intent(in) :: run
-      logical, intent(inout) :: initiator, staticInit
-      integer :: exLevel, i
-      logical :: tUseADI
-
-        ! Doubles are always initiators if the corresponding flag is set
-        if(tAllDoubsInitiators .or. tAllSingsInitiators) then
-           tUseADI = .true.
-        else
-           tUseADI = .false.
-        endif
-
-        ! This is Giovanni's CAS-initiator criterium
-        if(tInitiatorsSubspace) then
-           if(giovannis_check(ilut)) then
-              staticInit = .true.
-           endif
-        endif
-
-        if(tUseADI) then
-           exLevel = 0
-           ! Important : Only compare to the already initialized reference
-           do i = 1, nRefsCurrent
-              exLevel = FindBitExcitLevel(ilutRefAdi(:,run,i),ilut)
-              ! We only need to do this if the excitation level is below 3
-              if(exLevel < 3) then
-                 ! Check if we are sign-coherent if this is desired
-                 if(unset_incoherent_initiator(exLevel, ilut, sign, i, staticInit)) &
-                      ! If we find the determinant to be incoherent, we do not apply
-                      ! the ADI rules and instead 
-                      return
-
-                 ! Set the doubles to initiators
-                 call set_double_initiator(exLevel, i, staticInit)
-
-                 ! If desired, also set singles as initiators
-                 call set_single_initiator(exLevel, i, staticInit)
-              endif
-           enddo
-        endif
-
-        ! Now, set the initiator flag if we have a valid double
-        ! staticInt is set for doubles and singles of references and is unset (and
-        ! not reset again) for incoherent determinants
-        if(staticInit) initiator = .true.
-
-    end subroutine adi_criterium
-
-!------------------------------------------------------------------------------------------!
-
-    function unset_incoherent_initiator(exLevel, ilut, sign, iRef, &
-         staticInit) result(tSuspendADI)
-      use FciMCData, only:  nIncoherentDets
-      use CalcData, only: tCoherentDoubles
-      use adi_references, only: check_sign_coherence
-      ! This version of the coherence check now only prevents us from setting
-      ! the initiator flag via ADI, but not by regular means. So we can't remove 'normal'
-      ! initiators anymore and also not make deterministic space determinants non-initiators
-      implicit none
-      integer, intent(in) :: exLevel, iRef
-      integer(n_int), intent(in) :: ilut(0:NIfTot)
-      real(dp), intent(in) :: sign(lenof_sign)
-      logical, intent(inout) :: staticInit
-      logical :: tSuspendADI
-
-      tSuspendADI = .false.
-      if(tCoherentDoubles .and. (exLevel > 0)) then
-         if(.not. check_sign_coherence(ilut,sign,iRef)) then
-            ! If not, do not let the determinant be an initiator
-            ! Note that this strikes anytime, even if it is coherent with 
-            ! the reference to which it is the double, but not with some other one
-            ! (if we have e.g. another reference that is a single)
-            tSuspendADI = .true.
-            staticInit = .false.
-            nIncoherentDets = nIncoherentDets + 1
-         endif
-      endif
-    end function unset_incoherent_initiator
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine set_double_initiator(exLevel, iRef, staticInit)
-      use FciMCData, only: nRefsDoubs, nCoherentDoubles
-      implicit none
-      integer, intent(in) :: exLevel, iRef
-      logical, intent(inout) :: staticInit
+      end function TestInitiator_explicit
       
-      if(exLevel == 2 .and. tAllDoubsInitiators .and. iRef <= nRefsDoubs) then
-         staticInit = .true.
-         ! also, log this event
-         nCoherentDoubles = nCoherentDoubles + 1
-      endif
-    end subroutine set_double_initiator
 
-!------------------------------------------------------------------------------------------!
-
-    subroutine set_single_initiator(exLevel, iRef, staticInit)
-      use FciMCData, only: nRefsSings, nCoherentSingles
-      implicit none
-      integer, intent(in) :: exLevel, iRef
-      logical, intent(out) :: staticInit
-
-      if(exLevel == 1 .and. tAllSingsInitiators .and. iRef <= nRefsSings) then
-         staticInit = .true.
-         nCoherentSingles = nCoherentSingles + 1
-      endif
-    end subroutine set_single_initiator
-
-!------------------------------------------------------------------------------------------!
 
     subroutine rezero_iter_stats_each_iter(iter_data, rdm_defs)
 
@@ -2102,7 +2027,6 @@ contains
 
         iLutRef(:, run) = 0_n_int
         iLutRef(0:NIfDBO, run) = ilut(0:NIfDBO)
-        if(allocated(ilutRefAdi)) ilutRefAdi(:,run,1) = ilutRef(:,run)
         call decode_bit_det (ProjEDet(:, run), iLutRef(:, run))
         write (iout, '(a,i3,a)', advance='no') 'Changing projected &
               &energy reference determinant for run', run, &
@@ -2220,10 +2144,10 @@ contains
             call setup_virtual_mask()
         end if
 
-        ! Also overwrite the ilutRefAdi(:,:,1), i.e. the original reference
-        call update_first_reference(ilut)
+        ! Also update ilutRefAdi - this has to be done completely
+        call update_first_reference()
         
-    end subroutine update_run_reference
+      end subroutine update_run_reference
 
     subroutine calc_inst_proje()
 

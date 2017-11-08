@@ -31,10 +31,10 @@ module real_time
          init_verlet_sweep, check_verlet_sweep, end_verlet_sweep
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
                         tDetermHFSpawning, AvMCExcits, tSemiStochastic, StepsSft, &
-                        tChangeProjEDet, DiagSft, nmcyc, tau, InitWalkers,allDoubsInitsDelay, &
-                        s_global_start, StepsSft, semistoch_shift_iter, tDelayGetRefs
+                        tChangeProjEDet, DiagSft, nmcyc, tau, InitWalkers, &
+                        s_global_start, StepsSft, semistoch_shift_iter
     use FciMCData, only: pops_pert, walker_time, iter, ValidSpawnedList, spawnedParts, &
-                         spawn_ht, FreeSlot, iStartFreeSlot, iEndFreeSlot, nRefs, & 
+                         spawn_ht, FreeSlot, iStartFreeSlot, iEndFreeSlot,  & 
                          fcimc_iter_data, InitialSpawnedSlots, iter_data_fciqmc, &
                          TotWalkers, fcimc_excit_gen_store, ilutRef, max_calc_ex_level, &
                          iLutHF_true, indices_of_determ_states, partial_determ_vecs, &
@@ -74,6 +74,7 @@ module real_time
     use util_mod, only : neci_etime
     use ParallelHelper, only: MPI_SUM, iProcIndex, root
     use adi_references, only: setup_reference_space
+    use adi_data, only: allDoubsInitsDelay, nRefs, tDelayGetRefs
 
     implicit none
 

@@ -7,16 +7,18 @@ module FciMCParMod
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
                         AvMCExcits, pops_norm_unit, iExitWalkers, &
-                        iFullSpaceIter, semistoch_shift_iter, tReadRefs, &
+                        iFullSpaceIter, semistoch_shift_iter, &
                         tOrthogonaliseReplicas, orthogonalise_iter, &
                         tDetermHFSpawning, use_spawn_hash_table, &
                         ss_space_in, s_global_start, tContTimeFCIMC, &
-                        trial_shift_iter, tStartTrialLater, tDelayAllSingsInits, &
+                        trial_shift_iter, tStartTrialLater,  &
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
                         t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
-                        t_back_spawn_flex, t_back_spawn_flex_option, allDoubsInitsDelay, &
-                        t_back_spawn_option, tDelayGetRefs, &
-                        tDelayAllDoubsInits, tDelayAllSingsInits
+                        t_back_spawn_flex, t_back_spawn_flex_option, &
+                        t_back_spawn_option
+    use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
+                        tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
+                        SIUpdateInterval, tSuppressSIOutput
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, tOldRDMs, &
@@ -164,9 +166,6 @@ module FciMCParMod
         ! helpful to do it here.
         call population_check()
 
-         ! Set up the reference space for the adi-approach
-         call setup_reference_space(tReadPops)
-
         if(n_int.eq.4) CALL Stop_All('Setup Parameters', &
                 'Use of RealCoefficients does not work with 32 bit integers due to the use &
                 &of the transfer operation from dp reals to 64 bit integers.')
@@ -250,16 +249,20 @@ module FciMCParMod
                     call init_semi_stochastic(ss_space_in)
                 end if
             end if
-
+            
             if((Iter - maxval(VaryShiftIter)) == allDoubsInitsDelay + 1 &
                  .and. all(.not. tSinglePartPhase)) then
                ! Start the all-doubs-initiator procedure
                if(tDelayAllDoubsInits) call enable_adi()
                ! And/or the all-sings-initiator procedure
-               if(tDelayAllSingsInits) tAllSingsInitiators = .true.
+               if(tDelayAllSingsInits) then 
+                  tAllSingsInitiators = .true.
+                  tAdiActive = .true.
+               endif
                ! If desired, we now set up the references for the purpose of the
                ! all-doubs-initiators
-               if(nRefs > 1 .and. tDelayGetRefs) then 
+               if(tDelayGetRefs) then 
+                  tAdiActive = .true.
                   ! Re-initialize the reference space
                   call setup_reference_space(.true.)
                endif
@@ -340,6 +343,13 @@ module FciMCParMod
                 .not. tSemiStochastic .and. .not. tFillingStochRDMOnFly) then
                 call adjust_load_balance(iter_data_fciqmc)
             end if
+
+            if(SIUpdateInterval > 0) then
+               ! Regular update of the superinitiators. Use with care as it 
+               ! is still rather expensive if secondary superinitiators are used
+               if(mod(iter,SIUpdateInterval) == 0 .and. all(.not. &
+                    tSinglePartPhase)) call setup_reference_space(.true.)
+            endif
 
             if (mod(Iter, StepsSft) == 0) then
 
@@ -554,6 +564,9 @@ module FciMCParMod
 
         ! End of MC cycle
         end do
+
+        ! Final output is always enabled
+        tSuppressSIOutput = .false.
 
         ! We are at the end - get the stop-time. Output the timing details
         stop_time = neci_etime(tend)
@@ -979,7 +992,7 @@ module FciMCParMod
             HDiagCurr = det_diagH(j)
 
             if (tTruncInitiator) &
-                call CalcParentFlag (j, parent_flags)
+                call CalcParentFlag (j, DetCurr, walkExcitLevel, parent_flags)
 
             ! As the main list (which is storing a hash table) no longer needs
             ! to be contiguous, we need to skip sites that are empty.
@@ -1196,6 +1209,10 @@ module FciMCParMod
         ! This indicates the number of determinants in the list + the number
         ! of holes that have been introduced due to annihilation.
         TotWalkers = TotWalkersNew
+
+        ! The superinitiators are now the same as they will be at the beginning of
+        ! the next cycle (this flag is reset if they change)
+        tReferenceChanged = .false.
 
         CALL halt_timer(Annihil_Time)
         IFDEBUG(FCIMCDebug,2) WRITE(iout,*) "Finished Annihilation step"

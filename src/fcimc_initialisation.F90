@@ -26,9 +26,8 @@ module fcimc_initialisation
                         trunc_nopen_max, MemoryFacInit, MaxNoatHF, HFPopThresh, &
                         tAddToInitiator, InitiatorWalkNo, tRestartHighPop, &
                         tAllRealCoeff, tRealCoeffByExcitLevel, tTruncInitiator, &
-                        RealCoeffExcitThresh, TargetGrowRate, tPopsAlias, &
-                        TargetGrowRateWalk, InputTargetGrowRate, aliasStem, &
-                        tInitiatorsSubspace, g_markers, &
+                        RealCoeffExcitThresh, TargetGrowRate, aliasStem, &
+                        TargetGrowRateWalk, InputTargetGrowRate, tPopsAlias, &
                         InputTargetGrowRateWalk, tOrthogonaliseReplicas, &
                         use_spawn_hash_table, tReplicaSingleDetStart, &
                         ss_space_in, trial_space_in, init_trial_in, &
@@ -38,7 +37,9 @@ module fcimc_initialisation
                         tMultipleInitialStates, initial_states, t_hist_tau_search, &
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, &
-                        t_back_spawn_flex, back_spawn_delay, corespaceWalkers, tReadRefs
+                        t_back_spawn_flex, back_spawn_delay, corespaceWalkers
+    use adi_data, only: g_markers, tReferenceChanged, tInitiatorsSubspace, tAdiActive, &
+         nExChecks, nExCheckFails
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -143,8 +144,12 @@ module fcimc_initialisation
     use sym_mod
     use HElem
     use constants
+
     use real_time_data, only: t_real_time_fciqmc
     use real_time_procs, only: attempt_create_realtime
+
+
+    use adi_references, only: setup_reference_space, clean_adi
 
     use tau_search_hist, only: init_hist_tau_search
     use back_spawn, only: init_back_spawn
@@ -855,6 +860,7 @@ contains
         norm_semistoch = 0
         norm_psi = 0
         tSoftExitFound = .false.
+        tReferenceChanged = .false.
 
         ! Set the flag to indicate that no shift adjustment has been made
         tfirst_cycle = .true.
@@ -864,6 +870,9 @@ contains
         ! Initialise the fciqmc counters
         iter_data_fciqmc%update_growth = 0.0_dp
         iter_data_fciqmc%update_iters = 0
+
+        nExChecks = 0
+        nExCheckFails = 0
 
 !            if (tReltvy) then
 !                ! write out the column headings for the MSWALKERCOUNTS
@@ -1438,6 +1447,7 @@ contains
                 & REAL(MemoryAlloc,dp)/1048576.0_dp," Mb/Processor"
             WRITE(iout,*) "Only one array of memory to store main particle list allocated..."
             WRITE(iout,*) "Initial memory allocation sucessful..."
+            WRITE(iout,*) "============================================="
             CALL neci_flush(iout)
 
         ENDIF   !End if initial walkers method
@@ -1535,6 +1545,11 @@ contains
 #ifdef __CMPLX
          replica_overlaps_imag(:, :) = 0.0_dp
 #endif
+
+        ! Set up the reference space for the adi-approach
+	! in real-time, we do this in the real-time init
+         if(.not. t_real_time_fciqmc) call setup_reference_space(tReadPops)
+
          if(tInitiatorsSubspace) call read_g_markers()
     end subroutine InitFCIMCCalcPar
 
@@ -1807,6 +1822,9 @@ contains
 
         ! Cleanup the load balancing
         call clean_load_balance()
+
+        ! Cleanup adi caches
+        call clean_adi()
 
         if (tSemiStochastic) call end_semistoch()
 
@@ -3507,12 +3525,6 @@ contains
                 real(get_helement(ProjEDet(:, run), ProjEDet(:, run), 0), dp)
         end do
 
-        ! As we always check versus ilutRefAdi for initiator purposes, the first 
-        ! entry has to be assigned always
-        do run = 1, inum_runs
-           ilutRefAdi(:,run,1) = ilutRef(:,run)
-        end do
-
     end subroutine assign_reference_dets
     
     subroutine init_cont_time()
@@ -3547,16 +3559,16 @@ contains
 
     subroutine setup_adi()
       ! We initialize the flags for the adi feature
-      use CalcData, only: tSetDelayAllDoubsInits, tSetDelayAllSingsInits, tDelayAllDoubsInits, &
-           tDelayAllSingsInits, tAllDoubsInitiators, tAllSingsInitiators, tDelayGetRefs
-      use adi_references, only: enable_adi, reallocate_ilutRefAdi
+      use adi_data, only: tSetDelayAllDoubsInits, tSetDelayAllSingsInits, tDelayAllDoubsInits, &
+           tDelayAllSingsInits, tAllDoubsInitiators, tAllSingsInitiators, tDelayGetRefs, &
+           NoTypeN, nRefs, nRefsSings, nRefsDoubs, tReadRefs, tInitiatorsSubspace
+      use CalcData, only: InitiatorWalkNo
+      use adi_references, only: enable_adi, reallocate_ilutRefAdi, setup_SIHash
       implicit none
-      
+
       nRefs = max(nRefsDoubs, nRefsSings)
-      nRefsCurrent = 1
-
       call reallocate_ilutRefAdi(nRefs)
-
+ 
       ! Check if one of the keywords is specified as delayed
       if(tSetDelayAllDoubsInits .and. tAllDoubsInitiators) then
          tAllDoubsInitiators = .false.
@@ -3572,13 +3584,17 @@ contains
       if(tDelayAllSingsInits .and. tDelayAllDoubsInits) tDelayGetRefs = .true.
       ! Give a status message
       if(tAllDoubsInitiators) call enable_adi()
+      if(tAllSingsInitiators .or. tAllDoubsInitiators .or. tInitiatorsSubspace) &
+           tAdiActive = .true. 
+
+      NoTypeN = NoTypeN * InitiatorWalkNo
 
     end subroutine setup_adi
 
 !------------------------------------------------------------------------------------------!
 
     subroutine read_g_markers()
-      use CalcData, only: g_markers_num
+      use adi_data, only: g_markers_num
       use util_mod, only: get_free_unit
       use bit_rep_data, only: NIfD
       implicit none
