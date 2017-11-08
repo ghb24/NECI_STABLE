@@ -173,10 +173,83 @@ contains
     end subroutine init_heisenberg_model_test
 
     subroutine gen_excit_tJ_model_test
+        use dsfmt_interface, only: dsfmt_init 
+        use lattice_mod, only: lattice, lattice_deconstructor
+        use SystemData, only: nel, bhub, exchange_j, nbasis
+        use bit_rep_data, only: niftot, nifd
+        use Detbitops, only: encodebitdet
+        use constants, only: n_int, dp
+        use fcimcdata, only: excit_gen_store_type
+        
+        integer, allocatable :: nI(:), nJ(:)
+        integer(n_int), allocatable :: ilutI(:), ilutJ(:)
+        integer :: ex(2,2), ic 
+        logical :: tpar 
+        real(dp) :: pgen 
+        HElement_t(dp) :: hel
+        type(excit_gen_store_type) :: store
+        logical :: found_all, t_found(6)
 
         print *, "" 
         print *, "testing: gen_excit_tJ_model"
-        call assert_true(.false.)
+
+        nel = 2 
+        lat => lattice('chain', 4, 1, 1, .false., .false., .false.) 
+        call dsfmt_init(1)
+        allocate(nI(nel))
+        allocate(nJ(nel))
+
+        nI = [1,4] 
+        NIfTot = 0
+        nifd = 0
+        allocate(ilutI(0:niftot))
+        allocate(ilutJ(0:niftot))
+
+        call encodebitdet(nI, ilutI)
+        
+        found_all = .false.
+        t_found = .false.
+
+        bhub = -1.0
+        exchange_j = 2.0 
+        t_tJ_model = .true. 
+        t_heisenberg_model = .false. 
+
+        nbasis = 8
+
+        call init_tmat(lat)
+        call setup_exchange_matrix(lat)
+
+        do while (.not. found_all) 
+            call gen_excit_tJ_model(nI, ilutI, nJ, ilutJ, 2, ic, ex, tpar, pgen,  & 
+                hel, store)
+            
+            if (all(nJ == [2,3]) .and. .not. t_found(1)) then 
+                t_found(1) = .true. 
+                call assert_equals(2, ic) 
+                call assert_equals([1,4], ex(1,:),2)
+                call assert_equals([2,3], ex(2,:),2)
+                call assert_equals(6, ilutJ(0)) 
+                call assert_true(.not. tpar) 
+                ! no it is not just this probability!! 
+                ! because it could have also happened that we would have 
+                ! chosen electron (4) first and then did a flip! 
+                ! here it gets tricky! 
+                call assert_equals(5.0/6.0, pgen)
+            end if
+
+            if (all(nJ == [1,6]) .and. .not. t_found(2)) then 
+                t_found(2) = .true. 
+                call assert_equals(1, ic) 
+                call assert_equals(4, ex(1,1))
+                call assert_equals(6, ex(2,1))
+                call assert_equals(33, ilutJ(0))
+                call assert_true(.not. tpar) 
+                call assert_equals(1.0/6.0, pgen)
+            end if
+
+!             found_all = all(t_found(1:2))
+        end do 
 
     end subroutine gen_excit_tJ_model_test
 
@@ -193,14 +266,17 @@ contains
 
         use SystemData, only: nel, bhub
         use lattice_mod, only: lattice
-        use real_space_hubbard, only: lat 
         use bit_rep_data, only: NIfTot
         use constants, only: dp, n_int 
+        use DetBitOps, only: EncodeBitDet
 
         integer(n_int), allocatable :: ilut(:) 
         integer, allocatable :: ic_list(:)
         real(dp), allocatable :: cum_arr(:)
-        real(dp) :: cum_sum 
+        real(dp) :: cum_sum, cpt 
+
+        t_tJ_model = .true.
+        t_heisenberg_model = .false. 
 
         nel = 2 
         NIfTot = 0
@@ -211,16 +287,121 @@ contains
 
         allocate(ilut(0:NIfTot)) 
         lat => lattice('chain', 4, 1, 1, .true., .true., .true.)
+        call init_tmat(lat)
+        call setup_exchange_matrix(lat)
 
+        call EncodeBitDet([1,2],ilut)
         ! i also have to setup the matrix element calculation.. duh.. 
 
         print *, ""
         print *, "testing: create_cum_list_tJ_model"
-
         call create_cum_list_tJ_model(ilut, 1, [2,4], & 
             cum_arr, cum_sum, ic_list)
+        call assert_equals([1.0,2.0], cum_arr, 2)
+        call assert_equals(2.0, cum_sum) 
+        call assert_equals([1,1], ic_list,2)
 
-        call assert_true(.false.)
+        call EncodeBitDet([1,4], ilut)
+
+        call create_cum_list_tJ_model(ilut, 1, [2,4], cum_arr, cum_sum, ic_list)
+        call assert_equals([1.0,2.0], cum_arr, 2) 
+        call assert_equals(2.0, cum_sum) 
+        call assert_equals([2,1],ic_list,2)
+
+        call create_cum_list_tJ_model(ilut, 4, [1,3], cum_arr, cum_sum, ic_list)
+        call assert_equals([1.0,2.0], cum_arr, 2) 
+        call assert_equals(2.0, cum_sum) 
+        call assert_equals([2,1],ic_list,2)
+
+        print *, ""
+        print *, "and also for a provided target" 
+        call create_cum_list_tJ_model(ilut, 1, [2,4], cum_arr, cum_sum, ic_list,4,cpt)
+        call assert_equals(0.5, cpt)
+
+        call create_cum_list_tJ_model(ilut, 1, [2,4], cum_arr, cum_sum, ic_list,7,cpt)
+        call assert_equals(0.5, cpt)
+
+        call create_cum_list_tJ_model(ilut, 1, [2,4], cum_arr, cum_sum, ic_list,5,cpt)
+        call assert_equals(0.0, cpt)
+
+        call create_cum_list_tJ_model(ilut, 1, [2,4], cum_arr, cum_sum, ic_list,3,cpt)
+        call assert_equals(0.0, cpt)
+
+        print *, ""
+        print *, "and more electrons: "
+        nel = 3 
+        call EncodeBitDet([1,4,7],ilut)
+
+        call create_cum_list_tJ_model(ilut, 1, [2,4], cum_arr, cum_sum, ic_list)
+        call assert_equals([1.0,1.0], cum_arr, 2) 
+        call assert_equals(1.0, cum_sum) 
+        call assert_equals([2,0],ic_list,2)
+
+        call create_cum_list_tJ_model(ilut, 4, [1,3], cum_arr, cum_sum, ic_list)
+        call assert_equals([1.0,2.0], cum_arr, 2) 
+        call assert_equals(2.0, cum_sum) 
+        call assert_equals([2,1],ic_list,2)
+
+        call create_cum_list_tJ_model(ilut, 7, [1,3], cum_arr, cum_sum, ic_list)
+        call assert_equals([0.0,1.0], cum_arr, 2) 
+        call assert_equals(1.0, cum_sum) 
+        call assert_equals([0,1],ic_list,2)
+
+        call EncodeBitDet([1,4,8],ilut)
+
+        call create_cum_list_tJ_model(ilut, 1, [2,4], cum_arr, cum_sum, ic_list)
+        call assert_equals([1.0,2.0], cum_arr, 2) 
+        call assert_equals(2.0, cum_sum) 
+        call assert_equals([2,2],ic_list,2)
+
+        call create_cum_list_tJ_model(ilut, 4, [1,3], cum_arr, cum_sum, ic_list)
+        call assert_equals([1.0,2.0], cum_arr, 2) 
+        call assert_equals(2.0, cum_sum) 
+        call assert_equals([2,1],ic_list,2)
+
+        call create_cum_list_tJ_model(ilut, 4, [1,3], cum_arr, cum_sum, ic_list, 2, cpt)
+        call assert_equals(0.0, cpt)
+
+        call create_cum_list_tJ_model(ilut, 4, [1,3], cum_arr, cum_sum, ic_list, 1, cpt)
+        call assert_equals(0.5, cpt)
+
+        call create_cum_list_tJ_model(ilut, 4, [1,3], cum_arr, cum_sum, ic_list, 6, cpt)
+        call assert_equals(0.5, cpt)
+
+        call create_cum_list_tJ_model(ilut, 4, [1,3], cum_arr, cum_sum, ic_list, 5, cpt)
+        call assert_equals(0.0, cpt)
+
+        call create_cum_list_tJ_model(ilut, 4, [1,3], cum_arr, cum_sum, ic_list, 7, cpt)
+        call assert_equals(0.0, cpt)
+
+        call create_cum_list_tJ_model(ilut, 1, [2,4], cum_arr, cum_sum, ic_list, 7, cpt)
+        call assert_equals(0.0, cpt)
+
+        call create_cum_list_tJ_model(ilut, 1, [2,4], cum_arr, cum_sum, ic_list, 8, cpt)
+        call assert_equals(0.5, cpt)
+
+        call create_cum_list_tJ_model(ilut, 1, [2,4], cum_arr, cum_sum, ic_list, 3, cpt)
+        call assert_equals(0.0, cpt)
+
+        call create_cum_list_tJ_model(ilut, 1, [2,4], cum_arr, cum_sum, ic_list, 4, cpt)
+        call assert_equals(0.5, cpt)
+
+        call create_cum_list_tJ_model(ilut, 1, [2,4], cum_arr, cum_sum, ic_list, 5, cpt)
+        call assert_equals(0.0, cpt)
+
+        call EncodeBitDet([1,4,7],ilut)
+        call create_cum_list_tJ_model(ilut, 7, [1,3], cum_arr, cum_sum, ic_list, 1, cpt)
+        call assert_equals(0.0, cpt)
+
+        call create_cum_list_tJ_model(ilut, 7, [1,3], cum_arr, cum_sum, ic_list, 2, cpt)
+        call assert_equals(0.0, cpt)
+
+        call create_cum_list_tJ_model(ilut, 7, [1,3], cum_arr, cum_sum, ic_list, 5, cpt)
+        call assert_equals(1.0, cpt)
+
+        call create_cum_list_tJ_model(ilut, 7, [1,3], cum_arr, cum_sum, ic_list, 6, cpt)
+        call assert_equals(0.0, cpt)
+
         nel = -1 
         NIfTot = -1 
         nbasis = -1 
@@ -236,10 +417,111 @@ contains
     end subroutine gen_excit_heisenberg_model_test
 
     subroutine create_cum_list_heisenberg_test
+        use SystemData, only: nel
+        use lattice_mod, only: lattice
+        use bit_rep_data, only: NIfTot
+        use constants, only: dp, n_int 
+        use DetBitOps, only: EncodeBitDet
 
+        integer(n_int), allocatable :: ilut(:) 
+        integer, allocatable :: ic_list(:)
+        real(dp), allocatable :: cum_arr(:)
+        real(dp) :: cum_sum, cpt
+
+        t_tJ_model = .false.
+        t_heisenberg_model = .true. 
+
+        nel = 4
+        NIfTot = 0
+        nbasis = 8 
+
+        exchange_j = 1.0 
+
+        allocate(ilut(0:NIfTot)) 
+        lat => lattice('chain', 4, 1, 1, .true., .true., .true.)
+        call setup_exchange_matrix(lat)
+
+        ! the heisenberg assumes that we have only and all orbitals singly 
+        ! occupied! 
+        call EncodeBitDet([1,3,5,7],ilut)
         print *, ""
         print *, "testing: create_cum_list_heisenberg"
-        call assert_true(.false.)
+        call create_cum_list_heisenberg(ilut, 1, [3,7], cum_arr, cum_sum)
+        call assert_equals([0.0,0.0], cum_arr, 2)
+        call assert_equals(0.0, cum_sum)
+
+        call create_cum_list_heisenberg(ilut, 1, [3,7], cum_arr, cum_sum, 3, cpt)
+        call assert_equals(0.0, cpt) 
+
+        call create_cum_list_heisenberg(ilut, 1, [3,7], cum_arr, cum_sum, 7, cpt)
+        call assert_equals(0.0, cpt) 
+        call create_cum_list_heisenberg(ilut, 1, [3,7], cum_arr, cum_sum, 5, cpt)
+        call assert_equals(0.0, cpt) 
+        call create_cum_list_heisenberg(ilut, 1, [3,7], cum_arr, cum_sum, 4, cpt)
+        call assert_equals(0.0, cpt) 
+
+        call create_cum_list_heisenberg(ilut, 3, [1,5], cum_arr, cum_sum)
+        call assert_equals([0.0,0.0], cum_arr, 2)
+        call assert_equals(0.0, cum_sum)
+
+        call create_cum_list_heisenberg(ilut, 3, [1,5], cum_arr, cum_sum, 1, cpt)
+        call assert_equals(0.0, cpt)
+
+        call create_cum_list_heisenberg(ilut, 3, [1,5], cum_arr, cum_sum, 5, cpt)
+        call assert_equals(0.0, cpt)
+
+        call create_cum_list_heisenberg(ilut, 3, [1,5], cum_arr, cum_sum, 2, cpt)
+        call assert_equals(0.0, cpt)
+
+        call EncodeBitDet([1,4,6,7], ilut) 
+
+        call create_cum_list_heisenberg(ilut, 1, [3,7], cum_arr, cum_sum)
+        call assert_equals([1.0, 1.0], cum_arr, 2)
+        call assert_equals(1.0, cum_sum) 
+
+        call create_cum_list_heisenberg(ilut, 1, [3,7], cum_arr, cum_sum, 3, cpt)
+        call assert_equals(1.0, cpt) 
+
+        call create_cum_list_heisenberg(ilut, 1, [3,7], cum_arr, cum_sum, 4, cpt)
+        call assert_equals(0.0, cpt) 
+
+        call create_cum_list_heisenberg(ilut, 1, [3,7], cum_arr, cum_sum, 7, cpt)
+        call assert_equals(0.0, cpt) 
+
+        call create_cum_list_heisenberg(ilut, 1, [3,7], cum_arr, cum_sum, 8, cpt)
+        call assert_equals(0.0, cpt) 
+
+        call create_cum_list_heisenberg(ilut, 4, [2,6], cum_arr, cum_sum)
+        call assert_equals([1.0, 1.0], cum_arr, 2)
+        call assert_equals(1.0, cum_sum) 
+
+        call create_cum_list_heisenberg(ilut, 4, [2,6], cum_arr, cum_sum, 2, cpt)
+        call assert_equals(1.0, cpt)
+
+        call create_cum_list_heisenberg(ilut, 4, [2,6], cum_arr, cum_sum, 6, cpt)
+        call assert_equals(0.0, cpt)
+
+        call EncodeBitDet([1,4,5,8], ilut)
+        call create_cum_list_heisenberg(ilut, 5, [3,7], cum_arr, cum_sum)
+        call assert_equals([1.0,2.0], cum_arr, 2)
+        call assert_equals(2.0, cum_sum) 
+
+        call create_cum_list_heisenberg(ilut, 5, [3,7], cum_arr, cum_sum, 6, cpt)
+        call assert_equals(0.0, cpt)
+
+        call create_cum_list_heisenberg(ilut, 5, [3,7], cum_arr, cum_sum, 3, cpt)
+        call assert_equals(0.5, cpt)
+
+        call create_cum_list_heisenberg(ilut, 4, [2,6], cum_arr, cum_sum)
+        call assert_equals([1.0,2.0], cum_arr, 2)
+        call assert_equals(2.0, cum_sum) 
+
+        call create_cum_list_heisenberg(ilut, 4, [2,6], cum_arr, cum_sum, 6, cpt)
+        call assert_equals(0.5, cpt)
+
+        nel = -1 
+        niftot = -1
+        nbasis = -1
 
     end subroutine create_cum_list_heisenberg_test
 
@@ -664,18 +946,57 @@ contains
     end subroutine get_offdiag_helement_heisenberg_test
     
     subroutine determine_optimal_time_step_tJ_test 
+        use SystemData, only: nel 
+        use lattice_mod, only: lat, determine_optimal_time_step
+        
+        t_tJ_model = .true. 
+        t_heisenberg_model = .false. 
+
+        bhub = 1.0
+        exchange_j = 1.0 
+        nel = 2
+
+        lat => lattice('chain',2,1,1,.true.,.true.,.true.)
 
         print *, ""
         print *, "testing: determine_optimal_time_step_tJ"
-        call assert_true(.false.) 
+
+        call assert_equals(1.0/real(2*2,dp), determine_optimal_time_step())
+
+        exchange_j = 2.0 
+
+        call assert_equals(1.0/real(2*4,dp), determine_optimal_time_step())
+
+        bhub = 4 
+        call assert_equals(1.0/real(2*8,dp), determine_optimal_time_step())
+
+        nel = -1 
+        bhub = 0
+        exchange_j = 0 
 
     end subroutine determine_optimal_time_step_tJ_test 
 
     subroutine determine_optimal_time_step_heisenberg_test 
+        use SystemData, only: nel 
+        use lattice_mod, only: lat, determine_optimal_time_step
+
+        t_tJ_model = .false. 
+        t_heisenberg_model = .true. 
+
+        nel = 2 
+        exchange_j = 1.0 
+        lat => lattice('triangle', 3,3,1,.true.,.true.,.true.)
 
         print *, "" 
         print *, "testing: determine_optimal_time_step_heisenberg" 
-        call assert_true(.false.) 
+        call assert_equals(1.0/real(2*6,dp), determine_optimal_time_step())
+
+        exchange_j = 2.0 
+
+        call assert_equals(1.0/real(2*12,dp), determine_optimal_time_step())
+
+        nel = -1 
+        exchange_j = 0 
 
     end subroutine determine_optimal_time_step_heisenberg_test 
 

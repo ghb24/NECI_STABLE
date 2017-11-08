@@ -331,6 +331,7 @@ contains
             ilutJ =  make_ilutJ(ilutI, ex, 1)
 
         else if (ic == 2) then 
+            !todo! this recalculation does not work yet! 
 
             ! here i have to recalc the contribution if i would have picked 
             ! the electron in orbital spin_orb first 
@@ -396,7 +397,7 @@ contains
         integer, allocatable :: single_excits(:)
         integer, allocatable :: spin_flips(:)
         real(dp) :: elem
-        logical :: t_single, t_flip
+        logical :: t_single, t_flip, t_single_possible, t_flip_possible
 
         ASSERT(IsOcc(ilutI,src))
         ASSERT(allocated(exchange_matrix))
@@ -430,26 +431,31 @@ contains
             end if
 
             ASSERT(present(cpt))
+            cpt = 0.0_dp
+
             do i = 1, ubound(neighbors,1)
                 elem = 0.0_dp
+                t_single_possible = .false. 
+                t_flip_possible = .false. 
+
                 if (IsNotOcc(ilutI, single_excits(i)) .and. &
                     IsNotOcc(ilutI, spin_flips(i))) then 
                     ! just to be sure use the tmat, so both orbitals are 
                     ! definetly connected
                     elem = abs(GetTMatEl(src, single_excits(i)))
+                    t_single_possible = .true. 
 
                 else if (IsOcc(ilutI, spin_flips(i)) .and. &
                          IsNotOcc(ilutI, single_excits(i))) then 
                      elem = abs(get_heisenberg_exchange(src, spin_flips(i)))
+                     t_flip_possible  = .true. 
 
-                 else 
-                     elem = 0.0_dp
                  end if
                  cum_sum = cum_sum + elem 
 
-                 if (t_single .and. tgt == single_excits(i)) then 
+                 if (t_single .and. t_single_possible .and. tgt == single_excits(i)) then 
                      cpt = elem
-                 else if (t_flip .and. tgt == spin_flips(i)) then 
+                 else if (t_flip .and.t_flip_possible .and.  tgt == spin_flips(i)) then 
                      cpt = elem
                  end if
              end do
@@ -470,6 +476,7 @@ contains
                     ! since we only need absolute value of matrix element 
                     ! it would be better to just use -t .. anyway.. keep it 
                     ! general
+
                     elem = abs(GetTMatEl(src, single_excits(i)))
                     ic_list(i) = 1
 
@@ -695,6 +702,7 @@ contains
 
         if (present(tgt)) then
             ASSERT(present(cpt))
+            cpt = 0.0_dp
 
             do i = 1, ubound(neighbors,1)
                 elem = 0.0_dp

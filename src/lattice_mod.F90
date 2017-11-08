@@ -2766,21 +2766,20 @@ contains
         ! and for a picked electron the possible neighbors are looked for 
         ! open holes so the lowest probability is determined by the 
         ! maximum numbers of connections 
+        ! do this in general in the same way for all types of 
+        ! lattice models. thats not exact, but a good enough estimate
+        p_hole = 1.0_dp / real(lat%get_nconnect_max(), dp) 
+
         if (t_new_real_space_hubbard) then 
-            if (t_trans_corr) then 
-                print *, "todo! optimal time-step is different for transcorrelated"
-                p_hole = 1.0_dp / real(lat%get_nconnect_max(), dp) 
-            else 
-                p_hole = 1.0_dp / real(lat%get_nconnect_max(), dp) 
-            end if
 
             mat_ele = real(abs(bhub), dp)
 
         else if (t_tJ_model) then 
-            print *, "todo" 
+
+            ! for the t-J take the maximum of hopping or exchange
+            mat_ele = real(max(abs(bhub),abs(exchange_j)),dp)
 
         else if (t_heisenberg_model) then 
-            p_hole = 1.0_dp / real(lat%get_nconnect_max(), dp) 
 
             mat_ele = real(abs(exchange_j), dp)
 
