@@ -586,10 +586,24 @@ contains
     end subroutine get_diag_helement_heisenberg_test
 
     subroutine get_offdiag_helement_heisenberg_test
+        use SystemData, only: nel, nbasis 
+        use real_space_hubbard, only: lat 
+        use lattice_mod, only: lattice
+
+        integer :: ex(2,2) 
+
+        nel = 2 
+        nbasis = 4 
+        lat => lattice('chain', 2, 1, 1, .true., .true., .true.) 
+        call setup_exchange_matrix(lat) 
 
         print *, "" 
         print *, "testing: get_offdiag_helement_heisenberg"
-        call assert_true(.false.)
+        ex(1,:) = [1,2]
+        ex(2,:) = [3,4]
+
+        call assert_equals(h_cast(0.0), get_offdiag_helement_heisenberg([1,2],
+
 
     end subroutine get_offdiag_helement_heisenberg_test
     
