@@ -47,8 +47,36 @@ contains
         call run_test_case(calc_pgen_rs_hubbard_test, "calc_pgen_rs_hubbard_test")
         call run_test_case(create_neel_state_chain_test, "create_neel_state_chain_test")
         call run_test_case(create_neel_state_test, "create_neel_state_test")
+        call run_test_case(get_optimal_correlation_factor_test, "get_optimal_correlation_factor_test")
 
     end subroutine real_space_hubbard_test_driver
+
+    subroutine get_optimal_correlation_factor_test
+        use SystemData, only: uhub, bhub 
+        use lattice_mod, only: lattice
+
+        uhub = 1.0
+        bhub = 1.0 
+
+        lat => lattice('chain', 2, 1, 1, .true.,.true.,.true.)
+
+        print *, "" 
+        print *, "testing: get_optimal_correlation_factor: "
+
+        call assert_equals(-log(1.25), get_optimal_correlation_factor())
+        uhub = 4.0
+        call assert_equals(-log(2.0), get_optimal_correlation_factor())
+
+        lat => lattice('square', 2, 2, 1, .true.,.true.,.true.)
+        call assert_equals(-log(1.5), get_optimal_correlation_factor())
+        uhub = 8.0
+        call assert_equals(-log(2.0), get_optimal_correlation_factor())
+
+        uhub = 0.0
+        bhub = 0.0 
+
+
+    end subroutine get_optimal_correlation_factor_test
 
     subroutine create_neel_state_test
         use SystemData, only: nel, lattice_type, nbasis, length_x, length_y

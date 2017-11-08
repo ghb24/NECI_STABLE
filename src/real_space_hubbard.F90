@@ -242,6 +242,23 @@ contains
 
     end subroutine init_lattice
     
+    function get_optimal_correlation_factor() result(corr_factor) 
+        ! Hongjuns derivation was for the k-space hubbard and in the low 
+        ! density and U limit though.. 
+        real(dp) :: corr_factor
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "get_optimal_correlation_factor" 
+#endif
+
+        ASSERT(associated(lat)) 
+
+        ! the sign is not quite sure here.. which i need to take to 
+        ! calculate the hermitian matrix elements..
+        corr_factor = -log(abs(real(uhub,dp)/real(4 * lat%get_ndim() * bhub, dp)) + 1.0_dp)
+
+
+    end function get_optimal_correlation_factor
+
     subroutine init_tmat(lat)
         class(lattice), optional :: lat
 
