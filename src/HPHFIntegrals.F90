@@ -1,7 +1,8 @@
 module hphf_integrals
     use constants, only: dp,n_int,sizeof_int
     use SystemData, only: NEl, nBasisMax, G1, nBasis, Brr, tHub, ECore, &
-                          ALat, NMSH, tOddS_HPHF, modk_offdiag, t_new_real_space_hubbard
+                          ALat, NMSH, tOddS_HPHF, modk_offdiag, t_new_real_space_hubbard, &
+                          t_lattice_model 
     use IntegralsData, only: UMat,FCK,NMAX
     use HPHFRandExcitMod, only: FindDetSpinSym, FindExcitBitDetSym
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel, &
@@ -9,6 +10,7 @@ module hphf_integrals
     use sltcnd_mod, only: sltcnd, sltcnd_excit
     use bit_reps, only: NIfD, NIfTot, NIfDBO, decode_bit_det
     use real_space_hubbard, only: get_helement_rs_hub, get_diag_helemen_rs_hub
+    use lattice_mod, only: get_helement_lattice
     implicit none
 
     interface hphf_off_diag_helement
@@ -94,6 +96,8 @@ module hphf_integrals
             ! test hermiticity
 !             hel = get_helement_rs_hub(nI, nJ) 
             hel = get_helement_rs_hub(nJ, nI)
+        else if (t_lattice_model) then 
+            hel = get_helement_lattice(nJ,nI)
         else
             hel = sltcnd (nI, iLutnI, iLutnJ)
         end if
@@ -146,6 +150,10 @@ module hphf_integrals
                         temp_ex(1,:) = Ex(2,:)
                         temp_ex(2,:) = Ex(1,:) 
                         MatEl2 = get_helement_rs_hub(nJ, ExcitLevel, temp_ex, tSign)
+                    else if (t_lattice_model) then 
+                        temp_ex(1,:) = Ex(2,:)
+                        temp_ex(2,:) = Ex(1,:) 
+                        MatEl2 = get_helement_lattice(nJ, ExcitLevel, temp_ex, tSign) 
                     else
                         MatEl2 = sltcnd_excit (nI2, ExcitLevel, Ex, tSign)
                     end if
@@ -194,6 +202,8 @@ module hphf_integrals
 
         if (t_new_real_space_hubbard) then
             hel = get_diag_helemen_rs_hub(nI)
+        else if (t_lattice_model) then 
+            hel = get_helement_lattice(nI,nI)
         else
             hel = sltcnd_excit (nI, 0)
         end if
@@ -214,6 +224,9 @@ module hphf_integrals
                     call decode_bit_det(nJ, iLutnI2)
 !                     MatEl2 = get_helement_rs_hub(nI, nJ) 
                     MatEl2 = get_helement_rs_hub(nJ, nI) 
+                else if (t_lattice_model) then 
+                    call decode_bit_det(nJ, iLutnI2)
+                    MatEl2 = get_helement_lattice(nJ,nI)
                 else
                     MatEl2 = sltcnd (nI,  iLutnI, iLutnI2)
                 end if

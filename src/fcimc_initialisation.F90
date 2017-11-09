@@ -11,7 +11,8 @@ module fcimc_initialisation
                           tRotatedOrbs, MolproID, nBasis, arr, brr, nel, tCSF,&
                           tHistSpinDist, tPickVirtUniform, tGen_4ind_reverse, &
                           tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
-                          tUEGNewGenerator, tGen_4ind_2, tReltvy, t_new_real_space_hubbard
+                          tUEGNewGenerator, tGen_4ind_2, tReltvy, t_new_real_space_hubbard, &
+                          t_lattice_model, t_tJ_model, t_heisenberg_model
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use dSFMT_interface, only: dSFMT_init
     use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
@@ -145,9 +146,10 @@ module fcimc_initialisation
 
     use tau_search_hist, only: init_hist_tau_search
     use back_spawn, only: init_back_spawn
-    use real_space_hubbard, only: init_real_space_hubbard
+    use real_space_hubbard, only: init_real_space_hubbard, init_get_helement_hubbard
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
+    use tj_model, only: init_get_helement_tj, init_get_helement_heisenberg
 
     implicit none
 
@@ -686,6 +688,16 @@ contains
             IF(tROHF.or.(LMS.ne.0)) CALL Stop_All("SetupParameters","Cannot use HPHF with high-spin systems.")
             tHPHFInts=.true.
         ENDIF
+
+        if (t_lattice_model) then 
+            if (t_tJ_model) then 
+                call init_get_helement_tj()
+            else if (t_heisenberg_model) then 
+                call init_get_helement_heisenberg() 
+            else if (t_new_real_space_hubbard) then
+                call init_get_helement_hubbard()
+            end if
+        end if
 
 !Calculate Hii
         IF(tHPHF) THEN

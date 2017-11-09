@@ -12,7 +12,8 @@ MODULE HPHFRandExcitMod
     use SystemData, only: nel, tCSF, Alat, G1, nbasis, nbasismax, nmsh, arr, &
                           tOddS_HPHF, modk_offdiag, tGen_4ind_weighted, &
                           tGen_4ind_reverse, tLatticeGens, tGen_4ind_2, tHUB, & 
-                          tUEG, tUEGNewGenerator, t_new_real_space_hubbard
+                          tUEG, tUEGNewGenerator, t_new_real_space_hubbard, & 
+                          t_tJ_model, t_heisenberg_model, t_lattice_model
     use IntegralsData, only: UMat, fck, nMax
     use SymData, only: nSymLabels
     use dSFMT_interface, only : genrand_real2_dSFMT
@@ -40,6 +41,9 @@ MODULE HPHFRandExcitMod
                                     calc_pgen_back_spawn_hubbard, gen_excit_back_spawn_hubbard, &
                                     gen_excit_back_spawn_ueg_new, calc_pgen_back_spawn_ueg_new
     use real_space_hubbard, only: gen_excit_rs_hubbard, get_helement_rs_hub, calc_pgen_rs_hubbard
+    use tJ_model, only: gen_excit_tj_model, gen_excit_heisenberg_model, & 
+                        calc_pgen_tJ_model, calc_pgen_heisenberg_model
+    use lattice_mod, only: get_helement_lattice
 
     IMPLICIT NONE
 !    SAVE
@@ -186,6 +190,14 @@ MODULE HPHFRandExcitMod
             call gen_excit_rs_hubbard(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
                                       ExcitMat, tSignOrig, pgen, Hel, store, part_type)
 
+        else if (t_tJ_model) then 
+            call gen_excit_tj_model(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
+                                      ExcitMat, tSignOrig, pgen, Hel, store, part_type)
+
+        else if (t_heisenberg_model) then
+            call gen_excit_heisenberg_model(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
+                                      ExcitMat, tSignOrig, pgen, Hel, store, part_type)
+
         else if (tGen_4ind_weighted) then
             call gen_excit_4ind_weighted (nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
                                           ExcitMat, tSignOrig, pGen, Hel,&
@@ -242,6 +254,11 @@ MODULE HPHFRandExcitMod
                             temp_ex(1,:) = ExcitMat(2,:)
                             temp_ex(2,:) = ExcitMat(1,:) 
                             hel = get_helement_rs_hub(nJ, ic, temp_ex, tSignOrig)
+                        else if (t_lattice_model) then 
+                            temp_ex(1,:) = ExcitMat(2,:)
+                            temp_ex(2,:) = ExcitMat(1,:) 
+                            hel = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
+
                         else 
                             HEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
                         end if
@@ -256,7 +273,11 @@ MODULE HPHFRandExcitMod
 !                             MatEl = get_helement_rs_hub(nI, ic, ExcitMat, tSignOrig)
                             temp_ex(1,:) = ExcitMat(2,:)
                             temp_ex(2,:) = ExcitMat(1,:) 
-                            hel = get_helement_rs_hub(nJ, ic, temp_ex, tSignOrig)
+                            MatEl = get_helement_rs_hub(nJ, ic, temp_ex, tSignOrig)
+                        else if (t_lattice_model) then 
+                            temp_ex(1,:) = ExcitMat(2,:)
+                            temp_ex(2,:) = ExcitMat(1,:) 
+                            Matel = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
                         else
                             MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
                         end if
@@ -317,6 +338,16 @@ MODULE HPHFRandExcitMod
                                     temp_ex(2,:) = ExcitMat(1,:) 
                                     MatEl = get_helement_rs_hub(nJ, ic, temp_ex, tSignOrig)
                                 end if
+                            else if (t_lattice_model) then 
+                                if (tSwapped) then 
+                                    temp_ex(1,:) = ex2(2,:)
+                                    temp_ex(2,:) = ex2(1,:) 
+                                    MatEl = get_helement_lattice(nJ, ic, temp_ex, tSign)
+                                else 
+                                    temp_ex(1,:) = ExcitMat(2,:)
+                                    temp_ex(2,:) = ExcitMat(1,:) 
+                                    MatEl = get_helement_lattice(nJ, ic, temp_ex, tSign)
+                                end if
                             else
                                 IF(tSwapped) THEN
                                     MatEl = sltcnd_excit (nI, IC, Ex2, tSign)
@@ -341,6 +372,16 @@ MODULE HPHFRandExcitMod
                                 temp_ex(1,:) = ExcitMat(2,:)
                                 temp_ex(2,:) = ExcitMat(2,:)
                                 MatEl = get_helement_rs_hub(nJ, ic, temp_ex, tSignOrig)
+                            end if
+                        else if (t_lattice_model) then 
+                            if (tSwapped) then 
+                                temp_ex(1,:) = ex2(2,:)
+                                temp_ex(2,:) = ex2(1,:)
+                                MatEl = get_helement_lattice(nJ, ExcitLevel, temp_ex, tSign)
+                            else 
+                                temp_ex(1,:) = ExcitMat(2,:)
+                                temp_ex(2,:) = ExcitMat(2,:)
+                                MatEl = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
                             end if
                         else
                             IF(tSwapped) THEN
@@ -374,6 +415,10 @@ MODULE HPHFRandExcitMod
                                     temp_ex(1,:) = ExcitMat(2,:)
                                     temp_ex(2,:) = ExcitMat(1,:) 
                                     MatEl2 = get_helement_rs_hub(nJ, ic, temp_ex, tSignOrig)
+                                else if (t_lattice_model) then 
+                                    temp_ex(1,:) = ExcitMat(2,:)
+                                    temp_ex(2,:) = ExcitMat(1,:) 
+                                    MatEl2 = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
                                 else 
                                     MatEl2 = sltcnd_excit (nI, IC, ExcitMat, &
                                                        tSignOrig)
@@ -387,6 +432,10 @@ MODULE HPHFRandExcitMod
                                     temp_ex(1,:) = ex2(2,:)
                                     temp_ex(2,:) = ex2(1,:)
                                     MatEl2 = get_helement_rs_hub(nJ, ExcitLevel, temp_ex, tSign)
+                                else if (t_lattice_model) then 
+                                    temp_ex(1,:) = ex2(2,:)
+                                    temp_ex(2,:) = ex2(1,:)
+                                    MatEl2 = get_helement_lattice(nJ, ExcitLevel, temp_ex, tSign)
                                 else
                                     MatEl2 = sltcnd_excit (nI,  ExcitLevel, &
                                                        Ex2, tSign)
@@ -450,13 +499,26 @@ MODULE HPHFRandExcitMod
                             ENDIF
                         ENDIF
                         if (t_new_real_space_hubbard) then 
-                            MatEl = get_helement_rs_hub(nI, ic, ExcitMat, tSignOrig)
+                            ! i have to adapt that for hermiticity or?? 
+                            temp_ex(1,:) = ExcitMat(2,:)
+                            temp_ex(2,:) = ExcitMat(1,:)
+                            MatEl = get_helement_rs_hub(nJ, ic, temp_ex, tSignOrig)
+                        else if (t_lattice_model) then 
+                            temp_ex(1,:) = ExcitMat(2,:)
+                            temp_ex(2,:) = ExcitMat(1,:)
+                            MatEl = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
                         else
                             MatEl = sltcnd_excit(nI,  IC, ExcitMat, tSignOrig)
                         endif
                     ELSE
                         if (t_new_real_space_hubbard) then
-                            MatEl = get_helement_rs_hub(nI, ic, ExcitMat, tSignOrig)
+                            temp_ex(1,:) = ExcitMat(2,:)
+                            temp_ex(2,:) = ExcitMat(1,:)
+                            MatEl = get_helement_rs_hub(nJ, ic, temp_ex, tSignOrig)
+                        else if (t_lattice_model) then 
+                            temp_ex(1,:) = ExcitMat(2,:)
+                            temp_ex(2,:) = ExcitMat(1,:)
+                            MatEl = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
                         else
                             MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
                         end if
@@ -1090,6 +1152,13 @@ MODULE HPHFRandExcitMod
                 pgen = calc_pgen_4ind_reverse (nI, ilutI, ex, ic)
             else if (t_new_real_space_hubbard) then 
                 pgen = calc_pgen_rs_hubbard(nI, ilutI, ex, ic)
+
+            else if (t_tJ_model) then 
+                pgen = calc_pgen_tJ_model(ilutI, ex, ic) 
+
+            else if (t_heisenberg_model) then 
+                pgen = calc_pgen_heisenberg_model(ilutI, ex, ic) 
+
             else
                 ! Here we assume that the normal excitation generators in
                 ! symrandexcit2.F90 are being used.

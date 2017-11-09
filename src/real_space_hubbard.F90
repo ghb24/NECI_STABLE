@@ -19,7 +19,9 @@ module real_space_hubbard
                           length_y, length_z, uhub, nbasis, bhub, t_open_bc_x, &
                           t_open_bc_y, t_open_bc_z, G1, ecore, nel, nOccAlpha, nOccBeta, & 
                           t_trans_corr, trans_corr_param
-    use lattice_mod, only: lattice, determine_optimal_time_step, lat
+    use lattice_mod, only: lattice, determine_optimal_time_step, lat, &
+                    get_helement_lattice, get_helement_lattice_ex_mat, & 
+                    get_helement_lattice_general
     use constants, only: dp, EPS, n_int, bits_n_int
     use procedure_pointers, only: get_umat_el, generate_excitation
     use OneEInts, only: tmat2d, GetTMatEl
@@ -62,6 +64,7 @@ contains
 
         print *, "using new real-space hubbard implementation: "
 
+
         ! i do not need exchange integrals in the real-space hubbard model
         tExch = .false.
         ! after the whole setup i can set thub to false or? 
@@ -73,6 +76,8 @@ contains
 
         ! which stuff do i need to initialize here? 
         get_umat_el => get_umat_el_hub
+
+        ! also use the new lattice matrix elements
 
         ! i have to check if the lattice should be constructed from an fcidump 
         ! or created internally.. 
@@ -153,6 +158,11 @@ contains
 !         max_death_cpt = 0.0_dp
 
     end subroutine init_real_space_hubbard
+
+    subroutine init_get_helement_hubbard
+        get_helement_lattice_ex_mat => get_helement_rs_hub_ex_mat
+        get_helement_lattice_general => get_helement_lattice_general
+    end subroutine init_get_helement_hubbard
 
     subroutine check_real_space_hubbard_input() 
         use SystemData, only: tCSF, tReltvy, tUEG, tUEG2, tHub, & 

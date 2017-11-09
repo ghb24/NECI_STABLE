@@ -376,7 +376,7 @@ contains
         ! think about the 
 !         call assert_equals(1.0
         ! some rounding errors below, otherwise correct
-        call assert_equals(1.0_dp/(3.0_dp*(1.0_dp+exp(1.0_dp))), calc_pgen_rs_hubbard(ni, ilut, ex,1))
+        call assert_equals(1.0/3.0*1.0/(1.0+exp(1.0)), calc_pgen_rs_hubbard(ni, ilut, ex,1),1e-12)
 
         ex(2,1) = 8 
         call assert_equals(exp(1.0)/(3.0*(1.0+exp(1.0))), calc_pgen_rs_hubbard(ni, ilut, ex,1))

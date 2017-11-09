@@ -15,7 +15,7 @@ module lattice_mod
     implicit none 
     private 
     public :: lattice, lattice_deconstructor, aim, aim_deconstructor, sort_unique, & 
-              lat, determine_optimal_time_step
+              lat, determine_optimal_time_step, get_helement_lattice
 
     type :: site 
         ! the basic site type for my lattice
@@ -470,6 +470,34 @@ module lattice_mod
 
     ! define the global lattice class here or? this makes more sense
     class(lattice), pointer :: lat
+
+    abstract interface 
+        function get_helement_lattice_ex_mat_t(nI, ic, ex, tpar) result(hel)
+            use SystemData, only: nel
+            use constants, only: dp
+            integer, intent(in) :: nI(nel), ic, ex(2,2)
+            logical, intent(in) :: tpar
+            HElement_t(dp) :: hel 
+
+        end function get_helement_lattice_ex_mat_t
+
+        function get_helement_lattice_general_t(nI, nJ, ic_ret) result(hel) 
+            use SystemData, only: nel 
+            use constants, only: dp 
+            integer, intent(in) :: nI(nel), nJ(nel) 
+            integer, intent(inout), optional :: ic_ret 
+            HElement_t(dp) :: hel 
+
+        end function get_helement_lattice_general_t
+    end interface 
+
+    procedure(get_helement_lattice_ex_mat_t), pointer, public:: get_helement_lattice_ex_mat
+    procedure(get_helement_lattice_general_t), pointer, public :: get_helement_lattice_general
+
+    interface get_helement_lattice
+        procedure get_helement_lattice_ex_mat
+        procedure get_helement_lattice_general
+    end interface get_helement_lattice
 
 contains 
 

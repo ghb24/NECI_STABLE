@@ -212,7 +212,6 @@ module procedure_pointers
 
     end interface
 
-
     !
     ! And here are the stored procedure pointers (for use in FCIQMC)
     procedure(generate_excitation_t), pointer :: generate_excitation

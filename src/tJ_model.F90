@@ -17,7 +17,8 @@ module tJ_model
     use umatcache, only: gtid
     use util_mod, only: binary_search_first_ge
     use OneEInts, only: GetTMatEl
-    use lattice_mod, only: lattice, lat, determine_optimal_time_step
+    use lattice_mod, only: lattice, lat, determine_optimal_time_step, &
+            get_helement_lattice_ex_mat, get_helement_lattice_general
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
     use double_occ_mod, only: count_double_orbs
     use FciMCData, only: ilutref
@@ -103,9 +104,6 @@ contains
         ! where i need the connectivity of the lattice i guess? 
         if (.not. tHPHF) then
             generate_excitation => gen_excit_tJ_model
-        else 
-            call stop_all(this_routine, &
-                "hphf not yet implemented! since it is a pain in the ass")
         end if
 
         tau_opt = determine_optimal_time_step()
@@ -203,9 +201,6 @@ contains
         ! where i need the connectivity of the lattice i guess? 
         if (.not. tHPHF) then
             generate_excitation => gen_excit_heisenberg_model
-        else 
-            call stop_all(this_routine, &
-                "hphf not yet implemented! since it is a pain in the ass")
         end if
 
         tau_opt = determine_optimal_time_step()
@@ -242,6 +237,19 @@ contains
         end if
 
     end subroutine init_heisenberg_model
+
+    subroutine init_get_helement_tj
+        get_helement_lattice_ex_mat => get_helement_tJ_ex_mat
+        get_helement_lattice_general => get_helement_tJ_general
+        call init_tmat(lat)
+        call setup_exchange_matrix(lat)
+    end subroutine init_get_helement_tj
+
+    subroutine init_get_helement_heisenberg
+        get_helement_lattice_ex_mat => get_helement_heisenberg_ex_mat
+        get_helement_lattice_general => get_helement_heisenberg_general
+        call setup_exchange_matrix(lat)
+    end subroutine init_get_helement_heisenberg
 
     subroutine gen_excit_tJ_model (nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                       ex, tParity, pGen, hel, store, run)
@@ -956,8 +964,12 @@ contains
         else 
             call EncodeBitDet(nI, ilutI)
             call EncodeBitDet(nJ, ilutJ)
+            print *, "nI: ", nI
+            print *, "nJ: ", nJ
 
             ic = FindBitExcitLevel(ilutI,ilutJ)
+
+            print *, "ic: ", ic
 
             if (ic == 0) then 
                 hel = get_diag_helement_heisenberg(nI)

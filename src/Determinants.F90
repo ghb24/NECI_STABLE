@@ -4,7 +4,7 @@ MODULE Determinants
     use SystemData, only: BasisFN, tCSF, nel, G1, Brr, ECore, ALat, NMSH, &
                           nBasis, nBasisMax, tStoreAsExcitations, tHPHFInts, &
                           tCSF, tCPMD, tPickVirtUniform, LMS, modk_offdiag, &
-                          t_new_real_space_hubbard
+                          t_new_real_space_hubbard, t_lattice_model
     use IntegralsData, only: UMat, FCK, NMAX
     use csf, only: det_to_random_csf, iscsf, csf_orbital_mask, &
                    csf_yama_bit, CSFGetHelement
@@ -19,6 +19,7 @@ MODULE Determinants
     use real_space_hubbard, only: get_helement_rs_hub
     use tJ_model, only: t_tJ_model, t_heisenberg_model, get_helement_tJ, &
                         get_helement_heisenberg 
+    use lattice_mod, only: get_helement_lattice
     implicit none
 
     ! TODO: Add an interface for getting a diagonal helement with an ordered
@@ -351,6 +352,12 @@ contains
             return
         end if
 
+        if (t_lattice_model) then 
+            temp_ic = ic 
+            hel = get_helement_lattice(nI, nJ, temp_ic) 
+            return 
+        end if
+
         if (tStoreAsExcitations) &
             call stop_all(this_routine, "tStoreExcitations not supported")
 
@@ -432,6 +439,16 @@ contains
             return 
         end if
             
+        if (t_lattice_model) then 
+            if (present(ICret)) then 
+                ic = -1 
+                hel = get_helement_lattice(nI, nJ, ic)
+                ICret = ic
+            else 
+                hel = get_helement_lattice(nI,nJ)
+            end if
+            return
+        end if
 
          
         if (tStoreAsExcitations .and. nI(1) == -1 .and. nJ(1) == -1) then
@@ -507,6 +524,11 @@ contains
             return 
         end if
 
+        if (t_lattice_model) then 
+            hel = get_helement_lattice(nI, ic, ExcitMat, tParity) 
+            return 
+        end if
+
         ! If we are using CSFs, then call the csf routine.
         ! TODO: Passing through of ExcitMat to CSFGetHelement
         if (tCSF) then
@@ -568,6 +590,11 @@ contains
         end if
         if (t_heisenberg_model) then 
             hel = get_helement_heisenberg(nI, ic, ex, tParity)
+            return 
+        end if
+
+        if (t_lattice_model) then 
+            hel = get_helement_lattice(nI,ic, ex, tParity) 
             return 
         end if
 

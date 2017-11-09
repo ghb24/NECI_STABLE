@@ -265,6 +265,8 @@ MODULE System
               case ('real-space','real') 
                   treal = .true.
                   t_new_real_space_hubbard = .true. 
+                  t_lattice_model = .true. 
+
                   ! if no further input is given a provided fcidump is 
                   ! assumed! but this still needs to be implemented
                   ! this fcidump gives the lattice structure! 
@@ -280,6 +282,7 @@ MODULE System
                   
       case ('TJ','TJ-MODEL')
           t_tJ_model = .true. 
+          t_lattice_model = .true.
           ! misuse the hubbard initialisation 
           tHub = .true. 
           tpbc = .true. 
@@ -291,6 +294,7 @@ MODULE System
           ! maybe i should use a general flag like t_lattice_model 
           ! especially for the matrix element evaluation and stuff
           t_heisenberg_model = .true. 
+          t_lattice_model = .true. 
           thub = .true. 
           tpbc = .true. 
           treal = .true. 
