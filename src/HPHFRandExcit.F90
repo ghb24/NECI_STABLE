@@ -345,12 +345,12 @@ MODULE HPHFRandExcitMod
                                 if (tSwapped) then 
                                     temp_ex(1,:) = ex2(2,:)
                                     temp_ex(2,:) = ex2(1,:) 
-                                    print *, "toto3"
+!                                     print *, "toto3"
                                     MatEl = get_helement_lattice(nJ2, ic, temp_ex, tSign)
                                 else 
                                     temp_ex(1,:) = ExcitMat(2,:)
                                     temp_ex(2,:) = ExcitMat(1,:) 
-                                    print *, "toto4"
+!                                     print *, "toto4"
                                     MatEl = get_helement_lattice(nJ, ic, temp_ex, tSign)
                                 end if
                             else
@@ -382,7 +382,7 @@ MODULE HPHFRandExcitMod
                             if (tSwapped) then 
                                 temp_ex(1,:) = ex2(2,:)
                                 temp_ex(2,:) = ex2(1,:)
-                                print *, "toto5"
+!                                 print *, "toto5"
 !                                 print *, "nI: ", nI
 !                                 print *, "nJ: ", nJ 
 !                                 print *, "nJ2: ", nJ2 
@@ -397,7 +397,7 @@ MODULE HPHFRandExcitMod
                             else 
                                 temp_ex(1,:) = ExcitMat(2,:)
                                 temp_ex(2,:) = ExcitMat(1,:)
-                                print *, "toto6"
+!                                 print *, "toto6"
 !                                 print *, "nI: ", nI
 !                                 print *, "nJ: ", nJ 
 !                                 print *, "nJ2: ", nJ2 
@@ -445,7 +445,7 @@ MODULE HPHFRandExcitMod
                                 else if (t_lattice_model) then 
                                     temp_ex(1,:) = ExcitMat(2,:)
                                     temp_ex(2,:) = ExcitMat(1,:) 
-                                    print *, "toto7"
+!                                     print *, "toto7"
 !                                     print *, "nI: ", nI
 !                                     print *, "nJ: ", nJ 
 !                                     print *, "nJ2: ", nJ2 
@@ -474,7 +474,7 @@ MODULE HPHFRandExcitMod
                                 else if (t_lattice_model) then 
                                     temp_ex(1,:) = ex2(2,:)
                                     temp_ex(2,:) = ex2(1,:)
-                                    print *, "toto8"
+!                                     print *, "toto8"
 !                                     print *, "nI: ", nI
 !                                     print *, "nJ: ", nJ 
 !                                     print *, "nJ2: ", nJ2 
@@ -608,7 +608,6 @@ MODULE HPHFRandExcitMod
             ENDIF
             
         ENDIF
-!         print *, "pgen: ", pgen, pGen2
 
         ! [W.D.]
         ! i should also abort here already if the matrix element 
