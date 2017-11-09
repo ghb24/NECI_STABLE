@@ -331,8 +331,6 @@ contains
             ilutJ =  make_ilutJ(ilutI, ex, 1)
 
         else if (ic == 2) then 
-            !todo! this recalculation does not work yet! 
-
             ! here i have to recalc the contribution if i would have picked 
             ! the electron in orbital spin_orb first 
             ! but i made some assumptions about the order of the picked 
@@ -360,10 +358,12 @@ contains
 !             print *, "tgt_1, tgt_2: ", tgt_1, tgt_2
 ! 
 !             ASSERT(is_beta(src) .neqv. is_beta(tgt_2))
-
+            
+            ! the idea is to target the spin-orbital of the other electron! 
+            ! (the first in this case! 
             call create_cum_list_tJ_model(ilutI, nI(elec_2), &
                 lat%get_neighbors(gtid(nI(elec_2))), cum_arr_opp, cum_sum_opp, & 
-                tmp_ic_list, tgt_1, cpt_opp)
+                tmp_ic_list, src, cpt_opp)
 
             p_orb = p_orb + cpt_opp
 
@@ -610,6 +610,8 @@ contains
 
         ASSERT(associated(lat))
         ASSERT(nel == nbasis/2)
+        
+        ic = 2
 
         ! still pick the first electron at random 
         elec = 1 + int(genrand_real2_dsfmt() * nel)

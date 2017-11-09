@@ -235,7 +235,7 @@ contains
                 ! because it could have also happened that we would have 
                 ! chosen electron (4) first and then did a flip! 
                 ! here it gets tricky! 
-                call assert_equals(5.0/6.0, pgen)
+                call assert_equals(5.0_dp/6.0_dp, pgen)
             end if
 
             if (all(nJ == [1,6]) .and. .not. t_found(2)) then 
@@ -248,8 +248,80 @@ contains
                 call assert_equals(1.0/6.0, pgen)
             end if
 
-!             found_all = all(t_found(1:2))
+            found_all = all(t_found(1:2))
         end do 
+
+        nI = [2,3] 
+        call EncodeBitDet(nI, ilutI)
+
+        found_all = .false. 
+        t_found = .false. 
+
+        do while (.not. found_all) 
+            call gen_excit_tJ_model(nI, ilutI, nJ, ilutJ, 2, ic, ex, tpar, pgen,  & 
+                hel, store)
+
+            if (all(nJ == [1,4]) .and. .not. t_found(1)) then 
+                t_found(1) = .true. 
+                call assert_equals(2, ic) 
+                call assert_equals([2,3],ex(1,:),2)
+                call assert_equals([1,4],ex(2,:),2)
+                call assert_equals(9, ilutJ(0))
+                call assert_true(.not. tpar)
+                call assert_equals(5.0_dp/6.0_dp, pgen)
+            end if 
+
+            if (all(nJ == [2,5]) .and. .not. t_found(2)) then 
+                t_found(2) = .true. 
+                call assert_equals(1, ic)
+                call assert_equals(3, ex(1,1))
+                call assert_equals(5, ex(2,1))
+                call assert_equals(18, ilutJ(0))
+                call assert_true(.not. tpar) 
+                call assert_equals(1.0/6.0, pgen)
+            end if
+            found_all = all(t_found(1:2))
+
+        end do
+
+        nI = [3,6] 
+        call EncodeBitDet(nI, ilutI) 
+
+        found_all = .false. 
+        t_found = .false. 
+
+        do while (.not. found_all)
+            call gen_excit_tJ_model(nI, ilutI, nJ, ilutJ, 2, ic, ex, tpar, pgen,  & 
+                hel, store)
+
+            if (all(nJ == [1,6]) .and. .not. t_found(1)) then 
+                t_found(1) = .true. 
+                call assert_equals(1, ic)
+                call assert_true(.not. tpar) 
+                call assert_equals(1.0/6.0, pgen) 
+            end if
+
+            if (all(nJ == [4,5]) .and. .not. t_found(2)) then 
+                t_found(2) = .true. 
+                call assert_equals(2, ic) 
+                call assert_true(.not. tpar) 
+                call assert_equals(4.0/6.0, pgen) 
+            end if
+
+            if (all(nJ == [3,8]) .and. .not. t_found(3)) then 
+                t_found(3) = .true. 
+                call assert_equals(1,ic) 
+                call assert_true(.not. tpar) 
+                call assert_equals(1.0/6.0, pgen) 
+            end if
+            found_all = all(t_found(1:3))
+
+        end do
+
+        nel = -1 
+        NIfTot = -1
+        nifd = -1
+        nbasis = -1
 
     end subroutine gen_excit_tJ_model_test
 
@@ -409,10 +481,127 @@ contains
     end subroutine create_cum_list_tJ_model_test
 
     subroutine gen_excit_heisenberg_model_test
+        use dsfmt_interface, only: dsfmt_init 
+        use lattice_mod, only: lattice, lattice_deconstructor
+        use SystemData, only: nel, exchange_j, nbasis
+        use bit_rep_data, only: niftot, nifd
+        use Detbitops, only: encodebitdet
+        use constants, only: n_int, dp
+        use fcimcdata, only: excit_gen_store_type
+        
+        integer, allocatable :: nI(:), nJ(:)
+        integer(n_int), allocatable :: ilutI(:), ilutJ(:)
+        integer :: ex(2,2), ic 
+        logical :: tpar 
+        real(dp) :: pgen 
+        HElement_t(dp) :: hel
+        type(excit_gen_store_type) :: store
+        logical :: found_all, t_found(6)
 
         print *, ""
         print *, "testing: gen_excit_heisenberg_model"
-        call assert_true(.false.)
+
+        nel = 2 
+        lat => lattice('chain', 2, 1, 1, .false., .false., .false.) 
+        call dsfmt_init(1)
+        allocate(nI(nel))
+        allocate(nJ(nel))
+
+        nI = [1,4] 
+        NIfTot = 0
+        nifd = 0
+        allocate(ilutI(0:niftot))
+        allocate(ilutJ(0:niftot))
+
+        call encodebitdet(nI, ilutI)
+        
+        found_all = .false.
+        t_found = .false.
+
+        exchange_j = 2.0 
+        t_tJ_model = .false. 
+        t_heisenberg_model = .true. 
+
+        nbasis = 4
+
+        call setup_exchange_matrix(lat)
+
+        call gen_excit_heisenberg_model(nI, ilutI, nJ, ilutJ, 2, ic, ex, tpar, pgen,  & 
+            hel, store)
+
+        call assert_equals([2,3], nJ, 2)
+        call assert_equals(2, ic) 
+        call assert_equals([1,4],ex(1,:),2)
+        call assert_equals([2,3],ex(2,:),2)
+        call assert_true(.not. tpar)
+        call assert_equals(1.0, pgen)
+
+        ni = [2,3] 
+        call EncodeBitDet(nI, ilutI) 
+
+        call gen_excit_heisenberg_model(nI, ilutI, nJ, ilutJ, 2, ic, ex, tpar, pgen,  & 
+            hel, store)
+
+        call assert_equals([1,4], nJ, 2)
+        call assert_equals(2, ic) 
+        call assert_equals([1,4],ex(2,:),2)
+        call assert_equals([2,3],ex(1,:),2)
+        call assert_true(.not. tpar)
+        call assert_equals(1.0, pgen)
+
+        nel = 4 
+        nbasis = 8
+        lat => lattice('chain', 4, 1, 1, .false., .false., .false.) 
+
+        call setup_exchange_matrix(lat)
+        deallocate(nI)
+        deallocate(nJ) 
+        allocate(nI(nel))
+        allocate(nJ(nel))
+
+        nI = [1, 3, 6, 8] 
+        call EncodeBitDet(nI, ilutI)
+
+        call gen_excit_heisenberg_model(nI, ilutI, nJ, ilutJ, 2, ic, ex, tpar, pgen,  & 
+            hel, store)
+
+        call assert_equals([1,4,5,8], nJ, 4) 
+        call assert_true(.not. tpar) 
+        call assert_equals(0.5, pgen) 
+
+        nI = [1,4,5,8]
+        call EncodeBitDet(ni, iluti)
+
+        do while (.not. found_all)
+            call gen_excit_heisenberg_model(nI, ilutI, nJ, ilutJ, 2, ic, ex, tpar, pgen,  & 
+                hel, store)
+
+            if (all(nJ == [2,3,5,8]) .and. .not. t_found(1)) then
+                t_found(1) = .true. 
+                call assert_true(.not. tpar) 
+                call assert_equals(3.0/8.0, pgen) 
+            end if
+
+            if (all(nJ == [1,3,6,8]) .and. .not. t_found(2)) then 
+                t_found(2) = .true. 
+                call assert_true(.not. tpar) 
+                call assert_equals(0.25, pgen) 
+            end if
+
+            if (all(nJ == [1,4,6,7]) .and. .not. t_found(3)) then 
+                t_found(3) = .true. 
+                call assert_true(.not. tpar) 
+                call assert_equals(3.0/8.0, pgen) 
+            end if
+
+            found_all = all(t_found(1:3))
+        end do
+
+        nel = -1 
+        NIfTot = -1
+        nifd = -1
+        nbasis = -1
+
 
     end subroutine gen_excit_heisenberg_model_test
 
