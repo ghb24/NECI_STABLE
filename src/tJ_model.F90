@@ -548,10 +548,20 @@ contains
             ! here we have to find the correct orbital.. 
             ! and i just realised that we maybe have to take into account 
             ! of having picked the orbitals in a different order.. 
-            ASSERT(is_beta(src(1)) .neqv. is_beta(src(2)))
-            ASSERT(is_beta(tgt(1)) .neqv. is_beta(tgt(2)))
-            ASSERT(is_in_pair(src(1),tgt(1)) .or. is_in_pair(src(1),tgt(2)))
-            ASSERT(is_in_pair(src(2),tgt(1)) .or. is_in_pair(src(2),tgt(2)))
+            ! for HPHF reasons i have to return here if the orbitals are 
+            ! not "correct"
+            if (same_spin(src(1),src(2)) .or. same_spin(tgt(1),tgt(2))) then
+                pgen = 0.0_dp 
+                return 
+            end if
+            if (.not.(is_in_pair(src(1),tgt(1)) .or. is_in_pair(src(1),tgt(2)))) then
+                pgen = 0.0_dp 
+                return 
+            end if
+            if (.not.(is_in_pair(src(2),tgt(1)) .or. is_in_pair(src(2),tgt(2)))) then 
+                pgen = 0.0_dp
+                return 
+            end if
 
             call create_cum_list_tJ_model(ilutI, src(1), lat%get_neighbors(gtid(src(1))), &
                 cum_arr, cum_sum, tmp_list, src(2), cpt_1)
@@ -964,12 +974,8 @@ contains
         else 
             call EncodeBitDet(nI, ilutI)
             call EncodeBitDet(nJ, ilutJ)
-            print *, "nI: ", nI
-            print *, "nJ: ", nJ
 
             ic = FindBitExcitLevel(ilutI,ilutJ)
-
-            print *, "ic: ", ic
 
             if (ic == 0) then 
                 hel = get_diag_helement_heisenberg(nI)

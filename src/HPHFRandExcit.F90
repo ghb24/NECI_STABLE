@@ -257,6 +257,7 @@ MODULE HPHFRandExcitMod
                         else if (t_lattice_model) then 
                             temp_ex(1,:) = ExcitMat(2,:)
                             temp_ex(2,:) = ExcitMat(1,:) 
+                            print *, "toto1"
                             hel = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
 
                         else 
@@ -277,6 +278,7 @@ MODULE HPHFRandExcitMod
                         else if (t_lattice_model) then 
                             temp_ex(1,:) = ExcitMat(2,:)
                             temp_ex(2,:) = ExcitMat(1,:) 
+! !                             print *, "toto2"
                             Matel = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
                         else
                             MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
@@ -312,6 +314,7 @@ MODULE HPHFRandExcitMod
 !                    CALL GetExcitation(nI,nJ2,NEl,Ex2,tSign)
                     CALL GetBitExcitation(iLutnI,iLutnJ2,Ex2,tSign)
                 ENDIF
+
                 CALL CalcNonUniPGen(nI, ilutnI, Ex2, ExcitLevel, &
                                     store%ClassCountOcc, &
                                     store%ClassCountUnocc, pDoubles, pGen2, part_type)
@@ -331,7 +334,7 @@ MODULE HPHFRandExcitMod
 !                                     MatEl = get_helement_rs_hub(nI, ic, ex2, tSign)
                                     temp_ex(1,:) = ex2(2,:)
                                     temp_ex(2,:) = ex2(1,:) 
-                                    MatEl = get_helement_rs_hub(nJ, ic, temp_ex, tSign)
+                                    MatEl = get_helement_rs_hub(nJ2, ic, temp_ex, tSign)
                                 else
 !                                     MatEl = get_helement_rs_hub(nI, ic, ExcitMat, tSignOrig)
                                     temp_ex(1,:) = ExcitMat(2,:)
@@ -342,10 +345,12 @@ MODULE HPHFRandExcitMod
                                 if (tSwapped) then 
                                     temp_ex(1,:) = ex2(2,:)
                                     temp_ex(2,:) = ex2(1,:) 
-                                    MatEl = get_helement_lattice(nJ, ic, temp_ex, tSign)
+                                    print *, "toto3"
+                                    MatEl = get_helement_lattice(nJ2, ic, temp_ex, tSign)
                                 else 
                                     temp_ex(1,:) = ExcitMat(2,:)
                                     temp_ex(2,:) = ExcitMat(1,:) 
+                                    print *, "toto4"
                                     MatEl = get_helement_lattice(nJ, ic, temp_ex, tSign)
                                 end if
                             else
@@ -370,18 +375,40 @@ MODULE HPHFRandExcitMod
                             else 
 !                                 MatEl = get_helement_rs_hub(nI, ic, ExcitMat, tSignOrig)
                                 temp_ex(1,:) = ExcitMat(2,:)
-                                temp_ex(2,:) = ExcitMat(2,:)
+                                temp_ex(2,:) = ExcitMat(1,:)
                                 MatEl = get_helement_rs_hub(nJ, ic, temp_ex, tSignOrig)
                             end if
                         else if (t_lattice_model) then 
                             if (tSwapped) then 
                                 temp_ex(1,:) = ex2(2,:)
                                 temp_ex(2,:) = ex2(1,:)
+                                print *, "toto5"
+!                                 print *, "nI: ", nI
+!                                 print *, "nJ: ", nJ 
+!                                 print *, "nJ2: ", nJ2 
+!                                 print *, "ExcitMat(1,:): ", ExcitMat(1,:)
+!                                 print *, "ExcitMat(2,:): ", ExcitMat(2,:)
+!                                 print *, "ic: ", ic 
+!                                 print *, "ex2(1,:): ", ex2(1,:)
+!                                 print *, "ex2(2,:): ", ex2(2,:)
+!                                 print *, "ExcitLevel: ", ExcitLevel
                                 MatEl = get_helement_lattice(nJ, ExcitLevel, temp_ex, tSign)
+!                                 print *, "matel: ", MatEl
                             else 
                                 temp_ex(1,:) = ExcitMat(2,:)
-                                temp_ex(2,:) = ExcitMat(2,:)
+                                temp_ex(2,:) = ExcitMat(1,:)
+                                print *, "toto6"
+!                                 print *, "nI: ", nI
+!                                 print *, "nJ: ", nJ 
+!                                 print *, "nJ2: ", nJ2 
+!                                 print *, "ExcitMat(1,:): ", ExcitMat(1,:)
+!                                 print *, "ExcitMat(2,:): ", ExcitMat(2,:)
+!                                 print *, "ic: ", ic 
+!                                 print *, "ex2(1,:): ", ex2(1,:)
+!                                 print *, "ex2(2,:): ", ex2(2,:)
+!                                 print *, "ExcitLevel: ", ExcitLevel
                                 MatEl = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
+!                                 print *, "matel: ", MatEl
                             end if
                         else
                             IF(tSwapped) THEN
@@ -414,11 +441,23 @@ MODULE HPHFRandExcitMod
 !                                     MatEl2 = get_helement_rs_hub(nI, ic, ExcitMat, tSignOrig)
                                     temp_ex(1,:) = ExcitMat(2,:)
                                     temp_ex(2,:) = ExcitMat(1,:) 
-                                    MatEl2 = get_helement_rs_hub(nJ, ic, temp_ex, tSignOrig)
+                                    MatEl2 = get_helement_rs_hub(nJ2, ic, temp_ex, tSignOrig)
                                 else if (t_lattice_model) then 
                                     temp_ex(1,:) = ExcitMat(2,:)
                                     temp_ex(2,:) = ExcitMat(1,:) 
-                                    MatEl2 = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
+                                    print *, "toto7"
+!                                     print *, "nI: ", nI
+!                                     print *, "nJ: ", nJ 
+!                                     print *, "nJ2: ", nJ2 
+!                                     print *, "ExcitMat(1,:): ", ExcitMat(1,:)
+!                                     print *, "ExcitMat(2,:): ", ExcitMat(2,:)
+!                                     print *, "ic: ", ic 
+!                                     print *, "ex2(1,:): ", ex2(1,:)
+!                                     print *, "ex2(2,:): ", ex2(2,:)
+!                                     print *, "ExcitLevel: ", ExcitLevel
+
+                                    MatEl2 = get_helement_lattice(nJ2, ic, temp_ex, tSignOrig)
+!                                     print *, "matel2: ", MatEl2
                                 else 
                                     MatEl2 = sltcnd_excit (nI, IC, ExcitMat, &
                                                        tSignOrig)
@@ -431,11 +470,23 @@ MODULE HPHFRandExcitMod
 !                                     MatEl2 = get_helement_rs_hub(nI, ExcitLevel, Ex2, tSign)
                                     temp_ex(1,:) = ex2(2,:)
                                     temp_ex(2,:) = ex2(1,:)
-                                    MatEl2 = get_helement_rs_hub(nJ, ExcitLevel, temp_ex, tSign)
+                                    MatEl2 = get_helement_rs_hub(nJ2, ExcitLevel, temp_ex, tSign)
                                 else if (t_lattice_model) then 
                                     temp_ex(1,:) = ex2(2,:)
                                     temp_ex(2,:) = ex2(1,:)
-                                    MatEl2 = get_helement_lattice(nJ, ExcitLevel, temp_ex, tSign)
+                                    print *, "toto8"
+!                                     print *, "nI: ", nI
+!                                     print *, "nJ: ", nJ 
+!                                     print *, "nJ2: ", nJ2 
+!                                     print *, "ExcitMat(1,:): ", ExcitMat(1,:)
+!                                     print *, "ExcitMat(2,:): ", ExcitMat(2,:)
+!                                     print *, "ic: ", ic 
+!                                     print *, "ex2(1,:): ", ex2(1,:)
+!                                     print *, "ex2(2,:): ", ex2(2,:)
+!                                     print *, "ExcitLevel: ", ExcitLevel
+
+                                    MatEl2 = get_helement_lattice(nJ2, ExcitLevel, temp_ex, tSign)
+!                                     print *, "matel2: ", MatEl2
                                 else
                                     MatEl2 = sltcnd_excit (nI,  ExcitLevel, &
                                                        Ex2, tSign)
@@ -506,7 +557,19 @@ MODULE HPHFRandExcitMod
                         else if (t_lattice_model) then 
                             temp_ex(1,:) = ExcitMat(2,:)
                             temp_ex(2,:) = ExcitMat(1,:)
-                            MatEl = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
+!                             print *, "toto9"
+!                             print *, "nI: ", nI
+!                             print *, "nJ: ", nJ 
+!                             print *, "nJ2: ", nJ2 
+!                             print *, "ExcitMat(1,:): ", ExcitMat(1,:)
+!                             print *, "ExcitMat(2,:): ", ExcitMat(2,:)
+!                             print *, "ic: ", ic 
+!                             print *, "ex2(1,:): ", ex2(1,:)
+!                             print *, "ex2(2,:): ", ex2(2,:)
+!                             print *, "ExcitLevel: ", ExcitLevel
+
+                            MatEl = get_helement_lattice(nJ2, ic, temp_ex, tSignOrig)
+!                             print *, "matel: ", matel
                         else
                             MatEl = sltcnd_excit(nI,  IC, ExcitMat, tSignOrig)
                         endif
@@ -518,7 +581,19 @@ MODULE HPHFRandExcitMod
                         else if (t_lattice_model) then 
                             temp_ex(1,:) = ExcitMat(2,:)
                             temp_ex(2,:) = ExcitMat(1,:)
+!                             print *, "toto10"
+!                             print *, "nI: ", nI
+!                             print *, "nJ: ", nJ 
+!                             print *, "nJ2: ", nJ2 
+!                             print *, "ExcitMat(1,:): ", ExcitMat(1,:)
+!                             print *, "ExcitMat(2,:): ", ExcitMat(2,:)
+!                             print *, "ic: ", ic 
+!                             print *, "ex2(1,:): ", ex2(1,:)
+!                             print *, "ex2(2,:): ", ex2(2,:)
+!                             print *, "ExcitLevel: ", ExcitLevel
+
                             MatEl = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
+!                             print *, "matel: ", matel
                         else
                             MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
                         end if
@@ -533,6 +608,7 @@ MODULE HPHFRandExcitMod
             ENDIF
             
         ENDIF
+!         print *, "pgen: ", pgen, pGen2
 
         ! [W.D.]
         ! i should also abort here already if the matrix element 

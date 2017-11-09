@@ -78,13 +78,13 @@ contains
 
             ! A quick check that we have defined a reasonable det.
             ms = sum(get_spin_pn(fdet(1:nel)))
-            if (abs(ms) /= abs(lms) .and. .not. tCSF) then
-                write(6,*) 'LMS', lms
-                write(6,*) 'Calculated Ms', ms
-                call stop_all (this_routine, "Defined determinant has the &
-                              &wrong Ms value. Change DEFINEDET or &
-                              &SPIN-RESTRICT")
-            end if
+!             if (abs(ms) /= abs(lms) .and. .not. tCSF) then
+!                 write(6,*) 'LMS', lms
+!                 write(6,*) 'Calculated Ms', ms
+!                 call stop_all (this_routine, "Defined determinant has the &
+!                               &wrong Ms value. Change DEFINEDET or &
+!                               &SPIN-RESTRICT")
+!             end if
             tRef_Not_HF = .true.
         ELSE
              CALL GENFDET(FDET)
