@@ -142,9 +142,9 @@ contains
 
         call assert_equals(lat%get_site_index(1), 1) 
         call assert_equals(lat%get_site_index(2), 2) 
-        call assert_equals(lat%get_neighbors(1), [3, 2], size(lat%get_neighbors(1)))
+        call assert_equals(lat%get_neighbors(1), [3,2], size(lat%get_neighbors(1)))
         call assert_equals(lat%get_neighbors(2), [1,3], size(lat%get_neighbors(2)))
-        call assert_equals(lat%get_neighbors(3), [1,2], size(lat%get_neighbors(2)))
+        call assert_equals(lat%get_neighbors(3), [2,1], size(lat%get_neighbors(2)))
 
         call assert_equals(2, lat%get_num_neighbors(1))
         call assert_equals(2, lat%get_num_neighbors(2))
@@ -235,7 +235,7 @@ contains
                 ! because it could have also happened that we would have 
                 ! chosen electron (4) first and then did a flip! 
                 ! here it gets tricky! 
-                call assert_equals(5.0_dp/6.0_dp, pgen)
+                call assert_equals(0.5*(1+2.0/3.0), pgen)
             end if
 
             if (all(nJ == [1,6]) .and. .not. t_found(2)) then 
@@ -268,7 +268,7 @@ contains
                 call assert_equals([1,4],ex(2,:),2)
                 call assert_equals(9, ilutJ(0))
                 call assert_true(.not. tpar)
-                call assert_equals(5.0_dp/6.0_dp, pgen)
+                call assert_equals(0.5*(1+2.0/3.0), pgen)
             end if 
 
             if (all(nJ == [2,5]) .and. .not. t_found(2)) then 
@@ -326,11 +326,78 @@ contains
     end subroutine gen_excit_tJ_model_test
 
     subroutine calc_pgen_tJ_model_test
+        use bit_rep_data, only: niftot, nifd 
+        use SystemData, only: nel, nbasis 
+        use lattice_mod, only: lattice 
+        use constants, only: n_int, dp 
+        use DetBitOps, only: EncodeBitDet
+
+        integer(n_int), allocatable :: ilut(:)
+        integer :: ex(2,2) 
 
         print *, ""
         print *, "testing: calc_pgen_tJ_model"
 
-        call assert_true(.false.)
+        NIfTot = 0
+        nifd = 0 
+
+        nel = 2 
+        nbasis = 8 
+
+        lat => lattice('chain', 4, 1, 1, .false., .false., .false.) 
+        exchange_j = 2.0 
+        bhub = 1.0 
+        call init_tmat(lat) 
+        call setup_exchange_matrix(lat) 
+
+        allocate(ilut(0:niftot))
+
+        call EncodeBitDet([1,4], ilut) 
+
+        ex(1,:) = [1,4] 
+        ex(2,:) = [2,3] 
+
+        call assert_equals(0.0, calc_pgen_tJ_model(ilut,ex,0))
+        call assert_equals(0.0, calc_pgen_tJ_model(ilut,ex,3))
+
+        call assert_equals(0.5*(1+2.0/3.0), calc_pgen_tJ_model(ilut, ex, 2)) 
+
+        ex(1,1) = 4
+        ex(2,1) = 6
+
+        call assert_equals(1.0/6.0, calc_pgen_tJ_model(ilut,ex,1))
+
+        call EncodeBitDet([2,3], ilut)
+        ex(1,:) = [2,3]
+        ex(2,:) = [1,4] 
+
+        call assert_equals(0.5*(1+2.0/3.0), calc_pgen_tJ_model(ilut, ex, 2)) 
+
+        ex(1,1) = 3
+        ex(2,1) = 5 
+
+        call assert_equals(1.0/6.0, calc_pgen_tJ_model(ilut,ex,1))
+
+        call EncodeBitDet([3,6], ilut) 
+
+        ex(1,1) = 3 
+        ex(2,1) = 1
+
+        call assert_equals(1.0/6.0, calc_pgen_tJ_model(ilut,ex,1))
+
+        ex(1,1) = 6 
+        ex(2,1) = 8 
+
+        call assert_equals(1.0/6.0, calc_pgen_tJ_model(ilut,ex,1))
+
+        ex(1,:) = [3,6]
+        ex(2,:) = [4,5] 
+        call assert_equals(4.0/6.0, calc_pgen_tJ_model(ilut, ex, 2)) 
+
+        nel = -1 
+        nbasis = -1 
+        NIfTot = -1
+        nifd = -1
 
     end subroutine calc_pgen_tJ_model_test
 
@@ -715,10 +782,77 @@ contains
     end subroutine create_cum_list_heisenberg_test
 
     subroutine calc_pgen_heisenberg_model_test
+        use bit_rep_data, only: niftot, nifd 
+        use SystemData, only: nel, nbasis 
+        use lattice_mod, only: lattice 
+        use constants, only: n_int, dp 
+        use DetBitOps, only: EncodeBitDet
+
+        integer(n_int), allocatable :: ilut(:)
+        integer :: ex(2,2) 
 
         print *, ""
         print *, "testing: calc_pgen_heisenberg_model"
-        call assert_true(.false.)
+
+        NIfTot = 0
+        nifd = 0 
+
+        nel = 2 
+        nbasis = 4
+
+        lat => lattice('chain', 2, 1, 1, .false., .false., .false.) 
+        exchange_j = 1.0 
+        call setup_exchange_matrix(lat) 
+
+        allocate(ilut(0:niftot))
+
+        call EncodeBitDet([1,4], ilut) 
+
+        ex(1,:) = [1,4]
+        ex(2,:) = [2,3] 
+
+        call assert_equals(0.0, calc_pgen_heisenberg_model(ilut, ex, 0))
+        call assert_equals(0.0, calc_pgen_heisenberg_model(ilut, ex, 1))
+        call assert_equals(0.0, calc_pgen_heisenberg_model(ilut, ex, 3))
+        call assert_equals(1.0, calc_pgen_heisenberg_model(ilut, ex, 2))
+
+        call encodebitdet([2,3],ilut)
+        ex(1,:) = [2,3]
+        ex(2,:) = [1,4] 
+
+        call assert_equals(1.0, calc_pgen_heisenberg_model(ilut, ex, 2))
+
+        nel = 4 
+        nbasis = 8 
+        lat => lattice('chain', 4, 1, 1, .false., .false., .false.) 
+
+        call setup_exchange_matrix(lat) 
+
+        call EncodeBitDet([1,3,6,8],ilut) 
+
+        ex(1,:) = [3,6]
+        ex(2,:) = [4,5] 
+
+        call assert_equals(0.5, calc_pgen_heisenberg_model(ilut,ex,2))
+
+        call EncodeBitDet([1,4,5,8], ilut) 
+        ex(1,:) = [1,4]
+        ex(2,:) = [2,3] 
+
+        call assert_equals(3.0/8.0, calc_pgen_heisenberg_model(ilut,ex,2))
+        
+        ex(1,:) = [4,5]
+        ex(2,:) = [3,6]
+        call assert_equals(0.25, calc_pgen_heisenberg_model(ilut,ex,2))
+
+        ex(1,:) = [5,8]
+        ex(2,:) = [6,7] 
+        call assert_equals(3.0/8.0, calc_pgen_heisenberg_model(ilut,ex,2))
+
+        nel = -1 
+        nbasis = -1 
+        niftot = -1 
+        nifd = -1
 
     end subroutine calc_pgen_heisenberg_model_test
 

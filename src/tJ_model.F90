@@ -17,7 +17,7 @@ module tJ_model
     use umatcache, only: gtid
     use util_mod, only: binary_search_first_ge
     use OneEInts, only: GetTMatEl
-    use lattice_mod, only: lattice, lat
+    use lattice_mod, only: lattice, lat, determine_optimal_time_step
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
     use double_occ_mod, only: count_double_orbs
     use FciMCData, only: ilutref
@@ -108,7 +108,7 @@ contains
                 "hphf not yet implemented! since it is a pain in the ass")
         end if
 
-        tau_opt = determine_optimal_time_step_tJ()
+        tau_opt = determine_optimal_time_step()
         if (tau < EPS) then 
             print *, "setting time-step to optimally determined time-step: ", tau_opt
             print *, "times: ", lat_tau_factor
@@ -208,7 +208,7 @@ contains
                 "hphf not yet implemented! since it is a pain in the ass")
         end if
 
-        tau_opt = determine_optimal_time_step_heisenberg()
+        tau_opt = determine_optimal_time_step()
         if (tau < EPS) then 
             print *, "setting time-step to optimally determined time-step: ", tau_opt
             print *, "times: ", lat_tau_factor
@@ -545,30 +545,25 @@ contains
             ASSERT(is_in_pair(src(1),tgt(1)) .or. is_in_pair(src(1),tgt(2)))
             ASSERT(is_in_pair(src(2),tgt(1)) .or. is_in_pair(src(2),tgt(2)))
 
+            call create_cum_list_tJ_model(ilutI, src(1), lat%get_neighbors(gtid(src(1))), &
+                cum_arr, cum_sum, tmp_list, src(2), cpt_1)
+            call create_cum_list_tJ_model(ilutI, src(2), lat%get_neighbors(gtid(src(2))), &
+                cum_arr, cum_sum, tmp_list, src(1), cpt_2)
+
+            p_orb = cpt_1 + cpt_2 
+
+#ifdef __DEBUG
             if (is_beta(src(1)) .eqv. is_beta(tgt(1))) then 
                 ! then those to orbitls were chosen 
                 ASSERT(is_beta(src(2)) .eqv. is_beta(tgt(2)))
-
-                call create_cum_list_tJ_model(ilutI, src(1), lat%get_neighbors(gtid(src(1))), &
-                    cum_arr, cum_sum, tmp_list, tgt(1), cpt_1)
-                call create_cum_list_tJ_model(ilutI, src(2), lat%get_neighbors(gtid(src(2))), &
-                    cum_arr, cum_sum, tmp_list, tgt(2), cpt_2)
-
             else if (is_beta(src(1)) .eqv. is_beta(tgt(2))) then 
                 ASSERT(is_beta(src(2)) .eqv. is_beta(tgt(1)))
+            end if
 
-                call create_cum_list_tJ_model(ilutI, src(1), lat%get_neighbors(gtid(src(1))), &
-                    cum_arr, cum_sum, tmp_list, tgt(2), cpt_1)
-                call create_cum_list_tJ_model(ilutI, src(2), lat%get_neighbors(gtid(src(2))), & 
-                    cum_arr, cum_sum, tmp_list, tgt(1), cpt_2)
-#ifdef __DEBUG
-            else 
-                ! something went wrong 
-                call stop_all(this_routine, "something went wrong!")
+        else 
+            ! something went wrong 
+            call stop_all(this_routine, "something went wrong!")
 #endif
-            end if 
-
-            p_orb = cpt_1 + cpt_2 
 
         end if
 
