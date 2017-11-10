@@ -42,6 +42,8 @@ contains
         call run_test_case(calc_pgen_tJ_model_test, "calc_pgen_tJ_model_test")
         call run_test_case(gen_excit_heisenberg_model_test, "gen_excit_heisenberg_model_test")
         call run_test_case(calc_pgen_heisenberg_model_test, "calc_pgen_heisenberg_model_test")
+        call run_test_case(get_occ_neighbors_test, "get_occ_neighbors_test")
+        call run_test_case(get_offdiag_helement_tJ_test, "get_offdiag_helement_tJ_test")
 
     end subroutine tJ_model_test_driver
 
@@ -894,10 +896,10 @@ contains
         lat => lattice('chain', 2, 1, 1, .true.,.true.,.true.)
         nbasis = 4 
         call setup_exchange_matrix(lat)
-        call assert_equals([h_cast(0.0),h_cast(0.0),h_cast(0.0),h_cast(1.0)],exchange_matrix(1,:),4)
-        call assert_equals([h_cast(0.0),h_cast(0.0),h_cast(1.0),h_cast(0.0)],exchange_matrix(2,:),4)
-        call assert_equals([h_cast(0.0),h_cast(1.0),h_cast(0.0),h_cast(0.0)],exchange_matrix(3,:),4)
-        call assert_equals([h_cast(1.0),h_cast(0.0),h_cast(0.0),h_cast(0.0)],exchange_matrix(4,:),4)
+        call assert_equals([0.0,0.0,0.0,1.0],exchange_matrix(1,:),4)
+        call assert_equals([0.0,0.0,1.0,0.0],exchange_matrix(2,:),4)
+        call assert_equals([0.0,1.0,0.0,0.0],exchange_matrix(3,:),4)
+        call assert_equals([1.0,0.0,0.0,0.0],exchange_matrix(4,:),4)
 
         exchange_j = 0 
         nbasis = -1 
@@ -1359,5 +1361,99 @@ contains
         nbasis = -1
 
     end subroutine get_umat_el_heisenberg_test
+
+    subroutine get_occ_neighbors_test
+        use bit_rep_data, only: NIfTot
+        use Detbitops, only: EncodeBitDet
+        use SystemData, only: nel 
+        use lattice_mod, only: lattice
+        use constants, only: n_int
+
+        integer(n_int), allocatable :: ilut(:)
+
+        NIfTot = 0
+        allocate(ilut(0:NIfTot))
+
+        nel = 3
+        lat => lattice('chain',4, 1, 1, .true., .true., .true.)
+
+        call EncodeBitDet([1,2,5], ilut)
+
+        print *, ""
+        print *, "testing: get_occ_neighbors "
+        call assert_equals(0.0, get_occ_neighbors(ilut,1))
+        call assert_equals(3.0, get_occ_neighbors(ilut,2))
+        call assert_equals(0.0, get_occ_neighbors(ilut,3))
+        call assert_equals(3.0, get_occ_neighbors(ilut,4))
+
+        call EncodeBitDet([1,2,3], ilut)
+        call assert_equals(1.0, get_occ_neighbors(ilut,1))
+        call assert_equals(2.0, get_occ_neighbors(ilut,2))
+        call assert_equals(1.0, get_occ_neighbors(ilut,3))
+
+        NIfTot = -1 
+        nel = -1
+
+    end subroutine get_occ_neighbors_test
+
+    subroutine get_offdiag_helement_tJ_test
+        use SystemData, only: nel, t_trans_corr, trans_corr_param, nbasis, bhub
+        use bit_rep_data, only: NIfTot
+        use lattice_mod, only: lat
+        use real_space_hubbard, only: init_tmat
+
+        print *, ""
+        print *, "testing: get_offdiag_helement_tJ"
+
+        nbasis = 4
+        nel = 2
+        NIfTot = 0
+        lat => lattice('chain', 2, 1, 1, .false.,.false.,.true.)
+        bhub = -1.0
+        call init_tmat(lat) 
+
+        t_trans_corr = .false.
+        call assert_equals(-1.0, get_offdiag_helement_tJ([1,2],[1,3],.false.))
+        call assert_equals(1.0, get_offdiag_helement_tJ([1,2],[1,3],.true.))
+
+        call assert_equals(-1.0, get_offdiag_helement_tJ([1,2],[2,4],.false.))
+        call assert_equals(1.0, get_offdiag_helement_tJ([1,2],[2,4],.true.))
+
+        call assert_equals(0.0, get_offdiag_helement_tJ([1,2],[1,4],.false.))
+        call assert_equals(0.0, get_offdiag_helement_tJ([1,2],[2,3],.true.))
+
+        ! the important test is the transcorrelated influence here 
+        t_trans_corr = .true. 
+        trans_corr_param = 1.0 
+        
+        call assert_equals(-1.0*exp(-2.0),get_offdiag_helement_tJ([1,2],[1,3],.false.))
+        call assert_equals(1.0*exp(2.0), get_offdiag_helement_tJ([1,2],[4,2],.true.))
+
+        lat => lattice('square', 2, 2, 1, .true.,.true.,.true.) 
+        nbasis = 8
+        call init_tmat(lat) 
+
+        nel = 4 
+
+        call assert_equals(-1.0, get_offdiag_helement_tJ([1,4,6,7],[1,3],.false.))
+        call assert_equals(-1.0, get_offdiag_helement_tJ([1,4,6,7],[2,4],.false.))
+        call assert_equals(0.0, get_offdiag_helement_tJ([1,4,6,7],[2,3],.false.))
+        call assert_equals(0.0, get_offdiag_helement_tJ([1,4,6,7],[1,7],.false.))
+
+        call assert_equals(1.0, get_offdiag_helement_tJ([1,2,3,6],[1,3],.true.))
+        call assert_equals(1.0, get_offdiag_helement_tJ([1,2,3,6],[2,4],.true.))
+
+        call assert_equals(1.0, get_offdiag_helement_tJ([1,2,3,6],[7,5],.true.))
+        call assert_equals(1.0, get_offdiag_helement_tJ([1,2,3,6],[8,4],.true.))
+
+        call assert_equals(1.0*exp(-4.0), get_offdiag_helement_tJ([1,2,7,8],[1,3],.true.))
+        call assert_equals(1.0*exp(4.0), get_offdiag_helement_tJ([1,2,7,8],[3,7],.true.))
+
+        nel = -1
+        nbasis = -1 
+        NIfTot = -1
+        t_trans_corr = .false. 
+
+    end subroutine get_offdiag_helement_tJ_test
 
 end program test_tJ_model

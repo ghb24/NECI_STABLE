@@ -362,7 +362,6 @@ contains
 !             neighbors = 2 * neighbors
 !         end if
 
-
         if (t_trans_corr) then 
             call create_cum_list_rs_hubbard(ilutI, src, neighbors, cum_arr, cum_sum)
 

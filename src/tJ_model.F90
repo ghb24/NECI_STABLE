@@ -5,9 +5,10 @@ module tJ_model
     use SystemData, only: bhub, nel, nbasis, G1, lattice_type, length_x, &
                           length_y, length_z, nbasis, t_open_bc_x, t_open_bc_y, &
                           t_open_bc_z, ecore, tHPHF, tHub, tReal, t_tJ_model, & 
-                          t_heisenberg_model, t_new_real_space_hubbard, exchange_j
+                          t_heisenberg_model, t_new_real_space_hubbard, exchange_j, &
+                          t_trans_corr, trans_corr_param
     use constants, only: dp, n_int, EPS, bits_n_int
-    use real_space_hubbard, only: get_offdiag_helement_rs_hub, lat_tau_factor, &
+    use real_space_hubbard, only: lat_tau_factor, &
                                   t_start_neel_state, check_real_space_hubbard_input, & 
                                   init_tmat
     use procedure_pointers, only: get_umat_el, generate_excitation
@@ -913,7 +914,7 @@ contains
 
         else if (ic == 1) then 
             ! the single excitation is the same as in the hubbard model
-            hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar)
+            hel = get_offdiag_helement_tJ(nI, ex(:,1), tpar)
 
         else if (ic == 2) then 
             hel = get_offdiag_helement_heisenberg(nI, ex, tpar)
@@ -940,7 +941,7 @@ contains
             else if (ic_ret == 1) then 
                 ex(1,1) = 1 
                 call GetExcitation(nI, nJ, nel, ex, tpar)
-                hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar)
+                hel = get_offdiag_helement_tJ(nI, ex(:,1), tpar)
 
             else if (ic_ret == 2) then 
                 ex(1,1) = 2
@@ -959,7 +960,7 @@ contains
                 else if (ic_ret == 1) then 
                     ex(1,1) = 1
                     call GetBitExcitation(ilutI,ilutJ,ex,tpar)
-                    hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar)
+                    hel = get_offdiag_helement_tJ(nI, ex(:,1), tpar)
 
                 else if (ic_ret == 2) then 
                     ex(1,1) = 2 
@@ -982,7 +983,7 @@ contains
             else if (ic == 1) then 
                 ex(1,1) = 1 
                 call GetBitExcitation(ilutI,ilutJ,ex,tpar)
-                hel = get_offdiag_helement_rs_hub(nI,ex(:,1),tPar)
+                hel = get_offdiag_helement_tJ(nI,ex(:,1),tPar)
             else if (ic == 2) then 
                 ex(1,1) = 2 
                 call GetBitExcitation(ilutI,ilutJ,ex,tpar)
@@ -1246,5 +1247,57 @@ contains
         end if
 
     end function get_umat_el_heisenberg
+
+    function get_occ_neighbors(ilut, orb) result(occ_neighbors) 
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer, intent(in) :: orb 
+        real(dp) :: occ_neighbors
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "get_occ_neighbors" 
+#endif
+        integer, allocatable :: neighbors(:)
+        integer :: i
+
+        ASSERT(associated(lat)) 
+
+        ! orb is given as a spatial orbital! 
+
+        neighbors = lat%get_neighbors(orb) 
+
+        occ_neighbors = 0.0_dp
+        do i = 1, size(neighbors)
+            ! check both spinorbitals
+            if (IsOcc(ilut, 2*neighbors(i)))   occ_neighbors = occ_neighbors + 1.0_dp
+            if (IsOcc(ilut, 2*neighbors(i)-1)) occ_neighbors = occ_neighbors + 1.0_dp
+        end do
+
+    end function get_occ_neighbors
+
+    function get_offdiag_helement_tJ(nI, ex, tpar) result(hel) 
+        ! if we want to use a transcorrelated Hamiltonian in the tJ case 
+        ! it is different than in the hubbard model.. so write a one 
+        ! routine to calculate the one-body matrix element! 
+        integer, intent(in) :: nI(nel), ex(2)
+        logical, intent(in) :: tpar 
+        HElement_t(dp) :: hel 
+
+        integer(n_int) :: ilut(0:niftot)
+
+        ! the first part is exactly the same..
+        hel = GetTMatEl(ex(1), ex(2))
+
+        if (tpar) hel = -hel
+
+        if (t_trans_corr) then 
+            call EncodeBitDet(nI, ilut) 
+            
+            ! i am not yet sure about the order here.. to have it 
+            ! "hermitian"
+            hel = hel * exp(trans_corr_param * &
+                (get_occ_neighbors(ilut,gtid(ex(1))) - get_occ_neighbors(ilut,gtid(ex(2)))))
+
+        end if
+
+    end function get_offdiag_helement_tJ
 
 end module tJ_model
