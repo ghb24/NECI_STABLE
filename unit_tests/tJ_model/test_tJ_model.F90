@@ -44,6 +44,7 @@ contains
         call run_test_case(calc_pgen_heisenberg_model_test, "calc_pgen_heisenberg_model_test")
         call run_test_case(get_occ_neighbors_test, "get_occ_neighbors_test")
         call run_test_case(get_offdiag_helement_tJ_test, "get_offdiag_helement_tJ_test")
+        call run_test_case(get_spin_density_neighbors_test, "get_spin_density_neighbors_test")
 
     end subroutine tJ_model_test_driver
 
@@ -407,7 +408,7 @@ contains
 
         use SystemData, only: nel, bhub
         use lattice_mod, only: lattice
-        use bit_rep_data, only: NIfTot
+        use bit_rep_data, only: NIfTot, nifd
         use constants, only: dp, n_int 
         use DetBitOps, only: EncodeBitDet
 
@@ -421,6 +422,7 @@ contains
 
         nel = 2 
         NIfTot = 0
+        nifd = 0
         nbasis = 8 
 
         bhub = -1.0
@@ -1396,8 +1398,44 @@ contains
 
     end subroutine get_occ_neighbors_test
 
+    subroutine get_spin_density_neighbors_test
+        use bit_rep_data, only: niftot 
+        use Detbitops, only: EncodeBitDet 
+        use SystemData, only: nel 
+        use lattice_mod, only: lattice
+        use constants, only: n_int
+
+        integer(n_int), allocatable :: ilut(:) 
+
+        print *, "" 
+        print *, " testing: get_spin_density_neighbors "
+
+        NIfTot = 0 
+        lat => lattice('chain',4,1,1,.true.,.true.,.true.)
+        allocate(ilut(0:NIfTot))
+
+        nel = 3 
+        call encodebitdet([1,2,3], ilut)
+        
+        call assert_equals(-0.5, get_spin_density_neighbors(ilut,1)) 
+        call assert_equals(0.0, get_spin_density_neighbors(ilut,2)) 
+        call assert_equals(-0.5, get_spin_density_neighbors(ilut,3)) 
+        call assert_equals(0.0, get_spin_density_neighbors(ilut,4)) 
+
+        call encodebitdet([1,4,5], ilut) 
+        call assert_equals(0.5, get_spin_density_neighbors(ilut,1)) 
+        call assert_equals(-1.0, get_spin_density_neighbors(ilut,2)) 
+        call assert_equals(0.5, get_spin_density_neighbors(ilut,3)) 
+        call assert_equals(-1.0, get_spin_density_neighbors(ilut,4)) 
+
+        nel = -1 
+        NIfTot = -1
+
+    end subroutine get_spin_density_neighbors_test
+
     subroutine get_offdiag_helement_tJ_test
-        use SystemData, only: nel, t_trans_corr, trans_corr_param, nbasis, bhub
+        use SystemData, only: nel, t_trans_corr, trans_corr_param, nbasis, bhub, & 
+                             t_trans_corr_tJ_2 
         use bit_rep_data, only: NIfTot
         use lattice_mod, only: lat
         use real_space_hubbard, only: init_tmat
@@ -1426,8 +1464,8 @@ contains
         t_trans_corr = .true. 
         trans_corr_param = 1.0 
         
-        call assert_equals(-1.0*exp(-2.0),get_offdiag_helement_tJ([1,2],[1,3],.false.))
-        call assert_equals(1.0*exp(2.0), get_offdiag_helement_tJ([1,2],[4,2],.true.))
+        call assert_equals(-1.0*exp(-1.0),get_offdiag_helement_tJ([1,2],[1,3],.false.))
+        call assert_equals(1.0*exp(3.0), get_offdiag_helement_tJ([1,2],[4,2],.true.))
 
         lat => lattice('square', 2, 2, 1, .true.,.true.,.true.) 
         nbasis = 8
@@ -1435,25 +1473,43 @@ contains
 
         nel = 4 
 
-        call assert_equals(-1.0, get_offdiag_helement_tJ([1,4,6,7],[1,3],.false.))
-        call assert_equals(-1.0, get_offdiag_helement_tJ([1,4,6,7],[2,4],.false.))
+        call assert_equals(-exp(1.0), get_offdiag_helement_tJ([1,4,6,7],[1,3],.false.))
+        call assert_equals(-exp(1.0), get_offdiag_helement_tJ([1,4,6,7],[2,4],.false.))
         call assert_equals(0.0, get_offdiag_helement_tJ([1,4,6,7],[2,3],.false.))
         call assert_equals(0.0, get_offdiag_helement_tJ([1,4,6,7],[1,7],.false.))
 
-        call assert_equals(1.0, get_offdiag_helement_tJ([1,2,3,6],[1,3],.true.))
-        call assert_equals(1.0, get_offdiag_helement_tJ([1,2,3,6],[2,4],.true.))
+        call assert_equals(exp(1.0), get_offdiag_helement_tJ([1,2,3,6],[1,3],.true.))
+        call assert_equals(exp(1.0), get_offdiag_helement_tJ([1,2,3,6],[2,4],.true.))
 
-        call assert_equals(1.0, get_offdiag_helement_tJ([1,2,3,6],[7,5],.true.))
-        call assert_equals(1.0, get_offdiag_helement_tJ([1,2,3,6],[8,4],.true.))
+        call assert_equals(exp(1.0), get_offdiag_helement_tJ([1,2,3,6],[7,5],.true.))
+        call assert_equals(exp(1.0), get_offdiag_helement_tJ([1,2,3,6],[8,4],.true.))
 
-        call assert_equals(1.0*exp(-4.0), get_offdiag_helement_tJ([1,2,7,8],[1,3],.true.))
-        call assert_equals(1.0*exp(4.0), get_offdiag_helement_tJ([1,2,7,8],[3,7],.true.))
+        call assert_equals(1.0*exp(-3.0), get_offdiag_helement_tJ([1,2,7,8],[1,3],.true.),1e-12)
+        call assert_equals(1.0*exp(5.0), get_offdiag_helement_tJ([1,2,7,8],[3,7],.true.))
 
+        t_trans_corr_tJ_2 = .true. 
+        nbasis = 4
+        nel = 2
+        NIfTot = 0
+        lat => lattice('chain', 2, 1, 1, .false.,.false.,.true.)
+        bhub = -1.0
+        call init_tmat(lat) 
+
+        t_trans_corr = .false.
+        call assert_equals(-1.0, get_offdiag_helement_tJ([1,2],[1,3],.false.))
+        call assert_equals(1.0, get_offdiag_helement_tJ([1,2],[1,3],.true.))
+
+        call assert_equals(-1.0, get_offdiag_helement_tJ([1,2],[2,4],.false.))
+        call assert_equals(1.0, get_offdiag_helement_tJ([1,2],[2,4],.true.))
+
+        call assert_equals(0.0, get_offdiag_helement_tJ([1,2],[1,4],.false.))
+        call assert_equals(0.0, get_offdiag_helement_tJ([1,2],[2,3],.true.))
+
+        t_trans_corr_tJ_2 = .false.
         nel = -1
         nbasis = -1 
         NIfTot = -1
         t_trans_corr = .false. 
 
     end subroutine get_offdiag_helement_tJ_test
-
 end program test_tJ_model

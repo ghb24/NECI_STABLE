@@ -509,6 +509,12 @@ system: do
                trans_corr_param = 1.0_dp
            end if
 
+           ! for the tJ model there are 2 choices of the transcorrelation 
+           ! indicate that here! 
+           if (item < nitems) then 
+               t_trans_corr_tJ_2 = .true. 
+           end if
+
        ! Options for the type of the reciprocal lattice (eg sc, fcc, bcc)
         case("REAL_LATTICE_TYPE")
             call readl(real_lattice_type) 

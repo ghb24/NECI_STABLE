@@ -6,7 +6,7 @@ module tJ_model
                           length_y, length_z, nbasis, t_open_bc_x, t_open_bc_y, &
                           t_open_bc_z, ecore, tHPHF, tHub, tReal, t_tJ_model, & 
                           t_heisenberg_model, t_new_real_space_hubbard, exchange_j, &
-                          t_trans_corr, trans_corr_param
+                          t_trans_corr, trans_corr_param, t_trans_corr_tJ_2
     use constants, only: dp, n_int, EPS, bits_n_int
     use real_space_hubbard, only: lat_tau_factor, &
                                   t_start_neel_state, check_real_space_hubbard_input, & 
@@ -23,6 +23,8 @@ module tJ_model
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
     use double_occ_mod, only: count_double_orbs
     use FciMCData, only: ilutref
+    use bit_reps, only: decode_bit_det
+
     implicit none 
 
     real(dp), allocatable :: exchange_matrix(:,:) 
@@ -402,7 +404,7 @@ contains
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "create_cum_list_tJ_model"
 #endif
-        integer :: i
+        integer :: i, nI(nel), temp_ex(2,2)
         integer, allocatable :: single_excits(:)
         integer, allocatable :: spin_flips(:)
         real(dp) :: elem
@@ -419,12 +421,21 @@ contains
         cum_sum = 0.0_dp
         ic_list = 0
 
+        call decode_bit_det(nI, ilutI)
+
+        temp_ex(1,1) = src
+
         if (is_beta(src)) then 
             single_excits = 2*neighbors - 1
             spin_flips = 2 * neighbors
+            ! fill in the corresponding alpha orbital
+            temp_ex(2,1) = src + 1
         else 
             single_excits = 2 * neighbors
             spin_flips = 2 * neighbors - 1
+
+            ! fill in the beta orbital
+            temp_ex(2,1) = src - 1
         end if
 
         if (present(tgt)) then 
@@ -451,12 +462,17 @@ contains
                     IsNotOcc(ilutI, spin_flips(i))) then 
                     ! just to be sure use the tmat, so both orbitals are 
                     ! definetly connected
-                    elem = abs(GetTMatEl(src, single_excits(i)))
+                    elem = abs(get_offdiag_helement_tJ(nI, [src,single_excits(i)],.false.))
+!                     elem = abs(GetTMatEl(src, single_excits(i)))
                     t_single_possible = .true. 
 
                 else if (IsOcc(ilutI, spin_flips(i)) .and. &
                          IsNotOcc(ilutI, single_excits(i))) then 
-                     elem = abs(get_heisenberg_exchange(src, spin_flips(i)))
+
+                     temp_ex(1,2) = spin_flips(i) 
+                     temp_ex(2,2) = single_excits(i)
+                     elem = abs(get_offdiag_helement_heisenberg(nI, temp_ex, .false.))
+!                      elem = abs(get_heisenberg_exchange(src, spin_flips(i)))
                      t_flip_possible  = .true. 
 
                  end if
@@ -486,13 +502,17 @@ contains
                     ! it would be better to just use -t .. anyway.. keep it 
                     ! general
 
-                    elem = abs(GetTMatEl(src, single_excits(i)))
+                    elem = abs(get_offdiag_helement_tJ(nI, [src,single_excits(i)],.false.))
+!                     elem = abs(GetTMatEl(src, single_excits(i)))
                     ic_list(i) = 1
 
                 else if (IsOcc(IlutI,spin_flips(i)) .and. &
                          IsNotOcc(IlutI,single_excits(i))) then 
                      ! then we can do a spin flip 
-                     elem = abs(get_heisenberg_exchange(src, spin_flips(i)))
+                     temp_ex(1,2) = spin_flips(i) 
+                     temp_ex(2,2) = single_excits(i)
+                     elem = abs(get_offdiag_helement_heisenberg(nI, temp_ex, .false.))
+!                      elem = abs(get_heisenberg_exchange(src, spin_flips(i)))
                      ic_list(i) = 2
 
                  else 
@@ -695,7 +715,7 @@ contains
 #ifdef __DEBUG 
         character(*), parameter :: this_routine = "create_cum_list_heisenberg"
 #endif 
-        integer :: flip, i
+        integer :: flip, i, temp_ex(2,2), nI(nel)
         real(dp) :: elem
 
         ASSERT(IsOcc(ilutI,src))
@@ -710,11 +730,21 @@ contains
         ! of spin of orbital src here! 
         ! although for the matrix element i need the opposite spin! 
         ! add the according flip to get the other spin!
+
+        ! also use an excitation matrix array to effectively calculate the 
+        ! transcorrelation factor everywhere needed! 
+        temp_ex(1,1) = src
+
+        call decode_bit_det(nI, ilutI)
+
         if (is_beta(src)) then 
             flip = +1
         else 
             flip = -1
         end if
+
+        ! add the spinflipped 
+        temp_ex(2,1) = src + flip 
 
         if (present(tgt)) then
             ASSERT(present(cpt))
@@ -723,7 +753,10 @@ contains
             do i = 1, ubound(neighbors,1)
                 elem = 0.0_dp
                 if (IsNotOcc(ilutI,neighbors(i))) then 
-                    elem = abs(get_heisenberg_exchange(src, neighbors(i)+flip))
+                    temp_ex(1,2) = neighbors(i)+flip
+                    temp_ex(2,2) = neighbors(i)
+                    elem = abs(get_offdiag_helement_heisenberg(nI, temp_ex, .false.))
+!                     elem = abs(get_heisenberg_exchange(src, neighbors(i)+flip))
                 end if
                 if (neighbors(i) == tgt) then 
                     cpt = elem 
@@ -743,7 +776,10 @@ contains
                     ! this is a valid orbital to choose from 
                     ! but for the matrix element calculation, we need to 
                     ! have the opposite spin of the neighboring orbital! 
-                    elem = abs(get_heisenberg_exchange(src, neighbors(i)+flip))
+                    temp_ex(1,2) = neighbors(i)+flip
+                    temp_ex(2,2) = neighbors(i)
+                    elem = abs(get_offdiag_helement_heisenberg(nI, temp_ex, .false.))
+!                     elem = abs(get_heisenberg_exchange(src, neighbors(i)+flip))
                 end if
                 cum_sum = cum_sum + elem 
                 cum_arr(i) = cum_sum 
@@ -1142,8 +1178,8 @@ contains
         HElement_t(dp) :: hel 
 #ifdef __DEBUG 
         character(*), parameter :: this_routine = "get_offdiag_helement_heisenberg"
-        integer(n_int) :: ilutI(0:NIfTot)
 #endif
+        integer(n_int) :: ilutI(0:NIfTot)
         integer :: src(2), tgt(2) 
 
         src = get_src(ex)
@@ -1153,9 +1189,8 @@ contains
         ! does not make any sense and is just based on the ex-matrix 
         ! it is done in the same way in the slater condon routines, to not 
         ! check occupancy.. do it in the debug mode atleast. .
-#ifdef __DEBUG 
         call EncodeBitDet(nI, ilutI) 
-#endif
+
         ASSERT(IsOcc(ilutI, src(1)))
         ASSERT(IsOcc(ilutI, src(2)))
         ASSERT(IsNotOcc(ilutI,tgt(1)))
@@ -1169,8 +1204,8 @@ contains
         else 
             ! i have to check if the orbitals fit.. ex is sorted here or? 
             ! can i be sure about that?? check that! 
-            ASSERT(src(1) < src(2)) 
-            ASSERT(tgt(1) < tgt(2))
+!             ASSERT(src(1) < src(2)) 
+!             ASSERT(tgt(1) < tgt(2))
 
             if (.not. (is_in_pair(src(1),tgt(1)) .and. is_in_pair(src(2),tgt(2)))) then 
                 hel = h_cast(0.0_dp)
@@ -1180,6 +1215,12 @@ contains
                 hel = get_heisenberg_exchange(src(1),src(2))
 
             end if
+        end if
+
+        if (t_trans_corr .and. (t_heisenberg_model .or. t_trans_corr_tJ_2)) then 
+            hel = hel * exp(-2*trans_corr_param) * exp(&
+                get_spin_density_neighbors(ilutI, gtid(src(1))) - & 
+                get_spin_density_neighbors(ilutI, gtid(src(2))))
         end if
 
         if (tpar) hel = -hel
@@ -1215,8 +1256,6 @@ contains
 
         time_step = p_elec * p_hole / mat_ele 
 
-
-        
 
     end function determine_optimal_time_step_heisenberg
 
@@ -1288,16 +1327,45 @@ contains
 
         if (tpar) hel = -hel
 
-        if (t_trans_corr) then 
+        if (t_trans_corr .and. .not. t_trans_corr_tJ_2) then 
             call EncodeBitDet(nI, ilut) 
             
             ! i am not yet sure about the order here.. to have it 
             ! "hermitian"
-            hel = hel * exp(trans_corr_param * &
+            hel = hel * exp(trans_corr_param)*exp(trans_corr_param * &
                 (get_occ_neighbors(ilut,gtid(ex(1))) - get_occ_neighbors(ilut,gtid(ex(2)))))
 
         end if
 
     end function get_offdiag_helement_tJ
+
+    function get_spin_density_neighbors(ilut, orb) result(spin_dens_neighbors)
+        ! function to get the spin-density of the neighboring orbitals 
+        ! n_{i,\up} - n_{i,\down} 
+        integer(n_int), intent(in) :: ilut(0:NIfTot) 
+        integer, intent(in) :: orb
+        real(dp) :: spin_dens_neighbors
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "get_spin_density_neighbors"
+#endif 
+        integer, allocatable :: neighbors(:) 
+        integer :: i 
+
+        ASSERT(associated(lat)) 
+
+        spin_dens_neighbors = 0.0_dp 
+
+        ! orb is given in spatial orbials 
+        neighbors = lat%get_neighbors(orb) 
+        do i = 1, size(neighbors)
+            ! what do we degine as up spin?? have to be sure here
+            ! lets take alpha
+            if (IsOcc(ilut,2*neighbors(i)-1)) spin_dens_neighbors = spin_dens_neighbors - 1.0_dp 
+            if (IsOcc(ilut,2*neighbors(i)))   spin_dens_neighbors = spin_dens_neighbors + 1.0_dp
+        end do
+
+        spin_dens_neighbors = spin_dens_neighbors / 2.0_dp
+
+    end function get_spin_density_neighbors
 
 end module tJ_model

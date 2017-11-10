@@ -255,6 +255,7 @@ logical :: t_trans_corr = .false.
 ! as one can see this modification is dependent on the current 
 ! occupation of the involved hopping orbitals! so it is not just a 
 ! change in the Hamiltonian 
+logical :: t_trans_corr_tJ_2 = .false.
 
 ! and the other lattice models: 
 logical :: t_tJ_model = .false. 
