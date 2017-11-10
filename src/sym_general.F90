@@ -10,8 +10,7 @@ module sym_general_mod
     use sym_mod, only: SYMPROD, RandExcitSymLabelProd, symeq
     use constants
     use DetBitOps, only: Encodebitdet, count_open_orbs
-    use double_occ_mod, only: count_double_orbs
-    use bit_rep_data, only: niftot
+    use bit_rep_data, only: niftot, nifd
 
     implicit none
 
@@ -310,15 +309,15 @@ contains
             if (nel >= nbasis/2) bValid = .false.
 
             call Encodebitdet(nJ, ilut)
-            if (count_double_orbs(ilut) > 0) bValid = .false.
-
+            ! check if we have doubly occupied orbitals:
+            if ((nel - count_open_orbs(ilut(0:nifd)))/2 > 0) bValid = .false.
         end if 
 
         if (t_heisenberg_model) then 
             if (ic /= 2) bValid = .false. 
             call Encodebitdet(nJ, ilut) 
             if (count_open_orbs(ilut) /= nbasis/2) bValid = .false. 
-            if (count_double_orbs(ilut) > 0) bValid = .false. 
+            if ((nel - count_open_orbs(ilut(0:nifd)))/2 > 0) bValid = .false.
         end if
 
         ! Check that Lz angular momentum projection is preserved if necessary
