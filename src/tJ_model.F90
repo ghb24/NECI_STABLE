@@ -883,8 +883,8 @@ contains
             do i = 1, lat%get_nsites() 
                 ind = lat%get_site_index(i)
                 associate(next => lat%get_neighbors(i))
-                    exchange_matrix(2*ind - 1, 2*next) = exchange_j
-                    exchange_matrix(2*ind, 2*next - 1) = exchange_j
+                    exchange_matrix(2*ind - 1, 2*next) = -exchange_j/2.0_dp
+                    exchange_matrix(2*ind, 2*next - 1) = -exchange_j/2.0_dp
 
                     ASSERT(all(next > 0))
                     ASSERT(all(next <= nbasis/2))
