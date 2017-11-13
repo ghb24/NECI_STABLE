@@ -4,7 +4,7 @@ MODULE Determinants
     use SystemData, only: BasisFN, tCSF, nel, G1, Brr, ECore, ALat, NMSH, &
                           nBasis, nBasisMax, tStoreAsExcitations, tHPHFInts, &
                           tCSF, tCPMD, tPickVirtUniform, LMS, modk_offdiag, &
-                          t_new_real_space_hubbard, t_lattice_model
+                          t_lattice_model
     use IntegralsData, only: UMat, FCK, NMAX
     use csf, only: det_to_random_csf, iscsf, csf_orbital_mask, &
                    csf_yama_bit, CSFGetHelement
@@ -16,9 +16,6 @@ MODULE Determinants
     use DeterminantData
     use bit_reps, only: NIfTot
     use MemoryManager, only: TagIntType
-    use real_space_hubbard, only: get_helement_rs_hub
-    use tJ_model, only: t_tJ_model, t_heisenberg_model, get_helement_tJ, &
-                        get_helement_heisenberg 
     use lattice_mod, only: get_helement_lattice
     implicit none
 
@@ -327,31 +324,14 @@ contains
             call stop_all (this_routine, "Should not be calling HPHF &
                           &integrals from here.")
 
-        if (tCSF) then
-            if (iscsf(nI) .or. iscsf(nJ)) then
-                hel = CSFGetHelement (nI, nJ)
-                return
-            endif
-        endif
+        ! nobody actually uses Simons old CSF implementations..
+!         if (tCSF) then
+!             if (iscsf(nI) .or. iscsf(nJ)) then
+!                 hel = CSFGetHelement (nI, nJ)
+!                 return
+!             endif
+!         endif
         
-        if (t_new_real_space_hubbard) then
-            temp_ic = ic
-            hel = get_helement_rs_hub(nI, nJ, temp_ic)
-            return
-        end if
-
-        if (t_tJ_model) then 
-            temp_ic = ic 
-            hel = get_helement_tJ(nI,nJ, temp_ic) 
-            return 
-        end if
-
-        if (t_heisenberg_model) then 
-            temp_ic = ic 
-            hel = get_helement_heisenberg(nI,nJ, temp_ic)
-            return
-        end if
-
         if (t_lattice_model) then 
             temp_ic = ic 
             hel = get_helement_lattice(nI, nJ, temp_ic) 
@@ -406,39 +386,6 @@ contains
             endif
         endif
 
-        if (t_new_real_space_hubbard) then 
-            if (present(ICret)) then
-                ic = -1
-                hel = get_helement_rs_hub(nI, nJ, ic)
-                ICret = ic
-            else
-                hel = get_helement_rs_hub(nI, nJ)
-            end if
-            return 
-        end if
-
-        if (t_tJ_model) then 
-            if (present(ICret)) then 
-                ic = -1 
-                hel = get_helement_tJ(nI, nJ, ic)
-                ICret = ic 
-            else 
-                hel = get_helement_tJ(nI, nJ) 
-            end if 
-            return
-        end if
-
-        if (t_heisenberg_model) then 
-            if (present(ICret)) then 
-                ic = -1 
-                hel = get_helement_heisenberg(nI,nJ,ic)
-                ICret = ic 
-            else 
-                hel = get_helement_heisenberg(nI,nJ)
-            end if
-            return 
-        end if
-            
         if (t_lattice_model) then 
             if (present(ICret)) then 
                 ic = -1 
@@ -509,21 +456,7 @@ contains
         ! procedure pointers similar to the excitation generator, which gets 
         ! intialized to the correct function at the beginning of the 
         ! excitations
-        if (t_new_real_space_hubbard) then 
-            hel = get_helement_rs_hub(nI, ic, ExcitMat, TParity) 
-            return
-        end if
-
-        if (t_tJ_model) then 
-            hel = get_helement_tJ(nI, ic, ExcitMat, tParity) 
-            return 
-        end if
-
-        if (t_heisenberg_model) then 
-            hel = get_helement_heisenberg(nI, ic, ExcitMat, tParity) 
-            return 
-        end if
-
+        ! store all the lattice model matrix elements in one call.
         if (t_lattice_model) then 
             hel = get_helement_lattice(nI, ic, ExcitMat, tParity) 
             return 
@@ -579,20 +512,7 @@ contains
         integer(n_int) :: iUnused; integer :: iUnused2; HElement_t(dp) :: hUnused
         iUnused=iLutJ(1); iUnused=iLutI(1); iUnused2=nJ(1); hUnused = helgen
 
-        if (t_new_real_space_hubbard) then 
-            hel = get_helement_rs_hub(ni, ic, ex, tParity) 
-            return 
-        end if
-
-        if (t_tJ_model) then 
-            hel = get_helement_tJ(nI, ic, ex, tParity)
-            return 
-        end if
-        if (t_heisenberg_model) then 
-            hel = get_helement_heisenberg(nI, ic, ex, tParity)
-            return 
-        end if
-
+        ! switch to lattice matrix element:
         if (t_lattice_model) then 
             hel = get_helement_lattice(nI,ic, ex, tParity) 
             return 

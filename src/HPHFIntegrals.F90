@@ -1,15 +1,13 @@
 module hphf_integrals
     use constants, only: dp,n_int,sizeof_int
     use SystemData, only: NEl, nBasisMax, G1, nBasis, Brr, tHub, ECore, &
-                          ALat, NMSH, tOddS_HPHF, modk_offdiag, t_new_real_space_hubbard, &
-                          t_lattice_model 
+                          ALat, NMSH, tOddS_HPHF, modk_offdiag, t_lattice_model 
     use IntegralsData, only: UMat,FCK,NMAX
     use HPHFRandExcitMod, only: FindDetSpinSym, FindExcitBitDetSym
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel, &
                          TestClosedShellDet, CalcOpenOrbs
     use sltcnd_mod, only: sltcnd, sltcnd_excit
     use bit_reps, only: NIfD, NIfTot, NIfDBO, decode_bit_det
-    use real_space_hubbard, only: get_helement_rs_hub, get_diag_helemen_rs_hub
     use lattice_mod, only: get_helement_lattice
     implicit none
 
@@ -92,11 +90,8 @@ module hphf_integrals
             return
         endif
 
-        if (t_new_real_space_hubbard) then 
-            ! test hermiticity
-!             hel = get_helement_rs_hub(nI, nJ) 
-            hel = get_helement_rs_hub(nJ, nI)
-        else if (t_lattice_model) then 
+        ! i need to catch if it is a lattice model here.. 
+        if (t_lattice_model) then 
             hel = get_helement_lattice(nJ,nI)
         else
             hel = sltcnd (nI, iLutnI, iLutnJ)
@@ -145,12 +140,9 @@ module hphf_integrals
                     Ex(1,1)=ExcitLevel
                     call GetBitExcitation(iLutnI2,iLutnJ,Ex,tSign)
 
-                    if (t_new_real_space_hubbard) then 
-!                         MatEl2 = get_helement_rs_hub(nI2, ExcitLevel, Ex, tSign)
-                        temp_ex(1,:) = Ex(2,:)
-                        temp_ex(2,:) = Ex(1,:) 
-                        MatEl2 = get_helement_rs_hub(nJ, ExcitLevel, temp_ex, tSign)
-                    else if (t_lattice_model) then 
+                    if (t_lattice_model) then 
+                        ! is this the correct call here? compare to the 
+                        ! orginal call below!
                         temp_ex(1,:) = Ex(2,:)
                         temp_ex(2,:) = Ex(1,:) 
                         MatEl2 = get_helement_lattice(nJ, ExcitLevel, temp_ex, tSign) 
@@ -200,9 +192,7 @@ module hphf_integrals
         HElement_t(dp) :: MatEl2
         integer :: nJ(nel)
 
-        if (t_new_real_space_hubbard) then
-            hel = get_diag_helemen_rs_hub(nI)
-        else if (t_lattice_model) then 
+        if (t_lattice_model) then 
             hel = get_helement_lattice(nI,nI)
         else
             hel = sltcnd_excit (nI, 0)
@@ -220,11 +210,7 @@ module hphf_integrals
             if (ExcitLevel.le.2) then
                 call CalcOpenOrbs (iLutnI, OpenOrbs)
 !                call FindDetSpinSym (nI, nI2, nel)
-                if (t_new_real_space_hubbard) then 
-                    call decode_bit_det(nJ, iLutnI2)
-!                     MatEl2 = get_helement_rs_hub(nI, nJ) 
-                    MatEl2 = get_helement_rs_hub(nJ, nI) 
-                else if (t_lattice_model) then 
+                if (t_lattice_model) then 
                     call decode_bit_det(nJ, iLutnI2)
                     MatEl2 = get_helement_lattice(nJ,nI)
                 else

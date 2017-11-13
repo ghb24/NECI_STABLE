@@ -509,10 +509,15 @@ system: do
                trans_corr_param = 1.0_dp
            end if
 
+        case ('2-BODY-TRANSCORR', '2-BODY-TRANS-CORR', '2-BODY-TRANSCORRELATED','TRANSCORR-2BODY')
            ! for the tJ model there are 2 choices of the transcorrelation 
            ! indicate that here! 
+           t_trans_corr_2body = .true.
+
            if (item < nitems) then 
-               t_trans_corr_tJ_2 = .true. 
+               call getf(trans_corr_param_2body)
+           else 
+               trans_corr_param_2body = 1.0_dp
            end if
 
        ! Options for the type of the reciprocal lattice (eg sc, fcc, bcc)

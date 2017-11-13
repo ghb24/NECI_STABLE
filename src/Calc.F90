@@ -7,7 +7,8 @@ MODULE Calc
                           BB_elec_pairs, par_elec_pairs, AB_elec_pairs, &
                           AA_hole_pairs, BB_hole_pairs, AB_hole_pairs, &
                           par_hole_pairs, hole_pairs, nholes_a, nholes_b, &
-                          nholes, UMATEPS, tHub
+                          nholes, UMATEPS, tHub, t_lattice_model, t_tJ_model, & 
+                          t_new_real_space_hubbard, t_heisenberg_model
     use Determinants, only: write_det
     use spin_project, only: spin_proj_interval, tSpinProject, &
                             spin_proj_gamma, spin_proj_shift, &
@@ -35,7 +36,9 @@ MODULE Calc
     use spectral_lanczos, only: n_lanc_vecs_sl
     use exact_spectrum
     use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
-    use real_space_hubbard, only: t_start_neel_state, create_neel_state
+    use real_space_hubbard, only: t_start_neel_state, create_neel_state, & 
+                                  init_get_helement_hubbard
+    use tJ_model, only: init_get_helement_heisenberg, init_get_helement_tj
 
     implicit none
 
@@ -2489,6 +2492,19 @@ contains
 !C         DBETA=DBRAT*BETA
           IF(.not.tFCIMC) WRITE(6,*) "DBETA=",DBETA
 
+          ! actually i have to initialize the matrix elements here 
+
+          print *, "here?"
+            if (t_lattice_model) then 
+                if (t_tJ_model) then 
+                    call init_get_helement_tj()
+                else if (t_heisenberg_model) then 
+                    call init_get_helement_heisenberg() 
+                else if (t_new_real_space_hubbard) then
+                    call init_get_helement_hubbard()
+                end if
+            end if
+
           IF(.NOT.TREAD) THEN
 !             CALL WRITETMAT(NBASIS)
              IC=0
@@ -2502,6 +2518,7 @@ contains
              ENDIF
           ENDIF
 
+          print *, "here?"
 ! Find out the number of alpha and beta electrons. For restricted calculations, these should be the same.
           if (tCSF) then
               nOccAlpha = (nel / 2) + LMS 

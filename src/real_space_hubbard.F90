@@ -161,7 +161,8 @@ contains
 
     subroutine init_get_helement_hubbard
         get_helement_lattice_ex_mat => get_helement_rs_hub_ex_mat
-        get_helement_lattice_general => get_helement_lattice_general
+        get_helement_lattice_general => get_helement_rs_hub_general
+        call init_tmat(lat)
     end subroutine init_get_helement_hubbard
 
     subroutine check_real_space_hubbard_input() 

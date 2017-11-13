@@ -249,17 +249,14 @@ MODULE HPHFRandExcitMod
                         ! have to change here to use the real-space hubbard 
                         ! routines.. thats why this whole HPHF should be 
                         ! reworked.
-                        if (t_new_real_space_hubbard) then 
-!                             hel = get_helement_rs_hub(nI, ic, ExcitMat, tSignOrig)
-                            temp_ex(1,:) = ExcitMat(2,:)
-                            temp_ex(2,:) = ExcitMat(1,:) 
-                            hel = get_helement_rs_hub(nJ, ic, temp_ex, tSignOrig)
-                        else if (t_lattice_model) then 
-                            temp_ex(1,:) = ExcitMat(2,:)
-                            temp_ex(2,:) = ExcitMat(1,:) 
+                        ! [W.D. 13.11.2017]
+                        ! somehow i reintroduced a bug in the HPHF + hubbard 
+                        ! implementation with "fixes" in here -> check that!
+                        if (t_lattice_model) then 
                             print *, "toto1"
+                            temp_ex(1,:) = ExcitMat(2,:)
+                            temp_ex(2,:) = ExcitMat(1,:) 
                             hel = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
-
                         else 
                             HEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
                         end if
@@ -270,15 +267,10 @@ MODULE HPHFRandExcitMod
                         !Odd S States cannot have CS components
                         HEl=0.0_dp
                     else
-                        if (t_new_real_space_hubbard) then
-!                             MatEl = get_helement_rs_hub(nI, ic, ExcitMat, tSignOrig)
+                        if (t_lattice_model) then 
+                            print *, "toto2"
                             temp_ex(1,:) = ExcitMat(2,:)
                             temp_ex(2,:) = ExcitMat(1,:) 
-                            MatEl = get_helement_rs_hub(nJ, ic, temp_ex, tSignOrig)
-                        else if (t_lattice_model) then 
-                            temp_ex(1,:) = ExcitMat(2,:)
-                            temp_ex(2,:) = ExcitMat(1,:) 
-! !                             print *, "toto2"
                             Matel = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
                         else
                             MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
@@ -351,7 +343,7 @@ MODULE HPHFRandExcitMod
                                     temp_ex(1,:) = ExcitMat(2,:)
                                     temp_ex(2,:) = ExcitMat(1,:) 
 !                                     print *, "toto4"
-                                    MatEl = get_helement_lattice(nJ, ic, temp_ex, tSign)
+                                    MatEl = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
                                 end if
                             else
                                 IF(tSwapped) THEN

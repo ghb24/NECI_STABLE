@@ -6,7 +6,8 @@ module tJ_model
                           length_y, length_z, nbasis, t_open_bc_x, t_open_bc_y, &
                           t_open_bc_z, ecore, tHPHF, tHub, tReal, t_tJ_model, & 
                           t_heisenberg_model, t_new_real_space_hubbard, exchange_j, &
-                          t_trans_corr, trans_corr_param, t_trans_corr_tJ_2
+                          t_trans_corr, trans_corr_param, & 
+                          t_trans_corr_2body, trans_corr_param_2body
     use constants, only: dp, n_int, EPS, bits_n_int
     use real_space_hubbard, only: lat_tau_factor, &
                                   t_start_neel_state, check_real_space_hubbard_input, & 
@@ -1217,10 +1218,10 @@ contains
             end if
         end if
 
-        if (t_trans_corr .and. (t_heisenberg_model .or. t_trans_corr_tJ_2)) then 
-            hel = hel * exp(-2*trans_corr_param) * exp(&
-                get_spin_density_neighbors(ilutI, gtid(src(1))) - & 
-                get_spin_density_neighbors(ilutI, gtid(src(2))))
+        if (t_trans_corr_2body) then
+            hel = hel * exp(-2*trans_corr_param_2body) * exp(2*trans_corr_param_2body*(&
+                get_spin_density_neighbors(ilutI, gtid(src(2))) - & 
+                get_spin_density_neighbors(ilutI, gtid(src(1)))))
         end if
 
         if (tpar) hel = -hel
@@ -1234,6 +1235,7 @@ contains
         character(*), parameter :: this_routine = "determine_optimal_time_step_tJ"
 #endif
 
+        ! moved this functionality to lattice_mod
         print *, "todo! have to find out which contribution of excitations is bigger"
 
     end function determine_optimal_time_step_tJ
@@ -1327,7 +1329,7 @@ contains
 
         if (tpar) hel = -hel
 
-        if (t_trans_corr .and. .not. t_trans_corr_tJ_2) then 
+        if (t_trans_corr) then 
             call EncodeBitDet(nI, ilut) 
             
             ! i am not yet sure about the order here.. to have it 
@@ -1335,6 +1337,11 @@ contains
             hel = hel * exp(trans_corr_param)*exp(trans_corr_param * &
                 (get_occ_neighbors(ilut,gtid(ex(1))) - get_occ_neighbors(ilut,gtid(ex(2)))))
 
+        end if
+
+        if (t_trans_corr_2body) then 
+            hel = hel * exp(trans_corr_param_2body * (& 
+                get_spin_opp_neighbors(ilut,ex(1)) - get_spin_opp_neighbors(ilut,ex(2))))
         end if
 
     end function get_offdiag_helement_tJ
@@ -1367,5 +1374,34 @@ contains
         spin_dens_neighbors = spin_dens_neighbors / 2.0_dp
 
     end function get_spin_density_neighbors
+
+    function get_spin_opp_neighbors(ilut, spin_orb) result(spin_opp_neighbors) 
+        ! function to give the number of opposite spin electron neighbors 
+        integer(n_int), intent(in) :: ilut(0:niftot) 
+        integer, intent(in) :: spin_orb 
+        real(dp) :: spin_opp_neighbors
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "get_spin_opp_neighbors" 
+#endif 
+        integer :: i, flip 
+        integer, allocatable :: neighbors(:) 
+
+        ASSERT(associated(lat))
+
+        spin_opp_neighbors = 0.0_dp 
+
+
+        ! get the spin-opposite neigbhors 
+        if (is_beta(spin_orb)) then 
+            neighbors = lat%get_spinorb_neighbors(spin_orb) + 1
+        else 
+            neighbors = lat%get_spinorb_neighbors(spin_orb) - 1
+        end if
+
+        do i = 1, size(neighbors) 
+            if (IsOcc(ilut, neighbors(i))) spin_opp_neighbors = spin_opp_neighbors + 1.0_dp
+        end do
+
+    end function get_spin_opp_neighbors
 
 end module tJ_model
