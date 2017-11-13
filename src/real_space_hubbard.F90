@@ -32,6 +32,7 @@ module real_space_hubbard
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
     use bit_rep_data, only: NIfTot
     use util_mod, only: binary_search_first_ge
+    use bit_reps, only: decode_bit_det
 !     use fcimc_helper, only: update_run_reference
 !     use Determinants, only: write_det
 
@@ -363,7 +364,7 @@ contains
 !             neighbors = 2 * neighbors
 !         end if
 
-        if (t_trans_corr) then 
+!         if (t_trans_corr) then 
             call create_cum_list_rs_hubbard(ilutI, src, neighbors, cum_arr, cum_sum)
 
             if (cum_sum < EPS) then 
@@ -381,22 +382,22 @@ contains
             end if
 
             orb = neighbors(ind)
-        else
-
-            call create_avail_neighbors_list(ilutI, neighbors, orbs, n_avail)
-
-            if (n_avail == 0) then 
-                nJ(1) = 0
-                pgen = 0.0_dp 
-                return
-            end if
-
-            ind = 1 + int(genrand_real2_dsfmt() * n_avail)
-            p_orb = 1.0_dp / real(n_avail, dp) 
-
-            orb = orbs(ind) 
-
-        end if
+!         else
+! 
+!             call create_avail_neighbors_list(ilutI, neighbors, orbs, n_avail)
+! 
+!             if (n_avail == 0) then 
+!                 nJ(1) = 0
+!                 pgen = 0.0_dp 
+!                 return
+!             end if
+! 
+!             ind = 1 + int(genrand_real2_dsfmt() * n_avail)
+!             p_orb = 1.0_dp / real(n_avail, dp) 
+! 
+!             orb = orbs(ind) 
+! 
+!         end if
 
         pgen = p_elec * p_orb
 
@@ -442,7 +443,7 @@ contains
 
         p_elec = 1.0_dp / real(nel, dp) 
 
-        if (t_trans_corr) then 
+!         if (t_trans_corr) then 
             call create_cum_list_rs_hubbard(ilutI, src, lat%get_spinorb_neighbors(src), &
                 cum_arr, cum_sum, tgt, p_orb) 
             if (cum_sum < EPS) then 
@@ -450,15 +451,15 @@ contains
                 return
             end if
 
-        else 
-            ! i should also write a routine which gives me the 
-            ! neighboring orbitals and the number of possible hops 
-            call create_avail_neighbors_list(ilutI, lat%get_spinorb_neighbors(src), & 
-                orbs, n_orbs) 
-
-                p_orb = 1.0_dp / real(n_orbs, dp) 
-
-        end if
+!         else 
+!             ! i should also write a routine which gives me the 
+!             ! neighboring orbitals and the number of possible hops 
+!             call create_avail_neighbors_list(ilutI, lat%get_spinorb_neighbors(src), & 
+!                 orbs, n_orbs) 
+! 
+!                 p_orb = 1.0_dp / real(n_orbs, dp) 
+! 
+!         end if
 
         pgen = p_elec * p_orb
 
@@ -477,9 +478,11 @@ contains
 #endif
 
         real(dp) :: elem
-        integer :: i 
+        integer :: i, nI(nel)
 
         ASSERT(IsOcc(ilutI,src))
+
+        call decode_bit_det(nI, ilutI)
 
         allocate(cum_arr(size(neighbors)))
         cum_arr = 0.0_dp
@@ -487,12 +490,14 @@ contains
         if (present(tgt)) then 
             ASSERT(present(cpt))
             do i = 1, ubound(neighbors,1)
+                elem = 0.0_dp
                 ASSERT(is_beta(src) .eqv. is_beta(neighbors(i)))
                 if (IsNotOcc(ilutI, neighbors(i))) then 
-                    cum_sum = cum_sum + abs(trans_corr_fac(ilutI, src, neighbors(i)))
+                    elem = abs(get_offdiag_helement_rs_hub(nI,[src,neighbors(i)],.false.))
                 end if
+                cum_sum = cum_sum + elem
                 if (neighbors(i) == tgt) then 
-                    cpt = abs(trans_corr_fac(ilutI, src, neighbors(i)))
+                    cpt = elem
                 end if
             end do
             if (cum_sum < EPS) then
@@ -502,11 +507,13 @@ contains
             end if
         else
             do i = 1, ubound(neighbors,1)
-            ASSERT(is_beta(src) .eqv. is_beta(neighbors(i)))
-            if (IsNotOcc(ilutI,neighbors(i))) then 
-                cum_sum = cum_sum + abs(trans_corr_fac(ilutI, src, neighbors(i)))
-            end if
-            cum_arr(i) = cum_sum
+                elem = 0.0_dp
+                ASSERT(is_beta(src) .eqv. is_beta(neighbors(i)))
+                if (IsNotOcc(ilutI,neighbors(i))) then 
+                    elem = abs(get_offdiag_helement_rs_hub(nI,[src,neighbors(i)],.false.))
+                end if
+                cum_sum = cum_sum + elem
+                cum_arr(i) = cum_sum
             end do
         end if
         
@@ -671,7 +678,7 @@ contains
         logical, intent(in) :: tpar
         HElement_t(dp) :: hel
 
-        real(dp) :: ni_opp, nj_opp
+        integer(n_int) :: ilut(0:NIfTot)
 
         ! in case we need it, the off-diagonal, except parity is just 
         ! -t if the hop is possible
@@ -682,27 +689,28 @@ contains
         ! put the transcorrelated stuff here for now, alhtough it would be 
         ! better to do it as a procedure pointer.. 
         if (t_trans_corr) then 
-            if (is_beta(ex(1))) then 
-                if (any(get_alpha(ex(1)) == nI)) then 
-                    nj_opp = 1.0_dp
-                end if 
-                if (any(get_alpha(ex(2)) == nI)) then 
-                    ni_opp = 1.0_dp
-                end if
-            else 
-                if (any(get_beta(ex(1)) == nI)) then 
-                    nj_opp = 1.0_dp
-                end if 
-                if (any(get_beta(ex(2)) == nI)) then 
-                    ni_opp = 1.0_dp 
-                end if
-            end if
-
-            hel = hel * exp(trans_corr_param * (nj_opp - ni_opp))
+            call EncodeBitDet(nI, ilut)
+            hel = hel * exp(trans_corr_param * & 
+                (get_opp_spin(ilut, ex(1)) - get_opp_spin(ilut, ex(2))))
 
         end if
 
     end function get_offdiag_helement_rs_hub
+
+    function get_opp_spin(ilut, spin_orb) result(opp_spin) 
+        integer(n_int), intent(in) :: ilut(0:NIfTot) 
+        integer, intent(in) :: spin_orb
+        real(dp) :: opp_spin 
+
+        opp_spin = 0.0_dp
+
+        if (is_beta(spin_orb)) then 
+            if (IsOcc(ilut, spin_orb + 1)) opp_spin = 1.0_dp 
+        else 
+            if (IsOcc(ilut, spin_orb -1 )) opp_spin = 1.0_dp
+        end if
+
+    end function get_opp_spin
 
     ! what else?
     function create_neel_state(ilut_neel) result(neel_state)

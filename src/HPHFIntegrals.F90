@@ -212,7 +212,9 @@ module hphf_integrals
 !                call FindDetSpinSym (nI, nI2, nel)
                 if (t_lattice_model) then 
                     call decode_bit_det(nJ, iLutnI2)
-                    MatEl2 = get_helement_lattice(nJ,nI)
+!                     MatEl2 = get_helement_lattice(nJ,nI)
+                    ! do i need a hermitian version of that here?
+                    MatEl2 = get_helement_lattice(nI, nJ)
                 else
                     MatEl2 = sltcnd (nI,  iLutnI, iLutnI2)
                 end if

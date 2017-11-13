@@ -13,7 +13,7 @@ program test_real_space_hubbard
     use constants 
     use fruit 
     use SystemData, only: lattice_type, t_new_real_space_hubbard, t_trans_corr, & 
-                          trans_corr_param
+                          trans_corr_param, t_lattice_model
     use lattice_mod, only: lat
 
     implicit none 
@@ -21,6 +21,7 @@ program test_real_space_hubbard
     integer :: failed_count 
 
     t_new_real_space_hubbard = .true.
+    t_lattice_model = .true.
 
     call init_fruit()
     ! run the test-driver 
@@ -212,6 +213,7 @@ contains
         use bit_rep_data, only: niftot
         use Detbitops, only: encodebitdet
         use constants, only: n_int, dp
+        use OneEInts, only: tmat2d
 
         integer(n_int), allocatable :: ilut(:)
         real(dp) :: cum_sum
@@ -228,6 +230,8 @@ contains
         print *, "testing: create_cum_list_rs_hubbard" 
         call encodebitdet([1,2], ilut)
 !         neighbors = [3,5,7,9]
+        allocate(tmat2d(10,10))
+        tmat2d = 1.0
 
         call create_cum_list_rs_hubbard(ilut, 1, [3,5,7,9], cum_arr, cum_sum)
         call assert_equals([1.0,2.0,3.0,4.0], cum_arr, 4)
@@ -257,6 +261,7 @@ contains
         print *, ""
         print *, "and now with a transcorrelated hamiltonian with K = 1.0"
         trans_corr_param = 1.0 
+        t_trans_corr = .true.
         call encodebitdet([1,2], ilut)
 
         call create_cum_list_rs_hubbard(ilut, 1, [3,5,7,9], cum_arr, cum_sum)
@@ -289,6 +294,8 @@ contains
         call assert_equals([1.0, 1.0+exp(1.0)], cum_arr, 2)
         call assert_equals(1.0+exp(1.0), cum_sum)
 
+        t_trans_corr = .false.
+        deallocate(tmat2d)
         nel = -1 
         niftot = -1
         trans_corr_param = 0.0
@@ -340,11 +347,12 @@ contains
     end subroutine create_avail_neighbors_list_test
 
     subroutine calc_pgen_rs_hubbard_test
-        use SystemData, only: nel
+        use SystemData, only: nel, nbasis, bhub
         use constants, only: n_int, dp
         use lattice_mod, only: lattice
         use bit_rep_data, only: niftot 
         use Detbitops, only: encodebitdet 
+        use OneEInts, only: tmat2d
 
         integer(n_int), allocatable :: ilut(:)
         integer :: ex(2,2)
@@ -354,11 +362,14 @@ contains
 
         nel = 2
         niftot = 0
+        bhub = 1.0
         allocate(ilut(0:niftot))
 
         print *, "" 
         print *, "testing: calc_pgen_rs_hubbard" 
         lat => lattice('chain', 4, 1, 1, .true., .true., .true.)
+        nbasis = 8
+        call init_get_helement_hubbard()
 
         trans_corr_param = 0.0 
         t_trans_corr = .false. 
@@ -415,7 +426,9 @@ contains
 
         nel = -1
         niftot = -1
+        nbasis = -1
         trans_corr_param = 0.0
+        deallocate(tmat2d)
 
     end subroutine calc_pgen_rs_hubbard_test
 
@@ -619,7 +632,7 @@ contains
     subroutine gen_excit_rs_hubbard_test
         use dsfmt_interface, only: dsfmt_init 
         use lattice_mod, only: lattice, lattice_deconstructor
-        use SystemData, only: nel 
+        use SystemData, only: nel, nbasis
         use bit_rep_data, only: niftot
         use Detbitops, only: encodebitdet
         use constants, only: n_int, dp
@@ -651,6 +664,9 @@ contains
         
         found_all = .false.
         t_found = .false.
+
+        nbasis = 8
+        call init_get_helement_hubbard()
 
         ! try to get all the excitations here. 
         do while(.not. found_all)
@@ -738,6 +754,8 @@ contains
 
         ! and also try it on a periodic chain 
         lat => lattice('chain', 3, 1, 1, .true., .true., .true.)
+        nbasis = 6
+        call init_tmat(lat)
 
         nI = [1,2]
         call encodebitdet(nI, ilutI) 
@@ -803,6 +821,9 @@ contains
         lat => lattice('square', 2, 2, 1, .true., .true., .true.) 
         nel = 2 
 
+        nbasis = 8
+        call init_tmat(lat)
+
         nI = [1,2] 
         found_all = .false. 
         t_found = .false. 
@@ -859,6 +880,8 @@ contains
         t_found = .false. 
         found_all = .false.
         lat => lattice('triangle', 2,2,1,.true.,.true.,.true.)
+
+        call init_tmat(lat)
 
         do while(.not. found_all) 
             call gen_excit_rs_hubbard(nI, ilutI, nJ, ilutJ, 1, ic, ex, tpar, pgen,  & 
@@ -929,10 +952,14 @@ contains
         end do
 
         nel = -1 
+        nbasis = -1
         call lattice_deconstructor(lat)
 
         print *, "" 
         print *, "and now with the transcorrelated Hamiltonian with K = 1"
+        ! i definetly have to do the test for the transcorrelated hamiltonian 
+        ! now.. 
+
 
     end subroutine gen_excit_rs_hubbard_test
 
@@ -965,6 +992,7 @@ contains
 
         ptr => lattice('chain', 2, 1, 1, .false., .false., .false.)
         call init_tmat(ptr)
+        call init_get_helement_hubbard()
 
         call assert_equals(h_cast(0.0_dp), get_helement([1,2],[1,2],0))
         call assert_equals(h_cast(0.0_dp), get_helement([1,2],[1,2]))
