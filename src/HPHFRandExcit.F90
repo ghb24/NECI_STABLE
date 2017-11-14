@@ -577,6 +577,7 @@ MODULE HPHFRandExcitMod
 !                             print *, "ex2(2,:): ", ex2(2,:)
 !                             print *, "ExcitLevel: ", ExcitLevel
 
+!                             MatEl = get_helement_lattice(nI, ic, ExcitMat, tSignOrig)
                             MatEl = get_helement_lattice(nJ2, ic, temp_ex, tSignOrig)
 !                             print *, "matel: ", matel
                         else
@@ -598,6 +599,7 @@ MODULE HPHFRandExcitMod
 !                             print *, "ExcitLevel: ", ExcitLevel
 
                             MatEl = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
+!                             MatEl = get_helement_lattice(nI, ic, ExcitMat, tSignOrig)
 !                             print *, "matel: ", matel
                         else
                             MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)

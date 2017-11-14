@@ -286,7 +286,7 @@ module fcimc_pointed_fns
 
             ! there is a weird bug with NAN nSpawn without print statement
             ! stupid fortran.. 
-            if (prob < EPS) print *, matel, prob
+!             if (prob < EPS) print *, matel, prob
 
             nSpawn = - tau * MatEl * walkerweight / prob
 !            write(66,*) part_type, nspawn, RealSpawnCutoff, RealSpawnCutoff, stochastic_round (nSpawn / RealSpawnCutoff)

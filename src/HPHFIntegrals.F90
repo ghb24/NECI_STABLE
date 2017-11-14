@@ -92,7 +92,9 @@ module hphf_integrals
 
         ! i need to catch if it is a lattice model here.. 
         if (t_lattice_model) then 
-            hel = get_helement_lattice(nJ,nI)
+            ! here we do not deal with hermiticity but in the call to this 
+            ! function!
+            hel = get_helement_lattice(nI,nJ)
         else
             hel = sltcnd (nI, iLutnI, iLutnJ)
         end if
@@ -143,9 +145,10 @@ module hphf_integrals
                     if (t_lattice_model) then 
                         ! is this the correct call here? compare to the 
                         ! orginal call below!
-                        temp_ex(1,:) = Ex(2,:)
-                        temp_ex(2,:) = Ex(1,:) 
-                        MatEl2 = get_helement_lattice(nJ, ExcitLevel, temp_ex, tSign) 
+!                         temp_ex(1,:) = Ex(2,:)
+!                         temp_ex(2,:) = Ex(1,:) 
+!                         MatEl2 = get_helement_lattice(nJ, ExcitLevel, temp_ex, tSign) 
+                        MatEl2 = get_helement_lattice(nI2, ExcitLevel, Ex, tSign)
                     else
                         MatEl2 = sltcnd_excit (nI2, ExcitLevel, Ex, tSign)
                     end if
@@ -212,9 +215,10 @@ module hphf_integrals
 !                call FindDetSpinSym (nI, nI2, nel)
                 if (t_lattice_model) then 
                     call decode_bit_det(nJ, iLutnI2)
-!                     MatEl2 = get_helement_lattice(nJ,nI)
+                    ! here i am really not sure about hermiticity.. 
+                    MatEl2 = get_helement_lattice(nI,nJ)
                     ! do i need a hermitian version of that here?
-                    MatEl2 = get_helement_lattice(nI, nJ)
+!                     MatEl2 = get_helement_lattice(nJ, nI)
                 else
                     MatEl2 = sltcnd (nI,  iLutnI, iLutnI2)
                 end if

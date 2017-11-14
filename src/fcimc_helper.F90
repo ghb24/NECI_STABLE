@@ -108,7 +108,7 @@ contains
         !Ensure no cross spawning between runs - run of child same as run of
         !parent
 #ifdef __DEBUG
-!         print *, "child: ", child
+        run = part_type_to_run(part_type)
         ASSERT(sum(abs(child))-sum(abs(child(min_part_type(run):max_part_type(run)))) < 1.0e-12_dp)
 #endif
 
