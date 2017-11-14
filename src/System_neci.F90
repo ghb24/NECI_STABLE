@@ -516,6 +516,7 @@ system: do
 
            if (item < nitems) then 
                call getf(trans_corr_param_2body)
+
            else 
                trans_corr_param_2body = 1.0_dp
            end if

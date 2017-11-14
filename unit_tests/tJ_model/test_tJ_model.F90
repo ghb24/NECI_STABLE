@@ -2,7 +2,7 @@
 
 program test_tJ_model 
 
-    use SystemData, only: t_tJ_model, t_heisenberg_model, exchange_j
+    use SystemData, only: t_tJ_model, t_heisenberg_model, exchange_j, t_lattice_model
     use tJ_model 
     use fruit 
     use lattice_mod, only: lat
@@ -12,6 +12,7 @@ program test_tJ_model
     integer :: failed_count 
 
     t_tJ_model = .true. 
+    t_lattice_model = .true.
 
     call init_fruit() 
     call tJ_model_test_driver() 
@@ -928,10 +929,12 @@ contains
         bhub = 2.0 
         exchange_j = -2.0 
 
-
         lat => lattice('chain', 2, 1, 1, .false.,.false.,.false.) 
         call init_tmat(lat) 
         call setup_exchange_matrix(lat) 
+        call init_get_helement_tj()
+
+        t_lattice_model = .true. 
 
         print *, "" 
         print *, "testing: get_helement_tJ" 
@@ -1053,6 +1056,7 @@ contains
 
         lat => lattice('chain', 2, 1, 1, .false.,.false.,.false.) 
         call setup_exchange_matrix(lat) 
+        call init_get_helement_heisenberg()
 
         t_tJ_model = .false. 
         t_heisenberg_model = .true. 

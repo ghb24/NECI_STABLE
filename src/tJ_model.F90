@@ -158,6 +158,13 @@ contains
 
         call check_real_space_hubbard_input() 
 
+        if (t_trans_corr_2body) then 
+            if (t_trans_corr) then 
+                call stop_all(this_routine, & 
+                    "1-body transcorrelation not allowed in the heisenberg model!")
+            end if
+        end if
+
         get_umat_el => get_umat_el_heisenberg
 
         if (trim(adjustl(lattice_type)) == 'read') then 
@@ -1182,6 +1189,7 @@ contains
 #endif
         integer(n_int) :: ilutI(0:NIfTot)
         integer :: src(2), tgt(2) 
+        real(dp) :: ni_z, nj_z, spin_fac
 
         src = get_src(ex)
         tgt = get_tgt(ex) 
@@ -1219,9 +1227,24 @@ contains
         end if
 
         if (t_trans_corr_2body) then
-            hel = hel * exp(-2*trans_corr_param_2body) * exp(2*trans_corr_param_2body*(&
-                get_spin_density_neighbors(ilutI, gtid(src(2))) - & 
-                get_spin_density_neighbors(ilutI, gtid(src(1)))))
+            ! i just realise the sign of the spin densities around the 
+            ! involved orbitals depend on the spin to be flipped! 
+            ni_z = get_spin_density_neighbors(ilutI, gtid(src(1)))
+            nj_z = get_spin_density_neighbors(ilutI, gtid(src(2))) 
+
+            ! beta is defined as negative ms! 
+            if (is_beta(src(1))) then 
+                spin_fac = ni_z - nj_z 
+            else 
+                spin_fac = nj_z - ni_z
+            end if
+
+            hel = hel * exp(-2.0_dp*trans_corr_param_2body) * & 
+                exp(2.0_dp * trans_corr_param_2body * spin_fac)
+
+!             hel = hel * exp(-2.0_dp*trans_corr_param_2body) * exp(2.0_dp*trans_corr_param_2body*(&
+!                 get_spin_density_neighbors(ilutI, gtid(src(1))) - & 
+!                 get_spin_density_neighbors(ilutI, gtid(src(2)))))
         end if
 
         if (tpar) hel = -hel
@@ -1340,6 +1363,7 @@ contains
         end if
 
         if (t_trans_corr_2body) then 
+            call EncodeBitDet(nI, ilut) 
             hel = hel * exp(trans_corr_param_2body * (& 
                 get_spin_opp_neighbors(ilut,ex(1)) - get_spin_opp_neighbors(ilut,ex(2))))
         end if
