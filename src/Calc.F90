@@ -2494,7 +2494,6 @@ contains
 
           ! actually i have to initialize the matrix elements here 
 
-          print *, "here?"
             if (t_lattice_model) then 
                 if (t_tJ_model) then 
                     call init_get_helement_tj()
@@ -2518,7 +2517,6 @@ contains
              ENDIF
           ENDIF
 
-          print *, "here?"
 ! Find out the number of alpha and beta electrons. For restricted calculations, these should be the same.
           if (tCSF) then
               nOccAlpha = (nel / 2) + LMS 
