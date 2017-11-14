@@ -234,13 +234,13 @@ contains
                 call assert_equals(2, ic) 
                 call assert_equals([1,4], ex(1,:),2)
                 call assert_equals([2,3], ex(2,:),2)
-                call assert_equals(6, ilutJ(0)) 
+                call assert_equals(6, int(ilutJ(0)))
                 call assert_true(.not. tpar) 
                 ! no it is not just this probability!! 
                 ! because it could have also happened that we would have 
                 ! chosen electron (4) first and then did a flip! 
                 ! here it gets tricky! 
-                call assert_equals(0.5*(1+2.0/3.0), pgen)
+                call assert_equals(real(0.5*(1+2.0/3.0_dp),dp), pgen)
             end if
 
             if (all(nJ == [1,6]) .and. .not. t_found(2)) then 
@@ -248,9 +248,9 @@ contains
                 call assert_equals(1, ic) 
                 call assert_equals(4, ex(1,1))
                 call assert_equals(6, ex(2,1))
-                call assert_equals(33, ilutJ(0))
+                call assert_equals(33, int(ilutJ(0)))
                 call assert_true(.not. tpar) 
-                call assert_equals(1.0/6.0, pgen)
+                call assert_equals(real(1.0/6.0_dp,dp), pgen)
             end if
 
             found_all = all(t_found(1:2))
@@ -271,9 +271,9 @@ contains
                 call assert_equals(2, ic) 
                 call assert_equals([2,3],ex(1,:),2)
                 call assert_equals([1,4],ex(2,:),2)
-                call assert_equals(9, ilutJ(0))
+                call assert_equals(9, int(ilutJ(0)))
                 call assert_true(.not. tpar)
-                call assert_equals(0.5*(1+2.0/3.0), pgen)
+                call assert_equals(real(0.5*(1+2.0/3.0_dp),dp), pgen)
             end if 
 
             if (all(nJ == [2,5]) .and. .not. t_found(2)) then 
@@ -281,9 +281,9 @@ contains
                 call assert_equals(1, ic)
                 call assert_equals(3, ex(1,1))
                 call assert_equals(5, ex(2,1))
-                call assert_equals(18, ilutJ(0))
+                call assert_equals(18, int(ilutJ(0)))
                 call assert_true(.not. tpar) 
-                call assert_equals(1.0/6.0, pgen)
+                call assert_equals(real(1.0/6.0_dp,dp), pgen)
             end if
             found_all = all(t_found(1:2))
 
@@ -303,21 +303,21 @@ contains
                 t_found(1) = .true. 
                 call assert_equals(1, ic)
                 call assert_true(.not. tpar) 
-                call assert_equals(1.0/6.0, pgen) 
+                call assert_equals(real(1.0/6.0_dp,dp), pgen) 
             end if
 
             if (all(nJ == [4,5]) .and. .not. t_found(2)) then 
                 t_found(2) = .true. 
                 call assert_equals(2, ic) 
                 call assert_true(.not. tpar) 
-                call assert_equals(4.0/6.0, pgen) 
+                call assert_equals(4.0/6.0_dp, pgen) 
             end if
 
             if (all(nJ == [3,8]) .and. .not. t_found(3)) then 
                 t_found(3) = .true. 
                 call assert_equals(1,ic) 
                 call assert_true(.not. tpar) 
-                call assert_equals(1.0/6.0, pgen) 
+                call assert_equals(1.0/6.0_dp, pgen) 
             end if
             found_all = all(t_found(1:3))
 
@@ -362,42 +362,42 @@ contains
         ex(1,:) = [1,4] 
         ex(2,:) = [2,3] 
 
-        call assert_equals(0.0, calc_pgen_tJ_model(ilut,ex,0))
-        call assert_equals(0.0, calc_pgen_tJ_model(ilut,ex,3))
+        call assert_equals(0.0_dp, calc_pgen_tJ_model(ilut,ex,0))
+        call assert_equals(0.0_dp, calc_pgen_tJ_model(ilut,ex,3))
 
-        call assert_equals(0.5*(1+2.0/3.0), calc_pgen_tJ_model(ilut, ex, 2)) 
+        call assert_equals(0.5_dp*(1+2.0/3.0_dp), calc_pgen_tJ_model(ilut, ex, 2)) 
 
         ex(1,1) = 4
         ex(2,1) = 6
 
-        call assert_equals(1.0/6.0, calc_pgen_tJ_model(ilut,ex,1))
+        call assert_equals(1.0/6.0_dp, calc_pgen_tJ_model(ilut,ex,1))
 
         call EncodeBitDet([2,3], ilut)
         ex(1,:) = [2,3]
         ex(2,:) = [1,4] 
 
-        call assert_equals(0.5*(1+2.0/3.0), calc_pgen_tJ_model(ilut, ex, 2)) 
+        call assert_equals(0.5_dp*(1+2.0/3.0_dp), calc_pgen_tJ_model(ilut, ex, 2)) 
 
         ex(1,1) = 3
         ex(2,1) = 5 
 
-        call assert_equals(1.0/6.0, calc_pgen_tJ_model(ilut,ex,1))
+        call assert_equals(1.0/6.0_dp, calc_pgen_tJ_model(ilut,ex,1))
 
         call EncodeBitDet([3,6], ilut) 
 
         ex(1,1) = 3 
         ex(2,1) = 1
 
-        call assert_equals(1.0/6.0, calc_pgen_tJ_model(ilut,ex,1))
+        call assert_equals(1.0/6.0_dp, calc_pgen_tJ_model(ilut,ex,1))
 
         ex(1,1) = 6 
         ex(2,1) = 8 
 
-        call assert_equals(1.0/6.0, calc_pgen_tJ_model(ilut,ex,1))
+        call assert_equals(1.0/6.0_dp, calc_pgen_tJ_model(ilut,ex,1))
 
         ex(1,:) = [3,6]
         ex(2,:) = [4,5] 
-        call assert_equals(4.0/6.0, calc_pgen_tJ_model(ilut, ex, 2)) 
+        call assert_equals(4.0/6.0_dp, calc_pgen_tJ_model(ilut, ex, 2)) 
 
         nel = -1 
         nbasis = -1 
@@ -442,35 +442,35 @@ contains
         print *, "testing: create_cum_list_tJ_model"
         call create_cum_list_tJ_model(ilut, 1, [2,4], & 
             cum_arr, cum_sum, ic_list)
-        call assert_equals([1.0,2.0], cum_arr, 2)
-        call assert_equals(2.0, cum_sum) 
+        call assert_equals([1.0,2.0], real(cum_arr), 2)
+        call assert_equals(2.0_dp, cum_sum) 
         call assert_equals([1,1], ic_list,2)
 
         call EncodeBitDet([1,4], ilut)
 
         call create_cum_list_tJ_model(ilut, 1, [2,4], cum_arr, cum_sum, ic_list)
-        call assert_equals([1.0,2.0], cum_arr, 2) 
-        call assert_equals(2.0, cum_sum) 
+        call assert_equals([1.0,2.0], real(cum_arr), 2) 
+        call assert_equals(2.0_dp, cum_sum) 
         call assert_equals([2,1],ic_list,2)
 
         call create_cum_list_tJ_model(ilut, 4, [1,3], cum_arr, cum_sum, ic_list)
-        call assert_equals([1.0,2.0], cum_arr, 2) 
-        call assert_equals(2.0, cum_sum) 
+        call assert_equals([1.0,2.0], real(cum_arr), 2) 
+        call assert_equals(2.0_dp, cum_sum) 
         call assert_equals([2,1],ic_list,2)
 
         print *, ""
         print *, "and also for a provided target" 
         call create_cum_list_tJ_model(ilut, 1, [2,4], cum_arr, cum_sum, ic_list,4,cpt)
-        call assert_equals(0.5, cpt)
+        call assert_equals(0.5_dp, cpt)
 
         call create_cum_list_tJ_model(ilut, 1, [2,4], cum_arr, cum_sum, ic_list,7,cpt)
-        call assert_equals(0.5, cpt)
+        call assert_equals(0.5_dp, cpt)
 
         call create_cum_list_tJ_model(ilut, 1, [2,4], cum_arr, cum_sum, ic_list,5,cpt)
-        call assert_equals(0.0, cpt)
+        call assert_equals(0.0_dp, cpt)
 
         call create_cum_list_tJ_model(ilut, 1, [2,4], cum_arr, cum_sum, ic_list,3,cpt)
-        call assert_equals(0.0, cpt)
+        call assert_equals(0.0_dp, cpt)
 
         print *, ""
         print *, "and more electrons: "
@@ -478,74 +478,74 @@ contains
         call EncodeBitDet([1,4,7],ilut)
 
         call create_cum_list_tJ_model(ilut, 1, [2,4], cum_arr, cum_sum, ic_list)
-        call assert_equals([1.0,1.0], cum_arr, 2) 
-        call assert_equals(1.0, cum_sum) 
+        call assert_equals([1.0,1.0], real(cum_arr), 2) 
+        call assert_equals(1.0_dp, cum_sum) 
         call assert_equals([2,0],ic_list,2)
 
         call create_cum_list_tJ_model(ilut, 4, [1,3], cum_arr, cum_sum, ic_list)
-        call assert_equals([1.0,2.0], cum_arr, 2) 
-        call assert_equals(2.0, cum_sum) 
+        call assert_equals([1.0,2.0], real(cum_arr), 2) 
+        call assert_equals(2.0_dp, cum_sum) 
         call assert_equals([2,1],ic_list,2)
 
         call create_cum_list_tJ_model(ilut, 7, [1,3], cum_arr, cum_sum, ic_list)
-        call assert_equals([0.0,1.0], cum_arr, 2) 
-        call assert_equals(1.0, cum_sum) 
+        call assert_equals([0.0,1.0], real(cum_arr), 2) 
+        call assert_equals(1.0_dp, cum_sum) 
         call assert_equals([0,1],ic_list,2)
 
         call EncodeBitDet([1,4,8],ilut)
 
         call create_cum_list_tJ_model(ilut, 1, [2,4], cum_arr, cum_sum, ic_list)
-        call assert_equals([1.0,2.0], cum_arr, 2) 
-        call assert_equals(2.0, cum_sum) 
+        call assert_equals([1.0,2.0], real(cum_arr), 2) 
+        call assert_equals(2.0_dp, cum_sum) 
         call assert_equals([2,2],ic_list,2)
 
         call create_cum_list_tJ_model(ilut, 4, [1,3], cum_arr, cum_sum, ic_list)
-        call assert_equals([1.0,2.0], cum_arr, 2) 
-        call assert_equals(2.0, cum_sum) 
+        call assert_equals([1.0,2.0], real(cum_arr), 2) 
+        call assert_equals(2.0_dp, cum_sum) 
         call assert_equals([2,1],ic_list,2)
 
         call create_cum_list_tJ_model(ilut, 4, [1,3], cum_arr, cum_sum, ic_list, 2, cpt)
-        call assert_equals(0.0, cpt)
+        call assert_equals(0.0_dp, cpt)
 
         call create_cum_list_tJ_model(ilut, 4, [1,3], cum_arr, cum_sum, ic_list, 1, cpt)
-        call assert_equals(0.5, cpt)
+        call assert_equals(0.5_dp, cpt)
 
         call create_cum_list_tJ_model(ilut, 4, [1,3], cum_arr, cum_sum, ic_list, 6, cpt)
-        call assert_equals(0.5, cpt)
+        call assert_equals(0.5_dp, cpt)
 
         call create_cum_list_tJ_model(ilut, 4, [1,3], cum_arr, cum_sum, ic_list, 5, cpt)
-        call assert_equals(0.0, cpt)
+        call assert_equals(0.0_dp, cpt)
 
         call create_cum_list_tJ_model(ilut, 4, [1,3], cum_arr, cum_sum, ic_list, 7, cpt)
-        call assert_equals(0.0, cpt)
+        call assert_equals(0.0_dp, cpt)
 
         call create_cum_list_tJ_model(ilut, 1, [2,4], cum_arr, cum_sum, ic_list, 7, cpt)
-        call assert_equals(0.0, cpt)
+        call assert_equals(0.0_dp, cpt)
 
         call create_cum_list_tJ_model(ilut, 1, [2,4], cum_arr, cum_sum, ic_list, 8, cpt)
-        call assert_equals(0.5, cpt)
+        call assert_equals(0.5_dp, cpt)
 
         call create_cum_list_tJ_model(ilut, 1, [2,4], cum_arr, cum_sum, ic_list, 3, cpt)
-        call assert_equals(0.0, cpt)
+        call assert_equals(0.0_dp, cpt)
 
         call create_cum_list_tJ_model(ilut, 1, [2,4], cum_arr, cum_sum, ic_list, 4, cpt)
-        call assert_equals(0.5, cpt)
+        call assert_equals(0.5_dp, cpt)
 
         call create_cum_list_tJ_model(ilut, 1, [2,4], cum_arr, cum_sum, ic_list, 5, cpt)
-        call assert_equals(0.0, cpt)
+        call assert_equals(0.0_dp, cpt)
 
         call EncodeBitDet([1,4,7],ilut)
         call create_cum_list_tJ_model(ilut, 7, [1,3], cum_arr, cum_sum, ic_list, 1, cpt)
-        call assert_equals(0.0, cpt)
+        call assert_equals(0.0_dp, cpt)
 
         call create_cum_list_tJ_model(ilut, 7, [1,3], cum_arr, cum_sum, ic_list, 2, cpt)
-        call assert_equals(0.0, cpt)
+        call assert_equals(0.0_dp, cpt)
 
         call create_cum_list_tJ_model(ilut, 7, [1,3], cum_arr, cum_sum, ic_list, 5, cpt)
-        call assert_equals(1.0, cpt)
+        call assert_equals(1.0_dp, cpt)
 
         call create_cum_list_tJ_model(ilut, 7, [1,3], cum_arr, cum_sum, ic_list, 6, cpt)
-        call assert_equals(0.0, cpt)
+        call assert_equals(0.0_dp, cpt)
 
         nel = -1 
         NIfTot = -1 
@@ -607,7 +607,7 @@ contains
         call assert_equals([1,4],ex(1,:),2)
         call assert_equals([2,3],ex(2,:),2)
         call assert_true(.not. tpar)
-        call assert_equals(1.0, pgen)
+        call assert_equals(1.0_dp, pgen)
 
         ni = [2,3] 
         call EncodeBitDet(nI, ilutI) 
@@ -620,7 +620,7 @@ contains
         call assert_equals([1,4],ex(2,:),2)
         call assert_equals([2,3],ex(1,:),2)
         call assert_true(.not. tpar)
-        call assert_equals(1.0, pgen)
+        call assert_equals(1.0_dp, pgen)
 
         nel = 4 
         nbasis = 8
@@ -640,7 +640,7 @@ contains
 
         call assert_equals([1,4,5,8], nJ, 4) 
         call assert_true(.not. tpar) 
-        call assert_equals(0.5, pgen) 
+        call assert_equals(0.5_dp, pgen) 
 
         nI = [1,4,5,8]
         call EncodeBitDet(ni, iluti)
@@ -652,19 +652,19 @@ contains
             if (all(nJ == [2,3,5,8]) .and. .not. t_found(1)) then
                 t_found(1) = .true. 
                 call assert_true(.not. tpar) 
-                call assert_equals(3.0/8.0, pgen) 
+                call assert_equals(3.0/8.0_dp, pgen) 
             end if
 
             if (all(nJ == [1,3,6,8]) .and. .not. t_found(2)) then 
                 t_found(2) = .true. 
                 call assert_true(.not. tpar) 
-                call assert_equals(0.25, pgen) 
+                call assert_equals(0.25_dp, pgen) 
             end if
 
             if (all(nJ == [1,4,6,7]) .and. .not. t_found(3)) then 
                 t_found(3) = .true. 
                 call assert_true(.not. tpar) 
-                call assert_equals(3.0/8.0, pgen) 
+                call assert_equals(3.0/8.0_dp, pgen) 
             end if
 
             found_all = all(t_found(1:3))
@@ -709,77 +709,77 @@ contains
         print *, ""
         print *, "testing: create_cum_list_heisenberg"
         call create_cum_list_heisenberg(ilut, 1, [3,7], cum_arr, cum_sum)
-        call assert_equals([0.0,0.0], cum_arr, 2)
-        call assert_equals(0.0, cum_sum)
+        call assert_equals([0.0,0.0], real(cum_arr), 2)
+        call assert_equals(0.0_dp, cum_sum)
 
         call create_cum_list_heisenberg(ilut, 1, [3,7], cum_arr, cum_sum, 3, cpt)
-        call assert_equals(0.0, cpt) 
+        call assert_equals(0.0_dp, cpt) 
 
         call create_cum_list_heisenberg(ilut, 1, [3,7], cum_arr, cum_sum, 7, cpt)
-        call assert_equals(0.0, cpt) 
+        call assert_equals(0.0_dp, cpt) 
         call create_cum_list_heisenberg(ilut, 1, [3,7], cum_arr, cum_sum, 5, cpt)
-        call assert_equals(0.0, cpt) 
+        call assert_equals(0.0_dp, cpt) 
         call create_cum_list_heisenberg(ilut, 1, [3,7], cum_arr, cum_sum, 4, cpt)
-        call assert_equals(0.0, cpt) 
+        call assert_equals(0.0_dp, cpt) 
 
         call create_cum_list_heisenberg(ilut, 3, [1,5], cum_arr, cum_sum)
-        call assert_equals([0.0,0.0], cum_arr, 2)
-        call assert_equals(0.0, cum_sum)
+        call assert_equals([0.0,0.0], real(cum_arr), 2)
+        call assert_equals(0.0_dp, cum_sum)
 
         call create_cum_list_heisenberg(ilut, 3, [1,5], cum_arr, cum_sum, 1, cpt)
-        call assert_equals(0.0, cpt)
+        call assert_equals(0.0_dp, cpt)
 
         call create_cum_list_heisenberg(ilut, 3, [1,5], cum_arr, cum_sum, 5, cpt)
-        call assert_equals(0.0, cpt)
+        call assert_equals(0.0_dp, cpt)
 
         call create_cum_list_heisenberg(ilut, 3, [1,5], cum_arr, cum_sum, 2, cpt)
-        call assert_equals(0.0, cpt)
+        call assert_equals(0.0_dp, cpt)
 
         call EncodeBitDet([1,4,6,7], ilut) 
 
         call create_cum_list_heisenberg(ilut, 1, [3,7], cum_arr, cum_sum)
-        call assert_equals([1.0, 1.0], cum_arr, 2)
-        call assert_equals(1.0, cum_sum) 
+        call assert_equals([1.0_dp, 1.0_dp], cum_arr, 2)
+        call assert_equals(1.0_dp, cum_sum) 
 
         call create_cum_list_heisenberg(ilut, 1, [3,7], cum_arr, cum_sum, 3, cpt)
-        call assert_equals(1.0, cpt) 
+        call assert_equals(1.0_dp, cpt) 
 
         call create_cum_list_heisenberg(ilut, 1, [3,7], cum_arr, cum_sum, 4, cpt)
-        call assert_equals(0.0, cpt) 
+        call assert_equals(0.0_dp, cpt) 
 
         call create_cum_list_heisenberg(ilut, 1, [3,7], cum_arr, cum_sum, 7, cpt)
-        call assert_equals(0.0, cpt) 
+        call assert_equals(0.0_dp, cpt) 
 
         call create_cum_list_heisenberg(ilut, 1, [3,7], cum_arr, cum_sum, 8, cpt)
-        call assert_equals(0.0, cpt) 
+        call assert_equals(0.0_dp, cpt) 
 
         call create_cum_list_heisenberg(ilut, 4, [2,6], cum_arr, cum_sum)
-        call assert_equals([1.0, 1.0], cum_arr, 2)
-        call assert_equals(1.0, cum_sum) 
+        call assert_equals([1.0_dp, 1.0_dp], cum_arr, 2)
+        call assert_equals(1.0_dp, cum_sum) 
 
         call create_cum_list_heisenberg(ilut, 4, [2,6], cum_arr, cum_sum, 2, cpt)
-        call assert_equals(1.0, cpt)
+        call assert_equals(1.0_dp, cpt)
 
         call create_cum_list_heisenberg(ilut, 4, [2,6], cum_arr, cum_sum, 6, cpt)
-        call assert_equals(0.0, cpt)
+        call assert_equals(0.0_dp, cpt)
 
         call EncodeBitDet([1,4,5,8], ilut)
         call create_cum_list_heisenberg(ilut, 5, [3,7], cum_arr, cum_sum)
-        call assert_equals([1.0,2.0], cum_arr, 2)
-        call assert_equals(2.0, cum_sum) 
+        call assert_equals([1.0_dp,2.0_dp], cum_arr, 2)
+        call assert_equals(2.0_dp, cum_sum) 
 
         call create_cum_list_heisenberg(ilut, 5, [3,7], cum_arr, cum_sum, 6, cpt)
-        call assert_equals(0.0, cpt)
+        call assert_equals(0.0_dp, cpt)
 
         call create_cum_list_heisenberg(ilut, 5, [3,7], cum_arr, cum_sum, 3, cpt)
-        call assert_equals(0.5, cpt)
+        call assert_equals(0.5_dp, cpt)
 
         call create_cum_list_heisenberg(ilut, 4, [2,6], cum_arr, cum_sum)
-        call assert_equals([1.0,2.0], cum_arr, 2)
-        call assert_equals(2.0, cum_sum) 
+        call assert_equals([1.0_dp,2.0_dp], cum_arr, 2)
+        call assert_equals(2.0_dp, cum_sum) 
 
         call create_cum_list_heisenberg(ilut, 4, [2,6], cum_arr, cum_sum, 6, cpt)
-        call assert_equals(0.5, cpt)
+        call assert_equals(0.5_dp, cpt)
 
         nel = -1 
         niftot = -1
@@ -817,16 +817,16 @@ contains
         ex(1,:) = [1,4]
         ex(2,:) = [2,3] 
 
-        call assert_equals(0.0, calc_pgen_heisenberg_model(ilut, ex, 0))
-        call assert_equals(0.0, calc_pgen_heisenberg_model(ilut, ex, 1))
-        call assert_equals(0.0, calc_pgen_heisenberg_model(ilut, ex, 3))
-        call assert_equals(1.0, calc_pgen_heisenberg_model(ilut, ex, 2))
+        call assert_equals(0.0_dp, calc_pgen_heisenberg_model(ilut, ex, 0))
+        call assert_equals(0.0_dp, calc_pgen_heisenberg_model(ilut, ex, 1))
+        call assert_equals(0.0_dp, calc_pgen_heisenberg_model(ilut, ex, 3))
+        call assert_equals(1.0_dp, calc_pgen_heisenberg_model(ilut, ex, 2))
 
         call encodebitdet([2,3],ilut)
         ex(1,:) = [2,3]
         ex(2,:) = [1,4] 
 
-        call assert_equals(1.0, calc_pgen_heisenberg_model(ilut, ex, 2))
+        call assert_equals(1.0_dp, calc_pgen_heisenberg_model(ilut, ex, 2))
 
         nel = 4 
         nbasis = 8 
@@ -839,21 +839,21 @@ contains
         ex(1,:) = [3,6]
         ex(2,:) = [4,5] 
 
-        call assert_equals(0.5, calc_pgen_heisenberg_model(ilut,ex,2))
+        call assert_equals(0.5_dp, calc_pgen_heisenberg_model(ilut,ex,2))
 
         call EncodeBitDet([1,4,5,8], ilut) 
         ex(1,:) = [1,4]
         ex(2,:) = [2,3] 
 
-        call assert_equals(3.0/8.0, calc_pgen_heisenberg_model(ilut,ex,2))
+        call assert_equals(3.0/8.0_dp, calc_pgen_heisenberg_model(ilut,ex,2))
         
         ex(1,:) = [4,5]
         ex(2,:) = [3,6]
-        call assert_equals(0.25, calc_pgen_heisenberg_model(ilut,ex,2))
+        call assert_equals(0.25_dp, calc_pgen_heisenberg_model(ilut,ex,2))
 
         ex(1,:) = [5,8]
         ex(2,:) = [6,7] 
-        call assert_equals(3.0/8.0, calc_pgen_heisenberg_model(ilut,ex,2))
+        call assert_equals(3.0/8.0_dp, calc_pgen_heisenberg_model(ilut,ex,2))
 
         nel = -1 
         nbasis = -1 
@@ -900,10 +900,10 @@ contains
         lat => lattice('chain', 2, 1, 1, .true.,.true.,.true.)
         nbasis = 4 
         call setup_exchange_matrix(lat)
-        call assert_equals([0.0,0.0,0.0,1.0],exchange_matrix(1,:),4)
-        call assert_equals([0.0,0.0,1.0,0.0],exchange_matrix(2,:),4)
-        call assert_equals([0.0,1.0,0.0,0.0],exchange_matrix(3,:),4)
-        call assert_equals([1.0,0.0,0.0,0.0],exchange_matrix(4,:),4)
+        call assert_equals([0.0,0.0,0.0,1.0],real(exchange_matrix(1,:)),4)
+        call assert_equals([0.0,0.0,1.0,0.0],real(exchange_matrix(2,:)),4)
+        call assert_equals([0.0,1.0,0.0,0.0],real(exchange_matrix(3,:)),4)
+        call assert_equals([1.0,0.0,0.0,0.0],real(exchange_matrix(4,:)),4)
 
         exchange_j = 0 
         nbasis = -1 
@@ -950,20 +950,20 @@ contains
         ! like setup.. 
         print *, "" 
         print *, "for diagonal elements: "
-        call assert_equals(h_cast(0.0), get_helement([1,2],[1,2],0))
-        call assert_equals(h_cast(0.0), get_helement([1,2],[1,2]))
+        call assert_equals(h_cast(0.0_dp), get_helement([1,2],[1,2],0))
+        call assert_equals(h_cast(0.0_dp), get_helement([1,2],[1,2]))
 
         ! but i am not yet sure about the double counting.. 
-        call assert_equals(h_cast(1.0), get_helement([1,4],[1,4],0))
-        call assert_equals(h_cast(1.0), get_helement([2,3],[2,3]))
+        call assert_equals(h_cast(1.0_dp), get_helement([1,4],[1,4],0))
+        call assert_equals(h_cast(1.0_dp), get_helement([2,3],[2,3]))
 
-        call assert_equals(h_cast(0.0), get_helement([1,3],[1,3]))
-        call assert_equals(h_cast(0.0), get_helement([2,4],[2,4]))
+        call assert_equals(h_cast(0.0_dp), get_helement([1,3],[1,3]))
+        call assert_equals(h_cast(0.0_dp), get_helement([2,4],[2,4]))
 
         print *, "" 
         print *, "for exchange contributions: "
-        call assert_equals(h_cast(1.0), get_helement([1,4],[2,3]))
-        call assert_equals(h_cast(1.0), get_helement([2,3],[1,4]))
+        call assert_equals(h_cast(1.0_dp), get_helement([1,4],[2,3]))
+        call assert_equals(h_cast(1.0_dp), get_helement([2,3],[1,4]))
 
         print *, "" 
         print *, "and for bigger systems: "
@@ -972,14 +972,14 @@ contains
         call init_tmat(lat) 
         call setup_exchange_matrix(lat) 
 
-        call assert_equals(h_cast(0.0), get_helement([1,3],[1,3],0))
-        call assert_equals(h_cast(0.0), get_helement([1,3],[1,3]))
+        call assert_equals(h_cast(0.0_dp), get_helement([1,3],[1,3],0))
+        call assert_equals(h_cast(0.0_dp), get_helement([1,3],[1,3]))
 
-        call assert_equals(h_cast(2.0), get_helement([1,3],[1,5],1))
-        call assert_equals(h_cast(-2.0), get_helement([1,3],[3,5],1))
+        call assert_equals(h_cast(2.0_dp), get_helement([1,3],[1,5],1))
+        call assert_equals(h_cast(-2.0_dp), get_helement([1,3],[3,5],1))
 
-        call assert_equals(h_cast(2.0), get_helement([1,3],[1,5]))
-        call assert_equals(h_cast(-2.0), get_helement([1,3],[3,5]))
+        call assert_equals(h_cast(2.0_dp), get_helement([1,3],[1,5]))
+        call assert_equals(h_cast(-2.0_dp), get_helement([1,3],[3,5]))
 
         niftot = 0
         nifd = 0
@@ -989,27 +989,27 @@ contains
         call encodebitdet([1,2],ilutI)
         call encodebitdet([1,2],ilutJ)
 
-        call assert_equals(h_cast(0.0), get_helement([1,2],[1,2],ilutI,ilutJ))
+        call assert_equals(h_cast(0.0_dp), get_helement([1,2],[1,2],ilutI,ilutJ))
 
         call encodebitdet([2,4],ilutJ)
-        call assert_equals(h_cast(0.0), get_helement([1,2],[2,4],ilutI,ilutJ))
+        call assert_equals(h_cast(0.0_dp), get_helement([1,2],[2,4],ilutI,ilutJ))
 
         call encodebitdet([2,3],ilutJ)
-        call assert_equals(h_cast(-2.0), get_helement([1,2],[2,3],ilutI,ilutJ))
+        call assert_equals(h_cast(-2.0_dp), get_helement([1,2],[2,3],ilutI,ilutJ))
 
         call encodebitdet([1,4],ilutJ)
-        call assert_equals(h_cast(2.0), get_helement([1,2],[1,4],ilutJ,ilutJ))
+        call assert_equals(h_cast(2.0_dp), get_helement([1,2],[1,4],ilutJ,ilutJ))
 
-        call assert_equals(h_cast(1.0), get_helement([1,4],[2,3]))
-        call assert_equals(h_cast(1.0), get_helement([1,6],[2,5]))
+        call assert_equals(h_cast(1.0_dp), get_helement([1,4],[2,3]))
+        call assert_equals(h_cast(1.0_dp), get_helement([1,6],[2,5]))
 
-        call assert_equals(h_cast(-2.0), get_helement([1,4],[4,5]))
-        call assert_equals(h_cast(2.0), get_helement([1,4],[1,6]))
+        call assert_equals(h_cast(-2.0_dp), get_helement([1,4],[4,5]))
+        call assert_equals(h_cast(2.0_dp), get_helement([1,4],[1,6]))
 
-        call assert_equals(h_cast(0.0), get_helement([1,4],[3,6]))
+        call assert_equals(h_cast(0.0_dp), get_helement([1,4],[3,6]))
 
-        call assert_equals(h_cast(0.0), get_helement([1,3],[2,4]))
-        call assert_equals(h_cast(0.0), get_helement([1,3],[2,3]))
+        call assert_equals(h_cast(0.0_dp), get_helement([1,3],[2,4]))
+        call assert_equals(h_cast(0.0_dp), get_helement([1,3],[2,3]))
 
         lat => lattice('square', 2,2,1,.true.,.true.,.true.)
         nel = 4 
@@ -1018,15 +1018,15 @@ contains
         call init_tmat(lat) 
         call setup_exchange_matrix(lat) 
 
-        call assert_equals(h_cast(0.0), get_helement([1,3,5,7],[1,3,5,7]))
-        call assert_equals(h_cast(0.0), get_helement([2,4,6,8],[2,4,6,8]))
+        call assert_equals(h_cast(0.0_dp), get_helement([1,3,5,7],[1,3,5,7]))
+        call assert_equals(h_cast(0.0_dp), get_helement([2,4,6,8],[2,4,6,8]))
 
-        call assert_equals(h_cast(2.0), get_helement([1,3,6,8],[1,3,6,8]))
-        call assert_equals(h_cast(2.0), get_helement([2,4,5,7],[2,4,5,7]))
+        call assert_equals(h_cast(2.0_dp), get_helement([1,3,6,8],[1,3,6,8]))
+        call assert_equals(h_cast(2.0_dp), get_helement([2,4,5,7],[2,4,5,7]))
 
-        call assert_equals(h_cast(2.0), get_helement([1,4,5,8],[1,4,5,8]))
+        call assert_equals(h_cast(2.0_dp), get_helement([1,4,5,8],[1,4,5,8]))
 
-        call assert_equals(h_cast(4.0), get_helement([1,4,6,7],[1,4,6,7]))
+        call assert_equals(h_cast(4.0_dp), get_helement([1,4,6,7],[1,4,6,7]))
 
         NIfTot = -1 
         nifd = -1
@@ -1072,20 +1072,20 @@ contains
 
         print *, "" 
         print *, "for diagonal elements: "
-        call assert_equals(h_cast(0.0), get_helement([1,2],[1,2],0))
-        call assert_equals(h_cast(0.0), get_helement([1,2],[1,2]))
+        call assert_equals(h_cast(0.0_dp), get_helement([1,2],[1,2],0))
+        call assert_equals(h_cast(0.0_dp), get_helement([1,2],[1,2]))
 
         ! but i am not yet sure about the double counting.. 
-        call assert_equals(h_cast(0.5), get_helement([1,4],[1,4],0))
-        call assert_equals(h_cast(0.5), get_helement([2,3],[2,3]))
+        call assert_equals(h_cast(0.5_dp), get_helement([1,4],[1,4],0))
+        call assert_equals(h_cast(0.5_dp), get_helement([2,3],[2,3]))
 
-        call assert_equals(h_cast(-0.5), get_helement([1,3],[1,3]))
-        call assert_equals(h_cast(-0.5), get_helement([2,4],[2,4]))
+        call assert_equals(h_cast(-0.5_dp), get_helement([1,3],[1,3]))
+        call assert_equals(h_cast(-0.5_dp), get_helement([2,4],[2,4]))
 
         print *, "" 
         print *, "for exchange contributions: "
-        call assert_equals(h_cast(1.0), get_helement([1,4],[2,3]))
-        call assert_equals(h_cast(1.0), get_helement([2,3],[1,4]))
+        call assert_equals(h_cast(1.0_dp), get_helement([1,4],[2,3]))
+        call assert_equals(h_cast(1.0_dp), get_helement([2,3],[1,4]))
 
         print *, "" 
         print *, "and for bigger systems: "
@@ -1093,14 +1093,14 @@ contains
         lat => lattice('chain', 3, 1, 1, .true., .true., .true.)
         call setup_exchange_matrix(lat) 
 
-        call assert_equals(h_cast(-0.5), get_helement([1,3],[1,3],0))
-        call assert_equals(h_cast(-0.5), get_helement([1,3],[1,3]))
+        call assert_equals(h_cast(-0.5_dp), get_helement([1,3],[1,3],0))
+        call assert_equals(h_cast(-0.5_dp), get_helement([1,3],[1,3]))
 
-        call assert_equals(h_cast(0.0), get_helement([1,3],[1,5],1))
-        call assert_equals(h_cast(-0.0), get_helement([1,3],[3,5],1))
+        call assert_equals(h_cast(0.0_dp), get_helement([1,3],[1,5],1))
+        call assert_equals(h_cast(-0.0_dp), get_helement([1,3],[3,5],1))
 
-        call assert_equals(h_cast(0.0), get_helement([1,3],[1,5]))
-        call assert_equals(h_cast(-0.0), get_helement([1,3],[3,5]))
+        call assert_equals(h_cast(0.0_dp), get_helement([1,3],[1,5]))
+        call assert_equals(h_cast(-0.0_dp), get_helement([1,3],[3,5]))
 
         niftot = 0
         nifd = 0
@@ -1110,27 +1110,27 @@ contains
         call encodebitdet([1,2],ilutI)
         call encodebitdet([1,2],ilutJ)
 
-        call assert_equals(h_cast(0.0), get_helement([1,2],[1,2],ilutI,ilutJ))
+        call assert_equals(h_cast(0.0_dp), get_helement([1,2],[1,2],ilutI,ilutJ))
 
         call encodebitdet([2,4],ilutJ)
-        call assert_equals(h_cast(0.0), get_helement([1,2],[2,4],ilutI,ilutJ))
+        call assert_equals(h_cast(0.0_dp), get_helement([1,2],[2,4],ilutI,ilutJ))
 
         call encodebitdet([2,3],ilutJ)
-        call assert_equals(h_cast(-0.0), get_helement([1,2],[2,3],ilutI,ilutJ))
+        call assert_equals(h_cast(-0.0_dp), get_helement([1,2],[2,3],ilutI,ilutJ))
 
         call encodebitdet([1,4],ilutJ)
-        call assert_equals(h_cast(0.0), get_helement([1,2],[1,4],ilutJ,ilutJ))
+        call assert_equals(h_cast(0.0_dp), get_helement([1,2],[1,4],ilutJ,ilutJ))
 
-        call assert_equals(h_cast(1.0), get_helement([1,4],[2,3]))
-        call assert_equals(h_cast(1.0), get_helement([1,6],[2,5]))
+        call assert_equals(h_cast(1.0_dp), get_helement([1,4],[2,3]))
+        call assert_equals(h_cast(1.0_dp), get_helement([1,6],[2,5]))
 
-        call assert_equals(h_cast(-0.0), get_helement([1,4],[4,5]))
-        call assert_equals(h_cast(0.0), get_helement([1,4],[1,6]))
+        call assert_equals(h_cast(-0.0_dp), get_helement([1,4],[4,5]))
+        call assert_equals(h_cast(0.0_dp), get_helement([1,4],[1,6]))
 
-        call assert_equals(h_cast(0.0), get_helement([1,4],[3,6]))
+        call assert_equals(h_cast(0.0_dp), get_helement([1,4],[3,6]))
 
-        call assert_equals(h_cast(0.0), get_helement([1,3],[2,4]))
-        call assert_equals(h_cast(0.0), get_helement([1,3],[2,3]))
+        call assert_equals(h_cast(0.0_dp), get_helement([1,3],[2,4]))
+        call assert_equals(h_cast(0.0_dp), get_helement([1,3],[2,3]))
 
         NIfTot = -1 
         nifd = -1
@@ -1157,21 +1157,21 @@ contains
         t_tJ_model = .true. 
         t_heisenberg_model = .false. 
 
-        call assert_equals(h_cast(0.0), get_diag_helement_heisenberg([1,3,5,7]))
-        call assert_equals(h_cast(0.0), get_diag_helement_heisenberg([2,4,6,8]))
+        call assert_equals(h_cast(0.0_dp), get_diag_helement_heisenberg([1,3,5,7]))
+        call assert_equals(h_cast(0.0_dp), get_diag_helement_heisenberg([2,4,6,8]))
 
-        call assert_equals(h_cast(0.0), get_diag_helement_heisenberg([1,2,3,4]))
-        call assert_equals(h_cast(-1.0), get_diag_helement_heisenberg([1,3,6,8]))
-        call assert_equals(h_cast(-2.0), get_diag_helement_heisenberg([1,4,6,7]))
+        call assert_equals(h_cast(0.0_dp), get_diag_helement_heisenberg([1,2,3,4]))
+        call assert_equals(h_cast(-1.0_dp), get_diag_helement_heisenberg([1,3,6,8]))
+        call assert_equals(h_cast(-2.0_dp), get_diag_helement_heisenberg([1,4,6,7]))
 
         t_tJ_model = .false. 
         t_heisenberg_model = .true. 
 
-        call assert_equals(h_cast(1.0), get_diag_helement_heisenberg([1,3,5,7]))
-        call assert_equals(h_cast(1.0), get_diag_helement_heisenberg([2,4,6,8]))
+        call assert_equals(h_cast(1.0_dp), get_diag_helement_heisenberg([1,3,5,7]))
+        call assert_equals(h_cast(1.0_dp), get_diag_helement_heisenberg([2,4,6,8]))
 
-        call assert_equals(h_cast(-0.0), get_diag_helement_heisenberg([1,3,6,8]))
-        call assert_equals(h_cast(-1.0), get_diag_helement_heisenberg([1,4,6,7]))
+        call assert_equals(h_cast(-0.0_dp), get_diag_helement_heisenberg([1,3,6,8]))
+        call assert_equals(h_cast(-1.0_dp), get_diag_helement_heisenberg([1,4,6,7]))
 
 
 
@@ -1181,18 +1181,18 @@ contains
         t_tJ_model = .true.
         t_heisenberg_model = .false.
 
-        call assert_equals(h_cast(-2.0),get_diag_helement_heisenberg([1,3,6,8]))
-        call assert_equals(h_cast(-2.0), get_diag_helement_heisenberg([1,4,6,7]))
+        call assert_equals(h_cast(-2.0_dp),get_diag_helement_heisenberg([1,3,6,8]))
+        call assert_equals(h_cast(-2.0_dp), get_diag_helement_heisenberg([1,4,6,7]))
 
-        call assert_equals(h_cast(0.0), get_diag_helement_heisenberg([1,3,5,7]))
+        call assert_equals(h_cast(0.0_dp), get_diag_helement_heisenberg([1,3,5,7]))
 
         t_tJ_model = .false. 
         t_heisenberg_model = .true. 
 
-        call assert_equals(h_cast(6.0/4.0), get_diag_helement_heisenberg([1,3,5,7]))
+        call assert_equals(h_cast(6.0/4.0_dp), get_diag_helement_heisenberg([1,3,5,7]))
 
-        call assert_equals(h_cast(-0.5),get_diag_helement_heisenberg([1,3,6,8]))
-        call assert_equals(h_cast(-0.5), get_diag_helement_heisenberg([1,4,6,7]))
+        call assert_equals(h_cast(-0.5_dp),get_diag_helement_heisenberg([1,3,6,8]))
+        call assert_equals(h_cast(-0.5_dp), get_diag_helement_heisenberg([1,4,6,7]))
 
 
         nel = -1
@@ -1223,19 +1223,19 @@ contains
         ex(2,:) = [3,4]
 
 
-        call assert_equals(h_cast(0.0), get_offdiag_helement_heisenberg([1,2],ex,.true.))
-        call assert_equals(h_cast(0.0), get_offdiag_helement_heisenberg([1,2],ex,.false.))
+        call assert_equals(h_cast(0.0_dp), get_offdiag_helement_heisenberg([1,2],ex,.true.))
+        call assert_equals(h_cast(0.0_dp), get_offdiag_helement_heisenberg([1,2],ex,.false.))
 
         ex(1,:) = [1,4]
         ex(2,:) = [2,3]
 
-        call assert_equals(h_cast(1.0), get_offdiag_helement_heisenberg([1,4], ex,.false.))
-        call assert_equals(h_cast(-1.0), get_offdiag_helement_heisenberg([1,4], ex,.true.))
+        call assert_equals(h_cast(1.0_dp), get_offdiag_helement_heisenberg([1,4], ex,.false.))
+        call assert_equals(h_cast(-1.0_dp), get_offdiag_helement_heisenberg([1,4], ex,.true.))
 
         ex(1,:) = [2,3]
         ex(2,:) = [1,4]
 
-        call assert_equals(h_cast(1.0), get_offdiag_helement_heisenberg([2,3], ex,.false.))
+        call assert_equals(h_cast(1.0_dp), get_offdiag_helement_heisenberg([2,3], ex,.false.))
 
         nel = 4 
         nbasis = 8 
@@ -1244,32 +1244,32 @@ contains
 
         ex(1,:) = [3,6]
         ex(2,:) = [4,5]
-        call assert_equals(h_cast(1.0), get_offdiag_helement_heisenberg([1,2,3,6],ex,.false.))
-        call assert_equals(h_cast(-1.0), get_offdiag_helement_heisenberg([1,2,3,6],ex,.true.))
+        call assert_equals(h_cast(1.0_dp), get_offdiag_helement_heisenberg([1,2,3,6],ex,.false.))
+        call assert_equals(h_cast(-1.0_dp), get_offdiag_helement_heisenberg([1,2,3,6],ex,.true.))
 
         ex(2,:) = [7,8]
 
-        call assert_equals(h_cast(0.0), get_offdiag_helement_heisenberg([1,2,3,6],ex,.false.))
+        call assert_equals(h_cast(0.0_dp), get_offdiag_helement_heisenberg([1,2,3,6],ex,.false.))
 
         ex(1,:) = [1,2] 
 
-        call assert_equals(h_cast(0.0), get_offdiag_helement_heisenberg([1,2,3,6],ex,.false.))
+        call assert_equals(h_cast(0.0_dp), get_offdiag_helement_heisenberg([1,2,3,6],ex,.false.))
 
         ex(2,:) = [4,5]
 
-        call assert_equals(h_cast(0.0), get_offdiag_helement_heisenberg([1,2,3,6],ex,.false.))
+        call assert_equals(h_cast(0.0_dp), get_offdiag_helement_heisenberg([1,2,3,6],ex,.false.))
 
         ex(1,:) = [4,5]
         ex(2,:) = [3,6] 
 
-        call assert_equals(h_cast(1.0), get_offdiag_helement_heisenberg([1,2,4,5],ex,.false.))
+        call assert_equals(h_cast(1.0_dp), get_offdiag_helement_heisenberg([1,2,4,5],ex,.false.))
 
         ex(1,:) = [5,8]
         ex(2,:) = [2,3]
-        call assert_equals(h_cast(0.0), get_offdiag_helement_heisenberg([1,4,5,8],ex,.false.))
+        call assert_equals(h_cast(0.0_dp), get_offdiag_helement_heisenberg([1,4,5,8],ex,.false.))
 
         ex(2,:) = [1,4]
-        call assert_equals(h_cast(0.0), get_offdiag_helement_heisenberg([2,3,5,8],ex,.false.))
+        call assert_equals(h_cast(0.0_dp), get_offdiag_helement_heisenberg([2,3,5,8],ex,.false.))
 
         nel = -1 
         nbasis = -1 
@@ -1345,25 +1345,25 @@ contains
         nbasis = 8
         call setup_exchange_matrix(lat)
 
-        call assert_equals(h_cast(0.0), get_umat_el_heisenberg(1,1,1,1))
-        call assert_equals(h_cast(0.0), get_umat_el_heisenberg(1,2,3,4))
-        call assert_equals(h_cast(0.0), get_umat_el_heisenberg(1,1,2,2))
-        call assert_equals(h_cast(0.0), get_umat_el_heisenberg(1,3,1,3))
-        call assert_equals(h_cast(0.0), get_umat_el_heisenberg(1,3,3,1))
-        call assert_equals(h_cast(0.0), get_umat_el_heisenberg(3,1,1,3))
+        call assert_equals(h_cast(0.0_dp), get_umat_el_heisenberg(1,1,1,1))
+        call assert_equals(h_cast(0.0_dp), get_umat_el_heisenberg(1,2,3,4))
+        call assert_equals(h_cast(0.0_dp), get_umat_el_heisenberg(1,1,2,2))
+        call assert_equals(h_cast(0.0_dp), get_umat_el_heisenberg(1,3,1,3))
+        call assert_equals(h_cast(0.0_dp), get_umat_el_heisenberg(1,3,3,1))
+        call assert_equals(h_cast(0.0_dp), get_umat_el_heisenberg(3,1,1,3))
 
         ! how do i really encode the exchange in the umat in terms of spatial 
         ! orbitals?! i am not sure i do it right 
         ! since i access the umat only depending on the electrons k,l usually 
         ! it should be fine if i always return the exhange j when the 
         ! orbitals fit 
-        call assert_equals(h_cast(1.0), get_umat_el_heisenberg(1,2,1,2))
-        call assert_equals(h_cast(1.0), get_umat_el_heisenberg(1,2,2,1))
-        call assert_equals(h_cast(1.0), get_umat_el_heisenberg(2,1,1,2))
-        call assert_equals(h_cast(1.0), get_umat_el_heisenberg(2,1,2,1))
+        call assert_equals(h_cast(1.0_dp), get_umat_el_heisenberg(1,2,1,2))
+        call assert_equals(h_cast(1.0_dp), get_umat_el_heisenberg(1,2,2,1))
+        call assert_equals(h_cast(1.0_dp), get_umat_el_heisenberg(2,1,1,2))
+        call assert_equals(h_cast(1.0_dp), get_umat_el_heisenberg(2,1,2,1))
 
-        call assert_equals(h_cast(1.0), get_umat_el_heisenberg(1,4,1,4))
-        call assert_equals(h_cast(1.0), get_umat_el_heisenberg(2,3,3,2))
+        call assert_equals(h_cast(1.0_dp), get_umat_el_heisenberg(1,4,1,4))
+        call assert_equals(h_cast(1.0_dp), get_umat_el_heisenberg(2,3,3,2))
 
         nbasis = -1
 
@@ -1388,15 +1388,15 @@ contains
 
         print *, ""
         print *, "testing: get_occ_neighbors "
-        call assert_equals(0.0, get_occ_neighbors(ilut,1))
-        call assert_equals(3.0, get_occ_neighbors(ilut,2))
-        call assert_equals(0.0, get_occ_neighbors(ilut,3))
-        call assert_equals(3.0, get_occ_neighbors(ilut,4))
+        call assert_equals(0.0_dp, get_occ_neighbors(ilut,1))
+        call assert_equals(3.0_dp, get_occ_neighbors(ilut,2))
+        call assert_equals(0.0_dp, get_occ_neighbors(ilut,3))
+        call assert_equals(3.0_dp, get_occ_neighbors(ilut,4))
 
         call EncodeBitDet([1,2,3], ilut)
-        call assert_equals(1.0, get_occ_neighbors(ilut,1))
-        call assert_equals(2.0, get_occ_neighbors(ilut,2))
-        call assert_equals(1.0, get_occ_neighbors(ilut,3))
+        call assert_equals(1.0_dp, get_occ_neighbors(ilut,1))
+        call assert_equals(2.0_dp, get_occ_neighbors(ilut,2))
+        call assert_equals(1.0_dp, get_occ_neighbors(ilut,3))
 
         NIfTot = -1 
         nel = -1
@@ -1422,16 +1422,16 @@ contains
         nel = 3 
         call encodebitdet([1,2,3], ilut)
         
-        call assert_equals(-0.5, get_spin_density_neighbors(ilut,1)) 
-        call assert_equals(0.0, get_spin_density_neighbors(ilut,2)) 
-        call assert_equals(-0.5, get_spin_density_neighbors(ilut,3)) 
-        call assert_equals(0.0, get_spin_density_neighbors(ilut,4)) 
+        call assert_equals(-0.5_dp, get_spin_density_neighbors(ilut,1)) 
+        call assert_equals(0.0_dp, get_spin_density_neighbors(ilut,2)) 
+        call assert_equals(-0.5_dp, get_spin_density_neighbors(ilut,3)) 
+        call assert_equals(0.0_dp, get_spin_density_neighbors(ilut,4)) 
 
         call encodebitdet([1,4,5], ilut) 
-        call assert_equals(0.5, get_spin_density_neighbors(ilut,1)) 
-        call assert_equals(-1.0, get_spin_density_neighbors(ilut,2)) 
-        call assert_equals(0.5, get_spin_density_neighbors(ilut,3)) 
-        call assert_equals(-1.0, get_spin_density_neighbors(ilut,4)) 
+        call assert_equals(0.5_dp, get_spin_density_neighbors(ilut,1)) 
+        call assert_equals(-1.0_dp, get_spin_density_neighbors(ilut,2)) 
+        call assert_equals(0.5_dp, get_spin_density_neighbors(ilut,3)) 
+        call assert_equals(-1.0_dp, get_spin_density_neighbors(ilut,4)) 
 
         nel = -1 
         NIfTot = -1
@@ -1456,21 +1456,21 @@ contains
         call init_tmat(lat) 
 
         t_trans_corr = .false.
-        call assert_equals(-1.0, get_offdiag_helement_tJ([1,2],[1,3],.false.))
-        call assert_equals(1.0, get_offdiag_helement_tJ([1,2],[1,3],.true.))
+        call assert_equals(h_cast(-1.0_dp), get_offdiag_helement_tJ([1,2],[1,3],.false.))
+        call assert_equals(h_cast(1.0_dp), get_offdiag_helement_tJ([1,2],[1,3],.true.))
 
-        call assert_equals(-1.0, get_offdiag_helement_tJ([1,2],[2,4],.false.))
-        call assert_equals(1.0, get_offdiag_helement_tJ([1,2],[2,4],.true.))
+        call assert_equals(h_cast(-1.0_dp), get_offdiag_helement_tJ([1,2],[2,4],.false.))
+        call assert_equals(h_cast(1.0_dp), get_offdiag_helement_tJ([1,2],[2,4],.true.))
 
-        call assert_equals(0.0, get_offdiag_helement_tJ([1,2],[1,4],.false.))
-        call assert_equals(0.0, get_offdiag_helement_tJ([1,2],[2,3],.true.))
+        call assert_equals(h_cast(0.0_dp), get_offdiag_helement_tJ([1,2],[1,4],.false.))
+        call assert_equals(h_cast(0.0_dp), get_offdiag_helement_tJ([1,2],[2,3],.true.))
 
         ! the important test is the transcorrelated influence here 
         t_trans_corr = .true. 
         trans_corr_param = 1.0 
         
-        call assert_equals(-1.0*exp(-1.0),get_offdiag_helement_tJ([1,2],[1,3],.false.))
-        call assert_equals(1.0*exp(3.0), get_offdiag_helement_tJ([1,2],[4,2],.true.))
+        call assert_equals(h_cast(-1.0*exp(-1.0_dp)),get_offdiag_helement_tJ([1,2],[1,3],.false.))
+        call assert_equals(h_cast(1.0*exp(3.0_dp)), get_offdiag_helement_tJ([1,2],[4,2],.true.))
 
         lat => lattice('square', 2, 2, 1, .true.,.true.,.true.) 
         nbasis = 8
@@ -1478,19 +1478,19 @@ contains
 
         nel = 4 
 
-        call assert_equals(-exp(1.0), get_offdiag_helement_tJ([1,4,6,7],[1,3],.false.))
-        call assert_equals(-exp(1.0), get_offdiag_helement_tJ([1,4,6,7],[2,4],.false.))
-        call assert_equals(0.0, get_offdiag_helement_tJ([1,4,6,7],[2,3],.false.))
-        call assert_equals(0.0, get_offdiag_helement_tJ([1,4,6,7],[1,7],.false.))
+        call assert_equals(h_cast(-exp(1.0_dp)), get_offdiag_helement_tJ([1,4,6,7],[1,3],.false.))
+        call assert_equals(h_cast(-exp(1.0_dp)), get_offdiag_helement_tJ([1,4,6,7],[2,4],.false.))
+        call assert_equals(h_cast(0.0_dp), get_offdiag_helement_tJ([1,4,6,7],[2,3],.false.))
+        call assert_equals(h_cast(0.0_dp), get_offdiag_helement_tJ([1,4,6,7],[1,7],.false.))
 
-        call assert_equals(exp(1.0), get_offdiag_helement_tJ([1,2,3,6],[1,3],.true.))
-        call assert_equals(exp(1.0), get_offdiag_helement_tJ([1,2,3,6],[2,4],.true.))
+        call assert_equals(h_cast(exp(1.0_dp)), get_offdiag_helement_tJ([1,2,3,6],[1,3],.true.))
+        call assert_equals(h_cast(exp(1.0_dp)), get_offdiag_helement_tJ([1,2,3,6],[2,4],.true.))
 
-        call assert_equals(exp(1.0), get_offdiag_helement_tJ([1,2,3,6],[7,5],.true.))
-        call assert_equals(exp(1.0), get_offdiag_helement_tJ([1,2,3,6],[8,4],.true.))
+        call assert_equals(h_cast(exp(1.0_dp)), get_offdiag_helement_tJ([1,2,3,6],[7,5],.true.))
+        call assert_equals(h_cast(exp(1.0_dp)), get_offdiag_helement_tJ([1,2,3,6],[8,4],.true.))
 
-        call assert_equals(1.0*exp(-3.0), get_offdiag_helement_tJ([1,2,7,8],[1,3],.true.),1e-12)
-        call assert_equals(1.0*exp(5.0), get_offdiag_helement_tJ([1,2,7,8],[3,7],.true.))
+        call assert_equals(1.0*exp(-3.0), real(get_offdiag_helement_tJ([1,2,7,8],[1,3],.true.)),1e-12)
+        call assert_equals(h_cast(1.0*exp(5.0_dp)), get_offdiag_helement_tJ([1,2,7,8],[3,7],.true.))
 
         t_trans_corr = .false.
         t_trans_corr_2body = .true. 
@@ -1502,14 +1502,14 @@ contains
         call init_tmat(lat) 
 
         t_trans_corr = .false.
-        call assert_equals(-1.0, get_offdiag_helement_tJ([1,2],[1,3],.false.))
-        call assert_equals(1.0, get_offdiag_helement_tJ([1,2],[1,3],.true.))
+        call assert_equals(h_cast(-1.0_dp), get_offdiag_helement_tJ([1,2],[1,3],.false.))
+        call assert_equals(h_cast(1.0_dp), get_offdiag_helement_tJ([1,2],[1,3],.true.))
 
-        call assert_equals(-1.0, get_offdiag_helement_tJ([1,2],[2,4],.false.))
-        call assert_equals(1.0, get_offdiag_helement_tJ([1,2],[2,4],.true.))
+        call assert_equals(h_cast(-1.0_dp), get_offdiag_helement_tJ([1,2],[2,4],.false.))
+        call assert_equals(h_cast(1.0_dp), get_offdiag_helement_tJ([1,2],[2,4],.true.))
 
-        call assert_equals(0.0, get_offdiag_helement_tJ([1,2],[1,4],.false.))
-        call assert_equals(0.0, get_offdiag_helement_tJ([1,2],[2,3],.true.))
+        call assert_equals(h_cast(0.0_dp), get_offdiag_helement_tJ([1,2],[1,4],.false.))
+        call assert_equals(h_cast(0.0_dp), get_offdiag_helement_tJ([1,2],[2,3],.true.))
 
         t_trans_corr_2body = .false.
 
@@ -1539,14 +1539,14 @@ contains
         nel = 3 
         call encodebitdet([1,2,3], ilut)
 
-        call assert_equals(1.0, get_spin_opp_neighbors(ilut,2)) 
-        call assert_equals(0.0, get_spin_opp_neighbors(ilut,1))
-        call assert_equals(1.0, get_spin_opp_neighbors(ilut,3))
-        call assert_equals(1.0, get_spin_opp_neighbors(ilut,4))
-        call assert_equals(0.0, get_spin_opp_neighbors(ilut,5))
-        call assert_equals(1.0, get_spin_opp_neighbors(ilut,6))
-        call assert_equals(1.0, get_spin_opp_neighbors(ilut,7))
-        call assert_equals(1.0, get_spin_opp_neighbors(ilut,8))
+        call assert_equals(1.0_dp, get_spin_opp_neighbors(ilut,2)) 
+        call assert_equals(0.0_dp, get_spin_opp_neighbors(ilut,1))
+        call assert_equals(1.0_dp, get_spin_opp_neighbors(ilut,3))
+        call assert_equals(1.0_dp, get_spin_opp_neighbors(ilut,4))
+        call assert_equals(0.0_dp, get_spin_opp_neighbors(ilut,5))
+        call assert_equals(1.0_dp, get_spin_opp_neighbors(ilut,6))
+        call assert_equals(1.0_dp, get_spin_opp_neighbors(ilut,7))
+        call assert_equals(1.0_dp, get_spin_opp_neighbors(ilut,8))
 
         nel = -1
         NIfTot = -1
