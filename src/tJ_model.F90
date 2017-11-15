@@ -1240,11 +1240,11 @@ contains
             end if
 
 
-#ifdef __DEBUG 
-            if (.not. is_in_pair(ex(1,1),ex(2,1))) then 
-                print *, "NOT IN PAIR!"
-            end if
-#endif
+! #ifdef __DEBUG 
+!             if (.not. is_in_pair(ex(1,1),ex(2,1))) then 
+!                 print *, "NOT IN PAIR!"
+!             end if
+! #endif
 !             print *, "nI: ", nI 
 !             print *, "ex(1,:):", ex(1,:) 
 !             print *, "ex(2,:):", ex(2,:)
