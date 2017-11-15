@@ -1239,8 +1239,20 @@ contains
                 spin_fac = nj_z - ni_z
             end if
 
-            hel = hel * exp(-2.0_dp*trans_corr_param_2body) * & 
-                exp(2.0_dp * trans_corr_param_2body * spin_fac)
+
+#ifdef __DEBUG 
+            if (.not. is_in_pair(ex(1,1),ex(2,1))) then 
+                print *, "NOT IN PAIR!"
+            end if
+#endif
+!             print *, "nI: ", nI 
+!             print *, "ex(1,:):", ex(1,:) 
+!             print *, "ex(2,:):", ex(2,:)
+!             print *, "tpar: ", tpar
+!             print *, "spin_fac: ", spin_fac
+
+!             hel = hel * exp(-2.0_dp*trans_corr_param_2body) * & 
+            hel = hel * exp(2.0_dp * trans_corr_param_2body * (spin_fac - 1.0_dp))
 
 !             hel = hel * exp(-2.0_dp*trans_corr_param_2body) * exp(2.0_dp*trans_corr_param_2body*(&
 !                 get_spin_density_neighbors(ilutI, gtid(src(1))) - & 
