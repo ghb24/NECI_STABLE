@@ -69,6 +69,8 @@ module real_time_read_input_module
             ! deprecated, replace by MULTI
                 alloc_popsfile_dets = .true.
                 tWritePopsNorm = .true.
+                ! Now, overlap state and initial state are the same
+                tNewOverlap = .false.
                 allocate(pops_pert(1))
                 pops_pert%nannihilate = 1
                 pops_pert%ncreate = 1

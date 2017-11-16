@@ -20,7 +20,7 @@ module real_time_init
                               AllNoInitWalk_1, AllNoNonInitWalk_1, AllInitRemoved_1, &
                               AccRat_1, AllNoatDoubs_1, AllSumWalkersCyc_1, current_overlap, &
                               TotPartsStorage,  t_rotated_time, TotPartsPeak, asymptoticShift, &
-                              tau_imag, tau_real, elapsedRealTime, elapsedImagTime, &
+                              tau_imag, tau_real, elapsedRealTime, elapsedImagTime, tNewOverlap, &
                               TotWalkers_orig, dyn_norm_psi, gs_energy, shift_damping, &
                               tStaticShift, MaxSpawnedDiag, tDynamicCoreSpace, overlap_states, &
                               overlap_real, overlap_imag, allGfs, tRealTimePopsfile, &
@@ -406,6 +406,8 @@ contains
         ! also set readpops to get the <y(0)| reference from the "normal"
         ! neci init routines
         tReadPops = .true.
+        ! By default, apply a seperate perturbation to the overlap_states
+        tNewOverlap = .true.
 
         ! startsinglepart does not work with popsfile and is not wanted too
         tStartSinglePart = .false.

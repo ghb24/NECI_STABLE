@@ -18,7 +18,7 @@ module real_time_procs
                               TotPartsPeak, numCycShiftExcess, shiftLimit, t_kspace_operators, &
                               tDynamicAlpha, tDynamicDamping, stepsAlpha, phase_factors, &
                               elapsedImagTime, elapsedRealTime, tStaticShift, asymptoticShift, &
-                              iunitCycLog, trajFile, tauCache, alphaCache
+                              iunitCycLog, trajFile, tauCache, alphaCache, tNewOverlap
     use real_time_aux, only: write_overlap_state
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
     use constants, only: dp, lenof_sign, int64, n_int, EPS, iout, null_part, &
@@ -479,6 +479,7 @@ contains
                         call stop_all(this_routine, "Death probability > 2: Algorithm unstable. Reduce timestep.")
                     end if
                 else
+                   write(iout,*) "Warning, diagonal spawn probability > 1. Reduce timestep."
                     do run = 1, inum_runs
                         write(iout,'(1X,f13.7)',advance='no') fac(run)
                     end do
@@ -1377,7 +1378,7 @@ contains
         print *, "Read-in dets", TotWalkers_orig
         do i = 1, gf_count
            totwalkers_backup = tmp_totwalkers
-           if(allocated(overlap_pert)) then
+           if(allocated(overlap_pert) .and. tNewOverlap) then
               if(.not. t_kspace_operators) then
                  if(tReadPops) then
                     perturbed_buf = 0.0_dp
