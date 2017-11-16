@@ -204,41 +204,80 @@ contains
             
     end subroutine check_real_space_hubbard_input
 
-    ! then i have to think of how to set up the lattice.. 
-    subroutine init_lattice()
-        ! routine which sets up the lattice, like TMAT of nearest neighbors
-        ! and creating the indexing of the neighbors of each site 
-        ! lets break the convention of using a million of global 
-        ! variables in neci.. and try to start using more and more 
-        ! explicit variables, or atleast enable optional input 
-        ! variables to unit-test the function more easily
-        ! although i just realized that this bloats this whole 
-        ! function way too much, with 3 variables for each input:
-        ! a optional input one, a used on in this routine and 
-        ! the global one which is used if no input is provided.. 
-        ! argh.. fortran gets annoying..
-        character(*), parameter :: this_routine = "init_lattice"
+    subroutine create_all_open_shell_dets() 
+        ! Alis idea for the use of the ADI option for the real-space hubbard 
+        ! is to let all fully open shell dets, and excitations thereof 
+        ! (dets with exactly one double occupancy in the case of half-filling) 
+        ! be initiators 
+        character(*), parameter :: this_routine = "create_all_open_shell_dets" 
 
-        class(lattice), pointer :: lat
+        real(dp), allocatable :: n_dets(:)
 
-        ! what are the possible ones:
-        ! the ones already in NECI (do them first!)
-        ! CHAIN: just needs number of sites or length and if open-bc 
-        ! SQUARE: need L_x and L_y and the boundary condition
-        ! TILTED: do it as the input is done in the old implo, but maybe 
-        !           enable L_x /= L_y 
-        ! 
-        ! after i check those above also implement: 
-        ! TRIANGULAR: stick to equal sided triangles here and figure out 
-        !               the boundary conditions 
-        ! KAGOME: probably also stick to one length parameter and also 
-        !           think about the BC
+        n_dets = calc_n_double(nBasis/2, nOccAlpha, nOccBeta)
 
-        ! and especially for the Anderson Impurity models i need 
-        ! Anderson-chain and Anderson-star
+    end subroutine create_all_open_shell_dets
 
-    end subroutine init_lattice
-    
+    function calc_n_double(n_orbs, n_alpha, n_beta) result(n_double)
+        ! routine to calculate the number of determinants with different 
+        ! number of doubly occupied sites..
+        integer, intent(in) :: n_orbs, n_alpha, n_beta
+        real(dp), intent(out), allocatable :: n_double(:)
+
+        real(dp) :: n_first
+        integer :: n_max, n_min, i
+        ! the number of possible open shell determinants is:
+        ! for the half-filled ms=0 case, it is how often we can distribute 
+        ! n/2 electrons in n orbitals (since the rest then gets filled up 
+        ! by the other spin electrons -> nchoosek(n, n/2) 
+        ! todo: merge the cc_amplitudes branch or atleast the binomial 
+        ! functionality in there! 
+        ! for ms/=0 but still at half-filling it i still the binomial 
+        ! coefficient of one spin-type 
+
+        ! off-half filling, we get more then one possible distribution of 
+        ! the electrons of the other spin for each distribution of the 
+        ! first spin type.. 
+        ! so we get some product of binomial of the remaining possible 
+        ! distributions! 
+
+        ! todo: write those formulas up! 
+
+        ! todo: a way to create it would be like in my matlab code to 
+        ! create the heisenberg basis states.. there i even did it in 
+        ! a ordered fashion.
+
+        ! the number of ways to distribute alpha spins on the lattice 
+!         n_alpha = binomial(nbasis/2, nOccAlpha)
+
+!         num_open_shell_dets = n_alpha * binomial(nbasis/2 - nOccAlpha, nOccBeta) 
+
+        ! maybe the number of determinants with one double occupancy is 
+        ! also of interest.. (those are the single excitations from the 
+        ! fully open shell dets(in the case off-half-filling it could a
+        ! single excitation can also lead to another fully-open-shell det, but
+        ! these are already covered.
+        ! one beta electron MUST reside in a orbital with a alpha spin (thats 
+        ! just nOccAlpha) and the rest (nOccBeta-1) is on an empty orbital
+!         num_one_double_occ = n_alpha * nOccAlpha * & 
+!             binomial(nbasis/2 - nOccAlpha, nOccBeta - 1)
+
+        ! just for the fun of it: i could calculate the size of each of 
+        ! those space(1 double occ, 2 double occ.. etc. 
+
+        n_max = max(n_alpha, n_beta) 
+        n_min = min(n_alpha, n_beta)
+
+        n_first = binomial(n_orbs, n_max)
+
+        allocate(n_double(0:n_min)) 
+
+        do i = 0, n_min 
+            n_double(i) = n_first * binomial(n_max, i) * & 
+                binomial(n_orbs - n_max, n_min - 1) 
+        end do
+
+    end function calc_n_double
+
     function get_optimal_correlation_factor() result(corr_factor) 
         ! Hongjuns derivation was for the k-space hubbard and in the low 
         ! density and U limit though.. 

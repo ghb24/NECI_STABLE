@@ -51,6 +51,7 @@ contains
         call run_test_case(create_neel_state_test, "create_neel_state_test")
         call run_test_case(determine_optimal_time_step_test, "determine_optimal_time_step_test")
         call run_test_case(get_optimal_correlation_factor_test, "get_optimal_correlation_factor_test")
+        call run_test_case(calc_n_double_test, "calc_n_double_test")
 
     end subroutine real_space_hubbard_test_driver
 
@@ -1288,7 +1289,18 @@ contains
         
     end subroutine determine_optimal_time_step_test 
 
+    subroutine calc_n_double_test
 
+        real(dp), allocatable :: n_double(:)
+
+        print *, ""
+        print *, "testing: calc_n_double" 
+
+        n_double = calc_n_double(4,2,2) 
+
+        call assert_equals(3, size(n_double))
+
+    end subroutine calc_n_double_test
 
 end program test_real_space_hubbard
 
