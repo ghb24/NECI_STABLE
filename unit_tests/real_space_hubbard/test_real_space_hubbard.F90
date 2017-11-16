@@ -52,6 +52,10 @@ contains
         call run_test_case(determine_optimal_time_step_test, "determine_optimal_time_step_test")
         call run_test_case(get_optimal_correlation_factor_test, "get_optimal_correlation_factor_test")
         call run_test_case(calc_n_double_test, "calc_n_double_test")
+        call run_test_case(right_most_zero_test, "right_most_zero_test")
+        call run_test_case(create_one_spin_basis_test, "create_one_spin_basis_test")
+        call run_test_case(set_alpha_beta_spins_test, "set_beta_spins_test")
+        call run_test_case(combine_spin_basis_test, "combine_spin_basis_test")
 
     end subroutine real_space_hubbard_test_driver
 
@@ -1299,8 +1303,163 @@ contains
         n_double = calc_n_double(4,2,2) 
 
         call assert_equals(3, size(n_double))
+        call assert_equals(6.0_dp, n_double(1))
+        call assert_equals(24.0_dp, n_double(2))
+        call assert_equals(6.0_dp, n_double(3))
+        call assert_equals(36.0_dp, sum(n_double))
+
+        n_double = calc_n_double(4,1,2) 
+        call assert_equals(2, size(n_double)) 
+        call assert_equals(12.0_dp, n_double(1)) 
+        call assert_equals(12.0_dp, n_double(2)) 
+        call assert_equals(24.0_dp, sum(n_double))
+
+        n_double = calc_n_double(4,1,1) 
+        call assert_equals(2, size(n_double)) 
+        call assert_equals(12.0_dp, n_double(1))
+        call assert_equals(4.0_dp, n_double(2)) 
+        call assert_equals(16.0_dp, sum(n_double))
+
+        n_double = calc_n_double(6,3,3) 
+        call assert_equals(4, size(n_double))
+        call assert_equals(20.0_dp, n_double(1))
+        call assert_equals(180.0_dp, n_double(2))
+        call assert_equals(180.0_dp, n_double(3))
+        call assert_equals(20.0_dp, n_double(4))
+        call assert_equals(400.0_dp, sum(n_double))
+
+        n_double = calc_n_double(6,3,2)
+        call assert_equals(3, size(n_double))
+        call assert_equals(60.0_dp, n_double(1))
+        call assert_equals(180.0_dp, n_double(2))
+        call assert_equals(60.0_dp, n_double(3))
+
+        n_double = calc_n_double(6,2,2) 
+        call assert_equals(90.0_dp, n_double(1))
+        call assert_equals(120.0_dp, n_double(2))
+        call assert_equals(15.0_dp, n_double(3))
 
     end subroutine calc_n_double_test
 
+    subroutine right_most_zero_test
+        use bit_rep_data, only: niftot, nifd
+        
+        integer(n_int) :: i 
+
+        nifd = 0
+        niftot = 0
+
+        print *, "" 
+        print *, "testing: right_most_zero:" 
+        i = b'1001'
+        call assert_equals(2, right_most_zero(i, 4))
+
+        i = b'0011'
+        call assert_equals(3, right_most_zero(i, 4))
+
+        i = b'1010'
+        call assert_equals(3, right_most_zero(i, 4))
+
+        i = b'1100' 
+        call assert_equals(5, right_most_zero(i, 4)) 
+
+        call assert_equals(4, right_most_zero(int(b'1100',n_int), 3))
+
+        call assert_equals(-1, right_most_zero(0_n_int, 3))
+
+        call assert_equals(5, right_most_zero(huge(0_n_int),4))
+        
+        niftot = -1
+        nifd = -1
+    end subroutine right_most_zero_test
+
+    subroutine create_one_spin_basis_test
+        use bit_rep_data, only: niftot, nifd
+
+        integer(n_int), allocatable :: alpha(:)
+        integer :: i 
+
+        niftot = 0
+        nifd = 0
+        print *, ""
+        print *, "testing: create_one_spin_basis"
+
+        alpha = create_one_spin_basis(4,2) 
+        
+        call assert_equals(6, size(alpha)) 
+        call assert_equals(int(b'0011',n_int),alpha(1))
+        call assert_equals(int(b'0101',n_int),alpha(2))
+        call assert_equals(int(b'0110',n_int),alpha(3))
+        call assert_equals(int(b'1001',n_int),alpha(4))
+        call assert_equals(int(b'1010',n_int),alpha(5))
+        call assert_equals(int(b'1100',n_int),alpha(6))
+
+        alpha = create_one_spin_basis(5,2) 
+
+        call assert_equals(10, size(alpha))
+        call assert_equals(int(b'00011',n_int), alpha(1))
+        call assert_equals(int(b'11000',n_int), alpha(10))
+
+        niftot = -1
+        nifd = -1
+
+    end subroutine create_one_spin_basis_test
+
+    subroutine set_alpha_beta_spins_test
+        use bit_rep_data, only: niftot, nifd
+
+        niftot = 0
+        nifd = 0
+
+        print *, ""
+        print *, "testing: set_alpha_beta_spins "
+
+        call assert_equals(int(b'101',n_int),set_alpha_beta_spins(int(b'11',n_int),4,.true.))
+        call assert_equals(int(b'00010001',n_int), set_alpha_beta_spins(int(b'0101',n_int),4,.true.))
+        call assert_equals(int(b'01000001',n_int), set_alpha_beta_spins(int(b'1001',n_int),4,.true.))
+
+        call assert_equals(int(b'1010',n_int),set_alpha_beta_spins(int(b'11',n_int),4,.false.))
+        call assert_equals(int(b'00100010',n_int), set_alpha_beta_spins(int(b'0101',n_int),4,.false.))
+        call assert_equals(int(b'10000010',n_int), set_alpha_beta_spins(int(b'1001',n_int),4,.false.))
+
+        call assert_equals(int(b'10100000',n_int), set_alpha_beta_spins(int(b'1100',n_int),4,.false.))
+        call assert_equals(int(b'01010000',n_int), set_alpha_beta_spins(int(b'1100',n_int),4,.true.))
+
+        niftot = -1
+        nifd = -1
+    end subroutine set_alpha_beta_spins_test
+
+    subroutine combine_spin_basis_test
+        use bit_rep_data, only: niftot, nifd
+
+        integer(n_int), allocatable :: basis(:), spin_basis(:)
+        integer :: i 
+
+        niftot = 0
+        nifd = 0
+
+        print *, ""
+        print *, "testing: combine_spin_basis" 
+
+        basis = combine_spin_basis(4,2,2,6,int([3,5,6,9,10,12],n_int),.false.)
+
+        call assert_equals(6, size(basis)) 
+        call assert_equals(int(b'01011010',n_int),basis(1))
+        call assert_equals(int(b'01100110',n_int),basis(2))
+        call assert_equals(int(b'01101001',n_int),basis(3))
+        call assert_equals(int(b'10100101',n_int),basis(6))
+
+        spin_basis = create_one_spin_basis(6,3) 
+
+        basis = combine_spin_basis(6,3,3,20,spin_basis,.false.)
+
+        call assert_equals(20, size(basis))
+        call assert_equals(int(b'010101101010',n_int), basis(1))
+        call assert_equals(int(b'101010010101',n_int), basis(20))
+
+        
+    end subroutine combine_spin_basis_test
+
 end program test_real_space_hubbard
+
 

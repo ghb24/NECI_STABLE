@@ -31,8 +31,9 @@ module real_space_hubbard
     use dsfmt_interface, only: genrand_real2_dsfmt
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
     use bit_rep_data, only: NIfTot
-    use util_mod, only: binary_search_first_ge
+    use util_mod, only: binary_search_first_ge, choose
     use bit_reps, only: decode_bit_det
+    use sort_mod, only: sort
 !     use fcimc_helper, only: update_run_reference
 !     use Determinants, only: write_det
 
@@ -204,24 +205,280 @@ contains
             
     end subroutine check_real_space_hubbard_input
 
-    subroutine create_all_open_shell_dets() 
+    function create_all_open_shell_dets(n_orbs, n_alpha, n_beta) result(open_shells)
+        integer, intent(in) :: n_orbs, n_alpha, n_beta
         ! Alis idea for the use of the ADI option for the real-space hubbard 
         ! is to let all fully open shell dets, and excitations thereof 
         ! (dets with exactly one double occupancy in the case of half-filling) 
         ! be initiators 
         character(*), parameter :: this_routine = "create_all_open_shell_dets" 
 
-        real(dp), allocatable :: n_dets(:)
+        integer, allocatable :: n_dets(:)
+        integer(n_int), allocatable :: open_shells(:), max_basis(:)
+        integer :: n_max, n_min
 
-        n_dets = calc_n_double(nBasis/2, nOccAlpha, nOccBeta)
+        n_dets = calc_n_double(n_orbs, n_alpha, n_beta)
 
-    end subroutine create_all_open_shell_dets
+        ! only implement that for less than 32 orbitals, since i do not want to 
+        ! deal with multiple integers to store the basis and also the size of 
+        ! the hilbert space would be too big anyway.. 
+        ASSERT(n_orbs <= 32)
+
+        ! how should i create all of those purely open-shell dets? 
+        ! in the case of half-filling it is easiest.. 
+        
+        ! i could first distribute the alpha spins and then the beta spins 
+        ! afterwards.. 
+        ! i should work with the bit-representation, then i get to know the 
+        ! fortran intrinsic bit operations again.. 
+
+        n_max = max(n_alpha, n_beta)
+        n_min = min(n_alpha, n_beta)
+        
+        ! first create the spin-basis with more electrons: 
+        max_basis = create_one_spin_basis(n_orbs, n_max) 
+
+        open_shells = combine_spin_basis(n_orbs, n_max, n_min, n_dets(1),  max_basis, .true.)
+
+    end function create_all_open_shell_dets
+
+    function combine_spin_basis(n_orbs, n_first, n_second, n_total, first_basis, & 
+            t_sort, n_doubles) result(spin_basis) 
+        ! function to combine a already given spin-basis with the second one
+        ! with the additional option to specify the number of doubly occupied 
+        ! determinants.. 
+        ! n_orbs   ...  is the number of spatial orbitals
+        ! n_first  ...  number of spins, with which first_basis was created 
+        ! n_second ...  number of spins with which basis is combined now 
+        ! n_total  ...  total size of basis for given number of doubly occ. sites!
+        ! first_basis . already contructed one-spin basis
+        ! t_sort   ...  should the basis be sorted. (after combination i am not  sure it will be sorted..
+        ! n_doubles ..  (optional:) number of doubly occupied sites(has to fit with n_total!)
+        integer, intent(in) :: n_orbs, n_first, n_second, n_total
+        integer(n_int), intent(in) :: first_basis(:) 
+        logical, intent(in) :: t_sort
+        integer, intent(in), optional :: n_doubles 
+        integer(n_int) :: spin_basis(n_total) 
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "combine_spin_basis" 
+        integer, allocatable :: n_dets(:)
+#endif 
+        integer :: n_doub, i, j, n_remain, n
+        integer(n_int), allocatable :: second_basis(:)
+    
+        ! the half-filled case is the most easy one.. should we treat it 
+        ! special? maybe.. 
+
+#ifdef __DEBUG 
+        ! be sure that the provided n_total fits with the n_doubles if 
+        ! provided 
+        n_dets = calc_n_double(n_orbs, n_first, n_second)
+        if (present(n_doubles)) then 
+            ASSERT(n_dets(n_doubles+1) == n_total)
+        else 
+            ! n_doubles = 0 is the default
+            ASSERT(n_dets(1) == n_total)
+        end if
+#endif
+
+        ! default value of n_doubles = 0 
+        if (present(n_doubles)) then 
+            n_doub = n_doubles
+        else 
+            n_doub = 0 
+        end if
+
+        ! do the n_double = 0 and half-filled case first, thats the 
+        ! easiest and only necessary for now.. 
+        select case (n_doub) 
+        case (0) 
+
+            if (n_first + n_second == n_orbs) then 
+                ! half-filled case: easiest 
+                ! since ms is not important, just convert the already 
+                ! calculated spin-basis to a spin-orbital basis: 
+                ! 0011 -> 00 00 01 01 eg. 
+                do i = 1, n_total 
+                    ! do have it ordered -> first set the beta spins on the left
+                    spin_basis(i) = set_alpha_beta_spins(first_basis(i), n_orbs,.false.) 
+                    ! and combine it with the alpha spins..
+                    spin_basis(i) = ieor(spin_basis(i),set_alpha_beta_spins(not(first_basis(i)), n_orbs,.true.))
+                end do
+            else 
+                ! we have to distribute the n_second remaining spins 
+                ! across the n_orbs - n_first orbitals, so there are: 
+                n_remain = int(choose(n_orbs - n_first, n_second))
+                ! states per first_basis states 
+                ASSERT(n_remain * size(first_basis) == n_total) 
+
+                second_basis = create_one_spin_basis(n_orbs - n_first, n_second)
+
+                ! i want to do some sort of tensor product here:
+                ! |0011> x |01> = |00 10 01 01>
+                ! |0011> x |10> = |10 00 01 01>  
+                n = 0 
+                do i = 1, size(first_basis) 
+                    do j = 1, size(second_basis)
+                        spin_basis(n) = open_shell_product(first_basis(i),second_basis(j),n_orbs)
+                        n = n + 1
+                    end do
+                end do
+
+            end if
+
+        case default 
+            ! not yet implemented 
+            ASSERT(.false.) 
+
+        end select
+
+        ! do i want to sort it?? 
+        if (t_sort) then 
+            call sort(spin_basis) 
+        end if
+
+
+    end function combine_spin_basis
+
+    integer(n_int) function open_shell_product(alpha, beta, n_orbs) 
+        ! compute the tensor product of alpha and beta spin-bases to give 
+        ! fully open-shell determinants, the first input is to be defined as 
+        ! the alpha spin part
+        ! and the beta input then is only as big as n_orbs - n_alpha and only 
+        ! tells us in which empty orbitals of the alpha orbitals beta spins 
+        ! should be set 
+        integer(n_int), intent(in) :: first, second
+        integer, intent(in) :: n_orbs
+
+    end function open_shell_product
+
+    function set_alpha_beta_spins(beta_mask, n_orbs, t_beta) result(beta_spins) 
+        ! a function which converts a flag of spatial beta-spins to a 
+        ! spin orbita basis, eg.: 0011 -> 00 00 01 01
+        integer(n_int), intent(in) :: beta_mask
+        integer, intent(in) :: n_orbs 
+        logical, intent(in) :: t_beta
+        integer(n_int) :: beta_spins
+
+        integer, allocatable :: nOnes(:) 
+        integer :: i 
+
+        allocate(nOnes(popcnt(iand(beta_mask, maskr(n_orbs))))) 
+
+        call decode_bit_det(nOnes, [beta_mask])
+
+        if (t_beta) then 
+            ! then we want to set beta spins: 
+            nOnes = 2*nOnes - 1
+        else 
+            ! otherwise we want to set alpha spins
+            nOnes = 2*nOnes
+        end if
+                
+        beta_spins = 0_n_int
+        do i = 1, size(nOnes) 
+            beta_spins = ibset(beta_spins, nOnes(i)-1)
+        end do
+
+    end function set_alpha_beta_spins
+
+    function create_one_spin_basis(n_orbs, n_spins) result(one_spin_basis) 
+        integer, intent(in) :: n_orbs, n_spins 
+        integer(n_int), allocatable :: one_spin_basis(:) 
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "create_one_spin_basis" 
+#endif
+
+        integer :: n_max_states, i, right_zero, n_set_zero
+        integer(n_int) :: count_mask 
+
+        n_max_states = int(choose(n_orbs, n_spins))
+
+        ! 
+        allocate(one_spin_basis(n_max_states)) 
+
+        ! create the first basis state: 
+        one_spin_basis(1) = maskr(n_spins) 
+
+        ! implement my matlab routine to create the basis states: 
+        ! but now i have to do it for spin-orbital encoding!
+        ! but do this afterwards so the mapping is easier for off-half-filling!
+        do i = 2, n_max_states
+
+            ! copy last state: 
+            one_spin_basis(i) = one_spin_basis(i-1)
+
+            ! find the right-most zero with atleast one 1 right of it
+            right_zero = right_most_zero(one_spin_basis(i), n_orbs)
+
+            ! if the right-most zero is bigger than n_orbs already, we should 
+            ! have been finished already.. 
+            ASSERT(right_zero <= n_orbs)
+
+            ! i need to count the number of 1 right of this zero 
+            ! so i want a mask where every bit right of right_zero is set 
+            ! to one 
+            count_mask = maskr(right_zero-1) 
+            n_set_zero = popcnt(iand(one_spin_basis(i),count_mask)) 
+
+            ! now i want to set the right_most zero to one  
+            one_spin_basis(i) = ibset(one_spin_basis(i), right_zero-1)
+
+            ! and everything to 0 right of it for now 
+            one_spin_basis(i) = iand(one_spin_basis(i), not(count_mask)) 
+
+            ! and then we want to set n_set_zero bits to the very right of 
+            ! our bit-string 
+            one_spin_basis(i) = merge_bits(one_spin_basis(i), maskr(n_set_zero-1), not(maskr(n_set_zero-1)))
+
+        end do
+
+    end function create_one_spin_basis
+
+    integer function right_most_zero(i, n_orbs) 
+        ! gives the position of the right most zero with atleast one 1 
+        ! right of it in an integer bit representation, up to a input 
+        ! dependent orbital n_orbs 
+        integer(n_int), intent(in) :: i
+        integer, intent(in) :: n_orbs
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "right_most_zero" 
+#endif
+        integer, allocatable :: nZeros(:), nOnes(:) 
+        integer(n_int) :: j 
+
+        ! first truncate the integer to be save.. 
+        ! set all the ones left of n_orbs to 0 
+        j = iand(i, maskr(n_orbs))
+
+        ! be sure to avoid the edge case: 
+        if (j == 0_n_int) then
+            right_most_zero = -1 
+            return
+        end if
+
+        ! i could misuse the decode_bit_det functionality 
+        allocate(nZeros(popcnt(not(j))))
+        allocate(nOnes(popcnt(j)))
+
+        ! but exclude the unnecessary 0 left of n_orbs..
+        call decode_bit_det(nZeros, [not(j)])
+        call decode_bit_det(nOnes, [j])
+
+        ! in this way to encode it.. the right most 0 is then the minumum 
+        ! in nZeros which is bigger then the minumum in nOnes
+        right_most_zero = minval(nZeros, nZeros > minval(nOnes))
+
+    end function right_most_zero
 
     function calc_n_double(n_orbs, n_alpha, n_beta) result(n_double)
         ! routine to calculate the number of determinants with different 
         ! number of doubly occupied sites..
         integer, intent(in) :: n_orbs, n_alpha, n_beta
-        real(dp), intent(out), allocatable :: n_double(:)
+        integer, allocatable :: n_double(:)
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "calc_n_double"
+#endif
 
         real(dp) :: n_first
         integer :: n_max, n_min, i
@@ -229,7 +486,7 @@ contains
         ! for the half-filled ms=0 case, it is how often we can distribute 
         ! n/2 electrons in n orbitals (since the rest then gets filled up 
         ! by the other spin electrons -> nchoosek(n, n/2) 
-        ! todo: merge the cc_amplitudes branch or atleast the binomial 
+        ! todo: merge the cc_amplitudes branch or atleast the 
         ! functionality in there! 
         ! for ms/=0 but still at half-filling it i still the binomial 
         ! coefficient of one spin-type 
@@ -264,17 +521,23 @@ contains
         ! just for the fun of it: i could calculate the size of each of 
         ! those space(1 double occ, 2 double occ.. etc. 
 
+        ! only do that for less equal half-filling! 
+        ASSERT(n_alpha + n_beta <= n_orbs)
+
         n_max = max(n_alpha, n_beta) 
         n_min = min(n_alpha, n_beta)
 
-        n_first = binomial(n_orbs, n_max)
+        n_first = choose(n_orbs, n_max)
 
-        allocate(n_double(0:n_min)) 
+        allocate(n_double(n_min+1)) 
 
         do i = 0, n_min 
-            n_double(i) = n_first * binomial(n_max, i) * & 
-                binomial(n_orbs - n_max, n_min - 1) 
+            n_double(i+1) = int(n_first * choose(n_max, i) * & 
+                choose(n_orbs - n_max, n_min - i))
         end do
+
+        ! make sure that the sum of basis states is the whole hilber space
+        ASSERT(sum(n_double) == choose(n_orbs, n_alpha)*choose(n_orbs,n_beta))
 
     end function calc_n_double
 
