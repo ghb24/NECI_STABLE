@@ -1362,8 +1362,8 @@ contains
            tmp_totwalkers = TotWalkers
         endif
 
-        print *, "Creating the wavefunction to projected on!"
-        print *, "Initial number of walkers: ", tmp_totwalkers
+        write(iout,*) "Creating the wavefunction to projected on!"
+        write(iout,*) "Initial number of walkers: ", tmp_totwalkers
 
         if(allocated(overlap_pert)) then
            call MPISumAll(tmp_totwalkers,TotWalkers_orig_max)
@@ -1375,7 +1375,7 @@ contains
         
         allocate(overlap_states(gf_count), stat = ierr)
         allocate(perturbed_buf(0:niftot,TotWalkers_orig_max), stat = ierr)
-        print *, "Read-in dets", TotWalkers_orig
+        write(iout,*) "Read-in dets", TotWalkers_orig
         do i = 1, gf_count
            totwalkers_backup = tmp_totwalkers
            if(allocated(overlap_pert) .and. tNewOverlap) then
@@ -1403,7 +1403,7 @@ contains
            else
               perturbed_buf = CurrentDets
            endif
-
+! might need to sequentialize this for memory efficciency
            call write_overlap_state(perturbed_buf,TotWalkers_orig_max,i)
            call MPISumAll(overlap_states(i)%nDets,totNOccDets)
            if(totNOccDets==0) then 
@@ -1416,7 +1416,7 @@ contains
            tmp_totwalkers = totwalkers_backup
         enddo
 
-        if(allocated(overlap_states)) print *, &
+        if(allocated(overlap_states)) write(iout,*) &
              "Determinants remaining in perturbed ground state:" , overlap_states(1)%nDets
         deallocate(perturbed_buf,stat=ierr)
 

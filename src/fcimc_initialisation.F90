@@ -1351,7 +1351,7 @@ contains
 
             write(iout,"(A,I12,A)") "Spawning vectors allowing for a total of ",MaxSpawned, &
                     " particles to be spawned in any one iteration per core."
-            print *, "Memory requirement ", NIfBcast*8.0_dp*( &
+            write(iout,*) "Memory requirement ", NIfBcast*8.0_dp*( &
                  MaxSpawned/1048576.0_dp), "MB"
             allocate(SpawnVec(0:NIfBCast, MaxSpawned), &
                      SpawnVec2(0:NIfBCast, MaxSpawned), stat=ierr)
