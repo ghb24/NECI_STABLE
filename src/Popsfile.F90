@@ -949,10 +949,8 @@ r_loop: do while(.not.tStoreDet)
                                   PopNel, PopBalanceBlocks, tCalcExtraInfo=.false., &
                                   filename_stem = identifier)
 
-            print *, "Applying perturbation to read-in walker confguration!"
-            print *, "Total number of walkers before perturbation: ", TotWalkers
-
-            print *, "is norm higher here?", sqrt(pops_norm)
+            write(6,*) "Applying perturbation to read-in walker confguration!"
+            write(6, *) "Total number of walkers before perturbation: ", TotWalkers
             ! also store the original walker number in the real-time FCIQMC
 
             TotWalkersIn = int(TotWalkers, sizeof_int)
@@ -972,7 +970,7 @@ r_loop: do while(.not.tStoreDet)
             endif
             TotWalkers = int(TotWalkersIn, int64)
 
-            print *, "Total number of walkers after perturbation: ", TotWalkers
+            write(iout,*) "Total number of walkers after perturbation: ", TotWalkers
         else
             call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, TotWalkers, TotParts, NoatHF, &
                                   CurrentDets, MaxWalkersPart, pops_nnodes, pops_walkers, PopNIfSgn, &
@@ -1179,14 +1177,14 @@ r_loop: do while(.not.tStoreDet)
             if (read_psingles /= 0.0_dp) then
                pSingles = read_psingles
                pDoubles = 1.0_dp - pSingles
-               print *, " use pSingles and pDoubles provided by POPSFILE!"
-               print *, " pSingles set to: ", pSingles
-               print *, " pDoubles set to: ", pDoubles
+               write(iout,*) " use pSingles and pDoubles provided by POPSFILE!"
+               write(iout,*)" pSingles set to: ", pSingles
+               write(iout,*) " pDoubles set to: ", pDoubles
             end if
 
             ! also do that for pParallel
             if (read_pparallel /= 0.0_dp) then
-               print *, " use pParallel provided by POPSFILE: ", read_pparallel
+               write(iout,*) " use pParallel provided by POPSFILE: ", read_pparallel
                pParallel = read_pparallel
             end if
 #else

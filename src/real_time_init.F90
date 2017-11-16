@@ -34,7 +34,7 @@ module real_time_init
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_norm, clean_overlap_states, openTauContourFile
     use verlet_aux, only: backup_initial_state, setup_delta_psi
-    use constants, only: dp, n_int, int64, lenof_sign, inum_runs
+    use constants, only: dp, n_int, int64, lenof_sign, inum_runs, iout
     use Parallel_neci
     use ParallelHelper, only: iProcIndex, root, MPIbarrier, nNodes, MPI_SUM
     use util_mod, only: get_unique_filename, get_free_unit
@@ -81,7 +81,7 @@ contains
 
         integer :: ierr
 
-        print *, " Entering real-time FCIQMC initialisation "
+        write(iout,*) " Entering real-time FCIQMC initialisation "
 
         ! think about what variables have to be set for a succesful calc.
 
@@ -135,13 +135,13 @@ contains
               if(pops_pert(1)%ncreate == 1) kTotal = kTotal &
                    + G1(pops_pert(1)%crtn_orbs(1))%k
               call MomPbcSym(kTotal,nBasisMax)
-              print *, "New total momentum", kTotal
+              write(iout,*) "New total momentum", kTotal
            endif
         endif
 
         ! allocate the according quantities! 
         ! n_time_steps have to be set here!
-        print *, " Allocating greensfunction and wavefunction norm arrays!"
+        write(iout,*) " Allocating greensfunction and wavefunction norm arrays!"
         ! allocate an additional slot for initial values
         if(numSnapshotOrbs>0) then 
            allocate(popSnapshot(numSnapshotOrbs),stat=ierr)
@@ -170,11 +170,11 @@ contains
         if(tRealTimePopsfile) call readTimeEvolvedState()
         
         ! check for set lms.. i think that does not quite work yet 
-        print *, "mz spin projection: ", lms
+        write(iout,*) "mz spin projection: ", lms
 
-        print *, "tSinglePartPhase?:",tSinglePartPhase
-        print *, "tWalkContGrow?", tWalkContGrow
-        print *, "diagSft:", diagSft
+        write(iout,*) "tSinglePartPhase?:",tSinglePartPhase
+        write(iout,*) "tWalkContGrow?", tWalkContGrow
+        write(iout,*) "diagSft:", diagSft
 
         ! intialize the 2nd temporary determinant list needed in the 
         ! real-time fciqmc 
@@ -182,13 +182,13 @@ contains
         ! also maybe use the spawn_ht hash table, so allocated it here! 
         call setup_temp_det_list()
 
-        print *, "allocated(temp_det_list)?", allocated(temp_det_list)
-        print *, "associated(temp_det_pointer)?", associated(temp_det_pointer)
-        print *, "associated(temp_det_hash)?", associated(temp_det_hash)
+        write(iout,*) "allocated(temp_det_list)?", allocated(temp_det_list)
+        write(iout,*) "associated(temp_det_pointer)?", associated(temp_det_pointer)
+        write(iout,*) "associated(temp_det_hash)?", associated(temp_det_hash)
 
-        print *, "associated(spawn_ht)?", associated(spawn_ht)
+        write(iout,*) "associated(spawn_ht)?", associated(spawn_ht)
 
-        print *, "Allgrowrate: ", AllGrowRate
+        write(iout,*) "Allgrowrate: ", AllGrowRate
         ! print out the first infos on the calculation.. 
         ! although that definetly has to be changed for the real-time fciqm
 
@@ -361,7 +361,7 @@ contains
       do j = 1,gf_count
          ! calc. the norm of the perturbed ground states
          norm_buf = calc_norm(overlap_states(j)%dets,overlap_states(j)%nDets)
-         print *, "CHECKSUM", TotWalkers, overlap_states(j)%nDets
+         write(iout,*) "Number of walkers / in overlap state", TotWalkers, overlap_states(j)%nDets
          ! the norm (squared) can be obtained by reduction over all processes
          call MPIReduce(norm_buf,MPI_SUM,pert_norm(:,j))
          ! for diagonal green's functions, this is the same as pert_norm, but 

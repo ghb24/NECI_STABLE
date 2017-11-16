@@ -45,7 +45,8 @@ module real_time
     use timing_neci, only: set_timer, halt_timer
     use FciMCParMod, only: rezero_iter_stats_each_iter
     use hash, only: clear_hash_table
-    use constants, only: int64, sizeof_int, n_int, lenof_sign, dp, EPS, inum_runs, bits_n_int
+    use constants, only: int64, sizeof_int, n_int, lenof_sign, dp, EPS, inum_runs, bits_n_int, &
+         iout
     use AnnihilationMod, only: DirectAnnihilation, AnnihilateSpawnedParts, &
          deterministic_annihilation
     use bit_reps, only: extract_bit_rep, decode_bit_det
@@ -238,9 +239,9 @@ contains
 
         rtPOPSFILE_name = 'TIME_EVOLVED_POP'
 
-        print *, " ========================================================== "
-        print *, " ------------------ Real-time FCIQMC ---------------------- "
-        print *, " ========================================================== "
+        write(iout,*) " ========================================================== "
+        write(iout,*) " ------------------ Real-time FCIQMC ---------------------- "
+        write(iout,*) " ========================================================== "
 
         ! call the real-time setup routine and all the initialization
        
