@@ -1353,7 +1353,7 @@ contains
       implicit none
         character(*), parameter :: this_routine = "create_perturbed_ground"
         integer :: tmp_totwalkers, totwalkers_backup, TotWalkers_orig_max
-        integer :: ierr, i, totNOccDets
+        integer :: ierr, i, totNOccDets, iProc
         integer(n_int), allocatable :: perturbed_buf(:,:)
 
         if(tReadPops) then
@@ -1403,8 +1403,17 @@ contains
            else
               perturbed_buf = CurrentDets
            endif
-
-           call write_overlap_state(perturbed_buf,TotWalkers_orig_max,i)
+           print *, "Generated overlap state"
+           do iProc = 0, nProcessors-1
+              ! sequentialize to overcome bottlenecks for shared memory systems (this is not performance critical)
+              if(iProc .eq. iProcIndex) then
+                 print *, "Now writing ", TotWalkers_orig_max
+                 call write_overlap_state(perturbed_buf,TotWalkers_orig_max,i)
+                 print *, "Success on proc ", iProc
+              endif
+              call MPIBarrier(ierr)
+           enddo
+           print *, "Written overlap state to array"
            call MPISumAll(overlap_states(i)%nDets,totNOccDets)
            if(totNOccDets==0) then 
               if(gf_count == 1) then
