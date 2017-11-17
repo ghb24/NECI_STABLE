@@ -35,6 +35,7 @@ contains
         call run_test_case(test_init_lattice_tilted, "test_init_lattice_tilted")
         call run_test_case(test_init_lattice_cube, "test_init_lattice_cube")
         call run_test_case(test_init_lattice_triangular, "test_init_lattice_triangular")
+        call run_test_case(test_init_lattice_hexagonal, "test_init_lattice_hexagonal")
 
     end subroutine lattice_mod_test_driver 
 
@@ -1464,5 +1465,80 @@ contains
         call assert_true(.not.associated(ptr)) 
 
     end subroutine test_init_lattice_chain
+
+    subroutine test_init_lattice_hexagonal
+
+        class(lattice), pointer :: ptr
+
+        print *, "" 
+        print *, "testing: init_lattice_hexagonal" 
+        ptr => lattice('hexagonal', 1, 1, 1, .true.,.true.,.true.) 
+
+        call assert_equals(2, ptr%get_ndim()) 
+        call assert_equals(8, ptr%get_nsites())
+        call assert_equals(1, ptr%get_length(1))
+        call assert_equals(1, ptr%get_length(2)) 
+        call assert_true(ptr%is_periodic())
+        call assert_equals(3, ptr%get_nconnect_max())
+
+        call assert_equals(1, ptr%get_site_index(1))
+        call assert_equals(8, ptr%get_site_index(8))
+        call assert_equals(3, ptr%get_num_neighbors(1))
+        call assert_equals(3, ptr%get_num_neighbors(8))
+
+        call assert_equals([2,4,5], ptr%get_neighbors(1),3)
+        call assert_equals([1,3,6], ptr%get_neighbors(2),3)
+        call assert_equals([2,4,7], ptr%get_neighbors(3),3)
+        call assert_equals([1,3,8], ptr%get_neighbors(4),3)
+        call assert_equals([1,6,8], ptr%get_neighbors(5),3)
+        call assert_equals([2,5,7], ptr%get_neighbors(6),3)
+        call assert_equals([3,6,8], ptr%get_neighbors(7),3)
+        call assert_equals([4,5,7], ptr%get_neighbors(8),3)
+
+        call lattice_deconstructor(ptr)
+        call assert_true(.not. associated(ptr))
+
+        ptr => lattice('hexagonal', 2, 1,1,.true.,.true.,.true.) 
+        
+        call assert_equals(2, ptr%get_ndim()) 
+        call assert_equals(16, ptr%get_nsites())
+        call assert_equals(2, ptr%get_length(1))
+        call assert_equals(1, ptr%get_length(2)) 
+        call assert_true(ptr%is_periodic())
+        call assert_equals(3, ptr%get_nconnect_max())
+
+        call assert_equals([2,8,9], ptr%get_neighbors(1),3)
+        call assert_equals([1,3,10], ptr%get_neighbors(2),3)
+        call assert_equals([2,4,11], ptr%get_neighbors(3),3)
+        call assert_equals([3,5,12], ptr%get_neighbors(4),3)
+        call assert_equals([4,6,13], ptr%get_neighbors(5),3)
+        call assert_equals([5,7,14], ptr%get_neighbors(6),3)
+        call assert_equals([6,8,15], ptr%get_neighbors(7),3)
+        call assert_equals([1,7,16], ptr%get_neighbors(8),3)
+
+        ! the 1x2 is the first "new" lattice type since the 
+        ! Xx1 are like Xx2 square lattices with half the hopping t
+        ptr => lattice('hexagonal', 1, 2,1,.true.,.true.,.true.) 
+        
+        call assert_equals(2, ptr%get_ndim()) 
+        call assert_equals(16, ptr%get_nsites())
+        call assert_equals(1, ptr%get_length(1))
+        call assert_equals(2, ptr%get_length(2)) 
+        call assert_true(ptr%is_periodic())
+        call assert_equals(3, ptr%get_nconnect_max())
+
+        call assert_equals([2,4,5], ptr%get_neighbors(1),3)
+        call assert_equals([1,3,14], ptr%get_neighbors(2),3)
+        call assert_equals([2,4,7], ptr%get_neighbors(3),3)
+        call assert_equals([1,3,16], ptr%get_neighbors(4),3)
+        call assert_equals([1,6,8], ptr%get_neighbors(5),3)
+        call assert_equals([5,7,10], ptr%get_neighbors(6),3)
+        call assert_equals([3,6,8], ptr%get_neighbors(7),3)
+        call assert_equals([5,7,12], ptr%get_neighbors(8),3)
+
+
+
+        
+    end subroutine test_init_lattice_hexagonal
 
 end program test_lattice_mod

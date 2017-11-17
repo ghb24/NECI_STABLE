@@ -277,6 +277,19 @@ module lattice_mod
 
     end type rectangle
 
+    type, extends(rectangle) :: hexagonal 
+        ! i found a unit cell for the hexagonal lattice. but this is 
+        ! unfortunately 8 sites big alread.. anyway try it 
+        private 
+
+    contains 
+        private 
+
+        procedure :: calc_nsites => calc_nsites_hexagonal 
+        procedure :: initialize_sites => init_sites_hexagonal
+
+    end type hexagonal
+
     type, extends(rectangle) :: triangular
         ! use the length quantitiy and periodicity of the rectangle
         private 
@@ -1092,6 +1105,89 @@ contains
 
     end subroutine init_sites_cube
 
+    subroutine init_sites_hexagonal(this) 
+        ! the way to create the neighboring indices is based on the convention 
+        ! that the lattice is interpreted in such a way: the unit cell is:
+        !  __
+        ! /  \   with encoding: 1 5 
+        ! \__/                  2 6 
+        ! /  \                  3 7
+        !                       4 8
+
+        ! which leads to an lattice:
+        ! __/  \__/
+        !   \__/  \_
+        ! _ /  \__/
+        !   \__/  \_
+        ! __/  \__/
+        !   \__/  \_
+
+        ! so the up and down neighbors are easy to do again. 
+        ! just the left and right are different: now each site only either 
+        ! has left or right, not both and it alternates
+        ! but this also depends on the colum of encoding one is in: 
+        !   1 - 5    9 - 13 
+        ! - 2   6 - 10   14 - 
+        !   3 - 7   11 - 15
+        ! - 4   8 - 12   16 - 
+        class(hexagonal) :: this 
+        integer :: temp_array(4*this%length(1),2*this%length(2))
+        integer :: up(4*this%length(1),2*this%length(2))
+        integer :: down(4*this%length(1),2*this%length(2)) 
+        integer :: right(4*this%length(1),2*this%length(2)) 
+        integer :: left(4*this%length(1),2*this%length(2))
+
+        integer :: i , temp_neigh(3), x, y, special
+        integer, allocatable :: neigh(:) 
+        character(*), parameter :: this_routine = "init_sites_hexagonal"
+
+        temp_array = reshape([(i, i = 1, this%get_nsites())], & 
+            [4*this%length(1),2*this%length(2)]) 
+
+        up = cshift(temp_array, -1, 1)
+        down = cshift(temp_array, 1, 1) 
+        left = cshift(temp_array, -1, 2)
+        right = cshift(temp_array, 1, 2) 
+
+        if (this%is_periodic()) then 
+            do i = 1, this%get_nsites()
+                ! columns and rows:
+                x = mod(i-1, 4*this%length(1)) + 1 
+                y = (i-1)/(4*this%length(1)) + 1 
+
+                if (is_odd(y)) then 
+                    if (is_odd(i)) then 
+                        ! every odd number in a odd column has a right neighbor
+                        special = right(x,y)
+                    else 
+                        ! otherwise left 
+                        special = left(x,y) 
+                    end if
+                else 
+                    ! for even columns it is the other way around 
+                    if (is_odd(i)) then 
+                        special = left(x,y) 
+                    else 
+                        special = right(x,y)
+                    end if
+                end if
+                temp_neigh = [up(x,y), down(x,y), special] 
+
+                neigh = sort_unique(temp_neigh) 
+
+                this%sites(i) = site(i, size(neigh), neigh) 
+            end do
+        else 
+            call stop_all(this_routine, &
+                "closed boundary conditions not yet implemented for hexagonal lattice!")
+
+        end if
+
+
+
+
+    end subroutine init_sites_hexagonal
+
     subroutine init_sites_triangular(this)
         class(triangular) :: this 
         integer :: temp_array(this%length(1),this%length(2))
@@ -1795,6 +1891,12 @@ contains
 
             call this%set_nconnect_max(6)
 
+        class is (hexagonal) 
+
+            call this%set_ndim(DIM_RECT) 
+            call this%set_length(length_x, length_y, length_z) 
+            call this%set_nconnect_max(3) 
+
         class is (star) 
             call this%set_ndim(DIM_STAR)
             call this%set_nconnect_max(n_sites - 1)
@@ -2013,6 +2115,10 @@ contains
             end if
 
             allocate( triangular :: this )
+
+        case ('hexagonal', 'hex', 'hexagon', 'honeycomb') 
+
+            allocate( hexagonal :: this )
 
         case default 
             ! stop here because a incorrect lattice type was given 
@@ -2380,6 +2486,22 @@ contains
         n_sites = length_x * length_y * length_z
 
     end function calc_nsites_cube
+
+    function calc_nsites_hexagonal(this, length_x, length_y, length_z) result(n_sites) 
+        class(hexagonal) :: this 
+        integer, intent(in) :: length_x, length_y
+        integer, intent(in), optional :: length_z
+        integer :: n_sites 
+        character(*), parameter :: this_routine = "calc_nsites_hexagonal" 
+
+        ! the length_x of the hexagonal is defined as the number of unit cells.. 
+        ! and there are 8 sites in my hexagonal unit cell.. 
+        ASSERT(length_x > 0) 
+        ASSERT(length_y > 0) 
+
+        n_sites = length_x * length_y * 8 
+
+    end function calc_nsites_hexagonal
 
     function calc_nsites_rect(this, length_x, length_y, length_z) result(n_sites) 
         class(rectangle) :: this 

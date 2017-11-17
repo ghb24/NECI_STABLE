@@ -28,6 +28,10 @@
 #define get_src(ex) ex(1,:)
 #define get_tgt(ex) ex(2,:)
 
+! this is the same as is beta, but just for clearity:
+#define is_odd(i) btest(i,0)
+#define is_even(i) (.not.is_odd(i))
+
 ! Get the index of the replica that is paired with ind:
 #define paired_replica(ind) (ind+2*mod(ind,2)-1)
 
