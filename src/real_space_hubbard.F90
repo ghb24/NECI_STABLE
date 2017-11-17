@@ -269,6 +269,7 @@ contains
         ! the half-filled case is the most easy one.. should we treat it 
         ! special? maybe.. 
 
+        ASSERT(n_first >= n_second) 
 #ifdef __DEBUG 
         ! be sure that the provided n_total fits with the n_doubles if 
         ! provided 
@@ -316,7 +317,7 @@ contains
                 ! i want to do some sort of tensor product here:
                 ! |0011> x |01> = |00 10 01 01>
                 ! |0011> x |10> = |10 00 01 01>  
-                n = 0 
+                n = 1 
                 do i = 1, size(first_basis) 
                     do j = 1, size(second_basis)
                         spin_basis(n) = open_shell_product(first_basis(i),second_basis(j),n_orbs)
@@ -340,15 +341,41 @@ contains
 
     end function combine_spin_basis
 
-    integer(n_int) function open_shell_product(alpha, beta, n_orbs) 
+    function open_shell_product(alpha, beta, n_orbs) result(basis)
         ! compute the tensor product of alpha and beta spin-bases to give 
         ! fully open-shell determinants, the first input is to be defined as 
         ! the alpha spin part
         ! and the beta input then is only as big as n_orbs - n_alpha and only 
         ! tells us in which empty orbitals of the alpha orbitals beta spins 
         ! should be set 
-        integer(n_int), intent(in) :: first, second
+        ! sorting is not so easily ensured here anymore.. 
+        integer(n_int), intent(in) :: alpha, beta
         integer, intent(in) :: n_orbs
+        integer(n_int) :: basis
+
+        integer, allocatable :: nZeros(:), nOnes(:)
+        integer(n_int) :: mask_zeros
+        integer :: i
+        ! the setting of the alpha spins is the same or? 
+        basis = set_alpha_beta_spins(alpha, n_orbs, .false.)
+
+        ! i need the zeros, but just in the n_orbs range
+        mask_zeros = iand(not(alpha), maskr(n_orbs))
+
+        allocate(nZeros(popcnt(mask_zeros)))
+
+        call decode_bit_det(nZeros, [mask_zeros])
+
+        ! now i need the ones from beta
+        allocate(nOnes(popcnt(beta)))
+        call decode_bit_det(nOnes, [beta])
+
+        ! and i have to set all beta-spins indicated by nZeros(nOnes) 
+        ! so we need beta spin! 
+        nZeros = 2*nZeros - 1
+        do i = 1, size(nOnes) 
+            basis = ibset(basis, nZeros(nOnes(i))-1)
+        end do
 
     end function open_shell_product
 

@@ -56,6 +56,7 @@ contains
         call run_test_case(create_one_spin_basis_test, "create_one_spin_basis_test")
         call run_test_case(set_alpha_beta_spins_test, "set_beta_spins_test")
         call run_test_case(combine_spin_basis_test, "combine_spin_basis_test")
+        call run_test_case(create_all_open_shell_dets_test, "create_all_open_shell_dets_test")
 
     end subroutine real_space_hubbard_test_driver
 
@@ -1457,9 +1458,50 @@ contains
         call assert_equals(int(b'010101101010',n_int), basis(1))
         call assert_equals(int(b'101010010101',n_int), basis(20))
 
+        basis = combine_spin_basis(4,2,1,12,int([3,5,6,9,10,12],n_int),.false.)
+
+        call assert_equals(12, size(basis)) 
+        call assert_equals(int(b'00011010',n_int), basis(1))
+        call assert_equals(int(b'01001010',n_int), basis(2))
+        call assert_equals(int(b'00100110',n_int), basis(3))
+        call assert_equals(int(b'10100001',n_int), basis(11))
+        call assert_equals(int(b'10100100',n_int), basis(12))
+
+        basis = combine_spin_basis(4,1,1,12,int([1,2,4,8],n_int),.false.)
         
+        call assert_equals(12, size(basis))
+        call assert_equals(int(b'00000110',n_int), basis(1))
+        call assert_equals(int(b'00010010',n_int), basis(2))
+        call assert_equals(int(b'01000010',n_int), basis(3))
+        call assert_equals(int(b'10010000',n_int), basis(12))
+
+        niftot = -1
+        nifd = -1
     end subroutine combine_spin_basis_test
 
-end program test_real_space_hubbard
+    subroutine create_all_open_shell_dets_test
+        use bit_rep_data, only: niftot, nifd
 
+        integer(n_int), allocatable :: basis(:)
+
+        niftot = 0
+        nifd = 0
+
+        print *, "" 
+        print *, "testing: create_all_open_shell_dets"
+
+        basis = create_all_open_shell_dets(4,2,2)
+
+        call assert_equals(6, size(basis)) 
+        call assert_equals(int(b'01011010',n_int),basis(1))
+        call assert_equals(int(b'01100110',n_int),basis(2))
+        call assert_equals(int(b'01101001',n_int),basis(3))
+        call assert_equals(int(b'10100101',n_int),basis(6))
+
+        niftot = -1
+        nifd = -1
+
+    end subroutine create_all_open_shell_dets_test
+
+end program test_real_space_hubbard
 
