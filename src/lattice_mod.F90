@@ -277,6 +277,15 @@ module lattice_mod
 
     end type rectangle
 
+    type, extends(rectangle) :: kagome
+        private
+    contains
+        private
+        procedure :: calc_nsites => calc_nsites_kagome
+        procedure :: initialize_sites => init_sites_kagome
+
+    end type kagome
+
     type, extends(rectangle) :: hexagonal 
         ! i found a unit cell for the hexagonal lattice. but this is 
         ! unfortunately 8 sites big alread.. anyway try it 
@@ -1105,6 +1114,101 @@ contains
 
     end subroutine init_sites_cube
 
+    subroutine init_sites_kagome(this)
+        ! the unit cell of the kagome i use is: 
+        ! ___  
+        ! \./  which is encoded as 1 - 4
+        ! /_\                      2/- 5
+        !    \                     3/  6
+        ! 
+        ! see below how this is implemented specifically! 
+        class(kagome) :: this 
+        character(*), parameter :: this_routine = "init_sites_kagome"
+
+        ! and i think i will for the 6-site, 1x2 and 2x1 12 site and 2x2 24-site 
+        ! hard encode the neighbors and stuff because this seems to be a pain 
+        ! in the ass! 
+
+        if (this%is_periodic()) then 
+            if (this%length(1) == 1 .and. this%length(2) == 1) then 
+                ! the smallest cluster 
+                this%sites(1) = site(1, 3, [2,4,6])
+                this%sites(2) = site(2, 4, [1,3,4,5])
+                this%sites(3) = site(3, 3, [2,5,6])
+                this%sites(4) = site(4, 3, [1,2,6])
+                this%sites(5) = site(5, 3, [2,3,6])
+                this%sites(6) = site(6, 4, [1,3,4,5])
+
+            else if (this%length(1) == 1 .and. this%length(2) == 2) then 
+                ! the 1x2 cluster with 12-sites: 
+                this%sites(1) = site(1, 4, [2,4,10,12])
+                this%sites(2) = site(2, 4, [1,3,4,5])
+                this%sites(3) = site(3, 4, [2,5,11,12])
+                this%sites(4) = site(4, 4, [1,2,6,7])
+                this%sites(5) = site(5, 4, [2,3,6,9])
+                this%sites(6) = site(6, 4, [4,5,7,9])
+                this%sites(7) = site(7, 4, [4,6,8,10])
+                this%sites(8) = site(8, 4, [7,9,10,11])
+                this%sites(9) = site(9, 4, [5,6,8,11])
+                this%sites(10) = site(10, 4, [1,7,8,12])
+                this%sites(11) = site(11, 4, [3,8,9,12])
+                this%sites(12) = site(12, 4, [1,3,10,11])
+
+            else if (this%length(1) == 2 .and. this%length(2) == 1) then 
+                ! the 2x1 12-site cluster: 
+                this%sites(1) = site(1, 3, [2,4,12])
+                this%sites(2) = site(2, 4, [1,3,4,5]) 
+                this%sites(3) = site(3, 3, [2,5,6])
+                this%sites(4) = site(4, 3, [1,2,12])
+                this%sites(5) = site(5, 3, [2,3,6])
+                this%sites(6) = site(6, 4, [3,5,7,10])
+                this%sites(7) = site(7, 3, [6,8,10])
+                this%sites(8) = site(8, 4, [7,9,10,11])
+                this%sites(9) = site(9, 3, [8,11,12])
+                this%sites(10) = site(10, 3, [6,7,8])
+                this%sites(11) = site(11, 3, [8,9,12])
+                this%sites(12) = site(12, 4, [1,4,9,11])
+
+            else if (this%length(1) == 2 .and. this%length(2) == 2) then 
+                ! the 2x2 24-site cluster.. puh.. thats a lot to do.. 
+                this%sites(1) = site(1, 4, [2,4,10,24])
+                this%sites(2) = site(2, 4, [1,3,4,5])
+                this%sites(3) = site(3, 4, [2,5,11,12])
+                this%sites(4) = site(4, 4, [1,2,7,18])
+                this%sites(5) = site(5, 4, [2,3,6,9])
+                this%sites(6) = site(6, 4, [5,9,16,19])
+                this%sites(7) = site(7, 4, [4,8,10,18])
+                this%sites(8) = site(8, 4, [7,9,10,11])
+                this%sites(9) = site(9, 4, [5,6,8,11])
+                this%sites(10) = site(10, 4, [1,7,8,24])
+                this%sites(11) = site(11, 4, [3,8,9,12])
+                this%sites(12) = site(12, 4, [3,11,13,22])
+                this%sites(13) = site(13, 4, [12,14,16,22])
+                this%sites(14) = site(14, 4, [13,15,16,17])
+                this%sites(15) = site(15, 4, [14,17,23,24])
+                this%sites(16) = site(16, 4, [6,13,14,19])
+                this%sites(17) = site(17, 4, [13,15,18,21])
+                this%sites(18) = site(18, 4, [4,7,17,21])
+                this%sites(19) = site(19, 4, [6,16,20,21,22])
+                this%sites(20) = site(20, 4, [19,21,22,23])
+                this%sites(21) = site(21, 4, [17,18,20,23])
+                this%sites(22) = site(22, 4, [12,13,19,20])
+                this%sites(23) = site(23, 4, [15,20,21,24])
+                this%sites(24) = site(24, 4, [1,10,15,23])
+
+            else 
+                call stop_all(this_routine, &
+                    "only 1x1,1x2,2x1 and 2x2 clusters implemented for kagome yet!")
+            end if
+
+        else 
+            call stop_all(this_routine, & 
+                "closed boundary conditions not yet implemented for kagome lattice!")
+
+        end if
+
+    end subroutine init_sites_kagome
+
     subroutine init_sites_hexagonal(this) 
         ! the way to create the neighboring indices is based on the convention 
         ! that the lattice is interpreted in such a way: the unit cell is:
@@ -1182,9 +1286,6 @@ contains
                 "closed boundary conditions not yet implemented for hexagonal lattice!")
 
         end if
-
-
-
 
     end subroutine init_sites_hexagonal
 
@@ -1897,6 +1998,11 @@ contains
             call this%set_length(length_x, length_y, length_z) 
             call this%set_nconnect_max(3) 
 
+        class is (kagome) 
+            call this%set_ndim(DIM_RECT) 
+            call this%set_length(length_x, length_y, length_z) 
+            call this%set_nconnect_max(4)
+
         class is (star) 
             call this%set_ndim(DIM_STAR)
             call this%set_nconnect_max(n_sites - 1)
@@ -2119,6 +2225,9 @@ contains
         case ('hexagonal', 'hex', 'hexagon', 'honeycomb') 
 
             allocate( hexagonal :: this )
+
+        case ('kagome') 
+            allocate( kagome :: this) 
 
         case default 
             ! stop here because a incorrect lattice type was given 
@@ -2502,6 +2611,22 @@ contains
         n_sites = length_x * length_y * 8 
 
     end function calc_nsites_hexagonal
+
+    function calc_nsites_kagome(this, length_x, length_y, length_z) result(n_sites) 
+        class(kagome) :: this 
+        integer, intent(in) :: length_x, length_y
+        integer, intent(in), optional :: length_z
+        integer :: n_sites 
+        character(*), parameter :: this_routine = "calc_nsites_kagome" 
+
+        ! the length_x and length_y of the kagome are defined as the number of unit cells.. 
+        ! and there are 8 sites in my kagome unit cell.. 
+        ASSERT(length_x > 0) 
+        ASSERT(length_y > 0) 
+
+        n_sites = length_x * length_y * 6 
+
+    end function calc_nsites_kagome
 
     function calc_nsites_rect(this, length_x, length_y, length_z) result(n_sites) 
         class(rectangle) :: this 

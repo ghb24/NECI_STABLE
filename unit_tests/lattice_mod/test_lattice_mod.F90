@@ -36,6 +36,7 @@ contains
         call run_test_case(test_init_lattice_cube, "test_init_lattice_cube")
         call run_test_case(test_init_lattice_triangular, "test_init_lattice_triangular")
         call run_test_case(test_init_lattice_hexagonal, "test_init_lattice_hexagonal")
+        call run_test_case(test_init_lattice_kagome, "test_init_lattice_kagome")
 
     end subroutine lattice_mod_test_driver 
 
@@ -1536,9 +1537,63 @@ contains
         call assert_equals([3,6,8], ptr%get_neighbors(7),3)
         call assert_equals([5,7,12], ptr%get_neighbors(8),3)
 
-
-
-        
     end subroutine test_init_lattice_hexagonal
+
+    subroutine test_init_lattice_kagome
+
+        class(lattice), pointer :: ptr
+        print *, ""
+        print *, "testing: init_lattice_kagome:" 
+
+        ptr => lattice('kagome', 1,1,1,.true.,.true.,.true.)
+ 
+        call assert_equals(2, ptr%get_ndim()) 
+        call assert_equals(6, ptr%get_nsites())
+        call assert_equals(1, ptr%get_length(1))
+        call assert_equals(1, ptr%get_length(2)) 
+        call assert_true(ptr%is_periodic())
+        call assert_equals(4, ptr%get_nconnect_max())
+
+        call assert_equals([2,4,6], ptr%get_neighbors(1),3)
+        call assert_equals([1,3,4,5], ptr%get_neighbors(2),4)
+        call assert_equals([2,5,6], ptr%get_neighbors(3),3)
+        call assert_equals([1,2,6], ptr%get_neighbors(4),3)
+        call assert_equals([2,3,6], ptr%get_neighbors(5),3)
+        call assert_equals([1,3,4,5], ptr%get_neighbors(6),4)
+
+        ptr => lattice('kagome', 2,1,1,.true.,.true.,.true.)
+ 
+        call assert_equals(2, ptr%get_ndim()) 
+        call assert_equals(12, ptr%get_nsites())
+        call assert_equals(2, ptr%get_length(1))
+        call assert_equals(1, ptr%get_length(2)) 
+        call assert_true(ptr%is_periodic())
+        call assert_equals(4, ptr%get_nconnect_max())
+
+        call assert_equals([3,5,7,10], ptr%get_neighbors(6),4)
+
+        ptr => lattice('kagome', 1,2,1,.true.,.true.,.true.)
+ 
+        call assert_equals(2, ptr%get_ndim()) 
+        call assert_equals(12, ptr%get_nsites())
+        call assert_equals(1, ptr%get_length(1))
+        call assert_equals(2, ptr%get_length(2)) 
+        call assert_true(ptr%is_periodic())
+        call assert_equals(4, ptr%get_nconnect_max())
+
+        call assert_equals([1,3,10,11], ptr%get_neighbors(12),4)
+
+        ptr => lattice('kagome', 2,2,1,.true.,.true.,.true.)
+ 
+        call assert_equals(2, ptr%get_ndim()) 
+        call assert_equals(24, ptr%get_nsites())
+        call assert_equals(2, ptr%get_length(1))
+        call assert_equals(2, ptr%get_length(2)) 
+        call assert_true(ptr%is_periodic())
+        call assert_equals(4, ptr%get_nconnect_max())
+
+        call assert_equals([1,10,15,23], ptr%get_neighbors(24),4)
+
+    end subroutine test_init_lattice_kagome
 
 end program test_lattice_mod
