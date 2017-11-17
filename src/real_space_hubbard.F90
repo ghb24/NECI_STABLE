@@ -416,8 +416,8 @@ contains
         character(*), parameter :: this_routine = "create_one_spin_basis" 
 #endif
 
-        integer :: n_max_states, i, right_zero, n_set_zero
-        integer(n_int) :: count_mask 
+        integer :: n_max_states, i, right_zero
+        integer(n_int) :: count_mask, n_set_zero
 
         n_max_states = int(choose(n_orbs, n_spins))
 
@@ -456,7 +456,7 @@ contains
 
             ! and then we want to set n_set_zero bits to the very right of 
             ! our bit-string 
-            one_spin_basis(i) = merge_bits(one_spin_basis(i), maskr(n_set_zero-1), not(maskr(n_set_zero-1)))
+            one_spin_basis(i) = merge_bits(one_spin_basis(i), maskr(n_set_zero-1,n_int), not(maskr(n_set_zero-1,n_int)))
 
         end do
 

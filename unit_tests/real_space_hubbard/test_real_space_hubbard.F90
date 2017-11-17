@@ -1388,18 +1388,18 @@ contains
         alpha = create_one_spin_basis(4,2) 
         
         call assert_equals(6, size(alpha)) 
-        call assert_equals(int(b'0011',n_int),alpha(1))
-        call assert_equals(int(b'0101',n_int),alpha(2))
-        call assert_equals(int(b'0110',n_int),alpha(3))
-        call assert_equals(int(b'1001',n_int),alpha(4))
-        call assert_equals(int(b'1010',n_int),alpha(5))
-        call assert_equals(int(b'1100',n_int),alpha(6))
+        call assert_equals(b'0011',int(alpha(1)))
+        call assert_equals((b'0101'),int(alpha(2)))
+        call assert_equals((b'0110'),int(alpha(3)))
+        call assert_equals((b'1001'),int(alpha(4)))
+        call assert_equals((b'1010'),int(alpha(5)))
+        call assert_equals((b'1100'),int(alpha(6)))
 
         alpha = create_one_spin_basis(5,2) 
 
         call assert_equals(10, size(alpha))
-        call assert_equals(int(b'00011',n_int), alpha(1))
-        call assert_equals(int(b'11000',n_int), alpha(10))
+        call assert_equals((b'00011'), int(alpha(1)))
+        call assert_equals((b'11000'), int(alpha(10)))
 
         niftot = -1
         nifd = -1
@@ -1415,16 +1415,16 @@ contains
         print *, ""
         print *, "testing: set_alpha_beta_spins "
 
-        call assert_equals(int(b'101',n_int),set_alpha_beta_spins(int(b'11',n_int),4,.true.))
-        call assert_equals(int(b'00010001',n_int), set_alpha_beta_spins(int(b'0101',n_int),4,.true.))
-        call assert_equals(int(b'01000001',n_int), set_alpha_beta_spins(int(b'1001',n_int),4,.true.))
+        call assert_equals((b'101'),int(set_alpha_beta_spins(int(b'11',n_int),4,.true.)))
+        call assert_equals((b'00010001'), int(set_alpha_beta_spins(int(b'0101',n_int),4,.true.)))
+        call assert_equals((b'01000001'), int(set_alpha_beta_spins(int(b'1001',n_int),4,.true.)))
 
-        call assert_equals(int(b'1010',n_int),set_alpha_beta_spins(int(b'11',n_int),4,.false.))
-        call assert_equals(int(b'00100010',n_int), set_alpha_beta_spins(int(b'0101',n_int),4,.false.))
-        call assert_equals(int(b'10000010',n_int), set_alpha_beta_spins(int(b'1001',n_int),4,.false.))
+        call assert_equals((b'1010'),int(set_alpha_beta_spins(int(b'11',n_int),4,.false.)))
+        call assert_equals((b'00100010'), int(set_alpha_beta_spins(int(b'0101',n_int),4,.false.)))
+        call assert_equals((b'10000010'), int(set_alpha_beta_spins(int(b'1001',n_int),4,.false.)))
 
-        call assert_equals(int(b'10100000',n_int), set_alpha_beta_spins(int(b'1100',n_int),4,.false.))
-        call assert_equals(int(b'01010000',n_int), set_alpha_beta_spins(int(b'1100',n_int),4,.true.))
+        call assert_equals((b'10100000'), int(set_alpha_beta_spins(int(b'1100',n_int),4,.false.)))
+        call assert_equals((b'01010000'), int(set_alpha_beta_spins(int(b'1100',n_int),4,.true.)))
 
         niftot = -1
         nifd = -1
@@ -1445,35 +1445,35 @@ contains
         basis = combine_spin_basis(4,2,2,6,int([3,5,6,9,10,12],n_int),.false.)
 
         call assert_equals(6, size(basis)) 
-        call assert_equals(int(b'01011010',n_int),basis(1))
-        call assert_equals(int(b'01100110',n_int),basis(2))
-        call assert_equals(int(b'01101001',n_int),basis(3))
-        call assert_equals(int(b'10100101',n_int),basis(6))
+        call assert_equals((b'01011010'),int(basis(1)))
+        call assert_equals((b'01100110'),int(basis(2)))
+        call assert_equals((b'01101001'),int(basis(3)))
+        call assert_equals((b'10100101'),int(basis(6)))
 
         spin_basis = create_one_spin_basis(6,3) 
 
         basis = combine_spin_basis(6,3,3,20,spin_basis,.false.)
 
         call assert_equals(20, size(basis))
-        call assert_equals(int(b'010101101010',n_int), basis(1))
-        call assert_equals(int(b'101010010101',n_int), basis(20))
+        call assert_equals((b'010101101010'), int(basis(1)))
+        call assert_equals((b'101010010101'), int(basis(20)))
 
         basis = combine_spin_basis(4,2,1,12,int([3,5,6,9,10,12],n_int),.false.)
 
         call assert_equals(12, size(basis)) 
-        call assert_equals(int(b'00011010',n_int), basis(1))
-        call assert_equals(int(b'01001010',n_int), basis(2))
-        call assert_equals(int(b'00100110',n_int), basis(3))
-        call assert_equals(int(b'10100001',n_int), basis(11))
-        call assert_equals(int(b'10100100',n_int), basis(12))
+        call assert_equals((b'00011010'), int(basis(1)))
+        call assert_equals((b'01001010'), int(basis(2)))
+        call assert_equals((b'00100110'), int(basis(3)))
+        call assert_equals((b'10100001'), int(basis(11)))
+        call assert_equals((b'10100100'), int(basis(12)))
 
         basis = combine_spin_basis(4,1,1,12,int([1,2,4,8],n_int),.false.)
         
         call assert_equals(12, size(basis))
-        call assert_equals(int(b'00000110',n_int), basis(1))
-        call assert_equals(int(b'00010010',n_int), basis(2))
-        call assert_equals(int(b'01000010',n_int), basis(3))
-        call assert_equals(int(b'10010000',n_int), basis(12))
+        call assert_equals((b'00000110'), int(basis(1)))
+        call assert_equals((b'00010010'), int(basis(2)))
+        call assert_equals((b'01000010'), int(basis(3)))
+        call assert_equals((b'10010000'), int(basis(12)))
 
         niftot = -1
         nifd = -1
