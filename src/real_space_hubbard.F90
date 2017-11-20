@@ -1085,9 +1085,8 @@ contains
         ! (or one of them if it is ambigous)
         integer(n_int), intent(out), optional :: ilut_neel(0:NIfTot)
         integer :: neel_state(nel)
-#ifdef __DEBUG
         character(*), parameter :: this_routine = "create_neel_state"
-#endif
+
         integer :: i, j, k, l, spin, ind
         
 
@@ -1114,7 +1113,7 @@ contains
         case ('chain')
             neel_state = create_neel_state_chain()
 
-        case ('square','rectangle','triangle','triangular')
+        case ('square','rectangle','triangle','triangular','hexagonal','kagome')
             ! check if length_x is mod 2 
             if (mod(length_x, 2) == 0) then 
 
@@ -1137,6 +1136,7 @@ contains
                         end if
                     end do
                 end do
+
             else 
                 ! here it is easy it is just like the chain case 
                 neel_state = create_neel_state_chain()
@@ -1202,6 +1202,8 @@ contains
 
             end do
 
+        case default 
+            call stop_all(this_routine, "unknown lattice type!")
         end select 
 
         if (present(ilut_neel)) then 
