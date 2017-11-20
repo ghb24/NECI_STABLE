@@ -268,6 +268,9 @@ real(dp) :: exchange_j = 0.0_dp
 ! use a general flag for lattice models in the future: 
 logical :: t_lattice_model = .false. 
 
+! use a new flag for the "new" k-space hubbard implementation
+logical :: t_k_space_hubbard = .false. 
+
 character(20) :: lattice_type
 
 ! i need 
