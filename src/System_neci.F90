@@ -518,9 +518,18 @@ system: do
                call getf(trans_corr_param_2body)
 
            else 
-               trans_corr_param_2body = 1.0_dp
+               trans_corr_param_2body = 0.25_dp
            end if
 
+        case ('NEIGHBOR-TRANSCORR','TRANSCORR-NEIGHBOR','N-TRANSCORR')
+            t_trans_corr_2body = .true. 
+            if (item < nitems) then 
+                call getf(trans_corr_param_2body) 
+            else 
+                trans_corr_param_2body = 0.25_dp
+            end if
+
+                
        ! Options for the type of the reciprocal lattice (eg sc, fcc, bcc)
         case("REAL_LATTICE_TYPE")
             call readl(real_lattice_type) 

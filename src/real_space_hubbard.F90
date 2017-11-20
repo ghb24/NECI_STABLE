@@ -17,8 +17,9 @@ module real_space_hubbard
 
     use SystemData, only: t_new_real_space_hubbard, lattice_type, length_x, &
                           length_y, length_z, uhub, nbasis, bhub, t_open_bc_x, &
-                          t_open_bc_y, t_open_bc_z, G1, ecore, nel, nOccAlpha, nOccBeta, & 
-                          t_trans_corr, trans_corr_param
+                          t_open_bc_y, t_open_bc_z, G1, ecore, nel, nOccAlpha, nOccBeta, &
+                          t_trans_corr, trans_corr_param, t_trans_corr_2body, & 
+                          trans_corr_param_2body
     use lattice_mod, only: lattice, determine_optimal_time_step, lat, &
                     get_helement_lattice, get_helement_lattice_ex_mat, & 
                     get_helement_lattice_general
@@ -1021,7 +1022,14 @@ contains
             call EncodeBitDet(nI, ilut)
             hel = hel * exp(trans_corr_param * & 
                 (get_opp_spin(ilut, ex(1)) - get_opp_spin(ilut, ex(2))))
+        end if
 
+        ! it is not really a 2-body trans, but still use the flag and 
+        ! parameter
+        if (t_trans_corr_2body) then 
+            call EncodeBitDet(nI, ilut) 
+            hel = hel * exp(trans_corr_param_2body * & 
+                (get_spin_opp_neighbors(ilut, ex(1)) - get_spin_opp_neighbors(ilut,ex(2))))
         end if
 
     end function get_offdiag_helement_rs_hub
@@ -1040,6 +1048,36 @@ contains
         end if
 
     end function get_opp_spin
+
+    function get_spin_opp_neighbors(ilut, spin_orb) result(spin_opp_neighbors) 
+        ! function to give the number of opposite spin electron neighbors 
+        integer(n_int), intent(in) :: ilut(0:niftot) 
+        integer, intent(in) :: spin_orb 
+        real(dp) :: spin_opp_neighbors
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "get_spin_opp_neighbors" 
+#endif 
+        integer :: i, flip 
+        integer, allocatable :: neighbors(:) 
+
+        ASSERT(associated(lat))
+
+        spin_opp_neighbors = 0.0_dp 
+
+
+        ! get the spin-opposite neigbhors 
+        if (is_beta(spin_orb)) then 
+            neighbors = lat%get_spinorb_neighbors(spin_orb) + 1
+        else 
+            neighbors = lat%get_spinorb_neighbors(spin_orb) - 1
+        end if
+
+        do i = 1, size(neighbors) 
+            if (IsOcc(ilut, neighbors(i))) spin_opp_neighbors = spin_opp_neighbors + 1.0_dp
+        end do
+
+    end function get_spin_opp_neighbors
+
 
     ! what else?
     function create_neel_state(ilut_neel) result(neel_state)
