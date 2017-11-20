@@ -46,7 +46,6 @@ contains
         call run_test_case(get_occ_neighbors_test, "get_occ_neighbors_test")
         call run_test_case(get_offdiag_helement_tJ_test, "get_offdiag_helement_tJ_test")
         call run_test_case(get_spin_density_neighbors_test, "get_spin_density_neighbors_test")
-        call run_test_case(get_spin_opp_neighbors_test, "get_spin_density_neighbors")
 
     end subroutine tJ_model_test_driver
 
@@ -1519,37 +1518,4 @@ contains
         t_trans_corr = .false. 
 
     end subroutine get_offdiag_helement_tJ_test
-
-    subroutine get_spin_opp_neighbors_test
-        use bit_rep_data, only: NIfTot
-        use Detbitops, only: EncodeBitDet
-        use SystemData, only: nel 
-        use lattice_mod, only: lattice 
-        use constants, only: n_int
-
-        integer(n_int), allocatable :: ilut(:)
-
-        print *, "" 
-        print *, "testing: get_spin_opp_neighbors: "
-
-        NIfTot = 0
-        lat => lattice('chain', 4,1,1,.true.,.true.,.true.)
-
-        allocate(ilut(0:NIfTot))
-        nel = 3 
-        call encodebitdet([1,2,3], ilut)
-
-        call assert_equals(1.0_dp, get_spin_opp_neighbors(ilut,2)) 
-        call assert_equals(0.0_dp, get_spin_opp_neighbors(ilut,1))
-        call assert_equals(1.0_dp, get_spin_opp_neighbors(ilut,3))
-        call assert_equals(1.0_dp, get_spin_opp_neighbors(ilut,4))
-        call assert_equals(0.0_dp, get_spin_opp_neighbors(ilut,5))
-        call assert_equals(1.0_dp, get_spin_opp_neighbors(ilut,6))
-        call assert_equals(1.0_dp, get_spin_opp_neighbors(ilut,7))
-        call assert_equals(1.0_dp, get_spin_opp_neighbors(ilut,8))
-
-        nel = -1
-        NIfTot = -1
-    end subroutine get_spin_opp_neighbors_test
-
 end program test_tJ_model

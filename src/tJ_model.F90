@@ -11,7 +11,7 @@ module tJ_model
     use constants, only: dp, n_int, EPS, bits_n_int
     use real_space_hubbard, only: lat_tau_factor, &
                                   t_start_neel_state, check_real_space_hubbard_input, & 
-                                  init_tmat
+                                  init_tmat, get_spin_opp_neighbors
     use procedure_pointers, only: get_umat_el, generate_excitation
     use FciMCData, only: tsearchtau, tsearchtauoption
     use CalcData, only: t_hist_tau_search_option, t_hist_tau_search, tau
@@ -1410,34 +1410,4 @@ contains
         spin_dens_neighbors = spin_dens_neighbors / 2.0_dp
 
     end function get_spin_density_neighbors
-
-    function get_spin_opp_neighbors(ilut, spin_orb) result(spin_opp_neighbors) 
-        ! function to give the number of opposite spin electron neighbors 
-        integer(n_int), intent(in) :: ilut(0:niftot) 
-        integer, intent(in) :: spin_orb 
-        real(dp) :: spin_opp_neighbors
-#ifdef __DEBUG 
-        character(*), parameter :: this_routine = "get_spin_opp_neighbors" 
-#endif 
-        integer :: i, flip 
-        integer, allocatable :: neighbors(:) 
-
-        ASSERT(associated(lat))
-
-        spin_opp_neighbors = 0.0_dp 
-
-
-        ! get the spin-opposite neigbhors 
-        if (is_beta(spin_orb)) then 
-            neighbors = lat%get_spinorb_neighbors(spin_orb) + 1
-        else 
-            neighbors = lat%get_spinorb_neighbors(spin_orb) - 1
-        end if
-
-        do i = 1, size(neighbors) 
-            if (IsOcc(ilut, neighbors(i))) spin_opp_neighbors = spin_opp_neighbors + 1.0_dp
-        end do
-
-    end function get_spin_opp_neighbors
-
 end module tJ_model
