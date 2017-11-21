@@ -17,6 +17,8 @@ module k_space_hubbard
     use procedure_pointers, only: get_umat_el
     use gen_coul_ueg_mod, only: get_hub_umat_el
     use constants, only: n_int, dp
+    use bit_rep_data, only: NIfTot
+    use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
 
     implicit none 
 
@@ -65,6 +67,19 @@ contains
         character(*), parameter :: this_routine ="get_helement_k_space_hub_ex_mat"
 #endif
 
+        if (ic == 0) then 
+            ! the diagonal is just the sum of the occupied one-particle 
+            ! basis states 
+            hel = get_diag_helement_k_sp_hub(nI) 
+
+        else if (ic == 2) then 
+            hel = get_offdiag_helement_k_sp_hub(nI, ex, tpar) 
+
+        else 
+            hel = h_cast(0.0_dp) 
+
+        end if
+
     end function get_helement_k_space_hub_ex_mat
 
     function get_helement_k_space_hub_general(nI, nJ, ic_ret) result(hel) 
@@ -74,7 +89,87 @@ contains
 #ifdef __DEBUG 
         character(*), parameter :: this_routine = "get_helement_k_space_hub_general"
 #endif
+        integer :: ic, ex(2,2) 
+        logical :: tpar 
+        integer(n_int) :: ilutI(0:NIfTot), ilutJ(0:niftot)
+
+        if (present(ic_ret)) then 
+            if (ic_ret == 0) then 
+                hel = get_diag_helement_k_sp_hub(nI) 
+
+            else if (ic == 2) then 
+                ex(1,1) = 2
+                call GetExcitation(nI, nJ, nel, ex, tpar) 
+                hel = get_offdiag_helement_k_sp_hub(nI, ex, tpar) 
+
+            else if (ic_ret == -1) then 
+                call EncodeBitDet(nI, ilutI) 
+                call EncodeBitDet(nJ, ilutJ) 
+
+                ic_ret = FindBitExcitLevel(ilutI, ilutJ) 
+
+                if (ic_ret == 0) then 
+                    hel = get_diag_helement_k_sp_hub(nI) 
+
+                else if (ic_ret == 2) then 
+                    ex(1,1) = 2 
+                    call GetBitExcitation(ilutI, ilutJ, ex, tpar) 
+
+                    hel = get_offdiag_helement_k_sp_hub(nI, ex, tpar) 
+
+                else 
+                    hel = h_cast(0.0_dp) 
+                end if
+            else 
+                hel = h_cast(0.0_dp) 
+            end if
+        else 
+            call EncodeBitDet(nI, ilutI) 
+            call EncodeBitDet(nJ, ilutJ) 
+
+            ic = FindBitExcitLevel(ilutI, ilutJ) 
+
+            if (ic == 0) then 
+                hel = get_diag_helement_k_sp_hub(nI) 
+            else if (ic == 2) then
+                ex(1,1) = 2 
+                call GetBitExcitation(ilutI, ilutJ, ex, tpar) 
+
+                hel = get_offdiag_helement_k_sp_hub(nI, ex, tpar) 
+
+            else 
+                hel = h_cast(0.0_dp) 
+            end if 
+        end if
 
     end function get_helement_k_space_hub_general
+
+    function get_diag_helement_k_sp_hub(nI) result(hel) 
+        integer, intent(in) :: nI(nel) 
+        HElement_t(dp) :: hel 
+
+        ! just sum up the orbital energies of the occupied orbitals.. 
+        ! todo
+
+    end function get_diag_helement_k_sp_hub
+
+    function get_offdiag_helement_k_sp_hub(nI, ex, tpar) result(hel) 
+        integer, intent(in) :: nI(nel), ex(2,2)
+        logical, intent(in) :: tpar 
+        HElement_t(dp) :: hel 
+
+        ! todo: 
+
+        if (t_trans_corr) then 
+            ! do something 
+        end if
+
+        if (t_trans_corr_2body) then 
+            ! do something 2-body.. 
+        end if
+
+        if (tpar) hel = -hel 
+
+    end function get_offdiag_helement_k_sp_hub
 
 end module k_space_hubbard

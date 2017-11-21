@@ -33,6 +33,33 @@ contains
     subroutine k_space_hubbard_test_driver() 
         ! this is the main function which calls all the other tests 
        
+        call run_test_case(get_diag_helement_k_sp_hub_test, "get_diag_helement_k_sp_hub_test")
+        call run_test_case(get_offdiag_helement_k_sp_hub_test, "get_offdiag_helement_k_sp_hub_test")
+        call run_test_case(get_helement_k_space_hub_test, "get_helement_k_space_hub_test")
+
     end subroutine k_space_hubbard_test_driver
+
+    subroutine get_diag_helement_k_sp_hub_test
+
+        print *, ""
+        print *, "testing: get_diag_helement_k_sp_hub" 
+        call assert_true(.false.)
+    end subroutine get_diag_helement_k_sp_hub_test
+
+    subroutine get_offdiag_helement_k_sp_hub_test
+
+        print *, ""
+        print *, "testing: get_offdiag_helement_k_sp_hub" 
+        call assert_true(.false.)
+
+    end subroutine get_offdiag_helement_k_sp_hub_test
+
+    subroutine get_helement_k_space_hub_test
+
+        print *, ""
+        print *, "testing: get_helement_k_space_hub_test" 
+        call assert_true(.false.)
+
+    end subroutine get_helement_k_space_hub_test
 
 end program test_k_space_hubbard
