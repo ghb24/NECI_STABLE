@@ -529,4 +529,17 @@ contains
 
     end function get_offdiag_helement_k_sp_hub
 
+    ! finally write the functions to setup up the pesky G1 and nBasisMax 
+    ! quantities to be consistent with the rest of the old code 
+    subroutine setup_g1(in_lat) 
+        class(lattice), intent(in), optional :: in_lat
+
+    end subroutine setup_g1
+
+    subroutine setup_nbasismax(in_lat) 
+        class(lattice), intent(in), optional :: in_lat
+
+    end subroutine setup_nbasismax
+
+
 end module k_space_hubbard

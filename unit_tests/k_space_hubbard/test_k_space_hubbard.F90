@@ -12,7 +12,8 @@ program test_k_space_hubbard
     use k_space_hubbard
     use constants 
     use fruit 
-    use lattice_mod, only: lat
+    use SystemData, only: t_k_space_hubbard, t_lattice_model, nel, nbasis, & 
+                          t_trans_corr, G1, nBasisMax
 
     implicit none 
 
@@ -30,11 +31,44 @@ program test_k_space_hubbard
 
 contains 
 
+    subroutine init_k_space_unit_tests()
+        ! since there is so much annoying outside dependency, mainly due to 
+        ! momentum-conservation symmetry, lets just initialize all 
+        ! necessary stuff here in front so testing is not so annoying.. 
+
+        print *, ""
+        print *, "initializing k_space unit tests"
+        print *, "for simplicity do the unit tests on a 4 electron system" 
+        print *, "in 4 spatial orbitals" 
+        nel = 4 
+        nbasis = 8 
+        NIfTot = 0
+        nifd = 0 
+
+        t_k_space_hubbard = .true. 
+        t_lattice_model = .true. 
+
+        ! setup G1 properly
+        !todo 
+        ! do a function like: which depending on the lattice sets up everything
+        ! necessary for this type of lattice! yes!
+        call setup_g1(lat) 
+
+        ! setup nBasisMax and also the same for nBasisMax
+        call setup_nbasismax(lat)
+        !todo
+
+    end subroutine init_k_space_unit_tests
+
     subroutine k_space_hubbard_test_driver() 
         ! with all the annying symmetry stuff to set up, testing the 
         ! k-space hubbard is really annoying.. 
         ! this is the main function which calls all the other tests 
        
+        call run_test_case(setup_g1_test, "setup_g1_test")
+        call run_test_case(setup_nbasismax_test, "setup_nbasismax_test")
+
+        call init_k_space_unit_tests()
         call run_test_case(get_diag_helement_k_sp_hub_test, "get_diag_helement_k_sp_hub_test")
         call run_test_case(get_offdiag_helement_k_sp_hub_test, "get_offdiag_helement_k_sp_hub_test")
         call run_test_case(get_helement_k_space_hub_test, "get_helement_k_space_hub_test")
