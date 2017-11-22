@@ -1386,9 +1386,15 @@ contains
                 call getf(StepsSftImag)
             case("STEPSSHIFT")
 !For FCIMC, this is the number of steps taken before the Diag shift is updated
-                call geti(StepsSft)
+                if(tFixedN0)then
+                    write(6,*) "WARNING: 'STEPSSHIFT' cannot be changed. &
+                    & 'FIXED-N0' is already specified and sets this parameter to 1."
+                else
+                    call geti(StepsSft)
+                end if
             case("FIXED-N0")
                 tFixedN0 = .true.
+                StepsSft = 1
             case("EXITWALKERS")
 !For FCIMC, this is an exit criterion based on the total number of walkers in the system.
                 call getiLong(iExitWalkers)
