@@ -3023,7 +3023,8 @@ contains
     function determine_optimal_time_step(time_step_death) result(time_step)
         use SystemData, only: nel, bhub, uhub, t_new_real_space_hubbard, & 
                               t_tJ_model, t_heisenberg_model, exchange_j, & 
-                              nOccAlpha, nOccBeta, t_trans_corr
+                              nOccAlpha, nOccBeta, t_k_space_hubbard, omega, & 
+                              nbasis
 
         real(dp), optional, intent(out) :: time_step_death
         real(dp) :: time_step
@@ -3036,14 +3037,22 @@ contains
         ! determine the optimal hubbard time-step for an optimized 
         ! hubbard excitation generation 
         ! the first electron is chosen at random 
-        p_elec = 1.0_dp / real(nel, dp)
+        if (t_k_space_hubbard) then 
+            p_elec = 1.0_dp / real(nOccAlpha * nOccBeta, dp) 
+        else 
+            p_elec = 1.0_dp / real(nel, dp)
+        end if
 
         ! and for a picked electron the possible neighbors are looked for 
         ! open holes so the lowest probability is determined by the 
         ! maximum numbers of connections 
         ! do this in general in the same way for all types of 
         ! lattice models. thats not exact, but a good enough estimate
-        p_hole = 1.0_dp / real(lat%get_nconnect_max(), dp) 
+        if (t_k_space_hubbard) then 
+            p_hole = 1.0_dp / real(nbasis - nel, dp) 
+        else
+            p_hole = 1.0_dp / real(lat%get_nconnect_max(), dp) 
+        end if
 
         if (t_new_real_space_hubbard) then 
 
@@ -3057,6 +3066,9 @@ contains
         else if (t_heisenberg_model) then 
 
             mat_ele = real(abs(exchange_j), dp)
+
+        else if (t_k_space_hubbard) then 
+            mat_ele = abs(real(uhub,dp)/real(omega,dp))
 
         end if
 
@@ -3078,6 +3090,8 @@ contains
                 ! we have to find the maximum number of non-frustrated 
                 ! nearest neighbor spins! 
                 print *, "todo: "
+            else if (t_k_space_hubbard) then 
+                print *, "todo" 
 
             end if
 
