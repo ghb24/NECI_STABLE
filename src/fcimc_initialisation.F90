@@ -12,7 +12,8 @@ module fcimc_initialisation
                           tHistSpinDist, tPickVirtUniform, tGen_4ind_reverse, &
                           tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
                           tUEGNewGenerator, tGen_4ind_2, tReltvy, t_new_real_space_hubbard, &
-                          t_lattice_model, t_tJ_model, t_heisenberg_model
+                          t_lattice_model, t_tJ_model, t_heisenberg_model, & 
+                          t_k_space_hubbard
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use dSFMT_interface, only: dSFMT_init
     use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
@@ -150,6 +151,7 @@ module fcimc_initialisation
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
     use tj_model, only: init_get_helement_tj, init_get_helement_heisenberg
+    use k_space_hubbard, only: init_get_helement_k_space_hub
 
     implicit none
 
@@ -696,6 +698,8 @@ contains
                 call init_get_helement_heisenberg() 
             else if (t_new_real_space_hubbard) then
                 call init_get_helement_hubbard()
+            else if (t_k_space_hubbard) then 
+                call init_get_helement_k_space_hub()
             end if
         end if
 

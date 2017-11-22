@@ -8,7 +8,8 @@ MODULE Calc
                           AA_hole_pairs, BB_hole_pairs, AB_hole_pairs, &
                           par_hole_pairs, hole_pairs, nholes_a, nholes_b, &
                           nholes, UMATEPS, tHub, t_lattice_model, t_tJ_model, & 
-                          t_new_real_space_hubbard, t_heisenberg_model
+                          t_new_real_space_hubbard, t_heisenberg_model, & 
+                          t_k_space_hubbard
     use Determinants, only: write_det
     use spin_project, only: spin_proj_interval, tSpinProject, &
                             spin_proj_gamma, spin_proj_shift, &
@@ -39,6 +40,7 @@ MODULE Calc
     use real_space_hubbard, only: t_start_neel_state, create_neel_state, & 
                                   init_get_helement_hubbard
     use tJ_model, only: init_get_helement_heisenberg, init_get_helement_tj
+    use k_space_hubbard, only: init_get_helement_k_space_hub
 
     implicit none
 
@@ -2501,6 +2503,8 @@ contains
                     call init_get_helement_heisenberg() 
                 else if (t_new_real_space_hubbard) then
                     call init_get_helement_hubbard()
+                else if (t_k_space_hubbard) then 
+                    call init_get_helement_k_space_hub
                 end if
             end if
 

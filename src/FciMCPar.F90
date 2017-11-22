@@ -4,7 +4,8 @@ module FciMCParMod
     ! This module contains the main loop for FCIMC calculations, and the
     ! main per-iteration processing loop.
     use SystemData, only: nel, tUEG2, hist_spin_dist_iter, tReltvy, tHub, & 
-                          t_new_real_space_hubbard
+                          t_new_real_space_hubbard, t_tJ_model, t_heisenberg_model, & 
+                          t_k_space_hubbard
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
                         AvMCExcits, pops_norm_unit, iExitWalkers, &
@@ -75,8 +76,8 @@ module FciMCParMod
     use tau_search_hist, only: print_frequency_histograms, deallocate_histograms
     use back_spawn, only: init_back_spawn
     use real_space_hubbard, only: init_real_space_hubbard
-    use tj_model, only: t_tJ_model, t_heisenberg_model, init_tJ_model, & 
-                        init_heisenberg_model
+    use tJ_model, only: init_tJ_model, init_heisenberg_model
+    use k_space_hubbard, only: init_k_space_hubbard
 
 #ifdef MOLPRO
     use outputResult
@@ -158,6 +159,9 @@ module FciMCParMod
         end if
         if (t_heisenberg_model) then 
             call init_heisenberg_model()
+        end if
+        if (t_k_space_hubbard) then 
+            call init_k_space_hubbard()
         end if
 
         ! Attach signal handlers to give a more graceful death-mannerism

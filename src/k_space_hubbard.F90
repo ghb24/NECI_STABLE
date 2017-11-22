@@ -12,7 +12,7 @@
 module k_space_hubbard 
     use SystemData, only: t_lattice_model, t_k_space_hubbard, t_trans_corr, & 
                     trans_corr_param, t_trans_corr_2body, trans_corr_param_2body, & 
-                    nel, tHPHF, nOccBeta, nOccAlpha, nbasis
+                    nel, tHPHF, nOccBeta, nOccAlpha, nbasis, tLatticeGens
     use lattice_mod, only: get_helement_lattice_ex_mat, get_helement_lattice_general, &
                            determine_optimal_time_step
     use procedure_pointers, only: get_umat_el, generate_excitation
@@ -31,6 +31,7 @@ module k_space_hubbard
     use get_excit, only: make_double
     use UmatCache, only: gtid
     use OneEInts, only: GetTMatEl
+    use sltcnd_mod, only: sltcnd_0
 
     implicit none 
 
@@ -50,6 +51,8 @@ contains
         real(dp) :: tau_opt
         print *, " new k-space hubbard implementation init:" 
 
+        ! i have to set the incorrect excitaiton generator flags to false 
+        tLatticeGens = .false.
         call check_k_space_hubbard_input()
 
         get_umat_el => get_hub_umat_el
@@ -295,7 +298,7 @@ contains
             return 
         end if
 
-        r = genrand_real2_dsfmt() * size(cum_arr) 
+        r = genrand_real2_dsfmt() * cum_sum
 
         ind = binary_search_first_ge(cum_arr, r) 
 
@@ -307,14 +310,14 @@ contains
 
     end subroutine pick_from_cum_list
 
-    function calc_pgen_k_space_hubbard(nI, ex, ic) result(pgen) 
+    function calc_pgen_k_space_hubbard(nI, ilutI, ex, ic) result(pgen) 
+        integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(in) :: nI(nel), ex(2,2), ic
         real(dp) :: pgen
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "calc_pgen_k_space_hubbard"
 #endif
         real(dp) :: p_elec, p_orb, cum_arr(nbasis), cum_sum
-        integer(n_int) :: ilutI(0:niftot)
         integer :: orb_list(nbasis,2), src(2)
 
         if (ic /= 2) then 
@@ -324,7 +327,6 @@ contains
 
         p_elec = 1.0_dp / real(nOccBeta * nOccAlpha, dp) 
 
-        call EncodeBitDet(nI, ilutI)
         src = get_src(ex)
 
         call create_ab_list_hubbard(nI, ilutI, src, orb_list, cum_arr, cum_sum, & 
@@ -355,7 +357,7 @@ contains
         if (ic == 0) then 
             ! the diagonal is just the sum of the occupied one-particle 
             ! basis states 
-            hel = get_diag_helement_k_sp_hub(nI) 
+            hel = sltcnd_0(nI) 
 
         else if (ic == 2) then 
             hel = get_offdiag_helement_k_sp_hub(nI, ex, tpar) 
@@ -380,7 +382,7 @@ contains
 
         if (present(ic_ret)) then 
             if (ic_ret == 0) then 
-                hel = get_diag_helement_k_sp_hub(nI) 
+                hel = sltcnd_0(nI) 
 
             else if (ic == 2) then 
                 ex(1,1) = 2
@@ -394,7 +396,7 @@ contains
                 ic_ret = FindBitExcitLevel(ilutI, ilutJ) 
 
                 if (ic_ret == 0) then 
-                    hel = get_diag_helement_k_sp_hub(nI) 
+                    hel = sltcnd_0(nI) 
 
                 else if (ic_ret == 2) then 
                     ex(1,1) = 2 
@@ -415,7 +417,7 @@ contains
             ic = FindBitExcitLevel(ilutI, ilutJ) 
 
             if (ic == 0) then 
-                hel = get_diag_helement_k_sp_hub(nI) 
+                hel = sltcnd_0(nI) 
             else if (ic == 2) then
                 ex(1,1) = 2 
                 call GetBitExcitation(ilutI, ilutJ, ex, tpar) 
@@ -435,12 +437,15 @@ contains
 #ifdef __DEBUG 
         character(*), parameter :: this_routine = "get_diag_helement_k_sp_hub" 
 #endif
-        integer :: i
+        integer :: i, j
 
         ! just sum up the orbital energies of the occupied orbitals.. or?
         do i = 1, nel 
             hel = hel + GetTMatEl(nI(i),nI(i))
         end do
+
+        ! so why not just use the sltcnd_0?
+        ! is there a 2-body influence on the matrix elements? 
 
     end function get_diag_helement_k_sp_hub
 

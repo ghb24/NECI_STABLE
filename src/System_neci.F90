@@ -276,7 +276,16 @@ MODULE System
                       lattice_type = 'read'
                   end if
               case ('momentum-space','k-space','momentum')
-                  call stop_all(t_r, "not yet implemented!")
+                  ! reuse most of the old initialisation for the k-space 
+                  ! hubbard. one has to be really careful to initialize all 
+                  ! the correct stuff especially for the matrix element 
+                  ! calculation with the HPHF option turned on! 
+                  t_k_space_hubbard = .true. 
+                  t_lattice_model = .true. 
+
+              case default 
+                  print *, w
+                  call Stop_All(t_r, "not recognised keyword!")
               end select
           end if
                   
