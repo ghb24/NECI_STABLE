@@ -12,7 +12,7 @@
 module k_space_hubbard 
     use SystemData, only: t_lattice_model, t_k_space_hubbard, t_trans_corr, & 
                     trans_corr_param, t_trans_corr_2body, trans_corr_param_2body, & 
-                    nel, tHPHF, nOccBeta, nOccAlpha, nbasis, tLatticeGens
+                    nel, tHPHF, nOccBeta, nOccAlpha, nbasis, tLatticeGens, tHub
     use lattice_mod, only: get_helement_lattice_ex_mat, get_helement_lattice_general, &
                            determine_optimal_time_step
     use procedure_pointers, only: get_umat_el, generate_excitation
@@ -53,6 +53,10 @@ contains
 
         ! i have to set the incorrect excitaiton generator flags to false 
         tLatticeGens = .false.
+        ! maybe i also need to turn off the hubbard keyword.. at this 
+        ! point
+        thub = .false. 
+
         call check_k_space_hubbard_input()
 
         get_umat_el => get_hub_umat_el
@@ -124,6 +128,8 @@ contains
             pgen = 0.0_dp
             return 
         end if
+
+        ic = 2 
 
         ! and make the excitation 
         call make_double(nI, nJ, elecs(1), elecs(2), orbs(1), orbs(2), ex, tParity)
@@ -325,6 +331,11 @@ contains
             return 
         end if
 
+        if (same_spin(ex(1,1),ex(1,2)) .or. same_spin(ex(2,1),ex(2,2))) then 
+            pgen = 0.0_dp 
+            return
+        end if
+
         p_elec = 1.0_dp / real(nOccBeta * nOccAlpha, dp) 
 
         src = get_src(ex)
@@ -384,7 +395,7 @@ contains
             if (ic_ret == 0) then 
                 hel = sltcnd_0(nI) 
 
-            else if (ic == 2) then 
+            else if (ic_ret == 2) then 
                 ex(1,1) = 2
                 call GetExcitation(nI, nJ, nel, ex, tpar) 
                 hel = get_offdiag_helement_k_sp_hub(nI, ex, tpar) 
@@ -437,15 +448,8 @@ contains
 #ifdef __DEBUG 
         character(*), parameter :: this_routine = "get_diag_helement_k_sp_hub" 
 #endif
-        integer :: i, j
 
-        ! just sum up the orbital energies of the occupied orbitals.. or?
-        do i = 1, nel 
-            hel = hel + GetTMatEl(nI(i),nI(i))
-        end do
-
-        ! so why not just use the sltcnd_0?
-        ! is there a 2-body influence on the matrix elements? 
+        hel = sltcnd_0(nI)
 
     end function get_diag_helement_k_sp_hub
 
@@ -471,7 +475,14 @@ contains
         ! b and j? does this have an effect on the sign of the matrix element? 
         !todo!
 
-        hel = get_hub_umat_el(ab(1),ab(2),ij(1),ij(2))
+        if (same_spin(src(1),tgt(1)) .and. same_spin(src(2),tgt(2))) then 
+            hel = get_umat_el(ij(1),ij(2),ab(1),ab(2))
+        end if
+        if (same_spin(src(1),tgt(2)) .and. same_spin(src(2),tgt(1))) then 
+            hel = -get_umat_el(ij(1),ij(2),ab(2),ab(1))
+        end if
+
+!         hel = get_hub_umat_el(ab(1),ab(2),ij(1),ij(2))
 
         if (t_trans_corr) then 
             ! do something 

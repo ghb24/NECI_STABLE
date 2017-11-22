@@ -333,8 +333,9 @@ MODULE HPHFRandExcitMod
                                 ! not possible in the heisenberg model
                                 ASSERT(.not. t_heisenberg_model)
                                 ! only hopping can lead to that!
-                                ASSERT(ic == 1) 
-                                ASSERT(ExcitLevel == 1)
+                                !todo: fix here for k-space hubbard!
+!                                 ASSERT(ic == 1) 
+!                                 ASSERT(ExcitLevel == 1)
                                 ! here we want by definition the matrix 
                                 ! element and the sign between nI and the 
                                 ! to-be stored nJ 

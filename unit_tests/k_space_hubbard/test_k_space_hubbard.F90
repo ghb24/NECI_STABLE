@@ -31,6 +31,8 @@ program test_k_space_hubbard
 contains 
 
     subroutine k_space_hubbard_test_driver() 
+        ! with all the annying symmetry stuff to set up, testing the 
+        ! k-space hubbard is really annoying.. 
         ! this is the main function which calls all the other tests 
        
         call run_test_case(get_diag_helement_k_sp_hub_test, "get_diag_helement_k_sp_hub_test")
