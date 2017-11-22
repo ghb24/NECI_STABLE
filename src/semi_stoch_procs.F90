@@ -11,7 +11,7 @@ module semi_stoch_procs
     use constants
     use FciMCData, only: determ_sizes, determ_displs, determ_space_size, &
                          SpawnedParts, TotWalkers, CurrentDets, core_space, &
-                         MaxSpawned
+                         MaxSpawned,indices_of_determ_states, ilutRef
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg
     use sparse_arrays, only: sparse_core_ham
     use SystemData, only: nel
@@ -30,6 +30,7 @@ contains
         use FciMCData, only: partial_determ_vecs, full_determ_vecs, SemiStoch_Comms_Time
         use FciMCData, only: SemiStoch_Multiply_Time
         use Parallel_neci, only: MPIBarrier, MPIAllGatherV
+        use DetBitOps, only: DetBitEQ
 
         integer :: i, j, ierr, run, part_type
 
@@ -94,7 +95,15 @@ contains
 
             ! Now multiply the vector by tau to get the final projected vector.
             partial_determ_vecs = partial_determ_vecs * tau
-
+            
+            do i = 1, determ_sizes(iProcIndex)
+                do part_type  = 1, lenof_sign
+                    run = part_type_to_run(part_type)
+                    if(tSkipRef .and. DetBitEQ(CurrentDets(:,indices_of_determ_states(i)),iLutRef(:,run),nIfD)) then
+                        partial_determ_vecs(part_type, i) = 0.0_dp
+                    end if
+                end do
+            end do
         end if
 
         call halt_timer(SemiStoch_Multiply_Time)
