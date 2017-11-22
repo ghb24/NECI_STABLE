@@ -112,7 +112,7 @@ contains
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "gen_excit_k_space_hub"
 #endif
-        real(dp) :: p_elec, p_orbs
+        real(dp) :: p_elec, p_orb
         integer :: elecs(2), orbs(2), src(2)
 
         ! i first have to choose an electron pair (ij) at random 
@@ -121,7 +121,7 @@ contains
 
         src = nI(elecs)
 
-        call pick_ab_orbitals_hubbard(nI, ilutI, src, orbs, p_orbs)
+        call pick_ab_orbitals_hubbard(nI, ilutI, src, orbs, p_orb)
 
         if (orbs(1) == ABORT_EXCITATION) then 
             nJ(1) = ABORT_EXCITATION
@@ -136,7 +136,9 @@ contains
 
         ilutJ = make_ilutJ(ilutI, ex, 2) 
 
-        pgen = p_elec * p_orbs
+        ! i think in both the electrons and the orbitals i have twice the 
+        ! probability to pick them
+        pgen = p_elec * p_orb * 2.0_dp
 
     end subroutine gen_excit_k_space_hub
 
@@ -167,15 +169,16 @@ contains
 
     end subroutine pick_spin_opp_elecs
 
-    subroutine pick_ab_orbitals_hubbard(nI, ilutI, src, orbs, p_orbs) 
+    subroutine pick_ab_orbitals_hubbard(nI, ilutI, src, orbs, p_orb) 
         ! depending on the already picked electrons (ij) pick an orbital 
         ! (a) and the connected orbital (b)
         integer, intent(in) :: nI(nel), src(2)
         integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(out) :: orbs(2) 
-        real(dp), intent(out) :: p_orbs
+        real(dp), intent(out) :: p_orb
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "pick_ab_orbitals_hubbard"
+        real(dp) :: test
 #endif
         real(dp) :: cum_arr(nbasis)
         real(dp) :: cum_sum
@@ -194,9 +197,23 @@ contains
 
         ! this stuff is also written so often i should finally make a routine 
         ! out of that 
-        call pick_from_cum_list(cum_arr, cum_sum, ind, p_orbs)
+        call pick_from_cum_list(cum_arr, cum_sum, ind, p_orb)
 
         orbs = orb_list(ind,:)
+
+#ifdef __DEBUG 
+        ! check that the other way of picking the orbital has the same 
+        ! probability.. 
+        call create_ab_list_hubbard(nI, ilutI, src, orb_list, cum_arr, cum_sum, & 
+            orbs(2), test)
+
+        if (abs(test - p_orb) > 1.e-8) then 
+            print *, "pgen assumption wrong:!" 
+            print *, "p_orb: ", p_orb
+            print *, "test: ", test 
+            print *, "orbs: ", orbs
+        end if
+#endif
 
         ! do i have to recalc. the pgen the other way around? yes! 
         ! effectively reuse the above functionality
@@ -204,7 +221,7 @@ contains
         ! list.. OR: since in the hubbard it is just twice the 
         ! probability or? i am pretty sure yes.. but for all of them.. 
         ! so in the end it shouldnt matter again..
-        p_orbs = 2.0_dp * p_orbs
+!         p_orb = 2.0_dp * p_orb
 
     end subroutine pick_ab_orbitals_hubbard
 
@@ -322,6 +339,7 @@ contains
         real(dp) :: pgen
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "calc_pgen_k_space_hubbard"
+        real(dp) :: test
 #endif
         real(dp) :: p_elec, p_orb, cum_arr(nbasis), cum_sum
         integer :: orb_list(nbasis,2), src(2)
@@ -343,10 +361,23 @@ contains
         call create_ab_list_hubbard(nI, ilutI, src, orb_list, cum_arr, cum_sum, & 
                 ex(2,1), p_orb) 
 
+#ifdef __DEBUG
+        call create_ab_list_hubbard(nI, ilutI, src, orb_list, cum_arr, cum_sum, & 
+                ex(2,2), test) 
+
+        if (abs(test - p_orb) > 1.e-8) then 
+            print *, "pgen assumption wrong:!" 
+            print *, "p_orb: ", p_orb
+            print *, "test: ", test 
+            print *, "ex(2,:): ", ex(2,:)
+        end if
+
+#endif
+
         ! i do not need to recalc, the p(b|ij) since it is the same.. 
         ! but i need a factor of 2 somewhere.. figure that out!
-        pgen = p_elec * p_orb
-
+        pgen = p_elec * p_orb * 2.0_dp
+ 
     end function calc_pgen_k_space_hubbard 
 
     subroutine init_get_helement_k_space_hub
@@ -473,7 +504,6 @@ contains
         ab = gtid(tgt) 
         ! that about the spin?? must spin(a) be equal spin(i) and same for 
         ! b and j? does this have an effect on the sign of the matrix element? 
-        !todo!
 
         if (same_spin(src(1),tgt(1)) .and. same_spin(src(2),tgt(2))) then 
             hel = get_umat_el(ij(1),ij(2),ab(1),ab(2))

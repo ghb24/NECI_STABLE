@@ -261,6 +261,9 @@ MODULE HPHFRandExcitMod
                         if (t_lattice_model) then 
                             call Stop_All(this_routine, & 
                                 "no closed shell to closed shell possible in lattice models!")
+                            ! is this possible in the k-space hubbard? 
+                            ! or is this also excluded, due to momentum 
+                            ! conservation?
 !                             temp_ex(1,:) = ExcitMat(2,:)
 !                             temp_ex(2,:) = ExcitMat(1,:) 
 !                             hel = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
