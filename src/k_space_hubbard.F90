@@ -14,7 +14,7 @@ module k_space_hubbard
                     trans_corr_param, t_trans_corr_2body, trans_corr_param_2body, & 
                     nel, tHPHF, nOccBeta, nOccAlpha, nbasis, tLatticeGens, tHub
     use lattice_mod, only: get_helement_lattice_ex_mat, get_helement_lattice_general, &
-                           determine_optimal_time_step
+                           determine_optimal_time_step, lattice
     use procedure_pointers, only: get_umat_el, generate_excitation
     use gen_coul_ueg_mod, only: get_hub_umat_el
     use constants, only: n_int, dp, EPS, bits_n_int
