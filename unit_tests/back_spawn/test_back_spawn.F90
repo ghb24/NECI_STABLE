@@ -88,7 +88,7 @@ contains
         ilutref = 0_n_int 
 
         nel = 2
-        call EncodeBitDet([1,2],ilutref)
+        call EncodeBitDet([1,2],ilutref(:,:))
 
         call assert_true(is_in_ref(1))
         call assert_true(is_in_ref(2))

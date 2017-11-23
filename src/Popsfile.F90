@@ -37,7 +37,7 @@ MODULE PopsfileMod
         gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2, max_death_cpt
     use FciMcData, only : pSingles, pDoubles, pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2
     use global_det_data, only: global_determinant_data, init_global_det_data, set_det_diagH
-    use fcimc_helper, only: update_run_reference, calc_inst_proje
+    use fcimc_helper, only: update_run_reference, calc_inst_proje, TestInitiator
     use replica_data, only: set_initial_global_data
     use load_balance, only: pops_init_balance_blocks
     use load_balance_calcnodes, only: tLoadBalanceBlocks, balance_blocks
@@ -1553,7 +1553,7 @@ r_loop: do while(.not.tStoreDet)
         use CalcData, only: iPopsFileNoWrite
         use MemoryManager, only: TagIntType
         integer(int64),intent(in) :: nDets !The number of occupied entries in Dets
-        integer(kind=n_int),intent(in) :: Dets(0:nIfTot,1:nDets)
+        integer(kind=n_int),intent(inout) :: Dets(0:nIfTot,1:nDets)
         INTEGER :: error
         integer(int64) :: WalkersonNodes(0:nNodes-1),writeoutdet
         integer(int64) :: node_write_attempts(0:nNodes-1)
@@ -1963,10 +1963,10 @@ r_loop: do while(.not.tStoreDet)
         ! Output a particle to a popsfile in format acceptable for popsfile v4
 
         integer, intent(in) :: iunit, iunit_2
-        integer(n_int), intent(in) :: det(0:NIfTot)
+        integer(n_int), intent(inout) :: det(0:NIfTot)
         real(dp) :: real_sgn(lenof_sign), detenergy
-        integer :: flg, j, k, ex_level, nopen, nI(nel) 
-        logical :: bWritten
+        integer :: flg, j, k, ex_level, nopen, nI(nel)
+        logical :: bWritten, is_init, is_init_tmp
 
         bWritten = .false.
 
@@ -2006,23 +2006,28 @@ r_loop: do while(.not.tStoreDet)
                 write(iunit, *)
             end if
 
-            if (tPrintInitiators .and. &
-                abs(real_sgn(1)) > InitiatorWalkNo) then
-                ! Testing using the sign now, because after annihilation
-                ! the current flag will not necessarily be correct.
-                ex_level = FindBitExcitLevel(ilutRef(:,1), det, nel)
-                nopen = count_open_orbs(det)
-                call decode_bit_det(nI, det)
-                if(tHPHF)then
-                    detenergy = hphf_diag_helement(nI, det)
-                else
-                    detenergy = get_helement(nI, nI, 0)
-                endif
-                write(iunit_2, '(f20.10,a20)', advance='no') &
-                    abs(real_sgn(1)), ''
-                call writebitdet (iunit_2, det, .false.)
-                write(iunit_2,'(i30,i30,f20.10)') ex_level, nopen, detenergy
-
+            if (tPrintInitiators) then
+               is_init = .false.
+               do k = 1, inum_runs
+                  ! Testing with the TestInititator routine to prevent code
+                  ! duplication
+                  is_init_tmp = test_flag(det,get_initiator_flag_by_run(k))
+                  is_init = is_init .or. TestInitiator(det,is_init_tmp,k)
+               enddo
+               if(is_init) then
+                  call decode_bit_det(nI, det)
+                  ex_level = FindBitExcitLevel(ilutRef(:,1), det, nel)
+                  nopen = count_open_orbs(det)
+                  if(tHPHF)then
+                     detenergy = hphf_diag_helement(nI, det)
+                  else
+                     detenergy = get_helement(nI, nI, 0)
+                  endif
+                  write(iunit_2, '(f20.10,a20)', advance='no') &
+                       abs(real_sgn(1)), ''
+                  call writebitdet (iunit_2, det, .false.)
+                  write(iunit_2,'(i30,i30,f20.10)') ex_level, nopen, detenergy
+               endif
             end if
         end if
 

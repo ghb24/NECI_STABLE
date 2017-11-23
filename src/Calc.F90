@@ -29,7 +29,13 @@ MODULE Calc
                          nWalkerHashes, HashLengthFrac, tSearchTauDeath, &
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
-                         alloc_popsfile_dets, tSearchTauOption
+                         alloc_popsfile_dets, tSearchTauOption 
+    use adi_data, only: nRefsDoubs, nRefsSings, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
+         tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits, tSetDelayAllDoubsInits, &
+         tSetDelayAllSingsInits, nExProd, NoTypeN, tAdiActive, tReadRefs, SIUpdateInterval, &
+         tProductReferences, tAccessibleDoubles, tAccessibleSingles, tInitiatorsSubspace, &
+         tReferenceChanged, superInitiatorLevel, allDoubsInitsDelay, tStrictCoherentDoubles, &
+         tWeakCoherentDoubles, tAvCoherentDoubles, coherenceThreshold, SIThreshold, tSuppressSIOutput
     use ras_data, only: core_ras, trial_ras
     use load_balance, only: tLoadBalanceBlocks
     use ftlm_neci
@@ -325,6 +331,37 @@ contains
           tLoadBalanceBlocks = .true.
           tPopsJumpShift = .false.
           calc_seq_no = 1
+
+          tAllDoubsInitiators = .false.
+          tDelayAllDoubsInits = .false.
+          allDoubsInitsDelay = 0
+          tAllSingsInitiators = .false.
+          tDelayAllSingsInits = .false.
+          tSetDelayAllSingsInits = .false.
+          tSetDelayAllDoubsInits = .false.
+          ! By default, we have one reference for the purpose of all-doubs-initiators
+          nRefsDoubs = 1
+          nRefsSings = 1
+          nRefs = 1
+          tReadRefs = .false.
+          tDelayGetRefs = .false.
+          tProductReferences = .false.
+          tAccessibleSingles = .false.
+          tAccessibleDoubles = .false.
+          tSuppressSIOutput = .false.
+          nExProd = 2
+          NoTypeN = 3
+          tStrictCoherentDoubles = .false.
+          tWeakCoherentDoubles = .false.
+          tAvCoherentDoubles = .false.
+          superInitiatorLevel = 0
+          coherenceThreshold = 0.5
+          SIThreshold = 0.95
+          SIUpdateInterval = 0
+          tAdiActive = .false.
+
+          ! And disable the initiators subspace
+          tInitiatorsSubspace = .false.
 
         end subroutine SetCalcDefaults
 
@@ -2402,6 +2439,94 @@ contains
                 if (item < nitems) then 
                     call geti(occ_virt_level)
                 end if
+
+             case("ALL-DOUBS-INITIATORS")
+                ! Set all doubles to be treated as initiators
+                ! If truncinitiator is not set, this does nothing
+                tAllDoubsInitiators = .true.   
+                ! If given, take the number of references for doubles
+                if(item < nitems) call geti(nRefsDoubs)
+
+             case("ALL-DOUBS-INITIATORS-DELAY")
+                ! Only start after this number of steps in variable shift mode with 
+                ! the all-doubs-initiators
+                if(item < nitems) call geti(allDoubsInitsDelay)
+                tSetDelayAllDoubsInits = .true.
+                tSetDelayAllSingsInits = .true.
+
+             case("ALL-SINGS-INITIATORS")
+                ! Make the singles of given references initiators
+                tAllSingsInitiators = .true.
+                ! If given, take the number of references for singles
+                if(item < nitems) call geti(nRefsSings)
+                
+             case("READ-REFERENCES")
+                ! Instead of generating new references, read in existing ones
+                tReadRefs = .true.
+                
+             case("EXCITATION-PRODUCT-REFERENCES")
+                ! Also add all excitation products of references to the reference space
+                tProductReferences = .true.
+
+             case("INITIATORS-SUBSPACE")
+                ! Use Giovannis check to add initiators
+                tInitiatorsSubspace = .true.
+
+             case("COHERENT-REFERENCES")
+                ! Only make those doubles/singles initiators that are sign coherent
+                ! with their reference(s)
+                if(item < nitems) then
+                   call readu(w)
+                   select case(w)
+                   case("STRICT")
+                      tStrictCoherentDoubles = .true.
+                   case("WEAK")
+                      ! This is recommended, we first check if there is a sign 
+                      ! tendency and then if it agrees with the sign on the det
+                      tAvCoherentDoubles = .true.
+                      tWeakCoherentDoubles = .true.
+                   case("XI")
+                      ! This is a minimalistic version that should not
+                      ! be used unless you know what you're doing
+                      tWeakCoherentDoubles = .true.
+                   case("AV")
+                      ! only using av ignores sign tendency and can overestimate
+                      ! the correctness of a sign
+                      tAvCoherentDoubles = .true.
+                   case default
+                      ! default is WEAK
+                      tAvCoherentDoubles = .true.
+                      tWeakCoherentDoubles = .true.
+                   end select
+                else
+                   tWeakCoherentDoubles = .true.
+                   tAvCoherentDoubles = .true.
+                endif                   
+
+             case("SECONDARY-SUPERINITIATORS")
+                ! Enable superinitiators by coherence criteria
+                superInitiatorLevel = 1
+                ! As the secondary SIs are now self-consistently determined, it is
+                ! highly unlikely that a level above 1 will do anything more
+                if(item < nItems) call readi(superInitiatorLevel)
+                
+             case("DYNAMIC-SUPERINITIATORS")
+                ! Re-evaluate the superinitiators every SIUpdateInterval steps
+                ! Beware, this can be very expensive
+                call readi(SIUpdateInterval)
+
+             case("INITIATOR-COHERENCE-THRESHOLD")
+                ! Set the minimal coherence parameter for superinitiator-related
+                ! initiators
+                call readf(coherenceThreshold)
+
+             case("SUPERINITIATOR-COHERENCE-THRESHOLD")
+                ! set the minimal coherence parameter for superinitiators
+                call readf(SIThreshold)
+
+             case("SUPPRESS-SUPERINITIATOR-OUTPUT")
+                ! Do not output the newly generated superinitiators upon generation
+                tSuppressSIOutput = .true.
 
             case default
                 call report("Keyword "                                &
