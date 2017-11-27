@@ -764,7 +764,11 @@ contains
 
                         ! If enabled, jump the shift to the value preducted by the
                         ! projected energy!
-                        if (tJumpShift) then
+                        ! [W.D. 27.11.2017]
+                        ! but only if we have the reference occupied!
+                        if (tJumpShift .and. & 
+                            (.not. isnan(real(proje_iter(run,dp)))) .or. &
+                             .not. is_inf(real(proje_iter,dp))) then
                             DiagSft(run) = real(proje_iter(run),dp)
                             defer_update(run) = .true.
                         end if
@@ -795,7 +799,9 @@ contains
 
                         ! If enabled, jump the shift to the value preducted by the
                         ! projected energy!
-                        if (tJumpShift) then
+                        if (tJumpShift .and. & 
+                            (.not. isnan(real(proje_iter(run),dp)) .or. & 
+                             .not. is_inf(real(proje_iter(run),dp))) then
                             DiagSft(run) = real(proje_iter(run),dp)
                             defer_update(run) = .true.
                         end if
