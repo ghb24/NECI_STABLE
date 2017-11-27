@@ -947,13 +947,13 @@ module FciMCParMod
                 !Therefore, we reset the spawning time of all determinants at this point.
                 !Also, if the determinant changes sign, we reset its data.
                 if (tSeniorInitiators) then
-                    if ( (VaryShiftCycles(1)==1 .and. mod(Iter, StepsSft) == 1) .or. get_spawn_pop(j)*SignCurr(1) < 0.0) then
+                    if ( get_spawn_pop(j)*SignCurr(1) < 0.0_dp) then
                     !if ( (VaryShiftCycles(1)==1 .and. mod(Iter, StepsSft) == 1)) then
                         call reset_tau_int(j)
                         call reset_shift_int(j)
                         call set_spawn_pop(j, SignCurr(1))
                         !call set_spawn_pop(j, tau*iter)
-                    else
+                    elseif (get_spawn_pop(j) .ne. 0.0_dp)then
                         call update_tau_int(j, tau)
                         call update_shift_int(j, DiagSft(1)*tau)
                     end if

@@ -789,7 +789,7 @@ contains
         tot_sgn = mag_of_run(sgn,run)
 
         Senior = .false.
-        if (tSeniorInitiators .and. VaryShiftCycles(1)>100) then
+        if (tSeniorInitiators .and. get_spawn_pop(site_idx) .ne. 0.0_dp) then
             DetAge = get_tau_int(site_idx)
             AvgShift = get_shift_int(site_idx)/DetAge
 !            HalfLife = (log(abs(get_spawn_pop(site_idx)))+log(2.0_dp)) / (diagH  - AvgShift)
