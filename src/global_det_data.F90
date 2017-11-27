@@ -20,7 +20,16 @@ module global_det_data
     ! always has a length of 1 (never cplx). Therefore, encode these values
     ! as parameters to assist optimisation.
     integer, parameter :: pos_hel = 1, len_hel = 1
+
+    !The initial population of a determinant at spawning time.
+    integer, parameter :: pos_spawn_pop = 2, len_spawn_pop = 1
+
+    !The integral of imaginary time since the spawing of this determinant.
+    integer, parameter :: pos_tau_int = 3, len_tau_int = 1
     
+    !The integral of shift since the spawning of this determinant.
+    integer, parameter :: pos_shift_int = 4, len_shift_int = 1
+
     ! Average sign and first occupation of iteration.
     private :: pos_av_sgn, len_av_sgn, pos_iter_occ, len_iter_occ
     integer :: pos_av_sgn, len_av_sgn
@@ -141,13 +150,13 @@ contains
         end if
 
         ! Get the starting positions
-        pos_av_sgn = pos_hel + len_hel
+        pos_av_sgn = pos_shift_int + len_shift_int
         pos_av_sgn_transition = pos_av_sgn + len_av_sgn
         pos_iter_occ = pos_av_sgn_transition + len_av_sgn_transition
         pos_iter_occ_transition = pos_iter_occ + len_iter_occ
         pos_spawn_rate = pos_iter_occ_transition + len_iter_occ_transition
 
-        tot_len = len_hel + len_av_sgn_tot + len_iter_occ_tot + len_spawn_rate
+        tot_len = len_hel + len_spawn_pop + len_tau_int + len_shift_int + len_av_sgn_tot + len_iter_occ_tot + len_spawn_rate
 
         ! Allocate and log the required memory (globally)
         allocate(global_determinant_data(tot_len, MaxWalkersPart), stat=ierr)
@@ -204,6 +213,76 @@ contains
 
     end function
 
+
+    subroutine set_spawn_pop(j, t)
+
+        integer, intent(in) :: j
+        real(dp), intent(in) :: t
+
+        global_determinant_data(pos_spawn_pop, j) = t
+
+    end subroutine
+
+    function get_spawn_pop(j) result(t)
+        
+        integer, intent(in) :: j
+        real(dp) :: t
+
+        t = global_determinant_data(pos_spawn_pop, j)
+
+    end function
+
+    subroutine reset_tau_int(j)
+
+        integer, intent(in) :: j
+
+        global_determinant_data(pos_tau_int, j) = 0.0_dp
+
+    end subroutine
+
+    subroutine update_tau_int(j, t)
+
+        integer, intent(in) :: j
+        real(dp), intent(in) :: t
+
+        global_determinant_data(pos_tau_int, j) = global_determinant_data(pos_tau_int, j) + t
+
+    end subroutine
+
+    function get_tau_int(j) result(t)
+        
+        integer, intent(in) :: j
+        real(dp) :: t
+
+        t = global_determinant_data(pos_tau_int, j)
+
+    end function
+
+    subroutine reset_shift_int(j)
+
+        integer, intent(in) :: j
+
+        global_determinant_data(pos_shift_int, j) = 0.0_dp
+
+    end subroutine
+
+    subroutine update_shift_int(j, t)
+
+        integer, intent(in) :: j
+        real(dp), intent(in) :: t
+
+        global_determinant_data(pos_shift_int, j) = global_determinant_data(pos_shift_int, j) + t
+
+    end subroutine
+
+    function get_shift_int(j) result(t)
+        
+        integer, intent(in) :: j
+        real(dp) :: t
+
+        t = global_determinant_data(pos_shift_int, j)
+
+    end function
 
     subroutine set_av_sgn_tot_sgl (j, part, av_sgn)
 

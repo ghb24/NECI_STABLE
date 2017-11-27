@@ -37,7 +37,8 @@ module fcimc_helper
                         MaxWalkerBloom, &
                         NMCyc, iSampleRDMIters, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
-                        t_back_spawn_flex
+                        t_back_spawn_flex, &
+                        tau, tSeniorInitiators, SeniorityAge, DiagSft
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
     use procedure_pointers, only: attempt_die, extract_bit_rep_avsign
@@ -54,7 +55,8 @@ module fcimc_helper
     use csf, only: iscsf
     use hphf_integrals, only: hphf_diag_helement
     use global_det_data, only: get_av_sgn_tot, set_av_sgn_tot, set_det_diagH, &
-                               global_determinant_data, det_diagH
+                               global_determinant_data, det_diagH, &
+                               get_spawn_pop, get_tau_int, get_shift_int
     use searching, only: BinSearchParts2
     use back_spawn, only: setup_virtual_mask
     implicit none
@@ -778,17 +780,33 @@ contains
         real(dp) :: tot_sgn
         logical :: initiator
 
+        logical :: Senior
+        real(dp) :: DetAge, HalfLife, AvgShift
+
         ! By default the particles status will stay the same
         initiator = is_init
 
         tot_sgn = mag_of_run(sgn,run)
 
-        if (.not. is_init) then
+        Senior = .false.
+        if (tSeniorInitiators .and. VaryShiftCycles(1)>100) then
+            DetAge = get_tau_int(site_idx)
+            AvgShift = get_shift_int(site_idx)/DetAge
+!            HalfLife = (log(abs(get_spawn_pop(site_idx)))+log(2.0_dp)) / (diagH  - AvgShift)
+            HalfLife = log(2.0_dp) / (diagH  - AvgShift)
+            if (HalfLife>0.0) then
+                Senior = DetAge>HalfLife*SeniorityAge
+            end if
+!            write(iout, *) DetAge, HalfLife, Senior
+        end if
 
+        if(Senior) SeniorsNum = SeniorsNum + 1
+
+        if (.not. is_init) then
             ! Determinant wasn't previously initiator 
             ! - want to test if it has now got a large enough 
             !   population to become an initiator.
-            if (tot_sgn > InitiatorWalkNo) then
+            if (tot_sgn > InitiatorWalkNo .or. Senior) then
                 initiator = .true.
                 NoAddedInitiators = NoAddedInitiators + 1_int64
             endif
@@ -799,10 +817,12 @@ contains
             ! non-initiators again if their population falls below 
             ! n_add (this is on by default).
 
-            ! If det. is the HF det, or it
+            ! If det. is the HF det, or it is senior, or it
             ! is in the deterministic space, then it must remain an initiator.
+
             if ( .not. (DetBitEQ(ilut, iLutRef(:,run), NIfDBO)) &
                 .and. .not. test_flag(ilut, flag_deterministic) &
+                .and. .not. Senior &
                 .and. (tot_sgn <= InitiatorWalkNo )) then
                 ! Population has fallen too low. Initiator status 
                 ! removed.

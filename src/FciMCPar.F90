@@ -15,7 +15,7 @@ module FciMCParMod
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
                         t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
                         t_back_spawn_flex, t_back_spawn_flex_option, &
-                        t_back_spawn_option
+                        t_back_spawn_option, DiagSft
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, tOldRDMs, &
@@ -53,7 +53,7 @@ module FciMCParMod
     use exact_spectrum, only: get_exact_spectrum
     use determ_proj, only: perform_determ_proj
     use cont_time, only: iterate_cont_time
-    use global_det_data, only: det_diagH
+    use global_det_data, only: det_diagH, reset_tau_int, set_spawn_pop, reset_shift_int, update_shift_int, update_tau_int, get_spawn_pop
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
     use ftlm_neci, only: perform_ftlm
@@ -842,6 +842,7 @@ module FciMCParMod
             endif
         endif
 
+        SeniorsNum = 0
         do j = 1, int(TotWalkers,sizeof_int)
 
             ! N.B. j indicates the number of determinants, not the number
@@ -927,12 +928,6 @@ module FciMCParMod
                 if (IsUnoccDet(SignCurr)) cycle
             end if
 
-            ! The current diagonal matrix element is stored persistently.
-            HDiagCurr = det_diagH(j)
-
-            if (tTruncInitiator) &
-                call CalcParentFlag (j, parent_flags, HDiagCurr)
-
             ! As the main list (which is storing a hash table) no longer needs
             ! to be contiguous, we need to skip sites that are empty.
             if(IsUnoccDet(SignCurr)) then
@@ -942,6 +937,29 @@ module FciMCParMod
                 FreeSlot(iEndFreeSlot)=j
                 cycle
             endif
+
+            ! The current diagonal matrix element is stored persistently.
+            HDiagCurr = det_diagH(j)
+
+            if (tTruncInitiator) then
+                !The age of determinants should be counted only after the total population has equilibrated.
+                !In practice, this is happens when the shift starts to be averaged.
+                !Therefore, we reset the spawning time of all determinants at this point.
+                !Also, if the determinant changes sign, we reset its data.
+                if (tSeniorInitiators) then
+                    if ( (VaryShiftCycles(1)==1 .and. mod(Iter, StepsSft) == 1) .or. get_spawn_pop(j)*SignCurr(1) < 0.0) then
+                    !if ( (VaryShiftCycles(1)==1 .and. mod(Iter, StepsSft) == 1)) then
+                        call reset_tau_int(j)
+                        call reset_shift_int(j)
+                        call set_spawn_pop(j, SignCurr(1))
+                        !call set_spawn_pop(j, tau*iter)
+                    else
+                        call update_tau_int(j, tau)
+                        call update_shift_int(j, DiagSft(1)*tau)
+                    end if
+                end if
+                call CalcParentFlag (j, parent_flags, HDiagCurr)
+            end if
 
             !Debug output.
             IFDEBUGTHEN(FCIMCDebug,3)
@@ -1113,6 +1131,8 @@ module FciMCParMod
             write(iout,*) "Holes in list: ", iEndFreeSlot
         ENDIFDEBUG
 
+        call MPIReduce(SeniorsNum,MPI_SUM,AllSeniorsNum)
+        if(iProcIndex == root) write(iout, *) iter, AllSeniorsNum
         if (tSemiStochastic) then
             ! For semi-stochastic calculations only: Gather together the parts
             ! of the deterministic vector stored on each processor, and then

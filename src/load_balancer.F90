@@ -5,15 +5,16 @@ module load_balance
                         tCheckHighestPop, OccupiedThresh, &
                         tContTimeFCIMC, &
                         tContTimeFull, tTrialWavefunction, &
-                        tPairedReplicas
+                        tPairedReplicas, tau
     use global_det_data, only: global_determinant_data, &
-                               set_det_diagH, set_spawn_rate
+                               set_det_diagH, set_spawn_rate, &
+                               set_spawn_pop, reset_tau_int, reset_shift_int
     use bit_rep_data, only: flag_initiator, NIfDBO, &
                             flag_connected, flag_trial
     use bit_reps, only: set_flag, nullify_ilut_part, &
-                        encode_part_sign, nullify_ilut
+                        encode_part_sign, nullify_ilut, extract_part_sign
     use FciMCData, only: HashIndex, FreeSlot, CurrentDets, iter_data_fciqmc, &
-                         tFillingStochRDMOnFly, full_determ_vecs
+                         tFillingStochRDMOnFly, full_determ_vecs, Iter
     use searching, only: hash_search_trial, bin_search_trial
     use Determinants, only: get_helement, write_det
     use LoggingData, only: tOutputLoadDistribution
@@ -433,6 +434,13 @@ contains
         ! except the first one, holding the diagonal Hamiltonian element.
         global_determinant_data(:,DetPosition) = 0.0_dp
         call set_det_diagH(DetPosition, real(HDiag,dp) - Hii)
+
+        ! For SeniorInitiators, we need to store the spawning time of a determinant in order to
+        ! calculate its age later.
+        call set_spawn_pop(DetPosition, extract_part_sign (ilutCurr, 1))
+        !call set_spawn_pop(DetPosition, iter*tau)
+        call reset_tau_int(DetPosition)
+        call reset_shift_int(DetPosition)
 
         ! If using a trial wavefunction, search to see if this state is in
         ! either the trial or connected space. If so, *_search_trial returns

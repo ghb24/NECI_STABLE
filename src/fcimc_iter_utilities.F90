@@ -930,7 +930,11 @@ contains
         call MPIBcast (tSinglePartPhase)
         call MPIBcast (VaryShiftIter)
         call MPIBcast (DiagSft)
+        call MPIBcast (VaryShiftCycles)
+        call MPIBcast (SumDiagSft)
+        call MPIBcast (AvDiagSft)
         
+
         do run=1,inum_runs
             if(.not.tSinglePartPhase(run)) then
                 TargetGrowRate(run)=0.0_dp
