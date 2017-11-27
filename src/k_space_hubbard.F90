@@ -12,7 +12,8 @@
 module k_space_hubbard 
     use SystemData, only: t_lattice_model, t_k_space_hubbard, t_trans_corr, & 
                     trans_corr_param, t_trans_corr_2body, trans_corr_param_2body, & 
-                    nel, tHPHF, nOccBeta, nOccAlpha, nbasis, tLatticeGens, tHub
+                    nel, tHPHF, nOccBeta, nOccAlpha, nbasis, tLatticeGens, tHub, &
+                    omega, bhub
     use lattice_mod, only: get_helement_lattice_ex_mat, get_helement_lattice_general, &
                            determine_optimal_time_step, lattice
     use procedure_pointers, only: get_umat_el, generate_excitation
@@ -37,6 +38,8 @@ module k_space_hubbard
 
     integer, parameter :: ABORT_EXCITATION = 0
 
+    real(dp) :: p_triples = 0.0_dp 
+    real(dp) :: three_body_prefac = 0.0_dp
     ! i especially need an interface for the matrix element calculation to 
     ! implement the transcorrelated hamiltonian 
     interface get_helement_k_space_hub
@@ -82,6 +85,12 @@ contains
         t_hist_tau_search = .false. 
         t_hist_tau_search_option = .false.
 
+        if (t_trans_corr_2body) then 
+            three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+            ! i also have to set some generation probability parameters.. 
+            p_triples = 1.0_dp - pDoubles
+            pParallel = 0.2_dp
+        end if
     end subroutine init_k_space_hubbard
 
     subroutine check_k_space_hubbard_input()
@@ -142,6 +151,130 @@ contains
 
     end subroutine gen_excit_k_space_hub
 
+    subroutine gen_excit_k_space_hub_transcorr (nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                                      ex, tParity, pGen, hel, store, run)
+
+
+        implicit none
+
+        integer, intent(in) :: nI(nel), exFlag
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: nJ(nel), ic, ex(2,2)
+        integer(n_int), intent(out) :: ilutJ(0:NifTot)
+        real(dp), intent(out) :: pGen
+        logical, intent(out) :: tParity
+        HElement_t(dp), intent(out) :: hel
+        type(excit_gen_store_type), intent(inout), target :: store
+        integer, intent(in), optional :: run
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "gen_excit_k_space_hub_transcorr"
+#endif
+
+        if (genrand_real2_dsfmt() < pDoubles) then 
+            if (genrand_real2_dsfmt() < pParallel) then 
+                ! do a parallel triple excitation, coming from the triples..
+                call gen_parallel_double_hubbard()
+                ic = 2
+                pgen = pgen * pDoubles * pParallel
+            else 
+                ! do a "normal" hubbard k-space excitation 
+                call gen_excit_k_space_hub (nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                                      ex, tParity, pGen, hel, store, run)
+
+                pgen = pgen * pDoubles * (1.0_dp - pParallel)
+            end if 
+        else 
+            ! otherwise to a triple.. 
+            call gen_triple_hubbard() 
+            ic = 3 
+            pgen = pgen * (1.0_dp - pDoubles)
+
+        end if
+
+    end subroutine gen_excit_k_space_hub_transcorr
+
+    subroutine gen_triple_hubbard(nI, ilutI, nJ, ilutJ, ex, tParity, pgen) 
+        ! i think i should calculat the matrix element in here already! 
+        ! in this case.. otherwise i have to carry the tParity and ex 
+        ! all the way through the rest of the code and this makes problems 
+        ! i guess, since triples are actually never considered .. todo
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:niftot)
+        integer, intent(out) :: nJ(nel), ex(2,3) 
+        logical, intent(out) :: tParity 
+        real(dp), intent(out) :: pgen 
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "gen_triple_hubbard" 
+#endif
+        integer :: elecs(3), orbs(3), src(3) 
+        real(dp) :: p_elec, p_orb 
+
+        ! first we pick 3 electrons in this case ofc.
+        ! with the restriction, that they must not be all the same spin! 
+        call pick_three_opp_elecs(nI, elecs, p_elec)
+
+        src = nI(elecs) 
+        ! then i pick 1 orbital? maybe.. 
+        ! if this orbital is of the minority spin type, the other 2 orbitals 
+        ! MUST be of parallel spin.. 
+        ! if the orbital is of the majority spin type the remaining 
+        ! orbitals must be of opposite spin type.. 
+        ! can i take that into account with a tailored get_orb_from_kpoints() 
+        ! function for 3 electrons or should i decide here if we always 
+        ! want to do a specific picking order (restricting pgens, but making 
+        ! it easier to handle algorithmically) or if we want full flexibility 
+        ! (increasing pgens, but kind of making it a bit more difficult..) 
+        call pick_a_orbital_hubbard() 
+
+        ! and pick the remaining two orbitals (essentially it is only 
+        ! one, since the last is restricted due to momentum conservation!)
+        call pick_bc_orbitals_hubbard()
+        
+        
+    end subroutine gen_triple_hubbard
+
+    subroutine gen_parallel_double_hubbard(nI, ilutI, nJ, ilutJ, ex, tParity, pgen)
+        integer, intent(in) :: nI(nel) 
+        integer(n_int), intent(in) :: ilutI(0:niftot)
+        integer, intent(out) :: nJ(nel), ex(2,2) 
+        logical, intent(out) :: tParity
+        real(dp), intent(out) :: pgen
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "gen_parallel_double_hubbard"
+#endif
+        real(dp) :: p_elec, p_orb
+        integer :: elecs(2), orbs(2), src(2), ispn
+
+        ! in the transcorrelated case we have to decide 
+        ! i first have to choose an electron pair (ij) at random 
+        ! but with the condition that they have to have opposite spin! 
+        ! this is the only difference: i pick two spin-parallel electrons.. 
+        ! the rest stays the same.. i just have to adjust the 
+        ! get_orb_from_kpoints routine 
+        ! and the matrix element calculation
+        call pick_spin_par_elecs(nI, elecs, p_elec, ispn) 
+
+        src = nI(elecs)
+
+        call pick_ab_orbitals_par_hubbard(nI, ilutI, src, orbs, p_orb)
+
+        if (orbs(1) == ABORT_EXCITATION) then 
+            nJ(1) = ABORT_EXCITATION
+            pgen = 0.0_dp
+            return 
+        end if
+
+        ic = 2 
+
+        ! and make the excitation 
+        call make_double(nI, nJ, elecs(1), elecs(2), orbs(1), orbs(2), ex, tParity)
+
+        ilutJ = make_ilutJ(ilutI, ex, 2) 
+
+        ! i think in both the electrons and the orbitals i have twice the 
+        ! probability to pick them
+        pgen = p_elec * p_orb * 2.0_dp
+
     subroutine pick_spin_opp_elecs(nI, elecs, p_elec) 
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: elecs(2)
@@ -168,6 +301,38 @@ contains
         p_elec = 1.0_dp / real(nOccBeta * nOccAlpha, dp)
 
     end subroutine pick_spin_opp_elecs
+
+    subroutine pick_spin_par_elecs(nI, elecs, p_elec, ispn)
+        integer, intent(in) :: nI(nel) 
+        integer, intent(out) :: elecs(2), ispn
+        real(dp), intent(out) :: p_elec 
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "pick_spin_par_elecs"
+#endif 
+
+        do 
+            elecs(1) = 1 + int(genrand_real2_dsfmt() * nel)
+
+            do 
+                elecs(2) = 1 + int(genrand_real2_dsfmt() * nel)
+                
+                if (elecs(1) /= elecs(2)) exit 
+
+            end do
+            ispn = get_ispn(nI(elecs))
+            if (ispn /= 2) exit 
+
+        end do
+
+        ASSERT(ispn == 1 .or. ispn == 3) 
+
+        if (ispn == 1) then 
+            p_elec = 1.0_dp / real(nbasis/2 - nOccBeta, dp)
+        else if (ispn == 3) then 
+            p_elec = 1.0_dp / real(nbasis/2 - nOccAlpha, dp)
+        end if
+
+    end subroutine pick_spin_par_elecs
 
     subroutine pick_ab_orbitals_hubbard(nI, ilutI, src, orbs, p_orb) 
         ! depending on the already picked electrons (ij) pick an orbital 
@@ -224,6 +389,7 @@ contains
 !         p_orb = 2.0_dp * p_orb
 
     end subroutine pick_ab_orbitals_hubbard
+       
 
     subroutine create_ab_list_hubbard(nI, ilutI, src, orb_list, cum_arr, cum_sum, & 
             tgt, cpt) 
@@ -259,11 +425,17 @@ contains
                 elem = 0.0_dp
                 ! if a is empty
                 if (IsNotOcc(ilutI, a)) then 
+                    ! i have to rewrite get_orb, so it gives me the same 
+                    ! spin if src has the same spin! todo
+                    ! to take into account spin-parallel double 
+                    ! excitations!
                     b = get_orb_from_kpoints(src(1), src(2), a)
 
                     ! and b is empty and not a
                     if (b /= a .and. IsNotOcc(ilutI, b)) then
                         ! is it sure that we have opposite spin?
+                        ! i have to do better asserts!
+                        if (.not. t_trans_corr_2body) then
                         ASSERT(.not. same_spin(a,b))
 
                         ex(2,:) = [a,b]
@@ -332,6 +504,21 @@ contains
         end if
 
     end subroutine pick_from_cum_list
+
+    function calc_pgen_k_space_hubbard_transcorr(nI, ilutI, ex, ic) result(pgen)
+        ! this function i have to rewrite for the transcorrelated to take 
+        ! the same-spin doubles and triples into account! 
+        ! NOTE: ex could be of form (2,3) in the case of triples!
+        integer, intent(in) :: nI(nel), ex(:,:), ic 
+        integer(n_int), intent(in) :: ilutI(0:niftot) 
+        real(dp) :: pgen 
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "calc_pgen_k_space_hubbard" 
+#endif 
+    
+        todo
+
+    end function calc_pgen_k_space_hubbard_transcorr
 
     function calc_pgen_k_space_hubbard(nI, ilutI, ex, ic) result(pgen) 
         integer(n_int), intent(in) :: ilutI(0:niftot)
@@ -484,6 +671,46 @@ contains
 
     end function get_diag_helement_k_sp_hub
 
+    function get_one_body_diag(nI, spin) result(hel)
+        integer, intent(in) :: nI(nel)
+        integer, intent(in), optional :: spin 
+        HElement_t(dp) :: hel 
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "get_one_body_diag"
+#endif 
+        integer :: i
+
+        ! the spin input: -1 is beta, +1 is alpha, 0 is both!
+        ! if spin is not present, default is both!
+        hel = h_cast(0.0_dp)
+
+        if (present(spin)) then 
+            ! either -1 or 1 input, if spin is given!
+            ASSERT(spin == -1 .or. spin == 1)
+            if (spin == -1) then 
+                do i = 1, nel
+                    if (is_beta(nI(i))) then 
+                        ! is TMAT(nI) actually cos(k) ? or do i have to 
+                        ! take this into account more specifically?
+                        !TODO
+                        hel = hel + GetTMatEl(nI(i),nI(i))
+                    end if
+                end do
+            else if (spin == 1) then
+                do i = 1, nel 
+                    if (is_alpha(nI(i))) then 
+                        hel = hel + GetTMatEl(nI(i),nI(i))
+                    end if 
+                end do
+            end if
+        else 
+            do i = 1, nel 
+                hel = hel + GetTMatEl(nI(i),nI(i))
+            end do
+        end if
+
+    end function get_one_body_diag
+
     function get_offdiag_helement_k_sp_hub(nI, ex, tpar) result(hel) 
         integer, intent(in) :: nI(nel), ex(2,2)
         logical, intent(in) :: tpar 
@@ -532,14 +759,72 @@ contains
     ! finally write the functions to setup up the pesky G1 and nBasisMax 
     ! quantities to be consistent with the rest of the old code 
     subroutine setup_g1(in_lat) 
+        use SystemData, only: G1
         class(lattice), intent(in), optional :: in_lat
+
+        ! i think everything is in the System_neci file
 
     end subroutine setup_g1
 
     subroutine setup_nbasismax(in_lat) 
+        use SystemData, only: nBasisMax
         class(lattice), intent(in), optional :: in_lat
 
     end subroutine setup_nbasismax
 
+    ! create the necessary routines for the triple excitation in the 
+    ! 2-body transcorrelated k-space hamiltonian 
+    real(dp) function same_spin_transcorr_factor(nI, k_vec, spin)
+        ! this is the term coming appearing in the spin-parallel 
+        ! excitations coming from the k = 0 triple excitation
+        integer, intent(in) :: nI(nel), k_vec(N_DIM), spin
+
+        same_spin_transcorr_factor = three_body_prefac * get_one_body_diag(nI, -spin) * &
+                                     epsilon_kvec(k_vec)
+
+    end function same_spin_transcorr_factor
+
+    real(dp) function epsilon_kvec(k_vec)
+        ! and actually this function has to be defined differently for 
+        ! different type of lattices! TODO!
+        integer, intent(in) :: k_vec(N_DIM)
+
+        epsilon_kvec = 2*sum(cos(k_vec))
+
+    end function epsilon_kvec
+
+    real(dp) function two_body_transcorr_factor(p,k) 
+        integer, intent(in) :: p(N_DIM), k(N_DIM) 
+        
+        ! take out the part with U/2 since this is already covered in the 
+        ! "normal" matrix elements
+        two_body_transcorr_factor = -real(bhub,dp)/real(omega,dp)*(&
+            (exp(trans_corr_param_2body) - 1.0_dp) * epsilon_kvec(p - k) + &
+            (exp(-trans_corr_param_2body) - 1.0_dp) * epsilon_kvec(p)) 
+
+        ! thats it i gues.. 
+    end function two_body_transcorr_factor
+
+    real(dp) function three_body_transcorr_fac(nI, p, q, k, spin) 
+        integer, intent(in) :: nI(nel), p(N_DIM), q(N_DIM), k(N_DIM), spin 
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "three_body_transcorr_fac"
+#endif
+        real(dp) :: n_opp
+
+        ! i have to deside what i want to input here.. as spin sigma or -sigma..
+        ! and here i want the number of electrons with the opposite spin
+        if (spin == -1) then 
+            n_opp = real(nOccAlpha,dp)
+        else if (spin == 1) then 
+            n_opp = real(nOccBeta, dp) 
+        end if
+
+        three_body_transcorr_fac = three_body_prefac * (&
+            n_opp * (epsilon_kvec(p) + epsilon_kvec(p - k)) - & 
+            get_one_body_diag(nI, -spin) * (epsilon_kvec(p-q-k) + epsilon_kvec(p+q)))
+
+
+    end function three_body_transcorr_fac
 
 end module k_space_hubbard
