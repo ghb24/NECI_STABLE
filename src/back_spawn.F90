@@ -983,7 +983,6 @@ contains
 
         integer :: ki(3), kj(3), ka(3), kb(3), ispn, spnb
 
-        ispn = get_ispn([orbi,orbj])
 
         ki = G1(orbi)%k
         kj = G1(orbj)%k
@@ -991,6 +990,9 @@ contains
         ! Given A, calculate B in the same way as before
         ka = G1(orba)%k
         kb = ki + kj - ka
+
+        ispn = get_ispn([orbi,orbj])
+
         if (iSpn == 1) then
             spnb = 1
         elseif (iSpn == 2) then

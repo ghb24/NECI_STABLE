@@ -75,8 +75,20 @@ contains
         call run_test_case(pick_spin_opp_elecs_test, "pick_spin_opp_elecs_test")
         call run_test_case(pick_from_cum_list_test, "pick_from_cum_list_test")
         call run_test_case(create_ab_list_hubbard_test, "create_ab_list_hubbard_test")
+        call run_test_case(pick_ab_orbitals_hubbard_test, "pick_ab_orbitals_hubbard_test")
         call run_test_case(calc_pgen_k_space_hubbard_test, "calc_pgen_k_space_hubbard_test")
         call run_test_case(gen_excit_k_space_hub_test, "gen_excit_k_space_hub_test")
+        call run_test_case(pick_three_opp_elecs_test, "pick_three_opp_elecs_test")
+        call run_test_case(pick_spin_par_elecs_test, "pick_spin_par_elecs_test")
+        call run_test_case(pick_a_orbital_hubbard_test, "pick_a_orbital_hubbard_test")
+        call run_test_case(pick_bc_orbitals_hubbard_test,"pick_bc_orbitals_hubbard_test")
+        call run_test_case(create_ab_list_par_hubbard_test, "create_ab_list_par_hubbard_test")
+        call run_test_case(pick_ab_orbitals_par_hubbard_test, "pick_ab_orbitals_par_hubbard_test")
+        call run_test_case(get_transferred_momentum_test, "get_transferred_momentum_test")
+        call run_test_case(get_orb_from_kpoints_three_test, "get_orb_from_kpoints_three_test")
+        call run_test_case(create_bc_list_hubbard_test, "create_bc_list_hubbard_test")
+        call run_test_case(get_3_body_helement_ks_hub_test, "get_3_body_helement_ks_hub_test")
+        call run_test_case(check_momentum_sym_test, "check_momentum_sym_test")
 
     end subroutine k_space_hubbard_test_driver
 
@@ -122,6 +134,11 @@ contains
         print *, "" 
         print *, "testing: create_ab_list_hubbard"
         call assert_true(.false.)
+        
+        ! todo: i also have to do that for 2-body-transcorrelation, which 
+        ! leads to parallel double excitations in the k-space hubbard 
+        ! case -> check here if the get_orb_from_kpoints() function, works 
+        ! correctly for ispn /= 2 and thub!
 
     end subroutine create_ab_list_hubbard_test
 
@@ -140,4 +157,101 @@ contains
         call assert_true(.false.)
 
     end subroutine gen_excit_k_space_hub_test
+
+    subroutine pick_three_opp_elecs_test
+
+        print *, ""
+        print *, "testing: pick_spin_opp_elecs"
+        call assert_true(.false.)
+
+    end subroutine pick_three_opp_elecs_test
+
+    subroutine pick_spin_par_elecs_test
+
+        print *, ""
+        print *, "testing: pick_spin_par_elecs"
+        call assert_true(.false.)
+    end subroutine pick_spin_par_elecs_test
+
+    subroutine pick_a_orbital_hubbard_test
+
+        print *, ""
+        print *, "testing: pick_a_orbital_hubbard "
+        call assert_true(.false.) 
+
+    end subroutine pick_a_orbital_hubbard_test
+
+    subroutine pick_ab_orbitals_hubbard_test
+
+        print *, "" 
+        print *, "testing: pick_ab_orbitals_hubbard"
+        call assert_true(.false.)
+
+    end subroutine pick_ab_orbitals_hubbard_test
+
+    subroutine pick_bc_orbitals_hubbard_test
+
+        print *, ""
+        print *, "testing: pick_bc_orbitals_hubbard"
+        call assert_true(.false.)
+
+    end subroutine pick_bc_orbitals_hubbard_test
+
+    subroutine create_ab_list_par_hubbard_test
+
+        print *, ""
+        print *, "testing: create_ab_list_par_hubbard"
+
+        call assert_true(.false.)
+
+    end subroutine create_ab_list_par_hubbard_test
+
+    subroutine pick_ab_orbitals_par_hubbard_test
+
+        print *, ""
+        print *, "testing: pick_ab_orbitals_par_hubbard"
+        call assert_true(.false.)
+
+    end subroutine pick_ab_orbitals_par_hubbard_test
+
+    subroutine get_transferred_momentum_test
+
+        print *, ""
+        print *, "testing: get_transferred_momentum"
+        call assert_true(.false.)
+
+    end subroutine get_transferred_momentum_test
+
+    subroutine get_orb_from_kpoints_three_test
+
+        print *, ""
+        print *, "testing: get_orb_from_kpoints_three: "
+        call assert_true(.false.)
+
+    end subroutine get_orb_from_kpoints_three_test
+
+    subroutine create_bc_list_hubbard_test
+
+        print *, ""
+        print *, "testing: create_bc_list_hubbard"
+        call assert_true(.false.)
+
+    end subroutine create_bc_list_hubbard_test
+
+    subroutine get_3_body_helement_ks_hub_test
+
+        print *, "" 
+        print *, "testing: get_3_body_helement_ks_hub" 
+        call assert_true(.false.)
+
+    end subroutine get_3_body_helement_ks_hub_test
+
+    subroutine check_momentum_sym_test
+
+        print *, ""
+        print *, "testing: check_momentum_sym"
+        call assert_true(.false.)
+
+    end subroutine check_momentum_sym_test
+
 end program test_k_space_hubbard
