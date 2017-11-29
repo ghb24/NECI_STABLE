@@ -1300,17 +1300,29 @@ contains
             ! possible. for now just assume (ex(2,2)) is the final orbital b 
             ! with momentum k_i + k_j - k_a and we need the 
             ! k_j - k_a momentum
-            k_vec = get_transferred_momentum(ex)
+            
+            
+!             k_vec = get_transferred_momentum(ex)
             spin = get_spin_pn(src(1))
             if (same_spin(src(1),src(2))) then
                 ! we need the spin of the excitation here if it is parallel
 
                 ! in the same-spin case, this is the only contribution to the 
                 ! matrix element
-                hel = same_spin_transcorr_factor(nI, k_vec, spin)
                 ! and maybe i have to take the sign additionally into 
                 ! account here?? or is this taken care of with tpar??
-                ! todo
+
+                ! thanks to Manu i have figured it out. we have to take 
+                ! the momentum between the to equally possible excitations: 
+                ! c^+_b c^+_a c_q c_p with W(q-a) 
+                ! and 
+                !-c^+_b c^+_a c_p c_q with W(p-a) 
+                ! with one of the orbital spins. 
+                ! i think it doesnt matter, which one. 
+                ! although for the sign it maybe does.. check thate
+                hel = same_spin_transcorr_factor(nI, G1(ex(1,1))%k - G1(ex(2,1))%k, spin) &
+                    - same_spin_transcorr_factor(nI, G1(ex(1,2))%k - G1(ex(2,1))%k, spin)
+
             else 
                 ! else we need the opposite spin contribution
                 
@@ -1325,6 +1337,7 @@ contains
                 ! and now the 3-body contribution: 
                 ! which also needs the third involved mometum, which then 
                 ! again is ex(1,1)
+                ! todo.. figure out spins! 
                 hel = hel + three_body_transcorr_fac(nI, G1(ex(1,2))%k, & 
                     G1(ex(1,1))%k, k_vec, spin)
 
@@ -1457,7 +1470,7 @@ contains
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "get_3_body_helement_ks_hub"
 #endif
-        integer :: ms_elec, ms_orbs
+        integer :: ms_elec, ms_orbs, opp_elec, opp_orb, par_elecs(2), par_orbs(2)
 
         hel = h_cast(0.0_dp)
 
@@ -1487,23 +1500,62 @@ contains
             ASSERT(is_beta(ex(2,1)))
         end if
 #endif
-        a_vec = G1(ex(2,1))%k 
 
-        ! todo: i have to find the correct combination 
-        ! manu is right: i have to pick a convention for the sign of the 
-        ! parallel spin excitations!
-        diff_vec = G1(ex(2,3))%k - G1(ex(1,2))%k 
-        call mompbcsym(diff_vec, nBasisMax)
-        a_vec  = a_vec + diff_vec
+        ! i think i have figured it out with the help of Manu 
+        ! the k-vector of the minority spin is always involved 
+        ! but of the electron.. or can we transform it? 
+        ! any way we have to calculate 
+        ! W(k_p + k_s - k_b) - W(k_p + k_q - k_b) 
+        ! for this we have to figure out what the minority and majority 
+        ! electrons are! 
+        opp_elec = find_minority_spin(ex(1,:))
 
-        call mompbcsym(a_vec, nBasisMax)
-        hel = epsilon_kvec(a_vec) * three_body_prefac
+        ! although i really can't be sure about the minority whole always 
+        ! being at the first position in ex(2,:).. 
+        opp_orb = find_minority_spin(ex(2,:)) 
 
-        ! do matrix element: 
+        if (ms_elec == 1) then 
+            par_elecs = pack(ex(1,:),ex(1,:) /= opp_elec)
+            par_orbs = pack(ex(2,:),ex(2,:) /= opp_orb)
+        end if
+
+        ! i hope it is fine if i always take par_orbs(1).. this has to do 
+        ! with the overal sign i guess.. so maybe i should check if 
+        ! if ex() is correctly sorted.. todo
+        hel = three_body_prefac * (&
+              epsilon_kvec(G1(opp_elec)%k + G1(par_elecs(1))%k - G1(par_orbs(1))%k) & 
+            - epsilon_kvec(G1(opp_elec)%k + G1(par_elecs(2))%k - G1(par_orbs(1))%k))
 
         if (tpar) hel = -hel
 
     end function get_3_body_helement_ks_hub
+
+    function find_minority_spin(spins) result(opp) 
+        ! for now, given 3 spin orbitals, where 2 share a spin, this function
+        ! returns the opposite spin
+        integer, intent(in) :: spins(:) 
+        integer :: opp
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "find_minority_spin" 
+#endif 
+        integer :: i
+
+        ASSERT(sum(get_spin_pn(spins)) == -1 .or. sum(get_spin_pn(spins)) == 1)
+
+        opp = -1
+
+        if (sum(get_spin_pn(spins)) == -1) then 
+            ! then we have 2 beta and 1 alpha 
+            do i = 1, size(spins)
+                if (is_alpha(spins(i))) opp = spins(i)
+            end do
+        else
+            ! we have 2 alpha and 1 beta 
+            do i = 1, size(spins)
+                if (is_beta(spins(i))) opp = spins(i)
+            end do
+        end if
+    end function find_minority_spin
 
     logical function check_momentum_sym(src, orbs) 
         ! routine to check the momentum conservation for double and triple 

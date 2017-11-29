@@ -89,6 +89,7 @@ contains
         call run_test_case(create_bc_list_hubbard_test, "create_bc_list_hubbard_test")
         call run_test_case(get_3_body_helement_ks_hub_test, "get_3_body_helement_ks_hub_test")
         call run_test_case(check_momentum_sym_test, "check_momentum_sym_test")
+        call run_test_case(find_minority_spin_test, "find_minority_spin_test")
 
     end subroutine k_space_hubbard_test_driver
 
@@ -254,4 +255,11 @@ contains
 
     end subroutine check_momentum_sym_test
 
+    subroutine find_minority_spin_test
+
+        print *, ""
+        print *, "testing: find_minority_spin"
+        call assert_true(.false.)
+
+    end subroutine find_minority_spin_test
 end program test_k_space_hubbard
