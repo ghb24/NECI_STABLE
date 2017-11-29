@@ -1188,13 +1188,65 @@ contains
 #ifdef __DEBUG 
         character(*), parameter :: this_routine = "get_diag_helement_k_sp_hub" 
 #endif
-
-        hel = sltcnd_0(nI)
+        integer :: i, j, id(nel), idX, idN, spin 
+        HElement_t(dp) :: hel_sing, hel_doub, hel_par, hel_opp
 
         ! todo: in the case of 2-body-transcorrelation, there are more 
         ! contributions.. 
+        hel = h_cast(0.0_dp)
+
         if (t_trans_corr_2body) then 
-            todo
+            hel_sing = sum(GetTMatEl(nI,nI))
+
+            id = gtID(nI) 
+
+            hel_doub = h_cast(0.0_dp) 
+            hel_par = h_cast(0.0_dp)
+            hel_opp = h_cast(0.0_dp) 
+
+            ! i do not need to run over the electrons, since all of this can 
+            ! be calculated directly
+            do i = 1, nel-1
+                do j = i + 1, nel 
+
+                    idX = max(id(i), id(j))
+                    idN = min(id(i), id(j))
+
+                    ! normal direct 
+                    hel_doub = hel_doub + get_hub_umat_el(idN,idX,idN,idX)
+                    
+                    ! and exchange terms 
+                    ! actually for the "normal" double excitation, there is 
+                    ! no exchange! 
+
+                    ! we have the contribution from the parallel doubles now: 
+                    ! this is really slow for now, i think most of that 
+                    ! can be moved outside of the loop! 
+                   if (is_beta(nI(i))) then 
+                        spin = 1
+                    else 
+                        spin = -1
+                    end if 
+                    if (same_spin(nI(i),nI(j))) then 
+                        hel_par = hel_par + 2.0_dp * three_body_prefac *  & 
+                            get_one_body_diag(nI,spin) * & 
+                            (1.0_dp - epsilon_kvec(G1(nI(i))%k - G1(nI(j))%k))
+
+                    else 
+                        ! take into account the opposite spin 3-body term
+                        ! here i just have to be sure what is p and q in the 
+                        ! formulasr.. 
+                        hel_opp = hel_opp + three_body_transcorr_fac(nI, & 
+                            G1(nI(i))%k, G1(nI(j))%k, [0,0,0], -spin)
+
+                    end if 
+                end do
+            end do
+
+            hel = hel_sing + hel_doub + hel_par + hel_opp
+
+        else 
+            hel = sltcnd_0(nI)
         end if
 
     end function get_diag_helement_k_sp_hub
