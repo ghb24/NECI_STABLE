@@ -604,7 +604,7 @@ module AnnihilationMod
                     call encode_sign(SpawnedParts(:,i), null_part)
 
                     ! If the sign changed, the adi check has to be redone
-                    if(any(real(SignProd,dp) < 0.0_dp)) &
+                    if(tUseFlags .and. any(real(SignProd,dp) < 0.0_dp)) &
                          call clr_flag(CurrentDets(:,PartInd), flag_adi_checked)
 
                     do j = 1, lenof_sign
