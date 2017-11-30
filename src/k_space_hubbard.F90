@@ -1030,12 +1030,147 @@ contains
         integer(n_int), intent(in) :: ilutI(0:niftot) 
         real(dp) :: pgen 
 #ifdef __DEBUG
-        character(*), parameter :: this_routine = "calc_pgen_k_space_hubbard" 
+        character(*), parameter :: this_routine = "calc_pgen_k_space_hubbard_transcorr" 
 #endif 
     
-        todo
+        pgen = 0.0_dp
+
+        if (ic == 2) then 
+            if (same_spin(ex(1,1),ex(1,2))) then 
+                ! parallel double excitation
+                ! the spins are checked within the function:
+                pgen = calc_pgen_k_space_hubbard_par(nI,ilutI,ex,ic)
+
+                pgen = pgen * pDoubles * pParallel
+
+            else 
+                ! "normal" opposite spin excitation
+                ! the spins are checked within the function: 
+                pgen = calc_pgen_k_space_hubbard(nI, ilutI, ex, ic) 
+
+                pgen = pgen * pDoubles * (1.0_dp - pParallel) 
+            end if
+        else if (ic == 3) then 
+            pgen = calc_pgen_k_space_hubbard_triples(nI, ilutI, ex, ic)
+
+            pgen = pgen * (1.0_dp - pDoubles) 
+
+        end if
 
     end function calc_pgen_k_space_hubbard_transcorr
+
+    function calc_pgen_k_space_hubbard_triples(nI, ilutI, ex, ic) result(pgen)
+        integer, intent(in) :: nI(nel), ex(:,:), ic
+        integer(n_int), intent(in) :: ilutI(0:niftot) 
+        real(dp) :: pgen 
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "calc_pgen_k_space_hubbard_triples"
+        real(dp) :: test
+#endif
+        real(dp) :: p_elec, p_orb(2), cum_arr(nbasis/2), cum_sum
+        integer :: orb_list(nbasis/2,2), sum_ms, orb_a, orbs(2)
+
+        if (ic /= 3) then 
+            pgen = 0.0_dp
+            return
+        end if
+
+        sum_ms = sum(get_spin_pn(ex(1,:)))
+
+        ! check spins
+        if (.not. (sum_ms == 1 .or. sum_ms == -1) .or. sum_ms /= sum(get_spin_pn(ex(2,:)))) then
+            pgen = 0.0_dp
+            return
+        end if
+
+        ! get the probabilites for the electrons and orbital (a)
+        if (sum_ms == 1) then 
+            p_elec = 1.0_dp / real(nel*(nel-1),dp) * & 
+                (1.0_dp/real(nOccBeta,dp) + 2.0_dp / real(nel-2,dp))
+
+            p_orb(1) = 1.0_dp / real(nbasis/2 - nOccBeta, dp) 
+
+        else 
+            p_elec = 1.0_dp / real(nel*(nel-1),dp) * & 
+                (1.0_dp/real(nOccAlpha,dp) + 2.0_dp / real(nel-2,dp))
+
+            p_orb(1) = 1.0_dp / real(nbasis/2 - nOccAlpha, dp)
+
+        end if
+
+        ! for this i need the minority spin orbital (a)
+        orb_a = find_minority_spin(ex(2,:))
+
+        orbs = pack(ex(2,:), ex(2,:) /= orb_a) 
+
+        call create_bc_list_hubbard(nI, ilutI, ex(1,:), orb_a, orb_list, cum_arr, & 
+            cum_sum, orbs(1), p_orb(2))
+
+        pgen = p_elec * product(p_orb) * 2.0_dp 
+
+#ifdef __DEBUG 
+        call create_bc_list_hubbard(nI, ilutI, ex(1,:), orb_a, orb_list, cum_arr, & 
+            cum_sum, orbs(2), test)
+
+        if (abs(test - p_orb(2)) > 1.e-8) then 
+            print *, "pgen assumption wrong:!" 
+            print *, "p_orb: ", p_orb(2)
+            print *, "test: ", test 
+            print *, "ex(2,:): ", ex(2,:)
+        end if
+#endif
+        
+    end function calc_pgen_k_space_hubbard_triples
+
+    function calc_pgen_k_space_hubbard_par(nI, ilutI, ex, ic) result(pgen) 
+        integer, intent(in) :: nI(nel), ex(:,:), ic
+        integer(n_int), intent(in) :: ilutI(0:niftot) 
+        real(dp) :: pgen 
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "calc_pgen_k_space_hubbard_par"
+        real(dp) :: test
+#endif
+        real(dp) :: p_elec, p_orb, cum_arr(nbasis/2), cum_sum
+        integer :: orb_list(nbasis/2,2)
+
+        ! check ic:
+        if (ic /= 2) then 
+            pgen = 0.0_dp
+            return
+        end if
+
+        ! check spin:
+        if (.not.(same_spin(ex(1,1),ex(1,2)) .and. same_spin(ex(2,1),ex(2,2)) .and. & 
+            same_spin(ex(1,1),ex(2,1)))) then 
+            pgen = 0.0_dp
+            return
+        end if
+
+        if (get_ispn(ex(1,1:2))) then 
+            p_elec = 1.0_dp / real(nbasis/2 - nOccBeta, dp)
+        else 
+            p_elec = 1.0_dp / real(nbasis/2 - nOccAlpha, dp)
+        end if
+
+        call create_ab_list_par_hubbard(nI, ilutI, ex(1,1:2), orb_list, cum_arr, & 
+            cum_sum, ex(2,1), p_orb)
+
+        pgen = p_elec * p_orb * 2.0_dp
+
+#ifdef __DEBUG 
+        call create_ab_list_par_hubbard(nI, ilutI, ex(1,1:2), orb_list, cum_arr, & 
+            cum_sum, ex(2,1), test)
+
+        if (abs(test - p_orb) > 1.e-8) then 
+            print *, "pgen assumption wrong:!" 
+            print *, "p_orb: ", p_orb
+            print *, "test: ", test 
+            print *, "ex(2,:): ", ex(2,:)
+        end if
+
+#endif
+
+    end function calc_pgen_k_space_hubbard_par
 
     function calc_pgen_k_space_hubbard(nI, ilutI, ex, ic) result(pgen) 
         integer(n_int), intent(in) :: ilutI(0:niftot)
@@ -1227,6 +1362,7 @@ contains
                     else 
                         spin = -1
                     end if 
+
                     if (same_spin(nI(i),nI(j))) then 
                         hel_par = hel_par + 2.0_dp * three_body_prefac *  & 
                             get_one_body_diag(nI,spin) * & 

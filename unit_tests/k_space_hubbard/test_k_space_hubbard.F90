@@ -98,6 +98,12 @@ contains
         print *, ""
         print *, "testing: get_diag_helement_k_sp_hub" 
         call assert_true(.false.)
+
+        print *, "" 
+        print *, "and now for 2-body transcorrelation: "
+        t_trans_corr_2body = .true.
+        call assert_true(.false.)
+
     end subroutine get_diag_helement_k_sp_hub_test
 
     subroutine get_offdiag_helement_k_sp_hub_test
