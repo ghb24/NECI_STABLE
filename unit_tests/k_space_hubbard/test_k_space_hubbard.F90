@@ -90,6 +90,9 @@ contains
         call run_test_case(get_3_body_helement_ks_hub_test, "get_3_body_helement_ks_hub_test")
         call run_test_case(check_momentum_sym_test, "check_momentum_sym_test")
         call run_test_case(find_minority_spin_test, "find_minority_spin_test")
+        call run_test_case(calc_pgen_k_space_hubbard_transcorr_test, "calc_pgen_k_space_hubbard_transcorr_test")
+        call run_test_case(calc_pgen_k_space_hubbard_par_test, "calc_pgen_k_space_hubbard_transcorr")
+        call run_test_case(calc_pgen_k_space_hubbard_triples_test, "calc_pgen_k_space_hubbard_triples_test")
 
     end subroutine k_space_hubbard_test_driver
 

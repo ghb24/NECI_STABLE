@@ -22,7 +22,7 @@ module k_space_hubbard
     use bit_rep_data, only: NIfTot
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
     use real_space_hubbard, only: lat_tau_factor
-    use fcimcdata, only: tsearchtau, tsearchtauoption
+    use fcimcdata, only: tsearchtau, tsearchtauoption, pDoubles, pParallel
     use CalcData, only: tau, t_hist_tau_search, t_hist_tau_search_option
     use dsfmt_interface, only: genrand_real2_dsfmt
     use util_mod, only: binary_search_first_ge
@@ -38,6 +38,7 @@ module k_space_hubbard
     implicit none 
 
     integer, parameter :: ABORT_EXCITATION = 0
+    integer, parameter :: N_DIM = 3
 
     real(dp) :: p_triples = 0.0_dp 
     real(dp) :: three_body_prefac = 0.0_dp
@@ -166,6 +167,7 @@ contains
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "gen_excit_k_space_hub_transcorr"
 #endif
+        integer :: temp_ex(2,3) 
 
         if (genrand_real2_dsfmt() < pDoubles) then 
             if (genrand_real2_dsfmt() < pParallel) then 
@@ -182,7 +184,7 @@ contains
             end if 
         else 
             ! otherwise to a triple.. 
-            call gen_triple_hubbard(nI, ilutI, nJ, ilutJ, ex, tParity, pgen) 
+            call gen_triple_hubbard(nI, ilutI, nJ, ilutJ, temp_ex, tParity, pgen) 
             ic = 3 
             pgen = pgen * (1.0_dp - pDoubles)
 
@@ -198,6 +200,7 @@ contains
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(out) :: nJ(nel), ex(2,3) 
+        integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity 
         real(dp), intent(out) :: pgen 
 #ifdef __DEBUG
@@ -271,7 +274,7 @@ contains
 
 #ifdef __DEBUG 
         ! the influence of orb_a is important in the pgen recalc!!
-        call create_bc_list_hubbard(nI, ilutI, src, orb_list, cum_arr, cum_sum, & 
+        call create_bc_list_hubbard(nI, ilutI, src, orb_a, orb_list, cum_arr, cum_sum, & 
             orbs(2), test)
 
         if (abs(test - p_orb) > 1.e-8) then 
@@ -291,11 +294,11 @@ contains
         integer, intent(out) :: orb_list(nbasis/2, 2) 
         real(dp), intent(out) :: cum_arr(nbasis/2), cum_sum
         integer, intent(in), optional :: tgt 
-        real(dp), intent(in), optional :: cpt 
+        real(dp), intent(out), optional :: cpt 
 #ifdef __DEBUG 
         character(*), parameter :: this_routine = "create_bc_list_hubbard" 
 #endif
-        integer :: b, c, ex(2,3) 
+        integer :: b, c, ex(2,3), spin, orb_b
         real(dp) :: elem
 
         orb_list = -1 
@@ -402,6 +405,7 @@ contains
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "pick_a_orbital_hubbard"
 #endif
+        integer :: spin
 
         ! if sum_ms is present, we pick the first orbital from the minority 
         ! spins in the picked electrons -> so it is the opposite 
@@ -438,21 +442,21 @@ contains
 
     function get_orb_from_kpoints_three(src, orb_a, orb_b) result(orb_c) 
         ! momentum conservation for three-body terms 
-        integer, intent(in) : src(3), orb_a, orb_b
+        integer, intent(in) :: src(3), orb_a, orb_b
         integer :: orb_c 
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "get_orb_from_kpoints_three"
 #endif
-        integer :: sum_ms, kc, spin_c, spin_ab
+        integer :: sum_ms, kc(3), spin_c, spin_ab
 
         ! implement that generally for also all-spin parallel excitation, which 
         ! might be necessary in the future.. 
         sum_ms = sum(get_spin_pn(src))
 
-        ASSERT(sum_ms == -3 .or. sum_ms == -1 .or. sum_ms = 1 .or. sum_ms = 3)
+        ASSERT(sum_ms == -3 .or. sum_ms == -1 .or. sum_ms == 1 .or. sum_ms == 3)
 
         ! momentum conservation: ka + kb + kc = ki + kj + kk
-        kc = sum(G1(src)%k) - G1(orb_a)%k - G1(orb_b)%k 
+        kc = G1(src(1))%k + G1(src(2))%k + G1(src(3))%k - G1(orb_a)%k - G1(orb_b)%k 
 
         ! perdiodic BC: 
         if (tHub .or. t_k_space_hubbard) then 
@@ -535,8 +539,9 @@ contains
                     if (elecs(1) /= elecs(3) .and. elecs(2) /= elecs(3)) then 
                         exit first
                     end if 
+                end do
             end if
-        end do
+        end do first
                         
         ! i have to be careful how i could have gotten the electrons.. 
         ! because the order does not matter and there is no restriction set 
@@ -573,6 +578,7 @@ contains
         integer, intent(in) :: nI(nel) 
         integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(out) :: nJ(nel), ex(2,2) 
+        integer, intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pgen
 #ifdef __DEBUG
@@ -604,8 +610,6 @@ contains
             pgen = 0.0_dp
             return 
         end if
-
-        ic = 2 
 
         ! and make the excitation 
         call make_double(nI, nJ, elecs(1), elecs(2), orbs(1), orbs(2), ex, tParity)
@@ -681,7 +685,7 @@ contains
 
     end subroutine pick_spin_par_elecs
 
-    subroutine pick_ab_orbitals_par_hubbard(nI, ilut, src, orbs, p_orb) 
+    subroutine pick_ab_orbitals_par_hubbard(nI, ilutI, src, orbs, p_orb) 
         integer, intent(in) :: nI(nel), src(2)
         integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(out) :: orbs(2) 
@@ -817,7 +821,7 @@ contains
 #ifdef __DEBUG 
         character(*), parameter :: this_routine = "create_ab_list_par_hubbard"
 #endif
-        integer :: a, b, ex(2,2), spin
+        integer :: a, b, ex(2,2), spin, orb_a
         real(dp) :: elem
         ! do the cum_arr for the k-space hubbard 
         ! i think here i might really use flags.. and not just do the 
@@ -889,7 +893,7 @@ contains
                     if (b /= orb_a .and. IsNotOcc(ilutI, orb_a)) then 
                         ex(2,:) = [orb_a, b]
 
-                        elem = abs(get_offdiag_helement_k_sp_hub(nI, ex, .false.)
+                        elem = abs(get_offdiag_helement_k_sp_hub(nI, ex, .false.))
 
                     end if
                 end if
@@ -1146,7 +1150,7 @@ contains
             return
         end if
 
-        if (get_ispn(ex(1,1:2))) then 
+        if (get_ispn(ex(1,1:2)) == 1) then 
             p_elec = 1.0_dp / real(nbasis/2 - nOccBeta, dp)
         else 
             p_elec = 1.0_dp / real(nbasis/2 - nOccAlpha, dp)
@@ -1438,7 +1442,7 @@ contains
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "get_offdiag_helement_k_sp_hub"
 #endif
-        integer :: src(2), tgt(2), ij(2), ab(2), k_vec(3)
+        integer :: src(2), tgt(2), ij(2), ab(2), k_vec(3), spin
 
         src = get_src(ex)
         tgt = get_tgt(ex)
@@ -1540,7 +1544,7 @@ contains
         ! routine to reobtain transferred momentum from a given excitation 
         ! for spin-opposite double excitations i am pretty sure how, but 
         ! for triple excitations and spin-parallel doubles not so much.. todo
-        integer, intent(in) : ex(:,:) 
+        integer, intent(in) :: ex(:,:) 
         integer :: k_vec(3) 
 #ifdef __DEBUG 
         character(*), parameter :: this_routine = "get_transferred_momentum"
@@ -1601,8 +1605,8 @@ contains
         ! excitations coming from the k = 0 triple excitation
         integer, intent(in) :: nI(nel), k_vec(N_DIM), spin
 
-        same_spin_transcorr_factor = h_cast(three_body_prefac * get_one_body_diag(nI, -spin) * &
-                                     epsilon_kvec(k_vec))
+        same_spin_transcorr_factor = three_body_prefac * get_one_body_diag(nI,-spin) * &
+                                     epsilon_kvec(k_vec)
 
     end function same_spin_transcorr_factor
 
@@ -1611,7 +1615,7 @@ contains
         ! different type of lattices! TODO!
         integer, intent(in) :: k_vec(N_DIM)
 
-        epsilon_kvec = h_cast(2*sum(cos(k_vec)))
+        epsilon_kvec = h_cast(2*sum(cos(real(k_vec,dp))))
 
     end function epsilon_kvec
 
@@ -1620,9 +1624,9 @@ contains
         
         ! take out the part with U/2 since this is already covered in the 
         ! "normal" matrix elements
-        two_body_transcorr_factor = h_cast(-real(bhub,dp)/real(omega,dp)*(&
+        two_body_transcorr_factor = real(bhub,dp)/real(omega,dp)*(&
             (exp(trans_corr_param_2body) - 1.0_dp) * epsilon_kvec(p - k) + &
-            (exp(-trans_corr_param_2body) - 1.0_dp) * epsilon_kvec(p)))
+            (exp(-trans_corr_param_2body) - 1.0_dp) * epsilon_kvec(p))
 
         ! thats it i gues.. 
     end function two_body_transcorr_factor
@@ -1642,18 +1646,18 @@ contains
             n_opp = real(nOccBeta, dp) 
         end if
 
-        three_body_transcorr_fac = h_cast(three_body_prefac * (&
+        three_body_transcorr_fac = three_body_prefac * (&
             n_opp * (epsilon_kvec(p) + epsilon_kvec(p - k)) - & 
-            get_one_body_diag(nI, -spin) * (epsilon_kvec(p-q-k) + epsilon_kvec(p+q))))
+            get_one_body_diag(nI, -spin) * (epsilon_kvec(p-q-k) + epsilon_kvec(p+q)))
 
     end function three_body_transcorr_fac
 
-    function get_3_body_helement_ks_hub(nI, ex, tParity) result(hel)
+    function get_3_body_helement_ks_hub(nI, ex, tpar) result(hel)
         ! the 3-body matrix element.. here i have to be careful about 
         ! the sign and stuff.. and also if momentum conservation is 
         ! fullfilled .. 
         integer, intent(in) :: nI(nel), ex(2,3)
-        logical, intent(in) :: tParity
+        logical, intent(in) :: tpar
         HElement_t(dp) :: hel
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "get_3_body_helement_ks_hub"
@@ -1663,10 +1667,10 @@ contains
         hel = h_cast(0.0_dp)
 
         ms_elec = sum(get_spin_pn(ex(1,:)))
-        ms_orbs = sum(get_spin_pn(ec(2,:)))
+        ms_orbs = sum(get_spin_pn(ex(2,:)))
 
         ! check spin:
-        if (.not.(ms_elec == ms_orbs))) return 
+        if (.not.(ms_elec == ms_orbs)) return 
         if (.not.(ms_elec == 1 .or. ms_elec == -1)) return 
 
         ! check momentum conservation: 
@@ -1745,7 +1749,7 @@ contains
         end if
     end function find_minority_spin
 
-    logical function check_momentum_sym(src, orbs) 
+    logical function check_momentum_sym(elecs, orbs) 
         ! routine to check the momentum conservation for double and triple 
         ! spawns 
         ! although this could in fact be used for a general check of 
