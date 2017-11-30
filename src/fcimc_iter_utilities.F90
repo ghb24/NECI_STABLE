@@ -801,7 +801,7 @@ contains
                         ! projected energy!
                         if (tJumpShift .and. & 
                             (.not. isnan(real(proje_iter(run),dp)) .or. & 
-                             .not. is_inf(real(proje_iter(run),dp))) then
+                             .not. is_inf(real(proje_iter(run),dp)))) then
                             DiagSft(run) = real(proje_iter(run),dp)
                             defer_update(run) = .true.
                         end if
