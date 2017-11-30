@@ -14,6 +14,8 @@ program test_k_space_hubbard
     use fruit 
     use SystemData, only: t_k_space_hubbard, t_lattice_model, nel, nbasis, & 
                           t_trans_corr, G1, nBasisMax
+    use bit_rep_data, only: niftot, nifd
+    use lattice_mod, only: lat
 
     implicit none 
 
@@ -91,10 +93,27 @@ contains
         call run_test_case(check_momentum_sym_test, "check_momentum_sym_test")
         call run_test_case(find_minority_spin_test, "find_minority_spin_test")
         call run_test_case(calc_pgen_k_space_hubbard_transcorr_test, "calc_pgen_k_space_hubbard_transcorr_test")
-        call run_test_case(calc_pgen_k_space_hubbard_par_test, "calc_pgen_k_space_hubbard_transcorr")
+        call run_test_case(calc_pgen_k_space_hubbard_par_test, "calc_pgen_k_space_hubbard_par_test")
         call run_test_case(calc_pgen_k_space_hubbard_triples_test, "calc_pgen_k_space_hubbard_triples_test")
+        call run_test_case(make_triple_test, "make_triple_test")
 
     end subroutine k_space_hubbard_test_driver
+
+    subroutine setup_g1_test
+
+        print *, "" 
+        print *, "testing: setup_g1" 
+        call assert_true(.false.)
+
+    end subroutine setup_g1_test
+
+    subroutine setup_nbasismax_test
+
+        print *, "" 
+        print *, "testing: setup_nbasismax"
+        call assert_true(.false.)
+
+    end subroutine setup_nbasismax_test
 
     subroutine get_diag_helement_k_sp_hub_test
 
@@ -271,4 +290,37 @@ contains
         call assert_true(.false.)
 
     end subroutine find_minority_spin_test
+
+    subroutine calc_pgen_k_space_hubbard_transcorr_test
+
+        print *, "" 
+        print *, "testing: calc_pgen_k_space_hubbard_transcorr"
+        call assert_true(.false.)
+
+    end subroutine calc_pgen_k_space_hubbard_transcorr_test
+
+    subroutine calc_pgen_k_space_hubbard_par_test
+
+        print *, "" 
+        print *, "testing: calc_pgen_k_space_hubbard_par"
+        call assert_true(.false.)
+
+    end subroutine calc_pgen_k_space_hubbard_par_test
+
+    subroutine calc_pgen_k_space_hubbard_triples_test
+
+        print *, "" 
+        print *, "testing: calc_pgen_k_space_hubbard_triples"
+        call assert_true(.false.)
+
+    end subroutine calc_pgen_k_space_hubbard_triples_test
+
+    subroutine make_triple_test
+
+        print *, "" 
+        print *, "testing: make_triple" 
+        call assert_true(.false.)
+
+    end subroutine make_triple_test
+
 end program test_k_space_hubbard

@@ -15,7 +15,7 @@ module k_space_hubbard
                     nel, tHPHF, nOccBeta, nOccAlpha, nbasis, tLatticeGens, tHub, &
                     omega, bhub, nBasisMax, G1, BasisFN
     use lattice_mod, only: get_helement_lattice_ex_mat, get_helement_lattice_general, &
-                           determine_optimal_time_step, lattice
+                           determine_optimal_time_step, lattice, sort_unique
     use procedure_pointers, only: get_umat_el, generate_excitation
     use gen_coul_ueg_mod, only: get_hub_umat_el
     use constants, only: n_int, dp, EPS, bits_n_int
@@ -1781,5 +1781,100 @@ contains
         check_momentum_sym = (lChkSym(ka, kb)) 
 
     end function check_momentum_sym
+
+    subroutine make_triple(nI, nJ, elecs, orbs, ex, tPar)
+        integer, intent(in) :: nI(nel), elecs(3), orbs(3)
+        integer, intent(out) :: nJ(nel), ex(2,3)
+        logical, intent(out) :: tPar
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "make_triple"
+#endif
+        integer :: sort_elecs(3), sort_orbs(3), src(3), pos_moved, k, i
+
+        ! figure out how to do triples efficiently.. 
+        ! can we do a single and then a double? 
+
+        ! NO: talk to Manu and do this with integer representation! not
+        ! with nI and nJ, since this can be done way more effective as 
+        ! via the occupied orbitals.. 
+
+        sort_elecs = sort_unique(elecs)
+        sort_orbs = sort_unique(orbs)
+        
+        src = nI(sort_elecs)
+
+        ex(1,:) = src
+        ex(2,:) = sort_orbs
+
+        nJ = nI 
+
+        ! i should do some stuff depending on the order of src and tgt 
+        ! we have to check if electrons hop over other electrons, so we 
+        ! might have to change the indexing to adapt to the change in nJ! 
+
+        ! or check it individually: 
+        if (src(2) < sort_orbs(1)) then 
+            ! then i hops over j: 
+            sort_elecs(2) = sort_elecs(2) - 1 
+        end if
+        if (src(3) < sort_orbs(1)) then 
+            ! then i hops over k 
+            ! (note: this also implies that j hops over k, but treat that 
+            ! seperately below, to also cover the case, where this if here 
+            ! is not fullfilled!) 
+            sort_elecs(3) = sort_elecs(3) - 1 
+        end if 
+        if (src(3) < sort_orbs(2)) then 
+            ! then j hops over k 
+            sort_elecs(3) = sort_elecs(3) - 1
+        end if
+
+        pos_moved = 0 
+
+        do k = 1, 3 
+            if (src(k) < sort_orbs(k)) then 
+                if (sort_elecs(k) == nel) then 
+                    ! this can only happen for k == 3 
+                    i = nel + 1
+                    nJ(nel) = sort_orbs(k) 
+                else 
+                    do i = sort_elecs(k) + 1, nel 
+                        if (sort_orbs(k) < nJ(i)) then 
+                            nJ(i-1) = sort_orbs(k)
+                            exit 
+                        else 
+                            nJ(i-1) = nJ(i)
+                        end if
+                    end do
+                    if (i == nel + 1) then 
+                        nJ(nel) = sort_orbs(k)
+                    end if
+                end if
+            else 
+                if (sort_elecs(k) == 1) then 
+                    i = 0
+                    nJ(1) = sort_orbs(k)
+                else 
+                    do i = sort_elecs(k)-1, 1, -1
+                        if (sort_orbs(k) > nJ(i)) then 
+                            nJ(i+1) = sort_orbs(k)
+                            exit 
+                        else 
+                            nJ(i+1) = nJ(i)
+                        end if
+                    end do
+                    if (i == 0) then 
+                        nJ(1) = sort_orbs(k)
+                    end if
+                end if
+            end if
+
+            pos_moved = pos_moved + sort_elecs(k) - i + 1
+
+        end do
+
+        tPar = btest(pos_moved, 0)
+        
+    end subroutine make_triple
 
 end module k_space_hubbard

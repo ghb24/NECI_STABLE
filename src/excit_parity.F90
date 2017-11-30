@@ -92,6 +92,10 @@ contains
         nJ = nI
 
         ! As we move these around we need to do some playing!
+        ! wtf? this comment above does not mean anything! 
+        ! ahh. this is done since, after we move the first electron over 
+        ! the second, we need an index lowered by one to indicate the 
+        ! now second orbital in the modified nJ! 
         if (srcs(1) < tgts(1) .and. srcs(2) < tgts(1)) then
             elecs(2) = elecs(2) - 1
         end if
