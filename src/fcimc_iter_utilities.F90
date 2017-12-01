@@ -16,7 +16,6 @@ module fcimc_iter_utils
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tFCIMCStats2, tPrintDataTables, tLogEXLEVELStats
     use semi_stoch_procs, only: recalc_core_hamil_diag
-    use fcimc_helper, only: update_run_reference
     use bit_rep_data, only: NIfD, NIfTot, NIfDBO
     use hphf_integrals, only: hphf_diag_helement
     use global_det_data, only: set_det_diagH
@@ -1026,5 +1025,52 @@ contains
         iter_data%update_iters = iter_data%update_iters + 1
 
     end subroutine update_iter_data
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine refresh_semistochastic_space()
+      use FciMCData, only: iter_data_fciqmc
+      use CalcData, only: ss_space_in
+      use semi_stoch_procs, only: end_semistoch
+      use semi_stoch_gen, only: init_semi_stochastic
+      implicit none
+      
+      ! The reinitialization of the semistochastic space can affect population
+      ! because of stochastic rounds. To log this correctly, set the iter_data to 0 here
+      iter_data_fciqmc%nborn = 0.0_dp
+      iter_data_fciqmc%nremoved = 0.0_dp
+
+      ! as the important determinants might change over time, this
+      ! resets the semistochastic space taking the current population to get a new one
+      call end_semistoch()
+      ! the flag_deterministic flag has to be cleared from all determinants as it is
+      ! assumed that no states have that flag when init_semi_stochastic starts
+      call reset_core_space()
+      ! Now, generate the new deterministic space
+      call init_semi_stochastic(ss_space_in)
+
+      ! Changing the semi-stochastic space can involve some roundings
+      ! if determinants with population < realSpawnCutoff stop being 
+      ! in the corespace. Then, we need to log these events.
+      iter_data_fciqmc%update_growth = iter_data_fciqmc%update_growth + iter_data_fciqmc%nborn &
+           - iter_data_fciqmc%nremoved
+
+    end subroutine refresh_semistochastic_space
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine reset_core_space()
+      use bit_reps, only: clr_flag
+      use FciMCData, only: MaxWalkersPart
+      implicit none
+      integer :: i
+      
+      do i=1, MaxWalkersPart
+         call clr_flag(CurrentDets(:,i),flag_deterministic)
+      enddo
+      
+    end subroutine reset_core_space
+
+!------------------------------------------------------------------------------------------!
 
 end module fcimc_iter_utils

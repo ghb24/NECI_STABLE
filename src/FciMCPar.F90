@@ -15,7 +15,7 @@ module FciMCParMod
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
                         t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
                         t_back_spawn_flex, t_back_spawn_flex_option, &
-                        t_back_spawn_option
+                        t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, tOldRDMs, &
@@ -238,6 +238,9 @@ module FciMCParMod
                     call init_semi_stochastic(ss_space_in)
                 end if
             end if
+            ! Update the semistochastic space if requested
+            if(tSemiStochastic .and. tDynamicCoreSpace .and. &
+                 mod(iter,coreSpaceUpdateCycle) == 0) call refresh_semistochastic_space()
 
             ! turn on double occ measurement after equilibration
             if (equi_iter_double_occ /= 0 .and. all(.not. tSinglePartPhase)) then
