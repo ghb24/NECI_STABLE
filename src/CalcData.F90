@@ -203,6 +203,8 @@ logical :: tUniqueHFNode
 
 ! Options relating to the semi-stochastic code.
 logical :: tSemiStochastic ! Performing a semi-stochastic simulation if true.
+logical :: tDynamicCoreSpace ! update the corespace
+integer :: coreSpaceUpdateCycle
 ! Input type describing which space(s) type to use.
 type(subspace_in) :: ss_space_in
 

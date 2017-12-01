@@ -61,7 +61,6 @@ module AnnihilationMod
         call CompressSpawnedList(MaxIndex, iter_data)  
 
         call halt_timer(Compress_time)
-
          ! If the semi-stochastic approach is being used then the following routine performs the
          ! annihilation of the deterministic states. These states are subsequently skipped in the
          ! AnnihilateSpawnedParts routine.

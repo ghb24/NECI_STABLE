@@ -286,6 +286,8 @@ contains
           ! Semi-stochastic and trial wavefunction options.
           tSemiStochastic = .false.
           tCSFCore = .false.
+          tDynamicCoreSpace = .false.
+          coreSpaceUpdateCycle = 400
           semistoch_shift_iter = 0
           tTrialWavefunction = .false.
           tKP_FCIQMC = .false.
@@ -1276,6 +1278,9 @@ contains
             case("MAX-CORE-SIZE")
                 ss_space_in%tLimitSpace = .true.
                 call geti(ss_space_in%max_size)
+            case("DYNAMIC-CORE")
+                tDynamicCoreSpace = .true.
+                if( item < nitems) call geti(coreSpaceUpdateCycle)
             case("STOCHASTIC-HF-SPAWNING")
                 tDetermHFSpawning = .false.
 

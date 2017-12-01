@@ -15,7 +15,7 @@ module FciMCParMod
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
                         t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
                         t_back_spawn_flex, t_back_spawn_flex_option, &
-                        t_back_spawn_option
+                        t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
                         tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
                         SIUpdateInterval, tSuppressSIOutput
@@ -242,7 +242,10 @@ module FciMCParMod
                     call init_semi_stochastic(ss_space_in)
                 end if
             end if
-            
+            ! Update the semistochastic space if requested
+            if(tSemiStochastic .and. tDynamicCoreSpace .and. &
+                 mod(iter,coreSpaceUpdateCycle) == 0) call refresh_semistochastic_space()
+           
             if((Iter - maxval(VaryShiftIter)) == allDoubsInitsDelay + 1 &
                  .and. all(.not. tSinglePartPhase)) then
                ! Start the all-doubs-initiator procedure
