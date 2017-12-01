@@ -156,7 +156,7 @@ integer, PARAMETER :: BasisFNSizeB=BasisFNSize*8
 
 
 TYPE(BASISFN) :: SymRestrict
-INTEGER :: nBasisMax(5,7)
+INTEGER :: nBasisMax(5,7) = 0
 real(dp) :: ALAT(5)
 real(dp) :: ECore
 INTEGER :: nBasis

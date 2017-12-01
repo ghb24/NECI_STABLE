@@ -116,6 +116,10 @@ module lattice_mod
         logical :: t_periodic_x = .true. 
         logical :: t_periodic_y = .true. 
         logical :: t_periodic(3) = .true. 
+
+        ! i want to do a lattice type member also, do easier check, which 
+        ! lattice we are looking at.. but i need to make this nice
+        character(10), public :: type = ''
         ! and i think additionally i want to store which type of lattice 
         ! this is in a string or? so i do not always have to 
         ! use the select type functionality 
@@ -2150,7 +2154,7 @@ contains
     end function aim_lattice_constructor
 
     function lattice_constructor(lat_typ, length_x, length_y, length_z, t_periodic_x , &
-            t_periodic_y, t_periodic_z) result(this)
+            t_periodic_y, t_periodic_z, space) result(this)
         ! write a general public lattice_constructor for lattices 
         ! the number of inputs are still undecided.. do we always have 
         ! the same number or differing number of inputs? 
@@ -2159,11 +2163,26 @@ contains
         character(*), intent(in) :: lat_typ
         integer, intent(in) :: length_x, length_y, length_z
         logical, intent(in) :: t_periodic_x, t_periodic_y, t_periodic_z
+        character(*), intent(in), optional :: space
         class(lattice), pointer :: this 
         character(*), parameter :: this_routine = "lattice_constructor"
 
         ! depending on the string input defining lattice type 
         ! initialize corresponding lattice 
+        if (present(space)) then 
+            select case(space) 
+            case ('k-space') 
+                ! do smth
+
+            case ('real-space')
+                ! do smth else 
+
+            case default 
+                call stop_all(this_routine, "not recognized space!")
+
+            end select 
+        end if
+
         select case (lat_typ) 
         case ('chain') 
 

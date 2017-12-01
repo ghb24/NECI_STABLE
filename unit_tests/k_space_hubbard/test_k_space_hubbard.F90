@@ -13,9 +13,13 @@ program test_k_space_hubbard
     use constants 
     use fruit 
     use SystemData, only: t_k_space_hubbard, t_lattice_model, nel, nbasis, & 
-                          t_trans_corr, G1, nBasisMax
+                          t_trans_corr, G1, nBasisMax, nOccBeta, nOccAlpha, & 
+                          bhub, uhub, omega, trans_corr_param_2body, & 
+                          t_trans_corr, t_trans_corr_2body, trans_corr_param
     use bit_rep_data, only: niftot, nifd
     use lattice_mod, only: lat
+    use dsfmt_interface, only: dsfmt_init
+    use OneEInts, only: GetTMatEl
 
     implicit none 
 
@@ -23,6 +27,8 @@ program test_k_space_hubbard
 
 
     call init_fruit()
+    call dsfmt_init(0)
+
     ! run the test-driver 
     call k_space_hubbard_test_driver()
     call fruit_summary()
@@ -96,6 +102,12 @@ contains
         call run_test_case(calc_pgen_k_space_hubbard_par_test, "calc_pgen_k_space_hubbard_par_test")
         call run_test_case(calc_pgen_k_space_hubbard_triples_test, "calc_pgen_k_space_hubbard_triples_test")
         call run_test_case(make_triple_test, "make_triple_test")
+        call run_test_case(three_body_transcorr_fac_test, "three_body_transcorr_fac_test")
+        call run_test_case(two_body_transcorr_factor_test, "two_body_transcorr_factor_test")
+        call run_test_case(epsilon_kvec_test, "epsilon_kvec_test")
+        call run_test_case(same_spin_transcorr_factor_test, "same_spin_transcorr_factor_test")
+        call run_test_case(setup_tmat_k_space_test, "setup_tmat_k_space_test")
+        call run_test_case(get_one_body_diag_test, "get_one_body_diag_test")
 
     end subroutine k_space_hubbard_test_driver
 
@@ -144,17 +156,52 @@ contains
     end subroutine get_helement_k_space_hub_test
 
     subroutine pick_spin_opp_elecs_test
+
+        integer, allocatable :: nI(:)
+        integer :: elecs(2)
+        real(dp) :: p_elec
+
+        nel = 2 
+        nOccBeta = 1
+        nOccAlpha = 1
+        allocate(nI(nel))
+
         print *, ""
         print *, "testing: pick_spin_opp_elecs"
-        call assert_true(.false.)
+        nI = [1,2] 
+        call pick_spin_opp_elecs(nI, elecs, p_elec)
+
+        call assert_equals(1.0_dp, p_elec) 
+        if (elecs(1) == 1) then 
+            call assert_equals(2, elecs(2)) 
+        else if (elecs(1) == 2) then
+            call assert_equals(1, elecs(2))
+        end if
+
+        nel = -1
+        nOccBeta = -1
+        nOccAlpha = -1
 
     end subroutine pick_spin_opp_elecs_test
 
     subroutine pick_from_cum_list_test
 
+        integer :: ind
+        real(dp) :: pgen
         print *, ""
         print *, "testing: pick_from_cum_list"
-        call assert_true(.false.)
+        call pick_from_cum_list([0.0_dp,1.0_dp],1.0_dp, ind, pgen)
+
+        call assert_equals(2, ind) 
+        call assert_equals(1.0_dp, pgen) 
+
+        call pick_from_cum_list([1.0_dp,1.0_dp],1.0_dp, ind, pgen)
+
+        call assert_equals(1, ind) 
+        call assert_equals(1.0_dp, pgen) 
+
+        call pick_from_cum_list([1.0_dp,2.0_dp],2.0_dp, ind, pgen)
+        call assert_equals(0.5_dp, pgen) 
 
     end subroutine pick_from_cum_list_test
 
@@ -189,17 +236,81 @@ contains
 
     subroutine pick_three_opp_elecs_test
 
+        integer :: elecs(3), sum_ms
+        real(dp) :: p_elec 
+
+        nel = 3 
+        nOccBeta = 2 
+        nOccAlpha = 1 
+
         print *, ""
         print *, "testing: pick_spin_opp_elecs"
-        call assert_true(.false.)
+        call pick_three_opp_elecs([1,2,3], elecs, p_elec, sum_ms)
+        call assert_equals(1.0_dp, p_elec)
+        call assert_equals(-1, sum_ms) 
+        call assert_equals(6, sum(elecs))
+
+        nOccAlpha = 2
+        nOccBeta = 1 
+
+        call pick_three_opp_elecs([1,2,4], elecs, p_elec, sum_ms)
+        call assert_equals(1.0_dp, p_elec)
+        call assert_equals(1, sum_ms) 
+        call assert_equals(6, sum(elecs))
+
+        nel = 5
+        nOccAlpha = 4 
+        call pick_three_opp_elecs([1,2,4,6,8], elecs, p_elec, sum_ms) 
+        call assert_equals(1.0_dp, p_elec) 
+        call assert_equals(1, sum_ms) 
+        call assert_true(any(elecs == 1))
+
+        nOccBeta = 4 
+        nOccAlpha = 1
+        call pick_three_opp_elecs([1,3,5,7,8], elecs, p_elec, sum_ms) 
+        call assert_equals(1.0_dp, p_elec) 
+        call assert_equals(-1, sum_ms) 
+        call assert_true(any(elecs == 8))
+
+        nel = -1
+        nOccBeta = -1 
+        nOccAlpha = -1
 
     end subroutine pick_three_opp_elecs_test
 
     subroutine pick_spin_par_elecs_test
 
+        integer :: elecs(2), ispn
+        real(dp) :: p_elec
+        
         print *, ""
         print *, "testing: pick_spin_par_elecs"
-        call assert_true(.false.)
+        nel = 2 
+        nOccBeta = 2
+        call pick_spin_par_elecs([1,3],elecs,p_elec, ispn)
+        call assert_equals(1.0_dp, p_elec) 
+        call assert_equals(1, ispn) 
+        call assert_equals(3, sum(elecs))
+
+        nOccAlpha = 2 
+        call pick_spin_par_elecs([2,4],elecs,p_elec, ispn)
+        call assert_equals(1.0_dp, p_elec) 
+        call assert_equals(3, ispn) 
+        call assert_equals(3, sum(elecs))
+
+        nel = 4 
+        call pick_spin_par_elecs([1,2,3,4], elecs, ispn) 
+        call assert_equals(0.5_dp, pgen) 
+        if (ispn == 1) then 
+            call assert_equals(4, sum(elecs))
+        else if (ispn == 3) then 
+            call assert_equals(6, sum(elecs))
+        end if
+        
+        nel = -1 
+        nOccBeta = -1 
+        nOccAlpha = -1
+
     end subroutine pick_spin_par_elecs_test
 
     subroutine pick_a_orbital_hubbard_test
@@ -287,7 +398,13 @@ contains
 
         print *, ""
         print *, "testing: find_minority_spin"
-        call assert_true(.false.)
+        call assert_equals(1, find_minority_spin([1,2,4]))
+        call assert_equals(3, find_minority_spin([3,2,4]))
+
+        call assert_equals(2, find_minority_spin([1,2,3]))
+        call assert_equals(1, find_minority_spin([3,2,5]))
+
+        call assert_equals(1, find_minority_spin([1,2,4,6,8]))
 
     end subroutine find_minority_spin_test
 
@@ -317,10 +434,124 @@ contains
 
     subroutine make_triple_test
 
+        integer, allocatable :: nI(:), nJ(:)
+        integer :: ex(2,3)
+        logical :: tpar
+
+        nel = 3 
+
+        allocate(nI(nel))
+        allocate(nJ(nel))
+
+        
         print *, "" 
         print *, "testing: make_triple" 
-        call assert_true(.false.)
+        nI = [1,2,3] 
+        call make_triple(nI,nJ,[1,2,3],[4,5,7],ex,tpar) 
+
+        call assert_equals([4,5,7], nJ, 3)
+        call assert_equals([1,2,3], ex(1,:),3)
+        call assert_equals([4,5,7], ex(2,:),3)
+        call assert_true(.not.tpar)
+
+        ! and now more complicated stuff:
 
     end subroutine make_triple_test
+
+    subroutine three_body_transcorr_fac_test
+
+        integer :: p(3), q(3), k(3)
+
+        nel = 3
+        nOccBeta = 1
+        nOccAlpha = 2
+
+        print *, "" 
+        print *, "testing: three_body_transcorr_fac"
+        p = 0 
+        q = 0
+        k = 0
+
+        call assert_equals(h_cast(0.0_dp), &
+            three_body_transcorr_fac([1,2,3], p,q,k,1))
+
+    end subroutine three_body_transcorr_fac_test
+
+    subroutine two_body_transcorr_factor_test
+
+        integer :: p(3), k(3)
+
+        print *, "" 
+        print *, "testing: two_body_transcorr_factor" 
+        p = 0
+        k = 0
+        omega = 1.0_dp
+
+        call assert_equals(h_cast(0.0_dp), two_body_transcorr_factor(p,k))
+
+    end subroutine two_body_transcorr_factor_test
+
+    subroutine epsilon_kvec_test
+
+        integer :: k(3)
+
+        print *, "" 
+        print *, "testing: epsilon_kvec"
+        k = 0 
+        call assert_equals(h_cast(4.0_dp), epsilon_kvec(k))
+
+    end subroutine epsilon_kvec_test
+
+    subroutine same_spin_transcorr_factor_test
+
+        integer :: k(3) 
+        integer, allocatable :: nI(:) 
+
+        nel = 3 
+        allocate(nI(nel))
+
+        print *, "" 
+        print *, "testing: same_spin_transcorr_factor" 
+        call assert_equals(h_cast(0.0_dp), & 
+            same_spin_transcorr_factor([1,2,3],k,1))
+
+        nel = -1
+
+    end subroutine same_spin_transcorr_factor_test
+
+    subroutine setup_tmat_k_space_test
+
+        class(lattice), pointer :: ptr 
+
+        ptr => lattice('chain', 4, 1, 1, .true., .true., .true.,'k-space')
+        print *, "" 
+        print *, "testing: setup_tmat_k_space"
+        call setup_tmat_k_space(ptr)
+
+        call assert_equals(h_cast(0.0_dp), GetTMatEl(1,2))
+
+    end subroutine setup_tmat_k_space_test
+
+    subroutine get_one_body_diag_test
+
+        integer, allocatable :: nI(:)
+        class(lattice), pointer :: ptr
+
+        nel = 3 
+
+        allocate(nI(nel))
+        nI = [1,2,3]
+        
+        ! i think i also want to use the lattice functionality in the 
+        ! k-space hubbard model.. but i still have to think about how to do that!
+        ! allow an additional input flag! 
+        ptr => lattice('chain', 4, 1, 1, .true., .true., .true.,'k-space')
+
+        call setup_tmat_k_space(ptr) 
+        print *, "" 
+        print *, "testing: get_one_body_diag" 
+        call assert_equals(h_cast(0.0_dp), get_one_body_diag(nI,1))
+
+    end subroutine get_one_body_diag_test
 
 end program test_k_space_hubbard

@@ -676,9 +676,9 @@ contains
         ASSERT(ispn == 1 .or. ispn == 3) 
 
         if (ispn == 1) then 
-            p_elec = 1.0_dp / real(nbasis/2 - nOccBeta, dp)
+            p_elec = 2.0_dp / real(nOccBeta*(nOccBeta-1),dp)
         else if (ispn == 3) then 
-            p_elec = 1.0_dp / real(nbasis/2 - nOccAlpha, dp)
+            p_elec = 2.0_dp / real(nOccAlpha*(nOccAlpha-1),dp)
         end if
 
         if (present(opt_ispn)) opt_ispn = ispn
@@ -1587,14 +1587,43 @@ contains
     subroutine setup_g1(in_lat) 
         use SystemData, only: G1
         class(lattice), intent(in), optional :: in_lat
-
+        character(*), parameter :: this_routine = "setup_g1"
         ! i think everything is in the System_neci file
+        if (present(in_lat)) then 
+            ! only do it if G1 has not been setup yet!
+            if (.not. associated(G1)) then
+                ! i need number of spin-orbitals
+                allocate(G1(in_lat%get_nsites()*2))
+                
+                ! should i rely on the already setup nBasisMax?
+            end if
+
+        else 
+            ! not yet implemented!
+            call Stop_All(this_routine, "not yet implemented")
+        end if
 
     end subroutine setup_g1
 
     subroutine setup_nbasismax(in_lat) 
         use SystemData, only: nBasisMax
         class(lattice), intent(in), optional :: in_lat
+        character(*), parameter :: this_routine =  "setup_nbasismax"
+
+        ! thats a fucking pain in the ass.. i do not want to do that now!
+        if (present(in_lat)) then 
+            if (.not. all(nBasisMax == 0)) then 
+                ! only do smth if nbasismax was not changed yet
+                ! i should give lattice also a member type and a k-space flag..
+                if (in_lat%type == 'tilted') then 
+                    call SETBASISLIM_HUBTILT()
+                else 
+                    call SETBASISLIM_HUB()
+                end if
+            end if
+        else 
+            call Stop_All(this_routine, "not yet implemented")
+        end if
 
     end subroutine setup_nbasismax
 
@@ -1791,6 +1820,9 @@ contains
 #endif
         integer :: sort_elecs(3), sort_orbs(3), src(3), pos_moved, k, i
 
+        ! i should also check if this excitation is actually possible! 
+        ! and which spin i move to where or?? 
+
         ! figure out how to do triples efficiently.. 
         ! can we do a single and then a double? 
 
@@ -1876,5 +1908,21 @@ contains
         tPar = btest(pos_moved, 0)
         
     end subroutine make_triple
+
+    subroutine setup_tmat_k_space(in_lat)
+        ! routine which sets up the (diagonal) t-matrix in the k-space 
+        ! the dimensionality and connectivity of nearest and next-nearest 
+        ! neighbors influences that! 
+        class(lattice), intent(in), optional :: in_lat 
+        character(*), parameter :: this_routine = "setup_tmat_k_space" 
+
+        if (present(in_lat)) then 
+            ! todo! 
+
+        else 
+            call Stop_All(this_routine, "not yet implemented!")
+        end if
+
+    end subroutine setup_tmat_k_space
 
 end module k_space_hubbard
