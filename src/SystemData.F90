@@ -271,6 +271,11 @@ logical :: t_lattice_model = .false.
 ! use a new flag for the "new" k-space hubbard implementation
 logical :: t_k_space_hubbard = .false. 
 
+! also use an additional flag to indicate that 3-body excitations are possible
+logical :: t_3_body_excits = .false. 
+! and indicate the maximum excitation level: 
+integer :: max_ex_level = 2
+
 character(20) :: lattice_type
 
 ! i need 

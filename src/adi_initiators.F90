@@ -4,7 +4,7 @@ module adi_initiators
   use bit_rep_data, only: test_flag, NIfTot, extract_sign
   use bit_reps, only: set_flag, clr_flag, decode_bit_det
   use constants, only: lenof_sign, n_int, dp, inum_runs, eps
-  use SystemData, only: nel
+  use SystemData, only: nel, max_ex_level
 
 contains
 
@@ -121,14 +121,14 @@ contains
        ! First, check if the excitation level differs by more than 2
        tCouplingPossible = .true.
        if(tUseCaches) then
-          if(abs(ex - exLvlRef(i)) > 2) tCouplingPossible = .false.
+          if(abs(ex - exLvlRef(i)) > max_ex_level) tCouplingPossible = .false.
        endif
        ! TODO: Check if i marks a superinitiator for the current run
        nExChecks = nExChecks + 1
        if(tCouplingPossible) then
           exLevel = FindBitExcitLevel(ilutRefAdi(:,i),ilut)
           ! We only need to do this if the excitation level is below 3
-          if(exLevel < 3) then
+          if(exLevel < max_ex_level+1) then
              ! Check if we are sign-coherent if this is desired
              if(unset_incoherent_initiator(exLevel, ilut, nI, sgn, i, staticInit, run)) &
                                 ! If we find the determinant to be incoherent, we do not apply

@@ -530,6 +530,12 @@ system: do
                trans_corr_param_2body = 0.25_dp
            end if
 
+           ! if it is the k-space hubbard also activate 3-body excitations here
+           if (t_k_space_hubbard) then 
+               t_3_body_excits = .true. 
+               max_ex_level = 3
+           end if
+
         case ('NEIGHBOR-TRANSCORR','TRANSCORR-NEIGHBOR','N-TRANSCORR')
             t_trans_corr_2body = .true. 
             if (item < nitems) then 
@@ -537,6 +543,12 @@ system: do
             else 
                 trans_corr_param_2body = 0.25_dp
             end if
+
+           ! if it is the k-space hubbard also activate 3-body excitations here
+           if (t_k_space_hubbard) then 
+               t_3_body_excits = .true. 
+               max_ex_level = 3
+           end if
 
                 
        ! Options for the type of the reciprocal lattice (eg sc, fcc, bcc)

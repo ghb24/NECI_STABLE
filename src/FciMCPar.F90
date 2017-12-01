@@ -81,7 +81,7 @@ module FciMCParMod
     use back_spawn, only: init_back_spawn
     use real_space_hubbard, only: init_real_space_hubbard
     use tJ_model, only: init_tJ_model, init_heisenberg_model
-    use k_space_hubbard, only: init_k_space_hubbard
+    use k_space_hubbard, only: init_k_space_hubbard, gen_excit_k_space_hub_transcorr
 
 #ifdef MOLPRO
     use outputResult
@@ -1061,10 +1061,20 @@ module FciMCParMod
                     ! data gets through.
                     ilutnJ = 0_n_int
 
-                    ! Generate a (random) excitation
-                    call generate_excitation(DetCurr, CurrentDets(:,j), nJ, &
+                    ! for the 3-body excitations i really do not want to change 
+                    ! all the interfaces to the other excitation generators, 
+                    ! which all just assume ex(2,2) as size.. so use a 
+                    ! if here.. 
+                    if (t_3_body_excits) then 
+                        call gen_excit_k_space_hub_transcorr(DetCurr, CurrentDets(:,j), &
+                            nJ, ilutnJ, exFlag, ic, ex, tParity, prob, & 
+                            HElGen, fcimc_excit_gen_store, part_type) 
+                    else 
+                        ! Generate a (random) excitation
+                        call generate_excitation(DetCurr, CurrentDets(:,j), nJ, &
                                         ilutnJ, exFlag, IC, ex, tParity, prob, &
                                         HElGen, fcimc_excit_gen_store, part_type)
+                    end if
                     
                     ! If a valid excitation, see if we should spawn children.
                     if (.not. IsNullDet(nJ)) then

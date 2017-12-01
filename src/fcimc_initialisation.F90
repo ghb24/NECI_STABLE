@@ -13,7 +13,7 @@ module fcimc_initialisation
                           tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
                           tUEGNewGenerator, tGen_4ind_2, tReltvy, t_new_real_space_hubbard, &
                           t_lattice_model, t_tJ_model, t_heisenberg_model, & 
-                          t_k_space_hubbard
+                          t_k_space_hubbard, t_3_body_excits
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use dSFMT_interface, only: dSFMT_init
     use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
@@ -1590,7 +1590,11 @@ contains
         if (tTruncSpace .or. tHistSpawn .or. tCalcFCIMCPsi) then
             max_calc_ex_level = nel
         else
-            max_calc_ex_level = 2
+            if (t_3_body_excits) then 
+                max_calc_ex_level = 3
+            else 
+                max_calc_ex_level = 2
+            end if
         endif
 
         ! How many children should we spawn given an excitation?

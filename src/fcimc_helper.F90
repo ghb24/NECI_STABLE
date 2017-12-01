@@ -393,9 +393,9 @@ contains
 
             if (iter > NEquilSteps) &
                 SumNoatHF(1:lenof_sign) = SumNoatHF(1:lenof_sign) + RealwSign
-            NoatHF(1:lenof_sign) = NoatHF(1:lenof_sign) + RealwSign
-            ! Number at HF * sign over course of update cycle
-            HFCyc(1:lenof_sign) = HFCyc(1:lenof_sign) + RealwSign
+                NoatHF(1:lenof_sign) = NoatHF(1:lenof_sign) + RealwSign
+                ! Number at HF * sign over course of update cycle
+                HFCyc(1:lenof_sign) = HFCyc(1:lenof_sign) + RealwSign
 
         elseif (ExcitLevel_local == 2 .or. &
                 (ExcitLevel_local == 1 .and. tNoBrillouin)) then
