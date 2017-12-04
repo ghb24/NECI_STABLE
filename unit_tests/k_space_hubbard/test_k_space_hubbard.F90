@@ -15,11 +15,16 @@ program test_k_space_hubbard
     use SystemData, only: t_k_space_hubbard, t_lattice_model, nel, nbasis, & 
                           t_trans_corr, G1, nBasisMax, nOccBeta, nOccAlpha, & 
                           bhub, uhub, omega, trans_corr_param_2body, & 
-                          t_trans_corr, t_trans_corr_2body, trans_corr_param
+                          t_trans_corr, t_trans_corr_2body, trans_corr_param, & 
+                          thub, tpbc, treal, ttilt, TSPINPOLAR, & 
+                          tCPMD, tVASP, tExch
     use bit_rep_data, only: niftot, nifd
-    use lattice_mod, only: lat
+    use lattice_mod, only: lat, lattice
     use dsfmt_interface, only: dsfmt_init
-    use OneEInts, only: GetTMatEl
+    use OneEInts, only: GetTMatEl, tOneElecDiag, tCPMDSymTMat
+    use procedure_pointers, only: get_umat_el
+    use gen_coul_ueg_mod, only: get_hub_umat_el
+    use IntegralsData, only: umat
 
     implicit none 
 
@@ -53,19 +58,51 @@ contains
         NIfTot = 0
         nifd = 0 
 
+        ! set the appropriate flags: 
+        thub = .true.
+        tpbc = .true. 
+        treal = .false. 
+        ! todo: also test for tilted lattices! since Ali likes them so much.. 
+        TSPINPOLAR = .false. 
+        tOneElecDiag = .false.
+
+        ttilt =  .false. 
+        tCPMDSymTMat = .false.
+        tvasp = .false.
+        tCPMD = .false. 
+
+        tExch = .true. 
+
+        bhub = -1.0
+
+        lat => lattice('chain', 4, 1, 1,.true.,.true.,.true.,'k-space')
+
         t_k_space_hubbard = .true. 
         t_lattice_model = .true. 
 
+        ! setup nBasisMax and also the same for nBasisMax
+        call setup_nbasismax(lat)
+
         ! setup G1 properly
-        !todo 
         ! do a function like: which depending on the lattice sets up everything
         ! necessary for this type of lattice! yes!
         call setup_g1(lat) 
 
-        ! setup nBasisMax and also the same for nBasisMax
-        call setup_nbasismax(lat)
-        !todo
+        ! also need the tmat ready.. 
+        call setup_tmat_k_space(lat)
 
+        ! and i also have to setup the symmetry table... damn.. 
+        ! i have to setup umat also or
+        uhub = 1.0
+        omega = 8.0
+
+        ! and i have to allocate umat.. 
+        allocate(umat(1))
+        umat = h_cast(real(uhub,dp)/real(omega,dp))
+
+        get_umat_el => get_hub_umat_el
+
+        three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
     end subroutine init_k_space_unit_tests
 
     subroutine k_space_hubbard_test_driver() 
@@ -75,6 +112,7 @@ contains
        
         call run_test_case(setup_g1_test, "setup_g1_test")
         call run_test_case(setup_nbasismax_test, "setup_nbasismax_test")
+        call run_test_case(setup_tmat_k_space_test, "setup_tmat_k_space_test")
 
         call init_k_space_unit_tests()
         call run_test_case(get_diag_helement_k_sp_hub_test, "get_diag_helement_k_sp_hub_test")
@@ -106,37 +144,126 @@ contains
         call run_test_case(two_body_transcorr_factor_test, "two_body_transcorr_factor_test")
         call run_test_case(epsilon_kvec_test, "epsilon_kvec_test")
         call run_test_case(same_spin_transcorr_factor_test, "same_spin_transcorr_factor_test")
-        call run_test_case(setup_tmat_k_space_test, "setup_tmat_k_space_test")
         call run_test_case(get_one_body_diag_test, "get_one_body_diag_test")
 
     end subroutine k_space_hubbard_test_driver
 
     subroutine setup_g1_test
 
+        class(lattice), pointer :: ptr 
+        integer :: i 
+        
         print *, "" 
         print *, "testing: setup_g1" 
-        call assert_true(.false.)
+        ptr => lattice('chain', 4, 1, 1,.true.,.true.,.true.,'k-space')
+        nBasis = 8
+
+        tpbc = .true. 
+        treal = .false. 
+        ttilt = .false.
+
+        call setup_g1(ptr) 
+
+        ! check ms: 
+        do i = 1, 7, 2 
+            call assert_equals(-1, G1(i)%ms)
+        end do
+        do i = 2, 8, 2
+            call assert_equals(1, G1(i)%ms)
+        end do
+
+        call assert_equals([(0,i=1,8)], G1(1:8)%k(2),8)
+        call assert_equals([(0,i=1,8)], G1(1:8)%k(3),8)
+        call assert_equals([-1,-1,0,0,1,1,2,2],G1(1:8)%k(1),8)
+
+        deallocate(G1)
+        nBasisMax = 0
+        nbasis = -1
 
     end subroutine setup_g1_test
 
     subroutine setup_nbasismax_test
 
+        use SystemData, only: nBasisMax
+        class(lattice), pointer :: ptr 
         print *, "" 
         print *, "testing: setup_nbasismax"
-        call assert_true(.false.)
+        ptr => lattice('chain', 4, 1, 1,.true.,.true.,.true.,'k-space')
+
+        nBasis = 8
+        tpbc = .true. 
+        treal = .false. 
+
+        call setup_nbasismax(ptr)
+
+        call assert_equals(0, nBasisMax(1,3))
+        call assert_equals(0, nBasisMax(1,4))
+        call assert_equals(1, nBasisMax(2,4))
+        call assert_equals(4, nBasisMax(1,5))
+        call assert_equals(1, nBasisMax(2,5))
+        call assert_equals(1, nBasisMax(3,5))
+
+        nBasisMax = 0
+        nbasis = -1
 
     end subroutine setup_nbasismax_test
+
+    subroutine setup_tmat_k_space_test
+
+        class(lattice), pointer :: ptr 
+        integer :: i 
+
+        ptr => lattice('chain', 4, 1, 1, .true., .true., .true.,'k-space')
+        print *, "" 
+        print *, "testing: setup_tmat_k_space"
+        tpbc = .true. 
+        treal = .false. 
+        tOneElecDiag = .false. 
+        ttilt = .false. 
+        bhub = 1.0
+        nBasis = 8 
+
+        call setup_tmat_k_space(ptr)
+
+        call assert_equals(h_cast(0.0_dp), GetTMatEl(1,2))
+
+        call assert_equals(h_cast(2.0_dp*cos(-PI/2.0_dp)), GetTMatEl(1,1))
+        call assert_equals(h_cast(2.0_dp*cos(-PI/2.0_dp)), GetTMatEl(2,2))
+        call assert_equals(h_cast(2.0_dp*cos(PI/2.0_dp)), GetTMatEl(5,5))
+        call assert_equals(h_cast(2.0_dp*cos(PI/2.0_dp)), GetTMatEl(6,6))
+        call assert_equals(h_cast(2.0_dp), GetTMatEl(3,3))
+        call assert_equals(h_cast(2.0_dp), GetTMatEl(4,4))
+        call assert_equals(h_cast(-2.0_dp), GetTMatEl(7,7))
+        call assert_equals(h_cast(-2.0_dp), GetTMatEl(8,8))
+
+        deallocate(G1) 
+        nBasisMax = 0
+        deallocate(tmat2d)
+        nbasis = -1
+
+    end subroutine setup_tmat_k_space_test
 
     subroutine get_diag_helement_k_sp_hub_test
 
         print *, ""
         print *, "testing: get_diag_helement_k_sp_hub" 
-        call assert_true(.false.)
+        umat = 0.0_dp
+        call assert_equals(h_cast(-4.0_dp), get_diag_helement_k_sp_hub([1,2,3,4]))
+
+        umat = 2*uhub/omega
+        call assert_equals(h_cast(-3.0_dp), get_diag_helement_k_sp_hub([1,2,3,4]))
 
         print *, "" 
         print *, "and now for 2-body transcorrelation: "
         t_trans_corr_2body = .true.
-        call assert_true(.false.)
+        ! test it for 0 transcorrelation
+        trans_corr_param_2body = 0.0_dp
+        call assert_equals(h_cast(-3.0_dp), get_diag_helement_k_sp_hub([1,2,3,4]))
+
+        trans_corr_param_2body = 1.0_dp 
+
+        three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+        print *, get_diag_helement_k_sp_hub([1,2,3,4])
 
     end subroutine get_diag_helement_k_sp_hub_test
 
@@ -244,7 +371,7 @@ contains
         nOccAlpha = 1 
 
         print *, ""
-        print *, "testing: pick_spin_opp_elecs"
+        print *, "testing: pick_three_opp_elecs"
         call pick_three_opp_elecs([1,2,3], elecs, p_elec, sum_ms)
         call assert_equals(1.0_dp, p_elec)
         call assert_equals(-1, sum_ms) 
@@ -299,8 +426,8 @@ contains
         call assert_equals(3, sum(elecs))
 
         nel = 4 
-        call pick_spin_par_elecs([1,2,3,4], elecs, ispn) 
-        call assert_equals(0.5_dp, pgen) 
+        call pick_spin_par_elecs([1,2,3,4], elecs, p_elec, ispn) 
+        call assert_equals(0.5_dp, p_elec) 
         if (ispn == 1) then 
             call assert_equals(4, sum(elecs))
         else if (ispn == 3) then 
@@ -403,8 +530,6 @@ contains
 
         call assert_equals(2, find_minority_spin([1,2,3]))
         call assert_equals(1, find_minority_spin([3,2,5]))
-
-        call assert_equals(1, find_minority_spin([1,2,4,6,8]))
 
     end subroutine find_minority_spin_test
 
@@ -519,18 +644,6 @@ contains
 
     end subroutine same_spin_transcorr_factor_test
 
-    subroutine setup_tmat_k_space_test
-
-        class(lattice), pointer :: ptr 
-
-        ptr => lattice('chain', 4, 1, 1, .true., .true., .true.,'k-space')
-        print *, "" 
-        print *, "testing: setup_tmat_k_space"
-        call setup_tmat_k_space(ptr)
-
-        call assert_equals(h_cast(0.0_dp), GetTMatEl(1,2))
-
-    end subroutine setup_tmat_k_space_test
 
     subroutine get_one_body_diag_test
 

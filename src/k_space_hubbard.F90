@@ -13,7 +13,8 @@ module k_space_hubbard
     use SystemData, only: t_lattice_model, t_k_space_hubbard, t_trans_corr, & 
                     trans_corr_param, t_trans_corr_2body, trans_corr_param_2body, & 
                     nel, tHPHF, nOccBeta, nOccAlpha, nbasis, tLatticeGens, tHub, &
-                    omega, bhub, nBasisMax, G1, BasisFN
+                    omega, bhub, nBasisMax, G1, BasisFN, NullBasisFn, TSPINPOLAR, & 
+                    treal, ttilt, tExch
     use lattice_mod, only: get_helement_lattice_ex_mat, get_helement_lattice_general, &
                            determine_optimal_time_step, lattice, sort_unique
     use procedure_pointers, only: get_umat_el, generate_excitation
@@ -31,10 +32,12 @@ module k_space_hubbard
     use FciMCData, only: excit_gen_store_type
     use get_excit, only: make_double
     use UmatCache, only: gtid
-    use OneEInts, only: GetTMatEl
+    use OneEInts, only: GetTMatEl, tmat2d
     use sltcnd_mod, only: sltcnd_0
-    use sym_mod, only: RoundSym, AddElecSym, SetupSym, lChkSym, mompbcsym
+    use sym_mod, only: RoundSym, AddElecSym, SetupSym, lChkSym, mompbcsym, & 
+                       TotSymRep, GenMolpSymTable
     use SymExcitDataMod, only: KPointToBasisFn
+
     implicit none 
 
     integer, parameter :: ABORT_EXCITATION = 0
@@ -84,6 +87,9 @@ contains
         tsearchtau = .false. 
         tsearchtauoption = .true.
 
+        ! can i set exchange to false, if we have no transcorrelation
+        ! although.. not sure..
+!         if (.not. t_trans_corr_2body) tExch = .false. 
         t_hist_tau_search = .false. 
         t_hist_tau_search_option = .false.
 
@@ -519,7 +525,7 @@ contains
                 if (elecs(1) /= elecs(2)) exit 
             end do
 
-            if (get_ispn(nI(elecs(1:2))) == 2) then 
+            if (get_ispn(nI(elecs(1:2))) /= 2) then 
                 ! if the already picked electrons have same spin
                 ! take opposite spin
                 do 
@@ -1352,8 +1358,19 @@ contains
                     idN = min(id(i), id(j))
 
                     ! normal direct 
-                    hel_doub = hel_doub + get_hub_umat_el(idN,idX,idN,idX)
+                    ! us the spin_restriction here directly! 
+                    if (.not. same_spin(nI(i),nI(j))) then
+                        hel_doub = hel_doub + get_hub_umat_el(idN,idX,idN,idX)
+                    end if
                     
+                    ! THEN WE do not need the exchange to cancel the 
+                    ! incorrectly counted double excitations!
+                    ! there is a bug in the hubbard i guess: the parallel 
+                    ! spin excitations are taken into account.. for the 
+                    ! diagonal contribution.. todo! 
+!                     if (same_spin(nI(i),nI(j))) then 
+!                         hel_doub = hel_doub - get_hub_umat_el(idN, idX, idX, idN)
+!                     end if
                     ! and exchange terms 
                     ! actually for the "normal" double excitation, there is 
                     ! no exchange! 
@@ -1588,16 +1605,58 @@ contains
         use SystemData, only: G1
         class(lattice), intent(in), optional :: in_lat
         character(*), parameter :: this_routine = "setup_g1"
+
+        type(BasisFN) :: temp_g
+        integer :: i,j,k,l,ind
+        logical :: kallowed
+
         ! i think everything is in the System_neci file
         if (present(in_lat)) then 
             ! only do it if G1 has not been setup yet!
             if (.not. associated(G1)) then
                 ! i need number of spin-orbitals
                 allocate(G1(in_lat%get_nsites()*2))
+                G1 = NullBasisFn
                 
                 ! should i rely on the already setup nBasisMax?
-            end if
+                if (all(nBasisMax == 0)) then 
+                    call setup_nbasismax(in_lat)
+                end if
+                ind = 0
+                do i = nBasisMax(1,1), nBasisMax(1,2)
+                    do j = nBasisMax(2,1), nBasisMax(2,2)
+                        do k = nBasisMax(3,1), nBasisMax(3,2)
+                            do l  = nBasisMax(4,1), nBasisMax(4,2), 2
+                               
+                                temp_g%k = [i,j,k]
+                                temp_g%ms = l 
+                                if ((treal .and. .not. ttilt) .or. kallowed(temp_g, nBasisMax)) then
+                                    ind = ind + 1 
+                                    G1(ind)%k = [i,j,k] 
+                                    G1(ind)%ms = l
+                                    G1(ind)%Sym = TotSymRep()
+                                    if (.not. in_lat%is_k_space()) then 
+                                        ! turn off- symmetry in the hubbard case
+                                        G1(ind)%sym%s = 0
+                                    end if
+                                end if
+                            end do
+                        end do
+                    end do
+                end do
+                if (in_lat%is_k_space()) then 
+                    call GenHubMomIrrepsSymTable(G1, in_lat%get_nsites()*2, nbasismax)
+                else 
+                    ! also to the rest of the symmetry stuff here: 
+                    ! in case of real-space turn off symmetry completely: 
+                    call GenMolpSymTable(1, G1, in_lat%get_nsites()*2)
+                    ! and i have to redo the symmetry setting to 0 
+                    do i = 1, in_lat%get_nsites()*2
+                        G1(i)%sym%s = 0
+                    end do
+                end if
 
+            end if
         else 
             ! not yet implemented!
             call Stop_All(this_routine, "not yet implemented")
@@ -1610,16 +1669,44 @@ contains
         class(lattice), intent(in), optional :: in_lat
         character(*), parameter :: this_routine =  "setup_nbasismax"
 
+        integer :: dummy_size
         ! thats a fucking pain in the ass.. i do not want to do that now!
         if (present(in_lat)) then 
-            if (.not. all(nBasisMax == 0)) then 
+            if (all(nBasisMax == 0)) then 
                 ! only do smth if nbasismax was not changed yet
-                ! i should give lattice also a member type and a k-space flag..
-                if (in_lat%type == 'tilted') then 
-                    call SETBASISLIM_HUBTILT()
+
+                ! whatever spin-polar means: 
+                if (TSPINPOLAR) then 
+                    nBasisMax(4,1) = 1 
+                    nBasisMax(2,3) = 1 
                 else 
-                    call SETBASISLIM_HUB()
+                    nBasisMax(4,1) = -1
+                    if (nBasisMax(2,3) == 0) nBasisMax(2,3) = 2 
                 end if
+
+                ! this is never explained: 
+                nBasisMax(4,2) = 1
+
+                ! i should give lattice also a member type and a k-space flag..
+                if (trim(in_lat%get_name()) == 'tilted') then 
+                    ! how do i get nmaxx and the rest effectively?? 
+!                     call SETBASISLIM_HUBTILT(nBasisMax, nmaxx, nmaxy, nmaxz, & 
+!                         in_lat%gen_nsites()*2, in_lat%is_periodic(), itiltx, itilty))
+                    ! if it is tilted the nmax stuff is usualy 1 or?? 
+                    call SETBASISLIM_HUBTILT(nBasisMax, 1,1,1, dummy_size, & 
+                        in_lat%is_periodic(), in_lat%get_length(1), in_lat%get_length(2))
+                else 
+                    call SETBASISLIM_HUB(nBasisMax, in_lat%get_length(1), & 
+                        in_lat%get_length(2), in_lat%get_length(3), dummy_size, & 
+                        in_lat%is_periodic(), .not. in_lat%is_k_space())
+                end if
+                if (thub .and. treal) then
+                    ! apparently this allows integrals between different 
+                    ! spins: so in the transcorrelated hubbard this should 
+                    ! be changed also maybe? 
+                    nBasisMax(2,3) = 1
+                end if
+                ASSERT(dummy_size == in_lat%get_nsites()*2)
             end if
         else 
             call Stop_All(this_routine, "not yet implemented")
@@ -1761,6 +1848,8 @@ contains
 #endif 
         integer :: i
 
+        ! for now, do it only for 3 inputted spins:
+        ASSERT(size(spins) == 3)
         ASSERT(sum(get_spin_pn(spins)) == -1 .or. sum(get_spin_pn(spins)) == 1)
 
         opp = -1
@@ -1917,7 +2006,22 @@ contains
         character(*), parameter :: this_routine = "setup_tmat_k_space" 
 
         if (present(in_lat)) then 
-            ! todo! 
+            if (all(nBasisMax == 0)) then 
+                call setup_nbasismax(in_lat)
+            end if
+
+            if (.not. associated(G1)) then 
+                call setup_g1(in_lat) 
+            end if
+            ! else assume it is already setup correctly 
+
+            if (.not. associated(tmat2d)) then 
+                ! call the already implemented hubbard tmat calculator.. 
+                ! for now only.. in the future we should do this standalone
+                call CALCTMATHUB(in_lat%get_nsites()*2, nBasisMax, bhub, & 
+                    ttilt,G1,.not. in_lat%is_k_space(), in_lat%is_periodic())
+
+            end if
 
         else 
             call Stop_All(this_routine, "not yet implemented!")

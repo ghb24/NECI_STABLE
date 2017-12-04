@@ -17,6 +17,8 @@ module lattice_mod
     public :: lattice, lattice_deconstructor, aim, aim_deconstructor, sort_unique, & 
               lat, determine_optimal_time_step, get_helement_lattice
 
+    integer, parameter :: NAME_LEN = 13
+
     type :: site 
         ! the basic site type for my lattice
         ! i guess here i need to store my neighbors and provide functionality 
@@ -119,7 +121,18 @@ module lattice_mod
 
         ! i want to do a lattice type member also, do easier check, which 
         ! lattice we are looking at.. but i need to make this nice
-        character(10), public :: type = ''
+        ! having a defered lenght character component would be the best 
+        ! option: 
+        !         character(:), allocatable, public :: type
+        ! but this needs gfortran version >= 4.9, which i guess is not 
+        ! available everywhere yet.. so do smth else for now: 
+        character(NAME_LEN) :: name = ''
+        ! and "just" use trim and align in the comparisons for lattice names! 
+
+        ! and also add a flag, if we want a momentum space lattice 
+        ! representation. 
+        logical :: t_momentum_space = .false.
+
         ! and i think additionally i want to store which type of lattice 
         ! this is in a string or? so i do not always have to 
         ! use the select type functionality 
@@ -168,8 +181,13 @@ module lattice_mod
         procedure, public :: get_num_neighbors => get_num_neighbors_lattice
         procedure, public :: get_spinorb_neighbors => get_spinorb_neighbors_lat
 
+        procedure, public :: is_k_space 
         ! i definetly also want to have a print function! 
         procedure, public :: print 
+
+        procedure :: set_name
+
+        procedure, public :: get_name
 
         ! maybe i want set routines too? 
         ! but i guess i want the private, because there is no need of 
@@ -731,7 +749,6 @@ contains
 
     end function calc_nsites_aim
 
-
     logical function is_bath_site(this, ind) 
         class(aim) :: this 
         integer, intent(in) :: ind 
@@ -866,6 +883,13 @@ contains
         get_n_bath = this%n_bath
 
     end function get_n_bath
+
+    logical function is_k_space(this) 
+        class(lattice) :: this 
+
+        is_k_space = this%t_momentum_space
+
+    end function is_k_space 
 
     ! for the beginning set the aim periodicity to false all the time! 
     logical function is_periodic_aim(this, dimen)
@@ -2153,37 +2177,22 @@ contains
 
     end function aim_lattice_constructor
 
-    function lattice_constructor(lat_typ, length_x, length_y, length_z, t_periodic_x , &
+    function lattice_constructor(lattice_type, length_x, length_y, length_z, t_periodic_x , &
             t_periodic_y, t_periodic_z, space) result(this)
         ! write a general public lattice_constructor for lattices 
         ! the number of inputs are still undecided.. do we always have 
         ! the same number or differing number of inputs? 
         ! i guess, since we will be using global variables which are either 
         ! read in or set as default to init it.. 
-        character(*), intent(in) :: lat_typ
+        character(*), intent(in) :: lattice_type
         integer, intent(in) :: length_x, length_y, length_z
         logical, intent(in) :: t_periodic_x, t_periodic_y, t_periodic_z
         character(*), intent(in), optional :: space
         class(lattice), pointer :: this 
         character(*), parameter :: this_routine = "lattice_constructor"
 
-        ! depending on the string input defining lattice type 
-        ! initialize corresponding lattice 
-        if (present(space)) then 
-            select case(space) 
-            case ('k-space') 
-                ! do smth
 
-            case ('real-space')
-                ! do smth else 
-
-            case default 
-                call stop_all(this_routine, "not recognized space!")
-
-            end select 
-        end if
-
-        select case (lat_typ) 
+        select case (lattice_type) 
         case ('chain') 
 
             allocate(chain :: this) 
@@ -2254,6 +2263,24 @@ contains
                 'incorrect lattice type provided in lattice_constructor!')
 
         end select 
+
+        call this%set_name(lattice_type)
+
+        ! depending on the string input defining lattice type 
+        ! initialize corresponding lattice 
+        if (present(space)) then 
+            select case(space) 
+            case ('k-space') 
+                this%t_momentum_space = .true. 
+
+            case ('real-space')
+                this%t_momentum_space = .false.
+
+            case default 
+                call stop_all(this_routine, "not recognized space!")
+
+            end select 
+        end if
 
         ! the initializer deals with the different types then.. 
         call this%initialize(length_x, length_y, length_z, &
@@ -2379,6 +2406,21 @@ contains
 
     end subroutine allocate_sites
 
+    subroutine set_name(this, lat_type)
+        class(lattice) :: this
+        character(*), intent(in) :: lat_type 
+
+        this%name = lat_type
+
+    end subroutine set_name
+
+    function get_name(this) result(lattice_name) 
+        class(lattice) :: this
+        character(NAME_LEN) :: lattice_name
+
+        lattice_name = this%name
+
+    end function get_name
 
     subroutine deallocate_sites(this) 
         class(lattice) :: this
