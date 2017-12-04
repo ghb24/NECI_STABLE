@@ -251,7 +251,7 @@ contains
         ! initial states for verlet
         iterRK = 0
         
-        print *, " Real-time FCIQMC initialized! "
+        write(iout,*)  " Real-time FCIQMC initialized! "
         ! rewrite the major original neci core loop here and adapt it to 
         ! the new necessary real-time stuff
         ! check nicks kp code, to have a guideline in how to go into that! 
@@ -975,11 +975,9 @@ contains
         ! do a "normal" spawning step and combination to y(n) + k1/2
         ! into CurrentDets: 
 if(rkone) then
-if(iProcIndex == root .and. .false.) then
-        print *, "TotParts and totDets before first spawn: ", TotParts, TotWalkers
-        call extract_sign(CurrentDets(:,1), tmp_sign)
-        print *, "hf occ before first spawn:", tmp_sign
-endif
+   if(iProcIndex == root) then
+      print *, "TotParts and totDets before first spawn: ", TotParts, TotWalkers
+   endif
 
 if(both) then
         tau_real_tmp = tau_real
@@ -994,8 +992,7 @@ if(both) then
 endif
 
 if(iProcIndex == root .and. .false.) then
-        call extract_sign(CurrentDets(:,1), tmp_sign)
-        print *, "hf occ after first spawn:", tmp_sign
+        print *, "ValidSpawnedList", ValidSpawnedList
         print *, "TotParts and totDets after first spawn: ", TotParts, TotWalkers
         print *, "=========================="
      endif
@@ -1031,7 +1028,6 @@ if(rktwo) then
         ! information into the spawned k2 list..
         ! quick solution would be to loop again over reloaded y(n)
         ! and do a death step for wach walker
-
          call second_real_time_spawn()
 
         ! 3) 

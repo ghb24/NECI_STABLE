@@ -187,7 +187,7 @@ contains
         real(dp), intent(in) :: child_sign(lenof_sign)
         type(fcimc_iter_data), intent(inout) :: iter_data
 
-        integer :: proc, ind, hash_val, i, run
+        integer :: proc, ind, hash_val_cd, hash_val, i, run
         integer(n_int) :: int_sign(lenof_sign)
         real(dp) :: real_sign_old(lenof_sign), real_sign_new(lenof_sign)
         real(dp) :: sgn_prod(lenof_sign)
@@ -210,7 +210,6 @@ contains
             ! If the new child has an opposite sign to that of walkers already
             ! on the site, then annihilation occurs. The stats for this need
             ! accumulating.
-
             ! in the second real-time spawn loop, i can spawn also to 
             ! determinants, which are actually diagonal particles
             ! hence i have to update the diag_spawn flag if i annihilate all
@@ -304,7 +303,7 @@ contains
             if(tTruncInitiator .and. runge_kutta_step == 2) then
                ! check whether the target is already in CurrentDets
                call hash_table_lookup(nI_child, ilut_child, NIfDBO, HashIndex, &
-                    CurrentDets, ind, hash_val, tSuccess)
+                    CurrentDets, ind, hash_val_cd, tSuccess)
                if(tSuccess) then
                   call extract_sign(CurrentDets(:,ind), sgn_prod)
                   ! check whether the target is populated in this run
