@@ -975,7 +975,7 @@ contains
         ! do a "normal" spawning step and combination to y(n) + k1/2
         ! into CurrentDets: 
 if(rkone) then
-   if(iProcIndex == root) then
+   if(iProcIndex == root .and. .false.) then
       print *, "TotParts and totDets before first spawn: ", TotParts, TotWalkers
    endif
 
