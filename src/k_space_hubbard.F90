@@ -16,7 +16,7 @@ module k_space_hubbard
                     omega, bhub, nBasisMax, G1, BasisFN, NullBasisFn, TSPINPOLAR, & 
                     treal, ttilt, tExch
     use lattice_mod, only: get_helement_lattice_ex_mat, get_helement_lattice_general, &
-                           determine_optimal_time_step, lattice, sort_unique
+                           determine_optimal_time_step, lattice, sort_unique, lat
     use procedure_pointers, only: get_umat_el, generate_excitation
     use gen_coul_ueg_mod, only: get_hub_umat_el
     use constants, only: n_int, dp, EPS, bits_n_int
@@ -1429,7 +1429,6 @@ contains
                     if (is_beta(nI(i))) then 
                         ! is TMAT(nI) actually cos(k) ? or do i have to 
                         ! take this into account more specifically?
-                        !TODO
                         hel = hel + GetTMatEl(nI(i),nI(i))
                     end if
                 end do
@@ -1445,6 +1444,10 @@ contains
                 hel = hel + GetTMatEl(nI(i),nI(i))
             end do
         end if
+
+        ! remove the -t.. and add it afterwards is necesarry.. 
+        ! this is just a quick hack. do it properly elsewhere!
+        hel = hel / bhub
 
     end function get_one_body_diag
 
@@ -1729,9 +1732,22 @@ contains
     HElement_t(dp) function epsilon_kvec(k_vec)
         ! and actually this function has to be defined differently for 
         ! different type of lattices! TODO!
+        ! actually i could get rid of this function and directly call 
+        ! the dispersion relation of the lattice.. 
         integer, intent(in) :: k_vec(N_DIM)
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "epsilon_kvec"
+#endif
 
-        epsilon_kvec = h_cast(2*sum(cos(real(k_vec,dp))))
+        ASSERT(associated(lat)) 
+
+        ! i could save the basic lattice vectors for the lattice or even 
+        ! store the dispersion relation for each lattice type and call it 
+        ! with a given k-vector? 
+        epsilon_kvec = h_cast(lat%dispersion_rel(k_vec))
+        
+
+!         epsilon_kvec = h_cast(2*sum(cos(real(k_vec,dp))))
 
     end function epsilon_kvec
 
@@ -1753,6 +1769,8 @@ contains
         character(*), parameter :: this_routine = "three_body_transcorr_fac"
 #endif
         real(dp) :: n_opp
+
+        ASSERT(spin == 1 .or. spin == -1)
 
         ! i have to deside what i want to input here.. as spin sigma or -sigma..
         ! and here i want the number of electrons with the opposite spin
@@ -1929,6 +1947,8 @@ contains
 
         nJ = nI 
 
+        ASSERT(sum(get_spin_pn(src)) == sum(get_spin_pn(orbs)))
+
         ! i should do some stuff depending on the order of src and tgt 
         ! we have to check if electrons hop over other electrons, so we 
         ! might have to change the indexing to adapt to the change in nJ! 
@@ -1952,6 +1972,8 @@ contains
 
         pos_moved = 0 
 
+        print *, "::::::::"
+        print *, "nI: ", nI
         do k = 1, 3 
             if (src(k) < sort_orbs(k)) then 
                 if (sort_elecs(k) == nel) then 
@@ -1990,7 +2012,10 @@ contains
                 end if
             end if
 
+            print *, "k: ", k
+            print *, "nJ: ", nJ
             pos_moved = pos_moved + sort_elecs(k) - i + 1
+            print *, "pos_moved: ", pos_moved
 
         end do
 

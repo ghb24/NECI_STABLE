@@ -102,6 +102,9 @@ contains
 
         ! Count how far we have moved normal orbitals
         pos_moved = 0
+        print *, ""
+        print *, "----------------"
+        print *, "nI: ", nI
         do k = 1, 2
 
             ! If we need to search up or down depends on the relative sizes
@@ -110,7 +113,7 @@ contains
 
                 ! How far do we have to move the unaffected orbitals?
                 if (elecs(k) == nel) then
-                    i = nel+1
+                    i = nel + 1
                     nJ(nel) = tgts(k)
                 else
                     do i = elecs(k)+1, nel
@@ -145,23 +148,27 @@ contains
 
             end if
 
+            print *, "k: ", k
+            print *, "nJ: ", nJ 
+            print *, "pos_moved: ", pos_moved
             pos_moved = pos_moved + elecs(k) - i + 1
+            print *, "----------------"
 
         end do
 
         tParity = btest(pos_moved, 0)
 !        parity = 1 - 2 * modulo(pos_moved, 2)
 
-#ifdef __DEBUG
-        ! This is a useful (but O[N]) check to test the generated determinant.
-        if (.not. SymAllowedExcit(nI, nJ, 2, ex)) then 
-            print *, "nI: ", nI
-            print *, "nJ: ", nJ
-            print *, "elecs: ", ex(1,:)
-            print *, "orbs: ", ex(2,:)
-            call stop_all(this_routine, 'Generated invalid excitation')
-        end if
-#endif
+! #ifdef __DEBUG
+!         ! This is a useful (but O[N]) check to test the generated determinant.
+!         if (.not. SymAllowedExcit(nI, nJ, 2, ex)) then 
+!             print *, "nI: ", nI
+!             print *, "nJ: ", nJ
+!             print *, "elecs: ", ex(1,:)
+!             print *, "orbs: ", ex(2,:)
+!             call stop_all(this_routine, 'Generated invalid excitation')
+!         end if
+! #endif
 
     end subroutine
 

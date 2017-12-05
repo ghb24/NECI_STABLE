@@ -559,6 +559,8 @@ contains
 
     subroutine make_triple_test
 
+        use get_excit, only: make_double
+
         integer, allocatable :: nI(:), nJ(:)
         integer :: ex(2,3)
         logical :: tpar
@@ -573,22 +575,60 @@ contains
         print *, "testing: make_triple" 
         nI = [1,2,3] 
         call make_triple(nI,nJ,[1,2,3],[4,5,7],ex,tpar) 
-
         call assert_equals([4,5,7], nJ, 3)
         call assert_equals([1,2,3], ex(1,:),3)
         call assert_equals([4,5,7], ex(2,:),3)
         call assert_true(.not.tpar)
 
         ! and now more complicated stuff:
+        call make_triple(nI,nJ,[1,3,2],[7,5,4],ex,tpar) 
+        call assert_equals([4,5,7], nJ, 3)
+        call assert_equals([1,2,3], ex(1,:),3)
+        call assert_equals([4,5,7], ex(2,:),3)
+        call assert_true(.not.tpar)
+
+        nI = [1,2,5]
+        call make_triple(nI,nJ,[3,1,2],[3,4,7],ex,tpar) 
+        call assert_equals([3,4,7], nJ, 3)
+        call assert_equals([1,2,5], ex(1,:),3)
+        call assert_equals([3,4,7], ex(2,:),3)
+        call assert_true(.not.tpar)
+
+        call make_triple(nI,nJ,[3,2,1],[8,7,3],ex,tpar) 
+        call assert_equals([3,7,8], nJ, 3)
+        call assert_equals([1,2,5], ex(1,:),3)
+        call assert_equals([3,7,8], ex(2,:),3)
+        call assert_true(tpar)
+
+        call make_triple(nI,nJ,[3,2,1],[4,7,9],ex,tpar) 
+        call assert_equals([4,7,9], nJ, 3)
+        call assert_equals([1,2,5], ex(1,:),3)
+        call assert_equals([4,7,9], ex(2,:),3)
+        call assert_true(tpar)
+
+        nel = 2
+        call make_double([1,2],nJ, 1,2, 3,4, ex, tpar)
+        print *, ""
+        print *, "tpar: ", tpar
+        call make_double([1,2],nJ, 1,2, 5,4, ex, tpar)
+        print *, ""
+        print *, "tpar: ", tpar
+        
+        print *, ""
+        print *, "tpar: ", tpar
+
+        nel = 4
+
 
     end subroutine make_triple_test
 
     subroutine three_body_transcorr_fac_test
 
         integer :: p(3), q(3), k(3)
+        real(dp) :: test 
 
-        nel = 3
-        nOccBeta = 1
+        nel = 4
+        nOccBeta = 2
         nOccAlpha = 2
 
         print *, "" 
@@ -598,7 +638,40 @@ contains
         k = 0
 
         call assert_equals(h_cast(0.0_dp), &
-            three_body_transcorr_fac([1,2,3], p,q,k,1))
+            three_body_transcorr_fac([1,2,3,4], p,q,k,1))
+        call assert_equals(h_cast(0.0_dp), &
+            three_body_transcorr_fac([1,2,3,4], p,q,k,-1))
+
+        q(1) = 1 
+        k(1) = 2 
+        call assert_equals(h_cast(0.0_dp), &
+            three_body_transcorr_fac([1,2,3,4], p,q,k,1),1e-12)
+
+        p(1) = 2 
+        q(1) = 0 
+        k(1) = 1 
+        call assert_equals(h_cast(0.0_dp), &
+            three_body_transcorr_fac([1,2,3,4], p,q,k,1))
+
+        ! is there a non-zero combination? 
+        p(1) = 0
+        q(1) = 2
+        k(1) = 1
+        call assert_equals(h_cast(three_body_prefac*8), & 
+            three_body_transcorr_fac([1,2,3,4],p,q,k,1))
+        call assert_equals(h_cast(three_body_prefac*8), & 
+            three_body_transcorr_fac([1,2,3,4],p,q,k,-1))
+        
+        nOccBeta = 4 
+        nOccAlpha = 0
+        call assert_equals(h_cast(0.0_dp), & 
+            three_body_transcorr_fac([1,3,5,7],p,q,k,-1))
+
+        call assert_equals(h_cast(three_body_prefac*8), & 
+            three_body_transcorr_fac([1,3,5,7],p,q,k,1))
+
+        nOccBeta = 2
+        nOccAlpha = 2
 
     end subroutine three_body_transcorr_fac_test
 
@@ -610,9 +683,24 @@ contains
         print *, "testing: two_body_transcorr_factor" 
         p = 0
         k = 0
-        omega = 1.0_dp
 
-        call assert_equals(h_cast(0.0_dp), two_body_transcorr_factor(p,k))
+        call assert_equals(h_cast(-4.0_dp/omega * (cosh(trans_corr_param_2body) - 1)), & 
+            two_body_transcorr_factor(p,k))
+
+        p(1) = 1
+        call assert_equals(h_cast(0.0_dp), two_body_transcorr_factor(p,k),1.e-12)
+        call assert_equals(h_cast(-4.0_dp/omega * sinh(trans_corr_param_2body)), & 
+            two_body_transcorr_factor([2,0,0],[2,0,0]))
+
+        call assert_equals(h_cast(4.0_dp/omega * sinh(trans_corr_param_2body)), & 
+            two_body_transcorr_factor([0,0,0],[2,0,0]))
+
+        call assert_equals(h_cast(-2.0_dp/omega *(exp(-trans_corr_param_2body)-1)), & 
+            two_body_transcorr_factor([0,0,0],[1,0,0]),1.e-12)
+
+
+        call assert_equals(h_cast(4.0_dp/omega * (cosh(trans_corr_param_2body) - 1)), & 
+            two_body_transcorr_factor([2,0,0],[0,0,0]))
 
     end subroutine two_body_transcorr_factor_test
 
@@ -620,10 +708,15 @@ contains
 
         integer :: k(3)
 
+        ! depending on the lattice dimension.. 
+        ! and also the tilted has other values or?? 
         print *, "" 
         print *, "testing: epsilon_kvec"
         k = 0 
-        call assert_equals(h_cast(4.0_dp), epsilon_kvec(k))
+        call assert_equals(h_cast(2.0_dp), epsilon_kvec(k))
+        call assert_equals(h_cast(0.0_dp), epsilon_kvec([1,0,0]),1e-12)
+        call assert_equals(h_cast(0.0_dp), epsilon_kvec([-1,0,0]),1e-12)
+        call assert_equals(h_cast(-2.0_dp), epsilon_kvec([2,0,0]))
 
     end subroutine epsilon_kvec_test
 
@@ -632,38 +725,60 @@ contains
         integer :: k(3) 
         integer, allocatable :: nI(:) 
 
-        nel = 3 
+        nel = 4
         allocate(nI(nel))
+
+        nI = [1,2,3,4] 
 
         print *, "" 
         print *, "testing: same_spin_transcorr_factor" 
-        call assert_equals(h_cast(0.0_dp), & 
-            same_spin_transcorr_factor([1,2,3],k,1))
 
-        nel = -1
+        call assert_equals(h_cast(three_body_prefac*4), same_spin_transcorr_factor([1,2,3,4],[0,0,0],1),1.e-12)
+        call assert_equals(h_cast(three_body_prefac*4), same_spin_transcorr_factor([1,2,3,4],[0,0,0],-1),1.e-12)
+        call assert_equals(h_cast(0.0_dp), same_spin_transcorr_factor([1,2,3,4],[1,0,0],-1),1.e-12)
+        call assert_equals(h_cast(-three_body_prefac*4), same_spin_transcorr_factor([1,2,3,4],[2,0,0],-1),1.e-12)
+
+        call assert_equals(h_cast(0.0_dp), same_spin_transcorr_factor([1,3,5,7],[0,0,0],1))
+        call assert_equals(h_cast(0.0_dp), same_spin_transcorr_factor([1,3,5,7],[0,0,0],-1))
 
     end subroutine same_spin_transcorr_factor_test
-
 
     subroutine get_one_body_diag_test
 
         integer, allocatable :: nI(:)
         class(lattice), pointer :: ptr
+        integer :: i 
 
-        nel = 3 
+        nel = 4
 
         allocate(nI(nel))
-        nI = [1,2,3]
+        nI = [1,2,3,4]
         
         ! i think i also want to use the lattice functionality in the 
         ! k-space hubbard model.. but i still have to think about how to do that!
         ! allow an additional input flag! 
-        ptr => lattice('chain', 4, 1, 1, .true., .true., .true.,'k-space')
 
-        call setup_tmat_k_space(ptr) 
+!         ptr => lattice('chain', 4, 1, 1, .true., .true., .true.,'k-space')
+
+!         call setup_tmat_k_space(ptr) 
         print *, "" 
         print *, "testing: get_one_body_diag" 
+        ! the spin = 1 means i want the diagonal contribution of the alpha 
+        ! electrons! 
+        call assert_equals(h_cast(2.0_dp), get_one_body_diag(nI,1))
+        call assert_equals(h_cast(2.0_dp), get_one_body_diag(nI,-1))
+        call assert_equals(h_cast(4.0_dp), get_one_body_diag(nI))
+
+        nI = [1,2,5,6]
+        call assert_equals(h_cast(0.0_dp), get_one_body_diag(nI,1),1.e-8)
+        call assert_equals(h_cast(0.0_dp), get_one_body_diag(nI,-1),1e-8)
+        call assert_equals(h_cast(0.0_dp), get_one_body_diag(nI),1.e-8)
+
+        nI = [1,3,5,7]
         call assert_equals(h_cast(0.0_dp), get_one_body_diag(nI,1))
+        call assert_equals(h_cast(0.0_dp), get_one_body_diag(nI,-1))
+        call assert_equals(h_cast(0.0_dp), get_one_body_diag(nI))
+
 
     end subroutine get_one_body_diag_test
 
