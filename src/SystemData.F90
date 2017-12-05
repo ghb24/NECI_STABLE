@@ -288,7 +288,7 @@ real(dp) :: nn_bhub = 0.0_dp
 logical :: t_twisted_bc = .false.
 
 ! i also have to store the twist 
-real(dp) :: twisted_bc(2) = 0.0_dp
+real(dp) :: twisted_bc(3) = 0.0_dp
 
 ! do a quick test with different weightings of picking orbitals (a) 
 logical :: t_iiaa = .false., t_ratio = .false. 

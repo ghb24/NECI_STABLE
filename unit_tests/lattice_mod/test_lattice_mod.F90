@@ -5,6 +5,7 @@
 
 program test_lattice_mod 
 
+    use constants, only: dp, pi
     use lattice_mod 
     use fruit 
 
@@ -404,6 +405,11 @@ contains
         
         call assert_equals([1,3,7,11], ptr%get_spinorb_neighbors(15),4)
 
+        call assert_equals(4.0_dp, ptr%dispersion_rel([0,0,0]))
+        call assert_equals(-4.0_dp, ptr%dispersion_rel([2,0,0]))
+        call assert_equals(0.0_dp, ptr%dispersion_rel([1,1,0]),1.e-10)
+        call assert_equals(0.0_dp, ptr%dispersion_rel([-1,0,0]),1.e-10)
+
         call lattice_deconstructor(ptr)
 
         print *, "" 
@@ -556,6 +562,13 @@ contains
         call assert_equals([4,7,9,13], ptr%get_neighbors(8),4)
         call assert_equals([1,5,9,16], ptr%get_neighbors(18),4)
         call assert_equals([7,11,13,16], ptr%get_neighbors(12),4)
+
+        call assert_equals(4.0_dp, ptr%dispersion_rel([0,0,0]))
+        call assert_equals(2.0_dp, ptr%dispersion_rel([-1,0,0]),1.e-10)
+        call assert_equals(1.0_dp, ptr%dispersion_rel([-1,-1,0]),1.e-10)
+        call assert_equals(-1.0_dp, ptr%dispersion_rel([2,1,0]),1.e-10)
+        call assert_equals(-2.0_dp, ptr%dispersion_rel([0,2,0]),1.e-10)
+        call assert_equals(-4.0_dp, ptr%dispersion_rel([3,0,0]))
 
         call lattice_deconstructor(ptr)
 
@@ -739,6 +752,10 @@ contains
         call assert_equals(2, ptr%get_num_neighbors(2))
         call assert_equals(2, ptr%get_num_neighbors(3))
         call assert_equals(2, ptr%get_num_neighbors(4))
+        call assert_equals(4.0_dp, ptr%dispersion_rel([0,0,0]))
+        call assert_equals(0.0_dp, ptr%dispersion_rel([0,1,0]))
+        call assert_equals(0.0_dp, ptr%dispersion_rel([1,0,0]))
+        call assert_equals(-4.0_dp, ptr%dispersion_rel([1,1,0]))
 
         call lattice_deconstructor(ptr)
 
@@ -772,6 +789,11 @@ contains
         call assert_equals(4, ptr%get_num_neighbors(2))
         call assert_equals(4, ptr%get_num_neighbors(3))
         call assert_equals(4, ptr%get_num_neighbors(4))
+
+        call assert_equals(4.0_dp, ptr%dispersion_rel([0,0,0]))
+        call assert_equals(2.0_dp*(1.0_dp + cos(2*pi/3)), ptr%dispersion_rel([1,0,0]))
+        call assert_equals(2.0_dp*(1.0_dp + cos(2*pi/3)), ptr%dispersion_rel([0,1,0]))
+
 
         call lattice_deconstructor(ptr)
 
@@ -1414,6 +1436,9 @@ contains
         ! of elements input!
         call assert_equals(ptr%get_neighbors(1), [-1], 1)
 
+        call assert_equals(2.0_dp, ptr%dispersion_rel([0,0,0]))
+        call assert_equals(2.0_dp, ptr%dispersion_rel([1,0,0]))
+
         call lattice_deconstructor(ptr) 
 
         call assert_true(.not.associated(ptr)) 
@@ -1458,6 +1483,8 @@ contains
         call assert_equals(2, ptr%get_num_neighbors(1))
         call assert_equals(2, ptr%get_num_neighbors(2))
         call assert_equals(2, ptr%get_num_neighbors(100))
+        call assert_equals(2.0_dp, ptr%dispersion_rel([0,0,0]))
+        call assert_equals(2.0_dp*cos(2*pi/100), ptr%dispersion_rel([1,0,0]))
         ! i actually do not need to have the common lattice type or? 
         ! when i want to test a chain i could just use a chain or? 
 

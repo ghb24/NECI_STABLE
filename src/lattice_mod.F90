@@ -10,7 +10,8 @@ module lattice_mod
 
     use OneEInts, only: tmat2d
     use UmatCache, only: gtid
-    use constants, only: dp
+    use constants, only: dp, pi
+    use SystemData, only: twisted_bc
 
     implicit none 
     private 
@@ -206,6 +207,10 @@ module lattice_mod
 
         procedure :: deallocate_sites
 
+        ! for the k-space implementations also implement a lattice 
+        ! dependent dispersion relation function 
+        procedure, public :: dispersion_rel => dispersion_rel_not_implemented
+
     end type lattice 
     ! and the plan is than to extend this with the specific lattices 
 
@@ -259,6 +264,8 @@ module lattice_mod
         procedure :: calc_nsites => calc_nsites_chain
         procedure :: initialize_sites => init_sites_chain
 
+        procedure, public :: dispersion_rel => dispersion_rel_chain
+
     end type chain
 
     
@@ -272,6 +279,7 @@ module lattice_mod
 
         procedure, public :: get_length => get_length_cube
         procedure, public :: is_periodic => is_periodic_cube
+        procedure, public :: dispersion_rel => dispersion_rel_cube    
 
         procedure :: set_length => set_length_cube
         procedure :: calc_nsites => calc_nsites_cube
@@ -289,6 +297,7 @@ module lattice_mod
 
         procedure, public :: get_length => get_length_rect
         procedure, public :: is_periodic => is_periodic_rect
+        procedure, public :: dispersion_rel => dispersion_rel_rect
 
 !         procedure, public :: get_length_x, get_length_y
 
@@ -303,8 +312,12 @@ module lattice_mod
         private
     contains
         private
+
+!         procedure, public :: dispersion_rel => dispersion_rel_not_implemented
+
         procedure :: calc_nsites => calc_nsites_kagome
         procedure :: initialize_sites => init_sites_kagome
+
 
     end type kagome
 
@@ -315,6 +328,8 @@ module lattice_mod
 
     contains 
         private 
+
+!         procedure, public :: dispersion_rel => dispersion_rel_not_implemented
 
         procedure :: calc_nsites => calc_nsites_hexagonal 
         procedure :: initialize_sites => init_sites_hexagonal
@@ -327,6 +342,8 @@ module lattice_mod
 
     contains 
         private 
+
+!         procedure, public :: dispersion_rel => dispersion_rel_not_implemented
 
         ! number of sites is also the same! atleast in this definition of 
         ! the triangular lattice 
@@ -342,6 +359,7 @@ module lattice_mod
     contains
         private 
 
+        procedure, public :: dispersion_rel => dispersion_rel_tilted
 ! 
         procedure :: calc_nsites => calc_nsites_tilted
         procedure :: initialize_sites => init_sites_tilted
@@ -359,6 +377,9 @@ module lattice_mod
         private 
 
         procedure, public :: get_length => get_length_aim_chain
+
+!         procedure, public :: dispersion_rel => dispersion_rel_not_implemented
+
         procedure :: set_length => set_length_aim_chain
 
         procedure :: initialize_sites => init_sites_aim_chain
@@ -379,6 +400,8 @@ module lattice_mod
         procedure, public :: get_length => get_length_star
         procedure, public :: is_periodic => is_periodic_star
 
+!         procedure, public :: dispersion_rel => dispersion_rel_not_implemented
+
     end type star
 
     type, extends(aim) :: aim_star 
@@ -394,6 +417,7 @@ module lattice_mod
         procedure, public :: is_periodic => is_periodic_aim_star
         procedure, public :: get_length => get_length_aim_star
 
+!         procedure, public :: dispersion_rel => dispersion_rel_not_implemented
 
     end type aim_star
 
@@ -412,6 +436,8 @@ module lattice_mod
 
         procedure :: initialize_sites => init_sites_cluster_aim
 !         procedure :: initialize_sites => init_sites_cluster_aim_test
+
+!         procedure, public :: dispersion_rel => dispersion_rel_not_implemented
 
     end type cluster_aim 
 
@@ -473,6 +499,13 @@ module lattice_mod
             class(lattice) :: this 
         end subroutine initialize_sites_t
 
+        function dispersion_rel_t(this, k_vec) result(disp) 
+            use constants, only: dp
+            import :: lattice 
+            class(lattice) :: this 
+            integer, intent(in) :: k_vec(3) 
+            real(dp) :: disp 
+        end function dispersion_rel_t
     end interface
 
     interface lattice
@@ -1909,6 +1942,88 @@ contains
 
 
     end subroutine init_sites_tilted
+
+    function dispersion_rel_chain(this, k_vec) result(disp) 
+        class(chain) :: this 
+        integer, intent(in) :: k_vec(3) 
+        real(dp) :: disp 
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "dispersion_rel_chain" 
+#endif
+
+
+        ! for now only do it for periodic boundary conditions.. 
+        ASSERT(this%is_periodic())
+
+        ! and for now only for nearest neighbor interaction! 
+        ! although this is just the nearest neighbor band.. 
+        ! for next nearest and additional function should be implemented!
+
+        ! i need to bring in the length of the chain and stuff.. 
+        ! and i should consider twisted boundary conditions and nearest 
+        ! neigbhors here too..? i think so.. 
+        disp = 2.0_dp * cos(2*pi*(k_vec(1) + twisted_bc(1))/this%length)
+
+    end function dispersion_rel_chain
+
+    function dispersion_rel_rect(this, k_vec) result(disp)
+        class(rectangle) :: this 
+        integer, intent(in) :: k_vec(3)
+        real(dp) :: disp 
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "dispersion_rel_rect"
+#endif
+
+        ASSERT(this%is_periodic())
+
+        disp = 2.0_dp * (cos(2*pi*(k_vec(1)+twisted_bc(1))/this%length(1)) & 
+                        +cos(2*pi*(k_vec(2)+twisted_bc(2))/this%length(2)))
+
+    end function dispersion_rel_rect
+
+    function dispersion_rel_cube(this, k_vec) result(disp) 
+        class(cube) :: this 
+        integer, intent(in) :: k_vec(3)
+        real(dp) :: disp 
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "dispersion_rel_cube" 
+#endif 
+
+        ASSERT(this%is_periodic())
+
+        disp = 2.0_dp * (cos(2*pi*(k_vec(1)+twisted_bc(1))/this%length(1)) &
+                        +cos(2*pi*(k_vec(2)+twisted_bc(2))/this%length(2)) & 
+                        +cos(2*pi*(k_vec(3)+twisted_bc(3))/this%length(3)))
+
+    end function dispersion_rel_cube
+
+    function dispersion_rel_tilted(this, k_vec) result(disp) 
+        class(tilted) :: this 
+        integer, intent(in) :: k_vec(3)
+        real(dp) :: disp
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "dispersion_rel_tilted"
+#endif
+
+        ASSERT(this%is_periodic())
+
+        disp = 2.0_dp * (cos(2*pi*((k_vec(1)+twisted_bc(1))*this%length(1) &
+                                  +(k_vec(2)+twisted_bc(2))*this%length(2))/this%n_sites) & 
+                        +cos(2*pi*((k_vec(1)+twisted_bc(1))*this%length(2) & 
+                                  -(k_vec(2)+twisted_bc(2))*this%length(1))/this%n_sites))
+
+    end function dispersion_rel_tilted
+
+    function dispersion_rel_not_implemented(this, k_vec) result(disp)
+        class(lattice) :: this 
+        integer, intent(in) :: k_vec(3) 
+        real(dp) :: disp 
+        character(*), parameter :: this_routine = "dispersion_rel"
+
+        call stop_all(this_routine, &
+            "dispersion relation not yet implemented for this lattice type!")
+
+    end function dispersion_rel_not_implemented
 
     function sort_unique(list) result(output)
         integer, intent(in) :: list(:)
