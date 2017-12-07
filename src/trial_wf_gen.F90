@@ -102,6 +102,7 @@ contains
             else
                 trial_wfs = temp_wfs
                 trial_energies = temp_energies
+                print *, "energy eigenvalue(s): ", trial_energies(1:nexcit_keep)
             end if
             deallocate(temp_wfs, stat=ierr)
             if (ierr /= 0) call stop_all(t_r, "Error deallocating temp_wfs.")

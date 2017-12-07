@@ -102,9 +102,9 @@ contains
 
         ! Count how far we have moved normal orbitals
         pos_moved = 0
-        print *, ""
-        print *, "----------------"
-        print *, "nI: ", nI
+!         print *, ""
+!         print *, "----------------"
+!         print *, "nI: ", nI
         do k = 1, 2
 
             ! If we need to search up or down depends on the relative sizes
@@ -148,11 +148,11 @@ contains
 
             end if
 
-            print *, "k: ", k
-            print *, "nJ: ", nJ 
-            print *, "pos_moved: ", pos_moved
+!             print *, "k: ", k
+!             print *, "nJ: ", nJ 
             pos_moved = pos_moved + elecs(k) - i + 1
-            print *, "----------------"
+!             print *, "pos_moved: ", pos_moved
+!             print *, "----------------"
 
         end do
 

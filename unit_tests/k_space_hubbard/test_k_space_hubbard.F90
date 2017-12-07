@@ -17,7 +17,7 @@ program test_k_space_hubbard
                           bhub, uhub, omega, trans_corr_param_2body, & 
                           t_trans_corr, t_trans_corr_2body, trans_corr_param, & 
                           thub, tpbc, treal, ttilt, TSPINPOLAR, & 
-                          tCPMD, tVASP, tExch
+                          tCPMD, tVASP, tExch, tHphf
     use bit_rep_data, only: niftot, nifd
     use lattice_mod, only: lat, lattice
     use dsfmt_interface, only: dsfmt_init
@@ -72,6 +72,8 @@ contains
         tCPMD = .false. 
 
         tExch = .true. 
+
+        thphf = .false.
 
         bhub = -1.0
 
@@ -613,10 +615,25 @@ contains
         call make_double([1,2],nJ, 1,2, 5,4, ex, tpar)
         print *, ""
         print *, "tpar: ", tpar
-        
-        print *, ""
+        call make_double([1,2],nJ, 1,2, 3,6, ex, tpar) 
         print *, "tpar: ", tpar
 
+        nel = 3 
+        call make_double([1,2,4],nJ,1,2,5,6,ex,tpar)
+        print *, ""
+        print *, "5,6 tpar: ", tpar
+
+        call make_double([1,2,4],nj,1,2,3,6,ex,tpar)
+        print *, ""
+        print *, "3,6 tpar: ", tpar
+
+        call make_double([1,2,4],nJ, 1, 2, 6, 7, ex, tpar)
+        print *, ""
+        print *, "6,7 tpar: ", tpar
+
+        call make_double([1,2,3],nJ, 1, 2, 4, 7, ex, tpar)
+        print *, ""
+        print *, "4,7 tpar: ", tpar
         nel = 4
 
 
