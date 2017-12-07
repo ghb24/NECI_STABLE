@@ -72,6 +72,10 @@ module real_time_data
     ! the damping due to the DiagSft contribution in the imaginary time propagation
     real(dp), allocatable :: shift_damping(:)
     real(dp), allocatable :: TotPartsPeak(:)
+    ! Buffer to store values of alpha when dynamically updating it to get some
+    ! information on trends in alpha
+    real(dp), allocatable :: alphaLog(:)
+    integer :: alphaLogSize, alphaLogPos
 
     ! also store the current overlap of the cycle.. 
 

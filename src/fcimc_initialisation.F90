@@ -1219,6 +1219,9 @@ contains
         real(dp) :: dummy(lenof_sign)        
         !default
         Popinum_runs=1
+        ! set default pops version, this should not have any functional impact, 
+        ! but prevents using it uninitialized
+        PopsVersion=4
 
         if(tPopsAlias) then
            identifier = aliasStem

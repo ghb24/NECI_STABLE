@@ -30,7 +30,8 @@ module real_time_init
                               tInfInit,  popSnapshot, snapshotOrbs, phase_factors, tVerletSweep, &
 			      numSnapshotOrbs, tLowerThreshold, t_kspace_operators, tVerletScheme, &
                               tLogTrajectory, tReadTrajectory, alphaCache, tauCache, trajFile, &
-                              tGenerateCoreSpace, tGZero, wn_threshold, corespace_log_interval
+                              tGenerateCoreSpace, tGZero, wn_threshold, corespace_log_interval, &
+                              alphaLog, alphaLogSize, alphaLogPos
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_norm, clean_overlap_states, openTauContourFile
     use verlet_aux, only: backup_initial_state, setup_delta_psi
@@ -158,6 +159,11 @@ contains
         allocate(temp_freeslot(MaxWalkersPart),stat = ierr)
         allocate(TotPartsPeak(inum_runs),stat = ierr)
         allocate(numCycShiftExcess(inum_runs), stat = ierr)
+        ! allocate the buffer for storing previous values of alpha
+        ! for now, take 50 values of alpha in the log
+        alphaLogSize = 50
+        alphaLogPos = 1
+        allocate(alphaLog(alphaLogSize), stat = ierr)
         numCycShiftExcess = 0
         ! allocate spawn buffer for verlet scheme
         if(tVerletScheme) allocate(spawnBuf(0:niftot,1:maxSpawned))
