@@ -1,4 +1,4 @@
-.DEFAULT_GOAL := bin/neci.x
+.DEFAULT_GOAL := neci
 
 %:
-	cd .. && $(MAKE) $@
+	cd ../build && $(MAKE) -j 8 --no-print-directory $@
