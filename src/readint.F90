@@ -1132,6 +1132,7 @@ contains
       CALL MPIBCast(PROPBITLEN,1)
       CALL MPIBCast(NPROP,3)
  
+      core = 0.0d0
       iSpins=2
       IF((UHF.and.(.not.tROHF)).or.tReltvy) ISPINS=1
  
