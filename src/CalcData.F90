@@ -107,6 +107,7 @@ LOGICAL :: TUnbiasPGeninProjE, tCheckHighestPopOnce
 LOGICAL :: tCheckHighestPop,tRestartHighPop,tChangeProjEDet
 LOGICAL :: tRotoAnnihil,tSpawnAsDet
 LOGICAL :: tTruncCAS,tTruncInitiator,tAddtoInitiator    !Truncation the FCIMC excitation space by CAS
+LOGICAL :: tSeniorInitiators !If a det. has lived long enough (called a senior det.), it is added to the initiator space.
 LOGICAL :: tInitIncDoubs,tWalkContGrow,tAnnihilatebyRange
 logical :: tReadPopsRestart, tReadPopsChangeRef, tInstGrowthRate
 logical :: tAllRealCoeff, tUseRealCoeffs
@@ -141,6 +142,7 @@ real(dp) :: iWeightPopRead
 real(dp) :: MaxWalkerBloom   !Max number of walkers allowed in one bloom before reducing tau
 INTEGER(int64) :: HFPopThresh
 real(dp) :: InitWalkers, maxnoathf, InitiatorWalkNo
+real(dp) :: SeniorityAge !A threshold on the life time of a determinat (measured in its halftime) to become a senior determinant.
 
 ! The average number of excitations to be performed from each walker.
 real(dp) :: AvMCExcits
@@ -203,6 +205,8 @@ logical :: tUniqueHFNode
 
 ! Options relating to the semi-stochastic code.
 logical :: tSemiStochastic ! Performing a semi-stochastic simulation if true.
+logical :: tDynamicCoreSpace, tStaticCore ! update the corespace
+integer :: coreSpaceUpdateCycle
 ! Input type describing which space(s) type to use.
 type(subspace_in) :: ss_space_in
 

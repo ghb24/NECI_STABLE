@@ -61,7 +61,6 @@ module AnnihilationMod
         call CompressSpawnedList(MaxIndex, iter_data)  
 
         call halt_timer(Compress_time)
-
          ! If the semi-stochastic approach is being used then the following routine performs the
          ! annihilation of the deterministic states. These states are subsequently skipped in the
          ! AnnihilateSpawnedParts routine.
@@ -604,7 +603,7 @@ module AnnihilationMod
                     call encode_sign(SpawnedParts(:,i), null_part)
 
                     ! If the sign changed, the adi check has to be redone
-                    if(any(real(SignProd,dp) < 0.0_dp)) &
+                    if(tUseFlags .and. any(real(SignProd,dp) < 0.0_dp)) &
                          call clr_flag(CurrentDets(:,PartInd), flag_adi_checked)
 
                     do j = 1, lenof_sign

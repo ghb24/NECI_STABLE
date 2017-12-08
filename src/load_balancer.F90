@@ -5,15 +5,17 @@ module load_balance
                         tCheckHighestPop, OccupiedThresh, &
                         tContTimeFCIMC, &
                         tContTimeFull, tTrialWavefunction, &
-                        tPairedReplicas
+                        tPairedReplicas, tau, tSeniorInitiators
     use global_det_data, only: global_determinant_data, &
-                               set_det_diagH, set_spawn_rate
+                               set_det_diagH, set_spawn_rate, &
+                               set_all_spawn_pops, reset_all_tau_ints, &
+                               reset_all_shift_ints
     use bit_rep_data, only: flag_initiator, NIfDBO, &
                             flag_connected, flag_trial
     use bit_reps, only: set_flag, nullify_ilut_part, &
-                        encode_part_sign, nullify_ilut
+                        encode_part_sign, nullify_ilut, extract_part_sign
     use FciMCData, only: HashIndex, FreeSlot, CurrentDets, iter_data_fciqmc, &
-                         tFillingStochRDMOnFly, full_determ_vecs
+                         tFillingStochRDMOnFly, full_determ_vecs, Iter
     use searching, only: hash_search_trial, bin_search_trial
     use Determinants, only: get_helement, write_det
     use LoggingData, only: tOutputLoadDistribution
@@ -405,6 +407,7 @@ contains
         HElement_t(dp) :: HDiag
         HElement_t(dp) :: trial_amps(ntrial_excits)
         logical :: tTrial, tCon
+        real(dp), dimension(lenof_sign) :: SignCurr
         character(len=*), parameter :: t_r = "AddNewHashDet"
 
         if (iStartFreeSlot <= iEndFreeSlot) then
@@ -433,6 +436,13 @@ contains
         ! except the first one, holding the diagonal Hamiltonian element.
         global_determinant_data(:,DetPosition) = 0.0_dp
         call set_det_diagH(DetPosition, real(HDiag,dp) - Hii)
+
+        if(tSeniorInitiators) then
+            call extract_sign (ilutCurr, SignCurr)
+            call set_all_spawn_pops(DetPosition, SignCurr)
+            call reset_all_tau_ints(DetPosition)
+            call reset_all_shift_ints(DetPosition)
+        end if
 
         ! If using a trial wavefunction, search to see if this state is in
         ! either the trial or connected space. If so, *_search_trial returns
