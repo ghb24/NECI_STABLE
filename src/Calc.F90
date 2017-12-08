@@ -239,6 +239,8 @@ contains
           tTruncInitiator=.false.
           tAddtoInitiator=.false.
           InitiatorWalkNo=3.0_dp
+          tSeniorInitiators =.false.
+          SeniorityAge=1.0_dp
           tInitIncDoubs=.false.
           MaxNoatHF=0.0_dp
           HFPopThresh=0
@@ -1755,6 +1757,13 @@ contains
                 tAddtoInitiator=.true.
                 call getf(InitiatorWalkNo)
 
+            case("SENIOR-INITIATORS")
+!This option means that if a determinant has lived  long enough (called a 'senior determinant'),
+!it is added to the initiaor space. A determinant is considered 'senior' if its life time (measured in its halftime) exceeds SeniortyAge.
+                tSeniorInitiators =.true.
+                if(item.lt.nitems) then
+                    call getf(SeniorityAge)
+                end if
             case("INITIATOR-ENERGY-CUTOFF")
                 !
                 ! Specify both a threshold an an addtoinitiator value for
