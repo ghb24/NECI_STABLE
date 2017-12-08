@@ -180,13 +180,14 @@ contains
         use Parallel_neci, only: MPISumAll
         use rdm_data, only: rdm_estimates_t, rdm_list_t, rdm_definitions_t
         use SystemData, only: nel, ecore
+        use OneEInts, only: PropCore
         use LoggingData, only: iNumPropToEst, tCalcPropEst
 
         type(rdm_definitions_t), intent(in) :: rdm_defs
         type(rdm_estimates_t), intent(inout) :: est
         type(rdm_list_t), intent(in) :: rdm
 
-        integer :: irdm
+        integer :: irdm, iprop
         real(dp) :: rdm_trace(est%nrdms), rdm_norm(est%nrdms)
         real(dp) :: rdm_energy_1(est%nrdms), rdm_energy_2(est%nrdms)
         real(dp) :: rdm_spin(est%nrdms)
@@ -234,6 +235,10 @@ contains
             ! and all the standard and transition rdms. 
             call calc_rdm_prop(rdm, rdm_prop)
             call MPISumAll(rdm_prop, est%property)
+            ! Add the contribution from the core (zero body) part of the perturbation. 
+            do iprop= 1, iNumPropToEst
+                est%property(iprop,:) = est%property(iprop,:) + est%norm*PropCore(iprop)
+            end do
         endif
 
         ! Calculate the instantaneous values by subtracting the old total
