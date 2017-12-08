@@ -34,8 +34,8 @@ contains
         use FciMCData, only: determ_sizes, determ_displs, full_determ_vecs, full_determ_vecs_av
         use FciMCData, only: partial_determ_vecs, determ_space_size, determ_space_size_int
         use FciMCData, only: TotWalkers, TotWalkersOld, indices_of_determ_states, SpawnedParts
-        use FciMCData, only: FDetermTag, FDetermAvTag, PDetermTag, IDetermTag, SemiStoch_Init_Time
-        use FciMCData, only: tStartCoreGroundState, iter_data_fciqmc, iter
+        use FciMCData, only: FDetermTag, FDetermAvTag, PDetermTag, IDetermTag
+        use FciMCData, only: tStartCoreGroundState, iter_data_fciqmc
         use load_balance, only: adjust_load_balance
         use load_balance_calcnodes, only: tLoadBalanceBlocks
         use sort_mod, only: sort
@@ -47,6 +47,7 @@ contains
         integer :: nI(nel)
         integer(MPIArg) :: mpi_temp
         character (len=*), parameter :: t_r = "init_semi_stochastic"
+        type(timer) :: SemiStoch_Init_Time
 
         ! If we are load balancing, this gets disabled once semi stochastic
         ! has been initialised. Therefore we should do a last-gasp load
@@ -1481,7 +1482,6 @@ contains
 
     subroutine refresh_semistochastic_space()
       use FciMCData, only: iter_data_fciqmc
-      use CalcData, only: ss_space_in, tStaticCore
       use semi_stoch_procs, only: end_semistoch
       implicit none
       
