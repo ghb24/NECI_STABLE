@@ -281,6 +281,7 @@ contains
           tSemiStochastic = .false.
           tCSFCore = .false.
           tDynamicCoreSpace = .false.
+          tStaticCore = .true.
           coreSpaceUpdateCycle = 400
           semistoch_shift_iter = 0
           tTrialWavefunction = .false.
