@@ -156,7 +156,7 @@ contains
         ! If using a trial wavefunction, and that initialisation has already
         ! been performed, then the current_trial_amps array needs correcting
         ! after the core states were added and sorted into CurrentDets.
-        if(tStaticCore) call reinit_current_trial_amps()
+        call reinit_current_trial_amps()
 
         ! If starting from a popsfile then global_determinant_data will not
         ! have been initialised, or if in the middle of a calculation then new
@@ -166,7 +166,7 @@ contains
         SpawnedParts = 0_n_int
         TotWalkersOld = TotWalkers
 
-        if (tStartCoreGroundState .and. (.not. tReadPops)) &
+        if (tStartCoreGroundState .and. (.not. tReadPops) .and. tStaticCore) &
             call start_walkers_from_core_ground(tPrintInfo = .true.)
 
         ! Call MPIBarrier here so that Semistoch_Init_Time will give the
