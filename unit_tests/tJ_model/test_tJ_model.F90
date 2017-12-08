@@ -895,7 +895,7 @@ contains
 
         print *, "" 
         print *, "testing: setup_exchange_matrix"
-        exchange_j = -2.0 
+        exchange_j = 2.0 
         lat => lattice('chain', 2, 1, 1, .true.,.true.,.true.)
         nbasis = 4 
         call setup_exchange_matrix(lat)
@@ -926,7 +926,7 @@ contains
 
         nel = 2 
         bhub = 2.0 
-        exchange_j = -2.0 
+        exchange_j = 2.0 
 
         lat => lattice('chain', 2, 1, 1, .false.,.false.,.false.) 
         call init_tmat(lat) 
@@ -953,8 +953,8 @@ contains
         call assert_equals(h_cast(0.0_dp), get_helement([1,2],[1,2]))
 
         ! but i am not yet sure about the double counting.. 
-        call assert_equals(h_cast(1.0_dp), get_helement([1,4],[1,4],0))
-        call assert_equals(h_cast(1.0_dp), get_helement([2,3],[2,3]))
+        call assert_equals(h_cast(-1.0_dp), get_helement([1,4],[1,4],0))
+        call assert_equals(h_cast(-1.0_dp), get_helement([2,3],[2,3]))
 
         call assert_equals(h_cast(0.0_dp), get_helement([1,3],[1,3]))
         call assert_equals(h_cast(0.0_dp), get_helement([2,4],[2,4]))
@@ -1020,12 +1020,12 @@ contains
         call assert_equals(h_cast(0.0_dp), get_helement([1,3,5,7],[1,3,5,7]))
         call assert_equals(h_cast(0.0_dp), get_helement([2,4,6,8],[2,4,6,8]))
 
-        call assert_equals(h_cast(2.0_dp), get_helement([1,3,6,8],[1,3,6,8]))
-        call assert_equals(h_cast(2.0_dp), get_helement([2,4,5,7],[2,4,5,7]))
+        call assert_equals(h_cast(-2.0_dp), get_helement([1,3,6,8],[1,3,6,8]))
+        call assert_equals(h_cast(-2.0_dp), get_helement([2,4,5,7],[2,4,5,7]))
 
-        call assert_equals(h_cast(2.0_dp), get_helement([1,4,5,8],[1,4,5,8]))
+        call assert_equals(h_cast(-2.0_dp), get_helement([1,4,5,8],[1,4,5,8]))
 
-        call assert_equals(h_cast(4.0_dp), get_helement([1,4,6,7],[1,4,6,7]))
+        call assert_equals(h_cast(-4.0_dp), get_helement([1,4,6,7],[1,4,6,7]))
 
         NIfTot = -1 
         nifd = -1
@@ -1051,7 +1051,7 @@ contains
 
         nel = 2 
         bhub = 2.0 
-        exchange_j = -2.0 
+        exchange_j = 2.0 
 
         lat => lattice('chain', 2, 1, 1, .false.,.false.,.false.) 
         call setup_exchange_matrix(lat) 
@@ -1075,11 +1075,11 @@ contains
         call assert_equals(h_cast(0.0_dp), get_helement([1,2],[1,2]))
 
         ! but i am not yet sure about the double counting.. 
-        call assert_equals(h_cast(0.5_dp), get_helement([1,4],[1,4],0))
-        call assert_equals(h_cast(0.5_dp), get_helement([2,3],[2,3]))
+        call assert_equals(h_cast(-0.5_dp), get_helement([1,4],[1,4],0))
+        call assert_equals(h_cast(-0.5_dp), get_helement([2,3],[2,3]))
 
-        call assert_equals(h_cast(-0.5_dp), get_helement([1,3],[1,3]))
-        call assert_equals(h_cast(-0.5_dp), get_helement([2,4],[2,4]))
+        call assert_equals(h_cast(0.5_dp), get_helement([1,3],[1,3]))
+        call assert_equals(h_cast(0.5_dp), get_helement([2,4],[2,4]))
 
         print *, "" 
         print *, "for exchange contributions: "
@@ -1092,8 +1092,8 @@ contains
         lat => lattice('chain', 3, 1, 1, .true., .true., .true.)
         call setup_exchange_matrix(lat) 
 
-        call assert_equals(h_cast(-0.5_dp), get_helement([1,3],[1,3],0))
-        call assert_equals(h_cast(-0.5_dp), get_helement([1,3],[1,3]))
+        call assert_equals(h_cast(0.5_dp), get_helement([1,3],[1,3],0))
+        call assert_equals(h_cast(0.5_dp), get_helement([1,3],[1,3]))
 
         call assert_equals(h_cast(0.0_dp), get_helement([1,3],[1,5],1))
         call assert_equals(h_cast(-0.0_dp), get_helement([1,3],[3,5],1))
@@ -1212,7 +1212,7 @@ contains
         nbasis = 4 
         NIfTot = 0
 
-        exchange_j = -2.0 
+        exchange_j = 2.0 
         lat => lattice('chain', 2, 1, 1, .true., .true., .true.) 
         call setup_exchange_matrix(lat) 
 
@@ -1340,7 +1340,7 @@ contains
         print *, "testing: get_umat_el_heisenberg"
 
         lat => lattice('chain', 4, 1, 1, .true., .true., .true.) 
-        exchange_j = -2.0
+        exchange_j = 2.0
         nbasis = 8
         call setup_exchange_matrix(lat)
 
