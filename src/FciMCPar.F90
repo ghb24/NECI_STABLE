@@ -38,7 +38,8 @@ module FciMCParMod
     use rdm_explicit, only: fill_explicitrdm_this_iter, fill_hist_explicitrdm_this_iter
     use procedure_pointers, only: attempt_die_t, generate_excitation_t, &
                                   get_spawn_helement_t
-    use semi_stoch_gen, only: write_most_pop_core_at_end, init_semi_stochastic
+    use semi_stoch_gen, only: write_most_pop_core_at_end, init_semi_stochastic, &
+         refresh_semistochastic_space
     use semi_stoch_procs, only: is_core_state, check_determ_flag, &
                                 determ_projection, average_determ_vector
     use trial_wf_gen, only: update_compare_trial_file, init_trial_wf
