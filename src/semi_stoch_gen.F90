@@ -158,6 +158,8 @@ contains
         ! after the core states were added and sorted into CurrentDets.
         call reinit_current_trial_amps()
 
+        call print_core()
+
         ! If starting from a popsfile then global_determinant_data will not
         ! have been initialised, or if in the middle of a calculation then new
         ! determinants may have been added.
@@ -1523,6 +1525,19 @@ contains
     end subroutine reset_core_space
 
 !------------------------------------------------------------------------------------------!
+
+    subroutine print_core()
+      use bit_rep_data, only: extract_sign, test_flag, flag_trial
+      use FCIMCData, only: current_trial_amps
+      implicit none
+      integer:: i
+
+      do i=1,determ_sizes(iProcIndex)
+         if(test_flag(CurrentDets(:,i),flag_trial)) then
+         print *, CurrentDets(0,i), i, current_trial_amps(:,i)
+	 endif 
+      enddo
+    end subroutine print_core
 
 
 end module semi_stoch_gen

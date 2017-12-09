@@ -154,6 +154,8 @@ MODULE FciMCData
 
       HElement_t(dp), allocatable :: trial_numerator(:), tot_trial_numerator(:)
       HElement_t(dp), allocatable :: trial_denom(:), tot_trial_denom(:)
+      integer(n_int), allocatable :: con_send_buf(:,:)
+      integer :: NConEntry
 
       ! The sum over all previous cycles of the number of particles on the
       ! reference site

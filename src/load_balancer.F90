@@ -11,9 +11,9 @@ module load_balance
     use bit_rep_data, only: flag_initiator, NIfDBO, &
                             flag_connected, flag_trial
     use bit_reps, only: set_flag, nullify_ilut_part, &
-                        encode_part_sign, nullify_ilut
+                        encode_part_sign, nullify_ilut, clr_flag
     use FciMCData, only: HashIndex, FreeSlot, CurrentDets, iter_data_fciqmc, &
-                         tFillingStochRDMOnFly, full_determ_vecs
+                         tFillingStochRDMOnFly, full_determ_vecs, ntrial_excits
     use searching, only: hash_search_trial, bin_search_trial
     use Determinants, only: get_helement, write_det
     use LoggingData, only: tOutputLoadDistribution
@@ -304,15 +304,18 @@ contains
 
         
     subroutine move_block(block, tgt_proc)
-
+      implicit none
         integer, intent(in) :: block, tgt_proc
         integer :: src_proc, ierr, nsend, nelem, j, det_block, hash_val
-        integer :: det(nel), TotWalkersTmp
+        integer :: det(nel), TotWalkersTmp, nconsend
+        integer(n_int) :: con_state(0:NConEntry)
         real(dp) :: sgn(lenof_sign)
         
         ! A tag is used to identify this send/recv pair over any others
         integer, parameter :: mpi_tag_nsend = 223456
         integer, parameter :: mpi_tag_dets = 223457
+        integer, parameter :: mpi_tag_nconsend = 223458
+        integer, parameter :: mpi_tag_con = 223459
 
         src_proc = LoadBalanceMapping(block)
 
@@ -327,6 +330,7 @@ contains
             ! Loop over the available walkers, and broadcast them to the
             ! target processor. Use the SpawnedParts array as a buffer.
             nsend = 0
+            nconsend = 0
             do j = 1, int(TotWalkers, sizeof_int)
 
                 ! Skip unoccupied sites (non-contiguous)
@@ -339,8 +343,18 @@ contains
                     nsend = nsend + 1
                     SpawnedParts(:,nsend) = CurrentDets(:,j)
 
+                    ! We also need to communicate the connected information
+                    ! with respect to the trial wavefunction
+                    if(test_flag(CurrentDets(:,j),flag_connected)) then
+                        call extract_con_ht_entry(CurrentDets(:,j),con_state)
+                        nconsend = nconsend + 1
+                        con_send_buf(:,nconsend) = con_state                       
+                     endif
+
                     ! Remove the det from the main list.
                     call nullify_ilut(CurrentDets(:,j))
+                    call clr_flag(CurrentDets(:,j),flag_trial)
+		    call clr_flag(CurrentDets(:,j),flag_connected)
                     call remove_hash_table_entry(HashIndex, det, j)
                     iEndFreeSlot = iEndFreeSlot + 1
                     FreeSlot(iEndFreeSlot) = j
@@ -352,6 +366,12 @@ contains
             call MPISend(nsend, 1, tgt_proc, mpi_tag_nsend, ierr)
             call MPISend(SpawnedParts(:, 1:nsend), nelem, tgt_proc, &
                          mpi_tag_dets, ierr)
+
+            ! And send the trial wavefunction connection information
+            nelem = nconsend * (1 + NConEntry)
+            call MPISend(nconsend,1,tgt_proc,mpi_tag_nconsend, ierr)
+            call MPISend(con_send_buf(:,1:nconsend),nelem,tgt_proc, &
+                         mpi_tag_con, ierr)
 
             ! We have now created lots of holes in the main list
             HolesInList = HolesInList + nsend
@@ -379,6 +399,12 @@ contains
             ! We have filled in some of the holes in the list (possibly all)
             ! and possibly extended the list
             HolesInList = max(0, HolesInList - nsend)
+
+            ! Recieve information on the connected determinants
+            call MPIRecv(nconsend, 1, src_proc, mpi_tag_nconsend, ierr)
+            nelem = nconsend * (1 + NConEntry)
+            call MPIRecv(con_send_buf, nelem, src_proc, mpi_tag_con, ierr)
+            call add_con_ht_entries(con_send_buf(:,1:nconsend), nconsend)
 
         end if
 
@@ -632,6 +658,17 @@ contains
         end if
 
     end subroutine CalcHashTableStats
-    
+
+    subroutine extract_con_ht_entry(ilut, entry)
+      implicit none
+      integer(n_int), intent(in) :: ilut(0:NIfTot)
+      integer(n_int), intent(out) :: entry(0:NConEntry)
+    end subroutine extract_con_ht_entry
+      
+    subroutine add_con_ht_entries(entries, n_entries)
+      implicit none
+      integer, intent(in) :: n_entries
+      integer(n_int), intent(in) :: entries(0:NConEntry,n_entries)
+    end subroutine add_con_ht_entries    
 
 end module
