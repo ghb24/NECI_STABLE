@@ -803,11 +803,7 @@ contains
             if (mode == 1) then
                 do i = 1, size(con_ht)
                     nclash = con_ht(i)%nclash
-#ifdef __CMPLX
-                    allocate(con_ht(i)%states(0:NIfDBO+2*nexcit,nclash))
-#else
-                    allocate(con_ht(i)%states(0:NIfDBO+nexcit,nclash))
-#endif
+                    allocate(con_ht(i)%states(0:NConEntry,nclash))
                     ! Set this back to zero to use it as a counter next time
                     ! around (when mode == 2).
                     con_ht(i)%nclash = 0

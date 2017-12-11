@@ -21,6 +21,7 @@ module load_balance
     use cont_time_rates, only: spawn_rate_full
     use SystemData, only: nel, tHPHF
     use DetBitOps, only: DetBitEq
+    use sparse_arrays, only: con_ht
     use load_balance_calcnodes
     use Parallel_neci
     use constants
@@ -659,16 +660,113 @@ contains
 
     end subroutine CalcHashTableStats
 
-    subroutine extract_con_ht_entry(ilut, entry)
+!------------------------------------------------------------------------------------------!
+
+    subroutine extract_con_ht_entry(ilut, ht_entry)
       implicit none
       integer(n_int), intent(in) :: ilut(0:NIfTot)
-      integer(n_int), intent(out) :: entry(0:NConEntry)
+      integer(n_int), intent(out) :: ht_entry(0:NConEntry)
+      integer :: hash_val, nI(nel), clashes, i
+      character(*), parameter :: this_routine = "extract_con_ht_entry"
+      
+      call decode_bit_det(nI, ilut)
+      if(con_space_size > 0) then
+         ! check the entry in the hashtable
+         hash_val = FindWalkerHash(nI,con_space_size)
+         clashes = con_ht(hash_val)%nclash
+         do i = 1, clashes
+            if(DetBitEq(ilut(0:NIfDBO), con_ht(hash_val)%states(0:NIfDBO,i))) then
+               ! get the stores state
+               ht_entry = con_ht(hash_val)%states(:,i)
+               ! then remove it from the table
+               call remove_con_ht_entry(hash_val,i,clashes)
+               ! after removing, the con_ht(hash_val) changed, we cannot continue
+               ! also, we are done here
+               exit
+            endif
+         enddo
+      else
+         call stop_all(this_routine,"Trying to extract nonexistent entry")
+      endif
     end subroutine extract_con_ht_entry
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine remove_con_ht_entry(hash_val, index, clashes)
+      implicit none
+      integer, intent(in) :: hash_val, index, clashes
+      integer(n_int), allocatable :: tmp(:,:)
+      integer :: i
+      
+      ! first, copy the contnet of the con_ht entry to a temporary
+      allocate(tmp(0:NConEntry,clashes-1))
+      do i = 1, index - 1
+         tmp(:,i) = con_ht(hash_val)%states(:,i)
+      end do
+      ! omitting the element to remove
+      do i = index + 1, clashes
+         tmp(:,i-1) = con_ht(hash_val)%states(:,i)
+      end do
+
+      ! then, reallocate the con_ht entry (if required)
+      deallocate(con_ht(hash_val)%states)
+      if(clashes - 1 > 0) then
+         allocate(con_ht(hash_val)%states(0:NConEntry,clashes-1))
+         ! and copy the temporary back (if it is non-empty)
+         con_ht(hash_val)%states(:,:) = tmp
+      endif
+      deallocate(tmp)
+
+      ! finally, update the nclashes information
+      con_ht(hash_val)%nclash = clashes - 1
+    end subroutine remove_con_ht_entry
+
+!------------------------------------------------------------------------------------------!
       
     subroutine add_con_ht_entries(entries, n_entries)
       implicit none
       integer, intent(in) :: n_entries
       integer(n_int), intent(in) :: entries(0:NConEntry,n_entries)
+      integer :: i, hash_val, nI(nel), clashes
+      ! this adds n_entries entries to the con_ht hashtable
+
+      do i = 1, n_entries
+         call decode_bit_det(nI,entries(:,i))
+         hash_val = FindWalkerHash(nI, con_space_size)
+         ! just add them one by one
+         call add_single_con_ht_entry(entries(:,i),hash_val)
+      enddo
     end subroutine add_con_ht_entries    
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine add_single_con_ht_entry(ht_entry, hash_val)
+      implicit none
+      integer(n_int), intent(in) :: ht_entry(0:NConEntry)
+      integer, intent(in) :: hash_val
+      integer :: clashes
+      integer(n_int), allocatable :: tmp(:,:)
+
+      ! add a single entry to con_ht with hash_val
+      clashes = con_ht(hash_val)%nclash
+      ! store the current entries in a temporary
+      allocate(tmp(0:NConEntry,clashes+1))
+      ! if there are any, copy them now
+      if(allocated(con_ht(hash_val)%states)) then 
+         tmp(:,:clashes) = con_ht(hash_val)%states(:,:)
+         ! then deallocate
+         deallocate(con_ht(hash_val)%states)
+      endif
+      ! add the new entry
+      tmp(:,clashes+1) = ht_entry
+
+      ! and allocoate the new entry
+      allocate(con_ht(hash_val)%states(0:NConEntry,clashes+1))
+      ! fill it
+      con_ht(hash_val)%states = tmp
+      deallocate(tmp)
+      ! and update the nclashes info
+      con_ht(hash_val)%nclash = clashes + 1
+    end subroutine add_single_con_ht_entry
 
 end module
