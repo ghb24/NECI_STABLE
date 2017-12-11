@@ -158,8 +158,6 @@ contains
         ! after the core states were added and sorted into CurrentDets.
         call reinit_current_trial_amps()
 
-        call print_core()
-
         ! If starting from a popsfile then global_determinant_data will not
         ! have been initialised, or if in the middle of a calculation then new
         ! determinants may have been added.

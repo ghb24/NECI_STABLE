@@ -13,7 +13,8 @@ module load_balance
     use bit_reps, only: set_flag, nullify_ilut_part, &
                         encode_part_sign, nullify_ilut, clr_flag
     use FciMCData, only: HashIndex, FreeSlot, CurrentDets, iter_data_fciqmc, &
-                         tFillingStochRDMOnFly, full_determ_vecs, ntrial_excits
+                         tFillingStochRDMOnFly, full_determ_vecs, ntrial_excits, &
+                         con_space_size
     use searching, only: hash_search_trial, bin_search_trial
     use Determinants, only: get_helement, write_det
     use LoggingData, only: tOutputLoadDistribution
@@ -669,6 +670,8 @@ contains
       integer :: hash_val, nI(nel), clashes, i
       character(*), parameter :: this_routine = "extract_con_ht_entry"
       
+      print *, "Sending connected state"
+
       call decode_bit_det(nI, ilut)
       if(con_space_size > 0) then
          ! check the entry in the hashtable
@@ -729,6 +732,8 @@ contains
       integer(n_int), intent(in) :: entries(0:NConEntry,n_entries)
       integer :: i, hash_val, nI(nel), clashes
       ! this adds n_entries entries to the con_ht hashtable
+
+      print *, "Recieving ", n_entries, " new connected states"
 
       do i = 1, n_entries
          call decode_bit_det(nI,entries(:,i))
