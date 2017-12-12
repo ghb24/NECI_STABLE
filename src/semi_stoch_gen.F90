@@ -1484,7 +1484,7 @@ contains
       use FciMCData, only: iter_data_fciqmc
       use semi_stoch_procs, only: end_semistoch
       implicit none
-      
+
       ! The reinitialization of the semistochastic space can affect population
       ! because of stochastic rounds. To log this correctly, set the iter_data to 0 here
       iter_data_fciqmc%nborn = 0.0_dp
