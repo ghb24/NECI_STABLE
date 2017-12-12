@@ -18,8 +18,10 @@ module real_time_procs
                               TotPartsPeak, numCycShiftExcess, shiftLimit, t_kspace_operators, &
                               tDynamicAlpha, tDynamicDamping, stepsAlpha, phase_factors, &
                               elapsedImagTime, elapsedRealTime, tStaticShift, asymptoticShift, &
-                              iunitCycLog, trajFile, tauCache, alphaCache, tNewOverlap
+                              iunitCycLog, trajFile, tauCache, alphaCache, tNewOverlap, &
+                              alphaLog, alphaLogSize, alphaLogPos
     use real_time_aux, only: write_overlap_state, write_overlap_state_serial
+
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
     use constants, only: dp, lenof_sign, int64, n_int, EPS, iout, null_part, &
                          sizeof_int, MPIArg
@@ -1591,12 +1593,30 @@ contains
             endif 
          endif
          ! communicate the updated quantities
-         if(tDynamicAlpha) call MPIBCast(real_time_info%time_angle)
+         if(tDynamicAlpha) then
+            call MPIBCast(real_time_info%time_angle)
+            ! Store the value of alpha in a log, overwriting an old value
+            alphaLog(alphaLogPos) = real_time_info%time_angle
+            alphaLogPos = mod((alphaLogPos + 1),alphaLogSize)
+            ! and possibly change the stepsize
+            call adjust_stepsAlpha()
+         endif
          if(tDynamicDamping) call MPIBCast(real_time_info%damping)
       endif
       TotPartsLastAlpha = TotParts
       
     end subroutine adjust_decay_channels
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine adjust_stepsAlpha()
+      implicit none
+      integer :: newStep, maxAlpha, minAlpha
+      real(dp), parameter :: ratioThreshold = 0.01
+
+      maxAlpha = maxval(alphaLog)
+      minAlpha = minval(alphaLog)
+    end subroutine adjust_stepsAlpha
 
 !------------------------------------------------------------------------------------------!
 

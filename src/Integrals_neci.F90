@@ -349,7 +349,7 @@ contains
     Subroutine IntInit(iCacheFlag)
 !who knows what for
       Use global_utilities
-      Use OneEInts, only: SetupTMat,SetupPropInts
+      Use OneEInts, only: SetupTMat,SetupPropInts, OneEPropInts
       USE UMatCache, only : FreezeTransfer, CreateInvBRR, GetUMatSize, SetupUMat2D_df
       Use UMatCache, only: SetupUMatCache
       use SystemData, only : nBasisMax, Alpha,BHub, BRR,nmsh,nEl
@@ -793,6 +793,7 @@ contains
        use OneEInts
        USE UMatCache, only: FreezeTransfer,UMatCacheData,UMatInd,TUMat2D
        Use UMatCache, only: FreezeUMatCache, CreateInvBrr2,FreezeUMat2D, SetupUMatTransTable
+       use LoggingData, only:tCalcPropEst, iNumPropToEst
        use UMatCache, only: GTID
        use global_utilities
        use sym_mod
@@ -960,6 +961,8 @@ contains
 
        CALL SetupTMAT2(NBASIS,2,iSize)
 
+       if (tCalcPropEst) call SetupPropInts2(NBASIS)
+
 !C.. First deal with Ecore
 !Adding the energy of the occupied orbitals to the core energy.
 !Need to do this for both the low energy frozen and inner frozen orbitals.
@@ -1013,6 +1016,32 @@ contains
    &            ECORE=ECORE - get_umat_el(IDA,IDB,IDB,IDA)
           ENDDO
        ENDDO
+
+! Now dealing with the zero body part of the property integrals if needed
+
+       write(*,*) 'PropCore before freezing:', PropCore
+       IF(tCalcPropEst) then
+          DO A=1,NFROZEN
+             AB=BRR(A)
+             ! Ecore' = Ecore + sum_a <a|h|a> where a is a frozen spin orbital
+             ! TMATEL is the one electron integrals <a|h|a>.
+             DO B=1,iNumPropToEst
+                PropCore(B)=PropCore(B)+GetPropIntEl(AB,AB,B)
+                write(*,*) '1', PropCore(B), AB, B, GetPropIntEl(AB,AB,B)
+             ENDDO
+          ENDDO
+
+!Need to also account for when a is the frozen inner orbitals
+          DO A=NEL-NFROZENIN+1,NEL
+             AB=BRR(A)
+             DO B=1,iNumPropToEst
+                PropCore(B)=PropCore(B)+GetPropIntEl(AB,AB,B)
+                write(*,*) '2', PropCore(B), AB, B, GetPropIntEl(AB,AB,B)
+             ENDDO
+          ENDDO
+       ENDIF
+       write(*,*) 'PropCore after freezing:', PropCore
+
 
 !C.. now deal with the new TMAT
        FREEZETRANSFER=.true.
@@ -1178,6 +1207,63 @@ contains
           ENDDO  
        ENDDO
 
+! Reorganize the one-body integrals, no corrections are needed for the one-body integrals of the property integrals as long as corresponding pertubation operator does not have any two-body components.
+
+       IF (tCalcPropEst) then
+
+          DO W=1,2
+             IF(W.eq.1) THEN
+                 BLOCKMINW=1 
+                 BLOCKMAXW=NEL-NFROZEN-NFROZENIN
+                 FROZENBELOWW=NFROZEN
+             ELSEIF(W.eq.2) THEN
+                 BLOCKMINW=NEL-NFROZEN-NFROZENIN+1 
+                 BLOCKMAXW=NBASIS
+                 FROZENBELOWW=NFROZEN+NFROZENIN+NTFROZENIN
+             ENDIF
+  
+             DO I=BLOCKMINW,BLOCKMAXW
+                 IP=I+FROZENBELOWW
+                 IB=BRR(IP)
+                 IPB=GG(IB)
+
+                 DO Y=1,2
+                    IF(Y.eq.1) THEN
+                       BLOCKMINY=1 
+                       BLOCKMAXY=NEL-NFROZEN-NFROZENIN
+                       FROZENBELOWY=NFROZEN
+                    ELSEIF(Y.eq.2) THEN
+                       BLOCKMINY=NEL-NFROZEN-NFROZENIN+1 
+                       BLOCKMAXY=NBASIS
+                       FROZENBELOWY=NFROZEN+NFROZENIN+NTFROZENIN
+                    ENDIF
+  
+                    DO J=BLOCKMINY,BLOCKMAXY
+                       JP=J+FROZENBELOWY
+                       JB=BRR(JP)
+                       JPB=GG(JB)
+                       IF(tCPMDSymTMat) THEN
+                           call stop_all("IntFreezeBasis","Not implemented for tCPMD")
+                       ELSE
+!                         IF(IPB.eq.0.or.JPB.eq.0) THEN
+!                              WRITE(6,*) 'W',W,'I',I,'J',J,'IPB',IPB,'JPB',JPB
+!                              CALL neci_flush(6)
+!                              CALL Stop_All("","here 01")
+!                         ENDIF
+                          if(tOneElecDiag) then
+                             call stop_all("IntFreezeBasis","Not implemented for tOneElecDiag")
+                          else
+                             OneEPropInts2(IPB,JPB,:)=OneEPropInts(IB,JB,:)
+                          endif
+                       ENDIF
+!             WRITE(6,*) "T",TMAT(IB,JB),I,J,TMAT2(IPB,JPB)
+!          IF(abs(TMAT(IPB,JPB)).gt.1.0e-9_dp) WRITE(16,*) I,J,TMAT2(IPB,JPB)
+                    ENDDO
+                ENDDO
+             ENDDO
+          ENDDO
+       ENDIF
+
        IF(NBASISMAX(1,3).GE.0.AND.ISS.NE.0) THEN
 
 !CC Only do the below if we've a stored UMAT
@@ -1302,6 +1388,7 @@ contains
        FREEZETRANSFER=.false.
 !C.. Copy the new BRR and ARR over the old ones
        CALL SWAPTMAT(NBASIS,NHG,GG)
+       IF(tCalcPropEst) call SwapOneEPropInts(nBasis,iNumPropToEst)
 
        deallocate(arr)
        LogDealloc(tagarr)
