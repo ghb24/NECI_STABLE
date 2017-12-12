@@ -1819,13 +1819,7 @@ contains
         ! is fulfilled
         ! the same ofc is a + (c-q) 
         ! is the minority hole always in ex(2,1)? otherwise we have to find it
-#ifdef __DEBUG 
-        if (ms_elec == -1) then 
-            ASSERT(is_alpha(ex(2,1)))
-        else 
-            ASSERT(is_beta(ex(2,1)))
-        end if
-#endif
+        ! it is not! 
 
         ! i think i have figured it out with the help of Manu 
         ! the k-vector of the minority spin is always involved 
@@ -1840,10 +1834,8 @@ contains
         ! being at the first position in ex(2,:).. 
         opp_orb = find_minority_spin(ex(2,:)) 
 
-        if (ms_elec == 1) then 
-            par_elecs = pack(ex(1,:),ex(1,:) /= opp_elec)
-            par_orbs = pack(ex(2,:),ex(2,:) /= opp_orb)
-        end if
+        par_elecs = pack(ex(1,:),ex(1,:) /= opp_elec)
+        par_orbs = pack(ex(2,:),ex(2,:) /= opp_orb)
 
         ! i hope it is fine if i always take par_orbs(1).. this has to do 
         ! with the overal sign i guess.. so maybe i should check if 
@@ -1897,7 +1889,8 @@ contains
         type(BasisFN) :: ka, kb 
         integer :: i
 
-        ASSERT(size(elecs) == size(orbs))
+        ! make this function flexible..
+!         ASSERT(size(elecs) == size(orbs))
 
         call SetupSym(ka)
         call SetupSym(kb) 
@@ -1937,6 +1930,9 @@ contains
         ! with nI and nJ, since this can be done way more effective as 
         ! via the occupied orbitals.. 
 
+        ! TODO: thats a super strange convention, .. talk with Ali and 
+        ! Simon about that.. but for now accept it as it is.. 
+
         sort_elecs = sort_unique(elecs)
         sort_orbs = sort_unique(orbs)
         
@@ -1972,8 +1968,6 @@ contains
 
         pos_moved = 0 
 
-        print *, "::::::::"
-        print *, "nI: ", nI
         do k = 1, 3 
             if (src(k) < sort_orbs(k)) then 
                 if (sort_elecs(k) == nel) then 
@@ -2012,10 +2006,7 @@ contains
                 end if
             end if
 
-            print *, "k: ", k
-            print *, "nJ: ", nJ
             pos_moved = pos_moved + sort_elecs(k) - i + 1
-            print *, "pos_moved: ", pos_moved
 
         end do
 

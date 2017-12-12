@@ -142,6 +142,8 @@ contains
         call run_test_case(calc_pgen_k_space_hubbard_par_test, "calc_pgen_k_space_hubbard_par_test")
         call run_test_case(calc_pgen_k_space_hubbard_triples_test, "calc_pgen_k_space_hubbard_triples_test")
         call run_test_case(make_triple_test, "make_triple_test")
+        call run_test_case(make_double_test, "make_double_test")
+        call run_test_case(make_single_test, "make_single_test")
         call run_test_case(three_body_transcorr_fac_test, "three_body_transcorr_fac_test")
         call run_test_case(two_body_transcorr_factor_test, "two_body_transcorr_factor_test")
         call run_test_case(epsilon_kvec_test, "epsilon_kvec_test")
@@ -509,9 +511,38 @@ contains
 
     subroutine get_3_body_helement_ks_hub_test
 
+        integer :: nel, ex(2,3)
+        integer, allocatable :: nI(:) 
+        logical :: tpar
+
+        tpar = .false.
+
+        nel = 4 
+        allocate(ni(nel))
+
+        ni = [1,2,3,4]
+
         print *, "" 
         print *, "testing: get_3_body_helement_ks_hub" 
-        call assert_true(.false.)
+        ex(1,:) = [1,3,5] 
+        ex(2,:) = [2,4,6]
+
+        ! here spin does not fit:
+        call assert_equals(h_cast(0.0_dp), get_3_body_helement_ks_hub(ni,ex,tpar))
+        ex(1,:) = [1,2,3]
+        ex(2,:) = [4,5,6]
+        call assert_equals(h_cast(0.0_dp), get_3_body_helement_ks_hub(ni,ex,tpar))
+        ex(2,:) = [5,6,7]
+
+        ! and here momentum does not fit
+        call assert_equals(h_cast(0.0_dp), get_3_body_helement_ks_hub(ni,ex,tpar))
+
+        ! and here it should fit.
+        ex(1,:) = [3,6,7]
+        ex(2,:) = [1,2,5]
+        call assert_equals(h_cast(-4*three_body_prefac), get_3_body_helement_ks_hub(ni,ex,tpar))
+
+        ! maybe do more tests..
 
     end subroutine get_3_body_helement_ks_hub_test
 
@@ -519,8 +550,26 @@ contains
 
         print *, ""
         print *, "testing: check_momentum_sym"
-        call assert_true(.false.)
+        ! use the already setup up 4 site chain.. the input to this is 
+        ! with spin-orbitals.. or no.. it is with spatial orbs! no it is 
+        ! spin-orbital! but the spin is also checked for symmetry! 
+        ! although it is not only momentum symmetry! it is also 
+        ! spin symmetry!! 
+        call assert_true(check_momentum_sym([1],[1]))
+        call assert_true(.not.check_momentum_sym([1],[2]))
+        call assert_true(check_momentum_sym([2],[2]))
+        call assert_true(.not.check_momentum_sym([3],[1]))
 
+        call assert_true(check_momentum_sym([1,2],[2,1]))
+        call assert_true(check_momentum_sym([2,2],[2,2]))
+
+        ! and it takes variable sizes of input..
+        call assert_true(check_momentum_sym([1,5],[3,3]))
+
+        call assert_true(check_momentum_sym([6,6],[4,8]))
+        call assert_true(.not.check_momentum_sym([5,5],[4,8]))
+
+        call assert_true(check_momentum_sym([5,8],[1,4]))
     end subroutine check_momentum_sym_test
 
     subroutine find_minority_spin_test
@@ -531,7 +580,7 @@ contains
         call assert_equals(3, find_minority_spin([3,2,4]))
 
         call assert_equals(2, find_minority_spin([1,2,3]))
-        call assert_equals(1, find_minority_spin([3,2,5]))
+        call assert_equals(2, find_minority_spin([3,2,5]))
 
     end subroutine find_minority_spin_test
 
@@ -561,11 +610,10 @@ contains
 
     subroutine make_triple_test
 
-        use get_excit, only: make_double
 
         integer, allocatable :: nI(:), nJ(:)
         integer :: ex(2,3)
-        logical :: tpar
+        logical :: tpar, tpar_2
 
         nel = 3 
 
@@ -575,6 +623,8 @@ contains
         
         print *, "" 
         print *, "testing: make_triple" 
+        print *, "testing implicitly: FindExcitDet!"
+
         nI = [1,2,3] 
         call make_triple(nI,nJ,[1,2,3],[4,5,7],ex,tpar) 
         call assert_equals([4,5,7], nJ, 3)
@@ -582,12 +632,19 @@ contains
         call assert_equals([4,5,7], ex(2,:),3)
         call assert_true(.not.tpar)
 
+        call FindExcitDet(ex, nI, 3, tpar_2)
+        call assert_true(tpar .eqv. tpar_2)
+
         ! and now more complicated stuff:
+        nI = [1,2,3]
         call make_triple(nI,nJ,[1,3,2],[7,5,4],ex,tpar) 
         call assert_equals([4,5,7], nJ, 3)
         call assert_equals([1,2,3], ex(1,:),3)
         call assert_equals([4,5,7], ex(2,:),3)
         call assert_true(.not.tpar)
+
+        call FindExcitDet(ex, nI, 3, tpar_2)
+        call assert_true(tpar .eqv. tpar_2)
 
         nI = [1,2,5]
         call make_triple(nI,nJ,[3,1,2],[3,4,7],ex,tpar) 
@@ -596,48 +653,145 @@ contains
         call assert_equals([3,4,7], ex(2,:),3)
         call assert_true(.not.tpar)
 
+        ex(1,:) = [1,2,3]
+        call FindExcitDet(ex, nI, 3, tpar_2)
+        call assert_true(tpar .eqv. tpar_2)
+        nI = [1,2,5]
+
         call make_triple(nI,nJ,[3,2,1],[8,7,3],ex,tpar) 
         call assert_equals([3,7,8], nJ, 3)
         call assert_equals([1,2,5], ex(1,:),3)
         call assert_equals([3,7,8], ex(2,:),3)
-        call assert_true(tpar)
+        call assert_true(.not.tpar)
+
+        ex(1,:) = [1,2,3]
+        call FindExcitDet(ex, nI, 3, tpar_2)
+        call assert_true(tpar .eqv. tpar_2)
+        nI = [1,2,5]
 
         call make_triple(nI,nJ,[3,2,1],[4,7,9],ex,tpar) 
         call assert_equals([4,7,9], nJ, 3)
         call assert_equals([1,2,5], ex(1,:),3)
         call assert_equals([4,7,9], ex(2,:),3)
+        call assert_true(.not.tpar)
+        ex(1,:) = [1,2,3]
+        call FindExcitDet(ex, nI, 3, tpar_2)
+        call assert_true(tpar .eqv. tpar_2)
+        nI = [1,2,5]
+
+        call make_triple(nI, nJ, [1,2,3], [3,4,7], ex, tpar) 
+        call assert_true(.not.tpar)
+
+        ex(1,:) = [1,2,3]
+        call FindExcitDet(ex, nI, 3, tpar_2)
+        call assert_true(tpar .eqv. tpar_2)
+        nI = [1,2,5]
+
+        nel = 4 
+
+        deallocate(nJ); allocate(NJ(nel))
+        deallocate(nI); allocate(nI(nel))
+        
+        nI = [1,2,5,7]
+        call make_triple(nI,nJ,[1,2,3],[3,6,9],ex,tpar)
         call assert_true(tpar)
 
-        nel = 2
-        call make_double([1,2],nJ, 1,2, 3,4, ex, tpar)
-        print *, ""
-        print *, "tpar: ", tpar
-        call make_double([1,2],nJ, 1,2, 5,4, ex, tpar)
-        print *, ""
-        print *, "tpar: ", tpar
-        call make_double([1,2],nJ, 1,2, 3,6, ex, tpar) 
-        print *, "tpar: ", tpar
+        ex(1,:) = [1,2,3]
+        call FindExcitDet(ex, nI, 3, tpar_2)
+        call assert_true(tpar .eqv. tpar_2)
 
-        nel = 3 
-        call make_double([1,2,4],nJ,1,2,5,6,ex,tpar)
-        print *, ""
-        print *, "5,6 tpar: ", tpar
-
-        call make_double([1,2,4],nj,1,2,3,6,ex,tpar)
-        print *, ""
-        print *, "3,6 tpar: ", tpar
-
-        call make_double([1,2,4],nJ, 1, 2, 6, 7, ex, tpar)
-        print *, ""
-        print *, "6,7 tpar: ", tpar
-
-        call make_double([1,2,3],nJ, 1, 2, 4, 7, ex, tpar)
-        print *, ""
-        print *, "4,7 tpar: ", tpar
-        nel = 4
-
+        nel = -1
 
     end subroutine make_triple_test
+
+    subroutine make_double_test
+
+        use get_excit, only: make_double
+        integer, allocatable :: nJ(:),ni(:)
+        integer :: ex(2,2) 
+        logical :: tpar, tpar_2
+
+        print *, "" 
+        print *, "testing: make_double" 
+        print *, "to be consistent with the sign conventions! "
+
+        ! to test this really strange sign convention also call all the other 
+        ! routines here, which test sign.. 
+
+        nel = 2
+        allocate(nJ(nel))
+        allocate(ni(nel)); 
+        ni = [1,2]
+
+        call make_double([1,2],nJ, 1,2, 3,4, ex, tpar)
+        call assert_equals([3,4], nJ, 2) 
+        call assert_equals([1,2],ex(1,:),2)
+        call assert_equals(reshape([1,3,2,4],[2,2]),ex, 2,2)
+        call assert_true(.not. tpar)
+
+        call FindExcitDet(ex, nI, 2, tpar_2)
+        call assert_true(tpar .eqv. tpar_2)
+        ni = [1,2]
+
+        call make_double([1,2],nJ, 1,2, 5,4, ex, tpar)
+        call assert_true(.not. tpar)
+        call FindExcitDet(ex, nI, 2, tpar_2)
+        call assert_true(tpar .eqv. tpar_2)
+        ni = [1,2]
+
+        call make_double([1,2],nJ, 1,2, 3,6, ex, tpar) 
+        call assert_true(.not. tpar)
+        call FindExcitDet(ex, nI, 2, tpar_2)
+        call assert_true(tpar .eqv. tpar_2)
+        ni = [1,2]
+
+        nel = 3 
+        deallocate(nJ); allocate(nJ(nel))
+        nI = [1,2,4]
+
+        call make_double([1,2,4],nJ,1,2,5,6,ex,tpar)
+        call assert_equals([4,5,6], nJ, 3)
+        call assert_true(.not. tpar)
+
+        call FindExcitDet(ex, nI, 2, tpar_2)
+        call assert_true(tpar .eqv. tpar_2)
+        nI = [1,2,4]
+
+        call make_double([1,2,4],nj,1,2,3,6,ex,tpar)
+        call assert_true(tpar)
+
+        call FindExcitDet(ex, nI, 2, tpar_2)
+        call assert_true(tpar .eqv. tpar_2)
+        nI = [1,2,4]
+
+        call make_double([1,2,4],nJ, 1, 2, 6, 7, ex, tpar)
+        call assert_true(.not. tpar)
+        nI = [1,2,4]
+
+        call FindExcitDet(ex, nI, 2, tpar_2)
+        call assert_true(tpar .eqv. tpar_2)
+
+        call make_double([1,2,3],nJ, 1, 2, 4, 7, ex, tpar)
+        call assert_true(.not. tpar)
+        nI = [1,2,3]
+
+        call FindExcitDet(ex, nI, 2, tpar_2)
+        call assert_true(tpar .eqv. tpar_2)
+
+        nel = -1
+
+
+    end subroutine make_double_test
+
+    subroutine make_single_test
+
+        print *, "" 
+        print *, "testing: make_single" 
+        print *, "for consistency in the sign"
+
+        call assert_true(.false.) 
+
+    end subroutine make_single_test
 
     subroutine three_body_transcorr_fac_test
 
