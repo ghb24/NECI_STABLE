@@ -265,6 +265,8 @@ module DetBitOps
     ! routine. And i will also code up a version, which determines the sign 
     ! based on the ilut representation! since this should be much faster 
     ! than the nI based calculation! use Manu's paper! 
+    ! and this can be done way more effective with the new fortran 2008 
+    ! routines! todo: implement this more efficiently! and write unit tests!
     pure subroutine get_bit_excitmat (ilutI, iLutJ, ex, IC)
         
         ! Obatin the excitation matrix between two determinants from their bit
@@ -984,6 +986,8 @@ module DetBitOps
     end subroutine
 
 
+    ! [W.D. 12.12.2017]
+    ! why are those routines not used more often?? 
     pure function get_single_parity (ilut, src, tgt) result(par)
 
         ! Find the relative parity of two determinants, where one is ilut

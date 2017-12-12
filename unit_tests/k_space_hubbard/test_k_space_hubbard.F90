@@ -25,6 +25,7 @@ program test_k_space_hubbard
     use procedure_pointers, only: get_umat_el
     use gen_coul_ueg_mod, only: get_hub_umat_el
     use IntegralsData, only: umat
+    use DetBitOps, only: EncodeBitDet
 
     implicit none 
 
@@ -610,10 +611,10 @@ contains
 
     subroutine make_triple_test
 
-
         integer, allocatable :: nI(:), nJ(:)
-        integer :: ex(2,3)
-        logical :: tpar, tpar_2
+        integer :: ex(2,3), ex2(2,3)
+        logical :: tpar, tpar_2, tpar_3
+        integer(n_int) :: ilutI(0:nifd), ilutJ(0:nifd)
 
         nel = 3 
 
@@ -632,8 +633,15 @@ contains
         call assert_equals([4,5,7], ex(2,:),3)
         call assert_true(.not.tpar)
 
+        call EncodeBitDet(nI, ilutI)
+        call EncodeBitDet(nJ, ilutJ)
+        ex2(1,1) = 3 
+        call GetBitExcitation(ilutI, ilutJ, ex2, tpar_3)
+        call assert_equals(ex, ex2, 2, 3)
+
         call FindExcitDet(ex, nI, 3, tpar_2)
         call assert_true(tpar .eqv. tpar_2)
+        call assert_true(tpar .eqv. tpar_3)
 
         ! and now more complicated stuff:
         nI = [1,2,3]
@@ -643,8 +651,14 @@ contains
         call assert_equals([4,5,7], ex(2,:),3)
         call assert_true(.not.tpar)
 
+        call EncodeBitDet(nJ, ilutJ)
+        ex2(1,1) = 3 
+        call GetBitExcitation(ilutI, ilutJ, ex2, tpar_3)
+        call assert_equals(ex, ex2, 2, 3)
+
         call FindExcitDet(ex, nI, 3, tpar_2)
         call assert_true(tpar .eqv. tpar_2)
+        call assert_true(tpar .eqv. tpar_3)
 
         nI = [1,2,5]
         call make_triple(nI,nJ,[3,1,2],[3,4,7],ex,tpar) 
@@ -653,9 +667,16 @@ contains
         call assert_equals([3,4,7], ex(2,:),3)
         call assert_true(.not.tpar)
 
+        call EncodeBitDet(nI, ilutI)
+        call EncodeBitDet(nJ, ilutJ)
+        ex2(1,1) = 3 
+        call GetBitExcitation(ilutI, ilutJ, ex2, tpar_3)
+        call assert_equals(ex, ex2, 2, 3)
+
         ex(1,:) = [1,2,3]
         call FindExcitDet(ex, nI, 3, tpar_2)
         call assert_true(tpar .eqv. tpar_2)
+        call assert_true(tpar .eqv. tpar_3)
         nI = [1,2,5]
 
         call make_triple(nI,nJ,[3,2,1],[8,7,3],ex,tpar) 
@@ -664,9 +685,15 @@ contains
         call assert_equals([3,7,8], ex(2,:),3)
         call assert_true(.not.tpar)
 
+        call EncodeBitDet(nJ, ilutJ)
+        ex2(1,1) = 3 
+        call GetBitExcitation(ilutI, ilutJ, ex2, tpar_3)
+        call assert_equals(ex, ex2, 2, 3)
+
         ex(1,:) = [1,2,3]
         call FindExcitDet(ex, nI, 3, tpar_2)
         call assert_true(tpar .eqv. tpar_2)
+        call assert_true(tpar .eqv. tpar_3)
         nI = [1,2,5]
 
         call make_triple(nI,nJ,[3,2,1],[4,7,9],ex,tpar) 
@@ -677,14 +704,26 @@ contains
         ex(1,:) = [1,2,3]
         call FindExcitDet(ex, nI, 3, tpar_2)
         call assert_true(tpar .eqv. tpar_2)
+        call assert_true(tpar .eqv. tpar_3)
         nI = [1,2,5]
+
+        call EncodeBitDet(nJ, ilutJ)
+        ex2(1,1) = 3 
+        call GetBitExcitation(ilutI, ilutJ, ex2, tpar_3)
+        call assert_equals(ex, ex2, 2, 3)
 
         call make_triple(nI, nJ, [1,2,3], [3,4,7], ex, tpar) 
         call assert_true(.not.tpar)
 
+        call EncodeBitDet(nJ, ilutJ)
+        ex2(1,1) = 3 
+        call GetBitExcitation(ilutI, ilutJ, ex2, tpar_3)
+        call assert_equals(ex, ex2, 2, 3)
+
         ex(1,:) = [1,2,3]
         call FindExcitDet(ex, nI, 3, tpar_2)
         call assert_true(tpar .eqv. tpar_2)
+        call assert_true(tpar .eqv. tpar_3)
         nI = [1,2,5]
 
         nel = 4 
@@ -696,9 +735,17 @@ contains
         call make_triple(nI,nJ,[1,2,3],[3,6,9],ex,tpar)
         call assert_true(tpar)
 
+        call EncodeBitDet(nI, ilutI)
+        call EncodeBitDet(nJ, ilutJ)
+        ex2(1,1) = 3 
+        call GetBitExcitation(ilutI, ilutJ, ex2, tpar_3)
+        call assert_equals(ex, ex2, 2, 3)
+
+
         ex(1,:) = [1,2,3]
         call FindExcitDet(ex, nI, 3, tpar_2)
         call assert_true(tpar .eqv. tpar_2)
+        call assert_true(tpar .eqv. tpar_3)
 
         nel = -1
 
@@ -708,9 +755,12 @@ contains
 
         use get_excit, only: make_double
         integer, allocatable :: nJ(:),ni(:)
-        integer :: ex(2,2) 
-        logical :: tpar, tpar_2
+        integer :: ex(2,2), ex2(2,2)
+        logical :: tpar, tpar_2, tpar_3
+        integer(n_int) :: ilutI(0:nifd), ilutJ(0:nifd)
 
+        print *, "end_n_int: ", end_n_int
+        print *, "bits_n_int: ", bits_n_int
         print *, "" 
         print *, "testing: make_double" 
         print *, "to be consistent with the sign conventions! "
@@ -729,8 +779,16 @@ contains
         call assert_equals(reshape([1,3,2,4],[2,2]),ex, 2,2)
         call assert_true(.not. tpar)
 
+        call EncodeBitDet(nI, ilutI)
+        call EncodeBitDet(nJ, ilutJ)
+        ex2(1,1) = 2 
+        call GetBitExcitation(ilutI, ilutJ, ex2, tpar_3)
+        call assert_equals(ex, ex2, 2,2)
+
         call FindExcitDet(ex, nI, 2, tpar_2)
         call assert_true(tpar .eqv. tpar_2)
+        call assert_true(tpar .eqv. tpar_3)
+
         ni = [1,2]
 
         call make_double([1,2],nJ, 1,2, 5,4, ex, tpar)
@@ -739,11 +797,24 @@ contains
         call assert_true(tpar .eqv. tpar_2)
         ni = [1,2]
 
+        call EncodeBitDet(nJ, ilutJ)
+        ex2(1,1) = 2 
+        call GetBitExcitation(ilutI, ilutJ, ex2, tpar_3)
+        call assert_equals(ex, ex2, 2,2)
+        call assert_true(tpar .eqv. tpar_3)
+        call assert_equals(ex, ex2, 2,2)
+
         call make_double([1,2],nJ, 1,2, 3,6, ex, tpar) 
         call assert_true(.not. tpar)
         call FindExcitDet(ex, nI, 2, tpar_2)
         call assert_true(tpar .eqv. tpar_2)
         ni = [1,2]
+
+        call EncodeBitDet(nJ, ilutJ)
+        ex2(1,1) = 2 
+        call GetBitExcitation(ilutI, ilutJ, ex2, tpar_3)
+        call assert_equals(ex, ex2, 2,2)
+        call assert_true(tpar .eqv. tpar_3)
 
         nel = 3 
         deallocate(nJ); allocate(nJ(nel))
@@ -757,12 +828,23 @@ contains
         call assert_true(tpar .eqv. tpar_2)
         nI = [1,2,4]
 
+        call EncodeBitDet(nI, ilutI)
+        call EncodeBitDet(nJ, ilutJ)
+        ex2(1,1) = 2 
+        call GetBitExcitation(ilutI, ilutJ, ex2, tpar_3)
+        call assert_equals(ex, ex2, 2,2)
+
         call make_double([1,2,4],nj,1,2,3,6,ex,tpar)
         call assert_true(tpar)
 
         call FindExcitDet(ex, nI, 2, tpar_2)
         call assert_true(tpar .eqv. tpar_2)
         nI = [1,2,4]
+
+        call EncodeBitDet(nJ, ilutJ)
+        ex2(1,1) = 2 
+        call GetBitExcitation(ilutI, ilutJ, ex2, tpar_3)
+        call assert_equals(ex, ex2, 2,2)
 
         call make_double([1,2,4],nJ, 1, 2, 6, 7, ex, tpar)
         call assert_true(.not. tpar)
@@ -771,9 +853,20 @@ contains
         call FindExcitDet(ex, nI, 2, tpar_2)
         call assert_true(tpar .eqv. tpar_2)
 
+        call EncodeBitDet(nJ, ilutJ)
+        ex2(1,1) = 2 
+        call GetBitExcitation(ilutI, ilutJ, ex2, tpar_3)
+        call assert_equals(ex, ex2, 2,2)
+
         call make_double([1,2,3],nJ, 1, 2, 4, 7, ex, tpar)
         call assert_true(.not. tpar)
         nI = [1,2,3]
+
+        call EncodeBitDet(nI, ilutI)
+        call EncodeBitDet(nJ, ilutJ)
+        ex2(1,1) = 2 
+        call GetBitExcitation(ilutI, ilutJ, ex2, tpar_3)
+        call assert_equals(ex, ex2, 2,2)
 
         call FindExcitDet(ex, nI, 2, tpar_2)
         call assert_true(tpar .eqv. tpar_2)
