@@ -260,6 +260,11 @@ module DetBitOps
 
     !WARNING - I think this *may* be buggy - use with caution - ghb24 8/6/10
     ! I fixed a bug (bits_n_int -> bits_n_int-1), but maybe there's more... - NSB 7/10/14
+    ! [W.D.12.12.2017] so lets fix it then! 
+    ! there are now unit tests in the k_space_hubbard unit test suite for this 
+    ! routine. And i will also code up a version, which determines the sign 
+    ! based on the ilut representation! since this should be much faster 
+    ! than the nI based calculation! use Manu's paper! 
     pure subroutine get_bit_excitmat (ilutI, iLutJ, ex, IC)
         
         ! Obatin the excitation matrix between two determinants from their bit
@@ -765,11 +770,14 @@ module DetBitOps
         ! Out: iLutnJ (0:NIfD) - New bit det
 
         integer, intent(in) :: IC
-        integer, intent(in) :: ExcitMat(2,2)
+        integer, intent(in) :: ExcitMat(2,ic)
         integer(kind=n_int), intent(in) :: iLutnI (0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ (0:NIfTot)
         integer :: pos(2,2), bit(2,2), i, ic_tmp
-
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "FindExcitBitDet"
+#endif
+        
         iLutnJ = iLutnI
         if (IC == 0) then
             if (.not.tCSF) then
@@ -780,14 +788,19 @@ module DetBitOps
             pos = (excitmat - 1) / bits_n_int
             bit = mod(excitmat - 1, bits_n_int)
 
+            ! [W.D.12.12.2017]: 
+            ! why is this changed back to single excitations for ic=3? 
+            ! has this to do with simons CSFs? i can't really find a reason.. 
+            ! try to change it and then lets see what happens! 
+            ASSERT(ic > 0 .and. ic <= 3) 
             ic_tmp = ic
-            if (ic==3) then
-                ! single excitation: only one populated column in ExcitMat
-                ic_tmp=1
-            elseif (ic==4 .or. ic==5) then
-                ! double excitation: both columns populated in ExcitMat
-                ic_tmp=2
-            endif
+!             if (ic==3) then
+!                 ! single excitation: only one populated column in ExcitMat
+!                 ic_tmp=1
+!             elseif (ic==4 .or. ic==5) then
+!                 ! double excitation: both columns populated in ExcitMat
+!                 ic_tmp=2
+!             endif
 
             ! Clear bits for excitation source, and set bits for target
             do i=1,ic_tmp

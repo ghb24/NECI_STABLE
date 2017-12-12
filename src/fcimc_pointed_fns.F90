@@ -384,7 +384,8 @@ module fcimc_pointed_fns
     subroutine null_encode_child (ilutI, ilutJ, ic, ex)
         implicit none
         integer(kind=n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(in) :: ic, ex(2,2)
+        integer, intent(in) :: ic
+        integer, intent(in) :: ex(2,ic)
         integer(kind=n_int), intent(inout) :: ilutj(0:niftot)
 
         ! Avoid compiler warnings

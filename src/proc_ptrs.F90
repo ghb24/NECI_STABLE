@@ -87,7 +87,8 @@ module procedure_pointers
             implicit none
 
             integer(n_int), intent(in) :: ilutI(0:NifTot)
-            integer, intent(in) :: ic, ex(2,2)
+            integer, intent(in) :: ic
+            integer, intent(in) :: ex(2,ic)
             integer(n_int), intent(inout) :: ilutJ(0:NIfTot)
 
         end subroutine
