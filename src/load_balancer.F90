@@ -14,7 +14,7 @@ module load_balance
                         encode_part_sign, nullify_ilut, clr_flag
     use FciMCData, only: HashIndex, FreeSlot, CurrentDets, iter_data_fciqmc, &
                          tFillingStochRDMOnFly, full_determ_vecs, ntrial_excits, &
-                         con_space_size
+                         con_space_size, NConEntry, con_send_buf
     use searching, only: hash_search_trial, bin_search_trial
     use Determinants, only: get_helement, write_det
     use LoggingData, only: tOutputLoadDistribution
@@ -308,8 +308,8 @@ contains
     subroutine move_block(block, tgt_proc)
       implicit none
         integer, intent(in) :: block, tgt_proc
-        integer :: src_proc, ierr, nsend, nelem, j, det_block, hash_val
-        integer :: det(nel), TotWalkersTmp, nconsend
+        integer :: src_proc, ierr, nsend, nelem, j, k, det_block, hash_val
+        integer :: det(nel), TotWalkersTmp, nconsend, clashes, ntrial, ncon
         integer(n_int) :: con_state(0:NConEntry)
         real(dp) :: sgn(lenof_sign)
         
@@ -345,14 +345,6 @@ contains
                     nsend = nsend + 1
                     SpawnedParts(:,nsend) = CurrentDets(:,j)
 
-                    ! We also need to communicate the connected information
-                    ! with respect to the trial wavefunction
-                    if(test_flag(CurrentDets(:,j),flag_connected)) then
-                        call extract_con_ht_entry(CurrentDets(:,j),con_state)
-                        nconsend = nconsend + 1
-                        con_send_buf(:,nconsend) = con_state                       
-                     endif
-
                     ! Remove the det from the main list.
                     call nullify_ilut(CurrentDets(:,j))
                     call clr_flag(CurrentDets(:,j),flag_trial)
@@ -361,6 +353,28 @@ contains
                     iEndFreeSlot = iEndFreeSlot + 1
                     FreeSlot(iEndFreeSlot) = j
                 end if
+            end do
+
+            ! now get those connected determinants that need to be 
+            ! communicated (they might not be in currentdets)
+            do j = 1, con_space_size
+               clashes = con_ht(j)%nclash
+               if(clashes > 0) then
+                  k = 0
+                  do
+                     k = k + 1
+                     call decode_bit_det(det,con_ht(j)%states(:,k))
+                     det_block = get_det_block(nel, det, 0)
+                     if(det_block == block) then
+                        call extract_con_ht_entry(j,k,con_state)
+                        nconsend = nconsend + 1
+                        con_send_buf(:,nconsend) = con_state
+                        clashes = clashes - 1
+                        k = k - 1
+                     endif
+                     if(k==clashes) exit
+                  enddo
+               endif
             end do
 
             ! And send the data to the relevant (target) processor
@@ -484,7 +498,7 @@ contains
             if (tTrial) then
                 call set_flag(CurrentDets(:,DetPosition), flag_trial, .true.)
                 call set_flag(CurrentDets(:,DetPosition), flag_connected, .false.)
-            else if (tCon) then
+             else if (tCon) then
                 call set_flag(CurrentDets(:,DetPosition), flag_trial, .false.)
                 call set_flag(CurrentDets(:,DetPosition), flag_connected, .true.)
             else
@@ -663,34 +677,18 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    subroutine extract_con_ht_entry(ilut, ht_entry)
+    subroutine extract_con_ht_entry(hash_val, i, ht_entry)
       implicit none
-      integer(n_int), intent(in) :: ilut(0:NIfTot)
       integer(n_int), intent(out) :: ht_entry(0:NConEntry)
-      integer :: hash_val, nI(nel), clashes, i
+      integer, intent(in) :: hash_val, i
+      integer :: clashes
       character(*), parameter :: this_routine = "extract_con_ht_entry"
-      
-      print *, "Sending connected state"
-
-      call decode_bit_det(nI, ilut)
-      if(con_space_size > 0) then
-         ! check the entry in the hashtable
-         hash_val = FindWalkerHash(nI,con_space_size)
-         clashes = con_ht(hash_val)%nclash
-         do i = 1, clashes
-            if(DetBitEq(ilut(0:NIfDBO), con_ht(hash_val)%states(0:NIfDBO,i))) then
-               ! get the stores state
-               ht_entry = con_ht(hash_val)%states(:,i)
-               ! then remove it from the table
-               call remove_con_ht_entry(hash_val,i,clashes)
-               ! after removing, the con_ht(hash_val) changed, we cannot continue
-               ! also, we are done here
-               exit
-            endif
-         enddo
-      else
-         call stop_all(this_routine,"Trying to extract nonexistent entry")
-      endif
+     
+      ! get the stores state
+      ht_entry = con_ht(hash_val)%states(:,i)
+      ! then remove it from the table
+      clashes = con_ht(hash_val)%nclash
+      call remove_con_ht_entry(hash_val,i,clashes)
     end subroutine extract_con_ht_entry
 
 !------------------------------------------------------------------------------------------!
@@ -699,26 +697,36 @@ contains
       implicit none
       integer, intent(in) :: hash_val, index, clashes
       integer(n_int), allocatable :: tmp(:,:)
-      integer :: i
+      integer :: i, ierr
+      character(*), parameter :: this_routine = "remove_con_ht_entry"
       
       ! first, copy the contnet of the con_ht entry to a temporary
-      allocate(tmp(0:NConEntry,clashes-1))
-      do i = 1, index - 1
-         tmp(:,i) = con_ht(hash_val)%states(:,i)
-      end do
-      ! omitting the element to remove
-      do i = index + 1, clashes
-         tmp(:,i-1) = con_ht(hash_val)%states(:,i)
-      end do
+      ! if there is any to be left
+      if(clashes-1 > 0) then
+         allocate(tmp(0:NConEntry,clashes-1), stat = ierr)
+         if(ierr .ne. 0) call stop_all(this_routine, "Failed allocation")
+         do i = 1, index - 1
+            tmp(:,i) = con_ht(hash_val)%states(:,i)
+         end do
+         ! omitting the element to remove
+         do i = index + 1, clashes
+            tmp(:,i-1) = con_ht(hash_val)%states(:,i)
+         end do
 
-      ! then, reallocate the con_ht entry (if required)
-      deallocate(con_ht(hash_val)%states)
-      if(clashes - 1 > 0) then
-         allocate(con_ht(hash_val)%states(0:NConEntry,clashes-1))
+         ! then, reallocate the con_ht entry (if required)
+         deallocate(con_ht(hash_val)%states, stat = ierr)
+         if(ierr .ne. 0) call stop_all(this_routine, "Failed deallocation")
+         allocate(con_ht(hash_val)%states(0:NConEntry,clashes-1), stat = ierr)
+         if(ierr .ne. 0) call stop_all(this_routine, "Failed allocation")
          ! and copy the temporary back (if it is non-empty)
-         con_ht(hash_val)%states(:,:) = tmp
+         con_ht(hash_val)%states(0:NConEntry,:) = tmp(0:NConEntry,:)
+         deallocate(tmp,stat = ierr)
+         if(ierr .ne. 0) call stop_all(this_routine, "Failed deallocation")
+      else
+         ! just to be sure, allocate with size 0
+         deallocate(con_ht(hash_val)%states)
+         allocate(con_ht(hash_val)%states(0:NConEntry,0))
       endif
-      deallocate(tmp)
 
       ! finally, update the nclashes information
       con_ht(hash_val)%nclash = clashes - 1
@@ -732,8 +740,6 @@ contains
       integer(n_int), intent(in) :: entries(0:NConEntry,n_entries)
       integer :: i, hash_val, nI(nel), clashes
       ! this adds n_entries entries to the con_ht hashtable
-
-      print *, "Recieving ", n_entries, " new connected states"
 
       do i = 1, n_entries
          call decode_bit_det(nI,entries(:,i))
@@ -749,7 +755,7 @@ contains
       implicit none
       integer(n_int), intent(in) :: ht_entry(0:NConEntry)
       integer, intent(in) :: hash_val
-      integer :: clashes
+      integer :: clashes, ntrial ,ncon 
       integer(n_int), allocatable :: tmp(:,:)
 
       ! add a single entry to con_ht with hash_val
@@ -772,6 +778,47 @@ contains
       deallocate(tmp)
       ! and update the nclashes info
       con_ht(hash_val)%nclash = clashes + 1
+
     end subroutine add_single_con_ht_entry
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine count_trial()
+      use Parallel_neci, only: MPISumAll
+      implicit none
+      integer ::  ntrialtot, ncontot, ntrial, ncon
+
+      call count_trial_this_proc(ntrial, ncon)
+      call MPISumAll(ntrial,ntrialtot)
+      call MPISumAll(ncon,ncontot)
+      write(iout,*) "Trial states ", ntrialtot
+      write(iout,*) "Connected states ", ncontot
+    end subroutine count_trial
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine count_trial_this_proc(ntrial, ncon)
+      use searching, only: hash_search_trial
+      use FciMCData, only: ntrial_excits
+      implicit none
+      integer, intent(out) :: ntrial, ncon
+      integer :: i, nI(nel)
+      real(dp) :: sgn(lenof_sign)
+      logical :: tTrial, tCon
+      HElement_t(dp) :: amp(ntrial_excits)
+
+      ntrial = 0
+      ncon = 0
+      do i = 1, TotWalkers
+         call decode_bit_det(nI, CurrentDets(:,i))
+         call extract_sign(CurrentDets(:,i),sgn)
+         if(IsUnoccDet(sgn)) cycle
+         call hash_search_trial(CurrentDets(:,i),nI,amp,tTrial,tCon)
+         if(tTrial) ntrial = ntrial + 1
+         if(tCon) ncon = ncon + 1
+      end do
+      
+    end subroutine count_trial_this_proc
+
 
 end module
