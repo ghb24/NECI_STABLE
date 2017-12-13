@@ -262,7 +262,6 @@ module FciMCParMod
                ! If desired, we now set up the references for the purpose of the
                ! all-doubs-initiators
                if(tDelayGetRefs) then 
-                  tAdiActive = .true.
                   ! Re-initialize the reference space
                   call setup_reference_space(.true.)
                endif
