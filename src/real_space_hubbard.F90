@@ -903,7 +903,7 @@ contains
 
     function get_helement_rs_hub_ex_mat(nI, ic, ex, tpar) result(hel)
         integer, intent(in) :: nI(nel)
-        integer, intent(in) :: ic, ex(2,2)
+        integer, intent(in) :: ic, ex(2,ic)
         logical, intent(in) :: tpar
         HElement_t(dp) :: hel 
 

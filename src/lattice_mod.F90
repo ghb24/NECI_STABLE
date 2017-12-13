@@ -552,7 +552,7 @@ module lattice_mod
         function get_helement_lattice_ex_mat_t(nI, ic, ex, tpar) result(hel)
             use SystemData, only: nel
             use constants, only: dp
-            integer, intent(in) :: nI(nel), ic, ex(2,2)
+            integer, intent(in) :: nI(nel), ic, ex(2,ic)
             logical, intent(in) :: tpar
             HElement_t(dp) :: hel 
 

@@ -14,7 +14,7 @@ MODULE HPHFRandExcitMod
                           tGen_4ind_reverse, tLatticeGens, tGen_4ind_2, tHUB, & 
                           tUEG, tUEGNewGenerator, t_new_real_space_hubbard, & 
                           t_tJ_model, t_heisenberg_model, t_lattice_model, &
-                          t_k_space_hubbard
+                          t_k_space_hubbard, t_3_body_excits
     use IntegralsData, only: UMat, fck, nMax
     use SymData, only: nSymLabels
     use dSFMT_interface, only : genrand_real2_dSFMT
@@ -71,7 +71,9 @@ MODULE HPHFRandExcitMod
         integer :: ic
         integer :: Ex2(2,2),nJ_loc(nel),nJ2(nel)
         integer(kind=n_int) :: iLutnJ_loc(0:niftot),iLutnJ2(0:niftot)
-
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "CalcPGenHPHF"
+#endif
         tSameFunc = .false.
         pGen = 0.0_dp
 
@@ -97,6 +99,7 @@ MODULE HPHFRandExcitMod
                 tSameFunc=.true. 
                 return
             endif
+            ASSERT(.not. t_3_body_excits)
             if(ic.le.2) then
                 if(.not.tSwapped) then
                     !ex is correct for this excitation
@@ -306,6 +309,8 @@ MODULE HPHFRandExcitMod
             ENDIF
 
             IF((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) THEN     !This is if we have all determinants in the two HPHFs connected...
+                ! todo 3-body!
+                ASSERT(.not. t_3_body_excits)
 
                 Ex2(1,1)=ExcitLevel
 !                CALL DecodeBitDet(nJ2,iLutnJ2)     !This could be done better !***!

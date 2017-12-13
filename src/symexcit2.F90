@@ -1,3 +1,4 @@
+#include "macros.h"
 MODULE SymExcit2
       
       use CalcData , only : G_VMC_EXCITWEIGHT,G_VMC_EXCITWEIGHTS,CUR_VERT,EXCITFUNCS
@@ -322,7 +323,7 @@ MODULE SymExcit2
 !  WARNING - this currently only works for abelian symmetry groups
       SUBROUTINE GenExcitProbInternal(nI,nJ,nEl,G1,nBasisMax,Arr,nBasis,OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,iTotal,pGen)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, t_3_body_excits
          use SymData, only: nSymPairProds,SymPairProds
          use MemoryManager, only: TagIntType
          use sym_mod
@@ -348,7 +349,8 @@ MODULE SymExcit2
          real(dp) pGen
          real(dp) Arr(nBasis,2)
          LOGICAL IsUHFDet
-         character(*), parameter :: thisroutine='GenExcitProbInternal'
+         character(*), parameter :: this_routine='GenExcitProbInternal'
+         ASSERT(.not.t_3_body_excits)
          iExcit(1,1)=2
          CALL GETEXCITATION(nI,nJ,nEl,iExcit,L)
 !EXCIT(1,*) are the ij... in NI, and EXCIT(2,*) the ab... in NJ
@@ -400,7 +402,7 @@ MODULE SymExcit2
 !  Now enumerate all the FROMs, and their weightings
          nFromPairs=SymProdInd(2,iSpn,iFrom)
          allocate(ews(nFromPairs))
-         call LogMemAlloc('ExcitWGEPI',nFromPairs,8*ExcitWeightSize,thisroutine,tagEWS)
+         call LogMemAlloc('ExcitWGEPI',nFromPairs,8*ExcitWeightSize,this_routine,tagEWS)
          iCount=0
          Norm=0.0_dp
          CALL EnumExcitFromWeights(ExcitTypes(1,iExcitType),ews,OrbPairs,SymProdInd,Norm,iCount,Arr,nBasis)
@@ -413,7 +415,7 @@ MODULE SymExcit2
          ENDDO
          iFromIndex=I
          deallocate(ews)
-         call LogMemDealloc(thisroutine,tagEWS)
+         call LogMemDealloc(this_routine,tagEWS)
 !  pGen is the prob of choosing a specific FROM (given having chosen iExcitType proportional 
 !to the number of excitations in each iExcitType)
 !           times the prob of choosing iExcitType
@@ -421,7 +423,7 @@ MODULE SymExcit2
 !.. Now work out the index of the (a,b) pair within the prod
          nToPairs=ExcitTypes(5,iExcitType)/SymProdInd(2,iSpn,iFrom)
          allocate(ews(nToPairs))
-         call LogMemAlloc('ExcitWGEPI',nToPairs,8*ExcitWeightSize,thisroutine,tagEWS)
+         call LogMemAlloc('ExcitWGEPI',nToPairs,8*ExcitWeightSize,this_routine,tagEWS)
          iCount=0
          Norm=0.0_dp
          CALL EnumExcitWeights(ExcitTypes(1,iExcitType),iFromIndex,iLUT,ews,OrbPairs,SymProdInd,Norm,iCount,nBasisMax,Arr,nBasis)
@@ -439,20 +441,24 @@ MODULE SymExcit2
 !proportional to the number of excitations in each iExcitType)
 !           times the prob of choosing iExcitType
          deallocate(ews)
-         call LogMemDealloc(thisroutine,tagEWS)
+         call LogMemDealloc(this_routine,tagEWS)
       END subroutine
 
 !We wish to calculate whether NJ is an excitation of NI.
 !WARNING - this currently only works for abelian symmetry groups
       SUBROUTINE IsConnectedDetInternal(nI,nJ,tIsConnectedDet)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB, nel
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, t_3_body_excits
          IMPLICIT NONE
          INTEGER iExcit(2,2)
          LOGICAL L
          INTEGER nI(nEl),nJ(nEl)
          LOGICAL tIsConnectedDet
          LOGICAL IsUHFDet
+#ifdef __DEBUG
+         character(*), PARAMETER :: this_routine = "IsConnectedDetInternal"
+#endif
+        ASSERT(.not. t_3_body_excits)
          iExcit(1,1)=2
          CALL GETEXCITATION(nI,nJ,nEl,iExcit,L)
 !EXCIT(1,*) are the ij... in NI, and EXCIT(2,*) the ab... in NJ

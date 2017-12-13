@@ -3577,7 +3577,6 @@ SUBROUTINE SpinOrbSymSetup()
 !         ALLOCATE(kPointToBasisFn(kminX:kmaxX,kminY:kmaxY,1,2))
         ALLOCATE(kPointToBasisFn(kminX:kmaxX,kminY:kmaxY,kminz:kmaxz,2))
         kPointToBasisFn=-1 !Init to invalid
-        print *, "kminz, kmaxz: ", kminz, kmaxz
         do i=1,nBasis
             iSpinIndex=(G1(i)%Ms+1)/2+1 ! iSpinIndex equals 1 for a beta spin (ms=-1), and 2 for an alpha spin (ms=1)
             kPointToBasisFn(G1(i)%k(1),G1(i)%k(2),G1(i)%k(3),iSpinIndex)=i

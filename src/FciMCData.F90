@@ -200,8 +200,10 @@ MODULE FciMCData
       ! The projected energy over the current update cycle.
       HElement_t(dp), allocatable :: ProjECyc(:)
       
-      real(dp) :: bloom_sizes(0:2), bloom_max(0:2)
-      integer :: bloom_count(0:2), all_bloom_count(0:2)
+      ! [W.D.12.12.2017]
+      ! for triples allow bigger bloom counts! 
+      real(dp) :: bloom_sizes(0:3), bloom_max(0:3)
+      integer :: bloom_count(0:3), all_bloom_count(0:3)
 
       ! Global, accumulated, values calculated on the root processor from
       ! the above per-node values

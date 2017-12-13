@@ -10,7 +10,7 @@ use bit_rep_data, only: niftot, nifdbo, extract_sign
 use bit_reps, only: decode_bit_det
 use DetBitOps, only: FindBitExcitLevel
 use constants
-use SystemData, only: nel
+use SystemData, only: nel, t_3_body_excits
 
 implicit none
 
@@ -832,6 +832,10 @@ contains
     integer :: iRef, nI(nel), exLevel
     real(dp) :: unsignedCache
     HElement_t(dp) :: signedCache
+#ifdef __DEBUG
+    character(*), parameter :: this_routine = "get_sign_op_run"
+#endif
+    ASSERT(.not. t_3_body_excits)
     
     call initialize_c_caches(signedCache, unsignedCache)
     ! Sum up all Hij cj for all superinitiators j

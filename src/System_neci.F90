@@ -644,7 +644,9 @@ system: do
 !             tHub = .false.
 !             treal = .false.
 !             lNoSymmetry = .true.
-            treal = .true.
+            ! this treal is not true.. now we also have k-space hubbard lattice 
+            ! support
+!             treal = .true.
 !             t_new_real_space_hubbard = .true.
 
             ! set some defaults: 
@@ -672,8 +674,13 @@ system: do
                 call geti(length_z)
             end if
 
-            lat => lattice(lattice_type, length_x, length_y, length_z, & 
-                .not. t_open_bc_x, .not. t_open_bc_y, .not. t_open_bc_z)
+            if (t_k_space_hubbard) then 
+                lat => lattice(lattice_type, length_x, length_y, length_z, & 
+                    .not. t_open_bc_x, .not. t_open_bc_y, .not. t_open_bc_z,'k-space')
+            else if (t_new_real_space_hubbard) then 
+                lat => lattice(lattice_type, length_x, length_y, length_z, & 
+                    .not. t_open_bc_x, .not. t_open_bc_y, .not. t_open_bc_z,'real-space')
+            end if
 
             ! maybe i have to reuse the cell input functionality or set it 
             ! here also, so that the setup is not messed up 

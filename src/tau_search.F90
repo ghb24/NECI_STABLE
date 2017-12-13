@@ -5,7 +5,8 @@ module tau_search
     use SystemData, only: AB_elec_pairs, par_elec_pairs, tGen_4ind_weighted, &
                           tHPHF, tCSF, tKpntSym, nel, G1, nbasis, &
                           AB_hole_pairs, par_hole_pairs, tGen_4ind_reverse, &
-                          nOccAlpha, nOccBeta, tUEG, tGen_4ind_2, tReltvy
+                          nOccAlpha, nOccBeta, tUEG, tGen_4ind_2, tReltvy, & 
+                          t_3_body_excits
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow, t_min_tau, min_tau_global
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
@@ -141,7 +142,12 @@ contains
         real(dp), intent(in) :: prob, matel
         real(dp) :: tmp_gamma, tmp_prob
         integer, parameter :: cnt_threshold = 50
-      
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "log_spawn_magnitude"
+#endif
+        ! i need some changes for 3 body excitations for dynamic tau-search!
+        ASSERT(.not. t_3_body_excits)
+
         select case(getExcitationType(ex, ic))
         case(1)
             ! no spin changing
@@ -505,6 +511,7 @@ contains
         type(excit_gen_store_type) :: store, store2
         logical :: tAllExcitFound,tParity,tSameFunc,tSwapped,tSign
         character(len=*), parameter :: t_r="FindMaxTauDoubs"
+        character(len=*), parameter :: this_routine ="FindMaxTauDoubs"
         integer :: ex(2,2),ex2(2,2),exflag,iMaxExcit,nStore(6),nExcitMemLen(1)
         integer, allocatable :: Excitgen(:)
         real(dp) :: nAddFac,MagHel,pGen,pGenFac
@@ -595,6 +602,7 @@ contains
                         !Have to recalculate the excitation matrix.
                         ic = FindBitExcitLevel(iLutnJ, iLutRef(:,1), 2)
                         ex(:,:) = 0
+                        ASSERT(.not. t_3_body_excits)
                         if(ic.le.2) then
                             ex(1,1) = ic
                             call GetBitExcitation(iLutRef(:,1),iLutnJ,Ex,tParity)
@@ -630,8 +638,10 @@ contains
             if(tHPHF) then
                 ic = FindBitExcitLevel(iLutnJ, iLutRef(:,1), 2)
                 ex2(:,:) = 0
+                ASSERT(.not. t_3_body_excits)
                 if(ic.le.2) then
                     ex2(1,1) = ic
+
                     call GetBitExcitation(iLutnJ,iLutRef(:,1),Ex2,tSign)
                 endif
                 call CalcPGenHPHF(nJ,iLutnJ,ProjEDet(:,1),iLutRef(:,1),ex2,store2%ClassCountOcc,    &

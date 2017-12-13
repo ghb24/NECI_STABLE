@@ -3,7 +3,7 @@
 module fcimc_pointed_fns
 
     use SystemData, only: nel, tGen_4ind_2, tGen_4ind_weighted, tHub, tUEG, &
-                          tGen_4ind_reverse,  nBasis
+                          tGen_4ind_reverse,  nBasis, t_3_body_excits
     use LoggingData, only: tHistExcitToFrom, FciMCDebug
     use CalcData, only: RealSpawnCutoff, tRealSpawnCutoff, tAllRealCoeff, &
                         RealCoeffExcitThresh, AVMcExcits, tau, DiagSft, &
@@ -41,7 +41,7 @@ module fcimc_pointed_fns
         integer, intent(in) :: DetCurr(nel), nJ(nel), part_type 
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
-        integer, intent(in) :: ic, ex(2,2), walkExcitLevel
+        integer, intent(in) :: ic, ex(2,ic), walkExcitLevel
         real(dp), dimension(lenof_sign), intent(in) :: RealwSign
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
@@ -81,7 +81,7 @@ module fcimc_pointed_fns
         integer, intent(in) :: DetCurr(nel), nJ(nel), part_type 
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
-        integer, intent(in) :: ic, ex(2,2), walkExcitLevel
+        integer, intent(in) :: ic, ex(2,ic), walkExcitLevel
         real(dp), dimension(lenof_sign), intent(in) :: RealwSign
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
@@ -108,7 +108,7 @@ module fcimc_pointed_fns
         integer, intent(in) :: part_type    ! odd = Real parent particle, even = Imag parent particle
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
-        integer, intent(in) :: ic, ex(2,2), walkExcitLevel
+        integer, intent(in) :: ic, ex(2,ic), walkExcitLevel
         real(dp), dimension(lenof_sign), intent(in) :: RealwSign
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
@@ -127,7 +127,7 @@ module fcimc_pointed_fns
         real(dp) :: temp_prob, pgen_a, dummy_arr(nBasis), cum_sum
         integer :: ispn
 
-        integer :: temp_ex(2,2)
+        integer :: temp_ex(2,ic)
         ! Just in case
         child = 0.0_dp
 
@@ -194,6 +194,8 @@ module fcimc_pointed_fns
         ! fill in the frequency histograms here! 
         ! [Werner Dobrautz 4.4.2017:]
         if (t_fill_frequency_hists) then 
+            ! not yet implemented for triples!
+            ASSERT(.not. t_3_body_excits)
             if (tHUB .or. tUEG) then 
                 call fill_frequency_histogram(abs(rh_used), prob / AvMCExcits)
             else 
@@ -310,6 +312,7 @@ module fcimc_pointed_fns
                 ! back, to be sure the time-step covers the changed 
                 ! non-initiators spawns! 
 
+                ASSERT(.not. t_3_body_excits)
                 call log_spawn_magnitude (ic, ex, matel, prob)
 
             end if

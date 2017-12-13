@@ -1,7 +1,8 @@
 module hphf_integrals
     use constants, only: dp,n_int,sizeof_int
     use SystemData, only: NEl, nBasisMax, G1, nBasis, Brr, tHub, ECore, &
-                          ALat, NMSH, tOddS_HPHF, modk_offdiag, t_lattice_model 
+                          ALat, NMSH, tOddS_HPHF, modk_offdiag, t_lattice_model, & 
+                          t_3_body_excits
     use IntegralsData, only: UMat,FCK,NMAX
     use HPHFRandExcitMod, only: FindDetSpinSym, FindExcitBitDetSym
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel, &
@@ -128,6 +129,7 @@ module hphf_integrals
                 ExcitLevel = FindBitExcitLevel(iLutnI2, ilutnJ, 2)
 
                 if (ExcitLevel.le.2) then
+                    
                     ! We need to find out whether the nJ HPHF wavefunction is 
                     ! symmetric or antisymmetric. This is dependant on the 
                     ! number of open shell orbitals and total spin of the wavefunction.
@@ -143,6 +145,7 @@ module hphf_integrals
                     call GetBitExcitation(iLutnI2,iLutnJ,Ex,tSign)
 
                     if (t_lattice_model) then 
+                        if (t_3_body_excits) call stop_all("hphf_off_diag", "todo 3 body")
                         ! is this the correct call here? compare to the 
                         ! orginal call below!
 !                         temp_ex(1,:) = Ex(2,:)

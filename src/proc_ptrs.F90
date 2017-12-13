@@ -43,7 +43,7 @@ module procedure_pointers
             use constants
             implicit none
 
-            integer, intent(in) :: nI(nel), nJ(nel), part_type, ic, ex(2,2)
+            integer, intent(in) :: nI(nel), nJ(nel), part_type, ic, ex(2,ic)
             integer, intent(in) :: exLevel
             integer(n_int), intent(in) :: ilutI(0:NifTot)
             integer(n_int), intent(inout) :: ilutJ(0:NifTot)

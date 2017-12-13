@@ -5,7 +5,8 @@ module fcimc_helper
     use constants
     use util_mod
     use systemData, only: nel, tHPHF, tNoBrillouin, G1, tUEG, &
-                          tLatticeGens, nBasis, tHistSpinDist, tRef_Not_HF
+                          tLatticeGens, nBasis, tHistSpinDist, tRef_Not_HF, & 
+                          t_3_body_excits
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use semi_stoch_procs, only: recalc_core_hamil_diag
     use bit_reps, only: NIfTot, flag_initiator, test_flag, extract_flags, &
@@ -390,6 +391,9 @@ contains
                 ExcitLevel_local = 2
         endif
 
+        ! this is the first important change to make the triples run!!
+        ! consider the matrix elements of triples! 
+
         ! Perform normal projection onto reference determinant
         if (ExcitLevel_local == 0) then
 
@@ -431,6 +435,13 @@ contains
                 HOffDiag(1:inum_runs) = get_helement (ProjEDet(:,1), nI, &
                                                       ExcitLevel, ilutRef(:,1), ilut)
             endif
+
+        else if (ExcitLevel_local == 3 .and. t_3_body_excits) then 
+            ! the new 3-body terms in the transcorrelated momentum space hubbard 
+            ! hphf not yet implemented! 
+            ASSERT(.not. tHPHF) 
+            HOffDiag(1:inum_runs) = get_helement( ProjEDet(:,1), nI, ilutRef(:,1), ilut) 
+
 
         endif ! ExcitLevel_local == 1, 2, 3
 
@@ -650,6 +661,7 @@ contains
             sgn_run = sgn(run)
 #endif
 
+            ASSERT(.not. t_3_body_excits)
             hoffdiag = 0.0_dp
             if (exlevel == 0) then
 
@@ -1236,11 +1248,15 @@ contains
 
         integer :: NoInFrozenCore, MinVirt, ExcitLevel, i 
         integer :: k(3)
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "CheckAllowedTruncSpawn"
+#endif
 
         bAllowed = .true.
 
         ! Truncate space by excitation level
         if (tTruncSpace) then
+            ASSERT(.not.t_3_body_excits)
             ! If parent walker is one below excitation cutoff, could be
             ! disallowed if double. If higher, then all excits could
             ! be disallowed. If HPHF, excit could be single or double,

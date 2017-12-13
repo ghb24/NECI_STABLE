@@ -2,7 +2,7 @@
 
 module fcimc_iter_utils
 
-    use SystemData, only: nel, tHPHF, tNoBrillouin, tRef_Not_HF
+    use SystemData, only: nel, tHPHF, tNoBrillouin, tRef_Not_HF, max_ex_level
     use CalcData, only: tSemiStochastic, tChangeProjEDet, tTrialWavefunction, &
                         tCheckHighestPopOnce, tRestartHighPop, StepsSft, tau, &
                         tTruncInitiator, tJumpShift, TargetGrowRate, &
@@ -387,7 +387,10 @@ contains
         integer :: low, upp, run
 
         integer(int64) :: TotWalkersTemp
-        real(dp) :: bloom_sz_tmp(0:2)
+        ! [W.D.12.12.2017]
+        ! allow for triples now: 
+        ! Todo: make that more flexible in the future! 
+        real(dp) :: bloom_sz_tmp(0:3)
         real(dp) :: RealAllHFCyc(max(lenof_sign,inum_runs))
 !         real(dp) :: all_norm_psi_squared(inum_runs)
         real(dp) :: all_norm_semistoch_squared(inum_runs)
@@ -428,7 +431,7 @@ contains
         sizes(20) = size(TotParts)
         sizes(21) = size(tot_parts_new)
         sizes(22) = size(SumNoAtHF)
-        sizes(23) = size(bloom_count)
+        sizes(23) = size(bloom_count(0:max_ex_level))
         sizes(24) = size(NoAtHF)
         sizes(25) = size(SumWalkersCyc)
         sizes(26) = 1 ! nspawned (single int, not an array)
@@ -467,7 +470,7 @@ contains
         low = upp + 1; upp = low + sizes(21) - 1; send_arr(low:upp) = tot_parts_new;
 
         low = upp + 1; upp = low + sizes(22) - 1; send_arr(low:upp) = SumNoAtHf;
-        low = upp + 1; upp = low + sizes(23) - 1; send_arr(low:upp) = bloom_count;
+        low = upp + 1; upp = low + sizes(23) - 1; send_arr(low:upp) = bloom_count(0:max_ex_level);
         low = upp + 1; upp = low + sizes(24) - 1; send_arr(low:upp) = NoAtHF;
         low = upp + 1; upp = low + sizes(25) - 1; send_arr(low:upp) = SumWalkersCyc;
         low = upp + 1; upp = low + sizes(26) - 1; send_arr(low:upp) = nspawned;
@@ -510,7 +513,7 @@ contains
         low = upp + 1; upp = low + sizes(21) - 1; tot_parts_new_all = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(22) - 1; AllSumNoAtHF = recv_arr(low:upp);
 
-        low = upp + 1; upp = low + sizes(23) - 1; all_bloom_count = nint(recv_arr(low:upp));
+        low = upp + 1; upp = low + sizes(23) - 1; all_bloom_count(0:max_ex_level) = nint(recv_arr(low:upp));
         low = upp + 1; upp = low + sizes(24) - 1; AllNoAtHf = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(25) - 1; AllSumWalkersCyc = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(26) - 1; nspawned_tot = nint(recv_arr(low));
@@ -586,8 +589,8 @@ contains
 
         ! These require a different type of reduce operation, so are communicated
         ! separately to the above communication.
-        call MPIReduce(bloom_sizes(1:2), MPI_MAX, bloom_sz_tmp(1:2))
-        bloom_sizes(1:2) = bloom_sz_tmp(1:2)
+        call MPIReduce(bloom_sizes(1:max_ex_level), MPI_MAX, bloom_sz_tmp(1:max_ex_level))
+        bloom_sizes(1:max_ex_level) = bloom_sz_tmp(1:max_ex_level)
 
         ! Arrays for checking load balancing.
         call MPIReduce(TotWalkersTemp, MPI_MAX, MaxWalkersProc)

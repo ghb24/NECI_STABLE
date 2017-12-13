@@ -216,7 +216,7 @@ contains
         use FciMCData, only: iLutHF_True, Iter, IterRDMStart, PreviousCycles
         use LoggingData, only: RDMEnergyIter
         use rdm_data, only: one_rdm_t
-        use SystemData, only: nel
+        use SystemData, only: nel, max_ex_level
 
         type(rdm_spawn_t), intent(inout) :: spawn
         type(one_rdm_t), intent(inout) :: one_rdms(:)
@@ -230,7 +230,7 @@ contains
         ! been counted. So check this isn't the case first.
         if (.not. ((Iter == NMCyc) .or. (mod((Iter+PreviousCycles - IterRDMStart + 1), RDMEnergyIter) == 0))) then
             call decode_bit_det (nI, iLutnI)
-            ExcitLevel = FindBitExcitLevel(iLutHF_True, iLutnI, 2)
+            ExcitLevel = FindBitExcitLevel(iLutHF_True, iLutnI, max_ex_level)
 
             call fill_rdm_diag_currdet_norm(spawn, one_rdms, iLutnI, nI, ExcitLevel, av_sign, iter_occ, .false.)
         end if
@@ -247,7 +247,7 @@ contains
 
         use FciMCData, only: HFDet_True
         use rdm_data, only: one_rdm_t
-        use SystemData, only: nel
+        use SystemData, only: nel, t_3_body_excits
 
         type(rdm_spawn_t), intent(inout) :: spawn
         type(one_rdm_t), intent(inout) :: one_rdms(:)
@@ -256,11 +256,15 @@ contains
         real(dp), intent(in) :: AvSignJ(:), AvSignHF(:)
         integer, intent(in) :: walkExcitLevel
         integer, intent(in) :: IterRDM(:)
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "Add_RDM_HFConnections_Norm"
+#endif
 
         integer(n_int) :: iUnused
 
         ! If we have a single or double, add in the connection to the HF,
         ! symmetrically.
+        ASSERT(.not. t_3_body_excits)
         if ((walkExcitLevel == 1) .or. (walkExcitLevel == 2)) then
             call Add_RDM_From_IJ_Pair(spawn, one_rdms, HFDet_True, nJ, AvSignHF(2::2), IterRDM*AvSignJ(1::2))
 
@@ -281,7 +285,7 @@ contains
 
         use FciMCData, only: HFDet_True, iLutHF_True
         use rdm_data, only: one_rdm_t
-        use SystemData, only: nel
+        use SystemData, only: nel, t_3_body_excits
 
         type(rdm_spawn_t), intent(inout) :: spawn
         type(one_rdm_t), intent(inout) :: one_rdms(:)
@@ -290,10 +294,14 @@ contains
         real(dp), intent(in) :: AvSignJ(:), AvSignHF(:)
         integer, intent(in) :: walkExcitLevel
         integer, intent(in) :: IterRDM(:)
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "Add_RDM_HFConnections_HPHF"
+#endif
 
         ! Now if the determinant is connected to the HF (i.e. single or double),
         ! add in the diagonal elements of this connection as well -
         ! symmetrically because no probabilities are involved.
+        ASSERT(.not. t_3_body_excits)
         if ((walkExcitLevel == 1) .or. (walkExcitLevel == 2)) then
             call Fill_Spin_Coupled_RDM(spawn, one_rdms, iLutHF_True, iLutJ, HFDet_True, nJ, AvSignHF(2::2), IterRDM*AvSignJ(1::2))
 
@@ -557,7 +565,7 @@ contains
         use LoggingData, only: RDMExcitLevel
         use rdm_data, only: one_rdm_t
         use rdm_data_utils, only: add_to_rdm_spawn_t
-        use SystemData, only: nel
+        use SystemData, only: nel, t_3_body_excits
 
         type(rdm_spawn_t), intent(inout) :: spawn
         type(one_rdm_t), intent(inout) :: one_rdms(:)
@@ -567,12 +575,15 @@ contains
         integer :: Ex(2,2), Ex_symm(2,2)
         logical :: tParity
         real(dp) :: full_sign(spawn%rdm_send%sign_length)
-
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "Add_RDM_From_IJ_Pair"
+#endif
         Ex(:,:) = 0
         ! Maximum excitation level - we know they are connected by a double
         ! or a single excitation.
         Ex(1,1) = 2
         tParity = .false.
+        ASSERT(.not. t_3_body_excits)
 
         ! Ex(1,:) comes out as the orbital(s) excited from, i.e. i,j.
         ! Ex(2,:) comes out as the orbital(s) excited to, i.e. a,b.

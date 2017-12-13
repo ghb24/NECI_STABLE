@@ -707,6 +707,8 @@ contains
         integer, intent(in) :: ExMat(2,2), IC
         integer :: exTypeFlag
 
+        ! i need to initialize to something..
+        exTypeFlag = -1
         if (IC==1) then
             if (is_beta(ExMat(2,1)) .neqv. is_beta(ExMat(1,1))) then
                 exTypeFlag = 3
@@ -758,6 +760,9 @@ contains
                     return
                 endif
             endif
+        else if (ic == 3) then 
+            ! todo! need to consider more maybe!
+            exTypeFlag = 6 
         endif
 
     end function

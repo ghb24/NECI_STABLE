@@ -5,7 +5,7 @@ module FciMCParMod
     ! main per-iteration processing loop.
     use SystemData, only: nel, tUEG2, hist_spin_dist_iter, tReltvy, tHub, & 
                           t_new_real_space_hubbard, t_tJ_model, t_heisenberg_model, & 
-                          t_k_space_hubbard
+                          t_k_space_hubbard, max_ex_level
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
                         AvMCExcits, pops_norm_unit, iExitWalkers, &
@@ -135,8 +135,8 @@ module FciMCParMod
         procedure(attempt_die_t), pointer :: ad_tmp
 
         character(*), parameter :: this_routine = 'FciMCPar'
-        character(6), parameter :: excit_descriptor(0:2) = &
-                                        (/"IC0   ", "single", "double"/)
+        character(6), parameter :: excit_descriptor(0:3) = &
+                                        (/"IC0   ", "single", "double", "triple"/)
 
         if (tJustBlocking) then
             ! Just reblock the current data, and do not perform an fcimc calculation.
@@ -377,7 +377,7 @@ module FciMCParMod
                 if (iProcIndex == Root) then
                     istart = 1
                    ! if (tSpinProjDets) istart = 0
-                    do i = istart, 2
+                    do i = istart, max_ex_level
                         if (bloom_count(i) /= 0) then
                             if (.not. tMaxBloom .or. &
                                     bloom_sizes(i) > bloom_max(i)) then
@@ -803,7 +803,7 @@ module FciMCParMod
         integer :: DetCurr(nel), nJ(nel), FlagsCurr, parent_flags
         real(dp), dimension(lenof_sign) :: SignCurr, child, SpawnSign
         integer(kind=n_int) :: iLutnJ(0:niftot)
-        integer :: IC, walkExcitLevel, walkExcitLevel_toHF, ex(2,2), TotWalkersNew, part_type, run
+        integer :: IC, walkExcitLevel, walkExcitLevel_toHF, ex(2,3), TotWalkersNew, part_type, run
         integer(int64) :: tot_parts_tmp(lenof_sign)
         logical :: tParity, tSuccess, tCoreDet
         real(dp) :: prob, HDiagCurr, TempTotParts, Di_Sign_Temp

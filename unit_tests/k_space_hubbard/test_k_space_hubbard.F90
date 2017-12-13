@@ -94,6 +94,7 @@ contains
         ! also need the tmat ready.. 
         call setup_tmat_k_space(lat)
 
+        call setup_kPointToBasisFn(lat)
         ! and i also have to setup the symmetry table... damn.. 
         ! i have to setup umat also or
         uhub = 1.0
@@ -116,6 +117,7 @@ contains
         call run_test_case(setup_g1_test, "setup_g1_test")
         call run_test_case(setup_nbasismax_test, "setup_nbasismax_test")
         call run_test_case(setup_tmat_k_space_test, "setup_tmat_k_space_test")
+        call run_test_case(setup_kPointToBasisFn_test, "setup_kPointToBasisFn_test")
 
         call init_k_space_unit_tests()
         call run_test_case(get_diag_helement_k_sp_hub_test, "get_diag_helement_k_sp_hub_test")
@@ -248,6 +250,30 @@ contains
 
     end subroutine setup_tmat_k_space_test
 
+    subroutine setup_kPointToBasisFn_test
+
+        use SymExcitDataMod, only: kPointToBasisFn
+        class(lattice), pointer :: ptr
+        integer :: i
+        print *, "" 
+        print *, "testing: setup_kPointToBasisFn" 
+        
+        ptr => lattice('chain', 4, 1, 1, .true., .true., .true.,'k-space')
+
+        call setup_kPointToBasisFn(ptr)
+
+        call assert_equals(1, kPointToBasisFn(-1,0,0,1))
+        call assert_equals(2, kPointToBasisFn(-1,0,0,2))
+        call assert_equals(3, kPointToBasisFn(0,0,0,1))
+        call assert_equals(4, kPointToBasisFn(0,0,0,2))
+        call assert_equals(5, kPointToBasisFn(1,0,0,1))
+        call assert_equals(6, kPointToBasisFn(1,0,0,2))
+        call assert_equals(7, kPointToBasisFn(2,0,0,1))
+
+        deallocate(kPointToBasisFn)
+
+    end subroutine setup_kPointToBasisFn_test
+
     subroutine get_diag_helement_k_sp_hub_test
 
         print *, ""
@@ -268,23 +294,161 @@ contains
         trans_corr_param_2body = 1.0_dp 
 
         three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
-        print *, get_diag_helement_k_sp_hub([1,2,3,4])
+
+        umat = uhub/omega
 
     end subroutine get_diag_helement_k_sp_hub_test
 
     subroutine get_offdiag_helement_k_sp_hub_test
 
+        integer :: ex(2,2)
+        integer, allocatable :: nI(:)
+
+        nel = 2 
+        allocate(nI(nel)); nI = [3,4] 
+
         print *, ""
         print *, "testing: get_offdiag_helement_k_sp_hub" 
-        call assert_true(.false.)
+        t_trans_corr_2body = .false. 
+
+        ! 0 due to spin-symmetry:
+        ex(1,:) = [1,3]
+        call assert_equals(h_cast(0.0_dp), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
+        ex(1,:) = [1,2]
+        ex(2,:) = [6,4]
+        call assert_equals(h_cast(0.0_dp), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
+
+        ! 0 due to momentum symmetry: 
+        ex(2,:) = [3,4]
+        call assert_equals(h_cast(0.0_dp), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
+
+        ! this should contribute:
+        ex(1,:) = [1,6]
+        ex(2,:) = [3,4]
+        call assert_equals(h_cast(uhub/real(omega,dp)), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
+        ex(1,:) = [6,1]
+        call assert_equals(h_cast(uhub/real(omega,dp)), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
+
+        ex(2,:) = [1,6]
+        ex(1,:) = [3,4]
+        call assert_equals(h_cast(-uhub/real(omega,dp)), get_offdiag_helement_k_sp_hub(nI,ex,.true.))
+
+        t_trans_corr = .true. 
+        trans_corr_param = 2.0_dp 
+
+        call assert_equals(h_cast(uhub/real(omega,dp)*exp(4.0_dp)), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
+
+        ex(1,:) = [1,6]
+        ex(2,:) = [3,4]
+
+        call assert_equals(h_cast(uhub/real(omega,dp)*exp(-4.0_dp)), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
+        ex(1,:) = [6,1]
+        call assert_equals(h_cast(uhub/real(omega,dp)*exp(-4.0_dp)), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
+
+        t_trans_corr = .false. 
+        trans_corr_param = 0.0_dp 
+
+        t_trans_corr_2body = .true. 
+        trans_corr_param_2body = 1.0_dp
+
+        ex(1,:) = [1,3]
+        ex(2,:) = [2,4] 
+        call assert_equals(h_cast(0.0_dp), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
+
+        ex(1,:) = [1,2]
+        ex(2,:) = [3,4]
+        call assert_equals(h_cast(0.0_dp), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
+
+        ! this should contribute:
+        ex(1,:) = [1,6]
+        ex(2,:) = [3,4]
+        ! and have a triples contribution now!
+        call assert_equals(h_cast(uhub/real(omega,dp)), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
+        ! this should be independent of order of electrons
+        ex(1,:) = [6,1]
+        call assert_equals(h_cast(uhub/real(omega,dp)), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
+
+!         three_body_prefac = 1.0_dp
+        ex(1,:) = [1,6]
+        ex(2,:) = [3,4]
+        print *, "---------------------------------" 
+        print *, "test order for matrix elements triples contrib to 'normal'"
+        print *, "(1,6) -> (3,4): ", get_offdiag_helement_k_sp_hub(nI,ex,.false.)
+        ex(1,:) = [6,1]
+        print *, "(6,1) -> (3,4): ", get_offdiag_helement_k_sp_hub(nI,ex,.false.)
+        ex(2,:) = [4,3]
+        print *, "(6,1) -> (4,3): ", get_offdiag_helement_k_sp_hub(nI,ex,.false.)
+        ex(1,:) = [1,6]
+        print *, "(1,6) -> (4,3): ", get_offdiag_helement_k_sp_hub(nI,ex,.false.)
+        print *, "---------------------------------" 
+
+        ! 0 due to momentum symmetry
+        ex(1,:) = [1,5]
+        ex(2,:) = [3,7]
+        call assert_equals(h_cast(0.0_dp), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
+
+        ex(1,:) = [2,6]
+        ex(2,:) = [4,8]
+        call assert_equals(h_cast(0.0_dp), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
+
+        ! this should contribute: 
+        ex(1,:) = [1,3]
+        ex(2,:) = [5,7] 
+        call assert_equals(h_cast(-4.0_dp*three_body_prefac), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
+
+        ! the order in EX should not matter.. figure that out! 
+        ex(1,:) = [3,1]
+        call assert_equals(h_cast(-4.0_dp*three_body_prefac), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
+
+        ex(1,:) = [2,4]
+        ex(2,:) = [6,8] 
+        call assert_equals(h_cast(-4.0_dp*three_body_prefac), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
+
+        ! order of orbitals should also not matter! 
+        ex(2,:) = [8,6] 
+        call assert_equals(h_cast(-4.0_dp*three_body_prefac), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
+        ! and this should have opposite sign.... 
+        ex(2,:) = [1,3]
+        ex(1,:) = [5,7] 
+        call assert_equals(h_cast(4.0_dp*three_body_prefac), get_offdiag_helement_k_sp_hub(nI,ex,.false.),1.0e-12)
+
+        t_trans_corr_2body = .false. 
 
     end subroutine get_offdiag_helement_k_sp_hub_test
 
     subroutine get_helement_k_space_hub_test
 
+        integer, allocatable :: ni(:), nJ(:)
+        integer :: ex(2,3), ic_ret
+
+        nel = 2
+        allocate(nI(nel)); allocate(nJ(nel)); 
+
         print *, ""
         print *, "testing: get_helement_k_space_hub_test" 
-        call assert_true(.false.)
+        nI = [1,2]
+        nJ = [3,4] 
+
+        ic_ret = -1
+        call assert_equals(h_cast(0.0_dp), get_helement_k_space_hub(nI,nJ,ic_ret))
+        call assert_equals(2, ic_ret)
+
+        call assert_equals(h_cast(uhub/omega), get_helement_k_space_hub([1,6],[3,4]))
+
+        nel = 4
+        deallocate(nI); deallocate(nJ); allocate(nJ(nel)); allocate(nI(nel)); 
+        nI = [3,6,7,8]
+        nJ = [1,2,5,8]
+        ic_ret = -1
+        call assert_equals(h_cast(0.0_dp), get_helement_k_space_hub(nI,nJ,ic_ret))
+        call assert_equals(3, ic_ret) 
+
+        t_trans_corr_2body = .true. 
+        call assert_equals(h_cast(1.0_dp), get_helement_k_space_hub(nI,nJ))
+        ! todo: more tests! 
+
+        t_trans_corr_2body = .false. 
+
     end subroutine get_helement_k_space_hub_test
 
     subroutine pick_spin_opp_elecs_test
@@ -310,9 +474,14 @@ contains
             call assert_equals(1, elecs(2))
         end if
 
-        nel = -1
-        nOccBeta = -1
-        nOccAlpha = -1
+        nel = 4 
+        nOccBeta = 2
+        nOccAlpha = 2 
+        deallocate(nI); allocate(nI(nel)); nI = [1,2,3,4]
+
+        call pick_spin_opp_elecs(nI, elecs, p_elec) 
+        call assert_equals(0.25_dp, p_elec) 
+        call assert_true(.not. same_spin(nI(elecs(1)),nI(elecs(2))))
 
     end subroutine pick_spin_opp_elecs_test
 
@@ -335,22 +504,55 @@ contains
         call pick_from_cum_list([1.0_dp,2.0_dp],2.0_dp, ind, pgen)
         call assert_equals(0.5_dp, pgen) 
 
+
     end subroutine pick_from_cum_list_test
 
     subroutine create_ab_list_hubbard_test
 
+        integer, allocatable :: nI(:), orb_list(:,:)
+        integer(n_int), allocatable :: ilutI(:) 
+        real(dp), allocatable :: cum_arr(:) 
+        real(dp) :: cum_sum, cpt 
+        integer :: tgt 
+
+        nel = 4 
+        allocate(nI(nel)); allocate(ilutI(0:niftot)); allocate(orb_list(8,2)); 
+        allocate(cum_arr(8))
+
         print *, "" 
         print *, "testing: create_ab_list_hubbard"
-        call assert_true(.false.)
-        
+        nI = [1,2,3,4]
+        call EncodeBitDet(nI, ilutI)
+
+        call create_ab_list_hubbard(nI, ilutI,[1,2], orb_list, cum_arr, cum_sum)
+
+        call assert_equals(0.25_dp, cum_sum) 
+        call create_ab_list_hubbard(nI, ilutI,[3,4], orb_list, cum_arr, cum_sum)
+        call assert_equals(0.25_dp, cum_sum) 
+
+        call create_ab_list_hubbard(nI, ilutI,[3,4], orb_list, cum_arr, cum_sum, 1, cpt)
+        call assert_equals(0.25_dp, cum_sum) 
+        call assert_equals(0.0_dp, cpt) 
+
+        call create_ab_list_hubbard(nI, ilutI,[3,4], orb_list, cum_arr, cum_sum, 7, cpt)
+        call assert_equals(0.5_dp, cpt)
+        call create_ab_list_hubbard(nI, ilutI,[3,4], orb_list, cum_arr, cum_sum, 8, cpt)
+        call assert_equals(0.5_dp, cpt)
+
+
         ! todo: i also have to do that for 2-body-transcorrelation, which 
         ! leads to parallel double excitations in the k-space hubbard 
         ! case -> check here if the get_orb_from_kpoints() function, works 
         ! correctly for ispn /= 2 and thub!
 
+        ! todo: more tests! 
+
     end subroutine create_ab_list_hubbard_test
 
     subroutine calc_pgen_k_space_hubbard_test
+
+        integer, allocatable :: nI(:)
+        integer(n_int), allocatable :: ilutI(:) 
 
         print *, "" 
         print *, "testing: calc_pgen_k_space_hubbard"
@@ -393,20 +595,39 @@ contains
         nel = 5
         nOccAlpha = 4 
         call pick_three_opp_elecs([1,2,4,6,8], elecs, p_elec, sum_ms) 
-        call assert_equals(1.0_dp, p_elec) 
+        call assert_equals(1.0_dp/6.0_dp, p_elec) 
         call assert_equals(1, sum_ms) 
         call assert_true(any(elecs == 1))
 
         nOccBeta = 4 
         nOccAlpha = 1
         call pick_three_opp_elecs([1,3,5,7,8], elecs, p_elec, sum_ms) 
-        call assert_equals(1.0_dp, p_elec) 
+        call assert_equals(1.0_dp/6.0_dp, p_elec) 
         call assert_equals(-1, sum_ms) 
-        call assert_true(any(elecs == 8))
+        call assert_true(any(elecs == 5))
 
-        nel = -1
-        nOccBeta = -1 
-        nOccAlpha = -1
+        nel = 5
+        nOccBeta = 3
+        nOccAlpha = 2 
+        call pick_three_opp_elecs([1,2,3,4,5], elecs, p_elec, sum_ms) 
+        if (sum_ms == 1) then 
+            call assert_equals(1.0_dp/10.0_dp, p_elec)
+        else 
+            call assert_equals(7.0_dp/60.0_dp, p_elec,1.0e-12)
+        end if
+
+        call pick_three_opp_elecs([1,2,3,4,5], elecs, p_elec, sum_ms) 
+        if (sum_ms == 1) then 
+            call assert_equals(1.0_dp/10.0_dp, p_elec)
+        else 
+            call assert_equals(7.0_dp/60.0_dp, p_elec, 1.0e-12)
+        end if
+
+        nel = 4
+        nOccBeta = 2
+        nOccAlpha = 2 
+        call pick_three_opp_elecs([1,2,3,4], elecs, p_elec) 
+        call assert_equals(0.25_dp, p_elec)
 
     end subroutine pick_three_opp_elecs_test
 
@@ -414,23 +635,27 @@ contains
 
         integer :: elecs(2), ispn
         real(dp) :: p_elec
+        integer :: nI(6)
         
         print *, ""
         print *, "testing: pick_spin_par_elecs"
         nel = 2 
         nOccBeta = 2
+        nOccAlpha = 0
         call pick_spin_par_elecs([1,3],elecs,p_elec, ispn)
         call assert_equals(1.0_dp, p_elec) 
         call assert_equals(1, ispn) 
         call assert_equals(3, sum(elecs))
 
         nOccAlpha = 2 
+        nOccBeta = 0
         call pick_spin_par_elecs([2,4],elecs,p_elec, ispn)
         call assert_equals(1.0_dp, p_elec) 
         call assert_equals(3, ispn) 
         call assert_equals(3, sum(elecs))
 
         nel = 4 
+        nOccBeta = 2
         call pick_spin_par_elecs([1,2,3,4], elecs, p_elec, ispn) 
         call assert_equals(0.5_dp, p_elec) 
         if (ispn == 1) then 
@@ -439,50 +664,150 @@ contains
             call assert_equals(6, sum(elecs))
         end if
         
-        nel = -1 
-        nOccBeta = -1 
-        nOccAlpha = -1
+        nel = 6 
+        nOccBeta = 3 
+        nOccAlpha = 3
 
+        call pick_spin_par_elecs([1,2,3,4,5,6], elecs, p_elec) 
+        call assert_equals(1.0_dp/6.0_dp, p_elec) 
+        nI = [1,2,3,4,5,6]
+        call assert_true(same_spin(nI(elecs(1)),nI(elecs(2))))
+
+        nel = 4
+        nOccBeta = 2
+        nOccAlpha = 2
     end subroutine pick_spin_par_elecs_test
 
     subroutine pick_a_orbital_hubbard_test
 
+        integer(n_int) :: ilutI(0:0)
+        integer :: orb, sum_ms
+        real(dp) :: p_orb
+
         print *, ""
         print *, "testing: pick_a_orbital_hubbard "
-        call assert_true(.false.) 
+        call EncodeBitDet([1,2,3,4], ilutI)
+
+        call pick_a_orbital_hubbard(ilutI, orb, p_orb, -1) 
+        call assert_true(orb == 6 .or. orb == 8) 
+        call assert_equals(0.5_dp, p_orb)
+
+        call pick_a_orbital_hubbard(ilutI, orb, p_orb, 1) 
+        call assert_true(orb == 5 .or. orb == 7) 
+        call assert_equals(0.5_dp, p_orb)
+
+        call pick_a_orbital_hubbard(ilutI, orb, p_orb) 
+        call assert_equals(0.25_dp, p_orb)
 
     end subroutine pick_a_orbital_hubbard_test
 
     subroutine pick_ab_orbitals_hubbard_test
 
+        integer, allocatable :: nI(:)
+        integer(n_int), allocatable :: ilutI(:) 
+        integer :: orbs(2)
+        real(dp) :: p_orb 
+
+        allocate(nI(nel)); allocate(ilutI(0:niftot))
+
         print *, "" 
         print *, "testing: pick_ab_orbitals_hubbard"
-        call assert_true(.false.)
+        nI = [1,2,3,4]
+        call EncodeBitDet(nI, ilutI)
+
+        call pick_ab_orbitals_hubbard(nI, ilutI, [1,2], orbs, p_orb)
+
+        call assert_equals(1.0_dp, p_orb) 
+        call assert_equals(11, sum(orbs))
+
+        call pick_ab_orbitals_hubbard(nI, ilutI, [3,4], orbs, p_orb)
+        call assert_equals(1.0_dp, p_orb) 
+        call assert_equals(15, sum(orbs))
 
     end subroutine pick_ab_orbitals_hubbard_test
 
     subroutine pick_bc_orbitals_hubbard_test
 
+        integer:: nI(4)
+        integer(n_int) :: ilutI(0:0) 
+        integer :: orbs(2)
+        real(dp) :: p_orb 
+
+
+        t_trans_corr_2body = .true. 
+
+        nI = [3,4,6,7]
+        call EncodeBitDet(nI, ilutI)
+
         print *, ""
         print *, "testing: pick_bc_orbitals_hubbard"
-        call assert_true(.false.)
+        call pick_bc_orbitals_hubbard(nI, ilutI,[3,6,7],2,orbs,p_orb)
+        call assert_equals(6, sum(orbs))
+        call assert_equals(1.0_dp, p_orb) 
+
+        nI = [3,4,5,8]
+        call EncodeBitDet(nI, ilutI)
+        call pick_bc_orbitals_hubbard(nI, ilutI,[4,5,8],1,orbs,p_orb)
+        call assert_equals(8, sum(orbs))
+        call assert_equals(1.0_dp, p_orb) 
 
     end subroutine pick_bc_orbitals_hubbard_test
 
     subroutine create_ab_list_par_hubbard_test
 
+        integer:: nI(4), orb_list(4,2), tgt
+        integer(n_int) :: ilutI(0:0) 
+        real(dp) :: cum_sum, cpt, cum_arr(4)
+
+        nI = [1,2,3,4]
+        call EncodeBitDet(nI, ilutI) 
+
         print *, ""
         print *, "testing: create_ab_list_par_hubbard"
+        call create_ab_list_par_hubbard(nI, ilutI, [1,3], orb_list, cum_arr, cum_sum)
+        call assert_true(cum_sum > 0.0_dp)
 
-        call assert_true(.false.)
+        call create_ab_list_par_hubbard(nI, ilutI, [2,4], orb_list, cum_arr, cum_sum)
+        call assert_true(cum_sum > 0.0_dp)
+
+        call create_ab_list_par_hubbard(nI, ilutI, [2,4], orb_list, cum_arr, cum_sum, 1, cpt)
+        call assert_equals(0.0_dp, cpt)
+        call create_ab_list_par_hubbard(nI, ilutI, [2,4], orb_list, cum_arr, cum_sum, 5, cpt)
+        call assert_equals(0.0_dp, cpt)
+
+        call create_ab_list_par_hubbard(nI, ilutI, [2,4], orb_list, cum_arr, cum_sum, 6, cpt)
+        call assert_equals(0.5_dp, cpt)
+
+        nI = [1,2,4,5] 
+        call EncodeBitDet(nI, ilutI) 
+        call create_ab_list_par_hubbard(nI, ilutI, [1,5], orb_list, cum_arr, cum_sum)
+        call assert_equals(0.0_dp, cum_sum)
 
     end subroutine create_ab_list_par_hubbard_test
 
     subroutine pick_ab_orbitals_par_hubbard_test
 
+        integer:: nI(4), orbs(2)
+        integer(n_int) :: ilutI(0:0) 
+        real(dp) :: p_orb 
+
+        nI = [1,2,3,4]
+        call EncodeBitDet(nI, ilutI) 
+
         print *, ""
         print *, "testing: pick_ab_orbitals_par_hubbard"
-        call assert_true(.false.)
+        call pick_ab_orbitals_par_hubbard(nI, ilutI, [1,3], orbs, p_orb)
+        call assert_equals(12, sum(orbs))
+        call assert_equals(1.0_dp, p_orb)
+
+        call pick_ab_orbitals_par_hubbard(nI, ilutI, [2,4], orbs, p_orb)
+        call assert_equals(14, sum(orbs))
+        call assert_equals(1.0_dp, p_orb)
+
+        nI = [1,2,4,5] 
+        call EncodeBitDet(nI, ilutI) 
+        call pick_ab_orbitals_par_hubbard(nI, ilutI, [1,5], orbs, p_orb)
+        call assert_equals(0.0_dp, p_orb)
 
     end subroutine pick_ab_orbitals_par_hubbard_test
 
@@ -498,15 +823,50 @@ contains
 
         print *, ""
         print *, "testing: get_orb_from_kpoints_three: "
-        call assert_true(.false.)
+        call assert_equals(3, get_orb_from_kpoints_three([1,2,3],1,2))
+        call assert_equals(5, get_orb_from_kpoints_three([1,2,3],4,5))
+        call assert_equals(5, get_orb_from_kpoints_three([1,3,5],1,3))
+        call assert_equals(2, get_orb_from_kpoints_three([2,4,6],4,6))
+
+        call assert_equals(7, get_orb_from_kpoints_three([1,2,3],7,8))
+
+        call assert_equals(7, get_orb_from_kpoints_three([3,4,5],6,8))
 
     end subroutine get_orb_from_kpoints_three_test
 
     subroutine create_bc_list_hubbard_test
 
+        integer :: nI(4), orb_list(4,2), tgt 
+        integer(n_int) :: ilutI(0:0) 
+        real(dp) :: cum_arr(4), cum_sum, cpt 
+
+        t_trans_corr_2body = .true. 
         print *, ""
         print *, "testing: create_bc_list_hubbard"
-        call assert_true(.false.)
+        nI = [1,2,3,4]
+        call EncodeBitDet(nI, ilutI)
+        call create_bc_list_hubbard(nI, ilutI, [1,2,3],6,orb_list, cum_arr, cum_sum)
+        call assert_equals(0.0_dp, cum_sum) 
+
+        call create_bc_list_hubbard(nI, ilutI, [1,2,4],5,orb_list, cum_arr, cum_sum)
+        call assert_equals(0.0_dp, cum_sum) 
+
+        nI = [3,4,6,7]
+        call EncodeBitDet(nI, ilutI)
+        call create_bc_list_hubbard(nI, ilutI, [3,6,7],2,orb_list, cum_arr, cum_sum)
+
+        call assert_true(cum_sum > 0.0_dp) 
+
+        nI = [3,4,5,8]
+        call EncodeBitDet(nI, ilutI)
+        call create_bc_list_hubbard(nI, ilutI, [4,5,8],1,orb_list, cum_arr, cum_sum)
+        call assert_true(cum_sum > 0.0_dp) 
+        call create_bc_list_hubbard(nI, ilutI, [4,5,8],1,orb_list, cum_arr, cum_sum, 4, cpt)
+        call assert_equals(0.0_dp, cpt) 
+        call create_bc_list_hubbard(nI, ilutI, [4,5,8],1,orb_list, cum_arr, cum_sum, 2, cpt)
+        call assert_equals(0.5_dp, cpt)
+
+        t_trans_corr_2body = .false. 
 
     end subroutine create_bc_list_hubbard_test
 
@@ -613,7 +973,7 @@ contains
 
         integer, allocatable :: nI(:), nJ(:)
         integer :: ex(2,3), ex2(2,3)
-        logical :: tpar, tpar_2, tpar_3
+        logical :: tpar, tpar_2, tpar_3, tpar_4
         integer(n_int) :: ilutI(0:nifd), ilutJ(0:nifd)
 
         nel = 3 
@@ -621,7 +981,6 @@ contains
         allocate(nI(nel))
         allocate(nJ(nel))
 
-        
         print *, "" 
         print *, "testing: make_triple" 
         print *, "testing implicitly: FindExcitDet!"
@@ -632,6 +991,11 @@ contains
         call assert_equals([1,2,3], ex(1,:),3)
         call assert_equals([4,5,7], ex(2,:),3)
         call assert_true(.not.tpar)
+
+        ex2(1,1) = 3 
+        call GetExcitation(nI,nJ,nel,ex2,tpar_4)
+        call assert_equals(ex, ex2, 2,2)
+        call assert_true(tpar .eqv. tpar_4)
 
         call EncodeBitDet(nI, ilutI)
         call EncodeBitDet(nJ, ilutJ)
@@ -651,6 +1015,11 @@ contains
         call assert_equals([4,5,7], ex(2,:),3)
         call assert_true(.not.tpar)
 
+        ex2(1,1) = 3 
+        call GetExcitation(nI,nJ,nel,ex2,tpar_4)
+        call assert_equals(ex, ex2, 2,2)
+        call assert_true(tpar .eqv. tpar_4)
+
         call EncodeBitDet(nJ, ilutJ)
         ex2(1,1) = 3 
         call GetBitExcitation(ilutI, ilutJ, ex2, tpar_3)
@@ -666,6 +1035,11 @@ contains
         call assert_equals([1,2,5], ex(1,:),3)
         call assert_equals([3,4,7], ex(2,:),3)
         call assert_true(.not.tpar)
+
+        ex2(1,1) = 3 
+        call GetExcitation(nI,nJ,nel,ex2,tpar_4)
+        call assert_equals(ex, ex2, 2,2)
+        call assert_true(tpar .eqv. tpar_4)
 
         call EncodeBitDet(nI, ilutI)
         call EncodeBitDet(nJ, ilutJ)
@@ -684,6 +1058,11 @@ contains
         call assert_equals([1,2,5], ex(1,:),3)
         call assert_equals([3,7,8], ex(2,:),3)
         call assert_true(.not.tpar)
+
+        ex2(1,1) = 3 
+        call GetExcitation(nI,nJ,nel,ex2,tpar_4)
+        call assert_equals(ex, ex2, 2,2)
+        call assert_true(tpar .eqv. tpar_4)
 
         call EncodeBitDet(nJ, ilutJ)
         ex2(1,1) = 3 
@@ -715,6 +1094,11 @@ contains
         call make_triple(nI, nJ, [1,2,3], [3,4,7], ex, tpar) 
         call assert_true(.not.tpar)
 
+        ex2(1,1) = 3 
+        call GetExcitation(nI,nJ,nel,ex2,tpar_4)
+        call assert_equals(ex, ex2, 2,2)
+        call assert_true(tpar .eqv. tpar_4)
+
         call EncodeBitDet(nJ, ilutJ)
         ex2(1,1) = 3 
         call GetBitExcitation(ilutI, ilutJ, ex2, tpar_3)
@@ -734,6 +1118,11 @@ contains
         nI = [1,2,5,7]
         call make_triple(nI,nJ,[1,2,3],[3,6,9],ex,tpar)
         call assert_true(tpar)
+
+        ex2(1,1) = 3 
+        call GetExcitation(nI,nJ,nel,ex2,tpar_4)
+        call assert_equals(ex, ex2, 2,2)
+        call assert_true(tpar .eqv. tpar_4)
 
         call EncodeBitDet(nI, ilutI)
         call EncodeBitDet(nJ, ilutJ)
@@ -756,11 +1145,9 @@ contains
         use get_excit, only: make_double
         integer, allocatable :: nJ(:),ni(:)
         integer :: ex(2,2), ex2(2,2)
-        logical :: tpar, tpar_2, tpar_3
+        logical :: tpar, tpar_2, tpar_3, tpar_4
         integer(n_int) :: ilutI(0:nifd), ilutJ(0:nifd)
 
-        print *, "end_n_int: ", end_n_int
-        print *, "bits_n_int: ", bits_n_int
         print *, "" 
         print *, "testing: make_double" 
         print *, "to be consistent with the sign conventions! "
@@ -785,6 +1172,11 @@ contains
         call GetBitExcitation(ilutI, ilutJ, ex2, tpar_3)
         call assert_equals(ex, ex2, 2,2)
 
+        ex2(1,1) = 2 
+        call GetExcitation(nI,nJ,nel,ex2,tpar_4)
+        call assert_equals(ex, ex2, 2,2)
+        call assert_true(tpar .eqv. tpar_4)
+
         call FindExcitDet(ex, nI, 2, tpar_2)
         call assert_true(tpar .eqv. tpar_2)
         call assert_true(tpar .eqv. tpar_3)
@@ -796,6 +1188,11 @@ contains
         call FindExcitDet(ex, nI, 2, tpar_2)
         call assert_true(tpar .eqv. tpar_2)
         ni = [1,2]
+
+        ex2(1,1) = 2 
+        call GetExcitation(nI,nJ,nel,ex2,tpar_4)
+        call assert_equals(ex, ex2, 2,2)
+        call assert_true(tpar .eqv. tpar_4)
 
         call EncodeBitDet(nJ, ilutJ)
         ex2(1,1) = 2 
@@ -809,6 +1206,11 @@ contains
         call FindExcitDet(ex, nI, 2, tpar_2)
         call assert_true(tpar .eqv. tpar_2)
         ni = [1,2]
+
+        ex2(1,1) = 2 
+        call GetExcitation(nI,nJ,nel,ex2,tpar_4)
+        call assert_equals(ex, ex2, 2,2)
+        call assert_true(tpar .eqv. tpar_4)
 
         call EncodeBitDet(nJ, ilutJ)
         ex2(1,1) = 2 
@@ -824,6 +1226,11 @@ contains
         call assert_equals([4,5,6], nJ, 3)
         call assert_true(.not. tpar)
 
+        ex2(1,1) = 2 
+        call GetExcitation(nI,nJ,nel,ex2,tpar_4)
+        call assert_equals(ex, ex2, 2,2)
+        call assert_true(tpar .eqv. tpar_4)
+
         call FindExcitDet(ex, nI, 2, tpar_2)
         call assert_true(tpar .eqv. tpar_2)
         nI = [1,2,4]
@@ -836,6 +1243,11 @@ contains
 
         call make_double([1,2,4],nj,1,2,3,6,ex,tpar)
         call assert_true(tpar)
+
+        ex2(1,1) = 2 
+        call GetExcitation(nI,nJ,nel,ex2,tpar_4)
+        call assert_equals(ex, ex2, 2,2)
+        call assert_true(tpar .eqv. tpar_4)
 
         call FindExcitDet(ex, nI, 2, tpar_2)
         call assert_true(tpar .eqv. tpar_2)
@@ -850,6 +1262,11 @@ contains
         call assert_true(.not. tpar)
         nI = [1,2,4]
 
+        ex2(1,1) = 2 
+        call GetExcitation(nI,nJ,nel,ex2,tpar_4)
+        call assert_equals(ex, ex2, 2,2)
+        call assert_true(tpar .eqv. tpar_4)
+
         call FindExcitDet(ex, nI, 2, tpar_2)
         call assert_true(tpar .eqv. tpar_2)
 
@@ -861,6 +1278,11 @@ contains
         call make_double([1,2,3],nJ, 1, 2, 4, 7, ex, tpar)
         call assert_true(.not. tpar)
         nI = [1,2,3]
+
+        ex2(1,1) = 2 
+        call GetExcitation(nI,nJ,nel,ex2,tpar_4)
+        call assert_equals(ex, ex2, 2,2)
+        call assert_true(tpar .eqv. tpar_4)
 
         call EncodeBitDet(nI, ilutI)
         call EncodeBitDet(nJ, ilutJ)

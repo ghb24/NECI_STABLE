@@ -947,7 +947,7 @@ contains
     end subroutine setup_exchange_matrix
 
     function get_helement_tJ_ex_mat(nI, ic, ex, tpar) result(hel)
-        integer, intent(in) :: nI(nel), ic, ex(2,2)
+        integer, intent(in) :: nI(nel), ic, ex(2,ic)
         logical, intent(in) :: tpar 
         HElement_t(dp) :: hel
 
@@ -1040,7 +1040,7 @@ contains
     end function get_helement_tJ_general
 
     function get_helement_heisenberg_ex_mat(nI, ic, ex, tpar) result(hel)
-        integer, intent(in) :: nI(nel), ic, ex(2,2)
+        integer, intent(in) :: nI(nel), ic, ex(2,ic)
         logical, intent(in) :: tpar 
         HElement_t(dp) :: hel 
 

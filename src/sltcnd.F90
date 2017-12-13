@@ -1,7 +1,7 @@
 #include "macros.h"
 
 module sltcnd_mod
-    use SystemData, only: nel, nBasisMax, tExch, G1, ALAT, tReltvy
+    use SystemData, only: nel, nBasisMax, tExch, G1, ALAT, tReltvy, t_3_body_excits
     use SystemData, only: nBasis!, iSpinSkip
     ! HACK - We use nBasisMax(2,3) here rather than iSpinSkip, as it appears
     !        to be more reliably set (see for example test H2O_RI)
@@ -32,6 +32,9 @@ contains
 
         integer, intent(in) :: nI(nel), nJ(nel), IC
         HElement_t(dp) :: hel
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "sltcnd_compat"
+#endif
 
         integer :: ex(2,2)
         logical :: tParity
@@ -55,6 +58,7 @@ contains
 
         case default
             ! The determinants differ by more than 2 orbitals
+            ASSERT(.not. t_3_body_excits)
             hel = (0)
         end select
     end function sltcnd_compat
@@ -95,6 +99,7 @@ contains
 
         case default
             ! The determinants differ yb more than 2 orbitals
+            ASSERT(.not. t_3_body_excits)
             sltcnd_excit = 0
         end select
     end function
@@ -116,6 +121,9 @@ contains
         HElement_t(dp) :: hel
         integer :: ex(2,2)
         logical :: tSign
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "sltcnd_knowIC"
+#endif
 
         select case (IC)
         case (0)
@@ -135,6 +143,7 @@ contains
             hel = sltcnd_2 (ex, tSign)
 
         case default
+            ASSERT(.not. t_3_body_excits)
             ! The determinants differ by more than two orbitals
             hel = 0
         endselect
