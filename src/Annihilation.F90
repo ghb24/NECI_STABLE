@@ -43,6 +43,7 @@ module AnnihilationMod
 
         ! This routine will send all the newly-spawned particles to their
         ! correct processor. 
+
         call SendProcNewParts(MaxIndex,tSingleProc)
 
         ! CompressSpawnedList works on SpawnedParts arrays, so swap the pointers around.
@@ -52,7 +53,6 @@ module AnnihilationMod
 
         Compress_time%timer_name='Compression interface'
         call set_timer(Compress_time,20)
-    
 
         ! Now we want to order and compress the spawned list of particles. 
         ! This will also annihilate the newly spawned particles amongst themselves.

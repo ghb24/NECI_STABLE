@@ -997,7 +997,6 @@ module FciMCParMod
             ! alis additional idea to skip the number of attempted excitations
             ! for noninititators in the back-spawning approach
             ! remove that for now
-           
             do part_type = 1, lenof_sign
             
                 TempSpawnedPartsInd = 0
@@ -1116,7 +1115,6 @@ module FciMCParMod
             write(iout,*) 'Finished loop over determinants'
             write(iout,*) "Holes in list: ", iEndFreeSlot
         ENDIFDEBUG
-
         if (tSemiStochastic) then
             ! For semi-stochastic calculations only: Gather together the parts
             ! of the deterministic vector stored on each processor, and then
@@ -1157,7 +1155,9 @@ module FciMCParMod
         call set_timer (annihil_time, 30)
         !HolesInList is returned from direct annihilation with the number of unoccupied determinants in the list
         !They have already been removed from the hash table though.
+
         call DirectAnnihilation (totWalkersNew, iter_data, .false.) !.false. for not single processor
+
 
         ! This indicates the number of determinants in the list + the number
         ! of holes that have been introduced due to annihilation.
