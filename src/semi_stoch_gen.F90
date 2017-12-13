@@ -35,7 +35,7 @@ contains
         use FciMCData, only: partial_determ_vecs, determ_space_size, determ_space_size_int
         use FciMCData, only: TotWalkers, TotWalkersOld, indices_of_determ_states, SpawnedParts
         use FciMCData, only: FDetermTag, FDetermAvTag, PDetermTag, IDetermTag
-        use FciMCData, only: tStartCoreGroundState, iter_data_fciqmc
+        use FciMCData, only: tStartCoreGroundState, iter_data_fciqmc, SemiStoch_Init_Time
         use load_balance, only: adjust_load_balance
         use load_balance_calcnodes, only: tLoadBalanceBlocks
         use sort_mod, only: sort
@@ -47,7 +47,6 @@ contains
         integer :: nI(nel)
         integer(MPIArg) :: mpi_temp
         character (len=*), parameter :: t_r = "init_semi_stochastic"
-        type(timer) :: SemiStoch_Init_Time
 
         ! If we are load balancing, this gets disabled once semi stochastic
         ! has been initialised. Therefore we should do a last-gasp load
@@ -63,7 +62,7 @@ contains
         call MPIBarrier(ierr, tTimeIn=.false.)
 
         call set_timer(SemiStoch_Init_Time)
-
+        
         write(6,'(/,12("="),1x,a30,1x,12("="))') "Semi-stochastic initialisation"; call neci_flush(6)
 
         allocate(determ_sizes(0:nProcessors-1))

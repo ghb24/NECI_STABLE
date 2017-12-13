@@ -1228,7 +1228,7 @@ contains
         end if
         if (allocated(core_ham_diag)) then
             deallocate(core_ham_diag, stat=ierr)
-            call LogMemDealloc(t_r, IDetermTag, ierr)
+!            call LogMemDealloc(t_r, IDetermTag, ierr)
         end if
         if (allocated(core_space)) then
             deallocate(core_space, stat=ierr)
