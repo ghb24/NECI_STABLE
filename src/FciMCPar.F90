@@ -991,7 +991,7 @@ module FciMCParMod
 
                         CurrArg = DATAN2(SignCurr(max_part_type(run)), SignCurr(min_part_type(run)))
                         SpawnArg = DATAN2(SpawnSign(max_part_type(run)), SpawnSign(min_part_type(run)))
-                        signChanged = mod(abs(CurrPhase-SpawnPhase), PI) > PI/2.0_dp
+                        signChanged = mod(abs(CurrArg-SpawnArg), PI) > PI/2.0_dp
 #else
                         signChanged = SpawnSign(min_part_type(run))*SignCurr(min_part_type(run)) < 0.0_dp
 #endif
