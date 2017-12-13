@@ -35,7 +35,7 @@ contains
         use FciMCData, only: partial_determ_vecs, determ_space_size, determ_space_size_int
         use FciMCData, only: TotWalkers, TotWalkersOld, indices_of_determ_states, SpawnedParts
         use FciMCData, only: FDetermTag, FDetermAvTag, PDetermTag, IDetermTag
-        use FciMCData, only: tStartCoreGroundState, iter_data_fciqmc
+        use FciMCData, only: tStartCoreGroundState, iter_data_fciqmc, SemiStoch_Init_Time
         use load_balance, only: adjust_load_balance
         use load_balance_calcnodes, only: tLoadBalanceBlocks
         use sort_mod, only: sort
@@ -47,7 +47,6 @@ contains
         integer :: nI(nel)
         integer(MPIArg) :: mpi_temp
         character (len=*), parameter :: t_r = "init_semi_stochastic"
-        type(timer) :: SemiStoch_Init_Time
 
         ! If we are load balancing, this gets disabled once semi stochastic
         ! has been initialised. Therefore we should do a last-gasp load
@@ -63,7 +62,7 @@ contains
         call MPIBarrier(ierr, tTimeIn=.false.)
 
         call set_timer(SemiStoch_Init_Time)
-
+        
         write(6,'(/,12("="),1x,a30,1x,12("="))') "Semi-stochastic initialisation"; call neci_flush(6)
 
         allocate(determ_sizes(0:nProcessors-1))
@@ -156,7 +155,7 @@ contains
         ! If using a trial wavefunction, and that initialisation has already
         ! been performed, then the current_trial_amps array needs correcting
         ! after the core states were added and sorted into CurrentDets.
-        if(tStaticCore) call reinit_current_trial_amps()
+        call reinit_current_trial_amps()
 
         ! If starting from a popsfile then global_determinant_data will not
         ! have been initialised, or if in the middle of a calculation then new
@@ -166,7 +165,7 @@ contains
         SpawnedParts = 0_n_int
         TotWalkersOld = TotWalkers
 
-        if (tStartCoreGroundState .and. (.not. tReadPops)) &
+        if (tStartCoreGroundState .and. (.not. tReadPops) .and. tStaticCore) &
             call start_walkers_from_core_ground(tPrintInfo = .true.)
 
         ! Call MPIBarrier here so that Semistoch_Init_Time will give the
@@ -1484,7 +1483,7 @@ contains
       use FciMCData, only: iter_data_fciqmc
       use semi_stoch_procs, only: end_semistoch
       implicit none
-      
+
       ! The reinitialization of the semistochastic space can affect population
       ! because of stochastic rounds. To log this correctly, set the iter_data to 0 here
       iter_data_fciqmc%nborn = 0.0_dp
@@ -1523,6 +1522,5 @@ contains
     end subroutine reset_core_space
 
 !------------------------------------------------------------------------------------------!
-
 
 end module semi_stoch_gen

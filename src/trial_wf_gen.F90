@@ -10,6 +10,7 @@ module trial_wf_gen
     use sparse_arrays
     use SystemData, only: nel, tHPHF
     use util_mod, only: get_free_unit, binary_search_custom
+    use FciMCData, only: con_send_buf, NConEntry
 
     implicit none
 
@@ -121,6 +122,13 @@ contains
         
         call assign_elements_on_procs(tot_trial_space_size, min_elem, max_elem, num_elem)
 
+        ! set the size of the entries in con_ht
+#ifdef __CMPLX
+        NConEntry = NIfDBO + nexcit_keep
+#else
+        NConEntry = NIfDBO + 2*nexcit_keep
+#endif
+
         if (num_elem > 0) then
 
             ! Find the states connected to the trial space. This typically takes a long time, so
@@ -203,6 +211,8 @@ contains
 !        call remove_list1_states_from_list2(SpawnedParts, con_space, tot_trial_space_size, con_space_size)
 
         call MPISumAll(con_space_size, tot_con_space_size)
+        ! allocate buffer for communication of con_ht
+        allocate(con_send_buf(0:NConEntry,tot_con_space_size))
 
         write(6,'("Total size of connected space:",1X,i10)') tot_con_space_size
         write(6,'("Size of connected space on this processor:",1X,i10)') con_space_size
@@ -746,11 +756,7 @@ contains
             if (mode == 1) then
                 do i = 1, size(trial_ht)
                     nclash = trial_ht(i)%nclash
-#ifdef __CMPLX
-                    allocate(trial_ht(i)%states(0:NIfDBO+2*nexcit,nclash))
-#else
-                    allocate(trial_ht(i)%states(0:NIfDBO+nexcit,nclash))
-#endif
+                    allocate(trial_ht(i)%states(0:NConEntry,nclash))
                     ! Set this back to zero to use it as a counter next time
                     ! around (when mode == 2).
                     trial_ht(i)%nclash = 0
@@ -798,11 +804,7 @@ contains
             if (mode == 1) then
                 do i = 1, size(con_ht)
                     nclash = con_ht(i)%nclash
-#ifdef __CMPLX
-                    allocate(con_ht(i)%states(0:NIfDBO+2*nexcit,nclash))
-#else
-                    allocate(con_ht(i)%states(0:NIfDBO+nexcit,nclash))
-#endif
+                    allocate(con_ht(i)%states(0:NConEntry,nclash))
                     ! Set this back to zero to use it as a counter next time
                     ! around (when mode == 2).
                     con_ht(i)%nclash = 0
@@ -861,6 +863,7 @@ contains
             deallocate(current_trial_amps, stat=ierr)
             call LogMemDealloc(t_r, CurrentTrialTag, ierr)
         end if
+        if(allocated(con_send_buf)) deallocate(con_send_buf)
 
     end subroutine end_trial_wf
 
