@@ -347,16 +347,16 @@ contains
           tProductReferences = .false.
           tAccessibleSingles = .false.
           tAccessibleDoubles = .false.
-          tSuppressSIOutput = .false.
+          tSuppressSIOutput = .true.
           nExProd = 2
           NoTypeN = 3
           tStrictCoherentDoubles = .false.
-          tWeakCoherentDoubles = .false.
-          tAvCoherentDoubles = .false.
+          tWeakCoherentDoubles = .true.
+          tAvCoherentDoubles = .true.
           superInitiatorLevel = 0
           coherenceThreshold = 0.5
           SIThreshold = 0.95
-          SIUpdateInterval = 0
+          SIUpdateInterval = 100
           tAdiActive = .false.
 
           ! And disable the initiators subspace
@@ -2489,6 +2489,10 @@ contains
                       ! only using av ignores sign tendency and can overestimate
                       ! the correctness of a sign
                       tAvCoherentDoubles = .true.
+		   case("OFF")
+		      ! do not perform a coherence check
+		      tAvCoherentDoubles = .false.
+		      tWeakCoherentDoubles = .false.
                    case default
                       ! default is WEAK
                       tAvCoherentDoubles = .true.
@@ -2509,7 +2513,12 @@ contains
              case("DYNAMIC-SUPERINITIATORS")
                 ! Re-evaluate the superinitiators every SIUpdateInterval steps
                 ! Beware, this can be very expensive
+		! By default, it is 100, to turn it off, use 0
                 call readi(SIUpdateInterval)
+		
+       	     case("STATIC-SUPERINITIATORS")
+	        ! Do not re-evaluate the superinitiators
+		SIUpdateInterval = 0
 
              case("INITIATOR-COHERENCE-THRESHOLD")
                 ! Set the minimal coherence parameter for superinitiator-related
@@ -2520,7 +2529,10 @@ contains
                 ! set the minimal coherence parameter for superinitiators
                 call readf(SIThreshold)
 
-             case("SUPPRESS-SUPERINITIATOR-OUTPUT")
+	     case("SUPPRESS-SUPERINITIATOR-OUTPUT")	
+	        ! just for backwards-compatibility
+
+             case("WRITE-SUPERINITIATOR-OUTPUT")
                 ! Do not output the newly generated superinitiators upon generation
                 tSuppressSIOutput = .true.
 
