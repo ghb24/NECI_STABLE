@@ -3559,8 +3559,24 @@ contains
            tAdiActive = .true. 
 
       NoTypeN = NoTypeN * InitiatorWalkNo
+      
+      call setup_dynamic_core()
 
     end subroutine setup_adi
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine setup_dynamic_core()
+      use CalcData, only: tDynamicCoreSpace, coreSpaceUpdateCycle,tIntervalSet
+      use adi_data, only: SIUpdateInterval
+      
+      implicit none
+      
+      if(SIUpdateInterval > 0 .and. .not. tIntervalSet) then
+        tDynamicCoreSpace = .true.
+	coreSpaceUpdateCycle = SIUpdateInterval
+      endif
+    end subroutine setup_dynamic_core
 
 !------------------------------------------------------------------------------------------!
 

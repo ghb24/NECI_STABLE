@@ -289,6 +289,7 @@ contains
           tSemiStochastic = .false.
           tCSFCore = .false.
           tDynamicCoreSpace = .false.
+          tIntervalSet = .false.
           tStaticCore = .true.
           coreSpaceUpdateCycle = 400
           semistoch_shift_iter = 0
@@ -1283,7 +1284,11 @@ contains
                 call geti(ss_space_in%max_size)
             case("DYNAMIC-CORE")
                 tDynamicCoreSpace = .true.
+                tIntervalSet = .true.
                 if( item < nitems) call geti(coreSpaceUpdateCycle)
+            case("STATIC-CORE")
+                tDynamicCoreSpace = .false.
+                tIntervalSet = .true.
             case("STOCHASTIC-HF-SPAWNING")
                 tDetermHFSpawning = .false.
 
@@ -2534,7 +2539,7 @@ contains
 
              case("WRITE-SUPERINITIATOR-OUTPUT")
                 ! Do not output the newly generated superinitiators upon generation
-                tSuppressSIOutput = .true.
+                tSuppressSIOutput = .false.
 
             case default
                 call report("Keyword "                                &
