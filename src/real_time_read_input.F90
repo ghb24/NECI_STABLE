@@ -80,15 +80,7 @@ module real_time_read_input_module
                 call readi(pops_pert(1)%crtn_orbs(1))
                 call init_perturbation_annihilation(pops_pert(1))
                 call init_perturbation_creation(pops_pert(1))
-                allocate(overlap_pert(1))
-                overlap_pert%nannihilate = 1
-                overlap_pert%ncreate = 1
-                allocate(overlap_pert(1)%crtn_orbs(1))
-                allocate(overlap_pert(1)%ann_orbs(1))
-                overlap_pert(1)%crtn_orbs(1)=pops_pert(1)%crtn_orbs(1)
-                overlap_pert(1)%ann_orbs(1)=pops_pert(1)%ann_orbs(1)
-                call init_perturbation_annihilation(overlap_pert(1))
-                call init_perturbation_creation(overlap_pert(1))
+
 
              case("KSPACE")
                 ! Apply the perturbations in kspace. This only does something for real
