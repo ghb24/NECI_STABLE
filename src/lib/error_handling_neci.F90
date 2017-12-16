@@ -24,9 +24,6 @@ subroutine stop_all (sub_name, error_msg)
     ! In: sub_name    - Calling routine
     !     error_msg   - Error message
 
-#ifdef __SHARED_MEM
-    use shared_alloc, only: cleanup_shared_alloc
-#endif
 #ifdef PARALLEL
     use Parallel_neci, only: iProcIndex, MPIStopAll
 #endif
@@ -64,9 +61,6 @@ subroutine stop_all (sub_name, error_msg)
 
     call print_backtrace_neci()
 
-#ifdef __SHARED_MEM
-    call cleanup_shared_alloc()
-#endif
 #ifdef PARALLEL
     call MPIStopAll(error_str)
 #else
