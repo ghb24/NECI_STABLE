@@ -61,6 +61,12 @@ module real_time_read_input_module
 
             ! use nicks perturbation & kp-fciqmc stuff here as much as 
             ! possible too
+            case("PROJECT-INITIAL-STATE")
+               ! If we specify this, we do not create the overlap state specifically,
+               ! but copy the currentdets. 
+               ! This can greatly help to overcome memory problems, as it basically
+               ! halves the memory required for initial state preparation
+               tNewOverlap = .false.
 
             ! just compute the time-evolution of a singly excited state (with
             ! reference to the ground state. This gives the contribution of
@@ -193,6 +199,13 @@ module real_time_read_input_module
                    ! read left hand operator first
                    call readi(overlap_pert(1)%ann_orbs(1))
                    call init_perturbation_annihilation(overlap_pert(1))
+                   
+                   ! If the created and annihilated orbital are the same, we 
+                   ! do not need to explicitly construct the projection state,
+                   ! this might save a lot of memory
+                   if(pops_pert(1)%ann_orbs(1) .eq. overlap_pert(1)%ann_orbs(1)) &
+                        tNewOverlap = .false.
+
 
                 else
                    if(nitems == 2) then
@@ -201,6 +214,7 @@ module real_time_read_input_module
                       call stop_all(this_routine, "Invalid input for Green's function")   
                    endif
                 endif
+
              case ("GREATER")
                 ! greater GF -> photo absorption: apply a creation operator
                 alloc_popsfile_dets = .true.
@@ -236,6 +250,13 @@ module real_time_read_input_module
                     allocate(overlap_pert(1)%crtn_orbs(1))
                     call readi(overlap_pert(1)%crtn_orbs(1))
                     call init_perturbation_creation(overlap_pert(1))
+
+                   ! If the created and annihilated orbital are the same, we 
+                   ! do not need to explicitly construct the projection state,
+                   ! this might save a lot of memory
+                   if(pops_pert(1)%crtn_orbs(1) .eq. overlap_pert(1)%crtn_orbs(1)) &
+                        tNewOverlap = .false.
+
                 else
                    if(nitems == 2) then
                       allGfs = 2

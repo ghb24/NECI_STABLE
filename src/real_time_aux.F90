@@ -7,11 +7,28 @@ module real_time_aux
   use FciMCData, only: SpawnedParts, ValidSpawnedList, MaxSpawned, InitialSpawnedSlots, &
        core_space, determ_sizes, determ_space_size, CurrentDets, hashindex
   use SystemData, only: nel
-  use constants, only: dp, lenof_sign, n_int
-  use ParallelHelper, only: iProcIndex, nNodes
+  use constants, only: dp, lenof_sign, n_int, iout
+  use ParallelHelper, only: iProcIndex, nNodes, MPIBarrier
   use Parallel_neci
 
   contains
+
+    subroutine write_overlap_state_serial(state,length,index)
+      implicit none
+      integer(n_int), intent(in) :: state(0:nIfTot,length)
+      integer, intent(in) :: index, length
+      integer :: iProc, ierr
+      do iProc = 0, nProcessors-1
+         ! sequentialize to overcome bottlenecks for shared memory systems (this is not performance critical)
+         if(iProc .eq. iProcIndex) then
+            print *, "Now writing ", length
+            call write_overlap_state(state,length,index)
+            print *, "Success on proc ", iProc
+         endif
+         call MPIBarrier(ierr)
+      enddo
+
+    end subroutine write_overlap_state_serial
 
     subroutine write_overlap_state(state, length, index)
       implicit none

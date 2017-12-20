@@ -20,7 +20,8 @@ module real_time_procs
                               elapsedImagTime, elapsedRealTime, tStaticShift, asymptoticShift, &
                               iunitCycLog, trajFile, tauCache, alphaCache, tNewOverlap, &
                               alphaLog, alphaLogSize, alphaLogPos
-    use real_time_aux, only: write_overlap_state
+    use real_time_aux, only: write_overlap_state, write_overlap_state_serial
+
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
     use constants, only: dp, lenof_sign, int64, n_int, EPS, iout, null_part, &
                          sizeof_int, MPIArg
@@ -1354,8 +1355,9 @@ contains
       implicit none
         character(*), parameter :: this_routine = "create_perturbed_ground"
         integer :: tmp_totwalkers, totwalkers_backup, TotWalkers_orig_max
-        integer :: ierr, i, totNOccDets
+        integer :: ierr, i, totNOccDets, iProc
         integer(n_int), allocatable :: perturbed_buf(:,:)
+        logical :: t_use_perturbed_buf
 
         if(tReadPops .and. .not. tNewOverlap) then
            tmp_totwalkers = TotWalkers_orig
@@ -1371,15 +1373,17 @@ contains
         else
            TotWalkers_orig_max = MaxWalkersPart
         endif
+        t_use_perturbed_buf = allocated(overlap_pert) .and. tNewOverlap
 
         if(.not. allGfs == 0) call setup_pert_array(allGfs)
         
         allocate(overlap_states(gf_count), stat = ierr)
+        if(t_use_perturbed_buf) &
         allocate(perturbed_buf(0:niftot,TotWalkers_orig_max), stat = ierr)
         write(iout,*) "Read-in dets", TotWalkers_orig
         do i = 1, gf_count
            totwalkers_backup = tmp_totwalkers
-           if(allocated(overlap_pert) .and. tNewOverlap) then
+           if(t_use_perturbed_buf) then
               if(.not. t_kspace_operators) then
                  if(tReadPops) then
                     perturbed_buf = 0.0_dp
@@ -1401,11 +1405,12 @@ contains
                          perturbed_buf,phase_factors)
                  endif
               endif
+           call write_overlap_state_serial(perturbed_buf, TotWalkers_orig_max, i)
            else
-              perturbed_buf = CurrentDets
+              print *, "Generated overlap state"
+              call write_overlap_state_serial(CurrentDets, TotWalkers, i)
+              print *, "Written overlap state to array"
            endif
-! might need to sequentialize this for memory efficciency
-           call write_overlap_state(perturbed_buf,TotWalkers_orig_max,i)
            call MPISumAll(overlap_states(i)%nDets,totNOccDets)
            if(totNOccDets==0) then 
               if(gf_count == 1) then
