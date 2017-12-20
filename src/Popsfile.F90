@@ -2132,7 +2132,7 @@ r_loop: do while(.not.tStoreDet)
                   ! Testing with the TestInititator routine to prevent code
                   ! duplication
                   is_init_tmp = test_flag(det,get_initiator_flag_by_run(k))
-                  is_init = is_init .or. TestInitiator(det,is_init_tmp,k)
+                  is_init = is_init .or. TestInitiator(det,j,is_init_tmp,k)
                enddo
                if(is_init) then
                   call decode_bit_det(nI, det)

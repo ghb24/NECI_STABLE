@@ -38,7 +38,8 @@ module fcimc_helper
                         MaxWalkerBloom,tMultiSpawnThreshold, multiSpawnThreshold, &
                         NMCyc, iSampleRDMIters, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
-                        t_back_spawn_flex
+                        t_back_spawn_flex, tau, DiagSft, &
+                        tSeniorInitiators, SeniorityAge
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, tInitiatorsSubspace, &
          tAllDoubsInitiators, tAllSingsInitiators
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
@@ -57,7 +58,8 @@ module fcimc_helper
     use csf, only: iscsf
     use hphf_integrals, only: hphf_diag_helement
     use global_det_data, only: get_av_sgn_tot, set_av_sgn_tot, set_det_diagH, &
-                               global_determinant_data, det_diagH
+                               global_determinant_data, det_diagH, &
+                               get_spawn_pop, get_tau_int, get_shift_int
     use searching, only: BinSearchParts2
     use real_time_data, only: t_complex_ints, acceptances_1, runge_kutta_step, tVerletSweep,&
                         NoInitDets_1, NoNonInitDets_1, NoInitWalk_1, NoNonInitWalk_1, &
@@ -866,7 +868,7 @@ contains
 
                 ! Should this particle be considered to be an initiator
                 ! for spawning purposes.
-                parent_init = TestInitiator_explicit(CurrentDets(:,j), nI, parent_init, &
+                parent_init = TestInitiator_explicit(CurrentDets(:,j), nI, j, parent_init, &
                                             CurrentSign, exLvl, run)
 
                 ! Update counters as required.
@@ -905,10 +907,10 @@ contains
       end subroutine CalcParentFlag_det
 
 
-      function TestInitiator_ilut(ilut, is_init, run) result(initiator)
+      function TestInitiator_ilut(ilut, site_idx, is_init, run) result(initiator)
         implicit none
         integer(n_int), intent(inout) :: ilut(0:NIfTot)
-        integer, intent(in) :: run
+        integer, intent(in) :: run, site_idx
         logical, intent(in) :: is_init
         integer :: nI(nel), exLvl
         real(dp) :: sgn(lenof_sign)
@@ -917,11 +919,11 @@ contains
         exLvl = FindBitExcitLevel(ilut, ilutRef(:,run))
         call decode_bit_det(nI,ilut)
         call extract_sign(ilut, sgn)
-        initiator = TestInitiator_explicit(ilut, nI, is_init, sgn, exLvl, run)
+        initiator = TestInitiator_explicit(ilut, nI, site_idx, is_init, sgn, exLvl, run)
         
       end function TestInitiator_ilut
 
-      function TestInitiator_explicit(ilut, nI, is_init, sgn, exLvl, run) result(initiator)
+      function TestInitiator_explicit(ilut, nI, site_idx,is_init, sgn, exLvl, run) result(initiator)
         use adi_initiators, only: check_static_init
         use adi_references, only: check_superinitiator
         implicit none
@@ -937,13 +939,16 @@ contains
 
         integer(n_int), intent(inout) :: ilut(0:NIfTot)
         logical, intent(in) :: is_init
-        integer, intent(in) :: run, nI(nel), exLvl
+        integer, intent(in) :: run, nI(nel), exLvl, site_idx
         real(dp), intent(in) :: sgn(lenof_sign)
 
         ! the following value is either a single sgn or an aggregate
         real(dp) :: tot_sgn
         logical :: initiator, staticInit
         integer :: i
+
+        logical :: Senior
+        real(dp) :: DetAge, HalfLife, AvgShift, diagH
 
         ! By default the particles status will stay the same
         initiator = is_init
@@ -954,6 +959,21 @@ contains
         staticInit = check_static_init(ilut, nI, sgn, exLvl, run)
         ! reference-caused initiators also have the initiator flag
         if(staticInit) initiator = .true.
+
+        Senior = .false.
+        if (tSeniorInitiators .and. .not. is_run_unnocc(sgn, run) ) then
+            DetAge = get_tau_int(site_idx, run)
+            diagH = det_diagH(site_idx)
+            AvgShift = get_shift_int(site_idx, run)/DetAge
+            HalfLife = log(2.0_dp) / (diagH  - AvgShift)
+            !Usually the shift is negative, so the HalfLife is always positive.
+            !In some cases, however, the shift is set to positive (to increase the birth at HF).
+            !This will to a negative HalfLife for some determinants. 
+            if (HalfLife>0.0) then
+                Senior = DetAge>HalfLife*SeniorityAge
+            end if
+        end if
+        if(Senior) initiator = .true.
 
         if (.not. initiator) then
 
@@ -978,6 +998,7 @@ contains
            ! is in the deterministic space, then it must remain an initiator.
            if ( .not. (staticInit) &
                 .and. .not. test_flag(ilut, flag_deterministic) &
+                .and. .not. Senior &
                 .and. (tot_sgn <= InitiatorWalkNo )) then
               ! Population has fallen too low. Initiator status 
               ! removed.

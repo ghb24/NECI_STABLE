@@ -17,7 +17,6 @@ module fcimc_iter_utils
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tFCIMCStats2, tPrintDataTables, tLogEXLEVELStats
     use semi_stoch_procs, only: recalc_core_hamil_diag
-    use fcimc_helper, only: update_run_reference
     use bit_rep_data, only: NIfD, NIfTot, NIfDBO
     use hphf_integrals, only: hphf_diag_helement
     use global_det_data, only: set_det_diagH
@@ -1070,7 +1069,11 @@ contains
         call MPIBcast (tSinglePartPhase)
         call MPIBcast (VaryShiftIter)
         call MPIBcast (DiagSft)
+        call MPIBcast (VaryShiftCycles)
+        call MPIBcast (SumDiagSft)
+        call MPIBcast (AvDiagSft)
         
+
         do run=1,inum_runs
             if(.not.tSinglePartPhase(run)) then
                 TargetGrowRate(run)=0.0_dp

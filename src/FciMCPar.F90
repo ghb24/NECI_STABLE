@@ -15,7 +15,8 @@ module FciMCParMod
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
                         t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
                         t_back_spawn_flex, t_back_spawn_flex_option, &
-                        t_back_spawn_option
+                        t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
+                        DiagSft
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
                         tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
                         SIUpdateInterval, tSuppressSIOutput
@@ -38,7 +39,8 @@ module FciMCParMod
     use rdm_explicit, only: fill_explicitrdm_this_iter, fill_hist_explicitrdm_this_iter
     use procedure_pointers, only: attempt_die_t, generate_excitation_t, &
                                   get_spawn_helement_t
-    use semi_stoch_gen, only: write_most_pop_core_at_end, init_semi_stochastic
+    use semi_stoch_gen, only: write_most_pop_core_at_end, init_semi_stochastic, &
+         refresh_semistochastic_space
     use semi_stoch_procs, only: is_core_state, check_determ_flag, &
                                 determ_projection, average_determ_vector
     use trial_wf_gen, only: update_compare_trial_file, init_trial_wf
@@ -56,7 +58,9 @@ module FciMCParMod
     use exact_spectrum, only: get_exact_spectrum
     use determ_proj, only: perform_determ_proj
     use cont_time, only: iterate_cont_time
-    use global_det_data, only: det_diagH
+    use global_det_data, only: det_diagH, reset_tau_int, get_all_spawn_pops, &
+                               reset_shift_int, update_shift_int, &
+                               update_tau_int, set_spawn_pop
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
     use ftlm_neci, only: perform_ftlm
@@ -249,7 +253,10 @@ module FciMCParMod
                     call init_semi_stochastic(ss_space_in)
                 end if
             end if
-            
+            ! Update the semistochastic space if requested
+            if(tSemiStochastic .and. tDynamicCoreSpace .and. &
+                 mod(iter,coreSpaceUpdateCycle) == 0) call refresh_semistochastic_space()
+           
             if((Iter - maxval(VaryShiftIter)) == allDoubsInitsDelay + 1 &
                  .and. all(.not. tSinglePartPhase)) then
                ! Start the all-doubs-initiator procedure
@@ -262,7 +269,6 @@ module FciMCParMod
                ! If desired, we now set up the references for the purpose of the
                ! all-doubs-initiators
                if(tDelayGetRefs) then 
-                  tAdiActive = .true.
                   ! Re-initialize the reference space
                   call setup_reference_space(.true.)
                endif
@@ -805,9 +811,9 @@ module FciMCParMod
         ! Now the local, iteration specific, variables
         integer :: j, p, error, proc_temp, i, HFPartInd,isym
         integer :: DetCurr(nel), nJ(nel), FlagsCurr, parent_flags
-        real(dp), dimension(lenof_sign) :: SignCurr, child
+        real(dp), dimension(lenof_sign) :: SignCurr, child, SpawnSign
         integer(kind=n_int) :: iLutnJ(0:niftot)
-        integer :: IC, walkExcitLevel, walkExcitLevel_toHF, ex(2,2), TotWalkersNew, part_type
+        integer :: IC, walkExcitLevel, walkExcitLevel_toHF, ex(2,2), TotWalkersNew, part_type, run
         integer(int64) :: tot_parts_tmp(lenof_sign)
         logical :: tParity, tSuccess, tCoreDet
         real(dp) :: prob, HDiagCurr, TempTotParts, Di_Sign_Temp
@@ -823,6 +829,9 @@ module FciMCParMod
         type(ll_node), pointer :: TempNode
 
         integer :: ms
+
+        logical :: signChanged, newlyOccupied
+        real(dp) :: currArg, spawnArg
 
         call set_timer(Walker_Time,30)
 
@@ -988,12 +997,6 @@ module FciMCParMod
                 if (IsUnoccDet(SignCurr)) cycle
             end if
 
-            ! The current diagonal matrix element is stored persistently.
-            HDiagCurr = det_diagH(j)
-
-            if (tTruncInitiator) &
-                call CalcParentFlag (j, DetCurr, walkExcitLevel, parent_flags)
-
             ! As the main list (which is storing a hash table) no longer needs
             ! to be contiguous, we need to skip sites that are empty.
             if(IsUnoccDet(SignCurr)) then
@@ -1003,6 +1006,45 @@ module FciMCParMod
                 FreeSlot(iEndFreeSlot)=j
                 cycle
             endif
+
+            ! The current diagonal matrix element is stored persistently.
+            HDiagCurr = det_diagH(j)
+
+            if (tSeniorInitiators) then
+                SpawnSign = get_all_spawn_pops(j)
+                do run = 1, inum_runs
+                    if(.not. is_run_unnocc(SignCurr, run) .and. .not. is_run_unnocc(SpawnSign, run)) then
+#ifdef __CMPLX
+                        !For complex walkers, we consider the sign changed when the argument of the complex 
+                        !number changes more than pi/2.
+
+                        CurrArg = DATAN2(SignCurr(max_part_type(run)), SignCurr(min_part_type(run)))
+                        SpawnArg = DATAN2(SpawnSign(max_part_type(run)), SpawnSign(min_part_type(run)))
+                        signChanged = mod(abs(CurrArg-SpawnArg), PI) > PI/2.0_dp
+#else
+                        signChanged = SpawnSign(min_part_type(run))*SignCurr(min_part_type(run)) < 0.0_dp
+#endif
+                    else
+                        signChanged = .false.
+                    end if
+                    newlyOccupied = is_run_unnocc(SignCurr, run) .and. .not. is_run_unnocc(SpawnSign, run)
+                    if ( signChanged .or. newlyOccupied) then
+                        call reset_tau_int(j, run)
+                        call reset_shift_int(j, run)
+                        call set_spawn_pop(j, min_part_type(run), SignCurr(min_part_type(run)))
+#ifdef __CMPLX
+                        call set_spawn_pop(j, max_part_type(run), SignCurr(max_part_type(run)))
+#endif
+                    else
+                        call update_tau_int(j, run, tau)
+                        call update_shift_int(j, run, DiagSft(run)*tau)
+                    end if
+                end do
+            end if
+
+            if (tTruncInitiator) then
+                call CalcParentFlag (j, parent_flags)
+            end if
 
             !Debug output.
             IFDEBUGTHEN(FCIMCDebug,3)
@@ -1054,7 +1096,6 @@ module FciMCParMod
             ! alis additional idea to skip the number of attempted excitations
             ! for noninititators in the back-spawning approach
             ! remove that for now
-           
             do part_type = 1, lenof_sign
                 TempSpawnedPartsInd = 0
 
@@ -1163,7 +1204,6 @@ module FciMCParMod
             write(iout,*) 'Finished loop over determinants'
             write(iout,*) "Holes in list: ", iEndFreeSlot
         ENDIFDEBUG
-
         if (tSemiStochastic) then
             ! For semi-stochastic calculations only: Gather together the parts
             ! of the deterministic vector stored on each processor, and then
@@ -1204,7 +1244,9 @@ module FciMCParMod
         call set_timer (annihil_time, 30)
         !HolesInList is returned from direct annihilation with the number of unoccupied determinants in the list
         !They have already been removed from the hash table though.
+
         call DirectAnnihilation (totWalkersNew, iter_data, .false.) !.false. for not single processor
+
 
         ! This indicates the number of determinants in the list + the number
         ! of holes that have been introduced due to annihilation.
