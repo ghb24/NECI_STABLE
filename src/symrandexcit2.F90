@@ -2874,6 +2874,8 @@ MODULE GenRandSymExcitNUMod
         type(excit_gen_store_type) :: store
         character(*), parameter :: t_r = 'TestGenRandSymExcitNU'
         HElement_t(dp) :: HElGen
+        integer :: ex(2,2)
+        logical :: tpar
 
         write(6,*) 'In HERE'
         call neci_flush(6)
@@ -2907,8 +2909,14 @@ MODULE GenRandSymExcitNUMod
             IF(nJ(1).eq.0) exit lp2
             IF(tUEG.or.tHub) THEN
                 IF (IsMomentumAllowed(nJ)) THEN
-                    excitcount=excitcount+1
-                    CALL EncodeBitDet(nJ,iLutnJ)
+                    ex(1,1) = 2
+                    call GetExcitation(nI,nJ,nel,ex,tpar)
+                    ! also test for the spin in the hubbard model! 
+                    if (.not. same_spin(ex(1,1),ex(1,2))) then 
+                        excitcount=excitcount+1
+                        CALL EncodeBitDet(nJ,iLutnJ)
+                        print *, "nJ: ", nJ
+                    end if
 !                    IF(iProcIndex.eq.0) WRITE(25,*) excitcount,iExcit,iLutnJ(0)
                 ENDIF
             ELSEIF(tFixLz) THEN
@@ -2988,7 +2996,9 @@ MODULE GenRandSymExcitNUMod
     !            ForbiddenIter=ForbiddenIter+1
                 CYCLE
             ENDIF
-            IF(tKPntSym) THEN
+            if (tHub) then 
+                test = IsMomentumAllowed(nJ)
+            else IF(tKPntSym) THEN
                 test=IsMomAllowedDet(nJ)
             ENDIF
             ! This is implemented for the old excitation generators, that could only handle momentum conservation under

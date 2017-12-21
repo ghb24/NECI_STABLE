@@ -210,6 +210,14 @@ module procedure_pointers
 
         end function
 
+        subroutine generate_all_excits_t(nI, n_excits, det_list) 
+            use SystemData, only: nel 
+            use constants, only: n_int
+            integer, intent(in) :: nI(nel) 
+            integer, intent(out) :: n_excits
+            integer(n_int), intent(out), allocatable :: det_list(:,:)
+        end subroutine generate_all_excits_t
+
 
     end interface
 

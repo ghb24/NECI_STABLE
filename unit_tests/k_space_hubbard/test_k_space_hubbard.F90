@@ -17,7 +17,7 @@ program test_k_space_hubbard
                           bhub, uhub, omega, trans_corr_param_2body, & 
                           t_trans_corr, t_trans_corr_2body, trans_corr_param, & 
                           thub, tpbc, treal, ttilt, TSPINPOLAR, & 
-                          tCPMD, tVASP, tExch, tHphf
+                          tCPMD, tVASP, tExch, tHphf, tNoSymGenRandExcits, tKPntSym
     use bit_rep_data, only: niftot, nifd
     use lattice_mod, only: lat, lattice
     use dsfmt_interface, only: dsfmt_init
@@ -26,6 +26,9 @@ program test_k_space_hubbard
     use gen_coul_ueg_mod, only: get_hub_umat_el
     use IntegralsData, only: umat
     use DetBitOps, only: EncodeBitDet
+    use fcimcdata, only: pDoubles, pParallel
+    use DetBitOps, only: ilut_lt, ilut_gt
+    use sort_mod, only: sort
 
     implicit none 
 
@@ -67,6 +70,7 @@ contains
         TSPINPOLAR = .false. 
         tOneElecDiag = .false.
 
+        tKPntSym = .true.
         ttilt =  .false. 
         tCPMDSymTMat = .false.
         tvasp = .false.
@@ -77,6 +81,8 @@ contains
         thphf = .false.
 
         bhub = -1.0
+
+        tNoSymGenRandExcits = .true. 
 
         lat => lattice('chain', 4, 1, 1,.true.,.true.,.true.,'k-space')
 
@@ -94,7 +100,10 @@ contains
         ! also need the tmat ready.. 
         call setup_tmat_k_space(lat)
 
-        call setup_kPointToBasisFn(lat)
+!         call setup_kPointToBasisFn(lat)
+
+        call setup_k_space_hub_sym(lat) 
+
         ! and i also have to setup the symmetry table... damn.. 
         ! i have to setup umat also or
         uhub = 1.0
@@ -135,7 +144,7 @@ contains
         call run_test_case(pick_bc_orbitals_hubbard_test,"pick_bc_orbitals_hubbard_test")
         call run_test_case(create_ab_list_par_hubbard_test, "create_ab_list_par_hubbard_test")
         call run_test_case(pick_ab_orbitals_par_hubbard_test, "pick_ab_orbitals_par_hubbard_test")
-        call run_test_case(get_transferred_momentum_test, "get_transferred_momentum_test")
+        call run_test_case(get_transferred_momenta_test, "get_transferred_momenta_test")
         call run_test_case(get_orb_from_kpoints_three_test, "get_orb_from_kpoints_three_test")
         call run_test_case(create_bc_list_hubbard_test, "create_bc_list_hubbard_test")
         call run_test_case(get_3_body_helement_ks_hub_test, "get_3_body_helement_ks_hub_test")
@@ -146,12 +155,15 @@ contains
         call run_test_case(calc_pgen_k_space_hubbard_triples_test, "calc_pgen_k_space_hubbard_triples_test")
         call run_test_case(make_triple_test, "make_triple_test")
         call run_test_case(make_double_test, "make_double_test")
-        call run_test_case(make_single_test, "make_single_test")
         call run_test_case(three_body_transcorr_fac_test, "three_body_transcorr_fac_test")
         call run_test_case(two_body_transcorr_factor_test, "two_body_transcorr_factor_test")
         call run_test_case(epsilon_kvec_test, "epsilon_kvec_test")
         call run_test_case(same_spin_transcorr_factor_test, "same_spin_transcorr_factor_test")
         call run_test_case(get_one_body_diag_test, "get_one_body_diag_test")
+        call run_test_case(gen_parallel_double_hubbard_test, "gen_parallel_double_hubbard_test")
+        call run_test_case(gen_triple_hubbard_test, "gen_triple_hubbard_test")
+        call run_test_case(gen_excit_k_space_hub_test_stochastic, "gen_excit_k_space_hub_test_stochastic") 
+        call run_test_case(gen_excit_k_space_hub_transcorr_test_stoch, "gen_excit_k_space_hub_transcorr_test_stoch")
 
     end subroutine k_space_hubbard_test_driver
 
@@ -297,6 +309,9 @@ contains
 
         umat = uhub/omega
 
+        ! todo: tests for actual transcorrelation! 
+        call assert_equals(h_cast(1.0_dp), get_diag_helement_k_sp_hub([1,2,3,4]))
+
     end subroutine get_diag_helement_k_sp_hub_test
 
     subroutine get_offdiag_helement_k_sp_hub_test
@@ -400,6 +415,20 @@ contains
         ex(1,:) = [3,1]
         call assert_equals(h_cast(-4.0_dp*three_body_prefac), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
 
+        print *," --------------------------" 
+        print *, "test order of matrix elements for parallel excitations: " 
+        ex(1,:) = [1,3]
+        ex(2,:) = [5,7] 
+        print *, "(1,3) -> (5,7): ", get_offdiag_helement_k_sp_hub(nI, ex,.false.)
+        ex(1,:) = [3,1]
+        print *, "(3,1) -> (5,7): ", get_offdiag_helement_k_sp_hub(nI, ex,.false.)
+        ex(2,:) = [7,5]
+        print *, "(3,1) -> (7,5): ", get_offdiag_helement_k_sp_hub(nI, ex,.false.)
+        ex(1,:) = [1,3]
+        print *, "(1,3) -> (7,5): ", get_offdiag_helement_k_sp_hub(nI, ex,.false.)
+        print *," --------------------------" 
+
+        
         ex(1,:) = [2,4]
         ex(2,:) = [6,8] 
         call assert_equals(h_cast(-4.0_dp*three_body_prefac), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
@@ -408,9 +437,20 @@ contains
         ex(2,:) = [8,6] 
         call assert_equals(h_cast(-4.0_dp*three_body_prefac), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
         ! and this should have opposite sign.... 
+        ! why should this have the opposite sign?  the spin should not matter! 
         ex(2,:) = [1,3]
         ex(1,:) = [5,7] 
-        call assert_equals(h_cast(4.0_dp*three_body_prefac), get_offdiag_helement_k_sp_hub(nI,ex,.false.),1.0e-12)
+        call assert_equals(h_cast(-4.0_dp*three_body_prefac), get_offdiag_helement_k_sp_hub(nI,ex,.false.),1.0e-12)
+
+        nel = 4 
+        nI = [3,4,6,7]
+        ex(1,:) = [4,6]
+        ex(2,:) = [2,8]
+        call assert_equals(h_cast(0.0_dp), get_offdiag_helement_k_sp_hub(nI, ex,.false.))
+
+        ex(1,:) = [3,7] ! k = 2 
+        ex(2,:) = [1,5] ! k = 0 
+        call assert_equals(h_cast(0.0_dp), get_offdiag_helement_k_sp_hub(nI, ex,.false.))
 
         t_trans_corr_2body = .false. 
 
@@ -444,7 +484,7 @@ contains
         call assert_equals(3, ic_ret) 
 
         t_trans_corr_2body = .true. 
-        call assert_equals(h_cast(1.0_dp), get_helement_k_space_hub(nI,nJ))
+        call assert_equals(h_cast(-4.0*three_body_prefac), get_helement_k_space_hub(nI,nJ))
         ! todo: more tests! 
 
         t_trans_corr_2body = .false. 
@@ -551,22 +591,186 @@ contains
 
     subroutine calc_pgen_k_space_hubbard_test
 
-        integer, allocatable :: nI(:)
-        integer(n_int), allocatable :: ilutI(:) 
+        integer :: nI(4), ex(2,2)
+        integer(n_int) :: ilutI(0:0)
 
         print *, "" 
         print *, "testing: calc_pgen_k_space_hubbard"
-        call assert_true(.false.)
+
+        ni = [1,2,3,4] 
+        call EncodeBitDet(nI, ilutI) 
+
+        ex(1,:) = [1,2]
+        ex(2,:) = [5,6]
+
+        call assert_equals(0.0_dp, calc_pgen_k_space_hubbard(nI, ilutI, ex, 1))
+        call assert_equals(0.0_dp, calc_pgen_k_space_hubbard(nI, ilutI, ex, 0))
+        call assert_equals(0.0_dp, calc_pgen_k_space_hubbard(nI, ilutI, ex, 3))
+        call assert_equals(0.25_dp, calc_pgen_k_space_hubbard(nI, ilutI, ex, 2))
+
+        ex(1,:) = [3,4]
+        call assert_equals(0.0_dp, calc_pgen_k_space_hubbard(nI, ilutI, ex, 2))
+
+        ex(2,:) = [7,8] 
+        call assert_equals(0.25_dp, calc_pgen_k_space_hubbard(nI, ilutI, ex, 2))
 
     end subroutine calc_pgen_k_space_hubbard_test
 
     subroutine gen_excit_k_space_hub_test
 
+        integer :: nI(4), ex(2,2), nJ(4)
+        integer(n_int) :: ilutI(0:0), ilutJ(0:0)
+        HElement_t(dp) :: hel
+        real(dp) :: pgen 
+        type(excit_gen_store_type) :: store
+        logical :: tpar, t_found(6), found_all
+        integer :: ic
+
+        real(dp) :: p_elec = 0.25_dp
+
+        nI = [1,2,3,4]
+        call EncodeBitDet(nI, ilutI)
+
         print *, ""
         print *, "testing: gen_excit_k_space_hub" 
-        call assert_true(.false.)
+
+        t_found = .false. 
+        found_all = .false. 
+
+        do while (.not. found_all) 
+            call gen_excit_k_space_hub(nI, ilutI, nJ, ilutJ, 0, ic, ex, & 
+                    tpar, pgen, hel, store) 
+
+            if (all(nJ == [3,4,5,6]) .and. .not. t_found(1)) then 
+                t_found(1) = .true.
+                ! do asserts: 
+                call assert_equals(p_elec, pgen)
+                call assert_true(.not. tpar)
+            end if
+
+            if (all(nJ == [2,3,5,8]) .and. .not. t_found(2)) then 
+                t_found(2) = .true. 
+                call assert_equals(p_elec/2.0, pgen)
+                call assert_true(.not. tpar)
+            end if
+
+            if (all(nJ == [2,3,6,7]) .and. .not. t_found(3)) then 
+                t_found(3) = .true. 
+                call assert_equals(p_elec/2.0, pgen)
+                call assert_true(.not. tpar)
+            end if
+
+            if (all(nJ == [1,4,5,8]) .and. .not. t_found(4)) then 
+                t_found(4) = .true. 
+                call assert_equals(p_elec/2.0, pgen)
+                call assert_true(.not. tpar)
+            end if
+
+            if (all(nJ == [1,4,6,7]) .and. .not. t_found(5)) then 
+                t_found(5) = .true. 
+                call assert_equals(p_elec/2.0, pgen)
+                call assert_true(.not. tpar)
+            end if
+            
+            if (all(nJ == [1,2,7,8]) .and. .not. t_found(6))  then 
+                t_found(6) = .true. 
+                call assert_equals(p_elec, pgen)
+                call assert_true(.not. tpar)
+            end if
+
+            found_all = all(t_found)
+
+        end do
 
     end subroutine gen_excit_k_space_hub_test
+
+    subroutine gen_parallel_double_hubbard_test
+
+        integer :: nI(4), nJ(4), ex(2,2) 
+        integer(n_int) :: ilutI(0:0), ilutJ(0:0) 
+        real(dp) :: pgen 
+        logical :: tpar, found_all, t_found(2)
+
+        print *, "" 
+        print *, "testing: gen_parallel_double_hubbard "
+
+        t_trans_corr_2body = .true. 
+        nI = [1,2,3,4]
+        call EncodeBitDet(nI, ilutI)
+
+        found_all = .false. 
+        t_found = .false. 
+
+        do while (.not. found_all)
+            call gen_parallel_double_hubbard(nI, ilutI, nJ, ilutJ, ex, tPar, pgen) 
+
+            if (all(nJ == [2,4,5,7]) .and. .not. t_found(1)) then 
+                t_found(1) = .true. 
+                call assert_equals(0.5_dp, pgen)
+                call assert_true(tpar)
+            end if
+
+            if (all(nJ == [1,3,6,8]) .and. .not. t_found(2)) then 
+                t_found(2) = .true. 
+                call assert_equals(0.5_dp, pgen)
+                call assert_true(tpar)
+            end if 
+
+            found_all = all(t_found)
+        end do
+
+        t_trans_corr_2body = .false. 
+
+    end subroutine gen_parallel_double_hubbard_test
+
+    subroutine gen_triple_hubbard_test
+
+        integer :: nI(4), nJ(4), ex(2,3) 
+        integer(n_int) :: ilutI(0:0), ilutJ(0:0) 
+        real(dp) :: pgen 
+        logical :: tpar, found_all, t_found(2)
+
+        print *, "" 
+        print *, "testing: gen_triple_hubbard "
+
+        found_all = .false. 
+        t_found = .false. 
+        nI = [3,4,6,7]
+        call EncodeBitDet(nI, ilutI) 
+
+        t_trans_corr_2body = .true. 
+
+        do while (.not. found_all) 
+            call gen_triple_hubbard(nI, ilutI, nJ, ilutJ, ex, tpar, pgen) 
+
+            if (all(nJ == [1,2,4,5]) .and. .not. t_found(1)) then 
+                t_found(1) = .true. 
+                call assert_equals(0.125_dp, pgen)
+            end if
+            found_all = t_found(1)
+
+        end do
+
+        nI = [3,4,5,8] 
+        call EncodeBitDet(nI, ilutI) 
+
+        found_all = .false. 
+        t_found = .false. 
+
+        do while (.not. found_all) 
+            call gen_triple_hubbard(nI, ilutI, nJ, ilutJ, ex, tpar, pgen) 
+
+            if (all(nJ == [1,2,3,6]) .and. .not. t_found(1)) then 
+                t_found(1) = .true. 
+                call assert_equals(0.125_dp, pgen)
+            end if
+            found_all = t_found(1)
+
+        end do
+
+        t_trans_corr_2body = .false.
+
+    end subroutine gen_triple_hubbard_test
 
     subroutine pick_three_opp_elecs_test
 
@@ -762,10 +966,16 @@ contains
         nI = [1,2,3,4]
         call EncodeBitDet(nI, ilutI) 
 
+        t_trans_corr_2body = .true.
         print *, ""
         print *, "testing: create_ab_list_par_hubbard"
         call create_ab_list_par_hubbard(nI, ilutI, [1,3], orb_list, cum_arr, cum_sum)
         call assert_true(cum_sum > 0.0_dp)
+
+        call create_ab_list_par_hubbard(nI, ilutI, [1,3], orb_list, cum_arr, cum_sum, 5, cpt)
+        call assert_equals(0.5_dp, cpt) 
+        call create_ab_list_par_hubbard(nI, ilutI, [1,3], orb_list, cum_arr, cum_sum, 7, cpt)
+        call assert_equals(0.5_dp, cpt) 
 
         call create_ab_list_par_hubbard(nI, ilutI, [2,4], orb_list, cum_arr, cum_sum)
         call assert_true(cum_sum > 0.0_dp)
@@ -783,6 +993,18 @@ contains
         call create_ab_list_par_hubbard(nI, ilutI, [1,5], orb_list, cum_arr, cum_sum)
         call assert_equals(0.0_dp, cum_sum)
 
+        nI = [3,4,6,7]
+        call EncodeBitDet(nI, ilutI)
+        call create_ab_list_par_hubbard(nI, ilutI, [4,6], orb_list, cum_arr, cum_sum)
+
+        print *, "" 
+        print *, "cum_sum: ", cum_sum
+        print *, "cum_arr: ", cum_arr
+        print *, "orb_list(:,1):", orb_list(:,1)
+        print *, "orb_list(:,2):", orb_list(:,2)
+
+        t_trans_corr_2body = .false.
+
     end subroutine create_ab_list_par_hubbard_test
 
     subroutine pick_ab_orbitals_par_hubbard_test
@@ -793,6 +1015,8 @@ contains
 
         nI = [1,2,3,4]
         call EncodeBitDet(nI, ilutI) 
+
+        t_trans_corr_2body = .true.
 
         print *, ""
         print *, "testing: pick_ab_orbitals_par_hubbard"
@@ -809,15 +1033,31 @@ contains
         call pick_ab_orbitals_par_hubbard(nI, ilutI, [1,5], orbs, p_orb)
         call assert_equals(0.0_dp, p_orb)
 
+        t_trans_corr_2body = .false.
+
     end subroutine pick_ab_orbitals_par_hubbard_test
 
-    subroutine get_transferred_momentum_test
+    subroutine get_transferred_momenta_test
+
+        integer :: ex(2,2), k_vec_a(3), k_vec_b(3)
 
         print *, ""
-        print *, "testing: get_transferred_momentum"
-        call assert_true(.false.)
+        print *, "testing: get_transferred_momenta"
+        ex(1,:) = [1,2]
+        ex(2,:) = [3,4] 
+        call get_transferred_momenta(ex, k_vec_a, k_vec_b) 
 
-    end subroutine get_transferred_momentum_test
+        call assert_equals(1, k_vec_a(1)) 
+        call assert_equals(-1, k_vec_b(1))
+
+        ex(1,:) = [1,3] 
+        ex(2,:) = [5,7]
+        call get_transferred_momenta(ex, k_vec_a, k_vec_b) 
+
+        call assert_equals(2, k_vec_a(1))
+        call assert_equals(-1, k_vec_b(1))
+
+    end subroutine get_transferred_momenta_test
 
     subroutine get_orb_from_kpoints_three_test
 
@@ -903,7 +1143,32 @@ contains
         ex(2,:) = [1,2,5]
         call assert_equals(h_cast(-4*three_body_prefac), get_3_body_helement_ks_hub(ni,ex,tpar))
 
-        ! maybe do more tests..
+        ! and the order of the involved electrons should not change the 
+        ! matrix element! ... damn.. it does.. i need to have some 
+        ! convention i think.. as it is in the spin-opposite excitations 
+        ! in the "normal" method.. 
+        print *, "--------------------------" 
+        print *, "testing order influence on sign: "
+        print *, "(",ex(1,:),") -> (",ex(2,:),"): ", get_3_body_helement_ks_hub(nI, ex, .false.)
+        ex(1,:) = [3,7,6]
+        print *, "(",ex(1,:),") -> (",ex(2,:),"): ", get_3_body_helement_ks_hub(nI, ex, .false.)
+        ex(1,:) = [6,3,7]
+        print *, "(",ex(1,:),") -> (",ex(2,:),"): ", get_3_body_helement_ks_hub(nI, ex, .false.)
+        ex(1,:) = [6,7,3] 
+        print *, "(",ex(1,:),") -> (",ex(2,:),"): ", get_3_body_helement_ks_hub(nI, ex, .false.)
+        ex(1,:) = [7,6,3]
+        print *, "(",ex(1,:),") -> (",ex(2,:),"): ", get_3_body_helement_ks_hub(nI, ex, .false.)
+        ex(2,:) = [1,5,2]
+        print *, "(",ex(1,:),") -> (",ex(2,:),"): ", get_3_body_helement_ks_hub(nI, ex, .false.)
+        ex(2,:) = [2,1,5]
+        print *, "(",ex(1,:),") -> (",ex(2,:),"): ", get_3_body_helement_ks_hub(nI, ex, .false.)
+        ex(2,:) = [5,1,2]
+        print *, "(",ex(1,:),") -> (",ex(2,:),"): ", get_3_body_helement_ks_hub(nI, ex, .false.)
+        ex(2,:) = [5,2,1]
+        print *, "(",ex(1,:),") -> (",ex(2,:),"): ", get_3_body_helement_ks_hub(nI, ex, .false.)
+
+        ! fix this sign incoherence above! 
+        call assert_true(.false.)
 
     end subroutine get_3_body_helement_ks_hub_test
 
@@ -947,25 +1212,114 @@ contains
 
     subroutine calc_pgen_k_space_hubbard_transcorr_test
 
+        integer :: nI(4), ex(2,3)
+        integer(n_int) :: ilutI(0:0) 
+
+        nI = [3,4,6,7]
+        call EncodeBitDet(nI, ilutI)
+
+        pDoubles = 0.8 
+        pParallel = 0.2 
+
+        t_trans_corr_2body = .true. 
         print *, "" 
         print *, "testing: calc_pgen_k_space_hubbard_transcorr"
-        call assert_true(.false.)
+        call assert_equals(0.0_dp, calc_pgen_k_space_hubbard_transcorr(ni,iluti,ex,0))
+        call assert_equals(0.0_dp, calc_pgen_k_space_hubbard_transcorr(ni,iluti,ex,1))
+        call assert_equals(0.0_dp, calc_pgen_k_space_hubbard_transcorr(ni,iluti,ex,4))
+        
+        ex(1,:) = [3,4,0] ! k = 0
+        ex(2,:) = [2,5,0] ! k = 0
+        ! this should contribute! 
+        call assert_equals(0.8*0.8/4.0_dp, calc_pgen_k_space_hubbard_transcorr(nI,iluti,ex,2))
+
+        ex(1,:) = [3,6,0] ! k = 1
+        ex(2,:) = [1,8,0] ! k = 1
+        call assert_equals(0.8*0.8/4.0_dp, calc_pgen_k_space_hubbard_transcorr(nI,iluti,ex,2))
+
+        ex(1,:) = [3,7,0] ! k=2
+        ex(2,:) = [1,5,0] ! k=0
+        call assert_equals(0.0_dp, calc_pgen_k_space_hubbard_transcorr(ni,iluti,ex,2))
+
+        ex(1,:) = [4,6,0] ! k = 1
+        ex(2,:) = [2,8,0] ! k = 1
+        ! should contribute! no, becuase diagonal part is 0!
+        call assert_equals(0.0_dp, calc_pgen_k_space_hubbard_transcorr(ni,iluti,ex,2))
+
+        nI = [1,4,6,7]
+        call EncodeBitDet(nI, ilutI)
+        call assert_equals(0.8*0.2/2.0_dp, calc_pgen_k_space_hubbard_transcorr(ni,iluti,ex,2))
+
+        nI = [3,4,6,7]
+        call EncodeBitDet(nI, ilutI)
+
+        ! the triple should be: 
+        ex(1,:) = [3,6,7] 
+        ex(2,:) = [1,2,5] 
+        call assert_equals(0.2/16.0_dp, calc_pgen_k_space_hubbard_transcorr(ni,iluti,ex,3),1.0e-12)
+
+        t_trans_corr_2body = .false.
 
     end subroutine calc_pgen_k_space_hubbard_transcorr_test
 
     subroutine calc_pgen_k_space_hubbard_par_test
 
+        integer :: nI(4), ex(2,2)
+        integer(n_int) :: ilutI(0:0) 
+
+        nI = [1,2,3,4] 
+        call EncodeBitDet(nI, ilutI)
+
+        t_trans_corr_2body = .true.
         print *, "" 
         print *, "testing: calc_pgen_k_space_hubbard_par"
-        call assert_true(.false.)
+        ex(1,:) = [1,3]
+        ex(2,:) = [5,7] 
+
+        call assert_equals(0.0_dp, calc_pgen_k_space_hubbard_par(nI,ilutI,ex,0))
+        call assert_equals(0.0_dp, calc_pgen_k_space_hubbard_par(nI,ilutI,ex,1))
+        call assert_equals(0.0_dp, calc_pgen_k_space_hubbard_par(nI,ilutI,ex,3))
+
+        call assert_equals(0.5_dp, calc_pgen_k_space_hubbard_par(nI,ilutI,ex,2))
+        ex(1,:) = [2,4]
+        call assert_equals(0.0_dp, calc_pgen_k_space_hubbard_par(nI,ilutI,ex,2))
+        ex(2,:) = [6,8]
+        call assert_equals(0.5_dp, calc_pgen_k_space_hubbard_par(nI,ilutI,ex,2))
+        ex(1,:) = [1,4]
+        call assert_equals(0.0_dp, calc_pgen_k_space_hubbard_par(nI,ilutI,ex,2))
+
+        t_trans_corr_2body = .false.
 
     end subroutine calc_pgen_k_space_hubbard_par_test
 
     subroutine calc_pgen_k_space_hubbard_triples_test
 
+        integer :: nI(4), ex(2,3)
+        integer(n_int) :: ilutI(0:0) 
+
+        nI = [3,4,6,7]
+        call EncodeBitDet(nI, ilutI) 
+
+        t_trans_corr_2body = .true.
         print *, "" 
         print *, "testing: calc_pgen_k_space_hubbard_triples"
-        call assert_true(.false.)
+        ex(1,:) = [3,6,7]
+        ex(2,:) = [1,2,5]
+
+        call assert_equals(0.0_dp, calc_pgen_k_space_hubbard_triples(nI, ilutI, ex,0))
+        call assert_equals(0.0_dp, calc_pgen_k_space_hubbard_triples(nI, ilutI, ex,1))
+        call assert_equals(0.0_dp, calc_pgen_k_space_hubbard_triples(nI, ilutI, ex,2))
+
+        call assert_equals(1.0_dp/(2*8.0_dp), calc_pgen_k_space_hubbard_triples(nI, ilutI, ex,3))
+
+        ex(1,:) = [4,5,8] 
+        call assert_equals(0.0_dp, calc_pgen_k_space_hubbard_triples(nI, ilutI, ex,3))
+        ex(2,:) = [1,2,6]
+        nI = [3,4,5,8] 
+        call EncodeBitDet(nI, ilutI)
+        call assert_equals(1.0_dp/(2*8.0_dp), calc_pgen_k_space_hubbard_triples(nI, ilutI, ex,3))
+
+        t_trans_corr_2body = .false.
 
     end subroutine calc_pgen_k_space_hubbard_triples_test
 
@@ -1298,16 +1652,6 @@ contains
 
     end subroutine make_double_test
 
-    subroutine make_single_test
-
-        print *, "" 
-        print *, "testing: make_single" 
-        print *, "for consistency in the sign"
-
-        call assert_true(.false.) 
-
-    end subroutine make_single_test
-
     subroutine three_body_transcorr_fac_test
 
         integer :: p(3), q(3), k(3)
@@ -1467,5 +1811,389 @@ contains
 
 
     end subroutine get_one_body_diag_test
+
+    subroutine gen_excit_k_space_hub_test_stochastic
+
+        use GenRandSymExcitNUMod, only: TestGenRandSymExcitNU
+        integer :: nI(nel)
+
+        print *, "" 
+        print *, "try to implement a stochastic version to check the" 
+        print *, "calculated pgen and the actual one.. " 
+        ! i should write a general test-runner for this.. which takes 
+        ! an excitation generator as an input.. that would be nice! 
+        ! something like: " 
+        ni = [1,2,3,4]
+        
+        call setup_k_total(nI) 
+
+!         call TestGenRandSymExcitNU(nI, 1000, 1.0, 2)
+        call run_excit_gen_tester(gen_excit_k_space_hub, "gen_excit_k_space_hub", & 
+            gen_all_excits=gen_all_excits_k_space_hubbard) 
+
+    end subroutine gen_excit_k_space_hub_test_stochastic
+
+    subroutine run_excit_gen_tester(excit_gen, excit_gen_name, opt_nI, opt_n_iters, & 
+            gen_all_excits) 
+        use procedure_pointers, only: generate_excitation_t, generate_all_excits_t
+        use util_mod, only: binary_search
+
+        procedure(generate_excitation_t) :: excit_gen 
+        integer, intent(in), optional :: opt_nI(nel), opt_n_iters
+        procedure(generate_all_excits_t), optional :: gen_all_excits
+        character(*), intent(in) :: excit_gen_name
+        character(*), parameter :: this_routine = "run_excit_gen_tester"
+
+        integer :: i, nI(nel), n_iters 
+        integer :: default_n_iters = 100000
+        integer :: default_n_dets = 10 
+
+        integer(n_int) :: ilut(0:niftot), tgt_ilut(0:niftot)
+        integer :: nJ(nel), n_excits, ex(2,2), ic, ex_flag, i_unused = 0
+        type(excit_gen_store_type) :: store 
+        logical :: tPar, found_all
+        real(dp) :: pgen, contrib
+        HElement_t(dp) :: hel 
+        integer(n_int), allocatable :: det_list(:,:)
+        real(dp), allocatable :: contrib_list(:)
+        logical, allocatable :: generated_list(:) 
+        integer :: n_dets, n_generated, pos
+
+        ASSERT(nel > 0)
+        ! and also nbasis and stuff.. 
+        ASSERT(nbasis > 0) 
+        ASSERT(nel <= nbasis) 
+
+        ! use some default values if not provided: 
+        ! nel must be set! 
+        if (present(opt_nI)) then 
+            nI = opt_nI
+        else 
+            ! use HF-det as default
+            nI = [(i, i = 1, nel)]
+        end if
+
+        if (present(opt_n_iters)) then 
+            n_iters = opt_n_iters
+        else 
+            n_iters = default_n_iters
+        end if
+
+        ! i have to rewrite this routine, to a part which 
+        ! creates all excitations and another who runs on possibly 
+        ! multiple excitations! 
+!         if (present(opt_n_dets)) then 
+!             n_dets = opt_n_dets
+!         else 
+!             n_dets = default_n_dets
+!         end if
+
+        ! the problem here is now.. we want to calulate all the possible 
+        ! excitations.. i would need a general routine, which does that 
+        ! with only the hamiltonian knowledge.. this is not really there.. 
+        ! i should have a routine: 
+        ! for this special setup, which is tested.. 
+
+        ! for some special systems we should provide a routine to 
+        ! calculate all the excitations (hubbard, UEG eg.) 
+        if (present(gen_all_excits)) then 
+            call gen_all_excits(nI, n_excits, det_list)
+        else 
+            call gen_all_excits_default(nI, n_excits, det_list)
+        end if
+
+        print *, "total possible excitations: ", n_excits
+        do i = 1, n_excits 
+            call writebitdet(6, det_list(:,i),.true.)
+        end do
+
+        ! call this below now for the number of specified determinants 
+        ! (also use excitations of the first inputted, to be really 
+        !   consistent) 
+
+        n_dets = min(n_dets, n_excits) 
+
+        print *, "---------------------------------"
+        print *, "testing: ", excit_gen_name
+        print *, "for ", n_dets, " determinants" 
+        print *, " and ", n_iters, " iterations "
+
+        call EncodeBitDet(nI, ilut) 
+
+        print *, "for starting determinant: ", nI 
+
+        ! Lists to keep track of things
+        allocate(generated_list(n_excits))
+        allocate(contrib_list(n_excits))
+        generated_list = .false.
+        contrib_list = 0
+
+        n_generated = 0
+        contrib = 0.0_dp
+
+        do i = 1, n_iters
+            if (mod(i, 1000) == 0) then 
+                print *, i, "/" ,n_iters, " - ", contrib / real(n_excits*i,dp) 
+            end if
+            call excit_gen(nI, ilut, nJ, tgt_ilut, ex_flag, ic, ex, tpar, pgen, & 
+                        hel, store) 
+
+            if (nJ(1) == 0) cycle 
+            call EncodeBitDet(nJ, tgt_ilut) 
+            pos = binary_search(det_list, tgt_ilut, nifd+1)
+            if (pos < 0) then 
+                print *, "nJ: ", nJ 
+                print *, "ilutJ:", tgt_ilut
+                call stop_all(this_routine, 'Unexpected determinant generated')
+            else 
+                generated_list(pos) = .true. 
+                n_generated = n_generated + 1 
+
+                contrib = contrib + 1.0_dp / pgen 
+                contrib_list(pos) = contrib_list(pos) + 1.0_dp / pgen 
+            end if 
+        end do
+
+        print *, n_generated, " dets generated in ", n_iters, " iterations " 
+        print *, 100.0_dp * (n_iters - n_generated) / real(n_iters,dp), "% abortion rate" 
+        print *, "Averaged contribution: ", contrib / real(n_excits*n_iters,dp)
+
+        ! check all dets are generated: 
+        call assert_true(all(generated_list))
+
+        print *, "=================================="
+        print *, "Contribution List: "
+        do i = 1, n_excits 
+            call writebitdet(6, det_list(:,i), .false.)
+            print *, contrib_list(i)/real(n_iters,dp)
+        end do
+        ! and check the uniformity of the excitation generation
+        call assert_true(all(abs(contrib_list / n_iters - 1.0_dp) < 0.01_dp))
+
+    end subroutine run_excit_gen_tester
+
+    subroutine gen_all_excits_k_space_hubbard(nI, n_excits, det_list) 
+
+        use SystemData, only: tNoBrillouin, tUseBrillouin
+        use neci_intfce, only: GenSymExcitIt2
+        use GenRandSymExcitNUMod, only: IsMomentumAllowed
+
+        integer, intent(in) :: nI(nel)
+        integer, intent(out) :: n_excits 
+        integer(n_int), intent(out), allocatable :: det_list(:,:)
+        character(*), parameter :: this_routine = "gen_all_excits_k_space_hubbard"
+
+        logical :: brillouin_tmp(2), tpar
+        integer :: iMaxExcit, nStore(6),nExcitMemLen(1), excitcount, ex(2,2)
+        integer :: nJ(nel), ierr, exFlag, iExcit
+        integer(n_int) :: iLutnJ(0:niftot)
+        integer, allocatable :: EXCITGEN(:)
+        integer(n_int), allocatable :: triple_dets(:,:), temp_dets(:,:)
+        integer :: n_triples, save_excits
+
+
+!         exFlag = 2
+!          
+!         ! resuse the really weirdly implemented stuff in symrandexcit2... 
+! 
+!         ! The old excitation generator will not generate singles from the HF
+!         ! unless tNoBrillouin is set
+!         brillouin_tmp(1) = tNoBrillouin
+!         brillouin_tmp(2) = tUseBrillouin
+!         tNoBrillouin = .true.
+!         tUseBrillouin = .false.
+! 
+!         !Find the number of symmetry allowed excitations there should be by looking at the full excitation generator.
+!         !Setup excit generators for this determinant
+!         iMaxExcit=0
+!         nStore(1:6)=0
+!         CALL GenSymExcitIt2(nI,NEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
+!         ALLOCATE(EXCITGEN(nExcitMemLen(1)),stat=ierr)
+!         IF(ierr.ne.0) CALL Stop_All(this_routine,"Problem allocating excitation generator")
+!         EXCITGEN(:)=0
+!         CALL GenSymExcitIt2(nI,NEl,G1,nBasis,.TRUE.,EXCITGEN,nJ,iMaxExcit,nStore,exFlag)
+!     !    CALL GetSymExcitCount(EXCITGEN,DetConn)
+!         excitcount=0
+! 
+!     lp2: do while(.true.)
+!             CALL GenSymExcitIt2(nI,nEl,G1,nBasis,.false.,EXCITGEN,nJ,iExcit,nStore,exFlag)
+!             IF(nJ(1).eq.0) exit lp2
+!             IF (IsMomentumAllowed(nJ)) THEN
+!                 ex(1,1) = 2
+!                 call GetExcitation(nI,nJ,nel,ex,tpar)
+!                 ! also test for the spin in the hubbard model! 
+!                 if (t_trans_corr_2body .or. .not. same_spin(ex(1,1),ex(1,2))) then 
+!                     excitcount=excitcount+1
+!                     CALL EncodeBitDet(nJ,iLutnJ)
+!                 end if
+!             ENDIF
+!         end do lp2
+! 
+!         ! and now do it again and fill the determinants.. 
+!         allocate(det_list(0:niftot,excitcount)) 
+!         EXCITGEN = 0
+!         CALL GenSymExcitIt2(nI,NEl,G1,nBasis,.TRUE.,EXCITGEN,nJ,iMaxExcit,nStore,exFlag)
+!         excitcount = 0
+! 
+!     lp3: do while(.true.)
+!             CALL GenSymExcitIt2(nI,nEl,G1,nBasis,.false.,EXCITGEN,nJ,iExcit,nStore,exFlag)
+!             IF(nJ(1).eq.0) exit lp3
+!             IF (IsMomentumAllowed(nJ)) THEN
+!                 ex(1,1) = 2
+!                 call GetExcitation(nI,nJ,nel,ex,tpar)
+!                 ! also test for the spin in the hubbard model! 
+!                 if (t_trans_corr_2body .or. .not. same_spin(ex(1,1),ex(1,2))) then 
+!                     excitcount=excitcount+1
+!                     CALL EncodeBitDet(nJ,iLutnJ)
+!                     det_list(:,excitcount) = ilutnJ
+!                 end if
+!             ENDIF
+!         end do lp3
+! 
+!         n_excits = excitcount
+
+        call gen_all_doubles_k_space(nI, n_excits, det_list)
+
+        if (t_trans_corr_2body) then 
+            save_excits = n_excits
+            ! also account for triple excitations
+            call gen_all_triples_k_space(nI, n_triples, triple_dets)
+
+            n_excits = n_excits + n_triples
+
+            allocate(temp_dets(0:niftot, save_excits), source = det_list(:,1:save_excits))
+
+            deallocate(det_list) 
+
+            allocate(det_list(0:niftot,n_excits)) 
+
+            det_list(:,1:save_excits) = temp_dets 
+
+            det_list(:,save_excits+1:n_excits) = triple_dets
+
+        end if
+
+        call sort(det_list, ilut_lt, ilut_gt)
+
+    end subroutine gen_all_excits_k_space_hubbard
+
+    subroutine gen_all_excits_default(nI, n_excits, det_list) 
+        use SymExcit3, only: CountExcitations3, GenExcitations3
+        integer, intent(in) :: nI(nel)
+        integer, intent(out) :: n_excits 
+        integer(n_int), intent(out), allocatable :: det_list(:,:) 
+        character(*), parameter :: this_routine = "gen_all_excits_default"
+
+        integer :: n_singles, n_doubles, n_dets, ex(2,2), ex_flag
+        integer :: nJ(nel) 
+        logical :: tpar, found_all 
+        integer(n_int) :: ilut(0:niftot)
+
+        n_excits = -1
+
+        call EncodeBitDet(nI, ilut) 
+
+        ! for reference in the "normal" case it looks like that: 
+        call CountExcitations3(nI, 2, n_singles, n_doubles) 
+
+        n_excits = n_singles + n_doubles 
+
+        print *, "n_singles: ", n_singles
+        print *, "n_doubles: ", n_doubles
+        
+        allocate(det_list(0:niftot,n_excits)) 
+        n_dets = 0
+        found_all = .false. 
+        ex = 0
+        ex_flag = 2 
+        call GenExcitations3 (nI, ilut, nJ, ex_flag, ex, tpar, found_all, &
+                              .false.)
+
+        do while (.not. found_all)
+            n_dets = n_dets + 1
+            call EncodeBitDet (nJ, det_list(:,n_dets))
+
+            call GenExcitations3 (nI, ilut, nJ, ex_flag, ex, tpar, &
+                                  found_all, .false.)
+        end do
+
+        if (n_dets /= n_excits) then
+            print *, "expected number of excitations: ", n_excits
+            print *, "actual calculated ones: ", n_dets
+            call stop_all(this_routine,"Incorrect number of excitations found")
+        end if
+
+        ! Sort the dets, so they are easy to find by binary searching
+        call sort(det_list, ilut_lt, ilut_gt)
+
+    end subroutine gen_all_excits_default
+
+    subroutine gen_excit_k_space_hub_transcorr_test_stoch
+
+        use bit_reps, only: decode_bit_det
+        integer :: nI(nel), n_excits, i, nJ(nel), n_triples
+        integer(n_int), allocatable :: det_list(:,:)
+
+        print *, "" 
+        print *, "testing: gen_excit_k_space_hub_transcorr" 
+        print *, "first for a system with no possible triples, due to momentum conservation"
+
+        pDoubles = 0.8 
+        pParallel = 0.2 
+        t_trans_corr_2body = .true. 
+
+        nI = [1,2,3,4] 
+        call setup_k_total(nI)
+        call gen_all_triples_k_space(nI, n_excits, det_list)
+
+        print *, "number of triple excitations: ", n_excits
+        do i = 1, n_excits
+            call writebitdet(6, det_list(:,i),.true.)
+        end do
+
+        call gen_all_excits_k_space_hubbard(nI, n_excits, det_list)
+
+        ! for this momentum sector there are no, triple excitations valid.. 
+        ! so test that for now! 
+        call run_excit_gen_tester(gen_excit_k_space_hub_transcorr_test, &
+            "gen_excit_k_space_hub_transcorr",opt_ni = nI, & 
+            gen_all_excits = gen_all_excits_k_space_hubbard) 
+
+        do i = 1, n_excits 
+            call decode_bit_det(nJ, det_list(:,i))
+            call run_excit_gen_tester(gen_excit_k_space_hub_transcorr_test, &
+                "gen_excit_k_space_hub_transcorr",opt_ni = nJ, & 
+                gen_all_excits = gen_all_excits_k_space_hubbard) 
+        end do
+
+
+        print *, "" 
+        print *, "and now for a system with triples: "
+        nI = [3,4,6,7]
+        call setup_k_total(nI) 
+
+        call gen_all_triples_k_space(nI, n_triples, det_list)
+
+        print *, "number of triple excitations: ", n_triples
+        do i = 1, n_triples
+            call writebitdet(6, det_list(:,i),.true.)
+        end do
+
+        call gen_all_excits_k_space_hubbard(nI, n_excits, det_list)
+
+        ! for this momentum sector there are no, triple excitations valid.. 
+        ! so test that for now! 
+        call run_excit_gen_tester(gen_excit_k_space_hub_transcorr_test, &
+            "gen_excit_k_space_hub_transcorr",opt_ni = nI, & 
+            gen_all_excits = gen_all_excits_k_space_hubbard) 
+
+        do i = 1, n_excits 
+            call decode_bit_det(nJ, det_list(:,i))
+            call run_excit_gen_tester(gen_excit_k_space_hub_transcorr_test, &
+                "gen_excit_k_space_hub_transcorr",opt_ni = nJ, & 
+                gen_all_excits = gen_all_excits_k_space_hubbard) 
+        end do
+
+    end subroutine gen_excit_k_space_hub_transcorr_test_stoch
 
 end program test_k_space_hubbard

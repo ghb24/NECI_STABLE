@@ -19,7 +19,7 @@ module real_space_hubbard
                           length_y, length_z, uhub, nbasis, bhub, t_open_bc_x, &
                           t_open_bc_y, t_open_bc_z, G1, ecore, nel, nOccAlpha, nOccBeta, &
                           t_trans_corr, trans_corr_param, t_trans_corr_2body, & 
-                          trans_corr_param_2body
+                          trans_corr_param_2body, tHPHF
     use lattice_mod, only: lattice, determine_optimal_time_step, lat, &
                     get_helement_lattice, get_helement_lattice_ex_mat, & 
                     get_helement_lattice_general
@@ -57,7 +57,7 @@ contains
     ! in the System input by 
     ! system hubbard [lattice-type] 
     subroutine init_real_space_hubbard() 
-        use SystemData, only: tExch, thub, treal, tHPHF
+        use SystemData, only: tExch, thub, treal
         ! routine, which does all of the necessary initialisation
         character(*), parameter :: this_routine = "init_real_space_hubbard"
         ! especially do some stop_all here so no wrong input is used 
@@ -1090,6 +1090,9 @@ contains
         integer :: i, j, k, l, spin, ind
         
 
+        if (tHPHF) then 
+            call stop_all(this_routine, "remember to change for HPHF!")
+        end if
         ! make this independent of the lattice mod, to call it as early 
         ! as possible in the initialization
 !         ASSERT(associated(lat))

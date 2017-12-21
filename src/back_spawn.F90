@@ -6,7 +6,7 @@ module back_spawn
                         t_back_spawn_flex, tReadPops, back_spawn_delay
     use SystemData, only: nel, nbasis, G1, tGen_4ind_2, tGen_4ind_2_symmetric, & 
                           tHub, tUEG, nmaxx, nmaxy, nmaxz, tOrbECutoff, OrbECutoff, &
-                          tUEGNewGenerator, t_k_space_hubbard
+                          tUEGNewGenerator, t_k_space_hubbard, t_3_body_excits
     use constants, only: n_int, dp, bits_n_int, lenof_sign, inum_runs
     use bit_rep_data, only: nifd, niftot
     use fcimcdata, only: projedet, max_calc_ex_level, ilutref
@@ -1026,44 +1026,39 @@ contains
         ! function similar to make_single and make_double to create the 
         ! accompaning ilut form. 
         integer(n_int), intent(in) :: ilutI(0:niftot) 
-        integer, intent(in) :: ex(2,2), ic 
+        integer, intent(in) :: ic
+        integer, intent(in) :: ex(2,ic)
         integer(n_int) :: ilutJ(0:niftot) 
 
+#ifdef __DEBUG
         character(*), parameter :: this_routine = "make_ilutJ"
+#endif
 
-        integer :: ij(2), ab(2)
+        integer :: ij(ic), ab(ic), i
 
-        ASSERT(ic == 1 .or. ic == 2) 
+#ifdef __DEBUG
+        ASSERT(ic == 1 .or. ic == 2 .or. ic == 3)
         ! should this every be called with 0 orbitals.. i guess no.. 
-        ASSERT(ex(1,1) > 0) 
-        ASSERT(ex(2,1) > 0)
-        ASSERT(ex(1,1) <= nbasis)
-        ASSERT(ex(2,1) <= nbasis)
+        do i = 1, ic 
+            ASSERT(ex(1,ic) > 0) 
+            ASSERT(ex(2,ic) > 0)
+            ASSERT(ex(1,ic) <= nbasis)
+            ASSERT(ex(2,ic) <= nbasis)
+        end do
+#endif
 
         ilutJ = ilutI 
         
+
         ij = get_src(ex)
         ab = get_tgt(ex)
 
-        clr_orb(ilutJ, ij(1))
-        set_orb(ilutJ, ab(1))
-
-        ! single excition done
-
-        if (ic == 2) then 
-
-            ASSERT(ex(1,2) > 0)
-            ASSERT(ex(2,2) > 0)
-            ASSERT(ex(1,2) <= nbasis)
-            ASSERT(ex(2,2) <= nbasis)
-
-            clr_orb(ilutJ, ij(2))
-            set_orb(ilutJ, ab(2))
-        end if
+        do i = 1, ic 
+            clr_orb(ilutJ, ij(i))
+            set_orb(ilutJ, ab(i))
+        end do
 
     end function make_ilutJ
-
-
 
 
 end module back_spawn

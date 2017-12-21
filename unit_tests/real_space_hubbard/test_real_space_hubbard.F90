@@ -214,6 +214,10 @@ contains
 
         nel = -1
 
+        print *, "" 
+        print *, "for HPHF we must create the correct version" 
+        call assert_true(.false.)
+
     end subroutine create_neel_state_chain_test
 
     subroutine create_cum_list_rs_hubbard_test

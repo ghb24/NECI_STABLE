@@ -775,7 +775,7 @@ module DetBitOps
         integer, intent(in) :: ExcitMat(2,ic)
         integer(kind=n_int), intent(in) :: iLutnI (0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ (0:NIfTot)
-        integer :: pos(2,2), bit(2,2), i, ic_tmp
+        integer :: pos(2,ic), bit(2,ic), i, ic_tmp
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "FindExcitBitDet"
 #endif

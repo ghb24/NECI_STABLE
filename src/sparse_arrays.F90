@@ -377,8 +377,10 @@ contains
                 end if
                 if (counter == row_size + 1) exit
             end do
+            print *, "off-diag: ", hamiltonian_row
 
         end do
+        print *, "diag_ham: ", core_ham_diag
 
         ! Don't time the mpi_barrier call, because if we did then we wouldn't
         ! be able separate out some of the core Hamiltonian creation time from
