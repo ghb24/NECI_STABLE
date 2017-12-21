@@ -1483,6 +1483,7 @@ contains
         hel = h_cast(0.0_dp)
 
         if (t_trans_corr_2body) then 
+            ! this is the 
             hel_sing = sum(GetTMatEl(nI,nI))
 
             id = gtID(nI) 
@@ -1514,8 +1515,8 @@ contains
 !                         hel_one = hel_one + bhub * epsilon_kvec(G1(nI(i))%k) & 
 !                                 * omega * three_body_prefac
 
-                        temp_hel = bhub * epsilon_kvec(G1(nI(i))%k) & 
-                                * omega * three_body_prefac
+!                         temp_hel = bhub * epsilon_kvec(G1(nI(i))%k) & 
+!                                 * omega * three_body_prefac
 ! 
 !                         print *, "ij: ", nI([i,j])
 !                         print *, "hel_one: ", hel_one
@@ -1536,8 +1537,12 @@ contains
 !                                 print *, "p_vec: ", p_vec(1)
 !                                 print *, "k_vec: ", k_vec(1)
 
+!                                 hel_three = hel_three + three_body_prefac * (& 
+!                                     epsilon_kvec(p_vec) - (epsilon_kvec(p_vec + k_vec)))
+
                                 hel_three = hel_three + three_body_prefac * (& 
-                                    epsilon_kvec(p_vec) - (epsilon_kvec(p_vec + k_vec)))
+                                    epsilon_kvec(p_vec) - 0.5_dp * (epsilon_kvec(p_vec + k_vec) & 
+                                    + epsilon_kvec(p_vec - k_vec)))
 
 !                                 temp_hel = three_body_prefac * (& 
 !                                     epsilon_kvec(p_vec) - epsilon_kvec(p_vec + k_vec))
@@ -2363,8 +2368,11 @@ contains
 !                                      epsilon_kvec(k_vec)
 
         ! new try with the same spin transcorr factor: 
-        same_spin_transcorr_factor = three_body_prefac * & 
-            get_one_body_diag(nI, -spin, k_vec)
+!         same_spin_transcorr_factor = three_body_prefac * & 
+!             get_one_body_diag(nI, -spin, k_vec)
+
+        same_spin_transcorr_factor = 0.5_dp * three_body_prefac * ( & 
+            get_one_body_diag(nI,-spin,k_vec) + get_one_body_diag(nI,-spin,k_vec,.true.))
 
     end function same_spin_transcorr_factor
 
@@ -2452,7 +2460,7 @@ contains
         character(*), parameter :: this_routine = "get_3_body_helement_ks_hub"
 #endif
         integer :: ms_elec, ms_orbs, opp_elec, opp_orb, par_elecs(2), par_orbs(2)
-        integer :: p_vec(3), k1(3), k2(3)
+        integer :: p_vec(3), k1(3), k2(3), k_vec(3)
 
         hel = h_cast(0.0_dp)
 
@@ -2493,8 +2501,8 @@ contains
         par_elecs = pack(ex(1,:),ex(1,:) /= opp_elec)
         par_orbs = pack(ex(2,:),ex(2,:) /= opp_orb)
 
-        p_vec = G1(opp_elec)%k - G1(opp_orb)%k 
-        call mompbcsym(p_vec, nBasisMax)
+        k_vec = G1(opp_elec)%k - G1(opp_orb)%k 
+        call mompbcsym(k_vec, nBasisMax)
 
         ! we have to define an order here too 
         par_elecs = [minval(par_elecs), maxval(par_elecs)]
@@ -2517,11 +2525,16 @@ contains
         ! because one has to be modified by k too.. which complicates stuff 
         ! no i actually have to shift both by the k-vector and this 
         ! should be fine now.. 
-        k1 = G1(par_elecs(1))%k - G1(par_orbs(1))%k + p_vec
-        k2 = G1(par_elecs(2))%k - G1(par_orbs(1))%k + p_vec
+        k1 = G1(par_elecs(1))%k - G1(par_orbs(1))%k + k_vec
+        k2 = G1(par_elecs(2))%k - G1(par_orbs(1))%k + k_vec
 
-        hel = three_body_prefac * ( &
-            epsilon_kvec(G1(opp_orb)%k + k1) - epsilon_kvec(G1(opp_orb)%k + k2))
+!         hel = three_body_prefac * ( &
+!             epsilon_kvec(G1(opp_orb)%k + k1) - epsilon_kvec(G1(opp_orb)%k + k2))
+
+        hel = 0.5_dp * three_body_prefac * (&
+            epsilon_kvec(G1(opp_orb)%k + k1) - epsilon_kvec(G1(opp_orb)%k + k2) & 
+          + epsilon_kvec(k1 - G1(opp_orb)%k) - epsilon_kvec(k2 - G1(opp_orb)%k))
+
 
         if (tpar) hel = -hel
 
