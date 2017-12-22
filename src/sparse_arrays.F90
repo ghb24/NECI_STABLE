@@ -322,6 +322,7 @@ contains
         call MPIAllGatherV(SpawnedParts(0:NIfTot, 1:determ_sizes(iProcIndex)),&
                            temp_store, determ_sizes, determ_displs)
 
+        print *, " =========== Hamiltonian ====================="
         ! Loop over all deterministic states on this processor.
         do i = 1, determ_sizes(iProcIndex)
 
@@ -340,7 +341,7 @@ contains
                     if (tHPHF) then
                         hamiltonian_row(j) = hphf_diag_helement(nI, SpawnedParts(:,i)) - Hii
                     else
-                        hamiltonian_row(j) = get_helement(nI, nJ, 0) - Hii
+                        hamiltonian_row(j) = get_helement(nI, nJ, 0)! - Hii
                     end if
                     core_ham_diag(i) = hamiltonian_row(j)
                     ! We calculate and store the diagonal matrix element at
@@ -377,11 +378,12 @@ contains
                 end if
                 if (counter == row_size + 1) exit
             end do
-            print *, "off-diag: ", hamiltonian_row
+            print *,  hamiltonian_row
 
         end do
-        print *, "diag_ham: ", core_ham_diag
+        print *, "============================"
 
+        call stop_all(t_r, "stop")
         ! Don't time the mpi_barrier call, because if we did then we wouldn't
         ! be able separate out some of the core Hamiltonian creation time from
         ! the MPIBarrier calls in the main loop.

@@ -1540,7 +1540,7 @@ contains
 !                                 hel_three = hel_three + three_body_prefac * (& 
 !                                     epsilon_kvec(p_vec) - (epsilon_kvec(p_vec + k_vec)))
 
-                                hel_three = hel_three + three_body_prefac * (& 
+                                hel_three = hel_three - bhub * three_body_prefac * (& 
                                     epsilon_kvec(p_vec) - 0.5_dp * (epsilon_kvec(p_vec + k_vec) & 
                                     + epsilon_kvec(p_vec - k_vec)))
 
@@ -1869,8 +1869,8 @@ contains
                 hel = hel + two_body_transcorr_factor(G1(src(1))%k, k_vec_c) & 
                           + two_body_transcorr_factor(G1(src(2))%k, k_vec_d)
 
-                temp = two_body_transcorr_factor(G1(src(1))%k, k_vec_c) & 
-                     + two_body_transcorr_factor(G1(src(2))%k, k_vec_d)
+!                 temp = two_body_transcorr_factor(G1(src(1))%k, k_vec_c) & 
+!                      + two_body_transcorr_factor(G1(src(2))%k, k_vec_d)
 ! 
 !                 print *, "one-body off-diag: ", temp
 !                 if (abs(temp) > EPS) print *, "2-body-influence!"
@@ -2371,7 +2371,7 @@ contains
 !         same_spin_transcorr_factor = three_body_prefac * & 
 !             get_one_body_diag(nI, -spin, k_vec)
 
-        same_spin_transcorr_factor = 0.5_dp * three_body_prefac * ( & 
+        same_spin_transcorr_factor = -0.5_dp * bhub * three_body_prefac * ( & 
             get_one_body_diag(nI,-spin,k_vec) + get_one_body_diag(nI,-spin,k_vec,.true.))
 
     end function same_spin_transcorr_factor
@@ -2443,7 +2443,7 @@ contains
         ! do an actual third implementation: 
         ! since the sign of the k-vector might still be wrong.. 
         ! k is now the momentum of the corresponding hole! 
-        three_body_transcorr_fac = three_body_prefac * (& 
+        three_body_transcorr_fac = -bhub * three_body_prefac * (& 
             n_opp * (epsilon_kvec(p) + epsilon_kvec(k)) - (& 
             get_one_body_diag(nI,-spin,k-q) + get_one_body_diag(nI,-spin,p+q,.true.)))
 
@@ -2531,7 +2531,7 @@ contains
 !         hel = three_body_prefac * ( &
 !             epsilon_kvec(G1(opp_orb)%k + k1) - epsilon_kvec(G1(opp_orb)%k + k2))
 
-        hel = 0.5_dp * three_body_prefac * (&
+        hel = -0.5_dp * bhub * three_body_prefac * (&
             epsilon_kvec(G1(opp_orb)%k + k1) - epsilon_kvec(G1(opp_orb)%k + k2) & 
           + epsilon_kvec(k1 - G1(opp_orb)%k) - epsilon_kvec(k2 - G1(opp_orb)%k))
 
