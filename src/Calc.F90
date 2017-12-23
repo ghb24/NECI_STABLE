@@ -33,7 +33,8 @@ MODULE Calc
          tSetDelayAllSingsInits, nExProd, NoTypeN, tAdiActive, tReadRefs, SIUpdateInterval, &
          tProductReferences, tAccessibleDoubles, tAccessibleSingles, tInitiatorsSubspace, &
          tReferenceChanged, superInitiatorLevel, allDoubsInitsDelay, tStrictCoherentDoubles, &
-         tWeakCoherentDoubles, tAvCoherentDoubles, coherenceThreshold, SIThreshold, tSuppressSIOutput
+         tWeakCoherentDoubles, tAvCoherentDoubles, coherenceThreshold, SIThreshold, &
+         tSuppressSIOutput, targetRefPop, targetRefPopTol, tSingleSteps, tVariableNRef
     use ras_data, only: core_ras, trial_ras
     use load_balance, only: tLoadBalanceBlocks
     use ftlm_neci
@@ -343,6 +344,10 @@ contains
           nRefsDoubs = 1
           nRefsSings = 1
           nRefs = 1
+          targetRefPop = 1000
+          targetRefPopTol = 80
+          tVariableNref = .false.
+          tSingleSteps = .true.
           tReadRefs = .false.
           tDelayGetRefs = .false.
           tProductReferences = .false.
@@ -2540,6 +2545,10 @@ contains
              case("WRITE-SUPERINITIATOR-OUTPUT")
                 ! Do not output the newly generated superinitiators upon generation
                 tSuppressSIOutput = .false.
+                
+             case("TARGET-REFERENCE-POP")
+                tVariableNRef = .true.
+                if(item < nItems) call readi(targetRefPop)
 
             case default
                 call report("Keyword "                                &

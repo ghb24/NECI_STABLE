@@ -19,7 +19,7 @@ module FciMCParMod
                         DiagSft
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
                         tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
-                        SIUpdateInterval, tSuppressSIOutput
+                        SIUpdateInterval, tSuppressSIOutput, nRefUpdateInterval
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, tOldRDMs, &
@@ -66,7 +66,8 @@ module FciMCParMod
     use ftlm_neci, only: perform_ftlm
     use hash, only: clear_hash_table
     use soft_exit, only: ChangeVars
-    use adi_references, only: setup_reference_space, enable_adi
+    use adi_references, only: setup_reference_space, enable_adi, adjust_nRefs, &
+         update_reference_space
     use fcimc_initialisation
     use fcimc_iter_utils
     use neci_signals
@@ -347,7 +348,12 @@ module FciMCParMod
                ! Regular update of the superinitiators. Use with care as it 
                ! is still rather expensive if secondary superinitiators are used
                if(mod(iter,SIUpdateInterval) == 0 .and. all(.not. &
-                    tSinglePartPhase)) call setup_reference_space(.true.)
+                    tSinglePartPhase)) then
+                  ! the reference population needs some time to equilibrate
+                  ! hence, nRefs cannot be updated that often
+                  if(mod(iter,nRefUpdateInterval) == 0) call adjust_nRefs()
+                  call update_reference_space(.true.)
+                  endif
             endif
 
             if (mod(Iter, StepsSft) == 0) then

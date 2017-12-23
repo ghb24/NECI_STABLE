@@ -19,6 +19,12 @@ module adi_data
        AllCoherentSingles, AllCoherentDoubles, AllIncoherentDets, htBlock
   type(ll_node), pointer :: SIHash(:)
   logical :: tReferenceChanged, tSetupSIs, tUseCaches
+  ! Data for the update of nrefs
+  logical :: tSingleSteps, tVariableNRef
+  real(dp) :: lastAllNoatHF
+  integer :: lastNRefs
+  ! desired reference population and tolerance
+  integer :: targetRefPop, targetRefPopTol, nRefUpdateInterval
 
   ! Flags for the alldoublesinitiators feature
   logical :: tAllDoubsInitiators, tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits

@@ -38,7 +38,7 @@ module fcimc_initialisation
                         t_back_spawn_option, t_back_spawn_flex_option, &
                         t_back_spawn_flex, back_spawn_delay
     use adi_data, only: g_markers, tReferenceChanged, tInitiatorsSubspace, tAdiActive, &
-         nExChecks, nExCheckFails
+         nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -3558,7 +3558,11 @@ contains
       if(tAllSingsInitiators .or. tAllDoubsInitiators .or. tInitiatorsSubspace) &
            tAdiActive = .true. 
 
+      ! minimal population for type-n SIs
       NoTypeN = NoTypeN * InitiatorWalkNo
+      ! there is a minimum cycle lenght for updating the number of SIs, as the reference population
+      ! needs some time to equilibrate
+      nRefUpdateInterval = max(SIUpdateInterval,500)
       
       call setup_dynamic_core()
 
@@ -3568,7 +3572,6 @@ contains
 
     subroutine setup_dynamic_core()
       use CalcData, only: tDynamicCoreSpace, coreSpaceUpdateCycle,tIntervalSet
-      use adi_data, only: SIUpdateInterval
       
       implicit none
       
