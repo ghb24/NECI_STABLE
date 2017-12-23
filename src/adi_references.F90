@@ -4,7 +4,8 @@ use Parallel_neci
 use FciMCData, only: ilutRef
 use adi_data, only: ilutRefAdi, nRefs, nIRef, signsRef, nRefsSings, nRefsDoubs, &
      nTZero, SIHash, tAdiActive, tSetupSIs, NoTypeN, superInitiatorLevel, tSetupSIs, &
-     tReferenceChanged, SIThreshold, tUseCaches, nIRef, signsRef, exLvlRef, tSuppressSIOutput
+     tReferenceChanged, SIThreshold, tUseCaches, nIRef, signsRef, exLvlRef, tSuppressSIOutput, &
+     targetRefPop, lastAllNoatHF, lastNRefs, tVariableNRef
 use CalcData, only: InitiatorWalkNo
 use bit_rep_data, only: niftot, nifdbo, extract_sign
 use bit_reps, only: decode_bit_det
@@ -22,6 +23,18 @@ end interface get_sign_op
 contains
 
   subroutine setup_reference_space(tPopPresent)
+    implicit none
+    logical, intent(in) :: tPopPresent
+    if(tAdiActive) then
+       ! A first guess at the number of references
+       nRefs = max(nRefsDoubs, nRefsSings)
+       call update_reference_space(tPopPresent)
+    endif
+  end subroutine setup_reference_space
+
+!------------------------------------------------------------------------------------------!
+
+  subroutine update_reference_space(tPopPresent)
     use adi_data, only: tReadRefs, tProductReferences, nExProd
     use LoggingData, only: ref_filename
     implicit none
@@ -30,9 +43,6 @@ contains
     logical :: tGen
 
     if(tAdiActive) then
-       ! A first guess at the number of references
-       nRefs = max(nRefsDoubs, nRefsSings)
-
        ! If we actually did something
        tGen = .false.
        ! First, generate the reference space of nRefs determinants from the population (if present)
@@ -88,7 +98,7 @@ contains
        tReferenceChanged = .true.
     endif
    
-  end subroutine setup_reference_space
+  end subroutine update_reference_space
 
 !------------------------------------------------------------------------------------------!
 
@@ -495,10 +505,29 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
+    subroutine adapt_SIThreshold(nKeep)
+      ! If we have a fixed set of superinitiators, we set the SIThreshold to be at 
+      ! least the minimum of xi of that set
+      implicit none
+      ! the number of SIs over which the threshold shall be fixed
+      integer, intent(in) :: nKeep
+      integer :: iRef
+      real(dp) :: xi
+
+      do iRef = 1, nRefs
+         xi = get_sign_op_min(ilutRefAdi(:,iRef))
+         ! here, we guarantee that no SI is below the threshold
+         if(xi < SIThreshold) SIThreshold = xi
+      enddo
+      
+    end subroutine adapt_SIThreshold
+
+!------------------------------------------------------------------------------------------!
+
     subroutine generate_type_n_refs()
       use FciMCData, only: CurrentDets, TotWalkers
       implicit none
-      integer :: i, nTOne, nBlocks, ierr, run
+      integer :: i, nTOne, nBlocks, run
       integer(n_int), allocatable :: refBuf(:,:)
       real(dp) :: tmp_sign(lenof_sign)
       logical :: is_tone
@@ -507,7 +536,7 @@ contains
 
       allocate(refBuf(0:NIfTot, allocBlock))
       nBlocks = 1
-      
+            
       nTOne = 0
       do i = 1, TotWalkers
          call extract_sign(CurrentDets(:,i), tmp_sign)
@@ -523,7 +552,6 @@ contains
             if(nTOne > nBlocks*allocBlock) then
                nBlocks = nBlocks + 1
                call resize_ilut_list(refBuf, (nBlocks-1) * allocBlock ,nBlocks * allocBlock)
-               if(ierr .ne. 0) call stop_all(this_routine, "Unable to allocate temporary list")
             endif
             ! Add the determinant to the temporary list
             refBuf(:,nTOne) = CurrentDets(:,i)
@@ -584,7 +612,6 @@ contains
       call resize_ilutRefAdi(nRCOld + nNew)
       ! and add the new iluts
       ilutRefAdi(:,(nRCOld + 1):(nRCOld + nNew)) = buffer(:,1:nNew)
-
       ! and then check the self-consistency condition, keeping the old SIs
       if(nNew  >0) call type_n_self_consistency_loop(nRCOld)
 
@@ -623,6 +650,9 @@ contains
       integer, intent(in) :: nKeep
       integer :: i
 
+      ! first, we fix the threshold to be at least the minimum of the first nKeep SIs xi
+      call adapt_SIThreshold(nKeep)
+
       ! we can remove at most nrefs SIs
       do i = 1, nRefs
          ! once we do not remove any SIs, self-consistency is reached
@@ -645,9 +675,9 @@ contains
       
       valid = .true.
       min_xi = 1.0_dp
-      min_iRef = nKeep + 1
+      min_iRef = 1
 
-      ! The first nKeep references are not touchable         
+      ! The first nKeep references are always above the threshold         
       do iRef = nKeep + 1, nRefs
          ! Get the minimal xi
          sub_xi = get_sign_op_min(ilutRefAdi(:,iRef))
@@ -658,14 +688,8 @@ contains
          endif
       end do
 
-      ! But we need to throw something out if the first nKeep SIs fall below threshold
-      do iRef = 1, nKeep
-         if(get_sign_op_min(ilutRefAdi(:,iRef)) < SIThreshold) valid = .false.
-      enddo
-      
-      ! and throw out the SI with minimal xi if below threshold or if there is a 
-      ! threshold violation in the first nKeep entries
-      if(min_xi < SIThreshold .or. (.not. valid)) then
+      ! and throw out the SI with minimal xi if below threshold
+      if(min_xi < SIThreshold) then
          call remove_superinitiator(min_iRef)
          valid = .false.
       endif
@@ -851,6 +875,75 @@ contains
        xi = 0.0_dp
     endif
   end function get_sign_op_run
+
+!------------------------------------------------------------------------------------------!
+
+  subroutine adjust_nRefs()
+    ! update the number of SIs used
+    use adi_data, only: targetRefPopTol, tSingleSteps
+    use FciMCData, only: AllNoatHF
+    implicit none
+    real(dp) :: cAllNoatHF
+    integer :: nRefsOld
+
+    if(tVariableNRef) then
+       
+       nRefsOld = nRefs
+       ! average reference population
+       cAllNoatHF = sum(AllNoatHF)/inum_runs
+       ! check if we reached the destination
+       if(abs(targetRefPop - cAllNoatHF) < targetRefPopTol) return
+
+       if(tSingleSteps) then
+          if(cAllNoatHF < targetRefPop) then 
+             ! we cannot go below 0 SIs, if we hit 0, disable the adi option
+             if(nRefs > 1) then
+                nRefs = nRefs - 1
+             else
+                ! might change the behaviour here, to whatever makes sense
+                tAdiActive = .false.
+             endif
+          endif
+          if(cAllNoatHF > targetRefPop) nRefs = nRefs + 1
+          tSingleSteps = .false.
+       else
+          ! do the extrapolationx
+          nRefs = guess_target_nref()
+       endif
+
+       ! store the current values for the next step
+       lastAllNoatHF = cAllNoatHF
+       lastNRefs = nRefsOld
+       
+       write(6,*) "Now at ", nRefs, " superinitiators"
+
+    endif
+  end subroutine adjust_nRefs
+
+!------------------------------------------------------------------------------------------!
+
+  function guess_target_nref() result(target_nref)
+    ! try to extrapolate how many SIs are required for a given target population
+    use FciMCData, only: AllNoatHF
+    implicit none
+    integer :: target_nref
+    real(dp) :: alpha, beta, cAllNoatHF
+    
+    target_nref = nRefs
+    cAllNoatHF = sum(AllNoatHF)/inum_runs
+    ! if the reference population did not change, nothing to do
+    if(lastAllNoatHF == cAllNoatHF) return
+
+    ! if we did not change the SI threshold, nothing to do
+    if(lastNRefs == nRefs) return
+    beta = log(lastAllNoatHF/cAllNoatHF)/(lastNRefs - nRefs)
+    alpha = lastAllNoatHF * exp(log(lastAllNoatHF/cAllNoatHF)*(lastNRefs/(lastNRefs-nRefs)))
+
+    ! here, we really assume exponential behaviour and extrapolate the nRefs that would then
+    ! give the reference population closest to the target
+    target_nref = int(log(targetRefPop/alpha)/beta)
+    
+  end function guess_target_nref
 
 !------------------------------------------------------------------------------------------!
 
