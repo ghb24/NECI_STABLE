@@ -1962,7 +1962,7 @@ contains
         ! i need to bring in the length of the chain and stuff.. 
         ! and i should consider twisted boundary conditions and nearest 
         ! neigbhors here too..? i think so.. 
-        disp = 2.0_dp * cos(2*pi*(k_vec(1) + twisted_bc(1))/this%length)
+        disp = 2.0_dp * cos(2.0_dp*pi*(k_vec(1) + twisted_bc(1))/this%length)
 
     end function dispersion_rel_chain
 

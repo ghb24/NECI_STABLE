@@ -107,7 +107,7 @@ contains
         ! and i also have to setup the symmetry table... damn.. 
         ! i have to setup umat also or
         uhub = 1.0
-        omega = 8.0
+        omega = 4.0
 
         ! and i have to allocate umat.. 
         allocate(umat(1))
@@ -115,7 +115,9 @@ contains
 
         get_umat_el => get_hub_umat_el
 
+        trans_corr_param_2body = 0.1
         three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+
     end subroutine init_k_space_unit_tests
 
     subroutine k_space_hubbard_test_driver() 
@@ -129,6 +131,12 @@ contains
         call run_test_case(setup_kPointToBasisFn_test, "setup_kPointToBasisFn_test")
 
         call init_k_space_unit_tests()
+        call run_test_case(test_3e_4orbs_par, "test_3e_4orbs_par")
+        call run_test_case(test_3e_4orbs_trip, "test_3e_4orbs_trip")
+        call run_test_case(test_4e_ms1, "test_4e_ms1")
+        call run_test_case(test_4e_ms0_mom_1, "test_4e_ms0_mom_1")
+        call run_test_case(test_3e_ms1, "test_3e_ms1")
+
         call run_test_case(get_diag_helement_k_sp_hub_test, "get_diag_helement_k_sp_hub_test")
         call run_test_case(get_offdiag_helement_k_sp_hub_test, "get_offdiag_helement_k_sp_hub_test")
         call run_test_case(get_helement_k_space_hub_test, "get_helement_k_space_hub_test")
@@ -166,6 +174,625 @@ contains
         call run_test_case(gen_excit_k_space_hub_transcorr_test_stoch, "gen_excit_k_space_hub_transcorr_test_stoch")
 
     end subroutine k_space_hubbard_test_driver
+
+    subroutine test_3e_4orbs_par
+
+        integer :: hilbert_nI(3,6), i, j, work(18), info
+        HElement_t(dp) :: hamil(6,6), hamil_trancorr(6,6), tmp_hamil(6,6)
+        real(dp) :: ev_real(6), ev_cmpl(6), left_ev(1,6), right_ev(1,6)
+        real(dp) :: t_mat(6,6), trans_mat(6,6)
+
+        nOccBeta = 2 
+        nOccAlpha = 1
+        nel = 3
+
+        hilbert_nI(:,1) = [1,4,5]
+        hilbert_nI(:,2) = [2,3,5]
+        hilbert_nI(:,3) = [1,3,6]
+        hilbert_nI(:,4) = [3,7,8]
+        hilbert_nI(:,5) = [1,2,7]
+        hilbert_nI(:,6) = [5,6,7]
+
+        t_trans_corr_2body = .false. 
+        print *, "un-transcorrelated Hamiltonian: "
+
+        hamil = create_hamiltonian(hilbert_nI)
+
+        call print_matrix(hamil)
+
+        t_mat = get_tranformation_matrix(hamil,2)
+
+        trans_mat = matmul(matmul(matrix_exponential(-t_mat),hamil),matrix_exponential(t_mat))
+        
+        ! use the lapack routines to solve these quickly.. 
+        print *, "eigen-values: ", calc_eigenvalues(hamil)
+
+        print *, "transcorrelated Hamiltonian: "
+        t_trans_corr_2body = .true.
+        
+        hamil_trancorr = create_hamiltonian(hilbert_nI)
+
+        call print_matrix(hamil_trancorr)
+
+        print *, "eigen-values: ", calc_eigenvalues(hamil_trancorr)
+
+        print *, "transformed hamiltonian" 
+        call print_matrix(trans_mat)
+
+        print *, "eigen-values: ", calc_eigenvalues(trans_mat)
+        
+    end subroutine test_3e_4orbs_par
+
+    subroutine test_3e_4orbs_trip
+
+        integer :: hilbert_nI(3,6), i, j, work(18), info
+        HElement_t(dp) :: hamil(6,6), hamil_trancorr(6,6), tmp_hamil(6,6)
+        real(dp) :: ev_real(6), ev_cmpl(6), left_ev(1,6), right_ev(1,6)
+        real(dp) :: t_mat(6,6), trans_mat(6,6)
+
+        nOccBeta = 1 
+        nOccAlpha = 2
+        nel = 3
+
+        hilbert_nI(:,1) = [2,3,4]
+        hilbert_nI(:,2) = [1,2,6]
+        hilbert_nI(:,3) = [4,5,8]
+        hilbert_nI(:,4) = [4,6,7]
+        hilbert_nI(:,5) = [2,7,8]
+        hilbert_nI(:,6) = [3,6,8]
+
+        ! first create the non-transcorrelated Hamiltonian
+        t_trans_corr_2body = .false. 
+        print *, "un-transcorrelated Hamiltonian: "
+        hamil = create_hamiltonian(hilbert_nI)
+
+        call print_matrix(hamil)
+        
+        ! use the lapack routines to solve these quickly.. 
+        print *, "eigen-values: ", calc_eigenvalues(hamil)
+
+        print *, "transcorrelated Hamiltonian: "
+        t_trans_corr_2body = .true.
+        hamil_trancorr = create_hamiltonian(hilbert_nI)
+
+        call print_matrix(hamil_trancorr)
+
+        print *, "eigen-values: ", calc_eigenvalues(hamil_trancorr)
+
+        t_mat = get_tranformation_matrix(hamil,2) 
+        trans_mat = matmul(matmul(matrix_exponential(-t_mat),hamil),matrix_exponential(t_mat))
+
+        print *, "transformed hamiltonian" 
+        call print_matrix(trans_mat)
+
+        print *, "eigen-values: ", calc_eigenvalues(trans_mat)
+        
+    end subroutine test_3e_4orbs_trip
+
+    subroutine test_4e_ms0_mom_1
+
+        integer :: hilbert_nI(4,8)
+        HElement_t(dp) :: hamil(8,8),hamil_trancorr(8,8), tmp_hamil(8,8) 
+        real(dp) :: ev_real(8), ev_cmpl(8), left_ev(1,8), right_ev(1,8) 
+        integer :: work(24), info, n
+        real(dp) :: t_mat(8,8), trans_mat(8,8) 
+
+        nOccBeta = 2 
+        nOccAlpha = 2
+        nel = 4 
+
+        hilbert_nI(:,1) = [3,4,5,8] 
+        hilbert_nI(:,2) = [1,2,4,5] 
+        hilbert_nI(:,3) = [3,4,6,7]
+        hilbert_nI(:,4) = [1,4,7,8]
+        hilbert_nI(:,5) = [1,5,6,8]
+        hilbert_nI(:,6) = [2,3,7,8]
+        hilbert_nI(:,7) = [1,2,3,6]
+        hilbert_nI(:,8) = [2,5,6,7]
+
+        t_trans_corr_2body = .false. 
+
+        hamil = create_hamiltonian(hilbert_nI)
+
+        t_mat = get_tranformation_matrix(hamil,4) 
+
+        trans_mat = matmul(matmul(matrix_exponential(-t_mat),hamil),matrix_exponential(t_mat))
+
+        t_trans_corr_2body = .true. 
+
+        hamil_trancorr = create_hamiltonian(hilbert_nI) 
+
+        print *, "un-correlated hamiltonian: "
+        call print_matrix(hamil) 
+
+        print *, "eigenvalues: ", calc_eigenvalues(hamil)
+
+        print *, "neci-correlated hamiltonian: "
+        call print_matrix(hamil_trancorr)
+        print *, "eigenvalues: ", calc_eigenvalues(hamil_trancorr)
+
+        print *, "transformed hamiltonian" 
+        call print_matrix(trans_mat)
+        print *, "eigenvalues: ", calc_eigenvalues(trans_mat)
+
+    end subroutine test_4e_ms0_mom_1
+
+    function calc_eigenvalues(matrix) result(e_values)
+        real(dp) :: matrix(:,:) 
+        real(dp) :: e_values(size(matrix,1))
+
+        integer :: n, info, work(3*size(matrix,1))
+        real(dp) :: tmp_matrix(size(matrix,1),size(matrix,2)),dummy_val(size(matrix,1))
+        real(dp) :: dummy_vec_1(1,size(matrix,1)), dummy_vec_2(1,size(matrix,1))
+
+        n = size(matrix,1)
+
+        tmp_matrix = matrix 
+
+        call dgeev('N','N', n, tmp_matrix, n, e_values, &
+            dummy_val, dummy_vec_1,1,dummy_vec_2,1,work,3*n,info)
+
+    end function calc_eigenvalues
+
+    function create_hamiltonian(list_nI) result(hamil) 
+        ! quite specific hamiltonian creation for my tests.. 
+        integer, intent(in) :: list_nI(:,:) 
+        HElement_t(dp) :: hamil(size(list_nI,2),size(list_nI,2))
+
+        integer :: i, j 
+
+        do i = 1, size(list_nI,2)
+            do j = 1, size(list_nI,2)
+                hamil(i,j) = get_helement_k_space_hub(list_nI(:,j),list_nI(:,i))
+            end do
+        end do
+
+    end function create_hamiltonian
+
+    subroutine print_matrix(matrix) 
+        ! print a 2-D real matrix 
+        real(dp), intent(in) :: matrix(:,:)
+        
+        integer :: i 
+
+        do i = 1, size(matrix,1)
+            print *, matrix(i,:)
+        end do
+
+    end subroutine print_matrix
+
+    subroutine test_4e_ms1
+
+        integer :: hilbert_nI(4,4), i, j, three_e(3,3) 
+        integer(n_int) :: hilbert_ilut(0:niftot,4)
+        HElement_t(dp) :: hamil(4,4), hamil_trancorr(4,4), tmp_hamil(4,4)
+        HElement_t(dp) :: tmp_3(3,3), hamil_3(3,3), hamil_3_trans(3,3)
+        real(dp) :: ev_real(4), ev_cmpl(4)
+        real(dp) :: left_ev(1,4), right_ev(1,4)
+        real(dp) :: shift_12, shift_34, two_body, three_body, three_body_1, three_body_2
+        real(dp) :: two_body_1, two_body_2
+        integer :: work(12), info
+        real(dp) :: t_mat(4,4), trans_mat(4,4)
+
+        nOccBeta = 3 
+        nOccAlpha = 1 
+        nel = 4
+
+        hilbert_nI(:,1) = [1,2,3,5]
+        hilbert_nI(:,2) = [3,4,5,7]
+        hilbert_nI(:,3) = [1,3,7,8] 
+        hilbert_nI(:,4) = [1,5,6,7]
+
+        ! first create the non-transcorrelated Hamiltonian
+        t_trans_corr_2body = .false. 
+        print *, "un-transcorrelated Hamiltonian: "
+        
+        hamil = create_hamiltonian(hilbert_nI)
+        call print_matrix(hamil)
+
+        ! use the lapack routines to solve these quickly.. 
+        print *, "eigen-values: ", calc_eigenvalues(hamil)
+
+        print *, "transcorrelated Hamiltonian: "
+        t_trans_corr_2body = .true.
+
+        hamil_trancorr = create_hamiltonian(hilbert_nI)
+        call print_matrix(hamil_trancorr)
+
+        print *, "eigen-values: ", calc_eigenvalues(hamil_trancorr)
+
+        t_mat = get_tranformation_matrix(hamil,3) 
+
+        trans_mat = matmul(matmul(matrix_exponential(-t_mat),hamil),matrix_exponential(t_mat))
+
+        print *, "transformed hamiltonian: "
+        call print_matrix(trans_mat)
+
+        print *, "eigen-values: ", calc_eigenvalues(trans_mat)
+
+        ! i know now, where there is an error-- between those 2 matrix 
+        ! elements: 
+!         print *, "============== Excitation:  ======================"
+!         print *, "nI:", hilbert_nI(:,1)
+!         print *, "nJ:", hilbert_nI(:,2)
+!         print *, "H_ij: ", hamil_trancorr(1,2), hamil_trancorr(2,1)
+! 
+!         ! the excitation is from (1,2) -> (4,7)
+!         print *, "excitation: (1,2) -> (4,7)" 
+!         ! ex: should be + 
+!         ! 1 2 
+!         ! 4 7 
+!         ! total 1 2 3 5 should be - 
+! 
+!         two_body_1 = two_body_transcorr_factor(G1(1)%k, G1(7)%k)! + & 
+!         two_body_2 = two_body_transcorr_factor(G1(2)%k, G1(4)%k)
+! 
+!         three_body_1 = three_body_transcorr_fac(hilbert_nI(:,1), G1(1)%k,G1(2)%k,G1(7)%k,-1)! + & 
+!         three_body_2 = three_body_transcorr_fac(hilbert_nI(:,1),G1(2)%k,G1(1)%k,G1(4)%k,1)
+! 
+!         print *, "two-body: ", two_body_1, two_body_2
+!         print *, "three-body: ", three_body_1, three_body_2
+! 
+!         print *, "excitation: (2,5) -> (7,8)" 
+!         ! ex: should be + 
+!         ! 2 5 
+!         ! 7 8 
+!         ! total 1 2 3 5 should be - 
+! 
+!         two_body_1 = two_body_transcorr_factor(G1(2)%k, G1(8)%k)! + & 
+!         two_body_2 = two_body_transcorr_factor(G1(5)%k, G1(7)%k)
+! 
+!         three_body_1 = three_body_transcorr_fac(hilbert_nI(:,1), G1(2)%k,G1(5)%k,G1(8)%k,1)! + & 
+!         three_body_2 = three_body_transcorr_fac(hilbert_nI(:,1),G1(5)%k,G1(2)%k,G1(7)%k,-1)
+! 
+!         print *, "two-body: ", two_body_1, two_body_2
+!         print *, "three-body: ", three_body_1, three_body_2
+! 
+! 
+!         print *, "excitation: (2,3) -> (6,7)" 
+!         ! ex: should be - 
+!         ! 2 3 
+!         ! 6 7 
+!         ! total 1 2 3 5 should be + 
+! 
+!         two_body_1 = two_body_transcorr_factor(G1(2)%k, G1(6)%k)! + & 
+!         two_body_2 = two_body_transcorr_factor(G1(3)%k, G1(7)%k)
+! 
+!         three_body_1 = three_body_transcorr_fac(hilbert_nI(:,1), G1(2)%k,G1(3)%k,G1(6)%k,1)! + & 
+!         three_body_2 = three_body_transcorr_fac(hilbert_nI(:,1),G1(3)%k,G1(2)%k,G1(7)%k,-1)
+! 
+!         print *, "two-body: ", two_body_1, two_body_2
+!         print *, "three-body: ", three_body_1, three_body_2
+! 
+! 
+!         print *, "excitation: (4,5) -> (1,8)" 
+!         ! ex: should be - 
+!         ! 4 5 
+!         ! 1 8 
+!         ! total 3 4 5 7 should be + 
+! 
+!         two_body_1 = two_body_transcorr_factor(G1(4)%k, G1(8)%k)! + & 
+!         two_body_2 = two_body_transcorr_factor(G1(5)%k, G1(1)%k)
+! 
+!         three_body_1 = three_body_transcorr_fac(hilbert_nI(:,2), G1(4)%k,G1(5)%k,G1(8)%k,1)! + & 
+!         three_body_2 = three_body_transcorr_fac(hilbert_nI(:,2),G1(5)%k,G1(4)%k,G1(1)%k,-1)
+! 
+!         print *, "two-body: ", two_body_1, two_body_2
+!         print *, "three-body: ", three_body_1, three_body_2
+! 
+! 
+! 
+!         print *, "excitation: (3,4) -> (1,6)" 
+!         ! ex: should be - 
+!         ! 3 4 
+!         ! 1 6 
+!         ! total 3 4 5 7 should be - 
+! 
+!         two_body_1 = two_body_transcorr_factor(G1(4)%k, G1(6)%k)! + & 
+!         two_body_2 = two_body_transcorr_factor(G1(3)%k, G1(1)%k)
+! 
+!         three_body_1 = three_body_transcorr_fac(hilbert_nI(:,2), G1(4)%k,G1(3)%k,G1(6)%k,1)! + & 
+!         three_body_2 = three_body_transcorr_fac(hilbert_nI(:,2),G1(3)%k,G1(4)%k,G1(1)%k,-1)
+! 
+!         print *, "two-body: ", two_body_1, two_body_2
+!         print *, "three-body: ", three_body_1, three_body_2
+! 
+! 
+!         print *, "============== Excitation:  ======================"
+!         print *, "nI: ", hilbert_nI(:,3)
+!         print *, "nJ: ", hilbert_nI(:,4)
+! 
+!         print *, "H_ij: ", hamil_trancorr(3,4), hamil_trancorr(4,3)
+! 
+!         ! the excitation is from (3,8) -> (5,6)
+!         print *, "excitation: (3,8) -> (5,6)"
+!         ! ex: should have - sign 
+!         ! 3 8 
+!         ! 5 6
+!         ! sign in total: 1 3 7 8 should be -
+!         two_body = two_body_transcorr_factor(G1(3)%k, G1(5)%k) + & 
+!                 two_body_transcorr_factor(G1(8)%k, G1(6)%k)
+! 
+!         print *, "two-body: ", two_body
+! 
+!         three_body_1 = three_body_transcorr_fac(hilbert_nI(:,3), G1(3)%k,G1(8)%k,G1(5)%k,-1)! + & 
+!         three_body_2 = three_body_transcorr_fac(hilbert_nI(:,3),G1(8)%k,G1(3)%k,G1(6)%k,1)
+! 
+!         print *, "three-body: ", three_body_1, three_body_2
+
+! 
+!         print *, "and for k=0"
+!         hilbert_nI(:,1) = [1,3,4,5]
+!         hilbert_nI(:,2) = [1,2,3,7]
+!         hilbert_nI(:,3) = [3,5,6,7]
+!         hilbert_nI(:,4) = [1,5,7,8]
+! 
+!         ! first create the non-transcorrelated Hamiltonian
+!         t_trans_corr_2body = .false. 
+!         print *, "un-transcorrelated Hamiltonian: "
+!         do i = 1, 4 
+!             do j = 1, 4 
+!                 hamil(i,j) = get_helement_k_space_hub(hilbert_nI(:,i),hilbert_nI(:,j))
+!             end do
+!             print *, hamil(i,:)
+!         end do
+!         
+!         ! use the lapack routines to solve these quickly.. 
+!         tmp_hamil = hamil
+!         call dgeev('N','N',4,tmp_hamil,4,ev_real,ev_cmpl,left_ev,1,right_ev,1,work,12,info)
+!         print *, "eigen-values: ", ev_real
+! 
+!         print *, "transcorrelated Hamiltonian: "
+!         t_trans_corr_2body = .true.
+!         do i = 1, 4 
+!             do j = 1, 4 
+!                 hamil_trancorr(i,j) = get_helement_k_space_hub(hilbert_nI(:,i),hilbert_nI(:,j))
+!             end do
+!             print *, hamil_trancorr(i,:)
+!         end do
+! 
+!         tmp_hamil = hamil_trancorr
+!         call dgeev('N','N',4,tmp_hamil,4,ev_real,ev_cmpl,left_ev,1,right_ev,1,work,12,info)
+!         print *, "eigen-values: ", ev_real
+! 
+! !         call stop_all("here","for now")
+
+    end subroutine test_4e_ms1
+
+    function matrix_exponential(matrix) result(exp_matrix)
+        ! calculate the matrix exponential of a real, symmetric 2-D matrix with lapack 
+        ! routines
+        ! i need A = UDU^-1
+        ! e^A = Ue^DU^-1
+        real(dp), intent(in) :: matrix(:,:)
+        real(dp) :: exp_matrix(size(matrix,1),size(matrix,2))
+
+        ! maybe i need to allocate this stuff:
+        real(dp) :: vectors(size(matrix,1),size(matrix,2)), values(size(matrix,1))
+        real(dp) :: work(3*size(matrix,1)-1), inverse(size(matrix,1),size(matrix,2))
+        real(dp) :: exp_diag(size(matrix,1),size(matrix,2))
+        integer :: info, n
+
+        n = size(matrix,1)
+
+        ! first i need to diagonalise the matrix and calculate the 
+        ! eigenvectors 
+        vectors = matrix
+
+        call dsyev('V', 'U', n, vectors, n, values, work, 3*n-1,info)
+
+        ! now i have the eigenvectors, which i need the inverse of 
+        ! it is rotation only or? so i would just need a transpose or?
+!         inverse = matrix_inverse(vectors) 
+        inverse = transpose(vectors)
+
+        ! i need to construct exp(eigenvalues) as a diagonal matrix! 
+        exp_diag = matrix_diag(exp(values))
+
+        exp_matrix = matmul(matmul(vectors,exp_diag),inverse)
+        
+    end function matrix_exponential
+
+    function matrix_diag(vector) result(diag) 
+        ! constructs a diagonal matrix with the vector on the diagonal 
+        real(dp), intent(in) :: vector(:)
+        real(dp) :: diag(size(vector),size(vector))
+
+        integer :: i 
+
+        diag = 0.0_dp
+
+        do i = 1, size(vector)
+            diag(i,i) = vector(i)
+        end do
+
+    end function matrix_diag
+
+    function matrix_inverse(matrix) result(inverse)
+        ! from fortran-wiki! search there for "matrix+inversion"
+        real(dp), intent(in) :: matrix(:,:)
+        real(dp) :: inverse(size(matrix,1),size(matrix,2))
+        character(*), parameter :: this_routine = "matrix_inverse"
+
+        real(dp) :: work(size(matrix,1))
+        integer :: ipiv(size(matrix,1))
+        integer :: n, info
+
+        inverse = matrix 
+        n = size(matrix,1)
+
+        call dgetrf(n,n,inverse,n,ipiv,info)
+
+        if (info /= 0) call stop_all(this_routine, "matrix singular!")
+
+        call dgetri(n, inverse, n, ipiv, work, n, info)
+
+        if (info /= 0) call stop_all(this_routine, "matrix inversion failed!")
+
+    end function matrix_inverse
+
+    subroutine setup_all(ptr)
+        class(lattice), intent(in) :: ptr
+
+
+        nBasisMax = 0
+        nullify(G1)
+        nullify(tmat2d)
+        deallocate(kPointToBasisFn)
+
+        call setup_nbasismax(ptr)
+        call setup_g1(ptr)
+        call setup_tmat_k_space(ptr)
+        call setup_kPointToBasisFn(ptr)
+!         call setup_k_space_hub_sym(ptr)
+
+        omega = real(ptr%get_nsites(),dp)
+        nBasis = 2*ptr%get_nsites()
+
+!         allocate(umat(1))
+        uhub = 1.0
+        bhub = -1.0
+        umat = h_cast(real(uhub,dp)/real(omega,dp))
+
+        trans_corr_param_2body = 0.1
+        three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+
+    end subroutine setup_all
+
+    subroutine test_3e_ms1
+
+        integer :: hilbert_nI(3,3), i, j, work(9), info
+        HElement_t(dp) :: hamil(3,3), hamil_trancorr(3,3), tmp_hamil(3,3)
+        real(dp) :: ev_real(3), ev_cmpl(3), left_ev(1,3), right_ev(1,3)
+        real(dp) :: test(3,3), t_mat(3,3), trans_hamil(3,3)
+
+        integer :: n_pairs
+
+        nOccAlpha = 2
+        nOccBeta = 1
+        nel = 3
+
+        ! i have to setup the whole system
+        lat => lattice('chain',3,1,1,.true.,.true.,.true.,'k-space')
+
+        call setup_all(lat)
+
+        print *, "also test 3 electron system for consistency!" 
+
+        hilbert_nI(:,1) = [2,3,4]
+        hilbert_nI(:,2) = [4,5,6] 
+        hilbert_nI(:,3) = [1,2,6]
+
+        ! first create the non-transcorrelated Hamiltonian
+        t_trans_corr_2body = .false. 
+        print *, "un-transcorrelated Hamiltonian: "
+
+        hamil = create_hamiltonian(hilbert_nI)
+        call print_matrix(hamil)
+
+        ! the originial hamiltonian also gives me the transformation matrix 
+        ! do it the stupid way 
+        t_mat = get_tranformation_matrix(hamil, 2) 
+        
+        ! use the lapack routines to solve these quickly.. 
+        print *, "eigen-values: ", calc_eigenvalues(hamil)
+
+        print *, "transcorrelated Hamiltonian: "
+        t_trans_corr_2body = .true.
+
+        hamil_trancorr = create_hamiltonian(hilbert_nI)
+        call print_matrix(hamil_trancorr)
+
+        print *, "eigen-values: ", calc_eigenvalues(hamil_trancorr)
+
+        trans_hamil = matmul(matmul(matrix_exponential(-t_mat),hamil),matrix_exponential(t_mat))
+
+        print *, "transformed hamiltonian: " 
+        call print_matrix(trans_hamil)
+
+        print *, "eigen-values: ", calc_eigenvalues(trans_hamil)
+
+!         ! i know now, where there is an error-- between those 2 matrix 
+!         ! elements: 
+!         print *, "nI:", hilbert_nI(:,1)
+!         print *, "nJ:", hilbert_nI(:,2)
+!         print *, "H_ij: ", hamil_trancorr(1,2), hamil_trancorr(2,1)
+! 
+!         ! check the individual contribs here! 
+!         ! excitation: (2,3) -> (5,6)
+!         ! ex: should have a + sign
+!         ! 2 3 
+!         ! 5 6 
+!         ! 2 3 4 -> should have an overall + sign
+!         print *, "Excitation (2,3) -> (5,6)"
+!         print *, "two-body: ", two_body_transcorr_factor(G1(2)%k,G1(6)%k), & 
+!                                two_body_transcorr_factor(G1(3)%k,G1(5)%k)
+! 
+!         print *, "three_body: ", three_body_transcorr_fac(hilbert_nI(:,1), &
+!                                     G1(2)%k,G1(3)%k,G1(6)%k,1), &
+!                                  three_body_transcorr_fac(hilbert_nI(:,1), &
+!                                     G1(3)%k,G1(2)%k,G1(5)%k,-1)
+! 
+!         print *, "excitation: (3,4) -> (1,6): "
+!         ! ex: should have a - sign!
+!         ! 3 4
+!         ! 1 6
+!         ! 2 3 4 -> should have an overal - sign
+!         print *, "two-body: ", two_body_transcorr_factor(G1(3)%k,G1(1)%k), & 
+!                                two_body_transcorr_factor(G1(4)%k,G1(6)%k)
+! 
+!         print *, "three_body: ", three_body_transcorr_fac(hilbert_nI(:,1), &
+!                                     G1(3)%k,G1(4)%k,G1(1)%k,-1), &
+!                                  three_body_transcorr_fac(hilbert_nI(:,1), &
+!                                     G1(4)%k,G1(3)%k,G1(6)%k,1)
+! 
+!         print *, "excitation: (4,5) -> (1,2): "
+!         ! ex: should have a + sign
+!         ! 4 5
+!         ! 1 2
+!         ! 4 5 6 -> should have an overall + sign
+!         print *, "two-body: ", two_body_transcorr_factor(G1(4)%k,G1(2)%k), & 
+!                                two_body_transcorr_factor(G1(5)%k,G1(1)%k)
+! 
+!         print *, "three_body: ", three_body_transcorr_fac(hilbert_nI(:,2), &
+!                                     G1(4)%k,G1(5)%k,G1(2)%k,1), &
+!                                  three_body_transcorr_fac(hilbert_nI(:,2), &
+!                                     G1(5)%k,G1(4)%k,G1(1)%k,-1)
+
+
+        ! both sign conventions agree here! maybe it has to do with this?!
+
+
+        call stop_all("here","for now")
+    end subroutine test_3e_ms1
+
+    function get_tranformation_matrix(hamil, n_pairs) result(t_matrix)
+        ! n_pairs is actually also a global system dependent quantitiy.. 
+        ! which actually might be helpful.. but input it here! 
+        HElement_t(dp), intent(in) :: hamil(:,:)
+        integer, intent(in) :: n_pairs
+        real(dp) :: t_matrix(size(hamil,1),size(hamil,2))
+
+        integer :: i, j
+
+        t_matrix = 0.0_dp 
+
+        do i = 1, size(hamil,1)
+            do j = 1, size(hamil,1)
+                if (i == j) then 
+                    t_matrix(i,i) = n_pairs 
+                else 
+                    if (abs(hamil(i,j)) > EPS) then 
+                        t_matrix(i,j) = sign(1.0_dp, hamil(i,j))
+                    end if
+                end if
+            end do
+        end do
+
+        t_matrix = trans_corr_param_2body/omega * t_matrix
+
+    end function get_tranformation_matrix
+
 
     subroutine setup_g1_test
 
