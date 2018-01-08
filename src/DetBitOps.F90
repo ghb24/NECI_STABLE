@@ -1131,7 +1131,7 @@ end module
 
         tSign=.true.
         max_excit = Ex(1,1)
-        Ex(:,:max_excit) = 0
+        Ex(:,1:max_excit) = 0
 
         if (max_excit > 0) then
 

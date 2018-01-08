@@ -1504,7 +1504,6 @@ contains
             ! redo this whole shabang.. the formulas are actually much easier: 
             ! but just to be sure for now, do i explicetly without any use of 
             ! symmetry 
-            print *, "=="
             do i = 1, nel 
                 do j = 1, nel 
                     ! the restriction is, that i and j must have opposite 
@@ -1525,8 +1524,6 @@ contains
                         hel_one = hel_one + bhub * epsilon_kvec(G1(nI(i))%k) & 
                                 * omega * three_body_prefac
 
-                        print *, "=="
-                        print *, "nI(i), e(i): ", nI(i), epsilon_kvec(G1(nI(i))%k)
 
 !                         temp_hel = bhub * epsilon_kvec(G1(nI(i))%k) & 
 !                                 * omega * three_body_prefac
@@ -1760,7 +1757,12 @@ contains
         ! correct..
 
         ! the U part is still just the the spin-opposite part
-        hel = get_hub_umat_el(ab(1),ab(2),ij(1),ij(2))
+        ! damn... i need a sign convention here too..
+        if (same_spin(src(1),tgt(1)) .and. same_spin(src(2),tgt(2))) then 
+            hel = get_hub_umat_el(ij(1),ij(2),ab(1),ab(2))
+        else if (same_spin(src(1),tgt(2)) .and. same_spin(src(2),tgt(1))) then 
+            hel = -get_hub_umat_el(ij(1),ij(2),ab(1),ab(2))
+        end if
 
         ! if hel == 0, due to momentum conservation violation we can already 
         ! exit here, since this means this excitation is just no possible! 
@@ -1818,8 +1820,8 @@ contains
                 src = [minval(src),maxval(src)]
                 tgt = [minval(tgt),maxval(tgt)]
 
-!                 k_vec_a = G1(src(1))%k - G1(tgt(1))%k 
-!                 k_vec_b = (G1(src(1))%k - G1(tgt(2))%k)
+                k_vec_a = G1(src(1))%k - G1(tgt(1))%k 
+                k_vec_b = (G1(src(1))%k - G1(tgt(2))%k)
 !                 k_vec_c = G1(src(2))%k - G1(tgt(1))%k 
 !                 k_vec_d = (G1(src(2))%k - G1(tgt(2))%k)
 ! 
@@ -1837,10 +1839,10 @@ contains
                 ! tgt are ordered.. we need a convention for these matrix 
                 ! elements!
                 spin = get_spin_pn(src(1))
-                hel = 0.5_dp*(same_spin_transcorr_factor(nI, k_vec_a, spin) & 
-                    - same_spin_transcorr_factor(nI, k_vec_b, spin) &
-                    - same_spin_transcorr_factor(nI, -k_vec_b, -spin) &
-                    + same_spin_transcorr_factor(nI, -k_vec_a, -spin))
+                hel = (same_spin_transcorr_factor(nI, k_vec_a, spin) & 
+                    - same_spin_transcorr_factor(nI, k_vec_b, spin))! &
+!                     - same_spin_transcorr_factor(nI, -k_vec_b, -spin) &
+!                     + same_spin_transcorr_factor(nI, -k_vec_a, -spin))
 
             else 
                 ! else we need the opposite spin contribution
@@ -1885,11 +1887,11 @@ contains
                     ! i need the right hole-momenta
                     k_vec_c = G1(tgt(1))%k 
                     k_vec_d = G1(tgt(2))%k 
-!                     sgn = -1.0_dp
+                    sgn = 1.0_dp
                 else 
                     k_vec_c = G1(tgt(2))%k 
                     k_vec_d = G1(tgt(1))%k
-!                     sgn = 1.0_dp
+                    sgn = -1.0_dp
                 end if
 
 !                 if (tpar) sgn = -sgn
@@ -2403,11 +2405,11 @@ contains
 !                                      epsilon_kvec(k_vec)
 
         ! new try with the same spin transcorr factor: 
-        same_spin_transcorr_factor = - bhub * three_body_prefac * & 
-            get_one_body_diag(nI, -spin, k_vec)
+!         same_spin_transcorr_factor = - bhub * three_body_prefac * & 
+!             get_one_body_diag(nI, -spin, k_vec)
 
-!         same_spin_transcorr_factor = -0.5_dp * bhub * three_body_prefac * ( & 
-!             get_one_body_diag(nI,-spin,k_vec) + get_one_body_diag(nI,-spin,k_vec,.true.))
+        same_spin_transcorr_factor = -bhub * three_body_prefac * ( & 
+            get_one_body_diag(nI,-spin,k_vec) + get_one_body_diag(nI,-spin,k_vec,.true.))
 
     end function same_spin_transcorr_factor
 
@@ -2495,6 +2497,7 @@ contains
 #endif
         integer :: ms_elec, ms_orbs, opp_elec, opp_orb, par_elecs(2), par_orbs(2)
         integer :: p_vec(3), k1(3), k2(3), k_vec(3)
+        logical :: sgn
 
         hel = h_cast(0.0_dp)
 
@@ -2562,17 +2565,58 @@ contains
         k1 = G1(par_elecs(1))%k - G1(par_orbs(1))%k + k_vec
         k2 = G1(par_elecs(2))%k - G1(par_orbs(1))%k + k_vec
 
-        hel = -bhub * three_body_prefac * ( &
+        hel = 2.0_dp*bhub * three_body_prefac * ( &
             epsilon_kvec(G1(opp_orb)%k + k1) - epsilon_kvec(G1(opp_orb)%k + k2))
 
-!         hel = -0.5_dp * bhub * three_body_prefac * (&
+        ! i have to decide on a sign here depending on the order of the 
+        ! operators.. todo! 
+        sgn = get_3body_sign(ex)
+
+        if (.not.sgn) hel = -hel
+
+!         hel = 0.5_dp * bhub * three_body_prefac * (&
 !             epsilon_kvec(G1(opp_orb)%k + k1) - epsilon_kvec(G1(opp_orb)%k + k2) & 
 !           + epsilon_kvec(k1 - G1(opp_orb)%k) - epsilon_kvec(k2 - G1(opp_orb)%k))
-! 
 ! 
         if (tpar) hel = -hel
 
     end function get_3_body_helement_ks_hub
+
+    logical function get_3body_sign(ex)
+        ! i need to find some sign convention on the 3-body term, depending 
+        ! on the spin of the involved orbitals 
+        integer, intent(in) :: ex(2,3)
+
+        integer :: src(3), tgt(3),i, elec_pos, orb_pos
+
+        ! we also have to define an order of the parallel spins.. 
+        ! or is this ensured? i guess it should.. 
+        src = get_src(ex)
+        tgt = get_tgt(ex)
+
+        if (sum(get_spin_pn(src)) == -1) then 
+            ! then alpha is the opposite spin 
+            do i = 1, 3
+                if (is_alpha(src(i))) elec_pos = i
+                if (is_alpha(tgt(i))) orb_pos = i 
+            end do
+
+        else 
+            ! otherwise beta is minority 
+            do i = 1, 3 
+                if (is_beta(src(i))) elec_pos = i 
+                if (is_beta(tgt(i))) orb_pos = i 
+            end do
+
+        end if
+
+        if (elec_pos == orb_pos .or. abs(elec_pos - orb_pos) == 2) then 
+            get_3body_sign = .false.
+        else 
+            get_3body_sign = .true.
+        end if
+
+    end function get_3body_sign
 
     function find_minority_spin(spins) result(opp) 
         ! for now, given 3 spin orbitals, where 2 share a spin, this function
@@ -2923,10 +2967,6 @@ contains
                 end do
             end do
         end do
-
-        print *, "" 
-        print *, "n_par: ", n_par
-        print *, "n_opp: ", n_opp
 
         n_excits = n_excits - 1
         allocate(det_list(0:NIfTot,n_excits), source = temp_list(:,1:n_excits))
