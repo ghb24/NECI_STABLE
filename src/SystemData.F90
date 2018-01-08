@@ -252,6 +252,8 @@ logical :: t_new_real_space_hubbard = .false.
 real(dp) :: trans_corr_param = 0.0_dp 
 ! and a flag to start it 
 logical :: t_trans_corr = .false. 
+! for testing purposes: 
+logical :: t_trans_corr_new = .false.
 ! as one can see this modification is dependent on the current 
 ! occupation of the involved hopping orbitals! so it is not just a 
 ! change in the Hamiltonian 

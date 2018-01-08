@@ -518,6 +518,19 @@ system: do
                trans_corr_param = 1.0_dp
            end if
 
+        case ("TRANSCORR-NEW")
+            t_trans_corr = .true. 
+            t_trans_corr_new = .true. 
+
+           if (item < nitems) then 
+               call getf(trans_corr_param)
+           else 
+               ! defaul value 1 for now, since i have no clue how this behaves
+               trans_corr_param = 1.0_dp
+           end if
+
+
+
         case ('2-BODY-TRANSCORR', '2-BODY-TRANS-CORR', '2-BODY-TRANSCORRELATED','TRANSCORR-2BODY')
            ! for the tJ model there are 2 choices of the transcorrelation 
            ! indicate that here! 

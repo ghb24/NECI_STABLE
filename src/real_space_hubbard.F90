@@ -19,7 +19,7 @@ module real_space_hubbard
                           length_y, length_z, uhub, nbasis, bhub, t_open_bc_x, &
                           t_open_bc_y, t_open_bc_z, G1, ecore, nel, nOccAlpha, nOccBeta, &
                           t_trans_corr, trans_corr_param, t_trans_corr_2body, & 
-                          trans_corr_param_2body, tHPHF
+                          trans_corr_param_2body, tHPHF, t_trans_corr_new
     use lattice_mod, only: lattice, determine_optimal_time_step, lat, &
                     get_helement_lattice, get_helement_lattice_ex_mat, & 
                     get_helement_lattice_general
@@ -1009,6 +1009,7 @@ contains
         HElement_t(dp) :: hel
 
         integer(n_int) :: ilut(0:NIfTot)
+        real(dp) :: n_i, n_j
 
         ! in case we need it, the off-diagonal, except parity is just 
         ! -t if the hop is possible
@@ -1020,8 +1021,24 @@ contains
         ! better to do it as a procedure pointer.. 
         if (t_trans_corr) then 
             call EncodeBitDet(nI, ilut)
-            hel = hel * exp(trans_corr_param * & 
-                (get_opp_spin(ilut, ex(1)) - get_opp_spin(ilut, ex(2))))
+            if (t_trans_corr_new) then
+                n_j = get_opp_spin(ilut, ex(1))
+                n_i = get_opp_spin(ilut, ex(2))
+
+                ! try to go one step further before the transformation to 
+                ! the momentum space.. and check if the results are still 
+                ! correct.. 
+
+                hel = hel * (1.0_dp + (exp(trans_corr_param) - 1.0_dp) * n_j + & 
+                                      (exp(-trans_corr_param)- 1.0_dp) * n_i - & 
+                                       2.0_dp*(cosh(trans_corr_param) - 1.0_dp)*n_i*n_j)
+
+           else
+
+                hel = hel * exp(trans_corr_param * & 
+                    (get_opp_spin(ilut, ex(1)) - get_opp_spin(ilut, ex(2))))
+            end if
+
         end if
 
         ! it is not really a 2-body trans, but still use the flag and 
