@@ -347,8 +347,6 @@ contains
 
                     ! Remove the det from the main list.
                     call nullify_ilut(CurrentDets(:,j))
-                    call clr_flag(CurrentDets(:,j),flag_trial)
-		    call clr_flag(CurrentDets(:,j),flag_connected)
                     call remove_hash_table_entry(HashIndex, det, j)
                     iEndFreeSlot = iEndFreeSlot + 1
                     FreeSlot(iEndFreeSlot) = j
