@@ -204,9 +204,9 @@ contains
                 call gen_parallel_double_hubbard(nI, ilutI, nJ, ilutJ, ex, tParity, pgen)
                 ic = 2
                 pgen = pgen * pDoubles * pParallel
-                if (nJ(1) /= 0) then 
-                    print *, "parallel: (",nI,") -> (", nJ, ")"
-                end if
+!                 if (nJ(1) /= 0) then 
+!                     print *, "parallel: (",nI,") -> (", nJ, ")"
+!                 end if
             else 
                 ! do a "normal" hubbard k-space excitation 
                 call gen_excit_k_space_hub (nI, ilutI, nJ, ilutJ, exFlag, ic, &
@@ -214,7 +214,6 @@ contains
 
                 pgen = pgen * pDoubles * (1.0_dp - pParallel)
 
-!                 if (abs(pgen - 0.49) > 1.e-3 ) print *, "pgen: ", pgen 
             end if 
         else 
             ! otherwise to a triple.. 
@@ -222,9 +221,9 @@ contains
             ic = 3 
             pgen = pgen * (1.0_dp - pDoubles)
 
-                if (nJ(1) /= 0) then 
-                    print *, "triple: (",nI,") -> (", nJ, ")"
-                end if
+!                 if (nJ(1) /= 0) then 
+!                     print *, "triple: (",nI,") -> (", nJ, ")"
+!                 end if
 
         end if
 
