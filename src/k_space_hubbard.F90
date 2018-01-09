@@ -146,6 +146,7 @@ contains
 #endif
         real(dp) :: p_elec, p_orb
         integer :: elecs(2), orbs(2), src(2)
+        logical :: isvaliddet
 
         ! i first have to choose an electron pair (ij) at random 
         ! but with the condition that they have to have opposite spin! 
@@ -172,6 +173,17 @@ contains
         ! probability to pick them
         ! already modified in the orbital picker.. 
         pgen = p_elec * p_orb
+
+#ifdef __DEBUG
+        if (.not. isvaliddet(nI,nel)) then
+            if (nJ(1) /= 0) then 
+                print *, "nI: ", nI
+                print *, "nJ: ", nJ 
+                print *, "src: ", ex(1,:)
+                print *, "tgt: ", ex(2,:)
+            end if
+        end if
+#endif
 
 !         if (abs(pgen -0.5) > 1e-3) print *, "pgen: ", pgen 
 
