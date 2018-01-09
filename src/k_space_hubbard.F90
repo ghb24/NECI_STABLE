@@ -681,7 +681,7 @@ contains
         integer, intent(in) :: nI(nel) 
         integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(out) :: nJ(nel), ex(2,2) 
-        integer, intent(out) :: ilutJ(0:niftot)
+        integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pgen
 #ifdef __DEBUG
