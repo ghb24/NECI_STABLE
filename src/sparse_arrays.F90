@@ -340,7 +340,7 @@ contains
                     if (tHPHF) then
                         hamiltonian_row(j) = hphf_diag_helement(nI, SpawnedParts(:,i)) - Hii
                     else
-                        hamiltonian_row(j) = get_helement(nI, nJ, 0)! - Hii
+                        hamiltonian_row(j) = get_helement(nI, nJ, 0) - Hii
                     end if
                     core_ham_diag(i) = hamiltonian_row(j)
                     ! We calculate and store the diagonal matrix element at
