@@ -206,6 +206,54 @@ contains
             
     end subroutine check_real_space_hubbard_input
 
+    ! i could also create all determinants, not only the open-shells.. or? 
+    function create_all_dets(n_orbs, n_alpha, n_beta) result(all_dets)
+        integer, intent(in) :: n_orbs, n_alpha, n_beta
+        integer(n_int), allocatable :: all_dets(:) 
+        character(*), parameter :: this_routine = "create_all_dets" 
+
+        integer, allocatable :: n_dets(:)
+        integer(n_int), allocatable :: one_basis(:), comb_basis(:)
+        integer :: n_max, n_min, i, n_states, n_total
+
+        n_dets = calc_n_double(n_orbs, n_alpha, n_beta) 
+
+        ! cannot deal with more than 32 orbitals yet.. since i am lazy! 
+        ASSERT(n_orbs <= 32) 
+
+        n_max = max(n_alpha, n_beta)
+        n_min = min(n_alpha, n_beta)
+
+        ! now i have to loop over the different numbers of possible 
+        ! doubly occupied orbitals! 
+        ! the one spin-basis is always the same 
+        one_basis = create_one_spin_basis(n_orbs, n_max) 
+
+        ! keep an count on all the states
+        n_states = 0 
+
+        ! and allocate the array, which keeps all the states 
+        n_total = sum(n_dets) 
+
+        allocate(all_dets(n_total))
+        all_dets = 0_n_int 
+
+        do i = 1, size(n_dets) 
+            ! oh shit.. i just realized i have not yet implemented the 
+            ! basis combination with double occupancies.. damn.. 
+            comb_basis = combine_spin_basis(n_orbs, n_max, n_min, n_dets(i), & 
+                one_basis, .true., i-1)
+
+            all_dets(n_states+1:n_states+size(comb_basis)) = comb_basis 
+
+            n_states = n_states + size(comb_basis)
+
+        end do
+        
+        ASSERT(n_states == n_total) 
+
+    end function create_all_dets 
+
     function create_all_open_shell_dets(n_orbs, n_alpha, n_beta) result(open_shells)
         integer, intent(in) :: n_orbs, n_alpha, n_beta
         ! Alis idea for the use of the ADI option for the real-space hubbard 
@@ -260,8 +308,8 @@ contains
         logical, intent(in) :: t_sort
         integer, intent(in), optional :: n_doubles 
         integer(n_int) :: spin_basis(n_total) 
-#ifdef __DEBUG
         character(*), parameter :: this_routine = "combine_spin_basis" 
+#ifdef __DEBUG
         integer, allocatable :: n_dets(:)
 #endif 
         integer :: n_doub, i, j, n_remain, n
@@ -329,8 +377,18 @@ contains
             end if
 
         case default 
+
+            ! i should not need a select case here.. this gets to 
+            ! complicated.. 
+            ! it is similar to non-half filled actually.. 
+            if (n_first + n_second == n_orbs) then 
+                ! then we have the half-filled case.. 
+            else
+
+            end if
+
             ! not yet implemented 
-            ASSERT(.false.) 
+            call stop_all(this_routine, "not yet implemented!")
 
         end select
 

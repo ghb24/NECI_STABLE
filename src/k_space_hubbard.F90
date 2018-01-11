@@ -2495,7 +2495,7 @@ contains
         character(*), parameter :: this_routine = "get_3_body_helement_ks_hub"
 #endif
         integer :: ms_elec, ms_orbs, opp_elec, opp_orb, par_elecs(2), par_orbs(2)
-        integer :: p_vec(3), k1(3), k2(3), k_vec(3)
+        integer :: p_vec(3), k1(3), k2(3), k_vec(3), hole_k(3)
         logical :: sgn
 
         hel = h_cast(0.0_dp)
@@ -2534,15 +2534,25 @@ contains
         ! being at the first position in ex(2,:).. 
         opp_orb = find_minority_spin(ex(2,:)) 
 
+        p_vec = G1(opp_elec)%k 
+        hole_k = G1(opp_orb)%k 
+
         par_elecs = pack(ex(1,:),ex(1,:) /= opp_elec)
         par_orbs = pack(ex(2,:),ex(2,:) /= opp_orb)
 
-        k_vec = G1(opp_elec)%k - G1(opp_orb)%k 
+        k_vec = p_vec - hole_k 
         call mompbcsym(k_vec, nBasisMax)
 
         ! we have to define an order here too 
         par_elecs = [minval(par_elecs), maxval(par_elecs)]
         par_orbs = [minval(par_orbs), maxval(par_orbs)] 
+
+        k1 = G1(par_orbs(1))%k - G1(par_elecs(1))%k 
+        k2 = G1(par_orbs(1))%k - G1(par_elecs(2))%k 
+
+        hel = 1.0_dp * bhub * three_body_prefac * ( & 
+            epsilon_kvec(hole_k + k1) - epsilon_kvec(hole_k + k2) & 
+          + epsilon_kvec(-p_vec + k1) - epsilon_kvec(-p_vec + k2)) 
 
         ! i hope it is fine if i always take par_orbs(1).. this has to do 
         ! with the overal sign i guess.. so maybe i should check if 
@@ -2561,11 +2571,11 @@ contains
         ! because one has to be modified by k too.. which complicates stuff 
         ! no i actually have to shift both by the k-vector and this 
         ! should be fine now.. 
-        k1 = G1(par_elecs(1))%k - G1(par_orbs(1))%k + k_vec
-        k2 = G1(par_elecs(2))%k - G1(par_orbs(1))%k + k_vec
-
-        hel = 2.0_dp*bhub * three_body_prefac * ( &
-            epsilon_kvec(G1(opp_orb)%k + k1) - epsilon_kvec(G1(opp_orb)%k + k2))
+!         k1 = G1(par_elecs(1))%k - G1(par_orbs(1))%k + k_vec
+!         k2 = G1(par_elecs(2))%k - G1(par_orbs(1))%k + k_vec
+! 
+!         hel = 2.0_dp*bhub * three_body_prefac * ( &
+!             epsilon_kvec(G1(opp_orb)%k + k1) - epsilon_kvec(G1(opp_orb)%k + k2))
 
         ! i have to decide on a sign here depending on the order of the 
         ! operators.. todo! 

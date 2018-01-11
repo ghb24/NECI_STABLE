@@ -29,10 +29,22 @@ program test_k_space_hubbard
     use fcimcdata, only: pDoubles, pParallel
     use DetBitOps, only: ilut_lt, ilut_gt
     use sort_mod, only: sort
+    use util_mod, only: choose 
+    use bit_reps, only: decode_bit_det
 
     implicit none 
 
     integer :: failed_count 
+
+    abstract interface
+        subroutine generate_all_excits_t(nI, n_excits, det_list) 
+            use SystemData, only: nel 
+            use constants, only: n_int
+            integer, intent(in) :: nI(nel) 
+            integer, intent(out) :: n_excits
+            integer(n_int), intent(out), allocatable :: det_list(:,:)
+        end subroutine generate_all_excits_t
+    end interface
 
 
     call init_fruit()
@@ -136,6 +148,8 @@ contains
         call run_test_case(test_4e_ms1, "test_4e_ms1")
         call run_test_case(test_4e_ms0_mom_1, "test_4e_ms0_mom_1")
         call run_test_case(test_3e_ms1, "test_3e_ms1")
+        call run_test_case(test_8e_8orbs, "test_8e_8orbs")
+        call run_test_case(test_general, "test_general")
 
         call run_test_case(get_diag_helement_k_sp_hub_test, "get_diag_helement_k_sp_hub_test")
         call run_test_case(get_offdiag_helement_k_sp_hub_test, "get_offdiag_helement_k_sp_hub_test")
@@ -177,21 +191,32 @@ contains
 
     subroutine test_3e_4orbs_par
 
-        integer :: hilbert_nI(3,6), i, j, work(18), info
+        integer :: hilbert_nI(3,6), i, j, work(18), info, nI(3), n_states
         HElement_t(dp) :: hamil(6,6), hamil_trancorr(6,6), tmp_hamil(6,6)
         real(dp) :: ev_real(6), ev_cmpl(6), left_ev(1,6), right_ev(1,6)
         real(dp) :: t_mat(6,6), trans_mat(6,6)
+        integer, allocatable :: test_hilbert(:,:)
+        integer(n_int), allocatable :: dummy(:,:) 
 
         nOccBeta = 2 
         nOccAlpha = 1
         nel = 3
 
-        hilbert_nI(:,1) = [1,4,5]
-        hilbert_nI(:,2) = [2,3,5]
-        hilbert_nI(:,3) = [1,3,6]
-        hilbert_nI(:,4) = [3,7,8]
-        hilbert_nI(:,5) = [1,2,7]
-        hilbert_nI(:,6) = [5,6,7]
+        hilbert_nI(:,1) = [1,4,5]!
+        hilbert_nI(:,2) = [2,3,5]!
+        hilbert_nI(:,3) = [1,3,6]!
+        hilbert_nI(:,4) = [3,7,8]!
+        hilbert_nI(:,5) = [1,2,7]!
+        hilbert_nI(:,6) = [5,6,7]!
+
+        nI = [1,4,5]
+        call setup_k_total(nI)
+
+        call create_hilbert_space(nI, n_states, test_hilbert, dummy, gen_all_excits_k_space_hubbard)
+
+        print *, "n_states: ", n_states 
+        call print_matrix(transpose(test_hilbert))
+        ! nice.. it acutally works and gets all states.. 
 
         t_trans_corr_2body = .false. 
         print *, "un-transcorrelated Hamiltonian: "
@@ -349,15 +374,37 @@ contains
 
     end function create_hamiltonian
 
-    subroutine print_matrix(matrix) 
+    subroutine print_matrix(matrix, iunit) 
         ! print a 2-D real matrix 
-        real(dp), intent(in) :: matrix(:,:)
+!         real(dp), intent(in) :: matrix(:,:)
+        class(*), intent(in) :: matrix(:,:)
+        integer, intent(in), optional :: iunit
         
         integer :: i 
 
-        do i = 1, size(matrix,1)
-            print *, matrix(i,:)
-        end do
+        select type (matrix)
+        type is (integer)
+            if (present(iunit)) then 
+                do i = 1, size(matrix,1)
+                    write(iunit,*) matrix(i,:)
+                end do
+            else
+                do i = 1, size(matrix,1)
+                    print *, matrix(i,:)
+                end do
+            end if
+        type is (real(dp))
+            if (present(iunit)) then 
+                do i = 1, size(matrix,1)
+                    write(iunit,*) matrix(i,:)
+                end do
+            else
+                do i = 1, size(matrix,1)
+                    print *, matrix(i,:)
+                end do
+            end if
+        end select
+
 
     end subroutine print_matrix
 
@@ -659,6 +706,147 @@ contains
 
     end subroutine setup_all
 
+    subroutine test_general
+
+        ! find the smallest system, where my code fails again.. 
+        integer, allocatable :: nI(:), hilbert_nI(:,:) 
+        integer(n_int), allocatable :: dummy(:,:)
+        HElement_t(dp), allocatable :: hamil(:,:), hamil_trancorr(:,:), &
+                                       trans_hamil(:,:)
+        real(dp), allocatable :: eval(:), eval_neci(:), t_mat(:,:)
+        integer :: n_states, iunit
+
+        ! these are the quantitites to fix: 
+        nOccAlpha = 3 
+        nOccBeta = 1 
+        nel = 4 
+        lat => lattice('chain', 6,1,1,.true.,.true.,.true.,'k-space')
+        allocate(nI(nel)); nI = [1,2,4,6] 
+
+        call setup_all(lat)
+        call setup_k_total(nI)
+
+                ! i need a starting det
+        call create_hilbert_space(nI, n_states, hilbert_nI, dummy, gen_all_excits_k_space_hubbard)
+
+        print *, "n_states: ", n_states
+
+        t_trans_corr_2body = .false. 
+        hamil = create_hamiltonian(hilbert_nI)
+
+        allocate(eval(n_states))
+        allocate(eval_neci(n_states))
+
+        eval = calc_eigenvalues(hamil)
+
+        call sort(eval)
+        print *, "eigen-value orig: ", eval(1)
+
+
+        t_trans_corr_2body = .true. 
+        hamil_trancorr = create_hamiltonian(hilbert_nI)
+
+        eval_neci = calc_eigenvalues(hamil_trancorr)
+        call sort(eval_neci)
+        print *, "eigen-value neci: ", eval_neci(1)
+
+        print *, "diff: ", eval(1) - eval_neci(1) 
+
+        allocate(t_mat(n_states,n_states))
+
+        t_mat = get_tranformation_matrix(hamil, 16) 
+
+        trans_hamil = matmul(matmul(matrix_exponential(-t_mat),hamil),matrix_exponential(t_mat))
+
+        eval = calc_eigenvalues(trans_hamil)
+
+        call sort(eval) 
+        print *, "eigen-value tran: ", eval(1)
+
+        open(iunit,file='states')
+        call print_matrix(transpose(hilbert_nI), iunit)
+        close(iunit)
+
+        open(iunit,file='hamil_orig')
+        call print_matrix(hamil, iunit)
+        close(iunit)
+
+        open(iunit,file='hamil_neci')
+        print *, "hamil neci: "
+        call print_matrix(hamil_trancorr, iunit)
+        close(iunit)
+
+        print *, "==========================================="
+        open(iunit,file='hamil_trans')
+        print *, "hamil trans: "
+        call print_matrix(trans_hamil, iunit)
+        close(iunit)
+
+        call stop_all("here", "now")
+
+    end subroutine test_general
+
+    subroutine test_8e_8orbs
+
+        integer :: nI(8), n_states
+        integer, allocatable :: hilbert_nI(:,:)
+        integer(n_int), allocatable :: dummy(:,:)
+        HElement_t(dp), allocatable :: hamil(:,:), hamil_trancorr(:,:), &
+                                       trans_hamil(:,:)
+        real(dp), allocatable :: eval(:), t_mat(:,:)
+
+        nOccAlpha = 4
+        nOccBeta = 4
+        nel = 8 
+
+        lat => lattice('chain', 8, 1, 1, .true., .true., .true., 'k-space')
+
+        call setup_all(lat)
+        nI = [1,2,3,4,5,6,7,8]
+        ! i need to set the momentum
+        call setup_k_total(nI) 
+
+        ! i need a starting det
+        call create_hilbert_space(nI, n_states, hilbert_nI, dummy, gen_all_excits_k_space_hubbard)
+
+        print *, "n_states: ", n_states
+
+        t_trans_corr_2body = .false. 
+        hamil = create_hamiltonian(hilbert_nI)
+
+        allocate(eval(n_states))
+
+        eval = calc_eigenvalues(hamil)
+
+        call sort(eval)
+        print *, "eigen-value orig: ", eval(1)
+
+
+        t_trans_corr_2body = .true. 
+        hamil_trancorr = create_hamiltonian(hilbert_nI)
+
+        eval = calc_eigenvalues(hamil_trancorr)
+        call sort(eval)
+        print *, "eigen-value neci: ", eval(1)
+
+        allocate(t_mat(n_states,n_states))
+
+        t_mat = get_tranformation_matrix(hamil, 16) 
+
+        trans_hamil = matmul(matmul(matrix_exponential(-t_mat),hamil),matrix_exponential(t_mat))
+
+        eval = calc_eigenvalues(trans_hamil)
+
+        call sort(eval) 
+        print *, "eigen-value tran: ", eval(1)
+
+        ! todo! ok, still a small mistake in the transcorrelated hamil!! 
+        ! maybe thats why it behaves unexpected! 
+
+!         call stop_all("here", "now")
+
+    end subroutine test_8e_8orbs
+
     subroutine test_3e_ms1
 
         integer :: hilbert_nI(3,3), i, j, work(9), info
@@ -763,7 +951,6 @@ contains
         ! both sign conventions agree here! maybe it has to do with this?!
 
 
-        call stop_all("here","for now")
     end subroutine test_3e_ms1
 
     function get_tranformation_matrix(hamil, n_pairs) result(t_matrix)
@@ -2462,7 +2649,7 @@ contains
 
     subroutine run_excit_gen_tester(excit_gen, excit_gen_name, opt_nI, opt_n_iters, & 
             gen_all_excits) 
-        use procedure_pointers, only: generate_excitation_t, generate_all_excits_t
+        use procedure_pointers, only: generate_excitation_t
         use util_mod, only: binary_search
 
         procedure(generate_excitation_t) :: excit_gen 
@@ -2598,6 +2785,108 @@ contains
         call assert_true(all(abs(contrib_list / n_iters - 1.0_dp) < 0.01_dp))
 
     end subroutine run_excit_gen_tester
+
+    subroutine create_hilbert_space(nI, n_states, state_list_ni, state_list_ilut, & 
+            gen_all_excits_opt)
+        ! a really basic routine, which creates the whole hilbert space based 
+        ! on a input determinant and other quantities, like symmetry sectors, 
+        ! already set outside the routine. for now this is specifically 
+        ! implemented for the k-space hubbard model, since i still need to 
+        ! test the transcorrelated approach there! 
+        integer, intent(in) :: nI(nel)
+        integer, intent(out) :: n_states
+        integer, intent(out), allocatable :: state_list_ni(:,:) 
+        integer(n_int), intent(out), allocatable :: state_list_ilut(:,:) 
+        procedure(generate_all_excits_t), optional :: gen_all_excits_opt
+        character(*), parameter :: this_routine = "create_hilbert_space"
+
+        procedure(generate_all_excits_t), pointer :: gen_all_excits
+        integer(n_int), allocatable :: excit_list(:,:), temp_list_ilut(:,:) 
+        integer, allocatable :: temp_list_ni(:,:) 
+        integer :: n_excits, n_total, tmp_n_states, cnt, i, j, pos
+        integer(n_int) :: ilutI(0:niftot) 
+
+        ! determine the type of system by the gen_all_excits routine 
+
+        if (present(gen_all_excits_opt)) then 
+            gen_all_excits => gen_all_excits_opt
+        else
+            gen_all_excits => gen_all_excits_default
+        end if
+
+        ! estimate the total number of excitations 
+        n_total = int(choose(nBasis/2, nOccAlpha) * choose(nBasis/2,nOccBeta))
+
+        n_states = 1 
+        allocate(temp_list_ilut(0:niftot, n_total)) 
+        allocate(temp_list_ni(nel, n_total)) 
+
+        call EncodeBitDet(nI, ilutI)
+
+        temp_list_ilut(:,1) = ilutI 
+        temp_list_ni(:,1) = nI
+
+        tmp_n_states = 1
+        ! thats a really inefficient way to do it: 
+        ! think of smth better at some point! 
+        do while (.true.) 
+
+            ! and i need a counter, which counts the number of added 
+            ! excitations to the whole list.. i guess if this is 0 
+            ! the whole hilbert space is reached.. 
+            cnt = 0
+
+            ! i need a temporary loop variable
+            do i = 1, tmp_n_states 
+                call gen_all_excits(temp_list_ni(:,i), n_excits, excit_list) 
+
+                ! now i have to check if those states are already in the list
+                do j = 1, n_excits 
+
+                    pos = binary_search(temp_list_ilut(:,1:(tmp_n_states + cnt)), & 
+                        excit_list(:,j), nifd+1)
+
+                    ! if not yet found: 
+                    if (pos < 0) then 
+                        ! insert it at the correct place
+                        ! does - pos give me the correct place then? 
+                        pos = -pos
+                        ! lets try.. and temp_list is always big enough i think..
+                        ! first move
+                        temp_list_ilut(:,(pos+1):tmp_n_states+cnt+1) = & 
+                            temp_list_ilut(:,pos:(tmp_n_states+cnt))
+
+                        temp_list_ni(:,(pos+1):(tmp_n_states+cnt+1)) = & 
+                            temp_list_ni(:,pos:(tmp_n_states+cnt)) 
+                        ! then insert 
+                        temp_list_ilut(:,pos) = excit_list(:,j)
+                        
+                        call decode_bit_det(temp_list_ni(:,pos), excit_list(:,j))
+
+                        ! and increase the number of state counter 
+                        cnt = cnt + 1
+                    else 
+                        ! if already found i do not need to do anything i 
+                        ! guess.. 
+                    end if
+                end do
+
+            end do
+            tmp_n_states = tmp_n_states + cnt 
+
+            ! and somehow i need an exit criteria, if we found all the states.. 
+            if (cnt == 0) exit
+        end do
+
+        n_states = tmp_n_states
+
+        ! it should be already sorted or?? i think so.. 
+        ! or does binary_search not indicate the position
+        allocate(state_list_ni(nel,n_states), source = temp_list_ni(:,1:n_states))
+        allocate(state_list_ilut(0:niftot,n_states), source = temp_list_ilut(:,1:n_states))
+
+    end subroutine create_hilbert_space
+
 
     subroutine gen_all_excits_k_space_hubbard(nI, n_excits, det_list) 
 
