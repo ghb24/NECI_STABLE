@@ -178,14 +178,23 @@ contains
         call h5fcreate_f(filename, H5F_ACC_TRUNC_F, file_id, err, &
                          access_prp=plist_id)
         call h5pclose_f(plist_id, err)
-
+        write(6,*) "writing metadata"
         call write_metadata(file_id)
+        write(6,*) "writing calc_data"
         call write_calc_data(file_id)
+
+        call MPIBarrier(err)
+        write(6,*) "writing walkers"
         call write_walkers(file_id)
 
+        call MPIBarrier(err)
+        write(6,*) "closing popsfile"
         ! And we are done!
         call h5fclose_f(file_id, err)
         call h5close_f(err)
+
+        call MPIBarrier(err)
+        write(6,*) "popsfile write successful"
 #else
         call stop_all(t_r, 'HDF5 support not enabled at compile time')
 #endif
