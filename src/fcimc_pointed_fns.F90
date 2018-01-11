@@ -544,6 +544,7 @@ module fcimc_pointed_fns
         real(dp) :: rat(1)
 #endif        
 
+
         do i=1, inum_runs
             fac(i)=tau*(Kii-DiagSft(i))
 
@@ -563,6 +564,10 @@ module fcimc_pointed_fns
                         fac(i) = min(2.0_dp, fac(i))
                     end do
                 else
+                    print *, "nI: ", DetCurr
+                    print *, "Kii: ", Kii 
+                    print *, "weight: ", realwSign
+                    print *, "excit_level: ", WalkExcitLevel
                     call stop_all(t_r, "Death probability > 2: Algorithm unstable. Reduce timestep.")
                 end if
             else
