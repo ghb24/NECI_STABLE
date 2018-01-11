@@ -414,6 +414,9 @@ contains
            ! THIS IS A HACK: We dont want to alter the POPSFILE functions themselves
            ! so we sneak in the shift_damping into some slot unimportant to rneci
            AllSumNoatHF(1:inum_runs) = shift_damping
+           ! Another hack: we also sneak the value of alpha somewhere here, the shift
+           ! is not meaningful in real-time anyway
+           DiagSft = real_time_info%time_angle
            call WriteToPopsfileParOneArr(CurrentDets,TotWalkers,rtPOPSFILE_name)
         endif
 

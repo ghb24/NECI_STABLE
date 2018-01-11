@@ -651,22 +651,24 @@ contains
              read_walkers_on_nodes, pops_pert, &
              PopBalanceBLocks, PopDiagSft, rtPOPSFILE_name)
 
-        call set_initial_times(read_tau, TotImagTime)
+        call set_initial_times(read_tau, TotImagTime,PopDiagSft(1))
 
         ! if we disabled semi-stochastic mode temporarily, reenable it now
         if(tSemiStochastic) call init_semi_stochastic(ss_space_in)
       
     end subroutine readTimeEvolvedState
 
-    subroutine set_initial_times(real_time, imag_time)
+    subroutine set_initial_times(real_time, imag_time, alpha)
       implicit none
-      real(dp), intent(in) :: real_time, imag_time
+      real(dp), intent(in) :: real_time, imag_time, alpha
       
       ! with the inclusion of dynamic alpha, both, the real and the imaginary part
       ! have to be stored in the time-evolved popsfile
       ! the 
       elapsedImagTime = imag_time
       elapsedRealTime = real_time
+      ! also, the previous value of alpha is to be loaded
+      real_time_info%time_angle = alpha
     end subroutine set_initial_times
 
     subroutine equalize_initial_phase()
