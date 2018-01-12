@@ -3539,6 +3539,9 @@ contains
 
       nRefs = max(nRefsDoubs, nRefsSings)
       call reallocate_ilutRefAdi(nRefs)
+
+      ! If using adi with dynamic SIs, also use a dynamic corespace by default
+      call setup_dynamic_core()
  
       ! Check if one of the keywords is specified as delayed
       if(tSetDelayAllDoubsInits .and. tAllDoubsInitiators) then
@@ -3564,18 +3567,20 @@ contains
       ! needs some time to equilibrate
       nRefUpdateInterval = max(SIUpdateInterval,500)
       
-      call setup_dynamic_core()
-
     end subroutine setup_adi
 
 !------------------------------------------------------------------------------------------!
 
     subroutine setup_dynamic_core()
       use CalcData, only: tDynamicCoreSpace, coreSpaceUpdateCycle,tIntervalSet
-      
+      use adi_data, only: tAllDoubsInitiators, tAllSingsInitiators
       implicit none
       
-      if(SIUpdateInterval > 0 .and. .not. tIntervalSet) then
+      ! Enable dynamic corespace if both
+      ! a) using adi with dynamic SIs (default)
+      ! b) no other keywords regarding the dynamic corespace are given
+      if(SIUpdateInterval > 0 .and. .not. tIntervalSet .and. (tAllDoubsInitiators .or. &
+           tAllSingsInitiators)) then
         tDynamicCoreSpace = .true.
 	coreSpaceUpdateCycle = SIUpdateInterval
       endif

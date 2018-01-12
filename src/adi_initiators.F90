@@ -210,7 +210,7 @@ contains
     use adi_data, only: nCoherentSingles
     implicit none
     integer, intent(in) :: exLevel
-    logical, intent(out) :: staticInit
+    logical, intent(inout) :: staticInit
 
     if(exLevel == 1 .and. tAllSingsInitiators) then
        staticInit = .true.
