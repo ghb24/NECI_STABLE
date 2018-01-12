@@ -1020,8 +1020,8 @@ contains
 
 ! Now dealing with the zero body part of the property integrals if needed
 
-       write(*,*) 'PropCore before freezing:', PropCore
        IF(tCalcPropEst) then
+          write(*,*) 'PropCore before freezing:', PropCore
           DO A=1,NFROZEN
              AB=BRR(A)
              ! Ecore' = Ecore + sum_a <a|h|a> where a is a frozen spin orbital
@@ -1040,8 +1040,8 @@ contains
                 write(*,*) '2', PropCore(B), AB, B, GetPropIntEl(AB,AB,B)
              ENDDO
           ENDDO
+          write(*,*) 'PropCore after freezing:', PropCore
        ENDIF
-       write(*,*) 'PropCore after freezing:', PropCore
 
 
 !C.. now deal with the new TMAT
