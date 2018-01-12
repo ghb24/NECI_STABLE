@@ -2539,6 +2539,11 @@ contains
                 ! set the minimal coherence parameter for superinitiators
                 call readf(SIThreshold)
 
+             case("SUPERINITIATOR-POPULATION-FACTOR")
+                ! set the minimum value for superinitiator population
+                ! note that this is then multiplied with the initiator threshold
+                call readf(NoTypeN)
+
 	     case("SUPPRESS-SUPERINITIATOR-OUTPUT")	
 	        ! just for backwards-compatibility
 

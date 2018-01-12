@@ -84,6 +84,10 @@ contains
                "Using only the reference determinant as superinitiator")
        endif
 
+       ! remove all SIs with too little population
+       call apply_population_threshold()
+
+       ! Fill the hashtable for the SIs
        call assign_SIHash_TZero()
 
        ! These are now the t-0 references
@@ -254,6 +258,38 @@ contains
       ! if needed, update the signs of ilutRefAdi
       if(get_sign) call update_ref_signs()
     end subroutine set_additional_references
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine apply_population_threshold()
+      implicit none
+      integer :: iRef, counter
+      real(dp) :: sgn(lenof_sign)
+      integer(n_int) :: tmp(0:NIfTot,1:nRefs)
+
+      tmp = 0
+      counter = 1
+      ! first, check for each SI if it meets the minimum population
+      do iRef = 1, nRefs
+         call extract_sign(ilutRefAdi(:,iRef),sgn)
+         if(sum(abs(sgn))/inum_runs .ge. NoTypeN) then
+            tmp(:,counter) = ilutRefAdi(:,iRef)
+            counter = counter + 1
+         endif
+      enddo
+      
+      ! if all SIs meet the minimum population, there is nothing to do
+      if(counter < nRefs) then 
+         ! first, copy the elements to keep in the first counter slots of ilutRefAdi
+         ilutRefAdi(0:NIfTot,1:counter) = tmp(0:NIfTot,1:counter)
+         ! now, remove the remaining elements
+         call resize_ilutRefAdi(counter)
+
+         ! give a notification
+         write(6,*) "Warning: Underpopulated superinitiators. Reducing the number of superinitiators to ", counter
+      endif
+            
+    end subroutine apply_population_threshold
 
 !------------------------------------------------------------------------------------------!
 
@@ -1162,6 +1198,12 @@ contains
       use FciMCData, only: HashLengthFrac
       use hash, only: init_hash_table
       implicit none
+      logical, save :: first_call = .true.
+
+      if(first_call) then
+         nullify(SIHash)
+         first_call = .false.
+      endif
       
       htBlock = 5*HashLengthFrac*nRefs
       if(associated(SIHash)) deallocate(SIHash)
