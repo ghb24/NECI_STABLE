@@ -3561,8 +3561,6 @@ contains
       if(tAllSingsInitiators .or. tAllDoubsInitiators .or. tInitiatorsSubspace) &
            tAdiActive = .true. 
 
-      ! minimal population for type-n SIs
-      NoTypeN = NoTypeN * InitiatorWalkNo
       ! there is a minimum cycle lenght for updating the number of SIs, as the reference population
       ! needs some time to equilibrate
       nRefUpdateInterval = max(SIUpdateInterval,500)

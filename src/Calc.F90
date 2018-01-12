@@ -355,7 +355,7 @@ contains
           tAccessibleDoubles = .false.
           tSuppressSIOutput = .true.
           nExProd = 2
-          NoTypeN = 3
+          NoTypeN = 9
           tStrictCoherentDoubles = .false.
           tWeakCoherentDoubles = .true.
           tAvCoherentDoubles = .true.
@@ -2539,9 +2539,8 @@ contains
                 ! set the minimal coherence parameter for superinitiators
                 call readf(SIThreshold)
 
-             case("SUPERINITIATOR-POPULATION-FACTOR")
+             case("SUPERINITIATOR-POPULATION-THRESHOLD")
                 ! set the minimum value for superinitiator population
-                ! note that this is then multiplied with the initiator threshold
                 call readf(NoTypeN)
 
 	     case("SUPPRESS-SUPERINITIATOR-OUTPUT")	
