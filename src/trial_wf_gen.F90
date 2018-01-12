@@ -233,7 +233,7 @@ contains
         trial_numerator = 0.0_dp
         tot_trial_numerator = 0.0_dp
         trial_denom = 0.0_dp
-        tot_trial_denom = 0.0_dp
+        tot_trial_denom = 1.0_dp
 
         call halt_timer(Trial_Init_Time)
 
