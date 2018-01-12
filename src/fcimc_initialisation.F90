@@ -127,7 +127,7 @@ module fcimc_initialisation
     use gndts_mod, only: gndts
     use excit_gen_5, only: gen_excit_4ind_weighted2
     use csf, only: get_csf_helement
-    use tau_search, only: init_tau_search
+    use tau_search, only: init_tau_search, max_death_cpt
     use fcimc_helper, only: CalcParentFlag, update_run_reference
     use cont_time_rates, only: spawn_rate_full, oversample_factors, &
                                secondary_gen_store, ostag
@@ -788,6 +788,9 @@ contains
         PreviousCycles=0
         NoBorn=0.0_dp
         SpawnFromSing=0
+        max_cyc_spawn = 0.0_dp
+        ! in case tau-search is off
+        max_death_cpt = 0.0_dp
         NoDied=0
         HFCyc=0.0_dp
         ENumCyc=0.0_dp
