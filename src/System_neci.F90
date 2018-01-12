@@ -105,6 +105,7 @@ MODULE System
       tUEGOffset = .false.
       TTILT = .false.
       TALPHA = .false.
+      ALPHA = 0.0_dp
       ISTATE = 1
       OrbECutoff=1e20_dp
       tOrbECutoff=.false.
@@ -195,8 +196,8 @@ MODULE System
       ENDIF
 
 ! Coulomb damping function currently removed.
-!      FCOULDAMPBETA=-1.0_dp
-!      COULDAMPORB=0
+      FCOULDAMPBETA=-1.0_dp
+      COULDAMPORB=0
         
     end subroutine SetSysDefaults
 
