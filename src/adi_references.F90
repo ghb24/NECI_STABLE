@@ -1,11 +1,11 @@
 #include "macros.h"
 module adi_references
 use Parallel_neci
-use FciMCData, only: ilutRef
+use FciMCData, only: ilutRef, TotWalkers, CurrentDets
 use adi_data, only: ilutRefAdi, nRefs, nIRef, signsRef, nRefsSings, nRefsDoubs, &
      nTZero, SIHash, tAdiActive, tSetupSIs, NoTypeN, superInitiatorLevel, tSetupSIs, &
      tReferenceChanged, SIThreshold, tUseCaches, nIRef, signsRef, exLvlRef, tSuppressSIOutput, &
-     targetRefPop, lastAllNoatHF, lastNRefs, tVariableNRef
+     targetRefPop, lastAllNoatHF, lastNRefs, tVariableNRef, maxNRefs
 use CalcData, only: InitiatorWalkNo
 use bit_rep_data, only: niftot, nifdbo, extract_sign
 use bit_reps, only: decode_bit_det
@@ -84,9 +84,6 @@ contains
                "Using only the reference determinant as superinitiator")
        endif
 
-       ! remove all SIs with too little population
-       call apply_population_threshold()
-
        ! Fill the hashtable for the SIs
        call assign_SIHash_TZero()
 
@@ -163,44 +160,130 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine generate_ref_space()
-      use semi_stoch_gen, only: generate_space_most_populated
       use LoggingData, only: ref_filename, tWriteRefs
       implicit none
-      integer(MPIArg) :: mpi_refs_found
-      integer :: ierr, i, all_refs_found, refs_found
-      integer(MPIArg) :: refs_found_per_proc(0:nProcessors-1), refs_displs(0:nProcessors-1)
-      integer(n_int) :: ref_buf(0:NIfTot,nRefs), mpi_buf(0:NIfTot,nRefs)
+      integer :: refs_found, all_refs_found
+      integer(n_int) :: ref_buf(0:NIfTot,maxNRefs), si_buf(0:NIfTot,maxNRefs)
       character(*), parameter :: this_routine = "generate_ref_space"
-      
-      write(6,*) "Getting reference determinants for all-doubs-initiators"
 
+      call get_threshold_based_SIs(ref_buf,refs_found)
+
+      ! communicate the SIs
+      call communicate_threshold_based_SIs(si_buf,ref_buf,refs_found,all_refs_found)
+
+      ! And write the so-merged references to ilutRef
       ! we need to be sure ilutRefAdi has the right size
+      nRefs = all_refs_found
       call reallocate_ilutRefAdi(nRefs)
+      call set_additional_references(si_buf(0:NIfTot,1:nRefs))
 
-      ! Get the nRefs most populated determinants
+      write(6,*) "Getting superinitiators for all-doubs-initiators: ", nRefs, " SIs found"
+
+      if(tWriteRefs) call output_reference_space(ref_filename)
+    end subroutine generate_ref_space
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine get_threshold_based_SIs(ref_buf,refs_found)
+      use DetBitOps, only: sign_lt, sign_gt
+      use sort_mod, only: sort
+      implicit none
+      integer(n_int), intent(out) :: ref_buf(0:NIfTot,maxNRefs)
+      integer, intent(out) :: refs_found
+      integer(n_int), allocatable :: tmp(:,:)
+      integer :: i, nBlocks
+      integer, parameter :: blockSize = 5000
+      real(dp) :: sgn(lenof_sign)
+      
+      ref_buf = 0
       refs_found = 0
-      call generate_space_most_populated(nRefs, .false., 1, ref_buf, refs_found)
+      nBlocks = 1
+
+      allocate(tmp(0:NIfTot,blockSize))
+
+      do i = 1, TotWalkers
+         call extract_sign(CurrentDets(:,i),sgn)
+         if((av_pop(sgn) .ge. NoTypeN)) then
+            refs_found = refs_found + 1
+
+            ! If the temporary is full, resize it
+            if(refs_found > nBlocks*blockSize) then
+               nBlocks = nBlocks + 1 
+               call resize_ilut_list(tmp,(nBlocks - 1)*blockSize,nBlocks*blockSize)
+            endif
+
+            ! add the possible SI to the temporary
+            tmp(:,refs_found) = CurrentDets(:,i)
+         endif
+      end do
+
+      ! we only keep at most maxNRefs determinants
+      if(refs_found > maxNRefs) then
+         ! in case we found more, take the maxNRefs with the highest population
+         call sort(tmp(0:NIfTot,1:refs_found),sign_lt,sign_gt)
+         ref_buf(:,1:maxNRefs) = tmp(:,1:maxNRefs)
+      else
+         ! else, take all of them
+         ref_buf(:,1:refs_found) = tmp(:,1:refs_found)
+      endif
+
+      deallocate(tmp)
+    end subroutine get_threshold_based_SIs
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine communicate_threshold_based_SIs(si_buf,ref_buf,refs_found,all_refs_found)
+      use semi_stoch_procs, only: return_largest_indices
+      implicit none
+      integer(n_int), intent(out) :: si_buf(0:NIfTot,maxNRefs)
+      integer(n_int), intent(in) :: ref_buf(0:NIfTot,maxNRefs)
+      integer, intent(in) :: refs_found
+      integer, intent(out) :: all_refs_found
+      integer(n_int), allocatable :: mpi_buf(:,:)
+      integer(MPIArg) :: refs_found_per_proc(0:nProcessors-1), refs_displs(0:nProcessors-1)
+      integer(MPIArg) :: mpi_refs_found
+      integer :: ierr, i
+      integer :: largest_inds(maxNRefs)
+      real(dp), allocatable :: buf_signs(:)
+      real(dp) :: tmp_sgn(lenof_sign)
+
+      ! here, we gather the potential SIs found by the procs and gather them
       ! Communicate the refs_found info
       mpi_refs_found = int(refs_found,MPIArg)
       call MPIAllGather(mpi_refs_found, refs_found_per_proc, ierr)
+      ! total number of SI candiates
       all_refs_found = sum(refs_found_per_proc)
-      if(all_refs_found .ne. nRefs) then
-         write(6,*) "all_refs_found = ", all_refs_found
-         call stop_all(this_routine, &
-           "Number of references found differs from requested")
-      endif
       refs_displs(0) = 0
       do i = 1, nProcessors - 1
          refs_displs(i) = sum(refs_found_per_proc(0:i-1))
       enddo
       ! Store them on all processors
+      allocate(mpi_buf(0:NIfTot,all_refs_found), stat = ierr)
       call MPIAllGatherV(ref_buf(0:NIfTot, 1:refs_found), mpi_buf, refs_found_per_proc, refs_displs)
 
-      ! And write the so-merged references to ilutRef
-      call set_additional_references(mpi_buf)
-
-      if(tWriteRefs) call output_reference_space(ref_filename)
-    end subroutine generate_ref_space
+      ! now, if we have have more than the maximum number of potential SIs, take the
+      ! most populated only
+      if(all_refs_found > maxNRefs) then
+         ! get the indices of the largest elements in the communicated buffer
+         ! first, extract the signs
+         allocate(buf_signs(all_refs_found), stat = ierr)
+         do i = 1, all_refs_found
+            call extract_sign(mpi_buf(:,i),tmp_sgn)
+            buf_signs(i) = sum(abs(tmp_sgn))
+         enddo
+         ! then get the indices
+         call return_largest_indices(maxNRefs,all_refs_found,buf_signs,largest_inds)
+         ! and then copy those elements to the output buffer
+         do i = 1, maxNRefs
+            si_buf(0:NIfTot,i) = mpi_buf(0:NIfTot,largest_inds(i))
+         enddo
+      else
+         ! else, take all elements
+         si_buf(0:NIfTot,1:all_refs_found) = mpi_buf(0:NIfTot,1:all_refs_found)
+      endif
+      
+      deallocate(mpi_buf)
+    end subroutine communicate_threshold_based_SIs
 
 !------------------------------------------------------------------------------------------!
 
@@ -272,7 +355,7 @@ contains
       ! first, check for each SI if it meets the minimum population
       do iRef = 1, nRefs
          call extract_sign(ilutRefAdi(:,iRef),sgn)
-         if(sum(abs(sgn))/inum_runs .ge. NoTypeN) then
+         if(av_pop(sgn) .ge. NoTypeN) then
             tmp(:,counter) = ilutRefAdi(:,iRef)
             counter = counter + 1
          endif
@@ -286,7 +369,6 @@ contains
          call resize_ilutRefAdi(counter)
 
          ! give a notification
-         write(6,*) "Warning: Underpopulated superinitiators. Reducing the number of superinitiators to ", counter
       endif
             
     end subroutine apply_population_threshold
@@ -375,7 +457,7 @@ contains
       ! output and in generating the product excitations
       use bit_reps, only: decode_bit_det, encode_sign
       use hash, only: hash_table_lookup
-      use FciMCData, only: CurrentDets, HashIndex
+      use FciMCData, only: HashIndex
       use Parallel_neci, only: MPISumAll
       implicit none
       integer, intent(in) :: iRef

@@ -34,7 +34,8 @@ MODULE Calc
          tProductReferences, tAccessibleDoubles, tAccessibleSingles, tInitiatorsSubspace, &
          tReferenceChanged, superInitiatorLevel, allDoubsInitsDelay, tStrictCoherentDoubles, &
          tWeakCoherentDoubles, tAvCoherentDoubles, coherenceThreshold, SIThreshold, &
-         tSuppressSIOutput, targetRefPop, targetRefPopTol, tSingleSteps, tVariableNRef
+         tSuppressSIOutput, targetRefPop, targetRefPopTol, tSingleSteps, tVariableNRef, &
+         maxNRefs
     use ras_data, only: core_ras, trial_ras
     use load_balance, only: tLoadBalanceBlocks
     use ftlm_neci
@@ -341,9 +342,10 @@ contains
           tSetDelayAllSingsInits = .false.
           tSetDelayAllDoubsInits = .false.
           ! By default, we have one reference for the purpose of all-doubs-initiators
-          nRefsDoubs = 1
-          nRefsSings = 1
+          nRefsDoubs = 400
+          nRefsSings = 400
           nRefs = 1
+          maxNRefs = 1
           targetRefPop = 1000
           targetRefPopTol = 80
           tVariableNref = .false.
