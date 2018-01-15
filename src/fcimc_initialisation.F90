@@ -3532,12 +3532,13 @@ contains
       ! We initialize the flags for the adi feature
       use adi_data, only: tSetDelayAllDoubsInits, tSetDelayAllSingsInits, tDelayAllDoubsInits, &
            tDelayAllSingsInits, tAllDoubsInitiators, tAllSingsInitiators, tDelayGetRefs, &
-           NoTypeN, nRefs, nRefsSings, nRefsDoubs, tReadRefs, tInitiatorsSubspace, maxNRefs
+           NoTypeN, nRefs, tReadRefs, tInitiatorsSubspace, maxNRefs, nRefsSings, nRefsDoubs
       use CalcData, only: InitiatorWalkNo
       use adi_references, only: enable_adi, reallocate_ilutRefAdi, setup_SIHash
       implicit none
 
-      maxNRefs = max(nRefsDoubs, nRefsSings)
+      maxNRefs = max(nRefsSings,nRefsDoubs)
+
       call reallocate_ilutRefAdi(maxNRefs)
 
       ! If using adi with dynamic SIs, also use a dynamic corespace by default

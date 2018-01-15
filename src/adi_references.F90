@@ -2,7 +2,7 @@
 module adi_references
 use Parallel_neci
 use FciMCData, only: ilutRef, TotWalkers, CurrentDets
-use adi_data, only: ilutRefAdi, nRefs, nIRef, signsRef, nRefsSings, nRefsDoubs, &
+use adi_data, only: ilutRefAdi, nRefs, nIRef, signsRef, &
      nTZero, SIHash, tAdiActive, tSetupSIs, NoTypeN, superInitiatorLevel, tSetupSIs, &
      tReferenceChanged, SIThreshold, tUseCaches, nIRef, signsRef, exLvlRef, tSuppressSIOutput, &
      targetRefPop, lastAllNoatHF, lastNRefs, tVariableNRef, maxNRefs
@@ -26,8 +26,6 @@ contains
     implicit none
     logical, intent(in) :: tPopPresent
     if(tAdiActive) then
-       ! A first guess at the number of references
-       nRefs = max(nRefsDoubs, nRefsSings)
        call update_reference_space(tPopPresent)
     endif
   end subroutine setup_reference_space
@@ -150,11 +148,6 @@ contains
     enddo
 
     close(iunit)
-    ! If we read in less than nRefs detererminants, we want to get more later
-    if(nRead < max(nRefsSings, nRefsDoubs) .and. .not. tPopPresent) then
-       tDelayGetRefs = .true.
-       nRefs = nRead
-    endif
   end subroutine read_in_refs
 
 !------------------------------------------------------------------------------------------!
@@ -175,7 +168,7 @@ contains
       ! we need to be sure ilutRefAdi has the right size
       nRefs = all_refs_found
       call reallocate_ilutRefAdi(nRefs)
-      call set_additional_references(si_buf(0:NIfTot,1:nRefs))
+      ilutRefAdi(0:NIfTot,1:nRefs) = si_buf(0:NIfTot,1:nRefs)
 
       write(6,*) "Getting superinitiators for all-doubs-initiators: ", nRefs, " SIs found"
 
@@ -200,6 +193,7 @@ contains
       nBlocks = 1
 
       allocate(tmp(0:NIfTot,blockSize))
+      tmp = 0
 
       do i = 1, TotWalkers
          call extract_sign(CurrentDets(:,i),sgn)
@@ -222,6 +216,7 @@ contains
          ! in case we found more, take the maxNRefs with the highest population
          call sort(tmp(0:NIfTot,1:refs_found),sign_lt,sign_gt)
          ref_buf(:,1:maxNRefs) = tmp(:,1:maxNRefs)
+         refs_found = maxNRefs
       else
          ! else, take all of them
          ref_buf(:,1:refs_found) = tmp(:,1:refs_found)
@@ -247,6 +242,7 @@ contains
       real(dp), allocatable :: buf_signs(:)
       real(dp) :: tmp_sgn(lenof_sign)
 
+      si_buf = 0
       ! here, we gather the potential SIs found by the procs and gather them
       ! Communicate the refs_found info
       mpi_refs_found = int(refs_found,MPIArg)
@@ -277,6 +273,8 @@ contains
          do i = 1, maxNRefs
             si_buf(0:NIfTot,i) = mpi_buf(0:NIfTot,largest_inds(i))
          enddo
+         ! make it look to the outside as though maxNRefs were found
+         all_refs_found = maxNRefs
       else
          ! else, take all elements
          si_buf(0:NIfTot,1:all_refs_found) = mpi_buf(0:NIfTot,1:all_refs_found)
@@ -284,63 +282,6 @@ contains
       
       deallocate(mpi_buf)
     end subroutine communicate_threshold_based_SIs
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine set_additional_references(mpi_buf)
-      use DetBitOps, only: DetBitEQ, sign_lt, sign_gt
-      use sort_mod, only: sort
-      implicit none
-      integer(n_int), intent(inout) :: mpi_buf(0:NIfTot,nRefs)
-      integer :: i, k
-      integer(n_int) :: tmp_ilut(0:NIfTot)
-      real(dp) :: minOcc, tmp_sgn(lenof_sign)
-      logical :: get_sign
-
-      get_sign = .false.
-      ! Check if the current reference is in mpi_buf
-      ! k is the index of the current reference (-1 if not present)
-      k = -1
-      do i = 1, nRefs
-         if(DetBitEQ(ilutRef(:,1),mpi_buf(:,i),NIfDBO)) k = i
-      enddo
-      
-      ! If the reference is not at pos. 1, move it there
-      if(k .ne. -1) then 
-         ! If k==1, everything is already alright, nothing to do here
-         if(k > 1) then
-            tmp_ilut = mpi_buf(:,k)
-            mpi_buf(:,k) = mpi_buf(:,1)
-            mpi_buf(:,1) = tmp_ilut
-         endif
-      else
-         ! if it is not even in mpi_buf, replace the lowest populated det
-         ! in the buffer with it
-         k = 1
-         call extract_sign(mpi_buf(:,1), tmp_sgn)
-         minOcc = sum(abs(tmp_sgn))
-         do i = 2, nRefs
-            call extract_sign(mpi_buf(:,i),tmp_sgn)
-            if(sum(abs(tmp_sgn)) < minOcc) k = i
-         enddo
-         tmp_ilut = mpi_buf(:,1)
-         mpi_buf(:,1) = ilutRef(:,1)
-         if(k > 1) mpi_buf(:,k) = tmp_ilut
-         ! also, we now have to obtain the sign for the ilutref anew as ilutref does not
-         ! contain a sign
-         get_sign = .true.
-      endif
-      ! Now we have the main reference at position 1
-
-      ! Then sort the buffer with respect to sign (but keep the original reference at pos. 1
-      call sort(mpi_buf(:,2:), sign_gt, sign_lt)
-
-      ! Copy the buffer to ilutRef
-      ilutRefAdi(:,1:nRefs) = mpi_buf(:,1:nRefs)
-
-      ! if needed, update the signs of ilutRefAdi
-      if(get_sign) call update_ref_signs()
-    end subroutine set_additional_references
 
 !------------------------------------------------------------------------------------------!
 
