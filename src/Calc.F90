@@ -1395,6 +1395,7 @@ contains
             case("FIXED-N0")
                 tFixedN0 = .true.
                 StepsSft = 1
+                tSkipRef = .true.
             case("EXITWALKERS")
 !For FCIMC, this is an exit criterion based on the total number of walkers in the system.
                 call getiLong(iExitWalkers)

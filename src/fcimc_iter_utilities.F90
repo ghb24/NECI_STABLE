@@ -679,7 +679,7 @@ contains
 
         !The reference det is allowed to be fixed only when the shift is settup
         !correctly.
-        tSkipRef = .False.
+        !tSkipRef = .False.
 
         ! Normally we allow the shift to vary depending on the conditions
         ! tested. Sometimes we want to defer this to the next cycle...
@@ -851,15 +851,6 @@ contains
                     DiagSftIm(run) = DiagSftIm(run) - (log(AllGrowRateIm(run)-TargetGrowRate(run)) * SftDamp) / &
                                                 (Tau * StepsSft)
 #endif
-                    if(tFixedN0)then
-                        !Use the projected energy as the shift to fix the
-                        !population of the reference det and thus reduce the
-                        !fluctuations of the projected energy.
-                        DiagSft(run) = (AllENumCyc(run)) / (AllHFCyc(run))+proje_ref_energy_offsets(run)
-                        !Keep the population of reference det fixed.
-                        tSkipRef = .True.
-                     end if
-
                     ! Update the shift averages
                     if ((iter - VaryShiftIter(run)) >= nShiftEquilSteps) then
                         if ((iter-VaryShiftIter(run)-nShiftEquilSteps) < StepsSft) &
@@ -921,6 +912,16 @@ contains
                         AbsProjE(run) = (AllENumCycAbs(run)) / (all_cyc_proje_denominator(run)) &
                                       + proje_ref_energy_offsets(run)
                 endif
+
+                if(tFixedN0)then
+                    !Use the projected energy as the shift to fix the
+                    !population of the reference det and thus reduce the
+                    !fluctuations of the projected energy.
+                    DiagSft(run) = (AllENumCyc(run)) / (AllHFCyc(run))+proje_ref_energy_offsets(run)
+                    !Keep the population of reference det fixed.
+                    tSkipRef = .True.
+                 end if
+
                 ! If we are re-zeroing the shift
                 if (tReZeroShift(run)) then
                     DiagSft(run) = 0.0_dp
