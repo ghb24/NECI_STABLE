@@ -13,7 +13,7 @@ module fcimc_initialisation
                           tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
                           tUEGNewGenerator, tGen_4ind_2, tReltvy, t_new_real_space_hubbard, &
                           t_lattice_model, t_tJ_model, t_heisenberg_model, & 
-                          t_k_space_hubbard, t_3_body_excits
+                          t_k_space_hubbard, t_3_body_excits, omega
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use dSFMT_interface, only: dSFMT_init
     use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
@@ -154,6 +154,7 @@ module fcimc_initialisation
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
     use tj_model, only: init_get_helement_tj, init_get_helement_heisenberg
     use k_space_hubbard, only: init_get_helement_k_space_hub
+    use OneEInts, only: tmat2d
 
     implicit none
 
@@ -1446,7 +1447,6 @@ contains
 
         ENDIF   !End if initial walkers method
 
-            
 !Put a barrier here so all processes synchronise
         CALL MPIBarrier(error)
 

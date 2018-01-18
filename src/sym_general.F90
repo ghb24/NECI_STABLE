@@ -273,6 +273,7 @@ contains
         ! Check that both determinants have the same overall symmetry
         sym_prod_i = 0
         sym_prod_j = 0
+
         !todo: maybe i also have to exclude the k-space hubbard case here!
         if (.not. (t_new_real_space_hubbard .or.t_tJ_model .or. t_heisenberg_model)) then 
             do i = 1, nel

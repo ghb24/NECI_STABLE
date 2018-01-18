@@ -29,8 +29,10 @@ program test_k_space_hubbard
     use fcimcdata, only: pDoubles, pParallel
     use DetBitOps, only: ilut_lt, ilut_gt
     use sort_mod, only: sort
-    use util_mod, only: choose 
+    use util_mod, only: choose, get_free_unit
     use bit_reps, only: decode_bit_det
+    use Determinants, only: get_helement
+    use SymExcitDataMod, only: kTotal
 
     implicit none 
 
@@ -50,6 +52,8 @@ program test_k_space_hubbard
     call init_fruit()
     call dsfmt_init(0)
 
+    ! misuse the unit tests for now to also do an exact study.. 
+    call exact_study() 
     ! run the test-driver 
     call k_space_hubbard_test_driver()
     call fruit_summary()
@@ -59,6 +63,71 @@ program test_k_space_hubbard
     if (failed_count /= 0) stop -1 
 
 contains 
+
+    subroutine exact_study
+
+        integer, allocatable :: hilbert_space(:,:), nI(:)
+        real(dp) :: J, U
+        real(dp), allocatable :: J_vec(:) 
+        integer :: i 
+
+        call init_k_space_unit_tests()
+
+        ! i have to define the lattice here.. 
+        lat => lattice('chain', 8, 1, 1,.true.,.true.,.true.,'k-space')
+
+        J = -1.0
+
+        U = 12.0
+
+        J_vec = linspace(-2.0,2.0, 20)
+
+        nel = 6
+        allocate(nI(nel))
+!         nI = [(i, i = 1,nel)]
+        nI = [1,2,3,4,5,6]
+!         nI = [5,6,7,8,9,10]
+
+        call setup_system(lat, nI, J, U, hilbert_space)
+        ! the hilbert space does not change.. and also the original does 
+        ! not depend on J.. 
+        print *, "k-vector : ", kTotal
+
+        call exact_transcorrelation(lat, nI, J_vec, U, hilbert_space) 
+
+        call stop_all("here", "now")
+
+    end subroutine exact_study
+    
+    subroutine setup_system(in_lat, nI, J, U, hilbert_space) 
+        class(lattice), intent(in) :: in_lat
+        integer, intent(in) :: nI(:) 
+        real(dp), intent(in) :: J, U
+        integer, intent(out), allocatable, optional :: hilbert_space(:,:)
+
+        integer :: i, n_states
+        integer(n_int), allocatable :: dummy(:,:) 
+
+        bhub = -1.0_dp
+        nel = size(nI)
+
+        nOccBeta = 0 
+        nOccAlpha = 0 
+
+        do i = 1, nel 
+            if (is_beta(nI(i)))  nOccBeta = nOccBeta + 1
+            if (is_alpha(nI(i))) nOccAlpha = nOccAlpha + 1
+        end do
+
+        call setup_all(in_lat, J, U) 
+
+        call setup_k_total(nI) 
+
+        if (present(hilbert_space)) then
+            call create_hilbert_space(nI, n_states, hilbert_space, dummy, gen_all_excits_k_space_hubbard) 
+        end if
+
+    end subroutine setup_system
 
     subroutine init_k_space_unit_tests()
         ! since there is so much annoying outside dependency, mainly due to 
@@ -148,7 +217,7 @@ contains
         call run_test_case(test_4e_ms1, "test_4e_ms1")
         call run_test_case(test_4e_ms0_mom_1, "test_4e_ms0_mom_1")
         call run_test_case(test_3e_ms1, "test_3e_ms1")
-        call run_test_case(test_8e_8orbs, "test_8e_8orbs")
+!         call run_test_case(test_8e_8orbs, "test_8e_8orbs")
         call run_test_case(test_general, "test_general")
 
         call run_test_case(get_diag_helement_k_sp_hub_test, "get_diag_helement_k_sp_hub_test")
@@ -343,7 +412,7 @@ contains
     end subroutine test_4e_ms0_mom_1
 
     function calc_eigenvalues(matrix) result(e_values)
-        real(dp) :: matrix(:,:) 
+        real(dp), intent(in) :: matrix(:,:) 
         real(dp) :: e_values(size(matrix,1))
 
         integer :: n, info, work(3*size(matrix,1))
@@ -359,6 +428,36 @@ contains
 
     end function calc_eigenvalues
 
+    subroutine eig(matrix, e_values, e_vectors) 
+        ! for very restricted matrices do a diag routine here! 
+        real(dp), intent(in) :: matrix(:,:) 
+        real(dp), intent(out) :: e_values(size(matrix,1))
+        real(dp), intent(out), optional :: e_vectors(size(matrix,1),size(matrix,1))
+
+        ! get the specifics for the eigenvectors still.. 
+        ! i think i need a bigger work, and maybe also a flag for how many 
+        ! eigenvectors i want.. maybe also the number of eigenvalues.. 
+        integer :: n, info 
+        real(dp) :: work(4*size(matrix,1)), tmp_matrix(size(matrix,1),size(matrix,2))
+        real(dp) :: dummy_vec(1,size(matrix,1)), dummy(size(matrix,1))
+
+
+        ! and convention is: we only want the right eigenvectors!!
+        ! and always assume real-only eigenvalues
+        if (present(e_vectors)) then 
+
+            n = size(matrix,1)
+
+            tmp_matrix = matrix 
+
+            call dgeev('N','V',n,tmp_matrix, n, e_values, dummy, dummy_vec, & 
+                1, e_vectors, n, work, 4*n, info)
+
+        else
+            e_values = calc_eigenvalues(matrix)
+        end if
+    end subroutine eig
+
     function create_hamiltonian(list_nI) result(hamil) 
         ! quite specific hamiltonian creation for my tests.. 
         integer, intent(in) :: list_nI(:,:) 
@@ -373,6 +472,24 @@ contains
         end do
 
     end function create_hamiltonian
+
+    function create_hamiltonian_old(list_nI) result(hamil) 
+        ! try to also create the hamiltonian with the old implementation.. 
+        ! although i think there needs to be more setup done.. 
+        integer, intent(in) :: list_nI(:,:)
+        HElement_t(dp) :: hamil(size(list_nI,2),size(list_nI,2))
+
+        integer :: i, j 
+
+        t_lattice_model = .false.
+        do i = 1, size(list_nI,2)
+            do j = 1, size(list_nI,2)
+                hamil(i,j) = get_helement(list_nI(:,j),list_nI(:,i))
+            end do
+        end do
+        t_lattice_model = .true.
+
+    end function create_hamiltonian_old
 
     subroutine print_matrix(matrix, iunit) 
         ! print a 2-D real matrix 
@@ -636,7 +753,8 @@ contains
         ! i need to construct exp(eigenvalues) as a diagonal matrix! 
         exp_diag = matrix_diag(exp(values))
 
-        exp_matrix = matmul(matmul(vectors,exp_diag),inverse)
+        exp_matrix = blas_matmul(blas_matmul(vectors,exp_diag),inverse)
+!         exp_matrix = matmul(matmul(vectors,exp_diag),inverse)
         
     end function matrix_exponential
 
@@ -678,14 +796,19 @@ contains
 
     end function matrix_inverse
 
-    subroutine setup_all(ptr)
+    subroutine setup_all(ptr, J, U)
         class(lattice), intent(in) :: ptr
+        real(dp), intent(in), optional :: J, U
 
 
         nBasisMax = 0
         nullify(G1)
         nullify(tmat2d)
         deallocate(kPointToBasisFn)
+
+        if (trim(ptr%get_name()) == 'tilted') then 
+            ttilt = .true. 
+        end if
 
         call setup_nbasismax(ptr)
         call setup_g1(ptr)
@@ -694,17 +817,321 @@ contains
 !         call setup_k_space_hub_sym(ptr)
 
         omega = real(ptr%get_nsites(),dp)
+        print *, "omega: ", omega
         nBasis = 2*ptr%get_nsites()
 
-!         allocate(umat(1))
-        uhub = 1.0
         bhub = -1.0
+
+        if (present(U)) then 
+            uhub = U 
+        else 
+            uhub = 1.0
+        end if
+
         umat = h_cast(real(uhub,dp)/real(omega,dp))
 
-        trans_corr_param_2body = 0.1
+        if (present(J)) then 
+            trans_corr_param_2body = J 
+        else 
+            trans_corr_param_2body = 0.1
+        end if
+
         three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
 
+        ! after setup everything should be fine again.. or?
+        ttilt = .false. 
+
     end subroutine setup_all
+
+    subroutine exact_transcorrelation(lat_ptr, nI, J, U, hilbert_space_opt) 
+        class(lattice), pointer, intent(in) :: lat_ptr 
+        integer, intent(in) :: nI(:) 
+        real(dp), intent(in) :: J(:), U 
+        integer, intent(in), optional :: hilbert_space_opt(:,:)
+        character(*), parameter :: this_routine = "exact_transcorrelation" 
+
+        integer :: i, iunit, n_states, ind, k
+        HElement_t(dp), allocatable :: hamil(:,:), hamil_trans(:,:), hamil_neci(:,:), &
+                                       hamil_next(:,:), hamil_neci_next(:,:)
+        real(dp), allocatable :: e_values(:), e_values_neci(:), e_vec(:,:), gs_vec(:)
+        real(dp), allocatable :: e_vec_trans(:,:), t_mat_next(:,:), e_vec_next(:,:)
+        real(dp) :: gs_energy, gs_energy_orig, hf_coeff_onsite(size(J))
+        real(dp) :: hf_coeff_next(size(J)), hf_coeff_orig
+        real(dp), allocatable :: neci_eval(:)
+        integer, allocatable :: hilbert_space(:,:)
+        character(30) :: filename, J_str
+        
+        ! then create the hilbert space 
+        ! although make this an option to input it.. because i only 
+        ! need to do that once actually.. 
+        if (present(hilbert_space_opt)) then 
+            ! if hilbert space is provided everything else should also be 
+            ! setup already.. 
+            allocate(hilbert_space(nel, size(hilbert_space_opt,2)), source = hilbert_space_opt)
+            n_states = size(hilbert_space_opt,2)
+        else
+            call setup_system(lat_ptr, nI, J(1), U, hilbert_space) 
+            n_states = size(hilbert_space,2) 
+        end if
+
+        print *, "total number of states: ", n_states 
+        print *, "creating original hamiltonian: "
+        t_trans_corr_2body = .false.
+        hamil = create_hamiltonian(hilbert_space)
+
+        print *, "diagonalizing original hamiltonian: " 
+        allocate(e_values(n_states));        e_values = 0.0_dp
+        allocate(e_vec(n_states, n_states)); e_vec = 0.0_dp
+        allocate(gs_vec(n_states));          gs_vec = 0.0_dp
+        call eig(hamil, e_values, e_vec) 
+
+        ! find the ground-state
+        ind = minloc(e_values,1) 
+        gs_energy_orig = e_values(ind) 
+
+        ! how do i need to access the vectors to get the energy? 
+        ! eigenvectors are stored in the columns!!
+        gs_vec = abs(e_vec(:,ind))
+
+        call sort(gs_vec)
+
+        ! and flip order.. 
+        gs_vec = gs_vec(n_states:1:-1)
+
+        ! and i think i want the sorted by maximum of the GS
+        print *, "original ground-state energy: ", gs_energy_orig
+        ! and write the ground-state-vector to a file 
+        iunit = get_free_unit()
+        open(iunit, file = 'gs_vec_orig') 
+        do i = 1, n_states
+            write(iunit, *) gs_vec(i)
+        end do
+        close(iunit) 
+
+        allocate(e_vec_trans(n_states, size(J)))
+        e_vec_trans = 0.0_dp 
+        allocate(e_vec_next(n_states, size(J)))
+        e_vec_next = 0.0_dp
+
+        hf_coeff_onsite = 0.0_dp
+        hf_coeff_next = 0.0_dp
+
+        ! also test that for the nearest neighbor transcorrelation 
+        t_mat_next = get_tmat_next(lat_ptr, hilbert_space) 
+
+        do i = 1, size(J) 
+            print *, "J = ", J(i), ", U = ", U 
+
+            write(J_str, *) J(i) 
+            filename = 'gs_vec_trans_J_' // trim(adjustl((J_str)))
+
+            trans_corr_param_2body = J(i)
+            three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+
+            print *, "creating transformed hamiltonian: "
+            hamil_trans = similarity_transform(hamil) 
+            
+            print *, "creating transformed hamiltonian with neighbor interaction" 
+            hamil_next = similarity_transform(hamil, J(i) * t_mat_next)
+
+            print *, "(and for testing purposes also create the neci-transcorrelated hamiltonian)"
+            t_trans_corr_2body = .true.
+            hamil_neci = create_hamiltonian(hilbert_space)
+            t_trans_corr_2body = .false. 
+
+            print *, "also test the the neighbor correlated neci hamiltonian" 
+            
+            t_trans_corr = .true. 
+            trans_corr_param = J(i)*2.0
+            hamil_neci_next = create_hamiltonian(hilbert_space) 
+            t_trans_corr = .false. 
+
+            neci_eval = calc_eigenvalues(hamil_neci)
+
+            if (abs(gs_energy_orig - minval(neci_eval)) > 1.0e-12) then 
+                print *, "original hamiltonian: "
+                call print_matrix(hamil)
+                print *, "on-site transcorr hamiltonian neci: "
+                call print_matrix(hamil_neci)
+                print *, "on-site transcorr transformed: "
+                call print_matrix(hamil_trans)
+                print *, "orig E0:    ", gs_energy_orig
+                print *, "on-site E0: ", minval(neci_eval)
+
+                call stop_all("here", "on-site transcorrelated energy not correct!")
+            end if
+
+            neci_eval = calc_eigenvalues(hamil_neci_next) 
+
+            if (abs(gs_energy_orig - minval(neci_eval)) > 1.0e-12) then
+                print *, "original hamiltonian: " 
+                call print_matrix(hamil)
+                print *, "neighbor transcorr neci: " 
+                call print_matrix(hamil_neci_next) 
+                print *, "neighbor transvorr transformed: " 
+                call print_matrix(hamil_next) 
+
+                print *, "orig E0:      ", gs_energy_orig
+                print *, "next-site E0: ", minval(neci_eval)
+                call stop_all("here", "neighbor transcorrelated energy not correct!")
+            end if
+
+            print *, "diagonalizing the transformed hamiltonian: " 
+            call eig(hamil_trans, e_values, e_vec) 
+
+            ! find the ground-state
+            ind = minloc(e_values,1) 
+            gs_energy = e_values(ind) 
+            print *, "transformed ground-state energy: ", gs_energy 
+
+            if (abs(gs_energy - gs_energy_orig) > 1.e-12) then 
+                call stop_all("HERE!", "energy incorrect!")
+            end if
+            ! how do i need to access the vectors to get the energy? 
+            gs_vec = abs(e_vec(:,ind))
+            call sort(gs_vec)
+
+            gs_vec = gs_vec(n_states:1:-1)
+
+            hf_coeff_onsite(i) = gs_vec(1)
+
+            e_vec_trans(:,i) = gs_vec
+            ! and write the ground-state-vector to a file 
+!             iunit = get_free_unit()
+!             open(iunit, file = filename)
+!             do k = 1, n_states
+!                 write(iunit, *) gs_vec(k)
+!             end do
+!             close(iunit) 
+
+            print *, "diagonalizing the neighbor transformed hamiltonian" 
+            call eig(hamil_next, e_values, e_vec) 
+            ind = minloc(e_values,1) 
+            gs_energy = e_values(ind) 
+            print *, "neighbor transformed ground-state energy: ", gs_energy 
+
+            if (abs(gs_energy - gs_energy_orig) > 1.e-12) then 
+                call stop_all("HERE!", "energy incorrect!")
+            end if
+
+            ! how do i need to access the vectors to get the energy? 
+            gs_vec = abs(e_vec(:,ind))
+            call sort(gs_vec)
+
+            gs_vec = gs_vec(n_states:1:-1)
+
+            hf_coeff_next(i) = gs_vec(1)
+
+            e_vec_next(:,i) = gs_vec
+
+         end do
+
+        iunit = get_free_unit() 
+        open(iunit, file = "hf_coeff_onsite")
+        do i = 1, size(J)
+            write(iunit, *) J(i), hf_coeff_onsite(i)
+        end do
+
+        iunit = get_free_unit()
+        open(iunit, file = "hf_coeff_next")
+        do i = 1, size(J) 
+            write(iunit, *) J(i), hf_coeff_next(i)
+        end do
+
+        ! maybe plot all transformed into one file.. 
+        iunit = get_free_unit() 
+        open(iunit, file = "gs_vec_trans")
+        ! the important quantitiy is J over U i guess or? 
+        ! i am not sure.. 
+        write(iunit, *) "# J: ", J
+        do i = 1, n_states 
+            write(iunit, *) e_vec_trans(i,:)
+        end do
+        close(iunit)
+
+        open(iunit, file = "gs_vec_next")
+        write(iunit, *) "# J: ", J 
+        do i = 1, n_states
+            write(iunit, *) e_vec_next(i,:) 
+        end do
+
+    end subroutine exact_transcorrelation
+
+    function get_tmat_next(lat_ptr, hilbert_space) result(t_mat)
+        ! in the k-space this essentially only is J*\sum_k \epsilon(k) n_k
+        ! which is the setup tmat divided by 2
+        class(lattice), pointer, intent(in) :: lat_ptr 
+        integer, intent(in) :: hilbert_space(:,:) 
+        real(dp) :: t_mat(size(hilbert_space,2),size(hilbert_space,2))
+
+        integer :: i 
+
+        t_mat = 0.0_dp 
+
+        do i = 1, size(hilbert_space,2)
+            t_mat(i,i) = sum(GetTMatEl(hilbert_space(:,i),hilbert_space(:,i))) / real(bhub,dp)
+        end do
+
+
+
+    end function get_tmat_next 
+
+
+    function linspace(start_val, end_val, n_opt) result(vec) 
+        real(dp), intent(in) :: start_val, end_val 
+        integer, intent(in), optional :: n_opt
+        real(dp), allocatable :: vec(:) 
+
+        integer :: n, i 
+        real(dp) :: dist 
+
+        ! set default 
+        if (present(n_opt)) then 
+            n = n_opt
+        else 
+            n = 100
+        end if
+
+        dist = (end_val - start_val) / real(n - 1, dp) 
+
+        allocate(vec(n)) 
+
+        vec = [ ( start_val + i * dist, i = 0,n-1)]
+
+    end function linspace 
+
+    function similarity_transform(H, t_mat_opt) result(trans_H)
+        HElement_t(dp), intent(in) :: H(:,:)
+        real(dp), intent(in), optional :: t_mat_opt(:,:)
+        real(dp) :: trans_H(size(H,1),size(H,2))
+
+        real(dp) :: t_mat(size(H,1),size(H,2))
+
+        if (present(t_mat_opt)) then 
+            t_mat = t_mat_opt
+        else
+            ! otherwise assume the on-site correlation factor is used
+            t_mat = get_tranformation_matrix(H, nOccAlpha*nOccBeta) 
+        end if
+
+        trans_H = blas_matmul(blas_matmul(matrix_exponential(-t_mat), H), matrix_exponential(t_mat))
+
+!         trans_H = matmul(matmul(matrix_exponential(-t_mat),H),matrix_exponential(t_mat))
+
+    end function similarity_transform
+
+    function blas_matmul(A, B) result(C)
+        ! a basic wrapper to the most fundamental matrix mult with blas 
+        real(dp), intent(in) :: A(:,:), B(:,:) 
+        real(dp) :: C(size(A,1),size(A,2))
+
+        integer :: n 
+
+        n = size(A,1) 
+
+        call dgemm('N', 'N', n, n, n, 1.0_dp, A, n, B, n, 0.0_dp, C, n)
+
+    end function blas_matmul
 
     subroutine test_general
 
@@ -712,21 +1139,28 @@ contains
         integer, allocatable :: nI(:), hilbert_nI(:,:) 
         integer(n_int), allocatable :: dummy(:,:)
         HElement_t(dp), allocatable :: hamil(:,:), hamil_trancorr(:,:), &
-                                       trans_hamil(:,:)
-        real(dp), allocatable :: eval(:), eval_neci(:), t_mat(:,:)
-        integer :: n_states, iunit
+                                       trans_hamil(:,:), hamil_old(:,:)
+        real(dp), allocatable :: eval(:), eval_neci(:), t_mat(:,:), evectors(:,:)
+        integer :: n_states, iunit, n_pairs, i
 
         ! these are the quantitites to fix: 
-        nOccAlpha = 3 
-        nOccBeta = 1 
-        nel = 4 
-        lat => lattice('chain', 6,1,1,.true.,.true.,.true.,'k-space')
-        allocate(nI(nel)); nI = [1,2,4,6] 
+        nOccAlpha = 4 
+        nOccBeta = 4 
+        nel = 8 
+        lat => lattice('tilted', 2,2,1,.true.,.true.,.true.,'k-space')
+        allocate(nI(nel)); nI = [1,2,3,4,5,6,9,10]
 
         call setup_all(lat)
         call setup_k_total(nI)
 
-                ! i need a starting det
+!         print *, "nBasisMax: "
+!         do i = 1, size(nBasisMax,1)
+!             print *, nBasisMax(i,:)
+!         end do
+!         print *, "G1: ", G1 
+!         print *, "tmat: ", tmat2d
+
+        ! i need a starting det
         call create_hilbert_space(nI, n_states, hilbert_nI, dummy, gen_all_excits_k_space_hubbard)
 
         print *, "n_states: ", n_states
@@ -734,10 +1168,14 @@ contains
         t_trans_corr_2body = .false. 
         hamil = create_hamiltonian(hilbert_nI)
 
+        hamil_old = create_hamiltonian_old(hilbert_nI)
+
         allocate(eval(n_states))
         allocate(eval_neci(n_states))
+        allocate(evectors(n_states,n_states))
 
-        eval = calc_eigenvalues(hamil)
+!         eval = calc_eigenvalues(hamil)
+        call eig(hamil, eval, evectors)
 
         call sort(eval)
         print *, "eigen-value orig: ", eval(1)
@@ -754,7 +1192,8 @@ contains
 
         allocate(t_mat(n_states,n_states))
 
-        t_mat = get_tranformation_matrix(hamil, 16) 
+        n_pairs = nOccAlpha * nOccBeta
+        t_mat = get_tranformation_matrix(hamil, n_pairs) 
 
         trans_hamil = matmul(matmul(matrix_exponential(-t_mat),hamil),matrix_exponential(t_mat))
 
@@ -762,6 +1201,10 @@ contains
 
         call sort(eval) 
         print *, "eigen-value tran: ", eval(1)
+
+        eval = calc_eigenvalues(hamil_old)
+        call sort(eval) 
+        print *, "eigen-value old:  ", eval(1)
 
         open(iunit,file='states')
         call print_matrix(transpose(hilbert_nI), iunit)
@@ -799,7 +1242,7 @@ contains
         nOccBeta = 4
         nel = 8 
 
-        lat => lattice('chain', 8, 1, 1, .true., .true., .true., 'k-space')
+        lat => lattice('tilted', 2, 2, 1, .true., .true., .true., 'k-space')
 
         call setup_all(lat)
         nI = [1,2,3,4,5,6,7,8]
