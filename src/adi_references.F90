@@ -214,7 +214,7 @@ contains
       ! we only keep at most maxNRefs determinants
       if(refs_found > maxNRefs) then
          ! in case we found more, take the maxNRefs with the highest population
-         call sort(tmp(0:NIfTot,1:refs_found),sign_lt,sign_gt)
+         call sort(tmp(0:NIfTot,1:refs_found),sign_gt,sign_lt)
          ref_buf(:,1:maxNRefs) = tmp(:,1:maxNRefs)
          refs_found = maxNRefs
       else
