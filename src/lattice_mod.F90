@@ -1668,7 +1668,6 @@ contains
         up_rr = cshift(up, 2*pbc, 2)
         up_ll = cshift(up, -2*pbc, 2)
 
-
         down_ur = cshift(cshift(down, -pbc, 1), pbc, 2)
         down_dr= cshift(cshift(down, pbc, 1), pbc, 2)
         down_ul = cshift(cshift(down, -pbc, 1), -pbc, 2)

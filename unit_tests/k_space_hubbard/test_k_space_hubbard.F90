@@ -17,7 +17,8 @@ program test_k_space_hubbard
                           bhub, uhub, omega, trans_corr_param_2body, & 
                           t_trans_corr, t_trans_corr_2body, trans_corr_param, & 
                           thub, tpbc, treal, ttilt, TSPINPOLAR, & 
-                          tCPMD, tVASP, tExch, tHphf, tNoSymGenRandExcits, tKPntSym
+                          tCPMD, tVASP, tExch, tHphf, tNoSymGenRandExcits, tKPntSym, &
+                          t_twisted_bc, twisted_bc
     use bit_rep_data, only: niftot, nifd
     use lattice_mod, only: lat, lattice
     use dsfmt_interface, only: dsfmt_init
@@ -74,19 +75,24 @@ contains
         call init_k_space_unit_tests()
 
         ! i have to define the lattice here.. 
-        lat => lattice('chain', 8, 1, 1,.true.,.true.,.true.,'k-space')
+        lat => lattice('tilted', 2, 2, 1,.true.,.true.,.true.,'k-space')
 
-        J = -1.0
+!         J = -1.0
 
-        U = 12.0
+        U = 1.0
 
         J_vec = linspace(-2.0,2.0, 20)
-
-        nel = 6
+        
+        nel = 3
         allocate(nI(nel))
-!         nI = [(i, i = 1,nel)]
-        nI = [1,2,3,4,5,6]
+        nI = [(i, i = 1,nel)]
+
+!         nI = [1,2,3,4,5,6]
 !         nI = [5,6,7,8,9,10]
+
+        ! use twisted bc in this case.. 
+!         t_twisted_bc = .true. 
+!         twisted_bc = 0.5
 
         call setup_system(lat, nI, J, U, hilbert_space)
         ! the hilbert space does not change.. and also the original does 
