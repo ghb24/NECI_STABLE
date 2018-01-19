@@ -347,12 +347,11 @@ module FciMCParMod
             if(SIUpdateInterval > 0) then
                ! Regular update of the superinitiators. Use with care as it 
                ! is still rather expensive if secondary superinitiators are used
-               if(mod(iter,SIUpdateInterval) == 0 .and. all(.not. &
-                    tSinglePartPhase)) then
+               if(mod(iter,SIUpdateInterval) == 0) then
                   ! the reference population needs some time to equilibrate
                   ! hence, nRefs cannot be updated that often
                   if(mod(iter,nRefUpdateInterval) == 0) call adjust_nRefs()
-                  call update_reference_space(.true.)
+                  call update_reference_space(tReadPops .or. all(.not. tSinglePartPhase))
                   endif
             endif
 
