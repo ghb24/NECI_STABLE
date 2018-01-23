@@ -93,7 +93,7 @@ contains
 
        call fill_adi_caches()
 
-       tSetupSIs = .true.
+       if(nRefs > 0) tSetupSIs = .true.
        tReferenceChanged = .true.
     endif
    
