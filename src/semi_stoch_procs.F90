@@ -154,6 +154,7 @@ contains
         ! previous iteration. We now want to start a new averaging block so
         ! that the same contributions aren't added in again later.
         if (mod(Iter+PreviousCycles - IterRDMStart, RDMEnergyIter) == 0) then 
+           print *, "Resetting fdvav at iteration ", iter
             full_determ_vecs_av = 0.0_dp
         end if
 
@@ -258,7 +259,7 @@ contains
                          TempStoreTag, ierr)
 
         ! Stick together the deterministic states from all processors, on all processors.
-        call MPIAllGatherV(SpawnedParts(:,1:determ_sizes(iProcIndex)), temp_store, &
+        call MPIAllGatherV(SpawnedParts(0:NIfTot,1:determ_sizes(iProcIndex)), temp_store, &
                        determ_sizes, determ_displs)
 
         ! Over all core states on this processor.
