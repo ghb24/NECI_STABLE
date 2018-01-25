@@ -249,7 +249,9 @@ module FciMCParMod
             end if
             ! Update the semistochastic space if requested
             if(tSemiStochastic .and. tDynamicCoreSpace .and. &
-                 mod(iter,coreSpaceUpdateCycle) == 0) call refresh_semistochastic_space()
+
+                 mod(iter - semistoch_shift_iter &
+                      ,coreSpaceUpdateCycle) == 0) call refresh_semistochastic_space()
            
             if((Iter - maxval(VaryShiftIter)) == allDoubsInitsDelay + 1 &
                  .and. all(.not. tSinglePartPhase)) then
@@ -507,7 +509,7 @@ module FciMCParMod
                 ! and this is an iteration where the energy should be calculated, do so.
                 if (print_2rdm_est .and. ((Iter - maxval(VaryShiftIter)) > IterRDMonFly) &
                     .and. (mod((Iter+PreviousCycles-IterRDMStart)+1, RDMEnergyIter) == 0) ) then
-
+           
                     call calc_2rdm_estimates_wrapper(rdm_definitions, rdm_estimates, two_rdm_main)
                     if (tOldRDMs) then
                         do irdm = 1, rdm_definitions%nrdms

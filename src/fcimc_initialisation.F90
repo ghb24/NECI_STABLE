@@ -25,7 +25,7 @@ module fcimc_initialisation
                         trunc_nopen_max, MemoryFacInit, MaxNoatHF, HFPopThresh, &
                         tAddToInitiator, InitiatorWalkNo, tRestartHighPop, &
                         tAllRealCoeff, tRealCoeffByExcitLevel, tTruncInitiator, &
-                        RealCoeffExcitThresh, TargetGrowRate, &
+                        tDynamicCoreSpace, RealCoeffExcitThresh, TargetGrowRate, &
                         TargetGrowRateWalk, InputTargetGrowRate, &
                         InputTargetGrowRateWalk, tOrthogonaliseReplicas, &
                         use_spawn_hash_table, tReplicaSingleDetStart, &
@@ -1521,10 +1521,14 @@ contains
          replica_overlaps_imag(:, :) = 0.0_dp
 #endif
 
+
         ! Set up the reference space for the adi-approach
          call setup_reference_space(tReadPops)
 
          if(tInitiatorsSubspace) call read_g_markers()
+
+         if(tRDMonFly .and. tDynamicCoreSpace) call sync_rdm_sampling_iter()
+
 
     end subroutine InitFCIMCCalcPar
 
@@ -3135,6 +3139,44 @@ contains
       ValidSpawnedList(:)=InitialSpawnedSlots(:)
 
    end subroutine SetupValidSpawned
+
+   subroutine sync_rdm_sampling_iter()
+     use LoggingData, only: RDMEnergyIter, IterRDMOnfly
+     use CalcData, only: coreSpaceUpdateCycle, semistoch_shift_iter
+     implicit none
+     integer :: frac
+     ! first, adjust the offset to make the rdm sampling start right when a semistochastic
+     ! update cycle ends
+     IterRDMOnFly = IterRDMOnFly - &
+          mod(IterRDMOnFly-semistoch_shift_iter,coreSpaceUpdateCycle) - 1
+     ! The -1 is just because the sampling starts one iteration after IterRDMOnFly
+     ! If we subtracted too much, jump one cycle backwards
+     if(IterRDMOnFly < semistoch_shift_iter) IterRDMOnFly = IterRDMOnFly + coreSpaceUpdateCycle
+     write(6,*) "Adjusted starting iteration of RDM sampling to ", IterRDMOnFly
+
+     ! Now sync the update cycles
+     if(RDMEnergyIter > coreSpaceUpdateCycle) then
+        RDMEnergyIter = coreSpaceUpdateCycle
+        write(6,*) "The RDM sampling interval cannot be larger than the update "&
+             //"interval of the semi-stochastic space. Reducing it to ", RDMEnergyIter
+     endif
+     if(mod(coreSpaceUpdateCycle,RDMEnergyIter) .ne. 0) then
+        ! first, try to ramp up the RDMEnergyIter to meet the coreSpaceUpdateCycle
+        frac = coreSpaceUpdateCycle/RDMEnergyIter
+        RDMEnergyIter = coreSpaceUpdateCycle/frac        
+        write(6,*) "Update cycle of semi-stochastic space and RDM sampling interval"&
+             //" out of sync. "
+        write(6,*) "Readjusting RDM sampling interval to ", RDMEnergyIter
+        
+        ! now, if this did not succeed, adjust the coreSpaceUpdateCycle
+        if(mod(coreSpaceUpdateCycle,RDMEnergyIter) .ne. 0) then
+           coreSpaceUpdateCycle = coreSpaceUpdateCycle - &
+                mod(coreSpaceUpdateCycle,RDMEnergyIter)
+           write(6,*) "Adjusted update cycle of semi-stochastic space to ", &
+                coreSpaceUpdateCycle
+        endif
+     endif
+   end subroutine sync_rdm_sampling_iter
 
     subroutine CalcUEGMP2()
         use SymExcitDataMod, only: kPointToBasisFn
