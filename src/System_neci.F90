@@ -260,6 +260,7 @@ MODULE System
               ! and do i need to turn of tpbc also? try
               ! use the already provided setup routine and just modify the 
               ! necessary stuff, like excitation generators!
+              t_new_hubbard = .true.
               call readl(w)
               select case (w)
               case ('real-space','real') 
@@ -282,6 +283,7 @@ MODULE System
                   ! calculation with the HPHF option turned on! 
                   t_k_space_hubbard = .true. 
                   t_lattice_model = .true. 
+                  tKPntSym = .true.
 
               case default 
                   print *, w
@@ -697,9 +699,10 @@ system: do
 
             ! maybe i have to reuse the cell input functionality or set it 
             ! here also, so that the setup is not messed up 
-!             nmaxx = length_x
-!             nmaxy = length_y
-!             nmaxz = 1
+            ! i should set those quantities here again.. 
+            nmaxx = length_x
+            nmaxy = length_y
+            nmaxz = 1
 
         case("UEG-OFFSET")
             tUEGOffset=.true.
@@ -1857,6 +1860,8 @@ system: do
              ENDIF
           ENDIF
 !C..
+
+         ! W.D: are those variable ever used actually? 
           NMAX=MAX(NMAXX,NMAXY,NMAXZ)
           NNR=NMSH*NMSH*NMSH
           WRITE(6,'(A,I5)') '  NMAXX : ' , NMAXX
@@ -1879,6 +1884,11 @@ system: do
              end if
              IF(TTILT) WRITE(6,*) ' TILTED LATTICE: ',ITILTX, ",",ITILTY
              IF(TTILT.AND.ITILTX.GT.ITILTY) call stop_all(this_routine, 'ERROR: ITILTX>ITILTY')
+             if (t_new_hubbard) then
+                 print *, "New Hubbard Implementation! " 
+                 print *, "lattice used: " 
+                 call lat%print()
+             end if
           ELSE
              WRITE(6,'(1X,A,F19.5)') '  BOX LENGTH : ' , BOX
              WRITE(6,'(1X,A,F19.5)') '  B/A : ' , BOA
@@ -1896,16 +1906,23 @@ system: do
 !      ALAT(4)=2*BOX*(BOA*COA)**(1/3.0_dp)
           
           IF(THUB) THEN
-             WRITE(6,*) ' X-LENGTH OF HUBBARD CHAIN:', NMAXX
-             WRITE(6,*) ' Y-LENGTH OF HUBBARD CHAIN:', NMAXY
-             WRITE(6,*) ' Z-LENGTH OF HUBBARD CHAIN:', NMAXZ
-             WRITE(6,*) ' Periodic Boundary Conditions:',TPBC
-             WRITE(6,*) ' Real space basis:',TREAL
+              if (t_new_hubbard) then 
+                 WRITE(6,*) ' X-LENGTH OF HUBBARD CHAIN:', NMAXX
+                 WRITE(6,*) ' Y-LENGTH OF HUBBARD CHAIN:', NMAXY
+                 WRITE(6,*) ' Z-LENGTH OF HUBBARD CHAIN:', NMAXZ
+                 WRITE(6,*) ' Periodic Boundary Conditions:',TPBC
+                 WRITE(6,*) ' Real space basis:',TREAL
+
              IF(TTILT.AND.THUB) THEN
                 OMEGA=real(NMAXX,dp)*NMAXY*(ITILTX*ITILTX+ITILTY*ITILTY)
              ELSE
                 OMEGA=real(NMAXX,dp)*(NMAXY)*(NMAXZ)
              ENDIF
+             else 
+                 omega = real(lat%get_nsites(), dp) 
+                 print *, " periodic boundary conditions: ", lat%is_periodic()
+                 print *, "Real space basis: ", t_new_real_space_hubbard
+             end if
              RS=1.0_dp
           ELSE
              OMEGA=ALAT(1)*ALAT(2)*ALAT(3)
@@ -1948,13 +1965,30 @@ system: do
           ENDIF
           NBASISMAX(4,2)=1
           IF(THUB) THEN
-             IF(TTILT) THEN
-                CALL SETBASISLIM_HUBTILT(NBASISMAX,NMAXX,NMAXY,NMAXZ,LEN,TPBC,ITILTX,ITILTY)
-                ! is supported now!
-!                 IF(TREAL) call stop_all(this_routine, 'REAL TILTED HUBBARD NOT SUPPORTED')
-              ELSE
-                CALL SETBASISLIM_HUB(NBASISMAX,NMAXX,NMAXY,NMAXZ,LEN,TPBC,TREAL)
-             ENDIF
+              if (t_new_hubbard) then
+                ! i need a new setup routine for this for the new generic 
+                ! hubbard setup! essentialy this just sets up NBASISMAX .. 
+                ! what do i need from this legacy variable?? 
+                len = 2*lat%get_nsites()
+                if (t_k_space_hubbard) then 
+                    ! this indicates pbc and k-space. 
+                    ! especially for the addelecsym function! 
+                    NBASISMAX(1,3) = 0
+                  
+                else if (t_new_real_space_hubbard) then 
+                    NBASISMAX(1,3) = 4
+                    NBASISMAX(3,3) = 0
+                end if
+
+              else
+                 IF(TTILT) THEN
+                    CALL SETBASISLIM_HUBTILT(NBASISMAX,NMAXX,NMAXY,NMAXZ,LEN,TPBC,ITILTX,ITILTY)
+                    ! is supported now!
+    !                 IF(TREAL) call stop_all(this_routine, 'REAL TILTED HUBBARD NOT SUPPORTED')
+                  ELSE
+                    CALL SETBASISLIM_HUB(NBASISMAX,NMAXX,NMAXY,NMAXZ,LEN,TPBC,TREAL)
+                 ENDIF
+             end if
           ELSEIF(TUEG) THEN
              NBASISMAX(1,1)=-NMAXX
              NBASISMAX(1,2)=NMAXX
@@ -1983,6 +2017,15 @@ system: do
       ENDIF
 !C..         (.NOT.TREADINT)
 
+     if (t_new_hubbard) then
+         ! [W.D. 25.1.2018]
+         ! ignore the old thub keyword and try to set everything up 
+         ! in a standalone fashion for the new hubbard implementation, 
+         ! since otherwise this causes a lot of conflict with other 
+         ! assumptions in the old implementation! 
+         ! todo!
+
+     end if
 
 !C.. we actually store twice as much in arr as we need.
 !C.. the ARR(1:LEN,1) are the energies of the orbitals ordered according to
@@ -2043,6 +2086,38 @@ system: do
         else
          WRITE(6,*) "Creating plane wave basis."
         end if
+        if (t_new_hubbard) then 
+            BRR = [(i, i = 1, 2*lat%get_nsites())]
+            IG = 2*lat%get_nsites()
+
+            if (t_new_real_space_hubbard) then
+                ! i have to do everything what is done below with my new 
+                ! lattice class: 
+                ! something like: (loop over spin-orbital!)
+                ARR = 0.0_dp 
+            else 
+                ARR(:,1) = [(bhub*lat%dispersion_rel_spin_orb(i), i = 1, IG)]
+
+
+                ARR(:,2) = [(bhub*lat%dispersion_rel_spin_orb(i), i = 1, IG)]
+            end if
+
+            do i = 1, lat%get_nsites()
+                ! todo: not sure if i really should set up the k-vectors 
+                ! for the real-space! maybe the convention actually is to 
+                ! set them all to 0! check that!
+                ! do i still want to save the "real-space positions" in the 
+                ! k-vectors? i could.. but do i need it? 
+                G1(2*i-1)%k = lat%get_k_vec(i)
+                G1(2*i-1)%ms = -1 
+                G1(2*i-1)%Sym = TotSymRep()
+
+                G1(2*i)%k = lat%get_k_vec(i)
+                G1(2*i)%ms = 1 
+                G1(2*i)%Sym = TotSymRep()
+                ! and in the k-space i still need to 
+            end do
+        else
          IG=0
          DO I=NBASISMAX(1,1),NBASISMAX(1,2)
            DO J=NBASISMAX(2,1),NBASISMAX(2,2)
@@ -2084,6 +2159,7 @@ system: do
              ENDDO
            ENDDO
          ENDDO
+     end if
 !C..Check to see if all's well
          WRITE(6,*) ' NUMBER OF BASIS FUNCTIONS : ' , IG 
          NBASIS=IG
@@ -2178,9 +2254,18 @@ system: do
 !C.. but we still need the sym reps table. DEGENTOL=1.0e-6_dp. CHECK w/AJWT.
          CALL GENSYMREPS(G1,NBASIS,ARR,1.e-6_dp)
       ELSEIF(THUB.AND..NOT.TREAL) THEN
-         CALL GenHubMomIrrepsSymTable(G1,nBasis,nBasisMax)
-         CALL GENHUBSYMREPS(NBASIS,ARR,BRR)
-         CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
+          ! [W.D. 25.1.2018:]
+          ! this also has to be changed for the new hubbard implementation
+!           if (t_k_space_hubbard) then 
+              ! or i change the function below to account for the new 
+              ! implementation
+
+!           else
+             CALL GenHubMomIrrepsSymTable(G1,nBasis,nBasisMax)
+             ! this function does not make sense..
+             CALL GENHUBSYMREPS(NBASIS,ARR,BRR)
+             CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
+!          end if
       ELSE
 !C.. no symmetry, so a simple sym table
          CALL GENMOLPSYMREPS()

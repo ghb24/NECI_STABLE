@@ -320,12 +320,14 @@ C     &         *((NBASISMAX(4,2)-NBASISMAX(4,1))/2+1)
          use global_utilities
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: t_k_space_hubbard
          use SymData, only: nSym,SymConjTab,SymClasses,SymLabels
          use SymData, only: nSymLabels,tAbelian,SymTable
          use SymData, only: tagSymConjTab,tagSymClasses,tagSymLabels
          use SymData, only: tagSymTable
          use sym_mod, only: RoundSym, AddElecSym
          use constants, only: int64
+         use lattice_mod, only: lat
          IMPLICIT NONE
          INTEGER nBasis,nBasisMax(*)
          TYPE(BasisFN) G1(nBasis)
@@ -372,8 +374,12 @@ C.. place the sym label of each state in SymClasses(ISTATE).
                SymClasses(I)=nSyms
             ENDIF
 C.. list the symmetry string of each sym label
-            SymLabels(I)%s=2_int64**(I-1_int64)
-!             SymLabels(I)%s=i
+C.. try the new symmetry encoding here 
+            if (t_k_space_hubbard) then 
+                SymLabels(I)%s = i
+            else
+                SymLabels(I)%s=2_int64**(I-1_int64)
+            end if
          ENDDO
 C.. Setup the symmetry product table
          if (allocated(SymTable)) then
@@ -394,20 +400,33 @@ C.. Setup the symmetry product table
          DO I=1,nBasis/2
             NQNS%k=-G1(I*2)%k
             CALL RoundSym(NQNS,nBasisMax)
-            J=iFindBasisFn(NQNS,G1,nBasis)
+            if (t_k_space_hubbard) then 
+                ! i could actually include the symmetry rounding in the 
+                ! get_orb_from_k_vec functionality!
+                J = lat%get_orb_from_k_vec(NQNS%k)
+            else
+                J=iFindBasisFn(NQNS,G1,nBasis)
+            end if
             IF(J.EQ.0) THEN 
                WRITE(6,*) "Cannot Find symmetry conjugate to basis fn ",
      &            I*2
                call stop_all(this_routine,
      &                     "Cannot find symmetry conjugate.")
             ENDIF
+            print *, "J, k ", J, NQNS%k
             SymConjTab(SymClasses(I))=SymClasses(J/2)
             DO J=1,nBasis/2
                S=G1(I*2)
                CALL AddElecSym(J*2,G1,nBasisMax,S)
                CALL RoundSym(S,nBasisMax)
                NQNs%k=S%k
-               K=iFindBasisFn(NQNS,G1,nBasis)
+               if (t_k_space_hubbard) then 
+                   k = lat%get_orb_from_k_vec(S%k)
+               else 
+                   K=iFindBasisFn(NQNS,G1,nBasis)
+               end if
+
+               print *, "K, k: ", K, NQNS%k
                IF(K.EQ.0) THEN 
                 WRITE(6,*) "Cannot find symmetry product of basis fns ",
      &               I*2, J*2
@@ -448,6 +467,7 @@ C.. now work out which reps are degenerate and label them
          call LogMemAlloc('SymReps',2*nBasis,4,this_routine,tagSymReps)
          J=0
          
+         ! this does not make sense.. 
          DO I=1,NBASIS
             IF(I.EQ.1) THEN
 C.. we have a new rep

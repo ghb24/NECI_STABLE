@@ -8,15 +8,17 @@ module lattice_mod
     ! and maybe also do the same for sites.. where in the AIM then eg. 
     ! the bath and impurity sites extend the base site class 
 
-    use OneEInts, only: tmat2d
-    use UmatCache, only: gtid
-    use constants, only: dp, pi
-    use SystemData, only: twisted_bc
+    ! for now disable the OneEInts usage, due to circular dependencies over 
+    ! the sym_mod!
+!     use OneEInts, only: tmat2d, gettmatel
+    use constants, only: dp, pi, EPS
+    use SystemData, only: twisted_bc, nbasis, basisfn
 
     implicit none 
     private 
     public :: lattice, lattice_deconstructor, aim, aim_deconstructor, sort_unique, & 
-              lat, determine_optimal_time_step, get_helement_lattice
+              lat, determine_optimal_time_step, get_helement_lattice, inside_bz_2d, &
+              on_line_2d
 
     integer, parameter :: NAME_LEN = 13
 
@@ -32,6 +34,12 @@ module lattice_mod
         ! in the mean-time use an index.. 
         integer :: ind = -1 
         integer :: n_neighbors = -1 
+
+        ! i think i also want to store the k-vectors of the sites here.. 
+        ! since i will need them if I totally want to switch to my new 
+        ! implementation and also if i want to deal with the new type of 
+        ! periodic boundary conditions. 
+        integer :: k_vec(3) = 0
         ! ah.. here it is important: neighbors are also sites.. is this 
         ! possible? and i have to be flexible to allow different types of 
         ! site neighbors 
@@ -79,7 +87,7 @@ module lattice_mod
         procedure :: is_impurity 
         procedure :: set_bath 
         procedure :: is_bath
-
+        procedure :: set_k_vec
         ! i could also use finalization routines instead of manually 
         ! deallocating everything.. 
         ! i need atleast gcc4.9.. which i am to lazy to update now..
@@ -133,6 +141,8 @@ module lattice_mod
         ! and also add a flag, if we want a momentum space lattice 
         ! representation. 
         logical :: t_momentum_space = .false.
+
+        integer :: lat_vec(3,2) = 0
 
         ! and i think additionally i want to store which type of lattice 
         ! this is in a string or? so i do not always have to 
@@ -210,8 +220,20 @@ module lattice_mod
         ! for the k-space implementations also implement a lattice 
         ! dependent dispersion relation function 
         procedure, public :: dispersion_rel => dispersion_rel_not_implemented
+        procedure, public :: dispersion_rel_orb 
+        procedure, public :: dispersion_rel_spin_orb
+
+        procedure, public :: get_k_vec
+        procedure, public :: round_sym 
+
+        procedure, public :: map_k_vec
+        procedure :: inside_bz
+        procedure :: apply_basis_vector
+
+        procedure, public :: get_orb_from_k_vec
 
     end type lattice 
+
     ! and the plan is than to extend this with the specific lattices 
 
     ! i think it is better to extend lattice directly for the aim
@@ -245,6 +267,7 @@ module lattice_mod
         procedure, public :: get_impurities
         procedure, public :: get_bath
 
+
     end type aim
 
     type, extends(lattice) :: chain
@@ -264,7 +287,8 @@ module lattice_mod
         procedure :: calc_nsites => calc_nsites_chain
         procedure :: initialize_sites => init_sites_chain
 
-        procedure, public :: dispersion_rel => dispersion_rel_chain
+        procedure, public :: dispersion_rel => dispersion_rel_chain_k
+!         procedure, public :: dispersion_rel_orb => dispersion_rel_chain_orb
 
     end type chain
 
@@ -365,6 +389,21 @@ module lattice_mod
         procedure :: initialize_sites => init_sites_tilted
 
     end type tilted
+
+    type, extends(rectangle) :: ole 
+        private 
+
+    contains 
+        private
+        procedure, public :: dispersion_rel => dispersion_rel_ole
+        procedure :: calc_nsites => calc_nsites_ole 
+        procedure :: initialize_sites => init_sites_ole 
+        procedure :: find_periodic_neighbors => find_periodic_neighbors_ole
+
+        procedure :: inside_bz => inside_bz_ole 
+        procedure :: apply_basis_vector => apply_basis_vector_ole
+
+    end type ole 
 
     ! can i just extend the chain class to make an impurity chain? 
     ! argh this is annoying without multiple inheritance.. 
@@ -508,6 +547,28 @@ module lattice_mod
         end function dispersion_rel_t
     end interface
 
+!     interface dispersion_rel_chain
+!         function dispersion_rel_chain_k(this, k_vec) result(disp)
+!             use constants, only: dp
+!             import :: chain 
+!             class(chain) :: this
+!             integer, intent(in) :: k_vec(3)
+!             real(dp) :: disp
+!         end function dispersion_rel_chain_k
+!         function dispersion_rel_chain_orb(this, orb) result(disp)
+!             use constants, only: dp
+!             import :: chain 
+!             class(chain) :: this 
+!             integer, intent(in) :: orb 
+!             real(dp) :: disp
+!         end function dispersion_rel_chain_orb
+!     end interface 
+
+
+!     interface dispersion_rel
+!         module procedure dispersion_rel_k
+!         module procedure dispersion_rel_orb
+!     end interface dispersion_rel
     interface lattice
         procedure lattice_constructor 
     end interface
@@ -578,15 +639,154 @@ module lattice_mod
 
 contains 
 
+    function get_orb_from_k_vec(this, k_in) result(orb)
+        class(lattice) :: this 
+        integer, intent(in) :: k_in(3) 
+        integer :: orb
+
+        integer :: k_vec(3), i
+
+        ! first check if it is in the first BZ 
+        k_vec = this%map_k_vec(k_in)
+
+        ! the naive way would be to loop over all sites and check if the 
+        ! k-vector fits..
+        do i = 1, this%get_nsites()
+            if (all(k_vec == this%get_k_vec(i))) orb = i
+        end do
+        
+    end function get_orb_from_k_vec
+
+    function round_sym(this, sym_in) result(sym_out) 
+        ! routine to map k-vectors outside first BZ back inside 
+        class(lattice) :: this
+        type(basisfn), intent(in) :: sym_in 
+        type(basisfn) :: sym_out 
+
+        integer :: k_vec(3)
+
+        ! write a lattice specific routine, which checks if the k-vector is 
+        ! inside the first BZ of this lattice (which has to be defined by 
+        ! the input and implemented by me!)
+        if (this%inside_bz(sym_in%k)) then 
+            ! then i have to do nothing 
+            sym_out = sym_in
+        else 
+            ! otherwise map the k-vector back.. 
+            k_vec = this%map_k_vec(sym_in%k)
+            sym_out = sym_in 
+            sym_out%k = k_vec
+        end if
+
+    end function round_sym
+
+    function map_k_vec(this, k_in) result(k_out) 
+        class(lattice) :: this 
+        integer, intent(in) :: k_in(3)
+        integer :: k_out(3)
+
+        integer :: i
+
+        if (this%inside_bz(k_in)) then 
+            k_out = k_in 
+        else 
+            ! here i have to do something.. 
+            ! should i store this matrix to setup the lattice within the 
+            ! lattice class? so i can reuse it here.. 
+            ! or i apply the primitive vectors to the k_vec and check if 
+            ! a resulting vector lies within the first BZ.. 
+            i = 1
+            do while (.not. this%inside_bz(k_out))
+                k_out = k_in
+                ! apply all possible basis vectors of the lattice 
+                k_out = this%apply_basis_vector(k_out, i)
+                i = i + 1
+            end do
+        end if
+
+    end function map_k_vec
+
+    logical function inside_bz(this, k_vec) 
+        class(lattice) :: this
+        integer, intent(in) :: k_vec(3)
+
+        ! this function should also be deferred!
+
+    end function inside_bz
+
+    logical function inside_bz_ole(this, k_vec) 
+        class(ole) :: this
+        integer, intent(in) :: k_vec(3)
+
+        ! oles lattice is defined by four corner points and two lines 
+        inside_bz_ole = .false. 
+
+        associate(A => [-this%length(2), 0], & 
+                  B => [0, -this%length(1)], & 
+                  C => [this%length(1), 0],  & 
+                  D => [this%length(1)-this%length(2), this%length(1)]) 
+
+              ! now i have to be sure how the k-vectors are stored.. 
+              ! because for some strange reason i turn them around in the 
+              ! lattice initialization... thats not good! because confusing
+              ! it has to be consistend definetly! check that again! 
+              if (inside_bz_2d(k_vec(1),k_vec(2), A, B, C, D) .and. & 
+                  (.not. on_line_2d([k_vec(1:2)], A, D)) .and. & 
+                  (.not. on_line_2d([k_vec(1:2)], C, D))) then 
+
+                inside_bz_ole = .true. 
+
+            end if
+        end associate
+    end function inside_bz_ole
+
+    function apply_basis_vector(this, k_in, ind) result(k_out) 
+        ! i have to specifically write this for every lattice type.. 
+        class(lattice) :: this
+        integer, intent(in) :: k_in(3)
+        integer, intent(in), optional :: ind 
+        integer :: k_out(3) 
+
+        ! i should only make this an abstract interface, since this function
+        ! must be deffered! 
+
+    end function apply_basis_vector
+
+    function apply_basis_vector_ole(this, k_in, ind) result(k_out) 
+        class(ole) :: this 
+        integer, intent(in) :: k_in(3)
+        integer, intent(in), optional :: ind 
+        integer :: k_out(3) 
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "apply_basis_vector_ole"
+#endif
+
+        integer :: basis_vec(8,3) 
+
+        ASSERT(ind >= 0)
+        ASSERT(ind <= 8) 
+
+        ! with negative signs we have in total 8 possibilities of 
+        ! vectors to apply: 
+        associate(r1 => this%lat_vec(:,1), r2 => this%lat_vec(:,2))
+
+            basis_vec = transpose(reshape( & 
+                [r1,-r1,r2,-r2,r1+r2,-(r1+r2),r1-r2,-(r1-r2)], [3,8]))
+
+            k_out = k_in + basis_vec(ind,:)
+
+        end associate 
+
+    end function apply_basis_vector_ole
+
     subroutine init_sites_cluster_aim(this)
-        use SystemData, only: nbasis
-        use OneEInts, only: tmat2d, gettmatel
-        use constants, only: EPS
         class(cluster_aim) :: this 
         character(*), parameter :: this_routine = "init_sites_cluster_aim"
 
 
         integer :: ind, orb, i, cnt, connections(nBasis/2), j, maximum
+
+        logical :: todo
 
         maximum = -1
         ! now finally implement the actual cluster initializer, which 
@@ -596,7 +796,11 @@ contains
         ! and i guess this should be independent of other functionality 
         ! in neci.. so write it here 
         ! set it up so that 
-        ASSERT(associated(tmat2d))
+
+        ! due to circular dependency with my new hubbard implementation 
+        ! drop this routine for now! 
+        call stop_all(this_routine, "under construction!")
+!         ASSERT(associated(tmat2d))
 
         associate(n_bath => this%get_n_bath(), n_imps => this%get_n_imps())
             ASSERT(n_imps + n_bath == nbasis/2)
@@ -612,7 +816,8 @@ contains
                 do j = 1, nBasis/2
                     ! no diagonal terms
                     if (i == j) cycle
-                    if (abs(gettmatel(2*i, 2*j)) > EPS) then 
+!                     if (abs(gettmatel(2*i, 2*j)) > EPS) then 
+                    if (todo) then
                         ! cound the number of connections
                         cnt = cnt + 1 
                         ! and maybe i should already store the connected 
@@ -622,7 +827,7 @@ contains
                     if (cnt > maximum) maximum = cnt
                 end do
 
-                this%sites(i) = site(i, cnt, connections(1:cnt-1), 'impurity')
+                this%sites(i) = site(i, cnt, connections(1:cnt-1), site_type='impurity')
             end do
 
             do i = n_imps + 1, nBasis/2
@@ -630,14 +835,15 @@ contains
                 cnt = 0
                 do j = 1, nbasis/2
                     if (i == j) cycle 
-                    if (abs(gettmatel(2*i,2*j)) > EPS) then 
+!                     if (abs(gettmatel(2*i,2*j)) > EPS) then 
+                    if (todo) then
                         cnt = cnt + 1
                         connections(cnt) = j 
                     end if
                     if (cnt > maximum) maximum = cnt
                 end do
                 this%sites(i) = site(i, cnt, &
-                    connections(1:cnt), 'bath')
+                    connections(1:cnt), site_type='bath')
             end do
 
             call this%set_nconnect_max(maximum)
@@ -668,7 +874,7 @@ contains
 
             do i = 1, n_bath
                 this%sites(i + n_imps) = site(i + n_imps, n_imps, &
-                    [ (i, i = 1, n_imps) ], 'bath')
+                    [ (i, i = 1, n_imps) ], site_type='bath')
             end do
 
             do i = 1, n_imps 
@@ -681,7 +887,7 @@ contains
                 end do
 
                 this%sites(i) = site(i, n_imps - 1 + n_bath, & 
-                    [imp_neighbors, (l + n_imps, l = 1, n_bath)], 'impurity')
+                    [imp_neighbors, (l + n_imps, l = 1, n_bath)], site_type='impurity')
 
             end do
         end associate
@@ -747,16 +953,16 @@ contains
         end if
 
         ! the first site is the impurity! 
-        this%sites(1) = site(1, 1, [2], 'impurity')
+        this%sites(1) = site(1, 1, [2], site_type='impurity')
 
         ! the bath sites are connected within each other, but not periodic!
         do i = 1, this%get_n_bath() - 1
-            this%sites(i+1) = site(i + 1, 2, [i, i + 2], 'bath')
+            this%sites(i+1) = site(i + 1, 2, [i, i + 2], site_type='bath')
         end do
 
         ! and the last bath site only has one neighbor
         this%sites(this%get_nsites()) = site(this%get_nsites(), 1, &
-            [this%get_nsites() - 1], 'bath')
+            [this%get_nsites() - 1], site_type='bath')
 
     end subroutine init_sites_aim_chain
 
@@ -985,6 +1191,7 @@ contains
         call lhs%set_neighbors( rhs%get_neighbors() )
         call lhs%set_impurity( rhs%is_impurity() )
         call lhs%set_bath( rhs%is_bath() )
+        call lhs%set_k_vec(rhs%k_vec)
 
         ! can i work with an allocatable statement here? 
 
@@ -1025,11 +1232,11 @@ contains
         ! do the first impurity 
         ! the impurity is connected to all the bath sites! 
         this%sites(1) = site(1, this%get_n_bath(), [(i, i = 2, this%get_nsites())], &
-            'impurity')
+            site_type='impurity')
 
         ! and all the bath sites are just connected to the impurity 
         do i = 2, this%get_nsites() 
-            this%sites(i) = site(i, 1, [1], 'bath')
+            this%sites(i) = site(i, 1, [1], site_type='bath')
         end do
 
     end subroutine init_sites_aim_star
@@ -1551,78 +1758,300 @@ contains
 
     end subroutine init_sites_rect
 
+    subroutine init_sites_ole(this) 
+        class(ole) :: this 
+        character(*), parameter :: this_routine = "init_sites_ole" 
+
+        ! i think i can index an array in fortran in reversed order
+        integer :: ind_array(-this%length(1):(this%length(1)+1), & 
+                             -this%length(2):this%length(1))
+
+         integer :: i, j, k, mat_ind(this%n_sites, 2), up, down, left, right, &
+                    k_vec(3), A(2), B(2), C(2), D(2)
+         integer, allocatable :: neigh(:)
+
+        ! how do i set up Ole cluster.. 
+        ! in real and k-space.. this will be a pain i guess.. 
+
+        ! i could make the same neighboring matrices as for the tilted 
+        k = 1
+        ind_array = 0
+        ! define the vertices of the parallelogram 
+        A = [-this%length(2),0]
+        B = [0,-this%length(1)]
+        C = [this%length(1),0]
+        D = [this%length(1)-this%length(2), this%length(1)]
+
+        ! i do not need to loop over the edge values, which belong to a 
+        ! different unit cell!
+        do j = -this%length(2)+1, this%length(1)-1
+            do i = this%length(1)-1,-(this%length(1)+1),-1
+
+                ! i have to take 2 special points into account ! which are 
+                ! by definition on the edge of the (3,3) boundary
+                if (inside_bz_2d(j,i,A,B,C,D) .and. .not. on_line_2d([j,i], A, D) &
+                    .and. .not. on_line_2d([j,i], C, D)) then 
+
+                    ind_array(-i,j) = k 
+                    mat_ind(k,:) = [-i,j]
+
+                    k = k + 1
+
+                end if
+            end do
+        end do
+
+        print *, "check Oles array: "
+        do i = lbound(ind_array,1), ubound(ind_array,1)
+            print *, ind_array(i,:)
+        end do
+
+        ! now i want to get the neigbhors 
+        do i = 1, this%get_nsites()
+            ! how to efficiently do this, and in a general way? 
+            ! better than in the other cases 
+            ! i am not going over the boundaries, due to the way i set up 
+            ! the matrix above.. hopefully
+            up = ind_array(mat_ind(i,1)-1,mat_ind(i,2))
+            if (up == 0) then 
+                up = this%find_periodic_neighbors([mat_ind(i,1)-1,mat_ind(i,2)], &
+                    ind_array)
+            end if
+
+            down = ind_array(mat_ind(i,1)+1,mat_ind(i,2))
+            if (down == 0) then 
+                down = this%find_periodic_neighbors([mat_ind(i,1)+1,mat_ind(i,2)],&
+                    ind_array)
+            end if
+
+            left = ind_array(mat_ind(i,1),mat_ind(i,2)-1)
+            if (left == 0) then 
+                left = this%find_periodic_neighbors([mat_ind(i,1),mat_ind(i,2)-1],&
+                    ind_array)
+            end if
+
+            right = ind_array(mat_ind(i,1),mat_ind(i,2)+1)
+            if (right == 0) then 
+                right = this%find_periodic_neighbors([mat_ind(i,1),mat_ind(i,2)+1],&
+                    ind_array)
+            end if
+
+            neigh = sort_unique([up,down,left,right])
+
+            ! oh.. thats BS actually.. wtf.. what was i thinking: 
+!             k_vec = [i,j,0]
+            ! i have to get the matrix indiced again, with the correct 
+            ! sign.. 
+            k_vec = [mat_ind(i,2),-mat_ind(i,1),0]
+
+            this%sites(i) = site(i, size(neigh), neigh, k_vec)
+
+        end do
+
+    end subroutine init_sites_ole
+
+    integer function find_periodic_neighbors_ole(this, ind, A)
+        ! function to give me a periodic neighbor of a specific lattice 
+        class(ole) :: this 
+        integer, intent(in) :: ind(2), A(:,:) 
+        integer :: ur(-this%length(1):(this%length(1)+1), & 
+                     -this%length(2):this%length(1))
+        integer :: dr(-this%length(1):(this%length(1)+1), & 
+                     -this%length(2):this%length(1))
+        integer :: ul(-this%length(1):(this%length(1)+1), & 
+                     -this%length(2):this%length(1))
+        integer :: dl(-this%length(1):(this%length(1)+1), & 
+                     -this%length(2):this%length(1))
+        integer :: rr(-this%length(1):(this%length(1)+1), & 
+                     -this%length(2):this%length(1))
+        integer :: ll(-this%length(1):(this%length(1)+1), & 
+                     -this%length(2):this%length(1))
+        integer :: temp(-this%length(1):(this%length(1)+1), & 
+                     -this%length(2):this%length(1))
+
+        integer :: unique, shift(4,2), i
+        ! i am not sure, if i have to specify the indices and size of the 
+        ! matrix inputted.. 
+
+        ! get the lattice vectors: 
+        associate(r1 => this%lat_vec(1:2,1), r2 => this%lat_vec(1:2,2), & 
+                  x => ind(1), y => ind(2))
+
+            shift = transpose(reshape([r1,r2,r1+r2,r1-r2],[2,4])) 
+
+            find_periodic_neighbors_ole = -1
+
+            do i = 1, 4
+                ! apply all the periodic vectors one after the other 
+                ! negative and positive..
+                temp = apply_pbc(A, shift(i,:)) 
+
+                if (temp(x,y) /= 0) then
+                    find_periodic_neighbors_ole = temp(x,y)
+                    return
+                end if
+
+                temp = apply_pbc(A, -shift(i,:)) 
+
+                if (temp(x,y) /= 0) then
+                    find_periodic_neighbors_ole = temp(x,y)
+                    return
+                end if
+            end do
+
+!             call apply_pbc_tilted(A, r1, r2, ur, dr, ul, dl, rr, ll)
+
+!             unique  = maxval([ur(x,y),dr(x,y),ul(x,y),dl(x,y),rr(x,y),ll(x,y)])
+
+        end associate 
+
+        find_periodic_neighbors_ole = unique
+
+    end function find_periodic_neighbors_ole
+
+    function apply_pbc(array, shift) result(s_array)
+        integer, intent(in) :: array(:,:), shift(2)
+        integer :: s_array(size(array,1),size(array,2)) 
+
+        ! i have to be sure about the sign conventions here.. 
+        s_array = eoshift(array, shift(1), dim = 2)
+        s_array = eoshift(s_array, -shift(2),  dim = 1)
+
+    end function apply_pbc
+
+    logical function inside_bz_2d(x, y, A, B, C, D)
+        ! function to check if a point (x,y) is inside our outside the 
+        ! rectangle indicated by the 3 points A,B,C,D
+        ! the definition is to provide the points in this fashion: 
+        !  A -- D
+        !  |    |
+        !  B -- C 
+        ! in a circular fashion, otherwise it does not work, since it would 
+        ! be a different rectangle
+        ! idea from:
+        ! https://stackoverflow.com/questions/2752725/finding-whether-a-point-lies-inside-a-rectangle-or-not
+        integer, intent(in) :: x, y, A(2), B(2), C(2), D(2)
+
+        integer :: vertex(4,2), edges(4,2), R(4), S(4), T(4), U(4), i
+        inside_bz_2d = .false. 
+
+        vertex = transpose(reshape([A,B,C,D],[2,4]))
+
+        edges(1,:) = A - B
+        edges(2,:) = B - C
+        edges(3,:) = C - D
+        edges(4,:) = D - A
+
+        R = edges(:,2) 
+        S = -edges(:,1) 
+        T = -(R * vertex(:,1) + S * vertex(:,2))
+
+        U = R * x + S * y + T 
+
+        if (all(U >= 0)) inside_bz_2d = .true.
+
+    end function inside_bz_2d
+
+    logical function on_line_2d(P, A, B)
+        integer, intent(in) :: P(2), A(2), B(2)
+        ! function to check if a point is on a line(for integers now only!)
+
+        integer :: AB(2), AP(2)
+
+        AB = B-A
+        AP = P - A
+
+        on_line_2d = .false.
+
+        if (AB(1) * AP(2) - AB(2) * AP(1) == 0) on_line_2d = .true. 
+
+    end function on_line_2d
+
     subroutine init_sites_tilted(this)
         class(tilted) :: this 
         character(*), parameter :: this_routine = "init_sites_tilted"
 
-        integer :: temp_array(-this%length(1):this%length(1),&
-                              -this%length(1):this%length(1)+1)
-        integer :: up(-this%length(1):this%length(1),&
-                              -this%length(1):this%length(1)+1)
-        integer :: down(-this%length(1):this%length(1),&
-                              -this%length(1):this%length(1)+1)
-        integer :: left(-this%length(1):this%length(1),&
-                              -this%length(1):this%length(1)+1)
-        integer :: right(-this%length(1):this%length(1),&
-                              -this%length(1):this%length(1)+1)
-        integer :: right_ul(-this%length(1):this%length(1),&
-                              -this%length(1):this%length(1)+1)
-        integer :: right_ur(-this%length(1):this%length(1),&
-                              -this%length(1):this%length(1)+1)
-        integer :: right_dl(-this%length(1):this%length(1),&
-                              -this%length(1):this%length(1)+1)
-        integer :: right_dr(-this%length(1):this%length(1),&
-                              -this%length(1):this%length(1)+1)
-        integer :: right_rr(-this%length(1):this%length(1),&
-                              -this%length(1):this%length(1)+1)
-        integer :: right_ll(-this%length(1):this%length(1),&
-                              -this%length(1):this%length(1)+1)
-        integer :: up_ul(-this%length(1):this%length(1),&
-                              -this%length(1):this%length(1)+1)
-        integer :: up_ur(-this%length(1):this%length(1),&
-                              -this%length(1):this%length(1)+1)
-        integer :: up_dl(-this%length(1):this%length(1),&
-                              -this%length(1):this%length(1)+1)
-        integer :: up_dr(-this%length(1):this%length(1),&
-                              -this%length(1):this%length(1)+1)
-        integer :: up_rr(-this%length(1):this%length(1),&
-                              -this%length(1):this%length(1)+1)
-        integer :: up_ll(-this%length(1):this%length(1),&
-                              -this%length(1):this%length(1)+1)
-        integer :: down_ul(-this%length(1):this%length(1),&
-              -this%length(1):this%length(1)+1)
-        integer :: down_ur(-this%length(1):this%length(1),&
-              -this%length(1):this%length(1)+1)
-        integer :: down_dl(-this%length(1):this%length(1),&
-              -this%length(1):this%length(1)+1)
-        integer :: down_dr(-this%length(1):this%length(1),&
-             -this%length(1):this%length(1)+1)
-        integer :: down_rr(-this%length(1):this%length(1),&
-              -this%length(1):this%length(1)+1)
-        integer :: down_ll(-this%length(1):this%length(1),&
-              -this%length(1):this%length(1)+1)
-        integer :: left_ul(-this%length(1):this%length(1),&
-                              -this%length(1):this%length(1)+1)
-        integer :: left_ur(-this%length(1):this%length(1),&
-                              -this%length(1):this%length(1)+1)
-        integer :: left_dl(-this%length(1):this%length(1),&
-                              -this%length(1):this%length(1)+1)
-        integer :: left_dr(-this%length(1):this%length(1),&
-                              -this%length(1):this%length(1)+1)
-        integer :: left_rr(-this%length(1):this%length(1),&
-                              -this%length(1):this%length(1)+1)
-        integer :: left_ll(-this%length(1):this%length(1),&
-                              -this%length(1):this%length(1)+1)
-        integer :: i, j, k, l, pbc, temp_neigh(4)
-        integer :: right_nn, left_nn, up_nn, down_nn
+        integer :: temp_array(-this%length(1):this%length(2),&
+                              -this%length(1):this%length(2)+1)
+        integer :: up(-this%length(1):this%length(2),&
+                      -this%length(1):this%length(2)+1)
+        integer :: down(-this%length(1):this%length(2),&
+                        -this%length(1):this%length(2)+1)
+        integer :: left(-this%length(1):this%length(2),&
+                        -this%length(1):this%length(2)+1)
+        integer :: right(-this%length(1):this%length(2),&
+                         -this%length(1):this%length(2)+1)
+        integer :: right_ul(-this%length(1):this%length(2),&
+                            -this%length(1):this%length(2)+1)
+        integer :: right_ur(-this%length(1):this%length(2),&
+                            -this%length(1):this%length(2)+1)
+        integer :: right_dl(-this%length(1):this%length(2),&
+                            -this%length(1):this%length(2)+1)
+        integer :: right_dr(-this%length(1):this%length(2),&
+                            -this%length(1):this%length(2)+1)
+        integer :: right_rr(-this%length(1):this%length(2),&
+                            -this%length(1):this%length(2)+1)
+        integer :: right_ll(-this%length(1):this%length(2),&
+                            -this%length(1):this%length(2)+1)
+        integer :: up_ul(-this%length(1):this%length(2),&
+                         -this%length(1):this%length(2)+1)
+        integer :: up_ur(-this%length(1):this%length(2),&
+                         -this%length(1):this%length(2)+1)
+        integer :: up_dl(-this%length(1):this%length(2),&
+                         -this%length(1):this%length(2)+1)
+        integer :: up_dr(-this%length(1):this%length(2),&
+                         -this%length(1):this%length(2)+1)
+        integer :: up_rr(-this%length(1):this%length(2),&
+                         -this%length(1):this%length(2)+1)
+        integer :: up_ll(-this%length(1):this%length(2),&
+                         -this%length(1):this%length(2)+1)
+        integer :: down_ul(-this%length(1):this%length(2),&
+                           -this%length(1):this%length(2)+1)
+        integer :: down_ur(-this%length(1):this%length(2),&
+                           -this%length(1):this%length(2)+1)
+        integer :: down_dl(-this%length(1):this%length(2),&
+                           -this%length(1):this%length(2)+1)
+        integer :: down_dr(-this%length(1):this%length(2),&
+                           -this%length(1):this%length(2)+1)
+        integer :: down_rr(-this%length(1):this%length(2),&
+                           -this%length(1):this%length(2)+1)
+        integer :: down_ll(-this%length(1):this%length(2),&
+                           -this%length(1):this%length(2)+1)
+        integer :: left_ul(-this%length(1):this%length(2),&
+                           -this%length(1):this%length(2)+1)
+        integer :: left_ur(-this%length(1):this%length(2),&
+                           -this%length(1):this%length(2)+1)
+        integer :: left_dl(-this%length(1):this%length(2),&
+                           -this%length(1):this%length(2)+1)
+        integer :: left_dr(-this%length(1):this%length(2),&
+                           -this%length(1):this%length(2)+1)
+        integer :: left_rr(-this%length(1):this%length(2),&
+                           -this%length(1):this%length(2)+1)
+        integer :: left_ll(-this%length(1):this%length(2),&
+                           -this%length(1):this%length(2)+1)
+        integer :: i, j, k, l, pbc, temp_neigh(4), k_min, k_max, offset, k_vec(3)
+        integer :: right_nn, left_nn, up_nn, down_nn, pbc_1(2), pbc_2(2)
         integer, allocatable :: neigh(:)
         ! convention of lattice storage: 
         ! 
         !   2 5
         ! 1 3 6 8
         !   4 7
+        ! update: we also want to have non-square tilted clusters.. how would
+        ! that work. eg a 10-site 2x3 cluster: 
+        !   2 5
+        ! 1 3 6 9
+        !   4 7 10
+        !     8
+        ! can i also do a 1x2 4-site tilted? like: 
+        ! 1 2
+        !   3 4 
+        ! and also a 2x1: 
+        ! 
+        ! 1 3
 
-        ASSERT(this%get_nsites() >= 8) 
+
+        ASSERT(this%get_nsites() >= 4) 
 
         ! set up the lattice indices, via the use of "k-vectors"
         temp_array(:,:) = 0
@@ -1631,6 +2060,9 @@ contains
         l = 1
         do i = -this%length(1)+1, 0
 
+            ! this k-loop changes if i have a rectangular tilted lattice.. 
+            ! but how? but i think when i have figured this out i have it.. 
+            ! the first loop is fine.. 
             do j = -k, k
 
                 temp_array(j,i) = l 
@@ -1640,10 +2072,46 @@ contains
             k = k + 1
         end do
 
+        ! here i need to change the k-vectors, differently, if it is a 
+        ! rectangular tilted lattice.. 
+        ! and for now, until i have implemented it better over 
+        ! lattice vectors assume lx - ly <= 1! only one difference 
         k = k - 1
-        do i = 1, this%length(1)
+        ! or should i do an inbetween-step if lx /= ly? this is also 
+        ! possible 
+!         ASSERT(abs(this%length(1) - this%length(2)) <= 1) 
 
-            do j = -k, k
+        offset = abs(this%length(1) - this%length(2))
+        k_min = -this%length(1)+1
+        k_max = this%length(2) - offset
+        do i = 1, offset
+
+            do j = k_min, k_max
+                temp_array(j,i) = l 
+                l = l + 1
+            end do
+
+            ! shift the y indication by 1 up or down
+            k_min = k_min + 1
+            k_max = k_max + 1
+        end do
+
+
+        if (this%length(1) < this%length(2)) then 
+            k_min = k_min
+            k_max = k_max - 1
+        else if (this%length(1) > this%length(2)) then 
+            k_min = k_min + 1
+            k_max = k_max 
+        else 
+            ! otherwise k_min and k_max where never defined 
+            k_min = -k
+            k_max = k 
+        end if
+
+        do i = offset+1, this%length(2)
+
+            do j = k_min, k_max
 
                 temp_array(j,i) = l
 
@@ -1651,9 +2119,15 @@ contains
 
             end do
 
-            k = k - 1
+            ! k_min is negative 
+            k_min = k_min + 1
+            k_max = k_max - 1
+!             k = k - 1
         end do
 
+        do i = lbound(temp_array,1), ubound(temp_array,1)
+            print *, temp_array(i,:)
+        end do
         up = cshift(temp_array, -1, 1)
         down = cshift(temp_array, 1, 1)
         right = cshift(temp_array, 1, 2)
@@ -1661,33 +2135,51 @@ contains
 
         ! apply the periodic boundary conditions to the neighbors
         pbc = this%length(1)
-        up_ur = cshift(cshift(up, -pbc, 1), pbc, 2)
-        up_dr= cshift(cshift(up, pbc, 1), pbc, 2)
-        up_ul = cshift(cshift(up, -pbc, 1), -pbc, 2)
-        up_dl = cshift(cshift(up, pbc, 1), -pbc, 2)
-        up_rr = cshift(up, 2*pbc, 2)
-        up_ll = cshift(up, -2*pbc, 2)
+        ! for rectangular tilted lattices this is different of course 
 
-        down_ur = cshift(cshift(down, -pbc, 1), pbc, 2)
-        down_dr= cshift(cshift(down, pbc, 1), pbc, 2)
-        down_ul = cshift(cshift(down, -pbc, 1), -pbc, 2)
-        down_dl = cshift(cshift(down, pbc, 1), -pbc, 2)
-        down_rr = cshift(down, 2*pbc, 2)
-        down_ll = cshift(down, -2*pbc, 2)
+        if (this%length(1) == 1) then 
+            pbc_1 = [2, 0] 
+            pbc_2 = [this%length(2), -this%length(2)]
+        else if (this%length(2) == 1) then 
+            pbc_1 = [this%length(1), this%length(1)]
+            pbc_2 = [2,0]
+        else
+            pbc_1 = [this%length(1), this%length(1)]
+            pbc_2 = [this%length(2), -this%length(2)]
+        end if
+            
+        ! do something like and do this generally maybe.. 
+        call apply_pbc_tilted(up, pbc_1, pbc_2, up_ur, up_dr, up_ul, up_dl, up_rr, up_ll)
+!         up_ur = cshift(cshift(up, -pbc, 1), pbc, 2)
+!         up_dr = cshift(cshift(up, pbc, 1), pbc, 2)
+!         up_ul = cshift(cshift(up, -pbc, 1), -pbc, 2)
+!         up_dl = cshift(cshift(up, pbc, 1), -pbc, 2)
+!         up_rr = cshift(up, 2*pbc, 2)
+!         up_ll = cshift(up, -2*pbc, 2)
+! 
+        call apply_pbc_tilted(down, pbc_1, pbc_2, down_ur, down_dr, down_ul, down_dl, down_rr, down_ll)
+!         down_ur = cshift(cshift(down, -pbc, 1), pbc, 2)
+!         down_dr = cshift(cshift(down, pbc, 1), pbc, 2)
+!         down_ul = cshift(cshift(down, -pbc, 1), -pbc, 2)
+!         down_dl = cshift(cshift(down, pbc, 1), -pbc, 2)
+!         down_rr = cshift(down, 2*pbc, 2)
+!         down_ll = cshift(down, -2*pbc, 2)
 
-        right_ur = cshift(cshift(right, -pbc, 1), pbc, 2)
-        right_dr= cshift(cshift(right, pbc, 1), pbc, 2)
-        right_ul = cshift(cshift(right, -pbc, 1), -pbc, 2)
-        right_dl = cshift(cshift(right, pbc, 1), -pbc, 2)
-        right_rr = cshift(right, 2*pbc, 2)
-        right_ll = cshift(right, -2*pbc, 2)
+        call apply_pbc_tilted(right, pbc_1, pbc_2, right_ur, right_dr, right_ul, right_dl, right_rr, right_ll)
+!         right_ur = cshift(cshift(right, -pbc, 1), pbc, 2)
+!         right_dr = cshift(cshift(right, pbc, 1), pbc, 2)
+!         right_ul = cshift(cshift(right, -pbc, 1), -pbc, 2)
+!         right_dl = cshift(cshift(right, pbc, 1), -pbc, 2)
+!         right_rr = cshift(right, 2*pbc, 2)
+!         right_ll = cshift(right, -2*pbc, 2)
 
-        left_ur = cshift(cshift(left, -pbc, 1), pbc, 2)
-        left_dr= cshift(cshift(left, pbc, 1), pbc, 2)
-        left_ul = cshift(cshift(left, -pbc, 1), -pbc, 2)
-        left_dl = cshift(cshift(left, pbc, 1), -pbc, 2)
-        left_rr = cshift(left, 2*pbc, 2)
-        left_ll = cshift(left, -2*pbc, 2)
+        call apply_pbc_tilted(left, pbc_1, pbc_2, left_ur, left_dr, left_ul, left_dl, left_rr, left_ll)
+!         left_ur = cshift(cshift(left, -pbc, 1), pbc, 2)
+!         left_dr = cshift(cshift(left, pbc, 1), pbc, 2)
+!         left_ul = cshift(cshift(left, -pbc, 1), -pbc, 2)
+!         left_dl = cshift(cshift(left, pbc, 1), -pbc, 2)
+!         left_rr = cshift(left, 2*pbc, 2)
+!         left_ll = cshift(left, -2*pbc, 2)
 
         k = 0
         l = 1
@@ -1703,7 +2195,7 @@ contains
                     if (up_nn == 0) then
                         up_nn = maxval([up_rr(j,i), up_ll(j,i)])
                         if (up_nn == 0) then
-                            print *, "smth wrong!"
+                            print *, " up: smth wrong!"
                         end if
                     end if
                         
@@ -1714,7 +2206,7 @@ contains
                         down_nn = maxval([down_rr(j,i), down_ll(j,i)])
 
                         if (down_nn == 0) then 
-                            print *, "smth wrong!"
+                            print *, "down: smth wrong!"
                         end if
                     end if
 
@@ -1725,7 +2217,7 @@ contains
 !                         right_nn = maxval([right_rr(j,i), right_ll(j,i)])
                         right_nn = right_ll(j,i)
                         if (right_nn == 0) then 
-                            print *, "smth wrong!"
+                            print *, "right: smth wrong!"
                         end if
                     end if
 
@@ -1736,14 +2228,16 @@ contains
 !                         left_nn = maxval([left_rr(j,i), left_ll(j,i)])
                         left_nn = left_rr(j,i)
                         if (left_nn == 0) then 
-                            print *, "smth wrong!"
+                            print *, "left: smth wrong!"
                         end if
                     end if
 
                 
                     neigh = sort_unique([up_nn, down_nn, left_nn, right_nn])
-
-                    this%sites(l) = site(l, size(neigh), neigh)
+                    ! also start to store the k-vector here! 
+                    ! have to be sure that i make it correct 
+                    k_vec = [j,i,0] 
+                    this%sites(l) = site(l, size(neigh), neigh, k_vec)
 
                     l = l + 1
 
@@ -1754,8 +2248,11 @@ contains
             end do
 
             k = k - 1
-            do i = 1, this%length(1)
-                do j = -k, k 
+
+            k_min = -this%length(1)+1
+            k_max = this%length(2) - offset
+            do i = 1, offset
+                do j = k_min, k_max 
                     ! make the neigbors list 
                     up_nn = maxval([up(j,i), up_ur(j,i), up_dr(j,i), up_ul(j,i), &
                                     up_dl(j,i)])
@@ -1802,14 +2299,89 @@ contains
 
                     neigh = sort_unique([up_nn, down_nn, left_nn, right_nn])
 
-                    this%sites(l) = site(l, size(neigh), neigh)
+                    k_vec = [j,i,0] 
+                    this%sites(l) = site(l, size(neigh), neigh, k_vec)
 
                     l = l + 1
 
                     deallocate(neigh)
 
                 end do
-                k = k -1
+                k_min = k_min + 1
+                k_max = k_max + 1
+            end do
+
+            if (this%length(1) < this%length(2)) then 
+                k_min = k_min 
+                k_max = k_max - 1
+            else if (this%length(1) > this%length(2)) then 
+                k_min = k_min + 1
+                k_max = k_max 
+            else
+                k_min = -k 
+                k_max = k
+            end if
+
+            do i = offset + 1, this%length(2)
+                do j = k_min, k_max
+                    ! make the neigbors list 
+                    up_nn = maxval([up(j,i), up_ur(j,i), up_dr(j,i), up_ul(j,i), &
+                                    up_dl(j,i)])
+
+                    if (up_nn == 0) then
+                        up_nn = maxval([up_rr(j,i), up_ll(j,i)])
+                        if (up_nn == 0) then
+                            print *, "smth wrong!"
+                        end if
+                    end if
+                        
+                    down_nn = maxval([down(j,i), down_ur(j,i), down_dr(j,i), down_ul(j,i), &
+                        down_dl(j,i)])
+                    
+                    if (down_nn == 0) then 
+                        down_nn = maxval([down_rr(j,i), down_ll(j,i)])
+
+                        if (down_nn == 0) then 
+                            print *, "smth wrong!"
+                        end if
+                    end if
+
+                    right_nn = maxval([right(j,i), right_ur(j,i), right_dr(j,i), right_ul(j,i), &
+                        right_dl(j,i)])
+                    
+                    if (right_nn == 0) then 
+!                         right_nn = maxval([right_rr(j,i), right_ll(j,i)])
+                        right_nn = right_ll(j,i)
+                        if (right_nn == 0) then 
+                            print *, "smth wrong!"
+                        end if
+                    end if
+
+                    left_nn = maxval([left(j,i), left_ur(j,i), left_dr(j,i), left_ul(j,i), &
+                        left_dl(j,i)])
+                    
+                    if (left_nn == 0) then 
+!                         left_nn = maxval([left_rr(j,i), left_ll(j,i)])
+                        left_nn = left_rr(j,i)
+                        if (left_nn == 0) then 
+                            print *, "smth wrong!"
+                        end if
+                    end if
+
+                    neigh = sort_unique([up_nn, down_nn, left_nn, right_nn])
+
+                    k_vec = [j,i,0] 
+                    this%sites(l) = site(l, size(neigh), neigh, k_vec)
+
+                    l = l + 1
+
+                    deallocate(neigh)
+
+                end do
+                k_min = k_min + 1
+                k_max = k_max - 1
+
+!                 k = k -1
             end do
         else if (this%is_periodic(1)) then 
             ! only apply (x,x) periodicity 
@@ -1942,7 +2514,43 @@ contains
 
     end subroutine init_sites_tilted
 
-    function dispersion_rel_chain(this, k_vec) result(disp) 
+    subroutine apply_pbc_tilted(array, pbc_1, pbc_2, ur, dr, ul, dl, rr, ll)
+        ! intermediate routine to apply the periodic boundary conditions for 
+        ! the rectangular tilted lattice 
+        integer, intent(in) :: array(:,:), pbc_1(2), pbc_2(2)
+        integer, intent(out) :: ur(:,:), dr(:,:), ul(:,:), dl(:,:), rr(:,:), ll(:,:)
+
+        integer :: plus(2)
+
+        plus = pbc_1 + pbc_2
+        ! i have to do this properly, so it still works with the old 
+        ! tilted implementation: 
+        ! cshfting along the 2nd dimension is the x-axis shift on my 
+        ! derivation 
+        ! and along the 1-direction i should shift with -pbc to move it 
+        ! actually up.. 
+        ! i think something is wrong with this routine still! 
+        rr = cshift(cshift(array, -plus(2), 1), plus(1), 2)
+        ll = cshift(cshift(array, plus(2), 1), -plus(1), 2)
+
+        ur = cshift(cshift(array, -pbc_1(2), 1), pbc_1(1), 2)
+        dr = cshift(cshift(array, -pbc_2(2), 1), pbc_2(1), 2) 
+
+        ul = cshift(cshift(array, pbc_2(2), 1), -pbc_2(1), 2)
+        dl = cshift(cshift(array, pbc_1(2), 1), -pbc_1(1), 2) 
+
+    end subroutine apply_pbc_tilted 
+
+    function get_k_vec(this, orb) result(k_vec) 
+        class(lattice) :: this
+        integer, intent(in) :: orb 
+        integer :: k_vec(3) 
+
+        k_vec = this%sites(orb)%k_vec 
+
+    end function get_k_vec
+
+    function dispersion_rel_chain_k(this, k_vec) result(disp) 
         class(chain) :: this 
         integer, intent(in) :: k_vec(3) 
         real(dp) :: disp 
@@ -1963,7 +2571,22 @@ contains
         ! neigbhors here too..? i think so.. 
         disp = 2.0_dp * cos(2.0_dp*pi*(k_vec(1) + twisted_bc(1))/this%length)
 
-    end function dispersion_rel_chain
+    end function dispersion_rel_chain_k
+
+    function dispersion_rel_chain_orb(this, orb) result(disp)
+        class(chain) :: this 
+        integer, intent(in) :: orb 
+        real(dp) :: disp 
+
+        integer :: k_vec(3) 
+
+        k_vec = this%get_k_vec(orb)
+!         k_vec = this%sites(orb)%get_k_vec() 
+
+        disp = this%dispersion_rel(k_vec)
+
+    end function dispersion_rel_chain_orb
+
 
     function dispersion_rel_rect(this, k_vec) result(disp)
         class(rectangle) :: this 
@@ -2006,12 +2629,42 @@ contains
 
         ASSERT(this%is_periodic())
 
-        disp = 2.0_dp * (cos(2*pi*((k_vec(1)+twisted_bc(1))*this%length(1) &
-                                  +(k_vec(2)+twisted_bc(2))*this%length(2))/this%n_sites) & 
-                        +cos(2*pi*((k_vec(1)+twisted_bc(1))*this%length(2) & 
-                                  -(k_vec(2)+twisted_bc(2))*this%length(1))/this%n_sites))
+        ! todo: i have to check if this also still holds for the 
+        ! rectangular tilted lattice! 
+!         disp = 2.0_dp * (cos(2*pi*((k_vec(1)+twisted_bc(1))*this%length(1) &
+!                                   +(k_vec(2)+twisted_bc(2))*this%length(2))/this%n_sites) & 
+!                         +cos(2*pi*((k_vec(1)+twisted_bc(1))*this%length(1) & 
+!                                   -(k_vec(2)+twisted_bc(2))*this%length(2))/this%n_sites))
+
+        ! after some more consideration i believe this is the correct: 
+        ! although now i am not sure about the twist anymore... check that!
+        disp = 2.0_dp * (cos(pi*((k_vec(1)+twisted_bc(1))/this%length(1) &
+                                +(k_vec(2)+twisted_bc(2))/this%length(2))) &
+                       + cos(pi*((k_vec(1)+twisted_bc(1))/this%length(1) & 
+                               - (k_vec(2)+twisted_bc(2))/this%length(2))))
 
     end function dispersion_rel_tilted
+
+    function dispersion_rel_ole(this, k_vec) result(disp)
+        class(ole) :: this
+        integer, intent(in) :: k_vec(3) 
+        real(dp) :: disp 
+#ifdef __DEBUG
+        character(*), parameter :: this_routine ="dispersion_rel_ole"
+#endif
+
+        ASSERT(this%is_periodic())
+
+        ! i finally figured out how to do the non-orthogonal 
+        ! boundary conditions: 
+        ! although i am not sure about the twisted BC in this case! 
+        disp = 2.0_dp * (cos(2*pi/real(sum(this%length(1:2)),dp) * & 
+                        ((k_vec(1) + twisted_bc(1)) - (k_vec(2) + twisted_bc(2)))) & 
+                       + cos(2*pi/real(sum(this%length(1:2)),dp) * & 
+                 (this%length(2)/real(this%length(1),dp)*(k_vec(1)+twisted_bc(1)) &
+                            + (k_vec(2) + twisted_bc(2)))))
+
+    end function dispersion_rel_ole
 
     function dispersion_rel_not_implemented(this, k_vec) result(disp)
         class(lattice) :: this 
@@ -2023,6 +2676,40 @@ contains
             "dispersion relation not yet implemented for this lattice type!")
 
     end function dispersion_rel_not_implemented
+
+    function dispersion_rel_not_implemented_orb(this, orb) result(disp)
+        class(lattice) :: this 
+        integer, intent(in) :: orb
+        real(dp) :: disp 
+        character(*), parameter :: this_routine = "dispersion_rel"
+
+        call stop_all(this_routine, &
+            "dispersion relation not yet implemented for this lattice type!")
+
+    end function dispersion_rel_not_implemented_orb
+
+    function dispersion_rel_orb(this, orb) result(disp) 
+        class(lattice) :: this 
+        integer, intent(in) :: orb 
+        real(dp) :: disp 
+
+        integer :: k_vec(3) 
+
+        disp = this%dispersion_rel(this%get_k_vec(orb))
+
+    end function dispersion_rel_orb
+
+    function dispersion_rel_spin_orb(this, orb) result(disp) 
+        class(lattice) :: this 
+        integer, intent(in) :: orb 
+        real(dp) :: disp 
+
+        integer :: k_vec(3) 
+
+        disp = this%dispersion_rel(this%get_k_vec(get_spatial(orb)))
+
+    end function dispersion_rel_spin_orb
+
 
     function sort_unique(list) result(output)
         integer, intent(in) :: list(:)
@@ -2119,8 +2806,28 @@ contains
         class is (tilted)
             
             call this%set_ndim(DIM_RECT) 
-            call this%set_length(length_x, length_y) 
+            ! for the tilted we deal internally always with x as the 
+            ! lower of the two inputs. due to symmetry this does not 
+            ! make a difference
+            ! and do not allow a 1xY or Yx1 lattice, since this implementation
+            ! annoys me too much! 
+            if (length_x == 1 .or. length_y == 1) then 
+                call stop_all(this_routine, "incorrect size for tilted lattice!")
+            end if
+            call this%set_length(min(length_x,length_y),max(length_x,length_y))
             call this%set_nconnect_max(4) 
+
+        class is (ole)
+            call this%set_ndim(DIM_RECT)
+
+            if (length_x < 2 .or. length_y < 2 .or. length_x == length_y) then 
+                call stop_all(this_routine, "incorrect size for Oles Cluster")
+            end if
+            call this%set_length(min(length_x,length_y),max(length_x, length_y))
+            call this%set_nconnect_max(4)
+
+            this%lat_vec(1:2,1) = [this%length(1),this%length(1)]
+            this%lat_vec(1:2,2) = [-this%length(2),this%length(1)]
 
         class is (cube) 
             call this%set_ndim(DIM_CUBE)
@@ -2337,10 +3044,12 @@ contains
 
         case('tilted','tilted-square','square-tilted')
 
-            if (length_x /= length_y) then 
-                call stop_all(this_routine, &
-                    "incorrect length_x /= length_y input for tilted lattice!")
-            end if
+            ! this restriction gets lifted now: we can also have 
+            ! rectangular tilted! 
+!             if (length_x /= length_y) then 
+!                 call stop_all(this_routine, &
+!                     "incorrect length_x /= length_y input for tilted lattice!")
+!             end if
 
             allocate(tilted :: this)
 
@@ -2370,6 +3079,9 @@ contains
 
         case ('kagome') 
             allocate( kagome :: this) 
+
+        case ('ole')
+            allocate( ole :: this )
 
         case default 
             ! stop here because a incorrect lattice type was given 
@@ -2402,7 +3114,7 @@ contains
 
     end function lattice_constructor
 
-    function site_constructor(ind, n_neighbors, neighbors, site_type) & 
+    function site_constructor(ind, n_neighbors, neighbors, k_vec, site_type) & 
             result(this) 
         ! similar to the lattice constructor i want to have a site 
         ! constructor, which depending on some input constructs the 
@@ -2412,6 +3124,7 @@ contains
         integer, intent(in) :: ind 
         integer, intent(in) :: n_neighbors 
         integer, intent(in) :: neighbors(n_neighbors)
+        integer, intent(in), optional :: k_vec(3)
         character(*), intent(in), optional :: site_type 
         ! i think i have to use pointers again.. 
         ! but maybe this is really bad to deal with in the rest of the code.. 
@@ -2442,15 +3155,20 @@ contains
 
         end if
 
-        call this%initialize(ind, n_neighbors, neighbors)
+        if (present(k_vec)) then 
+            call this%initialize(ind, n_neighbors, neighbors, k_vec)
+        else 
+            call this%initialize(ind, n_neighbors, neighbors)
+        end if
 
     end function site_constructor
 
-    subroutine init_site(this, ind, n_neighbors, neighbors) 
+    subroutine init_site(this, ind, n_neighbors, neighbors, k_vec) 
         ! for now only use the index in the initalization 
         class(site) :: this 
         integer, intent(in) :: ind, n_neighbors
         integer, intent(in) :: neighbors(n_neighbors)
+        integer, intent(in), optional :: k_vec(3)
 
         ! for the beginning i do not need more than to set the index.. 
         ! independent of the type 
@@ -2459,7 +3177,19 @@ contains
         call this%allocate_neighbors(n_neighbors)
         call this%set_neighbors(neighbors)
 
+        if (present(k_vec)) then 
+            call this%set_k_vec(k_vec)
+        end if
+
     end subroutine init_site
+
+    subroutine set_k_vec(this, k_vec)
+        class(site) :: this 
+        integer, intent(in) :: k_vec(3)
+
+        this%k_vec = k_vec
+
+    end subroutine set_k_vec
 
     subroutine set_neighbors(this, neighbors) 
         class(site) :: this 
@@ -2670,9 +3400,9 @@ contains
         ASSERT(spinorb <= 2*this%get_nsites())
         ASSERT(spinorb > 0) 
         ASSERT(allocated(this%sites))
-        ASSERT(allocated(this%sites(gtid(spinorb))%neighbors))
+        ASSERT(allocated(this%sites(get_spatial(spinorb))%neighbors))
 
-        neighbors = this%get_neighbors(gtid(spinorb))
+        neighbors = this%get_neighbors(get_spatial(spinorb))
 
         if (is_beta(spinorb)) then
             neighbors = 2 * neighbors - 1
@@ -2829,16 +3559,43 @@ contains
         integer :: n_sites 
         character(*), parameter :: this_routine = "calc_nsites_tilted" 
 
-        if (length_x < 2 .or. length_y < 2) then 
-            print *, "length_x: ", length_x
-            print *, "length_y: ", length_y
-            call stop_all(this_routine, "length input wrong for type tilted!")
-
-        else 
+        ! this rectriction gets lifted now: there are also rectangular 
+        ! and 1xY and Yx1 with 2 * Y sites tilted lattices possible 
+!         if (length_x < 2 .or. length_y < 2) then 
+!             print *, "length_x: ", length_x
+!             print *, "length_y: ", length_y
+!             call stop_all(this_routine, "length input wrong for type tilted!")
+! 
+!         else 
             n_sites = 2 * length_x * length_y
-        end if
+!         end if
 
     end function calc_nsites_tilted
+
+    function calc_nsites_ole(this, length_x, length_y, length_z) result(n_sites) 
+        class(ole) :: this 
+        integer, intent(in) :: length_x, length_y
+        integer, intent(in), optional :: length_z
+        integer :: n_sites
+        character(*), parameter :: this_routine = "calc_nsites_ole" 
+
+        ! oles cluster we want to look at are defined by the vectors 
+        ! (x,x), (-y,x) and i also think  y = x + 2 is a requisite but i am 
+        ! not sure.. it is a non-orthogonal unit cell! 
+        ! check for the validity of the input 
+        if (length_x < 2 .or. length_y < 2 .or. length_x == length_y .or. & 
+            length_x > length_y) then
+            ! and as a convention y > x is enforced! 
+            print *, "Lx: ", length_x
+            print *, "Ly: ", length_y
+            call stop_all(this_routine, "incorrect input for Ole Clusters") 
+        end if
+
+!         n_sites = 2*length_x*(length_x + length_y) - length_x**2 - length_x*length_y
+        ! or shorter: 
+        n_sites = length_x*(length_x + length_y)
+
+    end function calc_nsites_ole
 
     function calc_nsites_lattice(this, length_x, length_y) result(n_sites) 
         class(lattice) :: this 
@@ -3181,7 +3938,7 @@ contains
         class is (lattice) 
 
             call stop_all("lattice%print()", &
-                "'lattice type should never be directly instantiated!")
+                "lattice type should never be directly instantiated!")
 
         class is (chain) 
         
@@ -3191,6 +3948,15 @@ contains
             print *, " number of sites of chain: ", this%get_nsites() 
             print *, " is the chain periodic: ", this%is_periodic()
 
+        class is (ole) 
+            print *, "Lattice type is 'Ole' ;) "
+            print *, "number of dimensions: ", this%get_ndim() 
+            print *, "max-number of neigbors: ", this%get_nconnect_max() 
+            print *, "number of sites: ", this%get_nsites() 
+            print *, "primitive lattice vectors: (",this%lat_vec(1:2,1),"), (",this%lat_vec(1:2,2), ")"
+            print *, "TODO: more and better output! " 
+            
+            
         end select 
 
     end subroutine print

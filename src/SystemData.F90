@@ -244,6 +244,9 @@ logical :: tGen_4ind_unbound = .false.
 
 ! implement a more efficient real-space hubbard implementation 
 logical :: t_new_real_space_hubbard = .false.
+! make a new flag to indicate the new hubbard implementation
+logical :: t_new_hubbard = .false.
+
  
 ! honjuns idea with the transcorrelated Hamiltonian we have a modified 
 ! hopping term: 

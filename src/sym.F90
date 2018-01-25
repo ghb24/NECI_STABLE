@@ -2,7 +2,8 @@ module sym_mod
 
 use constants, only: dp,int64,sizeof_int
 use SymExcitDataMod, only: SymTableLabels
-use SystemData, only: tKpntSym, tNoSymGenRandExcits, tHub
+use SystemData, only: tKpntSym, tNoSymGenRandExcits, tHub, t_new_hubbard
+use lattice_mod, only: lat
 implicit none
 
 contains
@@ -1421,6 +1422,14 @@ contains
          TYPE(BasisFN) ISYM
          INTEGER nBasisMax(5,*)
          INTEGER I
+         if (t_new_hubbard) then 
+             ! deal differently with the new k-space hubbard 
+             ! use the lattice intrinsic function 
+             ! also do something in the real-space case!!
+             ! maybe there i have to set k to 0.. 
+             isym = lat%round_sym(isym)
+             return
+         end if
          IF(NBASISMAX(3,3).EQ.-2) THEN
 !   particle in a box
 !   parity symmetries

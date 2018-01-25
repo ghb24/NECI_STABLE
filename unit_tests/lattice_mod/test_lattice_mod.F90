@@ -8,6 +8,7 @@ program test_lattice_mod
     use constants, only: dp, pi
     use lattice_mod 
     use fruit 
+    use sort_mod, only: sort
 
     implicit none 
 
@@ -38,8 +39,67 @@ contains
         call run_test_case(test_init_lattice_triangular, "test_init_lattice_triangular")
         call run_test_case(test_init_lattice_hexagonal, "test_init_lattice_hexagonal")
         call run_test_case(test_init_lattice_kagome, "test_init_lattice_kagome")
+        call run_test_case(inside_bz_2d_test, "inside_bz_2d_test")
+        call run_test_case(init_lattice_ole_test, "init_lattice_ole_test")
+        call run_test_case(on_line_2d_test, "on_line_2d_test")
+        call run_test_case(apply_pbc_test, "apply_pbc_test")
+        call run_test_case(apply_pbc_tilted_test, "apply_pbc_tilted_test")
 
     end subroutine lattice_mod_test_driver 
+
+    subroutine apply_pbc_test
+
+        print *, ""
+        print *, "testing: apply_pbc"
+        print *, "TODO!"
+!         call stop_all("apply_pbc_test", "todo")
+
+    end subroutine apply_pbc_test
+
+    subroutine on_line_2d_test
+
+        print *, ""
+        print *, "testing: on_line_2d "
+
+        call assert_true(on_line_2d([1,1],[0,0],[1,1]))
+        call assert_true(on_line_2d([2,2],[1,1],[0,0]))
+        call assert_true(.not. on_line_2d([1,0],[0,0],[1,1]))
+
+    end subroutine on_line_2d_test
+
+    subroutine inside_bz_2d_test
+
+        print *, ""
+        print *, "testing: inside_bz_2d "
+
+        call assert_true(inside_bz_2d(0,0, [-1,1],[-1,-1],[1,-1],[1,1]))
+        call assert_true(inside_bz_2d(1,0, [-1,1],[-1,-1],[1,-1],[1,1]))
+        call assert_true(inside_bz_2d(0,1, [-1,1],[-1,-1],[1,-1],[1,1]))
+        call assert_true(inside_bz_2d(1,1, [-1,1],[-1,-1],[1,-1],[1,1]))
+        
+        call assert_true(inside_bz_2d(0,-1, [-1,1],[-1,-1],[1,-1],[1,1]))
+        call assert_true(inside_bz_2d(1,-1, [-1,1],[-1,-1],[1,-1],[1,1]))
+        call assert_true(.not.inside_bz_2d(2,-1, [-1,1],[-1,-1],[1,-1],[1,1]))
+        call assert_true(.not.inside_bz_2d(2,0, [-1,1],[-1,-1],[1,-1],[1,1]))
+        call assert_true(.not.inside_bz_2d(2,1, [-1,1],[-1,-1],[1,-1],[1,1]))
+        call assert_true(.not.inside_bz_2d(3,2, [-1,1],[-1,-1],[1,-1],[1,1]))
+
+        call assert_true(.not.inside_bz_2d(0,0,[3,3],[3,2],[4,2],[4,4]))
+        
+        call assert_true(inside_bz_2d(0,0, [-5,0],[0,-3],[3,0],[-2,3]))
+        call assert_true(inside_bz_2d(-3,-1, [-5,0],[0,-3],[3,0],[-2,3]))
+        call assert_true(inside_bz_2d(-1,2, [-5,0],[0,-3],[3,0],[-2,3]))
+        call assert_true(.not.inside_bz_2d(0,3, [-5,0],[0,-3],[3,0],[-2,3]))
+
+
+    end subroutine inside_bz_2d_test
+
+    subroutine apply_pbc_tilted_test
+
+        print *, ""
+        print *, "testing: apply_pbc_tilted "
+        print *, "TODO!"
+    end subroutine apply_pbc_tilted_test
 
     subroutine test_sort_unique
 
@@ -372,8 +432,91 @@ contains
 
     end subroutine test_init_lattice_cube
 
+    subroutine init_lattice_ole_test
+        class(lattice), pointer :: ptr 
+        real(dp) :: x(24)
+        integer :: i
+
+        print *, "" 
+        print *, "testing: initialize a 3x5 Ole lattice" 
+        ptr => lattice('ole', 3, 5, 1, .true.,.true.,.true.,'k-space')
+        call assert_equals(2, ptr%get_ndim())
+        call assert_equals(3, ptr%get_length(1))
+        call assert_equals(5, ptr%get_length(2))
+        call assert_equals(24, ptr%get_nsites())
+        call assert_equals(4, ptr%get_nconnect_max())
+        call assert_true( ptr%is_periodic())
+        call assert_true( ptr%is_periodic(1))
+        call assert_true( ptr%is_periodic(2))
+
+        ! now check the connectivity 
+        call assert_equals(1, ptr%get_site_index(1))
+        call assert_equals(2, ptr%get_site_index(2))
+        call assert_equals(3, ptr%get_site_index(3))
+        call assert_equals(8, ptr%get_site_index(8))
+        call assert_equals([3,9,18,22], ptr%get_neighbors(1),4)
+        call assert_equals([3,6,22,24], ptr%get_neighbors(2),4)
+        call assert_equals([1,2,4,7], ptr%get_neighbors(3),4)
+        call assert_equals([3,8,9,14], ptr%get_neighbors(4),4)
+        call assert_equals([6,9,18,24], ptr%get_neighbors(5),4)
+        call assert_equals([1,5,17,23], ptr%get_neighbors(18),4)
+        call assert_equals([2,5,21,23], ptr%get_neighbors(24),4)
+
+        x = [(-ptr%dispersion_rel_orb(i), i = 1,24 )]
+
+        call sort(x)
+        do i = 1, 24 
+            print *, "e(x): ", x(i)
+        end do
+
+        print *, "check neighbors: "
+        do i = 1, 24 
+            print *, "i, neighbors", i, "|", ptr%get_neighbors(i)
+        end do
+
+        print *, "testing a 2x4 Ole lattice: "
+        ptr => lattice('ole',2,4,1,.true.,.true.,.true.,'k-space')
+
+        do i = 1, 12 
+            print *, "i | neighbors:", i, "|", ptr%get_neighbors(i)
+        end do
+        call assert_equals(2, ptr%get_ndim())
+        call assert_equals(2, ptr%get_length(1))
+        call assert_equals(4, ptr%get_length(2))
+        call assert_equals(12, ptr%get_nsites())
+        call assert_equals(4, ptr%get_nconnect_max())
+        call assert_true( ptr%is_periodic())
+        call assert_true( ptr%is_periodic(1))
+        call assert_true( ptr%is_periodic(2))
+
+        ! now check the connectivity 
+        call assert_equals(1, ptr%get_site_index(1))
+        call assert_equals(2, ptr%get_site_index(2))
+        call assert_equals(3, ptr%get_site_index(3))
+        call assert_equals(8, ptr%get_site_index(8))
+
+        call assert_equals([3,5,10,12], ptr%get_neighbors(1),4)
+        call assert_equals([3,5,10,12], ptr%get_neighbors(2),4)
+        call assert_equals([1,2,4,6], ptr%get_neighbors(3),4)
+        call assert_equals([3,5,7,8], ptr%get_neighbors(4),4)
+        call assert_equals([1,2,4,6], ptr%get_neighbors(5),4)
+        call assert_equals([1,2,9,11], ptr%get_neighbors(10),4)
+        call assert_equals([1,2,9,11], ptr%get_neighbors(12),4)
+
+        x(1:12) = [(-ptr%dispersion_rel_orb(i), i = 1, 12)]
+        call sort(x(1:12))
+
+        print *, "e(x): "
+        do i = 1, 12 
+            print *, x(i)
+        end do
+
+    end subroutine init_lattice_ole_test
+
     subroutine test_init_lattice_tilted
         class(lattice), pointer :: ptr
+        integer :: i 
+        real(dp) :: x(24)
 
         print *, "" 
         print *, "initialize a 2x2 tilted square lattice with PBC"
@@ -409,6 +552,14 @@ contains
         call assert_equals(-4.0_dp, ptr%dispersion_rel([2,0,0]))
         call assert_equals(0.0_dp, ptr%dispersion_rel([1,1,0]),1.e-10)
         call assert_equals(0.0_dp, ptr%dispersion_rel([-1,0,0]),1.e-10)
+
+
+        x(1:8) = [(-ptr%dispersion_rel_orb(i), i = 1, 8)]
+        call sort(x(1:8))
+
+        do i = 1, 8 
+            print *, "e(k): ", x(i)
+        end do
 
         call lattice_deconstructor(ptr)
 
@@ -570,6 +721,12 @@ contains
         call assert_equals(-2.0_dp, ptr%dispersion_rel([0,2,0]),1.e-10)
         call assert_equals(-4.0_dp, ptr%dispersion_rel([3,0,0]))
 
+        x(1:18) = [(-ptr%dispersion_rel_orb(i), i = 1,18)]
+        call sort(x(1:18))
+        do i = 1, 18
+            print *, "e(k): ", x(i) 
+        end do
+
         call lattice_deconstructor(ptr)
 
         print *, "" 
@@ -603,6 +760,201 @@ contains
         call assert_equals([1,4,5,11], ptr%get_neighbors(10),4)
 
         call lattice_deconstructor(ptr)
+
+!         print *, "" 
+!         print *, "test also rectangular tilted lattices now!"
+!         print *, "iniitalize a 1x2 4 site tilted! in k-space!" 
+!         ptr => lattice('tilted', 1, 2, 1, .true.,.true.,.true., 'k-space') 
+! 
+!         call assert_equals(2, ptr%get_ndim())
+!         ! this would be nice: how do i implement that??
+!         call assert_equals(1, ptr%get_length(1))
+!         call assert_equals(2, ptr%get_length(2))
+!         call assert_equals(4, ptr%get_nsites())
+!         call assert_equals(4, ptr%get_nconnect_max())
+!         call assert_true( ptr%is_periodic())
+!         call assert_true( ptr%is_periodic(1))
+!         call assert_true( ptr%is_periodic(2))
+!         call assert_equals(1, ptr%get_site_index(1))
+!         call assert_equals(2, ptr%get_site_index(2))
+!         call assert_equals(3, ptr%get_site_index(3))
+!         call assert_equals(4, ptr%get_site_index(4))
+!         call assert_equals([2,4], ptr%get_neighbors(1),2)
+!         call assert_equals([1,3], ptr%get_neighbors(2),2)
+!         call assert_equals([2,4], ptr%get_neighbors(3),2)
+!         print *, "neigh:1 ", ptr%get_neighbors(1)
+!         print *, "neigh:2 ", ptr%get_neighbors(2)
+!         print *, "neigh:3 ", ptr%get_neighbors(3)
+!         print *, "neigh:4 ", ptr%get_neighbors(4)
+!         call assert_equals([1,3], ptr%get_neighbors(4),2)
+        ! also test the dispersion relation: 
+        ! i should also write a routine for the dispersion relation, where 
+        ! i just input the orbital(spin or spatial?) and which internally 
+        ! takes the correct k-vector  todo! 
+        ! i should also internally use real-space and k-vectors to better 
+        ! deal with periodicity and stuff! 
+!         call assert_equals([2.0_dp,0.0_dp], ptr%get_lat_vec(1),2)
+!         call assert_equals([2.0_dp,-2.0_dp], ptr%get_lat_vec(2),2) 
+!         ! and from this i can calculate the k-vectors by r_i*k_j = 2pi\delta_{ij}
+!         ! todo! 
+!         call assert_equals([0.0_dp,0.0_dp], ptr%get_rec_vec(1),2)
+!         call assert_equals([0.0_dp,0.0_dp], ptr%get_rec_vec(2),2)
+! 
+!         call assert_equals(0.0_dp, ptr%dispersion_rel(1))
+
+        print *, "initialize a 2x3 12-site tilted lattice: "
+        ptr => lattice('tilted', 2,3,1,.true.,.true.,.true.,'k-space')
+        call assert_equals(2, ptr%get_ndim())
+        ! this would be nice: how do i implement that??
+        call assert_equals(2, ptr%get_length(1))
+        call assert_equals(3, ptr%get_length(2))
+        call assert_equals(12, ptr%get_nsites())
+        call assert_equals(4, ptr%get_nconnect_max())
+        call assert_true( ptr%is_periodic())
+        call assert_true( ptr%is_periodic(1))
+        call assert_true( ptr%is_periodic(2))
+        call assert_equals(1, ptr%get_site_index(1))
+        call assert_equals(2, ptr%get_site_index(2))
+        call assert_equals(3, ptr%get_site_index(3))
+        call assert_equals(4, ptr%get_site_index(4))
+        call assert_equals([3,5,11,12], ptr%get_neighbors(1),2)
+        call assert_equals([3,5,11,12], ptr%get_neighbors(2),2)
+        call assert_equals([1,2,4,6], ptr%get_neighbors(3),2)
+        call assert_equals([3,5,7,9], ptr%get_neighbors(4),4)
+        call assert_equals([1,2,4,6], ptr%get_neighbors(5),4)
+        call assert_equals([3,5,7,9], ptr%get_neighbors(6),4)
+        call assert_equals([4,6,8,10], ptr%get_neighbors(7),4)
+        call assert_equals([7,9,11,12], ptr%get_neighbors(8),4)
+        call assert_equals([1,2,8,10], ptr%get_neighbors(12),4)
+
+        print *, "initialize a 3x2 12-site tilted lattice: "
+        print *, "due to symmetr the 2x3 is treated the dealt internally as" 
+        print *, "the already working 2x3!"
+        ptr => lattice('tilted', 3,2,1,.true.,.true.,.true.,'k-space')
+        call assert_equals(2, ptr%get_ndim())
+        ! this would be nice: how do i implement that??
+        call assert_equals(2, ptr%get_length(1))
+        call assert_equals(3, ptr%get_length(2))
+        call assert_equals(12, ptr%get_nsites())
+        call assert_equals(4, ptr%get_nconnect_max())
+        call assert_true( ptr%is_periodic())
+        call assert_true( ptr%is_periodic(1))
+        call assert_true( ptr%is_periodic(2))
+        call assert_equals(1, ptr%get_site_index(1))
+        call assert_equals(2, ptr%get_site_index(2))
+        call assert_equals(3, ptr%get_site_index(3))
+        call assert_equals(4, ptr%get_site_index(4))
+        call assert_equals([3,5,11,12], ptr%get_neighbors(1),4)
+        call assert_equals([3,5,11,12], ptr%get_neighbors(2),4)
+        call assert_equals([1,2,4,6], ptr%get_neighbors(3),4)
+        call assert_equals([3,5,7,9], ptr%get_neighbors(4),4)
+        call assert_equals([1,2,4,6], ptr%get_neighbors(5),4)
+        call assert_equals([3,5,7,9], ptr%get_neighbors(6),4)
+        call assert_equals([4,6,8,10], ptr%get_neighbors(7),4)
+        call assert_equals([7,9,11,12], ptr%get_neighbors(8),4)
+        call assert_equals([1,2,8,10], ptr%get_neighbors(12),4)
+
+        print *, "initialize a 3x4 24-site tilted lattice: " 
+        ptr => lattice('tilted', 3,4,1,.true.,.true.,.true.,'k-space')
+        call assert_equals(2, ptr%get_ndim())
+        ! this would be nice: how do i implement that??
+        call assert_equals(3, ptr%get_length(1))
+        call assert_equals(4, ptr%get_length(2))
+        call assert_equals(24, ptr%get_nsites())
+        call assert_equals(4, ptr%get_nconnect_max())
+        call assert_true( ptr%is_periodic())
+        call assert_true( ptr%is_periodic(1))
+        call assert_true( ptr%is_periodic(2))
+        call assert_equals(1, ptr%get_site_index(1))
+        call assert_equals(2, ptr%get_site_index(2))
+        call assert_equals(3, ptr%get_site_index(3))
+        call assert_equals(4, ptr%get_site_index(4))
+        call assert_equals([3,10,20,24], ptr%get_neighbors(1),4)
+        call assert_equals([3,6,20,23], ptr%get_neighbors(2),4)
+        call assert_equals([1,2,4,7], ptr%get_neighbors(3),4)
+        call assert_equals([3,8,10,16], ptr%get_neighbors(4),4)
+        call assert_equals([6,10,23,24], ptr%get_neighbors(5),4)
+        call assert_equals([2,5,7,11], ptr%get_neighbors(6),4)
+        call assert_equals([3,6,8,12], ptr%get_neighbors(7),4)
+        call assert_equals([13,17,19,22], ptr%get_neighbors(18),4)
+        call assert_equals([1,5,15,22], ptr%get_neighbors(24),4)
+
+        do i = 1, 24 
+            print *, "k, e(k): ", ptr%get_k_vec(i), ptr%dispersion_rel_orb(i)
+        end do
+
+        x = [(-ptr%dispersion_rel_orb(i), i = 1,24)]
+        call sort(x)
+!         x = x(24:1:-1)
+
+        do i = 1,24 
+            print *, x(i)
+        end do
+
+        print *, "initialize a 2x4 16-site tilted lattice: " 
+        ptr => lattice('tilted', 2,4,1,.true.,.true.,.true.,'k-space')
+        call assert_equals(2, ptr%get_ndim())
+        ! this would be nice: how do i implement that??
+        call assert_equals(2, ptr%get_length(1))
+        call assert_equals(4, ptr%get_length(2))
+        call assert_equals(16, ptr%get_nsites())
+        call assert_equals(4, ptr%get_nconnect_max())
+        call assert_true( ptr%is_periodic())
+        call assert_true( ptr%is_periodic(1))
+        call assert_true( ptr%is_periodic(2))
+        call assert_equals(1, ptr%get_site_index(1))
+        call assert_equals(2, ptr%get_site_index(2))
+        call assert_equals(3, ptr%get_site_index(3))
+        call assert_equals(4, ptr%get_site_index(4))
+        call assert_equals([3,5,15,16], ptr%get_neighbors(1),4)
+        call assert_equals([3,5,15,16], ptr%get_neighbors(2),4)
+        call assert_equals([1,2,4,6], ptr%get_neighbors(3),4)
+        call assert_equals([3,5,7,9], ptr%get_neighbors(4),4)
+        call assert_equals([1,2,4,6], ptr%get_neighbors(5),4)
+        call assert_equals([3,5,7,9], ptr%get_neighbors(6),4)
+        call assert_equals([1,2,13,16], ptr%get_neighbors(16),4)
+        call assert_equals(0.0_dp, ptr%dispersion_rel_orb(1))
+
+!         call stop_all("here","now")
+!         call lattice_deconstructor(ptr) 
+!         print *, "iniitalize a 2x1 4 site tilted! in k-space!" 
+!         ptr => lattice('tilted', 2, 1, 1, .true.,.true.,.true., 'k-space') 
+! 
+!         call assert_equals(2, ptr%get_ndim())
+!         ! this would be nice: how do i implement that??
+!         call assert_equals(2, ptr%get_length(1))
+!         call assert_equals(1, ptr%get_length(2))
+!         call assert_equals(4, ptr%get_nsites())
+!         call assert_equals(2, ptr%get_nconnect_max())
+!         call assert_true( ptr%is_periodic())
+!         call assert_true( ptr%is_periodic(1))
+!         call assert_true( ptr%is_periodic(2))
+!         call assert_equals(1, ptr%get_site_index(1))
+!         call assert_equals(2, ptr%get_site_index(2))
+!         call assert_equals(3, ptr%get_site_index(3))
+!         call assert_equals(4, ptr%get_site_index(4))
+!         call assert_equals([3,4], ptr%get_neighbors(1),2)
+!         call assert_equals([3,4], ptr%get_neighbors(2),2)
+!         call assert_equals([1,2], ptr%get_neighbors(3),2)
+!         call assert_equals([1,2], ptr%get_neighbors(4),2)
+!         ! also test the dispersion relation: 
+        ! i should also write a routine for the dispersion relation, where 
+        ! i just input the orbital(spin or spatial?) and which internally 
+        ! takes the correct k-vector  todo! 
+! 
+!         ! also test for the lattice vector and reciprocal vectors 
+!         call assert_equals([2.0_dp,2.0_dp], ptr%get_lat_vec(1),2)
+!         call assert_equals([2.0_dp,0.0_dp], ptr%get_lat_vec(2),2)
+! 
+!         call assert_equals([0.0_dp,0.0_dp], ptr%get_rec_vec(1),2)
+!         call assert_equals([0.0_dp,0.0_dp], ptr%get_rec_vec(2),2)
+
+
+        call lattice_deconstructor(ptr) 
+
+
+
+
 
 
     end subroutine test_init_lattice_tilted
