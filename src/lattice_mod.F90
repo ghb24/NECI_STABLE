@@ -194,7 +194,7 @@ module lattice_mod
 
         procedure, public :: is_k_space 
         ! i definetly also want to have a print function! 
-        procedure, public :: print 
+        procedure, public :: print_lat
 
         procedure :: set_name
 
@@ -649,10 +649,14 @@ contains
         ! first check if it is in the first BZ 
         k_vec = this%map_k_vec(k_in)
 
+        orb = 0
         ! the naive way would be to loop over all sites and check if the 
         ! k-vector fits..
         do i = 1, this%get_nsites()
-            if (all(k_vec == this%get_k_vec(i))) orb = i
+            if (all(k_vec == this%get_k_vec(i))) then 
+                orb = i
+                return
+            end if
         end do
         
     end function get_orb_from_k_vec
@@ -687,8 +691,11 @@ contains
 
         integer :: i
 
+        k_out = k_in 
+
         if (this%inside_bz(k_in)) then 
             k_out = k_in 
+
         else 
             ! here i have to do something.. 
             ! should i store this matrix to setup the lattice within the 
@@ -696,10 +703,14 @@ contains
             ! or i apply the primitive vectors to the k_vec and check if 
             ! a resulting vector lies within the first BZ.. 
             i = 1
+            k_out = k_in
             do while (.not. this%inside_bz(k_out))
-                k_out = k_in
+!                 k_out = k_in
+!                 print *, "k_out before: ", k_in
                 ! apply all possible basis vectors of the lattice 
-                k_out = this%apply_basis_vector(k_out, i)
+                k_out = this%apply_basis_vector(k_in, i)
+!                 print *, "i: ", i
+!                 print *, "k_out after ", k_out
                 i = i + 1
             end do
         end if
@@ -734,10 +745,11 @@ contains
                   (.not. on_line_2d([k_vec(1:2)], A, D)) .and. & 
                   (.not. on_line_2d([k_vec(1:2)], C, D))) then 
 
-                inside_bz_ole = .true. 
+                  inside_bz_ole = .true. 
 
             end if
         end associate
+
     end function inside_bz_ole
 
     function apply_basis_vector(this, k_in, ind) result(k_out) 
@@ -761,21 +773,34 @@ contains
         character(*), parameter :: this_routine = "apply_basis_vector_ole"
 #endif
 
-        integer :: basis_vec(8,3) 
+        integer :: basis_vec(8,3), r1(3), r2(3)
 
         ASSERT(ind >= 0)
         ASSERT(ind <= 8) 
 
         ! with negative signs we have in total 8 possibilities of 
         ! vectors to apply: 
-        associate(r1 => this%lat_vec(:,1), r2 => this%lat_vec(:,2))
+!         associate(r1 => this%lat_vec(:,1), r2 => this%lat_vec(:,2))
 
-            basis_vec = transpose(reshape( & 
-                [r1,-r1,r2,-r2,r1+r2,-(r1+r2),r1-r2,-(r1-r2)], [3,8]))
+        r1 = this%lat_vec(:,1) 
+        r2 = this%lat_vec(:,2)
+            basis_vec(1,:) = r1 
+            basis_vec(2,:) = -r1 
+            basis_vec(3,:) = r2 
+            basis_vec(4,:) = -r2 
+            basis_vec(5,:) = r1 + r2
+            basis_vec(6,:) = -(r1 + r2)
+            basis_vec(7,:) = r1 - r2
+            basis_vec(8,:) = -(r1 - r2)
+            
+!             print *, "basis vec: ", basis_vec(ind,:) 
+
+!             basis_vec = transpose(reshape( & 
+!                 [r1,-r1,r2,-r2,r1+r2,-(r1+r2),r1-r2,-(r1-r2)], [3,8]))
 
             k_out = k_in + basis_vec(ind,:)
 
-        end associate 
+!         end associate 
 
     end function apply_basis_vector_ole
 
@@ -3930,36 +3955,36 @@ contains
 
     end function get_nsites
 
-    subroutine print(this) 
+    subroutine print_lat(this) 
         class(lattice) :: this 
 
         ! depending on the type print specific lattice information
-        select type (this)
-        class is (lattice) 
+!         select type (this)
+!         class is (lattice) 
+! 
+!             call stop_all("lattice%print()", &
+!                 "lattice type should never be directly instantiated!")
+! 
+!         class is (chain) 
+!         
+!             print *, "Lattice type is: 'chain' "
+!             print *, " number of dimensions: ", this%get_ndim()
+!             print *, " max-number of neighbors: ", this%get_nconnect_max() 
+!             print *, " number of sites of chain: ", this%get_nsites() 
+!             print *, " is the chain periodic: ", this%is_periodic()
+! 
+!         class is (ole) 
+!             print *, "Lattice type is 'Ole' ;) "
+!             print *, "number of dimensions: ", this%get_ndim() 
+!             print *, "max-number of neigbors: ", this%get_nconnect_max() 
+!             print *, "number of sites: ", this%get_nsites() 
+!             print *, "primitive lattice vectors: (",this%lat_vec(1:2,1),"), (",this%lat_vec(1:2,2), ")"
+!             print *, "TODO: more and better output! " 
+!             
+!             
+!         end select 
 
-            call stop_all("lattice%print()", &
-                "lattice type should never be directly instantiated!")
-
-        class is (chain) 
-        
-            print *, "Lattice type is: 'chain' "
-            print *, " number of dimensions: ", this%get_ndim()
-            print *, " max-number of neighbors: ", this%get_nconnect_max() 
-            print *, " number of sites of chain: ", this%get_nsites() 
-            print *, " is the chain periodic: ", this%is_periodic()
-
-        class is (ole) 
-            print *, "Lattice type is 'Ole' ;) "
-            print *, "number of dimensions: ", this%get_ndim() 
-            print *, "max-number of neigbors: ", this%get_nconnect_max() 
-            print *, "number of sites: ", this%get_nsites() 
-            print *, "primitive lattice vectors: (",this%lat_vec(1:2,1),"), (",this%lat_vec(1:2,2), ")"
-            print *, "TODO: more and better output! " 
-            
-            
-        end select 
-
-    end subroutine print
+    end subroutine print_lat
 
     function determine_optimal_time_step(time_step_death) result(time_step)
         use SystemData, only: nel, bhub, uhub, t_new_real_space_hubbard, & 

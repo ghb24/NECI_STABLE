@@ -545,8 +545,17 @@ contains
 !TODO: Get CountExcitations3 working with tKPntSym
             CALL CountExcitations3(iand(HFDet, csf_orbital_mask),exflag,nSingles,nDoubles)
         ELSE
-            ! Use Alex's old excitation generators to enumerate all excitations.
-            call enumerate_sing_doub_kpnt(exflag, .false., nSingles, nDoubles, .false.)
+            if (t_k_space_hubbard) then 
+                ! use my gen_all_excits_k_space_hubbard routine from the 
+                ! unit tests.. but i might have to set up some other stuff 
+                ! for this to work and also make sure this works with my 
+                ! new symmetry implementation
+                call gen_all_excits_k_space_hubbard(HFDet, nDoubles, dummy_list)
+                nSingles = 0
+            else
+                ! Use Alex's old excitation generators to enumerate all excitations.
+                call enumerate_sing_doub_kpnt(exflag, .false., nSingles, nDoubles, .false.)
+            end if
         ENDIF
         HFConn=nSingles+nDoubles
 
@@ -2967,7 +2976,12 @@ contains
         else
             iTotal=nSingles + nDoubles + ncsf
             if (tKPntSym) THEN
-                call enumerate_sing_doub_kpnt(exFlag, .false., nSingles, nDoubles, .false.) 
+                if (t_k_space_hubbard) then 
+                    ! change this to the new implementation
+                    call gen_all_excits_k_space_hubbard(HFDet, nDoubles, dummy_list)
+                else
+                    call enumerate_sing_doub_kpnt(exFlag, .false., nSingles, nDoubles, .false.) 
+                end if
             else
                 call CountExcitations3(HFDet_loc,exflag,nSingles,nDoubles)
             endif

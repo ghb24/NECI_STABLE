@@ -59,6 +59,185 @@ module k_space_hubbard
 
 contains 
 
+    subroutine setup_symmetry_table() 
+        ! implement a new symmetry setup to decouple it from the 
+        ! old hubbard.F code.. 
+        use SystemData, only: Symmetry, SymmetrySize
+        use global_utilities, only: LogMemDealloc, LogMemAlloc
+        use SymData, only: nSym,SymConjTab,SymClasses,SymLabels
+        use SymData, only: nSymLabels,tAbelian,SymTable
+        use SymData, only: tagSymConjTab,tagSymClasses,tagSymLabels
+        use SymData, only: tagSymTable
+        use sym_mod, only: RoundSym, AddElecSym
+        use constants, only: int64
+        use lattice_mod, only: lat
+   
+        character(*), parameter :: this_routine = "setup_symmetry_table"
+
+        integer :: i, j, k, l, k_i(3), k_inv(3), k_j(3)
+
+        ! the only problem could be that we reorderd the orbitals already or? 
+        ! so G1 has a different ordering than just 1, nBasis/2... 
+        ! yes it really is reordered already! hm.. 
+        ASSERT(associated(lat))
+        ASSERT(associated(G1))
+
+        nsym = nBasis/2
+        nSymLabels = nsym
+
+        ! copy the output from the old hubbard code: 
+         WRITE(6,"(A,I3,A)") "Generating abelian symmetry table with", &
+         nsym , " generators for Hubbard momentum" 
+         if (allocated(SymLabels)) then
+             write (6,'(a/a)') &
+                     'Warning: symmetry info already allocated.', &
+                     'Deallocating and reallocating.' 
+             deallocate(SymLabels)
+             call LogMemDealloc(this_routine,tagSymLabels)
+         end if
+         allocate(SymLabels(nSym))
+         call LogMemAlloc('SymLabels',nSym,SymmetrySize,this_routine, tagSymLabels)
+         if (associated(SymClasses)) then
+             deallocate(SymClasses)
+             call LogMemDealloc(this_routine,tagSymClasses)
+         end if
+         allocate(SymClasses(nBasis))
+         call LogMemAlloc('SymClasses',nBasis,4,this_routine,tagSymClasses)
+
+        ! for some strange reason the (0,0,0) k-vector is treated 
+        ! special in the old implementation.. since it is its own 
+        ! symmetry inverse.. but this might be not the case in the 
+        ! general lattices or? there can be other states which are 
+        ! also its own inverse or? 
+
+        ! so try to change that here.. 
+        SymClasses = [( i, i = 1, lat%get_nsites())]
+       
+        if (allocated(SymTable)) then
+            deallocate(SymTable)
+            call LogMemDealloc(this_routine,tagSymTable)
+        end if
+        allocate(SymTable(nSym,nSym))
+        call LogMemAlloc('SymTable',nSym**2,SymmetrySize,this_routine,tagSymTable)
+        if (allocated(SymConjTab)) then
+            deallocate(SymConjTab)
+            call LogMemDealloc(this_routine,tagSymConjTab)
+        end if
+        allocate(SymConjTab(nSym))
+        call LogMemAlloc('SymConjTable',nSym,4,this_routine, tagSymConjTab)
+
+        SYMTABLE = Symmetry(0)
+
+        tAbelian = .false.
+
+        ! i have to setup the symlabels first ofc.. 
+        do i = 1, lat%get_nsites() 
+            ! and also just encode the symmetry labels as integers, instead of 
+           ! 2^(k-1), to be able to treat more than 64 orbitals (in the old 
+            ! implementation, an integer overflow happened in this case!)
+            SymLabels(i)%s = i
+            ! i also need it in G1: 
+            G1(2*i-1)%Sym = SymLabels(i)
+            G1(2*i)%Sym = SymLabels(i)
+
+
+        end do
+
+        ! now find the inverses: 
+        do i = 1, lat%get_nsites() 
+            ! and also just encode the symmetry labels as integers, instead of 
+           ! 2^(k-1), to be able to treat more than 64 orbitals (in the old 
+            ! implementation, an integer overflow happened in this case!)
+            SymLabels(i)%s = i
+            ! i also need it in G1: 
+            G1(2*i-1)%Sym = SymLabels(i)
+            G1(2*i)%Sym = SymLabels(i)
+
+!             k_i = lat%get_k_vec(i) 
+! 
+!             k_inv = lat%map_k_vec(-k_i)
+! 
+!             print *, "i, k_i, k_inv: ", i, k_i, k_inv
+! 
+!             j = lat%get_orb_from_k_vec(k_inv)
+! 
+!             print *, j
+            ! find the orbital of -k 
+            j = lat%get_orb_from_k_vec(-lat%get_k_vec(i))
+
+!             print *, i, j 
+!             print *, "i, k(i): ", i, lat%get_k_vec(i)
+!             print *, "j, k(j): ", j, lat%get_k_vec(j)
+
+            ! since i have a linear encoding of the symmetries i do not need 
+            ! to use SymClasses here.. 
+            SymConjTab(i) = j
+
+            ! and create the symmetry product of (i) with every other symmetry
+            do k = 1, lat%get_nsites()
+                ! i just have to add the momenta and map it to the first BZ 
+
+!                 k_j = lat%get_k_vec(k) 
+
+                l = lat%get_orb_from_k_vec(lat%get_k_vec(i) + lat%get_k_vec(k))
+!                 l = lat%get_orb_from_k_vec(k_i + k_j)
+
+                SymTable(i,k) = SymLabels(l)
+
+            end do
+        end do
+
+        WRITE(6,*) "Symmetry, Symmetry Conjugate"
+        do i = 1, lat%get_nsites()
+            print *, i, SymConjTab(i)
+        end do
+
+    end subroutine setup_symmetry_table
+
+    subroutine gen_all_excits_k_space_hubbard(nI, n_excits, det_list) 
+
+        use SystemData, only: tNoBrillouin, tUseBrillouin
+        use neci_intfce, only: GenSymExcitIt2
+        use GenRandSymExcitNUMod, only: IsMomentumAllowed
+
+        integer, intent(in) :: nI(nel)
+        integer, intent(out) :: n_excits 
+        integer(n_int), intent(out), allocatable :: det_list(:,:)
+        character(*), parameter :: this_routine = "gen_all_excits_k_space_hubbard"
+
+        logical :: brillouin_tmp(2), tpar
+        integer :: iMaxExcit, nStore(6),nExcitMemLen(1), excitcount, ex(2,2)
+        integer :: nJ(nel), ierr, exFlag, iExcit
+        integer(n_int) :: iLutnJ(0:niftot)
+        integer, allocatable :: EXCITGEN(:)
+        integer(n_int), allocatable :: triple_dets(:,:), temp_dets(:,:)
+        integer :: n_triples, save_excits
+
+        call gen_all_doubles_k_space(nI, n_excits, det_list)
+
+        if (t_trans_corr_2body) then 
+            save_excits = n_excits
+            ! also account for triple excitations
+            call gen_all_triples_k_space(nI, n_triples, triple_dets)
+
+            n_excits = n_excits + n_triples
+
+            allocate(temp_dets(0:niftot, save_excits), source = det_list(:,1:save_excits))
+
+            deallocate(det_list) 
+
+            allocate(det_list(0:niftot,n_excits)) 
+
+            det_list(:,1:save_excits) = temp_dets 
+
+            det_list(:,save_excits+1:n_excits) = triple_dets
+
+        end if
+
+        call sort(det_list, ilut_lt, ilut_gt)
+
+    end subroutine gen_all_excits_k_space_hubbard
+
     subroutine init_k_space_hubbard() 
 
         character(*), parameter :: this_routine = "init_k_space_hubbard"

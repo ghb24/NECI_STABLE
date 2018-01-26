@@ -12,6 +12,7 @@ MODULE System
     use read_fci, only: FCIDUMP_name
     use util_mod, only: error_function, error_function_c
     use lattice_mod, only: lattice, lat
+    use k_space_hubbard, only: setup_symmetry_table
 
     IMPLICIT NONE
 
@@ -1887,7 +1888,7 @@ system: do
              if (t_new_hubbard) then
                  print *, "New Hubbard Implementation! " 
                  print *, "lattice used: " 
-                 call lat%print()
+                 call lat%print_lat()
              end if
           ELSE
              WRITE(6,'(1X,A,F19.5)') '  BOX LENGTH : ' , BOX
@@ -1907,6 +1908,10 @@ system: do
           
           IF(THUB) THEN
               if (t_new_hubbard) then 
+                 omega = real(lat%get_nsites(), dp) 
+                 print *, " periodic boundary conditions: ", lat%is_periodic()
+                 print *, "Real space basis: ", t_new_real_space_hubbard
+             else 
                  WRITE(6,*) ' X-LENGTH OF HUBBARD CHAIN:', NMAXX
                  WRITE(6,*) ' Y-LENGTH OF HUBBARD CHAIN:', NMAXY
                  WRITE(6,*) ' Z-LENGTH OF HUBBARD CHAIN:', NMAXZ
@@ -1918,10 +1923,6 @@ system: do
              ELSE
                 OMEGA=real(NMAXX,dp)*(NMAXY)*(NMAXZ)
              ENDIF
-             else 
-                 omega = real(lat%get_nsites(), dp) 
-                 print *, " periodic boundary conditions: ", lat%is_periodic()
-                 print *, "Real space basis: ", t_new_real_space_hubbard
              end if
              RS=1.0_dp
           ELSE
@@ -2256,16 +2257,18 @@ system: do
       ELSEIF(THUB.AND..NOT.TREAL) THEN
           ! [W.D. 25.1.2018:]
           ! this also has to be changed for the new hubbard implementation
-!           if (t_k_space_hubbard) then 
+          if (t_k_space_hubbard) then 
               ! or i change the function below to account for the new 
               ! implementation
+              call setup_symmetry_table()
 
-!           else
+
+          else
              CALL GenHubMomIrrepsSymTable(G1,nBasis,nBasisMax)
-             ! this function does not make sense..
-             CALL GENHUBSYMREPS(NBASIS,ARR,BRR)
-             CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
-!          end if
+         end if
+         ! this function does not make sense..
+         CALL GENHUBSYMREPS(NBASIS,ARR,BRR)
+         CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
       ELSE
 !C.. no symmetry, so a simple sym table
          CALL GENMOLPSYMREPS()

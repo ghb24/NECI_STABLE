@@ -413,7 +413,6 @@ C.. Setup the symmetry product table
                call stop_all(this_routine,
      &                     "Cannot find symmetry conjugate.")
             ENDIF
-            print *, "J, k ", J, NQNS%k
             SymConjTab(SymClasses(I))=SymClasses(J/2)
             DO J=1,nBasis/2
                S=G1(I*2)
@@ -426,7 +425,6 @@ C.. Setup the symmetry product table
                    K=iFindBasisFn(NQNS,G1,nBasis)
                end if
 
-               print *, "K, k: ", K, NQNS%k
                IF(K.EQ.0) THEN 
                 WRITE(6,*) "Cannot find symmetry product of basis fns ",
      &               I*2, J*2
@@ -468,6 +466,8 @@ C.. now work out which reps are degenerate and label them
          J=0
          
          ! this does not make sense.. 
+         SYMREPS = 0
+         print *, "brr: ", brr
          DO I=1,NBASIS
             IF(I.EQ.1) THEN
 C.. we have a new rep
@@ -485,9 +485,10 @@ C.. we have a new rep
             ENDIF
             SYMREPS(1,BRR(I))=J
          ENDDO
-!         DO I=1,NBASIS
-!            WRITE(6,*) SYMREPS(1,I),SYMREPS(2,I)
-!         ENDDO
+         print *, "symreps: "
+        DO I=1,NBASIS
+           WRITE(6,*) SYMREPS(1,I),SYMREPS(2,I)
+        ENDDO
       END
 
       LOGICAL FUNCTION KALLOWED(G,NBASISMAX)

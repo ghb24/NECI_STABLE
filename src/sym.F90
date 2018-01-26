@@ -27,7 +27,7 @@ contains
 ! kpntrep.F in CPMD source.
 
          FUNCTION SYMPROD(ISYM1,ISYM2)
-         use SystemData, only: Symmetry
+         use SystemData, only: Symmetry, t_k_space_hubbard
          use SystemData, only: BasisFN
          use SymData, only: SymTable,nProp,tAbelian,TwoCycleSymGens
          IMPLICIT NONE
@@ -67,9 +67,9 @@ contains
              IS1=ISYM1
              I=1
              SYMPROD%s=0
-!              if (thub .or. tKpntSym) then
-!                  symprod = SYMTABLE(isym1%s, isym2%s)
-!              else
+             if (t_k_space_hubbard) then
+                 symprod = SYMTABLE(isym1%s, isym2%s)
+             else
                  DO WHILE(IS1%s.NE.0)
                     IF(BTEST(IS1%s,0)) THEN
                        IS2=ISYM2
@@ -87,7 +87,7 @@ contains
                     IS1%s=ISHFT(IS1%s,-1)
                     I=I+1
                  ENDDO
-!              end if
+             end if
          end if
          RETURN
       END FUNCTION SYMPROD
@@ -840,7 +840,10 @@ contains
                   IF(NELECS(J).NE.SYMREPS(2,NREPS(J))) THEN
       !   we don't have a closed shell
       !   add the sym product
+                    print *, "i, ni(i): ", i, ni(i)
+                    print *, "s1,s2: ", isym%sym%s, G1(ni(i))%sym%s
                      ISYM%Sym=SYMPROD(ISYM%Sym,G1(NI(I))%Sym)
+                     print *, "isym after: ", isym%sym%s
                   ENDIF
       !   add the momentum
                   CALL ADDELECSYM(NI(I),G1,NBASISMAX,ISYM)
