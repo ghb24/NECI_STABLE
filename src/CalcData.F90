@@ -242,6 +242,10 @@ logical :: tStartTrialLater = .false.
 ! of trial estimators?
 integer :: trial_shift_iter
 
+! Update the trial wf?
+logical :: tDynamicTrial
+integer :: trialSpaceUpdateCycle
+
 ! If false then create the trial wave function by diagonalising the
 ! Hamiltonian in the trial subspace.
 ! If true then create the trial wave function by taking the weights from the

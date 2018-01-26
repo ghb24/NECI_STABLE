@@ -16,7 +16,7 @@ module FciMCParMod
                         t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
                         t_back_spawn_flex, t_back_spawn_flex_option, &
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
-                        DiagSft
+                        DiagSft, tDynamicTrial, trialSpaceUpdateCycle
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
                         tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
                         SIUpdateInterval, tSuppressSIOutput, nRefUpdateInterval
@@ -43,7 +43,7 @@ module FciMCParMod
          refresh_semistochastic_space
     use semi_stoch_procs, only: is_core_state, check_determ_flag, &
                                 determ_projection, average_determ_vector
-    use trial_wf_gen, only: update_compare_trial_file, init_trial_wf
+    use trial_wf_gen, only: update_compare_trial_file, init_trial_wf, refresh_trial_wf
     use hist, only: write_zero_hist_excit_tofrom, write_clear_hist_spin_dist
     use orthogonalise, only: orthogonalise_replicas, calc_replica_overlaps, &
                              orthogonalise_replica_pairs
@@ -247,6 +247,19 @@ module FciMCParMod
                     call init_semi_stochastic(ss_space_in)
                 end if
             end if
+
+            ! Update the trial wavefunction if requested
+            if(tTrialWavefunction .and. tDynamicTrial .and. &
+                 mod(iter - trial_shift_iter, trialSpaceUpdateCycle) == 0) then
+               if(tPairedReplicas) then
+                  call refresh_trial_wf(trial_space_in,ntrial_ex_calc, &
+                       inum_runs/2,.true.)
+               else
+                  call refresh_trial_wf(trial_space_in,ntrial_ex_calc, &
+                       inum_runs,.false.)
+               endif
+               write(6,*) "Refreshing trial wavefunction at iteration ", iter
+            endif
             ! Update the semistochastic space if requested
             if(tSemiStochastic .and. tDynamicCoreSpace .and. &
 

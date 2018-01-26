@@ -380,7 +380,7 @@ contains
 
             call NewParentDet(session)
 
-            call decode_bit_det(nI, original_space(:,i))
+            call decode_bit_det(nI, original_space(0:NIfTot,i))
 
             call init_generate_connected_space(nI, ex_flag, tAllExcitFound, excit, excit_gen, nstore, tTempUseBrill)
             if (tSinglesOnly) ex_flag = 1
