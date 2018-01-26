@@ -154,7 +154,6 @@ contains
         ! previous iteration. We now want to start a new averaging block so
         ! that the same contributions aren't added in again later.
         if (mod(Iter+PreviousCycles - IterRDMStart, RDMEnergyIter) == 0) then 
-           print *, "Resetting fdvav at iteration ", iter
             full_determ_vecs_av = 0.0_dp
         end if
 

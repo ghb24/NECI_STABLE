@@ -285,6 +285,8 @@ contains
           coreSpaceUpdateCycle = 400
           semistoch_shift_iter = 0
           tTrialWavefunction = .false.
+          tDynamicTrial = .false.
+          trialSpaceUpdateCycle = 400
           tKP_FCIQMC = .false.
           tLetInitialPopDie = .false.
           tWritePopsNorm = .false.
@@ -1267,6 +1269,10 @@ contains
                 call geti(trial_space_in%mp1_ndets)
             case("DOUBLES-TRIAL")
                 trial_space_in%tDoubles = .true.
+             case("DYNAMIC-TRIAL")
+                ! Update the trial wavefunction periodically
+                tDynamicTrial = .true.
+                if(item < nitems) call geti(trialSpaceUpdateCycle)
             case("CAS-TRIAL")
                 trial_space_in%tCAS = .true.
                 tSpn = .true.
