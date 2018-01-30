@@ -1208,6 +1208,9 @@ contains
         
         !default
         Popinum_runs=1
+        ! default version for popsfiles, this does not have any functional effect, 
+        ! but prevents it from using uninitialized
+        PopsVersion=4
 
         if(tReadPops .and. .not. (tPopsAlreadyRead .or. tHDF5PopsRead)) then
             call open_pops_head(iunithead,formpops,binpops)
