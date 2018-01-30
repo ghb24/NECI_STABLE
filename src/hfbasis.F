@@ -807,9 +807,11 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
           use SystemData, only: BasisFN, tMolpro, brr, g1, nbasis, lms,
      &                          nel, tGiovannisBrokenInit, SymRestrict, 
      &                          tSymSet, nBasisMax, tHub
+          use SystemData, only: t_k_space_hubbard
           use util_mod, only: int_fmt
           use sort_mod
           use sym_mod, only: checkMomentumInvalidity, MomPbcSym
+          use lattice_mod, only: lat
           implicit none
 
           integer, intent(out) :: fdet(nel)
@@ -868,7 +870,13 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
                 totK = totK + G1(brr(ireal))%k
                 totSpin = totSpin + G1(brr(ireal))%Ms
 !                print *, "Contribution", brr(ireal), G1(brr(ireal))%k
-                if(tHub) call MomPbcSym(totK,nBasisMax)      
+                if(tHub) then 
+                    if (t_k_space_hubbard) then 
+                        totk = lat%map_k_vec(totK)
+                    else
+                        call MomPbcSym(totK,nBasisMax)      
+                    end if
+                end if
              endif
           enddo
           else

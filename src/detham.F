@@ -3,13 +3,14 @@
       use global_utilities
       use constants, only: dp, n_int
       Use Determinants, only: get_helement
-      use SystemData , only : BasisFN
+      use SystemData , only : BasisFN, t_lattice_model
       use CalcData , only : TStar
       use bit_rep_data, only: NIfTot
       use SystemData, only: tHPHF
       use hphf_integrals, only: hphf_diag_helement
       use hphf_integrals, only: hphf_off_diag_helement
       use DetBitOps, only: EncodeBitDet
+      use lattice_mod, only: get_helement_lattice
       IMPLICIT NONE
       HElement_t(dp) HAMIL(*)
       INTEGER NDET,NEL
@@ -22,6 +23,7 @@
       integer(n_int) :: ilutI(0:NIfTot), ilutJ(0:NIfTot)
       HElement_t(dp) totSUM
       type(timer), save :: proc_timer
+      integer :: ic=0
 !      LOGICAL TSTAR
 C ==-------------------------------------------------------------------==
       proc_timer%timer_name='    DETHAM'
@@ -73,7 +75,13 @@ C..   Now we need to match up any two determinants
                 totsum = hphf_off_diag_helement(NMRKS(:,KI), 
      &                            NMRKS(:,KJ), ilutI, ilutJ)
               end if
-            else
+          else if (t_lattice_model) then 
+              if (KI == KJ) then
+                totsum=get_helement_lattice(NMRKS(:,KI),NMRKS(:,KJ),ic)
+              else
+                totsum=get_helement_lattice(NMRKS(:,KI),NMRKS(:,KJ))
+              end if
+          else 
               if (KI == KJ) then
                 totsum = get_helement(NMRKS(:,KI), NMRKS(:,KJ), 0)
               else

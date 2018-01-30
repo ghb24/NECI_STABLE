@@ -153,7 +153,7 @@ module fcimc_initialisation
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
     use tj_model, only: init_get_helement_tj, init_get_helement_heisenberg
-    use k_space_hubbard, only: init_get_helement_k_space_hub
+    use k_space_hubbard, only: init_get_helement_k_space_hub, gen_all_excits_k_space_hubbard
     use OneEInts, only: tmat2d
 
     implicit none
@@ -173,6 +173,7 @@ contains
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped,tAlreadyOcc
         INTEGER :: HFLz,ChosenOrb,step,SymFinal, run
         integer(int64) :: SymHF
+        integer(n_int), allocatable :: dummy_list(:,:)
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
         WRITE(iout,*) 
@@ -2935,6 +2936,7 @@ contains
         integer :: nTot
         integer :: hfdet_loc(nel)
         character(*), parameter :: this_routine = "CalcApproxpDoubles"
+        integer(n_int), allocatable :: dummy_list(:,:)
 
         ! A quick hack. Count excitations as though we were a determinant.
         ! We could fix this later...

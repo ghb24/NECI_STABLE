@@ -20,11 +20,11 @@ program test_k_space_hubbard
                           tCPMD, tVASP, tExch, tHphf, tNoSymGenRandExcits, tKPntSym, &
                           t_twisted_bc, twisted_bc
     use bit_rep_data, only: niftot, nifd
-    use lattice_mod, only: lat, lattice
+    use lattice_mod, only: lat, lattice, get_helement_lattice_general, & 
+                           get_helement_lattice_ex_mat
     use dsfmt_interface, only: dsfmt_init
     use OneEInts, only: GetTMatEl, tOneElecDiag, tCPMDSymTMat
     use procedure_pointers, only: get_umat_el
-    use gen_coul_ueg_mod, only: get_hub_umat_el
     use IntegralsData, only: umat
     use DetBitOps, only: EncodeBitDet
     use fcimcdata, only: pDoubles, pParallel
@@ -34,6 +34,7 @@ program test_k_space_hubbard
     use bit_reps, only: decode_bit_det
     use Determinants, only: get_helement
     use SymExcitDataMod, only: kTotal
+    use lanczos_wrapper, only: frsblk_wrapper
 
     implicit none 
 
@@ -67,23 +68,25 @@ contains
 
     subroutine exact_study
 
+        use DetCalcData, only: nkry, nblk, b2l, ncycle
         integer, allocatable :: hilbert_space(:,:), nI(:)
         real(dp) :: J, U
         real(dp), allocatable :: J_vec(:) 
-        integer :: i 
+        integer :: i, n_eig
+        real(dp), allocatable :: e_values(:), e_vecs(:,:)
 
         call init_k_space_unit_tests()
 
         ! i have to define the lattice here.. 
-        lat => lattice('tilted', 2, 2, 1,.true.,.true.,.true.,'k-space')
+        lat => lattice('ole', 3, 5, 1,.true.,.true.,.true.,'k-space')
 
 !         J = -1.0
 
-        U = 1.0
+        U = 4.0
 
-        J_vec = linspace(-2.0,2.0, 20)
+!         J_vec = linspace(-2.0,2.0, 20)
         
-        nel = 3
+        nel = 6
         allocate(nI(nel))
         nI = [(i, i = 1,nel)]
 
@@ -99,7 +102,26 @@ contains
         ! not depend on J.. 
         print *, "k-vector : ", kTotal
 
-        call exact_transcorrelation(lat, nI, J_vec, U, hilbert_space) 
+        n_eig = 1
+        allocate(e_values(n_eig))
+        allocate(e_vecs(n_eig, size(hilbert_space,2)))
+
+        print *, "size hilbert: ", size(hilbert_space, 2)
+        nblk = 4
+        nkry = 8 
+        ncycle = 200
+        b2l = 1.0e-13_dp
+
+        print *, "nkry: ", nkry
+        print *, "nblk: ", nblk
+        print *, "b2l: ", b2l
+        print *, "ncycle: ", ncycle
+
+        ! try too big systems here: 
+        call frsblk_wrapper(hilbert_space, size(hilbert_space, 2), n_eig, e_values, e_vecs)
+
+        print *, "e_value lanczos:", e_values(1)
+        call exact_transcorrelation(lat, nI, [J], U, hilbert_space) 
 
         call stop_all("here", "now")
 
@@ -130,7 +152,10 @@ contains
         call setup_k_total(nI) 
 
         if (present(hilbert_space)) then
-            call create_hilbert_space(nI, n_states, hilbert_space, dummy, gen_all_excits_k_space_hubbard) 
+!             call create_hilbert_space(nI, n_states, hilbert_space, dummy, gen_all_excits_k_space_hubbard) 
+            ! change to my new hilbert space creator 
+            call create_hilbert_space_kspace(nOccAlpha, nOccBeta, in_lat%get_nsites(), & 
+                nI, n_states, hilbert_space, dummy)
         end if
 
     end subroutine setup_system
@@ -185,7 +210,8 @@ contains
         call setup_g1(lat) 
 
         ! also need the tmat ready.. 
-        call setup_tmat_k_space(lat)
+        call init_tmat_kspace(lat)
+!         call setup_tmat_k_space(lat)
 
 !         call setup_kPointToBasisFn(lat)
 
@@ -200,10 +226,16 @@ contains
         allocate(umat(1))
         umat = h_cast(real(uhub,dp)/real(omega,dp))
 
-        get_umat_el => get_hub_umat_el
+        get_umat_el => get_umat_kspace
 
         trans_corr_param_2body = 0.1
         three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+
+        ! also initialize the lattice get_helement pointers to use 
+        ! detham to do the Lanczos procedure for bigger systems.. 
+        get_helement_lattice_ex_mat => get_helement_k_space_hub_ex_mat
+        get_helement_lattice_general => get_helement_k_space_hub_general
+        call init_tmat_kspace(lat)
 
     end subroutine init_k_space_unit_tests
 
@@ -806,7 +838,6 @@ contains
         class(lattice), intent(in) :: ptr
         real(dp), intent(in), optional :: J, U
 
-
         nBasisMax = 0
         nullify(G1)
         nullify(tmat2d)
@@ -816,15 +847,17 @@ contains
             ttilt = .true. 
         end if
 
+        nBasis = 2*ptr%get_nsites()
+
         call setup_nbasismax(ptr)
         call setup_g1(ptr)
-        call setup_tmat_k_space(ptr)
+        call init_tmat_kspace(ptr)
+!         call setup_tmat_k_space(ptr)
         call setup_kPointToBasisFn(ptr)
 !         call setup_k_space_hub_sym(ptr)
 
         omega = real(ptr%get_nsites(),dp)
         print *, "omega: ", omega
-        nBasis = 2*ptr%get_nsites()
 
         bhub = -1.0
 
@@ -889,6 +922,11 @@ contains
         allocate(e_values(n_states));        e_values = 0.0_dp
         allocate(e_vec(n_states, n_states)); e_vec = 0.0_dp
         allocate(gs_vec(n_states));          gs_vec = 0.0_dp
+        do i = 1, size(hamil,1)
+            do k = 1, size(hamil,2)
+                if (isnan(hamil(i,k)) .or. is_inf(hamil(i,k))) print *, i,k,hamil(i,k)
+            end do
+        end do
         call eig(hamil, e_values, e_vec) 
 
         ! find the ground-state

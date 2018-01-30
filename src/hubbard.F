@@ -397,13 +397,24 @@ C.. Setup the symmetry product table
          call LogMemAlloc('SymConjTable',nSym,4,this_routine,
      &                                                    tagSymConjTab)
          SYMTABLE(1:NSYM,1:NSYM)=Symmetry(0)
+         print *, "G1%k: "
+         do i = 1, nbasis/2
+            print *, G1(2*i)%k 
+         end do
+         print *, "lat%k:"
+         do i = 1, nbasis/2
+            print *, lat%get_k_vec(i)
+         end do
+
          DO I=1,nBasis/2
             NQNS%k=-G1(I*2)%k
             CALL RoundSym(NQNS,nBasisMax)
             if (t_k_space_hubbard) then 
                 ! i could actually include the symmetry rounding in the 
                 ! get_orb_from_k_vec functionality!
-                J = lat%get_orb_from_k_vec(NQNS%k)
+                ! i was doing this incorrectly.. i want the spin orbital
+                ! j
+                J = lat%get_orb_from_k_vec(NQNS%k,2)
             else
                 J=iFindBasisFn(NQNS,G1,nBasis)
             end if
@@ -420,7 +431,7 @@ C.. Setup the symmetry product table
                CALL RoundSym(S,nBasisMax)
                NQNs%k=S%k
                if (t_k_space_hubbard) then 
-                   k = lat%get_orb_from_k_vec(S%k)
+                   k = lat%get_orb_from_k_vec(S%k,2)
                else 
                    K=iFindBasisFn(NQNS,G1,nBasis)
                end if

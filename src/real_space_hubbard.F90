@@ -213,24 +213,23 @@ contains
         character(*), parameter :: this_routine = "create_all_dets" 
 
         integer, allocatable :: n_dets(:)
-        integer(n_int), allocatable :: one_basis(:), comb_basis(:)
-        integer :: n_max, n_min, i, n_states, n_total
+        integer(n_int), allocatable :: alpha_basis(:), beta_basis(:)
+        integer :: i, n_states, n_total, j
 
         n_dets = calc_n_double(n_orbs, n_alpha, n_beta) 
 
         ! cannot deal with more than 32 orbitals yet.. since i am lazy! 
         ASSERT(n_orbs <= 32) 
 
-        n_max = max(n_alpha, n_beta)
-        n_min = min(n_alpha, n_beta)
+        ! do it in a really simple way for now.. 
+        ! just run over all the alpha and beta spin-bases and combine them 
+        ! to the full-basis 
 
-        ! now i have to loop over the different numbers of possible 
-        ! doubly occupied orbitals! 
-        ! the one spin-basis is always the same 
-        one_basis = create_one_spin_basis(n_orbs, n_max) 
+        alpha_basis = create_one_spin_basis(n_orbs, n_alpha) 
+        beta_basis = create_one_spin_basis(n_orbs, n_beta) 
 
         ! keep an count on all the states
-        n_states = 0 
+        n_states = 0
 
         ! and allocate the array, which keeps all the states 
         n_total = sum(n_dets) 
@@ -238,18 +237,18 @@ contains
         allocate(all_dets(n_total))
         all_dets = 0_n_int 
 
-        do i = 1, size(n_dets) 
-            ! oh shit.. i just realized i have not yet implemented the 
-            ! basis combination with double occupancies.. damn.. 
-            comb_basis = combine_spin_basis(n_orbs, n_max, n_min, n_dets(i), & 
-                one_basis, .true., i-1)
+        ! check if everything went correctly: 
+        ASSERT(size(alpha_basis) * size(beta_basis) == n_total)
 
-            all_dets(n_states+1:n_states+size(comb_basis)) = comb_basis 
-
-            n_states = n_states + size(comb_basis)
-
+        do i = 1, size(alpha_basis) 
+            do j = 1, size(beta_basis)
+                n_states = n_states + 1
+                all_dets(n_states) = general_product(alpha_basis(i),beta_basis(j),n_orbs)
+            end do
         end do
         
+        call sort(all_dets)
+
         ASSERT(n_states == n_total) 
 
     end function create_all_dets 
@@ -399,6 +398,20 @@ contains
 
 
     end function combine_spin_basis
+
+    function general_product(alpha, beta, n_orbs) result(basis) 
+        ! this is a "general" tensor product of two spin basisfunctions.
+        ! the ones in the alpha integer must be set at position 2*i 
+        ! and the beta at 2*j-1 
+        integer(n_int), intent(in) :: alpha, beta 
+        integer, intent(in) :: n_orbs 
+        integer(n_int) :: basis 
+
+        ! it should be as simple: 
+        basis = set_alpha_beta_spins(alpha, n_orbs, .false.) 
+        basis = xor(basis, set_alpha_beta_spins(beta, n_orbs, .true.))
+
+    end function general_product
 
     function open_shell_product(alpha, beta, n_orbs) result(basis)
         ! compute the tensor product of alpha and beta spin-bases to give 

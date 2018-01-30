@@ -16,6 +16,7 @@ module back_spawn
     use Parallel_neci, only: iprocindex
     use DetBitOps, only: EncodeBitDet
     use SymExcitDataMod, only: KPointToBasisFn
+    use lattice_mod, only: lat
 
     implicit none
 
@@ -1014,7 +1015,16 @@ contains
 
         ! damn.. for some reason this is different treated in the 
         ! hubbard and UEG case..
-        if (tHub .or. t_k_space_hubbard) then 
+        ! i turn off the thub flag in my new implementation, so this is 
+        ! never actually reached below.. i should change that 
+
+        if (t_k_space_hubbard) then 
+            orbb = lat%get_orb_from_k_vec(kb, spnb)
+            return
+        end if
+
+        ! this now distinguishes between UEG and hubbard models.
+        if (tHub) then
             call mompbcsym(kb, nbasismax)
         end if
 

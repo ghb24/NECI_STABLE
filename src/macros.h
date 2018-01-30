@@ -44,7 +44,7 @@
 ! Is the specified orbital part of a doubly occupied pair?
 #define IsDoub(ilut,orb) (IsOcc(ilut,orb).and.IsOcc(ilut,ab_pair(orb)))
 
-! also reimplement a get_spatial orbital macro here 
+! salso reimplement a get_spatial orbital macro here 
 #define get_spatial(orb) (orb - 1)/2 + 1
 
 ! Are the two orbitals specified (may be the same orbital) from the same

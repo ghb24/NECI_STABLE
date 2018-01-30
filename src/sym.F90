@@ -2,7 +2,8 @@ module sym_mod
 
 use constants, only: dp,int64,sizeof_int
 use SymExcitDataMod, only: SymTableLabels
-use SystemData, only: tKpntSym, tNoSymGenRandExcits, tHub, t_new_hubbard
+use SystemData, only: tKpntSym, tNoSymGenRandExcits, tHub, t_new_hubbard, &
+                      t_k_space_hubbard
 use lattice_mod, only: lat
 implicit none
 
@@ -27,7 +28,7 @@ contains
 ! kpntrep.F in CPMD source.
 
          FUNCTION SYMPROD(ISYM1,ISYM2)
-         use SystemData, only: Symmetry, t_k_space_hubbard
+         use SystemData, only: Symmetry
          use SystemData, only: BasisFN
          use SymData, only: SymTable,nProp,tAbelian,TwoCycleSymGens
          IMPLICIT NONE
@@ -840,10 +841,10 @@ contains
                   IF(NELECS(J).NE.SYMREPS(2,NREPS(J))) THEN
       !   we don't have a closed shell
       !   add the sym product
-                    print *, "i, ni(i): ", i, ni(i)
-                    print *, "s1,s2: ", isym%sym%s, G1(ni(i))%sym%s
+!                     print *, "i, ni(i): ", i, ni(i)
+!                     print *, "s1,s2: ", isym%sym%s, G1(ni(i))%sym%s
                      ISYM%Sym=SYMPROD(ISYM%Sym,G1(NI(I))%Sym)
-                     print *, "isym after: ", isym%sym%s
+!                      print *, "isym after: ", isym%sym%s
                   ENDIF
       !   add the momentum
                   CALL ADDELECSYM(NI(I),G1,NBASISMAX,ISYM)
@@ -1347,6 +1348,7 @@ contains
          IF(ISYM%Ml.NE.JSYM%Ml) LCHKSYM=.FALSE.
 !   if the symmetry product of I and J doesn't contain the totally
 !   symmetric irrep, we set sym to .FALSE.
+! [W.D]: does this still work with my new hubbard implementation? 
         LCHKSYM=LCHKSYM.AND.LSYMSYM(SYMPROD(SymConj(ISYM%SYM),JSYM%SYM))
       RETURN
       END FUNCTION LCHKSYM
@@ -1511,6 +1513,13 @@ contains
          INTEGER K1(3),nBasisMax(5,*)
          INTEGER J,LDIM,AX,AY,LENX,LENY,KK2,T1,T2
          real(dp) R1,R2,NORM
+         ! [W.D]
+         ! in case of the new k-space hubbard implementation use the 
+         ! built-in k-vec mapping 
+         if (t_k_space_hubbard) then 
+             k1 = lat%map_k_vec(k1)
+             return
+         end if
 !   (AX,AY) is the tilt of the lattice, and corresponds to the lattice vector of the cell.  The other lattice vector is (-AY,AX).
 !These are expressed in terms of the primitive Hubbard lattice vectors
          AX=NBASISMAX(1,4)
@@ -2149,7 +2158,13 @@ contains
       if(rElsUpNew < 0 .or. rElsDownNew < 0) return
       ! this is the momentum from which we want to reach targetK
       bufK = cK + G1(brr(nI))%k
-      if(tHub) call MomPbcSym(bufK,nBasisMax)
+      if(tHub) then
+          if (t_k_space_hubbard) then 
+              bufk = lat%map_k_vec(bufk)
+          else
+              call MomPbcSym(bufK,nBasisMax)
+          end if
+      end if
       ! for the last electron, the total momentum has to be hit
       if((rElsUpNew + rElsDownNew) == 0) then
          if(all(abs(bufK - targetK) == 0)) momcheck = .false.

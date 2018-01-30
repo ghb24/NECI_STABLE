@@ -359,11 +359,15 @@ contains
       use SystemData, only: Omega,tAlpha,TBIN,tCPMD,tDFread,THFORDER,tRIIntegrals
       use SystemData, only: thub,tpbc,treadint,ttilt,TUEG,tVASP, tPickVirtUniform
       use SystemData, only: uhub, arr,alat,treal,tCacheFCIDUMPInts, tReltvy
+      use SystemData, only: t_new_real_space_hubbard, t_new_hubbard, t_k_space_hubbard
       use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
       use LoggingData, only:tCalcPropEst, iNumPropToEst
       use MemoryManager, only: TagIntType
       use sym_mod, only: GenSymStatePairs
       use read_fci
+      use real_space_hubbard, only: init_tmat
+      use k_space_hubbard, only: init_tmat_kspace
+      use lattice_mod, only: lat
       INTEGER iCacheFlag
       complex(dp),ALLOCATABLE :: ZIA(:)
       INTEGER(TagIntType),SAVE :: tagZIA=0
@@ -601,7 +605,17 @@ contains
          !CALL N_MEMORY(IP_TMAT,HElement_t_size*nBasis*nBasis,'TMAT')
          !TMAT=(0.0_dp)
          IF(THUB) THEN
-            CALL CALCTMATHUB(NBASIS,NBASISMAX,BHUB,TTILT,G1,TREAL,TPBC)
+             if (t_new_hubbard) then 
+                 if (t_k_space_hubbard) then 
+                     ! also change here to the new k-space implementation
+                     call init_tmat_kspace(lat)
+
+                 else if (t_new_real_space_hubbard) then 
+                     call init_tmat(lat) 
+                 end if
+             else 
+                 CALL CALCTMATHUB(NBASIS,NBASISMAX,BHUB,TTILT,G1,TREAL,TPBC)
+             end if
          ELSE
     !!C..Cube multiplier
              CST=PI*PI/(2.0_dp*ALAT(1)*ALAT(1))
@@ -1346,6 +1360,9 @@ contains
 
     subroutine init_getumatel_fn_pointers ()
 
+        use SystemData, only: t_k_space_hubbard
+        use k_space_hubbard, only: get_umat_kspace
+
         integer :: iss
 
         if (nBasisMax(1,3) >= 0) then
@@ -1374,7 +1391,12 @@ contains
                 endif
             else if (iss == -1) then
                 ! Non-stored hubbard integral
-                get_umat_el => get_hub_umat_el
+                if (t_k_space_hubbard) then 
+                    get_umat_el => get_umat_kspace
+                else
+                    get_umat_el => get_hub_umat_el
+                end if
+
             else
                 write (6, '(" Setting normal GetUMatEl routine")')
                 get_umat_el => get_umat_el_normal

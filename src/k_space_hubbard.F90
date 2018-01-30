@@ -14,15 +14,16 @@ module k_space_hubbard
                     trans_corr_param, t_trans_corr_2body, trans_corr_param_2body, & 
                     nel, tHPHF, nOccBeta, nOccAlpha, nbasis, tLatticeGens, tHub, &
                     omega, bhub, nBasisMax, G1, BasisFN, NullBasisFn, TSPINPOLAR, & 
-                    treal, ttilt, tExch, ElecPairs, MaxABPairs, Symmetry, SymEq
+                    treal, ttilt, tExch, ElecPairs, MaxABPairs, Symmetry, SymEq, &
+                    t_new_real_space_hubbard
     use lattice_mod, only: get_helement_lattice_ex_mat, get_helement_lattice_general, &
                            determine_optimal_time_step, lattice, sort_unique, lat
     use procedure_pointers, only: get_umat_el, generate_excitation
     use gen_coul_ueg_mod, only: get_hub_umat_el
-    use constants, only: n_int, dp, EPS, bits_n_int
+    use constants, only: n_int, dp, EPS, bits_n_int, int64
     use bit_rep_data, only: NIfTot, nifd
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt
-    use real_space_hubbard, only: lat_tau_factor
+    use real_space_hubbard, only: lat_tau_factor, create_all_dets
     use fcimcdata, only: tsearchtau, tsearchtauoption, pDoubles, pParallel
     use CalcData, only: tau, t_hist_tau_search, t_hist_tau_search_option
     use dsfmt_interface, only: genrand_real2_dsfmt
@@ -39,9 +40,11 @@ module k_space_hubbard
     use SymExcitDataMod, only: KPointToBasisFn, ScratchSize, SpinOrbSymLabel, &
                                SymTableLabels, SymInvLabel, SymLabelList2, SymLabelCounts2, & 
                                OrbClassCount, ktotal
-    use SymData, only: nSymLabels, SymClasses, Symlabels
+    use SymData, only: nSymLabels, SymClasses, Symlabels, symtable
     use GenRandSymExcitNUMod, only: ClassCountInd
     use sort_mod, only: sort 
+    use IntegralsData, only: UMat
+    use bit_reps, only: decode_bit_det
 
     implicit none 
 
@@ -101,7 +104,10 @@ contains
              deallocate(SymClasses)
              call LogMemDealloc(this_routine,tagSymClasses)
          end if
-         allocate(SymClasses(nBasis))
+         ! [W.D] 
+         ! why is symclasses allocated to nBasis? it is actually only used 
+         ! and filled up to nBasis/2, also in the rest of the code..
+         allocate(SymClasses(nBasis/2))
          call LogMemAlloc('SymClasses',nBasis,4,this_routine,tagSymClasses)
 
         ! for some strange reason the (0,0,0) k-vector is treated 
@@ -139,7 +145,6 @@ contains
             ! i also need it in G1: 
             G1(2*i-1)%Sym = SymLabels(i)
             G1(2*i)%Sym = SymLabels(i)
-
 
         end do
 
@@ -238,6 +243,85 @@ contains
 
     end subroutine gen_all_excits_k_space_hubbard
 
+    subroutine create_hilbert_space_kspace(n_alpha, n_beta, n_orbs, nI, & 
+            n_states, state_list_ni, state_list_ilut) 
+        ! new functionality to create all states of the hilber space in the 
+        ! k-space hubbard model. reuse stuff from the real-space and apply 
+        ! the momentum conservation criteria! 
+        integer, intent(in) :: n_alpha, n_beta, n_orbs, nI(nel)
+        integer, intent(out) :: n_states
+        integer, intent(out), allocatable :: state_list_ni(:,:) 
+        integer(n_int), intent(out), allocatable :: state_list_ilut(:,:) 
+
+        integer(n_int), allocatable :: all_dets(:), temp_list_ilut(:,:) 
+        integer :: i, j, nJ(nel), n_allowed
+        type(Symmetry) :: sym_prod, sym_in
+        integer, allocatable :: temp_list_ni(:,:) 
+        integer(n_int) :: temp_ilut(0:niftot)
+
+        ! this creates all possible basis states:
+        all_dets = create_all_dets(n_orbs, n_alpha, n_beta) 
+
+        sym_in = G1(nI(1))%Sym
+        do i = 2, nel 
+            sym_in = SymTable(sym_in%s, G1(nI(i))%Sym%s)
+        end do
+
+        allocate(temp_list_ilut(0:niftot, size(all_dets)))
+        allocate(temp_list_ni(nel, size(all_dets)))
+
+        temp_list_ilut = 0_n_int 
+        temp_list_ni = 0
+         
+        ! now i want to loop over it to check the total momentum 
+        ! how do i most efficiently determine the symmetry? 
+        ! since adding the k-vector is not an option or? how far can the 
+        ! momentum then go in terms of Brillouin zones? can i efficiently 
+        ! map it back? or i just use the symmetry table, which has to be 
+        ! setup beforehand! 
+        n_allowed = 0
+
+        do i = 1, size(all_dets) 
+            temp_ilut = all_dets(i)
+            call decode_bit_det(nJ, temp_ilut)
+            sym_prod = G1(nJ(1))%sym
+            do j = 2, nel 
+                ! and i have to decode into the nI representation.. 
+                ! oh god this is inefficient.. 
+                sym_prod = symtable(sym_prod%s, G1(nJ(j))%Sym%s)
+            end do
+            if (sym_prod%s == sym_in%s) then 
+                ! if the symmetry fits: 
+                n_allowed = n_allowed + 1
+                temp_list_ilut(:,n_allowed) = temp_ilut
+                temp_list_ni(:,n_allowed) = nJ
+            end if
+        end do
+
+        n_states = n_allowed
+
+        allocate(state_list_ni(nel,n_allowed), source = temp_list_ni(:,1:n_allowed))
+        allocate(state_list_ilut(0:niftot,n_allowed), source = temp_list_ilut(:,1:n_allowed))
+
+    end subroutine create_hilbert_space_kspace
+
+    function get_umat_kspace(i, j, k, l) result(hel) 
+        ! simplify this get_umat function for the k-space hubbard.. 
+        ! since there was a lot of unnecessary stuff going on in the other 
+        ! essentially we only have to check if the momenta involved 
+        ! fullfil k_k + k_l = k_i + k_j 
+        integer, intent(in) :: i, j, k, l 
+        HElement_t(dp) :: hel 
+
+        if (all(lat%map_k_vec(lat%get_k_vec(i)+lat%get_k_vec(j)) == & 
+                lat%map_k_vec(lat%get_k_vec(k)+lat%get_k_vec(l)))) then 
+            hel = UMat(1) 
+        else
+            hel = 0.0_dp
+        end if
+
+    end function get_umat_kspace
+
     subroutine init_k_space_hubbard() 
 
         character(*), parameter :: this_routine = "init_k_space_hubbard"
@@ -253,7 +337,8 @@ contains
 
         call check_k_space_hubbard_input()
 
-        get_umat_el => get_hub_umat_el
+!         get_umat_el => get_hub_umat_el
+        get_umat_el => get_umat_kspace
 
         call init_get_helement_k_space_hub()
 
@@ -747,8 +832,13 @@ contains
         kc = G1(src(1))%k + G1(src(2))%k + G1(src(3))%k - G1(orb_a)%k - G1(orb_b)%k 
 
         ! perdiodic BC: 
-        if (tHub .or. t_k_space_hubbard) then 
-            call mompbcsym(kc, nBasisMax) 
+        if (tHub) then
+            if (t_k_space_hubbard) then 
+                ! use the new lattice implementation
+                kc = lat%map_k_vec(kc)
+            else
+                call mompbcsym(kc, nBasisMax) 
+            end if
         end if
 
         ! and now we want the spin: 
@@ -783,7 +873,11 @@ contains
             end if
         end if
 
-        orb_c = KPointToBasisFn(kc(1),kc(2),kc(3),spin_c) 
+        if (t_k_space_hubbard) then 
+            orb_c = lat%get_orb_from_k_vec(kc, spin_c)
+        else
+            orb_c = KPointToBasisFn(kc(1),kc(2),kc(3),spin_c) 
+        end if
 
     end function get_orb_from_kpoints_three
 
@@ -1546,6 +1640,7 @@ contains
         ! i guess i should also set the transcorr factor here or?? 
         get_helement_lattice_ex_mat => get_helement_k_space_hub_ex_mat
         get_helement_lattice_general => get_helement_k_space_hub_general
+        call init_tmat_kspace(lat)
         ! maybe i have to initialize more here, especially if we are using the 
         ! HPHF keyword I guess.. 
 
@@ -1704,7 +1799,7 @@ contains
                         idN = min(id(i),id(j))
 
                         ! now we need 1/2, since we loop over all electrons
-                        hel_doub = hel_doub + 0.5_dp * get_hub_umat_el(idN,idX,idN,idX)
+                        hel_doub = hel_doub + 0.5_dp * get_umat_kspace(idN,idX,idN,idX)
 
                         ! then we need the factor of the one-body transcorr influence
                         ! t is defined as -t in our code!, so bhub is usually -1
@@ -1732,7 +1827,13 @@ contains
                                 ! i need the electrons here ofc.. 
                                 p_vec = G1(nI(i))%k 
                                 k_vec = (G1(nI(j))%k - G1(nI(k))%k)
-                                call mompbcsym(k_vec, nBasisMax)
+                                !TODO: this can be removed if i totally 
+                                ! switched to the new implementation
+                                if (t_k_space_hubbard) then 
+                                    k_vec = lat%map_k_vec(k_vec)
+                                else
+                                    call mompbcsym(k_vec, nBasisMax)
+                                end if
 ! 
 !                                 print *, "ijk:", nI([i,j,k])
 !                                 print *, "p_vec: ", p_vec(1)
@@ -1775,7 +1876,7 @@ contains
 !                     ! normal direct 
 !                     ! us the spin_restriction here directly! 
 !                     if (.not. same_spin(nI(i),nI(j))) then
-!                         hel_doub = hel_doub + get_hub_umat_el(idN,idX,idN,idX)
+!                         hel_doub = hel_doub + get_umat_kspace(idN,idX,idN,idX)
 !                     end if
 !                     
 !                     ! THEN WE do not need the exchange to cancel the 
@@ -1784,7 +1885,7 @@ contains
 !                     ! spin excitations are taken into account.. for the 
 !                     ! diagonal contribution.. todo! 
 ! !                     if (same_spin(nI(i),nI(j))) then 
-! !                         hel_doub = hel_doub - get_hub_umat_el(idN, idX, idX, idN)
+! !                         hel_doub = hel_doub - get_umat_kspace(idN, idX, idX, idN)
 ! !                     end if
 !                     ! and exchange terms 
 !                     ! actually for the "normal" double excitation, there is 
@@ -1949,9 +2050,9 @@ contains
         ! the U part is still just the the spin-opposite part
         ! damn... i need a sign convention here too..
         if (same_spin(src(1),tgt(1)) .and. same_spin(src(2),tgt(2))) then 
-            hel = get_hub_umat_el(ij(1),ij(2),ab(1),ab(2))
+            hel = get_umat_kspace(ij(1),ij(2),ab(1),ab(2))
         else if (same_spin(src(1),tgt(2)) .and. same_spin(src(2),tgt(1))) then 
-            hel = -get_hub_umat_el(ij(1),ij(2),ab(1),ab(2))
+            hel = -get_umat_kspace(ij(1),ij(2),ab(1),ab(2))
         end if
 
         ! if hel == 0, due to momentum conservation violation we can already 
@@ -2171,8 +2272,13 @@ contains
                 k_vec_a = G1(sort_ex(1,1))%k - G1(sort_ex(2,1))%k 
                 k_vec_b = G1(sort_ex(1,2))%k - G1(sort_ex(2,1))%k
 
-                call mompbcsym(k_vec_a, nBasisMax)
-                call mompbcsym(k_vec_b, nBasisMax)
+                if (t_k_space_hubbard) then
+                    k_vec_a = lat%map_k_vec(k_vec_a)
+                    k_vec_b = lat%map_k_vec(k_vec_b)
+                else 
+                    call mompbcsym(k_vec_a, nBasisMax)
+                    call mompbcsym(k_vec_b, nBasisMax)
+                end if
 
             else 
                 ! "normal" hubbard spin-opposite excitation
@@ -2190,8 +2296,13 @@ contains
 
                 end if
 
+                if (t_k_space_hubbard) then 
+                    k_vec_a = lat%map_k_vec(k_vec_a)
+                    k_vec_b = lat%map_k_vec(k_vec_b)
+                else 
                     call mompbcsym(k_vec_a, nBasisMax)
                     call mompbcsym(k_vec_b, nBasisMax)
+                end if
             end if
         else 
             ! triple excitations..
@@ -2213,9 +2324,14 @@ contains
 
             do i = 1, nel 
                 kTotal = kTotal + G1(nI(i))%k 
+                kTotal = lat%map_k_vec(kTotal)
             end do
 
-            call MomPbcSym(kTotal, nBasisMax)
+            if (t_k_space_hubbard) then 
+                ktotal = lat%map_k_vec(kTotal)
+            else 
+                call MomPbcSym(kTotal, nBasisMax)
+            end if
 
         else 
             ! do i based on the HF det! 
@@ -2435,35 +2551,52 @@ contains
                 ! i need number of spin-orbitals
                 allocate(G1(in_lat%get_nsites()*2))
                 G1 = NullBasisFn
-                
+
                 ! should i rely on the already setup nBasisMax?
                 if (all(nBasisMax == 0)) then 
                     call setup_nbasismax(in_lat)
                 end if
-                ind = 0
-                do i = nBasisMax(1,1), nBasisMax(1,2)
-                    do j = nBasisMax(2,1), nBasisMax(2,2)
-                        do k = nBasisMax(3,1), nBasisMax(3,2)
-                            do l  = nBasisMax(4,1), nBasisMax(4,2), 2
-                               
-                                temp_g%k = [i,j,k]
-                                temp_g%ms = l 
-                                if ((treal .and. .not. ttilt) .or. kallowed(temp_g, nBasisMax)) then
-                                    ind = ind + 1 
-                                    G1(ind)%k = [i,j,k] 
-                                    G1(ind)%ms = l
-                                    G1(ind)%Sym = TotSymRep()
-                                    if (.not. in_lat%is_k_space()) then 
-                                        ! turn off- symmetry in the hubbard case
-                                        G1(ind)%sym%s = 0
-                                    end if
-                                end if
-                            end do
-                        end do
-                    end do
+
+                ! do a new setup of the G1.. 
+                do i = 1, in_lat%get_nsites() 
+                    G1(2*i-1)%k = in_lat%get_k_vec(i)
+                    G1(2*i-1)%ms = -1 
+                    ! can i already write the symmetry representation in here?
+                    ! i guess so.. 
+                    G1(2*i-1)%Sym = Symmetry(i)
+
+                    G1(2*i)%k = in_lat%get_k_vec(i)
+                    G1(2*i)%ms = 1
+                    G1(2*i)%Sym = Symmetry(i) 
                 end do
+
+
+
+!                 ind = 0
+!                 do i = nBasisMax(1,1), nBasisMax(1,2)
+!                     do j = nBasisMax(2,1), nBasisMax(2,2)
+!                         do k = nBasisMax(3,1), nBasisMax(3,2)
+!                             do l  = nBasisMax(4,1), nBasisMax(4,2), 2
+!                                
+!                                 temp_g%k = [i,j,k]
+!                                 temp_g%ms = l 
+!                                 if ((treal .and. .not. ttilt) .or. kallowed(temp_g, nBasisMax)) then
+!                                     ind = ind + 1 
+!                                     G1(ind)%k = [i,j,k] 
+!                                     G1(ind)%ms = l
+!                                     G1(ind)%Sym = TotSymRep()
+!                                     if (.not. in_lat%is_k_space()) then 
+!                                         ! turn off- symmetry in the hubbard case
+!                                         G1(ind)%sym%s = 0
+!                                     end if
+!                                 end if
+!                             end do
+!                         end do
+!                     end do
+!                 end do
                 if (in_lat%is_k_space()) then 
-                    call GenHubMomIrrepsSymTable(G1, in_lat%get_nsites()*2, nbasismax)
+                    call setup_symmetry_table
+!                     call GenHubMomIrrepsSymTable(G1, in_lat%get_nsites()*2, nbasismax)
 
                 else 
                     ! also to the rest of the symmetry stuff here: 
@@ -2503,8 +2636,18 @@ contains
                     if (nBasisMax(2,3) == 0) nBasisMax(2,3) = 2 
                 end if
 
+                if (t_k_space_hubbard) then 
+                    nBasisMax(1,3) = 0
+                else if (t_new_real_space_hubbard) then 
+                    nBasisMax(1,3) = 4
+                    nBasisMax(3,3) = 0
+                    nBasisMax(2,3) = 1
+                end if
+
                 ! this is never explained: 
                 nBasisMax(4,2) = 1
+
+                return
 
                 ! i should give lattice also a member type and a k-space flag..
                 if (trim(in_lat%get_name()) == 'tilted') then 
@@ -2732,7 +2875,11 @@ contains
         par_orbs = pack(ex(2,:),ex(2,:) /= opp_orb)
 
         k_vec = p_vec - hole_k 
-        call mompbcsym(k_vec, nBasisMax)
+        if (t_k_space_hubbard) then 
+            k_vec = lat%map_k_vec(k_vec)
+        else 
+            call mompbcsym(k_vec, nBasisMax)
+        end if
 
         ! we have to define an order here too 
         par_elecs = [minval(par_elecs), maxval(par_elecs)]
@@ -2877,9 +3024,25 @@ contains
         call RoundSym(kb, nBasisMax)
 
         ! and check sym:
-        check_momentum_sym = (lChkSym(ka, kb)) 
+        ! i want to switch from this old functionality.. 
+        ! since this works with these weird symconj functionality.. 
+!         check_momentum_sym = (lChkSym(ka, kb)) 
+        check_momentum_sym = sym_equal(ka,kb)
 
     end function check_momentum_sym
+
+    logical function sym_equal(sym_1, sym_2) 
+        type(BasisFN), intent(in) :: sym_1, sym_2 
+
+        sym_equal = .true. 
+
+        ! just check if every entries are the same! 
+        if (.not. all(sym_1%k == sym_2%k)) sym_equal = .false. 
+        if (sym_1%ms /= sym_2%ms) sym_equal = .false. 
+        if (sym_1%ml /= sym_2%ml) sym_equal = .false. 
+        if (sym_1%Sym%s /= sym_2%Sym%s) sym_equal = .false. 
+
+    end function sym_equal 
 
     subroutine make_triple(nI, nJ, elecs, orbs, ex, tPar)
         integer, intent(in) :: nI(nel), elecs(3), orbs(3)
@@ -2983,6 +3146,31 @@ contains
         tPar = btest(pos_moved, 0)
         
     end subroutine make_triple
+
+    subroutine init_tmat_kspace(in_lat) 
+        ! similar to the real-space tmat setup also do this here based on 
+        ! the inputted lattice! 
+        class(lattice), optional :: in_lat  
+        character(*), parameter :: this_routine = "init_tmat_kspace"
+
+        integer :: i 
+
+        if (present(in_lat)) then 
+            if (associated(tmat2d)) deallocate(tmat2d)
+
+            allocate(tmat2d(nbasis, nbasis))
+            tmat2d = 0.0_dp 
+
+            do i = 1, in_lat%get_nsites() 
+                tmat2d(2*i-1,2*i-1) = bhub * in_lat%dispersion_rel_orb(i) 
+                tmat2d(2*i,2*i) = bhub * in_lat%dispersion_rel_orb(i)
+            end do
+
+        else 
+            call Stop_All(this_routine, "not yet implemented!")
+        end if
+
+    end subroutine init_tmat_kspace
 
     subroutine setup_tmat_k_space(in_lat)
         ! routine which sets up the (diagonal) t-matrix in the k-space 

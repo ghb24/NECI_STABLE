@@ -142,7 +142,7 @@ module lattice_mod
         ! representation. 
         logical :: t_momentum_space = .false.
 
-        integer :: lat_vec(3,2) = 0
+        integer :: lat_vec(3,3) = 0
 
         ! and i think additionally i want to store which type of lattice 
         ! this is in a string or? so i do not always have to 
@@ -288,7 +288,8 @@ module lattice_mod
         procedure :: initialize_sites => init_sites_chain
 
         procedure, public :: dispersion_rel => dispersion_rel_chain_k
-!         procedure, public :: dispersion_rel_orb => dispersion_rel_chain_orb
+        procedure :: inside_bz => inside_bz_chain
+        procedure :: apply_basis_vector => apply_basis_vector_chain
 
     end type chain
 
@@ -639,11 +640,14 @@ module lattice_mod
 
 contains 
 
-    function get_orb_from_k_vec(this, k_in) result(orb)
+    function get_orb_from_k_vec(this, k_in, spin) result(orb)
         class(lattice) :: this 
         integer, intent(in) :: k_in(3) 
+        integer, intent(in), optional :: spin
         integer :: orb
-
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "get_orb_from_k_vec"
+#endif
         integer :: k_vec(3), i
 
         ! first check if it is in the first BZ 
@@ -652,12 +656,29 @@ contains
         orb = 0
         ! the naive way would be to loop over all sites and check if the 
         ! k-vector fits..
-        do i = 1, this%get_nsites()
-            if (all(k_vec == this%get_k_vec(i))) then 
-                orb = i
-                return
-            end if
-        end do
+        if (present(spin)) then 
+            ! also leave the option to specify the spin if we want to get 
+            ! a spin-orbital: 
+            ! spin = 1 -> beta spin 
+            ! spin = 2 -> alpha spin
+            ASSERT(spin == 1 .or. spin == 2)
+            do i = 1, lat%get_nsites() 
+                if (all(k_vec == this%get_k_vec(i))) then 
+                    if (spin == 1) then 
+                        orb = 2*i - 1
+                    else if (spin == 2) then 
+                        orb = 2*i
+                    end if
+                end if
+            end do
+        else
+            do i = 1, this%get_nsites()
+                if (all(k_vec == this%get_k_vec(i))) then 
+                    orb = i
+                    return
+                end if
+            end do
+        end if
         
     end function get_orb_from_k_vec
 
@@ -720,8 +741,10 @@ contains
     logical function inside_bz(this, k_vec) 
         class(lattice) :: this
         integer, intent(in) :: k_vec(3)
+        character(*), parameter :: this_routine = "inside_bz" 
 
         ! this function should also be deferred!
+        call stop_all(this_routine, "this routine should always be deferred!")
 
     end function inside_bz
 
@@ -752,15 +775,51 @@ contains
 
     end function inside_bz_ole
 
+    logical function inside_bz_chain(this, k_vec) 
+        class(chain) :: this 
+        integer, intent(in) :: k_vec(3) 
+
+        ! the chain goes as -Lx/2+1, +2, .. Lx/2
+        inside_bz_chain = .false. 
+
+        if (k_vec(1) >= (-(this%length+1)/2 + 1).and. & 
+            k_vec(1) <= this%length/2) inside_bz_chain = .true.
+
+    end function inside_bz_chain
+
+    function apply_basis_vector_chain(this, k_in, ind) result(k_out) 
+        ! i think i have to make ind non-optional, as it is actually 
+        ! always needed.. what else should i do here? 
+        class(chain) :: this 
+        integer, intent(in) :: k_in(3) 
+        integer, intent(in), optional :: ind 
+        integer :: k_out(3) 
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "apply_basis_vector_chain"
+#endif
+        integer :: basis_vec(2,3) 
+
+        ASSERT(ind == 1 .or. ind == 2)
+
+        basis_vec = 0 
+        basis_vec(1,1) = this%get_length(1) 
+        basis_vec(2,1) = -this%get_length(1)
+
+        k_out = k_in + basis_vec(ind,:)
+
+    end function apply_basis_vector_chain
+
     function apply_basis_vector(this, k_in, ind) result(k_out) 
         ! i have to specifically write this for every lattice type.. 
         class(lattice) :: this
         integer, intent(in) :: k_in(3)
         integer, intent(in), optional :: ind 
         integer :: k_out(3) 
+        character(*), parameter :: this_routine = "apply_basis_vector" 
 
         ! i should only make this an abstract interface, since this function
         ! must be deffered! 
+        call stop_all(this_routine, "this routine should always be deferred!")
 
     end function apply_basis_vector
 
@@ -1323,25 +1382,28 @@ contains
         ! explicit here ..
 
         if (this%get_nsites() == 1) then 
-            this%sites(1) = site(ind = 1, n_neighbors = 0, neighbors = [integer :: ])
+            this%sites(1) = site(ind = 1, n_neighbors = 0, neighbors = [integer :: ], & 
+                k_vec = [0,0,0])
             return 
         end if
 
         if (this%is_periodic()) then 
 
             ! use more concise site contructors!
-            this%sites(1) = site(1, 2, [this%get_nsites(), 2])
+            this%sites(1) = site(1, 2, [this%get_nsites(), 2], & 
+                [-(this%length+1)/2+1,0,0])
             this%sites(this%get_nsites()) = site(this%get_nsites(), 2, & 
-                [this%get_nsites() - 1, 1])
+                [this%get_nsites() - 1, 1], [this%length/2,0,0])
 
         else 
             ! open boundary conditions: 
             ! first site:
-            this%sites(1) = site(1, 1, [2])
+            this%sites(1) = site(1, 1, [2], & 
+                [-(this%length+1)/2+1,0,0])
 
             ! last site: 
             this%sites(this%get_nsites()) = site(this%get_nsites(), 1, & 
-                [this%get_nsites() - 1]) 
+                [this%get_nsites() - 1], [this%length/2,0,0]) 
 
         end if 
 
@@ -1349,7 +1411,8 @@ contains
         do i = 2, this%get_nsites() - 1
 
             ! if periodic and first or last: already dealt with above
-            this%sites(i) = site(i, N_CONNECT_MAX_CHAIN, [i - 1, i + 1])
+            this%sites(i) = site(i, N_CONNECT_MAX_CHAIN, [i - 1, i + 1],& 
+                [-(this%length+1)/2+i,0,0])
 
         end do
 
@@ -1641,6 +1704,7 @@ contains
         integer :: unique(4)
         integer, allocatable :: neigh(:)
         integer :: sort_array_3(3), sort_array_2(2), sort_array(4)
+        integer :: k_vec(3)
 
         ! this is the important routine.. 
         ! store lattice like that: 
@@ -1672,7 +1736,8 @@ contains
 
                 neigh = sort_unique(temp_neigh)
 
-                this%sites(i) = site(i, size(neigh), neigh)
+                k_vec = [x,y,0]
+                this%sites(i) = site(i, size(neigh), neigh, k_vec)
 
                 deallocate(neigh)
 
@@ -1701,7 +1766,9 @@ contains
 
                 neigh = sort_unique(temp_neigh)
 
-                this%sites(i) = site(i, size(neigh), neigh)
+                k_vec = [x,y,0]
+
+                this%sites(i) = site(i, size(neigh), neigh, k_vec)
 
                 deallocate(neigh)
             end do
@@ -1729,7 +1796,9 @@ contains
 
                 neigh = sort_unique(temp_neigh)
 
-                this%sites(i) = site(i, size(neigh), neigh)
+                k_vec = [x,y,0]
+
+                this%sites(i) = site(i, size(neigh), neigh, k_vec)
 
                 deallocate(neigh)
             end do
@@ -1774,7 +1843,9 @@ contains
 
                 neigh = sort_unique(temp_neigh)
 
-                this%sites(i) = site(i, size(neigh), neigh)
+                k_vec = [x,y,0]
+
+                this%sites(i) = site(i, size(neigh), neigh,k_vec)
 
                 deallocate(neigh)
             end do
@@ -2801,6 +2872,7 @@ contains
                 call this%set_nconnect_max(N_CONNECT_MAX_CHAIN) 
             end if
 
+            this%lat_vec(1,1) = length_x
             ! the type specific routine deal with the check of the 
             ! length! 
 
@@ -2828,6 +2900,9 @@ contains
                 call this%set_nconnect_max(4)
             end if 
 
+            this%lat_vec(1,1) = this%length(1) 
+            this%lat_vec(2,2) = this%length(2)
+
         class is (tilted)
             
             call this%set_ndim(DIM_RECT) 
@@ -2841,6 +2916,9 @@ contains
             end if
             call this%set_length(min(length_x,length_y),max(length_x,length_y))
             call this%set_nconnect_max(4) 
+
+            this%lat_vec(1:2,1) = [this%length(1),this%length(1)]
+            this%lat_vec(1:2,2) = [-this%length(2),this%length(2)]
 
         class is (ole)
             call this%set_ndim(DIM_RECT)
@@ -2859,6 +2937,10 @@ contains
             call this%set_length(length_x, length_y, length_z)
             call this%set_nconnect_max(6)
 
+            this%lat_vec(1,1) = this%length(1)
+            this%lat_vec(2,2) = this%length(2)
+            this%lat_vec(3,3) = this%length(3)
+
         class is (triangular) 
             call this%set_ndim(DIM_RECT)
             call this%set_length(length_x, length_y)
@@ -2866,6 +2948,9 @@ contains
 
             call this%set_nconnect_max(6)
 
+            ! todo: set lattice vector! and figure that out correctly! 
+            ! and write a more general routine to set the lattice 
+            ! vectors for all types of lattices! 
         class is (hexagonal) 
 
             call this%set_ndim(DIM_RECT) 
