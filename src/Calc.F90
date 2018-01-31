@@ -11,7 +11,7 @@ MODULE Calc
                           t_new_real_space_hubbard, t_heisenberg_model, & 
                           t_k_space_hubbard
     use Determinants, only: write_det
-    use spin_project, only: spin_proj_interval, tSpinProject, &
+    use spin_project, only: spin_proj_interval, &
                             spin_proj_gamma, spin_proj_shift, &
                             spin_proj_cutoff, spin_proj_stochastic_yama, &
                             spin_proj_spawn_initiators, spin_proj_no_death, &
@@ -27,6 +27,7 @@ MODULE Calc
     use IntegralsData, only: tNeedsVirts
     use FciMCData, only: tTimeExit,MaxTimeExit, InputDiagSft, tSearchTau, &
                          nWalkerHashes, HashLengthFrac, tSearchTauDeath, &
+                         tLogGreensfunction, &
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
                          alloc_popsfile_dets, tSearchTauOption 
@@ -47,6 +48,8 @@ MODULE Calc
                                   init_get_helement_hubbard
     use tJ_model, only: init_get_helement_heisenberg, init_get_helement_tj
     use k_space_hubbard, only: init_get_helement_k_space_hub
+    use real_time_data, only: t_real_time_fciqmc, gf_type, allGfs, gf_count
+    use kp_fciqmc_data_mod, only: overlap_pert, tOverlapPert
 
     implicit none
 
@@ -243,6 +246,8 @@ contains
           TLADDER=.false. 
           tDefineDet=.false.
           tTruncInitiator=.false.
+          tKeepDoubSpawns = .true.
+          tMultiSpawnThreshold = .false.
           tAddtoInitiator=.false.
           InitiatorWalkNo=3.0_dp
           tSeniorInitiators =.false.
@@ -291,6 +296,9 @@ contains
           hash_shift=0
           tUniqueHFNode = .false.
 
+          ! real-time fciqmc:
+          t_real_time_fciqmc = .false.
+
           ! Semi-stochastic and trial wavefunction options.
           tSemiStochastic = .false.
           tCSFCore = .false.
@@ -316,6 +324,8 @@ contains
           tIncludeGroundSpectral = .false.
           alloc_popsfile_dets = .false.
           tDetermHFSpawning = .true.
+          tLogGreensfunction = .false.
+          tOverlapPert = .false.
 
           pParallel = 0.5_dp
 
@@ -1034,6 +1044,7 @@ contains
                 ! simulation. It is a constant which will increase/decrease
                 ! the rate of spawning/death for a given iteration.
                 call getf(Tau)
+                tSpecifiedTau = .true.
 
                 ! If SEARCH is provided, use this value as the starting value
                 ! for tau searching
@@ -1468,6 +1479,12 @@ contains
                     iPopsFileNoWrite = iPopsFileNoRead
                     iPopsFileNoRead = -iPopsFileNoRead-1
                 end if
+
+             case("POPS-ALIAS")
+                !use a given popsfile instead of the default POPSFILE.
+                tPopsAlias = .true.
+                call reada(aliasStem)
+
             case("WALKERREADBATCH")
                 !The number of walkers to read in on the head node in each batch during a popsread
                 call readi(iReadWalkersRoot)
@@ -1768,6 +1785,17 @@ contains
 !were from outside the space, they would've been aborted.
 !                tKeepDoubleSpawns=.true.
 !This option is now on permanently by default and cannot be turned off.
+
+! for testing purposes, it can now be turned off, using the following keyword
+            case("DISCARDDOUBSPAWNS")
+               tKeepDoubSpawns = .false.
+               
+! manually set the number of simultaneous spawns required for keeping a spawn from a 
+! non-inititator to an unoccupied determinant
+            case("MULTISPAWN-THRESHOLD")
+               tMultiSpawnThreshold = .true.
+               tKeepDoubSpawns = .false.
+               call geti(multiSpawnThreshold)
 
             case("ADDTOINITIATOR")
 !This option means that if a determinant outside the initiator space becomes significantly populated - 
@@ -2454,6 +2482,109 @@ contains
                 if (item < nitems) then 
                     call geti(occ_virt_level)
                 end if
+             case("LOG-GREENSFUNCTION")
+                ! Writes out the Greensfunction. Beware that this disables the 
+                ! dynamic shift (the Green's function wouldnt make a lot of sense)
+                tLogGreensfunction = .true.
+                gf_type = 0
+                gf_count = 1
+                allGfs = 0
+                
+            case ("LESSER")
+               tLogGreensfunction = .true.
+               alloc_popsfile_dets = .true.
+                ! lesser GF -> photo emission: apply a annihilation operator
+                tOverlapPert = .true.
+                tWritePopsNorm = .true.
+                ! i probably also can use the overlap-perturbed routines 
+                ! from nick
+                ! but since applying <y(0)|a^+_i for all i is way cheaper 
+                ! and should be done for all possible and allowed i. 
+                ! and creating all those vectors should be done in the init
+                ! step and stored, and then just calc. the overlap each time 
+                ! step
+
+                ! store the information of the type of greensfunction 
+                gf_type = -1
+                allGfs = 0
+
+                ! probably have to loop over spin-orbitals dont i? yes!
+
+                ! if no specific orbital is specified-> loop over all j! 
+                ! but only do that later: input is a SPINORBITAL!
+                if(item < nitems) then
+                   allocate(pops_pert(1))
+                   pops_pert%nannihilate = 1
+                   allocate(pops_pert(1)%ann_orbs(1))
+                   call readi(pops_pert(1)%ann_orbs(1))
+                   call init_perturbation_annihilation(pops_pert(1)) 
+                else 
+                   call stop_all(t_r, "Invalid input for Green's function")  
+                endif 
+                if (nitems == 3) then
+                   gf_count = 1
+                   !allocate the perturbation object
+
+                   ! and also the lefthand perturbation object for overlap
+                   allocate(overlap_pert(1))
+                   overlap_pert%nannihilate = 1
+                   allocate(overlap_pert(1)%ann_orbs(1))
+
+                   ! read left hand operator first
+                   call readi(overlap_pert(1)%ann_orbs(1))
+                   call init_perturbation_annihilation(overlap_pert(1))
+
+                else
+                   if(nitems == 2) then
+                      allGfs = 1
+                   else
+                      call stop_all(t_r, "Invalid input for Green's function")   
+                   endif
+                endif
+             case ("GREATER")
+               tLogGreensfunction = .true.
+                ! greater GF -> photo absorption: apply a creation operator
+                alloc_popsfile_dets = .true.
+                tOverlapPert = .true.
+                tWritePopsNorm = .true.
+
+                ! i probably also can use the overlap-perturbed routines 
+                ! from nick
+                ! but since applying <y(0)|a_i for all i is way cheaper 
+                ! and should be done for all possible and allowed i. 
+                ! and creating all those vectors should be done in the init
+                ! step and stored, and then just calc. the overlap each time 
+                ! step
+
+                ! store type of greensfunction
+                gf_type = 1
+                allGfs = 0
+                ! if no specific orbital is specified-> loop over all j! 
+                ! but only do that later
+                if(item < nitems) then
+                    allocate(pops_pert(1))                   
+                    pops_pert%ncreate = 1
+                    allocate(pops_pert(1)%crtn_orbs(1))
+                    call readi(pops_pert(1)%crtn_orbs(1))
+                    call init_perturbation_creation(pops_pert(1)) 
+                 else
+                    call stop_all(t_r, "Invalid input for Green's function")   
+                endif
+                if (nitems == 3) then
+                    ! allocate the perturbation object
+                    allocate(overlap_pert(1))
+                    overlap_pert%ncreate = 1
+                    allocate(overlap_pert(1)%crtn_orbs(1))
+                    call readi(overlap_pert(1)%crtn_orbs(1))
+                    call init_perturbation_creation(overlap_pert(1))
+                else
+                   if(nitems == 2) then
+                      allGfs = 2
+                   else
+                      call stop_all(t_r, "Invalid input for Green's function")   
+                endif
+             endif
+
 
              case("ALL-DOUBS-INITIATORS")
                 ! Set all doubles to be treated as initiators
@@ -2788,6 +2919,7 @@ contains
           use kp_fciqmc, only: perform_kp_fciqmc, perform_subspace_fciqmc
           use kp_fciqmc_data_mod, only: tExcitedStateKP
           use kp_fciqmc_procs, only: kp_fciqmc_data
+          use real_time, only: perform_real_time_fciqmc
           use util_mod, only: int_fmt
 
           real(dp) :: EN,WeightDum, EnerDum
@@ -2822,39 +2954,40 @@ contains
 !             ENDIF
 
              if(tFCIMC) then
-                 call FciMCPar(final_energy)
-                 if ((.not.tMolpro) .and. (.not.tMolproMimic)) then
-                     if (allocated(final_energy)) then
-                         do i = 1, size(final_energy)
-                             write(6,'(1X,"Final energy estimate for state",1X,'//int_fmt(i)//',":",g25.14)') &
-                                 i, final_energy(i)
-                         end do
-                     end if
-                 end if
+                call FciMCPar(final_energy)
+                if (allocated(final_energy)) then
+                   do i = 1, size(final_energy)
+                      write(6,'(1X,"Final energy estimate for state",1X,'//int_fmt(i)//',":",g25.14)') &
+                           i, final_energy(i)
+                   end do
+
+                end if
              elseif(tRPA_QBA) then
                 call RunRPA_QBA(WeightDum,EnerDum)
                 WRITE(6,*) "Summed approx E(Beta)=",EnerDum
              elseif(tKP_FCIQMC) then
-                 if (tExcitedStateKP) then
-                     call perform_subspace_fciqmc(kp)
-                 else
-                     call perform_kp_fciqmc(kp)
-                 end if
-              ENDIF
-          endif
-          IF(TMONTE.and..not.tMP2Standalone) THEN
-!             DBRAT=0.01
-!             DBETA=DBRAT*BETA
-             WRITE(6,*) "I_HMAX:",I_HMAX
-             WRITE(6,*) "Calculating MC Energy..."
-             CALL neci_flush(6)
-             IF(NTAY(1).GT.0) THEN
-                WRITE(6,*) "Using approx RHOs generated on the fly, NTAY=",NTAY(1)
-!C.. NMAX is now ARR
-                call stop_all(this_routine, "DMONTECARLO2 is now non-functional.")
-             ELSEIF(NTAY(1).EQ.0) THEN
-                IF(TENERGY) THEN
-                   WRITE(6,*) "Using exact RHOs generated on the fly"
+                if (tExcitedStateKP) then
+                   call perform_subspace_fciqmc(kp)
+                else
+                   call perform_kp_fciqmc(kp)
+                end if
+                ! RT_M_Merge: Real time step added, deprecated cases removed
+             else if (t_real_time_fciqmc) then
+                call perform_real_time_fciqmc()
+             endif
+             IF(TMONTE.and..not.tMP2Standalone) THEN
+                !             DBRAT=0.01
+                !             DBETA=DBRAT*BETA
+                WRITE(6,*) "I_HMAX:",I_HMAX
+                WRITE(6,*) "Calculating MC Energy..."
+                CALL neci_flush(6)
+                IF(NTAY(1).GT.0) THEN
+                   WRITE(6,*) "Using approx RHOs generated on the fly, NTAY=",NTAY(1)
+                   !C.. NMAX is now ARR
+                   call stop_all(this_routine, "DMONTECARLO2 is now non-functional.")
+                ELSEIF(NTAY(1).EQ.0) THEN
+                   IF(TENERGY) THEN
+                      WRITE(6,*) "Using exact RHOs generated on the fly"
 !C.. NTAY=0 signifying we're going to calculate the RHO values when we
 !C.. need them from the list of eigenvalues.   
 !C.. Hide NMSH=NEVAL
@@ -2863,16 +2996,17 @@ contains
 !C..         UMAT=NDET
 !C..         ALAT=NMRKS
 !C..         NMAX=ARR
-                call stop_all(this_routine, "DMONTECARLO2 is now non-functional.")
+                      call stop_all(this_routine, "DMONTECARLO2 is now non-functional.")
 !                   EN=DMONTECARLO2(MCDET,I_P,BETA,DBETA,I_HMAX,I_VMAX,IMCSTEPS,             &
 !     &                G1,NEL,NBASISMAX,nBasis,BRR,IEQSTEPS,                                 &
 !     &                NEVAL,W,CK,ARR,NMRKS,NDET,NTAY,RHOEPS,NWHTAY,ILOGGING,ECORE,BETAEQ)
-                ELSE
-                   call stop_all(this_routine, "TENERGY not set, but NTAY=0" )
+                   ELSE
+                      call stop_all(this_routine, "TENERGY not set, but NTAY=0" )
+                   ENDIF
                 ENDIF
-             ENDIF
-             WRITE(6,*) "MC Energy:",EN
+                WRITE(6,*) "MC Energy:",EN
 !CC           WRITE(12,*) DBRAT,EN
+             ENDIF
           ENDIF
          
 !C.. /AJWT
@@ -3187,3 +3321,4 @@ contains
          ENDDO
          RETURN
       END FUNCTION CALCT2
+

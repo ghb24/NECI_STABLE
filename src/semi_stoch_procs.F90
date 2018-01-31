@@ -728,9 +728,8 @@ contains
         type(ll_node), pointer :: temp_node
         logical :: tSuccess
         character(*), parameter :: this_routine = 'add_core_states_currentdet'
-
+        
         nwalkers = int(TotWalkers,sizeof_int)
-
         ! Test that SpawnedParts is going to be big enough
         if (determ_sizes(iProcIndex) > MaxSpawned) then
             write(6,*) 'Spawned parts array will not be big enough for &
@@ -768,7 +767,7 @@ contains
                 call encode_sign(SpawnedParts(:,i), walker_sign)
             else
                 ! This will be a new state added to CurrentDets.
-                nwalkers = nwalkers + 1
+               nwalkers = nwalkers + 1
             end if
 
         end do
@@ -796,7 +795,7 @@ contains
         ! Now copy all the core states in SpawnedParts into CurrentDets.
         ! Note that the amplitude in CurrentDets was copied across, so this is fine.
         do i = 1, nwalkers
-            CurrentDets(:,i) = SpawnedParts(0:NIfTot,i)
+           CurrentDets(:,i) = SpawnedParts(0:NIfTot,i)
         end do
 
         call clear_hash_table(HashIndex)
@@ -831,15 +830,18 @@ contains
 
     end subroutine add_core_states_currentdet_hash
 
-    subroutine return_most_populated_states(n_keep, largest_walkers, norm)
+    subroutine return_most_populated_states(n_keep,&
+         largest_walkers, source, source_size, norm)
 
-        ! Return the most populated states in CurrentDets on *this* processor only. 
+        ! Return the most populated states in source on *this* processor only. 
         ! Also return the norm of these states, if requested.
 
         use bit_reps, only: extract_sign
         use DetBitOps, only: sign_lt, sign_gt
         use sort_mod, only: sort
 
+        integer, intent(in) :: source_size
+        integer(n_int), intent(in) :: source(0:NIfTot, source_size)
         integer, intent(in) :: n_keep
         integer(n_int), intent(out) :: largest_walkers(0:NIfTot, n_keep)
         real(dp), intent(out), optional :: norm
@@ -853,8 +855,8 @@ contains
         if (present(norm)) norm = 0.0_dp
 
         ! Run through all walkers on process.
-        do i = 1, int(TotWalkers,sizeof_int)
-            call extract_sign(CurrentDets(:,i), sign_curr)
+        do i = 1, int(source_size,sizeof_int)
+            call extract_sign(source(:,i), sign_curr)
 
 #ifdef __CMPLX
             sign_curr_real = sqrt(sum(abs(sign_curr(1::2)))**2 + sum(abs(sign_curr(2::2)))**2)

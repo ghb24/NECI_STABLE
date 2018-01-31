@@ -19,7 +19,7 @@ contains
         use bit_reps, only: decode_bit_det
         use CalcData, only: subspace_in, t_force_lanczos
         use DetBitOps, only: ilut_lt, ilut_gt
-        use FciMCData, only: ilutHF
+        use FciMCData, only: ilutHF, CurrentDets, TotWalkers
         use lanczos_wrapper, only: frsblk_wrapper
         use Parallel_neci, only: MPIScatterV, MPIGatherV, MPIBCast, MPIArg, iProcIndex
         use Parallel_neci, only: nProcessors
@@ -48,7 +48,7 @@ contains
 
         integer(n_int), allocatable :: ilut_list(:,:)
         integer, allocatable :: det_list(:,:)
-        integer :: i, j, max_elem_ind(1), ierr
+        integer :: i, max_elem_ind(1), ierr
         integer :: temp_reorder(nexcit)
         integer(MPIArg) :: ndets_all_procs, ndets_this_proc_mpi
         integer(MPIArg) :: sndcnts(0:nProcessors-1), displs(0:nProcessors-1)
@@ -57,7 +57,6 @@ contains
         HElement_t(dp), allocatable :: evecs(:,:), evecs_transpose(:,:)
         character(len=*), parameter :: t_r = "calc_trial_states_lanczos"
 
-        type(DavidsonCalcType) :: davidsonCalc
         type(LanczosCalcType) :: lanczosCalc
 
         ndets_this_proc = 0
@@ -68,7 +67,7 @@ contains
         ! Choose the correct generating routine.
         if (space_in%tHF) call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
         if (space_in%tPops) call generate_space_most_populated(space_in%npops, & 
-                                    space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc)
+                                    space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc, CurrentDets, int(TotWalkers))
         if (space_in%tRead) call generate_space_from_file(space_in%read_filename, trial_iluts, ndets_this_proc)
         if (space_in%tDoubles) call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
         if (space_in%tCAS) call generate_cas(space_in%occ_cas, space_in%virt_cas, trial_iluts, ndets_this_proc)
@@ -222,7 +221,7 @@ contains
         use bit_reps, only: decode_bit_det
         use CalcData, only: subspace_in
         use DetBitOps, only: ilut_lt, ilut_gt
-        use FciMCData, only: ilutHF
+        use FciMCData, only: ilutHF, CurrentDets, TotWalkers
         use Parallel_neci, only: MPIScatterV, MPIGatherV, MPIBCast, MPIArg, iProcIndex
         use Parallel_neci, only: nProcessors
         use ParallelHelper, only: root
@@ -260,7 +259,7 @@ contains
         ! Choose the correct generating routine.
         if (space_in%tHF) call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
         if (space_in%tPops) call generate_space_most_populated(space_in%npops, & 
-                                    space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc)
+                                    space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc, CurrentDets, TotWalkers)
         if (space_in%tRead) call generate_space_from_file(space_in%read_filename, trial_iluts, ndets_this_proc)
         if (space_in%tDoubles) call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
         if (space_in%tCAS) call generate_cas(space_in%occ_cas, space_in%virt_cas, trial_iluts, ndets_this_proc)
@@ -459,7 +458,7 @@ contains
 
         use CalcData, only: subspace_in
         use DetBitOps, only: ilut_lt, ilut_gt
-        use FciMCData, only: ilutHF
+        use FciMCData, only: ilutHF, CurrentDets, TotWalkers
         use Parallel_neci, only: nProcessors
         use semi_stoch_gen
         use sort_mod, only: sort
@@ -493,7 +492,7 @@ contains
         ! Choose the correct generating routine.
         if (space_in%tHF) call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
         if (space_in%tPops) call generate_space_most_populated(space_in%npops, & 
-                                    space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc)
+                                    space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc, CurrentDets, TotWalkers)
         if (space_in%tRead) call generate_space_from_file(space_in%read_filename, trial_iluts, ndets_this_proc)
         if (space_in%tDoubles) call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
         if (space_in%tCAS) call generate_cas(space_in%occ_cas, space_in%virt_cas, trial_iluts, ndets_this_proc)

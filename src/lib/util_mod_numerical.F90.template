@@ -17,7 +17,7 @@ fmtstr = g20.12e3
 
 [doub]
 type = real(kind=dp)
-width = 20
+width = 40
 fmtstr = g20.12e3
 
 =========================
@@ -112,7 +112,7 @@ contains
         if (state%%init) then
             write(colno, '(i5)') state%%cols
             title_str = trim(adjustl(colno)) // ". " // trim(adjustl(title))
-            write(state%%funit, '(a)', advance='no') title_str
+            write(state%%funit, '(a)', advance='no') trim(title_str)
 
             if (state%%mc_out .and. mc_col) &
                 write(iout, '(a%(width)s)', advance='no') title_str

@@ -5,7 +5,8 @@ module AnnihilationMod
     use SystemData, only: NEl, tHPHF
     use CalcData, only:   tTruncInitiator, OccupiedThresh, tSemiStochastic, &
                           tTrialWavefunction, tKP_FCIQMC, tContTimeFCIMC, &
-                          tContTimeFull, InitiatorWalkNo
+                          tContTimeFull, InitiatorWalkNo, tOrthogonaliseReplicas, &
+                          tKeepDoubSpawns
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -17,7 +18,7 @@ module AnnihilationMod
     use bit_rep_data
     use bit_reps, only: decode_bit_det, &
                         encode_sign, test_flag, set_flag, &
-                        flag_initiator, encode_part_sign, &
+                        encode_part_sign, &
                         extract_part_sign, extract_bit_rep, &
                         nullify_ilut_part, clr_flag, &
                         encode_flags, bit_parent_zero, get_initiator_flag
@@ -27,6 +28,9 @@ module AnnihilationMod
                             CalcHashTableStats
     use searching
     use hash
+    use real_time_data, only: NoAborted_1, Annihilated_1, runge_kutta_step, &
+                              nspawned_1, t_real_time_fciqmc
+
 
     implicit none
 
@@ -73,7 +77,7 @@ module AnnihilationMod
         CALL set_timer(Sort_Time,30)
         call CalcHashTableStats(TotWalkersNew, iter_data) 
         CALL halt_timer(Sort_Time)
-
+        
     end subroutine DirectAnnihilation
 
     subroutine SendProcNewParts(MaxIndex,tSingleProc)
@@ -89,6 +93,8 @@ module AnnihilationMod
                                                    recvcounts, recvdisps
         integer :: MaxSendIndex
         integer(MPIArg) :: SpawnedPartsWidth
+
+        character(*), parameter :: this_routine = "SendProcNewParts"
 
         if (tSingleProc) then
             ! Put all particles and gap on one proc.
@@ -137,9 +143,21 @@ module AnnihilationMod
         call set_timer(Comms_Time,30)
 
         call MPIAlltoAll(sendcounts,1,recvcounts,1,error)
-
         ! Set this global data - the total number of spawned determants.
+        ! again in the realtime i have to distinguish between the 2 RK steps
+#ifdef __REALTIME 
+        if (runge_kutta_step == 1) then
+           ! we are more interested in the number of spawn events from a core
+           ! than in the number of spawns onto a core in the real-time case
+           ! (for memory management)
+            nspawned_1 = sum(sendcounts)
+        else
+            nspawned = sum(sendcounts)
+        end if
+#else
         nspawned = sum(recvcounts)
+#endif
+
 
         ! We can now get recvdisps from recvcounts, since we want the data to
         ! be contiguous after the move.
@@ -158,15 +176,18 @@ module AnnihilationMod
         end do
 
         ! Max index is the largest occupied index in the array of hashes to be
-        ! ordered in each processor 
+        ! ordered in each processor
         if (MaxIndex > (0.9_dp*MaxSpawned)) then
             write(6,*) MaxIndex,MaxSpawned
-            call Warning_neci("SendProcNewParts","Maximum index of newly-spawned array is " &
+            call Warning_neci(this_routine,"Maximum index of newly-spawned array is " &
             & //"close to maximum length after annihilation send. Increase MemoryFacSpawn")
         end if
-
+        if(MaxIndex > MaxSpawned) then
+           call stop_all(this_routine,"Maximum index of newly-spawned array exceeding "&
+                & //"maximum length of spawning array")
+        endif
+        ! maybe: add additional buffers to prevent failure in communication
         call MPIAlltoAllv(SpawnedParts,sendcounts,disps,SpawnedParts2,recvcounts,recvdisps,error)
-
         call halt_timer(Comms_Time)
 
     end subroutine SendProcNewParts
@@ -472,7 +493,8 @@ module AnnihilationMod
         ! Also set the initiator flag if the new walker has its initiator flag
         ! set.
         if (tTruncInitiator) then
-            if ((abs(cum_sgn) > 1.e-12_dp .and. abs(new_sgn) > 1.e-12_dp) .or. &
+            if ((abs(cum_sgn) > 1.e-12_dp .and. abs(new_sgn) > 1.e-12_dp &
+                 .and. tKeepDoubSpawns) .or. &
                  test_flag(new_det, get_initiator_flag(part_type))) &
                 call set_flag(cum_det, get_initiator_flag(part_type))
         end if
@@ -480,9 +502,20 @@ module AnnihilationMod
         sgn_prod = cum_sgn * new_sgn
 
         ! Update annihilation statistics.
+        ! in the real-time fciqmc i have to keep track of the 2 runge-kutta 
+        ! step stats seperately.. -> so distinguish here! 
         if (sgn_prod < 0.0_dp) then
             run = part_type_to_run(part_type)
+#ifdef __REALTIME
+            if (runge_kutta_step == 1) then
+                Annihilated_1(run) = Annihilated_1(run) + &
+                    2*min(abs(cum_sgn), abs(new_sgn))
+            else if (runge_kutta_step == 2) then
+                Annihilated(run) = Annihilated(run) + 2*min(abs(cum_sgn), abs(new_sgn))
+            end if
+#else 
             Annihilated(run) = Annihilated(run) + 2*min(abs(cum_sgn), abs(new_sgn))
+#endif
             iter_data%nannihil(part_type) = iter_data%nannihil(part_type)&
                 + 2 * min(abs(cum_sgn), abs(new_sgn))
         end if
@@ -551,12 +584,12 @@ module AnnihilationMod
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer, intent(inout) :: TotWalkersNew
-        integer, intent(inout) :: ValidSpawned 
-        integer :: PartInd, i, j, PartIndex
+        integer, intent(in) :: ValidSpawned 
+        integer :: PartInd, i, j, PartIndex,m
         real(dp), dimension(lenof_sign) :: CurrentSign, SpawnedSign, SignTemp
         real(dp), dimension(lenof_sign) :: TempCurrentSign, SignProd
         real(dp) :: pRemove, r
-        integer :: ExcitLevel, DetHash, nJ(nel)
+        integer :: ExcitLevel, DetHash, nJ(nel), ratio(lenof_sign)
         logical :: tSuccess, tSuc, tDetermState
         integer :: run
 
@@ -608,6 +641,22 @@ module AnnihilationMod
 
                     do j = 1, lenof_sign
                         run = part_type_to_run(j)
+                        ! RT_M_Merge: Changed check for unoccupied determinant such
+                        ! that it is considered unoccupied in the real time
+                        ! algorithm if and only if the corresponding 
+                        
+                        ! here it seems, it treats both the real and complex 
+                        ! walker occupation for the same initiator criteria
+                        ! meaning if, any of the real or imaginary occupations
+                        ! is an initiator, the whole determinant is an 
+                        ! initiator.. hm.. do i want this? if yes i have 
+                        ! to change a lot of the previous implemented code 
+                        ! which distinguished between real and imaginary 
+                        ! initiators..
+                        ! for now, stick to the distinction! but ask ali! 
+                        ! news: keep track of first and second step of 
+                        ! runge-kutta stats seperately -> also NoBorn values
+                        ! etc..
 
                         if (is_run_unnocc(CurrentSign,run)) then
                             ! This determinant is actually *unoccupied* for the
@@ -617,7 +666,16 @@ module AnnihilationMod
                                 if (.not. test_flag (SpawnedParts(:,i), get_initiator_flag(j)) .and. &
                                      .not. tDetermState) then
                                     ! Walkers came from outside initiator space.
+                                    ! have to also keep track which RK step
+#ifdef __REALTIME 
+                                    if (runge_kutta_step == 1) then
+                                        NoAborted_1(j) = NoAborted_1(j) + abs(SpawnedSign(j))
+                                    else if (runge_kutta_step == 2) then
+                                        NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
+                                    end if
+#else
                                     NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
+#endif
                                     iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
                                     call encode_part_sign (CurrentDets(:,PartInd), 0.0_dp, j)
                                 end if
@@ -626,10 +684,28 @@ module AnnihilationMod
                             
 
                         if (SignProd(j) < 0) then
+                            ! in the real-time for the final combination
+                            ! y(n) + k2 i have to check if the "spawned" 
+                            ! particle is actually a diagonal death/born
+                            ! walker
                             ! This indicates that the particle has found the
                             ! same particle of opposite sign to annihilate with.
                             ! In this case we just need to update some statistics:
-                            Annihilated(run) = Annihilated(run) + 2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
+                            ! in the real-time fciqmc i have to keep track of 
+                            ! the runge-kutta-step
+
+#ifdef __REALTIME
+                            if (runge_kutta_step == 1) then
+                                Annihilated_1(run) = Annihilated_1(run) + &
+                                     2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
+                            else if (runge_kutta_step == 2) then
+                                Annihilated(run) = Annihilated(run) + &
+                                     2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
+                            end if
+#else
+                            Annihilated(run) = Annihilated(run) + &
+                                 2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
+#endif
                             iter_data%nannihil(j) = iter_data%nannihil(j) + &
                                 2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j))))
 
@@ -695,7 +771,7 @@ module AnnihilationMod
 
             end if
                 
-            if ( (.not.tSuccess) .or. (tSuccess .and. IsUnoccDet(CurrentSign) .and. (.not. tDetermState)) ) then
+            if ( (.not.tSuccess) .or. ((tSuccess .and. IsUnoccDet(CurrentSign) .and. (.not. tDetermState))) ) then
 
                 ! Determinant in newly spawned list is not found in CurrentDets.
                 ! Usually this would mean the walkers just stay in this list and
@@ -717,8 +793,18 @@ module AnnihilationMod
                             if (tIncCancelledInitEnergy) call add_trial_energy_contrib(SpawnedParts(:,i), SignTemp(j), j)
 
                             ! Walkers came from outside initiator space.
-                            NoAborted(j) = NoAborted(j) + abs(SignTemp(j))
+                            ! in the real-time keep track which RK step
+#ifdef __REALTIME
+                            if (runge_kutta_step == 1) then
+                                NoAborted_1(j) = NoAborted_1(j) + abs(SignTemp(j))
+                            else
+                                NoAborted(j) = NoAborted(j) + abs(SignTemp(j))
+                            end if
+#else
+                            NoAborted(run) = NoAborted(run) + abs(SignTemp(j))
+#endif
                             iter_data%naborted(j) = iter_data%naborted(j) + abs(SignTemp(j))
+
                             ! We've already counted the walkers where SpawnedSign
                             ! become zero in the compress, and in the merge, all
                             ! that's left is those which get aborted which are
@@ -729,29 +815,47 @@ module AnnihilationMod
 
                         end if
                         
-                        ! Either the determinant has never been an initiator,
-                        ! or we want to treat them all the same, as before.
-                        if ((abs(SignTemp(j)) > 1.e-12_dp) .and. (abs(SignTemp(j)) < OccupiedThresh)) then
-                            ! We remove this walker with probability 1-RealSignTemp
-                            pRemove=(OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
-                            r = genrand_real2_dSFMT ()
-                            if (pRemove > r) then
-                                ! Remove this walker.
-                                NoRemoved(run) = NoRemoved(run) + abs(SignTemp(j))
-                                !Annihilated = Annihilated + abs(SignTemp(j))
-                                !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
-                                iter_data%nremoved(j) = iter_data%nremoved(j) &
-                                                      + abs(SignTemp(j))
-                                SignTemp(j) = 0.0_dp
-                                call nullify_ilut_part (SpawnedParts(:,i), j)
-                            else
-                                !Round up
-                                NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(SignTemp(j))
-                                iter_data%nborn(j) = iter_data%nborn(j) &
-                                          + OccupiedThresh - abs(SignTemp(j))
-                                SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
-                                call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
-                            end if
+                        ! this below, probably has to be adjusted for the 
+                        ! real-time in the future too! if we use non-integer
+                        ! occupations.. todo
+
+                        ! RT_M_Merge: Initiators were treated separately here which is disabled
+                        ! in the main build -> adjusted to main. Not sure what tEnhanceRemainder does, but
+                        ! it is deprecated, so i removed it
+                            ! Either the determinant has never been an initiator,
+                            ! or we want to treat them all the same, as before.
+                        
+                        if( ( (.not. is_run_unnocc(SignTemp, run)) .and. &
+                             (mag_of_run(SignTemp, run) < OccupiedThresh) ) ) then
+                           ! We remove this walker with probability 1-RealSignTemp
+
+                           pRemove=(OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
+                           r = genrand_real2_dSFMT ()
+                           if (pRemove > r) then
+                              ! Remove this walker.
+                              NoRemoved(run) = NoRemoved(run) + sum(abs(SignTemp( &
+                                   min_part_type(run):max_part_type(run))))
+                              !Annihilated = Annihilated + abs(SignTemp(j))
+                              !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
+                              do m=min_part_type(run),max_part_type(run)
+                                 iter_data%nremoved(m) = iter_data%nremoved(m) &
+                                      + abs(SignTemp(m))
+                                 SignTemp(m) = 0.0_dp
+                                 call nullify_ilut_part (SpawnedParts(:,i), m)
+                              enddo
+                           else !if (tEnhanceRemainder) then
+                              do m=min_part_type(run),max_part_type(run)
+                                 ! do not change the phase of the population
+                                 ratio(m) = abs(SignTemp(m))/mag_of_run(SignTemp,run)
+                                 iter_data%nborn(m) = iter_data%nborn(m) &
+                                      + OccupiedThresh*ratio(m) - abs(SignTemp(m))
+                                 NoBorn(run) = NoBorn(run) + OccupiedThresh*ratio(m) &
+                                      - abs(CurrentSign(m))
+                                 SignTemp(m) = sign(OccupiedThresh*ratio(m), SignTemp(m))
+                                 call encode_part_sign (SpawnedParts(:,i), SignTemp(m), m)
+                              enddo
+
+                           end if
                         end if
                     end do
 
@@ -771,26 +875,37 @@ module AnnihilationMod
                     
                     do j = 1, lenof_sign
                         run = part_type_to_run(j)
-                        if ((abs(SignTemp(j)) > 1.e-12_dp) .and. (abs(SignTemp(j)) < OccupiedThresh)) then
-                            ! We remove this walker with probability 1-RealSignTemp.
-                            pRemove = (OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
-                            r = genrand_real2_dSFMT ()
-                            if (pRemove  >  r) then
-                                ! Remove this walker.
-                                NoRemoved(run) = NoRemoved(run) + abs(SignTemp(j))
-                                !Annihilated = Annihilated + abs(SignTemp(j))
-                                !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
-                                iter_data%nremoved(j) = iter_data%nremoved(j) &
-                                                      + abs(SignTemp(j))
-                                SignTemp(j) = 0
-                                call nullify_ilut_part (SpawnedParts(:,i), j)
-                            else
-                                NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(SignTemp(j))
-                                iter_data%nborn(j) = iter_data%nborn(j) &
-                                            + OccupiedThresh - abs(SignTemp(j))
-                                SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
-                                call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
-                            end if
+                        if( ( (.not. is_run_unnocc(SignTemp, run)) .and. &
+                             (mag_of_run(SignTemp, run) < OccupiedThresh) ) ) then
+                           ! We remove this walker with probability 1-RealSignTemp
+
+                           pRemove=(OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
+                           r = genrand_real2_dSFMT ()
+                           if (pRemove > r) then
+                              ! Remove this walker.
+                              NoRemoved(run) = NoRemoved(run) + sum(abs(SignTemp( &
+                                   min_part_type(run):max_part_type(run))))
+                              !Annihilated = Annihilated + abs(SignTemp(j))
+                              !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
+                              do m=min_part_type(run),max_part_type(run)
+                                 iter_data%nremoved(m) = iter_data%nremoved(m) &
+                                      + abs(SignTemp(m))
+                                 SignTemp(m) = 0.0_dp
+                                 call nullify_ilut_part (SpawnedParts(:,i), m)
+                              enddo
+                           else !if (tEnhanceRemainder) then
+                              do m=min_part_type(run),max_part_type(run)
+                                 ! do not change the phase of the population
+                                 ratio(m) = abs(SignTemp(m))/mag_of_run(SignTemp,run)
+                                 iter_data%nborn(m) = iter_data%nborn(m) &
+                                      + OccupiedThresh*ratio(m) - abs(SignTemp(m))
+                                 NoBorn(run) = NoBorn(run) + OccupiedThresh*ratio(m) &
+                                      - abs(CurrentSign(m))
+                                 SignTemp(m) = sign(OccupiedThresh*ratio(m), SignTemp(m))
+                                 call encode_part_sign (SpawnedParts(:,i), SignTemp(m), m)
+                              enddo
+
+                           end if
                         end if
                     end do
                     
@@ -825,7 +940,7 @@ module AnnihilationMod
         call halt_timer(AnnMain_time)
 
     end subroutine AnnihilateSpawnedParts
-    
+  
     pure function test_abort_spawn(ilut_spwn, part_type) result(abort)
 
         ! Should this spawn be aborted (according to the initiator

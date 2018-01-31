@@ -108,6 +108,7 @@ LOGICAL :: tCheckHighestPop,tRestartHighPop,tChangeProjEDet
 LOGICAL :: tRotoAnnihil,tSpawnAsDet
 LOGICAL :: tTruncCAS,tTruncInitiator,tAddtoInitiator    !Truncation the FCIMC excitation space by CAS
 LOGICAL :: tSeniorInitiators !If a det. has lived long enough (called a senior det.), it is added to the initiator space.
+LOGICAL :: tKeepDoubSpawns, tMultiSpawnThreshold
 LOGICAL :: tInitIncDoubs,tWalkContGrow,tAnnihilatebyRange
 logical :: tReadPopsRestart, tReadPopsChangeRef, tInstGrowthRate
 logical :: tAllRealCoeff, tUseRealCoeffs
@@ -118,6 +119,8 @@ real(dp) :: RealSpawnCutoff, OccupiedThresh
 logical :: tRPA_QBA     !RPA calculation with QB approximation
 logical :: tStartCAS    !Start FCIMC dynamic with walkers distributed according to CAS diag.
 logical :: tShiftonHFPop    !Adjust shift in order to keep the population on HF constant, rather than total pop.
+
+logical :: tSpecifiedTau
 ! Base hash values only on spatial orbitals
 ! --> All dets with same spatial structure on the same processor.
 logical :: tSpatialOnlyHash
@@ -143,6 +146,7 @@ real(dp) :: MaxWalkerBloom   !Max number of walkers allowed in one bloom before 
 INTEGER(int64) :: HFPopThresh
 real(dp) :: InitWalkers, maxnoathf, InitiatorWalkNo
 real(dp) :: SeniorityAge !A threshold on the life time of a determinat (measured in its halftime) to become a senior determinant.
+integer :: multiSpawnThreshold
 
 ! The average number of excitations to be performed from each walker.
 real(dp) :: AvMCExcits
@@ -209,6 +213,7 @@ logical :: tDynamicCoreSpace, tStaticCore ! update the corespace
 integer :: coreSpaceUpdateCycle
 ! Input type describing which space(s) type to use.
 type(subspace_in) :: ss_space_in
+real(dp) :: corespaceWalkers, allCorespaceWalkers
 
 ! Options regarding splitting the space into core and non-core elements. Needed, for example when performing a
 ! semi-stochastic simulation, to specify the deterministic space.
@@ -329,6 +334,8 @@ real(dp) :: min_tau_global = 1.0e-7_dp
 ! fixed to the values obtained from the POPSFILE 
 logical :: t_keep_tau_fixed = .false.
 
+logical :: tPopsAlias = .false.
+character(255) :: aliasStem
 ! new tau-search using HISTOGRAMS: 
 logical :: t_hist_tau_search = .false., t_hist_tau_search_option = .false.
 logical :: t_fill_frequency_hists = .false.
@@ -411,4 +418,6 @@ logical :: t_back_spawn_flex = .false., t_back_spawn_flex_option = .false.
 ! 1 -> maybe I should rename this than so that minus indicates de-excitation?!
 integer :: occ_virt_level = 0
 
+! move tSpinProject here to avoid circular dependencies 
+logical :: tSpinProject
 end module CalcData

@@ -24,7 +24,8 @@ module spin_project
     ! have support for logical(8). Gah.
     logical :: spin_proj_spawn_initiators, spin_proj_no_death
 
-    logical :: tSpinProject, spin_proj_stochastic_yama
+    ! tSpinProject moved to CalcData to avoid circular dependencies
+    logical :: spin_proj_stochastic_yama
     logical :: disable_spin_proj_varyshift
     integer :: spin_proj_interval, spin_proj_cutoff, spin_proj_iter_count
     integer :: spin_proj_nopen_max

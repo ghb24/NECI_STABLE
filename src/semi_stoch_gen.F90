@@ -55,6 +55,7 @@ contains
             call adjust_load_balance(iter_data_fciqmc)
         end if
 
+
 !#ifdef __CMPLX
 !        call stop_all(t_r, "Semi-stochastic has not been implemented with complex coefficients.")
 !#endif
@@ -203,7 +204,7 @@ contains
         ! Call the requested generating routines.
         if (core_in%tHF) call add_state_to_space(ilutHF, SpawnedParts, space_size)
         if (core_in%tPops) call generate_space_most_populated(core_in%npops, & 
-                                    core_in%tApproxSpace, core_in%nApproxSpace, SpawnedParts, space_size)
+                                    core_in%tApproxSpace, core_in%nApproxSpace, SpawnedParts, space_size, CurrentDets, TotWalkers)
         if (core_in%tRead) call generate_space_from_file(core_in%read_filename, SpawnedParts, space_size)
         if (.not. tCSFCore) then
             if (core_in%tDoubles) call generate_sing_doub_determinants(SpawnedParts, space_size, core_in%tHFConn)
@@ -848,7 +849,7 @@ contains
 
     end subroutine generate_optimised_space
 
-    subroutine generate_space_most_populated(target_space_size, tApproxSpace, nApproxSpace, ilut_list, space_size)
+    subroutine generate_space_most_populated(target_space_size, tApproxSpace, nApproxSpace, ilut_list, space_size, source, source_size)
 
         ! In: target_space_size - The number of determinants to attempt to keep
         !         from if less determinants are present then use all of them.
@@ -870,9 +871,9 @@ contains
         !             generated plus what space_size was on input.
 
         use bit_reps, only: extract_sign
-        use FciMCData, only: TotWalkers
 
-        integer, intent(in) :: target_space_size, nApproxSpace
+        integer, intent(in) :: target_space_size, nApproxSpace, source_size
+        integer(n_int), intent(in) :: source(0:NIfTot,source_size)
         logical, intent(in) :: tApproxSpace
         integer(n_int), intent(inout) :: ilut_list(0:,:)
         integer, intent(inout) :: space_size
@@ -894,8 +895,8 @@ contains
         ! Quickly loop through and find the number of determinants with
         ! zero sign.
         nzero_dets = 0
-        do i = 1, TotWalkers
-            call extract_sign(CurrentDets(:,i), real_sign)
+        do i = 1, source_size
+            call extract_sign(source(:,i), real_sign)
             if (sum(abs(real_sign)) < 1.e-8_dp) nzero_dets = nzero_dets + 1
         end do
 
@@ -905,9 +906,9 @@ contains
             ! target_space_size states to all processes, which is often
             ! overkill and uses up too much memory.
             length_this_proc = min( ceiling(real(nApproxSpace*n_pops_keep)/real(nProcessors), MPIArg), &
-                                   int(TotWalkers-nzero_dets,MPIArg) )
+                                   int(source_size-nzero_dets,MPIArg) )
         else
-            length_this_proc = min( int(n_pops_keep, MPIArg), int(TotWalkers-nzero_dets,MPIArg) )
+            length_this_proc = min( int(n_pops_keep, MPIArg), int(source_size-nzero_dets,MPIArg) )
         end if
 
         call MPIAllGather(length_this_proc, lengths, ierr)
@@ -935,8 +936,9 @@ contains
             disps(i) = sum(lengths(:i-1))
         end do
 
-        ! Return the most populated states in CurrentDets on *this* processor.
-        call return_most_populated_states(int(length_this_proc,sizeof_int), largest_states)
+        ! Return the most populated states in source on *this* processor.
+        call return_most_populated_states(int(length_this_proc,sizeof_int), largest_states, &
+             source, source_size)
 
         ! Store the amplitudes in their real form.
         do i = 1, length_this_proc
@@ -1440,7 +1442,7 @@ contains
         ! CurrentDets and copy them across to SpawnedParts, to the first
         ! space_size slots in it (overwriting anything which was there before,
         ! which presumably won't be needed now).
-        call generate_space_most_populated(target_space_size, .false., 0, SpawnedParts, space_size)
+        call generate_space_most_populated(target_space_size, .false., 0, SpawnedParts, space_size, CurrentDets, TotWalkers)
 
         write(6,'("Writing the most populated states to DETFILE...")'); call neci_flush(6)
 

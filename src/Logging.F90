@@ -7,7 +7,8 @@ MODULE Logging
     use MemoryManager, only: LogMemAlloc, LogMemDealloc,TagIntType
     use SystemData, only: nel, LMS, nbasis, tHistSpinDist, nI_spindist, &
                           hist_spin_dist_iter
-    use CalcData, only: tCheckHighestPop, semistoch_shift_iter, trial_shift_iter, tPairedReplicas
+    use CalcData, only: tCheckHighestPop, semistoch_shift_iter, trial_shift_iter, tPairedReplicas, &
+                        tChangeProjEDet
     use constants, only: n_int, size_n_int, bits_n_int
     use bit_rep_data, only: NIfTot, NIfD
     use DetBitOps, only: EncodeBitDet
@@ -15,6 +16,10 @@ MODULE Logging
     use errors, only: Errordebug 
     use LoggingData
     use spectral_data, only: tPrint_sl_eigenvecs
+
+! RT_M_Merge: There seems to be no conflict here, so use both
+    use real_time_data, only: n_real_time_copies, t_prepare_real_time, &
+                              cnt_real_time_copies
     use rdm_data, only: nrdms_transition_input, states_for_transition_rdm
     use rdm_data, only: rdm_main_size_fac, rdm_spawn_size_fac, rdm_recv_size_fac
 
@@ -27,6 +32,11 @@ MODULE Logging
 
       use default_sets
       implicit none
+
+      ! real-time implementation changes: 
+      n_real_time_copies = 1
+      cnt_real_time_copies = 1
+      t_prepare_real_time = .false.
 
       tDipoles = .false.
       tPrintInitiators = .false.
@@ -783,6 +793,7 @@ MODULE Logging
                 OffDiagMax=-OffDiagMax
             ENDIF
         case("HISTSPAWN")
+            if(tChangeProjEDet) call stop_all(t_r,'NO_CHANGEREF should be used whenever HISTSPAWN is used')
 !This option will histogram the spawned wavevector, averaged over all previous iterations. 
 !It scales horrifically and can only be done for small systems
 !which can be diagonalized. It requires a diagonalization initially to work. 

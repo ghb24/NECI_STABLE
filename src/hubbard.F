@@ -17,7 +17,7 @@ C ===================================================================
 !            UMAT(UMatInd(I+1,I,I+1,I))=UHUB
 !            UMAT(I,I+1,I,I+1)=UHUB
 !            UMAT(I+1,I,I+1,I)=UHUB
-            WRITE(10,'(4I7,F19.9)') I,I,I,I,UHUB
+            WRITE(10,*) I,I,I,I,UHUB, UMatInd(I,I,I,I)
          ENDDO
          CLOSE(10)
          RETURN
@@ -53,7 +53,6 @@ C..Returned in sum
 CCCC.. NBASISMAX goes from -NMAXX+1 to MAXX so LX=2MAXX
          LX=NBASISMAX(1,5)
          LX=(LX*(AX*AX+AY*AY))
-         TOTSUM=COS(2*PI*(I*AX+J*AY)/LX)+COS(2*PI*(I*AY-J*AX)/LX)
          totsum=cos(2*pi*((I+tb_x)*ax + (j+tb_y)*ay)/lx)
          totsum=totsum+cos(2*pi*((i+tb_x)*ay-(j+tb_y)*ax)/lx)
 
@@ -455,7 +454,7 @@ C.. Setup the symmetry product table
             WRITE(6,*) I,SymConjTab(I)
          ENDDO
       End
-
+     
 !Hubbard Sym Reps are different from normal ones.  In hubbard, we have split degenerate sets into 1D subcomponents,
 !  but a complete degenerate set will count as a sym rep (i.e. if it is filled, its sym can be discounted),
 !  not just one of the subcomponents

@@ -79,7 +79,7 @@ contains
 
         i = int(r)
         res = r - real(i, dp)
-
+        
         if (abs(res) >= 1.0e-12_dp) then
             if (abs(res) > genrand_real2_dSFMT()) &
                 i = i + nint(sign(1.0_dp, r))
@@ -665,9 +665,7 @@ contains
         !        filename is simply set to be equal to stem.
         !    tnext: the next unused filename is found if true, else the
         !        filename is set to be stem.x where stem.x exists and stem.x+1
-        !        doesn't and x is greater than istart or unless the file
-        !        stem exists, then the filename is set to be stem (with no
-        !        extension).
+        !        doesn't and x is greater than istart
         !    istart: the integer of the first x value to check.
         !        If istart is negative, then the filename is set to be stem.x,
         !        where x = |istart+1|.  This overrides everything else.

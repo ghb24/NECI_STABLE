@@ -1,7 +1,7 @@
 #include "macros.h"
 
 module bit_reps
-    use FciMCData, only: CurrentDets, WalkVecDets, MaxWalkersPart
+    use FciMCData, only: CurrentDets, WalkVecDets, MaxWalkersPart, blank_det
     use SystemData, only: nel, tCSF, tTruncateCSF, nbasis, csf_trunc_level
     use CalcData, only: tTruncInitiator, tUseRealCoeffs, tSemiStochastic, &
                         tCSFCore, tTrialWavefunction, semistoch_shift_iter, &
@@ -9,12 +9,17 @@ module bit_reps
     use csf_data, only: csf_yama_bit, csf_test_bit
     use constants, only: lenof_sign, end_n_int, bits_n_int, n_int, dp,sizeof_int
     use DetBitOps, only: count_open_orbs, CountBits
+    use DetBitOps, only: ilut_lt, ilut_gt
     use bit_rep_data
     use SymExcitDataMod, only: excit_gen_store_type, tBuildOccVirtList, &
                                tBuildSpinSepLists, &
                                OrbClassCount, ScratchSize, SymLabelList2, &
                                SymLabelCounts2
     use sym_general_mod, only: ClassCountInd
+    use real_time_data, only: tGenerateCoreSpace
+    use util_mod, only: binary_search_custom
+    use sort_mod, only: sort
+
     implicit none
 
     ! Structure of a bit representation:
@@ -187,7 +192,7 @@ contains
 
         ! Do we have any flags to store?
         if (tTruncInitiator .or. tSemiStochastic .or. tTrialWavefunction .or. &
-                tStartTrialLater .or. (semistoch_shift_iter /= 0)) then
+                tStartTrialLater .or. (semistoch_shift_iter /= 0) .or. tGenerateCoreSpace) then
             tUseFlags = .true.
         else
             tUseFlags = .false.
@@ -854,7 +859,6 @@ contains
         ! the natural ordered integer form of the det.
         ! If CSFs are enabled, transfer the Yamanouchi symbol as well.
     
-        use FciMCData, only: blank_det
 
         integer(n_int), intent(in) :: ilut(0:NIftot)
         integer, intent(out) :: nI(:)
@@ -1025,7 +1029,8 @@ contains
         endif
     end subroutine decode_bit_det_bitwise
 
-    subroutine add_ilut_lists(ndets_1, ndets_2, sorted_lists, list_1, list_2, list_out, ndets_out)
+    subroutine add_ilut_lists(ndets_1, ndets_2, sorted_lists, list_1, list_2, list_out, &
+         ndets_out,prefactor)
 
         ! WARNING 1: This routine assumes that both list_1 and list_2 contain no
         ! repeated iluts, even if one of the repeated iluts has zero amplitude.
@@ -1035,10 +1040,6 @@ contains
         ! be sorted. This routine will not work if unsorted lists are passed in
         ! and sorted_list is input as .true.
 
-        use DetBitOps, only: ilut_lt, ilut_gt
-        use sort_mod, only: sort
-        use util_mod, only: binary_search_custom
-
         integer, intent(in) :: ndets_1
         integer, intent(in) :: ndets_2
         logical, intent(in) :: sorted_lists
@@ -1046,6 +1047,7 @@ contains
         integer(n_int), intent(inout) :: list_2(0:,1:)
         integer(n_int), intent(inout) :: list_out(0:,1:)
         integer, intent(out) :: ndets_out
+        real(dp), intent(in), optional :: prefactor ! prefactor of list_2 relative to list_1 (real)
 
         integer :: i, pos, min_ind
         real(dp) :: sign_1(lenof_sign), sign_2(lenof_sign), sign_out(lenof_sign)
@@ -1075,7 +1077,7 @@ contains
                 ndets_out = ndets_out + 1
                 call extract_sign(list_1(:, min_ind+pos-1), sign_1)
                 call extract_sign(list_2(:,i), sign_2)
-                sign_out = sign_1 + sign_2
+                sign_out = sign_1 + prefactor*sign_2
                 list_out(:,ndets_out) = list_2(:,i)
                 call encode_sign(list_out(:,ndets_out), sign_out)
 
@@ -1090,6 +1092,8 @@ contains
                 ndets_out = ndets_out - pos
 
                 list_out(:,ndets_out) = list_2(:,i)
+                call extract_sign(list_out(:,ndets_out),sign_2)
+                call encode_sign(list_out(:,ndets_out),sign_2*prefactor)
 
                 ! Search a smaller section of list_1 next time.
                 min_ind = min_ind - pos - 1

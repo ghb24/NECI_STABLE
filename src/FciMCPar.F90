@@ -18,7 +18,7 @@ module FciMCParMod
                         t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
                         t_back_spawn_flex, t_back_spawn_flex_option, &
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
-                        DiagSft
+                        DiagSft, tSpinProject
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
                         tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
                         SIUpdateInterval, tSuppressSIOutput
@@ -76,7 +76,9 @@ module FciMCParMod
     use fcimc_output
     use FciMCData
     use constants
-    
+    use real_time_data, only: t_prepare_real_time, n_real_time_copies, &    
+                              cnt_real_time_copies    
+    use real_time_init, only: init_overlap_buffers
     use double_occ_mod, only: get_double_occupancy, inst_double_occ, &
                         rezero_double_occ_stats, write_double_occ_stats, & 
                         sum_double_occ, sum_norm_psi_squared
@@ -158,6 +160,11 @@ module FciMCParMod
 
         call SetupParameters()
         call InitFCIMCCalcPar()
+
+        if(tLogGreensfunction .and. .not. t_real_time_fciqmc) then
+           call init_overlap_buffers()
+        endif
+
         call init_fcimc_fn_pointers() 
         if (t_new_real_space_hubbard) then 
             call init_real_space_hubbard()
@@ -505,8 +512,28 @@ module FciMCParMod
             endif
 
             IF(TPopsFile.and.(.not.tPrintPopsDefault).and.(mod(Iter,iWritePopsEvery).eq.0)) THEN
-!This will write out the POPSFILE if wanted
-                CALL WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
+                ! differentiate between normal routine and the real-time 
+                ! preperation 
+                if (t_prepare_real_time) then
+                    if (cnt_real_time_copies < n_real_time_copies) then
+                        CALL WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
+                        cnt_real_time_copies = cnt_real_time_copies + 1
+                    else 
+                        ! if the number of wanted copies is reached exit the 
+                        ! calculation. REMINDER: at the end of the calc. an
+                        ! additional popsfile is printed -> so start count at 1
+                        ! todo: cleanly exit calc. here! 
+                        NMCyc=Iter+StepsSft  
+                        t_prepare_real_time = .false.
+                        ! do want to finish all the rdm stuff to go on, but 
+                        ! do not want anymore popsfile to be printed except
+                        ! at the very end.. 
+                        tPrintPopsDefault = .true.
+                    end if
+                else
+                    !This will write out the POPSFILE if wanted
+                    CALL WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
+                end if
             ENDIF
 !            IF(TAutoCorr) CALL WriteHistogrammedDets()
 
@@ -794,6 +821,7 @@ module FciMCParMod
         use rdm_data_utils, only: communicate_rdm_spawn_t, add_rdm_1_to_rdm_2
         use symrandexcit_Ex_Mag, only: test_sym_excit_ExMag 
         use adi_references, only: reset_coherence_counter
+
         ! Iteration specific data
         type(fcimc_iter_data), intent(inout) :: iter_data
 
@@ -1085,7 +1113,6 @@ module FciMCParMod
             ! for noninititators in the back-spawning approach
             ! remove that for now
             do part_type = 1, lenof_sign
-            
                 TempSpawnedPartsInd = 0
 
                 ! Loop over all the particles of a given type on the 
@@ -1093,7 +1120,6 @@ module FciMCParMod
                 ! up by AvMCExcits if attempting multiple excitations from 
                 ! each walker (default 1.0_dp).
                 call decide_num_to_spawn(SignCurr(part_type), AvMCExcits, WalkersToSpawn)
-
                 do p = 1, WalkersToSpawn
 
                     ! Zero the bit representation, to ensure no extraneous
@@ -1147,13 +1173,6 @@ module FciMCParMod
                                             ! Note these last two, AvSignCurr and 
                                             ! RDMBiasFacCurr are not used unless we're 
                                             ! doing an RDM calculation.
-                                            
-                        ! and rescale in the back-spawning algorithm.
-                        ! this should always be a factor of 1 in the other 
-                        ! cases so it is safe to rescale all i guess
-                        ! (remove this option for now!)
-                        child = child 
-
                     else
                         child = 0.0_dp
                     endif
@@ -1266,6 +1285,7 @@ module FciMCParMod
         CALL halt_timer(Annihil_Time)
         IFDEBUG(FCIMCDebug,2) WRITE(iout,*) "Finished Annihilation step"
         
+
         ! If we are orthogonalising the replica wavefunctions, to generate
         ! excited states, then do that here.
         if (tOrthogonaliseReplicas .and. iter > orthogonalise_iter) then
@@ -1298,7 +1318,6 @@ module FciMCParMod
             call communicate_rdm_spawn_t(two_rdm_spawn, two_rdm_recv)
             call add_rdm_1_to_rdm_2(two_rdm_recv, two_rdm_main)
         end if
-
     end subroutine PerformFCIMCycPar
 
     subroutine test_routine()

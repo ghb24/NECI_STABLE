@@ -28,7 +28,7 @@ module real_space_hubbard
     use OneEInts, only: tmat2d, GetTMatEl
     use fcimcdata, only: pSingles, pDoubles, tsearchtau, tsearchtauoption
     use CalcData, only: t_hist_tau_search, t_hist_tau_search_option, tau
-    use umatcache, only: gtid
+!     use umatcache, only: gtid
     use dsfmt_interface, only: genrand_real2_dsfmt
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
     use bit_rep_data, only: NIfTot
@@ -175,7 +175,7 @@ contains
                 tUEGNewGenerator, tGen_4ind_part_exact, tGen_4ind_lin_exact, &
                 tGen_4ind_2, tGen_4ind_2_symmetric, tGen_4ind_unbound, tStoreSpinOrbs, &
                 tReal
-        use umatcache, only : tTransGTid
+!         use umatcache, only : tTransGTid
         use OneEInts, only: tcpmdsymtmat, tOneelecdiag
 
         character(*), parameter :: this_routine = "check_real_space_hubbard_input"
@@ -200,7 +200,7 @@ contains
         if (tGen_4ind_2_symmetric) call stop_all(this_routine, "tGen_4ind_2_symmetric") 
         if (tGen_4ind_unbound)      call stop_all(this_routine, "tGen_4ind_unbound")
         if (tStoreSpinOrbs)     call stop_all(this_routine, "tStoreSpinOrbs")
-        if (tTransGTid)         call stop_all(this_routine, "tTransGTid")
+!         if (tTransGTid)         call stop_all(this_routine, "tTransGTid")
         if (tcpmdsymtmat)        call stop_all(this_routine, "tcpmdsymmat")
         if (tOneelecdiag)       call stop_all(this_routine, "tOneelecdiag")
             
@@ -749,7 +749,8 @@ contains
         src = nI(elec) 
 
         ! get the spatial index 
-        id = gtid(src) 
+        id = get_spatial(src)
+!         id = gtid(src) 
 
         ! now get neighbors
 !         n_orbs = lat%get_num_neighbors(id)

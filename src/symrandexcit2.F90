@@ -30,7 +30,10 @@ MODULE GenRandSymExcitNUMod
                           tLatticeGens, tHub, nEl,G1, nBasis, nBasisMax, &
                           tNoSymGenRandExcits, Arr, nMax, tCycleOrbs, &
                           nOccAlpha, nOccBeta, ElecPairs, MaxABPairs, &
-                          tKPntSym, lzTot, tNoBrillouin, tUseBrillouin
+                          tKPntSym, lzTot, tNoBrillouin, tUseBrillouin, &
+                          tUEG2, kvec, tAllSymSectors, NMAXX, NMAXY, NMAXZ, &
+                          tOrbECutoff, OrbECutoff
+    use CalcData, only: tSpinProject, t_back_spawn, t_back_spawn_flex
     use FciMCData, only: pDoubles, iter, excit_gen_store_type, iluthf
     use Parallel_neci
     use IntegralsData, only: UMat
@@ -39,17 +42,19 @@ MODULE GenRandSymExcitNUMod
                        SymLabelCounts
     use dSFMT_interface , only : genrand_real2_dSFMT
     use SymExcitDataMod 
-    use DetBitOps, only: FindExcitBitDet, EncodeBitDet
+    use DetBitOps, only: FindExcitBitDet, EncodeBitDet, detbiteq
     use sltcnd_mod, only: sltcnd_1
     use constants, only: dp, n_int, bits_n_int
     use bit_reps, only: NIfTot, nifdbo
     use sym_mod, only: mompbcsym, GetLz
-    use detbitops , only : detbiteq
     use timing_neci
     use sym_general_mod
-    use spin_project, only: tSpinProject
     use get_excit, only: make_single, make_double
     use procedure_pointers, only: get_umat_el
+    use back_spawn, only: get_ispn, pick_virtual_electrons_double_hubbard
+    use back_spawn, only: pick_occupied_orbital_hubbard, check_electron_location
+    use neci_intfce
+    use bit_rep_data, only: test_flag
     IMPLICIT NONE
 !    INTEGER , SAVE :: Counter=0
 
@@ -2106,11 +2111,6 @@ MODULE GenRandSymExcitNUMod
 ! For a given ij pair in the UEG or Hubbard model, this generates ab as a double excitation efficiently.
 ! This takes into account the momentum conservation rule, i.e. that kb=ki+ki-ka(+G).
     SUBROUTINE CreateDoubExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn,part_type)
-        Use SystemData , only : NMAXX,NMAXY,NMAXZ,tOrbECutoff,OrbECutoff, kvec, TUEG2
-        use sym_mod, only: mompbcsym
-        use bit_rep_data, only: test_flag
-        use CalcData, only: t_back_spawn_flex, occ_virt_level
-        use back_spawn, only: pick_occupied_orbital_hubbard, check_electron_location
 
         INTEGER :: i,nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,iSpn,kb_ms
         INTEGER(KIND=n_int) :: iLutnI(0:NIfTot)
@@ -2387,11 +2387,12 @@ MODULE GenRandSymExcitNUMod
         ! Find the new determinant
         call make_double (nI, nJ, elec1ind, elec2ind, Hole1BasisNum, &
                           Hole2BasisNum, ExcitMat, tParity)
-                
+
+              
         IF(tHub) THEN
             ! Debug to test the resultant determinant
             IF(.not.(IsMomentumAllowed(nJ)))THEN
-                CALL Stop_All("CreateDoubExcitLattice","Incorrect kb generated -- momentum not conserved")
+               CALL Stop_All("CreateDoubExcitLattice","Incorrect kb generated -- momentum not conserved")
             ENDIF
         ENDIF
 
@@ -2424,10 +2425,6 @@ MODULE GenRandSymExcitNUMod
     !rejected before going back to the main
     ! code.
     SUBROUTINE CreateExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,part_type)
-        Use SystemData , only : NMAXX,NMAXY,NMAXZ, tUEG2, kvec
-        use CalcData, only: t_back_spawn
-        use bit_rep_data, only: test_flag
-        use back_spawn, only: pick_virtual_electrons_double_hubbard
 
         INTEGER :: i,j ! Loop variables
         INTEGER :: Elec1, Elec2
@@ -2719,7 +2716,6 @@ MODULE GenRandSymExcitNUMod
     !Only the excitation matrix is needed (1,*) are the i,j orbs, and (2,*) are the a,b orbs
     !This routine does it for the lattice models: UEG and hubbard model
     SUBROUTINE CalcPGenLattice(Ex,pGen)
-        use back_spawn, only: get_ispn
         
         INTEGER :: Ex(2,2),iSpin,jSpin
         real(dp) :: pGen,pAIJ
@@ -2768,8 +2764,6 @@ MODULE GenRandSymExcitNUMod
 
     FUNCTION IsMomentumAllowed(nJ)
 
-        use sym_mod, only: mompbcsym
-        use SystemData, only:kvec, tUEG2, tAllSymSectors
         
         LOGICAL :: IsMomentumAllowed ! Returns whether the determinant is momentum allowed for  
                                     ! UEG and Hubbard models
@@ -2833,7 +2827,9 @@ MODULE GenRandSymExcitNUMod
                                             ! a value to within a reciproval lattice vector.
             IF(ktrial(1).eq.kTotal(1).and.ktrial(2).eq.kTotal(2)) THEN
                 IsMomentumAllowed=.true.
-            ENDIF
+             else
+                print *, "ERRONEOUS MOMENTUM: ", ktrial, ktotal
+             ENDIF
         ENDIF
 
     END FUNCTION IsMomentumAllowed
@@ -2846,8 +2842,6 @@ MODULE GenRandSymExcitNUMod
     !done for both doubles and singles, or one of them.
     SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag)
 
-        use SystemData, only: tUEG2, kvec
-        use neci_intfce
         IMPLICIT NONE
         INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),kx,ky,kz,ktrial(3)
         real(dp) :: pDoub,pGen,AverageContrib,AllAverageContrib
@@ -3324,7 +3318,7 @@ SUBROUTINE SpinOrbSymSetup()
     do i=1,nBasis
         if(tNoSymGenRandExcits.or.tUEG) then
             SpinOrbSymLabel(i)=0
-        elseif(tKPntSym.or.tHUB) then
+        elseif(tKPntSym .or. tHub) then
             SpinOrbSymLabel(i)=SymClasses(((i+1)/2))-1        !This ensures that the symmetry labels go from 0 -> nSymLabels-1
         else
             SpinOrbSymLabel(i)=INT(G1(i)%Sym%S,4)

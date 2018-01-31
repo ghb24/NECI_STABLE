@@ -1,22 +1,28 @@
 #include "macros.h"
 MODULE Determinants
-    use constants, only: dp, n_int, bits_n_int
+    use constants, only: dp, n_int, bits_n_int, int64
     use SystemData, only: BasisFN, tCSF, nel, G1, Brr, ECore, ALat, NMSH, &
                           nBasis, nBasisMax, tStoreAsExcitations, tHPHFInts, &
                           tCSF, tCPMD, tPickVirtUniform, LMS, modk_offdiag, &
-                          t_lattice_model
+                          t_lattice_model, arr, lms, tFixLz, tUEGSpecifyMomentum, &
+                          tRef_Not_HF, tMolpro, tHub, tUEG
     use IntegralsData, only: UMat, FCK, NMAX
     use csf, only: det_to_random_csf, iscsf, csf_orbital_mask, &
                    csf_yama_bit, CSFGetHelement
     use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_2, sltcnd_compat, &
-    sltcnd_knowIC, sltcnd_0, SumFock 
-    use global_utilities
-    use sort_mod
+                          sltcnd_knowIC, sltcnd_0, SumFock, CalcFockOrbEnergy
     use DetBitOps, only: EncodeBitDet, count_open_orbs, spatial_bit_det
     use DeterminantData
     use bit_reps, only: NIfTot
+    use bit_reps
     use MemoryManager, only: TagIntType
     use lattice_mod, only: get_helement_lattice
+    use util_mod, only: NECI_ICOPY
+    use SymData , only : nSymLabels,SymLabelList,SymLabelCounts,TwoCycleSymGens
+    use sym_mod
+    use sort_mod
+    use global_utilities
+ 
     implicit none
 
     ! TODO: Add an interface for getting a diagonal helement with an ordered
@@ -53,13 +59,6 @@ MODULE Determinants
 contains
 
     Subroutine DetPreFreezeInit()
-        Use global_utilities
-        use SystemData, only : nEl, ECore, Arr, Brr, G1, nBasis, LMS, nBasisMax,&
-                                tFixLz, tUEGSpecifyMomentum, tRef_Not_HF
-        use SystemData, only : tMolpro
-        use sym_mod
-        use util_mod, only: NECI_ICOPY
-        use sltcnd_mod, only: CalcFockOrbEnergy 
         integer ierr, ms
         integer i,Lz,OrbOrder(8,2),FDetTemp(NEl)
         type(BasisFn) s
@@ -137,12 +136,7 @@ contains
 
     
     Subroutine DetInit()
-        Use global_utilities
-        use constants, only: dp,int64
-        use SystemData, only: nel, G1, nBasis, Arr, tHub, tUEG
-        use SymData , only : nSymLabels,SymLabelList,SymLabelCounts,TwoCycleSymGens
-        use sym_mod
-      
+     
       real(dp) DNDET
       integer i,j
       integer(int64) nDet
@@ -299,7 +293,6 @@ contains
     End Subroutine DetInit
 
     function get_helement_compat (nI, nJ, IC, iLutI, iLutJ) result (hel)
-        use constants, only: n_int
        
         ! Get the matrix element of the hamiltonian. This assumes that we
         ! already know IC. We do not need to know iLutI, iLutJ (although
@@ -357,7 +350,6 @@ contains
     end function
     
     function get_helement_normal (nI, nJ, iLutI, iLutJ, ICret) result(hel)
-        use constants, only: n_int
 
         ! Get the matrix element of the hamiltonian.
         !
@@ -501,7 +493,6 @@ contains
         !      tParity      - Parity of the excitation
         ! Ret: hel          - The H matrix element
 
-        use constants, only: n_int
         integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: tParity
@@ -554,8 +545,6 @@ contains
        !  consistent with GetHElement3, i.e. offer the most abstraction possible.
        ! In: 
        !    nI(nEl)  list of occupied spin orbitals in the determinant.
-       use constants, only: dp
-       use SystemData, only: nEl,nBasis,Arr,ECore
        integer nI(nEl)
        HElement_t(dp) hEl
        call GetH0Element(nI,nEl,Arr(1:nBasis,1:2),nBasis,ECore,hEl)
@@ -566,7 +555,6 @@ contains
     End Subroutine DetCleanup
    
     subroutine write_bit_rep(iUnit, iLut, lTerm)
-       use bit_reps
        implicit none
        integer iUnit
        logical lTerm 

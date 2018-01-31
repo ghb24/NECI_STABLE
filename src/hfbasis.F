@@ -74,7 +74,7 @@ C..Symmetries not needed by UMatInd
       SUBROUTINE SETUPHFBASIS(NBASISMAX,G1,NBASIS,HFE,ARR,BRR)
          use SystemData, only: Symmetry,BasisFN
          use constants, only: dp
-         use sym_mod
+         use sym_mod, only: GENMOLPSYMTABLE, GENMOLPSYMREPS, TotSymRep
          IMPLICIT NONE
          INTEGER NBASIS,nBasisMax(5,*)
          TYPE(BasisFN) G1(nBasis)

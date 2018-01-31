@@ -105,6 +105,7 @@ endif
 #ifdef __CMPLX
 ! 1->1 ,2->1, 3->2 ...
 #define part_type_to_run(pt) (1+((pt)-1)/2)
+#define rotate_part(pt) ((pt) - 1 + 2*mod((pt),2))
 #ifdef __PROG_NUMRUNS
 #define min_part_type(run) (2*(run)-1)
 #define max_part_type(run) (2*(run))
@@ -126,6 +127,7 @@ endif
 #else
 ! 1->1 ,2->2, 3->3 ...
 #define part_type_to_run(pt) pt
+#define rotate_part(pt) pt
 #ifdef __PROG_NUMRUNS
 #define min_part_type(run) run
 #define max_part_type(run) run
@@ -142,6 +144,7 @@ endif
 #define is_run_unnocc(signs, run) abs(signs(run))<1.0e-12_dp 
 #endif
 
+#define overlap_index(runA, runB) (runA)+inum_runs*((runB)-1)
 
 ! Define types for C pointers to work between various compilers with
 ! differing levels of brokenness.

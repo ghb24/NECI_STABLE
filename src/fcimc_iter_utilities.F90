@@ -12,7 +12,8 @@ module fcimc_iter_utils
                         nShiftEquilSteps, TargetGrowRateWalk, tContTimeFCIMC, &
                         tContTimeFull, pop_change_min, tPositiveHFSign, &
                         qmc_trial_wf, nEquilSteps, t_hist_tau_search, &
-                        t_hist_tau_search_option
+                        t_hist_tau_search_option, corespaceWalkers, &
+                        allCorespaceWalkers, tSpinProject
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tFCIMCStats2, tPrintDataTables, tLogEXLEVELStats
     use semi_stoch_procs, only: recalc_core_hamil_diag
@@ -29,6 +30,20 @@ module fcimc_iter_utils
     use FciMCData
     use constants
     use util_mod
+    use real_time_procs, only: normalize_gf_overlap
+    use real_time_data, only: current_overlap, overlap_real, overlap_imag, &
+         t_real_time_fciqmc
+#ifdef __REALTIME
+    use real_time_data, only: SpawnFromSing_1, AllSpawnFromSing_1, &
+        NoBorn_1, NoDied_1, AllNoBorn_1, AllNoDied_1, NoAtDoubs_1, AllNoAtDoubs_1, &
+        Annihilated_1, AllAnnihilated_1, AllNoAddedInitiators_1, AllNoInitDets_1, &
+        AllNoNonInitDets_1, AllInitRemoved_1, bloom_count_1, bloom_sizes_1, &
+        AllNoAborted_1, AllNoInitWalk_1, AllNoNonInitWalk_1, AllNoRemoved_1, &
+        all_bloom_count_1, NoAddedInitiators_1, AccRat_1, SumWalkersCyc_1, &
+        nspawned_1, nspawned_tot_1, second_spawn_iter_data, TotParts_1, &
+        AllTotParts_1, AllTotPartsOld_1, allPopSnapshot, &
+        AllSumWalkersCyc_1, OldAllAvWalkersCyc_1, popSnapshot
+#endif 
     use double_occ_mod, only: inst_double_occ, all_inst_double_occ, sum_double_occ, &
                               sum_norm_psi_squared
 
@@ -43,8 +58,7 @@ contains
 
         character(*), parameter :: this_routine = 'iter_diagnostics'
         character(*), parameter :: t_r = this_routine
-        real(dp) :: mean_walkers
-        integer :: part_type, run
+        integer :: run, part_type
 
         ! Update the total imaginary time passed
         TotImagTime = TotImagTime + StepsSft * Tau
@@ -57,6 +71,11 @@ contains
         if (tContTimeFCIMC .and. .not. tContTimeFull) then
             AccRat = real(cont_spawn_success) / real(cont_spawn_attempts)
         else
+            ! in the real-time fciqmc keep track of both distinct RK steps
+            ! -> also need to keep track of the SumWalkersCyc... todo..
+#ifdef __REALTIME
+            AccRat_1 = real(Acceptances_1, dp) / SumWalkersCyc_1
+#endif
             AccRat = real(Acceptances, dp) / SumWalkersCyc
         end if
 
@@ -108,6 +127,12 @@ contains
         endif
         call MPIBCast(tRestart)
         if(tRestart) then
+            ! a restart not wanted in the real-time fciqmc.. 
+           if(t_real_time_fciqmc .or. tLogGreensfunction) then
+              write(6,*) "NUMBER OF WALKERS", AllTotParts
+              call stop_all(this_routine, &
+                   "a restart due to all died walkers not wanted in the real-time fciqmc!")
+           endif
 !Initialise variables for calculation on each node
             Iter=1
             CALL DeallocFCIMCMemPar()
@@ -148,11 +173,10 @@ contains
         use HPHFRandExcitMod, only: ReturnAlphaOpenDet
 
         integer(int32) :: pop_highest(inum_runs), proc_highest(inum_runs)
-        real(dp) :: pop_change, old_Hii
-        integer :: det(nel), i, error, ierr, run
+        real(dp) :: pop_change
+        integer :: ierr, run
         integer(int32) :: int_tmp(2)
         logical :: tSwapped, allocate_temp_parts, changed_any
-        HElement_t(dp) :: h_tmp
         character(*), parameter :: this_routine = 'population_check'
         character(*), parameter :: t_r = this_routine
 
@@ -371,19 +395,32 @@ contains
         type(fcimc_iter_data) :: iter_data
         real(dp), intent(in) :: tot_parts_new(lenof_sign)
         real(dp), intent(out) :: tot_parts_new_all(lenof_sign)
-
-        ! Allow room to send up to 1000 elements.
-        real(dp) :: send_arr(1000)
-        ! Allow room to receive up to 1000 elements.
-        real(dp) :: recv_arr(1000)
+        ! RT_M_Merge: Added real-time statistics for the newer communication scheme
+#if defined __REALTIME
+        integer, parameter :: real_arr_size = 2000
+        integer, parameter :: hel_arr_size = 200
+        integer, parameter :: NoArrs = 48
+#else
+        integer, parameter :: real_arr_size = 1000
+        integer, parameter :: hel_arr_size = 100
+        integer, parameter :: NoArrs = 31
+#endif
+        integer, parameter :: size_arr_size = 100
+        ! RT_M_Merge: Doubled all array sizes since there are now two
+        ! copies of most of the variables (necessary?)
+        
+        ! Allow room to send up to 1000 (2000 for rt) elements.
+        real(dp) :: send_arr(real_arr_size)
+        ! Allow room to receive up to 1000 (2000 for rt) elements.
+        real(dp) :: recv_arr(real_arr_size)
         ! Equivalent arrays for HElement_t variables.
-        HElement_t(dp) :: send_arr_helem(100)
-        HElement_t(dp) :: recv_arr_helem(100)
+        HElement_t(dp) :: send_arr_helem(hel_arr_size)
+        HElement_t(dp) :: recv_arr_helem(hel_arr_size)
         ! Equivalent arrays for EXLEVELStats (of exactly required size).
         real(dp) :: send_arr_WNorm(3*(NEl+1)*inum_runs), &
                     recv_arr_WNorm(3*(NEl+1)*inum_runs)
         ! Allow room for 100 different arrays to be communicated.
-        integer :: sizes(100)
+        integer :: sizes(size_arr_size)
         integer :: low, upp, run
 
         integer(int64) :: TotWalkersTemp
@@ -435,15 +472,36 @@ contains
         sizes(24) = size(NoAtHF)
         sizes(25) = size(SumWalkersCyc)
         sizes(26) = 1 ! nspawned (single int, not an array)
-        ! communicate the inst_double_occ and the coherence numbers
-        sizes(27) = 1
-        sizes(28) = 1
+        ! RT_M_Merge: Added real-time data
+        sizes(27) = 1 ! inst_double_occ
+        if(tTruncInitiator) sizes(28) = 1 ! doubleSpawns
+        ! communicate the coherence numbers
         sizes(29) = 1
         sizes(30) = 1
+        sizes(31) = 1
+#ifdef __REALTIME
+        sizes(32) = size(Annihilated_1)
+        sizes(33) = size(NoAddedInitiators_1)
+        sizes(34) = size(NoInitDets_1)
+        sizes(35) = size(NoNonInitDets_1)
+        sizes(36) = size(InitRemoved_1)
+        sizes(37) = size(NoAborted_1)
+        sizes(38) = size(NoRemoved_1)
+        sizes(39) = size(NoNonInitWalk_1)
+        sizes(40) = size(NoInitWalk_1)
+        sizes(41) = size(bloom_count)
+        sizes(42) = size(SumWalkersCyc_1)
+        sizes(43) = 1 ! nspawned_1
+        sizes(44) = size(TotParts_1)
+        sizes(45) = 1 ! corespaceWalkers
+        sizes(46) = size(SpawnFromSing_1)
+        sizes(47) = size(iter_data_fciqmc%update_growth)
+        sizes(48) = size(popSnapShot)
+#endif
 
-
-        if (sum(sizes(1:30)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
-                                                        & the size of the send_arr and recv_arr arrays in the source code.")
+        if (sum(sizes(1:NoArrs)) > real_arr_size) call stop_all(t_r, &
+             "No space left in arrays for communication of estimates. Please increase &
+             & the size of the send_arr and recv_arr arrays in the source code.")
 
         low = upp + 1; upp = low + sizes(1 ) - 1; send_arr(low:upp) = SpawnFromSing;
         low = upp + 1; upp = low + sizes(2 ) - 1; send_arr(low:upp) = iter_data%update_growth;
@@ -476,9 +534,30 @@ contains
         low = upp + 1; upp = low + sizes(26) - 1; send_arr(low:upp) = nspawned;
         ! double occ change:
         low = upp + 1; upp = low + sizes(27) - 1; send_arr(low:upp) = inst_double_occ
-        low = upp + 1; upp = low + sizes(28) - 1; send_arr(low:upp) = nCoherentSingles
-        low = upp + 1; upp = low + sizes(29) - 1; send_arr(low:upp) = nCoherentDoubles
-        low = upp + 1; upp = low + sizes(30) - 1; send_arr(low:upp) = nIncoherentDets
+        if(tTruncInitiator) &
+             low = upp + 1; upp = low + sizes(28) -1; send_arr(low:upp) = doubleSpawns;
+        low = upp + 1; upp = low + sizes(29) - 1; send_arr(low:upp) = nCoherentSingles
+        low = upp + 1; upp = low + sizes(30) - 1; send_arr(low:upp) = nCoherentDoubles
+        low = upp + 1; upp = low + sizes(31) - 1; send_arr(low:upp) = nIncoherentDets
+#ifdef __REALTIME
+        low = upp + 1; upp = low + sizes(32) - 1; send_arr(low:upp) = Annihilated_1;
+        low = upp + 1; upp = low + sizes(33) - 1; send_arr(low:upp) = NoAddedInitiators_1;
+        low = upp + 1; upp = low + sizes(34) - 1; send_arr(low:upp) = NoInitDets_1;
+        low = upp + 1; upp = low + sizes(35) - 1; send_arr(low:upp) = NoNonInitDets_1;
+        low = upp + 1; upp = low + sizes(36) - 1; send_arr(low:upp) = InitRemoved_1;
+        low = upp + 1; upp = low + sizes(37) - 1; send_arr(low:upp) = NoAborted_1;
+        low = upp + 1; upp = low + sizes(38) - 1; send_arr(low:upp) = NoRemoved_1;
+        low = upp + 1; upp = low + sizes(39) - 1; send_arr(low:upp) = NoNonInitWalk_1;
+        low = upp + 1; upp = low + sizes(40) - 1; send_arr(low:upp) = NoInitWalk_1;
+        low = upp + 1; upp = low + sizes(41) - 1; send_arr(low:upp) = bloom_count_1;
+        low = upp + 1; upp = low + sizes(42) - 1; send_arr(low:upp) = SumWalkersCyc_1;
+        low = upp + 1; upp = low + sizes(43) - 1; send_arr(low:upp) = nspawned_1;
+        low = upp + 1; upp = low + sizes(44) - 1; send_arr(low:upp) = TotParts_1;
+        low = upp + 1; upp = low + sizes(45) - 1; send_arr(low:upp) = corespaceWalkers;
+        low = upp + 1; upp = low + sizes(46) - 1; send_arr(low:upp) = SpawnFromSing_1;
+        low = upp + 1; upp = low + sizes(47) - 1; send_arr(low:upp) = iter_data_fciqmc%update_growth;
+        low = upp + 1; upp = low + sizes(48) - 1; send_arr(low:upp) = popSnapShot;
+#endif
 
         ! Perform the communication.
         call MPISumAll (send_arr(1:upp), recv_arr(1:upp))
@@ -519,9 +598,32 @@ contains
         low = upp + 1; upp = low + sizes(26) - 1; nspawned_tot = nint(recv_arr(low));
         ! double occ: 
         low = upp + 1; upp = low + sizes(27) - 1; all_inst_double_occ = recv_arr(low);
-        low = upp + 1; upp = low + sizes(28) - 1; AllCoherentSingles = recv_arr(low);
-        low = upp + 1; upp = low + sizes(29) - 1; AllCoherentDoubles = recv_arr(low);
-        low = upp + 1; upp = low + sizes(30) - 1; AllIncoherentDets = recv_arr(low);
+        if(tTruncInitiator) then
+           low = upp + 1; upp = low + sizes(28) - 1; allDoubleSpawns = nint(recv_arr(low));
+           doubleSpawns = 0
+        endif
+        low = upp + 1; upp = low + sizes(29) - 1; AllCoherentSingles = recv_arr(low);
+        low = upp + 1; upp = low + sizes(30) - 1; AllCoherentDoubles = recv_arr(low);
+        low = upp + 1; upp = low + sizes(31) - 1; AllIncoherentDets = recv_arr(low);
+#ifdef __REALTIME
+        low = upp + 1; upp = low + sizes(32) - 1; AllAnnihilated_1 = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(33) - 1; AllNoAddedInitiators_1 = nint(recv_arr(low:upp), int64);
+        low = upp + 1; upp = low + sizes(34) - 1; AllNoInitDets_1 = nint(recv_arr(low:upp), int64);
+        low = upp + 1; upp = low + sizes(35) - 1; AllNoNonInitDets_1 = nint(recv_arr(low:upp), int64);
+        low = upp + 1; upp = low + sizes(36) - 1; AllInitRemoved_1 = nint(recv_arr(low:upp), int64);
+        low = upp + 1; upp = low + sizes(37) - 1; AllNoAborted_1 = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(38) - 1; AllNoRemoved_1 = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(39) - 1; AllNoNonInitWalk_1 = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(40) - 1; AllNoInitWalk_1 = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(41) - 1; all_bloom_count_1 = nint(recv_arr(low:upp));
+        low = upp + 1; upp = low + sizes(42) - 1; AllSumWalkersCyc_1 = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(43) - 1; nspawned_tot_1 = nint(recv_arr(low));
+        low = upp + 1; upp = low + sizes(44) - 1; AllTotParts_1 = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(45) - 1; allCorespaceWalkers = nint(recv_arr(low), int64);
+        low = upp + 1; upp = low + sizes(46) - 1; AllSpawnFromSing_1 = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(47) - 1; iter_data_fciqmc%update_growth_tot = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(48) - 1; allPopSnapShot = recv_arr(low:upp);
+#endif
 
         ! Communicate HElement_t variables:
 
@@ -645,7 +747,6 @@ contains
             end if
         end if
         
-
         ! quick fix for the double occupancy: 
         if (t_calc_double_occ_av) then 
             ! sum up the squared norm after shift has set in TODO
@@ -662,14 +763,21 @@ contains
         end if
 
 #ifdef __DEBUG
-        ! Write this 'ASSERTROOT' out explicitly to avoid line lengths problems
-        if ((iProcIndex == root) .and. .not. tSpinProject .and. &
-         all(abs(iter_data%update_growth_tot-(AllTotParts-AllTotPartsOld)) > 1.0e-5)) then
-            write(iout,*) "update_growth: ",iter_data%update_growth_tot
-            write(iout,*) "AllTotParts: ",AllTotParts
-            write(iout,*) "AllTotPartsOld: ", AllTotPartsOld
-            call stop_all (this_routine, &
-                "Assertation failed: all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld)")
+        if(.not. tfirst_cycle) then
+#ifndef __REALTIME
+           ! realtime case is handled seperately with the check_update_growth function
+           ! as each RK step has to be monitored separately
+
+           ! Write this 'ASSERTROOT' out explicitly to avoid line lengths problems
+           if ((iProcIndex == root) .and. .not. tSpinProject .and. &
+                all(abs(iter_data%update_growth_tot-(AllTotParts-AllTotPartsOld)) > 1.0e-5)) then
+              write(iout,*) "update_growth: ",iter_data%update_growth_tot
+              write(iout,*) "AllTotParts: ",AllTotParts
+              write(iout,*) "AllTotPartsOld: ", AllTotPartsOld
+              call stop_all (this_routine, &
+                   "Assertation failed: all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld)")
+           endif
+#endif
         endif
 #endif
     
@@ -684,8 +792,7 @@ contains
         logical, dimension(inum_runs) :: tReZeroShift
         real(dp), dimension(inum_runs) :: AllGrowRateRe, AllGrowRateIm
         real(dp), dimension(inum_runs)  :: AllHFGrowRate
-        real(dp), dimension(lenof_sign) :: denominator, all_denominator
-        integer :: error, i, proc, pos, run, lb, ub
+        integer :: i, run, lb, ub
         logical, dimension(inum_runs) :: defer_update
         logical :: start_varying_shift
 
@@ -696,29 +803,42 @@ contains
         ! collate_iter_data --> The values used are only valid on Root
         if (iProcIndex == Root) then
 
-            if(tInstGrowthRate) then
+           if(tInstGrowthRate) then
 
-                ! Calculate the growth rate simply using the two points at
-                ! the beginning and the end of the update cycle. 
-                do run = 1, inum_runs
-                    lb = min_part_type(run)
-                    ub = max_part_type(run)
-                    AllGrowRate(run) = (sum(iter_data%update_growth_tot(lb:ub) &
-                               + iter_data%tot_parts_old(lb:ub))) &
-                              / real(sum(iter_data%tot_parts_old(lb:ub)), dp)
-                enddo
+              ! Calculate the growth rate simply using the two points at
+              ! the beginning and the end of the update cycle. 
+              do run = 1, inum_runs
+                 lb = min_part_type(run)
+                 ub = max_part_type(run)
+                 AllGrowRate(run) = (sum(iter_data%update_growth_tot(lb:ub) &
+                      + iter_data%tot_parts_old(lb:ub))) &
+                      / real(sum(iter_data%tot_parts_old(lb:ub)), dp)
+              enddo
 
-            else
+           else
 
-                ! Instead attempt to calculate the average growth over every
-                ! iteration over the update cycle
-                do run = 1, inum_runs
-                    AllGrowRate(run) = AllSumWalkersCyc(run)/real(StepsSft,dp) &
-                                    /OldAllAvWalkersCyc(run)
-                enddo
-
-            end if
-
+              ! Instead attempt to calculate the average growth over every
+              ! iteration over the update cycle
+              ! RT_M_Merge : Merged with real-time
+              if (lenof_sign == 2 .and. inum_runs == 1) then
+                 !COMPLEX
+                 AllGrowRate = (sum(AllSumWalkersCyc)/real(StepsSft,dp)) &
+                      /sum(OldAllAvWalkersCyc)
+#ifdef __REALTIME
+                 AllGrowRate_1 = (sum(AllSumWalkersCyc_1)/real(StepsSft,dp))  & 
+                      / sum(OldAllAvWalkersCyc_1)
+#endif
+              else
+                 do run=1,inum_runs
+                    AllGrowRate(run) = (AllSumWalkersCyc(run)/real(StepsSft,dp)) &
+                         /OldAllAvWalkersCyc(run)
+#ifdef __REALTIME
+                 AllGrowRate_1(run) = ((AllSumWalkersCyc_1(run))/real(StepsSft,dp))  & 
+                      / (OldAllAvWalkersCyc_1(run))
+#endif
+                 enddo
+              endif
+           end if
             ! For complex case, obtain both Re and Im parts
 #ifdef __CMPLX
             do run = 1, inum_runs
@@ -744,7 +864,9 @@ contains
             do run=1,inum_runs
                 lb = min_part_type(run)
                 ub = max_part_type(run)
+
                 if (TSinglePartPhase(run)) then
+
                     tot_walkers = InitWalkers * int(nNodes,int64)
 
 #ifdef __CMPLX
@@ -774,6 +896,15 @@ contains
                             DiagSft(run) = real(proje_iter(run),dp)
                             defer_update(run) = .true.
                         end if
+                        ! if RezeroShift is already enabled, this will not do anything here
+                    elseif (abs_sign(AllNoatHF(lb:ub)) < (MaxNoatHF - HFPopThresh)) then
+                       if(.not. t_real_time_fciqmc) then
+                          write (iout, '(a,i13,a)') 'No at HF has fallen too low - reentering the &
+                               &single particle growth phase on iteration',iter + PreviousCycles,' - particle number &
+                               &may grow again.'
+                          tSinglePartPhase(run) = .true.
+                          tReZeroShift(run) = .true.
+                        endif
                     endif
 #else
                     start_varying_shift = .false.
@@ -853,7 +984,6 @@ contains
                             DiagSft(run) = DiagSft(run) - (log(AllHFGrowRate(run)) * SftDamp) / &
                                                 (Tau * StepsSft)
                         else
-                            !"WRITE(6,*) "AllGrowRate, TargetGrowRate", AllGrowRate, TargetGrowRate
                             DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)) * SftDamp) / &
                                                 (Tau * StepsSft)
                         endif
@@ -941,7 +1071,7 @@ contains
                             / sum(all_sum_proje_denominator(1:inum_runs))
             proje_iter_tot = sum(AllENumCyc(1:inum_runs)) &
                            / sum(all_cyc_proje_denominator(1:inum_runs))
-
+      
         endif ! iProcIndex == root
 
         ! Broadcast the shift from root to all the other processors
@@ -983,6 +1113,18 @@ contains
         trial_numerator = 0.0_dp
         trial_denom = 0.0_dp
 
+        ! also reset the real-time specific quantities: 
+        ! and maybe have to call this routine twice to rezero also the 
+        ! inputted iter_data for both RK steps..
+#ifdef __REALTIME 
+        SumWalkersCyc_1(:) = 0.0_dp
+        Annihilated_1 = 0.0_dp
+        Acceptances_1 = 0.0_dp
+        NoBorn_1 = 0.0_dp
+        SpawnFromSing_1 = 0.0_dp
+        NoDied = 0.0_dp
+#endif
+
         ! Reset TotWalkersOld so that it is the number of walkers now
         TotWalkersOld = TotWalkers
         TotPartsOld = TotParts
@@ -995,11 +1137,22 @@ contains
         !TODO CMO: are these summed across real/complex? 
         OldAllAvWalkersCyc = AllSumWalkersCyc/real(StepsSft,dp)
 
+#ifdef __REALTIME
+        if(iter .eq. 0) OldAllAvWalkersCyc = AllSumWalkersCyc
+        OldAllAvWalkersCyc_1 = AllSumWalkersCyc_1 / real(StepsSft,dp)
+#endif
+
         ! Also the cumulative global variables
         AllTotWalkersOld = AllTotWalkers
         AllTotPartsOld = AllTotParts
         AllNoAbortedOld = AllNoAborted
 
+#ifdef __REALTIME 
+        AllTotPartsOld_1 = AllTotParts_1
+        iter_data_fciqmc%update_growth = 0.0_dp
+        iter_data_fciqmc%update_iters = 0
+        ! do i need old det numner and aborted number? 
+#endif
 
         ! Reset the counters
         iter_data%update_growth = 0.0_dp
@@ -1010,6 +1163,8 @@ contains
 
         cont_spawn_attempts = 0
         cont_spawn_success = 0
+
+        tfirst_cycle = .false.
 
     end subroutine rezero_iter_stats_update_cycle
 
@@ -1026,6 +1181,11 @@ contains
         if(tRestart) return
         call population_check ()
         call update_shift (iter_data)
+        if(tSemiStochastic) call getCoreSpaceWalkers()
+        if(tLogGreensfunction) then 
+           DiagSft = 0.0_dp
+           call normalize_gf_overlap(current_overlap, overlap_real, overlap_imag)
+        endif
         if (tPrintDataTables) then
             if (tFCIMCStats2) then
                 call write_fcimcstats2(iter_data_fciqmc)
@@ -1041,6 +1201,14 @@ contains
     subroutine update_iter_data(iter_data)
 
         type(fcimc_iter_data), intent(inout) :: iter_data
+        
+!        write(6,*) '===================================='
+!        write(6,*) 'Nborn', iter_data%nborn, NoBorn
+!        write(6,*) 'Ndied', iter_data%ndied, NoDied
+!        write(6,*) 'Nannihil', iter_data%nannihil, Annihilated
+!        write(6,*) 'Nabrt', iter_data%naborted, NoAborted
+!        write(6,*) 'Nremvd', iter_data%nremoved, NoRemoved
+!        write(6,*) '===================================='
 
         iter_data%update_growth = iter_data%update_growth + iter_data%nborn &
                                 - iter_data%ndied - iter_data%nannihil &
@@ -1048,4 +1216,37 @@ contains
         iter_data%update_iters = iter_data%update_iters + 1
 
     end subroutine update_iter_data
+
+    function get_occ_dets() result(nOccDets)
+      implicit none
+      integer :: nOccDets
+      integer :: i
+      real(dp) :: check_sign(lenof_sign)
+
+      nOccDets = 0
+      do i = 1, TotWalkers
+         call extract_sign(CurrentDets(:,i),check_sign)
+         if(.not. IsUnoccDet(check_sign)) nOccDets = nOccDets + 1
+      enddo
+      
+    end function get_occ_dets
+
+    subroutine getCoreSpaceWalkers
+      use semi_stoch_procs, only: check_determ_flag
+
+      implicit none
+      integer :: i
+      real(dp) :: sgn(lenof_sign)
+
+      corespaceWalkers = 0.0_dp
+      do i = 1, TotWalkers
+         if(check_determ_flag(CurrentDets(:,i))) then
+            call extract_sign(CurrentDets(:,i),sgn)
+            ! Just sum up all walkers
+            corespaceWalkers = corespaceWalkers + sum(abs(sgn))
+         endif
+      enddo
+            
+    end subroutine getCoreSpaceWalkers
+
 end module fcimc_iter_utils

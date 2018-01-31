@@ -23,6 +23,10 @@ module fcimc_pointed_fns
     use util_mod
     use FciMCData
     use constants
+#ifdef __REALTIME
+    use real_time_data, only: NoBorn_1, SpawnFromSing_1, bloom_count_1, &
+                              bloom_sizes_1, runge_kutta_step
+#endif
     
     use tau_search_hist, only: fill_frequency_histogram_4ind, &
                                fill_frequency_histogram_sd, &
@@ -253,10 +257,11 @@ module fcimc_pointed_fns
 
 
 #if defined(__CMPLX) && (defined(__PROG_NUMRUNS) || defined(__DOUBLERUN))
-            component = part_type+tgt_cpt-1
-            if (.not. btest(part_type,0)) then
+            if (mod(part_type,2) == tgt_cpt) then
                 ! even part_type => imag replica =>  map 4->3,4 ; 6->5,6 etc.
-                component = part_type - tgt_cpt + 1
+                component = 1
+             else
+                component = 2
             endif
 #else
             component = tgt_cpt
@@ -265,7 +270,7 @@ module fcimc_pointed_fns
 
             ! Get the correct part of the matrix element
             walkerweight = sign(1.0_dp, RealwSign(part_type))
-            if (btest(component,0)) then
+            if (mod(component,2) == 1) then
                 ! real component
                 MatEl = real(rh_used, dp)
                 if (t_matele_cutoff) then
@@ -278,9 +283,8 @@ module fcimc_pointed_fns
                     if (abs(MatEl) < matele_cutoff) MatEl = 0.0_dp
                 end if
                 ! n.b. In this case, spawning is of opposite sign.
-                if (.not. btest(part_type,0)) then
-                    ! imaginary parent -> imaginary child
-                    walkerweight = -walkerweight
+                if(mod(part_type,2) == 0) then
+                   walkerweight = - walkerweight
                 endif
 #endif
             end if
@@ -293,8 +297,6 @@ module fcimc_pointed_fns
             nSpawn = - tau * MatEl * walkerweight / prob
 !            write(66,*) part_type, nspawn, RealSpawnCutoff, RealSpawnCutoff, stochastic_round (nSpawn / RealSpawnCutoff)
 !            write(66,*) part_type, nspawn, RealSpawnCutoff, RealSpawnCutoff, stochastic_round (nSpawn / RealSpawnCutoff)
-
-
             ! [Werner Dobrautz 4.4.2017:]
             ! apply the spawn truncation, when using histogramming tau-search
             if (t_truncate_spawns .and. abs(nspawn) > n_truncate_spawns) then
@@ -481,12 +483,38 @@ module fcimc_pointed_fns
         endif
 
         ! Count the number of children born
-#ifdef __CMPLX
+        ! in the real-time fciqmc, it is probably good to keep track of the 
+        ! stats of the 2 distinct RK loops .. use a global variable for the step
+        ! RT_M_Merge: Merge conflict with master due to introduction of kmneci resolved. 
+        ! For rmneci, the __REALTIME case will have to be adapted to inum_runs>1
+
+        ! rmneci_setup: Added multirun support for real-time case
+#if defined(__REALTIME) 
+        do run = 1, inum_runs
+           if (runge_kutta_step == 1) then
+              NoBorn_1(run) = NoBorn_1(run) + sum(abs(child))
+              if (ic == 1) SpawnFromSing_1(run) = SpawnFromSing_1(run) + sum(abs(child))
+
+              if (sum(abs(child)) > InitiatorWalkNo) then
+                 bloom_count_1(ic) = bloom_count_1(ic) + 1
+                 bloom_sizes_1(ic) = max(real(sum(abs(child)),dp), bloom_sizes_1(ic))
+              end if
+
+           else if (runge_kutta_step == 2) then
+              NoBorn(run) = NoBorn(run) + sum(abs(child))
+              if (ic == 1) SpawnFromSing(run) = SpawnFromSing(run) + sum(abs(child))
+
+              ! Count particle blooms, and their sources
+              if (sum(abs(child)) > InitiatorWalkNo) then
+                 bloom_count(ic) = bloom_count(ic) + 1
+                 bloom_sizes(ic) = max(real(sum(abs(child)), dp), bloom_sizes(ic))
+              end if
+           end if
+        enddo
+#elif defined( __CMPLX) && !defined(__REALTIME)
         do run = 1, inum_runs
             NoBorn(run) = NoBorn(run) + sum(abs(child(min_part_type(run):max_part_type(run))))
             if (ic == 1) SpawnFromSing(run) = SpawnFromSing(run) + sum(abs(child(min_part_type(run):max_part_type(run))))
-
-        
            ! Count particle blooms, and their sources
             if (sum(abs(child(min_part_type(run):max_part_type(run)))) > InitiatorWalkNo) then
                 bloom_count(ic) = bloom_count(ic) + 1

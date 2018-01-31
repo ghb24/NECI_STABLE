@@ -326,7 +326,7 @@ MODULE SymExcit2
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, t_3_body_excits
          use SymData, only: nSymPairProds,SymPairProds
          use MemoryManager, only: TagIntType
-         use sym_mod
+         use sym_mod, only: symprod, FindSymProd, SYMEQ
          use global_utilities
          IMPLICIT NONE
          INTEGER iExcit(2,2)

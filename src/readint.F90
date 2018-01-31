@@ -220,6 +220,9 @@ contains
          use Parallel_neci
          use constants, only: dp,sizeof_int
          use util_mod, only: get_free_unit
+#ifdef __REALTIME
+         use real_time_data, only: t_real_time_fciqmc, t_complex_ints
+#endif
          IMPLICIT NONE
          integer, intent(in) :: LEN
          integer, intent(inout) :: nBasisMax(5,*)
@@ -237,7 +240,11 @@ contains
          INTEGER , ALLOCATABLE :: MaxSlots(:)
          character(len=*), parameter :: t_r='GETFCIBASIS'
          LOGICAL TBIN
-         logical :: uhf,tRel
+         ! RT_M_Merge: Adjusted declarations from real-time branch to current master
+         logical :: uhf, tRel
+
+         real(dp) :: real_time_Z
+
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
 
 #ifdef _MOLCAS_
@@ -422,7 +429,16 @@ contains
                  ! functions and so the integer labels run into each other.
                  ! This means it won't work with more than 999 basis
                  ! functions...
-#ifdef __CMPLX
+#if defined(__CMPLX) && defined(__REALTIME)
+                ! here i have to check if its actually a complex input in DUMP
+                ! this slows down the read in and setup of FCIDUMPs though..
+1               if (t_complex_ints) then
+                    read(iunit,*,END=99) Z, I, J, K, L
+                else
+                    read(iunit,*,END=99) real_time_Z, I, J, K, L
+                    Z = dcmplx(real_time_Z, 0.0_dp)
+                end if
+#elif defined(__CMPLX) && !defined(__REALTIME)
 1               READ(iunit,*,END=99) Z,I,J,K,L
 #else
 1               CONTINUE
@@ -622,6 +638,9 @@ contains
          use Parallel_neci
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
          use util_mod, only: get_free_unit
+#ifdef __REALTIME
+         use real_time_data, only: t_complex_ints
+#endif
          IMPLICIT NONE
          integer, intent(in) :: NBASIS
          logical, intent(in) :: tReadFreezeInts
@@ -642,6 +661,9 @@ contains
          character(len=*), parameter :: t_r='READFCIINT'
          real(dp) :: diff
          logical :: tbad,tRel
+         ! RT_M_Merge: Adjusted declarations from real-time branch
+
+         real(dp) :: real_time_Z
          integer(int64) :: start_ind, end_ind
          integer(int64), parameter :: chunk_size = 1000000
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
@@ -743,10 +765,17 @@ contains
              ! functions and so the integer labels run into each other.
              ! This means it won't work with more than 999 basis
              ! functions...
-#ifdef __CMPLX
-101          READ(iunit,*,END=199) Z,I,J,K,L
+#if defined(__CMPLX) && defined(__REALTIME)
+101            if (t_complex_ints) then
+                READ(iunit,*,END=199) Z,I,J,K,L
+             else 
+               read(iunit,*,END=199) real_time_Z,I,J,K,L
+                Z = dcmplx(real_time_Z, 0.0_dp)
+            end if
+#elif defined(__CMPLX) && !defined(__REALTIME)
+101           READ(iunit,*,END=199) Z,I,J,K,L
 #else
-101          CONTINUE
+101           CONTINUE
              !It is possible that the FCIDUMP can be written out in complex notation, but still only
              !have real orbitals. This occurs with solid systems, where all kpoints are at the 
              !gamma point or BZ boundary and have been appropriately rotated. In this case, all imaginary
@@ -1082,27 +1111,27 @@ contains
          RETURN
       END SUBROUTINE READFCIINTBIN
 
-      SUBROUTINE ReadPropInts(iProp,nBasis)
+      SUBROUTINE ReadPropInts(iProp,nBasis,iNumProp,PropFile,CoreVal,OneElInts)
  
       use constants, only: dp, int64
       use util_mod, only: get_free_unit
       use SymData, only: PropBitLen,nProp
       use SystemData, only: UMatEps, tROHF, tReltvy
       use Parallel_neci, only : iProcIndex,MPIBcast
-      use LoggingData, only:iNumPropToEst, EstPropFile 
-      use OneEInts, only: OneEPropInts, PropCore
  
       implicit none
       integer, intent(in) :: iProp, nBasis
+      HElement_t(dp) :: OneElInts(nBasis,nBasis)
       HElement_t(dp) z
-      integer :: i,j,k,l,iunit
+      real(dp) :: CoreVal
+      integer :: i,j,k,l,iunit, iNumProp
       integer :: NORB,NELEC,MS2,ISYM,SYML(1000),IUHF
       integer(int64) :: ORBSYM(1000)
       integer :: iSpins,ispn,SYMLZ(1000)
       integer(int64) :: ZeroedInt
       integer :: IntSize
       real(dp) :: diff, core
-      character(len=100) :: file_name
+      character(len=100) :: file_name, PropFile
       logical :: TREL,UHF
       character(*), parameter :: t_r='ReadPropInts'
       NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
@@ -1112,7 +1141,7 @@ contains
  
       if(iProcIndex.eq.0) then
           iunit = get_free_unit()
-          file_name = EstPropFile(iProp) 
+          file_name = PropFile
           write(*,*) 'Reading integral from the file:', trim(file_name)
           open(iunit,FILE=file_name,STATUS='OLD')
           read(iunit,FCI)
@@ -1132,6 +1161,7 @@ contains
       CALL MPIBCast(PROPBITLEN,1)
       CALL MPIBCast(NPROP,3)
  
+      core = 0.0d0
       iSpins=2
       IF((UHF.and.(.not.tROHF)).or.tReltvy) ISPINS=1
  
@@ -1162,17 +1192,17 @@ contains
               do ispn=1,iSpins
                   ! Have read in T_ij.  Check it's consistent with T_ji
                   ! (if T_ji has been read in).
-                  diff = abs(OneEPropInts(iSpins*i-ispn+1,iSpins*j-ispn+1,iprop)-z)
-                  if(abs(OneEPropInts(iSpins*i-ispn+1,iSpins*j-ispn+1,iprop)).gt. 0.0d-6 .and. diff > 1.0e-7_dp) then
-                  write(6,*) i,j,z,OneEPropInts(iSpins*i-ispn+1,iSpins*j-ispn+1,iprop)
-                  call Stop_All(t_R,"Error filling OneEPropInts - different values for same orbitals")
+                  diff = abs(OneElInts(iSpins*i-ispn+1,iSpins*j-ispn+1)-z)
+                  if(abs(OneElInts(iSpins*i-ispn+1,iSpins*j-ispn+1)).gt. 0.0d-6 .and. diff > 1.0e-7_dp) then
+                  write(6,*) i,j,z,OneElInts(iSpins*i-ispn+1,iSpins*j-ispn+1)
+                  call Stop_All(t_R,"Error filling OneElInts - different values for same orbitals")
                   endif
  
-                  OneEPropInts(iSpins*I-ispn+1,iSpins*J-ispn+1,iprop)=z
+                  OneElInts(iSpins*I-ispn+1,iSpins*J-ispn+1)=z
 #ifdef __CMPLX
-                  OneEPropInts(iSpins*J-ispn+1,iSpins*I-ispn+1,iprop)=conjg(z)
+                  OneElInts(iSpins*J-ispn+1,iSpins*I-ispn+1)=conjg(z)
 #else
-                  OneEPropInts(iSpins*J-ispn+1,iSpins*I-ispn+1,iprop)=z
+                  OneElInts(iSpins*J-ispn+1,iSpins*I-ispn+1)=z
 #endif
               enddo
 
@@ -1184,10 +1214,7 @@ contains
 199       continue
       if(iProcIndex.eq.0) close(iunit)
 
-      PropCore(iProp) = core
-      call MPIBCast(PropCore(iProp),1)
-      IntSize = nBasis*nBasis
-      call MPIBCast(OneEPropInts(:,:,iProp),IntSize)
+      CoreVal = core
 
       END SUBROUTINE ReadPropInts
 

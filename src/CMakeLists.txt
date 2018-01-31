@@ -93,6 +93,7 @@ set( SRC_FILES
     Logging.F90
     Makefile
     matmul.F
+    modifiedHub.F90
     NatOrbs.F90
     NECICore.F90
     neci_intfce.F90
@@ -121,6 +122,12 @@ set( SRC_FILES
     readinput.F90
     readint.F90
     read_psi.F
+    real_time_data.F90
+    real_time.F90
+    real_time_procs.F90
+    real_time_init.F90
+    real_time_aux.F90
+    real_time_read_input.F90
     readri.F90
     replica_data.F90
     rhodiag.F
@@ -164,6 +171,7 @@ set( SRC_FILES
     vasp_init.F90
     vasp_interface.F90
     vasp_neci_interface_stub.F90
+    verlet_aux.F90
     double_occ.F90
     tau_search_hist.F90
     real_space_hubbard.F90

@@ -12,11 +12,12 @@ module back_spawn
     use fcimcdata, only: projedet, max_calc_ex_level, ilutref
     use dSFMT_interface, only: genrand_real2_dSFMT
     use SymExcitDataMod, only: OrbClassCount, SymLabelCounts2, SymLabelList2, &
-                               SpinOrbSymLabel
+                               SpinOrbSymLabel, KPointToBasisFn
     use Parallel_neci, only: iprocindex
     use DetBitOps, only: EncodeBitDet
-    use SymExcitDataMod, only: KPointToBasisFn
     use lattice_mod, only: lat
+    use sym_mod, only: mompbcsym
+    use SystemData, only: tHub, nbasismax
 
     implicit none
 
@@ -974,8 +975,6 @@ contains
     end function is_allowed_ueg_k_vector
 
     function get_orb_from_kpoints(orbi, orbj, orba) result(orbb)
-        use sym_mod, only: mompbcsym
-        use SystemData, only: tHub, nbasismax
         ! write a cleaner implementation of this multiple used 
         ! functionality.. because kPointToBasisFn to basisfunction 
         ! promises more than it actually odes 

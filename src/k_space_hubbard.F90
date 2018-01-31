@@ -15,24 +15,24 @@ module k_space_hubbard
                     nel, tHPHF, nOccBeta, nOccAlpha, nbasis, tLatticeGens, tHub, &
                     omega, bhub, nBasisMax, G1, BasisFN, NullBasisFn, TSPINPOLAR, & 
                     treal, ttilt, tExch, ElecPairs, MaxABPairs, Symmetry, SymEq, &
-                    t_new_real_space_hubbard
+                    t_new_real_space_hubbard, SymmetrySize, tNoBrillouin, tUseBrillouin
     use lattice_mod, only: get_helement_lattice_ex_mat, get_helement_lattice_general, &
                            determine_optimal_time_step, lattice, sort_unique, lat
     use procedure_pointers, only: get_umat_el, generate_excitation
-    use gen_coul_ueg_mod, only: get_hub_umat_el
+!     use gen_coul_ueg_mod, only: get_hub_umat_el
     use constants, only: n_int, dp, EPS, bits_n_int, int64
     use bit_rep_data, only: NIfTot, nifd
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt
     use real_space_hubbard, only: lat_tau_factor, create_all_dets
-    use fcimcdata, only: tsearchtau, tsearchtauoption, pDoubles, pParallel
+    use fcimcdata, only: tsearchtau, tsearchtauoption, pDoubles, pParallel, &
+                         excit_gen_store_type
     use CalcData, only: tau, t_hist_tau_search, t_hist_tau_search_option
     use dsfmt_interface, only: genrand_real2_dsfmt
     use util_mod, only: binary_search_first_ge, binary_search
     use back_spawn, only: make_ilutJ, get_orb_from_kpoints, is_allowed_ueg_k_vector, &
                           get_ispn
-    use FciMCData, only: excit_gen_store_type
     use get_excit, only: make_double
-    use UmatCache, only: gtid
+!     use UmatCache, only: gtid
     use OneEInts, only: GetTMatEl, tmat2d
     use sltcnd_mod, only: sltcnd_0
     use sym_mod, only: RoundSym, AddElecSym, SetupSym, lChkSym, mompbcsym, & 
@@ -40,11 +40,16 @@ module k_space_hubbard
     use SymExcitDataMod, only: KPointToBasisFn, ScratchSize, SpinOrbSymLabel, &
                                SymTableLabels, SymInvLabel, SymLabelList2, SymLabelCounts2, & 
                                OrbClassCount, ktotal
-    use SymData, only: nSymLabels, SymClasses, Symlabels, symtable
-    use GenRandSymExcitNUMod, only: ClassCountInd
+    use sym_general_mod, only: ClassCountInd
     use sort_mod, only: sort 
     use IntegralsData, only: UMat
     use bit_reps, only: decode_bit_det
+    use global_utilities, only: LogMemDealloc, LogMemAlloc
+    use SymData, only: nSymLabels, SymClasses, Symlabels
+    use SymData, only: nSym,SymConjTab
+    use SymData, only: tAbelian,SymTable
+    use SymData, only: tagSymConjTab,tagSymClasses,tagSymLabels
+    use SymData, only: tagSymTable
 
     implicit none 
 
@@ -65,15 +70,7 @@ contains
     subroutine setup_symmetry_table() 
         ! implement a new symmetry setup to decouple it from the 
         ! old hubbard.F code.. 
-        use SystemData, only: Symmetry, SymmetrySize
-        use global_utilities, only: LogMemDealloc, LogMemAlloc
-        use SymData, only: nSym,SymConjTab,SymClasses,SymLabels
-        use SymData, only: nSymLabels,tAbelian,SymTable
-        use SymData, only: tagSymConjTab,tagSymClasses,tagSymLabels
-        use SymData, only: tagSymTable
-        use sym_mod, only: RoundSym, AddElecSym
-        use constants, only: int64
-        use lattice_mod, only: lat
+
    
         character(*), parameter :: this_routine = "setup_symmetry_table"
 
@@ -200,10 +197,6 @@ contains
     end subroutine setup_symmetry_table
 
     subroutine gen_all_excits_k_space_hubbard(nI, n_excits, det_list) 
-
-        use SystemData, only: tNoBrillouin, tUseBrillouin
-        use neci_intfce, only: GenSymExcitIt2
-        use GenRandSymExcitNUMod, only: IsMomentumAllowed
 
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits 
@@ -1780,7 +1773,8 @@ contains
             ! this is the 
             hel_sing = sum(GetTMatEl(nI,nI))
 
-            id = gtID(nI) 
+            id = get_spatial(nI)
+!             id = gtID(nI) 
 
             hel_doub = h_cast(0.0_dp) 
             hel_one = h_cast(0.0_dp)
@@ -2038,8 +2032,10 @@ contains
             end if
         end if
 
-        ij = gtid(src)
-        ab = gtid(tgt) 
+        ij = get_spatial(src)
+        ab = get_spatial(tgt)
+!         ij = gtid(src)
+!         ab = gtid(tgt) 
         ! that about the spin?? must spin(a) be equal spin(i) and same for 
         ! b and j? does this have an effect on the sign of the matrix element? 
 
@@ -2617,7 +2613,6 @@ contains
     end subroutine setup_g1
 
     subroutine setup_nbasismax(in_lat) 
-        use SystemData, only: nBasisMax
         class(lattice), intent(in), optional :: in_lat
         character(*), parameter :: this_routine =  "setup_nbasismax"
 

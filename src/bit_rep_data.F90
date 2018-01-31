@@ -45,15 +45,18 @@ module bit_rep_data
     integer :: nOffParentCoeff, nIfParentCoeff
 
     ! Flags which we can store
+    ! RT_M_Merge: Adapted real-time flags
     logical :: tUseFlags
+
     integer :: flag_counter
+
     integer, parameter :: flag_deterministic = 0, &
                           flag_determ_parent = 1, &
                           flag_trial = 2, &
                           flag_connected = 3, &
-                          flag_ic0_spawn = 4, &
-                          flag_death_done = 5
-
+                          flag_has_been_initiator(1) = 4
+                          ! RT_M_Merge: These should only be adressed with __REALTIME
+                          ! use these unused to mark diagonal "spawns"
 #ifdef __PROG_NUMRUNS
     integer, parameter :: flag_initiator(lenof_sign_max) &
                             = (/6, 7, 8, 10, 11, 12, 13, 14, 15, &
@@ -105,6 +108,7 @@ contains
         integer(n_int) :: sgn(lenof_sign)
 
         sgn = iLut(NOffSgn:NOffSgn+lenof_sign-1)
+        ! transfer operates elementwise
         real_sgn = transfer(sgn, real_sgn)
 
     end subroutine extract_sign

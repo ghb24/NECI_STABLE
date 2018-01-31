@@ -77,6 +77,8 @@ MODULE FciMCData
       integer, allocatable :: IterRDM_HF(:)
       real(dp), allocatable :: InstNoatHf(:)
 
+      logical :: tLogGreensfunction
+
 
       INTEGER(KIND=n_int) , ALLOCATABLE :: TempSpawnedParts(:,:)
       INTEGER :: TempSpawnedPartsTag, TempSpawnedPartsInd, TempSpawnedPartsSize
@@ -101,7 +103,12 @@ MODULE FciMCData
     integer(int64), allocatable :: AllNoExtraInitDoubs(:), AllInitRemoved(:)
     integer(int64), allocatable :: AllGrowRateAbort(:)
 
+    integer :: doubleSpawns = 0
+    integer :: allDoubleSpawns
+
       logical :: tHFInitiator, tPrintHighPop, tcurr_initiator
+      logical :: tfirst_cycle ! control flag for the iter_utilities for comparing with data
+      ! from previous iterations
 
       integer, allocatable :: FreeSlot(:)   !List of the free slots in the main list
       integer :: iStartFreeSlot     !=1 at the beginning of an iteration, will increment
@@ -113,7 +120,7 @@ MODULE FciMCData
                                      !the instantaneous shift, including the number of aborted as though they had lived.
 
       real(dp), allocatable :: DiagSftRe(:), DiagSftIm(:)     !For complex walkers - this is just for info - not used for population control.
-    
+      
       INTEGER , ALLOCATABLE :: HFDet(:), HFDet_True(:)       !This will store the HF determinant
       INTEGER(TagIntType) :: HFDetTag=0
 
@@ -234,6 +241,7 @@ MODULE FciMCData
       ! This is true if tStartSinglePart is true, and we are still in the
       ! phase where the shift is fixed and particle numbers are growing
       logical, allocatable :: tSinglePartPhase(:)
+
 
 !      INTEGER :: mpilongintegertype               !This is used to create an MPI derived type to cope with 8 byte integers
 

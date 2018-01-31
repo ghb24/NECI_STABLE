@@ -13,6 +13,7 @@ MODULE System
     use util_mod, only: error_function, error_function_c
     use lattice_mod, only: lattice, lat
     use k_space_hubbard, only: setup_symmetry_table
+    use breathing_Hub, only: setupMomIndexTable, setupBreathingCont
 
     IMPLICIT NONE
 
@@ -35,6 +36,7 @@ MODULE System
 !     specifying a new set of DEFAULTS.
       tReltvy = .false.
       tComplexOrbs_RealInts = .false.
+      tComplexWalkers_RealInts = .false.
       tReadFreeFormat=.true.
       tMolproMimic=.false.
       tNoSingExcits=.false.
@@ -101,6 +103,7 @@ MODULE System
       TEXCH=.true.
       UHUB = 4
       BHUB = -1
+      btHub = 0.0_dp
       TREAL = .false.
       tUEGTrueEnergies = .false.
       tUEGSpecifyMomentum = .false.
@@ -178,6 +181,7 @@ MODULE System
       tUEGNewGenerator = .false.
       tGen_4ind_2 = .false.
       tGen_4ind_2_symmetric = .false.
+      tmodHub = .false.
 
       tMultiReplicas = .false.
       tGiovannisBrokenInit = .false.
@@ -602,16 +606,12 @@ system: do
             ! specify the tJ exchange here, the default is 1.0 
             ! this could also be used for the heisenberg model.. 
             call getf(exchange_j)
+         case("C")
+            call getf(btHub)
+            tmodHub = .true.
 
         case ("NEXT-NEAREST-HOPPING")
             call getf(nn_bhub)
-
-        case ("TWISTED-BC")
-            t_twisted_bc = .true. 
-            call getf(twisted_bc(1))
-            if (item < nitems) then
-                call getf(twisted_bc(2))
-            end if
 
         case("REAL")
             TREAL = .true.
@@ -619,6 +619,19 @@ system: do
             lNoSymmetry = .true.
         case("APERIODIC")
             TPBC = .false.
+
+
+        case("TWISTED-BC")
+            ! use of twisted boundary conditions for the cubic and tilted 
+            ! hubbard lattice model 
+            t_twisted_bc = .true. 
+            call getf(twisted_bc(1)) 
+            if (item < nitems) then
+                call getf(twisted_bc(2))
+            else
+                ! if only one input apply same twist in x and y direction 
+                twisted_bc(2) = twisted_bc(1)
+            endif
 
         case ("OPEN-BC")
             ! open boundary implementation for the real-space hubbard 
@@ -1222,6 +1235,11 @@ system: do
             !We have complex orbitals, but real integrals. This means that we only have 4x permutational symmetry,
             !so we need to check the (momentum) symmetry before we look up any integrals
             tComplexOrbs_RealInts = .true.
+
+         case("COMPLEXWALKERS-REALINTS")
+            ! In case complex walkers shall be used but not complex basis functions,
+            ! such that the integrals are real and have full symmetry
+            tComplexWalkers_RealInts = .true. 
 
         case("SYSTEM-REPLICAS")
             ! How many copies of the simulation do we want to run in parallel?
@@ -2133,6 +2151,8 @@ system: do
 !                   IF((THUB.AND.(TREAL.OR..NOT.TPBC)).OR.KALLOWED(G,NBASISMAX)) THEN
                     IF(THUB) THEN
 !C..Note for the Hubbard model, the t is defined by ALAT(1)!
+                       call setupMomIndexTable()
+                       call setupBreathingCont(2*btHub/OMEGA)
                        IF(TPBC) THEN
                        CALL HUBKIN(I,J,K,NBASISMAX,BHUB,TTILT,SUM,TREAL)
                        ELSE

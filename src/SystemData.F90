@@ -51,11 +51,13 @@ logical :: tAntisym_MI    !Antisymmetric MI functions.
 logical :: tComplexOrbs_RealInts    !We are using complex orbitals, but real integrals. 
                                     !Therefore, check the mom sym before looking up integral, 
                                     !since we only have 4x perm sym.
+logical :: tComplexWalkers_RealInts !We are using complex walkers, but real integrals and real
+                                    !basis functions, such that there is still 8x perm sym.
 integer :: iParity(5), nMaxX, nMaxY, nMaxZ, nMSH, coulDampOrb, elecPairs
 integer :: roIterMax, iRanLuxLev, DiagMaxMinFac, OneElmaxMinFac, iState
 integer :: iTiltX, iTiltY, nOccAlpha, nOccBeta, ShakeIterMax, ShakeStart
 integer :: MaxMinFac, MaxABPairs
-real(dp) :: BOX, BOA, COA, fUEGRs, fRc, OrbECutoff, UHUB, BHUB
+real(dp) :: BOX, BOA, COA, fUEGRs, fRc, OrbECutoff, UHUB, BHUB, btHub
 real(dp) :: Diagweight, OffDiagWeight, OrbEnMaxAlpha, Alpha, fCoulDampBeta
 real(dp) :: fCoulDampMu, TimeStep, ConvergedForce, ShakeConverged, UMATEps
 real(dp) :: OneElWeight
@@ -109,6 +111,11 @@ real(dp) :: k_lattice_constant
 integer, allocatable :: kvec(:,:)
 integer ::  Highest_orb_index
 integer :: dimen
+
+! Matrix elements for the modified hubbard model (including breathing effect)
+real(dp), allocatable :: breathingCont(:)
+integer, allocatable :: momIndexTable(:,:,:,:)
+logical :: tmodHub
 
 ! For the UEG, we damp the exchange interactions.
 !    0 means none
@@ -230,6 +237,13 @@ logical :: tSymSet = .false.
 
 logical :: tGiovannisBrokenInit
 
+! twisted boundary implementation for the hubbard model: 
+! use keyword twisted-bc [real, real] in System Block of input 
+! twist value is in values of periodicity (2*pi/L) for cubic and (pi/L) for 
+! tilted lattice
+logical :: t_twisted_bc = .false. 
+real(dp) :: twisted_bc(3) = 0.0_dp
+
 ! flags for the use of open boundary conditions in the real-space 
 ! hubbard model. 
 ! for the cubic lattice the can be set separately, for the tilted only 
@@ -289,15 +303,8 @@ integer :: length_x = 1, length_y = 1, length_z = 1
 ! for k-space hubbard, this only affects the diagonal part! 
 real(dp) :: nn_bhub = 0.0_dp
 
-! i have to merge the twisted bc into master i just realized!
-logical :: t_twisted_bc = .false.
-
-! i also have to store the twist 
-real(dp) :: twisted_bc(3) = 0.0_dp
-
 ! do a quick test with different weightings of picking orbitals (a) 
 logical :: t_iiaa = .false., t_ratio = .false. 
-
 ! Operators for type(symmetry)
 interface assignment (=)
     module procedure SymAssign

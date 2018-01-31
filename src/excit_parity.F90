@@ -1,10 +1,11 @@
 module get_excit
 
     use constants
-    use SystemData, only: nel
+    use SystemData, only: nel, G1, nBasisMax
     use bit_rep_data, only: NIfTot
     use DeterminantData, only: write_det
     use sym_general_mod, only: SymAllowedExcit
+    use sym_mod, only: MomPbcSym
     implicit none
 
 
@@ -158,17 +159,17 @@ contains
 
         tParity = btest(pos_moved, 0)
 !        parity = 1 - 2 * modulo(pos_moved, 2)
-
-! #ifdef __DEBUG
-!         ! This is a useful (but O[N]) check to test the generated determinant.
-!         if (.not. SymAllowedExcit(nI, nJ, 2, ex)) then 
-!             print *, "nI: ", nI
-!             print *, "nJ: ", nJ
-!             print *, "elecs: ", ex(1,:)
-!             print *, "orbs: ", ex(2,:)
-!             call stop_all(this_routine, 'Generated invalid excitation')
-!         end if
-! #endif
+        
+#ifdef __DEBUG
+        ! This is a useful (but O[N]) check to test the generated determinant.
+        if (.not. SymAllowedExcit(nI, nJ, 2, ex)) then 
+            print *, "nI: ", nI
+            print *, "nJ: ", nJ
+            print *, "elecs: ", ex(1,:)
+            print *, "orbs: ", ex(2,:)
+            call stop_all(this_routine, 'Generated invalid excitation')
+        end if
+#endif
 
     end subroutine
 

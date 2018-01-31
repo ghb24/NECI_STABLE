@@ -12,8 +12,8 @@ module sltcnd_mod
     use constants, only: dp,n_int
     use UMatCache, only: GTID
     use IntegralsData, only: UMAT
-    use OneEInts, only: GetTMatEl
-    use Integrals_neci, only: get_umat_el
+    use OneEInts, only: GetTMatEl, TMat2D
+    use procedure_pointers, only: get_umat_el
     use DetBitOps, only: count_open_orbs, FindBitExcitLevel
     use csf_data, only: csf_sort_det_block
     use timing_neci
@@ -316,7 +316,6 @@ contains
     end function sltcnd_0
 
     function sltcnd_1 (nI, ex, tSign) result(hel)
-
         ! Calculate the  by the Slater-Condon Rules when the two
         ! determinants differ by one orbital exactly.
 
@@ -340,7 +339,6 @@ contains
                 endif
             enddo
         endif
-
         ! Exchange contribution is only considered if tExch set.
         ! This is only separated from the above loop to keep "if (tExch)" out
         ! of the tight loop for efficiency.
@@ -354,12 +352,10 @@ contains
                 endif
             enddo
         endif
-
         ! consider the non-diagonal part of the kinetic energy -
         ! <psi_a|T|psi_a'> where a, a' are the only basis fns that differ in
         ! nI, nJ
         hel = hel + GetTMATEl(ex(1), ex(2))
-
         if (tSign) hel = -hel
     end function sltcnd_1
     
