@@ -13,7 +13,6 @@ MODULE Determinants
                           sltcnd_knowIC, sltcnd_0, SumFock, CalcFockOrbEnergy
     use DetBitOps, only: EncodeBitDet, count_open_orbs, spatial_bit_det
     use DeterminantData
-    use bit_reps, only: NIfTot
     use bit_reps
     use MemoryManager, only: TagIntType
     use lattice_mod, only: get_helement_lattice
