@@ -31,7 +31,7 @@ module real_time_init
 			      numSnapshotOrbs, tLowerThreshold, t_kspace_operators, tVerletScheme, &
                               tLogTrajectory, tReadTrajectory, alphaCache, tauCache, trajFile, &
                               tGenerateCoreSpace, tGZero, wn_threshold, corespace_log_interval, &
-                              alphaLog, alphaLogSize, alphaLogPos
+                              alphaLog, alphaLogSize, alphaLogPos, tStaticShift
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_norm, clean_overlap_states, openTauContourFile
     use verlet_aux, only: backup_initial_state, setup_delta_psi
@@ -297,6 +297,8 @@ contains
            call backup_initial_state()
            tau = tau/iterInit
         endif
+
+        if(tStaticShift) DiagSft = asymptoticShift
 
         if(tGenerateCoreSpace) call initialize_corespace_construction()      
 
@@ -679,7 +681,6 @@ contains
       
       integer :: i, signs(lenof_sign), iGf
       real(dp) :: tmp_sgn(lenof_sign)
-      logical :: tSuccess
 
       signs = 1
       do i = 1, lenof_sign

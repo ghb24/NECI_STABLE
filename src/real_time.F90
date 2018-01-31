@@ -26,7 +26,8 @@ module real_time
                               tLimitShift, tDynamicAlpha, dpsi_cache, dpsi_size, tGZero, &
                               tDynamicDamping, stabilizerThresh, popSnapshot, spawnBufSize, &
                               tLogTrajectory, tReadTrajectory, tGenerateCoreSpace, &
-                              numSnapShotOrbs, core_space_buf, csbuf_size, corespace_log_interval
+                              numSnapShotOrbs, core_space_buf, csbuf_size, corespace_log_interval, &
+                              real_time_info
     use verlet_aux, only: init_verlet_iteration, obtain_h2_psi, update_delta_psi, &
          init_verlet_sweep, check_verlet_sweep, end_verlet_sweep
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
@@ -302,8 +303,6 @@ contains
             ! the iter data is used in updating the shift, so it has to be reset before 
             ! output
             ! this is a bad implementation : iter should be local
-            ! update the normalization of the greensfunction according to damping (dynamic)
-            call update_shift_damping()
 
             ! if the trajectory is logged, print alpha and tau here
             if(tLogTrajectory) call logTimeCurve()
@@ -394,6 +393,9 @@ contains
                s_end = neci_etime(tend)
                IterTime = IterTime + (s_end - s_start)
             endif
+
+            ! update the normalization of the greensfunction according to damping (dynamic)
+            call update_shift_damping()
 
             if (tSoftExitFound) exit fciqmc_loop
             ! we have to stop here since the gf_overlap array is now full
