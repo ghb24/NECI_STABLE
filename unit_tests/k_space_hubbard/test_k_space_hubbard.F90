@@ -86,9 +86,11 @@ contains
 
 !         J_vec = linspace(-2.0,2.0, 20)
         
-        nel = 6
+        nel = 4
         allocate(nI(nel))
         nI = [(i, i = 1,nel)]
+!         ni = [7,8,15,16,17,18]
+        nI = [27,29,30,32]
 
 !         nI = [1,2,3,4,5,6]
 !         nI = [5,6,7,8,9,10]

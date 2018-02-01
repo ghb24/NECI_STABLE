@@ -1897,11 +1897,6 @@ contains
             end do
         end do
 
-        print *, "check Oles array: "
-        do i = lbound(ind_array,1), ubound(ind_array,1)
-            print *, ind_array(i,:)
-        end do
-
         ! now i want to get the neigbhors 
         do i = 1, this%get_nsites()
             ! how to efficiently do this, and in a general way? 
@@ -2221,9 +2216,6 @@ contains
 !             k = k - 1
         end do
 
-        do i = lbound(temp_array,1), ubound(temp_array,1)
-            print *, temp_array(i,:)
-        end do
         up = cshift(temp_array, -1, 1)
         down = cshift(temp_array, 1, 1)
         right = cshift(temp_array, 1, 2)
@@ -4044,30 +4036,30 @@ contains
         class(lattice) :: this 
 
         ! depending on the type print specific lattice information
-!         select type (this)
-!         class is (lattice) 
-! 
-!             call stop_all("lattice%print()", &
-!                 "lattice type should never be directly instantiated!")
-! 
-!         class is (chain) 
-!         
-!             print *, "Lattice type is: 'chain' "
-!             print *, " number of dimensions: ", this%get_ndim()
-!             print *, " max-number of neighbors: ", this%get_nconnect_max() 
-!             print *, " number of sites of chain: ", this%get_nsites() 
-!             print *, " is the chain periodic: ", this%is_periodic()
-! 
-!         class is (ole) 
-!             print *, "Lattice type is 'Ole' ;) "
-!             print *, "number of dimensions: ", this%get_ndim() 
-!             print *, "max-number of neigbors: ", this%get_nconnect_max() 
-!             print *, "number of sites: ", this%get_nsites() 
-!             print *, "primitive lattice vectors: (",this%lat_vec(1:2,1),"), (",this%lat_vec(1:2,2), ")"
-!             print *, "TODO: more and better output! " 
-!             
-!             
-!         end select 
+        select type (this)
+        class is (lattice) 
+
+            call stop_all("lattice%print()", &
+                "lattice type should never be directly instantiated!")
+
+        class is (chain) 
+        
+            print *, "Lattice type is: 'chain' "
+            print *, " number of dimensions: ", this%get_ndim()
+            print *, " max-number of neighbors: ", this%get_nconnect_max() 
+            print *, " number of sites of chain: ", this%get_nsites() 
+            print *, " is the chain periodic: ", this%is_periodic()
+
+        class is (ole) 
+            print *, "Lattice type is 'Ole' ;) "
+            print *, "number of dimensions: ", this%get_ndim() 
+            print *, "max-number of neigbors: ", this%get_nconnect_max() 
+            print *, "number of sites: ", this%get_nsites() 
+            print *, "primitive lattice vectors: (",this%lat_vec(1:2,1),"), (",this%lat_vec(1:2,2), ")"
+            print *, "TODO: more and better output! " 
+            
+            
+        end select 
 
     end subroutine print_lat
 

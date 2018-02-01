@@ -50,6 +50,7 @@ module k_space_hubbard
     use SymData, only: tAbelian,SymTable
     use SymData, only: tagSymConjTab,tagSymClasses,tagSymLabels
     use SymData, only: tagSymTable
+    use ParallelHelper, only: iProcIndex, root
 
     implicit none 
 
@@ -189,10 +190,12 @@ contains
             end do
         end do
 
+#ifdef __DEBUG
         WRITE(6,*) "Symmetry, Symmetry Conjugate"
         do i = 1, lat%get_nsites()
             print *, i, SymConjTab(i)
         end do
+#endif
 
     end subroutine setup_symmetry_table
 
@@ -320,7 +323,10 @@ contains
         character(*), parameter :: this_routine = "init_k_space_hubbard"
         real(dp) :: tau_opt
 
-        print *, " new k-space hubbard implementation init:" 
+
+        if (iProcIndex == root) then 
+            print *, " new k-space hubbard implementation init:" 
+        end if
 
         ! i have to set the incorrect excitaiton generator flags to false 
         tLatticeGens = .false.
@@ -339,13 +345,17 @@ contains
         tau_opt = determine_optimal_time_step() 
 
         if (tau < EPS) then 
-            print *, "setting time-step to optimally determined time-step: ", tau_opt
-            print *, "times: ", lat_tau_factor
+            if (iProcIndex == root) then 
+                print *, "setting time-step to optimally determined time-step: ", tau_opt
+                print *, "times: ", lat_tau_factor
+            end if
             tau = lat_tau_factor * tau_opt
 
         else 
-            print *, "optimal time-step would be: ", tau_opt
-            print *, "but tau specified in input!"
+            if (iProcIndex == root) then 
+                print *, "optimal time-step would be: ", tau_opt
+                print *, "but tau specified in input!"
+            end if
         end if
 
         tsearchtau = .false. 
@@ -380,10 +390,11 @@ contains
     subroutine check_k_space_hubbard_input()
         character(*), parameter :: this_routine = "check_k_space_hubbard_input"
 
-        print *, "checking input for k-space hubbard:" 
-        !todo: find the incompatible input and abort here!
-
-        print *, "input is fine!"
+        if (iProcIndex == root) then 
+            print *, "checking input for k-space hubbard:" 
+            !todo: find the incompatible input and abort here!
+            print *, "input is fine!"
+        end if
 
     end subroutine check_k_space_hubbard_input
 

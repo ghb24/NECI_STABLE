@@ -160,6 +160,8 @@ contains
         ! do not set that here, due to circular dependencies
 !         max_death_cpt = 0.0_dp
 
+        call init_get_helement_hubbard()
+
     end subroutine init_real_space_hubbard
 
     subroutine init_get_helement_hubbard
@@ -252,6 +254,35 @@ contains
         ASSERT(n_states == n_total) 
 
     end function create_all_dets 
+
+    subroutine create_hilbert_space_realspace(n_orbs, n_alpha, n_beta, & 
+            n_states, state_list_ni, state_list_ilut) 
+        integer, intent(in) :: n_orbs, n_alpha, n_beta
+        integer, intent(out) :: n_states 
+        integer, intent(out), allocatable :: state_list_ni(:,:)
+        integer(n_int), intent(out), allocatable :: state_list_ilut(:,:) 
+
+        integer(n_int), allocatable :: all_dets(:) 
+        integer(n_int) :: temp_ilut(0:niftot)
+        integer :: nJ(nel), i
+
+        all_dets = create_all_dets(n_orbs, n_alpha, n_beta) 
+
+        n_states = size(all_dets)
+
+        allocate(state_list_ni(nel,n_states))
+        allocate(state_list_ilut(0:niftot,n_states))
+
+        do i = 1, size(all_dets) 
+            temp_ilut = all_dets(i) 
+            call decode_bit_det(nJ, temp_ilut)
+
+            state_list_ni(:,i) = nJ
+            state_list_ilut(:,i) = temp_ilut
+
+        end do
+
+    end subroutine create_hilbert_space_realspace
 
     function create_all_open_shell_dets(n_orbs, n_alpha, n_beta) result(open_shells)
         integer, intent(in) :: n_orbs, n_alpha, n_beta
@@ -621,7 +652,7 @@ contains
         ! those space(1 double occ, 2 double occ.. etc. 
 
         ! only do that for less equal half-filling! 
-        ASSERT(n_alpha + n_beta <= n_orbs)
+!         ASSERT(n_alpha + n_beta <= n_orbs)
 
         n_max = max(n_alpha, n_beta) 
         n_min = min(n_alpha, n_beta)

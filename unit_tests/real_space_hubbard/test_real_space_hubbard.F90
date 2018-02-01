@@ -25,6 +25,7 @@ program test_real_space_hubbard
 
     call init_fruit()
     ! run the test-driver 
+    call exact_test()
     call real_space_hubbard_test_driver()
     call fruit_summary()
     call fruit_finalize() 
@@ -61,6 +62,77 @@ contains
         call run_test_case(get_offdiag_helement_rs_hub_test, "get_offdiag_helement_rs_hub_test")
 
     end subroutine real_space_hubbard_test_driver
+
+    subroutine exact_test
+
+        use DetCalcData, only: nkry, nblk, b2l, ncycle
+        use lanczos_wrapper, only: frsblk_wrapper
+
+        integer :: i, n_eig, n_orbs, n_states
+        integer, allocatable :: ni(:), hilbert_space(:,:)
+        real(dp), allocatable :: e_values(:), e_vecs(:,:)
+        integer(n_int), allocatable :: dummy(:,:)
+
+
+        lat => lattice('ole', 2, 4, 1,.true.,.true.,.true.)
+        uhub = 4 
+        bhub = -1
+
+        n_orbs = lat%get_nsites()
+        nBasis = 2 * n_orbs
+
+        call init_realspace_tests
+
+        nel = 6 
+        allocate(nI(nel))
+        nI = [(i, i = 1, nel)]
+
+        nOccAlpha = 0
+        nOccBeta = 0
+
+        do i = 1, nel 
+            if (is_beta(nI(i))) nOccBeta = nOccBeta + 1
+            if (is_alpha(nI(i))) nOccAlpha = nOccAlpha + 1
+        end do
+
+        call create_hilbert_space_realspace(n_orbs, nOccAlpha, nOccBeta, & 
+            n_states, hilbert_space, dummy)
+        n_eig = 1
+
+        allocate(e_values(n_eig))
+        allocate(e_vecs(n_eig, size(hilbert_space,2)))
+
+        print *, "size hilbert: ", size(hilbert_space, 2)
+        nblk = 4
+        nkry = 8 
+        ncycle = 200
+        b2l = 1.0e-13_dp
+
+        print *, "nkry: ", nkry
+        print *, "nblk: ", nblk
+        print *, "b2l: ", b2l
+        print *, "ncycle: ", ncycle
+
+        ! try too big systems here: 
+        call frsblk_wrapper(hilbert_space, size(hilbert_space, 2), n_eig, e_values, e_vecs)
+        print *, "e_value lanczos:", e_values(1)
+
+        call stop_all("here","now")
+
+    end subroutine exact_test
+
+    subroutine init_realspace_tests
+
+        get_umat_el => get_umat_el_hub
+        call init_tmat(lat) 
+
+        allocate(G1(nbasis)) 
+        G1(1:nbasis-1:2)%ms = -1
+        G1(2:nbasis:2)%ms = 1
+        call init_get_helement_hubbard()
+        t_lattice_model = .true.
+
+    end subroutine init_realspace_tests
 
     subroutine get_optimal_correlation_factor_test
         use SystemData, only: uhub, bhub 
