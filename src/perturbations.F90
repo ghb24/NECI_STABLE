@@ -56,8 +56,8 @@ contains
 
         real(dp), intent(in), optional :: phase(:) ! Phase factors of the perturbation operators
         ! size of phase must be equal to that of perturbs
-        integer(n_int), allocatable :: temp_dets_1(:,:), temp_dets_2(:,:)
         integer :: i, ndets_init, ndets_pert_1, ndets_pert_2, ierr
+        integer(n_int), allocatable :: temp_dets_1(:,:), temp_dets_2(:,:)
 
         ndets_init = ndets
 

@@ -338,6 +338,7 @@ contains
         
     subroutine move_block(block, tgt_proc)
         use real_time_aux, only: move_overlap_block
+        implicit none
         integer, intent(in) :: block, tgt_proc
         integer :: src_proc, ierr, nsend, nelem, j, k, det_block, hash_val
         integer :: det(nel), TotWalkersTmp, nconsend, clashes, ntrial, ncon
@@ -704,6 +705,7 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
+
     subroutine extract_con_ht_entry(hash_val, i, ht_entry)
       implicit none
       integer(n_int), intent(out) :: ht_entry(0:NConEntry)
@@ -847,6 +849,8 @@ contains
       
     end subroutine count_trial_this_proc
 
+!------------------------------------------------------------------------------------------!
+
     subroutine truncate_occupation(CurrentSign,i,iter_data)
       implicit none
       real(dp), intent(inout) :: CurrentSign(lenof_sign)
@@ -896,5 +900,5 @@ contains
          end if
       enddo
     end subroutine truncate_occupation
-    
+
 end module
