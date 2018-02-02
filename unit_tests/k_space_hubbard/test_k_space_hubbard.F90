@@ -18,7 +18,7 @@ program test_k_space_hubbard
                           t_trans_corr, t_trans_corr_2body, trans_corr_param, & 
                           thub, tpbc, treal, ttilt, TSPINPOLAR, & 
                           tCPMD, tVASP, tExch, tHphf, tNoSymGenRandExcits, tKPntSym, &
-                          t_twisted_bc, twisted_bc
+                          t_twisted_bc, twisted_bc, arr, brr
     use bit_rep_data, only: niftot, nifd
     use lattice_mod, only: lat, lattice, get_helement_lattice_general, & 
                            get_helement_lattice_ex_mat
@@ -74,11 +74,26 @@ contains
         real(dp), allocatable :: J_vec(:) 
         integer :: i, n_eig
         real(dp), allocatable :: e_values(:), e_vecs(:,:)
+        real(dp) :: x(24), k1(2),k2(2), k_vec(3)
+        integer :: ind(24)
 
         call init_k_space_unit_tests()
 
         ! i have to define the lattice here.. 
         lat => lattice('ole', 3, 5, 1,.true.,.true.,.true.,'k-space')
+
+        x = [(-lat%dispersion_rel_orb(i), i = 1, 24)]
+        ind = [(i, i = 1, 24)]
+
+        call sort(x,ind) 
+
+        k1 = [2*pi/8., 10.0*pi/(3.0*8.0)]
+        k2 = [-2*pi/8.0,2*pi/8.0]
+        print *, "k | ole k |  e(k): "
+        do i = 1, 24 
+            k_vec = lat%get_k_vec(ind(i))
+            print *,lat%get_k_vec(ind(i)),"|", k_vec(1)*k1 + k_vec(2)*k2, "|", x(i)
+        end do
 
 !         J = -1.0
 
@@ -90,7 +105,8 @@ contains
         allocate(nI(nel))
         nI = [(i, i = 1,nel)]
 !         ni = [7,8,15,16,17,18]
-        nI = [27,29,30,32]
+        nI = [21,23,24,26]
+!         nI = [15,16]
 
 !         nI = [1,2,3,4,5,6]
 !         nI = [5,6,7,8,9,10]
@@ -206,6 +222,8 @@ contains
         ! setup nBasisMax and also the same for nBasisMax
         call setup_nbasismax(lat)
 
+        call setup_arr_brr(lat) 
+
         ! setup G1 properly
         ! do a function like: which depending on the lattice sets up everything
         ! necessary for this type of lattice! yes!
@@ -240,6 +258,37 @@ contains
         call init_tmat_kspace(lat)
 
     end subroutine init_k_space_unit_tests
+
+    subroutine setup_arr_brr(in_lat) 
+        class(lattice), intent(in) :: in_lat
+
+        integer :: i 
+
+        if (associated(arr)) deallocate(arr) 
+        allocate(arr(nBasis,2))
+        if (associated(brr)) deallocate(brr) 
+        allocate(brr(nBasis))
+
+        brr = [(i, i = 1, nBasis)]
+        arr = 0.0_dp 
+
+        do i = 1, nbasis 
+            arr(i,:) = bhub * lat%dispersion_rel_orb(get_spatial(i))
+        end do
+
+        call sort(arr(1:nBasis,1), brr(1:nBasis), nskip = 2)
+        call sort(arr(2:nBasis,1), brr(2:nBasis), nskip = 2)
+
+        print *, "arr: " 
+        do i = 1, nBasis 
+            print *, arr(i,:) 
+        end do
+        print *, "brr: " 
+        do i = 1, nBasis
+            print *, brr(i)
+        end do
+
+    end subroutine setup_arr_brr
 
     subroutine k_space_hubbard_test_driver() 
         ! with all the annying symmetry stuff to set up, testing the 
@@ -852,6 +901,7 @@ contains
         nBasis = 2*ptr%get_nsites()
 
         call setup_nbasismax(ptr)
+        call setup_arr_brr(lat) 
         call setup_g1(ptr)
         call init_tmat_kspace(ptr)
 !         call setup_tmat_k_space(ptr)
@@ -930,6 +980,23 @@ contains
             end do
         end do
         call eig(hamil, e_values, e_vec) 
+
+        print *, "k-space hamiltonian: "
+        call print_matrix(hamil)
+        print *, "diagonal elements: e(k) + U/V"
+        do i = 1, n_states 
+            print *, hamil(i,i), "|", &
+                sum(tmat2d(hilbert_space(:,i),hilbert_space(:,i))) + uhub/omega
+        end do
+        print *, "basis: " 
+        print *, "i, k(1), k(2), k1 + k2, map(k1+k2)"
+        do i = 1, n_states 
+            print *,  hilbert_space(:,i), "|", &
+                lat%get_k_vec(get_spatial(hilbert_space(1,i))), "|", & 
+                lat%get_k_vec(get_spatial(hilbert_space(2,i))), "|", &
+                lat%get_k_vec(get_spatial(hilbert_space(1,i))) + & 
+                lat%get_k_vec(get_spatial(hilbert_space(2,i)))
+        end do
 
         ! find the ground-state
         ind = minloc(e_values,1) 

@@ -83,7 +83,7 @@ contains
 
         call init_realspace_tests
 
-        nel = 6 
+        nel = 2 
         allocate(nI(nel))
         nI = [(i, i = 1, nel)]
 

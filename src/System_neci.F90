@@ -2286,6 +2286,7 @@ system: do
               ! or i change the function below to account for the new 
               ! implementation
               call setup_symmetry_table()
+!               call gen_symreps()
 
 
           else

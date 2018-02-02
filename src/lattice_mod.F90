@@ -144,6 +144,9 @@ module lattice_mod
 
         integer :: lat_vec(3,3) = 0
 
+        ! also store k_vec .. 
+        integer :: k_vec(3,3) = 0
+
         ! and i think additionally i want to store which type of lattice 
         ! this is in a string or? so i do not always have to 
         ! use the select type functionality 
@@ -752,6 +755,8 @@ contains
         class(ole) :: this
         integer, intent(in) :: k_vec(3)
 
+        integer :: i 
+
         ! oles lattice is defined by four corner points and two lines 
         inside_bz_ole = .false. 
 
@@ -764,13 +769,17 @@ contains
               ! because for some strange reason i turn them around in the 
               ! lattice initialization... thats not good! because confusing
               ! it has to be consistend definetly! check that again! 
-              if (inside_bz_2d(k_vec(1),k_vec(2), A, B, C, D) .and. & 
-                  (.not. on_line_2d([k_vec(1:2)], A, D)) .and. & 
-                  (.not. on_line_2d([k_vec(1:2)], C, D))) then 
+!               if (inside_bz_2d(k_vec(1),k_vec(2), A, B, C, D) .and. & 
+!                   (.not. on_line_2d([k_vec(1:2)], A, D)) .and. & 
+!                   (.not. on_line_2d([k_vec(1:2)], C, D))) then 
+! 
+!                   inside_bz_ole = .true. 
+! 
+!                end if
 
-                  inside_bz_ole = .true. 
-
-            end if
+            do i = 1, lat%get_nsites()
+                if (all(k_vec == lat%get_k_vec(i))) inside_bz_ole = .true. 
+            end do
         end associate
 
     end function inside_bz_ole
@@ -841,8 +850,12 @@ contains
         ! vectors to apply: 
 !         associate(r1 => this%lat_vec(:,1), r2 => this%lat_vec(:,2))
 
-        r1 = this%lat_vec(:,1) 
-        r2 = this%lat_vec(:,2)
+!         r1 = this%lat_vec(:,1) 
+!         r2 = this%lat_vec(:,2)
+
+        r1 = this%k_vec(:,1)
+        r2 = this%k_vec(:,2)
+
             basis_vec(1,:) = r1 
             basis_vec(2,:) = -r1 
             basis_vec(3,:) = r2 
@@ -1863,8 +1876,9 @@ contains
                              -this%length(2):this%length(1))
 
          integer :: i, j, k, mat_ind(this%n_sites, 2), up, down, left, right, &
-                    k_vec(3), A(2), B(2), C(2), D(2)
+                    k_vec(3), A(2), B(2), C(2), D(2), k_vec_prep(24,3), ind(24)
          integer, allocatable :: neigh(:)
+         real(dp) :: x(24)
 
         ! how do i set up Ole cluster.. 
         ! in real and k-space.. this will be a pain i guess.. 
@@ -1896,6 +1910,38 @@ contains
                 end if
             end do
         end do
+
+!         k_vec_prep(1,:) = [-2,2,0]
+        k_vec_prep(1,:) = [1,-3,0]
+        k_vec_prep(2,:) = [-2,1,0]
+        k_vec_prep(3,:) = [-2,0,0]
+
+        k_vec_prep(4,:) = [-1,2,0]
+        k_vec_prep(5,:) = [-1,1,0]
+        k_vec_prep(6,:) = [-1,0,0]
+        k_vec_prep(7,:) = [-1,-1,0]
+        k_vec_prep(8,:) = [-1,-2,0]
+
+        k_vec_prep(9,:) = [0,3,0]
+        k_vec_prep(10,:) = [0,2,0]
+        k_vec_prep(11,:) = [0,1,0]
+        k_vec_prep(12,:) = [0,0,0]
+        k_vec_prep(13,:) = [0,-1,0]
+        k_vec_prep(14,:) = [0,-2,0]
+        k_vec_prep(15,:) = [0,-3,0]
+
+        k_vec_prep(16,:) = [1,2,0]
+        k_vec_prep(17,:) = [1,1,0]
+        k_vec_prep(18,:) = [1,0,0]
+        k_vec_prep(19,:) = [1,-1,0]
+        k_vec_prep(20,:) = [1,-2,0]
+
+        k_vec_prep(21,:) = [2,0,0]
+        k_vec_prep(22,:) = [2,-1,0]
+        k_vec_prep(23,:) = [2,-2,0]
+
+        k_vec_prep(24,:) = [3,-1,0]
+
 
         ! now i want to get the neigbhors 
         do i = 1, this%get_nsites()
@@ -1933,7 +1979,8 @@ contains
 !             k_vec = [i,j,0]
             ! i have to get the matrix indiced again, with the correct 
             ! sign.. 
-            k_vec = [mat_ind(i,2),-mat_ind(i,1),0]
+!             k_vec = [mat_ind(i,2),-mat_ind(i,1),0]
+            k_vec = k_vec_prep(i,:)
 
             this%sites(i) = site(i, size(neigh), neigh, k_vec)
 
@@ -2923,6 +2970,9 @@ contains
 
             this%lat_vec(1:2,1) = [this%length(1),this%length(1)]
             this%lat_vec(1:2,2) = [-this%length(2),this%length(1)]
+
+            this%k_vec(1:2,1) = [this%length(1),this%length(1)]
+            this%k_vec(1:2,2) = [-this%length(1),this%length(2)]
 
         class is (cube) 
             call this%set_ndim(DIM_CUBE)

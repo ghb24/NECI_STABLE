@@ -463,6 +463,7 @@ C.. Setup the symmetry product table
          character(*), parameter :: this_routine='GenHubSymReps'
          
 C.. now work out which reps are degenerate and label them
+         if (allocated(SymReps)) deallocate(symreps)
          allocate(SymReps(2,nBasis))
          call LogMemAlloc('SymReps',2*nBasis,4,this_routine,tagSymReps)
          J=0
@@ -486,6 +487,7 @@ C.. we have a new rep
             ENDIF
             SYMREPS(1,BRR(I))=J
          ENDDO
+        print *, "symreps: " 
         DO I=1,NBASIS
            WRITE(6,*) SYMREPS(1,I),SYMREPS(2,I)
         ENDDO

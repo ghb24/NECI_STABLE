@@ -4,7 +4,7 @@ module sym_general_mod
 
     use SystemData, only: tFixLz, tNoSymGenRandExcits, iMaxLz, G1, nel, &
                           Symmetry, tKpntSym, tReltvy, t_new_real_space_hubbard, & 
-                          t_tJ_model, t_heisenberg_model, nbasis
+                          t_tJ_model, t_heisenberg_model, nbasis, t_k_space_hubbard
     use SymExcitDataMod
     use Symdata, only: nSymLabels
     use sym_mod, only: SYMPROD, RandExcitSymLabelProd, symeq
@@ -274,13 +274,25 @@ contains
         sym_prod_i = 0
         sym_prod_j = 0
 
-        !todo: maybe i also have to exclude the k-space hubbard case here!
-        if (.not. (t_new_real_space_hubbard .or.t_tJ_model .or. t_heisenberg_model)) then 
-            do i = 1, nel
-                sym_prod_i = RandExcitSymLabelProd(SymInvLabel(SpinOrbSymLabel(nI(i))), sym_prod_i)
-                sym_prod_j = RandExcitSymLabelProd(SymInvLabel(SpinOrbSymLabel(nJ(i))), sym_prod_j)
+        if (t_k_space_hubbard) then 
+            sym_prod1 = G1(nI(1))%Sym
+            sym_prod2 = G1(nJ(1))%Sym
+            do i = 2, nel 
+                sym_prod1 = SYMPROD(G1(nI(i))%Sym, sym_prod1)
+                sym_prod2 = SYMPROD(G1(nJ(i))%Sym, sym_prod2) 
             end do
+
+            if (.not. SYMEQ(sym_prod1, sym_prod2)) bValid = .false.
+        else 
+            !todo: maybe i also have to exclude the k-space hubbard case here!
+            if (.not. (t_new_real_space_hubbard .or.t_tJ_model .or. t_heisenberg_model)) then 
+                do i = 1, nel
+                    sym_prod_i = RandExcitSymLabelProd(SymInvLabel(SpinOrbSymLabel(nI(i))), sym_prod_i)
+                    sym_prod_j = RandExcitSymLabelProd(SymInvLabel(SpinOrbSymLabel(nJ(i))), sym_prod_j)
+                end do
+            end if
         end if
+
         if (sym_prod_i /= sym_prod_j) &
             bValid = .false.
 
