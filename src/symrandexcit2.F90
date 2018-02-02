@@ -3308,7 +3308,7 @@ SUBROUTINE SpinOrbSymSetup()
 !    write(6,*) "SymClasses:"
 !    write(6,*) SymClasses(:)
 
-    if (t_k_space_hubbard) return
+!     if (t_k_space_hubbard) return
     !Create SpinOrbSymLabel array.
     !This array will return a number between 0 and nSymLabels-1.
     !For molecular systems, this IS the character of the irrep
@@ -3378,8 +3378,6 @@ SUBROUTINE SpinOrbSymSetup()
     do i = 1, nsymlabels
         if (symlabels(i)%s == 0) sym0 = i - 1
     end do
-
-    print *, "sym0: ", sym0
 
     do i = 0, nSymLabels - 1
         if(tKPntSym) then
