@@ -1681,7 +1681,11 @@ contains
     end function calc_pgen_k_space_hubbard 
 
     subroutine init_get_helement_k_space_hub
-        print *, "initialize k-space get_helemet pointer"
+
+        if (iProcIndex == root) then 
+            print *, "initialize k-space get_helemet pointer"
+        end if
+
         if (t_trans_corr_2body) then 
             three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
         end if
