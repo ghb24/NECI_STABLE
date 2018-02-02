@@ -137,7 +137,6 @@ contains
         tAbelian = .false.
 
         ! i have to setup the symlabels first ofc.. 
-        print *, "G1(i)%k: "
         do i = 1, lat%get_nsites() 
             ind = get_spatial(brr(2*i))
             SymClasses(ind) = i

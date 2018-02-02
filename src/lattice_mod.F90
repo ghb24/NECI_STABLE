@@ -1876,9 +1876,8 @@ contains
                              -this%length(2):this%length(1))
 
          integer :: i, j, k, mat_ind(this%n_sites, 2), up, down, left, right, &
-                    k_vec(3), A(2), B(2), C(2), D(2), k_vec_prep(24,3), ind(24)
+                    k_vec(3), A(2), B(2), C(2), D(2), k_vec_prep(24,3)
          integer, allocatable :: neigh(:)
-         real(dp) :: x(24)
 
         ! how do i set up Ole cluster.. 
         ! in real and k-space.. this will be a pain i guess.. 
@@ -1979,8 +1978,13 @@ contains
 !             k_vec = [i,j,0]
             ! i have to get the matrix indiced again, with the correct 
             ! sign.. 
-!             k_vec = [mat_ind(i,2),-mat_ind(i,1),0]
-            k_vec = k_vec_prep(i,:)
+            if (this%get_nsites() == 24) then 
+                k_vec = k_vec_prep(i,:)
+            else
+                k_vec = [mat_ind(i,2),-mat_ind(i,1),0]
+            end if
+
+!             k_vec = [-mat_ind(i,1),mat_ind(i,2),0]
 
             this%sites(i) = site(i, size(neigh), neigh, k_vec)
 

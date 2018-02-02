@@ -487,10 +487,11 @@ C.. we have a new rep
             ENDIF
             SYMREPS(1,BRR(I))=J
          ENDDO
-        print *, "symreps: " 
-        DO I=1,NBASIS
-           WRITE(6,*) SYMREPS(1,I),SYMREPS(2,I)
-        ENDDO
+
+!         print *, "symreps: " 
+!         DO I=1,NBASIS
+!            WRITE(6,*) SYMREPS(1,I),SYMREPS(2,I)
+!         ENDDO
       END
 
       LOGICAL FUNCTION KALLOWED(G,NBASISMAX)
