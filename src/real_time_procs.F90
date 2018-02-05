@@ -1360,7 +1360,7 @@ contains
         integer(n_int), allocatable :: perturbed_buf(:,:)
         logical :: t_use_perturbed_buf
 
-        if(tReadPops) then
+        if(tReadPops .and. .not. tNewOverlap) then
            tmp_totwalkers = TotWalkers_orig
         else
            tmp_totwalkers = TotWalkers

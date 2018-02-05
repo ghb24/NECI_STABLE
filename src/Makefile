@@ -1,4 +1,5 @@
-.DEFAULT_GOAL := rneci
+.DEFAULT_GOAL := neci
 
 %:
-	cd ../build_debug_laptop && $(MAKE) $@
+	cd ../build && $(MAKE) -j 8 --no-print-directory $@
+
