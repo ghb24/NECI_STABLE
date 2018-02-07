@@ -21,6 +21,7 @@ module lattice_mod
               on_line_2d
 
     integer, parameter :: NAME_LEN = 13
+    integer, parameter :: sdim = 3
 
     type :: site 
         ! the basic site type for my lattice
@@ -122,6 +123,8 @@ module lattice_mod
         integer :: n_sites = -1
         integer :: n_connect_max = -1 
         integer :: n_dim = -1
+        ! Lookup table for momentum -> site index conversion
+        integer, allocatable :: lu_table(:,:,:)
         ! actually i want to have more flexibility: maybe periodic in x 
         ! but not y.. 
         logical :: t_periodic_x = .true. 
@@ -231,6 +234,8 @@ module lattice_mod
         procedure :: apply_basis_vector
 
         procedure, public :: get_orb_from_k_vec
+        ! and a procedure to initialize the site index lookup table
+        procedure :: initialize_lu_table
 
     end type lattice 
 
@@ -651,33 +656,25 @@ contains
         integer :: k_vec(3), i
 
         ! first check if it is in the first BZ 
-        k_vec = this%map_k_vec(k_in)
+        ! this is not necessary anymore as the lookup table captures more than just the BZ
+        ! k_vec = this%map_k_vec(k_in)
+        k_vec = k_in
 
-        orb = 0
         ! the naive way would be to loop over all sites and check if the 
         ! k-vector fits..
+        ! but that would be too effortive, so we use the lookup table
+        i = this%lu_table(k_vec(1),k_vec(2),k_vec(3))
+
+        ! and, if required, include the spin in the index
         if (present(spin)) then 
-            ! also leave the option to specify the spin if we want to get 
-            ! a spin-orbital: 
-            ! spin = 1 -> beta spin 
-            ! spin = 2 -> alpha spin
             ASSERT(spin == 1 .or. spin == 2)
-            do i = 1, lat%get_nsites() 
-                if (all(k_vec == this%get_k_vec(i))) then 
-                    if (spin == 1) then 
-                        orb = 2*i - 1
-                    else if (spin == 2) then 
-                        orb = 2*i
-                    end if
-                end if
-            end do
+            if (spin == 1) then 
+               orb = 2*i - 1
+            else if (spin == 2) then 
+               orb = 2*i
+            end if
         else
-            do i = 1, this%get_nsites()
-                if (all(k_vec == this%get_k_vec(i))) then 
-                    orb = i
-                    return
-                end if
-            end do
+           orb = i
         end if
         
     end function get_orb_from_k_vec
@@ -3074,7 +3071,61 @@ contains
 
         call this%initialize_sites() 
 
+        ! and fill the lookup table for the site index determination from k vectors
+        call this%initialize_lu_table()
+
     end subroutine init_lattice
+
+    subroutine initialize_lu_table(this)
+      implicit none
+      class(lattice) :: this
+      integer :: i, k(sdim), kmin(sdim), kmax(sdim), j, ki(sdim), kj(sdim), ka(sdim)
+      integer :: nsites, m, k_check(sdim), a
+
+      kmin = 0
+      kmax = 0
+      ! first, determine the maximum/minimum indices that appear in the lu table
+      ! the lu table shall contain all reachable momenta ki + kj - ka
+      nsites = this%get_nsites()
+      do i = 1, nsites
+         do j = 1, nsites
+            do a = 1, nsites
+               ki = this%get_k_vec(i)
+               kj = this%get_k_vec(j)
+               ka = this%get_k_vec(a)
+               k = ki + kj - ka
+               do m = 1, sdim
+                  if(k(m) < kmin(m)) kmin(m) = k(m)
+                  if(k(m) > kmax(m)) kmax(m) = k(m)
+               enddo
+            end do
+         end do
+      enddo
+      ! and allocate the lookup table accordingly
+      allocate(this%lu_table(kmin(1):kmax(1),kmin(2):kmax(2),kmin(3):kmax(3)))
+      write(6,*) "Lookup table size is ", (kmax(1)-kmin(1)+1)*(kmax(2)-kmin(2)+1)*8/1024, " kB"
+      ! now, fill the lookup table with the indices of the corresponding states
+      do i=1, nsites
+         do j = 1, nsites
+            do a = 1, nsites
+               ! again, we want every possible combination ki+kj-ka
+               ! the construction costs O(nsites^4), but I think this is no problem
+               ki = this%get_k_vec(i)
+               kj = this%get_k_vec(j)
+               ka = this%get_k_vec(a)
+               k = ki + kj - ka
+               k_check = this%map_k_vec(k)
+               do m = 1, nsites
+                  if(all(k_check == this%get_k_vec(m))) then
+                     ! the entry k is the site-index of the state with momentum k
+                     this%lu_table(k(1),k(2),k(3)) = m
+                     exit
+                  endif
+               enddo
+            end do
+         end do
+      end do
+    end subroutine initialize_lu_table
 
     function aim_lattice_constructor(lat_type, length_x, length_y)  result(this)
         character(*), intent(in) :: lat_type 
@@ -4150,7 +4201,6 @@ contains
         end if
 
     end function determine_optimal_time_step
-
 
     ! general non-type bound routines
 !     subroutine get_lattice_type(this, string) 
