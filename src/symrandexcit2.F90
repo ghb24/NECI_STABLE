@@ -51,8 +51,8 @@ MODULE GenRandSymExcitNUMod
     use sym_general_mod
     use get_excit, only: make_single, make_double
     use procedure_pointers, only: get_umat_el
-    use back_spawn, only: get_ispn, pick_virtual_electrons_double_hubbard
-    use back_spawn, only: pick_occupied_orbital_hubbard, check_electron_location
+    use back_spawn, only: pick_virtual_electrons_double_hubbard
+    use back_spawn, only: pick_occupied_orbital_hubbard, check_electron_location, get_ispn
     use neci_intfce
     use bit_rep_data, only: test_flag
     IMPLICIT NONE

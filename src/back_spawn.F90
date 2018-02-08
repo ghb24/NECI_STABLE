@@ -877,6 +877,63 @@ contains
 
     end subroutine pick_virtual_electron_single
 
+    function get_orb_from_kpoints(orbi, orbj, orba) result(orbb)
+        ! write a cleaner implementation of this multiple used 
+        ! functionality.. because kPointToBasisFn to basisfunction 
+        ! promises more than it actually odes 
+        integer, intent(in) :: orbi, orbj, orba
+        integer :: orbb
+
+        integer :: ki(3), kj(3), ka(3), kb(3), ispn, spnb
+
+
+        ki = G1(orbi)%k
+        kj = G1(orbj)%k
+
+        ! Given A, calculate B in the same way as before
+        ka = G1(orba)%k
+        kb = ki + kj - ka
+
+        ispn = get_ispn([orbi,orbj])
+
+        if (iSpn == 1) then
+            spnb = 1
+        elseif (iSpn == 2) then
+            ! w.d: bug found by peter jeszenski and confirmed by 
+            ! simon! 
+            ! i do not think this is so much more efficient than an 
+            ! additional if-statement which is way more clear!
+            ! messed up alpa and beta spin here.. 
+!             spnb = (-G1(orba)%Ms + 1)/2 + 1
+    !       spnb = (G1(orba)%Ms)/2 + 1
+            if (is_beta(orba)) then 
+                spnb = 2
+            else 
+                spnb = 1
+            end if
+        elseif(iSpn == 3) then
+            spnb = 2
+        end if
+
+        ! damn.. for some reason this is different treated in the 
+        ! hubbard and UEG case..
+        ! i turn off the thub flag in my new implementation, so this is 
+        ! never actually reached below.. i should change that 
+
+        if (t_k_space_hubbard) then 
+            orbb = lat%get_orb_from_k_vec(kb, spnb)
+            return
+        end if
+
+        ! this now distinguishes between UEG and hubbard models.
+        if (tHub) then
+            call mompbcsym(kb, nbasismax)
+        end if
+
+        orbb = KPointToBasisFn(kb(1), kb(2), kb(3), spnb)
+
+    end function get_orb_from_kpoints
+
     function get_ispn(src) result(ispn)
         ! it is annoying to write this over and over again.. 
         integer, intent(in) :: src(2) 
@@ -974,62 +1031,6 @@ contains
 
     end function is_allowed_ueg_k_vector
 
-    function get_orb_from_kpoints(orbi, orbj, orba) result(orbb)
-        ! write a cleaner implementation of this multiple used 
-        ! functionality.. because kPointToBasisFn to basisfunction 
-        ! promises more than it actually odes 
-        integer, intent(in) :: orbi, orbj, orba
-        integer :: orbb
-
-        integer :: ki(3), kj(3), ka(3), kb(3), ispn, spnb
-
-
-        ki = G1(orbi)%k
-        kj = G1(orbj)%k
-
-        ! Given A, calculate B in the same way as before
-        ka = G1(orba)%k
-        kb = ki + kj - ka
-
-        ispn = get_ispn([orbi,orbj])
-
-        if (iSpn == 1) then
-            spnb = 1
-        elseif (iSpn == 2) then
-            ! w.d: bug found by peter jeszenski and confirmed by 
-            ! simon! 
-            ! i do not think this is so much more efficient than an 
-            ! additional if-statement which is way more clear!
-            ! messed up alpa and beta spin here.. 
-!             spnb = (-G1(orba)%Ms + 1)/2 + 1
-    !       spnb = (G1(orba)%Ms)/2 + 1
-            if (is_beta(orba)) then 
-                spnb = 2
-            else 
-                spnb = 1
-            end if
-        elseif(iSpn == 3) then
-            spnb = 2
-        end if
-
-        ! damn.. for some reason this is different treated in the 
-        ! hubbard and UEG case..
-        ! i turn off the thub flag in my new implementation, so this is 
-        ! never actually reached below.. i should change that 
-
-        if (t_k_space_hubbard) then 
-            orbb = lat%get_orb_from_k_vec(kb, spnb)
-            return
-        end if
-
-        ! this now distinguishes between UEG and hubbard models.
-        if (tHub) then
-            call mompbcsym(kb, nbasismax)
-        end if
-
-        orbb = KPointToBasisFn(kb(1), kb(2), kb(3), spnb)
-
-    end function get_orb_from_kpoints
 
     function make_ilutJ(ilutI, ex, ic) result(ilutJ)
         ! function similar to make_single and make_double to create the 

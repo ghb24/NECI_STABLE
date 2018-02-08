@@ -15,7 +15,8 @@ module k_space_hubbard
                     nel, tHPHF, nOccBeta, nOccAlpha, nbasis, tLatticeGens, tHub, &
                     omega, bhub, nBasisMax, G1, BasisFN, NullBasisFn, TSPINPOLAR, & 
                     treal, ttilt, tExch, ElecPairs, MaxABPairs, Symmetry, SymEq, &
-                    t_new_real_space_hubbard, SymmetrySize, tNoBrillouin, tUseBrillouin
+                    t_new_real_space_hubbard, SymmetrySize, tNoBrillouin, tUseBrillouin, &
+                    excit_cache
     use lattice_mod, only: get_helement_lattice_ex_mat, get_helement_lattice_general, &
                            determine_optimal_time_step, lattice, sort_unique, lat
     use procedure_pointers, only: get_umat_el, generate_excitation
@@ -29,8 +30,8 @@ module k_space_hubbard
     use CalcData, only: tau, t_hist_tau_search, t_hist_tau_search_option
     use dsfmt_interface, only: genrand_real2_dsfmt
     use util_mod, only: binary_search_first_ge, binary_search
-    use back_spawn, only: make_ilutJ, get_orb_from_kpoints, is_allowed_ueg_k_vector, &
-                          get_ispn
+    use back_spawn, only: make_ilutJ, is_allowed_ueg_k_vector, get_ispn, &
+         get_orb_from_kpoints
     use get_excit, only: make_double
 !     use UmatCache, only: gtid
     use OneEInts, only: GetTMatEl, tmat2d
@@ -375,7 +376,45 @@ contains
             p_triples = 1.0_dp - pDoubles
             pParallel = 0.1_dp
         end if
+
+        call initialize_excit_table()
     end subroutine init_k_space_hubbard
+
+    subroutine initialize_excit_table()
+      implicit none
+      ! This cannot be a member of the lattice class because that would introduce
+      ! a circulat dependency on get_offdiag_helement_k_sp_hub
+      integer :: a, b, i, j, ex(2,2)
+      ! nI is not needed anywhere, it is a redundant argument in the k_space_hubbard module
+      integer :: nI(2)
+      real(dp) :: matEL
+
+      ! the buffer for excitations is (number of states)^3
+      ! strictly speaking, we do not need to distinguish spin orbs here for simple hubbard
+      ! but for transcorrelated, it might matter
+      allocate(excit_cache(nbasis,nbasis,nbasis))
+      ! loop over all pairs of orbitals
+      do i = 1, nbasis
+         do j = 1, nbasis
+            nI = [i,j]
+            ex(1,:) = [i,j]
+            ! and for each, check all possible excitations
+            do a = 1, nbasis
+               matEl = 0.0_dp
+               if(a /= i .and. a/=j) then
+                  b = get_orb_from_kpoints(i,j,a)
+                  if(b /= a .and. b /= i .and. b /= j) then
+                     ex(2,:) = [a,b]    
+                     matEl = abs(get_offdiag_helement_k_sp_hub(nI,ex,.false.))
+                  endif
+               endif
+               ! most excitations will have a finite amplitude, so store all
+               excit_cache(i,j,a) = matEl
+            end do
+         end do
+      end do
+      
+    end subroutine initialize_excit_table
 
     subroutine check_k_space_hubbard_input()
         character(*), parameter :: this_routine = "check_k_space_hubbard_input"
@@ -1340,6 +1379,9 @@ contains
 
             cpt = 0.0_dp
 
+            ! OPTIMIZATION: Do not loop over nbasis here, but over a pre-computed
+            ! lookup table of excitations for src (if possible, is not an option
+            ! if the matrix element depends on nI)
             do a = 1, nbasis
                 elem = 0.0_dp
                 ! if a is empty
@@ -1348,22 +1390,18 @@ contains
                     ! spin if src has the same spin! todo
                     ! to take into account spin-parallel double 
                     ! excitations!
-                    b = get_orb_from_kpoints(src(1), src(2), a)
 
-                    ! and b is empty and not a
-                    if (b /= a .and. IsNotOcc(ilutI, b)) then
-                        ! is it sure that we have opposite spin?
-                        ! i have to do better asserts!
-                        if (.not. t_trans_corr_2body) then
-                            ASSERT(.not. same_spin(a,b))
-                        end if
-
-                        ex(2,:) = [a,b]
-                        ! in the matrix element routine the check for 
-                        ! transcorrelation is done.. although i could do it 
-                        ! more efficiently out here.. todo
-                        elem = abs(get_offdiag_helement_k_sp_hub(nI, ex, .false.))
-                    end if
+                   ! get the excitation
+                   b = get_orb_from_kpoints(src(1), src(2), a)
+                   ! we have yet to check if b is unoccupied
+                   if(b /= a .and. IsNotOcc(ilutI,b)) then
+                      ! assert that we hit opposite spins
+                      if(.not. t_trans_corr_2body) then 
+                         ASSERT(.not. same_spin(a,b))
+                      endif
+                      ! get the matrix element (from storage)
+                      elem = excit_cache(src(1),src(2),a)
+                   endif
                 end if
                 cum_sum = cum_sum + elem 
 
@@ -1388,8 +1426,7 @@ contains
 
                     if (b /= a .and. IsNotOcc(ilutI, b)) then 
 
-                        ex(2,:) = [a,b]
-                        elem = abs(get_offdiag_helement_k_sp_hub(nI, ex, .false.))
+                        elem = excit_cache(src(1),src(2),a)
 
                     end if
                 end if
@@ -2004,6 +2041,7 @@ contains
         ! k-space hubbard. in case of transcorrelation, this can also be 
         ! spin-parallel excitations now. the triple excitation have a 
         ! seperate routine!
+        ! The result does not depend on nI! 
         integer, intent(in) :: nI(nel), ex(2,2)
         logical, intent(in) :: tpar 
         HElement_t(dp) :: hel 

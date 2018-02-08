@@ -234,8 +234,10 @@ module lattice_mod
         procedure :: apply_basis_vector
 
         procedure, public :: get_orb_from_k_vec
-        ! and a procedure to initialize the site index lookup table
+        ! and procedures to initialize the site index lookup table and the
+        ! matrix element lookup table
         procedure :: initialize_lu_table
+        procedure :: deallocate_caches
 
     end type lattice 
 
@@ -655,15 +657,13 @@ contains
 #endif
         integer :: k_vec(3), i
 
-        ! first check if it is in the first BZ 
-        ! this is not necessary anymore as the lookup table captures more than just the BZ
-        ! k_vec = this%map_k_vec(k_in)
-        k_vec = k_in
+        ! checking if it is in the first is not necessary anymore 
+        ! as the lookup table captures more than just the BZ
 
         ! the naive way would be to loop over all sites and check if the 
         ! k-vector fits..
         ! but that would be too effortive, so we use the lookup table
-        i = this%lu_table(k_vec(1),k_vec(2),k_vec(3))
+        i = this%lu_table(k_in(1),k_in(2),k_in(3))
 
         ! and, if required, include the spin in the index
         if (present(spin)) then 
@@ -3073,7 +3073,7 @@ contains
 
         ! and fill the lookup table for the site index determination from k vectors
         call this%initialize_lu_table()
-
+        
     end subroutine init_lattice
 
     subroutine initialize_lu_table(this)
@@ -3126,6 +3126,13 @@ contains
          end do
       end do
     end subroutine initialize_lu_table
+
+    subroutine deallocate_caches(this)
+      implicit none
+      class(lattice) :: this
+
+      deallocate(this%lu_table)
+    end subroutine deallocate_caches
 
     function aim_lattice_constructor(lat_type, length_x, length_y)  result(this)
         character(*), intent(in) :: lat_type 
