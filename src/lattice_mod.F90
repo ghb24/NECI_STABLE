@@ -774,8 +774,8 @@ contains
 ! 
 !                end if
 
-            do i = 1, lat%get_nsites()
-                if (all(k_vec == lat%get_k_vec(i))) inside_bz_ole = .true. 
+            do i = 1, this%get_nsites()
+                if (all(k_vec == this%get_k_vec(i))) inside_bz_ole = .true. 
             end do
         end associate
 
