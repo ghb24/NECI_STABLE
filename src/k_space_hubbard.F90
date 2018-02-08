@@ -51,6 +51,7 @@ module k_space_hubbard
     use SymData, only: tAbelian,SymTable
     use SymData, only: tagSymConjTab,tagSymClasses,tagSymLabels
     use SymData, only: tagSymTable
+    use ParallelHelper, only: iProcIndex, root
 
     implicit none 
 
@@ -71,11 +72,12 @@ contains
     subroutine setup_symmetry_table() 
         ! implement a new symmetry setup to decouple it from the 
         ! old hubbard.F code.. 
+        use SystemData, only: brr
 
    
         character(*), parameter :: this_routine = "setup_symmetry_table"
 
-        integer :: i, j, k, l, k_i(3), k_inv(3), k_j(3)
+        integer :: i, j, k, l, k_i(3), k_inv(3), k_j(3), ind
 
         ! the only problem could be that we reorderd the orbitals already or? 
         ! so G1 has a different ordering than just 1, nBasis/2... 
@@ -115,7 +117,8 @@ contains
         ! also its own inverse or? 
 
         ! so try to change that here.. 
-        SymClasses = [( i, i = 1, lat%get_nsites())]
+        ! ok i should still treat the gamma point special and set its 
+        ! sym label to 1 and maybe also order the symmetries by energy? 
        
         if (allocated(SymTable)) then
             deallocate(SymTable)
@@ -136,23 +139,25 @@ contains
 
         ! i have to setup the symlabels first ofc.. 
         do i = 1, lat%get_nsites() 
+            ind = get_spatial(brr(2*i))
+            SymClasses(ind) = i
+!             SymClasses = [( i, i = 1, lat%get_nsites())]
             ! and also just encode the symmetry labels as integers, instead of 
            ! 2^(k-1), to be able to treat more than 64 orbitals (in the old 
             ! implementation, an integer overflow happened in this case!)
-            SymLabels(i)%s = i
+            SymLabels(ind)%s = i
             ! i also need it in G1: 
-            G1(2*i-1)%Sym = SymLabels(i)
-            G1(2*i)%Sym = SymLabels(i)
+            ! is G1 already ordered by energy?? 
 
         end do
 
         ! now find the inverses: 
         do i = 1, lat%get_nsites() 
             ! and also just encode the symmetry labels as integers, instead of 
-           ! 2^(k-1), to be able to treat more than 64 orbitals (in the old 
-            ! implementation, an integer overflow happened in this case!)
-            SymLabels(i)%s = i
-            ! i also need it in G1: 
+!            ! 2^(k-1), to be able to treat more than 64 orbitals (in the old 
+!             ! implementation, an integer overflow happened in this case!)
+!             SymLabels(i)%s = i
+!             ! i also need it in G1: 
             G1(2*i-1)%Sym = SymLabels(i)
             G1(2*i)%Sym = SymLabels(i)
 
@@ -168,13 +173,12 @@ contains
             ! find the orbital of -k 
             j = lat%get_orb_from_k_vec(-lat%get_k_vec(i))
 
-!             print *, i, j 
 !             print *, "i, k(i): ", i, lat%get_k_vec(i)
 !             print *, "j, k(j): ", j, lat%get_k_vec(j)
 
             ! since i have a linear encoding of the symmetries i do not need 
             ! to use SymClasses here.. 
-            SymConjTab(i) = j
+            SymConjTab(SymClasses(i)) = SymClasses(j)
 
             ! and create the symmetry product of (i) with every other symmetry
             do k = 1, lat%get_nsites()
@@ -185,17 +189,49 @@ contains
                 l = lat%get_orb_from_k_vec(lat%get_k_vec(i) + lat%get_k_vec(k))
 !                 l = lat%get_orb_from_k_vec(k_i + k_j)
 
-                SymTable(i,k) = SymLabels(l)
+                SymTable(SymClasses(i),SymClasses(k)) = SymLabels(l)
 
             end do
         end do
 
+#ifdef __DEBUG
         WRITE(6,*) "Symmetry, Symmetry Conjugate"
         do i = 1, lat%get_nsites()
             print *, i, SymConjTab(i)
         end do
+#endif
 
     end subroutine setup_symmetry_table
+
+    subroutine gen_symreps()
+        ! i have to figure out what exactly those symreps do and how 
+        ! i should set them up.. 
+        use SystemData, only: arr, brr
+        use SymData, only: symreps
+
+        integer :: i, j
+        if (allocated(symreps)) deallocate(symreps) 
+        allocate(symreps(2,nbasis))
+        symreps = 0
+
+        j = 0 
+
+        print *, "arr: "
+        do i = 1, nbasis
+            print *, arr(i,:) 
+        end do
+
+        print *, "brr: " 
+        do i = 1, nbasis 
+            print *, brr(i)
+        end do
+    
+        do i = 1, 2*lat%get_nsites()
+
+
+        end do
+
+    end subroutine gen_symreps
 
     subroutine gen_all_excits_k_space_hubbard(nI, n_excits, det_list) 
 
@@ -246,9 +282,12 @@ contains
         integer, intent(out) :: n_states
         integer, intent(out), allocatable :: state_list_ni(:,:) 
         integer(n_int), intent(out), allocatable :: state_list_ilut(:,:) 
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "create_hilbert_space_kspace"
+#endif
 
         integer(n_int), allocatable :: all_dets(:), temp_list_ilut(:,:) 
-        integer :: i, j, nJ(nel), n_allowed
+        integer :: i, j, nJ(nel), n_allowed, k_vec_in(3), k_vec(3)
         type(Symmetry) :: sym_prod, sym_in
         integer, allocatable :: temp_list_ni(:,:) 
         integer(n_int) :: temp_ilut(0:niftot)
@@ -257,8 +296,11 @@ contains
         all_dets = create_all_dets(n_orbs, n_alpha, n_beta) 
 
         sym_in = G1(nI(1))%Sym
+        k_vec_in = G1(nI(1))%k
         do i = 2, nel 
             sym_in = SymTable(sym_in%s, G1(nI(i))%Sym%s)
+            k_vec_in = lat%map_k_vec(k_vec_in + G1(nI(i))%k)
+            
         end do
 
         allocate(temp_list_ilut(0:niftot, size(all_dets)))
@@ -279,16 +321,21 @@ contains
             temp_ilut = all_dets(i)
             call decode_bit_det(nJ, temp_ilut)
             sym_prod = G1(nJ(1))%sym
+            k_vec = G1(nJ(1))%k
             do j = 2, nel 
                 ! and i have to decode into the nI representation.. 
                 ! oh god this is inefficient.. 
                 sym_prod = symtable(sym_prod%s, G1(nJ(j))%Sym%s)
+                k_vec = lat%map_k_vec(k_vec + G1(nJ(j))%k)
             end do
             if (sym_prod%s == sym_in%s) then 
                 ! if the symmetry fits: 
+                ASSERT(all(k_vec == k_vec_in))
                 n_allowed = n_allowed + 1
                 temp_list_ilut(:,n_allowed) = temp_ilut
                 temp_list_ni(:,n_allowed) = nJ
+            else 
+                ASSERT(.not. all(k_vec == k_vec_in))
             end if
         end do
 
@@ -321,7 +368,10 @@ contains
         character(*), parameter :: this_routine = "init_k_space_hubbard"
         real(dp) :: tau_opt
 
-        print *, " new k-space hubbard implementation init:" 
+
+        if (iProcIndex == root) then 
+            print *, " new k-space hubbard implementation init:" 
+        end if
 
         ! i have to set the incorrect excitaiton generator flags to false 
         tLatticeGens = .false.
@@ -340,13 +390,17 @@ contains
         tau_opt = determine_optimal_time_step() 
 
         if (tau < EPS) then 
-            print *, "setting time-step to optimally determined time-step: ", tau_opt
-            print *, "times: ", lat_tau_factor
+            if (iProcIndex == root) then 
+                print *, "setting time-step to optimally determined time-step: ", tau_opt
+                print *, "times: ", lat_tau_factor
+            end if
             tau = lat_tau_factor * tau_opt
 
         else 
-            print *, "optimal time-step would be: ", tau_opt
-            print *, "but tau specified in input!"
+            if (iProcIndex == root) then 
+                print *, "optimal time-step would be: ", tau_opt
+                print *, "but tau specified in input!"
+            end if
         end if
 
         tsearchtau = .false. 
@@ -419,10 +473,11 @@ contains
     subroutine check_k_space_hubbard_input()
         character(*), parameter :: this_routine = "check_k_space_hubbard_input"
 
-        print *, "checking input for k-space hubbard:" 
-        !todo: find the incompatible input and abort here!
-
-        print *, "input is fine!"
+        if (iProcIndex == root) then 
+            print *, "checking input for k-space hubbard:" 
+            !todo: find the incompatible input and abort here!
+            print *, "input is fine!"
+        end if
 
     end subroutine check_k_space_hubbard_input
 
@@ -1663,7 +1718,11 @@ contains
     end function calc_pgen_k_space_hubbard 
 
     subroutine init_get_helement_k_space_hub
-        print *, "initialize k-space get_helemet pointer"
+
+        if (iProcIndex == root) then 
+            print *, "initialize k-space get_helemet pointer"
+        end if
+
         if (t_trans_corr_2body) then 
             three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
         end if

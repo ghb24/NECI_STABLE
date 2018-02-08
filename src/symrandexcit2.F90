@@ -3267,7 +3267,7 @@ SUBROUTINE SpinOrbSymSetup()
     use SymData, only: nSymLabels, SymClasses, SymLabels
     use SystemData , only : NMAXZ,tFixLz,iMaxLz,nBasis,tUEG,tKPntSym,G1,tHub,nBasisMax,NEl
     use SystemData , only : Symmetry,tHPHF,tSpn,tISKFuncs,Arr,tNoSymGenRandExcits, Elecpairs
-    use SystemData , only : MaxABPairs, tUEG2, kvec
+    use SystemData , only : MaxABPairs, tUEG2, kvec, t_k_space_hubbard
     use Determinants, only : FDet
     use sym_mod, only: mompbcsym,SymProd
     use constants, only: dp
@@ -3308,6 +3308,7 @@ SUBROUTINE SpinOrbSymSetup()
 !    write(6,*) "SymClasses:"
 !    write(6,*) SymClasses(:)
 
+!     if (t_k_space_hubbard) return
     !Create SpinOrbSymLabel array.
     !This array will return a number between 0 and nSymLabels-1.
     !For molecular systems, this IS the character of the irrep

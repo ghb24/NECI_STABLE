@@ -337,8 +337,8 @@ contains
 
         
     subroutine move_block(block, tgt_proc)
-      use real_time_aux, only: move_overlap_block
-      implicit none
+        use real_time_aux, only: move_overlap_block
+        implicit none
         integer, intent(in) :: block, tgt_proc
         integer :: src_proc, ierr, nsend, nelem, j, k, det_block, hash_val
         integer :: det(nel), TotWalkersTmp, nconsend, clashes, ntrial, ncon

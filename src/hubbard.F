@@ -396,14 +396,6 @@ C.. Setup the symmetry product table
          call LogMemAlloc('SymConjTable',nSym,4,this_routine,
      &                                                    tagSymConjTab)
          SYMTABLE(1:NSYM,1:NSYM)=Symmetry(0)
-         print *, "G1%k: "
-         do i = 1, nbasis/2
-            print *, G1(2*i)%k 
-         end do
-         print *, "lat%k:"
-         do i = 1, nbasis/2
-            print *, lat%get_k_vec(i)
-         end do
 
          DO I=1,nBasis/2
             NQNS%k=-G1(I*2)%k
@@ -471,13 +463,13 @@ C.. Setup the symmetry product table
          character(*), parameter :: this_routine='GenHubSymReps'
          
 C.. now work out which reps are degenerate and label them
+         if (allocated(SymReps)) deallocate(symreps)
          allocate(SymReps(2,nBasis))
          call LogMemAlloc('SymReps',2*nBasis,4,this_routine,tagSymReps)
          J=0
          
          ! this does not make sense.. 
          SYMREPS = 0
-         print *, "brr: ", brr
          DO I=1,NBASIS
             IF(I.EQ.1) THEN
 C.. we have a new rep
@@ -495,10 +487,11 @@ C.. we have a new rep
             ENDIF
             SYMREPS(1,BRR(I))=J
          ENDDO
-         print *, "symreps: "
-        DO I=1,NBASIS
-           WRITE(6,*) SYMREPS(1,I),SYMREPS(2,I)
-        ENDDO
+
+!         print *, "symreps: " 
+!         DO I=1,NBASIS
+!            WRITE(6,*) SYMREPS(1,I),SYMREPS(2,I)
+!         ENDDO
       END
 
       LOGICAL FUNCTION KALLOWED(G,NBASISMAX)

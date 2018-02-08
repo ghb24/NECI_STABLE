@@ -14,6 +14,7 @@ MODULE System
     use lattice_mod, only: lattice, lat
     use k_space_hubbard, only: setup_symmetry_table
     use breathing_Hub, only: setupMomIndexTable, setupBreathingCont
+    use ParallelHelper, only: iprocindex, root
 
     IMPLICIT NONE
 
@@ -1904,9 +1905,11 @@ system: do
              IF(TTILT) WRITE(6,*) ' TILTED LATTICE: ',ITILTX, ",",ITILTY
              IF(TTILT.AND.ITILTX.GT.ITILTY) call stop_all(this_routine, 'ERROR: ITILTX>ITILTY')
              if (t_new_hubbard) then
-                 print *, "New Hubbard Implementation! " 
-                 print *, "lattice used: " 
-                 call lat%print_lat()
+                 if (iprocindex == root) then
+                     print *, "New Hubbard Implementation! " 
+                     print *, "lattice used: " 
+                     call lat%print_lat()
+                 end if
              end if
           ELSE
              WRITE(6,'(1X,A,F19.5)') '  BOX LENGTH : ' , BOX
@@ -1927,8 +1930,10 @@ system: do
           IF(THUB) THEN
               if (t_new_hubbard) then 
                  omega = real(lat%get_nsites(), dp) 
-                 print *, " periodic boundary conditions: ", lat%is_periodic()
-                 print *, "Real space basis: ", t_new_real_space_hubbard
+                 if (iprocindex == root) then 
+                     print *, " periodic boundary conditions: ", lat%is_periodic()
+                     print *, "Real space basis: ", t_new_real_space_hubbard
+                 end if
              else 
                  WRITE(6,*) ' X-LENGTH OF HUBBARD CHAIN:', NMAXX
                  WRITE(6,*) ' Y-LENGTH OF HUBBARD CHAIN:', NMAXY
@@ -2281,6 +2286,7 @@ system: do
               ! or i change the function below to account for the new 
               ! implementation
               call setup_symmetry_table()
+!               call gen_symreps()
 
 
           else

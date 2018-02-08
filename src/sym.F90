@@ -1797,6 +1797,10 @@ contains
          TYPE(SYMMETRY) SYM
          LOGICAL LTERM
          INTEGER Abel(3)
+         if (t_k_space_hubbard) then 
+             write(iunit, "(I4)", advance = 'no') Sym
+             return
+         end if
          IF(TAbelian) THEN
             CALL DecomposeAbelianSym(SYM%s,Abel)
             if (TwoCycleSymGens) then
