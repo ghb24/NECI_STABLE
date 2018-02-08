@@ -52,7 +52,9 @@ module real_time_init
                          MaxSpawned, tSearchTauOption, TotWalkers, SumWalkersCyc, &
                          CurrentDets, popsfile_dets, MaxWalkersPart, WalkVecDets, &
                          SpawnedParts, determ_sizes
-    use SystemData, only: lms, G1, nBasisMax, tHub, nel, tComplexWalkers_RealInts, nBasis, tReal
+    use SystemData, only: lms, G1, nBasisMax, tHub, nel, tComplexWalkers_RealInts, &
+         nBasis, tReal, t_k_space_hubbard
+    use k_space_hubbard, only: init_k_space_hubbard
     use SymExcitDataMod, only: kTotal
     use sym_mod, only: MomPbcSym
     use perturbations, only: init_perturbation_annihilation, &
@@ -96,10 +98,16 @@ contains
         ! within this Init a readpops is called
         ! this function already produces the correctly perturbed ground state
         call InitFCIMCCalcPar()
+        
         ! also init pointer here, and think about what options and defaults 
         ! should be set for a succsesfull init
         call init_fcimc_fn_pointers()
 
+        ! setup the k-space hubbard if required (after pointers as some are
+        ! overwritten
+        if (t_k_space_hubbard) then 
+            call init_k_space_hubbard()
+        end if
         ! then call the setup routine, which set all remaining needed quantities
         call setup_real_time_fciqmc()
 

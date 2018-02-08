@@ -1597,8 +1597,10 @@ contains
             call MPIBCast(real_time_info%time_angle)
             ! Store the value of alpha in a log, overwriting an old value
             alphaLog(alphaLogPos) = real_time_info%time_angle
-            alphaLogPos = mod((alphaLogPos + 1),alphaLogSize)
-            ! and possibly change the stepsize
+            alphaLogPos = alphaLogPos + 1
+            ! set back the position if exceeding the end
+            if(alphaLogPos > alphaLogSize) alphaLogPos = 1
+            !possibly change the stepsize
             call adjust_stepsAlpha()
          endif
          if(tDynamicDamping) call MPIBCast(real_time_info%damping)
