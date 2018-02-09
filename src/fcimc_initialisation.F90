@@ -200,6 +200,10 @@ contains
         TargetGrowRate(:) = InputTargetGrowRate
         TargetGrowRateWalk(:) = InputTargetGrowRateWalk
 
+        ! Initialize
+        AllTotParts = 0.0_dp
+        AllTotPartsOld = 0.0_dp
+
         IF(TDebug) THEN
 !This will open a file called LOCALPOPS-"iprocindex" on unit number 11 on every node.
             abstr=''

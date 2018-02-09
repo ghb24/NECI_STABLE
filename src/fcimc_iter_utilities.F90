@@ -58,7 +58,11 @@ contains
         if (tContTimeFCIMC .and. .not. tContTimeFull) then
             AccRat = real(cont_spawn_success) / real(cont_spawn_attempts)
         else
-            AccRat = real(Acceptances, dp) / SumWalkersCyc
+           if(all(abs(SumWalkersCyc) > eps)) then
+              AccRat = real(Acceptances, dp) / SumWalkersCyc
+           else
+              AccRat = 0.0_dp
+           endif
         end if
 
 
