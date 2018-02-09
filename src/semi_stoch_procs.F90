@@ -155,6 +155,7 @@ contains
         ! that the same contributions aren't added in again later.
         if (mod(Iter+PreviousCycles - IterRDMStart, RDMEnergyIter) == 0) then 
             full_determ_vecs_av = 0.0_dp
+            write(6,*) "Reset fdv av at iteration ", iter
         end if
 
         ! The current iteration, converted to a double precision real.
