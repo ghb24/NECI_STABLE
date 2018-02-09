@@ -268,6 +268,8 @@ contains
 
         integer :: irdm, iprop
 
+        write(6,*) "Writing RDMs to file at iteration ", iter
+
         if (write_to_separate_file) then
             if (tRDMInstEnergy) then
                 write(est%write_unit, '(1x,i13)', advance='no') Iter+PreviousCycles

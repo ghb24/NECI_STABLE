@@ -234,7 +234,12 @@ module FciMCParMod
 
         do while (.true.)
 !Main iteration loop...
-            if(TestMCExit(Iter,iRDMSamplingIter)) exit
+            if(TestMCExit(Iter,iRDMSamplingIter)) then
+               ! The popsfile requires the right total walker number, so 
+               ! update it (TotParts is updated in the annihilation step)
+               call MPISumAll(TotParts,AllTotParts)
+               exit
+            endif
 
             IFDEBUG(FCIMCDebug, 2) write(iout,*) 'Iter', iter
 
@@ -264,7 +269,10 @@ module FciMCParMod
             if(tSemiStochastic .and. tDynamicCoreSpace .and. &
 
                  mod(iter - semistoch_shift_iter &
-                      ,coreSpaceUpdateCycle) == 0) call refresh_semistochastic_space()
+                      ,coreSpaceUpdateCycle) == 0) then
+               call refresh_semistochastic_space()
+               write(6,*) "Refereshing semistochastic space at iteration ", iter
+            end if
            
             if((Iter - maxval(VaryShiftIter)) == allDoubsInitsDelay + 1 &
                  .and. all(.not. tSinglePartPhase)) then
