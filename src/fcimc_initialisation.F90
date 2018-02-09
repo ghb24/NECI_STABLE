@@ -2282,7 +2282,12 @@ contains
         tHPHF = .false.
         tHPHFInts = .false.
 
+        ! do not pass an unallocated array, so dummy-allocate
+        allocate(Hamil(0))
+        allocate(Lab(0))
         CALL Detham(nCASDet,NEl,CASFullDets,Hamil,Lab,nRow,.true.,ICMax,GC,tMC)
+        deallocate(Lab)
+        deallocate(Hamil)
         LenHamil=GC
         write(iout,*) "Allocating memory for hamiltonian: ",LenHamil*2
         Allocate(Hamil(LenHamil),stat=ierr)
