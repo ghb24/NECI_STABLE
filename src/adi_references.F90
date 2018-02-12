@@ -5,7 +5,7 @@ use FciMCData, only: ilutRef, TotWalkers, CurrentDets
 use adi_data, only: ilutRefAdi, nRefs, nIRef, signsRef, &
      nTZero, SIHash, tAdiActive, tSetupSIs, NoTypeN, superInitiatorLevel, tSetupSIs, &
      tReferenceChanged, SIThreshold, tUseCaches, nIRef, signsRef, exLvlRef, tSuppressSIOutput, &
-     targetRefPop, lastAllNoatHF, lastNRefs, tVariableNRef, maxNRefs
+     targetRefPop, lastAllNoatHF, lastNRefs, tVariableNRef, maxNRefs, minSIConnect
 use CalcData, only: InitiatorWalkNo
 use bit_rep_data, only: niftot, nifdbo, extract_sign
 use bit_reps, only: decode_bit_det
@@ -813,19 +813,21 @@ contains
 
 !------------------------------------------------------------------------------------------!
   
-  subroutine initialize_c_caches(signedCache, unsignedCache)
+  subroutine initialize_c_caches(signedCache, unsignedCache, connections)
     implicit none
     HElement_t(dp), intent(out) :: signedCache
     real(dp), intent(out) :: unsignedCache
+    integer, intent(out) :: connections
     
     ! We potentially want to add the diagonal terms here
     signedCache = 0.0_dp
     unsignedCache = 0.0_dp
+    connections = 0
   end subroutine initialize_c_caches
 
 !------------------------------------------------------------------------------------------!
 
-  subroutine update_coherence_check(ilut, nI, i, run, signedCache, unsignedCache)
+  subroutine update_coherence_check(ilut, nI, i, run, signedCache, unsignedCache, connections)
     use SystemData, only: tHPHF 
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_off_diag_helement
@@ -834,6 +836,7 @@ contains
     integer(n_int), intent(in) :: ilut(0:NIfTot)
     HElement_t(dp), intent(inout) :: signedCache
     real(dp), intent(inout) :: unsignedCache
+    integer, intent(out) :: connections
     HElement_t(dp) :: h_el, tmp
     character(*), parameter :: this_routine = "upadte_coherence_check"
 
@@ -859,21 +862,23 @@ contains
 #endif
     signedCache = signedCache + tmp
     unsignedCache = unsignedCache + abs(tmp)
+    connections = connections + 1
   end subroutine update_coherence_check
 
 !------------------------------------------------------------------------------------------!
 
-  subroutine eval_coherence(signedCache, unsignedCache, sgn, staticInit)
+  subroutine eval_coherence(signedCache, unsignedCache, sgn, connections, staticInit)
     ! Note that tweakcoherentdoubles and tavcoherentdoubles are mutually exclusive 
     ! in the current implementation
     use adi_data, only: tWeakCoherentDoubles, tAvCoherentDoubles, coherenceThreshold
     implicit none
     HElement_t(dp), intent(in) :: signedCache
     real(dp), intent(in) :: unsignedCache, sgn
+    integer, intent(in) :: connections
     logical, intent(inout) :: staticInit
 
     ! Only need to check if we are looking at a double
-    if(unsignedCache > eps) then
+    if(unsignedCache > eps .and. connections>=minSIConnect) then
        ! We disable superinitiator-related initiators if they fail the coherence check
        ! else, we leave it as it is
        if(tWeakCoherentDoubles) then
@@ -915,8 +920,9 @@ contains
     integer :: iRef, nI(nel), exLevel
     real(dp) :: unsignedCache
     HElement_t(dp) :: signedCache
+    integer :: connections
     
-    call initialize_c_caches(signedCache, unsignedCache)
+    call initialize_c_caches(signedCache, unsignedCache, connections)
     ! Sum up all Hij cj for all superinitiators j
     do iRef = 1, nRefs
        exLevel = FindBitExcitLevel(ilutRefAdi(:,iRef), ilut)
@@ -924,11 +930,11 @@ contains
        if(exLevel < 3) then
           call decode_bit_det(nI, ilut)
           call update_coherence_check(ilut, nI, iRef, run, &
-               signedCache, unsignedCache)
+               signedCache, unsignedCache, connections)
        endif
     enddo
     ! Get the ratio of the caches, which is xi
-    if(abs(unsignedCache) > eps) then
+    if(abs(unsignedCache) > eps .and. connections>=minSIConnect) then
        xi = abs(signedCache) / unsignedCache
     else
        xi = 0.0_dp

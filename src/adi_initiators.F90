@@ -104,6 +104,7 @@ contains
     ! cache for the weak coherence check
     HElement_t(dp) :: signedCache
     real(dp) :: unsignedCache
+    integer :: connections
 
     staticInit = .false.
     ! This is Giovanni's CAS-initiator criterium
@@ -115,7 +116,7 @@ contains
     tCCache = tWeakCoherentDoubles .or. tAvCoherentDoubles
     
     exLevel = 0
-    if(tCCache) call initialize_c_caches(signedCache, unsignedCache)
+    if(tCCache) call initialize_c_caches(signedCache, unsignedCache,connections)
     ! Important : Only compare to the already initialized reference
     do i = 1, nRefs
        ! First, check if the excitation level differs by more than 2
@@ -137,7 +138,7 @@ contains
 
              if(tCCache)&
                   call update_coherence_check(ilut, nI, i, run, &
-                  signedCache, unsignedCache)
+                  signedCache, unsignedCache, connections)
 
              ! Set the doubles to initiators
              call set_double_initiator(exLevel, staticInit)
@@ -154,7 +155,7 @@ contains
     enddo
 
     if(tCCache) &
-    call eval_coherence(signedCache, unsignedCache, sgn(run), staticInit)
+    call eval_coherence(signedCache, unsignedCache, sgn(run), connections, staticInit)
 
   end function adi_criterium
 

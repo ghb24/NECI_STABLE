@@ -35,7 +35,7 @@ MODULE Calc
          tReferenceChanged, superInitiatorLevel, allDoubsInitsDelay, tStrictCoherentDoubles, &
          tWeakCoherentDoubles, tAvCoherentDoubles, coherenceThreshold, SIThreshold, &
          tSuppressSIOutput, targetRefPop, targetRefPopTol, tSingleSteps, tVariableNRef, &
-         nRefsSings, nRefsDoubs
+         nRefsSings, nRefsDoubs, minSIConnect
     use ras_data, only: core_ras, trial_ras
     use load_balance, only: tLoadBalanceBlocks
     use ftlm_neci
@@ -366,6 +366,7 @@ contains
           SIThreshold = 0.95
           SIUpdateInterval = 100
           tAdiActive = .false.
+          minSIConnect = 1
 
           ! And disable the initiators subspace
           tInitiatorsSubspace = .false.
@@ -2544,6 +2545,11 @@ contains
              case("SUPERINITIATOR-COHERENCE-THRESHOLD")
                 ! set the minimal coherence parameter for superinitiators
                 call readf(SIThreshold)
+
+             case("MIN-SI-CONNECTIONS")
+                ! set the minimal number of connections with superinititators for 
+                ! superinitiators-related initiators
+                call readi(minSIConnect)
 
              case("SUPERINITIATOR-POPULATION-THRESHOLD")
                 ! set the minimum value for superinitiator population

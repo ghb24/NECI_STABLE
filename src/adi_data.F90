@@ -42,4 +42,7 @@ module adi_data
 
   integer :: nExCheckFails, nExChecks, allNExCheckFails, allNExChecks
 
+  !Minimum number of connections to SI in order for the sign-coherence parameter to be valid
+  integer :: minSIConnect
+
 end module adi_data
