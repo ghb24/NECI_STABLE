@@ -572,7 +572,7 @@ contains
       call pick_spin_opp_elecs(nI,elecs,p_elec)
 
       ! uniform random excit gen probability
-      pGen = 1.0_dp/(nbasis-nel)*4.0_dp/(nel*(nel-1))
+      pGen = 1.0_dp/(nbasis-nel)*2.0_dp/(nOccAlpha*nOccBeta)
 
       ! try finding an allowed excitation
       do i = 1, maxTrials
@@ -586,8 +586,12 @@ contains
          
          ! now, get the missing momentum
          b = get_orb_from_kpoints(nI(elecs(1)),nI(elecs(2)),a)
-         ! and check if its empty
-         if(IsOcc(ilutI,b)) cycle
+         ! and check if its empty and differs from a
+         if(IsOcc(ilutI,b) .or. a==b) then
+            ! if not, the excitation is rejected (!)
+            nJ(1) = 0
+            return
+         endif
          
          call make_double(nI,nJ,elecs(1),elecs(2),a,b,ex,tParity)
          ic = 2

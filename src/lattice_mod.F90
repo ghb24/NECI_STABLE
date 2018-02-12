@@ -125,6 +125,11 @@ module lattice_mod
         integer :: n_dim = -1
         ! Lookup table for momentum -> site index conversion
         integer, allocatable :: lu_table(:,:,:)
+        ! Lookup table for first BZ (contains all sums of up to three momenta)
+        logical, allocatable :: bz_table(:,:,:)
+        ! size of the lookup tables
+        integer :: kmin(sdim) = 0
+        integer :: kmax(sdim) = 0
         ! actually i want to have more flexibility: maybe periodic in x 
         ! but not y.. 
         logical :: t_periodic_x = .true. 
@@ -234,12 +239,16 @@ module lattice_mod
 
         procedure, public :: map_k_vec
         procedure :: inside_bz
+        procedure :: inside_bz_explicit
         procedure :: apply_basis_vector
 
         procedure, public :: get_orb_from_k_vec
         ! and procedures to initialize the site index lookup table and the
         ! matrix element lookup table
         procedure :: initialize_lu_table
+        procedure :: fill_bz_table
+        procedure :: fill_lu_table
+        procedure :: get_lu_table_size
         procedure :: deallocate_caches
 
     end type lattice 
@@ -748,37 +757,34 @@ contains
 
     end function inside_bz
 
-    logical function inside_bz_ole(this, k_vec) 
-        class(ole) :: this
-        integer, intent(in) :: k_vec(3)
+    logical function inside_bz_explicit(this, k_vec) 
+        class(lattice) :: this
+        integer, intent(in) :: k_vec(sdim)
 
         integer :: i 
 
         ! oles lattice is defined by four corner points and two lines 
-        inside_bz_ole = .false. 
+        inside_bz_explicit = .false. 
 
-        associate(A => [-this%length(2), 0], & 
-                  B => [0, -this%length(1)], & 
-                  C => [this%length(1), 0],  & 
-                  D => [this%length(1)-this%length(2), this%length(1)]) 
+        do i = 1, this%get_nsites()
+           if (all(k_vec == this%get_k_vec(i))) inside_bz_explicit = .true. 
+        end do
 
-              ! now i have to be sure how the k-vectors are stored.. 
-              ! because for some strange reason i turn them around in the 
-              ! lattice initialization... thats not good! because confusing
-              ! it has to be consistend definetly! check that again! 
-!               if (inside_bz_2d(k_vec(1),k_vec(2), A, B, C, D) .and. & 
-!                   (.not. on_line_2d([k_vec(1:2)], A, D)) .and. & 
-!                   (.not. on_line_2d([k_vec(1:2)], C, D))) then 
-! 
-!                   inside_bz_ole = .true. 
-! 
-!                end if
+    end function inside_bz_explicit
 
-            do i = 1, this%get_nsites()
-                if (all(k_vec == this%get_k_vec(i))) inside_bz_ole = .true. 
-            end do
-        end associate
+    logical function inside_bz_ole(this,k_vec)
+      implicit none
+      class(ole) :: this
+      integer, intent(in) :: k_vec(sdim)
 
+      ! I think this should be the approach for most lattices
+      ! do a check if we have the bz-ishness of this vector stored
+      if(all(k_vec <= this%kmax) .and. all(k_vec >= this%kmin)) then
+         inside_bz_ole = this%bz_table(k_vec(1),k_vec(2),k_vec(3))
+      else
+         ! if not, do the explicit check
+         inside_bz_ole = this%inside_bz_explicit(k_vec)
+      endif
     end function inside_bz_ole
 
     logical function inside_bz_chain(this, k_vec) 
@@ -3125,12 +3131,30 @@ contains
     subroutine initialize_lu_table(this)
       implicit none
       class(lattice) :: this
-      integer :: i, k(sdim), kmin(sdim), kmax(sdim), j, ki(sdim), kj(sdim), ka(sdim)
-      integer :: nsites, m, k_check(sdim), a
 
-      kmin = 0
-      kmax = 0
-      ! first, determine the maximum/minimum indices that appear in the lu table
+      ! first, get the dimension of the lookup tables
+      call this%get_lu_table_size()
+      ! and allocate the lookup tables accordingly
+      allocate(this%lu_table(this%kmin(1):this%kmax(1),this%kmin(2):this%kmax(2) &
+           ,this%kmin(3):this%kmax(3)))
+      allocate(this%bz_table(this%kmin(1):this%kmax(1),this%kmin(2):this%kmax(2),&
+           this%kmin(3):this%kmax(3)))
+      write(6,*) "Lookup table size is ", 2*(this%kmax(1)-this%kmin(1)+1)&
+           *(this%kmax(2)-this%kmin(2)+1)*8/1024, " kB"
+      ! and fill thee lookup table with the bz vectors
+      call this%fill_bz_table()
+      ! now, fill the lookup table with the indices of the states
+      call this%fill_lu_table()
+    end subroutine initialize_lu_table
+
+    subroutine get_lu_table_size(this)
+      implicit none
+      class(lattice) :: this
+      integer :: i, j, ki(sdim), kj(sdim), ka(sdim), nsites, m ,a, k(sdim)
+
+      this%kmin = 0
+      this%kmax = 0
+      ! determine the maximum/minimum indices that appear in the lu table
       ! the lu table shall contain all reachable momenta ki + kj - ka
       nsites = this%get_nsites()
       do i = 1, nsites
@@ -3141,16 +3165,20 @@ contains
                ka = this%get_k_vec(a)
                k = ki + kj - ka
                do m = 1, sdim
-                  if(k(m) < kmin(m)) kmin(m) = k(m)
-                  if(k(m) > kmax(m)) kmax(m) = k(m)
+                  if(k(m) < this%kmin(m)) this%kmin(m) = k(m)
+                  if(k(m) > this%kmax(m)) this%kmax(m) = k(m)
                enddo
             end do
          end do
       enddo
-      ! and allocate the lookup table accordingly
-      allocate(this%lu_table(kmin(1):kmax(1),kmin(2):kmax(2),kmin(3):kmax(3)))
-      write(6,*) "Lookup table size is ", (kmax(1)-kmin(1)+1)*(kmax(2)-kmin(2)+1)*8/1024, " kB"
-      ! now, fill the lookup table with the indices of the corresponding states
+    end subroutine get_lu_table_size
+
+    subroutine fill_lu_table(this)
+      implicit none
+      class(lattice) :: this
+      integer :: ki(sdim),kj(sdim),ka(sdim),i,j,m,a,k_check(sdim),k(sdim),nsites
+
+      nsites = this%get_nsites()
       do i=1, nsites
          do j = 1, nsites
             do a = 1, nsites
@@ -3171,13 +3199,36 @@ contains
             end do
          end do
       end do
-    end subroutine initialize_lu_table
+    end subroutine fill_lu_table
+
+    subroutine fill_bz_table(this)
+      implicit none
+      class(lattice) :: this
+      integer :: kx,ky,kz,k(sdim)
+
+      ! here, we store for a bunch of important k vectors, whether they are in 
+      ! the first BZ or not
+
+      this%bz_table = .false.
+      ! check all vectors in the [kmin,kmax] range
+      do kx = this%kmin(1),this%kmax(1)
+         do ky = this%kmin(2),this%kmax(2)
+            do kz = this%kmin(3),this%kmax(3)
+               k = (/kx,ky,kz/)
+               ! write down if k is in the BZ
+               ! the check is done by looping over all sites
+               this%bz_table(k(1),k(2),k(3)) = this%inside_bz_explicit(k)
+            end do
+         end do
+      end do
+    end subroutine fill_bz_table
 
     subroutine deallocate_caches(this)
       implicit none
       class(lattice) :: this
 
       deallocate(this%lu_table)
+      deallocate(this%bz_table)
     end subroutine deallocate_caches
 
     function aim_lattice_constructor(lat_type, length_x, length_y)  result(this)
