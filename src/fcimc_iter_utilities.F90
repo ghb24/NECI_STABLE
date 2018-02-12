@@ -878,6 +878,8 @@ contains
     !                    endif
     !                endif
                 endif
+                ! only update the shift this way if possible
+                if(abs_sign(AllNoatHF(lb:ub)) > EPS) then
 #ifdef __CMPLX
                 ! Calculate the instantaneous 'shift' from the HF population
                 HFShift(run) = -1.0_dp / abs_sign(AllNoatHF(lb:ub)) * &
@@ -895,6 +897,7 @@ contains
                             ((AllTotParts(run) - AllTotPartsOld(run)) / &
                              (Tau * real(StepsSft, dp)))
 #endif
+             endif
 
                  ! When using a linear combination, the denominator is summed
                  ! directly.
@@ -902,14 +905,8 @@ contains
                  all_cyc_proje_denominator(run) = AllHFCyc(run)
 
                  ! Calculate the projected energy.
-#ifdef __CMPLX
-                ! [W.D. 15.5.2017:]
-!                  if (any(AllSumNoatHF(lb:ub) /= 0.0_dp)) then
-                 if (any(abs(AllSumNoatHF(lb:ub)) > EPS)) then
-#else
 !                  if ((AllSumNoatHF(run) /= 0.0_dp)) then
-                 if (abs(AllSumNoatHF(run)) > EPS) then
-#endif
+                 if (abs(AllHFCyc(run)) > EPS) then
                          ProjectionE(run) = (AllSumENum(run)) / (all_sum_proje_denominator(run)) &
                                           + proje_ref_energy_offsets(run)
                          proje_iter(run) = (AllENumCyc(run)) / (all_cyc_proje_denominator(run)) &
