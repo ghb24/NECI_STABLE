@@ -1,11 +1,11 @@
-[mneci]
-exe = ../build/bin/mneci
+[neci]
+exe = ../build/bin/neci
 vcs = git
 inputs_args = ('*.inp', '')
 extract_program = ./tools/extract.py
 
-[neci]
-exe = ../build/bin/neci
+[mneci]
+exe = ../build/bin/mneci
 vcs = git
 inputs_args = ('*.inp', '')
 extract_program = ./tools/extract.py

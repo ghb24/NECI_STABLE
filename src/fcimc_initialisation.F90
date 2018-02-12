@@ -2942,12 +2942,12 @@ contains
             iTotal=nSingles + nDoubles + nSing_spindiff1 + nDoub_spindiff1 + nDoub_spindiff2 + ncsf
 
         else
-            iTotal=nSingles + nDoubles + ncsf
             if (tKPntSym) THEN
                 call enumerate_sing_doub_kpnt(exFlag, .false., nSingles, nDoubles, .false.) 
             else
                 call CountExcitations3(HFDet_loc,exflag,nSingles,nDoubles)
             endif
+            iTotal=nSingles + nDoubles + ncsf
         endif
 
         IF(tHub.or.tUEG) THEN
