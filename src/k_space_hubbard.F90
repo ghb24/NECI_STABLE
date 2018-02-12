@@ -16,7 +16,7 @@ module k_space_hubbard
                     omega, bhub, nBasisMax, G1, BasisFN, NullBasisFn, TSPINPOLAR, & 
                     treal, ttilt, tExch, ElecPairs, MaxABPairs, Symmetry, SymEq, &
                     t_new_real_space_hubbard, SymmetrySize, tNoBrillouin, tUseBrillouin, &
-                    excit_cache
+                    excit_cache, tUniformKSpaceExcit
     use lattice_mod, only: get_helement_lattice_ex_mat, get_helement_lattice_general, &
                            determine_optimal_time_step, lattice, sort_unique, lat
     use procedure_pointers, only: get_umat_el, generate_excitation
@@ -386,7 +386,10 @@ contains
 
         call init_get_helement_k_space_hub()
 
-        if (.not. tHPHF) generate_excitation => gen_excit_k_space_hub
+        if (.not. tHPHF .and. .not. tUniformKSpaceExcit) &
+             generate_excitation => gen_excit_k_space_hub
+        ! for more efficiency, use the uniform excitation generation
+        if(tUniformKSpaceExcit) generate_excitation => gen_excit_uniform_k_space_hub
         tau_opt = determine_optimal_time_step() 
 
         if (tau < EPS) then 
@@ -539,6 +542,59 @@ contains
 !         if (abs(pgen -0.5) > 1e-3) print *, "pgen: ", pgen 
 
     end subroutine gen_excit_k_space_hub
+
+    subroutine gen_excit_uniform_k_space_hub(nI, ilutI, nJ, ilutJ, exFlag, ic, ex, &
+         tParity, pGen, hel, store, run)
+      implicit none
+      integer, intent(in) :: nI(nel), exFlag
+      integer(n_int) :: ilutI(0:NIfTot)
+      integer, intent(out) :: nJ(nel), ic, ex(2,2)
+      real(dp), intent(out) :: pGen
+      logical, intent(out) :: tParity
+      type(excit_gen_store_type), intent(inout), target :: store
+      integer, intent(in), optional :: run
+
+      ! not used
+      HElement_t(dp), intent(out) :: hel
+      integer(n_int), intent(out) :: ilutJ(0:NifTot)
+
+      real(dp) :: p_elec, r
+      integer :: i, a, b, ki(N_DIM), kj(N_DIM), ka(N_DIM), kb(N_DIM), elecs(2)
+      integer, parameter :: maxTrials = 1000
+
+      hel = 0.0_dp
+      ilutJ = 0
+      ic = 0
+
+      nJ = nI
+
+      ! first, get two electrons
+      call pick_spin_opp_elecs(nI,elecs,p_elec)
+
+      ! uniform random excit gen probability
+      pGen = 1.0_dp/(nbasis-nel)*4.0_dp/(nel*(nel-1))
+
+      ! try finding an allowed excitation
+      do i = 1, maxTrials
+         ! we do this by picking random momenta and checking if the targets are 
+         ! empty
+         r = genrand_real2_dSFMT()
+         ! this is our random orb
+         a = INT(nBasis*r)+1
+         ! only empty targets are of interest
+         if(IsOcc(ilutI,a)) cycle
+         
+         ! now, get the missing momentum
+         b = get_orb_from_kpoints(nI(elecs(1)),nI(elecs(2)),a)
+         ! and check if its empty
+         if(IsOcc(ilutI,b)) cycle
+         
+         call make_double(nI,nJ,elecs(1),elecs(2),a,b,ex,tParity)
+         ic = 2
+         exit
+      end do
+      
+    end subroutine gen_excit_uniform_k_space_hub
 
     subroutine gen_excit_k_space_hub_transcorr (nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                       ex, tParity, pGen, hel, store, run)

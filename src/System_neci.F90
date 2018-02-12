@@ -183,6 +183,7 @@ MODULE System
       tGen_4ind_2 = .false.
       tGen_4ind_2_symmetric = .false.
       tmodHub = .false.
+      tUniformKSpaceExcit = .false.
 
       tMultiReplicas = .false.
       tGiovannisBrokenInit = .false.
@@ -587,6 +588,10 @@ system: do
         ! during excitation generation for efficiency
         case("LATTICE-EXCITGEN")
             tLatticeGens =.true.
+        ! use the simplified random excitation generator for k-space hubbard that 
+        ! does not use a cumulative list (it is much more efficient)
+        case("UNIFORM-EXCITGEN")
+            tUniformKSpaceExcit = .true.
         case("MESH")
             call geti(NMSH)
         case("BOXSIZE")
