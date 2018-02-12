@@ -1578,13 +1578,13 @@ r_loop: do while(.not.tStoreDet)
                                               .false., iPopsFileNoRead, &
                                               popsfile)
                 else
-                    call get_unique_filename ('POPSFILEBIN', tIncrementPops, &
+                    call get_unique_filename (trim(identifier)//'BIN', tIncrementPops, &
                                               .false., iPopsFileNoRead, &
                                               popsfile)
                 end if
                 inquire(file=popsfile,exist=binpops)
                 if(binpops) then
-                    call get_unique_filename('POPSFILEHEAD',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
+                    call get_unique_filename(trim(identifier)//'HEAD',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
                     open(iunithead,file=popsfile,status='old')
                 else 
                     call stop_all("open_pops_head","No POPSFILEs detected...")
@@ -1804,7 +1804,7 @@ r_loop: do while(.not.tStoreDet)
                     write(num_tmp, '(i12)') iProcIndex
                     out_tmp = 'POPSFILEBIN-' // trim(adjustl(num_tmp))
                 else
-                    out_tmp = 'POPSFILEBIN'
+                    out_tmp = trim(identifier)//'BIN'
                 end if
 
                 ! We need to get another unit, as not all nodes will go
@@ -1940,7 +1940,7 @@ r_loop: do while(.not.tStoreDet)
 
             ! Now we need to actually write the header
             if (iProcIndex == root) then
-                call get_unique_filename('POPSFILEHEAD', tIncrementPops, &
+                call get_unique_filename(trim(identifier)//'HEAD', tIncrementPops, &
                                          .true., iPopsFileNoWrite, popsfile)
                 iunit = get_free_unit()
                 ! We set recl=50000, which allows the line length written to be
