@@ -585,7 +585,7 @@ contains
 
         ! These require a different type of reduce operation, so are communicated
         ! separately to the above communication.
-        call MPIReduce(bloom_sizes(1:2), MPI_MAX, bloom_sz_tmp(1:2))
+        call MPIAllReduce(bloom_sizes(1:2), MPI_MAX, bloom_sz_tmp(1:2))
         bloom_sizes(1:2) = bloom_sz_tmp(1:2)
 
         ! Arrays for checking load balancing.
