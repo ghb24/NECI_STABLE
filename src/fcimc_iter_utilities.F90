@@ -905,15 +905,16 @@ contains
                  all_cyc_proje_denominator(run) = AllHFCyc(run)
 
                  ! Calculate the projected energy.
-!                  if ((AllSumNoatHF(run) /= 0.0_dp)) then
+                 if ((AllSumNoatHF(run) /= 0.0_dp)) then
+                    ProjectionE(run) = (AllSumENum(run)) / (all_sum_proje_denominator(run)) &
+                         + proje_ref_energy_offsets(run)
+                 endif
                  if (abs(AllHFCyc(run)) > EPS) then
-                         ProjectionE(run) = (AllSumENum(run)) / (all_sum_proje_denominator(run)) &
-                                          + proje_ref_energy_offsets(run)
-                         proje_iter(run) = (AllENumCyc(run)) / (all_cyc_proje_denominator(run)) &
-                                         + proje_ref_energy_offsets(run)
-                        AbsProjE(run) = (AllENumCycAbs(run)) / (all_cyc_proje_denominator(run)) &
-                                      + proje_ref_energy_offsets(run)
-                endif
+                    proje_iter(run) = (AllENumCyc(run)) / (all_cyc_proje_denominator(run)) &
+                         + proje_ref_energy_offsets(run)
+                    AbsProjE(run) = (AllENumCycAbs(run)) / (all_cyc_proje_denominator(run)) &
+                         + proje_ref_energy_offsets(run)
+                 endif
                 ! If we are re-zeroing the shift
                 if (tReZeroShift(run)) then
                     DiagSft(run) = 0.0_dp
