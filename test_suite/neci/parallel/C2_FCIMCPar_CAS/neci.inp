@@ -11,7 +11,7 @@ calc
 methods
 method vertex fcimc
 endmethods
-nmcyc 100
+nmcyc 4000
 totalwalkers 20000
 tau 0.00075
 startcas 8 8 10000
