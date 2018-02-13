@@ -345,7 +345,6 @@ module FciMCParMod
                 ! Zero the accumulators
                 bloom_sizes = 0
                 bloom_count = 0
-
                 ! Calculate the a new value for the shift (amongst other
                 ! things). Generally, collate information from all processors,
                 ! update statistics and output them to the user.
@@ -358,7 +357,6 @@ module FciMCParMod
                 if (t_calc_double_occ) then 
                     call write_double_occ_stats(iter_data_fciqmc)
                 end if
-
                 if(tRestart) cycle
 
                 IF((tTruncCAS.or.tTruncSpace.or.tTruncInitiator).and.(Iter.gt.iFullSpaceIter)&
@@ -437,7 +435,6 @@ module FciMCParMod
                         write(iout,"(A,F7.3,A)") "Time taken to write out POPSFILE: ",real(s_end,dp)-TotalTime8," seconds."
                     endif
                 endif
-
                 if (tHistExcitToFrom) &
                     call write_zero_hist_excit_tofrom()
 
@@ -1009,6 +1006,7 @@ module FciMCParMod
                     ! Zero the bit representation, to ensure no extraneous
                     ! data gets through.
                     ilutnJ = 0_n_int
+                    child = 0.0_dp
 
                     ! Generate a (random) excitation
                     call generate_excitation(DetCurr, CurrentDets(:,j), nJ, &
@@ -1054,9 +1052,6 @@ module FciMCParMod
                         ! cases so it is safe to rescale all i guess
                         ! (remove this option for now!)
                         child = child 
-
-                    else
-                        child = 0.0_dp
                     endif
 
                     IFDEBUG(FCIMCDebug, 3) then

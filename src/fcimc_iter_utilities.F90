@@ -924,10 +924,14 @@ contains
             enddo
 
             ! Get some totalled values
-            projectionE_tot = sum(AllSumENum(1:inum_runs)) &
-                            / sum(all_sum_proje_denominator(1:inum_runs))
-            proje_iter_tot = sum(AllENumCyc(1:inum_runs)) &
-                           / sum(all_cyc_proje_denominator(1:inum_runs))
+            if(abs(sum(all_sum_proje_denominator(1:inum_runs))) > EPS) then
+               projectionE_tot = sum(AllSumENum(1:inum_runs)) &
+                    / sum(all_sum_proje_denominator(1:inum_runs))
+            endif
+            if(abs(sum(all_cyc_proje_denominator(1:inum_runs))) > EPS) then
+               proje_iter_tot = sum(AllENumCyc(1:inum_runs)) &
+                    / sum(all_cyc_proje_denominator(1:inum_runs))
+            endif
 
         endif ! iProcIndex == root
 
