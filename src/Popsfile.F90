@@ -165,7 +165,7 @@ contains
                     close(iunit)
 
                     ! Use the correct pops file name.
-                    tmp_char = 'POPSFILEBIN'
+                    tmp_char = identifier//'BIN'
                     if (tSplitPops) then
                         write(tmp_num, '(i12)') iProcIndex
                         tmp_char = trim(tmp_char) // '-' // trim(adjustl(tmp_num))
