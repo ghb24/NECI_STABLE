@@ -1082,27 +1082,27 @@ contains
          RETURN
       END SUBROUTINE READFCIINTBIN
 
-      SUBROUTINE ReadPropInts(iProp,nBasis)
+      SUBROUTINE ReadPropInts(iProp,nBasis,iNumProp,PropFile,CoreVal,OneElInts)
  
       use constants, only: dp, int64
       use util_mod, only: get_free_unit
       use SymData, only: PropBitLen,nProp
       use SystemData, only: UMatEps, tROHF, tReltvy
       use Parallel_neci, only : iProcIndex,MPIBcast
-      use LoggingData, only:iNumPropToEst, EstPropFile 
-      use OneEInts, only: OneEPropInts, PropCore
  
       implicit none
       integer, intent(in) :: iProp, nBasis
+      HElement_t(dp) :: OneElInts(nBasis,nBasis)
       HElement_t(dp) z
-      integer :: i,j,k,l,iunit
+      real(dp) :: CoreVal
+      integer :: i,j,k,l,iunit, iNumProp
       integer :: NORB,NELEC,MS2,ISYM,SYML(1000),IUHF
       integer(int64) :: ORBSYM(1000)
       integer :: iSpins,ispn,SYMLZ(1000)
       integer(int64) :: ZeroedInt
       integer :: IntSize
       real(dp) :: diff, core
-      character(len=100) :: file_name
+      character(len=100) :: file_name, PropFile
       logical :: TREL,UHF
       character(*), parameter :: t_r='ReadPropInts'
       NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
@@ -1112,7 +1112,7 @@ contains
  
       if(iProcIndex.eq.0) then
           iunit = get_free_unit()
-          file_name = EstPropFile(iProp) 
+          file_name = PropFile
           write(*,*) 'Reading integral from the file:', trim(file_name)
           open(iunit,FILE=file_name,STATUS='OLD')
           read(iunit,FCI)
@@ -1163,17 +1163,17 @@ contains
               do ispn=1,iSpins
                   ! Have read in T_ij.  Check it's consistent with T_ji
                   ! (if T_ji has been read in).
-                  diff = abs(OneEPropInts(iSpins*i-ispn+1,iSpins*j-ispn+1,iprop)-z)
-                  if(abs(OneEPropInts(iSpins*i-ispn+1,iSpins*j-ispn+1,iprop)).gt. 0.0d-6 .and. diff > 1.0e-7_dp) then
-                  write(6,*) i,j,z,OneEPropInts(iSpins*i-ispn+1,iSpins*j-ispn+1,iprop)
-                  call Stop_All(t_R,"Error filling OneEPropInts - different values for same orbitals")
+                  diff = abs(OneElInts(iSpins*i-ispn+1,iSpins*j-ispn+1)-z)
+                  if(abs(OneElInts(iSpins*i-ispn+1,iSpins*j-ispn+1)).gt. 0.0d-6 .and. diff > 1.0e-7_dp) then
+                  write(6,*) i,j,z,OneElInts(iSpins*i-ispn+1,iSpins*j-ispn+1)
+                  call Stop_All(t_R,"Error filling OneElInts - different values for same orbitals")
                   endif
  
-                  OneEPropInts(iSpins*I-ispn+1,iSpins*J-ispn+1,iprop)=z
+                  OneElInts(iSpins*I-ispn+1,iSpins*J-ispn+1)=z
 #ifdef __CMPLX
-                  OneEPropInts(iSpins*J-ispn+1,iSpins*I-ispn+1,iprop)=conjg(z)
+                  OneElInts(iSpins*J-ispn+1,iSpins*I-ispn+1)=conjg(z)
 #else
-                  OneEPropInts(iSpins*J-ispn+1,iSpins*I-ispn+1,iprop)=z
+                  OneElInts(iSpins*J-ispn+1,iSpins*I-ispn+1)=z
 #endif
               enddo
 
@@ -1185,10 +1185,7 @@ contains
 199       continue
       if(iProcIndex.eq.0) close(iunit)
 
-      PropCore(iProp) = core
-      call MPIBCast(PropCore(iProp),1)
-      IntSize = nBasis*nBasis
-      call MPIBCast(OneEPropInts(:,:,iProp),IntSize)
+      CoreVal = core
 
       END SUBROUTINE ReadPropInts
 

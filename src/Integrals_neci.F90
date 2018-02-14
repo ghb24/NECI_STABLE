@@ -349,7 +349,7 @@ contains
     Subroutine IntInit(iCacheFlag)
 !who knows what for
       Use global_utilities
-      Use OneEInts, only: SetupTMat,SetupPropInts, OneEPropInts
+      Use OneEInts, only: SetupTMat, SetupPropInts, OneEPropInts, PropCore
       USE UMatCache, only : FreezeTransfer, CreateInvBRR, GetUMatSize, SetupUMat2D_df
       Use UMatCache, only: SetupUMatCache
       use SystemData, only : nBasisMax, Alpha,BHub, BRR,nmsh,nEl
@@ -358,7 +358,8 @@ contains
       use SystemData, only: thub,tpbc,treadint,ttilt,TUEG,tVASP, tPickVirtUniform
       use SystemData, only: uhub, arr,alat,treal,tCacheFCIDUMPInts, tReltvy
       use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
-      use LoggingData, only:tCalcPropEst, iNumPropToEst
+      use LoggingData, only:tCalcPropEst, iNumPropToEst, EstPropFile
+      use Parallel_neci, only : iProcIndex,MPIBcast
       use MemoryManager, only: TagIntType
       use sym_mod, only: GenSymStatePairs
       use read_fci
@@ -369,7 +370,7 @@ contains
       INTEGER TmatInt
       integer(int64) :: UMatInt,ii
       real(dp) :: UMatMem
-      integer iErr
+      integer iErr, IntSize
       character(25), parameter :: this_routine='IntInit'
       LOGICAL :: tReadFreezeInts
 
@@ -505,7 +506,10 @@ contains
          IF(tCalcPropEst) THEN
            call SetupPropInts(nBasis)
            do i=1,iNumPropToEst
-             call ReadPropInts(i,nBasis)
+             call ReadPropInts(i,nBasis,iNumPropToEst,EstPropFile(i),PropCore(i),OneEPropInts(:,:,i))
+             call MPIBCast(PropCore(i),1)
+             IntSize = nBasis*nBasis
+             call MPIBCast(OneEPropInts(:,:,i),IntSize)
            end do
          ENDIF
       ELSE
