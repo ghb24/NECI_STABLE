@@ -530,6 +530,7 @@ contains
         elec = 0
         CCSglDelta = 0
         pElec = 0
+        orb = 0
         do while (found < 2)
             bSingle = .false.
             elecs(1) = elec
