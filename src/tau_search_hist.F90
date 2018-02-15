@@ -664,14 +664,17 @@ contains
         ! the value obtained to restrict the maximum death-factor to 1.0.
         call MPIAllReduce (max_death_cpt, MPI_MAX, mpi_tmp)
         max_death_cpt = mpi_tmp
-        tau_death = 1.0_dp / max_death_cpt
-
-        if (tau_death < tau_new) then
-            if (t_min_tau) then
-                root_print "time-step reduced, due to death events! reset min_tau to:", tau_death
-                min_tau_global = tau_death
-            end if
-            tau_new = tau_death
+        ! again, only count deaths if any occured
+        if(abs(max_death_cpt) > EPS) then
+           tau_death = 1.0_dp / max_death_cpt
+           
+           if (tau_death < tau_new) then
+              if (t_min_tau) then
+                 root_print "time-step reduced, due to death events! reset min_tau to:", tau_death
+                 min_tau_global = tau_death
+              end if
+              tau_new = tau_death
+           end if
         end if
 
         ! And a last sanity check/hard limit
