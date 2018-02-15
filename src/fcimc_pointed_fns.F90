@@ -396,8 +396,10 @@ module fcimc_pointed_fns
         ! Avoid compiler warnings
         integer :: iUnused
         integer(n_int) :: iUnused2
-        iLutJ(0) = iLutJ(0); iUnused = IC; iUnused = ex(2,2)
+        integer :: iUnused3(2,ic)
+        iLutJ(0) = iLutJ(0); iUnused = IC
         iUnused2 = iLutI(0)
+        iUnused3 = ex
     end subroutine
 
     subroutine new_child_stats_hist_hamil (iter_data, iLutI, nJ, iLutJ, ic, &
