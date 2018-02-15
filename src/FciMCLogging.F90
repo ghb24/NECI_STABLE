@@ -416,6 +416,16 @@ MODULE FciMCLoggingMod
             CALL LogMemAlloc('AllHistInitPops', 50000, 4, this_routine, &
                              AllHistInitPopsTag, ierr)
             AllHistInitPops = 0
+#ifdef __DEBUG
+         else
+            ! in debug mode, we have to allocate this on all procs
+            if (allocated(AllHistInitPops)) then
+                deallocate (AllHistInitPops, stat=ierr)
+            endif
+
+            allocate (AllHistInitPops(2,1), stat=ierr)
+            AllHistInitPops = 0
+#endif 
         endif
 
         InitBinMin=log(REAL(InitiatorWalkNo+1,dp))
