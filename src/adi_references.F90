@@ -878,7 +878,8 @@ contains
     logical, intent(inout) :: staticInit
 
     ! Only need to check if we are looking at a double
-    if(unsignedCache > eps .and. connections>=minSIConnect) then
+    !if(unsignedCache > eps .and. connections>=minSIConnect) then
+       if(connections<minSIConnect) staticInit = .false.
        ! We disable superinitiator-related initiators if they fail the coherence check
        ! else, we leave it as it is
        if(tWeakCoherentDoubles) then
@@ -890,7 +891,7 @@ contains
        if(tAvCoherentDoubles) then
           if(real(signedCache * sgn,dp) > 0.0_dp) staticInit = .false.
        endif
-    endif
+    !endif
 
   end subroutine eval_coherence
 
