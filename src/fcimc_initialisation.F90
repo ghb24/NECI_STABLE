@@ -2921,6 +2921,8 @@ contains
             nSing_spindiff1 = 0
             nDoub_spindiff1 = 0
             nDoub_spindiff2 = 0
+            pDoub_spindiff1 = 0.0_dp
+            pDoub_spindiff2 = 0.0_dp
         endif
 
 !NSing=Number singles from HF, nDoub=No Doubles from HF
