@@ -857,6 +857,7 @@ contains
         norm_semistoch = 0
         norm_psi = 0
         bloom_sizes = 0
+        proje_iter_tot = 0.0_dp
         tSoftExitFound = .false.
 
         ! Initialise the fciqmc counters
