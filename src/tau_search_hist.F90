@@ -401,19 +401,22 @@ contains
             ! the value obtained to restrict the maximum death-factor to 1.0.
             call MPIAllReduce (max_death_cpt, MPI_MAX, mpi_tmp)
             max_death_cpt = mpi_tmp
-            tau_death = 1.0_dp / max_death_cpt
+            ! again, this only makes sense if there has been some death
+            if(max_death_cpt > EPS) then
+               tau_death = 1.0_dp / max_death_cpt
 
-            ! If this actually constrains tau, then adjust it!
-            if (tau_death < tau) then
-                tau = tau_death
-
-                root_print "******"
-                root_print "WARNING: Updating time step due to particle death &
-                           &magnitude"
-                root_print "This occurs despite variable shift mode"
-                root_print "Updating time-step. New time-step = ", tau
-                root_print "******"
-            end if
+               ! If this actually constrains tau, then adjust it!
+               if (tau_death < tau) then
+                  tau = tau_death
+                  
+                  root_print "******"
+                  root_print "WARNING: Updating time step due to particle death &
+                       &magnitude"
+                  root_print "This occurs despite variable shift mode"
+                  root_print "Updating time-step. New time-step = ", tau
+                  root_print "******"
+               end if
+            endif
 
             ! Condition met --> no need to do this again next iteration
             tSearchTauDeath = .false.
