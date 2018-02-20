@@ -163,7 +163,11 @@ contains
                 (sum(all_norm_psi_squared) / real(inum_runs, dp)), 'Double Occ.')
 !             call stats_out(state, .true., inst_double_occ / norm_psi(1), 'Double Occ.')
             if (t_calc_double_occ_av) then
-                call stats_out(state,.false., sum_double_occ / sum_norm_psi_squared, 'DoubOcc Av')
+               if(abs(sum_norm_psi_squared) > EPS) then
+                  call stats_out(state,.false., sum_double_occ / sum_norm_psi_squared, 'DoubOcc Av')
+               else
+                  call stats_out(state,.false.,0.0_dp,'DoubOcc Av')
+               endif
             else
                 call stats_out(state,.false.,0.0_dp, 'DoubOcc Av')
             end if
