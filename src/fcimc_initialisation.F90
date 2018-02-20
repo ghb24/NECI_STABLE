@@ -720,7 +720,11 @@ contains
             ELSE
                 TempHii = get_helement (HighEDet, HighEDet, 0)
             ENDIF
-            UpperTau = 1.0_dp/REAL(TempHii-Hii,dp)
+            if(abs(TempHii - Hii) > EPS) then
+               UpperTau = 1.0_dp/REAL(TempHii-Hii,dp)
+            else
+               UpperTau = 0.0_dp
+            endif
             WRITE(iout,"(A,G25.15)") "Highest energy determinant is (approximately): ",REAL(TempHii,dp)
             write(iout,"(a,g25.15)") "Corresponding to a correlation energy of: ", real(temphii - hii, dp)
 !            WRITE(iout,"(A,F25.15)") "This means tau should be no more than about ",UpperTau
