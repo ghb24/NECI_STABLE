@@ -117,6 +117,12 @@ contains
         read_timer%timer_name = 'POPS-read'
         process_timer%timer_name = 'POPS-process'
         call set_timer(read_timer)
+        ! These values might not be present in some popsfile versions, causing
+        ! potential undefined behaviour
+        read_psingles = 0.0_dp
+        read_pparallel = 0.0_dp
+        read_tau = 0.0_dp
+        PopDiagSft = 0.0_dp
 
         if (tHDF5PopsRead) then
 
@@ -708,6 +714,7 @@ r_loop: do while (.not. tReadAllPops)
         logical :: tStoreDet, tEOF
 
         WalkerTemp = 0_n_int
+        flg_read = 0_n_int
         tStoreDet=.false.
         tEOF = .false.
         nread = 0
@@ -828,6 +835,11 @@ r_loop: do while(.not.tStoreDet)
         integer :: perturb_ncreate, perturb_nannihilate, PopBalanceBlocks
 
         character(len=*), parameter :: t_r = "read_popsfile_wrapper"
+
+        read_psingles = 0.0_dp
+        read_pparallel = 0.0_dp
+        read_tau = 0.0_dp
+        PopDiagSft = 0.0_dp
 
         ! Read the header.
         call open_pops_head(iunithead,formpops,binpops)
@@ -1289,6 +1301,7 @@ r_loop: do while(.not.tStoreDet)
 
         PopParBias = 0.0_dp
         PopPParallel = 0.0_dp
+        PopPSingles = 0.0_dp
         PopMultiSft = 0.0_dp
         PopBalanceBlocks = -1
         PopPreviousHistTau = .false.
