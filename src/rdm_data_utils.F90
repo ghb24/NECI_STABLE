@@ -368,7 +368,7 @@ contains
 
         ij = (i-1)*nbasis + j
         kl = (k-1)*nbasis + l
-        ijkl = (ij-1)*(nbasis**2) + kl
+        ijkl = (ij-1)*(int(nbasis, int_rdm)**2) + kl
 
     end subroutine calc_combined_rdm_label
 
