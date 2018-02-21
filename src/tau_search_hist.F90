@@ -595,10 +595,15 @@ contains
                     ! and if this is somehow cool in the histogramming 
                     ! approach.. this again is some kind of worst case 
                     ! adaptation.. hm.. todo
-                    tau_new = max_permitted_spawn * min(&
-                        pSingles / ratio_singles, &
-                        pDoubles * pParallel / ratio_para, &
-                        pDoubles * (1.0_dp - pParallel) / ratio_anti)
+                    if(abs(ratio_singles) > EPS .or. abs(ratio_para) > EPS &
+                         .or. abs(ratio_anti) > EPS) then
+                       tau_new = max_permitted_spawn * min(&
+                            pSingles / max(EPS,ratio_singles), &
+                            pDoubles * pParallel / max(EPS,ratio_para), &
+                            pDoubles * (1.0_dp - pParallel) / max(EPS,ratio_anti))
+                    else 
+                       tau_new = tau
+                    endif
 
                 end if
 
@@ -655,9 +660,12 @@ contains
 
                 else 
                     psingles_new = pSingles
-                    tau_new = max_permitted_spawn * & 
-                        min(pSingles / ratio_singles, pDoubles / ratio_doubles)
-
+                    if(abs(ratio_singles) > EPS .or. abs(ratio_doubles) > EPS) then
+                       tau_new = max_permitted_spawn * & 
+                            min(pSingles / max(EPS,ratio_singles), pDoubles / max(EPS,ratio_doubles))
+                    else 
+                       tau_new = tau
+                    endif
                 end if
             end if
         end if
