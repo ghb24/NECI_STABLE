@@ -131,6 +131,9 @@ module hdf5_popsfile
             nm_norm_sqr = 'norm_sqr', &
             nm_num_parts = 'num_parts'
 
+    integer(hsize_t), dimension(:,:), allocatable :: receivebuff
+    integer:: receivebuff_tag
+
     public :: write_popsfile_hdf5, read_popsfile_hdf5
     public :: add_pops_norm_contrib
 
@@ -175,14 +178,23 @@ contains
         call h5fcreate_f(filename, H5F_ACC_TRUNC_F, file_id, err, &
                          access_prp=plist_id)
         call h5pclose_f(plist_id, err)
-
+        write(6,*) "writing metadata"
         call write_metadata(file_id)
+        write(6,*) "writing calc_data"
         call write_calc_data(file_id)
+
+        call MPIBarrier(err)
+        write(6,*) "writing walkers"
         call write_walkers(file_id)
 
+        call MPIBarrier(err)
+        write(6,*) "closing popsfile"
         ! And we are done!
         call h5fclose_f(file_id, err)
         call h5close_f(err)
+
+        call MPIBarrier(err)
+        write(6,*) "popsfile write successful"
 #else
         call stop_all(t_r, 'HDF5 support not enabled at compile time')
 #endif
@@ -702,6 +714,8 @@ contains
         integer(hsize_t) :: mem_offset(2), write_offset(2)
         integer(hsize_t) :: dims(2), hyperdims(2)
         real(dp) :: all_parts(lenof_sign), all_norm_sqr(lenof_sign)
+        integer(hsize_t) :: block_size, block_start, block_end
+        integer(hsize_t), dimension(:,:), allocatable :: temp_dets
         integer :: ierr
 
         ! TODO: Add a (slower) fallback routine for weird cases, odd HDF libs
@@ -739,10 +753,12 @@ contains
         call write_dp_1d_attribute(wfn_grp_id, nm_norm_sqr, all_norm_sqr)
         call write_dp_1d_attribute(wfn_grp_id, nm_num_parts, all_parts)
 
+        !we do an explicitly buffered write to avoid performance problems with
+        !complicated hyperslabs + collective buffering
         ! Write out the determinant bit-representations
-        call write_2d_multi_arr_chunk_offset( &
+        call write_2d_multi_arr_chunk_buff( &
                 wfn_grp_id, nm_ilut, H5T_NATIVE_INTEGER_8, &
-                arr_2d_ptr(CurrentDets), arr_2d_dims(CurrentDets), &
+                CurrentDets, arr_2d_dims(CurrentDets), &
                 [int(nifd+1, hsize_t), int(TotWalkers, hsize_t)], & ! dims
                 [0_hsize_t, 0_hsize_t], & ! offset
                 [int(nifd+1, hsize_t), all_count], & ! all dims
@@ -753,9 +769,9 @@ contains
 !        if (.not. tUseRealCoeffs) &
 !            call stop_all(t_r, "This could go badly...")
 
-        call write_2d_multi_arr_chunk_offset( &
+        call write_2d_multi_arr_chunk_buff( &
                 wfn_grp_id, nm_sgns, H5T_NATIVE_REAL_8, &
-                arr_2d_ptr(CurrentDets), arr_2d_dims(CurrentDets), &
+                CurrentDets, arr_2d_dims(CurrentDets), &
                 [int(lenof_sign, hsize_t), int(TotWalkers, hsize_t)], & ! dims
                 [int(nOffSgn, hsize_t), 0_hsize_t], & ! offset
                 [int(lenof_sign, hsize_t), all_count], & ! all dims
@@ -804,6 +820,8 @@ contains
         real(dp) :: pops_num_parts(lenof_sign), pops_norm_sqr(lenof_sign)
         real(dp) :: norm(lenof_sign), parts(lenof_sign)
         logical :: running, any_running
+        integer(hsize_t), dimension(:,:), allocatable :: temp_ilut, temp_sgns
+        integer :: temp_ilut_tag, temp_sgns_tag, rest
 
         ! TODO:
         ! - Read into a relatively small buffer. Make this such that all the
@@ -849,9 +867,10 @@ contains
         ! How many particles should each processor read in (try and distribute
         ! this as uniformly as possible. Also calculate the associated data
         ! offsets
-        block_size = all_count / nProcessors
-        counts = block_size
-        counts(nProcessors - 1) = all_count - sum(counts(0:nProcessors-2))
+        counts = all_count / nProcessors
+        rest=mod(all_count,nProcessors)
+        if(rest.gt.0) counts(0:rest-1)=counts(0:rest-1)+1
+
         if (sum(counts) /= all_count .or. any(counts < 0)) &
             call stop_all(t_r, "Invalid particles counts")
         do proc = 0, nProcessors - 1
@@ -873,15 +892,17 @@ contains
         call check_dataset_params(ds_sgns, nm_sgns, 8_hsize_t, H5T_FLOAT_F, &
                                   [int(lenof_sign, hsize_t), all_count])
 
-        ! The largest block of walkers that we should read are the walkers
-        ! that would fit into _one_ processors section of the spawned list.
-        block_size = MaxSpawned
+        !limit the buffer size per MPI task to 50MB or MaxSpawned entries
+        block_size=50000000/(bit_rep_width*lenof_sign)/sizeof(SpawnedParts(1,1))
+        block_size = min(block_size,MaxSpawned)
+#if 0
         do proc = 0, nProcessors - 2
             block_size = min(block_size, &
                 InitialSpawnedSlots(proc+1) - InitialSpawnedSlots(proc))
         end do
         block_size = min(block_size, &
                 MaxSpawned - InitialSpawnedSlots(nProcessors-1))
+#endif
 
         ! Initialise relevant counters
         CurrWalkers = 0
@@ -900,8 +921,16 @@ contains
             last_part = offsets(iProcIndex + 1) - 1
         end if
         block_end = min(block_start + block_size - 1, last_part)
+        this_block_size = block_end - block_start + 1
+
         running = .true.
         any_running = .true.
+
+        allocate(temp_ilut(int(bit_rep_width),int(this_block_size)))
+        call LogMemAlloc('temp_ilut',size(temp_ilut),sizeof(temp_ilut(1,1)),'read_walkers',temp_ilut_tag,err)
+
+        allocate(temp_sgns(int(lenof_sign),int(this_block_size)))
+        call LogMemAlloc('temp_sgns',size(temp_sgns),sizeof(temp_sgns(1,1)),'read_walkers',temp_sgns_tag,err)
 
         do while (any_running)
 
@@ -912,14 +941,15 @@ contains
             else
                 this_block_size = 0
             end if
-            call read_walker_block(ds_ilut, ds_sgns, block_start, &
-                                   this_block_size, bit_rep_width)
 
-            call assign_dets_to_procs(this_block_size)
-            nreceived = communicate_read_walkers()
-            call add_new_parts(dets, nreceived, CurrWalkers, norm, parts)
+            call read_walker_block_buff(ds_ilut, ds_sgns, block_start, &
+                                   this_block_size, bit_rep_width, temp_ilut, temp_sgns)
+
+            call distribute_and_add_walkers(this_block_size, temp_ilut, temp_sgns, dets, &
+                 nreceived, CurrWalkers, norm, parts)
+
             nread_walkers = nread_walkers + nreceived
-
+            
             ! And update for the next block
             if (running) then
                 block_start = block_end + 1
@@ -934,6 +964,11 @@ contains
 
         end do
 
+        deallocate(temp_ilut, temp_sgns)
+        call LogMemDeAlloc('read_walkers',temp_ilut_tag)
+        call LogMemDeAlloc('read_walkers',temp_sgns_tag)
+
+
         call h5dclose_f(ds_sgns, err)
         call h5dclose_f(ds_ilut, err)
         call h5gclose_f(grp_id, err)
@@ -947,8 +982,8 @@ contains
 
     end subroutine read_walkers
 
-    subroutine read_walker_block(ds_ilut, ds_sgns, block_start, block_size, &
-                                 bit_rep_width)
+    subroutine read_walker_block_buff(ds_ilut, ds_sgns, block_start, block_size, &
+                                 bit_rep_width, temp_ilut, temp_sgns)
 
         use bit_rep_data, only: NIfD
         use FciMCData, only: SpawnedParts2
@@ -964,104 +999,161 @@ contains
         integer(hid_t), intent(in) :: ds_ilut, ds_sgns
         integer(hsize_t), intent(in) :: block_start, block_size
         integer(int32), intent(in) :: bit_rep_width
-
+        integer(hsize_t), dimension(:,:) :: temp_ilut, temp_sgns
         integer(hid_t) :: plist_id
 
 #ifdef __INT64
+
         call read_2d_multi_chunk( &
-                ds_ilut, SpawnedParts2, H5T_NATIVE_INTEGER_8, &
+                ds_ilut, temp_ilut, H5T_NATIVE_INTEGER_8, &
                 [int(bit_rep_width, hsize_t), block_size], &
                 [0_hsize_t, block_start], &
                 [0_hsize_t, 0_hsize_t])
 
         call read_2d_multi_chunk( &
-                ds_sgns, SpawnedParts2, H5T_NATIVE_REAL_8, &
-                [int(lenof_sign, hsize_t), block_size], &
-                [0_hsize_t, block_start], &
-                [int(bit_rep_width, hsize_t), 0_hsize_t])
+             ds_sgns, temp_sgns, H5T_NATIVE_REAL_8, &
+             [int(lenof_sign, hsize_t), block_size], &
+             [0_hsize_t, block_start], &
+             [0_hsize_t, 0_hsize_t])
+
 #else
         call stop_all("read_walker_block", "32-64bit conversion not yet implemented")
 #endif
 
         ! TODO: Flags here!!!
 
-    end subroutine read_walker_block
+    end subroutine read_walker_block_buff
 
-    subroutine assign_dets_to_procs(block_size)
+
+    subroutine distribute_and_add_walkers(block_size, temp_ilut, temp_sgns, dets, &
+         nreceived, CurrWalkers, norm, parts)
+      integer(n_int), intent(out) :: dets(:, :)
+      integer(int64), intent(inout) :: CurrWalkers
+      integer(hsize_t) :: block_size
+      integer:: nreceived
+      real(dp), intent(inout) :: norm(lenof_sign), parts(lenof_sign)
+      integer(hsize_t):: temp_ilut(:,:), temp_sgns(:,:)
+      integer:: sendcount(0:nProcessors-1), nlocal=0
+
+      call assign_dets_to_procs_buff(block_size, temp_ilut, temp_sgns, sendcount)
+
+      !add elements that are on the right processor already
+!#define localfirst
+#undef localfirst
+#ifdef localfirst
+      nlocal=sendcount(iProcIndex)
+      call add_new_parts(dets, nlocal, CurrWalkers, norm, parts)      
+      sendcount(iProcIndex)=0
+#endif
+      !communicate the remaining elements
+      nreceived = communicate_read_walkers_buff(sendcount)
+      call add_new_parts(dets, nreceived, CurrWalkers, norm, parts)
+
+      if (allocated(receivebuff)) then
+         deallocate(receivebuff)
+         call LogMemDeAlloc('distribute_and_add',receivebuff_tag)
+      end if
+
+      nreceived=nreceived+nlocal
+
+    end subroutine distribute_and_add_walkers
+
+    subroutine assign_dets_to_procs_buff(block_size, temp_ilut, temp_sgns, sendcount)
 
         use load_balance_calcnodes, only: DetermineDetNode
         use bit_reps, only: decode_bit_det, extract_sign
-        use FciMCData, only: SpawnedParts2, SpawnedParts, ValidSpawnedList, &
-                             InitialSpawnedSlots
+        use FciMCData, only: SpawnedParts2, SpawnedParts, ValidSpawnedList
+
         use Determinants, only: write_det
-        use bit_rep_data, only: NIfD
+        use bit_rep_data, only: NIfD, NIFBCast
         use SystemData, only: nel
 
         integer(hsize_t), intent(in) :: block_size
         character(*), parameter :: t_r = 'distribute_walkers_from_block'
-
-        integer :: det(nel), j, proc, ierr
+        integer(hsize_t), dimension(:,:) :: temp_ilut, temp_sgns
+        integer(hsize_t) :: onepart(0:NIfBCast)
+        integer :: det(nel), p, j, proc, ierr, sizeilut, targetproc(block_size)
+        integer:: sendcount(0:nProcessors-1), index, index2
         logical :: list_full
 
-        ! Reset target locations for walkers
-        ValidSpawnedList = InitialSpawnedSlots
+        sizeilut=size(temp_ilut,1)
 
-        ! Iterate through walkers in SpawnedParts2. Decode & distribute to
-        ! Spawnedlist
+        ! Iterate through walkers in temp_ilut+temp_sgns and determine the target processor. 
+        onepart=0
+        sendcount=0
         do j = 1, block_size
-
+            onepart(0:sizeilut-1)=temp_ilut(:,j)
+            onepart(sizeilut:sizeilut+int(lenof_sign)-1)=temp_sgns(:,j)
             ! Which processor does this determinant live on?
-            call decode_bit_det(det, SpawnedParts2(:, j))
+            call decode_bit_det(det, onepart)
             proc = DetermineDetNode(nel, det, 0)
-
-#ifdef __DEBUG
-            ! Check that we aren't overrunning any lists. This can be a debug
-            ! only check, as we have set the max block_size such that it will
-            ! always fit.
-            list_full = .false.
-            if (proc == nNodes - 1) then
-                if (ValidSpawnedList(proc) > MaxSpawned) list_full = .true.
-            else
-                if (ValidSpawnedList(proc) >= InitialSpawnedSlots(proc+1)) &
-                    list_full = .true.
-            end if
-            if (list_full) &
-                call stop_all(t_r, 'Spawning list overflow')
+            targetproc(j)=proc
+            sendcount(proc)=sendcount(proc)+1
+        end do
+        
+        ! Write the elements to SpawnedParts in the correct order for sending
+        index=1
+        index2=1
+        do p = 0, nProcessors-1
+#ifdef localfirst
+           if (p.eq.iProcIndex) then
+#else
+           if (.false.) then
 #endif
-
-            ! Add the determinant to the correct place in the spawnedlists
-            SpawnedParts(:, ValidSpawnedList(proc)) = SpawnedParts2(:, j)
-            ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
-
+              !elements that don't have to be communicated are written to SpawnedParts2 
+              do j = 1, block_size
+                 if(targetproc(j).eq.p) then
+                    onepart(0:sizeilut-1)=temp_ilut(:,j)
+                    onepart(sizeilut:sizeilut+int(lenof_sign)-1)=temp_sgns(:,j)
+                    SpawnedParts2(:,index2)=onepart
+                    index2=index2+1
+                 end if
+              end do
+           else
+              !elements that have to be sent to other procs are written to SpawnedParts 
+              do j = 1, block_size
+                 if(targetproc(j).eq.p) then
+                    onepart(0:sizeilut-1)=temp_ilut(:,j)
+                    onepart(sizeilut:sizeilut+int(lenof_sign)-1)=temp_sgns(:,j)
+                    SpawnedParts(:,index)=onepart
+                    index=index+1
+                 end if
+              end do
+           end if
         end do
 
-    end subroutine assign_dets_to_procs
+    end subroutine assign_dets_to_procs_buff
 
-    function communicate_read_walkers() result(num_received)
 
+    function communicate_read_walkers_buff(sendcounts) result(num_received)
+        integer:: sendcounts(0:nProcessors-1)
         integer :: num_received
+        integer(int64) :: lnum_received
 
-        integer(MPIArg) :: sendCounts(nProcessors), recvcounts(nProcessors)
-        integer(MPIArg) :: disps(nProcessors), recvdisps(nProcessors)
+        integer(MPIArg) :: recvcounts(0:nProcessors-1)
+        integer(MPIArg) :: disps(0:nProcessors-1), recvdisps(0:nProcessors-1)
+
         integer :: j, ierr
 
-        ! Communicate the number of particles that need to go to each proc
-        ! n.b. switch from one-based to zero-based indices.
-        disps(1) = 0
-        sendcounts(1) = ValidSpawnedList(0) - 1
-        do j = 2, nProcessors
-            disps(j) = InitialSpawnedSlots(j-1) - 1
-            sendcounts(j) = ValidSpawnedList(j-1) - InitialSpawnedSlots(j-1)
+
+        !offsets for data to the different procs
+        disps(0) = 0
+        do j = 1, nProcessors-1
+            disps(j) = disps(j-1)+sendcounts(j-1)
         end do
+
+        ! Communicate the number of particles that need to go to each proc
         call MPIAllToAll(sendcounts, 1, recvcounts, 1, ierr)
+
 
         ! We want the data to be contiguous after the move. So calculate the
         ! offsets
-        recvdisps(1) = 0
-        do j = 2, nProcessors
+        recvdisps(0) = 0
+        do j = 1, nProcessors-1
             recvdisps(j) = recvdisps(j-1) + recvcounts(j-1)
         end do
-        num_received = recvdisps(nProcessors) + recvcounts(nProcessors)
+        num_received = recvdisps(nProcessors-1) + recvcounts(nProcessors-1)
+        lnum_received = recvdisps(nProcessors-1) + recvcounts(nProcessors-1)
 
         ! Adjust offsets so that they match the size of the array
         recvcounts = recvcounts * size(SpawnedParts, 1)
@@ -1069,10 +1161,21 @@ contains
         sendcounts = sendcounts * size(SpawnedParts, 1)
         disps = disps * size(SpawnedParts, 1)
 
-        call MPIAllToAllV(SpawnedParts, sendcounts, disps, SpawnedParts2, &
-                          recvcounts, recvdisps, ierr)
-
-    end function communicate_read_walkers
+        if (num_received.gt.size(SpawnedParts2,2)) then
+           ! there could in principle be a memory problem because we are not limiting the
+           ! size of receivebuff.
+           write(6,*) 'Allocating additional buffer for communication on Processor ', iProcIndex, 'with ', &
+                num_received*size(SpawnedParts,1)*sizeof(SpawnedParts(1,1))/1000000, 'MB'
+           allocate(receivebuff(size(SpawnedParts,1),num_received))
+           call LogMemAlloc('receivebuff',size(receivebuff),sizeof(receivebuff(1,1)),&
+                'communicate_read_walkers',receivebuff_tag,ierr)
+           call MPIAllToAllV(SpawnedParts, sendcounts, disps, receivebuff, &
+                recvcounts, recvdisps, ierr)
+        else
+           call MPIAllToAllV(SpawnedParts, sendcounts, disps, SpawnedParts2, &
+                recvcounts, recvdisps, ierr)
+        end if
+      end function communicate_read_walkers_buff
 
     subroutine add_new_parts(dets, nreceived, CurrWalkers, norm, parts)
 
@@ -1086,28 +1189,47 @@ contains
         integer(int64), intent(inout) :: CurrWalkers
         real(dp), intent(inout) :: norm(lenof_sign), parts(lenof_sign)
 
-        integer :: j
+        integer(int64) :: j
         real(dp) :: sgn(lenof_sign)
 
             ! TODO: inum_runs == 2, PopNIfSgn == 1
-
-        do j = 1, nreceived
-
-            ! Check that the site is occupied, and passes the relevant
-            ! thresholds before adding it to the system.
-            call extract_sign(SpawnedParts2(: ,j), sgn)
-            if (any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) then
-
-                ! Add this site to the main list
-                CurrWalkers = CurrWalkers + 1
-                dets(:, CurrWalkers) = SpawnedParts2(:, j)
-                call add_pops_norm_contrib(dets(:, CurrWalkers))
-                call extract_sign(SpawnedParts2(:,j), sgn)
-                norm = norm + sgn**2
-                parts = parts + abs(sgn)
-            end if
-        end do
-
+        if (allocated(receivebuff)) then
+           
+           do j = 1, nreceived
+              
+              ! Check that the site is occupied, and passes the relevant
+              ! thresholds before adding it to the system.
+              call extract_sign(receivebuff(: ,j), sgn)
+              if (any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) then
+                 
+                 ! Add this site to the main list
+                 CurrWalkers = CurrWalkers + 1
+                 dets(:, CurrWalkers) = receivebuff(:, j)
+                 call add_pops_norm_contrib(dets(:, CurrWalkers))
+                 call extract_sign(receivebuff(:,j), sgn)
+                 norm = norm + sgn**2
+                 parts = parts + abs(sgn)
+              end if
+           end do
+        else
+           do j = 1, nreceived
+              
+              ! Check that the site is occupied, and passes the relevant
+              ! thresholds before adding it to the system.
+              call extract_sign(SpawnedParts2(: ,j), sgn)
+              if (any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) then
+                 
+                 ! Add this site to the main list
+                 CurrWalkers = CurrWalkers + 1
+                 dets(:, CurrWalkers) = SpawnedParts2(:, j)
+                 call add_pops_norm_contrib(dets(:, CurrWalkers))
+                 call extract_sign(SpawnedParts2(:,j), sgn)
+                 norm = norm + sgn**2
+                 parts = parts + abs(sgn)
+              end if
+           end do
+           
+        endif
         ! TODO: Add check that we have read in the correct number of parts
 
     end subroutine

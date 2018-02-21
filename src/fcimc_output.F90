@@ -1458,6 +1458,7 @@ contains
         ! Too many particles?
         rat = real(TotWalkersNew,dp) / real(MaxWalkersPart,dp)
         if (rat > 0.95_dp) then
+#ifdef __DEBUG
             if(tMolpro) then
                 write (iout, '(a)') '*WARNING* - Number of particles/determinants &
                                  &has increased to over 95% of allotted memory. &
@@ -1467,6 +1468,17 @@ contains
                                  &has increased to over 95% of allotted memory. &
                                  &Errors imminent. Increase MEMORYFACPART, or reduce rate of growth.'
             endif
+#else
+            if(tMolpro) then
+                write (*,*) '*WARNING* - Number of particles/determinants &
+                                 &has increased to over 95% of allotted memory on task ', iProcIndex, '. &
+                                 &Errors imminent. Increase MEMORYFACWALKERS, or reduce rate of growth.'
+            else
+                write (*,*) '*WARNING* - Number of particles/determinants &
+                                 &has increased to over 95% of allotted memory on task ', iProcIndex, '. &
+                                 &Errors imminent. Increase MEMORYFACPART, or reduce rate of growth.'
+            endif
+#endif
             call neci_flush(iout)
         end if
 
@@ -1476,6 +1488,7 @@ contains
                 rat = real(ValidSpawnedList(i) - InitialSpawnedSlots(i),dp) /&
                              real(InitialSpawnedSlots(1), dp)
                 if (rat > 0.95_dp) then
+#ifdef __DEBUG
                     if(tMolpro) then
                         write (iout, '(a)') '*WARNING* - Highest processor spawned &
                                          &particles has reached over 95% of allotted memory.&
@@ -1485,12 +1498,24 @@ contains
                                          &particles has reached over 95% of allotted memory.&
                                          &Errors imminent. Increase MEMORYFACSPAWN, or reduce spawning rate.'
                     endif
+#else
+                    if(tMolpro) then
+                        write (*,*) '*WARNING* - Highest processor spawned &
+                                         &particles has reached over 95% of allotted memory on task ',iProcIndex,' .&
+                                         &Errors imminent. Increase MEMORYFACSPAWNED, or reduce spawning rate.'
+                    else
+                        write (*,*) '*WARNING* - Highest processor spawned &
+                                         &particles has reached over 95% of allotted memory on task ',iProcIndex,' .&
+                                         &Errors imminent. Increase MEMORYFACSPAWN, or reduce spawning rate.'
+                    endif
+#endif
                     call neci_flush(iout)
                 endif
             enddo
         else
             rat = real(ValidSpawnedList(0), dp) / real(MaxSpawned, dp)
             if (rat > 0.95_dp) then
+#ifdef __DEBUG
                 if(tMolpro) then
                     write (iout, '(a)') '*WARNING* - Highest processor spawned &
                                      &particles has reached over 95% of allotted memory.&
@@ -1500,6 +1525,17 @@ contains
                                      &particles has reached over 95% of allotted memory.&
                                      &Errors imminent. Increase MEMORYFACSPAWN, or reduce spawning rate.'
                 endif
+#else
+                if(tMolpro) then
+                    write (*,*) '*WARNING* - Highest processor spawned &
+                                     &particles has reached over 95% of allotted memory on task ',iProcIndex,' .&
+                                     &Errors imminent. Increase MEMORYFACSPAWNED, or reduce spawning rate.'
+                else
+                    write (*,*) '*WARNING* - Highest processor spawned &
+                                     &particles has reached over 95% of allotted memory on task ',iProcIndex,' .&
+                                     &Errors imminent. Increase MEMORYFACSPAWN, or reduce spawning rate.'
+                endif
+#endif
                 call neci_flush(iout)
             endif
         endif
