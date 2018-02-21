@@ -1,7 +1,7 @@
 
 MODULE UMatCache
     use constants, only: dp,sizeof_int,int64
-    use SystemData, only: tROHF,tStoreSpinOrbs
+    use SystemData, only: tROHF,tStoreSpinOrbs, tComplexWalkers_RealInts
     use util_mod, only: swap
     use sort_mod
     use MemoryManager, only: TagIntType
@@ -224,11 +224,13 @@ MODULE UMatCache
              UMatInd=(int(B,int64)*int(B-1,int64))/2+int(A,int64)
          ENDIF
 #ifdef __CMPLX
+         if(.not. tComplexWalkersRealInts) then
          UMatInd = (UmatInd-1)*2 + 1
          !We need to test whether we have swapped i and k or j and l independantly of each other
          !If we have done this, it is one of the 'other' integrals - add one.
          if (((I.gt.K).and.(J.lt.L)) .or. ((I.lt.K).and.(J.gt.L))) then
             UMatInd = UMatInd + 1
+         endif
          endif
 #endif
       END FUNCTION UMatInd

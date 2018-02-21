@@ -131,7 +131,12 @@ module hdf5_popsfile
             nm_norm_sqr = 'norm_sqr', &
             nm_num_parts = 'num_parts'
 
+#ifdef __USE_HDF
+    ! hsize_t is only defined in the hdf5 library
     integer(hsize_t), dimension(:,:), allocatable :: receivebuff
+#else
+    integer, dimension(:,:), allocatable :: receivebuff
+#endif
     integer:: receivebuff_tag
 
     public :: write_popsfile_hdf5, read_popsfile_hdf5
