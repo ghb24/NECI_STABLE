@@ -1303,6 +1303,8 @@ r_loop: do while(.not.tStoreDet)
         PopPParallel = 0.0_dp
         PopPSingles = 0.0_dp
         PopMultiSft = 0.0_dp
+        PopMaxDeathCpt = 0.0_dp
+        PopTotImagTime = 0.0_dp
         PopBalanceBlocks = -1
         PopPreviousHistTau = .false.
         if(iProcIndex.eq.root) then
