@@ -1,17 +1,17 @@
-[mneci]
-exe = ../build/bin/mneci
+[neci]
+exe = ../hdf5_build/bin/neci
 vcs = git
 inputs_args = ('*.inp', '')
 extract_program = ./tools/extract.py
 
-[neci]
-exe = ../build/bin/neci
+[mneci]
+exe = ../hdf5_build/bin/mneci
 vcs = git
 inputs_args = ('*.inp', '')
 extract_program = ./tools/extract.py
 
 [dneci]
-exe = ../build/bin/dneci
+exe = ../hdf5_build/bin/dneci
 vcs = git
 inputs_args = ('*.inp', '')
 extract_program = ./tools/extract.py
@@ -22,13 +22,13 @@ default_program = neci
 diff = vimdiff
 
 [kmneci]
-exe = ../build/bin/kmneci
+exe = ../hdf5_build/bin/kmneci
 vcs = git
 inputs_args = ('*.inp', '')
 extract_program = ./tools/extract.py
 
 [kneci]
-exe = ../build/bin/kneci
+exe = ../hdf5_build/bin/kneci
 vcs = git
 inputs_args = ('*.inp', '')
 extract_program = ./tools/extract.py

@@ -127,7 +127,7 @@ module fcimc_initialisation
     use gndts_mod, only: gndts
     use excit_gen_5, only: gen_excit_4ind_weighted2
     use csf, only: get_csf_helement
-    use tau_search, only: init_tau_search
+    use tau_search, only: init_tau_search, max_death_cpt
     use fcimc_helper, only: CalcParentFlag, update_run_reference
     use cont_time_rates, only: spawn_rate_full, oversample_factors, &
                                secondary_gen_store, ostag
@@ -199,6 +199,10 @@ contains
         ! Initialise allocated arrays with input data
         TargetGrowRate(:) = InputTargetGrowRate
         TargetGrowRateWalk(:) = InputTargetGrowRateWalk
+
+        ! Initialize
+        AllTotParts = 0.0_dp
+        AllTotPartsOld = 0.0_dp
 
         IF(TDebug) THEN
 !This will open a file called LOCALPOPS-"iprocindex" on unit number 11 on every node.
@@ -716,7 +720,11 @@ contains
             ELSE
                 TempHii = get_helement (HighEDet, HighEDet, 0)
             ENDIF
-            UpperTau = 1.0_dp/REAL(TempHii-Hii,dp)
+            if(abs(TempHii - Hii) > EPS) then
+               UpperTau = 1.0_dp/REAL(TempHii-Hii,dp)
+            else
+               UpperTau = 0.0_dp
+            endif
             WRITE(iout,"(A,G25.15)") "Highest energy determinant is (approximately): ",REAL(TempHii,dp)
             write(iout,"(a,g25.15)") "Corresponding to a correlation energy of: ", real(temphii - hii, dp)
 !            WRITE(iout,"(A,F25.15)") "This means tau should be no more than about ",UpperTau
@@ -788,6 +796,9 @@ contains
         PreviousCycles=0
         NoBorn=0.0_dp
         SpawnFromSing=0
+        max_cyc_spawn = 0.0_dp
+        ! in case tau-search is off
+        max_death_cpt = 0.0_dp
         NoDied=0
         HFCyc=0.0_dp
         ENumCyc=0.0_dp
@@ -849,6 +860,10 @@ contains
         AbsProjE = 0
         norm_semistoch = 0
         norm_psi = 0
+        bloom_sizes = 0
+        proje_iter_tot = 0.0_dp
+        ! initialize as one (kind of makes sense for a norm)
+        all_norm_psi_squared = 1.0_dp
         tSoftExitFound = .false.
 
         ! Initialise the fciqmc counters
@@ -2275,7 +2290,12 @@ contains
         tHPHF = .false.
         tHPHFInts = .false.
 
+        ! do not pass an unallocated array, so dummy-allocate
+        allocate(Hamil(0))
+        allocate(Lab(0))
         CALL Detham(nCASDet,NEl,CASFullDets,Hamil,Lab,nRow,.true.,ICMax,GC,tMC)
+        deallocate(Lab)
+        deallocate(Hamil)
         LenHamil=GC
         write(iout,*) "Allocating memory for hamiltonian: ",LenHamil*2
         Allocate(Hamil(LenHamil),stat=ierr)
@@ -2908,6 +2928,8 @@ contains
             nSing_spindiff1 = 0
             nDoub_spindiff1 = 0
             nDoub_spindiff2 = 0
+            pDoub_spindiff1 = 0.0_dp
+            pDoub_spindiff2 = 0.0_dp
         endif
 
 !NSing=Number singles from HF, nDoub=No Doubles from HF
@@ -2930,12 +2952,12 @@ contains
             iTotal=nSingles + nDoubles + nSing_spindiff1 + nDoub_spindiff1 + nDoub_spindiff2 + ncsf
 
         else
-            iTotal=nSingles + nDoubles + ncsf
             if (tKPntSym) THEN
                 call enumerate_sing_doub_kpnt(exFlag, .false., nSingles, nDoubles, .false.) 
             else
                 call CountExcitations3(HFDet_loc,exflag,nSingles,nDoubles)
             endif
+            iTotal=nSingles + nDoubles + ncsf
         endif
 
         IF(tHub.or.tUEG) THEN

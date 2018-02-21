@@ -1258,7 +1258,7 @@ contains
         call return_most_populated_states(iHighPopWrite, LargestWalkers, norm)
 
         call MpiSum(norm,allnorm)
-        norm=sqrt(allnorm)
+        if(iProcIndex.eq.Root) norm=sqrt(allnorm)
 
 !        write(iout,*) "Highest weighted dets on this process:"
 !        do i=1,iHighPopWrite

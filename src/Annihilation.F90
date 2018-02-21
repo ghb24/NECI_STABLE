@@ -573,6 +573,8 @@ module AnnihilationMod
         do i = 1, ValidSpawned
 
             call decode_bit_det(nJ, SpawnedParts(:,i)) 
+            ! Just to be sure
+            CurrentSign = 0.0_dp
             ! Search the hash table HashIndex for the determinant defined by
             ! nJ and SpawnedParts(:,i). If it is found, tSuccess will be
             ! returned .true. and PartInd will hold the position of the
