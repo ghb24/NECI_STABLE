@@ -1043,8 +1043,8 @@ contains
       call assign_dets_to_procs_buff(block_size, temp_ilut, temp_sgns, sendcount)
 
       !add elements that are on the right processor already
-!#define localfirst
-#undef localfirst
+#define localfirst
+!#undef localfirst
 #ifdef localfirst
       nlocal=sendcount(iProcIndex)
       call add_new_parts(dets, nlocal, CurrWalkers, norm, parts)      

@@ -1042,7 +1042,7 @@ system: do
             
          case("COMPLEXWALKERS-REALINTS")
             ! We have real orbitals and integrals, but the walker weights are complex
-            tComplexWalkers_RealInts
+            tComplexWalkers_RealInts = .true.
 
         case("SYSTEM-REPLICAS")
             ! How many copies of the simulation do we want to run in parallel?
