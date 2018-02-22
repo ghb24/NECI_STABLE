@@ -63,7 +63,8 @@ contains
         character(*), intent(in) :: nm
         integer(int32), intent(in) :: val
 
-        integer(hid_t) :: dataspace, attribute, err
+        integer(hid_t) :: dataspace, attribute
+        integer :: err
 
         ! Create a scalar dataspace
         call h5screate_f(H5S_SCALAR_F, dataspace, err)
@@ -87,7 +88,8 @@ contains
         character(*), intent(in) :: nm
         integer(int64), intent(in) :: val
 
-        integer(hid_t) :: dataspace, attribute, err
+        integer(hid_t) :: dataspace, attribute
+        integer :: err
         integer(int32), pointer :: ptr
 
         call h5screate_f(H5S_SCALAR_F, dataspace, err)
@@ -113,7 +115,8 @@ contains
         integer(int64), intent(in), optional :: default
         character(*), parameter :: t_r = 'read_int64_attribute'
 
-        integer(hid_t) :: attribute, err
+        integer(hid_t) :: attribute
+        integer :: err
         logical(hid_t) :: exists_
         integer(int32), pointer :: ptr
 
@@ -143,7 +146,8 @@ contains
         character(*), intent(in) :: nm
         character(*), intent(in) :: val
 
-        integer(hid_t) :: dataspace, attribute, type_id, err
+        integer(hid_t) :: dataspace, attribute, type_id
+        integer :: err
 
         ! Create an HDF type associated with a fortran string of _exactly_
         ! this length
@@ -166,7 +170,8 @@ contains
         character(*), intent(in) :: nm
         real(dp), intent(in) :: val(:)
 
-        integer(hid_t) :: dataspace, attribute, err
+        integer(hid_t) :: dataspace, attribute
+        integer :: err
         integer(hsize_t) :: dims(1)
 
         dims = [size(val)]
@@ -191,7 +196,8 @@ contains
         real(dp), intent(in), optional :: default
         character(*), parameter :: t_r = 'read_dp_1d_attribute'
 
-        integer(hid_t) :: attribute, err
+        integer(hid_t) :: attribute
+        integer :: err
         integer(hsize_t) :: dims(1)
         logical(hid_t) :: exists_
 
@@ -243,7 +249,8 @@ contains
         real(dp), intent(in), optional :: default
         character(*), parameter :: t_r = 'read_dp_scalar'
 
-        integer(hid_t) :: dataset, err
+        integer(hid_t) :: dataset
+        integer :: err
         logical(hid_t) :: exists_
 
         ! Test if the relevant key exists
@@ -275,7 +282,8 @@ contains
         character(*), intent(in) :: nm
         logical(int32), intent(in) :: val
 
-        integer(hid_t) :: dataspace, dataset, err
+        integer(hid_t) :: dataspace, dataset
+        integer :: err
         integer(int32) :: tmp
 
         ! Store this as an integral value!
@@ -319,7 +327,8 @@ contains
         logical(int32), intent(in), optional :: default
         character(*), parameter :: t_r = 'read_log_scalar_4'
 
-        integer(hid_t) :: dataset, err
+        integer(hid_t) :: dataset
+        integer :: err
         logical(hid_t) :: exists_
         integer(int32) :: tmp
 
@@ -413,7 +422,8 @@ contains
         integer(int64), intent(in), optional :: default
         character(*), parameter :: t_r = 'read_int64_scalar'
 
-        integer(hid_t) :: dataset, err
+        integer(hid_t) :: dataset
+        integer :: err
         logical(hid_t) :: exists_
         integer(int32), pointer :: ptr
 
@@ -469,7 +479,8 @@ contains
         character(*), intent(in) :: nm
         integer(int64), intent(in), target :: val(:)
 
-        integer(hid_t) :: dataspace, dataset, err
+        integer(hid_t) :: dataspace, dataset
+        integer :: err
         integer(hsize_t) :: dims(1)
         integer(int32), pointer :: ptr(:)
 
@@ -509,7 +520,8 @@ contains
         character(*), intent(in) :: nm
         real(dp), intent(in), target :: val(:)
 
-        integer(hid_t) :: dataspace, dataset, err
+        integer(hid_t) :: dataspace, dataset
+        integer :: err
         integer(hsize_t) :: dims(1)
 
         ! Create the appropriate dataspace
@@ -539,7 +551,8 @@ contains
         real(dp), intent(in), optional :: default(:)
         character(*), parameter :: t_r = 'read_dp_1d_dataset'
 
-        integer(hid_t) :: dataset, err, type_id
+        integer(hid_t) :: dataset, type_id
+        integer :: err
         integer(hsize_t) :: dims(1)
         logical(hid_t) :: exists_
 
@@ -574,7 +587,7 @@ contains
 
         ! Construct a datatype for complex numbers (dp)
         integer(hid_t), intent(out) :: dtype
-        integer(hid_t) :: err
+        integer :: err
 
         ! Complex numbers are two 8-byte floating points long
         call h5tcreate_f(H5T_COMPOUND_F, 16_hsize_t, dtype, err)
@@ -590,7 +603,8 @@ contains
         character(*), intent(in) :: nm
         complex(dp), intent(in), target :: val(:)
 
-        integer(hid_t) :: dataspace, dataset, dtype, err
+        integer(hid_t) :: dataspace, dataset, dtype
+        integer :: err
         integer(hsize_t) :: dims(1)
         integer(int32), pointer :: ptr(:)
 
@@ -623,7 +637,8 @@ contains
         complex(dp), intent(in), optional :: default(:)
         character(*), parameter :: t_r = 'read_dp_1d_dataset'
 
-        integer(hid_t) :: dataset, err, type_id
+        integer(hid_t) :: dataset, type_id
+        integer :: err
         integer(hsize_t) :: dims(1)
         integer(int32), pointer :: ptr(:)
         logical(hid_t) :: exists_
@@ -682,7 +697,8 @@ contains
         integer(hsize_t), intent(in) :: dataspace_dims(2), dataspace_offset(2)
 
         integer(hsize_t) :: buff_dims(2)
-        integer(hid_t) :: memspace, dataspace, dataset, plist_id, err
+        integer(hid_t) :: memspace, dataspace, dataset, plist_id
+        integer :: err
         integer(hsize_t), dimension(:,:), allocatable :: arr_buff
         integer(hsize_t) :: block_start, block_end, block_size, this_block_size
         type(c_ptr) :: cptr
@@ -759,7 +775,8 @@ contains
         integer(int64), intent(out) :: val(:,:)
         integer(hsize_t), intent(in) :: dims(2), src_offset(2), tgt_offset(2)
 
-        integer(hid_t) :: plist_id, dataspace, memspace, err
+        integer(hid_t) :: plist_id, dataspace, memspace
+        integer :: err
         integer(hsize_t) :: mem_dims(2)
         integer(int32), pointer :: ptr(:,:)
 
@@ -808,7 +825,8 @@ contains
         integer(int32), intent(in), optional :: default
         character(*), parameter :: t_r = 'read_int32_attribute_main'
 
-        integer(hid_t) :: attribute, err
+        integer(hid_t) :: attribute
+        integer :: err
         logical(hid_t) :: exists_
 
         call h5aexists_f(parent, nm, exists_, err)
@@ -863,7 +881,8 @@ contains
         logical, intent(in), optional :: required
         character(*), parameter :: t_r = 'read_string_attribute'
 
-        integer(hid_t) :: attribute, err, type_id
+        integer(hid_t) :: attribute, type_id
+        integer :: err
         integer(hsize_t) :: sz, buf_sz
         logical(hid_t) :: exists_
 
@@ -933,7 +952,8 @@ contains
         integer(int64), intent(in), optional :: default(:)
         character(*), parameter :: t_r = 'read_int64_1d_dataset_8'
 
-        integer(hid_t) :: dataset, err, type_id
+        integer(hid_t) :: dataset, type_id
+        integer :: err
         integer(hsize_t) :: dims(1)
         logical(hid_t) :: exists_
         integer(int32), pointer :: ptr(:)
@@ -1029,7 +1049,8 @@ contains
 
         integer(hid_t) :: rank, type_id, ds_class
         
-        integer(hid_t) :: ds_rank, dataspace, err
+        integer(hid_t) :: ds_rank, dataspace
+        integer :: err
         integer(hsize_t) :: ds_dims(size(dims)), ds_max_dims(size(dims)), ds_sz
 
         ! Get the type associated with the attribute. Check that it is an
