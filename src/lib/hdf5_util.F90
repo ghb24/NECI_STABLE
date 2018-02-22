@@ -687,7 +687,7 @@ contains
         integer(hsize_t) :: block_start, block_end, block_size, this_block_size
         type(c_ptr) :: cptr
         integer(int32), pointer :: ptr(:)
-        integer:: arr_buff_tag
+        integer:: arr_buff_tag, ierr
 
         ! Create an array in the target file with the size of the total amount
         ! to be written out, across the processors
@@ -710,9 +710,9 @@ contains
         ! Create the source (memory) dataspace
         call h5screate_simple_f(2_hid_t, buff_dims, memspace, err)
 
-        allocate(arr_buff(mem_dims(1),block_size))
+        allocate(arr_buff(mem_dims(1),block_size),stat = ierr)
         call LogMemAlloc('arr_buff',size(arr_buff),sizeof(arr_buff(1,1)),&
-             'write_2d_multi',arr_buff_tag,err)
+             'write_2d_multi',arr_buff_tag,ierr)
         block_start=1
         block_end=min(block_start+block_size-1,mem_dims(2))
         this_block_size=block_end-block_start+1
