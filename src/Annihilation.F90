@@ -161,7 +161,11 @@ module AnnihilationMod
         ! Max index is the largest occupied index in the array of hashes to be
         ! ordered in each processor 
         if (MaxIndex > (0.9_dp*MaxSpawned)) then
+#ifdef __DEBUG
             write(6,*) MaxIndex,MaxSpawned
+#else
+            write(*,*) 'On task ',iProcIndex,': ',MaxIndex,MaxSpawned
+#endif
             call Warning_neci("SendProcNewParts","Maximum index of newly-spawned array is " &
             & //"close to maximum length after annihilation send. Increase MemoryFacSpawn")
         end if

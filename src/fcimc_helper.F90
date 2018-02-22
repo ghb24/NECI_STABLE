@@ -127,10 +127,17 @@ contains
             if (ValidSpawnedList(proc) >= InitialSpawnedSlots(proc+1)) &
                 list_full=.true.
         end if
+
         if (list_full) then
+#ifdef __DEBUG
             write(6,*) "Attempting to spawn particle onto processor: ", proc
             write(6,*) "No memory slots available for this spawn."
             write(6,*) "Please increase MEMORYFACSPAWN"
+#else
+            write(*,*) "Attempting to spawn particle onto processor: ", proc
+            write(*,*) "No memory slots available for this spawn."
+            write(*,*) "Please increase MEMORYFACSPAWN"
+#endif
             call stop_all(this_routine, "Out of memory for spawned particles")
         end if
 
@@ -234,10 +241,17 @@ contains
                 if (ValidSpawnedList(proc) > InitialSpawnedSlots(proc+1)) &
                     list_full=.true.
             end if
+
             if (list_full) then
+#ifdef __DEBUG
                 write(6,*) "Attempting to spawn particle onto processor: ", proc
                 write(6,*) "No memory slots available for this spawn."
                 write(6,*) "Please increase MEMORYFACSPAWN"
+#else
+                write(*,*) "Attempting to spawn particle onto processor: ", proc
+                write(*,*) "No memory slots available for this spawn."
+                write(*,*) "Please increase MEMORYFACSPAWN"
+#endif
                 call stop_all(this_routine, "Out of memory for spawned particles")
             end if
 

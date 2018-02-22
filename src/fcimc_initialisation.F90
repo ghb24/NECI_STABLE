@@ -720,7 +720,11 @@ contains
             ELSE
                 TempHii = get_helement (HighEDet, HighEDet, 0)
             ENDIF
-            UpperTau = 1.0_dp/REAL(TempHii-Hii,dp)
+            if(abs(TempHii - Hii) > EPS) then
+               UpperTau = 1.0_dp/REAL(TempHii-Hii,dp)
+            else
+               UpperTau = 0.0_dp
+            endif
             WRITE(iout,"(A,G25.15)") "Highest energy determinant is (approximately): ",REAL(TempHii,dp)
             write(iout,"(a,g25.15)") "Corresponding to a correlation energy of: ", real(temphii - hii, dp)
 !            WRITE(iout,"(A,F25.15)") "This means tau should be no more than about ",UpperTau
@@ -856,6 +860,10 @@ contains
         AbsProjE = 0
         norm_semistoch = 0
         norm_psi = 0
+        bloom_sizes = 0
+        proje_iter_tot = 0.0_dp
+        ! initialize as one (kind of makes sense for a norm)
+        all_norm_psi_squared = 1.0_dp
         tSoftExitFound = .false.
 
         ! Initialise the fciqmc counters
@@ -2920,6 +2928,8 @@ contains
             nSing_spindiff1 = 0
             nDoub_spindiff1 = 0
             nDoub_spindiff2 = 0
+            pDoub_spindiff1 = 0.0_dp
+            pDoub_spindiff2 = 0.0_dp
         endif
 
 !NSing=Number singles from HF, nDoub=No Doubles from HF

@@ -833,6 +833,13 @@ contains
                             !Only allow targetgrowrate to kick in once we have > TargetGrowRateWalk walkers.
                             DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)-TargetGrowRate(run)) * SftDamp) / &
                                                 (Tau * StepsSft)
+                            ! Same for the info shifts for complex walkers
+#ifdef __CMPLX
+                    DiagSftRe(run) = DiagSftRe(run) - (log(AllGrowRateRe(run)-TargetGrowRate(run)) * SftDamp) / &
+                                                (Tau * StepsSft)
+                    DiagSftIm(run) = DiagSftIm(run) - (log(AllGrowRateIm(run)-TargetGrowRate(run)) * SftDamp) / &
+                                                (Tau * StepsSft)
+#endif
                         endif
                     else
                         if(tShiftonHFPop) then
@@ -848,13 +855,6 @@ contains
                                                 (Tau * StepsSft)
                         endif
                     endif
-
-#ifdef __CMPLX
-                    DiagSftRe(run) = DiagSftRe(run) - (log(AllGrowRateRe(run)-TargetGrowRate(run)) * SftDamp) / &
-                                                (Tau * StepsSft)
-                    DiagSftIm(run) = DiagSftIm(run) - (log(AllGrowRateIm(run)-TargetGrowRate(run)) * SftDamp) / &
-                                                (Tau * StepsSft)
-#endif
 
                     ! Update the shift averages
                     if ((iter - VaryShiftIter(run)) >= nShiftEquilSteps) then

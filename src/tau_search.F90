@@ -366,10 +366,15 @@ contains
                 else
                     pparallel_new = pParallel
                     psingles_new = pSingles
-                    tau_new = max_permitted_spawn * &
+                    if(gamma_sing > EPS .and. gamma_par > EPS .and. gamma_opp > EPS) then 
+                       tau_new = max_permitted_spawn * &
                             min(pSingles / gamma_sing, &
                             min(pDoubles * pParallel / gamma_par, &
-                                pDoubles * pParallel / gamma_opp))
+                            pDoubles * pParallel / gamma_opp))
+                    else                       
+                       ! if no spawns happened, do nothing
+                       tau_new = tau
+                    endif
                 end if
 
                 ! We only want to update the opposite spins bias here, as we only
