@@ -168,4 +168,8 @@ module LoggingData
     ! also use a use defined threshold
     real(dp) :: ija_thresh = 1.0e-7_dp
 
+    ! for the output of the references in the adi-mode
+    logical :: tWriteRefs
+    character(255) :: ref_filename
+
 end module LoggingData
