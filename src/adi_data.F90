@@ -15,8 +15,8 @@ module adi_data
   ! reconstructed on each coherence check
   integer, allocatable :: nIRef(:,:), exLvlRef(:)
   real(dp), allocatable :: signsRef(:,:)
-  integer :: nIncoherentDets, nCoherentDoubles, nCoherentSingles, &
-       AllCoherentSingles, AllCoherentDoubles, AllIncoherentDets, htBlock
+  integer :: nIncoherentDets, nCoherentDoubles, nConnection, AllConnection, &
+       AllCoherentDoubles, AllIncoherentDets, htBlock
   type(ll_node), pointer :: SIHash(:)
   logical :: tReferenceChanged, tSetupSIs, tUseCaches
   ! Data for the update of nrefs

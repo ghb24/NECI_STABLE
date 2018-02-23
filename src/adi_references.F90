@@ -5,7 +5,8 @@ use FciMCData, only: ilutRef, TotWalkers, CurrentDets
 use adi_data, only: ilutRefAdi, nRefs, nIRef, signsRef, &
      nTZero, SIHash, tAdiActive, tSetupSIs, NoTypeN, superInitiatorLevel, tSetupSIs, &
      tReferenceChanged, SIThreshold, tUseCaches, nIRef, signsRef, exLvlRef, tSuppressSIOutput, &
-     targetRefPop, lastAllNoatHF, lastNRefs, tVariableNRef, maxNRefs, minSIConnect
+     targetRefPop, lastAllNoatHF, lastNRefs, tVariableNRef, maxNRefs, minSIConnect, &
+     nIncoherentDets, nConnection
 use CalcData, only: InitiatorWalkNo
 use bit_rep_data, only: niftot, nifdbo, extract_sign
 use bit_reps, only: decode_bit_det
@@ -95,6 +96,7 @@ contains
 
        if(nRefs > 0) tSetupSIs = .true.
        tReferenceChanged = .true.
+       call reset_coherence_counter()
     endif
    
   end subroutine update_reference_space
@@ -870,7 +872,8 @@ contains
   subroutine eval_coherence(signedCache, unsignedCache, sgn, connections, staticInit)
     ! Note that tweakcoherentdoubles and tavcoherentdoubles are mutually exclusive 
     ! in the current implementation
-    use adi_data, only: tWeakCoherentDoubles, tAvCoherentDoubles, coherenceThreshold
+    use adi_data, only: tWeakCoherentDoubles, tAvCoherentDoubles, coherenceThreshold, &
+         nConnection
     implicit none
     HElement_t(dp), intent(in) :: signedCache
     real(dp), intent(in) :: unsignedCache, sgn
@@ -879,17 +882,22 @@ contains
 
     ! Only need to check if we are looking at a double
     !if(unsignedCache > eps .and. connections>=minSIConnect) then
-       if(connections<minSIConnect) staticInit = .false.
+       if(connections<minSIConnect) then 
+          staticInit = .false.
+          if(unsignedCache > EPS) nConnection = nConnection + 1
+       endif
        ! We disable superinitiator-related initiators if they fail the coherence check
        ! else, we leave it as it is
        if(tWeakCoherentDoubles) then
           if(abs(signedCache) < coherenceThreshold*unsignedCache) staticInit = .false.
+          nIncoherentDets = nIncoherentDets + 1
        endif
 
        ! If we do averaged coherence check, we check versus the sign of the ilut
        ! We recommend using both, av and weak
        if(tAvCoherentDoubles) then
           if(real(signedCache * sgn,dp) > 0.0_dp) staticInit = .false.
+          nIncoherentDets = nIncoherentDets + 1
        endif
     !endif
 
@@ -1204,12 +1212,12 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine reset_coherence_counter()
-      use adi_data, only: nCoherentDoubles, nIncoherentDets, nCoherentSingles
+      use adi_data, only: nCoherentDoubles
       implicit none
       
-      nCoherentSingles = 0
       nCoherentDoubles = 0
       nIncoherentDets = 0
+      nConnection = 0
     end subroutine reset_coherence_counter
 
 !------------------------------------------------------------------------------------------!

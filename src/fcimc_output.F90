@@ -25,8 +25,8 @@ module fcimc_output
     use hist, only: calc_s_squared_star, calc_s_squared
     use fcimc_helper, only: LanczosFindGroundE
     use Determinants, only: write_det
-    use adi_data, only: AllCoherentSingles, AllCoherentDoubles, AllIncoherentDets, nRefs, &
-         ilutRefAdi, tAdiActive
+    use adi_data, only: AllCoherentDoubles, AllIncoherentDets, nRefs, &
+         ilutRefAdi, tAdiActive, nConnection, AllConnection
     use Parallel_neci
     use FciMCData
     use constants
@@ -49,7 +49,7 @@ contains
                 WRITE(initiatorstats_unit,"(A2,A17,15A23)") "# ","1.Step","2.TotWalk","3.Annihil","4.Died", &
                 & "5.Born","6.TotUniqDets",&
 &               "7.InitDets","8.NonInitDets","9.InitWalks","10.NonInitWalks","11.AbortedWalks", &
-               "12. Removed Dets",  "13. Coherent Singles", "14. Coherent Doubles", &
+               "12. Removed Dets",  "13. Insufficiently connected", "14. Coherent Doubles", &
                "15. Incoherent Dets"
             ENDIF
             IF(tLogComplexPops) THEN
@@ -288,7 +288,7 @@ contains
                    AllAnnihilated(1), AllNoDied(1), AllNoBorn(1), AllTotWalkers,&
                    AllNoInitDets(1), AllNoNonInitDets(1), AllNoInitWalk(1), &
                    AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1), &
-                   AllCoherentSingles, AllCoherentDoubles, AllIncoherentDets
+                   AllConnection, AllCoherentDoubles, AllIncoherentDets
             endif
             if (tLogComplexPops) then
                 write (complexstats_unit,"(I12,6G16.7)") &
@@ -418,7 +418,7 @@ contains
                    AllAnnihilated(1), AllNoDied(1), AllNoBorn(1), AllTotWalkers,&
                    AllNoInitDets(1), AllNoNonInitDets(1), AllNoInitWalk(1), &
                    AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1), &
-                   AllCoherentSingles, AllCoherentDoubles, AllIncoherentDets
+                   AllConnection, AllCoherentDoubles, AllIncoherentDets
             endif
 #endif
             if (tLogEXLEVELStats) then

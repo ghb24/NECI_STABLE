@@ -66,6 +66,7 @@ contains
 
   subroutine set_adi_flags_run(ilut, nI, sgn, ex, ir)
     use bit_rep_data, only: flag_static_init
+    use adi_data, only:  nCoherentDoubles
     ! This sets the adi flags for a given run ir
     implicit none
     integer(n_int), intent(inout) :: ilut(0:NIfTot)
@@ -78,6 +79,7 @@ contains
     if(staticInit) then
        ! if so, set the flag
        call set_flag(ilut, flag_static_init(ir))
+       nCoherentDoubles = nCoherentDoubles + 1
     else
        ! else, clear it
        call clr_flag(ilut, flag_static_init(ir))
@@ -193,29 +195,24 @@ contains
 !------------------------------------------------------------------------------------------!
 
   subroutine set_double_initiator(exLevel, staticInit)
-    use adi_data, only:  nCoherentDoubles
     implicit none
     integer, intent(in) :: exLevel
     logical, intent(inout) :: staticInit
 
     if(exLevel == 2 .and. tAllDoubsInitiators) then
        staticInit = .true.
-       ! also, log this event
-       nCoherentDoubles = nCoherentDoubles + 1
     endif
   end subroutine set_double_initiator
 
   !------------------------------------------------------------------------------------------!
 
   subroutine set_single_initiator(exLevel, staticInit)
-    use adi_data, only: nCoherentSingles
     implicit none
     integer, intent(in) :: exLevel
     logical, intent(inout) :: staticInit
 
     if(exLevel == 1 .and. tAllSingsInitiators) then
        staticInit = .true.
-       nCoherentSingles = nCoherentSingles + 1
     endif
   end subroutine set_single_initiator
 

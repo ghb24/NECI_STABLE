@@ -366,8 +366,8 @@ contains
         ! in send_arr or send_arr_helem array. It is hopefully clear how to do
         ! this by analogy. You should also update the indices in the appropriate
         ! stop_all, so that it can be checked if enough memory has been assigned.
-      use adi_data, only: nCoherentSingles, nCoherentDoubles, nIncoherentDets, &
-           AllCoherentDoubles, AllCoherentSingles, AllIncoherentDets
+      use adi_data, only: nCoherentDoubles, nIncoherentDets, nConnection, &
+           AllCoherentDoubles, AllIncoherentDets, AllConnection
         type(fcimc_iter_data) :: iter_data
         real(dp), intent(in) :: tot_parts_new(lenof_sign)
         real(dp), intent(out) :: tot_parts_new_all(lenof_sign)
@@ -473,9 +473,9 @@ contains
         low = upp + 1; upp = low + sizes(26) - 1; send_arr(low:upp) = nspawned;
         ! double occ change:
         low = upp + 1; upp = low + sizes(27) - 1; send_arr(low:upp) = inst_double_occ
-        low = upp + 1; upp = low + sizes(28) - 1; send_arr(low:upp) = nCoherentSingles
-        low = upp + 1; upp = low + sizes(29) - 1; send_arr(low:upp) = nCoherentDoubles
-        low = upp + 1; upp = low + sizes(30) - 1; send_arr(low:upp) = nIncoherentDets
+        low = upp + 1; upp = low + sizes(28) - 1; send_arr(low:upp) = nCoherentDoubles
+        low = upp + 1; upp = low + sizes(29) - 1; send_arr(low:upp) = nIncoherentDets
+        low = upp + 1; upp = low + sizes(30) - 1; send_arr(low:upp) = nConnection
 
         ! Perform the communication.
         call MPISumAll (send_arr(1:upp), recv_arr(1:upp))
@@ -516,10 +516,9 @@ contains
         low = upp + 1; upp = low + sizes(26) - 1; nspawned_tot = nint(recv_arr(low));
         ! double occ: 
         low = upp + 1; upp = low + sizes(27) - 1; all_inst_double_occ = recv_arr(low);
-        low = upp + 1; upp = low + sizes(28) - 1; AllCoherentSingles = recv_arr(low);
         low = upp + 1; upp = low + sizes(29) - 1; AllCoherentDoubles = recv_arr(low);
-        low = upp + 1; upp = low + sizes(30) - 1; AllIncoherentDets = recv_arr(low);
-
+        low = upp + 1; upp = low + sizes(29) - 1; AllIncoherentDets = recv_arr(low);
+        low = upp + 1; upp = low + sizes(30) - 1; AllConnection = recv_arr(low);
         ! Communicate HElement_t variables:
 
         low = 0; upp = 0;
