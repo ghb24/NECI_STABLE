@@ -30,6 +30,7 @@ module adi_data
   logical :: tAllDoubsInitiators, tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits
   logical :: tSetDelayAllSingsInits, tSetDelayAllDoubsInits, tDelayGetRefs
   integer :: allDoubsInitsDelay, nExProd, superInitiatorLevel, SIUpdateInterval
+  integer :: SIUpdateOffset
   logical :: tAdiActive, tStrictCoherentDoubles, tWeakCoherentDoubles, tAvCoherentDoubles
   ! Thresholds for xi and populations
   real(dp) :: NoTypeN, coherenceThreshold, SIThreshold

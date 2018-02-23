@@ -16,10 +16,11 @@ module FciMCParMod
                         t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
                         t_back_spawn_flex, t_back_spawn_flex_option, &
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
-                        DiagSft, tDynamicTrial, trialSpaceUpdateCycle
+                        DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
                         tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
-                        SIUpdateInterval, tSuppressSIOutput, nRefUpdateInterval
+                        SIUpdateInterval, tSuppressSIOutput, nRefUpdateInterval, &
+                        SIUpdateOffset
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, tOldRDMs, &
@@ -250,6 +251,10 @@ module FciMCParMod
                 if ((Iter - maxval(VaryShiftIter)) == semistoch_shift_iter + 1) then
                     tSemiStochastic = .true.
                     call init_semi_stochastic(ss_space_in)
+                    ! Count iterations for corespace updates from here
+                    semistochStartIter = iter
+                    ! and switch how iterations for SI updates are counted
+                    SIUpdateOffset = semistochStartIter
                 end if
             end if
 
@@ -267,7 +272,8 @@ module FciMCParMod
             endif
             ! Update the semistochastic space if requested
             if(tSemiStochastic .and. tDynamicCoreSpace .and. &
-                 mod(iter,coreSpaceUpdateCycle) == 0) then
+                 mod(iter-semistochStartIter, &
+                 coreSpaceUpdateCycle) == 0) then
                call refresh_semistochastic_space()
                write(6,*) "Refereshing semistochastic space at iteration ", iter
             end if
@@ -368,7 +374,7 @@ module FciMCParMod
             if(SIUpdateInterval > 0) then
                ! Regular update of the superinitiators. Use with care as it 
                ! is still rather expensive if secondary superinitiators are used
-               if(mod(iter,SIUpdateInterval) == 0) then
+               if(mod(iter+SIUpdateOffset,SIUpdateInterval) == 0) then
                   ! the reference population needs some time to equilibrate
                   ! hence, nRefs cannot be updated that often
                   if(mod(iter,nRefUpdateInterval) == 0) call adjust_nRefs()
@@ -524,7 +530,7 @@ module FciMCParMod
                 ! If we wish to calculate the energy, have started accumulating the RDMs, 
                 ! and this is an iteration where the energy should be calculated, do so.
                 if (print_2rdm_est .and. ((Iter - maxval(VaryShiftIter)) > IterRDMonFly) &
-                    .and. (mod(Iter+1, RDMEnergyIter) == 0) ) then
+                    .and. (mod(Iter+PreviousCycles-IterRDMStart+1, RDMEnergyIter) == 0) ) then
            
                     call calc_2rdm_estimates_wrapper(rdm_definitions, rdm_estimates, two_rdm_main)
                     if (tOldRDMs) then

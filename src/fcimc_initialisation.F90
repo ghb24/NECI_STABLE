@@ -3599,12 +3599,12 @@ contains
       ! We initialize the flags for the adi feature
       use adi_data, only: tSetDelayAllDoubsInits, tSetDelayAllSingsInits, tDelayAllDoubsInits, &
            tDelayAllSingsInits, tAllDoubsInitiators, tAllSingsInitiators, tDelayGetRefs, &
-           NoTypeN, nRefs, tReadRefs, tInitiatorsSubspace, maxNRefs, nRefsSings, nRefsDoubs
+           NoTypeN, nRefs, tReadRefs, tInitiatorsSubspace, maxNRefs, nRefsSings, nRefsDoubs, &
+           SIUpdateOffset
       use CalcData, only: InitiatorWalkNo
       use adi_references, only: enable_adi, reallocate_ilutRefAdi, setup_SIHash, &
            reset_coherence_counter
       implicit none
-
       maxNRefs = max(nRefsSings,nRefsDoubs)
 
       call reallocate_ilutRefAdi(maxNRefs)
@@ -3633,6 +3633,7 @@ contains
       ! there is a minimum cycle lenght for updating the number of SIs, as the reference population
       ! needs some time to equilibrate
       nRefUpdateInterval = max(SIUpdateInterval,500)
+      SIUpdateOffset = 0
 
       ! Initialize the logging variables
       call reset_coherence_counter()      
