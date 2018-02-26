@@ -25,7 +25,7 @@ module fcimc_initialisation
                         trunc_nopen_max, MemoryFacInit, MaxNoatHF, HFPopThresh, &
                         tAddToInitiator, InitiatorWalkNo, tRestartHighPop, &
                         tAllRealCoeff, tRealCoeffByExcitLevel, tTruncInitiator, &
-                        RealCoeffExcitThresh, TargetGrowRate, &
+                        tDynamicCoreSpace, RealCoeffExcitThresh, TargetGrowRate, &
                         TargetGrowRateWalk, InputTargetGrowRate, &
                         InputTargetGrowRateWalk, tOrthogonaliseReplicas, &
                         use_spawn_hash_table, tReplicaSingleDetStart, &
@@ -37,6 +37,8 @@ module fcimc_initialisation
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, &
                         t_back_spawn_flex, back_spawn_delay
+    use adi_data, only: g_markers, tReferenceChanged, tInitiatorsSubspace, tAdiActive, &
+         nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -142,7 +144,7 @@ module fcimc_initialisation
     use sym_mod
     use HElem
     use constants
-
+    use adi_references, only: setup_reference_space, clean_adi
     use tau_search_hist, only: init_hist_tau_search
     use back_spawn, only: init_back_spawn
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
@@ -326,7 +328,9 @@ contains
 
         !iLutRef is the reference determinant for the projected energy.
         !Initially, it is chosen to be the same as the inputted reference determinant
+        call setup_adi()
         ALLOCATE(iLutRef(0:NIfTot, inum_runs), stat=ierr)
+        ilutRef = 0
         ALLOCATE(ProjEDet(NEl, inum_runs), stat=ierr)
 
         IF(ierr.ne.0) CALL Stop_All(t_r,"Cannot allocate memory for iLutRef")
@@ -865,10 +869,14 @@ contains
         ! initialize as one (kind of makes sense for a norm)
         all_norm_psi_squared = 1.0_dp
         tSoftExitFound = .false.
+        tReferenceChanged = .false.
 
         ! Initialise the fciqmc counters
         iter_data_fciqmc%update_growth = 0.0_dp
         iter_data_fciqmc%update_iters = 0
+
+        nExChecks = 0
+        nExCheckFails = 0
 
 !            if (tReltvy) then
 !                ! write out the column headings for the MSWALKERCOUNTS
@@ -1434,6 +1442,7 @@ contains
                 & REAL(MemoryAlloc,dp)/1048576.0_dp," Mb/Processor"
             WRITE(iout,*) "Only one array of memory to store main particle list allocated..."
             WRITE(iout,*) "Initial memory allocation sucessful..."
+            WRITE(iout,*) "============================================="
             CALL neci_flush(iout)
 
         ENDIF   !End if initial walkers method
@@ -1529,6 +1538,15 @@ contains
 #ifdef __CMPLX
          replica_overlaps_imag(:, :) = 0.0_dp
 #endif
+
+
+        ! Set up the reference space for the adi-approach
+         call setup_reference_space(tReadPops)
+
+         if(tInitiatorsSubspace) call read_g_markers()
+
+         if(tRDMonFly .and. tDynamicCoreSpace) call sync_rdm_sampling_iter()
+
 
     end subroutine InitFCIMCCalcPar
 
@@ -1795,6 +1813,9 @@ contains
         ! Cleanup the load balancing
         call clean_load_balance()
 
+        ! Cleanup adi caches
+        call clean_adi()
+
         if (tSemiStochastic) call end_semistoch()
 
         if (tTrialWavefunction) call end_trial_wf()
@@ -1814,6 +1835,8 @@ contains
 !                CALL neci_flush(iout)
 !            ENDIF
 !        ENDIF
+
+        if(allocated(g_markers)) deallocate(g_markers)
 
     end subroutine DeallocFCIMCMemPar
 
@@ -2528,8 +2551,7 @@ contains
 
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
-                        call CalcParentFlag(DetIndex, iInit, &
-                                            real(HDiagTemp, dp))
+                        call CalcParentFlag(DetIndex, iInit)
                     endif
 
                     DetHash = FindWalkerHash(CASFullDets(:,i), nWalkerHashes)
@@ -2689,7 +2711,7 @@ contains
                 call return_mp1_amp_and_mp2_energy(nJ,iLutnJ,Ex,tParity,amp,energy_contrib)
                 amp = amp*PartFac
 
-                if (tRealCoeffByExcitLevel) ExcitLevel=FindBitExcitLevel(iLutnJ, iLutRef, nEl)
+                if (tRealCoeffByExcitLevel) ExcitLevel=FindBitExcitLevel(iLutnJ, iLutRef(:,1), nEl)
                 if (tAllRealCoeff .or. &
                     & (tRealCoeffByExcitLevel.and.(ExcitLevel.le.RealCoeffExcitThresh))) then
                     NoWalkers=amp
@@ -2724,8 +2746,7 @@ contains
 
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
-                        call CalcParentFlag(DetIndex, iInit, &
-                                            real(HDiagTemp, dp))
+                        call CalcParentFlag(DetIndex, iInit)
                     endif
 
                     DetHash = FindWalkerHash(nJ, nWalkerHashes)
@@ -2907,7 +2928,7 @@ contains
         implicit none
         real(dp) :: denom
         INTEGER :: iTotal
-        integer :: nSingles, nDoubles, ncsf, nSing_spindiff1, nDoub_spindiff1, nDoub_spindiff2, ierr 
+        integer :: nSingles, nDoubles, ncsf, nSing_spindiff1, nDoub_spindiff1, nDoub_spindiff2
         integer :: nTot
         integer :: hfdet_loc(nel)
         character(*), parameter :: this_routine = "CalcApproxpDoubles"
@@ -3143,6 +3164,44 @@ contains
       ValidSpawnedList(:)=InitialSpawnedSlots(:)
 
    end subroutine SetupValidSpawned
+
+   subroutine sync_rdm_sampling_iter()
+     use LoggingData, only: RDMEnergyIter, IterRDMOnfly
+     use CalcData, only: coreSpaceUpdateCycle, semistoch_shift_iter
+     implicit none
+     integer :: frac
+     ! first, adjust the offset to make the rdm sampling start right when a semistochastic
+     ! update cycle ends
+     IterRDMOnFly = IterRDMOnFly - &
+          mod(IterRDMOnFly-semistoch_shift_iter,coreSpaceUpdateCycle) - 1
+     ! The -1 is just because the sampling starts one iteration after IterRDMOnFly
+     ! If we subtracted too much, jump one cycle backwards
+     if(IterRDMOnFly < semistoch_shift_iter) IterRDMOnFly = IterRDMOnFly + coreSpaceUpdateCycle
+     write(6,*) "Adjusted starting iteration of RDM sampling to ", IterRDMOnFly
+
+     ! Now sync the update cycles
+     if(RDMEnergyIter > coreSpaceUpdateCycle) then
+        RDMEnergyIter = coreSpaceUpdateCycle
+        write(6,*) "The RDM sampling interval cannot be larger than the update "&
+             //"interval of the semi-stochastic space. Reducing it to ", RDMEnergyIter
+     endif
+     if(mod(coreSpaceUpdateCycle,RDMEnergyIter) .ne. 0) then
+        ! first, try to ramp up the RDMEnergyIter to meet the coreSpaceUpdateCycle
+        frac = coreSpaceUpdateCycle/RDMEnergyIter
+        RDMEnergyIter = coreSpaceUpdateCycle/frac        
+        write(6,*) "Update cycle of semi-stochastic space and RDM sampling interval"&
+             //" out of sync. "
+        write(6,*) "Readjusting RDM sampling interval to ", RDMEnergyIter
+        
+        ! now, if this did not succeed, adjust the coreSpaceUpdateCycle
+        if(mod(coreSpaceUpdateCycle,RDMEnergyIter) .ne. 0) then
+           coreSpaceUpdateCycle = coreSpaceUpdateCycle - &
+                mod(coreSpaceUpdateCycle,RDMEnergyIter)
+           write(6,*) "Adjusted update cycle of semi-stochastic space to ", &
+                coreSpaceUpdateCycle
+        endif
+     endif
+   end subroutine sync_rdm_sampling_iter
 
     subroutine CalcUEGMP2()
         use SymExcitDataMod, only: kPointToBasisFn
@@ -3533,6 +3592,122 @@ contains
         end if
 
     end subroutine
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine setup_adi()
+      ! We initialize the flags for the adi feature
+      use adi_data, only: tSetDelayAllDoubsInits, tSetDelayAllSingsInits, tDelayAllDoubsInits, &
+           tDelayAllSingsInits, tAllDoubsInitiators, tAllSingsInitiators, tDelayGetRefs, &
+           NoTypeN, nRefs, tReadRefs, tInitiatorsSubspace, maxNRefs, nRefsSings, nRefsDoubs, &
+           SIUpdateOffset
+      use CalcData, only: InitiatorWalkNo
+      use adi_references, only: enable_adi, reallocate_ilutRefAdi, setup_SIHash, &
+           reset_coherence_counter
+      implicit none
+      maxNRefs = max(nRefsSings,nRefsDoubs)
+
+      call reallocate_ilutRefAdi(maxNRefs)
+
+      ! If using adi with dynamic SIs, also use a dynamic corespace by default
+      call setup_dynamic_core()
+ 
+      ! Check if one of the keywords is specified as delayed
+      if(tSetDelayAllDoubsInits .and. tAllDoubsInitiators) then
+         tAllDoubsInitiators = .false.
+         tDelayAllDoubsInits = .true.
+      endif
+      if(tSetDelayAllSingsInits .and. tAllSingsInitiators) then
+         tAllSingsInitiators = .false.
+         tDelayAllSingsInits = .true.
+      endif
+      
+      ! Check if we want to get the references right away
+      if(.not. (tReadRefs .or. tReadPops)) tDelayGetRefs = .true.
+      if(tDelayAllSingsInits .and. tDelayAllDoubsInits) tDelayGetRefs = .true.
+      ! Give a status message
+      if(tAllDoubsInitiators) call enable_adi()
+      if(tAllSingsInitiators .or. tAllDoubsInitiators .or. tInitiatorsSubspace) &
+           tAdiActive = .true. 
+
+      ! there is a minimum cycle lenght for updating the number of SIs, as the reference population
+      ! needs some time to equilibrate
+      nRefUpdateInterval = max(SIUpdateInterval,500)
+      SIUpdateOffset = 0
+
+      ! Initialize the logging variables
+      call reset_coherence_counter()      
+    end subroutine setup_adi
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine setup_dynamic_core()
+      use CalcData, only: tDynamicCoreSpace, coreSpaceUpdateCycle,tIntervalSet
+      use adi_data, only: tAllDoubsInitiators, tAllSingsInitiators
+      implicit none
+      
+      ! Enable dynamic corespace if both
+      ! a) using adi with dynamic SIs (default)
+      ! b) no other keywords regarding the dynamic corespace are given
+      if(SIUpdateInterval > 0 .and. .not. tIntervalSet .and. (tAllDoubsInitiators .or. &
+           tAllSingsInitiators)) then
+        tDynamicCoreSpace = .true.
+	coreSpaceUpdateCycle = SIUpdateInterval
+      endif
+    end subroutine setup_dynamic_core
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine read_g_markers()
+      use adi_data, only: g_markers_num
+      use util_mod, only: get_free_unit
+      use bit_rep_data, only: NIfD
+      implicit none
+      logical :: exists
+      integer :: iunit, read_buf(nBasis/2), i, stat
+      character(*), parameter :: this_routine = "read_g_markers"
+      character(*), parameter :: filename = "INIT_SUBSPACE"
+
+      ! First, set up the array for the markers
+      allocate(g_markers(0:NIfD))
+      g_markers = 0_n_int
+      ! Then, check if the file is there
+      inquire(file = filename, exist = exists)
+      if(.not. exists) call stop_all(this_routine, "No "//filename//" file detected.")
+      
+      ! now, read in the file
+      g_markers_num = 0
+      iunit = get_free_unit()
+      open(iunit, file = filename, status = 'old')
+      
+      read_buf = -1
+      read(iunit,*) read_buf
+      if(any(read_buf(1:nBasis/2)== -1)) call stop_all(this_routine, &
+           "Number of orbitals in FCIDUMP and in "//filename//" does not agree.")
+      
+      ! We only have read in information for the spatial orbitals
+      do i = 1, nBasis/2
+         ! For each entry, check if it is 0 or 1, if it is zero, it is not in the 'active' space
+         if(read_buf(i) == 0) then
+            ! The input is in spatial orbitals, g_markers is in spin orbitals
+            !g_markers = iBSET(g_markers,2*(i-1))
+            !g_markers = iBSET(g_markers,2*(i-1)+1)
+            set_orb(g_markers, 2*i-1)
+            set_orb(g_markers, 2*i)
+            g_markers_num = g_markers_num + 2
+         endif
+      enddo
+      
+      call neci_flush(iout)
+      write(iout,'()')
+      write(iout,*) "Using an initiator subspace"
+      write(iout,*) "Read g_markers, given by" 
+      call WriteDetBit(iout, g_markers, .true.)
+      write(iout,*) "Number of initiator-active spin orbitals: ", nBasis-g_markers_num
+      write(iout,'()')
+    end subroutine read_g_markers
+
+!------------------------------------------------------------------------------------------!
 
 
 end module fcimc_initialisation

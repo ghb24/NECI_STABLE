@@ -19,7 +19,7 @@ module AnnihilationMod
                         encode_sign, test_flag, set_flag, &
                         flag_initiator, encode_part_sign, &
                         extract_part_sign, extract_bit_rep, &
-                        nullify_ilut_part, &
+                        nullify_ilut_part, clr_flag, &
                         encode_flags, bit_parent_zero, get_initiator_flag
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData, only: tNoNewRDMContrib
@@ -43,6 +43,7 @@ module AnnihilationMod
 
         ! This routine will send all the newly-spawned particles to their
         ! correct processor. 
+
         call SendProcNewParts(MaxIndex,tSingleProc)
 
         ! CompressSpawnedList works on SpawnedParts arrays, so swap the pointers around.
@@ -52,7 +53,6 @@ module AnnihilationMod
 
         Compress_time%timer_name='Compression interface'
         call set_timer(Compress_time,20)
-    
 
         ! Now we want to order and compress the spawned list of particles. 
         ! This will also annihilate the newly spawned particles amongst themselves.
@@ -61,7 +61,6 @@ module AnnihilationMod
         call CompressSpawnedList(MaxIndex, iter_data)  
 
         call halt_timer(Compress_time)
-
          ! If the semi-stochastic approach is being used then the following routine performs the
          ! annihilation of the deterministic states. These states are subsequently skipped in the
          ! AnnihilateSpawnedParts routine.
@@ -608,6 +607,10 @@ module AnnihilationMod
                     ! Transfer new sign across.
                     call encode_sign(CurrentDets(:,PartInd), SpawnedSign+CurrentSign)
                     call encode_sign(SpawnedParts(:,i), null_part)
+
+                    ! If the sign changed, the adi check has to be redone
+                    if(tUseFlags .and. any(real(SignProd,dp) < 0.0_dp)) &
+                         call clr_flag(CurrentDets(:,PartInd), flag_adi_checked)
 
                     do j = 1, lenof_sign
                         run = part_type_to_run(j)

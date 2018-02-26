@@ -46,6 +46,7 @@ module bit_rep_data
 
     ! Flags which we can store
     logical :: tUseFlags
+    integer :: flag_counter
     integer, parameter :: flag_deterministic = 0, &
                           flag_determ_parent = 1, &
                           flag_trial = 2, &
@@ -55,12 +56,18 @@ module bit_rep_data
 
 #ifdef __PROG_NUMRUNS
     integer, parameter :: flag_initiator(lenof_sign_max) &
-                            = (/6,  7,  8,  9, 10, 11, 12, 13, 14, 15, &
-                                16, 17, 18, 19, 20, 21, 22, 23, 24, 25/), &
-                          num_flags = 26
+                            = (/6, 7, 8, 10, 11, 12, 13, 14, 15, &
+                                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26/), &
+                          flag_adi_checked = 27, &
+                          flag_static_init(lenof_sign_max) &
+                            = (/28, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, &
+                                42, 43, 44, 45, 46, 47, 48/), &
+                          num_flags = 49
 #else
     integer, parameter :: flag_initiator(2) = (/ 6, 7/), &
-                          num_flags = 8 
+                          flag_adi_checked = 8, &
+                          flag_static_init(2) = (/9, 10/), &
+                          num_flags = 11
 #endif
 
 contains

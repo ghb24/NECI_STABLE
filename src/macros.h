@@ -133,6 +133,7 @@ endif
 #define mag_of_run(signs, run) abs(signs(run)) 
 #define is_run_unnocc(signs, run) abs(signs(run))<1.0e-12_dp 
 #endif
+#define av_pop(signs) sum(abs((signs)))/(inum_runs)
 
 
 ! Define types for C pointers to work between various compilers with

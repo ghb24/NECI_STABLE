@@ -158,6 +158,7 @@ MODULE Logging
       tOutputLoadDistribution = .false.
       tHDF5PopsRead = .false.
       tHDF5PopsWrite = .false.
+      tWriteRefs = .false.
 
 #ifdef __PROG_NUMRUNS
       tFCIMCStats2 = .true.
@@ -170,6 +171,8 @@ MODULE Logging
           !Mcpaths set
           ILOGGINGDef=2
       ENDIF
+
+      ref_filename = "REFERENCES"
 
     end subroutine SetLogDefaults
 
@@ -1112,6 +1115,10 @@ MODULE Logging
             if (item < nitems) then 
                 call getf(ija_thresh)
             end if
+
+         case("WRITE-REFERENCES")
+            ! Output the reference dets to a file
+            tWriteRefs = .true.
 
         case default
            CALL report("Logging keyword "//trim(w)//" not recognised",.true.)
