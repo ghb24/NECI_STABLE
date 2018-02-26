@@ -131,12 +131,7 @@ module hdf5_popsfile
             nm_norm_sqr = 'norm_sqr', &
             nm_num_parts = 'num_parts'
 
-#ifdef __USE_HDF
-    ! hsize_t is only defined in the hdf5 library
-    integer(hsize_t), dimension(:,:), allocatable :: receivebuff
-#else
-    integer, dimension(:,:), allocatable :: receivebuff
-#endif
+    integer(n_int), dimension(:,:), allocatable :: receivebuff
     integer:: receivebuff_tag
 
     public :: write_popsfile_hdf5, read_popsfile_hdf5
@@ -1040,7 +1035,8 @@ contains
       integer:: nreceived
       real(dp), intent(inout) :: norm(lenof_sign), parts(lenof_sign)
       integer(hsize_t):: temp_ilut(:,:), temp_sgns(:,:)
-      integer:: sendcount(0:nProcessors-1), nlocal=0
+      integer(MPIArg) :: sendcount(0:nProcessors-1)
+      integer :: nlocal=0
 
       call assign_dets_to_procs_buff(block_size, temp_ilut, temp_sgns, sendcount)
 
@@ -1080,7 +1076,8 @@ contains
         integer(hsize_t), dimension(:,:) :: temp_ilut, temp_sgns
         integer(hsize_t) :: onepart(0:NIfBCast)
         integer :: det(nel), p, j, proc, sizeilut, targetproc(block_size)
-        integer:: sendcount(0:nProcessors-1), index, index2
+        integer(MPIArg) :: sendcount(0:nProcessors-1)
+        integer :: index, index2
         logical :: list_full
 
         sizeilut=size(temp_ilut,1)
@@ -1133,7 +1130,7 @@ contains
 
 
     function communicate_read_walkers_buff(sendcounts) result(num_received)
-        integer:: sendcounts(0:nProcessors-1)
+        integer(MPIArg), intent(inout) :: sendcounts(0:nProcessors-1)
         integer :: num_received
         integer(int64) :: lnum_received
 
