@@ -158,6 +158,7 @@ contains
         character(*), parameter :: t_r = 'write_popsfile_hdf5'
 #ifdef __USE_HDF
         integer(hid_t) :: plist_id, file_id, err
+        integer :: ierr
         character(255) :: filename
 
         ! Get a unique filename for this popsfile. This needs to be done on
@@ -188,17 +189,17 @@ contains
         write(6,*) "writing calc_data"
         call write_calc_data(file_id)
 
-        call MPIBarrier(err)
+        call MPIBarrier(ierr)
         write(6,*) "writing walkers"
         call write_walkers(file_id)
 
-        call MPIBarrier(err)
+        call MPIBarrier(ierr)
         write(6,*) "closing popsfile"
         ! And we are done!
         call h5fclose_f(file_id, err)
         call h5close_f(err)
 
-        call MPIBarrier(err)
+        call MPIBarrier(ierr)
         write(6,*) "popsfile write successful"
 #else
         call stop_all(t_r, 'HDF5 support not enabled at compile time')
@@ -222,7 +223,7 @@ contains
         character(*), parameter :: t_r = 'write_popsfile_hdf5'
 #ifdef __USE_HDF
         integer(hid_t) :: err, file_id, plist_id
-        integer :: tmp
+        integer :: ierr
         character(255) :: filename
 
         ! Get the name for the popsfile to read in
@@ -257,7 +258,7 @@ contains
         call h5close_f(err)
 
         call neci_flush(6)
-        call MPIBarrier(tmp)
+        call MPIBarrier(ierr)
 #else
         CurrWalkers = 0
         call stop_all(t_r, 'HDF5 support not enabled at compile time')
@@ -307,7 +308,7 @@ contains
         ! Read in the macroscopic metadata applicable to the restart file.
 
         integer(hid_t), intent(in) :: parent
-        integer(hid_t) :: err, attribute
+        integer(hid_t) :: attribute
 
         logical :: exists
         character(100) :: str_buf
@@ -816,6 +817,7 @@ contains
         integer(hid_t) :: grp_id, err
         integer(hid_t) :: ds_sgns, ds_ilut
         integer(int64) :: nread_walkers
+        integer :: ierr
 
         integer(int32) :: bit_rep_width, tmp_lenof_sign
         integer(hsize_t) :: all_count, block_size, counts(0:nProcessors-1)
@@ -931,11 +933,11 @@ contains
         running = .true.
         any_running = .true.
 
-        allocate(temp_ilut(int(bit_rep_width),int(this_block_size)))
-        call LogMemAlloc('temp_ilut',size(temp_ilut),sizeof(temp_ilut(1,1)),'read_walkers',temp_ilut_tag,err)
+        allocate(temp_ilut(int(bit_rep_width),int(this_block_size)),stat=ierr)
+        call LogMemAlloc('temp_ilut',size(temp_ilut),sizeof(temp_ilut(1,1)),'read_walkers',temp_ilut_tag,ierr)
 
-        allocate(temp_sgns(int(lenof_sign),int(this_block_size)))
-        call LogMemAlloc('temp_sgns',size(temp_sgns),sizeof(temp_sgns(1,1)),'read_walkers',temp_sgns_tag,err)
+        allocate(temp_sgns(int(lenof_sign),int(this_block_size)),stat=ierr)
+        call LogMemAlloc('temp_sgns',size(temp_sgns),sizeof(temp_sgns(1,1)),'read_walkers',temp_sgns_tag,ierr)
 
         do while (any_running)
 
@@ -1077,7 +1079,7 @@ contains
         character(*), parameter :: t_r = 'distribute_walkers_from_block'
         integer(hsize_t), dimension(:,:) :: temp_ilut, temp_sgns
         integer(hsize_t) :: onepart(0:NIfBCast)
-        integer :: det(nel), p, j, proc, ierr, sizeilut, targetproc(block_size)
+        integer :: det(nel), p, j, proc, sizeilut, targetproc(block_size)
         integer:: sendcount(0:nProcessors-1), index, index2
         logical :: list_full
 
@@ -1137,7 +1139,6 @@ contains
 
         integer(MPIArg) :: recvcounts(0:nProcessors-1)
         integer(MPIArg) :: disps(0:nProcessors-1), recvdisps(0:nProcessors-1)
-
         integer :: j, ierr
 
 
