@@ -123,9 +123,9 @@ contains
 
         ! set the size of the entries in con_ht
 #ifdef __CMPLX
-        NConEntry = NIfDBO + nexcit_keep
-#else
         NConEntry = NIfDBO + 2*nexcit_keep
+#else
+        NConEntry = NIfDBO + nexcit_keep
 #endif
 
         if (num_elem > 0) then

@@ -3579,7 +3579,8 @@ contains
            tDelayAllSingsInits, tAllDoubsInitiators, tAllSingsInitiators, tDelayGetRefs, &
            NoTypeN, nRefs, tReadRefs, tInitiatorsSubspace, maxNRefs, nRefsSings, nRefsDoubs
       use CalcData, only: InitiatorWalkNo
-      use adi_references, only: enable_adi, reallocate_ilutRefAdi, setup_SIHash
+      use adi_references, only: enable_adi, reallocate_ilutRefAdi, setup_SIHash, &
+           reset_coherence_counter
       implicit none
 
       maxNRefs = max(nRefsSings,nRefsDoubs)
@@ -3610,7 +3611,9 @@ contains
       ! there is a minimum cycle lenght for updating the number of SIs, as the reference population
       ! needs some time to equilibrate
       nRefUpdateInterval = max(SIUpdateInterval,500)
-      
+
+      ! Initialize the logging variables
+      call reset_coherence_counter()      
     end subroutine setup_adi
 
 !------------------------------------------------------------------------------------------!

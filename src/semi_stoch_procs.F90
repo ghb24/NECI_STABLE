@@ -153,7 +153,7 @@ contains
         ! If this condition is met then RDM energies were added in on the
         ! previous iteration. We now want to start a new averaging block so
         ! that the same contributions aren't added in again later.
-        if (mod(Iter+PreviousCycles - IterRDMStart, RDMEnergyIter) == 0) then 
+        if (mod(Iter, RDMEnergyIter) == 0) then 
             full_determ_vecs_av = 0.0_dp
             write(6,*) "Reset fdv av at iteration ", iter
         end if

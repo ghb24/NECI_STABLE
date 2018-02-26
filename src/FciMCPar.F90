@@ -267,9 +267,7 @@ module FciMCParMod
             endif
             ! Update the semistochastic space if requested
             if(tSemiStochastic .and. tDynamicCoreSpace .and. &
-
-                 mod(iter - semistoch_shift_iter &
-                      ,coreSpaceUpdateCycle) == 0) then
+                 mod(iter,coreSpaceUpdateCycle) == 0) then
                call refresh_semistochastic_space()
                write(6,*) "Refereshing semistochastic space at iteration ", iter
             end if
@@ -529,7 +527,7 @@ module FciMCParMod
                 ! If we wish to calculate the energy, have started accumulating the RDMs, 
                 ! and this is an iteration where the energy should be calculated, do so.
                 if (print_2rdm_est .and. ((Iter - maxval(VaryShiftIter)) > IterRDMonFly) &
-                    .and. (mod((Iter+PreviousCycles-IterRDMStart)+1, RDMEnergyIter) == 0) ) then
+                    .and. (mod(Iter+1, RDMEnergyIter) == 0) ) then
            
                     call calc_2rdm_estimates_wrapper(rdm_definitions, rdm_estimates, two_rdm_main)
                     if (tOldRDMs) then
@@ -804,7 +802,6 @@ module FciMCParMod
         use rdm_data, only: rdm_definitions
         use rdm_data_utils, only: communicate_rdm_spawn_t, add_rdm_1_to_rdm_2
         use symrandexcit_Ex_Mag, only: test_sym_excit_ExMag 
-        use adi_references, only: reset_coherence_counter
         ! Iteration specific data
         type(fcimc_iter_data), intent(inout) :: iter_data
 
@@ -848,9 +845,7 @@ module FciMCParMod
         FreeSlot(1:iEndFreeSlot)=0  !Does this cover enough?
         iStartFreeSlot=1
         iEndFreeSlot=0
-        
-        call reset_coherence_counter()
-
+       
         ! Clear the hash table for the spawning array.
         if (use_spawn_hash_table) call clear_hash_table(spawn_ht)
 
