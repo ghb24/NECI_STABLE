@@ -2971,7 +2971,7 @@ contains
             end if
     ! 
         end if
-#endif __DEBUG
+#endif
 
 
 !         ! also add a sanity check for excitations from the reference 
@@ -3226,26 +3226,26 @@ contains
             ! calculate the excitation, but the matrix element calculation 
             ! should be a little bit different... maybe additional input needed
             call calcDoubleL2R2L_stochastic(ilut, excitInfo, excitation, branch_pgen, &
-                posSwitches, negSwitches)
+                posSwitches, negSwitches, weights)
 
             pgen = orb_pgen * branch_pgen
 
         case (11) ! raising into lowering into raising
             ! dito about matrix elements as above...
             call calcDoubleR2L2R_stochastic(ilut, excitInfo, excitation, branch_pgen, &
-                posSwitches, negSwitches)
+                posSwitches, negSwitches, weights)
 
             pgen = orb_pgen * branch_pgen
 
         case (12) ! lowering into raising double
             call calcDoubleL2R_stochastic(ilut, excitInfo, excitation, branch_pgen, &
-                posSwitches, negSwitches)
+                posSwitches, negSwitches, weights)
 
             pgen = orb_pgen * branch_pgen
 
         case (13) ! raising into lowering double
             call calcDoubleR2L_stochastic(ilut, excitInfo, excitation, branch_pgen, &
-                posSwitches, negSwitches)
+                posSwitches, negSwitches, weights)
 
             pgen = orb_pgen * branch_pgen
 
@@ -3253,30 +3253,30 @@ contains
             ! again the double overlap part is easy to deal with, since its 
             ! only the deltaB=0 branch
             call calcFullstopLoweringStochastic(ilut, excitInfo, excitation, &
-                branch_pgen, posSwitches, negSwitches)
+                branch_pgen, posSwitches, negSwitches, weights)
 
             pgen = orb_pgen * branch_pgen
 
         case (15) ! full-stop 2 raising
             ! again only deltaB = 0 branch in DE overlap region
             call calcFullstopRaisingStochastic(ilut, excitInfo, excitation, &
-                branch_pgen, posSwitches, negSwitches)
+                branch_pgen, posSwitches, negSwitches, weights)
 
             pgen = orb_pgen * branch_pgen
 
         case (16) ! full-stop lowering into raising
             call calcFullStopL2R_stochastic(ilut, excitInfo, excitation, pgen, &
-                posSwitches, negSwitches)
+                posSwitches, negSwitches, weights)
 
         case (17) ! full-stop raising into lowering
             call calcFullStopR2L_stochastic(ilut, excitInfo, excitation, pgen, &
-                posSwitches, negSwitches)
+                posSwitches, negSwitches, weights)
 
 
         case (18) ! full-start 2 lowering
             ! again only deltaB = 0 branch in DE overlap region
             call calcFullStartLoweringStochastic(ilut, excitInfo, excitation, &
-                branch_pgen, posSwitches, negSwitches)
+                branch_pgen, posSwitches, negSwitches, weights)
 
             pgen = orb_pgen * branch_pgen
 
@@ -3285,17 +3285,17 @@ contains
             ! the deltaB=0 branch is non-zero -> and the second part can be 
             ! treated as a single excitation
             call calcFullStartRaisingStochastic(ilut, excitInfo, excitation, &
-                branch_pgen, posSwitches, negSwitches)
+                branch_pgen, posSwitches, negSwitches, weights)
 
             pgen = orb_pgen * branch_pgen
 
         case (20) ! full-start lowering into raising
             call calcFullStartL2R_stochastic(ilut, excitInfo, excitation, pgen, &
-                posSwitches, negSwitches)
+                posSwitches, negSwitches, weights)
 
         case (21) ! full-start raising into lowering
             call calcFullStartR2L_stochastic(ilut, excitInfo, excitation, pgen, &
-                posSwitches, negSwitches)
+                posSwitches, negSwitches, weights)
 
          ! start, case by case how they appear in the documentary
         case (22) ! full-start into full-stop alike
@@ -3349,7 +3349,7 @@ contains
             ! since if its 0 it means a switch happended at some point, but 
             ! thats seems a bit inefficient. 
             call calcFullStartFullStopMixedStochastic(ilut, excitInfo, &
-                excitation, pgen, posSwitches, negSwitches)
+                excitation, pgen, posSwitches, negSwitches, weights)
 
             ! random notes:
 
@@ -3430,12 +3430,13 @@ contains
     ! write up all the specific stochastic excitation routines
 
     subroutine calcFullStartFullStopMixedStochastic(ilut, excitInfo, t, pgen, &
-            posSwitches, negSwitches)
+            posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+        type(weight_obj), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcFullStartFullStopMixedStochastic"
 
         type(weight_obj) :: weights
@@ -3451,7 +3452,11 @@ contains
 !             call calcRemainingSwitches(ilut, excitInfo, posSwitches, negSwitches)
 !         end if
 
-        weights = init_doubleWeight(ilut, excitInfo%fullEnd)
+        if (present(opt_weight)) then
+            weights = opt_weight 
+        else
+            weights = init_doubleWeight(ilut, excitInfo%fullEnd)
+        end if
 
         call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitches, &
             negSwitches, t, branch_pgen)
@@ -4404,12 +4409,13 @@ contains
     end function calcMixedContribution
 
     subroutine calcDoubleR2L_stochastic(ilut, excitInfo, t, branch_pgen, &
-            posSwitches, negSwitches)
+            posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+        type(weight_obj), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcDoubleR2L_stochastic"
 
         integer :: iOrb, start2, ende1, ende2, start1, switch
@@ -4428,9 +4434,13 @@ contains
 ! 
 
         ! : create correct weights:
-        weights = init_fullDoubleWeight(ilut, start2, ende1, ende2, negSwitches(start2), &
-            negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
-            currentB_ilut(start2), currentB_ilut(ende1))
+        if (present(opt_weight)) then
+            weights = opt_weight
+        else
+            weights = init_fullDoubleWeight(ilut, start2, ende1, ende2, negSwitches(start2), &
+                negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
+                currentB_ilut(start2), currentB_ilut(ende1))
+        end if
 
         call createStochasticStart_single(ilut, excitInfo, weights, posSwitches,&
             negSwitches, t, branch_pgen)
@@ -4450,8 +4460,9 @@ contains
 
         ! change weights... maybe need both single and double type weights
         ! then do lowering semi start
-        weights = init_fullStartWeight(ilut, ende1, ende2, negSwitches(ende1), &
-            posSwitches(ende1), currentB_ilut(ende1))
+        weights = weights%ptr
+!         weights = init_fullStartWeight(ilut, ende1, ende2, negSwitches(ende1), &
+!             posSwitches(ende1), currentB_ilut(ende1))
 
         call calcLoweringSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, branch_pgen)
@@ -4468,7 +4479,8 @@ contains
         end do
 
         ! then update weights and and to lowering semi-stop
-        weights = init_singleWeight(ilut, ende2)
+        weights = weights%ptr
+!         weights = init_singleWeight(ilut, ende2)
 
         call calcRaisingSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, branch_pgen)
@@ -4558,12 +4570,13 @@ contains
     end subroutine calcDoubleR2L_stochastic
 
     subroutine calcDoubleL2R_stochastic(ilut, excitInfo, t, branch_pgen, &
-            posSwitches, negSwitches)
+            posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+        type(weight_obj), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcDoubleL2R_stochastic"
 
         integer :: iOrb, start2, ende1, ende2, start1, switch
@@ -4585,9 +4598,13 @@ contains
 !         end if
 
         ! : create correct weights:
-        weights = init_fullDoubleWeight(ilut, start2, ende1, ende2, negSwitches(start2), &
-            negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
-            currentB_ilut(start2), currentB_ilut(ende1))
+        if (present(opt_weight)) then 
+            weights = opt_weight
+        else
+            weights = init_fullDoubleWeight(ilut, start2, ende1, ende2, negSwitches(start2), &
+                negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
+                currentB_ilut(start2), currentB_ilut(ende1))
+        end if
 
         call createStochasticStart_single(ilut, excitInfo, weights, posSwitches,&
             negSwitches, t, branch_pgen)
@@ -4607,8 +4624,9 @@ contains
 
         ! change weights... maybe need both single and double type weights
         ! then do lowering semi start
-        weights = init_fullStartWeight(ilut, ende1, ende2, negSwitches(ende1), &
-            posSwitches(ende1), currentB_ilut(ende1))
+        weights = weights%ptr
+!         weights = init_fullStartWeight(ilut, ende1, ende2, negSwitches(ende1), &
+!             posSwitches(ende1), currentB_ilut(ende1))
 
         call calcRaisingSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, branch_pgen)
@@ -4625,7 +4643,8 @@ contains
         end do
 
         ! then update weights and and to lowering semi-stop
-        weights = init_singleWeight(ilut, ende2)
+        weights = weights%ptr
+!         weights = init_singleWeight(ilut, ende2)
 
         call calcLoweringSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, branch_pgen)
@@ -4688,12 +4707,13 @@ contains
     end subroutine calcDoubleL2R_stochastic
 
     subroutine calcDoubleL2R2L_stochastic(ilut, excitInfo, t, branch_pgen, &
-            posSwitches, negSwitches)
+            posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+        type(weight_obj), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcDoubleL2R2L_stochastic"
 
         integer :: iOrb, start2, ende1, ende2, start1, switch
@@ -4717,10 +4737,14 @@ contains
 !             call calcRemainingSwitches(ilut, excitInfo,1,  posSwitches, negSwitches)
 !         end if
 
-        ! : create correct weights:
-        weights = init_fullDoubleWeight(ilut, start2, ende1, ende2, negSwitches(start2), &
-            negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
-            currentB_ilut(start2), currentB_ilut(ende1))
+        if (present(opt_weight)) then 
+            weights = opt_weight
+        else
+            ! : create correct weights:
+            weights = init_fullDoubleWeight(ilut, start2, ende1, ende2, negSwitches(start2), &
+                negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
+                currentB_ilut(start2), currentB_ilut(ende1))
+        end if
 
         call createStochasticStart_single(ilut, excitInfo, weights, posSwitches,&
             negSwitches, t, branch_pgen)
@@ -4740,8 +4764,9 @@ contains
 
         ! change weights... maybe need both single and double type weights
         ! then do lowering semi start
-        weights = init_fullStartWeight(ilut, ende1, ende2, negSwitches(ende1), &
-            posSwitches(ende1), currentB_ilut(ende1))
+        weights = weights%ptr
+!         weights = init_fullStartWeight(ilut, ende1, ende2, negSwitches(ende1), &
+!             posSwitches(ende1), currentB_ilut(ende1))
 
         call calcRaisingSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, branch_pgen)
@@ -4758,7 +4783,8 @@ contains
         end do
 
         ! then update weights and and to lowering semi-stop
-        weights = init_singleWeight(ilut, ende2)
+        weights = weights%ptr
+!         weights = init_singleWeight(ilut, ende2)
 
         call calcRaisingSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, branch_pgen)
@@ -4873,7 +4899,7 @@ contains
 
         ! : create correct weights:
         if (present(opt_weight))then 
-            weight = opt_weight
+            weights = opt_weight
         else
             weights = init_fullDoubleWeight(ilut, start2, ende1, ende2, negSwitches(start2), &
                 negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
@@ -4897,8 +4923,10 @@ contains
 
         ! change weights... maybe need both single and double type weights
         ! then do lowering semi start
-        weights = init_fullStartWeight(ilut, ende1, ende2, negSwitches(ende1), &
-            posSwitches(ende1), currentB_ilut(ende1))
+        ! just point to the next weight:
+        weights = weights%ptr
+!         weights = init_fullStartWeight(ilut, ende1, ende2, negSwitches(ende1), &
+!             posSwitches(ende1), currentB_ilut(ende1))
 
         call calcRaisingSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, branch_pgen)
@@ -4915,7 +4943,8 @@ contains
         end do
 
         ! then update weights and and to lowering semi-stop
-        weights = init_singleWeight(ilut, ende2)
+        weights = weights%ptr
+!         weights = init_singleWeight(ilut, ende2)
 
         call calcRaisingSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, branch_pgen)
@@ -4965,12 +4994,13 @@ contains
     end subroutine calcDoubleRaisingStochastic
 
     subroutine calcDoubleR2L2R_stochastic(ilut, excitInfo, t, branch_pgen, &
-            posSwitches, negSwitches)
+            posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+        type(weight_obj), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcDoubleR2L2R_stochastic"
 
         integer :: iOrb, start2, ende1, ende2, start1, switch
@@ -4995,10 +5025,14 @@ contains
 !             call calcRemainingSwitches(ilut, excitInfo,1,  posSwitches, negSwitches)
 !         end if
 
-        ! : create correct weights:
-        weights = init_fullDoubleWeight(ilut, start2, ende1, ende2, negSwitches(start2), &
-            negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
-            currentB_ilut(start2), currentB_ilut(ende1))
+        if (present(opt_weight)) then 
+            weights = opt_weight
+        else
+            ! : create correct weights:
+            weights = init_fullDoubleWeight(ilut, start2, ende1, ende2, negSwitches(start2), &
+                negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
+                currentB_ilut(start2), currentB_ilut(ende1))
+        end if
         
         call createStochasticStart_single(ilut, excitInfo, weights, posSwitches,&
             negSwitches, t, branch_pgen)
@@ -5017,8 +5051,9 @@ contains
 
         ! change weights... maybe need both single and double type weights
         ! then do lowering semi start
-        weights = init_fullStartWeight(ilut, ende1, ende2, negSwitches(ende1), &
-            posSwitches(ende1), currentB_ilut(ende1))
+        weights = weights%ptr
+!         weights = init_fullStartWeight(ilut, ende1, ende2, negSwitches(ende1), &
+!             posSwitches(ende1), currentB_ilut(ende1))
 
         call calcLoweringSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, branch_pgen)
@@ -5035,7 +5070,8 @@ contains
         end do
 
         ! then update weights and and to lowering semi-stop
-        weights = init_singleWeight(ilut, ende2)
+        weights = weights%ptr
+!         weights = init_singleWeight(ilut, ende2)
 
         call calcLoweringSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, branch_pgen)
@@ -5102,18 +5138,19 @@ contains
 
 
     subroutine calcDoubleLoweringStochastic(ilut, excitInfo, t, branch_pgen, &
-            posSwitches, negSwitches, opt_weights)
+            posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+        type(weight_obj), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcDoubleLoweringStochastic"
-        type(weight_obj), intent(in), optional :: opt_weights
 
         integer :: iOrb, start2, ende1, ende2, start1
         type(weight_obj) :: weights
         real(dp) :: integral, temp_pgen
+        type(weight_obj), pointer :: weights_ptr
        
 ! #ifdef __DEBUG
 !         call write_det_guga(6,ilut)
@@ -5138,8 +5175,8 @@ contains
 !         end if
 
         ! : create correct weights:
-        if (present(opt_weights)) then 
-            weights = opt_weights
+        if (present(opt_weight)) then 
+            weights = opt_weight
         else 
             weights = init_fullDoubleWeight(ilut, start2, ende1, ende2, negSwitches(start2), &
                 negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
@@ -5163,6 +5200,12 @@ contains
         ! change weights... maybe need both single and double type weights
         ! then do lowering semi start
         ! can i just do: 
+!         weights_ptr => weights%ptr
+!         print *, "is null?", .not.associated(weights_ptr)
+!         print *, "is null %ptr?", .not.associated(weights%ptr)
+!         print *, "+", weights%proc%plus(2.0,2.0,weights%dat)
+!         print *, "+", weights%ptr%proc%plus(2.0,2.0,weights%ptr%dat)
+
         weights = weights%ptr
 
 !         weights = init_fullStartWeight(ilut, ende1, ende2, negSwitches(ende1), &
@@ -5172,6 +5215,7 @@ contains
         call calcLoweringSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, branch_pgen)
 
+!         print *, "toto"
         ! check validity
         if (branch_pgen < EPS) return
 
@@ -5247,13 +5291,13 @@ contains
     end subroutine calcDoubleLoweringStochastic
 
     subroutine calcFullStopL2R_stochastic(ilut,excitInfo, t, pgen, &
-            posSwitches, negSwitches, opt_weights)
+            posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
-        type(weight_obj), intent(in), optional :: opt_weights
+        type(weight_obj), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcFullStopL2R_stochastic"
 
         type(weight_obj) :: weights
@@ -5273,8 +5317,8 @@ contains
 !         end if
 
         ! init weights
-        if (present(opt_weights)) then
-            weights = opt_weights
+        if (present(opt_weight)) then
+            weights = opt_weight
         else 
             weights = init_semiStartWeight(ilut, se, e, negSwitches(se), &
                 posSwitches(se), currentB_ilut(se))
@@ -5300,11 +5344,12 @@ contains
 
         ! do the specific se-st
         ! try the new reusing of the weights object.. 
+        weights = weights%ptr
 !         weights = init_doubleWeight(ilut, e)
 
         if (excitInfo%typ == 0) print *, ""
 
-        call calcRaisingSemiStartStochastic(ilut, excitInfo, weights%ptr, negSwitches, &
+        call calcRaisingSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, branch_pgen)
 
         ! check validity
@@ -5316,7 +5361,7 @@ contains
         ! but would unjust favor certain types of excitaitons..
         do i = se + 1, e -1
             call doubleUpdateStochastic(ilut, i, excitInfo, &
-                weights%ptr, negSwitches, posSwitches, t, branch_pgen)
+                weights, negSwitches, posSwitches, t, branch_pgen)
             if (abs(extract_matrix_element(t,2))<EPS .or. branch_pgen<EPS) then
                 t = 0_n_int
                 return
@@ -5599,7 +5644,8 @@ contains
             ! only choice if its a 0 stepvalue
 
             ! reinit double weights
-            weights = init_doubleWeight(ilut, i)
+            weights = weights%ptr
+!             weights = init_doubleWeight(ilut, i)
 
 !             if (isZero(ilut,se)) then
             if (current_stepvector(se) == 0) then
@@ -5830,12 +5876,13 @@ contains
     end subroutine calc_mixed_end_l2r_contr_nosym
     
     subroutine calcFullStopR2L_stochastic(ilut, excitInfo, t, pgen, &
-            posSwitches, negSwitches)
+            posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+        type(weight_obj), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcFullStopR2L_stochastic"
 
         type(weight_obj) :: weights
@@ -5857,8 +5904,12 @@ contains
 !         call write_det_guga(6,ilut)
 !         call print_excitInfo(excitInfo)
         ! init weights
-        weights = init_semiStartWeight(ilut, se, en, negSwitches(se), &
-            posSwitches(se), currentB_ilut(se))
+        if (present(opt_weight)) then 
+            weights = opt_weight
+        else 
+            weights = init_semiStartWeight(ilut, se, en, negSwitches(se), &
+                posSwitches(se), currentB_ilut(se))
+        end if
 
         ! create start
         call createStochasticStart_single(ilut, excitInfo, weights, posSwitches,&
@@ -5878,7 +5929,9 @@ contains
         end do
 
         ! do the specific semi-start
-        weights = init_doubleWeight(ilut, en)
+        weights = weights%ptr
+
+!         weights = init_doubleWeight(ilut, en)
 
         ! dirty fix of the gfortran compiler issues:
         if (excitInfo%typ == 0) print *, ""
@@ -6243,7 +6296,8 @@ contains
                         end do
 
                         ! then need to reinit double weight 
-                        weights = init_doubleWeight(ilut,i)
+                        weights = weights%ptr
+!                         weights = init_doubleWeight(ilut,i)
 
                         ! and also with the semi-start
                         if (currentOcc_int(se) /= 1) then
@@ -6359,7 +6413,8 @@ contains
                     end do
 
                     ! then need to reinit double weight 
-                    weights = init_doubleWeight(ilut,i)
+                    weights = weights%ptr
+!                     weights = init_doubleWeight(ilut,i)
 
                     ! and also with the semi-start
                     if (currentOcc_int(se) /= 1) then
@@ -6439,7 +6494,8 @@ contains
                         currentB_ilut(j), negSwitches(j), posSwitches(j))
                 end do
                 
-                weights = init_doubleWeight(ilut, sw)
+                weights = weights%ptr
+!                 weights = init_doubleWeight(ilut, sw)
 
                 ! and also with the semi-start
                 if (currentOcc_int(se) /= 1) then
@@ -6682,7 +6738,8 @@ contains
             ! only choice if its a 0 stepvalue
 
             ! reinit double weights
-            weights = init_doubleWeight(ilut, i)
+            weights = weights%ptr
+!             weights = init_doubleWeight(ilut, i)
 
             if (current_stepvector(se) == 3) then
 !             if (isThree(ilut,se)) then
@@ -7573,6 +7630,7 @@ contains
             ! for arriving -1 branch branching is always possible
             if (deltaB == -1) then
                 ! here the choice is between 0 and -2 branch
+!                 print *, "is null?", associated(weights)
                 minusWeight = weights%proc%minus(negSwitches(se), &
                     bVal, weights%dat)
                 zeroWeight = weights%proc%zero(negSwitches(se), posSwitches(se), &
@@ -8047,12 +8105,13 @@ contains
     end subroutine calcLoweringSemiStopStochastic
 
     subroutine calcFullStartR2L_stochastic(ilut, excitInfo, t, pgen, &
-            posSwitches, negSwitches)
+            posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+        type(weight_obj), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcFullStartR2L_stochastic"
 
         integer :: i, st, en, se, gen, j, step, sw, step2
@@ -8074,8 +8133,12 @@ contains
         gen = excitInfo%lastGen
 
         ! create correct weights:
-        weights = init_fullStartWeight(ilut, se, en, negSwitches(se), &
-            posSwitches(se), currentB_ilut(se))
+        if (present(opt_weight)) then 
+            weights = opt_weight 
+        else
+            weights = init_fullStartWeight(ilut, se, en, negSwitches(se), &
+                posSwitches(se), currentB_ilut(se))
+        end if
 
         call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitches, &
             negSwitches, t, branch_pgen)
@@ -8107,7 +8170,9 @@ contains
         ! initialized within the fullstart weights or?
         ! and then use smth like
 !         weights = weights%single
-        weights = init_singleWeight(ilut, en)
+        weights = weights%ptr
+!         weights = init_singleWeight(ilut, en)
+
         call calcRaisingSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, branch_pgen)
 
@@ -8599,12 +8664,13 @@ contains
 
 
     subroutine calcFullStartL2R_stochastic(ilut, excitInfo, t, pgen, &
-            posSwitches, negSwitches)
+            posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+        type(weight_obj), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcFullStartL2R_stochastic"
 
         integer :: i, st, en, se, gen, j, step, sw, step2
@@ -8645,8 +8711,12 @@ contains
 !         end if
 
         ! create correct weights:
-        weights = init_fullStartWeight(ilut, se, en, negSwitches(se), &
-            posSwitches(se), currentB_ilut(se))
+        if (present(opt_weight)) then 
+            weights = opt_weight
+        else
+            weights = init_fullStartWeight(ilut, se, en, negSwitches(se), &
+                posSwitches(se), currentB_ilut(se))
+        end if
 
         call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitches, &
             negSwitches, t, branch_pgen)
@@ -8676,7 +8746,9 @@ contains
 
         ! then deal with specific semi-stop
         ! and update weights here
-        weights = init_singleWeight(ilut, en)
+        weights = weights%ptr
+!         weights = init_singleWeight(ilut, en)
+
         call calcLoweringSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, branch_pgen)
 
@@ -9924,15 +9996,15 @@ contains
     end subroutine mixedFullStartStochastic
 
     subroutine calcSingleOverlapMixedStochastic(ilut, excitInfo, t, branch_pgen, &
-            posSwitches, negSwitches, opt_weights)
+            posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+        type(weight_obj), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcSingleOverlapMixedStochastic"
 
-        type(weight_obj), intent(in), optional :: opt_weights
         type(weight_obj) :: weights
         real(dp) :: tempWeight, bVal, umat, temp_pgen
         integer :: iOrb, deltaB, iEx
@@ -9976,8 +10048,8 @@ contains
         ! in the mixed single overlap case its just like a regular single 
         ! excitation except the special change in stepvector at the 
         ! single overlap site!
-        if (present(opt_weights)) then
-            weights = opt_weights
+        if (present(opt_weight)) then
+            weights = opt_weight
         else
             weights = init_singleWeight(ilut, excitInfo%fullEnd)
         end if
@@ -10046,12 +10118,13 @@ contains
     end subroutine calcSingleOverlapMixedStochastic
 
     subroutine calcFullstopRaisingStochastic(ilut, excitInfo, t, branch_pgen, &
-            posSwitches, negSwitches)
+            posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+        type(weight_obj), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcFullstopRaisingStochastic"
 
         real(dp) :: umat, nOpen, tempWeight, bVal, temp_pgen
@@ -10084,7 +10157,11 @@ contains
          ! create weight object here
         ! i think i only need single excitations weights here, since 
         ! the semi stop in this case is like an end step...
-        weights = init_singleWeight(ilut, excitInfo%secondStart)
+        if (present(opt_weight)) then 
+            weights = opt_weight
+        else
+            weights = init_singleWeight(ilut, excitInfo%secondStart)
+        end if
 
         ! i only need normal single stochastic start then..
         call createStochasticStart_single(ilut, excitInfo, weights, posSwitches,&
@@ -10194,12 +10271,13 @@ contains
     end subroutine calcFullstopRaisingStochastic
 
     subroutine calcFullstopLoweringStochastic(ilut, excitInfo, t, branch_pgen, &
-            posSwitches, negSwitches)
+            posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+        type(weight_obj), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcFullstopLoweringStochastic"
 
         real(dp) :: umat,  nOpen, tempWeight, bVal, temp_pgen
@@ -10232,7 +10310,11 @@ contains
          ! create weight object here
         ! i think i only need single excitations weights here, since 
         ! the semi stop in this case is like an end step...
-        weights = init_singleWeight(ilut, excitInfo%secondStart)
+        if (present(opt_weight)) then 
+            weights = opt_weight
+        else 
+            weights = init_singleWeight(ilut, excitInfo%secondStart)
+        end if
 
         ! i only need normal single stochastic start then..
         call createStochasticStart_single(ilut, excitInfo, weights, posSwitches,&
@@ -10345,7 +10427,7 @@ contains
     end subroutine calcFullstopLoweringStochastic
 
     subroutine calcFullStartLoweringStochastic(ilut, excitInfo, t, branch_pgen, &
-            posSwitches, negSwitches)
+            posSwitches, negSwitches, opt_weight)
         ! in this case there is no ambiguity in the matrix elements, as they
         ! are uniquely determined and thus can be efficiently calculated on
         ! the fly
@@ -10354,6 +10436,7 @@ contains
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+        type(weight_obj), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcFullStartLoweringStochastic"
 
         real(dp) :: tempWeight, minusWeight, plusWeight, umat, nOpen, bVal, temp_pgen
@@ -10405,7 +10488,11 @@ contains
 
         deltaB = getDeltaB(t)
 
-        weights = init_singleWeight(ilut, ende)
+        if (present(opt_weight)) then
+            weights = opt_weight
+        else
+            weights = init_singleWeight(ilut, ende)
+        end if
         ! could encode matrix element here, but do it later for more efficiency
  
         select case (current_stepvector(semi))
@@ -10518,7 +10605,7 @@ contains
     end subroutine calcFullStartLoweringStochastic
 
    subroutine calcFullStartRaisingStochastic(ilut, excitInfo, t, &
-            branch_pgen, posSwitches, negSwitches)
+            branch_pgen, posSwitches, negSwitches, opt_weight)
         ! in this case there is no ambiguity in the matrix elements, as they
         ! are uniquely determined and thus can be efficiently calculated on
         ! the fly
@@ -10527,6 +10614,7 @@ contains
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+        type(weight_obj), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcFullStartRaisingStochastic"
 
         real(dp) :: tempWeight, minusWeight, plusWeight, umat, nOpen, bVal, temp_pgen
@@ -10584,7 +10672,11 @@ contains
         nOpen = real(count_open_orbs_ij(start,semi-1),dp)
 
         deltaB = getDeltaB(t)
-        weights = init_singleWeight(ilut, ende)
+        if (present(opt_weight)) then
+            weights = opt_weight 
+        else
+            weights = init_singleWeight(ilut, ende)
+        end if
                        
         ! could encode matrix element here, but do it later for more efficiency
 
@@ -11755,7 +11847,7 @@ contains
         type(weight_obj) :: fullStart
         character(*), parameter :: this_routine = "init_fullStartWeight"
 
-        type(weight_obj), target :: single
+        type(weight_obj), target, save :: single
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
         ASSERT(pOrb > 0 .and. pOrb <= nSpatOrbs)
@@ -11863,7 +11955,7 @@ contains
         type(weight_obj) :: semiStart
         character(*), parameter :: this_routine = "init_semiStartWeight"
 
-        type(weight_obj), target :: double
+        type(weight_obj), target, save :: double
 
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
@@ -11945,7 +12037,7 @@ contains
         type(weight_obj) :: fullDouble
         character(*), parameter :: this_routine = "init_fullDoubleWeight"
 
-        type(weight_obj), target :: fullStart
+        type(weight_obj), target, save :: fullStart
 
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
@@ -12068,7 +12160,7 @@ contains
         type(weight_obj) :: singleLowering
         character(*), parameter :: this_routine = "init_singleOverlapLowering"
 
-        type (weight_obj) :: single
+        type (weight_obj), target, save :: single
 
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
@@ -12083,6 +12175,8 @@ contains
 !         singleLowering%dat%zero = endLx(ilut,sOrb)
 
         single = init_singleWeight(ilut, pOrb)
+
+        singleLowering%ptr => single
 
         singleLowering%dat%minus = single%proc%minus(negSwitches, bVal, single%dat)
         singleLowering%dat%plus = single%proc%plus(posSwitches, bVal, single%dat)
@@ -15869,8 +15963,9 @@ contains
 
         ! change weights... maybe need both single and double type weights
         ! maybe semistart is wrong here..
-        weights = init_fullStartWeight(ilut, ende1, ende2, negSwitches(ende1), &
-            posSwitches(ende1), currentB_ilut(ende1))
+        weights = weights%ptr
+!         weights = init_fullStartWeight(ilut, ende1, ende2, negSwitches(ende1), &
+!             posSwitches(ende1), currentB_ilut(ende1))
 
         minusWeight = weights%proc%minus(negSwitches(start2), currentB_ilut(start2),weights%dat)
         plusWeight = weights%proc%plus(posSwitches(start2), currentB_ilut(start2),weights%dat)
@@ -15888,7 +15983,8 @@ contains
         end do
 
         ! update weights again: 
-        weights = init_singleWeight(ilut, ende2)
+        weights = weights%ptr
+!         weights = init_singleWeight(ilut, ende2)
         minusWeight = weights%proc%minus(negSwitches(ende1), currentB_ilut(ende1),weights%dat)
         plusWeight = weights%proc%plus(posSwitches(ende1), currentB_ilut(ende1),weights%dat)
 
@@ -15957,8 +16053,9 @@ contains
 
         ! change weights... maybe need both single and double type weights
         ! then do lowering semi start
-        weights = init_fullStartWeight(ilut, ende1, ende2, negSwitches(ende1), &
-            posSwitches(ende1), currentB_ilut(ende1))
+        weights = weights%ptr
+!         weights = init_fullStartWeight(ilut, ende1, ende2, negSwitches(ende1), &
+!             posSwitches(ende1), currentB_ilut(ende1))
 
         minusWeight = weights%proc%minus(negSwitches(start2), currentB_ilut(start2),weights%dat)
         plusWeight = weights%proc%plus(posSwitches(start2), currentB_ilut(start2),weights%dat)
@@ -15976,7 +16073,8 @@ contains
         end do
 
         ! update weights again: todo
-        weights = init_singleWeight(ilut, ende2)
+        weights = weights%ptr
+!         weights = init_singleWeight(ilut, ende2)
         minusWeight = weights%proc%minus(negSwitches(ende1), currentB_ilut(ende1),weights%dat)
         plusWeight = weights%proc%plus(posSwitches(ende1), currentB_ilut(ende1),weights%dat)
 
@@ -16053,8 +16151,9 @@ contains
                 weights, tempExcits, nExcits)
         end do
         
-        weights = init_fullStartWeight(ilut, ende1, ende2, negSwitches(ende1), &
-            posSwitches(ende1), currentB_ilut(ende1))
+        weights = weights%ptr
+!         weights = init_fullStartWeight(ilut, ende1, ende2, negSwitches(ende1), &
+!             posSwitches(ende1), currentB_ilut(ende1))
 
         minusWeight = weights%proc%minus(negSwitches(start2), currentB_ilut(start2),weights%dat)
         plusWeight = weights%proc%plus(posSwitches(start2), currentB_ilut(start2),weights%dat)
@@ -16074,7 +16173,8 @@ contains
         end do
 
         ! update weights again: 
-        weights = init_singleWeight(ilut, ende2)
+        weights = weights%ptr
+!         weights = init_singleWeight(ilut, ende2)
         minusWeight = weights%proc%minus(negSwitches(ende1), currentB_ilut(ende1),weights%dat)
         plusWeight = weights%proc%plus(posSwitches(ende1), currentB_ilut(ende1),weights%dat)
 
@@ -16160,8 +16260,9 @@ contains
 
         ! change weights... maybe need both single and double type weights
         ! then do lowering semi start
-        weights = init_fullStartWeight(ilut, ende1, ende2, negSwitches(ende1), &
-            posSwitches(ende1), currentB_ilut(ende1))
+        weights = weights%ptr
+!         weights = init_fullStartWeight(ilut, ende1, ende2, negSwitches(ende1), &
+!             posSwitches(ende1), currentB_ilut(ende1))
 
         minusWeight = weights%proc%minus(negSwitches(start2), currentB_ilut(start2),weights%dat)
         plusWeight = weights%proc%plus(posSwitches(start2), currentB_ilut(start2),weights%dat)
@@ -16184,7 +16285,8 @@ contains
         end do
 
         ! update weights again: 
-        weights = init_singleWeight(ilut, ende2)
+!         weights = init_singleWeight(ilut, ende2)
+        weights = weights%ptr
         minusWeight = weights%proc%minus(negSwitches(ende1), currentB_ilut(ende1),weights%dat)
         plusWeight = weights%proc%plus(posSwitches(ende1), currentB_ilut(ende1),weights%dat)
 
@@ -16373,7 +16475,8 @@ contains
         ! but update weights here..
         ! then reset weights !
         ! do i only need single weight here? 
-        weights = init_singleWeight(ilut, ende)
+        weights = weights%ptr
+!         weights = init_singleWeight(ilut, ende)
 
         plusWeight = weights%proc%plus(posSwitches(semi), currentB_ilut(semi),&
             weights%dat)
@@ -16455,7 +16558,8 @@ contains
 
         ! then deal with the specific semi-stop here
         ! but todo update weights here..
-        weights = init_singleWeight(ilut, ende)
+        weights = weights%ptr
+!         weights = init_singleWeight(ilut, ende)
         plusWeight = weights%proc%plus(posSwitches(semi), currentB_ilut(semi),&
             weights%dat)
         minusWeight = weights%proc%minus(negSwitches(semi), currentB_ilut(semi), &
@@ -18076,7 +18180,8 @@ contains
         ! can i write a general raisingSemiStart function, to reuse in 
         ! other types of excitations?
         ! have to init specific prob. weights 
-        weights = init_doubleWeight(ilut, en)
+        weights = weights%ptr
+!         weights = init_doubleWeight(ilut, en)
         ! depending if there is a 3 at the fullend there can be no switching 
         ! possible
 !         if (isThree(ilut, en)) then
@@ -18179,7 +18284,8 @@ contains
         ! have to init specific prob. weights todo
         ! do i have to give them posSwitches and negSwitches or could I 
         ! just put in actual weight values?
-        weights = init_doubleWeight(ilut, en)
+        weights = weights%ptr
+!         weights = init_doubleWeight(ilut, en)
 !         if (isThree(ilut, en)) then
         if (current_stepvector(en) == 3) then
             minusWeight = 0.0_dp
@@ -20133,7 +20239,8 @@ contains
         excitInfo%currentGen = excitInfo%lastGen
 
         ! update weights here?
-        weights = init_singleWeight(ilut, excitInfo%fullEnd)
+        weights = weights%ptr
+!         weights = init_singleWeight(ilut, excitInfo%fullEnd)
 
         ! continue with secon region normally
         do i = excitInfo%secondStart + 1, excitInfo%fullEnd - 1
@@ -20618,7 +20725,7 @@ contains
 
     end subroutine calcDoubleExcitation_withWeight
 
-    subroutine checkCompatibility(L, excitInfo, flag, posSwitches, negSwitches)
+    subroutine checkCompatibility(L, excitInfo, flag, posSwitches, negSwitches, opt_weight)
         ! depending on the type of excitation determined in the 
         ! excitationIdentifier check if the provided ilut and excitation and 
         ! the probabilistic weight function allow an excitation
@@ -20631,12 +20738,13 @@ contains
         real(dp), intent(out), optional :: posSwitches(nSpatOrbs), &
                                            negSwitches(nSpatOrbs)
 
-        type(weight_obj), intent(out), optional :: weights
+        type(weight_obj), intent(out), optional :: opt_weight
         character(*), parameter :: this_routine = "checkCompatibility"
 
         real(dp) :: pw, mw, zw
         logical :: fl0, flS, fl2
         integer ::  we, st, ss, fe, en, i,j,k,lO
+        type(weight_obj) :: weights
         
 
         ! also include probabilistic weights
@@ -21361,7 +21469,7 @@ contains
                 ! only 0 deltab branch valid
 !                 if (zw < EPS) flag = .false.
                 if ((mw < EPS .and. pw < EPS) .or. & 
-                    (current_stepvector(fe) == 1 .and. pw < EPS) .or. 
+                    (current_stepvector(fe) == 1 .and. pw < EPS) .or. &
                     (current_stepvector(fe) == 2 .and. mw < EPS)) then 
                     flag = .false. 
                     return 
@@ -21399,7 +21507,7 @@ contains
                 ! only 0 deltab branch valid
 !                 if (zw < EPS) flag = .false.
                 if ((mw < EPS .and. pw < EPS) .or. & 
-                    (current_stepvector(fe) == 1 .and. pw < EPS) .or. 
+                    (current_stepvector(fe) == 1 .and. pw < EPS) .or. &
                     (current_stepvector(fe) == 2 .and. mw < EPS)) then 
                     flag = .false. 
                     return 
@@ -21587,6 +21695,10 @@ contains
 !                 end if
 
         end select
+
+        if (present(opt_weight)) then 
+            opt_weight = weights
+        end if
 
     end subroutine checkCompatibility
 

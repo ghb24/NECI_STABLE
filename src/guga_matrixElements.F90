@@ -190,7 +190,9 @@ contains
         ! the b-vector is also needed for these calculations:
         bVector = calcB_vector_nI(nI)
         ! probably could use current b vector.. or reference b vector even...
-        ! yes definitly 
+        ! yes definitly. no not really since this is also used for general 
+        ! diagonal matrix elements not only the current determinant in the 
+        ! fciqmc loop
 
 
         exchange = 1.0_dp
