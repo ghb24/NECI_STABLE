@@ -1,6 +1,6 @@
 #include "macros.h"
 MODULE HFCalc
-   use constants, only: dp, int64
+   use constants, only: dp, int64, MPIArg
    implicit none
    save
    contains
@@ -106,7 +106,7 @@ MODULE HFCalc
 !C.. to UMAT2
                call shared_sync_mpi(umat2_win)
                LogDealloc(tagUMat)
-               call shared_deallocate_mpi(umat_win,umat)
+               call shared_deallocate_mpi(int(umat_win,MPIArg),umat)
 
                !Deallocate(UMat)
                umat_win=umat2_win

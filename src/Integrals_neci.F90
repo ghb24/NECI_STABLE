@@ -729,7 +729,7 @@ contains
 !!C.. Now we can remove the old UMATRIX, and set the pointer UMAT to point
 !!C.. to UMAT2
          LogDealloc(tagUMat)
-         call shared_deallocate_mpi(umat_win,umat)
+         call shared_deallocate_mpi(int(umat_win,MPIArg),umat)
          !Deallocate(UMat)
          umat_win=umat2_win
          UMat=>UMat2
@@ -778,7 +778,7 @@ contains
         ! Cleanup UMAT array
         if (associated(UMAT)) then
             LogDealloc (tagUMat)
-            call shared_deallocate_mpi (umat_win,UMAT)
+            call shared_deallocate_mpi (int(umat_win,MPIArg),UMAT)
         endif
         
         if (allocated(frozen_orb_list)) then

@@ -39,9 +39,9 @@ contains
 
 
     subroutine shared_deallocate_mpi(win_shm,p_shm)
-      integer:: win_shm
+      integer(MPIArg):: win_shm
       HElement_t(dp), pointer :: p_shm(:)
-      integer:: ierr
+      integer(MPIArg):: ierr
 
       nullify(p_shm)
       call mpi_win_unlock_all(win_shm,ierr)
@@ -51,7 +51,7 @@ contains
 
     subroutine shared_sync_mpi(win_shm)
       integer:: win_shm
-      integer:: ierr
+      integer(MPIArg):: ierr
 
       call mpi_win_sync(win_shm,ierr)
       call mpi_barrier(mpi_comm_intra,ierr)
@@ -87,12 +87,12 @@ contains
     subroutine MPIBCast_inter_byte(p_shm,nbytes)
       HElement_t(dp):: p_shm
       integer:: nbytes
-      integer:: ierr
+      integer(MPIArg):: ierr
 
       !only task 0 of each shared memory task range does the MPI communication
       if (iProcIndex_intra.eq.0) then
-         call mpi_bcast(p_shm,nbytes, &
-              MPI_BYTE,0,mpi_comm_inter,ierr)
+         call mpi_bcast(p_shm,int(nbytes,MPIArg), &
+              MPI_BYTE,0_MPIArg,mpi_comm_inter,ierr)
       end if
 
     end subroutine MPIBCast_inter_byte

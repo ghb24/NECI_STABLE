@@ -1538,7 +1538,8 @@ contains
         ! have to initialise our own.
 
         logical, intent(in) :: tExternal
-        integer(MPIArg) :: iProcInd, nProcess, ierr
+        integer(MPIArg) :: iProcInd, nProcess
+        integer(MPIArg) :: ierr
         integer :: a, g
         character(len=20) NodeFile
         logical, save :: initialised=.false.
@@ -1597,10 +1598,10 @@ contains
             !initialize intra node and inter node communicators
 #ifdef __SHARED_MEM
             !the 'intra' range is the full node for now.
-            call MPI_Comm_split_type(CommGlobal,MPI_COMM_TYPE_SHARED,0,MPI_INFO_NULL,mpi_comm_intra,ierr)
+            call MPI_Comm_split_type(CommGlobal,MPI_COMM_TYPE_SHARED,0_MPIArg,MPI_INFO_NULL,mpi_comm_intra,ierr)
             call MPI_Comm_rank(mpi_comm_intra,iProcIndex_intra,ierr)
              
-            call MPI_Comm_split(CommGlobal,iProcIndex_intra,iProcIndex,mpi_comm_inter,ierr)
+            call MPI_Comm_split(CommGlobal,iProcIndex_intra,int(iProcIndex,MPIArg),mpi_comm_inter,ierr)
             call MPI_Comm_rank(mpi_comm_inter,iProcIndex_inter,ierr)
 #else
 	    !no sharing between tasks, i.e. the 'intra' task range is 1
