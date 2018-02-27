@@ -329,6 +329,8 @@ module lattice_mod
         procedure :: calc_nsites => calc_nsites_cube
         procedure :: initialize_sites => init_sites_cube
 
+        procedure :: apply_basis_vector => apply_basis_vector_cube
+
     end type cube
 
     type, extends(lattice) :: rectangle 
@@ -348,7 +350,7 @@ module lattice_mod
         procedure :: set_length => set_length_rect
         procedure :: calc_nsites => calc_nsites_rect
         procedure :: initialize_sites => init_sites_rect
-
+        procedure :: apply_basis_vector => apply_basis_vector_rect
 
     end type rectangle
 
@@ -407,6 +409,7 @@ module lattice_mod
 ! 
         procedure :: calc_nsites => calc_nsites_tilted
         procedure :: initialize_sites => init_sites_tilted
+
 
     end type tilted
 
@@ -675,6 +678,8 @@ contains
         ! the naive way would be to loop over all sites and check if the 
         ! k-vector fits..
         ! but that would be too effortive, so we use the lookup table
+!         k_vec = this%map_k_vec(k_in)
+
         i = this%lu_table(k_in(1),k_in(2),k_in(3))
 
         ! and, if required, include the spin in the index
@@ -753,7 +758,20 @@ contains
         character(*), parameter :: this_routine = "inside_bz" 
 
         ! this function should also be deferred!
-        call stop_all(this_routine, "this routine should always be deferred!")
+!         call stop_all(this_routine, "this routine should always be deferred!")
+
+        ! i think with Kais new BZ implementation we can write this function 
+        ! generally. 
+
+      ! I think this should be the approach for most lattices
+      ! do a check if we have the bz-ishness of this vector stored
+      if(all(k_vec <= this%kmax) .and. all(k_vec >= this%kmin)) then
+         inside_bz = this%bz_table(k_vec(1),k_vec(2),k_vec(3))
+      else
+         ! if not, do the explicit check
+         inside_bz = this%inside_bz_explicit(k_vec)
+      endif
+
 
     end function inside_bz
 
@@ -798,6 +816,68 @@ contains
             k_vec(1) <= this%length/2) inside_bz_chain = .true.
 
     end function inside_bz_chain
+
+    function apply_basis_vector_general(this, k_in) result(k_out) 
+        ! todo: i think i can write a general routine to apply the basis 
+        ! vectors.. so i do not have to write a specific one for all the 
+        ! different sorts of lattices.. 
+        class(lattice) :: this 
+        integer, intent(in) :: k_in(sdim) 
+        integer, allocatable :: k_out(:,:) 
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "apply_basis_vector_general"
+#endif 
+        
+        ! todo
+        
+
+    end function apply_basis_vector_general
+
+    function apply_basis_vector_cube(this, k_in, ind) result(k_out) 
+        class(cube) :: this 
+        integer, intent(in) :: k_in(3) 
+        integer, intent(in), optional :: ind 
+        integer :: k_out(3)
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "apply_basis_vector_cube" 
+#endif
+
+        call stop_all("apply_basis_vector_cube", "not yet implemented!")
+
+    end function apply_basis_vector_cube
+
+    function apply_basis_vector_rect(this, k_in, ind) result(k_out)
+        class(rectangle) :: this 
+        integer, intent(in) :: k_in(3) 
+        integer, intent(in), optional :: ind 
+        integer :: k_out(3) 
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "apply_basis_vector_rect"
+#endif
+
+        integer :: basis_vec(8,3), r1(3), r2(3)
+
+        ASSERT(ind >= 0)
+        ASSERT(ind <= 8) 
+
+        ! with negative signs we have in total 8 possibilities of 
+        ! vectors to apply: 
+
+        r1 = this%k_vec(:,1)
+        r2 = this%k_vec(:,2)
+
+        basis_vec(1,:) = r1 
+        basis_vec(2,:) = -r1 
+        basis_vec(3,:) = r2 
+        basis_vec(4,:) = -r2 
+        basis_vec(5,:) = r1 + r2
+        basis_vec(6,:) = -(r1 + r2)
+        basis_vec(7,:) = r1 - r2
+        basis_vec(8,:) = -(r1 - r2)
+            
+        k_out = k_in + basis_vec(ind,:)
+
+    end function apply_basis_vector_rect
 
     function apply_basis_vector_chain(this, k_in, ind) result(k_out) 
         ! i think i have to make ind non-optional, as it is actually 
@@ -1752,7 +1832,7 @@ contains
 
                 neigh = sort_unique(temp_neigh)
 
-                k_vec = [x,y,0]
+                k_vec = [x-1,y-1,0]
                 this%sites(i) = site(i, size(neigh), neigh, k_vec)
 
                 deallocate(neigh)
@@ -1782,7 +1862,7 @@ contains
 
                 neigh = sort_unique(temp_neigh)
 
-                k_vec = [x,y,0]
+                k_vec = [x-1,y-1,0]
 
                 this%sites(i) = site(i, size(neigh), neigh, k_vec)
 
@@ -1812,7 +1892,7 @@ contains
 
                 neigh = sort_unique(temp_neigh)
 
-                k_vec = [x,y,0]
+                k_vec = [x-1,y-1,0]
 
                 this%sites(i) = site(i, size(neigh), neigh, k_vec)
 
@@ -1859,7 +1939,7 @@ contains
 
                 neigh = sort_unique(temp_neigh)
 
-                k_vec = [x,y,0]
+                k_vec = [x-1,y-1,0]
 
                 this%sites(i) = site(i, size(neigh), neigh,k_vec)
 
@@ -2927,6 +3007,9 @@ contains
             ! introduce a second routine, which first determines the 
             ! number of sites depending on the lattice type 
 
+            ! how should i define the lattice k_vectors.. 
+            this%k_vec(1,1) = length_x
+
         class is (rectangle) 
 
             call this%set_ndim(DIM_RECT)
@@ -2949,6 +3032,11 @@ contains
             this%lat_vec(1,1) = this%length(1) 
             this%lat_vec(2,2) = this%length(2)
 
+            ! i also need to assign the lattice k-vectors.. 
+            ! and i need to do it correctly.. 
+            this%k_vec(1,1) = this%length(1)
+            this%k_vec(2,2) = this%length(2)
+
         class is (tilted)
             
             call this%set_ndim(DIM_RECT) 
@@ -2965,6 +3053,9 @@ contains
 
             this%lat_vec(1:2,1) = [this%length(1),this%length(1)]
             this%lat_vec(1:2,2) = [-this%length(2),this%length(2)]
+
+            this%k_vec(1:2,1) = [this%length(1),this%length(1)]
+            this%k_vec(1:2,2) = [-this%length(2),this%length(2)]
 
         class is (ole)
             call this%set_ndim(DIM_RECT)
@@ -2989,6 +3080,10 @@ contains
             this%lat_vec(1,1) = this%length(1)
             this%lat_vec(2,2) = this%length(2)
             this%lat_vec(3,3) = this%length(3)
+
+            this%k_vec(1,1) = this%length(1)
+            this%k_vec(2,2) = this%length(2)
+            this%k_vec(3,3) = this%length(3)
 
         class is (triangular) 
             call this%set_ndim(DIM_RECT)
@@ -3145,6 +3240,7 @@ contains
       call this%fill_bz_table()
       ! now, fill the lookup table with the indices of the states
       call this%fill_lu_table()
+
     end subroutine initialize_lu_table
 
     subroutine get_lu_table_size(this)
@@ -4212,6 +4308,20 @@ contains
             print *, " max-number of neighbors: ", this%get_nconnect_max() 
             print *, " number of sites of chain: ", this%get_nsites() 
             print *, " is the chain periodic: ", this%is_periodic()
+
+        class is (rectangle) 
+
+            if (trim(this%get_name()) == 'tilted') then 
+                print *, "Lattice type is 'tilted' "
+            else
+                print *, "Lattice type is 'rectangle' "
+            end if
+
+            print *, " number of dimensions: ", this%get_ndim()
+            print *, " max-number of neighbors: ", this%get_nconnect_max() 
+            print *, " number of sites of chain: ", this%get_nsites() 
+            print *, " is the chain periodic: ", this%is_periodic()
+            print *, "primitive lattice vectors: (",this%lat_vec(1:2,1),"), (",this%lat_vec(1:2,2), ")"
 
         class is (ole) 
             print *, "Lattice type is 'Ole' ;) "
