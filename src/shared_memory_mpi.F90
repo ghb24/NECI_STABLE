@@ -14,7 +14,8 @@ contains
       HElement_t(dp), pointer :: p_shm(:)
       integer(int64):: dims(1)
 
-      integer:: disp_unit, ierr
+      integer(MPIArg):: disp_unit
+      integer(MPIArg) :: ierr
       integer(kind=mpi_address_kind):: wsize
       TYPE(C_PTR):: cptr_shm
 
@@ -27,7 +28,7 @@ contains
       call mpi_win_allocate_shared(wsize,HElement_t_sizeB,MPI_INFO_NULL,mpi_comm_intra,&
            cptr_shm,win_shm,ierr)
       
-      call mpi_win_shared_query(win_shm,0,wsize,disp_unit,cptr_shm,ierr)
+      call mpi_win_shared_query(win_shm,0_MPIArg,wsize,disp_unit,cptr_shm,ierr)
       
       !map to Fortran array pointer
       call c_f_pointer(cptr_shm,p_shm,dims)
