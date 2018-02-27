@@ -1,3 +1,23 @@
+###############################################################################
+#Note: This script needs at least version 4.6 of gnuplot
+###############################################################################
+# Plotted Iterations ##########################################################
+start = 100
+end   = 2000
+step  = 100
+
+# Minimum and Maximum Exciations ##############################################
+min_ex = 2
+max_ex = 6
+
+#Radial distance between exciations
+dist = 1
+
+# Exponential scaling factor of the population as a function of the excitation 
+# level. This is used to make high excitations visible because they usually 
+# have expontially smaller populations. 
+scale = 2.5
+###############################################################################
 reset
 set term gif animate 10 size 1024,1024
 set output "polar.gif"
@@ -10,15 +30,6 @@ unset border
 unset xtics
 unset ytics
 
-#Miimum and Maximum Exciations
-min_ex = 2
-max_ex = 8 
-
-#Exponential (as a function of excitation level) scaling factor for the population
-scale = 2
-
-#Distance between exciations
-dist = 1
 
 #Line style of the instantaneous wavefunction
 set style line 1 lt 4 lw 1 pt 2 ps 0.2
@@ -31,20 +42,18 @@ set xrange [-max_ex*dist:+max_ex*dist]
 set yrange [-max_ex*dist:+max_ex*dist]
 
 #Find the line index of the first det of an excaitation
-index(ex) = system("awk '{ if (\$2 == ".ex.") {print \$1; exit }}' SymDETS")
-
+index(ex) = system("awk '\$2==".ex."{exit}END{print \$1}' SymDETS")
 set print "-"
-do for [iter=100:1000:100]{
+do for [iter=start:end:step]{
     print "Iteration: ".iter
     set multiplot
-    set title "Normal Initiator Method - Iteration: ".iter
+    set title "Iteration: ".iter
     #We need the exact solution, so we append the columns of SymDETS
     system("paste -d' ' SpawnHist-".iter." SymDETS > tmp")
     do for [ex=min_ex:max_ex]{
         #Find the first and last line for excitation level
         begin = index(ex)
         end = index(ex+1)-1
-
         #Extract the lines of an exciation
         system("sed -n '".begin.",".end."p' tmp > ex_tmp")
         #Repeat the first line at the end to close the polar graph
