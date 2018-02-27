@@ -547,7 +547,7 @@ contains
          tParity, pGen, hel, store, run)
       implicit none
       integer, intent(in) :: nI(nel), exFlag
-      integer(n_int) :: ilutI(0:NIfTot)
+      integer(n_int), intent(in) :: ilutI(0:NIfTot)
       integer, intent(out) :: nJ(nel), ic, ex(2,2)
       real(dp), intent(out) :: pGen
       logical, intent(out) :: tParity
