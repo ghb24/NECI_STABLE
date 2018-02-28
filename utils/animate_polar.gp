@@ -52,14 +52,14 @@ do for [iter=start:end:step]{
     system("paste -d' ' SpawnHist-".iter." SymDETS > tmp")
     do for [ex=min_ex:max_ex]{
         #Find the first and last line for excitation level
-        begin = index(ex)
-        end = index(ex+1)-1
+        first = index(ex)
+        last = int(index(ex+1)-1)
         #Extract the lines of an exciation
-        system("sed -n '".begin.",".end."p' tmp > ex_tmp")
+        system("sed -n '".first.",".last."p' tmp > ex_tmp")
         #Repeat the first line at the end to close the polar graph
         system("sed -n '1p' ex_tmp  >> ex_tmp")
 
-        x2angle(x) = (2*pi*(x-begin)/(end-begin+1))
+        x2angle(x) = (2*pi*(x-first)/(last-first+1))
         y2radius(y) = (ex*dist+(scale**(ex)*y))
 
         plot \
