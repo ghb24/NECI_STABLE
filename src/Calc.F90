@@ -35,7 +35,7 @@ MODULE Calc
          tReferenceChanged, superInitiatorLevel, allDoubsInitsDelay, tStrictCoherentDoubles, &
          tWeakCoherentDoubles, tAvCoherentDoubles, coherenceThreshold, SIThreshold, &
          tSuppressSIOutput, targetRefPop, targetRefPopTol, tSingleSteps, tVariableNRef, &
-         nRefsSings, nRefsDoubs, minSIConnect
+         nRefsSings, nRefsDoubs, minSIConnect, tWeightedConnections
     use ras_data, only: core_ras, trial_ras
     use load_balance, only: tLoadBalanceBlocks
     use ftlm_neci
@@ -2550,6 +2550,18 @@ contains
                 ! set the minimal number of connections with superinititators for 
                 ! superinitiators-related initiators
                 call readi(minSIConnect)
+                ! optionally, allow to weight the connections with the population
+                if(item < nItems) then
+                   call readu(w)
+                   select case(w)
+                   case("WEIGHTED")
+                      tWeightedConnections = .true.
+                   case("UNWEIGHTED")
+                      tWeightedConnections = .false.
+                   case default
+                      tWeightedConnections = .false.
+                   end select
+                endif
 
              case("SUPERINITIATOR-POPULATION-THRESHOLD")
                 ! set the minimum value for superinitiator population
