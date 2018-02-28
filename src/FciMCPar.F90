@@ -246,6 +246,14 @@ module FciMCParMod
 
             if(iProcIndex.eq.root) s_start=neci_etime(tstart)
 
+            ! Update the semistochastic space if requested
+            if(tSemiStochastic .and. tDynamicCoreSpace .and. &
+                 mod(iter-semistochStartIter, &
+                 coreSpaceUpdateCycle) == 0) then
+               call refresh_semistochastic_space()
+               write(6,*) "Refereshing semistochastic space at iteration ", iter
+            end if
+
             ! Is this an iteration where semi-stochastic is turned on?
             if (semistoch_shift_iter /= 0 .and. all(.not. tSinglePartPhase)) then
                 if ((Iter - maxval(VaryShiftIter)) == semistoch_shift_iter + 1) then
@@ -270,13 +278,6 @@ module FciMCParMod
                endif
                write(6,*) "Refreshing trial wavefunction at iteration ", iter
             endif
-            ! Update the semistochastic space if requested
-            if(tSemiStochastic .and. tDynamicCoreSpace .and. &
-                 mod(iter-semistochStartIter, &
-                 coreSpaceUpdateCycle) == 0) then
-               call refresh_semistochastic_space()
-               write(6,*) "Refereshing semistochastic space at iteration ", iter
-            end if
            
             if((Iter - maxval(VaryShiftIter)) == allDoubsInitsDelay + 1 &
                  .and. all(.not. tSinglePartPhase)) then
