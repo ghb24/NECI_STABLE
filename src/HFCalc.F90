@@ -23,7 +23,7 @@ MODULE HFCalc
       character(25), parameter :: this_routine='HFDoCalc'
       HElement_t(dp),ALLOCATABLE :: HFBASIS(:),HFE(:)
       HElement_t(dp),pointer :: UMat2(:)
-      INTEGER:: umat2_win
+      INTEGER(MPIArg):: umat2_win
       HElement_t(dp),pointer :: TMat2D2(:,:)
       integer i
       integer nOrbUsed
@@ -106,7 +106,7 @@ MODULE HFCalc
 !C.. to UMAT2
                call shared_sync_mpi(umat2_win)
                LogDealloc(tagUMat)
-               call shared_deallocate_mpi(int(umat_win,MPIArg),umat)
+               call shared_deallocate_mpi(umat_win,umat)
 
                !Deallocate(UMat)
                umat_win=umat2_win

@@ -628,7 +628,7 @@ contains
          logical, intent(in) :: tReadFreezeInts
          real(dp), intent(out) :: ECORE
          HElement_t(dp), intent(out) :: UMAT(:)
-         integer :: umat_win
+         integer(MPIArg) :: umat_win
          HElement_t(dp) Z
          COMPLEX(dp) :: CompInt
          INTEGER(int64) :: ZeroedInt,NonZeroInt, LzDisallowed
