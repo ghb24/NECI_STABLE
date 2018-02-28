@@ -1,0 +1,36 @@
+title
+
+system read
+electrons 10
+nonuniformrandexcits 4ind-weighted-unbound
+endsys
+
+calc
+methods
+method vertex fcimc 
+endmethods
+nmcyc 15000
+totalwalkers 20000
+tau 0.005
+startsinglepart
+truncinitiator
+addtoinitiator 3
+all-doubs-initiators 1
+superinitiator-population-threshold 1
+static-superinitiators
+coherent-references off
+shiftdamp 0.03
+stepsshift 25
+jump-shift
+load-balance-blocks off
+maxwalkerbloom 3.0
+endcalc
+
+integral
+freeze 2,0
+endint
+
+logging
+popsfile -1
+endlog
+end

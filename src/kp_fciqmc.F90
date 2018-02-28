@@ -157,7 +157,8 @@ contains
                             call extract_bit_rep(ilut_parent, nI_parent, parent_sign, unused_flags, &
                                                   fcimc_excit_gen_store)
 
-                            ex_level_to_ref = FindBitExcitLevel(iLutRef, ilut_parent, max_calc_ex_level)
+                            ex_level_to_ref = FindBitExcitLevel(iLutRef(:,1), ilut_parent, &
+                                 max_calc_ex_level)
                             if(tRef_Not_HF) then
                                 ex_level_to_hf = FindBitExcitLevel (iLutHF_true, ilut_parent, max_calc_ex_level)
                             else
@@ -193,7 +194,7 @@ contains
                             ! The current diagonal matrix element is stored persistently.
                             parent_hdiag = det_diagH(idet)
 
-                            if (tTruncInitiator) call CalcParentFlag(idet, parent_flags, parent_hdiag)
+                            if (tTruncInitiator) call CalcParentFlag(idet, parent_flags)
 
                             call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
                                                parent_hdiag, 1.0_dp, tPairedReplicas, idet)
@@ -518,7 +519,8 @@ contains
                         call extract_bit_rep(ilut_parent, nI_parent, parent_sign, unused_flags, &
                                               fcimc_excit_gen_store)
 
-                        ex_level_to_ref = FindBitExcitLevel(iLutRef, ilut_parent, max_calc_ex_level)
+                        ex_level_to_ref = FindBitExcitLevel(iLutRef(:,1), ilut_parent, &
+                             max_calc_ex_level)
                         if(tRef_Not_HF) then
                             ex_level_to_hf = FindBitExcitLevel (iLutHF_true, ilut_parent, max_calc_ex_level)
                         else
@@ -554,7 +556,7 @@ contains
                         ! The current diagonal matrix element is stored persistently.
                         parent_hdiag = det_diagH(idet)
 
-                        if (tTruncInitiator) call CalcParentFlag(idet, parent_flags, parent_hdiag)
+                        if (tTruncInitiator) call CalcParentFlag(idet, parent_flags)
 
                         call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
                                            parent_hdiag, 1.0_dp, tPairedReplicas, idet)

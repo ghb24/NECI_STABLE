@@ -910,7 +910,6 @@ module DetBitOps
         INTEGER(kind=n_int) :: iLutAlpha(0:NIfD),iLutBeta(0:NIfD)
         integer(n_int), intent(in) :: ilut(0:NIfD)
         integer, intent(out) :: OpenOrbs
-        INTEGER :: i
         
         iLutAlpha(:)=0
         iLutBeta(:)=0
@@ -1049,6 +1048,35 @@ module DetBitOps
 
 
     end function
+
+    pure function spin_flip(ilut) result(ilut_flip)
+      ! Take the determinant represented by ilut and flip every spin
+      implicit none
+      integer(n_int), intent(in) :: ilut(0:NIfTot)
+      integer(n_int) :: ilut_flip(0:NIfTot)
+      integer :: i, orb
+      logical :: up, down      
+
+      ilut_flip = ilut
+      do i = 1, NIfD
+         ! We check every other bit and compare it with the previous one, to see
+         ! if we need to change something
+         do orb = 0, end_n_int, 2
+            up = .false.
+            down = .false.
+            if(BTEST(ilut(i),orb)) up = .true.
+            if(BTEST(ilut(i),orb+1)) down = .true.
+            if(up .and. .not. down) then
+               ilut_flip = iBCLR(ilut_flip,orb)
+               ilut_flip = iBSET(ilut_flip,orb+1)
+            endif
+            if(down .and. .not. up) then
+               ilut_flip = iBCLR(ilut_flip,orb+1)
+               ilut_flip = iBSET(ilut_flip,orb)
+            endif
+         end do
+      end do
+    end function spin_flip
 
 end module
 

@@ -65,6 +65,8 @@ if ( HAVE_BUILD_HDF5 )
 		PREFIX ${HDF_DIR}-prefix
 		URL https://support.hdfgroup.org/ftp/HDF5/current18/src/hdf5.-1.8.20.tar.gz
 		URL_MD5 7f2d3fd67106968eb45d133f5a22150f
+
+	# previous 1.8.19 hash:
 		# URL https://support.hdfgroup.org/ftp/HDF5/current18/src/hdf5-1.8.19.tar.gz
 		# URL_MD5 7f568e2464d4ab0a74d16b23956d900b
 	# previous 1.8.18 hash:

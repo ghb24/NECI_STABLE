@@ -672,8 +672,10 @@ contains
 
         Deallocate(OneEPropInts)
         call LogMemDealloc(t_r,tagOneEPropInts)
-        Deallocate(OneEPropInts2)
-        call LogMemDealloc(t_r,tagOneEPropInts2)
+        if (associated(OneEPropInts2)) then
+            call LogMemDealloc(t_r,tagOneEPropInts2)
+            Deallocate(OneEPropInts2)
+        end if
         Deallocate(PropCore)
  
       END SUBROUTINE DestroyPropInts
