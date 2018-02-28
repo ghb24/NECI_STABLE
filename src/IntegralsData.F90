@@ -1,7 +1,7 @@
 module IntegralsData
 
 use iso_c_hack
-use constants, only: dp
+use constants, only: dp, MPIArg
 use MemoryManager, only: TagIntType
 
 IMPLICIT NONE
@@ -34,7 +34,7 @@ logical :: tDumpFCIDUMP !Do we write out an FCIDUMP file (after freezing)
 ! conjugations and storage implementations (eg with UMAT2D/UMatCache/etc) to be
 ! used as appropriate.
 HElement_t(dp), pointer :: UMAT(:)
-INTEGER :: umat_win
+INTEGER(MPIArg) :: umat_win
 INTEGER(TagIntType) :: tagUMat=0
 COMPLEX(dp) ,pointer :: FCK(:) => null()
 INTEGER(TagIntType) :: tagFCK=0

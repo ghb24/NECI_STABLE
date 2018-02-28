@@ -655,7 +655,8 @@ contains
 !//Locals
       HElement_t(dp), pointer :: UMAT2(:)
       INTEGER(TagIntType) tagUMat2
-      INTEGER nOcc, umat2_win
+      INTEGER nOcc
+      integer(MPIArg) :: umat2_win
       integer(int64) :: UMATInt
       integer nHG
 
