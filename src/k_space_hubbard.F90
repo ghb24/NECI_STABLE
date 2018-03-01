@@ -1786,10 +1786,11 @@ contains
         if (t_trans_corr_2body) then 
             three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
         end if
+        call init_tmat_kspace(lat)
+        get_umat_el => get_umat_kspace
         ! i guess i should also set the transcorr factor here or?? 
         get_helement_lattice_ex_mat => get_helement_k_space_hub_ex_mat
         get_helement_lattice_general => get_helement_k_space_hub_general
-        call init_tmat_kspace(lat)
         ! maybe i have to initialize more here, especially if we are using the 
         ! HPHF keyword I guess.. 
 
