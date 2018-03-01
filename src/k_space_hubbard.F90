@@ -434,7 +434,10 @@ contains
             pParallel = 0.1_dp
         end if
 
-        call initialize_excit_table()
+        if (.not. (t_trans_corr_2body .or. t_trans_corr)) then
+            call initialize_excit_table()
+        end if
+
     end subroutine init_k_space_hubbard
 
     subroutine initialize_excit_table()
@@ -1515,7 +1518,12 @@ contains
                          ASSERT(.not. same_spin(a,b))
                       endif
                       ! get the matrix element (from storage)
-                      elem = excit_cache(src(1),src(2),a)
+                      if (.not. (t_trans_corr .or. t_trans_corr_2body)) then 
+                          elem = excit_cache(src(1),src(2),a)
+                      else 
+                          ex(2,:) = [a,b]
+                          elem = abs(get_offdiag_helement_k_sp_hub(nI, ex, .false.))
+                      end if
                    endif
                 end if
                 cum_sum = cum_sum + elem 
@@ -1540,9 +1548,13 @@ contains
                     b = get_orb_from_kpoints(src(1), src(2), a)
 
                     if (b /= a .and. IsNotOcc(ilutI, b)) then 
-
-                        elem = excit_cache(src(1),src(2),a)
-
+                        ! get the matrix element (from storage)
+                        if (.not. (t_trans_corr .or. t_trans_corr_2body)) then 
+                            elem = excit_cache(src(1),src(2),a)
+                        else 
+                            ex(2,:) = [a,b]
+                            elem = abs(get_offdiag_helement_k_sp_hub(nI, ex, .false.))
+                        end if
                     end if
                 end if
                 cum_sum = cum_sum + elem 
