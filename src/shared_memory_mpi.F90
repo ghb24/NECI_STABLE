@@ -10,7 +10,7 @@ contains
 
       subroutine shared_allocate_mpi (win_shm, p_shm, dims)
       use HElem
-      integer:: win_shm
+      integer(MPIArg):: win_shm
       HElement_t(dp), pointer :: p_shm(:)
       integer(int64):: dims(1)
 
@@ -25,7 +25,7 @@ contains
          wsize=0
       end if
       
-      call mpi_win_allocate_shared(wsize,HElement_t_sizeB,MPI_INFO_NULL,mpi_comm_intra,&
+      call mpi_win_allocate_shared(wsize,int(HElement_t_sizeB,MPIArg),MPI_INFO_NULL,mpi_comm_intra,&
            cptr_shm,win_shm,ierr)
       
       call mpi_win_shared_query(win_shm,0_MPIArg,wsize,disp_unit,cptr_shm,ierr)
@@ -51,7 +51,7 @@ contains
     end subroutine shared_deallocate_mpi
 
     subroutine shared_sync_mpi(win_shm)
-      integer:: win_shm
+      integer(MPIArg):: win_shm
       integer(MPIArg):: ierr
 
       call mpi_win_sync(win_shm,ierr)
@@ -61,11 +61,12 @@ contains
 #else
     subroutine shared_allocate_mpi (win_shm, p_shm, dims)
       use HElem
-      integer:: win_shm
+      integer(MPIArg):: win_shm
       HElement_t(dp), pointer :: p_shm(:)
       integer(int64):: dims(1)
 
-      integer:: disp_unit, ierr
+      integer:: disp_unit
+      integer(MPIArg) :: ierr
       integer(kind=mpi_address_kind):: wsize
       TYPE(C_PTR):: cptr_shm
 
@@ -74,14 +75,14 @@ contains
     end subroutine shared_allocate_mpi
     
     subroutine shared_deallocate_mpi(win_shm,p_shm)
-      integer:: win_shm
+      integer(MPIArg):: win_shm
       HElement_t(dp), pointer :: p_shm(:)
 
       deallocate(p_shm)
     end subroutine shared_deallocate_mpi
 
     subroutine shared_sync_mpi(win_shm)
-      integer:: win_shm
+      integer(MPIArg):: win_shm
     end subroutine shared_sync_mpi
 #endif
 
