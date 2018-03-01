@@ -154,6 +154,8 @@ MODULE FciMCData
 
       HElement_t(dp), allocatable :: trial_numerator(:), tot_trial_numerator(:)
       HElement_t(dp), allocatable :: trial_denom(:), tot_trial_denom(:)
+      integer(n_int), allocatable :: con_send_buf(:,:)
+      integer :: NConEntry
 
       ! The sum over all previous cycles of the number of particles on the
       ! reference site
@@ -355,7 +357,6 @@ MODULE FciMCData
                                                         !an open-shell determinant, then it is useful
                                                         !to store the spin-coupled determinant, 
                                                         !so we can calculate projection onto both.
-
       ! Even with multiple reference determinants, the calculation is done
       ! relative to Hii. So we need to adjust the calculated projected energy
       ! by a different amount.

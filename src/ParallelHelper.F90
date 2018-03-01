@@ -191,6 +191,11 @@ module ParallelHelper
    ! A communicator between the roots on each node
    integer(MPIArg)      :: CommRoot
 
+   ! Communicator/indices for MPI3 version of shared memory communication. 
+   ! Probably this can eventually be merged with the variables above
+   integer(MPIArg):: mpi_comm_inter, mpi_comm_intra
+   integer(MPIArg):: iProcIndex_inter, iProcIndex_intra
+
    ! A null-info structure
    integer(MPIArg)      :: mpiInfoNull
 

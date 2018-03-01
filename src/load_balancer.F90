@@ -5,15 +5,18 @@ module load_balance
                         tCheckHighestPop, OccupiedThresh, &
                         tContTimeFCIMC, &
                         tContTimeFull, tTrialWavefunction, &
-                        tPairedReplicas
+                        tPairedReplicas, tau, tSeniorInitiators
     use global_det_data, only: global_determinant_data, &
-                               set_det_diagH, set_spawn_rate
+                               set_det_diagH, set_spawn_rate, &
+                               set_all_spawn_pops, reset_all_tau_ints, &
+                               reset_all_shift_ints
     use bit_rep_data, only: flag_initiator, NIfDBO, &
                             flag_connected, flag_trial
     use bit_reps, only: set_flag, nullify_ilut_part, &
-                        encode_part_sign, nullify_ilut
+                        encode_part_sign, nullify_ilut, clr_flag
     use FciMCData, only: HashIndex, FreeSlot, CurrentDets, iter_data_fciqmc, &
-                         tFillingStochRDMOnFly, full_determ_vecs
+                         tFillingStochRDMOnFly, full_determ_vecs, ntrial_excits, &
+                         con_space_size, NConEntry, con_send_buf
     use searching, only: hash_search_trial, bin_search_trial
     use Determinants, only: get_helement, write_det
     use LoggingData, only: tOutputLoadDistribution
@@ -21,6 +24,7 @@ module load_balance
     use cont_time_rates, only: spawn_rate_full
     use SystemData, only: nel, tHPHF
     use DetBitOps, only: DetBitEq
+    use sparse_arrays, only: con_ht
     use load_balance_calcnodes
     use Parallel_neci
     use constants
@@ -304,15 +308,18 @@ contains
 
         
     subroutine move_block(block, tgt_proc)
-
+      implicit none
         integer, intent(in) :: block, tgt_proc
-        integer :: src_proc, ierr, nsend, nelem, j, det_block, hash_val
-        integer :: det(nel), TotWalkersTmp
+        integer :: src_proc, ierr, nsend, nelem, j, k, det_block, hash_val
+        integer :: det(nel), TotWalkersTmp, nconsend, clashes, ntrial, ncon
+        integer(n_int) :: con_state(0:NConEntry)
         real(dp) :: sgn(lenof_sign)
         
         ! A tag is used to identify this send/recv pair over any others
         integer, parameter :: mpi_tag_nsend = 223456
         integer, parameter :: mpi_tag_dets = 223457
+        integer, parameter :: mpi_tag_nconsend = 223458
+        integer, parameter :: mpi_tag_con = 223459
 
         src_proc = LoadBalanceMapping(block)
 
@@ -327,6 +334,7 @@ contains
             ! Loop over the available walkers, and broadcast them to the
             ! target processor. Use the SpawnedParts array as a buffer.
             nsend = 0
+            nconsend = 0
             do j = 1, int(TotWalkers, sizeof_int)
 
                 ! Skip unoccupied sites (non-contiguous)
@@ -347,11 +355,43 @@ contains
                 end if
             end do
 
+            if(tTrialWavefunction) then
+               ! now get those connected determinants that need to be 
+               ! communicated (they might not be in currentdets)
+               do j = 1, con_space_size
+                  clashes = con_ht(j)%nclash
+                  if(clashes > 0) then
+                     k = 0
+                     do
+                        k = k + 1
+                        call decode_bit_det(det,con_ht(j)%states(:,k))
+                        det_block = get_det_block(nel, det, 0)
+                        if(det_block == block) then
+                           call extract_con_ht_entry(j,k,con_state)
+                           nconsend = nconsend + 1
+                           con_send_buf(:,nconsend) = con_state
+                           clashes = clashes - 1
+                           k = k - 1
+                        endif
+                        if(k==clashes) exit
+                     enddo
+                  endif
+               end do
+            endif
+
             ! And send the data to the relevant (target) processor
             nelem = nsend * (1 + NIfTot)
             call MPISend(nsend, 1, tgt_proc, mpi_tag_nsend, ierr)
             call MPISend(SpawnedParts(:, 1:nsend), nelem, tgt_proc, &
                          mpi_tag_dets, ierr)
+
+            if(tTrialWavefunction) then
+               ! And send the trial wavefunction connection information
+               nelem = nconsend * (1 + NConEntry)
+               call MPISend(nconsend,1,tgt_proc,mpi_tag_nconsend, ierr)
+               call MPISend(con_send_buf(:,1:nconsend),nelem,tgt_proc, &
+                    mpi_tag_con, ierr)
+            end if
 
             ! We have now created lots of holes in the main list
             HolesInList = HolesInList + nsend
@@ -380,6 +420,15 @@ contains
             ! and possibly extended the list
             HolesInList = max(0, HolesInList - nsend)
 
+            ! Recieve information on the connected determinants
+            ! only if trial wavefunction is enabled, of course
+            if(tTrialWavefunction) then
+               call MPIRecv(nconsend, 1, src_proc, mpi_tag_nconsend, ierr)
+               nelem = nconsend * (1 + NConEntry)
+               call MPIRecv(con_send_buf, nelem, src_proc, mpi_tag_con, ierr)
+               call add_con_ht_entries(con_send_buf(:,1:nconsend), nconsend)
+            endif
+
         end if
 
         ! Adjust the load balancing mapping
@@ -405,6 +454,7 @@ contains
         HElement_t(dp) :: HDiag
         HElement_t(dp) :: trial_amps(ntrial_excits)
         logical :: tTrial, tCon
+        real(dp), dimension(lenof_sign) :: SignCurr
         character(len=*), parameter :: t_r = "AddNewHashDet"
 
         if (iStartFreeSlot <= iEndFreeSlot) then
@@ -434,6 +484,13 @@ contains
         global_determinant_data(:,DetPosition) = 0.0_dp
         call set_det_diagH(DetPosition, real(HDiag,dp) - Hii)
 
+        if(tSeniorInitiators) then
+            call extract_sign (ilutCurr, SignCurr)
+            call set_all_spawn_pops(DetPosition, SignCurr)
+            call reset_all_tau_ints(DetPosition)
+            call reset_all_shift_ints(DetPosition)
+        end if
+
         ! If using a trial wavefunction, search to see if this state is in
         ! either the trial or connected space. If so, *_search_trial returns
         ! the corresponding amplitude, which is stored.
@@ -456,7 +513,7 @@ contains
             if (tTrial) then
                 call set_flag(CurrentDets(:,DetPosition), flag_trial, .true.)
                 call set_flag(CurrentDets(:,DetPosition), flag_connected, .false.)
-            else if (tCon) then
+             else if (tCon) then
                 call set_flag(CurrentDets(:,DetPosition), flag_trial, .false.)
                 call set_flag(CurrentDets(:,DetPosition), flag_connected, .true.)
             else
@@ -632,6 +689,151 @@ contains
         end if
 
     end subroutine CalcHashTableStats
-    
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine extract_con_ht_entry(hash_val, i, ht_entry)
+      implicit none
+      integer(n_int), intent(out) :: ht_entry(0:NConEntry)
+      integer, intent(in) :: hash_val, i
+      integer :: clashes
+      character(*), parameter :: this_routine = "extract_con_ht_entry"
+     
+      ! get the stores state
+      ht_entry = con_ht(hash_val)%states(:,i)
+      ! then remove it from the table
+      clashes = con_ht(hash_val)%nclash
+      call remove_con_ht_entry(hash_val,i,clashes)
+    end subroutine extract_con_ht_entry
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine remove_con_ht_entry(hash_val, index, clashes)
+      implicit none
+      integer, intent(in) :: hash_val, index, clashes
+      integer(n_int), allocatable :: tmp(:,:)
+      integer :: i, ierr
+      character(*), parameter :: this_routine = "remove_con_ht_entry"
+      
+      ! first, copy the contnet of the con_ht entry to a temporary
+      ! if there is any to be left
+      if(clashes-1 > 0) then
+         allocate(tmp(0:NConEntry,clashes-1), stat = ierr)
+         if(ierr .ne. 0) call stop_all(this_routine, "Failed allocation")
+         do i = 1, index - 1
+            tmp(:,i) = con_ht(hash_val)%states(:,i)
+         end do
+         ! omitting the element to remove
+         do i = index + 1, clashes
+            tmp(:,i-1) = con_ht(hash_val)%states(:,i)
+         end do
+
+         ! then, reallocate the con_ht entry (if required)
+         deallocate(con_ht(hash_val)%states, stat = ierr)
+         if(ierr .ne. 0) call stop_all(this_routine, "Failed deallocation")
+         allocate(con_ht(hash_val)%states(0:NConEntry,clashes-1), stat = ierr)
+         if(ierr .ne. 0) call stop_all(this_routine, "Failed allocation")
+         ! and copy the temporary back (if it is non-empty)
+         con_ht(hash_val)%states(0:NConEntry,:) = tmp(0:NConEntry,:)
+         deallocate(tmp,stat = ierr)
+         if(ierr .ne. 0) call stop_all(this_routine, "Failed deallocation")
+      else
+         ! just to be sure, allocate with size 0
+         deallocate(con_ht(hash_val)%states)
+         allocate(con_ht(hash_val)%states(0:NConEntry,0))
+      endif
+
+      ! finally, update the nclashes information
+      con_ht(hash_val)%nclash = clashes - 1
+    end subroutine remove_con_ht_entry
+
+!------------------------------------------------------------------------------------------!
+      
+    subroutine add_con_ht_entries(entries, n_entries)
+      implicit none
+      integer, intent(in) :: n_entries
+      integer(n_int), intent(in) :: entries(0:NConEntry,n_entries)
+      integer :: i, hash_val, nI(nel), clashes
+      ! this adds n_entries entries to the con_ht hashtable
+
+      do i = 1, n_entries
+         call decode_bit_det(nI,entries(:,i))
+         hash_val = FindWalkerHash(nI, con_space_size)
+         ! just add them one by one
+         call add_single_con_ht_entry(entries(:,i),hash_val)
+      enddo
+    end subroutine add_con_ht_entries    
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine add_single_con_ht_entry(ht_entry, hash_val)
+      implicit none
+      integer(n_int), intent(in) :: ht_entry(0:NConEntry)
+      integer, intent(in) :: hash_val
+      integer :: clashes, ntrial ,ncon 
+      integer(n_int), allocatable :: tmp(:,:)
+
+      ! add a single entry to con_ht with hash_val
+      clashes = con_ht(hash_val)%nclash
+      ! store the current entries in a temporary
+      allocate(tmp(0:NConEntry,clashes+1))
+      ! if there are any, copy them now
+      if(allocated(con_ht(hash_val)%states)) then 
+         tmp(:,:clashes) = con_ht(hash_val)%states(:,:)
+         ! then deallocate
+         deallocate(con_ht(hash_val)%states)
+      endif
+      ! add the new entry
+      tmp(:,clashes+1) = ht_entry
+
+      ! and allocoate the new entry
+      allocate(con_ht(hash_val)%states(0:NConEntry,clashes+1))
+      ! fill it
+      con_ht(hash_val)%states = tmp
+      deallocate(tmp)
+      ! and update the nclashes info
+      con_ht(hash_val)%nclash = clashes + 1
+
+    end subroutine add_single_con_ht_entry
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine count_trial()
+      use Parallel_neci, only: MPISumAll
+      implicit none
+      integer ::  ntrialtot, ncontot, ntrial, ncon
+
+      call count_trial_this_proc(ntrial, ncon)
+      call MPISumAll(ntrial,ntrialtot)
+      call MPISumAll(ncon,ncontot)
+      write(iout,*) "Trial states ", ntrialtot
+      write(iout,*) "Connected states ", ncontot
+    end subroutine count_trial
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine count_trial_this_proc(ntrial, ncon)
+      use searching, only: hash_search_trial
+      use FciMCData, only: ntrial_excits
+      implicit none
+      integer, intent(out) :: ntrial, ncon
+      integer :: i, nI(nel)
+      real(dp) :: sgn(lenof_sign)
+      logical :: tTrial, tCon
+      HElement_t(dp) :: amp(ntrial_excits)
+
+      ntrial = 0
+      ncon = 0
+      do i = 1, TotWalkers
+         call decode_bit_det(nI, CurrentDets(:,i))
+         call extract_sign(CurrentDets(:,i),sgn)
+         if(IsUnoccDet(sgn)) cycle
+         call hash_search_trial(CurrentDets(:,i),nI,amp,tTrial,tCon)
+         if(tTrial) ntrial = ntrial + 1
+         if(tCon) ncon = ncon + 1
+      end do
+      
+    end subroutine count_trial_this_proc
+
 
 end module

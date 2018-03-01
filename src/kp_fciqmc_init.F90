@@ -534,6 +534,10 @@ contains
         ! If av_mc_excits_kp hasn't been set by the user, just use AvMCExcits.
         if (av_mc_excits_kp == 0.0_dp) av_mc_excits_kp = AvMCExcits
 
+        ! Initialize
+        kp_overlap_mean = 0.0_dp
+        kp_hamil_mean = 0.0_dp
+
         MaxSpawnedEachProc = int(0.88_dp*real(MaxSpawned,dp)/nProcessors)
 
         if (tFCIMCStats2) then
