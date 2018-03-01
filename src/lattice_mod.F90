@@ -12,7 +12,7 @@ module lattice_mod
     ! the sym_mod!
 !     use OneEInts, only: tmat2d, gettmatel
     use constants, only: dp, pi, EPS
-    use SystemData, only: twisted_bc, nbasis, basisfn
+    use SystemData, only: twisted_bc, nbasis, basisfn, t_trans_corr_2body
 
     implicit none 
     private 
@@ -155,6 +155,10 @@ module lattice_mod
         ! also store k_vec .. 
         integer :: k_vec(3,3) = 0
 
+        ! initialize the possible applicable basis vectors in the 
+        ! mapping to the BZ 
+        integer, allocatable :: basis_vecs(:,:) 
+
         ! and i think additionally i want to store which type of lattice 
         ! this is in a string or? so i do not always have to 
         ! use the select type functionality 
@@ -250,6 +254,9 @@ module lattice_mod
         procedure :: fill_lu_table
         procedure :: get_lu_table_size
         procedure :: deallocate_caches
+        ! actually i should make i deferred: todo
+!         procedure(init_basis_vecs_t), deferred :: init_basis_vecs 
+        procedure :: init_basis_vecs 
 
     end type lattice 
 
@@ -308,7 +315,8 @@ module lattice_mod
 
         procedure, public :: dispersion_rel => dispersion_rel_chain_k
         procedure :: inside_bz => inside_bz_chain
-        procedure :: apply_basis_vector => apply_basis_vector_chain
+!         procedure :: apply_basis_vector => apply_basis_vector_chain
+        procedure :: init_basis_vecs => init_basis_vecs_chain
 
     end type chain
 
@@ -329,7 +337,7 @@ module lattice_mod
         procedure :: calc_nsites => calc_nsites_cube
         procedure :: initialize_sites => init_sites_cube
 
-        procedure :: apply_basis_vector => apply_basis_vector_cube
+!         procedure :: apply_basis_vector => apply_basis_vector_cube
 
     end type cube
 
@@ -350,7 +358,8 @@ module lattice_mod
         procedure :: set_length => set_length_rect
         procedure :: calc_nsites => calc_nsites_rect
         procedure :: initialize_sites => init_sites_rect
-        procedure :: apply_basis_vector => apply_basis_vector_rect
+        procedure :: init_basis_vecs => init_basis_vecs_rect
+!         procedure :: apply_basis_vector => apply_basis_vector_rect
 
     end type rectangle
 
@@ -568,6 +577,12 @@ module lattice_mod
             integer, intent(in) :: k_vec(3) 
             real(dp) :: disp 
         end function dispersion_rel_t
+
+!         subroutine init_basis_vecs_t(this)
+!             import :: lattice 
+!             class(lattice) :: this 
+!          end subroutine init_basis_vecs_t
+
     end interface
 
 !     interface dispersion_rel_chain
@@ -889,17 +904,88 @@ contains
 #ifdef __DEBUG 
         character(*), parameter :: this_routine = "apply_basis_vector_chain"
 #endif
-        integer :: basis_vec(2,3) 
+        integer :: basis_vec(4,3) 
 
-        ASSERT(ind == 1 .or. ind == 2)
+#ifdef __DEBUG 
+        if (t_trans_corr_2body) then 
+            ASSERT(ind > 0 .and. ind <= 4) 
+        else
+            ASSERT(ind == 1 .or. ind == 2)
+        end if
+#endif
 
-        basis_vec = 0 
-        basis_vec(1,1) = this%get_length(1) 
-        basis_vec(2,1) = -this%get_length(1)
+!         basis_vec = 0 
+!         basis_vec(1,1) = this%get_length(1) 
+!         basis_vec(2,1) = -this%get_length(1)
+! 
+!         if (t_trans_corr_2body) then 
+!             basis_vec(3,1) = 2*this%get_length(1)
+!             basis_vec(4,1) = -2*this%get_length(1)
+!         end if
 
-        k_out = k_in + basis_vec(ind,:)
+        k_out = k_in + this%basis_vecs(ind,:)
 
     end function apply_basis_vector_chain
+
+    subroutine init_basis_vecs(this) 
+        class(lattice) :: this 
+        character(*), parameter :: this_routine = "init_basis_vecs"
+
+        call stop_all(this_routine, "this routine should always be deferred!")
+
+    end subroutine init_basis_vecs
+
+    subroutine init_basis_vecs_chain(this)
+        class(chain) :: this 
+
+        integer :: i, j, k
+
+        if (allocated(this%basis_vecs)) deallocate(this%basis_vecs) 
+
+        if (t_trans_corr_2body) then 
+            j = 2
+            allocate(this%basis_vecs(5,3)) 
+        else 
+            j = 1
+            allocate(this%basis_vecs(3,3)) 
+        end if
+
+        this%basis_vecs = 0 
+
+        k = 0
+        do i = -j,j 
+            k = k + 1
+            this%basis_vecs(k,1) = i * this%get_length(1)
+        end do
+
+    end subroutine init_basis_vecs_chain
+
+    subroutine init_basis_vecs_rect(this)
+        class(rectangle) :: this 
+
+        integer :: i, j, k, l
+
+        if (allocated(this%basis_vecs)) deallocate(this%basis_vecs)
+
+        if (t_trans_corr_2body) then 
+            l = 2
+            allocate(this%basis_vecs(25,3))
+        else 
+            l = 1
+            allocate(this%basis_vecs(9,3))
+        end if
+        
+        this%basis_vecs = 0
+
+        k = 0
+        do i = -l,l
+            do j = -l,l
+                k = k + 1
+                this%basis_vecs(k,:) = i * this%k_vec(:,1) + j * this%k_vec(:,2)
+            end do
+        end do
+
+    end subroutine init_basis_vecs_rect
 
     function apply_basis_vector(this, k_in, ind) result(k_out) 
         ! i have to specifically write this for every lattice type.. 
@@ -911,7 +997,10 @@ contains
 
         ! i should only make this an abstract interface, since this function
         ! must be deffered! 
-        call stop_all(this_routine, "this routine should always be deferred!")
+        ASSERT(ind >= 0) 
+        ASSERT(ind <= size(this%basis_vecs,1))
+
+        k_out = k_in + this%basis_vecs(ind,:)
 
     end function apply_basis_vector
 
@@ -3229,6 +3318,7 @@ contains
 
       ! first, get the dimension of the lookup tables
       call this%get_lu_table_size()
+      call this%init_basis_vecs()
       ! and allocate the lookup tables accordingly
       allocate(this%lu_table(this%kmin(1):this%kmax(1),this%kmin(2):this%kmax(2) &
            ,this%kmin(3):this%kmax(3)))
@@ -3246,55 +3336,116 @@ contains
     subroutine get_lu_table_size(this)
       implicit none
       class(lattice) :: this
-      integer :: i, j, ki(sdim), kj(sdim), ka(sdim), nsites, m ,a, k(sdim)
+      integer :: i, j, ki(sdim), kj(sdim), ka(sdim), nsites, m ,a, k_sum(sdim)
+      integer :: k, b, kk(sdim), kb(sdim)
 
       this%kmin = 0
       this%kmax = 0
       ! determine the maximum/minimum indices that appear in the lu table
       ! the lu table shall contain all reachable momenta ki + kj - ka
       nsites = this%get_nsites()
-      do i = 1, nsites
-         do j = 1, nsites
-            do a = 1, nsites
-               ki = this%get_k_vec(i)
-               kj = this%get_k_vec(j)
-               ka = this%get_k_vec(a)
-               k = ki + kj - ka
-               do m = 1, sdim
-                  if(k(m) < this%kmin(m)) this%kmin(m) = k(m)
-                  if(k(m) > this%kmax(m)) this%kmax(m) = k(m)
-               enddo
-            end do
-         end do
-      enddo
+      ! for 2-body transcorrelation we need 5 momenta in total
+      if (t_trans_corr_2body) then 
+          do i = 1, nsites
+              do j = 1, nsites
+                  do k = 1, nsites
+                      do a = 1, nsites
+                          do b = 1, nsites
+                              ki = this%get_k_vec(i)
+                              kj = this%get_k_vec(j)
+                              kk = this%get_k_vec(k)
+                              ka = this%get_k_vec(a)
+                              kb = this%get_k_vec(b)
+
+                              k_sum = ki + kj + kk - ka - kb
+
+                              do m = 1, sdim 
+                                  if(k_sum(m) < this%kmin(m)) this%kmin(m) = k_sum(m)
+                                  if(k_sum(m) > this%kmax(m)) this%kmax(m) = k_sum(m)
+                              end do
+                          end do
+                      end do
+                  end do
+              end do
+          end do
+      else
+          do i = 1, nsites
+             do j = 1, nsites
+                do a = 1, nsites
+                   ki = this%get_k_vec(i)
+                   kj = this%get_k_vec(j)
+                   ka = this%get_k_vec(a)
+                   k_sum = ki + kj - ka
+                   do m = 1, sdim
+                      if(k_sum(m) < this%kmin(m)) this%kmin(m) = k_sum(m)
+                      if(k_sum(m) > this%kmax(m)) this%kmax(m) = k_sum(m)
+                   enddo
+                end do
+             end do
+          enddo
+      end if
+
+      print *, "kmin: ", this%kmin
+      print *, "kmax: ", this%kmax
+
     end subroutine get_lu_table_size
 
     subroutine fill_lu_table(this)
       implicit none
       class(lattice) :: this
-      integer :: ki(sdim),kj(sdim),ka(sdim),i,j,m,a,k_check(sdim),k(sdim),nsites
+      integer :: ki(sdim),kj(sdim),ka(sdim),i,j,m,a,k_check(sdim),k_sum(sdim),nsites
+      integer :: k, b, kk(sdim), kb(sdim)
 
       nsites = this%get_nsites()
-      do i=1, nsites
-         do j = 1, nsites
-            do a = 1, nsites
-               ! again, we want every possible combination ki+kj-ka
-               ! the construction costs O(nsites^4), but I think this is no problem
-               ki = this%get_k_vec(i)
-               kj = this%get_k_vec(j)
-               ka = this%get_k_vec(a)
-               k = ki + kj - ka
-               k_check = this%map_k_vec(k)
-               do m = 1, nsites
-                  if(all(k_check == this%get_k_vec(m))) then
-                     ! the entry k is the site-index of the state with momentum k
-                     this%lu_table(k(1),k(2),k(3)) = m
-                     exit
-                  endif
-               enddo
-            end do
-         end do
-      end do
+      ! for the 2-body transcorrelation we need to consider 5 involved momenta
+      if (t_trans_corr_2body) then 
+          do i = 1, nsites
+              do j = 1, nsites
+                  do k = 1, nsites
+                      do a = 1, nsites
+                          do b = 1, nsites
+                              ki = this%get_k_vec(i)
+                              kj = this%get_k_vec(j)
+                              kk = this%get_k_vec(k)
+                              ka = this%get_k_vec(a)
+                              kb = this%get_k_vec(b)
+
+                              k_sum = ki + kj + kk - ka - kb
+                              k_check = this%map_k_vec(k_sum)
+                              do m = 1, nsites
+                                 if(all(k_check == this%get_k_vec(m))) then
+                                    ! the entry k is the site-index of the state with momentum k
+                                    this%lu_table(k_sum(1),k_sum(2),k_sum(3)) = m
+                                    exit
+                                 endif
+                              enddo
+                          end do
+                      end do
+                  end do
+              end do
+          end do
+      else 
+          do i=1, nsites
+             do j = 1, nsites
+                do a = 1, nsites
+                   ! again, we want every possible combination ki+kj-ka
+                   ! the construction costs O(nsites^4), but I think this is no problem
+                   ki = this%get_k_vec(i)
+                   kj = this%get_k_vec(j)
+                   ka = this%get_k_vec(a)
+                   k_sum = ki + kj - ka
+                   k_check = this%map_k_vec(k_sum)
+                   do m = 1, nsites
+                      if(all(k_check == this%get_k_vec(m))) then
+                         ! the entry k is the site-index of the state with momentum k
+                         this%lu_table(k_sum(1),k_sum(2),k_sum(3)) = m
+                         exit
+                      endif
+                   enddo
+                end do
+             end do
+          end do
+      end if
     end subroutine fill_lu_table
 
     subroutine fill_bz_table(this)
@@ -3317,6 +3468,7 @@ contains
             end do
          end do
       end do
+
     end subroutine fill_bz_table
 
     subroutine deallocate_caches(this)
