@@ -1356,6 +1356,9 @@ contains
 !   (it is +/-CSF_NSBASIS)
          I=ISYM%MS+0
          ISYM%Ms=I+SSYM
+         if (t_new_hubbard) then 
+             isym%k = lat%map_k_vec(isym%k)
+         end if
          RETURN
       END SUBROUTINE ADDELECSYM
       

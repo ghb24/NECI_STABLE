@@ -1921,7 +1921,8 @@ contains
 
                 neigh = sort_unique(temp_neigh)
 
-                k_vec = [x-1,y-1,0]
+!                 k_vec = [x-1,y-1,0]
+                k_vec = [x - (this%length(1)+1)/2, y - (this%length(2)+1)/2, 0]
                 this%sites(i) = site(i, size(neigh), neigh, k_vec)
 
                 deallocate(neigh)
@@ -1951,7 +1952,8 @@ contains
 
                 neigh = sort_unique(temp_neigh)
 
-                k_vec = [x-1,y-1,0]
+!                 k_vec = [x-1,y-1,0]
+                k_vec = [x - (this%length(1)+1)/2, y - (this%length(2)+1)/2, 0]
 
                 this%sites(i) = site(i, size(neigh), neigh, k_vec)
 
@@ -1981,7 +1983,8 @@ contains
 
                 neigh = sort_unique(temp_neigh)
 
-                k_vec = [x-1,y-1,0]
+!                 k_vec = [x-1,y-1,0]
+                k_vec = [x - (this%length(1)+1)/2, y - (this%length(2)+1)/2, 0]
 
                 this%sites(i) = site(i, size(neigh), neigh, k_vec)
 
@@ -2028,7 +2031,8 @@ contains
 
                 neigh = sort_unique(temp_neigh)
 
-                k_vec = [x-1,y-1,0]
+!                 k_vec = [x-1,y-1,0]
+                k_vec = [x - (this%length(1)+1)/2, y - (this%length(2)+1)/2, 0]
 
                 this%sites(i) = site(i, size(neigh), neigh,k_vec)
 
