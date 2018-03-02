@@ -3271,6 +3271,7 @@ SUBROUTINE SpinOrbSymSetup()
     use Determinants, only : FDet
     use sym_mod, only: mompbcsym,SymProd
     use constants, only: dp
+    use lattice_mod, only: lat
 
     IMPLICIT NONE
 
@@ -3662,6 +3663,10 @@ SUBROUTINE SpinOrbSymSetup()
             kTotal(1)=kTotal(1)+G1(FDet(j))%k(1)
             kTotal(2)=kTotal(2)+G1(FDet(j))%k(2)
             kTotal(3)=kTotal(3)+G1(FDet(j))%k(3)
+            ! just to be sure.. 
+            if (t_k_space_hubbard) then 
+                ktotal = lat%map_k_vec(ktotal)
+            end if
         enddo
         if (tHub) then
             ktrial=(/kTotal(1),kTotal(2),0/)
