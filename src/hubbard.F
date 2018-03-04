@@ -1,17 +1,18 @@
+#include "macros.h"
 C ===================================================================
       SUBROUTINE CALCUMATHUBREAL(NBASIS,UHUB, UMAT)
          use UMatCache , only : UMatInd
          use constants, only: dp
          IMPLICIT NONE
          INTEGER NBASIS
-         real(dp) UMAT(*)
+         HElement_t(dp) UMAT(*)
          real(dp) UHUB
          INTEGER I,IC
          OPEN(10,FILE='UMAT',STATUS='UNKNOWN')
          IC=1
 !Only do this for each spatial orbital.
          DO I=1,NBASIS/2
-            UMAT(UMatInd(I,I,I,I))=UHUB
+            UMAT(UMatInd(I,I,I,I))=h_cast(UHUB)
 !            UMAT(UMatInd(I,I+1,I,I+1))=UHUB
 !            UMAT(UMatInd(I+1,I,I+1,I))=UHUB
 !            UMAT(I,I+1,I,I+1)=UHUB
@@ -29,19 +30,20 @@ C..quatum numbers (i,j,k) for Hubbard model of
 C..lengths (LX,LY,LZ) PBC.
 C..Returned in sum
       use constants, only: Pi, Pi2, THIRD,dp
-      use SystemData, only: twisted_bc
+      use SystemData, only: twisted_bc, nn_bhub
 !      IMPLICIT real(dp) (A-H,O-Z)
       IMPLICIT NONE
       INTEGER nBasisMax(5,*),AX,AY
       INTEGER LX,LY,LZ,K,J,I
       LOGICAL TTILT,TREAL
       real(dp) :: TOTSUM,BHUB
-      real(dp) :: tb_x, tb_y
+      real(dp) :: tb_x, tb_y, nn
       IF(TREAL) THEN
          TOTSUM=0.0_dp
       ELSE
-       tb_x = twisted_bc(1)
-       tb_y = twisted_bc(2)
+          tb_x = twisted_bc(1)
+          tb_y = twisted_bc(2)
+
        LX=NBASISMAX(1,2)-NBASISMAX(1,1)+1
        LY=NBASISMAX(2,2)-NBASISMAX(2,1)+1
        LZ=NBASISMAX(3,2)-NBASISMAX(3,1)+1
@@ -51,14 +53,23 @@ C..Returned in sum
 CCCC.. NBASISMAX goes from -NMAXX+1 to MAXX so LX=2MAXX
          LX=NBASISMAX(1,5)
          LX=(LX*(AX*AX+AY*AY))
-         TOTSUM=COS(2*PI*((I+tb_x)*AX+(J+tb_y)*AY)/LX)
-         TOTSUM=TOTSUM+COS(2*PI*((I+tb_x)*AY-(J+tb_y)*AX)/LX)
+         TOTSUM=COS(2*PI*(I*AX+J*AY)/LX)+COS(2*PI*(I*AY-J*AX)/LX)
+         totsum=cos(2*pi*((I+tb_x)*ax + (j+tb_y)*ay)/lx)
+         totsum=totsum+cos(2*pi*((i+tb_x)*ay-(j+tb_y)*ax)/lx)
+
+         nn=cos(2*pi*(i+tb_x)*AX/lx)+cos((J+tb_y)*ay/lx)
        ELSE
-         IF(LX.GT.1) TOTSUM=COS(2*PI*(I + twisted_bc(1))/(LX))
-         IF(LY.GT.1) TOTSUM=TOTSUM+COS(2*PI*(J + twisted_bc(2))/(LY))
+         IF(LX.GT.1) then
+             TOTSUM=COS(2*PI*(I + tb_x)/LX)
+             nn = cos(2*pi*(I + tb_x + J * tb_y)/LX)
+         end if
+         IF(LY.GT.1) then 
+             TOTSUM=TOTSUM+COS(2*PI*(J + tb_y)/LY)
+             nn = cos(2*pi*(I + tb_x - (J + tb_y))/LY)
+         end if
          IF(LZ.GT.1) TOTSUM=TOTSUM+COS(2*PI*K/(LZ))
        ENDIF
-       TOTSUM=TOTSUM*2.0_dp*BHUB
+       TOTSUM=2.0_dp*(TOTSUM*BHUB + nn * nn_bhub)
       ENDIF
       RETURN
       END
@@ -76,32 +87,33 @@ C..Returned in sum
       LOGICAL TTILT,TREAL
       INTEGER II,JJ,KK,K,J,I,LZ,LX,LY
       real(dp) :: BHUB,TOTSUM
-      IF(TREAL) then
-        TOTSUM=0.0_dp
-        return
+      if (tReal) then
+          TOTSUM = 0.0_dp
+          return
       else
        LX=NBASISMAX(1,2)-NBASISMAX(1,1)+1
        LY=NBASISMAX(2,2)-NBASISMAX(2,1)+1
        LZ=NBASISMAX(3,2)-NBASISMAX(3,1)+1
        AX=NBASISMAX(1,4)
        AY=NBASISMAX(2,4)
+
        IF(TTILT) THEN
 CCCC.. NBASISMAX goes from -NMAXX+1 to MAXX so LX=2MAXX
-          LX=NBASISMAX(1,5)
-          LX=(LX*(AX*AX+AY*AY))
-          TOTSUM=COS(PI*(I*AX-J*AY)/(LX+1))+COS(PI*(I*AY+J*AX)/(LX+1))
-       ELSE
-          II=I-NBASISMAX(1,1)+1
-          JJ=J-NBASISMAX(2,1)+1
-          KK=K-NBASISMAX(3,1)+1
-          IF(LX.GT.1) TOTSUM=COS(PI*II/(LX+1))
-          IF(LY.GT.1) TOTSUM=TOTSUM+COS(PI*JJ/(LY+1))
-          IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*KK/(LZ+1))
-C          IF(LY.GT.1) TOTSUM=TOTSUM+COS(PI*J/(LY+1))
-C          IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
-       ENDIF
-       TOTSUM=TOTSUM*2.0_dp*BHUB
-       RETURN
+         LX=NBASISMAX(1,5)
+         LX=(LX*(AX*AX+AY*AY))
+         TOTSUM=COS(PI*(I*AX-J*AY)/(LX+1))+COS(PI*(I*AY+J*AX)/(LX+1))
+      ELSE
+         II=I-NBASISMAX(1,1)+1
+         JJ=J-NBASISMAX(2,1)+1
+         KK=K-NBASISMAX(3,1)+1
+         IF(LX.GT.1) TOTSUM=COS(PI*II/(LX+1))
+         IF(LY.GT.1) TOTSUM=TOTSUM+COS(PI*JJ/(LY+1))
+         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*KK/(LZ+1))
+C         IF(LY.GT.1) TOTSUM=TOTSUM+COS(PI*J/(LY+1))
+C         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
+      ENDIF
+      TOTSUM=TOTSUM*2.0_dp*BHUB
+      RETURN
       endif
       END
 
@@ -122,6 +134,7 @@ C          IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
          real(dp) TOTSUM
          integer temp_k(3)
          character(*), parameter :: this_routine = 'CALCTMATHUB'
+         integer :: temp_k(3)
          IF(iProcIndex.eq.0) OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
          CALL SetupTMAT(NBASIS,2,iSize)
          TOTSUM=0.0_dp
@@ -157,37 +170,23 @@ C          IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
                         IF(LZ.EQ.1) TOTSUM=TOTSUM+BHUB
                      ENDIF
                   ENDIF
-                  ! here the changes for the open-BC have to occur!
+
+                  ! make this more general to also use open BC and a 
+                  ! tilted real-space lattice
                   if (.not. t_open_bc_x .and. .not. t_open_bc_y) then
-                      IF((DX+DY+DZ.EQ.1).or.sum(temp_k) == 1) then
+                      IF(DX+DY+DZ.EQ.1..or.sum(temp_k) == 1) then
                           if (G1(I)%Ms.EQ.G1(J)%MS) THEN
 !This is for if the site can interact with a periodic image.
-                          ! i have to change that condition for the tilted 
-                          ! real-space since now it only accomodates for a
-                          ! non-pbc model
-                        TMAT2D(I,J)=TOTSUM
-                        IF(iProcIndex.eq.0) WRITE(10,*) I,J,TOTSUM
-                        endif
-                      ENDIF
-                  else 
-                      ! otherwise change to old determination of BCs 
-                      ! without momentum mirrored basis states
-                      if (DX + DY + DZ == 1) then
-                          if (G1(I)%Ms.EQ.G1(J)%MS) THEN
-!This is for if the site can interact with a periodic image.
-                          ! i have to change that condition for the tilted 
-                          ! real-space since now it only accomodates for a
-                          ! non-pbc model
                             TMAT2D(I,J)=TOTSUM
                             IF(iProcIndex.eq.0) WRITE(10,*) I,J,TOTSUM
-                        endif
+                           end if
                       ENDIF
+                  else 
+                      if (DX+DY+DZ==1.and.G1(I)%Ms.EQ.G1(J)%MS) THEN 
+                        TMAT2D(I,J)=TOTSUM
+                        IF(iProcIndex.eq.0) WRITE(10,*) I,J,TOTSUM
+                      end if
                   end if
-                  ! try the change for the tilted square lattice.. 
-                  ! if (sum(temp_k) == 1 .and. G1(i)%ms == G1(j)%ms) then
-                  !   TMAT2D(I,J)=TOTSUM
-                  !   IF(iProcIndex.eq.0) WRITE(10,*) I,J,TOTSUM
-                  ! ENDIF
                ENDDO
             ENDDO
          ELSE
@@ -329,10 +328,12 @@ C     &         *((NBASISMAX(4,2)-NBASISMAX(4,1))/2+1)
          use SymData, only: tagSymConjTab,tagSymClasses,tagSymLabels
          use SymData, only: tagSymTable
          use sym_mod, only: RoundSym, AddElecSym
+         use constants, only: int64
          IMPLICIT NONE
          INTEGER nBasis,nBasisMax(*)
          TYPE(BasisFN) G1(nBasis)
-         INTEGER I,J,nSyms,K
+         INTEGER J,nSyms,K
+         integer(int64) :: I
          TYPE(BasisFN) NQNS,S
          INTEGER iFindBasisFn
          character(*),parameter:: this_routine='GenHubMomIrrepsSymTable'
@@ -374,12 +375,8 @@ C.. place the sym label of each state in SymClasses(ISTATE).
                SymClasses(I)=nSyms
             ENDIF
 C.. list the symmetry string of each sym label
-!             SymLabels(I)%s=2_int64**(I-1)
-            symlabels(i)%s = i
-!             symlabels(i)%s = 2*i
-            if (SymLabels(i)%s < 0) then
-                call stop_all(this_routine,"too many orbitals!")
-            end if
+           SymLabels(I)%s=2_int64**(I-1_int64)
+!             SymLabels(I)%s=i
          ENDDO
 C.. Setup the symmetry product table
          if (allocated(SymTable)) then

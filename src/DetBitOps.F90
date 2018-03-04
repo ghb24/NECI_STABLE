@@ -689,32 +689,37 @@ module DetBitOps
         logical :: open_shell
 
         iLut(:)=0
-        nopen = 0
-        open_shell = .false.
-        if (tCSF .and. iscsf (nI)) then
-            do i=1,nel
-                ! THe first non-paired orbital has yama symbol = 1
-                if ((.not. open_shell) .and. &
-                    btest(nI(i), csf_yama_bit)) open_shell = .true.
+        if (tCSF) then
+            if(iscsf (nI)) then
+                nopen = 0
+                open_shell = .false.
+                do i=1,nel
+                    ! THe first non-paired orbital has yama symbol = 1
+                    if ((.not. open_shell) .and. &
+                        btest(nI(i), csf_yama_bit)) open_shell = .true.
 
-                ! Set the bit in the bit representation
-                det = iand(nI(i), csf_orbital_mask)
-                iLut((det-1)/bits_n_int) = ibset(iLut((det-1)/bits_n_int),mod(det-1,bits_n_int))
+                    ! Set the bit in the bit representation
+                    det = iand(nI(i), csf_orbital_mask)
+                    iLut((det-1)/bits_n_int) = ibset(iLut((det-1)/bits_n_int),mod(det-1,bits_n_int))
 
-                if (open_shell) then
-                    if (btest(nI(i), csf_yama_bit)) then
-                        pos = NIfD + 1 + (nopen/bits_n_int)
-                        iLut(pos) = ibset(iLut(pos), mod(nopen,bits_n_int))
+                    if (open_shell) then
+                        if (btest(nI(i), csf_yama_bit)) then
+                            pos = NIfD + 1 + (nopen/bits_n_int)
+                            iLut(pos) = ibset(iLut(pos), mod(nopen,bits_n_int))
+                        endif
+                        nopen = nopen + 1
                     endif
-                    nopen = nopen + 1
-                endif
-            enddo
-        else
-            do i=1,nel
-                pos = (nI(i) - 1) / bits_n_int
-                iLut(pos)=ibset(iLut(pos),mod(nI(i)-1,bits_n_int))
-            enddo
+                enddo
+                return
+            endif
         endif
+
+        !Decode determinant
+        do i=1,nel
+            pos = (nI(i) - 1) / bits_n_int
+            iLut(pos)=ibset(iLut(pos),mod(nI(i)-1,bits_n_int))
+        enddo
+
     end subroutine EncodeBitDet
 
 
@@ -758,10 +763,11 @@ module DetBitOps
         !      ExcitMat(2,2)   - Excitation Matrix
         ! Out: iLutnJ (0:NIfD) - New bit det
 
-        integer, intent(in) :: IC, ExcitMat(2,2)
+        integer, intent(in) :: IC
+        integer, intent(in) :: ExcitMat(2,2)
         integer(kind=n_int), intent(in) :: iLutnI (0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ (0:NIfTot)
-        integer :: pos(2,2), bit(2,2), i
+        integer :: pos(2,2), bit(2,2), i, ic_tmp
 
         iLutnJ = iLutnI
         if (IC == 0) then
@@ -773,8 +779,17 @@ module DetBitOps
             pos = (excitmat - 1) / bits_n_int
             bit = mod(excitmat - 1, bits_n_int)
 
+            ic_tmp = ic
+            if (ic==3) then
+                ! single excitation: only one populated column in ExcitMat
+                ic_tmp=1
+            elseif (ic==4 .or. ic==5) then
+                ! double excitation: both columns populated in ExcitMat
+                ic_tmp=2
+            endif
+
             ! Clear bits for excitation source, and set bits for target
-            do i=1,IC
+            do i=1,ic_tmp
                 iLutnJ(pos(1,i)) = ibclr(iLutnJ(pos(1,i)), bit(1,i))
                 iLutnJ(pos(2,i)) = ibset(iLutnJ(pos(2,i)), bit(2,i))
             enddo
@@ -886,7 +901,6 @@ module DetBitOps
     ! Routine to count number of open *SPATIAL* orbitals in a bit-string 
     ! representation of a determinant.
     ! ************************
-    ! BROKEN
     ! NOTE: This function name is misleading
     !       It counts the number of unpaired Beta electrons (ignores Alpha)
     !       --> Returns nopen/2 <==> Ms=0
@@ -895,21 +909,16 @@ module DetBitOps
         INTEGER(kind=n_int) :: iLutAlpha(0:NIfD),iLutBeta(0:NIfD)
         integer(n_int), intent(in) :: ilut(0:NIfD)
         integer, intent(out) :: OpenOrbs
-        INTEGER :: i
         
         iLutAlpha(:)=0
         iLutBeta(:)=0
 
-        do i=0,NIfD     
-                    
-            iLutAlpha(i)=IAND(iLut(i),MaskAlpha)    !Seperate the alpha and beta bit strings
-            iLutBeta(i)=IAND(iLut(i),MaskBeta)
-            iLutAlpha(i)=ISHFT(iLutAlpha(i),-1)     !Shift all alpha bits to the left by one.
+        iLutAlpha(:)=IAND(iLut(:),MaskAlpha)    !Seperate the alpha and beta bit strings
+        iLutBeta(:)=IAND(iLut(:),MaskBeta)
+        iLutAlpha(:)=ISHFT(iLutAlpha(:),-1)     !Shift all alpha bits to the left by one.
 
-            iLutAlpha(i)=NOT(iLutAlpha(i))              ! This NOT means that set bits are now represented by 0s, not 1s
-            iLutAlpha(i)=IAND(iLutAlpha(i),iLutBeta(i)) ! Now, only the 1s in the beta string will be counted.
-
-        enddo
+        iLutAlpha(:)=NOT(iLutAlpha(:))              ! This NOT means that set bits are now represented by 0s, not 1s
+        iLutAlpha(:)=IAND(iLutAlpha(:),iLutBeta(:)) ! Now, only the 1s in the beta string will be counted.
 
         OpenOrbs = CountBits(iLutAlpha,NIfD,NEl)
     END SUBROUTINE CalcOpenOrbs
@@ -1038,6 +1047,35 @@ module DetBitOps
 
 
     end function
+
+    pure function spin_flip(ilut) result(ilut_flip)
+      ! Take the determinant represented by ilut and flip every spin
+      implicit none
+      integer(n_int), intent(in) :: ilut(0:NIfTot)
+      integer(n_int) :: ilut_flip(0:NIfTot)
+      integer :: i, orb
+      logical :: up, down      
+
+      ilut_flip = ilut
+      do i = 1, NIfD
+         ! We check every other bit and compare it with the previous one, to see
+         ! if we need to change something
+         do orb = 0, end_n_int, 2
+            up = .false.
+            down = .false.
+            if(BTEST(ilut(i),orb)) up = .true.
+            if(BTEST(ilut(i),orb+1)) down = .true.
+            if(up .and. .not. down) then
+               ilut_flip = iBCLR(ilut_flip,orb)
+               ilut_flip = iBSET(ilut_flip,orb+1)
+            endif
+            if(down .and. .not. up) then
+               ilut_flip = iBCLR(ilut_flip,orb+1)
+               ilut_flip = iBSET(ilut_flip,orb)
+            endif
+         end do
+      end do
+    end function spin_flip
 
 end module
 

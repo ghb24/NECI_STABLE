@@ -1,0 +1,2706 @@
+ Number of processors:            2
+ Processor            1 /           2  as head node.
+ Sum:            3
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on Feb 23 2018 at 15:07:14
+ Compiled using configuration:
+     cmake-Intel-par-RELEASE
+ VCS BASE repository version:
+     65ab4260fc554bd564b78328721c3fbc06fc9bd4
+ Working directory: 
+     /home/guther/numerics/neci/test_suite/mneci/excited_state/Ne_hphf_2_states_rdm_transition
+ Running on: pcal014
+ Started running on 23/02/2018 at 18:02:20
+ ================================================================
+
+ Processing arguments
+ neci.inp                                                                       
+                                                                                
+                                                                                
+                   
+ Reading from file: neci.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+title
+
+system read
+electrons 10
+nonuniformrandexcits 4ind-weighted
+spin-restrict 0
+sym 0 0 0 0
+system-replicas 4
+molpromimic
+freeformat
+hphf 0
+endsys
+
+calc
+methods
+method vertex fcimc
+endmethods
+seed 100
+nmcyc 2000
+totalwalkers 2000
+startsinglepart 10
+shiftdamp 0.5
+stepsshift 1
+diagshift 0.5 0.5 1.0 1.0
+memoryfacpart 13.0
+memoryfacspawn 10.0
+allrealcoeff
+realspawncutoff 0.5
+orthogonalise-replicas
+semi-stochastic 500
+pops-core 10000
+num-trial-states-calc 10
+trial-wavefunction 500
+doubles-trial
+dont-print-overlaps
+doubles-init
+tau 0.02 search
+truncinitiator
+addtoinitiator 3
+definedet 1 2 3 4 5 6 23 24 33 34
+endcalc
+
+integral
+freeze 4,0
+endint
+
+logging
+popsfile -1
+calcrdmonfly 3 1000 50
+write-spin-free-rdm
+printonerdm
+transition-rdms 1
+1 2
+endlog
+end
+
+****************************************************************
+
+ RDM on fly
+ Allocating each processor as a separate node.
+ I am the node root for node            0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :    10
+  Restricting the spin state of the system, TSPN :  T
+  GLOBAL MS :            0
+  *** GENERIC SYSTEM ***  
+  NUMBER OF SPIN ORBITALS IN BASIS :    46
+*** CREATING BASIS FNs FROM FCIDUMP ***
+  Maximum number of symmetries:   8
+  Generating abelian symmetry table with  3 generators
+  Number of symmetry classes: 8
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***
+ UMatSize:                  38226
+Memory required for integral storage:     0.2916412353     Mb/Shared Memory
+Allocated             305808 bytes of shared memory named: umat
+Two-electron integrals with a magnitude over    0.1000000E-07 are screened
+Ignoring integral (chem. notation) (   0   0|   0   0):   0.000000000000000E+000
+ Number of removed two-index integrals:                      1
+ Number of non-zero integrals:                   4806
+ ECORE=  0.000000000000000E+000
+ Setting normal GetUMatEl routine
+ Defining FDet according to input
+ Fermi det (D0):(    1,    2,    3,    4,    5,    6,   23,   24,   33,   34)
+ Symmetry:  ( 0, 0, 0) 0
+NECI called from MOLPRO, so assuming orbitals ordered by occupation number.
+ N_alpha: 5 ; N_beta: 5 ; LMS: 0 ; NEl:10
+Calculating orbital energies...
+Reordering basis by orbital energies...
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0      -37.605515480      -37.605515480 #
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0      -37.605515480      -37.605515480 #
+      3      3      0      0      0     -1 ( 0, 0, 0) 0   0       -3.989000263       -3.989000263 #
+      4      4      0      0      0      1 ( 0, 0, 0) 0   0       -3.989000263       -3.989000263 #
+      5     17      0      0      0     -1 ( 0, 0, 1) 1   0       -2.282688396       -2.282688396
+      6     18      0      0      0      1 ( 0, 0, 1) 1   0       -2.282688396       -2.282688396
+      7     23      0      0      0     -1 ( 0, 0, 2) 2   0       -2.282688396       -2.282688396 #
+      8     24      0      0      0      1 ( 0, 0, 2) 2   0       -2.282688396       -2.282688396 #
+      9     33      0      0      0     -1 ( 0, 0, 4) 4   0       -2.282688396       -2.282688396 #
+     10     34      0      0      0      1 ( 0, 0, 4) 4   0       -2.282688396       -2.282688396 #
+     11      5      0      0      0     -1 ( 0, 0, 0) 0   0       -0.263887914       -0.263887914 #
+     12      6      0      0      0      1 ( 0, 0, 0) 0   0       -0.263887914       -0.263887914 #
+     13     19      0      0      0     -1 ( 0, 0, 1) 1   0        0.089106676        0.089106676
+     14     20      0      0      0      1 ( 0, 0, 1) 1   0        0.089106676        0.089106676
+     15     25      0      0      0     -1 ( 0, 0, 2) 2   0        0.089106676        0.089106676
+     16     26      0      0      0      1 ( 0, 0, 2) 2   0        0.089106676        0.089106676
+     17     35      0      0      0     -1 ( 0, 0, 4) 4   0        0.089106676        0.089106676
+     18     36      0      0      0      1 ( 0, 0, 4) 4   0        0.089106676        0.089106676
+     19     21      0      0      0     -1 ( 0, 0, 1) 1   0        0.457473915        0.457473915
+     20     22      0      0      0      1 ( 0, 0, 1) 1   0        0.457473915        0.457473915
+     21     27      0      0      0     -1 ( 0, 0, 2) 2   0        0.457473915        0.457473915
+     22     28      0      0      0      1 ( 0, 0, 2) 2   0        0.457473915        0.457473915
+     23     37      0      0      0     -1 ( 0, 0, 4) 4   0        0.457473915        0.457473915
+     24     38      0      0      0      1 ( 0, 0, 4) 4   0        0.457473915        0.457473915
+     25      7      0      0      0     -1 ( 0, 0, 0) 0   0        0.468948196        0.468948196
+     26      8      0      0      0      1 ( 0, 0, 0) 0   0        0.468948196        0.468948196
+     27      9      0      0      0     -1 ( 0, 0, 0) 0   0        0.468948196        0.468948196
+     28     10      0      0      0      1 ( 0, 0, 0) 0   0        0.468948196        0.468948196
+     29     29      0      0      0     -1 ( 0, 0, 3) 3   0        0.982520184        0.982520184
+     30     30      0      0      0      1 ( 0, 0, 3) 3   0        0.982520184        0.982520184
+     31     39      0      0      0     -1 ( 0, 0, 5) 5   0        0.982520184        0.982520184
+     32     40      0      0      0      1 ( 0, 0, 5) 5   0        0.982520184        0.982520184
+     33     43      0      0      0     -1 ( 0, 0, 6) 6   0        0.982520184        0.982520184
+     34     44      0      0      0      1 ( 0, 0, 6) 6   0        0.982520184        0.982520184
+     35     11      0      0      0     -1 ( 0, 0, 0) 0   0        1.126867454        1.126867454
+     36     12      0      0      0      1 ( 0, 0, 0) 0   0        1.126867454        1.126867454
+     37     13      0      0      0     -1 ( 0, 0, 0) 0   0        4.174489365        4.174489365
+     38     14      0      0      0      1 ( 0, 0, 0) 0   0        4.174489365        4.174489365
+     39     15      0      0      0     -1 ( 0, 0, 0) 0   0        4.174489365        4.174489365
+     40     16      0      0      0      1 ( 0, 0, 0) 0   0        4.174489365        4.174489365
+     41     31      0      0      0     -1 ( 0, 0, 3) 3   0        4.182778414        4.182778414
+     42     32      0      0      0      1 ( 0, 0, 3) 3   0        4.182778414        4.182778414
+     43     41      0      0      0     -1 ( 0, 0, 5) 5   0        4.182778414        4.182778414
+     44     42      0      0      0      1 ( 0, 0, 5) 5   0        4.182778414        4.182778414
+     45     45      0      0      0     -1 ( 0, 0, 6) 6   0        4.182778414        4.182778414
+     46     46      0      0      0      1 ( 0, 0, 6) 6   0        4.182778414        4.182778414
+ Fock operator energy:  -92.8475608981647     
+======== FREEZING ORBITALS ==========
+Allocated             214368 bytes of shared memory named: umat2
+ Freezing            4  core orbitals.
+ Freezing            0  virtual orbitals.
+ Post-Freeze Fermi det (D0):(    1,    2,   19,   20,   29,   30)
+ Symmetry:  ( 0, 0, 0) 0
+ ECORE now  -109.425435087218     
+ Number of orbitals remaining:           42
+ Number of active electrons:           6
+      1     13      0      0      0     -1 ( 0, 0, 1) 1   0       -2.282688396       -2.282688396
+      2     14      0      0      0      1 ( 0, 0, 1) 1   0       -2.282688396       -2.282688396
+      3     19      0      0      0     -1 ( 0, 0, 2) 2   0       -2.282688396       -2.282688396 #
+      4     20      0      0      0      1 ( 0, 0, 2) 2   0       -2.282688396       -2.282688396 #
+      5     29      0      0      0     -1 ( 0, 0, 4) 4   0       -2.282688396       -2.282688396 #
+      6     30      0      0      0      1 ( 0, 0, 4) 4   0       -2.282688396       -2.282688396 #
+      7      1      0      0      0     -1 ( 0, 0, 0) 0   0       -0.263887914       -0.263887914 #
+      8      2      0      0      0      1 ( 0, 0, 0) 0   0       -0.263887914       -0.263887914 #
+      9     15      0      0      0     -1 ( 0, 0, 1) 1   0        0.089106676        0.089106676
+     10     16      0      0      0      1 ( 0, 0, 1) 1   0        0.089106676        0.089106676
+     11     21      0      0      0     -1 ( 0, 0, 2) 2   0        0.089106676        0.089106676
+     12     22      0      0      0      1 ( 0, 0, 2) 2   0        0.089106676        0.089106676
+     13     31      0      0      0     -1 ( 0, 0, 4) 4   0        0.089106676        0.089106676
+     14     32      0      0      0      1 ( 0, 0, 4) 4   0        0.089106676        0.089106676
+     15     17      0      0      0     -1 ( 0, 0, 1) 1   0        0.457473915        0.457473915
+     16     18      0      0      0      1 ( 0, 0, 1) 1   0        0.457473915        0.457473915
+     17     23      0      0      0     -1 ( 0, 0, 2) 2   0        0.457473915        0.457473915
+     18     24      0      0      0      1 ( 0, 0, 2) 2   0        0.457473915        0.457473915
+     19     33      0      0      0     -1 ( 0, 0, 4) 4   0        0.457473915        0.457473915
+     20     34      0      0      0      1 ( 0, 0, 4) 4   0        0.457473915        0.457473915
+     21      3      0      0      0     -1 ( 0, 0, 0) 0   0        0.468948196        0.468948196
+     22      4      0      0      0      1 ( 0, 0, 0) 0   0        0.468948196        0.468948196
+     23      5      0      0      0     -1 ( 0, 0, 0) 0   0        0.468948196        0.468948196
+     24      6      0      0      0      1 ( 0, 0, 0) 0   0        0.468948196        0.468948196
+     25     25      0      0      0     -1 ( 0, 0, 3) 3   0        0.982520184        0.982520184
+     26     26      0      0      0      1 ( 0, 0, 3) 3   0        0.982520184        0.982520184
+     27     35      0      0      0     -1 ( 0, 0, 5) 5   0        0.982520184        0.982520184
+     28     36      0      0      0      1 ( 0, 0, 5) 5   0        0.982520184        0.982520184
+     29     39      0      0      0     -1 ( 0, 0, 6) 6   0        0.982520184        0.982520184
+     30     40      0      0      0      1 ( 0, 0, 6) 6   0        0.982520184        0.982520184
+     31      7      0      0      0     -1 ( 0, 0, 0) 0   0        1.126867454        1.126867454
+     32      8      0      0      0      1 ( 0, 0, 0) 0   0        1.126867454        1.126867454
+     33      9      0      0      0     -1 ( 0, 0, 0) 0   0        4.174489365        4.174489365
+     34     10      0      0      0      1 ( 0, 0, 0) 0   0        4.174489365        4.174489365
+     35     11      0      0      0     -1 ( 0, 0, 0) 0   0        4.174489365        4.174489365
+     36     12      0      0      0      1 ( 0, 0, 0) 0   0        4.174489365        4.174489365
+     37     27      0      0      0     -1 ( 0, 0, 3) 3   0        4.182778414        4.182778414
+     38     28      0      0      0      1 ( 0, 0, 3) 3   0        4.182778414        4.182778414
+     39     37      0      0      0     -1 ( 0, 0, 5) 5   0        4.182778414        4.182778414
+     40     38      0      0      0      1 ( 0, 0, 5) 5   0        4.182778414        4.182778414
+     41     41      0      0      0     -1 ( 0, 0, 6) 6   0        4.182778414        4.182778414
+     42     42      0      0      0      1 ( 0, 0, 6) 6   0        4.182778414        4.182778414
+ Setting normal GetUMatEl routine
+ Calculation supports multiple parallel runs
+ Number of simultaneous walker distributions:            4
+ Number of sign components in bit representation of determinant:            4
+Setting integer length of determinants as bit-strings to:      6
+Setting integer bit-length of determinants as bit-strings to:     64
+ SYMMETRY MULTIPLICATION TABLE
+ No Symmetry table found.
+          28  Symmetry PAIRS
+           8  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ Not storing the H matrix.
+ <D0|H|D0>=  -126.422783215257     
+ <D0|T|D0>=  -26.1081336364608     
+ FDet has     3 alpha electrons, and     3 beta electrons.
+                3  alpha-alpha occupied electron pairs
+                3  beta-beta occupied electron pairs
+                9  alpha-beta occupied electron pairs
+              153 alpha-alpha (vacant) hole pairs
+              153 beta-beta (vacant) hole pairs
+              324 alpha-beta (vacant) hole pairs
+ 
+ Performing Parallel FCIQMC....
+ 
+ Generated reference determinants:
+(    1,    2,   19,   20,   29,   30) E =   -126.422783215
+(    2,    5,   19,   20,   29,   30) E =   -125.348681913
+(    1,    6,   19,   20,   29,   30) E =   -125.348681913
+(    2,    3,   19,   20,   29,   30) E =   -125.330621474
+ HPHF used, and open shell determinant for run            2 
+  spin-flippd for consistency.
+ Two *different* determinants contained in initial HPHF for run            2
+ Projected energy will be calculated as projection onto both of these.
+ Two *different* determinants contained in initial HPHF for run            3
+ Projected energy will be calculated as projection onto both of these.
+ HPHF used, and open shell determinant for run            4 
+  spin-flippd for consistency.
+ Two *different* determinants contained in initial HPHF for run            4
+ Projected energy will be calculated as projection onto both of these.
+Symmetry of reference determinant is:          0
+Symmetry of reference determinant from spin orbital symmetry info is:          0
+*********** INITIATOR METHOD IN USE ***********
+Starting with only the reference determinant in the fixed initiator space.
+Value for seed is:          100
+Running FCIQMC for            2000 iterations.
+Reference Energy set to:      -126.4227832153
+Highest energy determinant is (approximately):     -89.9010326682454    
+Corresponding to a correlation energy of:      36.5217505470116    
+Brillouin theorem in use for calculation of projected energy.
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+    510 double excitations, and      18 single excitations found from reference. This will be used to calculate pDoubles.
+ pDoubles set to:       0.965909
+ pSingles set to:       0.034091
+ Using initial time-step:   2.000000000000000E-002
+Will dynamically update timestep to limit spawning probability to   2.00000
+Initial Diagonal Shift:         0.5000000000
+ Connectivity of HF determinant is:          528
+Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors
+Memory allocated for a maximum particle number per node of:         374491
+ The average current signs before death will be stored for use in the RDMs.
+ Determinant related persistent storage requires:      82.857048 Mb / processor
+Spawning vectors allowing for a total of        40000 particles to be spawned in any one iteration per core.
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:             700
+Length of hash-table as a fraction of targetwalkers:              0.70000
+Reference processor is:        1
+Initial reference is: (    1,    2,   19,   20,   29,   30)
+  Initialising wavefunctions by the Lanczos algorithm
+  Aborting Lanczos and initialising trial states with direct diagonalisation
+  MAXIMUM WIDTH OF HAMIL :          156
+  TOTAL NUMBER OF NON-ZERO ELEMENTS :         9610
+ Setting ref           1
+(   13,   14,   19,   20,   29,   30)
+Changing projected energy reference determinant for run  1 on the next update cycle to: (   13,   14,   19,   20,   29,   30)
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -128.496349730325    
+ Regenerating the stored diagonal HElements for all walkers.
+ Setting ref           2
+(   13,   14,   19,   20,   29,   30)
+Changing projected energy reference determinant for run  2 on the next update cycle to: (   13,   14,   19,   20,   29,   30)
+ Ensuring that Brillouin's theorem is no longer used.
+ Setting ref           3
+(   13,   16,   19,   20,   29,   30)
+Changing projected energy reference determinant for run  3 on the next update cycle to: (   13,   16,   19,   20,   29,   30)
+Now projecting onto open-shell HPHF as a linear combo of two determinants... for run  3
+ Ensuring that Brillouin's theorem is no longer used.
+ Setting ref           4
+(   13,   16,   19,   20,   29,   30)
+Changing projected energy reference determinant for run  4 on the next update cycle to: (   13,   16,   19,   20,   29,   30)
+Now projecting onto open-shell HPHF as a linear combo of two determinants... for run  4
+ Ensuring that Brillouin's theorem is no longer used.
+ Initial memory (without excitgens + temp arrays) consists of :      20.804947 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+ =============================================
+ Stochastically calculating the reduced density matrices from the FCIQMC wavefunction
+ incl. explicit connections to the following HF determinant:(   13,   14,   19,   20,   29,   30)
+ Calculating the energy from the reduced density matrix. This requires the 2 electron RDM from which the 1-RDM can also be constructed.
+
+ About to allocate main RDM array, size per MPI process (MB):      2.651138
+ Allocation of main RDM array complete.
+ About to allocate RDM spawning array, size per MPI process (MB):     17.674446
+ Allocation of RDM spawning array complete.
+ About to allocate RDM receiving arrays, size per MPI process (MB):     10.604668
+ Allocation of RDM receiving arrays complete.
+
+ Main RDM memory arrays consists of:      33.385117 MB per MPI process.
+ RDM memory allocation complete.
+
+ Allocating temporary array for walkers spawned from a particular Di.
+ This requires       0.007629 Mb/Processor
+# 1. Iter.             2. Dets occ.         3. Dets spawned      4. Iter. time       
+#               0              292               0   0.00000000000     
+ Updating time-step. New time-step =   1.961921237271920E-002
+                1               16              20  0.522993505001E-003
+                2               22              22  0.216998159885E-003
+                3               31              32  0.234998762608E-003
+                4               36              30  0.248998403549E-003
+ Updating time-step. New time-step =   1.792571847941759E-002
+                5               43              43  0.274002552032E-003
+                6               44              38  0.288002192974E-003
+                7               52              48  0.298000872135E-003
+                8               62              52  0.312998890877E-003
+ Updating time-step. New time-step =   1.349584024154362E-002
+                9               69              56  0.440999865532E-003
+               10               77              46  0.439003109932E-003
+               11               81              52  0.454999506474E-003
+               12               78              39  0.461004674435E-003
+ Updating time-step. New time-step =   1.052744157611682E-002
+               13               83              59  0.467002391815E-003
+               14               85              52  0.465996563435E-003
+               15               91              47  0.491999089718E-003
+               16               94              57  0.508002936840E-003
+               17               98              47  0.516995787621E-003
+               18              100              47  0.534996390343E-003
+               19              100              39  0.519998371601E-003
+ Updating parallel-spin bias; new pParallel =   0.192109146667140     
+ Updating time-step. New time-step =   2.931914781115758E-002
+ Updating singles/doubles bias. pSingles =   9.494390402703938E-002 , pDoubles =
+    0.905056095972961     
+               20              105              58  0.549994409084E-003
+               21              114             119  0.611998140812E-003
+               22              115             136  0.638000667095E-003
+               23              121             145  0.689998269081E-003
+               24              136             155  0.718995928764E-003
+               25              137             168  0.731997191906E-003
+               26              152             171  0.758998095989E-003
+               27              161             191  0.820003449917E-003
+               28              167             200  0.881999731064E-003
+               29              188             228  0.904001295567E-003
+               30              212             269  0.103799998760E-002
+               31              224             273  0.109899044037E-002
+               32              231             295  0.116600096226E-002
+               33              257             293  0.120700895786E-002
+               34              290             346  0.136700272560E-002
+ Updating time-step. New time-step =   2.903875124120148E-002
+ Updating singles/doubles bias. pSingles =   0.103599497517110      , pDoubles =
+    0.896400502482890     
+               35              305             383  0.146600604057E-002
+               36              329             404  0.151200592518E-002
+               37              348             433  0.159499049187E-002
+               38              375             497  0.172899663448E-002
+               39              391             506  0.190600752831E-002
+ Updating parallel-spin bias; new pParallel =   0.194129779201147     
+ Updating time-step. New time-step =   2.897362931700312E-002
+ Updating singles/doubles bias. pSingles =   0.103367166637305      , pDoubles =
+    0.896632833362695     
+               40              426             586  0.204499065876E-002
+               41              460             596  0.225399434566E-002
+               42              485             639  0.233799219131E-002
+               43              540             696  0.258500874043E-002
+               44              550             777  0.276099145412E-002
+ Updating parallel-spin bias; new pParallel =   0.178358290200794     
+ Updating time-step. New time-step =   2.684519343113050E-002
+ Updating singles/doubles bias. pSingles =   9.577369657234859E-002 , pDoubles =
+    0.904226303427651     
+               45              581             816  0.286900997162E-002
+               46              617             860  0.305201113224E-002
+               47              664             927  0.326400995255E-002
+               48              725             966  0.349600613117E-002
+               49              764            1071  0.377899408340E-002
+               50              811            1132  0.413399934769E-002
+               51              853            1193  0.425200164318E-002
+ Updating parallel-spin bias; new pParallel =   0.153135381983991     
+ Updating time-step. New time-step =   2.336528488769082E-002
+ Updating singles/doubles bias. pSingles =   8.335867316065546E-002 , pDoubles =
+    0.916641326839345     
+               52              890            1304  0.458300113678E-002
+               53              932            1212  0.465200841427E-002
+               54              981            1343  0.489099323750E-002
+               55             1031            1422  0.518400967121E-002
+ Updating time-step. New time-step =   2.332007598244887E-002
+ Updating singles/doubles bias. pSingles =   8.513225953399176E-002 , pDoubles =
+    0.914867740466008     
+               56             1106            1556  0.563500821590E-002
+               57             1161            1640  0.582599639893E-002
+               58             1207            1739  0.615701079369E-002
+ Updating singles/doubles bias. pSingles =   8.553405057399671E-002 , pDoubles =
+    0.914465949426003     
+               59             1282            1839  0.652100145817E-002
+               60             1329            1989  0.701299309731E-002
+               61             1415            2091  0.729399919510E-002
+ Updating singles/doubles bias. pSingles =   8.607905756507495E-002 , pDoubles =
+    0.913920942434925     
+               62             1489            2232  0.773900747299E-002
+               63             1597            2366  0.831100344658E-002
+ Updating time-step. New time-step =   2.307886450580541E-002
+ Updating singles/doubles bias. pSingles =   9.459520462805410E-002 , pDoubles =
+    0.905404795371946     
+               64             1660            2639  0.888401269913E-002
+Exiting the single particle growth phase on iteration:            65 - Shift can now change for population2
+               65             1766            2716  0.935199856758E-002
+               66             1851            2933  0.986799597740E-002
+               67             1956            3042  0.801199674606E-002
+Exiting the single particle growth phase on iteration:            68 - Shift can now change for population1
+               68             2025            3152  0.957900285721E-002
+               69             2113            3323  0.109360218048E-001
+               70             2162            3420  0.115129947662E-001
+               71             2208            3493  0.115479826927E-001
+Exiting the single particle growth phase on iteration:            72 - Shift can now change for population4
+               72             2298            3546  0.117699801922E-001
+               73             2338            3655  0.119140148163E-001
+               74             2342            3638  0.121140182018E-001
+Exiting the single particle growth phase on iteration:            75 - Shift can now change for population3
+               75             2347            3658  0.120670199394E-001
+               76             2366            3668  0.120579898357E-001
+               77             2368            3662  0.120110213757E-001
+               78             2347            3672  0.121119916439E-001
+               79             2344            3670  0.118739902973E-001
+               80             2369            3606  0.118350088596E-001
+               81             2383            3692  0.863200426102E-002
+               82             2370            3661  0.604000687599E-002
+               83             2381            3700  0.599899888039E-002
+               84             2398            3653  0.601500272751E-002
+               85             2390            3697  0.606200098991E-002
+               86             2403            3651  0.607699155807E-002
+               87             2395            3657  0.609600543976E-002
+               88             2415            3639  0.601500272751E-002
+               89             2384            3657  0.612699985504E-002
+               90             2369            3641  0.607395172119E-002
+               91             2376            3623  0.604802370071E-002
+               92             2379            3644  0.594002008438E-002
+               93             2345            3642  0.599396228790E-002
+               94             2361            3691  0.599598884583E-002
+               95             2342            3690  0.599205493927E-002
+               96             2320            3574  0.588595867157E-002
+               97             2341            3630  0.599098205566E-002
+               98             2360            3703  0.600099563599E-002
+               99             2328            3680  0.606894493103E-002
+              100             2342            3642  0.601100921631E-002
+              101             2294            3702  0.601297616959E-002
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+              102             2311            3636  0.590699911118E-002
+              103             2346            3612  0.596201419830E-002
+              104             2386            3608  0.592797994614E-002
+              105             2388            3795  0.608497858047E-002
+              106             2384            3656  0.595694780350E-002
+              107             2343            3652  0.599300861359E-002
+              108             2339            3671  0.595700740814E-002
+              109             2341            3665  0.592195987701E-002
+              110             2342            3715  0.593698024750E-002
+              111             2341            3634  0.595098733902E-002
+              112             2357            3669  0.601702928543E-002
+              113             2390            3811  0.615501403809E-002
+              114             2409            3692  0.609600543976E-002
+              115             2393            3766  0.617694854736E-002
+              116             2296            3635  0.609397888184E-002
+              117             2326            3672  0.600701570511E-002
+              118             2359            3578  0.603401660919E-002
+              119             2393            3740  0.612300634384E-002
+              120             2417            3778  0.617200136185E-002
+              121             2425            3613  0.622200965881E-002
+              122             2415            3681  0.623500347137E-002
+              123             2343            3660  0.244700908661E-002
+              124             2339            3690  0.592100620270E-002
+              125             2304            3594  0.590896606445E-002
+              126             2367            3615  0.591695308685E-002
+              127             2405            3673  0.597202777863E-002
+              128             2394            3757  0.608098506927E-002
+              129             2409            3699  0.606703758240E-002
+              130             2395            3635  0.603902339935E-002
+              131             2368            3689  0.595897436142E-002
+              132             2422            3660  0.604796409607E-002
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+              133             2393            3616  0.600397586823E-002
+              134             2400            3683  0.605702400208E-002
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+              135             2390            3657  0.596398115158E-002
+              136             2406            3696  0.605303049088E-002
+              137             2403            3615  0.597298145294E-002
+              138             2402            3687  0.610202550888E-002
+              139             2384            3632  0.607198476791E-002
+              140             2357            3652  0.595998764038E-002
+              141             2343            3578  0.600999593735E-002
+              142             2340            3611  0.594198703766E-002
+              143             2373            3621  0.611501932144E-002
+              144             2342            3659  0.604796409607E-002
+              145             2341            3675  0.604599714279E-002
+              146             2360            3722  0.597399473190E-002
+              147             2396            3670  0.604599714279E-002
+              148             2396            3700  0.599801540375E-002
+              149             2358            3717  0.604194402695E-002
+              150             2361            3700  0.599300861359E-002
+              151             2370            3668  0.601601600647E-002
+              152             2396            3613  0.597000122070E-002
+              153             2410            3722  0.604295730591E-002
+              154             2395            3755  0.603997707367E-002
+              155             2352            3653  0.607699155807E-002
+              156             2324            3619  0.596499443054E-002
+              157             2300            3570  0.597900152206E-002
+              158             2339            3617  0.594896078110E-002
+              159             2359            3675  0.609797239304E-002
+              160             2381            3648  0.609695911407E-002
+              161             2369            3701  0.611501932144E-002
+              162             2325            3633  0.605601072311E-002
+              163             2340            3687  0.607699155807E-002
+              164             2318            3605  0.605398416519E-002
+              165             2333            3656  0.600898265839E-002
+              166             2350            3669  0.610703229904E-002
+              167             2333            3622  0.599300861359E-002
+              168             2336            3638  0.604599714279E-002
+              169             2368            3785  0.608402490616E-002
+              170             2361            3620  0.611197948456E-002
+              171             2377            3698  0.607305765152E-002
+              172             2408            3721  0.607800483704E-002
+              173             2364            3758  0.610899925232E-002
+              174             2377            3770  0.610804557800E-002
+              175             2380            3858  0.608110427856E-002
+              176             2421            3640  0.601506233215E-002
+              177             2400            3695  0.606298446655E-002
+              178             2390            3718  0.614297389984E-002
+              179             2346            3695  0.609707832336E-002
+              180             2388            3669  0.605404376984E-002
+              181             2393            3639  0.604104995728E-002
+              182             2469            3657  0.607299804688E-002
+              183             2457            3731  0.615298748016E-002
+              184             2438            3647  0.600802898407E-002
+              185             2441            3741  0.605893135071E-002
+              186             2412            3626  0.593698024750E-002
+              187             2405            3627  0.592601299286E-002
+              188             2383            3587  0.590205192566E-002
+              189             2406            3601  0.592601299286E-002
+              190             2376            3743  0.598609447479E-002
+              191             2383            3711  0.599300861359E-002
+              192             2414            3708  0.600302219391E-002
+              193             2416            3638  0.611793994904E-002
+              194             2356            3687  0.600099563599E-002
+              195             2343            3662  0.608110427856E-002
+              196             2382            3739  0.604999065399E-002
+              197             2373            3583  0.611603260040E-002
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+              198             2398            3740  0.611400604248E-002
+              199             2383            3569  0.612509250641E-002
+              200             2379            3662  0.600600242615E-002
+              201             2346            3633  0.605690479279E-002
+              202             2378            3591  0.607407093048E-002
+              203             2381            3694  0.609099864960E-002
+              204             2382            3708  0.603091716766E-002
+              205             2358            3718  0.608801841736E-002
+              206             2329            3652  0.607597827911E-002
+              207             2310            3571  0.595200061798E-002
+              208             2336            3716  0.605702400208E-002
+              209             2340            3695  0.606894493103E-002
+              210             2330            3719  0.611400604248E-002
+              211             2329            3666  0.604796409607E-002
+              212             2324            3618  0.613200664520E-002
+              213             2323            3576  0.602006912231E-002
+              214             2292            3560  0.601601600647E-002
+              215             2288            3643  0.595200061798E-002
+              216             2318            3750  0.605392456055E-002
+              217             2314            3654  0.593304634094E-002
+              218             2301            3639  0.597798824310E-002
+              219             2342            3742  0.599098205566E-002
+              220             2325            3757  0.608694553375E-002
+              221             2395            3676  0.599503517151E-002
+              222             2397            3695  0.604403018951E-002
+              223             2348            3752  0.603508949280E-002
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+              224             2335            3654  0.604200363159E-002
+              225             2336            3567  0.594997406006E-002
+              226             2299            3565  0.598204135895E-002
+              227             2301            3556  0.583803653717E-002
+              228             2392            3660  0.593793392181E-002
+              229             2425            3706  0.598692893982E-002
+              230             2415            3651  0.607907772064E-002
+              231             2373            3691  0.603806972504E-002
+              232             2386            3677  0.600600242615E-002
+              233             2347            3594  0.603294372559E-002
+              234             2330            3677  0.601196289062E-002
+              235             2359            3631  0.610601902008E-002
+              236             2404            3765  0.614094734192E-002
+              237             2375            3717  0.629401206970E-002
+              238             2425            3683  0.609803199768E-002
+              239             2414            3715  0.619101524353E-002
+              240             2361            3653  0.608801841736E-002
+              241             2371            3627  0.610899925232E-002
+              242             2352            3591  0.601494312286E-002
+              243             2391            3674  0.613296031952E-002
+              244             2396            3708  0.606191158295E-002
+              245             2395            3702  0.614297389984E-002
+              246             2388            3610  0.606799125671E-002
+              247             2396            3656  0.614500045776E-002
+              248             2390            3759  0.619792938232E-002
+              249             2372            3636  0.605905056000E-002
+              250             2360            3589  0.605297088623E-002
+              251             2375            3641  0.596296787262E-002
+              252             2385            3677  0.608098506927E-002
+              253             2342            3613  0.602900981903E-002
+              254             2319            3712  0.615608692169E-002
+              255             2347            3658  0.607299804688E-002
+              256             2382            3755  0.621199607849E-002
+              257             2416            3734  0.620305538177E-002
+              258             2415            3813  0.631296634674E-002
+              259             2428            3806  0.623297691345E-002
+              260             2398            3691  0.616300106049E-002
+              261             2379            3677  0.604903697968E-002
+              262             2379            3609  0.609099864960E-002
+              263             2431            3663  0.609409809113E-002
+              264             2411            3621  0.613009929657E-002
+              265             2395            3599  0.612199306488E-002
+              266             2361            3661  0.598001480103E-002
+              267             2373            3640  0.601196289062E-002
+              268             2394            3749  0.604903697968E-002
+              269             2367            3744  0.619804859161E-002
+              270             2381            3782  0.613200664520E-002
+              271             2351            3628  0.612294673920E-002
+              272             2339            3685  0.606596469879E-002
+              273             2346            3630  0.605309009552E-002
+              274             2372            3755  0.608205795288E-002
+              275             2347            3733  0.613903999329E-002
+              276             2403            3639  0.601899623871E-002
+              277             2384            3777  0.612592697144E-002
+              278             2368            3719  0.612199306488E-002
+              279             2389            3688  0.621104240417E-002
+              280             2348            3573  0.602900981903E-002
+              281             2375            3642  0.608003139496E-002
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+              282             2364            3610  0.606298446655E-002
+              283             2355            3685  0.612795352936E-002
+              284             2328            3588  0.618398189545E-002
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+              285             2297            3638  0.614607334137E-002
+              286             2291            3598  0.612092018127E-002
+              287             2306            3595  0.602698326111E-002
+              288             2347            3656  0.613605976105E-002
+              289             2393            3728  0.613892078400E-002
+              290             2402            3753  0.628399848938E-002
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+              291             2419            3771  0.622296333313E-002
+              292             2433            3652  0.624406337738E-002
+              293             2402            3678  0.618505477905E-002
+              294             2418            3729  0.620698928833E-002
+              295             2425            3708  0.612902641296E-002
+              296             2401            3738  0.616598129272E-002
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+              297             2408            3747  0.618803501129E-002
+              298             2430            3739  0.615799427032E-002
+              299             2436            3745  0.625407695770E-002
+              300             2444            3801  0.619804859161E-002
+              301             2456            3777  0.618696212769E-002
+              302             2500            3653  0.611793994904E-002
+              303             2453            3599  0.614309310913E-002
+              304             2390            3603  0.602900981903E-002
+              305             2351            3601  0.601100921631E-002
+              306             2358            3666  0.598895549774E-002
+              307             2388            3723  0.615203380585E-002
+              308             2394            3714  0.613498687744E-002
+              309             2438            3704  0.614798069000E-002
+              310             2460            3733  0.610291957855E-002
+              311             2455            3701  0.618398189545E-002
+              312             2398            3632  0.608289241791E-002
+              313             2360            3644  0.601899623871E-002
+              314             2397            3571  0.597000122070E-002
+              315             2420            3689  0.600099563599E-002
+              316             2472            3649  0.609195232391E-002
+              317             2390            3736  0.605392456055E-002
+              318             2345            3656  0.600397586823E-002
+              319             2346            3688  0.596404075623E-002
+              320             2385            3629  0.602197647095E-002
+              321             2395            3616  0.604200363159E-002
+              322             2344            3680  0.608801841736E-002
+              323             2367            3698  0.605094432831E-002
+              324             2351            3632  0.605309009552E-002
+              325             2368            3563  0.205290317535E-002
+              326             2362            3615  0.603103637695E-002
+              327             2388            3704  0.608003139496E-002
+              328             2378            3675  0.620102882385E-002
+              329             2390            3600  0.609004497528E-002
+              330             2363            3582  0.613105297089E-002
+              331             2374            3635  0.609493255615E-002
+              332             2354            3592  0.614702701569E-002
+              333             2400            3681  0.616502761841E-002
+              334             2432            3740  0.613212585449E-002
+              335             2395            3695  0.622105598450E-002
+              336             2336            3692  0.617003440857E-002
+              337             2328            3693  0.615000724792E-002
+              338             2380            3654  0.605082511902E-002
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+              339             2406            3761  0.618791580200E-002
+              340             2432            3643  0.611400604248E-002
+              341             2432            3687  0.624108314514E-002
+              342             2391            3674  0.615596771240E-002
+              343             2382            3638  0.612616539001E-002
+              344             2389            3641  0.605416297913E-002
+              345             2410            3651  0.606989860535E-002
+              346             2374            3648  0.611615180969E-002
+              347             2361            3603  0.607180595398E-002
+              348             2351            3632  0.613212585449E-002
+              349             2403            3727  0.608205795288E-002
+              350             2390            3707  0.617218017578E-002
+              351             2421            3647  0.607109069824E-002
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+              352             2382            3640  0.611090660095E-002
+              353             2363            3578  0.598812103271E-002
+              354             2366            3599  0.215792655945E-002
+              355             2330            3623  0.596284866333E-002
+              356             2342            3640  0.612306594849E-002
+              357             2417            3720  0.611305236816E-002
+              358             2404            3723  0.624299049377E-002
+              359             2379            3705  0.615000724792E-002
+              360             2401            3685  0.618195533752E-002
+              361             2416            3746  0.619816780090E-002
+              362             2389            3702  0.613403320312E-002
+              363             2422            3737  0.616502761841E-002
+              364             2411            3650  0.610494613647E-002
+              365             2377            3606  0.617909431458E-002
+              366             2373            3664  0.604295730591E-002
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+              367             2366            3646  0.609803199768E-002
+              368             2356            3595  0.603389739990E-002
+              369             2349            3717  0.608992576599E-002
+              370             2352            3723  0.606799125671E-002
+              371             2391            3720  0.616407394409E-002
+              372             2395            3687  0.613498687744E-002
+              373             2450            3660  0.609993934631E-002
+              374             2401            3710  0.613594055176E-002
+              375             2379            3698  0.616502761841E-002
+              376             2349            3563  0.604701042175E-002
+              377             2365            3567  0.606203079224E-002
+              378             2376            3671  0.608682632446E-002
+              379             2381            3708  0.608897209167E-002
+              380             2360            3676  0.615286827087E-002
+              381             2374            3689  0.610804557800E-002
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+              382             2417            3696  0.611805915833E-002
+              383             2383            3699  0.615310668945E-002
+              384             2366            3616  0.613594055176E-002
+              385             2413            3606  0.609588623047E-002
+              386             2392            3683  0.616312026978E-002
+              387             2388            3702  0.609397888184E-002
+              388             2361            3693  0.614285469055E-002
+              389             2338            3654  0.611519813538E-002
+              390             2373            3685  0.612592697144E-002
+              391             2380            3704  0.604701042175E-002
+              392             2362            3649  0.609183311462E-002
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+              393             2389            3643  0.608992576599E-002
+              394             2376            3743  0.607299804688E-002
+              395             2402            3700  0.611686706543E-002
+              396             2389            3646  0.605678558350E-002
+              397             2373            3606  0.609493255615E-002
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+              398             2404            3693  0.605916976929E-002
+              399             2366            3649  0.615096092224E-002
+              400             2370            3665  0.605010986328E-002
+              401             2330            3698  0.614380836487E-002
+              402             2370            3631  0.607299804688E-002
+              403             2440            3667  0.618696212769E-002
+              404             2395            3704  0.623297691345E-002
+              405             2378            3765  0.620889663696E-002
+              406             2355            3649  0.609803199768E-002
+              407             2436            3710  0.612497329712E-002
+              408             2434            3676  0.614094734192E-002
+              409             2433            3676  0.615215301514E-002
+              410             2416            3702  0.615906715393E-002
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+              411             2420            3670  0.608801841736E-002
+              412             2425            3565  0.604701042175E-002
+              413             2381            3602  0.599718093872E-002
+              414             2381            3595  0.608897209167E-002
+              415             2368            3634  0.602197647095E-002
+              416             2368            3578  0.603699684143E-002
+              417             2418            3685  0.603485107422E-002
+              418             2420            3699  0.618910789490E-002
+              419             2419            3661  0.610303878784E-002
+              420             2403            3632  0.608515739441E-002
+              421             2385            3637  0.604200363159E-002
+              422             2365            3691  0.607609748840E-002
+              423             2408            3638  0.608611106873E-002
+              424             2385            3652  0.618195533752E-002
+              425             2379            3603  0.611186027527E-002
+              426             2419            3628  0.602793693542E-002
+              427             2394            3614  0.605297088623E-002
+              428             2355            3663  0.600886344910E-002
+              429             2350            3631  0.601100921631E-002
+              430             2368            3663  0.599718093872E-002
+              431             2372            3641  0.603795051575E-002
+              432             2397            3626  0.604581832886E-002
+              433             2447            3643  0.613713264465E-002
+              434             2395            3690  0.615286827087E-002
+              435             2399            3603  0.617718696594E-002
+              436             2338            3597  0.607991218567E-002
+              437             2313            3662  0.605893135071E-002
+              438             2315            3582  0.594902038574E-002
+              439             2305            3573  0.603890419006E-002
+              440             2356            3651  0.600695610046E-002
+              441             2358            3674  0.608015060425E-002
+              442             2395            3667  0.600194931030E-002
+              443             2347            3680  0.603508949280E-002
+              444             2377            3752  0.596284866333E-002
+              445             2393            3561  0.595688819885E-002
+              446             2397            3634  0.609803199768E-002
+              447             2417            3673  0.605916976929E-002
+              448             2427            3661  0.610613822937E-002
+              449             2416            3713  0.609803199768E-002
+              450             2451            3648  0.612592697144E-002
+              451             2431            3730  0.611090660095E-002
+              452             2410            3649  0.607609748840E-002
+              453             2397            3631  0.600099563599E-002
+              454             2426            3679  0.612783432007E-002
+              455             2416            3631  0.610780715942E-002
+              456             2416            3574  0.608706474304E-002
+              457             2403            3701  0.606513023376E-002
+              458             2425            3703  0.619196891785E-002
+              459             2445            3698  0.615191459656E-002
+              460             2446            3643  0.615715980530E-002
+              461             2478            3703  0.610303878784E-002
+              462             2430            3658  0.615286827087E-002
+              463             2382            3608  0.606203079224E-002
+              464             2375            3650  0.600504875183E-002
+              465             2383            3623  0.607609748840E-002
+              466             2372            3635  0.599694252014E-002
+              467             2411            3742  0.616002082825E-002
+              468             2403            3714  0.608015060425E-002
+              469             2415            3642  0.616407394409E-002
+              470             2395            3689  0.608706474304E-002
+              471             2392            3738  0.617599487305E-002
+              472             2381            3660  0.607395172119E-002
+              473             2417            3760  0.616693496704E-002
+              474             2389            3796  0.618314743042E-002
+              475             2384            3703  0.622415542603E-002
+              476             2368            3653  0.602889060974E-002
+              477             2373            3697  0.609707832336E-002
+              478             2389            3557  0.604295730591E-002
+              479             2428            3645  0.604295730591E-002
+              480             2446            3646  0.609421730042E-002
+              481             2449            3625  0.601720809937E-002
+              482             2423            3581  0.611996650696E-002
+              483             2369            3608  0.607895851135E-002
+              484             2337            3585  0.612092018127E-002
+              485             2352            3644  0.615096092224E-002
+              486             2377            3708  0.621199607849E-002
+              487             2387            3750  0.616908073425E-002
+              488             2379            3656  0.616812705994E-002
+              489             2374            3711  0.620794296265E-002
+              490             2369            3702  0.617909431458E-002
+              491             2397            3760  0.612998008728E-002
+              492             2401            3678  0.617003440857E-002
+              493             2383            3819  0.623011589050E-002
+              494             2369            3662  0.617003440857E-002
+              495             2374            3714  0.620007514954E-002
+              496             2410            3730  0.613188743591E-002
+              497             2437            3698  0.621008872986E-002
+              498             2425            3753  0.622391700745E-002
+              499             2420            3749  0.624179840088E-002
+              500             2440            3750  0.613093376160E-002
+              501             2467            3735  0.626420974731E-002
+              502             2472            3757  0.625300407410E-002
+              503             2459            3729  0.624179840088E-002
+              504             2424            3662  0.613093376160E-002
+              505             2378            3575  0.603413581848E-002
+              506             2367            3537  0.605392456055E-002
+              507             2377            3609  0.601911544800E-002
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+              508             2397            3599  0.613403320312E-002
+              509             2407            3712  0.613403320312E-002
+              510             2397            3706  0.618815422058E-002
+              511             2337            3694  0.615191459656E-002
+              512             2311            3669  0.616192817688E-002
+              513             2354            3633  0.605702400208E-002
+              514             2347            3666  0.612711906433E-002
+              515             2407            3721  0.608897209167E-002
+              516             2365            3720  0.617909431458E-002
+              517             2364            3747  0.609707832336E-002
+              518             2384            3659  0.615310668945E-002
+              519             2400            3644  0.619816780090E-002
+              520             2401            3688  0.616812705994E-002
+              521             2380            3683  0.614690780640E-002
+              522             2371            3632  0.609183311462E-002
+              523             2337            3590  0.607800483704E-002
+              524             2337            3686  0.604891777039E-002
+              525             2361            3686  0.612998008728E-002
+              526             2348            3751  0.623083114624E-002
+              527             2351            3662  0.617504119873E-002
+              528             2333            3678  0.612592697144E-002
+              529             2347            3726  0.622606277466E-002
+              530             2387            3672  0.615191459656E-002
+              531             2353            3670  0.616097450256E-002
+              532             2371            3660  0.608992576599E-002
+              533             2352            3720  0.618815422058E-002
+              534             2369            3686  0.619196891785E-002
+              535             2381            3733  0.614714622498E-002
+              536             2392            3792  0.619912147522E-002
+              537             2372            3724  0.614500045776E-002
+              538             2372            3727  0.618386268616E-002
+              539             2440            3731  0.618886947632E-002
+              540             2404            3689  0.622081756592E-002
+              541             2351            3660  0.610995292664E-002
+              542             2341            3623  0.613117218018E-002
+              543             2366            3617  0.604605674744E-002
+              544             2402            3624  0.613903999329E-002
+              545             2394            3695  0.607490539551E-002
+              546             2399            3713  0.621700286865E-002
+              547             2387            3649  0.620317459106E-002
+              548             2363            3668  0.616216659546E-002
+              549             2378            3593  0.613188743591E-002
+              550             2381            3705  0.615096092224E-002
+              551             2410            3713  0.622415542603E-002
+              552             2391            3707  0.618982315063E-002
+              553             2366            3650  0.619697570801E-002
+              554             2380            3645  0.614285469055E-002
+              555             2358            3682  0.617504119873E-002
+              556             2362            3674  0.617694854736E-002
+              557             2345            3649  0.615978240967E-002
+              558             2368            3761  0.614094734192E-002
+              559             2424            3661  0.623893737793E-002
+              560             2417            3714  0.621700286865E-002
+              561             2400            3744  0.616717338562E-002
+              562             2360            3642  0.620102882385E-002
+              563             2336            3599  0.609803199768E-002
+              564             2337            3615  0.612807273865E-002
+              565             2381            3667  0.614118576050E-002
+              566             2372            3661  0.626015663147E-002
+              567             2373            3749  0.628805160522E-002
+              568             2371            3758  0.628900527954E-002
+              569             2398            3757  0.621199607849E-002
+              570             2366            3654  0.618195533752E-002
+              571             2363            3579  0.609803199768E-002
+              572             2407            3710  0.608491897583E-002
+              573             2388            3632  0.618600845337E-002
+              574             2396            3763  0.616288185120E-002
+              575             2430            3719  0.620388984680E-002
+Moving load balancing block        60 from processor      0 to      1
+Moving load balancing block        20 from processor      0 to      1
+Moving load balancing block        13 from processor      0 to      1
+Moving load balancing block        95 from processor      0 to      1
+Moving load balancing block        44 from processor      0 to      1
+Moving load balancing block        84 from processor      0 to      1
+Moving load balancing block         1 from processor      0 to      1
+Moving load balancing block         4 from processor      0 to      1
+Moving load balancing block        68 from processor      0 to      1
+Moving load balancing block        85 from processor      0 to      1
+Moving load balancing block        88 from processor      0 to      1
+Moving load balancing block        90 from processor      0 to      1
+Moving load balancing block        28 from processor      0 to      1
+Moving load balancing block        38 from processor      0 to      1
+Moving load balancing block        46 from processor      0 to      1
+Moving load balancing block        75 from processor      0 to      1
+Moving load balancing block       100 from processor      0 to      1
+Moving load balancing block        18 from processor      0 to      1
+Moving load balancing block        39 from processor      0 to      1
+Moving load balancing block        82 from processor      0 to      1
+Moving load balancing block        14 from processor      0 to      1
+Moving load balancing block        81 from processor      0 to      1
+Moving load balancing block         6 from processor      0 to      1
+Moving load balancing block        25 from processor      0 to      1
+Moving load balancing block        65 from processor      0 to      1
+Moving load balancing block        31 from processor      0 to      1
+
+============ Semi-stochastic initialisation ============
+Generating the deterministic space...
+
+WARNING.  Error in generate_space_most_populated
+The number of states in the walker list is less than the number you requested. All states will be used.
+
+
+WARNING.  Error in generate_space_most_populated
+The number of states in the walker list is less than the number you requested. All states will be used.
+
+Total size of deterministic space:     2430
+Size of deterministic space on this processor:      987
+Generating the Hamiltonian in the deterministic space...
+Semi-stochastic initialisation complete.
+Total time (seconds) taken for semi-stochastic initialisation:    0.400
+
+
+=========== Trial wavefunction initialisation ==========
+Generating the trial space...
+  Initialising wavefunctions by the Lanczos algorithm
+  Aborting Lanczos and initialising trial states with direct diagonalisation
+  MAXIMUM WIDTH OF HAMIL :          158
+  TOTAL NUMBER OF NON-ZERO ELEMENTS :         9610
+Size of trial space on this processor:      116
+Total size of the trial space:      292
+Calculating the number of states in the connected space...
+Attempting to allocate con_space. Size =        3.518 Mb
+States found on this processor, including repeats:    76856
+Generating and storing the connected space...
+Removing repeated states and sorting by processor...
+Performing MPI communication of connected states...
+Attempting to allocate temp_space. Size =        0.527 Mb
+Attempting to allocate con_space. Size =        0.527 Mb
+Total size of connected space:      18598
+Size of connected space on this processor:       7009
+Generating the vector \sum_j H_{ij} \psi^T_j...
+Energy eigenvalue(s) of the trial space:  -128.518588518       -127.682493244     
+Trial wavefunction initialisation complete.
+Total time (seconds) taken for trial wavefunction initialisation:    0.476
+
+              576             3523            1923   1.02337312698     
+              577             4128            2194  0.722122192383E-002
+              578             4435            2394  0.759792327881E-002
+              579             4469            2346  0.769519805908E-002
+              580             4521            2246  0.758314132690E-002
+              581             4547            2157  0.719594955444E-002
+              582             4552            2133  0.724506378174E-002
+              583             4615            2082  0.706672668457E-002
+              584             4671            2175  0.730991363525E-002
+              585             4706            2186  0.747919082642E-002
+              586             4701            2238  0.732183456421E-002
+              587             4682            2221  0.735712051392E-002
+              588             4654            2084  0.728893280029E-002
+              589             4631            2126  0.722599029541E-002
+              590             4681            2147  0.729799270630E-002
+              591             4646            2111  0.717592239380E-002
+              592             4659            2179  0.731229782104E-002
+              593             4673            2183  0.726222991943E-002
+              594             4631            2111  0.723600387573E-002
+              595             4635            2109  0.719881057739E-002
+              596             4649            2209  0.725793838501E-002
+              597             4692            2235  0.742292404175E-002
+              598             4681            2217  0.744771957397E-002
+              599             4660            2174  0.733995437622E-002
+              600             4619            2149  0.728511810303E-002
+              601             4579            2172  0.720500946045E-002
+              602             4601            2127  0.723409652710E-002
+              603             4631            2146  0.721693038940E-002
+              604             4623            2073  0.716495513916E-002
+              605             4628            2114  0.726699829102E-002
+              606             4663            2236  0.723600387573E-002
+              607             4613            2147  0.733995437622E-002
+              608             4640            2164  0.716066360474E-002
+              609             4679            2169  0.731420516968E-002
+              610             4673            2146  0.735330581665E-002
+              611             4648            2174  0.739669799805E-002
+              612             4670            2209  0.736474990845E-002
+              613             4693            2180  0.743484497070E-002
+              614             4677            2111  0.736474990845E-002
+              615             4695            2216  0.745391845703E-002
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+              616             4711            2180  0.736236572266E-002
+              617             4637            2157  0.740814208984E-002
+              618             4669            2203  0.735092163086E-002
+              619             4653            2150  0.739002227783E-002
+              620             4647            2109  0.735616683960E-002
+              621             4641            2129  0.732803344727E-002
+              622             4616            2171  0.756311416626E-002
+              623             4620            2153  0.733804702759E-002
+              624             4620            2102  0.720834732056E-002
+              625             4619            2100  0.742721557617E-002
+              626             4651            2173  0.800895690918E-002
+              627             4648            2189  0.780105590820E-002
+              628             4653            2155  0.733995437622E-002
+              629             4684            2200  0.739479064941E-002
+              630             4730            2246  0.738859176636E-002
+              631             4646            2177  0.735425949097E-002
+              632             4628            2155  0.745820999146E-002
+              633             4656            2114  0.741195678711E-002
+              634             4717            2186  0.736093521118E-002
+              635             4694            2161  0.737190246582E-002
+              636             4713            2141  0.741624832153E-002
+              637             4684            2120  0.742912292480E-002
+              638             4629            2185  0.729894638062E-002
+              639             4634            2173  0.739383697510E-002
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+              640             4636            2142  0.730085372925E-002
+              641             4631            2152  0.737285614014E-002
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+              642             4644            2220  0.736284255981E-002
+              643             4637            2147  0.733566284180E-002
+              644             4613            2169  0.744819641113E-002
+              645             4618            2146  0.744724273682E-002
+              646             4632            2117  0.729417800903E-002
+              647             4662            2135  0.738906860352E-002
+              648             4585            2149  0.737619400024E-002
+              649             4596            2119  0.737714767456E-002
+              650             4608            2063  0.738716125488E-002
+              651             4606            2115  0.727224349976E-002
+              652             4620            2096  0.735998153687E-002
+              653             4644            2099  0.733518600464E-002
+              654             4644            2212  0.747632980347E-002
+              655             4637            2155  0.743198394775E-002
+              656             4632            2196  0.740909576416E-002
+              657             4620            2173  0.736618041992E-002
+              658             4638            2190  0.524806976318E-002
+              659             4612            2132  0.580692291260E-002
+              660             4640            2145  0.751399993896E-002
+              661             4644            2181  0.733613967896E-002
+              662             4692            2188  0.625705718994E-002
+              663             4720            2300  0.495529174805E-002
+              664             4624            2240  0.741577148438E-002
+              665             4605            2129  0.737190246582E-002
+              666             4633            2087  0.734376907349E-002
+              667             4641            2133  0.737667083740E-002
+              668             4619            2157  0.746440887451E-002
+              669             4649            2152  0.733995437622E-002
+              670             4664            2122  0.736618041992E-002
+              671             4646            2131  0.736665725708E-002
+              672             4618            2188  0.742101669312E-002
+              673             4598            2060  0.733709335327E-002
+              674             4642            2101  0.728893280029E-002
+              675             4704            2168  0.742912292480E-002
+              676             4711            2199  0.739431381226E-002
+              677             4710            2207  0.744485855103E-002
+              678             4666            2242  0.742721557617E-002
+              679             4698            2162  0.736999511719E-002
+              680             4721            2125  0.735282897949E-002
+              681             4682            2187  0.737094879150E-002
+              682             4636            2192  0.739097595215E-002
+              683             4654            2139  0.726366043091E-002
+              684             4659            2177  0.731468200684E-002
+              685             4624            2156  0.741100311279E-002
+              686             4606            2122  0.730943679810E-002
+              687             4660            2121  0.735521316528E-002
+              688             4705            2179  0.741291046143E-002
+              689             4697            2207  0.741624832153E-002
+              690             4673            2176  0.745010375977E-002
+              691             4662            2062  0.734186172485E-002
+              692             4640            2165  0.802993774414E-002
+              693             4673            2146  0.772809982300E-002
+              694             4691            2175  0.736904144287E-002
+              695             4694            2187  0.752735137939E-002
+              696             4667            2121  0.736284255981E-002
+              697             4611            2118  0.733327865601E-002
+              698             4622            2196  0.736618041992E-002
+              699             4675            2107  0.742578506470E-002
+              700             4717            2269  0.763511657715E-002
+              701             4687            2189  0.628805160522E-002
+              702             4665            2208  0.482082366943E-002
+              703             4654            2182  0.734615325928E-002
+              704             4663            2127  0.723934173584E-002
+              705             4662            2191  0.729990005493E-002
+              706             4656            2184  0.732898712158E-002
+              707             4659            2218  0.738096237183E-002
+              708             4654            2151  0.735569000244E-002
+              709             4647            2133  0.724983215332E-002
+              710             4641            2100  0.726413726807E-002
+              711             4620            2124  0.723886489868E-002
+              712             4641            2143  0.736904144287E-002
+              713             4656            2153  0.728845596313E-002
+              714             4601            2144  0.732994079590E-002
+              715             4594            2100  0.724601745605E-002
+              716             4622            2195  0.728607177734E-002
+              717             4653            2125  0.729990005493E-002
+              718             4713            2206  0.737285614014E-002
+              719             4680            2145  0.741004943848E-002
+              720             4606            2153  0.736999511719E-002
+              721             4615            2118  0.728940963745E-002
+              722             4604            2138  0.729894638062E-002
+              723             4653            2120  0.725078582764E-002
+              724             4702            2193  0.744199752808E-002
+              725             4690            2240  0.752115249634E-002
+              726             4663            2154  0.623703002930E-002
+              727             4628            2168  0.480270385742E-002
+              728             4656            2119  0.730800628662E-002
+              729             4648            2143  0.733518600464E-002
+              730             4617            2170  0.746488571167E-002
+              731             4633            2146  0.726890563965E-002
+              732             4624            2162  0.733709335327E-002
+              733             4613            2163  0.731992721558E-002
+              734             4621            2170  0.739574432373E-002
+              735             4628            2136  0.732421875000E-002
+              736             4634            2150  0.728702545166E-002
+              737             4633            2168  0.733280181885E-002
+              738             4616            2167  0.729990005493E-002
+              739             4604            2113  0.734567642212E-002
+              740             4585            2117  0.729608535767E-002
+              741             4577            2097  0.712585449219E-002
+              742             4587            2065  0.717020034790E-002
+              743             4660            2167  0.728273391724E-002
+              744             4681            2149  0.742101669312E-002
+              745             4713            2242  0.751495361328E-002
+              746             4682            2202  0.747203826904E-002
+              747             4674            2168  0.747489929199E-002
+              748             4692            2133  0.741720199585E-002
+              749             4736            2176  0.748920440674E-002
+              750             4740            2185  0.751733779907E-002
+              751             4686            2200  0.746870040894E-002
+              752             4679            2163  0.740814208984E-002
+              753             4658            2144  0.736904144287E-002
+              754             4671            2146  0.735187530518E-002
+              755             4681            2221  0.737524032593E-002
+              756             4661            2178  0.730037689209E-002
+              757             4635            2173  0.736474990845E-002
+              758             4616            2145  0.774669647217E-002
+              759             4622            2147  0.768899917603E-002
+              760             4652            2148  0.732755661011E-002
+              761             4719            2210  0.725317001343E-002
+              762             4688            2181  0.744915008545E-002
+              763             4670            2198  0.746870040894E-002
+              764             4643            2180  0.748920440674E-002
+              765             4674            2156  0.756406784058E-002
+              766             4633            2090  0.738716125488E-002
+              767             4560            2126  0.718212127686E-002
+              768             4561            2080  0.711488723755E-002
+              769             4634            2189  0.719499588013E-002
+              770             4650            2228  0.733995437622E-002
+              771             4673            2199  0.735473632812E-002
+              772             4682            2243  0.744199752808E-002
+              773             4609            2222  0.733518600464E-002
+              774             4583            2092  0.726985931396E-002
+              775             4603            2182  0.721073150635E-002
+              776             4577            2103  0.728988647461E-002
+              777             4590            2148  0.720119476318E-002
+              778             4660            2143  0.719213485718E-002
+              779             4649            2197  0.733470916748E-002
+              780             4679            2219  0.734376907349E-002
+              781             4620            2164  0.327730178833E-002
+              782             4601            2072  0.718927383423E-002
+              783             4613            2109  0.717973709106E-002
+              784             4612            2197  0.721406936646E-002
+              785             4618            2126  0.721788406372E-002
+              786             4691            2214  0.736284255981E-002
+              787             4680            2203  0.735425949097E-002
+              788             4644            2226  0.732278823853E-002
+              789             4629            2154  0.721216201782E-002
+              790             4614            2164  0.718212127686E-002
+              791             4621            2181  0.726890563965E-002
+              792             4617            2198  0.729084014893E-002
+              793             4661            2198  0.736808776855E-002
+              794             4685            2207  0.732898712158E-002
+              795             4668            2178  0.724601745605E-002
+              796             4708            2169  0.724506378174E-002
+              797             4688            2116  0.728273391724E-002
+              798             4722            2218  0.728511810303E-002
+              799             4689            2157  0.731229782104E-002
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+              800             4671            2119  0.722885131836E-002
+              801             4643            2135  0.724315643311E-002
+              802             4623            2145  0.725221633911E-002
+              803             4686            2184  0.722885131836E-002
+              804             4709            2206  0.737524032593E-002
+              805             4682            2159  0.735521316528E-002
+              806             4681            2194  0.737142562866E-002
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+              807             4659            2238  0.750589370728E-002
+              808             4624            2159  0.728034973145E-002
+              809             4637            2145  0.729942321777E-002
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+              810             4709            2202  0.733280181885E-002
+              811             4675            2190  0.734615325928E-002
+              812             4644            2188  0.449705123901E-002
+              813             4700            2238  0.639295578003E-002
+              814             4713            2223  0.736379623413E-002
+              815             4714            2206  0.729560852051E-002
+              816             4694            2145  0.728511810303E-002
+              817             4678            2175  0.732421875000E-002
+              818             4662            2156  0.722217559814E-002
+              819             4648            2119  0.728702545166E-002
+              820             4667            2158  0.737667083740E-002
+              821             4664            2067  0.716495513916E-002
+              822             4626            2187  0.722789764404E-002
+              823             4605            2116  0.712108612061E-002
+              824             4591            2140  0.600671768188E-002
+              825             4589            2118  0.523424148560E-002
+              826             4611            2147  0.757503509521E-002
+              827             4674            2233  0.733709335327E-002
+              828             4687            2285  0.731372833252E-002
+              829             4673            2197  0.463914871216E-002
+              830             4645            2150  0.613212585449E-002
+              831             4619            2098  0.740623474121E-002
+              832             4635            2178  0.737142562866E-002
+              833             4669            2137  0.730419158936E-002
+              834             4649            2214  0.738477706909E-002
+              835             4652            2164  0.730419158936E-002
+              836             4653            2149  0.734519958496E-002
+              837             4642            2157  0.732898712158E-002
+              838             4669            2188  0.723505020142E-002
+              839             4681            2181  0.728225708008E-002
+              840             4656            2217  0.727128982544E-002
+              841             4637            2179  0.737905502319E-002
+              842             4643            2170  0.725507736206E-002
+              843             4589            2078  0.716304779053E-002
+              844             4653            2077  0.731611251831E-002
+              845             4657            2181  0.721120834351E-002
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+              846             4672            2209  0.735521316528E-002
+              847             4665            2202  0.741195678711E-002
+              848             4658            2230  0.735902786255E-002
+              849             4589            2160  0.726699829102E-002
+              850             4609            2158  0.723075866699E-002
+              851             4629            2140  0.720787048340E-002
+              852             4677            2188  0.727891921997E-002
+              853             4696            2151  0.733470916748E-002
+              854             4612            2176  0.727891921997E-002
+              855             4583            2105  0.708723068237E-002
+              856             4607            2142  0.716114044189E-002
+              857             4633            2186  0.719070434570E-002
+              858             4637            2179  0.726270675659E-002
+              859             4662            2194  0.724029541016E-002
+              860             4632            2135  0.718307495117E-002
+              861             4623            2180  0.724411010742E-002
+              862             4684            2172  0.724172592163E-002
+              863             4694            2175  0.720787048340E-002
+              864             4684            2229  0.728702545166E-002
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+              865             4676            2197  0.718927383423E-002
+              866             4629            2142  0.721120834351E-002
+              867             4629            2141  0.724506378174E-002
+              868             4604            2112  0.728082656860E-002
+              869             4603            2059  0.716400146484E-002
+              870             4627            2136  0.713109970093E-002
+              871             4648            2149  0.723505020142E-002
+              872             4631            2164  0.719594955444E-002
+              873             4653            2118  0.722169876099E-002
+              874             4651            2147  0.728130340576E-002
+              875             4610            2082  0.734186172485E-002
+              876             4667            2187  0.726509094238E-002
+              877             4652            2179  0.729513168335E-002
+              878             4641            2194  0.726985931396E-002
+              879             4596            2098  0.719308853149E-002
+              880             4591            2105  0.715541839600E-002
+              881             4586            2150  0.721597671509E-002
+              882             4618            2118  0.721216201782E-002
+              883             4634            2148  0.727796554565E-002
+              884             4652            2235  0.741004943848E-002
+              885             4647            2193  0.744771957397E-002
+              886             4649            2194  0.738191604614E-002
+              887             4651            2086  0.716781616211E-002
+              888             4653            2131  0.745820999146E-002
+              889             4603            2088  0.739336013794E-002
+              890             4595            2198  0.719070434570E-002
+              891             4596            2124  0.733900070190E-002
+              892             4635            2198  0.774288177490E-002
+              893             4669            2213  0.760793685913E-002
+              894             4660            2166  0.739383697510E-002
+              895             4674            2186  0.724887847900E-002
+              896             4667            2192  0.735425949097E-002
+              897             4660            2206  0.731992721558E-002
+              898             4595            2137  0.733804702759E-002
+              899             4610            2178  0.740385055542E-002
+              900             4661            2201  0.739383697510E-002
+              901             4630            2174  0.722694396973E-002
+              902             4610            2224  0.715398788452E-002
+              903             4599            2147  0.725126266479E-002
+              904             4589            2164  0.727987289429E-002
+              905             4636            2197  0.716972351074E-002
+              906             4632            2133  0.726985931396E-002
+              907             4623            2100  0.722217559814E-002
+              908             4640            2136  0.729274749756E-002
+              909             4648            2189  0.734615325928E-002
+              910             4653            2182  0.735807418823E-002
+              911             4639            2122  0.449419021606E-002
+              912             4637            2137  0.615406036377E-002
+              913             4614            2167  0.727367401123E-002
+              914             4648            2172  0.724744796753E-002
+              915             4641            2189  0.727510452271E-002
+              916             4661            2181  0.789785385132E-002
+              917             4658            2213  0.821685791016E-002
+              918             4628            2168  0.747299194336E-002
+              919             4621            2129  0.722694396973E-002
+              920             4660            2135  0.725984573364E-002
+              921             4681            2197  0.726985931396E-002
+              922             4660            2189  0.739622116089E-002
+              923             4628            2134  0.728273391724E-002
+              924             4582            2140  0.606393814087E-002
+              925             4588            2110  0.453519821167E-002
+              926             4614            2020  0.716400146484E-002
+              927             4580            2141  0.720930099487E-002
+              928             4636            2152  0.451374053955E-002
+              929             4663            2184  0.617837905884E-002
+              930             4649            2192  0.733137130737E-002
+              931             4624            2151  0.739479064941E-002
+              932             4652            2146  0.719022750854E-002
+              933             4626            2152  0.726366043091E-002
+              934             4642            2184  0.724601745605E-002
+              935             4610            2164  0.451803207397E-002
+              936             4627            2124  0.618410110474E-002
+              937             4635            2150  0.718498229980E-002
+              938             4613            2190  0.737094879150E-002
+              939             4646            2122  0.715398788452E-002
+              940             4656            2229  0.720405578613E-002
+              941             4642            2175  0.727701187134E-002
+              942             4634            2175  0.730276107788E-002
+              943             4627            2153  0.726079940796E-002
+              944             4680            2157  0.724697113037E-002
+              945             4662            2242  0.740003585815E-002
+              946             4681            2170  0.725603103638E-002
+              947             4671            2136  0.723075866699E-002
+              948             4652            2141  0.724935531616E-002
+              949             4624            2117  0.728321075439E-002
+              950             4606            2097  0.724220275879E-002
+              951             4610            2138  0.717687606812E-002
+              952             4633            2145  0.720787048340E-002
+              953             4634            2108  0.720977783203E-002
+              954             4644            2206  0.725126266479E-002
+              955             4698            2203  0.735759735107E-002
+              956             4665            2110  0.724840164185E-002
+              957             4630            2210  0.728321075439E-002
+              958             4545            2087  0.750827789307E-002
+              959             4646            2102  0.762701034546E-002
+              960             4613            2094  0.743007659912E-002
+              961             4652            2144  0.720787048340E-002
+              962             4674            2178  0.725126266479E-002
+              963             4701            2180  0.731420516968E-002
+              964             4689            2185  0.723171234131E-002
+              965             4694            2198  0.741004943848E-002
+              966             4675            2217  0.729179382324E-002
+              967             4677            2174  0.731229782104E-002
+              968             4608            2151  0.722217559814E-002
+              969             4606            2137  0.711679458618E-002
+              970             4644            2131  0.721216201782E-002
+              971             4661            2155  0.721693038940E-002
+              972             4608            2183  0.736618041992E-002
+              973             4598            2096  0.721120834351E-002
+              974             4593            2101  0.709772109985E-002
+              975             4655            2098  0.714302062988E-002
+              976             4660            2183  0.727891921997E-002
+              977             4651            2147  0.727701187134E-002
+              978             4715            2237  0.737905502319E-002
+              979             4663            2193  0.734901428223E-002
+              980             4632            2145  0.731992721558E-002
+              981             4614            2135  0.720691680908E-002
+              982             4604            2099  0.719118118286E-002
+              983             4634            2161  0.732612609863E-002
+              984             4653            2190  0.741910934448E-002
+              985             4698            2201  0.733327865601E-002
+              986             4680            2152  0.734376907349E-002
+              987             4693            2117  0.725698471069E-002
+              988             4709            2192  0.718498229980E-002
+              989             4675            2163  0.730609893799E-002
+              990             4606            2142  0.720977783203E-002
+              991             4597            2187  0.722885131836E-002
+              992             4597            2093  0.711202621460E-002
+              993             4614            2145  0.707864761353E-002
+              994             4622            2186  0.725698471069E-002
+              995             4621            2121  0.724267959595E-002
+              996             4624            2157  0.723934173584E-002
+              997             4663            2148  0.723123550415E-002
+              998             4626            2198  0.734233856201E-002
+              999             4683            2143  0.723600387573E-002
+             1000             4698            2159  0.727272033691E-002
+             1001             4691            2176  0.744104385376E-002
+             1002             4665            2166  0.727796554565E-002
+             1003             4655            2130  0.602579116821E-002
+             1004             4594            2164  0.481700897217E-002
+             1005             4591            2170  0.740289688110E-002
+             1006             4594            2125  0.717782974243E-002
+             1007             4684            2177  0.725698471069E-002
+             1008             4638            2146  0.728702545166E-002
+             1009             4650            2168  0.740575790405E-002
+             1010             4680            2223  0.728797912598E-002
+             1011             4657            2205  0.728034973145E-002
+             1012             4674            2189  0.742197036743E-002
+             1013             4686            2182  0.725793838501E-002
+             1014             4656            2199  0.737333297729E-002
+             1015             4675            2222  0.730609893799E-002
+             1016             4706            2183  0.723218917847E-002
+             1017             4682            2144  0.739192962646E-002
+             1018             4668            2126  0.726604461670E-002
+             1019             4646            2120  0.729894638062E-002
+             1020             4688            2139  0.735998153687E-002
+             1021             4700            2184  0.744819641113E-002
+             1022             4696            2195  0.341081619263E-002
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+             1023             4603            2165  0.735998153687E-002
+             1024             4607            2154  0.738334655762E-002
+             1025             4639            2170  0.758790969849E-002
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+             1026             4633            2135  0.770998001099E-002
+             1027             4675            2230  0.761032104492E-002
+             1028             4720            2230  0.735902786255E-002
+             1029             4679            2184  0.738763809204E-002
+             1030             4612            2151  0.735902786255E-002
+             1031             4582            2132  0.714921951294E-002
+             1032             4669            2224  0.737714767456E-002
+             1033             4723            2188  0.739002227783E-002
+             1034             4703            2201  0.744485855103E-002
+             1035             4693            2220  0.751304626465E-002
+             1036             4696            2179  0.749683380127E-002
+             1037             4727            2266  0.741863250732E-002
+             1038             4689            2186  0.735187530518E-002
+             1039             4636            2109  0.730180740356E-002
+             1040             4704            2241  0.737714767456E-002
+             1041             4645            2167  0.736379623413E-002
+             1042             4612            2112  0.734186172485E-002
+             1043             4628            2159  0.724935531616E-002
+             1044             4696            2193  0.731706619263E-002
+             1045             4745            2248  0.740003585815E-002
+             1046             4709            2139  0.745296478271E-002
+             1047             4704            2257  0.751066207886E-002
+             1048             4685            2179  0.741291046143E-002
+             1049             4687            2215  0.744247436523E-002
+             1050             4656            2211  0.728702545166E-002
+             1051             4582            2135  0.764369964600E-002
+             1052             4592            2086  0.729656219482E-002
+             1053             4611            2160  0.718116760254E-002
+             1054             4612            2131  0.739288330078E-002
+             1055             4667            2149  0.735759735107E-002
+             1056             4658            2155  0.744056701660E-002
+             1057             4663            2167  0.741100311279E-002
+             1058             4646            2137  0.735378265381E-002
+             1059             4625            2119  0.736522674561E-002
+             1060             4635            2144  0.723838806152E-002
+             1061             4662            2142  0.734329223633E-002
+             1062             4661            2137  0.474262237549E-002
+             1063             4612            2218  0.614929199219E-002
+             1064             4631            2127  0.730228424072E-002
+Beginning to average shift value on iteration:           1065
+             1065             4628            2234  0.733852386475E-002
+             1066             4618            2176  0.735569000244E-002
+             1067             4613            2137  0.727558135986E-002
+Beginning to average shift value on iteration:           1068
+             1068             4646            2177  0.719833374023E-002
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+             1069             4643            2200  0.729560852051E-002
+             1070             4602            2120  0.724506378174E-002
+             1071             4567            2093  0.724697113037E-002
+Beginning to average shift value on iteration:           1072
+             1072             4644            2145  0.725364685059E-002
+             1073             4671            2197  0.744152069092E-002
+             1074             4687            2160  0.730800628662E-002
+Beginning to average shift value on iteration:           1075
+             1075             4675            2162  0.730419158936E-002
+ Memory requirement for spawned arrays increased from     3.6621 to     4.8828 Mb/Processor
+Calculating the 2 electron density matrix on the fly.
+Beginning to fill the RDMs during iteration      1076
+ Reset fdv av at iteration         1076
+             1076             4622            2168  0.132627487183E-001
+             1077             4639            2141  0.129175186157E-001
+             1078             4651            2167  0.130987167358E-001
+             1079             4628            2116  0.129566192627E-001
+Bloom of more than n_add on single excit: A max of       3.31 particles created.        1 blooms occurred.
+             1080             4649            2180  0.130128860474E-001
+             1081             4654            2173  0.131750106812E-001
+             1082             4664            2174  0.958251953125E-002
+             1083             4697            2168  0.130605697632E-001
+             1084             4655            2129  0.138282775879E-001
+             1085             4668            2262  0.137329101562E-001
+             1086             4663            2106  0.131149291992E-001
+             1087             4703            2205  0.931549072266E-002
+             1088             4695            2159  0.133199691772E-001
+             1089             4674            2182  0.133266448975E-001
+             1090             4684            2265  0.134172439575E-001
+             1091             4661            2200  0.135097503662E-001
+             1092             4668            2102  0.128517150879E-001
+             1093             4728            2238  0.134229660034E-001
+             1094             4710            2176  0.133161544800E-001
+             1095             4691            2181  0.133333206177E-001
+             1096             4750            2266  0.132732391357E-001
+             1097             4755            2233  0.133457183838E-001
+             1098             4689            2245  0.134162902832E-001
+             1099             4623            2218  0.134716033936E-001
+             1100             4645            2142  0.129966735840E-001
+             1101             4659            2182  0.131053924561E-001
+             1102             4725            2197  0.132055282593E-001
+             1103             4657            2189  0.132951736450E-001
+             1104             4684            2170  0.131969451904E-001
+             1105             4725            2185  0.133504867554E-001
+             1106             4724            2154  0.130949020386E-001
+             1107             4698            2178  0.133562088013E-001
+             1108             4681            2145  0.130796432495E-001
+             1109             4644            2191  0.131874084473E-001
+             1110             4661            2185  0.132036209106E-001
+             1111             4653            2206  0.132827758789E-001
+             1112             4681            2149  0.948143005371E-002
+             1113             4723            2263  0.134792327881E-001
+             1114             4730            2208  0.133972167969E-001
+             1115             4677            2220  0.135068893433E-001
+             1116             4622            2144  0.131378173828E-001
+             1117             4654            2172  0.130949020386E-001
+             1118             4656            2173  0.131349563599E-001
+             1119             4696            2175  0.132541656494E-001
+             1120             4698            2254  0.133867263794E-001
+             1121             4680            2100  0.135688781738E-001
+             1122             4655            2159  0.137996673584E-001
+             1123             4651            2186  0.132474899292E-001
+             1124             4630            2112  0.130748748779E-001
+             1125             4666            2156  0.796909332275E-001
+ Writing RDMs to file at iteration         1125
+ Reset fdv av at iteration         1126
+             1126             4683            2183  0.159559249878E-001
+             1127             4689            2243  0.135364532471E-001
+             1128             4701            2125  0.132761001587E-001
+             1129             4653            2158  0.131330490112E-001
+             1130             4631            2173  0.131702423096E-001
+             1131             4673            2156  0.131750106812E-001
+             1132             4669            2182  0.131626129150E-001
+             1133             4677            2169  0.132055282593E-001
+             1134             4645            2205  0.133943557739E-001
+             1135             4636            2183  0.133361816406E-001
+             1136             4643            2165  0.132656097412E-001
+             1137             4647            2134  0.128993988037E-001
+             1138             4626            2143  0.130033493042E-001
+             1139             4667            2176  0.127897262573E-001
+             1140             4693            2226  0.132007598877E-001
+             1141             4693            2227  0.132350921631E-001
+             1142             4688            2141  0.130443572998E-001
+             1143             4707            2202  0.132789611816E-001
+             1144             4681            2194  0.135612487793E-001
+             1145             4727            2238  0.134544372559E-001
+             1146             4707            2197  0.135974884033E-001
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+             1147             4678            2158  0.134248733521E-001
+             1148             4633            2142  0.919532775879E-002
+             1149             4687            2065  0.128126144409E-001
+             1150             4701            2096  0.129766464233E-001
+             1151             4688            2175  0.134010314941E-001
+             1152             4685            2199  0.137166976929E-001
+             1153             4700            2213  0.139904022217E-001
+             1154             4677            2106  0.133075714111E-001
+             1155             4664            2189  0.134935379028E-001
+             1156             4641            2174  0.138444900513E-001
+             1157             4654            2164  0.131063461304E-001
+             1158             4601            2175  0.132932662964E-001
+             1159             4657            2163  0.130329132080E-001
+             1160             4647            2162  0.129795074463E-001
+             1161             4653            2140  0.131893157959E-001
+             1162             4634            2177  0.131044387817E-001
+             1163             4659            2192  0.131626129150E-001
+             1164             4628            2110  0.130929946899E-001
+             1165             4673            2206  0.132274627686E-001
+             1166             4706            2155  0.132017135620E-001
+             1167             4754            2214  0.132684707642E-001
+             1168             4708            2188  0.950717926025E-002
+             1169             4665            2179  0.133628845215E-001
+             1170             4648            2158  0.133495330811E-001
+             1171             4690            2156  0.133132934570E-001
+             1172             4704            2151  0.131292343140E-001
+             1173             4697            2198  0.133972167969E-001
+             1174             4686            2199  0.943279266357E-002
+             1175             4627            2126  0.794544219971E-001
+ Writing RDMs to file at iteration         1175
+ Reset fdv av at iteration         1176
+             1176             4625            2144  0.156373977661E-001
+             1177             4637            2155  0.131130218506E-001
+             1178             4608            2097  0.129985809326E-001
+             1179             4653            2164  0.130844116211E-001
+             1180             4654            2113  0.131235122681E-001
+             1181             4703            2182  0.132923126221E-001
+             1182             4671            2158  0.932598114014E-002
+             1183             4627            2135  0.145597457886E-001
+             1184             4598            2156  0.135936737061E-001
+             1185             4648            2080  0.130224227905E-001
+             1186             4660            2242  0.133285522461E-001
+             1187             4615            2271  0.136861801147E-001
+             1188             4625            2144  0.135040283203E-001
+             1189             4685            2172  0.131654739380E-001
+             1190             4694            2150  0.134391784668E-001
+             1191             4662            2243  0.132646560669E-001
+             1192             4706            2306  0.134191513062E-001
+             1193             4717            2198  0.132646560669E-001
+             1194             4702            2233  0.132064819336E-001
+             1195             4635            2227  0.950241088867E-002
+             1196             4617            2128  0.128870010376E-001
+             1197             4672            2155  0.133209228516E-001
+             1198             4618            2095  0.132026672363E-001
+             1199             4630            2117  0.129833221436E-001
+             1200             4663            2233  0.134296417236E-001
+             1201             4715            2081  0.129737854004E-001
+             1202             4665            2134  0.132017135620E-001
+             1203             4669            2162  0.132532119751E-001
+             1204             4619            2194  0.132093429565E-001
+             1205             4623            2170  0.131874084473E-001
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+             1206             4676            2134  0.131406784058E-001
+             1207             4725            2246  0.133171081543E-001
+             1208             4717            2246  0.136690139771E-001
+             1209             4685            2222  0.134029388428E-001
+             1210             4677            2122  0.131969451904E-001
+             1211             4637            2102  0.143165588379E-001
+             1212             4627            2156  0.140819549561E-001
+             1213             4618            2022  0.129117965698E-001
+             1214             4661            2197  0.133352279663E-001
+             1215             4662            2204  0.132637023926E-001
+             1216             4659            2121  0.130720138550E-001
+             1217             4693            2191  0.131750106812E-001
+             1218             4691            2160  0.133714675903E-001
+             1219             4712            2256  0.133018493652E-001
+             1220             4724            2158  0.139684677124E-001
+             1221             4665            2188  0.134553909302E-001
+             1222             4634            2124  0.132751464844E-001
+             1223             4602            2109  0.133066177368E-001
+             1224             4625            2139  0.131902694702E-001
+             1225             4673            2144  0.835256576538E-001
+ Writing RDMs to file at iteration         1225
+ Reset fdv av at iteration         1226
+             1226             4703            2160  0.156698226929E-001
+             1227             4694            2180  0.130271911621E-001
+             1228             4695            2186  0.130949020386E-001
+             1229             4737            2191  0.131845474243E-001
+             1230             4714            2247  0.134201049805E-001
+             1231             4675            2162  0.946617126465E-002
+             1232             4667            2184  0.133237838745E-001
+             1233             4675            2197  0.130376815796E-001
+             1234             4691            2189  0.132732391357E-001
+             1235             4659            2164  0.131130218506E-001
+             1236             4660            2172  0.130300521851E-001
+             1237             4711            2249  0.133590698242E-001
+             1238             4704            2223  0.135250091553E-001
+             1239             4700            2135  0.133075714111E-001
+             1240             4651            2163  0.135936737061E-001
+             1241             4633            2129  0.131359100342E-001
+             1242             4629            2134  0.921630859375E-002
+             1243             4621            2077  0.129919052124E-001
+             1244             4641            2123  0.131988525391E-001
+             1245             4652            2132  0.130367279053E-001
+             1246             4669            2212  0.132627487183E-001
+             1247             4669            2187  0.929927825928E-002
+             1248             4681            2235  0.133934020996E-001
+             1249             4663            2111  0.132637023926E-001
+             1250             4690            2214  0.133056640625E-001
+             1251             4685            2117  0.138978958130E-001
+             1252             4665            2162  0.133876800537E-001
+             1253             4693            2208  0.133600234985E-001
+             1254             4638            2120  0.132513046265E-001
+             1255             4681            2150  0.132427215576E-001
+             1256             4626            2154  0.132799148560E-001
+             1257             4599            2142  0.131320953369E-001
+             1258             4679            2203  0.130844116211E-001
+             1259             4682            2140  0.133552551270E-001
+             1260             4692            2202  0.133819580078E-001
+             1261             4683            2216  0.939369201660E-002
+             1262             4695            2134  0.131235122681E-001
+             1263             4651            2214  0.132904052734E-001
+             1264             4618            2184  0.936031341553E-002
+             1265             4593            2055  0.130453109741E-001
+             1266             4625            2144  0.131683349609E-001
+             1267             4676            2178  0.132312774658E-001
+             1268             4702            2197  0.134096145630E-001
+             1269             4694            2216  0.133790969849E-001
+             1270             4700            2191  0.131988525391E-001
+Bloom of more than n_add on single excit: A max of       3.31 particles created.        1 blooms occurred.
+             1271             4710            2222  0.135583877563E-001
+             1272             4627            2203  0.134830474854E-001
+             1273             4629            2157  0.133152008057E-001
+             1274             4690            2152  0.132036209106E-001
+             1275             4644            2168  0.840044021606E-001
+ Writing RDMs to file at iteration         1275
+ Reset fdv av at iteration         1276
+             1276             4635            2183  0.157718658447E-001
+             1277             4661            2166  0.132522583008E-001
+             1278             4663            2223  0.132179260254E-001
+             1279             4666            2171  0.135631561279E-001
+             1280             4684            2231  0.134439468384E-001
+             1281             4645            2143  0.132694244385E-001
+             1282             4625            2269  0.142421722412E-001
+             1283             4652            2188  0.132646560669E-001
+             1284             4634            2159  0.133428573608E-001
+             1285             4647            2168  0.132408142090E-001
+             1286             4666            2150  0.132427215576E-001
+             1287             4634            2194  0.134229660034E-001
+             1288             4612            2074  0.129995346069E-001
+             1289             4621            2114  0.130100250244E-001
+             1290             4664            2205  0.132417678833E-001
+             1291             4718            2190  0.131149291992E-001
+             1292             4716            2178  0.132493972778E-001
+             1293             4635            2174  0.134868621826E-001
+             1294             4627            2185  0.133132934570E-001
+             1295             4631            2120  0.915908813477E-002
+             1296             4669            2179  0.899600982666E-002
+             1297             4672            2169  0.131492614746E-001
+             1298             4687            2205  0.133609771729E-001
+             1299             4713            2191  0.133161544800E-001
+             1300             4671            2210  0.134706497192E-001
+             1301             4657            2199  0.134506225586E-001
+             1302             4674            2189  0.133247375488E-001
+             1303             4631            2206  0.135192871094E-001
+             1304             4612            2103  0.132122039795E-001
+             1305             4556            2031  0.124788284302E-001
+             1306             4582            2159  0.131607055664E-001
+             1307             4610            2139  0.911140441895E-002
+             1308             4607            2162  0.132255554199E-001
+             1309             4605            2176  0.131359100342E-001
+             1310             4601            2183  0.132112503052E-001
+             1311             4634            2163  0.130519866943E-001
+             1312             4644            2217  0.133333206177E-001
+             1313             4665            2215  0.133543014526E-001
+             1314             4627            2243  0.133752822876E-001
+             1315             4615            2214  0.130558013916E-001
+             1316             4612            2088  0.130071640015E-001
+             1317             4565            2116  0.131177902222E-001
+             1318             4578            2100  0.141019821167E-001
+             1319             4643            2204  0.139608383179E-001
+             1320             4615            2124  0.132284164429E-001
+             1321             4666            2220  0.132169723511E-001
+             1322             4673            2197  0.133056640625E-001
+             1323             4643            2133  0.133066177368E-001
+             1324             4669            2145  0.133819580078E-001
+             1325             4646            2143  0.835866928101E-001
+ Writing RDMs to file at iteration         1325
+ Reset fdv av at iteration         1326
+             1326             4652            2192  0.121021270752E-001
+             1327             4654            2131  0.129404067993E-001
+             1328             4622            2238  0.134410858154E-001
+             1329             4578            2090  0.131559371948E-001
+             1330             4621            2130  0.130395889282E-001
+             1331             4603            2102  0.129737854004E-001
+             1332             4650            2120  0.128755569458E-001
+             1333             4718            2220  0.131559371948E-001
+             1334             4653            2155  0.133008956909E-001
+             1335             4605            2113  0.130815505981E-001
+             1336             4606            2154  0.917720794678E-002
+             1337             4602            2116  0.130062103271E-001
+             1338             4658            2174  0.129194259644E-001
+             1339             4640            2182  0.130281448364E-001
+             1340             4643            2196  0.131721496582E-001
+             1341             4677            2191  0.131454467773E-001
+             1342             4666            2189  0.132484436035E-001
+             1343             4631            2228  0.969028472900E-002
+             1344             4630            2106  0.131053924561E-001
+             1345             4606            2128  0.128412246704E-001
+             1346             4642            2161  0.128660202026E-001
+             1347             4642            2126  0.129051208496E-001
+             1348             4629            2232  0.132780075073E-001
+             1349             4613            2146  0.129566192627E-001
+             1350             4674            2189  0.139904022217E-001
+             1351             4691            2208  0.136175155640E-001
+             1352             4651            2184  0.132932662964E-001
+             1353             4644            2136  0.131912231445E-001
+             1354             4620            2146  0.935554504395E-002
+             1355             4627            2144  0.131931304932E-001
+             1356             4645            2188  0.129470825195E-001
+             1357             4681            2093  0.921821594238E-002
+             1358             4652            2216  0.132064819336E-001
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+             1359             4659            2147  0.128908157349E-001
+             1360             4719            2230  0.133323669434E-001
+             1361             4697            2209  0.132598876953E-001
+             1362             4703            2180  0.131168365479E-001
+             1363             4703            2246  0.132942199707E-001
+             1364             4707            2200  0.130548477173E-001
+             1365             4667            2194  0.131568908691E-001
+             1366             4605            2124  0.131683349609E-001
+             1367             4634            2195  0.128202438354E-001
+             1368             4675            2123  0.130348205566E-001
+             1369             4669            2216  0.131835937500E-001
+             1370             4667            2174  0.130939483643E-001
+             1371             4669            2115  0.129623413086E-001
+             1372             4620            2106  0.131702423096E-001
+             1373             4640            2186  0.132694244385E-001
+             1374             4641            2172  0.131082534790E-001
+             1375             4648            2143  0.819063186646E-001
+ Writing RDMs to file at iteration         1375
+ Reset fdv av at iteration         1376
+             1376             4651            2168  0.152835845947E-001
+             1377             4700            2210  0.128946304321E-001
+             1378             4704            2239  0.132656097412E-001
+             1379             4647            2137  0.130443572998E-001
+             1380             4572            2136  0.130996704102E-001
+             1381             4609            2172  0.132083892822E-001
+             1382             4638            2111  0.133419036865E-001
+             1383             4690            2172  0.132093429565E-001
+             1384             4671            2184  0.133590698242E-001
+             1385             4693            2202  0.132646560669E-001
+             1386             4640            2191  0.132532119751E-001
+             1387             4639            2209  0.133390426636E-001
+             1388             4649            2186  0.132665634155E-001
+             1389             4637            2160  0.130062103271E-001
+             1390             4687            2171  0.132188796997E-001
+             1391             4677            2209  0.132808685303E-001
+             1392             4664            2229  0.945281982422E-002
+             1393             4644            2211  0.131444931030E-001
+             1394             4624            2114  0.131683349609E-001
+             1395             4612            2042  0.130586624146E-001
+             1396             4645            2157  0.131921768188E-001
+             1397             4643            2164  0.132513046265E-001
+             1398             4600            2117  0.131111145020E-001
+             1399             4612            2184  0.131502151489E-001
+             1400             4637            2145  0.129241943359E-001
+             1401             4621            2169  0.133218765259E-001
+             1402             4625            2167  0.922298431396E-002
+             1403             4619            2116  0.130701065063E-001
+             1404             4598            2236  0.132961273193E-001
+             1405             4633            2224  0.130920410156E-001
+             1406             4678            2202  0.131216049194E-001
+             1407             4692            2262  0.133266448975E-001
+             1408             4650            2254  0.132856369019E-001
+             1409             4610            2165  0.132064819336E-001
+             1410             4639            2148  0.132999420166E-001
+             1411             4682            2173  0.130472183228E-001
+             1412             4666            2129  0.130300521851E-001
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+             1413             4656            2149  0.130252838135E-001
+             1414             4593            2199  0.132160186768E-001
+             1415             4621            2146  0.129890441895E-001
+             1416             4601            2194  0.132284164429E-001
+             1417             4648            2188  0.130748748779E-001
+             1418             4614            2179  0.138063430786E-001
+             1419             4646            2209  0.133609771729E-001
+             1420             4655            2140  0.130100250244E-001
+             1421             4641            2156  0.132589340210E-001
+             1422             4693            2197  0.132541656494E-001
+             1423             4695            2246  0.133771896362E-001
+             1424             4690            2232  0.133609771729E-001
+             1425             4647            2173  0.819377899170E-001
+ Writing RDMs to file at iteration         1425
+ Reset fdv av at iteration         1426
+             1426             4661            2195  0.157413482666E-001
+             1427             4581            2150  0.131816864014E-001
+             1428             4642            2118  0.129728317261E-001
+             1429             4637            2139  0.131731033325E-001
+             1430             4668            2190  0.132646560669E-001
+             1431             4701            2301  0.135765075684E-001
+             1432             4672            2250  0.135383605957E-001
+             1433             4721            2201  0.131607055664E-001
+             1434             4694            2162  0.133266448975E-001
+             1435             4648            2176  0.132341384888E-001
+             1436             4690            2156  0.132341384888E-001
+             1437             4682            2127  0.133228302002E-001
+             1438             4634            2184  0.132665634155E-001
+             1439             4649            2161  0.132646560669E-001
+             1440             4667            2167  0.131492614746E-001
+             1441             4649            2204  0.132799148560E-001
+             1442             4671            2160  0.132799148560E-001
+             1443             4684            2190  0.132875442505E-001
+             1444             4639            2156  0.133504867554E-001
+             1445             4631            2176  0.130882263184E-001
+             1446             4654            2178  0.131139755249E-001
+             1447             4668            2117  0.130033493042E-001
+             1448             4679            2173  0.133552551270E-001
+             1449             4614            2160  0.962638854980E-002
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+             1450             4585            2109  0.133152008057E-001
+             1451             4649            2228  0.923824310303E-002
+             1452             4644            2116  0.129013061523E-001
+             1453             4663            2151  0.131626129150E-001
+             1454             4641            2134  0.933074951172E-002
+             1455             4602            2178  0.129890441895E-001
+             1456             4692            2190  0.130043029785E-001
+             1457             4697            2177  0.129394531250E-001
+             1458             4677            2173  0.130252838135E-001
+             1459             4658            2175  0.132284164429E-001
+             1460             4649            2143  0.128145217896E-001
+             1461             4624            2125  0.128536224365E-001
+             1462             4580            2133  0.130605697632E-001
+             1463             4601            2099  0.129957199097E-001
+             1464             4640            2130  0.913047790527E-002
+             1465             4642            2165  0.130662918091E-001
+             1466             4690            2215  0.133771896362E-001
+             1467             4664            2190  0.132198333740E-001
+             1468             4671            2223  0.133485794067E-001
+             1469             4647            2185  0.133056640625E-001
+             1470             4670            2143  0.130443572998E-001
+             1471             4683            2203  0.133628845215E-001
+             1472             4685            2100  0.130910873413E-001
+             1473             4664            2157  0.131177902222E-001
+             1474             4662            2089  0.129489898682E-001
+             1475             4623            2111  0.818328857422E-001
+ Writing RDMs to file at iteration         1475
+ Reset fdv av at iteration         1476
+             1476             4593            2113  0.154151916504E-001
+             1477             4659            2143  0.129795074463E-001
+             1478             4682            2251  0.133228302002E-001
+             1479             4694            2165  0.131196975708E-001
+             1480             4680            2215  0.133180618286E-001
+             1481             4681            2194  0.140905380249E-001
+             1482             4639            2208  0.138092041016E-001
+             1483             4634            2151  0.132684707642E-001
+             1484             4699            2192  0.130386352539E-001
+             1485             4714            2223  0.135517120361E-001
+             1486             4733            2243  0.134763717651E-001
+             1487             4724            2199  0.136108398438E-001
+             1488             4629            2216  0.136461257935E-001
+             1489             4610            2134  0.130739212036E-001
+             1490             4627            2183  0.132226943970E-001
+             1491             4674            2132  0.131711959839E-001
+             1492             4716            2261  0.132989883423E-001
+             1493             4677            2204  0.133867263794E-001
+             1494             4637            2153  0.131492614746E-001
+             1495             4651            2241  0.132474899292E-001
+             1496             4643            2190  0.132932662964E-001
+             1497             4653            2167  0.130414962769E-001
+             1498             4662            2182  0.131912231445E-001
+             1499             4669            2210  0.131692886353E-001
+             1500             4662            2226  0.928878784180E-002
+             1501             4671            2213  0.964355468750E-002
+             1502             4624            2216  0.132226943970E-001
+             1503             4653            2207  0.131168365479E-001
+             1504             4703            2207  0.133543014526E-001
+             1505             4694            2181  0.132808685303E-001
+             1506             4694            2220  0.135059356689E-001
+             1507             4633            2254  0.135183334351E-001
+             1508             4658            2175  0.130987167358E-001
+             1509             4661            2096  0.129165649414E-001
+             1510             4702            2156  0.131406784058E-001
+             1511             4711            2205  0.133256912231E-001
+             1512             4656            2155  0.132083892822E-001
+             1513             4632            2219  0.134897232056E-001
+             1514             4657            2113  0.129117965698E-001
+             1515             4615            2125  0.132398605347E-001
+             1516             4638            2145  0.131549835205E-001
+             1517             4667            2209  0.133285522461E-001
+             1518             4672            2168  0.135040283203E-001
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+             1519             4732            2219  0.135259628296E-001
+             1520             4732            2216  0.135364532471E-001
+             1521             4697            2175  0.132064819336E-001
+             1522             4698            2151  0.134010314941E-001
+             1523             4695            2140  0.130910873413E-001
+             1524             4691            2200  0.132942199707E-001
+             1525             4643            2233  0.820856094360E-001
+ Writing RDMs to file at iteration         1525
+ Reset fdv av at iteration         1526
+             1526             4632            2179  0.154695510864E-001
+             1527             4676            2143  0.129480361938E-001
+             1528             4672            2221  0.131978988647E-001
+             1529             4682            2246  0.132427215576E-001
+             1530             4643            2185  0.132083892822E-001
+             1531             4670            2246  0.955486297607E-002
+             1532             4655            2172  0.132083892822E-001
+             1533             4654            2143  0.129823684692E-001
+             1534             4646            2203  0.936031341553E-002
+             1535             4655            2192  0.130758285522E-001
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+             1536             4660            2200  0.132789611816E-001
+             1537             4630            2146  0.131797790527E-001
+             1538             4624            2102  0.130167007446E-001
+             1539             4631            2172  0.129632949829E-001
+             1540             4605            2138  0.130043029785E-001
+             1541             4641            2069  0.127964019775E-001
+             1542             4678            2228  0.133104324341E-001
+             1543             4697            2206  0.133647918701E-001
+             1544             4681            2160  0.917816162109E-002
+             1545             4634            2110  0.131864547729E-001
+             1546             4666            2145  0.130901336670E-001
+             1547             4664            2151  0.132169723511E-001
+             1548             4667            2197  0.132589340210E-001
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+             1549             4704            2206  0.133409500122E-001
+             1550             4669            2196  0.144529342651E-001
+             1551             4662            2171  0.134019851685E-001
+             1552             4609            2232  0.134630203247E-001
+             1553             4583            2136  0.130176544189E-001
+             1554             4586            2052  0.128793716431E-001
+             1555             4672            2166  0.129957199097E-001
+             1556             4663            2190  0.131692886353E-001
+             1557             4643            2239  0.132036209106E-001
+             1558             4624            2202  0.133028030396E-001
+             1559             4633            2106  0.129518508911E-001
+             1560             4644            2104  0.130472183228E-001
+             1561             4637            2200  0.131072998047E-001
+             1562             4616            2132  0.915145874023E-002
+             1563             4652            2202  0.130071640015E-001
+             1564             4621            2172  0.131311416626E-001
+             1565             4628            2132  0.130634307861E-001
+             1566             4642            2151  0.131034851074E-001
+             1567             4644            2190  0.129871368408E-001
+             1568             4602            2167  0.131883621216E-001
+             1569             4642            2156  0.129241943359E-001
+             1570             4640            2093  0.127992630005E-001
+             1571             4679            2209  0.132923126221E-001
+             1572             4717            2252  0.132732391357E-001
+             1573             4704            2224  0.131788253784E-001
+             1574             4705            2218  0.133686065674E-001
+             1575             4691            2150  0.819721221924E-001
+ Writing RDMs to file at iteration         1575
+ Reset fdv av at iteration         1576
+             1576             4598            2173  0.156250000000E-001
+             1577             4620            2130  0.130405426025E-001
+             1578             4623            2110  0.128412246704E-001
+             1579             4641            2141  0.130720138550E-001
+             1580             4676            2212  0.132713317871E-001
+             1581             4676            2185  0.139236450195E-001
+             1582             4704            2204  0.140638351440E-001
+             1583             4695            2152  0.133991241455E-001
+             1584             4653            2144  0.133886337280E-001
+             1585             4669            2130  0.921630859375E-002
+             1586             4645            2107  0.917053222656E-002
+             1587             4680            2184  0.131731033325E-001
+             1588             4652            2191  0.131702423096E-001
+             1589             4696            2171  0.130834579468E-001
+             1590             4715            2253  0.132570266724E-001
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+             1591             4698            2163  0.132007598877E-001
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+             1592             4728            2207  0.134077072144E-001
+             1593             4759            2210  0.942802429199E-002
+             1594             4695            2178  0.135746002197E-001
+             1595             4669            2214  0.134830474854E-001
+             1596             4645            2154  0.133409500122E-001
+             1597             4670            2216  0.131320953369E-001
+             1598             4658            2129  0.132665634155E-001
+             1599             4688            2209  0.132808685303E-001
+             1600             4710            2229  0.133485794067E-001
+             1601             4709            2190  0.134620666504E-001
+             1602             4710            2192  0.134925842285E-001
+             1603             4630            2166  0.953960418701E-002
+             1604             4619            2197  0.134401321411E-001
+             1605             4637            2181  0.133094787598E-001
+             1606             4620            2128  0.132083892822E-001
+             1607             4630            2224  0.134716033936E-001
+             1608             4631            2122  0.129146575928E-001
+             1609             4686            2154  0.129852294922E-001
+             1610             4643            2169  0.132255554199E-001
+             1611             4683            2249  0.133132934570E-001
+             1612             4682            2201  0.133609771729E-001
+             1613             4648            2237  0.133457183838E-001
+             1614             4661            2165  0.129718780518E-001
+             1615             4617            2082  0.129623413086E-001
+             1616             4632            2104  0.129165649414E-001
+             1617             4644            2168  0.130958557129E-001
+             1618             4674            2211  0.134563446045E-001
+             1619             4681            2153  0.133876800537E-001
+             1620             4709            2245  0.132503509521E-001
+             1621             4746            2209  0.132331848145E-001
+             1622             4710            2174  0.133857727051E-001
+             1623             4687            2164  0.132694244385E-001
+             1624             4685            2208  0.131549835205E-001
+             1625             4703            2139  0.817031860352E-001
+ Writing RDMs to file at iteration         1625
+ Reset fdv av at iteration         1626
+             1626             4680            2187  0.156593322754E-001
+             1627             4691            2175  0.130348205566E-001
+             1628             4682            2142  0.132331848145E-001
+             1629             4710            2210  0.132560729980E-001
+             1630             4670            2179  0.131969451904E-001
+             1631             4653            2143  0.131797790527E-001
+             1632             4621            2177  0.132408142090E-001
+             1633             4635            2190  0.130882263184E-001
+             1634             4640            2180  0.132884979248E-001
+             1635             4723            2242  0.132312774658E-001
+             1636             4736            2244  0.135574340820E-001
+             1637             4685            2162  0.133552551270E-001
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+             1638             4724            2273  0.132656097412E-001
+             1639             4712            2259  0.131378173828E-001
+             1640             4676            2148  0.130424499512E-001
+             1641             4645            2161  0.131778717041E-001
+             1642             4653            2152  0.129718780518E-001
+             1643             4686            2126  0.130996704102E-001
+             1644             4618            2154  0.133533477783E-001
+             1645             4625            2169  0.131988525391E-001
+             1646             4663            2223  0.132083892822E-001
+             1647             4717            2217  0.133304595947E-001
+             1648             4701            2162  0.131778717041E-001
+             1649             4690            2214  0.132026672363E-001
+             1650             4698            2225  0.140800476074E-001
+             1651             4632            2230  0.929641723633E-002
+             1652             4655            2128  0.129585266113E-001
+             1653             4665            2158  0.130348205566E-001
+             1654             4693            2168  0.130577087402E-001
+             1655             4697            2185  0.132369995117E-001
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+             1656             4711            2248  0.130958557129E-001
+             1657             4702            2264  0.131626129150E-001
+             1658             4682            2153  0.130519866943E-001
+             1659             4657            2160  0.130805969238E-001
+             1660             4629            2098  0.129661560059E-001
+             1661             4647            2190  0.131340026855E-001
+             1662             4674            2177  0.128993988037E-001
+             1663             4709            2178  0.924491882324E-002
+             1664             4664            2155  0.130805969238E-001
+             1665             4658            2202  0.130920410156E-001
+             1666             4618            2125  0.129814147949E-001
+             1667             4594            2129  0.128459930420E-001
+             1668             4615            2116  0.130023956299E-001
+             1669             4675            2293  0.132350921631E-001
+             1670             4705            2184  0.131320953369E-001
+             1671             4680            2150  0.131301879883E-001
+             1672             4618            2111  0.131282806396E-001
+             1673             4609            2106  0.128917694092E-001
+             1674             4684            2220  0.128364562988E-001
+             1675             4660            2198  0.819358825684E-001
+ Writing RDMs to file at iteration         1675
+ Reset fdv av at iteration         1676
+             1676             4697            2232  0.155620574951E-001
+             1677             4694            2187  0.130939483643E-001
+             1678             4638            2187  0.131568908691E-001
+             1679             4645            2181  0.130405426025E-001
+             1680             4706            2201  0.132141113281E-001
+             1681             4685            2218  0.132122039795E-001
+             1682             4673            2216  0.137367248535E-001
+             1683             4651            2124  0.130863189697E-001
+             1684             4610            2083  0.129032135010E-001
+             1685             4627            2172  0.130405426025E-001
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+             1686             4665            2178  0.130195617676E-001
+             1687             4626            2104  0.133075714111E-001
+             1688             4666            2182  0.130138397217E-001
+             1689             4636            2165  0.132179260254E-001
+             1690             4657            2159  0.132045745850E-001
+             1691             4630            2140  0.130367279053E-001
+             1692             4597            2190  0.131626129150E-001
+             1693             4558            2114  0.129508972168E-001
+             1694             4600            2137  0.130710601807E-001
+             1695             4610            2072  0.129432678223E-001
+             1696             4567            2158  0.917243957520E-002
+             1697             4583            2157  0.131931304932E-001
+             1698             4573            2064  0.128383636475E-001
+             1699             4629            2208  0.131263732910E-001
+             1700             4639            2265  0.134353637695E-001
+             1701             4667            2192  0.130405426025E-001
+             1702             4663            2182  0.132217407227E-001
+             1703             4653            2129  0.132789611816E-001
+             1704             4680            2201  0.134449005127E-001
+             1705             4700            2230  0.133228302002E-001
+             1706             4673            2170  0.130481719971E-001
+             1707             4668            2124  0.129451751709E-001
+             1708             4654            2147  0.132026672363E-001
+             1709             4663            2144  0.130672454834E-001
+             1710             4617            2197  0.135746002197E-001
+             1711             4644            2100  0.131092071533E-001
+             1712             4648            2174  0.130748748779E-001
+             1713             4685            2180  0.131263732910E-001
+             1714             4713            2139  0.131072998047E-001
+             1715             4674            2201  0.133647918701E-001
+             1716             4706            2171  0.132217407227E-001
+             1717             4662            2110  0.133037567139E-001
+             1718             4619            2167  0.133247375488E-001
+             1719             4631            2168  0.137805938721E-001
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+             1720             4667            2159  0.130958557129E-001
+             1721             4710            2223  0.134849548340E-001
+             1722             4718            2188  0.134143829346E-001
+             1723             4677            2234  0.132942199707E-001
+             1724             4660            2225  0.134544372559E-001
+             1725             4632            2122  0.818996429443E-001
+ Writing RDMs to file at iteration         1725
+ Reset fdv av at iteration         1726
+             1726             4634            2238  0.155010223389E-001
+             1727             4603            2152  0.129718780518E-001
+             1728             4616            2192  0.131568908691E-001
+             1729             4603            2198  0.130748748779E-001
+             1730             4603            2153  0.129470825195E-001
+             1731             4634            2179  0.131378173828E-001
+             1732             4614            2153  0.130233764648E-001
+             1733             4622            2222  0.130500793457E-001
+             1734             4611            2081  0.130958557129E-001
+             1735             4638            2160  0.129585266113E-001
+             1736             4639            2141  0.131645202637E-001
+             1737             4661            2179  0.130691528320E-001
+             1738             4646            2168  0.132007598877E-001
+             1739             4626            2140  0.130786895752E-001
+             1740             4657            2216  0.132732391357E-001
+             1741             4658            2146  0.131759643555E-001
+             1742             4660            2218  0.131626129150E-001
+             1743             4651            2087  0.129947662354E-001
+             1744             4673            2131  0.916671752930E-002
+             1745             4680            2164  0.131340026855E-001
+             1746             4670            2192  0.133495330811E-001
+             1747             4641            2121  0.131225585938E-001
+             1748             4665            2140  0.129661560059E-001
+             1749             4712            2214  0.132064819336E-001
+             1750             4710            2192  0.138950347900E-001
+             1751             4666            2228  0.138568878174E-001
+             1752             4665            2222  0.133705139160E-001
+             1753             4607            2164  0.132942199707E-001
+             1754             4621            2143  0.130004882812E-001
+             1755             4656            2160  0.130348205566E-001
+             1756             4638            2141  0.133590698242E-001
+             1757             4661            2184  0.132522583008E-001
+             1758             4659            2165  0.132827758789E-001
+             1759             4670            2155  0.130233764648E-001
+             1760             4690            2264  0.133647918701E-001
+             1761             4641            2166  0.136184692383E-001
+             1762             4634            2133  0.131626129150E-001
+             1763             4640            2094  0.130538940430E-001
+             1764             4658            2172  0.132045745850E-001
+             1765             4688            2154  0.129508972168E-001
+             1766             4656            2196  0.130920410156E-001
+             1767             4639            2177  0.131206512451E-001
+             1768             4653            2079  0.130767822266E-001
+             1769             4671            2183  0.131874084473E-001
+             1770             4670            2161  0.131778717041E-001
+             1771             4664            2215  0.133361816406E-001
+             1772             4692            2232  0.134029388428E-001
+             1773             4712            2264  0.135402679443E-001
+             1774             4697            2276  0.132961273193E-001
+             1775             4667            2223  0.820999145508E-001
+ Writing RDMs to file at iteration         1775
+ Reset fdv av at iteration         1776
+             1776             4651            2209  0.156002044678E-001
+             1777             4624            2199  0.131263732910E-001
+             1778             4658            2140  0.130672454834E-001
+             1779             4666            2174  0.132255554199E-001
+             1780             4647            2153  0.132560729980E-001
+             1781             4663            2245  0.132160186768E-001
+             1782             4707            2201  0.148773193359E-001
+             1783             4725            2166  0.131969451904E-001
+             1784             4752            2212  0.131988525391E-001
+             1785             4721            2184  0.133666992188E-001
+             1786             4669            2218  0.133914947510E-001
+             1787             4627            2190  0.130958557129E-001
+             1788             4647            2188  0.131511688232E-001
+             1789             4683            2117  0.128364562988E-001
+             1790             4690            2152  0.130100250244E-001
+             1791             4624            2212  0.133247375488E-001
+             1792             4594            2161  0.132293701172E-001
+             1793             4565            2111  0.130023956299E-001
+             1794             4607            2106  0.128021240234E-001
+             1795             4649            2146  0.135173797607E-001
+             1796             4654            2147  0.181751251221E-001
+             1797             4695            2253  0.135707855225E-001
+             1798             4703            2207  0.134544372559E-001
+             1799             4676            2180  0.133342742920E-001
+             1800             4683            2238  0.133705139160E-001
+             1801             4716            2192  0.130920410156E-001
+             1802             4728            2130  0.130577087402E-001
+             1803             4702            2161  0.132541656494E-001
+             1804             4725            2250  0.132350921631E-001
+             1805             4706            2233  0.133056640625E-001
+             1806             4734            2217  0.133533477783E-001
+             1807             4727            2160  0.131378173828E-001
+             1808             4733            2223  0.931739807129E-002
+             1809             4690            2208  0.131301879883E-001
+             1810             4684            2159  0.132083892822E-001
+             1811             4677            2219  0.130577087402E-001
+             1812             4654            2184  0.132312774658E-001
+             1813             4642            2155  0.129547119141E-001
+             1814             4677            2121  0.890731811523E-002
+             1815             4666            2156  0.130748748779E-001
+             1816             4629            2304  0.133762359619E-001
+             1817             4617            2175  0.132255554199E-001
+             1818             4671            2210  0.135612487793E-001
+             1819             4647            2151  0.136547088623E-001
+             1820             4612            2174  0.132045745850E-001
+             1821             4635            2174  0.129909515381E-001
+             1822             4621            2168  0.131225585938E-001
+             1823             4668            2228  0.133705139160E-001
+             1824             4706            2167  0.132846832275E-001
+             1825             4699            2260  0.822792053223E-001
+ Writing RDMs to file at iteration         1825
+ Reset fdv av at iteration         1826
+             1826             4649            2232  0.158901214600E-001
+             1827             4672            2210  0.133056640625E-001
+             1828             4653            2164  0.131454467773E-001
+             1829             4614            2159  0.132293701172E-001
+             1830             4597            2075  0.900077819824E-002
+             1831             4581            2107  0.127258300781E-001
+             1832             4653            2209  0.129299163818E-001
+             1833             4693            2198  0.132045745850E-001
+             1834             4665            2231  0.132999420166E-001
+             1835             4695            2178  0.133743286133E-001
+             1836             4645            2184  0.130615234375E-001
+             1837             4621            2198  0.133686065674E-001
+             1838             4635            2172  0.903892517090E-002
+             1839             4649            2109  0.902175903320E-002
+             1840             4656            2155  0.132274627686E-001
+             1841             4642            2108  0.130062103271E-001
+             1842             4617            2191  0.132827758789E-001
+             1843             4677            2113  0.127868652344E-001
+             1844             4682            2148  0.130481719971E-001
+             1845             4658            2104  0.130863189697E-001
+             1846             4593            2124  0.130958557129E-001
+             1847             4637            2128  0.131549835205E-001
+             1848             4637            2143  0.131187438965E-001
+             1849             4656            2181  0.131301879883E-001
+             1850             4669            2157  0.133056640625E-001
+             1851             4658            2118  0.133361816406E-001
+             1852             4671            2201  0.133228302002E-001
+             1853             4646            2140  0.130271911621E-001
+             1854             4665            2102  0.130672454834E-001
+             1855             4651            2187  0.130310058594E-001
+             1856             4648            2090  0.129470825195E-001
+             1857             4656            2154  0.132846832275E-001
+             1858             4613            2120  0.130405426025E-001
+             1859             4638            2097  0.897216796875E-002
+             1860             4647            2242  0.131130218506E-001
+             1861             4679            2167  0.130043029785E-001
+             1862             4663            2163  0.131034851074E-001
+             1863             4666            2268  0.944328308105E-002
+             1864             4699            2203  0.133495330811E-001
+             1865             4713            2213  0.131797790527E-001
+             1866             4669            2170  0.132637023926E-001
+             1867             4668            2176  0.132064819336E-001
+             1868             4671            2248  0.132694244385E-001
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+             1869             4682            2150  0.132007598877E-001
+             1870             4665            2187  0.130157470703E-001
+             1871             4684            2186  0.131454467773E-001
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+             1872             4645            2088  0.129032135010E-001
+             1873             4671            2251  0.131587982178E-001
+             1874             4679            2204  0.133419036865E-001
+             1875             4626            2152  0.818271636963E-001
+ Writing RDMs to file at iteration         1875
+ Reset fdv av at iteration         1876
+             1876             4659            2144  0.153026580811E-001
+             1877             4656            2123  0.130558013916E-001
+             1878             4701            2202  0.133247375488E-001
+             1879             4724            2183  0.133609771729E-001
+             1880             4697            2179  0.132656097412E-001
+             1881             4647            2152  0.133686065674E-001
+             1882             4639            2183  0.100994110107E-001
+             1883             4648            2176  0.132579803467E-001
+             1884             4632            2112  0.128993988037E-001
+             1885             4621            2145  0.130691528320E-001
+             1886             4644            2190  0.131797790527E-001
+             1887             4699            2182  0.904083251953E-002
+             1888             4731            2246  0.132961273193E-001
+             1889             4717            2278  0.134334564209E-001
+             1890             4715            2249  0.134830474854E-001
+             1891             4712            2221  0.133438110352E-001
+             1892             4651            2147  0.132484436035E-001
+             1893             4655            2184  0.132427215576E-001
+             1894             4699            2151  0.131988525391E-001
+             1895             4646            2139  0.132808685303E-001
+             1896             4681            2200  0.133876800537E-001
+             1897             4666            2124  0.132617950439E-001
+             1898             4647            2095  0.131416320801E-001
+             1899             4678            2188  0.918388366699E-002
+             1900             4715            2188  0.132446289062E-001
+             1901             4739            2298  0.135650634766E-001
+             1902             4726            2214  0.944709777832E-002
+             1903             4697            2210  0.133666992188E-001
+             1904             4665            2149  0.132160186768E-001
+             1905             4711            2185  0.131778717041E-001
+             1906             4757            2186  0.131263732910E-001
+             1907             4722            2167  0.132694244385E-001
+             1908             4733            2189  0.131664276123E-001
+             1909             4727            2201  0.132770538330E-001
+             1910             4725            2267  0.135555267334E-001
+             1911             4714            2204  0.134468078613E-001
+             1912             4714            2166  0.133190155029E-001
+             1913             4696            2198  0.133438110352E-001
+             1914             4685            2166  0.130596160889E-001
+             1915             4738            2241  0.134658813477E-001
+             1916             4683            2213  0.133724212646E-001
+             1917             4634            2169  0.131759643555E-001
+             1918             4612            2167  0.131988525391E-001
+             1919             4640            2210  0.134696960449E-001
+             1920             4709            2175  0.131645202637E-001
+             1921             4727            2174  0.132789611816E-001
+             1922             4685            2119  0.131340026855E-001
+Bloom of more than n_add on double excit: A max of       3.04 particles created.        1 blooms occurred.
+             1923             4664            2225  0.945854187012E-002
+             1924             4633            2152  0.129241943359E-001
+             1925             4630            2153  0.778427124023E-001
+ Writing RDMs to file at iteration         1925
+ Reset fdv av at iteration         1926
+             1926             4648            2184  0.154933929443E-001
+             1927             4723            2165  0.130157470703E-001
+             1928             4676            2155  0.132827758789E-001
+             1929             4735            2189  0.131587982178E-001
+             1930             4727            2187  0.134372711182E-001
+             1931             4718            2179  0.133285522461E-001
+             1932             4744            2286  0.135612487793E-001
+             1933             4770            2276  0.136890411377E-001
+             1934             4721            2231  0.135021209717E-001
+             1935             4657            2179  0.135955810547E-001
+             1936             4631            2144  0.132446289062E-001
+             1937             4596            2090  0.128574371338E-001
+             1938             4649            2164  0.131187438965E-001
+             1939             4669            2198  0.130176544189E-001
+             1940             4674            2260  0.135154724121E-001
+             1941             4711            2221  0.131282806396E-001
+             1942             4724            2215  0.133762359619E-001
+             1943             4680            2250  0.133304595947E-001
+             1944             4625            2163  0.130825042725E-001
+             1945             4616            2133  0.129375457764E-001
+             1946             4636            2226  0.130748748779E-001
+             1947             4666            2196  0.128288269043E-001
+             1948             4700            2210  0.132827758789E-001
+             1949             4667            2162  0.133247375488E-001
+             1950             4667            2207  0.135078430176E-001
+             1951             4701            2189  0.133819580078E-001
+             1952             4704            2191  0.132770538330E-001
+             1953             4706            2172  0.132865905762E-001
+             1954             4666            2157  0.129833221436E-001
+             1955             4658            2215  0.133895874023E-001
+             1956             4673            2138  0.129127502441E-001
+             1957             4665            2154  0.131645202637E-001
+             1958             4639            2163  0.133285522461E-001
+             1959             4632            2199  0.132198333740E-001
+             1960             4702            2224  0.935935974121E-002
+             1961             4617            2182  0.133647918701E-001
+             1962             4643            2191  0.132064819336E-001
+             1963             4663            2266  0.134677886963E-001
+             1964             4626            2169  0.131301879883E-001
+             1965             4671            2190  0.132751464844E-001
+             1966             4723            2191  0.922775268555E-002
+             1967             4731            2234  0.131702423096E-001
+             1968             4718            2186  0.133132934570E-001
+             1969             4702            2237  0.133037567139E-001
+             1970             4721            2228  0.133724212646E-001
+             1971             4631            2173  0.133914947510E-001
+             1972             4639            2134  0.131072998047E-001
+             1973             4660            2137  0.130748748779E-001
+             1974             4632            2222  0.952529907227E-002
+             1975             4602            2151  0.834541320801E-001
+ Writing RDMs to file at iteration         1975
+ Reset fdv av at iteration         1976
+             1976             4628            2185  0.156555175781E-001
+             1977             4598            2087  0.129890441895E-001
+             1978             4596            2141  0.130138397217E-001
+             1979             4632            2155  0.130634307861E-001
+             1980             4672            2147  0.131149291992E-001
+             1981             4627            2214  0.135955810547E-001
+             1982             4641            2154  0.143127441406E-001
+             1983             4635            2123  0.131835937500E-001
+             1984             4666            2222  0.986671447754E-002
+             1985             4660            2167  0.133762359619E-001
+             1986             4664            2213  0.932312011719E-002
+             1987             4664            2121  0.131530761719E-001
+             1988             4690            2253  0.132808685303E-001
+             1989             4627            2092  0.129852294922E-001
+             1990             4602            2100  0.131988525391E-001
+             1991             4649            2197  0.132808685303E-001
+             1992             4673            2139  0.131416320801E-001
+             1993             4698            2150  0.131149291992E-001
+             1994             4691            2258  0.135307312012E-001
+             1995             4684            2128  0.134353637695E-001
+             1996             4611            2138  0.131950378418E-001
+             1997             4689            2224  0.129985809326E-001
+             1998             4671            2164  0.130920410156E-001
+             1999             4686            2170  0.130615234375E-001
+             2000             4669            2094  0.832614898682E-001
+Total iteration number limit reached. Finishing FCIQMC loop...
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ Total loop-time:    21.8076861798763     
+ - - - - - - - - - - - - - - - - - - - - - - - -
+
+**** RDMs CALCULATED STOCHASTICALLY ****
+
+ == INFORMATION FOR FINAL 1-RDMS =========================================================
+
+ INFORMATION FOR 1-RDM 1:
+
+ SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:      5.9441383455599
+ Writing out the *normalised* 1 electron density matrix to file
+
+ INFORMATION FOR 1-RDM 2:
+
+ SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:      4.9338720931494
+ Writing out the *normalised* 1 electron density matrix to file
+
+ INFORMATION FOR 1-RDM 3:
+
+ SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:     -0.0031708167816
+ Writing out the *normalised* 1 electron density matrix to file
+
+ INFORMATION FOR 1-RDM 4:
+
+ SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:     -0.0016321362865
+ Writing out the *normalised* 1 electron density matrix to file
+
+ =========================================================================================
+
+ Writing RDMs to file at iteration         2000
+ == INFORMATION FOR FINAL 2-RDMS =========================================================
+
+ 2-RDM ESTIMATES FOR STATE 1:
+ Trace of 2-el-RDM before normalisation:  1.7699753882E+09
+ Trace of 2-el-RDM after normalisation:  1.5000000000E+01
+ Energy contribution from the 1-RDM: -3.2798512455E+01
+ Energy contribution from the 2-RDM:  1.3564971763E+01
+ *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*: -1.2865897577921E+02
+
+ Hermiticty error estimates:
+            2000        0.00092248397499773672     (Iteration, MAX ABS ERROR IN HERMITICITY)
+            2000        0.15355960036206120489     (Iteration, SUM ABS ERROR IN HERMITICITY)
+
+ 2-RDM ESTIMATES FOR STATE 2:
+ Trace of 2-el-RDM before normalisation:  7.2209121017E+08
+ Trace of 2-el-RDM after normalisation:  1.5000000000E+01
+ Energy contribution from the 1-RDM: -2.9984143845E+01
+ Energy contribution from the 2-RDM:  1.1534423540E+01
+ *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*: -1.2787515539233E+02
+
+ Hermiticty error estimates:
+            2000        0.02494306346448116676     (Iteration, MAX ABS ERROR IN HERMITICITY)
+            2000        0.92515494051771618444     (Iteration, SUM ABS ERROR IN HERMITICITY)
+
+ 2-RDM ESTIMATES FOR TRANSITION 2 -> 1 (1)
+ Trace of 2-el-RDM before normalisation: -1.2003112645E+05
+ Trace of 2-el-RDM after normalisation: -1.5925955500E-03
+
+ Hermiticty difference estimates, for test suite:
+            2000        0.56498162542621299664      (Iteration, MAX ABS DIFF IN HERMITICITY)
+            2000       15.73892529673462092887      (Iteration, SUM ABS DIFF IN HERMITICITY)
+
+ 2-RDM ESTIMATES FOR TRANSITION 2 -> 1 (2)
+ Trace of 2-el-RDM before normalisation:  1.0372556314E+05
+ Trace of 2-el-RDM after normalisation:  1.3762502708E-03
+
+ Hermiticty difference estimates, for test suite:
+            2000        0.58967475352969156432      (Iteration, MAX ABS DIFF IN HERMITICITY)
+            2000       16.63518343622421724604      (Iteration, SUM ABS DIFF IN HERMITICITY)
+
+ =========================================================================================
+ 
+Current references: 
+(   13,   14,   19,   20,   29,   30)
+000000000000110000110000000011000000000000
+(   13,   14,   19,   20,   29,   30)
+000000000000110000110000000011000000000000
+(   13,   16,   19,   20,   29,   30)
+000000000000100100110000000011000000000000
+(   13,   16,   19,   20,   29,   30)
+000000000000100100110000000011000000000000
+ 
+Input DEFINEDET line (includes frozen orbs):
+definedet   1   2   3   4  17  18  23  24  33  34 
+definedet   1   2   3   4  17  18  23  24  33  34 
+definedet   1   2   3   4  17  20  23  24  33  34 
+definedet   1   2   3   4  17  20  23  24  33  34 
+ 
+Most occupied         15 determinants as excitations from reference: 
+ 
+ Excitation   ExcitLevel Seniority  Walkers(Re)   Walkers(Im)  Weight   Init?(Re)   Init?(Im)   Proc  Spin-Coup?
+000000000000110000110000000011000000000000    0    0    346.3837        365.0110      -0.9127779E-01  -0.1288295      0.82166  Y  Y  Y  Y      0
+000000000000100100110000000011000000000000    1    2    3.918076        4.207841        182.6307        178.6658      0.30162  Y  Y  Y  Y      1  *
+000000000000110000110000000010010000000000    1    2    3.855816        3.719359       -87.24135       -95.14061      0.15509  Y  Y  Y  Y      0  *
+000000000000110000100100000011000000000000    1    2    3.631277        5.025840       -88.91259       -74.84926      0.14077  Y  Y  Y  Y      0  *
+000000000000001100110000000011000000000000    2    0   -4.733750       -5.019689       -20.88633       -20.44892      0.05899  Y  Y  Y  Y      0
+000000000000001001110000000011000000000000    2    2   -8.558478       -9.006878       -14.32789       -14.32224      0.03773  Y  Y  Y  Y      1  *
+000000000000011000100001000011000000000000    2    4    6.689596        6.857446        11.57863        11.70271      0.03007  Y  Y  Y  Y      1  *
+000000000000011000110000000010000100000000    2    4    6.480859        6.841533        11.81565        11.19215      0.02966  Y  Y  Y  Y      0  *
+000000000000110000110000000000110000000000    2    0   -5.192861       -5.044227        10.21557        11.62164      0.03703  Y  Y  Y  Y      1
+000000000000110000011000000010010000000000    2    4    5.503067        5.857570       -11.47867       -11.04434      0.02766  Y  Y  Y  Y      1  *
+000000000000010010100001000011000000000000    2    4    12.59596        12.69829      -0.5671899      -0.8648416      0.02182  Y  Y  Y  Y      0  *
+000000000000110000010010000010000100000000    2    4    12.06480        12.79833       0.9740194       0.9271379      0.02185  Y  Y  Y  Y      0  *
+000000000000100100110000000010000100000000    2    4   -5.337557       -5.695446       -10.25103       -10.62960      0.02606  Y  Y  Y  Y      0  *
+000000000000010010110000000010000100000000    2    4    12.24894        12.77222      -0.5497913      -0.6980055      0.02145  Y  Y  Y  Y      1  *
+000000000000110000110000000000001100000000    2    0   -11.84485       -12.45773      -0.5800510      -0.6847260      0.02952  Y  Y  Y  Y      0
+ * = Spin-coupled function implicitly has time-reversed determinant with same weight.
+ 
+
+ Load balancing information based on the last iteration:
+ Mean number of determinants/process    2676.0000000000
+ Min number of determinants/process               2111
+ Max number of determinants/process               3241
+
+
+Calculating approximate errorbar for energy estimates...
+
+Attempting automatic reblocking analysis on data from iteration:           68
+ No FCIMCStats file found for error analysis
+ Current reference energy                            -128.496349730325
+ Projected correlation energy                          -0.162249914977
+ No automatic errorbar obtained for projected energy
+ No reliable averaged shift correlation energy could be obtained automatically
+
+ Total projected energy        -128.65859965
+
+
+ Warning: attempting to log deallocation but never logged allocation.
+ 
+ ================================================================
+ Memory usage
+ Maximum memory defined is (MB) :   99999.0
+ Maximum memory used is    (MB) :     158.4
+ 
+ Large memory allocations:
+ 
+ Name              Allocated in       Deallocated in         Size
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ arr               init_global_det_datclean_global_det_da  82.9MB
+ trial_space       init_trial_wf      create_trial_hashta  45.8MB
+ WalkVecDets       InitFCIMCPar       DeallocFciMCMemPar   17.1MB
+ current_trial_ampsinit_trial_wf      end_trial_wf          5.7MB
+ con_space         init_trial_wf      init_trial_wf         3.5MB
+ arr               realloc_SpawnedPartDeallocFciMCMemPar    2.4MB
+ arr               realloc_SpawnedPartDeallocFciMCMemPar    2.4MB
+ arr               InitFCIMCPar       realloc_SpawnedPart   1.8MB
+ arr               InitFCIMCPar       realloc_SpawnedPart   1.8MB
+ Spawned_Parents   init_rdms          dealloc_global_rdm_ 937.5KB
+ ================================================================
+
+ ================================================================
+ Timing report.
+
+ Timing of most expensive procedures.
+
+ Procedure                    Calls       CPU    system     total
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ WalkerTime                    2000     10.63      0.00     10.63
+ NECICUBE                         1      5.75      0.00      5.75
+ AnnMainTime                   2000      1.83      0.00      1.83
+ SyncTime                      3462      1.49      0.00      1.49
+ TrialInitTime                    1      0.48      0.00      0.48
+ SemiStochInitTime                1      0.40      0.00      0.40
+ StatsCommsTime                2000      0.40      0.00      0.40
+ SortTime                      2000      0.36      0.00      0.36
+ SemiStochMultiplyTime         1425      0.36      0.00      0.36
+ Compress Sort interface       2000      0.35      0.00      0.35
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ Total                                  22.04      0.00     22.04
+
+ Global CPU time         22.57
+ Global system time       0.00
+ Global total time       22.57
+ ================================================================
+ Calculation ended 23/02/2018 at 18:02:42
+ ================================================================

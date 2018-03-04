@@ -7,6 +7,9 @@ module replica_data
     use CalcData
     use util_mod
     use kp_fciqmc_data_mod
+    use SystemData, only : NEl
+    use IntegralsData, only : NFrozen
+    use LoggingData, only : tLogEXLEVELStats
     implicit none
 
 contains
@@ -31,9 +34,7 @@ contains
         ! Global simulation properties, which apply per particle stream (i.e.
         ! depend on lenof_sign). There will be tow of these per simulation if
         ! complex walkers are used.
-        allocate(AvNoatHF(lenof_sign), &
-                 InstNoatHF(lenof_sign), &
-                 IterRDM_HF(lenof_sign), &
+        allocate(InstNoatHF(lenof_sign), &
                  SumNoatHF(lenof_sign), AllSumNoatHF(lenof_sign), &
                  NoatHF(lenof_sign), AllNoAtHF(lenof_sign), &
                                      OldAllNoatHF(lenof_sign), &
@@ -79,7 +80,10 @@ contains
                  SpawnFromSing(inum_runs), AllSpawnFromSing(inum_runs), &
                  iRefProc(inum_runs), proje_ref_energy_offsets(inum_runs), &
                  iHighestPop(inum_runs), &
-                 replica_overlaps(inum_runs, inum_runs), &
+                 replica_overlaps_real(inum_runs, inum_runs), &
+#ifdef __CMPLX
+                 replica_overlaps_imag(inum_runs, inum_runs), &
+#endif
                  tSpinCoupProjE(inum_runs), &
 
                  NoatDoubs(inum_runs), AllNoatDoubs(inum_runs), &
@@ -120,7 +124,16 @@ contains
                  InstShift(inum_runs), &
                  AvDiagSft(inum_runs), SumDiagSft(inum_runs), &
                  DiagSft(inum_runs), &
+                 hdf5_diagsft(inum_runs), & 
+                 DiagSftRe(inum_runs), &
+                 DiagSftIm(inum_runs), &
                  tSinglePartPhase(inum_runs), stat=ierr)
+
+        ! Variables which are only used conditionally.
+        ! NB, NFrozen has not been subtracted from NEl yet!
+        if (tLogEXLEVELStats) allocate (&
+              EXLEVEL_WNorm(0:2,0:NEl-NFrozen,inum_runs), &
+              AllEXLEVEL_WNorm(0:2,0:NEl-NFrozen,inum_runs), stat=ierr)
 
         ! Iteration data
         call allocate_iter_data(iter_data_fciqmc)
@@ -139,14 +152,15 @@ contains
 
         ! The reverse of the above routine...
 
-        deallocate(AvNoatHF, &
-                   InstNoatHF, &
-                   IterRDM_HF, &
+        deallocate(InstNoatHF, &
                    SumNoatHF, AllSumNoatHF, &
                    NoatHF, AllNoatHF, OldAllNoatHF, &
                    iRefProc, proje_ref_energy_offsets, &
                    iHighestPop, &
-                   replica_overlaps, &
+                   replica_overlaps_real, &
+#ifdef __CMPLX
+                   replica_overlaps_imag, &
+#endif
                    tSpinCoupProjE, &
 
                    TotParts, AllTotParts, &
@@ -216,6 +230,8 @@ contains
                    AllTotPartsInit, &
                    tSinglePartPhaseKPInit)
 
+        if (tLogEXLEVELStats) deallocate(EXLEVEL_WNorm, AllEXLEVEL_WNorm)
+
         call clean_iter_data(iter_data_fciqmc)
 
     end subroutine
@@ -233,6 +249,9 @@ contains
                  iter_data%update_growth(lenof_sign), &
                  iter_data%update_growth_tot(lenof_sign), &
                  iter_data%tot_parts_old(lenof_sign), stat=ierr)
+
+        ! initialize to 0
+        iter_data%update_growth_tot = 0.0_dp
 
     end subroutine
 
@@ -262,7 +281,7 @@ contains
         integer(int64), intent(in) :: ndets
         integer(n_int), intent(inout) :: ilut_list(0:NIfTot,ndets)
 
-        integer :: i, run, lbnd, ubnd
+        integer :: i, run
         real(dp) :: real_sign(lenof_sign)
         character(*), parameter :: t_r = 'set_initial_global_data'
 
@@ -277,10 +296,8 @@ contains
             if ( all(ilut_list(0:NIfDBO,i) == iLutRef(0:NIfDBO, 1)) ) NoAtHF = real_sign
 
             do run = 1, inum_runs
-                lbnd = min_part_type(run)
-                ubnd = max_part_type(run)
-                if (abs_sign(real_sign(lbnd:ubnd)) > iHighestPop(run)) then
-                    iHighestPop(run) = int(abs_sign(real_sign(lbnd:ubnd)))
+                if (abs_sign(real_sign(min_part_type(run):max_part_type(run))) > iHighestPop(run)) then
+                    iHighestPop(run) = int(abs_sign(real_sign(min_part_type(run):max_part_type(run))))
                     HighestPopDet(:,run) = ilut_list(:, i)
                 end if
             end do
@@ -298,10 +315,16 @@ contains
         call MPISumAll(NoatHF, AllNoatHF)
         OldAllNoatHF = AllNoatHF
 
+#ifdef __PROG_NUMRUNS
+        do run = 1, inum_runs
+            OldAllAvWalkersCyc(run) = sum(AllTotParts(min_part_type(run):max_part_type(run)))
+        enddo
+#else
 #ifdef __CMPLX
         OldAllAvWalkersCyc = sum(AllTotParts)
 #else
         OldAllAvWalkersCyc = AllTotParts
+#endif
 #endif
 
         do run = 1, inum_runs

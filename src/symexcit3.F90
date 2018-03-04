@@ -198,7 +198,7 @@ MODULE SymExcit3
         INTEGER :: nI(NEl),Orbi,Orba,Symi,nJ(NEl)
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
         INTEGER :: NoOcc,ExcitMat3(2,2),exflag,SymInd,Spina, Mla
-        LOGICAL :: tInitOrbsFound,tParity,tAllExcitFound,tEndaOrbs,ti_lt_a_only
+        LOGICAL :: tInitOrbsFound,tParity,tAllExcitFound,tEndaOrbs,ti_lt_a_only, tAux
         INTEGER , SAVE :: OrbiIndex,OrbaIndex,Spini,NewSym,Mli
 
 !        WRITE(6,*) 'Original Determinant',nI
@@ -317,6 +317,7 @@ MODULE SymExcit3
                 enddo
             ENDIF
 
+            tAux = .false.
             IF(.not.tEndaOrbs) THEN
 ! Then check we have not overrun the symmetry block while skipping the occupied orbitals.                
                 NewSym=SpinOrbSymLabel(Orba)
@@ -327,15 +328,18 @@ MODULE SymExcit3
                 ELSE
                     Mla = 0
                 ENDIF
-            ENDIF
 
-            IF(NewSym.eq.Symi.and.(Spina.eq.Spini).and.(Mli.eq.Mla).and.(.not.tEndaOrbs)) THEN
-! If not, then these are the new Orbi and Orba.                
-                tInitOrbsFound=.true.
-                OrbaIndex=OrbaIndex+NoOcc
-            ELSE
+                IF(NewSym.eq.Symi.and.(Spina.eq.Spini).and.(Mli.eq.Mla)) THEN
+                   ! If not, then these are the new Orbi and Orba.                
+                   tInitOrbsFound=.true.
+                   OrbaIndex=OrbaIndex+NoOcc
+                ELSE
+                   tAux=.true.
+                ENDIF
+             ENDIF
 
-! If we have, move onto the next occupied orbital i, no symmetry allowed single excitations exist from the first.                
+! If we have, move onto the next occupied orbital i, no symmetry allowed single excitations exist from the first.         
+            IF(tAux .or. tEndaOrbs) THEN
                 OrbiIndex=OrbiIndex+1
                 IF(OrbiIndex.le.NEl) THEN
                     Orbi=nI(OrbiIndex)

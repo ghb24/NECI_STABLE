@@ -18,3 +18,4 @@
 	call set_case_name(__FILE__ // ": " // "name"); \
 	call name; \
 	call set_case_name('_not_set_')
+

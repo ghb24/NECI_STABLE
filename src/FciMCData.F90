@@ -29,13 +29,15 @@ MODULE FciMCData
       integer :: fcimcstats_unit2 ! FCIMCStats
       integer :: initiatorstats_unit ! INITIATORStats
       integer :: ComplexStats_unit ! COMPLEXStats
+      integer :: mswalkercounts_unit
       integer :: Tot_Unique_Dets_Unit 
+      integer :: EXLEVELStats_unit ! EXLEVELStats
 
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: WalkVecDets(:,:)                !Contains determinant list
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVec(:,:),SpawnVec2(:,:)
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVecKP(:,:), SpawnVecKP2(:,:)
 
-      ! Hash table to spawning array. Currently only used in (parts of) KP-FCIQMC.
+      ! Hash table to spawning array. Currently not used by default, except in KP-FCIQMC.
       type(ll_node), pointer :: spawn_ht(:)
       ! The number of unique hash values in the spawning hash table.
       integer :: nhashes_spawn
@@ -67,13 +69,14 @@ MODULE FciMCData
       REAL(dp) :: SumSigns, SumSpawns
       real(dp), allocatable :: AvNoatHF(:)
       LOGICAL :: tFillingStochRDMonFly, tFillingExplicRDMonFly
+      logical :: tTransitionRDMsStarted = .false.
       logical :: tFill_RDM
       integer :: IterLastRDMFill
       integer :: Spawned_Parts_Zero, HFInd
       integer :: IterRDMStart
       integer, allocatable :: IterRDM_HF(:)
       real(dp), allocatable :: InstNoatHf(:)
-      logical :: tFinalRDMEnergy
+
 
       INTEGER(KIND=n_int) , ALLOCATABLE :: TempSpawnedParts(:,:)
       INTEGER :: TempSpawnedPartsTag, TempSpawnedPartsInd, TempSpawnedPartsSize
@@ -109,7 +112,7 @@ MODULE FciMCData
 !This is the average diagonal shift value since it started varying, and the sum of the shifts since it started varying, and
                                      !the instantaneous shift, including the number of aborted as though they had lived.
 
-      real(dp) :: DiagSftRe,DiagSftIm     !For complex walkers - this is just for info - not used for population control.
+      real(dp), allocatable :: DiagSftRe(:), DiagSftIm(:)     !For complex walkers - this is just for info - not used for population control.
     
       INTEGER , ALLOCATABLE :: HFDet(:), HFDet_True(:)       !This will store the HF determinant
       INTEGER(TagIntType) :: HFDetTag=0
@@ -151,6 +154,8 @@ MODULE FciMCData
 
       HElement_t(dp), allocatable :: trial_numerator(:), tot_trial_numerator(:)
       HElement_t(dp), allocatable :: trial_denom(:), tot_trial_denom(:)
+      integer(n_int), allocatable :: con_send_buf(:,:)
+      integer :: NConEntry
 
       ! The sum over all previous cycles of the number of particles on the
       ! reference site
@@ -165,6 +170,9 @@ MODULE FciMCData
       ! The (instantaneous) number of particles on the Reference det
       real(dp), allocatable :: NoatHF(:)
       real(dp), allocatable :: NoatDoubs(:)
+      ! L_{0,1,2} norms of weights per excitation level (i.e., extension of
+      ! NoatHF / NoatDoubs, which are L1 norms at two excitation levels).
+      real(dp), allocatable :: EXLEVEL_WNorm(:,:,:)
       ! Number of accepted spawns (separately on each node)
       real(dp), allocatable :: Acceptances(:)
       ! Acceptance ratio (on each node) over the update cycle
@@ -208,6 +216,7 @@ MODULE FciMCData
       real(dp), allocatable :: AllAnnihilated(:)
       real(dp), allocatable :: AllNoAtDoubs(:)
       real(dp), allocatable :: AllNoatHF(:)
+      real(dp), allocatable :: AllEXLEVEL_WNorm(:,:,:)
       HElement_t(dp), allocatable :: sum_proje_denominator(:)
       HElement_t(dp), allocatable :: all_sum_proje_denominator(:)
       HElement_t(dp), allocatable :: cyc_proje_denominator(:)
@@ -265,6 +274,7 @@ MODULE FciMCData
       ! The approximate fraction of singles and doubles. This is calculated
       ! using the HF determinant, if using non-uniform random excitations.
       real(dp) :: pDoubles, pSingles, pParallel
+      real(dp) :: pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2
       integer :: nSingles, nDoubles
       ! The number of determinants connected to the Hartree-Fock determinant.
       integer :: HFConn
@@ -347,7 +357,6 @@ MODULE FciMCData
                                                         !an open-shell determinant, then it is useful
                                                         !to store the spin-coupled determinant, 
                                                         !so we can calculate projection onto both.
-
       ! Even with multiple reference determinants, the calculation is done
       ! relative to Hii. So we need to adjust the calculated projected energy
       ! by a different amount.
@@ -427,7 +436,7 @@ MODULE FciMCData
       ! only used for the code for the Davidson method and semi-stochastic method.
       real(dp), allocatable, dimension(:,:) :: hamiltonian
 
-      integer(TagIntType) :: HamTag, DavidsonTag
+      integer(TagIntType) :: HamTag, DavidsonTag, LanczosTag
 
       ! Semi-stochastic data.
 
@@ -557,10 +566,18 @@ MODULE FciMCData
 
       type(perturbation), allocatable :: pops_pert(:)
 
-      real(dp), allocatable :: replica_overlaps(:,:)
+      real(dp), allocatable :: replica_overlaps_real(:,:)
+#ifdef __CMPLX
+      real(dp), allocatable :: replica_overlaps_imag(:,:)
+#endif
+
+
+      ! counting the total walker population all determinants of each ms value
+      real(dp), allocatable :: walkPopByMsReal(:), walkPopByMsImag(:)
+
 
       ! for the automated tau-search with the guga non-weighted excitation 
       ! generator, i need multiple new specific excitation type probabilities
       real(dp) :: pExcit2, pExcit4, pExcit2_same, pExcit3_same
 
-END MODULE FciMCData
+end module FciMCData

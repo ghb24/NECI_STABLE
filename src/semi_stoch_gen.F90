@@ -38,8 +38,9 @@ contains
         use FciMCData, only: determ_sizes, determ_displs, full_determ_vecs, full_determ_vecs_av
         use FciMCData, only: partial_determ_vecs, determ_space_size, determ_space_size_int
         use FciMCData, only: TotWalkers, TotWalkersOld, indices_of_determ_states, SpawnedParts
-        use FciMCData, only: FDetermTag, FDetermAvTag, PDetermTag, IDetermTag, SemiStoch_Init_Time
-        use FciMCData, only: tStartCoreGroundState, iter_data_fciqmc
+        use FciMCData, only: FDetermTag, FDetermAvTag, PDetermTag, IDetermTag
+        use FciMCData, only: tStartCoreGroundState, iter_data_fciqmc, SemiStoch_Init_Time
+        use FciMCData, only: tFillingStochRdmOnFly
         use load_balance, only: adjust_load_balance
         use load_balance_calcnodes, only: tLoadBalanceBlocks
         use sort_mod, only: sort
@@ -55,7 +56,7 @@ contains
         ! If we are load balancing, this gets disabled once semi stochastic
         ! has been initialised. Therefore we should do a last-gasp load
         ! adjustment at this point.
-        if (tLoadBalanceBlocks) then
+        if (tLoadBalanceBlocks .and. .not. tFillingStochRDMOnFly) then
             call adjust_load_balance(iter_data_fciqmc)
         end if
 
@@ -66,7 +67,7 @@ contains
         call MPIBarrier(ierr, tTimeIn=.false.)
 
         call set_timer(SemiStoch_Init_Time)
-
+        
         write(6,'(/,12("="),1x,a30,1x,12("="))') "Semi-stochastic initialisation"; call neci_flush(6)
 
         allocate(determ_sizes(0:nProcessors-1))
@@ -169,7 +170,7 @@ contains
         SpawnedParts = 0_n_int
         TotWalkersOld = TotWalkers
 
-        if (tStartCoreGroundState .and. (.not. tReadPops)) &
+        if (tStartCoreGroundState .and. (.not. tReadPops) .and. tStaticCore) &
             call start_walkers_from_core_ground(tPrintInfo = .true.)
 
         ! Call MPIBarrier here so that Semistoch_Init_Time will give the
@@ -198,7 +199,7 @@ contains
 
         type(subspace_in) :: core_in
 
-        integer :: space_size, i, j, ierr
+        integer :: space_size, i, ierr, run
         real(dp) :: zero_sign(lenof_sign)
         character (len=*), parameter :: t_r = "generate_space"
 
@@ -281,8 +282,8 @@ contains
 
             call set_flag(SpawnedParts(:,i), flag_deterministic)
             if (tTruncInitiator) then
-                do j = 1, lenof_sign
-                    call set_flag(SpawnedParts(:,i), flag_initiator(j))
+                do run = 1, inum_runs
+                    call set_flag(SpawnedParts(:,i), get_initiator_flag_by_run(run))
                 end do
             end if
         end do
@@ -385,7 +386,7 @@ contains
 
         space_size = space_size + 1
         ilut_list(:, space_size) = 0_n_int
-        ilut_list(0:NIfDBO, space_size) = ilut(0:NIfDBO)
+        ilut_list(0:NIfTot, space_size) = ilut(0:NIfTot)
 
     end subroutine add_state_to_space
 
@@ -403,7 +404,8 @@ contains
 
         use determinants, only: get_helement
         use SymExcit3, only: GenExcitations3
-        use SystemData, only: nel, tKPntSym
+        use SymExcit4, only: GenExcitations4, ExcitGenSessionType
+        use SystemData, only: nel, tKPntSym, tReltvy
 
         integer(n_int), intent(inout) :: ilut_list(0:,:)
         integer, intent(inout) :: space_size
@@ -415,6 +417,8 @@ contains
         integer :: nsing, ndoub, ex_flag
         logical :: tAllExcitFound, tParity
         HElement_t(dp) :: HEl
+
+        type(ExcitGenSessionType) :: session
 
         ! Always generate both the single and double excitations.
         ex_flag = 3
@@ -431,7 +435,11 @@ contains
 
             do while(.true.)
                 ! Generate the next determinant.
-                call GenExcitations3(HFDet, ilutHF, nI, ex_flag, excit, tParity, tAllExcitFound, .false.)
+                if (tReltvy) then
+                    call GenExcitations4(session, HFDet, nI, ex_flag, excit, tParity, tAllExcitFound, .false.)
+                else
+                    call GenExcitations3(HFDet, ilutHF, nI, ex_flag, excit, tParity, tAllExcitFound, .false.)
+                endif
                 if (tAllExcitFound) exit
 
                 call EncodeBitDet(nI, ilut)
@@ -439,7 +447,12 @@ contains
                 ! then check that this determinant is actually connected to it!
                 if (only_keep_conn) then
                     HEl = get_helement(HFDet, nI, ilutHF, ilut)
-                    if (abs(real(HEl,dp)) < 1.e-12_dp) cycle
+                    ! [W.D. 15.5.2017:]
+                    ! is this still enough, even for Hamiltonians containing
+                    ! complex entries?? 
+                    ! and why is the cast to real(dp) done here?? 
+!                     if (abs(real(HEl,dp)) < 1.e-12_dp) cycle
+                    if (abs(HEl) < 1.e-12_dp) cycle
                 end if
                 call add_state_to_space(ilut, ilut_list, space_size, nI)
             end do
@@ -735,8 +748,8 @@ contains
         ! In (optional): max_space_size - Only used if tLimitSpace is true. See
         !     tLimitSpace for an explanation of use.
 
-        use davidson_neci, only: perform_davidson, davidson_eigenvalue, davidson_eigenvector, &
-                            sparse_hamil_type
+        use davidson_neci, only: perform_davidson, DestroyDavidsonCalc, DavidsonCalcType
+        use hamiltonian_linalg, only: sparse_hamil_type
         use enumerate_excitations, only: generate_connected_space
         use searching, only: remove_repeated_states
         use sort_mod, only: sort
@@ -758,6 +771,8 @@ contains
                            sendcounts(0:nProcessors-1), recvcount, this_proc_size
         integer(TagIntType) :: IlutTag, TempTag, FinalTag
         character (len=*), parameter :: t_r = "generate_optimised_space"
+
+        type(DavidsonCalcType) :: davidsonCalc
 
         if (iProcIndex /= root) then
             ! Allocate some space so that the MPIScatterV call does not crash.
@@ -824,7 +839,11 @@ contains
                 call neci_flush(6)
 
                 ! Now that the Hamiltonian is generated, we can finally find the ground state of it:
-                call perform_davidson(sparse_hamil_type, .false.)
+                call perform_davidson(davidsonCalc, sparse_hamil_type, .false.)
+
+                associate( &
+                    davidson_eigenvector => davidsonCalc%davidson_eigenvector &
+                )
 
                 ! davidson_eigenvector now stores the ground state eigenvector. We want to use the
                 ! vector whose components are the absolute values of this state:
@@ -863,6 +882,7 @@ contains
                 deallocate(hamil_diag, stat=ierr)
                 call LogMemDealloc(t_r, HDiagTag, ierr)
 
+                end associate
             end do
 
         end if ! If on root.
@@ -1034,7 +1054,7 @@ contains
         temp_ilut = 0_n_int
         do i = 1, n_states_this_proc
             ! The states in largest_states are sorted from smallest to largest.
-            temp_ilut(0:NIfDBO) = largest_states(0:NIfDBO, length_this_proc-i+1)
+            temp_ilut(0:NIfTot) = largest_states(0:NIfTot, length_this_proc-i+1)
             call add_state_to_space(temp_ilut, ilut_list, space_size)
         end do
 
@@ -1571,5 +1591,51 @@ contains
         end do
 
     end subroutine write_most_pop_core_at_end
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine refresh_semistochastic_space()
+      use FciMCData, only: iter_data_fciqmc
+      use semi_stoch_procs, only: end_semistoch
+      implicit none
+
+      ! The reinitialization of the semistochastic space can affect population
+      ! because of stochastic rounds. To log this correctly, set the iter_data to 0 here
+      iter_data_fciqmc%nborn = 0.0_dp
+      iter_data_fciqmc%nremoved = 0.0_dp
+      tStaticCore = .false.
+
+      ! as the important determinants might change over time, this
+      ! resets the semistochastic space taking the current population to get a new one
+      call end_semistoch()
+      ! the flag_deterministic flag has to be cleared from all determinants as it is
+      ! assumed that no states have that flag when init_semi_stochastic starts
+      call reset_core_space()
+      ! Now, generate the new deterministic space
+      call init_semi_stochastic(ss_space_in)
+
+      ! Changing the semi-stochastic space can involve some roundings
+      ! if determinants with population < realSpawnCutoff stop being 
+      ! in the corespace. Then, we need to log these events.
+      iter_data_fciqmc%update_growth = iter_data_fciqmc%update_growth + iter_data_fciqmc%nborn &
+           - iter_data_fciqmc%nremoved
+
+    end subroutine refresh_semistochastic_space
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine reset_core_space()
+      use bit_reps, only: clr_flag
+      use FciMCData, only: MaxWalkersPart
+      implicit none
+      integer :: i
+      
+      do i=1, MaxWalkersPart
+         call clr_flag(CurrentDets(:,i),flag_deterministic)
+      enddo
+      
+    end subroutine reset_core_space
+
+!------------------------------------------------------------------------------------------!
 
 end module semi_stoch_gen

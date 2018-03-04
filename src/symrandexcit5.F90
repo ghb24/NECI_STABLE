@@ -10,9 +10,9 @@ module excit_gen_5
                                        pick_weighted_elecs, select_orb, &
                                        pgen_select_orb, pgen_weighted_elecs
     use SymExcitDataMod, only: SpinOrbSymLabel, SymInvLabel, ScratchSize
-    use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
+    use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, projedet
     use SystemData, only: G1, tUHF, tStoreSpinOrbs, nbasis, nel, &
-                          tGen_4ind_part_exact, tGen_4ind_2_symmetric
+                          tGen_4ind_part_exact, tGen_4ind_2_symmetric, tHPHF
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use GenRandSymExcitNUMod, only: init_excit_gen_store
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet
@@ -20,19 +20,23 @@ module excit_gen_5
     use dSFMT_interface, only: genrand_real2_dSFMT
     use procedure_pointers, only: get_umat_el
     use sym_general_mod, only: ClassCountInd
-    use bit_rep_data, only: NIfTot, NIfD
-    use bit_reps, only: decode_bit_det
+    use bit_rep_data, only: NIfTot, NIfD, test_flag
+    use bit_reps, only: decode_bit_det, get_initiator_flag
     use get_excit, only: make_double
     use UMatCache, only: gtid
     use constants
     use sort_mod
     use util_mod
+    use CalcData, only: t_back_spawn, t_back_spawn_occ_virt, t_back_spawn_flex, &
+                        occ_virt_level
+    use back_spawn, only: pick_virtual_electrons_double, pick_occupied_orbital, &
+                          check_electron_location, pick_second_occupied_orbital
     implicit none
 
 contains
 
     subroutine gen_excit_4ind_weighted2 (nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                     ExcitMat, tParity, pGen, HelGen, store)
+                                     ExcitMat, tParity, pGen, HelGen, store, part_type)
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
@@ -42,10 +46,15 @@ contains
         HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
+        integer, intent(in), optional :: part_type
         character(*), parameter :: this_routine = 'gen_excit_4ind_weighted2'
 
         real(dp) :: pgen2
         real(dp) :: cum_arr(nbasis)
+
+#ifdef __DEBUG 
+        HElement_t(dp) :: temp_hel
+#endif
 
         HElGen = HEl_zero
 
@@ -72,8 +81,15 @@ contains
         ! And a careful check!
 #ifdef __DEBUG
         if (.not. IsNullDet(nJ)) then
-            pgen2 = calc_pgen_4ind_weighted2(nI, ilutI, ExcitMat, ic)
+             pgen2 = calc_pgen_4ind_weighted2(nI, ilutI, ExcitMat, ic)
             if (abs(pgen - pgen2) > 1.0e-6_dp) then
+                if (tHPHF) then
+                    print *, "due to circular dependence, no matrix element calc possible!"
+    !                 temp_hel = hphf_off_diag_helement(nI,nJ,ilutI,ilutJ)
+                else
+                    temp_hel = get_helement(nI, nJ, ilutI, ilutJ)
+                end if
+
                 write(6,*) 'Calculated and actual pgens differ.'
                 write(6,*) 'This will break HPHF calculations'
                 call write_det(6, nI, .false.)
@@ -83,6 +99,7 @@ contains
                            ExcitMat(2,1:ic)
                 write(6,*) 'Generated pGen:  ', pgen
                 write(6,*) 'Calculated pGen: ', pgen2
+                write(6,*) 'matrix element: ', temp_hel
                 call stop_all(this_routine, "Invalid pGen")
             end if
         end if
@@ -141,7 +158,15 @@ contains
             tgt = ex(2, :)
             call pgen_select_a_orb(ilutI, src, tgt(1), iSpn, int_cpt(1), &
                                    cum_sums(1), cum_arr, .true.)
-            if (int_cpt(1) > 1.0e-8_dp) then
+            if (int_cpt(1) > EPS) then
+                ! [W.D.]
+                ! this threshold is also really arbitrary.. 
+                ! todo: investigate that!
+                ! it has to be atleast twice the integral cut-off to be 
+                ! anywhere consistent.. although also that is kind of 
+                ! strange.. 
+                ! now.. i would have to be 2*sqrt(umateps) .. but also that.. 
+                ! just remove it i guess..
                 call pgen_select_orb(ilutI, src, tgt(1), tgt(2), int_cpt(2), &
                                      cum_sums(2))
                 generate_list = .false.
@@ -153,12 +178,24 @@ contains
 
             call pgen_select_a_orb(ilutI, src, tgt(2), iSpn, cpt_pair(1), &
                                    sum_pair(1), cum_arr, generate_list)
-            if (cpt_pair(1) > 1.0e-8_dp) then
+            if (cpt_pair(1) > EPS) then
                 call pgen_select_orb(ilutI, src, tgt(2), tgt(1), cpt_pair(2), &
                                      sum_pair(2))
             else
                 cpt_pair(2) = 0.0_dp
                 sum_pair(2) = 1.0_dp
+            end if
+
+            ! i think i also have to deal with divisions by zero here
+            ! in a correct way, when removing the lower pgen threshold. 
+            if (any(cum_sums < EPS)) then
+                cum_sums = 1.0_dp
+                int_cpt = 0.0_dp
+            end if
+
+            if (any(sum_pair < EPS)) then
+                sum_pair = 1.0_dp
+                cpt_pair = 0.0_dp
             end if
 
             ! And adjust the probability for the components
@@ -177,6 +214,9 @@ contains
 
 
     subroutine gen_double_4ind_ex2 (nI, ilutI, nJ, ilutJ, ex, par, pgen)
+
+        use GenRandSymExcitNUMod, only: RandExcitSymLabelProd
+        use SymExcitDataMod, only: SpinOrbSymLabel
 
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
@@ -197,12 +237,17 @@ contains
 
         real(dp) :: scratch_cpt, scratch_sm
         integer :: scratch_orb
+        integer :: loc
 
         ! Pick the electrons in a weighted fashion
         call pick_weighted_elecs(nI, elecs, src, sym_product, ispn, sum_ml, &
                                  pgen)
-        !call pick_biased_elecs(nI, elecs, src, sym_product, ispn, sum_ml, pgen)
 
+        ! then first pick (a) orbital: 
+        ! for opposite spin excitations (a) is restricted to be a beta orbital! 
+        ! and the probability is split p(a|ij) = p(j)*p(a|i) 
+        ! except in the symmetric excitation generator, which isn't used 
+        ! ever anyway..
         orbs(1) = pick_a_orb(ilutI, src, iSpn, int_cpt(1), cum_sum(1), cum_arr)
 
         ! Select the B orbital, in the same way as before!!
@@ -210,29 +255,54 @@ contains
         if (orbs(1) /= 0) then
             cc_a = ClassCountInd(orbs(1))
             cc_b = get_paired_cc_ind(cc_a, sym_product, sum_ml, iSpn)
+
+            ! pick the last orbitals weighted with the exact matrix 
+            ! element 
             orbs(2) = select_orb (ilutI, src, cc_b, orbs(1), int_cpt(2), &
-                                  cum_sum(2))
+                              cum_sum(2))
         end if
 
+        ! what does this assert do?  do i have to pick the electrons in a 
+        ! certain order??
         ASSERT((.not. (is_beta(orbs(2)) .and. .not. is_beta(orbs(1)))) .or. tGen_4ind_2_symmetric)
         if (any(orbs == 0)) then
             nJ(1) = 0
+            pgen = 0.0_dp
             return
         end if
 
+        ! can i exit right away if this happens??
+        ! i am pretty sure this means 
+        if (any(cum_sum < EPS)) then 
+           cum_sum = 1.0_dp
+           int_cpt = 0.0_dp
+        end if
+        
         ! Calculate the pgens. Note that all of these excitations can be
         ! selected as both A--B or B--A. So these need to be calculated
         ! explicitly.
         ASSERT(tGen_4ind_part_exact)
         if ((is_beta(orbs(1)) .eqv. is_beta(orbs(2))) .or. tGen_4ind_2_symmetric) then
+
+            ! in the case of parallel spin excitations or symmetrice excitation 
+            ! generation(but does actually someone use that?) we have to 
+            ! calculate the probability of picking the holes the other 
+            ! way around 
             call pgen_select_a_orb(ilutI, src, orbs(2), iSpn, cpt_pair(1), &
                                    sum_pair(1), cum_arr, .false.)
             call pgen_select_orb(ilutI, src, orbs(2), orbs(1), &
                                  cpt_pair(2), sum_pair(2))
+
         else
-            cpt_pair = 0
-            sum_Pair = 1
+            cpt_pair = 0.0_dp
+            sum_Pair = 1.0_dp
         end if
+
+        if (any(sum_pair < EPS)) then 
+            cpt_pair = 0.0_dp
+            sum_pair = 1.0_dp
+        end if
+
         pgen = pgen * (product(int_cpt) / product(cum_sum) + &
                        product(cpt_pair) / product(sum_pair))
 
@@ -315,6 +385,10 @@ contains
             cum_arr(orb) = cum_sum
         end do
 
+!         if (srcid(1) == 2 .and. srcid(2) == 3 .and. parallel) then
+!             print *, "cum_sum(a|ij): ", cum_arr
+!         end if
+
     end subroutine
 
     function pick_a_orb(ilut, src, ispn, cpt, cum_sum, cum_arr) result(orb)
@@ -342,7 +416,9 @@ contains
         ! there is no selection avaialable
         call gen_a_orb_cum_list(ilut, src, ispn, cum_arr)
         cum_sum = cum_arr(nbasis)
-        if (cum_sum == 0) then
+        ! ok this equivalence is also not good.. 
+!         if (cum_sum == 0) then
+        if (cum_sum < EPS) then 
             orb = 0
             return
         end if
@@ -413,7 +489,7 @@ contains
         ! calculating HPHF components) then we should ensure that the
         ! pgen contribution is 0.0, whilst avoiding a divide by zero error.
         cum_sum = cum_arr(nbasis)
-        if (cum_sum == 0) then
+        if (cum_sum < EPS) then
             cpt = 0.0_dp
             cum_sum = 1.0_dp
             return

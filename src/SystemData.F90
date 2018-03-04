@@ -34,7 +34,7 @@ logical :: tRotatedOrbsReal     !This means we are reading in a complex FCIDUMP,
                                 !kpoints to be at the gamma point or BZ boundary.
                                 !At the reading in, the integrals will be converted to reals,
                                 !but kpoint symmetry can still be used.
-logical :: tReadFreeFormat
+logical :: tReadFreeFormat,tReltvy
 
 logical :: tRIIntegrals   ! Read in RI 2-e integrals from RIDUMP file
 logical :: tStoreSpinOrbs ! This is set when the orbitals are stored in 
@@ -51,6 +51,7 @@ logical :: tAntisym_MI    !Antisymmetric MI functions.
 logical :: tComplexOrbs_RealInts    !We are using complex orbitals, but real integrals. 
                                     !Therefore, check the mom sym before looking up integral, 
                                     !since we only have 4x perm sym.
+logical :: tComplexWalkers_RealInts !We are using real orbitals, but complex walkers
 integer :: iParity(5), nMaxX, nMaxY, nMaxZ, nMSH, coulDampOrb, elecPairs
 integer :: roIterMax, iRanLuxLev, DiagMaxMinFac, OneElmaxMinFac, iState
 integer :: iTiltX, iTiltY, nOccAlpha, nOccBeta, ShakeIterMax, ShakeStart
@@ -279,20 +280,32 @@ real(dp), allocatable :: current_cum_list(:)
 ! use a flag for only running the excitation generator test in the dets case
 logical :: t_test_excit_gen = .false.
 
-! try to implement twisted boundary conditions while dealing with the 
-! hubbard model
-logical :: t_twisted_bc = .false.
-real(dp) :: twisted_bc(2) = 0.0_dp
-
 ! put in a logical to not reorder the orbitals in the guga + hubbard case 
 ! to directly compare it with the determinental implementation, even if
 ! this might decrease the efficiency of the guga implmenetation
 logical :: t_guga_noreorder = .false.
 
-! introduce new flag to specifify open  boundary condition in certain 
-! lattice dimensions. 
-logical :: t_open_BC_x = .false.
-logical :: t_open_BC_y = .false.
+! flags for the use of open boundary conditions in the real-space 
+! hubbard model. 
+! for the cubic lattice the can be set separately, for the tilted only 
+! full open BC are implemented
+logical :: t_open_bc_x = .false.
+logical :: t_open_bc_y = .false.
+
+! use an intermediate flag for a new implementation of the newest excitation
+! generator
+logical :: tGen_4ind_unbound = .false.
+
+! also implement a next-nearest neighbor Hubbard model implementation: 
+! for k-space hubbard, this only affects the diagonal part! 
+real(dp) :: nn_bhub = 0.0_dp
+
+! i have to merge the twisted bc into master i just realized!
+logical :: t_twisted_bc = .false.
+real(dp) :: twisted_bc(2) = 0.0_dp
+
+! do a quick test with different weightings of picking orbitals (a) 
+logical :: t_iiaa = .false., t_ratio = .false. 
 
 ! Operators for type(symmetry)
 interface assignment (=)

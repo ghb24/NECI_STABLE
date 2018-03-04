@@ -15,6 +15,8 @@ MODULE Logging
     use errors, only: Errordebug 
     use LoggingData
     use spectral_data, only: tPrint_sl_eigenvecs
+    use rdm_data, only: nrdms_transition_input, states_for_transition_rdm
+    use rdm_data, only: rdm_main_size_fac, rdm_spawn_size_fac, rdm_recv_size_fac
 
     IMPLICIT NONE
 
@@ -101,9 +103,12 @@ MODULE Logging
       HistInitPopsIter=100000
       hist_spin_dist_iter = 1000
       tLogDets=.false.
+      tLogEXLEVELStats=.false.
       tCalcInstantS2 = .false.
       tCalcInstantS2Init = .false.
       tCalcInstSCpts = .false.
+      tCalcPropEst=.false.
+      iNumPropToEst=0
       instant_s2_multiplier = 1
       tRDMonFly=.false.
       tChangeVarsRDM = .false.
@@ -114,7 +119,7 @@ MODULE Logging
       tPrintRODump=.false.
       IterRDMonFly=0
       RDMExcitLevel=1
-      tDo_Not_Calc_RDMEnergy = .false.
+      tDo_Not_Calc_2RDM_est = .false.
       tExplicitAllRDM = .false.
       twrite_normalised_RDMs = .true. 
       tWriteSpinFreeRDM = .false.
@@ -152,6 +157,7 @@ MODULE Logging
       tOutputLoadDistribution = .false.
       tHDF5PopsRead = .false.
       tHDF5PopsWrite = .false.
+      tWriteRefs = .false.
 
 #ifdef __PROG_NUMRUNS
       tFCIMCStats2 = .true.
@@ -165,19 +171,26 @@ MODULE Logging
           ILOGGINGDef=2
       ENDIF
 
+      ref_filename = "REFERENCES"
+
     end subroutine SetLogDefaults
 
     subroutine LogReadInput()
 
         ! Read the logging section from the input file
 
-        logical eof
-        integer :: i, ierr
+        logical :: eof
+        logical tUseOnlySingleReplicas
+        integer :: i, line, ierr
         character(100) :: w
+        character(100) :: PertFile(3)
         character(*), parameter :: t_r = 'LogReadInput'
+
+      tUseOnlySingleReplicas = .false.
 
       ILogging=iLoggingDef
 
+      PertFile(:) = ''
       logging: do
         call read_line(eof)
         if (eof) then
@@ -496,6 +509,15 @@ MODULE Logging
             tHistInitPops=.true.
             call readi(HistInitPopsIter)
 
+        case("UNPAIRED-REPLICAS")
+            tUseOnlySingleReplicas = .true.
+#if defined(__PROG_NUMRUNS)
+            tPairedReplicas = .false.
+            nreplicas = 1
+#elif defined(__DOUBLERUN)
+            call stop_all(t_r, "The unpaired-replicas option cannot be used with the dneci.x executable.")
+#endif
+
         case("CALCRDMONFLY")
 !This keyword sets the calculation to calculate the reduced density matrix on the fly.  
 !This starts at IterRDMonFly iterations after the shift changes.
@@ -509,8 +531,10 @@ MODULE Logging
 
 #if defined(__PROG_NUMRUNS)
             ! With this option, we want to use pairs of replicas.
-            tPairedReplicas = .true.
-            nreplicas = 2
+            if (.not. tUseOnlySingleReplicas) then
+                tPairedReplicas = .true.
+                nreplicas = 2
+            end if
 #elif defined(__DOUBLERUN)
             tPairedReplicas = .true.
 #endif
@@ -520,6 +544,39 @@ MODULE Logging
 
             if (IterRDMOnFly < trial_shift_iter) call stop_all(t_r,"Trial wavefunctions needs to be turned on before &
                                                                         &RDMs are turned on.")
+
+        case("OLDRDMS")
+! Accumulate RDMs using the old RDM code.
+            tOldRDMs = .true.
+
+        case("RDM-MAIN-SIZE-FAC")
+            call readf(rdm_main_size_fac)
+        case("RDM-SPAWN-SIZE-FAC")
+            call readf(rdm_spawn_size_fac)
+        case("RDM-RECV-SIZE-FAC")
+            call readf(rdm_recv_size_fac)
+
+        case("TRANSITION-RDMS")
+            tTransitionRDMs = .true.
+            call readi(nrdms_transition_input)
+            allocate(states_for_transition_rdm(2, nrdms_transition_input), stat=ierr)
+
+            do line = 1, nrdms_transition_input
+                call read_line(eof)
+                do i = 1, 2
+                    call geti(states_for_transition_rdm(i, line))
+                end do
+            end do
+
+        case("PRINT-1RDMS-FROM-2RDM-POPS")
+            tPrint1RDMsFrom2RDMPops = .true.
+            tReadRDMs = .true.
+
+        case("PRINT-1RDMS-FROM-SPINFREE")
+            tPrint1RDMsFromSpinfree = .true.
+
+        case("NO-APPEND-STATS")
+            t_no_append_stats = .true.
 
         case("DIAGFLYONERDM")
 !This sets the calculation to diagonalise the *1* electron reduced density matrix.   
@@ -601,6 +658,11 @@ MODULE Logging
             tDipoles = .true.
 
         case("CALCRDMENERGY")
+            call stop_all(t_r, "The CALCRDMENERGY option has been replaced by CALC-2RDM-ESTIMATES. &
+                               &The 2-RDM energy is calculated by default when 2-RDMs are being &
+                               &sampled, so this option is only needed if one wants to turn this off.")
+
+        case("CALC-2RDM-ESTIMATES")
 !This takes the 1 and 2 electron RDM and calculates the energy using the RDM expression.            
 !For this to be calculated, RDMExcitLevel must be = 3, so there is a check to make sure this 
 !is so if the CALCRDMENERGY keyword is present.
@@ -608,12 +670,27 @@ MODULE Logging
                 call readu(w)
                 select case(w)
                     case("OFF")
-                        tDo_Not_Calc_RDMEnergy=.true.
+                        tDo_Not_Calc_2RDM_est = .true.
                 end select
             ELSE
-                tDo_Not_Calc_RDMEnergy=.false.
+                tDo_Not_Calc_2RDM_est = .false.
             ENDIF
         
+        case("CALC-PROP-ESTIMATES")
+!Calculate the estimates of the one-electron properties using 1 electron RDM and 1 electron 
+!property integrals. It uses all the different RDMs that have been estimated and get the
+!corresponding property estimations.  
+            tCalcPropEst=.true.
+            if(nitems==1) then
+                call stop_all(t_r,"Please specify the name of the integral file corresponding the property")
+            endif
+            ! iNumPropToEst is the total number of properties to be estimated
+            iNumPropToEst=iNumPropToEst + 1
+            if(iNumPropToEst.gt.3) then
+                call stop_all(t_r,'Only 3 different property integrals allowed')
+            endif
+            call readu(PertFile(iNumPropToEst))
+
         case("NORDMINSTENERGY")
 !Only calculate and print out the RDM energy (from the 2-RDM) at the end of the simulation
 !This saves memory by only having to store one set of RDMs on the headnode rather than two
@@ -916,7 +993,8 @@ MODULE Logging
             tLogDets=.true.
         case("DETERMINANTS")
             tLogDets=.true.
-
+        case("EXLEVEL")
+            tLogEXLEVELStats=.true.
         case ("INSTANT-S2-FULL")
             ! Calculate an instantaneous value for S^2, and output it to the
             ! relevant column in the FCIMCStats file.
@@ -977,6 +1055,11 @@ MODULE Logging
             ! varying excitation levels from the Hartree--Fock.
             tHistExcitToFrom = .true.
 
+!         case("PRINT-FREQUENCY-HISTOGRAMS")
+!             ! option to print out the histograms used in the tau-search! 
+!             ! note: but for now they are always printed by default
+!             t_print_frq_histograms = .true.
+
         case("ENDLOG")
             exit logging
 
@@ -1013,6 +1096,15 @@ MODULE Logging
             t_umat_output = .true.
 
         case("DOUBLE-OCCUPANCY")
+            ! new functionality to measure the mean double occupancy 
+            ! as this is a only diagonal quantitity i decided to detach it 
+            ! from the RDM calculation, although it could be calculated 
+            ! from the RDMs and this should be used to test this functionality!
+            ! Also, as it is a diagonal quantity, we need to unbias the 
+            ! quantitiy by using the replica trick, just like for the 
+            ! RDMs! Also this should be tested, to what extend the 
+            ! quantity differs in a biased and unbiased calculation
+
             t_calc_double_occ = .true.
             t_calc_double_occ_av = .true.
 
@@ -1021,10 +1113,35 @@ MODULE Logging
                 call geti(equi_iter_double_occ)
             end if
 
+
+        case ("PRINT-SPIN-RESOLVED-RDMS")
+            ! for giovanni enable the output of the spin-resolved rdms not 
+            ! only for ROHF calculations
+            t_spin_resolved_rdms = .true.
+
+        case ("LOG-IJA") 
+            t_log_ija = .true. 
+
+            if (item < nitems) then 
+                call getf(ija_thresh)
+            end if
+
+         case("WRITE-REFERENCES")
+            ! Output the reference dets to a file
+            tWriteRefs = .true.
+
         case default
            CALL report("Logging keyword "//trim(w)//" not recognised",.true.)
         end select
       end do logging
+
+      if(tCalcPropEst) then
+          !Save the name of the integral files in the proper place
+          if(iNumPropToEst.eq.0) call stop_all(t_r,'Error in the property estimations')
+          if(allocated(EstPropFile)) deallocate(EstPropFile)
+          allocate(EstPropFile(iNumPropToEst))
+          EstPropFile(:) = PertFile(1:iNumPropToEst)
+      endif
     END SUBROUTINE LogReadInput
 
 

@@ -7,7 +7,7 @@ MODULE System
                         occCASorbs, virtCASorbs, tPairedReplicas
 
     use sort_mod
-    use SymExcitDataMod, only: tBuildOccVirtList
+    use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use constants
     use iso_c_hack
     use read_fci, only: FCIDUMP_name
@@ -44,7 +44,9 @@ MODULE System
       tGen_sym_guga_mol = .false.
       tgen_guga_weighted = .false.
       t_consider_diff_bias = .false.
+      tReltvy = .false.
       tComplexOrbs_RealInts = .false.
+      tComplexWalkers_RealInts = .false.
       tReadFreeFormat=.true.
       tMolproMimic=.false.
       tNoSingExcits=.false.
@@ -117,6 +119,7 @@ MODULE System
       tUEGOffset = .false.
       TTILT = .false.
       TALPHA = .false.
+      ALPHA = 0.0_dp
       ISTATE = 1
       OrbECutoff=1e20_dp
       tOrbECutoff=.false.
@@ -194,7 +197,11 @@ MODULE System
 
 #ifdef __PROG_NUMRUNS
       inum_runs = 1
+#ifdef __CMPLX
+      lenof_sign = 2
+#else
       lenof_sign = 1
+#endif
 #endif
 
 !Feb08 defaults:
@@ -203,8 +210,8 @@ MODULE System
       ENDIF
 
 ! Coulomb damping function currently removed.
-!      FCOULDAMPBETA=-1.0_dp
-!      COULDAMPORB=0
+      FCOULDAMPBETA=-1.0_dp
+      COULDAMPORB=0
         
     end subroutine SetSysDefaults
 
@@ -542,47 +549,20 @@ system: do
             call getf(UHUB)
         case("B")
             call getf(BHUB)
+
+        case ("NEXT-NEAREST-HOPPING")
+            call getf(nn_bhub)
+
         case("REAL")
             TREAL = .true.
             ! i think for the real-space i have to specifically turn off 
             ! the symmetry and make other changes in the code to never try 
             ! to set up the symmetry
+            ! in case of the real-space lattice also turn off symmetries
             lNoSymmetry = .true.
+
         case("APERIODIC")
             TPBC = .false.
-
-        case ("OPEN-BC")
-            ! make an new keyword to apply open boundary conditions in the 
-            ! real-space case with an option to only specify a certain 
-            ! dimension restricted to open BC
-            ! for simplicity always use fully-open BC in the tilted case, 
-            ! since there it is hard to define what the x/y dimensions are 
-            ! and it seems unnecessary to implement that. 
-            ! also, do not do it for the momentum-space model, since 
-            ! everything breaks down then, and it does not make sense to 
-            ! do use a plane wave-basis in this case!
-            call readu(w)
-
-            select case (w)
-            case ("X")
-                ! only open BC in x-dimension
-                t_open_BC_x = .true.
-
-            case ("Y") 
-                ! only open BC in y-dimension 
-                t_open_BC_y = .true.
-
-            case ("XY")
-                ! open BC in both lattice dimensions
-                t_open_BC_y = .true.
-                t_open_BC_x = .true.
-
-            case default
-                ! default case is also open BC in both directions! 
-                t_open_BC_y = .true.
-                t_open_BC_x = .true.
-
-            end select
 
         case ("TWISTED-BC")
             ! first try at implementing twisted bounday conditions
@@ -594,6 +574,35 @@ system: do
             else
                 ! if only one input apply the same shift to both x and y!
                 twisted_bc(2) = twisted_bc(1)
+        case ("OPEN-BC")
+            ! open boundary implementation for the real-space hubbard 
+            ! model
+            ! only applicable for 1 and 2 dimensional lattices! 
+            ! for the square lattice on can specify mixed boundary conditions
+            ! (periodic + open) but not in the tilted where always full
+            ! open boundary conditions are used if this keyword is present!
+
+            if (item < nitems) then
+                call readu(w)
+
+                select case (w)
+                case ("X")
+                    ! onl open in x-direction
+                    t_open_bc_x = .true.
+
+                case ("Y")
+                    ! only open in y-direction 
+                    t_open_bc_y = .true.
+
+                case ("XY")
+                    ! open in both directions
+                    t_open_bc_x = .true.
+                    t_open_bc_y = .true.
+
+                end select 
+            else
+                t_open_bc_x = .true.
+                t_open_bc_y = .true.
             end if
 
         case("UEG-OFFSET")
@@ -981,6 +990,13 @@ system: do
                         ! (symrandexcit3.F90)
                         tPickVirtUniform = .true.
                         tBuildOccVirtList = .true.
+                    case("PICK-VIRT-UNIFORM-MAG")
+                        ! Pick virtual orbitals randomly and uniformly in the
+                        ! 3rd generation of random excitation generators
+                        ! (symrandexcit3.F90)
+                        tPickVirtUniform = .true.
+                        tBuildOccVirtList = .true.
+                        tBuildSpinSepLists = .true.
                     case("HEL-WEIGHTED-SLOW")
                         ! Pick excitations from any site with a generation
                         ! probability proportional to the connectiong HElement
@@ -1026,6 +1042,38 @@ system: do
                         tGen_4ind_2 = .true.
                         tGen_4ind_part_exact = .true.
                         tGen_4ind_2_symmetric = .false.
+
+                    case("4IND-WEIGHTED-UNBOUND")
+                        ! [Werner Dobrautz 26.4.2017:]
+                        ! new tests for optimizations for the latest 
+                        ! excitation generator implementation, without using
+                        ! the artificial lower bounds for the energy
+                        tGen_4ind_2 = .true.
+                        tGen_4ind_part_exact = .true.
+                        tGen_4ind_2_symmetric = .false.
+                        tGen_4ind_unbound = .true.
+
+                        ! make a few small tests for the frequency histograms
+                        if (item < nitems) then 
+                            call readu(w) 
+
+                            select case (w) 
+                            case ("IIAA")
+                                ! weight with <ii|aa> instead of <ia|ia> 
+                                t_iiaa = .true. 
+
+                            case ("RATIO") 
+                                ! weigh with the ratio <ia|ia>/<ja|ja> 
+                                t_ratio = .true. 
+
+                            case ("IIAA-RATIO", "RATIO-IIAA")
+                                t_iiaa = .true. 
+                                t_ratio = .true.
+
+                            end select 
+                        end if
+
+
                     case("4IND-WEIGHTED-2-SYMMETRIC")
                         ! The other version of this generator. This permits
                         ! selecting orbitals in both directions
@@ -1091,6 +1139,10 @@ system: do
             !We have complex orbitals, but real integrals. This means that we only have 4x permutational symmetry,
             !so we need to check the (momentum) symmetry before we look up any integrals
             tComplexOrbs_RealInts = .true.
+            
+         case("COMPLEXWALKERS-REALINTS")
+            ! We have real orbitals and integrals, but the walker weights are complex
+            tComplexWalkers_RealInts = .true.
 
         case("SYSTEM-REPLICAS")
             ! How many copies of the simulation do we want to run in parallel?
@@ -1099,7 +1151,11 @@ system: do
 #ifdef __PROG_NUMRUNS
             call readi(inum_runs)
             tMultiReplicas = .true.
+#ifdef __CMPLX
+            lenof_sign = 2*inum_runs
+#else
             lenof_sign = inum_runs
+#endif
             if (inum_runs > inum_runs_max) then
                 write(6,*) 'Maximum SYSTEM-REPLICAS: ', inum_runs_max
                 call stop_all(t_r, 'SYSTEM-REPLICAS is greater than maximum &
@@ -1526,6 +1582,7 @@ system: do
       
           ELSE
 !C.. Create plane wave basis functions
+
               WRITE(6,*) "Creating plane wave basis."     
               IG=0
               DO I=NBASISMAX(1,1),NBASISMAX(1,2)
@@ -1758,6 +1815,10 @@ system: do
           IF(THUB) THEN
              WRITE(6,'(1X,A,F19.5)') '  HUBBARD T : ' , BHUB
              WRITE(6,'(1X,A,F19.5)') '  HUBBARD U : ' , UHUB
+             if (abs(nn_bhub) > EPS) then 
+                 WRITE(6,'(1X,A,F19.5)') '  HUBBARD T* : ' , nn_bhub
+                 print *, "Also next-nearest neighbor hopping!"
+             end if
              IF(TTILT) WRITE(6,*) ' TILTED LATTICE: ',ITILTX, ",",ITILTY
              IF(TTILT.AND.ITILTX.GT.ITILTY) call stop_all(this_routine, 'ERROR: ITILTX>ITILTY')
           ELSE
@@ -1833,6 +1894,7 @@ system: do
                 CALL SETBASISLIM_HUBTILT(NBASISMAX,NMAXX,NMAXY,NMAXZ,LEN,TPBC,ITILTX,ITILTY)
                 ! why is tilted real-space lattice not supported??
                 ! hm.. try.. anyway
+                ! is supported now!
 !                 IF(TREAL) call stop_all(this_routine, 'REAL TILTED HUBBARD NOT SUPPORTED')
               ELSE
                 CALL SETBASISLIM_HUB(NBASISMAX,NMAXX,NMAXY,NMAXZ,LEN,TPBC,TREAL)
@@ -1920,9 +1982,6 @@ system: do
          ENDIF
       ELSE
 !C.. Create plane wave basis functions
-! here we are also when we are using a real-space basis.. 
-! this should be changed.. todo
-! i have to change stuff here for the real-space hubbard model
         if (treal) then
          WRITE(6,*) "Creating real-space basis."
         else
@@ -2046,20 +2105,20 @@ system: do
                call stop_all(this_routine, ' LEN NE IG ')
             endif
          ENDIF
+         ! also turn off symmetries for the real-space basis
          if (thub .and. treal) then
-             WRITE(6,*) "Turning Symmetry off for real-space hubbard"
-              DO I=1,nBasis
-                  G1(I)%Sym%s=0
-              ENDDO
-              CALL GENMOLPSYMTABLE(1,G1,NBASIS)
-              DO I=1,nBasis
-                  G1(I)%Sym%s=0
-              ENDDO
-        endif
-
-         if (.not. tHub ) CALL GENMOLPSYMTABLE(1,G1,NBASIS)
-
+             WRITE(6,*) "Turning Symmetry off for the real-space Hubbard"
+             DO I = 1,nBasis
+                 G1(I)%Sym%s = 0
+             end do
+             call GENMOLPSYMTABLE(1,G1,NBASIS)
+             DO I = 1, nBasis
+                 G1(I)%Sym%s = 0
+             end do
+         end if
+         if (.not. tHub) CALL GENMOLPSYMTABLE(1,G1,NBASIS)
       ENDIF
+
       IF(tFixLz) THEN
           WRITE(6,'(A)') "****** USING Lz SYMMETRY *******"
           WRITE(6,'(A,I5)') "Pure spherical harmonics with complex orbitals used to constrain Lz to: ",LzTot

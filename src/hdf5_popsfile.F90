@@ -114,6 +114,9 @@ module hdf5_popsfile
             nm_pdoubles = 'pdoubles', &
             nm_pparallel = 'pparallel', &
             nm_tau = 'tau', &
+            ! [W.D.]: 
+            ! can i just add another entry without breaking anything?
+            nm_hist_tau = 'hist_tau_search', &
 
             nm_acc_grp = 'accumulators', &
             nm_sum_no_ref = 'sum_no_ref', &
@@ -127,6 +130,9 @@ module hdf5_popsfile
             nm_sgns = 'sgns', &
             nm_norm_sqr = 'norm_sqr', &
             nm_num_parts = 'num_parts'
+
+    integer(n_int), dimension(:,:), allocatable :: receivebuff
+    integer:: receivebuff_tag
 
     public :: write_popsfile_hdf5, read_popsfile_hdf5
     public :: add_pops_norm_contrib
@@ -147,6 +153,7 @@ contains
         character(*), parameter :: t_r = 'write_popsfile_hdf5'
 #ifdef __USE_HDF
         integer(hid_t) :: plist_id, file_id, err
+        integer :: ierr
         character(255) :: filename
 
         ! Get a unique filename for this popsfile. This needs to be done on
@@ -173,14 +180,23 @@ contains
         call h5fcreate_f(filename, H5F_ACC_TRUNC_F, file_id, err, &
                          access_prp=plist_id)
         call h5pclose_f(plist_id, err)
-
+        write(6,*) "writing metadata"
         call write_metadata(file_id)
+        write(6,*) "writing calc_data"
         call write_calc_data(file_id)
+
+        call MPIBarrier(ierr)
+        write(6,*) "writing walkers"
         call write_walkers(file_id)
 
+        call MPIBarrier(ierr)
+        write(6,*) "closing popsfile"
         ! And we are done!
         call h5fclose_f(file_id, err)
         call h5close_f(err)
+
+        call MPIBarrier(ierr)
+        write(6,*) "popsfile write successful"
 #else
         call stop_all(t_r, 'HDF5 support not enabled at compile time')
 #endif
@@ -203,7 +219,7 @@ contains
         character(*), parameter :: t_r = 'write_popsfile_hdf5'
 #ifdef __USE_HDF
         integer(hid_t) :: err, file_id, plist_id
-        integer :: tmp
+        integer :: ierr
         character(255) :: filename
 
         ! Get the name for the popsfile to read in
@@ -230,8 +246,8 @@ contains
                        access_prp=plist_id)
 
         call read_metadata(file_id)
-        call read_calc_data(file_id)
         call read_walkers(file_id, dets, CurrWalkers)
+        call read_calc_data(file_id)
 
         ! And we are done
         call h5pclose_f(plist_id, err)
@@ -239,8 +255,9 @@ contains
         call h5close_f(err)
 
         call neci_flush(6)
-        call MPIBarrier(tmp)
+        call MPIBarrier(ierr)
 #else
+        CurrWalkers = 0
         call stop_all(t_r, 'HDF5 support not enabled at compile time')
 #endif
 
@@ -288,7 +305,7 @@ contains
         ! Read in the macroscopic metadata applicable to the restart file.
 
         integer(hid_t), intent(in) :: parent
-        integer(hid_t) :: err, attribute
+        integer(hid_t) :: attribute
 
         logical :: exists
         character(100) :: str_buf
@@ -357,6 +374,7 @@ contains
         use FciMCData, only: pSingles, pDoubles, pParallel
         use CalcData, only: tau, gamma_sing, gamma_doub, gamma_opp, gamma_par, &
                             enough_sing, enough_doub, enough_opp, enough_par, max_death_cpt
+        use CalcData, only: t_hist_tau_search_option, t_previous_hist_tau
 
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: tau_grp, err
@@ -428,10 +446,18 @@ contains
         call write_dp_scalar(tau_grp, nm_pparallel, all_ppar)
         call write_dp_scalar(tau_grp, nm_tau, all_tau)
 
+        ! [W.D.]:
+        ! for the new hist-tau search i essentially only need to indicat 
+        ! that a histogramming tau-search was used: 
+        if (t_hist_tau_search_option .or. t_previous_hist_tau) then 
+            call write_log_scalar(tau_grp, nm_hist_tau, .true.)
+        end if
+
         ! Clear up
         call h5gclose_f(tau_grp, err)
 
     end subroutine write_tau_opt
+
 
     subroutine write_accumulator_data(parent)
 
@@ -462,9 +488,10 @@ contains
     subroutine read_calc_data(parent)
 
         use load_balance_calcnodes, only: RandomOrbIndex
-        use FciMCData, only: PreviousCycles, Hii, TotImagTime, tSearchTauOption
-        use CalcData, only: DiagSft, tWalkContGrow
-
+        use FciMCData, only: PreviousCycles, Hii, TotImagTime, tSearchTauOption, &
+                             tSearchTau, pSingles, pDoubles, pParallel
+        use CalcData, only: DiagSft, tWalkContGrow, tau, t_hist_tau_search, &
+                            hdf5_diagsft
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: grp_id, err
         logical :: exists
@@ -497,14 +524,42 @@ contains
             write(6,*) 'Initial shift: ', DiagSft
         else
             tSinglePartPhase = .true.
+            
+            ! i still want to capture the diagshift in a temporary file 
+            ! atleast 
+            call read_dp_1d_dataset(grp_id, nm_shift, hdf5_diagsft, required=.true.)
+            hdf5_diagsft = hdf5_diagsft - Hii
+
         end if
 
-        if (tSearchTauOption) then
-            call read_tau_opt(grp_id)
+        ! [W.D.]:
+        ! i think i also want to read in pSingles etc. even if we do not 
+        ! tau-search anymore in a restarted run..
+        ! but i guess i have to be careful to set the appropriate 
+        ! default, if no tau-search was used and then is restarted..
+        ! well, even if the tau-search is not turned on, the 
+        ! values are written anyway.. so i can also read them in, but 
+        ! not use the read-in tau, but the one specified in the input! 
+        ! except the hist_tau was used the we want to use the 
+        ! one in the popsfile all the time
+!         if (tSearchTauOption) then
+        call read_tau_opt(grp_id)
+!         else
+!             write(6,*) 'Skipping tau optimisation data as tau optimisation is &
+!                        &disabled'
+!         end if
+        ! and also output some info: 
+        write(6,*) "read-in tau optimization data: "
+        write(6,*) "time-step: ", tau 
+        write(6,*) "pSingles: ", pSingles
+        write(6,*) "pDoubles: ", pDoubles
+        write(6,*) "pParallel: ", pParallel
+        if (tSearchTau .or. t_hist_tau_search) then
+            write(6,*) "continuing tau-search!"
         else
-            write(6,*) 'Skipping tau optimisation data as tau optimisation is &
-                       &disabled'
+            write(6,*) "Do not continue tau-search!"
         end if
+
         call read_accumulator_data(grp_id)
 
         ! TODO: Read nbasis, nel, ms2, etc.
@@ -517,19 +572,26 @@ contains
 
     subroutine read_tau_opt(parent)
 
-        use tau_search, only: cnt_sing, cnt_doub, cnt_opp, cnt_par 
-        use FciMCData, only: pSingles, pDoubles, pParallel
-        use CalcData, only: tau, gamma_sing, gamma_doub, gamma_opp, gamma_par,&
-                            enough_sing, enough_doub, enough_opp, enough_par, &
-                            max_death_cpt, consider_par_bias
-        use procedure_pointers, only: update_tau
+        use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
+                              enough_sing, enough_doub, enough_opp, &
+                              enough_par, cnt_sing, cnt_doub, cnt_opp, &
+                              cnt_par, max_death_cpt, update_tau
+        use FciMCData, only: pSingles, pDoubles, pParallel, tSearchTau, &
+                             tSearchTauOption 
+        use CalcData, only: tau, t_previous_hist_tau, t_restart_hist_tau, &
+                            t_hist_tau_search, t_hist_tau_search_option, &
+                            t_fill_frequency_hists
+        use LoggingData, only: t_print_frq_histograms
+        use tau_search_hist, only: deallocate_histograms
 
         ! Read accumulator values for the timestep optimisation
         ! TODO: Add an option to reset these values...
 
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: grp_id, err
-        logical :: ppar_set, tau_set
+        logical :: ppar_set, tau_set, hist_tau, temp_previous
+
+        real(dp) :: temp_tau
 
         call h5gopen_f(parent, nm_tau_grp, grp_id, err)
 
@@ -552,15 +614,56 @@ contains
         call read_dp_scalar(grp_id, nm_psingles, psingles)
         call read_dp_scalar(grp_id, nm_pdoubles, pdoubles)
         call read_dp_scalar(grp_id, nm_pparallel, pparallel, exists=ppar_set)
-        call read_dp_scalar(grp_id, nm_tau, tau, exists=tau_set)
+        ! here i want to make the distinction if we want to tau-search 
+        ! or not
+        call read_dp_scalar(grp_id, nm_tau, temp_tau, exists=tau_set)
+
+        call read_log_scalar(grp_id, nm_hist_tau, temp_previous, &
+            exists = hist_tau)
 
         call h5gclose_f(grp_id, err)
+
+        if (tSearchTauOption .and. tau_set) then
+           tau = temp_tau 
+        end if
+
+        ! also set if previous hist-tau
+        if (hist_tau) then
+            tau = temp_tau
+            ! and turn off if i dont want to force restart! 
+            if (.not. t_restart_hist_tau) then
+                t_previous_hist_tau = temp_previous
+
+                if (t_previous_hist_tau) then
+                    tSearchTau = .false.
+                    tSearchTauOption = .false.
+
+                    if (t_hist_tau_search) then
+                        call deallocate_histograms()
+                        t_hist_tau_search = .false.
+                        t_fill_frequency_hists = .false.
+
+                        t_hist_tau_search_option = .true.
+                        t_print_frq_histograms = .false.
+                    end if
+                end if
+            end if
+        end if
+
+        ! if tau is 0, because no input provided, use the one here too
+        if (tau < EPS .and. (.not. temp_tau < EPS)) then 
+            tau = temp_tau
+        end if
 
         ! Deal with a previous bug, that leads to popsfiles existing with all
         ! the optimising parameters excluding tau, such that the first
         ! iteration results in chaos
-        if (ppar_set .and. .not. tau_set) &
-            call update_tau()
+        ! [W.D]: this if should suffice or?
+        if (.not. hist_tau) then
+            t_previous_hist_tau = .false.
+            if (ppar_set .and. .not. tau_set) &
+                call update_tau()
+        end if
 
     end subroutine
 
@@ -614,6 +717,8 @@ contains
         integer(hsize_t) :: mem_offset(2), write_offset(2)
         integer(hsize_t) :: dims(2), hyperdims(2)
         real(dp) :: all_parts(lenof_sign), all_norm_sqr(lenof_sign)
+        integer(hsize_t) :: block_size, block_start, block_end
+        integer(hsize_t), dimension(:,:), allocatable :: temp_dets
         integer :: ierr
 
         ! TODO: Add a (slower) fallback routine for weird cases, odd HDF libs
@@ -651,10 +756,12 @@ contains
         call write_dp_1d_attribute(wfn_grp_id, nm_norm_sqr, all_norm_sqr)
         call write_dp_1d_attribute(wfn_grp_id, nm_num_parts, all_parts)
 
+        !we do an explicitly buffered write to avoid performance problems with
+        !complicated hyperslabs + collective buffering
         ! Write out the determinant bit-representations
-        call write_2d_multi_arr_chunk_offset( &
+        call write_2d_multi_arr_chunk_buff( &
                 wfn_grp_id, nm_ilut, H5T_NATIVE_INTEGER_8, &
-                arr_2d_ptr(CurrentDets), arr_2d_dims(CurrentDets), &
+                CurrentDets, arr_2d_dims(CurrentDets), &
                 [int(nifd+1, hsize_t), int(TotWalkers, hsize_t)], & ! dims
                 [0_hsize_t, 0_hsize_t], & ! offset
                 [int(nifd+1, hsize_t), all_count], & ! all dims
@@ -665,9 +772,9 @@ contains
 !        if (.not. tUseRealCoeffs) &
 !            call stop_all(t_r, "This could go badly...")
 
-        call write_2d_multi_arr_chunk_offset( &
+        call write_2d_multi_arr_chunk_buff( &
                 wfn_grp_id, nm_sgns, H5T_NATIVE_REAL_8, &
-                arr_2d_ptr(CurrentDets), arr_2d_dims(CurrentDets), &
+                CurrentDets, arr_2d_dims(CurrentDets), &
                 [int(lenof_sign, hsize_t), int(TotWalkers, hsize_t)], & ! dims
                 [int(nOffSgn, hsize_t), 0_hsize_t], & ! offset
                 [int(lenof_sign, hsize_t), all_count], & ! all dims
@@ -707,6 +814,7 @@ contains
         integer(hid_t) :: grp_id, err
         integer(hid_t) :: ds_sgns, ds_ilut
         integer(int64) :: nread_walkers
+        integer :: ierr
 
         integer(int32) :: bit_rep_width, tmp_lenof_sign
         integer(hsize_t) :: all_count, block_size, counts(0:nProcessors-1)
@@ -716,6 +824,8 @@ contains
         real(dp) :: pops_num_parts(lenof_sign), pops_norm_sqr(lenof_sign)
         real(dp) :: norm(lenof_sign), parts(lenof_sign)
         logical :: running, any_running
+        integer(hsize_t), dimension(:,:), allocatable :: temp_ilut, temp_sgns
+        integer :: temp_ilut_tag, temp_sgns_tag, rest
 
         ! TODO:
         ! - Read into a relatively small buffer. Make this such that all the
@@ -761,9 +871,10 @@ contains
         ! How many particles should each processor read in (try and distribute
         ! this as uniformly as possible. Also calculate the associated data
         ! offsets
-        block_size = all_count / nProcessors
-        counts = block_size
-        counts(nProcessors - 1) = all_count - sum(counts(0:nProcessors-2))
+        counts = all_count / nProcessors
+        rest=mod(all_count,nProcessors)
+        if(rest.gt.0) counts(0:rest-1)=counts(0:rest-1)+1
+
         if (sum(counts) /= all_count .or. any(counts < 0)) &
             call stop_all(t_r, "Invalid particles counts")
         do proc = 0, nProcessors - 1
@@ -785,15 +896,17 @@ contains
         call check_dataset_params(ds_sgns, nm_sgns, 8_hsize_t, H5T_FLOAT_F, &
                                   [int(lenof_sign, hsize_t), all_count])
 
-        ! The largest block of walkers that we should read are the walkers
-        ! that would fit into _one_ processors section of the spawned list.
-        block_size = MaxSpawned
+        !limit the buffer size per MPI task to 50MB or MaxSpawned entries
+        block_size=50000000/(bit_rep_width*lenof_sign)/sizeof(SpawnedParts(1,1))
+        block_size = min(block_size,MaxSpawned)
+#if 0
         do proc = 0, nProcessors - 2
             block_size = min(block_size, &
                 InitialSpawnedSlots(proc+1) - InitialSpawnedSlots(proc))
         end do
         block_size = min(block_size, &
                 MaxSpawned - InitialSpawnedSlots(nProcessors-1))
+#endif
 
         ! Initialise relevant counters
         CurrWalkers = 0
@@ -812,8 +925,16 @@ contains
             last_part = offsets(iProcIndex + 1) - 1
         end if
         block_end = min(block_start + block_size - 1, last_part)
+        this_block_size = block_end - block_start + 1
+
         running = .true.
         any_running = .true.
+
+        allocate(temp_ilut(int(bit_rep_width),int(this_block_size)),stat=ierr)
+        call LogMemAlloc('temp_ilut',size(temp_ilut),sizeof(temp_ilut(1,1)),'read_walkers',temp_ilut_tag,ierr)
+
+        allocate(temp_sgns(int(lenof_sign),int(this_block_size)),stat=ierr)
+        call LogMemAlloc('temp_sgns',size(temp_sgns),sizeof(temp_sgns(1,1)),'read_walkers',temp_sgns_tag,ierr)
 
         do while (any_running)
 
@@ -824,14 +945,15 @@ contains
             else
                 this_block_size = 0
             end if
-            call read_walker_block(ds_ilut, ds_sgns, block_start, &
-                                   this_block_size, bit_rep_width)
 
-            call assign_dets_to_procs(this_block_size)
-            nreceived = communicate_read_walkers()
-            call add_new_parts(dets, nreceived, CurrWalkers, norm, parts)
+            call read_walker_block_buff(ds_ilut, ds_sgns, block_start, &
+                                   this_block_size, bit_rep_width, temp_ilut, temp_sgns)
+
+            call distribute_and_add_walkers(this_block_size, temp_ilut, temp_sgns, dets, &
+                 nreceived, CurrWalkers, norm, parts)
+
             nread_walkers = nread_walkers + nreceived
-
+            
             ! And update for the next block
             if (running) then
                 block_start = block_end + 1
@@ -846,6 +968,11 @@ contains
 
         end do
 
+        deallocate(temp_ilut, temp_sgns)
+        call LogMemDeAlloc('read_walkers',temp_ilut_tag)
+        call LogMemDeAlloc('read_walkers',temp_sgns_tag)
+
+
         call h5dclose_f(ds_sgns, err)
         call h5dclose_f(ds_ilut, err)
         call h5gclose_f(grp_id, err)
@@ -859,8 +986,8 @@ contains
 
     end subroutine read_walkers
 
-    subroutine read_walker_block(ds_ilut, ds_sgns, block_start, block_size, &
-                                 bit_rep_width)
+    subroutine read_walker_block_buff(ds_ilut, ds_sgns, block_start, block_size, &
+                                 bit_rep_width, temp_ilut, temp_sgns)
 
         use bit_rep_data, only: NIfD
         use FciMCData, only: SpawnedParts2
@@ -876,100 +1003,162 @@ contains
         integer(hid_t), intent(in) :: ds_ilut, ds_sgns
         integer(hsize_t), intent(in) :: block_start, block_size
         integer(int32), intent(in) :: bit_rep_width
-
+        integer(hsize_t), dimension(:,:) :: temp_ilut, temp_sgns
         integer(hid_t) :: plist_id
 
+#ifdef __INT64
+
         call read_2d_multi_chunk( &
-                ds_ilut, SpawnedParts2, H5T_NATIVE_INTEGER_8, &
+                ds_ilut, temp_ilut, H5T_NATIVE_INTEGER_8, &
                 [int(bit_rep_width, hsize_t), block_size], &
                 [0_hsize_t, block_start], &
                 [0_hsize_t, 0_hsize_t])
 
         call read_2d_multi_chunk( &
-                ds_sgns, SpawnedParts2, H5T_NATIVE_REAL_8, &
-                [int(lenof_sign, hsize_t), block_size], &
-                [0_hsize_t, block_start], &
-                [int(bit_rep_width, hsize_t), 0_hsize_t])
+             ds_sgns, temp_sgns, H5T_NATIVE_REAL_8, &
+             [int(lenof_sign, hsize_t), block_size], &
+             [0_hsize_t, block_start], &
+             [0_hsize_t, 0_hsize_t])
+
+#else
+        call stop_all("read_walker_block", "32-64bit conversion not yet implemented")
+#endif
 
         ! TODO: Flags here!!!
 
-    end subroutine read_walker_block
+    end subroutine read_walker_block_buff
 
-    subroutine assign_dets_to_procs(block_size)
+
+    subroutine distribute_and_add_walkers(block_size, temp_ilut, temp_sgns, dets, &
+         nreceived, CurrWalkers, norm, parts)
+      integer(n_int), intent(out) :: dets(:, :)
+      integer(int64), intent(inout) :: CurrWalkers
+      integer(hsize_t) :: block_size
+      integer:: nreceived
+      real(dp), intent(inout) :: norm(lenof_sign), parts(lenof_sign)
+      integer(hsize_t):: temp_ilut(:,:), temp_sgns(:,:)
+      integer(MPIArg) :: sendcount(0:nProcessors-1)
+      integer :: nlocal=0
+
+      call assign_dets_to_procs_buff(block_size, temp_ilut, temp_sgns, sendcount)
+
+      !add elements that are on the right processor already
+#define localfirst
+!#undef localfirst
+#ifdef localfirst
+      nlocal=sendcount(iProcIndex)
+      call add_new_parts(dets, nlocal, CurrWalkers, norm, parts)      
+      sendcount(iProcIndex)=0
+#endif
+      !communicate the remaining elements
+      nreceived = communicate_read_walkers_buff(sendcount)
+      call add_new_parts(dets, nreceived, CurrWalkers, norm, parts)
+
+      if (allocated(receivebuff)) then
+         deallocate(receivebuff)
+         call LogMemDeAlloc('distribute_and_add',receivebuff_tag)
+      end if
+
+      nreceived=nreceived+nlocal
+
+    end subroutine distribute_and_add_walkers
+
+    subroutine assign_dets_to_procs_buff(block_size, temp_ilut, temp_sgns, sendcount)
 
         use load_balance_calcnodes, only: DetermineDetNode
         use bit_reps, only: decode_bit_det, extract_sign
-        use FciMCData, only: SpawnedParts2, SpawnedParts, ValidSpawnedList, &
-                             InitialSpawnedSlots
+        use FciMCData, only: SpawnedParts2, SpawnedParts, ValidSpawnedList
+
         use Determinants, only: write_det
-        use bit_rep_data, only: NIfD
+        use bit_rep_data, only: NIfD, NIFBCast
         use SystemData, only: nel
 
         integer(hsize_t), intent(in) :: block_size
         character(*), parameter :: t_r = 'distribute_walkers_from_block'
-
-        integer :: det(nel), j, proc, ierr
+        integer(hsize_t), dimension(:,:) :: temp_ilut, temp_sgns
+        integer(hsize_t) :: onepart(0:NIfBCast)
+        integer :: det(nel), p, j, proc, sizeilut, targetproc(block_size)
+        integer(MPIArg) :: sendcount(0:nProcessors-1)
+        integer :: index, index2
         logical :: list_full
 
-        ! Reset target locations for walkers
-        ValidSpawnedList = InitialSpawnedSlots
+        sizeilut=size(temp_ilut,1)
 
-        ! Iterate through walkers in SpawnedParts2. Decode & distribute to
-        ! Spawnedlist
+        ! Iterate through walkers in temp_ilut+temp_sgns and determine the target processor. 
+        onepart=0
+        sendcount=0
         do j = 1, block_size
-
+            onepart(0:sizeilut-1)=temp_ilut(:,j)
+            onepart(sizeilut:sizeilut+int(lenof_sign)-1)=temp_sgns(:,j)
             ! Which processor does this determinant live on?
-            call decode_bit_det(det, SpawnedParts2(:, j))
+            call decode_bit_det(det, onepart)
             proc = DetermineDetNode(nel, det, 0)
-
-#ifdef __DEBUG
-            ! Check that we aren't overrunning any lists. This can be a debug
-            ! only check, as we have set the max block_size such that it will
-            ! always fit.
-            list_full = .false.
-            if (proc == nNodes - 1) then
-                if (ValidSpawnedList(proc) > MaxSpawned) list_full = .true.
-            else
-                if (ValidSpawnedList(proc) >= InitialSpawnedSlots(proc+1)) &
-                    list_full = .true.
-            end if
-            if (list_full) &
-                call stop_all(t_r, 'Spawning list overflow')
+            targetproc(j)=proc
+            sendcount(proc)=sendcount(proc)+1
+        end do
+        
+        ! Write the elements to SpawnedParts in the correct order for sending
+        index=1
+        index2=1
+        do p = 0, nProcessors-1
+#ifdef localfirst
+           if (p.eq.iProcIndex) then
+#else
+           if (.false.) then
 #endif
-
-            ! Add the determinant to the correct place in the spawnedlists
-            SpawnedParts(:, ValidSpawnedList(proc)) = SpawnedParts2(:, j)
-            ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
-
+              !elements that don't have to be communicated are written to SpawnedParts2 
+              do j = 1, block_size
+                 if(targetproc(j).eq.p) then
+                    onepart(0:sizeilut-1)=temp_ilut(:,j)
+                    onepart(sizeilut:sizeilut+int(lenof_sign)-1)=temp_sgns(:,j)
+                    SpawnedParts2(:,index2)=onepart
+                    index2=index2+1
+                 end if
+              end do
+           else
+              !elements that have to be sent to other procs are written to SpawnedParts 
+              do j = 1, block_size
+                 if(targetproc(j).eq.p) then
+                    onepart(0:sizeilut-1)=temp_ilut(:,j)
+                    onepart(sizeilut:sizeilut+int(lenof_sign)-1)=temp_sgns(:,j)
+                    SpawnedParts(:,index)=onepart
+                    index=index+1
+                 end if
+              end do
+           end if
         end do
 
-    end subroutine assign_dets_to_procs
+    end subroutine assign_dets_to_procs_buff
 
-    function communicate_read_walkers() result(num_received)
 
+    function communicate_read_walkers_buff(sendcounts) result(num_received)
+        integer(MPIArg), intent(inout) :: sendcounts(0:nProcessors-1)
         integer :: num_received
+        integer(int64) :: lnum_received
 
-        integer(MPIArg) :: sendCounts(nProcessors), recvcounts(nProcessors)
-        integer(MPIArg) :: disps(nProcessors), recvdisps(nProcessors)
+        integer(MPIArg) :: recvcounts(0:nProcessors-1)
+        integer(MPIArg) :: disps(0:nProcessors-1), recvdisps(0:nProcessors-1)
         integer :: j, ierr
 
-        ! Communicate the number of particles that need to go to each proc
-        ! n.b. switch from one-based to zero-based indices.
-        disps(1) = 0
-        sendcounts(1) = ValidSpawnedList(0) - 1
-        do j = 2, nProcessors
-            disps(j) = InitialSpawnedSlots(j-1) - 1
-            sendcounts(j) = ValidSpawnedList(j-1) - InitialSpawnedSlots(j-1)
+
+        !offsets for data to the different procs
+        disps(0) = 0
+        do j = 1, nProcessors-1
+            disps(j) = disps(j-1)+sendcounts(j-1)
         end do
+
+        ! Communicate the number of particles that need to go to each proc
         call MPIAllToAll(sendcounts, 1, recvcounts, 1, ierr)
+
 
         ! We want the data to be contiguous after the move. So calculate the
         ! offsets
-        recvdisps(1) = 0
-        do j = 2, nProcessors
+        recvdisps(0) = 0
+        do j = 1, nProcessors-1
             recvdisps(j) = recvdisps(j-1) + recvcounts(j-1)
         end do
-        num_received = recvdisps(nProcessors) + recvcounts(nProcessors)
+        num_received = recvdisps(nProcessors-1) + recvcounts(nProcessors-1)
+        lnum_received = recvdisps(nProcessors-1) + recvcounts(nProcessors-1)
 
         ! Adjust offsets so that they match the size of the array
         recvcounts = recvcounts * size(SpawnedParts, 1)
@@ -977,10 +1166,21 @@ contains
         sendcounts = sendcounts * size(SpawnedParts, 1)
         disps = disps * size(SpawnedParts, 1)
 
-        call MPIAllToAllV(SpawnedParts, sendcounts, disps, SpawnedParts2, &
-                          recvcounts, recvdisps, ierr)
-
-    end function communicate_read_walkers
+        if (num_received.gt.size(SpawnedParts2,2)) then
+           ! there could in principle be a memory problem because we are not limiting the
+           ! size of receivebuff.
+           write(6,*) 'Allocating additional buffer for communication on Processor ', iProcIndex, 'with ', &
+                num_received*size(SpawnedParts,1)*sizeof(SpawnedParts(1,1))/1000000, 'MB'
+           allocate(receivebuff(size(SpawnedParts,1),num_received))
+           call LogMemAlloc('receivebuff',size(receivebuff),sizeof(receivebuff(1,1)),&
+                'communicate_read_walkers',receivebuff_tag,ierr)
+           call MPIAllToAllV(SpawnedParts, sendcounts, disps, receivebuff, &
+                recvcounts, recvdisps, ierr)
+        else
+           call MPIAllToAllV(SpawnedParts, sendcounts, disps, SpawnedParts2, &
+                recvcounts, recvdisps, ierr)
+        end if
+      end function communicate_read_walkers_buff
 
     subroutine add_new_parts(dets, nreceived, CurrWalkers, norm, parts)
 
@@ -994,28 +1194,47 @@ contains
         integer(int64), intent(inout) :: CurrWalkers
         real(dp), intent(inout) :: norm(lenof_sign), parts(lenof_sign)
 
-        integer :: j
+        integer(int64) :: j
         real(dp) :: sgn(lenof_sign)
 
             ! TODO: inum_runs == 2, PopNIfSgn == 1
-
-        do j = 1, nreceived
-
-            ! Check that the site is occupied, and passes the relevant
-            ! thresholds before adding it to the system.
-            call extract_sign(SpawnedParts2(: ,j), sgn)
-            if (any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) then
-
-                ! Add this site to the main list
-                CurrWalkers = CurrWalkers + 1
-                dets(:, CurrWalkers) = SpawnedParts2(:, j)
-                call add_pops_norm_contrib(dets(:, CurrWalkers))
-                call extract_sign(SpawnedParts2(:,j), sgn)
-                norm = norm + sgn**2
-                parts = parts + abs(sgn)
-            end if
-        end do
-
+        if (allocated(receivebuff)) then
+           
+           do j = 1, nreceived
+              
+              ! Check that the site is occupied, and passes the relevant
+              ! thresholds before adding it to the system.
+              call extract_sign(receivebuff(: ,j), sgn)
+              if (any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) then
+                 
+                 ! Add this site to the main list
+                 CurrWalkers = CurrWalkers + 1
+                 dets(:, CurrWalkers) = receivebuff(:, j)
+                 call add_pops_norm_contrib(dets(:, CurrWalkers))
+                 call extract_sign(receivebuff(:,j), sgn)
+                 norm = norm + sgn**2
+                 parts = parts + abs(sgn)
+              end if
+           end do
+        else
+           do j = 1, nreceived
+              
+              ! Check that the site is occupied, and passes the relevant
+              ! thresholds before adding it to the system.
+              call extract_sign(SpawnedParts2(: ,j), sgn)
+              if (any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) then
+                 
+                 ! Add this site to the main list
+                 CurrWalkers = CurrWalkers + 1
+                 dets(:, CurrWalkers) = SpawnedParts2(:, j)
+                 call add_pops_norm_contrib(dets(:, CurrWalkers))
+                 call extract_sign(SpawnedParts2(:,j), sgn)
+                 norm = norm + sgn**2
+                 parts = parts + abs(sgn)
+              end if
+           end do
+           
+        endif
         ! TODO: Add check that we have read in the correct number of parts
 
     end subroutine
@@ -1041,7 +1260,7 @@ contains
         real(dp), intent(in) :: norm(lenof_sign), parts(lenof_sign)
         character(*), parameter :: t_r = 'check_read_particles'
 
-        integer(int64) :: all_read_walkers
+        integer(int64) :: all_read_walkers, tot_walkers
         real(dp) :: all_norm(lenof_sign), all_parts(lenof_sign)
 
         ! Have all the sites been correctly read in from the file
@@ -1080,6 +1299,14 @@ contains
 
         ! If the absolute sum, and the sum of the squares is correct, we can
         ! be fairly confident that they have all been read in!...
+        
+        ! [W.D.]
+        ! on behalf of sasha bring back the feature that turns off the walker 
+        ! grow even if walkcontgrow was set unintentionally but the number of 
+        ! read-in walkers already exceeds or is close to the target number 
+        ! so i guess it is enough to set the global AllTotParts here 
+        ! of walkers 
+        AllTotParts = all_parts
 
     end subroutine
 #endif

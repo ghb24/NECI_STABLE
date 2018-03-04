@@ -258,7 +258,7 @@ contains
 
     if (present(err)) then
         if (err.ne.0) then
-            call Stop_All('LogMemAlloc','Failed to allocate array '//ObjectName//' in '//AllocRoutine)
+            call Warning_neci('LogMemAlloc','Possible failure to allocate array '//ObjectName//' in '//AllocRoutine)
         end if
     end if
 

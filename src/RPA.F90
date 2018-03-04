@@ -2,11 +2,12 @@
 !TODO: Add symmetry information by using singles excitation generators (store excitations)? (Not urgent) 
 !Module to non-iteratively calculate the RPA energy under the quasi-boson approximation
 module RPA_Mod
-    use SystemData, only: nel, nBasis, Arr, Brr, G1
+    use SystemData, only: nel, nBasis, Arr, Brr, G1, tReltvy
     use sltcnd_mod, only: sltcnd_2
     use constants, only: dp, int64, n_int
     use Determinants, only: get_helement, fDet
     use SymExcit3, only: GenExcitations3
+    use SymExcit4, only: GenExcitations4, ExcitGenSessionType
     use Determinants, only: GetH0Element3
     use bit_reps, only: NIfTot
     use DetBitops, only: EncodeBitDet
@@ -49,6 +50,8 @@ module RPA_Mod
         real(dp), allocatable :: AminB(:,:),AplusB(:,:),temp3(:,:)
         character(len=*), parameter :: t_r="RunRPA_QBA"
 
+        type(ExcitGenSessionType) :: session
+
         write(6,"(A)")
         write(6,"(A)") "**************************************"
         if(tDirectRPA) then
@@ -72,8 +75,13 @@ module RPA_Mod
         call EncodeBitDet(FDet,iLutHF)
         HDiagTemp=GetH0Element3(FDet)
         Fii=real(HDiagTemp,dp)
+
         do while(.true.)
-            call GenExcitations3(FDet,iLutHF,nJ,exflag,Ex,tParity,tAllExcitsFound,.false.)
+            if (tReltvy) then 
+                call GenExcitations4(session, FDet, nJ, exFlag, Ex, tParity, tAllExcitsFound, .false.)
+            else
+                call GenExcitations3(FDet,iLutHF,nJ,exflag,Ex,tParity,tAllExcitsFound,.false.)
+            endif
             if(tAllExcitsFound) exit !All excits found
             if(Ex(1,2).eq.0) then
                 ic=1

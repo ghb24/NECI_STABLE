@@ -76,6 +76,7 @@ contains
 #ifdef __DEBUG
         character(*), parameter :: this_routine = 'make_double'
 #endif
+
         integer :: i, k, elecs(2), srcs(2), tgts(2), pos_moved
 
         ! Get the source/target terms in order!
@@ -149,8 +150,13 @@ contains
 
 #ifdef __DEBUG
         ! This is a useful (but O[N]) check to test the generated determinant.
-        if (.not. SymAllowedExcit(nI, nJ, 2, ex)) &
+        if (.not. SymAllowedExcit(nI, nJ, 2, ex)) then 
+            print *, "nI: ", nI
+            print *, "nJ: ", nJ
+            print *, "elecs: ", ex(1,:)
+            print *, "orbs: ", ex(2,:)
             call stop_all(this_routine, 'Generated invalid excitation')
+        end if
 #endif
 
     end subroutine

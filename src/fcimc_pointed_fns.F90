@@ -3,28 +3,27 @@
 module fcimc_pointed_fns
 
     use SystemData, only: nel, tGUGA, tGen_4ind_weighted, tGen_4ind_2, tGen_nosym_guga, &
-                          tGen_sym_guga_mol, t_consider_diff_bias, nSpatOrbs
+                          tGen_sym_guga_mol, t_consider_diff_bias, nSpatOrbs, thub, & 
+                          tUEG, tGen_4ind_reverse, nBasis
     use LoggingData, only: tHistExcitToFrom, FciMCDebug
     use CalcData, only: RealSpawnCutoff, tRealSpawnCutoff, tAllRealCoeff, &
                         RealCoeffExcitThresh, AVMcExcits, tau, DiagSft, &
-                        tRealCoeffByExcitLevel, InitiatorWalkNo, t_frequency_analysis, &
-                        t_fill_frequency_hists, t_truncate_spawns, & 
-                        n_truncate_spawns
+                        tRealCoeffByExcitLevel, InitiatorWalkNo, &
+                        t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, & 
+                        t_matele_cutoff, matele_cutoff 
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement, log_spawn_magnitude
     use fcimc_helper, only: CheckAllowedTruncSpawn
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, count_open_orbs
-    use bit_rep_data, only: NIfTot
-    use tau_search, only: log_death_magnitude, fill_frequency_histogram_4ind, &
-                          fill_frequency_histogram_sd, fill_frequency_histogram, &
-                          fill_frequency_histogram_nosym_diff, fill_frequency_histogram_nosym_nodiff
+    use bit_rep_data, only: NIfTot, test_flag
+    use bit_reps, only: get_initiator_flag
+    use tau_search, only: log_death_magnitude, log_spawn_magnitude
     use rdm_general, only: calc_rdmbiasfac
     use hist, only: add_hist_excit_tofrom
     use searching, only: BinSearchParts2
     use util_mod
     use FciMCData
     use constants
-    use excit_gens_int_weighted, only: get_ispn
     use bit_reps, only: nifguga
 
 #ifndef __CMPLX
@@ -33,6 +32,12 @@ module fcimc_pointed_fns
     use guga_excitations, only: print_excitInfo, global_excitInfo
 #endif
 #endif
+    
+    use tau_search_hist, only: fill_frequency_histogram_4ind, &
+                               fill_frequency_histogram_sd, &
+                               fill_frequency_histogram
+
+    use excit_gen_5, only: pgen_select_a_orb
 
     implicit none
 
@@ -109,7 +114,7 @@ module fcimc_pointed_fns
                                     walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr) result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel)
-        integer, intent(in) :: part_type    ! 1 = Real parent particle, 2 = Imag parent particle
+        integer, intent(in) :: part_type    ! odd = Real parent particle, even = Imag parent particle
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
         integer, intent(in) :: ic, ex(2,2), walkExcitLevel
@@ -127,12 +132,13 @@ module fcimc_pointed_fns
         integer :: TargetExcitLevel
         logical :: tRealSpawning
         HElement_t(dp) :: rh, rh_used
-        integer :: ispn
-        logical :: t_par
 #ifdef __DEBUG
         integer :: nOpen
         integer(n_int) :: ilutTmpI(0:nifguga), ilutTmpJ(0:nifguga)
 #endif
+        logical :: t_par
+        real(dp) :: temp_prob, pgen_a, dummy_arr(nBasis), cum_sum
+        integer :: ispn
 
         ! Just in case
         child = 0.0_dp
@@ -148,6 +154,33 @@ module fcimc_pointed_fns
         ! returns HElGen, rather than recomputing the matrix element.
         rh = get_spawn_helement (DetCurr, nJ, iLutCurr, iLutnJ, ic, ex, &
                                  tParity, HElGen)
+
+!         if (abs(rh) > EPS) then
+!             print *, "HElGen: ", rh
+!             print *, "prob: ", prob
+!         end if
+        ! We actually want to calculate Hji - take the complex conjugate, 
+        ! rather than swap around DetCurr and nJ.
+#ifdef __CMPLX
+        rh_used = conjg(rh)
+#else
+        rh_used = rh
+#endif
+        
+        ! [W.D.]
+        ! if the matrix element happens to be zero, i guess i should 
+        ! abort as early as possible? so check that here already, or even 
+        ! earlier.. 
+!         if (abs(rh_used) < EPS) then 
+!             child = 0.0_dp
+!             return
+!         end if
+! 
+!         if (t_matele_cutoff) then
+!             if (abs(rh_used) < EPS) then
+!                 child = 0.0_dp
+!             end if
+!         end if
 
         !write(6,*) 'p,rh', prob, rh
 
@@ -200,6 +233,26 @@ module fcimc_pointed_fns
 !            write(6,*) 'IC1', rh, prob
 !        end if
 
+        ! fill in the frequency histograms here! 
+        ! [Werner Dobrautz 4.4.2017:]
+        if (t_fill_frequency_hists) then 
+            if (tHUB .or. tUEG) then 
+                call fill_frequency_histogram(abs(rh_used), prob / AvMCExcits)
+            else 
+                if (tGen_4ind_2 .or. tGen_4ind_weighted .or. tGen_4ind_reverse) then 
+                    t_par = (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2)))
+
+                    ! not sure about the AvMCExcits!! TODO
+                    call fill_frequency_histogram_4ind(abs(rh_used), prob / AvMCExcits, &
+                        ic, t_par, ex)
+
+                else
+
+                    call fill_frequency_histogram_sd(abs(rh_used), prob / AvMCExcits, ic)
+                    
+                end if
+            end if
+        end if
         ! Are we doing real spawning?
         
         tRealSpawning = .false.
@@ -209,57 +262,73 @@ module fcimc_pointed_fns
             if (tGUGA) call stop_all(this_routine,&
                 "excit level does not work with GUGA here...")
 
-            TargetExcitLevel = FindBitExcitLevel (iLutRef, iLutnJ)
+            TargetExcitLevel = FindBitExcitLevel (iLutRef(:,1), iLutnJ)
+
             if (TargetExcitLevel <= RealCoeffExcitThresh) &
                 tRealSpawning = .true.
         endif
 
-        ! We actually want to calculate Hji - take the complex conjugate, 
-        ! rather than swap around DetCurr and nJ.
-#ifdef __CMPLX
-        rh_used = conjg(rh)
-#else
-        rh_used = rh
-#endif
-        
         ! Spawn to real and imaginary particles. Note that spawning from
         ! imaginary parent particles has slightly different rules:
         !       - Attempt to spawn REAL walkers with prob +AIMAG(Hij)/P
         !       - Attempt to spawn IMAG walkers with prob -REAL(Hij)/P
-#if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
+
+
+
+#if !defined(__CMPLX) && (defined(__PROG_NUMRUNS) || defined(__DOUBLERUN))
         child = 0.0_dp
         tgt_cpt = part_type
         walkerweight = sign(1.0_dp, RealwSign(part_type))
         matEl = real(rh_used, dp)
+        if (t_matele_cutoff) then
+            if (abs(matEl) < matele_cutoff) matel = 0.0_dp
+        end if
 #else
         do tgt_cpt = 1, (lenof_sign/inum_runs)
 
             ! Real, single run:    inum_runs=1, lenof_sign=1 --> 1 loop
+            ! Real, double run:    inum_runs=2, lenof_sign=1 --> 1 loop
             ! Complex, single run: inum_runs=1, lenof_sign=2 --> 2 loops
-            ! Real, double run:    inum_runs=2, lenof_sign=2 --> 1 loop
+            ! Complex, double run: inum_runs=2, lenof_sign=4 --> 2 loops
+            ! Complex, multiple run: inum_runs=m, lenof_sign=2*m --> 2 loops
 
             ! For spawning from imaginary particles, we cross-match the 
             ! real/imaginary matrix-elements/target-particles.
-            component = tgt_cpt
 
+
+#if defined(__CMPLX) && (defined(__PROG_NUMRUNS) || defined(__DOUBLERUN))
+            component = part_type+tgt_cpt-1
+            if (.not. btest(part_type,0)) then
+                ! even part_type => imag replica =>  map 4->3,4 ; 6->5,6 etc.
+                component = part_type - tgt_cpt + 1
+            endif
+#else
+            component = tgt_cpt
             if ((part_type.eq.2).and.(inum_runs.eq.1)) component = 3 - tgt_cpt
+#endif
 
             ! Get the correct part of the matrix element
             walkerweight = sign(1.0_dp, RealwSign(part_type))
-            if (component == 1) then
+            if (btest(component,0)) then
+                ! real component
                 MatEl = real(rh_used, dp)
+                if (t_matele_cutoff) then
+                    if (abs(MatEl) < matele_cutoff) MatEl = 0.0_dp
+                end if
             else
 #ifdef __CMPLX
                 MatEl = real(aimag(rh_used), dp)
+                if (t_matele_cutoff) then
+                    if (abs(MatEl) < matele_cutoff) MatEl = 0.0_dp
+                end if
                 ! n.b. In this case, spawning is of opposite sign.
-                if (part_type == 2) walkerweight = -walkerweight
-#else
-                call stop_all('attempt_create_normal', &
-                        & "ERROR: We shouldn't reach this part of the code unless complex calc")
+                if (.not. btest(part_type,0)) then
+                    ! imaginary parent -> imaginary child
+                    walkerweight = -walkerweight
+                endif
 #endif
             end if
 #endif
-            
             nSpawn = - tau * MatEl * walkerweight / prob
 
             ! so.. does a |nSpawn| > 1 in my new tau-search implitly mean 
@@ -299,14 +368,22 @@ module fcimc_pointed_fns
 #endif
 #endif
 
+                ! [Werner Dobrautz 4.4.2017:]
+                ! apply the spawn truncation, when using histogramming tau-search
                 nSpawn = sign(n_truncate_spawns, nSpawn)
 
             end if
             
             ! n.b. if we ever end up with |walkerweight| /= 1, then this
             !      will need to ffed further through.
-            if (tSearchTau .and. (.not. tFillingStochRDMonFly)) &
+            if (tSearchTau .and. (.not. tFillingStochRDMonFly)) then
+                ! in the back-spawning i have to adapt the probabilites 
+                ! back, to be sure the time-step covers the changed 
+                ! non-initiators spawns! 
+
                 call log_spawn_magnitude (ic, ex, matel, prob)
+
+            end if
 
             ! Keep track of the biggest spawn this cycle
             max_cyc_spawn = max(abs(nSpawn), max_cyc_spawn)
@@ -342,9 +419,13 @@ module fcimc_pointed_fns
                 
             endif
             ! And create the parcticles
+#ifdef __CMPLX
+            child((part_type_to_run(part_type)-1)*2+tgt_cpt) = nSpawn
+#else
             child(tgt_cpt) = nSpawn
+#endif
 
-#if !(defined(__PROG_NUMRUNS) || defined(__DOUBLERUN))
+#if defined(__CMPLX) || !defined(__PROG_NUMRUNS) && !defined(__DOUBLERUN)
         enddo
 #endif
 
@@ -453,16 +534,16 @@ module fcimc_pointed_fns
         real(dp), dimension(lenof_sign), intent(in) :: child
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer(n_int) :: iUnused
+        integer :: run
+        integer :: i
 
         ! Write out some debugging information if asked
         IFDEBUG(FCIMCDebug,3) then
-            if(lenof_sign.eq.2) then
-                write(iout,"(A,2f10.5,A)", advance='no') &
-                               "Creating ", child(1:lenof_sign), " particles: "
-            else
-                write(iout,"(A,f10.5,A)",advance='no') &
-                                         "Creating ", child(1), " particles: "
-            endif
+            write(iout,"(A)",advance='no') "Creating "
+            do i = 1,lenof_sign
+                write(iout,"(f10.5)",advance='no') child(i)
+            enddo
+            write(iout,"(A)",advance='no') " particles: "
             write(iout,"(A,2I4,A)",advance='no') &
                                       "Parent flag: ", parent_flags, part_type
             call writebitdet (iout, ilutJ, .true.)
@@ -471,14 +552,17 @@ module fcimc_pointed_fns
 
         ! Count the number of children born
 #ifdef __CMPLX
-        NoBorn(1) = NoBorn(1) + sum(abs(child))
-        if (ic == 1) SpawnFromSing(1) = SpawnFromSing(1) + sum(abs(child))
+        do run = 1, inum_runs
+            NoBorn(run) = NoBorn(run) + sum(abs(child(min_part_type(run):max_part_type(run))))
+            if (ic == 1) SpawnFromSing(run) = SpawnFromSing(run) + sum(abs(child(min_part_type(run):max_part_type(run))))
+
         
-        ! Count particle blooms, and their sources
-        if (sum(abs(child)) > InitiatorWalkNo) then
-            bloom_count(ic) = bloom_count(ic) + 1
-            bloom_sizes(ic) = max(real(sum(abs(child)), dp), bloom_sizes(ic))
-        end if
+           ! Count particle blooms, and their sources
+            if (sum(abs(child(min_part_type(run):max_part_type(run)))) > InitiatorWalkNo) then
+                bloom_count(ic) = bloom_count(ic) + 1
+                bloom_sizes(ic) = max(real( sum(abs(child(min_part_type(run):max_part_type(run)))),dp), bloom_sizes(ic))
+            end if
+        enddo
 #else
         NoBorn = NoBorn + abs(child)
         if (ic == 1) SpawnFromSing = SpawnFromSing + abs(child)
@@ -521,9 +605,14 @@ module fcimc_pointed_fns
         integer, intent(in) :: WalkExcitLevel
         character(*), parameter :: t_r = 'attempt_die_normal'
 
-        real(dp) :: r, rat, probsign
+        real(dp) :: probsign, r
         real(dp), dimension(inum_runs) :: fac
-        integer :: i, iUnused
+        integer :: i, run, iUnused
+#ifdef __CMPLX
+        real(dp) :: rat(2)
+#else
+        real(dp) :: rat(1)
+#endif        
 
         do i=1, inum_runs
             fac(i)=tau*(Kii-DiagSft(i))
@@ -559,29 +648,32 @@ module fcimc_pointed_fns
 
         if ((tRealCoeffByExcitLevel .and. (WalkExcitLevel .le. RealCoeffExcitThresh)) &
             .or. tAllRealCoeff ) then
+            do run=1, inum_runs
+                ndie(min_part_type(run))=fac(run)*abs(realwSign(min_part_type(run)))
 #ifdef __CMPLX
-            ndie=fac(1)*abs(realwSign)
-#else
-            ndie=fac*abs(realwSign)
+                ndie(max_part_type(run))=fac(run)*abs(realwSign(max_part_type(run)))
 #endif
-
+            enddo
         else
-            do i=1,lenof_sign
+            do run=1,inum_runs
                 
                 ! Subtract the current value of the shift, and multiply by tau.
                 ! If there are multiple particles, scale the probability.
-#ifdef __CMPLX
-                    rat = fac(1) * abs(realwSign(i))
-#else
-                    rat = fac(i) * abs(realwSign(i))
-#endif
+                
+                rat(:) = fac(run) * abs(realwSign(min_part_type(run):max_part_type(run)))
 
-                ndie(i) = real(int(rat), dp)
-                rat = rat - ndie(i)
+                ndie(min_part_type(run):max_part_type(run)) = real(int(rat), dp)
+                rat(:) = rat(:) - ndie(min_part_type(run):max_part_type(run))
 
                 ! Choose to die or not stochastically
                 r = genrand_real2_dSFMT() 
-                if (abs(rat) > r) ndie(i) = ndie(i) + real(nint(sign(1.0_dp, rat)), dp)
+                if (abs(rat(1)) > r) ndie(min_part_type(run)) = &
+                    ndie(min_part_type(run)) + real(nint(sign(1.0_dp, rat(1))), dp)
+#ifdef __CMPLX
+                r = genrand_real2_dSFMT() 
+                if (abs(rat(2)) > r) ndie(max_part_type(run)) = &
+                    ndie(max_part_type(run)) + real(nint(sign(1.0_dp, rat(2))), dp)
+#endif               
             enddo
         endif
 

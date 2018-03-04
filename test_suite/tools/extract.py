@@ -22,6 +22,8 @@ test_data = [
     ['energy_rdm','*TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*', -1, True],
     ['max_error_rdm','MAX ABS ERROR IN HERMITICITY', 1, True],
     ['sum_error_rdm','SUM ABS ERROR IN HERMITICITY', 1, True],
+    ['max_diff_trdm','MAX ABS DIFF IN HERMITICITY', 1, True],
+    ['sum_diff_trdm','SUM ABS DIFF IN HERMITICITY', 1, True],
     ['1_rdm_diag_sum', 'SUM OF 1-RDM', -1, False],
     ['no_occ_sum', 'SUM OF THE N LARGEST NO OCCUPATION NUMBERS', -1, False],
     ['corr_entropy', 'CORRELATION ENTROPY  ', -1, False],
@@ -42,7 +44,10 @@ test_data = [
 simulation_labels = [
     ['Final energy estimate for state', 5],
     ['Stochastic error measures for RDM', -1],
-    ['FINAL ESTIMATES FOR RDM', -1]
+    ['FINAL ESTIMATES FOR RDM', -1],
+    ['PERFORMING ANALYSIS OF 1-RDM FOR STATE', -1],
+    ['2-RDM ESTIMATES FOR STATE', -1],
+    ['2-RDM ESTIMATES FOR TRANSITION', -4, -2, -1]
 ]
 
 def extract_data(filename):
@@ -59,8 +64,14 @@ def extract_data(filename):
         for sim_string in simulation_labels:
             if sim_string[0] in line:
                 words = line.split()
-                sim_label = words[sim_string[-1]].rstrip(":")
-                sim_label_string = "_" + sim_label
+                if sim_string[0] == '2-RDM ESTIMATES FOR TRANSITION':
+                    sim_label = words[sim_string[2]] + "_" + words[sim_string[1]] + words[sim_string[3]]
+                    sim_label_string = "_" + sim_label
+                else:
+                    sim_label = words[sim_string[-1]]
+                    sim_label = sim_label.rstrip(":")
+                    sim_label = sim_label.rstrip("...")
+                    sim_label_string = "_" + sim_label
         # Search for the data itself.
         for data in test_data:
             if data[1] in line:

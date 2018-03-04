@@ -1,7 +1,7 @@
 
 MODULE UMatCache
     use constants, only: dp,sizeof_int,int64
-    use SystemData, only: tROHF,tStoreSpinOrbs
+    use SystemData, only: tROHF,tStoreSpinOrbs, tComplexWalkers_RealInts
     use util_mod, only: swap
     use sort_mod
     use MemoryManager, only: TagIntType
@@ -224,11 +224,13 @@ MODULE UMatCache
              UMatInd=(int(B,int64)*int(B-1,int64))/2+int(A,int64)
          ENDIF
 #ifdef __CMPLX
+         if(.not. tComplexWalkers_RealInts) then
          UMatInd = (UmatInd-1)*2 + 1
          !We need to test whether we have swapped i and k or j and l independantly of each other
          !If we have done this, it is one of the 'other' integrals - add one.
          if (((I.gt.K).and.(J.lt.L)) .or. ((I.lt.K).and.(J.gt.L))) then
             UMatInd = UMatInd + 1
+         endif
          endif
 #endif
       END FUNCTION UMatInd
@@ -908,7 +910,9 @@ MODULE UMatCache
           use SystemData, only : UMatEps
           use constants, only: dp
           IMPLICIT NONE
-          INTEGER :: I,J,K,L,CacheInd(nPairs),ZeroedInt,NonZeroInt,A,B
+          INTEGER :: I,J,K,L,CacheInd(nPairs)
+          INTEGER(int64) :: ZeroedInt,NonZeroInt
+          INTEGER :: A,B
           HElement_t(dp) :: Z
 
           IF(abs(Z).lt.UMatEps) THEN
@@ -1146,6 +1150,19 @@ MODULE UMatCache
         endif
         if (tTransGTID) id = TransTable(id)
     end function
+
+    elemental function spatial(spin_orb) result(spat_orb)
+
+        ! Convert a spin orbital label into a spatial one. This is more
+        ! appropriate than the above function, gtid, when one always wants the
+        ! spatial label, regardless of the way integrals are being stored.
+
+        integer, intent(in) :: spin_orb
+        integer :: spat_orb
+
+        spat_orb = (spin_orb-1)/2 + 1
+
+    end function spatial
 
       LOGICAL FUNCTION GETCACHEDUMATEL(IDI,IDJ,IDK,IDL,UMATEL,ICACHE,ICACHEI,A,B,ITYPE)
          ! In:

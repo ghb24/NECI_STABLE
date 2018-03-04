@@ -1,12 +1,12 @@
 #include "test_macros.h"
-module countbits_tests
+
+program countbits_tests
+
     use DetBitOps, only: CountBits_sparse, CountBits_nifty, Countbits, &
                          CountBits_elemental
     use constants
     use fruit
     implicit none
-    private
-    public :: countbits_drive_tests
 
     abstract interface
         function count_bits_t (ilut, nlast, nbitsmax) result(bits)
@@ -18,6 +18,17 @@ module countbits_tests
             integer :: bits
         end function
     end interface
+
+    integer :: failed_count
+
+    call init_fruit
+    call countbits_drive_tests
+    call fruit_finalize
+
+    call get_failed_count(failed_count)
+    if (failed_count /= 0) then
+        stop -1
+    end if
 
 contains
 
@@ -79,4 +90,4 @@ contains
         bits = proc(int([1234, 5678, 9101], int64), 1)
         call assert_equals(bits, 12)
     end subroutine
-end module
+end

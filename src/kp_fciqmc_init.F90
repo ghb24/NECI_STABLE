@@ -373,12 +373,23 @@ contains
         ! replicas for each excited state. If tExcitedState = .false. (doing
         ! the old KP-FCIQMC algorithm), this is the number of repeats for the
         ! KP-FCIQMC wave function.
+
+#ifndef __CMPLX
         if (tPairedReplicas) then
             lenof_sign_kp = 2
         else
             lenof_sign_kp = 1
         end if
+#else
+        if (tPairedReplicas) then
+            lenof_sign_kp = 4
+        else
+            lenof_sign_kp = 2
+        end if
 #endif
+#endif
+
+
         ! The number of elements required to store all replicas of all Krylov vectors.
         lenof_all_signs = lenof_sign_kp*kp%nvecs
         ! The total length of a bitstring containing all Krylov vectors.
@@ -523,6 +534,10 @@ contains
         ! If av_mc_excits_kp hasn't been set by the user, just use AvMCExcits.
         if (av_mc_excits_kp == 0.0_dp) av_mc_excits_kp = AvMCExcits
 
+        ! Initialize
+        kp_overlap_mean = 0.0_dp
+        kp_hamil_mean = 0.0_dp
+
         MaxSpawnedEachProc = int(0.88_dp*real(MaxSpawned,dp)/nProcessors)
 
         if (tFCIMCStats2) then
@@ -558,7 +573,7 @@ contains
 
         integer :: ndets_this_proc, nexcit
         real(dp), allocatable :: evals(:)
-        real(dp), allocatable :: evecs_this_proc(:,:), init_vecs(:,:)
+        HElement_t(dp), allocatable :: evecs_this_proc(:,:), init_vecs(:,:)
         integer(MPIArg) :: space_sizes(0:nProcessors-1), space_displs(0:nProcessors-1)
         type(fcimc_iter_data), intent(in) :: iter_data
 
@@ -571,6 +586,7 @@ contains
             ! Create the trial excited states.
             call calc_trial_states_lanczos(kp_trial_space_in, nexcit, ndets_this_proc, SpawnedParts, &
                                            evecs_this_proc, evals, space_sizes, space_displs)
+
             ! Set the populations of these states to the requested value.
             call set_trial_populations(nexcit, ndets_this_proc, evecs_this_proc)
             ! Set the trial excited states as the FCIQMC wave functions.
@@ -585,6 +601,7 @@ contains
             ! Create the trial excited states.
             call calc_trial_states_lanczos(kp_trial_space_in, nexcit, ndets_this_proc, SpawnedParts, &
                                            evecs_this_proc, evals, space_sizes, space_displs)
+
             ! Extract the desried initial excited states and average them.
             call create_init_excited_state(ndets_this_proc, evecs_this_proc, kpfciqmc_ex_labels, kpfciqmc_ex_weights, init_vecs)
             ! Set the populations of these states to the requested value.
@@ -647,6 +664,7 @@ contains
         use FciMCData, only: ValidSpawnedList, spawn_ht
         use FciMCParMod, only: rezero_iter_stats_each_iter
         use hash, only: clear_hash_table
+        use rdm_data, only: rdm_definitions
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer, intent(out) :: determ_index
@@ -665,7 +683,7 @@ contains
         ! Clear the hash table for the spawning array.
         call clear_hash_table(spawn_ht)
 
-        call rezero_iter_stats_each_iter(iter_data)
+        call rezero_iter_stats_each_iter(iter_data, rdm_definitions)
 
     end subroutine init_kp_fciqmc_iter
 
@@ -1080,10 +1098,10 @@ contains
     subroutine create_init_excited_state(ndets_this_proc, trial_vecs, ex_state_labels, ex_state_weights, init_vec)
 
         integer, intent(in) :: ndets_this_proc
-        real(dp), intent(in) :: trial_vecs(:,:)
+        HElement_t(dp), intent(in) :: trial_vecs(:,:)
         integer, intent(in) :: ex_state_labels(:)
         real(dp), intent(in) :: ex_state_weights(:)
-        real(dp), allocatable, intent(out) :: init_vec(:,:)
+        HElement_t(dp), allocatable, intent(out) :: init_vec(:,:)
 
         real(dp) :: real_sign(lenof_sign)
         integer :: i, j, ierr
@@ -1093,7 +1111,7 @@ contains
         if (ierr /= 0) call stop_all(t_r, "Error in MPIScatterV call.")
          
         do i = 1, ndets_this_proc
-            init_vec(1,i) = 0.0_dp
+            init_vec(1,i) = h_cast(0.0_dp)
             do j = 1, size(ex_state_labels)
                 init_vec(1,i) = init_vec(1,i) + ex_state_weights(j)*trial_vecs(ex_state_labels(j), i)
             end do

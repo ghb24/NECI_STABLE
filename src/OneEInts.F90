@@ -33,6 +33,14 @@ HElement_t(dp), dimension(:,:), POINTER :: TMAT2D
 HElement_t(dp), dimension(:), POINTER :: TMATSYM2
 HElement_t(dp), dimension(:,:), POINTER :: TMAT2D2
 
+! One electron integrals corresponding to properties that would be estimated
+! using 1 body RDM
+HElement_t(dp), dimension(:,:,:), pointer :: OneEPropInts
+real(dp), dimension(:), pointer :: PropCore
+
+! A second pointer to get the integrals after freezing orbitals
+HElement_t(dp), dimension(:,:,:), pointer :: OneEPropInts2
+
 ! True if using TMatSym in CPMD (currently only if using k-points, which form
 ! an Abelian group).
 logical tCPMDSymTMat
@@ -43,6 +51,10 @@ logical tOneElecDiag    !Indicates that the one-electron integral matrix is diag
 integer(TagIntType) :: tagTMat2D=0
 integer(TagIntType) :: tagTMat2D2=0
 integer(TagIntType) :: tagTMATSYM=0,tagTMATSYM2=0
+integer(TagIntType) :: tagOneEPropInts=0
+integer(TagIntType) :: tagOneEPropInts2=0
+integer(TagIntType) :: tagPropCore=0
+
 
 contains
 
@@ -200,6 +212,16 @@ contains
             endif
         endif
     end function GetTMatEl
+
+    function GetPropIntEl(i,j,iprop) result(integral)
+        
+!       use OneEInts, only: OneEPropInts
+        integer, intent(in) :: i, j, iprop
+        real(dp) :: integral
+
+        integral = OneEPropInts(i,j,iprop)
+
+    end function
 
       FUNCTION GetNewTMatEl(I,J)
       ! In: 
@@ -458,8 +480,49 @@ contains
     
       END SUBROUTINE SetupTMAT
 
+      subroutine SetupPropInts(nBasis)
+ 
+        use HElem, only: HElement_t_size
+        use LoggingData, only: iNumPropToEst
+        use MemoryManager, only: LogMemalloc
+ 
+        implicit none
+        integer, intent(in) :: nBasis
+        integer :: ierr,iSize
+        character(*),parameter :: t_r = 'SetupPropertyInts'
+ 
+        ! Using a square array to hold <i|h|j> (incl. elements which are
+        ! zero by symmetry).
+        Allocate(OneEPropInts(nBasis,nBasis,iNumPropToEst),STAT=ierr)
+        iSize = NBasis*NBasis*iNumPropToEst
+        call LogMemAlloc('OneEPropInts',nBasis*nBasis*iNumPropToEst,HElement_t_size*8,t_r,tagOneEPropInts)
+        OneEPropInts = (0.0_dp)
+        Allocate(PropCore(iNumPropToEst),STAT=ierr)
+        call LogMemAlloc('PropCore',iNumPropToEst,dp,t_r,tagPropCore)
+        PropCore = 0.0d0
+ 
+      end subroutine SetupPropInts
 
-     
+      subroutine SetupPropInts2(nBasisFrz)
+ 
+        use HElem, only: HElement_t_size
+        use LoggingData, only: iNumPropToEst
+        use MemoryManager, only: LogMemalloc
+ 
+        implicit none
+        integer, intent(in) :: nBasisFrz
+        integer :: ierr,iSize
+        character(*),parameter :: t_r = 'SetupPropertyInts2'
+ 
+        ! Using a square array to hold <i|h|j> (incl. elements which are
+        ! zero by symmetry).
+        Allocate(OneEPropInts2(nBasisFrz,nBasisFrz,iNumPropToEst),STAT=ierr)
+        iSize = NBasisFrz*NBasisFrz*iNumPropToEst
+        call LogMemAlloc('OneEPropInts2',iSize,HElement_t_size*8,t_r,tagOneEPropInts2)
+        OneEPropInts2 = (0.0_dp)
+ 
+      end subroutine SetupPropInts2
+
       SUBROUTINE SetupTMAT2(nBASISFRZ,iSS,iSize)
         ! In:
         !    nBasisFRZ: number of active basis functions (orbitals).
@@ -601,6 +664,22 @@ contains
         ENDIF
       END SUBROUTINE DestroyTMat
 
+      SUBROUTINE DestroyPropInts()
+ 
+        use MemoryManager, only: LogMemDealloc
+        implicit none
+        character(*),parameter :: t_r = 'DestroyPropInts'
+
+        Deallocate(OneEPropInts)
+        call LogMemDealloc(t_r,tagOneEPropInts)
+        if (associated(OneEPropInts2)) then
+            call LogMemDealloc(t_r,tagOneEPropInts2)
+            Deallocate(OneEPropInts2)
+        end if
+        Deallocate(PropCore)
+ 
+      END SUBROUTINE DestroyPropInts
+
       SUBROUTINE SwapTMat(NBASIS,NHG,GG)
         ! In:
         !    nBasis: the number of active orbitals post-freezing.
@@ -629,5 +708,33 @@ contains
         NULLIFY(TMAT2D2)
 
       END SUBROUTINE SwapTMat
+
+      SUBROUTINE SwapOneEPropInts(nBasisFrz,iNum)
+ 
+        ! IN: iNum is the number of perturbation operator used in the calculation
+        ! During freezing, we need to know the OneEPropInts arrays both pre- and
+        ! post-freezing.  Once freezing is done, clear all the pre-freezing
+        ! arrays and point them to the post-freezing arrays, so the code
+        ! referencing pre-freezing arrays can be used post-freezing.
+        use MemoryManager, only: LogMemDealloc, LogMemAlloc
+        use HElem, only: HElement_t_size
+        implicit none
+        integer, intent(in) :: nBasisFrz,iNum
+        integer :: iSize, ierr
+        character(*),parameter :: t_r = 'SwapOneEPropInts'
+
+        Deallocate(OneEPropInts)
+        call LogMemDealloc(t_r,tagOneEPropInts)
+        NULLIFY(OneEPropInts)
+
+        Allocate(OneEPropInts(nBasisFrz,nBasisFrz,iNum),STAT=ierr)
+        iSize = nBasisFrz*nBasisFrz*iNum
+        call LogMemAlloc('OneEPropInts',iSize,HElement_t_size*8,t_r,tagOneEPropInts)
+
+        OneEPropInts => OneEPropInts2
+
+        NULLIFY(OneEPropInts2)
+ 
+      END SUBROUTINE SwapOneEPropInts
 
 end module OneEInts

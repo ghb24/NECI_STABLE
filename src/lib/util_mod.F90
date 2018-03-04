@@ -134,10 +134,10 @@ contains
     ! routine to calculation the absolute magnitude of a complex integer 
     ! variable (to nearest integer)
     pure real(dp) function abs_int4_sign(sgn)
-        integer(int32), intent(in) :: sgn(lenof_sign)
+        integer(int32), intent(in) :: sgn(lenof_sign/inum_runs)
 
 #ifdef __CMPLX
-            abs_int4_sign=real(int(sqrt(real(sgn(1),dp)**2+real(sgn(lenof_sign),dp)**2)),dp)
+            abs_int4_sign=real(int(sqrt(real(sgn(1),dp)**2+real(sgn(2),dp)**2)),dp)
             ! The integerisation here is an approximation, but one that is 
             ! used in the integer algorithm, so is retained in this real 
             ! version of the algorithm
@@ -148,17 +148,17 @@ contains
 
 !routine to calculation the absolute magnitude of a complex integer(int64) variable (to nearest integer)
     pure integer(kind=int64) function abs_int8_sign(wsign)
-        integer(kind=int64), dimension(lenof_sign), intent(in) :: wsign
+        integer(kind=int64), dimension(lenof_sign/inum_runs), intent(in) :: wsign
 
 #ifdef __CMPLX
-            abs_int8_sign=nint(sqrt(real(wsign(1),dp)**2+real(wsign(lenof_sign),dp)**2),int64)
+            abs_int8_sign=nint(sqrt(real(wsign(1),dp)**2+real(wsign(2),dp)**2),int64)
 #else
             abs_int8_sign=abs(wsign(1))
 #endif
     end function abs_int8_sign
 
     pure real(dp) function abs_real_sign (sgn)
-        real(dp), intent(in) :: sgn(lenof_sign)
+        real(dp), intent(in) :: sgn(lenof_sign/inum_runs)
 #ifdef __CMPLX
             abs_real_sign = real(nint(sqrt(sum(sgn ** 2))), dp)
 #else
@@ -845,10 +845,15 @@ contains
         ! Avoid timing inaccuracies from using cpu_time on cerebro.
         ret = etime(time)
 #else
+#ifdef BLUEGENE_HACKS
+        time = 0
+        ret = 0
+#else
         ! Use Fortran95 timing intrinsic
         call cpu_time(ret)
         time(1) = ret
         time(2) = real(0.0,sp)
+#endif
 #endif
 
     end function neci_etime
@@ -926,6 +931,8 @@ end module
         call getarg(i, str)
 #elif defined(MOLPRO) && !defined(MOLPRO_f2003)
         call getarg(i, str)
+#elif defined(BLUEGENE_HACKS)
+        call getarg(int(i, 4), str)
 #elif defined(__OPEN64__) || defined(__PATHSCALE__)
         j = i
         call get_command_argument (j, str)
@@ -993,7 +1000,7 @@ end module
     function hostnm (nm) result(ret)
         implicit none
         integer :: ret, hostnm_
-        character(8) :: nm
+        character(255) :: nm
         ret = hostnm_(nm)
     end function
 

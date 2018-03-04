@@ -6,7 +6,7 @@
 module semi_stoch_procs
 
     use bit_rep_data, only: flag_deterministic, nIfDBO, NIfD, NIfTot, test_flag
-    use bit_reps, only: decode_bit_det
+    use bit_reps, only: decode_bit_det, get_initiator_flag_by_run
     use CalcData
     use constants
     use FciMCData, only: determ_sizes, determ_displs, determ_space_size, &
@@ -31,7 +31,7 @@ contains
         use FciMCData, only: SemiStoch_Multiply_Time
         use Parallel_neci, only: MPIBarrier, MPIAllGatherV
 
-        integer :: i, j, ierr
+        integer :: i, j, ierr, run, part_type
 
         call MPIBarrier(ierr)
 
@@ -57,12 +57,14 @@ contains
 #ifdef __CMPLX
             do i = 1, determ_sizes(iProcIndex)
                 do j = 1, sparse_core_ham(i)%num_elements
-                    partial_determ_vecs(1,i) = partial_determ_vecs(1,i) - &
-                        Real(sparse_core_ham(i)%elements(j))*full_determ_vecs(1,sparse_core_ham(i)%positions(j)) +&
-                        Aimag(sparse_core_ham(i)%elements(j))*full_determ_vecs(2,sparse_core_ham(i)%positions(j))
-                    partial_determ_vecs(2,i) = partial_determ_vecs(2,i) - &
-                        Aimag(sparse_core_ham(i)%elements(j))*full_determ_vecs(1,sparse_core_ham(i)%positions(j)) -&
-                        Real(sparse_core_ham(i)%elements(j))*full_determ_vecs(2,sparse_core_ham(i)%positions(j))
+                    do run = 1, inum_runs
+                        partial_determ_vecs(min_part_type(run),i) = partial_determ_vecs(min_part_type(run),i) - &
+                            Real(sparse_core_ham(i)%elements(j))*full_determ_vecs(min_part_type(run),sparse_core_ham(i)%positions(j)) +&
+                            Aimag(sparse_core_ham(i)%elements(j))*full_determ_vecs(max_part_type(run),sparse_core_ham(i)%positions(j))
+                        partial_determ_vecs(max_part_type(run),i) = partial_determ_vecs(max_part_type(run),i) - &
+                            Aimag(sparse_core_ham(i)%elements(j))*full_determ_vecs(min_part_type(run),sparse_core_ham(i)%positions(j)) -&
+                            Real(sparse_core_ham(i)%elements(j))*full_determ_vecs(max_part_type(run),sparse_core_ham(i)%positions(j))
+                    end do
                 end do
             end do
 #else
@@ -78,8 +80,10 @@ contains
             ! sparse_core_ham.
 #ifdef __CMPLX
             do i = 1, determ_sizes(iProcIndex)
-                partial_determ_vecs(:,i) = partial_determ_vecs(:,i) + &
-                   DiagSft(1) * full_determ_vecs(:,i+determ_displs(iProcIndex))
+                do part_type  = 1, lenof_sign 
+                    partial_determ_vecs(part_type,i) = partial_determ_vecs(part_type,i) + &
+                       DiagSft(part_type_to_run(part_type)) * full_determ_vecs(part_type,i+determ_displs(iProcIndex))
+                enddo
             end do
 #else
             do i = 1, determ_sizes(iProcIndex)
@@ -149,8 +153,9 @@ contains
         ! If this condition is met then RDM energies were added in on the
         ! previous iteration. We now want to start a new averaging block so
         ! that the same contributions aren't added in again later.
-        if (mod(Iter+PreviousCycles - IterRDMStart, RDMEnergyIter) == 0) then 
+        if (mod(Iter+PreviousCycles-IterRDMStart, RDMEnergyIter) == 0) then 
             full_determ_vecs_av = 0.0_dp
+            write(6,*) "Reset fdv av at iteration ", iter
         end if
 
         ! The current iteration, converted to a double precision real.
@@ -254,7 +259,7 @@ contains
                          TempStoreTag, ierr)
 
         ! Stick together the deterministic states from all processors, on all processors.
-        call MPIAllGatherV(SpawnedParts(:,1:determ_sizes(iProcIndex)), temp_store, &
+        call MPIAllGatherV(SpawnedParts(0:NIfTot,1:determ_sizes(iProcIndex)), temp_store, &
                        determ_sizes, determ_displs)
 
         ! Over all core states on this processor.
@@ -644,7 +649,7 @@ contains
         use searching, only: BinSearchParts
         use sort_mod, only: sort
 
-        integer :: i, j, comp, MinInd, PartInd, nwalkers
+        integer :: i, run, comp, MinInd, PartInd, nwalkers
         logical :: tSuccess
 
         MinInd = 1
@@ -678,8 +683,8 @@ contains
             if (tSuccess) then
                 call set_flag(CurrentDets(:,PartInd), flag_deterministic)
                 if (tTruncInitiator) then
-                    do j = 1, lenof_sign
-                        call set_flag(CurrentDets(:,PartInd), flag_initiator(j))
+                    do run = 1, inum_runs
+                        call set_flag(CurrentDets(:,PartInd), get_initiator_flag_by_run(run))
                     end do
                 end if
                 MinInd = PartInd
@@ -735,9 +740,15 @@ contains
 
         ! Test that SpawnedParts is going to be big enough
         if (determ_sizes(iProcIndex) > MaxSpawned) then
+#ifdef __DEBUG
             write(6,*) 'Spawned parts array will not be big enough for &
                        &Semi-Stochastic initialisation'
             write(6,*) 'Please increase MEMORYFACSPAWN'
+#else
+            write(*,*) 'Spawned parts array will not be big enough for &
+                       &Semi-Stochastic initialisation on task ', iProcIndex
+            write(*,*) 'Please increase MEMORYFACSPAWN'
+#endif
             call stop_all(this_routine, "Insufficient memory assigned")
         end if
 
@@ -785,9 +796,15 @@ contains
                 ! Add a quick test in, to ensure that we don't overflow the
                 ! spawned parts array...
                 if (i_non_core > MaxSpawned) then
+#ifdef __DEBUG
                     write(6,*) 'Spawned parts array too small for &
                                &semi-stochastic initialisation'
                     write(6,*) 'Please increase MEMORYFACSPAWN'
+#else
+                    write(*,*) 'Spawned parts array too small for &
+                               &semi-stochastic initialisation on task ', iProcIndex
+                    write(*,*) 'Please increase MEMORYFACSPAWN'
+#endif
                     call stop_all(this_routine, 'Insufficient memory assigned')
                 end if
                 
@@ -845,7 +862,7 @@ contains
         integer, intent(in) :: n_keep
         integer(n_int), intent(out) :: largest_walkers(0:NIfTot, n_keep)
         real(dp), intent(out), optional :: norm
-        integer :: i, j, smallest_pos
+        integer :: i, j, smallest_pos, part_type
         real(dp) :: smallest_sign, sign_curr_real
         real(dp), dimension(lenof_sign) :: sign_curr, low_sign
 
@@ -859,7 +876,7 @@ contains
             call extract_sign(CurrentDets(:,i), sign_curr)
 
 #ifdef __CMPLX
-            sign_curr_real = sqrt(real(sign_curr(1),dp)**2 + real(sign_curr(lenof_sign),dp)**2)
+            sign_curr_real = sqrt(sum(abs(sign_curr(1::2)))**2 + sum(abs(sign_curr(2::2)))**2)
 #else
             sign_curr_real = sum(real(abs(sign_curr),dp))
 #endif
@@ -883,7 +900,7 @@ contains
                 do j = 2, n_keep
                     call extract_sign(largest_walkers(:,j), low_sign)
 #ifdef __CMPLX
-                    sign_curr_real = sqrt(real(low_sign(1),dp)**2+real(low_sign(lenof_sign),dp)**2)
+                    sign_curr_real = sqrt(sum(real(low_sign**2,dp)))
 #else
                     sign_curr_real = sum(real(abs(low_sign),dp))
 #endif
@@ -950,8 +967,8 @@ contains
     subroutine start_walkers_from_core_ground(tPrintInfo)
 
         use bit_reps, only: encode_sign
-        use davidson_neci, only: davidson_eigenvalue, parallel_sparse_hamil_type, perform_davidson
-        use davidson_neci, only: davidson_eigenvector
+        use hamiltonian_linalg, only: parallel_sparse_hamil_type
+        use davidson_neci, only: DavidsonCalcType, perform_davidson, DestroyDavidsonCalc
         use FciMCData, only: core_ham_diag, DavidsonTag
         use MemoryManager, only: LogMemAlloc, LogMemDealloc
         use Parallel_neci, only: MPIScatterV
@@ -959,11 +976,16 @@ contains
         use sparse_arrays, only: deallocate_sparse_ham, sparse_ham, hamil_diag, HDiagTag
         use sparse_arrays, only: SparseHamilTags, allocate_sparse_ham_row
 
+        use hamiltonian_linalg, only: sparse_hamil_type
+        use lanczos_general, only: LanczosCalcType, DestroyLanczosCalc
+        use lanczos_general, only: perform_lanczos
+
         logical, intent(in) :: tPrintInfo
         integer :: i, counter, ierr
         real(dp) :: eigenvec_pop, pop_sign(lenof_sign)
         real(dp), allocatable :: temp_determ_vec(:)
         character(len=*), parameter :: t_r = "start_walkers_from_core_ground"
+        type(DavidsonCalcType) :: davidsonCalc
 
         ! Create the arrays used by the Davidson routine.
         ! First, the whole Hamiltonian in sparse form.
@@ -988,7 +1010,11 @@ contains
         end if
 
         ! Call the Davidson routine to find the ground state of the core space. 
-        call perform_davidson(parallel_sparse_hamil_type, .false.)
+        call perform_davidson(davidsonCalc, parallel_sparse_hamil_type, .false.)
+        associate( &
+            davidson_eigenvector => davidsonCalc%davidson_eigenvector, &
+            davidson_eigenvalue => davidsonCalc%davidson_eigenvalue &
+        )
 
         if (tPrintInfo) then
             write(6,'(a30)') "Davidson calculation complete."
@@ -1013,7 +1039,7 @@ contains
         ! Send the components to the correct processors using the following
         ! array as temporary space.
         allocate(temp_determ_vec(determ_sizes(iProcIndex)))
-        call MPIScatterV(davidson_eigenvector, determ_sizes, determ_displs, &
+        call MPIScatterV(real(davidson_eigenvector, dp), determ_sizes, determ_displs, &
                          temp_determ_vec, determ_sizes(iProcIndex), ierr)
 
         ! Finally, copy these amplitudes across to the corresponding states in CurrentDets.
@@ -1026,12 +1052,13 @@ contains
             end if
         end do
 
-        deallocate(davidson_eigenvector)
+        call DestroyDavidsonCalc(davidsonCalc)
         call LogMemDealloc(t_r, DavidsonTag, ierr)
         deallocate(hamil_diag, stat=ierr)
         call LogMemDealloc(t_r, HDiagTag, ierr)
         call deallocate_sparse_ham(sparse_ham, 'sparse_ham', SparseHamilTags)
         deallocate(temp_determ_vec)
+        end associate
 
     end subroutine start_walkers_from_core_ground
 
@@ -1246,7 +1273,7 @@ contains
         end if
         if (allocated(core_ham_diag)) then
             deallocate(core_ham_diag, stat=ierr)
-            call LogMemDealloc(t_r, IDetermTag, ierr)
+!            call LogMemDealloc(t_r, IDetermTag, ierr)
         end if
         if (allocated(core_space)) then
             deallocate(core_space, stat=ierr)

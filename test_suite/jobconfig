@@ -6,24 +6,40 @@ nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
 
+[kmneci/*/]
+program = kmneci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
 [mneci/*/*/]
 program = mneci
 nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
 
-[neci/serial/*/*/]
+[dneci/*/*/]
+program = dneci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
+[neci/serial/*/]
+program = neci
 max_nprocs = 1
 
-[neci/parallel/*/*/]
+[neci/parallel/*/]
+program = neci
 nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
 
 [neci/rdm_singlerun/serial/*]
+program = neci
 max_nprocs = 1
 
 [neci/rdm_singlerun/parallel/*]
+program = neci
 nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
@@ -59,6 +75,26 @@ tolerance = (3e-8, None, 'overlap_sum'), (2e-7, None, 'hamil_sum')
 [mneci/cfqmc/HeHe_5_states_exact_hamil/]
 program = mneci
 tolerance = (5.01e-8, None, 'overlap_sum'), (3.01e-7, None, 'hamil_sum')
+
+[mneci/excited_state/Ne_hphf_2_states_rdm_transition/]
+program = mneci
+tolerance = (5e-8, None, 'sum_error_rdm_2'), (5e-8, None, 'sum_diff_trdm_1_2(1)'), (5e-8, None, 'sum_diff_trdm_1_2(2)')
+
+[kmneci/Rn_lanczos_dci_init/]
+program = kmneci
+tolerance = (1e-7, None, 'final_energy_2')
+
+[hdf5/dneci/*/*/]
+program = dneci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
+[hdf5/neci/*/]
+program = neci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
 
 [csfoh/]
 program = csfoh
@@ -117,7 +153,7 @@ program = guga_unit_tests
 [guga_unit_tests/N2/*/*/]
 program = guga_unit_tests
 
-[categories/]
+_default_ = neci kneci mneci kmneci
 
-_default_ = neci kneci mneci 
+# add new hdf5 class so this is not tested standardly on altest currently, since there is a problem compiling hdf5
 

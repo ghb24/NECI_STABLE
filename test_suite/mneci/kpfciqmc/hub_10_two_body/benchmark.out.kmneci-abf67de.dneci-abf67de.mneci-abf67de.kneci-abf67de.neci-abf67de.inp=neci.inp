@@ -1,0 +1,376 @@
+ Number of processors:            2
+ Processor            1 /           2  as head node.
+ Sum:            3
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on May 23 2017 at 15:00:48
+ Compiled using configuration:
+     cmake-Intel-par-RELEASE
+ VCS BASE repository version:
+     abf67de76339fdfc02a4fe2e8ec0b1d08a3c1a58
+ Working directory: 
+     /home/dobrautz/altest_neci/neci/test_suite/mneci/kpfciqmc/hub_10_two_body
+ Running on: altest
+ Started running on 23/05/2017 at 16:04:57
+ ================================================================
+
+ Processing arguments
+ neci.inp                                                                       
+                                                                                
+                                                                                
+                   
+ Reading from file: neci.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+system hubbard
+cell 10 1 1
+b -1
+u 1
+spin-restrict 0
+sym 1 0 0 0
+kpoints
+nonuniformrandexcits nosymgen
+lattice-excitgen
+electrons 8
+endsys
+
+calc
+tau 0.01
+totalwalkers 2000
+shiftdamp 0.5
+diagshift 0.0
+stepsshift 1
+memoryfacpart 20.0
+memoryfacspawn 10.0
+allrealcoeff
+realspawncutoff 0.01
+semi-stochastic
+doubles-core
+stochastic-hf-spawning
+readpops
+pops-annihilate 1
+13 4
+definedet 6 7 8 9 10 11 12 15
+seed 26940
+load-balance-blocks off
+endcalc
+
+kp-fciqmc
+num-krylov-vecs 6
+num-iters-between-vecs-vary 1 2 3 4 5
+num-repeats-per-init-config 1
+averagemcexcits-hamil 10
+overlap-perturb-annihilate 1
+7 10
+end-kp-fciqmc
+
+integral
+endint
+
+logging
+popsfile -1
+endlog
+end
+
+****************************************************************
+
+ Using KPFCIQMC without explicitly specifying the number of replica simulations
+ Defaulting to using 2 replicas
+ Allocating each processor as a separate node.
+ I am the node root for node            0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :     8
+  Restricting the spin state of the system, TSPN :  T
+  GLOBAL MS :            0
+  *** HUBBARD MODEL ***  
+  MOMENTUM :            1           0           0
+  NMAXX :    10
+  NMAXY :     1
+  NMAXZ :     1
+  NMSH :    32
+   HUBBARD T :            -1.00000
+   HUBBARD U :             1.00000
+  X-LENGTH OF HUBBARD CHAIN:          10
+  Y-LENGTH OF HUBBARD CHAIN:           1
+  Z-LENGTH OF HUBBARD CHAIN:           1
+  Periodic Boundary Conditions: T
+  Real space basis: F
+  Orbital Energy Cutoff:  1.000000000000000E+020
+   VOLUME :            10.00000
+  TALPHA :  F
+   ALPHA :             0.00000
+   SCALED ALPHA :             0.00000
+  NUMBER OF SPIN ORBITALS IN BASIS :    20
+ Creating plane wave basis.
+  NUMBER OF BASIS FUNCTIONS :           20
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+HF determinant not yet defined.
+      1      9      0      0      0     -1    1   0       -2.000000000       -2.000000000
+      2     10      0      0      0      1    1   0       -2.000000000       -2.000000000
+      3      7     -1      0      0     -1    1   0       -1.618033989       -1.618033989
+      4      8     -1      0      0      1    1   0       -1.618033989       -1.618033989
+      5     11      1      0      0     -1    1   0       -1.618033989       -1.618033989
+      6     12      1      0      0      1    1   0       -1.618033989       -1.618033989
+      7      5     -2      0      0     -1    1   0       -0.618033989       -0.618033989
+      8      6     -2      0      0      1    1   0       -0.618033989       -0.618033989
+      9     13      2      0      0     -1    1   0       -0.618033989       -0.618033989
+     10     14      2      0      0      1    1   0       -0.618033989       -0.618033989
+     11      3     -3      0      0     -1    1   0        0.618033989        0.618033989
+     12      4     -3      0      0      1    1   0        0.618033989        0.618033989
+     13     15      3      0      0     -1    1   0        0.618033989        0.618033989
+     14     16      3      0      0      1    1   0        0.618033989        0.618033989
+     15      1     -4      0      0     -1    1   0        1.618033989        1.618033989
+     16      2     -4      0      0      1    1   0        1.618033989        1.618033989
+     17     17      4      0      0     -1    1   0        1.618033989        1.618033989
+     18     18      4      0      0      1    1   0        1.618033989        1.618033989
+     19     19      5      0      0     -1    1   0        2.000000000        2.000000000
+     20     20      5      0      0      1    1   0        2.000000000        2.000000000
+Generating abelian symmetry table with 10 generators for Hubbard momentum
+ SIZES           0          20 F F F F
+ Symmetry, Symmetry Conjugate
+           1           1
+           2           9
+           3           8
+           4           7
+           5           6
+           6           5
+           7           4
+           8           3
+           9           2
+          10          10
+HF determinant not yet defined.
+      1      9      0      0      0     -1    1   0       -2.000000000       -2.000000000
+      2     10      0      0      0      1    1   0       -2.000000000       -2.000000000
+      3      7     -1      0      0     -1   10   0       -1.618033989       -1.618033989
+      4      8     -1      0      0      1   10   0       -1.618033989       -1.618033989
+      5     11      1      0      0     -1   20   0       -1.618033989       -1.618033989
+      6     12      1      0      0      1   20   0       -1.618033989       -1.618033989
+      7      5     -2      0      0     -1    8   0       -0.618033989       -0.618033989
+      8      6     -2      0      0      1    8   0       -0.618033989       -0.618033989
+      9     13      2      0      0     -1   40   0       -0.618033989       -0.618033989
+     10     14      2      0      0      1   40   0       -0.618033989       -0.618033989
+     11      3     -3      0      0     -1    4   0        0.618033989        0.618033989
+     12      4     -3      0      0      1    4   0        0.618033989        0.618033989
+     13     15      3      0      0     -1   80   0        0.618033989        0.618033989
+     14     16      3      0      0      1   80   0        0.618033989        0.618033989
+     15      1     -4      0      0     -1    2   0        1.618033989        1.618033989
+     16      2     -4      0      0      1    2   0        1.618033989        1.618033989
+     17     17      4      0      0     -1  100   0        1.618033989        1.618033989
+     18     18      4      0      0      1  100   0        1.618033989        1.618033989
+     19     19      5      0      0     -1  200   0        2.000000000        2.000000000
+     20     20      5      0      0      1  200   0        2.000000000        2.000000000
+ Not precomputing HUBBARD 2-e integrals
+Allocated                  8 bytes of shared memory named: umat
+ Defining FDet according to input
+ Fermi det (D0):(    6,    7,    8,    9,   10,   11,   12,   15)
+ Symmetry:    20
+ Fock operator energy:  -10.4721359549996     
+ Calculation supports multiple parallel runs
+ Number of simultaneous walker distributions:            2
+ Number of sign components in bit representation of determinant:            2
+Setting integer length of determinants as bit-strings to:      4
+Setting integer bit-length of determinants as bit-strings to:     64
+ SYMMETRY MULTIPLICATION TABLE
+    1    2    4    8   10   20   40   80  100  200
+    2   40   80  100  200    4    8   10    1   20
+    4   80  100  200    2    8   10    1   20   40
+    8  100  200    2    4   10    1   20   40   80
+   10  200    2    4    8    1   20   40   80  100
+   20    4    8   10    1   40   80  100  200    2
+   40    8   10    1   20   80  100  200    2    4
+   80   10    1   20   40  100  200    2    4    8
+  100    1   20   40   80  200    2    4    8   10
+  200   20   40   80  100    2    4    8   10    1
+ Fast Abelian excitation generators specified,
+ but abelian symmetry not in use.  Using slow generators.
+          55  STATE PAIRS
+          10  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ Total momentum is           1           0           0
+ Not storing the H matrix.
+ BETAP=  1.000000000000000E-004
+ RESETTING P 
+ *** WARNING I_P=    10000000
+ BETA, P :   1000.00000000000         10000000
+ DBETA=  -1.00000000000000     
+ <D0|H|D0>=  -8.87213595499958     
+ <D0|T|D0>=  -10.4721359549996     
+ FDet has     4 alpha electrons, and     4 beta electrons.
+                6  alpha-alpha occupied electron pairs
+                6  beta-beta occupied electron pairs
+               16  alpha-beta occupied electron pairs
+               15 alpha-alpha (vacant) hole pairs
+               15 beta-beta (vacant) hole pairs
+               36 alpha-beta (vacant) hole pairs
+ 
+ Performing Parallel FCIQMC....
+ 
+ Generated reference determinants:
+(    6,    7,    8,    9,   10,   11,   12,   15) E =     -8.872135955
+(    6,    7,    8,    9,   10,   11,   12,   15) E =     -8.872135955
+ Using an open shell reference determinant in a basis of restricted HF orbitals; Brillouins theorem is being turned off. 
+Symmetry of reference determinant is:         32
+Value for seed is:        26940
+Reference Energy set to:        -8.8721359550
+Highest energy determinant is (approximately):      13.3082039324994    
+Corresponding to a correlation energy of:      22.1803398874989    
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+ Since we are using a momentum-space hubbard model/UEG, only double excitaitons 
+                           are connected and will be generated.
+ Connectivity of HF determinant is:           95
+ POPSFILE VERSION            4  detected.
+ Number of iterations in previous simulation:        10000
+Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors
+Memory allocated for a maximum particle number per node of:         524288
+ Determinant related persistent storage requires:       4.000000 Mb / processor
+Spawning vectors allowing for a total of        20000 particles to be spawned in any one iteration per core.
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:             700
+Length of hash-table as a fraction of targetwalkers:              0.70000
+Reference processor is:        1
+Initial reference is: (    6,    7,    8,    9,   10,   11,   12,   15)
+Reading in a total of            2816 configurations from POPSFILE.
+Reading in a maximum of        20000 determinants at a time from POPSFILE'
+Number of batches required to distribute all determinants in POPSFILE:        1
+ Number of configurations read in to this process:                   1410
+ CurrWalkers:                   1410
+ Initial memory (without excitgens + temp arrays) consists of :      17.220703 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+
+============ Semi-stochastic initialisation ============
+Generating the deterministic space...
+Total size of deterministic space:       96
+Size of deterministic space on this processor:       37
+Generating the Hamiltonian in the deterministic space...
+Semi-stochastic initialisation complete.
+Total time (seconds) taken for semi-stochastic initialisation:    0.016
+
+
+============ KP-FCIQMC ============
+About to allocate array to hold all Krylov vectors. Memory required (MB): 0
+Allocating... Done.
+About to allocate array to hold diagonal Hamiltonian elements for Krylov vectors. Memory required (MB): 0
+Allocating... Done.
+About to allocate hash table to the Krylov vector array. Memory required (MB): 0
+Allocating... Done.
+Note that the hash table uses linked lists, and the memory usage will increase as further nodes are added.
+     About to allocate hash table to the spawning array. Memory required (MB): 0
+Allocating... Done.
+Note that the hash table uses linked lists, and the memory usage will increase as further nodes are added.
+About to allocate various subspace matrices. Memory required (MB): 0
+Allocating... Done.
+# 1. Iter.             2. Tot. parts        3. Tot. ref          4. Proj. E (cyc)     5. Shift. (cyc)      9. Tot. Proj. E      10. Dets occ.        11. Dets spawned     12. Iter. time      
+ Starting repeat number 1
+ Number of iterations in previous simulation:        10000
+Reading in a total of            2816 configurations from POPSFILE.
+Reading in a maximum of        20000 determinants at a time from POPSFILE'
+Number of batches required to distribute all determinants in POPSFILE:        1
+ Number of configurations read in to this process:                   1410
+ CurrWalkers:                   1410
+WALKCONTGROW set in input, but simulation already exceeds target number of particles
+Continuing with DIAGSHIFT from POPSFILE for run    1
+WALKCONTGROW set in input, but simulation already exceeds target number of particles
+Continuing with DIAGSHIFT from POPSFILE for run    2
+About to allocate array to hold the perturbed ground state. Memory requir 0
+Allocating... Done.
+ Number of iterations in previous simulation:        10000
+Reading in a total of            2816 configurations from POPSFILE.
+Reading in a maximum of        20000 determinants at a time from POPSFILE'
+Number of batches required to distribute all determinants in POPSFILE:        1
+ Number of configurations read in to this process:                   1410
+ CurrWalkers:                   1410
+#               0   2391.15801973        172.397334430        0.00000000000        0.00000000000       -8.87213595500                  673               0   0.00000000000     
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 313 out of a possible 8448
+# Fraction of the amplitude elements used in the Krylov vector array: 4.2712E-03
+                1   2371.78119277        172.397334430       0.328476669417E-001   0.00000000000       -8.83928828806                  750             985   0.00000000000     
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 346 out of a possible 8448
+# Fraction of the amplitude elements used in the Krylov vector array: 8.9074E-03
+                2   2367.60393627        172.340705928       0.274996075323E-001   0.00000000000       -8.84463634747                  779            1005   0.00000000000     
+                3   2341.38185722        172.293312910       0.221080795427E-001   0.00000000000       -8.85002787546                  798             965   0.00000000000     
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 405 out of a possible 8448
+# Fraction of the amplitude elements used in the Krylov vector array: 1.3820E-02
+                4   2329.13798603        172.255222167       0.175202228394E-001   0.00000000000       -8.85461573216                  823            1019   0.00000000000     
+                5   2329.63994112        172.225042669       0.133048220609E-001   0.00000000000       -8.85883113294                  852             990   0.00000000000     
+                6   2304.40680069        172.202128433       0.901031299421E-002   0.00000000000       -8.86312564201                  866            1028   0.00000000000     
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 482 out of a possible 8448
+# Fraction of the amplitude elements used in the Krylov vector array: 1.8969E-02
+                7   2298.98541544        172.186612482       0.419365485047E-002   0.00000000000       -8.86794230015                  885            1033   0.00000000000     
+                8   2270.68634637        172.179391570      -0.439949549489E-003   0.00000000000       -8.87257590455                  894            1008   0.00000000000     
+                9   2258.13032230        172.180149073      -0.506178184726E-002   0.00000000000       -8.87719773685                  909            1002   0.00000000000     
+               10   2223.24976430        172.188864456      -0.928860181439E-002   0.00000000000       -8.88142455681                  903             992   0.00000000000     
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 558 out of a possible 8448
+# Fraction of the amplitude elements used in the Krylov vector array: 2.4187E-02
+               11   2217.52350017        172.204858394      -0.134253364684E-001   0.00000000000       -8.88556129147                  912             984   0.00000000000     
+               12   2196.39953195        172.227977476      -0.175131250461E-001   0.00000000000       -8.88964908005                  925            1004   0.00000000000     
+               13   2177.73651993        172.258139977      -0.216190283024E-001   0.00000000000       -8.89375498330                  921             971   0.00000000000     
+               14   2165.79742408        172.295380513      -0.255087411265E-001   0.00000000000       -8.89764469613                  935             972   0.00000000000     
+               15   2140.81550909        172.339330895      -0.291954770712E-001   0.00000000000       -8.90133143207                  931             956   0.00000000000     
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 642 out of a possible 8448
+# Fraction of the amplitude elements used in the Krylov vector array: 2.9435E-02
+
+ ================================================================
+ KP-FCIQMC testsuite data:
+ Sum of overlap matrix elements:             9.3811775660503E+05
+ Sum of H elements:                         -6.8590344521072E+06
+ ================================================================
+ 
+ ================================================================
+ Memory usage
+ Maximum memory defined is (MB) :   99999.0
+ Maximum memory used is    (MB) :      21.2
+ 
+ Large memory allocations:
+ 
+ Name              Allocated in       Deallocated in         Size
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ WalkVecDets       InitFCIMCPar       not deallocated      16.0MB
+ arr               init_global_det_datnot deallocated       4.0MB
+ arr               InitFCIMCPar       not deallocated     625.0KB
+ arr               InitFCIMCPar       not deallocated     625.0KB
+ SymPairProds      GenSymStatePairs   EndSym                4.7KB
+ TMAT2D            SetupTMAT          DestroyTMat           3.1KB
+ temp_store        calculate_det_hamilcalculate_det_hamil   3.0KB
+ core_space        store_whole_core_spnot deallocated       1.8KB
+ full_determ_vecs  init_semi_stochastinot deallocated       1.5KB
+ full_determ_vecs_ainit_semi_stochastinot deallocated       1.5KB
+ ================================================================
+
+ ================================================================
+ Timing report.
+
+ Timing of most expensive procedures.
+
+ Procedure                    Calls       CPU    system     total
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ NECICUBE                         1      0.05      0.00      0.05
+ SubspaceHamilTime                1      0.04      0.00      0.04
+ POPS-read                        3      0.02      0.00      0.02
+ SemiStochInitTime                1      0.02      0.00      0.02
+ AnnMainTime                     15      0.01      0.00      0.01
+ StatsCommsTime                  15      0.01      0.00      0.01
+ SyncTime                        46      0.01      0.00      0.01
+ SysInit                          1      0.00      0.00      0.00
+ WalkerTime                      15      0.00      0.00      0.00
+ SortTime                        15      0.00      0.00      0.00
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ Total                                   0.15      0.00      0.15
+
+ Global CPU time          0.21
+ Global system time       0.00
+ Global total time        0.21
+ ================================================================
+ Calculation ended 23/05/2017 at 16:04:58
+ ================================================================

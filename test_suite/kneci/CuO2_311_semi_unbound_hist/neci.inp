@@ -1,0 +1,45 @@
+title
+
+system read
+freeformat
+electrons 10
+spin-restrict 1
+nonuniformrandexcits 4ind-weighted-unbound
+hphf 0 
+endsys
+
+calc
+methods
+method vertex fcimc
+endmethods
+totalwalkers 20000
+startsinglepart 10
+shiftdamp 0.05
+stepsshift 10
+proje-changeref 1.2
+truncinitiator
+addtoinitiator 3
+walkcontgrow
+semi-stochastic,100
+pops-core 100
+allrealcoeff
+realspawncutoff 0.02
+jump-shift
+hist-tau-search 0.999
+max-tau 0.02
+tau 0.005
+(tau 0.005 search
+maxwalkerbloom 1
+memoryfacspawn 25.0
+memoryfacpart 5.0
+time 1200.0
+nmcyc 6000
+endcalc
+
+integral
+endint
+
+logging
+popsfile -1
+endlog
+end

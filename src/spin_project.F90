@@ -5,9 +5,11 @@ module spin_project
                         tRealCoeffByExcitLevel, RealCoeffExcitThresh
     use SymExcitDataMod, only: scratchsize
     use bit_rep_data, only: extract_sign
-    use bit_reps, only: NIfD, NIfTot, flag_initiator, test_flag, set_flag
+    use bit_reps, only: NIfD, NIfTot, flag_initiator, test_flag, set_flag, &
+                        get_initiator_flag_by_run
     use csf, only: csf_get_yamas, get_num_csfs, csf_coeff, random_spin_permute
-    use constants, only: dp, bits_n_int, lenof_sign, n_int, end_n_int, int32,sizeof_int
+    use constants, only: dp, bits_n_int, lenof_sign, n_int, end_n_int, int32,sizeof_int, &
+                        inum_runs
     use FciMCData, only: TotWalkers, CurrentDets, fcimc_iter_data, &
                          yama_global, excit_gen_store_type, &
                          fcimc_excit_gen_store
@@ -402,7 +404,7 @@ ASSERT(count_open_orbs(ilutI) /= 0)
     end function get_spawn_helement_spin_proj
 
     subroutine generate_excit_spin_proj (nI, iLutI, nJ, iLutJ, exFlag, IC, &
-                                         ex, tParity, pGen, HElGen, store)
+                                         ex, tParity, pGen, HElGen, store, part_type)
 
         ! This returns an excitation of the source determiant (iLutI).
         !
@@ -422,6 +424,7 @@ ASSERT(count_open_orbs(ilutI) /= 0)
         logical, intent(out) :: tParity
         HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
+        integer, intent(in), optional :: part_type
 
         integer :: nopen, nchoose, i
         integer :: nTmp(nel), iUnused
@@ -517,9 +520,9 @@ ASSERT(count_open_orbs(ilutI) /= 0)
         ! If we are in initiator mode, then we may want to make all of the
         ! children into initiators as well
         if (tTruncInitiator) then
-            do i = 1, lenof_sign
+            do i = 1, inum_runs
                 ! We always want our particles to survive.
-                call set_flag (ilutJ, flag_initiator(i))
+                call set_flag (ilutJ, get_initiator_flag_by_run(i))
             enddo
         endif
 

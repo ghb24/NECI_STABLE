@@ -9,6 +9,7 @@ module rdm_explicit
 
     use bit_rep_data, only: NIfTot
     use constants
+    use SystemData, only : tReltvy
 
     implicit none
 
@@ -23,7 +24,7 @@ contains
         use rdm_data, only: nElRDM_Time
 
         integer(int64), intent(in) :: TotWalkers
-        integer(kind=n_int) :: iLutnI(0:NIfTot)
+        integer(n_int) :: iLutnI(0:NIfTot)
         integer(int64) :: MaxTotWalkers, TotWalkIn(2), TotWalkOut(2)
         integer :: i, error
         real(dp) :: TempTotParts, NormalisationTemp, Sum_Coeffs
@@ -75,7 +76,7 @@ contains
         use rdm_data, only: nElRDM_Time, ExcNorm
 
         integer(int64), intent(in) :: TotWalkers
-        integer(kind=n_int) :: iLutnI(0:NIfTot)
+        integer(n_int) :: iLutnI(0:NIfTot)
         integer :: i, error
         real(dp) :: TempTotParts, NormalisationTemp, Sum_Coeffs, AllNode_norm
         logical :: blank_det
@@ -131,7 +132,7 @@ contains
         use rdm_data, only: Sing_ExcList, Doub_ExcList, Sing_InitExcSlots, Doub_InitExcSlots
         use rdm_data, only: Sing_ExcDjs, Doub_ExcDjs
 
-        integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot)
+        integer(n_int), intent(in) :: iLutnI(0:NIfTot)
         logical, intent(in) :: blank_det
         integer :: i
         
@@ -151,7 +152,7 @@ contains
             Sing_ExcList(i) = Sing_ExcList(i) + 1
         end do
 
-        if (RDMExcitLevel .ne. 1) then
+        if (RDMExcitLevel /= 1) then
             Doub_ExcDjs(:,:) = 0
             Doub_ExcList(:) = 0
             Doub_ExcList(:) = Doub_InitExcSlots(:)
@@ -186,7 +187,7 @@ contains
         use rdm_data, only: Sing_ExcList, Doub_ExcList, Sing_InitExcSlots, Doub_InitExcSlots
         use rdm_data, only: Sing_ExcDjs, Doub_ExcDjs
 
-        integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot)
+        integer(n_int), intent(in) :: iLutnI(0:NIfTot)
         logical, intent(in) :: blank_det
         integer :: i
         
@@ -205,7 +206,7 @@ contains
             Sing_ExcDjs(:,Sing_ExcList(i)) = iLutnI(:)
             Sing_ExcList(i) = Sing_ExcList(i)+1
         end do
-        if (RDMExcitLevel .ne. 1) then
+        if (RDMExcitLevel /= 1) then
             Doub_ExcDjs(:,:) = 0
             Doub_ExcList(:) = 0
             Doub_ExcList(:) = Doub_InitExcSlots(:)
@@ -242,22 +243,32 @@ contains
         use LoggingData, only: RDMExcitLevel
         use Parallel_neci, only: nProcessors
         use rdm_data, only: Sing_ExcList, Doub_ExcList, OneEl_Gap, TwoEl_Gap
-        use rdm_data, only: Sing_ExcDjs, Doub_ExcDjs, rdms
-        use rdm_filling, only: Fill_Diag_RDM
+        use rdm_data, only: Sing_ExcDjs, Doub_ExcDjs
+        use rdm_data, only: one_rdms, two_rdm_spawn
+        use rdm_filling, only: fill_diag_1rdm, fill_spawn_rdm_diag
         use SymExcit3, only: GenExcitations3
-        use SystemData, only: nel
+        use SymExcit4, only: GenExcitations4, ExcitGenSessionType
+        use SystemData, only: nel, tReltvy
 
-        integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot)
-        integer(kind=n_int) :: iLutnJ(0:NIfTot)
-        real(dp), dimension(lenof_sign) :: SignDi, SignDi2
+        integer(n_int), intent(in) :: iLutnI(0:NIfTot)
+
+        integer(n_int) :: iLutnJ(0:NIfTot)
+        real(dp) :: SignDi(lenof_sign), full_sign(1)
         integer :: ExcitMat3(2,2), nI(NEl), nJ(NEl), Proc, FlagsDi
         integer :: a, b, exflag
         logical :: tAllExcitFound, tParity
 
+        type(ExcitGenSessionType) :: session
+
         ! Unfortunately uses the decoded determinant - might want to look at this.
         call extract_bit_rep(iLutnI, nI, SignDi, FlagsDi)
 
-        call Fill_Diag_RDM(rdms(1), nI, SignDi, .false.)
+        if (RDMExcitLevel == 1) then
+            call fill_diag_1rdm(one_rdms, nI, SignDi)
+        else
+            full_sign = SignDi(1)*SignDi(lenof_sign)
+            call fill_spawn_rdm_diag(two_rdm_spawn, nI, full_sign)
+        end if
 
         ! Zeros in ExcitMat3 starts off at the first single excitation.
         ExcitMat3(:,:) = 0
@@ -276,7 +287,11 @@ contains
             ! speed of sending this information vs recalculating it will be
             ! tested. RDMExcitLevel is passed through, if this is 1, only
             ! singles are generated, if it is 2 only doubles are found.
-            call GenExcitations3(nI, iLutnI, nJ, exflag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
+            if (tReltvy) then
+                call GenExcitations4(session, nI, nJ, exFlag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
+            else
+                call GenExcitations3(nI, iLutnI, nJ, exflag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
+            endif
 
             if (tAllExcitFound) exit
 
@@ -297,7 +312,7 @@ contains
             end if
         end do
 
-        if (RDMExcitLevel .ne. 1) then            
+        if (RDMExcitLevel /= 1) then
 
             ! Zeros in ExcitMat3 starts off at the first single excitation.
             ExcitMat3(:,:) = 0
@@ -316,8 +331,12 @@ contains
                 ! - but the speed of sending this information vs recalculating
                 ! it will be tested. RDMExcitLevel is passed through, if this
                 ! is 1, only singles are generated, if it is 2 only doubles are
-                ! found.
-                call GenExcitations3(nI, iLutnI, nJ, exflag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
+                if (tReltvy) then
+                    call GenExcitations4(session, nI, nJ, exFlag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
+                else
+                    ! found.
+                    call GenExcitations3(nI, iLutnI, nJ, exflag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
+                endif
 
                 if (tAllExcitFound) exit
 
@@ -358,9 +377,11 @@ contains
         use LoggingData, only: RDMExcitLevel
         use Parallel_neci, only: nProcessors
         use rdm_data, only: Sing_ExcList, Doub_ExcList, ExcNorm, OneEl_Gap, TwoEl_Gap
-        use rdm_data, only: Sing_ExcDjs, Doub_ExcDjs, rdms
-        use rdm_filling, only: Fill_Diag_RDM
+        use rdm_data, only: Sing_ExcDjs, Doub_ExcDjs
+        use rdm_data, only: one_rdms, two_rdm_spawn
+        use rdm_filling, only: fill_diag_1rdm, fill_spawn_rdm_diag
         use SymExcit3, only: GenExcitations3
+        use SymExcit4, only: GenExcitations4, ExcitGenSessionType
         use SystemData, only: nel
 
         integer(n_int), intent(in) :: iLutnI(0:NIfTot)
@@ -370,17 +391,24 @@ contains
         integer :: ExcitMat3(2,2), nI(NEl), nJ(NEl), Proc, FlagsDi
         integer :: a, b, exflag
         logical :: tAllExcitFound, tParity
-        real(dp), dimension(lenof_sign) :: realSignDi
+        real(dp) :: SignDi(lenof_sign), full_sign(1)
+
+        type(ExcitGenSessionType) :: session
 
         ! Unfortunately uses the decoded determinant - might want to look at this.
         call extract_bit_rep (iLutnI, nI, RealHistPos, FlagsDi)
 
         HistPos = int(RealHistPos)
         
-        realSignDi(1) = AllHistogram(1, HistPos(1))/ExcNorm
-        realSignDi(lenof_sign) = AllHistogram(1,HistPos(1))/ExcNorm
+        SignDi(1) = AllHistogram(1, HistPos(1))/ExcNorm
+        SignDi(lenof_sign) = AllHistogram(1,HistPos(1))/ExcNorm
         
-        call Fill_Diag_RDM(rdms(1), nI, realSignDi, .false.)
+        if (RDMExcitLevel == 1) then
+            call fill_diag_1rdm(one_rdms, nI, SignDi)
+        else
+            full_sign = SignDi(1)*SignDi(lenof_sign)
+            call fill_spawn_rdm_diag(two_rdm_spawn, nI, full_sign)
+        end if
 
         ! Zeros in ExcitMat3 starts off at the first single excitation.
         ExcitMat3(:,:) = 0
@@ -399,7 +427,11 @@ contains
             ! of sending this information vs recalculating it will be tested.
             ! RDMExcitLevel is passed through, if this is 1, only singles are
             ! generated, if it is 2 only doubles are found.
-            call GenExcitations3(nI, iLutnI, nJ, exflag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
+            if (tReltvy) then
+                call GenExcitations4(session, nI, nJ, exFlag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
+            else
+                call GenExcitations3(nI, iLutnI, nJ, exflag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
+            endif
 
             if (tAllExcitFound) exit
 
@@ -420,7 +452,7 @@ contains
             end if
         end do
 
-        if (RDMExcitLevel .ne. 1) then            
+        if (RDMExcitLevel /= 1) then
 
             ExcitMat3(:,:) = 0
             ! Zeros in ExcitMat3 starts off at the first single excitation.
@@ -438,7 +470,11 @@ contains
                 ! speed of sending this information vs recalculating it will be
                 ! tested. RDMExcitLevel is passed through, if this is 1, only
                 ! singles are generated, if it is 2 only doubles are found.
-                call GenExcitations3(nI, iLutnI, nJ, exflag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)            
+                 if (tReltvy) then
+                    call GenExcitations4(session, nI, nJ, exFlag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
+                else
+                    call GenExcitations3(nI, iLutnI, nJ, exflag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
+                endif
 
                 if (tAllExcitFound) exit
 
@@ -528,7 +564,7 @@ contains
 
         call Sing_SearchOccDets(sing_recvcounts, sing_recvdisps)
 
-        if (RDMExcitLevel .ne. 1) then
+        if (RDMExcitLevel /= 1) then
             do i = 0, nProcessors-1
                 ! Sendcounts is the number of singly excited determinants we
                 ! want to send for each processor (but goes from 1, not 0).
@@ -638,7 +674,7 @@ contains
         call Sing_Hist_SearchOccDets(sing_recvcounts, sing_recvdisps)
 
 
-        if (RDMExcitLevel.ne.1) then            
+        if (RDMExcitLevel /= 1) then
             do i = 0, nProcessors-1
                 ! sendcounts is the number of singly excited determinants we
                 ! want to send for each processor (but goes from 1, not 0).
@@ -695,20 +731,21 @@ contains
 
         use bit_reps, only: extract_bit_rep
         use FciMCData, only: CurrentDets, TotWalkers
+        use LoggingData, only: RDMExcitLevel
         use Parallel_neci, only: nProcessors, MPIArg
-        use rdm_data, only: Sing_ExcDjs, Sing_ExcDjs2, rdms
-        use rdm_filling, only: Fill_Sings_RDM
+        use rdm_data, only: Sing_ExcDjs, Sing_ExcDjs2
+        use rdm_data, only: one_rdms, two_rdm_spawn
+        use rdm_filling, only: fill_sings_1rdm, fill_spawn_rdm_singles
         use searching, only: BinSearchParts_rdm
         use SystemData, only: nel
 
         integer(MPIArg), intent(in) :: recvcounts(nProcessors),recvdisps(nProcessors)
 
         integer(n_int) :: iLutnJ(0:NIfTot)
-        real(dp), dimension(lenof_sign) :: SignDi,SignDj, SignDi2,SignDj2
+        real(dp) :: SignDi(lenof_sign), SignDj(lenof_sign), full_sign(1)
         integer :: i, j, NoDets, StartDets, PartInd
-        integer :: nI(NEl), nJ(NEl), Ex(2,2), FlagsDi, FlagsDj
+        integer :: nI(NEl), nJ(NEl), Ex(2,2), Ex_symm(2,2), FlagsDi, FlagsDj
         logical :: tDetFound, tParity
-        real(dp) :: realSignDi, realSignDj
 
         ! Take each Dj, and binary search CurrentDets to see if it is occupied.
         do i = 1, nProcessors
@@ -719,8 +756,6 @@ contains
 
             if (NoDets .gt. 1) then
                 call extract_bit_rep(Sing_ExcDjs2(:,StartDets), nI, SignDi, FlagsDi)
-
-                realSignDi = real(SignDi(1),dp)
 
                 do j = StartDets+1, (NoDets+StartDets-1)
 
@@ -743,15 +778,27 @@ contains
 
                         call extract_bit_rep(CurrentDets(:,PartInd), nJ, SignDj, FlagsDj)
 
-                        realSignDj = real(SignDj(1),dp)
-
                         ! Ex(1,:) comes out as the orbital(s) excited from,
                         ! Ex(2,:) comes out as the orbital(s) excited to.
                         call GetExcitation(nI, nJ, NEl, Ex, tParity)
 
                         if (Ex(1,1) .le. 0) call Stop_All('Sing_SearchOccDets', 'nJ is not the correct excitation of nI.')
 
-                        call Fill_Sings_RDM(rdms(1), nI, Ex, tParity, realSignDi, realSignDj, .true.)
+                        if (RDMExcitLevel == 1) then
+                            call fill_sings_1rdm(one_rdms, Ex, tParity, SignDi, SignDj, .true.)
+                        else
+                            if (tParity) then
+                                full_sign = -SignDi(1)*SignDj(lenof_sign)
+                            else
+                                full_sign = SignDi(1)*SignDj(lenof_sign)
+                            end if
+
+                            call fill_spawn_rdm_singles(two_rdm_spawn, nI, Ex, full_sign)
+                            ! Add in symmetric contribution.
+                            Ex_symm(1,:) = Ex(2,:)
+                            Ex_symm(2,:) = Ex(1,:)
+                            call fill_spawn_rdm_singles(two_rdm_spawn, nI, Ex_symm, full_sign)
+                        end if
 
                         ! No normalisation factor just yet - possibly need to revise.
                     end if
@@ -772,18 +819,17 @@ contains
         use bit_reps, only: extract_bit_rep
         use FciMCData, only: CurrentDets, TotWalkers
         use Parallel_neci, only: nProcessors, MPIArg
-        use rdm_data, only: Doub_ExcDjs, Doub_ExcDjs2, rdms
-        use rdm_filling, only: Fill_Doubs_RDM
+        use rdm_data, only: Doub_ExcDjs, Doub_ExcDjs2, two_rdm_spawn
+        use rdm_data_utils, only: add_to_rdm_spawn_t
         use searching, only: BinSearchParts_rdm
         use SystemData, only: nel
 
         integer(MPIArg), intent(in) :: recvcounts(nProcessors),recvdisps(nProcessors)
-        integer(kind=n_int) :: iLutnJ(0:NIfTot)
-        real(dp), dimension(lenof_sign) :: SignDi,SignDj, SignDi2, SignDj2
+        integer(n_int) :: iLutnJ(0:NIfTot)
+        real(dp) :: SignDi(lenof_sign), SignDj(lenof_sign), full_sign(1)
         integer :: i, j, NoDets, StartDets, PartInd
         integer :: nI(NEl), nJ(NEl), Ex(2,2), FlagsDi, FlagsDj
         logical :: tDetFound, tParity
-        real(dp) :: realSignDi,realSignDj
 
         ! Take each Dj, and binary search CurrentDets to see if it is occupied.
         do i = 1, nProcessors
@@ -794,8 +840,6 @@ contains
 
             if (NoDets.gt.1) then
                 call extract_bit_rep (Doub_ExcDjs2(:,StartDets), nI, SignDi, FlagsDi)
-
-                realSignDi = real(SignDi(1),dp)
 
                 do j = StartDets+1, (NoDets+StartDets-1)
                     ! D_i is in the first spot - start from the second.
@@ -819,8 +863,6 @@ contains
 
                         call extract_bit_rep (CurrentDets(:,PartInd), nJ, SignDj, FlagsDj)
 
-                        realSignDj = real(SignDj(1),dp)
-
                         ! Ex(1,:) comes out as the orbital(s) excited from,
                         ! Ex(2,:) comes out as the orbital(s) excited to. 
                         call GetExcitation(nI, nJ, NEl, Ex, tParity)
@@ -828,8 +870,15 @@ contains
                         if (Ex(1,1) .le. 0) call Stop_All('SearchOccDets',&
                                             'nJ is not the correct excitation of nI.')
 
-                        call Fill_Doubs_RDM(rdms(1), Ex, tParity, realSignDi, realSignDj, .true.)
-                        
+                        if (tParity) then
+                            full_sign = -SignDi(1)*SignDj(lenof_sign)
+                        else
+                            full_sign = SignDi(1)*SignDj(lenof_sign)
+                        end if
+
+                        call add_to_rdm_spawn_t(two_rdm_spawn, Ex(2,1), Ex(2,2), Ex(1,1), Ex(1,2), full_sign, .false.)
+                        ! Add in symmetric contribution.
+                        call add_to_rdm_spawn_t(two_rdm_spawn, Ex(1,1), Ex(1,2), Ex(2,1), Ex(2,2), full_sign, .false.)
                     end if
                 end do
             end if
@@ -849,21 +898,23 @@ contains
         use FciMCData, only: ilutHF_True, TotWalkers
         use hist, only: find_hist_coeff_explicit
         use hist_data, only: AllHistogram
+        use LoggingData, only: RDMExcitLevel
         use Parallel_neci, only: nProcessors, MPIArg
-        use rdm_data, only: Sing_ExcDjs, Sing_ExcDjs2, ExcNorm, rdms
-        use rdm_filling, only: Fill_Sings_RDM
+        use rdm_data, only: Sing_ExcDjs, Sing_ExcDjs2, ExcNorm
+        use rdm_data, only: one_rdms, two_rdm_spawn
+        use rdm_filling, only: fill_sings_1rdm, fill_spawn_rdm_singles
         use searching, only: BinSearchParts_rdm
         use SystemData, only: nel
 
         integer(MPIArg), intent(in) :: recvcounts(nProcessors),recvdisps(nProcessors)
-        integer(kind=n_int) :: iLutnJ(0:NIfTot)
+        integer(n_int) :: iLutnJ(0:NIfTot)
         integer, dimension(lenof_sign) :: HistPos
         real(dp), dimension(lenof_sign) :: RealHistPos
 
         integer :: i, j, NoDets, StartDets, PartInd, ExcitLevel
-        integer :: nI(NEl), nJ(NEl), Ex(2,2), FlagsDi, FlagsDj
+        integer :: nI(NEl), nJ(NEl), Ex(2,2), Ex_symm(2,2), FlagsDi, FlagsDj
         logical :: tDetFound, tParity
-        real(dp) :: realSignDi, realSignDj
+        real(dp) :: SignDi(lenof_sign), SignDj(lenof_sign), full_sign(1)
 
         ! Take each Dj, and binary search CurrentDets to see if it is occupied.
         do i = 1, nProcessors
@@ -878,7 +929,7 @@ contains
 
                 HistPos=int(RealHistPos)
 
-                realSignDi = AllHistogram(1,HistPos(1))/ExcNorm
+                SignDi = AllHistogram(1,HistPos(1))/ExcNorm
 
                 do j=StartDets+1,(NoDets+StartDets-1)
 
@@ -905,7 +956,7 @@ contains
 
                         call decode_bit_det(nJ,iLutnJ)
 
-                        realSignDj = AllHistogram(1,PartInd)/ExcNorm
+                        SignDj = AllHistogram(1,PartInd)/ExcNorm
 
                         ! Ex(1,:) comes out as the orbital(s) excited from,
                         ! Ex(2,:) comes out as the orbital(s) excited to.    
@@ -914,7 +965,21 @@ contains
                         if (Ex(1,1).le.0) call Stop_All('Sing_SearchOccDets',&
                                             'nJ is not the correct excitation of nI.')
 
-                        call Fill_Sings_RDM(rdms(1), nI, Ex, tParity, realSignDi, realSignDj, .true.)
+                        if (RDMExcitLevel == 1) then
+                            call fill_sings_1rdm(one_rdms, Ex, tParity, SignDi, SignDj, .true.)
+                        else
+                            if (tParity) then
+                                full_sign = -SignDi(1)*SignDj(lenof_sign)
+                            else
+                                full_sign = SignDi(1)*SignDj(lenof_sign)
+                            end if
+
+                            call fill_spawn_rdm_singles(two_rdm_spawn, nI, Ex, full_sign)
+                            ! Add in symmetric contribution.
+                            Ex_symm(1,:) = Ex(2,:)
+                            Ex_symm(2,:) = Ex(1,:)
+                            call fill_spawn_rdm_singles(two_rdm_spawn, nI, Ex_symm, full_sign)
+                        end if
 
                         ! No normalisation factor just yet - possibly need to revise.                    
                     end if
@@ -938,19 +1003,19 @@ contains
         use hist, only: find_hist_coeff_explicit
         use hist_data, only: AllHistogram
         use Parallel_neci, only: nProcessors, MPIArg
-        use rdm_data, only: Doub_ExcDjs, Doub_ExcDjs2, ExcNorm, rdms
-        use rdm_filling, only: Fill_Doubs_RDM
+        use rdm_data, only: Doub_ExcDjs, Doub_ExcDjs2, ExcNorm, two_rdm_spawn
+        use rdm_data_utils, only: add_to_rdm_spawn_t
         use searching, only: BinSearchParts_rdm
         use SystemData, only: nel
 
         integer(MPIArg), intent(in) :: recvcounts(nProcessors),recvdisps(nProcessors)
-        integer(kind=n_int) :: iLutnJ(0:NIfTot)
+        integer(n_int) :: iLutnJ(0:NIfTot)
         integer, dimension(lenof_sign) :: HistPos
         real(dp), dimension(lenof_sign) :: RealHistPos
         integer :: i, j, NoDets, StartDets,PartInd, ExcitLevel
         integer :: nI(NEl), nJ(NEl), Ex(2,2), FlagsDi, FlagsDj
         logical :: tDetFound, tParity
-        real(dp) :: realSignDi,realSignDj
+        real(dp) :: SignDi(lenof_sign), SignDj(lenof_sign), full_sign(1)
 
         ! Take each Dj, and binary search the CurrentDets to see if it is occupied.
         do i = 1, nProcessors
@@ -965,7 +1030,7 @@ contains
 
                 HistPos = int(RealHistPos)
 
-                realSignDi = AllHistogram(1,HistPos(1))/ExcNorm
+                SignDi = AllHistogram(1,HistPos(1))/ExcNorm
 
                 do j = StartDets + 1, (NoDets+StartDets-1)
 
@@ -992,16 +1057,23 @@ contains
                         tParity = .false.
 
                         call decode_bit_det(nJ,iLutnJ)
-                        realSignDj = AllHistogram(1,PartInd)/ExcNorm
+                        SignDj = AllHistogram(1,PartInd)/ExcNorm
 
                         ! Ex(1,:) comes out as the orbital(s) excited from,
                         ! Ex(2,:) comes out as the orbital(s) excited to. 
                         call GetExcitation(nI, nJ, NEl, Ex, tParity)
 
                         if (Ex(1,1) .le. 0) call Stop_All('SearchOccDets', 'nJ is not the correct excitation of nI.')
-                        call Fill_Doubs_RDM(rdms(1), Ex, tParity, realSignDi, realSignDj, .true.)
-                        
-                        
+
+                        if (tParity) then
+                            full_sign = -SignDi(1)*SignDj(lenof_sign)
+                        else
+                            full_sign = SignDi(1)*SignDj(lenof_sign)
+                        end if
+
+                        call add_to_rdm_spawn_t(two_rdm_spawn, Ex(2,1), Ex(2,2), Ex(1,1), Ex(1,2), full_sign, .false.)
+                        ! Add in symmetric contribution.
+                        call add_to_rdm_spawn_t(two_rdm_spawn, Ex(1,1), Ex(1,2), Ex(2,1), Ex(2,2), full_sign, .false.)
                     end if
                 end do
             end if

@@ -1,0 +1,20 @@
+# POPSFILE VERSION 4
+&POPSHEAD Pop64Bit=T
+PopHPHF=F,PopLz=F,PopLensign= 2,PopNEl=  8,
+PopTotwalk=           2134
+ PopSft=   0.0000000000000000     
+ PopSumNoatHF=   174676.81131387415 174676.81131387415     
+ PopSumENum= ( -19540.746253016703     , 0.99305834534544191     )
+PopCyc=            6000,PopNIfD= 0,PopNIfY= 0,PopNIfSgn= 2,
+PopNIfFlag= 1,PopNIfTot= 3,PopTau=    0.006760621499,
+PopiBlockingIter=               0
+PopPSingles=    0.022380655060,PopPParallel=    0.500000000000
+,PopPDoubles=    0.869514206774,PopPSing_spindiff1=    0.000000070350
+,PopPDoub_spindiff1=    0.000055941036,PopPDoub_spindiff2=    0.108049126781
+PopTotImagTime=   41.688943534598
+PopGammaSing= 9.93123099299    ,PopGammaDoub= 385.839753848    ,PopGammaOpp= 0.00000000000    ,PopGammaPar= 0.00000000000    ,PopMaxDeathCpt= 4.16949353480    
+,PopGammaSing_spindiff1=0.312171209013E-04,PopGammaDoub_spindiff1=0.248233728727E-01,PopGammaDoub_spindiff2= 47.9459083655    
+PopNNodes=     2
+PopWalkersOnNodes=            1032,            1102,
+PopRandomHash=         3122,       21374,       21297,       31600,       27274,       27710,       23719,        4260,       10685,        4731,        6638,        2536,        9904,        5880,       10970,        5738,        2011,       20324,       20691,       12164,       13512,        2134,        3977,       25117,       28121,       16592,       27936,        9443,       14794,       16085,        4254,       12940,
+ &END

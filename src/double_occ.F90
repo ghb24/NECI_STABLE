@@ -6,20 +6,18 @@ module double_occ_mod
 
     use SystemData, only: nel, nbasis
     use bit_rep_data, only: nifd, nOffSgn, niftot
-    use constants, only: n_int, lenof_sign, write_state_t, dp, inum_runs
+    use constants, only: n_int, lenof_sign, write_state_t, dp, int_rdm, inum_runs
     use ParallelHelper, only: iProcIndex, root
     use CalcData, only: tReadPops
     use LoggingData, only: tMCOutput, t_calc_double_occ_av
     use util_mod
     use FciMCData, only: iter, PreviousCycles, norm_psi, totwalkers, all_norm_psi_squared
+    use rdm_data, only: rdm_list_t
     use Parallel_neci, only: iProcIndex, nProcessors, MPISumAll
+    use rdm_data_utils, only: calc_separate_rdm_labels, extract_sign_rdm
+    use UMatCache, only: spatial
     use sort_mod, only: sort
 
-    ! only after merge with master: 
-!     use constants, only: int_rdm
-!     use rdm_data, only: rdm_list_t
-!     use rdm_data_utils, only: calc_separate_rdm_labels, extract_sign_rdm
-!     use UMatCache, only: spatial
 #ifdef __DEBUG
 !     use Determinants, only: writedetbit
 #endif
@@ -106,7 +104,7 @@ contains
 #if defined __PROG_NUMRUNS || defined __DOUBLERUN
 #ifdef __CMPLX 
         call stop_all(this_routine, &
-            "complex double occupancy not yet implemented!")
+            "complex double occupancy measurement not yet implemented!")
 #else
         ! i essentially only need two runs! 
         double_occ = real_sgn(1) * real_sgn(2) * frac_double_orbs
@@ -177,7 +175,11 @@ contains
                 (sum(all_norm_psi_squared) / real(inum_runs, dp)), 'Double Occ.')
 !             call stats_out(state, .true., inst_double_occ / norm_psi(1), 'Double Occ.')
             if (t_calc_double_occ_av) then
-                call stats_out(state,.false., sum_double_occ / sum_norm_psi_squared, 'DoubOcc Av')
+               if(abs(sum_norm_psi_squared) > EPS) then
+                  call stats_out(state,.false., sum_double_occ / sum_norm_psi_squared, 'DoubOcc Av')
+               else
+                  call stats_out(state,.false.,0.0_dp,'DoubOcc Av')
+               endif
             else
                 call stats_out(state,.false.,0.0_dp, 'DoubOcc Av')
             end if
@@ -236,72 +238,70 @@ contains
 
     end subroutine init_double_occ_output
         
-    ! only usable if i have rdms in GUGA:
-!     subroutine calc_double_occ_from_rdm(rdm, rdm_trace, nrdms_to_print)
-!         ! also write a routine which calculates the double occupancy from the 
-!         ! 2-rdm, if it has been calculated! 
-!         type(rdm_list_t), intent(inout) :: rdm
-!         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
-!         integer, intent(in) :: nrdms_to_print
-!         character(*), parameter :: this_routine = "calc_double_occ_from_rdm"
-! 
-!         integer :: ielem, ij, kl, i, j, k, l, p, q, r, s, iproc, irdm, ierr
-!         integer(int_rdm) :: ijkl 
-!         real(dp) :: rdm_sign(rdm%sign_length)
-!         real(dp) :: double_occ(rdm%sign_length), all_double_occ(rdm%sign_length)
-! 
-!         double_occ = 0.0_dp
-!         ! todo: find out about the flags to ensure the rdm was actually 
-!         ! calculated! 
-! 
-!         call sort(rdm%elements(:,1:rdm%nelements))
-! 
-!         ! i have to do that over all processors i guess since the rdms are 
-!         ! stored in a distributed way! 
-!         ! although i could do that with an MPI communication
-!         ! seperately on all processors do this summation and then 
-!         ! communicate the results in the end.. 
-!         do ielem = 1, rdm%nelements
-!             ijkl = rdm%elements(0,ielem)
-!             call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
-!             call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
-! 
-!             ! normalise 
-!             rdm_sign = rdm_sign / rdm_trace 
-! 
-!             ! convert to spatial orbitals:
-!             p = spatial(i)
-!             q = spatial(j) 
-!             r = spatial(k)
-!             s = spatial(l)
-! 
-!             ! only consider the diagonal elements! 
-!             if (p == q .and. p == r .and. p == s) then
-!                 ASSERT(is_alpha(i) .and. is_beta(j) .and. is_alpha(k) .and. is_beta(l))
-! 
-!                 ! add up all the diagonal contributions
-!                 double_occ = double_occ + rdm_sign
-! 
-!             end if
-!         end do
-! 
-!         ! at the end average over the spatial orbitals 
-!         double_occ = double_occ / (real(nbasis, dp) / 2.0_dp)
-! 
-!         ! MPI communicate: 
-!         call MPISumAll(double_occ, all_double_occ)
-! 
-!         if (iProcIndex == root) then
-!             print *, "======"
-!             print *, "Double occupancy from RDM: ", all_double_occ
-!             print *, "======"
-!         end if
-!         ! and i guess i should write it to a file too
-! !         open(iunit, file = 'double_occ_from_rdm', status = 'unknown', iostat = ierr)
-! !         write(
-! 
-! 
-!     end subroutine calc_double_occ_from_rdm
+    subroutine calc_double_occ_from_rdm(rdm, rdm_trace, nrdms_to_print)
+        ! also write a routine which calculates the double occupancy from the 
+        ! 2-rdm, if it has been calculated! 
+        type(rdm_list_t), intent(inout) :: rdm
+        real(dp), intent(in) :: rdm_trace(rdm%sign_length)
+        integer, intent(in) :: nrdms_to_print
+        character(*), parameter :: this_routine = "calc_double_occ_from_rdm"
 
+        integer :: ielem, ij, kl, i, j, k, l, p, q, r, s, iproc, irdm, ierr
+        integer(int_rdm) :: ijkl 
+        real(dp) :: rdm_sign(rdm%sign_length)
+        real(dp) :: double_occ(rdm%sign_length), all_double_occ(rdm%sign_length)
+
+        double_occ = 0.0_dp
+        ! todo: find out about the flags to ensure the rdm was actually 
+        ! calculated! 
+
+        call sort(rdm%elements(:,1:rdm%nelements))
+
+        ! i have to do that over all processors i guess since the rdms are 
+        ! stored in a distributed way! 
+        ! although i could do that with an MPI communication
+        ! seperately on all processors do this summation and then 
+        ! communicate the results in the end.. 
+        do ielem = 1, rdm%nelements
+            ijkl = rdm%elements(0,ielem)
+            call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+            call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
+
+            ! normalise 
+            rdm_sign = rdm_sign / rdm_trace 
+
+            ! convert to spatial orbitals:
+            p = spatial(i)
+            q = spatial(j) 
+            r = spatial(k)
+            s = spatial(l)
+
+            ! only consider the diagonal elements! 
+            if (p == q .and. p == r .and. p == s) then
+                ASSERT(is_alpha(i) .and. is_beta(j) .and. is_alpha(k) .and. is_beta(l))
+
+                ! add up all the diagonal contributions
+                double_occ = double_occ + rdm_sign
+
+            end if
+        end do
+
+        ! at the end average over the spatial orbitals 
+        double_occ = double_occ / (real(nbasis, dp) / 2.0_dp)
+
+        ! MPI communicate: 
+        call MPISumAll(double_occ, all_double_occ)
+
+        if (iProcIndex == root) then
+            print *, "======"
+            print *, "Double occupancy from RDM: ", all_double_occ
+            print *, "======"
+        end if
+        ! and i guess i should write it to a file too
+!         open(iunit, file = 'double_occ_from_rdm', status = 'unknown', iostat = ierr)
+!         write(
+
+
+    end subroutine calc_double_occ_from_rdm
 
 end module double_occ_mod

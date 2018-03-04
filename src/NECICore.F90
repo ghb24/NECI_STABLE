@@ -335,17 +335,15 @@ subroutine NECICalcEnd(iCacheFlag)
     use Integrals_neci, only: IntCleanup
     use Determinants, only: DetCleanup
     use Calc, only: CalcCleanup
-#ifdef __SHARED_MEM
-    use shared_alloc, only: cleanup_shared_alloc
-#endif
     use replica_data, only: clean_replica_arrays
-    use OneEInts, only: DestroyTMat
+    use OneEInts, only: DestroyTMat, DestroyPropInts
     use Parallel_neci, only: clean_parallel
     use SymExcitDataMod, only: SpinOrbSymLabel, SymInvLabel
     use SystemData, only: arr, brr, g1, tagArr, tagBrr, tagG1
     use Determinants, only: FDet, tagFDet
     use MemoryManager
     use FciMCData, only:ValidSpawnedList,InitialSpawnedSlots 
+    use LoggingData, only: tCalcPropEst
 
     implicit none
     integer,intent(in) :: iCacheFlag
@@ -356,10 +354,8 @@ subroutine NECICalcEnd(iCacheFlag)
     call IntCleanup(iCacheFlag)
     call DestroyTMAT(.true.)
     call DestroyTMAT(.false.)
+    if(tCalcPropEst) call DestroyPropInts
     call SysCleanup()
-#ifdef __SHARED_MEM
-    call cleanup_shared_alloc ()
-#endif
     call clean_replica_arrays()
 #ifndef _MOLCAS_
     call clean_parallel()

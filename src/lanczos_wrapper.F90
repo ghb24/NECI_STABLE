@@ -48,6 +48,10 @@ contains
         logical :: tMC
         character(len=*), parameter :: t_r = 'frsblk_wrapper'
 
+#ifdef __CMPLX
+        call stop_all(t_r,'frsblk cannot work with complex wavefunctions currently')
+#endif
+
         allocate(nRow(ndets), stat=ierr)
         nRow = 0
         ICMax = 1
@@ -64,17 +68,23 @@ contains
             call Detham_guga(ndets, det_list, Hamil, Lab, nRow, LenHamil) 
         else
 #endif
-            call Detham(ndets, nel, det_list, Hamil, Lab, nRow, .true., ICMax, LenHamil, tMC)
+        ! just to make sure we pass valid objects
+        allocate(Lab(1),stat=ierr)
+        allocate(Hamil(1),stat=ierr)
+        call Detham(ndets, nel, det_list, Hamil, Lab, nRow, .true., ICMax, LenHamil, tMC)
 
-            allocate(Hamil(LenHamil), stat=ierr)
-            if (ierr /= 0) call stop_all(t_r, "Error allocating Hamil.")
-            allocate(Lab(LenHamil), stat=ierr)
-            if (ierr /= 0) call stop_all(t_r, "Error allocating Lab.")
+        deallocate(Hamil, stat=ierr)
+        deallocate(Lab, stat=ierr)
 
-            Hamil = 0.0_dp
-            Lab = 0
+        allocate(Hamil(LenHamil), stat=ierr)
+        if (ierr /= 0) call stop_all(t_r, "Error allocating Hamil.")
+        allocate(Lab(LenHamil), stat=ierr)
+        if (ierr /= 0) call stop_all(t_r, "Error allocating Lab.")
 
-            call Detham(ndets, NEl, det_list, Hamil, Lab, nRow, .false., ICMax, LenHamil, tMC)
+        Hamil = 0.0_dp
+        Lab = 0
+
+        call Detham(ndets, NEl, det_list, Hamil, Lab, nRow, .false., ICMax, LenHamil, tMC)
 
 #ifndef __CMPLX
         end if

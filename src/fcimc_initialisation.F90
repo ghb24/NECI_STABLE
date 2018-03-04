@@ -13,7 +13,7 @@ module fcimc_initialisation
                           tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
                           tUEGNewGenerator, tGUGA, tGen_4ind_2, tGen_nosym_guga, &
                           tGen_sym_guga_ueg, tGen_sym_guga_mol, ref_stepvector, &
-                          ref_b_vector_int, ref_occ_vector, ref_b_vector_real
+                          ref_b_vector_int, ref_occ_vector, ref_b_vector_real, tReltvy
     use dSFMT_interface, only: dSFMT_init
     use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
                         tCheckHighestPop, tSpatialOnlyHash, tStartCAS, tau, &
@@ -26,7 +26,7 @@ module fcimc_initialisation
                         trunc_nopen_max, MemoryFacInit, MaxNoatHF, HFPopThresh, &
                         tAddToInitiator, InitiatorWalkNo, tRestartHighPop, &
                         tAllRealCoeff, tRealCoeffByExcitLevel, tTruncInitiator, &
-                        RealCoeffExcitThresh, TargetGrowRate, &
+                        tDynamicCoreSpace, RealCoeffExcitThresh, TargetGrowRate, &
                         TargetGrowRateWalk, InputTargetGrowRate, &
                         InputTargetGrowRateWalk, tOrthogonaliseReplicas, &
                         use_spawn_hash_table, tReplicaSingleDetStart, &
@@ -35,7 +35,12 @@ module fcimc_initialisation
                         initial_refs, trial_init_reorder, tStartTrialLater, &
                         ntrial_ex_calc, tPairedReplicas, tMultiRefShift, &
                         tMultipleInitialStates, initial_states, t_hist_tau_search, &
-                        t_guga_mat_eles
+                        t_guga_mat_eles, &
+                        t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
+                        t_back_spawn_option, t_back_spawn_flex_option, &
+                        t_back_spawn_flex, back_spawn_delay
+    use adi_data, only: g_markers, tReferenceChanged, tInitiatorsSubspace, tAdiActive, &
+         nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -47,12 +52,13 @@ module fcimc_initialisation
     use LoggingData, only: tTruncRODump, tCalcVariationalEnergy, tReadRDMs, &
                            tDiagAllSpaceEver, tFCIMCStats2, tCalcFCIMCPsi, &
                            tLogComplexPops, tHistExcitToFrom, tPopsFile, &
-                           iWritePopsEvery, tExplicitAllRDM, tRDMOnFly, &
+                           iWritePopsEvery, tRDMOnFly, &
                            tDiagWalkerSubspace, tPrintOrbOcc, OrbOccs, &
                            tHistInitPops, OrbOccsTag, tHistEnergies, &
                            HistInitPops, AllHistInitPops, OffDiagMax, &
-                           OffDiagBinRange, iDiagSubspaceIter, &
-                           AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead
+                           OffDiagBinRange, iDiagSubspaceIter, tOldRDMs, &
+                           AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead, &
+                           tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats
     use DetCalcData, only: NMRKS, tagNMRKS, FCIDets, NKRY, NBLK, B2L, nCycle, &
                            ICILevel, det
     use IntegralsData, only: tPartFreezeCore, nHolesFrozen, tPartFreezeVirt, &
@@ -61,7 +67,9 @@ module fcimc_initialisation
                             flag_deterministic
     use bit_reps, only: encode_det, clear_all_flags, set_flag, encode_sign, &
                         decode_bit_det, nullify_ilut, encode_part_sign, &
-                        extract_part_sign, nifguga
+                        extract_run_sign, tBuildSpinSepLists , nifguga, &
+                        get_initiator_flag, &
+                        get_initiator_flag_by_run
     use hist_data, only: tHistSpawn, HistMinInd, HistMinInd2, Histogram, &
                          BeforeNormHist, InstHist, iNoBins, AllInstHist, &
                          HistogramEnergy, AllHistogramEnergy, AllHistogram, &
@@ -78,19 +86,25 @@ module fcimc_initialisation
     use procedure_pointers, only: generate_excitation, attempt_create, &
                                   get_spawn_helement, encode_child, &
                                   attempt_die, extract_bit_rep_avsign, &
-                                  fill_rdm_diag_currdet, new_child_stats, &
-                                  get_conn_helement, log_spawn_magnitude, update_tau
+                                  fill_rdm_diag_currdet_old, fill_rdm_diag_currdet, &
+                                  new_child_stats, get_conn_helement, log_spawn_magnitude, & 
+                                  update_tau
     use symrandexcit3, only: gen_rand_excit3
+    use symrandexcit_Ex_Mag, only: gen_rand_excit_Ex_Mag
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
                                        gen_excit_4ind_weighted, &
                                        gen_excit_4ind_reverse
     use hash, only: FindWalkerHash, add_hash_table_entry, init_hash_table
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
     use SymExcit3, only: CountExcitations3, GenExcitations3
+    use SymExcit4, only: CountExcitations4, GenExcitations4
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use FciMCLoggingMOD, only : InitHistInitPops
     use SymExcitDataMod, only: SymLabelList2, OrbClassCount, SymLabelCounts2
-    use rdm_general, only: DeallocateRDMs, InitRDMs, extract_bit_rep_avsign_no_rdm
+    use rdm_general, only: init_rdms, dealloc_global_rdm_data, &
+                           extract_bit_rep_avsign_no_rdm
+    use rdm_general_old, only: InitRDMs_old, DeallocateRDMs_old
+    use rdm_filling_old, only: fill_rdm_diag_currdet_norm_old
     use rdm_filling, only: fill_rdm_diag_currdet_norm
     use DetBitOps, only: FindBitExcitLevel, CountBits, TestClosedShellDet, &
                          FindExcitBitDet, IsAllowedHPHF, DetBitEq, &
@@ -103,10 +117,10 @@ module fcimc_initialisation
                                  null_encode_child, attempt_die_normal
     use csf_data, only: csf_orbital_mask
     use initial_trial_states, only: calc_trial_states_lanczos, &
-                                    set_trial_populations, set_trial_states
+                                    set_trial_populations, set_trial_states, calc_trial_states_direct
     use global_det_data, only: global_determinant_data, set_det_diagH, &
                                clean_global_det_data, init_global_det_data, &
-                               set_part_init_time, set_spawn_rate
+                               set_spawn_rate
     use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
@@ -119,14 +133,14 @@ module fcimc_initialisation
     use excit_gen_5, only: gen_excit_4ind_weighted2
     use csf, only: get_csf_helement
     use tau_search, only: init_tau_search, update_tau_default, log_spawn_magnitude_default, &
-                          init_hist_tau_search
+                          init_hist_tau_search, max_death_cpt
     use fcimc_helper, only: CalcParentFlag, update_run_reference
     use cont_time_rates, only: spawn_rate_full, oversample_factors, &
                                secondary_gen_store, ostag
     use soft_exit, only: tSoftExitFound
     use get_excit, only: make_double
     use sltcnd_mod, only: sltcnd_0
-    use rdm_data, only: nrdms
+    use rdm_data, only: nrdms_transition_input
     use Parallel_neci
     use FciMCData
     use util_mod
@@ -146,11 +160,15 @@ module fcimc_initialisation
                                 actHamiltonian, calc_csf_info
     use guga_matrixElements, only: calcDiagMatEleGUGA_ilut, calcDiagMatEleGUGA_nI
 #endif
+    use adi_references, only: setup_reference_space, clean_adi
+    use tau_search_hist, only: init_hist_tau_search
+    use back_spawn, only: init_back_spawn
+    use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
+                                    gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
 
     implicit none
 
 contains
-
 
     SUBROUTINE SetupParameters()
 
@@ -201,6 +219,10 @@ contains
         TargetGrowRate(:) = InputTargetGrowRate
         TargetGrowRateWalk(:) = InputTargetGrowRateWalk
 
+        ! Initialize
+        AllTotParts = 0.0_dp
+        AllTotPartsOld = 0.0_dp
+
         IF(TDebug) THEN
 !This will open a file called LOCALPOPS-"iprocindex" on unit number 11 on every node.
             abstr=''
@@ -212,7 +234,7 @@ contains
         IF(iProcIndex.eq.Root) THEN
             if (.not. tFCIMCStats2) then
                 fcimcstats_unit = get_free_unit()
-                if (tReadPops) then
+                if (tReadPops .and. .not. t_no_append_stats) then
                     ! Restart calculation.  Append to stats file (if it exists).
                     if(tMolpro .and. .not. tMolproMimic) then
                         filename = 'FCIQMCStats_' // adjustl(MolproID)
@@ -233,7 +255,7 @@ contains
 #ifndef __PROG_NUMRUNS
             if(inum_runs.eq.2) then
                 fcimcstats_unit2 = get_free_unit()
-                if (tReadPops) then
+                if (tReadPops .and. .not. t_no_append_stats) then
                     ! Restart calculation.  Append to stats file (if it exists).
                     if(tMolpro .and. .not. tMolproMimic) then
                         filename2 = 'FCIQMCStats2_' // adjustl(MolproID)
@@ -254,7 +276,7 @@ contains
 
             IF(tTruncInitiator) THEN
                 initiatorstats_unit = get_free_unit()
-                if (tReadPops) then
+                if (tReadPops .and. .not. t_no_append_stats) then
 ! Restart calculation.  Append to stats file (if it exists)
                     OPEN(initiatorstats_unit,file='INITIATORStats',status='unknown',form='formatted',position='append')
                 else
@@ -265,6 +287,11 @@ contains
                 ComplexStats_unit = get_free_unit()
                 OPEN(ComplexStats_unit,file='COMPLEXStats',status='unknown')
             ENDIF
+            if (tLogEXLEVELStats) then
+                EXLEVELStats_unit = get_free_unit()
+                open (EXLEVELStats_unit, file='EXLEVELStats', &
+                      status='unknown', position='append')
+            endif
         ENDIF
 
 !Store information specifically for the HF determinant
@@ -318,7 +345,9 @@ contains
 
         !iLutRef is the reference determinant for the projected energy.
         !Initially, it is chosen to be the same as the inputted reference determinant
+        call setup_adi()
         ALLOCATE(iLutRef(0:NIfTot, inum_runs), stat=ierr)
+        ilutRef = 0
         ALLOCATE(ProjEDet(NEl, inum_runs), stat=ierr)
 
         IF(ierr.ne.0) CALL Stop_All(t_r,"Cannot allocate memory for iLutRef")
@@ -544,12 +573,7 @@ contains
 
 !If using a CAS space truncation, write out this CAS space
         IF(tTruncCAS) THEN
-            IF(tTruncInitiator) THEN
-                WRITE(iout,'(A)') " *********** INITIATOR METHOD IN USE ***********"
-                WRITE(iout,'(A)') " Fixed initiator space defined using the CAS method."
-            ELSE
-                WRITE(iout,*) "Truncated CAS space detected. Writing out CAS space..."
-            ENDIF
+            WRITE(iout,*) "Truncated CAS space detected. Writing out CAS space..."
             WRITE(iout,'(A,I2,A,I2,A)') " In CAS notation, (spatial orbitals, electrons), this has been chosen as: (", &
                 (OccCASOrbs+VirtCASOrbs)/2,",",OccCASOrbs,")"
             do I=NEl-OccCASorbs+1,NEl
@@ -708,6 +732,19 @@ contains
                 enddo
             enddo
         ENDIF
+
+        ! Initiate mswalkercounts
+!        if (tReltvy) then
+!            allocate(walkPopByMsReal(nel+1))
+!            allocate(walkPopByMsImag(nel+1))
+!            do i=1, nel+1
+!                walkPopByMsReal(i) = 0.0_dp
+!                walkPopByMsImag(i) = 0.0_dp
+!            enddo
+!        endif
+
+
+
         !Now broadcast to all processors
         CALL MPIBCast(RandomOrbIndex,nBasis)
         call MPIBCast(RandomHash2,nBasis)
@@ -750,7 +787,11 @@ contains
             ELSE
                 TempHii = get_helement (HighEDet, HighEDet, 0)
             ENDIF
-            UpperTau = 1.0_dp/REAL(TempHii-Hii,dp)
+            if(abs(TempHii - Hii) > EPS) then
+               UpperTau = 1.0_dp/REAL(TempHii-Hii,dp)
+            else
+               UpperTau = 0.0_dp
+            endif
             WRITE(iout,"(A,G25.15)") "Highest energy determinant is (approximately): ",REAL(TempHii,dp)
             write(iout,"(a,g25.15)") "Corresponding to a correlation energy of: ", real(temphii - hii, dp)
 !            WRITE(iout,"(A,F25.15)") "This means tau should be no more than about ",UpperTau
@@ -817,12 +858,14 @@ contains
         SumNoatHF(:)=0.0_dp
         NoatHF(:)=0.0_dp
         InstNoatHF(:)=0.0_dp
-        AvNoatHF(:) = 0.0_dp
         Annihilated(:)=0.0_dp
         Acceptances(:)=0.0_dp
         PreviousCycles=0
         NoBorn=0.0_dp
         SpawnFromSing=0
+        max_cyc_spawn = 0.0_dp
+        ! in case tau-search is off
+        max_death_cpt = 0.0_dp
         NoDied=0
         HFCyc=0.0_dp
         ENumCyc=0.0_dp
@@ -852,6 +895,7 @@ contains
         AllSumENum(:)=0.0_dp
         AllNoatHF(:)=0.0_dp
         AllNoatDoubs(:)=0.0_dp
+        if (tLogEXLEVELStats) AllEXLEVEL_WNorm(:,:,:)=0.0_dp
         AllSumNoatHF(:)=0.0_dp
         AllGrowRate(:)=0.0_dp
         AllGrowRateAbort(:)=0
@@ -883,11 +927,26 @@ contains
         AbsProjE = 0
         norm_semistoch = 0
         norm_psi = 0
+        bloom_sizes = 0
+        proje_iter_tot = 0.0_dp
+        ! initialize as one (kind of makes sense for a norm)
+        all_norm_psi_squared = 1.0_dp
         tSoftExitFound = .false.
+        tReferenceChanged = .false.
 
         ! Initialise the fciqmc counters
         iter_data_fciqmc%update_growth = 0.0_dp
         iter_data_fciqmc%update_iters = 0
+
+        nExChecks = 0
+        nExCheckFails = 0
+
+!            if (tReltvy) then
+!                ! write out the column headings for the MSWALKERCOUNTS
+!                open(mswalkercounts_unit, file='MSWALKERCOUNTS', status='UNKNOWN')
+!                write(mswalkercounts_unit, "(A)") "# ms real    imag    magnitude"
+!            endif
+
  
         IF(tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC)) THEN
             ALLOCATE(HistMinInd(NEl))
@@ -927,7 +986,6 @@ contains
                 ENDIF
                 InstAnnihil(:,:)=0.0_dp
             ENDIF
-
             IF(iProcIndex.eq.0) THEN
                 IF(tHistSpawn) THEN
                     Tot_Unique_Dets_Unit = get_free_unit()
@@ -1028,6 +1086,37 @@ contains
 
 !        if (tSearchTau .and. (.not. tFillingStochRDMonFly)) then
 !                       ^ Removed by GLM as believed not necessary
+
+        ! [Werner Dobrautz 5.5.2017:]
+        ! if this is a continued run from a histogramming tau-search 
+        ! and a restart of the tau-search is not forced by input, turn 
+        ! both the new and the old tau-search off! 
+        ! i cannot do it here, since this is called before the popsfile read-in
+        if (t_previous_hist_tau) then
+            ! i have to check for tau-search option and stuff also, so that 
+            ! the death tau adaption is still used atleast! todo! 
+            tSearchTau = .false.
+            t_hist_tau_search = .false.
+            t_fill_frequency_hists = .false.
+            Write(iout,*) "Turning OFF the tau-search, since continued run!"
+        end if 
+
+        ! [W.D.] I guess I want to initialize that before the tau-search, 
+        ! or otherwise some pgens get calculated incorrectly
+        if (t_back_spawn .or. t_back_spawn_flex) then 
+            call init_back_spawn()
+        end if
+
+        ! also i should warn the user if this is a restarted run with a 
+        ! set delay in the back-spawning method: 
+        ! is there actually a use-case where someone really wants to delay 
+        ! a back-spawn in a restarted run? 
+        if (tReadPops .and. back_spawn_delay /= 0) then 
+            call Warning_neci(t_r, &
+                "Do you really want a delayed back-spawn in a restarted run?")
+        end if
+
+
         if (tSearchTau) then
             if (tGen_nosym_guga) then 
                 call init_tau_search_guga_nosym() 
@@ -1036,12 +1125,23 @@ contains
             end if
             ! call init_hist_tau_search in init_tau_search if both flags are 
             ! set!
+            ! [Werner Dobrautz 4.4.2017:]
+            if (t_hist_tau_search) then 
+                ! some setup went wrong! 
+                call Stop_All(t_r, &
+                    "Input error! both standard AND Histogram tau-search chosen!")
+            end if
+
         else if (t_hist_tau_search) then 
             if (tGen_nosym_guga) then
                 call init_hist_tau_search_guga_nosym()
             else
                 call init_hist_tau_search() 
             end if
+
+        else if (t_hist_tau_search) then 
+            call init_hist_tau_search()
+
         else
             ! Add a couple of checks for sanity
             if (nOccAlpha == 0 .or. nOccBeta == 0) then
@@ -1171,13 +1271,6 @@ contains
 !            WRITE(iout,"(A,I20)") "Approximate size of determinant space is: ",NINT(TotDets)
 !        endif
 
-         if (tRDMOnFly) then
-             if (tPairedReplicas) then
-                 nrdms = lenof_sign/2
-             else
-                 nrdms = lenof_sign
-             end if
-         end if
     END SUBROUTINE SetupParameters
 
     ! This initialises the calculation, by allocating memory, setting up the
@@ -1194,16 +1287,20 @@ contains
         !Variables from popsfile header...
         logical :: tPop64Bit,tPopHPHF,tPopLz
         integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,Popinum_runs
-        integer :: PopRandomHash(1024), PopBalanceBlocks
+        integer :: PopRandomHash(2056), PopBalanceBlocks
         integer(int64) :: iPopAllTotWalkers
         integer :: i, run
         real(dp) :: PopDiagSft(1:inum_runs)
         real(dp) , dimension(lenof_sign) :: PopSumNoatHF
         HElement_t(dp) :: PopAllSumENum(1:inum_runs)
         integer :: perturb_ncreate, perturb_nannihilate
+        integer :: nrdms_standard, nrdms_transition
         
         !default
         Popinum_runs=1
+        ! default version for popsfiles, this does not have any functional effect, 
+        ! but prevents it from using uninitialized
+        PopsVersion=4
 
         if(tReadPops .and. .not. (tPopsAlreadyRead .or. tHDF5PopsRead)) then
             call open_pops_head(iunithead,formpops,binpops)
@@ -1302,10 +1399,27 @@ contains
 
             if (alloc_popsfile_dets) allocate(popsfile_dets(0:NIfTot,MaxWalkersPart), stat=ierr)
 
+            nrdms_standard = 0
+            nrdms_transition = 0
+
+            if (tRDMOnFly) then
+                if (tPairedReplicas) then
+                    nrdms_standard = lenof_sign/2
+                else
+                    nrdms_standard = lenof_sign
+                end if
+                if (tTransitionRDMs) then
+                    ! nrdms_transition_input will have been read in from the user
+                    ! input. But if we have two different replicas for each state
+                    ! sampled, then there are two ways to form each transition RDMs.
+                    nrdms_transition = nrdms_transition_input*nreplicas
+                end if
+            end if
+
             ! Allocate storage for persistent data to be stored alongside
             ! the current determinant list (particularly diagonal matrix
             ! elements, i.e. CurrentH; now global_determinant_data).
-            call init_global_det_data()
+            call init_global_det_data(nrdms_standard, nrdms_transition)
 
             ! If we are doing cont time, then initialise it here
             call init_cont_time()
@@ -1365,7 +1479,6 @@ contains
             TotPartsOld(:)=0.0
             NoatHF(:)=0.0_dp
             InstNoatHF(:)=0.0_dp
-            AvNoatHF(:) = 0.0_dp
 
             ! If we have a popsfile, read the walkers in now.
             if(tReadPops .and. .not.tPopsAlreadyRead) then
@@ -1392,7 +1505,7 @@ contains
                         WRITE(iout,"(A,I10,A,F9.3,A,I15)") "Initial number of particles set to ",int(InitialPart), &
                             " and shift will be held at ",DiagSft(1)," until particle number gets to ", int(InitWalkers*nNodes)
                     else
-                        write(iout,"(A,I16)") "Initial number of walkers per processor chosen to be: ", InitWalkers
+                        write(iout,"(A,I16)") "Initial number of walkers per processor chosen to be: ", nint(InitWalkers)
                     endif
                    
                     call InitFCIMC_HF()
@@ -1404,6 +1517,7 @@ contains
                 & REAL(MemoryAlloc,dp)/1048576.0_dp," Mb/Processor"
             WRITE(iout,*) "Only one array of memory to store main particle list allocated..."
             WRITE(iout,*) "Initial memory allocation sucessful..."
+            WRITE(iout,*) "============================================="
             CALL neci_flush(iout)
 
         ENDIF   !End if initial walkers method
@@ -1444,7 +1558,10 @@ contains
             call init_yama_store ()
         endif
     
-        if (tRDMonFly) call InitRDMs(nrdms)
+        if (tRDMonFly) then
+            call init_rdms(nrdms_standard, nrdms_transition)
+            if (tOldRDMs) call InitRDMs_old(nrdms_standard)
+        end if
         ! This keyword (tRDMonFly) is on from the beginning if we eventually plan to calculate the RDM's.
         ! Initialises RDM stuff for both explicit and stochastic calculations of RDM.
 
@@ -1492,21 +1609,49 @@ contains
             tot_trial_denom = 0.0_dp
         end if
 
-        replica_overlaps(:, :) = 0.0_dp
+         replica_overlaps_real(:, :) = 0.0_dp
+#ifdef __CMPLX
+         replica_overlaps_imag(:, :) = 0.0_dp
+#endif
+
+
+        ! Set up the reference space for the adi-approach
+         call setup_reference_space(tReadPops)
+
+         if(tInitiatorsSubspace) call read_g_markers()
+
+         if(tRDMonFly .and. tDynamicCoreSpace) call sync_rdm_sampling_iter()
+
 
     end subroutine InitFCIMCCalcPar
 
     subroutine init_fcimc_fn_pointers()
-
         ! Select the excitation generator.
         if (tHPHF) then
             generate_excitation => gen_hphf_excit
+        elseif ((t_back_spawn_option .or. t_back_spawn_flex_option)) then 
+            if (tHUB .and. tLatticeGens) then 
+                ! for now the hubbard + back-spawn still uses the old 
+                ! genrand excit gen
+                generate_excitation => gen_excit_back_spawn_hubbard
+            else if (tUEGNewGenerator .and. tLatticeGens) then 
+                generate_excitation => gen_excit_back_spawn_ueg_new
+            else if (tUEG .and. tLatticeGens) then 
+                generate_excitation => gen_excit_back_spawn_ueg
+            else 
+                generate_excitation => gen_excit_back_spawn
+            end if
         elseif (tUEGNewGenerator) then
             generate_excitation => gen_ueg_excit
         elseif (tCSF) then
             generate_excitation => gen_csf_excit
         elseif (tPickVirtUniform) then
-            generate_excitation => gen_rand_excit3
+            ! pick-uniform-random-mag is on
+            if (tReltvy) then
+                generate_excitation => gen_rand_excit_Ex_Mag
+            else
+                generate_excitation => gen_rand_excit3
+            endif
         elseif (tGenHelWeighted) then
             generate_excitation => gen_excit_hel_weighted
         elseif (tGen_4ind_2) then
@@ -1522,7 +1667,6 @@ contains
         else
             generate_excitation => gen_rand_excit
         endif
-
         ! In the main loop, we only need to find out if a determinant is
         ! connected to the reference det or not (so no ex. level above 2 is
         ! required). Except in some cases where we need to know the maximum
@@ -1534,7 +1678,7 @@ contains
         endif
 
         ! How many children should we spawn given an excitation?
-        if ((tTruncCas .and. (.not. tTruncInitiator)) .or. tTruncSpace .or. &
+        if (tTruncCas .or. tTruncSpace .or. &
             tPartFreezeCore .or. tPartFreezeVirt .or. tFixLz .or. &
             (tUEG .and. .not. tLatticeGens) .or. tTruncNOpen) then
             if (tHPHF .or. tCSF .or. tSemiStochastic) then
@@ -1606,6 +1750,7 @@ contains
         extract_bit_rep_avsign => extract_bit_rep_avsign_no_rdm
 
         fill_rdm_diag_currdet => fill_rdm_diag_currdet_norm
+        fill_rdm_diag_currdet_old => fill_rdm_diag_currdet_norm_old
 
         ! tau-search functions, dependent on the excitation generator in use
         if (tGen_nosym_guga) then 
@@ -1747,7 +1892,11 @@ contains
             ENDIF
         ENDIF
 
-        IF(tRDMonFly) CALL DeallocateRDMs()
+        if (tRDMonFly) then
+            call dealloc_global_rdm_data()
+            if (tOldRDMs) call DeallocateRDMs_old()
+        end if
+
         if (allocated(refdetflip)) deallocate(refdetflip)
         if (allocated(ilutrefflip)) deallocate(ilutrefflip)
         if (allocated(ValidSpawnedList)) deallocate(ValidSpawnedList)
@@ -1767,6 +1916,9 @@ contains
 
         ! Cleanup the load balancing
         call clean_load_balance()
+
+        ! Cleanup adi caches
+        call clean_adi()
 
         if (tSemiStochastic) call end_semistoch()
 
@@ -1788,6 +1940,8 @@ contains
 !            ENDIF
 !        ENDIF
 
+        if(allocated(g_markers)) deallocate(g_markers)
+
     end subroutine DeallocFCIMCMemPar
 
     subroutine InitFCIMC_HF()
@@ -1802,7 +1956,10 @@ contains
 
         InitialPartVec = 0.0_dp
         do run=1,inum_runs
-            InitialPartVec(run)=InitialPart
+            InitialPartVec(min_part_type(run))=InitialPart
+#ifdef __CMPLX
+            InitialPartVec(max_part_type(run))=0.0_dp
+#endif
         enddo
 
         !Setup initial walker local variables for HF walkers start
@@ -1821,8 +1978,9 @@ contains
             ! Set reference determinant as an initiator if
             ! tTruncInitiator is set, for both imaginary and real flags
             if (tTruncInitiator) then
-                call set_flag (CurrentDets(:,1), flag_initiator(1))
-                call set_flag (CurrentDets(:,1), flag_initiator(2))
+                do run = 1, inum_runs
+                    call set_flag (CurrentDets(:,1), get_initiator_flag_by_run(run))
+                enddo
             endif
 
             ! If running a semi-stochastic simulation, set flag to specify the Hartree-Fock is in the
@@ -1832,9 +1990,6 @@ contains
             ! HF energy is equal to 0 (by definition)
             call set_det_diagH(1, 0.0_dp)
             HFInd = 1
-
-            ! Set the initial iteration number
-            call set_part_init_time(1, TotImagTime)
 
             if (tContTimeFCIMC .and. tContTimeFull) &
                 call set_spawn_rate(1, spawn_rate_full(HFDet, ilutHF))
@@ -1847,9 +2002,13 @@ contains
                 TotPartsOld(:) = InitialPartVec(:)
             else
                 do run=1, inum_runs
-                    InitialSign(run) = InitWalkers
-                    TotParts(run) = real(InitWalkers,dp)
-                    TotPartsOld(run) = real(InitWalkers,dp)
+                   InitialSign(min_part_type(run)) = InitWalkers
+                   TotParts(min_part_type(run)) = real(InitWalkers,dp)
+                   TotPartsOld(min_part_type(run)) = real(InitWalkers,dp)
+#ifdef __CMPLX
+                   TotParts(max_part_type(run)) = 0.0_dp
+                   TotPartsOld(max_part_type(run)) = 0.0_dp
+#endif
                 enddo
             endif
 
@@ -1917,11 +2076,6 @@ contains
         character(*), parameter :: this_routine = 'InitFCIMC_HF_orthog'
 
         ! Add some implementation guards
-#ifdef __CMPLX
-        call stop_all(this_routine, "Complex not yet supported")
-#endif
-        if (inum_runs /= lenof_sign) &
-            call stop_all(this_routine, "Not yet supported")
 
         ! Default values, unless overridder for individual procs
         NoatHF = 0.0_dp
@@ -1963,10 +2117,7 @@ contains
 
                 ! Set reference determinant as an initiator if tTruncInitiator
                 if (tTruncInitiator) then
-                    call set_flag(CurrentDets(:, site), flag_initiator(run))
-#ifdef __CMPLX
-                    call stop_all(this_routine, "Needs adjusting")
-#endif
+                    call set_flag(CurrentDets(:, site), get_initiator_flag_by_run(run))
                 end if
 
                 ! The global reference is the HF and is primary for printed
@@ -1979,20 +2130,17 @@ contains
                 endif
                 call set_det_diagH(site, real(hdiag, dp) - Hii)
 
-                ! Set the initial occupation time
-                call set_part_init_time(site, TotImagTime)
-
                 ! Obtain the initial sign
                 if (.not. tStartSinglePart) &
                     call stop_all(this_routine, "Only startsinglepart supported")
-                call encode_part_sign(CurrentDets(:,site), InitialPart, run)
+                call encode_part_sign(CurrentDets(:,site), InitialPart, min_part_type(run))
                 
                 ! Initial control values
                 TotWalkers = site
                 TotWalkersOld = site
-                NoatHF(run) = InitialPart
-                TotParts(run) = real(InitialPart, dp)
-                TotPartsOld(run) = real(InitialPart, dp)
+                NoatHF(min_part_type(run)) = InitialPart
+                TotParts(min_part_type(run)) = real(InitialPart, dp)
+                TotPartsOld(min_part_type(run)) = real(InitialPart, dp)
             end if
         end do
 
@@ -2027,7 +2175,7 @@ contains
         integer :: nexcit, ndets_this_proc, i, det(nel)
         type(basisfn) :: sym
         real(dp) :: evals(inum_runs/nreplicas)
-        real(dp), allocatable :: evecs_this_proc(:,:)
+        HElement_t(dp), allocatable :: evecs_this_proc(:,:)
         integer(MPIArg) :: space_sizes(0:nProcessors-1), space_displs(0:nProcessors-1)
         character(*), parameter :: this_routine = 'InitFCIMC_trial'
 
@@ -2065,16 +2213,16 @@ contains
         ! det with the largest coefficient, rather than the currently guessed
         ! one...
 
-        real(dp) :: largest_coeff, sgn
+        HElement_t(dp) :: largest_coeff, sgn
         integer(n_int) :: largest_det(0:NIfTot)
-        integer :: run, j, proc_highest
+        integer :: run, j
+        integer(int32) :: proc_highest
         integer(n_int) :: ilut(0:NIfTot)
         integer(int32) :: int_tmp(2)
 #ifdef __DEBUG
         character(*), parameter :: this_routine = 'set_initial_run_references'
 #endif
 
-        ASSERT(inum_runs == lenof_sign)
         do run = 1, inum_runs
 
             if (tMultipleInitialRefs) then
@@ -2083,22 +2231,27 @@ contains
                 call update_run_reference(ilut, run)
             else
                 ! Find the largest det on this processor
-                largest_coeff = 0
+                largest_coeff = h_cast(0.0_dp)
                 do j = 1, TotWalkers
-                    sgn = extract_part_sign(CurrentDets(:,j), run)
-                    if (abs(sgn) > largest_coeff) then
-                        largest_coeff = abs(sgn)
+                    sgn = extract_run_sign(CurrentDets(:,j), run)
+                    if (abs(sgn) > abs(largest_coeff)) then
+                        largest_coeff = sgn
                         largest_det = CurrentDets(:,j)
                     end if
                 end do
 
                 ! Find the largest det on any processor (n.b. discard the
                 ! non-integer part. This isn't all that important).
+                ! [W.D. 15.5.2017:]
+                ! for the test suite problems, maybe it is important.. 
+                ! because there seems to be some compiler dependent 
+                ! differences..
                 call MPIAllReduceDatatype(&
-                    (/int(largest_coeff, int32), int(iProcIndex, int32)/), 1, &
+                    (/int(abs(largest_coeff), int32), int(iProcIndex, int32)/), 1, &
                     MPI_MAXLOC, MPI_2INTEGER, int_tmp)
                 proc_highest = int_tmp(2)
-                call MPIBCast(largest_det, NIfTot+1, proc_highest)
+                call MPIBCast(largest_det, NIfTot+1, int(proc_highest,sizeof_int))
+!                 call MPIBCast(largest_det, NIfTot+1, proc_highest)
 
                 write(6,*) 'Setting ref', run
                 call writebitdet(6, largest_det, .true.)
@@ -2264,7 +2417,12 @@ contains
         tHPHF = .false.
         tHPHFInts = .false.
 
+        ! do not pass an unallocated array, so dummy-allocate
+        allocate(Hamil(0))
+        allocate(Lab(0))
         CALL Detham(nCASDet,NEl,CASFullDets,Hamil,Lab,nRow,.true.,ICMax,GC,tMC)
+        deallocate(Lab)
+        deallocate(Hamil)
         LenHamil=GC
         write(iout,*) "Allocating memory for hamiltonian: ",LenHamil*2
         Allocate(Hamil(LenHamil),stat=ierr)
@@ -2495,13 +2653,9 @@ contains
                     endif
                     call set_det_diagH(DetIndex, real(HDiagTemp, dp) - Hii)
 
-                    ! Set the initial iteration number
-                    call set_part_init_time(DetIndex, TotImagTime)
-
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
-                        call CalcParentFlag(DetIndex, iInit, &
-                                            real(HDiagTemp, dp))
+                        call CalcParentFlag(DetIndex, iInit)
                     endif
 
                     DetHash = FindWalkerHash(CASFullDets(:,i), nWalkerHashes)
@@ -2555,7 +2709,7 @@ contains
         real(dp) :: TotMP1Weight,amp,MP2Energy,PartFac,rat,r,energy_contrib
         HElement_t(dp) :: HDiagtemp
         integer :: iExcits, exflag, Ex(2,2), nJ(NEl), DetIndex, iNode
-        integer :: iInit, DetHash, ExcitLevel, run
+        integer :: iInit, DetHash, ExcitLevel, run, part_type
         integer(n_int) :: iLutnJ(0:NIfTot)
         real(dp) :: NoWalkers, temp_sign(lenof_sign)
         logical :: tAllExcitsFound, tParity
@@ -2696,7 +2850,7 @@ contains
                 call return_mp1_amp_and_mp2_energy(nJ,iLutnJ,Ex,tParity,amp,energy_contrib)
                 amp = amp*PartFac
 
-                if (tRealCoeffByExcitLevel) ExcitLevel=FindBitExcitLevel(iLutnJ, iLutRef, nEl)
+                if (tRealCoeffByExcitLevel) ExcitLevel=FindBitExcitLevel(iLutnJ, iLutRef(:,1), nEl)
                 if (tAllRealCoeff .or. &
                     & (tRealCoeffByExcitLevel.and.(ExcitLevel.le.RealCoeffExcitThresh))) then
                     NoWalkers=amp
@@ -2729,13 +2883,9 @@ contains
                     endif
                     call set_det_diagH(DetIndex, real(HDiagtemp, dp) - Hii)
 
-                    ! Set the initial iteration number
-                    call set_part_init_time(DetIndex, TotImagTime)
-
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
-                        call CalcParentFlag(DetIndex, iInit, &
-                                            real(HDiagTemp, dp))
+                        call CalcParentFlag(DetIndex, iInit)
                     endif
 
                     DetHash = FindWalkerHash(nJ, nWalkerHashes)
@@ -2754,8 +2904,8 @@ contains
                     nullify(TempNode)
 
                     DetIndex=DetIndex+1
-                    do run=1,inum_runs
-                        TotParts(run)=TotParts(run)+abs(NoWalkers)
+                    do part_type=1,lenof_sign
+                        TotParts(part_type)=TotParts(part_type)+abs(NoWalkers)
                     enddo
                 endif
             endif   !End if desired node
@@ -2787,13 +2937,11 @@ contains
                 call encode_sign(CurrentDets(:,DetIndex),temp_sign)
                 if(tTruncInitiator) then
                     !Set initiator flag (always for HF)
-                    call set_flag(CurrentDets(:,DetIndex),flag_initiator(1))
-                    call set_flag(CurrentDets(:,DetIndex),flag_initiator(2))
+                    do run = 1, inum_runs
+                        call set_flag(CurrentDets(:,DetIndex),get_initiator_flag(run))
+                    enddo
                 endif
                 call set_det_diagH(DetIndex, 0.0_dp)
-
-                ! Set the initial iteration number
-                call set_part_init_time(DetIndex, TotImagTime)
 
                 ! Now add the Hartree-Fock determinant (not with index 1).
                 DetHash = FindWalkerHash(HFDet, nWalkerHashes)
@@ -2957,9 +3105,10 @@ contains
     SUBROUTINE CheckforBrillouins()
         INTEGER :: i,j
         LOGICAL :: tSpinPair
-        
+       
+
 !Standard cases.
-        IF((tHub.and.tReal).or.(tRotatedOrbs).or.((LMS.ne.0).and.(.not.tUHF))) THEN
+        IF((tHub.and.tReal).or.(tRotatedOrbs).or.((LMS.ne.0).and.(.not.tUHF)).or.tReltvy) THEN
 !Open shell, restricted.            
             tNoBrillouin=.true.
         ELSE
@@ -3026,10 +3175,15 @@ contains
 
     ENDSUBROUTINE CheckforBrillouins
 
+
     SUBROUTINE CalcApproxpDoubles()
+        implicit none
+        real(dp) :: denom
         INTEGER :: iTotal
-        integer :: nSing, nDoub, ncsf
+        integer :: nSingles, nDoubles, ncsf, nSing_spindiff1, nDoub_spindiff1, nDoub_spindiff2
+        integer :: nTot
         integer :: hfdet_loc(nel)
+        character(*), parameter :: this_routine = "CalcApproxpDoubles"
 
         ! A quick hack. Count excitations as though we were a determinant.
         ! We could fix this later...
@@ -3041,27 +3195,15 @@ contains
         else
             ncsf = 0
         endif
-        nSing=0
-        nDoub=0
-
-        IF(tHub.or.tUEG) THEN
-            IF(tReal) THEN
-                WRITE(iout,*) "Since we are using a real-space hubbard model, only single excitations are connected &
-                &   and will be generated."
-                pDoubles=0.0_dp
-                pSingles = 1.0_dp
-                return
-            ELSE
-                WRITE(iout,*) "Since we are using a momentum-space hubbard model/UEG, only double excitaitons &
-     &                          are connected and will be generated."
-                pDoubles=1.0_dp
-                pSingles = 0.0_dp
-                return
-            ENDIF
-        elseif(tNoSingExcits) then
-            write(iout,*) "Only double excitations will be generated"
-            return
-        ENDIF
+        nSingles=0
+        nDoubles=0
+        if (tReltvy) then
+            nSing_spindiff1 = 0
+            nDoub_spindiff1 = 0
+            nDoub_spindiff2 = 0
+            pDoub_spindiff1 = 0.0_dp
+            pDoub_spindiff2 = 0.0_dp
+        endif
 
 !NSing=Number singles from HF, nDoub=No Doubles from HF
 
@@ -3069,14 +3211,72 @@ contains
                        &excitation generator by looking a excitations from &
                        &reference."
         exflag=3
-        IF(tKPntSym) THEN
-            call enumerate_sing_doub_kpnt(exFlag, .false., nSing, nDoub, .false.) 
-        ELSE
-            CALL CountExcitations3(HFDet_loc,exflag,nSing,nDoub)
-        ENDIF
-        iTotal=nSing + nDoub + ncsf
+        if (tReltvy) then
+            write(iout,*) "Counting magnetic excitations"
+            ! subroutine CountExcitations4(nI, minRank, maxRank, minSpinDiff, maxSpinDiff, tot)
+            call CountExcitations4(HFDet_loc, 1, 1, 0, 0, nSingles)
+            call CountExcitations4(HFDet_loc, 1, 1, 1, 1, nSing_spindiff1)
+            call CountExcitations4(HFDet_loc, 2, 2, 0, 0, nDoubles)
+            call CountExcitations4(HFDet_loc, 2, 2, 1, 1, nDoub_spindiff1)
+            call CountExcitations4(HFDet_loc, 2, 2, 2, 2, nDoub_spindiff2)
+            call CountExcitations4(HFDet_loc, 1, 2, 0, 2, nTot)
+            ASSERT(nTot==(nSingles+nSing_spindiff1+nDoubles+nDoub_spindiff1+nDoub_spindiff2))
 
-        WRITE(iout,"(I7,A,I7,A)") NDoub, " double excitations, and ",NSing, &
+            iTotal=nSingles + nDoubles + nSing_spindiff1 + nDoub_spindiff1 + nDoub_spindiff2 + ncsf
+
+        else
+            if (tKPntSym) THEN
+                call enumerate_sing_doub_kpnt(exFlag, .false., nSingles, nDoubles, .false.) 
+            else
+                call CountExcitations3(HFDet_loc,exflag,nSingles,nDoubles)
+            endif
+            iTotal=nSingles + nDoubles + ncsf
+        endif
+
+        IF(tHub.or.tUEG) THEN
+            IF(tReal) THEN
+                WRITE(iout,*) "Since we are using a real-space hubbard model, only single excitations are connected &
+                &   and will be generated."
+                pDoubles=0.0_dp
+                if (tReltvy) then
+                    pDoub_spindiff1 = 0.0_dp
+                    pDoub_spindiff2 = 0.0_dp
+                    pSingles = real(nSingles,dp)/real(nSingles+nSing_spindiff1,dp)
+                    pSing_spindiff1 = 1.0_dp - pSingles
+                else
+                    pSingles = 1.0_dp
+                endif
+                return
+            ELSE
+                WRITE(iout,*) "Since we are using a momentum-space hubbard model/UEG, only double excitaitons &
+     &                          are connected and will be generated."
+                pSingles=0.0_dp
+                if (tReltvy) then
+                    pSing_spindiff1 = 0.0_dp
+                    pDoubles = real(nDoubles,dp)/real(nDoubles+nDoub_spindiff1+nDoub_spindiff2,dp)
+                    pDoub_spindiff1 = real(nDoub_spindiff1,dp)/real(nDoubles+nDoub_spindiff1+nDoub_spindiff2,dp)
+                    pDoub_spindiff2 = 1.0_dp - pDoubles - pDoub_spindiff1
+                else
+                    pDoubles = 1.0_dp
+                endif
+                return
+            ENDIF
+
+        elseif(tNoSingExcits) then
+            pSingles=0.0_dp
+            if (tReltvy) then
+                pSing_spindiff1 = 0.0_dp
+                pDoubles = real(nDoubles,dp)/real(nDoubles+nDoub_spindiff1+nDoub_spindiff2,dp)
+                pDoub_spindiff1 = real(nDoub_spindiff1,dp)/real(nDoubles+nDoub_spindiff1+nDoub_spindiff2,dp)
+                pDoub_spindiff2 = 1.0_dp - pDoubles - pDoub_spindiff1
+            else
+                pDoubles = 1.0_dp
+            endif
+            write(iout,*) "Only double excitations will be generated"
+            return
+        ENDIF
+
+        WRITE(iout,"(I7,A,I7,A)") nDoubles, " double excitations, and ",nSingles, &
             " single excitations found from reference. This will be used to calculate pDoubles."
 
         IF (abs(SinglesBias - 1.0_dp) > 1.0e-12_dp) THEN
@@ -3084,16 +3284,12 @@ contains
                 SinglesBias," to determine pDoubles."
         ENDIF
 
-        IF((NSing+nDoub+ncsf).ne.iTotal) THEN
-            CALL Stop_All("CalcApproxpDoubles","Sum of number of singles and number of doubles does " &
-            & //"not equal total number of excitations")
-        ENDIF
-        IF((NSing.eq.0).or.(NDoub.eq.0)) THEN
+        IF((nSingles.eq.0).or.(nDoubles.eq.0)) THEN
             WRITE(iout,*) "Number of singles or doubles found equals zero. pDoubles will be set to 0.95. Is this correct?"
             pDoubles = 0.95_dp
             pSingles = 0.05_dp
             return
-        elseif ((NSing < 0) .or. (NDoub < 0) .or. (ncsf < 0)) then
+        elseif ((nSingles < 0) .or. (nDoubles < 0) .or. (ncsf < 0)) then
             call stop_all("CalcApproxpDoubles", &
                           "Number of singles, doubles or Yamanouchi symbols &
                           &found to be a negative number. Error here.")
@@ -3102,34 +3298,55 @@ contains
         ! Set pDoubles to be the fraction of double excitations.
         ! If using CSFs, also consider only changing Yamanouchi Symbol
         if (tCSF) then
-            pDoubles = real(nDoub,dp) / &
-                   ((real(nSing,dp)*SinglesBias)+real(nDoub,dp)+real(ncsf,dp))
-            pSingles = real(nSing,dp) / &
-                   ((real(nSing,dp)*SinglesBias)+real(nDoub,dp)+real(ncsf,dp))
-
+            denom=real(nSingles,dp)*SinglesBias+real(nDoubles,dp)+real(ncsf,dp)
+            pSingles = real(nSingles,dp) / denom
+            pDoubles = real(nDoubles,dp) / denom
+            !Note that this does not sum to one, since it also allows for
+            !changing on yamanouchi symbol
+            ASSERT(.not.tReltvy)
         else
-            pDoubles = real(nDoub,dp) / &
-                   ((real(NSing,dp)*SinglesBias) + real(NDoub,dp))
-            pSingles = real(nSing,dp) * SinglesBias/ &
-                   ((real(nSing,dp)*SinglesBias) + real(nDoub,dp))
+            if (tReltvy) then
+                denom=real(nSingles+nSing_spindiff1,dp)*SinglesBias+real(nDoubles+nDoub_spindiff1+nDoub_spindiff2,dp)
+                pSingles = real(nSingles,dp)*SinglesBias / denom
+                pSing_spindiff1 = real(nSing_spindiff1,dp)*SinglesBias / denom
+                pDoubles = real(nDoubles,dp) / denom
+                pDoub_spindiff1 = real(nDoub_spindiff1,dp) / denom
+                pDoub_spindiff2 = 1.0_dp - pSingles - pSing_spindiff1 - pDoubles - pDoub_spindiff1 - pDoub_spindiff2
+            else
+                denom=real(nSingles,dp)*SinglesBias+real(nDoubles,dp)
+                pSingles = real(nSingles,dp)*SinglesBias / denom
+                pDoubles = 1.0_dp - pSingles
+           endif
         endif
 
         IF (abs(SinglesBias - 1.0_dp) > 1.0e-12_dp) THEN
             write (iout, '("pDoubles set to ", f14.6, &
                        &" rather than (without bias): ", f14.6)') &
-                       pDoubles, real(nDoub,dp) / real(iTotal,dp)
+                       pDoubles, real(nDoubles,dp) / real(iTotal,dp)
             write (iout, '("pSingles set to ", f14.6, &
                        &" rather than (without bias): ", f14.6)') &
-                       pSingles, real(nSing,dp) / real(iTotal,dp)
+                       pSingles, real(nSingles,dp) / real(iTotal,dp)
 
 !            WRITE(iout,"(A,F14.6,A,F14.6)") "pDoubles set to: ",pDoubles, " rather than (without bias): ", &
 !                & real(nDoub,dp)/real(iTotal,dp)
         ELSE
-            write (iout,'(A,F14.6)') " pDoubles set to: ", pDoubles
-            write (iout,'(A,F14.6)') " pSingles set to: ", pSingles
+            if (tReltvy) then 
+                write (iout,'(A)') " Where s and t are alpha or beta spin function labels: "
+                write (iout,'(A30,F14.6)') " pSingles(s->s) set to: ", pSingles
+                write (iout,'(A30,F14.6)') " pSingles(s->s') set to: ", pSing_spindiff1
+                write (iout,'(A30,F14.6)') " pDoubles(st->st) set to: ", pDoubles
+                write (iout,'(A30,F14.6)') " pDoubles(st->s't) set to: ", pDoub_spindiff1
+                write (iout,'(A30,F14.6)') " pDoubles(st->s't') set to: ", pDoub_spindiff2
+            else
+                write (iout,'(A,F14.6)') " pDoubles set to: ", pDoubles
+                write (iout,'(A,F14.6)') " pSingles set to: ", pSingles
+            endif
         ENDIF
 
     END SUBROUTINE CalcApproxpDoubles
+
+
+
 
     SUBROUTINE CreateSpinInvBRR()
 
@@ -3199,6 +3416,44 @@ contains
       ValidSpawnedList(:)=InitialSpawnedSlots(:)
 
    end subroutine SetupValidSpawned
+
+   subroutine sync_rdm_sampling_iter()
+     use LoggingData, only: RDMEnergyIter, IterRDMOnfly
+     use CalcData, only: coreSpaceUpdateCycle, semistoch_shift_iter
+     implicit none
+     integer :: frac
+     ! first, adjust the offset to make the rdm sampling start right when a semistochastic
+     ! update cycle ends
+     IterRDMOnFly = IterRDMOnFly - &
+          mod(IterRDMOnFly-semistoch_shift_iter,coreSpaceUpdateCycle) - 1
+     ! The -1 is just because the sampling starts one iteration after IterRDMOnFly
+     ! If we subtracted too much, jump one cycle backwards
+     if(IterRDMOnFly < semistoch_shift_iter) IterRDMOnFly = IterRDMOnFly + coreSpaceUpdateCycle
+     write(6,*) "Adjusted starting iteration of RDM sampling to ", IterRDMOnFly
+
+     ! Now sync the update cycles
+     if(RDMEnergyIter > coreSpaceUpdateCycle) then
+        RDMEnergyIter = coreSpaceUpdateCycle
+        write(6,*) "The RDM sampling interval cannot be larger than the update "&
+             //"interval of the semi-stochastic space. Reducing it to ", RDMEnergyIter
+     endif
+     if(mod(coreSpaceUpdateCycle,RDMEnergyIter) .ne. 0) then
+        ! first, try to ramp up the RDMEnergyIter to meet the coreSpaceUpdateCycle
+        frac = coreSpaceUpdateCycle/RDMEnergyIter
+        RDMEnergyIter = coreSpaceUpdateCycle/frac        
+        write(6,*) "Update cycle of semi-stochastic space and RDM sampling interval"&
+             //" out of sync. "
+        write(6,*) "Readjusting RDM sampling interval to ", RDMEnergyIter
+        
+        ! now, if this did not succeed, adjust the coreSpaceUpdateCycle
+        if(mod(coreSpaceUpdateCycle,RDMEnergyIter) .ne. 0) then
+           coreSpaceUpdateCycle = coreSpaceUpdateCycle - &
+                mod(coreSpaceUpdateCycle,RDMEnergyIter)
+           write(6,*) "Adjusted update cycle of semi-stochastic space to ", &
+                coreSpaceUpdateCycle
+        endif
+     endif
+   end subroutine sync_rdm_sampling_iter
 
     subroutine CalcUEGMP2()
         use SymExcitDataMod, only: kPointToBasisFn
@@ -3440,7 +3695,7 @@ contains
                 else
                     abstr='FCIMCStats.'//adjustl(abstr)
                 endif
-                inquire(file=abstr,exist=exists)
+                inquire(file=trim(adjustl(abstr)),exist=exists)
                 if(.not.exists) exit
                 extension=extension+1
                 if(extension.gt.10000) then
@@ -3454,9 +3709,9 @@ contains
 !            stat = neci_system(trim(command))
 
             if(tMolpro) then
-                call rename('FCIQMCStats',abstr)
+                call rename('FCIQMCStats',trim(adjustl(abstr)))
             else
-                call rename('FCIMCStats',abstr)
+                call rename('FCIMCStats',trim(adjustl(abstr)))
             endif
             !Doesn't like the stat argument
 !            if(stat.ne.0) then
@@ -3667,6 +3922,122 @@ contains
 
     end subroutine
 
+!------------------------------------------------------------------------------------------!
+
+    subroutine setup_adi()
+      ! We initialize the flags for the adi feature
+      use adi_data, only: tSetDelayAllDoubsInits, tSetDelayAllSingsInits, tDelayAllDoubsInits, &
+           tDelayAllSingsInits, tAllDoubsInitiators, tAllSingsInitiators, tDelayGetRefs, &
+           NoTypeN, nRefs, tReadRefs, tInitiatorsSubspace, maxNRefs, nRefsSings, nRefsDoubs, &
+           SIUpdateOffset
+      use CalcData, only: InitiatorWalkNo
+      use adi_references, only: enable_adi, reallocate_ilutRefAdi, setup_SIHash, &
+           reset_coherence_counter
+      implicit none
+      maxNRefs = max(nRefsSings,nRefsDoubs)
+
+      call reallocate_ilutRefAdi(maxNRefs)
+
+      ! If using adi with dynamic SIs, also use a dynamic corespace by default
+      call setup_dynamic_core()
+ 
+      ! Check if one of the keywords is specified as delayed
+      if(tSetDelayAllDoubsInits .and. tAllDoubsInitiators) then
+         tAllDoubsInitiators = .false.
+         tDelayAllDoubsInits = .true.
+      endif
+      if(tSetDelayAllSingsInits .and. tAllSingsInitiators) then
+         tAllSingsInitiators = .false.
+         tDelayAllSingsInits = .true.
+      endif
+      
+      ! Check if we want to get the references right away
+      if(.not. (tReadRefs .or. tReadPops)) tDelayGetRefs = .true.
+      if(tDelayAllSingsInits .and. tDelayAllDoubsInits) tDelayGetRefs = .true.
+      ! Give a status message
+      if(tAllDoubsInitiators) call enable_adi()
+      if(tAllSingsInitiators .or. tAllDoubsInitiators .or. tInitiatorsSubspace) &
+           tAdiActive = .true. 
+
+      ! there is a minimum cycle lenght for updating the number of SIs, as the reference population
+      ! needs some time to equilibrate
+      nRefUpdateInterval = max(SIUpdateInterval,500)
+      SIUpdateOffset = 0
+
+      ! Initialize the logging variables
+      call reset_coherence_counter()      
+    end subroutine setup_adi
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine setup_dynamic_core()
+      use CalcData, only: tDynamicCoreSpace, coreSpaceUpdateCycle,tIntervalSet
+      use adi_data, only: tAllDoubsInitiators, tAllSingsInitiators
+      implicit none
+      
+      ! Enable dynamic corespace if both
+      ! a) using adi with dynamic SIs (default)
+      ! b) no other keywords regarding the dynamic corespace are given
+      if(SIUpdateInterval > 0 .and. .not. tIntervalSet .and. (tAllDoubsInitiators .or. &
+           tAllSingsInitiators)) then
+        tDynamicCoreSpace = .true.
+	coreSpaceUpdateCycle = SIUpdateInterval
+      endif
+    end subroutine setup_dynamic_core
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine read_g_markers()
+      use adi_data, only: g_markers_num
+      use util_mod, only: get_free_unit
+      use bit_rep_data, only: NIfD
+      implicit none
+      logical :: exists
+      integer :: iunit, read_buf(nBasis/2), i, stat
+      character(*), parameter :: this_routine = "read_g_markers"
+      character(*), parameter :: filename = "INIT_SUBSPACE"
+
+      ! First, set up the array for the markers
+      allocate(g_markers(0:NIfD))
+      g_markers = 0_n_int
+      ! Then, check if the file is there
+      inquire(file = filename, exist = exists)
+      if(.not. exists) call stop_all(this_routine, "No "//filename//" file detected.")
+      
+      ! now, read in the file
+      g_markers_num = 0
+      iunit = get_free_unit()
+      open(iunit, file = filename, status = 'old')
+      
+      read_buf = -1
+      read(iunit,*) read_buf
+      if(any(read_buf(1:nBasis/2)== -1)) call stop_all(this_routine, &
+           "Number of orbitals in FCIDUMP and in "//filename//" does not agree.")
+      
+      ! We only have read in information for the spatial orbitals
+      do i = 1, nBasis/2
+         ! For each entry, check if it is 0 or 1, if it is zero, it is not in the 'active' space
+         if(read_buf(i) == 0) then
+            ! The input is in spatial orbitals, g_markers is in spin orbitals
+            !g_markers = iBSET(g_markers,2*(i-1))
+            !g_markers = iBSET(g_markers,2*(i-1)+1)
+            set_orb(g_markers, 2*i-1)
+            set_orb(g_markers, 2*i)
+            g_markers_num = g_markers_num + 2
+         endif
+      enddo
+      
+      call neci_flush(iout)
+      write(iout,'()')
+      write(iout,*) "Using an initiator subspace"
+      write(iout,*) "Read g_markers, given by" 
+      call WriteDetBit(iout, g_markers, .true.)
+      write(iout,*) "Number of initiator-active spin orbitals: ", nBasis-g_markers_num
+      write(iout,'()')
+    end subroutine read_g_markers
+
+!------------------------------------------------------------------------------------------!
+
 
 end module fcimc_initialisation
 
@@ -3697,6 +4068,7 @@ subroutine ChangeRefDet(DetCurr)
         if(inum_runs.eq.2) CLOSE(fcimcstats_unit2)
         IF(tTruncInitiator) CLOSE(initiatorstats_unit)
         IF(tLogComplexPops) CLOSE(complexstats_unit)
+        if (tLogEXLEVELStats) close(EXLEVELStats_unit)
     ENDIF
     IF(TDebug) CLOSE(11)
     CALL SetupParameters()

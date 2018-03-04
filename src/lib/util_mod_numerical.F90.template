@@ -1,24 +1,24 @@
 [int]
 type = integer(kind=int32)
 conditional_enable = !defined(SX)
-width = 15
+width = 20
 fmtstr = i15
 
 [int64]
 type = integer(kind=int64)
-width = 15
-fmtstr = i15
+width = 20
+fmtstr = i16
 
 [real]
 type = real(kind=sp)
 conditional_enable = !defined(SX)
 width = 20
-fmtstr = g20.9e3
+fmtstr = g20.12e3
 
 [doub]
 type = real(kind=dp)
 width = 20
-fmtstr = g20.9e3
+fmtstr = g20.12e3
 
 =========================
 
