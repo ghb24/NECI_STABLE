@@ -433,7 +433,7 @@ module lattice_mod
         procedure :: find_periodic_neighbors => find_periodic_neighbors_ole
 
         procedure :: inside_bz => inside_bz_ole 
-        procedure :: apply_basis_vector => apply_basis_vector_ole
+!         procedure :: apply_basis_vector => apply_basis_vector_ole
 
     end type ole 
 
