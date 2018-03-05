@@ -2826,7 +2826,7 @@ contains
 
     ! need an API interfacing function for generate_excitation to the rest of NECI:
     subroutine generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, &
-            excitMat, tParity, pgen, HElGen, store)
+            excitMat, tParity, pgen, HElGen, store, part_type)
         integer, intent(in) :: nI(nEl), exFlag
         integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(out) :: nJ(nEl), IC, excitMat(2,2)
@@ -2836,6 +2836,7 @@ contains
 !         HElement_t(dp), intent(out) :: HElGen
         real(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
+        integer, intent(in), optional :: part_type
         character(*), parameter :: this_routine = "generate_excitation_guga"
 
         integer(n_int) :: ilut(0:nifguga), excitation(0:nifguga)

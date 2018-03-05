@@ -624,7 +624,7 @@ module FciMCParMod
 !             call MPIBarrier(error)
 !         end if
 
- =======
+!  =======
         ! [Werner Dobrautz 4.4.2017] 
         ! for now always print out the frequency histograms for the 
         ! tau-search.. maybe change that later to be an option 

@@ -17,7 +17,8 @@ module fcimc_pointed_fns
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, count_open_orbs
     use bit_rep_data, only: NIfTot, test_flag
     use bit_reps, only: get_initiator_flag
-    use tau_search, only: log_death_magnitude, log_spawn_magnitude
+    use tau_search, only: log_death_magnitude, fill_frequency_histogram_nosym_diff, &
+                          fill_frequency_histogram_nosym_nodiff
     use rdm_general, only: calc_rdmbiasfac
     use hist, only: add_hist_excit_tofrom
     use searching, only: BinSearchParts2
@@ -189,7 +190,7 @@ module fcimc_pointed_fns
         ! but i have to remember to keep it parallel! so dont forget to 
         ! sum up all the contributions from different cores! 
         ! and divide prob by AvMCExcits again to get correct pgen! 
-        if (t_frequency_analysis .and. t_fill_frequency_hists) then
+        if (t_fill_frequency_hists) then
             ! use specific ones for different types of excitation gens
             if (tGen_4ind_weighted .or. tGen_4ind_2) then
                 ! determine if excitation was parallel or anti-parallel

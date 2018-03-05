@@ -4,7 +4,8 @@ module tau_search_hist
 
     use SystemData, only: tGen_4ind_weighted, AB_hole_pairs, par_hole_pairs,tHub, & 
                           tGen_4ind_reverse, nOccAlpha, nOccBeta, tUEG, tGen_4ind_2, &
-                          UMatEps, nBasis
+                          UMatEps, nBasis, tGen_sym_guga_mol, tGen_nosym_guga, &
+                          tReal
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow, &                
                         t_min_tau, min_tau_global, & 
@@ -295,7 +296,26 @@ contains
             call LogMemAlloc('frequency_bins', n_frequency_bins * 3, 4, &
                 this_routine, mem_tag_histograms, ierr)
 
+
+        else if (tGen_sym_guga_mol) then
+
+            ! i always use the singles histogram dont I? i think so.. 
+            allocate(frequency_bins_singles(n_frequency_bins))
+            frequency_bins_singles = 0
+
+            ! for now use only pSingles and pDoubles for GUGA implo
+            allocate(frequency_bins_doubles(n_frequency_bins))
+            frequency_bins_doubles = 0
+
+            ! actually the noysm tau search is in a different module..
+        else if (tGen_nosym_guga) then
+            call stop_all(this_routine, &
+                "should not end up here when nosym_guga, but in guga_tausearch!")
+
+
+
         else 
+
             if (tHub .or. tUEG) then
                 ! only one histogram is used! 
                 allocate(frequency_bins(n_frequency_bins), stat = ierr)
@@ -433,7 +453,7 @@ contains
 
         ! singles is always used.. 
         ! thats not quite right.. for the hubbard/UEG case it is not.. 
-        if (tUEG .or. tHub) then
+        if (tUEG .or. (tHub .and. .not. treal)) then
             ! here i could implement the summing in the case of Hubbard 
             ! and UEG models.. although I could "just" implement the 
             ! optimal time-step in the case of Hubbard models! 

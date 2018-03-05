@@ -8,7 +8,7 @@ MODULE Calc
                           AA_hole_pairs, BB_hole_pairs, AB_hole_pairs, &
                           par_hole_pairs, hole_pairs, nholes_a, nholes_b, &
                           nholes, tGUGA, t_guga_unit_tests, tGen_4ind_2, &
-                          tGen_4ind_weighted, t_test_excit_gen
+                          tGen_4ind_weighted, t_test_excit_gen, &
                           UMATEPS, tHub
     use Determinants, only: write_det
     use spin_project, only: spin_proj_interval, tSpinProject, &

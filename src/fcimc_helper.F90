@@ -37,7 +37,7 @@ module fcimc_helper
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
                         tRealCoeffByExcitLevel, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
-                        MaxWalkerBloom, t_guga_mat_eles&
+                        MaxWalkerBloom, t_guga_mat_eles, &
                         NMCyc, iSampleRDMIters, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
                         t_back_spawn_flex, tau, DiagSft, &
@@ -71,7 +71,6 @@ module fcimc_helper
     use guga_bitrepops, only: write_det_guga
 #endif
 
-    use rdm_data, only: nrdms
     use back_spawn, only: setup_virtual_mask
 
     implicit none

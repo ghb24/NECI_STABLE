@@ -574,6 +574,8 @@ system: do
             else
                 ! if only one input apply the same shift to both x and y!
                 twisted_bc(2) = twisted_bc(1)
+            end if
+
         case ("OPEN-BC")
             ! open boundary implementation for the real-space hubbard 
             ! model

@@ -58,7 +58,7 @@ set( SRC_FILES
     gndts.F90
     gndwork.F90
     hash.F90
-	hamiltonian_linalg.F90
+    hamiltonian_linalg.F90
     hdf5_popsfile.F90
     hdiag.F
     HElem.F90
@@ -150,7 +150,7 @@ set( SRC_FILES
     symrandexcit1.F
     symrandexcit2.F90
     symrandexcit3.F90
-	symrandexcit_Ex_Mag.F90
+    symrandexcit_Ex_Mag.F90
     symrandexcit4.F90
     symrandexcit5.F90
     symrandexcit_csf.F90
@@ -168,6 +168,15 @@ set( SRC_FILES
     tau_search_hist.F90
     back_spawn.F90
     back_spawn_excit_gen.F90
+    guga_bitRepOps.F90
+    guga_data.F90
+    guga_excitations.F90
+    guga_init.F90
+    guga_matrixElements.F90
+    guga_procedure_pointers.F90
+    guga_tausearch.F90
+    guga_testsuite.F90
+    guga_types.F90
 
     lib/backtrace.cpp
     lib/cons_neci.F90

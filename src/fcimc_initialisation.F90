@@ -133,7 +133,7 @@ module fcimc_initialisation
     use excit_gen_5, only: gen_excit_4ind_weighted2
     use csf, only: get_csf_helement
     use tau_search, only: init_tau_search, update_tau_default, log_spawn_magnitude_default, &
-                          init_hist_tau_search, max_death_cpt
+                          max_death_cpt
     use fcimc_helper, only: CalcParentFlag, update_run_reference
     use cont_time_rates, only: spawn_rate_full, oversample_factors, &
                                secondary_gen_store, ostag
@@ -2833,7 +2833,8 @@ contains
             ! figure out if the HF det gets store in the excitation list too? 
             ! if yes I have to modify that all a bit, and maybe also in 
             ! other parts of the NECI code ... todo
-            call generate_required_mp1_walkers(PartFac, DetIndex)
+            call stop_all(this_routine, "deprecated option with GUGA!")
+!             call generate_required_mp1_walkers(PartFac, DetIndex)
         else
 #endif
         do while(.true.)
@@ -2992,115 +2993,118 @@ contains
 
     end subroutine InitFCIMC_MP1
 
-#ifndef __CMPLX 
-    subroutine generate_required_mp1_walkers(part_fac, nexcit)
-        ! routine to fill up the required number of walkers when starting 
-        ! from an MP1 wavefunction, to not make the code above too quirky
-        real(dp), intent(in) :: part_fac
-        integer, intent(out) :: nexcit
-        character(*), parameter :: this_routine = "generate_required_mp1_walkers"
-        integer(n_int) :: ilutG(0:nifguga), ilut(0:niftot)
-        integer(n_int), pointer :: excitations(:,:)
-        integer :: i, nI(nel), iNode, ex(2,2) = 0, excit_level, run, &
-                   iInit, DetHash
-        real(dp) :: amp, energy_contrib, NoWalkers, rat, r, temp_sign(lenof_sign)
-        HElement_t(dp) :: HDiagTemp
-        type(ll_node), pointer :: TempNode
-
-        ! first create all the single and double excitations from the HF det 
-        call convert_ilut_toGUGA(ilutHF, ilutG)
-
-        call actHamiltonian(ilutG, excitations, nexcit)
-
-        do i = 1, nexcit
-            call convert_ilut_toNECI(excitations(:,i), ilut)
-
-            call decode_bit_det(nI, ilut) 
-
-            iNode = DetermineDetNode(nel, nI, 0)
-
-            if (iProcIndex == iNode) then
-                
-                call return_mp1_amp_and_mp2_energy(nI, ilut, ex, .false., &
-                    amp, energy_contrib) 
-
-                amp = amp * part_fac
-
-                if (tRealCoeffByExcitLevel) then
-                    ! can only deal with 2 as threshold!
-                    ASSERT(RealCoeffExcitThresh <= 2)
-
-                    excit_level = getDeltaB(excitations(:,i))
-                end if
-
-
-                if (tAllRealCoeff .or. (tRealCoeffByExcitLevel .and. &
-                    excit_level <= RealCoeffExcitThresh)) then
-                    
-                    NoWalkers = amp
-                else
-                    NoWalkers = int(amp)
-                    rat = amp - real(NoWalkers, dp)
-
-                    r = genrand_real2_dSFMT()
-
-                    if (abs(rat) > r) then
-                        if (amp < 0.0_dp) then
-                            NoWalkers = NoWalkers - 1
-                        else
-                            NoWalkers = NoWalkers + 1
-                        end if
-                    end if
-                end if
-
-                if (NoWalkers /= 0.0_dp) then ! hm.. this is not quite right..
-
-                    call encode_det(CurrentDets(:,i), ilut) 
-                    call clear_all_flags(CurrentDets(:,i))
-
-                    do run = 1, inum_runs
-                        temp_sign(run) = NoWalkers
-                    end do
-
-                    call encode_sign(CurrentDets(:,i), temp_sign)
-
-                    ! this is GUGA only, so directly use: 
-                    HDiagTemp = calcDiagMatEleGUGA_nI(nI)
-
-                    call set_det_diagH(i, real(HDiagTemp, dp) - Hii)
-
-                    call set_part_init_time(i, TotImagTime)
-
-                    if (tTruncInitiator) then 
-                        call CalcParentFlag(i, iInit, real(HDiagTemp, dp))
-                    end if
-
-                    DetHash = FindWalkerHash(nI, nWalkerHashes)
-
-                    TempNode => HashIndex(DetHash)
-
-                    if (TempNode%Ind == 0) then
-                        TempNode%Ind = i
-                    else
-                        do while (associated(TempNode%Next)) 
-                            TempNode => TempNode%Next
-                        end do
-                        allocate(TempNode%Next)
-                        nullify(TempNode%Next%Next)
-                        TempNode%Next%Ind = i 
-                    end if
-
-                    nullify(TempNode)
-
-                    do run = 1, inum_runs
-                        TotParts(run) = TotParts(run) + abs(NoWalkers)
-                    end do
-                end if
-            end if ! desired node 
-        end do ! end over loop of excitations
-
-    end subroutine generate_required_mp1_walkers
-#endif
+    ! this option is removed for now since the function 
+    ! set_part_init_time
+    ! is not existent in master anymore
+! #ifndef __CMPLX 
+!     subroutine generate_required_mp1_walkers(part_fac, nexcit)
+!         ! routine to fill up the required number of walkers when starting 
+!         ! from an MP1 wavefunction, to not make the code above too quirky
+!         real(dp), intent(in) :: part_fac
+!         integer, intent(out) :: nexcit
+!         character(*), parameter :: this_routine = "generate_required_mp1_walkers"
+!         integer(n_int) :: ilutG(0:nifguga), ilut(0:niftot)
+!         integer(n_int), pointer :: excitations(:,:)
+!         integer :: i, nI(nel), iNode, ex(2,2) = 0, excit_level, run, &
+!                    iInit, DetHash
+!         real(dp) :: amp, energy_contrib, NoWalkers, rat, r, temp_sign(lenof_sign)
+!         HElement_t(dp) :: HDiagTemp
+!         type(ll_node), pointer :: TempNode
+! 
+!         ! first create all the single and double excitations from the HF det 
+!         call convert_ilut_toGUGA(ilutHF, ilutG)
+! 
+!         call actHamiltonian(ilutG, excitations, nexcit)
+! 
+!         do i = 1, nexcit
+!             call convert_ilut_toNECI(excitations(:,i), ilut)
+! 
+!             call decode_bit_det(nI, ilut) 
+! 
+!             iNode = DetermineDetNode(nel, nI, 0)
+! 
+!             if (iProcIndex == iNode) then
+!                 
+!                 call return_mp1_amp_and_mp2_energy(nI, ilut, ex, .false., &
+!                     amp, energy_contrib) 
+! 
+!                 amp = amp * part_fac
+! 
+!                 if (tRealCoeffByExcitLevel) then
+!                     ! can only deal with 2 as threshold!
+!                     ASSERT(RealCoeffExcitThresh <= 2)
+! 
+!                     excit_level = getDeltaB(excitations(:,i))
+!                 end if
+! 
+! 
+!                 if (tAllRealCoeff .or. (tRealCoeffByExcitLevel .and. &
+!                     excit_level <= RealCoeffExcitThresh)) then
+!                     
+!                     NoWalkers = amp
+!                 else
+!                     NoWalkers = int(amp)
+!                     rat = amp - real(NoWalkers, dp)
+! 
+!                     r = genrand_real2_dSFMT()
+! 
+!                     if (abs(rat) > r) then
+!                         if (amp < 0.0_dp) then
+!                             NoWalkers = NoWalkers - 1
+!                         else
+!                             NoWalkers = NoWalkers + 1
+!                         end if
+!                     end if
+!                 end if
+! 
+!                 if (NoWalkers /= 0.0_dp) then ! hm.. this is not quite right..
+! 
+!                     call encode_det(CurrentDets(:,i), ilut) 
+!                     call clear_all_flags(CurrentDets(:,i))
+! 
+!                     do run = 1, inum_runs
+!                         temp_sign(run) = NoWalkers
+!                     end do
+! 
+!                     call encode_sign(CurrentDets(:,i), temp_sign)
+! 
+!                     ! this is GUGA only, so directly use: 
+!                     HDiagTemp = calcDiagMatEleGUGA_nI(nI)
+! 
+!                     call set_det_diagH(i, real(HDiagTemp, dp) - Hii)
+! 
+!                     call set_part_init_time(i, TotImagTime)
+! 
+!                     if (tTruncInitiator) then 
+!                         call CalcParentFlag(i, iInit)
+!                     end if
+! 
+!                     DetHash = FindWalkerHash(nI, nWalkerHashes)
+! 
+!                     TempNode => HashIndex(DetHash)
+! 
+!                     if (TempNode%Ind == 0) then
+!                         TempNode%Ind = i
+!                     else
+!                         do while (associated(TempNode%Next)) 
+!                             TempNode => TempNode%Next
+!                         end do
+!                         allocate(TempNode%Next)
+!                         nullify(TempNode%Next%Next)
+!                         TempNode%Next%Ind = i 
+!                     end if
+! 
+!                     nullify(TempNode)
+! 
+!                     do run = 1, inum_runs
+!                         TotParts(run) = TotParts(run) + abs(NoWalkers)
+!                     end do
+!                 end if
+!             end if ! desired node 
+!         end do ! end over loop of excitations
+! 
+!     end subroutine generate_required_mp1_walkers
+! #endif
         
     SUBROUTINE CheckforBrillouins()
         INTEGER :: i,j

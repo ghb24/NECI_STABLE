@@ -132,9 +132,8 @@ C         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
          INTEGER DX,DY,DZ,LX,LY,LZ
          LOGICAL TTILT,TREAL,TPBC
          real(dp) TOTSUM
-         integer temp_k(3)
          character(*), parameter :: this_routine = 'CALCTMATHUB'
-         integer :: temp_k(3)
+         integer temp_k(3)
          IF(iProcIndex.eq.0) OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
          CALL SetupTMAT(NBASIS,2,iSize)
          TOTSUM=0.0_dp
