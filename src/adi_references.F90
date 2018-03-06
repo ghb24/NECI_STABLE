@@ -173,7 +173,8 @@ contains
       call reallocate_ilutRefAdi(nRefs)
       ilutRefAdi(0:NIfTot,1:nRefs) = si_buf(0:NIfTot,1:nRefs)
 
-      write(6,*) "Getting superinitiators for all-doubs-initiators: ", nRefs, " SIs found"
+      if(iProcIndex == root) &
+           write(6,*) "Getting superinitiators for all-doubs-initiators: ", nRefs, " SIs found"
 
       if(tWriteRefs) call output_reference_space(ref_filename)
     end subroutine generate_ref_space
