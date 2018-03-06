@@ -31,7 +31,7 @@ module ras
     use ras_data
     use sort_mod, only: sort
     use sym_mod, only: getsym
-    use SystemData, only: G1, nbasismax, nel, nbasis, basisfn, BRR
+    use SystemData, only: G1, nbasismax, nel, nbasis, basisfn, BRR, tHub
     use util_mod, only: find_next_comb
 
     implicit none
@@ -523,13 +523,19 @@ contains
         integer(int64) :: temp_sym
         integer :: i
 
-        temp_sym = G1(BRR(string(1)*2))%Sym%S
+        if(tHub) then
+            !Since RAS is originally developed for molucules, it cannot handle kpoint symmetries.
+            !As a quick fix, we ignore symmetry labels of the Hubbard model.
+            sym = 0
+        else
+            temp_sym = G1(BRR(string(1)*2))%Sym%S
 
-        do i = 2, size(string)
-            temp_sym = ieor(temp_sym, G1(BRR(string(i)*2))%Sym%S)
-        end do
+            do i = 2, size(string)
+                temp_sym = ieor(temp_sym, G1(BRR(string(i)*2))%Sym%S)
+            end do
 
-        sym = int(temp_sym, sizeof_int)
+            sym = int(temp_sym, sizeof_int)
+        end if
 
     end function get_abelian_sym
 
