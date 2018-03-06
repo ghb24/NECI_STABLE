@@ -2551,7 +2551,7 @@ contains
                     neigh = sort_unique([up_nn, down_nn, left_nn, right_nn])
                     ! also start to store the k-vector here! 
                     ! have to be sure that i make it correct 
-                    k_vec = [j,i,0] 
+                    k_vec = [i,j,0] 
                     this%sites(l) = site(l, size(neigh), neigh, k_vec)
 
                     l = l + 1
@@ -2614,7 +2614,7 @@ contains
 
                     neigh = sort_unique([up_nn, down_nn, left_nn, right_nn])
 
-                    k_vec = [j,i,0] 
+                    k_vec = [i,j,0] 
                     this%sites(l) = site(l, size(neigh), neigh, k_vec)
 
                     l = l + 1
@@ -2685,7 +2685,7 @@ contains
 
                     neigh = sort_unique([up_nn, down_nn, left_nn, right_nn])
 
-                    k_vec = [j,i,0] 
+                    k_vec = [i,j,0] 
                     this%sites(l) = site(l, size(neigh), neigh, k_vec)
 
                     l = l + 1
@@ -3389,8 +3389,8 @@ contains
           enddo
       end if
 
-      print *, "kmin: ", this%kmin
-      print *, "kmax: ", this%kmax
+!       print *, "kmin: ", this%kmin
+!       print *, "kmax: ", this%kmax
 
     end subroutine get_lu_table_size
 
