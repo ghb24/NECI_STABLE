@@ -25,7 +25,7 @@ contains
          wsize=0
       end if
       
-      call mpi_win_allocate_shared(wsize,HElement_t_sizeB,MPI_INFO_NULL,mpi_comm_intra,&
+      call mpi_win_allocate_shared(wsize,int(HElement_t_sizeB,MPIArg),MPI_INFO_NULL,mpi_comm_intra,&
            cptr_shm,win_shm,ierr)
       
       call mpi_win_shared_query(win_shm,0_MPIArg,wsize,disp_unit,cptr_shm,ierr)

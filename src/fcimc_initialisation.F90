@@ -1092,7 +1092,7 @@ contains
 
         if (TReadPops) then
             if (tStartSinglePart .and. .not. tReadPopsRestart) then
-                call warning_neci(t_r, &
+               if(iProcIndex == root) call warning_neci(t_r, &
                                "ReadPOPS cannot work with StartSinglePart: ignoring StartSinglePart")
                 tStartSinglePart = .false.
             end if
