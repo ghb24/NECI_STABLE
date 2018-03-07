@@ -332,9 +332,6 @@ contains
         if (ExcitLevel == nel) then
             call BinSearchParts2 (ilut, HistMinInd(ExcitLevel), det, PartInd,&
                                   tSuccess)
-            ! CCMC doesn't sum particle contributions in order, so we must 
-            ! search the whole space again!
-            if (tFCIMC) HistMinInd(ExcitLevel) = PartInd
         elseif (ExcitLevel == 0) then
             PartInd = 1
             tSuccess = .true.
@@ -342,9 +339,6 @@ contains
             call BinSearchParts2 (ilut, HistMinInd(ExcitLevel), &
                                   FCIDetIndex(ExcitLevel+1)-1, PartInd, &
                                   tSuccess)
-            ! CCMC doesn't sum particle contributions in order, so we must
-            ! search the whole space again!
-            if (tFCIMC) HistMinInd(ExcitLevel) = PartInd
         endif
 
         if (tSuccess) then
