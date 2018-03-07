@@ -4521,7 +4521,7 @@ contains
         ! do this in general in the same way for all types of 
         ! lattice models. thats not exact, but a good enough estimate
         if (t_k_space_hubbard) then 
-            p_hole = 1.0_dp / real(nbasis - nel, dp) 
+            p_hole = 2.0_dp / real(nbasis - nel, dp) 
         else
             p_hole = 1.0_dp / real(lat%get_nconnect_max(), dp) 
         end if

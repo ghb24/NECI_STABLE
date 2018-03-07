@@ -3,14 +3,20 @@
 module fcimc_pointed_fns
 
     use SystemData, only: nel, tGen_4ind_2, tGen_4ind_weighted, tHub, tUEG, &
-                          tGen_4ind_reverse,  nBasis, t_3_body_excits
+                          tGen_4ind_reverse,  nBasis, t_3_body_excits, & 
+                          t_k_space_hubbard, t_new_real_space_hubbard, & 
+                          t_trans_corr_2body
+
     use LoggingData, only: tHistExcitToFrom, FciMCDebug
+
     use CalcData, only: RealSpawnCutoff, tRealSpawnCutoff, tAllRealCoeff, &
                         RealCoeffExcitThresh, AVMcExcits, tau, DiagSft, &
                         tRealCoeffByExcitLevel, InitiatorWalkNo, &
                         t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, & 
-                        t_matele_cutoff, matele_cutoff 
+                        t_matele_cutoff, matele_cutoff, t_consider_par_bias
+
     use DetCalcData, only: FciDetIndex, det
+
     use procedure_pointers, only: get_spawn_helement
     use fcimc_helper, only: CheckAllowedTruncSpawn
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
@@ -199,11 +205,14 @@ module fcimc_pointed_fns
         ! [Werner Dobrautz 4.4.2017:]
         if (t_fill_frequency_hists) then 
             ! not yet implemented for triples!
-            ASSERT(.not. t_3_body_excits)
-            if (tHUB .or. tUEG) then 
+            ! it is now! 
+!             ASSERT(.not. t_3_body_excits)
+            if (tHUB .or. tUEG .or. t_new_real_space_hubbard .or. &
+                (t_k_space_hubbard .and. .not. t_trans_corr_2body)) then 
                 call fill_frequency_histogram(abs(rh_used), prob / AvMCExcits)
+
             else 
-                if (tGen_4ind_2 .or. tGen_4ind_weighted .or. tGen_4ind_reverse) then 
+                if (t_consider_par_bias) then
                     t_par = (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2)))
 
                     ! not sure about the AvMCExcits!! TODO

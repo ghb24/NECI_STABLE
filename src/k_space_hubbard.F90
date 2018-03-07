@@ -17,16 +17,23 @@ module k_space_hubbard
                     treal, ttilt, tExch, ElecPairs, MaxABPairs, Symmetry, SymEq, &
                     t_new_real_space_hubbard, SymmetrySize, tNoBrillouin, tUseBrillouin, &
                     excit_cache, tUniformKSpaceExcit
+
     use lattice_mod, only: get_helement_lattice_ex_mat, get_helement_lattice_general, &
                            determine_optimal_time_step, lattice, sort_unique, lat
+
     use procedure_pointers, only: get_umat_el, generate_excitation
-!     use gen_coul_ueg_mod, only: get_hub_umat_el
+
     use constants, only: n_int, dp, EPS, bits_n_int, int64
+
     use bit_rep_data, only: NIfTot, nifd
+
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt
+
     use real_space_hubbard, only: lat_tau_factor, create_all_dets
+
     use fcimcdata, only: tsearchtau, tsearchtauoption, pDoubles, pParallel, &
-                         excit_gen_store_type
+                         excit_gen_store_type, pSingles
+
     use CalcData, only: tau, t_hist_tau_search, t_hist_tau_search_option
     use dsfmt_interface, only: genrand_real2_dsfmt
     use util_mod, only: binary_search_first_ge, binary_search
@@ -248,6 +255,11 @@ contains
         integer(n_int), allocatable :: triple_dets(:,:), temp_dets(:,:)
         integer :: n_triples, save_excits
 
+        if (tHPHF) then 
+            call stop_all(this_routine, &
+                "not adapted to HPHF, since we create all the excitations!")
+        end if
+
         call gen_all_doubles_k_space(nI, n_excits, det_list)
 
         if (t_trans_corr_2body) then 
@@ -410,14 +422,25 @@ contains
             end if
         end if
 
-        tsearchtau = .false. 
-        tsearchtauoption = .true.
+        ! [W.D. 7.3.2018]
+        ! re-enable the tau-search and histogramming for the k-space 
+        ! hubbard model with transcorrelation 
+        ! since there the matrix elements are not equal for every 
+        ! excitation anymore and for the Gutzwiller correlation factor 
+        ! we also have additional pTriples and pParallel variables, which 
+        ! we might want to adapt on-the-fly as in the ab-initio calculations
+        ! and I also want to check if i got the excitation weighting correct 
+        ! in the transcorrelated case or if i messed it up due to the 
+        ! non-hermitian character of the hamiltonian 
+        if (.not. (t_trans_corr_2body .or. t_trans_corr)) then 
+            ! but in the "normal" hubbard model, still turn it off as it is 
+            ! unnecessary! 
+            tsearchtau = .false. 
+            tsearchtauoption = .true.
 
-        ! can i set exchange to false, if we have no transcorrelation
-        ! although.. not sure..
-!         if (.not. t_trans_corr_2body) tExch = .false. 
-        t_hist_tau_search = .false. 
-        t_hist_tau_search_option = .false.
+            t_hist_tau_search = .false. 
+            t_hist_tau_search_option = .false.
+        end if
 
         if (associated(lat)) then 
             call setup_nbasismax(lat) 
@@ -435,6 +458,7 @@ contains
             ! i also have to set some generation probability parameters.. 
             pDoubles = 0.8
             p_triples = 1.0_dp - pDoubles
+            pSingles = p_triples
             pParallel = 0.1_dp
         end if
 

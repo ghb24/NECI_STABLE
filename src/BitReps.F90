@@ -709,7 +709,7 @@ contains
     end subroutine
 
     pure function getExcitationType(ExMat, IC) result(exTypeFlag)
-        integer, intent(in) :: ExMat(2,2), IC
+        integer, intent(in) :: ExMat(2,ic), IC
         integer :: exTypeFlag
 
         ! i need to initialize to something..

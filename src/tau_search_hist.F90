@@ -4,7 +4,9 @@ module tau_search_hist
 
     use SystemData, only: tGen_4ind_weighted, AB_hole_pairs, par_hole_pairs,tHub, & 
                           tGen_4ind_reverse, nOccAlpha, nOccBeta, tUEG, tGen_4ind_2, &
-                          UMatEps, nBasis
+                          UMatEps, nBasis, t_k_space_hubbard, t_trans_corr_2body, & 
+                          t_trans_corr, t_new_real_space_hubbard, t_3_body_excits
+                          
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow, &                
                         t_min_tau, min_tau_global, & 
@@ -12,14 +14,20 @@ module tau_search_hist
                         frq_ratio_cutoff, t_hist_tau_search,  &
                         t_fill_frequency_hists, t_hist_tau_search_option, &
                         t_truncate_spawns, t_mix_ratios, mix_ratio, matele_cutoff, &
-                        t_test_hist_tau
+                        t_test_hist_tau, t_consider_par_bias
+
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
                          MaxTau, tSearchTau, tSearchTauOption, tSearchTauDeath
+
     use Parallel_neci, only: MPIAllReduce, MPI_MAX, MPI_SUM, MPIAllLORLogical, &
                             MPISumAll, MPISUM, mpireduce, MPI_MIN
+
     use ParallelHelper, only: iprocindex, root
+
     use constants, only: dp, EPS, iout
+
     use tau_search, only: FindMaxTauDoubs
+
     use MemoryManager, only: LogMemAlloc, LogMemDealloc, TagIntType
 
     use procedure_pointers, only: get_umat_el
@@ -109,11 +117,24 @@ contains
             death_prob = Uhub * nel / 2.0_dp
 
             print *, "optimized time-step for real-space hubbard: ", time_step
+            if (t_trans_corr_2body .or. t_trans_corr) then 
+                print *, "BUT: transcorrelated Hamiltonian used! "
+                print *, " so matrix elements are not uniform anymore!"
+            end if
 
         else 
             ! in the momentum space hubbard the electrons fix the the holes 
             ! to be picked! atleast if one is picked the 2nd hole is also 
             ! chosen! 
+
+            ! for the 2-body transcorrelation we have to consider the 
+            ! different types of excitations and find the minimum tau 
+            ! for it.. 
+            ! but also the matrix elements are not uniform.. so one 
+            ! would need to find the worst H_ij/pgen ratio, which is 
+            ! no feasible here.. thats actually what the tau-search is 
+            ! doing.. 
+
             p_elec = 2.0_dp / real(nOccAlpha * nOccBeta, dp)
 
             ! and the holes are all the remaining possible ones
@@ -128,6 +149,11 @@ contains
             death_prob = 2.0_dp * abs(bhub)
 
             print *, "optimized time-step for the momentum space hubbard: ", time_step
+            if (t_trans_corr_2body .or. t_trans_corr) then 
+                print *, "BUT: transcorrelated Hamiltonian used! "
+                print *, " so matrix elements and pgens are not uniform anymore!"
+                print *, " thus TAU is just a rough estimate! "
+            end if
 
         end if
 !         
@@ -188,8 +214,12 @@ contains
         end if
 
         if (tHub) then 
-            call optimize_hubbard_time_step()
-            return
+            ! for the transcorrelated hamiltonian we need to re-enable the 
+            ! Histogramming tau-search!
+            if (.not. (t_trans_corr .or. t_trans_corr_2body)) then 
+                call optimize_hubbard_time_step()
+                return
+            end if
         end if
 
         if (iProcIndex == root) then
@@ -222,6 +252,11 @@ contains
             consider_par_bias = .true.
             n_opp = AB_hole_pairs
             n_par = par_hole_pairs
+        else if (t_k_space_hubbard .and. t_trans_corr_2body) then 
+            ! for the 2-body transcorrelated k-space hubbard we also have 
+            ! possible parallel excitations now. and to make the tau-search 
+            ! working we need to set this to true ofc:
+            consider_par_bias = .true.
         else
             consider_par_bias = .false.
         end if
@@ -242,6 +277,8 @@ contains
                 "Do you really need a tau-search for such a small system?")
             pParallel = 0.0_dp
         end if
+        
+        t_consider_par_bias = consider_par_bias
 
         cnt_sing_hist = 0
         enough_sing_hist = .false.
@@ -296,7 +333,8 @@ contains
                 this_routine, mem_tag_histograms, ierr)
 
         else 
-            if (tHub .or. tUEG) then
+            ! just to be save also use my new flags.. 
+            if (tHub .or. tUEG .or. t_k_space_hubbard .or. t_new_real_space_hubbard) then
                 ! only one histogram is used! 
                 allocate(frequency_bins(n_frequency_bins), stat = ierr)
                 frequency_bins = 0
@@ -334,6 +372,7 @@ contains
         if (.not. tRestart .and. .not. tReadPops .and. tau < EPS) then
             call FindMaxTauDoubs()
         end if
+
         if (tReadPops) then
             write(iout,*) "Using time-step from POPSFILE!"
         else
@@ -430,7 +469,12 @@ contains
 
         ! singles is always used.. 
         ! thats not quite right.. for the hubbard/UEG case it is not.. 
-        if (tUEG .or. tHub) then
+        if (tUEG .or. tHub .or. t_new_real_space_hubbard .or. & 
+            (t_k_space_hubbard .and. .not. t_trans_corr_2body)) then
+            ! also use my new flags and exclude the 2-body transcorrelation 
+            ! in the k-space hubbard due to triple excitations and 
+            ! parallel doubles 
+
             ! here i could implement the summing in the case of Hubbard 
             ! and UEG models.. although I could "just" implement the 
             ! optimal time-step in the case of Hubbard models! 
@@ -455,6 +499,8 @@ contains
             if (enough_doub_hist) then 
                 ! in this case the enough_doub_hist flag is (mis)used to 
                 ! indicate enough spawning events! 
+                ! the doubles flag is also used for single excitations in the 
+                ! real-space hubbard! be careful
                 tau_new = max_permitted_spawn / ratio
 
                 ! and use the mixing now: 
@@ -470,6 +516,8 @@ contains
 
         else
 
+            ! NOTE: in the case of the 2-body transcorrelated k-space hubbard 
+            ! the singles histogram is used to store the triples! 
             call integrate_frequency_histogram_spec(frequency_bins_singles, &
                 ratio_singles) 
 
@@ -490,9 +538,7 @@ contains
             ! unbiased!
 !             ratio_singles = ratio_singles * pSingles
 
-            if (tGen_4ind_weighted .or. tGen_4ind_2 .or. tGen_4ind_reverse) then 
-
-                ASSERT(consider_par_bias)
+            if (consider_par_bias) then 
 
                 ! sum up all 3 ratios: single, parallel and anti-parallel
                 call integrate_frequency_histogram_spec(frequency_bins_para, &
@@ -680,7 +726,17 @@ contains
         ! If the calculated tau is less than the current tau, we should ALWAYS
         ! update it. Once we have a reasonable sample of excitations, then we
         ! can permit tau to increase if we have started too low.
-        if (tau_new < tau .or. (((tUEG .or. tHub) .or. enough_sing_hist) .and. enough_doub_hist))then
+
+        ! make the right if-statements here.. and remember enough_doub_hist is 
+        ! used for singles in the case of the real-space transcorrelated hubbard!
+        if (tau_new < tau .or. & 
+            (tUEG .or. tHub .or. enough_sing_hist .or. & 
+            (t_k_space_hubbard .and. .not. t_trans_corr_2body) .and. enough_doub_hist) .or. &
+            (t_new_real_space_hubbard .and. enough_doub_hist .and. & 
+            (t_trans_corr_2body .or. t_trans_corr))) then 
+
+!         if (tau_new < tau .or. ((tUEG .or. tHub .or. t_k_space_hubbard .or. enough_sing_hist) .and.  &
+!             enough_doub_hist)) then
 
             ! Make the final tau smaller than tau_new by a small amount
             ! so that we don't get spawns exactly equal to the
@@ -716,7 +772,6 @@ contains
 
     end subroutine update_tau_hist
 
-   
     subroutine fill_frequency_histogram_4ind(mat_ele, pgen, ic, t_parallel, ex)
         ! this is the specific routine to fill up the frequency histograms 
         ! for the 4ind-weighted excitation generators, which use pParallel too
@@ -738,7 +793,7 @@ contains
         real(dp), intent(in) :: mat_ele, pgen 
         integer, intent(in) :: ic 
         logical, intent(in) :: t_parallel
-        integer, intent(in), optional :: ex(2,2)
+        integer, intent(in), optional :: ex(2,ic)
         character(*), parameter :: this_routine = "fill_frequency_histogram_4ind"
         ! i think in my histogramming tau-search i have to increase this 
         ! threshold by a LOT to avoid fluctuating behavior at the 
@@ -759,7 +814,7 @@ contains
         if (pgen < EPS) return
 
         ASSERT(pgen > 0.0_dp) 
-        ASSERT(ic == 1 .or. ic == 2)
+        ASSERT(ic == 1 .or. ic == 2 .or. (ic == 3 .and. t_3_body_excits))
 
         ! i can't make this exception here without changing alot in the 
         ! other parts of the code.. and i have to talk to ali first about 
@@ -809,6 +864,12 @@ contains
                 else
                     zero_anti = zero_anti + 1
                 end if
+            case (3)
+                ! adapt this to possible triples now
+                ASSERT(t_3_body_excits)
+                ! but still re-use the singles counters in this case
+                zero_singles = zero_singles + 1
+
             end select
 
             return 
@@ -828,6 +889,10 @@ contains
                     below_thresh_anti = below_thresh_anti + 1
                 end if 
 
+            case (3) 
+                ASSERT(t_3_body_excits) 
+                below_thresh_singles = below_thresh_singles + 1
+
             end select
         end if
 
@@ -835,7 +900,7 @@ contains
 
         ! then i have to decide which histogram to fill 
 
-        if (ic == 1) then 
+        if (ic == 1 .or. (ic == 3 .and. t_3_body_excits)) then 
 
             ! if i ignore the ratios above the upper limit i also can 
             ! only count these excitations if they do not get ignored..
@@ -844,6 +909,8 @@ contains
             ! histograms! i have to unbias it against the psingles, etc. 
             ! quantities, so the histograms do not have feedback! 
 
+            ! i have to ensure pSingles is also set to 1.0_dp - pDoubles 
+            ! in the transcorr hubbard case.. 
             ratio = ratio * pSingles
 
             if (ratio < max_frequency_bound) then
@@ -1367,7 +1434,8 @@ contains
         real(dp) :: max_tmp, min_tmp
         real(dp) :: temp_bins(n_frequency_bins)
 
-        if (thub) return
+        ! why did i do that?
+!         if (thub) return
 
         all_frequency_bins = 0
 
@@ -1377,7 +1445,8 @@ contains
 
         ! maybe first check if we have only singles or only doubles like in 
         ! the real-space or momentum space hubbard: 
-        if (tHub .or. tUEG) then 
+        if (tHub .or. tUEG .or. t_new_real_space_hubbard .or. &
+            (t_k_space_hubbard .and. .not. t_3_body_excits)) then 
             ! we only need to print one frequency_histogram:
 
             ! i need to change the rest of the code to use this 
@@ -1480,8 +1549,15 @@ contains
                 threshold = frq_ratio_cutoff * sum_all
 
                 iunit = get_free_unit()
-                call get_unique_filename('frequency_histogram_singles', .true., &
-                    .true., 1, filename)
+                ! change the name in case of the 2-body transcorrelated k-space hubbard
+                if (t_3_body_excits) then 
+                    call get_unique_filename('frequency_histogram_triples', .true., &
+                        .true., 1, filename)
+                else
+                    call get_unique_filename('frequency_histogram_singles', .true., &
+                        .true., 1, filename)
+                end if
+
                 open(iunit, file = filename, status = 'unknown')
 
                 cnt = 0.0_dp
@@ -1551,7 +1627,7 @@ contains
             all_frequency_bins_spec = 0
 
             ! do the cases where there is antiparallel or parallel
-            if (tGen_4ind_weighted .or. tGen_4ind_2 .or. tGen_4ind_reverse) then 
+            if (t_consider_par_bias) then
 
                 ! then the parallel:
                 call MPIAllReduce(frequency_bins_para, MPI_SUM, all_frequency_bins_spec)
