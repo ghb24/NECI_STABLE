@@ -14,7 +14,7 @@ MODULE HPHFRandExcitMod
                           tGen_4ind_reverse, tLatticeGens, tGen_4ind_2, tHUB, & 
                           tUEG, tUEGNewGenerator, t_new_real_space_hubbard, & 
                           t_tJ_model, t_heisenberg_model, t_lattice_model, &
-                          t_k_space_hubbard, t_3_body_excits
+                          t_k_space_hubbard, t_3_body_excits, tUniformKSpaceExcit
     use IntegralsData, only: UMat, fck, nMax
     use SymData, only: nSymLabels
     use dSFMT_interface, only : genrand_real2_dSFMT
@@ -45,7 +45,8 @@ MODULE HPHFRandExcitMod
     use tJ_model, only: gen_excit_tj_model, gen_excit_heisenberg_model, & 
                         calc_pgen_tJ_model, calc_pgen_heisenberg_model
     use lattice_mod, only: get_helement_lattice
-    use k_space_hubbard, only: gen_excit_k_space_hub, calc_pgen_k_space_hubbard
+    use k_space_hubbard, only: gen_excit_k_space_hub, calc_pgen_k_space_hubbard, &
+                               gen_excit_uniform_k_space_hub
 
     IMPLICIT NONE
 !    SAVE
@@ -204,8 +205,15 @@ MODULE HPHFRandExcitMod
                                       ExcitMat, tSignOrig, pgen, Hel, store, part_type)
 
         else if (t_k_space_hubbard) then
-            call gen_excit_k_space_hub(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
+            ! for Kais unifrom excitation generator i have to make it compatible 
+            ! with HPHF
+            if (tUniformKSpaceExcit) then 
+                call gen_excit_uniform_k_space_hub(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
                                       ExcitMat, tSignOrig, pgen, Hel, store, part_type)
+            else 
+                call gen_excit_k_space_hub(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
+                                      ExcitMat, tSignOrig, pgen, Hel, store, part_type)
+            end if
 
         else if (tGen_4ind_weighted) then
             call gen_excit_4ind_weighted (nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
@@ -1258,7 +1266,16 @@ MODULE HPHFRandExcitMod
                 pgen = calc_pgen_heisenberg_model(ilutI, ex, ic) 
 
             else if (t_k_space_hubbard) then 
-                pgen = calc_pgen_k_space_hubbard(nI, ilutI, ex, ic)
+                ! change with Kais uniform excitgen implementation
+                if (tUniformKSpaceExcit) then 
+                    if (ic == 2) then
+                        call CalcPGenLattice(ex, pgen)
+                    else 
+                        pgen = 0.0_dp
+                    end if
+                else
+                    pgen = calc_pgen_k_space_hubbard(nI, ilutI, ex, ic)
+                end if
             else
                 ! Here we assume that the normal excitation generators in
                 ! symrandexcit2.F90 are being used.

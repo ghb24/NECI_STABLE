@@ -386,10 +386,14 @@ contains
 
         call init_get_helement_k_space_hub()
 
-        if (.not. tHPHF .and. .not. tUniformKSpaceExcit) &
+        if (.not. tHPHF .and. .not. tUniformKSpaceExcit) then 
              generate_excitation => gen_excit_k_space_hub
+         end if
         ! for more efficiency, use the uniform excitation generation
-        if(tUniformKSpaceExcit) generate_excitation => gen_excit_uniform_k_space_hub
+        if(tUniformKSpaceExcit) then 
+            generate_excitation => gen_excit_uniform_k_space_hub
+        end if 
+
         tau_opt = determine_optimal_time_step() 
 
         if (tau < EPS) then 
@@ -603,11 +607,136 @@ contains
       
     end subroutine gen_excit_uniform_k_space_hub
 
+    subroutine gen_excit_uniform_k_space_hub_transcorr(nI, ilutI, nJ, ilutJ, & 
+            exFlag, ic, ex, tParity, pgen, hel, store, run) 
+        integer, intent(in) :: nI(nel), exFlag
+        integer(n_int), intent(in) :: ilutI(0:NIfTot) 
+        integer, intent(out) :: nJ(nel), ic, ex(2,3) 
+        integer(n_int), intent(out) :: ilutJ(0:NIfTot)
+        real(dp), intent(out) :: pgen 
+        logical, intent(out) :: tParity
+        HElement_t(dp), intent(out) :: hel 
+        type(excit_gen_store_type), intent(inout), target :: store 
+        integer, intent(in), optional :: run 
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "gen_excit_uniform_k_space_hub_transcorr" 
+#endif
+        integer :: temp_ex(2,3) , elecs(3), ispn, i, a, b, c, src(3), sum_ms
+        real(dp) :: p_elec, p_orb, p_orb_a
+        integer, parameter :: max_trials = 1000
+
+        hel = 0.0_dp 
+        ilutJ = 0_n_int 
+        ic = 0
+        nJ(1) = 0
+        elecs = 0
+
+        if (genrand_real2_dsfmt() < pDoubles) then 
+
+            ! double excitation
+            ic = 2
+
+            if (genrand_real2_dsfmt() < pParallel) then 
+
+                ! pick two spin-parallel electrons 
+                call pick_spin_par_elecs(nI, elecs(1:2), p_elec, ispn)
+
+                ! i have to figure out the probabilty of two spin-parallel
+                if (ispn == 1) then
+                    p_orb = 1.0_dp / real(nbasis/2 - nOccBeta, dp) 
+                else if (ispn == 3) then 
+                    p_orb = 1.0_dp / real(nbasis/2 - nOccAlpha, dp)
+#ifdef __DEBUG
+                else 
+                    call stop_all(this_routine, "no parallel spin!")
+#endif
+                end if
+
+                ! times 2, since both ab, ba orders are possible
+                pgen = p_elec * p_orb * pDoubles * pParallel * 2.0_dp
+
+            else 
+
+                call pick_spin_opp_elecs(nI, elecs(1:2), p_elec) 
+
+                p_orb = 1.0_dp / real(nbasis - nel, dp)
+
+                pgen = p_elec * p_orb * pDoubles * (1.0_dp - pParallel)
+
+            end if
+
+            ! pick 2 holes now 
+            do i = 1, max_trials
+
+                a = int(nbasis * genrand_real2_dsfmt()) + 1 
+
+                if (IsOcc(ilutI, a)) cycle 
+
+                b = get_orb_from_kpoints(nI(elecs(1)), nI(elecs(2)), a)
+
+                ! do we have to reject or can we cycle if not fitting?
+                ! a == b test has to be here for the spin-parallel 
+                ! excitations!
+                if (IsOcc(ilutI,b) .or. a == b) then  
+                    nJ(1) = 0
+                    return 
+                end if
+
+                call make_double(nI, nJ, elecs(1), elecs(2), a, b, ex, tParity)
+
+                ilutJ = make_ilutJ(ilutI, ex, 2)
+                exit 
+            end do
+        else
+            ! triple excitation 
+            ic = 3 
+
+            call pick_three_opp_elecs(nI, elecs, p_elec, sum_ms) 
+            src = nI(elecs)
+
+            ASSERT(sum_ms == -1 .or. sum_ms == 1)
+
+            call pick_a_orbital_hubbard(ilutI, a, p_orb_a, sum_ms)
+
+            ! and now i have to pick orbital b and fitting c in a uniform 
+            ! way.. i hope this still works with the probabilities 
+            ! if A is beta, we need to pick a alpha B uniformly and vv.
+            if (is_beta(a)) then 
+                p_orb = 1.0_dp / real(nbasis/2 - nOccAlpha, dp) 
+                ! also use a spin to specify the spin-orbital
+                ! is a is beta we want an alpha -> so add +1
+                ispn = 1
+            else 
+                p_orb = 1.0_dp / real(nBasis/2 - nOccBeta, dp)
+                ispn = 0
+            end if
+
+            ! times 2 since BC <> CB is both possible 
+            pgen = p_elec * p_orb * p_orb_a * (1.0_dp - pDoubles) * 2.0_dp
+            do i = 1, max_trials
+
+                b = 2 * (1 + int(genrand_real2_dsfmt() * nbasis/2)) + ispn
+
+                if (IsOcc(ilutI,b)) cycle 
+
+                c = get_orb_from_kpoints_three(src, a, b) 
+
+                if (IsOcc(ilutI,c) .or. b == c) then 
+                    nJ(1) = 0
+                    return
+                end if
+
+                call make_triple(nI, nJ, elecs, [a,b,c], ex, tParity)
+
+                ilutJ = make_ilutJ(ilutI, ex, 3) 
+                exit 
+            end do
+        end if
+
+    end subroutine gen_excit_uniform_k_space_hub_transcorr 
+
     subroutine gen_excit_k_space_hub_transcorr (nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                       ex, tParity, pGen, hel, store, run)
-
-
-        implicit none
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
@@ -1592,6 +1721,71 @@ contains
 
     end subroutine pick_from_cum_list
 
+    function calc_pgen_k_space_hubbard_uniform_transcorr(nI, ilutI, ex, ic) result(pgen)
+        ! need a calc pgen functionality for the uniform transcorrelated 
+        ! excitation generator
+        integer, intent(in) :: nI(nel), ex(:,:), ic
+        integer(n_int), intent(in) :: ilutI(0:niftot) 
+        real(dp) :: pgen 
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "calc_pgen_k_space_hubbard_uniform_transcorr"
+#endif
+        real(dp) :: p_elec, p_orb
+        integer :: sum_ms
+
+        pgen = 0.0_dp
+
+        if (ic == 2) then 
+
+            pgen = pDoubles
+
+            if (same_spin(ex(1,1),ex(1,2))) then 
+                pgen = pgen * pParallel
+
+                if (is_beta(ex(1,1))) then 
+                    p_elec = 1.0_dp / real(nOccBeta*(nOccBeta-1),dp)
+                    p_orb = 2.0_dp / real(nbasis/2 - nOccBeta, dp)
+                else 
+                    p_elec = 1.0_dp / real(nOccAlpha*(nOccAlpha-1),dp)
+                    p_orb = 2.0_dp / real(nbasis/2 - nOccAlpha, dp)
+                end if
+
+            else 
+                pgen = pgen * (1.0_dp - pParallel)
+                p_elec = 1.0_dp / real(nOccBeta * nOccAlpha,dp)
+
+                p_orb = 2.0_dp / real(nbasis - nel, dp)
+
+            end if
+
+        else 
+            pgen = 1.0_dp - pDoubles
+
+            sum_ms = sum(get_spin_pn(ex(1,:)))
+
+            ASSERT(sum_ms == 1 .or. sum_ms == -1)
+
+            if (sum_ms == 1) then 
+                p_elec = 2.0_dp/real(nel*(nel-1),dp) * &
+                    (1.0_dp/real(nOccBeta,dp) + 2.0_dp/real(nel-2,dp))
+
+                p_orb = 1.0_dp / real(nbasis/2 - nOccBeta, dp) * & 
+                        2.0_dp / real(nbasis/2 - nOccAlpha, dp) 
+
+            else if (sum_ms == -1) then 
+                p_elec = 2.0_dp/real(nel*(nel-1),dp) * & 
+                    (1.0_dp/real(nOccAlpha,dp) + 2.0_dp/real(nel-2,dp))
+
+                p_orb = 1.0_dp / real(nbasis/2 - nOccAlpha, dp) * & 
+                        2.0_dp / real(nBasis/2 - nOccBeta, dp)
+
+            end if
+        end if
+
+        pgen = pgen * p_elec * p_orb
+
+    end function calc_pgen_k_space_hubbard_uniform_transcorr
+
     function calc_pgen_k_space_hubbard_transcorr(nI, ilutI, ex, ic) result(pgen)
         ! this function i have to rewrite for the transcorrelated to take 
         ! the same-spin doubles and triples into account! 
@@ -2187,6 +2381,7 @@ contains
 
         src = get_src(ex)
         tgt = get_tgt(ex)
+
         if (.not. t_trans_corr_2body) then 
             if (same_spin(src(1),src(2)) .or. same_spin(tgt(1),tgt(2))) then 
                 hel = h_cast(0.0_dp)

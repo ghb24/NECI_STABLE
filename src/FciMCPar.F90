@@ -5,7 +5,7 @@ module FciMCParMod
     ! main per-iteration processing loop.
     use SystemData, only: nel, tUEG2, hist_spin_dist_iter, tReltvy, tHub, & 
                           t_new_real_space_hubbard, t_tJ_model, t_heisenberg_model, & 
-                          t_k_space_hubbard, max_ex_level
+                          t_k_space_hubbard, max_ex_level, tUniformKSpaceExcit
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
                         AvMCExcits, pops_norm_unit, iExitWalkers, &
@@ -87,7 +87,8 @@ module FciMCParMod
     use back_spawn, only: init_back_spawn
     use real_space_hubbard, only: init_real_space_hubbard
     use tJ_model, only: init_tJ_model, init_heisenberg_model
-    use k_space_hubbard, only: init_k_space_hubbard, gen_excit_k_space_hub_transcorr
+    use k_space_hubbard, only: init_k_space_hubbard, gen_excit_k_space_hub_transcorr, & 
+                               gen_excit_uniform_k_space_hub_transcorr
 
 #ifdef MOLPRO
     use outputResult
@@ -1131,9 +1132,15 @@ module FciMCParMod
                     ! which all just assume ex(2,2) as size.. so use a 
                     ! if here.. 
                     if (t_3_body_excits) then 
-                        call gen_excit_k_space_hub_transcorr(DetCurr, CurrentDets(:,j), &
-                            nJ, ilutnJ, exFlag, ic, ex, tParity, prob, & 
-                            HElGen, fcimc_excit_gen_store, part_type) 
+                        if (tUniformKSpaceExcit) then 
+                            call gen_excit_uniform_k_space_hub_transcorr(DetCurr, CurrentDets(:,j), &
+                                nJ, ilutnJ, exFlag, ic, ex, tParity, prob, & 
+                                HElGen, fcimc_excit_gen_store, part_type) 
+                        else
+                            call gen_excit_k_space_hub_transcorr(DetCurr, CurrentDets(:,j), &
+                                nJ, ilutnJ, exFlag, ic, ex, tParity, prob, & 
+                                HElGen, fcimc_excit_gen_store, part_type) 
+                        end if
                     else 
                         ! Generate a (random) excitation
                         call generate_excitation(DetCurr, CurrentDets(:,j), nJ, &
