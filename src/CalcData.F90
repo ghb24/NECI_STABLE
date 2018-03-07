@@ -334,6 +334,10 @@ real(dp) :: min_tau_global = 1.0e-7_dp
 ! fixed to the values obtained from the POPSFILE 
 logical :: t_keep_tau_fixed = .false.
 
+! for the transcorrelated hubbard make it possible to use input-dependent 
+! pDoubles and pParallel values 
+real(dp) :: p_doubles_input = 0.8_dp
+real(dp) :: p_parallel_input = 0.1_dp
 logical :: tPopsAlias = .false.
 character(255) :: aliasStem
 ! new tau-search using HISTOGRAMS: 

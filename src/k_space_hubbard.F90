@@ -34,8 +34,8 @@ module k_space_hubbard
     use fcimcdata, only: tsearchtau, tsearchtauoption, pDoubles, pParallel, &
                          excit_gen_store_type, pSingles
 
-    use CalcData, only: tau, t_hist_tau_search, t_hist_tau_search_option, & 
-                        t_fill_frequency_hists
+    use CalcData, only: tau, t_hist_tau_search, t_hist_tau_search_option, &
+                        p_doubles_input, p_parallel_input, t_fill_frequency_hists
 
     use dsfmt_interface, only: genrand_real2_dsfmt
 
@@ -69,7 +69,6 @@ module k_space_hubbard
     integer, parameter :: ABORT_EXCITATION = 0
     integer, parameter :: N_DIM = 3
 
-    real(dp) :: p_triples = 0.0_dp 
     real(dp) :: three_body_prefac = 0.0_dp
     ! i especially need an interface for the matrix element calculation to 
     ! implement the transcorrelated hamiltonian 
@@ -462,10 +461,13 @@ contains
 
             three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
             ! i also have to set some generation probability parameters.. 
-            pDoubles = 0.8
-            p_triples = 1.0_dp - pDoubles
-            pSingles = p_triples
-            pParallel = 0.1_dp
+
+            pDoubles = p_doubles_input 
+            ! use pSingles for triples! 
+            ! BE CAREFUL and dont get confused! 
+            pSingles = 1.0_dp - pDoubles
+            pParallel = p_parallel_input
+
         end if
 
         if (.not. (t_trans_corr_2body .or. t_trans_corr)) then
