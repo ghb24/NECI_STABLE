@@ -27,7 +27,8 @@ module k_space_hubbard
     use real_space_hubbard, only: lat_tau_factor, create_all_dets
     use fcimcdata, only: tsearchtau, tsearchtauoption, pDoubles, pParallel, &
                          excit_gen_store_type
-    use CalcData, only: tau, t_hist_tau_search, t_hist_tau_search_option
+    use CalcData, only: tau, t_hist_tau_search, t_hist_tau_search_option, &
+                        p_doubles_input, p_parallel_input
     use dsfmt_interface, only: genrand_real2_dsfmt
     use util_mod, only: binary_search_first_ge, binary_search
     use back_spawn, only: make_ilutJ, is_allowed_ueg_k_vector, get_ispn, &
@@ -429,9 +430,9 @@ contains
 
             three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
             ! i also have to set some generation probability parameters.. 
-            pDoubles = 0.8
+            pDoubles = p_doubles_input 
             p_triples = 1.0_dp - pDoubles
-            pParallel = 0.1_dp
+            pParallel = p_parallel_input
         end if
 
         if (.not. (t_trans_corr_2body .or. t_trans_corr)) then

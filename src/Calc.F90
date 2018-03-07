@@ -1034,6 +1034,15 @@ contains
                     end do
                 end if
 
+            case("PDOUBLES") 
+                ! for a transcorrelation with triple excitations 
+                call getf(p_doubles_input) 
+
+            case("PPARALLEL")
+                ! for a transcorrelated hamiltonian with triples and 
+                ! spin-parallel doubles 
+                call getf(p_parallel_input) 
+
             case("TAUFACTOR")
 !For FCIMC, this is the factor by which 1/(HF connectivity) will be multiplied by to give the timestep for the calculation.
                 tSearchTau=.false.  !Tau is set, so don't search for it.
