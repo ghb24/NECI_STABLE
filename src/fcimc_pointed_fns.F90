@@ -323,7 +323,8 @@ module fcimc_pointed_fns
                 ! back, to be sure the time-step covers the changed 
                 ! non-initiators spawns! 
 
-                ASSERT(.not. t_3_body_excits)
+                ! now adapted for triple excitations
+!                 ASSERT(.not. t_3_body_excits)
                 call log_spawn_magnitude (ic, ex, matel, prob)
 
             end if

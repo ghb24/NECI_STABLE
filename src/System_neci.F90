@@ -538,8 +538,6 @@ system: do
                trans_corr_param = 1.0_dp
            end if
 
-
-
         case ('2-BODY-TRANSCORR', '2-BODY-TRANS-CORR', '2-BODY-TRANSCORRELATED','TRANSCORR-2BODY')
            ! for the tJ model there are 2 choices of the transcorrelation 
            ! indicate that here! 

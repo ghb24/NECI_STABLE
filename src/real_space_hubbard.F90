@@ -20,23 +20,33 @@ module real_space_hubbard
                           t_open_bc_y, t_open_bc_z, G1, ecore, nel, nOccAlpha, nOccBeta, &
                           t_trans_corr, trans_corr_param, t_trans_corr_2body, & 
                           trans_corr_param_2body, tHPHF, t_trans_corr_new
+
     use lattice_mod, only: lattice, determine_optimal_time_step, lat, &
                     get_helement_lattice, get_helement_lattice_ex_mat, & 
                     get_helement_lattice_general
+
     use constants, only: dp, EPS, n_int, bits_n_int
+
     use procedure_pointers, only: get_umat_el, generate_excitation
+
     use OneEInts, only: tmat2d, GetTMatEl
+
     use fcimcdata, only: pSingles, pDoubles, tsearchtau, tsearchtauoption
-    use CalcData, only: t_hist_tau_search, t_hist_tau_search_option, tau
-!     use umatcache, only: gtid
+
+    use CalcData, only: t_hist_tau_search, t_hist_tau_search_option, tau, & 
+                        t_fill_frequency_hists
+
     use dsfmt_interface, only: genrand_real2_dsfmt
+
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
+
     use bit_rep_data, only: NIfTot
+
     use util_mod, only: binary_search_first_ge, choose
+
     use bit_reps, only: decode_bit_det
+
     use sort_mod, only: sort
-!     use fcimc_helper, only: update_run_reference
-!     use Determinants, only: write_det
 
     implicit none 
 
@@ -136,13 +146,18 @@ contains
             print *, "but tau specified in input!"
         end if
 
-        ! and i have to turn off the time-step search for the hubbard 
-        tsearchtau = .false.
-        ! set tsearchtauoption to true to use the death-tau search option
-        tsearchtauoption = .true.
+        ! re-enable tau-search if we have transcorrelation 
+        if (.not. (t_trans_corr_2body .or. t_trans_corr)) then 
+            ! and i have to turn off the time-step search for the hubbard 
+            tsearchtau = .false.
+            ! set tsearchtauoption to true to use the death-tau search option
+            tsearchtauoption = .true.
 
-        t_hist_tau_search = .false. 
-        t_hist_tau_search_option = .false. 
+            t_hist_tau_search = .false. 
+            t_hist_tau_search_option = .false. 
+
+            t_fill_frequency_hists = .false.
+        end if
         
         if (t_start_neel_state) then 
 !             neel_state_ni = create_neel_state(ilut_neel)

@@ -167,6 +167,7 @@ module FciMCParMod
         endif
 
         call init_fcimc_fn_pointers() 
+
         if (t_new_real_space_hubbard) then 
             call init_real_space_hubbard()
         end if
@@ -176,6 +177,8 @@ module FciMCParMod
         if (t_heisenberg_model) then 
             call init_heisenberg_model()
         end if
+        ! try to call this earlier..
+        ! just do it twice for now.. 
         if (t_k_space_hubbard) then 
             call init_k_space_hubbard()
         end if

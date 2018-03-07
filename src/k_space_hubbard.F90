@@ -34,9 +34,13 @@ module k_space_hubbard
     use fcimcdata, only: tsearchtau, tsearchtauoption, pDoubles, pParallel, &
                          excit_gen_store_type, pSingles
 
-    use CalcData, only: tau, t_hist_tau_search, t_hist_tau_search_option
+    use CalcData, only: tau, t_hist_tau_search, t_hist_tau_search_option, & 
+                        t_fill_frequency_hists
+
     use dsfmt_interface, only: genrand_real2_dsfmt
+
     use util_mod, only: binary_search_first_ge, binary_search
+
     use back_spawn, only: make_ilutJ, is_allowed_ueg_k_vector, get_ispn, &
          get_orb_from_kpoints
     use get_excit, only: make_double
@@ -440,6 +444,8 @@ contains
 
             t_hist_tau_search = .false. 
             t_hist_tau_search_option = .false.
+
+            t_fill_frequency_hists = .false.
         end if
 
         if (associated(lat)) then 
@@ -480,6 +486,8 @@ contains
       ! the buffer for excitations is (number of states)^3
       ! strictly speaking, we do not need to distinguish spin orbs here for simple hubbard
       ! but for transcorrelated, it might matter
+      if (allocated(excit_cache)) deallocate(excit_cache)
+
       allocate(excit_cache(nbasis,nbasis,nbasis))
       ! loop over all pairs of orbitals
       do i = 1, nbasis

@@ -160,7 +160,10 @@ module fcimc_initialisation
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
     use tj_model, only: init_get_helement_tj, init_get_helement_heisenberg
-    use k_space_hubbard, only: init_get_helement_k_space_hub, gen_all_excits_k_space_hubbard
+
+    use k_space_hubbard, only: init_get_helement_k_space_hub, gen_all_excits_k_space_hubbard, &
+                               init_k_space_hubbard
+
     use OneEInts, only: tmat2d
 
     implicit none
@@ -1078,6 +1081,16 @@ contains
         end if
 
 
+        ! can i initialize the k-space hubbard here already? 
+        ! because we need information for the tau-search already.. 
+        if (t_k_space_hubbard) then 
+            call init_k_space_hubbard()
+        end if
+
+        if (t_new_real_space_hubbard) then 
+            call init_real_space_hubbard
+        end if
+! 
         if (tSearchTau) then
             call init_tau_search()
 
