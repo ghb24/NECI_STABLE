@@ -397,7 +397,7 @@ contains
                     tau_new = max_permitted_spawn * &
                             min(pSingles / gamma_sing, &
                             min(pDoubles * pParallel / gamma_par, &
-                                pDoubles * pParallel / gamma_opp))
+                                pDoubles * (1.0_dp - pParallel) / gamma_opp))
                 end if
 
                 ! We only want to update the opposite spins bias here, as we only
@@ -513,8 +513,8 @@ contains
                         ", pDoubles(st->s't) = ", pDoub_spindiff1_new, &
                         ", pDoubles(st->s't') = ", pDoub_spindiff2_new
                 else
-                    root_print "Updating singles/doubles bias. pSingles = ", &
-                        psingles_new, ", pDoubles = ", 1.0_dp - psingles_new
+                    root_print "Updating singles/doubles bias. pSingles = ", psingles_new
+                    root_print " pDoubles = ", 1.0_dp - psingles_new
                 endif
             end if
             pSingles = max(psingles_new, prob_min_thresh)

@@ -42,7 +42,7 @@ module real_space_hubbard
 
     use bit_rep_data, only: NIfTot
 
-    use util_mod, only: binary_search_first_ge, choose
+    use util_mod, only: binary_search_first_ge, choose, swap
 
     use bit_reps, only: decode_bit_det
 
@@ -59,6 +59,11 @@ module real_space_hubbard
         module procedure get_helement_rs_hub_ex_mat
         module procedure get_helement_rs_hub_general
     end interface get_helement_rs_hub
+
+    interface swap_excitations 
+        module procedure swap_excitations_higher
+        module procedure swap_excitations_singles
+    end interface swap_excitations
 
 contains 
 
@@ -926,11 +931,13 @@ contains
 #endif
 
         real(dp) :: elem
-        integer :: i, nI(nel)
+        integer :: i, nI(nel), ex(2), ex2(2), nJ(nel)
 
         ASSERT(IsOcc(ilutI,src))
 
         call decode_bit_det(nI, ilutI)
+
+        ex(1) = src 
 
         allocate(cum_arr(size(neighbors)))
         cum_arr = 0.0_dp
@@ -941,7 +948,14 @@ contains
                 elem = 0.0_dp
                 ASSERT(is_beta(src) .eqv. is_beta(neighbors(i)))
                 if (IsNotOcc(ilutI, neighbors(i))) then 
-                    elem = abs(get_offdiag_helement_rs_hub(nI,[src,neighbors(i)],.false.))
+                    ! change the order of determinants to reflect 
+                    ! non-hermiticity correctly
+                    ! old implo:
+!                     elem = abs(get_offdiag_helement_rs_hub(nI,[src,neighbors(i)],.false.))
+                    ex(2) = neighbors(i) 
+                    call swap_excitations(nI, ex, nJ, ex2) 
+                    elem = abs(get_offdiag_helement_rs_hub(nJ,ex2,.false.))
+ 
                 end if
                 cum_sum = cum_sum + elem
                 if (neighbors(i) == tgt) then 
@@ -958,7 +972,9 @@ contains
                 elem = 0.0_dp
                 ASSERT(is_beta(src) .eqv. is_beta(neighbors(i)))
                 if (IsNotOcc(ilutI,neighbors(i))) then 
-                    elem = abs(get_offdiag_helement_rs_hub(nI,[src,neighbors(i)],.false.))
+                    ex(2) = neighbors(i) 
+                    call swap_excitations(nI, ex, nJ, ex2) 
+                    elem = abs(get_offdiag_helement_rs_hub(nJ,ex2,.false.))
                 end if
                 cum_sum = cum_sum + elem
                 cum_arr(i) = cum_sum
@@ -1381,6 +1397,58 @@ contains
         ASSERT(l <= nbasis/2)
 
     end function get_umat_el_hub
+
+    subroutine swap_excitations_higher(nI, ex, nJ, ex2) 
+        ! routine to quickly, without make_double and make_triple 
+        ! create the excited determinant nJ and ex2 to go from nJ -> nI 
+        ! for the test of the order of matrix element calculation in the 
+        ! transcorrelated approach. due to non-hermiticity 
+        ! <i|H|j> /= <j|H|i> 
+        ! also make this work for triple excitations! 
+        integer, intent(in) :: nI(nel), ex(:,:) 
+        integer, intent(out) :: nJ(nel) 
+        integer, intent(out), allocatable :: ex2(:,:)
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "swap_excitations" 
+#endif
+
+        ASSERT(size(ex,1) == 2) 
+        ASSERT(size(ex,2) == 2 .or. size(ex,2) == 3)
+
+        allocate(ex2(size(ex,1),size(ex,2)), source = ex)
+
+        nJ = nI
+        where (nJ == ex(1,1)) nJ = ex(2,1)
+        where (nJ == ex(1,2)) nJ = ex(2,2)
+        if (size(ex,2) == 3) then 
+            where (nJ == ex(1,3)) nJ = ex(2,3)
+        end if
+
+        call sort(nJ)
+        ex2 = ex 
+        call swap(ex2(1,1),ex2(2,1))
+        call swap(ex2(1,2),ex2(2,2))
+        if (size(ex,2) == 3) then 
+            call swap(ex2(1,3),ex2(2,3))
+        end if
+
+    end subroutine swap_excitations_higher
+
+    subroutine swap_excitations_singles(nI, ex, nJ, ex2)
+        integer, intent(in) :: nI(nel), ex(2) 
+        integer, intent(out) :: nJ(nel), ex2(2)
+        
+        nJ = nI 
+
+        where (nJ == ex(1)) nJ = ex(2)
+
+        call sort(nJ) 
+
+        ex2 = ex
+
+        call swap(ex2(1),ex2(2))
+
+    end subroutine swap_excitations_singles
 
 end module real_space_hubbard
         

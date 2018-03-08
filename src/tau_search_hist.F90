@@ -603,11 +603,8 @@ contains
                         psingles_new < (1.0_dp - 1e-5_dp)) then
 
                         if (abs(psingles - psingles_new) / psingles > 0.0001_dp) then
-                            if (iProcIndex == root) then 
-                                write(iout,'(a, g20.12, a, g20.12, 2a)') &
-                                    "Updating singles/doubles bias. pSingles = ", &
-                                    psingles_new, ", pDoubles = ", 1.0_dp - psingles_new, " in: ", this_routine
-                            end if
+                            root_print "Updating singles/doubles bias. pSingles = ", psingles_new
+                            root_print " pDoubles = ", 1.0_dp - psingles_new
                         end if
 
                         pSingles = psingles_new
@@ -616,19 +613,16 @@ contains
 
                     ! although checking for enough doubles is probably more efficient 
                     ! than always checking the reals below..
-                    if (pParallel_new  > 1e-1_dp .and. pParallel_new < (1.0_dp - 1e-1_dp)) then
+                    if (pParallel_new  > 1e-4_dp .and. pParallel_new < (1.0_dp - 1e-4_dp)) then
                         ! enough_doub implies that both enough_opp and enough_par are 
                         ! true.. so this if statement makes no sense 
                         ! and otherwise pParallel_new is the same as before
                         if (abs(pparallel_new-pParallel) / pParallel > 0.0001_dp) then
-                            if (iProcIndex == root) then 
-                                write(iout, '(a, g20.12, 2a)') "Updating parallel-spin bias; new pParallel = ", &
-                                    pParallel_new, " in: ", this_routine
-                            end if
+                            root_print "Updating parallel-spin bias; new pParallel = ", pParallel_new
                         end if
                         ! in this new implementation the weighting make pParallel 
                         ! smaller and smaller.. so also limit it to some lower bound
-                            pParallel = pParallel_new
+                        pParallel = pParallel_new
                     end if
 
                 else
@@ -685,11 +679,8 @@ contains
                         psingles_new < (1.0_dp - 1e-5_dp)) then
 
                         if (abs(psingles - psingles_new) / psingles > 0.0001_dp) then
-                            if (iProcIndex == root) then 
-                                write (iout, '(a, g20.12, a, g20.12, 2a)') &
-                                    "Updating singles/doubles bias. pSingles = ", &
-                                    psingles_new, ", pDoubles = ", 1.0_dp - psingles_new, " in: ", this_routine
-                            end if
+                            root_print "Updating singles/doubles bias. pSingles = ", psingles_new
+                            root_print " pDoubles = ", 1.0_dp - psingles_new
                         end if
 
                         pSingles = psingles_new
@@ -840,10 +831,10 @@ contains
             print *, "umat (ij|ba) ", get_umat_el(indi,indj,indb,inda)
             print *, "diff: ", abs(get_umat_el(indi,indj,inda,indb) - &
                 get_umat_el(indi,indj,indb,inda))
-            print *, "(ii|aa):", abs_l1(UMat2d(max(indi,inda),min(indi,inda)))
-            print *, "(jj|aa):", abs_l1(UMat2d(max(indj,inda),min(indj,inda)))
-            print *, "(ii|bb): ",abs_l1(UMat2d(max(indi,indb),min(indi,indb)))
-            print *, "(jj|bb): ", abs_l1(UMat2d(max(indj,indb),min(indj,indb)))
+!             print *, "(ii|aa):", abs_l1(UMat2d(max(indi,inda),min(indi,inda)))
+!             print *, "(jj|aa):", abs_l1(UMat2d(max(indj,inda),min(indj,inda)))
+!             print *, "(ii|bb): ",abs_l1(UMat2d(max(indi,indb),min(indi,indb)))
+!             print *, "(jj|bb): ", abs_l1(UMat2d(max(indj,indb),min(indj,indb)))
             print *, "(ia|ia): ", abs(get_umat_el(indi,inda,indi,inda))
             print *, "(ja|ja): ", abs(get_umat_el(indj,inda,indj,inda))
             print *, "(ib|ib): ", abs(get_umat_el(indi,indb,indi,indb))
@@ -952,10 +943,10 @@ contains
                 print *, "umat (ij|ba) ", get_umat_el(indi,indj,indb,inda)
                 print *, "diff: ", abs(get_umat_el(indi,indj,inda,indb) - &
                     get_umat_el(indi,indj,indb,inda))
-                print *, "(ii|aa):", abs_l1(UMat2d(max(indi,inda),min(indi,inda)))
-                print *, "(jj|aa):", abs_l1(UMat2d(max(indj,inda),min(indj,inda)))
-                print *, "(ii|bb): ",abs_l1(UMat2d(max(indi,indb),min(indi,indb)))
-                print *, "(jj|bb): ", abs_l1(UMat2d(max(indj,indb),min(indj,indb)))
+!                 print *, "(ii|aa):", abs_l1(UMat2d(max(indi,inda),min(indi,inda)))
+!                 print *, "(jj|aa):", abs_l1(UMat2d(max(indj,inda),min(indj,inda)))
+!                 print *, "(ii|bb): ",abs_l1(UMat2d(max(indi,indb),min(indi,indb)))
+!                 print *, "(jj|bb): ", abs_l1(UMat2d(max(indj,indb),min(indj,indb)))
                 print *, "(ia|ia): ", abs(get_umat_el(indi,inda,indi,inda))
                 print *, "(ja|ja): ", abs(get_umat_el(indj,inda,indj,inda))
                 print *, "(ib|ib): ", abs(get_umat_el(indi,indb,indi,indb))
@@ -991,10 +982,10 @@ contains
                     print *, "umat (ij|ba) ", get_umat_el(indi,indj,indb,inda)
                     print *, "diff: ", abs(get_umat_el(indi,indj,inda,indb) - &
                         get_umat_el(indi,indj,indb,inda))
-                    print *, "(ii|aa):", abs_l1(UMat2d(max(indi,inda),min(indi,inda)))
-                    print *, "(jj|aa):", abs_l1(UMat2d(max(indj,inda),min(indj,inda)))
-                    print *, "(ii|bb): ",abs_l1(UMat2d(max(indi,indb),min(indi,indb)))
-                    print *, "(jj|bb): ", abs_l1(UMat2d(max(indj,indb),min(indj,indb)))
+!                     print *, "(ii|aa):", abs_l1(UMat2d(max(indi,inda),min(indi,inda)))
+!                     print *, "(jj|aa):", abs_l1(UMat2d(max(indj,inda),min(indj,inda)))
+!                     print *, "(ii|bb): ",abs_l1(UMat2d(max(indi,indb),min(indi,indb)))
+!                     print *, "(jj|bb): ", abs_l1(UMat2d(max(indj,indb),min(indj,indb)))
                     print *, "(ia|ia): ", abs(get_umat_el(indi,inda,indi,inda))
                     print *, "(ja|ja): ", abs(get_umat_el(indj,inda,indj,inda))
                     print *, "(ib|ib): ", abs(get_umat_el(indi,indb,indi,indb))
@@ -1029,10 +1020,10 @@ contains
                     print *, "umat (ij|ba) ", get_umat_el(indi,indj,indb,inda)
                     print *, "diff: ", abs(get_umat_el(indi,indj,inda,indb) - &
                         get_umat_el(indi,indj,indb,inda))
-                    print *, "(ii|aa):", abs_l1(UMat2d(max(indi,inda),min(indi,inda)))
-                    print *, "(jj|aa):", abs_l1(UMat2d(max(indj,inda),min(indj,inda)))
-                    print *, "(ii|bb): ",abs_l1(UMat2d(max(indi,indb),min(indi,indb)))
-                    print *, "(jj|bb): ", abs_l1(UMat2d(max(indj,indb),min(indj,indb)))
+!                     print *, "(ii|aa):", abs_l1(UMat2d(max(indi,inda),min(indi,inda)))
+!                     print *, "(jj|aa):", abs_l1(UMat2d(max(indj,inda),min(indj,inda)))
+!                     print *, "(ii|bb): ",abs_l1(UMat2d(max(indi,indb),min(indi,indb)))
+!                     print *, "(jj|bb): ", abs_l1(UMat2d(max(indj,indb),min(indj,indb)))
                     print *, "(ia|ia): ", abs(get_umat_el(indi,inda,indi,inda))
                     print *, "(ja|ja): ", abs(get_umat_el(indj,inda,indj,inda))
                     print *, "(ib|ib): ", abs(get_umat_el(indi,indb,indi,indb))
@@ -1064,10 +1055,10 @@ contains
                     print *, "umat (ij|ba) ", get_umat_el(indi,indj,indb,inda)
                     print *, "diff: ", abs(get_umat_el(indi,indj,inda,indb) - &
                         get_umat_el(indi,indj,indb,inda))
-                    print *, "(ii|aa):", abs_l1(UMat2d(max(indi,inda),min(indi,inda)))
-                    print *, "(jj|aa):", abs_l1(UMat2d(max(indj,inda),min(indj,inda)))
-                    print *, "(ii|bb): ",abs_l1(UMat2d(max(indi,indb),min(indi,indb)))
-                    print *, "(jj|bb): ", abs_l1(UMat2d(max(indj,indb),min(indj,indb)))
+!                     print *, "(ii|aa):", abs_l1(UMat2d(max(indi,inda),min(indi,inda)))
+!                     print *, "(jj|aa):", abs_l1(UMat2d(max(indj,inda),min(indj,inda)))
+!                     print *, "(ii|bb): ",abs_l1(UMat2d(max(indi,indb),min(indi,indb)))
+!                     print *, "(jj|bb): ", abs_l1(UMat2d(max(indj,indb),min(indj,indb)))
                     print *, "(ia|ia): ", abs(get_umat_el(indi,inda,indi,inda))
                     print *, "(ja|ja): ", abs(get_umat_el(indj,inda,indj,inda))
                     print *, "(ib|ib): ", abs(get_umat_el(indi,indb,indi,indb))
@@ -1103,10 +1094,10 @@ contains
                     print *, "umat (ij|ba) ", get_umat_el(indi,indj,indb,inda)
                     print *, "diff: ", abs(get_umat_el(indi,indj,inda,indb) - &
                         get_umat_el(indi,indj,indb,inda))
-                    print *, "(ii|aa):", abs_l1(UMat2d(max(indi,inda),min(indi,inda)))
-                    print *, "(jj|aa):", abs_l1(UMat2d(max(indj,inda),min(indj,inda)))
-                    print *, "(ii|bb): ",abs_l1(UMat2d(max(indi,indb),min(indi,indb)))
-                    print *, "(jj|bb): ", abs_l1(UMat2d(max(indj,indb),min(indj,indb)))
+!                     print *, "(ii|aa):", abs_l1(UMat2d(max(indi,inda),min(indi,inda)))
+!                     print *, "(jj|aa):", abs_l1(UMat2d(max(indj,inda),min(indj,inda)))
+!                     print *, "(ii|bb): ",abs_l1(UMat2d(max(indi,indb),min(indi,indb)))
+!                     print *, "(jj|bb): ", abs_l1(UMat2d(max(indj,indb),min(indj,indb)))
                     print *, "(ia|ia): ", abs(get_umat_el(indi,inda,indi,inda))
                     print *, "(ja|ja): ", abs(get_umat_el(indj,inda,indj,inda))
                     print *, "(ib|ib): ", abs(get_umat_el(indi,indb,indi,indb))

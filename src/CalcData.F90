@@ -357,6 +357,9 @@ logical :: t_restart_hist_tau = .false.
 ! use a global variable for this control: 
 logical :: t_consider_par_bias = .false.
 
+! quickly implement a control parameter to test the order of matrix element 
+! calculation in the transcorrelated approach 
+logical :: t_test_order = .false.
 ! also introduce an integer, to delay the actual changing of the time-step 
 ! for a set amount of iterations
 ! (in the restart case for now!)

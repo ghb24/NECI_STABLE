@@ -1103,6 +1103,9 @@ contains
                 tSearchTau = .false.
                 tSearchTauOption = .false.
 
+            case ("TEST-ORDER") 
+                ! test order of transcorrelated matrix elements 
+                t_test_order = .true. 
             case("HIST-TAU-SEARCH","NEW-TAU-SEARCH")
                 ! [Werner Dobrautz, 4.4.2017:]
                 ! the new tau search method using histograms of the 

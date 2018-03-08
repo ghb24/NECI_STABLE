@@ -29,7 +29,7 @@ module k_space_hubbard
 
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt
 
-    use real_space_hubbard, only: lat_tau_factor, create_all_dets
+    use real_space_hubbard, only: lat_tau_factor, create_all_dets, swap_excitations
 
     use fcimcdata, only: tsearchtau, tsearchtauoption, pDoubles, pParallel, &
                          excit_gen_store_type, pSingles
@@ -986,6 +986,8 @@ contains
 #endif
         integer :: b, c, ex(2,3), spin, orb_b
         real(dp) :: elem
+        integer :: nJ(nel)
+        integer, allocatable :: ex2(:,:)
 
         orb_list = -1 
         cum_arr = 0.0_dp 
@@ -1039,7 +1041,13 @@ contains
 
                         ex(2,2:3) = [orb_b, c]
 
-                        elem = abs(get_3_body_helement_ks_hub(nI, ex, .false.))
+                        ! actually i messed up with the non-hermiticity 
+                        ! i should actually switch the order of the 
+                        ! determinants in matrix element calculation
+                        ! old one: 
+!                         elem = abs(get_3_body_helement_ks_hub(nI, ex, .false.))
+                        call swap_excitations(nI, ex, nJ, ex2)
+                        elem = abs(get_3_body_helement_ks_hub(nJ, ex2, .false.))
 
                     end if
                 end if
@@ -1066,9 +1074,9 @@ contains
                     if (c /= orb_b .and. IsNotOcc(ilutI,c)) then 
 
                         ex(2,2:3) = [orb_b, c] 
-
-                        elem = abs(get_3_body_helement_ks_hub(nI, ex, .false.))
-
+                        call swap_excitations(nI, ex, nJ, ex2)
+                        elem = abs(get_3_body_helement_ks_hub(nJ, ex2, .false.))
+ 
                     end if
                 end if 
                 cum_sum = cum_sum + elem 
@@ -1542,6 +1550,8 @@ contains
 #endif
         integer :: a, b, ex(2,2), spin, orb_a
         real(dp) :: elem
+        integer :: nJ(nel) 
+        integer, allocatable :: ex2(:,:)
         ! do the cum_arr for the k-space hubbard 
         ! i think here i might really use flags.. and not just do the 
         ! influence over the matrix elements.. since without transcorrelation 
@@ -1584,9 +1594,8 @@ contains
 
                         ex(2,:) = [orb_a,b] 
 
-                        ! modify the matrix element calculation or 
-                        ! write a new routine for the transcorrelated.. 
-                        elem = abs(get_offdiag_helement_k_sp_hub(nI, ex, .false.))
+                        call swap_excitations(nI, ex, nJ, ex2)
+                        elem = abs(get_offdiag_helement_k_sp_hub(nJ, ex2, .false.))
 
                     end if
                 end if
@@ -1611,9 +1620,8 @@ contains
 
                     if (b /= orb_a .and. IsNotOcc(ilutI, b)) then 
                         ex(2,:) = [orb_a, b]
-
-                        elem = abs(get_offdiag_helement_k_sp_hub(nI, ex, .false.))
-
+                        call swap_excitations(nI, ex, nJ, ex2)
+                        elem = abs(get_offdiag_helement_k_sp_hub(nJ, ex2, .false.))
                     end if
                 end if
                 cum_sum = cum_sum + elem 
@@ -1638,6 +1646,9 @@ contains
 #endif
         integer :: a, b, ex(2,2)
         real(dp) :: elem
+        integer :: nJ(nel)
+        integer, allocatable :: ex2(:,:)
+
         ! do the cum_arr for the k-space hubbard 
         ! i think here i might really use flags.. and not just do the 
         ! influence over the matrix elements.. since without transcorrelation 
@@ -1685,7 +1696,8 @@ contains
                           elem = excit_cache(src(1),src(2),a)
                       else 
                           ex(2,:) = [a,b]
-                          elem = abs(get_offdiag_helement_k_sp_hub(nI, ex, .false.))
+                          call swap_excitations(nI, ex, nJ, ex2)
+                          elem = abs(get_offdiag_helement_k_sp_hub(nJ, ex2, .false.))
                       end if
                    endif
                 end if
@@ -1716,7 +1728,8 @@ contains
                             elem = excit_cache(src(1),src(2),a)
                         else 
                             ex(2,:) = [a,b]
-                            elem = abs(get_offdiag_helement_k_sp_hub(nI, ex, .false.))
+                            call swap_excitations(nI, ex, nJ, ex2)
+                            elem = abs(get_offdiag_helement_k_sp_hub(nJ, ex2, .false.))
                         end if
                     end if
                 end if
