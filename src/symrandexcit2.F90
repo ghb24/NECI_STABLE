@@ -3656,19 +3656,22 @@ SUBROUTINE SpinOrbSymSetup()
     ENDIF
 
     IF(tUEG.or.tHUB)THEN
-        kTotal(1)=0
-        kTotal(2)=0
-        kTotal(3)=0
+        kTotal =0
         do j=1,NEl
-            kTotal(1)=kTotal(1)+G1(FDet(j))%k(1)
-            kTotal(2)=kTotal(2)+G1(FDet(j))%k(2)
-            kTotal(3)=kTotal(3)+G1(FDet(j))%k(3)
-            ! just to be sure.. 
             if (t_k_space_hubbard) then 
-                ktotal = lat%map_k_vec(ktotal)
+                kTotal = lat%add_k_vec(kTotal, G1(FDet(j))%k)
+            else
+                kTotal = kTotal + G1(FDet(j))%k 
             end if
+            ! just to be sure.. 
+            ! not necessary anymore with new add_k_vec
+!             if (t_k_space_hubbard) then 
+!                 ktotal = lat%map_k_vec(ktotal)
+!             end if
         enddo
         if (tHub) then
+            ! is this turned off correctly?! check:
+            ASSERT(.not. t_k_space_hubbard)
             ktrial=(/kTotal(1),kTotal(2),0/)
             CALL MomPbcSym(ktrial,nBasisMax)
             kTotal(1)=ktrial(1)

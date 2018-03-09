@@ -70,6 +70,10 @@ module k_space_hubbard
     integer, parameter :: N_DIM = 3
 
     real(dp) :: three_body_prefac = 0.0_dp
+
+    real(dp), allocatable :: umat_cache_kspace(:,:)
+    HElement_t(dp), allocatable :: dispersion_rel_cached(:)
+
     ! i especially need an interface for the matrix element calculation to 
     ! implement the transcorrelated hamiltonian 
     interface get_helement_k_space_hub
@@ -77,7 +81,22 @@ module k_space_hubbard
         module procedure get_helement_k_space_hub_general
     end interface get_helement_k_space_hub
 
+    interface epsilon_kvec 
+        module procedure epsilon_kvec_vector
+        module procedure epsilon_kvec_symmetry
+        module procedure epsilon_kvec_orbital
+    end interface epsilon_kvec
+
 contains 
+
+    subroutine init_dispersion_rel_cache() 
+        ! to avoid excessive calls to the cos() function cache the 
+        ! dispersion relation of the lattice and make them accessible 
+        ! through the symmetry label associated with the k-vectors! 
+
+        call stop_all("init_dispersion_rel_cache", "todo")
+
+    end subroutine init_dispersion_rel_cache
 
     subroutine setup_symmetry_table() 
         ! implement a new symmetry setup to decouple it from the 
@@ -314,7 +333,12 @@ contains
         k_vec_in = G1(nI(1))%k
         do i = 2, nel 
             sym_in = SymTable(sym_in%s, G1(nI(i))%Sym%s)
-            k_vec_in = lat%map_k_vec(k_vec_in + G1(nI(i))%k)
+            ! also add the k-vecs in a way so they do not leave the 
+            ! first BZ 
+            k_vec_in = lat%add_k_vec(k_vec_in, G1(nI(i))%k)
+
+            ! a sanity check to see if it remained.. can be removed later! 
+!             k_vec_in = lat%map_k_vec(k_vec_in + G1(nI(i))%k)
             
         end do
 
@@ -341,7 +365,9 @@ contains
                 ! and i have to decode into the nI representation.. 
                 ! oh god this is inefficient.. 
                 sym_prod = symtable(sym_prod%s, G1(nJ(j))%Sym%s)
-                k_vec = lat%map_k_vec(k_vec + G1(nJ(j))%k)
+                k_vec = lat%add_k_vec(k_vec, G1(nJ(j))%k)
+
+!                 k_vec = lat%map_k_vec(k_vec + G1(nJ(j))%k)
             end do
             if (sym_prod%s == sym_in%s) then 
                 ! if the symmetry fits: 
@@ -367,14 +393,31 @@ contains
         ! essentially we only have to check if the momenta involved 
         ! fullfil k_k + k_l = k_i + k_j 
         integer, intent(in) :: i, j, k, l 
-        HElement_t(dp) :: hel 
+        HElement_t(dp) :: hel, hel2
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "get_umat_kspace"
+#endif
 
-        if (all(lat%map_k_vec(lat%get_k_vec(i)+lat%get_k_vec(j)) == & 
-                lat%map_k_vec(lat%get_k_vec(k)+lat%get_k_vec(l)))) then 
-            hel = UMat(1) 
-        else
+        ! or just use the symtable information? 
+        ! do i have to access this with the symmetry label or the orbital 
+        ! number?? i think i need the symmetry labels.. 
+        ! i could set this on the site level! 
+        if (SymTable(lat%get_sym(i),lat%get_sym(j))%S == & 
+            SymTable(lat%get_sym(k),lat%get_sym(l))%S) then 
+!         if (SymTable(G1(2*i)%sym%s,G1(2*j)%sym%s)%S ==  & 
+!             SymTable(G1(2*k)%sym%s,G1(2*l)%sym%s)%S) then 
+            hel = Umat(1)
+        else 
             hel = 0.0_dp
         end if
+        
+        ! old implo: 
+!         if (all(lat%map_k_vec(lat%get_k_vec(i)+lat%get_k_vec(j)) == & 
+!                 lat%map_k_vec(lat%get_k_vec(k)+lat%get_k_vec(l)))) then 
+!             hel = UMat(1) 
+!         else
+!             hel = 0.0_dp
+!         end if
 
     end function get_umat_kspace
 
@@ -1150,13 +1193,24 @@ contains
         ASSERT(sum_ms == -3 .or. sum_ms == -1 .or. sum_ms == 1 .or. sum_ms == 3)
 
         ! momentum conservation: ka + kb + kc = ki + kj + kk
+        ! to this better with the symmetry table or a new addition 
+        ! functionality for k-vectors, to never leave the first BZ
         kc = G1(src(1))%k + G1(src(2))%k + G1(src(3))%k - G1(orb_a)%k - G1(orb_b)%k 
+        ! do something like: 
+        ! and write two routines, interfaced, one take a vector of 
+        ! k-values the other takes the encoded symmetry symbol
+        ! and setup a symmetry table and inverse symmetry list like in the 
+        ! sym mod
+        kc = lat%add_k_vec(lat%add_k_vec(G1(src(1))%k, G1(src(2))%k), G1(src(3))%k)
+        kc = lat%add_k_vec(kc, lat%inv_k_vec(lat%add_k_vec(G1(orb_a)%k,G1(orb_b)%k)))
 
         ! perdiodic BC: 
         if (tHub) then
             if (t_k_space_hubbard) then 
                 ! use the new lattice implementation
-                kc = lat%map_k_vec(kc)
+                ! with the above correct addition it should still be in the 
+                ! first BZ.. 
+!                 kc = lat%map_k_vec(kc)
             else
                 call mompbcsym(kc, nBasisMax) 
             end if
@@ -2040,6 +2094,7 @@ contains
             three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
         end if
         call init_tmat_kspace(lat)
+
         get_umat_el => get_umat_kspace
         ! i guess i should also set the transcorr factor here or?? 
         get_helement_lattice_ex_mat => get_helement_k_space_hub_ex_mat
@@ -2174,6 +2229,7 @@ contains
         integer :: i, j, id(nel), idX, idN, spin, k, k_vec(3), p_vec(3)
         HElement_t(dp) :: hel_sing, hel_doub, hel_par, hel_opp, hel_one, hel_three
         HElement_t(dp) :: temp_hel
+        integer :: p_sym, k_sym
 
         ! todo: in the case of 2-body-transcorrelation, there are more 
         ! contributions.. 
@@ -2210,7 +2266,7 @@ contains
                         ! and look in the formulas it is actually -2t*cos(k)*2(cosh J - 1)
                         ! (with the k-vector of orbial i!
 !                         hel_one = hel_one + GetTMatEl(nI(i),nI(i)) * omega * three_body_prefac
-                        hel_one = hel_one + bhub * epsilon_kvec(G1(nI(i))%k) & 
+                        hel_one = hel_one + bhub * epsilon_kvec(G1(nI(i))%Sym) & 
                                 * omega * three_body_prefac
 
 
@@ -2231,10 +2287,11 @@ contains
                                 ! i need the electrons here ofc.. 
                                 p_vec = G1(nI(i))%k 
                                 k_vec = (G1(nI(j))%k - G1(nI(k))%k)
+                                k_vec = lat%add_k_vec(G1(nI(j))%k, lat%inv_k_vec(G1(nI(k))%k))
                                 !TODO: this can be removed if i totally 
                                 ! switched to the new implementation
                                 if (t_k_space_hubbard) then 
-                                    k_vec = lat%map_k_vec(k_vec)
+!                                     k_vec = lat%map_k_vec(k_vec)
                                 else
                                     call mompbcsym(k_vec, nBasisMax)
                                 end if
@@ -2243,8 +2300,19 @@ contains
 !                                 print *, "p_vec: ", p_vec(1)
 !                                 print *, "k_vec: ", k_vec(1)
 
+                                k_vec = lat%add_k_vec(p_vec, k_vec)
                                 hel_three = hel_three - bhub * three_body_prefac * (& 
-                                    epsilon_kvec(p_vec) - (epsilon_kvec(p_vec + k_vec)))
+                                    epsilon_kvec(p_vec) - epsilon_kvec(k_vec))
+                                ! even better then the correct k-vector addition 
+                                ! would be to store an epsilon-k in terms of 
+                                ! the symmetry symbols! 
+                                ! something like this but nicer! 
+                                p_sym = G1(nI(i))%sym%s 
+                                k_sym = SymTable(G1(nI(i))%sym%s, SymInvLabel(G1(nI(k))%sym%s))%s
+
+                                hel_three = hel_three - bhub * three_body_prefac * (& 
+                                    epsilon_kvec(p_sym) -  & 
+                                    (epsilon_kvec(SymTable(p_sym,k_sym)%s)))
 
 !                                 hel_three = hel_three - bhub * three_body_prefac * (& 
 !                                     epsilon_kvec(p_vec) - 0.5_dp * (epsilon_kvec(p_vec + k_vec) & 
@@ -2337,10 +2405,12 @@ contains
         integer, intent(in), optional :: spin, k_shift(3)
         logical, intent(in), optional :: t_sign
         HElement_t(dp) :: hel 
+
+        integer :: i, sgn, k_i(3)
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "get_one_body_diag"
+        call stop_all(this_routine, "have to optimize the call to epsilon_kvec!")
 #endif 
-        integer :: i, sgn
 
         ! the spin input: -1 is beta, +1 is alpha, 0 is both!
         ! if spin is not present, default is both!
@@ -2352,6 +2422,7 @@ contains
         else 
             sgn = 1 
         end if
+
 
         if (present(k_shift)) then 
             ! work on the newest, hopefully correct way to do this.. 
@@ -2471,9 +2542,14 @@ contains
         if (t_trans_corr) then 
             ! do something 
             ! here the one-body term with out (-t) is necessary
+!             hel = hel * exp(trans_corr_param/2.0_dp * & 
+!                 (epsilon_kvec(G1(src(1))%k) + epsilon_kvec(G1(src(2))%k) & 
+!                 - epsilon_kvec(G1(tgt(1))%k) - epsilon_kvec(G1(tgt(2))%k)))
+
+            ! optimized version: 
             hel = hel * exp(trans_corr_param/2.0_dp * & 
-                (epsilon_kvec(G1(src(1))%k) + epsilon_kvec(G1(src(2))%k) & 
-                - epsilon_kvec(G1(tgt(1))%k) - epsilon_kvec(G1(tgt(2))%k)))
+                (epsilon_kvec(G1(src(1))%Sym) + epsilon_kvec(G1(src(2))%Sym) & 
+                - epsilon_kvec(G1(tgt(1))%Sym) - epsilon_kvec(G1(tgt(2))%Sym)))
         end if
 
         if (t_trans_corr_2body) then 
@@ -2519,10 +2595,11 @@ contains
                 src = [minval(src),maxval(src)]
                 tgt = [minval(tgt),maxval(tgt)]
 
-                k_vec_a = G1(src(1))%k - G1(tgt(1))%k 
-                k_vec_b = (G1(src(1))%k - G1(tgt(2))%k)
-!                 k_vec_c = G1(src(2))%k - G1(tgt(1))%k 
-!                 k_vec_d = (G1(src(2))%k - G1(tgt(2))%k)
+                k_vec_a = lat%subtract_k_vec(G1(src(1))%k, G1(tgt(1))%k)
+                k_vec_b = lat%subtract_k_vec(G1(src(1))%k, G1(tgt(2))%k)
+                ! old:
+!                 k_vec_a = G1(src(1))%k - G1(tgt(1))%k 
+!                 k_vec_b = (G1(src(1))%k - G1(tgt(2))%k)
 ! 
 !                 call mompbcsym(k_vec_a, nBasisMax)
 !                 call mompbcsym(k_vec_b, nBasisMax)
@@ -2677,12 +2754,15 @@ contains
 
                 ! for now just take the momentum of ex(1,2) - ex(2,1) 
                 ! and ex(2,1) - ex(1,1)
-                k_vec_a = G1(sort_ex(1,1))%k - G1(sort_ex(2,1))%k 
-                k_vec_b = G1(sort_ex(1,2))%k - G1(sort_ex(2,1))%k
+!                 k_vec_a = G1(sort_ex(1,1))%k - G1(sort_ex(2,1))%k 
+!                 k_vec_b = G1(sort_ex(1,2))%k - G1(sort_ex(2,1))%k
+                k_vec_a = lat%subtract_k_vec(G1(sort_ex(1,1))%k, G1(sort_ex(2,1))%k)
+                k_vec_b = lat%subtract_k_vec(G1(sort_ex(1,2))%k, G1(sort_ex(2,1))%k)
+
 
                 if (t_k_space_hubbard) then
-                    k_vec_a = lat%map_k_vec(k_vec_a)
-                    k_vec_b = lat%map_k_vec(k_vec_b)
+!                     k_vec_a = lat%map_k_vec(k_vec_a)
+!                     k_vec_b = lat%map_k_vec(k_vec_b)
                 else 
                     call mompbcsym(k_vec_a, nBasisMax)
                     call mompbcsym(k_vec_b, nBasisMax)
@@ -2695,18 +2775,23 @@ contains
                 ! same spin-electrons 
                 ! the sign of k should be irrelevant or? todo!
                 if (same_spin(ex(1,1),ex(2,1))) then 
-                    k_vec_a = G1(ex(1,1))%k - G1(ex(2,1))%k 
-                    k_vec_b = G1(ex(1,2))%k - G1(ex(2,2))%k 
+
+!                     k_vec_a = G1(ex(1,1))%k - G1(ex(2,1))%k 
+!                     k_vec_b = G1(ex(1,2))%k - G1(ex(2,2))%k 
+                    k_vec_a = lat%subtract_k_vec(G1(ex(1,1))%k, G1(ex(2,1))%k)
+                    k_vec_a = lat%subtract_k_vec(G1(ex(1,2))%k, G1(ex(2,2))%k)
                     
                 else 
-                    k_vec_a = G1(ex(1,1))%k - G1(ex(2,2))%k 
-                    k_vec_b = G1(ex(1,2))%k - G1(ex(2,1))%k 
+!                     k_vec_a = G1(ex(1,1))%k - G1(ex(2,2))%k 
+!                     k_vec_b = G1(ex(1,2))%k - G1(ex(2,1))%k 
+                    k_vec_a = lat%subtract_k_vec(G1(ex(1,1))%k, G1(ex(2,2))%k)
+                    k_vec_a = lat%subtract_k_vec(G1(ex(1,2))%k, G1(ex(2,1))%k)
 
                 end if
 
                 if (t_k_space_hubbard) then 
-                    k_vec_a = lat%map_k_vec(k_vec_a)
-                    k_vec_b = lat%map_k_vec(k_vec_b)
+!                     k_vec_a = lat%map_k_vec(k_vec_a)
+!                     k_vec_b = lat%map_k_vec(k_vec_b)
                 else 
                     call mompbcsym(k_vec_a, nBasisMax)
                     call mompbcsym(k_vec_b, nBasisMax)
@@ -2731,12 +2816,13 @@ contains
             ktotal = 0 
 
             do i = 1, nel 
-                kTotal = kTotal + G1(nI(i))%k 
-                kTotal = lat%map_k_vec(kTotal)
+                kTotal = lat%add_k_vec(kTotal, G1(nI(i))%k)
+!                 kTotal = kTotal + G1(nI(i))%k 
+!                 kTotal = lat%map_k_vec(kTotal)
             end do
 
             if (t_k_space_hubbard) then 
-                ktotal = lat%map_k_vec(kTotal)
+!                 ktotal = lat%map_k_vec(kTotal)
             else 
                 call MomPbcSym(kTotal, nBasisMax)
             end if
@@ -3144,6 +3230,9 @@ contains
 !         same_spin_transcorr_factor = three_body_prefac * get_one_body_diag(nI,-spin) * &
 !                                      epsilon_kvec(k_vec)
 
+        call Stop_All("same_spin_transcorr_factor", & 
+            "optimize calls to epsilon_kvec_vector within get_one_body_diag and k-adding")
+
         ! new try with the same spin transcorr factor: 
 !         same_spin_transcorr_factor = - bhub * three_body_prefac * & 
 !             get_one_body_diag(nI, -spin, k_vec)
@@ -3153,14 +3242,14 @@ contains
 
     end function same_spin_transcorr_factor
 
-    HElement_t(dp) function epsilon_kvec(k_vec)
+    HElement_t(dp) function epsilon_kvec_vector(k_vec)
         ! and actually this function has to be defined differently for 
         ! different type of lattices! TODO!
         ! actually i could get rid of this function and directly call 
         ! the dispersion relation of the lattice.. 
-        integer, intent(in) :: k_vec(N_DIM)
+        integer, intent(in) :: k_vec(3)
 #ifdef __DEBUG
-        character(*), parameter :: this_routine = "epsilon_kvec"
+        character(*), parameter :: this_routine = "epsilon_kvec_vector"
 #endif
 
         ASSERT(associated(lat)) 
@@ -3168,11 +3257,35 @@ contains
         ! i could save the basic lattice vectors for the lattice or even 
         ! store the dispersion relation for each lattice type and call it 
         ! with a given k-vector? 
-        epsilon_kvec = h_cast(lat%dispersion_rel(k_vec))
+        ! change that to only access the cached result of the dispersion 
+        ! relation 
+!         epsilon_kvec = h_cast(lat%dispersion_rel(k_vec))
+
+        ! it is necessary to call this function only with k_vectors 
+        ! within the first BZ!!
+        epsilon_kvec_vector = dispersion_rel_cached(lat%get_sym_from_k(k_vec))
 
 !         epsilon_kvec = h_cast(2*sum(cos(real(k_vec,dp))))
 
-    end function epsilon_kvec
+    end function epsilon_kvec_vector
+
+    HElement_t(dp) function epsilon_kvec_symmetry(sym) 
+        ! access the stored dispersion relation values through the symmetry 
+        ! symbol associated with a k-vector
+        type(symmetry), intent(in) :: sym 
+
+        epsilon_kvec_symmetry = dispersion_rel_cached(sym%s) 
+
+    end function epsilon_kvec_symmetry
+
+    HElement_t(dp) function epsilon_kvec_orbital(orb) 
+        ! access the stored dispersion relation values through the spatial 
+        ! orbital (orb) 
+        integer, intent(in) :: orb 
+
+        epsilon_kvec_orbital = dispersion_rel_cached(lat%get_sym(orb))
+
+    end function epsilon_kvec_orbital
 
     HElement_t(dp) function two_body_transcorr_factor(p,k) 
         integer, intent(in) :: p(N_DIM), k(N_DIM) 
@@ -3191,10 +3304,12 @@ contains
 
     HElement_t(dp) function three_body_transcorr_fac(nI, p, q, k, spin) 
         integer, intent(in) :: nI(nel), p(N_DIM), q(N_DIM), k(N_DIM), spin 
+        real(dp) :: n_opp
 #ifdef __DEBUG 
         character(*), parameter :: this_routine = "three_body_transcorr_fac"
+        call Stop_All(this_routine, & 
+            "optimize call to epsilon_kvec in get_one_body_diag and k-adding here!")
 #endif
-        real(dp) :: n_opp
 
         ASSERT(spin == 1 .or. spin == -1)
 
@@ -3236,7 +3351,7 @@ contains
         character(*), parameter :: this_routine = "get_3_body_helement_ks_hub"
 #endif
         integer :: ms_elec, ms_orbs, opp_elec, opp_orb, par_elecs(2), par_orbs(2)
-        integer :: p_vec(3), k1(3), k2(3), k_vec(3), hole_k(3)
+        integer :: p_vec(3), k1(3), k2(3), k_vec(3), hole_k(3), ka(3), kb(3), kc(3), kd(3)
         logical :: sgn
 
         hel = h_cast(0.0_dp)
@@ -3281,9 +3396,10 @@ contains
         par_elecs = pack(ex(1,:),ex(1,:) /= opp_elec)
         par_orbs = pack(ex(2,:),ex(2,:) /= opp_orb)
 
-        k_vec = p_vec - hole_k 
+!         k_vec = p_vec - hole_k 
+        k_vec = lat%subtract_k_vec(p_vec, hole_k)
         if (t_k_space_hubbard) then 
-            k_vec = lat%map_k_vec(k_vec)
+!             k_vec = lat%map_k_vec(k_vec)
         else 
             call mompbcsym(k_vec, nBasisMax)
         end if
@@ -3292,12 +3408,28 @@ contains
         par_elecs = [minval(par_elecs), maxval(par_elecs)]
         par_orbs = [minval(par_orbs), maxval(par_orbs)] 
 
-        k1 = G1(par_orbs(1))%k - G1(par_elecs(1))%k 
-        k2 = G1(par_orbs(1))%k - G1(par_elecs(2))%k 
+        ! BZ conserving addition: 
+        k1 = lat%subtract_k_vec(G1(par_orbs(1))%k, G1(par_elecs(1))%k)
+        k2 = lat%subtract_k_vec(G1(par_orbs(1))%k, G1(par_elecs(2))%k)
+
+!         k1 = G1(par_orbs(1))%k - G1(par_elecs(1))%k 
+!         k2 = G1(par_orbs(1))%k - G1(par_elecs(2))%k 
+
+        ! need to do the correct k additions! 
+!         hel = 1.0_dp * bhub * three_body_prefac * ( & 
+!             epsilon_kvec(hole_k + k1) - epsilon_kvec(hole_k + k2) & 
+!           + epsilon_kvec(-p_vec + k1) - epsilon_kvec(-p_vec + k2)) 
+
+        ! for some reason the compiler does not recognize the output of 
+        ! add_k_vec and subtract_k_vec as a vector... 
+        ! so do it intermediately 
+        ka = lat%add_k_vec(hole_k, k1) 
+        kb = lat%add_k_vec(hole_k, k2) 
+        kc = lat%subtract_k_vec(k1, p_vec) 
+        kd = lat%subtract_k_vec(k2, p_vec) 
 
         hel = 1.0_dp * bhub * three_body_prefac * ( & 
-            epsilon_kvec(hole_k + k1) - epsilon_kvec(hole_k + k2) & 
-          + epsilon_kvec(-p_vec + k1) - epsilon_kvec(-p_vec + k2)) 
+            epsilon_kvec(ka) - epsilon_kvec(kb) + epsilon_kvec(kc) - epsilon_kvec(kd))
 
         ! i hope it is fine if i always take par_orbs(1).. this has to do 
         ! with the overal sign i guess.. so maybe i should check if 
@@ -3410,31 +3542,55 @@ contains
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "check_momentum_sym"
 #endif 
-        type(BasisFN) :: ka, kb 
+!         type(BasisFN) :: ka, kb 
         integer :: i
+        type(Symmetry) :: sym_1, sym_2
 
-        ! make this function flexible..
-!         ASSERT(size(elecs) == size(orbs))
+        ASSERT(size(elecs) == size(orbs))
 
-        call SetupSym(ka)
-        call SetupSym(kb) 
+        ! make this more efficient here! and do not use all the old 
+        ! functionality 
 
-        do i = 1, size(elecs)
-            call AddElecSym(elecs(i), G1, nBasisMax, ka)
+        check_momentum_sym = .true. 
+
+        if (.not. sum(get_spin_pn(elecs)) == sum(get_spin_pn(orbs))) then 
+            check_momentum_sym = .false.
+            return 
+        end if
+
+        ! get the symmetry symbol
+        sym_1 = G1(elecs(1))%Sym
+        sym_2 = G1(orbs(1))%Sym
+        do i = 2, size(elecs) 
+            ! i could ofc also use G1 here again
+            sym_1 = SymTable(sym_1%s, G1(elecs(i))%sym%s)
+            sym_2 = SymTable(sym_2%s, G1(orbs(i))%sym%s)
         end do
-        do i = 1, size(orbs)
-            call AddElecSym(orbs(i), G1, nBasisMax, kb)
-        end do
-        
-        ! apply periodic BC:
-        call RoundSym(ka, nBasisMax)
-        call RoundSym(kb, nBasisMax)
 
-        ! and check sym:
-        ! i want to switch from this old functionality.. 
-        ! since this works with these weird symconj functionality.. 
-!         check_momentum_sym = (lChkSym(ka, kb)) 
-        check_momentum_sym = sym_equal(ka,kb)
+        if (sym_1%s /= sym_2%s) then 
+            check_momentum_sym = .false. 
+        end if
+
+        ! old implo: 
+!         call SetupSym(ka)
+!         call SetupSym(kb) 
+! 
+!         do i = 1, size(elecs)
+!             call AddElecSym(elecs(i), G1, nBasisMax, ka)
+!         end do
+!         do i = 1, size(orbs)
+!             call AddElecSym(orbs(i), G1, nBasisMax, kb)
+!         end do
+!         
+!         ! apply periodic BC:
+!         call RoundSym(ka, nBasisMax)
+!         call RoundSym(kb, nBasisMax)
+! 
+!         ! and check sym:
+!         ! i want to switch from this old functionality.. 
+!         ! since this works with these weird symconj functionality.. 
+! !         check_momentum_sym = (lChkSym(ka, kb)) 
+!         check_momentum_sym = sym_equal(ka,kb)
 
     end function check_momentum_sym
 

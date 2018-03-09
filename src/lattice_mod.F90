@@ -41,6 +41,14 @@ module lattice_mod
         ! implementation and also if i want to deal with the new type of 
         ! periodic boundary conditions. 
         integer :: k_vec(3) = 0
+        ! also use one integer to differentiate between the k-vectors! 
+        ! this makes it easier to access arrays.. 
+        integer :: k_sym = -1
+
+        ! do i also need the inverse k-vec in here?? 
+        integer :: k_inv(3) = 0
+        integer :: sym_inv = -1 
+
         ! ah.. here it is important: neighbors are also sites.. is this 
         ! possible? and i have to be flexible to allow different types of 
         ! site neighbors 
@@ -159,6 +167,25 @@ module lattice_mod
         ! mapping to the BZ 
         integer, allocatable :: basis_vecs(:,:) 
 
+        ! i also need a matrix mapping from the k-vectors to the 
+        ! k-symbols to quickly access them! 
+        integer, allocatable :: k_to_sym(:,:,:) 
+
+        ! and vice versa a mapping from the symbol to the k-vector 
+        ! or i could just use the orbital index? does this work with 
+        ! neci though? 
+        ! just use a matrix here and take the rows
+        integer, allocatable :: sym_to_k(:,:) 
+
+        ! and also store a multiplication table in the lattice class.. 
+        ! to make it consistend and store everything necessary in here.. 
+        ! this just make use of the symbols! 
+        integer, allocatable :: mult_table(:,:) 
+
+        ! and also use an inverse table, which also just uses the 
+        ! symbols! 
+        integer, allocatable :: inv_table(:) 
+
         ! and i think additionally i want to store which type of lattice 
         ! this is in a string or? so i do not always have to 
         ! use the select type functionality 
@@ -210,6 +237,13 @@ module lattice_mod
         procedure, public :: is_k_space 
         ! i definetly also want to have a print function! 
         procedure, public :: print_lat
+        procedure, public :: add_k_vec
+        procedure :: add_k_vec_symbol
+        procedure, public :: inv_k_vec
+        procedure :: inv_k_vec_symbol
+        procedure, public :: get_sym
+        procedure, public :: subtract_k_vec
+        procedure, public :: get_sym_from_k
 
         procedure :: set_name
 
@@ -314,7 +348,7 @@ module lattice_mod
         procedure :: initialize_sites => init_sites_chain
 
         procedure, public :: dispersion_rel => dispersion_rel_chain_k
-        procedure :: inside_bz => inside_bz_chain
+!         procedure :: inside_bz => inside_bz_chain
 !         procedure :: apply_basis_vector => apply_basis_vector_chain
         procedure :: init_basis_vecs => init_basis_vecs_chain
 
@@ -585,28 +619,6 @@ module lattice_mod
 
     end interface
 
-!     interface dispersion_rel_chain
-!         function dispersion_rel_chain_k(this, k_vec) result(disp)
-!             use constants, only: dp
-!             import :: chain 
-!             class(chain) :: this
-!             integer, intent(in) :: k_vec(3)
-!             real(dp) :: disp
-!         end function dispersion_rel_chain_k
-!         function dispersion_rel_chain_orb(this, orb) result(disp)
-!             use constants, only: dp
-!             import :: chain 
-!             class(chain) :: this 
-!             integer, intent(in) :: orb 
-!             real(dp) :: disp
-!         end function dispersion_rel_chain_orb
-!     end interface 
-
-
-!     interface dispersion_rel
-!         module procedure dispersion_rel_k
-!         module procedure dispersion_rel_orb
-!     end interface dispersion_rel
     interface lattice
         procedure lattice_constructor 
     end interface
@@ -676,6 +688,67 @@ module lattice_mod
     end interface get_helement_lattice
 
 contains 
+
+    function add_k_vec(this, k_1, k_2) result(k_out) 
+        class(lattice) :: this
+        integer, intent(in) :: k_1(3), k_2(3)
+        integer :: k_out(3)
+
+        ! todo
+    end function add_k_vec
+
+    function add_k_vec_symbol(this, sym_1, sym_2) result(sym_out) 
+        class(lattice) :: this 
+        integer, intent(in) :: sym_1, sym_2
+        integer :: sym_out 
+
+        ! todo
+    end function add_k_vec_symbol
+
+    function inv_k_vec(this, k) result(k_inv) 
+        class(lattice) :: this 
+        integer, intent(in) :: k(3)
+        integer :: k_inv(3)
+
+    end function inv_k_vec
+
+    function get_sym(this, orb) result(sym) 
+        ! gives the symmetry label associated with the k-vector of 
+        ! spatial orbital (orb)
+        class(lattice) ::  this 
+        integer, intent(in) :: orb 
+        integer :: sym 
+
+        sym = lat%sites(orb)%k_sym
+
+    end function get_sym
+
+    function get_sym_from_k(this, k) result(sym) 
+        ! the routine to get the symmetry label associated with the k-vector k
+        class(lattice) :: this 
+        integer, intent(in) :: k(3)
+        integer :: sym
+
+        sym = this%k_to_sym(k(1),k(2),k(3))
+
+    end function get_sym_from_k
+
+    ! do i also need a inv_k_vec_symbol function? 
+    function inv_k_vec_symbol(this, sym) result(inv_sym)
+        class(lattice) :: this 
+        integer, intent(in) :: sym 
+        integer :: inv_sym
+
+    end function inv_k_vec_symbol
+
+    function subtract_k_vec(this, k_1, k_2) result(k_out) 
+        class(lattice) :: this 
+        integer, intent(in) :: k_1(3), k_2(3)
+        integer :: k_out(3) 
+
+        k_out = lat%add_k_vec(k_1, lat%inv_k_vec(k_2))
+
+    end function subtract_k_vec
 
     function get_orb_from_k_vec(this, k_in, spin) result(orb)
         class(lattice) :: this 
@@ -783,6 +856,7 @@ contains
       if(all(k_vec <= this%kmax) .and. all(k_vec >= this%kmin)) then
          inside_bz = this%bz_table(k_vec(1),k_vec(2),k_vec(3))
       else
+!          print *, "are we often here?"
          ! if not, do the explicit check
          inside_bz = this%inside_bz_explicit(k_vec)
       endif

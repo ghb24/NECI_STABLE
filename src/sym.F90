@@ -1337,18 +1337,22 @@ contains
          CALL GETUNCSFELEC(IEL,IELEC,SSYM)
         IF(NBASISMAX(1,3).LT.4) THEN
 !   Momentum space
-            DO I=1,3
-               ISYM%K(I)=ISYM%K(I)+G1(IELEC)%K(I)
-            ENDDO
+            if (t_k_space_hubbard) then 
+                isym%k = lat%add_k_vec(isym%k, G1(ielec)%k)
+            else
+               ISYM%k = ISYM%k + G1(IELEC)%k
+           end if
 !   Symmetry space
          ELSEIF(NBASISMAX(3,3).EQ.0.AND.NBASISMAX(1,3).GE.4) THEN
 !   We have no symmetries, so do nothing. (we're in real space)
 !   except Ms
          ELSEIF(NBASISMAX(3,3).EQ.1) THEN
 !   deal with momentum
-            DO I=1,3
-               ISYM%k(I)=ISYM%k(I)+G1(IELEC)%k(I)
-            ENDDO
+            if (t_k_space_hubbard) then 
+                isym%k = lat%add_k_vec(isym%k, G1(ielec)%k)
+            else
+               ISYM%k = ISYM%k + G1(IELEC)%k
+           end if
          ENDIF
          ISYM%MS=ISYM%MS+G1(IELEC)%MS
          ISYM%Ml=ISYM%Ml+G1(IELEC)%Ml
@@ -1356,9 +1360,10 @@ contains
 !   (it is +/-CSF_NSBASIS)
          I=ISYM%MS+0
          ISYM%Ms=I+SSYM
-         if (t_new_hubbard) then 
-             isym%k = lat%map_k_vec(isym%k)
-         end if
+!          if (t_new_hubbard) then 
+             ! with the new lat%add_k_vec i should not need to map! 
+!              isym%k = lat%map_k_vec(isym%k)
+!          end if
          RETURN
       END SUBROUTINE ADDELECSYM
       
@@ -1457,6 +1462,7 @@ contains
          ! in case of the new k-space hubbard implementation use the 
          ! built-in k-vec mapping 
          if (t_k_space_hubbard) then 
+             ! this should actually never be called anymore! 
              k1 = lat%map_k_vec(k1)
              return
          end if
@@ -2062,7 +2068,9 @@ contains
       bufK = cK + G1(brr(nI))%k
       if(tHub) then
           if (t_k_space_hubbard) then 
-              bufk = lat%map_k_vec(bufk)
+              ! add in a way to never leave the first BZ instead of mapping!
+              bufK = lat%add_k_vec(cK, G1(brr(nI))%k)
+!               bufk = lat%map_k_vec(bufk)
           else
               call MomPbcSym(bufK,nBasisMax)
           end if

@@ -867,12 +867,16 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
                 nel = nel + 1
                 nspins(is) = nspins(is) + 1
                 fdet(nel) = brr(ireal)
-                totK = totK + G1(brr(ireal))%k
+                if (t_k_space_hubbard) then 
+                    totK = lat%add_k_vec(totK, G1(brr(ireal))%k)
+                else
+                    totK = totK + G1(brr(ireal))%k
+                end if
                 totSpin = totSpin + G1(brr(ireal))%Ms
 !                print *, "Contribution", brr(ireal), G1(brr(ireal))%k
                 if(tHub) then 
                     if (t_k_space_hubbard) then 
-                        totk = lat%map_k_vec(totK)
+!                         totk = lat%map_k_vec(totK)
                     else
                         call MomPbcSym(totK,nBasisMax)      
                     end if
