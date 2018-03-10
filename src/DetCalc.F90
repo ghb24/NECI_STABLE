@@ -365,6 +365,18 @@ CONTAINS
       use HElem
       use MemoryManager, only: TagIntType
       use hist_data, only: tHistSpawn
+      use CalcData, only: tFCIDavidson
+      !use davidson_neci, only: DavidsonCalcType, DestroyDavidsonCalc
+      !use davidson_neci, only: perform_davidson
+      !use sparse_arrays, only: calculate_sparse_hamiltonian, deallocate_sparse_ham, &
+                               !sparse_ham, hamil_diag, HDiagTag, SparseHamilTags
+      !use hamiltonian_linalg, only: sparse_hamil_type
+      !use constants, only: size_n_int
+
+      use davidson_neci, only: DavidsonCalcType, DestroyDavidsonCalc
+      use davidson_neci, only: davidson_direct_ci_init, davidson_direct_ci_end, perform_davidson
+      use hamiltonian_linalg, only: direct_ci_type
+      use FCIMCData, only: davidson_iluts, davidson_ras
 
       real(dp) , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),FCIGS(:)
       HElement_t(dp), ALLOCATABLE :: WORK(:)
@@ -379,7 +391,7 @@ CONTAINS
       INTEGER IN,IND,INDZ
       INTEGER NBLOCK!,OpenOrbs,OpenOrbsSym,Ex(2,NEl)
       INTEGER nKry1
-      INTEGER(KIND=n_int) :: ilut(0:NIfTot)
+      INTEGER(KIND=n_int) :: ilut(0:NIfTot), ilut_temp(0:NIfTot)
       INTEGER J,JR,iGetExcitLevel_2,ExcitLevel, iunit
       INTEGER LSCR,LISCR,MaxIndex
       LOGICAL tMC!,TestClosedShellDet,Found,tSign
@@ -387,6 +399,12 @@ CONTAINS
       integer:: ic,TempnI(NEl),MomSymDet(NEl),ICSym,ICConnect,PairedUnit,SelfInvUnit
       integer(n_int) :: iLutMomSym(0:NIfTot)
       logical :: tSuccess
+      type(DavidsonCalcType) :: davidsonCalc
+      integer, ALLOCATABLE :: NMRKS2Davidson(:)
+      integer :: idx
+      !integer(n_int), allocatable, dimension(:,:) :: ilut_store
+      !character (len=*), parameter :: t_r = "DoDetCalc"
+      !integer(TagIntType) :: IlutTag
 
       IF(tEnergy) THEN
           WRITE(6,'(1X,A,E19.3)') ' B2LIMIT : ' , B2L
@@ -574,6 +592,55 @@ CONTAINS
          WRITE(6,"(A,F19.9)") "EXACT DLWDB(D0)=",GSEN
          WRITE(6,"(A,F19.9)") "GROUND E=",W(1)
 !C.. END ENERGY CALC
+!      ENDIF
+       ELSEIF(tFCIDavidson)THEN
+
+          davidsonCalc = davidson_direct_ci_init(.true.)
+          !ALLOCATE(NMRKS2Davidson(NDET),stat=ierr)
+          !NMRKS2Davidson = 0
+          !WRITE(6,*) "Davidson: ", davidson_ras%num_strings, davidsonCalc%super%space_size
+          !do idx=1,davidson_ras%num_strings
+            !Call WriteBitDet(6,davidson_iluts(:,idx),.true.)
+          !end do
+          !WRITE(6,*) "NMRKS: "
+          !do i=1,NDET
+            !CALL EncodeBitDet(NMRKS(:,i),ilut_temp(0:NIfTot))
+
+            !Call WriteBitDet(6,ilut_temp(:),.true.)
+            !do idx=1,davidsonCalc%super%space_size
+                !if (DetBitEq(ilut_temp, davidson_iluts(:,idx))) then
+                    !NMRKS2Davidson(i) = idx
+                    !exit
+                !end if
+            !end do
+          !enddo
+          call perform_davidson(davidsonCalc, direct_ci_type, .true.)
+          !Convert NMRKS to ilut_store
+          !allocate(ilut_store(0:NIfTot, NDET), stat=ierr)
+          !call LogMemAlloc("ilut_store", NDET*(NIfTot+1), size_n_int, t_r, IlutTag, ierr)
+          !do i=1,NDET
+             !call decode_bit_det(NMRKS(:,i), ilut_store(:, i)) 
+          !end do
+
+          !write(6,'(a27)') "Constructing Hamiltonian..."
+          !call neci_flush(6)
+
+          !call calculate_sparse_hamiltonian(NDET, ilut_store(:,1:NDET))
+
+          !write (6,'(a29)') "Performing Davidson diagonalisation..."
+          !call neci_flush(6)
+
+          !! Now that the Hamiltonian is generated, we can finally find the ground state of it:
+          !call perform_davidson(davidsonCalc, sparse_hamil_type, .true.)
+
+          !call deallocate_sparse_ham(sparse_ham, 'sparse_ham', SparseHamilTags)
+
+          !deallocate(hamil_diag, stat=ierr)
+          !call LogMemDealloc(t_r, HDiagTag, ierr)
+
+          !deallocate(ilut_store, stat=ierr)
+          !call LogMemDealloc(t_r, IlutTag, ierr)
+
       ENDIF
 
       call neci_flush(6)
@@ -605,11 +672,20 @@ CONTAINS
 !First, we want to count the number of determinants of the correct symmetry...
             Det=0
             norm=0.0_dp
+            print *, davidsonCalc%davidson_eigenvector
             do i=1,NDET
                 CALL GETSYM(NMRKS(:,i),NEL,G1,NBASISMAX,ISYM)
                 IF(ISym%Sym%S.eq.IHFSYM%Sym%S) THEN
                     Det=Det+1
-                    IF(tEnergy) norm=norm+(REAL(CK(i,1),dp))**2
+                    IF(tEnergy) THEN
+                        norm=norm+(REAL(CK(i,1),dp))**2
+                    ELSEIF(tFCIDavidson)THEN
+                        idx = i!NMRKS2Davidson(i)
+                        if(idx<=0)then
+                            CALL Stop_All("DoDetCalc","Determinant not found in Davidson's ground state.")
+                        end if
+                        norm=norm+(davidsonCalc%davidson_eigenvector(idx))**2
+                    ENDIF
                 ENDIF
             enddo
             WRITE(6,"(I25,A,I4,A)") Det," determinants of symmetry ",IHFSym%Sym%S," found."
@@ -621,7 +697,7 @@ CONTAINS
             ALLOCATE(FCIDetIndex(0:NEl+1),stat=ierr) !+1 so we can store the end of the array too
             ALLOCATE(Temp(Det),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold vector")
-            IF(tEnergy) THEN
+            IF(tEnergy .or. tFCIDavidson) THEN
                 ALLOCATE(FCIGS(Det),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold vector")
             ENDIF
@@ -650,10 +726,17 @@ CONTAINS
                     CALL EncodeBitDet(NMRKS(:,i),FCIDets(0:NIfTot,Det))
                     IF(tEnergy) THEN
                         FCIGS(Det)=REAL(CK(i,1),dp)/norm
+                    ELSEIF(tFCIDavidson) THEN
+                        idx = i!NMRKS2Davidson(i)
+                        if(idx<=0)then
+                            CALL Stop_All("DoDetCalc","Determinant not found in Davidson's ground state.")
+                        end if
+                        FCIGS(Det)=davidsonCalc%davidson_eigenvector(idx)/norm
                     ENDIF
                 ENDIF
                 if(tCalcVariationalEnergy) ReIndex(i)=i
             enddo
+
             IF(iExcitLevel.le.0) THEN
                 MaxIndex=NEl
             ELSE
@@ -666,7 +749,7 @@ CONTAINS
 
             ! We now want to sort the determinants according to the 
             ! excitation level (stored in Temp)
-            IF(.not.tEnergy) THEN
+            IF(.not.tEnergy .and. .not. tFCIDavidson) THEN
                 call sort (temp(1:Det), FCIDets(:,1:Det))
             ELSE
                 if(tCalcVariationalEnergy) then
@@ -700,7 +783,7 @@ CONTAINS
 
 !We now need to sort within the excitation level by the "number" of the determinant
             do i=1,MaxIndex
-                IF(.not.tEnergy) THEN
+                IF(.not.tEnergy .and. .not. tFCIDavidson) THEN
 !                    WRITE(6,*) i,FCIDetIndex(i),FCIDetIndex(i+1)-1
 !                    CALL neci_flush(6)
                     call sort (FCIDets(:,FCIDetIndex(i):FCIDetIndex(i+1)-1), &
@@ -719,7 +802,7 @@ CONTAINS
                 ENDIF
             enddo
 
-            IF(tEnergy) THEN
+            IF(tEnergy .or. tFCIDavidson) THEN
                 IF(tLogDETS.and.iProcIndex.eq.0) THEN
                     iunit = get_free_unit()
                     OPEN(iunit,FILE='SymDETS',STATUS='UNKNOWN')
@@ -827,9 +910,18 @@ CONTAINS
           ENDDO
           CLOSE(iunit)
           WRITE(6,*)   '       ====================================================== '
+      ELSEIF(tFCIDavidson)THEN
+          OPEN(iunit,FILE='ENERGIES',STATUS='UNKNOWN')
+          WRITE(iunit,"(F19.11)") davidsonCalc%davidson_eigenvalue 
+          CLOSE(iunit)
 !C., END energy calc
       ENDIF
 
+      IF(tFCIDavidson) THEN
+          call davidson_direct_ci_end(davidsonCalc)
+          call DestroyDavidsonCalc(davidsonCalc)
+          !DEALLOCATE(NMRKS2Davidson)
+      ENDIF
 !C.. Jump to here if just read Psi in
       CONTINUE
 

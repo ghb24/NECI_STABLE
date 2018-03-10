@@ -162,6 +162,7 @@ contains
           TSinglesExcitSpace=.false.
           TOneExcitConn=.false.
           TStarTrips=.false.
+          tFCIDavidson=.false.
           TLanczos=.false.
           tDavidson=.false.
           TNoSameExcit=.false.
@@ -448,8 +449,19 @@ contains
                 call readi(lanczos_energy_precision)
             case("LANCZOS-RITZ-OVERLAP-PRECISION")
                 call readi(lanczos_ritz_overlap_precision)
-
-
+            case("FCI-DAVIDSON")
+                tFCIDavidson = .True.
+                tLogDets=.true.
+                call geti(ras_size_1)  ! Number of spatial orbitals in RAS1.
+                call geti(ras_size_2)  ! Number of spatial orbitals in RAS2.
+                call geti(ras_size_3)  ! Number of spatial orbitals in RAS3.
+                call geti(ras_min_1)  ! Min number of electrons (alpha and beta) in RAS1 orbs. 
+                call geti(ras_max_3)  ! Max number of electrons (alpha and beta) in RAS3 orbs.
+                davidson_ras%size_1 = int(ras_size_1,sp)
+                davidson_ras%size_2 = int(ras_size_2,sp)
+                davidson_ras%size_3 = int(ras_size_3,sp)
+                davidson_ras%min_1 = int(ras_min_1,sp)
+                davidson_ras%max_3 = int(ras_max_3,sp)
             case("LANCZOS")
 !Sets the diagonaliser for the GraphMorph algorithm to be Lanczos
                 tLanczos=.true.

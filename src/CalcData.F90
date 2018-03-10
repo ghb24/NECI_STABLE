@@ -95,7 +95,7 @@ LOGICAL :: EXCITFUNCS(10),TNPDERIV,TMONTE,TMCDET
 LOGICAL :: TBETAP,CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TENPT
 LOGICAL :: TLADDER,TMC,TREADRHO,TRHOIJ,TBiasing,TMoveDets
 LOGICAL :: TBEGRAPH,STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph
-LOGICAL :: TInitStar,TNoSameExcit,TLanczos,TStarTrips
+LOGICAL :: TInitStar,TNoSameExcit,TLanczos,TStarTrips, tFCIDavidson
 LOGICAL :: TMaxExcit,TOneExcitConn,TSinglesExcitSpace,TFullDiag
 LOGICAL ::THDiag,TMCStar,TReadPops,TBinCancel,TFCIMC,TMCDets,tDirectAnnihil
 LOGICAL :: tDetermProj, tFTLM, tSpecLanc, tExactSpec, tExactDiagAllSym
