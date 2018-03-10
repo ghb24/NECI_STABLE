@@ -429,13 +429,13 @@ module AnnihilationMod
         ExcitLevel = FindBitExcitLevel(iLut,iLutHF, nel)
         if (ExcitLevel == NEl) then
             call BinSearchParts2(iLut(:), HistMinInd2(ExcitLevel),Det,PartIndex,tSuc)
-            HistMinInd2(ExcitLevel) = PartIndex
+            !HistMinInd2(ExcitLevel) = PartIndex
         else if (ExcitLevel == 0) then
             PartIndex = 1
             tSuc = .true.
         else
             call BinSearchParts2(iLut(:), HistMinInd2(ExcitLevel), FCIDetIndex(ExcitLevel+1) - 1, PartIndex, tSuc)
-            HistMinInd2(ExcitLevel) = PartIndex
+            !HistMinInd2(ExcitLevel) = PartIndex
         end if
         if (tSuc) then
             AvAnnihil(part_type,PartIndex) = AvAnnihil(part_type,PartIndex) + &
@@ -652,7 +652,7 @@ module AnnihilationMod
                                     call BinSearchParts2(SpawnedParts(:,i), HistMinInd2(ExcitLevel), &
                                             FCIDetIndex(ExcitLevel+1)-1, PartIndex, tSuc)
                                 end if
-                                HistMinInd2(ExcitLevel) = PartIndex
+                                !HistMinInd2(ExcitLevel) = PartIndex
                                 if (tSuc) then
                                     AvAnnihil(j,PartIndex) = AvAnnihil(j,PartIndex)+ &
                                     real(2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j)))), dp)
