@@ -570,6 +570,14 @@ system: do
                max_ex_level = 3
            end if
 
+        case ("TRANSCORR-HOP","HOP-TRANSCORR")
+            t_trans_corr_hop = .true. 
+            if (item < nitems) then 
+                call getf(trans_corr_param)
+            else
+                trans_corr_param = 0.5_dp
+            end if
+
                 
        ! Options for the type of the reciprocal lattice (eg sc, fcc, bcc)
         case("REAL_LATTICE_TYPE")

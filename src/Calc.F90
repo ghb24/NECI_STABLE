@@ -1034,6 +1034,11 @@ contains
                     end do
                 end if
 
+            case ("PSINGLES")
+                ! for transcorrelation with double excitations in the 
+                ! real-space hubbard with hopping correlation
+                call getg(p_singles_input) 
+
             case("PDOUBLES") 
                 ! for a transcorrelation with triple excitations 
                 call getf(p_doubles_input) 

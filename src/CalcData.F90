@@ -338,6 +338,11 @@ logical :: t_keep_tau_fixed = .false.
 ! pDoubles and pParallel values 
 real(dp) :: p_doubles_input = 0.8_dp
 real(dp) :: p_parallel_input = 0.1_dp
+
+! this p_singles_input is for the hopping correlation in the real-space 
+! hubbard. so this does not sum up to 1 with the pDoubles above! 
+real(dp) :: p_singles_input = 0.9_dp 
+
 logical :: tPopsAlias = .false.
 character(255) :: aliasStem
 ! new tau-search using HISTOGRAMS: 

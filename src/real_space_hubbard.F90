@@ -19,7 +19,8 @@ module real_space_hubbard
                           length_y, length_z, uhub, nbasis, bhub, t_open_bc_x, &
                           t_open_bc_y, t_open_bc_z, G1, ecore, nel, nOccAlpha, nOccBeta, &
                           t_trans_corr, trans_corr_param, t_trans_corr_2body, & 
-                          trans_corr_param_2body, tHPHF, t_trans_corr_new
+                          trans_corr_param_2body, tHPHF, t_trans_corr_new, & 
+                          t_trans_corr_hop
 
     use lattice_mod, only: lattice, determine_optimal_time_step, lat, &
                     get_helement_lattice, get_helement_lattice_ex_mat, & 
@@ -34,7 +35,7 @@ module real_space_hubbard
     use fcimcdata, only: pSingles, pDoubles, tsearchtau, tsearchtauoption
 
     use CalcData, only: t_hist_tau_search, t_hist_tau_search_option, tau, & 
-                        t_fill_frequency_hists
+                        t_fill_frequency_hists, p_singles_input
 
     use dsfmt_interface, only: genrand_real2_dsfmt
 
@@ -93,7 +94,11 @@ contains
         call check_real_space_hubbard_input() 
 
         ! which stuff do i need to initialize here? 
-        get_umat_el => get_umat_el_hub
+        if (t_trans_corr_hop) then 
+            get_umat_el => get_umat_rs_hub_trans
+        else
+            get_umat_el => get_umat_el_hub
+        end if
 
         ! also use the new lattice matrix elements
 
@@ -127,14 +132,25 @@ contains
         ! Ecore should default to 0, but be sure anyway! 
         ecore = 0.0_dp
 
-        ! and i have to point to the new hubbard excitation generator
-        pSingles = 1.0_dp 
-        pDoubles = 0.0_dp
+        if (t_trans_corr_hop) then 
+            ! we have double excitations with the hopping correlation! 
+            pDoubles = p_singles_input 
+            pSingles = 1.0_dp - pDoubles
+        else
+            ! and i have to point to the new hubbard excitation generator
+            pSingles = 1.0_dp 
+            pDoubles = 0.0_dp
+        end if
 
         ! and i have to calculate the optimal time-step for the hubbard models. 
         ! where i need the connectivity of the lattice i guess? 
-        if (.not. tHPHF) then
-            generate_excitation => gen_excit_rs_hubbard
+        if (t_trans_corr_hop) then 
+            ASSERT(.not. tHPHF)
+            generate_excitation => gen_excit_rs_hubbard_transcorr
+        else
+            if (.not. tHPHF) then
+                generate_excitation => gen_excit_rs_hubbard
+            end if
         end if
         
         ! i have to calculate the optimal time-step
@@ -152,7 +168,7 @@ contains
         end if
 
         ! re-enable tau-search if we have transcorrelation 
-        if (.not. (t_trans_corr_2body .or. t_trans_corr)) then 
+        if (.not. (t_trans_corr_2body .or. t_trans_corr .or. t_trans_corr_hop)) then 
             ! and i have to turn off the time-step search for the hubbard 
             tsearchtau = .false.
             ! set tsearchtauoption to true to use the death-tau search option
@@ -179,6 +195,10 @@ contains
         end if
         ! do not set that here, due to circular dependencies
 !         max_death_cpt = 0.0_dp
+
+        ! i need to setup the necessary stuff for the new hopping 
+        ! transcorrelated real-space hubbard! 
+        call init_hopping_transcorr() 
 
         call init_get_helement_hubbard()
 
@@ -733,6 +753,12 @@ contains
             allocate(tmat2d(nbasis,nbasis))
             tmat2d = 0.0_dp
 
+!             if (t_trans_corr_hop) then 
+                ! for the new transcorrelation term, we have modified 
+                ! one-body matrix elements.. but these are dependent on the 
+                ! determinant!! so we cannot setup the matrix element 
+                ! beforehand
+
             do i = 1, lat%get_nsites() 
                 ind = lat%get_site_index(i)
                 associate(next => lat%get_neighbors(i))
@@ -756,7 +782,224 @@ contains
         end if
 
     end subroutine init_tmat
-    !
+
+    ! Generic excitaiton generator
+    subroutine gen_excit_rs_hubbard_transcorr (nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                                      ex, tParity, pGen, hel, store, run)
+        ! new excitation generator for the real-space hubbard model with 
+        ! the hopping transcorrelation, which leads to double excitations 
+        ! and long-range single excitations in the real-space hubbard.. 
+        ! this complicates things alot! 
+
+        use SystemData, only: nel
+        use bit_rep_data, only: NIfTot
+        use FciMCData, only: excit_gen_store_type
+        use constants, only: n_int, dp, bits_n_int
+        use get_excit, only: make_single
+        implicit none
+
+        integer, intent(in) :: nI(nel), exFlag
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: nJ(nel), ic, ex(2,2)
+        integer(n_int), intent(out) :: ilutJ(0:NifTot)
+        real(dp), intent(out) :: pGen
+        logical, intent(out) :: tParity
+        HElement_t(dp), intent(out) :: hel
+        type(excit_gen_store_type), intent(inout), target :: store
+        integer, intent(in), optional :: run
+
+        character(*), parameter :: this_routine = "gen_excit_rs_hubbard_transcorr"
+
+        integer :: iunused, ind , elec, id, src, orb, n_avail, n_orbs, i
+        integer, allocatable :: neighbors(:), orbs(:)
+        real(dp), allocatable :: cum_arr(:)
+        real(dp) :: cum_sum, elem, r, p_elec, p_orb
+
+        iunused = exflag; 
+        ilutJ = 0_n_int
+        ic = 0
+        nJ(1) = 0
+
+        ASSERT(associated(lat))
+
+        if (genrand_real2_dsfmt() < pDoubles) then 
+            ic = 2 
+
+            call gen_double_excit_rs_hub_transcorr(nI, ilutI, nJ, ilutJ, ex, tPar, pgen)
+            pgen = pDoubles * pgen 
+
+        else 
+            ic = 1
+            
+            ! still choose an electron at random
+            elec = 1 + int(genrand_real2_dsfmt() * nel) 
+
+            p_elec = 1.0_dp / real(nel, dp)
+            ! and then from the neighbors of this electron we pick an empty 
+            ! spinorbital randomly, since all have the same matrix element 
+            src = nI(elec) 
+
+            ! get the spatial index 
+            id = get_spatial(src)
+
+            ! now we can have more than only nearest neighbor hopping! 
+            ! so implement a new cum-list creator
+            call create_cum_list_rs_hubbard_transcorr_single(ilutI, src, cum_arr, cum_sum)
+
+            ! the rest stays the same i guess..
+            if (cum_sum < EPS) then 
+                nJ(1) = 0
+                pgen = 0.0_dp 
+                return
+            end if
+            r = genrand_real2_dsfmt() * cum_sum 
+            ind = binary_search_first_ge(cum_arr, r)
+
+            if (ind == 1) then 
+                p_orb = cum_arr(1) / cum_sum
+            else
+                p_orb = (cum_arr(ind) - cum_arr(ind-1)) / cum_sum 
+            end if
+
+            ! all orbitals are possible i guess, so make cum_arr for all 
+            ! orbitals as ind already. we "just" have to fix the spin 
+            if (is_beta(src)) then 
+                orb = 2*ind - 1
+            else 
+                orb = 2*ind 
+            end if
+            
+            pgen = p_elec * p_orb * (1.0_dp - pDoubles) 
+
+            call make_single(nI, nJ, elec, orb, ex, tParity) 
+
+        end if 
+
+        ilutJ = make_ilutJ(ilutI, ex, ic)
+
+    end subroutine gen_excit_rs_hubbard_transcorr
+
+    subroutine gen_double_excit_rs_hub_transcorr(nI, ilutI, nJ, ilutJ, ex, tPar, pgen)
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: nJ(nel), ex(2,2) 
+        integer(n_int), intent(out) :: ilutJ(0:NIfTot)
+        logical, intent(out) :: tPar
+        real(dp), intent(out) :: pgen 
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "gen_double_excit_rs_hub_transcorr"
+#endif
+
+        call pick_spin_opp_elecs(nI, elecs, p_elec) 
+
+        src = nI(elecs) 
+
+        ! pick the first hole at random 
+        call pick_random_hole(nI, ilutI, orbs(1), p_orb_a) 
+
+        ! create the cum-list for b 
+        call create_cum_list_rs_hubbard_transcorr_double(ilutI, src, orbs(1), cum_arr, & 
+            cum_sum)
+
+        if (cum_sum < EPS) then 
+            nJ(1) = 0
+            pgen = 0.0_dp
+            return 
+        end if
+
+        call pick_from_cum_list(cum_arr, cum_sum, ind, p_orb_b)
+
+        ! pick the right spin 
+        if (is_beta(orbs(1))) then 
+            orbs(2) = 2*ind 
+        else 
+            orbs(2) = 2*ind -1
+        end if
+
+        ! now pick the other way around 
+        call create_cum_list_rs_hubbard_transcorr_double(ilutI, src, orbs(2), cum_arr, &
+            cum_sum, orbs(1), p_orb_switch) 
+
+        ! if cum_sum can be 0 here i made something wrong with the cum_sum 
+        ! check above! 
+        ASSERT(cum_sum > EPS)
+
+        pgen = 2.0_dp * p_elec * p_orb_a * (p_orb_b + p_orb_switch) 
+
+        call make_double(nI, nJ, elecs(1), elecs(2), orbs(1), orbs(2), ex, tParity)
+
+        ilutJ = make_ilutJ(ilutI, ex, 2) 
+
+    end subroutine gen_double_excit_rs_hub_transcorr
+
+    function calc_pgen_rs_hubbard_transcorr(nI, ilutI, ex, ic) 
+        integer, intent(in) :: nI(nel), ex(2,2), ic 
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        real(dp) :: pgen 
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "calc_pgen_rs_hubbard_transcorr"
+#endif
+        integer :: src(2), tgt(2)
+        
+        src = ex(1,:)
+        tgt = ex(2,:)
+
+        if (ic == 1) then 
+
+            ASSERT(same_spin(src(1),tgt(1)))
+
+            p_elec = 1.0_dp / real(nel, dp) 
+
+            call create_cum_list_rs_hubbard_transcorr_single(ilutI, src(1), cum_arr, cum_sum, & 
+                tgt(1), p_orb) 
+
+            if (cum_sum < EPS) then 
+                pgen = 0.0_dp 
+                return 
+            end if
+            
+            pgen = p_elec * p_orb * (1.0_dp - pDoubles) 
+
+        else if (ic == 2) then 
+
+            if (same_spin(src(1),src(2)) .or. same_spin(tgt(1),tgt(2))) then 
+                pgen = 0.0_dp
+                return
+            end if
+
+            p_elec = 1.0_dp / real(nOccAlpha * nOccBeta, dp)
+
+            ! we need two holes.. 
+            ! pick the first at random.. 
+            p_hole_1 = 1.0_dp / real(nBasis - nel, dp) 
+
+            call create_cum_list_rs_hubbard_transcorr_double(ilutI, src, tgt(1), & 
+                cum_arr, cum_sum, tgt(2), p_orb_a) 
+
+            if (cum_sum < EPS) then 
+                pgen = 0.0_dp
+                return
+            end if
+
+            ! and the other way around 
+            call create_cum_list_rs_hubbard_transcorr_double(ilutI, src, tgt(2), & 
+                cum_arr, cum_sum, tgt(1), p_orb_b) 
+
+            if (cum_sum < EPS) then 
+                pgen = 0.0_dp
+                return
+            end if
+
+            pgen = 2.0_dp * p_elec * p_hole_1 * (p_orb_a + p_orb_b) * pDoubles
+
+        else 
+            ! every other ic is 0
+            pgen = 0.0_dp
+
+        end if
+
+    end function calc_pgen_rs_hubbard_transcorr
+
     ! Generic excitaiton generator
     subroutine gen_excit_rs_hubbard (nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                       ex, tParity, pGen, hel, store, run)
