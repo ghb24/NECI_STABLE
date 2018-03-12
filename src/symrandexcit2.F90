@@ -3669,9 +3669,8 @@ SUBROUTINE SpinOrbSymSetup()
 !                 ktotal = lat%map_k_vec(ktotal)
 !             end if
         enddo
-        if (tHub) then
+        if (tHub .and. .not. t_k_space_hubbard) then
             ! is this turned off correctly?! check:
-            ASSERT(.not. t_k_space_hubbard)
             ktrial=(/kTotal(1),kTotal(2),0/)
             CALL MomPbcSym(ktrial,nBasisMax)
             kTotal(1)=ktrial(1)

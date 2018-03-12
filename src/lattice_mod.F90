@@ -169,22 +169,22 @@ module lattice_mod
 
         ! i also need a matrix mapping from the k-vectors to the 
         ! k-symbols to quickly access them! 
-        integer, allocatable :: k_to_sym(:,:,:) 
+        integer, allocatable, public :: k_to_sym(:,:,:) 
 
         ! and vice versa a mapping from the symbol to the k-vector 
         ! or i could just use the orbital index? does this work with 
         ! neci though? 
         ! just use a matrix here and take the rows
-        integer, allocatable :: sym_to_k(:,:) 
+        integer, allocatable, public :: sym_to_k(:,:) 
 
         ! and also store a multiplication table in the lattice class.. 
         ! to make it consistend and store everything necessary in here.. 
         ! this just make use of the symbols! 
-        integer, allocatable :: mult_table(:,:) 
+        integer, allocatable, public :: mult_table(:,:) 
 
         ! and also use an inverse table, which also just uses the 
         ! symbols! 
-        integer, allocatable :: inv_table(:) 
+        integer, allocatable, public :: inv_table(:) 
 
         ! and i think additionally i want to store which type of lattice 
         ! this is in a string or? so i do not always have to 
@@ -244,6 +244,7 @@ module lattice_mod
         procedure, public :: get_sym
         procedure, public :: subtract_k_vec
         procedure, public :: get_sym_from_k
+        procedure, public :: set_sym
 
         procedure :: set_name
 
@@ -689,26 +690,58 @@ module lattice_mod
 
 contains 
 
+    subroutine set_sym(this, orb, sym) 
+        class(lattice) :: this 
+        integer, intent(in) :: orb, sym
+
+        this%sites(orb)%k_sym = sym 
+
+    end subroutine set_sym
+        
     function add_k_vec(this, k_1, k_2) result(k_out) 
         class(lattice) :: this
         integer, intent(in) :: k_1(3), k_2(3)
         integer :: k_out(3)
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "add_k_vec"
+#endif
 
-        ! todo
+        ASSERT(allocated(this%mult_table))
+        ASSERT(allocated(this%k_to_sym))
+
+        k_out = this%sym_to_k(this%mult_table( & 
+            this%k_to_sym(k_1(1),k_1(2),k_1(3)), & 
+            this%k_to_sym(k_2(1),k_2(2),k_2(3))), :)
+
     end function add_k_vec
 
     function add_k_vec_symbol(this, sym_1, sym_2) result(sym_out) 
         class(lattice) :: this 
         integer, intent(in) :: sym_1, sym_2
         integer :: sym_out 
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "add_k_vec_symbol"
+#endif
 
-        ! todo
+        ASSERT(allocated(this%mult_table))
+
+        sym_out = this%mult_table(sym_1, sym_2)
+
     end function add_k_vec_symbol
 
     function inv_k_vec(this, k) result(k_inv) 
         class(lattice) :: this 
         integer, intent(in) :: k(3)
         integer :: k_inv(3)
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "inv_k_vec"
+#endif
+
+        ASSERT(allocated(this%sym_to_k))
+        ASSERT(allocated(this%inv_table))
+        ASSERT(allocated(this%k_to_sym))
+
+        k_inv = this%sym_to_k(this%inv_table(this%k_to_sym(k(1),k(2),k(3))),:)
 
     end function inv_k_vec
 
@@ -738,6 +771,13 @@ contains
         class(lattice) :: this 
         integer, intent(in) :: sym 
         integer :: inv_sym
+#ifdef __DEBUG
+        character(*), parameter :: this_routine ="inv_k_vec_symbol"
+#endif
+
+        ASSERT(allocated(this%inv_table))
+
+        inv_sym = this%inv_table(sym)
 
     end function inv_k_vec_symbol
 

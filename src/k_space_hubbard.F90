@@ -93,8 +93,20 @@ contains
         ! to avoid excessive calls to the cos() function cache the 
         ! dispersion relation of the lattice and make them accessible 
         ! through the symmetry label associated with the k-vectors! 
+        character(*), parameter :: this_routine = "init_dispersion_rel_cache"
+        integer :: i 
 
-        call stop_all("init_dispersion_rel_cache", "todo")
+        ASSERT(associated(lat))
+
+        if (allocated(dispersion_rel_cached)) deallocate(dispersion_rel_cached)
+
+        allocate(dispersion_rel_cached(lat%get_nsites()))
+        dispersion_rel_cached = h_cast(0.0_dp)
+
+        do i = 1, lat%get_nsites()
+            dispersion_rel_cached(lat%get_sym(i)) = & 
+                lat%dispersion_rel_orb(i)
+        end do
 
     end subroutine init_dispersion_rel_cache
 
@@ -103,10 +115,9 @@ contains
         ! old hubbard.F code.. 
         use SystemData, only: brr
 
-   
         character(*), parameter :: this_routine = "setup_symmetry_table"
 
-        integer :: i, j, k, l, k_i(3), k_inv(3), k_j(3), ind
+        integer :: i, j, k, l, k_i(3), k_inv(3), k_j(3), ind, kmin(3), kmax(3)
 
         ! the only problem could be that we reorderd the orbitals already or? 
         ! so G1 has a different ordering than just 1, nBasis/2... 
@@ -166,6 +177,18 @@ contains
 
         tAbelian = .false.
 
+        ! also setup the stuff contained in the lattice class. 
+        ASSERT(associated(lat))
+
+        if (allocated(lat%k_to_sym))   deallocate(lat%k_to_sym)
+        if (allocated(lat%sym_to_k))   deallocate(lat%sym_to_k)
+        if (allocated(lat%mult_table)) deallocate(lat%mult_table)
+        if (allocated(lat%inv_table))  deallocate(lat%inv_table)
+
+        allocate(lat%sym_to_k(lat%get_nsites(),3))
+        allocate(lat%mult_table(lat%get_nsites(), lat%get_nsites()))
+        allocate(lat%inv_table(lat%get_nsites()))
+
         ! i have to setup the symlabels first ofc.. 
         do i = 1, lat%get_nsites() 
             ind = get_spatial(brr(2*i))
@@ -178,7 +201,23 @@ contains
             ! i also need it in G1: 
             ! is G1 already ordered by energy?? 
 
+            call lat%set_sym(ind,i)
+
         end do
+
+        kmin = 0 
+        kmax = 0 
+        do i = 1, lat%get_nsites() 
+            k_i = lat%get_k_vec(i)
+            do j = 1, lat%get_ndim() 
+                if (k_i(j) < kmin(j)) kmin(j) = k_i(j)
+                if (k_i(j) > kmax(j)) kmax(j) = k_i(j) 
+            end do
+        end do
+
+        allocate(lat%k_to_sym(kmin(1):kmax(1),kmin(2):kmax(2),kmin(3):kmax(3)))
+
+        lat%k_to_sym = 0
 
         ! now find the inverses: 
         do i = 1, lat%get_nsites() 
@@ -209,6 +248,14 @@ contains
             ! to use SymClasses here.. 
             SymConjTab(SymClasses(i)) = SymClasses(j)
 
+            lat%inv_table(SymClasses(i)) = SymClasses(j) 
+            ! maybe also store the k_inverse of a orbital.. 
+            
+            lat%sym_to_k(SymClasses(i),:) = lat%get_k_vec(i)
+
+            k_i = lat%get_k_vec(i) 
+            lat%k_to_sym(k_i(1),k_i(2),k_i(3)) = SymClasses(i)
+
             ! and create the symmetry product of (i) with every other symmetry
             do k = 1, lat%get_nsites()
                 ! i just have to add the momenta and map it to the first BZ 
@@ -220,14 +267,38 @@ contains
 
                 SymTable(SymClasses(i),SymClasses(k)) = SymLabels(l)
 
+                lat%mult_table(SymClasses(i), SymClasses(k)) = SymClasses(l)
+
             end do
         end do
-
+! 
 #ifdef __DEBUG
         WRITE(6,*) "Symmetry, Symmetry Conjugate"
         do i = 1, lat%get_nsites()
             print *, i, SymConjTab(i)
         end do
+
+        print *, "lat%sym_to_k: "
+        do i = 1, lat%get_nsites() 
+            print *, i, "|", SymClasses(i), "|", lat%sym_to_k(i,:) 
+        end do
+
+        print *, "lat%inv_table: "
+        do i = 1, lat%get_nsites() 
+            print *, i, "|", SymClasses(i), "|", lat%inv_table(i)
+        end do
+
+        print *, "lat%mult_table: "
+        do i = 1, lat%get_nsites() 
+            print *, lat%mult_table(i,:)
+        end do
+
+        print *, "lat%k_to_sym: "
+        do i = 1, lat%get_nsites() 
+            k_i = lat%get_k_vec(i) 
+            print *, k_i, "|", lat%k_to_sym(k_i(1),k_i(2),k_i(3))
+        end do
+            
 #endif
 
     end subroutine setup_symmetry_table
@@ -2093,6 +2164,8 @@ contains
         if (t_trans_corr_2body) then 
             three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
         end if
+
+        call init_dispersion_rel_cache()
         call init_tmat_kspace(lat)
 
         get_umat_el => get_umat_kspace
@@ -2228,8 +2301,8 @@ contains
 #endif
         integer :: i, j, id(nel), idX, idN, spin, k, k_vec(3), p_vec(3)
         HElement_t(dp) :: hel_sing, hel_doub, hel_par, hel_opp, hel_one, hel_three
-        HElement_t(dp) :: temp_hel
-        integer :: p_sym, k_sym
+        HElement_t(dp) :: temp_hel, temp_hel2
+        type(symmetry) :: p_sym, k_sym
 
         ! todo: in the case of 2-body-transcorrelation, there are more 
         ! contributions.. 
@@ -2245,6 +2318,8 @@ contains
             hel_doub = h_cast(0.0_dp) 
             hel_one = h_cast(0.0_dp)
             hel_three = h_cast(0.0_dp)
+
+            temp_hel = 0.0_dp
 
             ! redo this whole shabang.. the formulas are actually much easier: 
             ! but just to be sure for now, do i explicetly without any use of 
@@ -2265,9 +2340,14 @@ contains
                         ! t is defined as -t in our code!, so bhub is usually -1
                         ! and look in the formulas it is actually -2t*cos(k)*2(cosh J - 1)
                         ! (with the k-vector of orbial i!
-!                         hel_one = hel_one + GetTMatEl(nI(i),nI(i)) * omega * three_body_prefac
+!                         temp_hel = hel_one + GetTMatEl(nI(i),nI(i)) * omega * three_body_prefac
                         hel_one = hel_one + bhub * epsilon_kvec(G1(nI(i))%Sym) & 
                                 * omega * three_body_prefac
+
+!                         if (abs(temp_hel - hel_one) > EPS) then
+!                             print *, "temp_hel: ", temp_hel
+!                             print *, "hel_one: ", hel_one
+!                         end if
 
 
 !                         temp_hel = bhub * epsilon_kvec(G1(nI(i))%k) & 
@@ -2285,35 +2365,42 @@ contains
                             if (same_spin(ni(j),nI(k))) then 
                                 ! the k vector is of i and i + j - k
                                 ! i need the electrons here ofc.. 
-                                p_vec = G1(nI(i))%k 
-                                k_vec = (G1(nI(j))%k - G1(nI(k))%k)
-                                k_vec = lat%add_k_vec(G1(nI(j))%k, lat%inv_k_vec(G1(nI(k))%k))
+!                                 p_vec = G1(nI(i))%k 
+!                                 k_vec = (G1(nI(j))%k - G1(nI(k))%k)
+!                                 k_vec = lat%add_k_vec(G1(nI(j))%k, lat%inv_k_vec(G1(nI(k))%k))
+!                                 k_vec = lat%subtract_k_vec(G1(nI(j))%k, G1(nI(k))%k)
                                 !TODO: this can be removed if i totally 
-                                ! switched to the new implementation
-                                if (t_k_space_hubbard) then 
-!                                     k_vec = lat%map_k_vec(k_vec)
-                                else
-                                    call mompbcsym(k_vec, nBasisMax)
-                                end if
-! 
+!                                 ! switched to the new implementation
+!                                 if (t_k_space_hubbard) then 
+! !                                     k_vec = lat%map_k_vec(k_vec)
+!                                 else
+!                                     call mompbcsym(k_vec, nBasisMax)
+!                                 end if
+! ! 
 !                                 print *, "ijk:", nI([i,j,k])
 !                                 print *, "p_vec: ", p_vec(1)
 !                                 print *, "k_vec: ", k_vec(1)
 
-                                k_vec = lat%add_k_vec(p_vec, k_vec)
-                                hel_three = hel_three - bhub * three_body_prefac * (& 
-                                    epsilon_kvec(p_vec) - epsilon_kvec(k_vec))
+!                                 k_vec = lat%add_k_vec(p_vec, k_vec)
+!                                 hel_three = hel_three - bhub * three_body_prefac * (& 
+!                                     epsilon_kvec(p_vec) - epsilon_kvec(k_vec))
                                 ! even better then the correct k-vector addition 
                                 ! would be to store an epsilon-k in terms of 
                                 ! the symmetry symbols! 
                                 ! something like this but nicer! 
-                                p_sym = G1(nI(i))%sym%s 
-                                k_sym = SymTable(G1(nI(i))%sym%s, SymInvLabel(G1(nI(k))%sym%s))%s
+                                p_sym = G1(nI(i))%sym
+!                                 k_sym = SymTable(G1(nI(j))%sym%s, SymConjTab(G1(nI(k))%sym%s))%s
+                                k_sym = SymTable(G1(nI(j))%sym%s, SymConjTab(G1(nI(k))%sym%s))
+
 
                                 hel_three = hel_three - bhub * three_body_prefac * (& 
                                     epsilon_kvec(p_sym) -  & 
-                                    (epsilon_kvec(SymTable(p_sym,k_sym)%s)))
+                                    (epsilon_kvec(SymTable(p_sym%s,k_sym%s))))
 
+!                                 if (abs(temp_hel - hel_three) > EPS) then 
+!                                     print *, "hel_three: ", hel_three
+!                                     print *, "temp_hel: ", temp_hel
+!                                 end if
 !                                 hel_three = hel_three - bhub * three_body_prefac * (& 
 !                                     epsilon_kvec(p_vec) - 0.5_dp * (epsilon_kvec(p_vec + k_vec) & 
 !                                     + epsilon_kvec(p_vec - k_vec)))
@@ -2406,45 +2493,75 @@ contains
         logical, intent(in), optional :: t_sign
         HElement_t(dp) :: hel 
 
-        integer :: i, sgn, k_i(3)
+        integer :: i, sgn, k(3)
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "get_one_body_diag"
-        call stop_all(this_routine, "have to optimize the call to epsilon_kvec!")
 #endif 
 
         ! the spin input: -1 is beta, +1 is alpha, 0 is both!
         ! if spin is not present, default is both!
         hel = h_cast(0.0_dp)
 
-        ! i need -s k vector for the triples contribution to the doubles.. 
-        if (present(t_sign) .and. t_sign) then 
-            sgn = -1 
-        else 
-            sgn = 1 
-        end if
 
 
         if (present(k_shift)) then 
             ! work on the newest, hopefully correct way to do this.. 
-            if (present(spin)) then 
-                ASSERT(spin == -1 .or. spin == 1) 
-                if (spin == -1) then
-                    do i = 1, nel
-                        if (is_beta(nI(i))) then 
-                            hel = hel + epsilon_kvec(sgn * G1(nI(i))%k + k_shift) 
-                        end if 
-                    end do
-                else if (spin == 1) then 
-                    do i = 1, nel
-                        if (is_alpha(nI(i))) then 
-                            hel = hel + epsilon_kvec(sgn * G1(nI(i))%k + k_shift)
-                        end if
+            ! i need -s k vector for the triples contribution to the doubles.. 
+            if (present(t_sign) .and. t_sign) then 
+                sgn = -1 
+            else 
+                sgn = 1 
+            end if
+
+            if (sgn == 1) then 
+                if (present(spin)) then 
+                    ASSERT(spin == -1 .or. spin == 1) 
+                    if (spin == -1) then
+                        do i = 1, nel
+                            if (is_beta(nI(i))) then 
+                                k = lat%add_k_vec(G1(nI(i))%k, k_shift)
+                                hel = hel + epsilon_kvec(k)
+                            end if 
+                        end do
+                    else if (spin == 1) then 
+                        do i = 1, nel
+                            if (is_alpha(nI(i))) then 
+                                k = lat%add_k_vec(G1(nI(i))%k, k_shift)
+                                hel = hel + epsilon_kvec(k)
+                            end if
+                        end do
+                    end if
+                else 
+                    do i = 1, nel 
+                        k = lat%add_k_vec(G1(nI(i))%k, k_shift)
+                        hel = hel + epsilon_kvec(k)
                     end do
                 end if
-            else 
-                do i = 1, nel 
-                    hel = hel + epsilon_kvec(sgn * G1(nI(i))%k + k_shift)
-                end do
+            else if (sgn == -1) then 
+                if (present(spin)) then 
+                    ASSERT(spin == -1 .or. spin == 1) 
+                    if (spin == -1) then
+                        do i = 1, nel
+                            if (is_beta(nI(i))) then 
+                                k = lat%subtract_k_vec(k_shift, G1(nI(i))%k)
+                                hel = hel + epsilon_kvec(k)
+                            end if 
+                        end do
+                    else if (spin == 1) then 
+                        do i = 1, nel
+                            if (is_alpha(nI(i))) then 
+                                k = lat%subtract_k_vec(k_shift, G1(nI(i))%k)
+                                hel = hel + epsilon_kvec(k)
+                            end if
+                        end do
+                    end if
+                else 
+                    do i = 1, nel 
+                        k = lat%subtract_k_vec(k_shift, G1(nI(i))%k)
+                        hel = hel + epsilon_kvec(k)
+                    end do
+                end if
+
             end if
 
             return 
@@ -3230,9 +3347,6 @@ contains
 !         same_spin_transcorr_factor = three_body_prefac * get_one_body_diag(nI,-spin) * &
 !                                      epsilon_kvec(k_vec)
 
-        call Stop_All("same_spin_transcorr_factor", & 
-            "optimize calls to epsilon_kvec_vector within get_one_body_diag and k-adding")
-
         ! new try with the same spin transcorr factor: 
 !         same_spin_transcorr_factor = - bhub * three_body_prefac * & 
 !             get_one_body_diag(nI, -spin, k_vec)
@@ -3307,9 +3421,8 @@ contains
         real(dp) :: n_opp
 #ifdef __DEBUG 
         character(*), parameter :: this_routine = "three_body_transcorr_fac"
-        call Stop_All(this_routine, & 
-            "optimize call to epsilon_kvec in get_one_body_diag and k-adding here!")
 #endif
+        integer :: k1(3), k2(3)
 
         ASSERT(spin == 1 .or. spin == -1)
 
@@ -3334,9 +3447,16 @@ contains
         ! do an actual third implementation: 
         ! since the sign of the k-vector might still be wrong.. 
         ! k is now the momentum of the corresponding hole! 
+!         three_body_transcorr_fac = -bhub * three_body_prefac * (& 
+!             n_opp * (epsilon_kvec(p) + epsilon_kvec(k)) - (& 
+!             get_one_body_diag(nI,-spin,k-q) + get_one_body_diag(nI,-spin,p+q,.true.)))
+
+        ! update: add k-vec to not leave first BZ 
+        k1 = lat%subtract_k_vec(k,q)
+        k2 = lat%add_k_vec(p,q)
         three_body_transcorr_fac = -bhub * three_body_prefac * (& 
             n_opp * (epsilon_kvec(p) + epsilon_kvec(k)) - (& 
-            get_one_body_diag(nI,-spin,k-q) + get_one_body_diag(nI,-spin,p+q,.true.)))
+            get_one_body_diag(nI,-spin,k1) + get_one_body_diag(nI,-spin,k2,.true.)))
 
     end function three_body_transcorr_fac
 
