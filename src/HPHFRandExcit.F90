@@ -14,37 +14,60 @@ MODULE HPHFRandExcitMod
                           tGen_4ind_reverse, tLatticeGens, tGen_4ind_2, tHUB, & 
                           tUEG, tUEGNewGenerator, t_new_real_space_hubbard, & 
                           t_tJ_model, t_heisenberg_model, t_lattice_model, &
-                          t_k_space_hubbard, t_3_body_excits, tUniformKSpaceExcit
+                          t_k_space_hubbard, t_3_body_excits, tUniformKSpaceExcit, &
+                          t_trans_corr_hop
+
     use IntegralsData, only: UMat, fck, nMax
+
     use SymData, only: nSymLabels
+
     use dSFMT_interface, only : genrand_real2_dSFMT
+
     use GenRandSymExcitNUMod, only: gen_rand_excit, calc_pgen_symrandexcit2, &
                                     ScratchSize, CalcPGenLattice
+
     use excit_gens_int_weighted, only: gen_excit_4ind_weighted, &
                                        gen_excit_4ind_reverse, &
                                        calc_pgen_4ind_weighted, &
                                        calc_pgen_4ind_reverse
+
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet, &
                          FindBitExcitLevel, MaskAlpha, MaskBeta, &
                          TestClosedShellDet, CalcOpenOrbs, IsAllowedHPHF, &
                          DetBitEQ
+
     use FciMCData, only: pDoubles, excit_gen_store_type, ilutRef
+
     use constants, only: dp,n_int, EPS
+
     use sltcnd_mod, only: sltcnd_excit
+
     use bit_reps, only: NIfD, NIfDBO, NIfTot
+
     use SymExcitDataMod, only: excit_gen_store_type
+
     use excit_gen_5, only: calc_pgen_4ind_weighted2, gen_excit_4ind_weighted2
+
     use sort_mod
+
     use HElem
+
     use CalcData, only: t_matele_cutoff, matele_cutoff, t_back_spawn, t_back_spawn_flex
+
     use back_spawn_excit_gen, only: gen_excit_back_spawn, calc_pgen_back_spawn, & 
                                     gen_excit_back_spawn_ueg, calc_pgen_back_spawn_ueg, & 
                                     calc_pgen_back_spawn_hubbard, gen_excit_back_spawn_hubbard, &
                                     gen_excit_back_spawn_ueg_new, calc_pgen_back_spawn_ueg_new
-    use real_space_hubbard, only: gen_excit_rs_hubbard, calc_pgen_rs_hubbard
+
+    use real_space_hubbard, only: gen_excit_rs_hubbard, calc_pgen_rs_hubbard, &
+                                  gen_excit_rs_hubbard_transcorr, &
+                                  calc_pgen_rs_hubbard_transcorr
+
     use tJ_model, only: gen_excit_tj_model, gen_excit_heisenberg_model, & 
                         calc_pgen_tJ_model, calc_pgen_heisenberg_model
+
     use lattice_mod, only: get_helement_lattice
+
     use k_space_hubbard, only: gen_excit_k_space_hub, calc_pgen_k_space_hubbard, &
                                gen_excit_uniform_k_space_hub
 
@@ -193,8 +216,13 @@ MODULE HPHFRandExcitMod
             end if
 
         else if (t_new_real_space_hubbard) then 
-            call gen_excit_rs_hubbard(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
+            if (t_trans_corr_hop) then 
+                call gen_excit_rs_hubbard_transcorr(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
                                       ExcitMat, tSignOrig, pgen, Hel, store, part_type)
+            else
+                call gen_excit_rs_hubbard(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
+                                      ExcitMat, tSignOrig, pgen, Hel, store, part_type)
+            end if
 
         else if (t_tJ_model) then 
             call gen_excit_tj_model(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
@@ -1256,8 +1284,13 @@ MODULE HPHFRandExcitMod
                                                 ClassCountUnocc2)
             else if (tGen_4ind_reverse) then
                 pgen = calc_pgen_4ind_reverse (nI, ilutI, ex, ic)
+
             else if (t_new_real_space_hubbard) then 
-                pgen = calc_pgen_rs_hubbard(nI, ilutI, ex, ic)
+                if (t_trans_corr_hop) then 
+                    pgen = calc_pgen_rs_hubbard_transcorr(nI, ilutI, ex, ic)
+                else
+                    pgen = calc_pgen_rs_hubbard(nI, ilutI, ex, ic)
+                end if
 
             else if (t_tJ_model) then 
                 pgen = calc_pgen_tJ_model(ilutI, ex, ic) 

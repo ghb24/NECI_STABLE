@@ -4,12 +4,19 @@ module sym_general_mod
 
     use SystemData, only: tFixLz, tNoSymGenRandExcits, iMaxLz, G1, nel, &
                           Symmetry, tKpntSym, tReltvy, t_new_real_space_hubbard, & 
-                          t_tJ_model, t_heisenberg_model, nbasis, t_k_space_hubbard
+                          t_tJ_model, t_heisenberg_model, nbasis, t_k_space_hubbard, &
+                          t_trans_corr_hop
+
     use SymExcitDataMod
+
     use Symdata, only: nSymLabels
+
     use sym_mod, only: SYMPROD, RandExcitSymLabelProd, symeq
+
     use constants
+
     use DetBitOps, only: Encodebitdet, count_open_orbs
+
     use bit_rep_data, only: niftot, nifd
 
     implicit none
@@ -316,7 +323,11 @@ contains
         end if
         ! should i do extra tests for heisenberg and tJ? i think so 
         if (t_new_real_space_hubbard) then 
-            if (ic /= 1) bValid = .false. 
+            if (t_trans_corr_hop) then 
+                if (.not. (ic == 1 .or. ic == 2)) bValid = .false.
+            else
+                if (ic /= 1) bValid = .false. 
+            end if
         end if
 
         if (t_tJ_model) then 

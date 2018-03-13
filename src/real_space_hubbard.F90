@@ -92,7 +92,9 @@ contains
 
 
         ! i do not need exchange integrals in the real-space hubbard model
-        tExch = .false.
+        if (.not. t_trans_corr_hop) then
+            tExch = .false.
+        end if
         ! after the whole setup i can set thub to false or? 
         thub = .false.
         ! and treal i can also set to false or? 
@@ -212,9 +214,15 @@ contains
     end subroutine init_real_space_hubbard
 
     subroutine init_hopping_transcorr()
+
+        call init_umat_rs_hub_transcorr()
         call stop_all("here", "todo")
 
     end subroutine init_hopping_transcorr
+
+    subroutine init_umat_rs_hub_transcorr() 
+        call stop_all("here", "todo")
+    end subroutine init_umat_rs_hub_transcorr
 
     subroutine init_get_helement_hubbard
         get_helement_lattice_ex_mat => get_helement_rs_hub_ex_mat

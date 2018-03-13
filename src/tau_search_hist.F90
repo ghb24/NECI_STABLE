@@ -5,7 +5,8 @@ module tau_search_hist
     use SystemData, only: tGen_4ind_weighted, AB_hole_pairs, par_hole_pairs,tHub, & 
                           tGen_4ind_reverse, nOccAlpha, nOccBeta, tUEG, tGen_4ind_2, &
                           UMatEps, nBasis, t_k_space_hubbard, t_trans_corr_2body, & 
-                          t_trans_corr, t_new_real_space_hubbard, t_3_body_excits
+                          t_trans_corr, t_new_real_space_hubbard, t_3_body_excits, &
+                          t_trans_corr_hop
                           
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow, &                
@@ -334,7 +335,9 @@ contains
 
         else 
             ! just to be save also use my new flags.. 
-            if (tHub .or. tUEG .or. t_k_space_hubbard .or. t_new_real_space_hubbard) then
+            if (tHub .or. tUEG .or. &
+                (t_k_space_hubbard .and. .not. t_trans_corr_2body) .or. &
+                (t_new_real_space_hubbard .and. .not. t_trans_corr_hop)) then
                 ! only one histogram is used! 
                 allocate(frequency_bins(n_frequency_bins), stat = ierr)
                 frequency_bins = 0
@@ -469,7 +472,8 @@ contains
 
         ! singles is always used.. 
         ! thats not quite right.. for the hubbard/UEG case it is not.. 
-        if (tUEG .or. tHub .or. t_new_real_space_hubbard .or. & 
+        if (tUEG .or. tHub .or. & 
+            (t_new_real_space_hubbard .and. .not. t_trans_corr_hop) .or. & 
             (t_k_space_hubbard .and. .not. t_trans_corr_2body)) then
             ! also use my new flags and exclude the 2-body transcorrelation 
             ! in the k-space hubbard due to triple excitations and 
@@ -723,8 +727,12 @@ contains
         if (tau_new < tau .or. & 
             (tUEG .or. tHub .or. enough_sing_hist .or. & 
             (t_k_space_hubbard .and. .not. t_trans_corr_2body) .and. enough_doub_hist) .or. &
-            (t_new_real_space_hubbard .and. enough_doub_hist .and. & 
-            (t_trans_corr_2body .or. t_trans_corr))) then 
+            (t_new_real_space_hubbard .and. (enough_doub_hist .and. & 
+            (.not. t_trans_corr_hop .or. enough_sing_hist)))) then 
+            ! remove this constriction to just work in the transcorrelated 
+            ! case and let the user decide! 
+!             (t_new_real_space_hubbard .and. enough_doub_hist .and. & 
+!             (t_trans_corr_2body .or. t_trans_corr))) then 
 
 !         if (tau_new < tau .or. ((tUEG .or. tHub .or. t_k_space_hubbard .or. enough_sing_hist) .and.  &
 !             enough_doub_hist)) then
@@ -1436,7 +1444,8 @@ contains
 
         ! maybe first check if we have only singles or only doubles like in 
         ! the real-space or momentum space hubbard: 
-        if (tHub .or. tUEG .or. t_new_real_space_hubbard .or. &
+        if (tHub .or. tUEG .or. & 
+            (t_new_real_space_hubbard .and. .not. t_trans_corr_hop) .or. &
             (t_k_space_hubbard .and. .not. t_3_body_excits)) then 
             ! we only need to print one frequency_histogram:
 

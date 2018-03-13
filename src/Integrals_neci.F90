@@ -4,28 +4,48 @@ module Integrals_neci
     use SystemData, only: tStoreSpinOrbs, nBasisMax, iSpinSkip, &
                           tFixLz, Symmetry, tCacheFCIDUMPInts, &
                           tRIIntegrals, tVASP,tComplexOrbs_RealInts, LMS, ECore, &
-                          t_new_real_space_hubbard
+                          t_new_real_space_hubbard, t_trans_corr_hop
+
     use UmatCache, only: tUmat2D, UMatInd, UMatConj, umat2d, tTransFIndx, nHits, &
                          nMisses, GetCachedUMatEl, HasKPoints, TransTable, &
                          nTypes, gen2CPMDInts, tDFInts
+
     use util_mod, only: get_nan
+
     use vasp_neci_interface
+
     use IntegralsData
+
     use shared_alloc, only: shared_allocate, shared_deallocate
+
     use global_utilities
+
     use gen_coul_ueg_mod, only: gen_coul_hubnpbc, get_ueg_umat_el, &
                                 get_hub_umat_el
+
     use HElem, only: HElement_t_size, HElement_t_sizeB
+
     use Parallel_neci, only: iProcIndex
+
     use bit_reps, only: init_bit_rep
+
     use procedure_pointers, only: get_umat_el, get_umat_el_secondary
+
     use constants
+
     use tJ_model, only: t_tJ_model, t_heisenberg_model
+
     use sym_mod, only: symProd, symConj, totsymrep
+
     USE OneEInts, only : TMAT2D
+
     use util_mod, only: get_free_unit
+
     use SymData, only: Symmetry
+
     use sym_mod, only: symProd, symConj, lSymSym, TotSymRep
+
+    use real_space_hubbard, only: init_umat_rs_hub_transcorr
 
     implicit none
 
@@ -530,13 +550,18 @@ contains
                IF(THUB.AND.TREAL) THEN
     !!C.. Real space hubbard
     !!C.. we pre-compute the 2-e integrals
-                  if (t_new_real_space_hubbard .or. t_tJ_model .or. t_heisenberg_model) then 
+                  if ((t_new_real_space_hubbard .and. .not. t_trans_corr_hop) & 
+                      .or. t_tJ_model .or. t_heisenberg_model) then 
                      WRITE(6,*) "Not precomputing HUBBARD 2-e integrals"
                      call shared_allocate ("umat", umat, (/1_int64/))
                      !Allocate(UMat(1), stat=ierr)
                      LogAlloc(ierr, 'UMat', 1,HElement_t_SizeB, tagUMat)
                      UMAT(1)=UHUB
-                  else
+                 else if (t_new_real_space_hubbard .and. t_trans_corr_hop) then 
+
+                     call init_umat_rs_hub_transcorr()
+                    call stop_all("here", "todo")
+                 else
                       WRITE(6,*) "Generating 2e integrals"
         !!C.. Generate the 2e integrals (UMAT)
                       CALL GetUMatSize(nBasis,nEl,UMATINT)

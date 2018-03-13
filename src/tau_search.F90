@@ -8,7 +8,7 @@ module tau_search
                           nOccAlpha, nOccBeta, tUEG, tGen_4ind_2, tReltvy, & 
                           t_3_body_excits, t_k_space_hubbard, t_trans_corr_2body, &
                           tUniformKSpaceExcit, t_new_real_space_hubbard, & 
-                          t_trans_corr, tHub
+                          t_trans_corr, tHub, t_trans_corr_hop
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow, t_min_tau, min_tau_global, &
                         t_consider_par_bias
@@ -471,7 +471,8 @@ contains
             (tUEG .or. tHub .or. enough_sing .or. & 
             (t_k_space_hubbard .and. .not. t_trans_corr_2body) .and. enough_doub) .or. & 
             (t_new_real_space_hubbard .and. enough_sing .and. & 
-            (t_trans_corr_2body .or. t_trans_corr))) then 
+            (t_trans_corr_2body .or. t_trans_corr)) .or. & 
+            (t_new_real_space_hubbard .and. t_trans_corr_hop .and. enough_doub)) then 
 
 !         if (tau_new < tau .or. ((tUEG .or. tHub .or. t_k_space_hubbard .or. enough_sing) &
 !             .and. enough_doub) .or. (t_new_real_space_hubbard .and. enough_sing & 

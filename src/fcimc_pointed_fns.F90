@@ -5,7 +5,7 @@ module fcimc_pointed_fns
     use SystemData, only: nel, tGen_4ind_2, tGen_4ind_weighted, tHub, tUEG, &
                           tGen_4ind_reverse,  nBasis, t_3_body_excits, & 
                           t_k_space_hubbard, t_new_real_space_hubbard, & 
-                          t_trans_corr_2body
+                          t_trans_corr_2body, t_trans_corr_hop
 
     use LoggingData, only: tHistExcitToFrom, FciMCDebug
 
@@ -207,7 +207,8 @@ module fcimc_pointed_fns
             ! not yet implemented for triples!
             ! it is now! 
 !             ASSERT(.not. t_3_body_excits)
-            if (tHUB .or. tUEG .or. t_new_real_space_hubbard .or. &
+            if (tHUB .or. tUEG .or. & 
+                (t_new_real_space_hubbard .and. .not. t_trans_corr_hop) .or. &
                 (t_k_space_hubbard .and. .not. t_trans_corr_2body)) then 
                 call fill_frequency_histogram(abs(rh_used), prob / AvMCExcits)
 
