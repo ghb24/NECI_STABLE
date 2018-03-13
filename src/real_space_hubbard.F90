@@ -32,7 +32,8 @@ module real_space_hubbard
 
     use OneEInts, only: tmat2d, GetTMatEl
 
-    use fcimcdata, only: pSingles, pDoubles, tsearchtau, tsearchtauoption
+    use fcimcdata, only: pSingles, pDoubles, tsearchtau, tsearchtauoption, &
+                        excit_gen_store_type
 
     use CalcData, only: t_hist_tau_search, t_hist_tau_search_option, tau, & 
                         t_fill_frequency_hists, p_singles_input
@@ -48,6 +49,12 @@ module real_space_hubbard
     use bit_reps, only: decode_bit_det
 
     use sort_mod, only: sort
+
+    use back_spawn, only: make_ilutJ, get_ispn
+    
+    use get_excit, only: make_double, make_single
+
+    use double_occ_mod, only: count_double_orbs
 
     implicit none 
 
@@ -203,6 +210,11 @@ contains
         call init_get_helement_hubbard()
 
     end subroutine init_real_space_hubbard
+
+    subroutine init_hopping_transcorr()
+        call stop_all("here", "todo")
+
+    end subroutine init_hopping_transcorr
 
     subroutine init_get_helement_hubbard
         get_helement_lattice_ex_mat => get_helement_rs_hub_ex_mat
@@ -791,13 +803,6 @@ contains
         ! and long-range single excitations in the real-space hubbard.. 
         ! this complicates things alot! 
 
-        use SystemData, only: nel
-        use bit_rep_data, only: NIfTot
-        use FciMCData, only: excit_gen_store_type
-        use constants, only: n_int, dp, bits_n_int
-        use get_excit, only: make_single
-        implicit none
-
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ic, ex(2,2)
@@ -825,7 +830,7 @@ contains
         if (genrand_real2_dsfmt() < pDoubles) then 
             ic = 2 
 
-            call gen_double_excit_rs_hub_transcorr(nI, ilutI, nJ, ilutJ, ex, tPar, pgen)
+            call gen_double_excit_rs_hub_transcorr(nI, ilutI, nJ, ilutJ, ex, tParity, pgen)
             pgen = pDoubles * pgen 
 
         else 
@@ -844,7 +849,7 @@ contains
 
             ! now we can have more than only nearest neighbor hopping! 
             ! so implement a new cum-list creator
-            call create_cum_list_rs_hubbard_transcorr_single(ilutI, src, cum_arr, cum_sum)
+            call create_cum_list_rs_hubbard_transcorr_single(nI, ilutI, src, cum_arr, cum_sum)
 
             ! the rest stays the same i guess..
             if (cum_sum < EPS) then 
@@ -852,14 +857,8 @@ contains
                 pgen = 0.0_dp 
                 return
             end if
-            r = genrand_real2_dsfmt() * cum_sum 
-            ind = binary_search_first_ge(cum_arr, r)
 
-            if (ind == 1) then 
-                p_orb = cum_arr(1) / cum_sum
-            else
-                p_orb = (cum_arr(ind) - cum_arr(ind-1)) / cum_sum 
-            end if
+            call pick_from_cum_list(cum_arr, cum_sum, ind, p_orb)
 
             ! all orbitals are possible i guess, so make cum_arr for all 
             ! orbitals as ind already. we "just" have to fix the spin 
@@ -879,6 +878,83 @@ contains
 
     end subroutine gen_excit_rs_hubbard_transcorr
 
+    subroutine create_cum_list_rs_hubbard_transcorr_single(nI, ilutI, src, &
+            cum_arr, cum_sum, tgt, p_orb) 
+        ! with transcorrelation use a different cum-list creator, due to 
+        ! longer range single excitations possible now. 
+        integer, intent(in) :: nI(nel), src 
+        integer(n_int), intent(in) :: ilutI(0:NIfTot) 
+        real(dp), intent(out) :: cum_arr(nBasis/2), cum_sum
+        integer, intent(in), optional :: tgt 
+        real(dp), intent(out), optional :: p_orb
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "create_cum_list_rs_hubbard_transcorr_single"
+#endif
+        integer :: spin, ex(2,2), nJ(nel), i, orb
+        integer, allocatable :: ex2(:,:)
+        real(dp) :: elem
+
+    
+        ASSERT(IsNotOcc(ilutI, src))
+        
+        cum_arr = 0.0_dp
+        cum_sum = 0.0_dp 
+
+        ! 0.. alpha
+        ! 1.. beta
+        spin = get_spin(src) - 1
+
+        ex = 0
+
+        if (present(tgt)) then 
+            ASSERT(present(p_orb))
+            ASSERT(same_spin(src,tgt))
+
+            p_orb = 0.0_dp
+
+            do i = 1, nBasis/2
+                elem = 0.0_dp 
+
+                ! take the same spin
+                orb = 2 * i - spin
+
+                if (IsNotOcc(ilutI,orb)) then 
+                    
+                    ex(2,1) = orb 
+                    call swap_excitations(nI, ex, nJ, ex2)
+
+                    elem = abs(get_single_helem_rs_hub_transcorr(nJ, ex2(:,1), .false.))
+
+                end if
+                cum_sum = cum_sum + elem 
+
+                if (tgt == orb) then 
+                    p_orb = elem 
+                end if
+            end do
+            if (cum_sum < EPS) then 
+                p_orb = 0.0_dp 
+            else
+                p_orb = p_orb / cum_sum 
+            end if
+        else 
+            do i = 1, nBasis/2 
+                elem = 0.0_dp
+                orb = 2 * i - spin 
+
+                if (IsNotOcc(ilutI,orb)) then 
+                    ex(2,1) = orb 
+                    call swap_excitations(nI, ex, nJ, ex2)
+                    elem = abs(get_single_helem_rs_hub_transcorr(nJ, ex2(:,1), .false.))
+                end if
+
+                cum_sum = cum_sum + elem 
+                cum_arr(i) = cum_sum
+            end do
+        end if
+        
+    end subroutine create_cum_list_rs_hubbard_transcorr_single
+
     subroutine gen_double_excit_rs_hub_transcorr(nI, ilutI, nJ, ilutJ, ex, tPar, pgen)
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
@@ -889,16 +965,24 @@ contains
 #ifdef __DEBUG 
         character(*), parameter :: this_routine = "gen_double_excit_rs_hub_transcorr"
 #endif
+        integer :: elecs(2), orbs(2), src(2), ind
+        real(dp) :: p_elec, cum_arr(nBasis/2), cum_sum, p_orb_a, p_orb_b, p_orb_switch
 
         call pick_spin_opp_elecs(nI, elecs, p_elec) 
 
         src = nI(elecs) 
 
         ! pick the first hole at random 
-        call pick_random_hole(nI, ilutI, orbs(1), p_orb_a) 
+        call pick_random_hole(ilutI, orbs(1), p_orb_a) 
+
+        if (orbs(1) == 0) then 
+            nJ(1) = 0 
+            pgen = 0.0_dp 
+            return 
+        end if
 
         ! create the cum-list for b 
-        call create_cum_list_rs_hubbard_transcorr_double(ilutI, src, orbs(1), cum_arr, & 
+        call create_cum_list_rs_hubbard_transcorr_double(nI, ilutI, src, orbs(1), cum_arr, & 
             cum_sum)
 
         if (cum_sum < EPS) then 
@@ -917,7 +1001,7 @@ contains
         end if
 
         ! now pick the other way around 
-        call create_cum_list_rs_hubbard_transcorr_double(ilutI, src, orbs(2), cum_arr, &
+        call create_cum_list_rs_hubbard_transcorr_double(nI, ilutI, src, orbs(2), cum_arr, &
             cum_sum, orbs(1), p_orb_switch) 
 
         ! if cum_sum can be 0 here i made something wrong with the cum_sum 
@@ -926,13 +1010,163 @@ contains
 
         pgen = 2.0_dp * p_elec * p_orb_a * (p_orb_b + p_orb_switch) 
 
-        call make_double(nI, nJ, elecs(1), elecs(2), orbs(1), orbs(2), ex, tParity)
+        call make_double(nI, nJ, elecs(1), elecs(2), orbs(1), orbs(2), ex, tPar)
 
         ilutJ = make_ilutJ(ilutI, ex, 2) 
 
     end subroutine gen_double_excit_rs_hub_transcorr
 
-    function calc_pgen_rs_hubbard_transcorr(nI, ilutI, ex, ic) 
+    subroutine create_cum_list_rs_hubbard_transcorr_double(nI, ilutI, src, orb_a, &
+            cum_arr, cum_sum, tgt, p_orb) 
+        ! routine to create the cum-list to pick the second orbital given 
+        ! the electrons (src) and the first orbital (orb_a) 
+        ! if second orbital (tgt) is given it calculates the probability (p_orb) 
+        ! to have picked this orbital. 
+        integer, intent(in) :: nI(nel), src(2), orb_a 
+        integer(n_int), intent(in) :: ilutI(0:NIfTot) 
+        real(dp), intent(out) :: cum_arr(nBasis/2), cum_sum 
+        integer, intent(in), optional :: tgt 
+        real(dp), intent(out), optional :: p_orb
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "create_cum_list_rs_hubbard_transcorr_double"
+#endif
+        integer :: ex(2,2), spin, b, nJ(nel), orb_b
+        integer, allocatable :: ex2(:,:)
+        real(dp) :: elem
+
+        ASSERT(.not. same_spin(src(1),src(2)))
+        ASSERT(IsNotOcc(ilutI,orb_a))
+        ASSERT(IsOcc(ilutI,src(1)))
+        ASSERT(IsOcc(ilutI,src(2)))
+
+
+        cum_arr = 0.0_dp
+        cum_sum = 0.0_dp 
+
+        ! make a spin factor for the orbital conversion
+        ! 1...alpha
+        ! 2...beta
+        spin = get_spin(orb_a)
+
+        ex(1,:) = src 
+        ex(2,1) = orb_a
+
+        if (present(tgt)) then 
+            ASSERT(present(p_orb)) 
+            ASSERT(.not. same_spin(orb_a, tgt))
+
+            p_orb = 0.0_dp 
+
+            do b = 0, nBasis/2 - 1
+                elem = 0.0_dp 
+
+                ! add the spin to get correct anti-parallel spin-orbtial to (a)
+                ! if (a) is alpha, spin = 1 -> so add 
+                orb_b = 2 * b + spin 
+
+                if (IsNotOcc(ilutI, orb_b)) then 
+                    ! with an occupancy everything is fine.. since a == b 
+                    ! is not possible due to opposite spin 
+
+                    ex(2,2) = orb_b 
+                    call swap_excitations(nI, ex, nJ, ex2)
+                    elem = abs(get_double_helem_rs_hub_transcorr(nJ, ex2, .false.))
+
+                end if
+                cum_sum = cum_sum + elem 
+                
+                if (tgt == orb_b) then 
+                    p_orb = elem 
+                end if
+            end do
+            if (cum_sum < EPS) then 
+                p_orb = 0.0_dp 
+            else 
+                p_orb = p_orb / cum_sum
+            end if
+        else
+            do b = 0, nBasis/2 - 1
+
+                elem = 0.0_dp 
+                orb_b = 2 * b + spin 
+
+                if (IsNotOcc(ilutI, orb_b)) then 
+
+                    ex(2,2) = orb_b 
+                    call swap_excitations(nI, ex, nJ, ex2) 
+                    elem = abs(get_double_helem_rs_hub_transcorr(nJ, ex2, .false.))
+
+                end if
+
+                cum_sum = cum_sum + elem 
+                cum_arr(b+1) = cum_sum 
+            end do
+        end if
+                    
+    end subroutine create_cum_list_rs_hubbard_transcorr_double
+
+    function get_double_helem_rs_hub_transcorr(nI, ex, tParity) result(hel)
+        ! function to calculate the new 2-body matrix element in the 
+        ! real-space hubbard with hopping transcorrelation 
+        integer, intent(in) :: nI(nel), ex(2,2) 
+        logical, intent(in) :: tParity 
+        HElement_t(dp) :: hel 
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "get_double_helem_rs_hub_transcorr" 
+        call stop_all(this_routine, "todo!")
+#endif 
+        ASSERT(.not. same_spin(ex(1,1),ex(1,2)))
+        ASSERT(.not. same_spin(ex(2,1),ex(2,2)))
+
+
+    end function get_double_helem_rs_hub_transcorr
+
+    function get_single_helem_rs_hub_transcorr(nI, ex, tParity) result(hel) 
+        ! function to get the new 1-body matrix elements in the real-space 
+        ! hubbard with hopping transcorelation with influence from the 
+        ! newly introduced double excitations 
+        integer, intent(in) :: nI(nel), ex(2)
+        logical, intent(in) :: tParity 
+        HElement_t(dp) :: hel 
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "get_single_helem_rs_hub_transcorr"
+        call stop_all(this_routine, "todo")
+#endif 
+        ASSERT(same_spin(ex(1),ex(2)))
+
+    end function get_single_helem_rs_hub_transcorr
+
+    subroutine pick_random_hole(ilutI, orb, p_orb) 
+        ! routine to pick an unoccupied spin-orbital (orb) with probability 
+        ! p_orb
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: orb 
+        real(dp), intent(out) :: p_orb
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "pick_random_hole" 
+#endif
+        integer, parameter :: max_trials = 100
+        integer :: cnt, i
+
+        orb = 0
+        cnt = 0
+        p_orb = 0.0_dp
+
+        do while (cnt < max_trials)
+            cnt = cnt + 1
+            i = 1 + int(genrand_real2_dsfmt() * nBasis)
+
+            if (IsNotOcc(ilutI, i)) then 
+                orb = i 
+                p_orb = 1.0_dp / real(nBasis - nel, dp)
+                return 
+            end if
+        end do
+
+
+    end subroutine pick_random_hole
+
+    function calc_pgen_rs_hubbard_transcorr(nI, ilutI, ex, ic) result(pgen)
         integer, intent(in) :: nI(nel), ex(2,2), ic 
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         real(dp) :: pgen 
@@ -940,6 +1174,8 @@ contains
         character(*), parameter :: this_routine = "calc_pgen_rs_hubbard_transcorr"
 #endif
         integer :: src(2), tgt(2)
+        real(dp) :: p_elec, p_orb, cum_arr(nBasis/2), cum_sum, p_hole_1, & 
+                    p_orb_a, p_orb_b
         
         src = ex(1,:)
         tgt = ex(2,:)
@@ -950,8 +1186,8 @@ contains
 
             p_elec = 1.0_dp / real(nel, dp) 
 
-            call create_cum_list_rs_hubbard_transcorr_single(ilutI, src(1), cum_arr, cum_sum, & 
-                tgt(1), p_orb) 
+            call create_cum_list_rs_hubbard_transcorr_single(nI, ilutI, src(1), &
+                cum_arr, cum_sum,  tgt(1), p_orb) 
 
             if (cum_sum < EPS) then 
                 pgen = 0.0_dp 
@@ -973,7 +1209,7 @@ contains
             ! pick the first at random.. 
             p_hole_1 = 1.0_dp / real(nBasis - nel, dp) 
 
-            call create_cum_list_rs_hubbard_transcorr_double(ilutI, src, tgt(1), & 
+            call create_cum_list_rs_hubbard_transcorr_double(nI, ilutI, src, tgt(1), & 
                 cum_arr, cum_sum, tgt(2), p_orb_a) 
 
             if (cum_sum < EPS) then 
@@ -982,7 +1218,7 @@ contains
             end if
 
             ! and the other way around 
-            call create_cum_list_rs_hubbard_transcorr_double(ilutI, src, tgt(2), & 
+            call create_cum_list_rs_hubbard_transcorr_double(nI, ilutI, src, tgt(2), & 
                 cum_arr, cum_sum, tgt(1), p_orb_b) 
 
             if (cum_sum < EPS) then 
@@ -1003,13 +1239,6 @@ contains
     ! Generic excitaiton generator
     subroutine gen_excit_rs_hubbard (nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                       ex, tParity, pGen, hel, store, run)
-
-        use SystemData, only: nel
-        use bit_rep_data, only: NIfTot
-        use FciMCData, only: excit_gen_store_type
-        use constants, only: n_int, dp, bits_n_int
-        use get_excit, only: make_single
-        implicit none
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
@@ -1366,7 +1595,6 @@ contains
 
     ! also optimize the matrix element calculation
     function get_diag_helemen_rs_hub(nI) result(hel)
-        use double_occ_mod, only: count_double_orbs
         integer, intent(in) :: nI(nel)
         HElement_t(dp) :: hel
 
@@ -1641,6 +1869,18 @@ contains
 
     end function get_umat_el_hub
 
+    function get_umat_rs_hub_trans(i,j,k,l) result(hel) 
+        ! do i need an explicit get_umat_rs_hub_trans? or can i just reuse 
+        ! the one, whhich access the "normal" fcidump.. figure out! 
+        integer, intent(in) :: i,j,k,l
+        HElement_t(dp) :: hel 
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "get_umat_rs_hub_trans"
+        call stop_all(this_routine, "todo")
+#endif 
+
+    end function get_umat_rs_hub_trans
+
     subroutine swap_excitations_higher(nI, ex, nJ, ex2) 
         ! routine to quickly, without make_double and make_triple 
         ! create the excited determinant nJ and ex2 to go from nJ -> nI 
@@ -1692,6 +1932,63 @@ contains
         call swap(ex2(1),ex2(2))
 
     end subroutine swap_excitations_singles
+
+    subroutine pick_spin_opp_elecs(nI, elecs, p_elec) 
+        integer, intent(in) :: nI(nel)
+        integer, intent(out) :: elecs(2)
+        real(dp), intent(out) :: p_elec
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "pick_spin_opp_elecs"
+#endif
+        ! think of a routine to get the possible spin-opposite electron 
+        ! pairs. i think i could do that way more efficiently, but do it in 
+        ! the simple loop way for now 
+        do 
+            elecs(1) = 1 + int(genrand_real2_dsfmt() * nel)
+            do 
+                elecs(2) = 1 + int(genrand_real2_dsfmt() * nel) 
+
+                if (elecs(1) /= elecs(2)) exit 
+
+            end do
+            if (get_ispn(nI(elecs)) == 2) exit
+        end do
+
+        ! output in ordered form 
+        elecs = [minval(elecs),maxval(elecs)]
+
+        ! actually the probability is twice that or? 
+        ! or doesnt that matter, since it is the same
+        p_elec = 1.0_dp / real(nOccBeta * nOccAlpha, dp)
+
+    end subroutine pick_spin_opp_elecs
+
+    subroutine pick_from_cum_list(cum_arr, cum_sum, ind, pgen) 
+        real(dp), intent(in) :: cum_arr(:), cum_sum
+        integer, intent(out) :: ind
+        real(dp), intent(out) :: pgen 
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "pick_from_cum_list" 
+#endif
+        real(dp) :: r
+
+        if (cum_sum < EPS) then 
+            ind = -1 
+            pgen = 0.0_dp
+            return 
+        end if
+
+        r = genrand_real2_dsfmt() * cum_sum
+
+        ind = binary_search_first_ge(cum_arr, r) 
+
+        if (ind == 1) then 
+            pgen = cum_arr(1)/cum_sum 
+        else 
+            pgen = (cum_arr(ind) - cum_arr(ind - 1)) / cum_sum
+        end if
+
+    end subroutine pick_from_cum_list
 
 end module real_space_hubbard
         

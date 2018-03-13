@@ -29,7 +29,8 @@ module k_space_hubbard
 
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt
 
-    use real_space_hubbard, only: lat_tau_factor, create_all_dets, swap_excitations
+    use real_space_hubbard, only: lat_tau_factor, create_all_dets, swap_excitations, &
+                                  pick_spin_opp_elecs, pick_from_cum_list
 
     use fcimcdata, only: tsearchtau, tsearchtauoption, pDoubles, pParallel, &
                          excit_gen_store_type, pSingles
@@ -1484,36 +1485,6 @@ contains
 
     end subroutine gen_parallel_double_hubbard
 
-    subroutine pick_spin_opp_elecs(nI, elecs, p_elec) 
-        integer, intent(in) :: nI(nel)
-        integer, intent(out) :: elecs(2)
-        real(dp), intent(out) :: p_elec
-#ifdef __DEBUG
-        character(*), parameter :: this_routine = "pick_spin_opp_elecs"
-#endif
-        ! think of a routine to get the possible spin-opposite electron 
-        ! pairs. i think i could do that way more efficiently, but do it in 
-        ! the simple loop way for now 
-        do 
-            elecs(1) = 1 + int(genrand_real2_dsfmt() * nel)
-            do 
-                elecs(2) = 1 + int(genrand_real2_dsfmt() * nel) 
-
-                if (elecs(1) /= elecs(2)) exit 
-
-            end do
-            if (get_ispn(nI(elecs)) == 2) exit
-        end do
-
-        ! output in ordered form 
-        elecs = [minval(elecs),maxval(elecs)]
-
-        ! actually the probability is twice that or? 
-        ! or doesnt that matter, since it is the same
-        p_elec = 1.0_dp / real(nOccBeta * nOccAlpha, dp)
-
-    end subroutine pick_spin_opp_elecs
-
     subroutine pick_spin_par_elecs(nI, elecs, p_elec, opt_ispn)
         integer, intent(in) :: nI(nel) 
         integer, intent(out) :: elecs(2)
@@ -1891,33 +1862,6 @@ contains
         end if
 
     end subroutine create_ab_list_hubbard
-
-    subroutine pick_from_cum_list(cum_arr, cum_sum, ind, pgen) 
-        real(dp), intent(in) :: cum_arr(:), cum_sum
-        integer, intent(out) :: ind
-        real(dp), intent(out) :: pgen 
-#ifdef __DEBUG
-        character(*), parameter :: this_routine = "pick_from_cum_list" 
-#endif
-        real(dp) :: r
-
-        if (cum_sum < EPS) then 
-            ind = -1 
-            pgen = 0.0_dp
-            return 
-        end if
-
-        r = genrand_real2_dsfmt() * cum_sum
-
-        ind = binary_search_first_ge(cum_arr, r) 
-
-        if (ind == 1) then 
-            pgen = cum_arr(1)/cum_sum 
-        else 
-            pgen = (cum_arr(ind) - cum_arr(ind - 1)) / cum_sum
-        end if
-
-    end subroutine pick_from_cum_list
 
     function calc_pgen_k_space_hubbard_uniform_transcorr(nI, ilutI, ex, ic) result(pgen)
         ! need a calc pgen functionality for the uniform transcorrelated 
