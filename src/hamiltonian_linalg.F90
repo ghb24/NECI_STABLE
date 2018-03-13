@@ -21,6 +21,9 @@ module hamiltonian_linalg
     integer, parameter :: sparse_hamil_type = 2
     integer, parameter :: parallel_sparse_hamil_type = 3
     integer, parameter :: direct_ci_type = 4
+    !Use the determinat with lowest energy as HF, otherwise use the value in hfindex
+    !This is mainly added so that HF determinant in FCI-Davidson can be specified.
+    logical :: tCalcHFIndex = .True.
 
     type HamiltonianCalcType
         integer :: hamil_type
@@ -178,7 +181,9 @@ module hamiltonian_linalg
             write(6,'(1x,"number of determinants on this process:",'//int_fmt(space_size,1)//')') space_size; call neci_flush(6)
         end if
 
-        hfindex = maxloc((-hamil_diag),1)
+        if(tCalcHFIndex)then
+            hfindex = maxloc((-hamil_diag),1)
+        end if
 
         ! the memory required to allocate each of basis_vectors and
         ! multipied_basis_vectors, in mb.

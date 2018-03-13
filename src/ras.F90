@@ -419,12 +419,33 @@ contains
 
     end subroutine generate_next_string
 
-    subroutine generate_entire_ras_space(ras, classes, space_size, ilut_list)
+    subroutine mysort(vec, parity)
+          integer, dimension(:), intent(inout) :: vec
+          integer, intent(out) :: parity 
+          integer :: temp, bubble, lsup, j
+          lsup = size(vec)
+          parity = 1
+          do while (lsup > 1)
+            bubble = 0 !bubble in the greatest element out of order
+            do j = 1, (lsup-1)
+              if (vec(j) > vec(j+1)) then
+                temp = vec(j)
+                vec(j) = vec(j+1)
+                vec(j+1) = temp
+                bubble = j
+                parity=-1*parity
+              endif 
+            enddo
+            lsup = bubble   
+          enddo  
+    end subroutine
+    subroutine generate_entire_ras_space(ras, classes, space_size, ilut_list, parities)
 
         type(ras_parameters), intent(in) :: ras
         type(ras_class_data), intent(in) :: classes(:)
         integer, intent(in) :: space_size
         integer(n_int), intent(out) :: ilut_list(0:NIfTot, space_size)
+        integer, intent(out), optional :: parities(space_size)
         integer :: nI(nel)
         integer :: string(tot_nelec)
         integer, allocatable, dimension(:,:) :: string_list
@@ -433,6 +454,7 @@ contains
         integer :: string_address, block_address
         integer :: i, j, k, l, m, n, o, counter
         logical :: none_left
+        integer :: parity
 
         allocate(string_list(tot_nelec, ras%num_strings))
 
@@ -485,20 +507,25 @@ contains
 
                             ! Beta string.
                             nI(1:tot_nelec) = string_list(:, m)*2-1
+                            !nI(1:nel-1:2) = string_list(:, m)*2-1
                             ! Alpha string.
                             nI(tot_nelec+1:nel) = string_list(:, n)*2
+                            !nI(2:nel:2) = string_list(:, n)*2
 
                             ! Replace all orbital numbers, orb, with the true orbital
                             ! numbers, BRR(orb). Also, sort this list.
                             do o = 1, nel
                                 nI(o) = BRR(nI(o))
                             end do
-                            call sort(nI)
+                            !call sort(nI, par=parity)
+                            call mysort(nI, parity)
 
                             ! Find bitstring representation.
                             counter = counter+1
                             call EncodeBitDet(int(nI,sizeof_int), ilut_list(:,counter))
-
+                            if(present(parities))then
+                                parities(counter) = parity
+                            end if
                         end do
                     end do
                 end do

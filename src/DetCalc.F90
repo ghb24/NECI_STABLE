@@ -350,9 +350,9 @@ CONTAINS
     Subroutine DoDetCalc
       Use global_utilities
       use util_mod, only: get_free_unit
-      use Determinants , only : get_helement,FDet
+      use Determinants , only : get_helement,FDet, DefDet, tDefineDet
       use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
-      use SystemData, only : nBasis, nBasisMax,nEl,nMsh,LzTot
+      use SystemData, only : nBasis, nBasisMax,nEl,nMsh,LzTot, TSPN,LMS
       use IntegralsData, only: FCK,NMAX, UMat
       Use LoggingData, only: iLogging,tLogDets, tCalcVariationalEnergy
       use SystemData, only  : tCSFOLD
@@ -375,8 +375,9 @@ CONTAINS
 
       use davidson_neci, only: DavidsonCalcType, DestroyDavidsonCalc
       use davidson_neci, only: davidson_direct_ci_init, davidson_direct_ci_end, perform_davidson
-      use hamiltonian_linalg, only: direct_ci_type
-      use FCIMCData, only: davidson_iluts, davidson_ras
+      use hamiltonian_linalg, only: direct_ci_type, tCalcHFIndex
+      use FCIMCData, only: davidson_ras, davidson_classes
+      use ras, only: generate_entire_ras_space
 
       real(dp) , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),FCIGS(:)
       HElement_t(dp), ALLOCATABLE :: WORK(:)
@@ -400,9 +401,10 @@ CONTAINS
       integer(n_int) :: iLutMomSym(0:NIfTot)
       logical :: tSuccess
       type(DavidsonCalcType) :: davidsonCalc
-      integer, ALLOCATABLE :: NMRKS2Davidson(:)
-      integer :: idx
-      !integer(n_int), allocatable, dimension(:,:) :: ilut_store
+      integer(n_int), allocatable, dimension(:,:) :: davidson_ilut
+      integer, allocatable, dimension(:) :: davidson_parities
+      integer :: nI(nel)
+      integer :: davidson_size
       !character (len=*), parameter :: t_r = "DoDetCalc"
       !integer(TagIntType) :: IlutTag
 
@@ -492,6 +494,8 @@ CONTAINS
 !C.. We've now finished calculating H if we were going to.
 !C.. IF ENERGY CALC (for which we need to have calced H)
 ! 
+
+
       IF(TENERGY) THEN
          IF(NBLK.NE.0) THEN
 !C..Things needed for Friesner-Pollard diagonalisation
@@ -594,53 +598,24 @@ CONTAINS
 !C.. END ENERGY CALC
 !      ENDIF
        ELSEIF(tFCIDavidson)THEN
-
+          if(.not.TSPN .or. LMS.NE.0)then
+              call stop_all("DoDetCalc","FCI-Davidson only works for closed shell systems.")
+          end if
           davidsonCalc = davidson_direct_ci_init(.true.)
-          !ALLOCATE(NMRKS2Davidson(NDET),stat=ierr)
-          !NMRKS2Davidson = 0
-          !WRITE(6,*) "Davidson: ", davidson_ras%num_strings, davidsonCalc%super%space_size
-          !do idx=1,davidson_ras%num_strings
-            !Call WriteBitDet(6,davidson_iluts(:,idx),.true.)
-          !end do
-          !WRITE(6,*) "NMRKS: "
-          !do i=1,NDET
-            !CALL EncodeBitDet(NMRKS(:,i),ilut_temp(0:NIfTot))
-
-            !Call WriteBitDet(6,ilut_temp(:),.true.)
-            !do idx=1,davidsonCalc%super%space_size
-                !if (DetBitEq(ilut_temp, davidson_iluts(:,idx))) then
-                    !NMRKS2Davidson(i) = idx
-                    !exit
-                !end if
-            !end do
-          !enddo
+          davidson_size = davidsonCalc%super%space_size
+          allocate(davidson_ilut(0:NIfTot,davidson_size))
+          allocate(davidson_parities(davidson_size))
+          call generate_entire_ras_space(davidson_ras, davidson_classes, davidson_size, davidson_ilut, davidson_parities)
+          !Find HF index
+          tCalcHFIndex = .false.
+          do i=1,davidson_size
+            CALL EncodeBitDet(FDet,iLut(0:NIfDBO))
+            if(DetBitEq(davidson_ilut(:,i),ilut))then
+                davidsonCalc%super%hfindex=i
+                exit
+            end if
+          end do
           call perform_davidson(davidsonCalc, direct_ci_type, .true.)
-          !Convert NMRKS to ilut_store
-          !allocate(ilut_store(0:NIfTot, NDET), stat=ierr)
-          !call LogMemAlloc("ilut_store", NDET*(NIfTot+1), size_n_int, t_r, IlutTag, ierr)
-          !do i=1,NDET
-             !call decode_bit_det(NMRKS(:,i), ilut_store(:, i)) 
-          !end do
-
-          !write(6,'(a27)') "Constructing Hamiltonian..."
-          !call neci_flush(6)
-
-          !call calculate_sparse_hamiltonian(NDET, ilut_store(:,1:NDET))
-
-          !write (6,'(a29)') "Performing Davidson diagonalisation..."
-          !call neci_flush(6)
-
-          !! Now that the Hamiltonian is generated, we can finally find the ground state of it:
-          !call perform_davidson(davidsonCalc, sparse_hamil_type, .true.)
-
-          !call deallocate_sparse_ham(sparse_ham, 'sparse_ham', SparseHamilTags)
-
-          !deallocate(hamil_diag, stat=ierr)
-          !call LogMemDealloc(t_r, HDiagTag, ierr)
-
-          !deallocate(ilut_store, stat=ierr)
-          !call LogMemDealloc(t_r, IlutTag, ierr)
-
       ENDIF
 
       call neci_flush(6)
@@ -672,22 +647,30 @@ CONTAINS
 !First, we want to count the number of determinants of the correct symmetry...
             Det=0
             norm=0.0_dp
-            print *, davidsonCalc%davidson_eigenvector
-            do i=1,NDET
-                CALL GETSYM(NMRKS(:,i),NEL,G1,NBASISMAX,ISYM)
-                IF(ISym%Sym%S.eq.IHFSYM%Sym%S) THEN
-                    Det=Det+1
-                    IF(tEnergy) THEN
-                        norm=norm+(REAL(CK(i,1),dp))**2
-                    ELSEIF(tFCIDavidson)THEN
-                        idx = i!NMRKS2Davidson(i)
-                        if(idx<=0)then
-                            CALL Stop_All("DoDetCalc","Determinant not found in Davidson's ground state.")
-                        end if
-                        norm=norm+(davidsonCalc%davidson_eigenvector(idx))**2
+            if(tFCIDavidson)then
+                do i=1,davidson_size
+                    CALL decode_bit_det(nI, davidson_ilut(:,i))
+                    CALL GETSYM(nI,NEL,G1,NBASISMAX,ISYM)
+                    !CALL GetLz(nI,NEL,Lz)
+                    !IF((ISym%Sym%S.eq.IHFSYM%Sym%S).and.(Lz.eq.LzTot)) THEN
+                    IF(ISym%Sym%S.eq.IHFSYM%Sym%S) THEN
+                        Det=Det+1
+                        norm=norm+(davidsonCalc%davidson_eigenvector(i))**2
                     ENDIF
-                ENDIF
-            enddo
+                enddo
+            else
+                do i=1,NDET
+                    CALL GETSYM(NMRKS(:,i),NEL,G1,NBASISMAX,ISYM)
+                    !CALL GetLz(NMRKS(:,i),NEL,Lz)
+                    !IF((ISym%Sym%S.eq.IHFSYM%Sym%S).and.(Lz.eq.LzTot)) THEN
+                    IF(ISym%Sym%S.eq.IHFSYM%Sym%S) THEN
+                        Det=Det+1
+                        IF(tEnergy) THEN
+                            norm=norm+(REAL(CK(i,1),dp))**2
+                        ENDIF
+                    ENDIF
+                enddo
+            end if
             WRITE(6,"(I25,A,I4,A)") Det," determinants of symmetry ",IHFSym%Sym%S," found."
             WRITE(6,*) "Normalization of eigenvector 1 is: ", norm
             CALL neci_flush(6)
@@ -708,34 +691,49 @@ CONTAINS
                 ReIndex(:)=0
             endif
 
+
+
             Det=0
             FCIDetIndex(:)=0
-            do i=1,NDet
-                CALL GETSYM(NMRKS(:,i),NEL,G1,NBASISMAX,ISYM)
-                CALL GetLz(NMRKS(:,i),NEL,Lz)
-!                IF((NMRKS(1,i).eq.28).and.(NMRKS(2,i).eq.29).and.(NMRKS(3,i).eq.30).and.(NMRKS(4,i).eq.31)) THEN
-!                    WRITE(6,*) "Found Det: ",NMRKS(:,i)
-!                    WRITE(6,*) i,iSym%Sym%S,REAL(CK(i),8)
-!                ENDIF
-                IF((ISym%Sym%S.eq.IHFSYM%Sym%S).and.(Lz.eq.LzTot)) THEN
-                    Det=Det+1
-                    ExcitLevel=iGetExcitLevel_2(FDet,NMRKS(:,i),NEl,NEl)
-! FCIDetIndex is off by one, for later cumulative indexing
-                    FCIDetIndex(ExcitLevel+1)=FCIDetIndex(ExcitLevel+1)+1
-                    Temp(Det)=ExcitLevel    !Temp will now temporarily hold the excitation level of the determinant.
-                    CALL EncodeBitDet(NMRKS(:,i),FCIDets(0:NIfTot,Det))
-                    IF(tEnergy) THEN
-                        FCIGS(Det)=REAL(CK(i,1),dp)/norm
-                    ELSEIF(tFCIDavidson) THEN
-                        idx = i!NMRKS2Davidson(i)
-                        if(idx<=0)then
-                            CALL Stop_All("DoDetCalc","Determinant not found in Davidson's ground state.")
-                        end if
-                        FCIGS(Det)=davidsonCalc%davidson_eigenvector(idx)/norm
+            if(tFCIDavidson)then
+                do i=1,davidson_size
+                    CALL decode_bit_det(nI, davidson_ilut(:,i))
+                    CALL GETSYM(nI,NEL,G1,NBASISMAX,ISYM)
+                    !CALL GetLz(nI,NEL,Lz)
+                    !IF((ISym%Sym%S.eq.IHFSYM%Sym%S).and.(Lz.eq.LzTot)) THEN
+                    IF(ISym%Sym%S.eq.IHFSYM%Sym%S) THEN
+                        Det=Det+1
+                        ExcitLevel= FindBitExcitLevel(davidson_ilut(:,i), iLut) !iGetExcitLevel_2(FDet,nI,NEl,NEl)
+                        FCIDetIndex(ExcitLevel+1)=FCIDetIndex(ExcitLevel+1)+1
+                        Temp(Det)=ExcitLevel    !Temp will now temporarily hold the excitation level of the determinant.
+                        FCIDets(:,Det) = davidson_ilut(:, i)
+                        FCIGS(Det)=davidson_parities(i)*davidsonCalc%davidson_eigenvector(i)/norm
                     ENDIF
-                ENDIF
-                if(tCalcVariationalEnergy) ReIndex(i)=i
-            enddo
+                    if(tCalcVariationalEnergy) ReIndex(i)=i
+                enddo
+            else
+                do i=1,NDet
+                    CALL GETSYM(NMRKS(:,i),NEL,G1,NBASISMAX,ISYM)
+                    !CALL GetLz(NMRKS(:,i),NEL,Lz)
+    !                IF((NMRKS(1,i).eq.28).and.(NMRKS(2,i).eq.29).and.(NMRKS(3,i).eq.30).and.(NMRKS(4,i).eq.31)) THEN
+    !                    WRITE(6,*) "Found Det: ",NMRKS(:,i)
+    !                    WRITE(6,*) i,iSym%Sym%S,REAL(CK(i),8)
+    !                ENDIF
+                    !IF((ISym%Sym%S.eq.IHFSYM%Sym%S).and.(Lz.eq.LzTot)) THEN
+                    IF(ISym%Sym%S.eq.IHFSYM%Sym%S) THEN
+                        Det=Det+1
+                        ExcitLevel=iGetExcitLevel_2(FDet,NMRKS(:,i),NEl,NEl)
+    ! FCIDetIndex is off by one, for later cumulative indexing
+                        FCIDetIndex(ExcitLevel+1)=FCIDetIndex(ExcitLevel+1)+1
+                        Temp(Det)=ExcitLevel    !Temp will now temporarily hold the excitation level of the determinant.
+                        CALL EncodeBitDet(NMRKS(:,i),FCIDets(0:NIfTot,Det))
+                        IF(tEnergy) THEN
+                            FCIGS(Det)=REAL(CK(i,1),dp)/norm
+                        ENDIF
+                    ENDIF
+                    if(tCalcVariationalEnergy) ReIndex(i)=i
+                enddo
+            end if
 
             IF(iExcitLevel.le.0) THEN
                 MaxIndex=NEl
@@ -920,7 +918,8 @@ CONTAINS
       IF(tFCIDavidson) THEN
           call davidson_direct_ci_end(davidsonCalc)
           call DestroyDavidsonCalc(davidsonCalc)
-          !DEALLOCATE(NMRKS2Davidson)
+          DEALLOCATE(davidson_ilut)
+          DEALLOCATE(davidson_parities)
       ENDIF
 !C.. Jump to here if just read Psi in
       CONTINUE
