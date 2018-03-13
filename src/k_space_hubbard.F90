@@ -2460,7 +2460,7 @@ contains
     function get_one_body_diag_sym(nI, spin, k_sym,t_sign) result(hel)
         integer, intent(in) :: nI(nel)
         integer, intent(in) :: spin 
-        integer :: k_sym
+        type(symmetry), intent(in) :: k_sym
         logical, intent(in), optional :: t_sign
         HElement_t(dp) :: hel 
 
@@ -2490,14 +2490,14 @@ contains
             if (spin == -1) then
                 do i = 1, nel
                     if (is_beta(nI(i))) then 
-                        sym = SymTable(G1(nI(i))%sym%s, k_sym)
+                        sym = SymTable(G1(nI(i))%sym%s, k_sym%s)
                         hel = hel + epsilon_kvec(sym)
                     end if 
                 end do
             else if (spin == 1) then 
                 do i = 1, nel
                     if (is_alpha(nI(i))) then 
-                        sym = SymTable(G1(nI(i))%sym%s, k_sym)
+                        sym = SymTable(G1(nI(i))%sym%s, k_sym%s)
                         hel = hel + epsilon_kvec(sym)
                     end if
                 end do
@@ -2507,14 +2507,14 @@ contains
             if (spin == -1) then
                 do i = 1, nel
                     if (is_beta(nI(i))) then 
-                        sym = SymTable(k_sym, SymConjTab(G1(nI(i))%sym%s))
+                        sym = SymTable(k_sym%s, SymConjTab(G1(nI(i))%sym%s))
                         hel = hel + epsilon_kvec(sym)
                     end if 
                 end do
             else if (spin == 1) then 
                 do i = 1, nel
                     if (is_alpha(nI(i))) then 
-                        sym = SymTable(k_sym, SymConjTab(G1(nI(i))%sym%s))
+                        sym = SymTable(k_sym%s, SymConjTab(G1(nI(i))%sym%s))
                         hel = hel + epsilon_kvec(sym)
                     end if
                 end do
@@ -2741,8 +2741,8 @@ contains
 !                 hel = (same_spin_transcorr_factor(nI, k_vec_a, spin) & 
 !                     - same_spin_transcorr_factor(nI, k_vec_b, spin))
 
-                hel = (same_spin_transcorr_factor(nI, k_sym_a%s, spin) & 
-                    - same_spin_transcorr_factor(nI, k_sym_b%s, spin))! &
+                hel = (same_spin_transcorr_factor(nI, k_sym_a, spin) & 
+                    - same_spin_transcorr_factor(nI, k_sym_b, spin))! &
 
             else 
                 ! else we need the opposite spin contribution
@@ -3367,7 +3367,8 @@ contains
     HElement_t(dp) function same_spin_transcorr_factor_ksym(nI, k_sym, spin)
         ! this is the term coming appearing in the spin-parallel 
         ! excitations coming from the k = 0 triple excitation
-        integer, intent(in) :: nI(nel), k_sym, spin
+        integer, intent(in) :: nI(nel), spin
+        type(symmetry), intent(in) :: k_sym
 
         same_spin_transcorr_factor_ksym = -bhub * three_body_prefac * ( & 
             get_one_body_diag(nI,-spin,k_sym) + get_one_body_diag(nI,-spin,k_sym,.true.))
@@ -3497,7 +3498,7 @@ contains
         character(*), parameter :: this_routine = "three_body_transcorr_fac_ksym"
 #endif
         real(dp) :: n_opp
-        integer :: k1, k2
+        type(symmetry) :: k1, k2
 
         ASSERT(spin == 1 .or. spin == -1)
 
@@ -3509,8 +3510,8 @@ contains
             n_opp = real(nOccBeta, dp) 
         end if
 
-        k1 = SymTable(k%s, SymConjTab(q%s))%s
-        k2 = SymTable(p%s, q%s)%s
+        k1 = SymTable(k%s, SymConjTab(q%s))
+        k2 = SymTable(p%s, q%s)
 
         three_body_transcorr_fac_ksym = -bhub * three_body_prefac * (& 
             n_opp * (epsilon_kvec(p) + epsilon_kvec(k)) - (& 
