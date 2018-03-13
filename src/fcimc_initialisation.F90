@@ -14,9 +14,12 @@ module fcimc_initialisation
                           tUEGNewGenerator, tGen_4ind_2, tReltvy, t_new_real_space_hubbard, &
                           t_lattice_model, t_tJ_model, t_heisenberg_model, & 
                           t_k_space_hubbard, t_3_body_excits, omega, breathingCont, &
-                          momIndexTable
+                          momIndexTable, t_trans_corr_2body
+
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
+
     use dSFMT_interface, only: dSFMT_init
+
     use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
                         tCheckHighestPop, tSpatialOnlyHash, tStartCAS, tau, &
                         MaxWalkerBloom, InitialPart, tStartMP1, tReadPops, &
@@ -41,16 +44,23 @@ module fcimc_initialisation
                         t_back_spawn_option, t_back_spawn_flex_option, &
                         t_back_spawn_flex, back_spawn_delay, corespaceWalkers, &
                         tSpinProject
+
     use adi_data, only: g_markers, tReferenceChanged, tInitiatorsSubspace, tAdiActive, &
          nExChecks, nExCheckFails
+
     use spin_project, only: init_yama_store, clean_yama_store
+
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
+
     use hphf_integrals, only: hphf_diag_helement, hphf_spawn_sign, &
                               hphf_off_diag_helement_spawn
+
     use SymData, only: SymLabelList, SymLabelCounts, TwoCycleSymGens, &
                        SymClassSize, nSymLabels, sym_psi
+
     use DeterminantData, only: write_det, write_det_len, FDet
+
     use LoggingData, only: tTruncRODump, tCalcVariationalEnergy, tReadRDMs, &
                            tDiagAllSpaceEver, tFCIMCStats2, tCalcFCIMCPsi, &
                            tLogComplexPops, tHistExcitToFrom, tPopsFile, &
@@ -178,6 +188,7 @@ contains
         HElement_t(dp) :: TempHii
         real(dp) :: UpperTau,r
         CHARACTER(len=*), PARAMETER :: t_r='SetupParameters'
+        CHARACTER(*), parameter :: this_routine = t_r
         CHARACTER(len=12) :: abstr
         character(len=24) :: filename, filename2
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped,tAlreadyOcc
@@ -561,7 +572,9 @@ contains
                 ! unit tests.. but i might have to set up some other stuff 
                 ! for this to work and also make sure this works with my 
                 ! new symmetry implementation
-                call gen_all_excits_k_space_hubbard(HFDet, nDoubles, dummy_list)
+                if (.not. t_trans_corr_2body) then 
+                    call gen_all_excits_k_space_hubbard(HFDet, nDoubles, dummy_list)
+                end if
                 nSingles = 0
             else
                 ! Use Alex's old excitation generators to enumerate all excitations.
@@ -1041,8 +1054,16 @@ contains
             WRITE(iout,"(A)") "Brillouin theorem in use for calculation of projected energy." 
         ENDIF
 !        WRITE(iout,*) "Non-uniform excitation generators in use."
-        CALL CalcApproxpDoubles()
+        if (.not. (t_k_space_hubbard .and. t_trans_corr_2body)) then 
+            ! for too big lattices my implementation breaks, due to 
+            ! memory limitations.. but i think we do not actually need it.
+            CALL CalcApproxpDoubles()
+        end if
         IF(abs(TauFactor) > 1.0e-12_dp) THEN
+            if (t_trans_corr_2body .and. t_k_space_hubbard) then 
+                call Stop_All(this_routine, &
+                    "finding the number of excits from HF breaks for too large lattice")
+            end if
             WRITE(iout,*) "TauFactor detected. Resetting Tau based on connectivity of: ",HFConn
             Tau=TauFactor/REAL(HFConn,dp)
             WRITE(iout,*) "Timestep set to: ",Tau

@@ -3981,6 +3981,7 @@ contains
         n_excits = 1
 
         ! todo: an estimate for the upper bound of number of triple excitations.. 
+        ! this gets too high for big lattices.. 
 
         n_bound = nel*(nel-1)*(nel-2) * (nbasis - nel)*(nbasis - nel -1)*(nbasis-nel-2)
         allocate(temp_list(0:niftot,n_bound))
