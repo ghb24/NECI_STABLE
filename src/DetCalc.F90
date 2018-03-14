@@ -281,26 +281,40 @@ CONTAINS
             CLOSE(iunit)
          endif
 
+!Update: 14.03.2018, K.Ghanem
+!FDET has already been assigned in DetPreFreezeInit.
+!No idea why it is overwirtten here.
+!Therefore, I comment out the following code and hope for the best.
+!Instead, I look for FDET in the list of determinants NMRKS and assign the index to IFDET.
+
 !C.. Now generate the fermi determiant
 !C.. Work out the fermi det
-         DO I=1,NEL
-            FDET(I)=NMRKS(I,IFDET)
-         ENDDO
-         WRITE(6,*) "Fermi Determinant:",IFDET
-         WRITE(6,*) "Reference determinant to be used for diagonalisation procedure: "
-         call write_det (6, FDET, .true.)
+         !DO I=1,NEL
+            !FDET(I)=NMRKS(I,IFDET)
+         !ENDDO
+         !WRITE(6,*) "Fermi Determinant:",IFDET
+         !WRITE(6,*) "Reference determinant to be used for diagonalisation procedure: "
+         !call write_det (6, FDET, .true.)
 
-         if (tDefineDet) then
-             DO I=1,NEL
-                 IF(DefDet(i+NFROZEN)-NFROZEN.ne.FDET(I)) THEN
-                     WRITE(6,"(A)") "*** WARNING - Defined determinant does not match reference determinant in CI matrix ***"
-                     WRITE(6,*) NMRKS(:,IFDET)
-                     WRITE(6,*) DefDet(:)
-                     EXIT
-                 ENDIF
-             ENDDO
-         ENDIF
-         
+         !if (tDefineDet) then
+             !DO I=1,NEL
+                 !IF(DefDet(i+NFROZEN)-NFROZEN.ne.FDET(I)) THEN
+                     !WRITE(6,"(A)") "*** WARNING - Defined determinant does not match reference determinant in CI matrix ***"
+                     !WRITE(6,*) NMRKS(:,IFDET)
+                     !WRITE(6,*) DefDet(:)
+                     !EXIT
+                 !ENDIF
+             !ENDDO
+         !ENDIF
+        IFDET=0
+        DO I=1,NDET
+            IF(ALL(NMRKS(:,I).EQ.FDET))THEN
+                IFDET=I
+                Exit
+            END IF
+        END DO
+        IF(IFDET.EQ.0) call stop_all("DetCalcInit","Fermi determinant is not found in NMRKS!")
+
 
          WRITE(6,*) ' NUMBER OF SYMMETRY UNIQUE DETS ' , NDET
 
@@ -607,14 +621,17 @@ CONTAINS
           allocate(davidson_parities(davidson_size))
           call generate_entire_ras_space(davidson_ras, davidson_classes, davidson_size, davidson_ilut, davidson_parities)
           !Find HF index
+          !Set this flag, otherwise hfindex will be overwritten
           tCalcHFIndex = .false.
+          davidsonCalc%super%hfindex=0
+          CALL EncodeBitDet(FDet,iLut(0:NIfDBO))
           do i=1,davidson_size
-            CALL EncodeBitDet(FDet,iLut(0:NIfDBO))
             if(DetBitEq(davidson_ilut(:,i),ilut))then
                 davidsonCalc%super%hfindex=i
                 exit
             end if
           end do
+          IF(davidsonCalc%super%hfindex.EQ.0) call stop_all("DoDetCalc","Fermi determinant is not found in RAS space!")
           call perform_davidson(davidsonCalc, direct_ci_type, .true.)
       ENDIF
 
