@@ -19,7 +19,9 @@ module k_space_hubbard
                     excit_cache, tUniformKSpaceExcit
 
     use lattice_mod, only: get_helement_lattice_ex_mat, get_helement_lattice_general, &
-                           determine_optimal_time_step, lattice, sort_unique, lat
+                           determine_optimal_time_step, lattice, sort_unique, lat, &
+                           dispersion_rel_cached, init_dispersion_rel_cache, &
+                           epsilon_kvec
 
     use procedure_pointers, only: get_umat_el, generate_excitation
 
@@ -44,25 +46,40 @@ module k_space_hubbard
 
     use back_spawn, only: make_ilutJ, is_allowed_ueg_k_vector, get_ispn, &
          get_orb_from_kpoints
+
     use get_excit, only: make_double
-!     use UmatCache, only: gtid
+
     use OneEInts, only: GetTMatEl, tmat2d
+
     use sltcnd_mod, only: sltcnd_0
+
     use sym_mod, only: RoundSym, AddElecSym, SetupSym, lChkSym, mompbcsym, & 
                        TotSymRep, GenMolpSymTable, SymProd, gensymstatepairs
+
     use SymExcitDataMod, only: KPointToBasisFn, ScratchSize, SpinOrbSymLabel, &
                                SymTableLabels, SymInvLabel, SymLabelList2, SymLabelCounts2, & 
                                OrbClassCount, ktotal
+
     use sym_general_mod, only: ClassCountInd
+
     use sort_mod, only: sort 
+
     use IntegralsData, only: UMat
+
     use bit_reps, only: decode_bit_det
+
     use global_utilities, only: LogMemDealloc, LogMemAlloc
+
     use SymData, only: nSymLabels, SymClasses, Symlabels
+
     use SymData, only: nSym,SymConjTab
+
     use SymData, only: tAbelian,SymTable
+
     use SymData, only: tagSymConjTab,tagSymClasses,tagSymLabels
+
     use SymData, only: tagSymTable
+
     use ParallelHelper, only: iProcIndex, root
 
     implicit none 
@@ -73,7 +90,6 @@ module k_space_hubbard
     real(dp) :: three_body_prefac = 0.0_dp
 
     real(dp), allocatable :: umat_cache_kspace(:,:)
-    HElement_t(dp), allocatable :: dispersion_rel_cached(:)
 
     ! i especially need an interface for the matrix element calculation to 
     ! implement the transcorrelated hamiltonian 
@@ -81,12 +97,6 @@ module k_space_hubbard
         module procedure get_helement_k_space_hub_ex_mat
         module procedure get_helement_k_space_hub_general
     end interface get_helement_k_space_hub
-
-    interface epsilon_kvec 
-        module procedure epsilon_kvec_vector
-        module procedure epsilon_kvec_symmetry
-        module procedure epsilon_kvec_orbital
-    end interface epsilon_kvec
 
     interface get_one_body_diag
         module procedure get_one_body_diag_sym
@@ -107,28 +117,8 @@ module k_space_hubbard
         module procedure two_body_transcorr_factor_kvec
         module procedure two_body_transcorr_factor_ksym
     end interface two_body_transcorr_factor
+
 contains 
-
-    subroutine init_dispersion_rel_cache() 
-        ! to avoid excessive calls to the cos() function cache the 
-        ! dispersion relation of the lattice and make them accessible 
-        ! through the symmetry label associated with the k-vectors! 
-        character(*), parameter :: this_routine = "init_dispersion_rel_cache"
-        integer :: i 
-
-        ASSERT(associated(lat))
-
-        if (allocated(dispersion_rel_cached)) deallocate(dispersion_rel_cached)
-
-        allocate(dispersion_rel_cached(lat%get_nsites()))
-        dispersion_rel_cached = h_cast(0.0_dp)
-
-        do i = 1, lat%get_nsites()
-            dispersion_rel_cached(lat%get_sym(i)) = & 
-                lat%dispersion_rel_orb(i)
-        end do
-
-    end subroutine init_dispersion_rel_cache
 
     subroutine setup_symmetry_table() 
         ! implement a new symmetry setup to decouple it from the 
@@ -3374,51 +3364,6 @@ contains
             get_one_body_diag(nI,-spin,k_sym) + get_one_body_diag(nI,-spin,k_sym,.true.))
 
     end function same_spin_transcorr_factor_ksym
-
-    HElement_t(dp) function epsilon_kvec_vector(k_vec)
-        ! and actually this function has to be defined differently for 
-        ! different type of lattices! TODO!
-        ! actually i could get rid of this function and directly call 
-        ! the dispersion relation of the lattice.. 
-        integer, intent(in) :: k_vec(3)
-#ifdef __DEBUG
-        character(*), parameter :: this_routine = "epsilon_kvec_vector"
-#endif
-
-        ASSERT(associated(lat)) 
-
-        ! i could save the basic lattice vectors for the lattice or even 
-        ! store the dispersion relation for each lattice type and call it 
-        ! with a given k-vector? 
-        ! change that to only access the cached result of the dispersion 
-        ! relation 
-!         epsilon_kvec = h_cast(lat%dispersion_rel(k_vec))
-
-        ! it is necessary to call this function only with k_vectors 
-        ! within the first BZ!!
-        epsilon_kvec_vector = dispersion_rel_cached(lat%get_sym_from_k(k_vec))
-
-!         epsilon_kvec = h_cast(2*sum(cos(real(k_vec,dp))))
-
-    end function epsilon_kvec_vector
-
-    HElement_t(dp) function epsilon_kvec_symmetry(sym) 
-        ! access the stored dispersion relation values through the symmetry 
-        ! symbol associated with a k-vector
-        type(symmetry), intent(in) :: sym 
-
-        epsilon_kvec_symmetry = dispersion_rel_cached(sym%s) 
-
-    end function epsilon_kvec_symmetry
-
-    HElement_t(dp) function epsilon_kvec_orbital(orb) 
-        ! access the stored dispersion relation values through the spatial 
-        ! orbital (orb) 
-        integer, intent(in) :: orb 
-
-        epsilon_kvec_orbital = dispersion_rel_cached(lat%get_sym(orb))
-
-    end function epsilon_kvec_orbital
 
     HElement_t(dp) function two_body_transcorr_factor_kvec(p,k) 
         integer, intent(in) :: p(N_DIM), k(N_DIM) 

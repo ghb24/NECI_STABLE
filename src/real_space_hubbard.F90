@@ -24,7 +24,8 @@ module real_space_hubbard
 
     use lattice_mod, only: lattice, determine_optimal_time_step, lat, &
                     get_helement_lattice, get_helement_lattice_ex_mat, & 
-                    get_helement_lattice_general
+                    get_helement_lattice_general, init_dispersion_rel_cache, &
+                    epsilon_kvec
 
     use constants, only: dp, EPS, n_int, bits_n_int
 
@@ -63,6 +64,8 @@ module real_space_hubbard
     ! create a flag which indicate to start in a neel state 
     logical :: t_start_neel_state = .false. 
 
+    real(dp), allocatable :: umat_rs_hub_trancorr_hop(:,:,:,:)
+
     interface get_helement_rs_hub
         module procedure get_helement_rs_hub_ex_mat
         module procedure get_helement_rs_hub_general
@@ -73,6 +76,11 @@ module real_space_hubbard
         module procedure swap_excitations_singles
     end interface swap_excitations
 
+    interface sum_hop_transcorr_factor
+        module procedure sum_hop_transcorr_factor_vec
+        module procedure sum_hop_transcorr_factor_orb
+    end interface sum_hop_transcorr_factor
+            
 contains 
 
     ! some brainstorming: 
@@ -215,19 +223,163 @@ contains
 
     subroutine init_hopping_transcorr()
 
+        ! we also need the dispersion relation from the k-space hubbard! 
+        ! should i move this to the lattice class?
+        ! this also means i have to additionally initialize parts of the 
+        ! k-space lattice for this transcorrelation! 
+        ! and i finally have to get the real-space and k-space vector 
+        ! relations fully correct! 
+        call init_dispersion_rel_cache() 
+
+        ! i also need a umat array now! 
         call init_umat_rs_hub_transcorr()
-        call stop_all("here", "todo")
 
     end subroutine init_hopping_transcorr
 
+    real(dp) function hop_transcorr_factor(J, r_vec)
+        ! compute \sum_p exp(i*p*r) exp(J,r) for the 2-body term in the 
+        ! hopping transcorrelated real-space hubbard 
+        real(dp), intent(in) :: J 
+        integer, intent(in) :: r_vec(3) 
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "hop_transcorr_factor"
+#endif 
+        complex(dp) :: temp
+        integer :: i, n_sites, k_vec(3)
+
+        ASSERT(associated(lat))
+    
+        n_sites = lat%get_nsites()
+
+        temp = 0.0_dp 
+
+        do i = 1, n_sites
+            k_vec = lat%get_k_vec(i)
+            temp = temp + exp(complex(0.0,1.0) * dot_product(k_vec, r_vec)) * & 
+                exp(-J * epsilon_kvec(i))
+        end do
+
+        ! will this be ever comlex? check the size 
+        ASSERT(abs(aimag(temp)) < EPS) 
+
+        hop_transcorr_factor = real(temp) / real(n_sites,dp)
+
+    end function hop_transcorr_factor
+
+    real(dp) function sum_hop_transcorr_factor_vec(r1,r2,r3,r4)
+        ! function to perform the summation over the four hopping 
+        ! transcorrelation factors in the 2-body term of the hopping 
+        ! transcorrelated real-space hubbard model 
+        integer, intent(in) :: r1(3), r2(3), r3(3), r4(3)
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "sum_hop_transcorr_factor_vec"
+#endif
+        integer i, m_vec(3)
+
+        ASSERT(associated(lat))
+
+        sum_hop_transcorr_factor_vec = 0.0_dp
+
+        do i = 1, lat%get_nsites() 
+
+            ! i need a routine to give me the real-space coordinates/vector
+            ! and i also need to store that now! 
+            m_vec = lat%get_r_vec(i)
+            sum_hop_transcorr_factor_vec = sum_hop_transcorr_factor_vec + & 
+                hop_transcorr_factor(trans_corr_param, r1 - m_vec) * &
+                hop_transcorr_factor(trans_corr_param, r2 - m_vec) * &
+                hop_transcorr_factor(-trans_corr_param, m_vec - r3) * &
+                hop_transcorr_factor(-trans_corr_param, m_vec - r4)
+
+        end do
+
+    end function sum_hop_transcorr_factor_vec
+
+    real(dp) function sum_hop_transcorr_factor_orb(i,j,k,l)
+        ! function to perform the summation over the four hopping 
+        ! transcorrelation factors in the 2-body term of the hopping 
+        ! transcorrelated real-space hubbard model 
+        integer, intent(in) :: i, j, k, l
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "sum_hop_transcorr_factor_orb"
+#endif
+        integer :: r1(3), r2(3), r3(3), r4(3)
+        integer m, m_vec(3)
+
+        ASSERT(associated(lat))
+
+        sum_hop_transcorr_factor_orb = 0.0_dp
+
+        r1 = lat%get_r_vec(i)
+        r2 = lat%get_r_vec(j)
+        r3 = lat%get_r_vec(k)
+        r4 = lat%get_r_vec(l)
+
+        do m = 1, lat%get_nsites() 
+
+            ! i need a routine to give me the real-space coordinates/vector
+            ! and i also need to store that now! 
+            m_vec = lat%get_r_vec(m)
+            sum_hop_transcorr_factor_orb = sum_hop_transcorr_factor_orb + & 
+                hop_transcorr_factor(trans_corr_param, r1 - m_vec) * &
+                hop_transcorr_factor(trans_corr_param, r2 - m_vec) * &
+                hop_transcorr_factor(-trans_corr_param, m_vec - r3) * &
+                hop_transcorr_factor(-trans_corr_param, m_vec - r4)
+
+        end do
+
+    end function sum_hop_transcorr_factor_orb
+
     subroutine init_umat_rs_hub_transcorr() 
-        call stop_all("here", "todo")
+        ! for now do it really stupidly without any concern for the symmetry 
+        ! of the integrals 
+        integer :: n_sites, i, j, k, l
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "init_umat_rs_hub_transcorr"
+#endif
+        real(dp) :: elem 
+
+        ASSERT(associated(lat))
+
+        n_sites = lat%get_nsites()
+
+        ! create an fcidump file: 
+        ! todo
+
+        ! with the correct header
+
+        ! and also try to allocate a umat_cache 
+        if (allocated(umat_rs_hub_trancorr_hop)) deallocate(umat_rs_hub_trancorr_hop)
+        allocate(umat_rs_hub_trancorr_hop(n_sites,n_sites,n_sites,n_sites))
+        umat_rs_hub_trancorr_hop = 0.0_dp
+
+        do i = 1, n_sites
+            do j = 1, n_sites
+                do k = 1, n_sites
+                    do l = 1, n_sites
+                        elem = uhub * sum_hop_transcorr_factor(i,j,k,l)
+
+                        ! write to the dumpfile
+                        ! todo
+
+                        ! and also store in the umat 
+                        umat_rs_hub_trancorr_hop(i,j,k,l) = elem 
+                    end do
+                end do
+            end do
+        end do
+
     end subroutine init_umat_rs_hub_transcorr
 
     subroutine init_get_helement_hubbard
         get_helement_lattice_ex_mat => get_helement_rs_hub_ex_mat
         get_helement_lattice_general => get_helement_rs_hub_general
+        if (t_trans_corr_hop) then 
+            call init_hopping_transcorr()
+        end if
+
         call init_tmat(lat)
+
     end subroutine init_get_helement_hubbard
 
     subroutine check_real_space_hubbard_input() 
@@ -1113,34 +1265,22 @@ contains
                     
     end subroutine create_cum_list_rs_hubbard_transcorr_double
 
-    function get_double_helem_rs_hub_transcorr(nI, ex, tParity) result(hel)
-        ! function to calculate the new 2-body matrix element in the 
-        ! real-space hubbard with hopping transcorrelation 
-        integer, intent(in) :: nI(nel), ex(2,2) 
-        logical, intent(in) :: tParity 
-        HElement_t(dp) :: hel 
-#ifdef __DEBUG 
-        character(*), parameter :: this_routine = "get_double_helem_rs_hub_transcorr" 
-        call stop_all(this_routine, "todo!")
-#endif 
-        ASSERT(.not. same_spin(ex(1,1),ex(1,2)))
-        ASSERT(.not. same_spin(ex(2,1),ex(2,2)))
-
-
-    end function get_double_helem_rs_hub_transcorr
-
-    function get_single_helem_rs_hub_transcorr(nI, ex, tParity) result(hel) 
+    function get_single_helem_rs_hub_transcorr(nI, ex, tPar) result(hel) 
         ! function to get the new 1-body matrix elements in the real-space 
         ! hubbard with hopping transcorelation with influence from the 
         ! newly introduced double excitations 
+        ! this is the standalone function outside get_offdiag_helement_rs_hub
         integer, intent(in) :: nI(nel), ex(2)
-        logical, intent(in) :: tParity 
+        logical, intent(in) :: tPar 
         HElement_t(dp) :: hel 
 #ifdef __DEBUG 
         character(*), parameter :: this_routine = "get_single_helem_rs_hub_transcorr"
-        call stop_all(this_routine, "todo")
 #endif 
         ASSERT(same_spin(ex(1),ex(2)))
+
+        hel = GetTMatEl(ex(1),ex(2)) + get_2_body_contrib_transcorr_hop(nI,ex)
+
+        if (tpar) hel = -hel
 
     end function get_single_helem_rs_hub_transcorr
 
@@ -1531,6 +1671,9 @@ contains
             ! transcorrelated hamiltonian or not 
             hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar)
 
+        else if (ic == 2 .and. t_trans_corr_hop) then 
+            hel = get_double_helem_rs_hub_transcorr(nI, ex, tpar)
+
         else 
             ! zero matrix element! 
             hel = h_cast(0.0_dp)
@@ -1557,6 +1700,10 @@ contains
                 call GetExcitation(nI, nJ, nel, ex, tpar)
                 hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar) 
 
+            else if (ic_ret == 2 .and. t_trans_corr_hop) then 
+
+                hel = get_double_helem_rs_hub_transcorr(nI, ex, tpar)
+
             else if (ic_ret == -1) then 
                 ! this indicates that ic_ret wants to get returned instead of 
                 ! beeing calculated 
@@ -1573,6 +1720,12 @@ contains
                     call GetBitExcitation(ilutI, ilutJ, ex, tpar)
 
                     hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar)
+
+                else if (ic_ret == 2 .and. t_trans_corr_hop) then 
+                    ex(1,1) = 2
+                    call GetBitExcitation(ilutI, ilutJ, ex, tpar)
+
+                    hel = get_double_helem_rs_hub_transcorr(nI, ex, tpar)
 
                 else 
                     hel = h_cast(0.0_dp)
@@ -1594,6 +1747,10 @@ contains
                 call GetBitExcitation(ilutI, ilutJ, ex, tpar)
                 hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar) 
 
+            else if (ic == 2 .and. t_trans_corr_hop) then 
+                ex(1,1) = 2
+                call GetBitExcitation(ilutI, ilutJ, ex, tpar)
+                hel = get_double_helem_rs_hub_transcorr(nI, ex, tpar)
             else
                 hel = h_cast(0.0_dp)
             end if
@@ -1612,9 +1769,81 @@ contains
 
         call EncodeBitDet(nI, ilut)
 
-        hel = h_cast(uhub * count_double_orbs(ilut))
+        if (t_trans_corr_hop) then 
+            hel = get_diag_helemen_rs_hub_transcorr_hop(nI)
+        else
+            hel = h_cast(uhub * count_double_orbs(ilut))
+        end if
 
     end function get_diag_helemen_rs_hub
+
+    function get_diag_helemen_rs_hub_transcorr_hop(nI) result(hel)
+        ! with the hopping transcorrelation also the diagonal matrix 
+        ! elements change! 
+        integer, intent(in) :: nI(nel)
+        HElement_t(dp) :: hel
+
+        integer :: i, j, id(nel), idX, idN
+
+        hel = 0.0_dp 
+
+        id = get_spatial(nI)
+
+        ! now also n_iu n_jd contribute to the diagonal elements! 
+        do i = 1, nel 
+            do j = 1, nel 
+                if (.not. same_spin(nI(i), nI(j))) then 
+
+                    idX = max(id(i),id(j))
+                    idN = min(id(i),id(j))
+
+                    ! is this sufficient? do i have a factor of 1/2?
+                    hel = hel + get_umat_rs_hub_trans(idN,idX,idN,idX)
+                end if
+            end do
+        end do
+
+    end function get_diag_helemen_rs_hub_transcorr_hop
+
+    function get_double_helem_rs_hub_transcorr(nI, ex, tpar) result(hel)
+        ! newly introduced 2-body matrix element in the hopping 
+        ! transcorrelated real-space hubbard model 
+        integer, intent(in) :: nI(nel), ex(2,2) 
+        logical, intent(in) :: tpar 
+        HElement_t(dp) :: hel
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "get_double_helem_rs_hub_transcorr"
+#endif
+        integer :: src(2), tgt(2), ij(2), ab(2)
+    
+        ASSERT(t_trans_corr_hop) 
+        ASSERT(.not. same_spin(ex(1,1),ex(1,2)))
+        ASSERT(.not. same_spin(ex(2,1),ex(2,2)))
+
+        src = get_src(ex)
+        tgt = get_tgt(ex)
+
+        ij = get_spatial(src)
+        ab = get_spatial(tgt)
+
+        ! this weird combined sign convention.. 
+        ! NOTE: i have to be careful due to the non-hermitian hamiltonian.. 
+        ! i guess it matters now where i put the holes and electrons!
+        ! and maybe it even matters where i put the indices for electrons 
+        ! and their corresponding fitting hole.. to be tested! 
+        if (same_spin(src(1),tgt(1)) .and. same_spin(src(2),tgt(2))) then 
+
+            hel = get_umat_rs_hub_trans(ij(1),ij(2),ab(1),ab(2))
+
+        else if (same_spin(src(1),tgt(2)) .and. same_spin(src(2),tgt(1))) then 
+
+            hel = -get_umat_rs_hub_trans(ij(1),ij(2),ab(1),ab(2))
+            
+        end if
+
+        if (tpar) hel = -hel
+
+    end function get_double_helem_rs_hub_transcorr
 
     function get_offdiag_helement_rs_hub(nI, ex, tpar) result(hel)
         integer, intent(in) :: nI(nel), ex(2)
@@ -1627,6 +1856,10 @@ contains
         ! in case we need it, the off-diagonal, except parity is just 
         ! -t if the hop is possible
         hel = GetTMatEl(ex(1),ex(2))
+
+        if (t_trans_corr_hop) then 
+            hel = hel + get_2_body_contrib_transcorr_hop(nI, ex)
+        end if
 
         if (tpar) hel = -hel
 
@@ -1661,8 +1894,48 @@ contains
             hel = hel * exp(trans_corr_param_2body * & 
                 (get_spin_opp_neighbors(ilut, ex(1)) - get_spin_opp_neighbors(ilut,ex(2))))
         end if
-
     end function get_offdiag_helement_rs_hub
+
+    function get_2_body_contrib_transcorr_hop(nI, ex) result(hel) 
+        ! new single excitation matrix element calculation 
+        ! in the hopping transcorrelation this has influence from the 
+        ! 2-body term now. the original 1-body term is already calulated 
+        ! outside this function
+        integer, intent(in) :: nI(nel), ex(2)
+        HElement_t(dp) :: hel
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "get_2_body_contrib_transcorr_hop"
+#endif
+        integer :: i, idX(2), idN
+        ASSERT(same_spin(ex(1),ex(2)))
+
+        hel = 0.0_dp 
+
+        idX = get_spatial(ex)
+
+        ! i have to loop over the occupied sites from the opposite spin 
+        ! and retrieve the correct integral
+        if (is_beta(ex(1))) then 
+            do i = 1, nel 
+                if (is_alpha(nI(i))) then 
+                    ! get the correct indices. 
+                    ! NOTE: i also have to think about the hermiticity here! 
+                    ! so the order in umat counts i guess!!! also important 
+                    ! for the setup of umat! 
+                    idN = get_spatial(nI(i)) 
+                    hel = hel + get_umat_rs_hub_trans(idX(1),idN,idX(2),idN)
+                end if
+            end do
+        else 
+            do i = 1, nel 
+                if (is_beta(nI(i))) then 
+                    idN = get_spatial(nI(i)) 
+                    hel = hel + get_umat_rs_hub_trans(idX(1),idN,idX(2),idN)
+                end if
+            end do
+        end if
+
+    end function get_2_body_contrib_transcorr_hop
 
     function get_opp_spin(ilut, spin_orb) result(opp_spin) 
         integer(n_int), intent(in) :: ilut(0:NIfTot) 
@@ -1884,8 +2157,9 @@ contains
         HElement_t(dp) :: hel 
 #ifdef __DEBUG 
         character(*), parameter :: this_routine = "get_umat_rs_hub_trans"
-        call stop_all(this_routine, "todo")
 #endif 
+
+        hel = umat_rs_hub_trancorr_hop(i,j,k,l)
 
     end function get_umat_rs_hub_trans
 

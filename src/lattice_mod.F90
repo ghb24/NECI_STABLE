@@ -12,16 +12,19 @@ module lattice_mod
     ! the sym_mod!
 !     use OneEInts, only: tmat2d, gettmatel
     use constants, only: dp, pi, EPS
-    use SystemData, only: twisted_bc, nbasis, basisfn, t_trans_corr_2body
+    use SystemData, only: twisted_bc, nbasis, basisfn, t_trans_corr_2body, &
+                          symmetry
 
     implicit none 
     private 
     public :: lattice, lattice_deconstructor, aim, aim_deconstructor, sort_unique, & 
               lat, determine_optimal_time_step, get_helement_lattice, inside_bz_2d, &
-              on_line_2d
+              on_line_2d, epsilon_kvec, init_dispersion_rel_cache
 
     integer, parameter :: NAME_LEN = 13
     integer, parameter :: sdim = 3
+
+    HElement_t(dp), allocatable, public :: dispersion_rel_cached(:)
 
     type :: site 
         ! the basic site type for my lattice
@@ -41,6 +44,10 @@ module lattice_mod
         ! implementation and also if i want to deal with the new type of 
         ! periodic boundary conditions. 
         integer :: k_vec(3) = 0
+        ! i also need the real-space coordinates for the hopping 
+        ! transcorrelation! 
+        integer :: r_vec(3) = 0
+
         ! also use one integer to differentiate between the k-vectors! 
         ! this makes it easier to access arrays.. 
         integer :: k_sym = -1
@@ -97,6 +104,7 @@ module lattice_mod
         procedure :: set_bath 
         procedure :: is_bath
         procedure :: set_k_vec
+        procedure :: set_r_vec
         ! i could also use finalization routines instead of manually 
         ! deallocating everything.. 
         ! i need atleast gcc4.9.. which i am to lazy to update now..
@@ -274,6 +282,7 @@ module lattice_mod
         procedure, public :: dispersion_rel_spin_orb
 
         procedure, public :: get_k_vec
+        procedure, public :: get_r_vec
         procedure, public :: round_sym 
 
         procedure, public :: map_k_vec
@@ -688,7 +697,79 @@ module lattice_mod
         procedure get_helement_lattice_general
     end interface get_helement_lattice
 
+    interface epsilon_kvec 
+        module procedure epsilon_kvec_vector
+        module procedure epsilon_kvec_symmetry
+        module procedure epsilon_kvec_orbital
+    end interface epsilon_kvec
+
 contains 
+
+    HElement_t(dp) function epsilon_kvec_vector(k_vec)
+        ! and actually this function has to be defined differently for 
+        ! different type of lattices! TODO!
+        ! actually i could get rid of this function and directly call 
+        ! the dispersion relation of the lattice.. 
+        integer, intent(in) :: k_vec(3)
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "epsilon_kvec_vector"
+#endif
+
+        ASSERT(associated(lat)) 
+
+        ! i could save the basic lattice vectors for the lattice or even 
+        ! store the dispersion relation for each lattice type and call it 
+        ! with a given k-vector? 
+        ! change that to only access the cached result of the dispersion 
+        ! relation 
+!         epsilon_kvec = h_cast(lat%dispersion_rel(k_vec))
+
+        ! it is necessary to call this function only with k_vectors 
+        ! within the first BZ!!
+        epsilon_kvec_vector = dispersion_rel_cached(lat%get_sym_from_k(k_vec))
+
+!         epsilon_kvec = h_cast(2*sum(cos(real(k_vec,dp))))
+
+    end function epsilon_kvec_vector
+
+    HElement_t(dp) function epsilon_kvec_symmetry(sym) 
+        ! access the stored dispersion relation values through the symmetry 
+        ! symbol associated with a k-vector
+        type(symmetry), intent(in) :: sym 
+
+        epsilon_kvec_symmetry = dispersion_rel_cached(sym%s) 
+
+    end function epsilon_kvec_symmetry
+
+    HElement_t(dp) function epsilon_kvec_orbital(orb) 
+        ! access the stored dispersion relation values through the spatial 
+        ! orbital (orb) 
+        integer, intent(in) :: orb 
+
+        epsilon_kvec_orbital = dispersion_rel_cached(lat%get_sym(orb))
+
+    end function epsilon_kvec_orbital
+
+    subroutine init_dispersion_rel_cache() 
+        ! to avoid excessive calls to the cos() function cache the 
+        ! dispersion relation of the lattice and make them accessible 
+        ! through the symmetry label associated with the k-vectors! 
+        character(*), parameter :: this_routine = "init_dispersion_rel_cache"
+        integer :: i 
+
+        ASSERT(associated(lat))
+
+        if (allocated(dispersion_rel_cached)) deallocate(dispersion_rel_cached)
+
+        allocate(dispersion_rel_cached(lat%get_nsites()))
+        dispersion_rel_cached = h_cast(0.0_dp)
+
+        do i = 1, lat%get_nsites()
+            dispersion_rel_cached(lat%get_sym(i)) = & 
+                lat%dispersion_rel_orb(i)
+        end do
+
+    end subroutine init_dispersion_rel_cache
 
     subroutine set_sym(this, orb, sym) 
         class(lattice) :: this 
@@ -1575,6 +1656,7 @@ contains
         call lhs%set_impurity( rhs%is_impurity() )
         call lhs%set_bath( rhs%is_bath() )
         call lhs%set_k_vec(rhs%k_vec)
+        call lhs%set_r_vec(rhs%r_vec)
 
         ! can i work with an allocatable statement here? 
 
@@ -2979,6 +3061,15 @@ contains
 
     end function get_k_vec
 
+    function get_r_vec(this, orb) result(r_vec) 
+        class(lattice) :: this
+        integer, intent(in) :: orb 
+        integer :: r_vec(3) 
+
+        r_vec = this%sites(orb)%r_vec 
+
+    end function get_r_vec
+
     function dispersion_rel_chain_k(this, k_vec) result(disp) 
         class(chain) :: this 
         integer, intent(in) :: k_vec(3) 
@@ -3745,7 +3836,7 @@ contains
 
     end function lattice_constructor
 
-    function site_constructor(ind, n_neighbors, neighbors, k_vec, site_type) & 
+    function site_constructor(ind, n_neighbors, neighbors, k_vec, r_vec, site_type) & 
             result(this) 
         ! similar to the lattice constructor i want to have a site 
         ! constructor, which depending on some input constructs the 
@@ -3756,6 +3847,7 @@ contains
         integer, intent(in) :: n_neighbors 
         integer, intent(in) :: neighbors(n_neighbors)
         integer, intent(in), optional :: k_vec(3)
+        integer, intent(in), optional :: r_vec(3)
         character(*), intent(in), optional :: site_type 
         ! i think i have to use pointers again.. 
         ! but maybe this is really bad to deal with in the rest of the code.. 
@@ -3787,19 +3879,25 @@ contains
         end if
 
         if (present(k_vec)) then 
-            call this%initialize(ind, n_neighbors, neighbors, k_vec)
+            if (present(r_vec)) then 
+                call this%initialize(ind, n_neighbors, neighbors, k_vec)
+            else
+                call this%initialize(ind, n_neighbors, neighbors, k_vec)
+            end if
         else 
+            ASSERT(.not. present(r_vec))
             call this%initialize(ind, n_neighbors, neighbors)
         end if
 
     end function site_constructor
 
-    subroutine init_site(this, ind, n_neighbors, neighbors, k_vec) 
+    subroutine init_site(this, ind, n_neighbors, neighbors, k_vec, r_vec) 
         ! for now only use the index in the initalization 
         class(site) :: this 
         integer, intent(in) :: ind, n_neighbors
         integer, intent(in) :: neighbors(n_neighbors)
         integer, intent(in), optional :: k_vec(3)
+        integer, intent(in), optional :: r_vec(3)
 
         ! for the beginning i do not need more than to set the index.. 
         ! independent of the type 
@@ -3812,6 +3910,10 @@ contains
             call this%set_k_vec(k_vec)
         end if
 
+        if (present(r_vec)) then 
+            call this%set_r_vec(r_vec)
+        end if
+
     end subroutine init_site
 
     subroutine set_k_vec(this, k_vec)
@@ -3821,6 +3923,14 @@ contains
         this%k_vec = k_vec
 
     end subroutine set_k_vec
+
+    subroutine set_r_vec(this, r_vec)
+        class(site) :: this 
+        integer, intent(in) :: r_vec(3)
+
+        this%r_vec = r_vec
+
+    end subroutine set_r_vec
 
     subroutine set_neighbors(this, neighbors) 
         class(site) :: this 
