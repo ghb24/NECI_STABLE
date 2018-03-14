@@ -43,6 +43,10 @@ parser.add_argument('--ex-scale', help="Scaling factor for excitation levels.\
                     Lower values make the ampitudes smaller but the \
                     seperation between levels clearer.",
                     type=float,default=0.5)
+parser.add_argument('--wf-min', help="The lower limit of the y-axis of the \
+                    wavefunction plot.",type=float)
+parser.add_argument('--wf-max', help="The upper limit of the y-axis of the \
+                    wavefunction plot.",type=float)
 args=parser.parse_args()
 ###############################################################################
 #Setup parameters
@@ -127,9 +131,15 @@ with open(symdets,"r") as f:
         excits.append(int(columns[1]))
         exact_wf.append(float(columns[3]))
 
-#For linear plot limits, ignore HF because its population is very large
-min_y = min(exact_wf[1:])*1.1
-max_y = max(exact_wf[1:])*1.1
+#For full wavefunction limits, ignore HF because its population is very large
+if(args.wf_min):
+    min_y = args.wf_min
+else:
+    min_y = min(exact_wf[1:])*1.1
+if(args.wf_max):
+    max_y = args.wf_max
+else:
+    max_y = max(exact_wf[1:])*1.1
 
 min_ex = max(1, args.ex_low)
 if(args.ex_high):
@@ -187,7 +197,7 @@ fullWF_ax.set_ylim(min_y,max_y)
 fullWF_ax.set_xlabel("Determinant")
 
 #Intitialize the excitations plot of wavefunctions
-#---------------------------------------
+#--------------------------------------------------
 excits_ax = fig.add_subplot(excits_block, polar=True)
 exact_plines = dict()
 instant_plines = dict()
@@ -332,7 +342,7 @@ if(len(plot_itrs)==0):
     sys.exit('No SpawnHist files matching specified iterations are availible!')
 
 #Create animation object
-anim = FuncAnimation(fig, update, plot_itrs, interval=args.interval)
+anim = FuncAnimation(fig, update, plot_itrs, init, interval=args.interval)
 
 #Without the following, an annoying warning is printed. After tracking this 
 #strange warning, I found it happens when using a polar plot with GridSpec. 
