@@ -13,13 +13,13 @@ module lattice_mod
 !     use OneEInts, only: tmat2d, gettmatel
     use constants, only: dp, pi, EPS
     use SystemData, only: twisted_bc, nbasis, basisfn, t_trans_corr_2body, &
-                          symmetry
+                          symmetry, brr
 
     implicit none 
     private 
     public :: lattice, lattice_deconstructor, aim, aim_deconstructor, sort_unique, & 
               lat, determine_optimal_time_step, get_helement_lattice, inside_bz_2d, &
-              on_line_2d, epsilon_kvec, init_dispersion_rel_cache
+              on_line_2d, epsilon_kvec, init_dispersion_rel_cache, setup_lattice_symmetry
 
     integer, parameter :: NAME_LEN = 13
     integer, parameter :: sdim = 3
@@ -704,6 +704,81 @@ module lattice_mod
     end interface epsilon_kvec
 
 contains 
+
+    subroutine setup_lattice_symmetry
+        ! since i need it also in the real-space lattice for the 
+        ! hopping transcorrelation move the symmetry setup for the 
+        ! k-spae hubbard model into the lattice_mod 
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "setup_lattice_symmetry"
+#endif
+        integer :: i, kmin(3), kmax(3), j, k_i(3), k, l, ind
+        ASSERT(associated(lat))
+
+        if (allocated(lat%k_to_sym))   deallocate(lat%k_to_sym)
+        if (allocated(lat%sym_to_k))   deallocate(lat%sym_to_k)
+        if (allocated(lat%mult_table)) deallocate(lat%mult_table)
+        if (allocated(lat%inv_table))  deallocate(lat%inv_table)
+
+        allocate(lat%sym_to_k(lat%get_nsites(),3))
+        allocate(lat%mult_table(lat%get_nsites(), lat%get_nsites()))
+        allocate(lat%inv_table(lat%get_nsites()))
+
+        ! i have to setup the symlabels first ofc.. 
+        do i = 1, lat%get_nsites() 
+            ! and also just encode the symmetry labels as integers, instead of 
+            ! 2^(k-1), to be able to treat more than 64 orbitals (in the old 
+            ! implementation, an integer overflow happened in this case!)
+            ind = get_spatial(brr(2*i))
+
+            call lat%set_sym(ind,i)
+
+        end do
+
+!         print *, "i, sym(i), k(i), r(i): "
+!         do i = 1, lat%get_nsites()
+!             print *, i, "|", lat%get_sym(i), "|", lat%get_k_vec(i), "|", lat%get_r_vec(i), "|"
+!         end do
+
+        kmin = 0 
+        kmax = 0 
+        do i = 1, lat%get_nsites() 
+            k_i = lat%get_k_vec(i)
+            do j = 1, lat%get_ndim() 
+                if (k_i(j) < kmin(j)) kmin(j) = k_i(j)
+                if (k_i(j) > kmax(j)) kmax(j) = k_i(j) 
+            end do
+        end do
+
+        allocate(lat%k_to_sym(kmin(1):kmax(1),kmin(2):kmax(2),kmin(3):kmax(3)))
+
+        lat%k_to_sym = 0
+
+        ! now find the inverses: 
+        do i = 1, lat%get_nsites() 
+
+            ! find the orbital of -k 
+            j = lat%get_orb_from_k_vec(-lat%get_k_vec(i))
+
+            lat%inv_table(lat%get_sym(i)) = lat%get_sym(j) 
+
+            lat%sym_to_k(lat%get_sym(i),:) = lat%get_k_vec(i)
+
+            k_i = lat%get_k_vec(i) 
+
+            lat%k_to_sym(k_i(1),k_i(2),k_i(3)) = lat%get_sym(i)
+
+            ! and create the symmetry product of (i) with every other symmetry
+            do k = 1, lat%get_nsites()
+                ! i just have to add the momenta and map it to the first BZ 
+                l = lat%get_orb_from_k_vec(lat%get_k_vec(i) + lat%get_k_vec(k))
+
+                lat%mult_table(lat%get_sym(i), lat%get_sym(k)) = lat%get_sym(l)
+
+            end do
+        end do
+
+    end subroutine setup_lattice_symmetry
 
     HElement_t(dp) function epsilon_kvec_vector(k_vec)
         ! and actually this function has to be defined differently for 
@@ -1738,7 +1813,7 @@ contains
     subroutine init_sites_chain(this) 
         class(chain) :: this 
 
-        integer :: i
+        integer :: i, vec(3)
         ! ok what exactly do i do here?? 
         ! and i think i want to write a constructor for the sites.. to do 
         ! nice initialization for AIM sites etc. 
@@ -1764,17 +1839,21 @@ contains
 
         if (this%get_nsites() == 1) then 
             this%sites(1) = site(ind = 1, n_neighbors = 0, neighbors = [integer :: ], & 
-                k_vec = [0,0,0])
+                k_vec = [0,0,0], r_vec = [0,0,0])
             return 
         end if
 
         if (this%is_periodic()) then 
 
             ! use more concise site contructors!
-            this%sites(1) = site(1, 2, [this%get_nsites(), 2], & 
-                [-(this%length+1)/2+1,0,0])
+            ! also encode k- and real-space vectors.. i have to get this right!
+            vec = [-(this%length+1)/2+1,0,0]
+
+            this%sites(1) = site(1, 2, [this%get_nsites(), 2], vec, vec)
+
+            vec = [this%length/2,0,0]
             this%sites(this%get_nsites()) = site(this%get_nsites(), 2, & 
-                [this%get_nsites() - 1, 1], [this%length/2,0,0])
+                [this%get_nsites() - 1, 1], vec, vec)
 
         else 
             ! open boundary conditions: 
@@ -1791,9 +1870,10 @@ contains
         ! and do the rest inbetween which is always the same 
         do i = 2, this%get_nsites() - 1
 
+            vec = [-(this%length+1)/2+i,0,0]
             ! if periodic and first or last: already dealt with above
-            this%sites(i) = site(i, N_CONNECT_MAX_CHAIN, [i - 1, i + 1],& 
-                [-(this%length+1)/2+i,0,0])
+            this%sites(i) = site(i, N_CONNECT_MAX_CHAIN, [i - 1, i + 1], vec, vec)
+                
 
         end do
 
@@ -3880,7 +3960,7 @@ contains
 
         if (present(k_vec)) then 
             if (present(r_vec)) then 
-                call this%initialize(ind, n_neighbors, neighbors, k_vec)
+                call this%initialize(ind, n_neighbors, neighbors, k_vec, r_vec)
             else
                 call this%initialize(ind, n_neighbors, neighbors, k_vec)
             end if

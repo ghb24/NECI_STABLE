@@ -16,7 +16,7 @@ module k_space_hubbard
                     omega, bhub, nBasisMax, G1, BasisFN, NullBasisFn, TSPINPOLAR, & 
                     treal, ttilt, tExch, ElecPairs, MaxABPairs, Symmetry, SymEq, &
                     t_new_real_space_hubbard, SymmetrySize, tNoBrillouin, tUseBrillouin, &
-                    excit_cache, tUniformKSpaceExcit
+                    excit_cache, tUniformKSpaceExcit, brr
 
     use lattice_mod, only: get_helement_lattice_ex_mat, get_helement_lattice_general, &
                            determine_optimal_time_step, lattice, sort_unique, lat, &
@@ -123,7 +123,6 @@ contains
     subroutine setup_symmetry_table() 
         ! implement a new symmetry setup to decouple it from the 
         ! old hubbard.F code.. 
-        use SystemData, only: brr
 
         character(*), parameter :: this_routine = "setup_symmetry_table"
 

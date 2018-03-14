@@ -25,9 +25,9 @@ module real_space_hubbard
     use lattice_mod, only: lattice, determine_optimal_time_step, lat, &
                     get_helement_lattice, get_helement_lattice_ex_mat, & 
                     get_helement_lattice_general, init_dispersion_rel_cache, &
-                    epsilon_kvec
+                    epsilon_kvec, setup_lattice_symmetry
 
-    use constants, only: dp, EPS, n_int, bits_n_int
+    use constants, only: dp, EPS, n_int, bits_n_int, pi
 
     use procedure_pointers, only: get_umat_el, generate_excitation
 
@@ -229,7 +229,16 @@ contains
         ! k-space lattice for this transcorrelation! 
         ! and i finally have to get the real-space and k-space vector 
         ! relations fully correct! 
+        integer :: i 
+
+        call setup_lattice_symmetry()
+
         call init_dispersion_rel_cache() 
+
+!         print *, "e(k)"
+!         do i = 1, lat%get_nsites()
+!             print *, i, "|", lat%get_k_vec(i), "|", epsilon_kvec(i)
+!         end do
 
         ! i also need a umat array now! 
         call init_umat_rs_hub_transcorr()
@@ -253,16 +262,24 @@ contains
 
         temp = 0.0_dp 
 
+        ! i have to have the correct dot-product of the real- and k-space 
+        ! vectors... 
         do i = 1, n_sites
             k_vec = lat%get_k_vec(i)
-            temp = temp + exp(complex(0.0,1.0) * dot_product(k_vec, r_vec)) * & 
-                exp(-J * epsilon_kvec(i))
+            temp = temp + exp(complex(0.0,1.0) * 2.0*pi/real(n_sites,dp) * &
+                dot_product(k_vec, r_vec)) * exp(-J * epsilon_kvec(i))
+
+!             print *, "k: ", k_vec, "|", exp(complex(0.0,1.0) * 2.0*pi/real(n_sites,dp)* &
+!                 dot_product(k_vec, r_vec))
+
         end do
 
+        hop_transcorr_factor = real(temp) / real(n_sites,dp)
+
+!         print *, "hop_transcorr_factor(r): ",r_vec, temp/real(n_sites,dp)
         ! will this be ever comlex? check the size 
         ASSERT(abs(aimag(temp)) < EPS) 
 
-        hop_transcorr_factor = real(temp) / real(n_sites,dp)
 
     end function hop_transcorr_factor
 
@@ -353,6 +370,7 @@ contains
         allocate(umat_rs_hub_trancorr_hop(n_sites,n_sites,n_sites,n_sites))
         umat_rs_hub_trancorr_hop = 0.0_dp
 
+!         print *, "umat: "
         do i = 1, n_sites
             do j = 1, n_sites
                 do k = 1, n_sites
@@ -361,6 +379,8 @@ contains
 
                         ! write to the dumpfile
                         ! todo
+                        
+!                         print *, i,j,k,l, elem
 
                         ! and also store in the umat 
                         umat_rs_hub_trancorr_hop(i,j,k,l) = elem 
@@ -372,6 +392,7 @@ contains
     end subroutine init_umat_rs_hub_transcorr
 
     subroutine init_get_helement_hubbard
+
         get_helement_lattice_ex_mat => get_helement_rs_hub_ex_mat
         get_helement_lattice_general => get_helement_rs_hub_general
         if (t_trans_corr_hop) then 
@@ -975,10 +996,9 @@ contains
 
         character(*), parameter :: this_routine = "gen_excit_rs_hubbard_transcorr"
 
-        integer :: iunused, ind , elec, id, src, orb, n_avail, n_orbs, i
-        integer, allocatable :: neighbors(:), orbs(:)
-        real(dp), allocatable :: cum_arr(:)
-        real(dp) :: cum_sum, elem, r, p_elec, p_orb
+        integer :: iunused, ind , elec, id, src, orb
+        real(dp) :: cum_arr(nBasis/2)
+        real(dp) :: cum_sum, p_elec, p_orb
 
         iunused = exflag; 
         ilutJ = 0_n_int
@@ -992,6 +1012,16 @@ contains
 
             call gen_double_excit_rs_hub_transcorr(nI, ilutI, nJ, ilutJ, ex, tParity, pgen)
             pgen = pDoubles * pgen 
+
+            if (nJ(1) == 0) then 
+!                 print *, "nI: ", nI 
+!                 print *, "nJ: ", nJ 
+!                 print *, "ex(1,:): ", ex(1,:)
+!                 print *, "ex(2,:): ", ex(2,:)
+!                 print *, "pgen: ", pgen
+                pgen = 0.0_dp 
+                return 
+            end if
 
         else 
             ic = 1
@@ -1055,7 +1085,7 @@ contains
         real(dp) :: elem
 
     
-        ASSERT(IsNotOcc(ilutI, src))
+        ASSERT(IsOcc(ilutI, src))
         
         cum_arr = 0.0_dp
         cum_sum = 0.0_dp 
@@ -1065,6 +1095,7 @@ contains
         spin = get_spin(src) - 1
 
         ex = 0
+        ex(1,1) = src
 
         if (present(tgt)) then 
             ASSERT(present(p_orb))
@@ -1082,7 +1113,6 @@ contains
                     
                     ex(2,1) = orb 
                     call swap_excitations(nI, ex, nJ, ex2)
-
                     elem = abs(get_single_helem_rs_hub_transcorr(nJ, ex2(:,1), .false.))
 
                 end if
@@ -1817,8 +1847,12 @@ contains
         integer :: src(2), tgt(2), ij(2), ab(2)
     
         ASSERT(t_trans_corr_hop) 
-        ASSERT(.not. same_spin(ex(1,1),ex(1,2)))
-        ASSERT(.not. same_spin(ex(2,1),ex(2,2)))
+
+        if (.not. same_spin(ex(1,1),ex(1,2)) .or. &
+            .not. same_spin(ex(2,1),ex(2,2))) then 
+            hel = 0.0_dp
+            return
+        end if
 
         src = get_src(ex)
         tgt = get_tgt(ex)

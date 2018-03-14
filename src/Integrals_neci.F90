@@ -45,7 +45,8 @@ module Integrals_neci
 
     use sym_mod, only: symProd, symConj, lSymSym, TotSymRep
 
-    use real_space_hubbard, only: init_umat_rs_hub_transcorr
+    use real_space_hubbard, only: init_umat_rs_hub_transcorr, & 
+                                  init_hopping_transcorr
 
     implicit none
 
@@ -559,8 +560,8 @@ contains
                      UMAT(1)=UHUB
                  else if (t_new_real_space_hubbard .and. t_trans_corr_hop) then 
 
+                     call init_hopping_transcorr()
                      call init_umat_rs_hub_transcorr()
-                    call stop_all("here", "todo")
                  else
                       WRITE(6,*) "Generating 2e integrals"
         !!C.. Generate the 2e integrals (UMAT)
