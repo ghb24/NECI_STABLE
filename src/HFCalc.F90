@@ -1,6 +1,6 @@
 #include "macros.h"
 MODULE HFCalc
-   use constants, only: dp, int64
+   use constants, only: dp, int64, MPIArg
    implicit none
    save
    contains
@@ -13,16 +13,17 @@ MODULE HFCalc
       use SystemData, only : tHub, lmsbasis
       Use LoggingData, only: iLogging
       Use Determinants, only: FDet, nUHFDet, write_det
-      use IntegralsData, only: UMat, tagUMat
+      use IntegralsData, only: UMat, tagUMat, umat_win
       Use UMatCache, only: GetUMatSize
       Use OneEInts, only: TMat2D, SetupTMat2, DestroyTMat
       use sort_mod
-      use shared_alloc, only: shared_allocate, shared_deallocate
+      use shared_memory_mpi
       use HElem, only: helement_t_size, helement_t_sizeb
       use MemoryManager, only: TagIntType
       character(25), parameter :: this_routine='HFDoCalc'
       HElement_t(dp),ALLOCATABLE :: HFBASIS(:),HFE(:)
       HElement_t(dp),pointer :: UMat2(:)
+      INTEGER(MPIArg):: umat2_win
       HElement_t(dp),pointer :: TMat2D2(:,:)
       integer i
       integer nOrbUsed
@@ -90,7 +91,7 @@ MODULE HFCalc
                 NULLIFY(TMAT2D2)
 !C.. Allocate the new matrix
                CALL GetUMatSize(nBasis,nEl,UMATINT)
-               call shared_allocate ("umat2", umat2, (/UMatInt/))
+               call shared_allocate_mpi (umat2_win, umat2, (/UMatInt/))
                !Allocate(UMat2(UMatInt), stat=ierr)
                LogAlloc(ierr,'UMAT2', int(UMatInt), HElement_t_SizeB, tagUMat2)
                UMAT2 = 0.0_dp
@@ -103,9 +104,12 @@ MODULE HFCalc
                ENDIF
 !C.. Now we can remove the old UMATRIX, and set the pointer UMAT to point
 !C.. to UMAT2
+               call shared_sync_mpi(umat2_win)
                LogDealloc(tagUMat)
-               call shared_deallocate (umat)
+               call shared_deallocate_mpi(umat_win,umat)
+
                !Deallocate(UMat)
+               umat_win=umat2_win
                UMat=>UMat2
                nullify(UMat2)
                tagUMat=tagUMat2
