@@ -16,7 +16,9 @@ program test_real_space_hubbard
     use fruit 
 
     use SystemData, only: lattice_type, t_new_real_space_hubbard, t_trans_corr, & 
-                          trans_corr_param, t_lattice_model, t_trans_corr_hop, brr
+                          trans_corr_param, t_lattice_model, t_trans_corr_hop, brr, & 
+                          t_trans_corr_2body, trans_corr_param_2body, &
+                          t_trans_corr_new
 
     use lattice_mod, only: lat
 
@@ -24,9 +26,11 @@ program test_real_space_hubbard
     
     use util_mod, only: get_free_unit
 
-    use unit_test_helpers, only: create_hamiltonian, eig, print_matrix, &
-                                 similarity_transform, calc_eigenvalues, &
-                                 linspace
+    use unit_test_helpers
+
+    use dsfmt_interface, only: dsfmt_init 
+
+    use fcimcdata, only: pSingles, pDoubles
 
     implicit none 
 
@@ -35,6 +39,7 @@ program test_real_space_hubbard
     t_new_real_space_hubbard = .true.
     t_lattice_model = .true.
 
+    call dsfmt_init(1)
     call init_fruit()
     ! run the test-driver 
     call exact_test()
@@ -51,6 +56,8 @@ contains
         ! this is the main function which calls all the other tests 
         
         ! or try running it with the provided runner of fruit: 
+        call run_test_case(gen_excit_rs_hubbard_test_stoch, "gen_excit_rs_hubbard_test_stoch")
+        call run_test_case(gen_excit_rs_hubbard_transcorr_test_stoch, "gen_excit_k_space_hub_test")
         call run_test_case(get_umat_el_hub_test, "get_umat_el_hub_test")
         call run_test_case(init_tmat_test, "init_tmat_test")
         call run_test_case(get_helement_test, "get_helement_test")
@@ -88,7 +95,7 @@ contains
         real(dp), allocatable :: j_vec(:)
 
 
-        lat => lattice('chain', 6, 1, 1,.true.,.true.,.true.)
+        lat => lattice('square', 2, 2, 1,.true.,.true.,.true.)
         uhub = 10
         bhub = -1
 
@@ -97,7 +104,7 @@ contains
 
         call init_realspace_tests
 
-        nel = 6
+        nel = 4
         allocate(nI(nel))
         nI = [(i, i = 1, nel)]
 
@@ -132,10 +139,10 @@ contains
         print *, "e_value lanczos:", e_values(1)
 
         j = 0.1_dp
-        j_vec = linspace(-0.2,0.2,100)
+        j_vec = linspace(-0.2,0.2,2)
         call exact_transcorrelation(lat, nI, j_vec, real(uhub,dp), hilbert_space)
 
-        call stop_all("here","now")
+!         call stop_all("here","now")
 
     end subroutine exact_test
 
@@ -307,6 +314,8 @@ contains
         end do
         close(iunit)
 
+        t_trans_corr_hop = .false.
+
     end subroutine exact_transcorrelation
 
     subroutine init_realspace_tests
@@ -348,6 +357,125 @@ contains
 
 
     end subroutine get_optimal_correlation_factor_test
+
+    subroutine gen_excit_rs_hubbard_transcorr_test_stoch
+
+        integer, allocatable :: nI(:)
+        integer :: n_iters, n_orbs, i
+
+        n_iters = 1000000
+
+        t_trans_corr_hop = .true. 
+        trans_corr_param = 0.1_dp
+
+        uhub = 10
+        bhub = -1
+        pSingles = 0.9_dp
+        pDoubles = 1.0_dp - pSingles
+
+        lat => lattice('square', 2, 2, 1,.true.,.true.,.true.)
+
+        n_orbs = lat%get_nsites()
+        nBasis = 2 * n_orbs
+        if (associated(brr)) deallocate(brr)
+        allocate(brr(nbasis))
+        brr = [(i,i=1,nBasis)]
+
+        call init_realspace_tests()
+
+        nel = 4
+        allocate(nI(nel))
+        nI = [(i, i = 1, nel)]
+!         nI = [1,4,5,8,9,12]
+
+        nOccAlpha = 0
+        nOccBeta = 0
+
+        do i = 1, nel 
+            if (is_beta(nI(i))) nOccBeta = nOccBeta + 1
+            if (is_alpha(nI(i))) nOccAlpha = nOccAlpha + 1
+        end do
+
+        call run_excit_gen_tester(gen_excit_rs_hubbard_transcorr, & 
+            "gen_excit_rs_hubbard_transcorr", nI, n_iters, gen_all_excits_r_space_hubbard)
+
+        t_trans_corr_hop = .false.
+
+    end subroutine gen_excit_rs_hubbard_transcorr_test_stoch
+
+    subroutine gen_excit_rs_hubbard_test_stoch
+
+        integer, allocatable :: nI(:)
+        integer :: n_iters, n_orbs, i
+
+        n_iters = 1000000
+
+        t_trans_corr_hop = .false. 
+
+        uhub = 10
+        bhub = -1
+        lat => lattice('square', 2, 2, 1,.true.,.true.,.true.)
+
+        n_orbs = lat%get_nsites()
+        nBasis = 2 * n_orbs
+
+        call init_realspace_tests()
+
+        nel = 4
+        allocate(nI(nel))
+        nI = [(i, i = 1, nel)]
+
+        nOccAlpha = 0
+        nOccBeta = 0
+
+        do i = 1, nel 
+            if (is_beta(nI(i))) nOccBeta = nOccBeta + 1
+            if (is_alpha(nI(i))) nOccAlpha = nOccAlpha + 1
+        end do
+
+        print *, ""
+        print *, "first for the original model "
+
+        call run_excit_gen_tester(gen_excit_rs_hubbard, "gen_excit_rs_hubbard", & 
+            nI, n_iters, gen_all_excits_r_space_hubbard)
+
+        print *, "" 
+        print *, "now for the original transcorrelation: "
+        t_trans_corr = .true. 
+        trans_corr_param = 0.1_dp 
+
+        call run_excit_gen_tester(gen_excit_rs_hubbard, "gen_excit_rs_hubbard", & 
+            nI, n_iters, gen_all_excits_r_space_hubbard)
+
+        print *, "" 
+        print *, "now for the 'new' transcorr: "
+        t_trans_corr_new = .true. 
+        call run_excit_gen_tester(gen_excit_rs_hubbard, "gen_excit_rs_hubbard", & 
+            nI, n_iters, gen_all_excits_r_space_hubbard)
+
+        print *, "" 
+        print *, "now for the sum of the 'new' with the 2-body: "
+        t_trans_corr_2body = .true. 
+        trans_corr_param_2body = 0.1_dp
+        call run_excit_gen_tester(gen_excit_rs_hubbard, "gen_excit_rs_hubbard", & 
+            nI, n_iters, gen_all_excits_r_space_hubbard)
+
+        print *, "now the original and the 2-body: "
+        t_trans_corr_new = .false. 
+        call run_excit_gen_tester(gen_excit_rs_hubbard, "gen_excit_rs_hubbard", & 
+            nI, n_iters, gen_all_excits_r_space_hubbard)
+
+        print *, ""
+        print *, "now for the 2-body: "
+        t_trans_corr = .false. 
+        t_trans_corr_new = .false. 
+        call run_excit_gen_tester(gen_excit_rs_hubbard, "gen_excit_rs_hubbard", & 
+            nI, n_iters, gen_all_excits_r_space_hubbard)
+
+        t_trans_corr_2body = .false. 
+
+
+    end subroutine gen_excit_rs_hubbard_test_stoch
 
     subroutine create_neel_state_test
         use SystemData, only: nel, lattice_type, nbasis, length_x, length_y

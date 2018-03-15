@@ -41,11 +41,12 @@ module real_space_hubbard
 
     use dsfmt_interface, only: genrand_real2_dsfmt
 
-    use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
+    use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt
 
-    use bit_rep_data, only: NIfTot
+    use bit_rep_data, only: NIfTot, nifd
 
-    use util_mod, only: binary_search_first_ge, choose, swap, get_free_unit
+    use util_mod, only: binary_search_first_ge, choose, swap, get_free_unit, &
+                        binary_search
 
     use bit_reps, only: decode_bit_det
 
@@ -215,7 +216,7 @@ contains
 
         ! i need to setup the necessary stuff for the new hopping 
         ! transcorrelated real-space hubbard! 
-        call init_hopping_transcorr() 
+!         call init_hopping_transcorr() 
 
         call init_get_helement_hubbard()
 
@@ -1015,6 +1016,7 @@ contains
             ic = 2 
 
             call gen_double_excit_rs_hub_transcorr(nI, ilutI, nJ, ilutJ, ex, tParity, pgen)
+
             pgen = pDoubles * pgen 
 
             if (nJ(1) == 0) then 
@@ -1087,8 +1089,8 @@ contains
         integer :: spin, ex(2,2), nJ(nel), i, orb
         integer, allocatable :: ex2(:,:)
         real(dp) :: elem
+        real(dp) :: temp
 
-    
         ASSERT(IsOcc(ilutI, src))
         
         cum_arr = 0.0_dp
@@ -1113,11 +1115,18 @@ contains
                 ! take the same spin
                 orb = 2 * i - spin
 
+                ASSERT(same_spin(src,orb))
+
                 if (IsNotOcc(ilutI,orb)) then 
                     
                     ex(2,1) = orb 
                     call swap_excitations(nI, ex, nJ, ex2)
                     elem = abs(get_single_helem_rs_hub_transcorr(nJ, ex2(:,1), .false.))
+
+!                     temp = abs(get_single_helem_rs_hub_transcorr(nI, ex(:,1), .false.))
+!                     if (abs(temp - elem) > EPS) then 
+!                         print *, "singles do differ!"
+!                     end if
 
                 end if
                 cum_sum = cum_sum + elem 
@@ -1136,10 +1145,18 @@ contains
                 elem = 0.0_dp
                 orb = 2 * i - spin 
 
+                ASSERT(same_spin(src,orb))
+
                 if (IsNotOcc(ilutI,orb)) then 
                     ex(2,1) = orb 
                     call swap_excitations(nI, ex, nJ, ex2)
                     elem = abs(get_single_helem_rs_hub_transcorr(nJ, ex2(:,1), .false.))
+                    ! todo! i am not sure about the order of these matrix 
+
+!                     temp = abs(get_single_helem_rs_hub_transcorr(nI, ex(:,1), .false.))
+!                     if (abs(temp - elem) > EPS) then 
+!                         print *, "singles do differ!"
+!                     end if
                 end if
 
                 cum_sum = cum_sum + elem 
@@ -1202,7 +1219,8 @@ contains
         ! check above! 
         ASSERT(cum_sum > EPS)
 
-        pgen = 2.0_dp * p_elec * p_orb_a * (p_orb_b + p_orb_switch) 
+        ! no factor of 2, since we add the a|b b|a already!
+        pgen = 1.0_dp * p_elec * p_orb_a * (p_orb_b + p_orb_switch) 
 
         call make_double(nI, nJ, elecs(1), elecs(2), orbs(1), orbs(2), ex, tPar)
 
@@ -1227,6 +1245,7 @@ contains
         integer :: ex(2,2), spin, b, nJ(nel), orb_b
         integer, allocatable :: ex2(:,:)
         real(dp) :: elem
+        real(dp) :: temp
 
         ASSERT(.not. same_spin(src(1),src(2)))
         ASSERT(IsNotOcc(ilutI,orb_a))
@@ -1266,6 +1285,11 @@ contains
                     call swap_excitations(nI, ex, nJ, ex2)
                     elem = abs(get_double_helem_rs_hub_transcorr(nJ, ex2, .false.))
 
+!                     temp = abs(get_double_helem_rs_hub_transcorr(nI, ex, .false.))
+!                     if (abs(elem - temp) > EPS) then 
+!                         print *, "doubles do differ!"
+!                     end if
+
                 end if
                 cum_sum = cum_sum + elem 
                 
@@ -1290,6 +1314,10 @@ contains
                     call swap_excitations(nI, ex, nJ, ex2) 
                     elem = abs(get_double_helem_rs_hub_transcorr(nJ, ex2, .false.))
 
+!                     temp = abs(get_double_helem_rs_hub_transcorr(nI, ex, .false.))
+!                     if (abs(elem - temp) > EPS) then 
+!                         print *, "doubles do differ!"
+!                     end if
                 end if
 
                 cum_sum = cum_sum + elem 
@@ -1408,7 +1436,7 @@ contains
                 return
             end if
 
-            pgen = 2.0_dp * p_elec * p_hole_1 * (p_orb_a + p_orb_b) * pDoubles
+            pgen = 1.0_dp * p_elec * p_hole_1 * (p_orb_a + p_orb_b) * pDoubles
 
         else 
             ! every other ic is 0
@@ -1455,56 +1483,21 @@ contains
 
         ! get the spatial index 
         id = get_spatial(src)
-!         id = gtid(src) 
 
         ! now get neighbors
-!         n_orbs = lat%get_num_neighbors(id)
         neighbors = lat%get_spinorb_neighbors(src)
 
-!         allocate(neighbors(n_orbs)) 
-!         allocate(orbs(n_orbs))
-!         neighbors = lat%get_neighbors(id) 
+        call create_cum_list_rs_hubbard(ilutI, src, neighbors, cum_arr, cum_sum)
 
-!         if (is_beta(src)) then 
-!             neighbors = 2 * neighbors - 1
-!         else 
-!             neighbors = 2 * neighbors
-!         end if
+        if (cum_sum < EPS) then 
+            nJ(1) = 0
+            pgen = 0.0_dp 
+            return
+        end if
 
-!         if (t_trans_corr) then 
-            call create_cum_list_rs_hubbard(ilutI, src, neighbors, cum_arr, cum_sum)
+        call pick_from_cum_list(cum_arr, cum_sum, ind, p_orb)
 
-            if (cum_sum < EPS) then 
-                nJ(1) = 0
-                pgen = 0.0_dp 
-                return
-            end if
-            r = genrand_real2_dsfmt() * cum_sum 
-            ind = binary_search_first_ge(cum_arr, r)
-
-            if (ind == 1) then 
-                p_orb = cum_arr(1) / cum_sum
-            else
-                p_orb = (cum_arr(ind) - cum_arr(ind-1)) / cum_sum 
-            end if
-
-            orb = neighbors(ind)
-!         else
-! 
-!             call create_avail_neighbors_list(ilutI, neighbors, orbs, n_avail)
-! 
-!             if (n_avail == 0) then 
-!                 nJ(1) = 0
-!                 pgen = 0.0_dp 
-!                 return
-!             end if
-! 
-!             ind = 1 + int(genrand_real2_dsfmt() * n_avail)
-!             p_orb = 1.0_dp / real(n_avail, dp) 
-! 
-!             orb = orbs(ind) 
-! 
-!         end if
+        orb = neighbors(ind)
 
         pgen = p_elec * p_orb
 
@@ -1550,23 +1543,12 @@ contains
 
         p_elec = 1.0_dp / real(nel, dp) 
 
-!         if (t_trans_corr) then 
-            call create_cum_list_rs_hubbard(ilutI, src, lat%get_spinorb_neighbors(src), &
-                cum_arr, cum_sum, tgt, p_orb) 
-            if (cum_sum < EPS) then 
-                pgen = 0.0_dp 
-                return
-            end if
-
-!         else 
-!             ! i should also write a routine which gives me the 
-!             ! neighboring orbitals and the number of possible hops 
-!             call create_avail_neighbors_list(ilutI, lat%get_spinorb_neighbors(src), & 
-!                 orbs, n_orbs) 
-! 
-!                 p_orb = 1.0_dp / real(n_orbs, dp) 
-! 
-!         end if
+        call create_cum_list_rs_hubbard(ilutI, src, lat%get_spinorb_neighbors(src), &
+            cum_arr, cum_sum, tgt, p_orb) 
+        if (cum_sum < EPS) then 
+            pgen = 0.0_dp 
+            return
+        end if
 
         pgen = p_elec * p_orb
 
@@ -1830,11 +1812,13 @@ contains
             do j = 1, nel 
                 if (.not. same_spin(nI(i), nI(j))) then 
 
-                    idX = max(id(i),id(j))
-                    idN = min(id(i),id(j))
+!                     idX = max(id(i),id(j))
+!                     idN = min(id(i),id(j))
+!                     ! is this sufficient? do i have a factor of 1/2?
+!                     hel = hel + 0.5_dp * get_umat_rs_hub_trans(idN,idX,idN,idX)
 
-                    ! is this sufficient? do i have a factor of 1/2?
-                    hel = hel + 0.5_dp * get_umat_rs_hub_trans(idN,idX,idN,idX)
+                    hel = hel + 0.5_dp * get_umat_rs_hub_trans(id(i),id(j),id(j),id(i))
+
                 end if
             end do
         end do
@@ -1947,6 +1931,7 @@ contains
         character(*), parameter :: this_routine = "get_2_body_contrib_transcorr_hop"
 #endif
         integer :: i, idX(2), idN
+
         ASSERT(same_spin(ex(1),ex(2)))
 
         hel = 0.0_dp 
@@ -1963,14 +1948,16 @@ contains
                     ! so the order in umat counts i guess!!! also important 
                     ! for the setup of umat! 
                     idN = get_spatial(nI(i)) 
-                    hel = hel + get_umat_rs_hub_trans(idX(1),idN,idX(2),idN)
+                    hel = hel + get_umat_rs_hub_trans(idX(1),idN,idN,idX(2))
+!                     hel = hel + get_umat_rs_hub_trans(idX(1),idN,idX(2),idN)
                 end if
             end do
         else 
             do i = 1, nel 
                 if (is_beta(nI(i))) then 
                     idN = get_spatial(nI(i)) 
-                    hel = hel + get_umat_rs_hub_trans(idX(1),idN,idX(2),idN)
+                    hel = hel + get_umat_rs_hub_trans(idX(1),idN,idN,idX(2))
+!                     hel = hel + get_umat_rs_hub_trans(idX(1),idN,idX(2),idN)
                 end if
             end do
         end if
@@ -2311,6 +2298,269 @@ contains
         end if
 
     end subroutine pick_from_cum_list
+
+    subroutine gen_all_excits_r_space_hubbard(nI, n_excits, det_list) 
+        ! for the purpose of excitation generation and time-step and 
+        ! pDoubles determination create a routine to create all possible 
+        ! excitations for a given determinant nI 
+        ! the system specific variables need to be determined already 
+        ! before! 
+        integer, intent(in) :: nI(nel)
+        integer, intent(out) :: n_excits
+        integer(n_int), intent(out), allocatable :: det_list(:,:) 
+        character(*), parameter :: this_routine = "gen_all_excits_r_space_hubbard"
+
+        integer :: save_excits, n_doubles
+        integer(n_int), allocatable :: double_dets(:,:), temp_dets(:,:)
+
+        if (tHPHF) then 
+            call stop_all(this_routine, &
+                "not adapted to HPHF, since we create all the excitations!")
+        end if
+
+        call gen_all_singles_rs_hub(nI, n_excits, det_list) 
+
+        ! if we have hopping transcorr we also have to compute the 
+        ! possible doubles 
+        ! we know does are different than any single
+        if (t_trans_corr_hop) then 
+            save_excits = n_excits
+
+            call gen_all_doubles_rs_hub_hop_transcorr(nI, n_doubles, double_dets) 
+
+            n_excits = n_excits + n_doubles
+
+            allocate(temp_dets(0:niftot, save_excits), source = det_list(:,1:save_excits))
+
+            deallocate(det_list) 
+
+            allocate(det_list(0:niftot,n_excits)) 
+
+            det_list(:,1:save_excits) = temp_dets 
+
+            det_list(:,save_excits+1:n_excits) = double_dets
+
+        end if
+
+        call sort(det_list, ilut_lt, ilut_gt)
+
+    end subroutine gen_all_excits_r_space_hubbard
+
+    subroutine gen_all_doubles_rs_hub_hop_transcorr(nI, n_excits, det_list) 
+        integer, intent(in) :: nI(nel)
+        integer, intent(out) :: n_excits
+        integer(n_int), intent(out), allocatable :: det_list(:,:) 
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "gen_all_doubles_rs_hub_hop_transcorr"
+#endif
+        integer(n_int) :: ilut(0:NIfTot), ilutJ(0:NIfTot)
+        integer :: n_bound, i, src(2), j, neigh, ex(2,2), pos, a, b
+        integer(n_int), allocatable :: temp_list(:,:)
+        integer, allocatable :: neighbors(:)
+
+        call EncodeBitDet(nI, ilut) 
+
+        n_excits = 1
+        
+        n_bound = nel*(nel-1)*(nbasis-nel)*(nbasis-nel-1)
+
+        allocate(temp_list(0:NIfTot,n_bound))
+        temp_list = 0_n_int
+
+        ! we just have opposite spin doubles! 
+        do i = 1, nel - 1
+            do j = i + 1, nel 
+
+                src = nI([i,j])
+
+                if (same_spin(src(1),src(2))) cycle 
+
+                ex(1,:) = src 
+                ! and now loop over all possible empty spin opposite 
+                ! orbitals in a unique way.. 
+                do a = 1, nbasis - 1
+                    if (IsOcc(ilut,a)) cycle 
+                    do b = a + 1, nbasis 
+                        if (IsOcc(ilut,b) .or. same_spin(a,b)) cycle 
+
+                        ex(2,:) = [a,b] 
+
+                        if (abs(get_double_helem_rs_hub_transcorr(nI, ex, .false.)) > EPS) then
+
+                            ilutJ = make_ilutJ(ilut, ex, 2)
+                            ! actually a search is not really necessary.. since 
+                            ! all the single excitations are unique.. but 
+                            ! just to be sure
+                            pos = binary_search(temp_list(:,1:n_excits), ilutJ, nifd+1)
+
+                            if (pos < 0) then 
+
+                                temp_list(:,n_excits) = ilutJ
+                                call sort(temp_list(:,1:n_excits),ilut_lt,ilut_gt)
+                                n_excits = n_excits + 1
+                                ! damn.. i have to sort everytime i guess..
+                            end if
+                        end if
+                    end do
+                end do
+            end do
+        end do
+
+        n_excits = n_excits - 1
+        allocate(det_list(0:NIfTot,n_excits), source = temp_list(:,1:n_excits))
+
+        call sort(det_list, ilut_lt, ilut_gt)
+
+    end subroutine gen_all_doubles_rs_hub_hop_transcorr
+
+    subroutine gen_all_singles_rs_hub(nI, n_excits, det_list)
+        ! create all single excitations in the real-space hubbard 
+        ! without hopping transcorrelation this is quite easy.. 
+        integer, intent(in) :: nI(nel)
+        integer, intent(out) :: n_excits
+        integer(n_int), intent(out), allocatable :: det_list(:,:) 
+        character(*), parameter :: this_routine = "gen_all_singles_rs_hub" 
+
+        if (t_trans_corr_hop) then 
+            call gen_all_singles_rs_hub_hop_transcorr(nI, n_excits, det_list)
+        else 
+            call gen_all_singles_rs_hub_default(nI, n_excits, det_list) 
+        end if
+
+    end subroutine gen_all_singles_rs_hub
+
+    subroutine gen_all_singles_rs_hub_hop_transcorr(nI, n_excits, det_list)
+        integer, intent(in) :: nI(nel)
+        integer, intent(out) :: n_excits
+        integer(n_int), intent(out), allocatable :: det_list(:,:) 
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "gen_all_singles_rs_hub_hop_transcorr"
+#endif 
+        integer(n_int) :: ilut(0:NIfTot), ilutJ(0:NIfTot)
+        integer :: n_bound, i, src, j, neigh, ex(2), pos, a
+        integer(n_int), allocatable :: temp_list(:,:)
+        integer, allocatable :: neighbors(:)
+        real(dp) :: elem
+
+        call EncodeBitDet(nI, ilut) 
+
+        n_excits = 1
+
+        n_bound = nel * (nbasis - nel)
+        allocate(temp_list(0:NIfTot,n_bound))
+        temp_list = 0_n_int
+        ! loop over electrons 
+        do i = 1, nel 
+            ! but now loop over all orbitals 
+            src = nI(i)
+            ex(1) = src 
+
+            do a = 1, nbasis
+
+                ! only same-spin excitations possible
+                if (same_spin(src,a) .and. IsNotOcc(ilut,a)) then 
+                    ex(2) = a
+                    elem = abs(get_single_helem_rs_hub_transcorr(nI, ex, .false.))
+
+                    if (elem > EPS) then 
+
+                        ilutJ = make_ilutJ(ilut, ex, 1)
+
+                        ! actually a search is not really necessary.. since 
+                        ! all the single excitations are unique.. but 
+                        ! just to be sure
+                        pos = binary_search(temp_list(:,1:n_excits), ilutJ, nifd+1)
+
+                        if (pos < 0) then 
+
+                            temp_list(:,n_excits) = ilutJ
+                            call sort(temp_list(:,1:n_excits),ilut_lt,ilut_gt)
+                            n_excits = n_excits + 1
+                            ! damn.. i have to sort everytime i guess..
+                        end if
+                    end if
+                end if
+            end do
+        end do
+
+        n_excits = n_excits - 1
+        allocate(det_list(0:NIfTot,n_excits), source = temp_list(:,1:n_excits))
+
+        call sort(det_list, ilut_lt, ilut_gt)
+
+    end subroutine gen_all_singles_rs_hub_hop_transcorr
+
+    subroutine gen_all_singles_rs_hub_default(nI, n_excits, det_list) 
+        integer, intent(in) :: nI(nel)
+        integer, intent(out) :: n_excits
+        integer(n_int), intent(out), allocatable :: det_list(:,:) 
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "gen_all_singles_rs_hub_default" 
+#endif
+        integer(n_int) :: ilut(0:NIfTot), ilutJ(0:NIfTot)
+        integer :: n_bound, i, src, j, neigh, ex(2), pos
+        integer(n_int), allocatable :: temp_list(:,:)
+        integer, allocatable :: neighbors(:)
+        real(dp) :: elem
+
+        ASSERT(associated(lat))
+
+        call EncodeBitDet(nI, ilut) 
+
+        n_excits = 1
+
+        n_bound = nel * (nbasis - nel)
+        allocate(temp_list(0:NIfTot,n_bound))
+        temp_list = 0_n_int
+
+        ! loop over electrons
+        do i = 1, nel 
+            src = nI(i)
+
+            ex(1) = src
+            neighbors = lat%get_spinorb_neighbors(src)
+
+            ! and loop over the neighboring sites of this electron
+            do j = 1, size(neighbors)
+
+                neigh = neighbors(j)
+
+                ex(2) = neigh
+
+                ASSERT(same_spin(src,neigh))
+
+                ! if it is not occupied it should be a possible excitation
+                if (IsNotOcc(ilut,neighbors(j))) then 
+                    ! but to be sure, check the matrix element: 
+                    elem = abs(get_offdiag_helement_rs_hub(nI,ex,.false.))
+
+                    if (elem > EPS) then 
+
+                        ilutJ = make_ilutJ(ilut, ex, 1)
+
+                        ! actually a search is not really necessary.. since 
+                        ! all the single excitations are unique.. but 
+                        ! just to be sure
+                        pos = binary_search(temp_list(:,1:n_excits), ilutJ, nifd+1)
+
+                        if (pos < 0) then 
+
+                            temp_list(:,n_excits) = ilutJ
+                            call sort(temp_list(:,1:n_excits),ilut_lt,ilut_gt)
+                            n_excits = n_excits + 1
+                            ! damn.. i have to sort everytime i guess..
+                        end if
+                    end if
+                end if
+            end do
+        end do
+
+        n_excits = n_excits - 1
+        allocate(det_list(0:NIfTot,n_excits), source = temp_list(:,1:n_excits))
+
+        call sort(det_list, ilut_lt, ilut_gt)
+
+    end subroutine gen_all_singles_rs_hub_default
 
 end module real_space_hubbard
         

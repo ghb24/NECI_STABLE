@@ -28,7 +28,6 @@ program test_k_space_hubbard
     use IntegralsData, only: umat
     use DetBitOps, only: EncodeBitDet
     use fcimcdata, only: pDoubles, pParallel
-    use DetBitOps, only: ilut_lt, ilut_gt
     use sort_mod, only: sort
     use util_mod, only: choose, get_free_unit
     use bit_reps, only: decode_bit_det
@@ -39,16 +38,6 @@ program test_k_space_hubbard
     implicit none 
 
     integer :: failed_count 
-
-    abstract interface
-        subroutine generate_all_excits_t(nI, n_excits, det_list) 
-            use SystemData, only: nel 
-            use constants, only: n_int
-            integer, intent(in) :: nI(nel) 
-            integer, intent(out) :: n_excits
-            integer(n_int), intent(out), allocatable :: det_list(:,:)
-        end subroutine generate_all_excits_t
-    end interface
 
 
     call init_fruit()
@@ -2912,7 +2901,6 @@ contains
 
     subroutine gen_excit_k_space_hub_test_stochastic
 
-        use GenRandSymExcitNUMod, only: TestGenRandSymExcitNU
         integer :: nI(nel)
 
         print *, "" 
@@ -2925,306 +2913,13 @@ contains
         
         call setup_k_total(nI) 
 
-!         call TestGenRandSymExcitNU(nI, 1000, 1.0, 2)
         call run_excit_gen_tester(gen_excit_k_space_hub, "gen_excit_k_space_hub", & 
             gen_all_excits=gen_all_excits_k_space_hubbard) 
 
     end subroutine gen_excit_k_space_hub_test_stochastic
 
-    subroutine run_excit_gen_tester(excit_gen, excit_gen_name, opt_nI, opt_n_iters, & 
-            gen_all_excits) 
-        use procedure_pointers, only: generate_excitation_t
-        use util_mod, only: binary_search
-
-        procedure(generate_excitation_t) :: excit_gen 
-        integer, intent(in), optional :: opt_nI(nel), opt_n_iters
-        procedure(generate_all_excits_t), optional :: gen_all_excits
-        character(*), intent(in) :: excit_gen_name
-        character(*), parameter :: this_routine = "run_excit_gen_tester"
-
-        integer :: i, nI(nel), n_iters 
-        integer :: default_n_iters = 100000
-        integer :: default_n_dets = 10 
-
-        integer(n_int) :: ilut(0:niftot), tgt_ilut(0:niftot)
-        integer :: nJ(nel), n_excits, ex(2,2), ic, ex_flag, i_unused = 0
-        type(excit_gen_store_type) :: store 
-        logical :: tPar, found_all
-        real(dp) :: pgen, contrib
-        HElement_t(dp) :: hel 
-        integer(n_int), allocatable :: det_list(:,:)
-        real(dp), allocatable :: contrib_list(:)
-        logical, allocatable :: generated_list(:) 
-        integer :: n_dets, n_generated, pos
-
-        ASSERT(nel > 0)
-        ! and also nbasis and stuff.. 
-        ASSERT(nbasis > 0) 
-        ASSERT(nel <= nbasis) 
-
-        ! use some default values if not provided: 
-        ! nel must be set! 
-        if (present(opt_nI)) then 
-            nI = opt_nI
-        else 
-            ! use HF-det as default
-            nI = [(i, i = 1, nel)]
-        end if
-
-        if (present(opt_n_iters)) then 
-            n_iters = opt_n_iters
-        else 
-            n_iters = default_n_iters
-        end if
-
-        ! i have to rewrite this routine, to a part which 
-        ! creates all excitations and another who runs on possibly 
-        ! multiple excitations! 
-!         if (present(opt_n_dets)) then 
-!             n_dets = opt_n_dets
-!         else 
-!             n_dets = default_n_dets
-!         end if
-
-        ! the problem here is now.. we want to calulate all the possible 
-        ! excitations.. i would need a general routine, which does that 
-        ! with only the hamiltonian knowledge.. this is not really there.. 
-        ! i should have a routine: 
-        ! for this special setup, which is tested.. 
-
-        ! for some special systems we should provide a routine to 
-        ! calculate all the excitations (hubbard, UEG eg.) 
-        if (present(gen_all_excits)) then 
-            call gen_all_excits(nI, n_excits, det_list)
-        else 
-            call gen_all_excits_default(nI, n_excits, det_list)
-        end if
-
-        print *, "total possible excitations: ", n_excits
-        do i = 1, n_excits 
-            call writebitdet(6, det_list(:,i),.true.)
-        end do
-
-        ! call this below now for the number of specified determinants 
-        ! (also use excitations of the first inputted, to be really 
-        !   consistent) 
-
-        n_dets = min(n_dets, n_excits) 
-
-        print *, "---------------------------------"
-        print *, "testing: ", excit_gen_name
-        print *, "for ", n_dets, " determinants" 
-        print *, " and ", n_iters, " iterations "
-
-        call EncodeBitDet(nI, ilut) 
-
-        print *, "for starting determinant: ", nI 
-
-        ! Lists to keep track of things
-        allocate(generated_list(n_excits))
-        allocate(contrib_list(n_excits))
-        generated_list = .false.
-        contrib_list = 0
-
-        n_generated = 0
-        contrib = 0.0_dp
-
-        do i = 1, n_iters
-            if (mod(i, 1000) == 0) then 
-                print *, i, "/" ,n_iters, " - ", contrib / real(n_excits*i,dp) 
-            end if
-            call excit_gen(nI, ilut, nJ, tgt_ilut, ex_flag, ic, ex, tpar, pgen, & 
-                        hel, store) 
-
-            if (nJ(1) == 0) cycle 
-            call EncodeBitDet(nJ, tgt_ilut) 
-            pos = binary_search(det_list, tgt_ilut, nifd+1)
-            if (pos < 0) then 
-                print *, "nJ: ", nJ 
-                print *, "ilutJ:", tgt_ilut
-                call stop_all(this_routine, 'Unexpected determinant generated')
-            else 
-                generated_list(pos) = .true. 
-                n_generated = n_generated + 1 
-
-                contrib = contrib + 1.0_dp / pgen 
-                contrib_list(pos) = contrib_list(pos) + 1.0_dp / pgen 
-            end if 
-        end do
-
-        print *, n_generated, " dets generated in ", n_iters, " iterations " 
-        print *, 100.0_dp * (n_iters - n_generated) / real(n_iters,dp), "% abortion rate" 
-        print *, "Averaged contribution: ", contrib / real(n_excits*n_iters,dp)
-
-        ! check all dets are generated: 
-        call assert_true(all(generated_list))
-
-        print *, "=================================="
-        print *, "Contribution List: "
-        do i = 1, n_excits 
-            call writebitdet(6, det_list(:,i), .false.)
-            print *, contrib_list(i)/real(n_iters,dp)
-        end do
-        ! and check the uniformity of the excitation generation
-        call assert_true(all(abs(contrib_list / n_iters - 1.0_dp) < 0.01_dp))
-
-    end subroutine run_excit_gen_tester
-
-    subroutine create_hilbert_space(nI, n_states, state_list_ni, state_list_ilut, & 
-            gen_all_excits_opt)
-        ! a really basic routine, which creates the whole hilbert space based 
-        ! on a input determinant and other quantities, like symmetry sectors, 
-        ! already set outside the routine. for now this is specifically 
-        ! implemented for the k-space hubbard model, since i still need to 
-        ! test the transcorrelated approach there! 
-        integer, intent(in) :: nI(nel)
-        integer, intent(out) :: n_states
-        integer, intent(out), allocatable :: state_list_ni(:,:) 
-        integer(n_int), intent(out), allocatable :: state_list_ilut(:,:) 
-        procedure(generate_all_excits_t), optional :: gen_all_excits_opt
-        character(*), parameter :: this_routine = "create_hilbert_space"
-
-        procedure(generate_all_excits_t), pointer :: gen_all_excits
-        integer(n_int), allocatable :: excit_list(:,:), temp_list_ilut(:,:) 
-        integer, allocatable :: temp_list_ni(:,:) 
-        integer :: n_excits, n_total, tmp_n_states, cnt, i, j, pos
-        integer(n_int) :: ilutI(0:niftot) 
-
-        ! determine the type of system by the gen_all_excits routine 
-
-        if (present(gen_all_excits_opt)) then 
-            gen_all_excits => gen_all_excits_opt
-        else
-            gen_all_excits => gen_all_excits_default
-        end if
-
-        ! estimate the total number of excitations 
-        n_total = int(choose(nBasis/2, nOccAlpha) * choose(nBasis/2,nOccBeta))
-
-        n_states = 1 
-        allocate(temp_list_ilut(0:niftot, n_total)) 
-        allocate(temp_list_ni(nel, n_total)) 
-
-        call EncodeBitDet(nI, ilutI)
-
-        temp_list_ilut(:,1) = ilutI 
-        temp_list_ni(:,1) = nI
-
-        tmp_n_states = 1
-        ! thats a really inefficient way to do it: 
-        ! think of smth better at some point! 
-        do while (.true.) 
-
-            ! and i need a counter, which counts the number of added 
-            ! excitations to the whole list.. i guess if this is 0 
-            ! the whole hilbert space is reached.. 
-            cnt = 0
-
-            ! i need a temporary loop variable
-            do i = 1, tmp_n_states 
-                call gen_all_excits(temp_list_ni(:,i), n_excits, excit_list) 
-
-                ! now i have to check if those states are already in the list
-                do j = 1, n_excits 
-
-                    pos = binary_search(temp_list_ilut(:,1:(tmp_n_states + cnt)), & 
-                        excit_list(:,j), nifd+1)
-
-                    ! if not yet found: 
-                    if (pos < 0) then 
-                        ! insert it at the correct place
-                        ! does - pos give me the correct place then? 
-                        pos = -pos
-                        ! lets try.. and temp_list is always big enough i think..
-                        ! first move
-                        temp_list_ilut(:,(pos+1):tmp_n_states+cnt+1) = & 
-                            temp_list_ilut(:,pos:(tmp_n_states+cnt))
-
-                        temp_list_ni(:,(pos+1):(tmp_n_states+cnt+1)) = & 
-                            temp_list_ni(:,pos:(tmp_n_states+cnt)) 
-                        ! then insert 
-                        temp_list_ilut(:,pos) = excit_list(:,j)
-                        
-                        call decode_bit_det(temp_list_ni(:,pos), excit_list(:,j))
-
-                        ! and increase the number of state counter 
-                        cnt = cnt + 1
-                    else 
-                        ! if already found i do not need to do anything i 
-                        ! guess.. 
-                    end if
-                end do
-
-            end do
-            tmp_n_states = tmp_n_states + cnt 
-
-            ! and somehow i need an exit criteria, if we found all the states.. 
-            if (cnt == 0) exit
-        end do
-
-        n_states = tmp_n_states
-
-        ! it should be already sorted or?? i think so.. 
-        ! or does binary_search not indicate the position
-        allocate(state_list_ni(nel,n_states), source = temp_list_ni(:,1:n_states))
-        allocate(state_list_ilut(0:niftot,n_states), source = temp_list_ilut(:,1:n_states))
-
-    end subroutine create_hilbert_space
-
-    subroutine gen_all_excits_default(nI, n_excits, det_list) 
-        use SymExcit3, only: CountExcitations3, GenExcitations3
-        integer, intent(in) :: nI(nel)
-        integer, intent(out) :: n_excits 
-        integer(n_int), intent(out), allocatable :: det_list(:,:) 
-        character(*), parameter :: this_routine = "gen_all_excits_default"
-
-        integer :: n_singles, n_doubles, n_dets, ex(2,2), ex_flag
-        integer :: nJ(nel) 
-        logical :: tpar, found_all 
-        integer(n_int) :: ilut(0:niftot)
-
-        n_excits = -1
-
-        call EncodeBitDet(nI, ilut) 
-
-        ! for reference in the "normal" case it looks like that: 
-        call CountExcitations3(nI, 2, n_singles, n_doubles) 
-
-        n_excits = n_singles + n_doubles 
-
-        print *, "n_singles: ", n_singles
-        print *, "n_doubles: ", n_doubles
-        
-        allocate(det_list(0:niftot,n_excits)) 
-        n_dets = 0
-        found_all = .false. 
-        ex = 0
-        ex_flag = 2 
-        call GenExcitations3 (nI, ilut, nJ, ex_flag, ex, tpar, found_all, &
-                              .false.)
-
-        do while (.not. found_all)
-            n_dets = n_dets + 1
-            call EncodeBitDet (nJ, det_list(:,n_dets))
-
-            call GenExcitations3 (nI, ilut, nJ, ex_flag, ex, tpar, &
-                                  found_all, .false.)
-        end do
-
-        if (n_dets /= n_excits) then
-            print *, "expected number of excitations: ", n_excits
-            print *, "actual calculated ones: ", n_dets
-            call stop_all(this_routine,"Incorrect number of excitations found")
-        end if
-
-        ! Sort the dets, so they are easy to find by binary searching
-        call sort(det_list, ilut_lt, ilut_gt)
-
-    end subroutine gen_all_excits_default
-
     subroutine gen_excit_k_space_hub_transcorr_test_stoch
 
-        use bit_reps, only: decode_bit_det
         integer :: nI(nel), n_excits, i, nJ(nel), n_triples
         integer(n_int), allocatable :: det_list(:,:)
 

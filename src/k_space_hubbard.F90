@@ -349,11 +349,6 @@ contains
         integer(n_int), intent(out), allocatable :: det_list(:,:)
         character(*), parameter :: this_routine = "gen_all_excits_k_space_hubbard"
 
-        logical :: brillouin_tmp(2), tpar
-        integer :: iMaxExcit, nStore(6),nExcitMemLen(1), excitcount, ex(2,2)
-        integer :: nJ(nel), ierr, exFlag, iExcit
-        integer(n_int) :: iLutnJ(0:niftot)
-        integer, allocatable :: EXCITGEN(:)
         integer(n_int), allocatable :: triple_dets(:,:), temp_dets(:,:)
         integer :: n_triples, save_excits
 
@@ -4019,7 +4014,7 @@ contains
                 ! if we do not have transcorrelation cyclce for same spins
                 if (same_spin(src(1),src(2)) .and. .not. t_trans_corr_2body) cycle 
 
-                do a = 1, nbasis - 1
+                do a = 1, nbasis
                     if (IsNotOcc(ilut,a)) then 
                         b = get_orb_from_kpoints(src(1),src(2), a) 
 

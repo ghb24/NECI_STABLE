@@ -658,9 +658,6 @@ contains
                     return
                 end if
 
-#ifdef __DEBUG
-                print *, "ratio_doubles: ", ratio_doubles
-#endif
                 ! to compare the influences on the time-step:
                 ! change that so it does store the ratio unbiased
 !                 ratio_doubles = ratio_doubles * pDoubles
