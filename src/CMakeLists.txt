@@ -58,7 +58,7 @@ set( SRC_FILES
     gndts.F90
     gndwork.F90
     hash.F90
-	hamiltonian_linalg.F90
+    hamiltonian_linalg.F90
     hdf5_popsfile.F90
     hdiag.F
     HElem.F90
@@ -157,7 +157,7 @@ set( SRC_FILES
     symrandexcit1.F
     symrandexcit2.F90
     symrandexcit3.F90
-	symrandexcit_Ex_Mag.F90
+    symrandexcit_Ex_Mag.F90
     symrandexcit4.F90
     symrandexcit5.F90
     symrandexcit_csf.F90
@@ -180,6 +180,7 @@ set( SRC_FILES
     lattice_mod.F90
     tJ_model.F90
     k_space_hubbard.F90
+    unit_test_helpers.F90
 
     lib/allocate_shared_worker.cpp
     lib/backtrace.cpp

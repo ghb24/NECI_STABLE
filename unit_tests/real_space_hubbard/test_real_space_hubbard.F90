@@ -10,11 +10,23 @@
 program test_real_space_hubbard 
     
     use real_space_hubbard
+
     use constants 
+
     use fruit 
+
     use SystemData, only: lattice_type, t_new_real_space_hubbard, t_trans_corr, & 
-                          trans_corr_param, t_lattice_model
+                          trans_corr_param, t_lattice_model, t_trans_corr_hop, brr
+
     use lattice_mod, only: lat
+
+    use sort_mod, only: sort
+    
+    use util_mod, only: get_free_unit
+
+    use unit_test_helpers, only: create_hamiltonian, eig, print_matrix, &
+                                 similarity_transform, calc_eigenvalues, &
+                                 linspace
 
     implicit none 
 
@@ -72,10 +84,12 @@ contains
         integer, allocatable :: ni(:), hilbert_space(:,:)
         real(dp), allocatable :: e_values(:), e_vecs(:,:)
         integer(n_int), allocatable :: dummy(:,:)
+        real(dp) :: j
+        real(dp), allocatable :: j_vec(:)
 
 
-        lat => lattice('ole', 2, 4, 1,.true.,.true.,.true.)
-        uhub = 4 
+        lat => lattice('chain', 6, 1, 1,.true.,.true.,.true.)
+        uhub = 10
         bhub = -1
 
         n_orbs = lat%get_nsites()
@@ -83,7 +97,7 @@ contains
 
         call init_realspace_tests
 
-        nel = 2 
+        nel = 6
         allocate(nI(nel))
         nI = [(i, i = 1, nel)]
 
@@ -117,9 +131,183 @@ contains
         call frsblk_wrapper(hilbert_space, size(hilbert_space, 2), n_eig, e_values, e_vecs)
         print *, "e_value lanczos:", e_values(1)
 
+        j = 0.1_dp
+        j_vec = linspace(-0.2,0.2,100)
+        call exact_transcorrelation(lat, nI, j_vec, real(uhub,dp), hilbert_space)
+
         call stop_all("here","now")
 
     end subroutine exact_test
+
+    subroutine exact_transcorrelation(lat, nI, J, U, hilbert_space)
+        class(lattice), intent(in) :: lat 
+        integer, intent(in) :: nI(nel) 
+        real(dp) :: J(:), U 
+        integer, intent(in) :: hilbert_space(:,:)
+        character(*), parameter :: this_routine = "exact_transcorrelation" 
+
+        integer :: n_states, iunit, ind, i, k, l
+        real(dp), allocatable :: e_values(:), e_vec(:,:), gs_vec(:)
+        real(dp) :: gs_energy_orig, gs_energy, hf_coeff_hop(size(J))
+        HElement_t(dp), allocatable :: hamil(:,:), hamil_hop(:,:), hamil_hop_neci(:,:), &
+                                       diff(:,:)
+        real(dp), allocatable :: t_mat(:,:)
+        real(dp), allocatable :: neci_eval(:), e_vec_hop(:,:)
+        character(30) :: filename, J_str
+
+        ! initialize correctly for transcorrelation tests
+        ! just do it for the hopping transcorrelation now! 
+        n_states = size(hilbert_space,2)
+        print *, "creating original hamiltonian: "
+
+        t_trans_corr_2body = .false.
+        t_trans_corr = .false.
+        t_trans_corr_hop = .false.
+
+        hamil = create_hamiltonian(hilbert_space)
+
+        print *, "diagonalizing original hamiltonian: " 
+        allocate(e_values(n_states));        e_values = 0.0_dp
+        allocate(e_vec(n_states, n_states)); e_vec = 0.0_dp
+        allocate(gs_vec(n_states));          gs_vec = 0.0_dp
+        do i = 1, size(hamil,1)
+            do k = 1, size(hamil,2)
+                if (isnan(hamil(i,k)) .or. is_inf(hamil(i,k))) print *, i,k,hamil(i,k)
+            end do
+        end do
+        call eig(hamil, e_values, e_vec) 
+
+!         print *, "real-space hamiltonian: "
+!         call print_matrix(hamil)
+
+        ! find the ground-state
+        ind = minloc(e_values,1) 
+        gs_energy_orig = e_values(ind) 
+
+        ! how do i need to access the vectors to get the energy? 
+        ! eigenvectors are stored in the columns!!
+        gs_vec = abs(e_vec(:,ind))
+
+        call sort(gs_vec)
+
+        ! and flip order.. 
+        gs_vec = gs_vec(n_states:1:-1)
+
+        ! and i think i want the sorted by maximum of the GS
+        print *, "original ground-state energy: ", gs_energy_orig
+        ! and write the ground-state-vector to a file 
+        iunit = get_free_unit()
+        open(iunit, file = 'gs_vec_orig') 
+        do i = 1, n_states
+            write(iunit, *) gs_vec(i)
+        end do
+        close(iunit) 
+
+        t_trans_corr_hop = .true. 
+
+        if (associated(brr)) deallocate(brr)
+        allocate(brr(2*lat%get_nsites()))
+        brr = [(i, i = 1, 2*lat%get_nsites())]
+
+        ! first create the exact similarity transformation 
+        allocate(t_mat(size(hamil,1),size(hamil,2)), source = hamil) 
+        ! and set the diagonal elements to 0
+        do i = 1, size(t_mat,1)
+            t_mat(i,i) = 0.0_dp
+        end do
+
+        allocate(e_vec_hop(n_states, size(J))) 
+        e_vec_hop = 0.0_dp
+
+        do i = 1, size(J) 
+            print *, "J = ", J(i)
+
+            write(J_str, *) J(i) 
+            filename = 'gs_vec_trans_J_' // trim(adjustl((J_str)))
+
+            hamil_hop = similarity_transform(hamil, J(i) * t_mat)
+
+            ! for the neci hopping hamiltonian: 
+            trans_corr_param = J(i)
+            ! i need to deallocate umat to recompute for a new value of J! 
+            if (allocated(umat_rs_hub_trancorr_hop)) deallocate(umat_rs_hub_trancorr_hop)
+            call init_realspace_tests()
+
+            hamil_hop_neci = create_hamiltonian(hilbert_space)
+
+            print *, "diagonalizing the transformed hamiltonian: " 
+            call eig(hamil_hop, e_values, e_vec) 
+
+            ! find the ground-state
+            ind = minloc(e_values,1) 
+            gs_energy = e_values(ind) 
+            print *, "transformed ground-state energy: ", gs_energy 
+
+            if (abs(gs_energy - gs_energy_orig) > 1.e-12) then 
+                call stop_all("HERE!", "energy incorrect!")
+            end if
+            ! how do i need to access the vectors to get the energy? 
+            gs_vec = abs(e_vec(:,ind))
+            call sort(gs_vec)
+
+            gs_vec = gs_vec(n_states:1:-1)
+
+            hf_coeff_hop(i) = gs_vec(1)
+            e_vec_hop(:,i) = gs_vec
+
+            neci_eval = calc_eigenvalues(hamil_hop_neci)
+
+            print *, "neci ground-state energy: ", minval(neci_eval) 
+
+            if (abs(gs_energy_orig - minval(neci_eval)) > 1.0e-12) then 
+                print *, "basis: " 
+                call print_matrix(hilbert_space)
+                print *, "original hamiltonian: "
+                call print_matrix(hamil)
+                print *, "hopping transcorr hamiltonian neci: "
+                call print_matrix(hamil_hop_neci)
+                print *, "hopping transcorr transformed: "
+                call print_matrix(hamil_hop)
+                print *, "orig E0:    ", gs_energy_orig
+                print *, "hopping E0: ", minval(neci_eval)
+
+                print *, "difference: " 
+                allocate(diff(size(hamil_hop,1),size(hamil_hop,2)))
+                diff = hamil_hop - hamil_hop_neci
+                where (abs(diff) < EPS) diff = 0.0_dp
+
+                call print_matrix(diff)
+!                 print *, "diagonal similarity transformed: "
+!                 do l = 1, size(hamil_hop,1)
+!                     print *, hamil_hop(l,l)
+!                 end do
+!                 print *, "diagonal neci hamil: " 
+!                 do l = 1, size(hamil_hop_neci,1)
+!                     print *, hamil_hop_neci(l,l)
+!                 end do
+
+                call stop_all("here", "hopping transcorrelated energy not correct!")
+            end if
+        end do
+
+        iunit = get_free_unit() 
+        open(iunit, file = "hf_coeff_hop")
+        do i = 1, size(J)
+            write(iunit, *) J(i), hf_coeff_hop(i)
+        end do
+
+        ! maybe plot all transformed into one file.. 
+        iunit = get_free_unit() 
+        open(iunit, file = "gs_vec_hop")
+        ! the important quantitiy is J over U i guess or? 
+        ! i am not sure.. 
+        write(iunit, *) "# J: ", J
+        do i = 1, n_states 
+            write(iunit, *) e_vec_hop(i,:)
+        end do
+        close(iunit)
+
+    end subroutine exact_transcorrelation
 
     subroutine init_realspace_tests
 

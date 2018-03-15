@@ -45,7 +45,7 @@ module real_space_hubbard
 
     use bit_rep_data, only: NIfTot
 
-    use util_mod, only: binary_search_first_ge, choose, swap
+    use util_mod, only: binary_search_first_ge, choose, swap, get_free_unit
 
     use bit_reps, only: decode_bit_det
 
@@ -355,22 +355,27 @@ contains
         character(*), parameter :: this_routine = "init_umat_rs_hub_transcorr"
 #endif
         real(dp) :: elem 
+        integer :: iunit
 
         ASSERT(associated(lat))
+
+        if (allocated(umat_rs_hub_trancorr_hop)) then 
+            ! already initialized
+            return
+        end if
 
         n_sites = lat%get_nsites()
 
         ! create an fcidump file: 
-        ! todo
+        iunit = get_free_unit()
+        open(iunit, file = 'UMAT')
 
         ! with the correct header
 
         ! and also try to allocate a umat_cache 
-        if (allocated(umat_rs_hub_trancorr_hop)) deallocate(umat_rs_hub_trancorr_hop)
         allocate(umat_rs_hub_trancorr_hop(n_sites,n_sites,n_sites,n_sites))
         umat_rs_hub_trancorr_hop = 0.0_dp
 
-!         print *, "umat: "
         do i = 1, n_sites
             do j = 1, n_sites
                 do k = 1, n_sites
@@ -378,9 +383,7 @@ contains
                         elem = uhub * sum_hop_transcorr_factor(i,j,k,l)
 
                         ! write to the dumpfile
-                        ! todo
-                        
-!                         print *, i,j,k,l, elem
+                        write(iunit,*)  i,j,k,l, elem
 
                         ! and also store in the umat 
                         umat_rs_hub_trancorr_hop(i,j,k,l) = elem 
@@ -388,6 +391,7 @@ contains
                 end do
             end do
         end do
+        close(iunit)
 
     end subroutine init_umat_rs_hub_transcorr
 
@@ -1732,6 +1736,8 @@ contains
 
             else if (ic_ret == 2 .and. t_trans_corr_hop) then 
 
+                ex(1,1) = 2 
+                call GetExcitation(nI, nI, nel, ex, tpar)
                 hel = get_double_helem_rs_hub_transcorr(nI, ex, tpar)
 
             else if (ic_ret == -1) then 
@@ -1828,7 +1834,7 @@ contains
                     idN = min(id(i),id(j))
 
                     ! is this sufficient? do i have a factor of 1/2?
-                    hel = hel + get_umat_rs_hub_trans(idN,idX,idN,idX)
+                    hel = hel + 0.5_dp * get_umat_rs_hub_trans(idN,idX,idN,idX)
                 end if
             end do
         end do
@@ -1848,8 +1854,8 @@ contains
     
         ASSERT(t_trans_corr_hop) 
 
-        if (.not. same_spin(ex(1,1),ex(1,2)) .or. &
-            .not. same_spin(ex(2,1),ex(2,2))) then 
+        if (same_spin(ex(1,1),ex(1,2)) .or. &
+            same_spin(ex(2,1),ex(2,2))) then 
             hel = 0.0_dp
             return
         end if
