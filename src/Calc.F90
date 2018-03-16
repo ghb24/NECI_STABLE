@@ -482,7 +482,7 @@ contains
                 case default
                     TBLOCK = .true.
                 end select
-            case("EXCITE")
+            case("EXCITE","EXCIT-LEVEL","EXCITLEVEL")
                 call geti(ICILEVEL)
             case("EXCITATIONS")
                 call readu(w)
