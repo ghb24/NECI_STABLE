@@ -67,7 +67,7 @@ module real_space_hubbard
 
     real(dp), allocatable :: umat_rs_hub_trancorr_hop(:,:,:,:)
 
-    complex(dp) :: imag_unit = complex(0.0_dp,1.0_dp)
+    complex(dp), parameter :: imag_unit = cmplx(0.0_dp,1.0_dp)
 
     interface get_helement_rs_hub
         module procedure get_helement_rs_hub_ex_mat
