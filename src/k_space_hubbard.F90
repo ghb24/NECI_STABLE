@@ -16,7 +16,7 @@ module k_space_hubbard
                     omega, bhub, nBasisMax, G1, BasisFN, NullBasisFn, TSPINPOLAR, & 
                     treal, ttilt, tExch, ElecPairs, MaxABPairs, Symmetry, SymEq, &
                     t_new_real_space_hubbard, SymmetrySize, tNoBrillouin, tUseBrillouin, &
-                    excit_cache, tUniformKSpaceExcit, brr
+                    excit_cache, t_uniform_excits, brr
 
     use lattice_mod, only: get_helement_lattice_ex_mat, get_helement_lattice_general, &
                            determine_optimal_time_step, lattice, sort_unique, lat, &
@@ -519,11 +519,11 @@ contains
 
         call init_get_helement_k_space_hub()
 
-        if (.not. tHPHF .and. .not. tUniformKSpaceExcit) then 
+        if (.not. tHPHF .and. .not. t_uniform_excits) then 
              generate_excitation => gen_excit_k_space_hub
          end if
         ! for more efficiency, use the uniform excitation generation
-        if(tUniformKSpaceExcit) then 
+        if(t_uniform_excits) then 
             generate_excitation => gen_excit_uniform_k_space_hub
         end if 
 

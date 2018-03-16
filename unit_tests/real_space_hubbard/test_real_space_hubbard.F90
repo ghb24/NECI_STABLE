@@ -18,7 +18,7 @@ program test_real_space_hubbard
     use SystemData, only: lattice_type, t_new_real_space_hubbard, t_trans_corr, & 
                           trans_corr_param, t_lattice_model, t_trans_corr_hop, brr, & 
                           t_trans_corr_2body, trans_corr_param_2body, &
-                          t_trans_corr_new
+                          t_trans_corr_new, t_uniform_excits
 
     use lattice_mod, only: lat
 
@@ -57,7 +57,8 @@ contains
         
         ! or try running it with the provided runner of fruit: 
         call run_test_case(gen_excit_rs_hubbard_test_stoch, "gen_excit_rs_hubbard_test_stoch")
-        call run_test_case(gen_excit_rs_hubbard_transcorr_test_stoch, "gen_excit_k_space_hub_test")
+        call run_test_case(gen_excit_rs_hubbard_transcorr_test_stoch, "gen_excit_rs_hubbard_transcorr_test_stoch")
+        call run_test_case(gen_excit_rs_hubbard_transcorr_uniform_test_stoch, "gen_excit_rs_hubbard_transcorr_uniform_test_stoch")
         call run_test_case(get_umat_el_hub_test, "get_umat_el_hub_test")
         call run_test_case(init_tmat_test, "init_tmat_test")
         call run_test_case(get_helement_test, "get_helement_test")
@@ -403,6 +404,54 @@ contains
         t_trans_corr_hop = .false.
 
     end subroutine gen_excit_rs_hubbard_transcorr_test_stoch
+
+    subroutine gen_excit_rs_hubbard_transcorr_uniform_test_stoch
+
+        integer, allocatable :: nI(:)
+        integer :: n_iters, n_orbs, i
+
+        n_iters = 1000000
+
+        t_trans_corr_hop = .true. 
+        trans_corr_param = 0.1_dp
+        t_uniform_excits = .true.
+
+        uhub = 10
+        bhub = -1
+        pSingles = 0.9_dp
+        pDoubles = 1.0_dp - pSingles
+
+        lat => lattice('rectangle', 2, 3, 1,.true.,.true.,.true.)
+
+        n_orbs = lat%get_nsites()
+        nBasis = 2 * n_orbs
+        if (associated(brr)) deallocate(brr)
+        allocate(brr(nbasis))
+        brr = [(i,i=1,nBasis)]
+
+        call init_realspace_tests()
+
+        nel = 4
+        allocate(nI(nel))
+!         nI = [(i, i = 1, nel)]
+        nI = [1,4,5,8,9,12]
+
+        nOccAlpha = 0
+        nOccBeta = 0
+
+        do i = 1, nel 
+            if (is_beta(nI(i))) nOccBeta = nOccBeta + 1
+            if (is_alpha(nI(i))) nOccAlpha = nOccAlpha + 1
+        end do
+
+        call run_excit_gen_tester(gen_excit_rs_hubbard_transcorr_uniform, & 
+            "gen_excit_rs_hubbard_transcorr_uniform", nI, n_iters, gen_all_excits_r_space_hubbard)
+
+        t_trans_corr_hop = .false.
+        t_uniform_excits = .false.
+
+    end subroutine gen_excit_rs_hubbard_transcorr_uniform_test_stoch
+
 
     subroutine gen_excit_rs_hubbard_test_stoch
 

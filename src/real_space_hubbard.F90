@@ -20,7 +20,7 @@ module real_space_hubbard
                           t_open_bc_y, t_open_bc_z, G1, ecore, nel, nOccAlpha, nOccBeta, &
                           t_trans_corr, trans_corr_param, t_trans_corr_2body, & 
                           trans_corr_param_2body, tHPHF, t_trans_corr_new, & 
-                          t_trans_corr_hop
+                          t_trans_corr_hop, t_uniform_excits
 
     use lattice_mod, only: lattice, determine_optimal_time_step, lat, &
                     get_helement_lattice, get_helement_lattice_ex_mat, & 
@@ -166,7 +166,11 @@ contains
         ! where i need the connectivity of the lattice i guess? 
         if (t_trans_corr_hop) then 
             ASSERT(.not. tHPHF)
-            generate_excitation => gen_excit_rs_hubbard_transcorr
+            if (t_uniform_excits) then 
+                generate_excitation => gen_excit_rs_hubbard_transcorr_uniform
+            else
+                generate_excitation => gen_excit_rs_hubbard_transcorr
+            end if
         else
             if (.not. tHPHF) then
                 generate_excitation => gen_excit_rs_hubbard
@@ -985,7 +989,159 @@ contains
 
     end subroutine init_tmat
 
-    ! Generic excitaiton generator
+    subroutine gen_excit_rs_hubbard_transcorr_uniform (nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                                      ex, tParity, pGen, hel, store, run)
+        ! also create an uniform excitation generator for the hopping 
+        ! transcorrelated hubbard. mainly to test where the instabilities 
+        ! in the weighted come from 
+
+
+        integer, intent(in) :: nI(nel), exFlag
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: nJ(nel), ic, ex(2,2)
+        integer(n_int), intent(out) :: ilutJ(0:NifTot)
+        real(dp), intent(out) :: pGen
+        logical, intent(out) :: tParity
+        HElement_t(dp), intent(out) :: hel
+        type(excit_gen_store_type), intent(inout), target :: store
+        integer, intent(in), optional :: run
+        character(*), parameter :: this_routine = "gen_excit_rs_hubbard_transcorr_uniform"
+
+        integer :: iunused, elecs(2), orbs(2), src(2)
+        real(dp) :: p_elec, p_orb
+
+        iunused = exflag; 
+        ilutJ = 0_n_int
+        ic = 0
+        nJ(1) = 0
+
+        ASSERT(associated(lat))
+
+        if (genrand_real2_dsfmt() < pDoubles) then 
+
+            ic = 2 
+
+            call pick_spin_opp_elecs(nI, elecs, p_elec)
+
+            src = nI(elecs) 
+
+            call pick_spin_opp_holes(ilutI, orbs, p_orb)
+
+            if (any(orbs == 0)) then 
+                nJ(1) = 0
+                pgen = 0.0_dp 
+                return 
+            end if
+
+            ! do i need a factor of 2? since orbitals could be switched 
+            ! the other way around?
+            pgen = p_elec * p_orb * pDoubles
+
+            call make_double(nI, nJ, elecs(1), elecs(2), orbs(1), orbs(2), ex, tParity)
+            ilutJ = make_ilutJ(ilutI, ex, 2) 
+
+        else 
+
+            ic = 1
+
+            elecs(1) = 1 + int(genrand_real2_dsfmt() * nel) 
+
+            src(1) = nI(elecs(1))
+
+            p_elec = 1.0_dp / real(nel,dp)
+
+            ! and now pick a spin-parallel hole! 
+            call pick_random_hole(ilutI, orbs(1), p_orb, get_spin(src(1)))
+
+            if (orbs(1) == 0) then 
+                nJ(1) = 0
+                pgen = 0.0_dp 
+                return 
+            end if
+
+            pgen = p_elec * p_orb * (1.0_dp - pDoubles)
+
+            call make_single(nI, nJ, elecs(1), orbs(1), ex, tParity)
+            ilutJ = make_ilutJ(ilutI, ex, 1)
+
+        end if
+
+    end subroutine gen_excit_rs_hubbard_transcorr_uniform
+
+    function calc_pgen_rs_hubbard_transcorr_uniform(nI, ilutI, ex, ic) result(pgen)
+        integer, intent(in) :: nI(nel), ex(2,2), ic
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        real(dp) :: pgen
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "calc_pgen_rs_hubbard_transcorr_uniform"
+#endif 
+
+        if (ic == 1) then 
+
+            ASSERT(same_spin(ex(1,1),ex(2,1)))
+
+            if (is_beta(ex(1,1))) then 
+                pgen = 1.0_dp / real(nel * (nBasis/2 - nOccBeta), dp)
+            else 
+                pgen = 1.0_dp / real(nel * (nBasis/2 - nOccAlpha), dp)
+            end if
+
+        else if (ic == 2) then 
+
+            ASSERT(.not. same_spin(ex(1,1), ex(1,2)))
+            ASSERT(.not. same_spin(ex(2,1), ex(2,2)))
+
+            pgen = 1.0_dp / real(nOccAlpha * nOccBeta * &
+                (nBasis/2 - nOccAlpha) * (nBasis/2 - nOccBeta), dp)
+
+        else 
+
+            pgen = 0.0_dp 
+
+        end if
+
+    end function calc_pgen_rs_hubbard_transcorr_uniform
+
+    subroutine pick_spin_opp_holes(ilutI, orbs, p_orb) 
+        ! routine to pick two spin-opposite unoccupied orbitals 
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: orbs(2) 
+        real(dp), intent(out) :: p_orb 
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "pick_spin_opp_holes"
+#endif
+
+        integer, parameter :: max_trials = 100
+        integer :: cnt 
+
+        cnt = 0
+        orbs = 0
+        p_orb = 0.0_dp 
+
+        do while (cnt < max_trials)
+            orbs(1) = 1 + int(genrand_real2_dsfmt() * nBasis) 
+
+            if (IsOcc(ilutI,orbs(1))) cycle 
+
+            do 
+                orbs(2) = 1 + int(genrand_real2_dsfmt() * nBasis) 
+
+                if (IsOcc(ilutI,orbs(2))) cycle 
+
+                if (orbs(1) /= orbs(2)) exit 
+
+            end do
+
+            if (.not. same_spin(orbs(1),orbs(2))) exit 
+
+        end do
+
+        orbs = [minval(orbs),maxval(orbs)]
+
+        p_orb = 1.0_dp / real((nBasis/2 - nOccAlpha)*(nBasis/2 - nOccBeta),dp)
+
+    end subroutine pick_spin_opp_holes
+
     subroutine gen_excit_rs_hubbard_transcorr (nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                       ex, tParity, pGen, hel, store, run)
         ! new excitation generator for the real-space hubbard model with 
@@ -1005,7 +1161,7 @@ contains
 
         character(*), parameter :: this_routine = "gen_excit_rs_hubbard_transcorr"
 
-        integer :: iunused, ind , elec, id, src, orb
+        integer :: iunused, ind , elec, src, orb
         real(dp) :: cum_arr(nBasis/2)
         real(dp) :: cum_sum, p_elec, p_orb
 
@@ -1024,11 +1180,6 @@ contains
             pgen = pDoubles * pgen 
 
             if (nJ(1) == 0) then 
-!                 print *, "nI: ", nI 
-!                 print *, "nJ: ", nJ 
-!                 print *, "ex(1,:): ", ex(1,:)
-!                 print *, "ex(2,:): ", ex(2,:)
-!                 print *, "pgen: ", pgen
                 pgen = 0.0_dp 
                 return 
             end if
@@ -1043,9 +1194,6 @@ contains
             ! and then from the neighbors of this electron we pick an empty 
             ! spinorbital randomly, since all have the same matrix element 
             src = nI(elec) 
-
-            ! get the spatial index 
-            id = get_spatial(src)
 
             ! now we can have more than only nearest neighbor hopping! 
             ! so implement a new cum-list creator
@@ -1227,7 +1375,6 @@ contains
         pgen = 1.0_dp * p_elec * p_orb_a * (p_orb_b + p_orb_switch) 
 
         call make_double(nI, nJ, elecs(1), elecs(2), orbs(1), orbs(2), ex, tPar)
-
         ilutJ = make_ilutJ(ilutI, ex, 2) 
 
     end subroutine gen_double_excit_rs_hub_transcorr
@@ -1350,12 +1497,17 @@ contains
 
     end function get_single_helem_rs_hub_transcorr
 
-    subroutine pick_random_hole(ilutI, orb, p_orb) 
+    subroutine pick_random_hole(ilutI, orb, p_orb, spin) 
         ! routine to pick an unoccupied spin-orbital (orb) with probability 
         ! p_orb
+        ! with an additional spin input we can restrict ourself to a 
+        ! specific parallel spin! 
+        ! spin = 1 -> beta orbital to be picked 
+        ! spin = 0 -> alpha orbital to be picked
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: orb 
         real(dp), intent(out) :: p_orb
+        integer, intent(in), optional :: spin 
 #ifdef __DEBUG 
         character(*), parameter :: this_routine = "pick_random_hole" 
 #endif
@@ -1366,17 +1518,37 @@ contains
         cnt = 0
         p_orb = 0.0_dp
 
-        do while (cnt < max_trials)
-            cnt = cnt + 1
-            i = 1 + int(genrand_real2_dsfmt() * nBasis)
+        if (present(spin)) then 
+            ASSERT(spin == 0 .or. spin == 1)
+          
+            do while (cnt < max_trials)
+                ! create a random spin-orbital of parallel spin
+                i = 2*(1 + int(genrand_real2_dsfmt() * nBasis/2)) - spin
 
-            if (IsNotOcc(ilutI, i)) then 
-                orb = i 
-                p_orb = 1.0_dp / real(nBasis - nel, dp)
-                return 
-            end if
-        end do
+                if (IsNotOcc(ilutI,i)) then 
+                    orb = i
+                    if (spin == 0) then 
+                        p_orb = 1.0_dp / real(nBasis/2 - nOccAlpha,dp)
+                    else if (spin == 1) then 
+                        p_orb = 1.0_dp / real(nBasis/2 - nOccBeta,dp)
+                    end if
+                    return
+                end if
+            end do
 
+        else
+
+            do while (cnt < max_trials)
+                cnt = cnt + 1
+                i = 1 + int(genrand_real2_dsfmt() * nBasis)
+
+                if (IsNotOcc(ilutI, i)) then 
+                    orb = i 
+                    p_orb = 1.0_dp / real(nBasis - nel, dp)
+                    return 
+                end if
+            end do
+        end if
 
     end subroutine pick_random_hole
 
@@ -1466,7 +1638,7 @@ contains
 
         character(*), parameter :: this_routine = "gen_excit_rs_hubbard"
 
-        integer :: iunused, ind , elec, id, src, orb, n_avail, n_orbs, i
+        integer :: iunused, ind , elec, src, orb, n_avail, n_orbs, i
         integer, allocatable :: neighbors(:), orbs(:)
         real(dp), allocatable :: cum_arr(:)
         real(dp) :: cum_sum, elem, r, p_elec, p_orb
@@ -1484,9 +1656,6 @@ contains
         ! and then from the neighbors of this electron we pick an empty 
         ! spinorbital randomly, since all have the same matrix element 
         src = nI(elec) 
-
-        ! get the spatial index 
-        id = get_spatial(src)
 
         ! now get neighbors
         neighbors = lat%get_spinorb_neighbors(src)
@@ -1507,9 +1676,7 @@ contains
 
         call make_single(nI, nJ, elec, orb, ex, tParity) 
 
-        ilutJ = ilutI 
-        clr_orb(ilutJ, src)
-        set_orb(ilutJ, orb)
+        ilutJ = make_ilutJ(ilutI, ex, 1)
 
     end subroutine gen_excit_rs_hubbard
 

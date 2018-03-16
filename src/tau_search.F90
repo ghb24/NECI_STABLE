@@ -7,7 +7,7 @@ module tau_search
                           AB_hole_pairs, par_hole_pairs, tGen_4ind_reverse, &
                           nOccAlpha, nOccBeta, tUEG, tGen_4ind_2, tReltvy, & 
                           t_3_body_excits, t_k_space_hubbard, t_trans_corr_2body, &
-                          tUniformKSpaceExcit, t_new_real_space_hubbard, & 
+                          t_uniform_excits, t_new_real_space_hubbard, & 
                           t_trans_corr, tHub, t_trans_corr_hop
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow, t_min_tau, min_tau_global, &
@@ -618,7 +618,7 @@ contains
                 MagHel = abs(get_helement_lattice(nJ, ProjEDet(:,1)))
                 ! and also get the generation probability 
                 if (t_trans_corr_2body) then 
-                    if (tUniformKSpaceExcit) then 
+                    if (t_uniform_excits) then 
                         ! i have to setup pDoubles and the other quantities 
                         ! before i call this functionality! 
                         pgen = calc_pgen_k_space_hubbard_uniform_transcorr(& 
