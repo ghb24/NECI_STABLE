@@ -392,7 +392,9 @@ contains
                         elem = uhub * sum_hop_transcorr_factor(i,j,k,l)
 
                         ! write to the dumpfile
-                        write(iunit,*)  i,j,k,l, elem
+                        if (abs(elem > EPS)) then 
+                            write(iunit,*)  i,j,k,l, elem
+                        end if
 
                         ! and also store in the umat 
                         umat_rs_hub_trancorr_hop(i,j,k,l) = elem 
