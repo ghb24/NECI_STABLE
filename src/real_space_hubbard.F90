@@ -1007,7 +1007,7 @@ contains
         integer, intent(in), optional :: run
         character(*), parameter :: this_routine = "gen_excit_rs_hubbard_transcorr_uniform"
 
-        integer :: iunused, elecs(2), orbs(2), src(2)
+        integer :: iunused, elecs(2), orbs(2), src(2), spin
         real(dp) :: p_elec, p_orb
 
         iunused = exflag; 
@@ -1025,7 +1025,11 @@ contains
 
             src = nI(elecs) 
 
+            ASSERT(.not. same_spin(src(1),src(2)))
+
             call pick_spin_opp_holes(ilutI, orbs, p_orb)
+
+            ASSERT(.not. same_spin(orbs(1),orbs(2)))
 
             if (any(orbs == 0)) then 
                 nJ(1) = 0
@@ -1050,8 +1054,9 @@ contains
 
             p_elec = 1.0_dp / real(nel,dp)
 
+            spin = get_spin(src(1)) - 1
             ! and now pick a spin-parallel hole! 
-            call pick_random_hole(ilutI, orbs(1), p_orb, get_spin(src(1)))
+            call pick_random_hole(ilutI, orbs(1), p_orb, spin)
 
             if (orbs(1) == 0) then 
                 nJ(1) = 0

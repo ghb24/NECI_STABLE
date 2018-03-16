@@ -42,7 +42,7 @@ program test_real_space_hubbard
     call dsfmt_init(1)
     call init_fruit()
     ! run the test-driver 
-    call exact_test()
+!     call exact_test()
     call real_space_hubbard_test_driver()
     call fruit_summary()
     call fruit_finalize() 
@@ -56,8 +56,8 @@ contains
         ! this is the main function which calls all the other tests 
         
         ! or try running it with the provided runner of fruit: 
-        call run_test_case(gen_excit_rs_hubbard_test_stoch, "gen_excit_rs_hubbard_test_stoch")
-        call run_test_case(gen_excit_rs_hubbard_transcorr_test_stoch, "gen_excit_rs_hubbard_transcorr_test_stoch")
+!         call run_test_case(gen_excit_rs_hubbard_test_stoch, "gen_excit_rs_hubbard_test_stoch")
+!         call run_test_case(gen_excit_rs_hubbard_transcorr_test_stoch, "gen_excit_rs_hubbard_transcorr_test_stoch")
         call run_test_case(gen_excit_rs_hubbard_transcorr_uniform_test_stoch, "gen_excit_rs_hubbard_transcorr_uniform_test_stoch")
         call run_test_case(get_umat_el_hub_test, "get_umat_el_hub_test")
         call run_test_case(init_tmat_test, "init_tmat_test")
