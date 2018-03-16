@@ -181,6 +181,7 @@ set( SRC_FILES
     tJ_model.F90
     k_space_hubbard.F90
     unit_test_helpers.F90
+    lattice_models_utils.F90
 
     lib/allocate_shared_worker.cpp
     lib/backtrace.cpp

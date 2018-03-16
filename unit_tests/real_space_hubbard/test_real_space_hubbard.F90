@@ -18,7 +18,7 @@ program test_real_space_hubbard
     use SystemData, only: lattice_type, t_new_real_space_hubbard, t_trans_corr, & 
                           trans_corr_param, t_lattice_model, t_trans_corr_hop, brr, & 
                           t_trans_corr_2body, trans_corr_param_2body, &
-                          t_trans_corr_new, t_uniform_excits
+                          t_trans_corr_new, t_uniform_excits, tHPHF
 
     use lattice_mod, only: lat
 

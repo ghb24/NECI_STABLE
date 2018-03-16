@@ -306,7 +306,8 @@ MODULE HPHFRandExcitMod
                         ! somehow i reintroduced a bug in the HPHF + hubbard 
                         ! implementation with "fixes" in here -> check that!
                         if (t_lattice_model) then 
-                            if (t_k_space_hubbard) then 
+                            if (t_k_space_hubbard .or. & 
+                                (t_new_real_space_hubbard .and. t_trans_corr_hop)) then 
                                 temp_ex(1,:) = ExcitMat(2,:)
                                 temp_ex(2,:) = ExcitMat(1,:) 
                                 hel = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
@@ -314,6 +315,7 @@ MODULE HPHFRandExcitMod
 
                                 call Stop_All(this_routine, & 
                                     "no closed shell to closed shell possible in real-space lattice models!")
+                                ! except for hopping transcorrelatd real-space hubbard!
                             end if
                         else 
                             HEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)

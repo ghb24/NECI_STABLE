@@ -850,31 +850,6 @@ contains
 
     end function calc_pgen_heisenberg_model
 
-    function find_elec_in_ni(nI, orb) result(elec)
-        ! routine to find the number of the elctron in spin-orbital orb
-        integer, intent(in) :: nI(nel), orb
-        integer :: elec 
-#ifdef __DEBUG
-        character(*), parameter :: this_routine = "find_elec_in_ni"
-#endif
-
-        ASSERT(orb > 0)
-        ASSERT(orb <= nbasis) 
-
-        ! can i just reuse 
-        elec = binary_search_first_ge(nI, orb)
-
-        ! it already make the fail case.. or?
-        ! and then make a fail-case: 
-        if (elec == -1) return 
-
-        if (nI(elec) /= orb) then 
-            ! it is actually not found? 
-            elec = -1 
-        end if
-
-    end function find_elec_in_ni
-
     function get_heisenberg_exchange(src, tgt) result(hel) 
         ! this is the wrapper function to get the heisenberg exchange 
         ! contribution. which will substitute get_umat in the 
@@ -1324,31 +1299,6 @@ contains
 
     end function get_umat_el_heisenberg
 
-    function get_occ_neighbors(ilut, orb) result(occ_neighbors) 
-        integer(n_int), intent(in) :: ilut(0:NIfTot)
-        integer, intent(in) :: orb 
-        real(dp) :: occ_neighbors
-#ifdef __DEBUG
-        character(*), parameter :: this_routine = "get_occ_neighbors" 
-#endif
-        integer, allocatable :: neighbors(:)
-        integer :: i
-
-        ASSERT(associated(lat)) 
-
-        ! orb is given as a spatial orbital! 
-
-        neighbors = lat%get_neighbors(orb) 
-
-        occ_neighbors = 0.0_dp
-        do i = 1, size(neighbors)
-            ! check both spinorbitals
-            if (IsOcc(ilut, 2*neighbors(i)))   occ_neighbors = occ_neighbors + 1.0_dp
-            if (IsOcc(ilut, 2*neighbors(i)-1)) occ_neighbors = occ_neighbors + 1.0_dp
-        end do
-
-    end function get_occ_neighbors
-
     function get_offdiag_helement_tJ(nI, ex, tpar) result(hel) 
         ! if we want to use a transcorrelated Hamiltonian in the tJ case 
         ! it is different than in the hubbard model.. so write a one 
@@ -1382,32 +1332,4 @@ contains
 
     end function get_offdiag_helement_tJ
 
-    function get_spin_density_neighbors(ilut, orb) result(spin_dens_neighbors)
-        ! function to get the spin-density of the neighboring orbitals 
-        ! n_{i,\up} - n_{i,\down} 
-        integer(n_int), intent(in) :: ilut(0:NIfTot) 
-        integer, intent(in) :: orb
-        real(dp) :: spin_dens_neighbors
-#ifdef __DEBUG
-        character(*), parameter :: this_routine = "get_spin_density_neighbors"
-#endif 
-        integer, allocatable :: neighbors(:) 
-        integer :: i 
-
-        ASSERT(associated(lat)) 
-
-        spin_dens_neighbors = 0.0_dp 
-
-        ! orb is given in spatial orbials 
-        neighbors = lat%get_neighbors(orb) 
-        do i = 1, size(neighbors)
-            ! what do we degine as up spin?? have to be sure here
-            ! lets take alpha
-            if (IsOcc(ilut,2*neighbors(i)-1)) spin_dens_neighbors = spin_dens_neighbors - 1.0_dp 
-            if (IsOcc(ilut,2*neighbors(i)))   spin_dens_neighbors = spin_dens_neighbors + 1.0_dp
-        end do
-
-        spin_dens_neighbors = spin_dens_neighbors / 2.0_dp
-
-    end function get_spin_density_neighbors
 end module tJ_model
