@@ -67,6 +67,8 @@ module real_space_hubbard
 
     real(dp), allocatable :: umat_rs_hub_trancorr_hop(:,:,:,:)
 
+    complex(dp) :: imag_unit = complex(0.0_dp,1.0_dp)
+
     interface get_helement_rs_hub
         module procedure get_helement_rs_hub_ex_mat
         module procedure get_helement_rs_hub_general
@@ -267,8 +269,10 @@ contains
         ! vectors... 
         do i = 1, n_sites
             k_vec = lat%get_k_vec(i)
-            temp = temp + exp(complex(0.0,1.0) * 2.0*pi/real(n_sites,dp) * &
-                dot_product(k_vec, r_vec)) * exp(-J * epsilon_kvec(i))
+!             temp = temp + exp(complex(0.0,1.0) * 2.0*pi/real(n_sites,dp) * &
+!                 dot_product(k_vec, r_vec)) * exp(-J * epsilon_kvec(i))
+            temp = temp + exp(imag_unit * lat%dot_prod(k_vec, r_vec)) * & 
+                exp(-J * epsilon_kvec(i))
 
 !             print *, "k: ", k_vec, "|", exp(complex(0.0,1.0) * 2.0*pi/real(n_sites,dp)* &
 !                 dot_product(k_vec, r_vec))

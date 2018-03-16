@@ -281,6 +281,7 @@ module lattice_mod
         procedure, public :: dispersion_rel_orb 
         procedure, public :: dispersion_rel_spin_orb
 
+        procedure, public :: dot_prod => dot_prod_not_implemented
         procedure, public :: get_k_vec
         procedure, public :: get_r_vec
         procedure, public :: round_sym 
@@ -358,9 +359,9 @@ module lattice_mod
         procedure :: initialize_sites => init_sites_chain
 
         procedure, public :: dispersion_rel => dispersion_rel_chain_k
-!         procedure :: inside_bz => inside_bz_chain
-!         procedure :: apply_basis_vector => apply_basis_vector_chain
         procedure :: init_basis_vecs => init_basis_vecs_chain
+
+        procedure, public :: dot_prod => dot_prod_chain
 
     end type chain
 
@@ -381,8 +382,6 @@ module lattice_mod
         procedure :: calc_nsites => calc_nsites_cube
         procedure :: initialize_sites => init_sites_cube
 
-!         procedure :: apply_basis_vector => apply_basis_vector_cube
-
     end type cube
 
     type, extends(lattice) :: rectangle 
@@ -397,13 +396,11 @@ module lattice_mod
         procedure, public :: is_periodic => is_periodic_rect
         procedure, public :: dispersion_rel => dispersion_rel_rect
 
-!         procedure, public :: get_length_x, get_length_y
-
         procedure :: set_length => set_length_rect
         procedure :: calc_nsites => calc_nsites_rect
         procedure :: initialize_sites => init_sites_rect
         procedure :: init_basis_vecs => init_basis_vecs_rect
-!         procedure :: apply_basis_vector => apply_basis_vector_rect
+        procedure, public :: dot_prod => dot_prod_rect
 
     end type rectangle
 
@@ -411,8 +408,6 @@ module lattice_mod
         private
     contains
         private
-
-!         procedure, public :: dispersion_rel => dispersion_rel_not_implemented
 
         procedure :: calc_nsites => calc_nsites_kagome
         procedure :: initialize_sites => init_sites_kagome
@@ -428,8 +423,6 @@ module lattice_mod
     contains 
         private 
 
-!         procedure, public :: dispersion_rel => dispersion_rel_not_implemented
-
         procedure :: calc_nsites => calc_nsites_hexagonal 
         procedure :: initialize_sites => init_sites_hexagonal
 
@@ -441,8 +434,6 @@ module lattice_mod
 
     contains 
         private 
-
-!         procedure, public :: dispersion_rel => dispersion_rel_not_implemented
 
         ! number of sites is also the same! atleast in this definition of 
         ! the triangular lattice 
@@ -462,6 +453,7 @@ module lattice_mod
 ! 
         procedure :: calc_nsites => calc_nsites_tilted
         procedure :: initialize_sites => init_sites_tilted
+        procedure, public :: dot_prod => dot_prod_tilted
 
 
     end type tilted
@@ -493,8 +485,6 @@ module lattice_mod
 
         procedure, public :: get_length => get_length_aim_chain
 
-!         procedure, public :: dispersion_rel => dispersion_rel_not_implemented
-
         procedure :: set_length => set_length_aim_chain
 
         procedure :: initialize_sites => init_sites_aim_chain
@@ -515,8 +505,6 @@ module lattice_mod
         procedure, public :: get_length => get_length_star
         procedure, public :: is_periodic => is_periodic_star
 
-!         procedure, public :: dispersion_rel => dispersion_rel_not_implemented
-
     end type star
 
     type, extends(aim) :: aim_star 
@@ -531,8 +519,6 @@ module lattice_mod
 
         procedure, public :: is_periodic => is_periodic_aim_star
         procedure, public :: get_length => get_length_aim_star
-
-!         procedure, public :: dispersion_rel => dispersion_rel_not_implemented
 
     end type aim_star
 
@@ -550,9 +536,6 @@ module lattice_mod
         private 
 
         procedure :: initialize_sites => init_sites_cluster_aim
-!         procedure :: initialize_sites => init_sites_cluster_aim_test
-
-!         procedure, public :: dispersion_rel => dispersion_rel_not_implemented
 
     end type cluster_aim 
 
@@ -2165,7 +2148,7 @@ contains
         integer :: unique(4)
         integer, allocatable :: neigh(:)
         integer :: sort_array_3(3), sort_array_2(2), sort_array(4)
-        integer :: k_vec(3)
+        integer :: k_vec(3), r_vec(3)
 
         ! this is the important routine.. 
         ! store lattice like that: 
@@ -2197,9 +2180,9 @@ contains
 
                 neigh = sort_unique(temp_neigh)
 
-!                 k_vec = [x-1,y-1,0]
                 k_vec = [x - (this%length(1)+1)/2, y - (this%length(2)+1)/2, 0]
-                this%sites(i) = site(i, size(neigh), neigh, k_vec)
+                r_vec = [x - (this%length(1)+1)/2, y - (this%length(2)+1)/2, 0]
+                this%sites(i) = site(i, size(neigh), neigh, k_vec, r_vec)
 
                 deallocate(neigh)
 
@@ -2228,10 +2211,10 @@ contains
 
                 neigh = sort_unique(temp_neigh)
 
-!                 k_vec = [x-1,y-1,0]
                 k_vec = [x - (this%length(1)+1)/2, y - (this%length(2)+1)/2, 0]
+                r_vec = [x - (this%length(1)+1)/2, y - (this%length(2)+1)/2, 0]
 
-                this%sites(i) = site(i, size(neigh), neigh, k_vec)
+                this%sites(i) = site(i, size(neigh), neigh, k_vec, r_vec)
 
                 deallocate(neigh)
             end do
@@ -2259,10 +2242,10 @@ contains
 
                 neigh = sort_unique(temp_neigh)
 
-!                 k_vec = [x-1,y-1,0]
                 k_vec = [x - (this%length(1)+1)/2, y - (this%length(2)+1)/2, 0]
+                r_vec = [x - (this%length(1)+1)/2, y - (this%length(2)+1)/2, 0]
 
-                this%sites(i) = site(i, size(neigh), neigh, k_vec)
+                this%sites(i) = site(i, size(neigh), neigh, k_vec, r_vec)
 
                 deallocate(neigh)
             end do
@@ -2307,10 +2290,10 @@ contains
 
                 neigh = sort_unique(temp_neigh)
 
-!                 k_vec = [x-1,y-1,0]
                 k_vec = [x - (this%length(1)+1)/2, y - (this%length(2)+1)/2, 0]
+                r_vec = [x - (this%length(1)+1)/2, y - (this%length(2)+1)/2, 0]
 
-                this%sites(i) = site(i, size(neigh), neigh,k_vec)
+                this%sites(i) = site(i, size(neigh), neigh, k_vec, r_vec)
 
                 deallocate(neigh)
             end do
@@ -2624,7 +2607,7 @@ contains
         integer :: left_ll(-this%length(1):this%length(2),&
                            -this%length(1):this%length(2)+1)
         integer :: i, j, k, l, pbc, temp_neigh(4), k_min, k_max, offset, k_vec(3)
-        integer :: right_nn, left_nn, up_nn, down_nn, pbc_1(2), pbc_2(2)
+        integer :: right_nn, left_nn, up_nn, down_nn, pbc_1(2), pbc_2(2), r_vec(3)
         integer, allocatable :: neigh(:)
         ! convention of lattice storage: 
         ! 
@@ -2828,7 +2811,8 @@ contains
                     ! also start to store the k-vector here! 
                     ! have to be sure that i make it correct 
                     k_vec = [i,j,0] 
-                    this%sites(l) = site(l, size(neigh), neigh, k_vec)
+                    r_vec = [j,i,0] 
+                    this%sites(l) = site(l, size(neigh), neigh, k_vec, r_vec)
 
                     l = l + 1
 
@@ -2891,7 +2875,8 @@ contains
                     neigh = sort_unique([up_nn, down_nn, left_nn, right_nn])
 
                     k_vec = [i,j,0] 
-                    this%sites(l) = site(l, size(neigh), neigh, k_vec)
+                    r_vec = [j,1,0] 
+                    this%sites(l) = site(l, size(neigh), neigh, k_vec, r_vec)
 
                     l = l + 1
 
@@ -2962,7 +2947,8 @@ contains
                     neigh = sort_unique([up_nn, down_nn, left_nn, right_nn])
 
                     k_vec = [i,j,0] 
-                    this%sites(l) = site(l, size(neigh), neigh, k_vec)
+                    r_vec = [j,i,0] 
+                    this%sites(l) = site(l, size(neigh), neigh, k_vec, r_vec)
 
                     l = l + 1
 
@@ -3310,6 +3296,50 @@ contains
 
     end function dispersion_rel_spin_orb
 
+    function dot_prod_not_implemented(this, k_vec, r_vec) result(dot)
+        ! for the "fourier transform" implement the correct 
+        ! dot-product with all the factors of pi and n_sites implemented 
+        ! for each lattice
+        class(lattice) :: this
+        integer, intent(in) :: k_vec(3), r_vec(3)
+        real(dp) :: dot
+        character(*), parameter :: this_routine ="dot_prod_not_implemented" 
+
+        call stop_all(this_routine, "not yet implemented for this lattice type!")
+
+    end function dot_prod_not_implemented
+
+    function dot_prod_chain(this, k_vec, r_vec) result(dot)
+        class(chain) :: this 
+        integer, intent(in) :: k_vec(3), r_vec(3)
+        real(dp) :: dot 
+
+        dot = 2.0_dp * PI / real(this%get_nsites(),dp) * &
+            (k_vec(1) + twisted_bc(1)) * r_vec(1)
+
+    end function dot_prod_chain
+
+    function dot_prod_rect(this, k_vec, r_vec) result(dot) 
+        class(rectangle) :: this 
+        integer, intent(in) :: k_vec(3), r_vec(3) 
+        real(dp) :: dot 
+
+        dot = 2.0_dp * PI * ((k_vec(1) + twisted_bc(1))*r_vec(1) / this%length(1) & 
+                           + (k_vec(2) + twisted_bc(2))*r_vec(2) / this%length(2))
+
+    end function dot_prod_rect
+
+    function dot_prod_tilted(this, k_vec, r_vec) result(dot) 
+        class(tilted) :: this 
+        integer, intent(in) :: k_vec(3), r_vec(3)
+        real(dp) :: dot 
+
+        dot = PI * (((k_vec(1) + twisted_bc(1))/this%length(1) + & 
+                     (k_vec(2) + twisted_bc(2))/this%length(2)) * r_vec(1) + & 
+                    ((k_vec(1) + twisted_bc(1))/this%length(1) - &
+                     (k_vec(2) + twisted_bc(2))/this%length(2)) * r_vec(2))
+
+    end function dot_prod_tilted
 
     function sort_unique(list) result(output)
         integer, intent(in) :: list(:)

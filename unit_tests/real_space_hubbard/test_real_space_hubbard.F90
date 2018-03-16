@@ -95,7 +95,7 @@ contains
         real(dp), allocatable :: j_vec(:)
 
 
-        lat => lattice('square', 2, 2, 1,.true.,.true.,.true.)
+        lat => lattice('tilted', 2, 2, 1,.true.,.true.,.true.)
         uhub = 10
         bhub = -1
 
@@ -267,23 +267,24 @@ contains
             print *, "neci ground-state energy: ", minval(neci_eval) 
 
             if (abs(gs_energy_orig - minval(neci_eval)) > 1.0e-12) then 
-                print *, "basis: " 
-                call print_matrix(hilbert_space)
-                print *, "original hamiltonian: "
-                call print_matrix(hamil)
-                print *, "hopping transcorr hamiltonian neci: "
-                call print_matrix(hamil_hop_neci)
-                print *, "hopping transcorr transformed: "
-                call print_matrix(hamil_hop)
+                if (n_states < 20) then 
+                    print *, "basis: " 
+                    call print_matrix(hilbert_space)
+                    print *, "original hamiltonian: "
+                    call print_matrix(hamil)
+                    print *, "hopping transcorr hamiltonian neci: "
+                    call print_matrix(hamil_hop_neci)
+                    print *, "hopping transcorr transformed: "
+
+                    print *, "difference: " 
+                    allocate(diff(size(hamil_hop,1),size(hamil_hop,2)))
+                    diff = hamil_hop - hamil_hop_neci
+                    where (abs(diff) < EPS) diff = 0.0_dp
+
+                    call print_matrix(diff)
+                end if
                 print *, "orig E0:    ", gs_energy_orig
                 print *, "hopping E0: ", minval(neci_eval)
-
-                print *, "difference: " 
-                allocate(diff(size(hamil_hop,1),size(hamil_hop,2)))
-                diff = hamil_hop - hamil_hop_neci
-                where (abs(diff) < EPS) diff = 0.0_dp
-
-                call print_matrix(diff)
 !                 print *, "diagonal similarity transformed: "
 !                 do l = 1, size(hamil_hop,1)
 !                     print *, hamil_hop(l,l)
@@ -373,7 +374,7 @@ contains
         pSingles = 0.9_dp
         pDoubles = 1.0_dp - pSingles
 
-        lat => lattice('square', 2, 2, 1,.true.,.true.,.true.)
+        lat => lattice('rectangle', 2, 3, 1,.true.,.true.,.true.)
 
         n_orbs = lat%get_nsites()
         nBasis = 2 * n_orbs
@@ -385,8 +386,8 @@ contains
 
         nel = 4
         allocate(nI(nel))
-        nI = [(i, i = 1, nel)]
-!         nI = [1,4,5,8,9,12]
+!         nI = [(i, i = 1, nel)]
+        nI = [1,4,5,8,9,12]
 
         nOccAlpha = 0
         nOccBeta = 0
@@ -414,7 +415,7 @@ contains
 
         uhub = 10
         bhub = -1
-        lat => lattice('square', 2, 2, 1,.true.,.true.,.true.)
+        lat => lattice('rectangle', 2, 3, 1,.true.,.true.,.true.)
 
         n_orbs = lat%get_nsites()
         nBasis = 2 * n_orbs
