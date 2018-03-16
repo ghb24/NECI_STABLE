@@ -99,7 +99,7 @@ contains
             do i = 1, determ_sizes(iProcIndex)
                 do part_type  = 1, lenof_sign
                     run = part_type_to_run(part_type)
-                    if(tSkipRef .and. DetBitEQ(CurrentDets(:,indices_of_determ_states(i)),iLutRef(:,run),nIfD)) then
+                    if(tSkipRef(run) .and. DetBitEQ(CurrentDets(:,indices_of_determ_states(i)),iLutRef(:,run),nIfD)) then
                         partial_determ_vecs(part_type, i) = 0.0_dp
                     end if
                 end do

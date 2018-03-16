@@ -1106,9 +1106,6 @@ module FciMCParMod
             do part_type = 1, lenof_sign
             
                run = part_type_to_run(part_type)
-               !if(tSkipRef .and. DetBitEQ(CurrentDets(:,j),iLutRef(:,run),nIfD))then
-                   !write(iout, *) "Found---------------------------"
-               !end if
                TempSpawnedPartsInd = 0
 
                 ! Loop over all the particles of a given type on the 
@@ -1132,11 +1129,9 @@ module FciMCParMod
 
 
                     !If we are fixing the population of reference det, skip spawing into it.
-                    !if(tSkipRef .and. DetBitEQ(ilutnJ,iLutRef(:,run),nIfD)) then
-                    if(tSkipRef .and. all(nJ==projEdet(:,run))) then
+                    if(tSkipRef(run) .and. all(nJ==projEdet(:,run))) then
                         !Set nJ to null
                         nJ(1) = 0
-                        !write(iout, *) "Ref Spawn Skipped!"
                     end if
 
                     ! If a valid excitation, see if we should spawn children.
@@ -1222,8 +1217,7 @@ module FciMCParMod
             enddo   ! Cycling over 'type' of particle on a given determinant.
 
             !If we are fixing the population of reference det, skip death/birth
-            if(tSkipRef .and. DetBitEQ(CurrentDets(:,j),iLutRef(:,run),nIfD)) then
-               !write(iout, *) "Ref death/birth Skipped!"
+            if(tSkipRef(run) .and. DetBitEQ(CurrentDets(:,j),iLutRef(:,run),nIfD)) then
                 cycle
             endif
                 ! If we are performing a semi-stochastic simulation and this state

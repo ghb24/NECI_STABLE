@@ -130,7 +130,7 @@ contains
           THFRetBias=.false.
           TSignShift=.false.
           tFixedN0 = .false.
-          tSkipRef = .false.
+          tSkipRef(:) = .false.
           NEquilSteps=0
           NShiftEquilSteps=1000
           TRhoElems=.false.
@@ -1456,8 +1456,13 @@ contains
                 end if
             case("FIXED-N0")
                 tFixedN0 = .true.
+                call geti(N0_Target)
+                !In this mode, the shift should be updated every iteration.
+                !Otherwise, the dynamics is biased.
                 StepsSft = 1
-                tSkipRef = .true.
+                !Also avoid changing the reference determinant.
+                tReadPopsChangeRef = .false.
+                tChangeProjEDet = .false.
             case("EXITWALKERS")
 !For FCIMC, this is an exit criterion based on the total number of walkers in the system.
                 call getiLong(iExitWalkers)

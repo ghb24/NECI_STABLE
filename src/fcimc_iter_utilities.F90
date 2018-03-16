@@ -12,7 +12,7 @@ module fcimc_iter_utils
                         nShiftEquilSteps, TargetGrowRateWalk, tContTimeFCIMC, &
                         tContTimeFull, pop_change_min, tPositiveHFSign, &
                         qmc_trial_wf, nEquilSteps, t_hist_tau_search, &
-                        t_hist_tau_search_option, tFixedN0, tSkipRef
+                        t_hist_tau_search_option, tFixedN0, tSkipRef, N0_Target
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tFCIMCStats2, tPrintDataTables, tLogEXLEVELStats
     use semi_stoch_procs, only: recalc_core_hamil_diag
@@ -693,10 +693,6 @@ contains
         logical, dimension(inum_runs) :: defer_update
         logical :: start_varying_shift
 
-        !The reference det is allowed to be fixed only when the shift is settup
-        !correctly.
-        !tSkipRef = .False.
-
         ! Normally we allow the shift to vary depending on the conditions
         ! tested. Sometimes we want to defer this to the next cycle...
         defer_update(:) = .false.
@@ -919,13 +915,20 @@ contains
                  ! Calculate the projected energy.
 
                 if(tFixedN0)then
-                    !Use the projected energy as the shift to fix the
-                    !population of the reference det and thus reduce the
-                    !fluctuations of the projected energy.
-                    DiagSft(run) = (AllENumCyc(run)) / (AllHFCyc(run))+proje_ref_energy_offsets(run)
-                    !Keep the population of reference det fixed.
-                    tSkipRef = .True.
-                 end if
+                    !When reaching target N0, set flag to keep the population of reference det fixed.
+                    if(.not. tSkipRef(run) .and. AllHFCyc(run)>=N0_Target) tSkipRef(run) = .True.
+
+                    if(tSkipRef(run))then
+                        !Use the projected energy as the shift to fix the
+                        !population of the reference det and thus reduce the
+                        !fluctuations of the projected energy.
+                        DiagSft(run) = (AllENumCyc(run)) / (AllHFCyc(run))+proje_ref_energy_offsets(run)
+                    else
+                        !Keep shift equal to input till target reference population is reached.
+                        DiagSft(run) = InputDiagSft(run)
+                    end if
+
+                end if
 
                  if ((AllSumNoatHF(run) /= 0.0_dp)) then
                     ProjectionE(run) = (AllSumENum(run)) / (all_sum_proje_denominator(run)) &
