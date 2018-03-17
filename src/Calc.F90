@@ -129,6 +129,8 @@ contains
           TProjEMP2=.false.
           THFRetBias=.false.
           TSignShift=.false.
+          tFixedN0 = .false.
+          tSkipRef(:) = .false.
           NEquilSteps=0
           NShiftEquilSteps=1000
           TRhoElems=.false.
@@ -1446,7 +1448,21 @@ contains
                 call getf(StepsSftImag)
             case("STEPSSHIFT")
 !For FCIMC, this is the number of steps taken before the Diag shift is updated
-                call geti(StepsSft)
+                if(tFixedN0)then
+                    write(6,*) "WARNING: 'STEPSSHIFT' cannot be changed. &
+                    & 'FIXED-N0' is already specified and sets this parameter to 1."
+                else
+                    call geti(StepsSft)
+                end if
+            case("FIXED-N0")
+                tFixedN0 = .true.
+                call geti(N0_Target)
+                !In this mode, the shift should be updated every iteration.
+                !Otherwise, the dynamics is biased.
+                StepsSft = 1
+                !Also avoid changing the reference determinant.
+                tReadPopsChangeRef = .false.
+                tChangeProjEDet = .false.
             case("EXITWALKERS")
 !For FCIMC, this is an exit criterion based on the total number of walkers in the system.
                 call getiLong(iExitWalkers)

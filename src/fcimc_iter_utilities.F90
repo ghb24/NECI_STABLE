@@ -12,7 +12,7 @@ module fcimc_iter_utils
                         nShiftEquilSteps, TargetGrowRateWalk, tContTimeFCIMC, &
                         tContTimeFull, pop_change_min, tPositiveHFSign, &
                         qmc_trial_wf, nEquilSteps, t_hist_tau_search, &
-                        t_hist_tau_search_option
+                        t_hist_tau_search_option, tFixedN0, tSkipRef, N0_Target
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tFCIMCStats2, tPrintDataTables, tLogEXLEVELStats
     use semi_stoch_procs, only: recalc_core_hamil_diag
@@ -913,6 +913,23 @@ contains
                  all_cyc_proje_denominator(run) = AllHFCyc(run)
 
                  ! Calculate the projected energy.
+
+                if(tFixedN0)then
+                    !When reaching target N0, set flag to keep the population of reference det fixed.
+                    if(.not. tSkipRef(run) .and. AllHFCyc(run)>=N0_Target) tSkipRef(run) = .True.
+
+                    if(tSkipRef(run))then
+                        !Use the projected energy as the shift to fix the
+                        !population of the reference det and thus reduce the
+                        !fluctuations of the projected energy.
+                        DiagSft(run) = (AllENumCyc(run)) / (AllHFCyc(run))+proje_ref_energy_offsets(run)
+                    else
+                        !Keep shift equal to input till target reference population is reached.
+                        DiagSft(run) = InputDiagSft(run)
+                    end if
+
+                end if
+
                  if ((AllSumNoatHF(run) /= 0.0_dp)) then
                     ProjectionE(run) = (AllSumENum(run)) / (all_sum_proje_denominator(run)) &
                          + proje_ref_energy_offsets(run)
@@ -923,6 +940,7 @@ contains
                     AbsProjE(run) = (AllENumCycAbs(run)) / (all_cyc_proje_denominator(run)) &
                          + proje_ref_energy_offsets(run)
                  endif
+
                 ! If we are re-zeroing the shift
                 if (tReZeroShift(run)) then
                     DiagSft(run) = 0.0_dp
@@ -948,10 +966,10 @@ contains
         call MPIBcast (tSinglePartPhase)
         call MPIBcast (VaryShiftIter)
         call MPIBcast (DiagSft)
+        call MPIBcast (tSkipRef)
         call MPIBcast (VaryShiftCycles)
         call MPIBcast (SumDiagSft)
         call MPIBcast (AvDiagSft)
-        
 
         do run=1,inum_runs
             if(.not.tSinglePartPhase(run)) then

@@ -16,7 +16,8 @@ module FciMCParMod
                         t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
                         t_back_spawn_flex, t_back_spawn_flex_option, &
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
-                        DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter
+                        DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
+                        tSkipRef
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
                         tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
                         SIUpdateInterval, tSuppressSIOutput, nRefUpdateInterval, &
@@ -76,7 +77,7 @@ module FciMCParMod
     use fcimc_output
     use FciMCData
     use constants
-    
+    use bit_reps, only: decode_bit_det    
     use double_occ_mod, only: get_double_occupancy, inst_double_occ, &
                         rezero_double_occ_stats, write_double_occ_stats, & 
                         sum_double_occ, sum_norm_psi_squared
@@ -134,7 +135,7 @@ module FciMCParMod
         character(*), parameter :: this_routine = 'FciMCPar'
         character(6), parameter :: excit_descriptor(0:2) = &
                                         (/"IC0   ", "single", "double"/)
-
+        integer :: tmp_det(nel)
         if (tJustBlocking) then
             ! Just reblock the current data, and do not perform an fcimc calculation.
             write(6,"(A)") "Skipping FCIQMC calculation and simply reblocking previous output"
@@ -156,6 +157,14 @@ module FciMCParMod
         call SetupParameters()
         call InitFCIMCCalcPar()
         call init_fcimc_fn_pointers() 
+
+        call decode_bit_det(tmp_det, ilutHF)
+        write(iout, *) "HF: ", tmp_det
+        call decode_bit_det(tmp_det, ilutHF_true)
+        write(iout, *) "HF_true: ", tmp_det
+        call decode_bit_det(tmp_det, ilutRef(:,1))
+        write(iout, *) "Ref: ", tmp_det 
+        write(iout, *) "ProjEDet: ", ProjEDet
 
         ! Attach signal handlers to give a more graceful death-mannerism
         call init_signals()
@@ -1096,7 +1105,8 @@ module FciMCParMod
             ! remove that for now
             do part_type = 1, lenof_sign
             
-                TempSpawnedPartsInd = 0
+               run = part_type_to_run(part_type)
+               TempSpawnedPartsInd = 0
 
                 ! Loop over all the particles of a given type on the 
                 ! determinant. CurrentSign gives number of walkers. Multiply 
@@ -1116,6 +1126,13 @@ module FciMCParMod
                                         ilutnJ, exFlag, IC, ex, tParity, prob, &
                                         HElGen, fcimc_excit_gen_store, part_type)
                     
+
+
+                    !If we are fixing the population of reference det, skip spawing into it.
+                    if(tSkipRef(run) .and. all(nJ==projEdet(:,run))) then
+                        !Set nJ to null
+                        nJ(1) = 0
+                    end if
 
                     ! If a valid excitation, see if we should spawn children.
                     if (.not. IsNullDet(nJ)) then
@@ -1199,11 +1216,15 @@ module FciMCParMod
 
             enddo   ! Cycling over 'type' of particle on a given determinant.
 
-            ! If we are performing a semi-stochastic simulation and this state
-            ! is in the deterministic space, then the death step is performed
-            ! deterministically later. Otherwise, perform the death step now.
-            if (.not. tCoreDet) call walker_death (iter_data, DetCurr, CurrentDets(:,j), &
-                                                   HDiagCurr, SignCurr, j, WalkExcitLevel)
+            !If we are fixing the population of reference det, skip death/birth
+            if(tSkipRef(run) .and. DetBitEQ(CurrentDets(:,j),iLutRef(:,run),nIfD)) then
+                cycle
+            endif
+                ! If we are performing a semi-stochastic simulation and this state
+                ! is in the deterministic space, then the death step is performed
+                ! deterministically later. Otherwise, perform the death step now.
+                if (.not. tCoreDet) call walker_death (iter_data, DetCurr, CurrentDets(:,j), &
+                                                       HDiagCurr, SignCurr, j, WalkExcitLevel)
 
         enddo ! Loop over determinants.
         IFDEBUGTHEN(FCIMCDebug,2) 
