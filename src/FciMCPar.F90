@@ -288,8 +288,8 @@ module FciMCParMod
                write(6,*) "Refreshing trial wavefunction at iteration ", iter
             endif
            
-            if((Iter - maxval(VaryShiftIter)) == allDoubsInitsDelay + 1 &
-                 .and. all(.not. tSinglePartPhase)) then
+            if(((Iter - maxval(VaryShiftIter)) == allDoubsInitsDelay + 1 &
+                 .and. all(.not. tSinglePartPhase)).or.all(tSkipRef)) then
                ! Start the all-doubs-initiator procedure
                if(tDelayAllDoubsInits) call enable_adi()
                ! And/or the all-sings-initiator procedure
