@@ -3,22 +3,37 @@
 module enumerate_excitations
 
     use SystemData, only : tReltvy, t_k_space_hubbard
+
     use bit_rep_data, only: NIfD, NIfTot
+
     use bit_reps, only: decode_bit_det
+
     use constants
+
     use DetBitOps, only: IsAllowedHPHF, TestClosedShellDet, EncodeBitDet
+
     use FciMCData, only: SpinInvBRR
+
     use HPHFRandExcitMod, only: FindExcitBitDetSym
+
     use Parallel_neci, only: MPISumAll
+
     use sort_mod, only: sort
+
     use SymData, only: nSymLabels, SymTable, SymLabels, SymClasses
+
     use SymExcit3, only: GenExcitations3
+
     use SymExcit4, only: GenExcitations4, ExcitGenSessionType
+
     use SymExcitDataMod
+
     use sym_general_mod
+
     use SystemData, only: nel, nBasis, G1, tFixLz, Arr, Brr, tHPHF, tHub, &
                           tUEG, tKPntSym, tReal, tUseBrillouin, tReltvy
-    use k_space_hubbard, only: gen_all_excits_k_space_hubbard
+
+    use lattice_models_utils, only: gen_all_excits_k_space_hubbard
 
     implicit none
 

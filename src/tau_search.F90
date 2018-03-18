@@ -9,33 +9,50 @@ module tau_search
                           t_3_body_excits, t_k_space_hubbard, t_trans_corr_2body, &
                           t_uniform_excits, t_new_real_space_hubbard, & 
                           t_trans_corr, tHub, t_trans_corr_hop
+
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow, t_min_tau, min_tau_global, &
                         t_consider_par_bias
+
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
                          ProjEDet, ilutRef, MaxTau, tSearchTau, &
                          tSearchTauOption, tSearchTauDeath, &
                          pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2
+
     use GenRandSymExcitNUMod, only: construct_class_counts, &
                                     init_excit_gen_store, clean_excit_gen_store
+
     use SymExcit3, only: GenExcitations3
+
     use Determinants, only: get_helement
+
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet, CalcPGenHPHF, &
                                 CalcNonUniPGen
+
     use HPHF_integrals, only: hphf_off_diag_helement_norm
+
     use SymExcitDataMod, only: excit_gen_store_type
+
     use bit_rep_data, only: NIfTot
+
     use bit_reps, only: getExcitationType, decode_bit_det
+
     use DetBitOps, only: FindBitExcitLevel, TestClosedShellDet, &
                          EncodeBitDet
+
     use sym_general_mod, only: SymAllowedExcit
+
     use Parallel_neci
+
     use constants
-    use k_space_hubbard, only: gen_all_excits_k_space_hubbard, & 
-                               calc_pgen_k_space_hubbard_uniform_transcorr, &
+
+    use k_space_hubbard, only: calc_pgen_k_space_hubbard_uniform_transcorr, &
                                calc_pgen_k_space_hubbard_transcorr, &
                                calc_pgen_k_space_hubbard
+
     use lattice_mod, only: get_helement_lattice
+
+    use lattice_models_utils, only: gen_all_excits_k_space_hubbard
 
     implicit none
 

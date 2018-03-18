@@ -141,41 +141,60 @@ module fcimc_initialisation
     use ueg_excit_gens, only: gen_ueg_excit
     use gndts_mod, only: gndts
     use excit_gen_5, only: gen_excit_4ind_weighted2
+
     use csf, only: get_csf_helement
+
     use tau_search, only: init_tau_search
+
     use fcimc_helper, only: CalcParentFlag, update_run_reference
+
     use cont_time_rates, only: spawn_rate_full, oversample_factors, &
                                secondary_gen_store, ostag
+
     use soft_exit, only: tSoftExitFound
+
     use get_excit, only: make_double
+
     use sltcnd_mod, only: sltcnd_0
+
     use rdm_data, only: nrdms_transition_input
+
     use Parallel_neci
+
     use FciMCData
+
     use util_mod
+
     use sort_mod
+
     use sym_mod
+
     use HElem
+
     use constants
 
     use real_time_data, only: t_real_time_fciqmc
-    use real_time_procs, only: attempt_create_realtime
 
+    use real_time_procs, only: attempt_create_realtime
 
     use adi_references, only: setup_reference_space, clean_adi
 
     use tau_search_hist, only: init_hist_tau_search
+
     use back_spawn, only: init_back_spawn
+
     use real_space_hubbard, only: init_real_space_hubbard, init_get_helement_hubbard
+
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
+
     use tj_model, only: init_get_helement_tj, init_get_helement_heisenberg
 
-    use k_space_hubbard, only: init_get_helement_k_space_hub, gen_all_excits_k_space_hubbard, &
-                               init_k_space_hubbard
+    use k_space_hubbard, only: init_get_helement_k_space_hub, init_k_space_hubbard
 
     use OneEInts, only: tmat2d
 
+    use lattice_models_utils, only: gen_all_excits_k_space_hubbard
     implicit none
 
 contains

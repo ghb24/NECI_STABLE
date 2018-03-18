@@ -7,7 +7,7 @@ module lattice_models_utils
 
     use constants, only: dp, n_int, bits_n_int, eps
 
-    use util_mod, only: binary_search, binary_search_first_ge, choose
+    use util_mod, only: binary_search, binary_search_first_ge, choose, swap
 
     use sort_mod, only: sort
 
@@ -21,9 +21,13 @@ module lattice_models_utils
 
     use bit_rep_data, only: niftot, nifd
 
-    use DetBitOps, only: ilut_lt, ilut_gt
+    use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet
+
+    use bit_reps, only: decode_bit_det
 
     use SymExcitDataMod, only: KPointToBasisFn
+
+    use sym_mod, only: mompbcsym
 
     use dSFMT_interface, only: genrand_real2_dsfmt
 

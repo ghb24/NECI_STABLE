@@ -31,8 +31,7 @@ module k_space_hubbard
 
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt
 
-    use real_space_hubbard, only: lat_tau_factor, create_all_dets, swap_excitations, &
-                                  pick_spin_opp_elecs, pick_from_cum_list
+    use real_space_hubbard, only: lat_tau_factor
 
     use fcimcdata, only: tsearchtau, tsearchtauoption, pDoubles, pParallel, &
                          excit_gen_store_type, pSingles
@@ -43,9 +42,6 @@ module k_space_hubbard
     use dsfmt_interface, only: genrand_real2_dsfmt
 
     use util_mod, only: binary_search_first_ge, binary_search
-
-    use back_spawn, only: make_ilutJ, is_allowed_ueg_k_vector, get_ispn, &
-         get_orb_from_kpoints
 
     use get_excit, only: make_double
 
@@ -81,6 +77,13 @@ module k_space_hubbard
     use SymData, only: tagSymTable
 
     use ParallelHelper, only: iProcIndex, root
+
+    use lattice_models_utils, only: make_ilutJ, get_ispn, get_orb_from_kpoints, &
+                                    create_all_dets, find_minority_spin, & 
+                                    get_orb_from_kpoints_three, swap_excitations, &
+                                    pick_spin_opp_elecs, pick_from_cum_list, & 
+                                    pick_spin_par_elecs, pick_three_opp_elecs
+                                    
 
     implicit none 
 

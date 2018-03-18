@@ -8,23 +8,44 @@ module tJ_model
                           t_heisenberg_model, t_new_real_space_hubbard, exchange_j, &
                           t_trans_corr, trans_corr_param, & 
                           t_trans_corr_2body, trans_corr_param_2body
+
     use constants, only: dp, n_int, EPS, bits_n_int
-    use real_space_hubbard, only: lat_tau_factor, &
-                                  t_start_neel_state, check_real_space_hubbard_input, & 
-                                  init_tmat, get_spin_opp_neighbors
+
+    use real_space_hubbard, only: lat_tau_factor, t_start_neel_state,  & 
+                                  check_real_space_hubbard_input, init_tmat
+
     use procedure_pointers, only: get_umat_el, generate_excitation
-    use FciMCData, only: tsearchtau, tsearchtauoption
+
+    use FciMCData, only: tsearchtau, tsearchtauoption, excit_gen_store_type
+
     use CalcData, only: t_hist_tau_search_option, t_hist_tau_search, tau
+
     use bit_rep_data, only: NIfTot
+
     use umatcache, only: gtid
+
     use util_mod, only: binary_search_first_ge
+
     use OneEInts, only: GetTMatEl
+
     use lattice_mod, only: lattice, lat, determine_optimal_time_step, &
             get_helement_lattice_ex_mat, get_helement_lattice_general
+
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
+
     use double_occ_mod, only: count_double_orbs
+
     use FciMCData, only: ilutref
+
     use bit_reps, only: decode_bit_det
+
+    use lattice_models_utils, only: get_spin_opp_neighbors, make_ilutJ, &
+                                    find_elec_in_ni, get_spin_density_neighbors, &
+                                    get_occ_neighbors
+
+    use get_excit, only: make_single, make_double
+
+    use dsfmt_interface, only: genrand_real2_dsfmt
 
     implicit none 
 
@@ -264,16 +285,6 @@ contains
 
     subroutine gen_excit_tJ_model (nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                       ex, tParity, pGen, hel, store, run)
-        
-        use SystemData, only: nel
-        use bit_rep_data, only: NIfTot
-        use FciMCData, only: excit_gen_store_type
-        use constants, only: n_int, dp, bits_n_int
-        use get_excit, only: make_single, make_double
-        use back_spawn, only: make_ilutJ
-        use dsfmt_interface, only: genrand_real2_dsfmt
-
-        implicit none
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
@@ -623,15 +634,6 @@ contains
         ! the heisenberg excitation generator is only a small modification of 
         ! the t-J excitation generator without single excitation hoppings, 
         ! due to half-filling 
-        use SystemData, only: nel
-        use bit_rep_data, only: NIfTot
-        use FciMCData, only: excit_gen_store_type
-        use constants, only: n_int, dp, bits_n_int
-        use get_excit, only: make_single, make_double
-        use back_spawn, only: make_ilutJ
-        use dsfmt_interface, only: genrand_real2_dsfmt
-
-        implicit none
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
