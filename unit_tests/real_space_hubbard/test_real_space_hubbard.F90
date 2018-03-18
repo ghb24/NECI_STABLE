@@ -32,7 +32,8 @@ program test_real_space_hubbard
 
     use fcimcdata, only: pSingles, pDoubles
 
-    use lattice_models_utils, only: gen_all_excits_r_space_hubbard
+    use lattice_models_utils, only: gen_all_excits_r_space_hubbard, &
+                                    create_hilbert_space_realspace
 
     implicit none 
 
@@ -58,8 +59,8 @@ contains
         ! this is the main function which calls all the other tests 
         
         ! or try running it with the provided runner of fruit: 
-!         call run_test_case(gen_excit_rs_hubbard_test_stoch, "gen_excit_rs_hubbard_test_stoch")
-!         call run_test_case(gen_excit_rs_hubbard_transcorr_test_stoch, "gen_excit_rs_hubbard_transcorr_test_stoch")
+        call run_test_case(gen_excit_rs_hubbard_test_stoch, "gen_excit_rs_hubbard_test_stoch")
+        call run_test_case(gen_excit_rs_hubbard_transcorr_test_stoch, "gen_excit_rs_hubbard_transcorr_test_stoch")
         call run_test_case(gen_excit_rs_hubbard_transcorr_uniform_test_stoch, "gen_excit_rs_hubbard_transcorr_uniform_test_stoch")
         call run_test_case(get_umat_el_hub_test, "get_umat_el_hub_test")
         call run_test_case(init_tmat_test, "init_tmat_test")

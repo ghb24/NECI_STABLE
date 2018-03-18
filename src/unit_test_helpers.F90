@@ -318,7 +318,7 @@ contains
 
         integer :: i, nI(nel), n_iters 
         integer :: default_n_iters = 100000
-        integer :: default_n_dets = 10 
+        integer :: default_n_dets = 1
 
         integer(n_int) :: ilut(0:niftot), tgt_ilut(0:niftot)
         integer :: nJ(nel), n_excits, ex(2,2), ic, ex_flag, i_unused = 0
