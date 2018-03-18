@@ -29,7 +29,6 @@ contains
         call run_test_case(init_tJ_model_test, 'init_tJ_model_test')
         call run_test_case(init_heisenberg_model_test, "init_heisenberg_model_test")
         call run_test_case(setup_exchange_matrix_test, "setup_exchange_matrix_test")
-        call run_test_case(find_elec_in_ni_test, "find_elec_in_ni_test")
         call run_test_case(get_umat_el_heisenberg_test, "get_umat_el_heisenberg_test")
         call run_test_case(get_helement_tJ_test, "get_helement_tJ_test")
         call run_test_case(get_helement_heisenberg_test, "get_helement_heisenberg_test")
@@ -43,9 +42,7 @@ contains
         call run_test_case(calc_pgen_tJ_model_test, "calc_pgen_tJ_model_test")
         call run_test_case(gen_excit_heisenberg_model_test, "gen_excit_heisenberg_model_test")
         call run_test_case(calc_pgen_heisenberg_model_test, "calc_pgen_heisenberg_model_test")
-        call run_test_case(get_occ_neighbors_test, "get_occ_neighbors_test")
         call run_test_case(get_offdiag_helement_tJ_test, "get_offdiag_helement_tJ_test")
-        call run_test_case(get_spin_density_neighbors_test, "get_spin_density_neighbors_test")
 
     end subroutine tJ_model_test_driver
 
@@ -861,33 +858,6 @@ contains
 
     end subroutine calc_pgen_heisenberg_model_test
 
-    subroutine find_elec_in_ni_test
-        use SystemData, only: nel, nbasis
-        
-        print *, ""
-        print *, "testing: find_elec_in_ni" 
-
-        nel = 3
-        nbasis = 8 
-        call assert_equals(3, find_elec_in_ni([1,2,3],3))
-        call assert_equals(2, find_elec_in_ni([1,2,3],2))
-        call assert_equals(1, find_elec_in_ni([1,2,3],1))
-
-        call assert_equals(-1, find_elec_in_ni([1,2,3],4))
-
-        call assert_equals(2, find_elec_in_ni([3,7,8],7))
-        call assert_equals(1, find_elec_in_ni([3,7,8],3))
-        call assert_equals(3, find_elec_in_ni([3,7,8],8))
-
-        call assert_equals(-1, find_elec_in_ni([3,7,8],1))
-        call assert_equals(-1, find_elec_in_ni([3,7,8],4))
-        call assert_equals(-1, find_elec_in_ni([3,7,8],5))
-
-        nel = -1
-        nbasis = -1
-
-    end subroutine find_elec_in_ni_test
-
     subroutine setup_exchange_matrix_test
         use SystemData, only: nbasis 
         use real_space_hubbard, only: lat
@@ -1367,75 +1337,6 @@ contains
         nbasis = -1
 
     end subroutine get_umat_el_heisenberg_test
-
-    subroutine get_occ_neighbors_test
-        use bit_rep_data, only: NIfTot
-        use Detbitops, only: EncodeBitDet
-        use SystemData, only: nel 
-        use lattice_mod, only: lattice
-        use constants, only: n_int
-
-        integer(n_int), allocatable :: ilut(:)
-
-        NIfTot = 0
-        allocate(ilut(0:NIfTot))
-
-        nel = 3
-        lat => lattice('chain',4, 1, 1, .true., .true., .true.)
-
-        call EncodeBitDet([1,2,5], ilut)
-
-        print *, ""
-        print *, "testing: get_occ_neighbors "
-        call assert_equals(0.0_dp, get_occ_neighbors(ilut,1))
-        call assert_equals(3.0_dp, get_occ_neighbors(ilut,2))
-        call assert_equals(0.0_dp, get_occ_neighbors(ilut,3))
-        call assert_equals(3.0_dp, get_occ_neighbors(ilut,4))
-
-        call EncodeBitDet([1,2,3], ilut)
-        call assert_equals(1.0_dp, get_occ_neighbors(ilut,1))
-        call assert_equals(2.0_dp, get_occ_neighbors(ilut,2))
-        call assert_equals(1.0_dp, get_occ_neighbors(ilut,3))
-
-        NIfTot = -1 
-        nel = -1
-
-    end subroutine get_occ_neighbors_test
-
-    subroutine get_spin_density_neighbors_test
-        use bit_rep_data, only: niftot 
-        use Detbitops, only: EncodeBitDet 
-        use SystemData, only: nel 
-        use lattice_mod, only: lattice
-        use constants, only: n_int
-
-        integer(n_int), allocatable :: ilut(:) 
-
-        print *, "" 
-        print *, " testing: get_spin_density_neighbors "
-
-        NIfTot = 0 
-        lat => lattice('chain',4,1,1,.true.,.true.,.true.)
-        allocate(ilut(0:NIfTot))
-
-        nel = 3 
-        call encodebitdet([1,2,3], ilut)
-        
-        call assert_equals(-0.5_dp, get_spin_density_neighbors(ilut,1)) 
-        call assert_equals(0.0_dp, get_spin_density_neighbors(ilut,2)) 
-        call assert_equals(-0.5_dp, get_spin_density_neighbors(ilut,3)) 
-        call assert_equals(0.0_dp, get_spin_density_neighbors(ilut,4)) 
-
-        call encodebitdet([1,4,5], ilut) 
-        call assert_equals(0.5_dp, get_spin_density_neighbors(ilut,1)) 
-        call assert_equals(-1.0_dp, get_spin_density_neighbors(ilut,2)) 
-        call assert_equals(0.5_dp, get_spin_density_neighbors(ilut,3)) 
-        call assert_equals(-1.0_dp, get_spin_density_neighbors(ilut,4)) 
-
-        nel = -1 
-        NIfTot = -1
-
-    end subroutine get_spin_density_neighbors_test
 
     subroutine get_offdiag_helement_tJ_test
         use SystemData, only: nel, t_trans_corr, trans_corr_param, nbasis, bhub, & 

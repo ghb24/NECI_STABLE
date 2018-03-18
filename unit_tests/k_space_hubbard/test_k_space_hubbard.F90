@@ -10,8 +10,11 @@
 program test_k_space_hubbard 
     
     use k_space_hubbard
+
     use constants 
+
     use fruit 
+
     use SystemData, only: t_k_space_hubbard, t_lattice_model, nel, nbasis, & 
                           t_trans_corr, G1, nBasisMax, nOccBeta, nOccAlpha, & 
                           bhub, uhub, omega, trans_corr_param_2body, & 
@@ -19,21 +22,38 @@ program test_k_space_hubbard
                           thub, tpbc, treal, ttilt, TSPINPOLAR, & 
                           tCPMD, tVASP, tExch, tHphf, tNoSymGenRandExcits, tKPntSym, &
                           t_twisted_bc, twisted_bc, arr, brr
+
     use bit_rep_data, only: niftot, nifd
+
     use lattice_mod, only: lat, lattice, get_helement_lattice_general, & 
                            get_helement_lattice_ex_mat
+
     use dsfmt_interface, only: dsfmt_init
+
     use OneEInts, only: GetTMatEl, tOneElecDiag, tCPMDSymTMat
+
     use procedure_pointers, only: get_umat_el
+
     use IntegralsData, only: umat
+
     use DetBitOps, only: EncodeBitDet
+
     use fcimcdata, only: pDoubles, pParallel
+
     use sort_mod, only: sort
+
     use util_mod, only: choose, get_free_unit
+
     use bit_reps, only: decode_bit_det
+
     use SymExcitDataMod, only: kTotal
+
     use lanczos_wrapper, only: frsblk_wrapper
+
     use unit_test_helpers
+
+    use lattice_models_utils, only: gen_all_excits_k_space_hubbard, &
+                                    gen_all_triples_k_space, create_hilbert_space_kspace
 
     implicit none 
 
@@ -314,7 +334,6 @@ contains
         call run_test_case(create_ab_list_par_hubbard_test, "create_ab_list_par_hubbard_test")
         call run_test_case(pick_ab_orbitals_par_hubbard_test, "pick_ab_orbitals_par_hubbard_test")
         call run_test_case(get_transferred_momenta_test, "get_transferred_momenta_test")
-        call run_test_case(get_orb_from_kpoints_three_test, "get_orb_from_kpoints_three_test")
         call run_test_case(create_bc_list_hubbard_test, "create_bc_list_hubbard_test")
         call run_test_case(get_3_body_helement_ks_hub_test, "get_3_body_helement_ks_hub_test")
         call run_test_case(check_momentum_sym_test, "check_momentum_sym_test")
@@ -2144,21 +2163,6 @@ contains
         call assert_equals(-1, k_vec_b(1))
 
     end subroutine get_transferred_momenta_test
-
-    subroutine get_orb_from_kpoints_three_test
-
-        print *, ""
-        print *, "testing: get_orb_from_kpoints_three: "
-        call assert_equals(3, get_orb_from_kpoints_three([1,2,3],1,2))
-        call assert_equals(5, get_orb_from_kpoints_three([1,2,3],4,5))
-        call assert_equals(5, get_orb_from_kpoints_three([1,3,5],1,3))
-        call assert_equals(2, get_orb_from_kpoints_three([2,4,6],4,6))
-
-        call assert_equals(7, get_orb_from_kpoints_three([1,2,3],7,8))
-
-        call assert_equals(7, get_orb_from_kpoints_three([3,4,5],6,8))
-
-    end subroutine get_orb_from_kpoints_three_test
 
     subroutine create_bc_list_hubbard_test
 
