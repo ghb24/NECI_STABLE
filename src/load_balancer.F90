@@ -389,6 +389,7 @@ contains
                ! And send the trial wavefunction connection information
                nelem = nconsend * (1 + NConEntry)
                call MPISend(nconsend,1,tgt_proc,mpi_tag_nconsend, ierr)
+               if(nelem > 0) &
                call MPISend(con_send_buf(:,1:nconsend),nelem,tgt_proc, &
                     mpi_tag_con, ierr)
             end if
@@ -425,8 +426,10 @@ contains
             if(tTrialWavefunction) then
                call MPIRecv(nconsend, 1, src_proc, mpi_tag_nconsend, ierr)
                nelem = nconsend * (1 + NConEntry)
-               call MPIRecv(con_send_buf, nelem, src_proc, mpi_tag_con, ierr)
-               call add_con_ht_entries(con_send_buf(:,1:nconsend), nconsend)
+               if(nelem > 0) then
+                  call MPIRecv(con_send_buf, nelem, src_proc, mpi_tag_con, ierr)
+                  call add_con_ht_entries(con_send_buf(:,1:nconsend), nconsend)
+               endif
             endif
 
         end if

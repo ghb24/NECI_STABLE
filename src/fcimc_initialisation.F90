@@ -1349,6 +1349,13 @@ contains
             ! If we are doing cont time, then initialise it here
             call init_cont_time()
 
+            ! set the dummies for trial wavefunction connected space 
+            ! load balancing before trial wf initialization
+            if(tTrialWavefunction) then
+               allocate(con_send_buf(0,0))
+               con_space_size = 0
+            end if
+
             write(iout,"(A,I12,A)") "Spawning vectors allowing for a total of ",MaxSpawned, &
                     " particles to be spawned in any one iteration per core."
             allocate(SpawnVec(0:NIfBCast, MaxSpawned), &

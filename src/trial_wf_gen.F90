@@ -211,6 +211,9 @@ contains
 
         call MPISumAll(con_space_size, tot_con_space_size)
         ! allocate buffer for communication of con_ht
+        ! it is normally also allocated upon initialization, so deallocate
+        ! the dummy version
+        if(allocated(con_send_buf)) deallocate(con_send_buf)
         allocate(con_send_buf(0:NConEntry,tot_con_space_size))
 
         write(6,'("Total size of connected space:",1X,i10)') tot_con_space_size
