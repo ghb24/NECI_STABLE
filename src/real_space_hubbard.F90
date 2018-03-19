@@ -37,7 +37,7 @@ module real_space_hubbard
                         excit_gen_store_type
 
     use CalcData, only: t_hist_tau_search, t_hist_tau_search_option, tau, & 
-                        t_fill_frequency_hists, p_singles_input
+                        t_fill_frequency_hists, p_singles_input, matele_cutoff
 
     use dsfmt_interface, only: genrand_real2_dsfmt
 
@@ -384,24 +384,24 @@ contains
         allocate(umat_rs_hub_trancorr_hop(n_sites,n_sites,n_sites,n_sites))
         umat_rs_hub_trancorr_hop = 0.0_dp
 
+        root_print "initializing UMAT:"
         do i = 1, n_sites
             do j = 1, n_sites
                 do k = 1, n_sites
                     do l = 1, n_sites
                         elem = uhub * sum_hop_transcorr_factor(i,j,k,l)
-
                         ! write to the dumpfile
-                        if (abs(elem) > EPS) then 
+                        if (abs(elem) > matele_cutoff) then 
                             write(iunit,*)  i,j,k,l, elem
+                            ! and also store in the umat 
+                            umat_rs_hub_trancorr_hop(i,j,k,l) = elem 
                         end if
-
-                        ! and also store in the umat 
-                        umat_rs_hub_trancorr_hop(i,j,k,l) = elem 
                     end do
                 end do
             end do
         end do
         close(iunit)
+        root_print "Done"
 
     end subroutine init_umat_rs_hub_transcorr
 
@@ -786,11 +786,12 @@ contains
 
                 if (IsNotOcc(ilutI,orb)) then 
                     
+                    ! i am still not sure about the ordering of these weights..
                     ex(2,1) = orb 
                     call swap_excitations(nI, ex, nJ, ex2)
                     elem = abs(get_single_helem_rs_hub_transcorr(nJ, ex2(:,1), .false.))
 
-!                     temp = abs(get_single_helem_rs_hub_transcorr(nI, ex(:,1), .false.))
+!                     elem = abs(get_single_helem_rs_hub_transcorr(nI, ex(:,1), .false.))
 !                     if (abs(temp - elem) > EPS) then 
 !                         print *, "singles do differ!"
 !                     end if
@@ -820,7 +821,7 @@ contains
                     elem = abs(get_single_helem_rs_hub_transcorr(nJ, ex2(:,1), .false.))
                     ! todo! i am not sure about the order of these matrix 
 
-!                     temp = abs(get_single_helem_rs_hub_transcorr(nI, ex(:,1), .false.))
+!                     elem = abs(get_single_helem_rs_hub_transcorr(nI, ex(:,1), .false.))
 !                     if (abs(temp - elem) > EPS) then 
 !                         print *, "singles do differ!"
 !                     end if
@@ -951,7 +952,7 @@ contains
                     call swap_excitations(nI, ex, nJ, ex2)
                     elem = abs(get_double_helem_rs_hub_transcorr(nJ, ex2, .false.))
 
-!                     temp = abs(get_double_helem_rs_hub_transcorr(nI, ex, .false.))
+!                     elem = abs(get_double_helem_rs_hub_transcorr(nI, ex, .false.))
 !                     if (abs(elem - temp) > EPS) then 
 !                         print *, "doubles do differ!"
 !                     end if
@@ -980,7 +981,7 @@ contains
                     call swap_excitations(nI, ex, nJ, ex2) 
                     elem = abs(get_double_helem_rs_hub_transcorr(nJ, ex2, .false.))
 
-!                     temp = abs(get_double_helem_rs_hub_transcorr(nI, ex, .false.))
+!                     elem = abs(get_double_helem_rs_hub_transcorr(nI, ex, .false.))
 !                     if (abs(elem - temp) > EPS) then 
 !                         print *, "doubles do differ!"
 !                     end if
