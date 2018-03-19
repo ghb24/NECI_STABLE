@@ -275,7 +275,7 @@ module FciMCParMod
                  mod(iter-semistochStartIter, &
                  coreSpaceUpdateCycle) == 0) then
                call refresh_semistochastic_space()
-               write(6,*) "Refereshing semistochastic space at iteration ", iter
+               write(6,*) "Refreshing semistochastic space at iteration ", iter
             end if
            
             if((Iter - maxval(VaryShiftIter)) == allDoubsInitsDelay + 1 &
