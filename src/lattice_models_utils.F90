@@ -21,7 +21,8 @@ module lattice_models_utils
 
     use bit_rep_data, only: niftot, nifd
 
-    use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet
+    use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet, TestClosedShellDet, & 
+                         DetBitLT, MaskAlpha, MaskBeta
 
     use bit_reps, only: decode_bit_det
 
@@ -30,7 +31,7 @@ module lattice_models_utils
     use sym_mod, only: mompbcsym
 
     use dSFMT_interface, only: genrand_real2_dsfmt
-
+    
     implicit none
 
     interface swap_excitations 
@@ -39,6 +40,61 @@ module lattice_models_utils
     end interface swap_excitations
 
 contains 
+
+    function return_hphf_sym_det(ilut_in) result(ilut_out)
+        ! to avoid circular dependencies and due to the strange implementation
+        ! to find the symmetry conjugated determinant of an HPHF pair 
+        ! create a new routine to return a open-shell determinant where the 
+        ! last single occupied spatial orbital is an alpha spin
+        ! this is the convention in the storage of the hphfs
+        ! this can easily be tested by checking if the bit-encoded determinant 
+        ! has an higher integer value! 
+        ! different to the original implementation of this routine 
+        ! standardyl we only return the determinant which should be stored 
+        ! in the CurrentDets. so if ilut_in is already this determinant 
+        ! ilut_out will be == ilut_in
+        ! and it also deals with closed-shell dets, where it will just 
+        ! return the same determinant 
+        integer(n_int), intent(in) :: ilut_in(0:niftot)
+        integer(n_int) :: ilut_out(0:niftot)
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "return_hphf_sym_det"
+#endif
+        INTEGER(n_int) :: iLutAlpha(0:NIfTot),iLutBeta(0:NIfTot)
+        INTEGER :: i
+
+        if (TestClosedShellDet(ilut_in)) then 
+            ilut_out = ilut_in 
+            return 
+        end if
+
+        ilut_out(:)=0_n_int
+        iLutAlpha(:)=0_n_int
+        iLutBeta(:)=0_n_int
+
+        ! this is taken from HPHFRandExcitMod
+        do i=0,NIfD
+            !Seperate the alpha and beta bit strings
+            iLutAlpha(i)=IAND(ilut_in(i),MaskAlpha)    
+            iLutBeta(i)=IAND(ilut_in(i),MaskBeta)
+
+            !Shift all alpha bits to the left by one.
+            iLutAlpha(i)=ISHFT(iLutAlpha(i),-1)  
+            !Shift all beta bits to the right by one.
+            iLutBeta(i)=ISHFT(iLutBeta(i),1)   
+            !Combine the bit strings to give the final bit representation.
+            ilut_out(i)=IOR(iLutAlpha(i),iLutBeta(i))    
+        end do
+
+        i = DetBitLT(ilut_in, ilut_out)
+
+        ! i == 1 indicated that ilut_in is "less" than the symmetric
+        ! so ilut_out is the to be stored one 
+        if (i == -1) then 
+            ilut_out = ilut_in
+        end if
+
+    end function return_hphf_sym_det
 
     subroutine swap_excitations_higher(nI, ex, nJ, ex2) 
         ! routine to quickly, without make_double and make_triple 
@@ -160,13 +216,8 @@ contains
         integer(n_int), intent(out), allocatable :: det_list(:,:) 
         character(*), parameter :: this_routine = "gen_all_excits_r_space_hubbard"
 
-        integer :: save_excits, n_doubles
+        integer :: save_excits, n_doubles, i
         integer(n_int), allocatable :: double_dets(:,:), temp_dets(:,:)
-
-        if (tHPHF) then 
-            call stop_all(this_routine, &
-                "not adapted to HPHF, since we create all the excitations!")
-        end if
 
         call gen_all_singles_rs_hub(nI, n_excits, det_list) 
 
@@ -194,7 +245,73 @@ contains
 
         call sort(det_list, ilut_lt, ilut_gt)
 
+        ! if we have HPHF turned on we want to "spin-purify" the excitation 
+        ! list 
+!         print *, "un-purified basis: "
+!         do i = 1, n_excits
+!             call writebitdet(6, det_list(:,i), .true.)
+!         end do
+        if (tHPHF) then 
+            save_excits = n_excits
+
+            if (allocated(temp_dets)) deallocate(temp_dets)
+
+            allocate(temp_dets(0:NIfTot, size(det_list,2)), source = det_list)
+
+            call spin_purify(save_excits, temp_dets, n_excits, det_list)
+
+        end if
+
+!         print *, "purified basis: "
+!         do i = 1, n_excits
+!             call writebitdet(6, det_list(:,i), .true.)
+!         end do
     end subroutine gen_all_excits_r_space_hubbard
+
+    subroutine spin_purify(n_excits_in, det_list_in, n_excits_out, det_list_out)
+        ! routine to remove determinants, belonging to the same 
+        ! coupled HPHF function 
+        integer, intent(in) :: n_excits_in
+        integer(n_int), intent(in) :: det_list_in(0:NIfTot,n_excits_in)
+        integer, intent(out) :: n_excits_out
+        integer(n_int), intent(out), allocatable :: det_list_out(:,:)
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "spin_purify"
+#endif 
+        integer :: nI(nel), nJ(nel), i, pos, cnt
+        integer(n_int) :: ilut(0:NIfTot), ilut_sym(0:NIfTot)
+        logical :: t_swapped
+        integer(n_int), allocatable :: temp_dets(:,:)
+
+        allocate(temp_dets(0:NIfTot,n_excits_in))
+        temp_dets = 0_n_int
+
+        cnt = 0
+
+        do i = 1, n_excits_in
+        
+            ilut = det_list_in(:,i) 
+
+            ! ilut will always be the one, which should be stored in the 
+            ! det-list, if i undertand the function below correctly
+            ilut_sym = return_hphf_sym_det(ilut)
+
+            pos = binary_search(temp_dets(:,1:cnt), ilut, nifd + 1)
+
+            if (pos < 0) then 
+                ! then we have to store it 
+                cnt = cnt + 1
+                temp_dets(:,cnt) = ilut_sym
+                call sort(temp_dets(:,1:cnt), ilut_lt, ilut_gt)
+            end if
+        end do
+
+        n_excits_out = cnt
+        allocate(det_list_out(0:NIfTot,n_excits_out), source = temp_dets(:,1:n_excits_out))
+
+        call sort(det_list_out, ilut_lt, ilut_gt)
+
+    end subroutine spin_purify
 
     subroutine gen_all_doubles_rs_hub_hop_transcorr(nI, n_excits, det_list) 
         integer, intent(in) :: nI(nel)
@@ -479,6 +596,8 @@ contains
         integer(n_int), allocatable :: all_dets(:) 
         integer(n_int) :: temp_ilut(0:niftot)
         integer :: nJ(nel), i
+        integer(n_int), allocatable :: temp_dets(:,:)
+        integer :: save_states
 
         all_dets = create_all_dets(n_orbs, n_alpha, n_beta) 
 
@@ -495,6 +614,15 @@ contains
             state_list_ilut(:,i) = temp_ilut
 
         end do
+
+        if (tHPHF) then 
+            ! for hphfs we need to purify the hilbert space! 
+            save_states = n_states
+            allocate(temp_dets(0:NIfTot,n_states), source = state_list_ilut)
+
+            call spin_purify(save_states, temp_dets, n_states, state_list_ilut)
+
+        end if
 
     end subroutine create_hilbert_space_realspace
 
@@ -1207,6 +1335,19 @@ contains
 
         call sort(det_list, ilut_lt, ilut_gt)
 
+        ! if we have HPHF turned on we want to "spin-purify" the excitation 
+        ! list 
+        if (tHPHF) then 
+            save_excits = n_excits
+
+            if (allocated(temp_dets)) deallocate(temp_dets)
+
+            allocate(temp_dets(0:NIfTot, n_excits), source = det_list)
+
+            call spin_purify(save_excits, temp_dets, n_excits, det_list)
+
+        end if
+
     end subroutine gen_all_excits_k_space_hubbard
 
     subroutine create_hilbert_space_kspace(n_alpha, n_beta, n_orbs, nI, & 
@@ -1227,6 +1368,7 @@ contains
         type(Symmetry) :: sym_prod, sym_in
         integer, allocatable :: temp_list_ni(:,:) 
         integer(n_int) :: temp_ilut(0:niftot)
+        integer :: save_states
 
         ! this creates all possible basis states:
         all_dets = create_all_dets(n_orbs, n_alpha, n_beta) 
@@ -1286,6 +1428,17 @@ contains
 
         allocate(state_list_ni(nel,n_allowed), source = temp_list_ni(:,1:n_allowed))
         allocate(state_list_ilut(0:niftot,n_allowed), source = temp_list_ilut(:,1:n_allowed))
+
+        if (tHPHF) then 
+            ! for hphfs we need to purify the hilbert space! 
+            save_states = n_states
+            if (allocated(temp_list_ilut)) deallocate(temp_list_ilut)
+
+            allocate(temp_list_ilut(0:NIfTot,n_states), source = state_list_ilut)
+
+            call spin_purify(save_states, temp_list_ilut, n_states, state_list_ilut)
+
+        end if
 
     end subroutine create_hilbert_space_kspace
 

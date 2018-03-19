@@ -582,6 +582,13 @@ contains
             call make_double(nI, nJ, elecs(1), elecs(2), orbs(1), orbs(2), ex, tParity)
             ilutJ = make_ilutJ(ilutI, ex, 2) 
 
+            ! to be compatible with my test-suite actually calculate the 
+            ! matrix element here.. 
+            if (abs(get_double_helem_rs_hub_transcorr(nI, ex, .false.)) < EPS) then 
+                nJ(1) = 0
+                pgen = 0.0_dp
+                return 
+            end if
         else 
 
             ic = 1
@@ -607,6 +614,11 @@ contains
             call make_single(nI, nJ, elecs(1), orbs(1), ex, tParity)
             ilutJ = make_ilutJ(ilutI, ex, 1)
 
+            if (abs(get_single_helem_rs_hub_transcorr(nI, ex, .false.)) < EPS) then 
+                nJ(1) = 0
+                pgen = 0.0_dp 
+                return
+            end if
         end if
 
     end subroutine gen_excit_rs_hubbard_transcorr_uniform

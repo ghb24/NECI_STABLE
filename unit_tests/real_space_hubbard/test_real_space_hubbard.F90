@@ -35,6 +35,7 @@ program test_real_space_hubbard
     use lattice_models_utils, only: gen_all_excits_r_space_hubbard, &
                                     create_hilbert_space_realspace
 
+    use HPHFRandexcitmod, only: gen_hphf_excit
     implicit none 
 
     integer :: failed_count 
@@ -59,8 +60,11 @@ contains
         ! this is the main function which calls all the other tests 
         
         ! or try running it with the provided runner of fruit: 
-        call run_test_case(gen_excit_rs_hubbard_test_stoch, "gen_excit_rs_hubbard_test_stoch")
-        call run_test_case(gen_excit_rs_hubbard_transcorr_test_stoch, "gen_excit_rs_hubbard_transcorr_test_stoch")
+!         call run_test_case(gen_excit_rs_hubbard_hphf_test_stoch, "gen_excit_rs_hubbard_hphf_test_stoch")
+!         call run_test_case(gen_excit_rs_hubbard_transcorr_hphf_test_stoch, "gen_excit_rs_hubbard_transcorr_hphf_test_stoch")
+        call run_test_case(gen_excit_rs_hubbard_transcorr_uniform_hphf_test_stoch, "gen_excit_rs_hubbard_transcorr_uniform_hphf_test_stoch")
+!         call run_test_case(gen_excit_rs_hubbard_test_stoch, "gen_excit_rs_hubbard_test_stoch")
+!         call run_test_case(gen_excit_rs_hubbard_transcorr_test_stoch, "gen_excit_rs_hubbard_transcorr_test_stoch")
         call run_test_case(gen_excit_rs_hubbard_transcorr_uniform_test_stoch, "gen_excit_rs_hubbard_transcorr_uniform_test_stoch")
         call run_test_case(get_umat_el_hub_test, "get_umat_el_hub_test")
         call run_test_case(init_tmat_test, "init_tmat_test")
@@ -379,7 +383,7 @@ contains
 
         call init_realspace_tests()
 
-        nel = 4
+        nel = 6
         allocate(nI(nel))
 !         nI = [(i, i = 1, nel)]
         nI = [1,4,5,8,9,12]
@@ -425,7 +429,7 @@ contains
 
         call init_realspace_tests()
 
-        nel = 4
+        nel = 6
         allocate(nI(nel))
 !         nI = [(i, i = 1, nel)]
         nI = [1,4,5,8,9,12]
@@ -446,6 +450,175 @@ contains
 
     end subroutine gen_excit_rs_hubbard_transcorr_uniform_test_stoch
 
+    subroutine gen_excit_rs_hubbard_transcorr_hphf_test_stoch
+
+        integer, allocatable :: nI(:)
+        integer :: n_iters, n_orbs, i
+
+        n_iters = 1000000
+
+        t_trans_corr_hop = .true. 
+        trans_corr_param = 0.1_dp
+        tHPHF = .true.
+
+        uhub = 10
+        bhub = -1
+        pSingles = 0.9_dp
+        pDoubles = 1.0_dp - pSingles
+
+        lat => lattice('rectangle', 2, 3, 1,.true.,.true.,.true.)
+
+        n_orbs = lat%get_nsites()
+        nBasis = 2 * n_orbs
+        if (associated(brr)) deallocate(brr)
+        allocate(brr(nbasis))
+        brr = [(i,i=1,nBasis)]
+
+        call init_realspace_tests()
+
+        nel = 6
+        allocate(nI(nel))
+!         nI = [(i, i = 1, nel)]
+        nI = [1,4,5,8,9,12]
+
+        nOccAlpha = 0
+        nOccBeta = 0
+
+        do i = 1, nel 
+            if (is_beta(nI(i))) nOccBeta = nOccBeta + 1
+            if (is_alpha(nI(i))) nOccAlpha = nOccAlpha + 1
+        end do
+
+        call run_excit_gen_tester(gen_hphf_excit, "gen_hphf_excit", & 
+            nI, n_iters, gen_all_excits_r_space_hubbard)
+
+        tHPHF = .false.
+        t_trans_corr_hop = .false.
+
+    end subroutine gen_excit_rs_hubbard_transcorr_hphf_test_stoch
+
+    subroutine gen_excit_rs_hubbard_transcorr_uniform_hphf_test_stoch
+
+        integer, allocatable :: nI(:)
+        integer :: n_iters, n_orbs, i
+
+        n_iters = 1000000
+
+        t_trans_corr_hop = .true. 
+        trans_corr_param = 0.1_dp
+        t_uniform_excits = .true.
+        tHPHF = .true.
+
+        uhub = 10
+        bhub = -1
+        pSingles = 0.9_dp
+        pDoubles = 1.0_dp - pSingles
+
+        lat => lattice('rectangle', 2, 3, 1,.true.,.true.,.true.)
+
+        n_orbs = lat%get_nsites()
+        nBasis = 2 * n_orbs
+        if (associated(brr)) deallocate(brr)
+        allocate(brr(nbasis))
+        brr = [(i,i=1,nBasis)]
+
+        call init_realspace_tests()
+
+        nel = 6
+        allocate(nI(nel))
+!         nI = [(i, i = 1, nel)]
+        nI = [1,4,5,8,9,12]
+
+        nOccAlpha = 0
+        nOccBeta = 0
+
+        do i = 1, nel 
+            if (is_beta(nI(i))) nOccBeta = nOccBeta + 1
+            if (is_alpha(nI(i))) nOccAlpha = nOccAlpha + 1
+        end do
+
+        call run_excit_gen_tester(gen_hphf_excit, "gen_hphf_excit", & 
+            nI, n_iters, gen_all_excits_r_space_hubbard)
+
+        tHPHF = .false.
+        t_trans_corr_hop = .false.
+        t_uniform_excits = .false.
+
+    end subroutine gen_excit_rs_hubbard_transcorr_uniform_hphf_test_stoch
+
+    subroutine gen_excit_rs_hubbard_hphf_test_stoch
+
+        integer, allocatable :: nI(:)
+        integer :: n_iters, n_orbs, i
+
+        n_iters = 1000000
+
+        t_trans_corr_hop = .false. 
+        tHPHF = .true. 
+
+        uhub = 10
+        bhub = -1
+        lat => lattice('rectangle', 2, 3, 1,.true.,.true.,.true.)
+
+        n_orbs = lat%get_nsites()
+        nBasis = 2 * n_orbs
+
+        call init_realspace_tests()
+
+        nel = 6
+        allocate(nI(nel))
+        nI = [(i, i = 1, nel)]
+
+        nOccAlpha = 0
+        nOccBeta = 0
+
+        do i = 1, nel 
+            if (is_beta(nI(i))) nOccBeta = nOccBeta + 1
+            if (is_alpha(nI(i))) nOccAlpha = nOccAlpha + 1
+        end do
+
+        print *, ""
+        print *, "first for the original model "
+
+        call run_excit_gen_tester(gen_hphf_excit, "gen_hphf_excit", & 
+            nI, n_iters, gen_all_excits_r_space_hubbard)
+
+        print *, "" 
+        print *, "now for the original transcorrelation: "
+        t_trans_corr = .true. 
+        trans_corr_param = 0.1_dp 
+        call run_excit_gen_tester(gen_hphf_excit, "gen_hphf_excit", & 
+            nI, n_iters, gen_all_excits_r_space_hubbard)
+
+        print *, "" 
+        print *, "now for the 'new' transcorr: "
+        t_trans_corr_new = .true. 
+        call run_excit_gen_tester(gen_hphf_excit, "gen_hphf_excit", & 
+            nI, n_iters, gen_all_excits_r_space_hubbard)
+
+        print *, "" 
+        print *, "now for the sum of the 'new' with the 2-body: "
+        t_trans_corr_2body = .true. 
+        trans_corr_param_2body = 0.1_dp
+        call run_excit_gen_tester(gen_hphf_excit, "gen_hphf_excit", & 
+            nI, n_iters, gen_all_excits_r_space_hubbard)
+
+        print *, "now the original and the 2-body: "
+        t_trans_corr_new = .false. 
+        call run_excit_gen_tester(gen_hphf_excit, "gen_hphf_excit", & 
+            nI, n_iters, gen_all_excits_r_space_hubbard)
+
+        print *, ""
+        print *, "now for the 2-body: "
+        t_trans_corr = .false. 
+        t_trans_corr_new = .false. 
+        call run_excit_gen_tester(gen_hphf_excit, "gen_hphf_excit", & 
+            nI, n_iters, gen_all_excits_r_space_hubbard)
+
+        tHPHF = .false.
+        t_trans_corr_2body = .false. 
+
+    end subroutine gen_excit_rs_hubbard_hphf_test_stoch
 
     subroutine gen_excit_rs_hubbard_test_stoch
 
