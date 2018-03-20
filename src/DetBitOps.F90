@@ -925,7 +925,6 @@ module DetBitOps
         INTEGER(kind=n_int) :: iLutAlpha(0:NIfD),iLutBeta(0:NIfD)
         integer(n_int), intent(in) :: ilut(0:NIfD)
         integer, intent(out) :: OpenOrbs
-        INTEGER :: i
         
         iLutAlpha(:)=0
         iLutBeta(:)=0

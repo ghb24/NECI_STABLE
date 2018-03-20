@@ -66,6 +66,7 @@ contains
 
   subroutine set_adi_flags_run(ilut, nI, sgn, ex, ir)
     use bit_rep_data, only: flag_static_init
+    use adi_data, only:  nCoherentDoubles
     ! This sets the adi flags for a given run ir
     implicit none
     integer(n_int), intent(inout) :: ilut(0:NIfTot)
@@ -78,6 +79,7 @@ contains
     if(staticInit) then
        ! if so, set the flag
        call set_flag(ilut, flag_static_init(ir))
+       nCoherentDoubles = nCoherentDoubles + 1
     else
        ! else, clear it
        call clr_flag(ilut, flag_static_init(ir))
@@ -104,6 +106,7 @@ contains
     ! cache for the weak coherence check
     HElement_t(dp) :: signedCache
     real(dp) :: unsignedCache
+    integer :: connections
 
     staticInit = .false.
     ! This is Giovanni's CAS-initiator criterium
@@ -115,7 +118,7 @@ contains
     tCCache = tWeakCoherentDoubles .or. tAvCoherentDoubles
     
     exLevel = 0
-    if(tCCache) call initialize_c_caches(signedCache, unsignedCache)
+    if(tCCache) call initialize_c_caches(signedCache, unsignedCache,connections)
     ! Important : Only compare to the already initialized reference
     do i = 1, nRefs
        ! First, check if the excitation level differs by more than 2
@@ -137,7 +140,7 @@ contains
 
              if(tCCache)&
                   call update_coherence_check(ilut, nI, i, run, &
-                  signedCache, unsignedCache)
+                  signedCache, unsignedCache, connections)
 
              ! Set the doubles to initiators
              call set_double_initiator(exLevel, staticInit)
@@ -153,8 +156,8 @@ contains
        endif
     enddo
 
-    if(tCCache) &
-    call eval_coherence(signedCache, unsignedCache, sgn(run), staticInit)
+    if(tCCache .and. staticInit) &
+    call eval_coherence(signedCache, unsignedCache, sgn(run), connections, staticInit)
 
   end function adi_criterium
 
@@ -192,29 +195,24 @@ contains
 !------------------------------------------------------------------------------------------!
 
   subroutine set_double_initiator(exLevel, staticInit)
-    use adi_data, only:  nCoherentDoubles
     implicit none
     integer, intent(in) :: exLevel
     logical, intent(inout) :: staticInit
 
     if(exLevel == 2 .and. tAllDoubsInitiators) then
        staticInit = .true.
-       ! also, log this event
-       nCoherentDoubles = nCoherentDoubles + 1
     endif
   end subroutine set_double_initiator
 
   !------------------------------------------------------------------------------------------!
 
   subroutine set_single_initiator(exLevel, staticInit)
-    use adi_data, only: nCoherentSingles
     implicit none
     integer, intent(in) :: exLevel
-    logical, intent(out) :: staticInit
+    logical, intent(inout) :: staticInit
 
     if(exLevel == 1 .and. tAllSingsInitiators) then
        staticInit = .true.
-       nCoherentSingles = nCoherentSingles + 1
     endif
   end subroutine set_single_initiator
 

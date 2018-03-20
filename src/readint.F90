@@ -623,7 +623,7 @@ contains
 !It is set if we want to cache the integrals to enable the freezing routine to take place, i.e. the <ij|kj> integrals.
 !The UMAT2D integrals will also be read in in this case.
 !If tReadFreezeInts is false, then if we are cacheing the FCIDUMP file, then we will read and cache all the integrals.
-      SUBROUTINE READFCIINT(UMAT,NBASIS,ECORE,tReadFreezeInts)
+      SUBROUTINE READFCIINT(UMAT,umat_win,NBASIS,ECORE,tReadFreezeInts)
          use constants, only: dp,sizeof_int
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,NEl
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,tMolpro
@@ -636,6 +636,7 @@ contains
          use OneEInts, only: TMatind,TMat2D,TMATSYM
          use OneEInts, only: CalcTMatSize
          use Parallel_neci
+         use shared_memory_mpi
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
          use util_mod, only: get_free_unit
 #ifdef __REALTIME
@@ -646,6 +647,7 @@ contains
          logical, intent(in) :: tReadFreezeInts
          real(dp), intent(out) :: ECORE
          HElement_t(dp), intent(out) :: UMAT(:)
+         integer(MPIArg) :: umat_win
          HElement_t(dp) Z
          COMPLEX(dp) :: CompInt
          INTEGER(int64) :: ZeroedInt,NonZeroInt, LzDisallowed
@@ -666,6 +668,7 @@ contains
          real(dp) :: real_time_Z
          integer(int64) :: start_ind, end_ind
          integer(int64), parameter :: chunk_size = 1000000
+         integer:: bytecount
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
 
 #ifdef _MOLCAS_
@@ -774,6 +777,7 @@ contains
             end if
 #elif defined(__CMPLX) && !defined(__REALTIME)
 101           READ(iunit,*,END=199) Z,I,J,K,L
+
 #else
 101           CONTINUE
              !It is possible that the FCIDUMP can be written out in complex notation, but still only
@@ -969,6 +973,7 @@ contains
 !             IF(I.NE.0) GOTO 101
              GOTO 101
 199          CONTINUE
+
              CLOSE(iunit)
              if(tMolpro.and.tUHF.and.(iSpinType.ne.6)) then
                  call stop_all(t_r,"Error in reading UHF FCIDUMP from molpro")
@@ -995,12 +1000,19 @@ contains
              ! --> We need to loop around this
              start_ind = 1
              end_ind = min(UMatSize, chunk_size)
+             
              do while(start_ind <= UMatSize)
-                 call MPIBcast(UMat(start_ind:end_ind), int(end_ind-start_ind+1,sizeof_int))
-                 start_ind = end_ind + 1
-                 end_ind = min(UMatSize, end_ind + chunk_size)
+                !use MPI_BYTE for transfer to be independent of the data type of UMat
+                bytecount=int(end_ind-start_ind+1,sizeof_int)*sizeof(UMat(1))
+                call MPIBCast_inter_byte(UMat(start_ind),bytecount)
+                start_ind = end_ind + 1
+                end_ind = min(UMatSize, end_ind + chunk_size)
              end do
+             
+             !make sure the shared memory data is synchronized on all tasks
+             call shared_sync_mpi(umat_win)
          ENDIF
+
          IF(tCacheFCIDUMPInts) THEN
 !Need to broadcast the cache...
              CALL MPIBCast(UMATLABELS,nSlots*nPairs)
@@ -1160,7 +1172,7 @@ contains
       CALL MPIBCast(TREL)
       CALL MPIBCast(PROPBITLEN,1)
       CALL MPIBCast(NPROP,3)
- 
+
       core = 0.0d0
       iSpins=2
       IF((UHF.and.(.not.tROHF)).or.tReltvy) ISPINS=1

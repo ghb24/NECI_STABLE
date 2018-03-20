@@ -334,7 +334,7 @@ contains
                                   tSuccess)
             ! CCMC doesn't sum particle contributions in order, so we must 
             ! search the whole space again!
-            !if (tFCIMC) HistMinInd(ExcitLevel) = PartInd
+            if (tFCIMC) HistMinInd(ExcitLevel) = PartInd
         elseif (ExcitLevel == 0) then
             PartInd = 1
             tSuccess = .true.
@@ -344,7 +344,7 @@ contains
                                   tSuccess)
             ! CCMC doesn't sum particle contributions in order, so we must
             ! search the whole space again!
-            !if (tFCIMC) HistMinInd(ExcitLevel) = PartInd
+            if (tFCIMC) HistMinInd(ExcitLevel) = PartInd
         endif
 
         if (tSuccess) then

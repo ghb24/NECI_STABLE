@@ -31,12 +31,14 @@ MODULE Calc
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
                          alloc_popsfile_dets, tSearchTauOption 
-    use adi_data, only: nRefsDoubs, nRefsSings, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
+    use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
          tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits, tSetDelayAllDoubsInits, &
          tSetDelayAllSingsInits, nExProd, NoTypeN, tAdiActive, tReadRefs, SIUpdateInterval, &
          tProductReferences, tAccessibleDoubles, tAccessibleSingles, tInitiatorsSubspace, &
          tReferenceChanged, superInitiatorLevel, allDoubsInitsDelay, tStrictCoherentDoubles, &
-         tWeakCoherentDoubles, tAvCoherentDoubles, coherenceThreshold, SIThreshold, tSuppressSIOutput
+         tWeakCoherentDoubles, tAvCoherentDoubles, coherenceThreshold, SIThreshold, &
+         tSuppressSIOutput, targetRefPop, targetRefPopTol, tSingleSteps, tVariableNRef, &
+         nRefsSings, nRefsDoubs, minSIConnect, tWeightedConnections
     use ras_data, only: core_ras, trial_ras
     use load_balance, only: tLoadBalanceBlocks
     use ftlm_neci
@@ -136,6 +138,8 @@ contains
           TProjEMP2=.false.
           THFRetBias=.false.
           TSignShift=.false.
+          tFixedN0 = .false.
+          tSkipRef(:) = .false.
           NEquilSteps=0
           NShiftEquilSteps=1000
           TRhoElems=.false.
@@ -303,10 +307,13 @@ contains
           tSemiStochastic = .false.
           tCSFCore = .false.
           tDynamicCoreSpace = .false.
+          tIntervalSet = .false.
           tStaticCore = .true.
           coreSpaceUpdateCycle = 400
           semistoch_shift_iter = 0
           tTrialWavefunction = .false.
+          tDynamicTrial = .false.
+          trialSpaceUpdateCycle = 400
           tKP_FCIQMC = .false.
           tLetInitialPopDie = .false.
           tWritePopsNorm = .false.
@@ -354,26 +361,30 @@ contains
           tDelayAllSingsInits = .false.
           tSetDelayAllSingsInits = .false.
           tSetDelayAllDoubsInits = .false.
-          ! By default, we have one reference for the purpose of all-doubs-initiators
-          nRefsDoubs = 1
-          nRefsSings = 1
+          ! By default, we have one reference for the purpose of all-doubs-initiators      
           nRefs = 1
+          maxNRefs = 400
+          targetRefPop = 1000
+          targetRefPopTol = 80
+          tVariableNref = .false.
+          tSingleSteps = .true.
           tReadRefs = .false.
           tDelayGetRefs = .false.
           tProductReferences = .false.
           tAccessibleSingles = .false.
           tAccessibleDoubles = .false.
-          tSuppressSIOutput = .false.
+          tSuppressSIOutput = .true.
           nExProd = 2
-          NoTypeN = 3
+          NoTypeN = 20
           tStrictCoherentDoubles = .false.
-          tWeakCoherentDoubles = .false.
-          tAvCoherentDoubles = .false.
+          tWeakCoherentDoubles = .true.
+          tAvCoherentDoubles = .true.
           superInitiatorLevel = 0
           coherenceThreshold = 0.5
           SIThreshold = 0.95
-          SIUpdateInterval = 0
+          SIUpdateInterval = 100
           tAdiActive = .false.
+          minSIConnect = 1
 
           ! And disable the initiators subspace
           tInitiatorsSubspace = .false.
@@ -1330,7 +1341,11 @@ contains
                 call geti(ss_space_in%max_size)
             case("DYNAMIC-CORE")
                 tDynamicCoreSpace = .true.
+                tIntervalSet = .true.
                 if( item < nitems) call geti(coreSpaceUpdateCycle)
+            case("STATIC-CORE")
+                tDynamicCoreSpace = .false.
+                tIntervalSet = .true.
             case("STOCHASTIC-HF-SPAWNING")
                 tDetermHFSpawning = .false.
 
@@ -1353,6 +1368,10 @@ contains
                 call geti(trial_space_in%mp1_ndets)
             case("DOUBLES-TRIAL")
                 trial_space_in%tDoubles = .true.
+             case("DYNAMIC-TRIAL")
+                ! Update the trial wavefunction periodically
+                tDynamicTrial = .true.
+                if(item < nitems) call geti(trialSpaceUpdateCycle)
             case("CAS-TRIAL")
                 trial_space_in%tCAS = .true.
                 tSpn = .true.
@@ -1476,7 +1495,21 @@ contains
                 call getf(StepsSftImag)
             case("STEPSSHIFT")
 !For FCIMC, this is the number of steps taken before the Diag shift is updated
-                call geti(StepsSft)
+                if(tFixedN0)then
+                    write(6,*) "WARNING: 'STEPSSHIFT' cannot be changed. &
+                    & 'FIXED-N0' is already specified and sets this parameter to 1."
+                else
+                    call geti(StepsSft)
+                end if
+            case("FIXED-N0")
+                tFixedN0 = .true.
+                call geti(N0_Target)
+                !In this mode, the shift should be updated every iteration.
+                !Otherwise, the dynamics is biased.
+                StepsSft = 1
+                !Also avoid changing the reference determinant.
+                tReadPopsChangeRef = .false.
+                tChangeProjEDet = .false.
             case("EXITWALKERS")
 !For FCIMC, this is an exit criterion based on the total number of walkers in the system.
                 call getiLong(iExitWalkers)
@@ -2656,6 +2689,10 @@ contains
                       ! only using av ignores sign tendency and can overestimate
                       ! the correctness of a sign
                       tAvCoherentDoubles = .true.
+		   case("OFF")
+		      ! do not perform a coherence check
+		      tAvCoherentDoubles = .false.
+		      tWeakCoherentDoubles = .false.
                    case default
                       ! default is WEAK
                       tAvCoherentDoubles = .true.
@@ -2676,7 +2713,12 @@ contains
              case("DYNAMIC-SUPERINITIATORS")
                 ! Re-evaluate the superinitiators every SIUpdateInterval steps
                 ! Beware, this can be very expensive
+		! By default, it is 100, to turn it off, use 0
                 call readi(SIUpdateInterval)
+		
+       	     case("STATIC-SUPERINITIATORS")
+	        ! Do not re-evaluate the superinitiators
+		SIUpdateInterval = 0
 
              case("INITIATOR-COHERENCE-THRESHOLD")
                 ! Set the minimal coherence parameter for superinitiator-related
@@ -2687,9 +2729,37 @@ contains
                 ! set the minimal coherence parameter for superinitiators
                 call readf(SIThreshold)
 
-             case("SUPPRESS-SUPERINITIATOR-OUTPUT")
+             case("MIN-SI-CONNECTIONS")
+                ! set the minimal number of connections with superinititators for 
+                ! superinitiators-related initiators
+                call readi(minSIConnect)
+                ! optionally, allow to weight the connections with the population
+                if(item < nItems) then
+                   call readu(w)
+                   select case(w)
+                   case("WEIGHTED")
+                      tWeightedConnections = .true.
+                   case("UNWEIGHTED")
+                      tWeightedConnections = .false.
+                   case default
+                      tWeightedConnections = .false.
+                   end select
+                endif
+
+             case("SUPERINITIATOR-POPULATION-THRESHOLD")
+                ! set the minimum value for superinitiator population
+                call readf(NoTypeN)
+
+	     case("SUPPRESS-SUPERINITIATOR-OUTPUT")	
+	        ! just for backwards-compatibility
+
+             case("WRITE-SUPERINITIATOR-OUTPUT")
                 ! Do not output the newly generated superinitiators upon generation
-                tSuppressSIOutput = .true.
+                tSuppressSIOutput = .false.
+                
+             case("TARGET-REFERENCE-POP")
+                tVariableNRef = .true.
+                if(item < nItems) call readi(targetRefPop)
 
             case default
                 call report("Keyword "                                &

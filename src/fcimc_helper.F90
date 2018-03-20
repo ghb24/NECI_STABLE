@@ -364,11 +364,17 @@ contains
               list_full=.true.
       end if
       if (list_full) then
+#ifdef __DEBUG
          write(6,*) "Attempting to spawn particle onto processor: ", proc
          write(6,*) "No memory slots available for this spawn."
          write(6,*) "Please increase MEMORYFACSPAWN"
          write(6,*) ValidSpawnedList
          write(6,*) InitialSpawnedSlots
+#else
+         write(*,*) "Attempting to spawn particle onto processor: ", proc
+         write(*,*) "No memory slots available for this spawn."
+         write(*,*) "Please increase MEMORYFACSPAWN"
+#endif
          call stop_all(source, "Out of memory for spawned particles")
       end if
     end subroutine checkValidSpawnedList

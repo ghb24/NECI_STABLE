@@ -115,8 +115,8 @@ contains
         write(6,'("Total size of the trial space:",1X,i8)') tot_trial_space_size; call neci_flush(6)
 
         ! Use SpawnedParts as temporary space:
-        call MPIAllGatherV(trial_space(:, 1:trial_space_size), &
-                           SpawnedParts(:, 1:tot_trial_space_size), trial_counts, trial_displs)
+        call MPIAllGatherV(trial_space(0:NIfTot, 1:trial_space_size), &
+                           SpawnedParts(0:NIfTot, 1:tot_trial_space_size), trial_counts, trial_displs)
 
         call sort(SpawnedParts(0:NIfTot, 1:tot_trial_space_size), ilut_lt, ilut_gt)
         
@@ -124,9 +124,9 @@ contains
 
         ! set the size of the entries in con_ht
 #ifdef __CMPLX
-        NConEntry = NIfDBO + nexcit_keep
-#else
         NConEntry = NIfDBO + 2*nexcit_keep
+#else
+        NConEntry = NIfDBO + nexcit_keep
 #endif
 
         if (num_elem > 0) then
@@ -136,7 +136,7 @@ contains
             ! portion of the trial space.
             write(6,'("Calculating the number of states in the connected space...")'); call neci_flush(6)
 
-            call generate_connected_space(num_elem, SpawnedParts(:,min_elem:max_elem), con_space_size)
+            call generate_connected_space(num_elem, SpawnedParts(0:NIfTot,min_elem:max_elem), con_space_size)
 
             write(6,'("Attempting to allocate con_space. Size =",1X,F12.3,1X,"Mb")') &
                     real(con_space_size,dp)*(NIfTot+1.0_dp)*7.629392e-06_dp; call neci_flush(6)
@@ -148,7 +148,7 @@ contains
 
             write(6,'("Generating and storing the connected space...")'); call neci_flush(6)
 
-            call generate_connected_space(num_elem, SpawnedParts(:, min_elem:max_elem), &
+            call generate_connected_space(num_elem, SpawnedParts(0:NIfTot, min_elem:max_elem), &
                                           con_space_size, con_space)
 
             write(6,'("Removing repeated states and sorting by processor...")'); call neci_flush(6)
@@ -244,7 +244,7 @@ contains
         trial_numerator = 0.0_dp
         tot_trial_numerator = 0.0_dp
         trial_denom = 0.0_dp
-        tot_trial_denom = 0.0_dp
+        tot_trial_denom = 1.0_dp
 
         call halt_timer(Trial_Init_Time)
 
@@ -866,5 +866,34 @@ contains
         if(allocated(con_send_buf)) deallocate(con_send_buf)
 
     end subroutine end_trial_wf
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine refresh_trial_wf(trial_in, nexcit_calc, nexcit_keep, replica_pairs)
+      implicit none
+      type(subspace_in) :: trial_in
+      integer, intent(in) :: nexcit_calc, nexcit_keep
+      logical, intent(in) :: replica_pairs
+      
+      ! first, clear the current trial wavefunction
+      call end_trial_wf()
+      ! then, remove the flag from all determinants
+      call reset_trial_space()
+      ! now, generate the new trial wavefunction
+      call init_trial_wf(trial_in, nexcit_calc, nexcit_keep, replica_pairs)
+    end subroutine refresh_trial_wf
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine reset_trial_space()
+      use bit_reps, only: clr_flag
+      implicit none
+      integer :: i
+
+      do i=1, TotWalkers
+         ! remove the trial flag from all determinants
+         call clr_flag(CurrentDets(:,i),flag_trial)
+      enddo
+    end subroutine reset_trial_space
 
 end module trial_wf_gen

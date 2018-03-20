@@ -6,6 +6,7 @@ module FciMCParMod
     use SystemData, only: nel, tUEG2, hist_spin_dist_iter, tReltvy, tHub, & 
                           t_new_real_space_hubbard, t_tJ_model, t_heisenberg_model, & 
                           t_k_space_hubbard, max_ex_level, t_uniform_excits
+
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
                         AvMCExcits, pops_norm_unit, iExitWalkers, &
@@ -18,23 +19,34 @@ module FciMCParMod
                         t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
                         t_back_spawn_flex, t_back_spawn_flex_option, &
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
-                        DiagSft, tSpinProject
+                        DiagSft, tSpinProject, &
+                        tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
+                        tSkipRef
+
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
                         tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
-                        SIUpdateInterval, tSuppressSIOutput
+                        SIUpdateInterval, tSuppressSIOutput, nRefUpdateInterval, &
+                        SIUpdateOffset
+
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, tOldRDMs, &
                            write_end_core_size, t_calc_double_occ, t_calc_double_occ_av, &
                            equi_iter_double_occ, t_print_frq_histograms, ref_filename
+
     use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
                             attempt_die_spin_proj
+
     use rdm_data, only: print_2rdm_est
+
     use rdm_data_old, only: rdms, one_rdms_old, rdm_estimates_old
+
     use rdm_finalising, only: finalise_rdms
+
     use rdm_general, only: init_rdms
+
     use rdm_general_old, only: InitRDMs_old, FinaliseRDMs_old
     use rdm_filling_old, only: fill_rdm_offdiag_deterministic_old, fill_rdm_diag_wrapper_old
     use rdm_filling, only: fill_rdm_offdiag_deterministic, fill_rdm_diag_wrapper
@@ -45,7 +57,7 @@ module FciMCParMod
          refresh_semistochastic_space
     use semi_stoch_procs, only: is_core_state, check_determ_flag, &
                                 determ_projection, average_determ_vector
-    use trial_wf_gen, only: update_compare_trial_file, init_trial_wf
+    use trial_wf_gen, only: update_compare_trial_file, init_trial_wf, refresh_trial_wf
     use hist, only: write_zero_hist_excit_tofrom, write_clear_hist_spin_dist
     use orthogonalise, only: orthogonalise_replicas, calc_replica_overlaps, &
                              orthogonalise_replica_pairs
@@ -68,7 +80,8 @@ module FciMCParMod
     use ftlm_neci, only: perform_ftlm
     use hash, only: clear_hash_table
     use soft_exit, only: ChangeVars
-    use adi_references, only: setup_reference_space, enable_adi
+    use adi_references, only: setup_reference_space, enable_adi, adjust_nRefs, &
+         update_reference_space
     use fcimc_initialisation
     use fcimc_iter_utils
     use neci_signals
@@ -76,9 +89,14 @@ module FciMCParMod
     use fcimc_output
     use FciMCData
     use constants
+
     use real_time_data, only: t_prepare_real_time, n_real_time_copies, &    
                               cnt_real_time_copies    
+
     use real_time_init, only: init_overlap_buffers
+
+    use bit_reps, only: decode_bit_det    
+
     use double_occ_mod, only: get_double_occupancy, inst_double_occ, &
                         rezero_double_occ_stats, write_double_occ_stats, & 
                         sum_double_occ, sum_norm_psi_squared
@@ -141,6 +159,8 @@ module FciMCParMod
         character(6), parameter :: excit_descriptor(0:3) = &
                                         (/"IC0   ", "single", "double", "triple"/)
 
+        integer :: tmp_det(nel)
+
         if (tJustBlocking) then
             ! Just reblock the current data, and do not perform an fcimc calculation.
             write(6,"(A)") "Skipping FCIQMC calculation and simply reblocking previous output"
@@ -182,6 +202,14 @@ module FciMCParMod
         if (t_k_space_hubbard) then 
             call init_k_space_hubbard()
         end if
+
+        call decode_bit_det(tmp_det, ilutHF)
+        write(iout, *) "HF: ", tmp_det
+        call decode_bit_det(tmp_det, ilutHF_true)
+        write(iout, *) "HF_true: ", tmp_det
+        call decode_bit_det(tmp_det, ilutRef(:,1))
+        write(iout, *) "Ref: ", tmp_det 
+        write(iout, *) "ProjEDet: ", ProjEDet
 
         ! Attach signal handlers to give a more graceful death-mannerism
         call init_signals()
@@ -261,25 +289,52 @@ module FciMCParMod
 
         do while (.true.)
 !Main iteration loop...
-            if(TestMCExit(Iter,iRDMSamplingIter)) exit
+            if(TestMCExit(Iter,iRDMSamplingIter)) then
+               ! The popsfile requires the right total walker number, so 
+               ! update it (TotParts is updated in the annihilation step)
+               call MPISumAll(TotParts,AllTotParts)
+               exit
+            endif
 
             IFDEBUG(FCIMCDebug, 2) write(iout,*) 'Iter', iter
 
             if(iProcIndex.eq.root) s_start=neci_etime(tstart)
+
+            ! Update the semistochastic space if requested
+            if(tSemiStochastic .and. tDynamicCoreSpace .and. &
+                 mod(iter-semistochStartIter, &
+                 coreSpaceUpdateCycle) == 0) then
+               call refresh_semistochastic_space()
+               write(6,*) "Refereshing semistochastic space at iteration ", iter
+            end if
 
             ! Is this an iteration where semi-stochastic is turned on?
             if (semistoch_shift_iter /= 0 .and. all(.not. tSinglePartPhase)) then
                 if ((Iter - maxval(VaryShiftIter)) == semistoch_shift_iter + 1) then
                     tSemiStochastic = .true.
                     call init_semi_stochastic(ss_space_in)
+                    ! Count iterations for corespace updates from here
+                    semistochStartIter = iter
+                    ! and switch how iterations for SI updates are counted
+                    SIUpdateOffset = semistochStartIter
                 end if
             end if
-            ! Update the semistochastic space if requested
-            if(tSemiStochastic .and. tDynamicCoreSpace .and. &
-                 mod(iter,coreSpaceUpdateCycle) == 0) call refresh_semistochastic_space()
+
+            ! Update the trial wavefunction if requested
+            if(tTrialWavefunction .and. tDynamicTrial .and. &
+                 mod(iter - trial_shift_iter, trialSpaceUpdateCycle) == 0) then
+               if(tPairedReplicas) then
+                  call refresh_trial_wf(trial_space_in,ntrial_ex_calc, &
+                       inum_runs/2,.true.)
+               else
+                  call refresh_trial_wf(trial_space_in,ntrial_ex_calc, &
+                       inum_runs,.false.)
+               endif
+               write(6,*) "Refreshing trial wavefunction at iteration ", iter
+            endif
            
-            if((Iter - maxval(VaryShiftIter)) == allDoubsInitsDelay + 1 &
-                 .and. all(.not. tSinglePartPhase)) then
+            if(((Iter - maxval(VaryShiftIter)) == allDoubsInitsDelay + 1 &
+                 .and. all(.not. tSinglePartPhase)).or.all(tSkipRef)) then
                ! Start the all-doubs-initiator procedure
                if(tDelayAllDoubsInits) call enable_adi()
                ! And/or the all-sings-initiator procedure
@@ -374,8 +429,12 @@ module FciMCParMod
             if(SIUpdateInterval > 0) then
                ! Regular update of the superinitiators. Use with care as it 
                ! is still rather expensive if secondary superinitiators are used
-               if(mod(iter,SIUpdateInterval) == 0 .and. all(.not. &
-                    tSinglePartPhase)) call setup_reference_space(.true.)
+               if(mod(iter-SIUpdateOffset,SIUpdateInterval) == 0) then
+                  ! the reference population needs some time to equilibrate
+                  ! hence, nRefs cannot be updated that often
+                  if(mod(iter,nRefUpdateInterval) == 0) call adjust_nRefs()
+                  call update_reference_space(tReadPops .or. all(.not. tSinglePartPhase))
+                  endif
             endif
 
             if (mod(Iter, StepsSft) == 0) then
@@ -408,7 +467,6 @@ module FciMCParMod
                 ! Zero the accumulators
                 bloom_sizes = 0
                 bloom_count = 0
-
                 ! Calculate the a new value for the shift (amongst other
                 ! things). Generally, collate information from all processors,
                 ! update statistics and output them to the user.
@@ -421,7 +479,6 @@ module FciMCParMod
                 if (t_calc_double_occ) then 
                     call write_double_occ_stats(iter_data_fciqmc)
                 end if
-
                 if(tRestart) cycle
 
                 IF((tTruncCAS.or.tTruncSpace.or.tTruncInitiator).and.(Iter.gt.iFullSpaceIter)&
@@ -500,7 +557,6 @@ module FciMCParMod
                         write(iout,"(A,F7.3,A)") "Time taken to write out POPSFILE: ",real(s_end,dp)-TotalTime8," seconds."
                     endif
                 endif
-
                 if (tHistExcitToFrom) &
                     call write_zero_hist_excit_tofrom()
 
@@ -549,8 +605,8 @@ module FciMCParMod
                 ! If we wish to calculate the energy, have started accumulating the RDMs, 
                 ! and this is an iteration where the energy should be calculated, do so.
                 if (print_2rdm_est .and. ((Iter - maxval(VaryShiftIter)) > IterRDMonFly) &
-                    .and. (mod((Iter+PreviousCycles-IterRDMStart)+1, RDMEnergyIter) == 0) ) then
-
+                    .and. (mod(Iter+PreviousCycles-IterRDMStart+1, RDMEnergyIter) == 0) ) then
+           
                     call calc_2rdm_estimates_wrapper(rdm_definitions, rdm_estimates, two_rdm_main)
                     if (tOldRDMs) then
                         do irdm = 1, rdm_definitions%nrdms
@@ -824,8 +880,6 @@ module FciMCParMod
         use rdm_data, only: rdm_definitions
         use rdm_data_utils, only: communicate_rdm_spawn_t, add_rdm_1_to_rdm_2
         use symrandexcit_Ex_Mag, only: test_sym_excit_ExMag 
-        use adi_references, only: reset_coherence_counter
-
         ! Iteration specific data
         type(fcimc_iter_data), intent(inout) :: iter_data
 
@@ -869,9 +923,7 @@ module FciMCParMod
         FreeSlot(1:iEndFreeSlot)=0  !Does this cover enough?
         iStartFreeSlot=1
         iEndFreeSlot=0
-        
-        call reset_coherence_counter()
-
+       
         ! Clear the hash table for the spawning array.
         if (use_spawn_hash_table) call clear_hash_table(spawn_ht)
 
@@ -1117,6 +1169,8 @@ module FciMCParMod
             ! for noninititators in the back-spawning approach
             ! remove that for now
             do part_type = 1, lenof_sign
+
+                run = part_type_to_run(part_type)
                 TempSpawnedPartsInd = 0
 
                 ! Loop over all the particles of a given type on the 
@@ -1129,6 +1183,7 @@ module FciMCParMod
                     ! Zero the bit representation, to ensure no extraneous
                     ! data gets through.
                     ilutnJ = 0_n_int
+                    child = 0.0_dp
 
                     ! for the 3-body excitations i really do not want to change 
                     ! all the interfaces to the other excitation generators, 
@@ -1151,6 +1206,13 @@ module FciMCParMod
                                         HElGen, fcimc_excit_gen_store, part_type)
                     end if
                     
+
+                    !If we are fixing the population of reference det, skip spawing into it.
+                    if(tSkipRef(run) .and. all(nJ==projEdet(:,run))) then
+                        !Set nJ to null
+                        nJ(1) = 0
+                    end if
+
                     ! If a valid excitation, see if we should spawn children.
                     if (.not. IsNullDet(nJ)) then
 
@@ -1184,7 +1246,17 @@ module FciMCParMod
                                             ! RDMBiasFacCurr are not used unless we're 
                                             ! doing an RDM calculation.
                     else
-                        child = 0.0_dp
+                                            
+                        ! and rescale in the back-spawning algorithm.
+                        ! this should always be a factor of 1 in the other 
+                        ! cases so it is safe to rescale all i guess
+                        ! (remove this option for now!)
+                        ! [W.D. 20.3.2018:]
+                        ! i dont quite understand this.. ask ghaldoon
+                        ! because above this is set to 0.. and not 
+                        ! changed ... 
+                        child = child 
+!                         child = 0.0_dp
                     endif
 
                     IFDEBUG(FCIMCDebug, 3) then
@@ -1229,11 +1301,15 @@ module FciMCParMod
 
             enddo   ! Cycling over 'type' of particle on a given determinant.
 
-            ! If we are performing a semi-stochastic simulation and this state
-            ! is in the deterministic space, then the death step is performed
-            ! deterministically later. Otherwise, perform the death step now.
-            if (.not. tCoreDet) call walker_death (iter_data, DetCurr, CurrentDets(:,j), &
-                                                   HDiagCurr, SignCurr, j, WalkExcitLevel)
+            !If we are fixing the population of reference det, skip death/birth
+            if(tSkipRef(run) .and. DetBitEQ(CurrentDets(:,j),iLutRef(:,run),nIfD)) then
+                cycle
+            endif
+                ! If we are performing a semi-stochastic simulation and this state
+                ! is in the deterministic space, then the death step is performed
+                ! deterministically later. Otherwise, perform the death step now.
+                if (.not. tCoreDet) call walker_death (iter_data, DetCurr, CurrentDets(:,j), &
+                                                       HDiagCurr, SignCurr, j, WalkExcitLevel)
 
         enddo ! Loop over determinants.
         IFDEBUGTHEN(FCIMCDebug,2) 

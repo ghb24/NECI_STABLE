@@ -1541,7 +1541,8 @@ contains
         ! have to initialise our own.
 
         logical, intent(in) :: tExternal
-        integer(MPIArg) :: iProcInd, nProcess, ierr
+        integer(MPIArg) :: iProcInd, nProcess
+        integer(MPIArg) :: ierr
         integer :: a, g
         character(len=20) NodeFile
         logical, save :: initialised=.false.
@@ -1596,6 +1597,23 @@ contains
                 call stop_all (t_r, 'MPI Error. Terminating.')
 
             call MPI_Comm_size (CommGlobal, nProcess, ierr)
+	    
+            !initialize intra node and inter node communicators
+#ifdef __SHARED_MEM
+            !the 'intra' range is the full node for now.
+            call MPI_Comm_split_type(CommGlobal,MPI_COMM_TYPE_SHARED,0_MPIArg,MPI_INFO_NULL,mpi_comm_intra,ierr)
+            call MPI_Comm_rank(mpi_comm_intra,iProcIndex_intra,ierr)
+             
+            call MPI_Comm_split(CommGlobal,iProcIndex_intra,int(iProcIndex,MPIArg),mpi_comm_inter,ierr)
+            call MPI_Comm_rank(mpi_comm_inter,iProcIndex_inter,ierr)
+#else
+	    !no sharing between tasks, i.e. the 'intra' task range is 1
+            mpi_comm_intra=MPI_COMM_SELF
+            iProcIndex_intra=0
+             
+            mpi_comm_inter=MPI_COMM_WORLD
+            iProcIndex_inter=iProcIndex
+#endif
 #ifdef _MOLCAS_
             ! call getenvf('MOLCAS_CPUS',MCPUs) replaced by the newer env variable MOLCAS_NPROCS
             call getenvf('MOLCAS_NPROCS',MCPUs)
@@ -1662,10 +1680,12 @@ contains
                     write(6,*) "outfile=", NodeFile
 #endif
                     close(6, status="keep")
-                    open(6, file=NodeFile, recl=8192)
 #ifdef __DEBUG
+                    open(6, file=NodeFile, recl=8192)
                     write(6,*) "Processor ", iProcIndex+1, '/', nProcessors, &
                                ' on local output.'
+#else
+                    open(6, file="/dev/null", recl=8192)
 #endif
                 endif
 
@@ -1970,6 +1990,8 @@ contains
        integer(MPIArg) :: ierr
 
 #ifdef PARALLEL
+        call mpi_comm_free(mpi_comm_intra,ierr)
+        call mpi_comm_free(mpi_comm_inter,ierr)
         if(.not.tExternal) then
             call MPI_Finalize(ierr)
         endif
@@ -2066,6 +2088,5 @@ contains
         if(allocated(GroupNodesDum)) deallocate(GroupNodesDum)
         if(allocated(NodeLengths)) deallocate(NodeLengths)
     end subroutine
-
 
 end supermodule

@@ -178,9 +178,13 @@ module AnnihilationMod
         ! Max index is the largest occupied index in the array of hashes to be
         ! ordered in each processor
         if (MaxIndex > (0.9_dp*MaxSpawned)) then
+#ifdef __DEBUG
             write(6,*) MaxIndex,MaxSpawned
             call Warning_neci(this_routine,"Maximum index of newly-spawned array is " &
             & //"close to maximum length after annihilation send. Increase MemoryFacSpawn")
+#else
+            write(*,*) 'On task ',iProcIndex,': ',MaxIndex,MaxSpawned
+#endif
         end if
         if(MaxIndex > MaxSpawned) then
            call stop_all(this_routine,"Maximum index of newly-spawned array exceeding "&
@@ -605,6 +609,8 @@ module AnnihilationMod
         do i = 1, ValidSpawned
 
             call decode_bit_det(nJ, SpawnedParts(:,i)) 
+            ! Just to be sure
+            CurrentSign = 0.0_dp
             ! Search the hash table HashIndex for the determinant defined by
             ! nJ and SpawnedParts(:,i). If it is found, tSuccess will be
             ! returned .true. and PartInd will hold the position of the

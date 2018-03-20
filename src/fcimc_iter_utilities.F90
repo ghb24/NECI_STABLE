@@ -13,10 +13,15 @@ module fcimc_iter_utils
                         tContTimeFull, pop_change_min, tPositiveHFSign, &
                         qmc_trial_wf, nEquilSteps, t_hist_tau_search, &
                         t_hist_tau_search_option, corespaceWalkers, &
-                        allCorespaceWalkers, tSpinProject
+                        allCorespaceWalkers, tSpinProject, &
+                        tFixedN0, tSkipRef, N0_Target
+
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
+
     use LoggingData, only: tFCIMCStats2, tPrintDataTables, tLogEXLEVELStats
+
     use semi_stoch_procs, only: recalc_core_hamil_diag
+
     use bit_rep_data, only: NIfD, NIfTot, NIfDBO
     use hphf_integrals, only: hphf_diag_helement
     use global_det_data, only: set_det_diagH
@@ -69,14 +74,25 @@ contains
 
         ! Calculate the acceptance ratio
         if (tContTimeFCIMC .and. .not. tContTimeFull) then
-            AccRat = real(cont_spawn_success) / real(cont_spawn_attempts)
+           if(abs(real(cont_spawn_attempts)) > eps) then 
+              AccRat = real(cont_spawn_success) / real(cont_spawn_attempts)
+           else
+              AccRat = 0.0_dp
+           endif
         else
             ! in the real-time fciqmc keep track of both distinct RK steps
             ! -> also need to keep track of the SumWalkersCyc... todo..
+           if(all(abs(SumWalkersCyc) > eps)) then
 #ifdef __REALTIME
-            AccRat_1 = real(Acceptances_1, dp) / SumWalkersCyc_1
+              AccRat_1 = real(Acceptances_1, dp) / SumWalkersCyc_1
 #endif
-            AccRat = real(Acceptances, dp) / SumWalkersCyc
+              AccRat = real(Acceptances, dp) / SumWalkersCyc
+           else
+#ifdef __REALTIME
+              AccRat_1 = 0.0_dp
+#endif
+              AccRat = 0.0_dp
+           endif
         end if
 
 
@@ -390,8 +406,8 @@ contains
         ! in send_arr or send_arr_helem array. It is hopefully clear how to do
         ! this by analogy. You should also update the indices in the appropriate
         ! stop_all, so that it can be checked if enough memory has been assigned.
-      use adi_data, only: nCoherentSingles, nCoherentDoubles, nIncoherentDets, &
-           AllCoherentDoubles, AllCoherentSingles, AllIncoherentDets
+      use adi_data, only: nCoherentDoubles, nIncoherentDets, nConnection, &
+           AllCoherentDoubles, AllIncoherentDets, AllConnection
         type(fcimc_iter_data) :: iter_data
         real(dp), intent(in) :: tot_parts_new(lenof_sign)
         real(dp), intent(out) :: tot_parts_new_all(lenof_sign)
@@ -536,9 +552,9 @@ contains
         low = upp + 1; upp = low + sizes(27) - 1; send_arr(low:upp) = inst_double_occ
         if(tTruncInitiator) &
              low = upp + 1; upp = low + sizes(28) -1; send_arr(low:upp) = doubleSpawns;
-        low = upp + 1; upp = low + sizes(29) - 1; send_arr(low:upp) = nCoherentSingles
-        low = upp + 1; upp = low + sizes(30) - 1; send_arr(low:upp) = nCoherentDoubles
-        low = upp + 1; upp = low + sizes(31) - 1; send_arr(low:upp) = nIncoherentDets
+        low = upp + 1; upp = low + sizes(29) - 1; send_arr(low:upp) = nCoherentDoubles
+        low = upp + 1; upp = low + sizes(30) - 1; send_arr(low:upp) = nIncoherentDets
+        low = upp + 1; upp = low + sizes(31) - 1; send_arr(low:upp) = nConnection
 #ifdef __REALTIME
         low = upp + 1; upp = low + sizes(32) - 1; send_arr(low:upp) = Annihilated_1;
         low = upp + 1; upp = low + sizes(33) - 1; send_arr(low:upp) = NoAddedInitiators_1;
@@ -602,9 +618,9 @@ contains
            low = upp + 1; upp = low + sizes(28) - 1; allDoubleSpawns = nint(recv_arr(low));
            doubleSpawns = 0
         endif
-        low = upp + 1; upp = low + sizes(29) - 1; AllCoherentSingles = recv_arr(low);
-        low = upp + 1; upp = low + sizes(30) - 1; AllCoherentDoubles = recv_arr(low);
-        low = upp + 1; upp = low + sizes(31) - 1; AllIncoherentDets = recv_arr(low);
+        low = upp + 1; upp = low + sizes(29) - 1; AllCoherentDoubles = recv_arr(low);
+        low = upp + 1; upp = low + sizes(30) - 1; AllIncoherentDets = recv_arr(low);
+        low = upp + 1; upp = low + sizes(31) - 1; AllConnection = recv_arr(low);
 #ifdef __REALTIME
         low = upp + 1; upp = low + sizes(32) - 1; AllAnnihilated_1 = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(33) - 1; AllNoAddedInitiators_1 = nint(recv_arr(low:upp), int64);
@@ -691,7 +707,7 @@ contains
 
         ! These require a different type of reduce operation, so are communicated
         ! separately to the above communication.
-        call MPIReduce(bloom_sizes(1:max_ex_level), MPI_MAX, bloom_sz_tmp(1:max_ex_level))
+        call MPIAllReduce(bloom_sizes(1:max_ex_level), MPI_MAX, bloom_sz_tmp(1:max_ex_level))
         bloom_sizes(1:max_ex_level) = bloom_sz_tmp(1:max_ex_level)
 
         ! Arrays for checking load balancing.
@@ -974,6 +990,13 @@ contains
                             !Only allow targetgrowrate to kick in once we have > TargetGrowRateWalk walkers.
                             DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)-TargetGrowRate(run)) * SftDamp) / &
                                                 (Tau * StepsSft)
+                            ! Same for the info shifts for complex walkers
+#ifdef __CMPLX
+                    DiagSftRe(run) = DiagSftRe(run) - (log(AllGrowRateRe(run)-TargetGrowRate(run)) * SftDamp) / &
+                                                (Tau * StepsSft)
+                    DiagSftIm(run) = DiagSftIm(run) - (log(AllGrowRateIm(run)-TargetGrowRate(run)) * SftDamp) / &
+                                                (Tau * StepsSft)
+#endif
                         endif
                     else
                         if(tShiftonHFPop) then
@@ -988,13 +1011,6 @@ contains
                                                 (Tau * StepsSft)
                         endif
                     endif
-
-#ifdef __CMPLX
-                    DiagSftRe(run) = DiagSftRe(run) - (log(AllGrowRateRe(run)-TargetGrowRate(run)) * SftDamp) / &
-                                                (Tau * StepsSft)
-                    DiagSftIm(run) = DiagSftIm(run) - (log(AllGrowRateIm(run)-TargetGrowRate(run)) * SftDamp) / &
-                                                (Tau * StepsSft)
-#endif
 
                     ! Update the shift averages
                     if ((iter - VaryShiftIter(run)) >= nShiftEquilSteps) then
@@ -1018,6 +1034,8 @@ contains
     !                    endif
     !                endif
                 endif
+                ! only update the shift this way if possible
+                if(abs_sign(AllNoatHF(lb:ub)) > EPS) then
 #ifdef __CMPLX
                 ! Calculate the instantaneous 'shift' from the HF population
                 HFShift(run) = -1.0_dp / abs_sign(AllNoatHF(lb:ub)) * &
@@ -1035,6 +1053,7 @@ contains
                             ((AllTotParts(run) - AllTotPartsOld(run)) / &
                              (Tau * real(StepsSft, dp)))
 #endif
+             endif
 
                  ! When using a linear combination, the denominator is summed
                  ! directly.
@@ -1042,21 +1061,34 @@ contains
                  all_cyc_proje_denominator(run) = AllHFCyc(run)
 
                  ! Calculate the projected energy.
-#ifdef __CMPLX
-                ! [W.D. 15.5.2017:]
-!                  if (any(AllSumNoatHF(lb:ub) /= 0.0_dp)) then
-                 if (any(abs(AllSumNoatHF(lb:ub)) > EPS)) then
-#else
-!                  if ((AllSumNoatHF(run) /= 0.0_dp)) then
-                 if (abs(AllSumNoatHF(run)) > EPS) then
-#endif
-                         ProjectionE(run) = (AllSumENum(run)) / (all_sum_proje_denominator(run)) &
-                                          + proje_ref_energy_offsets(run)
-                         proje_iter(run) = (AllENumCyc(run)) / (all_cyc_proje_denominator(run)) &
-                                         + proje_ref_energy_offsets(run)
-                        AbsProjE(run) = (AllENumCycAbs(run)) / (all_cyc_proje_denominator(run)) &
-                                      + proje_ref_energy_offsets(run)
-                endif
+
+                if(tFixedN0)then
+                    !When reaching target N0, set flag to keep the population of reference det fixed.
+                    if(.not. tSkipRef(run) .and. AllHFCyc(run)>=N0_Target) tSkipRef(run) = .True.
+
+                    if(tSkipRef(run))then
+                        !Use the projected energy as the shift to fix the
+                        !population of the reference det and thus reduce the
+                        !fluctuations of the projected energy.
+                        DiagSft(run) = (AllENumCyc(run)) / (AllHFCyc(run))+proje_ref_energy_offsets(run)
+                    else
+                        !Keep shift equal to input till target reference population is reached.
+                        DiagSft(run) = InputDiagSft(run)
+                    end if
+
+                end if
+
+                 if ((AllSumNoatHF(run) /= 0.0_dp)) then
+                    ProjectionE(run) = (AllSumENum(run)) / (all_sum_proje_denominator(run)) &
+                         + proje_ref_energy_offsets(run)
+                 endif
+                 if (abs(AllHFCyc(run)) > EPS) then
+                    proje_iter(run) = (AllENumCyc(run)) / (all_cyc_proje_denominator(run)) &
+                         + proje_ref_energy_offsets(run)
+                    AbsProjE(run) = (AllENumCycAbs(run)) / (all_cyc_proje_denominator(run)) &
+                         + proje_ref_energy_offsets(run)
+                 endif
+
                 ! If we are re-zeroing the shift
                 if (tReZeroShift(run)) then
                     DiagSft(run) = 0.0_dp
@@ -1067,21 +1099,25 @@ contains
             enddo
 
             ! Get some totalled values
-            projectionE_tot = sum(AllSumENum(1:inum_runs)) &
-                            / sum(all_sum_proje_denominator(1:inum_runs))
-            proje_iter_tot = sum(AllENumCyc(1:inum_runs)) &
-                           / sum(all_cyc_proje_denominator(1:inum_runs))
-      
+            if(abs(sum(all_sum_proje_denominator(1:inum_runs))) > EPS) then
+               projectionE_tot = sum(AllSumENum(1:inum_runs)) &
+                    / sum(all_sum_proje_denominator(1:inum_runs))
+            endif
+            if(abs(sum(all_cyc_proje_denominator(1:inum_runs))) > EPS) then
+               proje_iter_tot = sum(AllENumCyc(1:inum_runs)) &
+                    / sum(all_cyc_proje_denominator(1:inum_runs))
+            endif
+
         endif ! iProcIndex == root
 
         ! Broadcast the shift from root to all the other processors
         call MPIBcast (tSinglePartPhase)
         call MPIBcast (VaryShiftIter)
         call MPIBcast (DiagSft)
+        call MPIBcast (tSkipRef)
         call MPIBcast (VaryShiftCycles)
         call MPIBcast (SumDiagSft)
         call MPIBcast (AvDiagSft)
-        
 
         do run=1,inum_runs
             if(.not.tSinglePartPhase(run)) then

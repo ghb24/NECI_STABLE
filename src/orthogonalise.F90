@@ -219,6 +219,7 @@ contains
         ! Store a normalised overlap matrix for each of the replicas.
         do src_run = 1, inum_runs - 1
             do tgt_run = src_run + 1, inum_runs
+               if(all_norms(src_run)*all_norms(tgt_run) > EPS) then
                 replica_overlaps_real(src_run, tgt_run) = &
                     all_overlaps_real(src_run, tgt_run) / &
                     sqrt(all_norms(src_run) * all_norms(tgt_run))
@@ -227,6 +228,7 @@ contains
                     all_overlaps_imag(src_run, tgt_run) / &
                     sqrt(all_norms(src_run) * all_norms(tgt_run))
 #endif
+             endif
             end do
         end do
 
@@ -712,9 +714,11 @@ contains
         ! Store a normalised overlap matrix for each of the replicas.
         do src_run = 1, inum_runs - 1
             do tgt_run = src_run + 1, inum_runs
-                replica_overlaps_real(src_run, tgt_run) = &
-                    all_overlaps(src_run, tgt_run) / &
-                    sqrt(all_norms(src_run) * all_norms(tgt_run))
+               if(all_norms(src_run)*all_norms(tgt_run) > EPS) then
+                  replica_overlaps_real(src_run, tgt_run) = &
+                       all_overlaps(src_run, tgt_run) / &
+                       sqrt(all_norms(src_run) * all_norms(tgt_run))
+               endif
                 replica_overlaps_real(src_run, tgt_run) = &
                     replica_overlaps_real(src_run, tgt_run)
             end do

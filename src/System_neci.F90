@@ -111,6 +111,7 @@ MODULE System
       tUEGOffset = .false.
       TTILT = .false.
       TALPHA = .false.
+      ALPHA = 0.0_dp
       ISTATE = 1
       OrbECutoff=1e20_dp
       tOrbECutoff=.false.
@@ -203,8 +204,8 @@ MODULE System
       ENDIF
 
 ! Coulomb damping function currently removed.
-!      FCOULDAMPBETA=-1.0_dp
-!      COULDAMPORB=0
+      FCOULDAMPBETA=-1.0_dp
+      COULDAMPORB=0
         
     end subroutine SetSysDefaults
 
@@ -1247,6 +1248,10 @@ system: do
             !We have complex orbitals, but real integrals. This means that we only have 4x permutational symmetry,
             !so we need to check the (momentum) symmetry before we look up any integrals
             tComplexOrbs_RealInts = .true.
+            
+         case("COMPLEXWALKERS-REALINTS")
+            ! We have real orbitals and integrals, but the walker weights are complex
+            tComplexWalkers_RealInts = .true.
 
          case("COMPLEXWALKERS-REALINTS")
             ! In case complex walkers shall be used but not complex basis functions,

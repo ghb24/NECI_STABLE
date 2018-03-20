@@ -385,27 +385,29 @@ contains
                 end if
             end do
 
-            ! now get those connected determinants that need to be 
-            ! communicated (they might not be in currentdets)
-            do j = 1, con_space_size
-               clashes = con_ht(j)%nclash
-               if(clashes > 0) then
-                  k = 0
-                  do
-                     k = k + 1
-                     call decode_bit_det(det,con_ht(j)%states(:,k))
-                     det_block = get_det_block(nel, det, 0)
-                     if(det_block == block) then
-                        call extract_con_ht_entry(j,k,con_state)
-                        nconsend = nconsend + 1
-                        con_send_buf(:,nconsend) = con_state
-                        clashes = clashes - 1
-                        k = k - 1
-                     endif
-                     if(k==clashes) exit
-                  enddo
-               endif
-            end do
+            if(tTrialWavefunction) then
+               ! now get those connected determinants that need to be 
+               ! communicated (they might not be in currentdets)
+               do j = 1, con_space_size
+                  clashes = con_ht(j)%nclash
+                  if(clashes > 0) then
+                     k = 0
+                     do
+                        k = k + 1
+                        call decode_bit_det(det,con_ht(j)%states(:,k))
+                        det_block = get_det_block(nel, det, 0)
+                        if(det_block == block) then
+                           call extract_con_ht_entry(j,k,con_state)
+                           nconsend = nconsend + 1
+                           con_send_buf(:,nconsend) = con_state
+                           clashes = clashes - 1
+                           k = k - 1
+                        endif
+                        if(k==clashes) exit
+                     enddo
+                  endif
+               end do
+            endif
 
             ! And send the data to the relevant (target) processor
             nelem = nsend * (1 + NIfTot)
@@ -413,11 +415,13 @@ contains
             call MPISend(SpawnedParts(:, 1:nsend), nelem, tgt_proc, &
                          mpi_tag_dets, ierr)
 
-            ! And send the trial wavefunction connection information
-            nelem = nconsend * (1 + NConEntry)
-            call MPISend(nconsend,1,tgt_proc,mpi_tag_nconsend, ierr)
-            call MPISend(con_send_buf(:,1:nconsend),nelem,tgt_proc, &
-                         mpi_tag_con, ierr)
+            if(tTrialWavefunction) then
+               ! And send the trial wavefunction connection information
+               nelem = nconsend * (1 + NConEntry)
+               call MPISend(nconsend,1,tgt_proc,mpi_tag_nconsend, ierr)
+               call MPISend(con_send_buf(:,1:nconsend),nelem,tgt_proc, &
+                    mpi_tag_con, ierr)
+            end if
 
             ! We have now created lots of holes in the main list
             HolesInList = HolesInList + nsend
@@ -447,10 +451,13 @@ contains
             HolesInList = max(0, HolesInList - nsend)
 
             ! Recieve information on the connected determinants
-            call MPIRecv(nconsend, 1, src_proc, mpi_tag_nconsend, ierr)
-            nelem = nconsend * (1 + NConEntry)
-            call MPIRecv(con_send_buf, nelem, src_proc, mpi_tag_con, ierr)
-            call add_con_ht_entries(con_send_buf(:,1:nconsend), nconsend)
+            ! only if trial wavefunction is enabled, of course
+            if(tTrialWavefunction) then
+               call MPIRecv(nconsend, 1, src_proc, mpi_tag_nconsend, ierr)
+               nelem = nconsend * (1 + NConEntry)
+               call MPIRecv(con_send_buf, nelem, src_proc, mpi_tag_con, ierr)
+               call add_con_ht_entries(con_send_buf(:,1:nconsend), nconsend)
+            endif
 
         end if
 

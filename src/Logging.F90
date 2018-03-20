@@ -7,8 +7,7 @@ MODULE Logging
     use MemoryManager, only: LogMemAlloc, LogMemDealloc,TagIntType
     use SystemData, only: nel, LMS, nbasis, tHistSpinDist, nI_spindist, &
                           hist_spin_dist_iter
-    use CalcData, only: tCheckHighestPop, semistoch_shift_iter, trial_shift_iter, tPairedReplicas, &
-                        tChangeProjEDet
+    use CalcData, only: tCheckHighestPop, semistoch_shift_iter, trial_shift_iter, tPairedReplicas
     use constants, only: n_int, size_n_int, bits_n_int
     use bit_rep_data, only: NIfTot, NIfD
     use DetBitOps, only: EncodeBitDet
@@ -793,7 +792,6 @@ MODULE Logging
                 OffDiagMax=-OffDiagMax
             ENDIF
         case("HISTSPAWN")
-            if(tChangeProjEDet) call stop_all(t_r,'NO_CHANGEREF should be used whenever HISTSPAWN is used')
 !This option will histogram the spawned wavevector, averaged over all previous iterations. 
 !It scales horrifically and can only be done for small systems
 !which can be diagonalized. It requires a diagonalization initially to work. 

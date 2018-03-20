@@ -31,8 +31,10 @@ module fcimc_initialisation
                         trunc_nopen_max, MemoryFacInit, MaxNoatHF, HFPopThresh, &
                         tAddToInitiator, InitiatorWalkNo, tRestartHighPop, &
                         tAllRealCoeff, tRealCoeffByExcitLevel, tTruncInitiator, &
-                        RealCoeffExcitThresh, TargetGrowRate, aliasStem, &
-                        TargetGrowRateWalk, InputTargetGrowRate, tPopsAlias, &
+                        RealCoeffExcitThresh, aliasStem, &
+                        tPopsAlias, &
+                        tDynamicCoreSpace, TargetGrowRate, &
+                        TargetGrowRateWalk, InputTargetGrowRate, &
                         InputTargetGrowRateWalk, tOrthogonaliseReplicas, &
                         use_spawn_hash_table, tReplicaSingleDetStart, &
                         ss_space_in, trial_space_in, init_trial_in, &
@@ -46,10 +48,11 @@ module fcimc_initialisation
                         tSpinProject
 
     use adi_data, only: g_markers, tReferenceChanged, tInitiatorsSubspace, tAdiActive, &
-         nExChecks, nExCheckFails
+                        nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
 
     use spin_project, only: init_yama_store, clean_yama_store
 
+    use spin_project, only: init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
 
@@ -144,7 +147,7 @@ module fcimc_initialisation
 
     use csf, only: get_csf_helement
 
-    use tau_search, only: init_tau_search
+    use tau_search, only: init_tau_search, max_death_cpt
 
     use fcimc_helper, only: CalcParentFlag, update_run_reference
 
@@ -248,6 +251,10 @@ contains
         ! Initialise allocated arrays with input data
         TargetGrowRate(:) = InputTargetGrowRate
         TargetGrowRateWalk(:) = InputTargetGrowRateWalk
+
+        ! Initialize
+        AllTotParts = 0.0_dp
+        AllTotPartsOld = 0.0_dp
 
         IF(TDebug) THEN
 !This will open a file called LOCALPOPS-"iprocindex" on unit number 11 on every node.
@@ -790,7 +797,11 @@ contains
             ELSE
                 TempHii = get_helement (HighEDet, HighEDet, 0)
             ENDIF
-            UpperTau = 1.0_dp/REAL(TempHii-Hii,dp)
+            if(abs(TempHii - Hii) > EPS) then
+               UpperTau = 1.0_dp/REAL(TempHii-Hii,dp)
+            else
+               UpperTau = 0.0_dp
+            endif
             WRITE(iout,"(A,G25.15)") "Highest energy determinant is (approximately): ",REAL(TempHii,dp)
             write(iout,"(a,g25.15)") "Corresponding to a correlation energy of: ", real(temphii - hii, dp)
 !            WRITE(iout,"(A,F25.15)") "This means tau should be no more than about ",UpperTau
@@ -862,6 +873,9 @@ contains
         PreviousCycles=0
         NoBorn=0.0_dp
         SpawnFromSing=0
+        max_cyc_spawn = 0.0_dp
+        ! in case tau-search is off
+        max_death_cpt = 0.0_dp
         NoDied=0
         HFCyc=0.0_dp
         ENumCyc=0.0_dp
@@ -923,6 +937,10 @@ contains
         AbsProjE = 0
         norm_semistoch = 0
         norm_psi = 0
+        bloom_sizes = 0
+        proje_iter_tot = 0.0_dp
+        ! initialize as one (kind of makes sense for a norm)
+        all_norm_psi_squared = 1.0_dp
         tSoftExitFound = .false.
         tReferenceChanged = .false.
 
@@ -1169,7 +1187,7 @@ contains
 
         if (TReadPops) then
             if (tStartSinglePart .and. .not. tReadPopsRestart) then
-                call warning_neci(t_r, &
+               if(iProcIndex == root) call warning_neci(t_r, &
                                "ReadPOPS cannot work with StartSinglePart: ignoring StartSinglePart")
                 tStartSinglePart = .false.
             end if
@@ -1630,11 +1648,15 @@ contains
          replica_overlaps_imag(:, :) = 0.0_dp
 #endif
 
+
         ! Set up the reference space for the adi-approach
 	! in real-time, we do this in the real-time init
          if(.not. t_real_time_fciqmc) call setup_reference_space(tReadPops)
 
          if(tInitiatorsSubspace) call read_g_markers()
+
+         if(tRDMonFly .and. tDynamicCoreSpace) call sync_rdm_sampling_iter()
+
     end subroutine InitFCIMCCalcPar
 
     subroutine init_fcimc_fn_pointers()
@@ -2408,7 +2430,12 @@ contains
         tHPHF = .false.
         tHPHFInts = .false.
 
+        ! do not pass an unallocated array, so dummy-allocate
+        allocate(Hamil(0))
+        allocate(Lab(0))
         CALL Detham(nCASDet,NEl,CASFullDets,Hamil,Lab,nRow,.true.,ICMax,GC,tMC)
+        deallocate(Lab)
+        deallocate(Hamil)
         LenHamil=GC
         write(iout,*) "Allocating memory for hamiltonian: ",LenHamil*2
         Allocate(Hamil(LenHamil),stat=ierr)
@@ -3040,6 +3067,8 @@ contains
             nSing_spindiff1 = 0
             nDoub_spindiff1 = 0
             nDoub_spindiff2 = 0
+            pDoub_spindiff1 = 0.0_dp
+            pDoub_spindiff2 = 0.0_dp
         endif
 
 !NSing=Number singles from HF, nDoub=No Doubles from HF
@@ -3062,7 +3091,6 @@ contains
             iTotal=nSingles + nDoubles + nSing_spindiff1 + nDoub_spindiff1 + nDoub_spindiff2 + ncsf
 
         else
-            iTotal=nSingles + nDoubles + ncsf
             if (tKPntSym) THEN
                 if (t_k_space_hubbard) then 
                     ! change this to the new implementation
@@ -3073,6 +3101,7 @@ contains
             else
                 call CountExcitations3(HFDet_loc,exflag,nSingles,nDoubles)
             endif
+            iTotal=nSingles + nDoubles + ncsf
         endif
 
         IF(tHub.or.tUEG) THEN
@@ -3258,6 +3287,44 @@ contains
       ValidSpawnedList(:)=InitialSpawnedSlots(:)
 
    end subroutine SetupValidSpawned
+
+   subroutine sync_rdm_sampling_iter()
+     use LoggingData, only: RDMEnergyIter, IterRDMOnfly
+     use CalcData, only: coreSpaceUpdateCycle, semistoch_shift_iter
+     implicit none
+     integer :: frac
+     ! first, adjust the offset to make the rdm sampling start right when a semistochastic
+     ! update cycle ends
+     IterRDMOnFly = IterRDMOnFly - &
+          mod(IterRDMOnFly-semistoch_shift_iter,coreSpaceUpdateCycle) - 1
+     ! The -1 is just because the sampling starts one iteration after IterRDMOnFly
+     ! If we subtracted too much, jump one cycle backwards
+     if(IterRDMOnFly < semistoch_shift_iter) IterRDMOnFly = IterRDMOnFly + coreSpaceUpdateCycle
+     write(6,*) "Adjusted starting iteration of RDM sampling to ", IterRDMOnFly
+
+     ! Now sync the update cycles
+     if(RDMEnergyIter > coreSpaceUpdateCycle) then
+        RDMEnergyIter = coreSpaceUpdateCycle
+        write(6,*) "The RDM sampling interval cannot be larger than the update "&
+             //"interval of the semi-stochastic space. Reducing it to ", RDMEnergyIter
+     endif
+     if(mod(coreSpaceUpdateCycle,RDMEnergyIter) .ne. 0) then
+        ! first, try to ramp up the RDMEnergyIter to meet the coreSpaceUpdateCycle
+        frac = coreSpaceUpdateCycle/RDMEnergyIter
+        RDMEnergyIter = coreSpaceUpdateCycle/frac        
+        write(6,*) "Update cycle of semi-stochastic space and RDM sampling interval"&
+             //" out of sync. "
+        write(6,*) "Readjusting RDM sampling interval to ", RDMEnergyIter
+        
+        ! now, if this did not succeed, adjust the coreSpaceUpdateCycle
+        if(mod(coreSpaceUpdateCycle,RDMEnergyIter) .ne. 0) then
+           coreSpaceUpdateCycle = coreSpaceUpdateCycle - &
+                mod(coreSpaceUpdateCycle,RDMEnergyIter)
+           write(6,*) "Adjusted update cycle of semi-stochastic space to ", &
+                coreSpaceUpdateCycle
+        endif
+     endif
+   end subroutine sync_rdm_sampling_iter
 
     subroutine CalcUEGMP2()
         use SymExcitDataMod, only: kPointToBasisFn
@@ -3655,13 +3722,18 @@ contains
       ! We initialize the flags for the adi feature
       use adi_data, only: tSetDelayAllDoubsInits, tSetDelayAllSingsInits, tDelayAllDoubsInits, &
            tDelayAllSingsInits, tAllDoubsInitiators, tAllSingsInitiators, tDelayGetRefs, &
-           NoTypeN, nRefs, nRefsSings, nRefsDoubs, tReadRefs, tInitiatorsSubspace
+           NoTypeN, nRefs, tReadRefs, tInitiatorsSubspace, maxNRefs, nRefsSings, nRefsDoubs, &
+           SIUpdateOffset
       use CalcData, only: InitiatorWalkNo
-      use adi_references, only: enable_adi, reallocate_ilutRefAdi, setup_SIHash
+      use adi_references, only: enable_adi, reallocate_ilutRefAdi, setup_SIHash, &
+           reset_coherence_counter
       implicit none
+      maxNRefs = max(nRefsSings,nRefsDoubs)
 
-      nRefs = max(nRefsDoubs, nRefsSings)
-      call reallocate_ilutRefAdi(nRefs)
+      call reallocate_ilutRefAdi(maxNRefs)
+
+      ! If using adi with dynamic SIs, also use a dynamic corespace by default
+      call setup_dynamic_core()
  
       ! Check if one of the keywords is specified as delayed
       if(tSetDelayAllDoubsInits .and. tAllDoubsInitiators) then
@@ -3681,9 +3753,31 @@ contains
       if(tAllSingsInitiators .or. tAllDoubsInitiators .or. tInitiatorsSubspace) &
            tAdiActive = .true. 
 
-      NoTypeN = NoTypeN * InitiatorWalkNo
+      ! there is a minimum cycle lenght for updating the number of SIs, as the reference population
+      ! needs some time to equilibrate
+      nRefUpdateInterval = max(SIUpdateInterval,500)
+      SIUpdateOffset = 0
 
+      ! Initialize the logging variables
+      call reset_coherence_counter()      
     end subroutine setup_adi
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine setup_dynamic_core()
+      use CalcData, only: tDynamicCoreSpace, coreSpaceUpdateCycle,tIntervalSet
+      use adi_data, only: tAllDoubsInitiators, tAllSingsInitiators
+      implicit none
+      
+      ! Enable dynamic corespace if both
+      ! a) using adi with dynamic SIs (default)
+      ! b) no other keywords regarding the dynamic corespace are given
+      if(SIUpdateInterval > 0 .and. .not. tIntervalSet .and. (tAllDoubsInitiators .or. &
+           tAllSingsInitiators)) then
+        tDynamicCoreSpace = .true.
+	coreSpaceUpdateCycle = SIUpdateInterval
+      endif
+    end subroutine setup_dynamic_core
 
 !------------------------------------------------------------------------------------------!
 

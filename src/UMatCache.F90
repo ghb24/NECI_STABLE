@@ -1,16 +1,27 @@
 
 MODULE UMatCache
+
     use constants, only: dp,sizeof_int,int64
+
     use SystemData, only: tROHF,tStoreSpinOrbs, tComplexWalkers_RealInts, &
                           Symmetry, BasisFN, UMatEps, tROHF
+
     use SystemData, only: tRIIntegrals,tCacheFCIDUMPInts
+
     use util_mod, only: swap, get_free_unit, NECI_ICOPY
+
     use sort_mod
+
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
+
     use HElem, only: HElement_t_size
+
     use CPMDData, only: NKPS
+
     use sym_mod, only: TotSymRep, LSymSym
+
     use HElem, only: HElement_t_size
+
     use legacy_data, only: irat
 
       IMPLICIT NONE

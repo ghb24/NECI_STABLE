@@ -298,6 +298,9 @@ contains
                  iter_data%update_growth_tot(lenof_sign), &
                  iter_data%tot_parts_old(lenof_sign), stat=ierr)
 
+        ! initialize to 0
+        iter_data%update_growth_tot = 0.0_dp
+
     end subroutine
 
     subroutine clean_iter_data(iter_data)

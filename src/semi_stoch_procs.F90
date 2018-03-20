@@ -11,7 +11,7 @@ module semi_stoch_procs
     use constants
     use FciMCData, only: determ_sizes, determ_displs, determ_space_size, &
                          SpawnedParts, TotWalkers, CurrentDets, core_space, &
-                         MaxSpawned
+                         MaxSpawned,indices_of_determ_states, ilutRef
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg
     use sparse_arrays, only: sparse_core_ham
     use SystemData, only: nel
@@ -30,6 +30,7 @@ contains
         use FciMCData, only: partial_determ_vecs, full_determ_vecs, SemiStoch_Comms_Time
         use FciMCData, only: SemiStoch_Multiply_Time
         use Parallel_neci, only: MPIBarrier, MPIAllGatherV
+        use DetBitOps, only: DetBitEQ
 
         integer :: i, j, ierr, run, part_type
 
@@ -94,7 +95,15 @@ contains
 
             ! Now multiply the vector by tau to get the final projected vector.
             partial_determ_vecs = partial_determ_vecs * tau
-
+            
+            do i = 1, determ_sizes(iProcIndex)
+                do part_type  = 1, lenof_sign
+                    run = part_type_to_run(part_type)
+                    if(tSkipRef(run) .and. DetBitEQ(CurrentDets(:,indices_of_determ_states(i)),iLutRef(:,run),nIfD)) then
+                        partial_determ_vecs(part_type, i) = 0.0_dp
+                    end if
+                end do
+            end do
         end if
 
         call halt_timer(SemiStoch_Multiply_Time)
@@ -153,8 +162,9 @@ contains
         ! If this condition is met then RDM energies were added in on the
         ! previous iteration. We now want to start a new averaging block so
         ! that the same contributions aren't added in again later.
-        if (mod(Iter+PreviousCycles - IterRDMStart, RDMEnergyIter) == 0) then 
+        if (mod(Iter+PreviousCycles-IterRDMStart, RDMEnergyIter) == 0) then 
             full_determ_vecs_av = 0.0_dp
+            write(6,*) "Reset fdv av at iteration ", iter
         end if
 
         ! The current iteration, converted to a double precision real.
@@ -258,7 +268,7 @@ contains
                          TempStoreTag, ierr)
 
         ! Stick together the deterministic states from all processors, on all processors.
-        call MPIAllGatherV(SpawnedParts(:,1:determ_sizes(iProcIndex)), temp_store, &
+        call MPIAllGatherV(SpawnedParts(0:NIfTot,1:determ_sizes(iProcIndex)), temp_store, &
                        determ_sizes, determ_displs)
 
         ! Over all core states on this processor.
@@ -732,9 +742,15 @@ contains
         nwalkers = int(TotWalkers,sizeof_int)
         ! Test that SpawnedParts is going to be big enough
         if (determ_sizes(iProcIndex) > MaxSpawned) then
+#ifdef __DEBUG
             write(6,*) 'Spawned parts array will not be big enough for &
                        &Semi-Stochastic initialisation'
             write(6,*) 'Please increase MEMORYFACSPAWN'
+#else
+            write(*,*) 'Spawned parts array will not be big enough for &
+                       &Semi-Stochastic initialisation on task ', iProcIndex
+            write(*,*) 'Please increase MEMORYFACSPAWN'
+#endif
             call stop_all(this_routine, "Insufficient memory assigned")
         end if
 
@@ -782,9 +798,15 @@ contains
                 ! Add a quick test in, to ensure that we don't overflow the
                 ! spawned parts array...
                 if (i_non_core > MaxSpawned) then
+#ifdef __DEBUG
                     write(6,*) 'Spawned parts array too small for &
                                &semi-stochastic initialisation'
                     write(6,*) 'Please increase MEMORYFACSPAWN'
+#else
+                    write(*,*) 'Spawned parts array too small for &
+                               &semi-stochastic initialisation on task ', iProcIndex
+                    write(*,*) 'Please increase MEMORYFACSPAWN'
+#endif
                     call stop_all(this_routine, 'Insufficient memory assigned')
                 end if
                 

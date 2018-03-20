@@ -18,6 +18,8 @@ module Integrals_neci
 
     use shared_alloc, only: shared_allocate, shared_deallocate
 
+    use shared_memory_mpi
+
     use global_utilities
 
     use gen_coul_ueg_mod, only: gen_coul_hubnpbc, get_ueg_umat_el, &
@@ -434,14 +436,14 @@ contains
       IF(TCPMD) THEN
 !.. We don't need to do init any 4-index integrals, but we do need to init the 2-index
          WRITE(6,*) " *** INITIALIZING CPMD 2-index integrals ***"
-         call shared_allocate ("umat", umat, (/1_int64/))
+         call shared_allocate_mpi (umat_win, umat, (/1_int64/))
          !Allocate(UMat(1), stat=ierr)
          LogAlloc(ierr, 'UMat', 1,HElement_t_SizeB, tagUMat)
          CALL GENSymStatePairs(nBasis/2,.false.)
          CALL SetupTMAT(nBasis,2,TMATINT)
          CALL CPMDINIT2INDINT(nBasis,I,G1,NEL,ECORE,THFORDER,ARR,BRR,iCacheFlag)
       ELSEIF(tVASP) THEN
-         call shared_allocate ("umat", umat, (/1_int64/))
+         call shared_allocate_mpi (umat_win, umat, (/1_int64/))
          !Allocate(UMat(1), stat=ierr)
          LogAlloc(ierr, 'UMat', 1,HElement_t_SizeB, tagUMat)
          CALL GENSymStatePairs(nBasis/2,.false.)
@@ -454,14 +456,14 @@ contains
 !read in integral and put in cache
 !change flag to read integrals from cache
       ELSEIF(TREADINT.AND.TDFREAD) THEN
-         call shared_allocate ("umat", umat, (/1_int64/))
+         call shared_allocate_mpi (umat_win, umat, (/1_int64/))
          !Allocate(UMat(1), stat=ierr)
          LogAlloc(ierr, 'UMat', 1,HElement_t_SizeB, tagUMat)
          CALL SetupTMAT(nBasis,2,TMATINT)
          Call ReadDalton1EIntegrals(G1,nBasis,ECore)
          Call ReadDF2EIntegrals(nBasis,I)
       ELSEIF(TREADINT.AND.tRIIntegrals) THEN
-         call shared_allocate ("umat", umat, (/1_int64/))
+         call shared_allocate_mpi (umat_win, umat, (/1_int64/))
          !Allocate(UMat(1), stat=ierr)
          LogAlloc(ierr, 'UMat', 1,HElement_t_SizeB, tagUMat)
 !Why is this called twice here?!
@@ -469,11 +471,11 @@ contains
          CALL SetupTMAT(nBasis,iSpinSkip,TMATINT)
          !   CALL READFCIINTBIN(UMAT,NBASIS,ECORE,ARR,BRR,G1)
          Call ReadRIIntegrals(nBasis,I)
-         CALL READFCIINT(UMAT,NBASIS,ECORE,.false.)
+         CALL READFCIINT(UMAT,umat_win,NBASIS,ECORE,.false.)
          NBASISMAX(2,3)=0
          WRITE(6,*) ' ECORE=',ECORE
       ELSEIF(tReadInt.and.tCacheFCIDUMPInts) THEN
-         call shared_allocate ("umat", umat, (/1_int64/))
+         call shared_allocate_mpi (umat_win, umat, (/1_int64/))
          !ALLOCATE(UMat(1),stat=ierr)
          LogAlloc(ierr,'UMat',1,HElement_t_SizeB,tagUMat)
          CALL SetupTMAT(nBasis,iSpinSkip,TMATINT)
@@ -499,7 +501,7 @@ contains
 !Set up UMat2D for storing the <ij|u|ij> and <ij|u|ji> integrals
          call SetupUMat2D_df()  !This needs to be changed
 !The actual UMat2D integrals are read here into UMat2D here, as well as the integrals needed into the cache.
-         CALL READFCIINT(UMAT,NBASIS,ECORE,tReadFreezeInts)
+         CALL READFCIINT(UMAT,umat_win,NBASIS,ECORE,tReadFreezeInts)
 !This is generally iSpinSkp, but stupidly, needs to be .le.0 to indicate that we want to look up the integral.
          NBASISMAX(2,3)=0   
          WRITE(6,*) ' ECORE=',ECORE
@@ -514,7 +516,7 @@ contains
          UMatMem=REAL(UMatInt,dp)*REAL(HElement_t_sizeB,dp)*(9.536743164e-7_dp)
          WRITE(6,"(A,G20.10,A)") "Memory required for integral storage: ",UMatMem, " Mb/Shared Memory"
          call neci_flush(6)
-         call shared_allocate ("umat", umat, (/UMatInt/))
+         call shared_allocate_mpi (umat_win, umat, (/UMatInt/))
          !Allocate(UMat(UMatInt), stat=ierr)
          LogAlloc(ierr, 'UMat', int(UMatInt),HElement_t_SizeB, tagUMat)
          if (iprocindex == 0) then
@@ -532,7 +534,7 @@ contains
          IF(TBIN) THEN
             CALL READFCIINTBIN(UMAT,ECORE)
          ELSE
-            CALL READFCIINT(UMAT,NBASIS,ECORE,.false.)
+            CALL READFCIINT(UMAT,umat_win,NBASIS,ECORE,.false.)
          ENDIF
          WRITE(6,*) 'ECORE=',ECORE
          IF(tCalcPropEst) THEN
@@ -566,7 +568,8 @@ contains
                       WRITE(6,*) "Generating 2e integrals"
         !!C.. Generate the 2e integrals (UMAT)
                       CALL GetUMatSize(nBasis,nEl,UMATINT)
-                      call shared_allocate ("umat", umat, (/UMatInt/))
+                      call shared_allocate_mpi (umat_win, umat, (/UMatInt/))
+!                       call shared_allocate ("umat", umat, (/UMatInt/))
                       !Allocate(UMat(UMatInt), stat=ierr)
                       LogAlloc(ierr, 'UMat', int(UMatInt),HElement_t_SizeB, tagUMat)
                       UMat = 0.0_dp
@@ -578,7 +581,7 @@ contains
                   WRITE(6,*) "Generating 2e integrals"
     !!C.. Generate the 2e integrals (UMAT)
                   CALL GetUMatSize(nBasis,nEl,UMATINT)
-                  call shared_allocate ("umat", umat, (/UMatInt/))
+                  call shared_allocate_mpi (umat_win, umat, (/UMatInt/))
                   !Allocate(UMat(UMatInt), stat=ierr)
                   LogAlloc(ierr, 'UMat', int(UMatInt),HElement_t_SizeB, tagUMat)
                   UMat = 0.0_dp
@@ -591,7 +594,7 @@ contains
                      ISPINSKIP=-1
                      NBASISMAX(2,3)=-1
                      WRITE(6,*) "Not precomputing HUBBARD 2-e integrals"
-                     call shared_allocate ("umat", umat, (/1_int64/))
+                     call shared_allocate_mpi (umat_win, umat, (/1_int64/))
                      !Allocate(UMat(1), stat=ierr)
                      LogAlloc(ierr, 'UMat', 1,HElement_t_SizeB, tagUMat)
                      UMAT(1)=UHUB/OMEGA
@@ -619,7 +622,7 @@ contains
                WRITE(6,*) "Generating 2e integrals"
     !!C.. Generate the 2e integrals (UMAT)
                CALL GetUMatSize(nBasis,nEl,UMATINT)
-               call shared_allocate ("umat", umat, (/UMatInt/))
+               call shared_allocate_mpi (umat_win, umat, (/UMatInt/))
                !Allocate(UMat(UMatInt), stat=ierr)
                LogAlloc(ierr, 'UMat', int(UMatInt),HElement_t_SizeB, tagUMat)
                UMat = 0.0_dp
@@ -631,7 +634,7 @@ contains
             ENDIF
          ELSE
             WRITE(6,*) "Not precomputing 2-e integrals"
-            call shared_allocate ("umat", umat, (/1_int64/))
+            call shared_allocate_mpi (umat_win, umat, (/1_int64/))
             !Allocate(UMat(1), stat=ierr)
             LogAlloc(ierr, 'UMat', 1,HElement_t_SizeB, tagUMat)
          ENDIF
@@ -710,6 +713,7 @@ contains
       HElement_t(dp), pointer :: UMAT2(:)
       INTEGER(TagIntType) tagUMat2
       INTEGER nOcc
+      integer(MPIArg) :: umat2_win
       integer(int64) :: UMATInt
       integer nHG
 
@@ -748,13 +752,13 @@ contains
          !TMAT2=(0.0_dp)
          IF(NBASISMAX(1,3).GE.0.AND.ISPINSKIP.NE.0) THEN
             CALL GetUMatSize(nBasis,(nEl-NFROZEN-NFROZENIN),UMATINT)
-            call shared_allocate ("umat2", umat2, (/UMatInt/))
+            call shared_allocate_mpi (umat2_win, umat2, (/UMatInt/))
             !Allocate(UMat2(UMatInt), stat=ierr)
             LogAlloc(ierr, 'UMat2', int(UMatInt),HElement_t_SizeB, tagUMat2)
             UMAT2 = 0.0_dp
          ELSE
 !!C.. we don't precompute 4-e integrals, so don't allocate a large UMAT
-            call shared_allocate ("umat2", umat2, (/1_int64/))
+            call shared_allocate_mpi (umat2_win, umat2, (/1_int64/))
             !Allocate(UMat2(1), stat=ierr)
             LogAlloc(ierr, 'UMat2', 1,HElement_t_SizeB, tagUMat2)
          ENDIF 
@@ -783,8 +787,9 @@ contains
 !!C.. Now we can remove the old UMATRIX, and set the pointer UMAT to point
 !!C.. to UMAT2
          LogDealloc(tagUMat)
-         call shared_deallocate(umat)
+         call shared_deallocate_mpi(int(umat_win,MPIArg),umat)
          !Deallocate(UMat)
+         umat_win=umat2_win
          UMat=>UMat2
          nullify(UMat2)
          tagUMat=tagUMat2
@@ -831,7 +836,7 @@ contains
         ! Cleanup UMAT array
         if (associated(UMAT)) then
             LogDealloc (tagUMat)
-            call shared_deallocate (UMAT)
+            call shared_deallocate_mpi (int(umat_win,MPIArg),UMAT)
         endif
         
         if (allocated(frozen_orb_list)) then
@@ -1081,8 +1086,8 @@ contains
 
 ! Now dealing with the zero body part of the property integrals if needed
 
-       write(*,*) 'PropCore before freezing:', PropCore
        IF(tCalcPropEst) then
+          write(*,*) 'PropCore before freezing:', PropCore
           DO A=1,NFROZEN
              AB=BRR(A)
              ! Ecore' = Ecore + sum_a <a|h|a> where a is a frozen spin orbital
@@ -1101,8 +1106,8 @@ contains
                 write(*,*) '2', PropCore(B), AB, B, GetPropIntEl(AB,AB,B)
              ENDDO
           ENDDO
+          write(*,*) 'PropCore after freezing:', PropCore
        ENDIF
-       write(*,*) 'PropCore after freezing:', PropCore
 
 
 !C.. now deal with the new TMAT
@@ -2062,6 +2067,8 @@ SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
   USE OneEInts, only : SetupTMAT,TMAT2D
   use util_mod, only: get_free_unit
   use SystemData, only: tUEG2
+  use Parallel_neci, only: iProcIndex, Root
+
   IMPLICIT NONE
   INTEGER NBASIS
   TYPE(BASISFN) G1(NBASIS)
@@ -2079,17 +2086,17 @@ SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
       IF(TPERIODIC) WRITE(6,*) "Periodic UEG"
       iunit = get_free_unit()
 
-      OPEN(iunit,FILE='TMAT',STATUS='UNKNOWN')
-          CALL SetupTMAT(NBASIS,2,iSIZE)
-          DO I=1,NBASIS
-              !K_OFFSET in cartesian coordinates
-              K_REAL=real(kvec(I, 1:3)+K_OFFSET, dp)
-              temp=K_REAL(1)**2+K_REAL(2)**2+K_REAL(3)**2
-              ! TMAT is diagonal for the UEG
-              TMAT2D(I,1)=0.5_dp*temp*k_lattice_constant**2
-              WRITE(iunit,*) I,I,TMAT2D(I,1)
-          ENDDO
-      CLOSE(iunit)
+      if(iProcIndex.eq.Root) OPEN(iunit,FILE='TMAT',STATUS='UNKNOWN')
+      CALL SetupTMAT(NBASIS,2,iSIZE)
+      DO I=1,NBASIS
+         !K_OFFSET in cartesian coordinates
+         K_REAL=real(kvec(I, 1:3)+K_OFFSET, dp)
+         temp=K_REAL(1)**2+K_REAL(2)**2+K_REAL(3)**2
+         ! TMAT is diagonal for the UEG
+         TMAT2D(I,1)=0.5_dp*temp*k_lattice_constant**2
+         if(iProcIndex.eq.Root) WRITE(iunit,*) I,I,TMAT2D(I,1)
+      ENDDO
+      if(iProcIndex.eq.Root) CLOSE(iunit)
           
       RETURN
   end if ! tUEG2
@@ -2097,7 +2104,7 @@ SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
 
   IF(TPERIODIC) WRITE(6,*) "Periodic UEG"
   iunit = get_free_unit()
-  OPEN(iunit,FILE='TMAT',STATUS='UNKNOWN')
+  if(iProcIndex.eq.Root) OPEN(iunit,FILE='TMAT',STATUS='UNKNOWN')
   CALL SetupTMAT(NBASIS,2,iSIZE)
 
   DO I=1,NBASIS
@@ -2108,9 +2115,9 @@ SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
 !..  The G=0 component is explicitly calculated for the cell interactions as 2 PI Rc**2 .
 !   we *1/2 as we attribute only half the interaction to this cell.
     IF(TPERIODIC .and. iPeriodicDampingType/=0) TMAT2D(I,1)=TMAT2D(I,1)-(PI*ALAT(4)**2/OMEGA)
-    WRITE(iunit,*) I,I,TMAT2D(I,1)
+    if(iProcIndex.eq.Root) WRITE(iunit,*) I,I,TMAT2D(I,1)
   ENDDO
-  CLOSE(iunit)
+  if(iProcIndex.eq.Root) CLOSE(iunit)
   RETURN
 END SUBROUTINE CALCTMATUEG
 

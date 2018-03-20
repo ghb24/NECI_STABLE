@@ -121,6 +121,11 @@ logical :: tStartCAS    !Start FCIMC dynamic with walkers distributed according 
 logical :: tShiftonHFPop    !Adjust shift in order to keep the population on HF constant, rather than total pop.
 
 logical :: tSpecifiedTau
+
+logical :: tFixedN0 !Fix the reference population by using projected energy as shift.
+logical :: tSkipRef(1:inum_runs_max) !Skip spawing onto reference det and death/birth on it. One flag for each run.
+integer :: N0_Target !The target reference population in fixed-N0 mode
+
 ! Base hash values only on spatial orbitals
 ! --> All dets with same spatial structure on the same processor.
 logical :: tSpatialOnlyHash
@@ -209,8 +214,8 @@ logical :: tUniqueHFNode
 
 ! Options relating to the semi-stochastic code.
 logical :: tSemiStochastic ! Performing a semi-stochastic simulation if true.
-logical :: tDynamicCoreSpace, tStaticCore ! update the corespace
-integer :: coreSpaceUpdateCycle
+logical :: tDynamicCoreSpace, tStaticCore, tIntervalSet ! update the corespace
+integer :: coreSpaceUpdateCycle, semistochStartIter
 ! Input type describing which space(s) type to use.
 type(subspace_in) :: ss_space_in
 real(dp) :: corespaceWalkers, allCorespaceWalkers
@@ -246,6 +251,10 @@ logical :: tStartTrialLater = .false.
 ! How many iterations after the shift starts to vary should be turn on the use
 ! of trial estimators?
 integer :: trial_shift_iter
+
+! Update the trial wf?
+logical :: tDynamicTrial
+integer :: trialSpaceUpdateCycle
 
 ! If false then create the trial wave function by diagonalising the
 ! Hamiltonian in the trial subspace.
