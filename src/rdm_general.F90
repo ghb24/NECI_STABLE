@@ -13,7 +13,7 @@ contains
     subroutine init_rdms(nrdms_standard, nrdms_transition)
 
         use DeterminantData, only: write_det
-        use CalcData, only: MemoryFacPart
+        use CalcData, only: MemoryFacPart, tENPert
         use FciMCData, only: MaxSpawned, Spawned_Parents, Spawned_Parents_Index
         use FciMCData, only: Spawned_ParentsTag, Spawned_Parents_IndexTag
         use FciMCData, only: HFDet_True, tSinglePartPhase, AvNoatHF, IterRDM_HF
@@ -31,9 +31,10 @@ contains
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
         use rdm_data, only: nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time, states_for_transition_rdm
         use rdm_data, only: rdm_main_size_fac, rdm_spawn_size_fac, rdm_recv_size_fac
-        use rdm_data, only: rdm_definitions
+        use rdm_data, only: rdm_definitions, en_pert_main
         use rdm_data_utils, only: init_rdm_spawn_t, init_rdm_list_t, init_one_rdm_t
         use rdm_data_utils, only: init_rdm_definitions_t, clear_one_rdms, clear_rdm_list_t
+        use rdm_data_utils, only: init_en_pert_t
         use rdm_estimators, only: init_rdm_estimates_t, calc_2rdm_estimates_wrapper
         use rdm_reading
         use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
@@ -178,6 +179,11 @@ contains
 
                 memory_alloc = memory_alloc + ( NoOrbs * NoOrbs * 8 )
             end do
+        end if
+
+        if (tENPert) then
+            ! Initialise Epstein-Nesbet perturbation object.
+            call init_en_pert_t(en_pert_main, nrdms_standard, max_nelems_main, nhashes_rdm_main)
         end if
 
         ! We then need to allocate the arrays for excitations etc when doing
@@ -339,7 +345,7 @@ contains
                 end do
             else
                 call read_2rdm_popsfile(two_rdm_main, two_rdm_spawn)
-                if (print_2rdm_est) call calc_2rdm_estimates_wrapper(rdm_definitions, rdm_estimates, two_rdm_main)
+                if (print_2rdm_est) call calc_2rdm_estimates_wrapper(rdm_definitions, rdm_estimates, two_rdm_main, en_pert_main)
 
                 if (tPrint1RDMsFrom2RDMPops) then
                     call print_1rdms_from_2rdms_wrapper(rdm_definitions, one_rdms, two_rdm_main, tOpenShell)
@@ -584,13 +590,14 @@ contains
         use FciMCData, only: Spawned_ParentsTag, Spawned_Parents_IndexTag
         use FciMCData, only: AvNoatHF, IterRDM_HF
         use LoggingData, only: RDMExcitLevel, tExplicitAllRDM
-        use rdm_data, only: two_rdm_main, two_rdm_recv, two_rdm_recv_2, two_rdm_spawn
+        use rdm_data, only: two_rdm_main, two_rdm_recv, two_rdm_recv_2, two_rdm_spawn, en_pert_main
         use rdm_data, only: rdm_estimates, one_rdms, Sing_ExcDjs, Doub_ExcDjs
         use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, Sing_ExcDjsTag, Doub_ExcDjsTag
         use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
         use rdm_data_old, only: rdms
         use rdm_data_utils, only: dealloc_rdm_list_t, dealloc_rdm_spawn_t, dealloc_one_rdm_t
+        use rdm_data_utils, only: dealloc_en_pert_t
         use rdm_estimators, only: dealloc_rdm_estimates_t
         use RotateOrbsData, only: SymLabelCounts2_rot, SymLabelList2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag
@@ -607,6 +614,9 @@ contains
         call dealloc_rdm_list_t(two_rdm_recv)
         call dealloc_rdm_list_t(two_rdm_recv_2)
         call dealloc_rdm_spawn_t(two_rdm_spawn)
+
+        ! Deallocate the EN perturbation orbject.
+        call dealloc_en_pert_t(en_pert_main)
 
         ! Deallocate the RDM estimates object.
         call dealloc_rdm_estimates_t(rdm_estimates)

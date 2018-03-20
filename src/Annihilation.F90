@@ -30,7 +30,8 @@ module AnnihilationMod
 
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement
-    use rdm_data, only: rdm_estimates
+    use rdm_data, only: rdm_estimates, en_pert_main
+    use rdm_data_utils, only: add_to_en_pert_t
     use fcimc_helper, only: CheckAllowedTruncSpawn
 
     implicit none
@@ -567,9 +568,13 @@ module AnnihilationMod
         real(dp) :: pRemove, r
         integer :: ExcitLevel, DetHash, nJ(nel)
         logical :: tSuccess, tSuc, tDetermState
+
+        ! Data needed for the EN Perturbation
         logical :: abort(lenof_sign)
         HElement_t(dp) :: HDiag
         integer :: run, istate
+        real(dp) :: contrib_sign(en_pert_main%sign_length)
+        logical :: pert_contrib(en_pert_main%sign_length)
 
         ! Only node roots to do this.
         if (.not. bNodeRoot) return
@@ -725,21 +730,33 @@ module AnnihilationMod
                     end do
 
                     if (tENPert) then
-                        do istate = 1, size(energy_pert)
+                        pert_contrib = .false.
+
+                        do istate = 1, en_pert_main%sign_length
                             if (abort(2*istate-1) .and. abort(2*istate) .and. &
-                                        abs(SignTemp(2*istate-1)) > 1.e-12_dp .and. &
-                                        abs(SignTemp(2*istate)) > 1.e-12_dp) then
-
-                                if (tHPHF) then
-                                    HDiag = hphf_diag_helement (nJ, SpawnedParts(:,i))
-                                else
-                                    HDiag = get_helement (nJ, nJ, 0)
-                                end if
-
-                                energy_pert(istate) = energy_pert(istate) + SignTemp(2*istate-1)*SignTemp(2*istate)/&
-                                  ((rdm_estimates%energy_num_inst(istate)/rdm_estimates%norm_inst(istate) - HDiag) * all_overlaps(2*istate-1,2*istate) * (tau**2))
+                                  abs(SignTemp(2*istate-1)) > 1.e-12_dp .and. &
+                                  abs(SignTemp(2*istate)) > 1.e-12_dp) then
+                                pert_contrib(istate) = .true.
                             end if
                         end do
+
+                        if (any(pert_contrib)) then
+                            !if (tHPHF) then
+                            !    HDiag = hphf_diag_helement (nJ, SpawnedParts(:,i))
+                            !else
+                            !    HDiag = get_helement (nJ, nJ, 0)
+                            !end if
+
+                            do istate = 1, en_pert_main%sign_length
+                                !energy_pert_global(istate) = energy_pert_global(istate) + &
+                                !  SignTemp(2*istate-1)*SignTemp(2*istate)/&
+                                !  ((rdm_estimates%energy_num_inst(istate)/rdm_estimates%norm_inst(istate) - HDiag) * all_overlaps(2*istate-1,2*istate) * (tau**2))
+
+                                contrib_sign(istate) = SignTemp(2*istate-1)*SignTemp(2*istate) / (tau**2)
+                            end do
+
+                            call add_to_en_pert_t(en_pert_main, nJ, SpawnedParts(:,i), contrib_sign)
+                        end if
                     end if
 
                     do j = 1, lenof_sign
@@ -815,7 +832,7 @@ module AnnihilationMod
                     !    !    write(6,*) "RDM Norm:", rdm_estimates%norm_inst(1), "  Overlap:", all_overlaps(1,2)
                     !    !end if
 
-                    !    energy_pert = energy_pert + SignTemp(1)*SignTemp(2)/((rdm_estimates%energy_num_inst(1) - HDiag * rdm_estimates%norm_inst(1)) * (tau**2))
+                    !    energy_pert_global = energy_pert_global + SignTemp(1)*SignTemp(2)/((rdm_estimates%energy_num_inst(1) - HDiag * rdm_estimates%norm_inst(1)) * (tau**2))
                     !end if
 
                     !if (.not. CheckAllowedTruncSpawn (0, nJ, SpawnedParts(:,i), 0)) then
@@ -825,7 +842,7 @@ module AnnihilationMod
                     !        HDiag = get_helement (nJ, nJ, 0)
                     !    end if
 
-                    !    energy_pert = energy_pert + SignTemp(1)*SignTemp(2)/&
+                    !    energy_pert_global = energy_pert_global + SignTemp(1)*SignTemp(2)/&
                     !      ((rdm_estimates%energy_num_inst(1)/rdm_estimates%norm_inst(1) - HDiag) * all_overlaps(1,2) * (tau**2))
                     !    do j = 1, lenof_sign
                     !        ! Walkers came from outside initiator space.

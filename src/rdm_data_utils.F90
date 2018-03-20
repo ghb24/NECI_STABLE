@@ -14,7 +14,7 @@ module rdm_data_utils
     use bit_rep_data, only: NIfTot, NIfDBO
     use constants
     use Parallel_neci, only: iProcIndex, nProcessors
-    use rdm_data, only: rdm_list_t, rdm_spawn_t, one_rdm_t
+    use rdm_data, only: rdm_list_t, rdm_spawn_t, one_rdm_t, en_pert_t
     use util_mod
 
     implicit none
@@ -88,6 +88,35 @@ contains
         spawn%free_slots = spawn%init_free_slots(0:nProcessors-1)
 
     end subroutine init_rdm_spawn_t
+
+    subroutine init_en_pert_t(en_pert, sign_length, max_ndets, nhashes)
+
+        ! Initialise an en_pert_t object.
+
+        ! Out: en_pert - en_pert_t object to be initialised.
+        ! In:  sign_length - the number of signs which can be stored for each element.
+        ! In:  max_ndets - the length of the en_pert%dets array.
+        ! In:  nhashes - the number of unique hashes for indexing the hash table.
+
+        use hash, only: init_hash_table
+
+        type(en_pert_t), intent(out) :: en_pert
+        integer, intent(in) :: sign_length, max_ndets, nhashes
+
+        integer :: ierr
+
+        en_pert%sign_length = sign_length
+        en_pert%max_ndets = max_ndets
+        en_pert%nhashes = nhashes
+        en_pert%ndets = 0
+
+        allocate(en_pert%dets(0:sign_length+NIfDBO, max_ndets))
+        en_pert%dets = 0_n_int
+
+        allocate(en_pert%hash_table(nhashes), stat=ierr)
+        call init_hash_table(en_pert%hash_table)
+
+    end subroutine init_en_pert_t
 
     subroutine init_one_rdm_t(one_rdm, norbs)
 
@@ -271,6 +300,26 @@ contains
 
     end subroutine dealloc_rdm_spawn_t
 
+    subroutine dealloc_en_pert_t(en_pert)
+
+        ! Deallocate an en_pert_t object.
+
+        ! In/Out: en_pert - en_pert_t object to be deallocated.
+
+        use hash, only: clear_hash_table
+
+        type(en_pert_t), intent(inout) :: en_pert
+
+        integer :: ierr
+
+        if (allocated(en_pert%dets)) deallocate(en_pert%dets, stat=ierr)
+
+        call clear_hash_table(en_pert%hash_table)
+        deallocate(en_pert%hash_table, stat=ierr)
+        nullify(en_pert%hash_table)
+
+    end subroutine dealloc_en_pert_t
+
     subroutine dealloc_one_rdm_t(one_rdm)
 
         ! Deallocate a one_rdm_t object.
@@ -424,6 +473,30 @@ contains
         rdm_entry(1:size(int_sign)) = int_sign
 
     end subroutine encode_sign_rdm
+
+    pure subroutine extract_sign_EN(sign_length, ilut, real_sign)
+
+        integer, intent(in) :: sign_length
+        integer(n_int), intent(in) :: ilut(0:)
+        real(dp), intent(out) :: real_sign(sign_length)
+        integer(n_int) :: sign(sign_length)
+
+        sign = ilut(NIfDBO+1:NIfDBO+sign_length)
+        real_sign = transfer(sign, real_sign)
+
+    end subroutine extract_sign_EN
+
+    pure subroutine encode_sign_EN(sign_length, ilut, real_sign)
+
+        integer, intent(in) :: sign_length
+        integer(n_int), intent(inout) :: ilut(0:)
+        real(dp), intent(in) :: real_sign(sign_length)
+        integer(n_int) :: sign(lenof_sign)
+
+        sign = transfer(real_sign, sign)
+        ilut(NIfDBO+1:NIfDBO+sign_length) = sign
+
+    end subroutine encode_sign_EN
 
     subroutine add_to_rdm_spawn_t(spawn, i, j, k, l, contrib_sign, spinfree, nearly_full)
 
@@ -887,5 +960,49 @@ contains
         end if
 
     end subroutine annihilate_rdm_list
+
+    subroutine add_to_en_pert_t(en_pert, nI, ilut, contrib_sign)
+
+        ! In/Out: add_to_en_pert - the en_pert_t object to which contributions will be added.
+        ! In: contrib_sign - the sign (amplitude) of the contribution to be added.
+
+        use hash, only: hash_table_lookup, add_hash_table_entry
+        use SystemData, only: nel
+
+        type(en_pert_t), intent(inout) :: en_pert
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        real(dp), intent(in) :: contrib_sign(en_pert%sign_length)
+
+        integer :: ind, hash_val, slots_left
+        real(dp) :: real_sign_old(en_pert%sign_length), real_sign_new(en_pert%sign_length)
+        logical :: tSuccess
+        character(*), parameter :: t_r = 'add_to_en_pert_t'
+
+        ! Search to see if this determinant is already in the dets array.
+        ! If it, tSuccess will be true and ind will hold the position of the
+        ! entry in en_pert%dets.
+        call hash_table_lookup(nI, ilut, NIfDBO, en_pert%hash_table, en_pert%dets, ind, hash_val, tSuccess)
+
+        if (tSuccess) then
+            ! Extract the existing sign.
+            call extract_sign_EN(en_pert%sign_length, en_pert%dets(:,ind), real_sign_old)
+            ! Update the total sign.
+            real_sign_new = real_sign_old + contrib_sign
+            ! Encode the new sign.
+            call encode_sign_EN(en_pert%sign_length, en_pert%dets(:,ind), real_sign_new)
+        else
+            en_pert%ndets = en_pert%ndets + 1
+
+            ! Check that there is enough memory for the new determinant.
+            slots_left = en_pert%max_ndets - en_pert%ndets
+
+            en_pert%dets(:, en_pert%ndets) = ilut(0:NIfDBO)
+            call encode_sign_EN(en_pert%sign_length, en_pert%dets(:, en_pert%ndets), contrib_sign)
+
+            call add_hash_table_entry(en_pert%hash_table, en_pert%ndets, hash_val)
+        end if
+
+    end subroutine add_to_en_pert_t
 
 end module rdm_data_utils
