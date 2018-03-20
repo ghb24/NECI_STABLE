@@ -62,6 +62,8 @@ module real_space_hubbard
                                     get_spin_opp_neighbors, create_neel_state, &
                                     make_ilutJ, get_ispn
 
+    use ParallelHelper, only: iProcIndex
+
     implicit none 
 
     real(dp) :: lat_tau_factor = 0.5_dp
@@ -361,6 +363,7 @@ contains
         integer :: n_sites, i, j, k, l
 #ifdef __DEBUG 
         character(*), parameter :: this_routine = "init_umat_rs_hub_transcorr"
+        integer :: r1(3), ri(3)
 #endif
         real(dp) :: elem 
         integer :: iunit
@@ -403,6 +406,18 @@ contains
         close(iunit)
         root_print "Done"
 
+#ifdef __DEBUG 
+        ! also check if the distance is figured out correctly.. 
+        r1 = lat%get_r_vec(1)
+        print *, "matrix elements from r1: ", r1, "umat(1,1,1,i), umat(1,1,i,i), umat(1,i,1,i), umat(1,i,i,i)"
+        do i = 2, lat%get_nsites()
+            ri = lat%get_r_vec(i)
+            print *, ri, "|", umat_rs_hub_trancorr_hop(1,1,1,i), &
+                              umat_rs_hub_trancorr_hop(1,1,i,i), &
+                              umat_rs_hub_trancorr_hop(1,i,1,i), &
+                              umat_rs_hub_trancorr_hop(1,i,i,i)
+        end do
+#endif
     end subroutine init_umat_rs_hub_transcorr
 
     subroutine init_get_helement_hubbard
