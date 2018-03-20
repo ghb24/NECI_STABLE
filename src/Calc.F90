@@ -1760,6 +1760,10 @@ contains
 !can only spawn back on to the determinant from which they came.  This is the star approximation from the CAS space. 
                 tTruncInitiator=.true.
 
+! Epstein-Nesbet style perturbation using the stochastic spawnings.
+            case("EN-PERT")
+                tENPert = .true.
+
             case("KEEPDOUBSPAWNS")
 !This means that two sets of walkers spawned on the same determinant with the same sign will live, 
 !whether they've come from inside or outside the CAS space.  Before, if both of these

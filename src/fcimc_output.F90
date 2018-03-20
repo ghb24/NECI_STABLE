@@ -708,6 +708,14 @@ contains
                     end do
                 end if
             end do
+
+#ifndef __CMPLX
+            do p = 1, size(energy_pert_all)
+                write(tmpc, '(i5)') p
+                call stats_out(state, .false.,  energy_pert_all(p), 'ET Pert ' // trim(adjustl(tmpc)))
+            end do
+#endif
+
 #endif
 
             ! And we are done

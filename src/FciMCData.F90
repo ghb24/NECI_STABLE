@@ -148,6 +148,10 @@ MODULE FciMCData
       HElement_t(dp), allocatable :: proje_iter(:)
       HElement_t(dp) :: proje_iter_tot
 
+      ! Perturbative correction to the initiator energy
+      HElement_t(dp), allocatable :: energy_pert(:)
+      HElement_t(dp), allocatable :: energy_pert_all(:)
+
       ! The averaged 'absolute' projected energy - calculated over the last update cycle
       ! The magnitude of each contribution is taken before it is summed in
       HElement_t(dp), allocatable :: AbsProjE(:)
@@ -201,7 +205,7 @@ MODULE FciMCData
 
       ! The projected energy over the current update cycle.
       HElement_t(dp), allocatable :: ProjECyc(:)
-      
+
       real(dp) :: bloom_sizes(0:2), bloom_max(0:2)
       integer :: bloom_count(0:2), all_bloom_count(0:2)
 
@@ -570,6 +574,7 @@ MODULE FciMCData
 #ifdef __CMPLX
       real(dp), allocatable :: replica_overlaps_imag(:,:)
 #endif
+      real(dp), allocatable :: all_norms(:), all_overlaps(:,:)
 
 
       ! counting the total walker population all determinants of each ms value

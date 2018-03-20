@@ -81,9 +81,13 @@ contains
                  iRefProc(inum_runs), proje_ref_energy_offsets(inum_runs), &
                  iHighestPop(inum_runs), &
                  replica_overlaps_real(inum_runs, inum_runs), &
+                 all_norms(inum_runs), &
+                 all_overlaps(inum_runs, inum_runs), &
 #ifdef __CMPLX
                  replica_overlaps_imag(inum_runs, inum_runs), &
 #endif
+                 energy_pert(inum_runs/2), &
+                 energy_pert_all(inum_runs/2), &
                  tSpinCoupProjE(inum_runs), &
 
                  NoatDoubs(inum_runs), AllNoatDoubs(inum_runs), &
@@ -158,9 +162,13 @@ contains
                    iRefProc, proje_ref_energy_offsets, &
                    iHighestPop, &
                    replica_overlaps_real, &
+                   all_norms, &
+                   all_overlaps, &
 #ifdef __CMPLX
                    replica_overlaps_imag, &
 #endif
+                   energy_pert, &
+                   energy_pert_all, &
                    tSpinCoupProjE, &
 
                    TotParts, AllTotParts, &

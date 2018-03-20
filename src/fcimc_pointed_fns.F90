@@ -9,7 +9,7 @@ module fcimc_pointed_fns
                         RealCoeffExcitThresh, AVMcExcits, tau, DiagSft, &
                         tRealCoeffByExcitLevel, InitiatorWalkNo, &
                         t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, & 
-                        t_matele_cutoff, matele_cutoff 
+                        t_matele_cutoff, matele_cutoff,tENPert
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement
     use fcimc_helper, only: CheckAllowedTruncSpawn
@@ -50,13 +50,19 @@ module fcimc_pointed_fns
         real(dp) , intent(out) :: RDMBiasFacCurr
         HElement_t(dp), intent(in) :: HElGen
 
-        if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
+        if (.not. tENPert) then
+            if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
+                child = attempt_create_normal (DetCurr, &
+                                   iLutCurr, RealwSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
+                                   tParity, walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr)
+            else
+                child = 0
+            endif
+        else
             child = attempt_create_normal (DetCurr, &
                                iLutCurr, RealwSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
                                tParity, walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr)
-        else
-            child = 0
-        endif
+        end if
     end function
 
 !Decide whether to spawn a particle at nJ from DetCurr. (bit strings iLutnJ and iLutCurr respectively).  
@@ -91,13 +97,19 @@ module fcimc_pointed_fns
         HElement_t(dp) , intent(in) :: HElGen
 
         call EncodeBitDet (nJ, iLutnJ)
-        if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
+        if (.not. tENPert) then
+            if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
+                child = attempt_create_normal (DetCurr, &
+                                   iLutCurr, RealwSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
+                                   tParity, walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr)
+            else
+                child = 0
+            endif
+        else
             child = attempt_create_normal (DetCurr, &
                                iLutCurr, RealwSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
                                tParity, walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr)
-        else
-            child = 0
-        endif
+        end if
     end function
 
     function attempt_create_normal (DetCurr, iLutCurr, &

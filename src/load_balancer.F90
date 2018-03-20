@@ -18,7 +18,7 @@ module load_balance
                          tFillingStochRDMOnFly, full_determ_vecs, ntrial_excits, &
                          con_space_size, NConEntry, con_send_buf
     use searching, only: hash_search_trial, bin_search_trial
-    use Determinants, only: get_helement, write_det
+    use determinants, only: get_helement, write_det
     use LoggingData, only: tOutputLoadDistribution
     use hphf_integrals, only: hphf_diag_helement
     use cont_time_rates, only: spawn_rate_full

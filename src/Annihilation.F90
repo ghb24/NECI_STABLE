@@ -5,7 +5,7 @@ module AnnihilationMod
     use SystemData, only: NEl, tHPHF
     use CalcData, only:   tTruncInitiator, OccupiedThresh, tSemiStochastic, &
                           tTrialWavefunction, tKP_FCIQMC, tContTimeFCIMC, &
-                          tContTimeFull, InitiatorWalkNo
+                          tContTimeFull, InitiatorWalkNo, tau, tENPert
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -27,6 +27,11 @@ module AnnihilationMod
                             CalcHashTableStats
     use searching
     use hash
+
+    use Determinants, only: get_helement
+    use hphf_integrals, only: hphf_diag_helement
+    use rdm_data, only: rdm_estimates
+    use fcimc_helper, only: CheckAllowedTruncSpawn
 
     implicit none
 
@@ -562,7 +567,9 @@ module AnnihilationMod
         real(dp) :: pRemove, r
         integer :: ExcitLevel, DetHash, nJ(nel)
         logical :: tSuccess, tSuc, tDetermState
-        integer :: run
+        logical :: abort(lenof_sign)
+        HElement_t(dp) :: HDiag
+        integer :: run, istate
 
         ! Only node roots to do this.
         if (.not. bNodeRoot) return
@@ -714,9 +721,31 @@ module AnnihilationMod
                     call extract_sign (SpawnedParts(:,i), SignTemp)
 
                     do j = 1, lenof_sign
+                        abort(j) = test_abort_spawn(SpawnedParts(:, i), j)
+                    end do
+
+                    if (tENPert) then
+                        do istate = 1, size(energy_pert)
+                            if (abort(2*istate-1) .and. abort(2*istate) .and. &
+                                        abs(SignTemp(2*istate-1)) > 1.e-12_dp .and. &
+                                        abs(SignTemp(2*istate)) > 1.e-12_dp) then
+
+                                if (tHPHF) then
+                                    HDiag = hphf_diag_helement (nJ, SpawnedParts(:,i))
+                                else
+                                    HDiag = get_helement (nJ, nJ, 0)
+                                end if
+
+                                energy_pert(istate) = energy_pert(istate) + SignTemp(2*istate-1)*SignTemp(2*istate)/&
+                                  ((rdm_estimates%energy_num_inst(istate)/rdm_estimates%norm_inst(istate) - HDiag) * all_overlaps(2*istate-1,2*istate) * (tau**2))
+                            end if
+                        end do
+                    end if
+
+                    do j = 1, lenof_sign
                         run = part_type_to_run(j)
 
-                        if (test_abort_spawn(SpawnedParts(:, i), j)) then
+                        if (abort(j)) then
 
                             ! If this option is on, include the walker to be
                             ! cancelled in the trial energy estimate.
@@ -774,6 +803,43 @@ module AnnihilationMod
                     ! Determinant in newly spawned list is not found in
                     ! CurrentDets. If coeff <1, apply removal criterion.
                     call extract_sign (SpawnedParts(:,i), SignTemp)
+
+                    !if (all(abs(SignTemp) > 1.e-12_dp)) then
+                    !    if (tHPHF) then
+                    !        HDiag = hphf_diag_helement (nJ, SpawnedParts(:,i))
+                    !    else
+                    !        HDiag = get_helement (nJ, nJ, 0)
+                    !    end if
+
+                    !    !if (tFillingStochRDMonFly) then
+                    !    !    write(6,*) "RDM Norm:", rdm_estimates%norm_inst(1), "  Overlap:", all_overlaps(1,2)
+                    !    !end if
+
+                    !    energy_pert = energy_pert + SignTemp(1)*SignTemp(2)/((rdm_estimates%energy_num_inst(1) - HDiag * rdm_estimates%norm_inst(1)) * (tau**2))
+                    !end if
+
+                    !if (.not. CheckAllowedTruncSpawn (0, nJ, SpawnedParts(:,i), 0)) then
+                    !    if (tHPHF) then
+                    !        HDiag = hphf_diag_helement (nJ, SpawnedParts(:,i))
+                    !    else
+                    !        HDiag = get_helement (nJ, nJ, 0)
+                    !    end if
+
+                    !    energy_pert = energy_pert + SignTemp(1)*SignTemp(2)/&
+                    !      ((rdm_estimates%energy_num_inst(1)/rdm_estimates%norm_inst(1) - HDiag) * all_overlaps(1,2) * (tau**2))
+                    !    do j = 1, lenof_sign
+                    !        ! Walkers came from outside initiator space.
+                    !        NoAborted(j) = NoAborted(j) + abs(SignTemp(j))
+                    !        iter_data%naborted(j) = iter_data%naborted(j) + abs(SignTemp(j))
+                    !        ! We've already counted the walkers where SpawnedSign
+                    !        ! become zero in the compress, and in the merge, all
+                    !        ! that's left is those which get aborted which are
+                    !        ! counted here only if the sign was not already zero
+                    !        ! (when it already would have been counted).
+                    !        SignTemp(j) = 0.0_dp
+                    !        call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
+                    !    end do
+                    !end if
                     
                     do j = 1, lenof_sign
                         run = part_type_to_run(j)
@@ -844,8 +910,6 @@ module AnnihilationMod
         integer(n_int), intent(in) :: ilut_spwn(0:nIfBCast)
         integer, intent(in) :: part_type
         logical :: abort
-
-        real(dp) :: pkeep, parent_coeff
 
         ! If a particle comes from a site marked as an initiator, then it can
         ! live
