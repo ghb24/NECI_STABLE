@@ -729,7 +729,7 @@ module AnnihilationMod
                         abort(j) = test_abort_spawn(SpawnedParts(:, i), j)
                     end do
 
-                    if (tENPert) then
+                    if (tENPert .and. tFillingStochRDMonFly) then
                         pert_contrib = .false.
 
                         do istate = 1, en_pert_main%sign_length
