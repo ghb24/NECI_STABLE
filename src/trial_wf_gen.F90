@@ -177,8 +177,10 @@ contains
         con_senddispls(0) = 0
         con_recvdispls(0) = 0
         do i = 1, nProcessors-1
-            con_senddispls(i) = sum(con_sendcounts(:i-1))
-            con_recvdispls(i) = sum(con_recvcounts(:i-1))
+!             con_senddispls(i) = sum(con_sendcounts(:i-1))
+            con_senddispls(i) = con_senddispls(i-1) + con_sendcounts(i-1)
+!             con_recvdispls(i) = sum(con_recvcounts(:i-1))
+            con_recvdispls(i) = con_recvdispls(i-1) + con_recvcounts(i-1)
         end do
 
         write(6,'("Attempting to allocate temp_space. Size =",1X,F12.3,1X,"Mb")') &

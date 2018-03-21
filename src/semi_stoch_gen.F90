@@ -121,7 +121,8 @@ contains
         ! to the first index position in the vector (i.e. the array disps in MPI routines).
         determ_displs(0) = 0
         do i = 1, nProcessors-1
-            determ_displs(i) = sum(determ_sizes(:i-1))
+!             determ_displs(i) = sum(determ_sizes(:i-1))
+            determ_displs(i) = determ_displs(i-1) + determ_sizes(i-1)
         end do
 
         call sort(spawnedparts(:,1:determ_sizes(iprocindex)), ilut_lt, ilut_gt)
@@ -934,7 +935,8 @@ contains
 
         disps(0) = 0_MPIArg
         do i = 0, nProcessors-1
-            disps(i) = sum(lengths(:i-1))
+!             disps(i) = sum(lengths(:i-1))
+            disps(i) = disps(i-1) + lengths(i-1)
         end do
 
         ! Return the most populated states in source on *this* processor.
