@@ -992,9 +992,9 @@ contains
                                                 (Tau * StepsSft)
                             ! Same for the info shifts for complex walkers
 #ifdef __CMPLX
-                    DiagSftRe(run) = DiagSftRe(run) - (log(AllGrowRateRe(run)-TargetGrowRate(run)) * SftDamp) / &
+                            DiagSftRe(run) = DiagSftRe(run) - (log(AllGrowRateRe(run)-TargetGrowRate(run)) * SftDamp) / &
                                                 (Tau * StepsSft)
-                    DiagSftIm(run) = DiagSftIm(run) - (log(AllGrowRateIm(run)-TargetGrowRate(run)) * SftDamp) / &
+                            DiagSftIm(run) = DiagSftIm(run) - (log(AllGrowRateIm(run)-TargetGrowRate(run)) * SftDamp) / &
                                                 (Tau * StepsSft)
 #endif
                         endif
@@ -1037,21 +1037,21 @@ contains
                 ! only update the shift this way if possible
                 if(abs_sign(AllNoatHF(lb:ub)) > EPS) then
 #ifdef __CMPLX
-                ! Calculate the instantaneous 'shift' from the HF population
-                HFShift(run) = -1.0_dp / abs_sign(AllNoatHF(lb:ub)) * &
-                                    (abs_sign(AllNoatHF(lb:ub)) - abs_sign(OldAllNoatHF(lb:ub)) / &
-                                  (Tau * real(StepsSft, dp)))
-                InstShift(run) = -1.0_dp / sum(AllTotParts(lb:ub)) * &
-                            ((sum(AllTotParts(lb:ub)) - sum(AllTotPartsOld(lb:ub))) / &
-                             (Tau * real(StepsSft, dp)))
+                    ! Calculate the instantaneous 'shift' from the HF population
+                    HFShift(run) = -1.0_dp / abs_sign(AllNoatHF(lb:ub)) * &
+                                        (abs_sign(AllNoatHF(lb:ub)) - abs_sign(OldAllNoatHF(lb:ub)) / &
+                                      (Tau * real(StepsSft, dp)))
+                    InstShift(run) = -1.0_dp / sum(AllTotParts(lb:ub)) * &
+                                ((sum(AllTotParts(lb:ub)) - sum(AllTotPartsOld(lb:ub))) / &
+                                 (Tau * real(StepsSft, dp)))
 #else
-                ! Calculate the instantaneous 'shift' from the HF population
-                HFShift(run) = -1.0_dp / abs(AllNoatHF(run)) * &
-                                    (abs(AllNoatHF(run)) - abs(OldAllNoatHF(run)) / &
-                                  (Tau * real(StepsSft, dp)))
-                InstShift(run) = -1.0_dp / AllTotParts(run) * &
-                            ((AllTotParts(run) - AllTotPartsOld(run)) / &
-                             (Tau * real(StepsSft, dp)))
+                    ! Calculate the instantaneous 'shift' from the HF population
+                    HFShift(run) = -1.0_dp / abs(AllNoatHF(run)) * &
+                                        (abs(AllNoatHF(run)) - abs(OldAllNoatHF(run)) / &
+                                      (Tau * real(StepsSft, dp)))
+                    InstShift(run) = -1.0_dp / AllTotParts(run) * &
+                                ((AllTotParts(run) - AllTotPartsOld(run)) / &
+                                 (Tau * real(StepsSft, dp)))
 #endif
              endif
 
@@ -1062,32 +1062,44 @@ contains
 
                  ! Calculate the projected energy.
 
-                if(tFixedN0)then
-                    !When reaching target N0, set flag to keep the population of reference det fixed.
-                    if(.not. tSkipRef(run) .and. AllHFCyc(run)>=N0_Target) tSkipRef(run) = .True.
+                 if(tFixedN0)then
+                     !When reaching target N0, set flag to keep the population of reference det fixed.
+                     if(.not. tSkipRef(run) .and. AllHFCyc(run)>=N0_Target) tSkipRef(run) = .True.
+ 
+                     if(tSkipRef(run))then
+                         !Use the projected energy as the shift to fix the
+                         !population of the reference det and thus reduce the
+                         !fluctuations of the projected energy.
+                         DiagSft(run) = (AllENumCyc(run)) / (AllHFCyc(run))+proje_ref_energy_offsets(run)
+                     else
+                         !Keep shift equal to input till target reference population is reached.
+                         DiagSft(run) = InputDiagSft(run)
+                     end if
+ 
+                 end if
 
-                    if(tSkipRef(run))then
-                        !Use the projected energy as the shift to fix the
-                        !population of the reference det and thus reduce the
-                        !fluctuations of the projected energy.
-                        DiagSft(run) = (AllENumCyc(run)) / (AllHFCyc(run))+proje_ref_energy_offsets(run)
-                    else
-                        !Keep shift equal to input till target reference population is reached.
-                        DiagSft(run) = InputDiagSft(run)
-                    end if
-
-                end if
-
-                 if ((AllSumNoatHF(run) /= 0.0_dp)) then
+                ! [W.D.21.3.2018:]
+                ! somehow this got changed through the merging..
+!                  if ((AllSumNoatHF(run) /= 0.0_dp)) then
+#ifdef __CMPLX 
+                if (any(abs(AllSumNoatHF(lb:ub)) > EPS)) then 
+#else 
+                if (abs(AllSumNoAtHF(run)) > EPS) then 
+#endif
                     ProjectionE(run) = (AllSumENum(run)) / (all_sum_proje_denominator(run)) &
                          + proje_ref_energy_offsets(run)
-                 endif
-                 if (abs(AllHFCyc(run)) > EPS) then
-                    proje_iter(run) = (AllENumCyc(run)) / (all_cyc_proje_denominator(run)) &
-                         + proje_ref_energy_offsets(run)
-                    AbsProjE(run) = (AllENumCycAbs(run)) / (all_cyc_proje_denominator(run)) &
-                         + proje_ref_energy_offsets(run)
-                 endif
+                endif
+                ! and this is a new statement..
+#ifdef __CMPLX 
+                if (any(abs(AllHFCyc(lb:ub)) > EPS)) then
+#else
+                if (abs(AllHFCyc(run)) > EPS) then
+#endif
+                   proje_iter(run) = (AllENumCyc(run)) / (all_cyc_proje_denominator(run)) &
+                        + proje_ref_energy_offsets(run)
+                   AbsProjE(run) = (AllENumCycAbs(run)) / (all_cyc_proje_denominator(run)) &
+                        + proje_ref_energy_offsets(run)
+                endif
 
                 ! If we are re-zeroing the shift
                 if (tReZeroShift(run)) then

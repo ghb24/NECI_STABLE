@@ -89,20 +89,20 @@ contains
         call init_k_space_unit_tests()
 
         ! i have to define the lattice here.. 
-        lat => lattice('ole', 3, 5, 1,.true.,.true.,.true.,'k-space')
+        lat => lattice('chain', 4, 1, 1,.true.,.true.,.true.,'k-space')
 
-        x = [(-lat%dispersion_rel_orb(i), i = 1, 24)]
-        ind = [(i, i = 1, 24)]
-
-        call sort(x,ind) 
-
-        k1 = [2*pi/8., 10.0*pi/(3.0*8.0)]
-        k2 = [-2*pi/8.0,2*pi/8.0]
-        print *, "k | ole k |  e(k): "
-        do i = 1, 24 
-            k_vec = lat%get_k_vec(ind(i))
-            print *,lat%get_k_vec(ind(i)),"|", k_vec(1)*k1 + k_vec(2)*k2, "|", x(i)
-        end do
+!         x = [(-lat%dispersion_rel_orb(i), i = 1, 24)]
+!         ind = [(i, i = 1, 24)]
+! 
+!         call sort(x,ind) 
+! 
+!         k1 = [2*pi/8., 10.0*pi/(3.0*8.0)]
+!         k2 = [-2*pi/8.0,2*pi/8.0]
+!         print *, "k | ole k |  e(k): "
+!         do i = 1, 24 
+!             k_vec = lat%get_k_vec(ind(i))
+!             print *,lat%get_k_vec(ind(i)),"|", k_vec(1)*k1 + k_vec(2)*k2, "|", x(i)
+!         end do
 
 !         J = -1.0
 
@@ -114,7 +114,7 @@ contains
         allocate(nI(nel))
         nI = [(i, i = 1,nel)]
 !         ni = [7,8,15,16,17,18]
-        nI = [21,23,24,26]
+!         nI = [21,23,24,26]
 !         nI = [15,16]
 
 !         nI = [1,2,3,4,5,6]
@@ -262,6 +262,7 @@ contains
 
         ! also initialize the lattice get_helement pointers to use 
         ! detham to do the Lanczos procedure for bigger systems.. 
+        call init_dispersion_rel_cache()
         get_helement_lattice_ex_mat => get_helement_k_space_hub_ex_mat
         get_helement_lattice_general => get_helement_k_space_hub_general
         call init_tmat_kspace(lat)

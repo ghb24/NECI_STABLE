@@ -395,6 +395,10 @@ contains
         ! point
         thub = .false. 
 
+        tExch = .true. 
+        tNoBrillouin = .false. 
+        tUseBrillouin = .true.
+
         call check_k_space_hubbard_input()
 
 !         get_umat_el => get_hub_umat_el
