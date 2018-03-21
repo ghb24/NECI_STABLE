@@ -16,8 +16,6 @@ module Integrals_neci
 
     use IntegralsData
 
-    use shared_alloc, only: shared_allocate, shared_deallocate
-
     use shared_memory_mpi
 
     use global_utilities
@@ -556,7 +554,8 @@ contains
                   if ((t_new_real_space_hubbard .and. .not. t_trans_corr_hop) & 
                       .or. t_tJ_model .or. t_heisenberg_model) then 
                      WRITE(6,*) "Not precomputing HUBBARD 2-e integrals"
-                     call shared_allocate ("umat", umat, (/1_int64/))
+                     call shared_allocate_mpi (umat_win, umat, (/UMatInt/))
+!                      call shared_allocate ("umat", umat, (/1_int64/))
                      !Allocate(UMat(1), stat=ierr)
                      LogAlloc(ierr, 'UMat', 1,HElement_t_SizeB, tagUMat)
                      UMAT(1)=UHUB

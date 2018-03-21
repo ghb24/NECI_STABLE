@@ -1250,10 +1250,6 @@ system: do
             tComplexOrbs_RealInts = .true.
             
          case("COMPLEXWALKERS-REALINTS")
-            ! We have real orbitals and integrals, but the walker weights are complex
-            tComplexWalkers_RealInts = .true.
-
-         case("COMPLEXWALKERS-REALINTS")
             ! In case complex walkers shall be used but not complex basis functions,
             ! such that the integrals are real and have full symmetry
             tComplexWalkers_RealInts = .true. 

@@ -46,7 +46,7 @@ program test_real_space_hubbard
     call dsfmt_init(1)
     call init_fruit()
     ! run the test-driver 
-!     call exact_test()
+    call exact_test()
     call real_space_hubbard_test_driver()
     call fruit_summary()
     call fruit_finalize() 
@@ -94,8 +94,8 @@ contains
         real(dp), allocatable :: j_vec(:)
 
 
-        lat => lattice('tilted', 2, 2, 1,.true.,.true.,.true.)
-        uhub = 10
+        lat => lattice('chain', 6, 1, 1,.true.,.true.,.true.)
+        uhub = 16
         bhub = -1
 
         n_orbs = lat%get_nsites()
@@ -103,7 +103,7 @@ contains
 
         call init_realspace_tests
 
-        nel = 4
+        nel = 6
         allocate(nI(nel))
         nI = [(i, i = 1, nel)]
 
@@ -138,7 +138,7 @@ contains
         print *, "e_value lanczos:", e_values(1)
 
         j = 0.1_dp
-        j_vec = linspace(-0.2,0.2,2)
+        j_vec = linspace(-0.1,0.1,2)
         call exact_transcorrelation(lat, nI, j_vec, real(uhub,dp), hilbert_space)
 
 !         call stop_all("here","now")
