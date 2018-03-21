@@ -979,6 +979,7 @@ contains
         logical :: tSuccess
         character(*), parameter :: t_r = 'add_to_en_pert_t'
 
+
         ! Search to see if this determinant is already in the dets array.
         ! If it, tSuccess will be true and ind will hold the position of the
         ! entry in en_pert%dets.

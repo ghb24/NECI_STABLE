@@ -5,7 +5,8 @@ module AnnihilationMod
     use SystemData, only: NEl, tHPHF
     use CalcData, only:   tTruncInitiator, OccupiedThresh, tSemiStochastic, &
                           tTrialWavefunction, tKP_FCIQMC, tContTimeFCIMC, &
-                          tContTimeFull, InitiatorWalkNo, tau, tENPert
+                          tContTimeFull, InitiatorWalkNo, tau, tENPert, &
+                          tENPertStarted
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -729,7 +730,7 @@ module AnnihilationMod
                         abort(j) = test_abort_spawn(SpawnedParts(:, i), j)
                     end do
 
-                    if (tENPert .and. tFillingStochRDMonFly) then
+                    if (tENPertStarted) then
                         pert_contrib = .false.
 
                         do istate = 1, en_pert_main%sign_length

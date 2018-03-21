@@ -13,9 +13,9 @@ contains
     subroutine init_rdms(nrdms_standard, nrdms_transition)
 
         use DeterminantData, only: write_det
-        use CalcData, only: MemoryFacPart, tENPert
+        use CalcData, only: MemoryFacPart, tENPert, tENPertStarted
         use FciMCData, only: MaxSpawned, Spawned_Parents, Spawned_Parents_Index
-        use FciMCData, only: Spawned_ParentsTag, Spawned_Parents_IndexTag
+        use FciMCData, only: Spawned_ParentsTag, Spawned_Parents_IndexTag, nhashes_spawn
         use FciMCData, only: HFDet_True, tSinglePartPhase, AvNoatHF, IterRDM_HF
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
         use LoggingData, only: tDo_Not_Calc_2RDM_est, RDMExcitLevel, tExplicitAllRDM
@@ -49,6 +49,7 @@ contains
         integer :: standard_spawn_size, min_spawn_size
         integer :: max_nelems_main, max_nelems_spawn, max_nelems_recv, max_nelems_recv_2
         integer :: memory_alloc, main_mem, spawn_mem, recv_mem
+        integer :: ndets_en_pert, nhashes_en_pert
         integer :: irdm, iproc, ierr
         character(len=*), parameter :: t_r = 'init_rdms'
 
@@ -183,7 +184,10 @@ contains
 
         if (tENPert) then
             ! Initialise Epstein-Nesbet perturbation object.
-            call init_en_pert_t(en_pert_main, nrdms_standard, max_nelems_main, nhashes_rdm_main)
+            ndets_en_pert = MaxSpawned
+            nhashes_en_pert = 0.8*MaxSpawned
+            call init_en_pert_t(en_pert_main, nrdms_standard, ndets_en_pert, nhashes_en_pert)
+            tENPertStarted = .true.
         end if
 
         ! We then need to allocate the arrays for excitations etc when doing

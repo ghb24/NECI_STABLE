@@ -371,6 +371,9 @@ contains
           ! And disable the initiators subspace
           tInitiatorsSubspace = .false.
 
+          tENPert = .false.
+          tENPertStarted = .false.
+
         end subroutine SetCalcDefaults
 
         SUBROUTINE CalcReadInput()
