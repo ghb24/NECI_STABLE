@@ -554,7 +554,7 @@ contains
                   if ((t_new_real_space_hubbard .and. .not. t_trans_corr_hop) & 
                       .or. t_tJ_model .or. t_heisenberg_model) then 
                      WRITE(6,*) "Not precomputing HUBBARD 2-e integrals"
-                     UMatInt = 1
+                     UMatInt = 1_int64
                      call shared_allocate_mpi (umat_win, umat, (/UMatInt/))
 !                      call shared_allocate ("umat", umat, (/1_int64/))
                      !Allocate(UMat(1), stat=ierr)

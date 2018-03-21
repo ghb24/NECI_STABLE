@@ -1,7 +1,7 @@
       SUBROUTINE DETHAM(NDET,NEL,NMRKS, HAMIL,LAB,NROW,TCOUNT, 
      &  ICMAX,GC,TMC)
       use global_utilities
-      use constants, only: dp, n_int
+      use constants, only: dp, n_int, eps
       Use Determinants, only: get_helement
       use SystemData , only : BasisFN, t_lattice_model
       use CalcData , only : TStar
@@ -75,13 +75,13 @@ C..   Now we need to match up any two determinants
                 totsum = hphf_off_diag_helement(NMRKS(:,KI), 
      &                            NMRKS(:,KJ), ilutI, ilutJ)
               end if
-          else if (t_lattice_model) then 
+            else if (t_lattice_model) then 
               if (KI == KJ) then
                 totsum=get_helement_lattice(NMRKS(:,KI),NMRKS(:,KJ),ic)
               else
                 totsum=get_helement_lattice(NMRKS(:,KI),NMRKS(:,KJ))
               end if
-          else 
+            else 
               if (KI == KJ) then
                 totsum = get_helement(NMRKS(:,KI), NMRKS(:,KJ), 0)
               else
@@ -92,7 +92,7 @@ C..   Now we need to match up any two determinants
 C            CALL SLTCND(NEL,NBASISMAX,NHG,
 C     &     FCK,NMAX,ALAT,UMAT,TOTSUM)
             IF(ABS(TOTSUM).LT.1.0e-10_dp) TOTSUM=0.0_dp
-            IF(TOTSUM.NE.0.0_dp.OR.KI.EQ.KJ) THEN
+            IF(abs(TOTSUM)>EPS .OR. (KI.EQ.KJ)) THEN
                GC=GC+1
 C..   Stores the number of non-zero elements in each row
                NROW(KI)=NROW(KI)+1

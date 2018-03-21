@@ -696,7 +696,7 @@ module DetBitOps
         integer :: i, det, pos, nopen
         logical :: open_shell
 
-        iLut(:)=0
+        iLut(:)=0_n_int
         if (tCSF) then
             if(iscsf (nI)) then
                 nopen = 0
