@@ -136,7 +136,7 @@ module fcimc_initialisation
     use soft_exit, only: tSoftExitFound
     use get_excit, only: make_double
     use sltcnd_mod, only: sltcnd_0
-    use rdm_data, only: nrdms_transition_input
+    use rdm_data, only: nrdms_transition_input, hf_est_rdm, hf_pop_rdm
     use Parallel_neci
     use FciMCData
     use util_mod
@@ -807,6 +807,8 @@ contains
         HFCyc=0.0_dp
         ENumCyc=0.0_dp
         ENUmCycAbs = 0.0_dp
+        hf_est_rdm = 0.0_dp
+        hf_pop_rdm = 0.0_dp
         VaryShiftCycles=0
         AvDiagSft(:)=0.0_dp
         SumDiagSft(:)=0.0_dp
