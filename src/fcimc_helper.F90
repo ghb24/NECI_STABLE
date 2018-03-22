@@ -363,8 +363,10 @@ contains
             if (test_flag(ilut, flag_trial)) then
                 if (ntrial_excits == 1) then
                     trial_denom = trial_denom + current_trial_amps(1,ind)*RealwSign
+                    trial_denom_inst = trial_denom_inst + current_trial_amps(1,ind)*RealwSign
                 else if (ntrial_excits == lenof_sign) then
                     trial_denom = trial_denom + current_trial_amps(:,ind)*RealwSign
+                    trial_denom_inst = trial_denom_inst + current_trial_amps(:,ind)*RealwSign
                 end if
 
                 if (qmc_trial_wf) then
@@ -380,10 +382,12 @@ contains
             else if (test_flag(ilut, flag_connected)) then
                 ! Note, only attempt to add in a contribution from the
                 ! connected space if we're not also in the trial space.
-                 if (ntrial_excits == 1) then
+                if (ntrial_excits == 1) then
                     trial_numerator = trial_numerator + current_trial_amps(1,ind)*RealwSign
+                    trial_num_inst = trial_num_inst + current_trial_amps(1,ind)*RealwSign
                 else if (ntrial_excits == lenof_sign) then
                     trial_numerator = trial_numerator + current_trial_amps(:,ind)*RealwSign
+                    trial_num_inst = trial_num_inst + current_trial_amps(:,ind)*RealwSign
                 end if
             end if
         end if
@@ -1032,6 +1036,9 @@ contains
 
         min_trial_ind = 1
         min_conn_ind = 1
+
+        trial_num_inst = 0.0_dp
+        trial_denom_inst = 0.0_dp
 
     end subroutine rezero_iter_stats_each_iter
 

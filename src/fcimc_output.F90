@@ -710,7 +710,7 @@ contains
             end do
 
 #ifndef __CMPLX
-            do p = 1, size(energy_pert_global_all)
+            do p = 1, lenof_sign
                 write(tmpc, '(i5)') p
                 call stats_out(state, .false.,  energy_pert_global_all(p), 'ET Pert ' // trim(adjustl(tmpc)))
             end do

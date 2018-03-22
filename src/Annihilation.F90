@@ -575,6 +575,7 @@ module AnnihilationMod
         HElement_t(dp) :: HDiag
         integer :: run, istate
         real(dp) :: contrib_sign(en_pert_main%sign_length)
+        real(dp) :: trial_contrib(lenof_sign)
         logical :: pert_contrib(en_pert_main%sign_length)
 
         ! Only node roots to do this.
@@ -730,6 +731,28 @@ module AnnihilationMod
                         abort(j) = test_abort_spawn(SpawnedParts(:, i), j)
                     end do
 
+                    ! Add in contributions to the EN perturbation estimates:
+                    ! Trial-energy-based estimate:
+                    if (tTrialWavefunction) then
+                        if (any(abort)) then
+                            if (tHPHF) then
+                                HDiag = hphf_diag_helement (nJ, SpawnedParts(:,i))
+                            else
+                                HDiag = get_helement (nJ, nJ, 0)
+                            end if
+
+                            call return_ET_trial_contrib(nJ, SpawnedParts(:,i), trial_contrib)
+                        end if
+
+                        do j = 1, lenof_sign
+                            if (abort(j)) then
+                                energy_pert_global(j) = energy_pert_global(j) - &
+                                  SignTemp(j)*trial_contrib(j)/((tot_trial_num_inst(j) - HDiag * tot_trial_denom_inst(j)) * tau)
+                            end if
+                        end do
+                    end if
+
+                    ! RDM-energy-based estimate:
                     if (tENPertStarted) then
                         pert_contrib = .false.
 
@@ -742,17 +765,7 @@ module AnnihilationMod
                         end do
 
                         if (any(pert_contrib)) then
-                            !if (tHPHF) then
-                            !    HDiag = hphf_diag_helement (nJ, SpawnedParts(:,i))
-                            !else
-                            !    HDiag = get_helement (nJ, nJ, 0)
-                            !end if
-
                             do istate = 1, en_pert_main%sign_length
-                                !energy_pert_global(istate) = energy_pert_global(istate) + &
-                                !  SignTemp(2*istate-1)*SignTemp(2*istate)/&
-                                !  ((rdm_estimates%energy_num_inst(istate)/rdm_estimates%norm_inst(istate) - HDiag) * all_overlaps(2*istate-1,2*istate) * (tau**2))
-
                                 contrib_sign(istate) = SignTemp(2*istate-1)*SignTemp(2*istate) / (tau**2)
                             end do
 

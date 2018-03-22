@@ -1535,6 +1535,11 @@ contains
             tot_trial_numerator = 0.0_dp
             trial_denom = 0.0_dp
             tot_trial_denom = 0.0_dp
+
+            trial_num_inst = 0.0_dp
+            tot_trial_num_inst = 0.0_dp
+            trial_denom_inst = 0.0_dp
+            tot_trial_denom_inst = 0.0_dp
         end if
 
          replica_overlaps_real(:, :) = 0.0_dp

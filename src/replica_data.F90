@@ -87,8 +87,8 @@ contains
 #ifdef __CMPLX
                  replica_overlaps_imag(inum_runs, inum_runs), &
 #endif
-                 energy_pert_global(inum_runs/2), &
-                 energy_pert_global_all(inum_runs/2), &
+                 energy_pert_global(lenof_sign), &
+                 energy_pert_global_all(lenof_sign), &
                  tSpinCoupProjE(inum_runs), &
 
                  NoatDoubs(inum_runs), AllNoatDoubs(inum_runs), &
@@ -116,6 +116,8 @@ contains
                  AbsProjE(inum_runs), &
                  trial_numerator(inum_runs), tot_trial_numerator(inum_runs), &
                  trial_denom(inum_runs), tot_trial_denom(inum_runs), &
+                 trial_num_inst(inum_runs), tot_trial_num_inst(inum_runs), &
+                 trial_denom_inst(inum_runs), tot_trial_denom_inst(inum_runs), &
                  sum_proje_denominator(inum_runs), &
                  all_sum_proje_denominator(inum_runs), &
                  cyc_proje_denominator(inum_runs), &
@@ -223,6 +225,8 @@ contains
                    proje_iter, AbsProjE, &
                    trial_numerator, tot_trial_numerator, &
                    trial_denom, tot_trial_denom, &
+                   trial_num_inst, tot_trial_num_inst, &
+                   trial_denom_inst, tot_trial_denom_inst, &
                    sum_proje_denominator, all_sum_proje_denominator, &
                    cyc_proje_denominator, all_cyc_proje_denominator, &
 
