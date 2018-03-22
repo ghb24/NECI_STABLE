@@ -187,7 +187,6 @@ contains
             ndets_en_pert = MaxSpawned
             nhashes_en_pert = 0.8*MaxSpawned
             call init_en_pert_t(en_pert_main, nrdms_standard, ndets_en_pert, nhashes_en_pert)
-            tENPertStarted = .true.
         end if
 
         ! We then need to allocate the arrays for excitations etc when doing

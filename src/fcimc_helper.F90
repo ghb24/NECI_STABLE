@@ -35,7 +35,7 @@ module fcimc_helper
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
                         tRealCoeffByExcitLevel, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
-                        MaxWalkerBloom,&
+                        MaxWalkerBloom, tENPert, tENPertStarted, &
                         NMCyc, iSampleRDMIters, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
                         t_back_spawn_flex, tau, DiagSft, &
@@ -1877,16 +1877,20 @@ contains
         ! We don't want to put in an arbitrary break now!
         if (tReadRDMs) IterRDMonFly = 0
 
-        ! Rezero HF estimators
-        hf_est_rdm = 0.0_dp
-        hf_pop_rdm = 0.0_dp
-
         if (tFullVaryShift .and. ((Iter - maxval(VaryShiftIter)).eq.(IterRDMonFly+1))) then
         ! IterRDMonFly is the number of iterations after the shift has changed that we want 
         ! to fill the RDMs.  If this many iterations have passed, start accumulating the RDMs! 
         
             IterRDMStart = Iter + PreviousCycles
             IterRDM_HF = Iter + PreviousCycles
+
+            ! Rezero HF contributions for EN estimators
+            hf_est_rdm = 0.0_dp
+            hf_pop_rdm = 0.0_dp
+
+            if (tENPert) then
+                tENPertStarted = .true.
+            end if
 
             ! We have reached the iteration where we want to start filling the RDM.
             if (tExplicitAllRDM) then

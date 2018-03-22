@@ -727,6 +727,8 @@ module AnnihilationMod
 
                     call extract_sign (SpawnedParts(:,i), SignTemp)
 
+                    ! Are we about to abort this spawn (on any replica) due to
+                    ! initiator criterion.
                     do j = 1, lenof_sign
                         abort(j) = test_abort_spawn(SpawnedParts(:, i), j)
                     end do
@@ -764,13 +766,14 @@ module AnnihilationMod
                             end if
                         end do
 
-                        if (any(pert_contrib)) then
-                            do istate = 1, en_pert_main%sign_length
+                        contrib_sign = 0.0_dp
+                        do istate = 1, en_pert_main%sign_length
+                            if (pert_contrib(istate)) then
                                 contrib_sign(istate) = SignTemp(2*istate-1)*SignTemp(2*istate) / (tau**2)
-                            end do
+                            end if
+                        end do
 
-                            call add_to_en_pert_t(en_pert_main, nJ, SpawnedParts(:,i), contrib_sign)
-                        end if
+                        call add_to_en_pert_t(en_pert_main, nJ, SpawnedParts(:,i), contrib_sign)
                     end if
 
                     do j = 1, lenof_sign

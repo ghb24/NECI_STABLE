@@ -546,7 +546,7 @@ contains
             sizes(10) = size(trial_denom_inst)
         end if
 
-        if (sum(sizes(1:6)) > 100) call stop_all(t_r, "No space left in arrays for communication of estimates. Please &
+        if (sum(sizes(1:10)) > 100) call stop_all(t_r, "No space left in arrays for communication of estimates. Please &
                                                         & increase the size of the send_arr_helem and recv_arr_helem &
                                                         & arrays in the source code.")
 

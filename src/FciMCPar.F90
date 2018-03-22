@@ -1259,10 +1259,7 @@ module FciMCParMod
         !HolesInList is returned from direct annihilation with the number of unoccupied determinants in the list
         !They have already been removed from the hash table though.
 
-        
-
         call DirectAnnihilation (totWalkersNew, iter_data, .false.) !.false. for not single processor
-
 
         ! This indicates the number of determinants in the list + the number
         ! of holes that have been introduced due to annihilation.
