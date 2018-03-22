@@ -743,7 +743,7 @@ module AnnihilationMod
                                 HDiag = get_helement (nJ, nJ, 0)
                             end if
 
-                            call return_ET_trial_contrib(nJ, SpawnedParts(:,i), trial_contrib)
+                            call return_EN_trial_contrib(nJ, SpawnedParts(:,i), trial_contrib)
                         end if
 
                         do j = 1, lenof_sign

@@ -292,7 +292,7 @@ contains
 
     end subroutine add_trial_energy_contrib
 
-    subroutine return_ET_trial_contrib(nI, ilut, amp)
+    subroutine return_EN_trial_contrib(nI, ilut, amp)
     
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilut(0:)
@@ -328,7 +328,7 @@ contains
             end if
         end if
 
-    end subroutine return_ET_trial_contrib
+    end subroutine return_EN_trial_contrib
 
     ! This is the same as BinSearchParts1, but this time, it searches though the 
     ! full list of determinants created by the full diagonalizer when the 
