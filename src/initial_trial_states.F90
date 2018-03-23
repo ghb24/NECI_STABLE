@@ -105,7 +105,8 @@ contains
 
         space_displs(0) = 0_MPIArg
         do i = 1, nProcessors-1
-            space_displs(i) = sum(space_sizes(:i-1))
+!             space_displs(i) = sum(space_sizes(:i-1))
+            space_displs(i) = space_displs(i-1) + space_sizes(i-1)
         end do
 
         call sort(trial_iluts(:,1:ndets_this_proc), ilut_lt, ilut_gt)
@@ -290,8 +291,12 @@ contains
 
         space_displs(0) = 0_MPIArg
         do i = 1, nProcessors-1
-            space_displs(i) = sum(space_sizes(:i-1))
+            space_displs(i) = space_displs(i-1) + space_sizes(i-1)
+!             space_displs(i) = sum(space_sizes(:i-1))
         end do
+
+!         root_print "space_sizes: ", space_sizes
+!         root_print "space_displs: ", space_displs
 
         ! [W.D. 15.5.2017:]
         ! is the sort behaving different, depending on the compiler? 
@@ -304,15 +309,16 @@ contains
             ! On these other processes ilut_list and evecs_transpose are not
             ! needed, but we need them to be allocated for the MPI wrapper
             ! function to work, so just allocate them to be small.
-            allocate(ilut_list(1,1))
+            allocate(ilut_list(0:niftot,1))
             allocate(evecs_transpose(1,1))
         end if
 
-        call MPIGatherV(trial_iluts(:,1:space_sizes(iProcIndex)), ilut_list, &
+        call MPIGatherV(trial_iluts(0:niftot,1:space_sizes(iProcIndex)), ilut_list(0:NIfTot,1:ndets_all_procs), &
                         space_sizes, space_displs, ierr)
 
         ! Only perform the diagonalisation on the root process.
         if (iProcIndex == root) then
+
             allocate(det_list(nel, ndets_all_procs))
 
             do i = 1, ndets_all_procs
@@ -519,7 +525,8 @@ contains
 
         space_displs(0) = 0_MPIArg
         do i = 1, nProcessors-1
-            space_displs(i) = sum(space_sizes(:i-1))
+!             space_displs(i) = sum(space_sizes(:i-1))
+            space_displs(i) = space_displs(i-1) + space_sizes(i-1)
         end do
 
         call sort(trial_iluts(:,1:ndets_this_proc), ilut_lt, ilut_gt)
