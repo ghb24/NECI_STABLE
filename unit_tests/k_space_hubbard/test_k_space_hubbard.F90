@@ -104,7 +104,7 @@ contains
 !             print *,lat%get_k_vec(ind(i)),"|", k_vec(1)*k1 + k_vec(2)*k2, "|", x(i)
 !         end do
 
-!         J = -1.0
+        J = -1.0
 
         U = 4.0
 
