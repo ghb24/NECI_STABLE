@@ -824,9 +824,10 @@ contains
 
             ! Create displacement and sendcount arrays for MPIScatterV later:
             sendcounts = int(proc_space_sizes*(NIfTot+1),MPIArg)
-            disps(0) = 0
+            disps(0) = 0_MPIArg
             do i = 1, nProcessors-1
-                disps(i) = int(sum(proc_space_sizes(0:i-1))*(NIfTot+1),MPIArg)
+!                 disps(i) = int(sum(proc_space_sizes(0:i-1))*(NIfTot+1),MPIArg)
+                disps(i) = disps(i-1) + int(proc_space_sizes(i-1)*(NIfTot+1), MPIArg)
             end do
         end if
 
@@ -934,7 +935,7 @@ contains
                          size_n_int, t_r, TagD, ierr)
 
         disps(0) = 0_MPIArg
-        do i = 0, nProcessors-1
+        do i = 1, nProcessors-1
 !             disps(i) = sum(lengths(:i-1))
             disps(i) = disps(i-1) + lengths(i-1)
         end do
