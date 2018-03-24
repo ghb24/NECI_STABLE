@@ -735,7 +735,7 @@ module AnnihilationMod
 
                     ! Add in contributions to the EN perturbation estimates:
                     ! Trial-energy-based estimate:
-                    if (tTrialWavefunction) then
+                    if (tTrialWavefunction .and. tENPert) then
                         if (any(abort)) then
                             if (tHPHF) then
                                 HDiag = hphf_diag_helement (nJ, SpawnedParts(:,i))
@@ -766,14 +766,16 @@ module AnnihilationMod
                             end if
                         end do
 
-                        contrib_sign = 0.0_dp
-                        do istate = 1, en_pert_main%sign_length
-                            if (pert_contrib(istate)) then
-                                contrib_sign(istate) = SignTemp(2*istate-1)*SignTemp(2*istate) / (tau**2)
-                            end if
-                        end do
+                        if (any(pert_contrib)) then
+                            contrib_sign = 0.0_dp
+                            do istate = 1, en_pert_main%sign_length
+                                if (pert_contrib(istate)) then
+                                    contrib_sign(istate) = SignTemp(2*istate-1)*SignTemp(2*istate) / (tau**2)
+                                end if
+                            end do
 
-                        call add_to_en_pert_t(en_pert_main, nJ, SpawnedParts(:,i), contrib_sign)
+                            call add_to_en_pert_t(en_pert_main, nJ, SpawnedParts(:,i), contrib_sign)
+                        end if
                     end if
 
                     do j = 1, lenof_sign
