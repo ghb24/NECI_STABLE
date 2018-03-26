@@ -155,8 +155,8 @@ contains
 
         if (t_trans_corr_hop) then 
             ! we have double excitations with the hopping correlation! 
-            pDoubles = p_singles_input 
-            pSingles = 1.0_dp - pDoubles
+            pSingles = p_singles_input 
+            pDoubles = 1.0_dp - pSingles
         else
             ! and i have to point to the new hubbard excitation generator
             pSingles = 1.0_dp 
