@@ -39,7 +39,7 @@ module fcimc_helper
                         NMCyc, iSampleRDMIters, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
                         t_back_spawn_flex, tau, DiagSft, &
-                        tSeniorInitiators, SeniorityAge
+                        tSeniorInitiators, SeniorityAge, tInitCoherentRule
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, tInitiatorsSubspace, &
          tAllDoubsInitiators, tAllSingsInitiators
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
@@ -209,7 +209,7 @@ contains
         integer, parameter :: flags = 0
         character(*), parameter :: this_routine = 'create_particle_with_hash_table'
         
-        !Only one element of child should be non-zero
+        ! Only one element of child should be non-zero
         ASSERT((sum(abs(child_sign))-maxval(abs(child_sign)))<1.0e-12_dp)
 
         call hash_table_lookup(nI_child, ilut_child, NIfDBO, spawn_ht, SpawnedParts, ind, hash_val, tSuccess)
@@ -238,9 +238,16 @@ contains
             ! If this determinant (on this replica) has already been spawned to
             ! then set the initiator flag. Also if this child was spawned from
             ! an initiator, set the initiator flag.
+            ! (There is now an option (tInitCoherentRule = .false.) to turn this
+            ! coherent spawning rule off, mainly for testing purposes).
             if (tTruncInitiator) then
-                if (abs(real_sign_old(part_type)) > 1.e-12_dp .or. test_flag(ilut_parent, get_initiator_flag(part_type))) &
-                    call set_flag(SpawnedParts(:,ind), get_initiator_flag(part_type))
+                if (tInitCoherentRule) then
+                    if (abs(real_sign_old(part_type)) > 1.e-12_dp .or. test_flag(ilut_parent, get_initiator_flag(part_type))) &
+                        call set_flag(SpawnedParts(:,ind), get_initiator_flag(part_type))
+                else
+                    if (test_flag(ilut_parent, get_initiator_flag(part_type))) &
+                        call set_flag(SpawnedParts(:,ind), get_initiator_flag(part_type))
+                end if
             end if
         else
             ! Determine which processor the particle should end up on in the
@@ -780,11 +787,11 @@ contains
 
                 ! Update counters as required.
                 if (parent_init) then
-                    NoInitDets = NoInitDets + 1_int64
-                    NoInitWalk = NoInitWalk + mag_of_run(CurrentSign, run)
+                    NoInitDets(run) = NoInitDets(run) + 1_int64
+                    NoInitWalk(run) = NoInitWalk(run) + mag_of_run(CurrentSign, run)
                 else
-                    NoNonInitDets = NoNonInitDets + 1_int64
-                    NoNonInitWalk = NoNonInitWalk + mag_of_run(CurrentSign, run)
+                    NoNonInitDets(run) = NoNonInitDets(run) + 1_int64
+                    NoNonInitWalk(run) = NoNonInitWalk(run) + mag_of_run(CurrentSign, run)
                 endif
 
                 ! Update the parent flag as required.

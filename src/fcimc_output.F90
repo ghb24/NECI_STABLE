@@ -603,8 +603,16 @@ contains
             ! frequently).
             ! This also makes column contiguity on resumes as likely as
             ! possible.
-            if (tTruncInitiator) &
-                call stats_out(state,.false., AllNoAborted(1), 'No. aborted')
+            if (tTruncInitiator) then
+                do p = 1, inum_runs
+                    write(tmpc, '(i5)') p
+                    call stats_out(state, .false., AllNoAborted(p), 'Num. abort. (' // trim(adjustl(tmpc)) // ")")
+                    call stats_out(state, .false., AllNoInitDets(p), 'Num. init. dets (' // trim(adjustl(tmpc)) // ")")
+                    call stats_out(state, .false., AllNoNonInitDets(p), 'Num. non-init. dets (' // trim(adjustl(tmpc)) // ")")
+                    call stats_out(state, .false., AllNoInitWalk(p), 'Num. init. walk. (' // trim(adjustl(tmpc)) // ")")
+                    call stats_out(state, .false., AllNoNonInitWalk(p), 'Num. non-init. walk. (' // trim(adjustl(tmpc)) // ")")
+                end do
+            end if
 
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these

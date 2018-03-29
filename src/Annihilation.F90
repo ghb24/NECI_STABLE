@@ -6,7 +6,7 @@ module AnnihilationMod
     use CalcData, only:   tTruncInitiator, OccupiedThresh, tSemiStochastic, &
                           tTrialWavefunction, tKP_FCIQMC, tContTimeFCIMC, &
                           tContTimeFull, InitiatorWalkNo, tau, tENPert, &
-                          tENPertStarted
+                          tENPertStarted, tInitCoherentRule
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -347,6 +347,7 @@ module AnnihilationMod
                 Spawned_Parents_Index(2,VecInd) = 0
             end if
 
+
             ! Annihilate in this block seperately for walkers of different types.
             do part_type = 1, lenof_sign
 
@@ -480,12 +481,19 @@ module AnnihilationMod
         ! If the cumulative and new signs for this replica are both non-zero
         ! then there have been at least two spawning events to this site, so
         ! set the initiator flag.
+        ! (There is now an option (tInitCoherentRule = .false.) to turn this
+        ! coherent spawning rule off, mainly for testing purposes).
         ! Also set the initiator flag if the new walker has its initiator flag
         ! set.
         if (tTruncInitiator) then
-            if ((abs(cum_sgn) > 1.e-12_dp .and. abs(new_sgn) > 1.e-12_dp) .or. &
-                 test_flag(new_det, get_initiator_flag(part_type))) &
-                call set_flag(cum_det, get_initiator_flag(part_type))
+            if (tInitCoherentRule) then
+                if ((abs(cum_sgn) > 1.e-12_dp .and. abs(new_sgn) > 1.e-12_dp) .or. &
+                     test_flag(new_det, get_initiator_flag(part_type))) &
+                    call set_flag(cum_det, get_initiator_flag(part_type))
+            else
+                if (test_flag(new_det, get_initiator_flag(part_type))) &
+                    call set_flag(cum_det, get_initiator_flag(part_type))
+            end if
         end if
 
         sgn_prod = cum_sgn * new_sgn

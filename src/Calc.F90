@@ -240,6 +240,7 @@ contains
           tDefineDet=.false.
           tTruncInitiator=.false.
           tAddtoInitiator=.false.
+          tInitCoherentRule=.true.
           InitiatorWalkNo=3.0_dp
           tSeniorInitiators =.false.
           SeniorityAge=1.0_dp
@@ -1763,7 +1764,10 @@ contains
 !can only spawn back on to the determinant from which they came.  This is the star approximation from the CAS space. 
                 tTruncInitiator=.true.
 
-! Epstein-Nesbet style perturbation using the stochastic spawnings.
+            case("NO-COHERENT-INIT-RULE")
+                tInitCoherentRule=.false.
+
+! Epstein-Nesbet second-order perturbation using the stochastic spawnings.
             case("EN-PERT")
                 tENPert = .true.
 
