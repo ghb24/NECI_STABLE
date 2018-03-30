@@ -538,7 +538,6 @@ contains
         sizes(3) = size(ENumCycAbs)
         sizes(4) = size(cyc_proje_denominator)
         sizes(5) = size(sum_proje_denominator)
-        sizes(6) = size(energy_pert_global)
         if (tTrialWavefunction) then
             sizes(7) = size(trial_numerator)
             sizes(8) = size(trial_denom)
@@ -555,7 +554,6 @@ contains
         low = upp + 1; upp = low + sizes(3) - 1; send_arr_helem(low:upp) = ENumCycAbs;
         low = upp + 1; upp = low + sizes(4) - 1; send_arr_helem(low:upp) = cyc_proje_denominator;
         low = upp + 1; upp = low + sizes(5) - 1; send_arr_helem(low:upp) = sum_proje_denominator;
-        low = upp + 1; upp = low + sizes(6) - 1; send_arr_helem(low:upp) = energy_pert_global;
         if (tTrialWavefunction) then
             low = upp + 1; upp = low + sizes(7) - 1; send_arr_helem(low:upp) = trial_numerator;
             low = upp + 1; upp = low + sizes(8) - 1; send_arr_helem(low:upp) = trial_denom;
@@ -572,7 +570,6 @@ contains
         low = upp + 1; upp = low + sizes(3) - 1; AllENumCycAbs = recv_arr_helem(low:upp);
         low = upp + 1; upp = low + sizes(4) - 1; all_cyc_proje_denominator = recv_arr_helem(low:upp);
         low = upp + 1; upp = low + sizes(5) - 1; all_sum_proje_denominator = recv_arr_helem(low:upp);
-        low = upp + 1; upp = low + sizes(6) - 1; energy_pert_global_all = recv_arr_helem(low:upp);
         if (tTrialWavefunction) then
             low = upp + 1; upp = low + sizes(7) - 1; tot_trial_numerator = recv_arr_helem(low:upp);
             low = upp + 1; upp = low + sizes(8) - 1; tot_trial_denom = recv_arr_helem(low:upp);
@@ -997,7 +994,6 @@ contains
         cyc_proje_denominator=0.0_dp
         trial_numerator = 0.0_dp
         trial_denom = 0.0_dp
-        energy_pert_global = 0.0_dp
 
         ! Reset TotWalkersOld so that it is the number of walkers now
         TotWalkersOld = TotWalkers

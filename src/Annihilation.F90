@@ -906,12 +906,6 @@ module AnnihilationMod
         ! specifying whether each of the spawnings are about to be aborted
         ! due to the initiator criterion.
 
-        ! This function currently adds a contribution both using the RDMs
-        ! and replica sampling, which is rigorously justified, and another
-        ! into a separate estimate which is based on a trial wave function,
-        ! and is only very approximate (technically only part of the required
-        ! perturbative correction).
-
         integer, intent(in) :: ispawn
         logical, intent(in) :: abort(lenof_sign)
         integer, intent(in) :: nJ(nel)
@@ -948,29 +942,6 @@ module AnnihilationMod
                 call add_to_en_pert_t(en_pert_main, nJ, SpawnedParts(:,ispawn), contrib_sign)
             end if
         end if
-
-        ! Add in contributions to the EN perturbation estimates:
-        ! Trial-energy-based estimate:
-        if (tTrialWavefunction .and. tEN2) then
-            if (any(abort)) then
-                ! Get diagonal Hamiltonian element.
-                if (tHPHF) then
-                    h_diag = hphf_diag_helement (nJ, SpawnedParts(:,ispawn))
-                else
-                    h_diag = get_helement (nJ, nJ, 0)
-                end if
-
-                call return_EN_trial_contrib(nJ, SpawnedParts(:,ispawn), trial_contrib)
-            end if
-
-            do j = 1, lenof_sign
-                if (abort(j)) then
-                    energy_pert_global(j) = energy_pert_global(j) - &
-                      SpawnedSign(j)*trial_contrib(j)/((tot_trial_num_inst(j) - h_diag * tot_trial_denom_inst(j)) * tau)
-                end if
-            end do
-        end if
-
 
     end subroutine add_en2_pert_for_init_calc
 
@@ -1013,12 +984,6 @@ module AnnihilationMod
 
                 call add_to_en_pert_t(en_pert_main, nJ, SpawnedParts(:,ispawn), contrib_sign)
             end if
-
-            ! Remove the spawning
-            do j = 1, lenof_sign
-                SpawnedSign(j) = 0.0_dp
-                call encode_part_sign (SpawnedParts(:,ispawn), SpawnedSign(j), j)
-            end do
         end if
 
         ! Remove the spawning

@@ -717,15 +717,6 @@ contains
                 end if
             end do
 
-#ifndef __CMPLX
-            if (tTrialWavefunction .or. tStartTrialLater) then
-                do p = 1, lenof_sign
-                    write(tmpc, '(i5)') p
-                    call stats_out(state, .false.,  energy_pert_global_all(p), 'EN pert. trial ' // trim(adjustl(tmpc)))
-                end do
-            end if
-#endif
-
 #endif
 
             ! And we are done

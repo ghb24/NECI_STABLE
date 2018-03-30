@@ -868,7 +868,6 @@ contains
         norm_psi = 0
         bloom_sizes = 0
         proje_iter_tot = 0.0_dp
-        energy_pert_global = 0.0_dp
         ! initialize as one (kind of makes sense for a norm)
         all_norm_psi_squared = 1.0_dp
         tSoftExitFound = .false.

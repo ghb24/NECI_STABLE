@@ -148,10 +148,6 @@ MODULE FciMCData
       HElement_t(dp), allocatable :: proje_iter(:)
       HElement_t(dp) :: proje_iter_tot
 
-      ! Perturbative correction to the initiator energy
-      HElement_t(dp), allocatable :: energy_pert_global(:)
-      HElement_t(dp), allocatable :: energy_pert_global_all(:)
-
       ! The averaged 'absolute' projected energy - calculated over the last update cycle
       ! The magnitude of each contribution is taken before it is summed in
       HElement_t(dp), allocatable :: AbsProjE(:)

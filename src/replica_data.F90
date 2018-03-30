@@ -87,8 +87,6 @@ contains
 #ifdef __CMPLX
                  replica_overlaps_imag(inum_runs, inum_runs), &
 #endif
-                 energy_pert_global(lenof_sign), &
-                 energy_pert_global_all(lenof_sign), &
                  tSpinCoupProjE(inum_runs), &
 
                  NoatDoubs(inum_runs), AllNoatDoubs(inum_runs), &
@@ -172,8 +170,6 @@ contains
 #ifdef __CMPLX
                    replica_overlaps_imag, &
 #endif
-                   energy_pert_global, &
-                   energy_pert_global_all, &
                    tSpinCoupProjE, &
 
                    TotParts, AllTotParts, &
