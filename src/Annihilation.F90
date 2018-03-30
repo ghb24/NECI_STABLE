@@ -571,20 +571,13 @@ module AnnihilationMod
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer, intent(inout) :: TotWalkersNew
         integer, intent(inout) :: ValidSpawned 
-        integer :: PartInd, i, j, PartIndex
+        integer :: PartInd, i, j, PartIndex, run
         real(dp), dimension(lenof_sign) :: CurrentSign, SpawnedSign, SignTemp
         real(dp), dimension(lenof_sign) :: TempCurrentSign, SignProd
         real(dp) :: pRemove, r
         integer :: ExcitLevel, DetHash, nJ(nel)
         logical :: tSuccess, tSuc, tDetermState
-
-        ! Data needed for the EN Perturbation
         logical :: abort(lenof_sign)
-        HElement_t(dp) :: HDiag
-        integer :: run, istate
-        real(dp) :: contrib_sign(en_pert_main%sign_length)
-        real(dp) :: trial_contrib(lenof_sign)
-        logical :: pert_contrib(en_pert_main%sign_length)
         logical :: tTruncSpawn
 
         ! Only node roots to do this.
@@ -737,54 +730,15 @@ module AnnihilationMod
                     call extract_sign (SpawnedParts(:,i), SignTemp)
 
                     ! Are we about to abort this spawn (on any replica) due to
-                    ! initiator criterion.
+                    ! initiator criterion?
                     do j = 1, lenof_sign
                         abort(j) = test_abort_spawn(SpawnedParts(:, i), j)
                     end do
 
-                    ! Add in contributions to the EN perturbation estimates:
-                    ! Trial-energy-based estimate:
-                    if (tTrialWavefunction .and. tENPert) then
-                        if (any(abort)) then
-                            if (tHPHF) then
-                                HDiag = hphf_diag_helement (nJ, SpawnedParts(:,i))
-                            else
-                                HDiag = get_helement (nJ, nJ, 0)
-                            end if
-
-                            call return_EN_trial_contrib(nJ, SpawnedParts(:,i), trial_contrib)
-                        end if
-
-                        do j = 1, lenof_sign
-                            if (abort(j)) then
-                                energy_pert_global(j) = energy_pert_global(j) - &
-                                  SignTemp(j)*trial_contrib(j)/((tot_trial_num_inst(j) - HDiag * tot_trial_denom_inst(j)) * tau)
-                            end if
-                        end do
-                    end if
-
-                    ! RDM-energy-based estimate:
-                    if (tENPertStarted) then
-                        pert_contrib = .false.
-
-                        do istate = 1, en_pert_main%sign_length
-                            if (abort(2*istate-1) .and. abort(2*istate) .and. &
-                                  abs(SignTemp(2*istate-1)) > 1.e-12_dp .and. &
-                                  abs(SignTemp(2*istate)) > 1.e-12_dp) then
-                                pert_contrib(istate) = .true.
-                            end if
-                        end do
-
-                        if (any(pert_contrib)) then
-                            contrib_sign = 0.0_dp
-                            do istate = 1, en_pert_main%sign_length
-                                if (pert_contrib(istate)) then
-                                    contrib_sign(istate) = SignTemp(2*istate-1)*SignTemp(2*istate) / (tau**2)
-                                end if
-                            end do
-
-                            call add_to_en_pert_t(en_pert_main, nJ, SpawnedParts(:,i), contrib_sign)
-                        end if
+                    ! If calculating an EN2 correction to initiator error,
+                    ! check now if we should add anything.
+                    if (tENPert) then
+                        call add_en2_pert_for_init_calc(i, abort, nJ, SignTemp)
                     end if
 
                     do j = 1, lenof_sign
@@ -860,7 +814,7 @@ module AnnihilationMod
                     if (tTruncSpawn) then
                         ! Needs to be truncated away, and a contribution
                         ! added to the EN2 correction.
-                        call add_en2_pert_for_truncated_calc(i, nJ, SignTemp)
+                        call add_en2_pert_for_trunc_calc(i, nJ, SignTemp)
                     else
                         do j = 1, lenof_sign
                             run = part_type_to_run(j)
@@ -938,9 +892,97 @@ module AnnihilationMod
 
         abort = .not. test_flag(ilut_spwn, get_initiator_flag(part_type))
 
-    end function
+    end function test_abort_spawn
 
-    subroutine add_en2_pert_for_truncated_calc(ispawn, nJ, SpawnedSign)
+    subroutine add_en2_pert_for_init_calc(ispawn, abort, nJ, SpawnedSign)
+
+        ! Add a contribution to the second-order Epstein-Nesbet correction to
+        ! initiator error.
+
+        ! This adds a correction for the determinant at position ispawn in
+        ! the spawning array, and nJ is an array holding the occupied
+        ! electrons on this determinant. SpawnedSign is the array of
+        ! amplitudes spawned onto this determinant, and abort is array
+        ! specifying whether each of the spawnings are about to be aborted
+        ! due to the initiator criterion.
+
+        ! This function currently adds a contribution both using the RDMs
+        ! and replica sampling, which is rigorously justified, and another
+        ! into a separate estimate which is based on a trial wave function,
+        ! and is only very approximate (technically only part of the required
+        ! perturbative correction).
+
+        integer, intent(in) :: ispawn
+        logical, intent(in) :: abort(lenof_sign)
+        integer, intent(in) :: nJ(nel)
+        real(dp), intent(inout):: SpawnedSign(lenof_sign)
+
+        integer :: j, istate
+        real(dp) :: contrib_sign(en_pert_main%sign_length)
+        logical :: pert_contrib(en_pert_main%sign_length)
+        real(dp) :: trial_contrib(lenof_sign)
+        HElement_t(dp) :: h_diag
+
+        ! RDM-energy-based estimate:
+        ! Only add a contribution if we've started accumulating this estimate.
+        if (tENPertStarted) then
+            pert_contrib = .false.
+
+            do istate = 1, en_pert_main%sign_length
+                ! Was a non-zero contribution aborted on *both* replicas for
+                ! a given state?
+                if (abort(2*istate-1) .and. abort(2*istate) .and. &
+                      abs(SpawnedSign(2*istate-1)) > 1.e-12_dp .and. &
+                      abs(SpawnedSign(2*istate)) > 1.e-12_dp) &
+                    pert_contrib(istate) = .true.
+            end do
+
+            if (any(pert_contrib)) then
+                contrib_sign = 0.0_dp
+                do istate = 1, en_pert_main%sign_length
+                    if (pert_contrib(istate)) then
+                        contrib_sign(istate) = SpawnedSign(2*istate-1)*SpawnedSign(2*istate) / (tau**2)
+                    end if
+                end do
+
+                call add_to_en_pert_t(en_pert_main, nJ, SpawnedParts(:,ispawn), contrib_sign)
+            end if
+        end if
+
+        ! Add in contributions to the EN perturbation estimates:
+        ! Trial-energy-based estimate:
+        if (tTrialWavefunction .and. tENPert) then
+            if (any(abort)) then
+                ! Get diagonal Hamiltonian element.
+                if (tHPHF) then
+                    h_diag = hphf_diag_helement (nJ, SpawnedParts(:,ispawn))
+                else
+                    h_diag = get_helement (nJ, nJ, 0)
+                end if
+
+                call return_EN_trial_contrib(nJ, SpawnedParts(:,ispawn), trial_contrib)
+            end if
+
+            do j = 1, lenof_sign
+                if (abort(j)) then
+                    energy_pert_global(j) = energy_pert_global(j) - &
+                      SpawnedSign(j)*trial_contrib(j)/((tot_trial_num_inst(j) - h_diag * tot_trial_denom_inst(j)) * tau)
+                end if
+            end do
+        end if
+
+
+    end subroutine add_en2_pert_for_init_calc
+
+    subroutine add_en2_pert_for_trunc_calc(ispawn, nJ, SpawnedSign)
+
+        ! Add a contribution to the second-order Epstein-Nesbet correction to
+        ! error due to truncation of the Hilbert space being sampled.
+
+        ! This adds a correction for the determinant at position ispawn in
+        ! the spawning array, and nJ is an array holding the occupied
+        ! electrons on this determinant. SpawnedSign is the array of
+        ! amplitudes spawned onto this determinant.
 
         integer, intent(in) :: ispawn
         integer, intent(in) :: nJ(nel)
@@ -950,6 +992,7 @@ module AnnihilationMod
         real(dp) :: contrib_sign(en_pert_main%sign_length)
         logical :: pert_contrib(en_pert_main%sign_length)
 
+        ! Only add a contribution if we've started accumulating this estimate.
         if (tENPertStarted) then
             pert_contrib = .false.
 
@@ -984,6 +1027,6 @@ module AnnihilationMod
             end do
         end if
 
-    end subroutine add_en2_pert_for_truncated_calc
+    end subroutine add_en2_pert_for_trunc_calc
 
 end module AnnihilationMod
