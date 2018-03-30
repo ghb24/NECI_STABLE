@@ -7,7 +7,7 @@ module FciMCParMod
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
                         AvMCExcits, pops_norm_unit, iExitWalkers, &
-                        iFullSpaceIter, semistoch_shift_iter, tENPert, &
+                        iFullSpaceIter, semistoch_shift_iter, tEN2, &
                         tOrthogonaliseReplicas, orthogonalise_iter, &
                         tDetermHFSpawning, use_spawn_hash_table, &
                         ss_space_in, s_global_start, tContTimeFCIMC, &
@@ -544,8 +544,8 @@ module FciMCParMod
                         if (tOldRDMs) call write_rdm_estimates_old(rdm_estimates_old, .false.)
                     end if
 
-                    if (tENPert .or. tENPertTruncated) then
-                        ! If calculating the Epstein Nesbet-perturbation, reset the
+                    if (tEN2) then
+                        ! If calculating the Epstein-Nesbet perturbation, reset the
                         ! array and hash table where contributions are accumulated.
                         en_pert_main%ndets = 0
                         call clear_hash_table(en_pert_main%hash_table)
@@ -562,8 +562,8 @@ module FciMCParMod
                 tChangeVarsRDM = .false.
             endif
 
-            if(tDiagWalkerSubspace.and.(mod(Iter,iDiagSubspaceIter).eq.0)) then
-                !Diagonalise a subspace consisting of the occupied determinants
+            if (tDiagWalkerSubspace.and.(mod(Iter,iDiagSubspaceIter).eq.0)) then
+                ! Diagonalise a subspace consisting of the occupied determinants
                 call DiagWalkerSubspace()
             endif
 

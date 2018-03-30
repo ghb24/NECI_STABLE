@@ -35,8 +35,8 @@ module fcimc_helper
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
                         tRealCoeffByExcitLevel, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
-                        MaxWalkerBloom, tENPert, tENPertStarted, &
-                        NMCyc, iSampleRDMIters, tENPertTruncated, &
+                        MaxWalkerBloom, tEN2, tEN2Started, &
+                        NMCyc, iSampleRDMIters, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
                         t_back_spawn_flex, tau, DiagSft, &
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule
@@ -1895,8 +1895,8 @@ contains
             hf_est_rdm = 0.0_dp
             hf_pop_rdm = 0.0_dp
 
-            if (tENPert .or. tENPertTruncated) then
-                tENPertStarted = .true.
+            if (tEN2) then
+                tEN2Started = .true.
             end if
 
             ! We have reached the iteration where we want to start filling the RDM.

@@ -372,9 +372,11 @@ contains
           ! And disable the initiators subspace
           tInitiatorsSubspace = .false.
 
-          tENPert = .false.
-          tENPertStarted = .false.
-          tENPertTruncated = .false.
+          ! Epstein-Nesbet second-order correction logicals.
+          tEN2 = .false.
+          tEN2Init = .false.
+          tEN2Truncated = .false.
+          tEN2Started = .false.
 
         end subroutine SetCalcDefaults
 
@@ -1769,14 +1771,16 @@ contains
                 tInitCoherentRule=.false.
 
 ! Epstein-Nesbet second-order perturbation using the stochastic spawnings to correct initiator error.
-            case("EN2-PERTURBATION")
-                tENPert = .true.
+            case("EN2-INITIATOR")
+                tEN2 = .true.
+                tEN2Init = .true.
 
 ! Epstein-Nesbet second-order perturbation using stochastic spawnings. However, this is not used to
 ! correct initiator error. Currently, it is only used for the full non-initiator scheme when applied
 ! to a truncated space. Then, an EN2 correction is applied to the space outside that truncation.
-            case("EN2-PERT-TRUNCATED")
-                tENPertTruncated = .true.
+            case("EN2-TRUNCATED")
+                tEN2 = .true.
+                tEN2Truncated = .true.
 
             case("KEEPDOUBSPAWNS")
 !This means that two sets of walkers spawned on the same determinant with the same sign will live, 

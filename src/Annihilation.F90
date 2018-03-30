@@ -5,8 +5,8 @@ module AnnihilationMod
     use SystemData, only: NEl, tHPHF
     use CalcData, only:   tTruncInitiator, OccupiedThresh, tSemiStochastic, &
                           tTrialWavefunction, tKP_FCIQMC, tContTimeFCIMC, &
-                          tContTimeFull, InitiatorWalkNo, tau, tENPert, &
-                          tENPertStarted, tENPertTruncated, tInitCoherentRule
+                          tContTimeFull, InitiatorWalkNo, tau, tEN2, tEN2Init, &
+                          tEN2Started, tEN2Truncated, tInitCoherentRule
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -737,7 +737,7 @@ module AnnihilationMod
 
                     ! If calculating an EN2 correction to initiator error,
                     ! check now if we should add anything.
-                    if (tENPert) then
+                    if (tEN2Init) then
                         call add_en2_pert_for_init_calc(i, abort, nJ, SignTemp)
                     end if
 
@@ -807,7 +807,7 @@ module AnnihilationMod
                     ! calculation, then this spawn may need to be truncated
                     ! away now. Check this here:
                     tTruncSpawn = .false.
-                    if (tENPertTruncated) then
+                    if (tEN2Truncated) then
                         tTruncSpawn = .not. CheckAllowedTruncSpawn(0, nJ, SpawnedParts(:,i), 0)
                     end if
 
@@ -925,7 +925,7 @@ module AnnihilationMod
 
         ! RDM-energy-based estimate:
         ! Only add a contribution if we've started accumulating this estimate.
-        if (tENPertStarted) then
+        if (tEN2Started) then
             pert_contrib = .false.
 
             do istate = 1, en_pert_main%sign_length
@@ -951,7 +951,7 @@ module AnnihilationMod
 
         ! Add in contributions to the EN perturbation estimates:
         ! Trial-energy-based estimate:
-        if (tTrialWavefunction .and. tENPert) then
+        if (tTrialWavefunction .and. tEN2) then
             if (any(abort)) then
                 ! Get diagonal Hamiltonian element.
                 if (tHPHF) then
@@ -993,7 +993,7 @@ module AnnihilationMod
         logical :: pert_contrib(en_pert_main%sign_length)
 
         ! Only add a contribution if we've started accumulating this estimate.
-        if (tENPertStarted) then
+        if (tEN2Started) then
             pert_contrib = .false.
 
             do istate = 1, en_pert_main%sign_length
@@ -1019,13 +1019,13 @@ module AnnihilationMod
                 SpawnedSign(j) = 0.0_dp
                 call encode_part_sign (SpawnedParts(:,ispawn), SpawnedSign(j), j)
             end do
-        else
-            ! Remove the spawning
-            do j = 1, lenof_sign
-                SpawnedSign(j) = 0.0_dp
-                call encode_part_sign (SpawnedParts(:,ispawn), SpawnedSign(j), j)
-            end do
         end if
+
+        ! Remove the spawning
+        do j = 1, lenof_sign
+            SpawnedSign(j) = 0.0_dp
+            call encode_part_sign (SpawnedParts(:,ispawn), SpawnedSign(j), j)
+        end do
 
     end subroutine add_en2_pert_for_trunc_calc
 

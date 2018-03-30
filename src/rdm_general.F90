@@ -13,7 +13,7 @@ contains
     subroutine init_rdms(nrdms_standard, nrdms_transition)
 
         use DeterminantData, only: write_det
-        use CalcData, only: MemoryFacPart, tENPert, tENPertTruncated
+        use CalcData, only: MemoryFacPart, tEN2
         use FciMCData, only: MaxSpawned, Spawned_Parents, Spawned_Parents_Index
         use FciMCData, only: Spawned_ParentsTag, Spawned_Parents_IndexTag, nhashes_spawn
         use FciMCData, only: HFDet_True, tSinglePartPhase, AvNoatHF, IterRDM_HF
@@ -182,7 +182,7 @@ contains
             end do
         end if
 
-        if (tENPert .or. tENPertTruncated) then
+        if (tEN2) then
             ! Initialise Epstein-Nesbet perturbation object.
             ndets_en_pert = MaxSpawned
             nhashes_en_pert = 0.8*MaxSpawned
