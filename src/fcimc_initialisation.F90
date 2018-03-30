@@ -257,7 +257,7 @@ contains
             endif
 #endif
 
-            IF(tTruncInitiator) THEN
+            IF(tTruncInitiator .and. (.not. tFCIMCStats2)) THEN
                 initiatorstats_unit = get_free_unit()
                 if (tReadPops .and. .not. t_no_append_stats) then
 ! Restart calculation.  Append to stats file (if it exists)
