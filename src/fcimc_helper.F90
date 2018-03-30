@@ -36,7 +36,7 @@ module fcimc_helper
                         tRealCoeffByExcitLevel, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
                         MaxWalkerBloom, tENPert, tENPertStarted, &
-                        NMCyc, iSampleRDMIters, &
+                        NMCyc, iSampleRDMIters, tENPertTruncated, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
                         t_back_spawn_flex, tau, DiagSft, &
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule
@@ -1895,7 +1895,7 @@ contains
             hf_est_rdm = 0.0_dp
             hf_pop_rdm = 0.0_dp
 
-            if (tENPert) then
+            if (tENPert .or. tENPertTruncated) then
                 tENPertStarted = .true.
             end if
 

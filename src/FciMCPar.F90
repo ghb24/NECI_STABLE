@@ -544,7 +544,7 @@ module FciMCParMod
                         if (tOldRDMs) call write_rdm_estimates_old(rdm_estimates_old, .false.)
                     end if
 
-                    if (tENPert) then
+                    if (tENPert .or. tENPertTruncated) then
                         ! If calculating the Epstein Nesbet-perturbation, reset the
                         ! array and hash table where contributions are accumulated.
                         en_pert_main%ndets = 0

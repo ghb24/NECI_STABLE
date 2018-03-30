@@ -9,7 +9,8 @@ module fcimc_pointed_fns
                         RealCoeffExcitThresh, AVMcExcits, tau, DiagSft, &
                         tRealCoeffByExcitLevel, InitiatorWalkNo, &
                         t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, & 
-                        t_matele_cutoff, matele_cutoff,tENPert
+                        t_matele_cutoff, matele_cutoff, tENPert, &
+                        tENPertTruncated, tTruncInitiator
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement
     use fcimc_helper, only: CheckAllowedTruncSpawn
@@ -49,8 +50,17 @@ module fcimc_pointed_fns
         real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
         HElement_t(dp), intent(in) :: HElGen
+        logical :: tAllowForEN2Calc
 
-        if (.not. tENPert) then
+        ! If tENPertTruncated is true, then we want to allow the otherwise
+        ! truncated spawning to allow an EN2 correction to be calculated,
+        ! and then we will cancel it later in Annihilation, at the point
+        ! the correction is added in. However, this is currently only
+        ! implemented in the full, non-initiator scheme. So if initiator
+        ! is on, then ignore this.
+        tAllowForEN2Calc = tENPertTruncated .and. (.not. tTruncInitiator)
+
+        if (.not. tAllowForEN2Calc) then
             if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
                 child = attempt_create_normal (DetCurr, &
                                    iLutCurr, RealwSign, nJ, iLutnJ, prob, HElGen, ic, ex, &

@@ -374,6 +374,7 @@ contains
 
           tENPert = .false.
           tENPertStarted = .false.
+          tENPertTruncated = .false.
 
         end subroutine SetCalcDefaults
 
@@ -1767,9 +1768,15 @@ contains
             case("NO-COHERENT-INIT-RULE")
                 tInitCoherentRule=.false.
 
-! Epstein-Nesbet second-order perturbation using the stochastic spawnings.
-            case("EN-PERT")
+! Epstein-Nesbet second-order perturbation using the stochastic spawnings to correct initiator error.
+            case("EN2-PERTURBATION")
                 tENPert = .true.
+
+! Epstein-Nesbet second-order perturbation using stochastic spawnings. However, this is not used to
+! correct initiator error. Currently, it is only used for the full non-initiator scheme when applied
+! to a truncated space. Then, an EN2 correction is applied to the space outside that truncation.
+            case("EN2-PERT-TRUNCATED")
+                tENPertTruncated = .true.
 
             case("KEEPDOUBSPAWNS")
 !This means that two sets of walkers spawned on the same determinant with the same sign will live, 

@@ -6,7 +6,7 @@ module AnnihilationMod
     use CalcData, only:   tTruncInitiator, OccupiedThresh, tSemiStochastic, &
                           tTrialWavefunction, tKP_FCIQMC, tContTimeFCIMC, &
                           tContTimeFull, InitiatorWalkNo, tau, tENPert, &
-                          tENPertStarted, tInitCoherentRule
+                          tENPertStarted, tENPertTruncated, tInitCoherentRule
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -585,6 +585,7 @@ module AnnihilationMod
         real(dp) :: contrib_sign(en_pert_main%sign_length)
         real(dp) :: trial_contrib(lenof_sign)
         logical :: pert_contrib(en_pert_main%sign_length)
+        logical :: tTruncSpawn
 
         ! Only node roots to do this.
         if (.not. bNodeRoot) return
@@ -848,74 +849,51 @@ module AnnihilationMod
                     ! CurrentDets. If coeff <1, apply removal criterion.
                     call extract_sign (SpawnedParts(:,i), SignTemp)
 
-                    !if (all(abs(SignTemp) > 1.e-12_dp)) then
-                    !    if (tHPHF) then
-                    !        HDiag = hphf_diag_helement (nJ, SpawnedParts(:,i))
-                    !    else
-                    !        HDiag = get_helement (nJ, nJ, 0)
-                    !    end if
+                    ! If using an EN2 perturbation to correct a truncated
+                    ! calculation, then this spawn may need to be truncated
+                    ! away now. Check this here:
+                    tTruncSpawn = .false.
+                    if (tENPertTruncated) then
+                        tTruncSpawn = .not. CheckAllowedTruncSpawn(0, nJ, SpawnedParts(:,i), 0)
+                    end if
 
-                    !    !if (tFillingStochRDMonFly) then
-                    !    !    write(6,*) "RDM Norm:", rdm_estimates%norm_inst(1), "  Overlap:", all_overlaps(1,2)
-                    !    !end if
-
-                    !    energy_pert_global = energy_pert_global + SignTemp(1)*SignTemp(2)/((rdm_estimates%energy_num_inst(1) - HDiag * rdm_estimates%norm_inst(1)) * (tau**2))
-                    !end if
-
-                    !if (.not. CheckAllowedTruncSpawn (0, nJ, SpawnedParts(:,i), 0)) then
-                    !    if (tHPHF) then
-                    !        HDiag = hphf_diag_helement (nJ, SpawnedParts(:,i))
-                    !    else
-                    !        HDiag = get_helement (nJ, nJ, 0)
-                    !    end if
-
-                    !    energy_pert_global = energy_pert_global + SignTemp(1)*SignTemp(2)/&
-                    !      ((rdm_estimates%energy_num_inst(1)/rdm_estimates%norm_inst(1) - HDiag) * all_overlaps(1,2) * (tau**2))
-                    !    do j = 1, lenof_sign
-                    !        ! Walkers came from outside initiator space.
-                    !        NoAborted(j) = NoAborted(j) + abs(SignTemp(j))
-                    !        iter_data%naborted(j) = iter_data%naborted(j) + abs(SignTemp(j))
-                    !        ! We've already counted the walkers where SpawnedSign
-                    !        ! become zero in the compress, and in the merge, all
-                    !        ! that's left is those which get aborted which are
-                    !        ! counted here only if the sign was not already zero
-                    !        ! (when it already would have been counted).
-                    !        SignTemp(j) = 0.0_dp
-                    !        call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
-                    !    end do
-                    !end if
-                    
-                    do j = 1, lenof_sign
-                        run = part_type_to_run(j)
-                        if ((abs(SignTemp(j)) > 1.e-12_dp) .and. (abs(SignTemp(j)) < OccupiedThresh)) then
-                            ! We remove this walker with probability 1-RealSignTemp.
-                            pRemove = (OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
-                            r = genrand_real2_dSFMT ()
-                            if (pRemove  >  r) then
-                                ! Remove this walker.
-                                NoRemoved(run) = NoRemoved(run) + abs(SignTemp(j))
-                                !Annihilated = Annihilated + abs(SignTemp(j))
-                                !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
-                                iter_data%nremoved(j) = iter_data%nremoved(j) &
-                                                      + abs(SignTemp(j))
-                                SignTemp(j) = 0
-                                call nullify_ilut_part (SpawnedParts(:,i), j)
-                            else
-                                NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(SignTemp(j))
-                                iter_data%nborn(j) = iter_data%nborn(j) &
-                                            + OccupiedThresh - abs(SignTemp(j))
-                                SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
-                                call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
+                    if (tTruncSpawn) then
+                        ! Needs to be truncated away, and a contribution
+                        ! added to the EN2 correction.
+                        call add_en2_pert_for_truncated_calc(i, nJ, SignTemp)
+                    else
+                        do j = 1, lenof_sign
+                            run = part_type_to_run(j)
+                            if ((abs(SignTemp(j)) > 1.e-12_dp) .and. (abs(SignTemp(j)) < OccupiedThresh)) then
+                                ! We remove this walker with probability 1-RealSignTemp.
+                                pRemove = (OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
+                                r = genrand_real2_dSFMT ()
+                                if (pRemove  >  r) then
+                                    ! Remove this walker.
+                                    NoRemoved(run) = NoRemoved(run) + abs(SignTemp(j))
+                                    !Annihilated = Annihilated + abs(SignTemp(j))
+                                    !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
+                                    iter_data%nremoved(j) = iter_data%nremoved(j) &
+                                                          + abs(SignTemp(j))
+                                    SignTemp(j) = 0
+                                    call nullify_ilut_part (SpawnedParts(:,i), j)
+                                else
+                                    NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(SignTemp(j))
+                                    iter_data%nborn(j) = iter_data%nborn(j) &
+                                                + OccupiedThresh - abs(SignTemp(j))
+                                    SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
+                                    call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
+                                end if
                             end if
+                        end do
+
+                        if (.not. IsUnoccDet(SignTemp)) then
+                            ! Walkers have not been aborted and so we should copy the
+                            ! determinant straight over to the main list. We do not
+                            ! need to recompute the hash, since this should be the
+                            ! same one as was generated at the beginning of the loop.
+                            call AddNewHashDet(TotWalkersNew, SpawnedParts(:,i), DetHash, nJ)
                         end if
-                    end do
-                    
-                    if (.not. IsUnoccDet(SignTemp)) then
-                        ! Walkers have not been aborted and so we should copy the
-                        ! determinant straight over to the main list. We do not
-                        ! need to recompute the hash, since this should be the
-                        ! same one as was generated at the beginning of the loop.
-                        call AddNewHashDet(TotWalkersNew, SpawnedParts(:,i), DetHash, nJ)
                     end if
                 end if
 
@@ -961,5 +939,51 @@ module AnnihilationMod
         abort = .not. test_flag(ilut_spwn, get_initiator_flag(part_type))
 
     end function
+
+    subroutine add_en2_pert_for_truncated_calc(ispawn, nJ, SpawnedSign)
+
+        integer, intent(in) :: ispawn
+        integer, intent(in) :: nJ(nel)
+        real(dp), intent(inout):: SpawnedSign(lenof_sign)
+
+        integer :: j, istate
+        real(dp) :: contrib_sign(en_pert_main%sign_length)
+        logical :: pert_contrib(en_pert_main%sign_length)
+
+        if (tENPertStarted) then
+            pert_contrib = .false.
+
+            do istate = 1, en_pert_main%sign_length
+                if (abs(SpawnedSign(2*istate-1)) > 1.e-12_dp .and. &
+                      abs(SpawnedSign(2*istate)) > 1.e-12_dp) then
+                    pert_contrib(istate) = .true.
+                end if
+            end do
+
+            if (any(pert_contrib)) then
+                contrib_sign = 0.0_dp
+                do istate = 1, en_pert_main%sign_length
+                    if (pert_contrib(istate)) then
+                        contrib_sign(istate) = SpawnedSign(2*istate-1)*SpawnedSign(2*istate) / (tau**2)
+                    end if
+                end do
+
+                call add_to_en_pert_t(en_pert_main, nJ, SpawnedParts(:,ispawn), contrib_sign)
+            end if
+
+            ! Remove the spawning
+            do j = 1, lenof_sign
+                SpawnedSign(j) = 0.0_dp
+                call encode_part_sign (SpawnedParts(:,ispawn), SpawnedSign(j), j)
+            end do
+        else
+            ! Remove the spawning
+            do j = 1, lenof_sign
+                SpawnedSign(j) = 0.0_dp
+                call encode_part_sign (SpawnedParts(:,ispawn), SpawnedSign(j), j)
+            end do
+        end if
+
+    end subroutine add_en2_pert_for_truncated_calc
 
 end module AnnihilationMod

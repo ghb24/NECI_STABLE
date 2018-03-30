@@ -19,7 +19,7 @@ contains
         ! Also, if open_output_file is true, and if this is the processor with
         ! label 0, then open an RDMEstimates file, and write the file's header.
 
-        use CalcData, only: tENPert
+        use CalcData, only: tENPert, tENPertTruncated
         use LoggingData, only: tCalcPropEst, iNumPropToEst
         use Parallel_neci, only: iProcIndex
         use rdm_data, only: rdm_estimates_t
@@ -28,10 +28,13 @@ contains
         type(rdm_estimates_t), intent(out) :: est
         integer, intent(in) :: nrdms_standard, nrdms_transition
         logical, intent(in) :: open_output_file
+        logical :: tENPertAny
 
         integer :: nrdms, ierr
 
         nrdms = nrdms_standard + nrdms_transition
+
+        tENPertAny = tENPert .or. tENPertTruncated
 
         ! Store the number of RDMs.
         est%nrdms = nrdms
@@ -46,7 +49,7 @@ contains
         allocate(est%energy_num(nrdms), stat=ierr)
         allocate(est%spin_num(nrdms), stat=ierr)
         if (tCalcPropEst) allocate(est%property(iNumPropToEst,nrdms), stat=ierr)
-        if (tENPert) then
+        if (tENPertAny) then
             allocate(est%energy_pert(nrdms_standard), stat=ierr)
             allocate(est%energy_pert_hf(nrdms_standard), stat=ierr)
         end if
@@ -59,7 +62,7 @@ contains
         allocate(est%energy_num_inst(nrdms), stat=ierr)
         allocate(est%spin_num_inst(nrdms), stat=ierr)
         if (tCalcPropEst) allocate(est%property_inst(iNumPropToEst,nrdms), stat=ierr)
-        if (tENPert) then
+        if (tENPertAny) then
             allocate(est%energy_pert_inst(nrdms_standard), stat=ierr)
             allocate(est%energy_pert_hf_inst(nrdms_standard), stat=ierr)
         end if
@@ -75,7 +78,7 @@ contains
         est%energy_num = 0.0_dp
         est%spin_num = 0.0_dp
         if (tCalcPropEst) est%property = 0.0_dp
-        if (tENPert) then
+        if (tENPertAny) then
             est%energy_pert = 0.0_dp
             est%energy_pert_hf = 0.0_dp
         end if
@@ -87,7 +90,7 @@ contains
         est%energy_num_inst = 0.0_dp
         est%spin_num_inst = 0.0_dp
         if (tCalcPropEst) est%property_inst = 0.0_dp
-        if (tENPert) then
+        if (tENPertAny) then
             est%energy_pert_inst = 0.0_dp
             est%energy_pert_hf_inst = 0.0_dp
         end if
@@ -157,7 +160,7 @@ contains
         ! Open a new RDMEstimates file (overwriting any existing file), and
         ! write a header to it, appropriate for when we are sampling nrdms RDMs.
 
-        use CalcData, only: tENPert
+        use CalcData, only: tENPert, tENPertTruncated
         use LoggingData, only: tCalcPropEst, iNumPropToEst
 
         integer, intent(in) :: write_unit, nrdms_standard, nrdms_transition
@@ -177,7 +180,7 @@ contains
                     write(write_unit, '(4x,"Property(",i2,")",1x,i2)', advance='no') iprop, irdm
                 end do
             end if
-            if (tENPert) then
+            if (tENPert .or. tENPertTruncated) then
                 write(write_unit, '(5x,"EN perturbation",1x,i2)', advance='no') irdm
                 write(write_unit, '(2x,"EN-HF perturbation",1x,i2)', advance='no') irdm
             end if
@@ -204,7 +207,7 @@ contains
         ! the estimates are linear functions of the RDMs, which they will be
         ! for any observable.
 
-        use CalcData, only: tENPert
+        use CalcData, only: tENPert, tENPertTruncated
         use Parallel_neci, only: MPISumAll
         use rdm_data, only: rdm_estimates_t, rdm_list_t, rdm_definitions_t
         use rdm_data, only: en_pert_t, hf_est_rdm, hf_pop_rdm
@@ -286,7 +289,7 @@ contains
 
         ! For the EN Perturbation terms, we clear them at the start of
         ! every RDM averaging cycle, so they're treated a bit differently.
-        if (tENPert) then
+        if (tENPert .or. tENPertTruncated) then
             call MPISumAll(hf_est_rdm, hf_est_rdm_all)
             call MPISumAll(hf_pop_rdm, hf_pop_rdm_all)
 
@@ -316,7 +319,7 @@ contains
         ! Also, if final_output is true, then output the final total estimates
         ! to standard output, and close the RDMEstimates unit.
 
-        use CalcData, only: tENPert
+        use CalcData, only: tENPert, tENPertTruncated
         use FciMCData, only: Iter, PreviousCycles
         use LoggingData, only: tRDMInstEnergy, tCalcPropEst, iNumPropToEst
         use rdm_data, only: rdm_estimates_t, rdm_definitions_t
@@ -342,7 +345,7 @@ contains
                                 est%property_inst(iprop,irdm)
                         end do 
                     end if
-                    if (tENPert) then
+                    if (tENPert .or. tENPertTruncated) then
                         write(est%write_unit,'(3x,es20.13)', advance='no') &
                             est%energy_pert_inst(irdm)
                         write(est%write_unit,'(3x,es20.13)', advance='no') &
@@ -369,7 +372,7 @@ contains
                                 est%property(iprop,irdm)
                         end do 
                     end if
-                    if (tENPert) then
+                    if (tENPert .or. tENPertTruncated) then
                         write(est%write_unit,'(3x,es20.13)', advance='no') &
                             est%energy_pert(irdm)
                         write(est%write_unit,'(3x,es20.13)', advance='no') &

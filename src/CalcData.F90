@@ -108,7 +108,7 @@ LOGICAL :: tCheckHighestPop,tRestartHighPop,tChangeProjEDet
 LOGICAL :: tRotoAnnihil,tSpawnAsDet
 LOGICAL :: tTruncCAS ! Truncation of the FCIMC excitation space by a CAS
 logical :: tTruncInitiator, tAddtoInitiator, tInitCoherentRule
-logical :: tENPert, tENPertStarted
+logical :: tENPert, tENPertStarted, tENPertTruncated
 LOGICAL :: tSeniorInitiators !If a det. has lived long enough (called a senior det.), it is added to the initiator space.
 LOGICAL :: tInitIncDoubs,tWalkContGrow,tAnnihilatebyRange
 logical :: tReadPopsRestart, tReadPopsChangeRef, tInstGrowthRate
