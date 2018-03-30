@@ -539,10 +539,10 @@ contains
         sizes(4) = size(cyc_proje_denominator)
         sizes(5) = size(sum_proje_denominator)
         if (tTrialWavefunction) then
-            sizes(7) = size(trial_numerator)
-            sizes(8) = size(trial_denom)
-            sizes(9) = size(trial_num_inst)
-            sizes(10) = size(trial_denom_inst)
+            sizes(6) = size(trial_numerator)
+            sizes(7) = size(trial_denom)
+            sizes(8) = size(trial_num_inst)
+            sizes(9) = size(trial_denom_inst)
         end if
 
         if (sum(sizes(1:10)) > 100) call stop_all(t_r, "No space left in arrays for communication of estimates. Please &
@@ -555,10 +555,10 @@ contains
         low = upp + 1; upp = low + sizes(4) - 1; send_arr_helem(low:upp) = cyc_proje_denominator;
         low = upp + 1; upp = low + sizes(5) - 1; send_arr_helem(low:upp) = sum_proje_denominator;
         if (tTrialWavefunction) then
-            low = upp + 1; upp = low + sizes(7) - 1; send_arr_helem(low:upp) = trial_numerator;
-            low = upp + 1; upp = low + sizes(8) - 1; send_arr_helem(low:upp) = trial_denom;
-            low = upp + 1; upp = low + sizes(9) - 1; send_arr_helem(low:upp) = trial_num_inst;
-            low = upp + 1; upp = low + sizes(10) - 1; send_arr_helem(low:upp) = trial_denom_inst;
+            low = upp + 1; upp = low + sizes(6) - 1; send_arr_helem(low:upp) = trial_numerator;
+            low = upp + 1; upp = low + sizes(7) - 1; send_arr_helem(low:upp) = trial_denom;
+            low = upp + 1; upp = low + sizes(8) - 1; send_arr_helem(low:upp) = trial_num_inst;
+            low = upp + 1; upp = low + sizes(9) - 1; send_arr_helem(low:upp) = trial_denom_inst;
         end if
 
         call MPISumAll (send_arr_helem(1:upp), recv_arr_helem(1:upp))
@@ -571,10 +571,10 @@ contains
         low = upp + 1; upp = low + sizes(4) - 1; all_cyc_proje_denominator = recv_arr_helem(low:upp);
         low = upp + 1; upp = low + sizes(5) - 1; all_sum_proje_denominator = recv_arr_helem(low:upp);
         if (tTrialWavefunction) then
-            low = upp + 1; upp = low + sizes(7) - 1; tot_trial_numerator = recv_arr_helem(low:upp);
-            low = upp + 1; upp = low + sizes(8) - 1; tot_trial_denom = recv_arr_helem(low:upp);
-            low = upp + 1; upp = low + sizes(9) - 1; tot_trial_num_inst = recv_arr_helem(low:upp);
-            low = upp + 1; upp = low + sizes(10) - 1; tot_trial_denom_inst = recv_arr_helem(low:upp);
+            low = upp + 1; upp = low + sizes(6) - 1; tot_trial_numerator = recv_arr_helem(low:upp);
+            low = upp + 1; upp = low + sizes(7) - 1; tot_trial_denom = recv_arr_helem(low:upp);
+            low = upp + 1; upp = low + sizes(8) - 1; tot_trial_num_inst = recv_arr_helem(low:upp);
+            low = upp + 1; upp = low + sizes(9) - 1; tot_trial_denom_inst = recv_arr_helem(low:upp);
         end if
 
         ! Optionally communicate EXLEVEL_WNorm.
