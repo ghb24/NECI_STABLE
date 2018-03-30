@@ -998,6 +998,15 @@ contains
             ! Check that there is enough memory for the new determinant.
             slots_left = en_pert%max_ndets - en_pert%ndets
 
+            if (slots_left < 0) then
+                write(6,'("ERROR: No space left in the EN2 array. Aborting to prevent incorrect results...")')
+                call neci_flush(6)
+                call stop_all(t_r, 'No space left in the EN2 array. Please increase memoryfacspawn.')
+            else if (slots_left < 20) then
+                write(6,'("WARNING: Less than 20 slots left in EN2 array. The program will abort &
+                           &when there are no slots remaining.")'); call neci_flush(6)
+            end if
+
             en_pert%dets(:, en_pert%ndets) = ilut(0:NIfDBO)
             call encode_sign_EN(en_pert%sign_length, en_pert%dets(:, en_pert%ndets), contrib_sign)
 

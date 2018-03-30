@@ -13,7 +13,7 @@ module fcimc_output
                          AllHistogramEnergy
     use CalcData, only: tTruncInitiator, tTrialWavefunction, tReadPops, &
                         DiagSft, tSpatialOnlyHash, tOrthogonaliseReplicas, &
-                        StepsSft, tPrintReplicaOverlaps, tStartTrialLater
+                        StepsSft, tPrintReplicaOverlaps, tStartTrialLater, tEN2
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
     use IntegralsData, only: frozen_orb_list, frozen_orb_reverse_map, &
@@ -27,6 +27,7 @@ module fcimc_output
     use Determinants, only: write_det
     use adi_data, only: AllCoherentDoubles, AllIncoherentDets, nRefs, &
          ilutRefAdi, tAdiActive, nConnection, AllConnection
+    use rdm_data, only: en_pert_main
     use Parallel_neci
     use FciMCData
     use constants
@@ -669,16 +670,6 @@ contains
             ! frequently).
             ! This also makes column contiguity on resumes as likely as
             ! possible.
-            if (tTruncInitiator) then
-                do p = 1, inum_runs
-                    write(tmpc, '(i5)') p
-                    call stats_out(state, .false., AllNoAborted(p), 'Num. abort. (' // trim(adjustl(tmpc)) // ")")
-                    call stats_out(state, .false., AllNoInitDets(p), 'Num. init. dets (' // trim(adjustl(tmpc)) // ")")
-                    call stats_out(state, .false., AllNoNonInitDets(p), 'Num. non-init. dets (' // trim(adjustl(tmpc)) // ")")
-                    call stats_out(state, .false., AllNoInitWalk(p), 'Num. init. walk. (' // trim(adjustl(tmpc)) // ")")
-                    call stats_out(state, .false., AllNoNonInitWalk(p), 'Num. non-init. walk. (' // trim(adjustl(tmpc)) // ")")
-                end do
-            end if
 
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these
@@ -784,6 +775,8 @@ contains
             end do
 
 #endif
+
+            if (tEN2) call stats_out(state,.true., en_pert_main%ndets_all, 'EN2 Dets.')
 
             if (tTruncInitiator) then
                 call stats_out(state_i, .false., Iter + PreviousCycles, 'Iter.')

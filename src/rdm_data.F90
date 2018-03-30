@@ -173,6 +173,9 @@ module rdm_data
         ! The number of determinants contributing to the perturbation
         ! currently stored in the dets array.
         integer :: ndets = 0
+        ! The number of determinants contributing to the perturbation
+        ! currently stored in the dets array, across all processors.
+        integer :: ndets_all = 0
         ! Maximum number of unique hashes available in hash_table (not the
         ! number of currently unused ones, but the total number, i.e. the
         ! length of the hash_table array).
