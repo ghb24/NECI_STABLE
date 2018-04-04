@@ -590,6 +590,7 @@ contains
         ! If the NECI calculation softexits before the RDMs start to fill,
         ! this is all that is called at the end.
 
+        use CalcData, only: tEN2
         use FciMCData, only: Spawned_Parents, Spawned_Parents_Index
         use FciMCData, only: Spawned_ParentsTag, Spawned_Parents_IndexTag
         use FciMCData, only: AvNoatHF, IterRDM_HF
@@ -620,7 +621,9 @@ contains
         call dealloc_rdm_spawn_t(two_rdm_spawn)
 
         ! Deallocate the EN perturbation orbject.
-        call dealloc_en_pert_t(en_pert_main)
+        if (tEN2) then
+            call dealloc_en_pert_t(en_pert_main)
+        end if
 
         ! Deallocate the RDM estimates object.
         call dealloc_rdm_estimates_t(rdm_estimates)
