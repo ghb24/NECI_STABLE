@@ -49,7 +49,6 @@ module fcimc_helper
     use hash, only: remove_hash_table_entry
     use load_balance_calcnodes, only: DetermineDetNode, tLoadBalanceBlocks
     use load_balance, only: adjust_load_balance
-    use rdm_data, only: hf_est_rdm, hf_pop_rdm
     use rdm_filling_old, only: det_removed_fill_diag_rdm_old
     use rdm_filling, only: det_removed_fill_diag_rdm
     use rdm_general, only: store_parent_with_spawned, extract_bit_rep_avsign_norm
@@ -425,9 +424,6 @@ contains
             ! Number at HF * sign over course of update cycle
             HFCyc(1:lenof_sign) = HFCyc(1:lenof_sign) + RealwSign
 
-            ! HF population averaged over the lifetime of an RDM cycle.
-            hf_pop_rdm(1:lenof_sign) = hf_pop_rdm(1:lenof_sign) + RealwSign
-
         elseif (ExcitLevel_local == 2 .or. &
                 (ExcitLevel_local == 1 .and. tNoBrillouin)) then
 
@@ -492,9 +488,6 @@ contains
             ENumCycAbs(run) = ENumCycAbs(run) + abs(HoffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) &
                                       / dProbFin
 
-            ! HF energy averaged over the lifetime of an RDM cycle.
-            hf_est_rdm(run) = hf_est_rdm(run) + (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) / dProbFin
-            
         end do
 
         ! -----------------------------------
@@ -697,8 +690,6 @@ contains
                     SumNoatHF(run) = SumNoatHF(run) + sgn_run
                     NoatHF(run) = NoatHF(run) + sgn_run
                     HFCyc(run) = HFCyc(run) + sgn_run
-                    ! HF energy averaged over the lifetime of an RDM cycle.
-                    hf_pop_rdm(run) = hf_pop_rdm(run) + sgn_run
 #endif
                 endif
 
@@ -727,9 +718,6 @@ contains
                 SumENum(run) = SumENum(run) + (hoffdiag * sgn_run) / dProbFin
             ENumCyc(run) = ENumCyc(run) + (hoffdiag * sgn_run) / dProbFin
             ENumCycAbs(run) = ENumCycAbs(run) + abs(hoffdiag * sgn_run) / dProbFin
-
-            ! HF energy averaged over the lifetime of an RDM cycle.
-            hf_est_rdm(run) = hf_est_rdm(run) + (hoffdiag * sgn_run) / dProbFin
 
         end do
 
@@ -1870,7 +1858,6 @@ contains
         ! This routine checks if we should start filling the RDMs - 
         ! and does so if we should. 
 
-        use rdm_data, only: hf_est_rdm, hf_pop_rdm
         use rdm_general, only: realloc_SpawnedParts
         use LoggingData, only: tReadRDMs, tTransitionRDMs
         implicit none
@@ -1891,13 +1878,7 @@ contains
             IterRDMStart = Iter + PreviousCycles
             IterRDM_HF = Iter + PreviousCycles
 
-            ! Rezero HF contributions for EN estimators
-            hf_est_rdm = 0.0_dp
-            hf_pop_rdm = 0.0_dp
-
-            if (tEN2) then
-                tEN2Started = .true.
-            end if
+            if (tEN2) tEN2Started = .true.
 
             ! We have reached the iteration where we want to start filling the RDM.
             if (tExplicitAllRDM) then

@@ -322,12 +322,6 @@ module rdm_data
     ! Timers.
     type(timer), save :: nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time
 
-    ! The value of the Hartree--Fock energy estimator numerator and
-    ! denominator, accumulated over the length of the current RDM
-    ! cycle, and then reset after each RDM cycle.
-    real(dp), allocatable :: hf_est_rdm(:)
-    real(dp), allocatable :: hf_pop_rdm(:)
-
     ! ---- Data for the explicit RDM code -----------------------------
 
     ! Arrays for when filling RDMs explicitly. See rdm_explicit for the

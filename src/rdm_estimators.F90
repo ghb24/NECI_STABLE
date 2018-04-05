@@ -47,10 +47,7 @@ contains
         allocate(est%energy_num(nrdms), stat=ierr)
         allocate(est%spin_num(nrdms), stat=ierr)
         if (tCalcPropEst) allocate(est%property(iNumPropToEst,nrdms), stat=ierr)
-        if (tEN2) then
-            allocate(est%energy_pert(nrdms_standard), stat=ierr)
-            allocate(est%energy_pert_hf(nrdms_standard), stat=ierr)
-        end if
+        if (tEN2) allocate(est%energy_pert(nrdms_standard), stat=ierr)
 
         ! "Instantaneous" estimates over the previous sampling block.
         allocate(est%trace_inst(nrdms), stat=ierr)
@@ -60,10 +57,7 @@ contains
         allocate(est%energy_num_inst(nrdms), stat=ierr)
         allocate(est%spin_num_inst(nrdms), stat=ierr)
         if (tCalcPropEst) allocate(est%property_inst(iNumPropToEst,nrdms), stat=ierr)
-        if (tEN2) then
-            allocate(est%energy_pert_inst(nrdms_standard), stat=ierr)
-            allocate(est%energy_pert_hf_inst(nrdms_standard), stat=ierr)
-        end if
+        if (tEN2) allocate(est%energy_pert_inst(nrdms_standard), stat=ierr)
 
         ! Hermiticity errors, for the final RDMs.
         allocate(est%max_error_herm(nrdms), stat=ierr)
@@ -76,10 +70,7 @@ contains
         est%energy_num = 0.0_dp
         est%spin_num = 0.0_dp
         if (tCalcPropEst) est%property = 0.0_dp
-        if (tEN2) then
-            est%energy_pert = 0.0_dp
-            est%energy_pert_hf = 0.0_dp
-        end if
+        if (tEN2) est%energy_pert = 0.0_dp
 
         est%trace_inst = 0.0_dp
         est%norm_inst = 0.0_dp
@@ -88,10 +79,7 @@ contains
         est%energy_num_inst = 0.0_dp
         est%spin_num_inst = 0.0_dp
         if (tCalcPropEst) est%property_inst = 0.0_dp
-        if (tEN2) then
-            est%energy_pert_inst = 0.0_dp
-            est%energy_pert_hf_inst = 0.0_dp
-        end if
+        if (tEN2) est%energy_pert_inst = 0.0_dp
 
         est%max_error_herm = 0.0_dp
         est%sum_error_herm = 0.0_dp
@@ -142,9 +130,7 @@ contains
         if (allocated(est%max_error_herm)) deallocate(est%max_error_herm, stat=ierr)
         if (allocated(est%sum_error_herm)) deallocate(est%sum_error_herm, stat=ierr)
         if (allocated(est%energy_pert)) deallocate(est%energy_pert, stat=ierr)
-        if (allocated(est%energy_pert_hf)) deallocate(est%energy_pert_hf, stat=ierr)
         if (allocated(est%energy_pert_inst)) deallocate(est%energy_pert_inst, stat=ierr)
-        if (allocated(est%energy_pert_hf_inst)) deallocate(est%energy_pert_hf_inst, stat=ierr)
 
         ! Close the RDMEstimates unit, if it was opened on this processor.
         ! The following was what it was set to if it was not opened in
@@ -178,10 +164,7 @@ contains
                     write(write_unit, '(4x,"Property(",i2,")",1x,i2)', advance='no') iprop, irdm
                 end do
             end if
-            if (tEN2) then
-                write(write_unit, '(5x,"EN perturbation",1x,i2)', advance='no') irdm
-                write(write_unit, '(2x,"EN-HF perturbation",1x,i2)', advance='no') irdm
-            end if
+            if (tEN2) write(write_unit, '(5x,"EN perturbation",1x,i2)', advance='no') irdm
         end do
 
         do irdm = nrdms_standard+1, nrdms_standard+nrdms_transition
@@ -208,7 +191,7 @@ contains
         use CalcData, only: tEN2
         use Parallel_neci, only: MPISumAll
         use rdm_data, only: rdm_estimates_t, rdm_list_t, rdm_definitions_t
-        use rdm_data, only: en_pert_t, hf_est_rdm, hf_pop_rdm
+        use rdm_data, only: en_pert_t
         use SystemData, only: nel, ecore
         use OneEInts, only: PropCore
         use LoggingData, only: iNumPropToEst, tCalcPropEst
@@ -224,8 +207,6 @@ contains
         real(dp) :: rdm_spin(est%nrdms)
         real(dp) :: rdm_prop(iNumProptoEst,est%nrdms)
         real(dp) :: energy_pert(est%nrdms_standard)
-        real(dp) :: energy_pert_hf(est%nrdms_standard)
-        real(dp) :: hf_est_rdm_all(inum_runs), hf_pop_rdm_all(inum_runs)
 
         ! Use the _inst variables as temporary variables to store the current
         ! total values. These are updated at the end of this routine.
@@ -288,22 +269,12 @@ contains
         ! For the EN Perturbation terms, we clear them at the start of
         ! every RDM averaging cycle, so they're treated a bit differently.
         if (tEN2) then
-            call MPISumAll(hf_est_rdm, hf_est_rdm_all)
-            call MPISumAll(hf_pop_rdm, hf_pop_rdm_all)
-
             call calc_en_pert_energy(en_pert, est%energy_num_inst(1:en_pert%sign_length), &
-                                     est%norm_inst(1:en_pert%sign_length), &
-                                     hf_est_rdm_all, hf_pop_rdm_all, energy_pert, energy_pert_hf)
+                                     est%norm_inst(1:en_pert%sign_length), energy_pert)
 
             call MPISumAll(energy_pert, est%energy_pert_inst)
-            call MPISumAll(energy_pert_hf, est%energy_pert_hf_inst)
 
             est%energy_pert = est%energy_pert + est%energy_pert_inst
-            est%energy_pert_hf = est%energy_pert_hf + est%energy_pert_hf_inst
-
-            ! Re-zero HF estimators
-            hf_est_rdm = 0.0_dp
-            hf_pop_rdm = 0.0_dp
         end if
 
     end subroutine calc_2rdm_estimates_wrapper
@@ -346,8 +317,6 @@ contains
                     if (tEN2) then
                         write(est%write_unit,'(3x,es20.13)', advance='no') &
                             est%energy_pert_inst(irdm)
-                        write(est%write_unit,'(3x,es20.13)', advance='no') &
-                            est%energy_pert_hf_inst(irdm)
                     end if
                 end do
                 do irdm = est%nrdms_standard+1, est%nrdms_standard+est%nrdms_transition
@@ -373,8 +342,6 @@ contains
                     if (tEN2) then
                         write(est%write_unit,'(3x,es20.13)', advance='no') &
                             est%energy_pert(irdm)
-                        write(est%write_unit,'(3x,es20.13)', advance='no') &
-                            est%energy_pert_hf(irdm)
                     end if
                 end do
                 do irdm = est%nrdms_standard+1, est%nrdms_standard+est%nrdms_transition
@@ -627,8 +594,7 @@ contains
     end subroutine calc_rdm_spin
 
     subroutine calc_en_pert_energy(en_pert, rdm_energy_num, rdm_norm, &
-                                   hf_energy_num, hf_energy_denom, &
-                                   energy_pert, energy_pert_hf)
+                                   energy_pert)
 
         ! Calculate the Epstein-Nesbet perturbation energy.
 
@@ -638,9 +604,6 @@ contains
         !
         ! The values ( \sum_i H_{ai} \psi_i )^2 are what is stored as the signs
         ! in the en_pert%dets objects.
-        !
-        ! We also calculate the same value but using a HF-based energy estimate
-        ! instead.
 
         use bit_rep_data, only: nIfDBO, NIfTot
         use bit_reps, only: decode_bit_det
@@ -654,27 +617,17 @@ contains
         type(en_pert_t), intent(in) :: en_pert
         real(dp), intent(in) :: rdm_energy_num(en_pert%sign_length)
         real(dp), intent(in) :: rdm_norm(en_pert%sign_length)
-        real(dp), intent(in) :: hf_energy_num(inum_runs)
-        real(dp), intent(in) :: hf_energy_denom(inum_runs)
         real(dp), intent(out) :: energy_pert(en_pert%sign_length)
-        real(dp), intent(out) :: energy_pert_hf(en_pert%sign_length)
 
         integer(n_int) :: ilut(0:NIfTot)
         integer :: nI(nel)
         integer :: idet, istate
         real(dp) :: h_aa
-        real(dp) :: hf_energy(en_pert%sign_length)
         real(dp) :: contrib(en_pert%sign_length)
-        real(dp) :: contrib_rdm(en_pert%sign_length),  contrib_hf(en_pert%sign_length)
+        real(dp) :: contrib_rdm(en_pert%sign_length)
 
         energy_pert = 0.0_dp
-        energy_pert_hf = 0.0_dp
         ilut = 0_n_int
-
-        do istate = 1, en_pert%sign_length
-            hf_energy(istate) = Hii + 0.5_dp * ((hf_energy_num(istate*2-1)/hf_energy_denom(istate*2-1)) + &
-                                                 (hf_energy_num(istate*2)/hf_energy_denom(istate*2)))
-        end do
 
         ! Loop over all determinants.
         do idet = 1, en_pert%ndets
@@ -692,13 +645,9 @@ contains
             do istate = 1, en_pert%sign_length
                 ! The RDM-energy-based estimate:
                 contrib_rdm(istate) = contrib(istate)/( rdm_energy_num(istate) - h_aa*rdm_norm(istate) )
-
-                ! The HF-energy-based estimate:
-                contrib_hf(istate) = contrib(istate)/(( hf_energy(istate) - h_aa ) * rdm_norm(istate))
             end do
 
             energy_pert = energy_pert + contrib_rdm
-            energy_pert_hf = energy_pert_hf + contrib_hf
         end do
 
     end subroutine calc_en_pert_energy

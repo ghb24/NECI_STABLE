@@ -10,7 +10,6 @@ module replica_data
     use SystemData, only : NEl
     use IntegralsData, only : NFrozen
     use LoggingData, only : tLogEXLEVELStats
-    use rdm_data, only: hf_est_rdm, hf_pop_rdm
     implicit none
 
 contains
@@ -98,8 +97,6 @@ contains
                  AllGrowRate(inum_runs), &
                  SumWalkersCyc(inum_runs), AllSumWalkersCyc(Inum_runs), &
                  OldAllAvWalkersCyc(inum_runs), &
-
-                 hf_est_rdm(inum_runs), hf_pop_rdm(inum_runs), &
 
                  ! Overall wavefunction properties
                  norm_psi(inum_runs), norm_psi_squared(inum_runs), &
@@ -209,8 +206,6 @@ contains
                    AllGrowRate, &
                    SumWalkersCyc, AllSumWalkersCyc, &
                    OldAllAvWalkersCyc, &
-
-                   hf_est_rdm, hf_pop_rdm, &
 
                    norm_psi, norm_psi_squared, &
                    all_norm_psi_squared, &
