@@ -158,14 +158,6 @@ module FciMCParMod
         call InitFCIMCCalcPar()
         call init_fcimc_fn_pointers() 
 
-        call decode_bit_det(tmp_det, ilutHF)
-        write(iout, *) "HF: ", tmp_det
-        call decode_bit_det(tmp_det, ilutHF_true)
-        write(iout, *) "HF_true: ", tmp_det
-        call decode_bit_det(tmp_det, ilutRef(:,1))
-        write(iout, *) "Ref: ", tmp_det 
-        write(iout, *) "ProjEDet: ", ProjEDet
-
         ! Attach signal handlers to give a more graceful death-mannerism
         call init_signals()
 
@@ -289,7 +281,7 @@ module FciMCParMod
             endif
            
             if(((Iter - maxval(VaryShiftIter)) == allDoubsInitsDelay + 1 &
-                 .and. all(.not. tSinglePartPhase)).or.all(tSkipRef)) then
+                 .and. all(.not. tSinglePartPhase))) then
                ! Start the all-doubs-initiator procedure
                if(tDelayAllDoubsInits) call enable_adi()
                ! And/or the all-sings-initiator procedure

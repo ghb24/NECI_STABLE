@@ -748,144 +748,178 @@ contains
             do run=1,inum_runs
                 lb = min_part_type(run)
                 ub = max_part_type(run)
-                if (TSinglePartPhase(run)) then
-                    tot_walkers = InitWalkers * int(nNodes,int64)
+                if(tFixedN0)then
+                    if (.not. tSkipRef(run) .and. AllHFCyc(run)>=N0_Target) then
+                        !When reaching target N0, set flag to keep the population of reference det fixed.
+                        tSkipRef(run) = .True.
 
-#ifdef __CMPLX
-                    if ((sum(AllTotParts(lb:ub)) > tot_walkers) .or. &
-                         (abs_sign(AllNoatHF(lb:ub)) > MaxNoatHF)) then
-    !                     WRITE(iout,*) "AllTotParts: ",AllTotParts(1),AllTotParts(2),tot_walkers
-                        write (iout, '(a,i13,a)') 'Exiting the single particle growth phase on iteration: ',iter + PreviousCycles, &
-                                     ' - Shift can now change'
+                        write (iout, '(a,i13,a,i1)') 'Exiting the fixed shift phase on iteration: ' &
+                                     ,iter + PreviousCycles, ' - reference population of the following run is now fixed: ', run
+                        !Set these parameters because other parts of the code depends on them
                         VaryShiftIter(run) = Iter
                         iBlockingIter(run) = Iter + PreviousCycles
                         tSinglePartPhase(run) = .false.
-                        ! [W.D.15.5.2017:]
-                        ! we should remove these equal 0 comparisons..
-!                         if(TargetGrowRate(run).ne.0.0_dp) then
-                        if(abs(TargetGrowRate(run)) > EPS) then
-                            write(iout,"(A)") "Setting target growth rate to 1."
-                            TargetGrowRate=0.0_dp
-                        endif
-
-                        ! If enabled, jump the shift to the value preducted by the
-                        ! projected energy!
-                        if (tJumpShift) then
-                            DiagSft(run) = real(proje_iter(run),dp)
-                            defer_update(run) = .true.
-                        end if
-                    endif
-#else
-                    start_varying_shift = .false.
-                    if (tLetInitialPopDie) then
-                        if (AllTotParts(run) < tot_walkers) start_varying_shift = .true.
-                    else
-                        if ((AllTotParts(run) > tot_walkers) .or. &
-                             (abs(AllNoatHF(run)) > MaxNoatHF)) start_varying_shift = .true.
                     end if
 
-                    if (start_varying_shift) then
-    !                     WRITE(iout,*) "AllTotParts: ",AllTotParts(1),AllTotParts(2),tot_walkers
-                        write (iout, '(a,i13,a,i1)') 'Exiting the single particle growth phase on iteration: ' &
-                                     ,iter + PreviousCycles, ' - Shift can now change for population', run
-                        VaryShiftIter(run) = Iter
-                        iBlockingIter(run) = Iter + PreviousCycles
-                        tSinglePartPhase(run) = .false.
-                        ! [W.D. 15.5.2017]
-                        ! change equal 0 comps
-!                         if(TargetGrowRate(run).ne.0.0_dp) then
-                        if(abs(TargetGrowRate(run)) > EPS) then
-                            write(iout,"(A)") "Setting target growth rate to 1."
-                            TargetGrowRate(run)=0.0_dp
-                        endif
+                    if(tSkipRef(run))then
+                        !Use the projected energy as the shift to fix the
+                        !population of the reference det and thus reduce the
+                        !fluctuations of the projected energy.
+                        DiagSft(run) = (AllENumCyc(run)) / (AllHFCyc(run))+proje_ref_energy_offsets(run)
 
-                        ! If enabled, jump the shift to the value preducted by the
-                        ! projected energy!
-                        if (tJumpShift) then
-                            DiagSft(run) = real(proje_iter(run),dp)
-                            defer_update(run) = .true.
-                        end if
-                    endif
-#endif
-                else ! .not.tSinglePartPhase(run)
-
-#ifdef __CMPLX
-                    if (abs_sign(AllNoatHF(lb:ub)) < MaxNoatHF-HFPopThresh) then
-#else
-                    if (abs(AllNoatHF(run)) < MaxNoatHF-HFPopThresh) then
-#endif
-                        write (iout, '(a,i13,a)') 'No at HF has fallen too low - reentering the &
-                                     &single particle growth phase on iteration',iter + PreviousCycles,' - particle number &
-                                     &may grow again.'
-                        tSinglePartPhase(run) = .true.
-                        tReZeroShift(run) = .true.
-                    endif
-
-                endif ! tSinglePartPhase(run) or not
-
-                ! How should the shift change for the entire ensemble of walkers 
-                ! over all processors.
-                if (((.not. tSinglePartPhase(run)).or.(TargetGrowRate(run).ne.0.0_dp)) .and.&
-                    .not. defer_update(run)) then
-
-                    !In case we want to continue growing, TargetGrowRate > 0.0_dp
-                    ! New shift value
-!                     if(TargetGrowRate(run).ne.0.0_dp) then
-                    ! [W.D. 15.5.2017]
-                    if(abs(TargetGrowRate(run)) > EPS) then
-#ifdef __CMPLX
-                        if(sum(AllTotParts(lb:ub)).gt.TargetGrowRateWalk(run)) then
-#else
-                        if(AllTotParts(run).gt.TargetGrowRateWalk(run)) then
-#endif
-                            !Only allow targetgrowrate to kick in once we have > TargetGrowRateWalk walkers.
-                            DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)-TargetGrowRate(run)) * SftDamp) / &
-                                                (Tau * StepsSft)
-                            ! Same for the info shifts for complex walkers
-#ifdef __CMPLX
-                    DiagSftRe(run) = DiagSftRe(run) - (log(AllGrowRateRe(run)-TargetGrowRate(run)) * SftDamp) / &
-                                                (Tau * StepsSft)
-                    DiagSftIm(run) = DiagSftIm(run) - (log(AllGrowRateIm(run)-TargetGrowRate(run)) * SftDamp) / &
-                                                (Tau * StepsSft)
-#endif
+                        ! Update the shift averages
+                        if ((iter - VaryShiftIter(run)) >= nShiftEquilSteps) then
+                            if ((iter-VaryShiftIter(run)-nShiftEquilSteps) < StepsSft) &
+                                write (iout, '(a,i14)') 'Beginning to average shift value on iteration: ',iter + PreviousCycles
+                            VaryShiftCycles(run) = VaryShiftCycles(run) + 1
+                            SumDiagSft(run) = SumDiagSft(run) + DiagSft(run)
+                            AvDiagSft(run) = SumDiagSft(run) / real(VaryShiftCycles(run), dp)
                         endif
                     else
-                        if(tShiftonHFPop) then
-                            !Calculate the shift required to keep the HF population constant
+                        !Keep shift equal to input till target reference population is reached.
+                        DiagSft(run) = InputDiagSft(run)
+                    end if
 
-                            AllHFGrowRate(run) = abs(AllHFCyc(run)/real(StepsSft,dp)) / abs(OldAllHFCyc(run))
+                else !not tFixedN0
+                    if (TSinglePartPhase(run)) then
+                        tot_walkers = InitWalkers * int(nNodes,int64)
 
-                            DiagSft(run) = DiagSft(run) - (log(AllHFGrowRate(run)) * SftDamp) / &
-                                                (Tau * StepsSft)
-                        else
-                            !"WRITE(6,*) "AllGrowRate, TargetGrowRate", AllGrowRate, TargetGrowRate
-                            DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)) * SftDamp) / &
-                                                (Tau * StepsSft)
+#ifdef __CMPLX
+                        if ((sum(AllTotParts(lb:ub)) > tot_walkers) .or. &
+                             (abs_sign(AllNoatHF(lb:ub)) > MaxNoatHF)) then
+        !                     WRITE(iout,*) "AllTotParts: ",AllTotParts(1),AllTotParts(2),tot_walkers
+                            write (iout, '(a,i13,a)') 'Exiting the single particle growth phase on iteration: ',iter + PreviousCycles, &
+                                         ' - Shift can now change'
+                            VaryShiftIter(run) = Iter
+                            iBlockingIter(run) = Iter + PreviousCycles
+                            tSinglePartPhase(run) = .false.
+                            ! [W.D.15.5.2017:]
+                            ! we should remove these equal 0 comparisons..
+    !                         if(TargetGrowRate(run).ne.0.0_dp) then
+                            if(abs(TargetGrowRate(run)) > EPS) then
+                                write(iout,"(A)") "Setting target growth rate to 1."
+                                TargetGrowRate=0.0_dp
+                            endif
+
+                            ! If enabled, jump the shift to the value preducted by the
+                            ! projected energy!
+                            if (tJumpShift) then
+                                DiagSft(run) = real(proje_iter(run),dp)
+                                defer_update(run) = .true.
+                            end if
                         endif
-                    endif
+#else
+                        start_varying_shift = .false.
+                        if (tLetInitialPopDie) then
+                            if (AllTotParts(run) < tot_walkers) start_varying_shift = .true.
+                        else
+                            if ((AllTotParts(run) > tot_walkers) .or. &
+                                 (abs(AllNoatHF(run)) > MaxNoatHF)) start_varying_shift = .true.
+                        end if
 
-                    ! Update the shift averages
-                    if ((iter - VaryShiftIter(run)) >= nShiftEquilSteps) then
-                        if ((iter-VaryShiftIter(run)-nShiftEquilSteps) < StepsSft) &
-                            write (iout, '(a,i14)') 'Beginning to average shift value on iteration: ',iter + PreviousCycles
-                        VaryShiftCycles(run) = VaryShiftCycles(run) + 1
-                        SumDiagSft(run) = SumDiagSft(run) + DiagSft(run)
-                        AvDiagSft(run) = SumDiagSft(run) / real(VaryShiftCycles(run), dp)
-                    endif
+                        if (start_varying_shift) then
+        !                     WRITE(iout,*) "AllTotParts: ",AllTotParts(1),AllTotParts(2),tot_walkers
+                            write (iout, '(a,i13,a,i1)') 'Exiting the single particle growth phase on iteration: ' &
+                                         ,iter + PreviousCycles, ' - Shift can now change for population', run
+                            VaryShiftIter(run) = Iter
+                            iBlockingIter(run) = Iter + PreviousCycles
+                            tSinglePartPhase(run) = .false.
+                            ! [W.D. 15.5.2017]
+                            ! change equal 0 comps
+    !                         if(TargetGrowRate(run).ne.0.0_dp) then
+                            if(abs(TargetGrowRate(run)) > EPS) then
+                                write(iout,"(A)") "Setting target growth rate to 1."
+                                TargetGrowRate(run)=0.0_dp
+                            endif
 
-    !                ! Update DiagSftAbort for initiator algorithm
-    !                if (tTruncInitiator) then
-    !                    DiagSftAbort = DiagSftAbort - &
-    !                              (log(real(AllGrowRateAbort-TargetGrowRate, dp)) * SftDamp) / &
-    !                              (Tau * StepsSft)
-    !
-    !                    if (iter - VaryShiftIter >= nShiftEquilSteps) then
-    !                        SumDiagSftAbort = SumDiagSftAbort + DiagSftAbort
-    !                        AvDiagSftAbort = SumDiagSftAbort / &
-    !                                         real(VaryShiftCycles, dp)
-    !                    endif
-    !                endif
-                endif
+                            ! If enabled, jump the shift to the value preducted by the
+                            ! projected energy!
+                            if (tJumpShift) then
+                                DiagSft(run) = real(proje_iter(run),dp)
+                                defer_update(run) = .true.
+                            end if
+                        endif
+#endif
+                    else ! .not.tSinglePartPhase(run)
+
+#ifdef __CMPLX
+                        if (abs_sign(AllNoatHF(lb:ub)) < MaxNoatHF-HFPopThresh) then
+#else
+                        if (abs(AllNoatHF(run)) < MaxNoatHF-HFPopThresh) then
+#endif
+                            write (iout, '(a,i13,a)') 'No at HF has fallen too low - reentering the &
+                                         &single particle growth phase on iteration',iter + PreviousCycles,' - particle number &
+                                         &may grow again.'
+                            tSinglePartPhase(run) = .true.
+                            tReZeroShift(run) = .true.
+                        endif
+
+                    endif ! tSinglePartPhase(run) or not
+
+                    ! How should the shift change for the entire ensemble of walkers 
+                    ! over all processors.
+                    if (((.not. tSinglePartPhase(run)).or.(TargetGrowRate(run).ne.0.0_dp)) .and.&
+                        .not. defer_update(run)) then
+
+                        !In case we want to continue growing, TargetGrowRate > 0.0_dp
+                        ! New shift value
+    !                     if(TargetGrowRate(run).ne.0.0_dp) then
+                        ! [W.D. 15.5.2017]
+                        if(abs(TargetGrowRate(run)) > EPS) then
+#ifdef __CMPLX
+                            if(sum(AllTotParts(lb:ub)).gt.TargetGrowRateWalk(run)) then
+#else
+                            if(AllTotParts(run).gt.TargetGrowRateWalk(run)) then
+#endif
+                                !Only allow targetgrowrate to kick in once we have > TargetGrowRateWalk walkers.
+                                DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)-TargetGrowRate(run)) * SftDamp) / &
+                                                    (Tau * StepsSft)
+                                ! Same for the info shifts for complex walkers
+#ifdef __CMPLX
+                        DiagSftRe(run) = DiagSftRe(run) - (log(AllGrowRateRe(run)-TargetGrowRate(run)) * SftDamp) / &
+                                                    (Tau * StepsSft)
+                        DiagSftIm(run) = DiagSftIm(run) - (log(AllGrowRateIm(run)-TargetGrowRate(run)) * SftDamp) / &
+                                                    (Tau * StepsSft)
+#endif
+                            endif
+                        else
+                            if(tShiftonHFPop) then
+                                !Calculate the shift required to keep the HF population constant
+
+                                AllHFGrowRate(run) = abs(AllHFCyc(run)/real(StepsSft,dp)) / abs(OldAllHFCyc(run))
+
+                                DiagSft(run) = DiagSft(run) - (log(AllHFGrowRate(run)) * SftDamp) / &
+                                                    (Tau * StepsSft)
+                            else
+                                !"WRITE(6,*) "AllGrowRate, TargetGrowRate", AllGrowRate, TargetGrowRate
+                                DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)) * SftDamp) / &
+                                                    (Tau * StepsSft)
+                            endif
+                        endif
+
+                        ! Update the shift averages
+                        if ((iter - VaryShiftIter(run)) >= nShiftEquilSteps) then
+                            if ((iter-VaryShiftIter(run)-nShiftEquilSteps) < StepsSft) &
+                                write (iout, '(a,i14)') 'Beginning to average shift value on iteration: ',iter + PreviousCycles
+                            VaryShiftCycles(run) = VaryShiftCycles(run) + 1
+                            SumDiagSft(run) = SumDiagSft(run) + DiagSft(run)
+                            AvDiagSft(run) = SumDiagSft(run) / real(VaryShiftCycles(run), dp)
+                        endif
+
+        !                ! Update DiagSftAbort for initiator algorithm
+        !                if (tTruncInitiator) then
+        !                    DiagSftAbort = DiagSftAbort - &
+        !                              (log(real(AllGrowRateAbort-TargetGrowRate, dp)) * SftDamp) / &
+        !                              (Tau * StepsSft)
+        !
+        !                    if (iter - VaryShiftIter >= nShiftEquilSteps) then
+        !                        SumDiagSftAbort = SumDiagSftAbort + DiagSftAbort
+        !                        AvDiagSftAbort = SumDiagSftAbort / &
+        !                                         real(VaryShiftCycles, dp)
+        !                    endif
+        !                endif
+                    endif
+            end if !tFixedN0 or not
                 ! only update the shift this way if possible
                 if(abs_sign(AllNoatHF(lb:ub)) > EPS) then
 #ifdef __CMPLX
@@ -913,22 +947,6 @@ contains
                  all_cyc_proje_denominator(run) = AllHFCyc(run)
 
                  ! Calculate the projected energy.
-
-                if(tFixedN0)then
-                    !When reaching target N0, set flag to keep the population of reference det fixed.
-                    if(.not. tSkipRef(run) .and. AllHFCyc(run)>=N0_Target) tSkipRef(run) = .True.
-
-                    if(tSkipRef(run))then
-                        !Use the projected energy as the shift to fix the
-                        !population of the reference det and thus reduce the
-                        !fluctuations of the projected energy.
-                        DiagSft(run) = (AllENumCyc(run)) / (AllHFCyc(run))+proje_ref_energy_offsets(run)
-                    else
-                        !Keep shift equal to input till target reference population is reached.
-                        DiagSft(run) = InputDiagSft(run)
-                    end if
-
-                end if
 
                  if ((AllSumNoatHF(run) /= 0.0_dp)) then
                     ProjectionE(run) = (AllSumENum(run)) / (all_sum_proje_denominator(run)) &
