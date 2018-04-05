@@ -749,7 +749,7 @@ contains
                 lb = min_part_type(run)
                 ub = max_part_type(run)
                 if(tFixedN0)then
-                    if (.not. tSkipRef(run) .and. AllHFCyc(run)>=N0_Target) then
+                    if (.not. tSkipRef(run) .and. abs(AllHFCyc(run))>=N0_Target) then
                         !When reaching target N0, set flag to keep the population of reference det fixed.
                         tSkipRef(run) = .True.
 
@@ -765,6 +765,8 @@ contains
                         !Use the projected energy as the shift to fix the
                         !population of the reference det and thus reduce the
                         !fluctuations of the projected energy.
+
+                        !ToDo: Make DiafSft complex
                         DiagSft(run) = (AllENumCyc(run)) / (AllHFCyc(run))+proje_ref_energy_offsets(run)
 
                         ! Update the shift averages
