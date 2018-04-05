@@ -916,7 +916,7 @@ contains
 
                 if(tFixedN0)then
                     !When reaching target N0, set flag to keep the population of reference det fixed.
-                    if(.not. tSkipRef(run) .and. AllHFCyc(run)>=N0_Target) tSkipRef(run) = .True.
+                    if(.not. tSkipRef(run) .and. abs(AllHFCyc(run))>=N0_Target) tSkipRef(run) = .True.
 
                     if(tSkipRef(run))then
                         !Use the projected energy as the shift to fix the
