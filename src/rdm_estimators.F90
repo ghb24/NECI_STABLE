@@ -33,7 +33,6 @@ contains
 
         nrdms = nrdms_standard + nrdms_transition
 
-
         ! Store the number of RDMs.
         est%nrdms = nrdms
         est%nrdms_standard = nrdms_standard
@@ -158,13 +157,16 @@ contains
         do irdm = 1, nrdms_standard
             write(write_unit, '(4x,"Energy numerator",1x,i2)', advance='no') irdm
             write(write_unit, '(4x,"Spin^2 numerator",1x,i2)', advance='no') irdm
-            write(write_unit, '(7x,"Normalisation",1x,i2)', advance='no') irdm
+            if (tEN2) then
+                write(write_unit, '(7x,"EN2 numerator",1x,i2)', advance='no') irdm
+                write(write_unit, '(3x,"Var+EN2 numerator",1x,i2)', advance='no') irdm
+            end if
             if (tCalcPropEst) then
                 do iprop = 1,iNumPropToEst
                     write(write_unit, '(4x,"Property(",i2,")",1x,i2)', advance='no') iprop, irdm
                 end do
             end if
-            if (tEN2) write(write_unit, '(5x,"EN perturbation",1x,i2)', advance='no') irdm
+            write(write_unit, '(7x,"Normalisation",1x,i2)', advance='no') irdm
         end do
 
         do irdm = nrdms_standard+1, nrdms_standard+nrdms_transition
@@ -306,18 +308,20 @@ contains
             if (tRDMInstEnergy) then
                 write(est%write_unit, '(1x,i13)', advance='no') Iter+PreviousCycles
                 do irdm = 1, est%nrdms_standard
-                    write(est%write_unit, '(3(3x,es20.13))', advance='no') &
-                        est%energy_num_inst(irdm), est%spin_num_inst(irdm), est%norm_inst(irdm)
+                    write(est%write_unit, '(2(3x,es20.13))', advance='no') &
+                        est%energy_num_inst(irdm), est%spin_num_inst(irdm)
+                    if (tEN2) then
+                        write(est%write_unit,'(2(3x,es20.13))', advance='no') &
+                            est%energy_pert_inst(irdm), est%energy_pert_inst(irdm) + est%energy_num_inst(irdm)
+                    end if
                     if (tCalcPropEst) then
                         do iprop=1,iNumPropToEst
                             write(est%write_unit,'(3x,es20.13)', advance='no') &
                                 est%property_inst(iprop,irdm)
                         end do 
                     end if
-                    if (tEN2) then
-                        write(est%write_unit,'(3x,es20.13)', advance='no') &
-                            est%energy_pert_inst(irdm)
-                    end if
+                    write(est%write_unit, '(3x,es20.13)', advance='no') &
+                        est%norm_inst(irdm)
                 end do
                 do irdm = est%nrdms_standard+1, est%nrdms_standard+est%nrdms_transition
                     if(tCalcPropEst) then
@@ -331,18 +335,20 @@ contains
             else
                 write(est%write_unit, '(1x,i13)', advance='no') Iter+PreviousCycles
                 do irdm = 1, est%nrdms_standard
-                    write(est%write_unit, '(3(3x,es20.13))', advance='no') &
-                        est%energy_num(irdm), est%spin_num(irdm), est%norm(irdm)
+                    write(est%write_unit, '(2(3x,es20.13))', advance='no') &
+                        est%energy_num(irdm), est%spin_num(irdm)
+                    if (tEN2) then
+                        write(est%write_unit,'(2(3x,es20.13))', advance='no') &
+                            est%energy_pert(irdm), est%energy_pert(irdm) + est%energy_num(irdm)
+                    end if
                     if (tCalcPropEst) then
                         do iprop = 1, iNumPropToEst
                             write(est%write_unit,'(3x,es20.13)', advance='no') &
                                 est%property(iprop,irdm)
                         end do 
                     end if
-                    if (tEN2) then
-                        write(est%write_unit,'(3x,es20.13)', advance='no') &
-                            est%energy_pert(irdm)
-                    end if
+                    write(est%write_unit, '(3x,es20.13)', advance='no') &
+                        est%norm(irdm)
                 end do
                 do irdm = est%nrdms_standard+1, est%nrdms_standard+est%nrdms_transition
                     if(tCalcPropEst) then
@@ -643,8 +649,7 @@ contains
             call extract_sign_EN(en_pert%sign_length, en_pert%dets(:,idet), contrib)
 
             do istate = 1, en_pert%sign_length
-                ! The RDM-energy-based estimate:
-                contrib_rdm(istate) = contrib(istate)/( rdm_energy_num(istate) - h_aa*rdm_norm(istate) )
+                contrib_rdm(istate) = contrib(istate)/( (rdm_energy_num(istate)/rdm_norm(istate)) - h_aa )
             end do
 
             energy_pert = energy_pert + contrib_rdm
