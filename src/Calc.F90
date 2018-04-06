@@ -9,7 +9,7 @@ MODULE Calc
                           par_hole_pairs, hole_pairs, nholes_a, nholes_b, &
                           nholes, UMATEPS, tHub, t_lattice_model, t_tJ_model, & 
                           t_new_real_space_hubbard, t_heisenberg_model, & 
-                          t_k_space_hubbard
+                          t_k_space_hubbard, tHPHF
     use Determinants, only: write_det
     use spin_project, only: spin_proj_interval, &
                             spin_proj_gamma, spin_proj_shift, &
@@ -52,6 +52,10 @@ MODULE Calc
     use k_space_hubbard, only: init_get_helement_k_space_hub
     use real_time_data, only: t_real_time_fciqmc, gf_type, allGfs, gf_count
     use kp_fciqmc_data_mod, only: overlap_pert, tOverlapPert
+    use lattice_models_utils, only: return_hphf_sym_det
+    use DetBitOps, only: DetBitEq, EncodeBitDet
+    use DeterminantData, only: write_det
+    use bit_reps, only: decode_bit_det
 
     implicit none
 
@@ -417,6 +421,7 @@ contains
           integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
           integer :: npops_pert, npert_spectral_left, npert_spectral_right
           real(dp) :: InputDiagSftSingle
+          integer(n_int) :: def_ilut(0:niftot), def_ilut_sym(0:niftot)
 
           ! Allocate and set this default here, because we don't have inum_runs
           ! set when the other defaults are set.
@@ -837,6 +842,21 @@ contains
                 do i=1,NEl
                     call geti(DefDet(i))
                 enddo
+                ! what if HPHF? i think this is not adressed correctyl..
+                ! there is something going wrong later in the init, so 
+                ! do it actually here 
+                if (tHPHF) then 
+                    call EncodeBitDet(DefDet, def_ilut)
+
+                    def_ilut_sym = return_hphf_sym_det(def_ilut)
+                    if (.not. DetBitEq(def_ilut, def_ilut_sym)) then 
+                        call decode_bit_det(DefDet, def_ilut_sym)
+                        write(iout, *) "definedet changed to HPHF symmetric:"
+                        call write_det(iout, DefDet, .true.)
+                    end if
+                end if
+
+
 
             case("MULTIPLE-INITIAL-REFS")
                 tMultipleInitialRefs = .true.
@@ -1236,6 +1256,8 @@ contains
                 end if
                 ! i hope everything is setup already
                 DefDet = create_neel_state()
+                write(iout,*) "created neel-state: "
+                call write_det(iout, DefDet, .true.)
 
             case("MAXWALKERBLOOM")
                 !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.
