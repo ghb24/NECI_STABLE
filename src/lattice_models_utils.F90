@@ -1160,12 +1160,10 @@ contains
         integer :: neel_state(nel)
         character(*), parameter :: this_routine = "create_neel_state"
 
+        integer(n_int) :: tmp_ilut(0:niftot)
         integer :: i, j, k, l, spin, ind
         
 
-        if (tHPHF) then 
-            call stop_all(this_routine, "remember to change for HPHF!")
-        end if
         ! make this independent of the lattice mod, to call it as early 
         ! as possible in the initialization
 !         ASSERT(associated(lat))
@@ -1282,9 +1280,17 @@ contains
             call stop_all(this_routine, "unknown lattice type!")
         end select 
 
+        if (tHPHF) then 
+            ! i have to get the relevant HPHF determinant
+            call EncodeBitDet(neel_state, tmp_ilut)
+            tmp_ilut = return_hphf_sym_det(tmp_ilut)
+            call decode_bit_det(neel_state, tmp_ilut)
+        end if
+
         if (present(ilut_neel)) then 
             call EncodeBitDet(neel_state, ilut_neel)
         end if
+
     end function create_neel_state
 
     function create_neel_state_chain() result(neel_state)
@@ -1306,11 +1312,6 @@ contains
 
         integer(n_int), allocatable :: triple_dets(:,:), temp_dets(:,:)
         integer :: n_triples, save_excits
-
-        if (tHPHF) then 
-            call stop_all(this_routine, &
-                "not adapted to HPHF, since we create all the excitations!")
-        end if
 
         call gen_all_doubles_k_space(nI, n_excits, det_list)
 
