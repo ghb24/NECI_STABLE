@@ -491,7 +491,7 @@ contains
         integer, intent(in) :: sign_length
         integer(n_int), intent(inout) :: ilut(0:)
         real(dp), intent(in) :: real_sign(sign_length)
-        integer(n_int) :: sign(lenof_sign)
+        integer(n_int) :: sign(sign_length)
 
         sign = transfer(real_sign, sign)
         ilut(NIfDBO+1:NIfDBO+sign_length) = sign
@@ -963,7 +963,9 @@ contains
 
     subroutine add_to_en_pert_t(en_pert, nI, ilut, contrib_sign)
 
-        ! In/Out: add_to_en_pert - the en_pert_t object to which contributions will be added.
+        ! In/Out: en_pert - the en_pert_t object to which contributions will be added.
+        ! In: nI - A list of the occupied orbitals in the determinant.
+        ! In: ilut - The determinant in a bitstring form.
         ! In: contrib_sign - the sign (amplitude) of the contribution to be added.
 
         use hash, only: hash_table_lookup, add_hash_table_entry
@@ -978,7 +980,6 @@ contains
         real(dp) :: real_sign_old(en_pert%sign_length), real_sign_new(en_pert%sign_length)
         logical :: tSuccess
         character(*), parameter :: t_r = 'add_to_en_pert_t'
-
 
         ! Search to see if this determinant is already in the dets array.
         ! If it, tSuccess will be true and ind will hold the position of the
