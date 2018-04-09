@@ -20,7 +20,7 @@ program test_real_space_hubbard
                           t_trans_corr_2body, trans_corr_param_2body, &
                           t_trans_corr_new, t_uniform_excits, tHPHF
 
-    use lattice_mod, only: lat
+    use lattice_mod, only: lat, init_dispersion_rel_cache
 
     use sort_mod, only: sort
     
@@ -36,6 +36,8 @@ program test_real_space_hubbard
                                     create_hilbert_space_realspace
 
     use HPHFRandexcitmod, only: gen_hphf_excit
+
+    use k_space_hubbard, only: setup_k_space_hub_sym, setup_symmetry_table
     implicit none 
 
     integer :: failed_count 
@@ -94,8 +96,8 @@ contains
         real(dp), allocatable :: j_vec(:)
 
 
-        lat => lattice('chain', 6, 1, 1,.true.,.true.,.true.)
-        uhub = 16
+        lat => lattice('tilted', 3, 3, 1,.true.,.true.,.true.)
+        uhub = 8
         bhub = -1
 
         n_orbs = lat%get_nsites()
@@ -103,9 +105,10 @@ contains
 
         call init_realspace_tests
 
-        nel = 6
+        nel = 18
         allocate(nI(nel))
-        nI = [(i, i = 1, nel)]
+!         nI = [(i, i = 1, nel)]
+        nI = [1,3,6,7,9,12,13,16,17,20,21,24,25,28,30,31,34,36]
 
         nOccAlpha = 0
         nOccBeta = 0
@@ -114,6 +117,25 @@ contains
             if (is_beta(nI(i))) nOccBeta = nOccBeta + 1
             if (is_alpha(nI(i))) nOccAlpha = nOccAlpha + 1
         end do
+
+        call setup_arr_brr(lat)
+        call init_hopping_transcorr()
+!         call setup_symmetry_table()
+!         call setup_k_space_hub_sym(lat) 
+!         call init_dispersion_rel_cache()
+!         call init_umat_rs_hub_transcorr()
+
+        j_vec = linspace(-2.0,2.0,100)
+        print *, "H diag: "
+        t_trans_corr_hop = .true.
+        do i = 1, size(j_vec) 
+            trans_corr_param= j_vec(i)
+            print *, J_vec(i), get_diag_helemen_rs_hub_transcorr_hop(nI)
+        end do
+
+
+        t_trans_corr_hop = .false.
+        call stop_all("here","now")
 
         call create_hilbert_space_realspace(n_orbs, nOccAlpha, nOccBeta, & 
             n_states, hilbert_space, dummy)
@@ -138,7 +160,6 @@ contains
         print *, "e_value lanczos:", e_values(1)
 
         j = 0.1_dp
-        j_vec = linspace(-0.1,0.1,2)
         call exact_transcorrelation(lat, nI, j_vec, real(uhub,dp), hilbert_space)
 
 !         call stop_all("here","now")

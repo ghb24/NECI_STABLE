@@ -89,7 +89,7 @@ contains
         call init_k_space_unit_tests()
 
         ! i have to define the lattice here.. 
-        lat => lattice('chain', 4, 1, 1,.true.,.true.,.true.,'k-space')
+        lat => lattice('tilted', 3, 3, 1,.true.,.true.,.true.,'k-space')
 
 !         x = [(-lat%dispersion_rel_orb(i), i = 1, 24)]
 !         ind = [(i, i = 1, 24)]
@@ -106,13 +106,14 @@ contains
 
         J = -1.0
 
-        U = 4.0
+        U = 8.0
 
-!         J_vec = linspace(-2.0,2.0, 20)
+        J_vec = linspace(-5.0,5.0, 100)
         
-        nel = 4
+        nel = 18
         allocate(nI(nel))
-        nI = [(i, i = 1,nel)]
+!         nI = [(i, i = 1,nel)]
+        nI = [3,4,5,6,7,8,11,12,13,14,15,16,21,22,23,24,25,26]
 !         ni = [7,8,15,16,17,18]
 !         nI = [21,23,24,26]
 !         nI = [15,16]
@@ -123,6 +124,19 @@ contains
         ! use twisted bc in this case.. 
 !         t_twisted_bc = .true. 
 !         twisted_bc = 0.5
+
+        call setup_system(lat, nI, J, U)
+        print *, "H diag:"
+        t_trans_corr_2body = .true.
+        do i = 1, size(J_vec)
+            trans_corr_param_2body = J_vec((i))
+            three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+
+            print *, J_vec(i), get_diag_helement_k_sp_hub(nI)
+        end do
+
+        t_trans_corr_2body = .false.
+        call stop_all("here", "now")
 
         call setup_system(lat, nI, J, U, hilbert_space)
         ! the hilbert space does not change.. and also the original does 
@@ -148,6 +162,7 @@ contains
         call frsblk_wrapper(hilbert_space, size(hilbert_space, 2), n_eig, e_values, e_vecs)
 
         print *, "e_value lanczos:", e_values(1)
+        call stop_all("here", "now")
         call exact_transcorrelation(lat, nI, [J], U, hilbert_space) 
 
         call stop_all("here", "now")
@@ -177,6 +192,12 @@ contains
         call setup_all(in_lat, J, U) 
 
         call setup_k_total(nI) 
+
+        call init_dispersion_rel_cache()
+        get_helement_lattice_ex_mat => get_helement_k_space_hub_ex_mat
+        get_helement_lattice_general => get_helement_k_space_hub_general
+        call init_tmat_kspace(lat)
+
 
         if (present(hilbert_space)) then
 !             call create_hilbert_space(nI, n_states, hilbert_space, dummy, gen_all_excits_k_space_hubbard) 
@@ -268,37 +289,6 @@ contains
         call init_tmat_kspace(lat)
 
     end subroutine init_k_space_unit_tests
-
-    subroutine setup_arr_brr(in_lat) 
-        class(lattice), intent(in) :: in_lat
-
-        integer :: i 
-
-        if (associated(arr)) deallocate(arr) 
-        allocate(arr(nBasis,2))
-        if (associated(brr)) deallocate(brr) 
-        allocate(brr(nBasis))
-
-        brr = [(i, i = 1, nBasis)]
-        arr = 0.0_dp 
-
-        do i = 1, nbasis 
-            arr(i,:) = bhub * lat%dispersion_rel_orb(get_spatial(i))
-        end do
-
-        call sort(arr(1:nBasis,1), brr(1:nBasis), nskip = 2)
-        call sort(arr(2:nBasis,1), brr(2:nBasis), nskip = 2)
-
-        print *, "arr: " 
-        do i = 1, nBasis 
-            print *, arr(i,:) 
-        end do
-        print *, "brr: " 
-        do i = 1, nBasis
-            print *, brr(i)
-        end do
-
-    end subroutine setup_arr_brr
 
     subroutine k_space_hubbard_test_driver() 
         ! with all the annying symmetry stuff to set up, testing the 

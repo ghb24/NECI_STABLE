@@ -5,12 +5,13 @@ module unit_test_helpers
 
     use constants, only: dp, EPS, n_int
 
-    use lattice_mod, only: get_helement_lattice
+    use lattice_mod, only: get_helement_lattice, lattice
 
     use Determinants, only: get_helement
 
     use SystemData, only: t_lattice_model, nOccAlpha, nOccBeta, &
-                          trans_corr_param_2body, omega, nel, nBasis
+                          trans_corr_param_2body, omega, nel, nBasis, &
+                          arr, brr, nBasis, bhub
 
     use fcimcdata, only: excit_gen_store_type
 
@@ -37,6 +38,37 @@ module unit_test_helpers
     end interface
 
 contains
+
+    subroutine setup_arr_brr(in_lat) 
+        class(lattice), intent(in) :: in_lat
+
+        integer :: i 
+
+        if (associated(arr)) deallocate(arr) 
+        allocate(arr(nBasis,2))
+        if (associated(brr)) deallocate(brr) 
+        allocate(brr(nBasis))
+
+        brr = [(i, i = 1, nBasis)]
+        arr = 0.0_dp 
+
+        do i = 1, nbasis 
+            arr(i,:) = bhub * in_lat%dispersion_rel_orb(get_spatial(i))
+        end do
+
+        call sort(arr(1:nBasis,1), brr(1:nBasis), nskip = 2)
+        call sort(arr(2:nBasis,1), brr(2:nBasis), nskip = 2)
+! 
+!         print *, "arr: " 
+!         do i = 1, nBasis 
+!             print *, arr(i,:) 
+!         end do
+!         print *, "brr: " 
+!         do i = 1, nBasis
+!             print *, brr(i)
+!         end do
+
+    end subroutine setup_arr_brr
 
     function calc_eigenvalues(matrix) result(e_values)
         real(dp), intent(in) :: matrix(:,:) 
