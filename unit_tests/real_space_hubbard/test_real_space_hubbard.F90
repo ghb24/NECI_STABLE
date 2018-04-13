@@ -125,11 +125,16 @@ contains
 !         call init_dispersion_rel_cache()
 !         call init_umat_rs_hub_transcorr()
 
-        j_vec = linspace(-2.0,2.0,100)
+        j_vec = linspace(-0.5,0.5,100)
+!         j_vec = [0.0, 0.05, 0.1,0.12]
         print *, "H diag: "
         t_trans_corr_hop = .true.
         do i = 1, size(j_vec) 
             trans_corr_param= j_vec(i)
+            t_recalc_umat = .true.
+            ! i need to deallocate umat every time.. 
+            if (allocated(umat_rs_hub_trancorr_hop)) deallocate(umat_rs_hub_trancorr_hop)
+            call init_umat_rs_hub_transcorr()
             print *, J_vec(i), get_diag_helemen_rs_hub_transcorr_hop(nI)
         end do
 

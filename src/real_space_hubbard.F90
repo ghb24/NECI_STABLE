@@ -75,6 +75,14 @@ module real_space_hubbard
 
     complex(dp), parameter :: imag_unit = cmplx(0.0_dp,1.0_dp)
 
+    real(dp), allocatable :: hop_transcorr_factor_cached(:), &
+                             hop_transcorr_factor_cached_m(:), &
+                             hop_transcorr_factor_cached_vec(:,:,:), &
+                             hop_transcorr_factor_cached_vec_m(:,:,:)
+
+    logical :: t_recalc_umat = .false.
+    logical :: t_print_umat = .false.
+
     interface get_helement_rs_hub
         module procedure get_helement_rs_hub_ex_mat
         module procedure get_helement_rs_hub_general
@@ -290,8 +298,127 @@ contains
         ! will this be ever comlex? check the size 
         ASSERT(abs(aimag(temp)) < EPS) 
 
-
     end function hop_transcorr_factor
+
+    subroutine init_hop_trancorr_fac_cached(J_fac, in_lat)
+        ! also store the hopping transcorrelation factor in a cache, 
+        ! since the umat initialization takes awfully long already 
+        ! and the access to this cache is via orbitals, not the r-vector 
+        ! associated with it!
+        real(dp), intent(in) :: J_fac
+        class(lattice), intent(in) :: in_lat
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "init_hop_trancorr_fac_cached"
+#endif
+        integer :: n_sites, i, j, r_vec(3), k_vec(3)
+        complex(dp) :: temp, temp_m
+
+        if (allocated(hop_transcorr_factor_cached)) deallocate(hop_transcorr_factor_cached)
+        if (allocated(hop_transcorr_factor_cached_m)) deallocate(hop_transcorr_factor_cached_m)
+
+        n_sites = in_lat%get_nsites()
+
+        allocate(hop_transcorr_factor_cached(n_sites))
+        allocate(hop_transcorr_factor_cached_m(n_sites))
+
+        hop_transcorr_factor_cached = 0.0_dp 
+        hop_transcorr_factor_cached_m = 0.0_dp 
+
+        do i = 1, n_sites
+            r_vec = in_lat%get_r_vec(i)
+            temp = 0.0_dp
+            temp_m = 0.0_dp
+
+            do j = 1, n_sites 
+                k_vec = in_lat%get_k_vec(j)
+
+                temp = temp + exp(imag_unit * lat%dot_prod(k_vec, r_vec)) * & 
+                    exp(-J_fac * epsilon_kvec(j))
+
+                temp_m = temp_m + exp(imag_unit * lat%dot_prod(k_vec, r_vec)) * & 
+                    exp(J_fac * epsilon_kvec(j))
+            end do
+
+            ASSERT(abs(aimag(temp)) < EPS) 
+            ASSERT(abs(aimag(temp_m)) < EPS) 
+
+            hop_transcorr_factor_cached(i) = real(temp) / real(n_sites,dp)
+            hop_transcorr_factor_cached_m(i) = real(temp_m) / real(n_sites,dp)
+
+        end do
+
+    end subroutine init_hop_trancorr_fac_cached
+
+    subroutine init_hop_trancorr_fac_cached_vec(J_fac, in_lat)
+        ! maybe it is better to cache it to be accessible by the r-vecs, 
+        ! since this is the main use of this functionality and then we would 
+        ! not need to map r-vectors to orbital indices.. 
+        real(dp), intent(in) :: J_fac
+        class(lattice), intent(in) :: in_lat
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "init_hop_trancorr_fac_cached_vec"
+#endif
+        integer :: n_sites, i, j, k, ri(3), rj(3), r_vec(3), r_min(3), r_max(3)
+        integer :: k_vec(3)
+        complex(dp) :: temp, temp_m
+
+        ! similar to Kais way of initializing the BZ zone i need to find the 
+        ! lower and upper bounds of our arrays..
+        ! if the bounds are not .and. allocated(hop_transcorr_factor_cached_vec
+        ! then init them 
+        call in_lat%init_hop_cache_bounds(r_min,r_max)
+
+        if (.not. t_recalc_umat .and. allocated(hop_transcorr_factor_cached_vec)) then 
+            ! then we have already done that..
+            return
+        end if
+
+        if (allocated(hop_transcorr_factor_cached_vec)) deallocate(hop_transcorr_factor_cached_vec)
+        if (allocated(hop_transcorr_factor_cached_vec_m)) deallocate(hop_transcorr_factor_cached_vec_m)
+
+        allocate(hop_transcorr_factor_cached_vec(&
+            r_min(1):r_max(1), r_min(2):r_max(2), r_min(3):r_max(3)))
+
+        ! i also need one for -J!
+        allocate(hop_transcorr_factor_cached_vec_m(&
+            r_min(1):r_max(1), r_min(2):r_max(2), r_min(3):r_max(3)))
+
+        hop_transcorr_factor_cached_vec = 0.0_dp 
+        hop_transcorr_factor_cached_vec_m = 0.0_dp 
+
+        n_sites = in_lat%get_nsites()
+
+        do i = 1, n_sites 
+            ri = in_lat%get_r_vec(i)
+            do j = 1, n_sites
+                rj = in_lat%get_r_vec(j)
+                r_vec = ri - rj 
+
+                temp = 0.0_dp 
+                temp_m = 0.0_dp 
+
+                do k = 1, n_sites
+                    k_vec = in_lat%get_k_vec(k)
+
+                    temp = temp + exp(imag_unit * lat%dot_prod(k_vec, r_vec)) * & 
+                        exp(-J_fac * epsilon_kvec(k))
+
+                    temp_m = temp_m + exp(imag_unit * lat%dot_prod(k_vec, r_vec)) * & 
+                        exp(J_fac * epsilon_kvec(k))
+                end do
+
+                ASSERT(abs(aimag(temp)) < EPS) 
+                ASSERT(abs(aimag(temp_m)) < EPS) 
+
+                hop_transcorr_factor_cached_vec(r_vec(1),r_vec(2),r_vec(3)) = &
+                    real(temp) / real(n_sites, dp)
+
+                hop_transcorr_factor_cached_vec_m(r_vec(1),r_vec(2),r_vec(3)) = &
+                    real(temp_m) / real(n_sites, dp)
+            end do
+        end do
+
+    end subroutine init_hop_trancorr_fac_cached_vec
 
     real(dp) function sum_hop_transcorr_factor_vec(r1,r2,r3,r4)
         ! function to perform the summation over the four hopping 
@@ -302,23 +429,41 @@ contains
         character(*), parameter :: this_routine = "sum_hop_transcorr_factor_vec"
 #endif
         integer i, m_vec(3)
+        integer :: ind_1(3), ind_2(3), ind_3(3), ind_4(3)
 
         ASSERT(associated(lat))
 
         sum_hop_transcorr_factor_vec = 0.0_dp
 
-        do i = 1, lat%get_nsites() 
+        if (allocated(hop_transcorr_factor_cached_vec)) then 
+            do i = 1, lat%get_nsites() 
+                m_vec = lat%get_r_vec(i)
 
-            ! i need a routine to give me the real-space coordinates/vector
-            ! and i also need to store that now! 
-            m_vec = lat%get_r_vec(i)
-            sum_hop_transcorr_factor_vec = sum_hop_transcorr_factor_vec + & 
-                hop_transcorr_factor(trans_corr_param, r1 - m_vec) * &
-                hop_transcorr_factor(trans_corr_param, r2 - m_vec) * &
-                hop_transcorr_factor(-trans_corr_param, m_vec - r3) * &
-                hop_transcorr_factor(-trans_corr_param, m_vec - r4)
+                ind_1 = r1 - m_vec
+                ind_2 = r2 - m_vec
+                ind_3 = m_vec - r3
+                ind_4 = m_vec - r4
 
-        end do
+                sum_hop_transcorr_factor_vec = sum_hop_transcorr_factor_vec + &
+                    hop_transcorr_factor_cached_vec(ind_1(1),ind_1(2),ind_1(3)) * & 
+                    hop_transcorr_factor_cached_vec(ind_2(1),ind_2(2),ind_2(3)) * & 
+                    hop_transcorr_factor_cached_vec_m(ind_3(1),ind_3(2),ind_3(3)) * &
+                    hop_transcorr_factor_cached_vec_m(ind_4(1),ind_4(2),ind_4(3))
+            end do
+        else 
+
+            do i = 1, lat%get_nsites()
+                ! i need a routine to give me the real-space coordinates/vector
+                ! and i also need to store that now! 
+                m_vec = lat%get_r_vec(i)
+                sum_hop_transcorr_factor_vec = sum_hop_transcorr_factor_vec + & 
+                    hop_transcorr_factor(trans_corr_param, r1 - m_vec) * &
+                    hop_transcorr_factor(trans_corr_param, r2 - m_vec) * &
+                    hop_transcorr_factor(-trans_corr_param, m_vec - r3) * &
+                    hop_transcorr_factor(-trans_corr_param, m_vec - r4)
+
+            end do
+        endif
 
     end function sum_hop_transcorr_factor_vec
 
@@ -331,6 +476,7 @@ contains
         character(*), parameter :: this_routine = "sum_hop_transcorr_factor_orb"
 #endif
         integer :: r1(3), r2(3), r3(3), r4(3)
+        integer :: ind_1(3), ind_2(3), ind_3(3), ind_4(3)
         integer m, m_vec(3)
 
         ASSERT(associated(lat))
@@ -342,18 +488,36 @@ contains
         r3 = lat%get_r_vec(k)
         r4 = lat%get_r_vec(l)
 
-        do m = 1, lat%get_nsites() 
+        if (allocated(hop_transcorr_factor_cached_vec)) then 
+            do m = 1, lat%get_nsites()
+                m_vec = lat%get_r_vec(m)
 
-            ! i need a routine to give me the real-space coordinates/vector
-            ! and i also need to store that now! 
-            m_vec = lat%get_r_vec(m)
-            sum_hop_transcorr_factor_orb = sum_hop_transcorr_factor_orb + & 
-                hop_transcorr_factor(trans_corr_param, r1 - m_vec) * &
-                hop_transcorr_factor(trans_corr_param, r2 - m_vec) * &
-                hop_transcorr_factor(-trans_corr_param, m_vec - r3) * &
-                hop_transcorr_factor(-trans_corr_param, m_vec - r4)
+                ind_1 = r1 - m_vec
+                ind_2 = r2 - m_vec
+                ind_3 = m_vec - r3
+                ind_4 = m_vec - r4
 
-        end do
+                sum_hop_transcorr_factor_orb = sum_hop_transcorr_factor_orb + &
+                    hop_transcorr_factor_cached_vec(ind_1(1),ind_1(2),ind_1(3)) * & 
+                    hop_transcorr_factor_cached_vec(ind_2(1),ind_2(2),ind_2(3)) * & 
+                    hop_transcorr_factor_cached_vec_m(ind_3(1),ind_3(2),ind_3(3)) * &
+                    hop_transcorr_factor_cached_vec_m(ind_4(1),ind_4(2),ind_4(3))
+
+            end do
+        else
+            do m = 1, lat%get_nsites() 
+
+                ! i need a routine to give me the real-space coordinates/vector
+                ! and i also need to store that now! 
+                m_vec = lat%get_r_vec(m)
+                sum_hop_transcorr_factor_orb = sum_hop_transcorr_factor_orb + & 
+                    hop_transcorr_factor(trans_corr_param, r1 - m_vec) * &
+                    hop_transcorr_factor(trans_corr_param, r2 - m_vec) * &
+                    hop_transcorr_factor(-trans_corr_param, m_vec - r3) * &
+                    hop_transcorr_factor(-trans_corr_param, m_vec - r4)
+
+            end do
+        end if
 
     end function sum_hop_transcorr_factor_orb
 
@@ -370,16 +534,24 @@ contains
 
         ASSERT(associated(lat))
 
-        if (allocated(umat_rs_hub_trancorr_hop)) then 
+        if (allocated(umat_rs_hub_trancorr_hop) .and. .not. t_recalc_umat) then 
             ! already initialized
             return
+        else 
+            if (allocated(umat_rs_hub_trancorr_hop)) deallocate(umat_rs_hub_trancorr_hop)
         end if
+
+        ! try to fetch the stored matrix elements also for each orbital after.
+        call init_hop_trancorr_fac_cached_vec(trans_corr_param, lat)
 
         n_sites = lat%get_nsites()
 
         ! create an fcidump file: 
         iunit = get_free_unit()
-        open(iunit, file = 'UMAT')
+        if (t_print_umat) then
+            open(iunit, file = 'UMAT')
+            root_print "initializing UMAT:"
+        end if
 
         ! with the correct header
 
@@ -387,7 +559,6 @@ contains
         allocate(umat_rs_hub_trancorr_hop(n_sites,n_sites,n_sites,n_sites))
         umat_rs_hub_trancorr_hop = 0.0_dp
 
-        root_print "initializing UMAT:"
         do i = 1, n_sites
             do j = 1, n_sites
                 do k = 1, n_sites
@@ -395,7 +566,9 @@ contains
                         elem = uhub * sum_hop_transcorr_factor(i,j,k,l)
                         ! write to the dumpfile
                         if (abs(elem) > matele_cutoff) then 
-                            write(iunit,*)  i,j,k,l, elem
+                            if (t_print_umat) then 
+                                write(iunit,*)  i,j,k,l, elem
+                            end if
                             ! and also store in the umat 
                             umat_rs_hub_trancorr_hop(i,j,k,l) = elem 
                         end if
@@ -403,21 +576,23 @@ contains
                 end do
             end do
         end do
-        close(iunit)
-        root_print "Done"
+        if (t_print_umat) then
+            close(iunit)
+            root_print "Done"
+        end if
 
-#ifdef __DEBUG 
-        ! also check if the distance is figured out correctly.. 
-        r1 = lat%get_r_vec(1)
-        print *, "matrix elements from r1: ", r1, "umat(1,1,1,i), umat(1,1,i,i), umat(1,i,1,i), umat(1,i,i,i)"
-        do i = 2, lat%get_nsites()
-            ri = lat%get_r_vec(i)
-            print *, ri, "|", umat_rs_hub_trancorr_hop(1,1,1,i), &
-                              umat_rs_hub_trancorr_hop(1,1,i,i), &
-                              umat_rs_hub_trancorr_hop(1,i,1,i), &
-                              umat_rs_hub_trancorr_hop(1,i,i,i)
-        end do
-#endif
+! #ifdef __DEBUG 
+!         ! also check if the distance is figured out correctly.. 
+!         r1 = lat%get_r_vec(1)
+!         print *, "matrix elements from r1: ", r1, "umat(1,1,1,i), umat(1,1,i,i), umat(1,i,1,i), umat(1,i,i,i)"
+!         do i = 2, lat%get_nsites()
+!             ri = lat%get_r_vec(i)
+!             print *, ri, "|", umat_rs_hub_trancorr_hop(1,1,1,i), &
+!                               umat_rs_hub_trancorr_hop(1,1,i,i), &
+!                               umat_rs_hub_trancorr_hop(1,i,1,i), &
+!                               umat_rs_hub_trancorr_hop(1,i,i,i)
+!         end do
+! #endif
     end subroutine init_umat_rs_hub_transcorr
 
     subroutine init_get_helement_hubbard

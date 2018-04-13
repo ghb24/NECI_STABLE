@@ -146,6 +146,10 @@ module lattice_mod
         ! size of the lookup tables
         integer :: kmin(sdim) = 0
         integer :: kmax(sdim) = 0
+        ! also store an indexing for the real-space vectors
+        integer :: r_min(sdim) = 0
+        integer :: r_max(sdim) = 0
+
         ! actually i want to have more flexibility: maybe periodic in x 
         ! but not y.. 
         logical :: t_periodic_x = .true. 
@@ -302,6 +306,7 @@ module lattice_mod
         ! actually i should make i deferred: todo
 !         procedure(init_basis_vecs_t), deferred :: init_basis_vecs 
         procedure :: init_basis_vecs 
+        procedure, public :: init_hop_cache_bounds
 
     end type lattice 
 
@@ -3630,6 +3635,49 @@ contains
         call this%initialize_lu_table()
         
     end subroutine init_lattice
+
+    subroutine init_hop_cache_bounds(this, r_min, r_max)
+        ! initialize the lower and upper bounds of the cached 
+        ! hopping-transcorr factor, indexed by the involved r-vector
+        ! maybe move this function to lattice_mod?!
+        class(lattice) :: this
+        integer, intent(out), optional :: r_min(3), r_max(3)
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "init_hop_cache_bounds"
+#endif
+        integer :: n_sites, i, j, ri(3), rj(3), r_diff(3)
+
+        if (.not. (all(this%r_min == this%r_max) .and. all(this%r_min == 0))) then
+
+            if (present(r_min) .and. present(r_max)) then
+                r_min = this%r_min
+                r_max = this%r_max
+            end if
+
+            return
+        end if
+
+        n_sites = this%get_nsites()
+
+        do i = 1, n_sites
+            ri = this%get_r_vec(i)
+            do j = 1, n_sites
+                rj = this%get_r_vec(j)
+
+                r_diff = ri - rj 
+
+                where(r_diff < this%r_min) this%r_min = r_diff
+                where(r_diff > this%r_max) this%r_max = r_diff
+
+            end do
+        end do
+
+        if (present(r_min) .and. present(r_max)) then
+            r_min = this%r_min
+            r_max = this%r_max
+        end if
+
+    end subroutine init_hop_cache_bounds
 
     subroutine initialize_lu_table(this)
       implicit none
