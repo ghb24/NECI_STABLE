@@ -691,6 +691,7 @@ contains
       real(dp) :: tmp_sgn(lenof_sign)
 
       signs = 1
+      if(AllSumNoatHF(1) > 0) then
       do i = 1, lenof_sign
          if(AllSumNoatHF(i)/AllSumNoatHF(1) < 0) then
             signs(i) = -1
@@ -698,6 +699,7 @@ contains
             signs(i) = 1
          endif
       enddo
+      endif
       if(any(signs<0)) then
          do i = 1, TotWalkers
             call extract_sign(CurrentDets(:,i),tmp_sgn)

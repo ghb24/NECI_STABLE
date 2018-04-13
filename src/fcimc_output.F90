@@ -545,6 +545,32 @@ contains
             inited = .true.
         end if
 
+        ! What is the current value of S2
+        if (tCalcInstantS2) then
+            if (mod(iter / StepsSft, instant_s2_multiplier) == 0) then
+                if (tSpatialOnlyhash) then
+                    curr_S2 = calc_s_squared (.false.)
+                else
+                    curr_S2 = calc_s_squared_star (.false.)
+                end if
+            end if
+        else
+            curr_S2 = -1
+        end if
+
+        ! What is the current value of S2 considering only initiators
+        if (tCalcInstantS2Init) then
+            if (mod(iter / StepsSft, instant_s2_multiplier_init) == 0) then
+                if (tSpatialOnlyhash) then
+                    curr_S2_init = calc_s_squared (.true.)
+                else
+                    curr_S2_init = calc_s_squared_star (.true.)
+                end if
+            end if
+        else
+            curr_S2_init = -1
+        endif
+
         ! ------------------------------------------------
         ! This is where any calculation that needs multiple nodes should go
         ! ------------------------------------------------
@@ -642,7 +668,10 @@ contains
 #else
             call stats_out(state,.true., TotImagTime, 'Im. time')
 #endif
-
+            if(tCalcInstantS2) &
+                 call stats_out(state,.true.,sum(curr_S2)/inum_runs,'S^2')
+            if(tCalcInstantS2Init) &
+                 call stats_out(state,.true.,sum(curr_S2_init)/inum_runs,'S^2 (inits)')
             ! Put the conditional columns at the end, so that the column
             ! numbers of the data are as stable as reasonably possible (for
             ! people who want to use gnuplot/not analyse column headers too
