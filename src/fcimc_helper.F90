@@ -1400,7 +1400,6 @@ contains
 
         ! Truncate space by excitation level
         if (tTruncSpace) then
-            ASSERT(.not.t_3_body_excits)
             ! If parent walker is one below excitation cutoff, could be
             ! disallowed if double. If higher, then all excits could
             ! be disallowed. If HPHF, excit could be single or double,

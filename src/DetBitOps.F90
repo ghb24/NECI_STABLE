@@ -5,7 +5,8 @@ module DetBitOps
     ! A collection of useful operations to perform on the bit-representation
     ! of determinants.
 
-    use Systemdata, only: nel, tCSF, tTruncateCSF, csf_trunc_level, tOddS_HPHF
+    use Systemdata, only: nel, tCSF, tTruncateCSF, csf_trunc_level, tOddS_HPHF, &
+                          tHPHF
     use CalcData, only: tTruncInitiator, tSemiStochastic
     use bit_rep_data, only: NIfY, NIfTot, NIfD, NOffFlag, NIfFlag, &
                             test_flag, NIfDBO, NOffSgn, extract_sign
@@ -202,6 +203,16 @@ module DetBitOps
 
         ! Unused
         if (present(maxExLevel)) unused = maxExLevel
+
+        if (tHPHF .and. .not.  & 
+            (TestClosedShellDet(ilutnI) .and. TestClosedShellDet(iLutnJ)))  then 
+            ! make sure that we are calculating the correct excitation 
+            ! level, which should be the minimum of the possible ones in 
+            ! HPHF mode 
+            ! if both are closed shell it is fine
+            ic = FindBitExcitLevel_hphf(ilutnI, ilutnJ)
+            return
+        end if
 
         ! Obtain a bit string with only the excited orbitals one one det.
         tmp = ieor(iLutnI, iLutnJ)
@@ -1094,6 +1105,33 @@ module DetBitOps
          end do
       end do
     end function spin_flip
+
+    pure function FindBitExcitLevel_hphf(ilutnI, iLutnJ) result(ic)
+        integer(n_int), intent(in) :: ilutnI(0:nifd), ilutnJ(0:nifd)
+        integer :: ic 
+        integer(n_int) :: ilutsI(0:nifd,2), ilutsJ(0:nifd,2), tmp(0:nifd)
+        integer :: ic_tmp(4), i, j, k
+
+        ilutsI(:,1) = ilutnI
+        ilutsI(:,2) = spin_flip(ilutnI)
+
+        ilutsJ(:,1) = ilutnJ
+        ilutsJ(:,2) = spin_flip(ilutnJ)
+
+        i = 1
+        do j = 1, 2
+            do k = 1, 2
+                tmp = ieor(ilutsI(:,j), ilutsJ(:,k))
+                tmp = iand(ilutsI(:,j), tmp)
+
+                ic_tmp(i) = CountBits(tmp, nifd)
+                i = i + 1
+            end do
+        end do
+
+        ic = minval(ic_tmp)
+
+    end function FindBitExcitLevel_hphf
 
 end module
 
