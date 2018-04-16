@@ -668,10 +668,7 @@ contains
 #else
             call stats_out(state,.true., TotImagTime, 'Im. time')
 #endif
-            if(tCalcInstantS2) &
-                 call stats_out(state,.true.,sum(curr_S2)/inum_runs,'S^2')
-            if(tCalcInstantS2Init) &
-                 call stats_out(state,.true.,sum(curr_S2_init)/inum_runs,'S^2 (inits)')
+
             ! Put the conditional columns at the end, so that the column
             ! numbers of the data are as stable as reasonably possible (for
             ! people who want to use gnuplot/not analyse column headers too
@@ -812,6 +809,11 @@ endif
                 end if
             end do
 #endif
+
+            if(tCalcInstantS2) &
+                 call stats_out(state,.true.,sum(curr_S2)/inum_runs,'S^2')
+            if(tCalcInstantS2Init) &
+                 call stats_out(state,.true.,sum(curr_S2_init)/inum_runs,'S^2 (inits)')
 
             ! And we are done
             write(state%funit, *)
