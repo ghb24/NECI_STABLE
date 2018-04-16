@@ -85,8 +85,9 @@ contains
 
         if (trim(adjustl(lattice_type)) == 'read') then 
             ! then i have to construct tmat first 
-            call init_tmat() 
-            call setup_exchange_matrix()
+            call stop_all(this_routine, "starting from fcidump not yet implemented!")
+!             call init_tmat() 
+!             call setup_exchange_matrix()
             ! and then construct the lattice 
             lat => lattice(lattice_type, length_x, length_y, length_z, .not. t_open_bc_x, &
                 .not. t_open_bc_y, .not. t_open_bc_z)
@@ -191,8 +192,9 @@ contains
         if (trim(adjustl(lattice_type)) == 'read') then 
             ! then i have to construct tmat first 
             ! no need for tmat in the heisenberg model 
+            call stop_all(this_routine, "starting from fcidump not yet implemented!")
 !             call init_tmat() 
-            call setup_exchange_matrix()
+!             call setup_exchange_matrix()
             ! and then construct the lattice 
             lat => lattice(lattice_type, length_x, length_y, length_z, .not. t_open_bc_x, &
                 .not. t_open_bc_y, .not. t_open_bc_z)
@@ -884,27 +886,26 @@ contains
 
     end function get_heisenberg_exchange
 
-    subroutine setup_exchange_matrix(lat)
+    subroutine setup_exchange_matrix(in_lat)
         ! by convention encode the exchange matrix element by the two 
         ! involved electrons with opposite spins! so we can encode this 
         ! as a 2D matrix 
-        class(lattice), optional :: lat 
-#ifdef __DEBUG 
+        class(lattice), intent(in), pointer :: in_lat 
         character(*), parameter :: this_routine = "setup_exchange_matrix"
-#endif
         integer :: i, ind 
 
-        if (present(lat)) then 
+        ASSERT(associated(in_lat))
+!         if (present(in_lat)) then 
             ! create the exchange matrix from the given lattice 
             ! connections 
             if (allocated(exchange_matrix)) deallocate(exchange_matrix)
             allocate(exchange_matrix(nbasis,nbasis))
             exchange_matrix = 0.0_dp
 
-            ASSERT(lat%get_nsites() == nbasis/2)
-            do i = 1, lat%get_nsites() 
-                ind = lat%get_site_index(i)
-                associate(next => lat%get_neighbors(i))
+            ASSERT(in_lat%get_nsites() == nbasis/2)
+            do i = 1, in_lat%get_nsites() 
+                ind = in_lat%get_site_index(i)
+                associate(next => in_lat%get_neighbors(i))
                     exchange_matrix(2*ind - 1, 2*next) = exchange_j/2.0_dp
                     exchange_matrix(2*ind, 2*next - 1) = exchange_j/2.0_dp
 
@@ -915,11 +916,9 @@ contains
                 ASSERT(ind <= nbasis/2)
             end do
 
-        else 
-#ifdef __DEBUG 
-            call stop_all(this_routine, "start from a fcidump not yet implemented!")
-#endif
-        end if
+!         else 
+!             call stop_all(this_routine, "start from a fcidump not yet implemented!")
+!         end if
 
     end subroutine setup_exchange_matrix
 

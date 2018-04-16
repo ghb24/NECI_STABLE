@@ -722,6 +722,10 @@ system: do
             else if (t_new_real_space_hubbard) then 
                 lat => lattice(lattice_type, length_x, length_y, length_z, & 
                     .not. t_open_bc_x, .not. t_open_bc_y, .not. t_open_bc_z,'real-space')
+            else 
+                lat => lattice(lattice_type, length_x, length_y, length_z, & 
+                    .not. t_open_bc_x, .not. t_open_bc_y, .not. t_open_bc_z)
+
             end if
 
             ! maybe i have to reuse the cell input functionality or set it 
