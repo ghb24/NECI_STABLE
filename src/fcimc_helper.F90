@@ -774,7 +774,7 @@ contains
         do run = 1, inum_runs
 
             ! We need to use the excitation level relevant for this run
-            exlevel = FindBitExcitLevel(ilut, ilutRef(:, run))
+            exlevel = FindBitExcitLevel(ilut, ilutRef(:, run), t_hphf_ic = .true.)
             if (tSpinCoupProjE(run) .and. exlevel /= 0) then
                 if (exlevel <= 2) then
                     exlevel = 2
@@ -847,7 +847,7 @@ contains
       ! If we do not supply nI externally, get it now.
       ! This routine mainly exists for compatibility
       call decode_bit_det(nI, CurrentDets(:,j))
-      exLvl = FindBitExcitLevel(ilutRef(:,1), CurrentDets(:,j))
+      exLvl = FindBitExcitLevel(ilutRef(:,1), CurrentDets(:,j), t_hphf_ic = .true.)
       call CalcParentFlag_det(j, nI, exLvl, parent_flags)
     end subroutine CalcParentFlag_normal
 
@@ -933,7 +933,7 @@ contains
         real(dp) :: sgn(lenof_sign)
         logical :: initiator
 
-        exLvl = FindBitExcitLevel(ilut, ilutRef(:,run))
+        exLvl = FindBitExcitLevel(ilut, ilutRef(:,run),t_hphf_ic = .true.)
         call decode_bit_det(nI,ilut)
         call extract_sign(ilut, sgn)
         initiator = TestInitiator_explicit(ilut, nI, site_idx, is_init, sgn, exLvl, run)
@@ -1406,7 +1406,7 @@ contains
             ! and IC not returned --> Always test.
             if (tHPHF .or. WalkExcitLevel >= ICILevel .or. &
                 (WalkExcitLevel == (ICILevel-1) .and. IC == 2)) then
-                ExcitLevel = FindBitExcitLevel (iLutHF, ilutnJ, ICILevel)
+                ExcitLevel = FindBitExcitLevel (iLutHF, ilutnJ, ICILevel, .true.)
                 if (ExcitLevel > ICILevel) &
                     bAllowed = .false.
             endif
@@ -2209,7 +2209,7 @@ contains
             call extract_sign(CurrentDets(:,j), sgn)
             if (IsUnoccDet(sgn)) cycle
 
-            ex_level = FindBitExcitLevel (iLutRef(:,1), CurrentDets(:,j))
+            ex_level = FindBitExcitLevel (iLutRef(:,1), CurrentDets(:,j), t_hphf_ic = .true.)
 
             call decode_bit_det(det, CurrentDets(:,j))
             call SumEContrib(det, ex_level, sgn, CurrentDets(:,j), 0.0_dp, &

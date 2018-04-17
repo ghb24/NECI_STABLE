@@ -1127,7 +1127,7 @@ module DetBitOps
         i = 1
         ic_tmp = 9999
 
-        do j = 1, 1
+        do j = 1, 2
             do k = 1, 2
                 tmp = ieor(ilutsI(:,j), ilutsJ(:,k))
                 tmp = iand(ilutsI(:,j), tmp)

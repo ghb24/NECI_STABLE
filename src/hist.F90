@@ -1099,8 +1099,8 @@ contains
         abschild = sum(abs(child))
 
         ! Get the excitation levels of the source and target
-        exlevelI = FindBitExcitLevel(ilutRef(:,1), ilutI)
-        exlevelJ = FindBitExcitLevel(ilutRef(:,1), ilutJ)
+        exlevelI = FindBitExcitLevel(ilutRef(:,1), ilutI, t_hphf_ic = .true.)
+        exlevelJ = FindBitExcitLevel(ilutRef(:,1), ilutJ, t_hphf_ic = .true.)
 
         ! And store it!
         hist_excit_tofrom(exlevelI, exlevelJ) = &
