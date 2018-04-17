@@ -575,7 +575,7 @@ contains
         use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
                               enough_sing, enough_doub, enough_opp, &
                               enough_par, cnt_sing, cnt_doub, cnt_opp, &
-                              cnt_par, max_death_cpt, update_tau
+                              cnt_par, max_death_cpt, update_tau_default
         use FciMCData, only: pSingles, pDoubles, pParallel, tSearchTau, &
                              tSearchTauOption 
         use CalcData, only: tau, t_previous_hist_tau, t_restart_hist_tau, &
@@ -662,7 +662,7 @@ contains
         if (.not. hist_tau) then
             t_previous_hist_tau = .false.
             if (ppar_set .and. .not. tau_set) &
-                call update_tau()
+                call update_tau_default()
         end if
 
     end subroutine
