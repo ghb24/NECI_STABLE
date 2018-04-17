@@ -187,24 +187,28 @@ module DetBitOps
     end function
 
 
-    pure function FindBitExcitLevel(iLutnI, iLutnJ, maxExLevel) result(IC)
+    pure function FindBitExcitLevel(iLutnI, iLutnJ, maxExLevel, t_hphf_ic) result(IC)
 
         ! Find the excitation level of one determinant relative to another
         ! given their bit strings (the number of orbitals they differ by)
         !
         ! In:  iLutnI, iLutnJ    - The bit representations
         !      maxExLevel        - An (optional) maximum ex level to consider
+        !      t_hphf_ic         - An (optional) flag to determine the 
+        !                          minimum excitation level in an HPHF calculation to 
+        !                          both spin-coupled references if present
         ! Ret: FindBitExcitLevel - The number of orbitals i,j differ by
 
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfD), iLutnJ(0:NIfD)
         integer, intent(in), optional :: maxExLevel
+        logical, intent(in), optional :: t_hphf_ic
         integer(kind=n_int) :: tmp(0:NIfD)
         integer :: IC, unused
 
         ! Unused
         if (present(maxExLevel)) unused = maxExLevel
 
-        if (tHPHF .and. .not.  & 
+        if (present(t_hphf_ic) .and. t_hphf_ic .and. tHPHF .and. .not.  & 
             (TestClosedShellDet(ilutnI) .and. TestClosedShellDet(iLutnJ)))  then 
             ! make sure that we are calculating the correct excitation 
             ! level, which should be the minimum of the possible ones in 
@@ -1080,8 +1084,8 @@ module DetBitOps
     pure function spin_flip(ilut) result(ilut_flip)
       ! Take the determinant represented by ilut and flip every spin
       implicit none
-      integer(n_int), intent(in) :: ilut(0:NIfTot)
-      integer(n_int) :: ilut_flip(0:NIfTot)
+      integer(n_int), intent(in) :: ilut(0:niftot)
+      integer(n_int) :: ilut_flip(0:niftot)
       integer :: i, orb
       logical :: up, down      
 
@@ -1113,13 +1117,17 @@ module DetBitOps
         integer :: ic_tmp(4), i, j, k
 
         ilutsI(:,1) = ilutnI
-        ilutsI(:,2) = spin_flip(ilutnI)
+        call spin_sym_ilut(ilutnI, ilutsI(:,2))
+!         ilutsI(:,2) = spin_flip(ilutnI)
 
         ilutsJ(:,1) = ilutnJ
-        ilutsJ(:,2) = spin_flip(ilutnJ)
+        call spin_sym_ilut(ilutnJ, ilutsJ(:,2))
+!         ilutsJ(:,2) = spin_flip(ilutnJ)
 
         i = 1
-        do j = 1, 2
+        ic_tmp = 9999
+
+        do j = 1, 1
             do k = 1, 2
                 tmp = ieor(ilutsI(:,j), ilutsJ(:,k))
                 tmp = iand(ilutsI(:,j), tmp)

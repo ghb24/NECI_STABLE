@@ -1202,6 +1202,7 @@ contains
         if (tpar) hel = -hel
 
     end function get_single_helem_rs_hub_transcorr
+
     function calc_pgen_rs_hubbard_transcorr(nI, ilutI, ex, ic) result(pgen)
         integer, intent(in) :: nI(nel), ex(2,2), ic 
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
@@ -1356,7 +1357,8 @@ contains
 
         ! can i assert the same spin of the 2 involved orbitals? 
         ! just return 0 if both have different spin? 
-        ASSERT(is_beta(src) .eqv. is_beta(tgt))
+        ASSERT(same_spin(src, tgt))
+
         ! and assert that we actually take a valid excitation:
         ASSERT(any(tgt == lat%get_spinorb_neighbors(src)))
         ASSERT(IsOcc(ilutI, src))

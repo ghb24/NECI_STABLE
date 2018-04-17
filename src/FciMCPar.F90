@@ -1027,11 +1027,11 @@ module FciMCParMod
             ! reference (so no ex. level above 2 required, 
             ! truncated etc.)
             walkExcitLevel = FindBitExcitLevel (iLutRef(:,1), CurrentDets(:,j), &
-                                                max_calc_ex_level)
+                                                max_calc_ex_level, .true.)
             
             if(tRef_Not_HF) then
                 walkExcitLevel_toHF = FindBitExcitLevel (iLutHF_true, CurrentDets(:,j), &
-                                                max_calc_ex_level)
+                                                max_calc_ex_level, .true.)
             else
                 walkExcitLevel_toHF = walkExcitLevel
             endif
