@@ -184,11 +184,11 @@ module real_time_data
                 NoBorn_1(:), AllNoBorn_1(:), NoDied_1(:), AllNoDied_1(:), &
                 Annihilated_1(:), AllAnnihilated_1(:), Acceptances_1(:), &
                 SpawnFromSing_1(:), AllSpawnFromSing_1(:), NoatDoubs_1(:), &
-                AllNoatDoubs_1(:), AccRat_1(:), AllGrowRate_1(:), NoInitWalk_1(:), &
+                AllNoatDoubs_1(:),  NoInitWalk_1(:), &
                 NoNonInitWalk_1(:), NoatHF_1(:), AllNoInitWalk_1(:), &
                 AllNoNonInitWalk_1(:), SumWalkersCyc_1(:), AllTotParts_1(:), &
                 AllTotPartsOld_1(:), TotParts_1(:), AllNoatHF_1(:), AllSumWalkersCyc_1(:), &
-                OldAllAvWalkersCyc_1(:), TotPartsStorage(:), TotPartsLastAlpha(:)
+                TotPartsStorage(:), TotPartsLastAlpha(:)
 
     integer(int64), allocatable :: NoAddedInitiators_1(:),InitRemoved_1(:), &
                 NoInitDets_1(:), NoNonInitDets_1(:), AllNoAddedInitiators_1(:), &
@@ -206,11 +206,12 @@ module real_time_data
     ! to keep stats correclty
     integer :: runge_kutta_step
 
-    ! These are required in the extended semi-stochastic treatment
-    logical :: tLogTrajectory, tReadTrajectory
+    ! for saving/loading the trajectories
+    logical :: tLogTrajectory, tReadTrajectory, tLiveTrajectory
     integer :: iunitCycLog
     real(dp), allocatable :: tauCache(:), alphaCache(:)
     character(255) :: trajFile
+    ! These are required in the extended semi-stochastic treatment
     logical :: tGenerateCoreSpace, tGZero
 
     ! For corespace construction

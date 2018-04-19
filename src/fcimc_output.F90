@@ -35,7 +35,7 @@ module fcimc_output
     use util_mod
     use real_time_data, only: AllNoBorn_1, AllNoAborted_1, AllAnnihilated_1, &
                               AllNoDied_1, AllTotWalkers_1, nspawned_tot_1,  gf_count, &
-                              AllTotParts_1, AccRat_1, AllGrowRate_1, normsize, snapShotOrbs, &
+                              AllTotParts_1, normsize, snapShotOrbs, &
                               current_overlap, t_real_time_fciqmc, elapsedRealTime, &
                               elapsedImagTime, overlap_real, overlap_imag, dyn_norm_psi,&
                               dyn_norm_red, real_time_info, allPopSnapshot, numSnapshotOrbs

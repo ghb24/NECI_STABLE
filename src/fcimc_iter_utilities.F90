@@ -44,10 +44,10 @@ module fcimc_iter_utils
         Annihilated_1, AllAnnihilated_1, AllNoAddedInitiators_1, AllNoInitDets_1, &
         AllNoNonInitDets_1, AllInitRemoved_1, bloom_count_1, bloom_sizes_1, &
         AllNoAborted_1, AllNoInitWalk_1, AllNoNonInitWalk_1, AllNoRemoved_1, &
-        all_bloom_count_1, NoAddedInitiators_1, AccRat_1, SumWalkersCyc_1, &
+        all_bloom_count_1, NoAddedInitiators_1, SumWalkersCyc_1, &
         nspawned_1, nspawned_tot_1, second_spawn_iter_data, TotParts_1, &
         AllTotParts_1, AllTotPartsOld_1, allPopSnapshot, &
-        AllSumWalkersCyc_1, OldAllAvWalkersCyc_1, popSnapshot
+        AllSumWalkersCyc_1,  popSnapshot
 #endif 
     use double_occ_mod, only: inst_double_occ, all_inst_double_occ, sum_double_occ, &
                               sum_norm_psi_squared
@@ -83,14 +83,8 @@ contains
             ! in the real-time fciqmc keep track of both distinct RK steps
             ! -> also need to keep track of the SumWalkersCyc... todo..
            if(all(abs(SumWalkersCyc) > eps)) then
-#ifdef __REALTIME
-              AccRat_1 = real(Acceptances_1, dp) / SumWalkersCyc_1
-#endif
               AccRat = real(Acceptances, dp) / SumWalkersCyc
            else
-#ifdef __REALTIME
-              AccRat_1 = 0.0_dp
-#endif
               AccRat = 0.0_dp
            endif
         end if
@@ -840,18 +834,10 @@ contains
                  !COMPLEX
                  AllGrowRate = (sum(AllSumWalkersCyc)/real(StepsSft,dp)) &
                       /sum(OldAllAvWalkersCyc)
-#ifdef __REALTIME
-                 AllGrowRate_1 = (sum(AllSumWalkersCyc_1)/real(StepsSft,dp))  & 
-                      / sum(OldAllAvWalkersCyc_1)
-#endif
               else
                  do run=1,inum_runs
                     AllGrowRate(run) = (AllSumWalkersCyc(run)/real(StepsSft,dp)) &
                          /OldAllAvWalkersCyc(run)
-#ifdef __REALTIME
-                 AllGrowRate_1(run) = ((AllSumWalkersCyc_1(run))/real(StepsSft,dp))  & 
-                      / (OldAllAvWalkersCyc_1(run))
-#endif
                  enddo
               endif
            end if
@@ -1090,11 +1076,9 @@ contains
                          + proje_ref_energy_offsets(run)
                 endif
                 ! and this is a new statement..
-#ifdef __CMPLX 
-                if (any(abs(AllHFCyc(lb:ub)) > EPS)) then
-#else
+
+
                 if (abs(AllHFCyc(run)) > EPS) then
-#endif
                    proje_iter(run) = (AllENumCyc(run)) / (all_cyc_proje_denominator(run)) &
                         + proje_ref_energy_offsets(run)
                    AbsProjE(run) = (AllENumCycAbs(run)) / (all_cyc_proje_denominator(run)) &
@@ -1184,11 +1168,6 @@ contains
         !OldAllAvWalkersCyc gives the average number of walkers per iteration in the last update cycle
         !TODO CMO: are these summed across real/complex? 
         OldAllAvWalkersCyc = AllSumWalkersCyc/real(StepsSft,dp)
-
-#ifdef __REALTIME
-        if(iter .eq. 0) OldAllAvWalkersCyc = AllSumWalkersCyc
-        OldAllAvWalkersCyc_1 = AllSumWalkersCyc_1 / real(StepsSft,dp)
-#endif
 
         ! Also the cumulative global variables
         AllTotWalkersOld = AllTotWalkers

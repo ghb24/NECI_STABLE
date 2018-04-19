@@ -464,6 +464,12 @@ module real_time_read_input_module
                 ! This reads in a trajectory and performs the time-evolution along
                 ! it
                 tReadTrajectory = .true.
+                
+             case("LIVE-TRAJECTORY")
+                ! Now we re-read the trajectory during runtime, this can be used to 
+                ! use a trajectory that is currently being determined
+                tReadTrajectory = .true.
+                tLiveTrajectory = .true.
 
              case("CORESPACE-OVERLAP")
                 ! Get the Green's function for the corespace only. This performs the 

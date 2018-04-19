@@ -940,7 +940,9 @@ contains
         bloom_sizes = 0
         proje_iter_tot = 0.0_dp
         ! initialize as one (kind of makes sense for a norm)
+        norm_psi_squared = 1.0_dp
         all_norm_psi_squared = 1.0_dp
+        norm_semistoch_squared = 1.0_dp
         tSoftExitFound = .false.
         tReferenceChanged = .false.
 

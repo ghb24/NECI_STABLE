@@ -13,12 +13,12 @@ module real_time_init
                               SpawnFromSing_1, NoDied_1, NoAborted_1, NoRemoved_1, &
                               NoAddedInitiators_1, NoInitDets_1, NoNonInitDets_1, &
                               NoInitWalk_1, NoNonInitWalk_1, InitRemoved_1, tDynamicAlpha, &
-                              AllNoatHF_1, AllNoatHF_1, AllGrowRate_1, AllGrowRateAbort_1, &
+                              AllNoatHF_1, AllNoatHF_1,  AllGrowRateAbort_1, &
                               AllNoBorn_1, AllSpawnFromSing_1, AllNoDied_1, gf_count, &
                               AllAnnihilated_1, AllNoAborted_1, AllNoRemoved_1, allPopSnapshot, &
                               AllNoAddedInitiators_1, AllNoInitDets_1, AllNoNonInitDets_1, &
                               AllNoInitWalk_1, AllNoNonInitWalk_1, AllInitRemoved_1, &
-                              AccRat_1, AllNoatDoubs_1, AllSumWalkersCyc_1, current_overlap, &
+                              AllNoatDoubs_1, AllSumWalkersCyc_1, current_overlap, &
                               TotPartsStorage,  t_rotated_time, TotPartsPeak, asymptoticShift, &
                               tau_imag, tau_real, elapsedRealTime, elapsedImagTime, tNewOverlap, &
                               TotWalkers_orig, dyn_norm_psi, gs_energy, shift_damping, &
@@ -172,6 +172,7 @@ contains
         alphaLogSize = 50
         alphaLogPos = 1
         allocate(alphaLog(alphaLogSize), stat = ierr)
+        alphalog = 0.0_dp
         numCycShiftExcess = 0
         ! allocate spawn buffer for verlet scheme
         if(tVerletScheme) allocate(spawnBuf(0:niftot,1:maxSpawned))
@@ -282,7 +283,6 @@ contains
         ! also the global variables 
         AllNoatHF_1 = 0.0_dp
         AllNoatDoubs_1 = 0.0_dp
-        AllGrowRate_1 = 0.0_dp
         AllGrowRateAbort_1 = 0
         AllNoBorn_1 = 0.0_dp
         AllSpawnFromSing_1 = 0
@@ -296,7 +296,6 @@ contains
         AllNoInitWalk_1 = 0.0_dp
         AllNoNonInitWalk_1 = 0.0_dp
         AllInitRemoved_1 = 0
-        AccRat_1 = 0.0_dp
         AllSumWalkersCyc_1 = 0.0_dp
 
         tVerletSweep = .false.
@@ -827,27 +826,16 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    subroutine read_in_trajectory
+    subroutine read_from_contour_file(iunit)
       use CalcData, only: nmcyc
       use real_time_data, only: tauCache, alphaCache
       implicit none
-      integer :: i, iunit
-      logical :: checkTraj
-      character(*), parameter :: this_routine = "read_in_trajectory"
-      
-      call get_unique_filename('tauContour',.false.,.false.,0,trajFile)
-      iunit = get_free_unit()
-      inquire(file=trajFile,exist=checkTraj)
-      if(.not. checkTraj) call stop_all(this_routine,"No tauContour file detected.")
-      
-
-      ! We first need to read in the number of cycles
-      open(iunit,file=trajFile,status='old',position='append')
-      backspace(iunit)
-      read(iunit,*) nmcyc
-      close(iunit)
+      integer, intent(in) :: iunit
+      integer :: i
 
       ! Then, the cache for the values of alpha and tau is allocated
+      if(allocated(tauCache)) deallocate(tauCache)
+      if(allocated(alphaCache)) deallocate(alphaCache)
       allocate(tauCache(nmcyc))
       allocate(alphaCache(nmcyc))
 
@@ -858,6 +846,38 @@ contains
          read(iunit,*) tauCache(i), alphaCache(i)
       enddo
       close(iunit)
+    end subroutine read_from_contour_file
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine read_in_trajectory
+      use CalcData, only: nmcyc
+      use real_time_data, only: tauCache, alphaCache
+      implicit none
+      integer :: i, iunit, eof
+      real(dp) :: x,y
+      logical :: checkTraj
+      character(*), parameter :: this_routine = "read_in_trajectory"
+      
+      call get_unique_filename('tauContour',.false.,.false.,0,trajFile)
+      iunit = get_free_unit()
+      inquire(file=trajFile,exist=checkTraj)
+      if(.not. checkTraj) call stop_all(this_routine,"No tauContour file detected.")
+      
+
+      ! We first need to read in the number of cycles
+      open(iunit,file=trajFile,status='old')
+      nmcyc = 0
+      ! check the number of lines
+      do
+         read(iunit,*,iostat=eof) x,y
+         if(eof .ne. 0) exit
+         nmcyc = nmcyc + 1
+      end do
+      close(iunit)
+
+      call read_from_contour_file(iunit)
+      
     end subroutine read_in_trajectory
 
 !------------------------------------------------------------------------------------------!

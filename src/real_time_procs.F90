@@ -1710,7 +1710,6 @@ contains
       implicit none
 
       if(iProcIndex == root) then
-         write(iunitCycLog,*) iter
          close(iunitCycLog)
       endif
     end subroutine closeTauContourFile

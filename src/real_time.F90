@@ -3,7 +3,7 @@
 module real_time
 
     use real_time_init, only: init_real_time_calc_single, dealloc_real_time_memory, &
-         rotate_time
+         rotate_time, read_in_trajectory
     use real_time_procs, only: save_current_dets, reset_spawned_list, merge_spawn, &
                                reload_current_dets, walker_death_realtime, &
                                walker_death_spawn, attempt_die_realtime, trunc_shift, &
@@ -27,7 +27,7 @@ module real_time
                               tDynamicDamping, stabilizerThresh, popSnapshot, spawnBufSize, &
                               tLogTrajectory, tReadTrajectory, tGenerateCoreSpace, &
                               numSnapShotOrbs, core_space_buf, csbuf_size, corespace_log_interval, &
-                              real_time_info
+                              real_time_info, tLiveTrajectory
     use verlet_aux, only: init_verlet_iteration, obtain_h2_psi, update_delta_psi, &
          init_verlet_sweep, check_verlet_sweep, end_verlet_sweep
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
@@ -521,6 +521,9 @@ contains
             call ChangeVars(tSingBiasChange, tWritePopsFound)
             if (tWritePopsFound) call WriteToPopsfileParOneArr(CurrentDets, TotWalkers)
             if (tSingBiasChange) call CalcApproxpDoubles()
+
+        ! also re-read the trajectory if in live-trajectory mode
+            if(tLiveTrajectory) call read_in_trajectory()
         end if
 
         if(semistoch_shift_iter/=0) then
