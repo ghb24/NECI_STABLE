@@ -302,6 +302,10 @@ real(dp), allocatable :: excit_cache(:,:,:)
 
 ! also use an additional flag to indicate that 3-body excitations are possible
 logical :: t_3_body_excits = .false. 
+
+! make a general Flag to indicat a non-hermitian Hamiltonian
+logical :: t_non_hermitian = .false.
+
 ! and indicate the maximum excitation level: 
 integer :: max_ex_level = 2
 

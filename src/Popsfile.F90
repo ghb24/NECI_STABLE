@@ -3,7 +3,8 @@
 MODULE PopsfileMod
 
     use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin, tReal, &
-                          AB_elec_pairs, par_elec_pairs, tMultiReplicas, tReltvy
+                          AB_elec_pairs, par_elec_pairs, tMultiReplicas, tReltvy, &
+                          t_lattice_model, t_non_hermitian, t_3_body_excits
     use CalcData, only: DiagSft, tWalkContGrow, nEquilSteps, aliasStem, tSpecifiedTau,&
                         ScaleWalkers, tReadPopsRestart, tPopsJumpShift, t_hist_tau_search_option, &
                         InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
@@ -19,7 +20,7 @@ MODULE PopsfileMod
     use hash, only: FindWalkerHash, clear_hash_table, &
                     fill_in_hash_table
     use Determinants, only: get_helement, write_det
-    use hphf_integrals, only: hphf_diag_helement
+    use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     USE dSFMT_interface, only: genrand_real2_dSFMT
     use FciMCData
     use bit_rep_data, only: extract_sign, NOffSgn
@@ -49,6 +50,7 @@ MODULE PopsfileMod
     use real_time_data, only: t_real_time_fciqmc, TotWalkers_orig, tRealTimePopsfile, &
          real_time_info, t_kspace_operators, phase_factors
 
+     use lattice_mod, only: get_helement_lattice
 
     implicit none
 
@@ -2102,7 +2104,8 @@ r_loop: do while(.not.tStoreDet)
         integer, intent(in) :: iunit, iunit_2
         integer(n_int), intent(inout) :: det(0:NIfTot)
         real(dp) :: real_sgn(lenof_sign), detenergy
-        integer :: flg, j, k, ex_level, nopen, nI(nel)
+        HElement_t(dp) :: hf_helemt, hf_helemt_trans
+        integer :: flg, j, k, ex_level, nopen, nI(nel), ex(2,nel)
         logical :: bWritten, is_init, is_init_tmp
 
         bWritten = .false.
@@ -2155,6 +2158,37 @@ r_loop: do while(.not.tStoreDet)
                   call decode_bit_det(nI, det)
                   ex_level = FindBitExcitLevel(ilutRef(:,1), det, nel)
                   nopen = count_open_orbs(det)
+                  hf_helemt = 0.0_dp
+                  hf_helemt_trans = 0.0_dp
+                  if (ex_level <= 2 .or. (ex_level == 3 .and. t_3_body_excits)) then 
+                      if (tHPHF) then 
+                          hf_helemt = hphf_off_diag_helement(ProjEDet(:,1), &
+                              nI, iLutRef(:,1), det)
+
+                          if (t_non_hermitian) then 
+                              hf_helemt_trans = hphf_off_diag_helement(nI, & 
+                                  ProjEDet(:,1), det, iLutRef(:,1))
+
+                          end if
+                      else
+                          if (t_lattice_model) then 
+                              hf_helemt = get_helement_lattice(ProjEDet(:,1), &
+                                  nI, ex_level)
+                              if (t_non_hermitian) then 
+                                  hf_helemt_trans = get_helement_lattice(nI, &
+                                      ProjEDet(:,1), ex_level)
+                              end if
+                          else
+                              hf_helemt = get_helement(ProjEDet(:,1), nI, &
+                                  ex_level, iLutRef(:,1), det)
+                              if (t_non_hermitian) then 
+                                  hf_helemt_trans = get_helement(nI, ProjEDet(:,1), &
+                                      ex_level, det, iLutRef(:,1))
+                              end if
+                          end if
+                      end if
+                  end if
+
                   if(tHPHF)then
                      detenergy = hphf_diag_helement(nI, det)
                   else
@@ -2163,7 +2197,13 @@ r_loop: do while(.not.tStoreDet)
                   write(iunit_2, '(f20.10,a20)', advance='no') &
                        abs(real_sgn(1)), ''
                   call writebitdet (iunit_2, det, .false.)
-                  write(iunit_2,'(i30,i30,f20.10)') ex_level, nopen, detenergy
+                  if (t_non_hermitian) then
+                      write(iunit_2,'(i5,i5,3f20.10)') &
+                          ex_level, nopen, detenergy, hf_helemt, hf_helemt_trans
+                  else
+                      write(iunit_2,'(i5,i5,2f20.10)') &
+                          ex_level, nopen, detenergy, hf_helemt
+                  end if
                endif
             end if
         end if

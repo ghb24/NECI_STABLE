@@ -521,6 +521,8 @@ system: do
            ! activate the transcorrelated Hamiltonian idea from hongjun for 
            ! the real-space hubbard model 
            t_trans_corr = .true. 
+           t_non_hermitian = .true. 
+
            if (item < nitems) then 
                call getf(trans_corr_param)
            else 
@@ -531,6 +533,7 @@ system: do
         case ("TRANSCORR-NEW")
             t_trans_corr = .true. 
             t_trans_corr_new = .true. 
+           t_non_hermitian = .true. 
 
            if (item < nitems) then 
                call getf(trans_corr_param)
@@ -543,6 +546,7 @@ system: do
            ! for the tJ model there are 2 choices of the transcorrelation 
            ! indicate that here! 
            t_trans_corr_2body = .true.
+           t_non_hermitian = .true. 
 
            if (item < nitems) then 
                call getf(trans_corr_param_2body)
@@ -559,6 +563,8 @@ system: do
 
         case ('NEIGHBOR-TRANSCORR','TRANSCORR-NEIGHBOR','N-TRANSCORR')
             t_trans_corr_2body = .true. 
+            t_non_hermitian = .true. 
+
             if (item < nitems) then 
                 call getf(trans_corr_param_2body) 
             else 
@@ -573,6 +579,8 @@ system: do
 
         case ("TRANSCORR-HOP","HOP-TRANSCORR")
             t_trans_corr_hop = .true. 
+            t_non_hermitian = .true. 
+
             if (item < nitems) then 
                 call getf(trans_corr_param)
             else
