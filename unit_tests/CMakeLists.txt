@@ -29,3 +29,7 @@ add_subdirectory( tJ_model )
 add_subdirectory( k_space_hubbard )
 
 add_subdirectory( lattice_models_utils )
+
+add_subdirectory( cc_amplitudes )
+
+add_subdirectory( cepa_shifts )

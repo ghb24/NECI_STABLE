@@ -56,6 +56,8 @@ MODULE Calc
     use DetBitOps, only: DetBitEq, EncodeBitDet
     use DeterminantData, only: write_det
     use bit_reps, only: decode_bit_det
+    use cepa_shifts, only: t_cepa_shift, cepa_method
+    use cc_amplitudes, only: t_cc_amplitudes, cc_order, cc_delay
 
     implicit none
 
@@ -2658,6 +2660,33 @@ contains
              endif
 
 
+            case ("CEPA-SHIFTS", "CEPA", "CEPA-SHIFT")
+                t_cepa_shift = .true.
+                if (item < nitems) then 
+                    call readl(cepa_method)
+                else
+                    cepa_method = '0'
+                end if
+
+            case ("CC-AMPLITUDES")
+                t_cc_amplitudes = .true. 
+                if (item < nitems) then 
+                    call geti(cc_order)
+                    if (item < nitems) then
+                        call geti(cc_delay)
+                    else 
+                        cc_delay = 1000
+                    end if
+                else 
+                    ! 2 is the default cc_order
+                    cc_order = 2
+                    ! and also have an default delay of iterations after 
+                    ! the variable shift mode is turned on, when we want 
+                    ! to do the amplitude sampling
+                    cc_delay = 1000
+                end if
+
+
              case("ALL-DOUBS-INITIATORS")
                 ! Set all doubles to be treated as initiators
                 ! If truncinitiator is not set, this does nothing
@@ -2735,12 +2764,12 @@ contains
              case("DYNAMIC-SUPERINITIATORS")
                 ! Re-evaluate the superinitiators every SIUpdateInterval steps
                 ! Beware, this can be very expensive
-		! By default, it is 100, to turn it off, use 0
+                ! By default, it is 100, to turn it off, use 0
                 call readi(SIUpdateInterval)
 		
        	     case("STATIC-SUPERINITIATORS")
-	        ! Do not re-evaluate the superinitiators
-		SIUpdateInterval = 0
+                ! Do not re-evaluate the superinitiators
+                SIUpdateInterval = 0
 
              case("INITIATOR-COHERENCE-THRESHOLD")
                 ! Set the minimal coherence parameter for superinitiator-related
@@ -2772,8 +2801,8 @@ contains
                 ! set the minimum value for superinitiator population
                 call readf(NoTypeN)
 
-	     case("SUPPRESS-SUPERINITIATOR-OUTPUT")	
-	        ! just for backwards-compatibility
+             case("SUPPRESS-SUPERINITIATOR-OUTPUT")	
+	         ! just for backwards-compatibility
 
              case("WRITE-SUPERINITIATOR-OUTPUT")
                 ! Do not output the newly generated superinitiators upon generation

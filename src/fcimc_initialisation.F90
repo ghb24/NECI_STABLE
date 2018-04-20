@@ -190,6 +190,7 @@ module fcimc_initialisation
 
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
+    use cepa_shifts, only: t_cepa_shift, init_cepa_shifts
 
     use tj_model, only: init_get_helement_tj, init_get_helement_heisenberg
 
@@ -1655,6 +1656,7 @@ contains
          replica_overlaps_imag(:, :) = 0.0_dp
 #endif
 
+        if (t_cepa_shift) call init_cepa_shifts()
 
         ! Set up the reference space for the adi-approach
 	! in real-time, we do this in the real-time init

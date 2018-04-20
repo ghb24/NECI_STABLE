@@ -183,6 +183,8 @@ set( SRC_FILES
     k_space_hubbard.F90
     unit_test_helpers.F90
     lattice_models_utils.F90
+    cc_amplitudes.F90
+    cepa_shifts.F90
 
     lib/backtrace.cpp
     lib/cons_neci.F90

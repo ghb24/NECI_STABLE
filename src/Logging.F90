@@ -21,6 +21,7 @@ MODULE Logging
                               cnt_real_time_copies
     use rdm_data, only: nrdms_transition_input, states_for_transition_rdm
     use rdm_data, only: rdm_main_size_fac, rdm_spawn_size_fac, rdm_recv_size_fac
+    use cc_amplitudes, only: t_plot_cc_amplitudes
 
     IMPLICIT NONE
 
@@ -1009,6 +1010,9 @@ MODULE Logging
             tCalcInstantS2 = .true.
             if (item < nitems) &
                 call readi (instant_s2_multiplier)
+
+        case ("PLOT-CC-AMPLITUDES")
+            t_plot_cc_amplitudes = .true. 
 
         case ("INSTANT-S2-INIT")
             ! Calculate an instantaneous value ofr S^2 considering only the

@@ -18,4 +18,18 @@ program test_template
 
 contains 
 
+    subroutine template_test_driver() 
+
+        call run_test_case(first_test, "first_test")
+
+    end subroutine template_test_driver
+
+    subroutine first_test() 
+
+        call assert_true(.false.)
+        call assert_equals(0,1)
+
+    end subroutine first_test
+
+end program test_template
 
