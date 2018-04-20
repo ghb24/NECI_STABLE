@@ -13,6 +13,7 @@ module cc_amplitudes
     use back_spawn, only: setup_virtual_mask, mask_virt_ni
     use hash, only: hash_table_lookup, FindWalkerHash
     use util_mod, only: swap
+    use bit_rep_data, only: nifd
 
     implicit none 
 
@@ -295,7 +296,7 @@ contains
         integer :: n_elec_pairs, i, j, a, b, elec_i, elec_j
         integer :: ij, ab, orb_a, orb_b, k
         logical :: t_par
-        integer(n_int) :: temp_ilut(0:niftot)
+        integer(n_int) :: temp_ilut(0:nifd)
 
         ASSERT(allocated(projedet))
         ASSERT(allocated(iLutRef))
@@ -318,7 +319,7 @@ contains
         allocate(ind_matrix_doubles(n_elec_pairs,n_virt_pairs))
         ind_matrix_doubles = 0
 
-        temp_ilut = iLutRef(:,1)
+        temp_ilut = iLutRef(0:nifd,1)
         k =  1
 
         ! i could also just loop over the reference determinant.. 
@@ -498,7 +499,7 @@ contains
         character(*), parameter :: this_routine = "setup_ind_matrix_singles"
 
         integer :: i, j, k
-        integer(n_int) :: temp_ilut(0:niftot)
+        integer(n_int) :: temp_ilut(0:nifd)
 
         ASSERT(allocated(projedet))
         ASSERT(allocated(iLutRef))
@@ -506,7 +507,7 @@ contains
         allocate(ind_matrix_singles(nbasis, nbasis))
         ind_matrix_singles = 0
 
-        temp_ilut = iLutRef(:,1)
+        temp_ilut = iLutRef(0:nifd,1)
         k =  1
         do i = 1, nbasis
             if (IsOcc(temp_ilut, i)) then 
@@ -679,7 +680,7 @@ contains
         character(*), parameter :: this_routine = "calc_n_quads" 
 
         integer :: i, j, ij_ab(2,2), kl_cd(2,2), ijab_klcd(8), hash_ind
-        integer(n_int) :: temp_int(0:nifdbo)
+        integer(n_int) :: temp_int(0:nifd)
         real(dp) :: phase, amp
         logical :: t_found
         integer :: ijk_abc(2,3), l_d(2,1)
@@ -712,7 +713,7 @@ contains
                                 ! and i need a unique quantity associated with 
                                 ! these 8 orbital -> just set all the 
                                 ! corresponding orbitals 
-                                temp_int = apply_excit_ops(ilutRef, & 
+                                temp_int = apply_excit_ops(ilutRef(:,1), & 
                                     [ij_ab(1,:),kl_cd(1,:)],[ij_ab(2,:),kl_cd(2,:)])
 
 !                                 temp_int = ilutref(0:nifdbo,1)
@@ -1064,9 +1065,9 @@ contains
     end function unique_quad_ind_2_2
 
     function apply_excit_ops(ilut_in, elecs, orbs) result(ilut_out)
-        integer(n_int), intent(in) :: ilut_in(0:niftot) 
+        integer(n_int), intent(in) :: ilut_in(0:nifd) 
         integer, intent(in) :: elecs(:), orbs(:) 
-        integer(n_int) :: ilut_out(0:niftot)
+        integer(n_int) :: ilut_out(0:nifd)
 
         integer :: i 
 
@@ -1104,7 +1105,7 @@ contains
         integer :: ab(2), ac(2), bc(2), ij(2), ik(2), jk(2) 
         integer :: c, k, ij_ac, ij_bc, ij_ab, ik_bc, ik_ac, ik_ab
         integer :: jk_bc, jk_ac, jk_ab, elec_k, orb_c, jc, ka, kb, kc, n
-        integer(n_int) :: temp_ilut(0:niftot)
+        integer(n_int) :: temp_ilut(0:nifd)
         integer :: dummy_ind, dummy_hash, temp_nI(nel)
         logical :: tSuccess
         integer :: ijk_abc(2,3), l_d(2,1), i_a(2,1), j_b(2,1)
@@ -1317,8 +1318,8 @@ contains
                         j = j + 1
                     end if
 
-                    cc_ops(2)%operators(ind,1,:) = ex(1,:) 
-                    cc_ops(2)%operators(ind,2,:) = ex(2,:)
+                    cc_ops(2)%operators(ind,1,:) = ex(1,1:2) 
+                    cc_ops(2)%operators(ind,2,:) = ex(2,1:2)
                     cc_ops(2)%amplitudes(ind) = amp
                     cc_ops(2)%set_flag(ind) = .true.
 
