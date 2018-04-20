@@ -1571,18 +1571,18 @@ contains
             end do
             print *, "direct sampled triples: ", n - 1
 
-            if (t_store_disc_ops) then 
-
-                ! maybe try the new feature with the stored T1^2
-                do i = 1, cc_ops(1)%n_ops 
-                    if (cc_ops(1)%set_flag(i)) then 
-                        do j = 1, disc_cc_ops(1)%n_ops 
-                            if (disc_cc_ops(1)%set_flag(j)) then 
-
-                                
-
-
-            else
+!             if (t_store_disc_ops) then 
+! 
+!                 ! maybe try the new feature with the stored T1^2
+!                 do i = 1, cc_ops(1)%n_ops 
+!                     if (cc_ops(1)%set_flag(i)) then 
+!                         do j = 1, disc_cc_ops(1)%n_ops 
+!                             if (disc_cc_ops(1)%set_flag(j)) then 
+! 
+!                                 
+! 
+! 
+!             else
             do i = 1, nel 
                 elec_i = projedet(i,1)
                 do j = i + 1, nel 
@@ -1686,7 +1686,7 @@ contains
                     end do
                 end do
             end do
-            end if
+!             end if
 
             cc_amp_norm(2,3) = sqrt(cc_amp_norm(2,3))
 
