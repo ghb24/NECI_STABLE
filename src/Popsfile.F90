@@ -15,7 +15,7 @@ MODULE PopsfileMod
                         t_restart_hist_tau, t_fill_frequency_hists, t_previous_hist_tau, &
                         t_hist_tau_search_option, hdf5_diagsft
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
-                         ilut_lt, ilut_gt
+                         ilut_lt, ilut_gt, get_bit_excitmat
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
     use hash, only: FindWalkerHash, clear_hash_table, &
                     fill_in_hash_table
@@ -2188,6 +2188,11 @@ r_loop: do while(.not.tStoreDet)
                           end if
                       end if
                   end if
+                  ! for singles and doubles also include the excitation matrix
+                  ex = 0
+                  if (ex_level <= 2) then
+                      call get_bit_excitmat(ilutRef(:,1), det, ex, ex_level)
+                  end if
 
                   if(tHPHF)then
                      detenergy = hphf_diag_helement(nI, det)
@@ -2198,11 +2203,12 @@ r_loop: do while(.not.tStoreDet)
                        abs(real_sgn(1)), ''
                   call writebitdet (iunit_2, det, .false.)
                   if (t_non_hermitian) then
-                      write(iunit_2,'(i5,i5,3f20.10)') &
-                          ex_level, nopen, detenergy, hf_helemt, hf_helemt_trans
+                      write(iunit_2,'(i5,i5,3f20.10,4i5)') &
+                          ex_level, nopen, detenergy, hf_helemt, &
+                          hf_helemt_trans, ex(1,1), ex(1,2), ex(2,1), ex(2,2)
                   else
-                      write(iunit_2,'(i5,i5,2f20.10)') &
-                          ex_level, nopen, detenergy, hf_helemt
+                      write(iunit_2,'(i5,i5,2f20.10,4i5)') &
+                          ex_level, nopen, detenergy, hf_helemt, ex(1,1), ex(1,2), ex(2,1), ex(2,2)
                   end if
                endif
             end if
