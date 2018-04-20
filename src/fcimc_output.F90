@@ -25,6 +25,8 @@ module fcimc_output
     use hist, only: calc_s_squared_star, calc_s_squared
     use fcimc_helper, only: LanczosFindGroundE
     use Determinants, only: write_det
+    use adi_data, only: AllCoherentDoubles, AllIncoherentDets, nRefs, &
+         ilutRefAdi, tAdiActive, nConnection, AllConnection
     use Parallel_neci
     use FciMCData
     use constants
@@ -44,9 +46,11 @@ contains
 !Print out initial starting configurations
             WRITE(iout,*) ""
             IF(tTruncInitiator) THEN
-                WRITE(initiatorstats_unit,"(A2,A10,11A20)") "# ","1.Step","2.TotWalk","3.Annihil","4.Died", &
+                WRITE(initiatorstats_unit,"(A2,A17,15A23)") "# ","1.Step","2.TotWalk","3.Annihil","4.Died", &
                 & "5.Born","6.TotUniqDets",&
-&               "7.InitDets","8.NonInitDets","9.InitWalks","10.NonInitWalks","11.AbortedWalks"
+&               "7.InitDets","8.NonInitDets","9.InitWalks","10.NonInitWalks","11.AbortedWalks", &
+               "12. Removed Dets",  "13. Insufficiently connected", "14. Coherent Doubles", &
+               "15. Incoherent Dets"
             ENDIF
             IF(tLogComplexPops) THEN
                 WRITE(complexstats_unit,"(A)") '#   1.Step  2.Shift     3.RealShift     4.ImShift   5.TotParts      " &
@@ -279,11 +283,12 @@ contains
                     IterTime
             endif
             if (tTruncInitiator) then
-               write(initiatorstats_unit,"(I12,4G16.7,3I20,4G16.7)")&
+               write(initiatorstats_unit,"(I12,4G16.7,3I20,7G16.7)")&
                    Iter + PreviousCycles, sum(AllTotParts), &
                    AllAnnihilated(1), AllNoDied(1), AllNoBorn(1), AllTotWalkers,&
                    AllNoInitDets(1), AllNoNonInitDets(1), AllNoInitWalk(1), &
-                   AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1)
+                   AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1), &
+                   AllConnection, AllCoherentDoubles, AllIncoherentDets
             endif
             if (tLogComplexPops) then
                 write (complexstats_unit,"(I12,6G16.7)") &
@@ -408,11 +413,12 @@ contains
                     IterTime
             endif
             if (tTruncInitiator) then
-               write(initiatorstats_unit,"(I12,4G16.7,3I20,4G16.7)")&
+               write(initiatorstats_unit,"(I12,4G16.7,3I20,7G16.7)")&
                    Iter + PreviousCycles, AllTotParts(1), &
                    AllAnnihilated(1), AllNoDied(1), AllNoBorn(1), AllTotWalkers,&
                    AllNoInitDets(1), AllNoNonInitDets(1), AllNoInitWalk(1), &
-                   AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1)
+                   AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1), &
+                   AllConnection, AllCoherentDoubles, AllIncoherentDets
             endif
 #endif
             if (tLogEXLEVELStats) then
@@ -1240,6 +1246,8 @@ contains
 
     !Routine to print the highest populated determinants at the end of a run
     SUBROUTINE PrintHighPops()
+      use adi_references, only: update_ref_signs, print_reference_notification, nRefs
+      use adi_data, only: tSetupSIs
         real(dp), dimension(lenof_sign) :: SignCurr, LowSign
         integer :: ierr,i,j,counter,ExcitLev,SmallestPos,HighPos,nopen
         integer :: full_orb, run
@@ -1258,7 +1266,7 @@ contains
         call return_most_populated_states(iHighPopWrite, LargestWalkers, norm)
 
         call MpiSum(norm,allnorm)
-        norm=sqrt(allnorm)
+        if(iProcIndex.eq.Root) norm=sqrt(allnorm)
 
 !        write(iout,*) "Highest weighted dets on this process:"
 !        do i=1,iHighPopWrite
@@ -1317,7 +1325,9 @@ contains
 !                call sort(LargestWalkers(:,1:iHighPopWrite), sign_lt, sign_gt)
             endif
         enddo
-
+        
+        ! This has to be done by all procs
+        if(tAdiActive) call update_ref_signs()
         if(iProcIndex.eq.Root) then
             !Now print out the info contained in GlobalLargestWalkers and GlobalProc
 
@@ -1344,9 +1354,11 @@ contains
             else
                 write(iout,'(A)') "Current reference: "
                 call write_det (iout, ProjEDet(:,1), .true.)
-                call writeDetBit(iout,iLutRef(:,1),.true.)
+                if(tSetupSIs) call print_reference_notification(&
+                     1,nRefs,"Used Superinitiators",.true.)
+                write(iout,*) "Number of superinitiators", nRefs
             end if
-
+            
             write(iout,*)
             write(iout,'("Input DEFINEDET line (includes frozen orbs):")')
             do run = 1, inum_runs
@@ -1397,7 +1409,7 @@ contains
             do i=1,counter
 !                call WriteBitEx(iout,iLutRef,GlobalLargestWalkers(:,i),.false.)
                 call WriteDetBit(iout,GlobalLargestWalkers(:,i),.false.)
-                Excitlev=FindBitExcitLevel(iLutRef,GlobalLargestWalkers(:,i),nEl)
+                Excitlev=FindBitExcitLevel(iLutRef(:,1),GlobalLargestWalkers(:,i),nEl)
                 write(iout,"(I5)",advance='no') Excitlev
                 nopen=count_open_orbs(GlobalLargestWalkers(:,i))
                 write(iout,"(I5)",advance='no') nopen
@@ -1458,6 +1470,7 @@ contains
         ! Too many particles?
         rat = real(TotWalkersNew,dp) / real(MaxWalkersPart,dp)
         if (rat > 0.95_dp) then
+#ifdef __DEBUG
             if(tMolpro) then
                 write (iout, '(a)') '*WARNING* - Number of particles/determinants &
                                  &has increased to over 95% of allotted memory. &
@@ -1467,6 +1480,17 @@ contains
                                  &has increased to over 95% of allotted memory. &
                                  &Errors imminent. Increase MEMORYFACPART, or reduce rate of growth.'
             endif
+#else
+            if(tMolpro) then
+                write (*,*) '*WARNING* - Number of particles/determinants &
+                                 &has increased to over 95% of allotted memory on task ', iProcIndex, '. &
+                                 &Errors imminent. Increase MEMORYFACWALKERS, or reduce rate of growth.'
+            else
+                write (*,*) '*WARNING* - Number of particles/determinants &
+                                 &has increased to over 95% of allotted memory on task ', iProcIndex, '. &
+                                 &Errors imminent. Increase MEMORYFACPART, or reduce rate of growth.'
+            endif
+#endif
             call neci_flush(iout)
         end if
 
@@ -1476,6 +1500,7 @@ contains
                 rat = real(ValidSpawnedList(i) - InitialSpawnedSlots(i),dp) /&
                              real(InitialSpawnedSlots(1), dp)
                 if (rat > 0.95_dp) then
+#ifdef __DEBUG
                     if(tMolpro) then
                         write (iout, '(a)') '*WARNING* - Highest processor spawned &
                                          &particles has reached over 95% of allotted memory.&
@@ -1485,12 +1510,24 @@ contains
                                          &particles has reached over 95% of allotted memory.&
                                          &Errors imminent. Increase MEMORYFACSPAWN, or reduce spawning rate.'
                     endif
+#else
+                    if(tMolpro) then
+                        write (*,*) '*WARNING* - Highest processor spawned &
+                                         &particles has reached over 95% of allotted memory on task ',iProcIndex,' .&
+                                         &Errors imminent. Increase MEMORYFACSPAWNED, or reduce spawning rate.'
+                    else
+                        write (*,*) '*WARNING* - Highest processor spawned &
+                                         &particles has reached over 95% of allotted memory on task ',iProcIndex,' .&
+                                         &Errors imminent. Increase MEMORYFACSPAWN, or reduce spawning rate.'
+                    endif
+#endif
                     call neci_flush(iout)
                 endif
             enddo
         else
             rat = real(ValidSpawnedList(0), dp) / real(MaxSpawned, dp)
             if (rat > 0.95_dp) then
+#ifdef __DEBUG
                 if(tMolpro) then
                     write (iout, '(a)') '*WARNING* - Highest processor spawned &
                                      &particles has reached over 95% of allotted memory.&
@@ -1500,6 +1537,17 @@ contains
                                      &particles has reached over 95% of allotted memory.&
                                      &Errors imminent. Increase MEMORYFACSPAWN, or reduce spawning rate.'
                 endif
+#else
+                if(tMolpro) then
+                    write (*,*) '*WARNING* - Highest processor spawned &
+                                     &particles has reached over 95% of allotted memory on task ',iProcIndex,' .&
+                                     &Errors imminent. Increase MEMORYFACSPAWNED, or reduce spawning rate.'
+                else
+                    write (*,*) '*WARNING* - Highest processor spawned &
+                                     &particles has reached over 95% of allotted memory on task ',iProcIndex,' .&
+                                     &Errors imminent. Increase MEMORYFACSPAWN, or reduce spawning rate.'
+                endif
+#endif
                 call neci_flush(iout)
             endif
         endif

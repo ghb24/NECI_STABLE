@@ -16,7 +16,6 @@ module fcimc_iter_utils
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tFCIMCStats2, tPrintDataTables, tLogEXLEVELStats
     use semi_stoch_procs, only: recalc_core_hamil_diag
-    use fcimc_helper, only: update_run_reference
     use bit_rep_data, only: NIfD, NIfTot, NIfDBO
     use hphf_integrals, only: hphf_diag_helement
     use global_det_data, only: set_det_diagH
@@ -56,9 +55,17 @@ contains
 
         ! Calculate the acceptance ratio
         if (tContTimeFCIMC .and. .not. tContTimeFull) then
-            AccRat = real(cont_spawn_success) / real(cont_spawn_attempts)
+           if(abs(real(cont_spawn_attempts)) > eps) then 
+              AccRat = real(cont_spawn_success) / real(cont_spawn_attempts)
+           else
+              AccRat = 0.0_dp
+           endif
         else
-            AccRat = real(Acceptances, dp) / SumWalkersCyc
+           if(all(abs(SumWalkersCyc) > eps)) then
+              AccRat = real(Acceptances, dp) / SumWalkersCyc
+           else
+              AccRat = 0.0_dp
+           endif
         end if
 
 
@@ -348,7 +355,7 @@ contains
     end subroutine population_check
 
     subroutine communicate_estimates(iter_data, tot_parts_new, tot_parts_new_all)
-
+      
         ! This routine sums all estimators and stats over all processes.
 
         ! We want this to be done in as few MPI calls as possible. Therefore, all
@@ -367,7 +374,8 @@ contains
         ! in send_arr or send_arr_helem array. It is hopefully clear how to do
         ! this by analogy. You should also update the indices in the appropriate
         ! stop_all, so that it can be checked if enough memory has been assigned.
-
+      use adi_data, only: nCoherentDoubles, nIncoherentDets, nConnection, &
+           AllCoherentDoubles, AllIncoherentDets, AllConnection
         type(fcimc_iter_data) :: iter_data
         real(dp), intent(in) :: tot_parts_new(lenof_sign)
         real(dp), intent(out) :: tot_parts_new_all(lenof_sign)
@@ -432,11 +440,14 @@ contains
         sizes(24) = size(NoAtHF)
         sizes(25) = size(SumWalkersCyc)
         sizes(26) = 1 ! nspawned (single int, not an array)
-        ! communicate the inst_double_occ
+        ! communicate the inst_double_occ and the coherence numbers
         sizes(27) = 1
+        sizes(28) = 1
+        sizes(29) = 1
+        sizes(30) = 1
 
 
-        if (sum(sizes(1:26)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
+        if (sum(sizes(1:30)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
                                                         & the size of the send_arr and recv_arr arrays in the source code.")
 
         low = upp + 1; upp = low + sizes(1 ) - 1; send_arr(low:upp) = SpawnFromSing;
@@ -470,6 +481,9 @@ contains
         low = upp + 1; upp = low + sizes(26) - 1; send_arr(low:upp) = nspawned;
         ! double occ change:
         low = upp + 1; upp = low + sizes(27) - 1; send_arr(low:upp) = inst_double_occ
+        low = upp + 1; upp = low + sizes(28) - 1; send_arr(low:upp) = nCoherentDoubles
+        low = upp + 1; upp = low + sizes(29) - 1; send_arr(low:upp) = nIncoherentDets
+        low = upp + 1; upp = low + sizes(30) - 1; send_arr(low:upp) = nConnection
 
         ! Perform the communication.
         call MPISumAll (send_arr(1:upp), recv_arr(1:upp))
@@ -510,7 +524,9 @@ contains
         low = upp + 1; upp = low + sizes(26) - 1; nspawned_tot = nint(recv_arr(low));
         ! double occ: 
         low = upp + 1; upp = low + sizes(27) - 1; all_inst_double_occ = recv_arr(low);
-
+        low = upp + 1; upp = low + sizes(29) - 1; AllCoherentDoubles = recv_arr(low);
+        low = upp + 1; upp = low + sizes(29) - 1; AllIncoherentDets = recv_arr(low);
+        low = upp + 1; upp = low + sizes(30) - 1; AllConnection = recv_arr(low);
         ! Communicate HElement_t variables:
 
         low = 0; upp = 0;
@@ -577,7 +593,7 @@ contains
 
         ! These require a different type of reduce operation, so are communicated
         ! separately to the above communication.
-        call MPIReduce(bloom_sizes(1:2), MPI_MAX, bloom_sz_tmp(1:2))
+        call MPIAllReduce(bloom_sizes(1:2), MPI_MAX, bloom_sz_tmp(1:2))
         bloom_sizes(1:2) = bloom_sz_tmp(1:2)
 
         ! Arrays for checking load balancing.
@@ -825,6 +841,13 @@ contains
                             !Only allow targetgrowrate to kick in once we have > TargetGrowRateWalk walkers.
                             DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)-TargetGrowRate(run)) * SftDamp) / &
                                                 (Tau * StepsSft)
+                            ! Same for the info shifts for complex walkers
+#ifdef __CMPLX
+                    DiagSftRe(run) = DiagSftRe(run) - (log(AllGrowRateRe(run)-TargetGrowRate(run)) * SftDamp) / &
+                                                (Tau * StepsSft)
+                    DiagSftIm(run) = DiagSftIm(run) - (log(AllGrowRateIm(run)-TargetGrowRate(run)) * SftDamp) / &
+                                                (Tau * StepsSft)
+#endif
                         endif
                     else
                         if(tShiftonHFPop) then
@@ -840,13 +863,6 @@ contains
                                                 (Tau * StepsSft)
                         endif
                     endif
-
-#ifdef __CMPLX
-                    DiagSftRe(run) = DiagSftRe(run) - (log(AllGrowRateRe(run)-TargetGrowRate(run)) * SftDamp) / &
-                                                (Tau * StepsSft)
-                    DiagSftIm(run) = DiagSftIm(run) - (log(AllGrowRateIm(run)-TargetGrowRate(run)) * SftDamp) / &
-                                                (Tau * StepsSft)
-#endif
 
                     ! Update the shift averages
                     if ((iter - VaryShiftIter(run)) >= nShiftEquilSteps) then
@@ -870,6 +886,8 @@ contains
     !                    endif
     !                endif
                 endif
+                ! only update the shift this way if possible
+                if(abs_sign(AllNoatHF(lb:ub)) > EPS) then
 #ifdef __CMPLX
                 ! Calculate the instantaneous 'shift' from the HF population
                 HFShift(run) = -1.0_dp / abs_sign(AllNoatHF(lb:ub)) * &
@@ -887,6 +905,7 @@ contains
                             ((AllTotParts(run) - AllTotPartsOld(run)) / &
                              (Tau * real(StepsSft, dp)))
 #endif
+             endif
 
                  ! When using a linear combination, the denominator is summed
                  ! directly.
@@ -894,21 +913,16 @@ contains
                  all_cyc_proje_denominator(run) = AllHFCyc(run)
 
                  ! Calculate the projected energy.
-#ifdef __CMPLX
-                ! [W.D. 15.5.2017:]
-!                  if (any(AllSumNoatHF(lb:ub) /= 0.0_dp)) then
-                 if (any(abs(AllSumNoatHF(lb:ub)) > EPS)) then
-#else
-!                  if ((AllSumNoatHF(run) /= 0.0_dp)) then
-                 if (abs(AllSumNoatHF(run)) > EPS) then
-#endif
-                         ProjectionE(run) = (AllSumENum(run)) / (all_sum_proje_denominator(run)) &
-                                          + proje_ref_energy_offsets(run)
-                         proje_iter(run) = (AllENumCyc(run)) / (all_cyc_proje_denominator(run)) &
-                                         + proje_ref_energy_offsets(run)
-                        AbsProjE(run) = (AllENumCycAbs(run)) / (all_cyc_proje_denominator(run)) &
-                                      + proje_ref_energy_offsets(run)
-                endif
+                 if ((AllSumNoatHF(run) /= 0.0_dp)) then
+                    ProjectionE(run) = (AllSumENum(run)) / (all_sum_proje_denominator(run)) &
+                         + proje_ref_energy_offsets(run)
+                 endif
+                 if (abs(AllHFCyc(run)) > EPS) then
+                    proje_iter(run) = (AllENumCyc(run)) / (all_cyc_proje_denominator(run)) &
+                         + proje_ref_energy_offsets(run)
+                    AbsProjE(run) = (AllENumCycAbs(run)) / (all_cyc_proje_denominator(run)) &
+                         + proje_ref_energy_offsets(run)
+                 endif
                 ! If we are re-zeroing the shift
                 if (tReZeroShift(run)) then
                     DiagSft(run) = 0.0_dp
@@ -919,10 +933,14 @@ contains
             enddo
 
             ! Get some totalled values
-            projectionE_tot = sum(AllSumENum(1:inum_runs)) &
-                            / sum(all_sum_proje_denominator(1:inum_runs))
-            proje_iter_tot = sum(AllENumCyc(1:inum_runs)) &
-                           / sum(all_cyc_proje_denominator(1:inum_runs))
+            if(abs(sum(all_sum_proje_denominator(1:inum_runs))) > EPS) then
+               projectionE_tot = sum(AllSumENum(1:inum_runs)) &
+                    / sum(all_sum_proje_denominator(1:inum_runs))
+            endif
+            if(abs(sum(all_cyc_proje_denominator(1:inum_runs))) > EPS) then
+               proje_iter_tot = sum(AllENumCyc(1:inum_runs)) &
+                    / sum(all_cyc_proje_denominator(1:inum_runs))
+            endif
 
         endif ! iProcIndex == root
 
@@ -930,7 +948,11 @@ contains
         call MPIBcast (tSinglePartPhase)
         call MPIBcast (VaryShiftIter)
         call MPIBcast (DiagSft)
+        call MPIBcast (VaryShiftCycles)
+        call MPIBcast (SumDiagSft)
+        call MPIBcast (AvDiagSft)
         
+
         do run=1,inum_runs
             if(.not.tSinglePartPhase(run)) then
                 TargetGrowRate(run)=0.0_dp
@@ -1026,5 +1048,4 @@ contains
         iter_data%update_iters = iter_data%update_iters + 1
 
     end subroutine update_iter_data
-
 end module fcimc_iter_utils

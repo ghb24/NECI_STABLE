@@ -107,6 +107,7 @@ LOGICAL :: TUnbiasPGeninProjE, tCheckHighestPopOnce
 LOGICAL :: tCheckHighestPop,tRestartHighPop,tChangeProjEDet
 LOGICAL :: tRotoAnnihil,tSpawnAsDet
 LOGICAL :: tTruncCAS,tTruncInitiator,tAddtoInitiator    !Truncation the FCIMC excitation space by CAS
+LOGICAL :: tSeniorInitiators !If a det. has lived long enough (called a senior det.), it is added to the initiator space.
 LOGICAL :: tInitIncDoubs,tWalkContGrow,tAnnihilatebyRange
 logical :: tReadPopsRestart, tReadPopsChangeRef, tInstGrowthRate
 logical :: tAllRealCoeff, tUseRealCoeffs
@@ -117,7 +118,6 @@ real(dp) :: RealSpawnCutoff, OccupiedThresh
 logical :: tRPA_QBA     !RPA calculation with QB approximation
 logical :: tStartCAS    !Start FCIMC dynamic with walkers distributed according to CAS diag.
 logical :: tShiftonHFPop    !Adjust shift in order to keep the population on HF constant, rather than total pop.
-
 ! Base hash values only on spatial orbitals
 ! --> All dets with same spatial structure on the same processor.
 logical :: tSpatialOnlyHash
@@ -142,6 +142,7 @@ real(dp) :: iWeightPopRead
 real(dp) :: MaxWalkerBloom   !Max number of walkers allowed in one bloom before reducing tau
 INTEGER(int64) :: HFPopThresh
 real(dp) :: InitWalkers, maxnoathf, InitiatorWalkNo
+real(dp) :: SeniorityAge !A threshold on the life time of a determinat (measured in its halftime) to become a senior determinant.
 
 ! The average number of excitations to be performed from each walker.
 real(dp) :: AvMCExcits
@@ -204,6 +205,8 @@ logical :: tUniqueHFNode
 
 ! Options relating to the semi-stochastic code.
 logical :: tSemiStochastic ! Performing a semi-stochastic simulation if true.
+logical :: tDynamicCoreSpace, tStaticCore, tIntervalSet ! update the corespace
+integer :: coreSpaceUpdateCycle, semistochStartIter
 ! Input type describing which space(s) type to use.
 type(subspace_in) :: ss_space_in
 
@@ -238,6 +241,10 @@ logical :: tStartTrialLater = .false.
 ! How many iterations after the shift starts to vary should be turn on the use
 ! of trial estimators?
 integer :: trial_shift_iter
+
+! Update the trial wf?
+logical :: tDynamicTrial
+integer :: trialSpaceUpdateCycle
 
 ! If false then create the trial wave function by diagonalising the
 ! Hamiltonian in the trial subspace.

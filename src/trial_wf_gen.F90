@@ -10,6 +10,7 @@ module trial_wf_gen
     use sparse_arrays
     use SystemData, only: nel, tHPHF
     use util_mod, only: get_free_unit, binary_search_custom
+    use FciMCData, only: con_send_buf, NConEntry
 
     implicit none
 
@@ -113,12 +114,19 @@ contains
         write(6,'("Total size of the trial space:",1X,i8)') tot_trial_space_size; call neci_flush(6)
 
         ! Use SpawnedParts as temporary space:
-        call MPIAllGatherV(trial_space(:, 1:trial_space_size), &
-                           SpawnedParts(:, 1:tot_trial_space_size), trial_counts, trial_displs)
+        call MPIAllGatherV(trial_space(0:NIfTot, 1:trial_space_size), &
+                           SpawnedParts(0:NIfTot, 1:tot_trial_space_size), trial_counts, trial_displs)
 
         call sort(SpawnedParts(0:NIfTot, 1:tot_trial_space_size), ilut_lt, ilut_gt)
         
         call assign_elements_on_procs(tot_trial_space_size, min_elem, max_elem, num_elem)
+
+        ! set the size of the entries in con_ht
+#ifdef __CMPLX
+        NConEntry = NIfDBO + 2*nexcit_keep
+#else
+        NConEntry = NIfDBO + nexcit_keep
+#endif
 
         if (num_elem > 0) then
 
@@ -127,7 +135,7 @@ contains
             ! portion of the trial space.
             write(6,'("Calculating the number of states in the connected space...")'); call neci_flush(6)
 
-            call generate_connected_space(num_elem, SpawnedParts(:,min_elem:max_elem), con_space_size)
+            call generate_connected_space(num_elem, SpawnedParts(0:NIfTot,min_elem:max_elem), con_space_size)
 
             write(6,'("Attempting to allocate con_space. Size =",1X,F12.3,1X,"Mb")') &
                     real(con_space_size,dp)*(NIfTot+1.0_dp)*7.629392e-06_dp; call neci_flush(6)
@@ -139,7 +147,7 @@ contains
 
             write(6,'("Generating and storing the connected space...")'); call neci_flush(6)
 
-            call generate_connected_space(num_elem, SpawnedParts(:, min_elem:max_elem), &
+            call generate_connected_space(num_elem, SpawnedParts(0:NIfTot, min_elem:max_elem), &
                                           con_space_size, con_space)
 
             write(6,'("Removing repeated states and sorting by processor...")'); call neci_flush(6)
@@ -151,6 +159,7 @@ contains
         else
             con_space_size = 0
             con_sendcounts = 0
+            allocate(con_space(0,0),stat=ierr)
             write(6,'("This processor will not search for connected states.")'); call neci_flush(6)
         end if
 
@@ -202,6 +211,11 @@ contains
 !        call remove_list1_states_from_list2(SpawnedParts, con_space, tot_trial_space_size, con_space_size)
 
         call MPISumAll(con_space_size, tot_con_space_size)
+        ! allocate buffer for communication of con_ht
+        ! it is normally also allocated upon initialization, so deallocate
+        ! the dummy version
+        if(allocated(con_send_buf)) deallocate(con_send_buf)
+        allocate(con_send_buf(0:NConEntry,tot_con_space_size))
 
         write(6,'("Total size of connected space:",1X,i10)') tot_con_space_size
         write(6,'("Size of connected space on this processor:",1X,i10)') con_space_size
@@ -233,7 +247,7 @@ contains
         trial_numerator = 0.0_dp
         tot_trial_numerator = 0.0_dp
         trial_denom = 0.0_dp
-        tot_trial_denom = 0.0_dp
+        tot_trial_denom = 1.0_dp
 
         call halt_timer(Trial_Init_Time)
 
@@ -745,11 +759,7 @@ contains
             if (mode == 1) then
                 do i = 1, size(trial_ht)
                     nclash = trial_ht(i)%nclash
-#ifdef __CMPLX
-                    allocate(trial_ht(i)%states(0:NIfDBO+2*nexcit,nclash))
-#else
-                    allocate(trial_ht(i)%states(0:NIfDBO+nexcit,nclash))
-#endif
+                    allocate(trial_ht(i)%states(0:NConEntry,nclash))
                     ! Set this back to zero to use it as a counter next time
                     ! around (when mode == 2).
                     trial_ht(i)%nclash = 0
@@ -797,11 +807,7 @@ contains
             if (mode == 1) then
                 do i = 1, size(con_ht)
                     nclash = con_ht(i)%nclash
-#ifdef __CMPLX
-                    allocate(con_ht(i)%states(0:NIfDBO+2*nexcit,nclash))
-#else
-                    allocate(con_ht(i)%states(0:NIfDBO+nexcit,nclash))
-#endif
+                    allocate(con_ht(i)%states(0:NConEntry,nclash))
                     ! Set this back to zero to use it as a counter next time
                     ! around (when mode == 2).
                     con_ht(i)%nclash = 0
@@ -860,7 +866,37 @@ contains
             deallocate(current_trial_amps, stat=ierr)
             call LogMemDealloc(t_r, CurrentTrialTag, ierr)
         end if
+        if(allocated(con_send_buf)) deallocate(con_send_buf)
 
     end subroutine end_trial_wf
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine refresh_trial_wf(trial_in, nexcit_calc, nexcit_keep, replica_pairs)
+      implicit none
+      type(subspace_in) :: trial_in
+      integer, intent(in) :: nexcit_calc, nexcit_keep
+      logical, intent(in) :: replica_pairs
+      
+      ! first, clear the current trial wavefunction
+      call end_trial_wf()
+      ! then, remove the flag from all determinants
+      call reset_trial_space()
+      ! now, generate the new trial wavefunction
+      call init_trial_wf(trial_in, nexcit_calc, nexcit_keep, replica_pairs)
+    end subroutine refresh_trial_wf
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine reset_trial_space()
+      use bit_reps, only: clr_flag
+      implicit none
+      integer :: i
+
+      do i=1, TotWalkers
+         ! remove the trial flag from all determinants
+         call clr_flag(CurrentDets(:,i),flag_trial)
+      enddo
+    end subroutine reset_trial_space
 
 end module trial_wf_gen

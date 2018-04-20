@@ -1,0 +1,915 @@
+ Number of processors:            2
+ Processor            1 /           2  as head node.
+ Sum:            3
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on Feb 23 2018 at 15:07:14
+ Compiled using configuration:
+     cmake-Intel-par-RELEASE
+ VCS BASE repository version:
+     65ab4260fc554bd564b78328721c3fbc06fc9bd4
+ Working directory: 
+     /home/guther/numerics/neci/test_suite/mneci/rdm/Ne_hphf
+ Running on: pcal014
+ Started running on 23/02/2018 at 18:04:41
+ ================================================================
+
+ Processing arguments
+ neci.inp                                                                       
+                                                                                
+                                                                                
+                   
+ Reading from file: neci.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+title
+
+system read
+electrons 10
+nonuniformrandexcits 4ind-weighted
+hphf 0
+endsys
+
+calc
+methods
+method vertex fcimc
+endmethods
+nmcyc 1500
+totalwalkers 20000
+tau 0.001 search
+startsinglepart 100
+truncinitiator
+addtoinitiator 3
+shiftdamp 0.03
+stepsshift 25
+allrealcoeff
+realspawncutoff 0.05
+semi-stochastic 150
+pops-core 2000
+trial-wavefunction 150
+pops-trial 100
+load-balance-blocks off
+maxwalkerbloom 3.0
+endcalc
+
+integral
+freeze 2, 0
+endint
+
+logging
+popsfile -1
+calcrdmonfly 3 200 1
+endlog
+end
+
+****************************************************************
+
+ RDM on fly
+ unspecified
+ Filling RDMs without explicitly specifying the number of replica simplations
+ Defaulting to using 2 replicas
+ Allocating each processor as a separate node.
+ I am the node root for node            0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :    10
+  No restriction on the spin state of the system, TSPN :  F
+  GLOBAL MS :            0
+  *** GENERIC SYSTEM ***  
+  NUMBER OF SPIN ORBITALS IN BASIS :    46
+*** CREATING BASIS FNs FROM FCIDUMP ***
+  Maximum number of symmetries:   8
+  Generating abelian symmetry table with  3 generators
+  Number of symmetry classes: 8
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+HF determinant not yet defined.
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0      -32.794950868      -32.794950868
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0      -32.794950868      -32.794950868
+      3      3      0      0      0     -1 ( 0, 0, 0) 0   0       -1.940420879       -1.940420879
+      4      4      0      0      0      1 ( 0, 0, 0) 0   0       -1.940420879       -1.940420879
+      5     17      0      0      0     -1 ( 0, 0, 1) 1   0       -0.853040138       -0.853040138
+      6     18      0      0      0      1 ( 0, 0, 1) 1   0       -0.853040138       -0.853040138
+      7     23      0      0      0     -1 ( 0, 0, 2) 2   0       -0.853040138       -0.853040138
+      8     24      0      0      0      1 ( 0, 0, 2) 2   0       -0.853040138       -0.853040138
+      9     33      0      0      0     -1 ( 0, 0, 4) 4   0       -0.853040138       -0.853040138
+     10     34      0      0      0      1 ( 0, 0, 4) 4   0       -0.853040138       -0.853040138
+     11      5      0      0      0     -1 ( 0, 0, 0) 0   0        0.287355188        0.287355188
+     12      6      0      0      0      1 ( 0, 0, 0) 0   0        0.287355188        0.287355188
+     13     19      0      0      0     -1 ( 0, 0, 1) 1   0        0.293011369        0.293011369
+     14     20      0      0      0      1 ( 0, 0, 1) 1   0        0.293011369        0.293011369
+     15     25      0      0      0     -1 ( 0, 0, 2) 2   0        0.293011369        0.293011369
+     16     26      0      0      0      1 ( 0, 0, 2) 2   0        0.293011369        0.293011369
+     17     35      0      0      0     -1 ( 0, 0, 4) 4   0        0.293011369        0.293011369
+     18     36      0      0      0      1 ( 0, 0, 4) 4   0        0.293011369        0.293011369
+     19      7      0      0      0     -1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     20      8      0      0      0      1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     21      9      0      0      0     -1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     22     10      0      0      0      1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     23     29      0      0      0     -1 ( 0, 0, 3) 3   0        1.757691931        1.757691931
+     24     30      0      0      0      1 ( 0, 0, 3) 3   0        1.757691931        1.757691931
+     25     39      0      0      0     -1 ( 0, 0, 5) 5   0        1.757691931        1.757691931
+     26     40      0      0      0      1 ( 0, 0, 5) 5   0        1.757691931        1.757691931
+     27     43      0      0      0     -1 ( 0, 0, 6) 6   0        1.757691931        1.757691931
+     28     44      0      0      0      1 ( 0, 0, 6) 6   0        1.757691931        1.757691931
+     29     21      0      0      0     -1 ( 0, 0, 1) 1   0        1.961350626        1.961350626
+     30     22      0      0      0      1 ( 0, 0, 1) 1   0        1.961350626        1.961350626
+     31     27      0      0      0     -1 ( 0, 0, 2) 2   0        1.961350626        1.961350626
+     32     28      0      0      0      1 ( 0, 0, 2) 2   0        1.961350626        1.961350626
+     33     37      0      0      0     -1 ( 0, 0, 4) 4   0        1.961350626        1.961350626
+     34     38      0      0      0      1 ( 0, 0, 4) 4   0        1.961350626        1.961350626
+     35     11      0      0      0     -1 ( 0, 0, 0) 0   0        2.741965696        2.741965696
+     36     12      0      0      0      1 ( 0, 0, 0) 0   0        2.741965696        2.741965696
+     37     13      0      0      0     -1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     38     14      0      0      0      1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     39     15      0      0      0     -1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     40     16      0      0      0      1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     41     31      0      0      0     -1 ( 0, 0, 3) 3   0        6.372473018        6.372473018
+     42     32      0      0      0      1 ( 0, 0, 3) 3   0        6.372473018        6.372473018
+     43     41      0      0      0     -1 ( 0, 0, 5) 5   0        6.372473018        6.372473018
+     44     42      0      0      0      1 ( 0, 0, 5) 5   0        6.372473018        6.372473018
+     45     45      0      0      0     -1 ( 0, 0, 6) 6   0        6.372473018        6.372473018
+     46     46      0      0      0      1 ( 0, 0, 6) 6   0        6.372473018        6.372473018
+*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***
+ UMatSize:                  38226
+Memory required for integral storage:     0.2916412353     Mb/Shared Memory
+Allocated             305808 bytes of shared memory named: umat
+Two-electron integrals with a magnitude over    0.1000000E-07 are screened
+Ignoring integral (chem. notation) (   0   0|   0   0):   0.000000000000000E+000
+ Number of removed two-index integrals:                      1
+ Number of non-zero integrals:                   4806
+ ECORE=  0.000000000000000E+000
+ Setting normal GetUMatEl routine
+ N_alpha: 5 ; N_beta: 5 ; LMS: 0 ; NEl:10
+ Fermi det (D0):(    1,    2,    3,    4,   17,   18,   23,   24,   33,   34)
+ Symmetry:  ( 0, 0, 0) 0
+ Fock operator energy:  -74.5889843242640     
+======== FREEZING ORBITALS ==========
+Allocated             257048 bytes of shared memory named: umat2
+ Freezing            2  core orbitals.
+ Freezing            0  virtual orbitals.
+ Post-Freeze Fermi det (D0):(    1,    2,   15,   16,   21,   22,   31,   32)
+ Symmetry:  ( 0, 0, 0) 0
+ ECORE now  -93.8489015454800     
+ Number of orbitals remaining:           44
+ Number of active electrons:           8
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0       -1.940420879       -1.940420879 #
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0       -1.940420879       -1.940420879 #
+      3     15      0      0      0     -1 ( 0, 0, 1) 1   0       -0.853040138       -0.853040138 #
+      4     16      0      0      0      1 ( 0, 0, 1) 1   0       -0.853040138       -0.853040138 #
+      5     21      0      0      0     -1 ( 0, 0, 2) 2   0       -0.853040138       -0.853040138 #
+      6     22      0      0      0      1 ( 0, 0, 2) 2   0       -0.853040138       -0.853040138 #
+      7     31      0      0      0     -1 ( 0, 0, 4) 4   0       -0.853040138       -0.853040138 #
+      8     32      0      0      0      1 ( 0, 0, 4) 4   0       -0.853040138       -0.853040138 #
+      9      3      0      0      0     -1 ( 0, 0, 0) 0   0        0.287355188        0.287355188
+     10      4      0      0      0      1 ( 0, 0, 0) 0   0        0.287355188        0.287355188
+     11     17      0      0      0     -1 ( 0, 0, 1) 1   0        0.293011369        0.293011369
+     12     18      0      0      0      1 ( 0, 0, 1) 1   0        0.293011369        0.293011369
+     13     23      0      0      0     -1 ( 0, 0, 2) 2   0        0.293011369        0.293011369
+     14     24      0      0      0      1 ( 0, 0, 2) 2   0        0.293011369        0.293011369
+     15     33      0      0      0     -1 ( 0, 0, 4) 4   0        0.293011369        0.293011369
+     16     34      0      0      0      1 ( 0, 0, 4) 4   0        0.293011369        0.293011369
+     17      5      0      0      0     -1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     18      6      0      0      0      1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     19      7      0      0      0     -1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     20      8      0      0      0      1 ( 0, 0, 0) 0   0        1.757691931        1.757691931
+     21     27      0      0      0     -1 ( 0, 0, 3) 3   0        1.757691931        1.757691931
+     22     28      0      0      0      1 ( 0, 0, 3) 3   0        1.757691931        1.757691931
+     23     37      0      0      0     -1 ( 0, 0, 5) 5   0        1.757691931        1.757691931
+     24     38      0      0      0      1 ( 0, 0, 5) 5   0        1.757691931        1.757691931
+     25     41      0      0      0     -1 ( 0, 0, 6) 6   0        1.757691931        1.757691931
+     26     42      0      0      0      1 ( 0, 0, 6) 6   0        1.757691931        1.757691931
+     27     19      0      0      0     -1 ( 0, 0, 1) 1   0        1.961350626        1.961350626
+     28     20      0      0      0      1 ( 0, 0, 1) 1   0        1.961350626        1.961350626
+     29     25      0      0      0     -1 ( 0, 0, 2) 2   0        1.961350626        1.961350626
+     30     26      0      0      0      1 ( 0, 0, 2) 2   0        1.961350626        1.961350626
+     31     35      0      0      0     -1 ( 0, 0, 4) 4   0        1.961350626        1.961350626
+     32     36      0      0      0      1 ( 0, 0, 4) 4   0        1.961350626        1.961350626
+     33      9      0      0      0     -1 ( 0, 0, 0) 0   0        2.741965696        2.741965696
+     34     10      0      0      0      1 ( 0, 0, 0) 0   0        2.741965696        2.741965696
+     35     11      0      0      0     -1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     36     12      0      0      0      1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     37     13      0      0      0     -1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     38     14      0      0      0      1 ( 0, 0, 0) 0   0        6.372473018        6.372473018
+     39     29      0      0      0     -1 ( 0, 0, 3) 3   0        6.372473018        6.372473018
+     40     30      0      0      0      1 ( 0, 0, 3) 3   0        6.372473018        6.372473018
+     41     39      0      0      0     -1 ( 0, 0, 5) 5   0        6.372473018        6.372473018
+     42     40      0      0      0      1 ( 0, 0, 5) 5   0        6.372473018        6.372473018
+     43     43      0      0      0     -1 ( 0, 0, 6) 6   0        6.372473018        6.372473018
+     44     44      0      0      0      1 ( 0, 0, 6) 6   0        6.372473018        6.372473018
+ Setting normal GetUMatEl routine
+ Calculation supports multiple parallel runs
+ Number of simultaneous walker distributions:            2
+ Number of sign components in bit representation of determinant:            2
+Setting integer length of determinants as bit-strings to:      4
+Setting integer bit-length of determinants as bit-strings to:     64
+ SYMMETRY MULTIPLICATION TABLE
+ No Symmetry table found.
+          28  Symmetry PAIRS
+           8  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ Not storing the H matrix.
+ <D0|H|D0>=  -128.496349730325     
+ <D0|T|D0>=  -60.2958137810042     
+ FDet has     4 alpha electrons, and     4 beta electrons.
+                6  alpha-alpha occupied electron pairs
+                6  beta-beta occupied electron pairs
+               16  alpha-beta occupied electron pairs
+              153 alpha-alpha (vacant) hole pairs
+              153 beta-beta (vacant) hole pairs
+              324 alpha-beta (vacant) hole pairs
+ 
+ Performing Parallel FCIQMC....
+ 
+ Generated reference determinants:
+(    1,    2,   15,   16,   21,   22,   31,   32) E =   -128.496349730
+(    1,    2,   15,   16,   21,   22,   31,   32) E =   -128.496349730
+Symmetry of reference determinant is:          0
+Symmetry of reference determinant from spin orbital symmetry info is:          0
+*********** INITIATOR METHOD IN USE ***********
+Starting with only the reference determinant in the fixed initiator space.
+Value for seed is:            7
+Reference Energy set to:      -128.4963497303
+Highest energy determinant is (approximately):     -75.3862942834926    
+Corresponding to a correlation energy of:      53.1100554468320    
+Brillouin theorem in use for calculation of projected energy.
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+    960 double excitations, and      24 single excitations found from reference. This will be used to calculate pDoubles.
+ pDoubles set to:       0.975610
+ pSingles set to:       0.024390
+ Using initial time-step:   1.000000000000000E-003
+Will dynamically update timestep to limit spawning probability to   3.00000
+Initial Diagonal Shift:         0.0000000000
+ Connectivity of HF determinant is:          984
+Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors
+Memory allocated for a maximum particle number per node of:         524288
+ The average current signs before death will be stored for use in the RDMs.
+ Determinant related persistent storage requires:      44.000000 Mb / processor
+Spawning vectors allowing for a total of        60000 particles to be spawned in any one iteration per core.
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:            7000
+Length of hash-table as a fraction of targetwalkers:              0.70000
+Reference processor is:        1
+Initial reference is: (    1,    2,   15,   16,   21,   22,   31,   32)
+Initial number of particles set to        100 and shift will be held at     0.000 until particle number gets to           20000
+ Initial memory (without excitgens + temp arrays) consists of :      19.662109 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+ =============================================
+ Stochastically calculating the reduced density matrices from the FCIQMC wavefunction
+ incl. explicit connections to the following HF determinant:(    1,    2,   15,   16,   21,   22,   31,   32)
+ Calculating the energy from the reduced density matrix. This requires the 2 electron RDM from which the 1-RDM can also be constructed.
+
+ About to allocate main RDM array, size per MPI process (MB):      1.280182
+ Allocation of main RDM array complete.
+ About to allocate RDM spawning array, size per MPI process (MB):      8.534576
+ Allocation of RDM spawning array complete.
+ About to allocate RDM receiving arrays, size per MPI process (MB):      5.120743
+ Allocation of RDM receiving arrays complete.
+
+ Main RDM memory arrays consists of:      17.685776 MB per MPI process.
+ RDM memory allocation complete.
+
+ Allocating temporary array for walkers spawned from a particular Di.
+ This requires       0.007629 Mb/Processor
+# 1. Iter.             2. Tot. parts        3. Tot. ref          4. Proj. E (cyc)     5. Shift. (cyc)      9. Tot. Proj. E      10. Dets occ.        11. Dets spawned     12. Iter. time      
+#               0   200.000000000        200.000000000        0.00000000000        0.00000000000       -128.496349730                     1               0   0.00000000000     
+ Updating parallel-spin bias; new pParallel =   0.189895788348283     
+ Updating time-step. New time-step =   2.554215613855305E-002
+ Updating singles/doubles bias. pSingles =   3.801564253581910E-002 , pDoubles =
+    0.961984357464181     
+               25   285.249110141        200.100000000      -0.180760945889E-001   0.00000000000       -128.514425825                    76             104  0.306760077365E-003
+Bloom of more than n_add on single excit: A max of       5.26 particles created.       27 blooms occurred.
+Bloom of more than n_add on double excit: A max of       4.37 particles created.        6 blooms occurred.
+ Updating parallel-spin bias; new pParallel =   0.139333812188008     
+ Updating time-step. New time-step =   1.842814646735299E-002
+ Updating singles/doubles bias. pSingles =   4.812083753589248E-002 , pDoubles =
+    0.951879162464108     
+               50   1126.04928509        214.292162894      -0.168659777197        0.00000000000       -128.665009508                   582             962  0.928840017878E-003
+Bloom of more than n_add on single excit: A max of       4.00 particles created.        6 blooms occurred.
+ Updating parallel-spin bias; new pParallel =   0.161278262445503     
+ Updating time-step. New time-step =   1.770425861524874E-002
+ Updating singles/doubles bias. pSingles =   6.158540869710408E-002 , pDoubles =
+    0.938414591302896     
+               75   1213.50556278        237.997531516      -0.206006129078        0.00000000000       -128.702355859                   631            1070  0.128420023248E-002
+              100   1514.40004281        263.250293636      -0.211913106010        0.00000000000       -128.708262836                   810            1353  0.148331886157E-002
+              125   1567.75658203        284.619801581      -0.212643531411        0.00000000000       -128.708993262                   821            1386  0.162187870592E-002
+              150   1862.41450754        313.993116369      -0.207186814986        0.00000000000       -128.703536545                  1033            1669  0.175100087654E-002
+Bloom of more than n_add on single excit: A max of       3.21 particles created.        1 blooms occurred.
+ Updating time-step. New time-step =   1.762931032887311E-002
+ Updating singles/doubles bias. pSingles =   6.555804415484974E-002 , pDoubles =
+    0.934441955845150     
+              175   2008.28416482        336.225575408      -0.210134342877        0.00000000000       -128.706484073                  1084            1781  0.202867737971E-002
+              200   2182.29707764        362.100571292      -0.207568586465        0.00000000000       -128.703918317                  1164            1877  0.212735659443E-002
+Bloom of more than n_add on double excit: A max of       3.50 particles created.        1 blooms occurred.
+ Updating parallel-spin bias; new pParallel =   0.183131584474856     
+ Updating time-step. New time-step =   1.719934870675388E-002
+ Updating singles/doubles bias. pSingles =   6.395914763071182E-002 , pDoubles =
+    0.936040852369288     
+              225   2491.11498949        391.596794255      -0.208645818241        0.00000000000       -128.704995549                  1337            2166  0.220003956929E-002
+Bloom of more than n_add on single excit: A max of       3.12 particles created.        1 blooms occurred.
+ Updating time-step. New time-step =   1.715553302146286E-002
+ Updating singles/doubles bias. pSingles =   6.634373044871310E-002 , pDoubles =
+    0.933656269551287     
+              250   2772.42170286        437.422245937      -0.209173539002        0.00000000000       -128.705523269                  1495            2410  0.265784258954E-002
+Bloom of more than n_add on single excit: A max of       3.03 particles created.        1 blooms occurred.
+ Updating singles/doubles bias. pSingles =   6.687576739813313E-002 , pDoubles =
+    0.933124232601867     
+              275   3218.90786996        485.126804544      -0.212265605358        0.00000000000       -128.708615336                  1740            2825  0.299448962323E-002
+              300   3724.30869418        542.790407902      -0.213229553755        0.00000000000       -128.709579284                  2023            3258  0.328404665925E-002
+Bloom of more than n_add on single excit: A max of       3.11 particles created.        1 blooms occurred.
+ Updating parallel-spin bias; new pParallel =   0.142679782330127     
+ Updating time-step. New time-step =   1.353347007671865E-002
+ Updating singles/doubles bias. pSingles =   5.464966233859816E-002 , pDoubles =
+    0.945350337661402     
+              325   4180.68965229        595.513201134      -0.209610580906        0.00000000000       -128.705960311                  2290            3644  0.362443691120E-002
+              350   4641.46107932        642.396430343      -0.211299563069        0.00000000000       -128.707649293                  2481            3943  0.409959815443E-002
+              375   5066.10656589        690.773915788      -0.209802383061        0.00000000000       -128.706152113                  2744            4401  0.452859653160E-002
+Bloom of more than n_add on single excit: A max of       3.07 particles created.        1 blooms occurred.
+ Updating time-step. New time-step =   1.351562742560882E-002
+ Updating singles/doubles bias. pSingles =   5.589602089673840E-002 , pDoubles =
+    0.944103979103262     
+              400   5538.91022520        745.416882310      -0.208610408714        0.00000000000       -128.704960139                  2993            4780  0.450231786817E-002
+              425   6052.63095837        790.534484089      -0.215416402050        0.00000000000       -128.711766132                  3254            5152  0.527820130810E-002
+              450   6560.61713632        848.754266154      -0.215697913242        0.00000000000       -128.712047644                  3583            5648  0.585315236822E-002
+              475   7170.97665733        910.111914424      -0.218667658109        0.00000000000       -128.715017388                  3864            6191  0.640296936035E-002
+              500   7857.35477557        992.034585703      -0.215891201280        0.00000000000       -128.712240932                  4271            6816  0.661076558754E-002
+Bloom of more than n_add on double excit: A max of       3.39 particles created.        1 blooms occurred.
+ Updating parallel-spin bias; new pParallel =   0.128468360081278     
+ Updating time-step. New time-step =   1.223755398015392E-002
+ Updating singles/doubles bias. pSingles =   5.061034545119055E-002 , pDoubles =
+    0.949389654548809     
+              525   8575.55968222        1049.39788977      -0.215021022595        0.00000000000       -128.711370753                  4634            7411  0.736251845956E-002
+              550   9035.55074971        1097.56263877      -0.212380026179        0.00000000000       -128.708729757                  4857            7694  0.792596861720E-002
+Bloom of more than n_add on single excit: A max of       3.29 particles created.        1 blooms occurred.
+ Updating time-step. New time-step =   1.217754726953248E-002
+ Updating singles/doubles bias. pSingles =   5.526566712412317E-002 , pDoubles =
+    0.944734332875877     
+              575   9730.00623065        1167.14838213      -0.215406244999        0.00000000000       -128.711755975                  5238            8355  0.839862786233E-002
+              600   10487.7557019        1243.97048098      -0.214198597032        0.00000000000       -128.710548327                  5594            8932  0.896599795669E-002
+              625   11131.5246625        1323.77282693      -0.212864034632        0.00000000000       -128.709213765                  5903            9552  0.981153454632E-002
+              650   11960.1305963        1405.14503148      -0.212934612899        0.00000000000       -128.709284343                  6388           10181  0.995843857527E-002
+              675   12609.1815793        1493.77982620      -0.212335277304        0.00000000000       -128.708685008                  6640           10782  0.102996444330E-001
+              700   13416.4587387        1593.37693832      -0.209970662113        0.00000000000       -128.706320392                  7010           11481  0.115044973791E-001
+              725   14552.5775905        1703.33946576      -0.213045517547        0.00000000000       -128.709395248                  7579           12486  0.124996090308E-001
+              750   15634.8140546        1815.47494856      -0.212605123383        0.00000000000       -128.708954854                  8117           13479  0.128644369543E-001
+              775   16648.5032803        1941.21561221      -0.212657711600        0.00000000000       -128.709007442                  8556           14226  0.134152416140E-001
+              800   18253.9989140        2058.78303011      -0.213461089106        0.00000000000       -128.709810819                  9356           15558  0.148690799251E-001
+              825   19434.0327709        2195.49656029      -0.215935132889        0.00000000000       -128.712284863                  9912           16633  0.160839278251E-001
+Bloom of more than n_add on single excit: A max of       3.18 particles created.        1 blooms occurred.
+ Updating time-step. New time-step =   1.213771726148176E-002
+ Updating singles/doubles bias. pSingles =   5.835567985422308E-002 , pDoubles =
+    0.941644320145777     
+              850   20388.1696658        2338.86519121      -0.214773636755        0.00000000000       -128.711123367                 10214           17492  0.170219987631E-001
+              875   21948.8323174        2517.95587587      -0.213793028510        0.00000000000       -128.710142759                 10914           18778  0.181622132659E-001
+              900   23222.5667975        2691.49428370      -0.213196936175        0.00000000000       -128.709546666                 11460           19930  0.190473943949E-001
+              925   24934.6061272        2852.90224470      -0.211917588720        0.00000000000       -128.708267319                 12149           21360  0.203709024936E-001
+              950   26529.6717400        3057.51907226      -0.215189440125        0.00000000000       -128.711539170                 12835           22787  0.218147654086E-001
+              975   28710.5093630        3260.44832902      -0.215697653644        0.00000000000       -128.712047384                 13713           24539  0.232525244355E-001
+             1000   30820.3462969        3483.06982507      -0.217481163185        0.00000000000       -128.713830894                 14612           26407  0.251005943865E-001
+Bloom of more than n_add on single excit: A max of       3.36 particles created.        1 blooms occurred.
+ Updating time-step. New time-step =   1.205260051179402E-002
+ Updating singles/doubles bias. pSingles =   6.495903880270322E-002 , pDoubles =
+    0.935040961197297     
+             1025   32826.3742092        3723.65657022      -0.213380843018        0.00000000000       -128.709730573                 15401           28025  0.266693122685E-001
+             1050   35026.0699403        3960.03450572      -0.213687733729        0.00000000000       -128.710037464                 16207           29874  0.286083221436E-001
+             1075   36748.8737154        4226.23795747      -0.211115877666        0.00000000000       -128.707465608                 16809           31325  0.299705117941E-001
+Exiting the single particle growth phase on iteration:          1100 - Shift can now change for population2
+             1100   39477.0313065        4526.47362520      -0.210544804338      -0.106497941027       -128.706894535                 17746           33847  0.316809080541E-001
+Exiting the single particle growth phase on iteration:          1125 - Shift can now change for population1
+             1125   41126.7834019        4683.93836311      -0.212959656756      -0.214434326878       -128.709309387                 18411           35198  0.327806100249E-001
+             1150   41118.0994809        4668.26835342      -0.214132209823      -0.216560727067       -128.710481940                 18520           35176  0.330258160830E-001
+             1175   41261.6397449        4667.32257562      -0.213621987743      -0.216751052875       -128.709971718                 18634           35352  0.335684977472E-001
+             1200   40881.5286797        4678.08568244      -0.212662827492      -0.215918578189       -128.709012558                 18298           34893  0.331212989986E-001
+             1225   40950.8919222        4685.72648658      -0.214221626574      -0.216099289070       -128.710571357                 18449           35042  0.346775054932E-001
+             1250   40807.0345456        4678.17330336      -0.212790956013      -0.216213254438       -128.709140686                 18470           35021  0.332304388285E-001
+             1275   40285.3834935        4672.55345522      -0.213467776065      -0.215532927188       -128.709817506                 18029           34503  0.347486883402E-001
+
+============ Semi-stochastic initialisation ============
+Generating the deterministic space...
+Total size of deterministic space:     2000
+Size of deterministic space on this processor:      950
+Generating the Hamiltonian in the deterministic space...
+Semi-stochastic initialisation complete.
+Total time (seconds) taken for semi-stochastic initialisation:    0.396
+
+
+=========== Trial wavefunction initialisation ==========
+Generating the trial space...
+  Initialising wavefunctions by the Lanczos algorithm
+  Aborting Lanczos and initialising trial states with direct diagonalisation
+  MAXIMUM WIDTH OF HAMIL :           68
+  TOTAL NUMBER OF NON-ZERO ELEMENTS :         1322
+Size of trial space on this processor:       30
+Total size of the trial space:      100
+Calculating the number of states in the connected space...
+Attempting to allocate con_space. Size =        1.487 Mb
+States found on this processor, including repeats:    48736
+Generating and storing the connected space...
+Removing repeated states and sorting by processor...
+Performing MPI communication of connected states...
+Attempting to allocate temp_space. Size =        0.684 Mb
+Attempting to allocate con_space. Size =        0.684 Mb
+Total size of connected space:      38463
+Size of connected space on this processor:      19093
+Generating the vector \sum_j H_{ij} \psi^T_j...
+Energy eigenvalue(s) of the trial space:  -128.642256754     
+Trial wavefunction initialisation complete.
+Total time (seconds) taken for trial wavefunction initialisation:    0.465
+
+             1300   43010.1030526        4671.56950402      -0.212583368476      -0.220701536946       -128.708933099                 21185           30136  0.761937722564E-001
+             1325   42703.3219281        4661.03279382      -0.213002716190      -0.220687685973       -128.709352447                 21080           29957  0.368686690927E-001
+ Memory requirement for spawned arrays increased from     3.6621 to     5.4932 Mb/Processor
+Calculating the 2 electron density matrix on the fly.
+Beginning to fill the RDMs during iteration      1326
+ Reset fdv av at iteration         1326
+ Writing RDMs to file at iteration         1326
+ Reset fdv av at iteration         1327
+ Writing RDMs to file at iteration         1327
+ Reset fdv av at iteration         1328
+ Writing RDMs to file at iteration         1328
+ Reset fdv av at iteration         1329
+ Writing RDMs to file at iteration         1329
+ Reset fdv av at iteration         1330
+ Writing RDMs to file at iteration         1330
+ Reset fdv av at iteration         1331
+ Writing RDMs to file at iteration         1331
+ Reset fdv av at iteration         1332
+ Writing RDMs to file at iteration         1332
+ Reset fdv av at iteration         1333
+ Writing RDMs to file at iteration         1333
+ Reset fdv av at iteration         1334
+ Writing RDMs to file at iteration         1334
+ Reset fdv av at iteration         1335
+ Writing RDMs to file at iteration         1335
+ Reset fdv av at iteration         1336
+ Writing RDMs to file at iteration         1336
+ Reset fdv av at iteration         1337
+ Writing RDMs to file at iteration         1337
+ Reset fdv av at iteration         1338
+ Writing RDMs to file at iteration         1338
+ Reset fdv av at iteration         1339
+ Writing RDMs to file at iteration         1339
+ Reset fdv av at iteration         1340
+ Writing RDMs to file at iteration         1340
+ Reset fdv av at iteration         1341
+ Writing RDMs to file at iteration         1341
+ Reset fdv av at iteration         1342
+ Writing RDMs to file at iteration         1342
+ Reset fdv av at iteration         1343
+ Writing RDMs to file at iteration         1343
+ Reset fdv av at iteration         1344
+ Writing RDMs to file at iteration         1344
+ Reset fdv av at iteration         1345
+ Writing RDMs to file at iteration         1345
+ Reset fdv av at iteration         1346
+ Writing RDMs to file at iteration         1346
+ Reset fdv av at iteration         1347
+ Writing RDMs to file at iteration         1347
+ Reset fdv av at iteration         1348
+ Writing RDMs to file at iteration         1348
+ Reset fdv av at iteration         1349
+ Writing RDMs to file at iteration         1349
+ Reset fdv av at iteration         1350
+Bloom of more than n_add on single excit: A max of       3.03 particles created.        1 blooms occurred.
+             1350   42583.2566180        4650.33524864      -0.212993091679      -0.220418666381       -128.709342822                 20943           29782  0.149337619543     
+ Writing RDMs to file at iteration         1350
+ Reset fdv av at iteration         1351
+ Writing RDMs to file at iteration         1351
+ Reset fdv av at iteration         1352
+ Writing RDMs to file at iteration         1352
+ Reset fdv av at iteration         1353
+ Writing RDMs to file at iteration         1353
+ Reset fdv av at iteration         1354
+ Writing RDMs to file at iteration         1354
+ Reset fdv av at iteration         1355
+ Writing RDMs to file at iteration         1355
+ Reset fdv av at iteration         1356
+ Writing RDMs to file at iteration         1356
+ Reset fdv av at iteration         1357
+ Writing RDMs to file at iteration         1357
+ Reset fdv av at iteration         1358
+ Writing RDMs to file at iteration         1358
+ Reset fdv av at iteration         1359
+ Writing RDMs to file at iteration         1359
+ Reset fdv av at iteration         1360
+ Writing RDMs to file at iteration         1360
+ Reset fdv av at iteration         1361
+ Writing RDMs to file at iteration         1361
+ Reset fdv av at iteration         1362
+ Writing RDMs to file at iteration         1362
+ Reset fdv av at iteration         1363
+ Writing RDMs to file at iteration         1363
+ Reset fdv av at iteration         1364
+ Writing RDMs to file at iteration         1364
+ Reset fdv av at iteration         1365
+ Writing RDMs to file at iteration         1365
+ Reset fdv av at iteration         1366
+ Writing RDMs to file at iteration         1366
+ Reset fdv av at iteration         1367
+ Writing RDMs to file at iteration         1367
+ Reset fdv av at iteration         1368
+ Writing RDMs to file at iteration         1368
+ Reset fdv av at iteration         1369
+ Writing RDMs to file at iteration         1369
+ Reset fdv av at iteration         1370
+ Writing RDMs to file at iteration         1370
+ Reset fdv av at iteration         1371
+ Writing RDMs to file at iteration         1371
+ Reset fdv av at iteration         1372
+ Writing RDMs to file at iteration         1372
+ Reset fdv av at iteration         1373
+ Writing RDMs to file at iteration         1373
+ Reset fdv av at iteration         1374
+ Writing RDMs to file at iteration         1374
+ Reset fdv av at iteration         1375
+             1375   42519.8271495        4640.07875445      -0.213082342173      -0.220185696818       -128.709432072                 21006           29841  0.153466418386     
+ Writing RDMs to file at iteration         1375
+ Reset fdv av at iteration         1376
+ Writing RDMs to file at iteration         1376
+ Reset fdv av at iteration         1377
+ Writing RDMs to file at iteration         1377
+ Reset fdv av at iteration         1378
+ Writing RDMs to file at iteration         1378
+ Reset fdv av at iteration         1379
+ Writing RDMs to file at iteration         1379
+ Reset fdv av at iteration         1380
+ Writing RDMs to file at iteration         1380
+ Reset fdv av at iteration         1381
+ Writing RDMs to file at iteration         1381
+ Reset fdv av at iteration         1382
+ Writing RDMs to file at iteration         1382
+ Reset fdv av at iteration         1383
+ Writing RDMs to file at iteration         1383
+ Reset fdv av at iteration         1384
+ Writing RDMs to file at iteration         1384
+ Reset fdv av at iteration         1385
+ Writing RDMs to file at iteration         1385
+ Reset fdv av at iteration         1386
+ Writing RDMs to file at iteration         1386
+ Reset fdv av at iteration         1387
+ Writing RDMs to file at iteration         1387
+ Reset fdv av at iteration         1388
+ Writing RDMs to file at iteration         1388
+ Reset fdv av at iteration         1389
+ Writing RDMs to file at iteration         1389
+ Reset fdv av at iteration         1390
+ Writing RDMs to file at iteration         1390
+ Reset fdv av at iteration         1391
+ Writing RDMs to file at iteration         1391
+ Reset fdv av at iteration         1392
+ Writing RDMs to file at iteration         1392
+ Reset fdv av at iteration         1393
+ Writing RDMs to file at iteration         1393
+ Reset fdv av at iteration         1394
+ Writing RDMs to file at iteration         1394
+ Reset fdv av at iteration         1395
+ Writing RDMs to file at iteration         1395
+ Reset fdv av at iteration         1396
+ Writing RDMs to file at iteration         1396
+ Reset fdv av at iteration         1397
+ Writing RDMs to file at iteration         1397
+ Reset fdv av at iteration         1398
+ Writing RDMs to file at iteration         1398
+ Reset fdv av at iteration         1399
+ Writing RDMs to file at iteration         1399
+ Reset fdv av at iteration         1400
+             1400   42284.4985089        4630.14412381      -0.213028044792      -0.220222459118       -128.709377775                 20833           29608  0.149935454130     
+ Writing RDMs to file at iteration         1400
+ Reset fdv av at iteration         1401
+ Writing RDMs to file at iteration         1401
+ Reset fdv av at iteration         1402
+ Writing RDMs to file at iteration         1402
+ Reset fdv av at iteration         1403
+ Writing RDMs to file at iteration         1403
+ Reset fdv av at iteration         1404
+ Writing RDMs to file at iteration         1404
+ Reset fdv av at iteration         1405
+ Writing RDMs to file at iteration         1405
+ Reset fdv av at iteration         1406
+ Writing RDMs to file at iteration         1406
+ Reset fdv av at iteration         1407
+ Writing RDMs to file at iteration         1407
+ Reset fdv av at iteration         1408
+ Writing RDMs to file at iteration         1408
+ Reset fdv av at iteration         1409
+ Writing RDMs to file at iteration         1409
+ Reset fdv av at iteration         1410
+ Writing RDMs to file at iteration         1410
+ Reset fdv av at iteration         1411
+ Writing RDMs to file at iteration         1411
+ Reset fdv av at iteration         1412
+ Writing RDMs to file at iteration         1412
+ Reset fdv av at iteration         1413
+ Writing RDMs to file at iteration         1413
+ Reset fdv av at iteration         1414
+ Writing RDMs to file at iteration         1414
+ Reset fdv av at iteration         1415
+ Writing RDMs to file at iteration         1415
+ Reset fdv av at iteration         1416
+ Writing RDMs to file at iteration         1416
+ Reset fdv av at iteration         1417
+ Writing RDMs to file at iteration         1417
+ Reset fdv av at iteration         1418
+ Writing RDMs to file at iteration         1418
+ Reset fdv av at iteration         1419
+ Writing RDMs to file at iteration         1419
+ Reset fdv av at iteration         1420
+ Writing RDMs to file at iteration         1420
+ Reset fdv av at iteration         1421
+ Writing RDMs to file at iteration         1421
+ Reset fdv av at iteration         1422
+ Writing RDMs to file at iteration         1422
+ Reset fdv av at iteration         1423
+ Writing RDMs to file at iteration         1423
+ Reset fdv av at iteration         1424
+ Writing RDMs to file at iteration         1424
+ Reset fdv av at iteration         1425
+             1425   42205.4406208        4619.89430064      -0.212846104696      -0.219239612557       -128.709195835                 20897           29612  0.141287997365     
+ Writing RDMs to file at iteration         1425
+ Reset fdv av at iteration         1426
+ Writing RDMs to file at iteration         1426
+ Reset fdv av at iteration         1427
+ Writing RDMs to file at iteration         1427
+ Reset fdv av at iteration         1428
+ Writing RDMs to file at iteration         1428
+ Reset fdv av at iteration         1429
+ Writing RDMs to file at iteration         1429
+ Reset fdv av at iteration         1430
+ Writing RDMs to file at iteration         1430
+ Reset fdv av at iteration         1431
+ Writing RDMs to file at iteration         1431
+ Reset fdv av at iteration         1432
+ Writing RDMs to file at iteration         1432
+ Reset fdv av at iteration         1433
+ Writing RDMs to file at iteration         1433
+ Reset fdv av at iteration         1434
+ Writing RDMs to file at iteration         1434
+ Reset fdv av at iteration         1435
+ Writing RDMs to file at iteration         1435
+ Reset fdv av at iteration         1436
+ Writing RDMs to file at iteration         1436
+ Reset fdv av at iteration         1437
+ Writing RDMs to file at iteration         1437
+ Reset fdv av at iteration         1438
+ Writing RDMs to file at iteration         1438
+ Reset fdv av at iteration         1439
+ Writing RDMs to file at iteration         1439
+ Reset fdv av at iteration         1440
+ Writing RDMs to file at iteration         1440
+ Reset fdv av at iteration         1441
+ Writing RDMs to file at iteration         1441
+ Reset fdv av at iteration         1442
+ Writing RDMs to file at iteration         1442
+ Reset fdv av at iteration         1443
+ Writing RDMs to file at iteration         1443
+ Reset fdv av at iteration         1444
+ Writing RDMs to file at iteration         1444
+ Reset fdv av at iteration         1445
+ Writing RDMs to file at iteration         1445
+ Reset fdv av at iteration         1446
+ Writing RDMs to file at iteration         1446
+ Reset fdv av at iteration         1447
+ Writing RDMs to file at iteration         1447
+ Reset fdv av at iteration         1448
+ Writing RDMs to file at iteration         1448
+ Reset fdv av at iteration         1449
+ Writing RDMs to file at iteration         1449
+ Reset fdv av at iteration         1450
+Bloom of more than n_add on single excit: A max of       3.04 particles created.        1 blooms occurred.
+             1450   42217.8639390        4611.42646987      -0.213138710896      -0.219500417073       -128.709488441                 20812           29620  0.156186372042     
+ Writing RDMs to file at iteration         1450
+ Reset fdv av at iteration         1451
+ Writing RDMs to file at iteration         1451
+ Reset fdv av at iteration         1452
+ Writing RDMs to file at iteration         1452
+ Reset fdv av at iteration         1453
+ Writing RDMs to file at iteration         1453
+ Reset fdv av at iteration         1454
+ Writing RDMs to file at iteration         1454
+ Reset fdv av at iteration         1455
+ Writing RDMs to file at iteration         1455
+ Reset fdv av at iteration         1456
+ Writing RDMs to file at iteration         1456
+ Reset fdv av at iteration         1457
+ Writing RDMs to file at iteration         1457
+ Reset fdv av at iteration         1458
+ Writing RDMs to file at iteration         1458
+ Reset fdv av at iteration         1459
+ Writing RDMs to file at iteration         1459
+ Reset fdv av at iteration         1460
+ Writing RDMs to file at iteration         1460
+ Reset fdv av at iteration         1461
+ Writing RDMs to file at iteration         1461
+ Reset fdv av at iteration         1462
+ Writing RDMs to file at iteration         1462
+ Reset fdv av at iteration         1463
+ Writing RDMs to file at iteration         1463
+ Reset fdv av at iteration         1464
+ Writing RDMs to file at iteration         1464
+ Reset fdv av at iteration         1465
+ Writing RDMs to file at iteration         1465
+ Reset fdv av at iteration         1466
+ Writing RDMs to file at iteration         1466
+ Reset fdv av at iteration         1467
+ Writing RDMs to file at iteration         1467
+ Reset fdv av at iteration         1468
+ Writing RDMs to file at iteration         1468
+ Reset fdv av at iteration         1469
+ Writing RDMs to file at iteration         1469
+ Reset fdv av at iteration         1470
+ Writing RDMs to file at iteration         1470
+ Reset fdv av at iteration         1471
+ Writing RDMs to file at iteration         1471
+ Reset fdv av at iteration         1472
+ Writing RDMs to file at iteration         1472
+ Reset fdv av at iteration         1473
+ Writing RDMs to file at iteration         1473
+ Reset fdv av at iteration         1474
+ Writing RDMs to file at iteration         1474
+ Reset fdv av at iteration         1475
+             1475   42200.6867302        4602.71048246      -0.213195403470      -0.219683588596       -128.709545134                 20778           29435  0.140957951546     
+ Writing RDMs to file at iteration         1475
+ Reset fdv av at iteration         1476
+ Writing RDMs to file at iteration         1476
+ Reset fdv av at iteration         1477
+ Writing RDMs to file at iteration         1477
+ Reset fdv av at iteration         1478
+ Writing RDMs to file at iteration         1478
+ Reset fdv av at iteration         1479
+ Writing RDMs to file at iteration         1479
+ Reset fdv av at iteration         1480
+ Writing RDMs to file at iteration         1480
+ Reset fdv av at iteration         1481
+ Writing RDMs to file at iteration         1481
+ Reset fdv av at iteration         1482
+ Writing RDMs to file at iteration         1482
+ Reset fdv av at iteration         1483
+ Writing RDMs to file at iteration         1483
+ Reset fdv av at iteration         1484
+ Writing RDMs to file at iteration         1484
+ Reset fdv av at iteration         1485
+ Writing RDMs to file at iteration         1485
+ Reset fdv av at iteration         1486
+ Writing RDMs to file at iteration         1486
+ Reset fdv av at iteration         1487
+ Writing RDMs to file at iteration         1487
+ Reset fdv av at iteration         1488
+ Writing RDMs to file at iteration         1488
+ Reset fdv av at iteration         1489
+ Writing RDMs to file at iteration         1489
+ Reset fdv av at iteration         1490
+ Writing RDMs to file at iteration         1490
+ Reset fdv av at iteration         1491
+ Writing RDMs to file at iteration         1491
+ Reset fdv av at iteration         1492
+ Writing RDMs to file at iteration         1492
+ Reset fdv av at iteration         1493
+ Writing RDMs to file at iteration         1493
+ Reset fdv av at iteration         1494
+ Writing RDMs to file at iteration         1494
+ Reset fdv av at iteration         1495
+ Writing RDMs to file at iteration         1495
+ Reset fdv av at iteration         1496
+ Writing RDMs to file at iteration         1496
+ Reset fdv av at iteration         1497
+ Writing RDMs to file at iteration         1497
+ Reset fdv av at iteration         1498
+ Writing RDMs to file at iteration         1498
+ Reset fdv av at iteration         1499
+ Writing RDMs to file at iteration         1499
+ Reset fdv av at iteration         1500
+             1500   42415.4859773        4593.85468652      -0.213277866602      -0.219379313356       -128.709627597                 21004           29687  0.141399085522     
+ Writing RDMs to file at iteration         1500
+Total iteration number limit reached. Finishing FCIQMC loop...
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ Total loop-time:    47.0004908218980     
+ - - - - - - - - - - - - - - - - - - - - - - - -
+
+**** RDMs CALCULATED STOCHASTICALLY ****
+
+ == INFORMATION FOR FINAL 1-RDMS =========================================================
+
+ INFORMATION FOR 1-RDM 1:
+
+ SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:      7.9287158263498
+
+ =========================================================================================
+
+ Writing RDMs to file at iteration         1500
+ == INFORMATION FOR FINAL 2-RDMS =========================================================
+
+ 2-RDM ESTIMATES FOR STATE 1:
+ Trace of 2-el-RDM before normalisation:  2.7172205441E+10
+ Trace of 2-el-RDM after normalisation:  2.8000000000E+01
+ Energy contribution from the 1-RDM: -5.9928360067E+01
+ Energy contribution from the 2-RDM:  2.5067879203E+01
+ *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*: -1.2870938240907E+02
+
+ Hermiticty error estimates:
+            1500        0.00250833034230019385     (Iteration, MAX ABS ERROR IN HERMITICITY)
+            1500        0.29573596609865210327     (Iteration, SUM ABS ERROR IN HERMITICITY)
+
+ =========================================================================================
+ 
+Current reference: 
+(    1,    2,   15,   16,   21,   22,   31,   32)
+ Number of superinitiators           1
+ 
+Input DEFINEDET line (includes frozen orbs):
+definedet   1   2   3   4  17  18  23  24  33  34 
+ 
+Most occupied         15 determinants as excitations from reference: 
+ 
+ Excitation   ExcitLevel Seniority  Walkers(Re)   Walkers(Im)  Weight   Init?(Re)   Init?(Im)   Proc  Spin-Coup?
+11000000000000110000110000000011000000000000    0    0    2328.781        2264.713      0.98151  Y  Y      1
+11000000000000010010110000000010000100000000    2    4    81.26545        78.67381      0.02417  Y  Y      1  *
+11000000000000110000010010000010000100000000    2    4    80.09837        77.36749      0.02379  Y  Y      0  *
+11000000000000010010100001000011000000000000    2    4    79.39590        77.91120      0.02377  Y  Y      1  *
+11000000000000110000110000000000001100000000    2    0   -79.99988       -77.13969      0.03358  Y  Y      1
+11000000000000000011110000000011000000000000    2    0   -79.56753       -77.49091      0.03356  Y  Y      1
+11000000000000110000000011000011000000000000    2    0   -79.26123       -77.37951      0.03347  Y  Y      1
+11000000000000100001110000000010000100000000    2    4   -61.64700       -59.94445      0.01837  Y  Y      1  *
+11000000000000110000100001000010000100000000    2    4   -61.71805       -59.39901      0.01830  Y  Y      1  *
+11000000000000100001100001000011000000000000    2    4   -61.81927       -59.07233      0.01827  Y  Y      1  *
+01000000100000110000110000000010000100000000    2    4    61.72166        58.97098      0.01824  Y  Y      1  *
+01000000100000100001110000000011000000000000    2    4    61.65684        59.03437      0.01824  Y  Y      1  *
+01000000100000110000100001000011000000000000    2    4    60.42632        59.62413      0.01814  Y  Y      1  *
+11000000000000110000001001000011000000000000    2    2   -59.47059       -58.42249      0.01781  Y  Y      0  *
+11000000000000001001110000000011000000000000    2    2   -57.96714       -57.75124      0.01748  Y  Y      1  *
+ * = Spin-coupled function implicitly has time-reversed determinant with same weight.
+ 
+
+ Load balancing information based on the last iteration:
+ Mean number of determinants/process   10802.5000000000
+ Min number of determinants/process              10760
+ Max number of determinants/process              10845
+
+
+Calculating approximate errorbar for energy estimates...
+
+Attempting automatic reblocking analysis on data from iteration:         1125
+ No FCIMCStats file found for error analysis
+ Current reference energy                            -128.496349730325
+ Projected correlation energy                          -0.212655414652
+ No automatic errorbar obtained for projected energy
+ No reliable averaged shift correlation energy could be obtained automatically
+
+ Total projected energy        -128.70900514
+
+
+ Final energy estimate for state 1:     -128.70958594479    
+ Final energy estimate for state 2:     -128.70956892861    
+ Warning: attempting to log deallocation but never logged allocation.
+ 
+ ================================================================
+ Memory usage
+ Maximum memory defined is (MB) :   99999.0
+ Maximum memory used is    (MB) :     101.9
+ 
+ Large memory allocations:
+ 
+ Name              Allocated in       Deallocated in         Size
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ arr               init_global_det_datclean_global_det_da  44.0MB
+ trial_space       init_trial_wf      create_trial_hashta  30.5MB
+ WalkVecDets       InitFCIMCPar       DeallocFciMCMemPar   16.0MB
+ current_trial_ampsinit_trial_wf      end_trial_wf          4.0MB
+ arr               realloc_SpawnedPartDeallocFciMCMemPar    2.7MB
+ arr               realloc_SpawnedPartDeallocFciMCMemPar    2.7MB
+ arr               InitFCIMCPar       realloc_SpawnedPart   1.8MB
+ arr               InitFCIMCPar       realloc_SpawnedPart   1.8MB
+ con_space         init_trial_wf      init_trial_wf         1.5MB
+ Spawned_Parents   init_rdms          dealloc_global_rdm_   1.4MB
+ ================================================================
+
+ ================================================================
+ Timing report.
+
+ Timing of most expensive procedures.
+
+ Procedure                    Calls       CPU    system     total
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ WalkerTime                    1500     27.66      0.00     27.66
+ SyncTime                      1734      8.90      0.00      8.90
+ AnnMainTime                   1500      4.29      0.00      4.29
+ NECICUBE                         1      2.32      0.00      2.32
+ Compress Sort interface       1500      2.17      0.00      2.17
+ SortTime                      1500      0.63      0.00      0.63
+ Compression interface         1500      0.53      0.00      0.53
+ TrialInitTime                    1      0.46      0.00      0.46
+ SemiStochInitTime                1      0.40      0.00      0.40
+ StatsCommsTime                  60      0.15      0.00      0.15
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ Total                                  47.52      0.00     47.52
+
+ Global CPU time         47.84
+ Global system time       0.00
+ Global total time       47.84
+ ================================================================
+ Calculation ended 23/02/2018 at 18:05:29
+ ================================================================

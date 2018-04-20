@@ -3,7 +3,7 @@
 PopHPHF=T,PopLz=F,PopLensign= 2,PopNEl= 10,
 PopTotwalk=          15093
  PopSft=  -6.05967998619572     
- PopSumNoatHF=   294537.872826854     
+ PopSumNoatHF=   294537.872826854 0.0
  PopSumENum= (-1376361.66493069,60254.5738769068)
 PopCyc=            6000,PopNIfD= 0,PopNIfY= 0,PopNIfSgn= 2,
 PopNIfFlag= 1,PopNIfTot= 3,PopTau=    0.000163520723,

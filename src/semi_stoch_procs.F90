@@ -153,8 +153,9 @@ contains
         ! If this condition is met then RDM energies were added in on the
         ! previous iteration. We now want to start a new averaging block so
         ! that the same contributions aren't added in again later.
-        if (mod(Iter+PreviousCycles - IterRDMStart, RDMEnergyIter) == 0) then 
+        if (mod(Iter+PreviousCycles-IterRDMStart, RDMEnergyIter) == 0) then 
             full_determ_vecs_av = 0.0_dp
+            write(6,*) "Reset fdv av at iteration ", iter
         end if
 
         ! The current iteration, converted to a double precision real.
@@ -258,7 +259,7 @@ contains
                          TempStoreTag, ierr)
 
         ! Stick together the deterministic states from all processors, on all processors.
-        call MPIAllGatherV(SpawnedParts(:,1:determ_sizes(iProcIndex)), temp_store, &
+        call MPIAllGatherV(SpawnedParts(0:NIfTot,1:determ_sizes(iProcIndex)), temp_store, &
                        determ_sizes, determ_displs)
 
         ! Over all core states on this processor.
@@ -733,9 +734,15 @@ contains
 
         ! Test that SpawnedParts is going to be big enough
         if (determ_sizes(iProcIndex) > MaxSpawned) then
+#ifdef __DEBUG
             write(6,*) 'Spawned parts array will not be big enough for &
                        &Semi-Stochastic initialisation'
             write(6,*) 'Please increase MEMORYFACSPAWN'
+#else
+            write(*,*) 'Spawned parts array will not be big enough for &
+                       &Semi-Stochastic initialisation on task ', iProcIndex
+            write(*,*) 'Please increase MEMORYFACSPAWN'
+#endif
             call stop_all(this_routine, "Insufficient memory assigned")
         end if
 
@@ -783,9 +790,15 @@ contains
                 ! Add a quick test in, to ensure that we don't overflow the
                 ! spawned parts array...
                 if (i_non_core > MaxSpawned) then
+#ifdef __DEBUG
                     write(6,*) 'Spawned parts array too small for &
                                &semi-stochastic initialisation'
                     write(6,*) 'Please increase MEMORYFACSPAWN'
+#else
+                    write(*,*) 'Spawned parts array too small for &
+                               &semi-stochastic initialisation on task ', iProcIndex
+                    write(*,*) 'Please increase MEMORYFACSPAWN'
+#endif
                     call stop_all(this_routine, 'Insufficient memory assigned')
                 end if
                 
@@ -1228,7 +1241,7 @@ contains
         end if
         if (allocated(core_ham_diag)) then
             deallocate(core_ham_diag, stat=ierr)
-            call LogMemDealloc(t_r, IDetermTag, ierr)
+!            call LogMemDealloc(t_r, IDetermTag, ierr)
         end if
         if (allocated(core_space)) then
             deallocate(core_space, stat=ierr)

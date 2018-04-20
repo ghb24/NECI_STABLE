@@ -27,7 +27,15 @@ MODULE Calc
                          nWalkerHashes, HashLengthFrac, tSearchTauDeath, &
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
-                         alloc_popsfile_dets, tSearchTauOption
+                         alloc_popsfile_dets, tSearchTauOption 
+    use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
+         tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits, tSetDelayAllDoubsInits, &
+         tSetDelayAllSingsInits, nExProd, NoTypeN, tAdiActive, tReadRefs, SIUpdateInterval, &
+         tProductReferences, tAccessibleDoubles, tAccessibleSingles, tInitiatorsSubspace, &
+         tReferenceChanged, superInitiatorLevel, allDoubsInitsDelay, tStrictCoherentDoubles, &
+         tWeakCoherentDoubles, tAvCoherentDoubles, coherenceThreshold, SIThreshold, &
+         tSuppressSIOutput, targetRefPop, targetRefPopTol, tSingleSteps, tVariableNRef, &
+         nRefsSings, nRefsDoubs, minSIConnect
     use ras_data, only: core_ras, trial_ras
     use load_balance, only: tLoadBalanceBlocks
     use ftlm_neci
@@ -235,6 +243,8 @@ contains
           tTruncInitiator=.false.
           tAddtoInitiator=.false.
           InitiatorWalkNo=3.0_dp
+          tSeniorInitiators =.false.
+          SeniorityAge=1.0_dp
           tInitIncDoubs=.false.
           MaxNoatHF=0.0_dp
           HFPopThresh=0
@@ -282,8 +292,14 @@ contains
           ! Semi-stochastic and trial wavefunction options.
           tSemiStochastic = .false.
           tCSFCore = .false.
+          tDynamicCoreSpace = .false.
+          tIntervalSet = .false.
+          tStaticCore = .true.
+          coreSpaceUpdateCycle = 400
           semistoch_shift_iter = 0
           tTrialWavefunction = .false.
+          tDynamicTrial = .false.
+          trialSpaceUpdateCycle = 400
           tKP_FCIQMC = .false.
           tLetInitialPopDie = .false.
           tWritePopsNorm = .false.
@@ -321,6 +337,41 @@ contains
           tLoadBalanceBlocks = .true.
           tPopsJumpShift = .false.
           calc_seq_no = 1
+
+          tAllDoubsInitiators = .false.
+          tDelayAllDoubsInits = .false.
+          allDoubsInitsDelay = 0
+          tAllSingsInitiators = .false.
+          tDelayAllSingsInits = .false.
+          tSetDelayAllSingsInits = .false.
+          tSetDelayAllDoubsInits = .false.
+          ! By default, we have one reference for the purpose of all-doubs-initiators      
+          nRefs = 1
+          maxNRefs = 400
+          targetRefPop = 1000
+          targetRefPopTol = 80
+          tVariableNref = .false.
+          tSingleSteps = .true.
+          tReadRefs = .false.
+          tDelayGetRefs = .false.
+          tProductReferences = .false.
+          tAccessibleSingles = .false.
+          tAccessibleDoubles = .false.
+          tSuppressSIOutput = .true.
+          nExProd = 2
+          NoTypeN = 20
+          tStrictCoherentDoubles = .false.
+          tWeakCoherentDoubles = .true.
+          tAvCoherentDoubles = .true.
+          superInitiatorLevel = 0
+          coherenceThreshold = 0.5
+          SIThreshold = 0.95
+          SIUpdateInterval = 100
+          tAdiActive = .false.
+          minSIConnect = 1
+
+          ! And disable the initiators subspace
+          tInitiatorsSubspace = .false.
 
         end subroutine SetCalcDefaults
 
@@ -1241,6 +1292,13 @@ contains
             case("MAX-CORE-SIZE")
                 ss_space_in%tLimitSpace = .true.
                 call geti(ss_space_in%max_size)
+            case("DYNAMIC-CORE")
+                tDynamicCoreSpace = .true.
+                tIntervalSet = .true.
+                if( item < nitems) call geti(coreSpaceUpdateCycle)
+            case("STATIC-CORE")
+                tDynamicCoreSpace = .false.
+                tIntervalSet = .true.
             case("STOCHASTIC-HF-SPAWNING")
                 tDetermHFSpawning = .false.
 
@@ -1263,6 +1321,10 @@ contains
                 call geti(trial_space_in%mp1_ndets)
             case("DOUBLES-TRIAL")
                 trial_space_in%tDoubles = .true.
+             case("DYNAMIC-TRIAL")
+                ! Update the trial wavefunction periodically
+                tDynamicTrial = .true.
+                if(item < nitems) call geti(trialSpaceUpdateCycle)
             case("CAS-TRIAL")
                 trial_space_in%tCAS = .true.
                 tSpn = .true.
@@ -1714,6 +1776,13 @@ contains
                 tAddtoInitiator=.true.
                 call getf(InitiatorWalkNo)
 
+            case("SENIOR-INITIATORS")
+!This option means that if a determinant has lived  long enough (called a 'senior determinant'),
+!it is added to the initiaor space. A determinant is considered 'senior' if its life time (measured in its halftime) exceeds SeniortyAge.
+                tSeniorInitiators =.true.
+                if(item.lt.nitems) then
+                    call getf(SeniorityAge)
+                end if
             case("INITIATOR-ENERGY-CUTOFF")
                 !
                 ! Specify both a threshold an an addtoinitiator value for
@@ -2413,6 +2482,118 @@ contains
                 end if
 
 
+             case("ALL-DOUBS-INITIATORS")
+                ! Set all doubles to be treated as initiators
+                ! If truncinitiator is not set, this does nothing
+                tAllDoubsInitiators = .true.   
+                ! If given, take the number of references for doubles
+                if(item < nitems) call geti(nRefsDoubs)
+
+             case("ALL-DOUBS-INITIATORS-DELAY")
+                ! Only start after this number of steps in variable shift mode with 
+                ! the all-doubs-initiators
+                if(item < nitems) call geti(allDoubsInitsDelay)
+                tSetDelayAllDoubsInits = .true.
+                tSetDelayAllSingsInits = .true.
+
+             case("ALL-SINGS-INITIATORS")
+                ! Make the singles of given references initiators
+                tAllSingsInitiators = .true.
+                ! If given, take the number of references for singles
+                if(item < nitems) call geti(nRefsSings)
+                
+             case("READ-REFERENCES")
+                ! Instead of generating new references, read in existing ones
+                tReadRefs = .true.
+                
+             case("EXCITATION-PRODUCT-REFERENCES")
+                ! Also add all excitation products of references to the reference space
+                tProductReferences = .true.
+
+             case("INITIATORS-SUBSPACE")
+                ! Use Giovannis check to add initiators
+                tInitiatorsSubspace = .true.
+
+             case("COHERENT-REFERENCES")
+                ! Only make those doubles/singles initiators that are sign coherent
+                ! with their reference(s)
+                if(item < nitems) then
+                   call readu(w)
+                   select case(w)
+                   case("STRICT")
+                      tStrictCoherentDoubles = .true.
+                   case("WEAK")
+                      ! This is recommended, we first check if there is a sign 
+                      ! tendency and then if it agrees with the sign on the det
+                      tAvCoherentDoubles = .true.
+                      tWeakCoherentDoubles = .true.
+                   case("XI")
+                      ! This is a minimalistic version that should not
+                      ! be used unless you know what you're doing
+                      tWeakCoherentDoubles = .true.
+                   case("AV")
+                      ! only using av ignores sign tendency and can overestimate
+                      ! the correctness of a sign
+                      tAvCoherentDoubles = .true.
+		   case("OFF")
+		      ! do not perform a coherence check
+		      tAvCoherentDoubles = .false.
+		      tWeakCoherentDoubles = .false.
+                   case default
+                      ! default is WEAK
+                      tAvCoherentDoubles = .true.
+                      tWeakCoherentDoubles = .true.
+                   end select
+                else
+                   tWeakCoherentDoubles = .true.
+                   tAvCoherentDoubles = .true.
+                endif                   
+
+             case("SECONDARY-SUPERINITIATORS")
+                ! Enable superinitiators by coherence criteria
+                superInitiatorLevel = 1
+                ! As the secondary SIs are now self-consistently determined, it is
+                ! highly unlikely that a level above 1 will do anything more
+                if(item < nItems) call readi(superInitiatorLevel)
+                
+             case("DYNAMIC-SUPERINITIATORS")
+                ! Re-evaluate the superinitiators every SIUpdateInterval steps
+                ! Beware, this can be very expensive
+                ! By default, it is 100, to turn it off, use 0
+                call readi(SIUpdateInterval)
+		
+       	     case("STATIC-SUPERINITIATORS")
+                ! Do not re-evaluate the superinitiators
+                SIUpdateInterval = 0
+
+             case("INITIATOR-COHERENCE-THRESHOLD")
+                ! Set the minimal coherence parameter for superinitiator-related
+                ! initiators
+                call readf(coherenceThreshold)
+
+             case("SUPERINITIATOR-COHERENCE-THRESHOLD")
+                ! set the minimal coherence parameter for superinitiators
+                call readf(SIThreshold)
+
+             case("MIN-SI-CONNECTIONS")
+                ! set the minimal number of connections with superinititators for 
+                ! superinitiators-related initiators
+                call readi(minSIConnect)
+
+             case("SUPERINITIATOR-POPULATION-THRESHOLD")
+                ! set the minimum value for superinitiator population
+                call readf(NoTypeN)
+
+             case("SUPPRESS-SUPERINITIATOR-OUTPUT")	
+	         ! just for backwards-compatibility
+
+             case("WRITE-SUPERINITIATOR-OUTPUT")
+                ! Do not output the newly generated superinitiators upon generation
+                tSuppressSIOutput = .false.
+                
+             case("TARGET-REFERENCE-POP")
+                tVariableNRef = .true.
+                if(item < nItems) call readi(targetRefPop)
 
             case default
                 call report("Keyword "                                &
