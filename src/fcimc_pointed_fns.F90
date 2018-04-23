@@ -9,7 +9,7 @@ module fcimc_pointed_fns
                         RealCoeffExcitThresh, AVMcExcits, tau, DiagSft, &
                         tRealCoeffByExcitLevel, InitiatorWalkNo, &
                         t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, & 
-                        t_matele_cutoff, matele_cutoff 
+                        t_matele_cutoff, matele_cutoff,tSkipRef 
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement
     use fcimc_helper, only: CheckAllowedTruncSpawn
@@ -529,10 +529,14 @@ module fcimc_pointed_fns
 #endif        
 
         do i=1, inum_runs
-            fac(i)=tau*(Kii-DiagSft(i))
-
-            ! And for tau searching purposes
-            call log_death_magnitude (Kii - DiagSft(i))
+            !If we are fixing the population of reference det, skip death/birth
+            if(tSkipRef(i) .and. all(DetCurr==projEdet(:,i))) then
+                fac(i)=0.0
+            else
+                fac(i)=tau*(Kii-DiagSft(i))
+                ! And for tau searching purposes
+                call log_death_magnitude (Kii - DiagSft(i))
+            endif
         enddo
 
         if(any(fac > 1.0_dp)) then

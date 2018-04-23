@@ -1208,10 +1208,6 @@ module FciMCParMod
 
             enddo   ! Cycling over 'type' of particle on a given determinant.
 
-            !If we are fixing the population of reference det, skip death/birth
-            if(tSkipRef(run) .and. DetBitEQ(CurrentDets(:,j),iLutRef(:,run),nIfD)) then
-                cycle
-            endif
                 ! If we are performing a semi-stochastic simulation and this state
                 ! is in the deterministic space, then the death step is performed
                 ! deterministically later. Otherwise, perform the death step now.
