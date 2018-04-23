@@ -188,9 +188,9 @@ contains
                 else
                     write(6,"(A,I15,A)") "Reading in a total of ",EndPopsList, " configurations from POPSFILE."
                 ENDIF
-                if(abs(ScaleWalkers - 1) > 1.0e-12_dp) then
-                    call warning_neci(this_routine,"ScaleWalkers parameter found, but not implemented in POPSFILE v3 - ignoring.")
-                endif
+                !if(abs(ScaleWalkers - 1) > 1.0e-12_dp) then
+                    !call warning_neci(this_routine,"ScaleWalkers parameter found, but not implemented in POPSFILE v3 - ignoring.")
+                !endif
                 call neci_flush(6)
             ENDIF
 
@@ -909,6 +909,8 @@ r_loop: do while(.not.tStoreDet)
         integer :: run, ReadBatch
         logical :: apply_pert
         integer :: TotWalkersIn
+        integer :: l
+        real(dp) :: TempSign(lenof_sign)
 
         if (iReadWalkersRoot == 0) then
             ! ReadBatch is the number of walkers to read in from the 
@@ -944,6 +946,32 @@ r_loop: do while(.not.tStoreDet)
             call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, TotWalkers, TotParts, NoatHF, &
                                   CurrentDets, MaxWalkersPart, pops_nnodes, pops_walkers, PopNIfSgn, &
                                   PopNel, PopBalanceBlocks, tCalcExtraInfo=.false.)
+        end if
+
+        if(abs(ScaleWalkers - 1) > 1.0e-12_dp) then
+            WRITE(6,*) "Rescaling walkers by a factor of: ",ScaleWalkers
+            do l=1,TotWalkers
+                call extract_sign(CurrentDets(:,l),TempSign)
+                !do j = 1, lenof_sign
+                    !IntegerPart=int(ScaleWalkers*TempSign(j))
+                    !FracPart=TempSign(j)-real(IntegerPart,dp)
+                    !r = genrand_real2_dSFMT() 
+                    !if(r.lt.abs(FracPart)) then
+                        !if(FracPart.lt.0) then
+                            !TempSign(j)=TempSign(j)-1
+                        !else
+                            !TempSign(j)=TempSign(j)+1
+                        !endif
+                    !endif
+                !end do
+                call encode_sign(CurrentDets(:,l),TempSign*ScaleWalkers)
+            enddo
+
+            SumNoatHF =SumNoatHF * ScaleWalkers
+            AllSumNoatHF = AllSumNoatHF * ScaleWalkers
+            SumENum = SumENum * ScaleWalkers
+            AllSumENum = AllSumENum * ScaleWalkers
+            InstNoatHF = InstNoatHF * ScaleWalkers
         end if
 
         call fill_in_diag_helements()
