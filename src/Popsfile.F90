@@ -1466,12 +1466,13 @@ r_loop: do while(.not.tStoreDet)
                  PopDiagSft(inum_runs) = PopSft
                  ! I do not think this works, because PopSumNoatHF will not be of size lenof_sign
               endif
+              PopSumNoatHF_out = PopSumNoatHF(1)
            else
               PopDiagSft(1:inum_runs) = PopSft
+              ! Here, lenof_sign = lenof_sign/inum_runs
+              PopSumNoatHF_out = PopSumNoatHF(1:lenof_sign)
            endif
            PopAllSumENum(1:inum_runs) = PopSumENum
-           ! Here, lenof_sign = lenof_sign/inum_runs
-           PopSumNoatHF_out = PopSumNoatHF(1:lenof_sign)
         end if
         call MPIBCast(PopSumNoatHF_out)
 
