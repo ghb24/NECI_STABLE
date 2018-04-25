@@ -1572,15 +1572,18 @@ r_loop: do while(.not.tStoreDet)
         logical, intent(out) :: formpops,binpops
         character(255) :: popsfile
         character(*), intent(in), optional :: identifier
+        character(255) :: nameStem
+
+        if(present(identifier)) then
+           nameStem = trim(identifier)
+        else
+           nameStem = 'POPSFILE'
+        endif
 
         if(iProcIndex.eq.root) then
             iunithead=get_free_unit()
-            if(.not. present(identifier)) then
-               call get_unique_filename('POPSFILE',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
-            else
-               call get_unique_filename(trim(identifier),tIncrementPops,.false.,&
+               call get_unique_filename(trim(nameStem),tIncrementPops,.false.,&
                     iPopsFileNoRead,popsfile)
-            endif
             inquire(file=popsfile,exist=formpops)
             
             if(formpops) then
@@ -1595,13 +1598,13 @@ r_loop: do while(.not.tStoreDet)
                                               .false., iPopsFileNoRead, &
                                               popsfile)
                 else
-                    call get_unique_filename (trim(identifier)//'BIN', tIncrementPops, &
+                    call get_unique_filename (trim(nameStem)//'BIN', tIncrementPops, &
                                               .false., iPopsFileNoRead, &
                                               popsfile)
                 end if
                 inquire(file=popsfile,exist=binpops)
                 if(binpops) then
-                    call get_unique_filename(trim(identifier)//'HEAD',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
+                    call get_unique_filename(trim(nameStem)//'HEAD',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
                     open(iunithead,file=popsfile,status='old')
                 else 
                     call stop_all("open_pops_head","No POPSFILEs detected...")
@@ -2015,7 +2018,7 @@ r_loop: do while(.not.tStoreDet)
         if (.not. tMultiReplicas) then
             write(iunit, *) 'PopSft=', DiagSft(1)
             ! if tMultiReplicas is not set, inum_runs=1, so this will write AllSumNoatHF
-            write(iunit, *) 'PopSumNoatHF=', AllSumNoatHF(1:lenof_sign/inum_runs)
+            write(iunit, *) 'PopSumNoatHF=', AllSumNoatHF(1:lenof_sign)
             write(iunit, *) 'PopSumENum=', AllSumENum(1)
         else
             write(iunit, *) 'PopMultiSft=', DiagSft(1:inum_runs)
