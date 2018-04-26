@@ -2156,7 +2156,7 @@ r_loop: do while(.not.tStoreDet)
                enddo
                if(is_init) then
                   call decode_bit_det(nI, det)
-                  ex_level = FindBitExcitLevel(ilutRef(:,1), det, nel)
+                  ex_level = FindBitExcitLevel(ilutRef(:,1), det, nel, .true.)
                   nopen = count_open_orbs(det)
                   hf_helemt = 0.0_dp
                   hf_helemt_trans = 0.0_dp
