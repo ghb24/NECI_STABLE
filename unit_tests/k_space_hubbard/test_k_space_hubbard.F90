@@ -26,7 +26,7 @@ program test_k_space_hubbard
     use bit_rep_data, only: niftot, nifd
 
     use lattice_mod, only: lat, lattice, get_helement_lattice_general, & 
-                           get_helement_lattice_ex_mat
+                           get_helement_lattice_ex_mat, get_helement_lattice
 
     use dsfmt_interface, only: dsfmt_init
 
@@ -53,7 +53,8 @@ program test_k_space_hubbard
     use unit_test_helpers
 
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard, &
-                                    gen_all_triples_k_space, create_hilbert_space_kspace
+                                    gen_all_triples_k_space, create_hilbert_space_kspace, &
+                                    gen_all_doubles_k_space
 
     implicit none 
 
@@ -78,13 +79,16 @@ contains
     subroutine exact_study
 
         use DetCalcData, only: nkry, nblk, b2l, ncycle
-        integer, allocatable :: hilbert_space(:,:), nI(:)
+        integer, allocatable :: hilbert_space(:,:), nI(:), nJ(:)
         real(dp) :: J, U
         real(dp), allocatable :: J_vec(:) 
         integer :: i, n_eig
         real(dp), allocatable :: e_values(:), e_vecs(:,:)
         real(dp) :: x(24), k1(2),k2(2), k_vec(3)
-        integer :: ind(24)
+        integer :: ind(24), n_excits, k, iunit
+        integer(n_int), allocatable :: excits(:,:)
+        real(dp) :: sum_doubles, sum_doubles_trans
+        character(30) :: filename, U_str, nel_str, lattice_name
 
         call init_k_space_unit_tests()
 
@@ -106,14 +110,22 @@ contains
 
         J = -1.0
 
-        U = 8.0
+        print *, "input U: "
+        read(*,*) U
+!         U = 1.0
 
-        J_vec = linspace(-5.0,5.0, 100)
+        J_vec = linspace(-2.5,2.5, 100)
         
         nel = 18
         allocate(nI(nel))
-!         nI = [(i, i = 1,nel)]
+        allocate(nJ(nel))
+        nj = 0
+
         nI = [3,4,5,6,7,8,11,12,13,14,15,16,21,22,23,24,25,26]
+!         nI = [(i, i = 1,nel)]
+!         nI = [9,10,11,12,13,14,15,16,17,18,21,22,23,24,25,26,27,28,&
+!             29,30,37,38,39,40,41,42,43,44,45,46,55,56,57,58,59,60,61,62,63,64,&
+!             71,72,73,74,75,76,77,78,79,80]
 !         ni = [7,8,15,16,17,18]
 !         nI = [21,23,24,26]
 !         nI = [15,16]
@@ -125,17 +137,48 @@ contains
 !         t_twisted_bc = .true. 
 !         twisted_bc = 0.5
 
-        call setup_system(lat, nI, J, U)
-        print *, "H diag:"
         t_trans_corr_2body = .true.
+        trans_corr_param_2body = J_vec((1))
+        three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+        call setup_system(lat, nI, J, U)
+
+!         call gen_all_doubles_k_space(nI, n_excits, excits)
+        call gen_all_excits_k_space_hubbard(nI, n_excits, excits)
+
+        write(U_str, *) int(U)
+        write(nel_str, *) nel 
+        lattice_name = "18_"
+
+        filename = 'H_elements_' // trim(adjustl(nel_str)) // 'in' // &
+            trim(adjustl(lattice_name)) // 'U_' // trim(adjustl(U_str))
+
+        iunit = get_free_unit()
+
+        open(iunit, file = filename)
+
+        print *, "writing to file..."
+        write(iunit, *) "# J, H diag, <I|H|K>, <K|H|I>:"
         do i = 1, size(J_vec)
             trans_corr_param_2body = J_vec((i))
             three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+ 
+            sum_doubles = 0.0_dp
+            sum_doubles_trans = 0.0_dp
 
-            print *, J_vec(i), get_diag_helement_k_sp_hub(nI)
+            do k = 1, n_excits
+                call decode_bit_det(nJ, excits(:,k))
+
+                sum_doubles = sum_doubles + get_helement_lattice(nI, nJ)
+                sum_doubles_trans = sum_doubles_trans + get_helement_lattice(nJ,nI)
+
+            end do
+
+            write(iunit, *)  J_vec(i), get_diag_helement_k_sp_hub(nI), sum_doubles, sum_doubles_trans
         end do
 
+        close(iunit)
         t_trans_corr_2body = .false.
+
         call stop_all("here", "now")
 
         call setup_system(lat, nI, J, U, hilbert_space)

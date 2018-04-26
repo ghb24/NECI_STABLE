@@ -33,7 +33,8 @@ program test_real_space_hubbard
     use fcimcdata, only: pSingles, pDoubles
 
     use lattice_models_utils, only: gen_all_excits_r_space_hubbard, &
-                                    create_hilbert_space_realspace
+                                    create_hilbert_space_realspace, &
+                                    gen_all_doubles_k_space
 
     use HPHFRandexcitmod, only: gen_hphf_excit
 
@@ -97,7 +98,7 @@ contains
 
 
         lat => lattice('tilted', 3, 3, 1,.true.,.true.,.true.)
-        uhub = 8
+        uhub = 16
         bhub = -1
 
         n_orbs = lat%get_nsites()
@@ -125,7 +126,7 @@ contains
 !         call init_dispersion_rel_cache()
 !         call init_umat_rs_hub_transcorr()
 
-        j_vec = linspace(-0.5,0.5,100)
+        j_vec = linspace(-0.1,0.1,100)
 !         j_vec = [0.0, 0.05, 0.1,0.12]
         print *, "H diag: "
         t_trans_corr_hop = .true.
