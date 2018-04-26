@@ -14,6 +14,8 @@ module cc_amplitudes
     use hash, only: hash_table_lookup, FindWalkerHash
     use util_mod, only: swap
     use bit_rep_data, only: nifd
+    use ParallelHelper, only: iProcIndex, root
+    use Parallel_neci, only: MPISumAll
 
     implicit none 
 
@@ -31,6 +33,10 @@ module cc_amplitudes
     ! also store the L0, L1 and L2 norm of the cc-amps up to quadrupels
     ! so i dont need the est_ quantities from above
     real(dp) :: cc_amp_norm(0:2,4) = 0.0_dp
+
+    ! and also create it for the mpi sum..
+    integer :: all_est_triples = 0, all_n_singles = 0, all_n_doubles = 0
+    real(dp) :: all_cc_amp_norm(0:2,4) = 0.0_dp
 
     logical :: t_store_hash_quadrupels = .true. 
     integer :: quad_hash_size
@@ -101,49 +107,51 @@ contains
             return
         end if
 
-        do i = 1, 3
-            ! open 4 files to print the cc-amps
+        if (iProcIndex == root) then
+            do i = 1, 3
+                ! open 4 files to print the cc-amps
+                iunit = get_free_unit() 
+                write(x1,'(I1)') i 
+                call get_unique_filename('cc_amps_'//trim(x1), .true., .true., 1, &
+                    filename)
+                open(iunit, file = filename, status = 'unknown')
+
+                do j = 1, cc_ops(i)%n_ops
+                    if (abs(cc_ops(i)%get_amp(j)) < EPS) cycle
+                    write(iunit, '(f15.7)') abs(cc_ops(i)%get_amp(j))
+                end do
+
+                close(iunit)
+
+            end do
+
             iunit = get_free_unit() 
-            write(x1,'(I1)') i 
-            call get_unique_filename('cc_amps_'//trim(x1), .true., .true., 1, &
+            call get_unique_filename('cc_amps_4', .true., .true., 1, &
                 filename)
+
             open(iunit, file = filename, status = 'unknown')
 
-            do j = 1, cc_ops(i)%n_ops
-                if (abs(cc_ops(i)%get_amp(j)) < EPS) cycle
-                write(iunit, '(f15.7)') abs(cc_ops(i)%get_amp(j))
-            end do
+            ! i have to do the quads special since it is stored in a hash.. 
+            print *, "hash size: ", quad_hash_size
+            do i = 1, quad_hash_size
+                temp_node => quad_hash(i) 
+                
+                if (temp_node%found) then 
+                    write(iunit, '(f15.7)') abs(temp_node%amp)
+                
+                end if 
 
+                do while(associated(temp_node%next)) 
+                    if (temp_node%next%found) then 
+                        write(iunit, '(f15.7)') abs(temp_node%next%amp)
+                    end if
+
+                    temp_node => temp_node%next
+
+                end do
+            end do
             close(iunit)
-
-        end do
-
-        iunit = get_free_unit() 
-        call get_unique_filename('cc_amps_4', .true., .true., 1, &
-            filename)
-
-        open(iunit, file = filename, status = 'unknown')
-
-        ! i have to do the quads special since it is stored in a hash.. 
-        print *, "hash size: ", quad_hash_size
-        do i = 1, quad_hash_size
-            temp_node => quad_hash(i) 
-            
-            if (temp_node%found) then 
-                write(iunit, '(f15.7)') abs(temp_node%amp)
-            
-            end if 
-
-            do while(associated(temp_node%next)) 
-                if (temp_node%next%found) then 
-                    write(iunit, '(f15.7)') abs(temp_node%next%amp)
-                end if
-
-                temp_node => temp_node%next
-
-            end do
-        end do
-        close(iunit)
+        end if
         
     end subroutine print_cc_amplitudes
 
@@ -178,9 +186,9 @@ contains
             end do
         end do
 
-        print *, "checking if loop over hash table works as intented: " 
-        print *, "counted quads: ", n_test
-        print *, "L0 norm quads: ", cc_amp_norm(0,4)
+        root_print "checking if loop over hash table works as intented: " 
+        print *, "counted quads: ", n_test, "on Proc: ", iProcIndex
+        print *, "L0 norm quads: ", cc_amp_norm(0,4), "on proc: ", iProcIndex
 
         ! and apply square root to L2 Norm 
         cc_amp_norm(2,4) = sqrt(cc_amp_norm(2,4))
@@ -380,8 +388,6 @@ contains
             end do
         end do
 
-        print *, "max double index: ", k - 1
-
     end subroutine setup_ind_matrix_doubles
 
     function linear_elec_ind(i,j) result(ind)
@@ -523,8 +529,6 @@ contains
             end if
         end do
 
-        print *, "max single index: ", k - 1
-
     end subroutine setup_ind_matrix_singles
 
     ! and now go to the routines to calculate the number of triples and 
@@ -533,19 +537,20 @@ contains
 
         integer :: n_excits(4)
 
-        print *, "testing the cc-amplitudes: "
-        print *, "------ test on the cc ------- "
+        root_print "------ test on the cc ------- "
 
         n_excits = calc_number_of_excitations(nOccAlpha, nOccBeta, 4, & 
             nbasis/2)
 
-        print *, "total number of possible excitations: " 
-        print *, n_excits
+        root_print "total number of possible excitations: " 
+        root_print n_excits
 
         call setup_ind_matrix_singles()
         call setup_ind_matrix_doubles()
 
 
+        ! should i do this on each processors independently and then gather
+        ! or should i gather first?
         call fill_cc_amplitudes()
         call calc_n_triples()
         if (t_store_hash_quadrupels) then 
@@ -555,52 +560,64 @@ contains
         call calc_n_quads()
         call calc_cc_quad_norm()
 
-        print *, "number of hash clashes: ", n_clashes
+        print *, "number of hash clashes: ", n_clashes, "on proc: ", iProcIndex
 
-        print *, " ---------- Singles -----------------" 
-        print *, "sampled singles in FCIQMC wavefunction: ", n_singles
-        print *, "L0 Norm of singles in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(0,1,1)
-        print *, "L1 Norm of singles in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(1,1,1)
-        print *, "L2 Norm of singles in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(2,1,1)
+        ! now i have to gather the information.. 
+        call MPISumAll(n_singles, all_n_singles)
+        call MPISumAll(n_doubles, all_n_doubles)
+        call MPISumAll(est_triples, all_est_triples)
+        ! can it do matrices:
+        call MPISumAll(cc_amp_norm, all_cc_amp_norm)
 
-        print *, "L0 Norm of singles in CC-wavefunction: ", cc_amp_norm(0,1)
-        print *, "L1 Norm of singles in CC-wavefunction: ", cc_amp_norm(1,1)
-        print *, "L2 Norm of singles in CC-wavefunction: ", cc_amp_norm(2,1)
+        if (iProcIndex == root) then
+            print *, " ---------- Singles -----------------" 
+            print *, "sampled singles in FCIQMC wavefunction: ", all_n_singles
+            print *, "L0 Norm of singles in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(0,1,1)
+            print *, "L1 Norm of singles in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(1,1,1)
+            print *, "L2 Norm of singles in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(2,1,1)
 
-        print *, "" 
-        print *, " ------------ Doubles -----------------" 
-        print *, "sampled doubles in FCIQMC wavefunction: ", n_doubles
-        print *, "L0 Norm of doubles in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(0,2,1)
-        print *, "L1 Norm of doubles in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(1,2,1)
-        print *, "L2 Norm of doubles in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(2,2,1)
+            print *, "L0 Norm of singles in CC-wavefunction: ", all_cc_amp_norm(0,1)
+            print *, "L1 Norm of singles in CC-wavefunction: ", all_cc_amp_norm(1,1)
+            print *, "L2 Norm of singles in CC-wavefunction: ", all_cc_amp_norm(2,1)
 
-        print *, "L0 Norm of doubles in CC-wavefunction: ", cc_amp_norm(0,2)
-        print *, "L1 Norm of doubles in CC-wavefunction: ", cc_amp_norm(1,2)
-        print *, "L2 Norm of doubles in CC-wavefunction: ", cc_amp_norm(2,2)
-        
-        print *, "" 
-        print *, " ------------ Triples ------------------ " 
-        print *, "est. triples from T1^2 and T1*T2 ", est_triples
-        print *, "L0 Norm of triples in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(0,3,1)
-        print *, "L1 Norm of triples in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(1,3,1)
-        print *, "L2 Norm of triples in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(2,3,1)
+            print *, "" 
+            print *, " ------------ Doubles -----------------" 
+            print *, "sampled doubles in FCIQMC wavefunction: ", all_n_doubles
+            print *, "L0 Norm of doubles in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(0,2,1)
+            print *, "L1 Norm of doubles in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(1,2,1)
+            print *, "L2 Norm of doubles in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(2,2,1)
 
-        print *, "L0 Norm of triples in CC-wavefunction: ", cc_amp_norm(0,3)
-        print *, "L1 Norm of triples in CC-wavefunction: ", cc_amp_norm(1,3)
-        print *, "L2 Norm of triples in CC-wavefunction: ", cc_amp_norm(2,3)
+            print *, "L0 Norm of doubles in CC-wavefunction: ", all_cc_amp_norm(0,2)
+            print *, "L1 Norm of doubles in CC-wavefunction: ", all_cc_amp_norm(1,2)
+            print *, "L2 Norm of doubles in CC-wavefunction: ", all_cc_amp_norm(2,2)
+            
+            print *, "" 
+            print *, " ------------ Triples ------------------ " 
+            print *, "est. triples from T1^2 and T1*T2 ", all_est_triples
+            print *, "L0 Norm of triples in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(0,3,1)
+            print *, "L1 Norm of triples in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(1,3,1)
+            print *, "L2 Norm of triples in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(2,3,1)
 
-        print *, "" 
-        print *, " ----------- Quadruples ----------------- " 
-        print *, "L0 Norm of quadrupels in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(0,4,1)
-        print *, "L1 Norm of quadrupels in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(1,4,1)
-        print *, "L2 Norm of quadrupels in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(2,4,1)
+            print *, "L0 Norm of triples in CC-wavefunction: ", all_cc_amp_norm(0,3)
+            print *, "L1 Norm of triples in CC-wavefunction: ", all_cc_amp_norm(1,3)
+            print *, "L2 Norm of triples in CC-wavefunction: ", all_cc_amp_norm(2,3)
 
-        print *, "estimated quadrupels from T2^2: " 
-        print *, "L0 Norm of quadrupels in CC-wavefunction: ", cc_amp_norm(0,4)
-        print *, "L1 Norm of quadrupels in CC-wavefunction: ", cc_amp_norm(1,4)
-        print *, "L2 Norm of quadrupels in CC-wavefunction: ", cc_amp_norm(2,4)
+            print *, "" 
+            print *, " ----------- Quadruples ----------------- " 
+            print *, "L0 Norm of quadrupels in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(0,4,1)
+            print *, "L1 Norm of quadrupels in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(1,4,1)
+            print *, "L2 Norm of quadrupels in FCIQMC wavefunction: ", AllEXLEVEL_WNorm(2,4,1)
 
-        print *, "" 
+            print *, "estimated quadrupels from T2^2: " 
+            print *, "L0 Norm of quadrupels in CC-wavefunction: ", &
+                all_cc_amp_norm(0,4)
+            print *, "L1 Norm of quadrupels in CC-wavefunction: ", &
+                all_cc_amp_norm(1,4)
+            print *, "L2 Norm of quadrupels in CC-wavefunction: ", &
+                all_cc_amp_norm(2,4)
+
+            print *, "" 
+        end if
 
     end subroutine init_cc_amplitudes
 
@@ -750,7 +767,8 @@ contains
                 end if
             end do
 
-            print *, "cc-4 L0 norm after T2^2", cc_amp_norm(0,4)
+            print *, "cc-4 L0 norm after T2^2", cc_amp_norm(0,4), "on proc: ", &
+                iProcIndex
 
             ! do i also want to do the T1*T3, T1^2*T2 T1^4
             do i = 1, cc_ops(3)%n_ops 
@@ -791,7 +809,8 @@ contains
                     end if
                 end do
             end do
-            print *, "cc-4 L0 norm after T3*T1", cc_amp_norm(0,4)
+            print *, "cc-4 L0 norm after T3*T1", cc_amp_norm(0,4), "on proc: ",&
+                iProcIndex
 
 
         else 
@@ -1190,7 +1209,7 @@ contains
 
         cc_amp_norm(2,1) = sqrt(cc_amp_norm(2,1))
 
-        print *, "direct sampled doubles: ", n_doubles
+        print *, "direct sampled doubles: ", n_doubles, "on proc: ", iProcIndex
 
         if (allocated(cc_ops(2)%operators))     deallocate(cc_ops(2)%operators)
         if (allocated(cc_ops(2)%amplitudes))    deallocate(cc_ops(2)%amplitudes)
@@ -1286,7 +1305,7 @@ contains
             end do
         end if
 
-        print *, "number of disconnected T1^2: ", n_disc_1
+        print *, "number of disconnected T1^2: ", n_disc_1, "on proc: ", iProcIndex
         cc_ops(2)%operators = 0
         cc_ops(2)%amplitudes = 0.0_dp
         cc_ops(2)%set_flag = .false.
@@ -1477,10 +1496,13 @@ contains
 !             end if
         end if
 
-        print *, "disconnecte T1^2 calc. differently: ", n_disc_2
+        print *, "disconnecte T1^2 calc. differently: ", n_disc_2, "on proc: ",&
+            iProcIndex
+
         cc_amp_norm(2,2) = sqrt(cc_amp_norm(2,2))
         
-        print *, "doubles after singles contribution: ", n_doubles
+        print *, "doubles after singles contribution: ", n_doubles, "on proc:",&
+            iProcIndex
 
         ! and should i also do the triples.. just to check maybe? 
         ! but here i definetly only want to store the non-zero 
@@ -1570,7 +1592,7 @@ contains
                    end if
                end if
             end do
-            print *, "direct sampled triples: ", n - 1
+            print *, "direct sampled triples: ", n - 1, "on Proc: ", iProcIndex
 
 !             if (t_store_disc_ops) then 
 ! 
@@ -1691,7 +1713,8 @@ contains
 
             cc_amp_norm(2,3) = sqrt(cc_amp_norm(2,3))
 
-            print *, "triples after T1*T2 and T1^3: ", n - 1
+            print *, "triples after T1*T2 and T1^3: ", n - 1, "on proc: ", &
+                iProcIndex
             ! and then allocate the actual array: 
             allocate(cc_ops(3)%amplitudes(n-1))
             allocate(cc_ops(3)%operators(n-1,2,3))
