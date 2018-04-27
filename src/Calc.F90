@@ -1215,16 +1215,11 @@ contains
                 tSemiStochastic = .true.
                 ! If there is ane extra item, it should specify that we turn
                 ! semi-stochastic on later.
-                if (item < nitems .or. tWalkContgrow) then
-                   ! if we set walkcontgrow, we do not want to initialize 
-                   ! the corespace immediately
-                   semistoch_shift_iter = 1
+                if (item < nitems) then
                    if(item < nitems) &
                       call geti(semistoch_shift_iter)
                     tSemiStochastic = .false.
                     tStartCoreGroundState = .false.
-                    if(tWalkContgrow) write(iout,*) "WARNING: Immediate corespace" &
-                         //" setup disabled, initializing the corespace in variable shift mode"
                 end if
             case("CSF-CORE")
                 if(item.lt.nitems) then
@@ -1309,16 +1304,12 @@ contains
                 tDetermHFSpawning = .false.
 
             case("TRIAL-WAVEFUNCTION")
-                if (item == nitems .and. .not. tWalkContgrow) then
+                if (item == nitems) then
                     tTrialWavefunction = .true.
                 else if (item < nitems) then
                     tStartTrialLater = .true.
                     call geti(trial_shift_iter)
-                 else if(tWalkContgrow) then
-                    tStartTrialLater = .true.
-                    trial_shift_iter = 1
                 end if
-                if(tWalkContgrow) write(iout,*) "WARNING: Immediate trial wavefunction" &                         //" setup disabled, initializing the trial wavefunction in variable shift mode"
 
             case("NUM-TRIAL-STATES-CALC")
                 call geti(ntrial_ex_calc)
@@ -1528,22 +1519,6 @@ contains
 !this value.  Without this keyword, when a popsfile is read in, the number of walkers is kept at the number 
 !in the POPSFILE regardless of whether the shift had been allowed to change in the previous calc.
                 tWalkContGrow=.true.
-! if we grow more walkers, we only want the corespace to be set up once we reached the
-! new walker number
-                if(tSemiStochastic) then
-                   tSemiStochastic = .false.
-                   semistoch_shift_iter = 1
-                   write(iout,*) "WARNING: Immediate corespace" &
-                        //" setup disabled, initializing the corespace in variable shift mode"
-                endif
-! same goes for the trial wavefunction
-                if(tTrialWavefunction) then
-                   tTrialWavefunction = .false.
-                   tStartTrialLater = .true.
-                   trial_shift_iter = 1
-                   write(iout,*) "WARNING: Immediate trial wavefunction" &
-                      //" setup disabled, initializing the trial wavefunction in variable shift mode"
-                endif
             case("SCALEWALKERS")
 !For FCIMC, if this is a way to scale up the number of walkers, after having read in a POPSFILE
                 call getf(ScaleWalkers)
