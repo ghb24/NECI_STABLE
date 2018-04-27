@@ -45,8 +45,7 @@ module fcimc_initialisation
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, &
                         t_back_spawn_flex, back_spawn_delay, corespaceWalkers, &
-                        tSpinProject
-
+                        ScaleWalkers, tSpinProject
     use adi_data, only: g_markers, tReferenceChanged, tInitiatorsSubspace, tAdiActive, &
                         nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
 
@@ -1348,6 +1347,13 @@ contains
             WRITE(iout,*) "Reading in initial particle configuration from *OLD* POPSFILES..."
             CALL ReadFromPopsFilePar()
         ELSE
+            !Scale walker number
+            !This is needed to be done here rather than later,
+            !because the arrays should be allocated with appropariate sizes
+            if(tReadPops .and. .not. tPopsAlreadyRead)then
+                InitWalkers = InitWalkers * ScaleWalkers
+            end if
+
 !initialise the particle positions - start at HF with positive sign
 !Set the maximum number of walkers allowed
             if(tReadPops .and. .not. (tPopsAlreadyRead .or. tHDF5PopsRead)) then

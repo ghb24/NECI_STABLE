@@ -13,7 +13,8 @@ module fcimc_pointed_fns
                         RealCoeffExcitThresh, AVMcExcits, tau, DiagSft, &
                         tRealCoeffByExcitLevel, InitiatorWalkNo, &
                         t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, & 
-                        t_matele_cutoff, matele_cutoff, t_consider_par_bias
+                        t_matele_cutoff, matele_cutoff, t_consider_par_bias, &
+                        tSkipRef
 
     use DetCalcData, only: FciDetIndex, det
 
@@ -589,8 +590,13 @@ module fcimc_pointed_fns
 
         do i=1, inum_runs
             if (t_cepa_shift) then 
+
                 fac(i) = tau * (Kii -  (DiagSft(i) - cepa_shift(i, WalkExcitLevel)))
                 call log_death_magnitude(Kii - (DiagSft(i) - cepa_shift(i, WalkExcitLevel)))
+
+            else if (tSkipRef(i) .and. all(DetCurr==projEdet(:,i))) then
+                !If we are fixing the population of reference det, skip death/birth
+                fac(i)=0.0
             else
                 fac(i)=tau*(Kii-DiagSft(i))
                 ! And for tau searching purposes

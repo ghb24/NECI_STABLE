@@ -205,6 +205,7 @@ module FciMCParMod
             call init_k_space_hubbard()
         end if
 
+#ifdef __DEBUG
         call decode_bit_det(tmp_det, ilutHF)
         write(iout, *) "HF: ", tmp_det
         call decode_bit_det(tmp_det, ilutHF_true)
@@ -212,6 +213,7 @@ module FciMCParMod
         call decode_bit_det(tmp_det, ilutRef(:,1))
         write(iout, *) "Ref: ", tmp_det 
         write(iout, *) "ProjEDet: ", ProjEDet
+#endif
 
         ! Attach signal handlers to give a more graceful death-mannerism
         call init_signals()
@@ -343,7 +345,7 @@ module FciMCParMod
             end if
            
             if(((Iter - maxval(VaryShiftIter)) == allDoubsInitsDelay + 1 &
-                 .and. all(.not. tSinglePartPhase)).or.all(tSkipRef)) then
+                 .and. all(.not. tSinglePartPhase))) then
                ! Start the all-doubs-initiator procedure
                if(tDelayAllDoubsInits) call enable_adi()
                ! And/or the all-sings-initiator procedure
@@ -1321,10 +1323,6 @@ module FciMCParMod
 
             enddo   ! Cycling over 'type' of particle on a given determinant.
 
-            !If we are fixing the population of reference det, skip death/birth
-            if(tSkipRef(run) .and. DetBitEQ(CurrentDets(:,j),iLutRef(:,run),nIfD)) then
-                cycle
-            endif
                 ! If we are performing a semi-stochastic simulation and this state
                 ! is in the deterministic space, then the death step is performed
                 ! deterministically later. Otherwise, perform the death step now.
