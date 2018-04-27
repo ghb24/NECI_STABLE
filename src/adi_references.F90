@@ -6,11 +6,12 @@ use adi_data, only: ilutRefAdi, nRefs, nIRef, signsRef, &
      nTZero, SIHash, tAdiActive, tSetupSIs, NoTypeN, superInitiatorLevel, tSetupSIs, &
      tReferenceChanged, SIThreshold, tUseCaches, nIRef, signsRef, exLvlRef, tSuppressSIOutput, &
      targetRefPop, lastAllNoatHF, lastNRefs, tVariableNRef, maxNRefs, minSIConnect, &
-     nIncoherentDets, nConnection
+     nIncoherentDets, nConnection, tWeightedConnections
 use CalcData, only: InitiatorWalkNo
 use bit_rep_data, only: niftot, nifdbo, extract_sign
 use bit_reps, only: decode_bit_det
-use DetBitOps, only: FindBitExcitLevel
+use DetBitOps, only: FindBitExcitLevel, sign_gt, sign_lt
+use sort_mod, only: sort
 use constants
 use SystemData, only: nel
 
@@ -172,7 +173,8 @@ contains
       call reallocate_ilutRefAdi(nRefs)
       ilutRefAdi(0:NIfTot,1:nRefs) = si_buf(0:NIfTot,1:nRefs)
 
-      write(6,*) "Getting superinitiators for all-doubs-initiators: ", nRefs, " SIs found"
+      if(iProcIndex == root) &
+           write(6,*) "Getting superinitiators for all-doubs-initiators: ", nRefs, " SIs found"
 
       if(tWriteRefs) call output_reference_space(ref_filename)
     end subroutine generate_ref_space
@@ -180,8 +182,6 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine get_threshold_based_SIs(ref_buf,refs_found)
-      use DetBitOps, only: sign_lt, sign_gt
-      use sort_mod, only: sort
       implicit none
       integer(n_int), intent(out) :: ref_buf(0:NIfTot,maxNRefs)
       integer, intent(out) :: refs_found
@@ -215,6 +215,8 @@ contains
 
       ! we only keep at most maxNRefs determinants
       if(refs_found > maxNRefs) then
+         write(*,'(A,I5,A,I5,A,I5,A)') "On proc ", iProcIndex, " found ", refs_found, &
+              " SIs, which is more than the maximum of ", maxNRefs, " - truncating"
          ! in case we found more, take the maxNRefs with the highest population
          call sort(tmp(0:NIfTot,1:refs_found),sign_gt,sign_lt)
          ref_buf(:,1:maxNRefs) = tmp(:,1:maxNRefs)
@@ -275,6 +277,9 @@ contains
          do i = 1, maxNRefs
             si_buf(0:NIfTot,i) = mpi_buf(0:NIfTot,largest_inds(i))
          enddo
+         if(iProcIndex == root) write(6,'(A,I5,A,I5,A)') "In total ", all_refs_found, &
+              " SIs were found, which is more than the maximum number of ",& 
+              maxNRefs,  " - truncating"              
          ! make it look to the outside as though maxNRefs were found
          all_refs_found = maxNRefs
       else
@@ -348,6 +353,8 @@ contains
       integer :: i
       
       if(iProcIndex==root .and. .not. tSuppressSIOutput) then
+         ! print out the given SIs sorted according to population
+         call sort(ilutRefAdi(0:NIfTot,iStart:iEnd),sign_gt,sign_lt)
          write(iout,*) title
          if(present(legend)) write(iout,"(4A25)") &
               ! TODO: Adapt legend for multiple runs
@@ -839,6 +846,7 @@ contains
     HElement_t(dp), intent(inout) :: signedCache
     real(dp), intent(inout) :: unsignedCache
     integer, intent(out) :: connections
+    real(dp) :: i_sgn(lenof_sign)
     HElement_t(dp) :: h_el, tmp
     character(*), parameter :: this_routine = "upadte_coherence_check"
 
@@ -864,7 +872,15 @@ contains
 #endif
     signedCache = signedCache + tmp
     unsignedCache = unsignedCache + abs(tmp)
-    connections = connections + 1
+    if(tWeightedConnections) then
+       ! there is the option to have the connections weighted with
+       ! the population
+       i_sgn = signsRef(:,i)
+       connections = connections + mag_of_run(i_sgn,run)
+    else
+       connections = connections + 1
+    endif
+       
   end subroutine update_coherence_check
 
 !------------------------------------------------------------------------------------------!
@@ -882,22 +898,29 @@ contains
 
     ! Only need to check if we are looking at a double
     !if(unsignedCache > eps .and. connections>=minSIConnect) then
-       if(connections<minSIConnect) then 
+       if(connections<minSIConnect .or. &
+            ! if the connections are weighted, we want to have at least 
+            ! minimum-number-of-connections*SI-threshold
+            (tWeightedConnections .and. connections < minSIConnect * NoTypeN)) then 
           staticInit = .false.
           if(unsignedCache > EPS) nConnection = nConnection + 1
        endif
        ! We disable superinitiator-related initiators if they fail the coherence check
        ! else, we leave it as it is
        if(tWeakCoherentDoubles) then
-          if(abs(signedCache) < coherenceThreshold*unsignedCache) staticInit = .false.
-          nIncoherentDets = nIncoherentDets + 1
+          if(abs(signedCache) < coherenceThreshold*unsignedCache) then
+             staticInit = .false.
+             nIncoherentDets = nIncoherentDets + 1
+          endif
        endif
 
        ! If we do averaged coherence check, we check versus the sign of the ilut
        ! We recommend using both, av and weak
        if(tAvCoherentDoubles) then
-          if(real(signedCache * sgn,dp) > 0.0_dp) staticInit = .false.
-          nIncoherentDets = nIncoherentDets + 1
+          if(real(signedCache * sgn,dp) > 0.0_dp) then
+             staticInit = .false.
+             nIncoherentDets = nIncoherentDets + 1
+          endif
        endif
     !endif
 

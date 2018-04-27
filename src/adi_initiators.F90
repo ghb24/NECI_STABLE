@@ -156,7 +156,7 @@ contains
        endif
     enddo
 
-    if(tCCache) &
+    if(tCCache .and. staticInit) &
     call eval_coherence(signedCache, unsignedCache, sgn(run), connections, staticInit)
 
   end function adi_criterium

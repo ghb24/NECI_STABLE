@@ -37,7 +37,7 @@ MODULE Calc
          tReferenceChanged, superInitiatorLevel, allDoubsInitsDelay, tStrictCoherentDoubles, &
          tWeakCoherentDoubles, tAvCoherentDoubles, coherenceThreshold, SIThreshold, &
          tSuppressSIOutput, targetRefPop, targetRefPopTol, tSingleSteps, tVariableNRef, &
-         nRefsSings, nRefsDoubs, minSIConnect
+         nRefsSings, nRefsDoubs, minSIConnect, tWeightedConnections
     use ras_data, only: core_ras, trial_ras
     use load_balance, only: tLoadBalanceBlocks
     use ftlm_neci
@@ -139,6 +139,8 @@ contains
           TProjEMP2=.false.
           THFRetBias=.false.
           TSignShift=.false.
+          tFixedN0 = .false.
+          tSkipRef(:) = .false.
           NEquilSteps=0
           NShiftEquilSteps=1000
           TRhoElems=.false.
@@ -1253,10 +1255,16 @@ contains
                 tSemiStochastic = .true.
                 ! If there is ane extra item, it should specify that we turn
                 ! semi-stochastic on later.
-                if (item < nitems) then
-                    call geti(semistoch_shift_iter)
+                if (item < nitems .or. tWalkContgrow) then
+                   ! if we set walkcontgrow, we do not want to initialize 
+                   ! the corespace immediately
+                   semistoch_shift_iter = 1
+                   if(item < nitems) &
+                      call geti(semistoch_shift_iter)
                     tSemiStochastic = .false.
                     tStartCoreGroundState = .false.
+                    if(tWalkContgrow) write(iout,*) "WARNING: Immediate corespace" &
+                         //" setup disabled, initializing the corespace in variable shift mode"
                 end if
             case("CSF-CORE")
                 if(item.lt.nitems) then
@@ -1495,7 +1503,21 @@ contains
                 call getf(StepsSftImag)
             case("STEPSSHIFT")
 !For FCIMC, this is the number of steps taken before the Diag shift is updated
-                call geti(StepsSft)
+                if(tFixedN0)then
+                    write(6,*) "WARNING: 'STEPSSHIFT' cannot be changed. &
+                    & 'FIXED-N0' is already specified and sets this parameter to 1."
+                else
+                    call geti(StepsSft)
+                end if
+            case("FIXED-N0")
+                tFixedN0 = .true.
+                call geti(N0_Target)
+                !In this mode, the shift should be updated every iteration.
+                !Otherwise, the dynamics is biased.
+                StepsSft = 1
+                !Also avoid changing the reference determinant.
+                tReadPopsChangeRef = .false.
+                tChangeProjEDet = .false.
             case("EXITWALKERS")
 !For FCIMC, this is an exit criterion based on the total number of walkers in the system.
                 call getiLong(iExitWalkers)
@@ -1550,6 +1572,14 @@ contains
 !this value.  Without this keyword, when a popsfile is read in, the number of walkers is kept at the number 
 !in the POPSFILE regardless of whether the shift had been allowed to change in the previous calc.
                 tWalkContGrow=.true.
+! if we grow more walkers, we only want the corespace to be set up once we reached the
+! new walker number
+                if(tSemiStochastic) then
+                   tSemiStochastic = .false.
+                   semistoch_shift_iter = 1
+                   write(iout,*) "WARNING: Immediate corespace" &
+                        //" setup disabled, initializing the corespace in variable shift mode"
+                endif
             case("SCALEWALKERS")
 !For FCIMC, if this is a way to scale up the number of walkers, after having read in a POPSFILE
                 call getf(ScaleWalkers)
@@ -2599,6 +2629,18 @@ contains
                 ! set the minimal number of connections with superinititators for 
                 ! superinitiators-related initiators
                 call readi(minSIConnect)
+                ! optionally, allow to weight the connections with the population
+                if(item < nItems) then
+                   call readu(w)
+                   select case(w)
+                   case("WEIGHTED")
+                      tWeightedConnections = .true.
+                   case("UNWEIGHTED")
+                      tWeightedConnections = .false.
+                   case default
+                      tWeightedConnections = .false.
+                   end select
+                endif
 
              case("SUPERINITIATOR-POPULATION-THRESHOLD")
                 ! set the minimum value for superinitiator population

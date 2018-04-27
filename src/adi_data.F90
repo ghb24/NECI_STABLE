@@ -45,5 +45,6 @@ module adi_data
 
   !Minimum number of connections to SI in order for the sign-coherence parameter to be valid
   integer :: minSIConnect
+  logical :: tWeightedConnections
 
 end module adi_data
