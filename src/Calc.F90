@@ -1309,12 +1309,17 @@ contains
                 tDetermHFSpawning = .false.
 
             case("TRIAL-WAVEFUNCTION")
-                if (item == nitems) then
+                if (item == nitems .and. .not. tWalkContgrow) then
                     tTrialWavefunction = .true.
                 else if (item < nitems) then
                     tStartTrialLater = .true.
                     call geti(trial_shift_iter)
+                 else if(tWalkContgrow) then
+                    tStartTrialLater = .true.
+                    trial_shift_iter = 1
                 end if
+                if(tWalkContgrow) write(iout,*) "WARNING: Immediate trial wavefunction" &                         //" setup disabled, initializing the trial wavefunction in variable shift mode"
+
             case("NUM-TRIAL-STATES-CALC")
                 call geti(ntrial_ex_calc)
             case("QMC-TRIAL-WF")
@@ -1530,6 +1535,14 @@ contains
                    semistoch_shift_iter = 1
                    write(iout,*) "WARNING: Immediate corespace" &
                         //" setup disabled, initializing the corespace in variable shift mode"
+                endif
+! same goes for the trial wavefunction
+                if(tTrialWavefunction) then
+                   tTrialWavefunction = .false.
+                   tStartTrialLater = .true.
+                   trial_shift_iter = 1
+                   write(iout,*) "WARNING: Immediate trial wavefunction" &
+                      //" setup disabled, initializing the trial wavefunction in variable shift mode"
                 endif
             case("SCALEWALKERS")
 !For FCIMC, if this is a way to scale up the number of walkers, after having read in a POPSFILE

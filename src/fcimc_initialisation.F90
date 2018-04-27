@@ -26,10 +26,10 @@ module fcimc_initialisation
                         tAddToInitiator, InitiatorWalkNo, tRestartHighPop, &
                         tAllRealCoeff, tRealCoeffByExcitLevel, tTruncInitiator, &
                         tDynamicCoreSpace, RealCoeffExcitThresh, TargetGrowRate, &
-                        TargetGrowRateWalk, InputTargetGrowRate, &
+                        TargetGrowRateWalk, InputTargetGrowRate, semistoch_shift_iter,&
                         InputTargetGrowRateWalk, tOrthogonaliseReplicas, &
                         use_spawn_hash_table, tReplicaSingleDetStart, &
-                        ss_space_in, trial_space_in, init_trial_in, &
+                        ss_space_in, trial_space_in, init_trial_in, trial_shift_iter, &
                         tContTimeFCIMC, tContTimeFull, tMultipleInitialRefs, &
                         initial_refs, trial_init_reorder, tStartTrialLater, &
                         ntrial_ex_calc, tPairedReplicas, tMultiRefShift, &
@@ -1513,7 +1513,14 @@ contains
         ! deterministic space, finding their processors, ordering them, inserting them into
         ! CurrentDets, calculating and storing all Hamiltonian matrix elements and initalising all
         ! arrays required to store and distribute the vectors in the deterministic space later.
-        if (tSemiStochastic) call init_semi_stochastic(ss_space_in)
+        if (tSemiStochastic) then
+           if(tDynamicCoreSpace .and. tRDMonFly) then
+              tSemiStochastic = .false.
+              semistoch_shift_iter = 1
+           else
+              call init_semi_stochastic(ss_space_in)
+           endif
+        endif
 
         ! If the number of trial states to calculate hasn't been set by the
         ! user, then simply use the minimum number
@@ -1525,6 +1532,11 @@ contains
         ! This includes generating the trial space, generating the space connected to the trial space,
         ! diagonalising the trial space to find the trial wavefunction and calculating the vector
         ! in the connected space, required for the energy estimator.
+        if (tRDMonFly .and. tDynamicCoreSpace .and. tTrialWavefunction) then
+           tTrialWavefunction = .false.
+           tStartTrialLater = .true.
+           trial_shift_iter = 1
+        endif
         if (tTrialWavefunction) then
             if (tPairedReplicas) then
                 call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs/2, .true.)
