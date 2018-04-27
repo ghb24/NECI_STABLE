@@ -39,7 +39,7 @@ module cc_amplitudes
     real(dp) :: all_cc_amp_norm(0:2,4) = 0.0_dp
 
     logical :: t_store_hash_quadrupels = .true. 
-    integer :: quad_hash_size
+    integer :: quad_hash_size, quad_hash_size_wf
 
     ! hard code for now which norm should be compared..
     integer :: norm_comp = 2
@@ -53,6 +53,8 @@ module cc_amplitudes
     end type cc_hash
 
     type(cc_hash), pointer :: quad_hash(:)
+
+    type(cc_hash), pointer :: quad_hash_wf(:)
 
     integer :: n_clashes = 0
 
@@ -93,10 +95,13 @@ module cc_amplitudes
 
 contains 
 
-    subroutine print_cc_amplitudes 
+    subroutine print_cc_amplitudes(hash_table, hash_size)
         ! routine to print out the cc-amplitudes to check there 
         ! magnitude 
         use util_mod, only: get_free_unit, get_unique_filename
+        type(cc_hash), pointer, intent(in), optional :: hash_table(:)
+        integer, intent(in), optional :: hash_size
+        character(*), parameter :: this_routine = "print_cc_amplitudes"
         integer :: i, j, iunit
         character(12) :: filename
         character(1) :: x1
@@ -104,6 +109,39 @@ contains
         
         if (.not. allocated(cc_ops)) then 
             print *, "cc amplitudes not yet allocated! cant print!"
+            return
+        end if
+
+        if (present(hash_table)) then 
+            ASSERT(present(hash_size))
+
+            iunit = get_free_unit() 
+            call get_unique_filename('cc_amps_4_wf', .true., .true., 1, &
+                filename)
+
+            open(iunit, file = filename, status = 'unknown')
+
+            ! i have to do the quads special since it is stored in a hash.. 
+            print *, "hash size_wf: ", hash_size
+            do i = 1, hash_size
+                temp_node => hash_table(i) 
+                
+                if (temp_node%found) then 
+                    write(iunit, '(f15.7)') abs(temp_node%amp)
+                
+                end if 
+
+                do while(associated(temp_node%next)) 
+                    if (temp_node%next%found) then 
+                        write(iunit, '(f15.7)') abs(temp_node%next%amp)
+                    end if
+
+                    temp_node => temp_node%next
+
+                end do
+            end do
+            close(iunit)
+
             return
         end if
 
@@ -155,15 +193,19 @@ contains
         
     end subroutine print_cc_amplitudes
 
-    subroutine calc_cc_quad_norm()
+    subroutine calc_cc_quad_norm(hash_table, hash_size)
         ! need specific routine to calculate the quads norm, since it is 
         ! stored in a hash-table format 
+        type(cc_hash), pointer, intent(in) :: hash_table(:)
+        integer, intent(in) :: hash_size
         integer :: i, n_test
         type(cc_hash), pointer :: temp_node 
 
         n_test = 0
-        do i = 1, quad_hash_size 
-            temp_node => quad_hash(i) 
+        cc_amp_norm(:,4) = 0.0_dp
+
+        do i = 1, hash_size 
+            temp_node => hash_table(i) 
 
             if (temp_node%found) then 
                 ! for now check if the loop over the hash table works:
@@ -551,14 +593,17 @@ contains
 
         ! should i do this on each processors independently and then gather
         ! or should i gather first?
-        call fill_cc_amplitudes()
+        ! if i want to calculate the T_2^2 i would need all of the 
+        ! doubles i guess.. so i can fill them independently, but should 
+        ! then communicat.. 
+        call fill_cc_amplitudes(n_excits)
         call calc_n_triples()
         if (t_store_hash_quadrupels) then 
             quad_hash_size = n_doubles*(n_doubles - 1) / 2
             call init_cc_hash(quad_hash, quad_hash_size)
         end if
         call calc_n_quads()
-        call calc_cc_quad_norm()
+        call calc_cc_quad_norm(quad_hash, quad_hash_size)
 
         print *, "number of hash clashes: ", n_clashes, "on proc: ", iProcIndex
 
@@ -702,6 +747,13 @@ contains
         logical :: t_found
         integer :: ijk_abc(2,3), l_d(2,1)
 
+        print *, "test doubles: "
+        do i = 1, cc_ops(2)%n_ops
+            if (.not. cc_ops(2)%set_flag(i)) cycle
+            ij_ab = cc_ops(2)%get_ex(i)
+            print *,"i:", i, "|", ij_ab(1,:), "->", ij_ab(2,:)
+        end do
+
         if (t_store_hash_quadrupels) then 
           do i = 1, cc_ops(2)%n_ops 
                 if (cc_ops(2)%set_flag(i)) then 
@@ -750,10 +802,17 @@ contains
                                 ! it it is found in the hash-table i want to 
                                 ! update the amplitude 
                                 if (t_found) then 
+                                    print *, "repeated doubles: "
+                                    print *, "i: ", i, "|", ij_ab
+                                    print *, "j: ", j, "|", kl_cd
+
                                     call cc_hash_update(quad_hash, hash_ind, & 
                                         temp_int, amp)
                                 else 
                                     ! otherwise i want to add the entry 
+                                    print *, "initial doubles: "
+                                    print *, "i: ", i, "|", ij_ab
+                                    print *, "j: ", j, "|", kl_cd
                                     call cc_hash_add(quad_hash, hash_ind, & 
                                         temp_int, amp)
 
@@ -1102,16 +1161,17 @@ contains
     end function apply_excit_ops
 
     ! do it other way.. only store the possible non-zero cluster operators! 
-    subroutine fill_cc_amplitudes() 
+    subroutine fill_cc_amplitudes(n_excits) 
         ! design decisions: since the singles are not so many in general 
         ! and because i could need them to correct the doubles amplitudes
         ! store all of the possible ones! and encode them specifically through 
         ! (i) and (a) 
+        integer, intent(in) :: n_excits(4)
+
         character(*), parameter :: this_routine = "fill_cc_amplitudes"
         
         integer :: idet, ic, ex(2,cc_order), j, i
         integer :: ia, ib, ja, jb, ind
-        integer, allocatable :: n_excits(:)
 
         integer :: a, b, elec_i, elec_j, orb_a, orb_b 
         logical :: t_par, t_store_full_doubles = .true.
@@ -1129,15 +1189,14 @@ contains
         logical :: tSuccess
         integer :: ijk_abc(2,3), l_d(2,1), i_a(2,1), j_b(2,1)
         integer :: n_disc_1, n_disc_2
+        integer :: quad_ind(8), hash_ind
+        logical :: t_found
+        integer(n_int) :: temp_int(0:nifd)
 
         HElement_t(dp) :: sign_tmp(lenof_sign) 
 
         ! for this it is helpful to have an upper limit of the number of 
         ! possible amplitudes, but just do it for the singles for now..
-        allocate(n_excits(2)) 
-
-        n_excits = calc_number_of_excitations(nOccAlpha, nOccBeta, cc_order, & 
-            nbasis/2)
 
         allocate(cc_ops(cc_order))
 
@@ -1513,7 +1572,7 @@ contains
         ! i could loop.. but i do not want to encode all of them! 
         ! but essentially i have to first allocate a vector of all possible 
         ! ones to be sure.. 
-        if (cc_order == 3) then 
+        if (cc_order >= 3) then 
             allocate(temp_amps(n_excits(3))) 
             allocate(temp_ops(n_excits(3),2,3))
 
@@ -1722,6 +1781,67 @@ contains
             cc_ops(3)%amplitudes = temp_amps(1:n-1)
             cc_ops(3)%operators = temp_ops(1:n-1,:,:)
             cc_ops(3)%n_ops = n - 1
+        end if
+
+        if (cc_order >= 4) then 
+            ! to compare the fciqmc amplitudes and the CC amplitudes I 
+            ! also need to store the quadrupels of the wavefunction 
+            ! NOTE: for now only do that if there are no singles! 
+            ! as this allows us to only consider the T_2^2 influence! 
+            if (n_singles /= 0) then 
+                call stop_all(this_routine, &
+                    "T_4 only implemented for zero singles!")
+            end if
+
+            if (t_store_hash_quadrupels) then 
+                quad_hash_size_wf = n_doubles*(n_doubles - 1) / 2
+                call init_cc_hash(quad_hash_wf, quad_hash_size_wf)
+            end if
+
+            do idet = 1, int(totwalkers)
+
+                ic = FindBitExcitLevel(iLutRef(:,1), CurrentDets(:,idet))
+                call extract_sign(CurrentDets(:,idet), sign_tmp)
+
+                if (abs(sign_tmp(1)) > EPS) then
+                    if (ic == 4) then 
+                        call get_bit_excitmat(iLutRef(:,1), CurrentDets(:,idet), ex, ic)
+
+                        ! convert it to the unique quad-index 
+                        quad_ind = [ex(1,1:2), ex(2,1:2), ex(1,3:4), ex(2,3:4)]
+                        ! for some strange reason i decided to have a different 
+                        ! ordering for this than above.. change that! TODO
+                        temp_int = apply_excit_ops(iLutRef(:,1), &
+                            [ex(1,:)], [ex(2,:)])
+
+                        ! this should never find..
+                        call cc_hash_look_up(quad_ind, temp_int, quad_hash_wf, &
+                            hash_ind, t_found)
+
+                        if (t_found) then
+                            call stop_all(this_routine, &
+                                "repeated quad not possible from wavefunction!")
+                        end if
+
+                        call cc_hash_add(quad_hash_wf, hash_ind, temp_int, sign_tmp(1))
+
+                        cc_amp_norm(0,4) = cc_amp_norm(0,4) + 1
+
+                    end if
+                end if
+            end do
+            print *, "cc-4 L0 norm of wavefunction: ", n_quads, "on proc: ", iProcIndex
+            call calc_cc_quad_norm(quad_hash_wf, quad_hash_size_wf)
+            if (iProcIndex == root) then 
+                print *, "---test quads from wf: "
+                print *, "direct sampled quads: ", n_quads
+                print *, "L0 Norm of quadrupels in FCIMC-wavefunction: ", &
+                    cc_amp_norm(0,4)
+                print *, "L1 Norm of quadrupels in FCIMC-wavefunction: ", &
+                    cc_amp_norm(1,4)
+                print *, "L2 Norm of quadrupels in FCIMC-wavefunction: ", &
+                    cc_amp_norm(2,4)
+            end if
         end if
 
     end subroutine fill_cc_amplitudes
