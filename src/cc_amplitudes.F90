@@ -15,7 +15,7 @@ module cc_amplitudes
     use util_mod, only: swap
     use bit_rep_data, only: nifd
     use ParallelHelper, only: iProcIndex, root
-    use Parallel_neci, only: MPISumAll
+    use Parallel_neci, only: MPISumAll, MPIReduce, MPI_SUM, MPI_LOR, MPIAllLorLogical
 
     implicit none 
 
@@ -70,7 +70,7 @@ module cc_amplitudes
         integer :: order = 0
         integer, allocatable :: operators(:,:,:)
         real(dp), allocatable :: amplitudes(:)
-        logical, allocatable :: set_flag(:)
+        integer, allocatable :: set_flag(:)
 
         integer :: n_ops = 0
 
@@ -83,7 +83,8 @@ module cc_amplitudes
     end type cc_amplitude
 
     ! and make a global cc_ops 
-    type(cc_amplitude), allocatable :: cc_ops(:), disc_cc_ops(:)
+    type(cc_amplitude), allocatable :: cc_ops(:), disc_cc_ops(:), all_cc_ops(:)
+    
     logical :: t_store_disc_ops = .true.
 
     integer, allocatable :: ind_matrix_singles(:,:)
@@ -577,11 +578,11 @@ contains
     ! quadrupels 
     subroutine init_cc_amplitudes
 
-        integer :: n_excits(4)
+        integer :: n_excits(cc_order)
 
         root_print "------ test on the cc ------- "
 
-        n_excits = calc_number_of_excitations(nOccAlpha, nOccBeta, 4, & 
+        n_excits = calc_number_of_excitations(nOccAlpha, nOccBeta, cc_order, & 
             nbasis/2)
 
         root_print "total number of possible excitations: " 
@@ -597,6 +598,9 @@ contains
         ! doubles i guess.. so i can fill them independently, but should 
         ! then communicat.. 
         call fill_cc_amplitudes(n_excits)
+        ! to calculate all the possible cc-amps i need to communicate the 
+        ! operators. 
+        call communicate_cc_amps(n_excits)
         call calc_n_triples()
         if (t_store_hash_quadrupels) then 
             quad_hash_size = n_doubles*(n_doubles - 1) / 2
@@ -666,6 +670,41 @@ contains
 
     end subroutine init_cc_amplitudes
 
+    subroutine communicate_cc_amps(n_excits)
+        integer, intent(in) :: n_excits(cc_order)
+        character(*), parameter :: this_routine = "communicate_cc_amps"
+
+        integer :: i, j
+        ! only deal with systems with no single excitations, so we just 
+        ! have to communicate the doubles! 
+        allocate(all_cc_ops(2))
+
+        do i = 1, 2
+            all_cc_ops(i)%order = i
+            allocate(all_cc_ops(i)%amplitudes(n_excits(i)))
+            allocate(all_cc_ops(i)%operators(n_excits(i),2,i))
+            allocate(all_cc_ops(i)%set_flag(n_excits(i)))
+
+            all_cc_ops(i)%operators = 0
+            all_cc_ops(i)%amplitudes = 0.0_dp
+            all_cc_ops(i)%set_flag = 0
+
+            all_cc_ops(i)%n_ops = n_excits(i)
+
+            call MPIReduce(cc_ops(i)%amplitudes, MPI_SUM, all_cc_ops(i)%amplitudes)
+            do j = 1, i
+                call MPIReduce(cc_ops(i)%operators(:,:,j), MPI_SUM, all_cc_ops(i)%operators(:,:,j))
+            end do
+            
+            call MPIReduce(cc_ops(i)%set_flag, MPI_SUM, all_cc_ops(i)%set_flag)
+        end do
+
+        ! i just want to store up to triples or? but for these special 
+        ! case only consider systems with no single excitations.. 
+
+
+    end subroutine communicate_cc_amps
+
     subroutine init_cc_hash(hash_table, hash_table_size) 
         ! routine to setup the hash for the quadrupels 
         type(cc_hash), pointer, intent(inout) :: hash_table(:)
@@ -699,14 +738,14 @@ contains
         do i = 1, cc_ops(1)%n_ops 
             ! for each t_i^a i have to check if a double excitation is 
             ! possible on top of it.. 
-            if (.not. cc_ops(1)%set_flag(i)) cycle
+            if (.not. cc_ops(1)%set_flag(i) == 1) cycle
 
             ia = cc_ops(1)%get_ex(i)
 
             do j = 1, cc_ops(2)%n_ops
 
                 ! i also have to check if the amplitute was set 
-                if (.not. cc_ops(2)%set_flag(j)) cycle 
+                if (.not. cc_ops(2)%set_flag(j) == 1) cycle 
 
                 jk_cd = cc_ops(2)%get_ex(j)
 
@@ -749,20 +788,20 @@ contains
 
         print *, "test doubles: "
         do i = 1, cc_ops(2)%n_ops
-            if (.not. cc_ops(2)%set_flag(i)) cycle
+            if (.not. cc_ops(2)%set_flag(i) == 1) cycle
             ij_ab = cc_ops(2)%get_ex(i)
             print *,"i:", i, "|", ij_ab(1,:), "->", ij_ab(2,:)
         end do
 
         if (t_store_hash_quadrupels) then 
           do i = 1, cc_ops(2)%n_ops 
-                if (cc_ops(2)%set_flag(i)) then 
+                if (cc_ops(2)%set_flag(i) == 1) then 
 
                     ij_ab = cc_ops(2)%get_ex(i)
 
                     do j = i + 1, cc_ops(2)%n_ops 
 
-                        if (cc_ops(2)%set_flag(j)) then 
+                        if (cc_ops(2)%set_flag(j) == 1) then 
 
                             kl_cd = cc_ops(2)%get_ex(j)
 
@@ -834,7 +873,7 @@ contains
                 ijk_abc = cc_ops(3)%get_ex(i)
 
                 do j = 1, cc_ops(1)%n_ops 
-                    if (cc_ops(1)%set_flag(j)) then 
+                    if (cc_ops(1)%set_flag(j) == 1) then 
                         l_d = cc_ops(1)%get_ex(j) 
 
                         if (unique_quad_ind_3_1(ijk_abc, l_d)) then 
@@ -874,13 +913,13 @@ contains
 
         else 
             do i = 1, cc_ops(2)%n_ops 
-                if (cc_ops(2)%set_flag(i)) then 
+                if (cc_ops(2)%set_flag(i) == 1) then 
 
                     ij_ab = cc_ops(2)%get_ex(i)
 
                     do j = i + 1, cc_ops(2)%n_ops 
 
-                        if (cc_ops(2)%set_flag(j)) then 
+                        if (cc_ops(2)%set_flag(j) == 1) then 
 
                             kl_cd = cc_ops(2)%get_ex(j)
 
@@ -1166,7 +1205,7 @@ contains
         ! and because i could need them to correct the doubles amplitudes
         ! store all of the possible ones! and encode them specifically through 
         ! (i) and (a) 
-        integer, intent(in) :: n_excits(4)
+        integer, intent(in) :: n_excits(cc_order)
 
         character(*), parameter :: this_routine = "fill_cc_amplitudes"
         
@@ -1210,9 +1249,7 @@ contains
 
         ! and do a nice initialization depending on the order 
         do i = 1, cc_order 
-
             cc_ops(i)%order = i 
-
         end do
 
         allocate(cc_ops(1)%amplitudes(n_excits(1)))
@@ -1221,7 +1258,7 @@ contains
 
         cc_ops(1)%operators = 0 
         cc_ops(1)%amplitudes = 0.0_dp
-        cc_ops(1)%set_flag = .false.
+        cc_ops(1)%set_flag = 0
 
         cc_ops(1)%n_ops = n_excits(1)
 
@@ -1248,7 +1285,7 @@ contains
                     cc_ops(1)%amplitudes(ind) = amp
                     cc_ops(1)%operators(ind,1,1) = ex(1,1)
                     cc_ops(1)%operators(ind,2,1) = ex(2,1)
-                    cc_ops(1)%set_flag(ind) = .true. 
+                    cc_ops(1)%set_flag(ind) = 1
                     cc_amp_norm(0,1) = cc_amp_norm(0,1) + 1
                     cc_amp_norm(1,1) = cc_amp_norm(1,1) + abs(amp)
                     cc_amp_norm(2,1) = cc_amp_norm(2,1) + amp**2
@@ -1292,22 +1329,27 @@ contains
 
             disc_cc_ops(1)%operators = 0
             disc_cc_ops(1)%amplitudes = 0 
-            disc_cc_ops(1)%set_flag = .false.
+            disc_cc_ops(1)%set_flag = 0
 
         else
             allocate(cc_ops(2)%operators(n_doubles, 2, 2))
             allocate(cc_ops(2)%amplitudes(n_doubles))
             allocate(cc_ops(2)%set_flag(n_doubles))
+
             cc_ops(2)%n_ops = n_doubles
+
+            cc_ops(2)%operators = 0
+            cc_ops(2)%amplitudes = 0.0_dp
+            cc_ops(2)%set_flag = 0
         end if
 
         if (t_store_disc_ops) then 
             n_disc_1 = 0 
             n_disc_2 = 0
             do i = 1, cc_ops(1)%n_ops 
-                if (cc_ops(1)%set_flag(i)) then 
+                if (cc_ops(1)%set_flag(i) == 1) then 
                     do j = i + 1, cc_ops(1)%n_ops 
-                        if (cc_ops(1)%set_flag(j)) then 
+                        if (cc_ops(1)%set_flag(j) == 1) then 
                             i_a = cc_ops(1)%get_ex(i) 
                             j_b = cc_ops(1)%get_ex(j) 
 
@@ -1336,13 +1378,13 @@ contains
                                 end if
 
                                 ! did i already find that: 
-                                if (disc_cc_ops(1)%set_flag(ind)) then 
+                                if (disc_cc_ops(1)%set_flag(ind) == 1) then 
                                     disc_cc_ops(1)%amplitudes(ind) = & 
                                         disc_cc_ops(1)%amplitudes(ind) + amp 
 
                                     ! if it cancelled: remove the entry: 
                                     if (abs(disc_cc_ops(1)%amplitudes(ind)) < EPS) then 
-                                        disc_cc_ops(1)%set_flag(ind) = .false.
+                                        disc_cc_ops(1)%set_flag(ind) = 0
                                         disc_cc_ops(1)%operators(ind,:,:) = 0
                                         disc_cc_ops(1)%amplitudes(ind) = 0.0_dp
                                         ! and lower ofc.. 
@@ -1351,7 +1393,7 @@ contains
                                 else
                                     ! otherwise set it.. 
                                     disc_cc_ops(1)%amplitudes(ind) = amp
-                                    disc_cc_ops(1)%set_flag(ind) = .true. 
+                                    disc_cc_ops(1)%set_flag(ind) = 1
                                     disc_cc_ops(1)%operators(ind,1,:) = [i_a(1,1),j_b(1,1)]
                                     disc_cc_ops(1)%operators(ind,2,:) = & 
                                         [min(i_a(2,1),j_b(2,1)),max(i_a(2,1),j_b(2,1))]
@@ -1367,7 +1409,7 @@ contains
         print *, "number of disconnected T1^2: ", n_disc_1, "on proc: ", iProcIndex
         cc_ops(2)%operators = 0
         cc_ops(2)%amplitudes = 0.0_dp
-        cc_ops(2)%set_flag = .false.
+        cc_ops(2)%set_flag = 0
         
         do idet = 1, int(totwalkers)
 
@@ -1399,7 +1441,7 @@ contains
                     cc_ops(2)%operators(ind,1,:) = ex(1,1:2) 
                     cc_ops(2)%operators(ind,2,:) = ex(2,1:2)
                     cc_ops(2)%amplitudes(ind) = amp
-                    cc_ops(2)%set_flag(ind) = .true.
+                    cc_ops(2)%set_flag(ind) = 1
 
                     ! i think i can already sum up the norms here.. 
                     ! since we have all the necessary contribs 
@@ -1470,12 +1512,12 @@ contains
                                           cc_ops(1)%get_amp(ia)*cc_ops(1)%get_amp(jb)
 
                                     if (abs(amp) > EPS) then 
-                                        if (.not. cc_ops(2)%set_flag(ind)) then 
+                                        if (.not. cc_ops(2)%set_flag(ind) == 1) then 
                                             print *, "para: ", elec_i, elec_j, orb_a, orb_b
                                             cc_ops(2)%operators(ind,1,:) = [elec_i, elec_j]
                                             cc_ops(2)%operators(ind,2,:) = [orb_a, orb_b] 
                                             cc_ops(2)%amplitudes(ind) = amp 
-                                            cc_ops(2)%set_flag(ind) = .true. 
+                                            cc_ops(2)%set_flag(ind) = 1
 
                                             n_doubles = n_doubles + 1
 
@@ -1488,7 +1530,7 @@ contains
                                             disc_cc_ops(1)%operators(ind,1,:) = [elec_i, elec_j]
                                             disc_cc_ops(1)%operators(ind,2,:) = [orb_a, orb_b] 
                                             disc_cc_ops(1)%amplitudes(ind) = amp 
-                                            disc_cc_ops(1)%set_flag(ind) = .true. 
+                                            disc_cc_ops(1)%set_flag(ind) = 1
 
                                             n_disc_2 = n_disc_2 + 1
 
@@ -1521,13 +1563,13 @@ contains
 
                                     if (abs(amp) > EPS) then 
 
-                                        if (.not. cc_ops(2)%set_flag(ind)) then 
+                                        if (.not. cc_ops(2)%set_flag(ind) == 1) then 
 
                                             print *, "anti: ", elec_i, elec_j, orb_a, orb_b
                                             cc_ops(2)%operators(ind,1,:) = [elec_i, elec_j]
                                             cc_ops(2)%operators(ind,2,:) = [orb_a, orb_b] 
                                             cc_ops(2)%amplitudes(ind) = amp 
-                                            cc_ops(2)%set_flag(ind) = .true. 
+                                            cc_ops(2)%set_flag(ind) = 1
 
                                             n_doubles = n_doubles + 1
 
@@ -1540,7 +1582,7 @@ contains
                                             disc_cc_ops(1)%operators(ind,1,:) = [elec_i, elec_j]
                                             disc_cc_ops(1)%operators(ind,2,:) = [orb_a, orb_b] 
                                             disc_cc_ops(1)%amplitudes(ind) = amp 
-                                            disc_cc_ops(1)%set_flag(ind) = .true. 
+                                            disc_cc_ops(1)%set_flag(ind) = 1
 
                                             n_disc_2 = n_disc_2 + 1
                                         end if
