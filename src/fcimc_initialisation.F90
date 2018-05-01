@@ -72,7 +72,8 @@ module fcimc_initialisation
                            HistInitPops, AllHistInitPops, OffDiagMax, &
                            OffDiagBinRange, iDiagSubspaceIter, tOldRDMs, &
                            AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead, &
-                           tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats
+                           tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats, &
+                           t_spin_measurements
     use DetCalcData, only: NMRKS, tagNMRKS, FCIDets, NKRY, NBLK, B2L, nCycle, &
                            ICILevel, det
     use IntegralsData, only: tPartFreezeCore, nHolesFrozen, tPartFreezeVirt, &
@@ -182,6 +183,7 @@ module fcimc_initialisation
     use adi_references, only: setup_reference_space, clean_adi
 
     use tau_search_hist, only: init_hist_tau_search
+    use double_occ_mod, only: init_spin_measurements
 
     use back_spawn, only: init_back_spawn
 
@@ -1170,6 +1172,10 @@ contains
             if (nOccAlpha == 1 .and. nOccBeta == 1) then
                 pParallel = 0.0_dp
             end if
+        end if
+
+        if (t_spin_measurements) then
+            call init_spin_measurements()
         end if
 
         IF(abs(StepsSftImag) > 1.0e-12_dp) THEN
