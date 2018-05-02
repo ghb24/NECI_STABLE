@@ -102,7 +102,7 @@ module FciMCParMod
                         sum_double_occ, sum_norm_psi_squared, finalize_double_occ_and_spin_diff, &
                         measure_double_occ_and_spin_diff, rezero_spin_diff, &
                         write_spin_diff_stats, write_spat_doub_occ_stats, &
-                        all_sum_double_occ
+                        all_sum_double_occ, calc_double_occ_from_rdm
 
     use tau_search_hist, only: print_frequency_histograms, deallocate_histograms
     use back_spawn, only: init_back_spawn
@@ -919,7 +919,7 @@ module FciMCParMod
         use global_det_data, only: set_av_sgn_tot, set_iter_occ_tot
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
         use rdm_data, only: two_rdm_spawn, two_rdm_recv, two_rdm_main, one_rdms
-        use rdm_data, only: rdm_definitions
+        use rdm_data, only: rdm_definitions, rdm_estimates
         use rdm_data_utils, only: communicate_rdm_spawn_t, add_rdm_1_to_rdm_2
         use symrandexcit_Ex_Mag, only: test_sym_excit_ExMag 
         ! Iteration specific data
@@ -948,6 +948,8 @@ module FciMCParMod
         integer :: ms
         logical :: signChanged, newlyOccupied
         real(dp) :: currArg, spawnArg
+
+        real(dp) :: inst_rdm_occ
 
         call set_timer(Walker_Time,30)
 
@@ -1451,6 +1453,13 @@ module FciMCParMod
             two_rdm_recv%nelements = 0
             call communicate_rdm_spawn_t(two_rdm_spawn, two_rdm_recv)
             call add_rdm_1_to_rdm_2(two_rdm_recv, two_rdm_main)
+
+            if (t_calc_double_occ) then 
+                call calc_double_occ_from_rdm(two_rdm_main, rdm_estimates%norm, &
+                    inst_rdm_occ)
+
+            end if
+
         end if
     end subroutine PerformFCIMCycPar
 

@@ -14,9 +14,11 @@ module double_occ_mod
     use FciMCData, only: iter, PreviousCycles, norm_psi, totwalkers, all_norm_psi_squared
     use rdm_data, only: rdm_list_t
     use Parallel_neci, only: iProcIndex, nProcessors, MPISumAll, MPIAllreduce
-    use rdm_data_utils, only: calc_separate_rdm_labels, extract_sign_rdm
+    use rdm_data_utils, only: calc_separate_rdm_labels, extract_sign_rdm, &
+                              calc_combined_rdm_label
     use UMatCache, only: spatial
     use sort_mod, only: sort
+    use hash, only: hash_table_lookup
 
 #ifdef __DEBUG
 !     use Determinants, only: writedetbit
@@ -760,19 +762,20 @@ contains
 
     end subroutine init_double_occ_output
         
-    subroutine calc_double_occ_from_rdm(rdm, rdm_trace, nrdms_to_print)
+    subroutine calc_double_occ_from_rdm(rdm, rdm_trace, inst_occ)
         ! also write a routine which calculates the double occupancy from the 
         ! 2-rdm, if it has been calculated! 
         type(rdm_list_t), intent(inout) :: rdm
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
-        integer, intent(in) :: nrdms_to_print
+        real(dp), intent(out), optional :: inst_occ
         character(*), parameter :: this_routine = "calc_double_occ_from_rdm"
 
-        integer :: ielem, ij, kl, i, j, k, l, p, q, r, s, iproc, irdm, ierr
+        integer :: ielem, ij, kl, i, j, k, l, p, q, r, s, iproc, irdm, ierr, hash_val
         integer(int_rdm) :: ijkl 
         real(dp) :: rdm_sign(rdm%sign_length)
         real(dp) :: double_occ(rdm%sign_length), all_double_occ(rdm%sign_length)
         real(dp), allocatable :: spatial_double_occ(:), all_spatial_double_occ(:)
+        logical :: tSuccess
 
         double_occ = 0.0_dp
         ! just a quick addition to calculate spatially resolved double 
@@ -786,13 +789,35 @@ contains
         ! todo: find out about the flags to ensure the rdm was actually 
         ! calculated! 
 
-        call sort(rdm%elements(:,1:rdm%nelements))
+!         call sort(rdm%elements(:,1:rdm%nelements))
 
         ! i have to do that over all processors i guess since the rdms are 
         ! stored in a distributed way! 
         ! although i could do that with an MPI communication
         ! seperately on all processors do this summation and then 
         ! communicate the results in the end.. 
+
+        ! do the sum more efficiently! loop over spatial orbitals and look up 
+        ! the corresponding elements
+!         do i = 1, nBasis/2
+!             call calc_combined_rdm_label(i,i,i,i, ijkl)
+! 
+!             call hash_table_lookup([i,i,i,i], [ijkl], 0, rdm%hash_table, &
+!                 rdm%elements, ielem, hash_val, tSuccess) 
+! 
+!             if (tSuccess) then 
+!                 call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
+! 
+!                 rdm_sign = rdm_sign / rdm_trace
+! 
+!                 ! add up all the diagonal contributions
+!                 double_occ = double_occ + rdm_sign
+!                 
+!                 if (t_spin_measurements) spatial_double_occ(p) = rdm_sign(1)
+! 
+!             end if
+!         end do
+
         do ielem = 1, rdm%nelements
             ijkl = rdm%elements(0,ielem)
             call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
@@ -809,7 +834,8 @@ contains
 
             ! only consider the diagonal elements! 
             if (p == q .and. p == r .and. p == s) then
-                ASSERT(is_alpha(i) .and. is_beta(j) .and. is_alpha(k) .and. is_beta(l))
+                ASSERT(.not. same_spin(i,j))
+                ASSERT(.not. same_spin(k,l))
 
                 ! add up all the diagonal contributions
                 double_occ = double_occ + rdm_sign
@@ -820,10 +846,14 @@ contains
         end do
 
         ! at the end average over the spatial orbitals 
-        double_occ = double_occ / (real(nbasis, dp) / 2.0_dp)
+        double_occ = 2.0_dp * double_occ / real(nbasis, dp)
 
         ! MPI communicate: 
         call MPISumAll(double_occ, all_double_occ)
+
+        if (present(inst_occ)) then 
+            inst_occ = double_occ(1)
+        end if
 
         if (t_spin_measurements) then
             call MPIAllreduce(spatial_double_occ, MPI_SUM, all_spatial_double_occ)
