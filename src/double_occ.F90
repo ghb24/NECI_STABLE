@@ -398,7 +398,7 @@ contains
 
         ! i only need the fraction of doubly occupied orbitals out of all 
         ! spatial orbitals
-        frac_double_orbs = real(n_double_orbs,dp) / (real(nbasis,dp) / 2.0_dp)
+        frac_double_orbs = 2.0_dp * real(n_double_orbs,dp) / real(nbasis,dp)
 
         ! now i want to sum in the walkers from the runs..
         ! todo: have to figure out how to access the different runs
@@ -425,7 +425,11 @@ contains
         double_occ = real_sgn(1) * real_sgn(2) * frac_double_orbs
 #endif
 #else
-        double_occ = abs(real_sgn(1))**2 * frac_double_orbs 
+#ifdef __CMPLX 
+        call stop_all(this_routine, &
+            "complex double occupancy measurement not yet implemented!")
+#endif
+        double_occ = real_sgn(1)**2 * frac_double_orbs 
 #endif
 
     end function get_double_occupancy
@@ -689,11 +693,12 @@ contains
       
             call stats_out(state,.false., iter + PreviousCycles, 'Iter.')
             call stats_out(state,.false., all_inst_double_occ / & 
-                (sum(all_norm_psi_squared) / real(inum_runs, dp)), 'Double Occ.')
+                (real(StepsSft,dp) * sum(all_norm_psi_squared) / real(inum_runs, dp)), 'Double Occ.')
 !             call stats_out(state, .true., inst_double_occ / norm_psi(1), 'Double Occ.')
             if (t_calc_double_occ_av) then
                if(abs(sum_norm_psi_squared) > EPS) then
-                  call stats_out(state,.false., sum_double_occ / sum_norm_psi_squared, 'DoubOcc Av')
+                  call stats_out(state,.false., sum_double_occ / & 
+                      (real(StepsSft,dp) * sum_norm_psi_squared), 'DoubOcc Av')
                else
                   call stats_out(state,.false.,0.0_dp,'DoubOcc Av')
                endif
