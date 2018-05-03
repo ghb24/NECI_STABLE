@@ -39,6 +39,9 @@ program test_real_space_hubbard
     use HPHFRandexcitmod, only: gen_hphf_excit
 
     use k_space_hubbard, only: setup_k_space_hub_sym, setup_symmetry_table
+
+    use double_occ_mod, only: count_double_orbs
+
     implicit none 
 
     integer :: failed_count 
@@ -95,9 +98,10 @@ contains
         integer(n_int), allocatable :: dummy(:,:)
         real(dp) :: j
         real(dp), allocatable :: j_vec(:)
+        real(dp) :: exact_double_occ
 
 
-        lat => lattice('tilted', 3, 3, 1,.true.,.true.,.true.)
+        lat => lattice('chain', 6, 1, 1,.true.,.true.,.true.)
         uhub = 16
         bhub = -1
 
@@ -106,10 +110,11 @@ contains
 
         call init_realspace_tests
 
-        nel = 18
+        nel = 6
         allocate(nI(nel))
 !         nI = [(i, i = 1, nel)]
-        nI = [1,3,6,7,9,12,13,16,17,20,21,24,25,28,30,31,34,36]
+!         nI = [1,3,6,7,9,12,13,16,17,20,21,24,25,28,30,31,34,36]
+        nI = [1,4,5,8,9,12]
 
         nOccAlpha = 0
         nOccBeta = 0
@@ -126,22 +131,22 @@ contains
 !         call init_dispersion_rel_cache()
 !         call init_umat_rs_hub_transcorr()
 
-        j_vec = linspace(-0.1,0.1,100)
-!         j_vec = [0.0, 0.05, 0.1,0.12]
-        print *, "H diag: "
-        t_trans_corr_hop = .true.
-        do i = 1, size(j_vec) 
-            trans_corr_param= j_vec(i)
-            t_recalc_umat = .true.
-            ! i need to deallocate umat every time.. 
-            if (allocated(umat_rs_hub_trancorr_hop)) deallocate(umat_rs_hub_trancorr_hop)
-            call init_umat_rs_hub_transcorr()
-            print *, J_vec(i), get_diag_helemen_rs_hub_transcorr_hop(nI)
-        end do
-
-
-        t_trans_corr_hop = .false.
-        call stop_all("here","now")
+!         j_vec = linspace(-0.1,0.1,100)
+! !         j_vec = [0.0, 0.05, 0.1,0.12]
+!         print *, "H diag: "
+!         t_trans_corr_hop = .true.
+!         do i = 1, size(j_vec) 
+!             trans_corr_param= j_vec(i)
+!             t_recalc_umat = .true.
+!             ! i need to deallocate umat every time.. 
+!             if (allocated(umat_rs_hub_trancorr_hop)) deallocate(umat_rs_hub_trancorr_hop)
+!             call init_umat_rs_hub_transcorr()
+!             print *, J_vec(i), get_diag_helemen_rs_hub_transcorr_hop(nI)
+!         end do
+! 
+! 
+!         t_trans_corr_hop = .false.
+!         call stop_all("here","now")
 
         call create_hilbert_space_realspace(n_orbs, nOccAlpha, nOccBeta, & 
             n_states, hilbert_space, dummy)
@@ -165,12 +170,37 @@ contains
         call frsblk_wrapper(hilbert_space, size(hilbert_space, 2), n_eig, e_values, e_vecs)
         print *, "e_value lanczos:", e_values(1)
 
+        exact_double_occ = calc_exact_double_occ(n_states, dummy, e_vecs)
+
+        print *, "exact double occupancy: ", exact_double_occ
+
+        call stop_all("here","now")
+
         j = 0.1_dp
         call exact_transcorrelation(lat, nI, j_vec, real(uhub,dp), hilbert_space)
 
 !         call stop_all("here","now")
 
     end subroutine exact_test
+
+    function calc_exact_double_occ(n_states, ilut_list, e_vec) result(double_occ)
+        integer, intent(in) :: n_states
+        integer(n_int), intent(in) :: ilut_list(0:NIfTot,n_states) 
+        real(dp), intent(in) :: e_vec(1,n_states)
+        real(dp) :: double_occ
+
+        integer :: i
+
+        double_occ = 0.0_dp 
+        
+        do i = 1, n_states
+
+            double_occ = double_occ + 2.0_dp * e_vec(1,i)**2 &
+                * real(count_double_orbs(ilut_list(0:nifd,i)),dp) / real(nBasis,dp)
+            
+        end do
+
+    end function calc_exact_double_occ
 
     subroutine exact_transcorrelation(lat, nI, J, U, hilbert_space)
         class(lattice), intent(in) :: lat 

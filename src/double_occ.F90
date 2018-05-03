@@ -602,7 +602,7 @@ contains
         ! routine to write out the double occupancy data
         type(fcimc_iter_data), intent(in) :: iter_data
         logical, intent(in), optional :: initial
-        character(*), parameter :: this_routine = "write_double_occ_stats"
+        character(*), parameter :: this_routine = "write_spat_doub_occ_stats"
 
         type(write_state_t), save :: state
         logical, save :: inited = .false.

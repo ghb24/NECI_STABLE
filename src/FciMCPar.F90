@@ -1454,11 +1454,10 @@ module FciMCParMod
             call communicate_rdm_spawn_t(two_rdm_spawn, two_rdm_recv)
             call add_rdm_1_to_rdm_2(two_rdm_recv, two_rdm_main)
 
-            if (t_calc_double_occ) then 
-                call calc_double_occ_from_rdm(two_rdm_main, rdm_estimates%norm, &
-                    inst_rdm_occ)
-
-            end if
+!             if (t_calc_double_occ) then 
+!                 call calc_double_occ_from_rdm(two_rdm_main, rdm_estimates%norm, &
+!                     inst_rdm_occ)
+!             end if
 
         end if
     end subroutine PerformFCIMCycPar
