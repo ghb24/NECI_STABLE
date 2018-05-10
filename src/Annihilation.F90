@@ -909,7 +909,7 @@ module AnnihilationMod
         integer, intent(in) :: ispawn
         logical, intent(in) :: abort(lenof_sign)
         integer, intent(in) :: nJ(nel)
-        real(dp), intent(inout):: SpawnedSign(lenof_sign)
+        real(dp), intent(in):: SpawnedSign(lenof_sign)
 
         integer :: j, istate
         real(dp) :: contrib_sign(en_pert_main%sign_length)
