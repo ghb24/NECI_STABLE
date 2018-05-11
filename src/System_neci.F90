@@ -517,6 +517,15 @@ system: do
 !                length_y = NMAXY
 !            end if
 
+       case('SPIN-TRANSCORR')
+           ! make a spin-dependent transcorrelation factor
+           t_spin_dependent_transcorr = .true. 
+           if (item < nitems) then 
+               call getf(trans_corr_param)
+           else
+               trans_corr_param = 0.1_dp
+           end if
+
        case ('TRANSCORRELATED', 'TRANSCORR', 'TRANS-CORR')
            ! activate the transcorrelated Hamiltonian idea from hongjun for 
            ! the real-space hubbard model 

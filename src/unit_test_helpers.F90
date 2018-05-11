@@ -124,6 +124,8 @@ contains
 
         integer :: i, j 
 
+        hamil = h_cast(0.0_dp)
+
         do i = 1, size(list_nI,2)
             do j = 1, size(list_nI,2)
                 hamil(i,j) = get_helement_lattice(list_nI(:,j),list_nI(:,i))
@@ -131,6 +133,49 @@ contains
         end do
 
     end function create_hamiltonian
+
+    function create_spin_dependent_hopping(list_nI, spin_opt) result(hamil)
+        ! function to create a spin-dependent hopping matrix for the 
+        ! exact tests of the spin-dependent hoppint transcorrelation
+        ! is no spin (1 alpha, -1 beta) is given then alpha hopping is the 
+        ! default
+        integer, intent(in) :: list_nI(:,:)
+        integer, intent(in), optional :: spin_opt
+        HElement_t(dp) :: hamil(size(list_nI,2),size(list_nI,2))
+
+        integer :: i, j, spin, ex(2,2), ic
+        integer(n_int) :: ilutI(0:NifTot), ilutJ(0:niftot)
+        logical :: tpar
+
+        hamil = h_cast(0.0_dp)
+
+        if (present(spin_opt)) then 
+            spin = spin_opt
+        else 
+            spin = 1
+        end if
+
+        do i = 1, size(list_nI,2)
+            call EncodeBitDet(list_nI(:,i), ilutI)
+            do j = 1, size(list_nI,2)
+                call EncodeBitDet(list_nI(:,j), ilutJ)
+
+                ic = findbitexcitlevel(ilutI,ilutJ)
+
+                if (ic /= 1) cycle
+
+                ex(1,1) = 1
+                call GetBitExcitation(ilutI,ilutJ,ex,tpar)
+
+                if (tPar) cycle
+                if (get_spin_pn(ex(1,1)) == spin) then
+                    hamil(i,j) = get_helement_lattice(list_nI(:,j),list_nI(:,i))
+                end if
+
+            end do
+        end do
+
+    end function create_spin_dependent_hopping
 
     function create_hamiltonian_old(list_nI) result(hamil) 
         ! try to also create the hamiltonian with the old implementation.. 

@@ -15,7 +15,7 @@ MODULE HPHFRandExcitMod
                           tUEG, tUEGNewGenerator, t_new_real_space_hubbard, & 
                           t_tJ_model, t_heisenberg_model, t_lattice_model, &
                           t_k_space_hubbard, t_3_body_excits, t_uniform_excits, &
-                          t_trans_corr_hop
+                          t_trans_corr_hop, t_spin_dependent_transcorr
 
     use IntegralsData, only: UMat, fck, nMax
 
@@ -63,7 +63,9 @@ MODULE HPHFRandExcitMod
                                   gen_excit_rs_hubbard_transcorr, &
                                   calc_pgen_rs_hubbard_transcorr, & 
                                   gen_excit_rs_hubbard_transcorr_uniform, &
-                                  calc_pgen_rs_hubbard_transcorr_uniform
+                                  calc_pgen_rs_hubbard_transcorr_uniform, &
+                                  gen_excit_rs_hubbard_spin_dependent_transcorr, &
+                                  calc_pgen_rs_hubbard_spin_dependent_transcorr
 
     use tJ_model, only: gen_excit_tj_model, gen_excit_heisenberg_model, & 
                         calc_pgen_tJ_model, calc_pgen_heisenberg_model
@@ -227,6 +229,10 @@ MODULE HPHFRandExcitMod
                     call gen_excit_rs_hubbard_transcorr(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
                                       ExcitMat, tSignOrig, pgen, Hel, store, part_type)
                 end if
+            else if (t_spin_dependent_transcorr) then
+                call gen_excit_rs_hubbard_spin_dependent_transcorr(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
+                                  ExcitMat, tSignOrig, pgen, Hel, store, part_type)
+
             else
                 call gen_excit_rs_hubbard(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
                                       ExcitMat, tSignOrig, pgen, Hel, store, part_type)
@@ -401,24 +407,24 @@ MODULE HPHFRandExcitMod
                                     temp_ex(1,:) = ex2(2,:)
                                     temp_ex(2,:) = ex2(1,:) 
                                     MatEl = get_helement_lattice(nJ, ic, temp_ex, tSign)
-#ifdef __DEBUG
-                                    temp_ex(1,:) = ExcitMat(2,:)
-                                    temp_ex(2,:) = ExcitMat(1,:)
-                                    ASSERT(ic == ExcitLevel)
-                                    if (abs(abs(Matel)-abs(get_helement_lattice(nj2, ic, temp_ex, tSignOrig)))>1.0e-8) then
-                                        print *, "nI: ", nI
-                                        print *, "nJ: ", nJ 
-                                        print *, "nJ2: ", nJ2 
-                                        print *, "ic:", ic 
-                                        print *, "ExcitLevel: ", ExcitLevel
-                                        print *, "ExcitMat(1,:): ", ExcitMat(1,:)
-                                        print *, "ExcitMat(2,:): ", ExcitMat(2,:)
-                                        print *, "Ex2(1,:): ", Ex2(1,:)
-                                        print *, "Ex2(2,:): ", Ex2(2,:)
-                                        print *, "Matel: ", matel, get_helement_lattice(nJ2, ic, temp_ex, tSignOrig)
-                                    end if
-!                                     ASSERT(Matel == get_helement_lattice(nJ, ic, temp_ex, tSignOrig))
-#endif
+! #ifdef __DEBUG
+!                                     temp_ex(1,:) = ExcitMat(2,:)
+!                                     temp_ex(2,:) = ExcitMat(1,:)
+!                                     ASSERT(ic == ExcitLevel)
+!                                     if (abs(abs(Matel)-abs(get_helement_lattice(nj2, ic, temp_ex, tSignOrig)))>1.0e-8) then
+!                                         print *, "nI: ", nI
+!                                         print *, "nJ: ", nJ 
+!                                         print *, "nJ2: ", nJ2 
+!                                         print *, "ic:", ic 
+!                                         print *, "ExcitLevel: ", ExcitLevel
+!                                         print *, "ExcitMat(1,:): ", ExcitMat(1,:)
+!                                         print *, "ExcitMat(2,:): ", ExcitMat(2,:)
+!                                         print *, "Ex2(1,:): ", Ex2(1,:)
+!                                         print *, "Ex2(2,:): ", Ex2(2,:)
+!                                         print *, "Matel: ", matel, get_helement_lattice(nJ2, ic, temp_ex, tSignOrig)
+!                                     end if
+! !                                     ASSERT(Matel == get_helement_lattice(nJ, ic, temp_ex, tSignOrig))
+! #endif
                                 else 
                                     ! if they are not swapped the original 
                                     ! ExcitMat and tSignOrig are associated 
@@ -426,26 +432,26 @@ MODULE HPHFRandExcitMod
                                     temp_ex(1,:) = ExcitMat(2,:)
                                     temp_ex(2,:) = ExcitMat(1,:) 
                                     MatEl = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
-#ifdef __DEBUG 
-                                    temp_ex(1,:) = ex2(2,:)
-                                    temp_ex(2,:) = ex2(1,:)
-                                    ASSERT(ic == ExcitLevel)
-                                    ASSERT(ic == ExcitLevel)
-                                    if (abs(abs(Matel)-abs(get_helement_lattice(nj2, ic, temp_ex, tSign)))>1.0e-8) then
-                                        print *, "nI: ", nI
-                                        print *, "nJ: ", nJ 
-                                        print *, "nJ2: ", nJ2 
-                                        print *, "ic:", ic 
-                                        print *, "ExcitLevel: ", ExcitLevel
-                                        print *, "ExcitMat(1,:): ", ExcitMat(1,:)
-                                        print *, "ExcitMat(2,:): ", ExcitMat(2,:)
-                                        print *, "Ex2(1,:): ", Ex2(1,:)
-                                        print *, "Ex2(2,:): ", Ex2(2,:)
-                                        print *, "Matel: ", matel, get_helement_lattice(nj2, ic, temp_ex, tSign)
-                                    end if
-
-!                                     ASSERT(Matel == get_helement_lattice(nJ2, ic, temp_ex, tSign))
-#endif
+! #ifdef __DEBUG 
+!                                     temp_ex(1,:) = ex2(2,:)
+!                                     temp_ex(2,:) = ex2(1,:)
+!                                     ASSERT(ic == ExcitLevel)
+!                                     ASSERT(ic == ExcitLevel)
+!                                     if (abs(abs(Matel)-abs(get_helement_lattice(nj2, ic, temp_ex, tSign)))>1.0e-8) then
+!                                         print *, "nI: ", nI
+!                                         print *, "nJ: ", nJ 
+!                                         print *, "nJ2: ", nJ2 
+!                                         print *, "ic:", ic 
+!                                         print *, "ExcitLevel: ", ExcitLevel
+!                                         print *, "ExcitMat(1,:): ", ExcitMat(1,:)
+!                                         print *, "ExcitMat(2,:): ", ExcitMat(2,:)
+!                                         print *, "Ex2(1,:): ", Ex2(1,:)
+!                                         print *, "Ex2(2,:): ", Ex2(2,:)
+!                                         print *, "Matel: ", matel, get_helement_lattice(nj2, ic, temp_ex, tSign)
+!                                     end if
+! 
+! !                                     ASSERT(Matel == get_helement_lattice(nJ2, ic, temp_ex, tSign))
+! #endif
                                 end if
                             else
                                 IF(tSwapped) THEN
@@ -1302,6 +1308,8 @@ MODULE HPHFRandExcitMod
                     else 
                         pgen = calc_pgen_rs_hubbard_transcorr(nI, ilutI, ex, ic)
                     end if
+                else if (t_spin_dependent_transcorr) then 
+                    pgen = calc_pgen_rs_hubbard_spin_dependent_transcorr(nI,ilutI,ex,ic)
                 else
                     pgen = calc_pgen_rs_hubbard(nI, ilutI, ex, ic)
                 end if

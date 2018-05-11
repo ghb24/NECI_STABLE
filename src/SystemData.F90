@@ -319,6 +319,10 @@ real(dp) :: nn_bhub = 0.0_dp
 
 ! do a quick test with different weightings of picking orbitals (a) 
 logical :: t_iiaa = .false., t_ratio = .false. 
+
+! spin-dependent transcorrelation 
+logical :: t_spin_dependent_transcorr = .false.
+
 ! Operators for type(symmetry)
 interface assignment (=)
     module procedure SymAssign

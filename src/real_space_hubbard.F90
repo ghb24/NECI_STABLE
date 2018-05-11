@@ -20,7 +20,8 @@ module real_space_hubbard
                           t_open_bc_y, t_open_bc_z, G1, ecore, nel, nOccAlpha, nOccBeta, &
                           t_trans_corr, trans_corr_param, t_trans_corr_2body, & 
                           trans_corr_param_2body, tHPHF, t_trans_corr_new, & 
-                          t_trans_corr_hop, t_uniform_excits
+                          t_trans_corr_hop, t_uniform_excits, &
+                          t_spin_dependent_transcorr
 
     use lattice_mod, only: lattice, determine_optimal_time_step, lat, &
                     get_helement_lattice, get_helement_lattice_ex_mat, & 
@@ -110,7 +111,6 @@ contains
 
         print *, "using new real-space hubbard implementation: "
 
-
         ! i do not need exchange integrals in the real-space hubbard model
         if (.not. t_trans_corr_hop) then
             tExch = .false.
@@ -123,7 +123,9 @@ contains
         call check_real_space_hubbard_input() 
 
         ! which stuff do i need to initialize here? 
-        if (t_trans_corr_hop) then 
+        ! for now also use the umat in the spin-dependent transcorr
+        ! although it is not 
+        if (t_trans_corr_hop .or. t_spin_dependent_transcorr) then 
             get_umat_el => get_umat_rs_hub_trans
         else
             get_umat_el => get_umat_el_hub
@@ -180,6 +182,9 @@ contains
             else
                 generate_excitation => gen_excit_rs_hubbard_transcorr
             end if
+        else if (t_spin_dependent_transcorr .and. .not. tHPHF) then
+            generate_excitation => gen_excit_rs_hubbard_spin_dependent_transcorr
+
         else
             if (.not. tHPHF) then
                 generate_excitation => gen_excit_rs_hubbard
@@ -201,7 +206,8 @@ contains
         end if
 
         ! re-enable tau-search if we have transcorrelation 
-        if (.not. (t_trans_corr_2body .or. t_trans_corr .or. t_trans_corr_hop)) then 
+        if (.not. (t_trans_corr_2body .or. t_trans_corr .or. t_trans_corr_hop &
+            .or. t_spin_dependent_transcorr)) then 
             ! and i have to turn off the time-step search for the hubbard 
             tsearchtau = .false.
             ! set tsearchtauoption to true to use the death-tau search option
@@ -599,7 +605,7 @@ contains
 
         get_helement_lattice_ex_mat => get_helement_rs_hub_ex_mat
         get_helement_lattice_general => get_helement_rs_hub_general
-        if (t_trans_corr_hop) then 
+        if (t_trans_corr_hop .or. t_spin_dependent_transcorr) then 
             call init_hopping_transcorr()
         end if
 
@@ -930,6 +936,111 @@ contains
         ilutJ = make_ilutJ(ilutI, ex, ic)
 
     end subroutine gen_excit_rs_hubbard_transcorr
+
+    subroutine gen_excit_rs_hubbard_spin_dependent_transcorr(nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                                      ex, tParity, pGen, hel, store, run)
+        ! new excitation generator for the real-space hubbard model with 
+        ! the hopping transcorrelation, which leads to double excitations 
+        ! and long-range single excitations in the real-space hubbard.. 
+        ! this complicates things alot! 
+        ! this is the specific implementation for spin-dependent 
+        ! trans-correlation
+
+        integer, intent(in) :: nI(nel), exFlag
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: nJ(nel), ic, ex(2,2)
+        integer(n_int), intent(out) :: ilutJ(0:NifTot)
+        real(dp), intent(out) :: pGen
+        logical, intent(out) :: tParity
+        HElement_t(dp), intent(out) :: hel
+        type(excit_gen_store_type), intent(inout), target :: store
+        integer, intent(in), optional :: run
+
+        character(*), parameter :: this_routine = "gen_excit_rs_hubbard_transcorr"
+
+        integer :: iunused, ind , elec, src, orb
+        real(dp) :: cum_arr_t(nBasis/2)
+        ! i have to resolve this conflict:
+        real(dp), allocatable :: cum_arr_o(:)
+        integer, allocatable :: neighbors(:), orbs(:)
+        real(dp) :: cum_sum, p_elec, p_orb
+
+        iunused = exflag; 
+        ilutJ = 0_n_int
+        ic = 0
+        nJ(1) = 0
+
+        ASSERT(associated(lat))
+
+        ic = 1 
+
+        ! pick the electron randomly 
+ 
+        ! still choose an electron at random
+        elec = 1 + int(genrand_real2_dsfmt() * nel) 
+
+        p_elec = 1.0_dp / real(nel, dp)
+        ! and then from the neighbors of this electron we pick an empty 
+        ! spinorbital randomly, since all have the same matrix element 
+        src = nI(elec) 
+
+        ! and for alpha-electrons we have trans-correlation 
+        if (is_alpha(src)) then
+            ! now we can have more than only nearest neighbor hopping! 
+            ! so implement a new cum-list creator
+            call create_cum_list_rs_hubbard_transcorr_single(nI, ilutI, src, cum_arr_t, cum_sum)
+        else
+            ! only hopping to neighbors allowed
+
+            ! now get neighbors
+            neighbors = lat%get_spinorb_neighbors(src)
+
+            call create_cum_list_rs_hubbard(ilutI, src, neighbors, cum_arr_o, cum_sum)
+
+        end if
+
+        ! the rest stays the same i guess..
+        if (cum_sum < EPS) then 
+            nJ(1) = 0
+            pgen = 0.0_dp 
+            return
+        end if
+
+
+        if (is_alpha(src)) then
+            call pick_from_cum_list(cum_arr_t, cum_sum, ind, p_orb)
+            ! we know it is alpha
+            orb = 2*ind 
+        else
+            call pick_from_cum_list(cum_arr_o, cum_sum, ind, p_orb)
+            orb = neighbors(ind)
+        end if
+
+        pgen = p_elec * p_orb
+
+        call make_single(nI, nJ, elec, orb, ex, tParity) 
+
+        ilutJ = make_ilutJ(ilutI, ex, 1)
+
+    end subroutine gen_excit_rs_hubbard_spin_dependent_transcorr
+
+    function calc_pgen_rs_hubbard_spin_dependent_transcorr(nI, ilutI, ex, ic) result(pgen)
+        integer, intent(in) :: nI(nel), ex(2,2), ic 
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        real(dp) :: pgen 
+        
+        if (ic /= 1) then 
+            pgen = 0.0_dp
+            return
+        end if
+
+        if (is_alpha(ex(1,1))) then
+            pgen = calc_pgen_rs_hubbard_transcorr(nI, ilutI, ex, ic)
+        else
+            pgen = calc_pgen_rs_hubbard(nI, ilutI, ex, ic)
+        endif
+
+    end function calc_pgen_rs_hubbard_spin_dependent_transcorr
 
     subroutine create_cum_list_rs_hubbard_transcorr_single(nI, ilutI, src, &
             cum_arr, cum_sum, tgt, p_orb) 
@@ -1703,6 +1814,11 @@ contains
         ! in case we need it, the off-diagonal, except parity is just 
         ! -t if the hop is possible
         hel = GetTMatEl(ex(1),ex(2))
+
+        ! like niklas, choose the alpha spins to be the correlated ones
+        if (t_spin_dependent_transcorr .and. is_alpha(ex(1))) then 
+            hel = hel + get_2_body_contrib_transcorr_hop(nI,ex)
+        end if
 
         if (t_trans_corr_hop) then 
             hel = hel + get_2_body_contrib_transcorr_hop(nI, ex)
