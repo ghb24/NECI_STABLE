@@ -160,6 +160,28 @@ module rdm_data
         integer, allocatable :: init_free_slots(:)
     end type rdm_spawn_t
 
+    type en_pert_t
+        ! The number of integers available to store signs, for each
+        ! RDM entry in the elements array.
+        integer :: sign_length = 0
+        ! Array which holds the RDM elements.
+        integer(n_int), allocatable :: dets(:,:)
+        ! Hash table to the rdm array.
+        type(ll_node), pointer :: hash_table(:)
+        ! The allocated size of the elements array.
+        integer :: max_ndets = 0
+        ! The number of determinants contributing to the perturbation
+        ! currently stored in the dets array.
+        integer :: ndets = 0
+        ! The number of determinants contributing to the perturbation
+        ! currently stored in the dets array, across all processors.
+        integer :: ndets_all = 0
+        ! Maximum number of unique hashes available in hash_table (not the
+        ! number of currently unused ones, but the total number, i.e. the
+        ! length of the hash_table array).
+        integer :: nhashes = 0
+    end type en_pert_t
+
     type rdm_estimates_t
         ! How many RDMs are being sampled.
         integer :: nrdms
@@ -182,6 +204,8 @@ module rdm_data
         real(dp), allocatable :: energy_num(:)
         real(dp), allocatable :: spin_num(:)
         real(dp), allocatable :: property(:,:)
+        real(dp), allocatable :: energy_pert(:)
+        real(dp), allocatable :: energy_pert_hf(:)
 
         ! Arrays used to hold estimates from the RDM over the *previous
         ! sampling block only*.
@@ -192,12 +216,15 @@ module rdm_data
         real(dp), allocatable :: energy_num_inst(:)
         real(dp), allocatable :: spin_num_inst(:)
         real(dp), allocatable :: property_inst(:,:)
+        real(dp), allocatable :: energy_pert_inst(:)
+        real(dp), allocatable :: energy_pert_hf_inst(:)
 
         ! Hermiticity errors, i.e. \Gamma_{ij,kl} - \Gamma_{kl,ij}^*.
         ! The max_* array holds the maximum such error.
         ! The sum_* array holds the sum of all such errors.
         real(dp), allocatable :: max_error_herm(:)
         real(dp), allocatable :: sum_error_herm(:)
+
     end type rdm_estimates_t
 
     ! Data type used to define how many RDMs are being sampled and which states
@@ -267,6 +294,10 @@ module rdm_data
     ! Object which defines the states and FCIQMC simulations contributing
     ! to the various RDMs in the above arrays.
     type(rdm_definitions_t) :: rdm_definitions
+
+    ! Object to hold information about the Epstein-Nesbet perturbation
+    ! contributions.
+    type(en_pert_t) :: en_pert_main
 
     ! The number of transition RDMs that the user asks for at input. This
     ! might be equal to half the number of tRDMs actually calculated, since

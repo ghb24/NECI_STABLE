@@ -11,6 +11,7 @@ test.err*
 test.out*
 POPS*
 INITIATORStats
+initiator_stats*
 FCIMCStats
 Blocks_Shift
 TMAT

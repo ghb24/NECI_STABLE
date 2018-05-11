@@ -154,6 +154,8 @@ MODULE FciMCData
 
       HElement_t(dp), allocatable :: trial_numerator(:), tot_trial_numerator(:)
       HElement_t(dp), allocatable :: trial_denom(:), tot_trial_denom(:)
+      HElement_t(dp), allocatable :: trial_num_inst(:), tot_trial_num_inst(:)
+      HElement_t(dp), allocatable :: trial_denom_inst(:), tot_trial_denom_inst(:)
       integer(n_int), allocatable :: con_send_buf(:,:)
       integer :: NConEntry
 
@@ -201,7 +203,7 @@ MODULE FciMCData
 
       ! The projected energy over the current update cycle.
       HElement_t(dp), allocatable :: ProjECyc(:)
-      
+
       real(dp) :: bloom_sizes(0:2), bloom_max(0:2)
       integer :: bloom_count(0:2), all_bloom_count(0:2)
 
@@ -570,6 +572,7 @@ MODULE FciMCData
 #ifdef __CMPLX
       real(dp), allocatable :: replica_overlaps_imag(:,:)
 #endif
+      real(dp), allocatable :: all_norms(:), all_overlaps(:,:)
 
 
       ! counting the total walker population all determinants of each ms value
