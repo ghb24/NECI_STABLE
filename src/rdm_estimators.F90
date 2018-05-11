@@ -379,6 +379,15 @@ contains
                 write(6,'(1x,"*TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*:",1x,es20.13,/)') &
                     est%energy_num(irdm)/est%norm(irdm)
 
+                if (tEN2) then
+                    write(6,'(1x,"EN2 corrections are below. Note that these may have a much &
+                                  &larger error bar than the",/," variational energy above. Please do a &
+                                  &blocking analysis rather than just using the energies below.")')
+                    write(6,'(1x,"EN2 energy correction:",1x,es17.10)') est%energy_pert(irdm)/est%norm(irdm)
+                    write(6,'(1x,"*TOTAL ENERGY* including the EN2 correction:",1x,es17.10,/)') &
+                        (est%energy_num(irdm) + est%energy_pert(irdm))/est%norm(irdm)
+                end if
+
                 ! Hermiticity error measures.
                 write(6,'(1x,"Hermiticty error estimates:")')
                 write(6,'(1x,i15,f30.20,5x,a41)') Iter+PreviousCycles, est%max_error_herm(irdm), &
