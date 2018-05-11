@@ -13,7 +13,7 @@ module fcimc_output
                          AllHistogramEnergy
     use CalcData, only: tTruncInitiator, tTrialWavefunction, tReadPops, &
                         DiagSft, tSpatialOnlyHash, tOrthogonaliseReplicas, &
-                        StepsSft, tPrintReplicaOverlaps, tStartTrialLater
+                        StepsSft, tPrintReplicaOverlaps, tStartTrialLater, tEN2
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
     use IntegralsData, only: frozen_orb_list, frozen_orb_reverse_map, &
@@ -27,6 +27,7 @@ module fcimc_output
     use Determinants, only: write_det
     use adi_data, only: AllCoherentDoubles, AllIncoherentDets, nRefs, &
          ilutRefAdi, tAdiActive, nConnection, AllConnection
+    use rdm_data, only: en_pert_main
     use Parallel_neci
     use FciMCData
     use constants
@@ -466,7 +467,7 @@ contains
         else
             filename = 'fciqmc_stats'
         end if
-        
+
 
         if (tReadPops) then
 
@@ -504,8 +505,65 @@ contains
 
         end if
 
-    end subroutine
+    end subroutine open_create_fciqmc_stats
 
+    subroutine open_create_initiator_stats(funit)
+
+        integer, intent(in) :: funit
+        character(*), parameter :: t_r = 'open_create_initiator_stats'
+
+        character(30) :: filename
+        character(43) :: filename2
+        character(12) :: num
+        integer :: i, ierr
+        logical :: exists
+
+        ! If we are using Molpro, then append the molpro ID to uniquely
+        ! identify the output
+        if (tMolpro .and. .not. tMolproMimic) then
+            filename = 'initiator_stats_' // adjustl(MolproID)
+        else
+            filename = 'initiator_stats'
+        end if
+
+
+        if (tReadPops) then
+
+            ! If we are reading from a POPSFILE, then we want to continue an
+            ! existing initiator_stats file if it exists.
+            open(funit, file=filename, status='unknown', position='append')
+
+        else
+
+            ! If we are doing a normal calculation, move existing initiator_stats
+            ! files so that they are not overwritten, and then create a new one
+            inquire(file=filename, exist=exists)
+            if (exists) then
+
+                ! Loop until we find an available spot to move the existing
+                ! file to.
+                i = 1
+                do while(exists)
+                    write(num, '(i12)') i
+                    filename2 = trim(adjustl(filename)) // "." // &
+                                trim(adjustl(num))
+                    inquire(file=filename2, exist=exists)
+                    if (i > 10000) &
+                        call stop_all(t_r, 'Error finding free initiator_stats.*')
+                    i = i + 1
+                end do
+
+                ! Move the file
+                call rename(filename, filename2)
+
+            end if
+
+            ! And finally open the file
+            open(funit, file=filename, status='unknown', iostat=ierr)
+
+        end if
+
+    end subroutine open_create_initiator_stats
 
 
     subroutine write_fcimcstats2(iter_data, initial)
@@ -521,6 +579,7 @@ contains
 
         ! Use a state type to keep things compact and tidy below.
         type(write_state_t), save :: state
+        type(write_state_t), save :: state_i
         logical, save :: inited = .false.
         character(5) :: tmpc, tmpc2
         integer :: p, q
@@ -529,14 +588,22 @@ contains
         ! Provide default 'initial' option
         if (present(initial)) then
             state%init = initial
+            if (tTruncInitiator) state_i%init = initial
         else
             state%init = .false.
+            if (tTruncInitiator) state_i%init = .false.
         end if
 
         ! If the output file hasn't been opened yet, then create it.
         if (iProcIndex == Root .and. .not. inited) then
             state%funit = get_free_unit()
             call open_create_fciqmc_stats(state%funit)
+            ! For the initiator stats file here:
+            if (tTruncInitiator) then
+              state_i%funit = get_free_unit()
+              call open_create_initiator_stats(state_i%funit)
+            end if
+
             inited = .true.
         end if
 
@@ -603,8 +670,6 @@ contains
             ! frequently).
             ! This also makes column contiguity on resumes as likely as
             ! possible.
-            if (tTruncInitiator) &
-                call stats_out(state,.false., AllNoAborted(1), 'No. aborted')
 
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these
@@ -708,12 +773,35 @@ contains
                     end do
                 end if
             end do
+
 #endif
+
+            if (tEN2) call stats_out(state,.true., en_pert_main%ndets_all, 'EN2 Dets.')
+
+            if (tTruncInitiator) then
+                call stats_out(state_i, .false., Iter + PreviousCycles, 'Iter.')
+                call stats_out(state_i, .false., AllTotWalkers, 'TotDets.')
+                do p = 1, inum_runs
+                    write(tmpc, '(i5)') p
+                    call stats_out(state_i, .false., AllTotParts(p), 'TotWalk. (' // trim(adjustl(tmpc)) // ")")
+                    call stats_out(state_i, .false., AllAnnihilated(p), 'Annihil. (' // trim(adjustl(tmpc)) // ")")
+                    call stats_out(state_i, .false., AllNoBorn(p), 'Born (' // trim(adjustl(tmpc)) // ")")
+                    call stats_out(state_i, .false., AllNoDied(p), 'Died (' // trim(adjustl(tmpc)) // ")")
+                    call stats_out(state_i, .false., AllNoRemoved(p), 'Removed Dets (' // trim(adjustl(tmpc)) // ")")
+                    call stats_out(state_i, .false., AllNoAborted(p), 'AbortedWalks (' // trim(adjustl(tmpc)) // ")")
+                    call stats_out(state_i, .false., AllNoInitDets(p), 'InitDets (' // trim(adjustl(tmpc)) // ")")
+                    call stats_out(state_i, .false., AllNoNonInitDets(p), 'NonInitDets (' // trim(adjustl(tmpc)) // ")")
+                    call stats_out(state_i, .false., AllNoInitWalk(p), 'InitWalks (' // trim(adjustl(tmpc)) // ")")
+                    call stats_out(state_i, .false., AllNoNonInitWalk(p), 'NonInitWalks (' // trim(adjustl(tmpc)) // ")")
+                end do
+            end if
 
             ! And we are done
             write(state%funit, *)
+            if (tTruncInitiator) write(state_i%funit, *)
             if (tMCOutput) write(iout, *)
             call neci_flush(state%funit)
+            if (tTruncInitiator) call neci_flush(state_i%funit)
             call neci_flush(iout)
 
         end if

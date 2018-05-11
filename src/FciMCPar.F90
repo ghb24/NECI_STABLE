@@ -7,7 +7,7 @@ module FciMCParMod
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
                         AvMCExcits, pops_norm_unit, iExitWalkers, &
-                        iFullSpaceIter, semistoch_shift_iter, &
+                        iFullSpaceIter, semistoch_shift_iter, tEN2, &
                         tOrthogonaliseReplicas, orthogonalise_iter, &
                         tDetermHFSpawning, use_spawn_hash_table, &
                         ss_space_in, s_global_start, tContTimeFCIMC, &
@@ -95,7 +95,7 @@ module FciMCParMod
     subroutine FciMCPar(energy_final_output)
 
         use rdm_data, only: rdm_estimates, two_rdm_main, two_rdm_recv, two_rdm_recv_2
-        use rdm_data, only: two_rdm_spawn, one_rdms, rdm_definitions
+        use rdm_data, only: two_rdm_spawn, one_rdms, rdm_definitions, en_pert_main
         use rdm_estimators, only: calc_2rdm_estimates_wrapper, write_rdm_estimates
         use rdm_estimators_old, only: rdm_output_wrapper_old, write_rdm_estimates_old
 
@@ -532,7 +532,7 @@ module FciMCParMod
                 if (print_2rdm_est .and. ((Iter - maxval(VaryShiftIter)) > IterRDMonFly) &
                     .and. (mod(Iter+PreviousCycles-IterRDMStart+1, RDMEnergyIter) == 0) ) then
            
-                    call calc_2rdm_estimates_wrapper(rdm_definitions, rdm_estimates, two_rdm_main)
+                    call calc_2rdm_estimates_wrapper(rdm_definitions, rdm_estimates, two_rdm_main, en_pert_main)
                     if (tOldRDMs) then
                         do irdm = 1, rdm_definitions%nrdms
                             call rdm_output_wrapper_old(rdms(irdm), one_rdms_old(irdm), irdm, rdm_estimates_old(irdm), .false.)
@@ -543,7 +543,15 @@ module FciMCParMod
                         call write_rdm_estimates(rdm_definitions, rdm_estimates, .false., print_2rdm_est)
                         if (tOldRDMs) call write_rdm_estimates_old(rdm_estimates_old, .false.)
                     end if
+
+                    if (tEN2) then
+                        ! If calculating the Epstein-Nesbet perturbation, reset the
+                        ! array and hash table where contributions are accumulated.
+                        en_pert_main%ndets = 0
+                        call clear_hash_table(en_pert_main%hash_table)
+                    end if
                 end if
+
             end if
 
             if (tChangeVarsRDM) then
@@ -554,8 +562,8 @@ module FciMCParMod
                 tChangeVarsRDM = .false.
             endif
 
-            if(tDiagWalkerSubspace.and.(mod(Iter,iDiagSubspaceIter).eq.0)) then
-                !Diagonalise a subspace consisting of the occupied determinants
+            if (tDiagWalkerSubspace.and.(mod(Iter,iDiagSubspaceIter).eq.0)) then
+                ! Diagonalise a subspace consisting of the occupied determinants
                 call DiagWalkerSubspace()
             endif
 
@@ -645,7 +653,8 @@ module FciMCParMod
         end if
 
         if (tFillingStochRDMonFly .or. tFillingExplicRDMonFly) then
-            call finalise_rdms(rdm_definitions, one_rdms, two_rdm_main, two_rdm_recv, two_rdm_recv_2, two_rdm_spawn, rdm_estimates)
+            call finalise_rdms(rdm_definitions, one_rdms, two_rdm_main, two_rdm_recv, &
+                               two_rdm_recv_2, en_pert_main, two_rdm_spawn, rdm_estimates)
             if (tOldRDMs) call FinaliseRDMs_old(rdms, one_rdms_old, rdm_estimates_old)
         end if
 
@@ -1251,7 +1260,6 @@ module FciMCParMod
         !They have already been removed from the hash table though.
 
         call DirectAnnihilation (totWalkersNew, iter_data, .false.) !.false. for not single processor
-
 
         ! This indicates the number of determinants in the list + the number
         ! of holes that have been introduced due to annihilation.
