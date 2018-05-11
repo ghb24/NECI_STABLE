@@ -358,7 +358,7 @@ contains
           tAccessibleDoubles = .false.
           tSuppressSIOutput = .true.
           nExProd = 2
-          NoTypeN = 1
+          NoTypeN = 20
           tStrictCoherentDoubles = .false.
           tWeakCoherentDoubles = .true.
           tAvCoherentDoubles = .true.
