@@ -12,7 +12,7 @@ module fcimc_iter_utils
                         nShiftEquilSteps, TargetGrowRateWalk, tContTimeFCIMC, &
                         tContTimeFull, pop_change_min, tPositiveHFSign, &
                         qmc_trial_wf, nEquilSteps, t_hist_tau_search, &
-                        t_hist_tau_search_option, tFixedN0, tSkipRef, N0_Target
+                        t_hist_tau_search_option, tFixedN0, tSkipRef, N0_Target, tEN2
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tFCIMCStats2, tPrintDataTables, tLogEXLEVELStats
     use semi_stoch_procs, only: recalc_core_hamil_diag
@@ -22,6 +22,7 @@ module fcimc_iter_utils
     use Determinants, only: get_helement
     use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av
     use tau_search, only: update_tau
+    use rdm_data, only: en_pert_main
     use Parallel_neci
     use fcimc_initialisation
     use fcimc_output
@@ -445,6 +446,8 @@ contains
         sizes(28) = 1
         sizes(29) = 1
         sizes(30) = 1
+        ! Perturbation correction
+        sizes(31) = 1
 
 
         if (sum(sizes(1:30)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
@@ -536,8 +539,15 @@ contains
         sizes(3) = size(ENumCycAbs)
         sizes(4) = size(cyc_proje_denominator)
         sizes(5) = size(sum_proje_denominator)
+        if (tTrialWavefunction) then
+            sizes(6) = size(trial_numerator)
+            sizes(7) = size(trial_denom)
+            sizes(8) = size(trial_num_inst)
+            sizes(9) = size(trial_denom_inst)
+        end if
+        if (tEN2) sizes(10) = 1
 
-        if (sum(sizes(1:5)) > 100) call stop_all(t_r, "No space left in arrays for communication of estimates. Please &
+        if (sum(sizes(1:10)) > 100) call stop_all(t_r, "No space left in arrays for communication of estimates. Please &
                                                         & increase the size of the send_arr_helem and recv_arr_helem &
                                                         & arrays in the source code.")
 
@@ -549,7 +559,10 @@ contains
         if (tTrialWavefunction) then
             low = upp + 1; upp = low + sizes(6) - 1; send_arr_helem(low:upp) = trial_numerator;
             low = upp + 1; upp = low + sizes(7) - 1; send_arr_helem(low:upp) = trial_denom;
+            low = upp + 1; upp = low + sizes(8) - 1; send_arr_helem(low:upp) = trial_num_inst;
+            low = upp + 1; upp = low + sizes(9) - 1; send_arr_helem(low:upp) = trial_denom_inst;
         end if
+        if (tEN2) low = upp + 1; upp = low + sizes(10) - 1; send_arr_helem(low) = en_pert_main%ndets;
 
         call MPISumAll (send_arr_helem(1:upp), recv_arr_helem(1:upp))
 
@@ -563,7 +576,10 @@ contains
         if (tTrialWavefunction) then
             low = upp + 1; upp = low + sizes(6) - 1; tot_trial_numerator = recv_arr_helem(low:upp);
             low = upp + 1; upp = low + sizes(7) - 1; tot_trial_denom = recv_arr_helem(low:upp);
+            low = upp + 1; upp = low + sizes(8) - 1; tot_trial_num_inst = recv_arr_helem(low:upp);
+            low = upp + 1; upp = low + sizes(9) - 1; tot_trial_denom_inst = recv_arr_helem(low:upp);
         end if
+        if (tEN2) low = upp + 1; upp = low + sizes(10) - 1; en_pert_main%ndets_all = recv_arr_helem(low);
 
         ! Optionally communicate EXLEVEL_WNorm.
         if (tLogEXLEVELStats) then

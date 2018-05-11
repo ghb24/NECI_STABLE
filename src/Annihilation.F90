@@ -5,7 +5,8 @@ module AnnihilationMod
     use SystemData, only: NEl, tHPHF
     use CalcData, only:   tTruncInitiator, OccupiedThresh, tSemiStochastic, &
                           tTrialWavefunction, tKP_FCIQMC, tContTimeFCIMC, &
-                          tContTimeFull, InitiatorWalkNo
+                          tContTimeFull, InitiatorWalkNo, tau, tEN2, tEN2Init, &
+                          tEN2Started, tEN2Truncated, tInitCoherentRule
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -27,6 +28,12 @@ module AnnihilationMod
                             CalcHashTableStats
     use searching
     use hash
+
+    use Determinants, only: get_helement
+    use hphf_integrals, only: hphf_diag_helement
+    use rdm_data, only: rdm_estimates, en_pert_main
+    use rdm_data_utils, only: add_to_en_pert_t
+    use fcimc_helper, only: CheckAllowedTruncSpawn
 
     implicit none
 
@@ -340,6 +347,7 @@ module AnnihilationMod
                 Spawned_Parents_Index(2,VecInd) = 0
             end if
 
+
             ! Annihilate in this block seperately for walkers of different types.
             do part_type = 1, lenof_sign
 
@@ -473,12 +481,19 @@ module AnnihilationMod
         ! If the cumulative and new signs for this replica are both non-zero
         ! then there have been at least two spawning events to this site, so
         ! set the initiator flag.
+        ! (There is now an option (tInitCoherentRule = .false.) to turn this
+        ! coherent spawning rule off, mainly for testing purposes).
         ! Also set the initiator flag if the new walker has its initiator flag
         ! set.
         if (tTruncInitiator) then
-            if ((abs(cum_sgn) > 1.e-12_dp .and. abs(new_sgn) > 1.e-12_dp) .or. &
-                 test_flag(new_det, get_initiator_flag(part_type))) &
-                call set_flag(cum_det, get_initiator_flag(part_type))
+            if (tInitCoherentRule) then
+                if ((abs(cum_sgn) > 1.e-12_dp .and. abs(new_sgn) > 1.e-12_dp) .or. &
+                     test_flag(new_det, get_initiator_flag(part_type))) &
+                    call set_flag(cum_det, get_initiator_flag(part_type))
+            else
+                if (test_flag(new_det, get_initiator_flag(part_type))) &
+                    call set_flag(cum_det, get_initiator_flag(part_type))
+            end if
         end if
 
         sgn_prod = cum_sgn * new_sgn
@@ -556,13 +571,14 @@ module AnnihilationMod
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer, intent(inout) :: TotWalkersNew
         integer, intent(inout) :: ValidSpawned 
-        integer :: PartInd, i, j, PartIndex
+        integer :: PartInd, i, j, PartIndex, run
         real(dp), dimension(lenof_sign) :: CurrentSign, SpawnedSign, SignTemp
         real(dp), dimension(lenof_sign) :: TempCurrentSign, SignProd
         real(dp) :: pRemove, r
         integer :: ExcitLevel, DetHash, nJ(nel)
         logical :: tSuccess, tSuc, tDetermState
-        integer :: run
+        logical :: abort(lenof_sign)
+        logical :: tTruncSpawn
 
         ! Only node roots to do this.
         if (.not. bNodeRoot) return
@@ -713,10 +729,22 @@ module AnnihilationMod
 
                     call extract_sign (SpawnedParts(:,i), SignTemp)
 
+                    ! Are we about to abort this spawn (on any replica) due to
+                    ! initiator criterion?
+                    do j = 1, lenof_sign
+                        abort(j) = test_abort_spawn(SpawnedParts(:, i), j)
+                    end do
+
+                    ! If calculating an EN2 correction to initiator error,
+                    ! check now if we should add anything.
+                    if (tEN2Init) then
+                        call add_en2_pert_for_init_calc(i, abort, nJ, SignTemp)
+                    end if
+
                     do j = 1, lenof_sign
                         run = part_type_to_run(j)
 
-                        if (test_abort_spawn(SpawnedParts(:, i), j)) then
+                        if (abort(j)) then
 
                             ! If this option is on, include the walker to be
                             ! cancelled in the trial energy estimate.
@@ -774,38 +802,52 @@ module AnnihilationMod
                     ! Determinant in newly spawned list is not found in
                     ! CurrentDets. If coeff <1, apply removal criterion.
                     call extract_sign (SpawnedParts(:,i), SignTemp)
-                    
-                    do j = 1, lenof_sign
-                        run = part_type_to_run(j)
-                        if ((abs(SignTemp(j)) > 1.e-12_dp) .and. (abs(SignTemp(j)) < OccupiedThresh)) then
-                            ! We remove this walker with probability 1-RealSignTemp.
-                            pRemove = (OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
-                            r = genrand_real2_dSFMT ()
-                            if (pRemove  >  r) then
-                                ! Remove this walker.
-                                NoRemoved(run) = NoRemoved(run) + abs(SignTemp(j))
-                                !Annihilated = Annihilated + abs(SignTemp(j))
-                                !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
-                                iter_data%nremoved(j) = iter_data%nremoved(j) &
-                                                      + abs(SignTemp(j))
-                                SignTemp(j) = 0
-                                call nullify_ilut_part (SpawnedParts(:,i), j)
-                            else
-                                NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(SignTemp(j))
-                                iter_data%nborn(j) = iter_data%nborn(j) &
-                                            + OccupiedThresh - abs(SignTemp(j))
-                                SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
-                                call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
+
+                    ! If using an EN2 perturbation to correct a truncated
+                    ! calculation, then this spawn may need to be truncated
+                    ! away now. Check this here:
+                    tTruncSpawn = .false.
+                    if (tEN2Truncated) then
+                        tTruncSpawn = .not. CheckAllowedTruncSpawn(0, nJ, SpawnedParts(:,i), 0)
+                    end if
+
+                    if (tTruncSpawn) then
+                        ! Needs to be truncated away, and a contribution
+                        ! added to the EN2 correction.
+                        call add_en2_pert_for_trunc_calc(i, nJ, SignTemp)
+                    else
+                        do j = 1, lenof_sign
+                            run = part_type_to_run(j)
+                            if ((abs(SignTemp(j)) > 1.e-12_dp) .and. (abs(SignTemp(j)) < OccupiedThresh)) then
+                                ! We remove this walker with probability 1-RealSignTemp.
+                                pRemove = (OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
+                                r = genrand_real2_dSFMT ()
+                                if (pRemove  >  r) then
+                                    ! Remove this walker.
+                                    NoRemoved(run) = NoRemoved(run) + abs(SignTemp(j))
+                                    !Annihilated = Annihilated + abs(SignTemp(j))
+                                    !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
+                                    iter_data%nremoved(j) = iter_data%nremoved(j) &
+                                                          + abs(SignTemp(j))
+                                    SignTemp(j) = 0
+                                    call nullify_ilut_part (SpawnedParts(:,i), j)
+                                else
+                                    NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(SignTemp(j))
+                                    iter_data%nborn(j) = iter_data%nborn(j) &
+                                                + OccupiedThresh - abs(SignTemp(j))
+                                    SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
+                                    call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
+                                end if
                             end if
+                        end do
+
+                        if (.not. IsUnoccDet(SignTemp)) then
+                            ! Walkers have not been aborted and so we should copy the
+                            ! determinant straight over to the main list. We do not
+                            ! need to recompute the hash, since this should be the
+                            ! same one as was generated at the beginning of the loop.
+                            call AddNewHashDet(TotWalkersNew, SpawnedParts(:,i), DetHash, nJ)
                         end if
-                    end do
-                    
-                    if (.not. IsUnoccDet(SignTemp)) then
-                        ! Walkers have not been aborted and so we should copy the
-                        ! determinant straight over to the main list. We do not
-                        ! need to recompute the hash, since this should be the
-                        ! same one as was generated at the beginning of the loop.
-                        call AddNewHashDet(TotWalkersNew, SpawnedParts(:,i), DetHash, nJ)
                     end if
                 end if
 
@@ -845,13 +887,111 @@ module AnnihilationMod
         integer, intent(in) :: part_type
         logical :: abort
 
-        real(dp) :: pkeep, parent_coeff
-
         ! If a particle comes from a site marked as an initiator, then it can
         ! live
 
         abort = .not. test_flag(ilut_spwn, get_initiator_flag(part_type))
 
-    end function
+    end function test_abort_spawn
+
+    subroutine add_en2_pert_for_init_calc(ispawn, abort, nJ, SpawnedSign)
+
+        ! Add a contribution to the second-order Epstein-Nesbet correction to
+        ! initiator error.
+
+        ! This adds a correction for the determinant at position ispawn in
+        ! the spawning array, and nJ is an array holding the occupied
+        ! electrons on this determinant. SpawnedSign is the array of
+        ! amplitudes spawned onto this determinant, and abort is array
+        ! specifying whether each of the spawnings are about to be aborted
+        ! due to the initiator criterion.
+
+        integer, intent(in) :: ispawn
+        logical, intent(in) :: abort(lenof_sign)
+        integer, intent(in) :: nJ(nel)
+        real(dp), intent(in):: SpawnedSign(lenof_sign)
+
+        integer :: j, istate
+        real(dp) :: contrib_sign(en_pert_main%sign_length)
+        logical :: pert_contrib(en_pert_main%sign_length)
+        real(dp) :: trial_contrib(lenof_sign)
+        HElement_t(dp) :: h_diag
+
+        ! RDM-energy-based estimate:
+        ! Only add a contribution if we've started accumulating this estimate.
+        if (tEN2Started) then
+            pert_contrib = .false.
+
+            do istate = 1, en_pert_main%sign_length
+                ! Was a non-zero contribution aborted on *both* replicas for
+                ! a given state?
+                if (abort(2*istate-1) .and. abort(2*istate) .and. &
+                      abs(SpawnedSign(2*istate-1)) > 1.e-12_dp .and. &
+                      abs(SpawnedSign(2*istate)) > 1.e-12_dp) &
+                    pert_contrib(istate) = .true.
+            end do
+
+            if (any(pert_contrib)) then
+                contrib_sign = 0.0_dp
+                do istate = 1, en_pert_main%sign_length
+                    if (pert_contrib(istate)) then
+                        contrib_sign(istate) = SpawnedSign(2*istate-1)*SpawnedSign(2*istate) / (tau**2)
+                    end if
+                end do
+
+                call add_to_en_pert_t(en_pert_main, nJ, SpawnedParts(:,ispawn), contrib_sign)
+            end if
+        end if
+
+    end subroutine add_en2_pert_for_init_calc
+
+    subroutine add_en2_pert_for_trunc_calc(ispawn, nJ, SpawnedSign)
+
+        ! Add a contribution to the second-order Epstein-Nesbet correction to
+        ! error due to truncation of the Hilbert space being sampled.
+
+        ! This adds a correction for the determinant at position ispawn in
+        ! the spawning array, and nJ is an array holding the occupied
+        ! electrons on this determinant. SpawnedSign is the array of
+        ! amplitudes spawned onto this determinant.
+
+        integer, intent(in) :: ispawn
+        integer, intent(in) :: nJ(nel)
+        real(dp), intent(inout):: SpawnedSign(lenof_sign)
+
+        integer :: j, istate
+        real(dp) :: contrib_sign(en_pert_main%sign_length)
+        logical :: pert_contrib(en_pert_main%sign_length)
+
+        ! Only add a contribution if we've started accumulating this estimate.
+        if (tEN2Started) then
+            pert_contrib = .false.
+
+            do istate = 1, en_pert_main%sign_length
+                if (abs(SpawnedSign(2*istate-1)) > 1.e-12_dp .and. &
+                      abs(SpawnedSign(2*istate)) > 1.e-12_dp) then
+                    pert_contrib(istate) = .true.
+                end if
+            end do
+
+            if (any(pert_contrib)) then
+                contrib_sign = 0.0_dp
+                do istate = 1, en_pert_main%sign_length
+                    if (pert_contrib(istate)) then
+                        contrib_sign(istate) = SpawnedSign(2*istate-1)*SpawnedSign(2*istate) / (tau**2)
+                    end if
+                end do
+
+                call add_to_en_pert_t(en_pert_main, nJ, SpawnedParts(:,ispawn), contrib_sign)
+            end if
+        end if
+
+        ! Remove the spawning
+        do j = 1, lenof_sign
+            SpawnedSign(j) = 0.0_dp
+            call encode_part_sign (SpawnedParts(:,ispawn), SpawnedSign(j), j)
+        end do
+
+    end subroutine add_en2_pert_for_trunc_calc
 
 end module AnnihilationMod

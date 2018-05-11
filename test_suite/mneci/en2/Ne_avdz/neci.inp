@@ -1,0 +1,48 @@
+title
+
+system read noorder
+molpromimic
+symignoreenergies
+freeformat
+electrons 8
+spin-restrict 0
+sym 0 0 0 0
+nonuniformrandexcits 4ind-weighted
+nobrillouintheorem
+system-replicas 4
+endsys
+
+calc
+methods
+method vertex fcimc
+endmethods
+memoryfacpart 100.0
+memoryfacspawn 200.0
+totalwalkers 2000
+nmcyc 8000
+seed 2347
+startsinglepart 400
+diagshift 0.1 0.1 0.8 0.8
+shiftdamp 0.05
+tau 0.02 search
+truncinitiator
+addtoinitiator 3
+allrealcoeff
+realspawncutoff 0.01
+jump-shift
+stepsshift 1
+maxwalkerbloom 3
+en2-initiator
+orthogonalise-replicas
+doubles-init
+endcalc
+
+integral
+freeze 0,0
+endint
+
+logging
+popsfile -1
+calcrdmonfly 3 3000 100
+endlog
+end
