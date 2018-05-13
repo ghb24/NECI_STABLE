@@ -213,7 +213,7 @@ contains
       end do
 
       ! we only keep at most maxNRefs determinants
-      if(refs_found > maxNRefs) then
+      if(refs_found > maxNRefs .and. NoTypeN > 1) then
          write(*,'(A,I5,A,I5,A,I5,A)') "On proc ", iProcIndex, " found ", refs_found, &
               " SIs, which is more than the maximum of ", maxNRefs, " - truncating"
          ! in case we found more, take the maxNRefs with the highest population
@@ -276,7 +276,8 @@ contains
          do i = 1, maxNRefs
             si_buf(0:NIfTot,i) = mpi_buf(0:NIfTot,largest_inds(i))
          enddo
-         if(iProcIndex == root) write(6,'(A,I5,A,I5,A)') "In total ", all_refs_found, &
+         if(iProcIndex == root .and. NoTypeN > 1) &
+              write(6,'(A,I5,A,I5,A)') "In total ", all_refs_found, &
               " SIs were found, which is more than the maximum number of ",& 
               maxNRefs,  " - truncating"              
          ! make it look to the outside as though maxNRefs were found
