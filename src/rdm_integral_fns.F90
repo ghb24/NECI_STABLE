@@ -8,12 +8,12 @@ contains
 
     pure function one_elec_int(i, j) result(integral)
 
-        use OneEInts, only: TMat2D
+        use OneEInts, only: GetTMatEl
 
         integer, intent(in) :: i, j
         real(dp) :: integral
 
-        integral = TMat2D(i,j)
+        integral = GetTMatEl(i, j)
 
     end function one_elec_int
 
@@ -42,6 +42,6 @@ contains
 
         integral = OneEPropInts(i,j,iprop)
 
-    end function
+    end function GetPropInts
 
 end module rdm_integral_fns

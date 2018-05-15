@@ -20,6 +20,8 @@ test_data = [
     ['ref_energy','<D0|H|D0>', -1, False],
     ['final_energy','Final energy estimate', -1, True],
     ['energy_rdm','*TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*', -1, True],
+    ['en2_energy','EN2 energy correction', -1, True],
+    ['en2_tot_energy','*TOTAL ENERGY* including the EN2 correction', -1, True],
     ['max_error_rdm','MAX ABS ERROR IN HERMITICITY', 1, True],
     ['sum_error_rdm','SUM ABS ERROR IN HERMITICITY', 1, True],
     ['max_diff_trdm','MAX ABS DIFF IN HERMITICITY', 1, True],

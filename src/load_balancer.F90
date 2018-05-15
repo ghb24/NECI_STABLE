@@ -18,7 +18,7 @@ module load_balance
                          tFillingStochRDMOnFly, full_determ_vecs, ntrial_excits, &
                          con_space_size, NConEntry, con_send_buf
     use searching, only: hash_search_trial, bin_search_trial
-    use Determinants, only: get_helement, write_det
+    use determinants, only: get_helement, write_det
     use LoggingData, only: tOutputLoadDistribution
     use hphf_integrals, only: hphf_diag_helement
     use cont_time_rates, only: spawn_rate_full
@@ -389,6 +389,7 @@ contains
                ! And send the trial wavefunction connection information
                nelem = nconsend * (1 + NConEntry)
                call MPISend(nconsend,1,tgt_proc,mpi_tag_nconsend, ierr)
+               if(nelem > 0) &
                call MPISend(con_send_buf(:,1:nconsend),nelem,tgt_proc, &
                     mpi_tag_con, ierr)
             end if
@@ -425,8 +426,10 @@ contains
             if(tTrialWavefunction) then
                call MPIRecv(nconsend, 1, src_proc, mpi_tag_nconsend, ierr)
                nelem = nconsend * (1 + NConEntry)
-               call MPIRecv(con_send_buf, nelem, src_proc, mpi_tag_con, ierr)
-               call add_con_ht_entries(con_send_buf(:,1:nconsend), nconsend)
+               if(nelem > 0) then
+                  call MPIRecv(con_send_buf, nelem, src_proc, mpi_tag_con, ierr)
+                  call add_con_ht_entries(con_send_buf(:,1:nconsend), nconsend)
+               endif
             endif
 
         end if

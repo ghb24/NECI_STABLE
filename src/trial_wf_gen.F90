@@ -159,6 +159,7 @@ contains
         else
             con_space_size = 0
             con_sendcounts = 0
+            allocate(con_space(0,0),stat=ierr)
             write(6,'("This processor will not search for connected states.")'); call neci_flush(6)
         end if
 
@@ -211,6 +212,9 @@ contains
 
         call MPISumAll(con_space_size, tot_con_space_size)
         ! allocate buffer for communication of con_ht
+        ! it is normally also allocated upon initialization, so deallocate
+        ! the dummy version
+        if(allocated(con_send_buf)) deallocate(con_send_buf)
         allocate(con_send_buf(0:NConEntry,tot_con_space_size))
 
         write(6,'("Total size of connected space:",1X,i10)') tot_con_space_size

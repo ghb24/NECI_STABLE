@@ -257,7 +257,7 @@ contains
             endif
 #endif
 
-            IF(tTruncInitiator) THEN
+            IF(tTruncInitiator .and. (.not. tFCIMCStats2)) THEN
                 initiatorstats_unit = get_free_unit()
                 if (tReadPops .and. .not. t_no_append_stats) then
 ! Restart calculation.  Append to stats file (if it exists)
@@ -1356,6 +1356,13 @@ contains
             ! If we are doing cont time, then initialise it here
             call init_cont_time()
 
+            ! set the dummies for trial wavefunction connected space 
+            ! load balancing before trial wf initialization
+            if(tTrialWavefunction) then
+               allocate(con_send_buf(0,0))
+               con_space_size = 0
+            end if
+
             write(iout,"(A,I12,A)") "Spawning vectors allowing for a total of ",MaxSpawned, &
                     " particles to be spawned in any one iteration per core."
             allocate(SpawnVec(0:NIfBCast, MaxSpawned), &
@@ -1551,6 +1558,11 @@ contains
             tot_trial_numerator = 0.0_dp
             trial_denom = 0.0_dp
             tot_trial_denom = 0.0_dp
+
+            trial_num_inst = 0.0_dp
+            tot_trial_num_inst = 0.0_dp
+            trial_denom_inst = 0.0_dp
+            tot_trial_denom_inst = 0.0_dp
         end if
 
          replica_overlaps_real(:, :) = 0.0_dp
@@ -3618,7 +3630,7 @@ contains
       ! We initialize the flags for the adi feature
       use adi_data, only: tSetDelayAllDoubsInits, tSetDelayAllSingsInits, tDelayAllDoubsInits, &
            tDelayAllSingsInits, tAllDoubsInitiators, tAllSingsInitiators, tDelayGetRefs, &
-           NoTypeN, nRefs, tReadRefs, tInitiatorsSubspace, maxNRefs, nRefsSings, nRefsDoubs, &
+           NoTypeN, tReadRefs, tInitiatorsSubspace, maxNRefs, nRefsSings, nRefsDoubs, &
            SIUpdateOffset
       use CalcData, only: InitiatorWalkNo
       use adi_references, only: enable_adi, reallocate_ilutRefAdi, setup_SIHash, &

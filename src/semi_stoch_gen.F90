@@ -123,7 +123,7 @@ contains
             determ_displs(i) = sum(determ_sizes(:i-1))
         end do
 
-        call sort(spawnedparts(:,1:determ_sizes(iprocindex)), ilut_lt, ilut_gt)
+        call sort(spawnedparts(0:NIfTot,1:determ_sizes(iprocindex)), ilut_lt, ilut_gt)
 
         ! Do a check that no states are in the deterministic space twice. The list is sorted
         ! already so simply check states next to each other in the list.
