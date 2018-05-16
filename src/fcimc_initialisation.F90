@@ -344,16 +344,20 @@ contains
         ALLOCATE(HFDet_True(NEl),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All(t_r,"Cannot allocate memory for HFDet_True")
 
-        if(tRef_Not_HF) then
-            do i = 1, NEl
-                HFDet_True(i) = BRR(i)
-            enddo
-            call sort(HFDet_True(1:NEl))
-            CALL EncodeBitDet(HFDet_True,iLutHF_True)
-        else
+        !RDM uses HFDet_True in some parts but ilutRef in others
+        !Sorry here we make them the same to avoid errors there.
+        !Let's hope that unkonwn parts of the code do not depend on HFDet_True
+
+        !if(tRef_Not_HF) then
+            !do i = 1, NEl
+                !HFDet_True(i) = BRR(i)
+            !enddo
+            !call sort(HFDet_True(1:NEl))
+            !CALL EncodeBitDet(HFDet_True,iLutHF_True)
+        !else
             iLutHF_True = iLutHF
             HFDet_True = HFDet
-        endif
+        !endif
 
         if(tHPHF) then
             allocate(RefDetFlip(NEl, inum_runs), &
