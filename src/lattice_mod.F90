@@ -528,13 +528,14 @@ module lattice_mod
     ! so from the TMAT in the input i have to define the neighbors of each 
     ! impurity site within themselves 
     ! 
-    type, extends(aim_star) :: cluster_aim 
+    type, extends(aim) :: cluster_aim 
         private 
 
 
     contains 
         private 
 
+        procedure :: initialize_aim
         procedure :: initialize_sites => init_sites_cluster_aim
 
     end type cluster_aim 
@@ -1301,10 +1302,38 @@ contains
 
     end function apply_basis_vector_ole
 
+    subroutine initialize_aim(this)
+      implicit none
+      class(cluster_aim) :: this
+      integer :: number_imps, i, j, k, l
+      ! here, we determine the number of bath and impurity sites
+      
+      number_imps = 0
+      ! check how many orbitals don't have interactions
+      do i = 1, nBasis
+         ! for each orbital, check if there are UMAT entries for that orbital
+         do j = 1, nBasis
+            do k = 1, nBasis
+               do l = 1, nBasis
+                  if(abs(get_umat_el(i,j,k,l))>eps) then
+                     number_imps = number_imps + 1
+                     exit
+                  endif
+               end do
+            end do
+         end do
+      end do
+        
+      ! and set the number of bath/impurity orbs
+      ! in the case that only one spin component of an impurity has 
+      ! interactions, we still include both in the bath
+      this%set_n_imps(ceiling(number_imps/2))
+      this%set_n_bath(floor((nBasis-number_imps)/2))
+    end subroutine initialize_aim
+
     subroutine init_sites_cluster_aim(this)
         class(cluster_aim) :: this 
         character(*), parameter :: this_routine = "init_sites_cluster_aim"
-
 
         integer :: ind, orb, i, cnt, connections(nBasis/2), j, maximum
 
@@ -1313,24 +1342,19 @@ contains
         maximum = -1
         ! now finally implement the actual cluster initializer, which 
         ! reads in a given TMAT and UMAT file, or atleast the information in it
-
-        ! kai wrote a parser, but he has not pushed this information 
-        ! and i guess this should be independent of other functionality 
-        ! in neci.. so write it here 
-        ! set it up so that 
-
-        ! due to circular dependency with my new hubbard implementation 
-        ! drop this routine for now! 
-        call stop_all(this_routine, "under construction!")
 !         ASSERT(associated(tmat2d))
+
+        ! first, we need to set up 
+        call this%initialize_aim()
 
         associate(n_bath => this%get_n_bath(), n_imps => this%get_n_imps())
             ASSERT(n_imps + n_bath == nbasis/2)
 
             if (n_imps > 1) call this%set_ndim(2)
 
-            ! no i have to do this better, loop over all the orbitals 
-            ! first the impurities
+            ! get the impurity connections
+            ! they are usually connected to each other, but the bath-imp. conn.
+            ! might look different
             do i = 1, n_imps
                 ! find all the connections in the tmat 
                 connections = -1
@@ -1338,8 +1362,9 @@ contains
                 do j = 1, nBasis/2
                     ! no diagonal terms
                     if (i == j) cycle
-!                     if (abs(gettmatel(2*i, 2*j)) > EPS) then 
-                    if (todo) then
+                     if (abs(gettmatel(2*i, 2*j)) > EPS &
+                          .or. abs(gettmatel(2*i-1,2*j-1))>EPS) then 
+!                    if (todo) then
                         ! cound the number of connections
                         cnt = cnt + 1 
                         ! and maybe i should already store the connected 
@@ -1357,8 +1382,9 @@ contains
                 cnt = 0
                 do j = 1, nbasis/2
                     if (i == j) cycle 
-!                     if (abs(gettmatel(2*i,2*j)) > EPS) then 
-                    if (todo) then
+                     if (abs(gettmatel(2*i,2*j)) > EPS &
+                          .or. abs(gettmatel(2*i-1,2*j-1)) > EPS) then 
+!                    if (todo) then
                         cnt = cnt + 1
                         connections(cnt) = j 
                     end if
@@ -3597,9 +3623,6 @@ contains
                 call stop_all(this_routine, & 
                     "zero or negative bath orbitals requested!")
             end if
-
-            call this%set_n_imps(length_x)
-            call this%set_n_bath(length_y) 
 
             if (length_x == 1) then 
                 call this%set_ndim(DIM_STAR) 

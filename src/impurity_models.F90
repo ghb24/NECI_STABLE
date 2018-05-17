@@ -18,17 +18,54 @@ use get_excit, only: make_single, make_double
 ! In isBath, isBath(I)==.true. means that the orbital I is a bath orbital
 
 implicit none 
-integer, allocatable :: bathOrbitals(:), impurityOrbitals(:)
+integer, allocatable :: connections(:,:), impuritySites(:), bathSites(:)
+integer :: nBath, nImp
+logical, allocatable :: isImp(:)
 
 interface
-   function sumFunc(i,j,k,l,nI)
+   function sumFunc(i,j,k,l,ilut)
      use constants, only: dp
-     use SystemData, only: nel
+     use bit_rep_data, only: NIfTot
      HElement_t(dp) :: sumFunc
-     integer, intent(in) :: i,j,k,l,nI(nel)
+     integer, intent(in) :: i,j,k,l,ilut(NIfTot)
    end function sumFunc
 end interface
 contains 
+
+!------------------------------------------------------------------------------------------!
+
+subroutine setupImpurityExcitgen()
+  include lattice_mod, only: lat, aim
+  implicit none
+  integer :: i,j
+  
+  ! set up a cluster aim lattice
+  lat => aim('cluster',1,1)
+  ! the lattice has information on the connectivity of the sites
+  ! first, allocate the direct connection cache
+  allocate(connections(nBasis,lat%get_nconnect_max()))
+  do i = 1, nBasis
+     ! in each entry, we store the neighbors 
+     connections(i) = lat%get_neighbors(i)
+  enddo
+  ! store the impurity and bath orbitals contiguously
+  nImp = lat%get_n_imps()
+  allocate(impuritySites(nImp))
+  impuritySites = lat%get_impurities()
+  
+  nBath = lat%get_n_bath()
+  allocate(bathSites(nBath))
+  bathSites = lat%get_bath()
+
+  ! also, for each orbital, we need to be able to quickly check
+  ! if it is in the impurity
+  allocate(isImp(nBasis))
+  do i = 1, nBasis
+     isImp(i) = lat%is_impurity_site(i)
+  enddo
+
+end subroutine setup_impurity_excitgen
+
 !------------------------------------------------------------------------------------------!
 
   subroutine constructBath(isBath)
@@ -62,15 +99,15 @@ contains
 
     iImp = 0
     iBath = 0
-    allocate(bathOrbitals(nBasis))
-    allocate(impurityOrbitals(nBasis))
+    allocate(bathSites(nBasis))
+    allocate(impuritySites(nBasis))
     do i = 1,nBasis
        if(isBath(i)) then
           iBath = iBath + 1
-          bathOrbitals(iBath) = i
+          bathSites(iBath) = i
        else
           iImp = iImp + 1
-          impurityOrbitals(iImp) = i
+          impuritySites(iImp) = i
        endif
     enddo
     nBath = iBath
@@ -122,7 +159,8 @@ contains
                                          tParity, pGen, HElGen, part_type)
     implicit none    
     ! generate a random excitation for an impurity-type system, that is,
-    ! connections between the bathsites are not taken into account
+    ! there is significant part of the system which is non-interacting (called bath)
+    ! for the one-electron integrals, we have the connections cached
     integer, intent(in) :: nI(nel)
     integer, intent(in) :: exFlag
     integer(n_int), intent(in) :: iLut(0:niftot)
@@ -174,30 +212,22 @@ contains
     integer(n_int), intent(in) :: ilut(0:niftot)
     integer(n_int), intent(out) :: ilutnJ(0:niftot)
 
-    integer :: randImp, randDest, iElec
+    integer :: randSource, randDest, iElec
     real(dp) :: r
-    
-    ! randomly pick an impurity orbital as all excitations contain at least
-    ! one impurity orbital
+
+    ! first, randomly pick an electron
     r = genrand_real2_dSFMT()
-    randImp = impurityOrbitals(INT(r*nImp)+1)
+    iElec = INT(r*nel)+1
+    randSource = nI(iElec)
     ! check if it is occupied
-    r = genrand_real2_dSFMT()
-    if(r .lt. pBath) then
-       call hamiltonian_weighted_pick_single_bath(randImp,randDest,pGen,ilut,nI)
-    else
-       call hamiltonian_weighted_pick_single_imp(randImp,randDest,pGen,ilut,nI)
-    endif
-    pGen = pGen / (nImp)
-    if(IsOcc(ilut,randImp)) then
-       iElec = binary_search_first_ge(nI,randImp)
-       call make_single(nI,nJ,iElec,randDest,ex,tParity)
-       call assign_output_ilut(ilut,ilutnJ,randImp,randDest)
-    else
-       iElec = binary_search_first_ge(nI,randDest)
-       call make_single(nI,nJ,iElec,randImp,ex,tParity)
-       call assign_output_ilut(ilut,ilutnJ,randDest,randImp)
-    endif
+    call hamiltonian_weighted_pick_single(randSource,randDest,pGen,ilut,nI)
+    ! each electron has the same probability to be picked
+    pGen = pGen / (nel)
+    ! assign the output
+    ! note that an invalid excitation (i.e. no possible excitations with the
+    ! chosen electron) is passed as randDest=0
+    call make_single(nI,nJ,iElec,randDest,ex,tParity)
+    call assign_output_ilut(ilut,ilutnJ,randSource,randDest)
   end subroutine generate_imp_single_excitation
 
 !------------------------------------------------------------------------------------------!
@@ -229,13 +259,15 @@ contains
     p_getImpImpMatElDoubs => getImpImpMatElDoubs
     call cumulative_sum_wrapper(ilut,nI,i,0,nImp,.true.,p_getImpImpMatElDoubs,&
          pGen,l,j,k)
+
+    ! and write the resulting det to output
     call make_double(nI,nJ,i,j,k,l,ex,tparity)
     call assign_output_ilut(ilut,ilutnJ,i,k,j,l)
   end subroutine generate_imp_double_excitation
 
 !------------------------------------------------------------------------------------------!
 
-  subroutine hamiltonian_weighted_pick_single_imp(origin,destination,pGen,ilut,nI)
+  subroutine hamiltonian_weighted_pick_single(origin,destination,pGen,ilut,nI)
     use util_mod_numerical, only: binary_search_first_ge
     use sltcnd_mod, only: sltcnd_excit
     implicit none    
@@ -248,37 +280,13 @@ contains
 
     procedure(sumFunc), pointer :: p_getImpImpMatEl
 
+    ! we use the cumulative sum framework, with the tmat-matrix elements
     p_getImpImpMatEl => getImpImpMatEl
 
     call cumulative_sum_wrapper(ilut,nI,origin,0,nImp,IsOcc(ilut,origin),p_getImpImpMatEl,&
          pGen,destination)
     pGen = pGen * (1.0_dp-pBath)
   end subroutine hamiltonian_weighted_pick_single_imp
-
-!------------------------------------------------------------------------------------------!
-
-  subroutine hamiltonian_weighted_pick_single_bath(origin,destination,pGen,ilut,nI)
-    use util_mod_numerical, only: binary_search_first_ge
-    implicit none    
-    ! pick an orbital from the bath with probability weighted according to the 
-    ! hamiltonian. This is kept general, so it can generate excitations both from
-    ! the impurity to the bath and vice versa, depending if origin is occupied
-    integer, intent(in) :: origin
-    integer, intent(out) :: destination
-    real(dp), intent(inout) :: pGen
-    integer(n_int), intent(in) :: ilut(0:niftot)
-    integer, intent(in) :: nI(nel)
-   
-    procedure(sumFunc), pointer :: p_getBathImpMatEl
-
-    p_getBathImpMatEl => getBathImpMatEl
-
-    ! Only count holes/parts depending on whether we are considering a part/hole in the
-    ! impurity
-    call cumulative_sum_wrapper(ilut,nI,origin,nImp,nBath,IsOcc(ilut,origin),p_getBathImpMatEl,&
-         pGen,destination)
-    pGen = pGen * pBath
-  end subroutine hamiltonian_weighted_pick_single_bath
 
 !------------------------------------------------------------------------------------------!
 
@@ -317,34 +325,42 @@ contains
 
  subroutine create_cumulative_list(cumSum,ilut,nI,origin,offset,nTarget,occupancy,&
       sumFunc,aux_a,aux_b)
+   ! This creates a list of cumulatively added function values of an input function
     implicit none    
     integer(n_int), intent(in) :: ilut(0:niftot)
-    integer, intent(in) :: offset, nTarget, origin, nI(nel)
+    ! origin is the starting point and fixed argument of the input function
+    integer, intent(in) :: offset, nTarget, origin
+    ! The targetOrbs are the
+    integer, intnet(in) :: targetOrbs
     real(dp), intent(out) :: cumSum(nTarget/2)
+    ! aux_a and aux_b are additional arguments for the input function, which might
+    ! not matter
     integer, intent(in) :: aux_a, aux_b
     logical, intent(in) :: occupancy
 
     integer :: i, ms
     
+! The function of which to create a cumulative list
     interface sf
-       function sumFunc(i,j,k,l,nI)
+       function sumFunc(i,j,k,l,ilut)
          use constants, only: dp
-         use SystemData, only: nel
+         use bit_rep_data, only: NIfTot
          HElement_t(dp) :: sumFunc
-         integer, intent(in) :: i,j,k,l,nI(nel)
+         integer, intent(in) :: i,j,k,l
+         real(dp) :: ilut(0:NIfTot)
        end function sumFunc
     end interface sf
 
     ms = mod(origin,2)
     
     if(occupancy .neqv. IsOcc(ilut,offset+2-ms)) then
-       cumSum(1) = abs(sumFunc(origin,offset+2-ms,aux_a,aux_b,nI))
+       cumSum(1) = abs(sumFunc(origin,offset+2-ms,aux_a,aux_b,ilut))
     else
        cumSum(1) = 0.0_dp
     endif
     do i = 2, nTarget/2
        if(occupancy .neqv. IsOcc(ilut,offset+2*i-ms)) then
-          cumSum(i) = cumSum(i-1) + abs(sumFunc(origin,offset+2*i-ms,aux_a,aux_b,nI))
+          cumSum(i) = cumSum(i-1) + abs(sumFunc(origin,offset+2*i-ms,aux_a,aux_b,ilut))
        else
           cumSum(i) = cumSum(i-1)
        endif
@@ -410,38 +426,40 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-  function getBathImpMatEl(i,j,k,l,nI) result(mel)
+  function getBathImpMatEl(i,j,k,l,ilut) result(mel)
     use constants, only: dp
-    use SystemData, only: nel
+    use bit_rep_data, only: NIfTot
     HElement_t(dp) :: mel
-    integer, intent(in) :: i,j,k,l,nI(nel)
+    integer, intent(in) :: i,j,k,l,ilut(NIfTot)
     
     mel = getTMatEl(i,j)
   end function getBathImpMatEl
 
 !------------------------------------------------------------------------------------------!
 
-  function getImpImpMatEl(i,j,k,l,nI) result(mel)
+  function getImpImpMatEl(i,j,k,l,ilut) result(mel)
     use constants, only: dp
-    use SystemData, only: nel
+    use bit_rep_data, only: NIfTot
     HElement_t(dp) :: mel
-    integer, intent(in) :: i,j,k,l,nI(nel)
+    integer, intent(in) :: i,j,k,l,ilut(NIfTot)
     integer :: nOccImp,m
 
     mel = getTMatEl(i,j)
-    nOccImp = binary_search_first_ge(nI,nImp)
-    do m = 1,nOccImp
-       mel = mel + get_umat_el(i,nI(k),j,nI(k)) - get_umat_el(i,nI(k),nI(k),i)
-    enddo
+    if(isImp(i) .and. isImp(j)) then       
+       do m = 1, nBath
+          if(isOcc(ilut,bathSites(m))) &
+          mel = mel + getImpImpMatElDoubs(i,bathSites(m),j,bathSites(m),nI)
+       enddo
+    end if
   end function getImpImpMatEl
 
 !------------------------------------------------------------------------------------------!
 
-  function getImpImpMatElDoubs(i,j,k,l,nI) result(mel)
+  function getImpImpMatElDoubs(i,j,k,l,ilut) result(mel)
     use constants, only: dp
-    use SystemData, only: nel
+    use bit_rep_data, only: NIfTot
     HElement_t(dp) :: mel
-    integer, intent(in) :: i,j,k,l,nI(nel)
+    integer, intent(in) :: i,j,k,l,ilut(NIfTot)
     
     mel = get_umat_el(i,k,l,j) - get_umat_el(i,k,j,l)
 
@@ -449,14 +467,26 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-  function getImpImpMatEl2Ind(i,j,k,l,nI) result(mel)
+  function getImpImpMatEl2Ind(i,j,k,l,ilut) result(mel)
     use constants, only: dp
-    use SystemData, only: nel
+    use bit_rep_data, only: NIfTot
     HElement_t(dp) :: mel
-    integer, intent(in) :: i,j,k,l,nI(nel)
+    integer, intent(in) :: i,j,k,l,ilut(NIfTot)
     
     mel = get_umat_el(i,j,i,j) - get_umat_el(i,j,j,i)
 
   end function getImpImpMatEl2Ind
+
+!------------------------------------------------------------------------------------------!
+
+  ! at the end of the run, clear the impurity excitation generator
+  subroutine clearImpurityExcitGen()
+    implicit none
+    
+    ! deallocate the auxiliary resources used by the impurity excitation generator
+    deallocate(bathSites)
+    deallocate(impuritySites)
+    deallocate(connections)
+  end subroutine clearImpurityExcitGen
 
 end module impurityModels
