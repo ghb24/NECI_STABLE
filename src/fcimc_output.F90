@@ -419,7 +419,7 @@ contains
                     IterTime
             endif
             if (tTruncInitiator) then
-               write(initiatorstats_unit,"(I12,4G16.7,3I20,7G16.7)")&
+               write(initiatorstat_unit,"(I12,4G16.7,3I20,7G16.7)")&
                    Iter + PreviousCycles, AllTotParts(1), &
                    AllAnnihilated(1), AllNoDied(1), AllNoBorn(1), AllTotWalkers,&
                    AllNoInitDets(1), AllNoNonInitDets(1), AllNoInitWalk(1), &
@@ -656,7 +656,7 @@ contains
 #endif
             end if
             call stats_out(state,.false., AllTotWalkers, 'Dets occ.')
-            call stats_out(state,.false., nspawned_tot, 'Dets spawned')
+            call stats_out(state,.false., AccRat(1), 'Acc. Rat.')
 #ifdef __REALTIME
             call stats_out(state,.false., real(sum(dyn_norm_red(:,1))/normsize),'GF normalization')
 #else
