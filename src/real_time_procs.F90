@@ -1408,9 +1408,9 @@ contains
               endif
            call write_overlap_state_serial(perturbed_buf, TotWalkers_orig_max, i)
            else
-              print *, "Generated overlap state"
+              write(6,*) "Generated overlap state"
               call write_overlap_state_serial(CurrentDets, TotWalkers, i)
-              print *, "Written overlap state to array"
+              write(6,*) "Written overlap state to array"
            endif
            call MPISumAll(overlap_states(i)%nDets,totNOccDets)
            if(totNOccDets==0) then 

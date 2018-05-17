@@ -21,9 +21,7 @@ module real_time_aux
       do iProc = 0, nProcessors-1
          ! sequentialize to overcome bottlenecks for shared memory systems (this is not performance critical)
          if(iProc .eq. iProcIndex) then
-            print *, "Now writing ", length
             call write_overlap_state(state,length,index)
-            print *, "Success on proc ", iProc
          endif
          call MPIBarrier(ierr)
       enddo

@@ -179,7 +179,7 @@ contains
              " to ", perturb%crtn_orbs(1)
         ndets = ndets - nremoved
 
-        print *, "Communicating perturbed dets"
+        write(6,*) "Communicating perturbed dets"
         ! Send perturbed determinants to their new processors.
         call SendProcNewParts(ndets, tSingleProc=.false.)
  
