@@ -1124,9 +1124,10 @@ contains
         type(fcimc_iter_data), intent(inout) :: iter_data
 
         HElement_t(dp), dimension(inum_runs) :: new_trial_denom, new_tot_trial_denom
-        real(dp), dimension(lenof_sign) :: trial_delta, SignCurr
-        integer :: j, rand, det_idx, proc_idx, run, part_type, err
-        integer :: trial_count, trial_indices(1000), trial_counts(nProcessors)
+        real(dp), dimension(lenof_sign) :: trial_delta, SignCurr, newSignCurr
+        integer :: j, rand, det_idx, proc_idx, run, part_type, lbnd, ubnd,err
+        integer :: trial_count, trial_indices(tot_trial_space_size), trial_counts(nProcessors)
+        logical :: tIsStateDeterm
 
 #ifdef __CMPLX
         call stop_all("fix_trial_overlap", "Complex wavefunction is not supported yet!")
@@ -1136,25 +1137,14 @@ contains
         new_trial_denom = 0.0
         new_tot_trial_denom = 0.0
 
-        !Choose randomly a det from the local trial space
-        !rand is its place within the trial space
-        !det_idx is its place within CurrentDets
-
-        det_idx = -1
-        proc_idx = -1
         trial_count = 0
         do j = 1, int(TotWalkers,sizeof_int)
-            if (test_flag(CurrentDets(:,j), flag_trial)) then
+            call extract_sign (CurrentDets(:,j), SignCurr)
+            if (.not. IsUnoccDet(SignCurr) .and. test_flag(CurrentDets(:,j), flag_trial)) then
                 trial_count = trial_count + 1
                 trial_indices(trial_count) = j 
-                !if(DetBitEQ(CurrentDets(:,j),iLutRef(:,1),nIfD)) then
-                    !det_idx = j
-                    !proc_idx = iProcIndex
-                !end if
 
                 !Update the overlap
-                call extract_sign (CurrentDets(:,j), SignCurr)
-                !write(iout, *) "Index, Sign: ", j, SignCurr
                 if (ntrial_excits == 1) then
                     new_trial_denom = new_trial_denom + current_trial_amps(1,j)*SignCurr
                 else if (tReplicaReferencesDiffer.and. tPairedReplicas) then
@@ -1166,6 +1156,7 @@ contains
                 end if
             end if
         end do
+
         !Collecte overlaps from call processors
         call MPIAllReduce(new_trial_denom,MPI_SUM,new_tot_trial_denom)
 
@@ -1178,18 +1169,12 @@ contains
             proc_idx = binary_search_first_ge(trial_counts, ceiling(genrand_real2_dSFMT() * trial_counts(nProcessors)))-1
         end if
         call MPIBCast(proc_idx)
-        !Choose a random determinant
-        det_idx = trial_indices(ceiling(genrand_real2_dSFMT() * trial_count))
 
-        !write(iout, *) "det_idx: ", det_idx
-        !write(iout, *) "proc_idx: ", proc_idx
-        !write(iout, *) "tot_trial_denom(1): ", tot_trial_denom(1)
-        !write(iout, *) "new_tot_trial_denom(1): ", new_tot_trial_denom(1)
 
         !Enforcing an update of the random determinant of the random processor
         if(iProcIndex .eq. proc_idx) then
             !Choose a random determinant
-            !write(iout, *) "current_trial_amps: ", current_trial_amps(1,det_idx)
+            det_idx = trial_indices(ceiling(genrand_real2_dSFMT() * trial_count))
             do part_type = 1, lenof_sign
                 run = part_type_to_run(part_type)
                 if(tFixTrial(run))then
@@ -1198,11 +1183,44 @@ contains
                     trial_delta(part_type) = 0.0
                 end if
             end do
-            !write(iout, *) "trial_delta: ", trial_delta
+
             call extract_sign (CurrentDets(:,det_idx), SignCurr)
-            call encode_sign (CurrentDets(:,det_idx), SignCurr+trial_delta)
-            !iter_data%ndied = iter_data%ndied + abs(SignCurr)
-            !iter_data%nborn = iter_data%nborn + abs(SignCurr+trial_delta)
+            newSignCurr = SignCurr+trial_delta
+            call encode_sign (CurrentDets(:,det_idx), newSignCurr)
+
+            !Correct statistics filled by CalcHashTableStats
+            iter_data%ndied = iter_data%ndied + abs(SignCurr)
+            iter_data%nborn = iter_data%nborn + abs(newSignCurr)
+            TotParts = TotParts + abs(newSignCurr) - abs(SignCurr)
+
+            tIsStateDeterm = .False.
+            if (tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,det_idx), flag_deterministic)
+
+            norm_psi_squared = norm_psi_squared + (newSignCurr)**2 - SignCurr**2
+            if (tIsStateDeterm) norm_semistoch_squared = norm_semistoch_squared + (newSignCurr)**2 - SignCurr**2
+
+            if (tCheckHighestPop) then
+                do run = 1, inum_runs
+                    lbnd = min_part_type(run)
+                    ubnd = max_part_type(run)
+                    if (abs_sign(newSignCurr(lbnd:ubnd)) > iHighestPop(run)) then
+                        iHighestPop(run) = int(abs_sign(newSignCurr(lbnd:ubnd)))
+                        HighestPopDet(:,run)=CurrentDets(:,det_idx)
+                    end if
+                end do
+            end if
+            if (tFillingStochRDMonFly) then
+                if (IsUnoccDet(newSignCurr) .and. (.not. tIsStateDeterm)) then
+                    if (DetBitEQ(CurrentDets(:,det_idx), iLutHF_True, NIfDBO)) then
+                        AvNoAtHF = 0.0_dp
+                        IterRDM_HF = Iter + 1
+                    end if
+                end if
+            end if
+
+            if (DetBitEQ(CurrentDets(:,det_idx), iLutHF_True, NIfDBO)) then
+                InstNoAtHF=newSignCurr
+            end if
         end if
 
     end subroutine fix_trial_overlap
