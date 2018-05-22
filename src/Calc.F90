@@ -131,6 +131,9 @@ contains
           TSignShift=.false.
           tFixedN0 = .false.
           tSkipRef(:) = .false.
+          tTrialShift = .false.
+          tFixTrial(:) = .false.
+          TrialTarget = 0.0
           NEquilSteps=0
           NShiftEquilSteps=1000
           TRhoElems=.false.
@@ -1457,13 +1460,16 @@ contains
                 call getf(StepsSftImag)
             case("STEPSSHIFT")
 !For FCIMC, this is the number of steps taken before the Diag shift is updated
-                if(tFixedN0)then
+                if(tFixedN0 .or. tTrialShift)then
                     write(6,*) "WARNING: 'STEPSSHIFT' cannot be changed. &
-                    & 'FIXED-N0' is already specified and sets this parameter to 1."
+                    & 'FIXED-N0' or 'TRIAL-SHIFT' is already specified and sets this parameter to 1."
                 else
                     call geti(StepsSft)
                 end if
             case("FIXED-N0")
+#ifdef __CMPL
+                call stop_all(this_routine, 'FIXED-N0 currently not implemented for complex')
+#endif
                 tFixedN0 = .true.
                 call geti(N0_Target)
                 !In this mode, the shift should be updated every iteration.
@@ -1472,6 +1478,15 @@ contains
                 !Also avoid changing the reference determinant.
                 tReadPopsChangeRef = .false.
                 tChangeProjEDet = .false.
+            case("TRIAL-SHIFT")
+#ifdef __CMPL
+                call stop_all(this_routine, 'TRIAL-SHIFT currently not implemented for complex')
+#endif
+                if (item.lt.nitems) then
+                    call readf(TrialTarget)
+                end if
+                tTrialShift = .true.
+                StepsSft = 1
             case("EXITWALKERS")
 !For FCIMC, this is an exit criterion based on the total number of walkers in the system.
                 call getiLong(iExitWalkers)

@@ -20,7 +20,7 @@ contains
 
         use DetBitOps, only: ilut_lt, ilut_gt
         use enumerate_excitations, only: generate_connected_space
-        use FciMCData, only: trial_space, trial_space_size, con_space, con_space_size, trial_wfs
+        use FciMCData, only: trial_space, trial_space_size, con_space, con_space_size, trial_wfs, tot_trial_space_size
         use FciMCData, only: trial_energies, ConTag, ConVecTag, TempTag, TrialTag, TrialWFTag
         use FciMCData, only: TrialTempTag, ConTempTag, OccTrialTag, Trial_Init_Time
         use FciMCData, only: OccConTag, CurrentTrialTag, current_trial_amps
@@ -41,7 +41,7 @@ contains
         logical, intent(in) :: replica_pairs
 
         integer :: i, ierr, num_states_on_proc, con_space_size_old
-        integer :: excit, tot_trial_space_size, tot_con_space_size
+        integer :: excit, tot_con_space_size
         integer :: min_elem, max_elem, num_elem
         integer(MPIArg) :: trial_counts(0:nProcessors-1), trial_displs(0:nProcessors-1)
         integer(MPIArg) :: con_sendcounts(0:nProcessors-1), con_recvcounts(0:nProcessors-1)
@@ -161,6 +161,9 @@ contains
             con_sendcounts = 0
             allocate(con_space(0,0),stat=ierr)
             write(6,'("This processor will not search for connected states.")'); call neci_flush(6)
+            !Although the size is zero, we should allocate it, because the rest of the code use it.
+            !Otherwise, we get segmentation fault later.
+            allocate(con_space(0:NIfTot, con_space_size), stat=ierr)
         end if
 
         write(6,'("Performing MPI communication of connected states...")'); call neci_flush(6)
