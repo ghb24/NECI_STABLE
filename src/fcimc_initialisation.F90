@@ -31,13 +31,12 @@ module fcimc_initialisation
                         trunc_nopen_max, MemoryFacInit, MaxNoatHF, HFPopThresh, &
                         tAddToInitiator, InitiatorWalkNo, tRestartHighPop, &
                         tAllRealCoeff, tRealCoeffByExcitLevel, tTruncInitiator, &
-                        RealCoeffExcitThresh, aliasStem, &
-                        tPopsAlias, &
+                        RealCoeffExcitThresh, aliasStem, tPopsAlias, &
                         tDynamicCoreSpace, TargetGrowRate, &
-                        TargetGrowRateWalk, InputTargetGrowRate, &
+                        TargetGrowRateWalk, InputTargetGrowRate, semistoch_shift_iter,&
                         InputTargetGrowRateWalk, tOrthogonaliseReplicas, &
                         use_spawn_hash_table, tReplicaSingleDetStart, &
-                        ss_space_in, trial_space_in, init_trial_in, &
+                        ss_space_in, trial_space_in, init_trial_in, trial_shift_iter, &
                         tContTimeFCIMC, tContTimeFull, tMultipleInitialRefs, &
                         initial_refs, trial_init_reorder, tStartTrialLater, &
                         ntrial_ex_calc, tPairedReplicas, tMultiRefShift, &
@@ -309,7 +308,7 @@ contains
             endif
 #endif
 
-            IF(tTruncInitiator) THEN
+            IF(tTruncInitiator .and. (.not. tFCIMCStats2)) THEN
                 initiatorstats_unit = get_free_unit()
                 if (tReadPops .and. .not. t_no_append_stats) then
 ! Restart calculation.  Append to stats file (if it exists)
@@ -396,16 +395,20 @@ contains
         ALLOCATE(HFDet_True(NEl),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All(t_r,"Cannot allocate memory for HFDet_True")
 
-        if(tRef_Not_HF) then
-            do i = 1, NEl
-                HFDet_True(i) = BRR(i)
-            enddo
-            call sort(HFDet_True(1:NEl))
-            CALL EncodeBitDet(HFDet_True,iLutHF_True)
-        else
+        !RDM uses HFDet_True in some parts but ilutRef in others
+        !Sorry here we make them the same to avoid errors there.
+        !Let's hope that unkonwn parts of the code do not depend on HFDet_True
+
+        !if(tRef_Not_HF) then
+            !do i = 1, NEl
+                !HFDet_True(i) = BRR(i)
+            !enddo
+            !call sort(HFDet_True(1:NEl))
+            !CALL EncodeBitDet(HFDet_True,iLutHF_True)
+        !else
             iLutHF_True = iLutHF
             HFDet_True = HFDet
-        endif
+        !endif
 
         if(tHPHF) then
             allocate(RefDetFlip(NEl, inum_runs), &
@@ -1633,9 +1636,15 @@ contains
         ! deterministic space, finding their processors, ordering them, inserting them into
         ! CurrentDets, calculating and storing all Hamiltonian matrix elements and initalising all
         ! arrays required to store and distribute the vectors in the deterministic space later.
-        if (tSemiStochastic .and. .not. t_real_time_fciqmc) &
-             call init_semi_stochastic(ss_space_in)
         ! in the real-time application, this is done after the initial state is set up
+        if (tSemiStochastic) then
+           if(tDynamicCoreSpace .and. tRDMonFly) then
+              tSemiStochastic = .false.
+              semistoch_shift_iter = 1
+           else
+              call init_semi_stochastic(ss_space_in)
+           endif
+        endif
 
         ! If the number of trial states to calculate hasn't been set by the
         ! user, then simply use the minimum number
@@ -1647,6 +1656,11 @@ contains
         ! This includes generating the trial space, generating the space connected to the trial space,
         ! diagonalising the trial space to find the trial wavefunction and calculating the vector
         ! in the connected space, required for the energy estimator.
+        if (tRDMonFly .and. tDynamicCoreSpace .and. tTrialWavefunction) then
+           tTrialWavefunction = .false.
+           tStartTrialLater = .true.
+           trial_shift_iter = 1
+        endif
         if (tTrialWavefunction) then
             if (tPairedReplicas) then
                 call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs/2, .true.)
@@ -1661,6 +1675,11 @@ contains
             tot_trial_numerator = 0.0_dp
             trial_denom = 0.0_dp
             tot_trial_denom = 0.0_dp
+
+            trial_num_inst = 0.0_dp
+            tot_trial_num_inst = 0.0_dp
+            trial_denom_inst = 0.0_dp
+            tot_trial_denom_inst = 0.0_dp
         end if
 
          replica_overlaps_real(:, :) = 0.0_dp
@@ -3743,7 +3762,7 @@ contains
       ! We initialize the flags for the adi feature
       use adi_data, only: tSetDelayAllDoubsInits, tSetDelayAllSingsInits, tDelayAllDoubsInits, &
            tDelayAllSingsInits, tAllDoubsInitiators, tAllSingsInitiators, tDelayGetRefs, &
-           NoTypeN, nRefs, tReadRefs, tInitiatorsSubspace, maxNRefs, nRefsSings, nRefsDoubs, &
+           NoTypeN, tReadRefs, tInitiatorsSubspace, maxNRefs, nRefsSings, nRefsDoubs, &
            SIUpdateOffset
       use CalcData, only: InitiatorWalkNo
       use adi_references, only: enable_adi, reallocate_ilutRefAdi, setup_SIHash, &

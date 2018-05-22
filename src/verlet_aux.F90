@@ -21,8 +21,8 @@ module verlet_aux
                         indices_of_determ_states, partial_determ_vecs, FreeSlot, ll_node, &
                         popsfile_dets, WalkVecDets, exFlag, max_calc_ex_level, ilutRef, Hii, &
                         fcimc_iter_data, determ_sizes, partial_determ_vecs
-  use CalcData, only: tTruncInitiator, tau, AvMCExcits, tPairedReplicas, tKeepDoubSpawns, &
-       tSemiStochastic
+  use CalcData, only: tTruncInitiator, tau, AvMCExcits, tPairedReplicas, &
+       tSemiStochastic, tInitCoherentRule
   use procedure_pointers, only: attempt_create, attempt_die, generate_excitation, &
        encode_child
   use DetBitOps, only: FindBitExcitLevel
@@ -323,9 +323,15 @@ module verlet_aux
          ! check for initiator criterium
          if(tTruncInitiator) then
             do run = 1, inum_runs
-               if((.not. is_run_unnocc(old_sign,run) .and. tKeepDoubSpawns) .or. test_flag(&
+                if (tInitCoherentRule) then
+                   if(.not. is_run_unnocc(old_sign,run) .or. test_flag(&
                     ilut, get_initiator_flag_by_run(run))) then
-                  call set_flag(SpawnedParts(:,ind),get_initiator_flag_by_run(run))
+                      call set_flag(SpawnedParts(:,ind),get_initiator_flag_by_run(run))
+                  end if
+                else
+                  if (test_flag(ilut, get_initiator_flag_by_run(run))) then
+                      call set_flag(SpawnedParts(:,ind),get_initiator_flag_by_run(run))
+                  end if
                endif
             end do
          endif

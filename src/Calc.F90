@@ -146,6 +146,9 @@ contains
           TSignShift=.false.
           tFixedN0 = .false.
           tSkipRef(:) = .false.
+          tTrialShift = .false.
+          tFixTrial(:) = .false.
+          TrialTarget = 0.0
           NEquilSteps=0
           NShiftEquilSteps=1000
           TRhoElems=.false.
@@ -256,9 +259,10 @@ contains
           TLADDER=.false. 
           tDefineDet=.false.
           tTruncInitiator=.false.
-          tKeepDoubSpawns = .true.
-          tMultiSpawnThreshold = .false.
+!           tKeepDoubSpawns = .true.
+!           tMultiSpawnThreshold = .false.
           tAddtoInitiator=.false.
+          tInitCoherentRule=.true.
           InitiatorWalkNo=3.0_dp
           tSeniorInitiators =.false.
           SeniorityAge=1.0_dp
@@ -381,7 +385,7 @@ contains
           tAccessibleDoubles = .false.
           tSuppressSIOutput = .true.
           nExProd = 2
-          NoTypeN = 20
+          NoTypeN = InitiatorWalkNo
           tStrictCoherentDoubles = .false.
           tWeakCoherentDoubles = .true.
           tAvCoherentDoubles = .true.
@@ -394,6 +398,12 @@ contains
 
           ! And disable the initiators subspace
           tInitiatorsSubspace = .false.
+
+          ! Epstein-Nesbet second-order correction logicals.
+          tEN2 = .false.
+          tEN2Init = .false.
+          tEN2Truncated = .false.
+          tEN2Started = .false.
 
         end subroutine SetCalcDefaults
 
@@ -1286,16 +1296,11 @@ contains
                 tSemiStochastic = .true.
                 ! If there is ane extra item, it should specify that we turn
                 ! semi-stochastic on later.
-                if (item < nitems .or. tWalkContgrow) then
-                   ! if we set walkcontgrow, we do not want to initialize 
-                   ! the corespace immediately
-                   semistoch_shift_iter = 1
+                if (item < nitems) then
                    if(item < nitems) &
                       call geti(semistoch_shift_iter)
                     tSemiStochastic = .false.
                     tStartCoreGroundState = .false.
-                    if(tWalkContgrow) write(iout,*) "WARNING: Immediate corespace" &
-                         //" setup disabled, initializing the corespace in variable shift mode"
                 end if
             case("CSF-CORE")
                 if(item.lt.nitems) then
@@ -1386,6 +1391,7 @@ contains
                     tStartTrialLater = .true.
                     call geti(trial_shift_iter)
                 end if
+
             case("NUM-TRIAL-STATES-CALC")
                 call geti(ntrial_ex_calc)
             case("QMC-TRIAL-WF")
@@ -1525,13 +1531,16 @@ contains
                 call getf(StepsSftImag)
             case("STEPSSHIFT")
 !For FCIMC, this is the number of steps taken before the Diag shift is updated
-                if(tFixedN0)then
+                if(tFixedN0 .or. tTrialShift)then
                     write(6,*) "WARNING: 'STEPSSHIFT' cannot be changed. &
-                    & 'FIXED-N0' is already specified and sets this parameter to 1."
+                    & 'FIXED-N0' or 'TRIAL-SHIFT' is already specified and sets this parameter to 1."
                 else
                     call geti(StepsSft)
                 end if
             case("FIXED-N0")
+#ifdef __CMPL
+                call stop_all(this_routine, 'FIXED-N0 currently not implemented for complex')
+#endif
                 tFixedN0 = .true.
                 call geti(N0_Target)
                 !In this mode, the shift should be updated every iteration.
@@ -1540,6 +1549,15 @@ contains
                 !Also avoid changing the reference determinant.
                 tReadPopsChangeRef = .false.
                 tChangeProjEDet = .false.
+            case("TRIAL-SHIFT")
+#ifdef __CMPL
+                call stop_all(this_routine, 'TRIAL-SHIFT currently not implemented for complex')
+#endif
+                if (item.lt.nitems) then
+                    call readf(TrialTarget)
+                end if
+                tTrialShift = .true.
+                StepsSft = 1
             case("EXITWALKERS")
 !For FCIMC, this is an exit criterion based on the total number of walkers in the system.
                 call getiLong(iExitWalkers)
@@ -1600,14 +1618,6 @@ contains
 !this value.  Without this keyword, when a popsfile is read in, the number of walkers is kept at the number 
 !in the POPSFILE regardless of whether the shift had been allowed to change in the previous calc.
                 tWalkContGrow=.true.
-! if we grow more walkers, we only want the corespace to be set up once we reached the
-! new walker number
-                if(tSemiStochastic) then
-                   tSemiStochastic = .false.
-                   semistoch_shift_iter = 1
-                   write(iout,*) "WARNING: Immediate corespace" &
-                        //" setup disabled, initializing the corespace in variable shift mode"
-                endif
             case("SCALEWALKERS")
 !For FCIMC, if this is a way to scale up the number of walkers, after having read in a POPSFILE
                 call getf(ScaleWalkers)
@@ -1867,7 +1877,22 @@ contains
 !can only spawn back on to the determinant from which they came.  This is the star approximation from the CAS space. 
                 tTruncInitiator=.true.
 
-            case("KEEPDOUBSPAWNS")
+            case("NO-COHERENT-INIT-RULE")
+                tInitCoherentRule=.false.
+
+! Epstein-Nesbet second-order perturbation using the stochastic spawnings to correct initiator error.
+            case("EN2-INITIATOR")
+                tEN2 = .true.
+                tEN2Init = .true.
+
+! Epstein-Nesbet second-order perturbation using stochastic spawnings. However, this is not used to
+! correct initiator error. Currently, it is only used for the full non-initiator scheme when applied
+! to a truncated space. Then, an EN2 correction is applied to the space outside that truncation.
+            case("EN2-TRUNCATED")
+                tEN2 = .true.
+                tEN2Truncated = .true.
+
+!             case("KEEPDOUBSPAWNS")
 !This means that two sets of walkers spawned on the same determinant with the same sign will live, 
 !whether they've come from inside or outside the CAS space.  Before, if both of these
 !were from outside the space, they would've been aborted.
@@ -1875,15 +1900,15 @@ contains
 !This option is now on permanently by default and cannot be turned off.
 
 ! for testing purposes, it can now be turned off, using the following keyword
-            case("DISCARDDOUBSPAWNS")
-               tKeepDoubSpawns = .false.
+!             case("DISCARDDOUBSPAWNS")
+!                tKeepDoubSpawns = .false.
                
 ! manually set the number of simultaneous spawns required for keeping a spawn from a 
 ! non-inititator to an unoccupied determinant
-            case("MULTISPAWN-THRESHOLD")
-               tMultiSpawnThreshold = .true.
-               tKeepDoubSpawns = .false.
-               call geti(multiSpawnThreshold)
+!             case("MULTISPAWN-THRESHOLD")
+!                tMultiSpawnThreshold = .true.
+!                tKeepDoubSpawns = .false.
+!                call geti(multiSpawnThreshold)
 
             case("ADDTOINITIATOR")
 !This option means that if a determinant outside the initiator space becomes significantly populated - 

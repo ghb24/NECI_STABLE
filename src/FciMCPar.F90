@@ -10,7 +10,7 @@ module FciMCParMod
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
                         AvMCExcits, pops_norm_unit, iExitWalkers, &
-                        iFullSpaceIter, semistoch_shift_iter, &
+                        iFullSpaceIter, semistoch_shift_iter, tEN2, &
                         tOrthogonaliseReplicas, orthogonalise_iter, &
                         tDetermHFSpawning, use_spawn_hash_table, &
                         ss_space_in, s_global_start, tContTimeFCIMC, &
@@ -19,9 +19,8 @@ module FciMCParMod
                         t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
                         t_back_spawn_flex, t_back_spawn_flex_option, &
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
-                        DiagSft, tSpinProject, &
-                        tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
-                        tSkipRef
+                        DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
+                        tSkipRef, tFixTrial, tTrialShift, tSpinProject
 
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
                         tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
@@ -124,7 +123,7 @@ module FciMCParMod
     subroutine FciMCPar(energy_final_output)
 
         use rdm_data, only: rdm_estimates, two_rdm_main, two_rdm_recv, two_rdm_recv_2
-        use rdm_data, only: two_rdm_spawn, one_rdms, rdm_definitions
+        use rdm_data, only: two_rdm_spawn, one_rdms, rdm_definitions, en_pert_main
         use rdm_estimators, only: calc_2rdm_estimates_wrapper, write_rdm_estimates
         use rdm_estimators_old, only: rdm_output_wrapper_old, write_rdm_estimates_old
 
@@ -347,14 +346,7 @@ module FciMCParMod
                endif
                write(6,*) "Refreshing trial wavefunction at iteration ", iter
             endif
-            ! Update the semistochastic space if requested
-            if(tSemiStochastic .and. tDynamicCoreSpace .and. &
-                 mod(iter-semistochStartIter, &
-                 coreSpaceUpdateCycle) == 0) then
-               call refresh_semistochastic_space()
-               write(6,*) "Refreshing semistochastic space at iteration ", iter
-            end if
-           
+       
             if(((Iter - maxval(VaryShiftIter)) == allDoubsInitsDelay + 1 &
                  .and. all(.not. tSinglePartPhase))) then
                ! Start the all-doubs-initiator procedure
@@ -641,7 +633,7 @@ module FciMCParMod
                 if (print_2rdm_est .and. ((Iter - maxval(VaryShiftIter)) > IterRDMonFly) &
                     .and. (mod(Iter+PreviousCycles-IterRDMStart+1, RDMEnergyIter) == 0) ) then
            
-                    call calc_2rdm_estimates_wrapper(rdm_definitions, rdm_estimates, two_rdm_main)
+                    call calc_2rdm_estimates_wrapper(rdm_definitions, rdm_estimates, two_rdm_main, en_pert_main)
                     if (tOldRDMs) then
                         do irdm = 1, rdm_definitions%nrdms
                             call rdm_output_wrapper_old(rdms(irdm), one_rdms_old(irdm), irdm, rdm_estimates_old(irdm), .false.)
@@ -652,7 +644,15 @@ module FciMCParMod
                         call write_rdm_estimates(rdm_definitions, rdm_estimates, .false., print_2rdm_est)
                         if (tOldRDMs) call write_rdm_estimates_old(rdm_estimates_old, .false.)
                     end if
+
+                    if (tEN2) then
+                        ! If calculating the Epstein-Nesbet perturbation, reset the
+                        ! array and hash table where contributions are accumulated.
+                        en_pert_main%ndets = 0
+                        call clear_hash_table(en_pert_main%hash_table)
+                    end if
                 end if
+
             end if
 
             if (tChangeVarsRDM) then
@@ -663,8 +663,8 @@ module FciMCParMod
                 tChangeVarsRDM = .false.
             endif
 
-            if(tDiagWalkerSubspace.and.(mod(Iter,iDiagSubspaceIter).eq.0)) then
-                !Diagonalise a subspace consisting of the occupied determinants
+            if (tDiagWalkerSubspace.and.(mod(Iter,iDiagSubspaceIter).eq.0)) then
+                ! Diagonalise a subspace consisting of the occupied determinants
                 call DiagWalkerSubspace()
             endif
 
@@ -762,7 +762,8 @@ module FciMCParMod
         end if
 
         if (tFillingStochRDMonFly .or. tFillingExplicRDMonFly) then
-            call finalise_rdms(rdm_definitions, one_rdms, two_rdm_main, two_rdm_recv, two_rdm_recv_2, two_rdm_spawn, rdm_estimates)
+            call finalise_rdms(rdm_definitions, one_rdms, two_rdm_main, two_rdm_recv, &
+                               two_rdm_recv_2, en_pert_main, two_rdm_spawn, rdm_estimates)
             if (tOldRDMs) call FinaliseRDMs_old(rdms, one_rdms_old, rdm_estimates_old)
         end if
 
@@ -1191,10 +1192,6 @@ module FciMCParMod
                 endif
             ENDIFDEBUG
 
-            ! Sum in any energy contribution from the determinant, including 
-            ! other parameters, such as excitlevel info.
-            ! This is where the projected energy is calculated.
-            call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, CurrentDets(:,j), HDiagCurr, 1.0_dp, tPairedReplicas, j)
 
             ! double occupancy measurement: quick and dirty for now
             if (t_calc_double_occ) then
@@ -1409,7 +1406,6 @@ module FciMCParMod
 
         call DirectAnnihilation (totWalkersNew, iter_data, .false.) !.false. for not single processor
 
-
         ! This indicates the number of determinants in the list + the number
         ! of holes that have been introduced due to annihilation.
         TotWalkers = TotWalkersNew
@@ -1434,6 +1430,22 @@ module FciMCParMod
             if (tOldRDMs) call fill_rdm_diag_wrapper_old(rdms, one_rdms_old, CurrentDets, int(TotWalkers, sizeof_int))
             call fill_rdm_diag_wrapper(rdm_definitions, two_rdm_spawn, one_rdms, CurrentDets, int(TotWalkers, sizeof_int))
         end if
+
+        if(tTrialWavefunction .and. tTrialShift)then
+            call fix_trial_overlap(iter_data)
+        end if
+
+        ! Sum in any energy contribution from the determinant, including 
+        ! other parameters, such as excitlevel info.
+        ! This is where the projected energy is calculated.
+        do j = 1, int(TotWalkers,sizeof_int)
+            HDiagCurr = det_diagH(j)
+            call extract_bit_rep_avsign(rdm_definitions, CurrentDets(:,j), j, DetCurr, SignCurr, FlagsCurr, &
+                                        IterRDMStartCurr, AvSignCurr, fcimc_excit_gen_store)
+            walkExcitLevel = FindBitExcitLevel (iLutRef(:,1), CurrentDets(:,j), &
+                                                max_calc_ex_level)
+            call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, CurrentDets(:,j), HDiagCurr, 1.0_dp, tPairedReplicas, j)
+        end do
 
         call update_iter_data(iter_data)
 

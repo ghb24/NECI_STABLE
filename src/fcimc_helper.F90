@@ -34,13 +34,13 @@ module fcimc_helper
     use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, &
                         tAddToInitiator, InitiatorWalkNo, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
-                        tRealCoeffByExcitLevel, tKeepDoubSpawns, &
+                        tRealCoeffByExcitLevel, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
-                        MaxWalkerBloom,tMultiSpawnThreshold, multiSpawnThreshold, &
+                        MaxWalkerBloom, tEN2, tEN2Started, &
                         NMCyc, iSampleRDMIters, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
                         t_back_spawn_flex, tau, DiagSft, &
-                        tSeniorInitiators, SeniorityAge
+                        tSeniorInitiators, SeniorityAge, tInitCoherentRule
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, tInitiatorsSubspace, &
          tAllDoubsInitiators, tAllSingsInitiators
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
@@ -203,86 +203,85 @@ contains
            ASSERT((sum(abs(child_sign))-maxval(abs(child_sign)))<1.0e-12_dp)
         endif
 
-        call hash_table_lookup(nI_child, ilut_child, NIfDBO, spawn_ht, &
-            SpawnedParts, ind, hash_val, tSuccess)
-       
-        if (tSuccess) then
-            ! If the spawned child is already in the spawning array.
-            ! Extract the old sign.
-            call extract_sign(SpawnedParts(:,ind), real_sign_old)
-            ! If the new child has an opposite sign to that of walkers already
-            ! on the site, then annihilation occurs. The stats for this need
-            ! accumulating.
-            ! in the second real-time spawn loop, i can spawn also to 
-            ! determinants, which are actually diagonal particles
-            ! hence i have to update the diag_spawn flag if i annihilate all
-            ! particles eg. and maybe also update the ndied and nborn 
-            ! quantities, as this then is not done in the Annihilation if 
-            ! no info about the diagonal particles remain ...
+    call hash_table_lookup(nI_child, ilut_child, NIfDBO, spawn_ht, &
+        SpawnedParts, ind, hash_val, tSuccess)
+   
+    if (tSuccess) then
+        ! If the spawned child is already in the spawning array.
+        ! Extract the old sign.
+        call extract_sign(SpawnedParts(:,ind), real_sign_old)
+        ! If the new child has an opposite sign to that of walkers already
+        ! on the site, then annihilation occurs. The stats for this need
+        ! accumulating.
+        ! in the second real-time spawn loop, i can spawn also to 
+        ! determinants, which are actually diagonal particles
+        ! hence i have to update the diag_spawn flag if i annihilate all
+        ! particles eg. and maybe also update the ndied and nborn 
+        ! quantities, as this then is not done in the Annihilation if 
+        ! no info about the diagonal particles remain ...
 
-            ! but to know if its a death or a cloning event i have to know
-            ! the original sign in the stored y(n) array... but i dont 
-            ! wanna do a lookup in this original list..
-            ! hm: an idea, maybe in the end create a new SpawnedPartsDiag
-            ! array to store the "spawning" from the diagonal step which
-            ! where annhilations in the DirectAnnihilation routine gets 
-            ! treated as deaths/births.. -> yes! thats a good idea! 
-            ! also there i would be sure to not find the determinants if 
-            ! i loop over them, since it essentially is only a copy of the 
-            ! worked on y(n) + k1/2 list
-            ! and it would be nicer to seperate those 2 steps as they are 
-            ! essentially smth different...
+        ! but to know if its a death or a cloning event i have to know
+        ! the original sign in the stored y(n) array... but i dont 
+        ! wanna do a lookup in this original list..
+        ! hm: an idea, maybe in the end create a new SpawnedPartsDiag
+        ! array to store the "spawning" from the diagonal step which
+        ! where annhilations in the DirectAnnihilation routine gets 
+        ! treated as deaths/births.. -> yes! thats a good idea! 
+        ! also there i would be sure to not find the determinants if 
+        ! i loop over them, since it essentially is only a copy of the 
+        ! worked on y(n) + k1/2 list
+        ! and it would be nicer to seperate those 2 steps as they are 
+        ! essentially smth different...
 
-            ! UPDATE! decided to store the diagonal particles in the 2nd 
-            ! RK loop in a seperate DiagParts array -> so no need to 
-            ! distinguish here, as only "proper" spawns are treated here!
-            sgn_prod = real_sign_old * child_sign
+        ! UPDATE! decided to store the diagonal particles in the 2nd 
+        ! RK loop in a seperate DiagParts array -> so no need to 
+        ! distinguish here, as only "proper" spawns are treated here!
+        sgn_prod = real_sign_old * child_sign
 
 
-            do i = 1, lenof_sign
-                if (sgn_prod(i) < 0.0_dp) then
-                    run = part_type_to_run(i)
+        do i = 1, lenof_sign
+            if (sgn_prod(i) < 0.0_dp) then
+                run = part_type_to_run(i)
 #ifdef __REALTIME
-                    if(runge_kutta_step == 1) then
-                       Annihilated_1(run) = Annihilated_1(run) + &
-                            2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
-                    else if(runge_kutta_step == 2) then
-                       Annihilated(run) = Annihilated(run) + &
-                            2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
-                    endif
+                if(runge_kutta_step == 1) then
+                   Annihilated_1(run) = Annihilated_1(run) + &
+                        2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
+                else if(runge_kutta_step == 2) then
+                   Annihilated(run) = Annihilated(run) + &
+                        2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
+                endif
 #else
-                    Annihilated(run) = Annihilated(run) + &
-                         2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
+                Annihilated(run) = Annihilated(run) + &
+                     2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
 #endif
-                    
-                    iter_data%nannihil(i) = iter_data%nannihil(i) + 2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
-                end if
-            end do
+                
+                iter_data%nannihil(i) = iter_data%nannihil(i) + 2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
+            end if
+        end do
 
-            ! Find the total new sign.
-            real_sign_new = real_sign_old + child_sign
-            ! Encode the new sign.
-            call encode_sign(SpawnedParts(:,ind), real_sign_new)
-            ! Set the initiator flags appropriately.
-            ! If this determinant (on this replica) has already been spawned to
-            ! then set the initiator flag. Also if this child was spawned from
-            ! an initiator, set the initiator flag.
+        ! Find the total new sign.
+        real_sign_new = real_sign_old + child_sign
+        ! Encode the new sign.
+        call encode_sign(SpawnedParts(:,ind), real_sign_new)
+        ! Set the initiator flags appropriately.
+        ! If this determinant (on this replica) has already been spawned to
+        ! then set the initiator flag. Also if this child was spawned from
+        ! an initiator, set the initiator flag.
+
             ! this is not correctly considered for the real-time or complex 
             ! code .. probably nobody thought about using this in the __cmplx
             ! implementation..
 
+            ! (There is now an option (tInitCoherentRule = .false.) to turn this
+            ! coherent spawning rule off, mainly for testing purposes).
             if (tTruncInitiator) then
-                if ((.not. is_run_unnocc(real_sign_old,part_type_to_run(part_type)) &
-                     .and. tKeepDoubSpawns) & 
-                     .or. test_flag(ilut_parent, get_initiator_flag(part_type)) .or. &
-                     (tMultiSpawnThreshold .and. & 
-                     mag_of_run(real_sign_new,part_type_to_run(part_type)) >= &
-                     multiSpawnThreshold)) then
-                    call set_flag(SpawnedParts(:,ind), get_initiator_flag(part_type))
-                    if(.not. is_run_unnocc(real_sign_old,part_type_to_run(part_type))) then
-                       doubleSpawns = doubleSpawns + 1
-                    endif
-                 endif
+                if (tInitCoherentRule) then
+                    if (abs(real_sign_old(part_type)) > 1.e-12_dp .or. test_flag(ilut_parent, get_initiator_flag(part_type))) &
+                        call set_flag(SpawnedParts(:,ind), get_initiator_flag(part_type))
+                else
+                    if (test_flag(ilut_parent, get_initiator_flag(part_type))) &
+                        call set_flag(SpawnedParts(:,ind), get_initiator_flag(part_type))
+                end if
             end if
         else
             ! Determine which processor the particle should end up on in the
@@ -446,8 +445,10 @@ contains
             if (test_flag(ilut, flag_trial)) then
                 if (ntrial_excits == 1) then
                     trial_denom = trial_denom + current_trial_amps(1,ind)*RealwSign
+                    trial_denom_inst = trial_denom_inst + current_trial_amps(1,ind)*RealwSign
                 else if (ntrial_excits == lenof_sign) then
                     trial_denom = trial_denom + current_trial_amps(:,ind)*RealwSign
+                    trial_denom_inst = trial_denom_inst + current_trial_amps(:,ind)*RealwSign
                 end if
 
                 if (qmc_trial_wf) then
@@ -463,10 +464,12 @@ contains
             else if (test_flag(ilut, flag_connected)) then
                 ! Note, only attempt to add in a contribution from the
                 ! connected space if we're not also in the trial space.
-                 if (ntrial_excits == 1) then
+                if (ntrial_excits == 1) then
                     trial_numerator = trial_numerator + current_trial_amps(1,ind)*RealwSign
+                    trial_num_inst = trial_num_inst + current_trial_amps(1,ind)*RealwSign
                 else if (ntrial_excits == lenof_sign) then
                     trial_numerator = trial_numerator + current_trial_amps(:,ind)*RealwSign
+                    trial_num_inst = trial_num_inst + current_trial_amps(:,ind)*RealwSign
                 end if
             end if
         end if
@@ -600,7 +603,7 @@ contains
             ENumCyc(run) = ENumCyc(run) + (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) / dProbFin
             ENumCycAbs(run) = ENumCycAbs(run) + abs(HoffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) &
                                       / dProbFin
-            
+
         end do
 
         ! -----------------------------------
@@ -833,7 +836,6 @@ contains
             ENumCyc(run) = ENumCyc(run) + (hoffdiag * sgn_run) / dProbFin
             ENumCycAbs(run) = ENumCycAbs(run) + abs(hoffdiag * sgn_run) / dProbFin
 
-
         end do
 
     end subroutine SumEContrib_different_refs
@@ -890,11 +892,11 @@ contains
 
                 ! Update counters as required.
                 if (parent_init) then
-                    NoInitDets = NoInitDets + 1_int64
-                    NoInitWalk = NoInitWalk + mag_of_run(CurrentSign, run)
+                    NoInitDets(run) = NoInitDets(run) + 1_int64
+                    NoInitWalk(run) = NoInitWalk(run) + mag_of_run(CurrentSign, run)
                 else
-                    NoNonInitDets = NoNonInitDets + 1_int64
-                    NoNonInitWalk = NoNonInitWalk + mag_of_run(CurrentSign, run)
+                    NoNonInitDets(run) = NoNonInitDets(run) + 1_int64
+                    NoNonInitWalk(run) = NoNonInitWalk(run) + mag_of_run(CurrentSign, run)
                 endif
 
                 ! Update the parent flag as required.
@@ -1162,6 +1164,9 @@ contains
 
         min_trial_ind = 1
         min_conn_ind = 1
+
+        trial_num_inst = 0.0_dp
+        trial_denom_inst = 0.0_dp
 
     end subroutine rezero_iter_stats_each_iter
 
@@ -2010,6 +2015,8 @@ contains
         
             IterRDMStart = Iter + PreviousCycles
             IterRDM_HF = Iter + PreviousCycles
+
+            if (tEN2) tEN2Started = .true.
 
             ! We have reached the iteration where we want to start filling the RDM.
             if (tExplicitAllRDM) then
