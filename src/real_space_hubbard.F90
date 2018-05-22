@@ -72,7 +72,8 @@ module real_space_hubbard
     ! create a flag which indicate to start in a neel state 
     logical :: t_start_neel_state = .false. 
 
-    real(dp), allocatable :: umat_rs_hub_trancorr_hop(:,:,:,:)
+    real(dp), allocatable :: umat_rs_hub_trancorr_hop(:,:,:,:), &
+                             tmat_rs_hub_spin_transcorr(:,:)
 
     complex(dp), parameter :: imag_unit = cmplx(0.0_dp,1.0_dp)
 
@@ -82,7 +83,9 @@ module real_space_hubbard
                              hop_transcorr_factor_cached_vec_m(:,:,:)
 
     logical :: t_recalc_umat = .false.
+    logical :: t_recalc_tmat = .false.
     logical :: t_print_umat = .false.
+    logical :: t_print_tmat = .true.
 
     interface get_helement_rs_hub
         module procedure get_helement_rs_hub_ex_mat
@@ -94,6 +97,11 @@ module real_space_hubbard
         module procedure sum_hop_transcorr_factor_orb
     end interface sum_hop_transcorr_factor
             
+    interface sum_spin_transcorr_factor
+        module procedure sum_spin_transcorr_factor_orb
+        module procedure sum_spin_transcorr_factor_vec
+    end interface sum_spin_transcorr_factor
+
 contains 
 
     ! some brainstorming: 
@@ -263,9 +271,38 @@ contains
 !         end do
 
         ! i also need a umat array now! 
-        call init_umat_rs_hub_transcorr()
+        if (t_trans_corr_hop) then
+            call init_umat_rs_hub_transcorr()
+        else if (t_spin_dependent_transcorr) then 
+            call init_tmat_rs_hub_spin_transcorr()
+        end if
 
     end subroutine init_hopping_transcorr
+
+!     real(dp) function spin_trancorr_factor(J, r_vec) 
+!         ! similar to hopping transcorr factor with spin-dependent 
+!         ! hopping only 
+!         real(dp), intent(in) :: J
+!         integer, intent(in) :: r_vec(3)
+! #ifdef __DEBUG
+!         character(*), parameter :: this_routine = "spin_trancorr_factor"
+! #endif 
+!         complex(dp) :: temp 
+!         integer :: i, n_sites, k_vec(3)
+! 
+!         ASSERT(associated(lat))
+! 
+!         n_sites = lat%get_nsites()
+! 
+!         temp = 0.0_dp 
+! 
+!         do i = 1, n_sites
+!             k_vec = lat%get_k_vec(i)
+! 
+!             temp = temp + exp(
+! 
+! 
+!     end function spin_trancorr_factor
 
     real(dp) function hop_transcorr_factor(J, r_vec)
         ! compute \sum_p exp(i*p*r) exp(J,r) for the 2-body term in the 
@@ -305,6 +342,16 @@ contains
         ASSERT(abs(aimag(temp)) < EPS) 
 
     end function hop_transcorr_factor
+
+    ! i actually do not need this i guess.. since the factors are the same
+!     subroutine init_spin_transcorr_fac_cached(J_fac, in_lat)
+!         real(dp), intent(in) :: J_fac 
+!         class(lattice), intent(in) :: in_lat
+! #ifdef __DEBUG 
+!         character(*), parameter :: this_routine = "init_spin_transcorr_fac_cached"
+! #endif
+! 
+!     end subroutine init_spin_transcorr_fac_cached
 
     subroutine init_hop_trancorr_fac_cached(J_fac, in_lat)
         ! also store the hopping transcorrelation factor in a cache, 
@@ -374,7 +421,7 @@ contains
         ! then init them 
         call in_lat%init_hop_cache_bounds(r_min,r_max)
 
-        if (.not. t_recalc_umat .and. allocated(hop_transcorr_factor_cached_vec)) then 
+        if (.not. (t_recalc_umat .or. t_recalc_tmat) .and. allocated(hop_transcorr_factor_cached_vec)) then 
             ! then we have already done that..
             return
         end if
@@ -426,6 +473,47 @@ contains
 
     end subroutine init_hop_trancorr_fac_cached_vec
 
+    real(dp) function sum_spin_transcorr_factor_vec(r1,r2)
+        ! function to perform the summation over the two spin-hopping 
+        ! transcorrelation factors in the modified 1-body term in the 
+        ! spin-dependent hopping trancorrelated real-space hubbard model
+        integer, intent(in) :: r1(3), r2(3)
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "sum_spin_transcorr_factor_vec"
+#endif
+        integer :: i, m_vec(3), ind_1(3), ind_2(3)
+
+        ASSERT(associated(lat))
+
+        sum_spin_transcorr_factor_vec = 0.0_dp
+
+        if (allocated(hop_transcorr_factor_cached_vec)) then 
+            do i = 1 , lat%get_nsites()
+                m_vec = lat%get_r_vec(i)
+
+                ind_1 = r1 - m_vec 
+                ind_2 = m_vec - r2
+
+                sum_spin_transcorr_factor_vec = sum_spin_transcorr_factor_vec + &
+                    hop_transcorr_factor_cached_vec(ind_1(1),ind_1(2),ind_1(3)) * &
+                    hop_transcorr_factor_cached_vec_m(ind_2(1),ind_2(2),ind_2(3))
+
+            end do
+        else
+            do i = 1, lat%get_nsites()
+
+                m_vec = lat%get_r_vec(i)
+                ! the exponential factor is actually the same! 
+                sum_spin_transcorr_factor_vec = sum_spin_transcorr_factor_vec + &
+                    hop_transcorr_factor(trans_corr_param, r1 - m_vec) * &
+                    hop_transcorr_factor(-trans_corr_param, m_vec - r2)
+
+            end do
+        end if
+
+    end function sum_spin_transcorr_factor_vec
+
+
     real(dp) function sum_hop_transcorr_factor_vec(r1,r2,r3,r4)
         ! function to perform the summation over the four hopping 
         ! transcorrelation factors in the 2-body term of the hopping 
@@ -472,6 +560,24 @@ contains
         endif
 
     end function sum_hop_transcorr_factor_vec
+
+    real(dp) function sum_spin_transcorr_factor_orb(i,j)
+        ! similat to below, but just for the spin-transcorrelated 
+        ! real-space hubbard model.
+        integer, intent(in) :: i, j
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "sum_spin_transcorr_factor_orb"
+#endif
+        integer :: r1(3), r2(3)
+
+        ASSERT(associated(lat))
+
+        r1 = lat%get_r_vec(i)
+        r2 = lat%get_r_vec(j) 
+
+        sum_spin_transcorr_factor_orb = sum_spin_transcorr_factor_vec(r1,r2)
+
+    end function sum_spin_transcorr_factor_orb
 
     real(dp) function sum_hop_transcorr_factor_orb(i,j,k,l)
         ! function to perform the summation over the four hopping 
@@ -527,6 +633,56 @@ contains
 
     end function sum_hop_transcorr_factor_orb
 
+    subroutine init_tmat_rs_hub_spin_transcorr()
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "init_tmat_rs_hub_spin_transcorr"
+#endif
+        integer :: n_sites, i, j 
+        real(dp) :: elem
+        integer :: iunit
+
+        ASSERT(associated(lat))
+
+        if (allocated(tmat_rs_hub_spin_transcorr) .and. .not. t_recalc_tmat) then
+            return
+        else 
+            if (allocated(tmat_rs_hub_spin_transcorr)) deallocate(tmat_rs_hub_spin_transcorr)
+        end if
+
+        call init_hop_trancorr_fac_cached_vec(trans_corr_param, lat)
+
+        n_sites = lat%get_nsites()
+        if (t_print_tmat) then 
+            iunit = get_free_unit()
+            open(iunit, file = "TMAT")
+        end if
+        root_print "initializing spin-dependent TMAT"
+
+        ! tmat is stored with spin-orbitals!
+        allocate(tmat_rs_hub_spin_transcorr(2*n_sites,2*n_sites))
+        tmat_rs_hub_spin_transcorr = 0.0_dp
+
+        do i = 1, n_sites
+            do j = 1, n_sites
+                ! the alpha spin are the transcorrelated ones! even numbers! 
+                ! but the sum_ function gets accessed with spatial orbitals!
+                elem = nOccBeta * uhub * sum_spin_transcorr_factor(i,j)
+                if (abs(elem) > matele_cutoff) then 
+                    if (t_print_tmat) then 
+                        write(iunit,*), 2*i, 2*j, elem
+                    end if
+                    tmat_rs_hub_spin_transcorr(2*i,2*j) = elem
+                end if
+            end do
+        end do
+
+        if (t_print_tmat) then 
+            close(iunit)
+        end if
+        root_print "Done!"
+
+    end subroutine init_tmat_rs_hub_spin_transcorr
+
     subroutine init_umat_rs_hub_transcorr() 
         ! for now do it really stupidly without any concern for the symmetry 
         ! of the integrals 
@@ -553,11 +709,11 @@ contains
         n_sites = lat%get_nsites()
 
         ! create an fcidump file: 
-        iunit = get_free_unit()
         if (t_print_umat) then
+            iunit = get_free_unit()
             open(iunit, file = 'UMAT')
-            root_print "initializing UMAT:"
         end if
+        root_print "initializing UMAT:"
 
         ! with the correct header
 
@@ -1308,7 +1464,12 @@ contains
 #endif 
         ASSERT(same_spin(ex(1),ex(2)))
 
-        hel = GetTMatEl(ex(1),ex(2)) + get_2_body_contrib_transcorr_hop(nI,ex)
+        hel = GetTMatEl(ex(1),ex(2))
+        if (t_trans_corr_hop) then 
+            hel = hel + get_2_body_contrib_transcorr_hop(nI,ex)
+        else if (t_spin_dependent_transcorr .and. is_alpha(ex(1))) then 
+            hel = hel + tmat_rs_hub_spin_transcorr(ex(1),ex(2))
+        end if
 
         if (tpar) hel = -hel
 
@@ -1723,11 +1884,45 @@ contains
 
         if (t_trans_corr_hop) then 
             hel = get_diag_helemen_rs_hub_transcorr_hop(nI)
+        else if (t_spin_dependent_transcorr) then
+            hel = get_diag_helemen_rs_hub_transcorr_spin(nI)
         else
             hel = h_cast(uhub * count_double_orbs(ilut))
         end if
 
     end function get_diag_helemen_rs_hub
+
+    function get_diag_helemen_rs_hub_transcorr_spin(nI) result(hel)
+        ! the spin-dependent transcorr diagonal elements 
+        integer, intent(in) :: nI(nel)
+        HElement_t(dp) :: hel 
+
+        integer :: i, j, id(nel), ri(3), rj(3), ind_1(3), ind_2(3)
+
+        hel = 0.0_dp 
+
+        id = get_spatial(nI)
+
+        do i = 1, nel
+            do j = 1, nel 
+                if (.not. same_spin(nI(i),nI(j))) then 
+                    ri = lat%get_r_vec(id(i))
+                    rj = lat%get_r_vec(id(j))
+
+                    if (is_alpha(nI(i))) then 
+                        ind_1 = ri - rj
+                        ind_2 = rj - ri
+                    else
+                        ind_1 = rj - ri
+                        ind_2 = ri - rj
+                    end if
+                    hel = hel + 0.5_dp * hop_transcorr_factor_cached_vec(ind_1(1),ind_1(2),ind_1(3)) * &
+                        hop_transcorr_factor_cached_vec_m(ind_2(1),ind_2(2),ind_2(3)) * uhub
+                end if
+            end do
+        end do
+
+    end function get_diag_helemen_rs_hub_transcorr_spin
 
     function get_diag_helemen_rs_hub_transcorr_hop(nI) result(hel)
         ! with the hopping transcorrelation also the diagonal matrix 
@@ -1817,7 +2012,8 @@ contains
 
         ! like niklas, choose the alpha spins to be the correlated ones
         if (t_spin_dependent_transcorr .and. is_alpha(ex(1))) then 
-            hel = hel + get_2_body_contrib_transcorr_hop(nI,ex)
+!             hel = hel + tmat_rs_hub_spin_transcorr(ex(1),ex(2))
+            hel = hel + get_1_body_contrib_spin_transcorr(nI,ex)
         end if
 
         if (t_trans_corr_hop) then 
@@ -1858,6 +2054,47 @@ contains
                 (get_spin_opp_neighbors(ilut, ex(1)) - get_spin_opp_neighbors(ilut,ex(2))))
         end if
     end function get_offdiag_helement_rs_hub
+
+    function get_1_body_contrib_spin_transcorr(nI, ex) result(hel)
+        ! get the contribution to the one-body matrix elements for the spin-
+        ! dependent transcorrelated real-space hubbard model.
+        integer, intent(in) :: nI(nel), ex(2)
+        HElement_t(dp) :: hel 
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "get_1_body_contrib_spin_transcorr"
+#endif
+        integer :: i, idX(2), id(nel), r1(3), r2(3), r_vec(3), ind_1(3), ind_2(3)
+        
+        ASSERT(same_spin(ex(1),ex(2)))
+        ASSERT(is_alpha(ex(1)))
+
+        idX = get_spatial(ex)
+        id = get_spatial(nI)
+
+        r1 = lat%get_r_vec(idX(1))
+        r2 = lat%get_r_vec(idX(2))
+
+        hel = 0.0_dp
+
+        do i = 1, nel 
+            ! i have to sum over the beta spin-contributions
+            if (is_beta(nI(i))) then 
+                r_vec = lat%get_r_vec(id(i))
+
+                ! r1 is the hole vector
+                ! r2 is the electron vector
+                ind_1 = r2 - r_vec
+                ind_2 = r_vec - r1
+
+                hel = hel + hop_transcorr_factor_cached_vec(ind_1(1),ind_1(2),ind_1(3)) * &
+                    hop_transcorr_factor_cached_vec_m(ind_2(1),ind_2(2),ind_2(3))
+
+            end if
+        end do
+
+        hel = hel * uhub
+
+    end function get_1_body_contrib_spin_transcorr
 
     function get_2_body_contrib_transcorr_hop(nI, ex) result(hel) 
         ! new single excitation matrix element calculation 

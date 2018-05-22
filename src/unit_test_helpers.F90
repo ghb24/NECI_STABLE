@@ -167,7 +167,8 @@ contains
                 ex(1,1) = 1
                 call GetBitExcitation(ilutI,ilutJ,ex,tpar)
 
-                if (tPar) cycle
+                if (.not. same_spin(ex(1,1),ex(2,1))) cycle
+
                 if (get_spin_pn(ex(1,1)) == spin) then
                     hamil(i,j) = get_helement_lattice(list_nI(:,j),list_nI(:,i))
                 end if

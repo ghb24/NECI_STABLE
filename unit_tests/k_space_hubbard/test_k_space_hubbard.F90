@@ -81,19 +81,36 @@ contains
         use DetCalcData, only: nkry, nblk, b2l, ncycle
         integer, allocatable :: hilbert_space(:,:), nI(:), nJ(:)
         real(dp) :: J, U
-        real(dp), allocatable :: J_vec(:) 
+        real(dp), allocatable :: J_vec(:), U_vec(:)
         integer :: i, n_eig
         real(dp), allocatable :: e_values(:), e_vecs(:,:)
-        real(dp) :: x(24), k1(2),k2(2), k_vec(3)
-        integer :: ind(24), n_excits, k, iunit
+        real(dp) :: k1(2),k2(2), k_vec(3)
+        integer ::  n_excits, k, iunit, l, iunit2
         integer(n_int), allocatable :: excits(:,:)
         real(dp) :: sum_doubles, sum_doubles_trans
         character(30) :: filename, U_str, nel_str, lattice_name
+        logical :: t_do_diags, t_do_subspace_study, t_input_U, t_U_vec
+        HElement_t(dp), allocatable :: hamil(:,:)
+        integer :: sort_ind(8)
+        real(dp), allocatable :: twist_x_vec(:), twist_y_vec(:)
+        logical :: t_do_twisted_bc, t_twisted_vec, t_ignore_k, t_do_ed
+        real(dp), allocatable :: epsilon_kvec(:)
+        integer, allocatable :: ind(:)
+        real(dp) :: E_ref
+
+        t_do_diags = .false.
+        t_do_subspace_study = .false.
+        t_input_U = .false.
+        t_U_vec = .false.
+        t_do_twisted_bc = .true.
+        t_twisted_vec = .true.
+        t_ignore_k = .false.
+        t_do_ed = .true.
 
         call init_k_space_unit_tests()
 
         ! i have to define the lattice here.. 
-        lat => lattice('ole', 3, 5, 1,.true.,.true.,.true.,'k-space')
+        lat => lattice('square', 3, 3, 1,.true.,.true.,.true.,'k-space')
 
 !         x = [(-lat%dispersion_rel_orb(i), i = 1, 24)]
 !         ind = [(i, i = 1, 24)]
@@ -108,20 +125,61 @@ contains
 !             print *,lat%get_k_vec(ind(i)),"|", k_vec(1)*k1 + k_vec(2)*k2, "|", x(i)
 !         end do
 
-        J = -1.0
+        J = 0.1
 
-        print *, "input U: "
-        read(*,*) U
-!         U = 1.0
+        if (t_input_U) then
+            print *, "input U: "
+            read(*,*) U
+        else if (t_U_vec) then
+            U_vec = linspace(0.0,100.0,100)
+        else
+            U = 4.0
+        end if
 
         J_vec = linspace(-2.5,2.5, 100)
         
-        nel = 24
+        nel = 6
         allocate(nI(nel))
         allocate(nJ(nel))
         nj = 0
+        ! 46 in 50:
+!         nI = [ 9,10,11,12,13,14,15,16,21,22,23,24,25,26,27,28,29,30,&
+!             37,38,39,40,41,42,43,44,45,46,55,56,57,58,59,60,61,62,63,64,73,74,75,76,77,78,79,80]
 
-        ni = [7,8,9,10,11,12,13,14,19,20,21,22,23,24,25,26,33,34,35,36,37,38,39,40]
+        ! 14 in 18:
+!         nI = [ 3,4, 5, 6, 11,12,13,14,15,16,23,24,25,26 ]
+
+        ! 6 in 9 k = 1 1
+!         nI = [3,4,7,8,9,10]
+        ! 6 in 9 k = 0 0
+        nI = [3,4,9,10,15,16]
+        ! 10 in 9, k = 0:
+!         nI = [3,4,7,8,9,10,11,12,15,16]
+        ! 10 in 9, k = 1,-1:
+!         nI = [1,2,3,4,7,8,9,10,11,12]
+
+        ! chain:
+        ! 6 in 6, k = 0
+!         nI = [3,4,5,6,7,8]
+
+        ! 6 in 6, k = 3
+!         nI = [2,3,4,5,6,7]
+
+        ! 4 in 6, k = 0
+!         nI = [3,5,6,8]
+
+        ! 4 in 6, k = -2
+!         nI = [3,4,5,6]
+
+        ! 4 in 6, k = 2
+!         nI = [5,6,7,8]
+
+        ! tilted 2x2:
+        ! 8 in 8, k = 0
+!         ni = [1,2,3,4,5,6,7,8,11,12] 
+
+
+!         ni = [7,8,9,10,11,12,13,14,19,20,21,22,23,24,25,26,33,34,35,36,37,38,39,40]
 !         ni = [7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22]
 !         nI = [3,4,5,6,7,8,11,12,13,14,15,16,21,22,23,24,25,26]
 !         nI = [(i, i = 1,nel)]
@@ -135,64 +193,7 @@ contains
 !         nI = [1,2,3,4,5,6]
 !         nI = [5,6,7,8,9,10]
 
-        ! use twisted bc in this case.. 
-!         t_twisted_bc = .true. 
-!         twisted_bc = 0.5
-
-        t_trans_corr_2body = .true.
-        trans_corr_param_2body = J_vec((1))
-        three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
-        call setup_system(lat, nI, J, U)
-
-!         call gen_all_doubles_k_space(nI, n_excits, excits)
-        call gen_all_excits_k_space_hubbard(nI, n_excits, excits)
-
-        write(U_str, *) int(U)
-        write(nel_str, *) nel 
-        lattice_name = "18_"
-
-        filename = 'H_elements_' // trim(adjustl(nel_str)) // 'in' // &
-            trim(adjustl(lattice_name)) // 'U_' // trim(adjustl(U_str))
-
-        iunit = get_free_unit()
-
-        open(iunit, file = filename)
-
-        print *, "writing to file..."
-        write(iunit, *) "# J, H diag, <I|H|K>, <K|H|I>:"
-        do i = 1, size(J_vec)
-            trans_corr_param_2body = J_vec((i))
-            three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
- 
-            sum_doubles = 0.0_dp
-            sum_doubles_trans = 0.0_dp
-
-            do k = 1, n_excits
-                call decode_bit_det(nJ, excits(:,k))
-
-                sum_doubles = sum_doubles + get_helement_lattice(nI, nJ)
-                sum_doubles_trans = sum_doubles_trans + get_helement_lattice(nJ,nI)
-
-            end do
-
-            write(iunit, *)  J_vec(i), get_diag_helement_k_sp_hub(nI), sum_doubles, sum_doubles_trans
-        end do
-
-        close(iunit)
-        t_trans_corr_2body = .false.
-
-        call stop_all("here", "now")
-
-        call setup_system(lat, nI, J, U, hilbert_space)
-        ! the hilbert space does not change.. and also the original does 
-        ! not depend on J.. 
-        print *, "k-vector : ", kTotal
-
-        n_eig = 1
-        allocate(e_values(n_eig))
-        allocate(e_vecs(n_eig, size(hilbert_space,2)))
-
-        print *, "size hilbert: ", size(hilbert_space, 2)
+        ! setup lanczos:
         nblk = 4
         nkry = 8 
         ncycle = 200
@@ -203,10 +204,266 @@ contains
         print *, "b2l: ", b2l
         print *, "ncycle: ", ncycle
 
-        ! try too big systems here: 
-        call frsblk_wrapper(hilbert_space, size(hilbert_space, 2), n_eig, e_values, e_vecs)
+        ! use twisted bc in this case.. 
+        if (t_do_twisted_bc) then
+            t_twisted_bc = .true. 
+            if (t_twisted_vec) then 
+                twist_x_vec = linspace(0.0,3.0,20)
+!                 allocate(twist_x_vec(1))
+!                 twist_x_vec = 0.0
+!                 allocate(twist_y_vec(1))
+!                 twist_y_vec = 0.0
+                twist_y_vec = linspace(0.0,3.0,20)
 
-        print *, "e_value lanczos:", e_values(1)
+                iunit = get_free_unit()
+                open(iunit, file = 'one_body_vs_twist')
+                iunit2 = get_free_unit()
+                open(iunit2, file = 'energy_vs_twist')
+                call setup_system(lat, nI, J, U, hilbert_space)
+                n_eig = 5
+                write(iunit,*) '# x-twist, y-twist, E(k)'
+                write(iunit2,*) '# x-twist, y-twist, k-total, E_ref, energies'
+                allocate(e_values(n_eig))
+                allocate(e_vecs(size(hilbert_space,2),n_eig))
+                allocate(epsilon_kvec(nBasis/2))
+                allocate(ind(nBasis/2))
+
+                do i = 1, size(twist_x_vec)
+                    do k = 1, size(twist_y_vec)
+                        twisted_bc(1) = twist_x_vec(i)
+                        twisted_bc(2) = twist_y_vec(k)
+
+                        epsilon_kvec = [(-lat%dispersion_rel_orb(l), l = 1, nBasis/2)] 
+
+                        write(iunit,*) twisted_bc(1:2), epsilon_kvec
+
+                        if (t_ignore_k) then
+                            ! if we want to fill up the nel lowest 
+                            ! orbitals always.. 
+                            ind = [(i, i = 1, nBasis/2)]
+                            call sort(epsilon_kvec, ind)
+
+                            nI = [2*ind(1:nel/2)-1,2*ind(1:nel/2)]
+
+                            call sort(nI)
+
+                            call setup_system(lat, nI, J, U, hilbert_space)
+
+                            if (allocated(e_vecs)) deallocate(e_vecs)
+                            allocate(e_vecs(size(hilbert_space,2),n_eig))
+
+                        else 
+                            call setup_system(lat, nI, J, U)
+                        end if
+                        E_ref = get_helement_lattice(nI,nI)
+                        ! and also calculate the GS energy
+                        ! do i need to setup the system more thoroughly for the 
+                        ! GS energy? i think so..
+
+                        print *, "k-twist: ", twisted_bc(1:2)
+                        print *, "ni: ", nI
+                        print *, "k-total: ", kTotal
+
+                        if (t_do_ed) then
+                            call frsblk_wrapper(hilbert_space, size(hilbert_space, 2), n_eig, e_values, e_vecs)
+                        end if
+                        write(iunit2,*) twisted_bc(1:2),kTotal, E_ref, e_values
+
+                    end do
+                end do
+                close(iunit)
+                close(iunit2)
+                call stop_all("here", "now")
+            else
+                twisted_bc = 0.5
+            end if
+        end if
+            
+
+
+        NIfTot = 0
+        nifd = 0
+
+        if (t_do_diags) then
+            t_trans_corr_2body = .true.
+            trans_corr_param_2body = J_vec((1))
+            three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+            call setup_system(lat, nI, J, U)
+
+    !         call gen_all_doubles_k_space(nI, n_excits, excits)
+            call gen_all_excits_k_space_hubbard(nI, n_excits, excits)
+
+            write(U_str, *) int(U)
+            write(nel_str, *) nel 
+            lattice_name = "18_"
+
+            filename = 'H_elements_' // trim(adjustl(nel_str)) // 'in' // &
+                trim(adjustl(lattice_name)) // 'U_' // trim(adjustl(U_str))
+
+            iunit = get_free_unit()
+
+            open(iunit, file = filename)
+
+            print *, "writing to file..."
+            write(iunit, *) "# J, H diag, <I|H|K>, <K|H|I>:"
+            do i = 1, size(J_vec)
+                trans_corr_param_2body = J_vec((i))
+                three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+     
+                sum_doubles = 0.0_dp
+                sum_doubles_trans = 0.0_dp
+
+                do k = 1, n_excits
+                    call decode_bit_det(nJ, excits(:,k))
+
+                    sum_doubles = sum_doubles + get_helement_lattice(nI, nJ)
+                    sum_doubles_trans = sum_doubles_trans + get_helement_lattice(nJ,nI)
+
+                end do
+
+                write(iunit, *)  J_vec(i), get_diag_helement_k_sp_hub(nI), sum_doubles, sum_doubles_trans
+            end do
+
+            close(iunit)
+            t_trans_corr_2body = .false.
+
+            call stop_all("here", "now")
+        end if
+
+        if (t_do_subspace_study) then
+            call setup_system(lat, nI, J, U)
+            allocate(hilbert_space(nel,8))
+
+            n_eig = 8
+
+            if (lat%get_nsites() == 50) then
+                ! 50-site:
+                ! closed shell:
+                ! 9 10 79 80
+                hilbert_space(:,1) = [ 9,10,11,12,13,14,15,16,21,22,23,24,25,26,27,28,29,30,&
+                    37,38,39,40,41,42,43,44,45,46,55,56,57,58,59,60,61,62,63,64,73,74,75,76,77,78,79,80]
+
+                ! 17 18 71 72
+                hilbert_space(:,2) = [ 11,12,13,14,15,16,17,18,21,22,23,24,25,26,27,28,29,30,&
+                    37,38,39,40,41,42,43,44,45,46,55,56,57,58,59,60,61,62,63,64,71,72,73,74,75,76,77,78]
+
+
+                ! open shell:
+                ! 9 17 72 80
+                hilbert_space(:,3) = [ 9,11,12,13,14,15,16,17,21,22,23,24,25,26,27,28,29,30,&
+                    37,38,39,40,41,42,43,44,45,46,55,56,57,58,59,60,61,62,63,64,72,73,74,75,76,77,78,80]
+
+                ! 9 18 71 80
+                hilbert_space(:,4) = [9 ,11,12,13,14,15,16,18,21,22,23,24,25,26,27,28,29,30,&
+                    37,38,39,40,41,42,43,44,45,46,55,56,57,58,59,60,61,62,63,64,71,73,74,75,76,77,78,80]
+
+                ! 9 18 72 79
+                hilbert_space(:,5) = [ 9,11,12,13,14,15,16,18,21,22,23,24,25,26,27,28,29,30,&
+                    37,38,39,40,41,42,43,44,45,46,55,56,57,58,59,60,61,62,63,64,72,73,74,75,76,77,78,79]
+
+                ! 10 17 71 80
+                hilbert_space(:,6) = [ 10,11,12,13,14,15,16,17,21,22,23,24,25,26,27,28,29,30,&
+                    37,38,39,40,41,42,43,44,45,46,55,56,57,58,59,60,61,62,63,64,71,73,74,75,76,77,78,80]
+
+                ! 10 17 72 79
+                hilbert_space(:,7) = [ 10,11,12,13,14,15,16,17,21,22,23,24,25,26,27,28,29,30,&
+                    37,38,39,40,41,42,43,44,45,46,55,56,57,58,59,60,61,62,63,64,72,73,74,75,76,77,78,79]
+                
+                ! 10 18 71 79
+                hilbert_space(:,8) = [10 ,11,12,13,14,15,16,18,21,22,23,24,25,26,27,28,29,30,&
+                    37,38,39,40,41,42,43,44,45,46,55,56,57,58,59,60,61,62,63,64,71,73,74,75,76,77,78,79]
+
+            else if (lat%get_nsites() == 18) then
+
+                ! 18-site 
+                ! closed shell:
+                ! 3 4 25 26
+                hilbert_space(:,1) = [ 3,4, 5, 6, 11,12,13,14,15,16, 23,24,25,26 ]
+                ! 7 8 21 22 
+                hilbert_space(:,2) = [  5, 6,7,8 , 11,12,13,14,15,16,21,22 ,23,24 ]
+                ! open shell: 
+                ! 3 7 22 26
+                hilbert_space(:,3) = [ 3, 5, 6, 7, 11,12,13,14,15,16,22 ,23,24,26 ]
+                ! 3 8 21 26
+                hilbert_space(:,4) = [ 3, 5, 6, 8, 11,12,13,14,15,16,21 ,23,24,26 ]
+                ! 3 8 22 25
+                hilbert_space(:,5) = [ 3, 5, 6,8 , 11,12,13,14,15,16,22 ,23,24,25 ]
+                ! 4 7 21 26
+                hilbert_space(:,6) = [ 4, 5, 6,7 , 11,12,13,14,15,16,21 ,23,24,26 ]
+                ! 4 7 22 25
+                hilbert_space(:,7) = [ 4, 5, 6,7 , 11,12,13,14,15,16, 22,23,24,25 ]
+                ! 4 8 21 25
+                hilbert_space(:,8) = [ 4, 5, 6, 8, 11,12,13,14,15,16,21 ,23,24,25 ]
+            end if
+
+            hamil = create_hamiltonian(hilbert_space)
+
+            call eig(hamil, e_values, e_vecs) 
+
+            print *, "basis:" 
+            call print_matrix(transpose(hilbert_space))
+            print *, "hamil: "
+            call print_matrix(hamil)
+
+            sort_ind = [(i, i = 1,8)]
+            call sort(e_values, sort_ind)
+            print *, "e-values: ", e_values
+            print *, "sort_ind: ", sort_ind
+            e_vecs = e_vecs(:,sort_ind)
+            print *, "e-vecs: "
+            call print_matrix(e_vecs)
+            call stop_all("here", "now")
+
+        else
+            call setup_system(lat, nI, J, U, hilbert_space)
+            n_eig = 5
+
+!             hamil = create_hamiltonian(hilbert_space)
+!             allocate(e_values(n_eig))
+!             allocate(e_vecs(n_eig, size(hilbert_space,2)))
+!             call eig(hamil, e_values, e_vecs) 
+!             sort_ind = [(i, i = 1,n_eig)]
+!             ind = minloc(e_values,1) 
+!             call sort(e_values, sort_ind)
+!             e_vecs = e_vecs(sort_ind,:)
+
+        end if
+
+        print *, "k-vector : ", kTotal
+! 
+        allocate(e_values(n_eig))
+        allocate(e_vecs(size(hilbert_space,2),n_eig))
+
+        print *, "size hilbert: ", size(hilbert_space, 2)
+
+        if (t_do_ed) then
+            if (t_U_vec) then 
+                U = U_vec(1)
+                ! setup hilbert once
+                iunit = get_free_unit()
+                open(iunit, file = 'energy_vs_U')
+                call setup_system(lat, nI, J, U, hilbert_space)
+                write(iunit,*) "# U, E_0, E_1, E_2, E_3, E_4"
+                do i = 1, size(U_vec)
+                    print *, "U: ", U_vec(i)
+                    uhub  = U_vec(i)
+                    umat = h_cast(real(uhub,dp)/real(omega,dp))
+                    call frsblk_wrapper(hilbert_space, size(hilbert_space, 2), n_eig, e_values, e_vecs)
+                    write(iunit,*) U_vec(i), e_values
+                end do
+                close(iunit)
+                call stop_all("here", "now")
+            end if
+
+            ! try too big systems here: 
+            call frsblk_wrapper(hilbert_space, size(hilbert_space, 2), n_eig, e_values, e_vecs)
+! 
+            print *, "e_value lanczos:", e_values
+            print *, "|i>, c_i:"
+            do i = 1, size(hilbert_space,2)
+                print *, hilbert_space(:,i), e_vecs(i,1), e_vecs(i,2), e_vecs(i,3)
+            end do
+        end if
         call stop_all("here", "now")
         call exact_transcorrelation(lat, nI, [J], U, hilbert_space) 
 
@@ -765,7 +1022,6 @@ contains
 !         call setup_k_space_hub_sym(ptr)
 
         omega = real(ptr%get_nsites(),dp)
-        print *, "omega: ", omega
 
         bhub = -1.0
 

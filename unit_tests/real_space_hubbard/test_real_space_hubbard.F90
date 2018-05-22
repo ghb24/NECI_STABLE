@@ -92,17 +92,20 @@ contains
         use DetCalcData, only: nkry, nblk, b2l, ncycle
         use lanczos_wrapper, only: frsblk_wrapper
 
-        integer :: i, n_eig, n_orbs, n_states
+        integer :: i, n_eig, n_orbs, n_states, iunit
         integer, allocatable :: ni(:), hilbert_space(:,:)
         real(dp), allocatable :: e_values(:), e_vecs(:,:)
         integer(n_int), allocatable :: dummy(:,:)
         real(dp) :: j
         real(dp), allocatable :: j_vec(:)
         real(dp) :: exact_double_occ
+        HElement_t(dp) :: H_hop, H_spin
 
 
-        lat => lattice('chain', 4, 1, 1,.true.,.true.,.true.)
-        uhub = 12
+        t_trans_corr_hop = .true.
+        lat => lattice('chain', 6, 1, 1,.true.,.true.,.true.)
+        t_trans_corr_hop = .false.
+        uhub = 8
         bhub = -1
 
         n_orbs = lat%get_nsites()
@@ -110,11 +113,12 @@ contains
 
         call init_realspace_tests
 
-        nel = 4
+        nel = 6
         allocate(nI(nel))
 !         nI = [(i, i = 1, nel)]
 !         nI = [1,3,6,7,9,12,13,16,17,20,21,24,25,28,30,31,34,36]
-        nI = [1,4,5,8]
+        nI = [1,4,5,8,9,12]
+!         nI = [1,4]
 
         nOccAlpha = 0
         nOccBeta = 0
@@ -131,25 +135,36 @@ contains
 !         call init_dispersion_rel_cache()
 !         call init_umat_rs_hub_transcorr()
 
-        j_vec = linspace(-0.1,0.1,100)
+        j_vec = linspace(-0.3,0.0,20)
 ! !         j_vec = [0.0, 0.05, 0.1,0.12]
-!         print *, "H diag: "
-!         t_trans_corr_hop = .true.
-!         do i = 1, size(j_vec) 
-!             trans_corr_param= j_vec(i)
-!             t_recalc_umat = .true.
-!             ! i need to deallocate umat every time.. 
-!             if (allocated(umat_rs_hub_trancorr_hop)) deallocate(umat_rs_hub_trancorr_hop)
-!             call init_umat_rs_hub_transcorr()
-!             print *, J_vec(i), get_diag_helemen_rs_hub_transcorr_hop(nI)
-!         end do
-! 
-! 
-!         t_trans_corr_hop = .false.
-!         call stop_all("here","now")
+
+        iunit = get_free_unit()
+        open(iunit, file = 'diag_elements')
+        write(iunit, *) "# J, Hd hop, Hd spin"
+        print *, "H diag hopping: "
+        t_recalc_umat = .true.
+        t_recalc_tmat = .true.
+        do i = 1, size(j_vec) 
+            t_trans_corr_hop = .true.
+            trans_corr_param = j_vec(i)
+            ! i need to deallocate umat every time.. 
+            if (allocated(umat_rs_hub_trancorr_hop)) deallocate(umat_rs_hub_trancorr_hop)
+            call init_umat_rs_hub_transcorr()
+            H_hop = get_diag_helemen_rs_hub_transcorr_hop(nI)
+            t_trans_corr_hop = .false.
+            t_spin_dependent_transcorr = .true. 
+            call init_tmat_rs_hub_spin_transcorr()
+            H_spin = get_diag_helemen_rs_hub_transcorr_spin(nI)
+            t_spin_dependent_transcorr = .false.
+            write(iunit,*) J_vec(i), H_hop, H_spin
+        end do
+
+        close(iunit)
+        t_trans_corr_hop = .false.
 
         call create_hilbert_space_realspace(n_orbs, nOccAlpha, nOccBeta, & 
             n_states, hilbert_space, dummy)
+
         n_eig = 1
 
         allocate(e_values(n_eig))
@@ -176,7 +191,8 @@ contains
 
 !         call stop_all("here","now")
 
-        j = 0.1_dp
+        j = -0.17_dp
+!         call exact_transcorrelation(lat, nI, [j], real(uhub,dp), hilbert_space)
         call exact_transcorrelation(lat, nI, j_vec, real(uhub,dp), hilbert_space)
 
         call stop_all("here","now")
@@ -288,6 +304,8 @@ contains
         allocate(e_vec_spin(n_states, size(J)))
         e_vec_spin = 0.0_dp
 
+        t_recalc_umat = .true.
+        t_recalc_tmat = .true.
         do i = 1, size(J) 
             print *, "J = ", J(i)
 
@@ -310,6 +328,7 @@ contains
 
             t_spin_dependent_transcorr = .true. 
             if (allocated(umat_rs_hub_trancorr_hop)) deallocate(umat_rs_hub_trancorr_hop)
+            if (allocated(tmat_rs_hub_spin_transcorr)) deallocate(tmat_rs_hub_spin_transcorr)
             call init_realspace_tests()
 
             hamil_spin_neci = create_hamiltonian(hilbert_space)
@@ -353,40 +372,43 @@ contains
             hf_coeff_spin(i) = gs_vec(1)
             e_vec_spin(:,i) = gs_vec
 
-            neci_eval = calc_eigenvalues(hamil_hop_neci)
-
-            print *, "neci ground-state energy: ", minval(neci_eval) 
-
-            if (abs(gs_energy_orig - minval(neci_eval)) > 1.0e-12) then 
-                if (n_states < 20) then 
-                    print *, "basis: " 
-                    call print_matrix(hilbert_space)
-                    print *, "original hamiltonian: "
-                    call print_matrix(hamil)
-                    print *, "hopping transcorr hamiltonian neci: "
-                    call print_matrix(hamil_hop_neci)
-                    print *, "hopping transcorr transformed: "
-
-                    print *, "difference: " 
-                    allocate(diff(size(hamil_hop,1),size(hamil_hop,2)))
-                    diff = hamil_hop - hamil_hop_neci
-                    where (abs(diff) < EPS) diff = 0.0_dp
-
-                    call print_matrix(diff)
-                end if
-                print *, "orig E0:    ", gs_energy_orig
-                print *, "hopping E0: ", minval(neci_eval)
-!                 print *, "diagonal similarity transformed: "
-!                 do l = 1, size(hamil_hop,1)
-!                     print *, hamil_hop(l,l)
-!                 end do
-!                 print *, "diagonal neci hamil: " 
-!                 do l = 1, size(hamil_hop_neci,1)
-!                     print *, hamil_hop_neci(l,l)
-!                 end do
-
-                call stop_all("here", "hopping transcorrelated energy not correct!")
-            end if
+!             neci_eval = calc_eigenvalues(hamil_hop_neci)
+! 
+!             print *, "neci ground-state energy: ", minval(neci_eval) 
+! 
+!             if (abs(gs_energy_orig - minval(neci_eval)) > 1.0e-12) then 
+!                 if (n_states < 20) then 
+!                     print *, "hopping transformed NECI eigenvalue wrong"
+!                     print *, "basis: " 
+!                     call print_matrix(transpose(hilbert_space))
+!                     print *, "original hamiltonian: "
+!                     call print_matrix(hamil)
+!                     print *, "exactly transformed hamiltonian: "
+!                     call print_matrix(hamil_hop)
+!                     print *, "hopping transcorr hamiltonian neci: "
+!                     call print_matrix(hamil_hop_neci)
+!                     print *, "hopping transcorr transformed: "
+! 
+!                     print *, "difference: " 
+!                     allocate(diff(size(hamil_hop,1),size(hamil_hop,2)))
+!                     diff = hamil_hop - hamil_hop_neci
+!                     where (abs(diff) < EPS) diff = 0.0_dp
+! 
+!                     call print_matrix(diff)
+!                 end if
+!                 print *, "orig E0:    ", gs_energy_orig
+!                 print *, "hopping E0: ", minval(neci_eval)
+! !                 print *, "diagonal similarity transformed: "
+! !                 do l = 1, size(hamil_hop,1)
+! !                     print *, hamil_hop(l,l)
+! !                 end do
+! !                 print *, "diagonal neci hamil: " 
+! !                 do l = 1, size(hamil_hop_neci,1)
+! !                     print *, hamil_hop_neci(l,l)
+! !                 end do
+! 
+!                 call stop_all("here", "hopping transcorrelated energy not correct!")
+!             end if
 
             neci_spin_eval = calc_eigenvalues(hamil_spin_neci)
 
@@ -394,23 +416,27 @@ contains
 
             if (abs(gs_energy_orig - minval(neci_spin_eval)) > 1.0e-12) then 
                 if (n_states < 20) then 
+                    print *, "spin transformed NECI eigenvalue wrong"
                     print *, "basis: " 
-                    call print_matrix(hilbert_space)
+                    call print_matrix(transpose(hilbert_space))
+                    print *, "spin-tmat: "
+                    call print_matrix(t_mat_spin)
                     print *, "original hamiltonian: "
                     call print_matrix(hamil)
-                    print *, "hopping transcorr hamiltonian neci: "
+                    print *, "exactly transformed hamiltonian: "
+                    call print_matrix(hamil_spin)
+                    print *, "spin transcorr hamiltonian neci: "
                     call print_matrix(hamil_spin_neci)
-                    print *, "hopping transcorr transformed: "
 
                     print *, "difference: " 
                     allocate(diff(size(hamil_hop,1),size(hamil_hop,2)))
-                    diff = hamil_hop - hamil_spin_neci
+                    diff = hamil_spin - hamil_spin_neci
                     where (abs(diff) < EPS) diff = 0.0_dp
 
                     call print_matrix(diff)
                 end if
                 print *, "orig E0:    ", gs_energy_orig
-                print *, "hopping E0: ", minval(neci_spin_eval)
+                print *, "spin E0: ", minval(neci_spin_eval)
 !                 print *, "diagonal similarity transformed: "
 !                 do l = 1, size(hamil_hop,1)
 !                     print *, hamil_hop(l,l)
@@ -425,11 +451,15 @@ contains
 
         end do
 
+!         print *, "hamil-spin-exact:"
+!         call print_matrix(hamil_spin)
+!         print *, "hamil-spin-neci:"
 !         call print_matrix(hamil_spin_neci)
+!         print *, "hamil-hop-exact:"
+!         call print_matrix(hamil_hop)
+!         print *, "hamil-hop-neci:"
 !         call print_matrix(hamil_hop_neci)
-        call print_matrix(hamil_hop)
-        call print_matrix(hamil_spin)
-
+! 
         iunit = get_free_unit() 
         open(iunit, file = "hf_coeff_hop")
         do i = 1, size(J)
