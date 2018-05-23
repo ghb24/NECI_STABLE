@@ -49,6 +49,7 @@ MODULE System
       tISKFuncs=.false.       !This is for kpoint symmetry with inversion so that determinants can be combined.
       tKPntSym=.false.        !This is for k-point symmetry with the symrandexcit2 excitation generators.
       tMCSizeSpace=.false.
+      t_impurity_system = .false.
       CalcDetPrint=1000
       CalcDetCycles=10000
       tFixLz=.false.
@@ -1236,6 +1237,8 @@ system: do
             call readi(LzTot)
         case("KPOINTS")
             tKPntSym=.true.
+         case("IMPURITY-EXCITGEN")
+            t_impurity_system = .true.
         case("MOLPROMIMIC")
             !Mimic the run-time behaviour of molpros NECI implementation
             tMolpro=.true.

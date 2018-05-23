@@ -522,24 +522,6 @@ module lattice_mod
 
     end type aim_star
 
-    ! write a general cluster aim class:
-    ! this is a bit more tricky now, since the setup and the connectivity 
-    ! in the impurity sites is input dependent
-    ! so from the TMAT in the input i have to define the neighbors of each 
-    ! impurity site within themselves 
-    ! 
-    type, extends(aim) :: cluster_aim 
-        private 
-
-
-    contains 
-        private 
-
-        procedure :: initialize_aim
-        procedure :: initialize_sites => init_sites_cluster_aim
-
-    end type cluster_aim 
-
     ! i also want to have a rectangle.. 
     ! can i store every possibility in the rectangle type? 
     ! like also the tilted square lattice .. 
@@ -1301,150 +1283,6 @@ contains
 !         end associate 
 
     end function apply_basis_vector_ole
-
-    subroutine initialize_aim(this)
-      implicit none
-      class(cluster_aim) :: this
-      integer :: number_imps, i, j, k, l
-      ! here, we determine the number of bath and impurity sites
-      
-      number_imps = 0
-      ! check how many orbitals don't have interactions
-      do i = 1, nBasis
-         ! for each orbital, check if there are UMAT entries for that orbital
-         do j = 1, nBasis
-            do k = 1, nBasis
-               do l = 1, nBasis
-                  if(abs(get_umat_el(i,j,k,l))>eps) then
-                     number_imps = number_imps + 1
-                     exit
-                  endif
-               end do
-            end do
-         end do
-      end do
-        
-      ! and set the number of bath/impurity orbs
-      ! in the case that only one spin component of an impurity has 
-      ! interactions, we still include both in the bath
-      this%set_n_imps(ceiling(number_imps/2))
-      this%set_n_bath(floor((nBasis-number_imps)/2))
-    end subroutine initialize_aim
-
-    subroutine init_sites_cluster_aim(this)
-        class(cluster_aim) :: this 
-        character(*), parameter :: this_routine = "init_sites_cluster_aim"
-
-        integer :: ind, orb, i, cnt, connections(nBasis/2), j, maximum
-
-        logical :: todo
-
-        maximum = -1
-        ! now finally implement the actual cluster initializer, which 
-        ! reads in a given TMAT and UMAT file, or atleast the information in it
-!         ASSERT(associated(tmat2d))
-
-        ! first, we need to set up 
-        call this%initialize_aim()
-
-        associate(n_bath => this%get_n_bath(), n_imps => this%get_n_imps())
-            ASSERT(n_imps + n_bath == nbasis/2)
-
-            if (n_imps > 1) call this%set_ndim(2)
-
-            ! get the impurity connections
-            ! they are usually connected to each other, but the bath-imp. conn.
-            ! might look different
-            do i = 1, n_imps
-                ! find all the connections in the tmat 
-                connections = -1
-                cnt = 0
-                do j = 1, nBasis/2
-                    ! no diagonal terms
-                    if (i == j) cycle
-                     if (abs(gettmatel(2*i, 2*j)) > EPS &
-                          .or. abs(gettmatel(2*i-1,2*j-1))>EPS) then 
-!                    if (todo) then
-                        ! cound the number of connections
-                        cnt = cnt + 1 
-                        ! and maybe i should already store the connected 
-                        ! states
-                        connections(cnt) = j
-                    end if
-                    if (cnt > maximum) maximum = cnt
-                end do
-
-                this%sites(i) = site(i, cnt, connections(1:cnt-1), site_type='impurity')
-            end do
-
-            do i = n_imps + 1, nBasis/2
-                connections = -1 
-                cnt = 0
-                do j = 1, nbasis/2
-                    if (i == j) cycle 
-                     if (abs(gettmatel(2*i,2*j)) > EPS &
-                          .or. abs(gettmatel(2*i-1,2*j-1)) > EPS) then 
-!                    if (todo) then
-                        cnt = cnt + 1
-                        connections(cnt) = j 
-                    end if
-                    if (cnt > maximum) maximum = cnt
-                end do
-                this%sites(i) = site(i, cnt, &
-                    connections(1:cnt), site_type='bath')
-            end do
-
-            call this%set_nconnect_max(maximum)
-        end associate
-
-    end subroutine init_sites_cluster_aim
-
-    subroutine init_sites_cluster_aim_test(this)
-        class(cluster_aim) :: this 
-        
-        integer :: i, imp_neighbors(this%n_imps - 1), j, k, l
-        ! this is the tricky part.. i have to use the read-in UMAT and TMAT 
-        ! files and setup the connectivity
-        ! for now write one dummy function which assumes that all bath sites 
-        ! are connected to each impurity and all the impurity sites are 
-        ! connected within each-other
-        
-        ! remember if we have more than one impurity i still have to set 
-        ! the dimension and n_connect_max here! 
-        
-        ! the bath sites are easier here! they are all connected to all 
-        ! impurity sites! 
-        associate(n_bath => this%get_n_bath(), n_imps => this%get_n_imps())
-
-            if (n_imps > 1) call this%set_ndim(2)
-
-            call this%set_nconnect_max(n_bath + n_imps - 1)
-
-            do i = 1, n_bath
-                this%sites(i + n_imps) = site(i + n_imps, n_imps, &
-                    [ (i, i = 1, n_imps) ], site_type='bath')
-            end do
-
-            do i = 1, n_imps 
-                k = 1
-                do j = 1, n_imps
-                    if (i /= j) then 
-                        imp_neighbors(k) = j
-                        k = k + 1
-                    end if 
-                end do
-
-                this%sites(i) = site(i, n_imps - 1 + n_bath, & 
-                    [imp_neighbors, (l + n_imps, l = 1, n_bath)], site_type='impurity')
-
-            end do
-        end associate
-
-        ! for this test function assume every impurity site connected 
-        ! within each other 
-
-
-    end subroutine init_sites_cluster_aim_test
 
     integer function get_length_aim_star(this, dimen)
         class(aim_star) :: this 
@@ -3611,32 +3449,6 @@ contains
             this%impurity_sites = [(i, i = 1, length_x)]
             this%bath_sites = [(length_x + i, i = 1, length_y)]
 
-        class is (cluster_aim) 
-
-            ! now we have to be more specific.. 
-            ! do i have to use the inputs already here? 
-            if (length_x <= 0) then 
-                call stop_all(this_routine, & 
-                    "zero or negative impurity sites requested!")
-            end if
-            if (length_y <= 0) then 
-                call stop_all(this_routine, & 
-                    "zero or negative bath orbitals requested!")
-            end if
-
-            if (length_x == 1) then 
-                call this%set_ndim(DIM_STAR) 
-                call this%set_nconnect_max(length_y)
-            else 
-                ! otherwise i have to do this later.. 
-            end if
- 
-            allocate(this%impurity_sites(length_x))
-            allocate(this%bath_sites(length_y))
-
-            this%impurity_sites = [(i, i = 1, length_x)]
-            this%bath_sites = [(length_x + i, i = 1, length_y)]
-
         class default 
             call stop_all(this_routine, "unexpected lattice type!")
 
@@ -3835,10 +3647,6 @@ contains
         case ('star', 'aim-star', 'star-aim')
 
             allocate(aim_star :: this)
-
-        case('cluster', 'aim-cluster', 'cluster-aim')
-
-            allocate(cluster_aim :: this)
 
         case default 
             ! stop here because a incorrect lattice type was given 

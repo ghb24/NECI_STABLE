@@ -14,7 +14,7 @@ module fcimc_initialisation
                           tUEGNewGenerator, tGen_4ind_2, tReltvy, t_new_real_space_hubbard, &
                           t_lattice_model, t_tJ_model, t_heisenberg_model, & 
                           t_k_space_hubbard, t_3_body_excits, omega, breathingCont, &
-                          momIndexTable, t_trans_corr_2body
+                          momIndexTable, t_trans_corr_2body, t_impurity_system
 
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
 
@@ -196,6 +196,8 @@ module fcimc_initialisation
     use k_space_hubbard, only: init_get_helement_k_space_hub, init_k_space_hubbard
 
     use OneEInts, only: tmat2d
+
+    use impurityModels, only: setupImpurityExcitgen, gen_excit_impurity_model
 
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard
     implicit none
@@ -1672,6 +1674,9 @@ contains
         ! Select the excitation generator.
         if (tHPHF) then
             generate_excitation => gen_hphf_excit
+         elseif(t_impurity_system) then
+            call setupImpurityExcitgen()
+            generate_excitation => gen_excit_impurity_model
         elseif ((t_back_spawn_option .or. t_back_spawn_flex_option)) then 
             if (tHUB .and. tLatticeGens) then 
                 ! for now the hubbard + back-spawn still uses the old 
