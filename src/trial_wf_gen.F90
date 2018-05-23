@@ -103,7 +103,7 @@ contains
             else
                 trial_wfs = temp_wfs
                 trial_energies = temp_energies
-                print *, "energy eigenvalue(s): ", trial_energies(1:nexcit_keep)
+                root_print "energy eigenvalue(s): ", trial_energies(1:nexcit_keep)
             end if
             deallocate(temp_wfs, stat=ierr)
             if (ierr /= 0) call stop_all(t_r, "Error deallocating temp_wfs.")
@@ -258,14 +258,11 @@ contains
         call halt_timer(Trial_Init_Time)
 
         if (.not. qmc_trial_wf) then
-            write(6,'("Energy eigenvalue(s) of the trial space:")', advance='no')
-            do i = 1, nexcit_keep
-                write(6,'(2X,g19.12e3)', advance='no') trial_energies(i)
-            end do
+            root_print "Energy eigenvalue(s) of the trial space:", trial_energies(1:nexcit_keep)
         end if
-        write(6,'(/,"Trial wavefunction initialisation complete.")')
-        write(6,'("Total time (seconds) taken for trial wavefunction initialisation:",f9.3,/)') &
-                   get_total_time(Trial_Init_Time)
+        root_print "Trial wavefunction initialisation complete."
+        root_print "Total time (seconds) taken for trial wavefunction initialisation:",&
+            get_total_time(Trial_Init_Time)
         call neci_flush(6)
 
     end subroutine init_trial_wf

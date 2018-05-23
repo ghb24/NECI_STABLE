@@ -297,8 +297,6 @@ contains
 !             space_displs(i) = sum(space_sizes(:i-1))
         end do
 
-!         root_print "space_sizes: ", space_sizes
-!         root_print "space_displs: ", space_displs
 
         ! [W.D. 15.5.2017:]
         ! is the sort behaving different, depending on the compiler? 

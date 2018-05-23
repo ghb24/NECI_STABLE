@@ -31,6 +31,8 @@ module lattice_models_utils
     use sym_mod, only: mompbcsym
 
     use dSFMT_interface, only: genrand_real2_dsfmt
+
+    use Parallel_neci, only: iProcIndex, root
     
     implicit none
 
@@ -1315,6 +1317,7 @@ contains
 
         call gen_all_doubles_k_space(nI, n_excits, det_list)
 
+        root_print "number of double excitations on root: ", n_excits
         if (t_trans_corr_2body) then 
             save_excits = n_excits
             ! also account for triple excitations
@@ -1331,6 +1334,8 @@ contains
             det_list(:,1:save_excits) = temp_dets 
 
             det_list(:,save_excits+1:n_excits) = triple_dets
+
+            root_print "number of triple excitations on root: ", n_triples
 
         end if
 
@@ -1707,6 +1712,8 @@ contains
         ! this gets too high for big lattices.. 
 
         n_bound = nel*(nel-1)*(nel-2) * (nbasis - nel)*(nbasis - nel -1)*(nbasis-nel-2)
+        root_print "worst-case number of triples: ", n_bound
+
         allocate(temp_list(0:niftot,n_bound))
         temp_list = 0_n_int
 
