@@ -289,6 +289,8 @@ contains
             &for is larger than the size of the trial space used to create the excited states. Since this &
             &routine generates trial states that are orthogonal, this is not possible.")
 
+        print *, "space_sizes: ", space_sizes
+        print *, "ndets_all_procs: ", ndets_all_procs
         space_displs(0) = 0_MPIArg
         do i = 1, nProcessors-1
             space_displs(i) = space_displs(i-1) + space_sizes(i-1)
@@ -313,7 +315,7 @@ contains
             allocate(evecs_transpose(1,1))
         end if
 
-        call MPIGatherV(trial_iluts(0:niftot,1:space_sizes(iProcIndex)), ilut_list(0:NIfTot,1:ndets_all_procs), &
+        call MPIGatherV(trial_iluts(0:niftot,1:space_sizes(iProcIndex)), ilut_list(0:NIfTot,:), &
                         space_sizes, space_displs, ierr)
 
         ! Only perform the diagonalisation on the root process.
