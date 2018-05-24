@@ -37,6 +37,7 @@ module fcimc_helper
                         tRealCoeffByExcitLevel, tKeepDoubSpawns, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
                         MaxWalkerBloom,tMultiSpawnThreshold, multiSpawnThreshold, &
+                        tEN2, tEN2Started, &
                         NMCyc, iSampleRDMIters, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
                         t_back_spawn_flex, tau, DiagSft, &
@@ -446,8 +447,10 @@ contains
             if (test_flag(ilut, flag_trial)) then
                 if (ntrial_excits == 1) then
                     trial_denom = trial_denom + current_trial_amps(1,ind)*RealwSign
+                    trial_denom_inst = trial_denom_inst + current_trial_amps(1,ind)*RealwSign
                 else if (ntrial_excits == lenof_sign) then
                     trial_denom = trial_denom + current_trial_amps(:,ind)*RealwSign
+                    trial_denom_inst = trial_denom_inst + current_trial_amps(:,ind)*RealwSign
                 end if
 
                 if (qmc_trial_wf) then
@@ -463,10 +466,12 @@ contains
             else if (test_flag(ilut, flag_connected)) then
                 ! Note, only attempt to add in a contribution from the
                 ! connected space if we're not also in the trial space.
-                 if (ntrial_excits == 1) then
+                if (ntrial_excits == 1) then
                     trial_numerator = trial_numerator + current_trial_amps(1,ind)*RealwSign
+                    trial_num_inst = trial_num_inst + current_trial_amps(1,ind)*RealwSign
                 else if (ntrial_excits == lenof_sign) then
                     trial_numerator = trial_numerator + current_trial_amps(:,ind)*RealwSign
+                    trial_num_inst = trial_num_inst + current_trial_amps(:,ind)*RealwSign
                 end if
             end if
         end if
@@ -600,7 +605,7 @@ contains
             ENumCyc(run) = ENumCyc(run) + (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) / dProbFin
             ENumCycAbs(run) = ENumCycAbs(run) + abs(HoffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) &
                                       / dProbFin
-            
+
         end do
 
         ! -----------------------------------
@@ -833,7 +838,6 @@ contains
             ENumCyc(run) = ENumCyc(run) + (hoffdiag * sgn_run) / dProbFin
             ENumCycAbs(run) = ENumCycAbs(run) + abs(hoffdiag * sgn_run) / dProbFin
 
-
         end do
 
     end subroutine SumEContrib_different_refs
@@ -890,11 +894,11 @@ contains
 
                 ! Update counters as required.
                 if (parent_init) then
-                    NoInitDets = NoInitDets + 1_int64
-                    NoInitWalk = NoInitWalk + mag_of_run(CurrentSign, run)
+                    NoInitDets(run) = NoInitDets(run) + 1_int64
+                    NoInitWalk(run) = NoInitWalk(run) + mag_of_run(CurrentSign, run)
                 else
-                    NoNonInitDets = NoNonInitDets + 1_int64
-                    NoNonInitWalk = NoNonInitWalk + mag_of_run(CurrentSign, run)
+                    NoNonInitDets(run) = NoNonInitDets(run) + 1_int64
+                    NoNonInitWalk(run) = NoNonInitWalk(run) + mag_of_run(CurrentSign, run)
                 endif
 
                 ! Update the parent flag as required.
@@ -1162,6 +1166,9 @@ contains
 
         min_trial_ind = 1
         min_conn_ind = 1
+
+        trial_num_inst = 0.0_dp
+        trial_denom_inst = 0.0_dp
 
     end subroutine rezero_iter_stats_each_iter
 
@@ -2011,6 +2018,8 @@ contains
         
             IterRDMStart = Iter + PreviousCycles
             IterRDM_HF = Iter + PreviousCycles
+
+            if (tEN2) tEN2Started = .true.
 
             ! We have reached the iteration where we want to start filling the RDM.
             if (tExplicitAllRDM) then

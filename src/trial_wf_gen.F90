@@ -160,6 +160,7 @@ contains
         else
             con_space_size = 0
             con_sendcounts = 0
+            allocate(con_space(0,0),stat=ierr)
             write(6,'("This processor will not search for connected states.")'); call neci_flush(6)
         end if
 

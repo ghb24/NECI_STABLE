@@ -1,0 +1,44 @@
+title
+
+system read noorder
+symignoreenergies
+freeformat
+electrons 10
+spin-restrict 0
+sym 0 0 0 0
+nonuniformrandexcits 4ind-weighted
+hphf 0
+nobrillouintheorem
+endsys
+
+calc
+methods
+method vertex fcimc
+endmethods
+memoryfacpart 1000.0
+memoryfacspawn 1000.0
+totalwalkers 10000
+nmcyc 2400
+seed 29
+startsinglepart 100
+shiftdamp 0.05
+truncinitiator
+addtoinitiator 3
+allrealcoeff
+realspawncutoff 0.01
+jump-shift
+proje-changeref 1.2
+stepsshift 40
+maxwalkerbloom 3
+en2-initiator
+endcalc
+
+integral
+freeze 2 0
+endint
+
+logging
+binarypops
+calcrdmonfly 3 600 100
+endlog
+end

@@ -83,6 +83,8 @@ contains
                  iRefProc(inum_runs), proje_ref_energy_offsets(inum_runs), &
                  iHighestPop(inum_runs), &
                  replica_overlaps_real(inum_runs, inum_runs), &
+                 all_norms(inum_runs), &
+                 all_overlaps(inum_runs, inum_runs), &
 #ifdef __CMPLX
                  replica_overlaps_imag(inum_runs, inum_runs), &
 #endif
@@ -111,6 +113,8 @@ contains
                  AbsProjE(inum_runs), &
                  trial_numerator(inum_runs), tot_trial_numerator(inum_runs), &
                  trial_denom(inum_runs), tot_trial_denom(inum_runs), &
+                 trial_num_inst(inum_runs), tot_trial_num_inst(inum_runs), &
+                 trial_denom_inst(inum_runs), tot_trial_denom_inst(inum_runs), &
                  sum_proje_denominator(inum_runs), &
                  all_sum_proje_denominator(inum_runs), &
                  cyc_proje_denominator(inum_runs), &
@@ -192,6 +196,8 @@ contains
                    iRefProc, proje_ref_energy_offsets, &
                    iHighestPop, &
                    replica_overlaps_real, &
+                   all_norms, &
+                   all_overlaps, &
 #ifdef __CMPLX
                    replica_overlaps_imag, &
 #endif
@@ -244,6 +250,8 @@ contains
                    proje_iter, AbsProjE, &
                    trial_numerator, tot_trial_numerator, &
                    trial_denom, tot_trial_denom, &
+                   trial_num_inst, tot_trial_num_inst, &
+                   trial_denom_inst, tot_trial_denom_inst, &
                    sum_proje_denominator, all_sum_proje_denominator, &
                    cyc_proje_denominator, all_cyc_proje_denominator, &
 

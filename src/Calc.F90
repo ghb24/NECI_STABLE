@@ -375,7 +375,7 @@ contains
           tAccessibleDoubles = .false.
           tSuppressSIOutput = .true.
           nExProd = 2
-          NoTypeN = 20
+          NoTypeN = InitiatorWalkNo
           tStrictCoherentDoubles = .false.
           tWeakCoherentDoubles = .true.
           tAvCoherentDoubles = .true.
@@ -388,6 +388,12 @@ contains
 
           ! And disable the initiators subspace
           tInitiatorsSubspace = .false.
+
+          ! Epstein-Nesbet second-order correction logicals.
+          tEN2 = .false.
+          tEN2Init = .false.
+          tEN2Truncated = .false.
+          tEN2Started = .false.
 
         end subroutine SetCalcDefaults
 
@@ -1828,6 +1834,18 @@ contains
 !determinants outside the active space, however if this is done, they
 !can only spawn back on to the determinant from which they came.  This is the star approximation from the CAS space. 
                 tTruncInitiator=.true.
+
+! Epstein-Nesbet second-order perturbation using the stochastic spawnings to correct initiator error.
+            case("EN2-INITIATOR")
+                tEN2 = .true.
+                tEN2Init = .true.
+
+! Epstein-Nesbet second-order perturbation using stochastic spawnings. However, this is not used to
+! correct initiator error. Currently, it is only used for the full non-initiator scheme when applied
+! to a truncated space. Then, an EN2 correction is applied to the space outside that truncation.
+            case("EN2-TRUNCATED")
+                tEN2 = .true.
+                tEN2Truncated = .true.
 
             case("KEEPDOUBSPAWNS")
 !This means that two sets of walkers spawned on the same determinant with the same sign will live, 

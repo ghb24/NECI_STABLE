@@ -105,7 +105,6 @@ contains
 
         space_displs(0) = 0_MPIArg
         do i = 1, nProcessors-1
-!             space_displs(i) = sum(space_sizes(:i-1))
             space_displs(i) = space_displs(i-1) + space_sizes(i-1)
         end do
 
