@@ -33,3 +33,5 @@ add_subdirectory( lattice_models_utils )
 add_subdirectory( cc_amplitudes )
 
 add_subdirectory( cepa_shifts )
+
+add_subdirectory( analyse_wf_symmetry )

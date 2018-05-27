@@ -185,6 +185,7 @@ set( SRC_FILES
     lattice_models_utils.F90
     cc_amplitudes.F90
     cepa_shifts.F90
+    analyse_wf_symmetry.F90
 
     lib/backtrace.cpp
     lib/cons_neci.F90

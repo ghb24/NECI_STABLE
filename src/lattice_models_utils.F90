@@ -5,7 +5,7 @@
 
 module lattice_models_utils 
 
-    use constants, only: dp, n_int, bits_n_int, eps
+    use constants, only: dp, n_int, bits_n_int, eps, pi, lenof_sign
 
     use util_mod, only: binary_search, binary_search_first_ge, choose, swap
 
@@ -15,7 +15,8 @@ module lattice_models_utils
 
     use SystemData, only: symmetry, G1, nel, nbasis, nBasisMax, t_k_space_hubbard, &
                           tHub, nOccBeta, nOccAlpha, t_trans_corr_2body, tHPHF, &
-                          lattice_type, length_x, length_y, t_trans_corr_hop
+                          lattice_type, length_x, length_y, t_trans_corr_hop, &
+                          arr, brr
 
     use symdata, only: symtable, SymConjTab
 
@@ -24,7 +25,7 @@ module lattice_models_utils
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet, TestClosedShellDet, & 
                          DetBitLT, MaskAlpha, MaskBeta
 
-    use bit_reps, only: decode_bit_det
+    use bit_reps, only: decode_bit_det, extract_sign
 
     use SymExcitDataMod, only: KPointToBasisFn
 
@@ -33,7 +34,7 @@ module lattice_models_utils
     use dSFMT_interface, only: genrand_real2_dsfmt
 
     use Parallel_neci, only: iProcIndex, root
-    
+
     implicit none
 
     interface swap_excitations 
@@ -42,6 +43,7 @@ module lattice_models_utils
     end interface swap_excitations
 
 contains 
+
 
     function return_hphf_sym_det(ilut_in) result(ilut_out)
         ! to avoid circular dependencies and due to the strange implementation

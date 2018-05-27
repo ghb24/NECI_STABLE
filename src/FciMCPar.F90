@@ -33,6 +33,7 @@ module FciMCParMod
                            write_end_core_size, t_calc_double_occ, t_calc_double_occ_av, &
                            equi_iter_double_occ, t_print_frq_histograms, &
                            t_spin_measurements
+
     use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
@@ -111,6 +112,8 @@ module FciMCParMod
                                gen_excit_uniform_k_space_hub_transcorr
     use cc_amplitudes, only: t_cc_amplitudes, init_cc_amplitudes, cc_delay, &
                             t_plot_cc_amplitudes, print_cc_amplitudes
+
+    use analyse_wf_symmetry, only: analyze_wavefunction_symmetry, t_symmetry_analysis
 
 #ifdef MOLPRO
     use outputResult
@@ -768,6 +771,10 @@ module FciMCParMod
         end if
 
         call PrintHighPops()
+
+        if (t_symmetry_analysis) then
+            call analyze_wavefunction_symmetry()
+        end if
 
         !Close open files.
         IF(iProcIndex.eq.Root) THEN

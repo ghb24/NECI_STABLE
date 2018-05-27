@@ -476,6 +476,48 @@ contains
 
     end function binary_search
 
+    function binary_search_int (arr, val) result(pos) 
+        ! W.D.: also write a binary search for "normal" lists of ints
+        integer, intent(in) :: arr(:)
+        integer, intent(in) :: val
+        integer :: pos 
+
+        integer :: hi, lo
+
+        lo = lbound(arr,1)
+        hi = ubound(arr,1)
+
+        if (hi < lo) then 
+            pos  = -lo
+            return
+        end if
+
+        do while (hi /= lo)
+            pos = int(real(hi + lo, sp) / 2.0_dp)
+
+            if (arr(pos) == val) then 
+                exit 
+            else if (val > arr(pos)) then 
+                lo = pos + 1
+            else 
+                hi = pos
+            end if
+        end do
+
+        if (hi == lo) then 
+            if (arr(hi) == val) then 
+                pos = hi 
+            else if (val > arr(hi)) then 
+                pos = -hi - 1 
+
+            else 
+                pos = -hi
+            end if
+        end if
+
+    end function binary_search_int
+
+
     function binary_search_real (arr, val, thresh) &
                                  result(pos)
 
