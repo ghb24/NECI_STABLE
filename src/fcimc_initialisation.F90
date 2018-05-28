@@ -44,7 +44,7 @@ module fcimc_initialisation
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, &
                         t_back_spawn_flex, back_spawn_delay, corespaceWalkers, &
-                        ScaleWalkers, tSpinProject
+                        ScaleWalkers, tSpinProject, tFixedN0
     use adi_data, only: g_markers, tReferenceChanged, tInitiatorsSubspace, tAdiActive, &
                         nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
 
