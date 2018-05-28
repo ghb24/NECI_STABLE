@@ -1287,7 +1287,7 @@ contains
             write(iout, '("Truncating determinant space at a maximum of ",i3," &
                     &unpaired electrons.")') trunc_nopen_max
         endif
-
+        
 !        SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.0_dp)
 !        TotDets=1.0_dp
 !        do i=1,NEl
@@ -1692,6 +1692,10 @@ contains
         ! Set up the reference space for the adi-approach
 	! in real-time, we do this in the real-time init
          if(.not. t_real_time_fciqmc) call setup_reference_space(tReadPops)
+
+        ! in fixed-n0, the variable shift mode and everything connected is
+        ! controlled over the reference population
+        if(tFixedN0) tSinglePartPhase = .true.
 
          if(tInitiatorsSubspace) call read_g_markers()
 
