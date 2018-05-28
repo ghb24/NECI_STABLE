@@ -31,6 +31,8 @@ module analyse_wf_symmetry
 
     use unit_test_helpers, only: print_matrix
 
+    use ras, only: sort_orbitals
+
     implicit none
 
     logical :: t_symmetry_analysis = .false.
@@ -342,7 +344,8 @@ contains
         end do
 
         if (present(n_phase)) then 
-            call sort(nJ, par = n_phase)
+            call sort_orbitals(nJ, n_phase)
+!             call sort(nJ, par = n_phase)
         end if 
 
     end subroutine apply_transformation
