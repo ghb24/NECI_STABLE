@@ -449,6 +449,15 @@ module sort_mod
     end interface
 
 contains
+    !Caution: 14.03.2018, K.Ghanem
+    !The parity variable 'par' may not work as you expect.
+    !E.g. using it for calculating the parity of an array of orbitals may give the wrong parity.
+    !The reason is that 'par' is calcuated based on the total number of variable swaps.
+    !So the parity is flipped even when an element is swaped with itself.
+    !Fixing this requries checking for self-swaps and would induce a slight overhead.
+    !Since sorting (without parity) is used heavily in NECI, we would like to avoid this overhead.
+    !Instead we write a seperate sorting subroutine 'sort_oribtals' that calculates the right parity.
+
     subroutine sort (arr, %(extra_arrs)s%(custom_comparisons)snskip, par)
 
         ! Perform a quicksort on an array of integers, arr(n). Uses the 
