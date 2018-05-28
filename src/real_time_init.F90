@@ -416,7 +416,7 @@ contains
         benchmarkEnergy = 0.0_dp
 
         ! for the start definetly not change tau
-        tSearchTau = .true.
+        ! tSearchTau = .true.
 
         ! also set readpops to get the <y(0)| reference from the "normal"
         ! neci init routines
