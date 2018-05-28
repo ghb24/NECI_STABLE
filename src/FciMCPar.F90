@@ -17,7 +17,7 @@ module FciMCParMod
                         t_back_spawn_flex, t_back_spawn_flex_option, &
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
                         DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
-                        tSkipRef
+                        tSkipRef, tFixTrial, tTrialShift
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
                         tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
                         SIUpdateInterval, tSuppressSIOutput, nRefUpdateInterval, &
@@ -1077,10 +1077,6 @@ module FciMCParMod
                 endif
             ENDIFDEBUG
 
-            ! Sum in any energy contribution from the determinant, including 
-            ! other parameters, such as excitlevel info.
-            ! This is where the projected energy is calculated.
-            call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, CurrentDets(:,j), HDiagCurr, 1.0_dp, tPairedReplicas, j)
 
             ! double occupancy measurement: quick and dirty for now
             if (t_calc_double_occ) then
@@ -1294,6 +1290,22 @@ module FciMCParMod
             if (tOldRDMs) call fill_rdm_diag_wrapper_old(rdms, one_rdms_old, CurrentDets, int(TotWalkers, sizeof_int))
             call fill_rdm_diag_wrapper(rdm_definitions, two_rdm_spawn, one_rdms, CurrentDets, int(TotWalkers, sizeof_int))
         end if
+
+        if(tTrialWavefunction .and. tTrialShift)then
+            call fix_trial_overlap(iter_data)
+        end if
+
+        ! Sum in any energy contribution from the determinant, including 
+        ! other parameters, such as excitlevel info.
+        ! This is where the projected energy is calculated.
+        do j = 1, int(TotWalkers,sizeof_int)
+            HDiagCurr = det_diagH(j)
+            call extract_bit_rep_avsign(rdm_definitions, CurrentDets(:,j), j, DetCurr, SignCurr, FlagsCurr, &
+                                        IterRDMStartCurr, AvSignCurr, fcimc_excit_gen_store)
+            walkExcitLevel = FindBitExcitLevel (iLutRef(:,1), CurrentDets(:,j), &
+                                                max_calc_ex_level)
+            call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, CurrentDets(:,j), HDiagCurr, 1.0_dp, tPairedReplicas, j)
+        end do
 
         call update_iter_data(iter_data)
 

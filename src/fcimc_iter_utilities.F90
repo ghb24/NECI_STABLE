@@ -12,7 +12,8 @@ module fcimc_iter_utils
                         nShiftEquilSteps, TargetGrowRateWalk, tContTimeFCIMC, &
                         tContTimeFull, pop_change_min, tPositiveHFSign, &
                         qmc_trial_wf, nEquilSteps, t_hist_tau_search, &
-                        t_hist_tau_search_option, tFixedN0, tSkipRef, N0_Target, tEN2
+                        t_hist_tau_search_option, tFixedN0, tSkipRef, N0_Target, &
+                        tTrialShift, tFixTrial, TrialTarget, tEN2
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tFCIMCStats2, tPrintDataTables, tLogEXLEVELStats
     use semi_stoch_procs, only: recalc_core_hamil_diag
@@ -683,7 +684,7 @@ contains
 
 #ifdef __DEBUG
         ! Write this 'ASSERTROOT' out explicitly to avoid line lengths problems
-        if ((iProcIndex == root) .and. .not. tSpinProject .and. &
+        if ((iProcIndex == root) .and. .not. tSpinProject .and. .not. tTrialShift .and. &
          all(abs(iter_data%update_growth_tot-(AllTotParts-AllTotPartsOld)) > 1.0e-5)) then
             write(iout,*) "update_growth: ",iter_data%update_growth_tot
             write(iout,*) "AllTotParts: ",AllTotParts
@@ -764,6 +765,17 @@ contains
             do run=1,inum_runs
                 lb = min_part_type(run)
                 ub = max_part_type(run)
+
+
+                if (tTrialShift .and. .not. tFixTrial(run) .and. tTrialWavefunction .and. abs(tot_trial_denom(run))>=TrialTarget) then
+                    !When reaching target overlap with trial wavefunction, set flag to keep it fixed.
+                    tFixTrial(run) = .True.
+
+                    write (iout, '(a,i13,a,i1)') 'Exiting the varaible shift phase on iteration: ' &
+                                 ,iter + PreviousCycles, ' - overlap with trial wavefunction of the following run is now fixed: ', run
+                end if
+
+
                 if(tFixedN0)then
                     if (.not. tSkipRef(run) .and. abs(AllHFCyc(run))>=N0_Target) then
                         !When reaching target N0, set flag to keep the population of reference det fixed.
@@ -791,14 +803,31 @@ contains
                                 write (iout, '(a,i14)') 'Beginning to average shift value on iteration: ',iter + PreviousCycles
                             VaryShiftCycles(run) = VaryShiftCycles(run) + 1
                             SumDiagSft(run) = SumDiagSft(run) + DiagSft(run)
-                            AvDiagSft(run) = SumDiagSft(run) / real(VaryShiftCycles(run), dp)
+                            AvDiagSft(run) = SumDiagSft(run) / real(VaryShiftCycles(run), dp)                            
                         endif
                     else
                         !Keep shift equal to input till target reference population is reached.
                         DiagSft(run) = InputDiagSft(run)
                     end if
 
-                else !not tFixedN0
+                else if(tFixTrial(run))then
+                        !Use the trial energy as the shift to fix the
+                        !overlap with trial wavefunction and thus reduce the
+                        !fluctuations of the trial energy.
+
+                        !ToDo: Make DiafSft complex
+                        DiagSft(run) = (tot_trial_numerator(run) / tot_trial_denom(run))-Hii
+
+                        ! Update the shift averages
+                        if ((iter - VaryShiftIter(run)) >= nShiftEquilSteps) then
+                            if ((iter-VaryShiftIter(run)-nShiftEquilSteps) < StepsSft) &
+                                write (iout, '(a,i14)') 'Beginning to average shift value on iteration: ',iter + PreviousCycles
+                            VaryShiftCycles(run) = VaryShiftCycles(run) + 1
+                            SumDiagSft(run) = SumDiagSft(run) + DiagSft(run)
+                            AvDiagSft(run) = SumDiagSft(run) / real(VaryShiftCycles(run), dp)
+                        endif
+
+                else !not Fixed-N0 and not Trial-Shift
                     if (TSinglePartPhase(run)) then
                         tot_walkers = InitWalkers * int(nNodes,int64)
 
@@ -1003,6 +1032,7 @@ contains
         call MPIBcast (VaryShiftIter)
         call MPIBcast (DiagSft)
         call MPIBcast (tSkipRef)
+        call MPIBcast (tFixTrial)
         call MPIBcast (VaryShiftCycles)
         call MPIBcast (SumDiagSft)
         call MPIBcast (AvDiagSft)
@@ -1102,4 +1132,113 @@ contains
         iter_data%update_iters = iter_data%update_iters + 1
 
     end subroutine update_iter_data
+
+    !Fix the overlap with trial wavefunction by enforcing the value of a random determinant of the trial space
+    !As long as the shift equals the trial energy, this should still give the right dynamics.
+    subroutine fix_trial_overlap(iter_data)
+        use util_mod, only: binary_search_first_ge
+        type(fcimc_iter_data), intent(inout) :: iter_data
+
+        HElement_t(dp), dimension(inum_runs) :: new_trial_denom, new_tot_trial_denom
+        real(dp), dimension(lenof_sign) :: trial_delta, SignCurr, newSignCurr
+        integer :: j, rand, det_idx, proc_idx, run, part_type, lbnd, ubnd,err
+        integer :: trial_count, trial_indices(tot_trial_space_size), trial_counts(nProcessors)
+        logical :: tIsStateDeterm
+
+#ifdef __CMPLX
+        call stop_all("fix_trial_overlap", "Complex wavefunction is not supported yet!")
+#endif
+
+        !Calculate the new overlap
+        new_trial_denom = 0.0
+        new_tot_trial_denom = 0.0
+
+        trial_count = 0
+        do j = 1, int(TotWalkers,sizeof_int)
+            call extract_sign (CurrentDets(:,j), SignCurr)
+            if (.not. IsUnoccDet(SignCurr) .and. test_flag(CurrentDets(:,j), flag_trial)) then
+                trial_count = trial_count + 1
+                trial_indices(trial_count) = j 
+
+                !Update the overlap
+                if (ntrial_excits == 1) then
+                    new_trial_denom = new_trial_denom + current_trial_amps(1,j)*SignCurr
+                else if (tReplicaReferencesDiffer.and. tPairedReplicas) then
+                    do run = 2, inum_runs, 2
+                        new_trial_denom(run-1:run) = new_trial_denom(run-1:run) + current_trial_amps(run/2,j)*SignCurr(run-1:run)
+                    end do
+                else if (ntrial_excits == lenof_sign) then
+                    new_trial_denom = new_trial_denom + current_trial_amps(:,j)*SignCurr
+                end if
+            end if
+        end do
+
+        !Collecte overlaps from call processors
+        call MPIAllReduce(new_trial_denom,MPI_SUM,new_tot_trial_denom)
+
+        !Choose a random processor propotioanl to the size of its trial space
+        call MPIGather(trial_count, trial_counts, err)
+        if(iProcIndex .eq. root) then
+            do j=2, nProcessors
+                trial_counts(j) = trial_counts(j)+trial_counts(j-1)
+            end do
+            proc_idx = binary_search_first_ge(trial_counts, ceiling(genrand_real2_dSFMT() * trial_counts(nProcessors)))-1
+        end if
+        call MPIBCast(proc_idx)
+
+
+        !Enforcing an update of the random determinant of the random processor
+        if(iProcIndex .eq. proc_idx) then
+            !Choose a random determinant
+            det_idx = trial_indices(ceiling(genrand_real2_dSFMT() * trial_count))
+            do part_type = 1, lenof_sign
+                run = part_type_to_run(part_type)
+                if(tFixTrial(run))then
+                    trial_delta(part_type) = (tot_trial_denom(run)-new_tot_trial_denom(run))/current_trial_amps(part_type,det_idx)
+                else
+                    trial_delta(part_type) = 0.0
+                end if
+            end do
+
+            call extract_sign (CurrentDets(:,det_idx), SignCurr)
+            newSignCurr = SignCurr+trial_delta
+            call encode_sign (CurrentDets(:,det_idx), newSignCurr)
+
+            !Correct statistics filled by CalcHashTableStats
+            iter_data%ndied = iter_data%ndied + abs(SignCurr)
+            iter_data%nborn = iter_data%nborn + abs(newSignCurr)
+            TotParts = TotParts + abs(newSignCurr) - abs(SignCurr)
+
+            tIsStateDeterm = .False.
+            if (tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,det_idx), flag_deterministic)
+
+            norm_psi_squared = norm_psi_squared + (newSignCurr)**2 - SignCurr**2
+            if (tIsStateDeterm) norm_semistoch_squared = norm_semistoch_squared + (newSignCurr)**2 - SignCurr**2
+
+            if (tCheckHighestPop) then
+                do run = 1, inum_runs
+                    lbnd = min_part_type(run)
+                    ubnd = max_part_type(run)
+                    if (abs_sign(newSignCurr(lbnd:ubnd)) > iHighestPop(run)) then
+                        iHighestPop(run) = int(abs_sign(newSignCurr(lbnd:ubnd)))
+                        HighestPopDet(:,run)=CurrentDets(:,det_idx)
+                    end if
+                end do
+            end if
+            if (tFillingStochRDMonFly) then
+                if (IsUnoccDet(newSignCurr) .and. (.not. tIsStateDeterm)) then
+                    if (DetBitEQ(CurrentDets(:,det_idx), iLutHF_True, NIfDBO)) then
+                        AvNoAtHF = 0.0_dp
+                        IterRDM_HF = Iter + 1
+                    end if
+                end if
+            end if
+
+            if (DetBitEQ(CurrentDets(:,det_idx), iLutHF_True, NIfDBO)) then
+                InstNoAtHF=newSignCurr
+            end if
+        end if
+
+    end subroutine fix_trial_overlap
+
 end module fcimc_iter_utils
