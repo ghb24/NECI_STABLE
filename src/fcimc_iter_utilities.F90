@@ -1415,7 +1415,8 @@ contains
         HElement_t(dp), dimension(inum_runs) :: new_trial_denom, new_tot_trial_denom
         real(dp), dimension(lenof_sign) :: trial_delta, SignCurr, newSignCurr
         integer :: j, rand, det_idx, proc_idx, run, part_type, lbnd, ubnd,err
-        integer :: trial_count, trial_indices(tot_trial_space_size), trial_counts(nProcessors)
+        integer :: trial_count, trial_indices(tot_trial_space_size)
+        real(dp) :: amps(tot_trial_space_size), total_amp, total_amps(nProcessors)
         logical :: tIsStateDeterm
 
 #ifdef __CMPLX
@@ -1427,12 +1428,14 @@ contains
         new_tot_trial_denom = 0.0
 
         trial_count = 0
+        total_amp = 0.0
         do j = 1, int(TotWalkers,sizeof_int)
             call extract_sign (CurrentDets(:,j), SignCurr)
             if (.not. IsUnoccDet(SignCurr) .and. test_flag(CurrentDets(:,j), flag_trial)) then
                 trial_count = trial_count + 1
                 trial_indices(trial_count) = j 
-
+                amps(trial_count) = abs(current_trial_amps(1,j))
+                total_amp = total_amp + amps(trial_count)
                 !Update the overlap
                 if (ntrial_excits == 1) then
                     new_trial_denom = new_trial_denom + current_trial_amps(1,j)*SignCurr
@@ -1449,21 +1452,28 @@ contains
         !Collecte overlaps from call processors
         call MPIAllReduce(new_trial_denom,MPI_SUM,new_tot_trial_denom)
 
-        !Choose a random processor propotioanl to the size of its trial space
-        call MPIGather(trial_count, trial_counts, err)
+        !Choose a random processor propotioanl to the sum of amplitudes of its trial space
+        call MPIGather(total_amp, total_amps, err)
         if(iProcIndex .eq. root) then
+            !write(6,*) "total_amps: ", total_amps
             do j=2, nProcessors
-                trial_counts(j) = trial_counts(j)+trial_counts(j-1)
+                total_amps(j) = total_amps(j)+total_amps(j-1)
             end do
-            proc_idx = binary_search_first_ge(trial_counts, ceiling(genrand_real2_dSFMT() * trial_counts(nProcessors)))-1
+            proc_idx = binary_search_first_ge(total_amps, genrand_real2_dSFMT() * total_amps(nProcessors))-1
         end if
         call MPIBCast(proc_idx)
 
 
+        !write(6,*) "proc_idx", proc_idx
+        !write(6,*) "total_count: ", trial_count
+        !write(6,*) "amps: ", amps(1:trial_count)
         !Enforcing an update of the random determinant of the random processor
         if(iProcIndex .eq. proc_idx) then
             !Choose a random determinant
-            det_idx = trial_indices(ceiling(genrand_real2_dSFMT() * trial_count))
+            do j=2, trial_count 
+                amps(j) = amps(j)+amps(j-1)
+            end do
+            det_idx = trial_indices(binary_search_first_ge(amps(1:trial_count), genrand_real2_dSFMT() * amps(trial_count)))
             do part_type = 1, lenof_sign
                 run = part_type_to_run(part_type)
                 if(tFixTrial(run))then
