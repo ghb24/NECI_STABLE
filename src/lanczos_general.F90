@@ -7,7 +7,7 @@ module lanczos_general
     !   http://dx.doi.org/10.1016/0024-3795(80)90167-6
     !
     use constants
-    use SystemData, only: nel
+    use SystemData, only: nel, t_non_hermitian
     use FciMCData, only: hamiltonian, LanczosTag
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg, MPIBarrier
@@ -315,6 +315,56 @@ module lanczos_general
         endif
     end subroutine project_hamiltonian_lanczos
 
+    subroutine diagonalise_tridiagonal_non_hermitian(this, N, t_calc_eigenvectors)
+        type(LanczosCalcType), intent(inout) :: this
+        integer, intent(in) :: N
+        logical, intent(in) :: t_calc_eigenvectors
+        integer :: lwork, info
+        real(dp) :: rwork(4*N)
+        character :: jobz
+        real(dp) :: dummy_ev(N), dummy_vec(1,N), e_vectors(N,N)
+        logical :: t_sort = .true.
+        integer :: sort_ind(N)
+
+        lwork = 4*N
+        if (t_calc_eigenvectors) then 
+            jobz = 'V'
+        else
+            jobz = 'N'
+        end if
+
+        if (.not. t_calc_eigenvectors) then
+            this%ritz_values_old(1:this%n_states) = this%ritz_values(1:this%n_states)
+            this%super%projected_hamil_work(1:N,1:N) = this%super%projected_hamil(1:N,1:N)
+        endif
+
+        call dgeev(&
+            'N', &
+            jobz, &
+            N, &
+            this%super%projected_hamil_work(1:N,1:N), &
+            N, &
+            this%ritz_values(1:N), &
+            dummy_ev, &
+            dummy_vec, &
+            1, &
+            e_vectors, &
+            N, &
+            rwork, &
+            lwork, &
+            info)
+
+        if (t_calc_eigenvectors) then
+            ! move the eigenvectors out of the working array
+!             this%T_eigenvectors(1:N,1:this%n_states) = &
+!                 cmplx(this%super%projected_hamil_work(1:N, 1:this%n_states))
+            this%T_eigenvectors(1:N,1:this%n_states) = &
+                cmplx(e_vectors(1:N,1:this%n_states))
+        endif
+
+
+    end subroutine diagonalise_tridiagonal_non_hermitian
+
 
     subroutine diagonalise_tridiagonal(this, N, t_calc_eigenvectors)
         type(LanczosCalcType), intent(inout) :: this
@@ -576,7 +626,11 @@ module lanczos_general
                         this%lanczos_vector = this%lanczos_vector - getBeta(this, k+1)*old_v
                     endif
 
-                    call diagonalise_tridiagonal(this, k, .false.)
+                    if (t_non_hermitian) then
+                        call diagonalise_tridiagonal_non_hermitian(this, k, .false.)
+                    else
+                        call diagonalise_tridiagonal(this, k, .false.)
+                    end if
                     ! if all states have converged we can end the main loop prematurely
                     t_deltas_pass = .true.
                     do i=1, this%n_states
@@ -600,7 +654,11 @@ module lanczos_general
             end do
             
             if (iprocindex==root) then
-                call diagonalise_tridiagonal(this, k, .true.)
+                if (t_non_hermitian) then
+                    call diagonalise_tridiagonal_non_hermitian(this, k, .true.)
+                else
+                    call diagonalise_tridiagonal(this, k, .true.)
+                end if
                 call compute_ritz_vectors(this, k)
             endif
 

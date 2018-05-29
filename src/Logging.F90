@@ -1051,6 +1051,10 @@ MODULE Logging
             ! Output the semi-stochastic core space to a file.
             tWriteCore = .true.
 
+        case ("PRINT-CORE-INFO")
+            ! print core info, like energy, and maybe also the gs vector
+            t_print_core_info = .true.
+
         case("WRITE-MOST-POP-CORE-END")
             ! At the end of a calculation, find the write_end_core_size most
             ! populated determinants and write them to a CORESPACE file.

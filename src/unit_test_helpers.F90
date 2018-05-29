@@ -85,6 +85,8 @@ contains
         call dgeev('N','N', n, tmp_matrix, n, e_values, &
             dummy_val, dummy_vec_1,1,dummy_vec_2,1,work,3*n,info)
 
+        call sort(e_values)
+
     end function calc_eigenvalues
 
     subroutine eig(matrix, e_values, e_vectors) 
@@ -99,6 +101,7 @@ contains
         integer :: n, info 
         real(dp) :: work(4*size(matrix,1)), tmp_matrix(size(matrix,1),size(matrix,2))
         real(dp) :: dummy_vec(1,size(matrix,1)), dummy(size(matrix,1))
+        integer :: sort_ind(size(matrix,1))
 
 
         ! and convention is: we only want the right eigenvectors!!
@@ -109,8 +112,27 @@ contains
 
             tmp_matrix = matrix 
 
-            call dgeev('N','V',n,tmp_matrix, n, e_values, dummy, dummy_vec, & 
-                1, e_vectors, n, work, 4*n, info)
+            call dgeev(&
+                'N', &
+                'V', &
+                n, & 
+                tmp_matrix, & 
+                n, & 
+                e_values, &
+                dummy, &
+                dummy_vec, & 
+                1, &
+                e_vectors, &
+                n, &
+                work, &
+                4*n, &
+                info)
+
+            sort_ind = [(n, n = 1, size(matrix,1))]
+
+            call sort(e_values, sort_ind)
+
+            e_vectors = e_vectors(:,sort_ind)
 
         else
             e_values = calc_eigenvalues(matrix)

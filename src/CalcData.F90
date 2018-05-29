@@ -247,6 +247,13 @@ logical :: tTrialWavefunction
 ! How many excited states to calculate in the trial space, for the
 ! trial wave functions estimates
 integer :: ntrial_ex_calc = 0
+
+! if we want to choose a specific excited states as the trial wf, if we 
+! have a reasonable estimate. this must be done for all replicas if 
+! multiple are used 
+logical :: t_choose_trial_state = .false. 
+integer, allocatable :: trial_excit_choice(:)
+
 ! Input type describing which space(s) type to use.
 type(subspace_in) :: trial_space_in
 

@@ -179,4 +179,5 @@ module LoggingData
 !     logical :: t_inst_spat_doub_occ = .false. 
 !     logical :: t_spatial_double_occ = .false.
 
+    logical :: t_print_core_info = .false.
 end module LoggingData

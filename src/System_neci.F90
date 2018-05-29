@@ -525,6 +525,8 @@ system: do
            else
                trans_corr_param = 0.1_dp
            end if
+           t_non_hermitian = .true. 
+
 
        case ('TRANSCORRELATED', 'TRANSCORR', 'TRANS-CORR')
            ! activate the transcorrelated Hamiltonian idea from hongjun for 

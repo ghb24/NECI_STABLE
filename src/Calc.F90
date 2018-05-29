@@ -9,7 +9,7 @@ MODULE Calc
                           par_hole_pairs, hole_pairs, nholes_a, nholes_b, &
                           nholes, UMATEPS, tHub, t_lattice_model, t_tJ_model, & 
                           t_new_real_space_hubbard, t_heisenberg_model, & 
-                          t_k_space_hubbard, tHPHF
+                          t_k_space_hubbard, tHPHF, t_non_hermitian
     use Determinants, only: write_det
     use spin_project, only: spin_proj_interval, &
                             spin_proj_gamma, spin_proj_shift, &
@@ -428,6 +428,7 @@ contains
           CHARACTER (LEN=100) w
           CHARACTER (LEN=100) input_string
           CHARACTER(*),PARAMETER :: t_r='CalcReadInput'
+          character(*), parameter :: this_routine = t_r
           integer :: l, i, j, line, ierr
           integer :: tempMaxNoatHF,tempHFPopThresh
           logical :: tExitNow
@@ -1406,6 +1407,49 @@ contains
 
             case("NUM-TRIAL-STATES-CALC")
                 call geti(ntrial_ex_calc)
+
+                ! assure that we do not reset this value due to wrong input
+                if (allocated(trial_excit_choice)) then
+                    if (maxval(trial_excit_choice) > ntrial_ex_calc) then
+                        print *, "setting ntrial_ex_calc to max(trial_excit_choice)!"
+                        ntrial_ex_calc = maxval(trial_excit_choice)
+                    end if
+                end if
+
+            case ("TRIAL-EXCITS")
+                ! choose an excited states as the trial-wf and not only the 
+                ! lowest or best overlapping per replica 
+                t_choose_trial_state = .true.
+                if (tPairedReplicas) then 
+                    allocate(trial_excit_choice(inum_runs/2))
+                else 
+                    allocate(trial_excit_choice(inum_runs))
+                end if
+
+                if (item < nitems) then 
+                    if (tPairedReplicas) then 
+                        do i = 1, inum_runs/2
+                            call geti(trial_excit_choice(i))
+                        end do
+                    else 
+                        do i = 1, inum_runs
+                            call geti(trial_excit_choice(i))
+                        end do
+                    end if
+                else
+                    call stop_all(this_routine, &
+                        "provide choice for excited states in TRIAL-EXCITS")
+                end if
+
+                if (maxval(trial_excit_choice) > ntrial_ex_calc) then 
+                    ! or should i just set ntrial_ex_calc to the maxval?
+                    ! yes: 
+                    print *, "setting ntrial_ex_calc to max(trial_excit_choice)!"
+                    ntrial_ex_calc = maxval(trial_excit_choice)
+!                     call stop_all(this_routine, &
+!                         "NUM-TRIAL-STATES-CALC must be >= max(TRIAL-EXCITS)!")
+                end if
+
             case("QMC-TRIAL-WF")
                qmc_trial_wf = .true.
             case("MAX-TRIAL-SIZE")
@@ -3126,6 +3170,10 @@ contains
 !          call Par2vSum(FDet)
           ELSE IF(tDavidson) then
               davidsonCalc = davidson_direct_ci_init(.true.)
+              if (t_non_hermitian) then
+                  call stop_all(this_routine, &
+                      "perform_davidson not adapted for non-hermitian Hamiltonians!")
+              end if
               call perform_davidson(davidsonCalc, direct_ci_type, .true.)
               call davidson_direct_ci_end(davidsonCalc)
               call DestroyDavidsonCalc(davidsonCalc)

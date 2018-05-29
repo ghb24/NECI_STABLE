@@ -102,15 +102,15 @@ contains
         t_do_subspace_study = .false.
         t_input_U = .false.
         t_U_vec = .false.
-        t_do_twisted_bc = .true.
-        t_twisted_vec = .true.
+        t_do_twisted_bc = .false.
+        t_twisted_vec = .false.
         t_ignore_k = .false.
         t_do_ed = .true.
 
         call init_k_space_unit_tests()
 
         ! i have to define the lattice here.. 
-        lat => lattice('square', 3, 3, 1,.true.,.true.,.true.,'k-space')
+        lat => lattice('chain', 6, 1, 1,.true.,.true.,.true.,'k-space')
 
 !         x = [(-lat%dispersion_rel_orb(i), i = 1, 24)]
 !         ind = [(i, i = 1, 24)]
@@ -152,7 +152,7 @@ contains
         ! 6 in 9 k = 1 1
 !         nI = [3,4,7,8,9,10]
         ! 6 in 9 k = 0 0
-        nI = [3,4,9,10,15,16]
+!         nI = [3,4,9,10,15,16]
         ! 10 in 9, k = 0:
 !         nI = [3,4,7,8,9,10,11,12,15,16]
         ! 10 in 9, k = 1,-1:
@@ -160,7 +160,7 @@ contains
 
         ! chain:
         ! 6 in 6, k = 0
-!         nI = [3,4,5,6,7,8]
+        nI = [3,4,5,6,7,8]
 
         ! 6 in 6, k = 3
 !         nI = [2,3,4,5,6,7]

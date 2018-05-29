@@ -6,7 +6,7 @@ module fcimc_helper
     use util_mod
     use systemData, only: nel, tHPHF, tNoBrillouin, G1, tUEG, &
                           tLatticeGens, nBasis, tHistSpinDist, tRef_Not_HF, & 
-                          t_3_body_excits
+                          t_3_body_excits, t_non_hermitian
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use semi_stoch_procs, only: recalc_core_hamil_diag, is_core_state
     use bit_reps, only: NIfTot, test_flag, extract_flags, &
@@ -1613,6 +1613,10 @@ contains
             CALL LogMemAlloc('V2',DetLen*NEVAL,8,t_r,V2Tag,ierr)
             V2=0.0_dp
     !C..Lanczos iterative diagonalising routine
+            if (t_non_hermitian) then
+                call stop_all(t_r, &
+                    "NECI_FRSBLKH not adapted for non-hermitian Hamiltonians!")
+            end if
             CALL NECI_FRSBLKH(DetLen,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A_Arr,W,V,AM,BM,T,WT, &
              &  SCR,ISCR,INDEX,NCYCLE,B2L,.true.,.false.,.false.,.false.)
 
@@ -1645,6 +1649,10 @@ contains
             nBlockStarts(1) = 1
             nBlockStarts(2) = DetLen+1
             nBlocks = 1
+            if (t_non_hermitian) then 
+                call stop_all(t_r, &
+                    "HDIAG_neci is not set up for non-hermitian Hamiltonians!")
+            end if
             call HDIAG_neci(DetLen,Hamil,Lab,nRow,CK,W,Work2,Work,nBlockStarts,nBlocks)
             GroundE = W(1)
             deallocate(Work)

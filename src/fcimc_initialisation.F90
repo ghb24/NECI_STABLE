@@ -14,7 +14,7 @@ module fcimc_initialisation
                           tUEGNewGenerator, tGen_4ind_2, tReltvy, t_new_real_space_hubbard, &
                           t_lattice_model, t_tJ_model, t_heisenberg_model, & 
                           t_k_space_hubbard, t_3_body_excits, omega, breathingCont, &
-                          momIndexTable, t_trans_corr_2body
+                          momIndexTable, t_trans_corr_2body, t_non_hermitian
 
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
 
@@ -2546,6 +2546,10 @@ contains
             Allocate(CkN(nCASDet,nEval), stat=ierr)
             CkN=0.0_dp
     !C..Lanczos iterative diagonalising routine
+            if (t_non_hermitian) then 
+                call stop_all(this_routine, &
+                    "NECI_FRSBLKH not adapted for non-hermitian Hamiltonians!")
+            end if
             CALL NECI_FRSBLKH(nCASDet,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A_Arr,W,V,AM,BM,T,WT, &
          &  SCR,ISCR,INDEX,NCYCLE,B2L,.false.,.false.,.false.,.true.)
     !Multiply all eigenvalues by -1.
@@ -2577,6 +2581,10 @@ contains
             nBlockStarts(1) = 1
             nBlockStarts(2) = nCASDet+1
             nBlocks = 1
+            if (t_non_hermitian) then 
+                call stop_all(this_routine, & 
+                    "HDIAG_neci is not set up for non-hermitian Hamiltonians!")
+            end if
             call HDIAG_neci(nCASDet,Hamil,Lab,nRow,CK,W,Work2,Work,nBlockStarts,nBlocks)
             deallocate(Work)
             call LogMemDealloc(this_routine,WorkTag)

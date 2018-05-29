@@ -181,9 +181,7 @@ contains
         con_senddispls(0) = 0
         con_recvdispls(0) = 0
         do i = 1, nProcessors-1
-!             con_senddispls(i) = sum(con_sendcounts(:i-1))
             con_senddispls(i) = con_senddispls(i-1) + con_sendcounts(i-1)
-!             con_recvdispls(i) = sum(con_recvcounts(:i-1))
             con_recvdispls(i) = con_recvdispls(i-1) + con_recvcounts(i-1)
         end do
 
@@ -356,27 +354,68 @@ contains
 #endif
 
         ! Now, find the best trial state for each FCIQMC replica:
+        if (t_choose_trial_state) then 
+
 #ifdef __CMPLX
-        do ireplica = 1, inum_runs
-            best_trial = maxloc(abs(all_overlaps_real(ireplica,:)**2+all_overlaps_imag(ireplica,:)**2))
-            trials_kept(ireplica,:) = trial_amps(best_trial(1),:)
-            energies_kept(ireplica) = energies(best_trial(1))
-        end do
+            do ireplica = 1, inum_runs
+                trials_kept(ireplica,:) = trial_amps(trial_excit_choice(ireplica),:)
+                energies_kept(ireplica) = energies(trial_excit_choice(ireplica))
+            end do
 #else
-        if (replica_pairs) then
-            do ireplica = 1, lenof_sign/2
-                best_trial = maxloc(abs(all_overlaps_real(ireplica,:)))
-                trials_kept(ireplica,:) = trial_amps(best_trial(1),:)
-                energies_kept(ireplica) = energies(best_trial(1))
-            end do
-        else
-            do ireplica = 1, lenof_sign
-                best_trial = maxloc(abs(all_overlaps_real(ireplica,:)))
-                trials_kept(ireplica,:) = trial_amps(best_trial(1),:)
-                energies_kept(ireplica) = energies(best_trial(1))
-            end do
-        end if
+            if (replica_pairs) then 
+                do ireplica = 1, lenof_sign/2
+                    trials_kept(ireplica,:) = trial_amps(trial_excit_choice(ireplica),:)
+                    energies_kept(ireplica) = energies(trial_excit_choice(ireplica))
+#ifdef __DEBUG
+                    root_print "trial state: ", trial_excit_choice(ireplica), &
+                        " chosen for replica: ", ireplica, &
+                        " chosen by input, with energy: ", energies(trial_excit_choice(ireplica))
 #endif
+                end do
+            else
+                do ireplica = 1, lenof_sign
+                    trials_kept(ireplica,:) = trial_amps(trial_excit_choice(ireplica),:)
+                    energies_kept(ireplica) = energies(trial_excit_choice(ireplica))
+#ifdef __DEBUG
+                    root_print "trial state: ", trial_excit_choice(ireplica), &
+                        " chosen for replica: ", ireplica, &
+                        " chosen by input, with energy: ", energies(trial_excit_choice(ireplica))
+#endif
+                end do
+            end if
+#endif
+        else 
+#ifdef __CMPLX
+            do ireplica = 1, inum_runs
+                best_trial = maxloc(abs(all_overlaps_real(ireplica,:)**2+all_overlaps_imag(ireplica,:)**2))
+                trials_kept(ireplica,:) = trial_amps(best_trial(1),:)
+                energies_kept(ireplica) = energies(best_trial(1))
+            end do
+#else
+            if (replica_pairs) then
+                do ireplica = 1, lenof_sign/2
+                    best_trial = maxloc(abs(all_overlaps_real(ireplica,:)))
+                    trials_kept(ireplica,:) = trial_amps(best_trial(1),:)
+                    energies_kept(ireplica) = energies(best_trial(1))
+#ifdef __DEBUG
+                    root_print "trial state: ", best_trial, " kept for replica ", ireplica, &
+                        " based on overlap, with energy: ", energies(best_trial(1))
+#endif
+                end do
+            else
+                do ireplica = 1, lenof_sign
+                    best_trial = maxloc(abs(all_overlaps_real(ireplica,:)))
+                    trials_kept(ireplica,:) = trial_amps(best_trial(1),:)
+                    energies_kept(ireplica) = energies(best_trial(1))
+#ifdef __DEBUG
+                    root_print "trial state: ", best_trial, " kept for replica ", ireplica, &
+                        " based on overlap, with energy: ", energies(best_trial(1))
+#endif
+                end do
+            end if
+#endif
+        end if
+        
 
     end subroutine assign_trial_states
 

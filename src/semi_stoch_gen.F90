@@ -17,6 +17,7 @@ module semi_stoch_gen
     use semi_stoch_procs
     use sparse_arrays
     use timing_neci
+    use SystemData, only: t_non_hermitian
 
     implicit none
 
@@ -41,6 +42,12 @@ contains
         use load_balance_calcnodes, only: tLoadBalanceBlocks
         use sort_mod, only: sort
         use SystemData, only: nel
+        use davidson_neci, only: DavidsonCalcType, perform_davidson, DestroyDavidsonCalc
+        use sparse_arrays, only: deallocate_sparse_ham, sparse_ham, hamil_diag, HDiagTag
+        use sparse_arrays, only: SparseHamilTags, allocate_sparse_ham_row
+        use hamiltonian_linalg, only: parallel_sparse_hamil_type
+        use FciMCData, only: core_ham_diag, DavidsonTag
+        use LoggingData, only: t_print_core_info
 
         type(subspace_in) :: core_in
 
@@ -48,6 +55,9 @@ contains
         integer :: nI(nel)
         integer(MPIArg) :: mpi_temp
         character (len=*), parameter :: t_r = "init_semi_stochastic"
+        type(DavidsonCalcType) :: davidsonCalc
+        real(dp) :: e_values(determ_space_size), gs_energy, &
+            gs_vector(determ_space_size), e_vectors(determ_space_size,determ_space_size)
 
         ! If we are load balancing, this gets disabled once semi stochastic
         ! has been initialised. Therefore we should do a last-gasp load
@@ -121,7 +131,6 @@ contains
         ! to the first index position in the vector (i.e. the array disps in MPI routines).
         determ_displs(0) = 0
         do i = 1, nProcessors-1
-!             determ_displs(i) = sum(determ_sizes(:i-1))
             determ_displs(i) = determ_displs(i-1) + determ_sizes(i-1)
         end do
 
@@ -147,8 +156,25 @@ contains
 
         if (tWriteCore) call write_core_space()
 
+
         write(6,'("Generating the Hamiltonian in the deterministic space...")'); call neci_flush(6)
         call calc_determ_hamil_sparse()
+
+        if (t_print_core_info) then 
+            ! i think i also want information, like the energy and the 
+            ! eigenvectors of the core-space
+            if (t_non_hermitian) then 
+                call diagonalize_core_non_hermitian(e_values, e_vectors)
+                if (t_choose_trial_state) then
+                    gs_energy = e_values(trial_excit_choice(1))
+                else
+                    gs_energy = e_values(1)
+                end if
+            else
+                call diagonalize_core(gs_energy, gs_vector)
+            end if
+            root_print "semi-stochastic space GS energy: ", gs_energy
+        end if
 
         if (tRDMonFly) call generate_core_connections()
 
@@ -761,12 +787,20 @@ contains
                 write(6,'(a27)') "Constructing Hamiltonian..."
                 call neci_flush(6)
 
-                call calculate_sparse_hamiltonian(new_num_states, ilut_store(:,1:new_num_states))
+                if (t_non_hermitian) then 
+                    call calculate_sparse_hamiltonian_non_hermitian(new_num_states, ilut_store(:,1:new_num_states))
+                else
+                    call calculate_sparse_hamiltonian(new_num_states, ilut_store(:,1:new_num_states))
+                end if
 
                 write (6,'(a29)') "Performing diagonalisation..."
                 call neci_flush(6)
 
                 ! Now that the Hamiltonian is generated, we can finally find the ground state of it:
+                if (t_non_hermitian) then 
+                    call stop_all(t_r, &
+                        "perform_davidson not adapted for non-hermitian Hamiltonians!")
+                end if
                 call perform_davidson(davidsonCalc, sparse_hamil_type, .false.)
 
                 associate( &

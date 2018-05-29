@@ -1,12 +1,20 @@
 #include "macros.h"
 MODULE DetCalc
         use constants, only: dp,n_int
-        use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, tStoreSpinOrbs
+
+        use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, tStoreSpinOrbs, &
+                              t_non_hermitian
+
         use sort_mod
+
         use DetCalcData
+
         use MemoryManager, only: TagIntType
+
         use gndts_mod, only: gndts
+
         use UMatCache, only: UMat2D, tUMat2D, tDeferred_UMat2D, tagUMat2D
+
         use procedure_pointers, only: get_umat_el
         
     IMPLICIT NONE
@@ -573,6 +581,10 @@ CONTAINS
             CALL LogMemAlloc('V2',NDET*NEVAL,8,this_routine,V2Tag,ierr)
             V2=0.0_dp
 !C..Lanczos iterative diagonalising routine
+            if (t_non_hermitian) then 
+                call stop_all(this_routine, & 
+                    "NECI_FRSBLKH not adapted for non-hermitian Hamiltonians")
+            end if
             CALL NECI_FRSBLKH(NDET,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT, &
      &  SCR,ISCR,INDEX,NCYCLE,B2L,.true.,.false.,.false.,.true.)
 
@@ -590,6 +602,10 @@ CONTAINS
                CALL LogMemAlloc('WORK',4*NDET,8*HElement_t_size,this_routine,WorkTag,ierr)
                ALLOCATE(WORK2(3*NDET),stat=ierr)
                CALL LogMemAlloc('WORK2',3*NDET,8,this_routine,WORK2Tag,ierr)
+               if (t_non_hermitian) then 
+                   call stop_all(this_routine, &
+                       "HDIAG_nec is not setup for non-hermitian Hamiltonians")
+               end if
                CALL HDIAG_neci(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,NBLOCKSTARTS,NBLOCKS)
             ENDIF
          ENDIF
@@ -632,6 +648,10 @@ CONTAINS
             end if
           end do
           IF(davidsonCalc%super%hfindex.EQ.0) call stop_all("DoDetCalc","Fermi determinant is not found in RAS space!")
+          if (t_non_hermitian) then 
+              call stop_all(this_routine, &
+                  "perform_davidson not adapted for non-hermitian Hamiltonians!")
+          end if
           call perform_davidson(davidsonCalc, direct_ci_type, .true.)
       ENDIF
 

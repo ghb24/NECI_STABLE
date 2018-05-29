@@ -165,7 +165,8 @@ module hamiltonian_linalg
             allocate(hamil_diag_temp(space_size))
             this%partial_H_ket_disps(0) = 0
             do i = 1, nProcessors-1
-                this%partial_H_ket_disps(i) = sum(this%space_sizes(:i-1))
+                this%partial_H_ket_disps(i) = this%partial_H_ket_disps(i-1) &
+                                            + this%space_sizes(i-1)
             end do
             call MPIGatherV(hamil_diag, hamil_diag_temp, this%space_sizes, this%partial_H_ket_disps, ierr)
 
