@@ -24,7 +24,7 @@ module load_balance
     use cont_time_rates, only: spawn_rate_full
     use SystemData, only: nel, tHPHF
     use DetBitOps, only: DetBitEq
-    use sparse_arrays, only: con_ht
+    use sparse_arrays, only: con_ht, trial_ht, trial_hashtable
     use load_balance_calcnodes
     use Parallel_neci
     use constants
@@ -320,6 +320,8 @@ contains
         integer, parameter :: mpi_tag_dets = 223457
         integer, parameter :: mpi_tag_nconsend = 223458
         integer, parameter :: mpi_tag_con = 223459
+        integer, parameter :: mpi_tag_ntrialsend = 223460
+        integer, parameter :: mpi_tag_trial = 223461
 
         src_proc = LoadBalanceMapping(block)
 
@@ -355,30 +357,6 @@ contains
                 end if
             end do
 
-            if(tTrialWavefunction) then
-               ! now get those connected determinants that need to be 
-               ! communicated (they might not be in currentdets)
-               do j = 1, con_space_size
-                  clashes = con_ht(j)%nclash
-                  if(clashes > 0) then
-                     k = 0
-                     do
-                        k = k + 1
-                        call decode_bit_det(det,con_ht(j)%states(:,k))
-                        det_block = get_det_block(nel, det, 0)
-                        if(det_block == block) then
-                           call extract_con_ht_entry(j,k,con_state)
-                           nconsend = nconsend + 1
-                           con_send_buf(:,nconsend) = con_state
-                           clashes = clashes - 1
-                           k = k - 1
-                        endif
-                        if(k==clashes) exit
-                     enddo
-                  endif
-               end do
-            endif
-
             ! And send the data to the relevant (target) processor
             nelem = nsend * (1 + NIfTot)
             call MPISend(nsend, 1, tgt_proc, mpi_tag_nsend, ierr)
@@ -386,12 +364,23 @@ contains
                          mpi_tag_dets, ierr)
 
             if(tTrialWavefunction) then
+               ! now get those connected determinants that need to be 
+               ! communicated (they might not be in currentdets)
+               nconsend = buffer_trial_ht_entries(block, con_ht, con_space_size)   
                ! And send the trial wavefunction connection information
                nelem = nconsend * (1 + NConEntry)
                call MPISend(nconsend,1,tgt_proc,mpi_tag_nconsend, ierr)
                if(nelem > 0) &
-               call MPISend(con_send_buf(:,1:nconsend),nelem,tgt_proc, &
+                    call MPISend(con_send_buf(:,1:nconsend),nelem,tgt_proc, &
                     mpi_tag_con, ierr)
+
+               ! Do the same with the trial wavefunction itself
+               nconsend = buffer_trial_ht_entries(block, trial_ht, trial_space_size)
+               nelem = nconsend * (1 + NConEntry)
+               call MPISend(nconsend,1,tgt_proc,mpi_tag_ntrialsend, ierr)
+               if(nelem > 0) &
+                    call MPISend(con_send_buf(:,1:nconsend),nelem,tgt_proc,&
+                    mpi_tag_trial, ierr)
             end if
 
             ! We have now created lots of holes in the main list
@@ -421,14 +410,29 @@ contains
             ! and possibly extended the list
             HolesInList = max(0, HolesInList - nsend)
 
-            ! Recieve information on the connected determinants
+            ! Recieve information on the trial + connected determinants
             ! only if trial wavefunction is enabled, of course
             if(tTrialWavefunction) then
+               ! first, we get the connected ones
                call MPIRecv(nconsend, 1, src_proc, mpi_tag_nconsend, ierr)
                nelem = nconsend * (1 + NConEntry)
                if(nelem > 0) then
+                  ! get the connected states themselves
                   call MPIRecv(con_send_buf, nelem, src_proc, mpi_tag_con, ierr)
-                  call add_con_ht_entries(con_send_buf(:,1:nconsend), nconsend)
+                  ! add the recieved connected dets to the hashtable
+                  call add_trial_ht_entries(con_send_buf(:,1:nconsend), nconsend, &
+                       con_ht, con_space_size)
+               endif
+
+               ! Recieve the information on the trial wave function
+               call MPIRecv(nconsend, 1, src_proc, mpi_tag_ntrialsend, ierr)
+               nelem = nconsend * (1 + NConEntry)
+               if(nelem > 0) then
+                  ! get the states
+                  call MPIRecv(con_send_buf, nelem, src_proc, mpi_tag_trial, ierr)
+                  ! add them to the hashtable
+                  call add_trial_ht_entries(con_send_buf(:,1:nconsend), nconsend, &
+                       trial_ht, trial_space_size)
                endif
             endif
 
@@ -695,109 +699,147 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    subroutine extract_con_ht_entry(hash_val, i, ht_entry)
-      implicit none
-      integer(n_int), intent(out) :: ht_entry(0:NConEntry)
-      integer, intent(in) :: hash_val, i
-      integer :: clashes
-      character(*), parameter :: this_routine = "extract_con_ht_entry"
-     
-      ! get the stores state
-      ht_entry = con_ht(hash_val)%states(:,i)
-      ! then remove it from the table
-      clashes = con_ht(hash_val)%nclash
-      call remove_con_ht_entry(hash_val,i,clashes)
-    end subroutine extract_con_ht_entry
+    function buffer_trial_ht_entries(block, source_ht, source_ht_size) result(nsend)
+      integer, intent(in) :: block
+      type(trial_hashtable), intent(inout) :: source_ht(:)
+      integer, intent(in) :: source_ht_size
+      integer :: nsend
+      integer :: clashes, j, k, det_block, det(nel)
+      integer(n_int) :: source_state(0:NConEntry)
+      ! get all entries from source_ht that belong to block and move them
+      ! to con_send_buf, deleting them from source_ht in the process
+      nsend = 0
+      do j = 1, source_ht_size
+         clashes = source_ht(j)%nclash
+         if(clashes > 0) then
+            k = 0
+            do
+               k = k + 1
+               call decode_bit_det(det,con_ht(j)%states(:,k))
+               det_block = get_det_block(nel, det, 0)
+               if(det_block == block) then
+                  call extract_trial_ht_entry(j,k,source_state,source_ht)
+                  nsend = nsend + 1
+                  con_send_buf(:,nsend) = source_state
+                  clashes = clashes - 1
+                  k = k - 1
+               endif
+               if(k==clashes) exit
+            enddo
+         endif
+      end do
+    end function buffer_trial_ht_entries
 
 !------------------------------------------------------------------------------------------!
 
-    subroutine remove_con_ht_entry(hash_val, index, clashes)
+    subroutine extract_trial_ht_entry(hash_val, i, ht_entry,source_ht)
+      implicit none
+      integer(n_int), intent(out) :: ht_entry(0:NConEntry)
+      integer, intent(in) :: hash_val, i
+      type(trial_hashtable), intent(inout) :: source_ht(:)
+      integer :: clashes
+      character(*), parameter :: this_routine = "extract_trial_ht_entry"
+     
+      ! get the stores state
+      ht_entry = source_ht(hash_val)%states(:,i)
+      ! then remove it from the table
+      clashes = source_ht(hash_val)%nclash
+      call remove_trial_ht_entry(hash_val,i,clashes,source_ht)
+    end subroutine extract_trial_ht_entry
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine remove_trial_ht_entry(hash_val, index, clashes, source_ht)
       implicit none
       integer, intent(in) :: hash_val, index, clashes
+      type(trial_hashtable), intent(inout) :: source_ht(:)
       integer(n_int), allocatable :: tmp(:,:)
       integer :: i, ierr
-      character(*), parameter :: this_routine = "remove_con_ht_entry"
+      character(*), parameter :: this_routine = "remove_trial_ht_entry"
       
-      ! first, copy the contnet of the con_ht entry to a temporary
+      ! first, copy the contnet of the source_ht entry to a temporary
       ! if there is any to be left
       if(clashes-1 > 0) then
          allocate(tmp(0:NConEntry,clashes-1), stat = ierr)
          if(ierr .ne. 0) call stop_all(this_routine, "Failed allocation")
          do i = 1, index - 1
-            tmp(:,i) = con_ht(hash_val)%states(:,i)
+            tmp(:,i) = source_ht(hash_val)%states(:,i)
          end do
          ! omitting the element to remove
          do i = index + 1, clashes
-            tmp(:,i-1) = con_ht(hash_val)%states(:,i)
+            tmp(:,i-1) = source_ht(hash_val)%states(:,i)
          end do
 
-         ! then, reallocate the con_ht entry (if required)
-         deallocate(con_ht(hash_val)%states, stat = ierr)
+         ! then, reallocate the source_ht entry (if required)
+         deallocate(source_ht(hash_val)%states, stat = ierr)
          if(ierr .ne. 0) call stop_all(this_routine, "Failed deallocation")
-         allocate(con_ht(hash_val)%states(0:NConEntry,clashes-1), stat = ierr)
+         allocate(source_ht(hash_val)%states(0:NConEntry,clashes-1), stat = ierr)
          if(ierr .ne. 0) call stop_all(this_routine, "Failed allocation")
          ! and copy the temporary back (if it is non-empty)
-         con_ht(hash_val)%states(0:NConEntry,:) = tmp(0:NConEntry,:)
+         source_ht(hash_val)%states(0:NConEntry,:) = tmp(0:NConEntry,:)
          deallocate(tmp,stat = ierr)
          if(ierr .ne. 0) call stop_all(this_routine, "Failed deallocation")
       else
          ! just to be sure, allocate with size 0
-         deallocate(con_ht(hash_val)%states)
-         allocate(con_ht(hash_val)%states(0:NConEntry,0))
+         deallocate(source_ht(hash_val)%states)
+         allocate(source_ht(hash_val)%states(0:NConEntry,0))
       endif
 
       ! finally, update the nclashes information
-      con_ht(hash_val)%nclash = clashes - 1
-    end subroutine remove_con_ht_entry
+      source_ht(hash_val)%nclash = clashes - 1
+    end subroutine remove_trial_ht_entry
 
 !------------------------------------------------------------------------------------------!
       
-    subroutine add_con_ht_entries(entries, n_entries)
+    subroutine add_trial_ht_entries(entries, n_entries, source_ht, source_ht_size)
       implicit none
       integer, intent(in) :: n_entries
       integer(n_int), intent(in) :: entries(0:NConEntry,n_entries)
+      type(trial_hashtable), intent(inout) :: source_ht(:)
+      integer, intent(in) :: source_ht_size
       integer :: i, hash_val, nI(nel), clashes
-      ! this adds n_entries entries to the con_ht hashtable
+      ! this adds n_entries entries to the source_ht hashtable
 
       do i = 1, n_entries
          call decode_bit_det(nI,entries(:,i))
-         hash_val = FindWalkerHash(nI, con_space_size)
+         hash_val = FindWalkerHash(nI, source_ht_size)
          ! just add them one by one
-         call add_single_con_ht_entry(entries(:,i),hash_val)
+         call add_single_trial_ht_entry(entries(:,i),hash_val, source_ht)
       enddo
-    end subroutine add_con_ht_entries    
+    end subroutine add_trial_ht_entries    
 
 !------------------------------------------------------------------------------------------!
 
-    subroutine add_single_con_ht_entry(ht_entry, hash_val)
+    subroutine add_single_trial_ht_entry(ht_entry, hash_val, source_ht)
       implicit none
       integer(n_int), intent(in) :: ht_entry(0:NConEntry)
       integer, intent(in) :: hash_val
+      type(trial_hashtable), intent(inout) :: source_ht(:)
       integer :: clashes, ntrial ,ncon 
       integer(n_int), allocatable :: tmp(:,:)
 
       ! add a single entry to con_ht with hash_val
-      clashes = con_ht(hash_val)%nclash
+      clashes = source_ht(hash_val)%nclash
       ! store the current entries in a temporary
       allocate(tmp(0:NConEntry,clashes+1))
       ! if there are any, copy them now
-      if(allocated(con_ht(hash_val)%states)) then 
-         tmp(:,:clashes) = con_ht(hash_val)%states(:,:)
+      if(allocated(source_ht(hash_val)%states)) then 
+         tmp(:,:clashes) = source_ht(hash_val)%states(:,:)
          ! then deallocate
-         deallocate(con_ht(hash_val)%states)
+         deallocate(source_ht(hash_val)%states)
       endif
       ! add the new entry
       tmp(:,clashes+1) = ht_entry
 
       ! and allocoate the new entry
-      allocate(con_ht(hash_val)%states(0:NConEntry,clashes+1))
+      allocate(source_ht(hash_val)%states(0:NConEntry,clashes+1))
       ! fill it
-      con_ht(hash_val)%states = tmp
+      source_ht(hash_val)%states = tmp
       deallocate(tmp)
       ! and update the nclashes info
-      con_ht(hash_val)%nclash = clashes + 1
+      source_ht(hash_val)%nclash = clashes + 1
 
-    end subroutine add_single_con_ht_entry
+    end subroutine add_single_trial_ht_entry
 
 !------------------------------------------------------------------------------------------!
 
