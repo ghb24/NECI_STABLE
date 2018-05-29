@@ -36,7 +36,7 @@ module fcimc_initialisation
                         tMultipleInitialStates, initial_states, t_hist_tau_search, &
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, &
-                        t_back_spawn_flex, back_spawn_delay, ScaleWalkers
+                        t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0
     use adi_data, only: g_markers, tReferenceChanged, tInitiatorsSubspace, tAdiActive, &
          nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
