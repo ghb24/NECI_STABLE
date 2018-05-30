@@ -87,6 +87,9 @@ endif
 #define root_write if (iProcIndex == 0) write
 #define root_print root_write (6, *) 
 
+#define if_root if (iProcIndex == 0) then
+#define end_if_root end if
+
 ! Make Re / Cplx builds easier
 #ifdef __CMPLX
 #ifdef __PROG_NUMRUNS

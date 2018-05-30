@@ -984,15 +984,14 @@ contains
         real(dp) :: eigenvec_pop, pop_sign(lenof_sign)
         real(dp), allocatable :: temp_determ_vec(:)
         character(len=*), parameter :: t_r = "start_walkers_from_core_ground"
-        real(dp), allocatable :: e_values(:), gs_energy, &
-                                 e_vectors(:,:), gs_vector(:)
-
+        real(dp), allocatable :: e_values(:), e_vectors(:,:), gs_vector(:)
+        real(dp) :: gs_energy
 
         if (tPrintInfo) then
             write(6,'(a69)') "Using the deterministic ground state as initial walker configuration."
         end if
 
-        if (t_non_hermitian) then
+!         if (t_non_hermitian) then
             write(6,'(a34)') "Performing full diagonalisation..."
             call diagonalize_core_non_hermitian(e_values, e_vectors)
 
@@ -1005,16 +1004,16 @@ contains
                 gs_vector = e_vectors(:,1)
             end if
 
-        else
-
-            if (tPrintInfo) then
-                write(6,'(a34)') "Performing Davidson calculation..."
-                call neci_flush(6)
-            end if
-
-            call diagonalize_core(gs_energy, gs_vector)
-
-        end if
+!         else
+! 
+!             if (tPrintInfo) then
+!                 write(6,'(a34)') "Performing Davidson calculation..."
+!                 call neci_flush(6)
+!             end if
+! 
+!             call diagonalize_core(gs_energy, gs_vector)
+! 
+!         end if
 
         if (iProcIndex == root) then
             eigenvec_pop = 0.0_dp
@@ -1055,7 +1054,7 @@ contains
         call create_sparse_ham_from_core()
 
         ! Call the Davidson routine to find the ground state of the core space. 
-        call perform_davidson(davidsonCalc, parallel_sparse_hamil_type, .false.)
+        call perform_davidson(davidsonCalc, parallel_sparse_hamil_type, .true.)
 
         e_value = davidsonCalc%davidson_eigenvalue
         allocate(e_vector(determ_space_size))
@@ -1068,7 +1067,7 @@ contains
         call neci_flush(6)
 
         call DestroyDavidsonCalc(davidsonCalc)
-!         call LogMemDealloc(t_r, DavidsonTag, ierr)
+        call LogMemDealloc(t_r, DavidsonTag, ierr)
         deallocate(hamil_diag, stat=ierr)
         call LogMemDealloc(t_r, HDiagTag, ierr)
         call deallocate_sparse_ham(sparse_ham, 'sparse_ham', SparseHamilTags)

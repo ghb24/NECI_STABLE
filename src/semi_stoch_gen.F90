@@ -171,7 +171,17 @@ contains
                     gs_energy = e_values(1)
                 end if
             else
+                ! misuse the non-hermitian here, since otherwise it is buggy..
+!                 call diagonalize_core_non_hermitian(e_values, e_vectors)
+! 
+!                 if (t_choose_trial_state) then
+!                     gs_energy = e_values(trial_excit_choice(1))
+!                 else
+!                     gs_energy = e_values(1)
+!                 end if
+
                 call diagonalize_core(gs_energy, gs_vector)
+
             end if
             root_print "semi-stochastic space GS energy: ", gs_energy
         end if
