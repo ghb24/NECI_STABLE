@@ -373,7 +373,6 @@ contains
                if(nelem > 0) &
                     call MPISend(con_send_buf(:,1:nconsend),nelem,tgt_proc, &
                     mpi_tag_con, ierr)
-
                ! Do the same with the trial wavefunction itself
                nconsend = buffer_trial_ht_entries(block, trial_ht, trial_space_size)
                nelem = nconsend * (1 + NConEntry)
@@ -423,7 +422,6 @@ contains
                   call add_trial_ht_entries(con_send_buf(:,1:nconsend), nconsend, &
                        con_ht, con_space_size)
                endif
-
                ! Recieve the information on the trial wave function
                call MPIRecv(nconsend, 1, src_proc, mpi_tag_ntrialsend, ierr)
                nelem = nconsend * (1 + NConEntry)
