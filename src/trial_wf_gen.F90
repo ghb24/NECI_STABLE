@@ -177,8 +177,8 @@ contains
         con_senddispls(0) = 0
         con_recvdispls(0) = 0
         do i = 1, nProcessors-1
-            con_senddispls(i) = sum(con_sendcounts(:i-1))
-            con_recvdispls(i) = sum(con_recvcounts(:i-1))
+            con_senddispls(i) = con_senddispls(i-1) + con_sendcounts(i-1)
+            con_recvdispls(i) = con_recvdispls(i-1) + con_recvcounts(i-1)
         end do
 
         write(6,'("Attempting to allocate temp_space. Size =",1X,F12.3,1X,"Mb")') &
@@ -215,7 +215,7 @@ contains
         ! it is normally also allocated upon initialization, so deallocate
         ! the dummy version
         if(allocated(con_send_buf)) deallocate(con_send_buf)
-        allocate(con_send_buf(0:NConEntry,tot_con_space_size))
+        allocate(con_send_buf(0:NConEntry,max(tot_con_space_size,tot_trial_space_size)))
 
         write(6,'("Total size of connected space:",1X,i10)') tot_con_space_size
         write(6,'("Size of connected space on this processor:",1X,i10)') con_space_size
