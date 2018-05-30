@@ -984,9 +984,8 @@ contains
         real(dp) :: eigenvec_pop, pop_sign(lenof_sign)
         real(dp), allocatable :: temp_determ_vec(:)
         character(len=*), parameter :: t_r = "start_walkers_from_core_ground"
-        real(dp) :: e_values(determ_space_size), gs_energy, &
-                    e_vectors(determ_space_size,determ_space_size), &
-                    gs_vector(determ_space_size)
+        real(dp), allocatable :: e_values(:), gs_energy, &
+                                 e_vectors(:,:), gs_vector(:)
 
 
         if (tPrintInfo) then
@@ -1047,7 +1046,8 @@ contains
     end subroutine start_walkers_from_core_ground
 
     subroutine diagonalize_core(e_value, e_vector)
-        real(dp), intent(out)  :: e_value, e_vector(determ_space_size)
+        real(dp), intent(out)  :: e_value
+        real(dp), intent(out), allocatable :: e_vector(:)
         type(DavidsonCalcType) :: davidsonCalc
         integer :: ierr
         character(*), parameter :: t_r = "diagonalize_core"
@@ -1057,24 +1057,21 @@ contains
         ! Call the Davidson routine to find the ground state of the core space. 
         call perform_davidson(davidsonCalc, parallel_sparse_hamil_type, .false.)
 
-        associate( &
-            davidson_eigenvector => davidsonCalc%davidson_eigenvector, &
-            davidson_eigenvalue => davidsonCalc%davidson_eigenvalue &
-        )
+        e_value = davidsonCalc%davidson_eigenvalue
+        allocate(e_vector(determ_space_size))
+        e_vector = davidsonCalc%davidson_eigenvector
 
         write(6,'(a30)') "Davidson calculation complete."
-        write(6,'("Deterministic subspace correlation energy:",1X,f15.10)') davidson_eigenvalue
-        e_value = davidson_eigenvalue
-        e_vector = davidson_eigenvector
+        write(6,'("Deterministic subspace correlation energy:",1X,f15.10)') &
+            e_value
 
         call neci_flush(6)
 
         call DestroyDavidsonCalc(davidsonCalc)
-        call LogMemDealloc(t_r, DavidsonTag, ierr)
+!         call LogMemDealloc(t_r, DavidsonTag, ierr)
         deallocate(hamil_diag, stat=ierr)
         call LogMemDealloc(t_r, HDiagTag, ierr)
         call deallocate_sparse_ham(sparse_ham, 'sparse_ham', SparseHamilTags)
-        end associate
 
 
     end subroutine diagonalize_core
@@ -1104,15 +1101,19 @@ contains
 
 
     subroutine diagonalize_core_non_hermitian(e_values, e_vectors)
-        real(dp), intent(out) :: e_values(determ_space_size), &
-                    e_vectors(determ_space_size,determ_space_size)
-        HElement_t(dp) :: full_H(determ_space_size,determ_space_size)
+        real(dp), allocatable, intent(out) :: e_values(:), e_vectors(:,:)
+        HElement_t(dp), allocatable :: full_H(:,:)
 
         ! if the Hamiltonian is non-hermitian we cannot use the 
         ! standard Lanzcos or Davidson routines. so:
         ! build the full Hamiltonian
         if (iProcIndex == root) then
             call calc_determin_hamil_full(full_H)
+
+            allocate(e_values(size(full_H,1)))
+            allocate(e_vectors(size(full_H,1),size(full_H,1)))
+            e_values = 0.0_dp
+            e_vectors = 0.0_dp
 
             call eig(full_H, e_values, e_vectors)
 
@@ -1124,8 +1125,10 @@ contains
     end subroutine diagonalize_core_non_hermitian
 
     subroutine calc_determin_hamil_full(hamil)
-        HElement_t(dp), intent(out) :: hamil(determ_space_size,determ_space_size)
+        HElement_t(dp), allocatable, intent(out) :: hamil(:,:)
         integer :: i, j, nI(nel), nJ(nel)
+
+        allocate(hamil(determ_space_size,determ_space_size))
 
         hamil = h_cast(0.0_dp)
 

@@ -56,8 +56,8 @@ contains
         integer(MPIArg) :: mpi_temp
         character (len=*), parameter :: t_r = "init_semi_stochastic"
         type(DavidsonCalcType) :: davidsonCalc
-        real(dp) :: e_values(determ_space_size), gs_energy, &
-            gs_vector(determ_space_size), e_vectors(determ_space_size,determ_space_size)
+        real(dp), allocatable :: e_values(:), e_vectors(:,:), gs_vector(:)
+        real(dp) :: gs_energy
 
         ! If we are load balancing, this gets disabled once semi stochastic
         ! has been initialised. Therefore we should do a last-gasp load
