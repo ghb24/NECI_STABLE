@@ -96,21 +96,23 @@ contains
         logical :: t_do_twisted_bc, t_twisted_vec, t_ignore_k, t_do_ed
         real(dp), allocatable :: epsilon_kvec(:)
         integer, allocatable :: ind(:)
-        real(dp) :: E_ref
+        real(dp) :: E_ref, gap
+        logical :: t_analyse_gap
 
         t_do_diags = .false.
         t_do_subspace_study = .false.
         t_input_U = .false.
         t_U_vec = .false.
-        t_do_twisted_bc = .false.
-        t_twisted_vec = .false.
+        t_do_twisted_bc = .true.
+        t_twisted_vec = .true.
+        t_analyse_gap = .true.
         t_ignore_k = .false.
         t_do_ed = .true.
 
         call init_k_space_unit_tests()
 
         ! i have to define the lattice here.. 
-        lat => lattice('chain', 6, 1, 1,.true.,.true.,.true.,'k-space')
+        lat => lattice('square', 6, 6, 1,.true.,.true.,.true.,'k-space')
 
 !         x = [(-lat%dispersion_rel_orb(i), i = 1, 24)]
 !         ind = [(i, i = 1, 24)]
@@ -138,10 +140,12 @@ contains
 
         J_vec = linspace(-2.5,2.5, 100)
         
-        nel = 6
+        nel = 32
         allocate(nI(nel))
         allocate(nJ(nel))
         nj = 0
+
+        nI = [(i, i = 1,nel)]
         ! 46 in 50:
 !         nI = [ 9,10,11,12,13,14,15,16,21,22,23,24,25,26,27,28,29,30,&
 !             37,38,39,40,41,42,43,44,45,46,55,56,57,58,59,60,61,62,63,64,73,74,75,76,77,78,79,80]
@@ -160,7 +164,7 @@ contains
 
         ! chain:
         ! 6 in 6, k = 0
-        nI = [3,4,5,6,7,8]
+!         nI = [3,4,5,6,7,8]
 
         ! 6 in 6, k = 3
 !         nI = [2,3,4,5,6,7]
@@ -208,19 +212,43 @@ contains
         if (t_do_twisted_bc) then
             t_twisted_bc = .true. 
             if (t_twisted_vec) then 
-                twist_x_vec = linspace(0.0,3.0,20)
+                twist_x_vec = linspace(0.0,1.0,1000)
 !                 allocate(twist_x_vec(1))
 !                 twist_x_vec = 0.0
 !                 allocate(twist_y_vec(1))
 !                 twist_y_vec = 0.0
-                twist_y_vec = linspace(0.0,3.0,20)
+                twist_y_vec = linspace(0.0,1.0,1000)
 
+
+                if (t_analyse_gap) then
+
+                    call setup_system(lat, nI, J, U)
+                    iunit = get_free_unit()
+                    open(iunit, file = 'gap_vs_k')
+                    write(iunit,*) '# x-twist, y-twist, gap'
+
+                    do i = 1, size(twist_x_vec)
+                        twisted_bc(1) = twist_x_vec(i)
+                        twisted_bc(2) = 0.0
+!                         twisted_bc(2) = 2*twist_y_vec(i)
+                        epsilon_kvec = [(-lat%dispersion_rel_orb(l), l = 1, nBasis/2)] 
+
+                        call sort(epsilon_kvec)
+                        gap = epsilon_kvec(nel/2 + 1) - epsilon_kvec(nel/2)
+
+                        write(iunit,*) twisted_bc(1:2), gap
+
+                    end do
+                    close(iunit)
+                    call stop_all("here", "now")
+                end if
+
+                call setup_system(lat, nI, J, U, hilbert_space)
+                n_eig = 5
                 iunit = get_free_unit()
                 open(iunit, file = 'one_body_vs_twist')
                 iunit2 = get_free_unit()
                 open(iunit2, file = 'energy_vs_twist')
-                call setup_system(lat, nI, J, U, hilbert_space)
-                n_eig = 5
                 write(iunit,*) '# x-twist, y-twist, E(k)'
                 write(iunit2,*) '# x-twist, y-twist, k-total, E_ref, energies'
                 allocate(e_values(n_eig))

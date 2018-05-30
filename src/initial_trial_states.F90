@@ -428,10 +428,15 @@ contains
                 allocate(evecs_all(ndets_all_procs,ndets_all_procs), stat = ierr)
                 evecs_all = 0.0_dp
 
-                call eig(H_tmp, evals_all, evecs_all)
+                ! i think i need the left eigenvector for the trial-projection 
+                ! if it is non-hermitian..
+                call eig(H_tmp, evals_all, evecs_all,.true.)
+!                 call eig(H_tmp, evals_all, evecs_all)
                 ! is it sorted by energy? 
                 evals = evals_all(1:nexcit)
                 evecs = evecs_all(:,1:nexcit)
+!                 print *, "eigenvector: "
+!                 print *, evecs(:,1)
 
                 deallocate(H_tmp)
                 deallocate(evecs_all)

@@ -89,39 +89,56 @@ contains
 
     end function calc_eigenvalues
 
-    subroutine eig(matrix, e_values, e_vectors) 
+    subroutine eig(matrix, e_values, e_vectors, t_left_ev) 
         ! for very restricted matrices do a diag routine here! 
         real(dp), intent(in) :: matrix(:,:) 
         real(dp), intent(out) :: e_values(size(matrix,1))
         real(dp), intent(out), optional :: e_vectors(size(matrix,1),size(matrix,1))
+        logical, intent(in), optional :: t_left_ev
 
         ! get the specifics for the eigenvectors still.. 
         ! i think i need a bigger work, and maybe also a flag for how many 
         ! eigenvectors i want.. maybe also the number of eigenvalues.. 
         integer :: n, info 
         real(dp) :: work(4*size(matrix,1)), tmp_matrix(size(matrix,1),size(matrix,2))
-        real(dp) :: dummy_vec(1,size(matrix,1)), dummy(size(matrix,1))
+        real(dp) :: left_ev(size(matrix,1),size(matrix,1)), dummy(size(matrix,1))
         integer :: sort_ind(size(matrix,1))
+        character :: left, right
 
 
         ! and convention is: we only want the right eigenvectors!!
         ! and always assume real-only eigenvalues
         if (present(e_vectors)) then 
 
+            if (present(t_left_ev)) then
+                if (t_left_ev) then 
+                    left = 'V'
+                    right = 'N'
+                else
+                    left = 'N'
+                    right = 'V'
+                end if
+            else
+                left = 'N'
+                right = 'V'
+            end if
+
             n = size(matrix,1)
 
             tmp_matrix = matrix 
 
+!             call print_matrix(tmp_matrix)
+
             call dgeev(&
-                'N', &
-                'V', &
+                left, &
+                right, &
                 n, & 
                 tmp_matrix, & 
                 n, & 
                 e_values, &
                 dummy, &
-                dummy_vec, & 
-                1, &
+                left_ev, & 
+                n, &
                 e_vectors, &
                 n, &
                 work, &
@@ -132,11 +149,20 @@ contains
 
             call sort(e_values, sort_ind)
 
-            e_vectors = e_vectors(:,sort_ind)
+            if (present(t_left_ev)) then
+                if (t_left_ev) then
+                    e_vectors = left_ev(:,sort_ind)
+                else
+                    e_vectors = e_vectors(:,sort_ind)
+                end if
+            else 
+                e_vectors = e_vectors(:,sort_ind)
+            end if
 
         else
             e_values = calc_eigenvalues(matrix)
         end if
+
     end subroutine eig
 
     function create_hamiltonian(list_nI) result(hamil) 
