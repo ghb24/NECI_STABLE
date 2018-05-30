@@ -291,7 +291,7 @@ contains
 
         space_displs(0) = 0_MPIArg
         do i = 1, nProcessors-1
-            space_displs(i) = sum(space_sizes(:i-1))
+            space_displs(i) = space_displs(i-1) + space_sizes(i-1)
         end do
 
         ! [W.D. 15.5.2017:]
@@ -386,7 +386,6 @@ contains
             deallocate(H_tmp)
             deallocate(ilut_list)
 #else
-
             call frsblk_wrapper(det_list, int(ndets_all_procs, sizeof_int), &
                 nexcit, evals, evecs)
 !             call dsyev('V','L',ndets_int,H_tmp,ndets_int,evals_all,work,3*ndets_int,info)
