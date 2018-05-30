@@ -562,7 +562,9 @@ contains
             low = upp + 1; upp = low + sizes(8) - 1; send_arr_helem(low:upp) = trial_num_inst;
             low = upp + 1; upp = low + sizes(9) - 1; send_arr_helem(low:upp) = trial_denom_inst;
         end if
-        if (tEN2) low = upp + 1; upp = low + sizes(10) - 1; send_arr_helem(low) = en_pert_main%ndets;
+        if (tEN2) then
+           low = upp + 1; upp = low + sizes(10) - 1; send_arr_helem(low) = en_pert_main%ndets;
+        endif
 
         call MPISumAll (send_arr_helem(1:upp), recv_arr_helem(1:upp))
 
