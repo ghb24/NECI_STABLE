@@ -1139,7 +1139,7 @@ contains
             call decode_bit_det(nI, core_space(:,i))
 
             if (tHPHF) then 
-                hamil(i,i) = hphf_diag_helement(nI,nI)
+                hamil(i,i) = hphf_diag_helement(nI,core_space(:,i))
             else
                 hamil(i,i) = get_helement(nI,nI,0)
             end if
