@@ -988,20 +988,20 @@ contains
         real(dp) :: gs_energy
 
         if (tPrintInfo) then
-            write(6,'(a69)') "Using the deterministic ground state as initial walker configuration."
+            root_print "Using the deterministic ground state as initial walker configuration."
         end if
 
 !         if (t_non_hermitian) then
-            write(6,'(a34)') "Performing full diagonalisation..."
+            root_print "Performing full diagonalisation..."
             call diagonalize_core_non_hermitian(e_values, e_vectors)
 
 !         if_root
             if (t_choose_trial_state) then
-                print *, " chosen state: ", trial_excit_choice(1), &
+                root_print " chosen state: ", trial_excit_choice(1), &
                     "with energy: ", e_values(trial_excit_choice(1))
                 gs_vector = e_vectors(:,trial_excit_choice(1))
             else
-                print *, " ground-state energy: ", e_values(1)
+                root_print " ground-state energy: ", e_values(1)
                 gs_vector = e_vectors(:,1)
             end if
 !         end_if_root
@@ -1028,6 +1028,8 @@ contains
                 gs_vector = gs_vector * InitWalkers / eigenvec_pop
             end if
         end if
+
+        root_print "eigenvector: ", gs_vector
 
         allocate(temp_determ_vec(determ_sizes(iProcIndex)))
         ! i hope the order of the components did not get messed up.. 
@@ -1120,7 +1122,7 @@ contains
 
             ! maybe we also want to start from a different eigenvector in 
             ! this case? this would be practial for the hubbard problem case..
-            print *, "Full diagonalisation for non-hermitian Hamiltonian completed!"
+            root_print "Full diagonalisation for non-hermitian Hamiltonian completed!"
 !         end if
 
     end subroutine diagonalize_core_non_hermitian
