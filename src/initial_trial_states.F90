@@ -293,8 +293,6 @@ contains
             &for is larger than the size of the trial space used to create the excited states. Since this &
             &routine generates trial states that are orthogonal, this is not possible.")
 
-        print *, "space_sizes: ", space_sizes
-        print *, "ndets_all_procs: ", ndets_all_procs
         space_displs(0) = 0_MPIArg
         do i = 1, nProcessors-1
             space_displs(i) = space_displs(i-1) + space_sizes(i-1)
@@ -433,8 +431,13 @@ contains
                 call eig(H_tmp, evals_all, evecs_all,.true.)
 !                 call eig(H_tmp, evals_all, evecs_all)
                 ! is it sorted by energy? 
-!                 print *, "eigenvectors: "
-!                 call print_matrix(evecs_all)
+                root_print "eigenvalues: ", evals_all
+                root_print "eigenvectors: "
+
+                if_root
+                    call print_matrix(evecs_all)
+                end_if_root
+
                 evals = evals_all(1:nexcit)
                 evecs = evecs_all(:,1:nexcit)
 !                 print *, "eigenvector: "

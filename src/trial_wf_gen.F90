@@ -370,7 +370,6 @@ contains
                     root_print "trial state: ", trial_excit_choice(ireplica), &
                         " chosen for replica: ", ireplica, &
                         " chosen by input, with energy: ", energies(trial_excit_choice(ireplica))
-                    root_print "amplitudes: ", trial_amps(trial_excit_choice(ireplica),:)
                 end do
             else
                 do ireplica = 1, lenof_sign
@@ -380,7 +379,6 @@ contains
                     root_print "trial state: ", trial_excit_choice(ireplica), &
                         " chosen for replica: ", ireplica, &
                         " chosen by input, with energy: ", energies(trial_excit_choice(ireplica))
-                    root_print "amplitudes: ", trial_amps(trial_excit_choice(ireplica),:)
 
                 end do
             end if
@@ -411,7 +409,6 @@ contains
 
                     root_print "trial state: ", best_trial, " kept for replica ", ireplica, &
                         " based on overlap, with energy: ", energies(best_trial(1))
-                    root_print "amplitudes: ", trial_amps(best_trial(1),:)
 
                 end do
             end if
