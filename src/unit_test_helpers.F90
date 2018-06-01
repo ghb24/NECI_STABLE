@@ -101,7 +101,8 @@ contains
         ! eigenvectors i want.. maybe also the number of eigenvalues.. 
         integer :: n, info 
         real(dp) :: work(4*size(matrix,1)), tmp_matrix(size(matrix,1),size(matrix,2))
-        real(dp) :: left_ev(size(matrix,1),size(matrix,1)), dummy(size(matrix,1))
+        real(dp) :: left_ev(size(matrix,1),size(matrix,1)), dummy_eval(size(matrix,1))
+        real(dp) :: right_ev(size(matrix,1),size(matrix,1))
         integer :: sort_ind(size(matrix,1))
         character :: left, right
 
@@ -127,8 +128,13 @@ contains
 
             tmp_matrix = matrix 
 
+            left = 'V'
+            right = 'V'
+
 !             call print_matrix(tmp_matrix)
 
+!             print *, "bounds left_ev: ", lbound(left_ev,1),ubound(left_ev,1), &
+!                 lbound(left_ev,2),ubound(left_ev,2)
             call dgeev(&
                 left, &
                 right, &
@@ -136,10 +142,10 @@ contains
                 tmp_matrix, & 
                 n, & 
                 e_values, &
-                dummy, &
+                dummy_eval, &
                 left_ev, & 
                 n, &
-                e_vectors, &
+                right_ev, &
                 n, &
                 work, &
                 4*n, &
@@ -149,14 +155,28 @@ contains
 
             call sort(e_values, sort_ind)
 
+!             print *, "bounds left_ev: ", lbound(left_ev,1),ubound(left_ev,1), &
+!                 lbound(left_ev,2),ubound(left_ev,2)
+
+!             print *, "Re(eval):", e_values
+!             print *, "Im(eval):", dummy_eval(sort_ind)
+
+!             print *, "left evectors: "
+!             call print_matrix(left_ev(:,sort_ind))
+!             print *, "right evectors: "
+!             call print_matrix(right_ev(:,sort_ind))
+
+!             print *, "tmp matrix:"
+!             call print_matrix(tmp_matrix)
+
             if (present(t_left_ev)) then
                 if (t_left_ev) then
                     e_vectors = left_ev(:,sort_ind)
                 else
-                    e_vectors = e_vectors(:,sort_ind)
+                    e_vectors = right_ev(:,sort_ind)
                 end if
             else 
-                e_vectors = e_vectors(:,sort_ind)
+                e_vectors = right_ev(:,sort_ind)
             end if
 
         else
@@ -254,21 +274,21 @@ contains
         select type (matrix)
         type is (integer)
             if (present(iunit)) then 
-                do i = 1, size(matrix,1)
+                do i = lbound(matrix,1), ubound(matrix,1)
                     write(iunit,*) matrix(i,:)
                 end do
             else
-                do i = 1, size(matrix,1)
+                do i = lbound(matrix,1), ubound(matrix,1)
                     print *, matrix(i,:)
                 end do
             end if
         type is (real(dp))
             if (present(iunit)) then 
-                do i = 1, size(matrix,1)
+                do i = lbound(matrix,1),ubound(matrix,1)
                     write(iunit,*) matrix(i,:)
                 end do
             else
-                do i = 1, size(matrix,1)
+                do i = lbound(matrix,1),ubound(matrix,1)
                     print *, matrix(i,:)
                 end do
             end if

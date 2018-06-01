@@ -366,21 +366,22 @@ contains
                 do ireplica = 1, lenof_sign/2
                     trials_kept(ireplica,:) = trial_amps(trial_excit_choice(ireplica),:)
                     energies_kept(ireplica) = energies(trial_excit_choice(ireplica))
-#ifdef __DEBUG
+
                     root_print "trial state: ", trial_excit_choice(ireplica), &
                         " chosen for replica: ", ireplica, &
                         " chosen by input, with energy: ", energies(trial_excit_choice(ireplica))
-#endif
+                    root_print "amplitudes: ", trial_amps(trial_excit_choice(ireplica),:)
                 end do
             else
                 do ireplica = 1, lenof_sign
                     trials_kept(ireplica,:) = trial_amps(trial_excit_choice(ireplica),:)
                     energies_kept(ireplica) = energies(trial_excit_choice(ireplica))
-#ifdef __DEBUG
+
                     root_print "trial state: ", trial_excit_choice(ireplica), &
                         " chosen for replica: ", ireplica, &
                         " chosen by input, with energy: ", energies(trial_excit_choice(ireplica))
-#endif
+                    root_print "amplitudes: ", trial_amps(trial_excit_choice(ireplica),:)
+
                 end do
             end if
 #endif
@@ -407,10 +408,11 @@ contains
                     best_trial = maxloc(abs(all_overlaps_real(ireplica,:)))
                     trials_kept(ireplica,:) = trial_amps(best_trial(1),:)
                     energies_kept(ireplica) = energies(best_trial(1))
-#ifdef __DEBUG
+
                     root_print "trial state: ", best_trial, " kept for replica ", ireplica, &
                         " based on overlap, with energy: ", energies(best_trial(1))
-#endif
+                    root_print "amplitudes: ", trial_amps(best_trial(1),:)
+
                 end do
             end if
 #endif

@@ -1319,7 +1319,6 @@ contains
 
         call gen_all_doubles_k_space(nI, n_excits, det_list)
 
-        root_print "number of double excitations on root: ", n_excits
         if (t_trans_corr_2body) then 
             save_excits = n_excits
             ! also account for triple excitations
@@ -1336,8 +1335,6 @@ contains
             det_list(:,1:save_excits) = temp_dets 
 
             det_list(:,save_excits+1:n_excits) = triple_dets
-
-            root_print "number of triple excitations on root: ", n_triples
 
         end if
 
@@ -1716,7 +1713,6 @@ contains
 !         n_bound = nel*(nel-1)*(nel-2) * (nbasis - nel)*(nbasis - nel -1)*(nbasis-nel-2)
         ! i think a more correct estimat is:
         n_bound = int(nel*(nel-1)*(nel-2) * (nbasis - nel)*(nbasis - nel - 1)/8)
-        root_print "worst-case number of triples: ", n_bound
 
         allocate(temp_list(0:niftot,n_bound))
         temp_list = 0_n_int

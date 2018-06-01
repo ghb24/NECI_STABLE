@@ -6,7 +6,7 @@ module initial_trial_states
     use constants
     use kp_fciqmc_data_mod
     use SystemData, only: t_non_hermitian
-    use unit_test_helpers, only: eig
+    use unit_test_helpers, only: eig, print_matrix
 
     implicit none
 
@@ -433,6 +433,8 @@ contains
                 call eig(H_tmp, evals_all, evecs_all,.true.)
 !                 call eig(H_tmp, evals_all, evecs_all)
                 ! is it sorted by energy? 
+!                 print *, "eigenvectors: "
+!                 call print_matrix(evecs_all)
                 evals = evals_all(1:nexcit)
                 evecs = evecs_all(:,1:nexcit)
 !                 print *, "eigenvector: "
