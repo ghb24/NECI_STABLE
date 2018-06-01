@@ -995,6 +995,7 @@ contains
             write(6,'(a34)') "Performing full diagonalisation..."
             call diagonalize_core_non_hermitian(e_values, e_vectors)
 
+!         if_root
             if (t_choose_trial_state) then
                 print *, " chosen state: ", trial_excit_choice(1), &
                     "with energy: ", e_values(trial_excit_choice(1))
@@ -1003,6 +1004,7 @@ contains
                 print *, " ground-state energy: ", e_values(1)
                 gs_vector = e_vectors(:,1)
             end if
+!         end_if_root
 
 !         else
 ! 
@@ -1106,7 +1108,7 @@ contains
         ! if the Hamiltonian is non-hermitian we cannot use the 
         ! standard Lanzcos or Davidson routines. so:
         ! build the full Hamiltonian
-        if (iProcIndex == root) then
+!         if (iProcIndex == root) then
             call calc_determin_hamil_full(full_H)
 
             allocate(e_values(size(full_H,1)))
@@ -1119,7 +1121,7 @@ contains
             ! maybe we also want to start from a different eigenvector in 
             ! this case? this would be practial for the hubbard problem case..
             print *, "Full diagonalisation for non-hermitian Hamiltonian completed!"
-        end if
+!         end if
 
     end subroutine diagonalize_core_non_hermitian
 
