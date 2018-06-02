@@ -528,8 +528,12 @@ contains
             min_elem = 1
             max_elem = num_elem
         else
-            min_elem = sum(num_elem_all_procs(0:iProcIndex-1)) + 1
-            max_elem = sum(num_elem_all_procs(0:iProcIndex))
+           min_elem = 0
+           do i = 0, iProcIndex-1
+              min_elem = min_elem + num_elem_all_procs(i)
+           end do
+           max_elem = min_elem + num_elem_all_procs(iProcIndex)
+           min_elem = min_elem + 1
         end if
 
     end subroutine assign_elements_on_procs

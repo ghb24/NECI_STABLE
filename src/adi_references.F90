@@ -133,7 +133,7 @@ contains
       ! Prepare communication of SIs
       refs_displs(0) = 0
       do i = 1, nProcessors - 1
-         refs_displs(i) = sum(refs_found_per_proc(0:i-1))
+         refs_displs(i) = refs_displs(i-1) + refs_found_per_proc(i-1)
       enddo
       ! Store them on all processors
       call MPIAllGatherV(ref_buf(0:NIfTot, 1:refs_found), ilutRefAdi, &
@@ -299,7 +299,7 @@ contains
       all_refs_found = sum(refs_found_per_proc)
       refs_displs(0) = 0
       do i = 1, nProcessors - 1
-         refs_displs(i) = sum(refs_found_per_proc(0:i-1))
+         refs_displs(i) = refs_displs(i-1) + refs_found_per_proc(i-1)
       enddo
       ! Store them on all processors
       allocate(mpi_buf(0:NIfTot,all_refs_found), stat = ierr)
@@ -701,7 +701,7 @@ contains
 
       refs_displs(0) = 0
       do i = 1, nProcessors - 1
-         refs_displs(i) = sum(refs_found_per_proc(0:i-1))
+         refs_displs(i) = refs_displs(i-1) + refs_found_per_proc(i-1)
       enddo
       ! Store them on all processors
       call MPIAllGatherV(list(0:NIfTot, 1:listSize), mpi_buf, &
