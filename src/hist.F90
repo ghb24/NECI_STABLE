@@ -954,7 +954,7 @@ contains
 
     end function
 
-    function ssquared_contrib (ilut, only_init_) result(ssq)
+    function ssquared_contrib (ilut, only_init_, n_opt, ilut_list_opt) result(ssq)
 
         ! Calculate the contribution to s-squared from the determinant
         ! provided (from walkers on this processor).
@@ -965,17 +965,40 @@ contains
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         logical, intent(in), optional :: only_init_
+        integer, intent(in), optional :: n_opt
+        integer(n_int), intent(in), optional :: ilut_list_opt(0:,:)
+!         integer(int64) :: ssq
+        real(dp) :: ssq
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "ssquared_contrib"
+#endif
         integer(n_int) :: splus(0:NIfD), sminus(0:NIfD)
         integer(n_int) :: ilut_srch(0:NIfD), ilut_sym(0:NIfD)
         real(dp) :: sgn(lenof_sign), sgn2(lenof_sign), sgn_hphf
         integer :: flg, nI(nel), j, k, orb2, pos, orb_tmp
-        integer(int64) :: ssq
         logical :: only_init, inc
+        integer :: n_states
+        integer(n_int), allocatable :: ilut_list(:,:)
+
 
         if (present(only_init_)) then
             only_init = only_init_
         else
             only_init = .false.
+        end if
+
+        ! make this routine more flexible and usable not only for CurrentDets
+        if (present(n_opt)) then
+            ASSERT(present(ilut_list_opt))
+            ASSERT(size(ilut_list_opt,2) == n_opt)
+
+            n_states = n_opt
+            allocate(ilut_list(0:niftot,n_states), source = ilut_list_opt(0:niftot,1:n_opt))
+
+        else
+            n_states = TotWalkers
+            allocate(ilut_list(0:niftot,TotWalkers), source = CurrentDets(0:niftot,1:TotWalkers))
+
         end if
 
         ! Extract details of determinant
@@ -1015,7 +1038,7 @@ contains
                         endif
 
                         ! --> sminus is an allowed result of applying S-S+
-                        pos = binary_search (CurrentDets(:,1:TotWalkers), &
+                        pos = binary_search (ilut_list(:,1:n_states), &
                                              ilut_srch, NIfD+1)
                         if (pos > 0) then
 
@@ -1024,11 +1047,12 @@ contains
                             ! are projecting onto an initiator...
                             inc = .true.
                             if (tTruncInitiator .and. only_init) then
-                                inc = (any_run_is_initiator(CurrentDets(:,pos)))
+                                inc = (any_run_is_initiator(ilut_list(:,pos)))
                             end if
 
-                            call extract_sign (CurrentDets(:,pos), sgn2)
-                            ssq = ssq + int(sgn(1) * sgn2(1) * sgn_hphf,int64) 
+                            call extract_sign (ilut_list(:,pos), sgn2)
+!                             ssq = ssq + int(sgn(1) * sgn2(1) * sgn_hphf,int64) 
+                            ssq = ssq + sgn(1) * sgn2(1) * sgn_hphf
                         endif
                     endif
                 enddo

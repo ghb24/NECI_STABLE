@@ -16,14 +16,13 @@ module analyse_wf_symmetry
 
     use lattice_mod, only: lat
 
-    use bit_rep_data, only: niftot, nifd
+    use bit_rep_data, only: niftot, nifd, noffsgn, nifsgn
 
     use constants, only: n_int, dp, pi, lenof_sign
 
     use util_mod, only: binary_search, binary_search_int
 
-    use bit_reps, only: extract_sign, encode_sign, decode_bit_det, &
-                        encode_bit_rep
+    use bit_reps, only: extract_sign, encode_sign, decode_bit_det
 
     use DetBitOps, only: EncodeBitDet, ilut_lt, ilut_gt, DetBitEq
 
@@ -32,6 +31,8 @@ module analyse_wf_symmetry
     use unit_test_helpers, only: print_matrix
 
     use ras, only: sort_orbitals
+
+    use hist, only: ssquared_contrib
 
     implicit none
 
@@ -52,13 +53,229 @@ module analyse_wf_symmetry
     real(dp), allocatable :: symmetry_weights(:)
     integer(n_int), allocatable :: symmetry_states_ilut(:,:)
 
+    real(dp) :: mirror_x(2,2) = reshape([1.0,0.0,0.0,-1.0],[2,2])
+    real(dp) :: mirror_y(2,2) = reshape([-1.0,0.0,0.0,1.0],[2,2])
+    real(dp) :: mirror_d(2,2) = reshape([0.0,-1.0,-1.0,0.0],[2,2])
+    real(dp) :: mirror_o(2,2) = reshape([0.0,1.0,1.0,0.0],[2,2])
+
     interface rotate
         module procedure rotate_orb
         module procedure rotate_vec
     end interface rotate
 
+    interface mirror
+        module procedure :: mirror_orb
+        module procedure :: mirror_vec
+    end interface mirror
+
 contains
 
+    subroutine analyze_full_wavefunction_sym(sym_labels, ilut_list_opt)
+        ! give the symmetry eigenvalues of a wavefunction in ilut_format 
+        ! of certain symmetry operations, depending on the lattice point group
+        ! e.g. for 2D: rot90, rot180, rot270, m_x, m_y, m_d, m_o and the S^2 EV
+        ! on can either provide a wavfunction in ilut_list, or otherwise 
+        ! it is obtained from the FCIQMC wavefunction depending on the 
+        ! input
+        real(dp), intent(out), allocatable :: sym_labels(:)
+        integer(n_int), intent(in), optional :: ilut_list_opt(:,:)
+        character(*), parameter :: this_routine = "analyze_full_wavefunction_sym"
+        integer(n_int), allocatable :: ilut_list(:,:), trans_pg_wf(:,:,:), &
+                                       ilut_spin(:,:)
+        integer :: n_syms, i, ms, nI(nel)
+
+        ASSERT(associated(lat))
+
+        if (lat%get_ndim() == 2) then 
+            ! for 2D it is the 8 fold point group symmetry and S^2 EV..
+            n_syms = 9
+        else
+            call stop_all(this_routine, "not yet implemented!")
+        end if
+
+        allocate(sym_labels(n_syms))
+        sym_labels = 0.0_dp
+
+        if (present(ilut_list_opt)) then 
+            allocate(ilut_list(0:niftot, size(ilut_list_opt,2)), &
+                source = ilut_list_opt)
+
+        else
+            call init_symmetry_states()
+            allocate(ilut_list(0:NIfTot, size(symmetry_states_ilut,2)), &
+                source = symmetry_states_ilut)
+
+        end if
+
+        if (lat%get_ndim() == 2) then 
+            trans_pg_wf = apply_2D_point_group(ilut_list)
+        else
+            call stop_all(this_routine, "not yet implemented!")
+        end if
+
+        ! now we have to calculate <y|y'> to get the symmetry EV
+        ! but dont do the S^2 yet..
+        do i = 1, n_syms - 1
+            sym_labels(i) = calc_overlap(ilut_list, trans_pg_wf(:,:,i))
+        end do
+
+        do i = 1, size(ilut_list,2)
+            sym_labels(n_syms) = sym_labels(n_syms) + &
+                ssquared_contrib(ilut_list(:,i), .false., size(ilut_list,2), &
+                ilut_list)
+        end do
+
+        ! and we need the S_z^2 contribution: 
+        call decode_bit_det(nI, ilut_list(:,1))
+        ms = sum(get_spin_pn(nI))
+        sym_labels(n_syms) = sym_labels(n_syms) + real(ms * (ms + 2) / 4.0, dp)
+            
+!         ilut_spin = apply_s_squared(ilut_list)
+! 
+!         sym_labels(n_syms) = calc_overlap(ilut_list, ilut_spin)
+
+    end subroutine analyze_full_wavefunction_sym
+
+    function apply_s_squared(ilut_list) result(ilut_spin)
+        ! function to apply the S^2 operator to a given wavefunction 
+        ! figure that out, what we have to do here.. 
+        integer(n_int), intent(inout) :: ilut_list(:,:)
+        integer(n_int), allocatable :: ilut_spin(:,:)
+
+        allocate(ilut_spin(0:niftot, size(ilut_list,2)))
+        ilut_spin = 0_n_int
+
+    end function apply_s_squared
+
+    function calc_overlap(ilutI, ilutJ) result(overlap)
+        ! calculate the overlap between two wavefunction I and J
+        integer(n_int), intent(in) :: ilutI(:,:), ilutJ(:,:)
+        real(dp) :: overlap 
+        real(dp) :: signI(lenof_sign), signJ(lenof_sign)
+
+        integer :: i, pos
+        ! i am pretty sure the lists are ordered so I can binary search.. 
+
+        overlap = 0.0_dp
+
+        do i = 1, size(ilutI,2)
+            pos = binary_search(ilutJ, ilutI(:,i), nifd+1)
+
+            if (pos > 0) then 
+                call extract_sign(ilutI(:,i), signI)
+                call extract_sign(ilutJ(:,pos), signJ)
+
+                overlap = overlap + signI(1)*signJ(1)
+
+            end if
+        end do
+
+    end function calc_overlap
+
+    function apply_2D_point_group(ilut_list) result(trans_wf)
+        ! apply the point group symmetries of a 2D square lattice
+        integer(n_int), intent(inout) :: ilut_list(:,:)
+        integer(n_int), allocatable :: trans_wf(:,:,:)
+
+        integer :: i 
+        real(dp) :: rot_angle
+        character(4) :: mir_axis
+
+        allocate(trans_wf(0:niftot,size(ilut_list,2), 8))
+
+        trans_wf = 0_n_int
+
+        rot_angle = 0.0_dp
+
+        do i = 1, 4 
+            trans_wf(:,:,i) = apply_rotation_wf(ilut_list, rot_angle)
+
+            rot_angle = rot_angle + 90.0_dp
+
+        end do
+
+        mir_axis = 'xydo'
+
+        do i = 5, 8
+            trans_wf(:,:,i) = apply_mirror_wf(ilut_list, mir_axis(i-4:i-4))
+        end do
+
+    end function apply_2D_point_group
+
+    function apply_mirror_wf(ilut_list, mirror_axis) result(mir_wf)
+        ! function to apply a mirror symmetry to the given wavefunction 
+        ! encoded in ilut_list
+        integer(n_int), intent(inout) :: ilut_list(:,:)
+        character(1), intent(in) :: mirror_axis
+        integer(n_int) :: mir_wf(size(ilut_list,1),size(ilut_list,2))
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "apply_mirror_wf"
+#endif
+        integer :: orig_orbs(nBasis/2), trans_orbs(nBasis/2), i, &
+                   orig_states(nel,size(ilut_list,2)), rot_states(nel, size(ilut_list,2))
+        real(dp) :: orig_weights(size(ilut_list,2)), temp_sign(lenof_sign), &
+                    rot_weights(size(ilut_list,2))
+
+        orig_orbs = get_spatial(brr(1:nBasis:2))
+
+        trans_orbs = apply_mirror(orig_orbs, mirror_axis)
+
+        ! decode the original information
+        do i = 1, size(ilut_list,2)
+            call decode_bit_det(orig_states(:,i), ilut_list(:,i))
+            call extract_sign(ilut_list(:,i), temp_sign)
+            orig_weights(i) = temp_sign(1)
+        end do
+
+        call transform_states(orig_orbs, trans_orbs, size(ilut_list,2), &
+            orig_states, orig_weights, ilut_list, rot_states, rot_weights, mir_wf)
+
+    end function apply_mirror_wf
+
+    function apply_rotation_wf(ilut_list, rot_angle) result(rot_wf)
+        ! function to apply a rotation of given angle to the whole wavefunction
+        ! encoded in ilut_list
+        integer(n_int), intent(inout) :: ilut_list(:,:)
+        real(dp), intent(in) :: rot_angle
+        integer(n_int) :: rot_wf(size(ilut_list,1),size(ilut_list,2))
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "apply_rotation_wf"
+#endif
+        integer :: orig_orbs(nBasis/2), trans_orbs(nBasis/2), i, &
+                   orig_states(nel,size(ilut_list,2)), rot_states(nel, size(ilut_list,2))
+        real(dp) :: orig_weights(size(ilut_list,2)), temp_sign(lenof_sign), &
+                    rot_weights(size(ilut_list,2))
+
+        orig_orbs = get_spatial(brr(1:nBasis:2))
+
+        trans_orbs = apply_rotation(orig_orbs, rot_angle)
+
+        ! decode the original information
+        do i = 1, size(ilut_list,2)
+            call decode_bit_det(orig_states(:,i), ilut_list(:,i))
+            call extract_sign(ilut_list(:,i), temp_sign)
+            orig_weights(i) = temp_sign(1)
+        end do
+
+        call transform_states(orig_orbs, trans_orbs, size(ilut_list,2), &
+            orig_states, orig_weights, ilut_list, rot_states, rot_weights, rot_wf)
+
+    end function apply_rotation_wf
+
+    function rot_matrix(rot_angle) result(mat)
+        real(dp), intent(in) :: rot_angle
+        real(dp) :: mat(2,2)
+
+        real(dp) :: angle
+
+        angle = rot_angle * pi / 180.0
+        mat(1,1) = cos(angle)
+        mat(1,2) = -sin(angle)
+        mat(2,1) = sin(angle)
+        mat(2,2) = cos(angle)
+
+    end function rot_matrix
+        
     subroutine analyze_wavefunction_symmetry()
         ! driver routine to analyze the symmetry of a part of the 
         ! wavefunction. 
@@ -119,8 +336,7 @@ contains
             ! the flag if we actually apply is within the functions.
             ! ROTATION:
             orig_orbs = get_spatial(brr(1:nBasis:2))
-            sym_orbs = apply_rotation(orig_orbs)
-
+            sym_orbs = apply_rotation(orig_orbs, symmetry_rotation_angle)
             
             print *, "orig orbs -> sym_orbs: "
             do i = 1, nBasis/2
@@ -129,7 +345,7 @@ contains
 
             ! i can ofc apply multiple symmetries
             ! MIRROR
-    !         sym_orbs = apply_mirror(sym_orbs)
+            sym_orbs = apply_mirror(sym_orbs, symmertry_mirror_axis)
 
             ! INVERSION
     !         sym_orbs = apply_inversion(sym_orbs)
@@ -137,19 +353,21 @@ contains
             ! now i have the mapping between the original and the 
             ! symmetry transformed orbitals
 
-            call transform_states(orig_orbs, sym_orbs, transformed_states, &
+            call transform_states(orig_orbs, sym_orbs, n_symmetry_states, & 
+                symmetry_states, symmetry_weights, symmetry_states_ilut, transformed_states, &
                 transformed_weights, transformed_states_ilut)
 
-            call compare_states(symmetry_states_ilut, transformed_states_ilut)
+            call compare_states(n_symmetry_states, symmetry_states_ilut, transformed_states_ilut)
 
         end if
 
     end subroutine analyze_wavefunction_symmetry
 
-    subroutine compare_states(orig_states, trans_states)
+    subroutine compare_states(n_states, orig_states, trans_states)
         ! compare the original and the symmetry transformed states 
-        integer(n_int), intent(in) :: orig_states(0:niftot, n_symmetry_states), &
-                                      trans_states(0:niftot, n_symmetry_states)
+        integer, intent(in) :: n_states
+        integer(n_int), intent(in) :: orig_states(0:niftot, n_states), &
+                                      trans_states(0:niftot, n_states)
 
         integer(n_int) :: null_int(0:niftot), ilutI(0:niftot), ilutJ(0:niftot)
         integer :: i, j, k, l
@@ -162,7 +380,7 @@ contains
 
         ! or first create a list and an integer indicator, where the 
         ! determinant is from.. 
-        do k = 1, 2*n_symmetry_states
+        do k = 1, 2*n_states
             ilutI = orig_states(:,i)
             ilutJ = trans_states(:,j)
 
@@ -185,20 +403,20 @@ contains
             end if
             
             ! and provide the correct exci conditions
-            if (i == j .and. i > n_symmetry_states) exit
+            if (i == j .and. i > n_states) exit
 
-            if (i > n_symmetry_states .and. j <= n_symmetry_states) then 
+            if (i > n_states .and. j <= n_states) then 
                 ! if i is already above the list then the rest of the 
                 ! entries are from list J
-                do l = j, n_symmetry_states
+                do l = j, n_states
                     ilutJ = trans_states(:,l)
                     call print_2_states(null_int, ilutJ)
                 end do
                 exit
             end if
             ! and if j is alreay above, then the rest is from I 
-            if (i <= n_symmetry_states .and. j > n_symmetry_states) then 
-                do l = i, n_symmetry_states
+            if (i <= n_states .and. j > n_states) then 
+                do l = i, n_states
                     ilutI = orig_states(:,l)
                     call print_2_states(ilutI, null_int)
                 end do
@@ -263,27 +481,31 @@ contains
 
     end subroutine print_null_det
 
-    subroutine transform_states(orig_orbs, transformed_orbs, &
-            transformed_states, transformed_weights, transformed_states_ilut)
+    subroutine transform_states(orig_orbs, transformed_orbs, n_states, orig_states, &
+            orig_weights, orig_iluts, transformed_states, transformed_weights, transformed_states_ilut)
         integer, intent(in) :: orig_orbs(nBasis/2), transformed_orbs(nBasis/2)
-        integer, intent(out) :: transformed_states(nel, n_symmetry_states)
-        real(dp), intent(out) :: transformed_weights(n_symmetry_states)
-        integer(n_int), intent(out) :: transformed_states_ilut(0:niftot,n_symmetry_states)
+        integer, intent(in) :: n_states
+        integer, intent(inout) :: orig_states(nel,n_states)
+        real(dp), intent(inout) :: orig_weights(n_states)
+        integer(n_int), intent(inout) :: orig_iluts(0:niftot,n_states)
+        integer, intent(out) :: transformed_states(nel, n_states)
+        real(dp), intent(out) :: transformed_weights(n_states)
+        integer(n_int), intent(out) :: transformed_states_ilut(0:niftot,n_states)
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "transform_states"
 #endif
-        integer :: i, n_phase, ind(n_symmetry_states)
+        integer :: i, n_phase, ind(n_states)
         real(dp) :: tmp_sign(lenof_sign)
     
         tmp_sign = 0.0_dp
 
         ! do it plain ans stupid for now.. 
-        do i = 1, n_symmetry_states
+        do i = 1, n_states
 
-             call apply_transformation(symmetry_states(:,i), orig_orbs, &
+             call apply_transformation(orig_states(:,i), orig_orbs, &
                  transformed_orbs, transformed_states(:,i), n_phase)
 
-             transformed_weights(i) = real(n_phase,dp) * symmetry_weights(i)
+             transformed_weights(i) = real(n_phase,dp) * orig_weights(i)
 
              tmp_sign(1) = transformed_weights(i)
 
@@ -294,15 +516,15 @@ contains
 
         ! the original highest pop list is sorted by weight i guess.. 
         ! sort them by the integers in the ilut representation
-        ind = [(i, i = 1, n_symmetry_states)]
+        ind = [(i, i = 1, n_states)]
 
-        call sort(symmetry_states_ilut, ind)
+        call sort(orig_iluts, ind)
 
-        symmetry_states = symmetry_states(:,ind)
-        symmetry_weights = symmetry_weights(ind)
+        orig_states = orig_states(:,ind)
+        orig_weights = orig_weights(ind)
 
 
-        ind = [(i, i = 1, n_symmetry_states)]
+        ind = [(i, i = 1, n_states)]
 
         call sort(transformed_states_ilut, ind)
 
@@ -334,7 +556,13 @@ contains
             pos = stupid_search(orig_orbs, get_spatial(nI(i)))
 
             ! it has to be found! 
+            if (pos <= 0) then 
+                print *, "orig_orbs: ", orig_orbs
+                print *, "nI: ", nI
+                print *, "spatial: ", get_spatial(nI)
+            end if
             ASSERT(pos > 0)
+            
             if (is_beta(nI(i))) then 
                 nJ(i) = 2*trans_orbs(pos) - 1
             else 
@@ -538,39 +766,129 @@ contains
 
     end subroutine get_highest_pop_node
 
-    function apply_rotation(in_orbs) result(out_orbs)
+    function apply_mirror(in_orbs, mirror_axis) result(out_orbs)
+        ! function to mirror the k- or r- vectors along a specified axis
+        integer, intent(in) :: in_orbs(nBasis/2)
+        character(1), intent(in) :: mirror_axis
+        integer :: out_orbs(nBasis/2)
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "apply_mirror"
+#endif
+        integer :: i
+
+        if (.not. t_symmetry_mirror .or. mirror_axis == '0') then
+            out_orbs = in_orbs
+            return
+        end if
+
+        do i = 1, nBasis/2
+            out_orbs(i) = mirror(in_orbs(i), mirror_axis)
+        end do
+
+    end function apply_mirror
+
+    function apply_rotation(in_orbs, rot_angle) result(out_orbs)
         ! function to rotate the k- or r-vectors and return the mapped 
         ! orbitals 
         integer, intent(in) :: in_orbs(nBasis/2)
+        real(dp), intent(in) :: rot_angle
         integer :: out_orbs(nBasis/2)
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "apply_rotation"
 #endif
         integer :: i
 
-        if (.not. t_symmetry_rotation .or. (symmetry_rotation_angle == 0.0_dp & 
-            .or. symmetry_rotation_angle == 360.0_dp)) then 
+        if (.not. t_symmetry_rotation .or. (rot_angle == 0.0_dp & 
+            .or. rot_angle == 360.0_dp)) then 
             out_orbs = in_orbs
             return
         end if
 
         ! i need the k- or r-vectors (or provide them as input? TDB)
         do i = 1, nBasis/2
-            out_orbs(i) = rotate(in_orbs(i))
+            out_orbs(i) = rotate(in_orbs(i), rot_angle)
         end do
 
     end function apply_rotation
 
-    function rotate_orb(in_orb) result(out_orb)
-        ! function to actually apply the rotation to the basis vectors
+
+    function mirror_orb(in_orb, mirror_axis) result(out_orb)
+        ! function to actually apply the mirroring to an orbital
         integer, intent(in) :: in_orb
+        character(1), intent(in) :: mirror_axis
         integer :: out_orb
 #ifdef __DEBUG
-        character(*), parameter :: this_routine = "rotate"
+        character(*), parameter :: this_routine = "mirror_orb"
+#endif
+        integer :: vec(3), mir_vec(3)
+
+        ASSERT(associated(lat))
+
+        if (mirror_axis == '0') then
+            out_orb = in_orb
+            return
+        end if
+
+        if (lat%is_k_space()) then
+            vec = lat%get_k_vec(in_orb)
+        else
+            vec = lat%get_r_vec(in_orb)
+        end if
+
+        mir_vec = mirror(vec, mirror_axis)
+
+        out_orb = lat%get_orb_from_k_vec(mir_vec)
+
+    end function mirror_orb
+
+    function mirror_vec(in_vec, mirror_axis) result(out_vec)
+        integer, intent(in) :: in_vec(3)
+        character(1), intent(in) :: mirror_axis
+        integer :: out_vec(3)
+
+        select case (mirror_axis)
+        case('x')
+            out_vec(1:2) = nint(matmul(mirror_x, real(in_vec(1:2))))
+
+        case('y')
+            out_vec(1:2) = nint(matmul(mirror_y, real(in_vec(1:2))))
+
+        case('d')
+            out_vec(1:2) = nint(matmul(mirror_d, real(in_vec(1:2))))
+
+        case('o')
+            out_vec(1:2) = nint(matmul(mirror_o, real(in_vec(1:2))))
+
+        case ('0') 
+            out_vec = in_vec
+
+        case Default
+
+            call stop_all("mirror_vec", "incorrect mirroring axis!")
+
+        end select
+
+        out_vec(3) = in_vec(3)
+
+        
+    end function mirror_vec
+
+    function rotate_orb(in_orb, rot_angle) result(out_orb)
+        ! function to actually apply the rotation to the basis vectors
+        integer, intent(in) :: in_orb
+        real(dp), intent(in) :: rot_angle
+        integer :: out_orb
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "rotate_orb"
 #endif
         integer :: vec(3), rot_vec(3)
 
         ASSERT(associated(lat))
+
+        if (rot_angle == 0.0_dp .or. rot_angle == 360.0_dp) then 
+            out_orb = in_orb
+            return
+        end if
 
         if (lat%is_k_space()) then 
             vec = lat%get_k_vec(in_orb)
@@ -578,27 +896,20 @@ contains
             vec = lat%get_r_vec(in_orb)
         end if
 
-        rot_vec = rotate(vec)
+        rot_vec = rotate(vec, rot_angle)
 
         ! apply pbc (should be done within the get_orb_from_k_vec function i hope..
         out_orb = lat%get_orb_from_k_vec(rot_vec)
 
     end function rotate_orb
 
-    function rotate_vec(in_vec) result(out_vec)
+    function rotate_vec(in_vec, rot_angle) result(out_vec)
         integer, intent(in) :: in_vec(3)
+        real(dp), intent(in) :: rot_angle
         integer :: out_vec(3)
-        real(dp) :: rot_mat(2,2), angle
-
-        angle = symmetry_rotation_angle * pi / 180.0
-
-        rot_mat(1,1) = cos(angle)
-        rot_mat(1,2) = -sin(angle)
-        rot_mat(2,1) = sin(angle)
-        rot_mat(2,2) = cos(angle)
 
         ! apply the actual rotation to the vector..
-        out_vec(1:2) = nint(matmul(rot_mat, real(in_vec(1:2))))
+        out_vec(1:2) = nint(matmul(rot_matrix(rot_angle), real(in_vec(1:2))))
         out_vec(3) = 0
 
     end function rotate_vec

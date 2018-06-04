@@ -185,6 +185,58 @@ contains
 
     end subroutine eig
 
+    subroutine eig_sym(matrix, e_values, e_vectors) 
+        real(dp), intent(in) :: matrix(:,:)
+        real(dp), intent(out) :: e_values(size(matrix,1))
+        real(dp), intent(out), optional :: e_vectors(size(matrix,1),size(matrix,2))
+        integer :: n, info, lwork
+        character(1) :: jobz
+        real(dp) :: tmp_matrix(size(matrix,1),size(matrix,2))
+        real(dp) :: work(3*size(matrix,1))
+
+        n = size(matrix,1)
+        lwork = 3*n
+
+        tmp_matrix = matrix
+
+        if (present(e_vectors)) then 
+            jobz = 'V'
+        else
+            jobz = 'N'
+        end if
+
+        call dsyev(&
+            jobz, &
+            'U', &
+            n, &
+            tmp_matrix, &
+            n, &
+            e_values, &
+            work, &
+            lwork, &
+            info)
+
+        if (present(e_vectors)) then 
+            e_vectors = tmp_matrix
+        end if
+
+    end subroutine eig_sym
+
+    logical function check_symmetric(matrix)
+        ! function to check if a given matrix is symmetric
+        ! for a square matrix!
+        real(dp), intent(in) :: matrix(:,:)
+
+        real(dp) :: diff(size(matrix,1),size(matrix,2))
+
+        diff = matrix - transpose(matrix)
+
+        check_symmetric = .false.
+
+        if (sum(diff) < EPS) check_symmetric = .true.
+
+    end function check_symmetric
+
     function create_hamiltonian(list_nI) result(hamil) 
         ! quite specific hamiltonian creation for my tests.. 
         integer, intent(in) :: list_nI(:,:) 

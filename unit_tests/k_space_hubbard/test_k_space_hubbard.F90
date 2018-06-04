@@ -44,7 +44,7 @@ program test_k_space_hubbard
 
     use util_mod, only: choose, get_free_unit
 
-    use bit_reps, only: decode_bit_det
+    use bit_reps, only: decode_bit_det, encode_sign
 
     use SymExcitDataMod, only: kTotal
 
@@ -55,6 +55,11 @@ program test_k_space_hubbard
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard, &
                                     gen_all_triples_k_space, create_hilbert_space_kspace, &
                                     gen_all_doubles_k_space
+
+    use analyse_wf_symmetry, only: analyze_full_wavefunction_sym, &
+                                   t_symmetry_mirror, t_symmetry_rotation
+
+    use bit_reps, only: init_bit_rep
 
     implicit none 
 
@@ -80,39 +85,46 @@ contains
 
         use DetCalcData, only: nkry, nblk, b2l, ncycle
         integer, allocatable :: hilbert_space(:,:), nI(:), nJ(:)
+        integer(n_int), allocatable :: hilbert_space_ilut(:,:)
+        real(dp) :: tmp_sign(lenof_sign)
         real(dp) :: J, U
         real(dp), allocatable :: J_vec(:), U_vec(:)
-        integer :: i, n_eig
+        integer :: i, n_eig, m
         real(dp), allocatable :: e_values(:), e_vecs(:,:)
         real(dp) :: k1(2),k2(2), k_vec(3)
         integer ::  n_excits, k, iunit, l, iunit2
         integer(n_int), allocatable :: excits(:,:)
         real(dp) :: sum_doubles, sum_doubles_trans
-        character(30) :: filename, U_str, nel_str, lattice_name
+        character(30) :: filename, U_str, nel_str, lattice_name, J_str
         logical :: t_do_diags, t_do_subspace_study, t_input_U, t_U_vec
         HElement_t(dp), allocatable :: hamil(:,:)
-        integer :: sort_ind(8)
+        integer, allocatable :: sort_ind(:)
         real(dp), allocatable :: twist_x_vec(:), twist_y_vec(:)
         logical :: t_do_twisted_bc, t_twisted_vec, t_ignore_k, t_do_ed
-        real(dp), allocatable :: epsilon_kvec(:)
+        real(dp), allocatable :: epsilon_kvec(:), left_ev(:,:)
         integer, allocatable :: ind(:)
         real(dp) :: E_ref, gap
-        logical :: t_analyse_gap
+        logical :: t_analyse_gap, t_J_vec, t_input_J, t_sym
+        real(dp), allocatable :: sym_labels(:), sym_labels_2(:)
+
+        tmp_sign = 0.0_dp
 
         t_do_diags = .false.
-        t_do_subspace_study = .false.
+        t_do_subspace_study = .true.
         t_input_U = .false.
-        t_U_vec = .false.
-        t_do_twisted_bc = .true.
-        t_twisted_vec = .true.
-        t_analyse_gap = .true.
+        t_input_J = .false.
+        t_U_vec = .true.
+        t_J_vec = .true.
+        t_do_twisted_bc = .false.
+        t_twisted_vec = .false.
+        t_analyse_gap = .false.
         t_ignore_k = .false.
         t_do_ed = .true.
 
         call init_k_space_unit_tests()
 
         ! i have to define the lattice here.. 
-        lat => lattice('square', 6, 6, 1,.true.,.true.,.true.,'k-space')
+        lat => lattice('tilted', 3, 3, 1,.true.,.true.,.true.,'k-space')
 
 !         x = [(-lat%dispersion_rel_orb(i), i = 1, 24)]
 !         ind = [(i, i = 1, 24)]
@@ -127,20 +139,25 @@ contains
 !             print *,lat%get_k_vec(ind(i)),"|", k_vec(1)*k1 + k_vec(2)*k2, "|", x(i)
 !         end do
 
-        J = 0.1
-
         if (t_input_U) then
             print *, "input U: "
             read(*,*) U
         else if (t_U_vec) then
-            U_vec = linspace(0.0,100.0,100)
+            U_vec = linspace(1.0,8.0,2)
         else
             U = 4.0
         end if
 
-        J_vec = linspace(-2.5,2.5, 100)
+        if (t_input_J) then
+            print *, "input J:"
+            read(*,*), J
+        else if (t_J_vec) then
+            J_vec = linspace(0.0,1.0,2)
+        else 
+            J = 0.1
+        end if
         
-        nel = 32
+        nel = 14
         allocate(nI(nel))
         allocate(nJ(nel))
         nj = 0
@@ -207,6 +224,8 @@ contains
         print *, "nblk: ", nblk
         print *, "b2l: ", b2l
         print *, "ncycle: ", ncycle
+
+        call init_bit_rep()
 
         ! use twisted bc in this case.. 
         if (t_do_twisted_bc) then
@@ -309,8 +328,8 @@ contains
             
 
 
-        NIfTot = 0
-        nifd = 0
+!         NIfTot = 0
+!         nifd = 0
 
         if (t_do_diags) then
             t_trans_corr_2body = .true.
@@ -359,9 +378,7 @@ contains
         end if
 
         if (t_do_subspace_study) then
-            call setup_system(lat, nI, J, U)
             allocate(hilbert_space(nel,8))
-
             n_eig = 8
 
             if (lat%get_nsites() == 50) then
@@ -424,23 +441,136 @@ contains
                 hilbert_space(:,8) = [ 4, 5, 6, 8, 11,12,13,14,15,16,21 ,23,24,25 ]
             end if
 
-            hamil = create_hamiltonian(hilbert_space)
+            allocate(hilbert_space_ilut(0:niftot,size(hilbert_space,2)))
 
-            call eig(hamil, e_values, e_vecs) 
+            hilbert_space_ilut = 0_n_int
 
-            print *, "basis:" 
-            call print_matrix(transpose(hilbert_space))
-            print *, "hamil: "
-            call print_matrix(hamil)
+            do i = 1, size(hilbert_space,2)
+                call EncodeBitDet(hilbert_space(:,i), hilbert_space_ilut(:,i))
+            end do
 
-            sort_ind = [(i, i = 1,8)]
-            call sort(e_values, sort_ind)
-            print *, "e-values: ", e_values
-            print *, "sort_ind: ", sort_ind
-            e_vecs = e_vecs(:,sort_ind)
-            print *, "e-vecs: "
-            call print_matrix(e_vecs)
-            call stop_all("here", "now")
+            t_symmetry_rotation = .true.
+            t_symmetry_mirror = .true.
+            allocate(e_values(n_eig))
+            allocate(e_vecs(n_eig,n_eig))
+            allocate(left_ev(n_eig,n_eig))
+
+            allocate(sort_ind(n_eig))
+            t_trans_corr_2body = .true. 
+
+            iunit = get_free_unit()
+            open(iunit, file = 'basis')
+            call print_matrix(transpose(hilbert_space), iunit)
+            close(iunit)
+
+            if (t_U_vec)then
+                do i = 1, size(U_vec)
+                    U = U_vec(i)
+                    write(U_str,*) int(U)
+
+                    if (t_J_vec) then
+                        do k = 1, size(J_vec)
+                            J = J_vec(k)
+
+                            write(J_str,*) J
+                            filename = "energy_e_vectors_U_" // trim(adjustl(U_str)) & 
+                                // "_J_" // trim(adjustl(J_str))
+
+                            iunit = get_free_unit()
+
+                            call setup_system(lat, nI, J, U)
+
+                            hamil = create_hamiltonian(hilbert_space)
+
+                            t_sym = check_symmetric(hamil)
+                            if (t_sym) then
+                                call eig_sym(hamil, e_values, e_vecs) 
+                            else
+                                call eig(hamil, e_values, e_vecs) 
+                            end if
+
+                            print *, "basis:" 
+                            call print_matrix(transpose(hilbert_space))
+                            print *, "hamil: "
+                            call print_matrix(hamil)
+
+                            sort_ind = [(i, i = 1,n_eig)]
+                            call sort(e_values, sort_ind)
+                            print *, "e-values: ", e_values
+                            print *, "sort_ind: ", sort_ind
+                            e_vecs = e_vecs(:,sort_ind)
+                            print *, "e-vecs: "
+                            call print_matrix(e_vecs)
+                            if (.not. t_sym) then
+                                call eig(hamil, e_values, left_ev, .true.) 
+                                sort_ind = [(i, i = 1,n_eig)]
+                                call sort(e_values, sort_ind)
+
+                                left_ev = left_ev(:,sort_ind)
+                            end if
+
+                            ! also do the symmetry study.. 
+
+                            open(iunit, file = filename)
+
+                            if (t_sym) then
+                                write(iunit,*) &
+                                    "# U, J, E, EV, 1, 90, 180, 270, m_x, m_y, m_d, m_o, S"
+                            else
+                                write(iunit,*) &
+                                    "# U, J, E, left_ev, right_ev, 0, 90, 180, 270, m_x, m_y, m_d, m_o, S"
+                            end if
+
+                            do l = 1, n_eig
+                                do m = 1, size(hilbert_space,2)
+                                    tmp_sign(1) = e_vecs(m,l)
+                                    call encode_sign(hilbert_space_ilut(:,m), tmp_sign)
+                                end do
+                                call analyze_full_wavefunction_sym(sym_labels, hilbert_space_ilut)
+                                if (.not. t_sym) then
+                                    do m = 1, size(hilbert_space,2)
+                                        tmp_sign(1) = left_ev(m,l)
+                                        call encode_sign(hilbert_space_ilut(:,m), tmp_sign)
+                                    end do
+                                    call analyze_full_wavefunction_sym(sym_labels_2, hilbert_space_ilut)
+                                end if
+
+                                if (t_sym) then
+                                    write(iunit,*) U, J, e_values(l), e_vecs(:,l), nint(sym_labels)
+                                else
+                                    write(iunit,*) &
+                                        U, J, e_values(l), e_vecs(:,l), left_ev(:,l), nint(sym_labels)
+                                end if
+                            end do
+                            close(iunit)
+
+                        end do
+                    end if
+                end do
+
+                call stop_all("here", "now")
+
+            else
+
+                call setup_system(lat, nI, J, U)
+
+                hamil = create_hamiltonian(hilbert_space)
+
+                call eig(hamil, e_values, e_vecs) 
+
+                print *, "basis:" 
+                call print_matrix(transpose(hilbert_space))
+                print *, "hamil: "
+                call print_matrix(hamil)
+
+                sort_ind = [(i, i = 1,8)]
+                call sort(e_values, sort_ind)
+                print *, "e-values: ", e_values
+                print *, "sort_ind: ", sort_ind
+                e_vecs = e_vecs(:,sort_ind)
+                print *, "e-vecs: "
+                call print_matrix(e_vecs)
+            end if
 
         else
             call setup_system(lat, nI, J, U, hilbert_space)
@@ -1223,7 +1353,6 @@ contains
                 call print_matrix(hamil_neci_next) 
                 print *, "neighbor transvorr transformed: " 
                 call print_matrix(hamil_next) 
-
                 print *, "orig E0:      ", gs_energy_orig
                 print *, "next-site E0: ", minval(neci_eval)
                 call stop_all("here", "neighbor transcorrelated energy not correct!")
