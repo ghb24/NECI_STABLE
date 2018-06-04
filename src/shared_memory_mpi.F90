@@ -15,9 +15,8 @@ contains
       integer(int64):: dims(1)
 
       integer(MPIArg):: disp_unit
-      integer(MPIArg) :: ierr, err
+      integer(MPIArg) :: ierr
       integer :: len
-      character(len=255) ::  ecode
       integer(kind=mpi_address_kind):: wsize
       TYPE(C_PTR):: cptr_shm
 
@@ -28,8 +27,6 @@ contains
       end if
       call mpi_win_allocate_shared(wsize,int(HElement_t_sizeB,MPIArg),MPI_INFO_NULL,mpi_comm_intra,&
            cptr_shm,win_shm,ierr)
-      call MPI_Error_string(ierr,ecode,len,err)
-      print *, ecode, ierr
       call mpi_win_shared_query(win_shm,0_MPIArg,wsize,disp_unit,cptr_shm,ierr)
       
       !map to Fortran array pointer
