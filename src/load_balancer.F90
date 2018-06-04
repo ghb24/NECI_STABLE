@@ -713,7 +713,7 @@ contains
             k = 0
             do
                k = k + 1
-               call decode_bit_det(det,con_ht(j)%states(:,k))
+               call decode_bit_det(det,source_ht(j)%states(:,k))
                det_block = get_det_block(nel, det, 0)
                if(det_block == block) then
                   call extract_trial_ht_entry(j,k,source_state,source_ht)
