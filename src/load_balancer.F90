@@ -360,7 +360,7 @@ contains
             ! And send the data to the relevant (target) processor
             nelem = nsend * (1 + NIfTot)
             call MPISend(nsend, 1, tgt_proc, mpi_tag_nsend, ierr)
-            call MPISend(SpawnedParts(:, 1:nsend), nelem, tgt_proc, &
+            call MPISend(SpawnedParts(0:NIfTot, 1:nsend), nelem, tgt_proc, &
                          mpi_tag_dets, ierr)
 
             if(tTrialWavefunction) then

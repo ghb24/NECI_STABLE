@@ -387,7 +387,6 @@ contains
             deallocate(H_tmp)
             deallocate(ilut_list)
 #else
-
             call frsblk_wrapper(det_list, int(ndets_all_procs, sizeof_int), &
                 nexcit, evals, evecs)
 !             call dsyev('V','L',ndets_int,H_tmp,ndets_int,evals_all,work,3*ndets_int,info)
