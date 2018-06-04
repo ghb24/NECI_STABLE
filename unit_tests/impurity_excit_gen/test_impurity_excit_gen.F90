@@ -18,8 +18,6 @@ program test_impurity_excit_gen
     subroutine impurity_excit_gen_test_driver
       implicit none
       call init_impurity_tests
-      call test_orbital_lists
-      call test_bath_excitation
       call test_imp_excitation
       call test_single_excitation
       call test_gen_excit_impurity_model
@@ -65,43 +63,6 @@ program test_impurity_excit_gen
 
 !------------------------------------------------------------------------------------------!
 
-    subroutine test_orbital_lists
-      use FciMCData, only: nBath, nImp
-      logical :: isBath(nBasis)
-
-      call constructBath(isBath)
-      call assert_true(.not. isBath(1))
-      call assert_true(.not. isBath(2))
-      call assert_true(isBath(3))
-      call assert_true(isBath(4))
-      call assert_true(isBath(5))
-      call assert_true(isBath(6))
-
-      call generateOrbitalLists(isBath)
-
-      call assert_equals(nBath,4)
-      call assert_equals(nImp,2)
-    end subroutine test_orbital_lists
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine test_bath_excitation
-      use constants, only: dp
-      use bit_rep_data, only: niftot
-      use SystemData, only: nel
-      implicit none
-      integer(n_int) :: ilut(0:niftot)
-      integer :: dest, nI(nel)
-      real(dp) :: pGen
-
-      dest = 0
-      call generate_test_ilut(ilut,nI)
-      call hamiltonian_weighted_pick_single_bath(1,dest,pGen,ilut,nI)
-      call assert_true(dest .eq. 5)
-    end subroutine test_bath_excitation
-
-!------------------------------------------------------------------------------------------!
-
     subroutine test_imp_excitation
       use constants, only: dp
       use bit_rep_data, only: niftot
@@ -113,14 +74,13 @@ program test_impurity_excit_gen
       
       dest = 0
       call generate_test_ilut(ilut,nI)
-      call hamiltonian_weighted_pick_single_imp(1,dest,pGen,ilut,nI)
+      call hamiltonian_weighted_pick_single(1,dest,pGen,ilut)
       call assert_true((dest .eq. 1) .and. (dest > 0))
     end subroutine test_imp_excitation
 
 !------------------------------------------------------------------------------------------!
 
     subroutine test_single_excitation
-      use FciMCData, only: pBath, nImp
       use constants, only: dp
       use bit_rep_data, only: niftot
       use DetBitOps, only: FindBitExcitLevel
@@ -133,7 +93,6 @@ program test_impurity_excit_gen
       real(dp) :: pGen
       
       call generate_test_ilut(ilut,nI)
-      pBath = 1.0_dp
       call generate_imp_single_excitation(nI,ilut,nJ,ilutnJ,ExcitMat,tParity,pGen)
       call assert_true(FindBitExcitLevel(ilut,ilutnJ)==1)
       call assert_true(ExcitMat(2,1) <= nImp)
@@ -146,7 +105,6 @@ program test_impurity_excit_gen
       use bit_rep_data, only: niftot
       use SystemData, only: nel
       use DetBitOps, only: FindBitExcitLevel
-      use FciMCData, only: nImp
       
       implicit none
       integer(n_int) :: ilut(0:niftot), ilutnJ(0:niftot)
@@ -167,7 +125,7 @@ program test_impurity_excit_gen
       use constants, only: dp
       use bit_rep_data, only: niftot
       use SystemData, only: nel
-      use FciMCData, only: pSingles
+      use FciMCData, only: pSingles, excit_gen_store_type
       use DetBitOps, only: FindBitExcitLevel
       implicit none
 
@@ -176,11 +134,12 @@ program test_impurity_excit_gen
       logical :: tParity
       real(dp) :: pGen
       HElement_t(dp) :: HElGen
+      type(excit_gen_store_type), target :: store
 
       call generate_test_ilut(ilut,nI)
       pSingles = 0.0
       call gen_excit_impurity_model(nI,ilut,nJ,ilutnJ,exFlag,IC,ex,tParity,pGen,&
-           HElGen)
+           HElGen, store)
       ! our test model does not support double excitations, the impurity is too small
       call assert_true(FindBitExcitLevel(ilut,ilutnJ)==1)
     end subroutine test_gen_excit_impurity_model
