@@ -370,17 +370,19 @@ contains
                ! And send the trial wavefunction connection information
                nelem = nconsend * (1 + NConEntry)
                call MPISend(nconsend,1,tgt_proc,mpi_tag_nconsend, ierr)
-               if(nelem > 0) &
-                    call MPISend(con_send_buf(:,1:nconsend),nelem,tgt_proc, &
-                    mpi_tag_con, ierr)
+               if(nelem > 0) then
+                  call MPISend(con_send_buf(:,1:nconsend),nelem,tgt_proc, &
+                       mpi_tag_con, ierr)
+               endif
 
                ! Do the same with the trial wavefunction itself
                nconsend = buffer_trial_ht_entries(block, trial_ht, trial_space_size)
                nelem = nconsend * (1 + NConEntry)
                call MPISend(nconsend,1,tgt_proc,mpi_tag_ntrialsend, ierr)
-               if(nelem > 0) &
+               if(nelem > 0) then
                     call MPISend(con_send_buf(:,1:nconsend),nelem,tgt_proc,&
                     mpi_tag_trial, ierr)
+                 endif
             end if
 
             ! We have now created lots of holes in the main list
@@ -715,7 +717,7 @@ contains
             k = 0
             do
                k = k + 1
-               call decode_bit_det(det,con_ht(j)%states(:,k))
+               call decode_bit_det(det,source_ht(j)%states(:,k))
                det_block = get_det_block(nel, det, 0)
                if(det_block == block) then
                   call extract_trial_ht_entry(j,k,source_state,source_ht)
@@ -818,7 +820,7 @@ contains
       integer :: clashes, ntrial ,ncon 
       integer(n_int), allocatable :: tmp(:,:)
 
-      ! add a single entry to con_ht with hash_val
+      ! add a single entry to trial_ht with hash_val
       clashes = source_ht(hash_val)%nclash
       ! store the current entries in a temporary
       allocate(tmp(0:NConEntry,clashes+1))
