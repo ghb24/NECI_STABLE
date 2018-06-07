@@ -718,7 +718,7 @@ contains
                if(det_block == block) then
                   call extract_trial_ht_entry(j,k,source_state,source_ht)
                   nsend = nsend + 1
-                  con_send_buf(:,nsend) = source_state
+                  con_send_buf(0:NConEntry,nsend) = source_state
                   clashes = clashes - 1
                   k = k - 1
                endif
@@ -739,7 +739,7 @@ contains
       character(*), parameter :: this_routine = "extract_trial_ht_entry"
      
       ! get the stores state
-      ht_entry = source_ht(hash_val)%states(:,i)
+      ht_entry = source_ht(hash_val)%states(0:NConEntry,i)
       ! then remove it from the table
       clashes = source_ht(hash_val)%nclash
       call remove_trial_ht_entry(hash_val,i,clashes,source_ht)
@@ -755,6 +755,10 @@ contains
       integer :: i, ierr
       character(*), parameter :: this_routine = "remove_trial_ht_entry"
       
+      ! do a simple check
+      if(index > clashes .or. index < 1) then
+         call stop_all(this_routine,"Attempting to remove non-existing entry")
+      end if
       ! first, copy the contnet of the source_ht entry to a temporary
       ! if there is any to be left
       if(clashes-1 > 0) then
