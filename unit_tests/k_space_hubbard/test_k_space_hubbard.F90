@@ -57,7 +57,8 @@ program test_k_space_hubbard
                                     gen_all_doubles_k_space
 
     use analyse_wf_symmetry, only: analyze_full_wavefunction_sym, &
-                                   t_symmetry_mirror, t_symmetry_rotation
+                                   t_symmetry_mirror, t_symmetry_rotation, &
+                                   print_point_group_matrix_rep
 
     use bit_reps, only: init_bit_rep
 
@@ -95,7 +96,8 @@ contains
         integer ::  n_excits, k, iunit, l, iunit2
         integer(n_int), allocatable :: excits(:,:)
         real(dp) :: sum_doubles, sum_doubles_trans
-        character(30) :: filename, U_str, nel_str, lattice_name, J_str
+        character(50) :: filename, nel_str, lattice_name
+        character(30) :: U_str, J_str
         logical :: t_do_diags, t_do_subspace_study, t_input_U, t_U_vec
         HElement_t(dp), allocatable :: hamil(:,:)
         integer, allocatable :: sort_ind(:)
@@ -105,9 +107,43 @@ contains
         integer, allocatable :: ind(:)
         real(dp) :: E_ref, gap
         logical :: t_analyse_gap, t_J_vec, t_input_J, t_sym
-        real(dp), allocatable :: sym_labels(:), sym_labels_2(:)
+        real(dp), allocatable :: sym_labels(:), sym_labels_all(:,:), &
+                                 sym_labels_2(:), sym_labels_tmp(:,:)
+        integer :: A1g(9), A2g(9), B1g(9), B2g(9), Eg(9), A1u(9), A2u(9), &
+                   B1u(9), B2u(9), Eu(9), irreps(10,9)
+        integer, allocatable :: degen_ind(:,:), pairs(:,:), irrep(:), pair_ind(:)
+        logical, allocatable :: t_degen(:)
+        real(dp), allocatable :: gs_gap(:,:)
+        integer :: n_syms
+        character(3) :: irrep_names(0:10)
 
         tmp_sign = 0.0_dp
+        ! also define the point group character to determine the 
+        ! irreps
+        n_syms = 9
+        A1g = [1,1,1,1,1,1,1,1,1]
+        A2g = [1,1,1,1,-1,-1,-1,-1,1]
+        B1g = [1,-1,1,-1,1,1,-1,-1,1]
+        B2g = [1,-1,1,-1,-1,-1,1,1,1]
+        Eg = [2,0,-2,0,0,0,0,0,2]
+        A1u = [1,1,1,1,1,1,1,1,-1]
+        A2u = [1,1,1,1,-1,-1,-1,-1,-1]
+        B1u = [1,-1,1,-1,1,1,-1,-1,-1]
+        B2u = [1,-1,1,-1,-1,-1,1,1,-1]
+        Eu = [2,0,-2,0,0,0,0,0,-2]
+
+        irreps(1,:) = A1g
+        irreps(2,:) = A2g
+        irreps(3,:) = B1g
+        irreps(4,:) = B2g
+        irreps(5,:) = Eg
+        irreps(6,:) = A1u
+        irreps(7,:) = A2u
+        irreps(8,:) = B1u
+        irreps(9,:) = B2u
+        irreps(10,:) = Eu
+
+        irrep_names = ['  x','A1g','A2g','B1g','B2g',' Eg','A1u','A2u','B1u','B2u',' Eu']
 
         t_do_diags = .false.
         t_do_subspace_study = .true.
@@ -143,7 +179,8 @@ contains
             print *, "input U: "
             read(*,*) U
         else if (t_U_vec) then
-            U_vec = linspace(1.0,8.0,2)
+!             U_vec = linspace(1.0,8.0,8)
+            U_vec = [4.0]
         else
             U = 4.0
         end if
@@ -152,21 +189,26 @@ contains
             print *, "input J:"
             read(*,*), J
         else if (t_J_vec) then
-            J_vec = linspace(0.0,1.0,2)
+            J_vec = linspace(0.0,1.0,10)
+!               J_vec = [0.1]
         else 
             J = 0.1
         end if
         
-        nel = 14
+        nel = 12
         allocate(nI(nel))
         allocate(nJ(nel))
         nj = 0
 
-        nI = [(i, i = 1,nel)]
+        nbasis = 2*lat%get_nsites()
+
+!         nI = [(i, i = 1,nel)]
         ! 46 in 50:
 !         nI = [ 9,10,11,12,13,14,15,16,21,22,23,24,25,26,27,28,29,30,&
 !             37,38,39,40,41,42,43,44,45,46,55,56,57,58,59,60,61,62,63,64,73,74,75,76,77,78,79,80]
 
+        ! 12 in 18, k = 0
+        nI = [ 3 ,5,6,11,12,13,14,15,16,23,24, 26 ]
         ! 14 in 18:
 !         nI = [ 3,4, 5, 6, 11,12,13,14,15,16,23,24,25,26 ]
 
@@ -226,6 +268,7 @@ contains
         print *, "ncycle: ", ncycle
 
         call init_bit_rep()
+        print *, "niftot: ", niftot
 
         ! use twisted bc in this case.. 
         if (t_do_twisted_bc) then
@@ -378,10 +421,10 @@ contains
         end if
 
         if (t_do_subspace_study) then
-            allocate(hilbert_space(nel,8))
-            n_eig = 8
 
             if (lat%get_nsites() == 50) then
+                n_eig = 8
+                allocate(hilbert_space(nel,n_eig))
                 ! 50-site:
                 ! closed shell:
                 ! 9 10 79 80
@@ -419,27 +462,50 @@ contains
                     37,38,39,40,41,42,43,44,45,46,55,56,57,58,59,60,61,62,63,64,71,73,74,75,76,77,78,79]
 
             else if (lat%get_nsites() == 18) then
+                if (nel == 14) then
+                    n_eig = 8
+                    allocate(hilbert_space(nel,n_eig))
+                    ! 18-site 
+                    ! closed shell:
+                    ! 3 4 25 26
+                    hilbert_space(:,1) = [ 3,4, 5, 6, 11,12,13,14,15,16, 23,24,25,26 ]
+                    ! 7 8 21 22 
+                    hilbert_space(:,2) = [  5, 6,7,8 , 11,12,13,14,15,16,21,22 ,23,24 ]
+                    ! open shell: 
+                    ! parallel diagonal:
+                    ! 3 8 22 25
+                    hilbert_space(:,3) = [ 3, 5, 6,8 , 11,12,13,14,15,16,22 ,23,24,25 ]
+                    ! 4 7 21 26
+                    hilbert_space(:,4) = [ 4, 5, 6,7 , 11,12,13,14,15,16,21 ,23,24,26 ]
 
-                ! 18-site 
-                ! closed shell:
-                ! 3 4 25 26
-                hilbert_space(:,1) = [ 3,4, 5, 6, 11,12,13,14,15,16, 23,24,25,26 ]
-                ! 7 8 21 22 
-                hilbert_space(:,2) = [  5, 6,7,8 , 11,12,13,14,15,16,21,22 ,23,24 ]
-                ! open shell: 
-                ! 3 7 22 26
-                hilbert_space(:,3) = [ 3, 5, 6, 7, 11,12,13,14,15,16,22 ,23,24,26 ]
-                ! 3 8 21 26
-                hilbert_space(:,4) = [ 3, 5, 6, 8, 11,12,13,14,15,16,21 ,23,24,26 ]
-                ! 3 8 22 25
-                hilbert_space(:,5) = [ 3, 5, 6,8 , 11,12,13,14,15,16,22 ,23,24,25 ]
-                ! 4 7 21 26
-                hilbert_space(:,6) = [ 4, 5, 6,7 , 11,12,13,14,15,16,21 ,23,24,26 ]
-                ! 4 7 22 25
-                hilbert_space(:,7) = [ 4, 5, 6,7 , 11,12,13,14,15,16, 22,23,24,25 ]
-                ! 4 8 21 25
-                hilbert_space(:,8) = [ 4, 5, 6, 8, 11,12,13,14,15,16,21 ,23,24,25 ]
+                    ! anti-parallel diagonal
+                    ! 3 7 22 26
+                    hilbert_space(:,5) = [ 3 , 5,6, 7 ,11,12,13,14,15,16, 22 ,23,24, 26 ]
+                    ! 3 8 21 26
+                    hilbert_space(:,6) = [ 3 , 5,6, 8 ,11,12,13,14,15,16, 21 ,23,24, 26 ]
+                    ! 4 7 22 25
+                    hilbert_space(:,7) = [ 4 , 5,6, 7 ,11,12,13,14,15,16, 22 ,23,24, 25 ]
+                    ! 4 8 21 25
+                    hilbert_space(:,8) = [ 4 , 5,6, 8 ,11,12,13,14,15,16, 21 ,23,24, 25 ]
+                else if (nel == 12) then 
+                    n_eig = 4
+                    allocate(hilbert_space(nel,n_eig))
+                    ! do the k = 0, open-shell sector
+                    ! 3 26
+                    hilbert_space(:,1) = [ 3 ,5,6,11,12,13,14,15,16,23,24, 26 ]
+                    ! 4 25
+                    hilbert_space(:,2) = [ 4 ,5,6,11,12,13,14,15,16,23,24, 25 ]
+                    ! 7 22
+                    hilbert_space(:,3) = [ 5,6, 7 ,11,12,13,14,15,16, 22 ,23,24] 
+                    ! 8 21
+                    hilbert_space(:,4) = [ 5,6, 8 ,11,12,13,14,15,16, 21 ,23,24] 
+                end if
+
             end if
+
+
+            call setup_system(lat, nI, J, U)
+            call print_point_group_matrix_rep(hilbert_space)
 
             allocate(hilbert_space_ilut(0:niftot,size(hilbert_space,2)))
 
@@ -455,18 +521,34 @@ contains
             allocate(e_vecs(n_eig,n_eig))
             allocate(left_ev(n_eig,n_eig))
 
+            allocate(t_degen(n_eig))
+
             allocate(sort_ind(n_eig))
             t_trans_corr_2body = .true. 
+
+            allocate(sym_labels_all(n_eig,n_syms+1))
+            sym_labels_all = 0
+            allocate(sym_labels_tmp(n_eig,n_syms+1))
+            sym_labels_tmp = 0
+
+            allocate(irrep(n_eig))
+            irrep = 0
+
+            allocate(gs_gap(n_eig,size(J_vec)))
+            gs_gap = 0.0_dp
 
             iunit = get_free_unit()
             open(iunit, file = 'basis')
             call print_matrix(transpose(hilbert_space), iunit)
             close(iunit)
 
+!             t_twisted_bc = .true. 
+!             twisted_bc(1) = 0.01
+!             twisted_bc(2) = 0.02
             if (t_U_vec)then
                 do i = 1, size(U_vec)
                     U = U_vec(i)
-                    write(U_str,*) int(U)
+                    write(U_str,*) U
 
                     if (t_J_vec) then
                         do k = 1, size(J_vec)
@@ -509,19 +591,59 @@ contains
                                 left_ev = left_ev(:,sort_ind)
                             end if
 
-                            ! also do the symmetry study.. 
+                            call find_degeneracies(e_values, degen_ind, pairs)
 
+                            t_degen = pairs(:,1) /= 0
+
+                            ! also do the symmetry study.. 
                             open(iunit, file = filename)
 
                             if (t_sym) then
                                 write(iunit,*) &
-                                    "# U, J, E, EV, 1, 90, 180, 270, m_x, m_y, m_d, m_o, S"
+                                    "# U, J, E, EV, 1, 90, 180, 270, m_x, m_y, m_d, m_o, ,i, S, irrep, gap"
                             else
                                 write(iunit,*) &
                                     "# U, J, E, left_ev, right_ev, 0, 90, 180, 270, m_x, m_y, m_d, m_o, S"
                             end if
 
+                            if (any(t_degen)) then
+                                ! first add up the correct degenerate pairs
+                                
+                                do l = 1, n_eig
+                                    do m = 1, size(hilbert_space,2)
+                                        tmp_sign(1) = e_vecs(m,l)
+                                        call encode_sign(hilbert_space_ilut(:,m), tmp_sign)
+                                    end do
+                                    call analyze_full_wavefunction_sym(sym_labels, hilbert_space_ilut)
+                                    sym_labels_tmp(l,:) = sym_labels
+                                end do
+
+                                do l = 1, n_eig
+                                    if (t_degen(l)) then
+                                        pair_ind = pack(pairs(l,:), pairs(l,:) /= 0)
+                                        sym_labels_all(l,1:n_syms) = sym_labels_tmp(l,1:n_syms) &
+                                            + sum(sym_labels_tmp(pair_ind,1:n_syms),1)
+                                    else
+                                        sym_labels_all(l,:) = sym_labels_tmp(l,:)
+                                    end if
+                                end do
+                                sym_labels_all(:,n_syms+1) = sym_labels_tmp(:,n_syms+1)
+!                                 print *, "sym_labels_all:"
+!                                 call print_matrix(sym_labels_all)
+
+                                irrep = 0
+                                do l = 1, n_eig
+                                    do m = 1, 10
+                                        if (all(nint(sym_labels_all(l,1:n_syms)) & 
+                                            == irreps(m,:))) then 
+                                            irrep(l) = m
+                                        end if
+                                    end do
+                                end do
+                            end if
+ 
                             do l = 1, n_eig
+                                gs_gap(l,k) = e_values(l) - e_values(1)
                                 do m = 1, size(hilbert_space,2)
                                     tmp_sign(1) = e_vecs(m,l)
                                     call encode_sign(hilbert_space_ilut(:,m), tmp_sign)
@@ -536,15 +658,24 @@ contains
                                 end if
 
                                 if (t_sym) then
-                                    write(iunit,*) U, J, e_values(l), e_vecs(:,l), nint(sym_labels)
+                                    write(iunit,*) U, J, e_values(l), e_vecs(:,l), &
+                                        sym_labels_all(l,:), irrep_names(irrep(l)), gs_gap(l,k)
                                 else
                                     write(iunit,*) &
-                                        U, J, e_values(l), e_vecs(:,l), left_ev(:,l), nint(sym_labels)
+                                        U, J, e_values(l), e_vecs(:,l), left_ev(:,l), sym_labels
                                 end if
                             end do
                             close(iunit)
 
                         end do
+
+                        iunit = get_free_unit()
+                        open(iunit, file = 'gs_gap_vs_J')
+                        write(iunit,*) '# J, gap'
+                        do k = 1, size(J_vec)
+                            write(iunit,*) J_vec(k), gs_gap(:,k)
+                        end do
+                        close(iunit)
                     end if
                 end do
 

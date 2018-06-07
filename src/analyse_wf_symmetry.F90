@@ -58,6 +58,13 @@ module analyse_wf_symmetry
     real(dp) :: mirror_d(2,2) = reshape([0.0,-1.0,-1.0,0.0],[2,2])
     real(dp) :: mirror_o(2,2) = reshape([0.0,1.0,1.0,0.0],[2,2])
 
+    real(dp) :: inv_matrix(2,2) = reshape([-1.0,0.0,0.0,-1.0],[2,2])
+
+    interface inversion
+        module procedure inversion_orb
+        module procedure inversion_vec
+    end interface inversion
+
     interface rotate
         module procedure rotate_orb
         module procedure rotate_vec
@@ -69,6 +76,114 @@ module analyse_wf_symmetry
     end interface mirror
 
 contains
+
+    subroutine print_point_group_matrix_rep(states)
+        ! output the symmetry operation of a specific point group in a given
+        ! basis
+        integer, intent(in) :: states(:,:)
+        character(*), parameter :: this_routine = "print_point_group_matrix_rep"
+
+        if (lat%get_ndim() == 2) then 
+            ! for 2D it is the 8 fold point group symmetry and S^2 EV..
+            ! activate all the symmetries
+            t_symmetry_mirror = .true.
+            t_symmetry_rotation = .true.
+            t_symmetry_inversion = .true.
+
+            call print_d4h_pg(states)
+        else
+            call stop_all(this_routine, "not yet implemented!")
+        end if
+
+
+    end subroutine print_point_group_matrix_rep
+
+    subroutine print_d4h_pg(states)
+        ! construct the d4h symmetry operation matrix representations
+        ! the operation for now are: E, 2C4, C2, Mv, Md, and inversion
+        integer, intent(in) :: states(:,:)
+
+        integer :: i, orig_orbs(nBasis/2), trans_orbs(nBasis/2), &
+                   matrix_rep(size(states,2),size(states,2)), & 
+                   temp_states(nel,size(states,2)), phase
+
+        orig_orbs = get_spatial(brr(1:nBasis:2))
+
+        ! first E:
+        trans_orbs = orig_orbs
+        matrix_rep = construct_matrix_representation(states, orig_orbs, trans_orbs)
+        print *, "E:"
+        call print_matrix(matrix_rep)
+        print *, "character: ", sum([(matrix_rep(i,i), i = 1, size(matrix_rep,1))])
+
+        ! first C4:
+        trans_orbs = apply_rotation(orig_orbs, 90.0)
+        matrix_rep = construct_matrix_representation(states, orig_orbs, trans_orbs)
+        print *, "C4: "
+        call print_matrix(matrix_rep)
+        print *, "character: ", sum([(matrix_rep(i,i), i = 1, size(matrix_rep,1))])
+
+!         ! first C4:
+!         trans_orbs = apply_rotation(orig_orbs, 270.0)
+!         matrix_rep = construct_matrix_representation(states, orig_orbs, trans_orbs)
+!         print *, "2C4: "
+!         call print_matrix(matrix_rep)
+!         print *, "character: ", sum([(matrix_rep(i,i), i = 1, size(matrix_rep,1))])
+
+        ! C2:
+        trans_orbs = apply_rotation(orig_orbs, 180.0)
+        matrix_rep = construct_matrix_representation(states, orig_orbs, trans_orbs)
+        print *, "C2: "
+        call print_matrix(matrix_rep)
+        print *, "character: ", sum([(matrix_rep(i,i), i = 1, size(matrix_rep,1))])
+
+        ! Mv
+        trans_orbs = apply_mirror(orig_orbs, 'x')
+        matrix_rep = construct_matrix_representation(states, orig_orbs, trans_orbs)
+        print *, "Mx: "
+        call print_matrix(matrix_rep)
+        print *, "character: ", sum([(matrix_rep(i,i), i = 1, size(matrix_rep,1))])
+
+        ! Md
+        trans_orbs = apply_mirror(orig_orbs, 'd')
+        matrix_rep = construct_matrix_representation(states, orig_orbs, trans_orbs)
+        print *, "Md: "
+        call print_matrix(matrix_rep)
+        print *, "character: ", sum([(matrix_rep(i,i), i = 1, size(matrix_rep,1))])
+        
+        ! i
+        trans_orbs = apply_inversion(orig_orbs)
+        matrix_rep = construct_matrix_representation(states, orig_orbs, trans_orbs)
+        print *, "i: "
+        call print_matrix(matrix_rep)
+        print *, "character: ", sum([(matrix_rep(i,i), i = 1, size(matrix_rep,1))])
+
+    end subroutine print_d4h_pg
+
+    function construct_matrix_representation(states, orig_orbs, trans_orbs) & 
+            result(matrix)
+        ! construct the matrix representation of the symmetry operation 
+        ! for a given basis. the symmetry operation is encoded in 
+        ! orig orbs and trans orbs
+        integer, intent(in) :: states(:,:), orig_orbs(nBasis/2), trans_orbs(nBasis/2)
+        integer :: matrix(size(states,2),size(states,2))
+        integer :: i, j, nJ(nel), phase
+
+        matrix = 0
+
+        do i = 1, size(states,2)
+            do j = 1, size(states,2)
+                call apply_transformation(states(:,j), orig_orbs, trans_orbs, &
+                    nJ, phase)
+
+                if (all(nJ == states(:,i))) then
+                    matrix(i,j) = phase
+!                     matrix(j,i) = phase
+                end if
+            end do
+        end do
+        
+    end function construct_matrix_representation
 
     subroutine analyze_full_wavefunction_sym(sym_labels, ilut_list_opt)
         ! give the symmetry eigenvalues of a wavefunction in ilut_format 
@@ -88,7 +203,11 @@ contains
 
         if (lat%get_ndim() == 2) then 
             ! for 2D it is the 8 fold point group symmetry and S^2 EV..
-            n_syms = 9
+            n_syms = 10
+            ! activate all the symmetries
+            t_symmetry_mirror = .true.
+            t_symmetry_rotation = .true.
+            t_symmetry_inversion = .true.
         else
             call stop_all(this_routine, "not yet implemented!")
         end if
@@ -177,11 +296,14 @@ contains
         integer(n_int), intent(inout) :: ilut_list(:,:)
         integer(n_int), allocatable :: trans_wf(:,:,:)
 
-        integer :: i 
+        integer :: i, j
         real(dp) :: rot_angle
         character(4) :: mir_axis
+        integer :: sort_ind(size(ilut_list,2))
+        integer :: matrix(size(ilut_list,2),size(ilut_list,2))
+        real(dp) :: signI(lenof_sign), signJ(lenof_sign)
 
-        allocate(trans_wf(0:niftot,size(ilut_list,2), 8))
+        allocate(trans_wf(0:niftot,size(ilut_list,2), 9))
 
         trans_wf = 0_n_int
 
@@ -197,24 +319,78 @@ contains
         mir_axis = 'xydo'
 
         do i = 5, 8
-            trans_wf(:,:,i) = apply_mirror_wf(ilut_list, mir_axis(i-4:i-4))
+            trans_wf(:,:,i) = apply_mirror_wf(ilut_list, mir_axis(i-4:i-4), sort_ind)
         end do
+
+        trans_wf(:,:,9) = apply_inversion_wf(ilut_list)
+
+        ! test to output the matrix representation of the symmetry operation
+!         print *, "sort_ind: ", sort_ind
+!         matrix = 0
+!         do i = 1, size(ilut_list,2)
+!             call extract_sign(ilut_list(:,i), signI)
+!             call extract_sign(trans_wf(:,sort_ind(i),8), signJ)
+!             
+! !             matrix(i,sort_ind(i)) = int(sign(1.0_dp, signI(1)*signJ(1)))
+! 
+!         end do
+
+
+!         print *, "m_o: "
+!         call print_matrix(matrix)
+
 
     end function apply_2D_point_group
 
-    function apply_mirror_wf(ilut_list, mirror_axis) result(mir_wf)
+    function apply_inversion_wf(ilut_list, sort_ind) result(inv_wf)
+        ! apply inversion symmetry to a wavefunction 
+        integer(n_int), intent(inout) :: ilut_list(:,:)
+        integer, intent(out), optional :: sort_ind(size(ilut_list,2))
+        integer(n_int) :: inv_wf(0:size(ilut_list,1)-1,size(ilut_list,2))
+
+        integer :: orig_orbs(nBasis/2), trans_orbs(nBasis/2), i, &
+                   orig_states(nel,size(ilut_list,2)), inv_states(nel, size(ilut_list,2))
+        real(dp) :: orig_weights(size(ilut_list,2)), temp_sign(lenof_sign), &
+                    inv_weights(size(ilut_list,2))
+
+
+        orig_orbs = get_spatial(brr(1:nBasis:2))
+
+        trans_orbs = apply_inversion(orig_orbs)
+
+        ! decode the original information
+        do i = 1, size(ilut_list,2)
+            call decode_bit_det(orig_states(:,i), ilut_list(:,i))
+            call extract_sign(ilut_list(:,i), temp_sign)
+            orig_weights(i) = temp_sign(1)
+        end do
+
+        if (present(sort_ind)) then
+            call transform_states(orig_orbs, trans_orbs, size(ilut_list,2), &
+                orig_states, orig_weights, ilut_list, inv_states, inv_weights, &
+                inv_wf, sort_ind)
+        else
+            call transform_states(orig_orbs, trans_orbs, size(ilut_list,2), &
+                orig_states, orig_weights, ilut_list, inv_states, inv_weights, inv_wf)
+        end if
+
+
+    end function apply_inversion_wf
+
+    function apply_mirror_wf(ilut_list, mirror_axis, sort_ind) result(mir_wf)
         ! function to apply a mirror symmetry to the given wavefunction 
         ! encoded in ilut_list
         integer(n_int), intent(inout) :: ilut_list(:,:)
         character(1), intent(in) :: mirror_axis
+        integer, intent(out), optional :: sort_ind(size(ilut_list,2))
         integer(n_int) :: mir_wf(size(ilut_list,1),size(ilut_list,2))
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "apply_mirror_wf"
 #endif
         integer :: orig_orbs(nBasis/2), trans_orbs(nBasis/2), i, &
-                   orig_states(nel,size(ilut_list,2)), rot_states(nel, size(ilut_list,2))
+                   orig_states(nel,size(ilut_list,2)), mir_states(nel, size(ilut_list,2))
         real(dp) :: orig_weights(size(ilut_list,2)), temp_sign(lenof_sign), &
-                    rot_weights(size(ilut_list,2))
+                    mir_weights(size(ilut_list,2))
 
         orig_orbs = get_spatial(brr(1:nBasis:2))
 
@@ -227,8 +403,14 @@ contains
             orig_weights(i) = temp_sign(1)
         end do
 
-        call transform_states(orig_orbs, trans_orbs, size(ilut_list,2), &
-            orig_states, orig_weights, ilut_list, rot_states, rot_weights, mir_wf)
+        if (present(sort_ind)) then
+            call transform_states(orig_orbs, trans_orbs, size(ilut_list,2), &
+                orig_states, orig_weights, ilut_list, mir_states, mir_weights, &
+                mir_wf, sort_ind)
+        else
+            call transform_states(orig_orbs, trans_orbs, size(ilut_list,2), &
+                orig_states, orig_weights, ilut_list, mir_states, mir_weights, mir_wf)
+        end if
 
     end function apply_mirror_wf
 
@@ -269,10 +451,11 @@ contains
         real(dp) :: angle
 
         angle = rot_angle * pi / 180.0
-        mat(1,1) = cos(angle)
-        mat(1,2) = -sin(angle)
-        mat(2,1) = sin(angle)
-        mat(2,2) = cos(angle)
+        mat = reshape([cos(angle),sin(angle),-sin(angle),cos(angle)],[2,2])
+!         mat(1,1) = cos(angle)
+!         mat(1,2) = -sin(angle)
+!         mat(2,1) = sin(angle)
+!         mat(2,2) = cos(angle)
 
     end function rot_matrix
         
@@ -348,7 +531,7 @@ contains
             sym_orbs = apply_mirror(sym_orbs, symmertry_mirror_axis)
 
             ! INVERSION
-    !         sym_orbs = apply_inversion(sym_orbs)
+            sym_orbs = apply_inversion(sym_orbs)
 
             ! now i have the mapping between the original and the 
             ! symmetry transformed orbitals
@@ -482,7 +665,8 @@ contains
     end subroutine print_null_det
 
     subroutine transform_states(orig_orbs, transformed_orbs, n_states, orig_states, &
-            orig_weights, orig_iluts, transformed_states, transformed_weights, transformed_states_ilut)
+            orig_weights, orig_iluts, transformed_states, transformed_weights, &
+            transformed_states_ilut, sort_ind)
         integer, intent(in) :: orig_orbs(nBasis/2), transformed_orbs(nBasis/2)
         integer, intent(in) :: n_states
         integer, intent(inout) :: orig_states(nel,n_states)
@@ -490,6 +674,7 @@ contains
         integer(n_int), intent(inout) :: orig_iluts(0:niftot,n_states)
         integer, intent(out) :: transformed_states(nel, n_states)
         real(dp), intent(out) :: transformed_weights(n_states)
+        integer, intent(out), optional :: sort_ind(n_states)
         integer(n_int), intent(out) :: transformed_states_ilut(0:niftot,n_states)
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "transform_states"
@@ -530,6 +715,10 @@ contains
 
         transformed_states = transformed_states(:,ind)
         transformed_weights = transformed_weights(ind)
+
+        if (present(sort_ind)) then
+            sort_ind = ind
+        end if
 
         
     end subroutine transform_states
@@ -766,6 +955,24 @@ contains
 
     end subroutine get_highest_pop_node
 
+    function apply_inversion(in_orbs) result(out_orbs)
+        ! apply inversion through the k-point
+        integer, intent(in) :: in_orbs(nBasis/2)
+        integer :: out_orbs(nBasis/2)
+
+        integer :: i 
+
+        if (.not. t_symmetry_inversion) then 
+            out_orbs = in_orbs
+            return
+        end if
+
+        do i = 1, nBasis/2
+            out_orbs(i) = inversion(in_orbs(i))
+        end do
+
+    end function apply_inversion
+
     function apply_mirror(in_orbs, mirror_axis) result(out_orbs)
         ! function to mirror the k- or r- vectors along a specified axis
         integer, intent(in) :: in_orbs(nBasis/2)
@@ -873,6 +1080,37 @@ contains
         
     end function mirror_vec
 
+    function inversion_orb(in_orb) result(out_orb)
+        integer, intent(in) :: in_orb
+        integer :: out_orb
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "inversion_orb"
+#endif
+        integer :: vec(3), inv_vec(3)
+
+        ASSERT(associated(lat))
+
+        if (lat%is_k_space()) then
+            vec = lat%get_k_vec(in_orb)
+        else
+            vec = lat%get_r_vec(in_orb)
+        end if
+
+        inv_vec = inversion(vec)
+
+        out_orb = lat%get_orb_from_k_vec(inv_vec)
+
+    end function inversion_orb
+
+    function inversion_vec(in_vec) result(out_vec)
+        integer, intent(in) :: in_vec(3)
+        integer :: out_vec(3)
+
+        out_vec(1:2) = nint(matmul(inv_matrix, real(in_vec(1:2))))
+        out_vec(3) = in_vec(3)
+
+    end function inversion_vec
+                
     function rotate_orb(in_orb, rot_angle) result(out_orb)
         ! function to actually apply the rotation to the basis vectors
         integer, intent(in) :: in_orb
@@ -910,7 +1148,7 @@ contains
 
         ! apply the actual rotation to the vector..
         out_vec(1:2) = nint(matmul(rot_matrix(rot_angle), real(in_vec(1:2))))
-        out_vec(3) = 0
+        out_vec(3) = in_vec(3)
 
     end function rotate_vec
 
