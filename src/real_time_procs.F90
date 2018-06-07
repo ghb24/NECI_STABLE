@@ -154,6 +154,7 @@ contains
                                    CurrentDets, PartInd, DetHash, tSuccess)
 
             tDetermState = .false.
+            CurrentSign = 0.0_dp
 
 !            WRITE(6,*) 'i,DiagParts(:,i)',i,DiagParts(:,i)
             

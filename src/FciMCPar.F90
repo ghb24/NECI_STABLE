@@ -161,6 +161,10 @@ module FciMCParMod
 
         integer :: tmp_det(nel)
 
+#ifdef __REALTIME
+        call stop_all(this_routine,"No real-time block specified in input")
+#endif
+
         if (tJustBlocking) then
             ! Just reblock the current data, and do not perform an fcimc calculation.
             write(6,"(A)") "Skipping FCIQMC calculation and simply reblocking previous output"

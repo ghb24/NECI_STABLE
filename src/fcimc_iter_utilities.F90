@@ -886,8 +886,9 @@ contains
                     tot_walkers = InitWalkers * int(nNodes,int64)
 
 #ifdef __CMPLX
-                    if ((sum(AllTotParts(lb:ub)) > tot_walkers) .or. &
-                         (abs_sign(AllNoatHF(lb:ub)) > MaxNoatHF)) then
+                    if (((sum(AllTotParts(lb:ub)) > tot_walkers) .or. &
+                         (abs_sign(AllNoatHF(lb:ub)) > MaxNoatHF)) .and. .not. &
+                         t_real_time_fciqmc) then
     !                     WRITE(iout,*) "AllTotParts: ",AllTotParts(1),AllTotParts(2),tot_walkers
                         write (iout, '(a,i13,a)') 'Exiting the single particle growth phase on iteration: ',iter + PreviousCycles, &
                                      ' - Shift can now change'
