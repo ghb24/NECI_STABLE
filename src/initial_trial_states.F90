@@ -412,10 +412,10 @@ contains
                     do j = 1, ndets_all_procs
                         if (i == j) cycle
                         if (tHPHF) then
-                            H_tmp(i,j) = hphf_off_diag_helement(det_list(:,i), & 
+                            H_tmp(j,i) = hphf_off_diag_helement(det_list(:,i), & 
                                 det_list(:,j),ilut_list(:,i), ilut_list(:,j))
                         else
-                            H_tmp(i,j) = get_helement(det_list(:,i), & 
+                            H_tmp(j,i) = get_helement(det_list(:,i), & 
                                 det_list(:,j),ilut_list(:,i),ilut_list(:,j))
                         end if 
                     end do
