@@ -31,7 +31,7 @@ module real_time_init
 			      numSnapshotOrbs, tLowerThreshold, t_kspace_operators, tVerletScheme, &
                               tLogTrajectory, tReadTrajectory, alphaCache, tauCache, trajFile, &
                               tGenerateCoreSpace, tGZero, wn_threshold, corespace_log_interval, &
-                              alphaLog, alphaLogSize, alphaLogPos, tStaticShift
+                              alphaLog, alphaLogSize, alphaLogPos, tStaticShift, DiagVecTag
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_norm, clean_overlap_states, openTauContourFile
     use verlet_aux, only: backup_initial_state, setup_delta_psi
@@ -40,6 +40,7 @@ module real_time_init
     use ParallelHelper, only: iProcIndex, root, MPIbarrier, nNodes, MPI_SUM
     use util_mod, only: get_unique_filename, get_free_unit
     use Logging, only: tIncrementPops
+    use MemoryManager, only: LogMemAlloc, LogMemDealloc
     use kp_fciqmc_data_mod, only: tMultiplePopStart, tScalePopulation, &
                                   tOverlapPert, overlap_pert, scaling_factor
     use CalcData, only: tChangeProjEDet, tReadPops, tRestartHighPop, tFCIMC, tJumpShift, &
@@ -248,6 +249,8 @@ contains
         ! also intitialize the 2nd spawning array to deal with the 
         ! diagonal death step in the 2nd rt-fciqmc loop
         allocate(DiagVec(0:nifbcast, MaxWalkersPart), stat = ierr)
+        call LogMemAlloc('DiagVec',MaxWalkersPart*(1+nifbcast),size_n_int,&
+             this_routine,DiagVecTag,ierr)
 
         DiagVec = 0
 
@@ -783,10 +786,12 @@ contains
       implicit none
       
       integer :: ierr
+      character(*), parameter :: this_routine = "dealloc_real_time_memory"
       
       if(numSnapshotOrbs>0) deallocate(snapShotOrbs,stat=ierr)
       if(allocated(numCycShiftExcess)) deallocate(numCycShiftExcess, stat=ierr)
       deallocate(DiagVec,stat=ierr)
+      call LogMemDealloc(this_routine, DiagVecTag)
       call clean_iter_data(second_spawn_iter_data)
       deallocate(shift_damping, stat=ierr)
       deallocate(temp_freeslot, stat=ierr)

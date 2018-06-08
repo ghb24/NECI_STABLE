@@ -4,7 +4,8 @@
 
 module real_time_data
     
-    use constants, only: dp, int64, n_int, lenof_sign
+    use constants
+    use MemoryManager, only: TagIntType
     use FciMCData, only: perturbation, ll_node, fcimc_iter_data
     implicit none
 
@@ -197,7 +198,7 @@ module real_time_data
 
     integer(int64) :: TotWalkers_1, AllTotWalkers_1, AllTotWalkersOld_1
 
-    
+    integer(TagIntType) :: DiagVecTag = 0
     ! also keept track of blooms seperately
     integer :: bloom_count_1(0:2), all_bloom_count_1(0:2)
     real(dp) :: bloom_sizes_1(0:2), bloom_max_1(0:2)
