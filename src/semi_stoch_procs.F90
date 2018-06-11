@@ -30,6 +30,7 @@ module semi_stoch_procs
     use sparse_arrays, only: deallocate_sparse_ham, sparse_ham, hamil_diag, HDiagTag
     use sparse_arrays, only: core_ht, SparseCoreHamilTags
     use sparse_arrays, only: SparseHamilTags, allocate_sparse_ham_row
+    use unit_test_helpers, only: print_matrix
 
     implicit none
 
@@ -1112,6 +1113,11 @@ contains
         ! build the full Hamiltonian
 !         if (iProcIndex == root) then
             call calc_determin_hamil_full(full_H)
+
+            root_print "deterministic hamiltonian:"
+            if_root
+                call print_matrix(full_H)
+            end_if_root
 
             allocate(e_values(size(full_H,1)))
             allocate(e_vectors(size(full_H,1),size(full_H,1)))

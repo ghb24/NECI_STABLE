@@ -117,7 +117,7 @@ contains
         print *, "character: ", sum([(matrix_rep(i,i), i = 1, size(matrix_rep,1))])
 
         ! first C4:
-        trans_orbs = apply_rotation(orig_orbs, 90.0)
+        trans_orbs = apply_rotation(orig_orbs, 90.0_dp)
         matrix_rep = construct_matrix_representation(states, orig_orbs, trans_orbs)
         print *, "C4: "
         call print_matrix(matrix_rep)
@@ -131,7 +131,7 @@ contains
 !         print *, "character: ", sum([(matrix_rep(i,i), i = 1, size(matrix_rep,1))])
 
         ! C2:
-        trans_orbs = apply_rotation(orig_orbs, 180.0)
+        trans_orbs = apply_rotation(orig_orbs, 180.0_dp)
         matrix_rep = construct_matrix_representation(states, orig_orbs, trans_orbs)
         print *, "C2: "
         call print_matrix(matrix_rep)
