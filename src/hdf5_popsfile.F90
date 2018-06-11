@@ -875,8 +875,9 @@ contains
 
         if (sum(counts) /= all_count .or. any(counts < 0)) &
             call stop_all(t_r, "Invalid particles counts")
-        do proc = 0, nProcessors - 1
-            offsets(proc) = sum(counts(0:proc-1))
+        offsets(0) = 0
+        do proc = 1, nProcessors - 1
+            offsets(proc) = offsets(proc-1) + counts(proc-1)
         end do
 
         write(6,*) 'Reading in ', counts(iProcIndex), &
