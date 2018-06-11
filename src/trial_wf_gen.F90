@@ -510,6 +510,8 @@ contains
 
         con_vecs = 0.0_dp
 
+        ! do i need to change this here for the non-hermitian transcorrelated 
+        ! hamiltonians?
         do i = 1, size(con_vecs,2)
             call decode_bit_det(nI, con_space(0:NIfTot, i))
             do j = 1, size(trial_vecs,2)
@@ -523,9 +525,9 @@ contains
                     end if
                 else
                     if (.not. tHPHF) then
-                        H_ij = get_helement(nI, nJ, con_space(:,i), trial_space(:,j))
+                        H_ij = get_helement(nJ, nI, con_space(:,j), trial_space(:,i))
                     else
-                        H_ij = hphf_off_diag_helement(nI, nJ, con_space(:,i), trial_space(:,j))
+                        H_ij = hphf_off_diag_helement(nJ, nI, con_space(:,j), trial_space(:,i))
                     end if
                 end if
                 con_vecs(:,i) = con_vecs(:,i) + H_ij*trial_vecs(:,j)
