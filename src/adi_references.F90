@@ -6,7 +6,7 @@ use adi_data, only: ilutRefAdi, nRefs, nIRef, signsRef, &
      nTZero, SIHash, tAdiActive, tSetupSIs, NoTypeN, superInitiatorLevel, tSetupSIs, &
      tReferenceChanged, SIThreshold, tUseCaches, nIRef, signsRef, exLvlRef, tSuppressSIOutput, &
      targetRefPop, lastAllNoatHF, lastNRefs, tVariableNRef, maxNRefs, minSIConnect, &
-     nIncoherentDets, nConnection
+     nIncoherentDets, nConnection, tWeightedConnections
 use CalcData, only: InitiatorWalkNo
 use bit_rep_data, only: niftot, nifdbo, extract_sign
 use bit_reps, only: decode_bit_det
@@ -217,7 +217,8 @@ contains
          call fixed_number_SI_generation()
       endif
 
-      write(6,*) "Getting superinitiators for all-doubs-initiators: ", nRefs, " SIs found"
+      if(iProcIndex == root) &
+           write(6,*) "Getting superinitiators for all-doubs-initiators: ", nRefs, " SIs found"
 
       if(tWriteRefs) call output_reference_space(ref_filename)
     end subroutine generate_ref_space
@@ -890,6 +891,7 @@ contains
     HElement_t(dp), intent(inout) :: signedCache
     real(dp), intent(inout) :: unsignedCache
     integer, intent(out) :: connections
+    real(dp) :: i_sgn(lenof_sign)
     HElement_t(dp) :: h_el, tmp
     character(*), parameter :: this_routine = "upadte_coherence_check"
 
@@ -915,7 +917,15 @@ contains
 #endif
     signedCache = signedCache + tmp
     unsignedCache = unsignedCache + abs(tmp)
-    connections = connections + 1
+    if(tWeightedConnections) then
+       ! there is the option to have the connections weighted with
+       ! the population
+       i_sgn = signsRef(:,i)
+       connections = connections + mag_of_run(i_sgn,run)
+    else
+       connections = connections + 1
+    endif
+       
   end subroutine update_coherence_check
 
 !------------------------------------------------------------------------------------------!
@@ -933,22 +943,29 @@ contains
 
     ! Only need to check if we are looking at a double
     !if(unsignedCache > eps .and. connections>=minSIConnect) then
-       if(connections<minSIConnect) then 
+       if(connections<minSIConnect .or. &
+            ! if the connections are weighted, we want to have at least 
+            ! minimum-number-of-connections*SI-threshold
+            (tWeightedConnections .and. connections < minSIConnect * NoTypeN)) then 
           staticInit = .false.
           if(unsignedCache > EPS) nConnection = nConnection + 1
        endif
        ! We disable superinitiator-related initiators if they fail the coherence check
        ! else, we leave it as it is
        if(tWeakCoherentDoubles) then
-          if(abs(signedCache) < coherenceThreshold*unsignedCache) staticInit = .false.
-          nIncoherentDets = nIncoherentDets + 1
+          if(abs(signedCache) < coherenceThreshold*unsignedCache) then
+             staticInit = .false.
+             nIncoherentDets = nIncoherentDets + 1
+          endif
        endif
 
        ! If we do averaged coherence check, we check versus the sign of the ilut
        ! We recommend using both, av and weak
        if(tAvCoherentDoubles) then
-          if(real(signedCache * sgn,dp) > 0.0_dp) staticInit = .false.
-          nIncoherentDets = nIncoherentDets + 1
+          if(real(signedCache * sgn,dp) > 0.0_dp) then
+             staticInit = .false.
+             nIncoherentDets = nIncoherentDets + 1
+          endif
        endif
     !endif
 

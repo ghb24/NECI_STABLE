@@ -35,7 +35,7 @@ MODULE Calc
          tReferenceChanged, superInitiatorLevel, allDoubsInitsDelay, tStrictCoherentDoubles, &
          tWeakCoherentDoubles, tAvCoherentDoubles, coherenceThreshold, SIThreshold, &
          tSuppressSIOutput, targetRefPop, targetRefPopTol, tSingleSteps, tVariableNRef, &
-         nRefsSings, nRefsDoubs, minSIConnect
+         nRefsSings, nRefsDoubs, minSIConnect, tWeightedConnections
     use ras_data, only: core_ras, trial_ras
     use load_balance, only: tLoadBalanceBlocks
     use ftlm_neci
@@ -129,6 +129,11 @@ contains
           TProjEMP2=.false.
           THFRetBias=.false.
           TSignShift=.false.
+          tFixedN0 = .false.
+          tSkipRef(:) = .false.
+          tTrialShift = .false.
+          tFixTrial(:) = .false.
+          TrialTarget = 0.0
           NEquilSteps=0
           NShiftEquilSteps=1000
           TRhoElems=.false.
@@ -1221,7 +1226,8 @@ contains
                 ! If there is ane extra item, it should specify that we turn
                 ! semi-stochastic on later.
                 if (item < nitems) then
-                    call geti(semistoch_shift_iter)
+                   if(item < nitems) &
+                      call geti(semistoch_shift_iter)
                     tSemiStochastic = .false.
                     tStartCoreGroundState = .false.
                 end if
@@ -1314,6 +1320,7 @@ contains
                     tStartTrialLater = .true.
                     call geti(trial_shift_iter)
                 end if
+
             case("NUM-TRIAL-STATES-CALC")
                 call geti(ntrial_ex_calc)
             case("QMC-TRIAL-WF")
@@ -1453,7 +1460,33 @@ contains
                 call getf(StepsSftImag)
             case("STEPSSHIFT")
 !For FCIMC, this is the number of steps taken before the Diag shift is updated
-                call geti(StepsSft)
+                if(tFixedN0 .or. tTrialShift)then
+                    write(6,*) "WARNING: 'STEPSSHIFT' cannot be changed. &
+                    & 'FIXED-N0' or 'TRIAL-SHIFT' is already specified and sets this parameter to 1."
+                else
+                    call geti(StepsSft)
+                end if
+            case("FIXED-N0")
+#ifdef __CMPL
+                call stop_all(this_routine, 'FIXED-N0 currently not implemented for complex')
+#endif
+                tFixedN0 = .true.
+                call geti(N0_Target)
+                !In this mode, the shift should be updated every iteration.
+                !Otherwise, the dynamics is biased.
+                StepsSft = 1
+                !Also avoid changing the reference determinant.
+                tReadPopsChangeRef = .false.
+                tChangeProjEDet = .false.
+            case("TRIAL-SHIFT")
+#ifdef __CMPL
+                call stop_all(this_routine, 'TRIAL-SHIFT currently not implemented for complex')
+#endif
+                if (item.lt.nitems) then
+                    call readf(TrialTarget)
+                end if
+                tTrialShift = .true.
+                StepsSft = 1
             case("EXITWALKERS")
 !For FCIMC, this is an exit criterion based on the total number of walkers in the system.
                 call getiLong(iExitWalkers)
@@ -2572,6 +2605,18 @@ contains
                 ! set the minimal number of connections with superinititators for 
                 ! superinitiators-related initiators
                 call readi(minSIConnect)
+                ! optionally, allow to weight the connections with the population
+                if(item < nItems) then
+                   call readu(w)
+                   select case(w)
+                   case("WEIGHTED")
+                      tWeightedConnections = .true.
+                   case("UNWEIGHTED")
+                      tWeightedConnections = .false.
+                   case default
+                      tWeightedConnections = .false.
+                   end select
+                endif
 
              case("SUPERINITIATOR-POPULATION-THRESHOLD")
                 ! set the minimum value for superinitiator population

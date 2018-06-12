@@ -16,7 +16,8 @@ module FciMCParMod
                         t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
                         t_back_spawn_flex, t_back_spawn_flex_option, &
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
-                        DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter
+                        DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
+                        tSkipRef, tFixTrial, tTrialShift
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
                         tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
                         SIUpdateInterval, tSuppressSIOutput, nRefUpdateInterval, &
@@ -76,7 +77,7 @@ module FciMCParMod
     use fcimc_output
     use FciMCData
     use constants
-    
+    use bit_reps, only: decode_bit_det    
     use double_occ_mod, only: get_double_occupancy, inst_double_occ, &
                         rezero_double_occ_stats, write_double_occ_stats, & 
                         sum_double_occ, sum_norm_psi_squared
@@ -134,7 +135,7 @@ module FciMCParMod
         character(*), parameter :: this_routine = 'FciMCPar'
         character(6), parameter :: excit_descriptor(0:2) = &
                                         (/"IC0   ", "single", "double"/)
-
+        integer :: tmp_det(nel)
         if (tJustBlocking) then
             ! Just reblock the current data, and do not perform an fcimc calculation.
             write(6,"(A)") "Skipping FCIQMC calculation and simply reblocking previous output"
@@ -246,6 +247,14 @@ module FciMCParMod
 
             if(iProcIndex.eq.root) s_start=neci_etime(tstart)
 
+            ! Update the semistochastic space if requested
+            if(tSemiStochastic .and. tDynamicCoreSpace .and. &
+                 mod(iter-semistochStartIter, &
+                 coreSpaceUpdateCycle) == 0) then
+               call refresh_semistochastic_space()
+               write(6,*) "Refereshing semistochastic space at iteration ", iter
+            end if
+
             ! Is this an iteration where semi-stochastic is turned on?
             if (semistoch_shift_iter /= 0 .and. all(.not. tSinglePartPhase)) then
                 if ((Iter - maxval(VaryShiftIter)) == semistoch_shift_iter + 1) then
@@ -270,16 +279,9 @@ module FciMCParMod
                endif
                write(6,*) "Refreshing trial wavefunction at iteration ", iter
             endif
-            ! Update the semistochastic space if requested
-            if(tSemiStochastic .and. tDynamicCoreSpace .and. &
-                 mod(iter-semistochStartIter, &
-                 coreSpaceUpdateCycle) == 0) then
-               call refresh_semistochastic_space()
-               write(6,*) "Refreshing semistochastic space at iteration ", iter
-            end if
            
-            if((Iter - maxval(VaryShiftIter)) == allDoubsInitsDelay + 1 &
-                 .and. all(.not. tSinglePartPhase)) then
+            if(((Iter - maxval(VaryShiftIter)) == allDoubsInitsDelay + 1 &
+                 .and. all(.not. tSinglePartPhase))) then
                ! Start the all-doubs-initiator procedure
                if(tDelayAllDoubsInits) call enable_adi()
                ! And/or the all-sings-initiator procedure
@@ -374,7 +376,7 @@ module FciMCParMod
             if(SIUpdateInterval > 0) then
                ! Regular update of the superinitiators. Use with care as it 
                ! is still rather expensive if secondary superinitiators are used
-               if(mod(iter+SIUpdateOffset,SIUpdateInterval) == 0) then
+               if(mod(iter-SIUpdateOffset,SIUpdateInterval) == 0) then
                   ! the reference population needs some time to equilibrate
                   ! hence, nRefs cannot be updated that often
                   if(mod(iter,nRefUpdateInterval) == 0) call adjust_nRefs()
@@ -1075,10 +1077,6 @@ module FciMCParMod
                 endif
             ENDIFDEBUG
 
-            ! Sum in any energy contribution from the determinant, including 
-            ! other parameters, such as excitlevel info.
-            ! This is where the projected energy is calculated.
-            call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, CurrentDets(:,j), HDiagCurr, 1.0_dp, tPairedReplicas, j)
 
             ! double occupancy measurement: quick and dirty for now
             if (t_calc_double_occ) then
@@ -1104,7 +1102,8 @@ module FciMCParMod
             ! remove that for now
             do part_type = 1, lenof_sign
             
-                TempSpawnedPartsInd = 0
+               run = part_type_to_run(part_type)
+               TempSpawnedPartsInd = 0
 
                 ! Loop over all the particles of a given type on the 
                 ! determinant. CurrentSign gives number of walkers. Multiply 
@@ -1124,6 +1123,13 @@ module FciMCParMod
                                         ilutnJ, exFlag, IC, ex, tParity, prob, &
                                         HElGen, fcimc_excit_gen_store, part_type)
                     
+
+
+                    !If we are fixing the population of reference det, skip spawing into it.
+                    if(tSkipRef(run) .and. all(nJ==projEdet(:,run))) then
+                        !Set nJ to null
+                        nJ(1) = 0
+                    end if
 
                     ! If a valid excitation, see if we should spawn children.
                     if (.not. IsNullDet(nJ)) then
@@ -1207,11 +1213,11 @@ module FciMCParMod
 
             enddo   ! Cycling over 'type' of particle on a given determinant.
 
-            ! If we are performing a semi-stochastic simulation and this state
-            ! is in the deterministic space, then the death step is performed
-            ! deterministically later. Otherwise, perform the death step now.
-            if (.not. tCoreDet) call walker_death (iter_data, DetCurr, CurrentDets(:,j), &
-                                                   HDiagCurr, SignCurr, j, WalkExcitLevel)
+                ! If we are performing a semi-stochastic simulation and this state
+                ! is in the deterministic space, then the death step is performed
+                ! deterministically later. Otherwise, perform the death step now.
+                if (.not. tCoreDet) call walker_death (iter_data, DetCurr, CurrentDets(:,j), &
+                                                       HDiagCurr, SignCurr, j, WalkExcitLevel)
 
         enddo ! Loop over determinants.
         IFDEBUGTHEN(FCIMCDebug,2) 
@@ -1284,6 +1290,22 @@ module FciMCParMod
             if (tOldRDMs) call fill_rdm_diag_wrapper_old(rdms, one_rdms_old, CurrentDets, int(TotWalkers, sizeof_int))
             call fill_rdm_diag_wrapper(rdm_definitions, two_rdm_spawn, one_rdms, CurrentDets, int(TotWalkers, sizeof_int))
         end if
+
+        if(tTrialWavefunction .and. tTrialShift)then
+            call fix_trial_overlap(iter_data)
+        end if
+
+        ! Sum in any energy contribution from the determinant, including 
+        ! other parameters, such as excitlevel info.
+        ! This is where the projected energy is calculated.
+        do j = 1, int(TotWalkers,sizeof_int)
+            HDiagCurr = det_diagH(j)
+            call extract_bit_rep_avsign(rdm_definitions, CurrentDets(:,j), j, DetCurr, SignCurr, FlagsCurr, &
+                                        IterRDMStartCurr, AvSignCurr, fcimc_excit_gen_store)
+            walkExcitLevel = FindBitExcitLevel (iLutRef(:,1), CurrentDets(:,j), &
+                                                max_calc_ex_level)
+            call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, CurrentDets(:,j), HDiagCurr, 1.0_dp, tPairedReplicas, j)
+        end do
 
         call update_iter_data(iter_data)
 

@@ -370,15 +370,16 @@ contains
                ! And send the trial wavefunction connection information
                nelem = nconsend * (1 + NConEntry)
                call MPISend(nconsend,1,tgt_proc,mpi_tag_nconsend, ierr)
+
                if(nelem > 0) then
                   call MPISend(con_send_buf(:,1:nconsend),nelem,tgt_proc, &
                        mpi_tag_con, ierr)
                endif
-
                ! Do the same with the trial wavefunction itself
                nconsend = buffer_trial_ht_entries(block, trial_ht, trial_space_size)
                nelem = nconsend * (1 + NConEntry)
                call MPISend(nconsend,1,tgt_proc,mpi_tag_ntrialsend, ierr)
+
                if(nelem > 0) then
                     call MPISend(con_send_buf(:,1:nconsend),nelem,tgt_proc,&
                     mpi_tag_trial, ierr)
@@ -425,7 +426,6 @@ contains
                   call add_trial_ht_entries(con_send_buf(:,1:nconsend), nconsend, &
                        con_ht, con_space_size)
                endif
-
                ! Recieve the information on the trial wave function
                call MPIRecv(nconsend, 1, src_proc, mpi_tag_ntrialsend, ierr)
                nelem = nconsend * (1 + NConEntry)
@@ -819,6 +819,7 @@ contains
       type(trial_hashtable), intent(inout) :: source_ht(:)
       integer :: clashes, ntrial ,ncon 
       integer(n_int), allocatable :: tmp(:,:)
+
 
       ! add a single entry to trial_ht with hash_val
       clashes = source_ht(hash_val)%nclash

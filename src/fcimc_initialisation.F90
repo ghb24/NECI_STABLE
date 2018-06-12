@@ -26,17 +26,17 @@ module fcimc_initialisation
                         tAddToInitiator, InitiatorWalkNo, tRestartHighPop, &
                         tAllRealCoeff, tRealCoeffByExcitLevel, tTruncInitiator, &
                         tDynamicCoreSpace, RealCoeffExcitThresh, TargetGrowRate, &
-                        TargetGrowRateWalk, InputTargetGrowRate, &
+                        TargetGrowRateWalk, InputTargetGrowRate, semistoch_shift_iter,&
                         InputTargetGrowRateWalk, tOrthogonaliseReplicas, &
                         use_spawn_hash_table, tReplicaSingleDetStart, &
-                        ss_space_in, trial_space_in, init_trial_in, &
+                        ss_space_in, trial_space_in, init_trial_in, trial_shift_iter, &
                         tContTimeFCIMC, tContTimeFull, tMultipleInitialRefs, &
                         initial_refs, trial_init_reorder, tStartTrialLater, &
                         ntrial_ex_calc, tPairedReplicas, tMultiRefShift, &
                         tMultipleInitialStates, initial_states, t_hist_tau_search, &
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, &
-                        t_back_spawn_flex, back_spawn_delay
+                        t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0
     use adi_data, only: g_markers, tReferenceChanged, tInitiatorsSubspace, tAdiActive, &
          nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
@@ -344,16 +344,20 @@ contains
         ALLOCATE(HFDet_True(NEl),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All(t_r,"Cannot allocate memory for HFDet_True")
 
-        if(tRef_Not_HF) then
-            do i = 1, NEl
-                HFDet_True(i) = BRR(i)
-            enddo
-            call sort(HFDet_True(1:NEl))
-            CALL EncodeBitDet(HFDet_True,iLutHF_True)
-        else
+        !RDM uses HFDet_True in some parts but ilutRef in others
+        !Sorry here we make them the same to avoid errors there.
+        !Let's hope that unkonwn parts of the code do not depend on HFDet_True
+
+        !if(tRef_Not_HF) then
+            !do i = 1, NEl
+                !HFDet_True(i) = BRR(i)
+            !enddo
+            !call sort(HFDet_True(1:NEl))
+            !CALL EncodeBitDet(HFDet_True,iLutHF_True)
+        !else
             iLutHF_True = iLutHF
             HFDet_True = HFDet
-        endif
+        !endif
 
         if(tHPHF) then
             allocate(RefDetFlip(NEl, inum_runs), &
@@ -1183,7 +1187,7 @@ contains
             write(iout, '("Truncating determinant space at a maximum of ",i3," &
                     &unpaired electrons.")') trunc_nopen_max
         endif
-
+        
 !        SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.0_dp)
 !        TotDets=1.0_dp
 !        do i=1,NEl
@@ -1245,6 +1249,13 @@ contains
             WRITE(iout,*) "Reading in initial particle configuration from *OLD* POPSFILES..."
             CALL ReadFromPopsFilePar()
         ELSE
+            !Scale walker number
+            !This is needed to be done here rather than later,
+            !because the arrays should be allocated with appropariate sizes
+            if(tReadPops .and. .not. tPopsAlreadyRead)then
+                InitWalkers = InitWalkers * ScaleWalkers
+            end if
+
 !initialise the particle positions - start at HF with positive sign
 !Set the maximum number of walkers allowed
             if(tReadPops .and. .not. (tPopsAlreadyRead .or. tHDF5PopsRead)) then
@@ -1513,7 +1524,14 @@ contains
         ! deterministic space, finding their processors, ordering them, inserting them into
         ! CurrentDets, calculating and storing all Hamiltonian matrix elements and initalising all
         ! arrays required to store and distribute the vectors in the deterministic space later.
-        if (tSemiStochastic) call init_semi_stochastic(ss_space_in)
+        if (tSemiStochastic) then
+           if(tDynamicCoreSpace .and. tRDMonFly) then
+              tSemiStochastic = .false.
+              semistoch_shift_iter = 1
+           else
+              call init_semi_stochastic(ss_space_in)
+           endif
+        endif
 
         ! If the number of trial states to calculate hasn't been set by the
         ! user, then simply use the minimum number
@@ -1525,6 +1543,11 @@ contains
         ! This includes generating the trial space, generating the space connected to the trial space,
         ! diagonalising the trial space to find the trial wavefunction and calculating the vector
         ! in the connected space, required for the energy estimator.
+        if (tRDMonFly .and. tDynamicCoreSpace .and. tTrialWavefunction) then
+           tTrialWavefunction = .false.
+           tStartTrialLater = .true.
+           trial_shift_iter = 1
+        endif
         if (tTrialWavefunction) then
             if (tPairedReplicas) then
                 call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs/2, .true.)
@@ -1554,6 +1577,10 @@ contains
 
         ! Set up the reference space for the adi-approach
          call setup_reference_space(tReadPops)
+
+        ! in fixed-n0, the variable shift mode and everything connected is
+        ! controlled over the reference population
+        if(tFixedN0) tSinglePartPhase = .true.
 
          if(tInitiatorsSubspace) call read_g_markers()
 
