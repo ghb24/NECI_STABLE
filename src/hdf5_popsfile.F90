@@ -1297,7 +1297,7 @@ contains
         if (any(abs(all_parts - pops_num_parts) > (pops_num_parts * 1.0e-10_dp))) then
             write(6,*) 'popsfile particles: ', pops_num_parts
             write(6,*) 'read particles: ', all_parts
-            !call stop_all(t_r, 'Incorrect particle weight read from popsfile')
+            call stop_all(t_r, 'Incorrect particle weight read from popsfile')
         end if
 
         ! Is the total norm of the wavefunction correct
@@ -1310,7 +1310,7 @@ contains
         if (any(abs(all_norm - pops_norm_sqr) > (pops_norm_sqr * 1.0e-10_dp))) then
             write(6,*) 'popsfile norm**2: ', pops_norm_sqr
             write(6,*) 'read norm**2: ', all_norm
-            !call stop_all(t_r, 'Wavefunction norm incorrect')
+            call stop_all(t_r, 'Wavefunction norm incorrect')
         end if
 
         ! If the absolute sum, and the sum of the squares is correct, we can

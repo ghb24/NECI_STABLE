@@ -602,11 +602,19 @@ contains
     end subroutine setup_dp_1d_dataset_buffer
 
     subroutine move_dp_1d_dataset_buffer(val,buf)
+      ! moves the data from buf to val, eventually truncating/expanding it
+      ! deallocates buf
       implicit none
       real(dp), allocatable, intent(inout) :: buf(:)
       real(dp), target, intent(inout) :: val(:)
       
       integer dimsVal, dimsBuf, ierr
+
+      ! if buf is unallocated, this is not going anywhere
+      if(.not. allocated(buf)) then
+         write(iout,*) "WARNING: Trying to move data from empty buffer"
+         return
+      endif
       
       ! we need to check if the buffer can be copied 1:1
       dimsVal = size(val)
@@ -624,6 +632,8 @@ contains
             val(dimsBuf+1:dimsVal) = buf(dimsBuf)
          endif
       endif
+
+      deallocate(buf)
       
     end subroutine move_dp_1d_dataset_buffer
 
