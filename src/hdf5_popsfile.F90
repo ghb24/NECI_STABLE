@@ -824,6 +824,7 @@ contains
         logical :: running, any_running
         integer(hsize_t), dimension(:,:), allocatable :: temp_ilut, temp_sgns
         integer :: temp_ilut_tag, temp_sgns_tag, rest
+        integer(int32) :: read_lenof_sign
 
         ! TODO:
         ! - Read into a relatively small buffer. Make this such that all the
@@ -853,7 +854,9 @@ contains
             call stop_all(t_r, "Mismatched bit representations")
 
         ! TODO: Deal with increasing the number of runs (e.g. for seeding RDMs)
-        call read_int32_attribute(grp_id, nm_sgn_len, tmp_lenof_sign)
+        call read_int32_attribute(grp_id, nm_sgn_len, read_lenof_sign)
+        ! as lenof_sign is of type int, do not force tmp_lenof_sign to be int32
+        tmp_lenof_sign = int(read_lenof_sign)
         
         ! these variables are for consistency-checks
         allocate(pops_norm_sqr(tmp_lenof_sign), stat = ierr)
@@ -1357,7 +1360,7 @@ contains
       ! expand/shrink the sign to the target lenof_sign
       integer(hsize_t), allocatable, intent(inout) :: tmp_sgns(:,:)
       integer(hsize_t), intent(in) :: num_signs
-      integer(int32), intent(in) :: tmp_lenof_sign, lenof_sign
+      integer, intent(in) :: tmp_lenof_sign, lenof_sign
       
       ! a temporary buffer to store the old signs while reallocating tmp_sgns
       integer(hsize_t), allocatable :: sgn_store(:,:)
@@ -1396,7 +1399,7 @@ contains
     subroutine shrink_sign(out_sgn, out_size, in_sgn, in_size)
       implicit none
       
-      integer(int32), intent(in) :: out_size, in_size
+      integer, intent(in) :: out_size, in_size
       integer(hsize_t), intent(out) :: out_sgn(out_size)
       integer(hsize_t), intent(in) :: in_sgn(in_size)
       
@@ -1409,7 +1412,7 @@ contains
     subroutine expand_sign(out_sgn, out_size, in_sgn, in_size)
       implicit none
 
-      integer(int32), intent(in) :: out_size, in_size
+      integer, intent(in) :: out_size, in_size
       integer(hsize_t), intent(out) :: out_sgn(out_size)
       integer(hsize_t), intent(in) :: in_sgn(in_size)
       
@@ -1423,7 +1426,7 @@ contains
     subroutine resize_attribute(attribute, new_size, old_size)
       ! take an array and expand/shrink it to a new size
       implicit none
-      integer(int32), intent(in) :: new_size, old_size
+      integer, intent(in) :: new_size, old_size
       real(dp), allocatable, intent(inout) :: attribute(:)
 
       real(dp), allocatable :: tmp(:)

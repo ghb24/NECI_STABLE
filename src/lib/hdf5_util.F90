@@ -55,7 +55,7 @@ module hdf5_util
         module procedure read_int64_scalar_8
     end interface
 
-    integer(int32) :: tmp_lenof_sign
+    integer :: tmp_lenof_sign
 
 contains
 
