@@ -202,7 +202,7 @@ contains
       integer(n_int) :: ref_buf(0:NIfTot,maxNRefs), si_buf(0:NIfTot,maxNRefs)
       character(*), parameter :: this_routine = "generate_ref_space"
 
-      if(NoTypeN > 1) then
+      if(NoTypeN > InitiatorWalkNo) then
          call get_threshold_based_SIs(ref_buf,refs_found)
 
          ! communicate the SIs
