@@ -2136,6 +2136,7 @@ r_loop: do while(.not.tStoreDet)
         HElement_t(dp) :: hf_helemt, hf_helemt_trans
         integer :: flg, j, k, ex_level, nopen, nI(nel), ex(2,nel)
         logical :: bWritten, is_init, is_init_tmp
+        character(12) :: format_string
 
         bWritten = .false.
 
@@ -2228,8 +2229,11 @@ r_loop: do while(.not.tStoreDet)
                   else
                      detenergy = get_helement(nI, nI, 0)
                   endif
-                  write(iunit_2, '(f20.10,a20)', advance='no') &
-                       abs(real_sgn(1)), ''
+
+                  write(format_string, '(a,i0,a)') '(', lenof_sign, 'f20.10,a2)'
+
+                  write(iunit_2, format_string, advance='no') real_sgn, ''
+
                   call writebitdet (iunit_2, det, .false.)
                   if (t_non_hermitian) then
                       write(iunit_2,'(i5,i5,3f20.10,4i5)') &

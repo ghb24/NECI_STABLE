@@ -1427,6 +1427,12 @@ contains
         integer, allocatable :: GlobalProc(:), tmp_ni(:)
         character(len=*), parameter :: t_r='PrintHighPops'
 
+        character(1024) :: header
+        character(22) :: format_string
+        character(11), allocatable :: walker_string(:)
+        character(13), allocatable :: amplitude_string(:)
+        character(9), allocatable :: init_string(:)
+
         !Allocate memory to hold highest iHighPopWrite determinants
         allocate(LargestWalkers(0:NIfTot,iHighPopWrite),stat=ierr)
         if(ierr.ne.0) call stop_all(t_r,"error allocating here")
@@ -1568,6 +1574,7 @@ contains
                     write(iout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   Proc"    
                 endif
             else
+#ifdef __CMPLX
                 if(tHPHF) then
                     write(iout,"(A)") " Excitation   ExcitLevel Seniority  Walkers(Re)   Walkers(Im)  Weight   &
                                         &Init?(Re)   Init?(Im)   Proc  Spin-Coup?"
@@ -1575,6 +1582,32 @@ contains
                     write(iout,"(A)") " Excitation   ExcitLevel Seniority   Walkers(Re)   Walkers(Im)  Weight   &
                                         &Init?(Re)   Init?(Im)   Proc"
                 endif
+#else 
+                ! output the weight of every replica, and do not only assume 
+                ! it is a complex run 
+                write(format_string, '(a,i0,a,a,i0,a)') &
+                    '(3a11,', lenof_sign, 'a11,', 'a13,', lenof_sign,'a9,a)'
+                ! Walkers(replica) Amplitude(replica) Init?(replica)
+                allocate(walker_string(lenof_sign))
+!                 allocate(amplitude_string(lenof_sign))
+                allocate(init_string(lenof_sign))
+
+                do i = 1, lenof_sign
+                    write(walker_string(i), '(a,i0,a)') "Walkers(", i, ")"
+!                     write(amplitude_string(i), '(a,i0,a)') "Amplitude(", i, ")"
+                    write(init_string(i), '(a,i0,a)') "Init?(", i, ")"
+                end do
+
+                write(header, format_string) "Excitation ", "ExcitLevel ", "Seniority ", &
+                    walker_string, "Amplitude ", init_string, "Proc "
+
+                if (tHPHF) then
+                    header = trim(header) // " Spin-Coup?"
+                end if
+
+                write(iout, '(a)') trim(header)
+
+#endif
             endif
             do i=1,counter
 !                call WriteBitEx(iout,iLutRef,GlobalLargestWalkers(:,i),.false.)
