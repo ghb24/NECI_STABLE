@@ -911,7 +911,7 @@ contains
         call check_dataset_params(ds_ilut, nm_ilut, 8_hsize_t, H5T_INTEGER_F, &
                                   [int(bit_rep_width, hsize_t), all_count])
         call check_dataset_params(ds_sgns, nm_sgns, 8_hsize_t, H5T_FLOAT_F, &
-                                  [int(lenof_sign, hsize_t), all_count])
+                                  [int(tmp_lenof_sign, hsize_t), all_count])
 
         !limit the buffer size per MPI task to 50MB or MaxSpawned entries
         block_size=50000000/(bit_rep_width*lenof_sign)/sizeof(SpawnedParts(1,1))
