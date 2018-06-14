@@ -1388,6 +1388,8 @@ contains
                 trial_space_in%tHeisenbergFCI = .true.
             case("TRIAL-BIN-SEARCH")
                 tTrialHash = .false.
+                write(iout,*) "WARNING: Disabled trial hashtable. Load balancing "//&
+                     "is not supported in this mode and might break the trial energy"
             case("TRIAL-ESTIMATE-REORDER")
                 allocate(trial_est_reorder(inum_runs))
                 trial_est_reorder = 0
