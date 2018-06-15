@@ -21,9 +21,12 @@ module unit_test_helpers
     
     use bit_rep_data, only: niftot, nifd
 
-    use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet, findbitexcitlevel
+    use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet, findbitexcitlevel, &
+                         count_open_orbs
 
     use sort_mod, only: sort
+
+    use ras, only: sort_orbitals
 
     implicit none
 
@@ -428,6 +431,41 @@ contains
         trans_H = blas_matmul(blas_matmul(matrix_exponential(-t_mat), H), matrix_exponential(t_mat))
 
     end function similarity_transform
+
+    function create_all_spin_flips(nI_in) result(spin_flips)
+        ! takes a given spin-configuration in nI representation and 
+        ! creates all possible states with flipped spin and same ms
+        integer, intent(in) :: nI_in(:)
+        integer, allocatable :: spin_flips(:,:)
+
+        integer :: nI(size(nI_in))
+        integer :: num, n_open, ms, n_states
+        integer(n_int) :: ilutI(0:niftot)
+
+        nI = nI_in
+
+        num = size(nI)
+
+        ! it is not necessary to have nI sorted at input, so do that now
+        call sort_orbitals(nI)
+
+        call EncodeBitDet(nI, ilutI)
+
+        n_open = count_open_orbs(ilutI)
+        ms = sum(get_spin_pn(nI))
+
+        ! the number of possible spin distributions:
+        n_states = int(choose(n_open, n_open/2 + ms))
+
+        allocate(spin_flips(num,n_states))
+        spin_flips = 0
+        ! the first det will be the original one
+        spin_flips(:,1) = nI
+
+        call stop_all("here", "not yet implemented!")
+
+
+    end function create_all_spin_flips
 
     function get_tranformation_matrix(hamil, n_pairs) result(t_matrix)
         ! n_pairs is actually also a global system dependent quantitiy.. 

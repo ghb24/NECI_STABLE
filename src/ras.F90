@@ -419,19 +419,19 @@ contains
 
     end subroutine generate_next_string
 
-    subroutine sort_orbitals(nI, parity)
+    subroutine sort_orbitals(nI, par_opt)
         !Sort oribtals and gives the parity of the unsorted list with respect to the sorted one.
         !Use this instead of the default sort when parity is needed.
         !The default sort has issues in calculating parity.
 
         integer, intent(inout) :: nI(1:nel)
-        integer, intent(out) :: parity
-        integer :: temp
+        integer, intent(out), optional :: par_opt
+        integer :: temp, par
         integer :: i, j
         logical :: swapped
         
         !Bubble sort
-        parity = 1
+        par = 1
         do j = nel-1, 1, -1
             swapped = .FALSE.
             do i = 1, j
@@ -440,11 +440,14 @@ contains
                     nI(i) = nI(i+1)
                     nI(i+1) = temp
                     swapped = .TRUE.
-                    parity = -1*parity
+                    par = -1*par
                 end if
             end do
           if (.not. swapped) exit
         end do
+
+        if (present(par_opt)) par_opt = par
+
     end subroutine sort_orbitals
 
     subroutine generate_entire_ras_space(ras, classes, space_size, ilut_list, parities)
@@ -462,7 +465,7 @@ contains
         integer :: string_address, block_address
         integer :: i, j, k, l, m, n, o, counter
         logical :: none_left
-        integer :: parity
+        integer :: par
 
         allocate(string_list(tot_nelec, ras%num_strings))
 
@@ -524,13 +527,13 @@ contains
                                 nI(o) = BRR(nI(o))
                             end do
 
-                            call sort_orbitals(nI, parity)
+                            call sort_orbitals(nI, par)
 
                             ! Find bitstring representation.
                             counter = counter+1
                             call EncodeBitDet(int(nI,sizeof_int), ilut_list(:,counter))
                             if(present(parities))then
-                                parities(counter) = parity
+                                parities(counter) = par
                             end if
                         end do
                     end do

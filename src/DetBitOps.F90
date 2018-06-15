@@ -706,17 +706,18 @@ module DetBitOps
     ! (nI) as a bit string (iLut(0:NIfTot)) where NIfD=INT(nBasis/32)
     ! If this is a csf, the csf is contained afterwards.
     pure subroutine EncodeBitDet(nI,iLut)
-        integer, intent(in) :: nI(nel)
+        integer, intent(in) :: nI(:)
         integer(kind=n_int), intent(out) :: iLut(0:NIfTot)
-        integer :: i, det, pos, nopen
+        integer :: i, det, pos, nopen, num_el
         logical :: open_shell
+
 
         iLut(:)=0_n_int
         if (tCSF) then
             if(iscsf (nI)) then
                 nopen = 0
                 open_shell = .false.
-                do i=1,nel
+                do i=1,size(nI)
                     ! THe first non-paired orbital has yama symbol = 1
                     if ((.not. open_shell) .and. &
                         btest(nI(i), csf_yama_bit)) open_shell = .true.
@@ -738,7 +739,7 @@ module DetBitOps
         endif
 
         !Decode determinant
-        do i=1,nel
+        do i=1,size(nI)
             pos = (nI(i) - 1) / bits_n_int
             iLut(pos)=ibset(iLut(pos),mod(nI(i)-1,bits_n_int))
         enddo
