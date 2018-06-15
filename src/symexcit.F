@@ -45,7 +45,8 @@ C.. CLASSES(iCl)%SymLab is the symmetry label (i.e. entry in SymClasses) of this
          use SystemData, only: Symmetry
          use SymData, only: SymClass,SymClasses,SymLabels
          use SymData, only: tAbelianFastExcitgen
-         use sym_mod
+         use sym_mod, only: SYMPROD, TotSymRep, SYMCONJ, SYMEQ
+         use sym_mod, only: FindSymLabel
          IMPLICIT NONE
          INTEGER nEl, nI(nEl)
          Type(BasisFN) G1(*)
@@ -144,7 +145,7 @@ C.. We list them and then sort them
          use SystemData, only: Symmetry,SymmetrySize, nel
          use SymData, only: SymClass,SymClasses,SymLabels
          use sort_mod
-         use sym_mod
+         use sym_mod, only: SymProd, symeq
          IMPLICIT NONE
          INTEGER nPr,nPairs,nCl
          TYPE(Symmetry) SymProds(0:*)
@@ -259,8 +260,8 @@ C.. The first free space is at SYMPRODIND(1,ISPN,I)+SYMPRODIND(2,ISPN,I)+1.
       Subroutine SymSetupExcits_StoreOccPairs(OrbPairs, nPairs, nPr,
      &    iMinElec1, iMaxElec1,G1,SymProdInd,SymProds,nI,nEl)
          use SystemData, only: Symmetry,BasisFN,SymmetrySize
-         use sym_mod
          use constants, only: int64
+         use sym_mod, only: symprod, BINARYSEARCHSYM, WRITESYM
          IMPLICIT NONE
          INTEGER nPairs
          INTEGER ORBPAIRS(2,nPairs)
@@ -320,7 +321,7 @@ C.. global symprods table multiplied by [] give the sym rep.
      &   SymProdInd, SymProds, nAllowPPS,iLUT)
          use SystemData, only: Symmetry,BasisFN
          use SymData, only: SymPairProds,SymStatePairs,nSymPairProds
-         use sym_mod
+         use sym_mod, only: LSYMSYM, SYMPROD, SymConj
          IMPLICIT NONE
          INTEGER nDoub
          INTEGER nExcitTypes
@@ -425,7 +426,8 @@ C     &                     ,L1B,L1A,L2B,L2A
      &            nAllowPPS) ! Calculated not enumerated
          use SymData, only: SymPairProds,nSymPairProds,SymmetrySize
          use SymData, only: Symmetry,SymLabelCounts,SymLabels,SymClass
-         use sym_mod
+         use sym_mod, only: SymConj, SymProd, FindSymLabel
+         use sym_mod, only: BINARYSEARCHSYM
          IMPLICIT NONE
          Type(Symmetry) SymProds(0:*)
          INTEGER nPr,nCl
@@ -562,7 +564,7 @@ C.. SYMPRODIND(2,ISPN,I) contains the number of such elements
      &   ThisClassCount, ClassCount,Classes)
          use SystemData, only: Symmetry
          use SymData, only: SymClass,SymLabelCounts,nSymLabels,SymLabels
-         use sym_mod
+         use sym_mod, only: LSYMSYM, SYMPROD, SymConj
          IMPLICIT NONE
          INTEGER nSing
          INTEGER nCl
@@ -728,7 +730,7 @@ C     &                  (SYMLABELCOUNTS(2,J)-CLASSCOUNT(ISPN,I))
          Use SystemData, only: Symmetry
          use SymData, only: SymClass,SymPairProds,nSymLabels,SymLabels
          use SymData, only: SymLabelCounts
-         use sym_mod
+         use sym_mod, only: SYMPROD, SymConj, LSYMSYM
          IMPLICIT NONE
          INTEGER nExcitTypes
          INTEGER nCl
@@ -788,7 +790,7 @@ C     &                        ")->",SymLabels(2,J)
      &   nAllowPPS,ExcitTypes,nExcitTypes,SymProds,SymProdInd)
          Use SystemData, only: Symmetry
          Use SymData, only: SymPairProds
-         use sym_mod
+         use sym_mod, only: LSYMSYM, SYMPROD, SymConj
          IMPLICIT NONE
          INTEGER nPr
          INTEGER nSymPairProds

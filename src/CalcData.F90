@@ -95,7 +95,7 @@ LOGICAL :: EXCITFUNCS(10),TNPDERIV,TMONTE,TMCDET
 LOGICAL :: TBETAP,CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TENPT
 LOGICAL :: TLADDER,TMC,TREADRHO,TRHOIJ,TBiasing,TMoveDets
 LOGICAL :: TBEGRAPH,STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph
-LOGICAL :: TInitStar,TNoSameExcit,TLanczos,TStarTrips
+LOGICAL :: TInitStar,TNoSameExcit,TLanczos,TStarTrips, tFCIDavidson
 LOGICAL :: TMaxExcit,TOneExcitConn,TSinglesExcitSpace,TFullDiag
 LOGICAL ::THDiag,TMCStar,TReadPops,TBinCancel,TFCIMC,TMCDets,tDirectAnnihil
 LOGICAL :: tDetermProj, tFTLM, tSpecLanc, tExactSpec, tExactDiagAllSym
@@ -106,7 +106,9 @@ LOGICAL :: TStartSinglePart,TRegenExcitgens
 LOGICAL :: TUnbiasPGeninProjE, tCheckHighestPopOnce
 LOGICAL :: tCheckHighestPop,tRestartHighPop,tChangeProjEDet
 LOGICAL :: tRotoAnnihil,tSpawnAsDet
-LOGICAL :: tTruncCAS,tTruncInitiator,tAddtoInitiator    !Truncation the FCIMC excitation space by CAS
+LOGICAL :: tTruncCAS ! Truncation of the FCIMC excitation space by a CAS
+logical :: tTruncInitiator, tAddtoInitiator, tInitCoherentRule
+logical :: tEN2, tEN2Init, tEN2Truncated, tEN2Started
 LOGICAL :: tSeniorInitiators !If a det. has lived long enough (called a senior det.), it is added to the initiator space.
 LOGICAL :: tInitIncDoubs,tWalkContGrow,tAnnihilatebyRange
 logical :: tReadPopsRestart, tReadPopsChangeRef, tInstGrowthRate
@@ -118,9 +120,16 @@ real(dp) :: RealSpawnCutoff, OccupiedThresh
 logical :: tRPA_QBA     !RPA calculation with QB approximation
 logical :: tStartCAS    !Start FCIMC dynamic with walkers distributed according to CAS diag.
 logical :: tShiftonHFPop    !Adjust shift in order to keep the population on HF constant, rather than total pop.
+
+logical :: tSpecifiedTau
+
 logical :: tFixedN0 !Fix the reference population by using projected energy as shift.
+logical :: tTrialShift !Fix the overlap with trial wavefunction by using trial energy as shift.
 logical :: tSkipRef(1:inum_runs_max) !Skip spawing onto reference det and death/birth on it. One flag for each run.
+logical :: tFixTrial(1:inum_runs_max) !Fix trial overlap by determinstically updating one det. One flag for each run.
 integer :: N0_Target !The target reference population in fixed-N0 mode
+
+real(dp) :: TrialTarget !The target for trial overlap in trial-shift mode
 ! Base hash values only on spatial orbitals
 ! --> All dets with same spatial structure on the same processor.
 logical :: tSpatialOnlyHash
@@ -146,6 +155,7 @@ real(dp) :: MaxWalkerBloom   !Max number of walkers allowed in one bloom before 
 INTEGER(int64) :: HFPopThresh
 real(dp) :: InitWalkers, maxnoathf, InitiatorWalkNo
 real(dp) :: SeniorityAge !A threshold on the life time of a determinat (measured in its halftime) to become a senior determinant.
+integer :: multiSpawnThreshold
 
 ! The average number of excitations to be performed from each walker.
 real(dp) :: AvMCExcits
@@ -212,6 +222,7 @@ logical :: tDynamicCoreSpace, tStaticCore, tIntervalSet ! update the corespace
 integer :: coreSpaceUpdateCycle, semistochStartIter
 ! Input type describing which space(s) type to use.
 type(subspace_in) :: ss_space_in
+real(dp) :: corespaceWalkers, allCorespaceWalkers
 
 ! Options regarding splitting the space into core and non-core elements. Needed, for example when performing a
 ! semi-stochastic simulation, to specify the deterministic space.
@@ -236,6 +247,13 @@ logical :: tTrialWavefunction
 ! How many excited states to calculate in the trial space, for the
 ! trial wave functions estimates
 integer :: ntrial_ex_calc = 0
+
+! if we want to choose a specific excited states as the trial wf, if we 
+! have a reasonable estimate. this must be done for all replicas if 
+! multiple are used 
+logical :: t_choose_trial_state = .false. 
+integer, allocatable :: trial_excit_choice(:)
+
 ! Input type describing which space(s) type to use.
 type(subspace_in) :: trial_space_in
 
@@ -336,6 +354,21 @@ real(dp) :: min_tau_global = 1.0e-7_dp
 ! fixed to the values obtained from the POPSFILE 
 logical :: t_keep_tau_fixed = .false.
 
+! for the transcorrelated hubbard make it possible to use input-dependent 
+! pDoubles and pParallel values 
+real(dp) :: p_doubles_input = 0.8_dp
+real(dp) :: p_parallel_input = 0.1_dp
+
+! this p_singles_input is for the hopping correlation in the real-space 
+! hubbard. so this does not sum up to 1 with the pDoubles above! 
+real(dp) :: p_singles_input = 0.9_dp 
+
+logical :: tPopsAlias = .false.
+character(255) :: aliasStem
+! new tau-search using HISTOGRAMS: 
+logical :: t_hist_tau_search = .false., t_hist_tau_search_option = .false.
+logical :: t_fill_frequency_hists = .false.
+
 ! also use a logical, read-in in the case of a continued run, which turns 
 ! off the tau-search independent of the input and uses the time-step 
 ! pSingles and pDoubles values from the previous calculation. 
@@ -346,6 +379,12 @@ logical :: t_previous_hist_tau = .false.
 ! keyword in case the tau-search is not converged enough
 logical :: t_restart_hist_tau = .false. 
 
+! use a global variable for this control: 
+logical :: t_consider_par_bias = .false.
+
+! quickly implement a control parameter to test the order of matrix element 
+! calculation in the transcorrelated approach 
+logical :: t_test_order = .false.
 ! also introduce an integer, to delay the actual changing of the time-step 
 ! for a set amount of iterations
 ! (in the restart case for now!)
@@ -454,11 +493,8 @@ real(dp), allocatable :: frequency_bounds_type2(:), frequency_bounds_type2_diff(
 ! use also an input dependent ratio cutoff for the time-step adaptation
 real(dp) :: frq_ratio_cutoff = 0.95_dp
 
-! use a flag to initiate the new tau-search option 
-logical :: t_hist_tau_search = .false.
 ! also use an additional flag to turn the new tau-search off but keep some 
 ! of its functionality anyway..
-logical :: t_hist_tau_search_option = .false.
 
 ! also keep count seperately of the old tau-search to not mix them 
 integer :: cnt_sing_hist, cnt_doub_hist, cnt_opp_hist, cnt_par_hist
@@ -469,10 +505,6 @@ integer :: cnt_type2_same, cnt_type2_diff, cnt_type3_same, cnt_type3_diff, &
            cnt_type4
 ! and also logicals if i have enough of the excitations
 logical :: enough_sing_hist, enough_doub_hist, enough_par_hist, enough_opp_hist
-
-! also use a logical to stop filling he histograms if an int overflow 
-! happened 
-logical :: t_fill_frequency_hists = .false.
 
 ! keep also track of the H_ij/pgen value at the integration threshold to 
 ! determine what we should do with the spawning events above that .. 
@@ -499,4 +531,7 @@ logical :: t_guga_mat_eles = .true.
 logical :: t_read_probs = .true.
 ! also need multiple new specific excitation type probabilites, but they are 
 ! defined in FciMCdata module! 
+! move tSpinProject here to avoid circular dependencies 
+logical :: tSpinProject
+
 end module CalcData

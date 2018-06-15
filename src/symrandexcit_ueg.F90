@@ -12,7 +12,7 @@ module ueg_excit_gens
     use sltcnd_mod, only: sltcnd_2
     use constants
     use util_mod
-    use back_spawn, only: get_ispn, is_allowed_ueg_k_vector, get_orb_from_kpoints
+    use back_spawn, only: is_allowed_ueg_k_vector, get_orb_from_kpoints, get_ispn
     implicit none
 
 contains

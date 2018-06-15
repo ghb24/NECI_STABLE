@@ -1,13 +1,15 @@
 module hphf_integrals
     use constants, only: dp,n_int,sizeof_int
     use SystemData, only: NEl, nBasisMax, G1, nBasis, Brr, tHub, ECore, &
-                          ALat, NMSH, tOddS_HPHF, modk_offdiag
+                          ALat, NMSH, tOddS_HPHF, modk_offdiag, t_lattice_model, & 
+                          t_3_body_excits
     use IntegralsData, only: UMat,FCK,NMAX
     use HPHFRandExcitMod, only: FindDetSpinSym, FindExcitBitDetSym
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel, &
                          TestClosedShellDet, CalcOpenOrbs
     use sltcnd_mod, only: sltcnd, sltcnd_excit
-    use bit_reps, only: NIfD, NIfTot, NIfDBO
+    use bit_reps, only: NIfD, NIfTot, NIfDBO, decode_bit_det
+    use lattice_mod, only: get_helement_lattice
     implicit none
 
     interface hphf_off_diag_helement
@@ -76,6 +78,7 @@ module hphf_integrals
         integer :: ExcitLevel, OpenOrbsI, OpenOrbsJ, Ex(2,2)
         HElement_t(dp) :: MatEl2
         logical :: tSign
+        integer :: temp_ex(2,2)
 
         ! Avoid warnings
         iUnused = nJ(1)
@@ -88,7 +91,15 @@ module hphf_integrals
             return
         endif
 
-        hel = sltcnd (nI, iLutnI, iLutnJ)
+        ! i need to catch if it is a lattice model here.. 
+        if (t_lattice_model) then 
+            ! here we do not deal with hermiticity but in the call to this 
+            ! function!
+            hel = get_helement_lattice(nI,nJ)
+        else
+            hel = sltcnd (nI, iLutnI, iLutnJ)
+        end if
+
         if (TestClosedShellDet(iLutnI)) then
             if(tOddS_HPHF) then
                 !For odd S states, all matrix elements to CS determinants should be 0
@@ -118,6 +129,7 @@ module hphf_integrals
                 ExcitLevel = FindBitExcitLevel(iLutnI2, ilutnJ, 2)
 
                 if (ExcitLevel.le.2) then
+                    
                     ! We need to find out whether the nJ HPHF wavefunction is 
                     ! symmetric or antisymmetric. This is dependant on the 
                     ! number of open shell orbitals and total spin of the wavefunction.
@@ -132,7 +144,17 @@ module hphf_integrals
                     Ex(1,1)=ExcitLevel
                     call GetBitExcitation(iLutnI2,iLutnJ,Ex,tSign)
 
-                    MatEl2 = sltcnd_excit (nI2, ExcitLevel, Ex, tSign)
+                    if (t_lattice_model) then 
+                        if (t_3_body_excits) call stop_all("hphf_off_diag", "todo 3 body")
+                        ! is this the correct call here? compare to the 
+                        ! orginal call below!
+!                         temp_ex(1,:) = Ex(2,:)
+!                         temp_ex(2,:) = Ex(1,:) 
+!                         MatEl2 = get_helement_lattice(nJ, ExcitLevel, temp_ex, tSign) 
+                        MatEl2 = get_helement_lattice(nI2, ExcitLevel, Ex, tSign)
+                    else
+                        MatEl2 = sltcnd_excit (nI2, ExcitLevel, Ex, tSign)
+                    end if
 
                     if(tOddS_HPHF) then
                         if (((mod(OpenOrbsI,2) == 1).and.(mod(OpenOrbsJ,2) == 1))&
@@ -174,8 +196,14 @@ module hphf_integrals
         integer(kind=n_int) :: iLutnI2(0:NIfTot)
         integer :: ExcitLevel, OpenOrbs
         HElement_t(dp) :: MatEl2
+        integer :: nJ(nel)
 
-        hel = sltcnd_excit (nI, 0)
+        if (t_lattice_model) then 
+            hel = get_helement_lattice(nI,nI)
+        else
+            hel = sltcnd_excit (nI, 0)
+        end if
+
         if (.not. TestClosedShellDet(iLutnI)) then
             ! <i|H|i> = <j|H|j>, so no need to calculate both.
             ! <X|H|X> = 1/2 [ <i|H|i> + <j|H|j> ] + <i|H|j> where i and j are
@@ -188,7 +216,15 @@ module hphf_integrals
             if (ExcitLevel.le.2) then
                 call CalcOpenOrbs (iLutnI, OpenOrbs)
 !                call FindDetSpinSym (nI, nI2, nel)
-                MatEl2 = sltcnd (nI,  iLutnI, iLutnI2)
+                if (t_lattice_model) then 
+                    call decode_bit_det(nJ, iLutnI2)
+                    ! here i am really not sure about hermiticity.. 
+                    MatEl2 = get_helement_lattice(nI,nJ)
+                    ! do i need a hermitian version of that here?
+!                     MatEl2 = get_helement_lattice(nJ, nI)
+                else
+                    MatEl2 = sltcnd (nI,  iLutnI, iLutnI2)
+                end if
 
                 if (tOddS_HPHF) then
                     if (mod(OpenOrbs,2).eq.1) then

@@ -70,6 +70,7 @@ set( SRC_FILES
     HPHFIntegrals.F90
     HPHFRandExcit.F90
     hubbard.F
+    impurity_models.F90
     init_coul2D.F
     init_coul.F
     initial_trial_states.F90
@@ -92,6 +93,7 @@ set( SRC_FILES
     Logging.F90
     Makefile
     matmul.F
+    modifiedHub.F90
     NatOrbs.F90
     NECICore.F90
     neci_intfce.F90
@@ -120,6 +122,12 @@ set( SRC_FILES
     readinput.F90
     readint.F90
     read_psi.F
+    real_time_data.F90
+    real_time.F90
+    real_time_procs.F90
+    real_time_init.F90
+    real_time_aux.F90
+    real_time_read_input.F90
     readri.F90
     replica_data.F90
     rhodiag.F
@@ -164,8 +172,10 @@ set( SRC_FILES
     vasp_init.F90
     vasp_interface.F90
     vasp_neci_interface_stub.F90
+    verlet_aux.F90
     double_occ.F90
     tau_search_hist.F90
+    real_space_hubbard.F90
     back_spawn.F90
     back_spawn_excit_gen.F90
     guga_bitRepOps.F90
@@ -177,6 +187,14 @@ set( SRC_FILES
     guga_tausearch.F90
     guga_testsuite.F90
     guga_types.F90
+    lattice_mod.F90
+    tJ_model.F90
+    k_space_hubbard.F90
+    unit_test_helpers.F90
+    lattice_models_utils.F90
+    cc_amplitudes.F90
+    cepa_shifts.F90
+    analyse_wf_symmetry.F90
 
     lib/backtrace.cpp
     lib/cons_neci.F90

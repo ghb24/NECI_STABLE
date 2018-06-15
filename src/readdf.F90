@@ -261,7 +261,7 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          use constants, only: dp
          use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn
          USE OneEInts, only : TMATind,TMAT2D,TMATSYM
-         use sym_mod
+         use sym_mod, only: TotSymRep
          implicit none
          integer nBasis,i,j
          real(dp) val,ECore
@@ -296,7 +296,7 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          use constants, only: dp
          use SystemData, only: Symmetry,BasisFN,BasisFNSize,NullBasisFn
          use SymData , only : tAbelian
-         use sym_mod
+         use sym_mod, only: TotSymRep
          implicit none
          integer nBasis,Brr(nBasis),i,j
          real(dp) Arr(nBasis,2),val

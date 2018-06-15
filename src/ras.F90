@@ -31,7 +31,7 @@ module ras
     use ras_data
     use sort_mod, only: sort
     use sym_mod, only: getsym
-    use SystemData, only: G1, nbasismax, nel, nbasis, basisfn, BRR
+    use SystemData, only: G1, nbasismax, nel, nbasis, basisfn, BRR, tHub
     use util_mod, only: find_next_comb
 
     implicit none
@@ -419,12 +419,44 @@ contains
 
     end subroutine generate_next_string
 
-    subroutine generate_entire_ras_space(ras, classes, space_size, ilut_list)
+    subroutine sort_orbitals(nI, par_opt)
+        !Sort oribtals and gives the parity of the unsorted list with respect to the sorted one.
+        !Use this instead of the default sort when parity is needed.
+        !The default sort has issues in calculating parity.
+
+        integer, intent(inout) :: nI(1:nel)
+        integer, intent(out), optional :: par_opt
+        integer :: temp, par
+        integer :: i, j
+        logical :: swapped
+        
+        !Bubble sort
+        par = 1
+        do j = nel-1, 1, -1
+            swapped = .FALSE.
+            do i = 1, j
+                if (nI(i) > nI(i+1)) then
+                    temp = nI(i)
+                    nI(i) = nI(i+1)
+                    nI(i+1) = temp
+                    swapped = .TRUE.
+                    par = -1*par
+                end if
+            end do
+          if (.not. swapped) exit
+        end do
+
+        if (present(par_opt)) par_opt = par
+
+    end subroutine sort_orbitals
+
+    subroutine generate_entire_ras_space(ras, classes, space_size, ilut_list, parities)
 
         type(ras_parameters), intent(in) :: ras
         type(ras_class_data), intent(in) :: classes(:)
         integer, intent(in) :: space_size
         integer(n_int), intent(out) :: ilut_list(0:NIfTot, space_size)
+        integer, intent(out), optional :: parities(space_size)
         integer :: nI(nel)
         integer :: string(tot_nelec)
         integer, allocatable, dimension(:,:) :: string_list
@@ -433,6 +465,7 @@ contains
         integer :: string_address, block_address
         integer :: i, j, k, l, m, n, o, counter
         logical :: none_left
+        integer :: par
 
         allocate(string_list(tot_nelec, ras%num_strings))
 
@@ -493,12 +526,15 @@ contains
                             do o = 1, nel
                                 nI(o) = BRR(nI(o))
                             end do
-                            call sort(nI)
+
+                            call sort_orbitals(nI, par)
 
                             ! Find bitstring representation.
                             counter = counter+1
                             call EncodeBitDet(int(nI,sizeof_int), ilut_list(:,counter))
-
+                            if(present(parities))then
+                                parities(counter) = par
+                            end if
                         end do
                     end do
                 end do
@@ -523,13 +559,19 @@ contains
         integer(int64) :: temp_sym
         integer :: i
 
-        temp_sym = G1(BRR(string(1)*2))%Sym%S
+        if(tHub) then
+            !Since RAS is originally developed for molucules, it cannot handle kpoint symmetries.
+            !As a quick fix, we ignore symmetry labels of the Hubbard model.
+            sym = 0
+        else
+            temp_sym = G1(BRR(string(1)*2))%Sym%S
 
-        do i = 2, size(string)
-            temp_sym = ieor(temp_sym, G1(BRR(string(i)*2))%Sym%S)
-        end do
+            do i = 2, size(string)
+                temp_sym = ieor(temp_sym, G1(BRR(string(i)*2))%Sym%S)
+            end do
 
-        sym = int(temp_sym, sizeof_int)
+            sym = int(temp_sym, sizeof_int)
+        end if
 
     end function get_abelian_sym
 

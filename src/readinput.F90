@@ -26,6 +26,7 @@ MODULE ReadInput_neci
         use Parallel_neci,   only : iProcIndex
         use default_sets
         use util_mod, only: get_free_unit
+        use real_time_read_input_module, only: real_time_read_input
 !#ifdef NAGF95
 !    !  USe doesn't get picked up by the make scripts
 !        USe f90_unix_env, ONLY: getarg,iargc
@@ -172,6 +173,10 @@ MODULE ReadInput_neci
                 tKP_FCIQMC = .true.
                 tUseProcsAsNodes = .true.
                 call kp_fciqmc_read_inp(kp)
+        
+            case ("REALTIME")
+                call real_time_read_input()
+
             case("END")
                 exit
             case default
@@ -216,7 +221,7 @@ MODULE ReadInput_neci
                             tAllRealCoeff, tUseRealCoeffs, tChangeProjEDet, &
                             tOrthogonaliseReplicas, tReadPops, tStartMP1, &
                             tStartCAS, tUniqueHFNode, tContTimeFCIMC, &
-                            tContTimeFull
+                            tContTimeFull, tSpinProject
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
@@ -233,7 +238,7 @@ MODULE ReadInput_neci
         use input_neci
         use constants
         use global_utilities
-        use spin_project, only: tSpinProject, spin_proj_nopen_max
+        use spin_project, only: spin_proj_nopen_max
         use FciMCData, only: nWalkerHashes, HashLengthFrac, InputDiagSft
         use hist_data, only: tHistSpawn
         use Parallel_neci, only: nNodes,nProcessors

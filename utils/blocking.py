@@ -14,12 +14,11 @@ import re
 import sys
 import matplotlib
 matplotlib.use('TkAgg')
-try:
-    import pylab
-    PYLAB = True
-except ImportError:
-    print "Can't import matplotlib.  Skipping graph production."
-    PYLAB = False
+# import pylab
+import matplotlib.pyplot as plt
+import numpy
+
+PYLAB = True
 
 __author__ = 'James Spencer'
 
@@ -318,27 +317,25 @@ If plotfile is given, then the graph is saved to the specifed file rather than b
             # one sub plot per data set.
             nplots = len(self.data)
             for (i, data) in enumerate(self.data):
-                pylab.subplot(nplots, 1, i+1)
+                plt.subplot(nplots, 1, i+1)
                 blocks = [stat.block_size for stat in data.stats]
                 se = [stat.se for stat in data.stats]
                 se_error = [stat.se_error for stat in data.stats]
-                pylab.semilogx(blocks, se, 'g-', basex=2, label=r'$\sigma(X_{%s})$' % (data.data_col))
-                pylab.errorbar(blocks, se, yerr=se_error, fmt="None", ecolor='g')
-                xmax = 2**pylab.ceil(pylab.log2(blocks[0]+1))
-                pylab.xlim(xmax, 1)
-                pylab.ylabel('Standard error')
-                pylab.legend(loc=2)
+                plt.semilogx(blocks, se, 'g-', basex=2, label=r'$\sigma(X_{%s})$' % (data.data_col))
+                plt.errorbar(blocks, se, yerr=se_error, fmt=None, ecolor='g')
+                xmax = 2**numpy.ceil(numpy.log2(blocks[0]+1))
+                plt.xlim(xmax, 1)
+                plt.ylabel('Standard error')
+                plt.legend(loc=2)
                 if i != nplots - 1:
                     # Don't label x axis points.
-                    ax = pylab.gca()
+                    ax = plt.gca()
                     ax.set_xticklabels([])
-            pylab.xlabel('# of blocks')
+            plt.xlabel('# of blocks')
             if plotfile:
-                pylab.savefig(plotfile)
+                plt.savefig(plotfile)
             else:
                 pylab.draw()
-#                 pylab.plot()
-#                 pylab.ion()
                 pylab.show()
 
 def parse_options(args):

@@ -82,6 +82,90 @@ module sparse_arrays
 
 contains
 
+    subroutine calculate_sparse_hamiltonian_non_hermitian(num_states, ilut_list)
+        ! same routine as below, but for non-hermitian Hamiltonians in the 
+        ! case of transcorrelation 
+        integer, intent(in) :: num_states
+        integer(n_int), intent(in) :: ilut_list(0:NIfTot, num_states)
+        integer :: i, j, counter, ierr
+        integer :: nI(nel), nJ(nel)
+        HElement_t(dp), allocatable, dimension(:) :: hamiltonian_row
+        integer, allocatable, dimension(:) :: sparse_diag_positions, sparse_row_sizes, indices
+        integer(TagIntType) :: HRTag, SRTag, SDTag, ITag
+        character(len=*), parameter :: t_r = "calculate_sparse_hamiltonian_non_hermitian"
+
+        allocate(sparse_ham(num_states))
+        allocate(SparseHamilTags(2, num_states))
+        allocate(hamiltonian_row(num_states), stat=ierr)
+        call LogMemAlloc('hamiltonian_row', num_states, 8, t_r, HRTag, ierr)
+        allocate(hamil_diag(num_states), stat=ierr)
+        call LogMemAlloc('hamil_diag', num_states, 8, t_r, HDiagTag, ierr)
+        allocate(sparse_row_sizes(num_states), stat=ierr)
+        call LogMemAlloc('sparse_row_sizes', num_states, bytes_int, t_r, SRTag, ierr)
+
+        ! Set each element to one to count the diagonal elements straight away.
+        sparse_row_sizes = 1
+
+        do i = 1, num_states
+
+            hamiltonian_row = 0.0_dp
+
+            call decode_bit_det(nI, ilut_list(:,i))
+
+            ! we have to loop over everything in case on non-hermiticity
+            do j = 1, num_states
+
+                call decode_bit_det(nJ, ilut_list(:,j))
+                if (i == j) then 
+                    if (tHPHF) then 
+                        hamiltonian_row(i) = hphf_diag_helement(nI, ilut_list(:,i))
+                    else
+                        hamiltonian_row(i) = get_helement(nI, nI, 0)
+                    end if
+                    hamil_diag(i) = hamiltonian_row(i)
+                else
+                    if (tHPHF) then 
+                        !TODO: do i need <I|H|J> or <J|H|I>?
+                        hamiltonian_row(j) = hphf_off_diag_helement(&
+                            nI, nJ, ilut_list(:,i), ilut_list(:,j))
+                    else 
+                        hamiltonian_row(j) = get_helement(&
+                            nI, nJ, ilut_list(:,i), ilut_list(:,j))
+                    end if
+                    if (abs(hamiltonian_row(j)) > EPS) then 
+                        ! i think in the non-hermitian i only need to update
+                        ! one of the counters..
+                        sparse_row_sizes(i) = sparse_row_sizes(i) + 1
+                    end if
+                end if
+            end do
+
+            call allocate_sparse_ham_row(sparse_ham, i, sparse_row_sizes(i), &
+                "sparse_ham", SparseHamilTags(:,i))
+
+            sparse_ham(i)%elements = 0.0_dp
+            sparse_ham(i)%positions = 0
+            sparse_ham(i)%num_elements = sparse_row_sizes(i)
+
+            ! now fill in the elements, all of them
+            counter = 1
+            do j = 1, num_states
+                if (abs(hamiltonian_row(j)) > EPS) then 
+                    sparse_ham(i)%positions(counter) = j 
+                    sparse_ham(i)%elements(counter) = hamiltonian_row(j)
+                    counter = counter + 1
+                end if
+            end do
+
+        end do
+
+        deallocate(hamiltonian_row, stat=ierr)
+        call LogMemDealloc(t_r, HRTag, ierr)
+        deallocate(sparse_row_sizes, stat=ierr)
+        call LogMemDealloc(t_r, SRTag, ierr)
+
+    end subroutine calculate_sparse_hamiltonian_non_hermitian
+
     subroutine calculate_sparse_hamiltonian(num_states, ilut_list)
 
         integer, intent(in) :: num_states
@@ -226,7 +310,6 @@ contains
                     counter = counter + 1
                 end if
             end do
-
         end do
 
         ! At this point, sparse_ham has been allocated with the correct sizes, but only the
@@ -280,7 +363,7 @@ contains
         num_states_tot = int(sum(num_states), sizeof_int)
         disps(0) = 0
         do i = 1, nProcessors-1
-            disps(i) = sum(num_states(:i-1))
+            disps(i) = disps(i-1) + num_states(i-1)
         end do
 
         safe_realloc_e(sparse_ham, (num_states(iProcIndex)), ierr)

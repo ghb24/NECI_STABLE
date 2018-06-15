@@ -504,7 +504,7 @@ MODULE SymExcit3
                     IF(tNoSymGenRandExcits) THEN
                         Syma=0
                     ELSE
-                        Syma=INT(G1(Orba)%Sym%S,4)
+                       Syma=INT(G1(Orba)%Sym%S,4)
                     ENDIF
                     Symb=IEOR(Syma,SymProduct)
 ! Then find the ml of b.

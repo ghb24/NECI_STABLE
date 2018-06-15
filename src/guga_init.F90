@@ -14,10 +14,9 @@ module guga_init
                           ref_stepvector, ref_b_vector_int, ref_occ_vector, &
                           ref_b_vector_real, treal, tHUB, t_guga_noreorder
     use CalcData, only: tUseRealCoeffs, tRealCoeffByExcitLevel, RealCoeffExcitThresh, &
-                t_guga_mat_eles, t_hist_tau_search
+                t_guga_mat_eles, t_hist_tau_search, tSpinProject
     use hist_data, only: tHistSpawn
     use LoggingData, only: tCalcFCIMCPsi, tPrintOrbOcc
-    use spin_project, only: tSpinProject
     use bit_rep_data, only: tUseFlags
     use guga_data, only: init_guga_data_procPtrs, orbitalIndex
     use guga_procedure_pointers, only: pickOrbitals_single, pickOrbitals_double, &

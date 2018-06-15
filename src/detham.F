@@ -1,9 +1,9 @@
       SUBROUTINE DETHAM(NDET,NEL,NMRKS, HAMIL,LAB,NROW,TCOUNT, 
      &  ICMAX,GC,TMC)
       use global_utilities
-      use constants, only: dp, n_int
+      use constants, only: dp, n_int, eps
       Use Determinants, only: get_helement
-      use SystemData , only : BasisFN, tGUGA
+      use SystemData , only : BasisFN, t_lattice_model, tGUGA
       use CalcData , only : TStar
       use bit_rep_data, only: NIfTot
       use SystemData, only: tHPHF
@@ -17,6 +17,7 @@
      &                            init_csf_information
       use guga_data, only: excitationInformation
 #endif
+      use lattice_mod, only: get_helement_lattice
       IMPLICIT NONE
       HElement_t(dp) HAMIL(*)
       INTEGER NDET,NEL
@@ -32,6 +33,7 @@
 #ifndef __CMPLX 
       type(excitationInformation) :: excitInfo
 #endif
+      integer :: ic=0
 !      LOGICAL TSTAR
 C ==-------------------------------------------------------------------==
       proc_timer%timer_name='    DETHAM'
@@ -101,7 +103,13 @@ C..   Now we need to match up any two determinants
               end if
 #endif
 
-            else
+            else if (t_lattice_model) then 
+              if (KI == KJ) then
+                totsum=get_helement_lattice(NMRKS(:,KI),NMRKS(:,KJ),ic)
+              else
+                totsum=get_helement_lattice(NMRKS(:,KI),NMRKS(:,KJ))
+              end if
+            else 
               if (KI == KJ) then
                 totsum = get_helement(NMRKS(:,KI), NMRKS(:,KJ), 0)
               else
@@ -112,7 +120,7 @@ C..   Now we need to match up any two determinants
 C            CALL SLTCND(NEL,NBASISMAX,NHG,
 C     &     FCK,NMAX,ALAT,UMAT,TOTSUM)
             IF(ABS(TOTSUM).LT.1.0e-10_dp) TOTSUM=0.0_dp
-            IF(TOTSUM.NE.0.0_dp.OR.KI.EQ.KJ) THEN
+            IF(abs(TOTSUM)>EPS .OR. (KI.EQ.KJ)) THEN
                GC=GC+1
 C..   Stores the number of non-zero elements in each row
                NROW(KI)=NROW(KI)+1

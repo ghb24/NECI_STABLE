@@ -449,7 +449,14 @@ contains
         end do
         call sort(string_j)
 
-        sym_prod = int(ieor(G1(BRR(ex(1)*2))%Sym%S, G1(BRR(ex(2)*2))%Sym%S))
+        if(tHub) then
+            !Since RAS is originally developed for molucules, it cannot handle kpoint symmetries.
+            !As a quick fix, we ignore symmetry labels of the Hubbard model.
+            sym_prod = 0
+        else
+            sym_prod = int(ieor(G1(BRR(ex(1)*2))%Sym%S, G1(BRR(ex(2)*2))%Sym%S))
+        end if
+
         sym_j = ieor(sym_j,sym_prod)
 
     end subroutine get_excit_details

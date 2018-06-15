@@ -2,11 +2,12 @@ module gen_coul_ueg_mod
     use UMatCache, only: UMatInd, GTID
     use SystemData, only: BasisFN, nel, nBasisMax, nBasis, G1, NMSH, nMax, &
                           iSpinSkip, tHub, uHub, omega, iPeriodicDampingType,&
-                          ALAT
+                          ALAT, btHub, momIndexTable, breathingCont, tmodHub
     use IntegralsData, only: UMat, FCK
     use global_utilities
     use constants, only: sp, dp, pi, pi2, THIRD
     use iso_c_hack
+    use breathing_Hub, only: bHubIndexFunction
     implicit none
 
 contains
@@ -326,8 +327,10 @@ contains
  
     function get_hub_umat_el (i, j, k, l) result(hel)
         use sym_mod, only: roundsym, addelecsym, setupsym, lchksym
-        integer, intent(in) :: i, j, k, l
+        use constants, only: pi
+        use SystemData, only: breathingCont
         HElement_t(dp) :: hel
+        integer, intent(in) :: i, j, k, l
         type(BasisFn) :: ka, kb
 
         call SetupSym (ka)
@@ -338,13 +341,16 @@ contains
         call AddElecSym (j*2, G1, nBasisMax, kb)
         call RoundSym (ka, nBasisMax)
         call RoundSym (kb, nBasisMax)
+
         if (lChkSym (ka, kb)) then
-            hel = UMat (1)
+            hel = UMat (1) 
+            if(tmodHub) hel = hel - breathingCont(bHubIndexFunction(i,j,k,l))
         else
             hel = 0.0_dp
         endif
     end function
 
+      
     function get_ueg_umat_el (idi, idj, idk, idl) result(hel)
 
         use SystemData, only: tUEG2, kvec, k_lattice_constant, dimen

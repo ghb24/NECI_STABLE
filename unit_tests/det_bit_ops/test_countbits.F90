@@ -47,11 +47,12 @@ contains
     subroutine test_countbits_fn(proc, subname)
         ! This calls each of the relevant tests on the supplied function
         procedure(count_bits_t), pointer :: proc
-        character(*), intent(in) :: subname
-        TESTs1(test_zero_bits, subname, proc)
-        TESTs1(test_max_bits, subname, proc)
-        TESTs1(test_nlast_restriction, subname, proc)
-        TESTs1(test_max_bits2, subname, proc)
+
+        TEST1(test_zero_bits, proc)
+        TEST1(test_max_bits, proc)
+        TEST1(test_nlast_restriction, proc)
+        TEST1(test_max_bits2, proc)
+
     end subroutine
 
     subroutine test_zero_bits(proc)

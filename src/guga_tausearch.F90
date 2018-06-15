@@ -229,6 +229,7 @@ contains
         ! here.. 
 
         if (t_hist_tau_search) return
+
         guga_type = ex(1,1)
         same_ind = ex(1,2)
 

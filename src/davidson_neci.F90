@@ -22,7 +22,8 @@ module davidson_neci
         initHamiltonianCalc, &
         multiply_hamil_and_vector, &
         direct_ci_inp, &
-        direct_ci_out
+        direct_ci_out, &
+        tCalcHFIndex
 
     implicit none
 
@@ -157,7 +158,9 @@ module davidson_neci
         end if
 
         if (iprocindex == root) then
-            hfindex = maxloc((-hamil_diag),1)
+            if(tCalcHFIndex)then
+                hfindex = maxloc((-hamil_diag),1)
+            end if
             ! the memory required to allocate each of basis_vectors and
             ! multipied_basis_vectors, in mb.
             mem_reqd = (max_num_davidson_iters*space_size*8)/1000000
@@ -334,7 +337,7 @@ module davidson_neci
         if (iProcIndex == root) then
             ! Multiply the new basis_vector by the hamiltonian and store the result in
             ! multiplied_basis_vectors.
-            call multiply_hamil_and_vector(this%super, real(this%super%basis_vectors(:,basis_index), dp), &
+            call multiply_hamil_and_vector(this%super, real(this%super%basis_vectors(:,basis_index),dp), &
                 this%multiplied_basis_vectors(:,basis_index))
 
             ! Now multiply U^T by (H U) to find projected_hamil. The projected Hamiltonian will

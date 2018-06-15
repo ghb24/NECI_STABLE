@@ -4,23 +4,49 @@ module Integrals_neci
     use SystemData, only: tStoreSpinOrbs, nBasisMax, iSpinSkip, &
                           tFixLz, nBasis, G1, Symmetry, tCacheFCIDUMPInts, &
                           tRIIntegrals, tVASP,tComplexOrbs_RealInts, NEl, LMS,&
-                          ECore, tGUGA
+                          ECore, tGUGA, t_new_real_space_hubbard, t_trans_corr_hop
+
     use UmatCache, only: tUmat2D, UMatInd, UMatConj, umat2d, tTransFIndx, nHits, &
                          nMisses, GetCachedUMatEl, HasKPoints, TransTable, &
                          nTypes, gen2CPMDInts, tDFInts
+
     use util_mod, only: get_nan
+
     use vasp_neci_interface
+
     use IntegralsData
+
     use shared_memory_mpi
+
     use global_utilities
+
     use gen_coul_ueg_mod, only: gen_coul_hubnpbc, get_ueg_umat_el, &
                                 get_hub_umat_el
+
     use HElem, only: HElement_t_size, HElement_t_sizeB
+
     use Parallel_neci, only: iProcIndex
+
     use bit_reps, only: init_bit_rep
+
     use procedure_pointers, only: get_umat_el, get_umat_el_secondary
+
     use constants
 
+    use tJ_model, only: t_tJ_model, t_heisenberg_model
+
+    use sym_mod, only: symProd, symConj, totsymrep
+
+    USE OneEInts, only : TMAT2D
+
+    use util_mod, only: get_free_unit
+
+    use SymData, only: Symmetry
+
+    use sym_mod, only: symProd, symConj, lSymSym, TotSymRep
+
+    use real_space_hubbard, only: init_umat_rs_hub_transcorr, & 
+                                  init_hopping_transcorr
 
     implicit none
 
@@ -359,6 +385,7 @@ contains
       use SystemData, only: Omega,tAlpha,TBIN,tCPMD,tDFread,THFORDER,tRIIntegrals
       use SystemData, only: thub,tpbc,treadint,ttilt,TUEG,tVASP, tPickVirtUniform
       use SystemData, only: uhub, arr,alat,treal,tCacheFCIDUMPInts, tReltvy
+      use SystemData, only: t_new_real_space_hubbard, t_new_hubbard, t_k_space_hubbard
       use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
       use LoggingData, only:tCalcPropEst, iNumPropToEst, EstPropFile
       use Parallel_neci, only : iProcIndex,MPIBcast
@@ -366,6 +393,9 @@ contains
       use sym_mod, only: GenSymStatePairs
       use read_fci
       use LoggingData, only: t_umat_output
+      use real_space_hubbard, only: init_tmat
+      use k_space_hubbard, only: init_tmat_kspace
+      use lattice_mod, only: lat
       INTEGER iCacheFlag
       complex(dp),ALLOCATABLE :: ZIA(:)
       INTEGER(TagIntType),SAVE :: tagZIA=0
@@ -522,17 +552,31 @@ contains
                IF(THUB.AND.TREAL) THEN
     !!C.. Real space hubbard
     !!C.. we pre-compute the 2-e integrals
-    ! i am not sure if we really need to precompute the 2 e integrals..
-    ! they are anyways the same all the time.. hm.
-                  WRITE(6,*) "Generating 2e integrals"
-    !!C.. Generate the 2e integrals (UMAT)
-                  CALL GetUMatSize(nBasis,nEl,UMATINT)
-                  call shared_allocate_mpi (umat_win, umat, (/UMatInt/))
-                  !Allocate(UMat(UMatInt), stat=ierr)
-                  LogAlloc(ierr, 'UMat', int(UMatInt),HElement_t_SizeB, tagUMat)
-                  UMat = 0.0_dp
-                  WRITE(6,*) "Size of UMat is: ",UMATINT
-                  CALL CALCUMATHUBREAL(NBASIS,UHUB,UMAT)
+                  if ((t_new_real_space_hubbard .and. .not. t_trans_corr_hop) & 
+                      .or. t_tJ_model .or. t_heisenberg_model) then 
+                     WRITE(6,*) "Not precomputing HUBBARD 2-e integrals"
+                     UMatInt = 1_int64
+                     call shared_allocate_mpi (umat_win, umat, (/UMatInt/))
+!                      call shared_allocate ("umat", umat, (/1_int64/))
+                     !Allocate(UMat(1), stat=ierr)
+                     LogAlloc(ierr, 'UMat', 1,HElement_t_SizeB, tagUMat)
+                     UMAT(1)=UHUB
+                 else if (t_new_real_space_hubbard .and. t_trans_corr_hop) then 
+
+                     call init_hopping_transcorr()
+                     call init_umat_rs_hub_transcorr()
+                 else
+                      WRITE(6,*) "Generating 2e integrals"
+        !!C.. Generate the 2e integrals (UMAT)
+                      CALL GetUMatSize(nBasis,nEl,UMATINT)
+                      call shared_allocate_mpi (umat_win, umat, (/UMatInt/))
+!                       call shared_allocate ("umat", umat, (/UMatInt/))
+                      !Allocate(UMat(UMatInt), stat=ierr)
+                      LogAlloc(ierr, 'UMat', int(UMatInt),HElement_t_SizeB, tagUMat)
+                      UMat = 0.0_dp
+                      WRITE(6,*) "Size of UMat is: ",UMATINT
+                      CALL CALCUMATHUBREAL(NBASIS,UHUB,UMAT)
+                  end if
                ELSEIF(THUB.AND..NOT.TPBC) THEN
     !!C.. we pre-compute the 2-e integrals
                   WRITE(6,*) "Generating 2e integrals"
@@ -603,7 +647,17 @@ contains
          !CALL N_MEMORY(IP_TMAT,HElement_t_size*nBasis*nBasis,'TMAT')
          !TMAT=(0.0_dp)
          IF(THUB) THEN
-            CALL CALCTMATHUB(NBASIS,NBASISMAX,BHUB,TTILT,G1,TREAL,TPBC)
+             if (t_new_hubbard) then 
+                 if (t_k_space_hubbard) then 
+                     ! also change here to the new k-space implementation
+                     call init_tmat_kspace(lat)
+
+                 else if (t_new_real_space_hubbard) then 
+                     call init_tmat(lat) 
+                 end if
+             else 
+                 CALL CALCTMATHUB(NBASIS,NBASISMAX,BHUB,TTILT,G1,TREAL,TPBC)
+             end if
          ELSE
     !!C..Cube multiplier
              CST=PI*PI/(2.0_dp*ALAT(1)*ALAT(1))
@@ -645,7 +699,6 @@ contains
 
     ! Setup the umatel pointers as well
     call init_getumatel_fn_pointers ()
-
 
     End Subroutine IntInit
         
@@ -813,13 +866,16 @@ contains
     SUBROUTINE IntFREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE,           &
    &         G1,NBASISMAX,ISS,BRR,NFROZEN,NTFROZEN,NFROZENIN,NTFROZENIN,NEL)
        use SystemData, only: Symmetry, BasisFN, arr, tagarr
-       use OneEInts
+       use OneEInts, only: GetPropIntEl, GetTMATEl, TMATSYM2, TMAT2D2, PropCore, &
+                           OneEPropInts2, OneEPropInts, tOneElecDiag, NewTMatInd, &
+                           GetNEWTMATEl, tCPMDSymTMat, SetupTMAT2, SWAPTMAT, & 
+                           SwapOneEPropInts, SetupPropInts2
        USE UMatCache, only: FreezeTransfer,UMatCacheData,UMatInd,TUMat2D
        Use UMatCache, only: FreezeUMatCache, CreateInvBrr2,FreezeUMat2D, SetupUMatTransTable
        use LoggingData, only:tCalcPropEst, iNumPropToEst
        use UMatCache, only: GTID
        use global_utilities
-       use sym_mod
+       use sym_mod, only: getsym, SetupFREEZEALLSYM, FREEZESYMLABELS
        use util_mod, only: NECI_ICOPY
 
        IMPLICIT NONE
@@ -1445,6 +1501,9 @@ contains
 
     subroutine init_getumatel_fn_pointers ()
 
+        use SystemData, only: t_k_space_hubbard
+        use k_space_hubbard, only: get_umat_kspace
+
         integer :: iss
 
         if (nBasisMax(1,3) >= 0) then
@@ -1473,7 +1532,12 @@ contains
                 endif
             else if (iss == -1) then
                 ! Non-stored hubbard integral
-                get_umat_el => get_hub_umat_el
+                if (t_k_space_hubbard) then 
+                    get_umat_el => get_umat_kspace
+                else
+                    get_umat_el => get_hub_umat_el
+                end if
+
             else
                 write (6, '(" Setting normal GetUMatEl routine")')
                 get_umat_el => get_umat_el_normal
@@ -1583,8 +1647,7 @@ contains
         ! used locally (even though it's in the module-level use statement) in
         ! order to avoid an internal gfortran segfault when compiling the
         ! TotSymRep call.  Weird!
-        use SymData, only: Symmetry
-        use sym_mod, only: symProd, symConj, lSymSym, TotSymRep
+        use SystemData, only: G1
 
         integer, intent(in) :: idi, idj, idk, idl
         integer :: i, j, k, l, a, b
@@ -1737,6 +1800,7 @@ contains
         ! In:
         !    i,j,k,l: spin-orbital indices.
         
+        use SystemData, only: G1
         integer, intent(in) :: i, j, k, l
         HElement_t(dp) :: hel
         type(Symmetry) :: SymX,SymY,SymX_C,symtot,sym_sym
@@ -1781,7 +1845,7 @@ contains
     end function
 
     function get_umat_el_comporb_notspinorbs (i, j, k, l) result(hel)
-        use sym_mod, only: symProd, symConj, totsymrep
+        use SystemData, only: G1
 
         ! Obtains the Coulomb integral <ij|kl>.
 
@@ -1844,6 +1908,7 @@ contains
         ! In:
         !    i,j,k,l: spin-orbital indices.
         
+        use SystemData, only: G1
         integer, intent(in) :: i, j, k, l
         HElement_t(dp) :: hel
 
@@ -1872,6 +1937,7 @@ contains
         ! In:
         !    i,j,k,l: spatial orbital indices.
 
+        use SystemData, only: G1
         integer, intent(in) :: i, j, k, l
         HElement_t(dp) :: hel
 
@@ -1934,8 +2000,7 @@ contains
     END subroutine writesymclasses
 
     subroutine DumpFCIDUMP()
-        USE OneEInts, only : TMAT2D
-        use util_mod, only: get_free_unit
+        use SystemData, only: G1, nBasis, nel
         implicit none
         integer :: i,j,k,l,iunit
         character(len=*), parameter :: t_r='DumpFCIDUMP'

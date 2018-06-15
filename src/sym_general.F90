@@ -3,11 +3,21 @@
 module sym_general_mod
 
     use SystemData, only: tFixLz, tNoSymGenRandExcits, iMaxLz, G1, nel, &
-                          Symmetry, tKpntSym, tReltvy
+                          Symmetry, tKpntSym, tReltvy, t_new_real_space_hubbard, & 
+                          t_tJ_model, t_heisenberg_model, nbasis, t_k_space_hubbard, &
+                          t_trans_corr_hop
+
     use SymExcitDataMod
+
     use Symdata, only: nSymLabels
+
     use sym_mod, only: SYMPROD, RandExcitSymLabelProd, symeq
+
     use constants
+
+    use DetBitOps, only: Encodebitdet, count_open_orbs
+
+    use bit_rep_data, only: niftot, nifd
 
     implicit none
 
@@ -250,6 +260,7 @@ contains
         integer :: exLevel, ms1, ms2, ml1, ml2, i
         integer :: sym_prod_i, sym_prod_j
         type(Symmetry) :: sym_prod1, sym_prod2
+        integer(n_int) :: ilut(0:niftot)
 
         logical :: IsValidDet ! In .F file.
         integer :: iGetExcitLevel ! In .F file
@@ -269,28 +280,69 @@ contains
         ! Check that both determinants have the same overall symmetry
         sym_prod_i = 0
         sym_prod_j = 0
-        do i = 1, nel
-            sym_prod_i = RandExcitSymLabelProd(SymInvLabel(SpinOrbSymLabel(nI(i))), sym_prod_i)
-            sym_prod_j = RandExcitSymLabelProd(SymInvLabel(SpinOrbSymLabel(nJ(i))), sym_prod_j)
-        end do
+
+        if (t_k_space_hubbard) then 
+            sym_prod1 = G1(nI(1))%Sym
+            sym_prod2 = G1(nJ(1))%Sym
+            do i = 2, nel 
+                sym_prod1 = SYMPROD(G1(nI(i))%Sym, sym_prod1)
+                sym_prod2 = SYMPROD(G1(nJ(i))%Sym, sym_prod2) 
+            end do
+
+            if (.not. SYMEQ(sym_prod1, sym_prod2)) bValid = .false.
+        else 
+            !todo: maybe i also have to exclude the k-space hubbard case here!
+            if (.not. (t_new_real_space_hubbard .or.t_tJ_model .or. t_heisenberg_model)) then 
+                do i = 1, nel
+                    sym_prod_i = RandExcitSymLabelProd(SymInvLabel(SpinOrbSymLabel(nI(i))), sym_prod_i)
+                    sym_prod_j = RandExcitSymLabelProd(SymInvLabel(SpinOrbSymLabel(nJ(i))), sym_prod_j)
+                end do
+            end if
+        end if
+
         if (sym_prod_i /= sym_prod_j) &
             bValid = .false.
 
-        ! Check the symmetry properties of the excitation matrix
-        if (.not. tNoSymGenRandExcits .and. .not. tKPntSym) then
-            if (ic == 2) then
-                sym_prod1 = SYMPROD(G1(ex(1,1))%Sym, G1(ex(1,2))%Sym)
-                sym_prod2 = SYMPROD(G1(ex(2,1))%Sym, G1(ex(2,2))%Sym)
-                ms1 = G1(ex(1,1))%ms + G1(ex(1,2))%ms
-                ms2 = G1(ex(2,1))%ms + G1(ex(2,2))%ms
-            else
-                sym_prod1 = G1(ex(1,1))%Sym
-                sym_prod2 = G1(ex(2,1))%Sym
-                ms1 = G1(ex(1,1))%ms
-                ms2 = G1(ex(2,1))%ms
+        if (.not. (t_new_real_space_hubbard .or.t_tJ_model .or. t_heisenberg_model)) then 
+            ! Check the symmetry properties of the excitation matrix
+            if (.not. tNoSymGenRandExcits .and. .not. tKPntSym) then
+                if (ic == 2) then
+                    sym_prod1 = SYMPROD(G1(ex(1,1))%Sym, G1(ex(1,2))%Sym)
+                    sym_prod2 = SYMPROD(G1(ex(2,1))%Sym, G1(ex(2,2))%Sym)
+                    ms1 = G1(ex(1,1))%ms + G1(ex(1,2))%ms
+                    ms2 = G1(ex(2,1))%ms + G1(ex(2,2))%ms
+                else
+                    sym_prod1 = G1(ex(1,1))%Sym
+                    sym_prod2 = G1(ex(2,1))%Sym
+                    ms1 = G1(ex(1,1))%ms
+                    ms2 = G1(ex(2,1))%ms
+                end if
+                if (.not. SYMEQ(sym_prod1, sym_prod2)) bValid = .false.
+                if (ms1 /= ms2 .and.(.not.tReltvy)) bValid = .false.
             end if
-            if (.not. SYMEQ(sym_prod1, sym_prod2)) bValid = .false.
-            if (ms1 /= ms2 .and.(.not.tReltvy)) bValid = .false.
+        end if
+        ! should i do extra tests for heisenberg and tJ? i think so 
+        if (t_new_real_space_hubbard) then 
+            if (t_trans_corr_hop) then 
+                if (.not. (ic == 1 .or. ic == 2)) bValid = .false.
+            else
+                if (ic /= 1) bValid = .false. 
+            end if
+        end if
+
+        if (t_tJ_model) then 
+            if (nel >= nbasis/2) bValid = .false.
+
+            call Encodebitdet(nJ, ilut)
+            ! check if we have doubly occupied orbitals:
+            if ((nel - count_open_orbs(ilut(0:nifd)))/2 > 0) bValid = .false.
+        end if 
+
+        if (t_heisenberg_model) then 
+            if (ic /= 2) bValid = .false. 
+            call Encodebitdet(nJ, ilut) 
+            if (count_open_orbs(ilut) /= nbasis/2) bValid = .false. 
+            if ((nel - count_open_orbs(ilut(0:nifd)))/2 > 0) bValid = .false.
         end if
 
         ! Check that Lz angular momentum projection is preserved if necessary

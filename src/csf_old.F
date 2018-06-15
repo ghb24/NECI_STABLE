@@ -257,7 +257,7 @@ C.. test if NCI is a CSF
      &  G1,ISYM,NI)
          use SystemData, only: BasisFN,BasisFNSize
          use legacy_data, only: CSF_NBSTART
-         use sym_mod
+         use sym_mod, only: getsym, LCHKSYM
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NBASIS,NBASISMAX(*)
@@ -432,7 +432,7 @@ C..    Otherwise all will.
          use SystemData, only: BasisFN,BasisFNSize
          use legacy_data, only: CSF_NBSTART
          use sort_mod
-         use sym_mod
+         use sym_mod, only: getsym, LCHKSYM
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NBASIS,BRR(NBASIS),NBASISMAX(*)

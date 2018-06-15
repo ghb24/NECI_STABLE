@@ -21,7 +21,9 @@ module fcimc_output
                         frequency_bins_anti, frequency_bins_doubles, & 
                         frequency_bins_type2, frequency_bins_type3, & 
                         frequency_bins_type4, frequency_bins_type2_diff, &
-                        frequency_bins_type3_diff, n_frequency_bins
+                        frequency_bins_type3_diff, n_frequency_bins, &
+                        tEN2, tSemiStochastic, allCorespaceWalkers
+
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
     use IntegralsData, only: frozen_orb_list, frozen_orb_reverse_map, &
@@ -35,6 +37,7 @@ module fcimc_output
     use Determinants, only: write_det
     use adi_data, only: AllCoherentDoubles, AllIncoherentDets, nRefs, &
          ilutRefAdi, tAdiActive, nConnection, AllConnection
+    use rdm_data, only: en_pert_main
     use Parallel_neci
     use FciMCData
     use constants
@@ -42,6 +45,12 @@ module fcimc_output
     use util_mod
     use tau_search, only: comm_frequency_histogram, comm_frequency_histogram_spec
 
+    use real_time_data, only: AllNoBorn_1, AllNoAborted_1, AllAnnihilated_1, &
+                              AllNoDied_1, AllTotWalkers_1, nspawned_tot_1,  gf_count, &
+                              AllTotParts_1, AccRat_1, AllGrowRate_1, normsize, snapShotOrbs, &
+                              current_overlap, t_real_time_fciqmc, elapsedRealTime, &
+                              elapsedImagTime, overlap_real, overlap_imag, dyn_norm_psi,&
+                              dyn_norm_red, real_time_info, allPopSnapshot, numSnapshotOrbs
     implicit none
 
 contains
@@ -475,19 +484,19 @@ contains
         else
             filename = 'fciqmc_stats'
         end if
-        
 
-        if (tReadPops) then
+
+        if (tReadPops .and. .not. t_real_time_fciqmc) then
 
             ! If we are reading from a POPSFILE, then we want to continue an
             ! existing fciqmc_stats file if it exists.
             open(funit, file=filename, status='unknown', position='append')
-
         else
 
             ! If we are doing a normal calculation, move existing fciqmc_stats
             ! files so that they are not overwritten, and then create a new one
             inquire(file=filename, exist=exists)
+
             if (exists) then
 
                 ! Loop until we find an available spot to move the existing
@@ -513,8 +522,65 @@ contains
 
         end if
 
-    end subroutine
+    end subroutine open_create_fciqmc_stats
 
+    subroutine open_create_initiator_stats(funit)
+
+        integer, intent(in) :: funit
+        character(*), parameter :: t_r = 'open_create_initiator_stats'
+
+        character(30) :: filename
+        character(43) :: filename2
+        character(12) :: num
+        integer :: i, ierr
+        logical :: exists
+
+        ! If we are using Molpro, then append the molpro ID to uniquely
+        ! identify the output
+        if (tMolpro .and. .not. tMolproMimic) then
+            filename = 'initiator_stats_' // adjustl(MolproID)
+        else
+            filename = 'initiator_stats'
+        end if
+
+
+        if (tReadPops) then
+
+            ! If we are reading from a POPSFILE, then we want to continue an
+            ! existing initiator_stats file if it exists.
+            open(funit, file=filename, status='unknown', position='append')
+
+        else
+
+            ! If we are doing a normal calculation, move existing initiator_stats
+            ! files so that they are not overwritten, and then create a new one
+            inquire(file=filename, exist=exists)
+            if (exists) then
+
+                ! Loop until we find an available spot to move the existing
+                ! file to.
+                i = 1
+                do while(exists)
+                    write(num, '(i12)') i
+                    filename2 = trim(adjustl(filename)) // "." // &
+                                trim(adjustl(num))
+                    inquire(file=filename2, exist=exists)
+                    if (i > 10000) &
+                        call stop_all(t_r, 'Error finding free initiator_stats.*')
+                    i = i + 1
+                end do
+
+                ! Move the file
+                call rename(filename, filename2)
+
+            end if
+
+            ! And finally open the file
+            open(funit, file=filename, status='unknown', iostat=ierr)
+
+        end if
+
+    end subroutine open_create_initiator_stats
 
 
     subroutine write_fcimcstats2(iter_data, initial)
@@ -530,22 +596,32 @@ contains
 
         ! Use a state type to keep things compact and tidy below.
         type(write_state_t), save :: state
+        type(write_state_t), save :: state_i
         logical, save :: inited = .false.
-        character(5) :: tmpc, tmpc2
-        integer :: p, q
+        character(5) :: tmpc, tmpc2, tmgf
+        integer :: p, q, iGf, run
         logical :: init
+        real(dp) :: l1_norm
 
         ! Provide default 'initial' option
         if (present(initial)) then
             state%init = initial
+            if (tTruncInitiator) state_i%init = initial
         else
             state%init = .false.
+            if (tTruncInitiator) state_i%init = .false.
         end if
 
         ! If the output file hasn't been opened yet, then create it.
         if (iProcIndex == Root .and. .not. inited) then
             state%funit = get_free_unit()
             call open_create_fciqmc_stats(state%funit)
+            ! For the initiator stats file here:
+            if (tTruncInitiator) then
+              state_i%funit = get_free_unit()
+              call open_create_initiator_stats(state_i%funit)
+            end if
+
             inited = .true.
         end if
 
@@ -559,52 +635,93 @@ contains
             ! Only do the actual outputting on the head node.
 
             ! Don't treat the header line as data. Add padding to align the
-            ! other columns. We also add a # to the first line of data, so
-            ! that there aren't repeats if starting from POPSFILES
-            if (state%init .or. state%prepend) then
-                write(state%funit, '("#")', advance='no')
-                if (tMCOutput) write(iout, '("#")', advance='no')
-                state%prepend = state%init
-            else if (.not. state%prepend) then
-                write(state%funit, '(" ")', advance='no')
-                if (tMCOutput) write(iout, '(" ")', advance='no')
-            end if
+            ! other columns. We do not add a # to the first line of data 
+            ! since we also need that datapoint for Green's functions
+           if (state%init) then
+              write(state%funit, '("#")', advance='no')
+              if (tMCOutput) write(iout, '(" ")', advance='no')
+           else
+              write(state%funit, '(" ")', advance='no')
+              if (tMCOutput) write(iout, '(" ")', advance='no')
+           end if
 
             ! And output the actual data!
             state%cols = 0
             state%cols_mc = 0
             state%mc_out = tMCOutput
+
+#ifdef __REALTIME
+            l1_norm = 0.0
+            do run = 1, inum_runs
+               l1_norm = l1_norm + abs(cmplx(AllTotParts(min_part_type(run)), &
+                    AllTotParts(max_part_type(run))))
+            end do
+#endif            
             call stats_out(state,.true., iter + PreviousCycles, 'Iter.')
             if (.not. tOrthogonaliseReplicas) then
-                call stats_out(state,.true., sum(abs(AllTotParts)), 'Tot. parts')
-                call stats_out(state,.true., sum(abs(AllNoatHF)), 'Tot. ref')
-#ifdef __CMPLX
-                call stats_out(state,.true., real(proje_iter_tot), 'Re Proj. E')
-                call stats_out(state,.true., aimag(proje_iter_tot), 'Im Proj. E')
+               ! note that due to the averaging, the printed value is not necessarily
+               ! an integer
+                call stats_out(state,.true., sum(abs(AllTotParts))/inum_runs, &
+                     'Tot. parts real')
+#ifdef __REALTIME 
+                call stats_out(state,.true., real_time_info%time_angle,'Time rot. angle')
+                call stats_out(state,.false., l1_norm/inum_runs ,'L1 Norm')
 #else
-                call stats_out(state,.true., proje_iter_tot, 'Proj. E (cyc)')
+                call stats_out(state,.true., sum(abs(AllNoatHF))/inum_runs, 'Tot. ref')
 #endif
-                call stats_out(state,.true., sum(DiagSft / inum_runs), 'Shift. (cyc)')
-                call stats_out(state,.false., sum(AllNoBorn), 'No. born')
-                call stats_out(state,.false., sum(AllNoDied), 'No. died')
+#ifndef __REALTIME
+#ifdef __CMPLX
+                call stats_out(state,.false., real(proje_iter_tot), 'Re Proj. E')
+                call stats_out(state,.false., aimag(proje_iter_tot), 'Im Proj. E')
+#ifndef __CMPLX
+                call stats_out(state,.false., proje_iter_tot, 'Proj. E (cyc)')
+#endif
+#endif
+#endif
+                call stats_out(state,.true., sum(DiagSft)/inum_runs, 'Shift. (cyc)')
+#ifdef __REALTIME
+                call stats_out(state, .true., real(sum(dyn_norm_psi))/normsize, '|psi|^2')
+#endif
+                if(.not. tSemiStochastic) then
+                   call stats_out(state,.false., sum(AllNoBorn), 'No. born')
+                else
+                   call stats_out(state,.false., allCorespaceWalkers/inum_runs, &
+                        'Walkers in corespace')
+                endif
+                call stats_out(state,.false., sum(AllNoInitDets), 'No. Inits')
+#ifdef __REALTIME
+                call stats_out(state,.false., TotImagTime, 'Elapsed complex time')
+                call stats_out(state,.false., real_time_info%damping, 'eta')
+                call stats_out(state,.false., IterTime, 'Iter. time')
+#else
                 call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')
-!!            call stats_out(state,.false., AllGrowRate(1), 'Growth fac.')
-!!            call stats_out(state,.false., AccRat(1), 'Acc. rate')
+                call stats_out(state,.false., sum(AllSumWalkersCyc), 'SumWalkersCyc')
+                call stats_out(state,.false., sum(AllNoAborted), 'No aborted')
+#endif
 #ifdef __CMPLX
                 call stats_out(state,.true., real(proje_iter_tot) + Hii, &
                                'Tot. Proj. E')
-                call stats_out(state,.true., aimag(proje_iter_tot) + Hii, &
-                               'Tot. Proj. E')
+                !call stats_out(state,.true., aimag(proje_iter_tot) + Hii, &
+                 !              'Im. Tot. Proj. E')
+                call stats_out(state,.false.,allDoubleSpawns,'Double spawns')
 #else
                 call stats_out(state,.true., proje_iter_tot + Hii, &
                                'Tot. Proj. E')
 #endif
             end if
-            call stats_out(state,.true., AllTotWalkers, 'Dets occ.')
-            call stats_out(state,.true., nspawned_tot, 'Dets spawned')
-
-            call stats_out(state,.true., IterTime, 'Iter. time')
-            call stats_out(state,.false., TotImagTime, 'Im. time')
+            call stats_out(state,.false., AllTotWalkers, 'Dets occ.')
+            call stats_out(state,.false., nspawned_tot, 'Dets spawned')
+#ifdef __REALTIME
+            call stats_out(state,.false., real(sum(dyn_norm_red(:,1))/normsize),'GF normalization')
+#else
+            call stats_out(state,.false., IterTime, 'Iter. time')
+#endif
+#ifdef __REALTIME 
+            call stats_out(state, .true., elapsedRealTime, 'Re. time')
+            call stats_out(state, .true., elapsedImagTime, 'Im. time')
+#else
+            call stats_out(state,.true., TotImagTime, 'Im. time')
+#endif
 
             ! Put the conditional columns at the end, so that the column
             ! numbers of the data are as stable as reasonably possible (for
@@ -612,84 +729,113 @@ contains
             ! frequently).
             ! This also makes column contiguity on resumes as likely as
             ! possible.
-            if (tTruncInitiator) &
-                call stats_out(state,.false., AllNoAborted(1), 'No. aborted')
+        if(t_real_time_fciqmc .or. tLogGreensfunction) then
+            ! also output the overlaps and norm.. 
+            do iGf = 1, gf_count
+               write(tmgf, '(i5)') iGf
+               call stats_out(state,.true., overlap_real(iGf), 'Re. <y_i(0)|y(t)> (i=' // &
+                    trim(adjustl(tmgf)) // ')' )
+               call stats_out(state,.true., overlap_imag(iGf), 'Im. <y_i(0)|y(t)> (i=' // &
+                    trim(adjustl(tmgf)) // ')' )
+            enddo
+            do iGf = 1, gf_count
+               write(tmgf, '(i5)') iGf
+               do p = 1, normsize
+                  write(tmpc, '(i5)') p
+                  call stats_out(state,.false.,real(current_overlap(p,iGf)), 'Re. <y(0)|y(t)>(rep ' // &
+                       trim(adjustl(tmpc)) // ' i=' // trim(adjustl(tmgf)) //  ')')
+                  call stats_out(state,.false.,aimag(current_overlap(p,iGf)), 'Im. <y(0)|y(t)>(rep ' // &
+                       trim(adjustl(tmpc)) // ' i=' // trim(adjustl(tmgf)) //')')
+               enddo
+            enddo
+#ifdef __REALTIME
+            do p = 1, numSnapshotOrbs
+               ! if any orbitals are monitored, output their population
+               write(tmpc, '(i5)') snapShotOrbs(p)
+               call stats_out(state,.false.,allPopSnapshot(p),'Population of ' &
+                    // trim(adjustl(tmpc)))
+            end do
+#endif
+        endif
 
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these
-#ifdef __PROG_NUMRUNS
+#if defined __PROG_NUMRUNS && !defined __REALTIME
             do p = 1, inum_runs
                 write(tmpc, '(i5)') p
                 call stats_out (state, .false., AllTotParts(p), &
-                                'Parts (' // trim(adjustl(tmpc)) // ")")
+                                'Parts (' // trim(adjustl(tmpc)) // ')')
                 call stats_out (state, .false., AllNoatHF(p), &
-                                'Ref (' // trim(adjustl(tmpc)) // ")")
+                                'Ref (' // trim(adjustl(tmpc)) // ')')
                 call stats_out (state, .false., DiagSft(p) + Hii, &
-                                'Shift (' // trim(adjustl(tmpc)) // ")")
+                                'Shift (' // trim(adjustl(tmpc)) // ')')
 #ifdef __CMPLX
                 call stats_out (state, .false., real(proje_iter(p) + Hii), &
-                                'Tot ProjE real (' // trim(adjustl(tmpc)) // ")")
+                                'Tot ProjE real (' // trim(adjustl(tmpc)) // ')')
                 call stats_out (state, .false., aimag(proje_iter(p) + Hii), &
-                                'Tot ProjE imag (' // trim(adjustl(tmpc)) // ")")
+                                'Tot ProjE imag (' // trim(adjustl(tmpc)) // ')')
 
                 call stats_out (state, .false., real(AllHFCyc(p) / StepsSft), &
-                                'ProjE Denom real (' // trim(adjustl(tmpc)) // ")")
+                                'ProjE Denom real (' // trim(adjustl(tmpc)) // ')')
                 call stats_out (state, .false., aimag(AllHFCyc(p) / StepsSft), &
-                                'ProjE Denom imag (' // trim(adjustl(tmpc)) // ")")
+                                'ProjE Denom imag (' // trim(adjustl(tmpc)) // ')')
 
                 call stats_out (state, .false., &
                                 real((AllENumCyc(p) + Hii*AllHFCyc(p))) / StepsSft,&
-                                'ProjE Num real (' // trim(adjustl(tmpc)) // ")")
+                                'ProjE Num real (' // trim(adjustl(tmpc)) // ')')
                 call stats_out (state, .false., &
                                 aimag((AllENumCyc(p) + Hii*AllHFCyc(p))) / StepsSft,&
-                                'ProjE Num imag (' // trim(adjustl(tmpc)) // ")")
+                                'ProjE Num imag (' // trim(adjustl(tmpc)) // ')')
                 if (tTrialWavefunction .or. tStartTrialLater) then
                     call stats_out (state, .false., &
                                     real(tot_trial_numerator(p) / StepsSft), &
-                                    'TrialE Num real (' // trim(adjustl(tmpc)) // ")")
+                                    'TrialE Num real (' // trim(adjustl(tmpc)) // ')')
                     call stats_out (state, .false., &
                                     aimag(tot_trial_numerator(p) / StepsSft), &
-                                    'TrialE Num imag (' // trim(adjustl(tmpc)) // ")")
+                                    'TrialE Num imag (' // trim(adjustl(tmpc)) // ')')
 
                     call stats_out (state, .false., &
                                     real(tot_trial_denom(p) / StepsSft), &
-                                    'TrialE Denom real (' // trim(adjustl(tmpc)) // ")")
+                                    'TrialE Denom real (' // trim(adjustl(tmpc)) // ')')
                     call stats_out (state, .false., &
                                     aimag(tot_trial_denom(p) / StepsSft), &
-                                    'TrialE Denom imag (' // trim(adjustl(tmpc)) // ")")
+                                    'TrialE Denom imag (' // trim(adjustl(tmpc)) // ')')
                 end if
 #else
                 call stats_out (state, .false., proje_iter(p) + Hii, &
-                                'Tot ProjE (' // trim(adjustl(tmpc)) // ")")
+                                'Tot ProjE (' // trim(adjustl(tmpc)) // ')')
                 call stats_out (state, .false., AllHFCyc(p) / StepsSft, &
-                                'ProjE Denom (' // trim(adjustl(tmpc)) // ")")
+                                'ProjE Denom (' // trim(adjustl(tmpc)) // ')')
                 call stats_out (state, .false., &
                                 (AllENumCyc(p) + Hii*AllHFCyc(p)) / StepsSft,&
-                                'ProjE Num (' // trim(adjustl(tmpc)) // ")")
+                                'ProjE Num (' // trim(adjustl(tmpc)) // ')')
                 if (tTrialWavefunction .or. tStartTrialLater) then
                     call stats_out (state, .false., &
                                     tot_trial_numerator(p) / StepsSft, &
-                                    'TrialE Num (' // trim(adjustl(tmpc)) // ")")
+                                    'TrialE Num (' // trim(adjustl(tmpc)) // ')')
                     call stats_out (state, .false., &
                                     tot_trial_denom(p) / StepsSft, &
-                                    'TrialE Denom (' // trim(adjustl(tmpc)) // ")")
+                                    'TrialE Denom (' // trim(adjustl(tmpc)) // ')')
                 end if
 #endif
 
 
                 call stats_out (state, .false., &
                                 AllNoBorn(p), &
-                                'Born (' // trim(adjustl(tmpc)) // ")")
+                                'Born (' // trim(adjustl(tmpc)) // ')')
                 call stats_out (state, .false., &
                                 AllNoDied(p), &
-                                'Died (' // trim(adjustl(tmpc)) // ")")
+                                'Died (' // trim(adjustl(tmpc)) // ')')
                 call stats_out (state, .false., &
                                 AllAnnihilated(p), &
-                                'Annihil (' // trim(adjustl(tmpc)) // ")")
+                                'Annihil (' // trim(adjustl(tmpc)) // ')')
                 call stats_out (state, .false., &
                                 AllNoAtDoubs(p), &
-                                'Doubs (' // trim(adjustl(tmpc)) // ")")
+                                'Doubs (' // trim(adjustl(tmpc)) // ')')
             end do
+
+            call stats_out(state,.false.,all_max_cyc_spawn, &
+                 'MaxCycSpawn')
 
             ! Print overlaps between replicas at the end.
             do p = 1, inum_runs
@@ -717,12 +863,36 @@ contains
                     end do
                 end if
             end do
+
 #endif
+
+            if (tEN2) call stats_out(state,.true., en_pert_main%ndets_all, 'EN2 Dets.')
+
+            if (tTruncInitiator) then
+                call stats_out(state_i, .false., Iter + PreviousCycles, 'Iter.')
+                call stats_out(state_i, .false., AllTotWalkers, 'TotDets.')
+                do p = 1, inum_runs
+                    write(tmpc, '(i5)') p
+                    call stats_out(state_i, .false., AllTotParts(p), 'TotWalk. (' // trim(adjustl(tmpc)) // ")")
+                    call stats_out(state_i, .false., AllAnnihilated(p), 'Annihil. (' // trim(adjustl(tmpc)) // ")")
+                    call stats_out(state_i, .false., AllNoBorn(p), 'Born (' // trim(adjustl(tmpc)) // ")")
+                    call stats_out(state_i, .false., AllNoDied(p), 'Died (' // trim(adjustl(tmpc)) // ")")
+                    call stats_out(state_i, .false., AllNoRemoved(p), 'Removed Dets (' // trim(adjustl(tmpc)) // ")")
+                    call stats_out(state_i, .false., AllNoAborted(p), 'AbortedWalks (' // trim(adjustl(tmpc)) // ")")
+                    call stats_out(state_i, .false., AllNoInitDets(p), 'InitDets (' // trim(adjustl(tmpc)) // ")")
+                    call stats_out(state_i, .false., AllNoNonInitDets(p), 'NonInitDets (' // trim(adjustl(tmpc)) // ")")
+                    call stats_out(state_i, .false., AllNoInitWalk(p), 'InitWalks (' // trim(adjustl(tmpc)) // ")")
+                    call stats_out(state_i, .false., AllNoNonInitWalk(p), 'NonInitWalks (' // trim(adjustl(tmpc)) // ")")
+                end do
+            end if
 
             ! And we are done
             write(state%funit, *)
+            if (tTruncInitiator) write(state_i%funit, *)
             if (tMCOutput) write(iout, *)
+
             call neci_flush(state%funit)
+            if (tTruncInitiator) call neci_flush(state_i%funit)
             call neci_flush(iout)
 
         end if
@@ -1267,12 +1437,19 @@ contains
         integer, allocatable :: GlobalProc(:), tmp_ni(:)
         character(len=*), parameter :: t_r='PrintHighPops'
 
+        character(1024) :: header
+        character(22) :: format_string
+        character(11), allocatable :: walker_string(:)
+        character(13), allocatable :: amplitude_string(:)
+        character(9), allocatable :: init_string(:)
+
         !Allocate memory to hold highest iHighPopWrite determinants
         allocate(LargestWalkers(0:NIfTot,iHighPopWrite),stat=ierr)
         if(ierr.ne.0) call stop_all(t_r,"error allocating here")
 
         ! Return the most populated states in CurrentDets on *this* processor only.
-        call return_most_populated_states(iHighPopWrite, LargestWalkers, norm)
+        call return_most_populated_states(iHighPopWrite, LargestWalkers, CurrentDets, &
+             TotWalkers, norm)
 
         call MpiSum(norm,allnorm)
         if(iProcIndex.eq.Root) norm=sqrt(allnorm)
@@ -1407,6 +1584,7 @@ contains
                     write(iout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   Proc"    
                 endif
             else
+#ifdef __CMPLX
                 if(tHPHF) then
                     write(iout,"(A)") " Excitation   ExcitLevel Seniority  Walkers(Re)   Walkers(Im)  Weight   &
                                         &Init?(Re)   Init?(Im)   Proc  Spin-Coup?"
@@ -1414,11 +1592,37 @@ contains
                     write(iout,"(A)") " Excitation   ExcitLevel Seniority   Walkers(Re)   Walkers(Im)  Weight   &
                                         &Init?(Re)   Init?(Im)   Proc"
                 endif
+#else 
+                ! output the weight of every replica, and do not only assume 
+                ! it is a complex run 
+                write(format_string, '(a,i0,a,a,i0,a)') &
+                    '(3a11,', lenof_sign, 'a11,', 'a13,', lenof_sign,'a9,a)'
+                ! Walkers(replica) Amplitude(replica) Init?(replica)
+                allocate(walker_string(lenof_sign))
+!                 allocate(amplitude_string(lenof_sign))
+                allocate(init_string(lenof_sign))
+
+                do i = 1, lenof_sign
+                    write(walker_string(i), '(a,i0,a)') "Walkers(", i, ")"
+!                     write(amplitude_string(i), '(a,i0,a)') "Amplitude(", i, ")"
+                    write(init_string(i), '(a,i0,a)') "Init?(", i, ")"
+                end do
+
+                write(header, format_string) "Excitation ", "ExcitLevel ", "Seniority ", &
+                    walker_string, "Amplitude ", init_string, "Proc "
+
+                if (tHPHF) then
+                    header = trim(header) // " Spin-Coup?"
+                end if
+
+                write(iout, '(a)') trim(header)
+
+#endif
             endif
             do i=1,counter
 !                call WriteBitEx(iout,iLutRef,GlobalLargestWalkers(:,i),.false.)
                 call WriteDetBit(iout,GlobalLargestWalkers(:,i),.false.)
-                Excitlev=FindBitExcitLevel(iLutRef(:,1),GlobalLargestWalkers(:,i),nEl)
+                Excitlev=FindBitExcitLevel(iLutRef(:,1),GlobalLargestWalkers(:,i),nEl,.true.)
                 write(iout,"(I5)",advance='no') Excitlev
                 nopen=count_open_orbs(GlobalLargestWalkers(:,i))
                 write(iout,"(I5)",advance='no') nopen

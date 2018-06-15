@@ -308,12 +308,12 @@ subroutine NECICalcInit(iCacheFlag)
     call DoDetCalc()
 
 !   Do any initializations we need to do for calculations (e.g. ...?)
+
     call CalcInit()
     
     IF(tRotateOrbs.and.(.not.tFindCINatOrbs)) THEN
         CALL RotateOrbs()
     ENDIF
-
 
 end subroutine NECICalcInit
 

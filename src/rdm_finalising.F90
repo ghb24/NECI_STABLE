@@ -17,7 +17,7 @@ module rdm_finalising
 
 contains
 
-    subroutine finalise_rdms(rdm_defs, one_rdms, two_rdms, rdm_recv, rdm_recv_2, spawn, rdm_estimates)
+    subroutine finalise_rdms(rdm_defs, one_rdms, two_rdms, rdm_recv, rdm_recv_2, en_pert, spawn, rdm_estimates)
 
         ! Wrapper routine, called at the end of a simulation, which in turn
         ! calls all required finalisation routines.
@@ -31,7 +31,7 @@ contains
         use Parallel_neci, only: iProcIndex, MPIBarrier, MPIBCast
         use rdm_data, only: tRotatedNos, FinaliseRDMs_Time, tOpenShell, print_2rdm_est
         use rdm_data, only: rdm_list_t, rdm_spawn_t, one_rdm_t, rdm_estimates_t
-        use rdm_data, only: rdm_definitions_t
+        use rdm_data, only: rdm_definitions_t, en_pert_t
         use rdm_estimators, only: calc_2rdm_estimates_wrapper, write_rdm_estimates
         use rdm_nat_orbs, only: find_nat_orb_occ_numbers, BrokenSymNo
         use util_mod, only: set_timer, halt_timer
@@ -40,6 +40,7 @@ contains
         type(one_rdm_t), intent(inout) :: one_rdms(:)
         type(rdm_list_t), intent(in) :: two_rdms
         type(rdm_list_t), intent(inout) :: rdm_recv, rdm_recv_2
+        type(en_pert_t), intent(in) :: en_pert
         type(rdm_spawn_t), intent(inout) :: spawn
         type(rdm_estimates_t), intent(inout) :: rdm_estimates
 
@@ -65,7 +66,7 @@ contains
             ! Calculate the RDM estmimates from the final few iterations,
             ! since it was last calculated. But only do this if they're
             ! actually to be printed.
-            call calc_2rdm_estimates_wrapper(rdm_defs, rdm_estimates, two_rdms)
+            call calc_2rdm_estimates_wrapper(rdm_defs, rdm_estimates, two_rdms, en_pert)
 
             ! Output the final 2-RDMs themselves, in all forms desired.
             call output_2rdm_wrapper(rdm_defs, rdm_estimates, two_rdms, rdm_recv, rdm_recv_2, spawn)
@@ -661,7 +662,7 @@ contains
         call print_rdms_with_spin(rdm_defs, nrdms_to_print, rdm_recv_2, rdm_trace, open_shell)
         ! intermediate hack: 
         if (t_calc_double_occ) then 
-            call calc_double_occ_from_rdm(rdm_recv_2, rdm_trace, nrdms_to_print)
+            call calc_double_occ_from_rdm(rdm_recv_2, rdm_trace)
         end if
 
     end subroutine print_rdms_spin_sym_wrapper

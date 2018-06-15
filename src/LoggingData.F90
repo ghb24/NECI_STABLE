@@ -136,6 +136,7 @@ module LoggingData
     ! shift changes
     integer :: equi_iter_double_occ = 0
     logical :: t_calc_double_occ_av = .false.
+
     ! I essentially only need a local and a global storage for the 
     ! the expectation vaulue <n_u n_d> 
     ! and also some storage for the instantaneous, averaged, summed over 
@@ -177,4 +178,11 @@ module LoggingData
     logical :: tWriteRefs
     character(255) :: ref_filename
 
+    ! spatial resolved double occupancy and spin difference measurements
+    logical :: t_spin_measurements = .false.
+!     logical :: t_inst_spin_diff = .false.
+!     logical :: t_inst_spat_doub_occ = .false. 
+!     logical :: t_spatial_double_occ = .false.
+
+    logical :: t_print_core_info = .false.
 end module LoggingData

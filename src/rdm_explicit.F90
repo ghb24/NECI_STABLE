@@ -1,3 +1,5 @@
+#include "macros.h"
+
 module rdm_explicit
 
     ! Routines used for calculating the RDM for a pair of FCIQMC wave functions
@@ -9,7 +11,7 @@ module rdm_explicit
 
     use bit_rep_data, only: NIfTot
     use constants
-    use SystemData, only : tReltvy
+    use SystemData, only : tReltvy, t_3_body_excits
 
     implicit none
 
@@ -738,6 +740,9 @@ contains
         use rdm_filling, only: fill_sings_1rdm, fill_spawn_rdm_singles
         use searching, only: BinSearchParts_rdm
         use SystemData, only: nel
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "Sing_SearchOccDets"
+#endif
 
         integer(MPIArg), intent(in) :: recvcounts(nProcessors),recvdisps(nProcessors)
 
@@ -787,6 +792,7 @@ contains
                         if (RDMExcitLevel == 1) then
                             call fill_sings_1rdm(one_rdms, Ex, tParity, SignDi, SignDj, .true.)
                         else
+                            ASSERT(.not. t_3_body_excits)
                             if (tParity) then
                                 full_sign = -SignDi(1)*SignDj(lenof_sign)
                             else
@@ -823,7 +829,9 @@ contains
         use rdm_data_utils, only: add_to_rdm_spawn_t
         use searching, only: BinSearchParts_rdm
         use SystemData, only: nel
-
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "Doub_SearchOccDets"
+#endif
         integer(MPIArg), intent(in) :: recvcounts(nProcessors),recvdisps(nProcessors)
         integer(n_int) :: iLutnJ(0:NIfTot)
         real(dp) :: SignDi(lenof_sign), SignDj(lenof_sign), full_sign(1)
@@ -870,6 +878,7 @@ contains
                         if (Ex(1,1) .le. 0) call Stop_All('SearchOccDets',&
                                             'nJ is not the correct excitation of nI.')
 
+                        ASSERT(.not. t_3_body_excits)
                         if (tParity) then
                             full_sign = -SignDi(1)*SignDj(lenof_sign)
                         else
@@ -916,6 +925,9 @@ contains
         logical :: tDetFound, tParity
         real(dp) :: SignDi(lenof_sign), SignDj(lenof_sign), full_sign(1)
 
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "Sing_Hist_SearchOccDets"
+#endif
         ! Take each Dj, and binary search CurrentDets to see if it is occupied.
         do i = 1, nProcessors
 
@@ -968,6 +980,7 @@ contains
                         if (RDMExcitLevel == 1) then
                             call fill_sings_1rdm(one_rdms, Ex, tParity, SignDi, SignDj, .true.)
                         else
+                            ASSERT(.not. t_3_body_excits)
                             if (tParity) then
                                 full_sign = -SignDi(1)*SignDj(lenof_sign)
                             else
@@ -1017,6 +1030,9 @@ contains
         logical :: tDetFound, tParity
         real(dp) :: SignDi(lenof_sign), SignDj(lenof_sign), full_sign(1)
 
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "Doub_Hist_SearchOccDets"
+#endif
         ! Take each Dj, and binary search the CurrentDets to see if it is occupied.
         do i = 1, nProcessors
 
@@ -1065,6 +1081,7 @@ contains
 
                         if (Ex(1,1) .le. 0) call Stop_All('SearchOccDets', 'nJ is not the correct excitation of nI.')
 
+                        ASSERT(.not. t_3_body_excits)
                         if (tParity) then
                             full_sign = -SignDi(1)*SignDj(lenof_sign)
                         else

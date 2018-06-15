@@ -11,7 +11,7 @@ module symrandexcit_Ex_mag
 
     use SystemData, only: nel, tFixLz, G1, ElecPairs, tUEG, tHub, &
                           tLatticeGens, tNoBrillouin, tUseBrillouin, &
-                          tNoSymGenRandExcits, nOccAlpha, nOccBeta
+                          tNoSymGenRandExcits, nOccAlpha, nOccBeta, t_3_body_excits
     use SymExcitDataMod, only: ScratchSize, SpinOrbSymLabel, SymInvLabel, &
                                SymLabelList2, SymLabelCounts2, pDoubNew, &
                                pSingNew, pSing_spindiff1_new, pDoub_spindiff1_new, pDoub_spindiff2_new, &
@@ -82,8 +82,7 @@ contains
 !        call stop_all(this_routine, "found excits")
 
 
-
-
+        ASSERT(.not. t_3_body_excits) 
 
         ! UEG and Hubbard interjection for now
         ! TODO: This should be made into its own fn-pointered case.
@@ -138,7 +137,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
             pGen = gen_double (nI, nJ, iLutI, ExcitMat, tParity, store, excitType)
         endif
 
-        
+
         if (nJ(1)/=0 .and. excitType.ne.getExcitationType(ExcitMat, IC)) then
             write(*,*) "NI", ni
             write(*,*) "NJ", nj

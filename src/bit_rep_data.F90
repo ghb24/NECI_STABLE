@@ -47,8 +47,11 @@ module bit_rep_data
     integer :: nOffParentCoeff, nIfParentCoeff
 
     ! Flags which we can store
+    ! RT_M_Merge: Adapted real-time flags
     logical :: tUseFlags
+
     integer :: flag_counter
+
     integer, parameter :: flag_deterministic = 0, &
                           flag_determ_parent = 1, &
                           flag_trial = 2, &
@@ -60,21 +63,22 @@ module bit_rep_data
                           flag_ic0_spawn = 8, &
                           flag_death_done = 9, &
                           flag_negative_sign = 10
-
+                          ! RT_M_Merge: These should only be adressed with __REALTIME
+                          ! use these unused to mark diagonal "spawns"
 #ifdef __PROG_NUMRUNS
     integer, parameter :: flag_initiator(lenof_sign_max) &
-                            = (/6, 7, 8, 10, 11, 12, 13, 14, 15, &
-                                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26/), &
-                          flag_adi_checked = 27, &
+                            = (/11, 12, 13, 14, 15, 16, 17, 18, 19, &
+                                20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30/), &
+                          flag_adi_checked = 31, &
                           flag_static_init(lenof_sign_max) &
-                            = (/28, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, &
-                                42, 43, 44, 45, 46, 47, 48/), &
-                          num_flags = 49
+                            = (/32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, &
+                                45, 46, 47, 48, 49, 50, 51/), &
+                          num_flags = 52
 #else
-    integer, parameter :: flag_initiator(2) = (/ 6, 7/), &
-                          flag_adi_checked = 8, &
-                          flag_static_init(2) = (/9, 10/), &
-                          num_flags = 11
+    integer, parameter :: flag_initiator(2) = (/ 11, 12/), &
+                          flag_adi_checked = 13, &
+                          flag_static_init(2) = (/14, 15/), &
+                          num_flags = 16
 #endif
 
 contains
@@ -111,6 +115,7 @@ contains
         integer(n_int) :: sgn(lenof_sign)
 
         sgn = iLut(NOffSgn:NOffSgn+lenof_sign-1)
+        ! transfer operates elementwise
         real_sgn = transfer(sgn, real_sgn)
 
     end subroutine extract_sign

@@ -22,6 +22,7 @@ real(dp), parameter ::  THIRD = 0.3333333333333333333333333333333333333333333333
 real(dp), parameter ::  Root2 = 1.4142135623730950488016887242096980785696718753769_dp
 real(dp), parameter ::  EPS  = 0.0000000000001_dp
 real(dp), parameter ::  OverR2 = 1.0_dp/Root2
+real(dp), parameter :: INFINITY = huge(1.0_dp)
 !real(dp), parameter ::  Root2 = sqrt(2.0_dp)   !Removed since sun comiler didn't like this: bug 3853 
 
 integer :: temp

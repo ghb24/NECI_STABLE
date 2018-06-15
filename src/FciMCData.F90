@@ -77,6 +77,8 @@ MODULE FciMCData
       integer, allocatable :: IterRDM_HF(:)
       real(dp), allocatable :: InstNoatHf(:)
 
+      logical :: tLogGreensfunction
+
 
       INTEGER(KIND=n_int) , ALLOCATABLE :: TempSpawnedParts(:,:)
       INTEGER :: TempSpawnedPartsTag, TempSpawnedPartsInd, TempSpawnedPartsSize
@@ -101,7 +103,12 @@ MODULE FciMCData
     integer(int64), allocatable :: AllNoExtraInitDoubs(:), AllInitRemoved(:)
     integer(int64), allocatable :: AllGrowRateAbort(:)
 
+    integer :: doubleSpawns = 0
+    integer :: allDoubleSpawns
+
       logical :: tHFInitiator, tPrintHighPop, tcurr_initiator
+      logical :: tfirst_cycle ! control flag for the iter_utilities for comparing with data
+      ! from previous iterations
 
       integer, allocatable :: FreeSlot(:)   !List of the free slots in the main list
       integer :: iStartFreeSlot     !=1 at the beginning of an iteration, will increment
@@ -113,7 +120,7 @@ MODULE FciMCData
                                      !the instantaneous shift, including the number of aborted as though they had lived.
 
       real(dp), allocatable :: DiagSftRe(:), DiagSftIm(:)     !For complex walkers - this is just for info - not used for population control.
-    
+      
       INTEGER , ALLOCATABLE :: HFDet(:), HFDet_True(:)       !This will store the HF determinant
       INTEGER(TagIntType) :: HFDetTag=0
 
@@ -154,6 +161,8 @@ MODULE FciMCData
 
       HElement_t(dp), allocatable :: trial_numerator(:), tot_trial_numerator(:)
       HElement_t(dp), allocatable :: trial_denom(:), tot_trial_denom(:)
+      HElement_t(dp), allocatable :: trial_num_inst(:), tot_trial_num_inst(:)
+      HElement_t(dp), allocatable :: trial_denom_inst(:), tot_trial_denom_inst(:)
       integer(n_int), allocatable :: con_send_buf(:,:)
       integer :: NConEntry
 
@@ -202,8 +211,10 @@ MODULE FciMCData
       ! The projected energy over the current update cycle.
       HElement_t(dp), allocatable :: ProjECyc(:)
       
-      real(dp) :: bloom_sizes(0:2), bloom_max(0:2)
-      integer :: bloom_count(0:2), all_bloom_count(0:2)
+      ! [W.D.12.12.2017]
+      ! for triples allow bigger bloom counts! 
+      real(dp) :: bloom_sizes(0:3), bloom_max(0:3)
+      integer :: bloom_count(0:3), all_bloom_count(0:3)
 
       ! Global, accumulated, values calculated on the root processor from
       ! the above per-node values
@@ -232,6 +243,7 @@ MODULE FciMCData
       ! This is true if tStartSinglePart is true, and we are still in the
       ! phase where the shift is fixed and particle numbers are growing
       logical, allocatable :: tSinglePartPhase(:)
+
 
 !      INTEGER :: mpilongintegertype               !This is used to create an MPI derived type to cope with 8 byte integers
 
@@ -276,6 +288,11 @@ MODULE FciMCData
       real(dp) :: pDoubles, pSingles, pParallel
       real(dp) :: pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2
       integer :: nSingles, nDoubles
+      
+      ! Bath and impurity orbital information
+      integer :: nBath, nImp
+      real(dp) :: pBath
+      
       ! The number of determinants connected to the Hartree-Fock determinant.
       integer :: HFConn
       
@@ -481,6 +498,7 @@ MODULE FciMCData
       integer(n_int), allocatable, dimension(:,:) :: trial_space
       ! The number of states in the trial vector space.
       integer :: trial_space_size = 0
+      integer :: tot_trial_space_size = 0
       ! This list stores the iluts from which the trial wavefunction is formed,
       ! but only those that reside on this processor.
       integer(n_int), allocatable, dimension(:,:) :: con_space
@@ -570,6 +588,7 @@ MODULE FciMCData
 #ifdef __CMPLX
       real(dp), allocatable :: replica_overlaps_imag(:,:)
 #endif
+      real(dp), allocatable :: all_norms(:), all_overlaps(:,:)
 
 
       ! counting the total walker population all determinants of each ms value

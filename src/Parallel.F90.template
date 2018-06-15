@@ -522,7 +522,9 @@ contains
         %(type1)s, intent(out), target :: Ret()
         integer(MPIArg), intent(in) :: iType
         type(CommI), intent(in), optional :: Node
-        integer(MPIArg) :: comm, ierr
+        integer(MPIArg) :: comm, ierr, aerr
+	integer(MPIArg) :: msglen
+	character(LEN=MPI_MAX_ERROR_STRING) :: errmsg
         character(*), parameter :: t_r = 'MPIAllReduce'
 
 #ifdef PARALLEL
@@ -548,6 +550,8 @@ contains
             write(6,*) 'F type2 %(type1)s'
             write(6,*) 'Opp', itype
             write(6,*) 'ierr', ierr
+	    call MPI_ERROR_STRING(ierr,errmsg,msglen,aerr)
+	    write(6,*) errmsg
             call stop_all (t_r, 'MPI Error. Terminating.')
         end if
 #else
@@ -950,7 +954,6 @@ contains
 #endif
 
         call GetComm (Comm, Node)
-
 !        call MPI_Alltoallv (val_in, cbind_loc(SendSizes), &
         call MPI_Alltoallv (val_in, SendSizes, &
                 SendOffsets, &

@@ -30,7 +30,10 @@ MODULE GenRandSymExcitNUMod
                           tLatticeGens, tHub, nEl,G1, nBasis, nBasisMax, &
                           tNoSymGenRandExcits, Arr, nMax, tCycleOrbs, &
                           nOccAlpha, nOccBeta, ElecPairs, MaxABPairs, &
-                          tKPntSym, lzTot, tNoBrillouin, tUseBrillouin
+                          tKPntSym, lzTot, tNoBrillouin, tUseBrillouin, &
+                          tUEG2, kvec, tAllSymSectors, NMAXX, NMAXY, NMAXZ, &
+                          tOrbECutoff, OrbECutoff
+    use CalcData, only: tSpinProject, t_back_spawn, t_back_spawn_flex
     use FciMCData, only: pDoubles, iter, excit_gen_store_type, iluthf
     use Parallel_neci
     use IntegralsData, only: UMat
@@ -39,17 +42,19 @@ MODULE GenRandSymExcitNUMod
                        SymLabelCounts
     use dSFMT_interface , only : genrand_real2_dSFMT
     use SymExcitDataMod 
-    use DetBitOps, only: FindExcitBitDet, EncodeBitDet
+    use DetBitOps, only: FindExcitBitDet, EncodeBitDet, detbiteq
     use sltcnd_mod, only: sltcnd_1
     use constants, only: dp, n_int, bits_n_int
     use bit_reps, only: NIfTot, nifdbo
     use sym_mod, only: mompbcsym, GetLz
-    use detbitops , only : detbiteq
     use timing_neci
     use sym_general_mod
-    use spin_project, only: tSpinProject
     use get_excit, only: make_single, make_double
     use procedure_pointers, only: get_umat_el
+    use back_spawn, only: pick_virtual_electrons_double_hubbard
+    use back_spawn, only: pick_occupied_orbital_hubbard, check_electron_location, get_ispn
+    use neci_intfce
+    use bit_rep_data, only: test_flag
     IMPLICIT NONE
 !    INTEGER , SAVE :: Counter=0
 
@@ -2106,11 +2111,6 @@ MODULE GenRandSymExcitNUMod
 ! For a given ij pair in the UEG or Hubbard model, this generates ab as a double excitation efficiently.
 ! This takes into account the momentum conservation rule, i.e. that kb=ki+ki-ka(+G).
     SUBROUTINE CreateDoubExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn,part_type)
-        Use SystemData , only : NMAXX,NMAXY,NMAXZ,tOrbECutoff,OrbECutoff, kvec, TUEG2
-        use sym_mod, only: mompbcsym
-        use bit_rep_data, only: test_flag
-        use CalcData, only: t_back_spawn_flex, occ_virt_level
-        use back_spawn, only: pick_occupied_orbital_hubbard, check_electron_location
 
         INTEGER :: i,nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,iSpn,kb_ms
         INTEGER(KIND=n_int) :: iLutnI(0:NIfTot)
@@ -2387,7 +2387,8 @@ MODULE GenRandSymExcitNUMod
         ! Find the new determinant
         call make_double (nI, nJ, elec1ind, elec2ind, Hole1BasisNum, &
                           Hole2BasisNum, ExcitMat, tParity)
-                
+
+              
         IF(tHub) THEN
             ! Debug to test the resultant determinant
             ! i think i also have to check here if kpoint symmetry is turned
@@ -2426,10 +2427,6 @@ MODULE GenRandSymExcitNUMod
     !rejected before going back to the main
     ! code.
     SUBROUTINE CreateExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,part_type)
-        Use SystemData , only : NMAXX,NMAXY,NMAXZ, tUEG2, kvec
-        use CalcData, only: t_back_spawn
-        use bit_rep_data, only: test_flag
-        use back_spawn, only: pick_virtual_electrons_double_hubbard
 
         INTEGER :: i,j ! Loop variables
         INTEGER :: Elec1, Elec2
@@ -2721,7 +2718,6 @@ MODULE GenRandSymExcitNUMod
     !Only the excitation matrix is needed (1,*) are the i,j orbs, and (2,*) are the a,b orbs
     !This routine does it for the lattice models: UEG and hubbard model
     SUBROUTINE CalcPGenLattice(Ex,pGen)
-        use back_spawn, only: get_ispn
         
         INTEGER :: Ex(2,2),iSpin,jSpin
         real(dp) :: pGen,pAIJ
@@ -2770,8 +2766,6 @@ MODULE GenRandSymExcitNUMod
 
     FUNCTION IsMomentumAllowed(nJ)
 
-        use sym_mod, only: mompbcsym
-        use SystemData, only:kvec, tUEG2, tAllSymSectors
         
         LOGICAL :: IsMomentumAllowed ! Returns whether the determinant is momentum allowed for  
                                     ! UEG and Hubbard models
@@ -2835,7 +2829,9 @@ MODULE GenRandSymExcitNUMod
                                             ! a value to within a reciproval lattice vector.
             IF(ktrial(1).eq.kTotal(1).and.ktrial(2).eq.kTotal(2)) THEN
                 IsMomentumAllowed=.true.
-            ENDIF
+             else
+                print *, "ERRONEOUS MOMENTUM: ", ktrial, ktotal
+             ENDIF
         ENDIF
 
     END FUNCTION IsMomentumAllowed
@@ -2848,8 +2844,6 @@ MODULE GenRandSymExcitNUMod
     !done for both doubles and singles, or one of them.
     SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag)
 
-        use SystemData, only: tUEG2, kvec
-        use neci_intfce
         IMPLICIT NONE
         INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),kx,ky,kz,ktrial(3)
         real(dp) :: pDoub,pGen,AverageContrib,AllAverageContrib
@@ -2876,6 +2870,8 @@ MODULE GenRandSymExcitNUMod
         type(excit_gen_store_type) :: store
         character(*), parameter :: t_r = 'TestGenRandSymExcitNU'
         HElement_t(dp) :: HElGen
+        integer :: ex(2,2)
+        logical :: tpar
 
         write(6,*) 'In HERE'
         call neci_flush(6)
@@ -2909,8 +2905,14 @@ MODULE GenRandSymExcitNUMod
             IF(nJ(1).eq.0) exit lp2
             IF(tUEG.or.tHub) THEN
                 IF (IsMomentumAllowed(nJ)) THEN
-                    excitcount=excitcount+1
-                    CALL EncodeBitDet(nJ,iLutnJ)
+                    ex(1,1) = 2
+                    call GetExcitation(nI,nJ,nel,ex,tpar)
+                    ! also test for the spin in the hubbard model! 
+                    if (.not. same_spin(ex(1,1),ex(1,2))) then 
+                        excitcount=excitcount+1
+                        CALL EncodeBitDet(nJ,iLutnJ)
+                        print *, "nJ: ", nJ
+                    end if
 !                    IF(iProcIndex.eq.0) WRITE(25,*) excitcount,iExcit,iLutnJ(0)
                 ENDIF
             ELSEIF(tFixLz) THEN
@@ -2990,7 +2992,9 @@ MODULE GenRandSymExcitNUMod
     !            ForbiddenIter=ForbiddenIter+1
                 CYCLE
             ENDIF
-            IF(tKPntSym) THEN
+            if (tHub) then 
+                test = IsMomentumAllowed(nJ)
+            else IF(tKPntSym) THEN
                 test=IsMomAllowedDet(nJ)
             ENDIF
             ! This is implemented for the old excitation generators, that could only handle momentum conservation under
@@ -3265,11 +3269,12 @@ SUBROUTINE SpinOrbSymSetup()
     use SymData, only: nSymLabels, SymClasses, SymLabels
     use SystemData , only : NMAXZ,tFixLz,iMaxLz,nBasis,tUEG,tKPntSym,G1,tHub,nBasisMax,NEl
     use SystemData , only : Symmetry,tHPHF,tSpn,tISKFuncs,Arr,tNoSymGenRandExcits, Elecpairs
-    use SystemData , only : MaxABPairs, tUEG2, kvec
+    use SystemData , only : MaxABPairs, tUEG2, kvec, t_k_space_hubbard
     use Determinants, only : FDet
     use umatcache, only: gtID
     use sym_mod, only: mompbcsym,SymProd, writesym
     use constants, only: dp
+    use lattice_mod, only: lat
 
     IMPLICIT NONE
 
@@ -3307,6 +3312,7 @@ SUBROUTINE SpinOrbSymSetup()
 !    write(6,*) "SymClasses:"
 !    write(6,*) SymClasses(:)
 
+!     if (t_k_space_hubbard) return
     !Create SpinOrbSymLabel array.
     !This array will return a number between 0 and nSymLabels-1.
     !For molecular systems, this IS the character of the irrep
@@ -3317,7 +3323,7 @@ SUBROUTINE SpinOrbSymSetup()
     do i=1,nBasis
         if(tNoSymGenRandExcits.or.tUEG) then
             SpinOrbSymLabel(i)=0
-        elseif(tKPntSym.or.tHUB) then
+        elseif(tKPntSym .or. tHub) then
             SpinOrbSymLabel(i)=SymClasses(((i+1)/2))-1        !This ensures that the symmetry labels go from 0 -> nSymLabels-1
         else
             SpinOrbSymLabel(i)=INT(G1(i)%Sym%S,4)
@@ -3585,7 +3591,6 @@ SUBROUTINE SpinOrbSymSetup()
 !         ALLOCATE(kPointToBasisFn(kminX:kmaxX,kminY:kmaxY,1,2))
         ALLOCATE(kPointToBasisFn(kminX:kmaxX,kminY:kmaxY,kminz:kmaxz,2))
         kPointToBasisFn=-1 !Init to invalid
-        print *, "kminz, kmaxz: ", kminz, kmaxz
         do i=1,nBasis
             iSpinIndex=(G1(i)%Ms+1)/2+1 ! iSpinIndex equals 1 for a beta spin (ms=-1), and 2 for an alpha spin (ms=1)
             kPointToBasisFn(G1(i)%k(1),G1(i)%k(2),G1(i)%k(3),iSpinIndex)=i
@@ -3659,15 +3664,21 @@ SUBROUTINE SpinOrbSymSetup()
     ENDIF
 
     IF(tUEG.or.tHUB)THEN
-        kTotal(1)=0
-        kTotal(2)=0
-        kTotal(3)=0
+        kTotal =0
         do j=1,NEl
-            kTotal(1)=kTotal(1)+G1(FDet(j))%k(1)
-            kTotal(2)=kTotal(2)+G1(FDet(j))%k(2)
-            kTotal(3)=kTotal(3)+G1(FDet(j))%k(3)
+            if (t_k_space_hubbard) then 
+                kTotal = lat%add_k_vec(kTotal, G1(FDet(j))%k)
+            else
+                kTotal = kTotal + G1(FDet(j))%k 
+            end if
+            ! just to be sure.. 
+            ! not necessary anymore with new add_k_vec
+!             if (t_k_space_hubbard) then 
+!                 ktotal = lat%map_k_vec(ktotal)
+!             end if
         enddo
-        if (tHub) then
+        if (tHub .and. .not. t_k_space_hubbard) then
+            ! is this turned off correctly?! check:
             ktrial=(/kTotal(1),kTotal(2),0/)
             CALL MomPbcSym(ktrial,nBasisMax)
             kTotal(1)=ktrial(1)

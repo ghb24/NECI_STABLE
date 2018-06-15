@@ -43,7 +43,7 @@ module procedure_pointers
             use constants
             implicit none
 
-            integer, intent(in) :: nI(nel), nJ(nel), part_type, ic, ex(2,2)
+            integer, intent(in) :: nI(nel), nJ(nel), part_type, ic, ex(2,ic)
             integer, intent(in) :: exLevel
             integer(n_int), intent(in) :: ilutI(0:NifTot)
             integer(n_int), intent(inout) :: ilutJ(0:NifTot)
@@ -87,7 +87,8 @@ module procedure_pointers
             implicit none
 
             integer(n_int), intent(in) :: ilutI(0:NifTot)
-            integer, intent(in) :: ic, ex(2,2)
+            integer, intent(in) :: ic
+            integer, intent(in) :: ex(2,ic)
             integer(n_int), intent(inout) :: ilutJ(0:NIfTot)
 
         end subroutine
@@ -209,37 +210,7 @@ module procedure_pointers
 
         end function
 
-
-        ! generic tau search initialiation
-        subroutine init_tau_search_t
-            ! this routine essentially only updated global variables 
-            ! implicitly.. could i do that more elegantly?
-            implicit none
-
-        end subroutine init_tau_search_t
-
-        ! generic logging routine for type spawns
-        subroutine log_spawn_magnitude_t(ic, ex, matel, prob) 
-            
-            use constants, only: dp
-            implicit none
-            
-            integer, intent(in) :: ic, ex(2,2)
-            real(dp), intent(in) :: matel, prob
-
-        end subroutine log_spawn_magnitude_t
-
-        ! generic update_tau routine
-        ! like the initialization, also only a subroutine, which operates on 
-        ! global variables as side-effects
-        subroutine update_tau_t 
-
-            implicit none 
-
-        end subroutine update_tau_t
-
     end interface
-
 
     !
     ! And here are the stored procedure pointers (for use in FCIQMC)
@@ -260,11 +231,5 @@ module procedure_pointers
     ! 'stacking' scheme is in use (i.e. caching, memoization etc.)
     procedure(get_umat_el_t), pointer :: get_umat_el
     procedure(get_umat_el_t), pointer :: get_umat_el_secondary
-
-    
-    ! the new specific update tau routines: 
-    procedure(init_tau_search_t), pointer :: init_tau_search
-    procedure(log_spawn_magnitude_t), pointer :: log_spawn_magnitude
-    procedure(update_tau_t), pointer :: update_tau
 
 end module

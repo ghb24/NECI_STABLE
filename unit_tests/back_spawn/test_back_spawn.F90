@@ -35,12 +35,9 @@ contains
         call run_test_case(test_pick_virtual_electrons_double_hubbard, &
             "test_pick_virtual_electrons_double_hubbard")
         call run_test_case(test_pick_virtual_electron_single, "test_pick_virtual_electron_single")
-        call run_test_case(test_get_ispn, "test_get_ispn")
         call run_test_case( test_pick_occupied_orbital_ueg, "test_pick_occupied_orbital_ueg")
         call run_test_case(test_encode_mask_virt, "test_encode_mask_virt")
         call run_test_case(is_allowed_ueg_k_vector_test, "is_allowed_ueg_k_vector_test")
-        call run_test_case(get_orb_from_kpoints_test, "get_orb_from_kpoints_test")
-        call run_test_case(make_ilutJ_test, "make_ilutJ_test")
 
     end subroutine back_spawn_test_driver 
 
@@ -812,17 +809,6 @@ contains
 
     end subroutine test_pick_virtual_electron_single
 
-    subroutine test_get_ispn
-
-        print *, "" 
-        print *, "testing: get_ispn()" 
-
-        call assert_equals(1, get_ispn([1,1]))
-        call assert_equals(2, get_ispn([1,2]))
-        call assert_equals(3, get_ispn([2,2]))
-
-    end subroutine test_get_ispn
-
     subroutine test_pick_occupied_orbital_ueg
         use SystemData, only: nel, G1, nmaxx, nmaxy, nmaxz, tOrbECutoff, nBasis
         use symexcitdatamod, only: KPointToBasisFn
@@ -1009,88 +995,5 @@ contains
 
     end subroutine is_allowed_ueg_k_vector_test
 
-
-    subroutine get_orb_from_kpoints_test
-        use SystemData, only: G1, nBasis, nel
-        use symexcitdatamod, only: KPointToBasisFn
-
-        nbasis = 4 
-        nel = 2 
-
-        allocate(G1(nbasis))
-        allocate(KPointToBasisFn(-1:2,-1:2,-1:1,2))
-
-        print *, "" 
-        print *, "testing: get_orb_from_kpoints: "
-        print *, "with necessary global data: " 
-        print *, "get_ispn"
-        print *, "G1 "
-        print *, "kpointtobasisfn" 
-        print *, "nBasis: ", nBasis
-        print *, "nel: ", nel 
-
-        ! i have to setup G1 and kpointtobasisfn correctly 
-        G1(1)%k = [1,0,0]
-        G1(2)%k = [0,1,0]
-        G1(3)%k = [0,0,1] 
-
-        KPointToBasisFn(1,1,-1,2) = 3 
-        KPointToBasisFn(2,0,-1,1) = 4
-        kpointtobasisfn(-1,2,0,2) = 5
-
-        call assert_equals(3, get_orb_from_kpoints(1,2,3)) 
-        call assert_equals(4, get_orb_from_kpoints(1,1,3))
-        call assert_equals(5, get_orb_from_kpoints(2,2,1))
-
-        nBasis = - 1
-        nel = -1 
-
-        deallocate(G1) 
-        deallocate(KPointToBasisFn)
-
-    end subroutine get_orb_from_kpoints_test
-
-    subroutine make_ilutJ_test
-        use constants, only: n_int 
-        use bit_rep_data, only: niftot
-        use SystemData, only: nbasis
-
-        integer(n_int), allocatable :: ilut(:)
-        integer :: ex(2,2)
-
-        niftot = 0 
-        nBasis = 2
-
-        allocate(ilut(0:niftot))
-
-        print *, ""
-        print *, "testing: make_ilutJ"
-        print *, "with necessary global data:"
-        print *, "niftot: ", niftot
-        print *, "nBasis: ", nBasis
-
-        ilut = 0_n_int
-        ex(1,:) = [1,0]
-        ex(2,:) = [1,0]
-
-        ! i guess this test could be dependend if the machine is little or 
-        ! big endian.. 
-        ! ..01 = 1
-        ! for the intel compilers i have to cast this to a "normal" integer
-        ! so it finds the correct assert_equals routine..
-        call assert_equals([1], int(make_ilutJ(ilut, ex, 1)), 1) 
-        ex(2,1) = 2
-        ! ..10 = 2
-        call assert_equals([2], int(make_ilutJ(ilut, ex, 1)), 1)
-
-        ex(1,2) = 1 
-        ex(2,2) = 1 
-        ! ..11 = 3
-        call assert_equals([3], int(make_ilutJ(ilut, ex, 2)), 1)
-
-        niftot = -1
-        nBasis = -1
-
-    end subroutine make_ilutJ_test
 
 end program test_back_spawn

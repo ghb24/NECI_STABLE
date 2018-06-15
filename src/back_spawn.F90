@@ -4,18 +4,33 @@ module back_spawn
 
     use CalcData, only: t_back_spawn, tTruncInitiator, t_back_spawn_occ_virt, &
                         t_back_spawn_flex, tReadPops, back_spawn_delay
+
     use SystemData, only: nel, nbasis, G1, tGen_4ind_2, tGen_4ind_2_symmetric, & 
                           tHub, tUEG, nmaxx, nmaxy, nmaxz, tOrbECutoff, OrbECutoff, &
-                          tUEGNewGenerator
+                          tUEGNewGenerator, t_k_space_hubbard, t_3_body_excits
+
     use constants, only: n_int, dp, bits_n_int, lenof_sign, inum_runs
+
     use bit_rep_data, only: nifd, niftot
+
     use fcimcdata, only: projedet, max_calc_ex_level, ilutref
+
     use dSFMT_interface, only: genrand_real2_dSFMT
+
     use SymExcitDataMod, only: OrbClassCount, SymLabelCounts2, SymLabelList2, &
-                               SpinOrbSymLabel
+                               SpinOrbSymLabel, KPointToBasisFn
+
     use Parallel_neci, only: iprocindex
+
     use DetBitOps, only: EncodeBitDet
-    use SymExcitDataMod, only: KPointToBasisFn
+
+    use lattice_mod, only: lat
+
+    use sym_mod, only: mompbcsym
+
+    use SystemData, only: tHub, nbasismax
+
+    use lattice_models_utils, only: get_orb_from_kpoints, get_ispn
 
     implicit none
 
@@ -874,22 +889,6 @@ contains
         ASSERT(elec > 0) 
 
     end subroutine pick_virtual_electron_single
-
-    function get_ispn(src) result(ispn)
-        ! it is annoying to write this over and over again.. 
-        integer, intent(in) :: src(2) 
-        integer :: ispn 
-
-        if (is_beta(src(1)) .eqv. is_beta(src(2))) then 
-            if (is_beta(src(1))) then 
-                ispn = 1
-            else 
-                ispn = 3
-            end if
-        else 
-            ispn = 2 
-        end if
-    end function get_ispn
         
     logical function is_in_ref(orb, part_type) 
         ! write a function if a certain orbital is in the reference 
@@ -971,98 +970,6 @@ contains
         end if
 
     end function is_allowed_ueg_k_vector
-
-    function get_orb_from_kpoints(orbi, orbj, orba) result(orbb)
-        use sym_mod, only: mompbcsym
-        use SystemData, only: tHub, nbasismax
-        ! write a cleaner implementation of this multiple used 
-        ! functionality.. because kPointToBasisFn to basisfunction 
-        ! promises more than it actually odes 
-        integer, intent(in) :: orbi, orbj, orba
-        integer :: orbb
-
-        integer :: ki(3), kj(3), ka(3), kb(3), ispn, spnb
-
-        ispn = get_ispn([orbi,orbj])
-
-        ki = G1(orbi)%k
-        kj = G1(orbj)%k
-
-        ! Given A, calculate B in the same way as before
-        ka = G1(orba)%k
-        kb = ki + kj - ka
-        if (iSpn == 1) then
-            spnb = 1
-        elseif (iSpn == 2) then
-            ! w.d: bug found by peter jeszenski and confirmed by 
-            ! simon! 
-            ! i do not think this is so much more efficient than an 
-            ! additional if-statement which is way more clear!
-            ! messed up alpa and beta spin here.. 
-!             spnb = (-G1(orba)%Ms + 1)/2 + 1
-    !       spnb = (G1(orba)%Ms)/2 + 1
-            if (is_beta(orba)) then 
-                spnb = 2
-            else 
-                spnb = 1
-            end if
-        elseif(iSpn == 3) then
-            spnb = 2
-        end if
-
-        ! damn.. for some reason this is different treated in the 
-        ! hubbard and UEG case..
-        if (tHub) then 
-            call mompbcsym(kb, nbasismax)
-        end if
-
-        orbb = KPointToBasisFn(kb(1), kb(2), kb(3), spnb)
-
-    end function get_orb_from_kpoints
-
-    function make_ilutJ(ilutI, ex, ic) result(ilutJ)
-        ! function similar to make_single and make_double to create the 
-        ! accompaning ilut form. 
-        integer(n_int), intent(in) :: ilutI(0:niftot) 
-        integer, intent(in) :: ex(2,2), ic 
-        integer(n_int) :: ilutJ(0:niftot) 
-
-        character(*), parameter :: this_routine = "make_ilutJ"
-
-        integer :: ij(2), ab(2)
-
-        ASSERT(ic == 1 .or. ic == 2) 
-        ! should this every be called with 0 orbitals.. i guess no.. 
-        ASSERT(ex(1,1) > 0) 
-        ASSERT(ex(2,1) > 0)
-        ASSERT(ex(1,1) <= nbasis)
-        ASSERT(ex(2,1) <= nbasis)
-
-        ilutJ = ilutI 
-        
-        ij = get_src(ex)
-        ab = get_tgt(ex)
-
-        clr_orb(ilutJ, ij(1))
-        set_orb(ilutJ, ab(1))
-
-        ! single excition done
-
-        if (ic == 2) then 
-
-            ASSERT(ex(1,2) > 0)
-            ASSERT(ex(2,2) > 0)
-            ASSERT(ex(1,2) <= nbasis)
-            ASSERT(ex(2,2) <= nbasis)
-
-            clr_orb(ilutJ, ij(2))
-            set_orb(ilutJ, ab(2))
-        end if
-
-    end function make_ilutJ
-
-
-
 
 end module back_spawn
 

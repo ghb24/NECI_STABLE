@@ -103,6 +103,10 @@
 !   DIAGFLYONERDM        Requests to diagonalise the 1-RDM at the end.
 !   REFSHIFT             Change the default use of the shift to now keep HF 
 !                        populations constant.
+!   PREPARE_REAL_TIME n m   start the print out of the current walker population
+!                        n times with m cycles between them, which in turn 
+!                        will be used to start a subsequent real-time 
+!                        calculations with these popsfile as the groundstate
 !   TIME                 Specify a total elapsed-time before the calculation
 !                        performs an automatic soft-exit. If specified as -1,
 !                        we don't stop automatically. 
@@ -127,7 +131,7 @@ module soft_exit
                         nmcyc_value => nmcyc, tTruncNOpen, trunc_nopen_max, &
                         target_grow_rate => TargetGrowRate, tShiftonHFPop, &
                         tAllRealCoeff, tRealSpawnCutoff, tJumpShift, & 
-                        frq_ratio_cutoff, t_hist_tau_search
+                        frq_ratio_cutoff, t_hist_tau_search, tSpinProject
     use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
                              NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt
@@ -136,20 +140,24 @@ module soft_exit
                        IterStartBlocking, tHFPopStartBlock, NHistEquilSteps, &
                        IterRDMonFly_value => IterRDMonFly, RDMExcitLevel, &
                        tExplicitAllRDM, tRDMonFly, tChangeVarsRDM, &
-                       RDMEnergyIter, tDiagRDM
+                       RDMEnergyIter, tDiagRDM, tPopsFile, tPrintPopsDefault, &
+                       tIncrementPops, iWritePopsEvery
     use FCIMCLoggingMOD, only: PrintBlocking, RestartBlocking, &
                                PrintShiftBlocking_proc => PrintShiftBlocking,&
                                RestartShiftBlocking_proc=>RestartShiftBlocking
     use constants, only: lenof_sign, int32, dp
     use bit_rep_data, only: extract_sign
     use bit_reps, only: encode_sign
-    use spin_project, only: tSpinProject, spin_proj_gamma, &
+    use spin_project, only: spin_proj_gamma, &
                             spin_proj_interval, spin_proj_shift, &
                             spin_proj_cutoff, spin_proj_spawn_initiators, &
                             spin_proj_no_death, spin_proj_iter_count
     use load_balance_calcnodes, only: DetermineDetNode
     use hist_data, only: Histogram, tHistSpawn
     use Parallel_neci
+
+    use real_time_data, only: n_real_time_copies, t_prepare_real_time
+
     implicit none
 
     logical, volatile :: tSoftExitFound = .false.
@@ -192,7 +200,8 @@ contains
                               calc_rdm = 40, calc_explic_rdm = 41, &
                               fill_rdm_iter = 42, diag_one_rdm = 43, &
                               frequency_cutoff = 44, & !for the histogram integration
-                              time = 45
+                              prepare_real_time = 45, &
+                              time = 46
         integer, parameter :: last_item = time
         integer, parameter :: max_item_len = 30
         character(max_item_len), parameter :: option_list_molp(last_item) &
@@ -224,6 +233,7 @@ contains
                                    "not_option                   ", &
                                    "not_option                   ", &
                                    "changeref                    ", &
+                                   "not_option                   ", &
                                    "not_option                   ", &
                                    "not_option                   ", &
                                    "not_option                   ", &
@@ -286,6 +296,7 @@ contains
                                    "fillrdmiter                  ", &
                                    "diagflyonerdm                ", &
                                    "frequency-cutoff             ", &
+                                   "prepare_real_time            ", &
                                    "time                         "/)
 
         ! Logical(4) datatypes for compilation with builds of openmpi that don't
@@ -411,6 +422,29 @@ contains
                             call readi (IterRDMonFly_new)
                         elseif (i == frequency_cutoff) then 
                             call readf(frq_ratio_cutoff)
+
+                        elseif (i == prepare_real_time) then
+                            ! after equilibration start the preparation of 
+                            ! snapshots of the stochastic goundstate by 
+                            ! printing out a set amount of popsfiles
+                            ! use the already provided incremented popsfile 
+                            ! output 
+                            tPopsFile = .true.
+                            tPrintPopsDefault = .false.
+                            tIncrementPops = .true.
+#ifdef __REALTIME
+                            t_prepare_real_time = .true.
+#endif
+                            if (item < nitems) then
+#ifdef __REALTIME
+                                call readi(n_real_time_copies)
+#endif
+                                call readi(iWritePopsEvery)
+                            else
+                                iWritePopsEvery = 1
+                            end if
+
+
                         elseif (i == time) then
                             call readf (MaxTimeExit)
                         endif

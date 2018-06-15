@@ -12,6 +12,10 @@ MODULE System
     use iso_c_hack
     use read_fci, only: FCIDUMP_name
     use util_mod, only: error_function, error_function_c
+    use lattice_mod, only: lattice, lat
+    use k_space_hubbard, only: setup_symmetry_table
+    use breathing_Hub, only: setupMomIndexTable, setupBreathingCont
+    use ParallelHelper, only: iprocindex, root
 
 
     IMPLICIT NONE
@@ -113,6 +117,7 @@ MODULE System
       TEXCH=.true.
       UHUB = 4
       BHUB = -1
+      btHub = 0.0_dp
       TREAL = .false.
       tUEGTrueEnergies = .false.
       tUEGSpecifyMomentum = .false.
@@ -191,6 +196,8 @@ MODULE System
       tUEGNewGenerator = .false.
       tGen_4ind_2 = .false.
       tGen_4ind_2_symmetric = .false.
+      tmodHub = .false.
+      t_uniform_excits = .false.
 
       tMultiReplicas = .false.
       tGiovannisBrokenInit = .false.
@@ -261,9 +268,69 @@ MODULE System
           case("NOORDER")
               THFNOORDER = .true.
           end select
+
       case("HUBBARD")
           THUB = .true.
           TPBC=.true.
+
+          if (item < nitems) then 
+              ! this indicates the new hubbard implementation
+              ! for consistency turn off the old hubbard indication 
+              ! and for now this is only done for the real-space hubbard 
+              ! not for the k-space implementation todo
+              ! and do i need to turn of tpbc also? try
+              ! use the already provided setup routine and just modify the 
+              ! necessary stuff, like excitation generators!
+              t_new_hubbard = .true.
+              call readl(w)
+              select case (w)
+              case ('real-space','real') 
+                  treal = .true.
+                  t_new_real_space_hubbard = .true. 
+                  t_lattice_model = .true. 
+
+                  ! if no further input is given a provided fcidump is 
+                  ! assumed! but this still needs to be implemented
+                  ! this fcidump gives the lattice structure! 
+                  if (item < nitems) then 
+                      call readl(lattice_type)
+                  else
+                      lattice_type = 'read'
+                  end if
+              case ('momentum-space','k-space','momentum')
+                  ! reuse most of the old initialisation for the k-space 
+                  ! hubbard. one has to be really careful to initialize all 
+                  ! the correct stuff especially for the matrix element 
+                  ! calculation with the HPHF option turned on! 
+                  t_k_space_hubbard = .true. 
+                  t_lattice_model = .true. 
+                  tKPntSym = .true.
+
+              case default 
+                  print *, w
+                  call Stop_All(t_r, "not recognised keyword!")
+              end select
+          end if
+                  
+      case ('TJ','TJ-MODEL')
+          t_tJ_model = .true. 
+          t_lattice_model = .true.
+          ! misuse the hubbard initialisation 
+          tHub = .true. 
+          tpbc = .true. 
+          treal = .true.
+
+      case ('HEISENBERG')
+          ! should i misuse the already provided setup for the hubbard 
+          ! model again? .. maybe.. 
+          ! maybe i should use a general flag like t_lattice_model 
+          ! especially for the matrix element evaluation and stuff
+          t_heisenberg_model = .true. 
+          t_lattice_model = .true. 
+          thub = .true. 
+          tpbc = .true. 
+          treal = .true. 
+
       case("RIINTEGRALS")
           tRIIntegrals = .true.
           tReadInt=.true.
@@ -519,6 +586,95 @@ system: do
             call geti(NMAXY)
             call geti(NMAXZ)
 
+            ! misuse the cell keyword to set this up to also have the 
+            ! hubbard setup already provided..
+!             if (t_new_real_space_hubbard) then 
+!                length_x = NMAXX 
+!                length_y = NMAXY
+!            end if
+
+       case('SPIN-TRANSCORR')
+           ! make a spin-dependent transcorrelation factor
+           t_spin_dependent_transcorr = .true. 
+           if (item < nitems) then 
+               call getf(trans_corr_param)
+           else
+               trans_corr_param = 0.1_dp
+           end if
+           t_non_hermitian = .true. 
+
+
+       case ('TRANSCORRELATED', 'TRANSCORR', 'TRANS-CORR')
+           ! activate the transcorrelated Hamiltonian idea from hongjun for 
+           ! the real-space hubbard model 
+           t_trans_corr = .true. 
+           t_non_hermitian = .true. 
+
+           if (item < nitems) then 
+               call getf(trans_corr_param)
+           else 
+               ! defaul value 1 for now, since i have no clue how this behaves
+               trans_corr_param = 1.0_dp
+           end if
+
+        case ("TRANSCORR-NEW")
+            t_trans_corr = .true. 
+            t_trans_corr_new = .true. 
+           t_non_hermitian = .true. 
+
+           if (item < nitems) then 
+               call getf(trans_corr_param)
+           else 
+               ! defaul value 1 for now, since i have no clue how this behaves
+               trans_corr_param = 1.0_dp
+           end if
+
+        case ('2-BODY-TRANSCORR', '2-BODY-TRANS-CORR', '2-BODY-TRANSCORRELATED','TRANSCORR-2BODY')
+           ! for the tJ model there are 2 choices of the transcorrelation 
+           ! indicate that here! 
+           t_trans_corr_2body = .true.
+           t_non_hermitian = .true. 
+
+           if (item < nitems) then 
+               call getf(trans_corr_param_2body)
+
+           else 
+               trans_corr_param_2body = 0.25_dp
+           end if
+
+           ! if it is the k-space hubbard also activate 3-body excitations here
+           if (t_k_space_hubbard) then 
+               t_3_body_excits = .true. 
+               max_ex_level = 3
+           end if
+
+        case ('NEIGHBOR-TRANSCORR','TRANSCORR-NEIGHBOR','N-TRANSCORR')
+            t_trans_corr_2body = .true. 
+            t_non_hermitian = .true. 
+
+            if (item < nitems) then 
+                call getf(trans_corr_param_2body) 
+            else 
+                trans_corr_param_2body = 0.25_dp
+            end if
+
+           ! if it is the k-space hubbard also activate 3-body excitations here
+           if (t_k_space_hubbard) then 
+               t_3_body_excits = .true. 
+               max_ex_level = 3
+           end if
+
+        case ("TRANSCORR-HOP","HOP-TRANSCORR")
+            t_trans_corr_hop = .true. 
+            t_non_hermitian = .true. 
+
+            if (item < nitems) then 
+                call getf(trans_corr_param)
+            else
+                trans_corr_param = 0.5_dp
+            end if
+
+                
        ! Options for the type of the reciprocal lattice (eg sc, fcc, bcc)
         case("REAL_LATTICE_TYPE")
             call readl(real_lattice_type) 
@@ -534,6 +690,10 @@ system: do
         ! during excitation generation for efficiency
         case("LATTICE-EXCITGEN")
             tLatticeGens =.true.
+        ! use the simplified random excitation generator for k-space hubbard that 
+        ! does not use a cumulative list (it is much more efficient)
+        case("UNIFORM-EXCITGEN")
+            t_uniform_excits = .true.
         case("MESH")
             call geti(NMSH)
         case("BOXSIZE")
@@ -550,6 +710,14 @@ system: do
         case("B")
             call getf(BHUB)
 
+        case ("J")
+            ! specify the tJ exchange here, the default is 1.0 
+            ! this could also be used for the heisenberg model.. 
+            call getf(exchange_j)
+         case("C")
+            call getf(btHub)
+            tmodHub = .true.
+
         case ("NEXT-NEAREST-HOPPING")
             call getf(nn_bhub)
 
@@ -564,17 +732,18 @@ system: do
         case("APERIODIC")
             TPBC = .false.
 
-        case ("TWISTED-BC")
-            ! first try at implementing twisted bounday conditions
-            ! comments will folllow TODO
-            t_twisted_bc = .true.
-            call getf(twisted_bc(1))
+
+        case("TWISTED-BC")
+            ! use of twisted boundary conditions for the cubic and tilted 
+            ! hubbard lattice model 
+            t_twisted_bc = .true. 
+            call getf(twisted_bc(1)) 
             if (item < nitems) then
                 call getf(twisted_bc(2))
             else
-                ! if only one input apply the same shift to both x and y!
+                ! if only one input apply same twist in x and y direction 
                 twisted_bc(2) = twisted_bc(1)
-            end if
+            endif
 
         case ("OPEN-BC")
             ! open boundary implementation for the real-space hubbard 
@@ -606,6 +775,64 @@ system: do
                 t_open_bc_x = .true.
                 t_open_bc_y = .true.
             end if
+
+        case("LATTICE") 
+            ! new hubbard implementation
+            ! but maybe think of a better way to init that..
+            ! the input has to be like: 
+            ! lattice [type] [len_1] [*len_2]
+            ! where length to is optional if it is necessary to input it.
+!             tHub = .false.
+!             treal = .false.
+!             lNoSymmetry = .true.
+            ! this treal is not true.. now we also have k-space hubbard lattice 
+            ! support
+!             treal = .true.
+!             t_new_real_space_hubbard = .true.
+
+            ! set some defaults: 
+            lattice_type = "read"
+
+            length_x = -1
+            length_y = -1
+
+!             tPBC = .false.
+
+            if (item < nitems) then 
+               ! use only new hubbard flags in this case 
+               call readl(lattice_type)
+            end if
+
+            if (item < nitems) then 
+                call geti(length_x) 
+            end if
+
+            if (item < nitems) then 
+                call geti(length_y)
+            end if
+
+            if (item < nitems) then 
+                call geti(length_z)
+            end if
+
+            if (t_k_space_hubbard) then 
+                lat => lattice(lattice_type, length_x, length_y, length_z, & 
+                    .not. t_open_bc_x, .not. t_open_bc_y, .not. t_open_bc_z,'k-space')
+            else if (t_new_real_space_hubbard) then 
+                lat => lattice(lattice_type, length_x, length_y, length_z, & 
+                    .not. t_open_bc_x, .not. t_open_bc_y, .not. t_open_bc_z,'real-space')
+            else 
+                lat => lattice(lattice_type, length_x, length_y, length_z, & 
+                    .not. t_open_bc_x, .not. t_open_bc_y, .not. t_open_bc_z)
+
+            end if
+
+            ! maybe i have to reuse the cell input functionality or set it 
+            ! here also, so that the setup is not messed up 
+            ! i should set those quantities here again.. 
+            nmaxx = length_x
+            nmaxy = length_y
+            nmaxz = 1
 
         case("UEG-OFFSET")
             tUEGOffset=.true.
@@ -1143,8 +1370,9 @@ system: do
             tComplexOrbs_RealInts = .true.
             
          case("COMPLEXWALKERS-REALINTS")
-            ! We have real orbitals and integrals, but the walker weights are complex
-            tComplexWalkers_RealInts = .true.
+            ! In case complex walkers shall be used but not complex basis functions,
+            ! such that the integrals are real and have full symmetry
+            tComplexWalkers_RealInts = .true. 
 
         case("SYSTEM-REPLICAS")
             ! How many copies of the simulation do we want to run in parallel?
@@ -1801,6 +2029,8 @@ system: do
              ENDIF
           ENDIF
 !C..
+
+         ! W.D: are those variable ever used actually? 
           NMAX=MAX(NMAXX,NMAXY,NMAXZ)
           NNR=NMSH*NMSH*NMSH
           WRITE(6,'(A,I5)') '  NMAXX : ' , NMAXX
@@ -1823,6 +2053,13 @@ system: do
              end if
              IF(TTILT) WRITE(6,*) ' TILTED LATTICE: ',ITILTX, ",",ITILTY
              IF(TTILT.AND.ITILTX.GT.ITILTY) call stop_all(this_routine, 'ERROR: ITILTX>ITILTY')
+             if (t_new_hubbard) then
+                 if (iprocindex == root) then
+                     print *, "New Hubbard Implementation! " 
+                     print *, "lattice used: " 
+                     call lat%print_lat()
+                 end if
+             end if
           ELSE
              WRITE(6,'(1X,A,F19.5)') '  BOX LENGTH : ' , BOX
              WRITE(6,'(1X,A,F19.5)') '  B/A : ' , BOA
@@ -1840,16 +2077,25 @@ system: do
 !      ALAT(4)=2*BOX*(BOA*COA)**(1/3.0_dp)
           
           IF(THUB) THEN
-             WRITE(6,*) ' X-LENGTH OF HUBBARD CHAIN:', NMAXX
-             WRITE(6,*) ' Y-LENGTH OF HUBBARD CHAIN:', NMAXY
-             WRITE(6,*) ' Z-LENGTH OF HUBBARD CHAIN:', NMAXZ
-             WRITE(6,*) ' Periodic Boundary Conditions:',TPBC
-             WRITE(6,*) ' Real space basis:',TREAL
+              if (t_new_hubbard) then 
+                 omega = real(lat%get_nsites(), dp) 
+                 if (iprocindex == root) then 
+                     print *, " periodic boundary conditions: ", lat%is_periodic()
+                     print *, "Real space basis: ", t_new_real_space_hubbard
+                 end if
+             else 
+                 WRITE(6,*) ' X-LENGTH OF HUBBARD CHAIN:', NMAXX
+                 WRITE(6,*) ' Y-LENGTH OF HUBBARD CHAIN:', NMAXY
+                 WRITE(6,*) ' Z-LENGTH OF HUBBARD CHAIN:', NMAXZ
+                 WRITE(6,*) ' Periodic Boundary Conditions:',TPBC
+                 WRITE(6,*) ' Real space basis:',TREAL
+
              IF(TTILT.AND.THUB) THEN
                 OMEGA=real(NMAXX,dp)*NMAXY*(ITILTX*ITILTX+ITILTY*ITILTY)
              ELSE
                 OMEGA=real(NMAXX,dp)*(NMAXY)*(NMAXZ)
              ENDIF
+             end if
              RS=1.0_dp
           ELSE
              OMEGA=ALAT(1)*ALAT(2)*ALAT(3)
@@ -1892,15 +2138,30 @@ system: do
           ENDIF
           NBASISMAX(4,2)=1
           IF(THUB) THEN
-             IF(TTILT) THEN
-                CALL SETBASISLIM_HUBTILT(NBASISMAX,NMAXX,NMAXY,NMAXZ,LEN,TPBC,ITILTX,ITILTY)
-                ! why is tilted real-space lattice not supported??
-                ! hm.. try.. anyway
-                ! is supported now!
-!                 IF(TREAL) call stop_all(this_routine, 'REAL TILTED HUBBARD NOT SUPPORTED')
-              ELSE
-                CALL SETBASISLIM_HUB(NBASISMAX,NMAXX,NMAXY,NMAXZ,LEN,TPBC,TREAL)
-             ENDIF
+              if (t_new_hubbard) then
+                ! i need a new setup routine for this for the new generic 
+                ! hubbard setup! essentialy this just sets up NBASISMAX .. 
+                ! what do i need from this legacy variable?? 
+                len = 2*lat%get_nsites()
+                if (t_k_space_hubbard) then 
+                    ! this indicates pbc and k-space. 
+                    ! especially for the addelecsym function! 
+                    NBASISMAX(1,3) = 0
+                  
+                else if (t_new_real_space_hubbard) then 
+                    NBASISMAX(1,3) = 4
+                    NBASISMAX(3,3) = 0
+                end if
+
+              else
+                 IF(TTILT) THEN
+                    CALL SETBASISLIM_HUBTILT(NBASISMAX,NMAXX,NMAXY,NMAXZ,LEN,TPBC,ITILTX,ITILTY)
+                    ! is supported now!
+    !                 IF(TREAL) call stop_all(this_routine, 'REAL TILTED HUBBARD NOT SUPPORTED')
+                  ELSE
+                    CALL SETBASISLIM_HUB(NBASISMAX,NMAXX,NMAXY,NMAXZ,LEN,TPBC,TREAL)
+                 ENDIF
+             end if
           ELSEIF(TUEG) THEN
              NBASISMAX(1,1)=-NMAXX
              NBASISMAX(1,2)=NMAXX
@@ -1929,6 +2190,15 @@ system: do
       ENDIF
 !C..         (.NOT.TREADINT)
 
+     if (t_new_hubbard) then
+         ! [W.D. 25.1.2018]
+         ! ignore the old thub keyword and try to set everything up 
+         ! in a standalone fashion for the new hubbard implementation, 
+         ! since otherwise this causes a lot of conflict with other 
+         ! assumptions in the old implementation! 
+         ! todo!
+
+     end if
 
 !C.. we actually store twice as much in arr as we need.
 !C.. the ARR(1:LEN,1) are the energies of the orbitals ordered according to
@@ -1989,6 +2259,38 @@ system: do
         else
          WRITE(6,*) "Creating plane wave basis."
         end if
+        if (t_new_hubbard) then 
+            BRR = [(i, i = 1, 2*lat%get_nsites())]
+            IG = 2*lat%get_nsites()
+
+            if (t_new_real_space_hubbard) then
+                ! i have to do everything what is done below with my new 
+                ! lattice class: 
+                ! something like: (loop over spin-orbital!)
+                ARR = 0.0_dp 
+            else 
+                ARR(:,1) = [(bhub*lat%dispersion_rel_spin_orb(i), i = 1, IG)]
+
+
+                ARR(:,2) = [(bhub*lat%dispersion_rel_spin_orb(i), i = 1, IG)]
+            end if
+
+            do i = 1, lat%get_nsites()
+                ! todo: not sure if i really should set up the k-vectors 
+                ! for the real-space! maybe the convention actually is to 
+                ! set them all to 0! check that!
+                ! do i still want to save the "real-space positions" in the 
+                ! k-vectors? i could.. but do i need it? 
+                G1(2*i-1)%k = lat%get_k_vec(i)
+                G1(2*i-1)%ms = -1 
+                G1(2*i-1)%Sym = TotSymRep()
+
+                G1(2*i)%k = lat%get_k_vec(i)
+                G1(2*i)%ms = 1 
+                G1(2*i)%Sym = TotSymRep()
+                ! and in the k-space i still need to 
+            end do
+        else
          IG=0
          DO I=NBASISMAX(1,1),NBASISMAX(1,2)
            DO J=NBASISMAX(2,1),NBASISMAX(2,2)
@@ -2008,6 +2310,8 @@ system: do
 !                   IF((THUB.AND.(TREAL.OR..NOT.TPBC)).or.KALLOWED(G,NBASISMAX)) THEN
                     IF(THUB) THEN
 !C..Note for the Hubbard model, the t is defined by ALAT(1)!
+                       call setupMomIndexTable()
+                       call setupBreathingCont(2*btHub/OMEGA)
                        IF(TPBC) THEN
                        CALL HUBKIN(I,J,K,NBASISMAX,BHUB,TTILT,SUM,TREAL)
                        ELSE
@@ -2035,6 +2339,7 @@ system: do
              ENDDO
            ENDDO
          ENDDO
+     end if
 !C..Check to see if all's well
          WRITE(6,*) ' NUMBER OF BASIS FUNCTIONS : ' , IG 
          NBASIS=IG
@@ -2177,7 +2482,19 @@ system: do
 !C.. but we still need the sym reps table. DEGENTOL=1.0e-6_dp. CHECK w/AJWT.
          CALL GENSYMREPS(G1,NBASIS,ARR,1.e-6_dp)
       ELSEIF(THUB.AND..NOT.TREAL) THEN
-         CALL GenHubMomIrrepsSymTable(G1,nBasis,nBasisMax)
+          ! [W.D. 25.1.2018:]
+          ! this also has to be changed for the new hubbard implementation
+          if (t_k_space_hubbard) then 
+              ! or i change the function below to account for the new 
+              ! implementation
+              call setup_symmetry_table()
+!               call gen_symreps()
+
+
+          else
+             CALL GenHubMomIrrepsSymTable(G1,nBasis,nBasisMax)
+         end if
+         ! this function does not make sense..
          CALL GENHUBSYMREPS(NBASIS,ARR,BRR)
          CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
       ELSE

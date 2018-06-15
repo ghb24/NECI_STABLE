@@ -13,7 +13,7 @@ use bit_reps, only: decode_bit_det
 use DetBitOps, only: FindBitExcitLevel, sign_gt, sign_lt
 use sort_mod, only: sort
 use constants
-use SystemData, only: nel
+use SystemData, only: nel, t_3_body_excits
 
 implicit none
 
@@ -104,6 +104,48 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
+  subroutine fixed_number_SI_generation()
+      use semi_stoch_gen, only: generate_space_most_populated
+      use LoggingData, only: ref_filename, tWriteRefs
+      implicit none
+      integer(MPIArg) :: mpi_refs_found
+      integer :: ierr, i, all_refs_found, refs_found
+      integer(MPIArg) :: refs_found_per_proc(0:nProcessors-1), refs_displs(0:nProcessors-1)
+      integer(n_int) :: ref_buf(0:NIfTot,maxNRefs), mpi_buf(0:NIfTot,nRefs)
+      character(*), parameter :: this_routine = "generate_ref_space"
+      
+      ! we need to be sure ilutRefAdi has the right size
+      call reallocate_ilutRefAdi(maxNRefs)
+
+      ! Get the nRefs most populated determinants
+      refs_found = 0
+      call generate_space_most_populated(maxNRefs, .false., 1, ref_buf, refs_found, & 
+          CurrentDets, TotWalkers)
+      ! Communicate the refs_found info
+      mpi_refs_found = int(refs_found,MPIArg)
+      call MPIAllGather(mpi_refs_found, refs_found_per_proc, ierr)
+      all_refs_found = sum(refs_found_per_proc)
+      if(all_refs_found .ne. maxNRefs) then
+         write(6,*) "Warning: Less than ", maxNRefs, &
+              " superinitiators found, using only ", all_refs_found, " superinitiators"
+      endif
+      ! Set the number of SIs to the number actually found
+      nRefs = all_refs_found
+      ! Prepare communication of SIs
+      refs_displs(0) = 0
+      do i = 1, nProcessors - 1
+         refs_displs(i) = refs_displs(i-1) + refs_found_per_proc(i-1)
+!          refs_displs(i) = sum(refs_found_per_proc(0:i-1))
+      enddo
+      ! Store them on all processors
+      call MPIAllGatherV(ref_buf(0:NIfTot, 1:refs_found), ilutRefAdi, &
+           refs_found_per_proc, refs_displs)
+      
+      if(tWriteRefs) call output_reference_space(ref_filename)
+  end subroutine fixed_number_SI_generation
+
+!------------------------------------------------------------------------------------------!
+
   subroutine read_in_refs(filename, nRead, tPopPresent)
     use util_mod, only: get_free_unit
     use adi_data, only: tDelayGetRefs
@@ -157,21 +199,26 @@ contains
 
     subroutine generate_ref_space()
       use LoggingData, only: ref_filename, tWriteRefs
+      use FciMCData, only: CurrentDets, TotWalkers
       implicit none
       integer :: refs_found, all_refs_found
       integer(n_int) :: ref_buf(0:NIfTot,maxNRefs), si_buf(0:NIfTot,maxNRefs)
       character(*), parameter :: this_routine = "generate_ref_space"
 
-      call get_threshold_based_SIs(ref_buf,refs_found)
+      if(NoTypeN > 1) then
+         call get_threshold_based_SIs(ref_buf,refs_found)
 
-      ! communicate the SIs
-      call communicate_threshold_based_SIs(si_buf,ref_buf,refs_found,all_refs_found)
+         ! communicate the SIs
+         call communicate_threshold_based_SIs(si_buf,ref_buf,refs_found,all_refs_found)
 
-      ! And write the so-merged references to ilutRef
-      ! we need to be sure ilutRefAdi has the right size
-      nRefs = all_refs_found
-      call reallocate_ilutRefAdi(nRefs)
-      ilutRefAdi(0:NIfTot,1:nRefs) = si_buf(0:NIfTot,1:nRefs)
+         ! And write the so-merged references to ilutRef
+         ! we need to be sure ilutRefAdi has the right size
+         nRefs = all_refs_found
+         call reallocate_ilutRefAdi(nRefs)
+         ilutRefAdi(0:NIfTot,1:nRefs) = si_buf(0:NIfTot,1:nRefs)
+      else
+         call fixed_number_SI_generation()
+      endif
 
       if(iProcIndex == root) &
            write(6,*) "Getting superinitiators for all-doubs-initiators: ", nRefs, " SIs found"
@@ -192,6 +239,10 @@ contains
       
       ref_buf = 0
       refs_found = 0
+! <<<<<<< HEAD
+!       call generate_space_most_populated(nRefs, .false., 1, ref_buf, refs_found, &
+!            CurrentDets, TotWalkers)
+! =======
       nBlocks = 1
 
       allocate(tmp(0:NIfTot,blockSize))
@@ -214,7 +265,7 @@ contains
       end do
 
       ! we only keep at most maxNRefs determinants
-      if(refs_found > maxNRefs) then
+      if(refs_found > maxNRefs .and. NoTypeN > 1) then
          write(*,'(A,I5,A,I5,A,I5,A)') "On proc ", iProcIndex, " found ", refs_found, &
               " SIs, which is more than the maximum of ", maxNRefs, " - truncating"
          ! in case we found more, take the maxNRefs with the highest population
@@ -248,6 +299,7 @@ contains
 
       si_buf = 0
       ! here, we gather the potential SIs found by the procs and gather them
+! >>>>>>> origin/all_doubs_initiators
       ! Communicate the refs_found info
       mpi_refs_found = int(refs_found,MPIArg)
       call MPIAllGather(mpi_refs_found, refs_found_per_proc, ierr)
@@ -255,7 +307,8 @@ contains
       all_refs_found = sum(refs_found_per_proc)
       refs_displs(0) = 0
       do i = 1, nProcessors - 1
-         refs_displs(i) = sum(refs_found_per_proc(0:i-1))
+         refs_displs(i) = refs_displs(i-1) + refs_found_per_proc(i-1)
+!          refs_displs(i) = sum(refs_found_per_proc(0:i-1))
       enddo
       ! Store them on all processors
       allocate(mpi_buf(0:NIfTot,all_refs_found), stat = ierr)
@@ -277,7 +330,8 @@ contains
          do i = 1, maxNRefs
             si_buf(0:NIfTot,i) = mpi_buf(0:NIfTot,largest_inds(i))
          enddo
-         if(iProcIndex == root) write(6,'(A,I5,A,I5,A)') "In total ", all_refs_found, &
+         if(iProcIndex == root .and. NoTypeN > 1) &
+              write(6,'(A,I5,A,I5,A)') "In total ", all_refs_found, &
               " SIs were found, which is more than the maximum number of ",& 
               maxNRefs,  " - truncating"              
          ! make it look to the outside as though maxNRefs were found
@@ -656,7 +710,8 @@ contains
 
       refs_displs(0) = 0
       do i = 1, nProcessors - 1
-         refs_displs(i) = sum(refs_found_per_proc(0:i-1))
+         refs_displs(i) = refs_displs(i-1) + refs_found_per_proc(i-1)
+!          refs_displs(i) = sum(refs_found_per_proc(0:i-1))
       enddo
       ! Store them on all processors
       call MPIAllGatherV(list(0:NIfTot, 1:listSize), mpi_buf, &
@@ -952,7 +1007,11 @@ contains
     integer :: iRef, nI(nel), exLevel
     real(dp) :: unsignedCache
     HElement_t(dp) :: signedCache
+#ifdef __DEBUG
+    character(*), parameter :: this_routine = "get_sign_op_run"
+#endif
     integer :: connections
+    ASSERT(.not. t_3_body_excits)
     
     call initialize_c_caches(signedCache, unsignedCache, connections)
     ! Sum up all Hij cj for all superinitiators j
@@ -1353,6 +1412,7 @@ contains
          if(tSuccess) staticInit = .true.
       endif
     end subroutine check_superinitiator
+
 
 !------------------------------------------------------------------------------------------!
 

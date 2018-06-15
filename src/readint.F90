@@ -220,6 +220,9 @@ contains
          use Parallel_neci
          use constants, only: dp,sizeof_int
          use util_mod, only: get_free_unit
+#ifdef __REALTIME
+         use real_time_data, only: t_real_time_fciqmc, t_complex_ints
+#endif
          IMPLICIT NONE
          integer, intent(in) :: LEN
          integer, intent(inout) :: nBasisMax(5,*)
@@ -237,7 +240,11 @@ contains
          INTEGER , ALLOCATABLE :: MaxSlots(:)
          character(len=*), parameter :: t_r='GETFCIBASIS'
          LOGICAL TBIN
-         logical :: uhf,tRel
+         ! RT_M_Merge: Adjusted declarations from real-time branch to current master
+         logical :: uhf, tRel
+
+         real(dp) :: real_time_Z
+
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
 
 #ifdef _MOLCAS_
@@ -422,7 +429,16 @@ contains
                  ! functions and so the integer labels run into each other.
                  ! This means it won't work with more than 999 basis
                  ! functions...
-#ifdef __CMPLX
+#if defined(__CMPLX) && defined(__REALTIME)
+                ! here i have to check if its actually a complex input in DUMP
+                ! this slows down the read in and setup of FCIDUMPs though..
+1               if (t_complex_ints) then
+                    read(iunit,*,END=99) Z, I, J, K, L
+                else
+                    read(iunit,*,END=99) real_time_Z, I, J, K, L
+                    Z = dcmplx(real_time_Z, 0.0_dp)
+                end if
+#elif defined(__CMPLX) && !defined(__REALTIME)
 1               READ(iunit,*,END=99) Z,I,J,K,L
 #else
 1               CONTINUE
@@ -623,6 +639,9 @@ contains
          use shared_memory_mpi
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
          use util_mod, only: get_free_unit
+#ifdef __REALTIME
+         use real_time_data, only: t_complex_ints
+#endif
          IMPLICIT NONE
          integer, intent(in) :: NBASIS
          logical, intent(in) :: tReadFreezeInts
@@ -644,6 +663,9 @@ contains
          character(len=*), parameter :: t_r='READFCIINT'
          real(dp) :: diff
          logical :: tbad,tRel
+         ! RT_M_Merge: Adjusted declarations from real-time branch
+
+         real(dp) :: real_time_Z
          integer(int64) :: start_ind, end_ind
          integer(int64), parameter :: chunk_size = 1000000
          integer:: bytecount
@@ -746,11 +768,18 @@ contains
              ! functions and so the integer labels run into each other.
              ! This means it won't work with more than 999 basis
              ! functions...
+#if defined(__CMPLX) && defined(__REALTIME)
+101            if (t_complex_ints) then
+                READ(iunit,*,END=199) Z,I,J,K,L
+             else 
+               read(iunit,*,END=199) real_time_Z,I,J,K,L
+                Z = dcmplx(real_time_Z, 0.0_dp)
+            end if
+#elif defined(__CMPLX) && !defined(__REALTIME)
+101           READ(iunit,*,END=199) Z,I,J,K,L
 
-#ifdef __CMPLX
-101          READ(iunit,*,END=199) Z,I,J,K,L
 #else
-101          CONTINUE
+101           CONTINUE
              !It is possible that the FCIDUMP can be written out in complex notation, but still only
              !have real orbitals. This occurs with solid systems, where all kpoints are at the 
              !gamma point or BZ boundary and have been appropriately rotated. In this case, all imaginary
