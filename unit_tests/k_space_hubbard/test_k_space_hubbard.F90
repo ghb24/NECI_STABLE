@@ -36,7 +36,7 @@ program test_k_space_hubbard
 
     use IntegralsData, only: umat
 
-    use DetBitOps, only: EncodeBitDet
+    use DetBitOps, only: EncodeBitDet, findbitexcitlevel
 
     use fcimcdata, only: pDoubles, pParallel
 
@@ -113,9 +113,10 @@ contains
                    B1u(9), B2u(9), Eu(9), irreps(10,9)
         integer, allocatable :: degen_ind(:,:), pairs(:,:), irrep(:), pair_ind(:)
         logical, allocatable :: t_degen(:)
-        real(dp), allocatable :: gs_gap(:,:)
+        real(dp), allocatable :: gs_gap_J(:,:), gs_gap_U(:,:)
         integer :: n_syms
         character(3) :: irrep_names(0:10)
+        integer, allocatable :: trunc(:), add(:,:)
 
         tmp_sign = 0.0_dp
         ! also define the point group character to determine the 
@@ -146,21 +147,21 @@ contains
         irrep_names = ['  x','A1g','A2g','B1g','B2g',' Eg','A1u','A2u','B1u','B2u',' Eu']
 
         t_do_diags = .false.
-        t_do_subspace_study = .true.
-        t_input_U = .false.
+        t_do_subspace_study = .false.
+        t_input_U = .true.
         t_input_J = .false.
-        t_U_vec = .true.
+        t_U_vec = .false.
         t_J_vec = .true.
         t_do_twisted_bc = .false.
         t_twisted_vec = .false.
         t_analyse_gap = .false.
         t_ignore_k = .false.
-        t_do_ed = .true.
+        t_do_ed = .false.
 
         call init_k_space_unit_tests()
 
         ! i have to define the lattice here.. 
-        lat => lattice('tilted', 3, 3, 1,.true.,.true.,.true.,'k-space')
+        lat => lattice('chain', 6, 1, 1,.true.,.true.,.true.,'k-space')
 
 !         x = [(-lat%dispersion_rel_orb(i), i = 1, 24)]
 !         ind = [(i, i = 1, 24)]
@@ -179,23 +180,23 @@ contains
             print *, "input U: "
             read(*,*) U
         else if (t_U_vec) then
-!             U_vec = linspace(1.0,8.0,8)
-            U_vec = [4.0]
+            U_vec = linspace(0.0,8.0,9)
+!             U_vec = [4.0]
         else
-            U = 4.0
+            U = 2.0
         end if
 
         if (t_input_J) then
             print *, "input J:"
             read(*,*), J
         else if (t_J_vec) then
-            J_vec = linspace(0.0,1.0,10)
-!               J_vec = [0.1]
+            J_vec = linspace(0.0,2.0,100)
+!               J_vec = [0.5]
         else 
-            J = 0.1
+            J = 0.5
         end if
         
-        nel = 12
+        nel = 6
         allocate(nI(nel))
         allocate(nJ(nel))
         nj = 0
@@ -204,11 +205,11 @@ contains
 
 !         nI = [(i, i = 1,nel)]
         ! 46 in 50:
-!         nI = [ 9,10,11,12,13,14,15,16,21,22,23,24,25,26,27,28,29,30,&
-!             37,38,39,40,41,42,43,44,45,46,55,56,57,58,59,60,61,62,63,64,73,74,75,76,77,78,79,80]
+!         nI = [ 9,11,12,13,14,15,16,21,22,23,24,25,26,27,28,29,30,&
+!             37,38,39,40,41,42,43,44,45,46,55,56,57,58,59,60,61,62,63,64,73,74,75,76,77,78,80]
 
         ! 12 in 18, k = 0
-        nI = [ 3 ,5,6,11,12,13,14,15,16,23,24, 26 ]
+!         nI = [ 3 ,5,6,11,12,13,14,15,16,23,24, 26 ]
         ! 14 in 18:
 !         nI = [ 3,4, 5, 6, 11,12,13,14,15,16,23,24,25,26 ]
 
@@ -223,7 +224,10 @@ contains
 
         ! chain:
         ! 6 in 6, k = 0
-!         nI = [3,4,5,6,7,8]
+        nI = [3,4,5,6,7,8]
+
+        ! 6 in 8, 
+!         nI = [5,6,7,8,9,10]
 
         ! 6 in 6, k = 3
 !         nI = [2,3,4,5,6,7]
@@ -383,9 +387,12 @@ contains
     !         call gen_all_doubles_k_space(nI, n_excits, excits)
             call gen_all_excits_k_space_hubbard(nI, n_excits, excits)
 
+            print *, "number of excitations: ", n_excits
+
             write(U_str, *) int(U)
             write(nel_str, *) nel 
-            lattice_name = "18_"
+            write(lattice_name,*) lat%get_nsites() 
+            lattice_name = trim(lattice_name) // "_"
 
             filename = 'H_elements_' // trim(adjustl(nel_str)) // 'in' // &
                 trim(adjustl(lattice_name)) // 'U_' // trim(adjustl(U_str))
@@ -499,6 +506,35 @@ contains
                     hilbert_space(:,3) = [ 5,6, 7 ,11,12,13,14,15,16, 22 ,23,24] 
                     ! 8 21
                     hilbert_space(:,4) = [ 5,6, 8 ,11,12,13,14,15,16, 21 ,23,24] 
+
+                else if (nel == 18) then 
+                    n_eig = 53 
+                    allocate(trunc(10))
+                    trunc = [5,6,11,12,13,14,15,16,23,24]
+                    allocate(add(8,53))
+                    ! HF:
+                    add(:,1) = [3,4,7,8,21,22,25,26]
+                    ! closed-shell:
+                    add(:,2) = [7,8,21,22,25,26,29,30]
+                    add(:,3) = [3,4,21,22,25,26,33,34]
+                    add(:,4) = [3,4,7,8,25,26,27,28]
+                    add(:,5) = [3,4,7,8,21,22,19,20]
+                    ! k = 0 open shell (with spin-flips)
+                    add(:,6:11) = create_all_spin_flips([ 3, 7,8,21,22, 26 , 19 , 30 ])
+                    add(:,12:17) = create_all_spin_flips([3,7,8,212,22,26,27,34])
+                    add(:,18:23) = create_all_spin_flips([3,4,7,22,25,26,19,30])
+                    add(:,24:29) = create_all_spin_flips([3,4,7,22,25,26,27,34])
+                    ! k = (-2,0)
+                    add(:,30:35) = create_all_spin_flips([3,8,21,22,25,26,29,34])
+                    ! k = (0,-2)
+                    add(:,36:41) = create_all_spin_flips([3,7,8,22,25,26,27,30])
+                    ! k = (0,2)
+                    add(:,42:47) = create_all_spin_flips([3,4,7,21,22,26,19,34])
+                    ! k = (2,0)
+                    add(:,48:53) = create_all_spin_flips([3,4,7,8,21,26,19,28])
+
+
+
                 end if
 
             end if
@@ -534,8 +570,11 @@ contains
             allocate(irrep(n_eig))
             irrep = 0
 
-            allocate(gs_gap(n_eig,size(J_vec)))
-            gs_gap = 0.0_dp
+            allocate(gs_gap_J(n_eig,size(J_vec)))
+            gs_gap_J = 0.0_dp
+
+            allocate(gs_gap_U(n_eig,size(U_vec)))
+            gs_gap_U = 0.0_dp
 
             iunit = get_free_unit()
             open(iunit, file = 'basis')
@@ -643,7 +682,8 @@ contains
                             end if
  
                             do l = 1, n_eig
-                                gs_gap(l,k) = e_values(l) - e_values(1)
+                                gs_gap_J(l,k) = e_values(l) - e_values(1)
+                                gs_gap_U(l,i) = e_values(l) - e_values(1)
                                 do m = 1, size(hilbert_space,2)
                                     tmp_sign(1) = e_vecs(m,l)
                                     call encode_sign(hilbert_space_ilut(:,m), tmp_sign)
@@ -659,7 +699,7 @@ contains
 
                                 if (t_sym) then
                                     write(iunit,*) U, J, e_values(l), e_vecs(:,l), &
-                                        sym_labels_all(l,:), irrep_names(irrep(l)), gs_gap(l,k)
+                                        sym_labels_all(l,:), irrep_names(irrep(l)), gs_gap_J(l,k)
                                 else
                                     write(iunit,*) &
                                         U, J, e_values(l), e_vecs(:,l), left_ev(:,l), sym_labels
@@ -673,12 +713,19 @@ contains
                         open(iunit, file = 'gs_gap_vs_J')
                         write(iunit,*) '# J, gap'
                         do k = 1, size(J_vec)
-                            write(iunit,*) J_vec(k), gs_gap(:,k)
+                            write(iunit,*) J_vec(k), gs_gap_J(:,k)
                         end do
                         close(iunit)
                     end if
                 end do
 
+                iunit = get_free_unit()
+                open(iunit, file = 'gs_gap_vs_U')
+                write(iunit,*) '# U, gap'
+                do k = 1, size(U_vec)
+                    write(iunit,*) U_vec(k), gs_gap_U(:,k)
+                end do
+                close(iunit)
                 call stop_all("here", "now")
 
             else
@@ -753,8 +800,13 @@ contains
                 print *, hilbert_space(:,i), e_vecs(i,1), e_vecs(i,2), e_vecs(i,3)
             end do
         end if
-        call stop_all("here", "now")
-        call exact_transcorrelation(lat, nI, [J], U, hilbert_space) 
+!         call stop_all("here", "now")
+        if (t_J_vec) then
+            call exact_transcorrelation(lat, nI, J_vec, U, hilbert_space) 
+        else 
+            call exact_transcorrelation(lat, nI, [J], U, hilbert_space) 
+        end if
+
 
         call stop_all("here", "now")
 
@@ -1347,12 +1399,24 @@ contains
                                        hamil_next(:,:), hamil_neci_next(:,:)
         real(dp), allocatable :: e_values(:), e_values_neci(:), e_vec(:,:), gs_vec(:)
         real(dp), allocatable :: e_vec_trans(:,:), t_mat_next(:,:), e_vec_next(:,:)
+        real(dp), allocatable :: e_vec_trans_left(:,:), e_vec_next_left(:,:)
         real(dp) :: gs_energy, gs_energy_orig, hf_coeff_onsite(size(J))
         real(dp) :: hf_coeff_next(size(J)), hf_coeff_orig
         real(dp), allocatable :: neci_eval(:)
         integer, allocatable :: hilbert_space(:,:)
-        character(30) :: filename, J_str
+        character(30) :: filename, J_str, U_str
+        logical :: t_norm_inside
+        integer :: ic_inside, ic
+        real(dp), allocatable :: norm_inside_orig(:), norm_inside_trans(:), &
+            norm_inside_trans_left(:)
+        integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
+        real(dp) :: e_thresh = 1.0e-5_dp
         
+        t_norm_inside = .true.
+        ic_inside = 2
+
+        write(U_str,*) U
+
         ! then create the hilbert space 
         ! although make this an option to input it.. because i only 
         ! need to do that once actually.. 
@@ -1382,22 +1446,25 @@ contains
         end do
         call eig(hamil, e_values, e_vec) 
 
-        print *, "k-space hamiltonian: "
-        call print_matrix(hamil)
-        print *, "diagonal elements: e(k) + U/V"
-        do i = 1, n_states 
-            print *, hamil(i,i), "|", &
-                sum(tmat2d(hilbert_space(:,i),hilbert_space(:,i))) + uhub/omega
-        end do
-        print *, "basis: " 
-        print *, "i, k(1), k(2), k1 + k2, map(k1+k2)"
-        do i = 1, n_states 
-            print *,  hilbert_space(:,i), "|", &
-                lat%get_k_vec(get_spatial(hilbert_space(1,i))), "|", & 
-                lat%get_k_vec(get_spatial(hilbert_space(2,i))), "|", &
-                lat%get_k_vec(get_spatial(hilbert_space(1,i))) + & 
-                lat%get_k_vec(get_spatial(hilbert_space(2,i)))
-        end do
+        ! only print small hilbert spaces
+        if (n_states <= 20) then
+            print *, "k-space hamiltonian: "
+            call print_matrix(hamil)
+            print *, "diagonal elements: e(k) + U/V"
+            do i = 1, n_states 
+                print *, hamil(i,i), "|", &
+                    sum(tmat2d(hilbert_space(:,i),hilbert_space(:,i))) + uhub/omega
+            end do
+            print *, "basis: " 
+            print *, "i, k(1), k(2), k1 + k2, map(k1+k2)"
+            do i = 1, n_states 
+                print *,  hilbert_space(:,i), "|", &
+                    lat%get_k_vec(get_spatial(hilbert_space(1,i))), "|", & 
+                    lat%get_k_vec(get_spatial(hilbert_space(2,i))), "|", &
+                    lat%get_k_vec(get_spatial(hilbert_space(1,i))) + & 
+                    lat%get_k_vec(get_spatial(hilbert_space(2,i)))
+            end do
+        end if
 
         ! find the ground-state
         ind = minloc(e_values,1) 
@@ -1424,8 +1491,15 @@ contains
 
         allocate(e_vec_trans(n_states, size(J)))
         e_vec_trans = 0.0_dp 
+
+        allocate(e_vec_trans_left(n_states, size(J)))
+        e_vec_trans_left = 0.0_dp 
+
         allocate(e_vec_next(n_states, size(J)))
         e_vec_next = 0.0_dp
+
+        allocate(e_vec_next_left(n_states,size(J)))
+        e_vec_next_left = 0.0_dp
 
         hf_coeff_onsite = 0.0_dp
         hf_coeff_next = 0.0_dp
@@ -1462,7 +1536,7 @@ contains
 
             neci_eval = calc_eigenvalues(hamil_neci)
 
-            if (abs(gs_energy_orig - minval(neci_eval)) > 1.0e-12) then 
+            if (abs(gs_energy_orig - minval(neci_eval)) > e_thresh) then 
                 print *, "original hamiltonian: "
                 call print_matrix(hamil)
                 print *, "on-site transcorr hamiltonian neci: "
@@ -1477,7 +1551,7 @@ contains
 
             neci_eval = calc_eigenvalues(hamil_neci_next) 
 
-            if (abs(gs_energy_orig - minval(neci_eval)) > 1.0e-12) then
+            if (abs(gs_energy_orig - minval(neci_eval)) > e_thresh) then
                 print *, "original hamiltonian: " 
                 call print_matrix(hamil)
                 print *, "neighbor transcorr neci: " 
@@ -1497,7 +1571,7 @@ contains
             gs_energy = e_values(ind) 
             print *, "transformed ground-state energy: ", gs_energy 
 
-            if (abs(gs_energy - gs_energy_orig) > 1.e-12) then 
+            if (abs(gs_energy - gs_energy_orig) > e_thresh) then 
                 call stop_all("HERE!", "energy incorrect!")
             end if
             ! how do i need to access the vectors to get the energy? 
@@ -1509,6 +1583,22 @@ contains
             hf_coeff_onsite(i) = gs_vec(1)
 
             e_vec_trans(:,i) = gs_vec
+
+            ! also obtain the left GS eigenvector: 
+            call eig(hamil_trans, e_values, e_vec, .true.)
+            ! find the ground-state
+            ind = minloc(e_values,1) 
+            gs_energy = e_values(ind) 
+
+            print *, "transformed ground-state energy(left): ", gs_energy 
+            ! how do i need to access the vectors to get the energy? 
+            gs_vec = abs(e_vec(:,ind))
+            call sort(gs_vec)
+
+            gs_vec = gs_vec(n_states:1:-1)
+
+            e_vec_trans_left(:,i) = gs_vec
+
             ! and write the ground-state-vector to a file 
 !             iunit = get_free_unit()
 !             open(iunit, file = filename)
@@ -1523,7 +1613,7 @@ contains
             gs_energy = e_values(ind) 
             print *, "neighbor transformed ground-state energy: ", gs_energy 
 
-            if (abs(gs_energy - gs_energy_orig) > 1.e-12) then 
+            if (abs(gs_energy - gs_energy_orig) > e_thresh) then 
                 call stop_all("HERE!", "energy incorrect!")
             end if
 
@@ -1537,19 +1627,73 @@ contains
 
             e_vec_next(:,i) = gs_vec
 
-         end do
+            ! also obtain the left eigenvalue 
+            call eig(hamil_next, e_values, e_vec,.true.)
+            ind = minloc(e_values,1) 
+            gs_energy = e_values(ind) 
+            print *, "neighbor transformed ground-state energy(left): ", gs_energy 
 
+            if (abs(gs_energy - gs_energy_orig) > e_thresh) then 
+                call stop_all("HERE!", "energy incorrect!")
+            end if
+
+            ! how do i need to access the vectors to get the energy? 
+            gs_vec = abs(e_vec(:,ind))
+            call sort(gs_vec)
+
+            gs_vec = gs_vec(n_states:1:-1)
+
+            e_vec_next_left(:,i) = gs_vec
+
+        end do
+
+        if (t_norm_inside) then 
+            ! do also a l2 norm inside excitation level study for the 
+            ! exact gs result
+
+            allocate(norm_inside_orig(size(J)))
+            allocate(norm_inside_trans(size(J)))
+            allocate(norm_inside_trans_left(size(J)))
+            norm_inside_orig = 0.0_dp
+            norm_inside_trans = 0.0_dp
+            norm_inside_trans_left = 0.0_dp
+
+            ! i need a reference to compare the excitation level to..
+            call EncodeBitDet(nI, ilutI)
+            do i = 1, size(J)
+                do k = 1, n_states
+                    call EncodeBitDet(hilbert_space(:,k), ilutJ)
+                    ic = findbitexcitlevel(ilutI,ilutJ)
+                    if (ic <= ic_inside) then
+                        norm_inside_trans(i) = norm_inside_trans(i) + &
+                            e_vec_trans(k,i)**2.0
+                        norm_inside_trans_left(i) = norm_inside_trans_left(i) + &
+                            e_vec_trans_left(k,i)**2.0
+                    end if
+                end do
+            end do
+
+            iunit = get_free_unit()
+            open(iunit, file = "norm_inside_U_" // trim(adjustl(U_str)))
+            write(iunit, *) "# J left right"
+            do i = 1, size(J)
+                write(iunit,*) J(i), norm_inside_trans(i), norm_inside_trans_left(i)
+            end do
+            close(iunit)
+        end if
         iunit = get_free_unit() 
         open(iunit, file = "hf_coeff_onsite")
         do i = 1, size(J)
             write(iunit, *) J(i), hf_coeff_onsite(i)
         end do
+        close(iunit)
 
         iunit = get_free_unit()
         open(iunit, file = "hf_coeff_next")
         do i = 1, size(J) 
             write(iunit, *) J(i), hf_coeff_next(i)
         end do
+        close(iunit)
 
         ! maybe plot all transformed into one file.. 
         iunit = get_free_unit() 
@@ -1562,11 +1706,32 @@ contains
         end do
         close(iunit)
 
+        ! also print the left eigenvector: 
+        iunit = get_free_unit() 
+        open(iunit, file = "gs_vec_trans_left")
+        write(iunit,*) "# J: ", J
+        do i = 1, n_states
+            write(iunit,*) e_vec_trans_left(i,:)
+        end do
+        close(iunit)
+
+        iunit = get_free_unit() 
+
         open(iunit, file = "gs_vec_next")
         write(iunit, *) "# J: ", J 
         do i = 1, n_states
             write(iunit, *) e_vec_next(i,:) 
         end do
+        close(iunit)
+
+        iunit = get_free_unit()
+        open(iunit, file = "gs_vec_next_left")
+        write(iunit, *) "# J: ", J 
+        do i = 1, n_states
+            write(iunit, *) e_vec_next_left(i,:) 
+        end do
+        close(iunit)
+
 
     end subroutine exact_transcorrelation
 
