@@ -626,9 +626,7 @@ contains
         low = upp + 1; upp = low + sizes(38) - 1; AllNoRemoved_1 = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(39) - 1; AllNoNonInitWalk_1 = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(40) - 1; AllNoInitWalk_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(41) - 1; all_bloom_count_1 = nint(recv_arr(low:upp));
         low = upp + 1; upp = low + sizes(42) - 1; AllSumWalkersCyc_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(43) - 1; nspawned_tot_1 = nint(recv_arr(low));
         low = upp + 1; upp = low + sizes(44) - 1; AllTotParts_1 = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(45) - 1; allCorespaceWalkers = nint(recv_arr(low), int64);
         low = upp + 1; upp = low + sizes(46) - 1; AllSpawnFromSing_1 = recv_arr(low:upp);
@@ -668,7 +666,9 @@ contains
             low = upp + 1; upp = low + sizes(8) - 1; send_arr_helem(low:upp) = trial_num_inst;
             low = upp + 1; upp = low + sizes(9) - 1; send_arr_helem(low:upp) = trial_denom_inst;
         end if
-        if (tEN2) low = upp + 1; upp = low + sizes(10) - 1; send_arr_helem(low) = en_pert_main%ndets;
+        if (tEN2) then
+           low = upp + 1; upp = low + sizes(10) - 1; send_arr_helem(low) = en_pert_main%ndets;
+        endif
 
         call MPISumAll (send_arr_helem(1:upp), recv_arr_helem(1:upp))
 
@@ -685,7 +685,9 @@ contains
             low = upp + 1; upp = low + sizes(8) - 1; tot_trial_num_inst = recv_arr_helem(low:upp);
             low = upp + 1; upp = low + sizes(9) - 1; tot_trial_denom_inst = recv_arr_helem(low:upp);
         end if
-        if (tEN2) low = upp + 1; upp = low + sizes(10) - 1; en_pert_main%ndets_all = recv_arr_helem(low);
+        if (tEN2) then
+           low = upp + 1; upp = low + sizes(10) - 1; en_pert_main%ndets_all = recv_arr_helem(low);
+        endif
 
         ! Optionally communicate EXLEVEL_WNorm.
         if (tLogEXLEVELStats) then
