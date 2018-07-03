@@ -333,6 +333,13 @@ module real_time_read_input_module
                    tStaticShift = .true.
                 endif
 
+             case("UNCONSTRAINED-SHIFT")
+                ! use an unconstrained shift mode that also allows
+                ! negative shifts
+                tOnlyPositiveShift = .false.
+                write(iout,*) &
+                     "WARNING: Using an unconstrained shift can lead to instabilities"
+
              case("ENERGY-BENCHMARK")
                 ! one can specify an energy which shall be added as a global shift
                 ! to the hamiltonian. Useful for getting transition energies

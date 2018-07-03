@@ -13,7 +13,7 @@ module real_time_init
                               SpawnFromSing_1, NoDied_1, NoAborted_1, NoRemoved_1, &
                               NoAddedInitiators_1, NoInitDets_1, NoNonInitDets_1, &
                               NoInitWalk_1, NoNonInitWalk_1, InitRemoved_1, tDynamicAlpha, &
-                              AllNoatHF_1, AllNoatHF_1,  AllGrowRateAbort_1, &
+                              AllNoatHF_1, AllNoatHF_1,  AllGrowRateAbort_1, TotParts_1, &
                               AllNoBorn_1, AllSpawnFromSing_1, AllNoDied_1, gf_count, &
                               AllAnnihilated_1, AllNoAborted_1, AllNoRemoved_1, allPopSnapshot, &
                               AllNoAddedInitiators_1, AllNoInitDets_1, AllNoNonInitDets_1, &
@@ -31,7 +31,8 @@ module real_time_init
 			      numSnapshotOrbs, tLowerThreshold, t_kspace_operators, tVerletScheme, &
                               tLogTrajectory, tReadTrajectory, alphaCache, tauCache, trajFile, &
                               tGenerateCoreSpace, tGZero, wn_threshold, corespace_log_interval, &
-                              alphaLog, alphaLogSize, alphaLogPos, tStaticShift, DiagVecTag
+                              alphaLog, alphaLogSize, alphaLogPos, tStaticShift, DiagVecTag, &
+                              tOnlyPositiveShift
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_norm, clean_overlap_states, openTauContourFile
     use verlet_aux, only: backup_initial_state, setup_delta_psi
@@ -282,6 +283,7 @@ contains
         NoInitWalk_1 = 0.0_dp
         NoNonInitWalk_1 = 0.0_dp
         InitRemoved_1 = 0
+        TotParts_1 = 0.0_dp
         
         ! also the global variables 
         AllNoatHF_1 = 0.0_dp
@@ -514,6 +516,8 @@ contains
         ! be switched on manually
         tLimitShift = .false.
         shiftLimit = 0.7_dp
+        ! by default, negative shifts are not allowed as they can easily lead to instability
+        tOnlyPositiveShift = .true.
 
         ! default values for dynamic rotation angle updating (it is not enabled by default)
         tDynamicAlpha = .false.

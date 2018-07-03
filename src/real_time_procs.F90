@@ -19,7 +19,7 @@ module real_time_procs
                               tDynamicAlpha, tDynamicDamping, stepsAlpha, phase_factors, &
                               elapsedImagTime, elapsedRealTime, tStaticShift, asymptoticShift, &
                               iunitCycLog, trajFile, tauCache, alphaCache, tNewOverlap, &
-                              alphaLog, alphaLogSize, alphaLogPos
+                              alphaLog, alphaLogSize, alphaLogPos, tOnlyPositiveShift
     use real_time_aux, only: write_overlap_state, write_overlap_state_serial
 
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
@@ -908,7 +908,14 @@ contains
          enddo
       endif
 
-      ! cheap way of removing all initiators (save for the HF)
+      ! normally, we strictly forbid negative shifts
+      if(tOnlyPositiveShift) then
+         do run = 1, inum_runs
+            if(DiagSft(run) < 0.0_dp) DiagSft(run) = 0.0_dp
+         enddo
+      endif
+
+      ! cheap way of removing all initiators
       if(tInfInit) InitiatorWalkNo = TotWalkers + 1
 
     end subroutine update_elapsed_time
