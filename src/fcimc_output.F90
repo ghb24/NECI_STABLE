@@ -774,7 +774,7 @@ if(t_real_time_fciqmc .or. tLogGreensfunction) then
 endif
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these
-#if defined __PROG_NUMRUNS && !defined __REALTIME
+#if defined __PROG_NUMRUNS
             do p = 1, inum_runs
                 write(tmpc, '(i5)') p
                 call stats_out (state, .false., AllTotParts(p), &
@@ -783,6 +783,7 @@ endif
                                 'Ref (' // trim(adjustl(tmpc)) // ')')
                 call stats_out (state, .false., DiagSft(p) + Hii, &
                                 'Shift (' // trim(adjustl(tmpc)) // ')')
+#if !defined __REALTIME
 #ifdef __CMPLX
                 call stats_out (state, .false., real(proje_iter(p) + Hii), &
                                 'Tot ProjE real (' // trim(adjustl(tmpc)) // ')')
@@ -876,6 +877,7 @@ endif
 
                     end do
                 end if
+#endif
             end do
 
 #endif
