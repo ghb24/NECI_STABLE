@@ -32,7 +32,7 @@ module real_time_init
                               tLogTrajectory, tReadTrajectory, alphaCache, tauCache, trajFile, &
                               tGenerateCoreSpace, tGZero, wn_threshold, corespace_log_interval, &
                               alphaLog, alphaLogSize, alphaLogPos, tStaticShift, DiagVecTag, &
-                              tOnlyPositiveShift
+                              tOnlyPositiveShift, tHFOverlap
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_norm, clean_overlap_states, openTauContourFile
     use verlet_aux, only: backup_initial_state, setup_delta_psi
@@ -182,6 +182,10 @@ contains
         TotPartsPeak = 0.0_dp
         gs_energy = benchmarkEnergy
 
+        ! when projecting onto the perturbed reference, we obviously need to create 
+        ! a new state
+        if(tHFOverlap) tNewOverlap = .true.
+
         call init_overlap_buffers()
 
         if(tRealTimePopsfile) call readTimeEvolvedState()
@@ -309,7 +313,7 @@ contains
            call backup_initial_state()
            tau = tau/iterInit
         endif
-
+        
         if(tStaticShift) DiagSft = asymptoticShift
 
         if(tGenerateCoreSpace) call initialize_corespace_construction()      
@@ -500,6 +504,8 @@ contains
         ! be considered -> only one overlap is obtained
         gf_count = 1
         allGfs = 0
+        ! normally, take the multi-replica overlap
+        tHFOverlap = .false.
         
         ! if starting a new calculation, we start at time 0 (arbitrary)
         elapsedRealTime = 0.0_dp

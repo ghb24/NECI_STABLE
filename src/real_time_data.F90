@@ -20,7 +20,7 @@ module real_time_data
     logical :: t_real_time_fciqmc, t_new_stats_file, t_rotated_time, tStaticShift, &
          tDynamicCoreSpace, tRealTimePopsfile, tStabilizerShift, tLimitShift, &
          tDynamicAlpha, tDynamicDamping, tInfInit, tStartVariation, tOverpopulate, &
-         tNewOverlap, tOnlyPositiveShift
+         tNewOverlap, tOnlyPositiveShift, tHFOverlap
 
     logical :: tLowerThreshold
     ! also use a second iter_data type to keep track of the 2 distinct 

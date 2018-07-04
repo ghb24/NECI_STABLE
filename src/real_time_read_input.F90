@@ -72,8 +72,8 @@ module real_time_read_input_module
             ! reference to the ground state. This gives the contribution of
             ! this state to the spectrum
              case("SINGLE")
-            ! deprecated, replace by MULTI
                 alloc_popsfile_dets = .true.
+            ! deprecated, replace by MULTI
                 tWritePopsNorm = .true.
                 ! Now, overlap state and initial state are the same
                 tNewOverlap = .false.
@@ -214,10 +214,10 @@ module real_time_read_input_module
                       call stop_all(this_routine, "Invalid input for Green's function")   
                    endif
                 endif
-
+                
              case ("GREATER")
-                ! greater GF -> photo absorption: apply a creation operator
                 alloc_popsfile_dets = .true.
+                ! greater GF -> photo absorption: apply a creation operator
                 tOverlapPert = .true.
                 tWritePopsNorm = .true.
 
@@ -339,6 +339,11 @@ module real_time_read_input_module
                 tOnlyPositiveShift = .false.
                 write(iout,*) &
                      "WARNING: Using an unconstrained shift can lead to instabilities"
+
+             case("HF-OVERLAP")
+                ! take the overlap not with the initial state but with the perturbed
+                ! reference
+                tHFOverlap = .true.
 
              case("ENERGY-BENCHMARK")
                 ! one can specify an energy which shall be added as a global shift
