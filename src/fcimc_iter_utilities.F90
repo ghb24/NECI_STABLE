@@ -582,7 +582,9 @@ contains
             low = upp + 1; upp = low + sizes(8) - 1; tot_trial_num_inst = recv_arr_helem(low:upp);
             low = upp + 1; upp = low + sizes(9) - 1; tot_trial_denom_inst = recv_arr_helem(low:upp);
         end if
-        if (tEN2) low = upp + 1; upp = low + sizes(10) - 1; en_pert_main%ndets_all = recv_arr_helem(low);
+        if (tEN2) then
+           low = upp + 1; upp = low + sizes(10) - 1; en_pert_main%ndets_all = recv_arr_helem(low);
+        endif
 
         ! Optionally communicate EXLEVEL_WNorm.
         if (tLogEXLEVELStats) then
