@@ -35,7 +35,7 @@ MODULE Calc
          tReferenceChanged, superInitiatorLevel, allDoubsInitsDelay, tStrictCoherentDoubles, &
          tWeakCoherentDoubles, tAvCoherentDoubles, coherenceThreshold, SIThreshold, &
          tSuppressSIOutput, targetRefPop, targetRefPopTol, tSingleSteps, tVariableNRef, &
-         nRefsSings, nRefsDoubs, minSIConnect, tWeightedConnections
+         nRefsSings, nRefsDoubs, minSIConnect, tWeightedConnections, tSignedRepAv
     use ras_data, only: core_ras, trial_ras
     use load_balance, only: tLoadBalanceBlocks
     use ftlm_neci
@@ -373,6 +373,8 @@ contains
           SIUpdateInterval = 100
           tAdiActive = .false.
           minSIConnect = 1
+
+          tSignedRepAv = .false.
 
           ! And disable the initiators subspace
           tInitiatorsSubspace = .false.
@@ -2619,6 +2621,9 @@ contains
                       tWeightedConnections = .false.
                    end select
                 endif
+
+             case("SIGNED-REPLICA-AVERAGE")
+                tSignedRepAv = .true.
 
              case("SUPERINITIATOR-POPULATION-THRESHOLD")
                 ! set the minimum value for superinitiator population

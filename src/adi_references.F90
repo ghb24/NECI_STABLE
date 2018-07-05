@@ -6,7 +6,7 @@ use adi_data, only: ilutRefAdi, nRefs, nIRef, signsRef, &
      nTZero, SIHash, tAdiActive, tSetupSIs, NoTypeN, superInitiatorLevel, tSetupSIs, &
      tReferenceChanged, SIThreshold, tUseCaches, nIRef, signsRef, exLvlRef, tSuppressSIOutput, &
      targetRefPop, lastAllNoatHF, lastNRefs, tVariableNRef, maxNRefs, minSIConnect, &
-     nIncoherentDets, nConnection, tWeightedConnections
+     nIncoherentDets, nConnection, tWeightedConnections, tSignedRepAv
 use CalcData, only: InitiatorWalkNo
 use bit_rep_data, only: niftot, nifdbo, extract_sign
 use bit_reps, only: decode_bit_det
@@ -233,17 +233,26 @@ contains
       integer :: i, nBlocks
       integer, parameter :: blockSize = 5000
       real(dp) :: sgn(lenof_sign)
+      real(dp) :: repAvSgn
       
       ref_buf = 0
       refs_found = 0
       nBlocks = 1
+      repAvSgn = 0.0_dp
 
       allocate(tmp(0:NIfTot,blockSize))
       tmp = 0
 
       do i = 1, TotWalkers
          call extract_sign(CurrentDets(:,i),sgn)
-         if((av_pop(sgn) .ge. NoTypeN)) then
+         ! either compare the sum of the signed or unsigned walker numbers to the 
+         ! initiator threshold
+         if(tSignedRepAv) then
+            repAvSgn = abs(sum(sgn)/inum_runs)
+         else
+            repAvSgn = av_pop(sgn)
+         endif
+         if((repAvSgn .ge. NoTypeN)) then
             refs_found = refs_found + 1
 
             ! If the temporary is full, resize it

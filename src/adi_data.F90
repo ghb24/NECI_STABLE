@@ -47,4 +47,7 @@ module adi_data
   integer :: minSIConnect
   logical :: tWeightedConnections
 
+  ! if we use a signed average over replicas to determine superinitiators
+  logical :: tSignedRepAv
+
 end module adi_data

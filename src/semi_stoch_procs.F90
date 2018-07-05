@@ -16,6 +16,7 @@ module semi_stoch_procs
     use sparse_arrays, only: sparse_core_ham
     use SystemData, only: nel
     use timing_neci
+    use adi_data, only: tSignedRepAv
 
     implicit none
 
@@ -881,7 +882,11 @@ contains
 #ifdef __CMPLX
             sign_curr_real = sqrt(sum(abs(sign_curr(1::2)))**2 + sum(abs(sign_curr(2::2)))**2)
 #else
-            sign_curr_real = sum(real(abs(sign_curr),dp))
+            if(tSignedRepAv) then
+               sign_curr_real = real(abs(sum(sign_curr)),dp)
+            else
+               sign_curr_real = sum(real(abs(sign_curr),dp))
+            endif
 #endif
             if (present(norm)) norm = norm + (sign_curr_real**2.0)
 
