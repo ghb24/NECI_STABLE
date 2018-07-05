@@ -33,7 +33,7 @@ module fcimc_helper
     use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, &
                         tAddToInitiator, InitiatorWalkNo, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
-                        tRealCoeffByExcitLevel, &
+                        tRealCoeffByExcitLevel, tGlobalInitFlag, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
                         MaxWalkerBloom, tEN2, tEN2Started, &
                         NMCyc, iSampleRDMIters, &
@@ -41,7 +41,7 @@ module fcimc_helper
                         t_back_spawn_flex, tau, DiagSft, &
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, tInitiatorsSubspace, &
-         tAllDoubsInitiators, tAllSingsInitiators
+         tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
     use procedure_pointers, only: attempt_die, extract_bit_rep_avsign
@@ -855,7 +855,18 @@ contains
         ! By default the particles status will stay the same
         initiator = is_init
 
-        tot_sgn = mag_of_run(sgn,run)
+        ! option to use the average population instead of the local one
+        ! for purpose of initiator threshold
+        if(tGlobalInitFlag) then
+           ! we can use a signed or unsigned sum
+           if(tSignedRepAv) then
+              tot_sgn = real(abs(sum(sgn)),dp)/inum_runs
+           else
+              tot_sgn = av_pop(sgn)
+           endif
+        else
+           tot_sgn = mag_of_run(sgn,run)
+        endif
 
         ! If we are allowed to unset the initiator flag
         staticInit = check_static_init(ilut, nI, sgn, exLvl, run)

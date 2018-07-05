@@ -53,6 +53,8 @@ contains
     integer, intent(in) :: nI(nel), ex
     integer :: ir
 
+    ! this part has to be done independently for each run, since the coherence
+    ! criterium depends on the exact population
     do ir = 1, inum_runs
        call set_adi_flags_run(ilut, nI, sgn, ex, ir)
     end do

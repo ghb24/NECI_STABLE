@@ -1804,6 +1804,12 @@ contains
 !can only spawn back on to the determinant from which they came.  This is the star approximation from the CAS space. 
                 tTruncInitiator=.true.
 
+             case("REPLICA-GLOBAL-INITIATORS")
+! with this option, all replicas will use the same initiator flag, which is then set 
+! depending on the avereage population, else, the initiator flag is set for each replica
+! using the population of that replica
+                tGlobalInitFlag = .true.
+
             case("NO-COHERENT-INIT-RULE")
                 tInitCoherentRule=.false.
 
