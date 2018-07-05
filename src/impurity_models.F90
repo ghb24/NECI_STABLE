@@ -2,7 +2,7 @@
 
 module impurityModels
 use SystemData, only: nBasis, nel
-use bit_rep_data, only: NIfTot
+use bit_rep_data, only: NIfTot, NIfD
 use procedure_pointers, only: get_umat_el
 use OneEInts, only: getTMatEl
 use FciMCData, only: pSingles
@@ -239,8 +239,6 @@ end subroutine constructConnections
        r = genrand_real2_dSFMT()
        if(r .lt. pSingles) then
           IC = 1
-          ! for a single, check if it shall be within the impurity
-          ! or between bath and impurity
           pGen = pSingles
           call generate_imp_single_excitation(nI,ilut,nJ,ilutnJ,ExcitMat,tParity,pGen)
        else
@@ -271,14 +269,14 @@ end subroutine constructConnections
     integer :: randSource, randDest, iElec
     real(dp) :: r
 
-    ! first, randomly pick an electron
-    r = genrand_real2_dSFMT()
-    iElec = INT(r*nel)+1
-    ! assign its orbital
-    randSource = nI(iElec)
+    !r = genrand_real2_dSFMT()
+    !iElec = INT(r*nel) + 1
+    !randSource = nI(iElec)
+    ! first, randomly pick an orb
+    randSource = pick_source_el_single_excit(nI,ilut,pGen)
+    ! get the electron index
+    iElec = binary_search_first_ge(nI,randSource)
     call hamiltonian_weighted_pick_single(randSource,randDest,pGen,ilut)
-    ! each electron has the same probability to be picked
-    pGen = pGen / (nel)
     ! assign the output
     ! note that an invalid excitation (i.e. no possible excitations with the
     ! chosen electron) is passed as randDest=0
@@ -462,6 +460,41 @@ end subroutine constructConnections
     destination = targetOrbs(destination)
   end subroutine pick_from_cumulative_sum
 
+!------------------------------------------------------------------------------------------!
+
+  function pick_source_el_single_excit(nI,ilut,pGen) result(source)
+    implicit none
+    integer, intent(in) :: nI(nel)
+    integer(n_int), intent(in) :: ilut(0:NIfTot)
+    real(dp), intent(inout) :: pGen
+    integer :: source
+
+    logical :: tAvail(nel)
+    integer :: i,j,nAvail
+    integer :: nIPick(nel)
+    real(dp) :: r
+
+    ! check for each electron, if there is some space to excite to
+    tAvail = .false.
+    nAvail = 0
+    do i = 1, nel
+       do j = 1, nConnects(i)
+          if(IsNotOcc(ilut,connections(i,j))) then
+             tAvail(i) = .true.
+             nAvail = nAvail + 1
+             exit
+          end if
+       end do
+    end do
+
+    
+    nIPick = pack(nI,tAvail)
+    r = genrand_real2_dSFMT()
+    source = nIPick(int(r*nAvail)+1)
+    ! each pickable electron has the same probability to be chosen
+    pGen = pGen * nAvail
+    
+  end function pick_source_el_single_excit
 !------------------------------------------------------------------------------------------!
 
   function pick_random_occ_impurity(nI,nOccImp) result(i)

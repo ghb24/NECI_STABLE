@@ -140,7 +140,10 @@ contains
 
         ! If the perturbation is the identity operator then just return.
         ! rneci_consitency: Possible optimization: Define behaviour in this case as copying
-        if (perturb%nannihilate == 0 .and. perturb%ncreate == 0) return
+        if (perturb%nannihilate == 0 .and. perturb%ncreate == 0) then
+           dets_out = dets_in
+           return
+        end if
 
         nremoved = 0
         ! Reset the spawning slot positions in SpawnedParts.
