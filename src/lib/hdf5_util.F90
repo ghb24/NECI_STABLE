@@ -55,6 +55,8 @@ module hdf5_util
         module procedure read_int64_scalar_8
     end interface
 
+    integer :: tmp_lenof_sign
+
 contains
 
     subroutine write_int32_attribute(parent, nm, val)
@@ -542,21 +544,30 @@ contains
         integer(hid_t) :: dataset, err, type_id
         integer(hsize_t) :: dims(1)
         logical(hid_t) :: exists_
+        real(dp), allocatable :: buf(:)
 
         call h5lexists_f(parent, nm, exists_, err)
         if (exists_) then
             call h5dopen_f(parent, nm, dataset, err)
             call h5dget_type_f(dataset, type_id, err)
 
+            ! set up the read-buffer: We might need to add/remove replicas
+            call setup_dp_1d_dataset_buffer(buf,val)
+
             ! Check dimensions and types.
-            dims = [size(val)]
+            dims = [size(buf)]
+            ! check versus the input, not the calculation's parameters
             call check_dataset_params(dataset, nm, 8_hsize_t, H5T_FLOAT_F, dims)
 
             ! And actually read the data.
-            call h5dread_f(dataset, type_id, val, dims, err)
+            call h5dread_f(dataset, type_id, buf, dims, err)
 
+            ! and move the data to val
+            call move_dp_1d_dataset_buffer(val,buf)
+            
             call h5tclose_f(type_id, err)
             call h5dclose_f(dataset, err)
+
         end if
 
         if (present(required)) then
@@ -569,6 +580,62 @@ contains
         if (present(default) .and. .not. exists_) val = default
 
     end subroutine read_dp_1d_dataset
+
+    subroutine setup_dp_1d_dataset_buffer(buf,val)
+      ! allocate a buffer for reading dp_1d_datasets
+      implicit none
+      real(dp), allocatable, intent(out) :: buf(:)
+      real(dp), target, intent(in) :: val(:)
+      
+      integer :: dims, ierr
+
+      dims = size(val)
+      ! if we change the number of replicas, we have to be careful
+      if(lenof_sign /= tmp_lenof_sign) then
+         if(dims .eq. lenof_sign) then
+            allocate(buf(tmp_lenof_sign), stat = ierr)
+         endif
+      else
+         ! else, the buffer is not very interesting
+         allocate(buf(dims))
+      endif
+    end subroutine setup_dp_1d_dataset_buffer
+
+    subroutine move_dp_1d_dataset_buffer(val,buf)
+      ! moves the data from buf to val, eventually truncating/expanding it
+      ! deallocates buf
+      implicit none
+      real(dp), allocatable, intent(inout) :: buf(:)
+      real(dp), target, intent(inout) :: val(:)
+      
+      integer dimsVal, dimsBuf, ierr
+
+      ! if buf is unallocated, this is not going anywhere
+      if(.not. allocated(buf)) then
+         write(iout,*) "WARNING: Trying to move data from empty buffer"
+         return
+      endif
+      
+      ! we need to check if the buffer can be copied 1:1
+      dimsVal = size(val)
+      dimsBuf = size(buf)
+      if(dimsVal .eq. dimsBuf) then
+         val(:) = buf(:)
+      else
+         ! now it depends if val is larger or smaller than buf
+         if(dimsVal < dimsBuf) then
+            ! depending, we either omit the last entries
+            val(1:dimsVal) = buf(1:dimsBuf)
+         else
+            ! or copy the last one
+            val(1:dimsBuf) = buf(1:dimsBuf)
+            val(dimsBuf+1:dimsVal) = buf(dimsBuf)
+         endif
+      endif
+
+      deallocate(buf)
+      
+    end subroutine move_dp_1d_dataset_buffer
 
     subroutine h5t_complex_t(dtype)
 

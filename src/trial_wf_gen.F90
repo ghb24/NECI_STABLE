@@ -43,7 +43,6 @@ contains
         integer :: i, ierr, num_states_on_proc, con_space_size_old
         integer :: excit, tot_con_space_size
         integer :: con_counts(0:nProcessors-1)
-
         integer :: min_elem, max_elem, num_elem
         integer(MPIArg) :: trial_counts(0:nProcessors-1), trial_displs(0:nProcessors-1)
         integer(MPIArg) :: con_sendcounts(0:nProcessors-1), con_recvcounts(0:nProcessors-1)
