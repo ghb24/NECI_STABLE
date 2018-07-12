@@ -8,7 +8,7 @@ module orthogonalise
 #endif
                          HolesInList
     use CalcData, only: OccupiedThresh, tOrthogonaliseSymmetric, tSemiStochastic, &
-                        tPairedReplicas
+                        tPairedReplicas, t_test_overlap, overlap_eps
     use dSFMT_interface, only: genrand_real2_dSFMT
     use load_balance, only: CalcHashTableStats
     use bit_reps, only: extract_sign, encode_sign
@@ -107,6 +107,18 @@ contains
 #else
                     delta_real = - sgn(src_run) * all_overlaps_real(src_run, tgt_run) &
                                            / all_norms(src_run)
+                    ! test if a small remaining overlap still gives the 
+                    ! correct shift.. 
+                    if (t_test_overlap .and. tgt_run == inum_runs) then
+                        ! draw a random sign and change by the 
+                        ! specified epsilon
+                        ! or choose just a random number out of [-eps,+eps]
+!                         delta_real = delta_real + rand_sign * overlap_eps
+!                         delta_real = delta_real + (rand()-0.5_dp)*overlap_eps
+                        ! or try a prefactor..
+                        delta_real = overlap_eps*delta_real
+                    end if
+
                     sgn(tgt_run) = sgn(tgt_run) + delta_real
 #endif                        
                 end do

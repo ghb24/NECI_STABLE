@@ -2522,6 +2522,18 @@ contains
                 ! when using this option.
                 tStartCoreGroundState = .false.
 
+            case("TEST-NON-ORTHOGONALITY")
+                ! for the non-hermitian eigenstates the shift gives a 
+                ! correct energy although the eigenvectors should not be 
+                ! orthogonal. 
+                ! so test if artificially introducing a small overlap 
+                ! also gives the correct shift if the vectors should be 
+                ! orthogonal
+                t_test_overlap = .true. 
+                if (item < nitems) then
+                    call getf(overlap_eps)
+                end if
+
             case("REPLICA-SINGLE-DET-START")
                 ! If we want to start off multiple replicas from single dets
                 ! chosen fairly naively as excited states of the HF, then use

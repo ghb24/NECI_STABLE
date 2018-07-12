@@ -62,6 +62,8 @@ program test_k_space_hubbard
 
     use bit_reps, only: init_bit_rep
 
+    use ras, only: sort_orbitals
+
     implicit none 
 
     integer :: failed_count 
@@ -148,10 +150,10 @@ contains
 
         t_do_diags = .false.
         t_do_subspace_study = .false.
-        t_input_U = .true.
+        t_input_U = .false.
         t_input_J = .false.
         t_U_vec = .false.
-        t_J_vec = .true.
+        t_J_vec = .false.
         t_do_twisted_bc = .false.
         t_twisted_vec = .false.
         t_analyse_gap = .false.
@@ -180,17 +182,17 @@ contains
             print *, "input U: "
             read(*,*) U
         else if (t_U_vec) then
-            U_vec = linspace(0.0,8.0,9)
-!             U_vec = [4.0]
+!             U_vec = linspace(0.0,8.0,9)
+            U_vec = [4.0]
         else
-            U = 2.0
+            U = 4.0
         end if
 
         if (t_input_J) then
             print *, "input J:"
             read(*,*), J
         else if (t_J_vec) then
-            J_vec = linspace(0.0,2.0,100)
+            J_vec = linspace(-0.0,1.0,100)
 !               J_vec = [0.5]
         else 
             J = 0.5
@@ -208,10 +210,14 @@ contains
 !         nI = [ 9,11,12,13,14,15,16,21,22,23,24,25,26,27,28,29,30,&
 !             37,38,39,40,41,42,43,44,45,46,55,56,57,58,59,60,61,62,63,64,73,74,75,76,77,78,80]
 
+        ! 18 in 18:
+!         nI = [3,4,5,6,7,8,11,12,13,14,15,16,21,22,23,24,25,26]
+
         ! 12 in 18, k = 0
 !         nI = [ 3 ,5,6,11,12,13,14,15,16,23,24, 26 ]
         ! 14 in 18:
 !         nI = [ 3,4, 5, 6, 11,12,13,14,15,16,23,24,25,26 ]
+!         nI = [4,5,6,7,11,12,13,14,15,16,22,23,24,25]
 
         ! 6 in 9 k = 1 1
 !         nI = [3,4,7,8,9,10]
@@ -521,7 +527,7 @@ contains
                     add(:,5) = [3,4,7,8,21,22,19,20]
                     ! k = 0 open shell (with spin-flips)
                     add(:,6:11) = create_all_spin_flips([ 3, 7,8,21,22, 26 , 19 , 30 ])
-                    add(:,12:17) = create_all_spin_flips([3,7,8,212,22,26,27,34])
+                    add(:,12:17) = create_all_spin_flips([3,7,8,21,22,26,27,34])
                     add(:,18:23) = create_all_spin_flips([3,4,7,22,25,26,19,30])
                     add(:,24:29) = create_all_spin_flips([3,4,7,22,25,26,27,34])
                     ! k = (-2,0)
@@ -533,7 +539,12 @@ contains
                     ! k = (2,0)
                     add(:,48:53) = create_all_spin_flips([3,4,7,8,21,26,19,28])
 
-
+                    allocate(hilbert_space(nel, n_eig))
+                    hilbert_space = 0 
+                    do i = 1, 53 
+                        hilbert_space(:,i) = [trunc,add(:,i)]
+                        call sort_orbitals(hilbert_space(:,i))
+                    end do
 
                 end if
 
@@ -1399,21 +1410,25 @@ contains
                                        hamil_next(:,:), hamil_neci_next(:,:)
         real(dp), allocatable :: e_values(:), e_values_neci(:), e_vec(:,:), gs_vec(:)
         real(dp), allocatable :: e_vec_trans(:,:), t_mat_next(:,:), e_vec_next(:,:)
+        real(dp), allocatable :: e_vec_left(:,:)
         real(dp), allocatable :: e_vec_trans_left(:,:), e_vec_next_left(:,:)
         real(dp) :: gs_energy, gs_energy_orig, hf_coeff_onsite(size(J))
         real(dp) :: hf_coeff_next(size(J)), hf_coeff_orig
-        real(dp), allocatable :: neci_eval(:)
+        real(dp), allocatable :: neci_eval(:), pca_eval(:), pca_evec(:,:)
         integer, allocatable :: hilbert_space(:,:)
         character(30) :: filename, J_str, U_str
-        logical :: t_norm_inside
-        integer :: ic_inside, ic
+        logical :: t_norm_inside, t_pca, t_check_orthogonality
+        integer :: ic_inside, ic, l
         real(dp), allocatable :: norm_inside_orig(:), norm_inside_trans(:), &
             norm_inside_trans_left(:)
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
         real(dp) :: e_thresh = 1.0e-5_dp
+        integer, allocatable :: sort_ind(:)
         
         t_norm_inside = .true.
+        t_pca = .true.
         ic_inside = 2
+        t_check_orthogonality = .true.
 
         write(U_str,*) U
 
@@ -1438,6 +1453,7 @@ contains
         print *, "diagonalizing original hamiltonian: " 
         allocate(e_values(n_states));        e_values = 0.0_dp
         allocate(e_vec(n_states, n_states)); e_vec = 0.0_dp
+        allocate(e_vec_left(n_states, n_states)); e_vec_left = 0.0_dp
         allocate(gs_vec(n_states));          gs_vec = 0.0_dp
         do i = 1, size(hamil,1)
             do k = 1, size(hamil,2)
@@ -1566,6 +1582,25 @@ contains
             print *, "diagonalizing the transformed hamiltonian: " 
             call eig(hamil_trans, e_values, e_vec) 
 
+            if (t_check_orthogonality) then 
+
+                call eig(hamil_trans, e_values, e_vec_left, .true.) 
+                print *, "J: ", J(i)
+                allocate(sort_ind(n_states))
+                sort_ind = [(k, k = 1, n_states)]
+                call sort(e_values, sort_ind)
+                e_vec = e_vec(:,sort_ind)
+
+                print *, "e_values: ", e_values
+
+                print *, "overlap to GS:"
+                do k = 1, 9
+                    do l = k + 1, 10
+                        print *, "k,l, overlap: ", k, l, dot_product(e_vec(:,k),e_vec(:,l))
+                    end do
+                end do
+            end if
+
             ! find the ground-state
             ind = minloc(e_values,1) 
             gs_energy = e_values(ind) 
@@ -1646,6 +1681,22 @@ contains
             e_vec_next_left(:,i) = gs_vec
 
         end do
+
+        if (t_pca) then
+            ! try a principal component analysis
+            print *, "size(e_vec_trans):", size(e_vec_trans,1), size(e_vec_trans,2)
+            allocate(pca_eval(size(J)))
+            allocate(pca_evec(size(J),size(J)))
+            call eig(matmul(transpose(e_vec_trans),e_vec_trans), pca_eval, pca_evec)
+
+            print *, "principal components: "
+            do i = 1, size(J)
+                print *, pca_eval(i)
+            end do
+!             print *, "principal evs: "
+!             call print_matrix(pca_evec)
+
+        end if
 
         if (t_norm_inside) then 
             ! do also a l2 norm inside excitation level study for the 
