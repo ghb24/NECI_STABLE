@@ -6,9 +6,9 @@ module orthogonalise
 #ifdef __CMPLX
                          replica_overlaps_imag, &
 #endif
-                         HolesInList
+                         HolesInList, iter
     use CalcData, only: OccupiedThresh, tOrthogonaliseSymmetric, tSemiStochastic, &
-                        tPairedReplicas, t_test_overlap, overlap_eps
+                        tPairedReplicas, t_test_overlap, overlap_eps, n_stop_ortho
     use dSFMT_interface, only: genrand_real2_dSFMT
     use load_balance, only: CalcHashTableStats
     use bit_reps, only: extract_sign, encode_sign
@@ -117,6 +117,9 @@ contains
 !                         delta_real = delta_real + (rand()-0.5_dp)*overlap_eps
                         ! or try a prefactor..
                         delta_real = overlap_eps*delta_real
+                        if (n_stop_ortho > 0 .and. iter > n_stop_ortho) then
+                            delta_real  = 0.0_dp
+                        end if
                     end if
 
                     sgn(tgt_run) = sgn(tgt_run) + delta_real
