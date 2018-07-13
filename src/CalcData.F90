@@ -295,6 +295,7 @@ integer :: orthogonalise_iter
 ! test reintroducing an overlap.
 logical :: t_test_overlap = .false.
 real(dp) :: overlap_eps = 1.0e-5_dp
+integer :: n_stop_ortho = -1
 ! Information on a trial space to create trial excited states with.
 
 type(subspace_in) :: init_trial_in

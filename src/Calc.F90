@@ -2534,6 +2534,10 @@ contains
                     call getf(overlap_eps)
                 end if
 
+                if (item < nitems) then
+                    call geti(n_stop_ortho)
+                end if
+
             case("REPLICA-SINGLE-DET-START")
                 ! If we want to start off multiple replicas from single dets
                 ! chosen fairly naively as excited states of the HF, then use
