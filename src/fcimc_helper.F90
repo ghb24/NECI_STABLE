@@ -791,7 +791,6 @@ contains
             sgn_run = sgn(run)
 #endif
 
-            ASSERT(.not. t_3_body_excits)
             hoffdiag = 0.0_dp
             if (exlevel == 0) then
 
@@ -804,7 +803,10 @@ contains
                     HFCyc(min_part_type(run)) = HFCyc(min_part_type(run)) + real(sgn_run)
                     HFCyc(max_part_type(run)) = HFCyc(max_part_type(run)) + aimag(sgn_run)
 #else
-                    SumNoatHF(run) = SumNoatHF(run) + sgn_run
+                    ! do we also need here: todo
+!                     if (iter > nEquilSteps) then 
+                        SumNoatHF(run) = SumNoatHF(run) + sgn_run
+!                     end if
                     NoatHF(run) = NoatHF(run) + sgn_run
                     HFCyc(run) = HFCyc(run) + sgn_run
 #endif
@@ -828,7 +830,13 @@ contains
                                              ilutRef(:,run), ilut)
                 endif
 
+            else if (exlevel == 3 .and. t_3_body_excits) then 
+                ASSERT(.not. tHPHF) 
+                hoffdiag = get_helement(ProjEDet(:,run), nI, exlevel, &
+                    iLutRef(:,run), ilut)
+
             end if
+
 
             ! Sum in energy contributions
             if (iter > nEquilSteps) &

@@ -195,7 +195,7 @@ contains
             J_vec = linspace(-0.0,1.0,100)
 !               J_vec = [0.5]
         else 
-            J = 0.5
+            J = 0.1
         end if
         
         nel = 6
@@ -231,6 +231,9 @@ contains
         ! chain:
         ! 6 in 6, k = 0
         nI = [3,4,5,6,7,8]
+
+        ! 4 in 4, k = 0
+!         nI = [1,3,4,6]
 
         ! 6 in 8, 
 !         nI = [5,6,7,8,9,10]
@@ -1599,6 +1602,30 @@ contains
                         print *, "k,l, overlap: ", k, l, dot_product(e_vec(:,k),e_vec(:,l))
                     end do
                 end do
+
+                sort_ind = [(k, k = 1, n_states)]
+                call sort(e_values, sort_ind)
+                e_vec_left = e_vec_left(:,sort_ind)
+
+
+                ! also output the full-ground-states vectors.. 
+                iunit = get_free_unit()
+                open(iunit, file = 'right_ev')
+                do k = 1, n_states
+                    call EncodeBitDet(hilbert_space(:,k), ilutI)
+                    call writedetbit(iunit, ilutI, .false.)
+                    write(iunit,*) e_vec(1:10,k)
+                end do
+                close(iunit)
+                iunit = get_free_unit()
+                open(iunit, file = 'left_ev')
+                do k = 1, n_states
+                    call EncodeBitDet(hilbert_space(:,k), ilutI)
+                    call writedetbit(iunit, ilutI, .false.)
+                    write(iunit,*) e_vec_left(1:10,k)
+                end do
+                close(iunit)
+
             end if
 
             ! find the ground-state
