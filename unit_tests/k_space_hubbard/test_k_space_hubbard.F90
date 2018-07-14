@@ -849,11 +849,12 @@ contains
 
         HElement_t(dp), allocatable :: hamil(:,:), hamil_conj(:,:)
         integer :: size_hilbert, i, n_iters, k, l
-        real(dp), allocatable :: psi_0(:,:), psi_1(:,:), shift(:), shift_mat(:,:)
-        real(dp), allocatable :: l1_norm_0(:), l1_norm_1(:), l2_norm_0(:), l2_norm_1(:)
+        real(dp), allocatable :: Psi_R(:,:), Psi_L(:,:), shift_R(:), shift_mat_R(:,:), shift_L(:)
+        real(dp), allocatable :: l1_norm_0_R(:), l1_norm_1_R(:), l2_norm_0_R(:), l2_norm_1_R(:)
+        real(dp), allocatable :: l1_norm_0_L(:), l1_norm_1_L(:), l2_norm_0_L(:), l2_norm_1_L(:)
         real(dp) :: shift_damp, energy
-        real(dp) :: chosen_norm_0, chosen_norm_1
-        real(dp), allocatable :: e_values(:), e_vec(:,:)
+        real(dp) :: chosen_norm_0_R, chosen_norm_1_R, chosen_norm_0_L, chosen_norm_1_L
+        real(dp), allocatable :: e_values(:), e_vec(:,:), shift_mat_L(:,:)
         integer, allocatable :: sort_ind(:)
 
 
@@ -869,23 +870,31 @@ contains
 
         ! prepare the initial states
         size_hilbert = size(hamil,1)
-        allocate(psi_0(size_hilbert,n_states)); psi_0 = 0.0_dp
-        allocate(psi_1(size_hilbert,n_states)); psi_1 = 0.0_dp
+        allocate(Psi_R(size_hilbert,n_states)); Psi_R = 0.0_dp
+        allocate(Psi_L(size_hilbert,n_states)); Psi_L = 0.0_dp
 
         do i = 1, n_states
             ! just set 1 determinant to 1
-            psi_0(i,i) = 1.0_dp
+            Psi_R(i,i) = 1.0_dp
+            Psi_L(i,i) = 1.0_dp
         end do
 
-        ! also initialize the shift: maybe we need a better start value than 0..
+        ! also initialize the shift_R: maybe we need a better start value than 0..
         ! diagonal matrix elements maybe? 
-        allocate(shift(n_states)); shift= 0.0_dp
-        allocate(shift_mat(size_hilbert,size_hilbert)); shift_mat = 0.0_dp
+        allocate(shift_R(n_states)); shift_R = 0.0_dp
+        allocate(shift_L(n_states)); shift_L = 0.0_dp
+        allocate(shift_mat_R(size_hilbert,size_hilbert)); shift_mat_R = 0.0_dp
+        allocate(shift_mat_L(size_hilbert,size_hilbert)); shift_mat_L = 0.0_dp
 
-        allocate(l1_norm_0(n_states)); l1_norm_0 = 0.0_dp
-        allocate(l1_norm_1(n_states)); l1_norm_1 = 0.0_dp
-        allocate(l2_norm_0(n_states)); l2_norm_0 = 0.0_dp
-        allocate(l2_norm_1(n_states)); l2_norm_1 = 0.0_dp
+        allocate(l1_norm_0_R(n_states)); l1_norm_0_R = 0.0_dp
+        allocate(l1_norm_1_R(n_states)); l1_norm_1_R = 0.0_dp
+        allocate(l2_norm_0_R(n_states)); l2_norm_0_R = 0.0_dp
+        allocate(l2_norm_1_R(n_states)); l2_norm_1_R = 0.0_dp
+
+        allocate(l1_norm_0_L(n_states)); l1_norm_0_L = 0.0_dp
+        allocate(l1_norm_1_L(n_states)); l1_norm_1_L = 0.0_dp
+        allocate(l2_norm_0_L(n_states)); l2_norm_0_L = 0.0_dp
+        allocate(l2_norm_1_L(n_states)); l2_norm_1_L = 0.0_dp
 
         ! also calculate the exact values for the comparison: 
         allocate(e_values(size_hilbert)); e_values = 0.0_dp
@@ -902,57 +911,79 @@ contains
             do k = 1, n_states
 
                 ! calculate norms before and after
-                l1_norm_0(k) = sum(abs(Psi_0(:,k)))
-                l2_norm_0(k) = sqrt(dot_product(Psi_0(:,k),Psi_0(:,k)))
+                l1_norm_0_R(k) = sum(abs(Psi_R(:,k)))
+                l2_norm_0_R(k) = sqrt(dot_product(Psi_R(:,k),Psi_R(:,k)))
+
+                l1_norm_0_L(k) = sum(abs(Psi_L(:,k)))
+                l2_norm_0_L(k) = sqrt(dot_product(Psi_L(:,k),Psi_L(:,k)))
 
                 do l = 1, size_hilbert
-                    shift_mat(l,l) = shift(k)
+                    shift_mat_R(l,l) = shift_R(k)
+                    shift_mat_L(l,l) = shift_L(k)
                 end do
 
-                Psi_0(:,k) = Psi_0(:,k) - tau * matmul(hamil - shift_mat,Psi_0(:,k))
+                Psi_R(:,k) = Psi_R(:,k) - tau * matmul(hamil - shift_mat_R,Psi_R(:,k))
+                Psi_L(:,k) = Psi_L(:,k) - tau * matmul(hamil_conj - shift_mat_L,Psi_L(:,k))
 
 
-                ! and now orthogonalise 
+                ! and now orthogonalise.. orthogonalise against the left 
+                ! eigenvectors..
                 do l = 1, k - 1
-                    Psi_0(:,k) = Psi_0(:,k) - & 
-                       dot_product(Psi_0(:,k),Psi_0(:,l))/l2_norm_1(l) * Psi_0(:,l)
+                    Psi_R(:,k) = Psi_R(:,k) - & 
+                       dot_product(Psi_R(:,k),Psi_L(:,l))/l2_norm_1_L(l) * Psi_L(:,l)
+                    Psi_L(:,k) = Psi_L(:,k) - & 
+                       dot_product(Psi_L(:,k),Psi_R(:,l))/l2_norm_1_R(l) * Psi_R(:,l)
                 end do
 
-                l1_norm_1(k) = sum(abs(Psi_0(:,k)))
-                l2_norm_1(k) = sqrt(dot_product(Psi_0(:,k),Psi_0(:,k)))
+                l1_norm_1_R(k) = sum(abs(Psi_R(:,k)))
+                l2_norm_1_R(k) = sqrt(dot_product(Psi_R(:,k),Psi_R(:,k)))
+
+                l1_norm_1_L(k) = sum(abs(Psi_L(:,k)))
+                l2_norm_1_L(k) = sqrt(dot_product(Psi_L(:,k),Psi_L(:,k)))
 
                 if (l_norm == 1) then
-                    chosen_norm_0 = l1_norm_0(k)
-                    chosen_norm_1 = l1_norm_1(k)
+                    chosen_norm_0_R = l1_norm_0_R(k)
+                    chosen_norm_1_R = l1_norm_1_R(k)
+                    chosen_norm_0_L = l1_norm_0_L(k)
+                    chosen_norm_1_L = l1_norm_1_L(k)
                 else if (l_norm == 2) then 
-                    chosen_norm_0 = l2_norm_0(k)
-                    chosen_norm_1 = l2_norm_1(k)
+                    chosen_norm_0_R = l2_norm_0_R(k)
+                    chosen_norm_1_R = l2_norm_1_R(k)
+                    chosen_norm_0_L = l2_norm_0_L(k)
+                    chosen_norm_1_L = l2_norm_1_L(k)
                 end if
 
-                shift(k) = shift(k) - shift_damp/tau * log(chosen_norm_1/chosen_norm_0)
+                shift_R(k) = shift_R(k) - shift_damp/tau * log(chosen_norm_1_R/chosen_norm_0_R)
+                shift_L(k) = shift_L(k) - shift_damp/tau * log(chosen_norm_1_L/chosen_norm_0_L)
 
-                ! and adapt the shift to keep the chosen norm constant
+                ! and adapt the shift_R to keep the chosen norm constant
                 ! and normalize for a start.. 
-!                 Psi_0(:,k) = Psi_0(:,k) / sqrt(dot_product(Psi_0(:,k),Psi_0(:,k)))
+!                 Psi_R(:,k) = Psi_R(:,k) / sqrt(dot_product(Psi_R(:,k),Psi_R(:,k)))
                 ! measure energy
-!                 print *, "norms: ", l1_norm_1(k), l2_norm_1(k)
-!                 print *, "energy: ", dot_product(Psi_0(:,k),matmul(hamil, Psi_0(:,k)))
-!                 print *, "shift: ", shift(k)
+!                 print *, "norms: ", l1_norm_1_R(k), l2_norm_1_R(k)
+!                 print *, "energy: ", dot_product(Psi_R(:,k),matmul(hamil, Psi_R(:,k)))
+!                 print *, "shift_R: ", shift_R(k)
 
             end do
 
         end do
 
-        print *, "L1 norm: ", l1_norm_1(:)
-        print *, "L2 norm: ", l2_norm_1(:)
-        print *, "shift, error: "
+        print *, "L1 norm: ", l1_norm_1_R(:)
+        print *, "L2 norm: ", l2_norm_1_R(:)
+        print *, "shift_R, error: "
         do k = 1, n_states
-            print *, shift(k), shift(k) - e_values(k)
+            print *, shift_R(k), shift_R(k) - e_values(k)
+        end do
+
+        print *, "shift_L, error: "
+        do k = 1, n_states
+            print *, shift_L(k), shift_L(k) - e_values(k)
         end do
 
         print *, "energy, error: "
         do k = 1, n_states
-            energy = dot_product(Psi_0(:,k),matmul(hamil, Psi_0(:,k))) / l2_norm_1(k)**2
+            energy = dot_product(Psi_L(:,k),matmul(hamil, Psi_R(:,k))) / & 
+                dot_product(Psi_L(:,k), Psi_R(:,k))
             print *, energy, energy - e_values(k)
         end do
 
