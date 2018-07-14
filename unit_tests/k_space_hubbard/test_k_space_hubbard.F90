@@ -119,6 +119,9 @@ contains
         integer :: n_syms
         character(3) :: irrep_names(0:10)
         integer, allocatable :: trunc(:), add(:,:)
+        integer :: l_norm, n_excited_states
+        logical :: t_exact_propagation
+        real(dp) :: timestep
 
         tmp_sign = 0.0_dp
         ! also define the point group character to determine the 
@@ -159,11 +162,15 @@ contains
         t_analyse_gap = .false.
         t_ignore_k = .false.
         t_do_ed = .false.
+        t_exact_propagation = .true.
+        l_norm = 2
+        n_excited_states = 10
+        timestep = 0.001_dp
 
         call init_k_space_unit_tests()
 
         ! i have to define the lattice here.. 
-        lat => lattice('chain', 6, 1, 1,.true.,.true.,.true.,'k-space')
+        lat => lattice('chain', 4, 1, 1,.true.,.true.,.true.,'k-space')
 
 !         x = [(-lat%dispersion_rel_orb(i), i = 1, 24)]
 !         ind = [(i, i = 1, 24)]
@@ -195,10 +202,10 @@ contains
             J_vec = linspace(-0.0,1.0,100)
 !               J_vec = [0.5]
         else 
-            J = 0.1
+            J = 0.7
         end if
         
-        nel = 6
+        nel = 4
         allocate(nI(nel))
         allocate(nJ(nel))
         nj = 0
@@ -230,10 +237,10 @@ contains
 
         ! chain:
         ! 6 in 6, k = 0
-        nI = [3,4,5,6,7,8]
+!         nI = [3,4,5,6,7,8]
 
         ! 4 in 4, k = 0
-!         nI = [1,3,4,6]
+        nI = [1,3,4,6]
 
         ! 6 in 8, 
 !         nI = [5,6,7,8,9,10]
@@ -451,7 +458,6 @@ contains
                 hilbert_space(:,2) = [ 11,12,13,14,15,16,17,18,21,22,23,24,25,26,27,28,29,30,&
                     37,38,39,40,41,42,43,44,45,46,55,56,57,58,59,60,61,62,63,64,71,72,73,74,75,76,77,78]
 
-
                 ! open shell:
                 ! 9 17 72 80
                 hilbert_space(:,3) = [ 9,11,12,13,14,15,16,17,21,22,23,24,25,26,27,28,29,30,&
@@ -552,7 +558,6 @@ contains
                 end if
 
             end if
-
 
             call setup_system(lat, nI, J, U)
             call print_point_group_matrix_rep(hilbert_space)
@@ -822,10 +827,137 @@ contains
         end if
 
 
+        if (t_exact_propagation) then 
+            call do_exact_propagation(hilbert_space, timestep, J, U, l_norm, n_excited_states)
+        end if
+
         call stop_all("here", "now")
 
     end subroutine exact_study
     
+    subroutine do_exact_propagation(hilbert_space, tau, J_param, U_param, l_norm, n_states) 
+        ! do an exact imaginary time-propagation of a given hamiltonian, 
+        ! constructed from the hilbert_space, J and U. 
+        ! tau specifies the time-step used
+        ! l_norm  = 1,2     decides which norm is used to adapt the shift.. 
+        ! n_states specifies how many states we want to calculate
+        integer, intent(in) :: hilbert_space(:,:)
+        real(dp) :: tau
+        real(dp), intent(in) :: J_param, U_param
+        integer, intent(in) :: l_norm, n_states
+        character(*), parameter :: this_routine = "do_exact_propagation"
+
+        HElement_t(dp), allocatable :: hamil(:,:), hamil_conj(:,:)
+        integer :: size_hilbert, i, n_iters, k, l
+        real(dp), allocatable :: psi_0(:,:), psi_1(:,:), shift(:), shift_mat(:,:)
+        real(dp), allocatable :: l1_norm_0(:), l1_norm_1(:), l2_norm_0(:), l2_norm_1(:)
+        real(dp) :: shift_damp, energy
+        real(dp) :: chosen_norm_0, chosen_norm_1
+        real(dp), allocatable :: e_values(:), e_vec(:,:)
+        integer, allocatable :: sort_ind(:)
+
+
+        n_iters = 100000
+        shift_damp = 0.1_dp
+
+        ! prepare the Hamiltonian:
+        hamil = create_hamiltonian(hilbert_space)
+        trans_corr_param_2body = -J_param
+        hamil_conj = similarity_transform(hamil)
+        trans_corr_param_2body = J_param
+        hamil = similarity_transform(hamil)
+
+        ! prepare the initial states
+        size_hilbert = size(hamil,1)
+        allocate(psi_0(size_hilbert,n_states)); psi_0 = 0.0_dp
+        allocate(psi_1(size_hilbert,n_states)); psi_1 = 0.0_dp
+
+        do i = 1, n_states
+            ! just set 1 determinant to 1
+            psi_0(i,i) = 1.0_dp
+        end do
+
+        ! also initialize the shift: maybe we need a better start value than 0..
+        ! diagonal matrix elements maybe? 
+        allocate(shift(n_states)); shift= 0.0_dp
+        allocate(shift_mat(size_hilbert,size_hilbert)); shift_mat = 0.0_dp
+
+        allocate(l1_norm_0(n_states)); l1_norm_0 = 0.0_dp
+        allocate(l1_norm_1(n_states)); l1_norm_1 = 0.0_dp
+        allocate(l2_norm_0(n_states)); l2_norm_0 = 0.0_dp
+        allocate(l2_norm_1(n_states)); l2_norm_1 = 0.0_dp
+
+        ! also calculate the exact values for the comparison: 
+        allocate(e_values(size_hilbert)); e_values = 0.0_dp
+        allocate(e_vec(size_hilbert,size_hilbert)); e_vec = 0.0_dp
+        allocate(sort_ind(size_hilbert))
+        sort_ind = [(i, i = 1, size_hilbert)]
+
+        call eig(hamil, e_values, e_vec)
+        call sort(e_values, sort_ind)
+
+        ! for the beginning try only the groundstate:
+        do i = 1, n_iters
+            ! |Psi(t+1)> = (1 - t(H - S))|Psi(t)>
+            do k = 1, n_states
+
+                ! calculate norms before and after
+                l1_norm_0(k) = sum(abs(Psi_0(:,k)))
+                l2_norm_0(k) = sqrt(dot_product(Psi_0(:,k),Psi_0(:,k)))
+
+                do l = 1, size_hilbert
+                    shift_mat(l,l) = shift(k)
+                end do
+
+                Psi_0(:,k) = Psi_0(:,k) - tau * matmul(hamil - shift_mat,Psi_0(:,k))
+
+
+                ! and now orthogonalise 
+                do l = 1, k - 1
+                    Psi_0(:,k) = Psi_0(:,k) - & 
+                       dot_product(Psi_0(:,k),Psi_0(:,l))/l2_norm_1(l) * Psi_0(:,l)
+                end do
+
+                l1_norm_1(k) = sum(abs(Psi_0(:,k)))
+                l2_norm_1(k) = sqrt(dot_product(Psi_0(:,k),Psi_0(:,k)))
+
+                if (l_norm == 1) then
+                    chosen_norm_0 = l1_norm_0(k)
+                    chosen_norm_1 = l1_norm_1(k)
+                else if (l_norm == 2) then 
+                    chosen_norm_0 = l2_norm_0(k)
+                    chosen_norm_1 = l2_norm_1(k)
+                end if
+
+                shift(k) = shift(k) - shift_damp/tau * log(chosen_norm_1/chosen_norm_0)
+
+                ! and adapt the shift to keep the chosen norm constant
+                ! and normalize for a start.. 
+!                 Psi_0(:,k) = Psi_0(:,k) / sqrt(dot_product(Psi_0(:,k),Psi_0(:,k)))
+                ! measure energy
+!                 print *, "norms: ", l1_norm_1(k), l2_norm_1(k)
+!                 print *, "energy: ", dot_product(Psi_0(:,k),matmul(hamil, Psi_0(:,k)))
+!                 print *, "shift: ", shift(k)
+
+            end do
+
+        end do
+
+        print *, "L1 norm: ", l1_norm_1(:)
+        print *, "L2 norm: ", l2_norm_1(:)
+        print *, "shift, error: "
+        do k = 1, n_states
+            print *, shift(k), shift(k) - e_values(k)
+        end do
+
+        print *, "energy, error: "
+        do k = 1, n_states
+            energy = dot_product(Psi_0(:,k),matmul(hamil, Psi_0(:,k))) / l2_norm_1(k)**2
+            print *, energy, energy - e_values(k)
+        end do
+
+    end subroutine do_exact_propagation
+
     subroutine setup_system(in_lat, nI, J, U, hilbert_space) 
         class(lattice), intent(in) :: in_lat
         integer, intent(in) :: nI(:) 
@@ -1607,14 +1739,13 @@ contains
                 call sort(e_values, sort_ind)
                 e_vec_left = e_vec_left(:,sort_ind)
 
-
                 ! also output the full-ground-states vectors.. 
                 iunit = get_free_unit()
                 open(iunit, file = 'right_ev')
                 do k = 1, n_states
                     call EncodeBitDet(hilbert_space(:,k), ilutI)
                     call writedetbit(iunit, ilutI, .false.)
-                    write(iunit,*) e_vec(1:10,k)
+                    write(iunit,*) e_vec(k,1:10)
                 end do
                 close(iunit)
                 iunit = get_free_unit()
@@ -1622,7 +1753,7 @@ contains
                 do k = 1, n_states
                     call EncodeBitDet(hilbert_space(:,k), ilutI)
                     call writedetbit(iunit, ilutI, .false.)
-                    write(iunit,*) e_vec_left(1:10,k)
+                    write(iunit,*) e_vec_left(k,1:10)
                 end do
                 close(iunit)
 
