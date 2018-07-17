@@ -605,6 +605,38 @@ contains
 
     end function get_tranformation_matrix
 
+    real(dp) function det(matrix) 
+        real(dp), intent(in) :: matrix(:,:)
+
+        integer :: n, i, info
+        integer, allocatable :: ipiv(:) 
+        real(dp) :: sgn 
+        real(dp), allocatable :: tmp_matrix(:,:)
+
+        n = size(matrix,1)
+        allocate(tmp_matrix(n,n), source = matrix)
+        allocate(ipiv(n))
+
+        ipiv = 0
+
+        call dgetrf(n,n,tmp_matrix,n,ipiv,info)
+
+        det = 1.0_dp
+
+        do i = 1, N
+            det = det * tmp_matrix(i,i)
+        end do
+
+        sgn = 1.0_dp
+        do i = 1, n
+            if (ipiv(i) /= i) then 
+                sgn = -sgn
+            end if
+        end do
+
+        det = sgn * det 
+
+    end function det
     function blas_matmul(A, B) result(C)
         ! a basic wrapper to the most fundamental matrix mult with blas 
         real(dp), intent(in) :: A(:,:), B(:,:) 
