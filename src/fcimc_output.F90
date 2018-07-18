@@ -701,6 +701,7 @@ contains
             end if
             call stats_out(state,.false., AllTotWalkers, 'Dets occ.')
             call stats_out(state,.false., nspawned_tot, 'Dets spawned')
+            call stats_out(state,.false., Hii, 'reference energy')
 #ifdef __REALTIME
             call stats_out(state,.false., real(sum(dyn_norm_red(:,1))/normsize),'GF normalization')
 #else
@@ -757,6 +758,8 @@ contains
                                 'Parts (' // trim(adjustl(tmpc)) // ')')
                 call stats_out (state, .false., AllNoatHF(p), &
                                 'Ref (' // trim(adjustl(tmpc)) // ')')
+                call stats_out(state, .false., proje_ref_energy_offsets(p), &
+                                'ref. energy offset('//trim(adjustl(tmpc))// ')')
                 call stats_out (state, .false., DiagSft(p) + Hii, &
                                 'Shift (' // trim(adjustl(tmpc)) // ')')
 #ifdef __CMPLX
@@ -796,8 +799,7 @@ contains
                                 'Tot ProjE (' // trim(adjustl(tmpc)) // ')')
                 call stats_out (state, .false., all_cyc_proje_denominator(p) / StepsSft, &
                                 'ProjE Denom (' // trim(adjustl(tmpc)) // ')')
-                call stats_out (state, .false., (AllENumCyc(p) + &
-                                (Hii+proje_ref_energy_offsets(p))*all_cyc_proje_denominator(p)) / StepsSft,&
+                call stats_out (state, .false., AllENumCyc(p) / StepsSft,  &
                                 'ProjE Num (' // trim(adjustl(tmpc)) // ')')
                 if (tTrialWavefunction .or. tStartTrialLater) then
                     call stats_out (state, .false., &
