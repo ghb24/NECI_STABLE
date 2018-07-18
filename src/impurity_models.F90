@@ -492,7 +492,7 @@ end subroutine constructConnections
     r = genrand_real2_dSFMT()
     source = nIPick(int(r*nAvail)+1)
     ! each pickable electron has the same probability to be chosen
-    pGen = pGen * nAvail
+    pGen = pGen / nAvail
     
   end function pick_source_el_single_excit
 !------------------------------------------------------------------------------------------!
