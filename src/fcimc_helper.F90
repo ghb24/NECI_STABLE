@@ -804,9 +804,9 @@ contains
                     HFCyc(max_part_type(run)) = HFCyc(max_part_type(run)) + aimag(sgn_run)
 #else
                     ! do we also need here: todo
-!                     if (iter > nEquilSteps) then 
+                    if (iter > nEquilSteps) then 
                         SumNoatHF(run) = SumNoatHF(run) + sgn_run
-!                     end if
+                    end if
                     NoatHF(run) = NoatHF(run) + sgn_run
                     HFCyc(run) = HFCyc(run) + sgn_run
 #endif
@@ -2072,12 +2072,12 @@ contains
     end subroutine check_start_rdm
 
     subroutine update_run_reference(ilut, run)
-      use adi_references, only: update_first_reference
+        use adi_references, only: update_first_reference
         ! Update the reference used for a particular run to the one specified.
         ! Update the HPHF flipped arrays, and adjust the stored diagonal
         ! energies to account for the change if necessary.
-      use SystemData, only: BasisFn, nBasisMax
-      use sym_mod, only: writesym, getsym
+        use SystemData, only: BasisFn, nBasisMax
+        use sym_mod, only: writesym, getsym
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: run
         character(*), parameter :: this_routine = 'update_run_reference'

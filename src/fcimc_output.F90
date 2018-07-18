@@ -794,10 +794,10 @@ contains
 #else
                 call stats_out (state, .false., proje_iter(p) + Hii, &
                                 'Tot ProjE (' // trim(adjustl(tmpc)) // ')')
-                call stats_out (state, .false., AllHFCyc(p) / StepsSft, &
+                call stats_out (state, .false., all_cyc_proje_denominator(p) / StepsSft, &
                                 'ProjE Denom (' // trim(adjustl(tmpc)) // ')')
-                call stats_out (state, .false., &
-                                (AllENumCyc(p) + Hii*AllHFCyc(p)) / StepsSft,&
+                call stats_out (state, .false., (AllENumCyc(p) + &
+                                (Hii+proje_ref_energy_offsets(p))*all_cyc_proje_denominator(p)) / StepsSft,&
                                 'ProjE Num (' // trim(adjustl(tmpc)) // ')')
                 if (tTrialWavefunction .or. tStartTrialLater) then
                     call stats_out (state, .false., &
