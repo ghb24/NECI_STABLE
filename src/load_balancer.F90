@@ -24,7 +24,8 @@ module load_balance
     use cont_time_rates, only: spawn_rate_full
     use SystemData, only: nel, tHPHF
     use DetBitOps, only: DetBitEq
-    use sparse_arrays, only: con_ht
+    use sparse_arrays, only: con_ht, trial_ht, trial_hashtable
+    use trial_ht_procs, only: buffer_trial_ht_entries, add_trial_ht_entries
     use load_balance_calcnodes
     use Parallel_neci
     use constants
@@ -350,6 +351,8 @@ contains
         integer, parameter :: mpi_tag_dets = 223457
         integer, parameter :: mpi_tag_nconsend = 223458
         integer, parameter :: mpi_tag_con = 223459
+        integer, parameter :: mpi_tag_ntrialsend = 223460
+        integer, parameter :: mpi_tag_trial = 223461
 
         src_proc = LoadBalanceMapping(block)
 
@@ -385,43 +388,33 @@ contains
                 end if
             end do
 
-            if(tTrialWavefunction) then
-               ! now get those connected determinants that need to be 
-               ! communicated (they might not be in currentdets)
-               do j = 1, con_space_size
-                  clashes = con_ht(j)%nclash
-                  if(clashes > 0) then
-                     k = 0
-                     do
-                        k = k + 1
-                        call decode_bit_det(det,con_ht(j)%states(:,k))
-                        det_block = get_det_block(nel, det, 0)
-                        if(det_block == block) then
-                           call extract_con_ht_entry(j,k,con_state)
-                           nconsend = nconsend + 1
-                           con_send_buf(:,nconsend) = con_state
-                           clashes = clashes - 1
-                           k = k - 1
-                        endif
-                        if(k==clashes) exit
-                     enddo
-                  endif
-               end do
-            endif
-
             ! And send the data to the relevant (target) processor
             nelem = nsend * (1 + NIfTot)
             call MPISend(nsend, 1, tgt_proc, mpi_tag_nsend, ierr)
-            call MPISend(SpawnedParts(:, 1:nsend), nelem, tgt_proc, &
+            call MPISend(SpawnedParts(0:NIfTot, 1:nsend), nelem, tgt_proc, &
                          mpi_tag_dets, ierr)
 
-            if(tTrialWavefunction) then
+            ! we only communicate the trial hashtable
+            if(tTrialWavefunction .and. tTrialHash) then
+               ! now get those connected determinants that need to be 
+               ! communicated (they might not be in currentdets)
+               nconsend = buffer_trial_ht_entries(block, con_ht, con_space_size)   
                ! And send the trial wavefunction connection information
                nelem = nconsend * (1 + NConEntry)
                call MPISend(nconsend,1,tgt_proc,mpi_tag_nconsend, ierr)
-               if(nelem > 0) &
-               call MPISend(con_send_buf(:,1:nconsend),nelem,tgt_proc, &
-                    mpi_tag_con, ierr)
+               if(nelem > 0) then
+                  call MPISend(con_send_buf(:,1:nconsend),nelem,tgt_proc, &
+                       mpi_tag_con, ierr)
+               endif
+
+               ! Do the same with the trial wavefunction itself
+               nconsend = buffer_trial_ht_entries(block, trial_ht, trial_space_size)
+               nelem = nconsend * (1 + NConEntry)
+               call MPISend(nconsend,1,tgt_proc,mpi_tag_ntrialsend, ierr)
+               if(nelem > 0) then
+                    call MPISend(con_send_buf(:,1:nconsend),nelem,tgt_proc,&
+                    mpi_tag_trial, ierr)
+                 endif
             end if
 
             ! We have now created lots of holes in the main list
@@ -451,14 +444,29 @@ contains
             ! and possibly extended the list
             HolesInList = max(0, HolesInList - nsend)
 
-            ! Recieve information on the connected determinants
+            ! Recieve information on the trial + connected determinants
             ! only if trial wavefunction is enabled, of course
-            if(tTrialWavefunction) then
+            if(tTrialWavefunction .and. tTrialHash) then
+               ! first, we get the connected ones
                call MPIRecv(nconsend, 1, src_proc, mpi_tag_nconsend, ierr)
                nelem = nconsend * (1 + NConEntry)
                if(nelem > 0) then
+                  ! get the connected states themselves
                   call MPIRecv(con_send_buf, nelem, src_proc, mpi_tag_con, ierr)
-                  call add_con_ht_entries(con_send_buf(:,1:nconsend), nconsend)
+                  ! add the recieved connected dets to the hashtable
+                  call add_trial_ht_entries(con_send_buf(:,1:nconsend), nconsend, &
+                       con_ht, con_space_size)
+               endif
+
+               ! Recieve the information on the trial wave function
+               call MPIRecv(nconsend, 1, src_proc, mpi_tag_ntrialsend, ierr)
+               nelem = nconsend * (1 + NConEntry)
+               if(nelem > 0) then
+                  ! get the states
+                  call MPIRecv(con_send_buf, nelem, src_proc, mpi_tag_trial, ierr)
+                  ! add them to the hashtable
+                  call add_trial_ht_entries(con_send_buf(:,1:nconsend), nconsend, &
+                       trial_ht, trial_space_size)
                endif
             endif
 

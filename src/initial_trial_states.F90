@@ -302,6 +302,7 @@ contains
         ! [W.D. 15.5.2017:]
         ! is the sort behaving different, depending on the compiler? 
         ! since different references for different compilers..??
+
         call sort(trial_iluts(:,1:ndets_this_proc), ilut_lt, ilut_gt)
 
         if (iProcIndex == root) then
@@ -505,6 +506,8 @@ contains
 
         ! Send the components to the correct processors using the following
         ! array as temporary space.
+
+
         allocate(evecs_this_proc(nexcit, ndets_this_proc), stat=ierr)
         call MPIScatterV(evecs_transpose, sndcnts, displs, evecs_this_proc, rcvcnts, ierr)
         if (ierr /= 0) call stop_all(t_r, "Error in MPIScatterV call.")

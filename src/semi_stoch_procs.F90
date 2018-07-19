@@ -576,7 +576,6 @@ contains
 
         counter(0) = 0
         do i = 1, nProcessors-1
-!             counter(i) = sum(num_states_procs(:i-1))
             counter(i) = counter(i-1) + num_states_procs(i-1)
         end do
 
