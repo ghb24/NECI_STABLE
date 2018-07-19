@@ -1966,17 +1966,17 @@ contains
 
     end function
 
-    SUBROUTINE WRITESYMCLASSES(NBASIS)
+    SUBROUTINE WRITESYMCLASSES(n_basis)
       use SystemData, only: BasisFN, Symmetry
       USE UMatCache
       use SymData, only: SymClasses,SymLabelCounts,nSymLabels
       use util_mod, only: get_free_unit
       IMPLICIT NONE
-      INTEGER I,NBASIS,iunit
+      INTEGER I,n_basis,iunit
       
       iunit = get_free_unit()
       open(iunit, file="SYMCLASSES", status="unknown")
-      DO I=1,NBASIS/2
+      DO I=1,n_basis/2
           WRITE(iunit,*) I,SYMCLASSES(I)
           CALL neci_flush(iunit)
       ENDDO
@@ -2061,7 +2061,7 @@ END MODULE Integrals_neci
 ! It is easiest to include this periodic image correction with the kinetic
 ! (one-electron) terms.
 
-SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
+SUBROUTINE CALCTMATUEG(n_basis,ALAT,G1,CST,TPERIODIC,OMEGA)
   use constants, only: dp
   use SystemData, only: BasisFN, k_offset, iPeriodicDampingType, kvec, k_lattice_constant
   USE OneEInts, only : SetupTMAT,TMAT2D
@@ -2070,8 +2070,8 @@ SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
   use Parallel_neci, only: iProcIndex, Root
 
   IMPLICIT NONE
-  INTEGER NBASIS
-  TYPE(BASISFN) G1(NBASIS)
+  INTEGER n_basis
+  TYPE(BASISFN) G1(n_basis)
   real(dp) ALAT(4),CST,K_REAL(3), temp
   INTEGER I
   INTEGER iSIZE, iunit
@@ -2087,8 +2087,8 @@ SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
       iunit = get_free_unit()
 
       if(iProcIndex.eq.Root) OPEN(iunit,FILE='TMAT',STATUS='UNKNOWN')
-      CALL SetupTMAT(NBASIS,2,iSIZE)
-      DO I=1,NBASIS
+      CALL SetupTMAT(n_basis,2,iSIZE)
+      DO I=1,n_basis
          !K_OFFSET in cartesian coordinates
          K_REAL=real(kvec(I, 1:3)+K_OFFSET, dp)
          temp=K_REAL(1)**2+K_REAL(2)**2+K_REAL(3)**2
@@ -2105,9 +2105,9 @@ SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
   IF(TPERIODIC) WRITE(6,*) "Periodic UEG"
   iunit = get_free_unit()
   if(iProcIndex.eq.Root) OPEN(iunit,FILE='TMAT',STATUS='UNKNOWN')
-  CALL SetupTMAT(NBASIS,2,iSIZE)
+  CALL SetupTMAT(n_basis,2,iSIZE)
 
-  DO I=1,NBASIS
+  DO I=1,n_basis
     K_REAL=G1(I)%K+K_OFFSET
     TMAT2D(I,1)=((ALAT(1)**2)*((K_REAL(1)**2)/(ALAT(1)**2)+        &
 &        (K_REAL(2)**2)/(ALAT(2)**2)+(K_REAL(3)**2)/(ALAT(3)**2)))
