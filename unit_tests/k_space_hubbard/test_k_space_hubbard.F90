@@ -165,7 +165,7 @@ contains
         t_exact_propagation = .true.
         l_norm = 1
         n_excited_states = 10
-        timestep = 0.1_dp
+        timestep = 0.001_dp
 
         call init_k_space_unit_tests()
 
@@ -202,7 +202,7 @@ contains
             J_vec = linspace(-0.0,1.0,100)
 !               J_vec = [0.5]
         else 
-            J = 0.5
+            J = 0.1
         end if
         
         nel = 4
@@ -870,7 +870,7 @@ contains
         alpha = 1.0
         ! the orthogonality of the Gram-Schmidt actually depends on the 
         ! normalization, if it is based on a non-hermitian Hamiltonian!!
-        t_normalize = .false.
+        t_normalize = .true.
         ! false is more like the neci implementation! 
 
         ! the even more neci-like
@@ -1217,17 +1217,33 @@ contains
         do k = 1, n_states
             do l = k, n_states
                 print *, k, l, dot_product(Psi_R(:,k), Psi_R(:,l)) / & 
-                    (l2_norm_1_R(k)*l2_norm_1_R(l))
+                    sqrt(dot_product(Psi_R(:,k),Psi_R(:,k))*dot_product(Psi_R(:,l),Psi_R(:,l)))
             end do
         end do
 
         print *, "i, j: neci-exact  overlap"
         do k = 1, n_states
-            do l = 1, n_states
-                print *, k, l, dot_product(Psi_R(:,k), e_vec(:,l)) / &
-                    l2_norm_1_R(k)
-            end do
+!             do l = 1, n_states
+                print *, k, l, dot_product(Psi_R(:,k), e_vec(:,k)) / &
+                    sqrt(dot_product(Psi_R(:,k),Psi_R(:,k)))
+!             end do
         end do
+
+        print *, "test-overlap:"
+        do k = 1, n_states 
+            Psi_est(:,k) = e_vec(:,k)
+            do l = 1, k - 1
+!                 print *, dot_product(e_vec(:,l),Psi_est(:,k))
+                Psi_est(:,k) = Psi_est(:,k) - dot_product(e_vec(:,l),Psi_est(:,k)) / &
+                        dot_product(e_vec(:,l),e_vec(:,l)) * e_vec(:,l)
+
+                Psi_est(:,k) = Psi_est(:,k) / sqrt(dot_product(Psi_est(:,k),Psi_est(:,k)))
+            end do
+
+            print *, k, k, dot_product(Psi_est(:,k),e_vec(:,k)) / &
+                sqrt(dot_product(Psi_est(:,k),Psi_est(:,k)))
+        end do
+
 
     end subroutine do_exact_propagation
 
