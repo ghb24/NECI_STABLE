@@ -6,7 +6,7 @@ MODULE UMatCache
     use SystemData, only: tROHF,tStoreSpinOrbs, tComplexWalkers_RealInts, &
                           Symmetry, BasisFN, UMatEps, tROHF
 
-    use SystemData, only: tRIIntegrals,tCacheFCIDUMPInts, nbasis, t_non_hermitian
+    use SystemData, only: tRIIntegrals,tCacheFCIDUMPInts, t_non_hermitian
 
     use util_mod, only: swap, get_free_unit, NECI_ICOPY
 
@@ -217,6 +217,7 @@ MODULE UMatCache
          !    nBasis: size of basis. If =0, use nStates instead.
          !    nOccupied: # of occupied orbitals.  If =0, then nOcc is used.
          !    Should only be passed as non-zero during the freezing process.
+         use SystemData, only: nbasis
          IMPLICIT NONE
          INTEGER, intent(in) :: I,J,K,L
          INTEGER A,B, nbi, iss
