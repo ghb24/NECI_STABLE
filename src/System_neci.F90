@@ -527,6 +527,8 @@ system: do
            end if
            t_non_hermitian = .true. 
 
+        case('MOLECULAR-TRANSCORR')
+            t_non_hermitian = .true.
 
        case ('TRANSCORRELATED', 'TRANSCORR', 'TRANS-CORR')
            ! activate the transcorrelated Hamiltonian idea from hongjun for 
