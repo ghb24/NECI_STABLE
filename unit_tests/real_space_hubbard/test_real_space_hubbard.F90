@@ -100,12 +100,19 @@ contains
         real(dp), allocatable :: j_vec(:)
         real(dp) :: exact_double_occ
         HElement_t(dp) :: H_hop, H_spin
+        logical :: t_optimize_corr_param, t_do_diag_elements, t_do_exact_transcorr, &
+                   t_do_exact_double_occ, t_j_vec
 
+        t_optimize_corr_param  = .true.
+        t_do_diag_elements = .false.
+        t_do_exact_transcorr = .false.
+        t_do_exact_double_occ = .false.
+        t_j_vec = .false.
 
         t_trans_corr_hop = .true.
         lat => lattice('chain', 6, 1, 1,.true.,.true.,.true.)
         t_trans_corr_hop = .false.
-        uhub = 8
+        uhub = 4
         bhub = -1
 
         n_orbs = lat%get_nsites()
@@ -135,31 +142,36 @@ contains
 !         call init_dispersion_rel_cache()
 !         call init_umat_rs_hub_transcorr()
 
-        j_vec = linspace(-0.3,0.0,20)
-! !         j_vec = [0.0, 0.05, 0.1,0.12]
+        if (t_j_vec) then
+            j_vec = linspace(-0.3,0.0,20)
+        else
+            allocate(j_vec(1), source = -0.17_dp)
+        end if
 
-        iunit = get_free_unit()
-        open(iunit, file = 'diag_elements')
-        write(iunit, *) "# J, Hd hop, Hd spin"
-        print *, "H diag hopping: "
-        t_recalc_umat = .true.
-        t_recalc_tmat = .true.
-        do i = 1, size(j_vec) 
-            t_trans_corr_hop = .true.
-            trans_corr_param = j_vec(i)
-            ! i need to deallocate umat every time.. 
-            if (allocated(umat_rs_hub_trancorr_hop)) deallocate(umat_rs_hub_trancorr_hop)
-            call init_umat_rs_hub_transcorr()
-            H_hop = get_diag_helemen_rs_hub_transcorr_hop(nI)
-            t_trans_corr_hop = .false.
-            t_spin_dependent_transcorr = .true. 
-            call init_tmat_rs_hub_spin_transcorr()
-            H_spin = get_diag_helemen_rs_hub_transcorr_spin(nI)
-            t_spin_dependent_transcorr = .false.
-            write(iunit,*) J_vec(i), H_hop, H_spin
-        end do
+        if (t_do_diag_elements) then
+            iunit = get_free_unit()
+            open(iunit, file = 'diag_elements')
+            write(iunit, *) "# J, Hd hop, Hd spin"
+            print *, "H diag hopping: "
+            t_recalc_umat = .true.
+            t_recalc_tmat = .true.
+            do i = 1, size(j_vec) 
+                t_trans_corr_hop = .true.
+                trans_corr_param = j_vec(i)
+                ! i need to deallocate umat every time.. 
+                if (allocated(umat_rs_hub_trancorr_hop)) deallocate(umat_rs_hub_trancorr_hop)
+                call init_umat_rs_hub_transcorr()
+                H_hop = get_diag_helemen_rs_hub_transcorr_hop(nI)
+                t_trans_corr_hop = .false.
+                t_spin_dependent_transcorr = .true. 
+                call init_tmat_rs_hub_spin_transcorr()
+                H_spin = get_diag_helemen_rs_hub_transcorr_spin(nI)
+                t_spin_dependent_transcorr = .false.
+                write(iunit,*) J_vec(i), H_hop, H_spin
+            end do
+            close(iunit)
+        end if
 
-        close(iunit)
         t_trans_corr_hop = .false.
 
         call create_hilbert_space_realspace(n_orbs, nOccAlpha, nOccBeta, & 
@@ -185,19 +197,106 @@ contains
         call frsblk_wrapper(hilbert_space, size(hilbert_space, 2), n_eig, e_values, e_vecs)
         print *, "e_value lanczos:", e_values(1)
 
-        exact_double_occ = calc_exact_double_occ(n_states, dummy, e_vecs)
-
-        print *, "exact double occupancy: ", exact_double_occ
+        if (t_do_exact_double_occ) then
+            exact_double_occ = calc_exact_double_occ(n_states, dummy, e_vecs)
+            print *, "exact double occupancy: ", exact_double_occ
+        end if
 
 !         call stop_all("here","now")
 
-        j = -0.17_dp
-!         call exact_transcorrelation(lat, nI, [j], real(uhub,dp), hilbert_space)
-        call exact_transcorrelation(lat, nI, j_vec, real(uhub,dp), hilbert_space)
+        if (t_do_exact_transcorr) then
+            call exact_transcorrelation(lat, nI, j_vec, real(uhub,dp), hilbert_space)
+        end if
+
+        if (t_optimize_corr_param) then
+            call optimize_correlation_parameters()
+        end if
 
         call stop_all("here","now")
 
     end subroutine exact_test
+
+    subroutine optimize_correlation_parameters()
+        ! routine to optimize the correlation parameter in real-space 
+        ! based on hongjuns projection formula 
+        real(dp), allocatable :: g(:), hf_coeff(:), phi_coeff(:), energy(:)
+        integer :: n_j = 100, i, iunit
+        integer(n_int), allocatable :: hf_states(:,:), phi_states(:,:)
+        real(dp) :: J
+        logical :: t_full_ed = .true.
+        
+        ! first we need the HF solution in real-space 
+        ! is still need to decide, if i want to store the basis in ilut or 
+        ! nI representation.. 
+        call get_real_space_hf(hf_states, hf_coeff)
+
+        ! for the single parameter jastrow ansatz i just need to loop over 
+        ! J, or do a bisection search to find the optimal J, if it is a 
+        ! convex function 
+        g = linspace(0.0,1.0,n_j)
+        allocate(energy(n_j), source = 0.0_dp)
+
+        iunit = get_free_unit()
+        open(iunit, file = 'corr_param')
+
+        do i = 1, n_j
+            ! i need to set the hamiltonian with the correct j
+            J = -log(g(i))
+            call set_H_transcorr(J)
+            
+            ! then i need to apply H to the real-space HF solution 
+            call apply_H(hf_states, hf_coeff, phi_states, phi_coeff) 
+
+            ! then i need to calc the 'expectation' values of the 
+            ! correlation operator
+            ! <hf|t|phi> - <hf|t|hf><hf|phi>
+            energy(i) = get_corr_overlap(hf_states,hf_coeff,phi_states,phi_coeff) & 
+                - get_corr_overlap(hf_states,hf_coeff,hf_states,hf_coeff) & 
+                * get_overlap(hf_states,hf_coeff,phi_states,phi_coeff)
+
+            ! and then i just output it to post-process with python
+            write(iunit,*) J, energy(i)
+        end do
+        close(iunit)
+
+
+    end subroutine optimize_correlation_parameters
+
+    real(dp) function get_corr_overlap(phi_L_states, phi_L_coeff, phi_R_states, phi_R_coeff)
+        integer(n_int), intent(in) :: phi_L_states(:,:), phi_R_states(:,:)
+        real(dp), intent(in) :: phi_L_coeff(:), phi_R_coeff(:)
+
+    end function get_corr_overlap
+
+    real(dp) function get_overlap(phi_L_states, phi_L_coeff, phi_R_states, phi_R_coeff) 
+        integer(n_int), intent(in) :: phi_L_states(:,:), phi_R_states(:,:)
+        real(dp), intent(in) :: phi_L_coeff(:), phi_R_coeff(:)
+
+    end function get_overlap
+
+
+    subroutine apply_H(hf_states, hf_coeff, phi_states, phi_coeff)
+        integer(n_int), intent(in) :: hf_states(:,:)
+        real(dp), intent(in) :: hf_coeff(:)
+        integer(n_int), intent(out), allocatable :: phi_states(:,:)
+        real(dp), intent(out) :: phi_coeff(:)
+
+    end subroutine apply_H
+
+    subroutine set_H_transcorr(j)
+        real(dp), intent(in) :: j
+
+    end subroutine set_H_transcorr
+
+    subroutine get_real_space_hf(hf_states, hf_coeff) 
+        integer(n_int), intent(out), allocatable :: hf_states(:,:)
+        real(dp), intent(out), allocatable :: hf_coeff(:)
+        ! routine for a given system and filling, which gives me the real-space 
+        ! HF solution. essentially i only need to do a fourier transformation 
+        ! of the k-space HF solution, or if i have the eigenvectors of the 
+        ! t_ij matrix, it is just a unitary transformation of HF 
+
+    end subroutine get_real_space_hf
 
     function calc_exact_double_occ(n_states, ilut_list, e_vec) result(double_occ)
         integer, intent(in) :: n_states

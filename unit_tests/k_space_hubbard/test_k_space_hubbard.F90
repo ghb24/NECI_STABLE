@@ -852,7 +852,7 @@ contains
         real(dp), allocatable :: Psi_R(:,:), Psi_L(:,:), shift_R(:), shift_mat_R(:,:), shift_L(:)
         real(dp), allocatable :: l1_norm_0_R(:), l1_norm_1_R(:), l2_norm_0_R(:), l2_norm_1_R(:)
         real(dp), allocatable :: l1_norm_0_L(:), l1_norm_1_L(:), l2_norm_0_L(:), l2_norm_1_L(:)
-        real(dp) :: shift_damp, energy
+        real(dp) :: shift_damp, energy, tmp
         real(dp) :: chosen_norm_0_R, chosen_norm_1_R, chosen_norm_0_L, chosen_norm_1_L
         real(dp), allocatable :: e_values(:), e_vec(:,:), shift_mat_L(:,:), projector(:)
         integer, allocatable :: sort_ind(:)
@@ -862,7 +862,8 @@ contains
         real(dp), allocatable :: overlap_mat_exact(:,:), overlap_mat_neci(:,:), &
                                  overlap_values(:), overlap_vecs(:,:), &
                                  overlap_val_neci(:), overlap_vecs_neci(:,:), &
-                                 Psi_est(:,:)
+                                 Psi_est(:,:), rotated_basis(:,:), rot_mat(:,:), &
+                                 gs_vec(:,:)
 
         n_iters = 100000
         shift_damp = 0.1_dp
@@ -938,6 +939,55 @@ contains
         call eig(overlap_mat_exact, overlap_values, overlap_vecs)
 
         print *, "overlap eigenvalues: ", overlap_values
+        print *, "rotation matrix: "
+        call print_matrix(overlap_vecs)
+        print *, "is rotation unitary U*U = 1? "
+        call print_matrix(matmul(transpose(overlap_vecs),overlap_vecs))
+        allocate(rotated_basis(n_states,n_states), source = 0.0_dp)
+
+        do k = 1, n_states
+            do l = 1, n_states
+                rotated_basis(:,k) = rotated_basis(:,k) + overlap_vecs(l,k)*e_vec(:,l)
+            end do
+        end do
+
+        allocate(rot_mat(n_states,n_states), source = overlap_vecs)
+        do k = 1, n_states 
+            do l = 1, n_states
+                rot_mat(k,l) = rot_mat(k,l) / sqrt(overlap_values(l))
+            end do
+        end do
+
+        print *, "is rot_mat unitary?"
+        call print_matrix(matmul(transpose(rot_mat),rot_mat))
+
+        print *, "S_ij in rot basis "
+        do k = 1, n_states
+            do l = 1, n_states
+                print *, k,l, dot_product(rotated_basis(:,k),rotated_basis(:,l))
+            end do
+        end do
+
+        print *, "<rot|H|rot>"
+        do k = 1, n_states
+            energy = dot_product(rotated_basis(:,k), matmul(hamil, rotated_basis(:,k))) / &
+                dot_product(rotated_basis(:,k),rotated_basis(:,k))
+            print *, energy, energy - e_values(k)
+        end do
+
+        rotated_basis = 0.0
+        do k = 1, n_states
+            do l = 1, n_states
+                rotated_basis(:,k) = rotated_basis(:,k) + rot_mat(l,k)*e_vec(:,l)
+            end do
+        end do
+
+        print *, "<rot|H|rot>'"
+        do k = 1, n_states
+            energy = dot_product(rotated_basis(:,k), matmul(hamil, rotated_basis(:,k))) / &
+                dot_product(rotated_basis(:,k),rotated_basis(:,k))
+            print *, energy, energy - e_values(k)
+        end do
 
         ! for the beginning try only the groundstate:
         do i = 1, n_iters
@@ -1169,6 +1219,57 @@ contains
             
         end do
          
+        print *, "second method corrected projected energy: "
+        do k = 1, n_states
+            ind = maxloc(abs(Psi_R(:,k)),1)
+            projector = 0.0_dp
+            projector(ind) = 1.0_dp
+
+            fI_i = dot_product(projector, Psi_R(:,k)) / & 
+                sqrt(dot_product(Psi_R(:,k),Psi_R(:,k))) 
+
+            projE = dot_product(projector, matmul(hamil, Psi_R(:,k))) / &
+                dot_product(projector,Psi_R(:,k))
+
+            corr = 0.0_dp
+            corr_E = 0.0_dp
+
+            do l = 1, k - 1
+                tmp = dot_product(projector,Psi_R(:,l))*dot_product(Psi_R(:,l),e_vec(:,k))
+                corr = corr + tmp
+                corr_E = corr_E + tmp*dot_product(projector,matmul(hamil,Psi_R(:,l)))
+            end do
+
+            energy = (fI_i * projE + corr_E) / (fI_i + corr)
+            print *, energy, energy - e_values(k), corr, corr_E, fI_i
+        end do
+
+        print *, "estimated corrected projected energy: "
+        do k = 1, n_states
+            ind = maxloc(abs(Psi_R(:,k)),1)
+            projector = 0.0_dp
+            projector(ind) = 1.0_dp
+
+            fI_i = dot_product(projector, Psi_R(:,k)) / & 
+                sqrt(dot_product(Psi_R(:,k),Psi_R(:,k))) 
+
+            projE = dot_product(projector, matmul(hamil, Psi_R(:,k))) / &
+                dot_product(projector,Psi_R(:,k))
+
+            corr = 0.0_dp
+            corr_E = 0.0_dp
+
+            do l = 1, k - 1
+                tmp = dot_product(projector,Psi_R(:,l))*dot_product(Psi_R(:,l),Psi_est(:,k))
+                corr = corr + tmp
+                corr_E = corr_E + tmp*dot_product(projector,matmul(hamil,Psi_R(:,l)))
+
+            end do
+
+            energy = (fI_i * projE + corr_E) / (fI_i + corr)
+            print *, energy, energy - e_values(k), corr, corr_E, fI_i
+        end do
+
         print *, "projected <D|PH|R> energy error: "
         do k = 1, n_states 
             ind = maxloc(abs(Psi_R(:,k)),1)
@@ -1224,24 +1325,31 @@ contains
         print *, "i, j: neci-exact  overlap"
         do k = 1, n_states
 !             do l = 1, n_states
-                print *, k, l, dot_product(Psi_R(:,k), e_vec(:,k)) / &
+                print *, k, k, dot_product(Psi_R(:,k), e_vec(:,k)) / &
                     sqrt(dot_product(Psi_R(:,k),Psi_R(:,k)))
 !             end do
         end do
 
+        allocate(gs_vec(n_states,n_states), source = 0.0_dp)
         print *, "test-overlap:"
         do k = 1, n_states 
             Psi_est(:,k) = e_vec(:,k)
             do l = 1, k - 1
-!                 print *, dot_product(e_vec(:,l),Psi_est(:,k))
-                Psi_est(:,k) = Psi_est(:,k) - dot_product(e_vec(:,l),Psi_est(:,k)) / &
-                        dot_product(e_vec(:,l),e_vec(:,l)) * e_vec(:,l)
+                Psi_est(:,k) = Psi_est(:,k) - dot_product(Psi_est(:,k),Psi_est(:,l)) / &
+                        dot_product(Psi_est(:,l),Psi_est(:,l)) * Psi_est(:,l)
 
-                Psi_est(:,k) = Psi_est(:,k) / sqrt(dot_product(Psi_est(:,k),Psi_est(:,k)))
             end do
 
-            print *, k, k, dot_product(Psi_est(:,k),e_vec(:,k)) / &
-                sqrt(dot_product(Psi_est(:,k),Psi_est(:,k)))
+            gs_vec(:,k) = Psi_est(:,k) / sqrt(dot_product(Psi_est(:,k),Psi_est(:,k)))
+            print *, k, k, dot_product(e_vec(:,k),gs_vec(:,k))! / &
+!                 sqrt(dot_product(Psi_est(:,k),Psi_est(:,k)))
+        end do
+
+        print *, "S_ij:"
+        do k = 1, n_states
+            do l = 1, k 
+                print *, k,l,dot_product(gs_vec(:,k),gs_vec(:,l))
+            end do
         end do
 
 
