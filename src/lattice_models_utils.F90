@@ -35,6 +35,8 @@ module lattice_models_utils
 
     use Parallel_neci, only: iProcIndex, root
 
+    use get_excit, only: make_double
+
     implicit none
 
     interface swap_excitations 
@@ -1307,17 +1309,22 @@ contains
 
     end function create_neel_state_chain
 
-    subroutine gen_all_excits_k_space_hubbard(nI, n_excits, det_list) 
+    subroutine gen_all_excits_k_space_hubbard(nI, n_excits, det_list)!, sign_list) 
 
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits 
         integer(n_int), intent(out), allocatable :: det_list(:,:)
+!         real(dp), intent(out), allocatable, optional :: sign_list(:)
         character(*), parameter :: this_routine = "gen_all_excits_k_space_hubbard"
 
         integer(n_int), allocatable :: triple_dets(:,:), temp_dets(:,:)
         integer :: n_triples, save_excits
 
-        call gen_all_doubles_k_space(nI, n_excits, det_list)
+!         if (present(sign_list)) then 
+!             call gen_all_doubles_k_space(nI, n_excits, det_list, sign_list)
+!         else
+            call gen_all_doubles_k_space(nI, n_excits, det_list)
+!         end if
 
         if (t_trans_corr_2body) then 
             save_excits = n_excits
@@ -1773,16 +1780,19 @@ contains
 
     end subroutine gen_all_triples_k_space
 
-    subroutine gen_all_doubles_k_space(nI, n_excits, det_list)
+    subroutine gen_all_doubles_k_space(nI, n_excits, det_list, sign_list)
         integer, intent(in) :: ni(nel) 
         integer, intent(out) :: n_excits
         integer(n_int), intent(out), allocatable :: det_list(:,:) 
+        real(dp), intent(out), allocatable, optional :: sign_list(:)
         character(*), parameter :: this_routine = "gen_all_doubles_k_space"
 
         integer(n_int) :: ilutJ(0:niftot), ilut(0:niftot)
-        integer :: n_bound, i, j, a, b, src(2), ex(2,2), pos, n_par, n_opp 
+        integer :: n_bound, i, j, a, b, src(2), ex(2,2), pos, n_par, n_opp, nj(nel)
         integer(n_int), allocatable :: temp_list(:,:) 
         real(dp) :: elem
+        logical :: t_sign, tpar
+        real(dp), allocatable :: temp_sign(:)
 
         ! fuck it! these annoying old routines break my balls! 
         ! just write a new one to test my excitations with! 
@@ -1800,6 +1810,14 @@ contains
         n_opp = 0
 
         temp_list = 0_n_int 
+
+        if (present(sign_list)) then 
+            t_sign = .true. 
+            allocate(temp_sign(n_bound), source = 0.0_dp)
+        else 
+            t_sign = .false.
+        end if
+
         do i = 1, nel -1 
             do j = i + 1, nel 
                 src = nI([i,j])
@@ -1821,8 +1839,8 @@ contains
 !                             if (abs(get_offdiag_helement_k_sp_hub(nI, ex, .false.)) > EPS) then 
                             ! use the get_helement_lattice to avoid circular 
                             ! dependencies
-                            elem = abs(get_helement_lattice(nI, 2, ex, .false.))
-                            if (elem > EPS) then
+                            elem = get_helement_lattice(nI, 2, ex, .false.)
+                            if (abs(elem) > EPS) then
 
                                 ilutJ = make_ilutJ(ilut, ex, 2) 
 
@@ -1832,6 +1850,18 @@ contains
 
                                     temp_list(:,n_excits) = ilutJ
                                     call sort(temp_list(:,1:n_excits),ilut_lt,ilut_gt)
+
+                                    if (t_sign) then 
+                                        temp_sign(n_excits) = sign(1.0_dp, elem)
+!                                         call make_double(nI,nJ,i,j,a,b,ex,tpar)
+!                                         if (tpar) then
+!                                             print *, "hello?"
+!                                             temp_sign(n_excits) = -1.0_dp
+!                                         else 
+!                                             temp_sign(n_excits) = 1.0_dp
+!                                         end if
+                                    end if
+
                                     n_excits = n_excits + 1
                                     ! damn.. i have to sort everytime i guess..
 
@@ -1856,7 +1886,13 @@ contains
         n_excits = n_excits - 1
         allocate(det_list(0:NIfTot,n_excits), source = temp_list(:,1:n_excits))
 
-        call sort(det_list, ilut_lt, ilut_gt)
+        if (t_sign) then 
+            allocate(sign_list(n_excits), source = temp_sign(1:n_excits))
+            call sort(det_list, sign_list)!, ilut_lt, ilut_gt)
+
+        else 
+            call sort(det_list, ilut_lt, ilut_gt)
+        end if
 
     end subroutine gen_all_doubles_k_space
 

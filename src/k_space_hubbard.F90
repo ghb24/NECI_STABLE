@@ -16,7 +16,7 @@ module k_space_hubbard
                     omega, bhub, nBasisMax, G1, BasisFN, NullBasisFn, TSPINPOLAR, & 
                     treal, ttilt, tExch, ElecPairs, MaxABPairs, Symmetry, SymEq, &
                     t_new_real_space_hubbard, SymmetrySize, tNoBrillouin, tUseBrillouin, &
-                    excit_cache, t_uniform_excits, brr
+                    excit_cache, t_uniform_excits, brr, uhub
 
     use lattice_mod, only: get_helement_lattice_ex_mat, get_helement_lattice_general, &
                            determine_optimal_time_step, lattice, sort_unique, lat, &
@@ -91,7 +91,7 @@ module k_space_hubbard
     integer, parameter :: N_DIM = 3
 
     real(dp) :: three_body_prefac = 0.0_dp
-
+    real(dp) :: prefac_test = 2.0_dp
     real(dp), allocatable :: umat_cache_kspace(:,:)
 
     ! i especially need an interface for the matrix element calculation to 
@@ -120,6 +120,21 @@ module k_space_hubbard
         module procedure two_body_transcorr_factor_kvec
         module procedure two_body_transcorr_factor_ksym
     end interface two_body_transcorr_factor
+
+    interface three_body_rpa_contrib
+        module procedure rpa_contrib_ksym
+        module procedure rpa_contrib_kvec
+    end interface three_body_rpa_contrib
+
+    interface two_body_contrib
+        module procedure two_body_contrib_ksym
+        module procedure two_body_contrib_kvec
+    end interface two_body_contrib
+
+    interface three_body_exchange_contrib
+        module procedure exchange_contrib_ksym
+        module procedure exchange_contrib_kvec
+    end interface three_body_exchange_contrib
 
 contains 
 
@@ -464,7 +479,7 @@ contains
                 call Stop_All(this_routine, "not yet implemented with HPHF")
             end if
 
-            three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+            three_body_prefac = prefac_test * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
             ! i also have to set some generation probability parameters.. 
 
             pDoubles = p_doubles_input 
@@ -1793,7 +1808,7 @@ contains
         end if
 
         if (t_trans_corr_2body) then 
-            three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+            three_body_prefac = prefac_test * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
         end if
 
         call init_dispersion_rel_cache()
@@ -2117,6 +2132,78 @@ contains
         end if
 
     end function get_diag_helement_k_sp_hub
+
+    real(dp) function get_j_opt(nI, corr_J)
+        ! routine to evaluate Hongjuns J-optimization formulas 
+        integer, intent(in) :: nI(nel)
+        real(dp), intent(in) :: corr_J
+
+        integer :: i, j, a, spin_p, spin_q, b
+        integer(n_int) :: ilut(0:niftot)
+        type(symmetry) :: p_sym, q_sym, a_sym, b_sym, k_sym
+
+        call EncodeBitDet(nI, ilut)
+
+        get_j_opt = 0.0_dp
+
+        do i = 1, nel 
+            do j = 1, nel 
+                ! i only have a contribution if the spins of nI and nJ 
+                ! are not the same! 
+                if (.not. same_spin(nI(i),nI(j))) then 
+                    ! and then I need to loop over the holes, but due to 
+                    ! momentum conservation, only once! 
+                    do a = 1, nBasis
+                        ! if a is empty 
+                        if (IsNotOcc(ilut,a)) then 
+                            b = get_orb_from_kpoints(nI(i),nI(j),a)
+                            if (IsNotOcc(ilut,b) .and. .not. same_spin(a,b)) then
+                                p_sym = G1(nI(i))%sym
+                                q_sym = G1(nI(j))%sym 
+                                spin_p = get_spin_pn(nI(i))
+                                spin_q = get_spin_pn(nI(j))
+
+                                ! and now i have to think how to correly 
+                                ! choose the momenta involved
+                                if (same_spin(nI(i), a)) then
+                                    a_sym = G1(a)%sym
+                                    b_sym = G1(b)%sym 
+                                else 
+                                    a_sym = G1(b)%sym
+                                    b_sym = G1(a)%sym 
+                                end if
+                                k_sym = SymTable(p_sym%s, SymConjTab(a_sym%s))
+
+                                ! since i loop over all possible i,j i do not need 
+                                ! the sum like below i think 
+                                get_j_opt = get_j_opt + & 
+                                    two_body_contrib(corr_J, p_sym, a_sym) + & 
+                                    three_body_rpa_contrib(corr_J, p_sym, a_sym, spin_p) + & 
+                                    three_body_exchange_contrib(nI, corr_J, p_sym, q_sym, a_sym, spin_p)
+
+                                ! and i also need to think how to sum over 
+                                ! the spins correctly!
+!                                 get_j_opt = get_j_opt + & 
+!                                     (two_body_contrib(corr_J, p_sym, a_sym) + & 
+!                                      two_body_contrib(corr_J, q_sym, b_sym))/2.0_dp + &
+!                                     (three_body_rpa_contrib(corr_J, p_sym, a_sym, spin_p) +  &
+!                                      three_body_rpa_contrib(corr_J, q_sym, a_sym, spin_q))/2.0_dp + &
+!                                     (three_body_exchange_contrib(nI, corr_J, p_sym, q_sym, a_sym, spin_p) + &
+!                                      three_body_exchange_contrib(nI, corr_J, p_sym, q_sym, b_sym, spin_q))/2.0_dp
+! 
+                                 ! especially the three-body term, i am not sure 
+
+                            end if
+                        end if
+                    end do
+                end if
+            end do
+        end do
+
+        get_j_opt = get_j_opt/real(omega**2,dp)
+
+
+    end function get_j_opt
 
     function get_one_body_diag_sym(nI, spin, k_sym,t_sign) result(hel)
         integer, intent(in) :: nI(nel)
@@ -3035,6 +3122,134 @@ contains
             get_one_body_diag(nI,-spin,k_sym) + get_one_body_diag(nI,-spin,k_sym,.true.))
 
     end function same_spin_transcorr_factor_ksym
+
+    HElement_t(dp) function rpa_contrib_kvec(J, p, k, spin) 
+        ! gives the rpa contribution in the J-optimization
+        real(dp), intent(in) :: J
+        integer, intent(in) :: p(N_DIM), k(N_DIM), spin
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "rpa_contrib_kvec"
+#endif
+        integer :: q(N_DIM)
+        real(dp) :: n_opp
+
+        q = lat%subtract_k_vec(p,k)
+
+        ASSERT(spin == 1 .or. spin == -1)
+
+        if (spin == -1) then 
+            n_opp = real(nOccAlpha,dp)
+        else if (spin == 1) then 
+            n_opp = real(nOccBeta,dp)
+        end if
+
+        rpa_contrib_kvec = real(bhub,dp) * (cosh(J) - 1.0_dp) / real(omega,dp) * &
+            (n_opp - 1.0_dp) * (epsilon_kvec(p) + epsilon_kvec(q))
+
+    end function rpa_contrib_kvec
+
+    HElement_t(dp) function rpa_contrib_ksym(J, p, k, spin)
+        ! same as above just with symmetry symbols instead of vectors 
+        ! BUT here i have to be careful to determine the substraction p - k
+        ! already before calling this function! it is the k-symbol of the 
+        ! hole correspinding to p!
+        real(dp), intent(in) :: J
+        type(symmetry), intent(in) :: p, k
+        integer, intent(in) :: spin 
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "rpa_contrib_ksym"
+#endif 
+        real(dp) :: n_opp 
+
+        ASSERT(spin == -1 .or. spin == 1)
+
+        if (spin == -1) then 
+            n_opp = real(nOccAlpha, dp) 
+        else if (spin == 1) then 
+            n_opp = real(nOccBeta, dp) 
+        end if
+
+!         rpa_contrib_ksym = real(bhub,dp)*(cosh(J) - 1.0_dp) / real(omega, dp) * &
+!             (n_opp - 1.0_dp) * (epsilon_kvec(p) + epsilon_kvec(k))
+        rpa_contrib_ksym = 2.0_dp * real(bhub,dp)*(cosh(J) - 1.0_dp) / real(omega, dp) * &
+            n_opp * (epsilon_kvec(p) + epsilon_kvec(k))
+
+    end function rpa_contrib_ksym
+
+    HElement_t(dp) function two_body_contrib_kvec(J, p, k) 
+        ! two body contribution for the J optimization!
+        real(dp), intent(in) :: J
+        integer, intent(in) :: p(N_DIM), k(N_DIM)
+        
+        integer :: q(N_DIM)
+
+        q = lat%subtract_k_vec(p,k)
+
+        ! i still have to decide how to loop over the HF.. maybe i dont 
+        ! double count and then i dont need the /2 here! 
+        two_body_contrib_kvec = real(uhub, dp) / 2.0_dp - real(bhub,dp) * & 
+            ((exp(J) - 1.0_dp) * epsilon_kvec(p) + (exp(-J) - 1.0) * epsilon_kvec(q))
+
+    end function two_body_contrib_kvec
+
+    HElement_t(dp) function two_body_contrib_ksym(J, p, a) 
+        ! same as above just with symmetry symbols
+        ! AND: we have  to do the p - k before calling this function! 
+        real(dp), intent(in) :: J
+        type(symmetry), intent(in) :: p, a
+
+        two_body_contrib_ksym = real(uhub,dp) / 2.0_dp - real(bhub,dp) * & 
+            ((exp(J) - 1.0_dp) * epsilon_kvec(p) + (exp(-J) - 1.0) * epsilon_kvec(a))
+
+    end function two_body_contrib_ksym
+
+    HElement_t(dp) function exchange_contrib_kvec(nI, J, p, q, k, spin)
+        ! the 3-body exchange contribution for the J optimization
+        integer, intent(in) :: nI(:), p(N_DIM), q(N_DIM), k(N_DIM), spin
+        real(dp), intent(in) :: J
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "exchange_contrib_kvec"
+#endif 
+        integer :: k1(N_DIM), k2(N_DIM) 
+
+        ASSERT(spin == -1 .or. spin == 1) 
+
+        k1 = lat%add_k_vec(p,q)
+        k2 = lat%subtract_k_vec(p,q)
+        k2 = lat%subtract_k_vec(k2,k)
+
+        exchange_contrib_kvec = -2.0_dp * real(bhub,dp)*(cosh(J)-1.0_dp)/real(omega,dp) & 
+            * (get_one_body_diag(nI,-spin,k1,.true.) + get_one_body_diag(nI,-spin,k2,.true.))
+
+    end function exchange_contrib_kvec
+
+    HElement_t(dp) function exchange_contrib_ksym(nI, J, p, q, a, spin) 
+        ! sym-symbol version of above! 
+        ! BUT here: p and q are the symbols of the electrons and q is the 
+        ! symbol of 1 hole! so i have to call this function also for the 
+        ! exchanged version! 
+        integer, intent(in) :: nI(:), spin
+        real(dp), intent(in) :: J
+        type(symmetry), intent(in) :: p, q, a
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "exchange_contrib_ksym"
+#endif
+        type(symmetry) :: k1, k2    
+
+        ASSERT(spin == -1 .or. spin == 1)
+        
+        k1 = SymTable(p%s, q%s)
+        ! the subtraction has something to do with the inputted spin!! 
+        ! todo
+!         k2 = SymTable(p%s, SymConjTab(a%s))
+        ! spin is chosen from p momentum! so a is the p-k = a hole 
+        ! and we need the dipersion of p-k - q = a - q
+        k2 = SymTable(a%s, SymConjTab(q%s))
+
+        exchange_contrib_ksym = -2.0_dp * real(bhub,dp)*(cosh(J)-1.0_dp)/real(omega,dp) & 
+            * (get_one_body_diag(nI,-spin,k1,.true.) + get_one_body_diag(nI,-spin,k2))
+
+    end function exchange_contrib_ksym
 
     HElement_t(dp) function two_body_transcorr_factor_kvec(p,k) 
         integer, intent(in) :: p(N_DIM), k(N_DIM) 

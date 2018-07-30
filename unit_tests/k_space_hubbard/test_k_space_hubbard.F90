@@ -67,6 +67,7 @@ program test_k_space_hubbard
     implicit none 
 
     integer :: failed_count 
+    real(dp) :: test_prefac = 2.0_dp
 
 
     call init_fruit()
@@ -120,8 +121,9 @@ contains
         character(3) :: irrep_names(0:10)
         integer, allocatable :: trunc(:), add(:,:)
         integer :: l_norm, n_excited_states
-        logical :: t_exact_propagation
-        real(dp) :: timestep
+        logical :: t_exact_propagation, t_optimize_j
+        real(dp) :: timestep, j_opt
+        real(dp), allocatable :: sign_list(:)
 
         tmp_sign = 0.0_dp
         ! also define the point group character to determine the 
@@ -151,18 +153,19 @@ contains
 
         irrep_names = ['  x','A1g','A2g','B1g','B2g',' Eg','A1u','A2u','B1u','B2u',' Eu']
 
-        t_do_diags = .false.
+        t_optimize_j = .true.
+        t_do_diags = .true.
         t_do_subspace_study = .false.
-        t_input_U = .false.
+        t_input_U = .true.
         t_input_J = .false.
         t_U_vec = .false.
-        t_J_vec = .false.
+        t_J_vec = .true.
         t_do_twisted_bc = .false.
         t_twisted_vec = .false.
         t_analyse_gap = .false.
         t_ignore_k = .false.
         t_do_ed = .false.
-        t_exact_propagation = .true.
+        t_exact_propagation = .false.
         l_norm = 1
         n_excited_states = 10
         timestep = 0.001_dp
@@ -199,7 +202,7 @@ contains
             print *, "input J:"
             read(*,*), J
         else if (t_J_vec) then
-            J_vec = linspace(-0.0,1.0,100)
+            J_vec = linspace(-2.0,2.0,100)
 !               J_vec = [0.5]
         else 
             J = 0.1
@@ -390,20 +393,56 @@ contains
         end if
             
 
-
 !         NIfTot = 0
 !         nifd = 0
+
+        if (t_optimize_j) then 
+
+            t_trans_corr_2body = .true.
+            trans_corr_param_2body = J_vec((1))
+            three_body_prefac = test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+            call setup_system(lat, nI, J, U)
+
+            write(U_str, *) int(U)
+            write(nel_str, *) nel 
+            write(lattice_name,*) lat%get_nsites() 
+            lattice_name = trim(lattice_name) // "_"
+
+            filename = 'J_optim_' // trim(adjustl(nel_str)) // 'in' // &
+                trim(adjustl(lattice_name)) // 'U_' // trim(adjustl(U_str))
+
+            iunit = get_free_unit()
+            open(iunit, file = filename)
+
+            do i = 1, size(J_vec)
+                trans_corr_param_2body = J_vec((i))
+                three_body_prefac = test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+     
+                j_opt = get_j_opt(nI, J_vec(i))
+
+                write(iunit,*) J_vec(i), j_opt
+            end do
+            close(iunit)
+
+!             call stop_all("here", "now")
+        end if
 
         if (t_do_diags) then
             t_trans_corr_2body = .true.
             trans_corr_param_2body = J_vec((1))
-            three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+            three_body_prefac = test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
             call setup_system(lat, nI, J, U)
 
-    !         call gen_all_doubles_k_space(nI, n_excits, excits)
-            call gen_all_excits_k_space_hubbard(nI, n_excits, excits)
+            call gen_all_doubles_k_space(nI, n_excits, excits, sign_list)
+!             call gen_all_excits_k_space_hubbard(nI, n_excits, excits)
+
 
             print *, "number of excitations: ", n_excits
+            print *, "excitations, sign: "
+            do k = 1, n_excits
+                call decode_bit_det(nJ, excits(:,k))
+                print *, nJ, sign_list(k)
+            end do
 
             write(U_str, *) int(U)
             write(nel_str, *) nel 
@@ -421,7 +460,7 @@ contains
             write(iunit, *) "# J, H diag, <I|H|K>, <K|H|I>:"
             do i = 1, size(J_vec)
                 trans_corr_param_2body = J_vec((i))
-                three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+                three_body_prefac = test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
      
                 sum_doubles = 0.0_dp
                 sum_doubles_trans = 0.0_dp
@@ -429,8 +468,8 @@ contains
                 do k = 1, n_excits
                     call decode_bit_det(nJ, excits(:,k))
 
-                    sum_doubles = sum_doubles + get_helement_lattice(nI, nJ)
-                    sum_doubles_trans = sum_doubles_trans + get_helement_lattice(nJ,nI)
+                    sum_doubles = sum_doubles + sign_list(k)*get_helement_lattice(nI, nJ)
+                    sum_doubles_trans = sum_doubles_trans + sign_list(k)*get_helement_lattice(nJ,nI)
 
                 end do
 
@@ -440,7 +479,7 @@ contains
             close(iunit)
             t_trans_corr_2body = .false.
 
-            call stop_all("here", "now")
+!             call stop_all("here", "now")
         end if
 
         if (t_do_subspace_study) then
@@ -1465,7 +1504,7 @@ contains
         get_umat_el => get_umat_kspace
 
         trans_corr_param_2body = 0.1
-        three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+        three_body_prefac = test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
 
         ! also initialize the lattice get_helement pointers to use 
         ! detham to do the Lanczos procedure for bigger systems.. 
@@ -1923,7 +1962,7 @@ contains
             trans_corr_param_2body = 0.1
         end if
 
-        three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+        three_body_prefac = test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
 
         ! after setup everything should be fine again.. or?
         ttilt = .false. 
@@ -1949,18 +1988,20 @@ contains
         real(dp), allocatable :: neci_eval(:), pca_eval(:), pca_evec(:,:)
         integer, allocatable :: hilbert_space(:,:)
         character(30) :: filename, J_str, U_str
-        logical :: t_norm_inside, t_pca, t_check_orthogonality
-        integer :: ic_inside, ic, l
+        logical :: t_norm_inside, t_pca, t_check_orthogonality, t_calc_doubles
+        integer :: ic_inside, ic, l, hf_ind
         real(dp), allocatable :: norm_inside_orig(:), norm_inside_trans(:), &
             norm_inside_trans_left(:)
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
         real(dp) :: e_thresh = 1.0e-5_dp
         integer, allocatable :: sort_ind(:)
+        real(dp), allocatable :: hf_det(:), doubles(:), j_opt(:)
         
-        t_norm_inside = .true.
-        t_pca = .true.
+        t_norm_inside = .false.
+        t_pca = .false.
         ic_inside = 2
-        t_check_orthogonality = .true.
+        t_check_orthogonality = .false.
+        t_calc_doubles = .true.
 
         write(U_str,*) U
 
@@ -1987,6 +2028,30 @@ contains
         allocate(e_vec(n_states, n_states)); e_vec = 0.0_dp
         allocate(e_vec_left(n_states, n_states)); e_vec_left = 0.0_dp
         allocate(gs_vec(n_states));          gs_vec = 0.0_dp
+
+        if (t_calc_doubles) then
+            allocate(hf_det(n_states), source = 0.0_dp)
+            allocate(doubles(n_states), source = 0.0_dp)
+            allocate(j_opt(size(j)), source = 0.0_dp)
+
+            ! find the hf determinant
+            do i = 1, n_states
+                if (all(hilbert_space(:,i) == nI)) then 
+                    hf_ind = i
+                    hf_det(i) = 1.0_dp
+                end if
+            end do
+
+            doubles = matmul(hamil,hf_det)
+            ! and i want to remove the HF det from the doubles 
+            doubles(hf_ind) = 0.0_dp
+
+            print *, "hilbert space: "
+            call print_matrix(transpose(hilbert_space))
+            print *, "doubles: ", doubles
+
+        end if
+
         do i = 1, size(hamil,1)
             do k = 1, size(hamil,2)
                 if (isnan(hamil(i,k)) .or. is_inf(hamil(i,k))) print *, i,k,hamil(i,k)
@@ -2062,7 +2127,7 @@ contains
             filename = 'gs_vec_trans_J_' // trim(adjustl((J_str)))
 
             trans_corr_param_2body = J(i)
-            three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+            three_body_prefac = test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
 
             print *, "creating transformed hamiltonian: "
             hamil_trans = similarity_transform(hamil) 
@@ -2083,6 +2148,12 @@ contains
             t_trans_corr = .false. 
 
             neci_eval = calc_eigenvalues(hamil_neci)
+
+            if (t_calc_doubles) then 
+
+                j_opt(i) = dot_product(doubles,matmul(hamil_trans, hf_det))
+
+            end if
 
             if (abs(gs_energy_orig - minval(neci_eval)) > e_thresh) then 
                 print *, "original hamiltonian: "
@@ -2236,6 +2307,15 @@ contains
             e_vec_next_left(:,i) = gs_vec
 
         end do
+
+        if (t_calc_doubles) then 
+            iunit = get_free_unit()
+            open(iunit, file = 'exact_opt_J')
+            do i = 1, size(j)
+                write(iunit,*) j(i), j_opt(i)
+            end do
+            close(iunit)
+        end if
 
         if (t_pca) then
             ! try a principal component analysis
@@ -2761,7 +2841,7 @@ contains
 
         trans_corr_param_2body = 1.0_dp 
 
-        three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+        three_body_prefac = test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
 
         umat = uhub/omega
 
