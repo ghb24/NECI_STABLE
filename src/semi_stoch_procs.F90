@@ -1053,7 +1053,7 @@ contains
         do i = 1, int(TotWalkers, sizeof_int)
             if (test_flag(CurrentDets(:,i), flag_deterministic)) then
                 counter = counter + 1
-                pop_sign = temp_determ_vec(counter)
+                pop_sign = 500*temp_determ_vec(counter)
                 call encode_sign(CurrentDets(:,i), pop_sign)
             end if
         end do
