@@ -121,7 +121,7 @@ contains
         character(3) :: irrep_names(0:10)
         integer, allocatable :: trunc(:), add(:,:)
         integer :: l_norm, n_excited_states
-        logical :: t_exact_propagation, t_optimize_j
+        logical :: t_exact_propagation, t_optimize_j, t_do_exact_transcorr
         real(dp) :: timestep, j_opt
         real(dp), allocatable :: sign_list(:)
 
@@ -153,6 +153,7 @@ contains
 
         irrep_names = ['  x','A1g','A2g','B1g','B2g',' Eg','A1u','A2u','B1u','B2u',' Eu']
 
+        t_do_exact_transcorr = .false.
         t_optimize_j = .true.
         t_do_diags = .true.
         t_do_subspace_study = .false.
@@ -173,7 +174,7 @@ contains
         call init_k_space_unit_tests()
 
         ! i have to define the lattice here.. 
-        lat => lattice('chain', 4, 1, 1,.true.,.true.,.true.,'k-space')
+        lat => lattice('tilted', 5, 5, 1,.true.,.true.,.true.,'k-space')
 
 !         x = [(-lat%dispersion_rel_orb(i), i = 1, 24)]
 !         ind = [(i, i = 1, 24)]
@@ -202,21 +203,35 @@ contains
             print *, "input J:"
             read(*,*), J
         else if (t_J_vec) then
-            J_vec = linspace(-2.0,2.0,100)
+            J_vec = linspace(-2.0,2.0,200)
 !               J_vec = [0.5]
         else 
             J = 0.1
         end if
         
-        nel = 4
+        nel = 50
         allocate(nI(nel))
         allocate(nJ(nel))
         nj = 0
 
         nbasis = 2*lat%get_nsites()
 
+        ! 16 in 16, k != 0 
+!         nI = [1,2,3,4,5,6,9,10,11,12,13,14,17,18,19,20]
+        ! 16 in 16 k = 0 closed shell
+!         nI = [1,2,3,4,5,6,9,10,11,12,13,14,15,16,19,20]
+
+        ! 16 in 16 k = 0 open shell 
+!         nI = [1,3,4,5,6,9,10,11,12,13,14,17,18,19,20,22]
+
+        
+
 !         nI = [(i, i = 1,nel)]
-        ! 46 in 50:
+        ! 50 in 50:
+        nI = [ 9,10,11,12,13,14,15,16,17,18,21,22,23,24,25,26,27,28,29,30,&
+            37,38,39,40,41,42,43,44,45,46,55,56,57,58,59,60,61,62,63,64,71,72,73,74,75,76,77,78,79,80]
+
+        ! 44 in 50:
 !         nI = [ 9,11,12,13,14,15,16,21,22,23,24,25,26,27,28,29,30,&
 !             37,38,39,40,41,42,43,44,45,46,55,56,57,58,59,60,61,62,63,64,73,74,75,76,77,78,80]
 
@@ -226,7 +241,9 @@ contains
         ! 12 in 18, k = 0
 !         nI = [ 3 ,5,6,11,12,13,14,15,16,23,24, 26 ]
         ! 14 in 18:
+        ! closed shell k = 0
 !         nI = [ 3,4, 5, 6, 11,12,13,14,15,16,23,24,25,26 ]
+        ! open shell k = 0?
 !         nI = [4,5,6,7,11,12,13,14,15,16,22,23,24,25]
 
         ! 6 in 9 k = 1 1
@@ -243,7 +260,7 @@ contains
 !         nI = [3,4,5,6,7,8]
 
         ! 4 in 4, k = 0
-        nI = [1,3,4,6]
+!         nI = [1,3,4,6]
 
         ! 6 in 8, 
 !         nI = [5,6,7,8,9,10]
@@ -438,12 +455,14 @@ contains
 
 
             print *, "number of excitations: ", n_excits
-            print *, "excitations, sign: "
-            do k = 1, n_excits
-                call decode_bit_det(nJ, excits(:,k))
-                print *, nJ, sign_list(k)
-            end do
+!             print *, "excitations, sign: "
+!             do k = 1, n_excits
+!                 call decode_bit_det(nJ, excits(:,k))
+!                 print *, nJ, sign_list(k)
+!             end do
 
+            ! fix the sign list just to tets..
+!             sign_list = [1.0,-1.0,1.0,-1.0,1.0,-1.0,1.0,1.0,-1.0,1.0,-1.0,1.0,1.0,-1.0,1.0,-1.0,1.0,-1.0,1.0,-1.0,1.0]
             write(U_str, *) int(U)
             write(nel_str, *) nel 
             write(lattice_name,*) lat%get_nsites() 
@@ -479,7 +498,7 @@ contains
             close(iunit)
             t_trans_corr_2body = .false.
 
-!             call stop_all("here", "now")
+            call stop_all("here", "now")
         end if
 
         if (t_do_subspace_study) then
@@ -858,11 +877,13 @@ contains
                 print *, hilbert_space(:,i), e_vecs(i,1), e_vecs(i,2), e_vecs(i,3)
             end do
         end if
-!         call stop_all("here", "now")
-        if (t_J_vec) then
-            call exact_transcorrelation(lat, nI, J_vec, U, hilbert_space) 
-        else 
-            call exact_transcorrelation(lat, nI, [J], U, hilbert_space) 
+
+        if (t_do_exact_transcorr) then
+            if (t_J_vec) then
+                call exact_transcorrelation(lat, nI, J_vec, U, hilbert_space) 
+            else 
+                call exact_transcorrelation(lat, nI, [J], U, hilbert_space) 
+            end if
         end if
 
 
@@ -2046,10 +2067,12 @@ contains
             ! and i want to remove the HF det from the doubles 
             doubles(hf_ind) = 0.0_dp
 
-            print *, "hilbert space: "
-            call print_matrix(transpose(hilbert_space))
-            print *, "doubles: ", doubles
-
+            print *, "doubles: "
+            do i = 1, n_states 
+                if (abs(doubles(i)) > EPS) then 
+                    print *, hilbert_space(:,i), doubles(i)
+                end if
+            end do
         end if
 
         do i = 1, size(hamil,1)
