@@ -141,7 +141,7 @@ contains
                   return
 
              if(tCCache)&
-                  call update_coherence_check(ilut, nI, i, run, &
+                  call update_coherence_check(ilut, nI, i, &
                   signedCache, unsignedCache, connections)
 
              ! Set the doubles to initiators
