@@ -1331,7 +1331,7 @@ contains
     end subroutine
 
 !------------------------------------------------------------------------------------------!
-
+#ifdef __USE_HDF
     subroutine clone_signs(tmp_sgns, tmp_lenof_sign, lenof_sign, num_signs)
       implicit none
       ! expand/shrink the sign to the target lenof_sign
@@ -1397,7 +1397,7 @@ contains
       out_sgn(1:in_size) = in_sgn(1:in_size)
       out_sgn(in_size+1:out_size) = in_sgn(in_size)
     end subroutine expand_sign
-
+#endif
 !------------------------------------------------------------------------------------------!
 
     subroutine resize_attribute(attribute, new_size, old_size)
