@@ -1354,7 +1354,7 @@ contains
     end subroutine add_pops_norm_contrib
 
 !------------------------------------------------------------------------------------------!
-#ifdef __USE_HDF5
+#ifdef __USE_HDF
     subroutine clone_signs(tmp_sgns, tmp_lenof_sign, lenof_sign, num_signs)
       implicit none
       ! expand/shrink the sign to the target lenof_sign
