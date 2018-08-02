@@ -245,8 +245,10 @@ contains
           tDefineDet=.false.
           tTruncInitiator=.false.
           tAddtoInitiator=.false.
+          tSTDInits = .false.
           tInitCoherentRule=.true.
           InitiatorWalkNo=3.0_dp
+          ErrThresh = 0.3
           tSeniorInitiators =.false.
           SeniorityAge=1.0_dp
           tInitIncDoubs=.false.
@@ -1472,7 +1474,7 @@ contains
                 end if
             case("FIXED-N0")
 #ifdef __CMPL
-                call stop_all(this_routine, 'FIXED-N0 currently not implemented for complex')
+                call stop_all(t_r, 'FIXED-N0 currently not implemented for complex')
 #endif
                 tFixedN0 = .true.
                 call geti(N0_Target)
@@ -1484,7 +1486,7 @@ contains
                 tChangeProjEDet = .false.
             case("TRIAL-SHIFT")
 #ifdef __CMPL
-                call stop_all(this_routine, 'TRIAL-SHIFT currently not implemented for complex')
+                call stop_all(t_r, 'TRIAL-SHIFT currently not implemented for complex')
 #endif
                 if (item.lt.nitems) then
                     call readf(TrialTarget)
@@ -2630,6 +2632,12 @@ contains
 
              case("SIGNED-REPLICA-AVERAGE")
                 tSignedRepAv = .true.
+
+             case("STD-INITIATORS")
+                tSTDInits = .true.
+                if(inum_runs == 1) call stop_all(t_r,&
+                     "Cannot use std-based initiators in single-replica mode")
+                if(item < nItems) call readf(ErrThresh)
 
              case("SUPERINITIATOR-POPULATION-THRESHOLD")
                 ! set the minimum value for superinitiator population

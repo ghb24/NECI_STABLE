@@ -36,7 +36,7 @@ module fcimc_helper
                         tRealCoeffByExcitLevel, tGlobalInitFlag, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
                         MaxWalkerBloom, tEN2, tEN2Started, &
-                        NMCyc, iSampleRDMIters, &
+                        NMCyc, iSampleRDMIters, ErrThresh, tSTDInits, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
                         t_back_spawn_flex, tau, DiagSft, &
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule
@@ -844,8 +844,6 @@ contains
         integer, intent(in) :: run, nI(nel), exLvl, site_idx
         real(dp), intent(in) :: sgn(lenof_sign)
 
-        ! the following value is either a single sgn or an aggregate
-        real(dp) :: tot_sgn
         logical :: initiator, staticInit
         integer :: i
 
@@ -854,19 +852,6 @@ contains
 
         ! By default the particles status will stay the same
         initiator = is_init
-
-        ! option to use the average population instead of the local one
-        ! for purpose of initiator threshold
-        if(tGlobalInitFlag) then
-           ! we can use a signed or unsigned sum
-           if(tSignedRepAv) then
-              tot_sgn = real(abs(sum(sgn)),dp)/inum_runs
-           else
-              tot_sgn = av_pop(sgn)
-           endif
-        else
-           tot_sgn = mag_of_run(sgn,run)
-        endif
 
         ! If we are allowed to unset the initiator flag
         staticInit = check_static_init(ilut, nI, sgn, exLvl, run)
@@ -893,7 +878,7 @@ contains
            ! Determinant wasn't previously initiator 
            ! - want to test if it has now got a large enough 
            !   population to become an initiator.
-           if (tot_sgn > InitiatorWalkNo) then
+           if (initiator_criterium(sgn,run)) then
               initiator = .true.
               NoAddedInitiators = NoAddedInitiators + 1_int64
            endif
@@ -912,7 +897,7 @@ contains
            if ( .not. (staticInit) &
                 .and. .not. test_flag(ilut, flag_deterministic) &
                 .and. .not. Senior &
-                .and. (tot_sgn <= InitiatorWalkNo )) then
+                .and. (.not. initiator_criterium(sgn,run) )) then
               ! Population has fallen too low. Initiator status 
               ! removed.
               initiator = .false.
@@ -923,7 +908,53 @@ contains
 
       end function TestInitiator_explicit
       
+      function initiator_criterium(sign,run) result(init_flag)
+        implicit none
+        real(dp), intent(in) :: sign(lenof_sign)
+        integer, intent(in) :: run
+        ! variance of sign and either a single value or an aggregate
+        real(dp) :: sigma, tot_sgn
+        integer :: crun, nOcc
+        logical :: init_flag
 
+        if(tSTDInits) then
+           nOcc = 0
+           do crun = 1, inum_runs
+              ! count the number of occupied replicas
+              if(.not. is_run_unnocc(sign,run)) nOcc = nOcc + 1
+           end do
+           if(nOcc < 2) then
+              init_flag = .false.
+           else
+              sigma = sum(sign**2)/inum_runs - sum(sign)**2/inum_runs**2
+              ! in the first iterations, the population on some dets
+              ! might be the very same on all replicas, then sigma==0
+              if(abs(sigma) > eps) then
+                 ! make anything an initiator, that has a low enoguh std
+                 ! inum_runs > 1 is guaranteed in setup
+                 init_flag = (sqrt(sigma)/sqrt(real(inum_runs-1)) < ErrThresh)
+              else
+                 init_flag = .true.
+              endif
+           endif
+        else
+
+           ! option to use the average population instead of the local one
+           ! for purpose of initiator threshold
+           if(tGlobalInitFlag) then
+              ! we can use a signed or unsigned sum
+              if(tSignedRepAv) then
+                 tot_sgn = real(abs(sum(sign)),dp)/inum_runs
+              else
+                 tot_sgn = av_pop(sign)
+              endif
+           else
+              tot_sgn = mag_of_run(sign,run)
+           endif
+           ! make it an initiator 
+           init_flag = (tot_sgn > InitiatorWalkNo)
+        endif
+      end function initiator_criterium
 
     subroutine rezero_iter_stats_each_iter(iter_data, rdm_defs)
 
