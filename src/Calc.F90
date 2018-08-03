@@ -246,6 +246,7 @@ contains
           tTruncInitiator=.false.
           tAddtoInitiator=.false.
           tSTDInits = .false.
+          tAVReps = .false.
           tInitCoherentRule=.true.
           InitiatorWalkNo=3.0_dp
           ErrThresh = 0.3
@@ -1811,6 +1812,10 @@ contains
 ! depending on the avereage population, else, the initiator flag is set for each replica
 ! using the population of that replica
                 tGlobalInitFlag = .true.
+
+             case("AVERAGE-REPLICAS")
+                ! average the replica populations if they are not sign coherent
+                tAVReps = .true.
 
             case("NO-COHERENT-INIT-RULE")
                 tInitCoherentRule=.false.

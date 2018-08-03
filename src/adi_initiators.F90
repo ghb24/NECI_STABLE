@@ -1,3 +1,4 @@
+#include "macros.h"
 module adi_initiators
   use adi_data, only: ilutRefAdi, nRefs, tAllDoubsInitiators, tAllSingsInitiators, tAdiActive, &
        nExChecks, nExCheckFails
@@ -5,6 +6,7 @@ module adi_initiators
   use bit_reps, only: set_flag, clr_flag, decode_bit_det
   use constants, only: lenof_sign, n_int, dp, inum_runs, eps
   use SystemData, only: nel
+  use CalcData, only: tGlobalInitFlag
 
 contains
 
@@ -107,7 +109,7 @@ contains
     logical :: staticInit, tCCache, tCouplingPossible
     ! cache for the weak coherence check
     HElement_t(dp) :: signedCache
-    real(dp) :: unsignedCache
+    real(dp) :: unsignedCache, tot_sgn
     integer :: connections
 
     staticInit = .false.
@@ -158,8 +160,14 @@ contains
        endif
     enddo
 
+    if(tGlobalInitFlag) then
+       tot_sgn = sgn_av_pop(sgn)
+    else
+       tot_sgn = sgn(run)
+    endif
+
     if(tCCache .and. staticInit) &
-    call eval_coherence(signedCache, unsignedCache, sgn(run), connections, staticInit)
+    call eval_coherence(signedCache, unsignedCache, tot_sgn, connections, staticInit)
 
   end function adi_criterium
 

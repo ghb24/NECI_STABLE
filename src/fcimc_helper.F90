@@ -921,11 +921,15 @@ contains
            nOcc = 0
            do crun = 1, inum_runs
               ! count the number of occupied replicas
-              if(.not. is_run_unnocc(sign,run)) nOcc = nOcc + 1
+              if(.not. is_run_unnocc(sign,crun)) nOcc = nOcc + 1
            end do
+           ! for dets only populated on a single replica we cannot 
+           ! define variance of sign
            if(nOcc < 2) then
               init_flag = .false.
            else
+              ! but else (even for just 2 replicas), we can get an estimate
+              ! of the coherence between signs from sigma
               sigma = sum(sign**2)/inum_runs - sum(sign)**2/inum_runs**2
               ! in the first iterations, the population on some dets
               ! might be the very same on all replicas, then sigma==0
@@ -2135,4 +2139,28 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
+    subroutine replica_coherence_check(iter_data,ilut,sgn)
+      implicit none
+      type(fcimc_iter_data), intent(inout) :: iter_data
+      integer(n_int), intent(inout) :: ilut(0:NIfTot)
+      real(dp), intent(inout) :: sgn(lenof_sign)
+      
+      integer :: run
+
+#ifdef __CMPLX
+#else
+      ! check if there are any sign changes within sgn
+      if(any(sgn*sgn(1) < 0)) then
+         ! log the change in population
+         do run = 1, inum_runs
+            iter_data%nremoved(run) = iter_data%nremoved(run) &
+                 + (abs(sgn(run)) - abs(sum(sgn)/inum_runs))
+         end do
+         ! if yes, replace the sign with the signed average
+         sgn = sum(sgn)/inum_runs
+         call encode_sign(ilut,sgn)
+      endif
+#endif
+    end subroutine replica_coherence_check
+    
 end module

@@ -279,6 +279,7 @@ integer :: pops_norm_unit
 logical :: tOrthogonaliseReplicas, tReplicaSingleDetStart
 logical :: tOrthogonaliseSymmetric
 integer :: orthogonalise_iter
+logical :: tAVReps
 ! Information on a trial space to create trial excited states with.
 type(subspace_in) :: init_trial_in
 

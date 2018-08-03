@@ -11,7 +11,7 @@ module FciMCParMod
                         tOrthogonaliseReplicas, orthogonalise_iter, &
                         tDetermHFSpawning, use_spawn_hash_table, &
                         ss_space_in, s_global_start, tContTimeFCIMC, &
-                        trial_shift_iter, tStartTrialLater,  &
+                        trial_shift_iter, tStartTrialLater, tAVReps, &
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
                         t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
                         t_back_spawn_flex, t_back_spawn_flex_option, &
@@ -948,6 +948,9 @@ module FciMCParMod
 
             call extract_bit_rep_avsign(rdm_definitions, CurrentDets(:,j), j, DetCurr, SignCurr, FlagsCurr, &
                                         IterRDMStartCurr, AvSignCurr, fcimc_excit_gen_store)
+
+            ! if requested, average the sign over replicas if not coherent
+            if(tAVReps) call replica_coherence_check(iter_data,CurrentDets(:,j),SignCurr)
 
             !call test_sym_excit_ExMag(DetCurr,100000000)
             !call stop_all(this_routine, "Test complete")
