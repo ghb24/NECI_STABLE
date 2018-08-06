@@ -2161,6 +2161,7 @@ contains
                sgn(run) = - sgn(run)
 !            iter_data%nremoved(run) = iter_data%nremoved(run) &
 !                 + (abs(sgn(run)) - abs(sum(sgn)/inum_runs))
+            endif
          end do
          call encode_sign(ilut,sgn)
       endif
