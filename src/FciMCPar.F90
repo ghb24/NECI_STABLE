@@ -1256,7 +1256,7 @@ module FciMCParMod
             ! Sum in any energy contribution from the determinant, including 
             ! other parameters, such as excitlevel info.
             ! This is where the projected energy is calculated.
-            call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, CurrentDets(:,j), HDiagCurr, 1.0_dp, tPairedReplicas, j)
+!             call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, CurrentDets(:,j), HDiagCurr, 1.0_dp, tPairedReplicas, j)
 
             if (t_calc_double_occ) then 
                 inst_double_occ = inst_double_occ + & 
@@ -1509,6 +1509,9 @@ module FciMCParMod
         ! other parameters, such as excitlevel info.
         ! This is where the projected energy is calculated.
         do j = 1, int(TotWalkers,sizeof_int)
+#ifndef __CMPLX 
+            if (tGUGA) call init_csf_information(CurrentDets(0:nifd,j))
+#endif
             HDiagCurr = det_diagH(j)
             call extract_bit_rep_avsign(rdm_definitions, CurrentDets(:,j), j, DetCurr, SignCurr, FlagsCurr, &
                                         IterRDMStartCurr, AvSignCurr, fcimc_excit_gen_store)
