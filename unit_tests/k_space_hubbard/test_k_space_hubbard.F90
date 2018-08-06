@@ -440,7 +440,7 @@ contains
 
             t_trans_corr_2body = .true.
             trans_corr_param_2body = J_vec((1))
-            three_body_prefac = test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+            three_body_prefac = real(bhub,dp)*test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
             call setup_system(lat, nI, J, U)
 
             write(U_str, *) int(U)
@@ -456,7 +456,7 @@ contains
 
             do i = 1, size(J_vec)
                 trans_corr_param_2body = J_vec((i))
-                three_body_prefac = test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+                three_body_prefac = real(bhub,dp)*test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
      
                 j_opt = get_j_opt(nI, J_vec(i))
 
@@ -470,7 +470,7 @@ contains
         if (t_do_diags) then
             t_trans_corr_2body = .true.
             trans_corr_param_2body = J_vec((1))
-            three_body_prefac = test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+            three_body_prefac = real(bhub,dp)*test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
             call setup_system(lat, nI, J, U)
 
             call gen_all_doubles_k_space(nI, n_excits, excits, sign_list)
@@ -502,7 +502,7 @@ contains
             write(iunit, *) "# J, H diag, <I|H|K>, <K|H|I>:"
             do i = 1, size(J_vec)
                 trans_corr_param_2body = J_vec((i))
-                three_body_prefac = test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+                three_body_prefac = real(bhub,dp)*test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
      
                 sum_doubles = 0.0_dp
                 sum_doubles_trans = 0.0_dp
@@ -1458,6 +1458,9 @@ contains
             if (is_alpha(nI(i))) nOccAlpha = nOccAlpha + 1
         end do
 
+        n_opp(-1) = real(nOccAlpha,dp)
+        n_opp(1) = real(nOccBeta,dp)
+
         call setup_all(in_lat, J, U) 
 
         call setup_k_total(nI) 
@@ -1466,6 +1469,8 @@ contains
         get_helement_lattice_ex_mat => get_helement_k_space_hub_ex_mat
         get_helement_lattice_general => get_helement_k_space_hub_general
         call init_tmat_kspace(lat)
+        call init_two_body_trancorr_fac_matrix()
+        call init_three_body_const_mat()
 
 
         if (present(hilbert_space)) then
@@ -1548,7 +1553,7 @@ contains
         get_umat_el => get_umat_kspace
 
         trans_corr_param_2body = 0.1
-        three_body_prefac = test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+        three_body_prefac = real(bhub,dp)*test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
 
         ! also initialize the lattice get_helement pointers to use 
         ! detham to do the Lanczos procedure for bigger systems.. 
@@ -2006,7 +2011,7 @@ contains
             trans_corr_param_2body = 0.1
         end if
 
-        three_body_prefac = test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+        three_body_prefac = real(bhub,dp)*test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
 
         ! after setup everything should be fine again.. or?
         ttilt = .false. 
@@ -2173,7 +2178,9 @@ contains
             filename = 'gs_vec_trans_J_' // trim(adjustl((J_str)))
 
             trans_corr_param_2body = J(i)
-            three_body_prefac = test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+            three_body_prefac = real(bhub,dp)*test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+            call init_two_body_trancorr_fac_matrix()
+            call init_three_body_const_mat()
 
             print *, "creating transformed hamiltonian: "
             hamil_trans = similarity_transform(hamil) 
@@ -2887,7 +2894,7 @@ contains
 
         trans_corr_param_2body = 1.0_dp 
 
-        three_body_prefac = test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+        three_body_prefac = real(bhub,dp)*test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
 
         umat = uhub/omega
 
@@ -2965,7 +2972,6 @@ contains
         ex(1,:) = [6,1]
         call assert_equals(h_cast(uhub/real(omega,dp)), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
 
-!         three_body_prefac = 1.0_dp
         ex(1,:) = [1,6]
         ex(2,:) = [3,4]
         print *, "---------------------------------" 

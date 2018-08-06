@@ -93,10 +93,13 @@ module k_space_hubbard
     real(dp) :: three_body_prefac = 0.0_dp
     real(dp) :: prefac_test = 2.0_dp
     real(dp), allocatable :: umat_cache_kspace(:,:)
+    real(dp) :: n_opp(-1:1) = 0.0_dp
 
     ! temporary flag for the j optimization
     logical :: t_symmetric = .false.
 
+    real(dp), allocatable :: two_body_transcorr_factor_matrix(:,:), &
+                             three_body_const_mat(:,:,:)
     ! i especially need an interface for the matrix element calculation to 
     ! implement the transcorrelated hamiltonian 
     interface get_helement_k_space_hub
@@ -419,7 +422,6 @@ contains
 
         call check_k_space_hubbard_input()
 
-!         get_umat_el => get_hub_umat_el
         get_umat_el => get_umat_kspace
 
         call init_get_helement_k_space_hub()
@@ -482,7 +484,7 @@ contains
                 call Stop_All(this_routine, "not yet implemented with HPHF")
             end if
 
-            three_body_prefac = prefac_test * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+            three_body_prefac = real(bhub,dp) * prefac_test * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
             ! i also have to set some generation probability parameters.. 
 
             pDoubles = p_doubles_input 
@@ -496,6 +498,7 @@ contains
         if (.not. (t_trans_corr_2body .or. t_trans_corr)) then
             call initialize_excit_table()
         end if
+
 
     end subroutine init_k_space_hubbard
 
@@ -1822,11 +1825,15 @@ contains
         end if
 
         if (t_trans_corr_2body) then 
-            three_body_prefac = prefac_test * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+            three_body_prefac = real(bhub,dp) * prefac_test * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
         end if
 
         call init_dispersion_rel_cache()
         call init_tmat_kspace(lat)
+        call init_two_body_trancorr_fac_matrix()
+        n_opp(-1) = real(nOccAlpha,dp)
+        n_opp(1) = real(nOccBeta,dp)
+        call init_three_body_const_mat()
 
         get_umat_el => get_umat_kspace
         ! i guess i should also set the transcorr factor here or?? 
@@ -1973,7 +1980,6 @@ contains
             hel_sing = sum(GetTMatEl(nI,nI))
 
             id = get_spatial(nI)
-!             id = gtID(nI) 
 
             hel_doub = h_cast(0.0_dp) 
             hel_one = h_cast(0.0_dp)
@@ -2000,21 +2006,8 @@ contains
                         ! t is defined as -t in our code!, so bhub is usually -1
                         ! and look in the formulas it is actually -2t*cos(k)*2(cosh J - 1)
                         ! (with the k-vector of orbial i!
-!                         temp_hel = hel_one + GetTMatEl(nI(i),nI(i)) * omega * three_body_prefac
-                        hel_one = hel_one + bhub * epsilon_kvec(G1(nI(i))%Sym) & 
+                        hel_one = hel_one + epsilon_kvec(G1(nI(i))%Sym) & 
                                 * omega * three_body_prefac
-
-!                         if (abs(temp_hel - hel_one) > EPS) then
-!                             print *, "temp_hel: ", temp_hel
-!                             print *, "hel_one: ", hel_one
-!                         end if
-
-
-!                         temp_hel = bhub * epsilon_kvec(G1(nI(i))%k) & 
-!                                 * omega * three_body_prefac
-! 
-!                         print *, "ij: ", nI([i,j])
-!                         print *, "diag hel_one: ", GetTMatEl(nI(i),nI(i)) * omega * three_body_prefac
 
                         ! and the next part is the three-body with the direct 
                         ! and the exchange parts 
@@ -2025,52 +2018,18 @@ contains
                             if (same_spin(ni(j),nI(k))) then 
                                 ! the k vector is of i and i + j - k
                                 ! i need the electrons here ofc.. 
-!                                 p_vec = G1(nI(i))%k 
-!                                 k_vec = (G1(nI(j))%k - G1(nI(k))%k)
-!                                 k_vec = lat%add_k_vec(G1(nI(j))%k, lat%inv_k_vec(G1(nI(k))%k))
-!                                 k_vec = lat%subtract_k_vec(G1(nI(j))%k, G1(nI(k))%k)
-                                !TODO: this can be removed if i totally 
-!                                 ! switched to the new implementation
-!                                 if (t_k_space_hubbard) then 
-! !                                     k_vec = lat%map_k_vec(k_vec)
-!                                 else
-!                                     call mompbcsym(k_vec, nBasisMax)
-!                                 end if
-! ! 
-!                                 print *, "ijk:", nI([i,j,k])
-!                                 print *, "p_vec: ", p_vec(1)
-!                                 print *, "k_vec: ", k_vec(1)
-
-!                                 k_vec = lat%add_k_vec(p_vec, k_vec)
-!                                 hel_three = hel_three - bhub * three_body_prefac * (& 
-!                                     epsilon_kvec(p_vec) - epsilon_kvec(k_vec))
                                 ! even better then the correct k-vector addition 
                                 ! would be to store an epsilon-k in terms of 
                                 ! the symmetry symbols! 
                                 ! something like this but nicer! 
                                 p_sym = G1(nI(i))%sym
-!                                 k_sym = SymTable(G1(nI(j))%sym%s, SymConjTab(G1(nI(k))%sym%s))%s
                                 k_sym = SymTable(G1(nI(j))%sym%s, SymConjTab(G1(nI(k))%sym%s))
 
 
-                                hel_three = hel_three - bhub * three_body_prefac * (& 
+                                hel_three = hel_three - three_body_prefac * (& 
                                     epsilon_kvec(p_sym) -  & 
                                     (epsilon_kvec(SymTable(p_sym%s,k_sym%s))))
 
-!                                 if (abs(temp_hel - hel_three) > EPS) then 
-!                                     print *, "hel_three: ", hel_three
-!                                     print *, "temp_hel: ", temp_hel
-!                                 end if
-!                                 hel_three = hel_three - bhub * three_body_prefac * (& 
-!                                     epsilon_kvec(p_vec) - 0.5_dp * (epsilon_kvec(p_vec + k_vec) & 
-!                                     + epsilon_kvec(p_vec - k_vec)))
-
-!                                 temp_hel = three_body_prefac * (& 
-!                                     epsilon_kvec(p_vec) - epsilon_kvec(p_vec + k_vec))
-
-!                                 print *, "hel_three: ", bhub * three_body_prefac * (& 
-!                                     epsilon_kvec(p_vec) - 0.5_dp * (epsilon_kvec(p_vec + k_vec) & 
-!                                     + epsilon_kvec(p_vec - k_vec)))
 
                             end if
                         end do
@@ -2079,68 +2038,7 @@ contains
             end do
 
             hel = hel_sing + hel_doub + hel_one + hel_three
-! 
-!             hel_par = h_cast(0.0_dp)
-!             hel_opp = h_cast(0.0_dp) 
-!             hel_doub = h_cast(0.0_dp)
-! 
-!             ! i do not need to run over the electrons, since all of this can 
-!             ! be calculated directly
-!             do i = 1, nel-1
-!                 do j = i + 1, nel 
-! 
-!                     idX = max(id(i), id(j))
-!                     idN = min(id(i), id(j))
-! 
-!                     ! normal direct 
-!                     ! us the spin_restriction here directly! 
-!                     if (.not. same_spin(nI(i),nI(j))) then
-!                         hel_doub = hel_doub + get_umat_kspace(idN,idX,idN,idX)
-!                     end if
-!                     
-!                     ! THEN WE do not need the exchange to cancel the 
-!                     ! incorrectly counted double excitations!
-!                     ! there is a bug in the hubbard i guess: the parallel 
-!                     ! spin excitations are taken into account.. for the 
-!                     ! diagonal contribution.. todo! 
-! !                     if (same_spin(nI(i),nI(j))) then 
-! !                         hel_doub = hel_doub - get_umat_kspace(idN, idX, idX, idN)
-! !                     end if
-!                     ! and exchange terms 
-!                     ! actually for the "normal" double excitation, there is 
-!                     ! no exchange! 
-! 
-!                     ! we have the contribution from the parallel doubles now: 
-!                     ! this is really slow for now, i think most of that 
-!                     ! can be moved outside of the loop! 
-!                    if (is_beta(nI(i))) then 
-!                         spin = 1
-!                     else 
-!                         spin = -1
-!                     end if 
-! 
-!                     if (same_spin(nI(i),nI(j))) then 
-!                         hel_par = hel_par + 2.0_dp * three_body_prefac *  & 
-!                             get_one_body_diag(nI,spin) * & 
-!                             (1.0_dp - epsilon_kvec(G1(nI(i))%k - G1(nI(j))%k))
-! 
-!                     else 
-!                         ! take into account the opposite spin 3-body term
-!                         ! here i just have to be sure what is p and q in the 
-!                         ! formulasr.. 
-!                         hel_opp = hel_opp + three_body_transcorr_fac(nI, & 
-!                             G1(nI(i))%k, G1(nI(j))%k, [0,0,0], -spin)
-! 
-!                     end if 
-!                 end do
-!             end do
-! 
-!             temp_hel = hel_sing + hel_doub + hel_par + hel_opp
-! 
-!             print *, "hel: ", hel 
-!             print *, "temp_hel: ", temp_hel
-!             print *, "sltcnd_0: ", sltcnd_0(nI)
-! 
+
         else 
             hel = sltcnd_0(nI)
         end if
@@ -3207,14 +3105,7 @@ contains
         ! excitations coming from the k = 0 triple excitation
         integer, intent(in) :: nI(nel), k_vec(N_DIM), spin
 
-!         same_spin_transcorr_factor_kvec = three_body_prefac * get_one_body_diag(nI,-spin) * &
-!                                      epsilon_kvec(k_vec)
-
-        ! new try with the same spin transcorr factor: 
-!         same_spin_transcorr_factor_kvec = - bhub * three_body_prefac * & 
-!             get_one_body_diag(nI, -spin, k_vec)
-
-        same_spin_transcorr_factor_kvec = -bhub * three_body_prefac * ( & 
+        same_spin_transcorr_factor_kvec = -three_body_prefac * ( & 
             get_one_body_diag(nI,-spin,k_vec) + get_one_body_diag(nI,-spin,k_vec,.true.))
 
     end function same_spin_transcorr_factor_kvec
@@ -3227,7 +3118,7 @@ contains
         integer, intent(in) :: nI(nel), spin
         type(symmetry), intent(in) :: k_sym
 
-        same_spin_transcorr_factor_ksym = -bhub * three_body_prefac * ( & 
+        same_spin_transcorr_factor_ksym = -three_body_prefac * ( & 
             get_one_body_diag(nI,-spin,k_sym) + get_one_body_diag(nI,-spin,k_sym,.true.))
 
     end function same_spin_transcorr_factor_ksym
@@ -3240,20 +3131,13 @@ contains
         character(*), parameter :: this_routine = "rpa_contrib_kvec"
 #endif
         integer :: q(N_DIM)
-        real(dp) :: n_opp
 
         q = lat%subtract_k_vec(p,k)
 
         ASSERT(spin == 1 .or. spin == -1)
 
-        if (spin == -1) then 
-            n_opp = real(nOccAlpha,dp)
-        else if (spin == 1) then 
-            n_opp = real(nOccBeta,dp)
-        end if
-
         rpa_contrib_kvec = real(bhub,dp) * (cosh(J) - 1.0_dp) / real(omega,dp) * &
-            (n_opp - 1.0_dp) * (epsilon_kvec(p) + epsilon_kvec(q))
+            (n_opp(spin) - 1.0_dp) * (epsilon_kvec(p) + epsilon_kvec(q))
 
     end function rpa_contrib_kvec
 
@@ -3268,20 +3152,11 @@ contains
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "rpa_contrib_ksym"
 #endif 
-        real(dp) :: n_opp 
 
         ASSERT(spin == -1 .or. spin == 1)
 
-        if (spin == -1) then 
-            n_opp = real(nOccAlpha, dp) 
-        else if (spin == 1) then 
-            n_opp = real(nOccBeta, dp) 
-        end if
-
-!         rpa_contrib_ksym = real(bhub,dp)*(cosh(J) - 1.0_dp) / real(omega, dp) * &
-!             (n_opp - 1.0_dp) * (epsilon_kvec(p) + epsilon_kvec(a))
         rpa_contrib_ksym = 2.0_dp * real(bhub,dp)*(cosh(J) - 1.0_dp) / real(omega, dp) * &
-            n_opp * (epsilon_kvec(p) + epsilon_kvec(a))
+            n_opp(spin) * (epsilon_kvec(p) + epsilon_kvec(a))
 
     end function rpa_contrib_ksym
 
@@ -3380,21 +3255,48 @@ contains
 
     end function two_body_transcorr_factor_kvec
 
+    subroutine init_two_body_trancorr_fac_matrix() 
+        integer :: i, j, sym_i, sym_j
+
+        ! for more efficiency, precompute the two-body factor for all possible 
+        ! symmetry symbols 
+        if (allocated(two_body_transcorr_factor_matrix)) deallocate(two_body_transcorr_factor_matrix)
+
+        allocate(two_body_transcorr_factor_matrix(nBasis/2,nBasis/2), source = 0.0_dp)
+
+        ! loop over spatial orbitals 
+        do i = 1, nBasis/2
+            sym_i = lat%get_sym(i)
+            do j = 1, nBasis/2
+                sym_j = lat%get_sym(j)
+
+                two_body_transcorr_factor_matrix(sym_i,sym_j) = & 
+                    real(bhub,dp)/real(omega,dp) * &
+                    ((exp(trans_corr_param_2body) - 1.0_dp)*epsilon_kvec(i) + & 
+                     (exp(-trans_corr_param_2body) - 1.0_dp)*epsilon_kvec(j))
+
+            end do
+        end do
+
+    end subroutine init_two_body_trancorr_fac_matrix
+
     HElement_t(dp) function two_body_transcorr_factor_ksym(p,k) 
         type(symmetry), intent(in) :: p, k
         
         ! take out the part with U/2 since this is already covered in the 
         ! "normal" matrix elements
 
-        two_body_transcorr_factor_ksym = real(bhub,dp)/real(omega,dp) * ( & 
-            (exp(trans_corr_param_2body) - 1.0_dp) * epsilon_kvec(k) + & 
-            (exp(-trans_corr_param_2body) -1.0_dp) * epsilon_kvec(p))
+        ! optimize this better and precompute more stuff! 
+!         two_body_transcorr_factor_ksym = real(bhub,dp)/real(omega,dp) * ( & 
+!             (exp(trans_corr_param_2body) - 1.0_dp) * epsilon_kvec(k) + & 
+!             (exp(-trans_corr_param_2body) -1.0_dp) * epsilon_kvec(p))
+
+        two_body_transcorr_factor_ksym = two_body_transcorr_factor_matrix(p%s,k%s)
 
     end function two_body_transcorr_factor_ksym
 
     HElement_t(dp) function three_body_transcorr_fac_kvec(nI, p, q, k, spin) 
         integer, intent(in) :: nI(nel), p(N_DIM), q(N_DIM), k(N_DIM), spin 
-        real(dp) :: n_opp
 #ifdef __DEBUG 
         character(*), parameter :: this_routine = "three_body_transcorr_fac_kvec"
 #endif
@@ -3402,36 +3304,11 @@ contains
 
         ASSERT(spin == 1 .or. spin == -1)
 
-        ! i have to deside what i want to input here.. as spin sigma or -sigma..
-        ! and here i want the number of electrons with the opposite spin
-        if (spin == -1) then 
-            n_opp = real(nOccAlpha,dp)
-        else if (spin == 1) then 
-            n_opp = real(nOccBeta, dp) 
-        end if
-
-!         three_body_transcorr_fac_kvec = three_body_prefac * (&
-!             n_opp * (epsilon_kvec(p) + epsilon_kvec(p - k)) - & 
-!             get_one_body_diag(nI, -spin) * (epsilon_kvec(p-q-k) + epsilon_kvec(p+q)))
-
-        ! this also works different then expected... we can just pull e(p+x) = e(p)*e(x)
-        ! thats just wrong.. so we have to calculate: 
-!         three_body_transcorr_fac_kvec = three_body_prefac * (& 
-!             n_opp * (epsilon_kvec(p) + epsilon_kvec(p - k)) - (& 
-!             get_one_body_diag(nI, -spin, p-q-k) + get_one_body_diag(nI,-spin,p+q,.true.)))
-
-        ! do an actual third implementation: 
-        ! since the sign of the k-vector might still be wrong.. 
-        ! k is now the momentum of the corresponding hole! 
-!         three_body_transcorr_fac_kvec = -bhub * three_body_prefac * (& 
-!             n_opp * (epsilon_kvec(p) + epsilon_kvec(k)) - (& 
-!             get_one_body_diag(nI,-spin,k-q) + get_one_body_diag(nI,-spin,p+q,.true.)))
-
         ! update: add k-vec to not leave first BZ 
         k1 = lat%subtract_k_vec(k,q)
         k2 = lat%add_k_vec(p,q)
-        three_body_transcorr_fac_kvec = -bhub * three_body_prefac * (& 
-            n_opp * (epsilon_kvec(p) + epsilon_kvec(k)) - (& 
+        three_body_transcorr_fac_kvec = -three_body_prefac * (& 
+            n_opp(spin) * (epsilon_kvec(p) + epsilon_kvec(k)) - (& 
             get_one_body_diag(nI,-spin,k1) + get_one_body_diag(nI,-spin,k2,.true.)))
 
     end function three_body_transcorr_fac_kvec
@@ -3442,27 +3319,43 @@ contains
 #ifdef __DEBUG 
         character(*), parameter :: this_routine = "three_body_transcorr_fac_ksym"
 #endif
-        real(dp) :: n_opp
         type(symmetry) :: k1, k2
 
         ASSERT(spin == 1 .or. spin == -1)
 
-        ! i have to deside what i want to input here.. as spin sigma or -sigma..
-        ! and here i want the number of electrons with the opposite spin
-        if (spin == -1) then 
-            n_opp = real(nOccAlpha,dp)
-        else if (spin == 1) then 
-            n_opp = real(nOccBeta, dp) 
-        end if
-
         k1 = SymTable(k%s, SymConjTab(q%s))
         k2 = SymTable(p%s, q%s)
 
-        three_body_transcorr_fac_ksym = -bhub * three_body_prefac * (& 
-            n_opp * (epsilon_kvec(p) + epsilon_kvec(k)) - (& 
-            get_one_body_diag(nI,-spin,k1) + get_one_body_diag(nI,-spin,k2,.true.)))
+!         three_body_transcorr_fac_ksym = -three_body_prefac * (& 
+!             n_opp(spin) * (epsilon_kvec(p) + epsilon_kvec(k)) - (& 
+!             get_one_body_diag(nI,-spin,k1) + get_one_body_diag(nI,-spin,k2,.true.)))
+
+        three_body_transcorr_fac_ksym = three_body_const_mat(p%s,k%s,spin) + & 
+            three_body_prefac * (get_one_body_diag(nI,-spin,k1) + get_one_body_diag(nI,-spin,k2,.true.))
 
     end function three_body_transcorr_fac_ksym
+
+    subroutine init_three_body_const_mat()
+        integer :: i, j, sym_i, sym_j
+
+        if (allocated(three_body_const_mat)) deallocate(three_body_const_mat)
+        allocate(three_body_const_mat(nBasis/2,nBasis/2,-1:1), source = 0.0_dp)
+
+        do i = 1, nBasis/2
+            sym_i = lat%get_sym(i)
+            do j = 1, nBasis/2
+                sym_j = lat%get_sym(j)
+
+                three_body_const_mat(sym_i,sym_j,-1) = -three_body_prefac * &
+                    n_opp(-1)*(epsilon_kvec(i) + epsilon_kvec(j))
+
+                three_body_const_mat(sym_i,sym_j,1) = -three_body_prefac * &
+                    n_opp(1)*(epsilon_kvec(i) + epsilon_kvec(j))
+                
+            end do
+        end do
+
+    end subroutine init_three_body_const_mat
 
     function get_3_body_helement_ks_hub(nI, ex, tpar) result(hel)
         ! the 3-body matrix element.. here i have to be careful about 
@@ -3516,23 +3409,14 @@ contains
         ! being at the first position in ex(2,:).. 
         opp_orb = find_minority_spin(ex(2,:)) 
 
-!         p_vec = G1(opp_elec)%k 
         p_sym = G1(opp_elec)%sym
-!         hole_k = G1(opp_orb)%k 
         hole_sym = G1(opp_orb)%sym
 
         par_elecs = pack(ex(1,:),ex(1,:) /= opp_elec)
         par_orbs = pack(ex(2,:),ex(2,:) /= opp_orb)
 
-!         k_vec = p_vec - hole_k 
-!         k_vec = lat%subtract_k_vec(p_vec, hole_k)
         k_sym = SymTable(p_sym%s, hole_sym%s)
 
-        if (t_k_space_hubbard) then 
-!             k_vec = lat%map_k_vec(k_vec)
-        else 
-            call mompbcsym(k_vec, nBasisMax)
-        end if
 
         ! we have to define an order here too 
         par_elecs = [minval(par_elecs), maxval(par_elecs)]
@@ -3540,59 +3424,20 @@ contains
 
         ! BZ conserving addition: 
         k1_sym = SymTable(G1(par_orbs(1))%sym%s, SymConjTab(G1(par_elecs(1))%sym%s))
-!         k1 = lat%subtract_k_vec(G1(par_orbs(1))%k, G1(par_elecs(1))%k)
         k2_sym = SymTable(G1(par_orbs(1))%sym%s, SymConjTab(G1(par_elecs(2))%sym%s))
-!         k2 = lat%subtract_k_vec(G1(par_orbs(1))%k, G1(par_elecs(2))%k)
-
-!         k1 = G1(par_orbs(1))%k - G1(par_elecs(1))%k 
-!         k2 = G1(par_orbs(1))%k - G1(par_elecs(2))%k 
 
         ! need to do the correct k additions! 
-!         hel = 1.0_dp * bhub * three_body_prefac * ( & 
-!             epsilon_kvec(hole_k + k1) - epsilon_kvec(hole_k + k2) & 
-!           + epsilon_kvec(-p_vec + k1) - epsilon_kvec(-p_vec + k2)) 
-
         ! for some reason the compiler does not recognize the output of 
         ! add_k_vec and subtract_k_vec as a vector... 
         ! so do it intermediately 
-!         ka = lat%add_k_vec(hole_k, k1) 
         ka_sym = SymTable(hole_sym%s, k1_sym%s)
-!         kb = lat%add_k_vec(hole_k, k2) 
         kb_sym = SymTable(hole_sym%s, k2_sym%s)
-!         kc = lat%subtract_k_vec(k1, p_vec) 
         kc_sym = SymTable(k1_sym%s, SymConjTab(p_sym%s))
-!         kd = lat%subtract_k_vec(k2, p_vec) 
         kd_sym = SymTable(k2_sym%s, SymConjTab(p_sym%s))
 
-!         hel = 1.0_dp * bhub * three_body_prefac * ( & 
-!             epsilon_kvec(ka) - epsilon_kvec(kb) + epsilon_kvec(kc) - epsilon_kvec(kd))
-
-        hel = 1.0_dp * bhub * three_body_prefac * ( & 
+        hel = three_body_prefac * ( & 
             epsilon_kvec(ka_sym) - epsilon_kvec(kb_sym) +  & 
             epsilon_kvec(kc_sym) - epsilon_kvec(kd_sym))
-
-        ! i hope it is fine if i always take par_orbs(1).. this has to do 
-        ! with the overal sign i guess.. so maybe i should check if 
-        ! if ex() is correctly sorted.. todo 
-        ! there are a lot of option and i get it wrong all the time! 
-!         hel = three_body_prefac * 0.5_dp * (&
-!               epsilon_kvec(G1(opp_elec)%k + G1(par_elecs(1))%k - G1(par_orbs(1))%k) & 
-!             - epsilon_kvec(G1(opp_elec)%k + G1(par_elecs(2))%k - G1(par_orbs(1))%k) & 
-!             - epsilon_kvec(G1(opp_elec)%k + G1(par_elecs(1))%k - G1(par_orbs(2))%k) & 
-!             + epsilon_kvec(G1(opp_elec)%k + G1(par_elecs(2))%k - G1(par_orbs(2))%k))
-
-        ! i am also not here sure if we need a 1/2 in front.. 
-        ! we have e(p-k+k') = e(a + k') where a = p-k, which is easy to find! 
-        ! i just have to find k'.. 
-        ! write this done like for the double excitations and figure it out! 
-        ! because one has to be modified by k too.. which complicates stuff 
-        ! no i actually have to shift both by the k-vector and this 
-        ! should be fine now.. 
-!         k1 = G1(par_elecs(1))%k - G1(par_orbs(1))%k + k_vec
-!         k2 = G1(par_elecs(2))%k - G1(par_orbs(1))%k + k_vec
-! 
-!         hel = 2.0_dp*bhub * three_body_prefac * ( &
-!             epsilon_kvec(G1(opp_orb)%k + k1) - epsilon_kvec(G1(opp_orb)%k + k2))
 
         ! i have to decide on a sign here depending on the order of the 
         ! operators.. todo! 
@@ -3600,10 +3445,6 @@ contains
 
         if (.not.sgn) hel = -hel
 
-!         hel = 0.5_dp * bhub * three_body_prefac * (&
-!             epsilon_kvec(G1(opp_orb)%k + k1) - epsilon_kvec(G1(opp_orb)%k + k2) & 
-!           + epsilon_kvec(k1 - G1(opp_orb)%k) - epsilon_kvec(k2 - G1(opp_orb)%k))
-! 
         if (tpar) hel = -hel
 
     end function get_3_body_helement_ks_hub
