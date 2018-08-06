@@ -247,6 +247,7 @@ contains
           tAddtoInitiator=.false.
           tSTDInits = .false.
           tAVReps = .false.
+          tGlobalInitFlag = .false.
           tInitCoherentRule=.true.
           InitiatorWalkNo=3.0_dp
           ErrThresh = 0.3
