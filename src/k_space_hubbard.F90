@@ -716,7 +716,7 @@ contains
 
                 call pick_spin_opp_elecs(nI, elecs(1:2), p_elec) 
 
-                p_orb = 1.0_dp / real(nbasis - nel, dp)
+                p_orb = 2.0_dp / real(nbasis - nel, dp)
 
                 pgen = p_elec * p_orb * pDoubles * (1.0_dp - pParallel)
 
@@ -762,17 +762,17 @@ contains
                 p_orb = 1.0_dp / real(nbasis/2 - nOccAlpha, dp) 
                 ! also use a spin to specify the spin-orbital
                 ! is a is beta we want an alpha -> so add +1
-                ispn = 1
+                ispn = 0
             else 
                 p_orb = 1.0_dp / real(nBasis/2 - nOccBeta, dp)
-                ispn = 0
+                ispn = 1
             end if
 
             ! times 2 since BC <> CB is both possible 
             pgen = p_elec * p_orb * p_orb_a * (1.0_dp - pDoubles) * 2.0_dp
             do i = 1, max_trials
 
-                b = 2 * (1 + int(genrand_real2_dsfmt() * nbasis/2)) + ispn
+                b = 2 * (1 + int(genrand_real2_dsfmt() * nbasis/2)) - ispn
 
                 if (IsOcc(ilutI,b)) cycle 
 
@@ -789,6 +789,17 @@ contains
                 exit 
             end do
         end if
+
+#ifdef __DEBUG
+        if (abs(pgen - calc_pgen_k_space_hubbard_uniform_transcorr(nI, ilutI, ex, ic))>EPS) then
+            print *, "nI: ", nI
+            print *, "nJ: ", nJ
+            print *, "ic: ", ic
+            print *, "calc. pgen: ",calc_pgen_k_space_hubbard_uniform_transcorr(nI, ilutI, ex, ic)
+            print *, "prd. pgen: ", pgen
+            call stop_all(this_routine, "pgens wrong!")
+        end if
+#endif
 
     end subroutine gen_excit_uniform_k_space_hub_transcorr 
 
