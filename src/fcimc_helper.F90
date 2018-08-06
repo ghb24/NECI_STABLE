@@ -2146,18 +2146,22 @@ contains
       real(dp), intent(inout) :: sgn(lenof_sign)
       
       integer :: run
+      real(dp) :: avSign
 
 #ifdef __CMPLX
 #else
       ! check if there are any sign changes within sgn
       if(any(sgn*sgn(1) < 0)) then
+         avSign = sum(sgn)/inum_runs
          ! log the change in population
          do run = 1, inum_runs
-            iter_data%nremoved(run) = iter_data%nremoved(run) &
-                 + (abs(sgn(run)) - abs(sum(sgn)/inum_runs))
+            ! are we looking at an erroneous sign?
+            if(sgn(run)*avSign < 0) then
+               ! if yes, flip it
+               sgn(run) = - sgn(run)
+!            iter_data%nremoved(run) = iter_data%nremoved(run) &
+!                 + (abs(sgn(run)) - abs(sum(sgn)/inum_runs))
          end do
-         ! if yes, replace the sign with the signed average
-         sgn = sum(sgn)/inum_runs
          call encode_sign(ilut,sgn)
       endif
 #endif
