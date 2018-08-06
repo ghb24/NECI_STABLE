@@ -1314,17 +1314,13 @@ contains
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits 
         integer(n_int), intent(out), allocatable :: det_list(:,:)
-!         real(dp), intent(out), allocatable, optional :: sign_list(:)
         character(*), parameter :: this_routine = "gen_all_excits_k_space_hubbard"
 
         integer(n_int), allocatable :: triple_dets(:,:), temp_dets(:,:)
         integer :: n_triples, save_excits
+        real(dp), allocatable :: sign_list(:)
 
-!         if (present(sign_list)) then 
-!             call gen_all_doubles_k_space(nI, n_excits, det_list, sign_list)
-!         else
-            call gen_all_doubles_k_space(nI, n_excits, det_list)
-!         end if
+        call gen_all_doubles_k_space(nI, n_excits, det_list, sign_list)
 
         if (t_trans_corr_2body) then 
             save_excits = n_excits
@@ -1834,14 +1830,13 @@ contains
                         if (IsNotOcc(ilut,b) .and. a /= b) then 
 
                             ! do i need to sort ex?? try..
-			    !ex(2,:) = [min(a,b),max(a,b)]
                             ex(2,:) = [a,b] 
 
 !                             if (abs(get_offdiag_helement_k_sp_hub(nI, ex, .false.)) > EPS) then 
                             ! use the get_helement_lattice to avoid circular 
                             ! dependencies
-			    call make_double(nI,nJ,i,j,a,b,ex,tpar)
-			    elem = get_helement_lattice(nI,nJ)
+                            call make_double(nI,nJ,i,j,a,b,ex,tpar)
+                            elem = get_helement_lattice(nI,nJ)
                             !elem = get_helement_lattice(nI, 2, ex, .false.)
                             if (abs(elem) > EPS) then
 
@@ -1855,16 +1850,10 @@ contains
                                     if (t_sign) then 
                                          temp_sign(n_excits) = sign(1.0_dp, elem)
                                          
-                                         !if (tpar) then
-					 !    print *, "hello?"
-                                         !    temp_sign(n_excits) = -sign(1.0_dp,elem)                                      
-                                         !else 
-                                         !    temp_sign(n_excits) = sign(1.0_dp,elem)
-                                         !end if
                                     end if
-				    temp_list(:,n_excits) = ilutJ
+                                    temp_list(:,n_excits) = ilutJ
                                     !call sort(temp_list(:,1:n_excits),ilut_lt,ilut_gt)
-				    call sort(temp_list(:,1:n_excits),temp_sign(1:n_excits))
+                                    call sort(temp_list(:,1:n_excits),temp_sign(1:n_excits))
 
                                     n_excits = n_excits + 1
                                     ! damn.. i have to sort everytime i guess..

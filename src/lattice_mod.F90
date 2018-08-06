@@ -3714,14 +3714,14 @@ contains
       ! for 2-body transcorrelation we need 5 momenta in total
       if (t_trans_corr_2body) then 
           do i = 1, nsites
+              ki = this%get_k_vec(i)
               do j = 1, nsites
+                  kj = this%get_k_vec(j)
                   do k = 1, nsites
+                      kk = this%get_k_vec(k)
                       do a = 1, nsites
+                          ka = this%get_k_vec(a)
                           do b = 1, nsites
-                              ki = this%get_k_vec(i)
-                              kj = this%get_k_vec(j)
-                              kk = this%get_k_vec(k)
-                              ka = this%get_k_vec(a)
                               kb = this%get_k_vec(b)
 
                               k_sum = ki + kj + kk - ka - kb
@@ -3737,10 +3737,10 @@ contains
           end do
       else
           do i = 1, nsites
+             ki = this%get_k_vec(i)
              do j = 1, nsites
+                kj = this%get_k_vec(j)
                 do a = 1, nsites
-                   ki = this%get_k_vec(i)
-                   kj = this%get_k_vec(j)
                    ka = this%get_k_vec(a)
                    k_sum = ki + kj - ka
                    do m = 1, sdim
@@ -3767,14 +3767,14 @@ contains
       ! for the 2-body transcorrelation we need to consider 5 involved momenta
       if (t_trans_corr_2body) then 
           do i = 1, nsites
+              ki = this%get_k_vec(i)
               do j = 1, nsites
+                  kj = this%get_k_vec(j)
                   do k = 1, nsites
+                      kk = this%get_k_vec(k)
                       do a = 1, nsites
+                          ka = this%get_k_vec(a)
                           do b = 1, nsites
-                              ki = this%get_k_vec(i)
-                              kj = this%get_k_vec(j)
-                              kk = this%get_k_vec(k)
-                              ka = this%get_k_vec(a)
                               kb = this%get_k_vec(b)
 
                               k_sum = ki + kj + kk - ka - kb
@@ -3793,12 +3793,12 @@ contains
           end do
       else 
           do i=1, nsites
+             ki = this%get_k_vec(i)
              do j = 1, nsites
+                kj = this%get_k_vec(j)
                 do a = 1, nsites
                    ! again, we want every possible combination ki+kj-ka
                    ! the construction costs O(nsites^4), but I think this is no problem
-                   ki = this%get_k_vec(i)
-                   kj = this%get_k_vec(j)
                    ka = this%get_k_vec(a)
                    k_sum = ki + kj - ka
                    k_check = this%map_k_vec(k_sum)

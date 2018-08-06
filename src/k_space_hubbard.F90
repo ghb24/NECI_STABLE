@@ -94,6 +94,9 @@ module k_space_hubbard
     real(dp) :: prefac_test = 2.0_dp
     real(dp), allocatable :: umat_cache_kspace(:,:)
 
+    ! temporary flag for the j optimization
+    logical :: t_symmetric = .false.
+
     ! i especially need an interface for the matrix element calculation to 
     ! implement the transcorrelated hamiltonian 
     interface get_helement_k_space_hub
@@ -2142,64 +2145,159 @@ contains
         integer(n_int) :: ilut(0:niftot)
         type(symmetry) :: p_sym, q_sym, a_sym, b_sym, k_sym
 
+        integer :: src(2), tgt(2)
+        real(dp) :: sgn
+        real(dp) :: two, rpa, ex
+
         call EncodeBitDet(nI, ilut)
 
         get_j_opt = 0.0_dp
 
-        do i = 1, nel 
-            do j = 1, nel 
-                ! i only have a contribution if the spins of nI and nJ 
-                ! are not the same! 
-                if (.not. same_spin(nI(i),nI(j))) then 
-                    ! and then I need to loop over the holes, but due to 
-                    ! momentum conservation, only once! 
-                    do a = 1, nBasis
-                        ! if a is empty 
-                        if (IsNotOcc(ilut,a)) then 
-                            b = get_orb_from_kpoints(nI(i),nI(j),a)
-                            if (IsNotOcc(ilut,b) .and. .not. same_spin(a,b)) then
-                                p_sym = G1(nI(i))%sym
-                                q_sym = G1(nI(j))%sym 
-                                spin_p = get_spin_pn(nI(i))
-                                spin_q = get_spin_pn(nI(j))
+        two = 0.0_dp
+        rpa = 0.0_dp
+        ex = 0.0_dp
+        if (.not. t_symmetric) then
+            do i = 1, nel! -1
+                do j = 1, nel 
+                    ! i only have a contribution if the spins of nI and nJ 
+                    ! are not the same! 
+                    if (.not. same_spin(nI(i),nI(j))) then 
+                        ! and then I need to loop over the holes, but due to 
+                        ! momentum conservation, only once! 
+                        do a = 1, nBasis
+                            ! if a is empty 
+                            if (IsNotOcc(ilut,a)) then 
+                                b = get_orb_from_kpoints(nI(i),nI(j),a)
+                                if (IsNotOcc(ilut,b) .and. .not. same_spin(a,b)) then
 
-                                ! and now i have to think how to correly 
-                                ! choose the momenta involved
-                                if (same_spin(nI(i), a)) then
-                                    a_sym = G1(a)%sym
-                                    b_sym = G1(b)%sym 
-                                else 
-                                    a_sym = G1(b)%sym
-                                    b_sym = G1(a)%sym 
+                                    p_sym = G1(nI(i))%sym
+                                    q_sym = G1(nI(j))%sym 
+                                    spin_p = get_spin_pn(nI(i))
+                                    spin_q = get_spin_pn(nI(j))
+
+                                    ! and now i have to think how to correly 
+                                    ! choose the momenta involved
+                                    if (same_spin(nI(i), a)) then
+                                        a_sym = G1(a)%sym
+                                        b_sym = G1(b)%sym 
+                                    else 
+                                        a_sym = G1(b)%sym
+                                        b_sym = G1(a)%sym 
+                                    end if
+                                    k_sym = SymTable(p_sym%s, SymConjTab(a_sym%s))
+
+                                    ! since i loop over all possible i,j i do not need 
+                                    ! the sum like below i think 
+                                    get_j_opt = get_j_opt + & 
+                                        two_body_contrib(corr_J, p_sym, a_sym) + & 
+                                        three_body_rpa_contrib(corr_J, p_sym, a_sym, spin_p) - & 
+                                        three_body_exchange_contrib(nI, corr_J, p_sym, q_sym, a_sym, spin_q)
+                                    
+                                    two = two + two_body_contrib(corr_J, p_sym, a_sym)
+                                    rpa = rpa +  three_body_rpa_contrib(corr_J, p_sym, a_sym, spin_p)
+                                    ex = ex + three_body_exchange_contrib(nI, corr_J, p_sym, q_sym, a_sym, spin_p)
+
+                                    ! and i also need to think how to sum over 
+                                    ! the spins correctly!
+    !                                 get_j_opt = get_j_opt + & 
+    !                                     (two_body_contrib(corr_J, p_sym, a_sym) + & 
+    !                                      two_body_contrib(corr_J, q_sym, b_sym))/2.0_dp + &
+    !                                     (three_body_rpa_contrib(corr_J, p_sym, a_sym, spin_p) +  &
+    !                                      three_body_rpa_contrib(corr_J, q_sym, a_sym, spin_q))/2.0_dp + &
+    !                                     (three_body_exchange_contrib(nI, corr_J, p_sym, q_sym, a_sym, spin_p) + &
+    !                                      three_body_exchange_contrib(nI, corr_J, p_sym, q_sym, b_sym, spin_q))/2.0_dp
+    ! 
+                                     ! especially the three-body term, i am not sure 
+
                                 end if
-                                k_sym = SymTable(p_sym%s, SymConjTab(a_sym%s))
-
-                                ! since i loop over all possible i,j i do not need 
-                                ! the sum like below i think 
-                                get_j_opt = get_j_opt + & 
-                                    two_body_contrib(corr_J, p_sym, a_sym) + & 
-                                    three_body_rpa_contrib(corr_J, p_sym, a_sym, spin_p) + & 
-                                    three_body_exchange_contrib(nI, corr_J, p_sym, q_sym, a_sym, spin_p)
-
-                                ! and i also need to think how to sum over 
-                                ! the spins correctly!
-!                                 get_j_opt = get_j_opt + & 
-!                                     (two_body_contrib(corr_J, p_sym, a_sym) + & 
-!                                      two_body_contrib(corr_J, q_sym, b_sym))/2.0_dp + &
-!                                     (three_body_rpa_contrib(corr_J, p_sym, a_sym, spin_p) +  &
-!                                      three_body_rpa_contrib(corr_J, q_sym, a_sym, spin_q))/2.0_dp + &
-!                                     (three_body_exchange_contrib(nI, corr_J, p_sym, q_sym, a_sym, spin_p) + &
-!                                      three_body_exchange_contrib(nI, corr_J, p_sym, q_sym, b_sym, spin_q))/2.0_dp
-! 
-                                 ! especially the three-body term, i am not sure 
-
                             end if
-                        end if
-                    end do
-                end if
+                        end do
+                    end if
+                end do
             end do
-        end do
+        else 
+            do i = 1, nel! - 1
+                do j = 1, nel 
+                    ! i only have a contribution if the spins of nI and nJ 
+                    ! are not the same! 
+                    if (.not. same_spin(nI(i),nI(j))) then 
+                        ! and then I need to loop over the holes, but due to 
+                        ! momentum conservation, only once! 
+                        do a = 1, nBasis
+                            ! if a is empty 
+                            if (IsNotOcc(ilut,a)) then 
+                                b = get_orb_from_kpoints(nI(i),nI(j),a)
+                                if (IsNotOcc(ilut,b) .and. .not. same_spin(a,b))then! .and. a < b) then
 
+                                    src = [min(nI(i),nI(j)),max(nI(i),nI(j))]
+                                    tgt = [min(a,b),max(a,b)]
+
+                                    if (is_beta(src(1))) then 
+                                        p_sym = G1(src(1))%sym
+                                        q_sym = G1(src(2))%sym 
+                                    else
+                                        p_sym = G1(src(2))%sym
+                                        q_sym = G1(src(1))%sym 
+                                    end if
+
+                                    spin_p = get_spin_pn(src(1))
+                                    spin_q = get_spin_pn(src(2))
+
+                                    if (same_spin(src(1),tgt(1))) then 
+                                        a_sym = G1(tgt(1))%sym
+                                        b_sym = G1(tgt(2))%sym 
+                                        sgn = 1.0_dp
+                                    else 
+                                        a_sym = G1(tgt(2))%sym
+                                        b_sym = G1(tgt(1))%sym 
+                                        sgn = 1.0_dp
+                                    end if
+
+                                    k_sym = SymTable(p_sym%s, SymConjTab(a_sym%s))
+
+                                    ! since i loop over all possible i,j i do not need 
+                                    ! the sum like below i think 
+! 				                    get_j_opt = get_j_opt + sgn*( & 
+!                                         two_body_contrib(corr_J, p_sym, a_sym) + & 
+!                                         three_body_rpa_contrib(corr_J, p_sym, a_sym, spin_p) + & 
+!                                         three_body_exchange_contrib(nI, corr_J, p_sym, q_sym, a_sym, spin_p))
+                                    
+				                    get_j_opt = get_j_opt + sgn*( & 
+                                        two_body_contrib(corr_J, p_sym, a_sym) + & 
+                                        two_body_contrib(corr_J, q_sym, b_sym) + & 
+                                        three_body_rpa_contrib(corr_J, p_sym, a_sym, spin_p) + & 
+                                        three_body_rpa_contrib(corr_J, q_sym, b_sym, spin_q) + & 
+                                        three_body_exchange_contrib(nI, corr_J, p_sym, q_sym, a_sym, spin_p)+&
+                                        three_body_exchange_contrib(nI, corr_J, q_sym, p_sym, b_sym, spin_q))
+
+                                    two = two + two_body_contrib(corr_J, p_sym, a_sym)
+                                    rpa = rpa +  three_body_rpa_contrib(corr_J, p_sym, a_sym, spin_p)
+                                    ex = ex + three_body_exchange_contrib(nI, corr_J, p_sym, q_sym, a_sym, spin_p)
+
+                                    ! and i also need to think how to sum over 
+                                    ! the spins correctly!
+    !                                 get_j_opt = get_j_opt + & 
+    !                                     (two_body_contrib(corr_J, p_sym, a_sym) + & 
+    !                                      two_body_contrib(corr_J, q_sym, b_sym))/2.0_dp + &
+    !                                     (three_body_rpa_contrib(corr_J, p_sym, a_sym, spin_p) +  &
+    !                                      three_body_rpa_contrib(corr_J, q_sym, a_sym, spin_q))/2.0_dp + &
+    !                                     (three_body_exchange_contrib(nI, corr_J, p_sym, q_sym, a_sym, spin_p) + &
+    !                                      three_body_exchange_contrib(nI, corr_J, p_sym, q_sym, b_sym, spin_q))/2.0_dp
+    ! 
+                                     ! especially the three-body term, i am not sure 
+
+                                end if
+                            end if
+                        end do
+                    end if
+                end do
+            end do
+        end if
+
+
+        print *, "2body: ", two
+        print *, "rpa: ", rpa
+        print *, "ex:", ex
         get_j_opt = get_j_opt/real(omega**2,dp)
 
 
@@ -3148,13 +3246,13 @@ contains
 
     end function rpa_contrib_kvec
 
-    HElement_t(dp) function rpa_contrib_ksym(J, p, k, spin)
+    HElement_t(dp) function rpa_contrib_ksym(J, p, a, spin)
         ! same as above just with symmetry symbols instead of vectors 
         ! BUT here i have to be careful to determine the substraction p - k
         ! already before calling this function! it is the k-symbol of the 
         ! hole correspinding to p!
         real(dp), intent(in) :: J
-        type(symmetry), intent(in) :: p, k
+        type(symmetry), intent(in) :: p, a
         integer, intent(in) :: spin 
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "rpa_contrib_ksym"
@@ -3170,9 +3268,9 @@ contains
         end if
 
 !         rpa_contrib_ksym = real(bhub,dp)*(cosh(J) - 1.0_dp) / real(omega, dp) * &
-!             (n_opp - 1.0_dp) * (epsilon_kvec(p) + epsilon_kvec(k))
+!             (n_opp - 1.0_dp) * (epsilon_kvec(p) + epsilon_kvec(a))
         rpa_contrib_ksym = 2.0_dp * real(bhub,dp)*(cosh(J) - 1.0_dp) / real(omega, dp) * &
-            n_opp * (epsilon_kvec(p) + epsilon_kvec(k))
+            n_opp * (epsilon_kvec(p) + epsilon_kvec(a))
 
     end function rpa_contrib_ksym
 
@@ -3198,8 +3296,14 @@ contains
         real(dp), intent(in) :: J
         type(symmetry), intent(in) :: p, a
 
-        two_body_contrib_ksym = real(uhub,dp) / 2.0_dp - real(bhub,dp) * & 
-            ((exp(J) - 1.0_dp) * epsilon_kvec(p) + (exp(-J) - 1.0) * epsilon_kvec(a))
+        if (.not. t_symmetric) then
+            two_body_contrib_ksym = real(uhub,dp) / 2.0_dp - real(bhub,dp) * & 
+                ((exp(J) - 1.0_dp) * epsilon_kvec(p) + (exp(-J) - 1.0) * epsilon_kvec(a))
+        else 
+            two_body_contrib_ksym = real(uhub,dp)/2.0_dp - real(bhub,dp) * & 
+                ((exp(J) - 1.0_dp) * epsilon_kvec(p) + (exp(-J) - 1.0) * epsilon_kvec(a))
+        end if
+
 
     end function two_body_contrib_ksym
 
@@ -3241,7 +3345,6 @@ contains
         k1 = SymTable(p%s, q%s)
         ! the subtraction has something to do with the inputted spin!! 
         ! todo
-!         k2 = SymTable(p%s, SymConjTab(a%s))
         ! spin is chosen from p momentum! so a is the p-k = a hole 
         ! and we need the dipersion of p-k - q = a - q
         k2 = SymTable(a%s, SymConjTab(q%s))

@@ -153,7 +153,7 @@ contains
 
         irrep_names = ['  x','A1g','A2g','B1g','B2g',' Eg','A1u','A2u','B1u','B2u',' Eu']
 
-        t_do_exact_transcorr = .false.
+        t_do_exact_transcorr = .true.
         t_optimize_j = .true.
         t_do_diags = .true.
         t_do_subspace_study = .false.
@@ -165,7 +165,7 @@ contains
         t_twisted_vec = .false.
         t_analyse_gap = .false.
         t_ignore_k = .false.
-        t_do_ed = .false.
+        t_do_ed = .true.
         t_exact_propagation = .false.
         l_norm = 1
         n_excited_states = 10
@@ -174,7 +174,7 @@ contains
         call init_k_space_unit_tests()
 
         ! i have to define the lattice here.. 
-        lat => lattice('tilted', 5, 5, 1,.true.,.true.,.true.,'k-space')
+        lat => lattice('chain', 6, 1, 1,.true.,.true.,.true.,'k-space')
 
 !         x = [(-lat%dispersion_rel_orb(i), i = 1, 24)]
 !         ind = [(i, i = 1, 24)]
@@ -203,13 +203,13 @@ contains
             print *, "input J:"
             read(*,*), J
         else if (t_J_vec) then
-            J_vec = linspace(-2.0,2.0,200)
+            J_vec = linspace(-1.0,1.0,100)
 !               J_vec = [0.5]
         else 
             J = 0.1
         end if
         
-        nel = 50
+        nel = 6
         allocate(nI(nel))
         allocate(nJ(nel))
         nj = 0
@@ -217,7 +217,7 @@ contains
         nbasis = 2*lat%get_nsites()
 
         ! 16 in 16, k != 0 
-!         nI = [1,2,3,4,5,6,9,10,11,12,13,14,17,18,19,20]
+        nI = [1,2,3,4,5,6,9,10,11,12,13,14,17,18,19,20]
         ! 16 in 16 k = 0 closed shell
 !         nI = [1,2,3,4,5,6,9,10,11,12,13,14,15,16,19,20]
 
@@ -228,8 +228,31 @@ contains
 
 !         nI = [(i, i = 1,nel)]
         ! 50 in 50:
-        nI = [ 9,10,11,12,13,14,15,16,17,18,21,22,23,24,25,26,27,28,29,30,&
-            37,38,39,40,41,42,43,44,45,46,55,56,57,58,59,60,61,62,63,64,71,72,73,74,75,76,77,78,79,80]
+!         nI = [ 9,10,11,12,13,14,15,16,17,18,21,22,23,24,25,26,27,28,29,30,&
+!             37,38,39,40,41,42,43,44,45,46,55,56,57,58,59,60,61,62,63,64,71,72,73,74,75,76,77,78,79,80]
+
+        ! 42 in 50:
+!         nI = [11,12,13,14,15,16,21,22,23,24,25,26,27,28,29,30,37,38,39,40,&
+!             41,42,43,44,45,46,55,56,57,58,59,60,61,62,63,64,73,74,75,76,77,78]
+
+        ! 48 in 50:
+!         nI = [   10,   11,   12,   13,   14,   15,   16,   17,   18,   21,&
+!             22,   23,   24,   25,   26,   27,   28,   29,   30,   37,   38,&
+!             39,   40,   41,   42,   43,   44,   45,   46,   55,   56,   57, &
+!             58,   59,   60,   61,   62,   63,   64,   71,   72,   73,   74, &
+!             75,   76,   77,   78,   79]
+
+        ! 46 in 50:
+!         nI =[    9,   10,   11,   12,   13,   14,   15,   16,   21,   22,   23,&
+!             24,   25,   26,   27,   28,   29,   30,   37,   38,   39,   40,   41,&
+!             42,   43,   44,   45,   46,   55,   56,   57,   58,   59,   60,   61,&
+!             62,   63,   64,   73,   74,   75,   76,   77,   78,   79,   80]
+
+        ! 44 in 50
+!         nI =[   9, 11,  12,  13,  14,  15,  16,  21,  22,  23,  24,  25,  26,&
+!             27,  28,  29,  30,  37,  38,  39,  40,  41,  42,  43,  44,  45,&
+!             46,  55,  56,  57,  58,  59,  60,  61,  62,  63,  64,  73,  74,  75,&
+!             76,  77,  78,  80]
 
         ! 44 in 50:
 !         nI = [ 9,11,12,13,14,15,16,21,22,23,24,25,26,27,28,29,30,&
@@ -257,7 +280,7 @@ contains
 
         ! chain:
         ! 6 in 6, k = 0
-!         nI = [3,4,5,6,7,8]
+        nI = [3,4,5,6,7,8]
 
         ! 4 in 4, k = 0
 !         nI = [1,3,4,6]
@@ -498,7 +521,7 @@ contains
             close(iunit)
             t_trans_corr_2body = .false.
 
-            call stop_all("here", "now")
+!             call stop_all("here", "now")
         end if
 
         if (t_do_subspace_study) then
@@ -870,12 +893,12 @@ contains
 
             ! try too big systems here: 
             call frsblk_wrapper(hilbert_space, size(hilbert_space, 2), n_eig, e_values, e_vecs)
-! 
+! ! 
             print *, "e_value lanczos:", e_values
-            print *, "|i>, c_i:"
-            do i = 1, size(hilbert_space,2)
-                print *, hilbert_space(:,i), e_vecs(i,1), e_vecs(i,2), e_vecs(i,3)
-            end do
+!             print *, "|i>, c_i:"
+!             do i = 1, size(hilbert_space,2)
+!                 print *, hilbert_space(:,i), e_vecs(i,1), e_vecs(i,2), e_vecs(i,3)
+!             end do
         end if
 
         if (t_do_exact_transcorr) then
