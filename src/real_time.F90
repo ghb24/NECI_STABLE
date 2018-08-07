@@ -285,8 +285,9 @@ contains
                       overlap_pert(1)%crtn_orbs(1), pops_pert(1)%crtn_orbs(1)
               end if
            endif
-              print *, "Current GF:", gf_overlap(1,1)/pert_norm(1,1), pert_norm(1,1), normsize
-              print *, "Normalization", pert_norm(1,1), dyn_norm_red(1,1)
+              print *, "Current GF: (normalized)", &
+                   sum(gf_overlap(:,1))/sum(pert_norm(:,1)), pert_norm(1,1), normsize
+              print *, "Normalization", pert_norm(1,1), dyn_norm_red(1)
         endif
 
         ! enter the main real-time fciqmc loop here
@@ -313,21 +314,18 @@ contains
                ! current overlap is now the one after iteration
                ! update the normalization due to the shift
 
-               norm_buf = calc_norm(CurrentDets,int(TotWalkers))
-               call MPIReduce(norm_buf,MPI_SUM,dyn_norm_psi)
-
                call update_gf_overlap()
 
                do j = 1, gf_count
                   do i = 1, normsize
-                     current_overlap(i,j) = gf_overlap(i,j)/dyn_norm_red(i,j) * &
+                     current_overlap(i,j) = gf_overlap(i,j)/dyn_norm_red(i) * &
                           exp(shift_damping(((i-1)/inum_runs+1)))
                   end do
 
                   !normalize the greens function
                   ! averaging should probably be done over the normalized
                   ! GFs
-                  overlap_buf(j) = sum(gf_overlap(:,j))/sum(dyn_norm_red(:,j)) * &
+                  overlap_buf(j) = sum(gf_overlap(:,j))/sum(dyn_norm_red(:)) * &
                        sum(exp(shift_damping))/inum_runs
 
                   overlap_real(j) = real(overlap_buf(j))

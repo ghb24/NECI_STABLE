@@ -58,7 +58,7 @@ module real_time_data
     real(dp), allocatable :: overlap_real(:), overlap_imag(:)
     ! and dynamic reduced norm, used only when rescaling the wave function
     ! i.e. outdated feature
-    complex(dp), allocatable :: dyn_norm_red(:,:)
+    complex(dp), allocatable :: dyn_norm_red(:)
     ! norms are complex because they are taken between different replicas
     ! -> not necesserily entirely real
     ! need a global variable for the overlap <y(0)|y(t)> 
