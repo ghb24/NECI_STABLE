@@ -369,7 +369,6 @@ contains
 
     subroutine write_tau_opt(parent)
     
-        use procedure_pointers, only: update_tau
         use tau_search, only:  cnt_sing, cnt_doub, cnt_opp, cnt_par
         use FciMCData, only: pSingles, pDoubles, pParallel
         use CalcData, only: tau, gamma_sing, gamma_doub, gamma_opp, gamma_par, &
@@ -575,7 +574,7 @@ contains
         use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
                               enough_sing, enough_doub, enough_opp, &
                               enough_par, cnt_sing, cnt_doub, cnt_opp, &
-                              cnt_par, max_death_cpt, update_tau_default
+                              cnt_par, max_death_cpt, update_tau
         use FciMCData, only: pSingles, pDoubles, pParallel, tSearchTau, &
                              tSearchTauOption 
         use CalcData, only: tau, t_previous_hist_tau, t_restart_hist_tau, &
@@ -662,7 +661,7 @@ contains
         if (.not. hist_tau) then
             t_previous_hist_tau = .false.
             if (ppar_set .and. .not. tau_set) &
-                call update_tau_default()
+                call update_tau()
         end if
 
     end subroutine
