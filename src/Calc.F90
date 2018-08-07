@@ -378,7 +378,10 @@ contains
           tAdiActive = .false.
           minSIConnect = 1
 
-          tSignedRepAv = .false.
+          ! all averages over replicas are to be signed
+          tSignedRepAv = .true.
+          ! never allow an initiator to have different sign across replicas
+          tReplicaCoherentInits = .false.
 
           ! And disable the initiators subspace
           tInitiatorsSubspace = .false.
@@ -1817,6 +1820,10 @@ contains
              case("AVERAGE-REPLICAS")
                 ! average the replica populations if they are not sign coherent
                 tAVReps = .true.
+
+             case("REPLICA-COHERENT-INITS")
+                ! require initiators to be coherent across replcias
+                tReplicaCoherentInits = .true.
 
             case("NO-COHERENT-INIT-RULE")
                 tInitCoherentRule=.false.

@@ -30,7 +30,7 @@ module fcimc_helper
                            nHistEquilSteps, tCalcFCIMCPsi, StartPrintOrbOcc, &
                            HistInitPopsIter, tHistInitPops, iterRDMOnFly, &
                            FciMCDebug, tLogEXLEVELStats
-    use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, &
+    use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, tReplicaCoherentInits, &
                         tAddToInitiator, InitiatorWalkNo, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
                         tRealCoeffByExcitLevel, tGlobalInitFlag, &
@@ -850,6 +850,17 @@ contains
         logical :: Senior
         real(dp) :: DetAge, HalfLife, AvgShift, diagH
 
+        ! one initial check: if the replicas dont agree on the sign
+        ! dont make this an initiator under any circumstances
+        if(tReplicaCoherentInits) then
+           if(any(sgn*sgn(1) < 0)) then
+              initiator = .false.
+              ! log this, if we remove an initiator here
+              if(is_init) NoAddedInitiators = NoAddedInitiators - 1_int64
+              return
+           endif
+        endif
+
         ! By default the particles status will stay the same
         initiator = is_init
 
@@ -904,7 +915,7 @@ contains
               NoAddedInitiators = NoAddedInitiators - 1_int64
            endif
 
-        end if
+        end if       
 
       end function TestInitiator_explicit
       
