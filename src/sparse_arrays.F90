@@ -258,28 +258,28 @@ contains
 
                 ! If on the diagonal of the Hamiltonian.
                 if (i == j) then
-                    if (.not. tHPHF) then
-                        hamiltonian_row(j) = get_helement(nI, nJ, 0)
+                    if (tHPHF) then
+                        hamiltonian_row(j) = hphf_diag_helement(nI, ilut_list(:, i))
 #ifndef __CMPLX
                     else if (tGUGA) then 
                         hamiltonian_row(j) = calcDiagMatEleGuga_nI(nI)
 #endif
                     else
-                        hamiltonian_row(j) = hphf_diag_helement(nI, ilut_list(:, i))
+                        hamiltonian_row(j) = get_helement(nI, nJ, 0)
                     end if
                     hamil_diag(j) = hamiltonian_row(j)
                 else
-                    if (.not. tHPHF) then
-                        hamiltonian_row(j) = get_helement(nI, nJ, ilut_list(:, i), &
-                                                                 ilut_list(:, j))
+                    if (tHPHF) then
+                        hamiltonian_row(j) = hphf_off_diag_helement(nI, nJ, ilut_list(:, i), &
+                                                                           ilut_list(:, j))
 #ifndef __CMPLX
                     else if (tGUGA) then 
                         call calc_guga_matrix_element(ilut_list(:,i), ilut_list(:,j), &
                                 excitInfo, hamiltonian_row(j), .true., 1) 
 #endif
                     else
-                        hamiltonian_row(j) = hphf_off_diag_helement(nI, nJ, ilut_list(:, i), &
-                                                                           ilut_list(:, j))
+                        hamiltonian_row(j) = get_helement(nI, nJ, ilut_list(:, i), &
+                                                                 ilut_list(:, j))
                     end if
                     if (abs(hamiltonian_row(j)) > 0.0_dp) then
                         ! If element is nonzero, update the following sizes.

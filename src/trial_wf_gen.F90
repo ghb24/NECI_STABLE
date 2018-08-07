@@ -604,27 +604,27 @@ contains
                 call decode_bit_det(nJ, trial_space(0:NIfTot, j))
 
                 if (all(con_space(0:NIfDBO, i) == trial_space(0:NIfDBO, j))) then
-                    if (.not. tHPHF) then
-                        H_ij = get_helement(nI, nJ, 0)
+                    if ( tHPHF) then
+                        H_ij = hphf_diag_helement(nI, trial_space(:,j))
 #ifndef __CMPLX
                     else if (tGUGA) then 
                         H_ij = calcDiagMatEleGuga_nI(nI)
 #endif
                     else
-                        H_ij = hphf_diag_helement(nI, trial_space(:,j))
+                        H_ij = get_helement(nI, nJ, 0)
                     end if
                 else
                     ! need guga changes here!
                     ! and need 
-                    if (.not. tHPHF) then
-                        H_ij = get_helement(nJ, nI, con_space(:,j), trial_space(:,i))
+                    if (tHPHF) then
+                        H_ij = hphf_off_diag_helement(nJ, nI, con_space(:,j), trial_space(:,i))
 #ifndef __CMPLX
                     else if (tGUGA) then
                         call calc_guga_matrix_element(con_space(:,j), trial_space(:,i), &
                             excitInfo, H_ij, .true., 1)
 #endif
                     else
-                        H_ij = hphf_off_diag_helement(nJ, nI, con_space(:,j), trial_space(:,i))
+                        H_ij = get_helement(nJ, nI, con_space(:,j), trial_space(:,i))
                     end if
                 end if
                 con_vecs(:,i) = con_vecs(:,i) + H_ij*trial_vecs(:,j)
