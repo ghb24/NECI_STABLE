@@ -2158,7 +2158,7 @@ contains
             ! are we looking at an erroneous sign?
             if(sgn(run)*avSign < 0) then
                ! if yes, flip it
-               sgn(run) = - sgn(run)
+               sgn(run) = 0.0
 !            iter_data%nremoved(run) = iter_data%nremoved(run) &
 !                 + (abs(sgn(run)) - abs(sum(sgn)/inum_runs))
             endif
