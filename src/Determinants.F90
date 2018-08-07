@@ -344,6 +344,10 @@ contains
         ! GUGA implementation: 
 #ifndef __CMPLX
         if (tGUGA) then
+            if (.not.all(nI == nJ)) then
+                call stop_all(this_routine,&
+                    "get_helement in GUGA should only be called for diagonal elements!")
+            end if
             hel = calcDiagMatEleGUGA_nI(nI)
             return
         end if
@@ -499,6 +503,20 @@ contains
             return 
         end if
 
+#ifndef __CMPLX
+        ! GUGA implementation: 
+        if (tGUGA) then
+            hel = calcDiagMatEleGUGA_nI(nI)
+            ! make a check, that this is only called for diagonal elements.. 
+            if (.not.all(nI == nJ)) then
+                call stop_all(this_routine,&
+                    "get_helement in GUGA should only be called for diagonal elements!")
+            end if
+            return
+        end if
+#endif
+
+
         ! If we are using CSFs, then call the csf routine.
         ! TODO: Passing through of ExcitMat to CSFGetHelement
         if (tCSF) then
@@ -547,6 +565,19 @@ contains
         ! Eliminate compiler warnings
         integer(n_int) :: iUnused; integer :: iUnused2; HElement_t(dp) :: hUnused
         iUnused=iLutJ(1); iUnused=iLutI(1); iUnused2=nJ(1); hUnused = helgen
+
+#ifndef __CMPLX
+        ! GUGA implementation: 
+        if (tGUGA) then
+            hel = calcDiagMatEleGUGA_nI(nI)
+            ! make a check, that this is only called for diagonal elements.. 
+            if (.not.all(nI == nJ)) then
+                call stop_all(this_routine,&
+                    "get_helement in GUGA should only be called for diagonal elements!")
+            end if
+            return
+        end if
+#endif
 
         ! switch to lattice matrix element:
         if (t_lattice_model) then 
