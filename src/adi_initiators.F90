@@ -109,7 +109,7 @@ contains
     logical :: staticInit, tCCache, tCouplingPossible
     ! cache for the weak coherence check
     HElement_t(dp) :: signedCache
-    real(dp) :: unsignedCache, tot_sgn
+    real(dp) :: unsignedCache
     integer :: connections
 
     staticInit = .false.
@@ -160,14 +160,8 @@ contains
        endif
     enddo
 
-    if(tGlobalInitFlag) then
-       tot_sgn = sgn_av_pop(sgn)
-    else
-       tot_sgn = sgn(run)
-    endif
-
     if(tCCache .and. staticInit) &
-    call eval_coherence(signedCache, unsignedCache, tot_sgn, connections, staticInit)
+    call eval_coherence(signedCache, unsignedCache, sgn(run), connections, staticInit)
 
   end function adi_criterium
 
