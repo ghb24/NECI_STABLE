@@ -70,6 +70,9 @@ module tau_search
 
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard
 
+! #ifndef __CMPLX
+!     use guga_tausearch, only: find_max_tau_doubs_guga
+! #endif
     implicit none
 
     real(dp) :: gamma_sing, gamma_doub, gamma_opp, gamma_par, max_death_cpt
@@ -125,7 +128,18 @@ contains
         enough_doub = .false.
         ! Unless it is already specified, set an initial value for tau
         if (.not. tRestart .and. .not. tReadPops .and. tau == 0) then
-            call FindMaxTauDoubs()
+#ifndef __CMPLX
+            if (tGUGA) then 
+                print *, "Warning: FindMaxTauDoubs misused for GUGA!"
+                print *, "still need a specific implementation for that!"
+                call FindMaxTauDoubs()
+!                 call find_max_tau_doubs_guga()
+            else
+#endif
+                call FindMaxTauDoubs()
+#ifndef __CMPLX
+            end if
+#endif
         end if
 
         write(6,*) 'Using initial time-step: ', tau
@@ -621,6 +635,14 @@ contains
 
         if(tCSF) call stop_all(t_r,"TauSearching needs fixing to work with CSFs or MI funcs")
 
+        if (tGUGA) then
+            ! in the case of GUGA i need a specialised max-tau-doubs routine
+            print *, "Warning: FindMaxTauDoubs misused for GUGA! "
+            print *, "Still need a specific implememtation for that"
+!             call find_max_tau_doubs_guga()
+!             return
+        end if
+
         if(MaxWalkerBloom.eq.-1) then
             !No MaxWalkerBloom specified
             !Therefore, assume that we do not want blooms larger than n_add if initiator,
@@ -762,9 +784,9 @@ contains
                 cycle
 
             !Find Hij
-            if (tGUGA) then 
-                call stop_all(t_r, "modify get_helement for GUGA")
-            end if
+!             if (tGUGA) then 
+!                 call stop_all(t_r, "modify get_helement for GUGA")
+!             end if
             if(tHPHF) then
                 if(.not.TestClosedShellDet(iLutnJ)) then
                     CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.true.,.true.,tSwapped)

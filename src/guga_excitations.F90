@@ -163,7 +163,7 @@ module guga_excitations
             use guga_types, only: weight_obj
             implicit none
             type(weight_obj), intent(in) :: weight
-            real(dp), intent(in) :: bVal, negSwitches, posSwitches
+            real(dp), intent(in) :: bval, negSwitches, posSwitches
             real(dp) :: prob
         end function branch_weight_function
     end interface
@@ -21710,6 +21710,156 @@ contains
 !     
 !     end subroutine startDoubleExcitation
 !     
+
+    function get_excit_level_from_excitInfo(excitInfo) result(ic)
+        type(excitationInformation), intent(in) :: excitInfo
+        integer :: ic 
+
+    end function get_excit_level_from_excitInfo
+
+    function calc_pgen_mol_guga_double(ilutI, nI, ilutJ, nJ, excitInfo) result(pgen)
+        integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
+        integer, intent(in) :: nI(nel), nJ(nel)
+        type(excitationInformation), intent(in) :: excitInfo
+        real(dp) :: pgen
+        character(*), parameter :: this_routine = "calc_pgen_mol_guga_double"
+
+    end function calc_pgen_mol_guga_double
+
+    function calc_pgen_mol_guga(nI, ilutI, nJ, ilutJ, excitInfo_in) result(pgen) 
+        integer, intent(in) :: nI(nel), nJ(nel)
+        integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
+        type(excitationInformation), intent(in), optional :: excitInfo_in
+        real(dp) :: pgen 
+        character(*), parameter :: this_routine = "calc_pgen_mol_guga"
+        type(excitationInformation) :: excitInfo
+        integer :: ic
+
+        if (present(excitInfo_in)) then 
+            excitInfo = excitInfo_in
+        else 
+            excitInfo = identify_excitation(ilutI, ilutJ)
+        end if 
+
+        ic = get_excit_level_from_excitInfo(excitInfo)
+
+        if (ic == 1) then 
+            pgen = pSingles * calc_pgen_mol_guga_single(ilutI, nI, ilutJ, nJ, &
+                excitInfo)
+
+        else if (ic == 2) then 
+
+            pgen = pDoubles * calc_pgen_mol_guga_double(ilutI, nI, ilutJ, nJ, excitInfo)
+
+        else 
+            pgen = 0.0_dp
+        end if
+
+    end function calc_pgen_mol_guga
+
+    function calc_pgen_mol_guga_single(ilutI, nI, ilutJ, nJ, excitInfo) result(pgen)
+        integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
+        integer, intent(in) :: nI(nel), nJ(nel)
+        type(excitationInformation), intent(in) :: excitInfo
+        real(dp) :: pgen 
+        character(*), parameter :: this_routine = "calc_pgen_mol_guga_single"
+        real(dp) :: p_orbs, p_guga
+        integer :: orb_i, orb_a
+
+        ! write a pgen calculator for guga-excitations finally.. 
+        ! but only for the molecular for now! 
+
+        ! i need the orbital picking part of pgen:
+        p_orbs = calc_pgen_mol_guga_single_orbs(ilutI, nI, excitInfo)
+
+        p_guga = calc_pgen_mol_guga_single_guga(ilutI,nI,ilutJ,nJ,excitInfo)
+
+        pgen = p_orbs * p_guga
+
+    end function calc_pgen_mol_guga_single
+
+    function calc_pgen_mol_guga_single_guga(ilutI, nI, ilutJ, nJ, excitInfo) result(pgen)
+        ! this function calculates the guga branching part of the 
+        ! generation probability! 
+        integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
+        integer, intent(in) :: nI(nel), nJ(nel)
+        type(excitationInformation), intent(in) :: excitInfo
+        real(dp) :: pgen
+
+        ! todo
+        pgen = 0.0_dp
+
+    end function calc_pgen_mol_guga_single_guga
+
+    function calc_pgen_mol_guga_single_orbs(ilut, nI, excitInfo) result(pgen)
+        integer(n_int), intent(in) :: ilut(0:niftot)
+        integer, intent(in) :: nI(nel)
+        type(excitationInformation), intent(in) :: excitInfo
+        real(dp) :: pgen 
+        character(*), parameter :: this_routine = "calc_pgen_mol_guga_single_orbs"
+        real(dp) :: p_elec, p_orb, cum_sum
+        integer :: cc_i, nOrb, ierr, i, a
+        real(dp), allocatable :: cum_arr(:)
+
+        call get_orbs_from_excit_info(excitInfo, i, a)
+
+        if (IsDoub(ilut,i)) then 
+            p_elec = 2.0/real(nel,dp)
+        else if (IsNotOcc(ilut,i)) then 
+            pgen = 0.0_dp 
+            return
+        else 
+            p_elec = 1.0/real(nel,dp)
+        end if
+
+        if (IsDoub(ilut,a)) then 
+            pgen = 0.0_dp
+            return
+        end if
+
+        if (gtID(i) == gtID(a)) then
+            pgen = 0.0_dp
+            return
+        end if
+
+        cc_i = ClassCountInd(1, SpinOrbSymLabel(a), G1(a)%Ml)
+
+        nOrb = OrbClassCount(cc_i)
+        allocate(cum_arr(nOrb), stat = ierr)
+
+        if (IsDoub(ilut,i)) then 
+            call gen_cum_list_guga_single_3(nI, i, cc_i, cum_arr)
+        else 
+            if (is_beta(i)) then 
+                call gen_cum_list_guga_single_1(nI, i, cc_i, cum_arr)
+            else 
+                call gen_cum_list_guga_single_2(nI, i, cc_i, cum_arr)
+            end if
+        end if
+
+        if (cum_sum < EPS) then 
+            pgen = 0.0_dp
+            return
+        end if
+
+        if (a == 1) then 
+            p_orb = cum_arr(1) / cum_sum
+        else 
+            p_orb = (cum_arr(a) - cum_arr(a-1)) / cum_sum
+        end if
+
+        pgen = p_orb * p_elec
+
+    end function calc_pgen_mol_guga_single_orbs
+
+    subroutine get_orbs_from_excit_info(excitInfo, a, b, c, d)
+        ! routine to extract the orbitals from a excitation information
+        ! c and d are optional for double excitations
+        type(excitationInformation), intent(in) :: excitInfo
+        integer, intent(out) :: a, b
+        integer, intent(out), optional :: c, d
+
+    end subroutine get_orbs_from_excit_info
 
     subroutine pickOrbs_sym_uniform_mol_single(ilut, nI, excitInfo, pgen)
         ! new implementation to pick single orbitals, more similar to the 

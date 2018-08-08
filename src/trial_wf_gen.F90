@@ -8,7 +8,7 @@ module trial_wf_gen
     use semi_stoch_gen
     use semi_stoch_procs
     use sparse_arrays
-    use SystemData, only: nel, tHPHF
+    use SystemData, only: nel, tHPHF, t_non_hermitian
     use util_mod, only: get_free_unit, binary_search_custom
 #ifndef __CMPLX 
     use guga_data, only: excitationInformation
@@ -589,6 +589,7 @@ contains
 #endif
         con_vecs = 0.0_dp
 
+        print *, "here?"
         ! do i need to change this here for the non-hermitian transcorrelated 
         ! hamiltonians?
         do i = 1, size(con_vecs,2)
@@ -620,7 +621,10 @@ contains
                         H_ij = hphf_off_diag_helement(nJ, nI, con_space(:,j), trial_space(:,i))
 #ifndef __CMPLX
                     else if (tGUGA) then
-                        call calc_guga_matrix_element(con_space(:,j), trial_space(:,i), &
+                        if (t_non_hermitian) then 
+                            call stop_all(t_r, "GUGA not adapted for non-hermiticity yet!")
+                        end if
+                        call calc_guga_matrix_element(con_space(:,i), trial_space(:,j), &
                             excitInfo, H_ij, .true., 1)
 #endif
                     else

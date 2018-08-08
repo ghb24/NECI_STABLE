@@ -18,16 +18,21 @@ module guga_tausearch
                     cnt_type2_same, cnt_type2_diff, cnt_type3_same, cnt_type3_diff, &
                     cnt_type4, cnt_sing_hist, cnt_doub_hist, enough_sing_hist, &
                     enough_doub_hist, t_hist_tau_search_option
-    use SystemData, only: tUEG, t_consider_diff_bias
+    use SystemData, only: tUEG, t_consider_diff_bias, nel, tgen_sym_guga_mol
     use FciMCData, only: tRestart, pSingles, pDoubles, pExcit2, pExcit4, &
                          pExcit2_same, pExcit3_same, MaxTau, tSearchTau, &
-                         tSearchTauOption, tSearchTauDeath
+                         tSearchTauOption, tSearchTauDeath, iLutHF
 
     use constants, only: dp, EPS
 
     use tau_search, only: FindMaxTauDoubs, integrate_frequency_histogram_spec
 
     use Parallel_neci
+
+    use bit_reps, only: nifguga, niftot, decode_bit_det
+    use guga_excitations, only: actHamiltonian, calc_pgen_mol_guga, calc_guga_matrix_element
+    use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI
+    use guga_data, only: excitationInformation
 
     implicit none
     integer :: cnt_sing, cnt_four, cnt_two_same, cnt_two_mixed, cnt_three_same, &
@@ -82,7 +87,7 @@ contains
         ! but atleast still runs.. and since tau is updated on the fly then
         ! this shouldn't be too big of a problem..
         if (.not. tRestart .and. (.not. tReadPops) .and. tau < EPS) then
-            call FindMaxTauDoubs()
+            call find_max_tau_doubs_guga()
         end if
         write(6,*) "Using initial time-step: ", tau
         write(6,*) "NOTE: this is not yet correctly adapted for the GUGA implementation"
@@ -184,7 +189,7 @@ contains
 
             ! Unless it is already specified, set an initial value for tau
             if (.not. tRestart .and. .not. tReadPops .and. tau == 0) &
-                call FindMaxTauDoubs()
+                call find_max_tau_doubs_guga()
             write(6,*) 'Using initial time-step: ', tau
      
             ! Set the maximum spawn size
@@ -212,6 +217,78 @@ contains
         end if
 
     end subroutine init_hist_tau_search_guga_nosym
+
+    subroutine find_max_tau_doubs_guga
+
+        character(*), parameter :: this_routine = "find_max_tau_doubs_guga"
+        integer(n_int) :: ilutG(0:nifguga)
+        integer(n_int), pointer :: excitations(:,:)
+        integer :: i, n_ex
+        integer :: nHF(nel), nJ(nel)
+        integer(n_int) :: ilutJ(0:niftot)
+        real(dp) :: pgen, pGenFac, nAddFac
+        HElement_t(dp) :: helgen, hel, abs_hel
+        type(excitationInformation) :: excitInfo
+
+        call stop_all(this_routine, "TODO implement!")
+
+        if (.not. tgen_sym_guga_mol) then 
+            call stop_all(this_routine, "only implemented for mol_guga_weighted for now!")
+        end if
+
+        if(MaxWalkerBloom.eq.-1) then
+            !No MaxWalkerBloom specified
+            !Therefore, assume that we do not want blooms larger than n_add if initiator,
+            !or 5 if non-initiator calculation.
+            if(tTruncInitiator) then
+                nAddFac = InitiatorWalkNo
+            else
+                nAddFac = 5.0_dp    !Won't allow more than 5 particles at a time
+            endif
+        else
+            nAddFac = real(MaxWalkerBloom,dp) !Won't allow more than MaxWalkerBloom particles to spawn in one event. 
+        endif
+
+        Tau = 1000.0_dp
+
+        ! do it similar as for the k-space implementation 
+        call convert_ilut_toGUGA(ilutHF, ilutG)
+        call actHamiltonian(ilutG, excitations, n_ex)
+        call decode_bit_det(nHF, iLutHF)
+        do i = 1, n_ex
+            call convert_ilut_toNECI(excitations(:,i), ilutJ, helgen)
+!             call calc_guga_matrix_element(ilutHF, excitaitons(:,i), excitInfo, &
+!                 hel, .true., 2)
+            call calc_guga_matrix_element(ilutHF, ilutJ, excitInfo, &
+                hel, .true., 2)
+
+            if (abs(helgen - hel) > EPS) then 
+                call stop_all(this_routine, "something wrong with mat-eles!")
+            end if
+            ! get guga matrix elements 
+            abs_hel = abs(hel)
+            ! and get the pgen 
+            pgen = calc_pgen_mol_guga(nHF, ilutHF, nJ, ilutJ, excitInfo)
+
+            if (hel > EPS) then
+                pGenFac = pgen * nAddFac / hel
+
+                if (tau > pGenFac .and. pGenFac > EPS) then 
+                    tau = pGenFac
+                end if
+            end if
+        end do
+
+        if(tau.gt.0.075_dp) then
+            tau=0.075_dp
+            write(iout,"(A,F8.5,A)") "Small system. Setting initial timestep to be ",Tau," although this &
+                                            &may be inappropriate. Care needed"
+        else
+            write(iout,"(A,F18.10)") "From analysis of reference determinant and connections, &
+                                     &an upper bound for the timestep is: ",Tau
+        endif
+
+    end subroutine find_max_tau_doubs_guga
 
     subroutine log_spawn_magnitude_guga_nosym(ic, ex, matel, pgen)
         ! to allow to use these sort of routines as function pointers, 

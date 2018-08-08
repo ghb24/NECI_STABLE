@@ -7,7 +7,7 @@ module tau_search_hist
                           UMatEps, nBasis, tGen_sym_guga_mol, tGen_nosym_guga, &
                           tReal, t_k_space_hubbard, t_trans_corr_2body, & 
                           t_trans_corr, t_new_real_space_hubbard, t_3_body_excits, &
-                          t_trans_corr_hop
+                          t_trans_corr_hop, tGUGA
                           
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow, &                
@@ -39,6 +39,10 @@ module tau_search_hist
                             ija_bins_para, all_ija_bins, ija_bins_anti, &
                             ija_orbs_sing, all_ija_orbs_sing, & 
                             ija_orbs_para, all_ija_orbs, ija_orbs_anti
+
+#ifndef __CMPLX
+    use guga_tausearch, only: find_max_tau_doubs_guga
+#endif
 
     implicit none
     ! variables which i might have to define differently:
@@ -392,7 +396,18 @@ contains
 
         ! Unless it is already specified, set an initial value for tau
         if (.not. tRestart .and. .not. tReadPops .and. tau < EPS) then
-            call FindMaxTauDoubs()
+#ifndef __CMPLX
+            if (tGUGA) then
+                print *, "Warning: FindMaxTauDoubs misused for GUGA!"
+                print *, "still need a specific implementation for that!"
+                call FindMaxTauDoubs()
+!                 call find_max_tau_doubs_guga()
+            else
+#endif
+                call FindMaxTauDoubs()
+#ifndef __CMPLX
+            end if
+#endif
         end if
 
         if (tReadPops) then
