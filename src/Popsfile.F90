@@ -2111,7 +2111,7 @@ r_loop: do while(.not.tStoreDet)
         bWritten = .false.
 
         call extract_sign(det, real_sgn)
-
+        !real_sgn = real_sgn * 1000
         ! We don't want to bother outputting empty particles, or those
         ! with a weight which is lower than specified as the cutoff
         if (sum(abs(real_sgn)) > binarypops_min_weight) then

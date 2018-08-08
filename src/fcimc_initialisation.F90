@@ -32,7 +32,7 @@ module fcimc_initialisation
                         tAddToInitiator, InitiatorWalkNo, tRestartHighPop, &
                         tAllRealCoeff, tRealCoeffByExcitLevel, tTruncInitiator, &
                         RealCoeffExcitThresh, aliasStem, &
-                        tPopsAlias, &
+                        tPopsAlias, allCorespaceWalkers, &
                         tDynamicCoreSpace, TargetGrowRate, &
                         TargetGrowRateWalk, InputTargetGrowRate, &
                         InputTargetGrowRateWalk, tOrthogonaliseReplicas, &
@@ -893,6 +893,7 @@ contains
         NoAddedInitiators=0
         NoInitDets=0
         NoNonInitDets=0
+        NoAtDoubs = 0.0_dp
         NoInitWalk(:)=0.0_dp
         NoNonInitWalk(:)=0.0_dp
         NoExtraInitDoubs=0
@@ -935,6 +936,7 @@ contains
         proje_iter = 0
         AccRat = 0
         HFShift = 0
+        bloom_count = 0
         InstShift = 0
         AbsProjE = 0
         norm_semistoch = 0
@@ -951,6 +953,7 @@ contains
         ! Set the flag to indicate that no shift adjustment has been made
         tfirst_cycle = .true.
 
+        allCorespaceWalkers = 0.0_dp
         corespaceWalkers = 0.0_dp
 
         ! Initialise the fciqmc counters

@@ -510,6 +510,7 @@ contains
         sizes(48) = size(popSnapShot)
 #endif
 
+        send_arr = 0
         if (sum(sizes(1:NoArrs)) > real_arr_size) call stop_all(t_r, &
              "No space left in arrays for communication of estimates. Please increase &
              & the size of the send_arr and recv_arr arrays in the source code.")
@@ -569,7 +570,6 @@ contains
         low = upp + 1; upp = low + sizes(47) - 1; send_arr(low:upp) = iter_data_fciqmc%update_growth;
         low = upp + 1; upp = low + sizes(48) - 1; send_arr(low:upp) = popSnapShot;
 #endif
-
         ! Perform the communication.
         call MPISumAll (send_arr(1:upp), recv_arr(1:upp))
 

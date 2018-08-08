@@ -32,7 +32,8 @@ module real_time_init
                               tLogTrajectory, tReadTrajectory, alphaCache, tauCache, trajFile, &
                               tGenerateCoreSpace, tGZero, wn_threshold, corespace_log_interval, &
                               alphaLog, alphaLogSize, alphaLogPos, tStaticShift, DiagVecTag, &
-                              tOnlyPositiveShift, tHFOverlap
+                              tOnlyPositiveShift, tHFOverlap, bloom_count_1, sumwalkerscyc_1, &
+                              nspawned_1
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_norm, clean_overlap_states, openTauContourFile
     use verlet_aux, only: backup_initial_state, setup_delta_psi
@@ -275,6 +276,7 @@ contains
         ! also initialize all the relevant first RK step quantities.. 
         NoatHF_1 = 0.0_dp 
         Annihilated_1 = 0.0_dp
+        nspawned_1 = 0.0_dp
         Acceptances_1 = 0.0_dp
         NoBorn_1 = 0.0_dp
         SpawnFromSing_1 = 0 
@@ -288,7 +290,8 @@ contains
         NoNonInitWalk_1 = 0.0_dp
         InitRemoved_1 = 0
         TotParts_1 = 0.0_dp
-        
+        bloom_count_1 = 0
+        sumwalkerscyc_1 = 0.0_dp
         ! also the global variables 
         AllNoatHF_1 = 0.0_dp
         AllNoatDoubs_1 = 0.0_dp
@@ -356,15 +359,16 @@ contains
       dyn_norm_psi = 1.0_dp
       allocate(dyn_norm_red(normsize), stat = ierr)
       allocate(current_overlap(normsize,gf_count),stat = ierr)
-
+      dyn_norm_red = 1.0_dp
       gf_overlap = 0.0_dp
-
-      ! we have to set up the norm before we apply the perturbation
-      call setup_normalization()
 
       ! also need to create the perturbed ground state to calculate the 
       ! overlaps to |y(t)> 
       call create_perturbed_ground()
+
+      ! we have to set up the norm before we apply the perturbation
+      call setup_normalization()
+
       if(tSemiStochastic) call init_semi_stochastic(ss_space_in)
       ! If only the corespace time-evolution is to be taken, truncate the
       ! initial wavefunction to the corespace
