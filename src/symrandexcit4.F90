@@ -109,6 +109,9 @@ contains
         ex = 0
         call GenExcitations3(nI, ilutI, nJ, flag, ex, par, found_all, &
                              .false.)
+        if (tGUGA) then 
+            call stop_all(this_routine, "modify get_helement for GUGA")
+        end if
         do while (.not. found_all)
             excit_count = excit_count + 1
             call EncodeBitDet(nJ, iluts(:, excit_count))
@@ -2221,6 +2224,10 @@ contains
 !         write(6,*) 'Expecting ', nexcit, "excitations"
         call GenExcitations3 (src_det, ilut, det, flag, ex, par, found_all, &
                               .false.)
+
+        if (tGUGA) then 
+            call stop_all(this_routine, "modify get_helement for GUGA")
+        end if
 
         do while (.not. found_all)
             ndet = ndet + 1

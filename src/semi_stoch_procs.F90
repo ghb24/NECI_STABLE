@@ -1147,6 +1147,10 @@ contains
 
         hamil = h_cast(0.0_dp)
 
+        if (tGUGA) then 
+            call stop_all("calc_determin_hamil_full", &
+                "modify get_helement for GUGA")
+        end if
         do i = 1, determ_space_size
             call decode_bit_det(nI, core_space(:,i))
 

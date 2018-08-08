@@ -762,6 +762,9 @@ contains
                 cycle
 
             !Find Hij
+            if (tGUGA) then 
+                call stop_all(t_r, "modify get_helement for GUGA")
+            end if
             if(tHPHF) then
                 if(.not.TestClosedShellDet(iLutnJ)) then
                     CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.true.,.true.,tSwapped)

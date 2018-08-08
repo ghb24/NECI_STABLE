@@ -248,6 +248,10 @@ contains
         use sort_mod, only: sort
         use SystemData, only: nel, tAllSymSectors
         use lanczos_wrapper, only: frsblk_wrapper
+#ifndef __CMPLX
+        use guga_excitations, only: calc_guga_matrix_element
+        use guga_data, only: excitationInformation
+#endif
 
         type(subspace_in) :: space_in
         integer, intent(in) :: nexcit
@@ -271,6 +275,9 @@ contains
         HElement_t(dp), allocatable :: work(:)
         real(dp), allocatable :: evals_all(:), rwork(:)
         character(len=*), parameter :: t_r = "calc_trial_states_direct"
+#ifndef __CMPLX
+        type(excitationInformation) :: excitInfo
+#endif
 
         ndets_this_proc = 0
         trial_iluts = 0_n_int
@@ -428,6 +435,9 @@ contains
                         if (tHPHF) then
                             H_tmp(j,i) = hphf_off_diag_helement(det_list(:,i), & 
                                 det_list(:,j),ilut_list(:,i), ilut_list(:,j))
+                        else if (tGUGA) then 
+                            call calc_guga_matrix_element(ilut_list(:,i), &
+                                ilut_list(:,j), excitInfo, H_tmp(j,i), .true., 2)
                         else
                             H_tmp(j,i) = get_helement(det_list(:,i), & 
                                 det_list(:,j),ilut_list(:,i),ilut_list(:,j))

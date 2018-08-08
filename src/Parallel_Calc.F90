@@ -141,6 +141,9 @@ subroutine ParMP2(nI)
          Excit(1,1)=2
          !call GetExcitation(nI,nJ,nEl,Excit,tSign)
          dE2=GetH0Element3(nJ)
+         if (tGUGA) then
+             call stop_all("ParMP2", "modify for GUGA")
+         end if
          dU(1) = get_helement(nI, nJ, IC)
          !dU(1) = get_helement (nI, nJ, IC, Excit, tSign)
          call getMP2E(dE1,dE2,dU(1),dE)

@@ -310,6 +310,10 @@ contains
         integer :: i, j 
 
         t_lattice_model = .false.
+        if (tGUGA) then
+            call stop_all("create_hamiltonian_old", &
+                "modify get_helement for GUGA")
+        end if
         do i = 1, size(list_nI,2)
             do j = 1, size(list_nI,2)
                 hamil(i,j) = get_helement(list_nI(:,j),list_nI(:,i))
