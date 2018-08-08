@@ -573,7 +573,7 @@ contains
             hel = calcDiagMatEleGUGA_nI(nI)
             ! make a check, that this is only called for diagonal elements.. 
             if (.not.all(nI == nJ)) then
-                call stop_all(this_routine,&
+                call stop_all("get_helement_det_only",&
                     "get_helement in GUGA should only be called for diagonal elements!")
             end if
             return

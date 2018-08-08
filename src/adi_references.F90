@@ -13,7 +13,7 @@ use bit_reps, only: decode_bit_det
 use DetBitOps, only: FindBitExcitLevel, sign_gt, sign_lt
 use sort_mod, only: sort
 use constants
-use SystemData, only: nel, t_3_body_excits
+use SystemData, only: nel, t_3_body_excits, tGUGA
 
 implicit none
 
@@ -825,6 +825,10 @@ contains
       use Determinants, only: get_helement
       use SystemData, only: tHPHF
       use hphf_integrals, only: hphf_off_diag_helement
+#ifndef __CMPLX
+    use guga_excitations, only: calc_guga_matrix_element
+    use guga_data, only: excitationInformation
+#endif
       implicit none
       integer(n_int), intent(in) :: ilut(0:NIfTot)
       integer, intent(in) :: iRef, run, nI(nel)
@@ -834,6 +838,8 @@ contains
       real(dp) :: signRef(lenof_sign)
 #ifdef __CMPLX 
       complex(dp) :: tmp
+#else
+      type(excitationInformation) :: excitInfo
 #endif
       HElement_t(dp) :: h_el
       
@@ -847,6 +853,10 @@ contains
       ! Then, get the matrix element
       if(tHPHF) then
          h_el = hphf_off_diag_helement(nI,nJRef(:),ilut,ilutRefAdi(:,iRef))
+#ifndef __CMPLX
+      else if (tGUGA) then 
+          call calc_guga_matrix_element(ilut,ilutRefAdi(:,iref), excitInfo, h_el, .true., 2)
+#endif
       else
          h_el = get_helement(nI,nJRef(:),ilut,ilutRefAdi(:,iRef))
       endif
@@ -895,6 +905,10 @@ contains
     use SystemData, only: tHPHF 
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_off_diag_helement
+#ifndef __CMPLX
+    use guga_excitations, only: calc_guga_matrix_element
+    use guga_data, only: excitationInformation
+#endif
     implicit none
     integer, intent(in) :: nI(nel), i, run
     integer(n_int), intent(in) :: ilut(0:NIfTot)
@@ -904,6 +918,9 @@ contains
     real(dp) :: i_sgn(lenof_sign)
     HElement_t(dp) :: h_el, tmp
     character(*), parameter :: this_routine = "upadte_coherence_check"
+#ifndef __CMPLX
+      type(excitationInformation) :: excitInfo
+#endif
 
     ! TODO: Only if ilutRefAdi(:,i) is a SI on this run
 
@@ -912,6 +929,10 @@ contains
     ! First, get the matrix element
     if(tHPHF) then
        h_el = hphf_off_diag_helement(nI,nIRef(:,i),ilut,ilutRefAdi(:,i))
+#ifndef __CMPLX
+    else if (tGUGA) then
+          call calc_guga_matrix_element(ilut,ilutRefAdi(:,i), excitInfo, h_el, .true., 2)
+#endif
     else
        h_el = get_helement(nI,nIRef(:,i),ilut,ilutRefAdi(:,i))
     endif

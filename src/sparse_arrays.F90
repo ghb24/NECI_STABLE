@@ -106,6 +106,9 @@ contains
         ! Set each element to one to count the diagonal elements straight away.
         sparse_row_sizes = 1
 
+        if (tGUGA) then 
+            call stop_all(t_r, "modify get_helement for GUGA!")
+        end if
         do i = 1, num_states
 
             hamiltonian_row = 0.0_dp

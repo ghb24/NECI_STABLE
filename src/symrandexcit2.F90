@@ -32,7 +32,7 @@ MODULE GenRandSymExcitNUMod
                           nOccAlpha, nOccBeta, ElecPairs, MaxABPairs, &
                           tKPntSym, lzTot, tNoBrillouin, tUseBrillouin, &
                           tUEG2, kvec, tAllSymSectors, NMAXX, NMAXY, NMAXZ, &
-                          tOrbECutoff, OrbECutoff
+                          tOrbECutoff, OrbECutoff, tGUGA
     use CalcData, only: tSpinProject, t_back_spawn, t_back_spawn_flex
     use FciMCData, only: pDoubles, iter, excit_gen_store_type, iluthf
     use Parallel_neci
@@ -1866,6 +1866,10 @@ MODULE GenRandSymExcitNUMod
             iCreate=iCreate+1
         ENDIF
 
+        if (tGUGA) then 
+            call stop_all("CreateSingleExcitBiased", &
+                "modify get_helement for GUGA")
+        end if
         IF(iCreate.gt.0) THEN
 !We want to spawn particles. This only question now is where. Run 
 !through the ab pairs again and choose based on the SpawnProb element.
@@ -1928,6 +1932,11 @@ MODULE GenRandSymExcitNUMod
 !This routine runs through all distinct ab pairs for the chosen ij and stochastically chooses how many particles to create.
 !If spawning wants to occur, then it runs through the list again and chooses a pair, which it returns.
         CALL CalcAllab(nI,iLut,Elec1Ind,Elec2Ind,SymProduct,iSpn,OrbA,OrbB,nParts,iCreate,Tau)
+
+        if (tGUGA) then
+            call stop_all("CreateDoubExcitBiased", & 
+                "modify get_helement for GUGA")
+        end if
 
 !We now know that we want to create iCreate particles, from orbitals nI(Elec1/2Ind) -> OrbA + OrbB.
         IF(iCreate.gt.0) THEN

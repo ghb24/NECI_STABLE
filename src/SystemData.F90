@@ -248,7 +248,7 @@ logical :: tGiovannisBrokenInit
 
 ! ==================== GUGA Implementation ========================
 ! input for graphical unitary group approach (GUGA) CSF implementation
-logical :: tGUGA ! flag to indicate usage of GUGA
+logical :: tGUGA = .false. ! flag to indicate usage of GUGA
 
 ! use a flag to determine if unit tests should be performed! with an 
 ! additional optional input how often the the excitation generator should 

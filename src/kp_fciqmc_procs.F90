@@ -7,6 +7,7 @@ module kp_fciqmc_procs
     use constants
     use Parallel_neci, only: iProcIndex, MPISum, nProcessors
     use kp_fciqmc_data_mod
+    use SystemData, only: tGUGA
 
     implicit none
 
@@ -266,6 +267,9 @@ contains
                     if (tHPHF) then
                         h_elem = hphf_off_diag_helement(nI, nJ, ilut_1, ilut_2)
                     else
+                        if (tGUGA) then 
+                            call stop_all("calc_hamil_exact", "modify for GUGA")
+                        end if
                         h_elem = get_helement(nI, nJ, ic, ilut_1, ilut_2)
                     end if
                 end if

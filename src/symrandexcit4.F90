@@ -7,7 +7,7 @@ module excit_gens_int_weighted
                           AB_elec_pairs, par_elec_pairs, AA_hole_pairs, &
                           par_hole_pairs, AB_hole_pairs, iMaxLz, &
                           tGen_4ind_part_exact, tGen_4ind_lin_exact, &
-                          tGen_4ind_unbound, t_iiaa, t_ratio, UMatEps
+                          tGen_4ind_unbound, t_iiaa, t_ratio, UMatEps, tGUGA
     use CalcData, only: matele_cutoff, t_matele_cutoff
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcitDataMod, only: SymLabelList2, SymLabelCounts2, OrbClassCount, &
@@ -109,6 +109,9 @@ contains
         ex = 0
         call GenExcitations3(nI, ilutI, nJ, flag, ex, par, found_all, &
                              .false.)
+        if (tGUGA) then 
+            call stop_all(this_routine, "modify get_helement for GUGA")
+        end if
         do while (.not. found_all)
             excit_count = excit_count + 1
             call EncodeBitDet(nJ, iluts(:, excit_count))
@@ -2221,6 +2224,10 @@ contains
 !         write(6,*) 'Expecting ', nexcit, "excitations"
         call GenExcitations3 (src_det, ilut, det, flag, ex, par, found_all, &
                               .false.)
+
+        if (tGUGA) then 
+            call stop_all(this_routine, "modify get_helement for GUGA")
+        end if
 
         do while (.not. found_all)
             ndet = ndet + 1

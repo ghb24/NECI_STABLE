@@ -464,6 +464,10 @@ contains
         ! Start by adding the HF state.
         call add_state_to_space(ilutHF, ilut_list, space_size)
 
+        if (tGUGA) then 
+            call stop_all("generate_sing_doub_determinants", &
+                "modify get_helement for GUGA")
+        end if
         if (tKPntSym) then
             call enumerate_sing_doub_kpnt(ex_flag, only_keep_conn, nsing, ndoub, .true., ilut_list, space_size)
         else
@@ -1440,6 +1444,10 @@ contains
         call GenSymExcitIt2(HFDet_loc, nel, G1, nBasis, .true., excit_gen, nJ, &
                 iMaxExcit, nStore, ex_flag)
 
+        if (tGUGA) then 
+            call stop_all("generate_sing_doub_determinants", &
+                "modify get_helement for GUGA")
+        end if
         do while(.true.)
             call GenSymExcitIt2(HFDet_loc, nel, G1, nBasis, .false., excit_gen, &
                     nJ, iExcit, nStore, ex_flag)

@@ -4,6 +4,7 @@ module exact_diag
 
     use constants
     use FciMCData, only: hamiltonian
+    use SystemData, only: t_non_hermitian, tGUGA
 
     implicit none
 
@@ -102,13 +103,19 @@ contains
         use Determinants, only: get_helement
         use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
         use SystemData, only: tHPHF, nel
-
+#ifndef __CMPLX
+        use guga_excitations, only: calc_guga_matrix_element
+        use guga_data, only: excitationInformation
+#endif
         integer(n_int), intent(in) :: ilut_list(0:,:)
         real(dp), intent(inout), allocatable :: local_hamil(:,:)
 
         integer :: ndets, i, j, ierr
         integer :: nI(nel), nJ(nel)
         character(*), parameter :: t_r = "calculate_full_hamiltonian"
+#ifndef __CMPLX
+        type(excitationInformation) :: excitInfo
+#endif
 
         ! Initial checks that arrays passed in are consistent.
         ndets = size(ilut_list, 2)
@@ -123,6 +130,9 @@ contains
         end if
 
         ! Loop over every pair of determinants and calculate all elements.
+        if (t_non_hermitian) then 
+            call stop_all(t_r, "check this for non-hermitian hamil!")
+        end if
         do i = 1, ndets
             call decode_bit_det(nI, ilut_list(:,i))
             do j = i, ndets
@@ -136,6 +146,11 @@ contains
                 else
                     if (tHPHF) then
                         local_hamil(i,j) = hphf_off_diag_helement(nI, nJ, ilut_list(:,i), ilut_list(:,j))
+#ifndef __CMPLX
+                    else if (tGUGA) then
+                        call calc_guga_matrix_element(ilut_list(:,i),ilut_list(:,j), & 
+                            excitInfo, local_hamil(i,j), .true., 2)
+#endif
                     else
                         local_hamil(i,j) = get_helement(nI, nJ, ilut_list(:,i), ilut_list(:,j))
                     end if

@@ -1734,6 +1734,9 @@ contains
         do i=1,DetLen
             ExcitLev = iGetExcitLevel(HFDet,Dets(:,i),NEl)
             if((ExcitLev.eq.1).or.(ExcitLev.eq.2)) then
+                if (tGUGA) then
+                    call stop_all(t_r, "modify for GUGA!")
+                end if
                 HDiagTemp = get_helement(HFDet,Dets(:,i),ExcitLev)
                 Num = Num + (HDiagTemp * CK(i,1))
                 nDoubles = nDoubles + 1

@@ -6,7 +6,7 @@ MODULE FciMCLoggingMod
     USE Global_utilities
     USE Parallel_neci
     USE LoggingData , only : tSaveBlocking,tBlockEveryIteration,HistInitPops,HistInitPopsTag,AllHistInitPops,AllHistInitPopsTag
-    use SystemData, only: NEl
+    use SystemData, only: NEl, tGUGA
     use bit_reps, only: NIfTot, NIfDBO
     USE SymData , only : nSymLabels
     USE Determinants , only : get_helement, get_helement_excit
@@ -488,6 +488,9 @@ MODULE FciMCLoggingMod
 !        stop
 
         ! Need to find the H element between the current determinant and that which we're trying to spawn on.
+        if (tGUGA) then 
+            call stop_all("TrackSpawnAttempts", "modify for GUGA!")
+        end if
         HEl = get_helement_excit (DetCurr, nJ, IC, Ex, tParity)
             
         IF(Child.eq.0) THEN

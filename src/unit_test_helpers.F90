@@ -11,7 +11,7 @@ module unit_test_helpers
 
     use SystemData, only: t_lattice_model, nOccAlpha, nOccBeta, &
                           trans_corr_param_2body, omega, nel, nBasis, &
-                          arr, brr, nBasis, bhub
+                          arr, brr, nBasis, bhub, tGUGA
 
     use fcimcdata, only: excit_gen_store_type
 
@@ -310,6 +310,10 @@ contains
         integer :: i, j 
 
         t_lattice_model = .false.
+        if (tGUGA) then
+            call stop_all("create_hamiltonian_old", &
+                "modify get_helement for GUGA")
+        end if
         do i = 1, size(list_nI,2)
             do j = 1, size(list_nI,2)
                 hamil(i,j) = get_helement(list_nI(:,j),list_nI(:,i))
