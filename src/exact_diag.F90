@@ -4,6 +4,7 @@ module exact_diag
 
     use constants
     use FciMCData, only: hamiltonian
+    use SystemData, only: t_non_hermitian, tGUGA
 
     implicit none
 
@@ -129,7 +130,7 @@ contains
         end if
 
         ! Loop over every pair of determinants and calculate all elements.
-        if (t_non_hermiatian) then 
+        if (t_non_hermitian) then 
             call stop_all(t_r, "check this for non-hermitian hamil!")
         end if
         do i = 1, ndets

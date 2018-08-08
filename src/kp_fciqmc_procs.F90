@@ -7,6 +7,7 @@ module kp_fciqmc_procs
     use constants
     use Parallel_neci, only: iProcIndex, MPISum, nProcessors
     use kp_fciqmc_data_mod
+    use SystemData, only: tGUGA
 
     implicit none
 

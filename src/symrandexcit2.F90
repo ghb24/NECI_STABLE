@@ -32,7 +32,7 @@ MODULE GenRandSymExcitNUMod
                           nOccAlpha, nOccBeta, ElecPairs, MaxABPairs, &
                           tKPntSym, lzTot, tNoBrillouin, tUseBrillouin, &
                           tUEG2, kvec, tAllSymSectors, NMAXX, NMAXY, NMAXZ, &
-                          tOrbECutoff, OrbECutoff
+                          tOrbECutoff, OrbECutoff, tGUGA
     use CalcData, only: tSpinProject, t_back_spawn, t_back_spawn_flex
     use FciMCData, only: pDoubles, iter, excit_gen_store_type, iluthf
     use Parallel_neci
@@ -1868,7 +1868,7 @@ MODULE GenRandSymExcitNUMod
 
         if (tGUGA) then 
             call stop_all("CreateSingleExcitBiased", &
-                "modify get_helement for GUGA)
+                "modify get_helement for GUGA")
         end if
         IF(iCreate.gt.0) THEN
 !We want to spawn particles. This only question now is where. Run 

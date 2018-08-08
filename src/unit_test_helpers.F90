@@ -11,7 +11,7 @@ module unit_test_helpers
 
     use SystemData, only: t_lattice_model, nOccAlpha, nOccBeta, &
                           trans_corr_param_2body, omega, nel, nBasis, &
-                          arr, brr, nBasis, bhub
+                          arr, brr, nBasis, bhub, tGUGA
 
     use fcimcdata, only: excit_gen_store_type
 

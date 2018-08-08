@@ -11,7 +11,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
       Use Determinants, only: get_helement, nUHFDet, &
                               E0HFDet
       use constants, only: dp
-      use SystemData , only : TSTOREASEXCITATIONS,BasisFN
+      use SystemData , only : TSTOREASEXCITATIONS,BasisFN, tGUGA
       use global_utilities
       IMPLICIT NONE
       HElement_t(dp) UMat(*),RH
@@ -169,7 +169,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
 !.. selection of dets we want.
          Use Determinants, only: get_helement
          use constants, only: dp
-         use SystemData, only: BasisFN
+         use SystemData, only: BasisFN, tGUGA
          IMPLICIT NONE
          TYPE(BasisFN) G1(*)
          HElement_t(dp) Rho2OrderND2

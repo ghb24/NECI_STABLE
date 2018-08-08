@@ -33,7 +33,7 @@ subroutine ParMP2(nI)
    use constants, only: dp
    use System, only: AreSameSpatialOrb
    use SystemData, only: nBasisMax,nEl,Beta,ARR,nBasis,ECore,G1,tCPMD,Symmetry, & 
-                         t_3_body_excits
+                         t_3_body_excits, tGUGA
    use CalcData, only: NWHTAY
    use Integrals_neci, only: GetUMatEl2
    use UMatCache, only: GTID

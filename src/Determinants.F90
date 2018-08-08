@@ -503,18 +503,18 @@ contains
             return 
         end if
 
-! #ifndef __CMPLX
-!         ! GUGA implementation: 
-!         if (tGUGA) then
-!             hel = calcDiagMatEleGUGA_nI(nI)
-!             ! make a check, that this is only called for diagonal elements.. 
-!             if (.not.all(nI == nJ)) then
-!                 call stop_all(this_routine,&
-!                     "get_helement in GUGA should only be called for diagonal elements!")
-!             end if
-!             return
-!         end if
-! #endif
+#ifndef __CMPLX
+        ! GUGA implementation: 
+        if (tGUGA) then
+            hel = calcDiagMatEleGUGA_nI(nI)
+            ! make a check, that this is only called for diagonal elements.. 
+            if (.not.all(nI == nJ)) then
+                call stop_all(this_routine,&
+                    "get_helement in GUGA should only be called for diagonal elements!")
+            end if
+            return
+        end if
+#endif
 
 
         ! If we are using CSFs, then call the csf routine.
@@ -572,7 +572,7 @@ contains
             hel = calcDiagMatEleGUGA_nI(nI)
             ! make a check, that this is only called for diagonal elements.. 
             if (.not.all(nI == nJ)) then
-                call stop_all(this_routine,&
+                call stop_all("get_helement_det_only",&
                     "get_helement in GUGA should only be called for diagonal elements!")
             end if
             return

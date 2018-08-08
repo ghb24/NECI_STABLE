@@ -13,7 +13,7 @@ use bit_reps, only: decode_bit_det
 use DetBitOps, only: FindBitExcitLevel, sign_gt, sign_lt
 use sort_mod, only: sort
 use constants
-use SystemData, only: nel, t_3_body_excits
+use SystemData, only: nel, t_3_body_excits, tGUGA
 
 implicit none
 
@@ -931,7 +931,7 @@ contains
        h_el = hphf_off_diag_helement(nI,nIRef(:,i),ilut,ilutRefAdi(:,i))
 #ifndef __CMPLX
     else if (tGUGA) then
-          call calc_guga_matrix_element(ilut,ilutRefAdi(:,iref), excitInfo, h_el, .true., 2)
+          call calc_guga_matrix_element(ilut,ilutRefAdi(:,i), excitInfo, h_el, .true., 2)
 #endif
     else
        h_el = get_helement(nI,nIRef(:,i),ilut,ilutRefAdi(:,i))

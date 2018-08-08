@@ -14,7 +14,7 @@ module semi_stoch_procs
                          MaxSpawned,indices_of_determ_states, ilutRef
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg
     use sparse_arrays, only: sparse_core_ham
-    use SystemData, only: nel, t_non_hermitian, tHPHF
+    use SystemData, only: nel, t_non_hermitian, tHPHF, tGUGA
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use Determinants, only: get_helement
     use timing_neci
