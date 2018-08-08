@@ -589,7 +589,6 @@ contains
 #endif
         con_vecs = 0.0_dp
 
-        print *, "here?"
         ! do i need to change this here for the non-hermitian transcorrelated 
         ! hamiltonians?
         do i = 1, size(con_vecs,2)
