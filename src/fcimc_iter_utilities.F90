@@ -449,9 +449,13 @@ contains
         sizes(30) = 1
         ! Perturbation correction
         sizes(31) = 1
+        ! replica-initiator statistics
+        sizes(32) = 1
+        sizes(33) = 1
+        sizes(34) = 1
 
 
-        if (sum(sizes(1:30)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
+        if (sum(sizes(1:34)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
                                                         & the size of the send_arr and recv_arr arrays in the source code.")
 
         low = upp + 1; upp = low + sizes(1 ) - 1; send_arr(low:upp) = SpawnFromSing;
@@ -489,6 +493,10 @@ contains
         low = upp + 1; upp = low + sizes(29) - 1; send_arr(low:upp) = nIncoherentDets
         low = upp + 1; upp = low + sizes(30) - 1; send_arr(low:upp) = nConnection
 
+        low = upp + 1; upp = low + sizes(32) - 1; send_arr(low:upp) = NoSIInitsConflicts;
+        low = upp + 1; upp = low + sizes(33) - 1; send_arr(low:upp) = NoInitsConflicts;
+        low = upp + 1; upp = low + sizes(34) - 1; send_arr(low:upp) = avSigns;
+        
         ! Perform the communication.
         call MPISumAll (send_arr(1:upp), recv_arr(1:upp))
 
@@ -531,6 +539,10 @@ contains
         low = upp + 1; upp = low + sizes(29) - 1; AllCoherentDoubles = recv_arr(low);
         low = upp + 1; upp = low + sizes(29) - 1; AllIncoherentDets = recv_arr(low);
         low = upp + 1; upp = low + sizes(30) - 1; AllConnection = recv_arr(low);
+        ! replica-averaged initiators
+        low = upp + 1; upp = low + sizes(32) - 1; AllNoSIInitsConflicts = recv_arr(low);
+        low = upp + 1; upp = low + sizes(33) - 1; AllNoInitsConflicts = recv_arr(low);
+        low = upp + 1; upp = low + sizes(34) - 1; AllAvSigns = recv_arr(low);
         ! Communicate HElement_t variables:
 
         low = 0; upp = 0;

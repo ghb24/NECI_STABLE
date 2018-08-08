@@ -31,7 +31,7 @@ module fcimc_helper
                            HistInitPopsIter, tHistInitPops, iterRDMOnFly, &
                            FciMCDebug, tLogEXLEVELStats
     use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, tReplicaCoherentInits, &
-                        tAddToInitiator, InitiatorWalkNo, &
+                        tAddToInitiator, InitiatorWalkNo, tAvReps, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
                         tRealCoeffByExcitLevel, tGlobalInitFlag, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
@@ -844,19 +844,36 @@ contains
         integer, intent(in) :: run, nI(nel), exLvl, site_idx
         real(dp), intent(in) :: sgn(lenof_sign)
 
-        logical :: initiator, staticInit
+        logical :: initiator, staticInit, popInit
         integer :: i
 
         logical :: Senior
         real(dp) :: DetAge, HalfLife, AvgShift, diagH
 
-        ! one initial check: if the replicas dont agree on the sign
-        ! dont make this an initiator under any circumstances
-        if(tReplicaCoherentInits) then
-           if(any(sgn*sgn(1) < 0)) then
-              initiator = .false.
+        ! initiator flag according to population
+        popInit = initiator_criterium(sgn,run)
+
+        ! initiator flag according to SI
+        staticInit = check_static_init(ilut, nI, sgn, exLvl, run)
+        ! check if there are sign conflicts across the replicas
+        if(any(sgn*(sgn_av_pop(sgn)) < 0)) then
+           ! check if this would be an initiator
+           if(popInit) then 
+              NoInitsConflicts = NoInitsConflicts + 1
+           endif
+          ! check if this would be an initiator due to SI criterium
+           ! (do not double - count)
+           if(staticInit .and. .not. popInit) then
+              NoSIInitsConflicts = NoSIInitsConflicts + 1
+           endif
+           ! one initial check: if the replicas dont agree on the sign
+           ! dont make this an initiator under any circumstances 
+           if(tReplicaCoherentInits .and. .not. &
+                ! maybe except for corepsace determinants
+                test_flag(ilut, flag_deterministic)) then
               ! log this, if we remove an initiator here
               if(is_init) NoAddedInitiators = NoAddedInitiators - 1_int64
+              initiator = .false.
               return
            endif
         endif
@@ -864,9 +881,7 @@ contains
         ! By default the particles status will stay the same
         initiator = is_init
 
-        ! If we are allowed to unset the initiator flag
-        staticInit = check_static_init(ilut, nI, sgn, exLvl, run)
-        ! reference-caused initiators also have the initiator flag
+        ! SI-caused initiators also have the initiator flag
         if(staticInit) initiator = .true.
 
         Senior = .false.
@@ -889,7 +904,7 @@ contains
            ! Determinant wasn't previously initiator 
            ! - want to test if it has now got a large enough 
            !   population to become an initiator.
-           if (initiator_criterium(sgn,run)) then
+           if (popInit) then
               initiator = .true.
               NoAddedInitiators = NoAddedInitiators + 1_int64
            endif
@@ -908,7 +923,7 @@ contains
            if ( .not. (staticInit) &
                 .and. .not. test_flag(ilut, flag_deterministic) &
                 .and. .not. Senior &
-                .and. (.not. initiator_criterium(sgn,run) )) then
+                .and. (.not. popInit )) then
               ! Population has fallen too low. Initiator status 
               ! removed.
               initiator = .false.
@@ -987,6 +1002,11 @@ contains
         NoInitWalk = 0.0_dp
         NoNonInitWalk = 0.0_dp
         InitRemoved = 0_int64
+
+        ! replica-initiator info
+        NoSIInitsConflicts = 0
+        NoInitsConflicts = 0
+        avSigns = 0.0_dp
 
         NoAborted = 0.0_dp
         NoRemoved = 0.0_dp
@@ -2168,10 +2188,17 @@ contains
          do run = 1, inum_runs
             ! are we looking at an erroneous sign?
             if(sgn(run)*avSign < 0) then
-               ! if yes, flip it
-               sgn(run) = 0.0
-!            iter_data%nremoved(run) = iter_data%nremoved(run) &
-!                 + (abs(sgn(run)) - abs(sum(sgn)/inum_runs))
+               ! log the conflict
+               avSigns = avSigns + abs(sgn(run))
+               
+               if(tAvReps) then
+                  ! log the sign change
+                  iter_data%nremoved(run) = iter_data%nremoved(run) &
+                       + (abs(sgn(run)))
+
+                  ! set the sign on the conflicting run to 0
+                  sgn(run) = 0.0
+               endif
             endif
          end do
          call encode_sign(ilut,sgn)

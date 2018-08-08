@@ -950,7 +950,7 @@ module FciMCParMod
                                         IterRDMStartCurr, AvSignCurr, fcimc_excit_gen_store)
 
             ! if requested, average the sign over replicas if not coherent
-            if(tAVReps) call replica_coherence_check(iter_data,CurrentDets(:,j),SignCurr)
+            if(inum_runs > 1) call replica_coherence_check(iter_data,CurrentDets(:,j),SignCurr)
 
             !call test_sym_excit_ExMag(DetCurr,100000000)
             !call stop_all(this_routine, "Test complete")

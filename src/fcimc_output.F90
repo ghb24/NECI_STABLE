@@ -13,7 +13,8 @@ module fcimc_output
                          AllHistogramEnergy
     use CalcData, only: tTruncInitiator, tTrialWavefunction, tReadPops, &
                         DiagSft, tSpatialOnlyHash, tOrthogonaliseReplicas, &
-                        StepsSft, tPrintReplicaOverlaps, tStartTrialLater, tEN2
+                        StepsSft, tPrintReplicaOverlaps, tStartTrialLater, tEN2, &
+                        tGlobalInitFlag
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
     use IntegralsData, only: frozen_orb_list, frozen_orb_reverse_map, &
@@ -47,11 +48,12 @@ contains
 !Print out initial starting configurations
             WRITE(iout,*) ""
             IF(tTruncInitiator) THEN
-                WRITE(initiatorstats_unit,"(A2,A17,15A23)") "# ","1.Step","2.TotWalk","3.Annihil","4.Died", &
+                WRITE(initiatorstats_unit,"(A2,A17,18A23)") "# ","1.Step","2.TotWalk","3.Annihil","4.Died", &
                 & "5.Born","6.TotUniqDets",&
 &               "7.InitDets","8.NonInitDets","9.InitWalks","10.NonInitWalks","11.AbortedWalks", &
                "12. Removed Dets",  "13. Insufficiently connected", "14. Coherent Doubles", &
-               "15. Incoherent Dets"
+               "15. Incoherent Dets", "16. Incoherent Inits (normal)", "17. Incoherent Inits (SI)", &
+               "18. Sign change from replica-averaging"
             ENDIF
             IF(tLogComplexPops) THEN
                 WRITE(complexstats_unit,"(A)") '#   1.Step  2.Shift     3.RealShift     4.ImShift   5.TotParts      " &
@@ -284,12 +286,13 @@ contains
                     IterTime
             endif
             if (tTruncInitiator) then
-               write(initiatorstats_unit,"(I12,4G16.7,3I20,7G16.7)")&
+               write(initiatorstats_unit,"(I12,4G16.7,3I20,7G16.7,2I20,1G16.7)")&
                    Iter + PreviousCycles, sum(AllTotParts), &
                    AllAnnihilated(1), AllNoDied(1), AllNoBorn(1), AllTotWalkers,&
                    AllNoInitDets(1), AllNoNonInitDets(1), AllNoInitWalk(1), &
                    AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1), &
-                   AllConnection, AllCoherentDoubles, AllIncoherentDets
+                   AllConnection, AllCoherentDoubles, AllIncoherentDets, &
+                   AllNoInitsConflicts, AllNoSIInitsConflicts, AllAvSigns
             endif
             if (tLogComplexPops) then
                 write (complexstats_unit,"(I12,6G16.7)") &
@@ -419,7 +422,8 @@ contains
                    AllAnnihilated(1), AllNoDied(1), AllNoBorn(1), AllTotWalkers,&
                    AllNoInitDets(1), AllNoNonInitDets(1), AllNoInitWalk(1), &
                    AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1), &
-                   AllConnection, AllCoherentDoubles, AllIncoherentDets
+                   AllConnection, AllCoherentDoubles, AllIncoherentDets, &
+                   AllNoInitsConflicts, AllNoSIInitsConflicts, AllAvSigns
             endif
 #endif
             if (tLogEXLEVELStats) then
@@ -781,6 +785,11 @@ contains
             if (tTruncInitiator) then
                 call stats_out(state_i, .false., Iter + PreviousCycles, 'Iter.')
                 call stats_out(state_i, .false., AllTotWalkers, 'TotDets.')
+                call stats_out(state_i, .false., AllNoInitsConflicts/inum_runs,&
+                     'Inc. Inits (normal)')
+                call stats_out(state_i, .false., AllNoSIInitsConflicts/inum_runs,&
+                     'Inc. Inits (SI)')
+                call stats_out(state_i, .false., AllAvSigns, 'Replica-averaged Sign')
                 do p = 1, inum_runs
                     write(tmpc, '(i5)') p
                     call stats_out(state_i, .false., AllTotParts(p), 'TotWalk. (' // trim(adjustl(tmpc)) // ")")
@@ -1443,7 +1452,7 @@ contains
                 write(iout,'(A)') "Current reference: "
                 call write_det (iout, ProjEDet(:,1), .true.)
                 if(tSetupSIs) call print_reference_notification(&
-                     1,nRefs,"Used Superinitiators",.true.)
+                     1,nRefs,"Used Superinitiator",.true.)
                 write(iout,*) "Number of superinitiators", nRefs
             end if
             
