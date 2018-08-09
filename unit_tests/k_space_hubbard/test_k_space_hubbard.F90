@@ -304,7 +304,7 @@ contains
 
         ! chain:
         ! 6 in 6, k = 0
-        nI = [3,4,5,6,7,8]
+!         nI = [3,4,5,6,7,8]
 
         ! 4 in 4, k = 0
 !         nI = [1,3,4,6]
@@ -481,6 +481,8 @@ contains
             do i = 1, size(J_vec)
                 trans_corr_param_2body = J_vec((i))
                 three_body_prefac = real(bhub,dp)*test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+                call init_two_body_trancorr_fac_matrix()
+                call init_three_body_const_mat()
      
                 j_opt = get_j_opt(nI, J_vec(i))
 
@@ -495,6 +497,8 @@ contains
             t_trans_corr_2body = .true.
             trans_corr_param_2body = J_vec((1))
             three_body_prefac = real(bhub,dp)*test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+            call init_two_body_trancorr_fac_matrix()
+            call init_three_body_const_mat()
             call setup_system(lat, nI, J, U)
 
             call gen_all_doubles_k_space(nI, n_excits, excits, sign_list)
@@ -527,6 +531,8 @@ contains
             do i = 1, size(J_vec)
                 trans_corr_param_2body = J_vec((i))
                 three_body_prefac = real(bhub,dp)*test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+                call init_two_body_trancorr_fac_matrix()
+                call init_three_body_const_mat()
      
                 sum_doubles = 0.0_dp
                 sum_doubles_trans = 0.0_dp
