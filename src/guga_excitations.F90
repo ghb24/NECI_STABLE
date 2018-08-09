@@ -21723,6 +21723,9 @@ contains
         type(excitationInformation), intent(in) :: excitInfo
         real(dp) :: pgen
         character(*), parameter :: this_routine = "calc_pgen_mol_guga_double"
+        real(dp) :: p_elec 
+
+        p_elec = 1.0_dp/real(ElecPairs, dp)
 
     end function calc_pgen_mol_guga_double
 
@@ -25334,13 +25337,15 @@ contains
 
     end subroutine pick_a_orb_guga_mol
 
-    subroutine gen_a_orb_cum_list_guga_mol(ilut, occ_orbs, cum_arr)
+    subroutine gen_a_orb_cum_list_guga_mol(ilut, occ_orbs, cum_arr, tgt_orb, pgen)
         ! subroutine to generate the molecular cumullative probability 
         ! distribution. there are no (atleast until now) addiditonal restrictions
         ! or some spin alignement restrictions to generate this list.. 
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: cum_arr(nSpatOrbs)
+        integer, intent(in), optional :: tgt_orb
+        real(dp), intent(out), optional :: pgen
         character(*), parameter :: this_routine = "gen_a_orb_cum_list_guga_mol"
         
         integer :: orb
@@ -25352,14 +25357,28 @@ contains
 
         cum_sum = 0.0_dp
         
-        do orb = 1, nSpatOrbs
-            ! only check non-double occupied orbitals
-!             if (.not.isThree(ilut, orb)) then
-            if (current_stepvector(orb) /= 3) then
-                cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
-            end if
-            cum_arr(orb) = cum_sum
-        end do
+        if (present(tgt_orb)) then
+            ASSERT(present(pgen))
+            do orb = 1, nSpatOrbs
+                if (current_stepvector(orb) /= 3) then
+                    cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
+                end if
+                cum_arr(orb) = cum_sum
+
+                if (orb == tgt_orb) then 
+
+                end if
+            end do
+
+        else
+            do orb = 1, nSpatOrbs
+                ! only check non-double occupied orbitals
+                if (current_stepvector(orb) /= 3) then
+                    cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
+                end if
+                cum_arr(orb) = cum_sum
+            end do
+        end if
 
     end subroutine gen_a_orb_cum_list_guga_mol
 
