@@ -536,9 +536,9 @@ contains
             t_trans_corr_2body = .true.
             trans_corr_param_2body = J_vec((1))
             three_body_prefac = real(bhub,dp)*test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+            call setup_system(lat, nI, J, U)
             call init_two_body_trancorr_fac_matrix()
             call init_three_body_const_mat()
-            call setup_system(lat, nI, J, U)
 
             if (t_do_doubles) then
                 call gen_all_doubles_k_space(nI, n_excits, excits, sign_list)
