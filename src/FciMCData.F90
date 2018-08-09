@@ -94,6 +94,8 @@ MODULE FciMCData
     integer(int64), allocatable :: NoAddedInitiators(:), NoInitDets(:), NoNonInitDets(:)
     integer :: NoInitsConflicts, NoSIInitsConflicts, AllNoInitsConflicts, AllNoSIInitsConflicts
     integer :: NoConflicts
+    integer :: maxConflictExLvl
+    integer, allocatable :: ConflictExLvl(:)
     real(dp) :: avSigns, AllAvSigns
     real(dp), allocatable :: NoInitWalk(:), NoNonInitWalk(:)
     integer(int64), allocatable :: NoExtraInitDoubs(:), InitRemoved(:)

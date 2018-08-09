@@ -1820,7 +1820,7 @@ contains
              case("AVERAGE-REPLICAS")
                 ! average the replica populations if they are not sign coherent
                 tAVReps = .true.
-
+                
              case("REPLICA-COHERENT-INITS")
                 ! require initiators to be coherent across replcias
                 tReplicaCoherentInits = .true.

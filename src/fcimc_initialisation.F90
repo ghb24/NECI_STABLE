@@ -825,6 +825,7 @@ contains
         NoSIInitsConflicts = 0
         NoInitsConflicts = 0
         NoConflicts = 0
+        maxConflictExlvl = 8
         avSigns = 0.0_dp
         NoInitWalk(:)=0.0_dp
         NoNonInitWalk(:)=0.0_dp
@@ -892,7 +893,9 @@ contains
 !                write(mswalkercounts_unit, "(A)") "# ms real    imag    magnitude"
 !            endif
 
- 
+        allocate(ConflictExLvl(maxConflictExLvl))
+        ConflictExLvl = 0
+
         IF(tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC)) THEN
             ALLOCATE(HistMinInd(NEl))
             ALLOCATE(HistMinInd2(NEl))
@@ -1740,6 +1743,8 @@ contains
 
         deallocate(FreeSlot,stat=ierr)
         if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
+
+        if(allocated(ConflictExLvl)) deallocate(ConflictExLvl)
 
         IF(tHistSpawn.or.tCalcFCIMCPsi) THEN
             DEALLOCATE(Histogram)

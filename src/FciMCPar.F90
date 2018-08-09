@@ -949,9 +949,6 @@ module FciMCParMod
             call extract_bit_rep_avsign(rdm_definitions, CurrentDets(:,j), j, DetCurr, SignCurr, FlagsCurr, &
                                         IterRDMStartCurr, AvSignCurr, fcimc_excit_gen_store)
 
-            ! if requested, average the sign over replicas if not coherent
-            if(inum_runs > 1) call replica_coherence_check(iter_data,CurrentDets(:,j),SignCurr)
-
             !call test_sym_excit_ExMag(DetCurr,100000000)
             !call stop_all(this_routine, "Test complete")
 
@@ -967,6 +964,11 @@ module FciMCParMod
             else
                 walkExcitLevel_toHF = walkExcitLevel
             endif
+
+            ! if requested, average the sign over replicas if not coherent
+            if(inum_runs > 1) call replica_coherence_check(iter_data,CurrentDets(:,j),&
+                 SignCurr, walkExcitLevel)
+
 
             if (tFillingStochRDMonFly) then
                 ! Set the average sign and occupation iteration which were

@@ -2170,11 +2170,12 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    subroutine replica_coherence_check(iter_data,ilut,sgn)
+    subroutine replica_coherence_check(iter_data,ilut,sgn,exLvl)
       implicit none
       type(fcimc_iter_data), intent(inout) :: iter_data
       integer(n_int), intent(inout) :: ilut(0:NIfTot)
       real(dp), intent(inout) :: sgn(lenof_sign)
+      integer, intent(in) :: exLvl
       
       integer :: run
       real(dp) :: avSign
@@ -2190,7 +2191,7 @@ contains
             if(sgn(run)*avSign < 0) then
                ! log the conflict
                avSigns = avSigns + abs(sgn(run))
-               
+               if(exLvl < maxConflictExLvl) ConflictExLvl(exLvl) = ConflictExLvl(exLvl) + 1
                if(tAvReps) then
                   ! log the sign change
                   iter_data%nremoved(run) = iter_data%nremoved(run) &

@@ -172,4 +172,6 @@ module LoggingData
     logical :: tWriteRefs
     character(255) :: ref_filename
 
+    logical :: tWriteConflictLvls
+
 end module LoggingData
