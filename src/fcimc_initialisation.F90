@@ -825,7 +825,6 @@ contains
         NoSIInitsConflicts = 0
         NoInitsConflicts = 0
         NoConflicts = 0
-        maxConflictExlvl = 8
         avSigns = 0.0_dp
         NoInitWalk(:)=0.0_dp
         NoNonInitWalk(:)=0.0_dp

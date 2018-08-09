@@ -7,6 +7,7 @@ MODULE Logging
     use MemoryManager, only: LogMemAlloc, LogMemDealloc,TagIntType
     use SystemData, only: nel, LMS, nbasis, tHistSpinDist, nI_spindist, &
                           hist_spin_dist_iter
+    use FciMCData, only: maxConflictExLvl
     use CalcData, only: tCheckHighestPop, semistoch_shift_iter, trial_shift_iter, tPairedReplicas
     use constants, only: n_int, size_n_int, bits_n_int
     use bit_rep_data, only: NIfTot, NIfD
@@ -159,7 +160,7 @@ MODULE Logging
       tHDF5PopsWrite = .false.
       tWriteRefs = .false.
       tWriteConflictLvls = .false.
-
+      maxConflictExlvl = 8
 #ifdef __PROG_NUMRUNS
       tFCIMCStats2 = .true.
 #else
@@ -735,6 +736,7 @@ MODULE Logging
          case("WRITE-CONFLICT-LEVELS")
             ! write the excitation levels of sign conflicts between replicas
             tWriteConflictLvls = .true.
+            if(item < nitems) call geti(maxConflictExLvl)
         
         case("NONEWRDMCONTRIB")
             ! To be used with READRDMs.  This option makes sure that we don't add in any 
