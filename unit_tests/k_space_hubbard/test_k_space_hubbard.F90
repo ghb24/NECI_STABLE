@@ -203,7 +203,7 @@ contains
             print *, "input J:"
             read(*,*), J
         else if (t_J_vec) then
-            J_vec = linspace(-1.0,1.0,10)
+            J_vec = linspace(-1.5,1.5,100)
 !               J_vec = [0.5]
         else 
             J = 0.1

@@ -3,7 +3,7 @@
 ! a small module with functions needed for the unit-tests
 module unit_test_helpers
 
-    use constants, only: dp, EPS, n_int, bits_n_int
+    use constants, only: dp, EPS, n_int, bits_n_int, sp
 
     use lattice_mod, only: get_helement_lattice, lattice
 
@@ -40,6 +40,10 @@ module unit_test_helpers
         end subroutine generate_all_excits_t
     end interface
 
+    interface linspace
+        module procedure linspace_sp
+        module procedure linspace_dp
+    end interface linspace
 !     interface is_in_list
 !         module procedure is_in_list_ilut
 !     end interface is_in_list
@@ -650,7 +654,31 @@ contains
 
     end function blas_matmul
 
-    function linspace(start_val, end_val, n_opt) result(vec) 
+    function linspace_sp(start_val, end_val, n_opt) result(vec) 
+        real(sp), intent(in) :: start_val, end_val 
+        integer, intent(in), optional :: n_opt
+        real(sp), allocatable :: vec(:) 
+
+        integer :: n, i 
+        real(sp) :: dist 
+
+        ! set default 
+        if (present(n_opt)) then 
+            n = n_opt
+        else 
+            n = 100
+        end if
+
+        dist = (end_val - start_val) / real(n - 1, dp) 
+
+        allocate(vec(n)) 
+
+        vec = [ ( start_val + i * dist, i = 0,n-1)]
+
+    end function linspace_sp
+
+
+    function linspace_dp(start_val, end_val, n_opt) result(vec) 
         real(dp), intent(in) :: start_val, end_val 
         integer, intent(in), optional :: n_opt
         real(dp), allocatable :: vec(:) 
@@ -671,7 +699,7 @@ contains
 
         vec = [ ( start_val + i * dist, i = 0,n-1)]
 
-    end function linspace 
+    end function linspace_dp
 
     function matrix_exponential(matrix) result(exp_matrix)
         ! calculate the matrix exponential of a real, symmetric 2-D matrix with lapack 

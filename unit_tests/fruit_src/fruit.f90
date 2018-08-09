@@ -1675,6 +1675,7 @@ contains
     call add_success
   end subroutine assert_eq_real_
 
+
   !------ 0d_real ------
   subroutine assert_eq_real_in_range_(var1, var2, delta, message)
 
@@ -1789,7 +1790,7 @@ contains
   subroutine assert_eq_double_in_range_(var1, var2, delta, message)
 
     real(dp), intent (in) :: var1, var2
-    real(dp), intent (in) :: delta
+    real(sp), intent (in) :: delta
     character(len = *), intent (in), optional :: message
 
         if (abs(var1 - var2) > delta) then
