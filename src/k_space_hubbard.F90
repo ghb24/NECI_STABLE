@@ -3136,6 +3136,12 @@ contains
 
         ASSERT(spin == 1 .or. spin == -1)
 
+!         if (spin == -1) then
+!             n_opp_loc = real(nOccAlpha,dp)
+!         else
+!             n_opp_loc = real(nOccBeta,dp)
+!         end if
+
         rpa_contrib_kvec = real(bhub,dp) * (cosh(J) - 1.0_dp) / real(omega,dp) * &
             (n_opp(spin) - 1.0_dp) * (epsilon_kvec(p) + epsilon_kvec(q))
 
@@ -3287,11 +3293,11 @@ contains
         ! "normal" matrix elements
 
         ! optimize this better and precompute more stuff! 
-!         two_body_transcorr_factor_ksym = real(bhub,dp)/real(omega,dp) * ( & 
-!             (exp(trans_corr_param_2body) - 1.0_dp) * epsilon_kvec(k) + & 
-!             (exp(-trans_corr_param_2body) -1.0_dp) * epsilon_kvec(p))
+        two_body_transcorr_factor_ksym = real(bhub,dp)/real(omega,dp) * ( & 
+            (exp(trans_corr_param_2body) - 1.0_dp) * epsilon_kvec(k) + & 
+            (exp(-trans_corr_param_2body) -1.0_dp) * epsilon_kvec(p))
 
-        two_body_transcorr_factor_ksym = two_body_transcorr_factor_matrix(p%s,k%s)
+!         two_body_transcorr_factor_ksym = two_body_transcorr_factor_matrix(p%s,k%s)
 
     end function two_body_transcorr_factor_ksym
 
@@ -3301,9 +3307,15 @@ contains
         character(*), parameter :: this_routine = "three_body_transcorr_fac_kvec"
 #endif
         integer :: k1(3), k2(3)
+        real(dp) :: n_opp__loc
 
         ASSERT(spin == 1 .or. spin == -1)
 
+!         if (spin == -1) then
+!             n_opp_loc = real(nOccAlpha,dp)
+!         else
+!             n_opp_loc = real(nOccBeta,dp)
+!         end if
         ! update: add k-vec to not leave first BZ 
         k1 = lat%subtract_k_vec(k,q)
         k2 = lat%add_k_vec(p,q)
@@ -3320,18 +3332,28 @@ contains
         character(*), parameter :: this_routine = "three_body_transcorr_fac_ksym"
 #endif
         type(symmetry) :: k1, k2
+        real(dp) :: n_opp_loc
 
         ASSERT(spin == 1 .or. spin == -1)
+
+        if (spin == -1) then
+            n_opp_loc = real(nOccAlpha,dp)
+        else
+            n_opp_loc = real(nOccBeta,dp)
+        end if
 
         k1 = SymTable(k%s, SymConjTab(q%s))
         k2 = SymTable(p%s, q%s)
 
+        three_body_transcorr_fac_ksym = -three_body_prefac * (& 
+            n_opp_loc * (epsilon_kvec(p) + epsilon_kvec(k)) - (& 
+            get_one_body_diag(nI,-spin,k1) + get_one_body_diag(nI,-spin,k2,.true.)))
 !         three_body_transcorr_fac_ksym = -three_body_prefac * (& 
 !             n_opp(spin) * (epsilon_kvec(p) + epsilon_kvec(k)) - (& 
 !             get_one_body_diag(nI,-spin,k1) + get_one_body_diag(nI,-spin,k2,.true.)))
 
-        three_body_transcorr_fac_ksym = three_body_const_mat(p%s,k%s,spin) + & 
-            three_body_prefac * (get_one_body_diag(nI,-spin,k1) + get_one_body_diag(nI,-spin,k2,.true.))
+!         three_body_transcorr_fac_ksym = three_body_const_mat(p%s,k%s,spin) + & 
+!             three_body_prefac * (get_one_body_diag(nI,-spin,k1) + get_one_body_diag(nI,-spin,k2,.true.))
 
     end function three_body_transcorr_fac_ksym
 
