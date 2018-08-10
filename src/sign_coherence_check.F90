@@ -16,7 +16,7 @@ module sign_coherence_check
   use util_mod
   use global_det_data, only: increase_conflict_counter, get_conflict_counter
   use DetBitOps, only: FindBitExcitLevel
-  use Determinants, only: get_helement
+  use procedure_pointers, only: get_spawn_helement
   use bit_reps, only: NIfTot, encode_sign, extract_sign, decode_bit_det, NIfDBO
 
 contains
@@ -195,7 +195,9 @@ contains
       integer :: i, exLvl, cDet(nel)
       real(dp) :: accumulatedSign(lenof_sign)
       integer :: PartInd, DetHash
-      logical :: tSuccess
+      logical :: tSuccess, tParity
+      HElement_t(dp), parameter :: helZero = 0.0_dp
+      integer :: exMat(2,2)
       
       call set_timer(sign_correction_time)
 
@@ -204,10 +206,18 @@ contains
          exLvl = FindBitExcitLevel(ilut,AllConflictingDets(:,i),max_calc_ex_level)
          if(exLvl == 1 .or. exLvl == 2) then
             !if yes, get the matrix element
+
+
             call decode_bit_det(cDet,AllConflictingDets(:,i))
+            ! get the stuff requird for computing the matrix element
+            exMat = 0
+            exMat(1,1) = 2
+            call GetExcitation(nI,cDet,nel,exMat,tParity)
+
             ! and add it to the accumulated sign correction
             call extract_sign(AllConflictingDets(:,i),accumulatedSign)
-            accumulatedSign = accumulatedSign + sgn*get_helement(nI,cDet,exLvl)
+            accumulatedSign = accumulatedSign + sgn*get_spawn_helement(&
+                 nI,cDet,ilut,AllConflictingDets(:,i),exLvl,exMat,tParity,helZero)
             ! store the updated sign in the AllConflictingDets
             call encode_sign(AllConflictingDets(:,i),accumulatedSign)
          endif
