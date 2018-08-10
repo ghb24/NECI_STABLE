@@ -98,7 +98,7 @@ module k_space_hubbard
     real(dp) :: n_opp(-1:1) = 0.0_dp
 
     ! temporary flag for the j optimization
-    logical :: t_symmetric = .false.
+    logical :: t_symmetric = .true.
 
     real(dp), allocatable :: two_body_transcorr_factor_matrix(:,:), &
                              three_body_const_mat(:,:,:)
@@ -1823,7 +1823,7 @@ contains
     subroutine init_get_helement_k_space_hub
 
         if (iProcIndex == root) then 
-            print *, "initialize k-space get_helemet pointer"
+            print *, "initialize k-space get_helement pointer"
         end if
 
         if (t_trans_corr_2body) then 
@@ -2056,9 +2056,10 @@ contains
         integer(n_int) :: ilut(0:niftot)
         type(symmetry) :: p_sym, q_sym, a_sym, b_sym, k_sym
 
-        integer :: src(2), tgt(2)
+        integer :: src(2), tgt(2), ex(2,2), nJ(nel)
         real(dp) :: sgn
-        real(dp) :: two, rpa, ex
+        real(dp) :: two, rpa, exchange, sum_3, tmp_hel, sum_hel
+        logical :: tsign
 
         call EncodeBitDet(nI, ilut)
 
@@ -2066,7 +2067,9 @@ contains
 
         two = 0.0_dp
         rpa = 0.0_dp
-        ex = 0.0_dp
+        exchange = 0.0_dp
+        sum_3 = 0.0_dp
+        sum_hel = 0.0_dp
         if (.not. t_symmetric) then
             do i = 1, nel! -1
                 do j = 1, nel 
@@ -2101,12 +2104,12 @@ contains
                                     ! the sum like below i think 
                                     get_j_opt = get_j_opt + & 
                                         two_body_contrib(corr_J, p_sym, a_sym) + & 
-                                        three_body_rpa_contrib(corr_J, p_sym, a_sym, spin_p) - & 
+                                        three_body_rpa_contrib(corr_J, p_sym, a_sym, spin_p) + & 
                                         three_body_exchange_contrib(nI, corr_J, p_sym, q_sym, a_sym, spin_q)
                                     
                                     two = two + two_body_contrib(corr_J, p_sym, a_sym)
                                     rpa = rpa +  three_body_rpa_contrib(corr_J, p_sym, a_sym, spin_p)
-                                    ex = ex + three_body_exchange_contrib(nI, corr_J, p_sym, q_sym, a_sym, spin_p)
+                                    exchange = exchange + three_body_exchange_contrib(nI, corr_J, p_sym, q_sym, a_sym, spin_p)
 
                                     ! and i also need to think how to sum over 
                                     ! the spins correctly!
@@ -2140,9 +2143,21 @@ contains
                                 b = get_orb_from_kpoints(nI(i),nI(j),a)
                                 if (IsNotOcc(ilut,b) .and. .not. same_spin(a,b))then! .and. a < b) then
 
-                                    src = [min(nI(i),nI(j)),max(nI(i),nI(j))]
-                                    tgt = [min(a,b),max(a,b)]
+!                                     print *, "---------"
+!                                     print *, "i,j, a,b:", nI(i),nI(j),a,b
 
+!                                     src = [min(nI(i),nI(j)),max(nI(i),nI(j))]
+!                                     tgt = [min(a,b),max(a,b)]
+! 
+!                                     ex(1,:) = [i,j]
+!                                     ex(2,:) = tgt
+!                                     nJ = nI
+! 
+!                                     call findexcitdet(ex,nJ,2,tsign)
+! 
+!                                     tmp_hel = get_helement_k_space_hub_general(nI,nJ)
+!                                     print *, "hel: ", tmp_hel
+                                    
                                     if (is_beta(src(1))) then 
                                         p_sym = G1(src(1))%sym
                                         q_sym = G1(src(2))%sym 
@@ -2161,9 +2176,15 @@ contains
                                     else 
                                         a_sym = G1(tgt(2))%sym
                                         b_sym = G1(tgt(1))%sym 
-                                        sgn = 1.0_dp
+                                        sgn = -1.0_dp
                                     end if
 
+!                                     print *, "j-sign:", sgn
+!                                     if (tsign) sgn = -sgn
+!                                     print *, "j-tpar:", tsign
+
+!                                     print *, "tmp_hel*sgn: ", tmp_hel*sgn
+!                                     sum_hel = sum_hel + tmp_hel*sgn
                                     k_sym = SymTable(p_sym%s, SymConjTab(a_sym%s))
 
                                     ! since i loop over all possible i,j i do not need 
@@ -2172,18 +2193,25 @@ contains
 !                                         two_body_contrib(corr_J, p_sym, a_sym) + & 
 !                                         three_body_rpa_contrib(corr_J, p_sym, a_sym, spin_p) + & 
 !                                         three_body_exchange_contrib(nI, corr_J, p_sym, q_sym, a_sym, spin_p))
-                                    
-				                    get_j_opt = get_j_opt + sgn*( & 
+
+				                    get_j_opt = get_j_opt + ( & 
                                         two_body_contrib(corr_J, p_sym, a_sym) + & 
                                         two_body_contrib(corr_J, q_sym, b_sym) + & 
                                         three_body_rpa_contrib(corr_J, p_sym, a_sym, spin_p) + & 
                                         three_body_rpa_contrib(corr_J, q_sym, b_sym, spin_q) + & 
                                         three_body_exchange_contrib(nI, corr_J, p_sym, q_sym, a_sym, spin_p)+&
                                         three_body_exchange_contrib(nI, corr_J, q_sym, p_sym, b_sym, spin_q))
-
-                                    two = two + two_body_contrib(corr_J, p_sym, a_sym)
-                                    rpa = rpa +  three_body_rpa_contrib(corr_J, p_sym, a_sym, spin_p)
-                                    ex = ex + three_body_exchange_contrib(nI, corr_J, p_sym, q_sym, a_sym, spin_p)
+! 
+!                                     two = two_body_contrib(corr_J, p_sym, a_sym) + &
+!                                                 two_body_contrib(corr_J, q_sym, b_sym)
+!                                     rpa = three_body_rpa_contrib(corr_J, p_sym, a_sym, spin_p) + &
+!                                                  three_body_rpa_contrib(corr_J, q_sym,b_sym,spin_q)
+!                                     exchange = three_body_exchange_contrib(nI, corr_J, p_sym, q_sym, a_sym, spin_p) + &
+!                                         three_body_exchange_contrib(nI, corr_J, q_sym,p_sym,b_sym,spin_q)
+! 
+! !                                     print *, "j_opt: ", sgn*(two+rpa+exchange)/real(omega,dp)
+! 
+!                                     sum_3 = sum_3 + rpa + exchange
 
                                     ! and i also need to think how to sum over 
                                     ! the spins correctly!
@@ -2204,12 +2232,16 @@ contains
                 end do
             end do
         end if
-
-
-        print *, "2body: ", two
-        print *, "rpa: ", rpa
-        print *, "ex:", ex
+! 
+!         print *, "-----"
+! 
+!         print *, "2body: ", two
+!         print *, "rpa: ", rpa
+!         print *, "exchange:", exchange
+!         print *, "sum_3: ", sum_3
         get_j_opt = get_j_opt/real(omega**2,dp)
+!         print *, "sum_j_opt: ", get_j_opt
+!         print *, "sum_hel: ", sum_hel
 
 
     end function get_j_opt
@@ -2438,11 +2470,6 @@ contains
             ! with momentum k_i + k_j - k_a and we need the 
             ! k_j - k_a momentum
             
-            
-!             call get_transferred_momenta(ex, k_vec_a, k_vec_b)
-
-!             spin = get_spin_pn(src(1))
-
             if (same_spin(src(1),src(2))) then
                 spin = get_spin_pn(src(1))
                 ! we need the spin of the excitation here if it is parallel
@@ -2524,44 +2551,27 @@ contains
                 ! because if i put it like that with k and -k it apparently 
                 ! cancels.. 
                 ! maybe i also need a convention of an ordered input of ex.. 
-!                 src = [minval(src),maxval(src)]
-!                 tgt = [minval(tgt),maxval(tgt)]
-
-!                 hel = hel + two_body_transcorr_factor(G1(src(1))%k, k_vec_a)! & 
-!                           + two_body_transcorr_factor(G1(src(2))%k, k_vec_b)
-
-!                 print *, "two-body: ", two_body_transcorr_factor(G1(src(1))%k,k_vec_a)
-!                 print *, "two-body: ", two_body_transcorr_factor(G1(src(2))%k,k_vec_a)
-!                 hel = hel + two_body_transcorr_factor(G1(ex(1,2))%k, k_vec)
-                
-!                 src = [minval(src),maxval(src)]
-!                 tgt = [minval(tgt),maxval(tgt)]
-
 
                 sgn = 1.0_dp
                 ! also adapt this two body factor.. i hope this is correct now
                 if (same_spin(src(1),tgt(1))) then 
                     ! i need the right hole-momenta
-                    k_vec_c = G1(tgt(1))%k 
                     k_sym_c = G1(tgt(1))%sym
-                    k_vec_d = G1(tgt(2))%k 
                     k_sym_d = G1(tgt(2))%sym
                     sgn = 1.0_dp
                 else 
-                    k_vec_c = G1(tgt(2))%k 
                     k_sym_c = G1(tgt(2))%sym
-                    k_vec_d = G1(tgt(1))%k
                     k_sym_d = G1(tgt(1))%sym
                     sgn = -1.0_dp
                 end if
 
-!                 if (tpar) sgn = -sgn
-
-!                 hel = hel + sgn*(two_body_transcorr_factor(G1(src(1))%k, k_vec_c) & 
-!                           + two_body_transcorr_factor(G1(src(2))%k, k_vec_d))
+!                 print *, "sgn hel:", sgn
 
                 hel = hel + sgn*(two_body_transcorr_factor(G1(src(1))%sym, k_sym_c) & 
                           + two_body_transcorr_factor(G1(src(2))%sym, k_sym_d))
+
+!                 print *, "two-body hel: ", sgn*(two_body_transcorr_factor(G1(src(1))%sym, k_sym_c) & 
+!                           + two_body_transcorr_factor(G1(src(2))%sym, k_sym_d))
 
                 ! and now the 3-body contribution: 
                 ! which also needs the third involved mometum, which then 
@@ -2575,29 +2585,15 @@ contains
                 ! influences!! damn.. todo! 
                 ! and this then determines which momentum i have to take.. or?
                 
-!                 hel = hel + three_body_transcorr_fac(nI, G1(src(1))%k, & 
-!                     G1(src(2))%k, k_vec_a, spin) & 
-!                     + three_body_transcorr_fac(nI, G1(src(1))%k, G1(src(2))%k, & 
-!                     k_vec_b, spin) 
-
-                ! i have to take into account both possible spin influences.. 
-                ! 
-!                 hel = hel + three_body_transcorr_fac(nI, G1(src(1))%k, & 
-!                                 G1(src(2))%k, k_vec_a, get_spin_pn(src(1))) & 
-!                           + three_body_transcorr_fac(nI, G1(src(2))%k, & 
-!                                 G1(src(1))%k, k_vec_b, get_spin_pn(src(2)))
-! 
-                ! third attempt: 
-!                 hel = hel  + sgn*(three_body_transcorr_fac(nI, G1(src(1))%k, & 
-!                                 G1(src(2))%k, k_vec_c, get_spin_pn(src(1))) & 
-!                            + three_body_transcorr_fac(nI, G1(src(2))%k, & 
-!                                 G1(src(1))%k, k_vec_d, get_spin_pn(src(2))))
-
                 hel = hel + sgn*(three_body_transcorr_fac(nI, G1(src(1))%sym, & 
                                 G1(src(2))%sym, k_sym_c, get_spin_pn(src(1))) & 
                           + three_body_transcorr_fac(nI, G1(src(2))%sym, & 
                                 G1(src(1))%sym, k_sym_d, get_spin_pn(src(2))))
 
+!                 print *, "3-body hel:", sgn*(three_body_transcorr_fac(nI, G1(src(1))%sym, & 
+!                                 G1(src(2))%sym, k_sym_c, get_spin_pn(src(1))) & 
+!                           + three_body_transcorr_fac(nI, G1(src(2))%sym, & 
+!                                 G1(src(1))%sym, k_sym_d, get_spin_pn(src(2))))
             end if
         end if
 
@@ -3160,11 +3156,21 @@ contains
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "rpa_contrib_ksym"
 #endif 
+        real(dp) :: n_opp_loc
 
         ASSERT(spin == -1 .or. spin == 1)
 
-        rpa_contrib_ksym = 2.0_dp * real(bhub,dp)*(cosh(J) - 1.0_dp) / real(omega, dp) * &
-            n_opp(spin) * (epsilon_kvec(p) + epsilon_kvec(a))
+        if (spin == -1) then
+            n_opp_loc = real(nOccAlpha,dp)
+        else
+            n_opp_loc = real(nOccBeta,dp)
+        end if
+
+        rpa_contrib_ksym = -2.0_dp * real(bhub,dp)*(cosh(J) - 1.0_dp) / real(omega, dp) * &
+            n_opp_loc * (epsilon_kvec(p) + epsilon_kvec(a))
+
+!         rpa_contrib_ksym = 2.0_dp * real(bhub,dp)*(cosh(J) - 1.0_dp) / real(omega, dp) * &
+!             n_opp(spin) * (epsilon_kvec(p) + epsilon_kvec(a))
 
     end function rpa_contrib_ksym
 
@@ -3191,11 +3197,11 @@ contains
         type(symmetry), intent(in) :: p, a
 
         if (.not. t_symmetric) then
-            two_body_contrib_ksym = real(uhub,dp) / 2.0_dp - real(bhub,dp) * & 
-                ((exp(J) - 1.0_dp) * epsilon_kvec(p) + (exp(-J) - 1.0) * epsilon_kvec(a))
+            two_body_contrib_ksym = real(uhub,dp) / 2.0_dp + real(bhub,dp) * & 
+                ((exp(J) - 1.0_dp) * epsilon_kvec(a) + (exp(-J) - 1.0) * epsilon_kvec(p))
         else 
-            two_body_contrib_ksym = real(uhub,dp)/2.0_dp - real(bhub,dp) * & 
-                ((exp(J) - 1.0_dp) * epsilon_kvec(p) + (exp(-J) - 1.0) * epsilon_kvec(a))
+            two_body_contrib_ksym = real(uhub,dp)/2.0_dp + real(bhub,dp) * & 
+                ((exp(J) - 1.0_dp) * epsilon_kvec(a) + (exp(-J) - 1.0) * epsilon_kvec(p))
         end if
 
 
@@ -3243,7 +3249,7 @@ contains
         ! and we need the dipersion of p-k - q = a - q
         k2 = SymTable(a%s, SymConjTab(q%s))
 
-        exchange_contrib_ksym = -2.0_dp * real(bhub,dp)*(cosh(J)-1.0_dp)/real(omega,dp) & 
+        exchange_contrib_ksym = 2.0_dp * real(bhub,dp)*(cosh(J)-1.0_dp)/real(omega,dp) & 
             * (get_one_body_diag(nI,-spin,k1,.true.) + get_one_body_diag(nI,-spin,k2))
 
     end function exchange_contrib_ksym
@@ -3310,7 +3316,7 @@ contains
         character(*), parameter :: this_routine = "three_body_transcorr_fac_kvec"
 #endif
         integer :: k1(3), k2(3)
-        real(dp) :: n_opp__loc
+        real(dp) :: n_opp_loc
 
         ASSERT(spin == 1 .or. spin == -1)
 

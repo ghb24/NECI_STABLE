@@ -122,7 +122,7 @@ contains
         integer, allocatable :: trunc(:), add(:,:)
         integer :: l_norm, n_excited_states
         logical :: t_exact_propagation, t_optimize_j, t_do_exact_transcorr
-        real(dp) :: timestep, j_opt
+        real(dp) :: timestep, j_opt, tmp_hel
         real(dp), allocatable :: sign_list(:)
 
         tmp_sign = 0.0_dp
@@ -153,10 +153,10 @@ contains
 
         irrep_names = ['  x','A1g','A2g','B1g','B2g',' Eg','A1u','A2u','B1u','B2u',' Eu']
 
-        t_do_exact_transcorr = .false.
+        t_do_exact_transcorr = .true.
         t_optimize_j = .true.
         t_do_diags = .true.
-        t_do_doubles = .false.
+        t_do_doubles = .true.
         t_do_subspace_study = .false.
         t_input_U = .true.
         t_input_J = .false.
@@ -187,7 +187,7 @@ contains
             print *, "input J:"
             read(*,*), J
         else if (t_J_vec) then
-            J_vec = linspace(-2.0,2.0,200)
+            J_vec = linspace(-1.0,1.0,100)
 !               J_vec = [0.5]
         else 
             J = 0.1
@@ -211,7 +211,7 @@ contains
         call init_k_space_unit_tests()
         
         ! i have to define the lattice here.. 
-        lat => lattice('chain', 6, 1, 1,.true.,.true.,.true.,'k-space')
+        lat => lattice('square', 4, 4, 1,.true.,.true.,.true.,'k-space')
 
 !         x = [(-lat%dispersion_rel_orb(i), i = 1, 24)]
 !         ind = [(i, i = 1, 24)]
@@ -226,7 +226,7 @@ contains
 !             print *,lat%get_k_vec(ind(i)),"|", k_vec(1)*k1 + k_vec(2)*k2, "|", x(i)
 !         end do
         
-        nel = 6
+        nel = 16
         allocate(nI(nel))
         allocate(nJ(nel))
         nj = 0
@@ -292,7 +292,7 @@ contains
 !         nI = [1,2,3,4,5,6,9,10,11,12,13,14,15,16,19,20]
 
         ! 16 in 16 k = 0 open shell 
-!         nI = [1,3,4,5,6,9,10,11,12,13,14,17,18,19,20,22]
+        nI = [1,3,4,5,6,9,10,11,12,13,14,17,18,19,20,22]
 
         
 
@@ -350,16 +350,27 @@ contains
 
         ! chain:
         ! 6 in 6, k = 0
-        nI = [3,4,5,6,7,8]
+!         nI = [3,4,5,6,7,8]
 
         ! 4 in 4, k = 0
 !         nI = [1,3,4,6]
+        ! 4 in 4, k != 0:
+!         nI = [1,2,3,4]
+
+        ! 3 in 4, k != 0
+!         nI = [1,3,4]
+
+        ! 2 in 4 k = 0
+!         nI = [3,4]
+
+        ! 2 in 4 k!=0
+!         nI = [1,6]
 
         ! 6 in 8, 
 !         nI = [5,6,7,8,9,10]
 
         ! 6 in 6, k = 3
-!         nI = [2,3,4,5,6,7]
+!         ni = [2,3,4,5,6,7]
 
         ! 4 in 6, k = 0
 !         nI = [3,5,6,8]
@@ -511,6 +522,8 @@ contains
             trans_corr_param_2body = J_vec((1))
             three_body_prefac = real(bhub,dp)*test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
             call setup_system(lat, nI, J, U)
+            call init_two_body_trancorr_fac_matrix()
+            call init_three_body_const_mat()
 
             write(U_str, *) int(U)
             write(nel_str, *) nel 
@@ -529,7 +542,7 @@ contains
                 call init_two_body_trancorr_fac_matrix()
                 call init_three_body_const_mat()
      
-                j_opt = get_j_opt(nI, J_vec(i))
+                j_opt = get_j_opt(nI, J_vec(i))/real(omega,dp)
 
                 write(iunit,*) J_vec(i), j_opt
             end do
@@ -582,9 +595,14 @@ contains
 
                     do k = 1, n_excits
                         call decode_bit_det(nJ, excits(:,k))
+!                         print *, "-----"
+!                         print *, "nJ:", nJ
+!                         print *, "sign_k: ", sign_list(k)
+!                         tmp_hel = get_helement_lattice(nI,nJ)
+!                         print *, "hel: ", tmp_hel
 
-                        sum_doubles = sum_doubles + sign_list(k)*get_helement_lattice(nI, nJ)
-                        sum_doubles_trans = sum_doubles_trans + sign_list(k)*get_helement_lattice(nJ,nI)
+                        sum_doubles = sum_doubles + sign_list(k)*get_helement_lattice(nI, nJ)/real(omega,dp)
+                        sum_doubles_trans = sum_doubles_trans + sign_list(k)*get_helement_lattice(nJ,nI)/real(omega,dp)
 
                     end do
 

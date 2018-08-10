@@ -1798,7 +1798,7 @@ contains
 
 !         n_bound = nel*(nel-1)*(nbasis-nel)*(nbasis-nel-1)
         ! i think a more correct estimat is:
-        n_bound = int(nel*(nel-1)*(nBasis - nel)/4)
+        n_bound = max(int(nel*(nel-1)*(nBasis - nel)/4), 10)
 
         allocate(temp_list(0:niftot,n_bound))
 
