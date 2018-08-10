@@ -570,17 +570,9 @@ contains
 
             ! Only do the actual outputting on the head node.
 
-            ! Don't treat the header line as data. Add padding to align the
-            ! other columns. We also add a # to the first line of data, so
-            ! that there aren't repeats if starting from POPSFILES
-            if (state%init .or. state%prepend) then
-                write(state%funit, '("#")', advance='no')
-                if (tMCOutput) write(iout, '("#")', advance='no')
-                state%prepend = state%init
-            else if (.not. state%prepend) then
-                write(state%funit, '(" ")', advance='no')
-                if (tMCOutput) write(iout, '(" ")', advance='no')
-            end if
+            call write_padding_init(state)
+            call write_padding_init(state_i)
+            call write_padding_init(state_cl)
 
             ! And output the actual data!
             state%cols = 0
@@ -779,6 +771,23 @@ contains
         end if
 
     end subroutine write_fcimcstats2
+
+    subroutine write_padding_init(state)
+      implicit none
+      type(write_state_t), intent(inout) :: state
+
+      ! Don't treat the header line as data. Add padding to align the
+      ! other columns. We also add a # to the first line of data, so
+      ! that there aren't repeats if starting from POPSFILES
+      if (state%init .or. state%prepend) then
+         write(state%funit, '("#")', advance='no')
+         if (tMCOutput) write(iout, '("#")', advance='no')
+         state%prepend = state%init
+      else if (.not. state%prepend) then
+         write(state%funit, '(" ")', advance='no')
+         if (tMCOutput) write(iout, '(" ")', advance='no')
+      end if
+    end subroutine write_padding_init
 
     subroutine writeMsWalkerCountsAndCloseUnit()
         integer :: i, ms, tempni(1:nel)
