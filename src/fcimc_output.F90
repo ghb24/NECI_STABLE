@@ -750,6 +750,7 @@ contains
             ! gather sign conflict statistics
             if(tWriteConflictLvls) then
                call stats_out(state_cl, .false., Iter + PreviousCycles, 'Iter')
+               call stats_out(state_cl, .false., sum(conflictExLvl), 'confl. Dets')
                do p = 1, maxConflictExLvl
                   ! write the number of conflicts of this excitation lvl
                   write(tmpc,('(i5)')) p

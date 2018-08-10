@@ -1,6 +1,7 @@
 #include "macros.h"
 
 module sign_coherence_check
+  use SystemData, only: tHPHF
   use hash, only: clear_hash_table, add_hash_table_entry, hash_table_lookup, &
        remove_hash_table_entry, FindWalkerHash
   use FciMCData, only: clistIndex, AllConflictingDets, ConflictingDets, &
@@ -16,8 +17,9 @@ module sign_coherence_check
   use util_mod
   use global_det_data, only: increase_conflict_counter, get_conflict_counter
   use DetBitOps, only: FindBitExcitLevel
-  use procedure_pointers, only: get_spawn_helement
+  use Determinants, only: get_helement
   use bit_reps, only: NIfTot, encode_sign, extract_sign, decode_bit_det, NIfDBO
+  use hphf_integrals, only: hphf_off_diag_helement
 
 contains
 
@@ -216,8 +218,13 @@ contains
 
             ! and add it to the accumulated sign correction
             call extract_sign(AllConflictingDets(:,i),accumulatedSign)
-            accumulatedSign = accumulatedSign + sgn*get_spawn_helement(&
-                 nI,cDet,ilut,AllConflictingDets(:,i),exLvl,exMat,tParity,helZero)
+            if(tHPHF) then 
+               accumulatedSign = accumulatedSign + sgn*hphf_off_diag_helement(&
+                    nI,cDet,ilut,AllConflictingDets(:,i),exLvl,exMat,tParity,helZero)
+            else
+               accumulatedSign = accumulatedSign + sgn*get_helement(nI,cDet,exLvl,&
+                    ilut,AllConflictingDets(:,i))
+            endif
             ! store the updated sign in the AllConflictingDets
             call encode_sign(AllConflictingDets(:,i),accumulatedSign)
          endif

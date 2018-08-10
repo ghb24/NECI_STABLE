@@ -1111,6 +1111,9 @@ contains
         cont_spawn_attempts = 0
         cont_spawn_success = 0
 
+        ! reset the number of conflicts
+        ConflictExLvl = 0
+
     end subroutine rezero_iter_stats_update_cycle
 
     subroutine calculate_new_shift_wrapper (iter_data, tot_parts_new, replica_pairs)
