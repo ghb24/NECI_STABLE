@@ -140,6 +140,14 @@ MODULE FciMCData
       integer :: nWalkerHashes    ! The length of hash table.
       real(dp) :: HashLengthFrac
 
+      ! hash table for conflicting determinants
+      logical :: tStoreConflicts, tGetConflictCorrections
+      integer :: cAccIter, cAccStartIter, minCAccIter, correctionInterval
+      integer :: cHashSize
+      type(ll_node), pointer :: conflictHash(:)
+      integer(n_int), allocatable :: conflictingDets(:,:), AllConflictingDets(:,:)
+      integer :: nCDetsStore, clistIndex, AllCListSize
+
 !The following variables are calculated as per processor, but at the end of each update cycle, 
 !are combined to the root processor
       real(dp) :: GrowRate,DieRat
@@ -263,7 +271,7 @@ MODULE FciMCData
                            SemiStoch_Init_Time, Trial_Init_Time, &
                            kp_generate_time, Stats_Comms_Time, &
                            subspace_hamil_time, exact_subspace_h_time, &
-                           subspace_spin_time
+                           subspace_spin_time, sign_correction_time
       
       ! Store the current value of S^2 between update cycles
       real(dp), allocatable :: curr_S2(:), curr_S2_init(:)

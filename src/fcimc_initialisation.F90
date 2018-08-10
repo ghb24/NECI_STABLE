@@ -93,6 +93,7 @@ module fcimc_initialisation
                                        gen_excit_4ind_reverse
     use hash, only: FindWalkerHash, add_hash_table_entry, init_hash_table
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
+    use load_balance, only: tLoadBalanceBlocks
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcit4, only: CountExcitations4, GenExcitations4
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
@@ -878,6 +879,7 @@ contains
         all_norm_psi_squared = 1.0_dp
         tSoftExitFound = .false.
         tReferenceChanged = .false.
+        tGetConflictCorrections = .false.
 
         ! Initialise the fciqmc counters
         iter_data_fciqmc%update_growth = 0.0_dp
@@ -1590,6 +1592,8 @@ contains
 
          if(tInitiatorsSubspace) call read_g_markers()
 
+        if(tStoreConflicts) call init_conflict_data()
+
          if(tRDMonFly .and. tDynamicCoreSpace) call sync_rdm_sampling_iter()
 
 
@@ -1862,6 +1866,9 @@ contains
 
         ! Cleanup adi caches
         call clean_adi()
+
+        ! cleanup conflict caches
+        call clean_conflict_data()
 
         if (tSemiStochastic) call end_semistoch()
 
@@ -3702,6 +3709,48 @@ contains
 	coreSpaceUpdateCycle = SIUpdateInterval
       endif
     end subroutine setup_dynamic_core
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine init_conflict_data()
+      implicit none
+      character(*), parameter :: t_r = "init_conflict_data"
+      integer :: j
+      
+      if(tLoadBalanceBlocks) call stop_all(t_r,&
+           "Storage of conflicts is incompatible with load-balance option")
+      ! start filling the list from 0
+      clistIndex = 0
+      ! the last two entries per ilut are used for storing the
+      ! number of conflicts and the last conflicting iteration
+      ! so conflictingDets-iluts are larger by 1 than regular ones (they dont have flags)
+      allocate(conflictingDets(0:(NIfTot+1),nCDetsStore))
+      conflictingDets = 0
+      ! buffer for gathering the conflicting dets
+      allocate(AllConflictingDets(0:(NIfTot+1),nCDetsStore*nProcessors))
+      AllConflictingDets = 0
+      ! set up the hashtable (to the size of AllConflictingDets)
+      cHashSize = nCDetsStore * nProcessors
+      allocate(conflictHash(cHashSize))
+      call init_hash_table(conflictHash)
+
+      ! iteration count
+      cAccStartIter = 0
+      
+      ! The conflict counter is automatically initialized to 0, no need to 
+      ! set that one
+    end subroutine init_conflict_data
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine clean_conflict_data()
+      use hash, only: clear_hash_table
+      implicit none
+      ! deallocate the conflict buffers
+      if(allocated(conflictingDets)) deallocate(conflictingDets)
+      call clear_hash_table(conflictHash)
+      if(associated(conflictHash)) deallocate(conflictHash)
+    end subroutine clean_conflict_data
 
 !------------------------------------------------------------------------------------------!
 

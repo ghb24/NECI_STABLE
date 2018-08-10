@@ -25,9 +25,10 @@ MODULE Calc
     use IntegralsData, only: tNeedsVirts
     use FciMCData, only: tTimeExit,MaxTimeExit, InputDiagSft, tSearchTau, &
                          nWalkerHashes, HashLengthFrac, tSearchTauDeath, &
-                         tTrialHash, tIncCancelledInitEnergy, MaxTau, &
-                         tStartCoreGroundState, pParallel, pops_pert, &
-                         alloc_popsfile_dets, tSearchTauOption 
+                         tTrialHash, tIncCancelledInitEnergy, MaxTau, minCAccIter, &
+                         tStartCoreGroundState, pParallel, pops_pert, cAccIter, &
+                         alloc_popsfile_dets, tSearchTauOption, nCDetsStore, tStoreConflicts, &
+                         minCAccIter, correctionInterval
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
          tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits, tSetDelayAllDoubsInits, &
          tSetDelayAllSingsInits, nExProd, NoTypeN, tAdiActive, tReadRefs, SIUpdateInterval, &
@@ -377,12 +378,17 @@ contains
           SIUpdateInterval = 100
           tAdiActive = .false.
           minSIConnect = 1
-
+          
           ! all averages over replicas are to be signed
           tSignedRepAv = .true.
           ! never allow an initiator to have different sign across replicas
           tReplicaCoherentInits = .false.
-
+          ! normally, do not store the sign conflicts themselves
+          nCDetsStore = 1000
+          tStoreConflicts = .false.
+          cAccIter = 1
+          minCAccIter = 0
+          correctionInterval = 1000
           ! And disable the initiators subspace
           tInitiatorsSubspace = .false.
 
@@ -2645,6 +2651,27 @@ contains
 
              case("SIGNED-REPLICA-AVERAGE")
                 tSignedRepAv = .true.
+
+             case("CACHE-SIGN-CONFLICTS")
+                ! store sign conflicts in a separate hashtable
+                tStoreConflicts = .true.
+                ! optional: number of confl. determinants to store
+                if(item < nitems) then 
+                   call readi(nCDetsStore)
+                   nCDetsStore = nCDetsStore / nProcessors
+                endif
+
+             case("AVERAGE-ITERS")
+                ! over how many iterations do we want to average the
+                ! signs for replica-sign conflict solution
+                call readi(cAccIter)
+
+             case("SIGN-CORRECTION-INTERVAL")
+                ! how often we apply the correction
+                call readi(correctionInterval)
+
+             case("START-SIGN-CORRECTION")
+                call readi(minCAccIter)
 
              case("STD-INITIATORS")
                 tSTDInits = .true.

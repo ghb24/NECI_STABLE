@@ -46,7 +46,7 @@ module fcimc_helper
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
     use procedure_pointers, only: attempt_die, extract_bit_rep_avsign
     use DetCalcData, only: FCIDetIndex, ICILevel, det
-    use hash, only: remove_hash_table_entry
+    use hash, only: remove_hash_table_entry, add_hash_table_entry, hash_table_lookup
     use load_balance_calcnodes, only: DetermineDetNode, tLoadBalanceBlocks
     use load_balance, only: adjust_load_balance
     use rdm_filling_old, only: det_removed_fill_diag_rdm_old
@@ -2167,44 +2167,5 @@ contains
         write(6,*) 'Calculated instantaneous projected energy', proje_iter
 
     end subroutine
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine replica_coherence_check(iter_data,ilut,sgn,exLvl)
-      implicit none
-      type(fcimc_iter_data), intent(inout) :: iter_data
-      integer(n_int), intent(inout) :: ilut(0:NIfTot)
-      real(dp), intent(inout) :: sgn(lenof_sign)
-      integer, intent(in) :: exLvl
-      
-      integer :: run
-      real(dp) :: avSign
-
-#ifdef __CMPLX
-#else
-      ! check if there are any sign changes within sgn
-      if(any(sgn*sgn(1) < 0)) then
-         avSign = sum(sgn)/inum_runs
-         ! log the change in population
-         do run = 1, inum_runs
-            ! are we looking at an erroneous sign?
-            if(sgn(run)*avSign < 0) then
-               ! log the conflict
-               avSigns = avSigns + abs(sgn(run))
-               if(exLvl < maxConflictExLvl) ConflictExLvl(exLvl) = ConflictExLvl(exLvl) + 1
-               if(tAvReps) then
-                  ! log the sign change
-                  iter_data%nremoved(run) = iter_data%nremoved(run) &
-                       + (abs(sgn(run)))
-
-                  ! set the sign on the conflicting run to 0
-                  sgn(run) = 0.0
-               endif
-            endif
-         end do
-         call encode_sign(ilut,sgn)
-      endif
-#endif
-    end subroutine replica_coherence_check
     
 end module

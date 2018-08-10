@@ -62,7 +62,7 @@ module FciMCParMod
     use cont_time, only: iterate_cont_time
     use global_det_data, only: det_diagH, reset_tau_int, get_all_spawn_pops, &
                                reset_shift_int, update_shift_int, &
-                               update_tau_int, set_spawn_pop
+                               update_tau_int, set_spawn_pop, reset_conflict_counter
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
     use ftlm_neci, only: perform_ftlm
@@ -84,6 +84,9 @@ module FciMCParMod
 
     use tau_search_hist, only: print_frequency_histograms, deallocate_histograms
     use back_spawn, only: init_back_spawn
+    use sign_coherence_check, only: communicate_conflict_buffers, &
+         reset_conflict_storage, replica_coherence_check, apply_conflict_correction, &
+         accumulate_conflict_correction
 
 #ifdef MOLPRO
     use outputResult
@@ -332,6 +335,18 @@ module FciMCParMod
             if(tRDMonFly .and. (.not. tFillingExplicRDMonFly) &
                 & .and. (.not.tFillingStochRDMonFly)) call check_start_rdm()
 
+            if(mod(iter,correctionInterval)==0 .and. tStoreConflicts &
+                 .and. all(.not. tSinglePartPhase) &
+                 .and. (Iter -maxval(VaryShiftIter)) > minCAccIter .and. &
+                 inum_runs > 1) then
+               ! communicate the buffers, i.e. send each proc the full list
+               ! so we can accumulate the corrections
+               call communicate_conflict_buffers(conflictingDets,&
+                    AllConflictingDets,clistIndex,AllCListSIze)
+               tGetConflictCorrections = .true.
+               cAccStartIter = iter
+            endif
+
             if (tContTimeFCIMC) then
                 call iterate_cont_time(iter_data_fciqmc)
             else
@@ -372,7 +387,7 @@ module FciMCParMod
                 .not. tSemiStochastic .and. .not. tFillingStochRDMOnFly) then
                 call adjust_load_balance(iter_data_fciqmc)
             end if
-
+            
             if(SIUpdateInterval > 0) then
                ! Regular update of the superinitiators. Use with care as it 
                ! is still rather expensive if secondary superinitiators are used
@@ -966,8 +981,19 @@ module FciMCParMod
             endif
 
             ! if requested, average the sign over replicas if not coherent
-            if(inum_runs > 1) call replica_coherence_check(iter_data,CurrentDets(:,j),&
-                 SignCurr, walkExcitLevel)
+            if(inum_runs > 1) call replica_coherence_check(iter,&
+                 iter_data,CurrentDets(:,j), j, SignCurr, walkExcitLevel)
+
+            ! at the specified iterations, get the correction to the signs
+            ! of the conflicting dets
+            if(tGetConflictCorrections) then
+               ! sum up the contributions to the correction of the sign
+               ! conflicting det
+               call accumulate_conflict_correction(DetCurr,CurrentDets(:,j),signCurr)
+               ! reset the counter of conflicts, we now correct the sign
+               ! so the conflicts are counted from 0
+               call reset_conflict_counter(j)
+            endif
 
 
             if (tFillingStochRDMonFly) then
@@ -1311,6 +1337,18 @@ module FciMCParMod
                                                 max_calc_ex_level)
             call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, CurrentDets(:,j), HDiagCurr, 1.0_dp, tPairedReplicas, j)
         end do
+
+        
+        ! if we just corrected the conflicitng signs, apply the correction
+        ! and then set back the statistics on the sign conflicts
+        ! this has to happen after the shift update not to break
+        ! the debug-logging of walker number change
+        if(tGetConflictCorrections .and. (iter-cAccStartIter+1) == cAccIter) then
+           call apply_conflict_correction(iter_data, &
+                conflictingDets,AllConflictingDets,clistIndex)
+           tGetConflictCorrections = .false.
+           call reset_conflict_storage()
+        endif
 
         call update_iter_data(iter_data)
 
