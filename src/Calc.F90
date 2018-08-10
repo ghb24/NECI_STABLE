@@ -387,8 +387,8 @@ contains
           nCDetsStore = 1000
           tStoreConflicts = .false.
           cAccIter = 1
-          minCAccIter = 0
           correctionInterval = 1000
+          minCAccIter = correctionInterval
           ! And disable the initiators subspace
           tInitiatorsSubspace = .false.
 

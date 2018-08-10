@@ -6,7 +6,8 @@ module sign_coherence_check
   use FciMCData, only: clistIndex, AllConflictingDets, ConflictingDets, &
        tStoreConflicts, maxConflictExLvl, avSigns, fcimc_iter_data, conflictHash, &
        conflictExLvl, nCDetsStore, max_calc_ex_level, HashIndex, CurrentDets, &
-       cAccIter, cHashSize, correctionInterval, TotParts, sign_correction_time
+       cAccIter, cHashSize, correctionInterval, TotParts, sign_correction_time, &
+       tSinglePartPhase
   use CalcData, only: tAvReps, DiagSft
   use SystemData, only: nel
   use global_det_data, only: det_diagH
@@ -265,7 +266,7 @@ contains
                avSigns = avSigns + abs(sgn(run))
                if(exLvl < maxConflictExLvl) ConflictExLvl(exLvl) = ConflictExLvl(exLvl) + 1
 
-               if(tStoreConflicts) then
+               if(tStoreConflicts .and. all(.not. tSinglePartPhase)) then
                   call store_conflict(iter,ilut,j,sgn)
                endif
 
