@@ -16,7 +16,7 @@ module k_space_hubbard
                     omega, bhub, nBasisMax, G1, BasisFN, NullBasisFn, TSPINPOLAR, & 
                     treal, ttilt, tExch, ElecPairs, MaxABPairs, Symmetry, SymEq, &
                     t_new_real_space_hubbard, SymmetrySize, tNoBrillouin, tUseBrillouin, &
-                    excit_cache, t_uniform_excits, brr, uhub
+                    excit_cache, t_uniform_excits, brr, uhub, lms
 
     use lattice_mod, only: get_helement_lattice_ex_mat, get_helement_lattice_general, &
                            determine_optimal_time_step, lattice, sort_unique, lat, &
@@ -83,6 +83,8 @@ module k_space_hubbard
                                     get_orb_from_kpoints_three, swap_excitations, &
                                     pick_spin_opp_elecs, pick_from_cum_list, & 
                                     pick_spin_par_elecs, pick_three_opp_elecs
+
+    use unit_test_helpers, only: print_matrix
                                     
 
     implicit none 
@@ -1831,8 +1833,8 @@ contains
         call init_dispersion_rel_cache()
         call init_tmat_kspace(lat)
         call init_two_body_trancorr_fac_matrix()
-        n_opp(-1) = real(nOccAlpha,dp)
-        n_opp(1) = real(nOccBeta,dp)
+        n_opp(-1) = real(nel/2 + lms,dp)
+        n_opp(1) = real(nel/2 - lms,dp)
         call init_three_body_const_mat()
 
         get_umat_el => get_umat_kspace
@@ -3262,7 +3264,8 @@ contains
     end function two_body_transcorr_factor_kvec
 
     subroutine init_two_body_trancorr_fac_matrix() 
-        integer :: i, j, sym_i, sym_j
+        integer :: i, j
+        type(symmetry) :: sym_i, sym_j
 
         ! for more efficiency, precompute the two-body factor for all possible 
         ! symmetry symbols 
@@ -3272,14 +3275,14 @@ contains
 
         ! loop over spatial orbitals 
         do i = 1, nBasis/2
-            sym_i = lat%get_sym(i)
+            sym_i = G1(2*i)%sym
             do j = 1, nBasis/2
-                sym_j = lat%get_sym(j)
+                sym_j = G1(2*j)%Sym
 
-                two_body_transcorr_factor_matrix(sym_i,sym_j) = & 
+                two_body_transcorr_factor_matrix(sym_j%s,sym_i%s) = & 
                     real(bhub,dp)/real(omega,dp) * &
-                    ((exp(trans_corr_param_2body) - 1.0_dp)*epsilon_kvec(i) + & 
-                     (exp(-trans_corr_param_2body) - 1.0_dp)*epsilon_kvec(j))
+                    ((exp(trans_corr_param_2body) - 1.0_dp)*epsilon_kvec(sym_i) + & 
+                     (exp(-trans_corr_param_2body) - 1.0_dp)*epsilon_kvec(sym_j))
 
             end do
         end do
@@ -3293,11 +3296,11 @@ contains
         ! "normal" matrix elements
 
         ! optimize this better and precompute more stuff! 
-        two_body_transcorr_factor_ksym = real(bhub,dp)/real(omega,dp) * ( & 
-            (exp(trans_corr_param_2body) - 1.0_dp) * epsilon_kvec(k) + & 
-            (exp(-trans_corr_param_2body) -1.0_dp) * epsilon_kvec(p))
+!         two_body_transcorr_factor_ksym = real(bhub,dp)/real(omega,dp) * ( & 
+!             (exp(trans_corr_param_2body) - 1.0_dp) * epsilon_kvec(k) + & 
+!             (exp(-trans_corr_param_2body) -1.0_dp) * epsilon_kvec(p))
 
-!         two_body_transcorr_factor_ksym = two_body_transcorr_factor_matrix(p%s,k%s)
+        two_body_transcorr_factor_ksym = two_body_transcorr_factor_matrix(p%s,k%s)
 
     end function two_body_transcorr_factor_ksym
 
@@ -3345,34 +3348,36 @@ contains
         k1 = SymTable(k%s, SymConjTab(q%s))
         k2 = SymTable(p%s, q%s)
 
-        three_body_transcorr_fac_ksym = -three_body_prefac * (& 
-            n_opp_loc * (epsilon_kvec(p) + epsilon_kvec(k)) - (& 
-            get_one_body_diag(nI,-spin,k1) + get_one_body_diag(nI,-spin,k2,.true.)))
+!         three_body_transcorr_fac_ksym = -three_body_prefac * (& 
+!             n_opp_loc * (epsilon_kvec(p) + epsilon_kvec(k)) - (& 
+!             get_one_body_diag(nI,-spin,k1) + get_one_body_diag(nI,-spin,k2,.true.)))
+
 !         three_body_transcorr_fac_ksym = -three_body_prefac * (& 
 !             n_opp(spin) * (epsilon_kvec(p) + epsilon_kvec(k)) - (& 
 !             get_one_body_diag(nI,-spin,k1) + get_one_body_diag(nI,-spin,k2,.true.)))
 
-!         three_body_transcorr_fac_ksym = three_body_const_mat(p%s,k%s,spin) + & 
-!             three_body_prefac * (get_one_body_diag(nI,-spin,k1) + get_one_body_diag(nI,-spin,k2,.true.))
+        three_body_transcorr_fac_ksym = three_body_const_mat(p%s,k%s,spin) + & 
+            three_body_prefac * (get_one_body_diag(nI,-spin,k1) + get_one_body_diag(nI,-spin,k2,.true.))
 
     end function three_body_transcorr_fac_ksym
 
     subroutine init_three_body_const_mat()
-        integer :: i, j, sym_i, sym_j
+        integer :: i, j
+        type(symmetry) :: sym_i, sym_j
 
         if (allocated(three_body_const_mat)) deallocate(three_body_const_mat)
         allocate(three_body_const_mat(nBasis/2,nBasis/2,-1:1), source = 0.0_dp)
 
         do i = 1, nBasis/2
-            sym_i = lat%get_sym(i)
+            sym_i = G1(2*i)%Sym
             do j = 1, nBasis/2
-                sym_j = lat%get_sym(j)
+                sym_j = G1(2*j)%Sym
 
-                three_body_const_mat(sym_i,sym_j,-1) = -three_body_prefac * &
-                    n_opp(-1)*(epsilon_kvec(i) + epsilon_kvec(j))
+                three_body_const_mat(sym_i%s,sym_j%s,-1) = -three_body_prefac * &
+                    n_opp(-1)*(epsilon_kvec(sym_i) + epsilon_kvec(sym_j))
 
-                three_body_const_mat(sym_i,sym_j,1) = -three_body_prefac * &
-                    n_opp(1)*(epsilon_kvec(i) + epsilon_kvec(j))
+                three_body_const_mat(sym_i%s,sym_j%s,1) = -three_body_prefac * &
+                    n_opp(1)*(epsilon_kvec(sym_i) + epsilon_kvec(sym_j))
                 
             end do
         end do
