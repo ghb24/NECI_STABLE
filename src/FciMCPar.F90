@@ -1140,7 +1140,7 @@ module FciMCParMod
                 ! determinant. CurrentSign gives number of walkers. Multiply 
                 ! up by AvMCExcits if attempting multiple excitations from 
                 ! each walker (default 1.0_dp).
-                call decide_num_to_spawn(SignCurr(part_type), AvMCExcits, WalkersToSpawn)
+                call decide_num_to_spawn(SignCurr(part_type), HDiagCurr, AvMCExcits, WalkersToSpawn)
 
                 do p = 1, WalkersToSpawn
 

@@ -28,7 +28,7 @@ MODULE Calc
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, minCAccIter, &
                          tStartCoreGroundState, pParallel, pops_pert, cAccIter, &
                          alloc_popsfile_dets, tSearchTauOption, nCDetsStore, tStoreConflicts, &
-                         minCAccIter, correctionInterval
+                         minCAccIter, correctionInterval, tEScaleWalkers, EZero
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
          tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits, tSetDelayAllDoubsInits, &
          tSetDelayAllSingsInits, nExProd, NoTypeN, tAdiActive, tReadRefs, SIUpdateInterval, &
@@ -347,6 +347,7 @@ contains
           tPopsJumpShift = .false.
           calc_seq_no = 1
 
+          ! Superinitiator flags and thresholds
           tAllDoubsInitiators = .false.
           tDelayAllDoubsInits = .false.
           allDoubsInitsDelay = 0
@@ -379,6 +380,7 @@ contains
           tAdiActive = .false.
           minSIConnect = 1
           
+          ! Data for averaging over replicas
           ! all averages over replicas are to be signed
           tSignedRepAv = .true.
           ! never allow an initiator to have different sign across replicas
@@ -391,6 +393,11 @@ contains
           minCAccIter = correctionInterval
           ! And disable the initiators subspace
           tInitiatorsSubspace = .false.
+
+          ! Walker scaling with energy
+          ! do not use scaled walkers
+          tEScaleWalkers = .false.
+          EZero = 0.0
 
           ! Epstein-Nesbet second-order correction logicals.
           tEN2 = .false.

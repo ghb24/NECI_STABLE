@@ -1790,14 +1790,20 @@ contains
     end subroutine DiagWalkerSubspace
 
 
-    subroutine decide_num_to_spawn(parent_pop, av_spawns_per_walker, nspawn)
+    subroutine decide_num_to_spawn(parent_pop, hdiag, av_spawns_per_walker, nspawn)
 
         real(dp), intent(in) :: parent_pop
         real(dp), intent(in) :: av_spawns_per_walker
+        real(dp), intent(in) :: hdiag
         integer, intent(out) :: nspawn
         real(dp) :: prob_extra_walker, r
-
-        nspawn = abs(int(parent_pop*av_spawns_per_walker))
+        
+        if(tEScaleWalkers) then
+         ! if we scale the walkers, spawns are scaled down accordingly
+           nspawn = abs(int(parent_pop*av_spawns_per_walker/hdiag))
+        else
+           nspawn = abs(int(parent_pop*av_spawns_per_walker))
+        endif
         if (abs(abs(parent_pop*av_spawns_per_walker) - real(nspawn,dp)) > 1.e-12_dp) then
             prob_extra_walker = abs(parent_pop*av_spawns_per_walker) - real(nspawn,dp)
             r = genrand_real2_dSFMT()

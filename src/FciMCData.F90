@@ -148,6 +148,10 @@ MODULE FciMCData
       integer(n_int), allocatable :: conflictingDets(:,:), AllConflictingDets(:,:)
       integer :: nCDetsStore, clistIndex, AllCListSize
 
+      ! scaling of walker-units
+      real(dp) :: EZero
+      logical :: tEScaleWalkers
+
 !The following variables are calculated as per processor, but at the end of each update cycle, 
 !are combined to the root processor
       real(dp) :: GrowRate,DieRat
