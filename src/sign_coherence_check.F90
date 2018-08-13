@@ -128,9 +128,9 @@ contains
       end do      
 
       call halt_timer(sign_correction_time)
-      usedTime = get_total_time(sign_correction_time) - usedTime 
       write(iout,*) "Time (seconds) taken for sign correction across replicas", &
-           usedTime
+           get_total_time(sign_correction_time) - usedTime
+      usedTime = get_total_time(sign_correction_time) 
     end subroutine apply_conflict_correction
 
 !------------------------------------------------------------------------------------------!
