@@ -152,7 +152,7 @@ contains
             len_iter_occ = 0
         end if
 
-        if(inum_runs > 1) then
+        if(tStoreConflicts) then
            len_conflict_counter = 1
         else
            len_conflict_counter = 0
