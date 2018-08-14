@@ -149,7 +149,7 @@ MODULE FciMCData
       integer :: nCDetsStore, clistIndex, AllCListSize
 
       ! scaling of walker-units
-      real(dp) :: EZero
+      real(dp) :: sFAlpha
       logical :: tEScaleWalkers
 
 !The following variables are calculated as per processor, but at the end of each update cycle, 

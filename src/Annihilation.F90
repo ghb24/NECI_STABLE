@@ -25,7 +25,7 @@ module AnnihilationMod
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData, only: tNoNewRDMContrib
     use load_balance, only: DetermineDetNode, AddNewHashDet, &
-                            CalcHashTableStats
+                            CalcHashTableStats, scaleFunction
     use searching
     use hash
 
@@ -574,7 +574,7 @@ module AnnihilationMod
         integer :: PartInd, i, j, PartIndex, run
         real(dp), dimension(lenof_sign) :: CurrentSign, SpawnedSign, SignTemp
         real(dp), dimension(lenof_sign) :: TempCurrentSign, SignProd
-        real(dp) :: pRemove, r
+        real(dp) :: pRemove, r, scaledOccupiedThresh, diagH
         integer :: ExcitLevel, DetHash, nJ(nel)
         logical :: tSuccess, tSuc, tDetermState
         logical :: abort(lenof_sign)
@@ -719,6 +719,17 @@ module AnnihilationMod
                 
             if ( (.not.tSuccess) .or. (tSuccess .and. IsUnoccDet(CurrentSign) .and. (.not. tDetermState)) ) then
 
+               if(tEScaleWalkers) then
+                  if(tHPHF) then
+                     diagH = hphf_diag_helement(nJ, SpawnedParts(:,i)) - Hii
+                  else
+                     diagH = get_helement(nJ,nJ,0) - Hii
+                  endif
+                  scaledOccupiedThresh = occupiedThresh / scaleFunction(diagH,Hii)
+               else
+                  scaledOccupiedThresh = occupiedThresh
+               endif
+
                 ! Determinant in newly spawned list is not found in CurrentDets.
                 ! Usually this would mean the walkers just stay in this list and
                 ! get merged later - but in this case we want to check where the
@@ -765,9 +776,9 @@ module AnnihilationMod
                         
                         ! Either the determinant has never been an initiator,
                         ! or we want to treat them all the same, as before.
-                        if ((abs(SignTemp(j)) > 1.e-12_dp) .and. (abs(SignTemp(j)) < OccupiedThresh)) then
+                        if ((abs(SignTemp(j)) > 1.e-12_dp) .and. (abs(SignTemp(j)) < scaledOccupiedThresh)) then
                             ! We remove this walker with probability 1-RealSignTemp
-                            pRemove=(OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
+                            pRemove=(scaledOccupiedThresh-abs(SignTemp(j)))/scaledOccupiedThresh
                             r = genrand_real2_dSFMT ()
                             if (pRemove > r) then
                                 ! Remove this walker.
@@ -780,10 +791,10 @@ module AnnihilationMod
                                 call nullify_ilut_part (SpawnedParts(:,i), j)
                             else
                                 !Round up
-                                NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(SignTemp(j))
+                                NoBorn(run) = NoBorn(run) + scaledOccupiedThresh - abs(SignTemp(j))
                                 iter_data%nborn(j) = iter_data%nborn(j) &
-                                          + OccupiedThresh - abs(SignTemp(j))
-                                SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
+                                          + scaledOccupiedThresh - abs(SignTemp(j))
+                                SignTemp(j) = sign(scaledOccupiedThresh, SignTemp(j))
                                 call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
                             end if
                         end if
@@ -818,9 +829,9 @@ module AnnihilationMod
                     else
                         do j = 1, lenof_sign
                             run = part_type_to_run(j)
-                            if ((abs(SignTemp(j)) > 1.e-12_dp) .and. (abs(SignTemp(j)) < OccupiedThresh)) then
+                            if ((abs(SignTemp(j)) > 1.e-12_dp) .and. (abs(SignTemp(j)) < scaledOccupiedThresh)) then
                                 ! We remove this walker with probability 1-RealSignTemp.
-                                pRemove = (OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
+                                pRemove = (scaledOccupiedThresh-abs(SignTemp(j)))/scaledOccupiedThresh
                                 r = genrand_real2_dSFMT ()
                                 if (pRemove  >  r) then
                                     ! Remove this walker.
@@ -832,10 +843,10 @@ module AnnihilationMod
                                     SignTemp(j) = 0
                                     call nullify_ilut_part (SpawnedParts(:,i), j)
                                 else
-                                    NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(SignTemp(j))
+                                    NoBorn(run) = NoBorn(run) + scaledOccupiedThresh - abs(SignTemp(j))
                                     iter_data%nborn(j) = iter_data%nborn(j) &
-                                                + OccupiedThresh - abs(SignTemp(j))
-                                    SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
+                                                + scaledOccupiedThresh - abs(SignTemp(j))
+                                    SignTemp(j) = sign(scaledOccupiedThresh, SignTemp(j))
                                     call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
                                 end if
                             end if

@@ -17,7 +17,7 @@ module FciMCParMod
                         t_back_spawn_flex, t_back_spawn_flex_option, &
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
                         DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
-                        tSkipRef, tFixTrial, tTrialShift
+                        tSkipRef, tFixTrial, tTrialShift, tRCCheck
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
                         tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
                         SIUpdateInterval, tSuppressSIOutput, nRefUpdateInterval, &
@@ -981,7 +981,7 @@ module FciMCParMod
             endif
 
             ! if requested, average the sign over replicas if not coherent
-            if(inum_runs > 1) call replica_coherence_check(iter,&
+            if(inum_runs > 1 .and. tRCCheck) call replica_coherence_check(iter,&
                  iter_data,CurrentDets(:,j), j, SignCurr, walkExcitLevel)
 
             ! at the specified iterations, get the correction to the signs

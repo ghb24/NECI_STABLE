@@ -35,7 +35,7 @@ module fcimc_initialisation
                         ntrial_ex_calc, tPairedReplicas, tMultiRefShift, &
                         tMultipleInitialStates, initial_states, t_hist_tau_search, &
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
-                        t_back_spawn_option, t_back_spawn_flex_option, &
+                        t_back_spawn_option, t_back_spawn_flex_option, tRCCheck, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0
     use adi_data, only: g_markers, tReferenceChanged, tInitiatorsSubspace, tAdiActive, &
          nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
@@ -1592,6 +1592,7 @@ contains
 
          if(tInitiatorsSubspace) call read_g_markers()
 
+         tRCCheck = tStoreConflicts .or. tWriteConflictLvls .or. tAVReps
         if(tStoreConflicts) call init_conflict_data()
 
          if(tRDMonFly .and. tDynamicCoreSpace) call sync_rdm_sampling_iter()

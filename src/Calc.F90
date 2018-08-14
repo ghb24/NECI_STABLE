@@ -28,7 +28,7 @@ MODULE Calc
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, minCAccIter, &
                          tStartCoreGroundState, pParallel, pops_pert, cAccIter, &
                          alloc_popsfile_dets, tSearchTauOption, nCDetsStore, tStoreConflicts, &
-                         minCAccIter, correctionInterval, tEScaleWalkers, EZero
+                         minCAccIter, correctionInterval, tEScaleWalkers, sFAlpha
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
          tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits, tSetDelayAllDoubsInits, &
          tSetDelayAllSingsInits, nExProd, NoTypeN, tAdiActive, tReadRefs, SIUpdateInterval, &
@@ -393,11 +393,13 @@ contains
           minCAccIter = correctionInterval
           ! And disable the initiators subspace
           tInitiatorsSubspace = .false.
+          ! is a coherence check required?
+          tRCCheck = .false.
 
           ! Walker scaling with energy
           ! do not use scaled walkers
           tEScaleWalkers = .false.
-          EZero = 0.0
+          sFAlpha = 1
 
           ! Epstein-Nesbet second-order correction logicals.
           tEN2 = .false.
@@ -2685,6 +2687,13 @@ contains
                 if(inum_runs == 1) call stop_all(t_r,&
                      "Cannot use std-based initiators in single-replica mode")
                 if(item < nItems) call readf(ErrThresh)
+
+             case("ENERGY-SCALED-WALKERS")
+                ! the amplitude unit of a walker shall be scaled with energy
+                tEScaleWalkers = .true.
+                if(item < nitems) &
+                     ! an optional prefactor for scaling 
+                   call readf(sFAlpha)
 
              case("SUPERINITIATOR-POPULATION-THRESHOLD")
                 ! set the minimum value for superinitiator population

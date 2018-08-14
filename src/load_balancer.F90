@@ -9,7 +9,7 @@ module load_balance
     use global_det_data, only: global_determinant_data, &
                                set_det_diagH, set_spawn_rate, &
                                set_all_spawn_pops, reset_all_tau_ints, &
-                               reset_all_shift_ints
+                               reset_all_shift_ints, det_diagH
     use bit_rep_data, only: flag_initiator, NIfDBO, &
                             flag_connected, flag_trial
     use bit_reps, only: set_flag, nullify_ilut_part, &
@@ -563,7 +563,7 @@ contains
         real(dp) :: pRemove, r
         integer :: nI(nel), run, ic
         logical :: tIsStateDeterm
-        real(dp) :: hij
+        real(dp) :: hij, scaledOccupiedThresh
         character(*), parameter :: t_r = 'CalcHashTableStats'
 
         if (.not. bNodeRoot) return
@@ -586,12 +586,17 @@ contains
                     AnnihilatedDet = AnnihilatedDet + 1 
                 else
 
+                   if(tEScaleWalkers) then
+                      scaledOccupiedThresh = OccupiedThresh / scaleFunction(det_diagH(i),Hii)
+                   else
+                      scaledOccupiedThresh = OccupiedThresh
+                   endif
                     do j=1, lenof_sign
                         run = part_type_to_run(j)
                         if (.not. tIsStateDeterm) then
-                            if ((abs(CurrentSign(j)) > 1.e-12_dp) .and. (abs(CurrentSign(j)) < OccupiedThresh)) then
+                            if ((abs(CurrentSign(j)) > 1.e-12_dp) .and. (abs(CurrentSign(j)) < scaledOccupiedThresh)) then
                                 !We remove this walker with probability 1-RealSignTemp
-                                pRemove=(OccupiedThresh-abs(CurrentSign(j)))/OccupiedThresh
+                                pRemove=(scaledOccupiedThresh-abs(CurrentSign(j)))/scaledOccupiedThresh
                                 r = genrand_real2_dSFMT ()
                                 if (pRemove  >  r) then
                                     !Remove this walker
@@ -607,10 +612,10 @@ contains
                                         FreeSlot(iEndFreeSlot)=i
                                     end if
                                 else
-                                    NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(CurrentSign(j))
+                                    NoBorn(run) = NoBorn(run) + scaledOccupiedThresh - abs(CurrentSign(j))
                                     iter_data%nborn(j) = iter_data%nborn(j) &
-                                         + OccupiedThresh - abs(CurrentSign(j))
-                                    CurrentSign(j) = sign(OccupiedThresh, CurrentSign(j))
+                                         + scaledOccupiedThresh - abs(CurrentSign(j))
+                                    CurrentSign(j) = sign(scaledOccupiedThresh, CurrentSign(j))
                                     call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
                                 end if
                             end if
@@ -702,5 +707,15 @@ contains
     end subroutine CalcHashTableStats
 
 !------------------------------------------------------------------------------------------!
+
+    function scaleFunction(hdiag,href) result(Si)
+      implicit none
+      
+      real(dp), intent(in) :: hdiag, href
+      real(dp) :: Si
+
+      Si = - sFAlpha * (hdiag/href) + 1
+    end function scaleFunction
+
 
 end module

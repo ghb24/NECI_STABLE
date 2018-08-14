@@ -48,7 +48,7 @@ module fcimc_helper
     use DetCalcData, only: FCIDetIndex, ICILevel, det
     use hash, only: remove_hash_table_entry, add_hash_table_entry, hash_table_lookup
     use load_balance_calcnodes, only: DetermineDetNode, tLoadBalanceBlocks
-    use load_balance, only: adjust_load_balance
+    use load_balance, only: adjust_load_balance, scaleFunction
     use rdm_filling_old, only: det_removed_fill_diag_rdm_old
     use rdm_filling, only: det_removed_fill_diag_rdm
     use rdm_general, only: store_parent_with_spawned, extract_bit_rep_avsign_norm
@@ -1798,12 +1798,7 @@ contains
         integer, intent(out) :: nspawn
         real(dp) :: prob_extra_walker, r
         
-        if(tEScaleWalkers) then
-         ! if we scale the walkers, spawns are scaled down accordingly
-           nspawn = abs(int(parent_pop*av_spawns_per_walker/hdiag))
-        else
-           nspawn = abs(int(parent_pop*av_spawns_per_walker))
-        endif
+        nspawn = abs(int(parent_pop*av_spawns_per_walker))
         if (abs(abs(parent_pop*av_spawns_per_walker) - real(nspawn,dp)) > 1.e-12_dp) then
             prob_extra_walker = abs(parent_pop*av_spawns_per_walker) - real(nspawn,dp)
             r = genrand_real2_dSFMT()

@@ -14,6 +14,7 @@ module fcimc_pointed_fns
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement
     use fcimc_helper, only: CheckAllowedTruncSpawn
+    use load_balance, only: scaleFunction
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
     use bit_rep_data, only: NIfTot, test_flag
     use bit_reps, only: get_initiator_flag
@@ -161,6 +162,7 @@ module fcimc_pointed_fns
         logical :: t_par
         real(dp) :: temp_prob, pgen_a, dummy_arr(nBasis), cum_sum, childHii
         integer :: ispn
+        real(dp) :: ScaledRealSpawnCutoff
 
         ! Just in case
         child = 0.0_dp
@@ -176,7 +178,8 @@ module fcimc_pointed_fns
            else
               childHii = real(get_helement(nJ,nJ,0),dp) - Hii
            endif
-           prob = prob / childHii
+        else
+           childHii = 0.0_dp
         endif
 
         ! In the case of using HPHF, and when tGenMatHEl is on, the matrix
@@ -351,12 +354,17 @@ module fcimc_pointed_fns
             
             if (tRealSpawning) then
                 ! Continuous spawning. Add in acceptance probabilities.
-                
+               if(tEScaleWalkers) then
+                  ! for scaled walkers, the cutoff scales with the det energy
+                  ScaledRealSpawnCutoff = RealSpawnCutoff / scaleFunction(childHii,Hii)
+               else
+                  ScaledRealSpawnCutoff = RealSpawnCutoff
+               endif
                 if (tRealSpawnCutoff .and. &
-                    abs(nSpawn) < RealSpawnCutoff) then
-                    p_spawn_rdmfac=abs(nSpawn)/RealSpawnCutoff
-                    nSpawn = RealSpawnCutoff &
-                           * stochastic_round (nSpawn / RealSpawnCutoff)
+                    abs(nSpawn) < ScaledRealSpawnCutoff) then
+                    p_spawn_rdmfac=abs(nSpawn)/ScaledRealSpawnCutoff
+                    nSpawn = ScaledRealSpawnCutoff &
+                           * stochastic_round (nSpawn / ScaledRealSpawnCutoff)
                else
                     p_spawn_rdmfac=1.0_dp !The acceptance probability of some kind of child was equal to 1
                endif
