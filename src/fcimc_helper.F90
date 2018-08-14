@@ -851,7 +851,7 @@ contains
         real(dp) :: DetAge, HalfLife, AvgShift, diagH
 
         ! initiator flag according to population
-        popInit = initiator_criterium(sgn,run)
+        popInit = initiator_criterium(sgn, det_diagH(site_idx), run)
 
         ! initiator flag according to SI
         staticInit = check_static_init(ilut, nI, sgn, exLvl, run)
@@ -934,14 +934,21 @@ contains
 
       end function TestInitiator_explicit
       
-      function initiator_criterium(sign,run) result(init_flag)
+      function initiator_criterium(sign,hdiag,run) result(init_flag)
         implicit none
-        real(dp), intent(in) :: sign(lenof_sign)
+        real(dp), intent(in) :: sign(lenof_sign), hdiag
         integer, intent(in) :: run
         ! variance of sign and either a single value or an aggregate
         real(dp) :: sigma, tot_sgn
         integer :: crun, nOcc
+        real(dp) :: scaledInitiatorWalkNo
         logical :: init_flag
+
+        if(tEScaleWalkers) then
+           scaledInitiatorWalkNo = InitiatorWalkNo / scaleFunction(hdiag,Hii)
+        else
+           scaledInitiatorWalkNo = InitiatorWalkNo
+        endif
 
         if(tSTDInits) then
            nOcc = 0
@@ -982,7 +989,7 @@ contains
               tot_sgn = mag_of_run(sign,run)
            endif
            ! make it an initiator 
-           init_flag = (tot_sgn > InitiatorWalkNo)
+           init_flag = (tot_sgn > scaledInitiatorWalkNo)
         endif
       end function initiator_criterium
 
