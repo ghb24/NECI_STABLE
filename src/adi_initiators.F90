@@ -6,7 +6,6 @@ module adi_initiators
   use bit_reps, only: set_flag, clr_flag, decode_bit_det
   use constants, only: lenof_sign, n_int, dp, inum_runs, eps
   use SystemData, only: nel
-  use CalcData, only: tGlobalInitFlag
 
 contains
 

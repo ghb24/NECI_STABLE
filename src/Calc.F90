@@ -2660,6 +2660,15 @@ contains
 
              case("SIGNED-REPLICA-AVERAGE")
                 tSignedRepAv = .true.
+                if(item < nitems) then
+                   call readu(w)
+                   select case(w)
+                   case("OFF")
+                      tSignedRepAv = .false.
+                   case default
+                      tSignedRepAv = .true.
+                   end select
+                endif
 
              case("CACHE-SIGN-CONFLICTS")
                 ! store sign conflicts in a separate hashtable
