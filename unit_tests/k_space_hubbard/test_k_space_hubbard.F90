@@ -156,7 +156,7 @@ contains
         t_do_exact_transcorr = .true.
         t_optimize_j = .true.
         t_do_diags = .true.
-        t_do_doubles = .true.
+        t_do_doubles = .false.
         t_do_subspace_study = .false.
         t_input_U = .true.
         t_input_J = .false.
@@ -187,7 +187,7 @@ contains
             print *, "input J:"
             read(*,*), J
         else if (t_J_vec) then
-            J_vec = linspace(-1.0,1.0,100)
+            J_vec = linspace(-2.0,2.0,200)
 !               J_vec = [0.5]
         else 
             J = 0.1
@@ -211,7 +211,7 @@ contains
         call init_k_space_unit_tests()
         
         ! i have to define the lattice here.. 
-        lat => lattice('square', 4, 4, 1,.true.,.true.,.true.,'k-space')
+        lat => lattice('square', 6, 6, 1,.true.,.true.,.true.,'k-space')
 
 !         x = [(-lat%dispersion_rel_orb(i), i = 1, 24)]
 !         ind = [(i, i = 1, 24)]
@@ -226,13 +226,41 @@ contains
 !             print *,lat%get_k_vec(ind(i)),"|", k_vec(1)*k1 + k_vec(2)*k2, "|", x(i)
 !         end do
         
-        nel = 16
+        nel = 24
         allocate(nI(nel))
         allocate(nJ(nel))
         nj = 0
 
         nbasis = 2*lat%get_nsites()
+        
+        if (all(twisted_bc == 0)) then
+            ! 24 in 36 k = 0 open-shell
+!             nI=[    5,    6,   15,   16,   17,   18,   19,   20,   25, 26,   27, &
+!                 28,   29,   30,   31,   32,   39,   40,   41,   42,   43, &
+!                 44,   53,   54]
 
+            ! 24 in 36 k!=0 closed-shell
+            nI=[    5,    6,   15,   16,   17,   18,   19,   20,   26,   27, &
+                28,   29,   30,   31,   32,   33,   39,   40,   41,   42,   43, &
+                44,   53,   54]
+        else
+            nI=[   13,   14,   15,   16,   17,   18,   19,   20,   25,   26,&
+                27,   28,   29,   30,   31,   32,   37,   38,   39,   40,   41, &
+                42,   43,   44]
+
+        end if
+        ! 36 in 36 k = 0
+!         if (all(twisted_bc == 0)) then
+!             nI =[  3,    4,    5,    6,    7,    8,   13,   14,   15,   16,  &
+!                 17,   18,   19,   20,   21,   22,   25,   26,   27,   28,   29,&
+!                 30,   31,   32,   33,   34,   39,   40,   41,   42,   43,   44,&
+!                 53,   54,   65,   66]
+!         else 
+!             nI=[  3,    4,    5,    6,   13,   14,   15,   16,   17,   18,  &
+!                 19,   20,   25,   26,   27,   28,   29,   30,   31,   32,   33,&
+!                 34,   35,   36,   37,   38,   39,   40,   41,   42,   43,   44,&
+!                 51,   52,   53,   54]
+!         end if
         ! 256 in 16x16, k=0:
 !         if (all(twisted_bc == 0)) then
 !             nI = [13,   14,   15,   16,   17,   18,   43,   44,   45,   46,   47, &
@@ -292,7 +320,7 @@ contains
 !         nI = [1,2,3,4,5,6,9,10,11,12,13,14,15,16,19,20]
 
         ! 16 in 16 k = 0 open shell 
-        nI = [1,3,4,5,6,9,10,11,12,13,14,17,18,19,20,22]
+!         nI = [1,3,4,5,6,9,10,11,12,13,14,17,18,19,20,22]
 
         
 
@@ -339,6 +367,8 @@ contains
         ! open shell k = 0?
 !         nI = [4,5,6,7,11,12,13,14,15,16,22,23,24,25]
 
+        ! 14 in 18, closed shell k!=0:
+!         nI = [3,4,5,6,7,8,11,12,13,14,15,16,23,24]
         ! 6 in 9 k = 1 1
 !         nI = [3,4,7,8,9,10]
         ! 6 in 9 k = 0 0
@@ -348,6 +378,7 @@ contains
         ! 10 in 9, k = 1,-1:
 !         nI = [1,2,3,4,7,8,9,10,11,12]
 
+        
         ! chain:
         ! 6 in 6, k = 0
 !         nI = [3,4,5,6,7,8]
