@@ -945,7 +945,7 @@ contains
         logical :: init_flag
 
         if(tEScaleWalkers) then
-           scaledInitiatorWalkNo = InitiatorWalkNo / scaleFunction(hdiag,Hii)
+           scaledInitiatorWalkNo = InitiatorWalkNo / scaleFunction(hdiag)
         else
            scaledInitiatorWalkNo = InitiatorWalkNo
         endif

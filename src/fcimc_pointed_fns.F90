@@ -356,7 +356,7 @@ module fcimc_pointed_fns
                 ! Continuous spawning. Add in acceptance probabilities.
                if(tEScaleWalkers) then
                   ! for scaled walkers, the cutoff scales with the det energy
-                  ScaledRealSpawnCutoff = RealSpawnCutoff / scaleFunction(childHii,Hii)
+                  ScaledRealSpawnCutoff = RealSpawnCutoff / scaleFunction(childHii)
                else
                   ScaledRealSpawnCutoff = RealSpawnCutoff
                endif

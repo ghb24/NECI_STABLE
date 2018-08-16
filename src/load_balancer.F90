@@ -587,7 +587,7 @@ contains
                 else
 
                    if(tEScaleWalkers) then
-                      scaledOccupiedThresh = OccupiedThresh / scaleFunction(det_diagH(i),Hii)
+                      scaledOccupiedThresh = OccupiedThresh / scaleFunction(det_diagH(i))
                    else
                       scaledOccupiedThresh = OccupiedThresh
                    endif
@@ -708,13 +708,13 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    function scaleFunction(hdiag,href) result(Si)
+    function scaleFunction(hdiag) result(Si)
       implicit none
       
       real(dp), intent(in) :: hdiag, href
       real(dp) :: Si
 
-      Si = - sFAlpha * (hdiag/href) + 1
+      Si = - sFAlpha * (hdiag) + 1
     end function scaleFunction
 
 

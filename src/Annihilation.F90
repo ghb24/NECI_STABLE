@@ -725,7 +725,7 @@ module AnnihilationMod
                   else
                      diagH = get_helement(nJ,nJ,0) - Hii
                   endif
-                  scaledOccupiedThresh = occupiedThresh / scaleFunction(diagH,Hii)
+                  scaledOccupiedThresh = occupiedThresh / scaleFunction(diagH)
                else
                   scaledOccupiedThresh = occupiedThresh
                endif
