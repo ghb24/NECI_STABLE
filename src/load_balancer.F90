@@ -711,7 +711,7 @@ contains
     function scaleFunction(hdiag) result(Si)
       implicit none
       
-      real(dp), intent(in) :: hdiag, href
+      real(dp), intent(in) :: hdiag
       real(dp) :: Si
 
       Si = - sFAlpha * (hdiag) + 1
