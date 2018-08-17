@@ -714,7 +714,7 @@ contains
       real(dp), intent(in) :: hdiag
       real(dp) :: Si
 
-      Si = - sFAlpha * (hdiag) + 1
+      Si = sFAlpha * (hdiag) + 1
     end function scaleFunction
 
 
