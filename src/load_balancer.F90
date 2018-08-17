@@ -16,7 +16,7 @@ module load_balance
                         encode_part_sign, nullify_ilut, clr_flag
     use FciMCData, only: HashIndex, FreeSlot, CurrentDets, iter_data_fciqmc, &
                          tFillingStochRDMOnFly, full_determ_vecs, ntrial_excits, &
-                         con_space_size, NConEntry, con_send_buf
+                         con_space_size, NConEntry, con_send_buf, sFAlpha, sFBeta
     use searching, only: hash_search_trial, bin_search_trial
     use determinants, only: get_helement, write_det
     use LoggingData, only: tOutputLoadDistribution
@@ -719,7 +719,7 @@ contains
       real(dp), intent(in) :: hdiag
       real(dp) :: Si
 
-      Si = sFAlpha * (hdiag) + 1
+      Si = (sFAlpha * (hdiag) + 1)**sFBeta
     end function scaleFunction
 
 

@@ -141,7 +141,7 @@ MODULE FciMCData
       real(dp) :: HashLengthFrac
 
       ! scaling of walker-units
-      real(dp) :: sFAlpha
+      real(dp) :: sFAlpha, sFBeta
       logical :: tEScaleWalkers
 
 !The following variables are calculated as per processor, but at the end of each update cycle, 

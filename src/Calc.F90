@@ -28,7 +28,7 @@ MODULE Calc
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
                          alloc_popsfile_dets, tSearchTauOption, &
-                         sFAlpha, tEScaleWalkers
+                         sFAlpha, tEScaleWalkers, sFBeta
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
          tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits, tSetDelayAllDoubsInits, &
          tSetDelayAllSingsInits, nExProd, NoTypeN, tAdiActive, tReadRefs, SIUpdateInterval, &
@@ -383,7 +383,8 @@ contains
           ! Walker scaling with energy
           ! do not use scaled walkers
           tEScaleWalkers = .false.
-          sFAlpha = 1
+          sFAlpha = 1.0_dp
+          sFBeta = 1.0_dp
 
           ! Epstein-Nesbet second-order correction logicals.
           tEN2 = .false.
@@ -2656,6 +2657,9 @@ contains
                 if(item < nitems) &
                      ! an optional prefactor for scaling 
                    call readf(sFAlpha)
+                if(item < nitems) &
+                     ! an optional exponent for scaling
+                     call readf(sFBeta)
 
              case("SUPERINITIATOR-POPULATION-THRESHOLD")
                 ! set the minimum value for superinitiator population
