@@ -710,7 +710,7 @@ contains
         real(dp) :: real_sign(lenof_sign_kp), TotPartsCheck(lenof_sign_kp)
         real(dp) :: nwalkers_target
         real(dp) :: norm, all_norm
-        real(sp) :: total_time_before, total_time_after
+        real(dp) :: total_time_before, total_time_after
         logical :: tCoreDet
         character(len=*), parameter :: t_r = "create_init_config"
 

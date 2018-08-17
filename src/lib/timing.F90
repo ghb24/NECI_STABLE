@@ -55,18 +55,15 @@ end type
 type timer_object
     character(25) :: timer_name
     integer :: ncalls=0
-    real(sp) :: time_cpu=0.0     ! For timing of the current
-    real(sp) :: time_system=0.0  ! call to the procedure.
-    real(sp) :: sum_time_cpu=0.0    ! Sum of time spent in the 
-    real(sp) :: sum_time_system=0.0 ! procedure.
+    real(dp) :: time_cpu=0.0     ! For timing of the current call to the procedure.
+    real(dp) :: sum_time_cpu=0.0    ! Sum of time spent in the procedure.
     logical :: timing_on=.false.   ! true whilst the timer is active.
 end type timer_object
 
 type(timer_object),allocatable,target :: timers(:)
 
 ! For total calculation time.
-real(sp) :: global_time_cpu=0.0
-real(sp) :: global_time_system=0.0
+real(dp) :: global_time=0.0
 ! If global_timing_on is true, then handle the total time differently in the timing output,
 ! as then have requested timing output without halting the global timer.
 logical :: global_timing_on=.false. 
@@ -84,8 +81,7 @@ contains
       implicit none
       integer :: i
 
-      call cpu_time(global_time_cpu)
-      global_time_system=real(0.0,sp)
+      global_time = MPI_WTIME()
       global_timing_on=.true.
 
       if (.not.allocated(timers)) allocate(timers(ntimer))
@@ -94,9 +90,7 @@ contains
           ! Have already done one run if itimer>0.  Clear existing timing info.
           timers(i)%ncalls=0
           timers(i)%time_cpu=0.0
-          timers(i)%time_system=0.0
           timers(i)%sum_time_cpu=0.0
-          timers(i)%sum_time_system=0.0
           timers(i)%timing_on=.false.
       end do
 
@@ -108,14 +102,11 @@ contains
       != Stop global timer for timing the total calculation time.
 
       implicit none
-      real(sp) :: t(2)
+      real(dp) :: t
 
       if (global_timing_on) then
-          call cpu_time(t(1))
-          t(2)=real(0.0,sp)
-          
-          global_time_cpu=t(1)-global_time_cpu
-          global_time_system=t(2)-global_time_system
+         t = MPI_WTIME()
+          global_time=t-global_time
           global_timing_on=.false.
       else
           call warning_neci('end_timing','Global timing never initialised via call to init_timing.')
@@ -144,7 +135,7 @@ contains
       implicit none
       type(timer) :: proc_timer
       integer, optional, intent(in) :: obj_level
-      real(sp) :: t(2)
+      real(dp) :: t
       integer :: timer_level
 
       if (.not.global_timing_on) then
@@ -183,10 +174,8 @@ contains
               ! start time for the timer of the recursive procedure, then the
               ! correct timings are obtained.
               ! Start the clock.
-              call cpu_time(t(1))
-              t(2)=real(0.0,sp)
-              proc_timer%store%time_cpu=t(1)
-              proc_timer%store%time_system=t(2)
+             t = MPI_WTIME()
+              proc_timer%store%time_cpu=t
               proc_timer%store%timing_on=.true.
           end if
       end if
@@ -207,8 +196,8 @@ contains
       implicit none
       type(timer), intent(inout) :: proc_timer
       integer :: i
-      real(sp) :: t(2)
-      real(sp) :: time_cpu,time_system
+      real(dp) :: t
+      real(dp) :: time_cpu
 
 #ifndef _MOLCAS_
       if (.not.proc_timer%time) then
@@ -218,18 +207,14 @@ contains
           call warning_neci('halt_timer','proc_timer not intialised: '//proc_timer%timer_name)
           timer_error=.true.
       else
-          call cpu_time(t(1))
-          t(2)=real(0.0,sp)
-          time_cpu=t(1)-proc_timer%store%time_cpu
-          time_system=t(2)-proc_timer%store%time_system
+         t = MPI_WTIME()
+          time_cpu=t-proc_timer%store%time_cpu
           proc_timer%store%sum_time_cpu=proc_timer%store%sum_time_cpu+time_cpu
-          proc_timer%store%sum_time_system=proc_timer%store%sum_time_system+time_system
           ! Have to remove the time spent in this routine from the other
           ! timers, so that the currently active timers exclude time spent
           ! in other timed procedures.
           do i=1,itimer
               timers(i)%time_cpu=timers(i)%time_cpu+time_cpu
-              timers(i)%time_system=timers(i)%time_system+time_system
           end do
           ! Unset timer behaviour flags.
           proc_timer%store%timing_on=.false.
@@ -241,11 +226,11 @@ contains
 
 
 
-   real(sp) function get_total_time(proc_timer,t_elapsed)
+   real(dp) function get_total_time(proc_timer,t_elapsed)
       != Return the (current) total time for a given timed procedure.
       != By default this does not include the elapsed time of the current
       != run of proc_timer's routine, so if proc_timer is active then
-      != the default call to get_total_time returns the time spent in 
+      != the default call to get_total_time returns the time dpent in 
       != proc_timer%timer_name up to the most recent call.
       != In:
       !=   proc_timer: the timer object of the procedure.  Must be intialised by
@@ -257,18 +242,17 @@ contains
       implicit none
       type(timer) :: proc_timer
       logical,optional :: t_elapsed
-      real(sp) :: t(2)
+      real(dp) :: t
 
       if (.not.associated(proc_timer%store)) then
           call warning_neci('get_total_time.','proc_timer not intialised: '//adjustl(proc_timer%timer_name))
           get_total_time=-1000.0 ! Helpfully return insane value, so it is obvious something went wrong. ;-)
       else
-          get_total_time=proc_timer%store%sum_time_cpu+proc_timer%store%sum_time_system
+          get_total_time=proc_timer%store%sum_time_cpu
           if (present(t_elapsed)) then
               if (t_elapsed) then
-                  call cpu_time(t(1))
-                  t(2)=real(0.0,sp)
-                  get_total_time=get_total_time+t(1)+t(2)-proc_timer%store%time_cpu-proc_timer%store%time_system
+                 t = MPI_WTIME()
+                  get_total_time=get_total_time+t-proc_timer%store%time_cpu
               end if
           end if
       end if
@@ -296,15 +280,15 @@ contains
       integer :: io=6
       integer :: nobjs
       integer :: i,it,id(1)
-      real(sp) :: t(2)
-      real(sp) :: sum_times(ntimer),total_cpu,total_system
+      real(dp) :: t
+      real(dp) :: sum_times(ntimer),total_cpu
       integer :: date_values(8)
 
       ! Add on a small perturbation for the cases where the total time is 
       ! zero to single-precision.  This forces the procedure times to be printed
       ! out, if required, even if they are 0.0000, by avoiding issues with
       ! maxloc as the elements of the sum_times array are set to zero.
-      sum_times=timers(:)%sum_time_system+timers(:)%sum_time_cpu+real(1.e-4,sp)
+      sum_times=timers(:)%sum_time_cpu+real(1.e-4,dp)
 
       if (present(iunit)) io=iunit
       if (present(ntimer_objects)) then
@@ -318,37 +302,30 @@ contains
       write (io,'(a15/)') 'Timing report.'
       if (timer_error) write (io,'(a61/)') 'Timer encountered errors.  The following might be incorrect.'
       if (min(itimer,nobjs).gt.0) then
-          write (io,'(a37/)') 'Timing of most expensive procedures.'
-          write (io,'(a65)') 'Procedure                    Calls       CPU    system     total'
+          write (io,'(a37)') 'Timing of most expensive procedures.'
+          write (io,'(a65)') 'Procedure                                 Calls       total time'
           write (io,'(a65)') '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - '
           
           total_cpu=0.0_dp
-          total_system=0.0_dp
           do i=1,min(itimer,nobjs)
               ! Find i-th most expensive procedure.
               id=maxloc(sum_times)
               it=id(1)
               sum_times(it)=0.0_dp ! Don't find this object again.
               if(timers(it)%ncalls.gt.0) then
-                  write (io,'(1X,a25,i9,3f10.2)') adjustl(timers(it)%timer_name),timers(it)%ncalls,  &
-                                                 timers(it)%sum_time_cpu,timers(it)%sum_time_system,&
-                                                 timers(it)%sum_time_cpu+timers(it)%sum_time_system
+                  write (io,'(1X,a25,12X,i9,1f10.2)') adjustl(timers(it)%timer_name),timers(it)%ncalls,  &
+                                                 timers(it)%sum_time_cpu
               endif
               total_cpu=total_cpu+timers(it)%sum_time_cpu
-              total_system=total_system+timers(it)%sum_time_system
           end do
           write (io,'(a65)') '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - '
-          write (io,'(a35,3f10.2/)') 'Total                             ',total_cpu,total_system,total_cpu+total_system
+          write (io,'(a35,f10.2/)') 'Total                             ',total_cpu
       end if
       if (.not.global_timing_on) then
-          write (io,'(a20,f10.2)') 'Global CPU time    ',global_time_cpu
-          write (io,'(a20,f10.2)')  'Global system time ',global_time_system
-          write (io,'(a20,f10.2)')  'Global total time  ',global_time_cpu+global_time_system
+          write (io,'(1X,a26,f10.2)') 'Global wall clock time    ',global_time
       else
-          call cpu_time(t(1))
-          t(2)=real(0.0,sp)
-          write (io,'(/a20,f10.2)') 'Global CPU time    ',t(1)-global_time_cpu
-          write (io,'(a20,f10.2)') 'Global system time',t(2)-global_time_system
+         t = MPI_WTIME()
+          write (io,'(1X,a26,f10.2)') 'Global wall clock time    ' ,t-global_time
       end if
       write (io,'(a65)') '================================================================'
 

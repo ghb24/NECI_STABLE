@@ -43,7 +43,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,tMolcas_local,int_name,
     character(64) :: Filename,cString
     logical :: toverride_input,tFCIDUMP_exist,tMOLCASinput
     type(kp_fciqmc_data) :: kp
-    real(sp) :: tend(2)
+    real(dp) :: tend(2)
 
     ! Measure when NECICore is called. We need to do this here, as molcas
     ! and molpro can call NECI part way through a run, so it is no use to time
@@ -174,11 +174,12 @@ subroutine NECICodeInit(tCPMD,tVASP)
     implicit none
     logical, intent(in) :: tCPMD,tVASP
 
-    call init_timing()
-
     ! MPIInit contains dummy initialisation for serial jobs, e.g. so we
     ! can refer to the processor index being 0 for the parent processor.
     Call MPIInit(tCPMD.or.tVASP.or.tMolpro.or.tMolcas) ! CPMD and VASP have their own MPI initialisation and termination routines.
+
+    ! If we use MPI_WTIME for timing, we have to call MPIInit first
+    call init_timing()
 
     if (.not.TCPMD) then
         call InitMemoryManager()

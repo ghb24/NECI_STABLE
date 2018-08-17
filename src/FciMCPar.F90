@@ -109,7 +109,7 @@ module FciMCParMod
         real(dp) :: Weight, Energyxw, BestEnergy
         INTEGER :: error, irdm
         LOGICAL :: TIncrement, tWritePopsFound, tSingBiasChange, tPrintWarn
-        REAL(sp) :: s_start, s_end, tstart(2), tend(2), totaltime
+        REAL(dp) :: s_start, s_end, tstart(2), tend(2), totaltime
         real(dp) :: TotalTime8
         INTEGER(int64) :: MaxWalkers, MinWalkers
         real(dp) :: AllTotWalkers,MeanWalkers, Inpair(2), Outpair(2)
