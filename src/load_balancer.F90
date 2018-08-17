@@ -610,6 +610,11 @@ contains
                                         call remove_hash_table_entry(HashIndex, nI, i)
                                         iEndFreeSlot=iEndFreeSlot+1
                                         FreeSlot(iEndFreeSlot)=i
+                                        
+                                        ! also update both the number of annihilated dets
+                                        AnnihilatedDet = AnnihilatedDet + 1
+                                        ! and the number of holes
+                                        HolesInList = HolesInList + 1
                                     end if
                                 else
                                     NoBorn(run) = NoBorn(run) + scaledOccupiedThresh - abs(CurrentSign(j))
