@@ -102,17 +102,18 @@ contains
         HElement_t(dp) :: H_hop, H_spin
         logical :: t_optimize_corr_param, t_do_diag_elements, t_do_exact_transcorr, &
                    t_do_exact_double_occ, t_j_vec
+        HElement_t(dp), allocatable :: hamil(:,:)
 
-        t_optimize_corr_param  = .true.
-        t_do_diag_elements = .false.
+        t_optimize_corr_param  = .false.
+        t_do_diag_elements = .true.
         t_do_exact_transcorr = .false.
         t_do_exact_double_occ = .false.
         t_j_vec = .false.
 
         t_trans_corr_hop = .true.
-        lat => lattice('chain', 6, 1, 1,.true.,.true.,.true.)
+        lat => lattice('square', 3, 3, 1,.true.,.true.,.true.)
         t_trans_corr_hop = .false.
-        uhub = 4
+        uhub = 20
         bhub = -1
 
         n_orbs = lat%get_nsites()
@@ -120,12 +121,13 @@ contains
 
         call init_realspace_tests
 
-        nel = 6
+        nel = 7
         allocate(nI(nel))
 !         nI = [(i, i = 1, nel)]
 !         nI = [1,3,6,7,9,12,13,16,17,20,21,24,25,28,30,31,34,36]
-        nI = [1,4,5,8,9,12]
+!         nI = [1,4,5,8,9,12]
 !         nI = [1,4]
+        nI = [1,2,3,4,5,6,7]
 
         nOccAlpha = 0
         nOccBeta = 0
@@ -177,12 +179,21 @@ contains
         call create_hilbert_space_realspace(n_orbs, nOccAlpha, nOccBeta, & 
             n_states, hilbert_space, dummy)
 
+!         n_eig = size(hilbert_space,2)
         n_eig = 1
 
         allocate(e_values(n_eig))
         allocate(e_vecs(n_eig, size(hilbert_space,2)))
 
-        print *, "size hilbert: ", size(hilbert_space, 2)
+!         print *, "size hilbert: ", size(hilbert_space, 2)
+!         hamil = create_hamiltonian(hilbert_space)
+! 
+!         call eig(hamil, e_values, e_vecs)
+! 
+!         print *, "e-values:"
+!         do i = 1, size(hilbert_space,2)
+!             print *, e_values(i)
+!         end do
         nblk = 4
         nkry = 8 
         ncycle = 200

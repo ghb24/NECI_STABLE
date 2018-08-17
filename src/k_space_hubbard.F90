@@ -2146,8 +2146,8 @@ contains
 !                                     print *, "---------"
 !                                     print *, "i,j, a,b:", nI(i),nI(j),a,b
 
-!                                     src = [min(nI(i),nI(j)),max(nI(i),nI(j))]
-!                                     tgt = [min(a,b),max(a,b)]
+                                    src = [min(nI(i),nI(j)),max(nI(i),nI(j))]
+                                    tgt = [min(a,b),max(a,b)]
 ! 
 !                                     ex(1,:) = [i,j]
 !                                     ex(2,:) = tgt

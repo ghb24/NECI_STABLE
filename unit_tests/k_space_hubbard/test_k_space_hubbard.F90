@@ -122,6 +122,7 @@ contains
         integer, allocatable :: trunc(:), add(:,:)
         integer :: l_norm, n_excited_states
         logical :: t_exact_propagation, t_optimize_j, t_do_exact_transcorr
+        logical :: t_input_l 
         real(dp) :: timestep, j_opt, tmp_hel
         real(dp), allocatable :: sign_list(:)
 
@@ -153,25 +154,25 @@ contains
 
         irrep_names = ['  x','A1g','A2g','B1g','B2g',' Eg','A1u','A2u','B1u','B2u',' Eu']
 
-        t_do_exact_transcorr = .true.
-        t_optimize_j = .true.
-        t_do_diags = .true.
-        t_do_doubles = .true.
+        t_do_exact_transcorr = .false.
+        t_input_l = .false.
+        t_optimize_j = .false.
+        t_do_diags = .false.
+        t_do_doubles = .false.
         t_do_subspace_study = .false.
         t_input_U = .true.
-        t_input_J = .false.
-        t_input_twist = .true.
+        t_input_J = .true.
+        t_input_twist = .false.
         t_U_vec = .false.
-        t_J_vec = .true.
+        t_J_vec = .false.
         t_do_twisted_bc = .false.
         t_twisted_vec = .false.
         t_analyse_gap = .false.
         t_ignore_k = .false.
         t_do_ed = .false.
-        t_exact_propagation = .false.
-        l_norm = 1
+        t_exact_propagation = .true.
         n_excited_states = 10
-        timestep = 0.001_dp
+        timestep = 0.01_dp
 
         if (t_input_U) then
             print *, "input U: "
@@ -193,6 +194,13 @@ contains
             J = 0.1
         end if
 
+        if (t_input_l) then
+            print *, "input norm"
+            read(*,*), l_norm
+        else 
+            l_norm = 2
+        end if
+
         if (t_input_twist) then 
             print *, "input x-twist:"
             read(*,*), twisted_bc(1)
@@ -211,7 +219,7 @@ contains
         call init_k_space_unit_tests()
         
         ! i have to define the lattice here.. 
-        lat => lattice('square', 4, 4, 1,.true.,.true.,.true.,'k-space')
+        lat => lattice('chain', 5, 1, 1,.true.,.true.,.true.,'k-space')
 
 !         x = [(-lat%dispersion_rel_orb(i), i = 1, 24)]
 !         ind = [(i, i = 1, 24)]
@@ -226,7 +234,7 @@ contains
 !             print *,lat%get_k_vec(ind(i)),"|", k_vec(1)*k1 + k_vec(2)*k2, "|", x(i)
 !         end do
         
-        nel = 16
+        nel = 5
         allocate(nI(nel))
         allocate(nJ(nel))
         nj = 0
@@ -292,7 +300,7 @@ contains
 !         nI = [1,2,3,4,5,6,9,10,11,12,13,14,15,16,19,20]
 
         ! 16 in 16 k = 0 open shell 
-        nI = [1,3,4,5,6,9,10,11,12,13,14,17,18,19,20,22]
+!         nI = [1,3,4,5,6,9,10,11,12,13,14,17,18,19,20,22]
 
         
 
@@ -357,6 +365,8 @@ contains
         ! 4 in 4, k != 0:
 !         nI = [1,2,3,4]
 
+        ! 5 in 5
+        nI = [1,2,3,4,5]
         ! 3 in 4, k != 0
 !         nI = [1,3,4]
 
@@ -1004,6 +1014,7 @@ contains
 
 
         if (t_exact_propagation) then 
+            call setup_system(lat, nI, J, U, hilbert_space)
             call do_exact_propagation(hilbert_space, timestep, J, U, l_norm, n_excited_states)
         end if
 
@@ -1020,7 +1031,7 @@ contains
         integer, intent(in) :: hilbert_space(:,:)
         real(dp) :: tau
         real(dp), intent(in) :: J_param, U_param
-        integer, intent(in) :: l_norm, n_states
+        integer, intent(inout) :: l_norm, n_states
         character(*), parameter :: this_routine = "do_exact_propagation"
 
         HElement_t(dp), allocatable :: hamil(:,:), hamil_conj(:,:)
@@ -1028,12 +1039,13 @@ contains
         real(dp), allocatable :: Psi_R(:,:), Psi_L(:,:), shift_R(:), shift_mat_R(:,:), shift_L(:)
         real(dp), allocatable :: l1_norm_0_R(:), l1_norm_1_R(:), l2_norm_0_R(:), l2_norm_1_R(:)
         real(dp), allocatable :: l1_norm_0_L(:), l1_norm_1_L(:), l2_norm_0_L(:), l2_norm_1_L(:)
+        real(dp), allocatable :: lp_norm_0_R(:), lp_norm_1_R(:), lp_norm_0_L(:), lp_norm_1_L(:)
         real(dp) :: shift_damp, energy, tmp
         real(dp) :: chosen_norm_0_R, chosen_norm_1_R, chosen_norm_0_L, chosen_norm_1_L
         real(dp), allocatable :: e_values(:), e_vec(:,:), shift_mat_L(:,:), projector(:)
         integer, allocatable :: sort_ind(:)
-        logical :: t_shoelace, t_normalize, t_neci
-        integer :: ind
+        logical :: t_shoelace, t_normalize, t_neci, t_output
+        integer :: ind, iunit, iunit2
         real(dp) :: alpha, corr, fI_i, d_ij, corr_E, fI_j, overlap, projE
         real(dp), allocatable :: overlap_mat_exact(:,:), overlap_mat_neci(:,:), &
                                  overlap_values(:), overlap_vecs(:,:), &
@@ -1042,12 +1054,13 @@ contains
                                  gs_vec(:,:)
 
         n_iters = 100000
-        shift_damp = 0.1_dp
+        shift_damp = 1.0_dp
         t_shoelace = .false.
         alpha = 1.0
         ! the orthogonality of the Gram-Schmidt actually depends on the 
         ! normalization, if it is based on a non-hermitian Hamiltonian!!
-        t_normalize = .true.
+        t_normalize = .false.
+        tau = 0.001_dp
         ! false is more like the neci implementation! 
 
         ! the even more neci-like
@@ -1057,13 +1070,18 @@ contains
 
         ! prepare the Hamiltonian:
         hamil = create_hamiltonian(hilbert_space)
+        size_hilbert = size(hamil,1)
+        allocate(e_values(size_hilbert)); e_values = 0.0_dp
+        allocate(e_vec(size_hilbert,size_hilbert)); e_vec = 0.0_dp
+        call eig(hamil,e_values,e_vec)
+        print *, "original e-values: ", e_values
         trans_corr_param_2body = -J_param
         hamil_conj = similarity_transform(hamil)
         trans_corr_param_2body = J_param
         hamil = similarity_transform(hamil)
 
+        n_states = size_hilbert
         ! prepare the initial states
-        size_hilbert = size(hamil,1)
         allocate(Psi_R(size_hilbert,n_states)); Psi_R = 0.0_dp
         allocate(Psi_L(size_hilbert,n_states)); Psi_L = 0.0_dp
 
@@ -1090,9 +1108,12 @@ contains
         allocate(l2_norm_0_L(n_states)); l2_norm_0_L = 0.0_dp
         allocate(l2_norm_1_L(n_states)); l2_norm_1_L = 0.0_dp
 
+        allocate(lp_norm_0_R(n_states)); lp_norm_0_R = 0.0_dp
+        allocate(lp_norm_1_R(n_states)); lp_norm_1_R = 0.0_dp
+        allocate(lp_norm_0_L(n_states)); lp_norm_0_L = 0.0_dp
+        allocate(lp_norm_1_L(n_states)); lp_norm_1_L = 0.0_dp
+
         ! also calculate the exact values for the comparison: 
-        allocate(e_values(size_hilbert)); e_values = 0.0_dp
-        allocate(e_vec(size_hilbert,size_hilbert)); e_vec = 0.0_dp
         allocate(sort_ind(size_hilbert))
         sort_ind = [(i, i = 1, size_hilbert)]
 
@@ -1114,11 +1135,11 @@ contains
 
         call eig(overlap_mat_exact, overlap_values, overlap_vecs)
 
-        print *, "overlap eigenvalues: ", overlap_values
-        print *, "rotation matrix: "
-        call print_matrix(overlap_vecs)
-        print *, "is rotation unitary U*U = 1? "
-        call print_matrix(matmul(transpose(overlap_vecs),overlap_vecs))
+!         print *, "overlap eigenvalues: ", overlap_values
+!         print *, "rotation matrix: "
+!         call print_matrix(overlap_vecs)
+!         print *, "is rotation unitary U*U = 1? "
+!         call print_matrix(matmul(transpose(overlap_vecs),overlap_vecs))
         allocate(rotated_basis(n_states,n_states), source = 0.0_dp)
 
         do k = 1, n_states
@@ -1134,22 +1155,22 @@ contains
             end do
         end do
 
-        print *, "is rot_mat unitary?"
-        call print_matrix(matmul(transpose(rot_mat),rot_mat))
+!         print *, "is rot_mat unitary?"
+!         call print_matrix(matmul(transpose(rot_mat),rot_mat))
 
-        print *, "S_ij in rot basis "
-        do k = 1, n_states
-            do l = 1, n_states
-                print *, k,l, dot_product(rotated_basis(:,k),rotated_basis(:,l))
-            end do
-        end do
+!         print *, "S_ij in rot basis "
+!         do k = 1, n_states
+!             do l = 1, n_states
+!                 print *, k,l, dot_product(rotated_basis(:,k),rotated_basis(:,l))
+!             end do
+!         end do
 
-        print *, "<rot|H|rot>"
-        do k = 1, n_states
-            energy = dot_product(rotated_basis(:,k), matmul(hamil, rotated_basis(:,k))) / &
-                dot_product(rotated_basis(:,k),rotated_basis(:,k))
-            print *, energy, energy - e_values(k)
-        end do
+!         print *, "<rot|H|rot>"
+!         do k = 1, n_states
+!             energy = dot_product(rotated_basis(:,k), matmul(hamil, rotated_basis(:,k))) / &
+!                 dot_product(rotated_basis(:,k),rotated_basis(:,k))
+!             print *, energy, energy - e_values(k)
+!         end do
 
         rotated_basis = 0.0
         do k = 1, n_states
@@ -1158,24 +1179,45 @@ contains
             end do
         end do
 
-        print *, "<rot|H|rot>'"
-        do k = 1, n_states
-            energy = dot_product(rotated_basis(:,k), matmul(hamil, rotated_basis(:,k))) / &
-                dot_product(rotated_basis(:,k),rotated_basis(:,k))
-            print *, energy, energy - e_values(k)
-        end do
-
+!         print *, "<rot|H|rot>'"
+!         do k = 1, n_states
+!             energy = dot_product(rotated_basis(:,k), matmul(hamil, rotated_basis(:,k))) / &
+!                 dot_product(rotated_basis(:,k),rotated_basis(:,k))
+!             print *, energy, energy - e_values(k)
+!         end do
+! 
+        print *, "exact eigenvalues: ", e_values
+        if (t_output) then
+            iunit = get_free_unit()
+            iunit2 = iunit+1
+            open(iunit,file='shift')
+            open(iunit2,file='norms')
+        end if
         ! for the beginning try only the groundstate:
         do i = 1, n_iters
             ! |Psi(t+1)> = (1 - t(H - S))|Psi(t)>
+            if (mod(i,1000) == 0) print *, "n_iter: ", i
             do k = 1, n_states
 
                 ! calculate norms before and after
-                    l1_norm_0_R(k) = sum(abs(Psi_R(:,k)))
-                    l2_norm_0_R(k) = sqrt(dot_product(Psi_R(:,k),Psi_R(:,k)))
+                l1_norm_0_R(k) = sum(abs(Psi_R(:,k)))
+                l2_norm_0_R(k) = sqrt(dot_product(Psi_R(:,k),Psi_R(:,k)))
 
-                    l1_norm_0_L(k) = sum(abs(Psi_L(:,k)))
-                    l2_norm_0_L(k) = sqrt(dot_product(Psi_L(:,k),Psi_L(:,k)))
+                l1_norm_0_L(k) = sum(abs(Psi_L(:,k)))
+                l2_norm_0_L(k) = sqrt(dot_product(Psi_L(:,k),Psi_L(:,k)))
+
+                lp_norm_0_R(k) = norm(Psi_R(:,k),l_norm)
+                lp_norm_0_L(k) = norm(Psi_L(:,k),l_norm)
+
+                if (l_norm == 1) then 
+                    if (abs(lp_norm_0_R(k) - l1_norm_0_R(k)) > 1.0e-4) then
+                        call stop_all(this_routine, "l1-norm-0 wrong!")
+                    end if 
+                else if (l_norm == 2) then 
+                    if (abs(lp_norm_0_R(k) - l2_norm_0_R(k)) > 1.0e-4) then
+                        call stop_all(this_routine, "l2-norm-0 wrong!")
+                    end if 
+                end if
 
                 do l = 1, size_hilbert
                     shift_mat_R(l,l) = shift_R(k)
@@ -1189,6 +1231,19 @@ contains
                 l2_norm_1_R(k) = sqrt(dot_product(Psi_R(:,k),Psi_R(:,k)))
                 l1_norm_1_L(k) = sum(abs(Psi_L(:,k)))
                 l2_norm_1_L(k) = sqrt(dot_product(Psi_L(:,k),Psi_L(:,k)))
+
+                lp_norm_1_R(k) = norm(Psi_R(:,k),l_norm)
+                lp_norm_1_L(k) = norm(Psi_L(:,k),l_norm)
+
+                if (l_norm == 1) then 
+                    if (abs(lp_norm_1_R(k) - l1_norm_1_R(k)) > 1.0e-4) then
+                        call stop_all(this_routine, "l1-norm-1 wrong!")
+                    end if 
+                else if (l_norm == 2) then 
+                    if (abs(lp_norm_1_R(k) - l2_norm_1_R(k)) > 1.0e-4) then
+                        call stop_all(this_routine, "l2-norm-1 wrong!")
+                    end if 
+                end if
 
                 if (t_normalize) then
                     Psi_R(:,k) = Psi_R(:,k)/l2_norm_1_R(k)
@@ -1248,21 +1303,26 @@ contains
                     l2_norm_1_L(k) = sqrt(dot_product(Psi_L(:,k),Psi_L(:,k))) 
                 end if
 
-                if (l_norm == 1) then
-                    chosen_norm_0_R = l1_norm_0_R(k)
-                    chosen_norm_1_R = l1_norm_1_R(k)
-                    chosen_norm_0_L = l1_norm_0_L(k)
-                    chosen_norm_1_L = l1_norm_1_L(k)
-                else if (l_norm == 2) then 
-                    chosen_norm_0_R = l2_norm_0_R(k)
-                    chosen_norm_1_R = l2_norm_1_R(k)
-                    chosen_norm_0_L = l2_norm_0_L(k)
-                    chosen_norm_1_L = l2_norm_1_L(k)
-                end if
+                chosen_norm_0_R = lp_norm_0_R(k)
+                chosen_norm_1_R = lp_norm_1_R(k)
+                chosen_norm_0_L = lp_norm_0_L(k)
+                chosen_norm_1_L = lp_norm_1_L(k)
+!                 if (l_norm == 1) then
+!                     chosen_norm_0_R = l1_norm_0_R(k)
+!                     chosen_norm_1_R = l1_norm_1_R(k)
+!                     chosen_norm_0_L = l1_norm_0_L(k)
+!                     chosen_norm_1_L = l1_norm_1_L(k)
+!                 else if (l_norm == 2) then 
+!                     chosen_norm_0_R = l2_norm_0_R(k)
+!                     chosen_norm_1_R = l2_norm_1_R(k)
+!                     chosen_norm_0_L = l2_norm_0_L(k)
+!                     chosen_norm_1_L = l2_norm_1_L(k)
+!                 end if
 
                 shift_R(k) = shift_R(k) - shift_damp/tau * log(chosen_norm_1_R/chosen_norm_0_R)
                 shift_L(k) = shift_L(k) - shift_damp/tau * log(chosen_norm_1_L/chosen_norm_0_L)
 
+                    
                 ! and adapt the shift_R to keep the chosen norm constant
                 ! and normalize for a start.. 
 !                 Psi_R(:,k) = Psi_R(:,k) / sqrt(dot_product(Psi_R(:,k),Psi_R(:,k)))
@@ -1273,37 +1333,47 @@ contains
 
             end do
 
+            if (t_output) then
+                if (mod(i,100) == 0) then
+                    write(iunit,*) shift_R
+                    write(iunit2,*) lp_norm_0_R
+                end if
+            end if
         end do
+        if (t_output) then
+            close(iunit)
+            close(iunit2)
+        end if
 
         allocate(Psi_est(size_hilbert,n_states), source = 0.0_dp)
 
         do k = 1, n_states
             Psi_est(:,k) = Psi_R(:,k) - tau * matmul(hamil - shift_mat_R,Psi_R(:,k))
         end do
-
-        print *, "neci linear dependent?: ", det(Psi_R)
-
-        allocate(overlap_mat_neci(n_states,n_states), source = 0.0_dp)
-        allocate(overlap_val_neci(n_states), source = 0.0_dp)
-        allocate(overlap_vecs_neci(n_states,n_states), source = 0.0_dp)
-
-        do k = 1, n_states
-            do l = 1, n_states
-                overlap_mat_neci(k,l) = dot_product(Psi_R(:,k), Psi_R(:,l)) / &
-                    sqrt(dot_product(Psi_R(:,k),Psi_R(:,k))*dot_product(Psi_R(:,l),Psi_R(:,l)))
-                print *, "i,j, neci-neci overlap: ", k,l,overlap_mat_neci(k,l)
-            end do
-        end do
-
-        do k = 1, n_states
-            do l = 1, n_states
-                print *, "i,j, est-overlap: ", k,l,dot_product(Psi_est(:,k),Psi_est(:,l)) / &
-                    sqrt(dot_product(Psi_est(:,k),Psi_est(:,k))*dot_product(Psi_est(:,l),Psi_est(:,l)))
-            end do
-        end do
-
-        call eig(overlap_mat_neci, overlap_val_neci, overlap_vecs_neci)
-        print *, "neci overlap values : ", overlap_val_neci
+! 
+!         print *, "neci linear dependent?: ", det(Psi_R)
+! 
+!         allocate(overlap_mat_neci(n_states,n_states), source = 0.0_dp)
+!         allocate(overlap_val_neci(n_states), source = 0.0_dp)
+!         allocate(overlap_vecs_neci(n_states,n_states), source = 0.0_dp)
+! 
+!         do k = 1, n_states
+!             do l = 1, n_states
+!                 overlap_mat_neci(k,l) = dot_product(Psi_R(:,k), Psi_R(:,l)) / &
+!                     sqrt(dot_product(Psi_R(:,k),Psi_R(:,k))*dot_product(Psi_R(:,l),Psi_R(:,l)))
+!                 print *, "i,j, neci-neci overlap: ", k,l,overlap_mat_neci(k,l)
+!             end do
+!         end do
+! 
+!         do k = 1, n_states
+!             do l = 1, n_states
+!                 print *, "i,j, est-overlap: ", k,l,dot_product(Psi_est(:,k),Psi_est(:,l)) / &
+!                     sqrt(dot_product(Psi_est(:,k),Psi_est(:,k))*dot_product(Psi_est(:,l),Psi_est(:,l)))
+!             end do
+!         end do
+! 
+!         call eig(overlap_mat_neci, overlap_val_neci, overlap_vecs_neci)
+!         print *, "neci overlap values : ", overlap_val_neci
 
         print *, "L1 norm: ", l1_norm_1_R(:)
         print *, "L2 norm: ", l2_norm_1_R(:)
@@ -1490,43 +1560,43 @@ contains
 
         end do
 
-        print *, "i, j, neci-neci overlap: "
-        do k = 1, n_states
-            do l = k, n_states
-                print *, k, l, dot_product(Psi_R(:,k), Psi_R(:,l)) / & 
-                    sqrt(dot_product(Psi_R(:,k),Psi_R(:,k))*dot_product(Psi_R(:,l),Psi_R(:,l)))
-            end do
-        end do
-
-        print *, "i, j: neci-exact  overlap"
-        do k = 1, n_states
-!             do l = 1, n_states
-                print *, k, k, dot_product(Psi_R(:,k), e_vec(:,k)) / &
-                    sqrt(dot_product(Psi_R(:,k),Psi_R(:,k)))
+!         print *, "i, j, neci-neci overlap: "
+!         do k = 1, n_states
+!             do l = k, n_states
+!                 print *, k, l, dot_product(Psi_R(:,k), Psi_R(:,l)) / & 
+!                     sqrt(dot_product(Psi_R(:,k),Psi_R(:,k))*dot_product(Psi_R(:,l),Psi_R(:,l)))
 !             end do
-        end do
-
-        allocate(gs_vec(n_states,n_states), source = 0.0_dp)
-        print *, "test-overlap:"
-        do k = 1, n_states 
-            Psi_est(:,k) = e_vec(:,k)
-            do l = 1, k - 1
-                Psi_est(:,k) = Psi_est(:,k) - dot_product(Psi_est(:,k),Psi_est(:,l)) / &
-                        dot_product(Psi_est(:,l),Psi_est(:,l)) * Psi_est(:,l)
-
-            end do
-
-            gs_vec(:,k) = Psi_est(:,k) / sqrt(dot_product(Psi_est(:,k),Psi_est(:,k)))
-            print *, k, k, dot_product(e_vec(:,k),gs_vec(:,k))! / &
-!                 sqrt(dot_product(Psi_est(:,k),Psi_est(:,k)))
-        end do
-
-        print *, "S_ij:"
-        do k = 1, n_states
-            do l = 1, k 
-                print *, k,l,dot_product(gs_vec(:,k),gs_vec(:,l))
-            end do
-        end do
+!         end do
+! 
+!         print *, "i, j: neci-exact  overlap"
+!         do k = 1, n_states
+! !             do l = 1, n_states
+!                 print *, k, k, dot_product(Psi_R(:,k), e_vec(:,k)) / &
+!                     sqrt(dot_product(Psi_R(:,k),Psi_R(:,k)))
+! !             end do
+!         end do
+! 
+!         allocate(gs_vec(n_states,n_states), source = 0.0_dp)
+!         print *, "test-overlap:"
+!         do k = 1, n_states 
+!             Psi_est(:,k) = e_vec(:,k)
+!             do l = 1, k - 1
+!                 Psi_est(:,k) = Psi_est(:,k) - dot_product(Psi_est(:,k),Psi_est(:,l)) / &
+!                         dot_product(Psi_est(:,l),Psi_est(:,l)) * Psi_est(:,l)
+! 
+!             end do
+! 
+!             gs_vec(:,k) = Psi_est(:,k) / sqrt(dot_product(Psi_est(:,k),Psi_est(:,k)))
+!             print *, k, k, dot_product(e_vec(:,k),gs_vec(:,k))! / &
+! !                 sqrt(dot_product(Psi_est(:,k),Psi_est(:,k)))
+!         end do
+! 
+!         print *, "S_ij:"
+!         do k = 1, n_states
+!             do l = 1, k 
+!                 print *, k,l,dot_product(gs_vec(:,k),gs_vec(:,l))
+!             end do
+!         end do
 
 
     end subroutine do_exact_propagation
