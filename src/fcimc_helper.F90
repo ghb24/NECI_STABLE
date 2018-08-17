@@ -40,7 +40,7 @@ module fcimc_helper
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
                         t_back_spawn_flex, tau, DiagSft, &
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule
-    use adi_data, only: tAccessibleDoubles, tAccessibleSingles, tInitiatorsSubspace, &
+    use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
          tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
@@ -949,48 +949,23 @@ contains
         else
            scaledInitiatorWalkNo = InitiatorWalkNo
         endif
-
-        if(tSTDInits) then
-           nOcc = 0
-           do crun = 1, inum_runs
-              ! count the number of occupied replicas
-              if(.not. is_run_unnocc(sign,crun)) nOcc = nOcc + 1
-           end do
-           ! for dets only populated on a single replica we cannot 
-           ! define variance of sign
-           if(nOcc < 2) then
-              init_flag = .false.
+        
+        
+        ! option to use the average population instead of the local one
+        ! for purpose of initiator threshold
+        if(tGlobalInitFlag) then
+           ! we can use a signed or unsigned sum
+           if(tSignedRepAv) then
+              tot_sgn = real(abs(sum(sign)),dp)/inum_runs
            else
-              ! but else (even for just 2 replicas), we can get an estimate
-              ! of the coherence between signs from sigma
-              sigma = sum(sign**2)/inum_runs - sum(sign)**2/inum_runs**2
-              ! in the first iterations, the population on some dets
-              ! might be the very same on all replicas, then sigma==0
-              if(abs(sigma) > eps) then
-                 ! make anything an initiator, that has a low enoguh std
-                 ! inum_runs > 1 is guaranteed in setup
-                 init_flag = (sqrt(sigma)/sqrt(real(inum_runs-1)) < ErrThresh)
-              else
-                 init_flag = .true.
-              endif
+              tot_sgn = av_pop(sign)
            endif
         else
-
-           ! option to use the average population instead of the local one
-           ! for purpose of initiator threshold
-           if(tGlobalInitFlag) then
-              ! we can use a signed or unsigned sum
-              if(tSignedRepAv) then
-                 tot_sgn = real(abs(sum(sign)),dp)/inum_runs
-              else
-                 tot_sgn = av_pop(sign)
-              endif
-           else
-              tot_sgn = mag_of_run(sign,run)
-           endif
-           ! make it an initiator 
-           init_flag = (tot_sgn > scaledInitiatorWalkNo)
+           tot_sgn = mag_of_run(sign,run)
         endif
+        ! make it an initiator 
+        init_flag = (tot_sgn > scaledInitiatorWalkNo)
+
       end function initiator_criterium
 
     subroutine rezero_iter_stats_each_iter(iter_data, rdm_defs)
@@ -2175,5 +2150,41 @@ contains
         write(6,*) 'Calculated instantaneous projected energy', proje_iter
 
     end subroutine
+
+
+    subroutine replica_coherence_check(ilut,sgn,exLvl)
+
+      ! do a check if a determinant has sign consistent walkers across replicas
+      ! input: 
+      ! ilut = determinant + population in ilut-format
+      ! sgn = sign of ilut (i.e. #walkers)
+      ! exLvl = excitation level of ilut for logging purposes
+      ! this logs the number of conflicts per excitation level
+      implicit none
+      integer(n_int), intent(inout) :: ilut(0:NIfTot)
+      real(dp), intent(inout) :: sgn(lenof_sign)
+      integer, intent(in) :: exLvl
+      
+      integer :: run
+      real(dp) :: avSign
+
+#ifdef __CMPLX
+#else
+      ! check if there are any sign changes within sgn
+      if(any(sgn*sgn(1) < 0)) then
+         avSign = sum(sgn)/inum_runs
+         ! log the change in population
+         do run = 1, inum_runs
+            ! are we looking at an erroneous sign?
+            if(sgn(run)*avSign < 0) then
+               ! log the conflict
+               avSigns = avSigns + abs(sgn(run))
+               if(exLvl < maxConflictExLvl) ConflictExLvl(exLvl) = ConflictExLvl(exLvl) + 1
+            endif
+         end do
+      endif
+#endif
+    end subroutine replica_coherence_check
+
     
 end module

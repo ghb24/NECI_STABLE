@@ -31,9 +31,6 @@ module global_det_data
     !The integral of shift since the spawning of this determinant.
     integer :: pos_shift_int, len_shift_int
 
-    ! The number of sign conflicts across replicas since the last correction
-    integer :: pos_conflict_counter, len_conflict_counter
-
     ! Average sign and first occupation of iteration.
     private :: pos_av_sgn, len_av_sgn, pos_iter_occ, len_iter_occ
     integer :: pos_av_sgn, len_av_sgn
@@ -152,12 +149,6 @@ contains
             len_iter_occ = 0
         end if
 
-        if(tStoreConflicts) then
-           len_conflict_counter = 1
-        else
-           len_conflict_counter = 0
-        endif
-
         ! If we are using continuous time, and storing the spawning rates
         len_spawn_rate = 0
         if (tContTimeFCIMC .and. tContTimeFull) then
@@ -173,9 +164,8 @@ contains
         pos_iter_occ = pos_av_sgn_transition + len_av_sgn_transition
         pos_iter_occ_transition = pos_iter_occ + len_iter_occ
         pos_spawn_rate = pos_iter_occ_transition + len_iter_occ_transition
-        pos_conflict_counter = pos_spawn_rate + len_spawn_rate
 
-        tot_len = len_hel + len_spawn_pop + len_tau_int + len_shift_int + len_av_sgn_tot + len_iter_occ_tot + len_spawn_rate + len_conflict_counter
+        tot_len = len_hel + len_spawn_pop + len_tau_int + len_shift_int + len_av_sgn_tot + len_iter_occ_tot
 
         ! Allocate and log the required memory (globally)
         allocate(global_determinant_data(tot_len, MaxWalkersPart), stat=ierr)
@@ -534,38 +524,5 @@ contains
         global_determinant_data(pos_spawn_rate, j) = rate
 
     end subroutine
-
-  ! bookkeeping of number of sign conflicts
-  ! these subroutines only make sense for multi-run builds
-    subroutine increase_conflict_counter(j)
-      implicit none
-      integer, intent(in) :: j
-
-#if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
-      global_determinant_data(pos_conflict_counter,j) = &
-           global_determinant_data(pos_conflict_counter,j) + 1
-#endif
-    end subroutine increase_conflict_counter
-
-    subroutine reset_conflict_counter(j)
-      implicit none
-      integer, intent(in) :: j
-     
-#if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
-      global_determinant_data(pos_conflict_counter,j) = 0
-#endif
-    end subroutine reset_conflict_counter
-
-    function get_conflict_counter(j) result(counter)
-      implicit none
-      integer, intent(in) :: j
-      integer :: counter
-      
-#if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
-      counter = global_determinant_data(pos_conflict_counter,j)
-#else
-      counter = 0
-#endif
-    end function get_conflict_counter
 
 end module

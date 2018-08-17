@@ -37,7 +37,7 @@ module fcimc_initialisation
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, tRCCheck, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0
-    use adi_data, only: g_markers, tReferenceChanged, tInitiatorsSubspace, tAdiActive, &
+    use adi_data, only: tReferenceChanged, tAdiActive, &
          nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
@@ -879,7 +879,6 @@ contains
         all_norm_psi_squared = 1.0_dp
         tSoftExitFound = .false.
         tReferenceChanged = .false.
-        tGetConflictCorrections = .false.
 
         ! Initialise the fciqmc counters
         iter_data_fciqmc%update_growth = 0.0_dp
@@ -1590,11 +1589,6 @@ contains
         ! controlled over the reference population
         if(tFixedN0) tSinglePartPhase = .true.
 
-         if(tInitiatorsSubspace) call read_g_markers()
-
-         tRCCheck = tStoreConflicts .or. tWriteConflictLvls .or. tAVReps
-        if(tStoreConflicts) call init_conflict_data()
-
          if(tRDMonFly .and. tDynamicCoreSpace) call sync_rdm_sampling_iter()
 
 
@@ -1868,9 +1862,6 @@ contains
         ! Cleanup adi caches
         call clean_adi()
 
-        ! cleanup conflict caches
-        call clean_conflict_data()
-
         if (tSemiStochastic) call end_semistoch()
 
         if (tTrialWavefunction) call end_trial_wf()
@@ -1890,8 +1881,6 @@ contains
 !                CALL neci_flush(iout)
 !            ENDIF
 !        ENDIF
-
-        if(allocated(g_markers)) deallocate(g_markers)
 
     end subroutine DeallocFCIMCMemPar
 
@@ -3654,7 +3643,7 @@ contains
       ! We initialize the flags for the adi feature
       use adi_data, only: tSetDelayAllDoubsInits, tSetDelayAllSingsInits, tDelayAllDoubsInits, &
            tDelayAllSingsInits, tAllDoubsInitiators, tAllSingsInitiators, tDelayGetRefs, &
-           NoTypeN, tReadRefs, tInitiatorsSubspace, maxNRefs, nRefsSings, nRefsDoubs, &
+           NoTypeN, tReadRefs, maxNRefs, nRefsSings, nRefsDoubs, &
            SIUpdateOffset
       use CalcData, only: InitiatorWalkNo
       use adi_references, only: enable_adi, reallocate_ilutRefAdi, setup_SIHash, &
@@ -3682,7 +3671,7 @@ contains
       if(tDelayAllSingsInits .and. tDelayAllDoubsInits) tDelayGetRefs = .true.
       ! Give a status message
       if(tAllDoubsInitiators) call enable_adi()
-      if(tAllSingsInitiators .or. tAllDoubsInitiators .or. tInitiatorsSubspace) &
+      if(tAllSingsInitiators .or. tAllDoubsInitiators) &
            tAdiActive = .true. 
 
       ! there is a minimum cycle lenght for updating the number of SIs, as the reference population
@@ -3710,99 +3699,6 @@ contains
 	coreSpaceUpdateCycle = SIUpdateInterval
       endif
     end subroutine setup_dynamic_core
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine init_conflict_data()
-      implicit none
-      character(*), parameter :: t_r = "init_conflict_data"
-      integer :: j
-      
-      if(tLoadBalanceBlocks) call stop_all(t_r,&
-           "Storage of conflicts is incompatible with load-balance option")
-      ! start filling the list from 0
-      clistIndex = 0
-      ! the last two entries per ilut are used for storing the
-      ! number of conflicts and the last conflicting iteration
-      ! so conflictingDets-iluts are larger by 1 than regular ones (they dont have flags)
-      allocate(conflictingDets(0:(NIfTot+1),nCDetsStore))
-      conflictingDets = 0
-      ! buffer for gathering the conflicting dets
-      allocate(AllConflictingDets(0:(NIfTot+1),nCDetsStore*nProcessors))
-      AllConflictingDets = 0
-      ! set up the hashtable (to the size of AllConflictingDets)
-      cHashSize = nCDetsStore * nProcessors
-      allocate(conflictHash(cHashSize))
-      call init_hash_table(conflictHash)
-
-      ! iteration count
-      cAccStartIter = 0
-      
-      ! The conflict counter is automatically initialized to 0, no need to 
-      ! set that one
-    end subroutine init_conflict_data
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine clean_conflict_data()
-      use hash, only: clear_hash_table
-      implicit none
-      ! deallocate the conflict buffers
-      if(allocated(conflictingDets)) deallocate(conflictingDets)
-      call clear_hash_table(conflictHash)
-      if(associated(conflictHash)) deallocate(conflictHash)
-    end subroutine clean_conflict_data
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine read_g_markers()
-      use adi_data, only: g_markers_num
-      use util_mod, only: get_free_unit
-      use bit_rep_data, only: NIfD
-      implicit none
-      logical :: exists
-      integer :: iunit, read_buf(nBasis/2), i, stat
-      character(*), parameter :: this_routine = "read_g_markers"
-      character(*), parameter :: filename = "INIT_SUBSPACE"
-
-      ! First, set up the array for the markers
-      allocate(g_markers(0:NIfD))
-      g_markers = 0_n_int
-      ! Then, check if the file is there
-      inquire(file = filename, exist = exists)
-      if(.not. exists) call stop_all(this_routine, "No "//filename//" file detected.")
-      
-      ! now, read in the file
-      g_markers_num = 0
-      iunit = get_free_unit()
-      open(iunit, file = filename, status = 'old')
-      
-      read_buf = -1
-      read(iunit,*) read_buf
-      if(any(read_buf(1:nBasis/2)== -1)) call stop_all(this_routine, &
-           "Number of orbitals in FCIDUMP and in "//filename//" does not agree.")
-      
-      ! We only have read in information for the spatial orbitals
-      do i = 1, nBasis/2
-         ! For each entry, check if it is 0 or 1, if it is zero, it is not in the 'active' space
-         if(read_buf(i) == 0) then
-            ! The input is in spatial orbitals, g_markers is in spin orbitals
-            !g_markers = iBSET(g_markers,2*(i-1))
-            !g_markers = iBSET(g_markers,2*(i-1)+1)
-            set_orb(g_markers, 2*i-1)
-            set_orb(g_markers, 2*i)
-            g_markers_num = g_markers_num + 2
-         endif
-      enddo
-      
-      call neci_flush(iout)
-      write(iout,'()')
-      write(iout,*) "Using an initiator subspace"
-      write(iout,*) "Read g_markers, given by" 
-      call WriteDetBit(iout, g_markers, .true.)
-      write(iout,*) "Number of initiator-active spin orbitals: ", nBasis-g_markers_num
-      write(iout,'()')
-    end subroutine read_g_markers
 
 !------------------------------------------------------------------------------------------!
 

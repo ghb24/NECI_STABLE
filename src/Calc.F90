@@ -25,14 +25,14 @@ MODULE Calc
     use IntegralsData, only: tNeedsVirts
     use FciMCData, only: tTimeExit,MaxTimeExit, InputDiagSft, tSearchTau, &
                          nWalkerHashes, HashLengthFrac, tSearchTauDeath, &
-                         tTrialHash, tIncCancelledInitEnergy, MaxTau, minCAccIter, &
-                         tStartCoreGroundState, pParallel, pops_pert, cAccIter, &
-                         alloc_popsfile_dets, tSearchTauOption, nCDetsStore, tStoreConflicts, &
-                         minCAccIter, correctionInterval, tEScaleWalkers, sFAlpha
+                         tTrialHash, tIncCancelledInitEnergy, MaxTau, &
+                         tStartCoreGroundState, pParallel, pops_pert, &
+                         alloc_popsfile_dets, tSearchTauOption, &
+                         sFAlpha, tEScaleWalkers
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
          tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits, tSetDelayAllDoubsInits, &
          tSetDelayAllSingsInits, nExProd, NoTypeN, tAdiActive, tReadRefs, SIUpdateInterval, &
-         tProductReferences, tAccessibleDoubles, tAccessibleSingles, tInitiatorsSubspace, &
+         tProductReferences, tAccessibleDoubles, tAccessibleSingles, &
          tReferenceChanged, superInitiatorLevel, allDoubsInitsDelay, tStrictCoherentDoubles, &
          tWeakCoherentDoubles, tAvCoherentDoubles, coherenceThreshold, SIThreshold, &
          tSuppressSIOutput, targetRefPop, targetRefPopTol, tSingleSteps, tVariableNRef, &
@@ -380,22 +380,6 @@ contains
           tAdiActive = .false.
           minSIConnect = 1
           
-          ! Data for averaging over replicas
-          ! all averages over replicas are to be signed
-          tSignedRepAv = .true.
-          ! never allow an initiator to have different sign across replicas
-          tReplicaCoherentInits = .false.
-          ! normally, do not store the sign conflicts themselves
-          nCDetsStore = 1000
-          tStoreConflicts = .false.
-          cAccIter = 1
-          correctionInterval = 1000
-          minCAccIter = correctionInterval
-          ! And disable the initiators subspace
-          tInitiatorsSubspace = .false.
-          ! is a coherence check required?
-          tRCCheck = .false.
-
           ! Walker scaling with energy
           ! do not use scaled walkers
           tEScaleWalkers = .false.
@@ -2576,10 +2560,6 @@ contains
                 ! Also add all excitation products of references to the reference space
                 tProductReferences = .true.
 
-             case("INITIATORS-SUBSPACE")
-                ! Use Giovannis check to add initiators
-                tInitiatorsSubspace = .true.
-
              case("COHERENT-REFERENCES")
                 ! Only make those doubles/singles initiators that are sign coherent
                 ! with their reference(s)
@@ -2669,33 +2649,6 @@ contains
                       tSignedRepAv = .true.
                    end select
                 endif
-
-             case("CACHE-SIGN-CONFLICTS")
-                ! store sign conflicts in a separate hashtable
-                tStoreConflicts = .true.
-                ! optional: number of confl. determinants to store
-                if(item < nitems) then 
-                   call readi(nCDetsStore)
-                   nCDetsStore = nCDetsStore / nProcessors
-                endif
-
-             case("AVERAGE-ITERS")
-                ! over how many iterations do we want to average the
-                ! signs for replica-sign conflict solution
-                call readi(cAccIter)
-
-             case("SIGN-CORRECTION-INTERVAL")
-                ! how often we apply the correction
-                call readi(correctionInterval)
-
-             case("START-SIGN-CORRECTION")
-                call readi(minCAccIter)
-
-             case("STD-INITIATORS")
-                tSTDInits = .true.
-                if(inum_runs == 1) call stop_all(t_r,&
-                     "Cannot use std-based initiators in single-replica mode")
-                if(item < nItems) call readf(ErrThresh)
 
              case("ENERGY-SCALED-WALKERS")
                 ! the amplitude unit of a walker shall be scaled with energy

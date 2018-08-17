@@ -1396,39 +1396,12 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    function giovannis_check(ilut) result(init)
-      use adi_data, only: g_markers, g_markers_num
-      use DetBitOps, only: CountBits
-      use bit_rep_data, only: NIfD
-      ! Very much like DetBitOps::FindBitExcitLevel, but it does the check for the active-space
-      ! initiator criterium
-      implicit none
-      integer(n_int), intent(in) :: ilut(0:NIfD)
-      integer(n_int) :: tmp_ilut(0:NIfD)
-      integer :: nOrbs
-      logical :: init
-
-      init = .false.
-      ! Get the bitwise equivalence of the input with the reference
-      tmp_ilut = NOT(IEOR(ilut,ilutRef(:,1)))
-      ! Now compare tmp_ilut with the markers (these are 0 for the core orbitals and 1 else)
-      tmp_ilut = IAND(tmp_ilut, g_markers)
-      nOrbs = CountBits(tmp_ilut,NIfD)
-      ! If nOrbs is the markersize, it is an initiator
-      init = (nOrbs == g_markers_num)
-
-    end function giovannis_check
-
-!------------------------------------------------------------------------------------------!
-
     subroutine clean_adi()
-      use adi_data, only: g_markers
       implicit none
       
       call deallocate_adi_caches()
       if(associated(SIHash)) deallocate(SIHash)
       if(allocated(ilutRefAdi)) deallocate(ilutRefAdi)
-      if(allocated(g_markers)) deallocate(g_markers)
     end subroutine clean_adi
     
 end module adi_references

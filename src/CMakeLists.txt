@@ -133,7 +133,6 @@ set( SRC_FILES
     semi_stoch_gen.F90
     semi_stoch_procs.F90
     shared_memory_mpi.F90
-    sign_coherence_check.F90
     sltcnd.F90
     sparse_arrays.F90
     spectral_data.F90

@@ -36,11 +36,6 @@ module adi_data
   real(dp) :: NoTypeN, coherenceThreshold, SIThreshold
   logical :: tReadRefs, tProductReferences, tAccessibleDoubles, tAccessibleSingles, tSuppressSIOutput
 
-  ! Additional variables for giovannis check
-  integer(n_int), allocatable :: g_markers(:)
-  integer :: g_markers_num
-  logical :: tInitiatorsSubspace
-
   integer :: nExCheckFails, nExChecks, allNExCheckFails, allNExChecks
 
   !Minimum number of connections to SI in order for the sign-coherence parameter to be valid

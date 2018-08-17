@@ -140,14 +140,6 @@ MODULE FciMCData
       integer :: nWalkerHashes    ! The length of hash table.
       real(dp) :: HashLengthFrac
 
-      ! hash table for conflicting determinants
-      logical :: tStoreConflicts, tGetConflictCorrections
-      integer :: cAccIter, cAccStartIter, minCAccIter, correctionInterval
-      integer :: cHashSize
-      type(ll_node), pointer :: conflictHash(:)
-      integer(n_int), allocatable :: conflictingDets(:,:), AllConflictingDets(:,:)
-      integer :: nCDetsStore, clistIndex, AllCListSize
-
       ! scaling of walker-units
       real(dp) :: sFAlpha
       logical :: tEScaleWalkers

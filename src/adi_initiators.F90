@@ -95,9 +95,9 @@ contains
   function adi_criterium(ilut, nI, sgn, ex, run) result(staticInit)
     ! This is the adi-initiator criterium expansion
     ! I expect it to grow further
-    use adi_references, only: giovannis_check, initialize_c_caches,update_coherence_check, &
+    use adi_references, only:initialize_c_caches,update_coherence_check, &
          eval_coherence
-    use adi_data, only: tInitiatorsSubspace, tWeakCoherentDoubles, tAvCoherentDoubles, &
+    use adi_data, only: tWeakCoherentDoubles, tAvCoherentDoubles, &
          tUseCaches, exLvlRef
     use DetBitOps, only: FindBitExcitLevel
     implicit none
@@ -112,12 +112,6 @@ contains
     integer :: connections
 
     staticInit = .false.
-    ! This is Giovanni's CAS-initiator criterium
-    if(tInitiatorsSubspace) then
-       if(giovannis_check(ilut)) then
-          staticInit = .true.
-       endif
-    endif
     tCCache = tWeakCoherentDoubles .or. tAvCoherentDoubles
     
     exLevel = 0
