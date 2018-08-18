@@ -1,0 +1,238 @@
+ Number of processors:            2
+ Processor            1 /           2  as head node.
+ Sum:            3
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on Aug 17 2018 at 19:36:41
+ Compiled using configuration:
+     cmake-Intel-par-RELEASE
+ VCS BASE repository version:
+     68985cec1bc75cbb33c0311464311eb97443a11a
+ Working directory: 
+     /home/guther/numerics/adi_devel/neci/test_suite/mneci/kpfciqmc/ft_heis_fci
+ Running on: pcal014
+ Started running on 18/08/2018 at 21:13:03
+ ================================================================
+
+ Processing arguments
+ neci.inp                                                                       
+                                                                                
+                                                                                
+                   
+ Reading from file: neci.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+title
+
+system read
+electrons 16
+heisenberg
+endsys
+
+calc
+memoryfacspawn 10.0
+memoryfacpart 10.0
+totalwalkers 4000
+tau 0.1
+startsinglepart 5000
+shiftdamp 0.5
+stepsshift 1
+diagshift 0.0
+allrealcoeff
+realspawncutoff 0.01
+averagemcexcits 10
+definedet 1 4 5 8 10 11 14 15 17 20 21 24 26 27 30 31
+semi-stochastic
+heisenberg-fci-core
+seed 92391
+jump-shift off
+load-balance-blocks off
+endcalc
+
+kp-fciqmc
+finite-temperature
+num-init-configs 1
+num-krylov-vecs 15
+num-iters-between-vecs-vary 1 2 3 4 5 6 7 8 9 10 11 12 13 14
+num-repeats-per-init-config 1
+num-walkers-per-site-init 1.0
+averagemcexcits-hamil 0.001
+end-kp-fciqmc
+
+integral
+endint
+
+logging
+popsfile -1
+endlog
+end
+
+****************************************************************
+
+ Using KPFCIQMC without explicitly specifying the number of replica simulations
+ Defaulting to using 2 replicas
+ Allocating each processor as a separate node.
+ I am the node root for node            0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :    16
+  No restriction on the spin state of the system, TSPN :  F
+  GLOBAL MS :            0
+  *** GENERIC SYSTEM ***  
+ ** WARNING **
+ ** Unconverged symmetry of orbitals **
+ ** Turning point group symmetry off for rest of run **
+ ** No symmetry at all will be used in excitation generators **
+  Unrestricted calculation.  Cave Arthropodia.  
+  NUMBER OF SPIN ORBITALS IN BASIS :    32
+*** CREATING BASIS FNs FROM FCIDUMP ***
+  Maximum number of symmetries:   1
+ Turning Symmetry off
+  Generating abelian symmetry table with  0 generators
+  Number of symmetry classes: 1
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+HF determinant not yet defined.
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+      3      3      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+      4      4      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+      5      5      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+      6      6      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+      7      7      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+      8      8      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+      9      9      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     10     10      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     11     11      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     12     12      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     13     13      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     14     14      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     15     15      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     16     16      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     17     17      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     18     18      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     19     19      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     20     20      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     21     21      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     22     22      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     23     23      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     24     24      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     25     25      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     26     26      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     27     27      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     28     28      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     29     29      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     30     30      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     31     31      0      0      0     -1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+     32     32      0      0      0      1 ( 0, 0, 0) 0   0        0.000000000        0.000000000
+ Turning Symmetry off
+*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***
+ UMatSize:                 139656
+Memory required for integral storage:      1.065490723     Mb/Shared Memory
+Two-electron integrals with a magnitude over    0.1000000E-07 are screened
+ Number of non-zero integrals:                    192
+ ECORE=  0.000000000000000E+000
+ Setting normal GetUMatEl routine
+ Defining FDet according to input
+ Fermi det (D0):(    1,    4,    5,    8,   10,   11,   14,   15,   17,   20,   21,   24,   26,   27,   30,   31)
+ Symmetry:  ( 0, 0, 0) 0
+ Fock operator energy:  0.000000000000000E+000
+ Setting normal GetUMatEl routine
+ Calculation supports multiple parallel runs
+ Number of simultaneous walker distributions:            2
+ Number of sign components in bit representation of determinant:            2
+Setting integer length of determinants as bit-strings to:      4
+Setting integer bit-length of determinants as bit-strings to:     64
+ SYMMETRY MULTIPLICATION TABLE
+ No Symmetry table found.
+           1  Symmetry PAIRS
+           1  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ Not storing the H matrix.
+ BETAP=  1.000000000000000E-004
+ RESETTING P 
+ *** WARNING I_P=    10000000
+ BETA, P :   1000.00000000000         10000000
+ DBETA=  -1.00000000000000     
+ <D0|H|D0>= -0.500000000000000     
+ <D0|T|D0>=  0.000000000000000E+000
+ FDet has     8 alpha electrons, and     8 beta electrons.
+               28  alpha-alpha occupied electron pairs
+               28  beta-beta occupied electron pairs
+               64  alpha-beta occupied electron pairs
+               28 alpha-alpha (vacant) hole pairs
+               28 beta-beta (vacant) hole pairs
+               64 alpha-beta (vacant) hole pairs
+ 
+ Performing Parallel FCIQMC....
+ 
+ Generated reference determinants:
+(    1,    4,    5,    8,   10,   11,   14,   15,   17,   20,   21,   24,   26,   27,   30,   31) E =     -0.500000000
+(    1,    4,    5,    8,   10,   11,   14,   15,   17,   20,   21,   24,   26,   27,   30,   31) E =     -0.500000000
+ Using an open shell reference determinant in a basis of restricted HF orbitals; Brillouins theorem is being turned off. 
+Symmetry of reference determinant is:          0
+Symmetry of reference determinant from spin orbital symmetry info is:          0
+Value for seed is:        92391
+Reference Energy set to:        -0.5000000000
+Highest energy determinant is (approximately):      0.00000000000000    
+Corresponding to a correlation energy of:     0.500000000000000    
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+   5664 double excitations, and     128 single excitations found from reference. This will be used to calculate pDoubles.
+ pDoubles set to:       0.977901
+ pSingles set to:       0.022099
+Initial Diagonal Shift:         0.0000000000
+ Connectivity of HF determinant is:         5792
+Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors
+Memory allocated for a maximum particle number per node of:         524288
+ Determinant related persistent storage requires:      28.000000 Mb / processor
+Spawning vectors allowing for a total of        40000 particles to be spawned in any one iteration per core.
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:            1400
+Length of hash-table as a fraction of targetwalkers:              0.70000
+Reference processor is:        1
+Initial reference is: (    1,    4,    5,    8,   10,   11,   14,   15,   17,   20,   21,   24,   26,   27,   30,   31)
+Initial number of particles set to       5000 and shift will be held at     0.000 until particle number gets to            4000
+ Initial memory (without excitgens + temp arrays) consists of :      18.441406 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+ =============================================
+
+============ Semi-stochastic initialisation ============
+Generating the deterministic space...
+Total size of deterministic space:        0
+Size of deterministic space on this processor:        0
+Generating the Hamiltonian in the deterministic space...
+Using the deterministic ground state as initial walker configuration.
+Performing Davidson calculation...
+
+Intel MKL ERROR: Parameter 6 was incorrect on entry to DGEMV .
+Davidson calculation complete.
+Deterministic subspace correlation energy:    0.0000000000
+Semi-stochastic initialisation complete.
+Total time (seconds) taken for semi-stochastic initialisation:    0.054
+
+
+============ KP-FCIQMC ============
+About to allocate array to hold all Krylov vectors. Memory required (MB): 7
+Allocating... Done.
+About to allocate array to hold diagonal Hamiltonian elements for Krylov vectors. Memory required (MB): 0
+Allocating... Done.
+About to allocate hash table to the Krylov vector array. Memory required (MB): 0
+Allocating... Done.
+Note that the hash table uses linked lists, and the memory usage will increase as further nodes are added.
+     About to allocate hash table to the spawning array. Memory required (MB): 0
+Allocating... Done.
+Note that the hash table uses linked lists, and the memory usage will increase as further nodes are added.
+About to allocate various subspace matrices. Memory required (MB): 0
+Allocating... Done.
+#   1. Iter.             2. Tot. parts        3. Tot. ref          4. Proj. E (cyc)     5. Shift. (cyc)      9. Tot. Proj. E      10. Dets occ.        11. Dets spawned     12. Iter. time      
+ Starting repeat number 1
+# Generating initial walker configuration... Complete. Time taken (seconds):    0.002
+#                 0   8308.00000000        10000.0000000        0.00000000000        0.00000000000      -0.500000000000                     1               0   0.00000000000     
+# Adding the current walker configuration to the Krylov vector array... Done.
+# Number unique determinants in the Krylov vector array: 1861 out of a possible 30000
+# Fraction of the amplitude elements used in the Krylov vector array: 4.1356E-03

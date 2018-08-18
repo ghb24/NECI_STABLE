@@ -1,0 +1,1017 @@
+ Number of processors:            2
+ Processor            1 /           2  as head node.
+ Sum:            3
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on Aug 17 2018 at 19:36:41
+ Compiled using configuration:
+     cmake-Intel-par-RELEASE
+ VCS BASE repository version:
+     68985cec1bc75cbb33c0311464311eb97443a11a
+ Working directory: 
+     /home/guther/numerics/adi_devel/neci/test_suite/mneci/excited_state/HeHe_3_states_rdm_transition
+ Running on: pcal014
+ Started running on 18/08/2018 at 21:11:13
+ ================================================================
+
+ Processing arguments
+ neci.inp                                                                       
+                                                                                
+                                                                                
+                   
+ Reading from file: neci.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+title
+
+system read
+electrons 4
+nonuniformrandexcits 4ind-weighted
+system-replicas 6
+endsys
+
+calc
+methods
+method vertex fcimc
+endmethods
+memoryfacspawn 20.0
+memoryfacpart 20.0
+diagshift 0.5 0.5 2.0 2.0 2.0 2.0
+totalwalkers 1000
+tau 0.01
+startsinglepart 300
+shiftdamp 0.5
+stepsshift 10
+nmcyc 4000
+allrealcoeff
+realspawncutoff 0.01
+orthogonalise-replicas
+doubles-init
+semi-stochastic
+doubles-core
+trial-wavefunction 1000
+pops-trial 200
+load-balance-blocks off
+seed 10
+endcalc
+
+integral
+endint
+
+logging
+popsfile -1
+calcrdmonfly 3 1100 50
+write-spin-free-rdm
+printonerdm
+transition-rdms 2
+1 2
+1 3
+endlog
+end
+
+****************************************************************
+
+ RDM on fly
+ Allocating each processor as a separate node.
+ I am the node root for node            0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :     4
+  No restriction on the spin state of the system, TSPN :  F
+  GLOBAL MS :            0
+  *** GENERIC SYSTEM ***  
+  NUMBER OF SPIN ORBITALS IN BASIS :    20
+*** CREATING BASIS FNs FROM FCIDUMP ***
+  Maximum number of symmetries:   8
+  Generating abelian symmetry table with  3 generators
+  Number of symmetry classes: 8
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+HF determinant not yet defined.
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0       -0.970328723       -0.970328723
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0       -0.970328723       -0.970328723
+      3      3      0      0      0     -1 ( 0, 0, 5) 5   0       -0.854768836       -0.854768836
+      4      4      0      0      0      1 ( 0, 0, 5) 5   0       -0.854768836       -0.854768836
+      5      5      0      0      0     -1 ( 0, 0, 0) 0   0        1.350805227        1.350805227
+      6      6      0      0      0      1 ( 0, 0, 0) 0   0        1.350805227        1.350805227
+      7      7      0      0      0     -1 ( 0, 0, 5) 5   0        1.506423311        1.506423311
+      8      8      0      0      0      1 ( 0, 0, 5) 5   0        1.506423311        1.506423311
+      9      9      0      0      0     -1 ( 0, 0, 0) 0   0        2.381814370        2.381814370
+     10     10      0      0      0      1 ( 0, 0, 0) 0   0        2.381814370        2.381814370
+     11     11      0      0      0     -1 ( 0, 0, 7) 7   0        2.502347398        2.502347398
+     12     12      0      0      0      1 ( 0, 0, 7) 7   0        2.502347398        2.502347398
+     13     13      0      0      0     -1 ( 0, 0, 6) 6   0        2.502347398        2.502347398
+     14     14      0      0      0      1 ( 0, 0, 6) 6   0        2.502347398        2.502347398
+     15     15      0      0      0     -1 ( 0, 0, 2) 2   0        2.548020639        2.548020639
+     16     16      0      0      0      1 ( 0, 0, 2) 2   0        2.548020639        2.548020639
+     17     17      0      0      0     -1 ( 0, 0, 3) 3   0        2.548020639        2.548020639
+     18     18      0      0      0      1 ( 0, 0, 3) 3   0        2.548020639        2.548020639
+     19     19      0      0      0     -1 ( 0, 0, 5) 5   0        2.840230366        2.840230366
+     20     20      0      0      0      1 ( 0, 0, 5) 5   0        2.840230366        2.840230366
+*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***
+ UMatSize:                   1540
+Memory required for integral storage:     0.1174926758E-01 Mb/Shared Memory
+Two-electron integrals with a magnitude over    0.1000000E-07 are screened
+ Number of non-zero integrals:                    898
+ ECORE=   1.33333333063330     
+ Setting normal GetUMatEl routine
+ N_alpha:2 ; N_beta:2 ; LMS:0 ; NEl:4
+ Fermi det (D0):(    1,    2,    3,    4)
+ Symmetry:  ( 0, 0, 0) 0
+ Fock operator energy:  -2.31686178784132     
+ Setting normal GetUMatEl routine
+ Calculation supports multiple parallel runs
+ Number of simultaneous walker distributions:            6
+ Number of sign components in bit representation of determinant:            6
+Setting integer length of determinants as bit-strings to:      8
+Setting integer bit-length of determinants as bit-strings to:     64
+ SYMMETRY MULTIPLICATION TABLE
+ No Symmetry table found.
+          21  Symmetry PAIRS
+           8  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ Not storing the H matrix.
+ <D0|H|D0>=  -5.69708312235797     
+ <D0|T|D0>=  -10.4106369933570     
+ FDet has     2 alpha electrons, and     2 beta electrons.
+                1  alpha-alpha occupied electron pairs
+                1  beta-beta occupied electron pairs
+                4  alpha-beta occupied electron pairs
+               28 alpha-alpha (vacant) hole pairs
+               28 beta-beta (vacant) hole pairs
+               64 alpha-beta (vacant) hole pairs
+ 
+ Performing Parallel FCIQMC....
+ 
+ Generated reference determinants:
+(    1,    2,    3,    4) E =     -5.697083122
+(    2,    3,    4,    5) E =     -3.868575450
+(    1,    3,    4,    6) E =     -3.868575450
+(    1,    2,    4,    7) E =     -3.797616786
+(    1,    2,    3,    8) E =     -3.797616786
+(    2,    3,    4,    9) E =     -2.886095063
+Symmetry of reference determinant is:          0
+Symmetry of reference determinant from spin orbital symmetry info is:          0
+Value for seed is:           10
+Reference Energy set to:        -5.6970831224
+Highest energy determinant is (approximately):      6.24071158603921    
+Corresponding to a correlation energy of:      11.9377947083972    
+Brillouin theorem in use for calculation of projected energy.
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+     60 double excitations, and       8 single excitations found from reference. This will be used to calculate pDoubles.
+ pDoubles set to:       0.882353
+ pSingles set to:       0.117647
+Initial Diagonal Shift:         0.5000000000
+ Connectivity of HF determinant is:           68
+Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors
+Memory allocated for a maximum particle number per node of:         291271
+ The average current signs before death will be stored for use in the RDMs.
+ Determinant related persistent storage requires:     104.444405 Mb / processor
+Spawning vectors allowing for a total of        60000 particles to be spawned in any one iteration per core.
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:             350
+Length of hash-table as a fraction of targetwalkers:              0.70000
+Reference processor is:        1
+Initial reference is: (    1,    2,    3,    4)
+  Initialising wavefunctions by the Lanczos algorithm
+  Aborting Lanczos and initialising trial states with direct diagonalisation
+  MAXIMUM WIDTH OF HAMIL :           43
+  TOTAL NUMBER OF NON-ZERO ELEMENTS :         1075
+ Setting ref           1
+(    1,    2,    3,    4)
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    3,    4)
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -5.69708312235797    
+ Regenerating the stored diagonal HElements for all walkers.
+ Setting ref           2
+(    1,    2,    3,    4)
+Changing projected energy reference determinant for run  2 on the next update cycle to: (    1,    2,    3,    4)
+ Ensuring that Brillouin's theorem is no longer used.
+ Setting ref           3
+(    1,    3,    4,    6)
+Changing projected energy reference determinant for run  3 on the next update cycle to: (    1,    3,    4,    6)
+ Ensuring that Brillouin's theorem is no longer used.
+ Setting ref           4
+(    1,    3,    4,    6)
+Changing projected energy reference determinant for run  4 on the next update cycle to: (    1,    3,    4,    6)
+ Ensuring that Brillouin's theorem is no longer used.
+ Setting ref           5
+(    1,    3,    4,    6)
+Changing projected energy reference determinant for run  5 on the next update cycle to: (    1,    3,    4,    6)
+ Ensuring that Brillouin's theorem is no longer used.
+ Setting ref           6
+(    1,    3,    4,    6)
+Changing projected energy reference determinant for run  6 on the next update cycle to: (    1,    3,    4,    6)
+ Ensuring that Brillouin's theorem is no longer used.
+ Initial memory (without excitgens + temp arrays) consists of :      25.101990 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+ =============================================
+ Stochastically calculating the reduced density matrices from the FCIQMC wavefunction
+ incl. explicit connections to the following HF determinant:(    1,    2,    3,    4)
+ Calculating the energy from the reduced density matrix. This requires the 2 electron RDM from which the 1-RDM can also be constructed.
+
+ About to allocate main RDM array, size per MPI process (MB):      0.206543
+ Allocation of main RDM array complete.
+ About to allocate RDM spawning array, size per MPI process (MB):      1.377075
+ Allocation of RDM spawning array complete.
+ About to allocate RDM receiving arrays, size per MPI process (MB):      0.826233
+ Allocation of RDM receiving arrays complete.
+
+ Main RDM memory arrays consists of:       6.992828 MB per MPI process.
+ RDM memory allocation complete.
+
+
+============ Semi-stochastic initialisation ============
+Generating the deterministic space...
+Total size of deterministic space:       69
+Size of deterministic space on this processor:       33
+Generating the Hamiltonian in the deterministic space...
+Semi-stochastic initialisation complete.
+Total time (seconds) taken for semi-stochastic initialisation:    0.013
+
+ Allocating temporary array for walkers spawned from a particular Di.
+ This requires       0.007629 Mb/Processor
+ Highest weighted determinant on run           3 not reference det:          174
+         174          72          72         106         106
+  6.525429872286532E-009
+Changing projected energy reference determinant for run  3 on the next update cycle to: (    1,    3,    4,    6)
+ Ensuring that Brillouin's theorem is no longer used.
+ Zeroing all energy estimators.
+ Highest weighted determinant on run           4 not reference det:          174
+         174          72          72         106         106
+  6.525429872286532E-009
+Changing projected energy reference determinant for run  4 on the next update cycle to: (    1,    3,    4,    6)
+ Ensuring that Brillouin's theorem is no longer used.
+ Zeroing all energy estimators.
+ Highest weighted determinant on run           5 not reference det:          174
+         174          72          72         106         106
+  0.932799498318908     
+Changing projected energy reference determinant for run  5 on the next update cycle to: (    1,    3,    4,    6)
+ Ensuring that Brillouin's theorem is no longer used.
+ Zeroing all energy estimators.
+ Highest weighted determinant on run           6 not reference det:          174
+         174          72          72         106         106
+  0.932799498318908     
+Changing projected energy reference determinant for run  6 on the next update cycle to: (    1,    3,    4,    6)
+ Ensuring that Brillouin's theorem is no longer used.
+ Zeroing all energy estimators.
+#   1. Iter.             2. Dets occ.         3. Dets spawned      4. Iter. time       
+#                 0               69               0   0.00000000000     
+                 10              165             499  0.101139920298E-002
+                 20              182             604  0.142630038317E-002
+                 30              200             643  0.155409949366E-002
+                 40              203             794  0.168129871599E-002
+                 50              205             835  0.177229940891E-002
+                 60              212             850  0.182020070497E-002
+                 70              213             876  0.189530255739E-002
+                 80              220             893  0.174559955485E-002
+                 90              211             913  0.204630056396E-002
+                100              222            1041  0.211020256393E-002
+                110              223            1053  0.220090453513E-002
+                120              233            1083  0.230689952150E-002
+                130              232            1157  0.237760250457E-002
+                140              226            1162  0.245250156149E-002
+                150              240            1193  0.254369666800E-002
+                160              230            1310  0.264599919319E-002
+                170              245            1291  0.210599903949E-002
+Exiting the single particle growth phase on iteration:           180 - Shift can now change for population3
+Exiting the single particle growth phase on iteration:           180 - Shift can now change for population4
+                180              241            1412  0.141320226248E-002
+                190              239            1407  0.146110355854E-002
+                200              237            1413  0.146259961184E-002
+Exiting the single particle growth phase on iteration:           210 - Shift can now change for population1
+Exiting the single particle growth phase on iteration:           210 - Shift can now change for population2
+                210              239            1423  0.147090258542E-002
+                220              230            1469  0.149119796697E-002
+                230              235            1406  0.147899391595E-002
+                240              243            1472  0.150059466250E-002
+                250              243            1459  0.150620343629E-002
+                260              246            1438  0.150249595754E-002
+                270              241            1467  0.149330496788E-002
+                280              247            1448  0.150279398076E-002
+                290              241            1453  0.150769948959E-002
+                300              231            1447  0.151620502584E-002
+                310              252            1440  0.154179928359E-002
+                320              248            1456  0.151259894483E-002
+                330              236            1535  0.151640176773E-002
+                340              239            1513  0.152478809468E-002
+                350              238            1504  0.155329704285E-002
+                360              242            1564  0.155729649123E-002
+                370              242            1546  0.156819820404E-002
+                380              241            1453  0.155498983804E-002
+                390              243            1543  0.155889987946E-002
+                400              245            1525  0.156579015311E-002
+                410              244            1524  0.156769750174E-002
+                420              243            1506  0.158949499018E-002
+                430              242            1580  0.158609147184E-002
+                440              249            1533  0.159799458925E-002
+                450              247            1588  0.161519052926E-002
+                460              241            1590  0.160210730974E-002
+                470              239            1570  0.161218643188E-002
+                480              244            1622  0.162450072821E-002
+                490              247            1626  0.161750311963E-002
+                500              246            1637  0.164279341698E-002
+                510              253            1589  0.164850952569E-002
+                520              243            1590  0.164579751436E-002
+                530              249            1672  0.166249868926E-002
+                540              251            1620  0.166089530103E-002
+                550              253            1638  0.168132781982E-002
+                560              241            1633  0.166320800781E-002
+                570              252            1659  0.167328119278E-002
+                580              243            1664  0.168657302856E-002
+                590              247            1703  0.170110468753E-002
+                600              252            1641  0.169781444129E-002
+                610              246            1632  0.171049835626E-002
+                620              244            1680  0.172559020575E-002
+                630              252            1687  0.172818894498E-002
+                640              238            1712  0.172691349871E-002
+                650              244            1705  0.173839333002E-002
+                660              248            1735  0.175709719770E-002
+                670              242            1745  0.176138873212E-002
+                680              240            1695  0.175492768176E-002
+                690              242            1720  0.177662377246E-002
+Exiting the single particle growth phase on iteration:           700 - Shift can now change for population5
+                700              244            1732  0.178759102710E-002
+Exiting the single particle growth phase on iteration:           710 - Shift can now change for population6
+                710              259            1799  0.179992918856E-002
+                720              248            1767  0.180859561078E-002
+                730              251            1786  0.180220603943E-002
+                740              236            1754  0.179316999856E-002
+                750              251            1742  0.179097650107E-002
+                760              246            1732  0.179501774255E-002
+                770              245            1753  0.154600141104E-002
+                780              245            1734  0.179508922156E-002
+                790              250            1763  0.179930927698E-002
+                800              250            1753  0.182360410690E-002
+                810              247            1782  0.179817678872E-002
+                820              242            1723  0.178837776184E-002
+                830              253            1713  0.139290094376E-002
+                840              244            1789  0.179489853326E-002
+                850              244            1766  0.179536337964E-002
+                860              251            1776  0.179750914685E-002
+                870              249            1756  0.180010800250E-002
+                880              247            1841  0.180078740232E-002
+                890              239            1750  0.181359052658E-002
+                900              252            1761  0.179219245911E-002
+                910              247            1739  0.181270833127E-002
+                920              237            1738  0.179101224057E-002
+                930              246            1773  0.179270503577E-002
+                940              241            1761  0.180320744403E-002
+                950              246            1744  0.179270503577E-002
+                960              245            1685  0.178450345993E-002
+                970              248            1727  0.179700856097E-002
+                980              253            1748  0.178891420364E-002
+                990              244            1758  0.180751085281E-002
+               1000              243            1779  0.178771023639E-002
+               1010              249            1744  0.179620983545E-002
+               1020              247            1771  0.179278850555E-002
+               1030              257            1733  0.179270503577E-002
+               1040              251            1752  0.179101224057E-002
+               1050              252            1784  0.179568526801E-002
+               1060              251            1759  0.180909631308E-002
+               1070              256            1763  0.180369615555E-002
+               1080              250            1712  0.180027482565E-002
+               1090              247            1798  0.180400605313E-002
+               1100              247            1765  0.179140572436E-002
+               1110              241            1793  0.179842708167E-002
+               1120              242            1751  0.178439612500E-002
+               1130              245            1726  0.179061887320E-002
+               1140              237            1765  0.178899767343E-002
+               1150              242            1773  0.178918836173E-002
+               1160              246            1713  0.178689952008E-002
+               1170              256            1767  0.180931086652E-002
+Beginning to average shift value on iteration:           1180
+Beginning to average shift value on iteration:           1180
+               1180              242            1796  0.179510121234E-002
+               1190              250            1817  0.179979798850E-002
+               1200              256            1779  0.181181426160E-002
+Beginning to average shift value on iteration:           1210
+Beginning to average shift value on iteration:           1210
+               1210              254            1790  0.180447101593E-002
+               1220              245            1720  0.180969235953E-002
+               1230              250            1715  0.179593567736E-002
+               1240              245            1755  0.178623199463E-002
+               1250              250            1811  0.179221632425E-002
+               1260              243            1748  0.179390911944E-002
+               1270              241            1753  0.178682804108E-002
+               1280              243            1768  0.179357524030E-002
+               1290              254            1773  0.180294516031E-002
+               1300              243            1714  0.180611608084E-002
+               1310              250            1750  0.181412696838E-002
+               1320              240            1790  0.179502961691E-002
+               1330              249            1734  0.179512496106E-002
+               1340              245            1751  0.180339813232E-002
+               1350              244            1774  0.180470943451E-002
+               1360              249            1762  0.180807115976E-002
+               1370              245            1774  0.180323119275E-002
+               1380              238            1736  0.178351404611E-002
+               1390              245            1762  0.178921222687E-002
+               1400              247            1782  0.178451533429E-002
+               1410              248            1745  0.179257395212E-002
+               1420              251            1718  0.179374217987E-002
+               1430              247            1779  0.180504319724E-002
+               1440              254            1725  0.179531576578E-002
+               1450              246            1738  0.180580618326E-002
+               1460              236            1740  0.178012845572E-002
+               1470              236            1703  0.179023738019E-002
+               1480              245            1749  0.179090502206E-002
+               1490              250            1770  0.180888175964E-002
+               1500              247            1715  0.179140572436E-002
+               1510              241            1753  0.177733902819E-002
+               1520              251            1821  0.178592209704E-002
+               1530              253            1764  0.181171891745E-002
+               1540              254            1790  0.181658263318E-002
+               1550              257            1837  0.181655888446E-002
+               1560              254            1831  0.181350705680E-002
+               1570              245            1789  0.179579260293E-002
+               1580              243            1670  0.178263185080E-002
+               1590              247            1793  0.176501274109E-002
+               1600              250            1762  0.179107184522E-002
+               1610              250            1753  0.180153851397E-002
+               1620              250            1767  0.179610250052E-002
+               1630              250            1747  0.178813934326E-002
+               1640              254            1730  0.178713793866E-002
+               1650              260            1766  0.178704259451E-002
+               1660              253            1788  0.179896352347E-002
+               1670              250            1784  0.178682804108E-002
+               1680              251            1772  0.179274077527E-002
+               1690              249            1786  0.179669854697E-002
+Beginning to average shift value on iteration:           1700
+               1700              241            1804  0.179269316141E-002
+Beginning to average shift value on iteration:           1710
+               1710              262            1732  0.179190631025E-002
+
+=========== Trial wavefunction initialisation ==========
+Generating the trial space...
+  Initialising wavefunctions by the Lanczos algorithm
+  Aborting Lanczos and initialising trial states with direct diagonalisation
+  MAXIMUM WIDTH OF HAMIL :           67
+  TOTAL NUMBER OF NON-ZERO ELEMENTS :         4385
+Size of trial space on this processor:      100
+Total size of the trial space:      200
+Calculating the number of states in the connected space...
+Attempting to allocate con_space. Size =        0.363 Mb
+States found on this processor, including repeats:     5954
+Generating and storing the connected space...
+Removing repeated states and sorting by processor...
+Performing MPI communication of connected states...
+Attempting to allocate temp_space. Size =        0.018 Mb
+Attempting to allocate con_space. Size =        0.018 Mb
+Total size of connected space:        309
+Size of connected space on this processor:        152
+Generating the vector \sum_j H_{ij} \psi^T_j...
+Energy eigenvalue(s) of the trial space:  -5.76206683338       -4.23955329770       -3.83324986972     
+Trial wavefunction initialisation complete.
+Total time (seconds) taken for trial wavefunction initialisation:    0.102
+
+               1720              252            1774  0.154000045732E-001
+               1730              252            1777  0.318217277527E-002
+               1740              260            1785  0.362458219752E-002
+               1750              256            1791  0.365421781316E-002
+               1760              253            1745  0.360424513929E-002
+               1770              255            1755  0.364511017688E-002
+               1780              248            1738  0.359983439557E-002
+               1790              254            1808  0.359098915942E-002
+               1800              253            1747  0.323088164441E-002
+               1810              243            1728  0.220713624731E-002
+ Memory requirement for spawned arrays increased from     7.3242 to     9.1553 Mb/Processor
+Calculating the 2 electron density matrix on the fly.
+Beginning to fill the RDMs during iteration      1811
+ Reset fdv av at iteration         1811
+               1820              252            1741  0.256028166041E-002
+               1830              249            1712  0.253100390546E-002
+               1840              240            1733  0.251650810242E-002
+               1850              241            1814  0.251841545105E-002
+               1860              248            1808  0.218102941290E-002
+ Writing RDMs to file at iteration         1860
+ Reset fdv av at iteration         1861
+               1870              239            1733  0.249705323949E-002
+               1880              245            1752  0.248737330548E-002
+               1890              233            1728  0.245893001556E-002
+               1900              247            1762  0.248863687739E-002
+               1910              253            1765  0.255608558655E-002
+ Writing RDMs to file at iteration         1910
+ Reset fdv av at iteration         1911
+               1920              251            1735  0.249876966700E-002
+               1930              247            1785  0.251369480975E-002
+               1940              242            1731  0.250620837323E-002
+               1950              247            1772  0.249803066254E-002
+               1960              261            1783  0.257508759387E-002
+ Writing RDMs to file at iteration         1960
+ Reset fdv av at iteration         1961
+               1970              258            1739  0.251913070679E-002
+               1980              241            1776  0.249733915552E-002
+               1990              248            1772  0.249776849523E-002
+               2000              240            1763  0.248589506373E-002
+               2010              236            1739  0.253915786743E-002
+ Writing RDMs to file at iteration         2010
+ Reset fdv av at iteration         2011
+               2020              240            1816  0.251212110743E-002
+               2030              240            1730  0.249996175990E-002
+               2040              240            1750  0.248398771510E-002
+               2050              246            1787  0.247201928869E-002
+               2060              251            1739  0.252585415728E-002
+ Writing RDMs to file at iteration         2060
+ Reset fdv av at iteration         2061
+               2070              245            1779  0.250129704364E-002
+               2080              245            1737  0.252294540405E-002
+               2090              250            1787  0.251140585169E-002
+               2100              249            1775  0.254511833191E-002
+               2110              249            1791  0.253834715113E-002
+ Writing RDMs to file at iteration         2110
+ Reset fdv av at iteration         2111
+               2120              242            1728  0.250773434527E-002
+               2130              244            1742  0.250897416845E-002
+               2140              246            1792  0.251283636317E-002
+               2150              244            1731  0.251045217738E-002
+               2160              242            1779  0.254769320600E-002
+ Writing RDMs to file at iteration         2160
+ Reset fdv av at iteration         2161
+               2170              241            1781  0.250124931335E-002
+               2180              240            1712  0.249218940735E-002
+               2190              250            1759  0.251784315333E-002
+               2200              241            1689  0.249772076495E-002
+               2210              242            1734  0.253605842590E-002
+ Writing RDMs to file at iteration         2210
+ Reset fdv av at iteration         2211
+               2220              240            1724  0.250120158307E-002
+               2230              243            1724  0.248389248736E-002
+               2240              247            1752  0.251512532122E-002
+               2250              248            1783  0.250492105260E-002
+               2260              256            1774  0.256085395813E-002
+ Writing RDMs to file at iteration         2260
+ Reset fdv av at iteration         2261
+               2270              259            1803  0.252509117126E-002
+               2280              244            1795  0.252051348798E-002
+               2290              237            1815  0.249953265302E-002
+               2300              243            1771  0.249013910070E-002
+               2310              253            1769  0.256094941869E-002
+ Writing RDMs to file at iteration         2310
+ Reset fdv av at iteration         2311
+               2320              246            1836  0.252499571070E-002
+               2330              248            1761  0.250134477392E-002
+               2340              253            1774  0.252084736712E-002
+               2350              246            1755  0.250582699664E-002
+               2360              251            1778  0.254344940186E-002
+ Writing RDMs to file at iteration         2360
+ Reset fdv av at iteration         2361
+               2370              248            1752  0.215344433673E-002
+               2380              244            1713  0.250134477392E-002
+               2390              252            1781  0.252275471576E-002
+               2400              255            1717  0.252561573870E-002
+               2410              242            1696  0.254831323400E-002
+ Writing RDMs to file at iteration         2410
+ Reset fdv av at iteration         2411
+               2420              248            1746  0.249719619751E-002
+               2430              255            1740  0.250449171290E-002
+               2440              252            1770  0.251836772077E-002
+               2450              251            1787  0.253410334699E-002
+               2460              246            1722  0.254015927203E-002
+ Writing RDMs to file at iteration         2460
+ Reset fdv av at iteration         2461
+               2470              236            1741  0.247797975317E-002
+               2480              233            1753  0.249447813258E-002
+               2490              244            1687  0.248789787292E-002
+               2500              247            1803  0.250616064295E-002
+               2510              251            1714  0.255022058263E-002
+ Writing RDMs to file at iteration         2510
+ Reset fdv av at iteration         2511
+               2520              255            1740  0.250830641016E-002
+               2530              253            1739  0.251803407446E-002
+               2540              246            1812  0.252666464075E-002
+               2550              240            1721  0.249462132342E-002
+               2560              245            1825  0.254821777344E-002
+ Writing RDMs to file at iteration         2560
+ Reset fdv av at iteration         2561
+               2570              248            1786  0.250172615051E-002
+               2580              246            1634  0.250968942419E-002
+               2590              243            1708  0.212416658178E-002
+               2600              246            1814  0.251946458593E-002
+               2610              242            1741  0.253305444494E-002
+ Writing RDMs to file at iteration         2610
+ Reset fdv av at iteration         2611
+               2620              252            1793  0.249853124842E-002
+               2630              244            1747  0.251049990766E-002
+               2640              247            1787  0.250821118243E-002
+               2650              248            1772  0.251045217738E-002
+               2660              247            1823  0.254950532690E-002
+ Writing RDMs to file at iteration         2660
+ Reset fdv av at iteration         2661
+               2670              249            1747  0.249748234637E-002
+               2680              251            1795  0.251455302350E-002
+               2690              238            1762  0.250911712646E-002
+               2700              243            1730  0.247950549237E-002
+               2710              251            1799  0.253624911420E-002
+ Writing RDMs to file at iteration         2710
+ Reset fdv av at iteration         2711
+               2720              249            1823  0.251445779577E-002
+               2730              239            1697  0.251746177673E-002
+               2740              248            1770  0.252356519923E-002
+               2750              243            1764  0.251889228821E-002
+               2760              245            1814  0.252623553388E-002
+ Writing RDMs to file at iteration         2760
+ Reset fdv av at iteration         2761
+               2770              241            1762  0.249609956518E-002
+               2780              236            1685  0.249404902570E-002
+               2790              253            1758  0.250926008448E-002
+               2800              246            1776  0.249118800275E-002
+               2810              240            1789  0.253796577454E-002
+ Writing RDMs to file at iteration         2810
+ Reset fdv av at iteration         2811
+               2820              245            1755  0.250811572187E-002
+               2830              240            1721  0.249457359314E-002
+               2840              243            1788  0.251479144208E-002
+               2850              241            1710  0.249438290484E-002
+               2860              241            1701  0.252194399945E-002
+ Writing RDMs to file at iteration         2860
+ Reset fdv av at iteration         2861
+               2870              247            1784  0.251374254003E-002
+               2880              245            1755  0.248885154724E-002
+               2890              239            1729  0.251426687464E-002
+               2900              250            1765  0.250191683881E-002
+               2910              244            1743  0.253553385846E-002
+ Writing RDMs to file at iteration         2910
+ Reset fdv av at iteration         2911
+               2920              252            1746  0.249638548121E-002
+               2930              246            1709  0.249094958417E-002
+               2940              239            1809  0.247678766027E-002
+               2950              239            1708  0.248112669215E-002
+               2960              253            1738  0.252671237104E-002
+ Writing RDMs to file at iteration         2960
+ Reset fdv av at iteration         2961
+               2970              244            1728  0.252699851990E-002
+               2980              247            1791  0.253190984949E-002
+               2990              248            1810  0.253438949585E-002
+               3000              253            1699  0.251951208338E-002
+               3010              243            1767  0.254478445277E-002
+ Writing RDMs to file at iteration         3010
+ Reset fdv av at iteration         3011
+               3020              241            1749  0.245466222987E-002
+               3030              248            1741  0.248155603185E-002
+               3040              252            1745  0.213265419006E-002
+               3050              247            1793  0.251765246503E-002
+               3060              241            1774  0.254020700231E-002
+ Writing RDMs to file at iteration         3060
+ Reset fdv av at iteration         3061
+               3070              248            1775  0.249786372297E-002
+               3080              238            1773  0.251789088361E-002
+               3090              245            1759  0.252861971967E-002
+               3100              241            1747  0.251674652100E-002
+               3110              242            1727  0.253987312317E-002
+ Writing RDMs to file at iteration         3110
+ Reset fdv av at iteration         3111
+               3120              239            1686  0.248527526855E-002
+               3130              247            1734  0.249643321149E-002
+               3140              240            1720  0.252270698547E-002
+               3150              252            1740  0.251102447510E-002
+               3160              243            1769  0.252113351598E-002
+ Writing RDMs to file at iteration         3160
+ Reset fdv av at iteration         3161
+               3170              240            1743  0.249114027247E-002
+               3180              251            1781  0.251688947901E-002
+               3190              251            1763  0.250387191772E-002
+               3200              244            1719  0.251269340515E-002
+               3210              249            1730  0.255465507507E-002
+ Writing RDMs to file at iteration         3210
+ Reset fdv av at iteration         3211
+               3220              243            1756  0.250301370397E-002
+               3230              241            1715  0.248131761327E-002
+               3240              241            1753  0.250425329432E-002
+               3250              250            1765  0.250234594569E-002
+               3260              248            1788  0.254454603419E-002
+ Writing RDMs to file at iteration         3260
+ Reset fdv av at iteration         3261
+               3270              231            1774  0.246963510290E-002
+               3280              250            1767  0.249462132342E-002
+               3290              251            1785  0.255522737280E-002
+               3300              245            1748  0.250568380579E-002
+               3310              251            1799  0.254063610919E-002
+ Writing RDMs to file at iteration         3310
+ Reset fdv av at iteration         3311
+               3320              255            1765  0.250444421545E-002
+               3330              243            1794  0.248956680298E-002
+               3340              243            1707  0.247240066528E-002
+               3350              253            1750  0.249156961218E-002
+               3360              240            1775  0.254945759661E-002
+ Writing RDMs to file at iteration         3360
+ Reset fdv av at iteration         3361
+               3370              246            1753  0.250849733129E-002
+               3380              242            1787  0.251636514440E-002
+               3390              252            1745  0.252304086462E-002
+               3400              245            1777  0.249552726746E-002
+               3410              240            1803  0.254983897321E-002
+ Writing RDMs to file at iteration         3410
+ Reset fdv av at iteration         3411
+               3420              246            1796  0.250883097760E-002
+               3430              242            1734  0.250163068995E-002
+               3440              236            1791  0.250139227137E-002
+               3450              247            1702  0.249757757410E-002
+               3460              243            1728  0.254206662066E-002
+ Writing RDMs to file at iteration         3460
+ Reset fdv av at iteration         3461
+               3470              252            1776  0.249814987183E-002
+               3480              249            1733  0.252351770177E-002
+               3490              240            1744  0.248556141742E-002
+               3500              244            1762  0.249342923053E-002
+               3510              238            1753  0.253839488141E-002
+ Writing RDMs to file at iteration         3510
+ Reset fdv av at iteration         3511
+               3520              244            1732  0.249261851422E-002
+               3530              246            1778  0.250644679181E-002
+               3540              248            1757  0.250091543421E-002
+               3550              252            1726  0.250096316449E-002
+               3560              240            1747  0.253911013715E-002
+ Writing RDMs to file at iteration         3560
+ Reset fdv av at iteration         3561
+               3570              247            1748  0.247030262835E-002
+               3580              248            1731  0.248613348231E-002
+               3590              243            1718  0.250558857806E-002
+               3600              249            1724  0.250816345215E-002
+               3610              250            1725  0.254545221105E-002
+ Writing RDMs to file at iteration         3610
+ Reset fdv av at iteration         3611
+               3620              249            1729  0.249834056012E-002
+               3630              252            1735  0.250053405762E-002
+               3640              254            1768  0.248985295184E-002
+               3650              250            1683  0.250387191772E-002
+               3660              247            1751  0.254688272253E-002
+ Writing RDMs to file at iteration         3660
+ Reset fdv av at iteration         3661
+               3670              252            1771  0.250825891271E-002
+               3680              252            1805  0.254373555072E-002
+               3690              239            1792  0.252628326416E-002
+               3700              247            1759  0.251550669782E-002
+               3710              244            1685  0.253705983050E-002
+ Writing RDMs to file at iteration         3710
+ Reset fdv av at iteration         3711
+               3720              251            1751  0.248880381696E-002
+               3730              248            1744  0.250587472692E-002
+               3740              252            1686  0.250988011248E-002
+               3750              256            1784  0.250530242920E-002
+               3760              252            1758  0.257892603986E-002
+ Writing RDMs to file at iteration         3760
+ Reset fdv av at iteration         3761
+               3770              239            1780  0.253143301234E-002
+               3780              249            1712  0.249996175990E-002
+               3790              249            1753  0.252428045496E-002
+               3800              253            1741  0.251350412145E-002
+               3810              248            1732  0.254354486242E-002
+ Writing RDMs to file at iteration         3810
+ Reset fdv av at iteration         3811
+               3820              256            1743  0.248765945435E-002
+               3830              249            1751  0.249223713763E-002
+               3840              252            1769  0.250396737829E-002
+               3850              247            1752  0.251541147009E-002
+               3860              248            1780  0.254793162458E-002
+ Writing RDMs to file at iteration         3860
+ Reset fdv av at iteration         3861
+               3870              252            1710  0.251083378680E-002
+               3880              248            1793  0.253362650983E-002
+               3890              243            1727  0.251436233521E-002
+               3900              242            1739  0.249691004865E-002
+               3910              247            1770  0.252618780360E-002
+ Writing RDMs to file at iteration         3910
+ Reset fdv av at iteration         3911
+               3920              249            1780  0.250988011248E-002
+               3930              249            1776  0.251121516339E-002
+               3940              253            1801  0.251350412145E-002
+               3950              246            1787  0.252714147791E-002
+               3960              237            1753  0.253028864972E-002
+ Writing RDMs to file at iteration         3960
+ Reset fdv av at iteration         3961
+               3970              244            1787  0.250320439227E-002
+               3980              249            1751  0.252580642700E-002
+               3990              246            1768  0.254077906720E-002
+               4000              250            1746  0.254993443377E-002
+Total iteration number limit reached. Finishing FCIQMC loop...
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ Total loop-time:    9.01285658776760     
+ - - - - - - - - - - - - - - - - - - - - - - - -
+
+**** RDMs CALCULATED STOCHASTICALLY ****
+
+ == INFORMATION FOR FINAL 1-RDMS =========================================================
+
+ INFORMATION FOR 1-RDM 1:
+
+ SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:      3.9712347930665
+ Writing out the *normalised* 1 electron density matrix to file
+
+ INFORMATION FOR 1-RDM 2:
+
+ SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:      2.9854203340260
+ Writing out the *normalised* 1 electron density matrix to file
+
+ INFORMATION FOR 1-RDM 3:
+
+ SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:      2.9612858493324
+ Writing out the *normalised* 1 electron density matrix to file
+
+ INFORMATION FOR 1-RDM 4:
+
+ SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:      0.0001773625859
+ Writing out the *normalised* 1 electron density matrix to file
+
+ INFORMATION FOR 1-RDM 5:
+
+ SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:     -0.0001169241219
+ Writing out the *normalised* 1 electron density matrix to file
+
+ INFORMATION FOR 1-RDM 6:
+
+ SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:      0.0113348283681
+ Writing out the *normalised* 1 electron density matrix to file
+
+ INFORMATION FOR 1-RDM 7:
+
+ SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:      0.0108210654485
+ Writing out the *normalised* 1 electron density matrix to file
+
+ =========================================================================================
+
+ Writing RDMs to file at iteration         4000
+ == INFORMATION FOR FINAL 2-RDMS =========================================================
+
+ 2-RDM ESTIMATES FOR STATE 1:
+ Trace of 2-el-RDM before normalisation:  4.0679292078E+09
+ Trace of 2-el-RDM after normalisation:  6.0000000000E+00
+ Energy contribution from the 1-RDM: -1.0343456569E+01
+ Energy contribution from the 2-RDM:  3.2479249337E+00
+ *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*: -5.7621983043250E+00
+
+ Hermiticty error estimates:
+            4000        0.00040764901203868385     (Iteration, MAX ABS ERROR IN HERMITICITY)
+            4000        0.00586453781419227042     (Iteration, SUM ABS ERROR IN HERMITICITY)
+
+ 2-RDM ESTIMATES FOR STATE 2:
+ Trace of 2-el-RDM before normalisation:  1.6294019804E+09
+ Trace of 2-el-RDM after normalisation:  6.0000000000E+00
+ Energy contribution from the 1-RDM: -8.4826907876E+00
+ Energy contribution from the 2-RDM:  2.9060217512E+00
+ *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*: -4.2433357058380E+00
+
+ Hermiticty error estimates:
+            4000        0.00214732150697801490     (Iteration, MAX ABS ERROR IN HERMITICITY)
+            4000        0.04232711015543225153     (Iteration, SUM ABS ERROR IN HERMITICITY)
+
+ 2-RDM ESTIMATES FOR STATE 3:
+ Trace of 2-el-RDM before normalisation:  1.9997793276E+09
+ Trace of 2-el-RDM after normalisation:  6.0000000000E+00
+ Energy contribution from the 1-RDM: -8.5679642876E+00
+ Energy contribution from the 2-RDM:  3.4010077442E+00
+ *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*: -3.8336232127859E+00
+
+ Hermiticty error estimates:
+            4000        0.00505286649001289879     (Iteration, MAX ABS ERROR IN HERMITICITY)
+            4000        0.05601708828003151841     (Iteration, SUM ABS ERROR IN HERMITICITY)
+
+ 2-RDM ESTIMATES FOR TRANSITION 2 -> 1 (1)
+ Trace of 2-el-RDM before normalisation:  1.0341588302E+05
+ Trace of 2-el-RDM after normalisation:  2.4101145344E-04
+
+ Hermiticty difference estimates, for test suite:
+            4000        0.51151602232611681487      (Iteration, MAX ABS DIFF IN HERMITICITY)
+            4000        6.96758740400994369679      (Iteration, SUM ABS DIFF IN HERMITICITY)
+
+ 2-RDM ESTIMATES FOR TRANSITION 2 -> 1 (2)
+ Trace of 2-el-RDM before normalisation: -1.0010874785E+05
+ Trace of 2-el-RDM after normalisation: -2.3330415132E-04
+
+ Hermiticty difference estimates, for test suite:
+            4000        0.52073288264184580676      (Iteration, MAX ABS DIFF IN HERMITICITY)
+            4000        7.09282241732994211958      (Iteration, SUM ABS DIFF IN HERMITICITY)
+
+ 2-RDM ESTIMATES FOR TRANSITION 3 -> 1 (1)
+ Trace of 2-el-RDM before normalisation:  2.5483806571E+05
+ Trace of 2-el-RDM after normalisation:  5.3609014034E-04
+
+ Hermiticty difference estimates, for test suite:
+            4000        0.70842496540148869322      (Iteration, MAX ABS DIFF IN HERMITICITY)
+            4000        6.04724230139187923783      (Iteration, SUM ABS DIFF IN HERMITICITY)
+
+ 2-RDM ESTIMATES FOR TRANSITION 3 -> 1 (2)
+ Trace of 2-el-RDM before normalisation: -2.4972736521E+05
+ Trace of 2-el-RDM after normalisation: -5.2533901435E-04
+
+ Hermiticty difference estimates, for test suite:
+            4000        0.71725634699484797085      (Iteration, MAX ABS DIFF IN HERMITICITY)
+            4000        6.10169997898939087122      (Iteration, SUM ABS DIFF IN HERMITICITY)
+
+ =========================================================================================
+ 
+Current references: 
+(    1,    2,    3,    4)
+11110000000000000000
+(    1,    2,    3,    4)
+11110000000000000000
+(    1,    3,    4,    6)
+10110100000000000000
+(    1,    3,    4,    6)
+10110100000000000000
+(    1,    3,    4,    6)
+10110100000000000000
+(    1,    3,    4,    6)
+10110100000000000000
+ 
+Input DEFINEDET line (includes frozen orbs):
+definedet   1   2   3   4 
+definedet   1   2   3   4 
+definedet   1   3   4   6 
+definedet   1   3   4   6 
+definedet   1   3   4   6 
+definedet   1   3   4   6 
+ 
+Most occupied         15 determinants as excitations from reference: 
+ 
+ Excitation   ExcitLevel Seniority   Walkers(Re)   Walkers(Im)  Weight   Init?(Re)   Init?(Im)   Proc
+11110000000000000000    0    0    543.4945        555.1109       0.3606305       0.6654481E-01    2.493542        2.422640      0.61308  Y  Y  Y  Y  Y  Y      1
+10110100000000000000    1    2  -0.9417887      -0.8093735        185.2438        187.5336        268.9862        268.7639      0.50664  Y  Y  Y  Y  Y  Y      0
+01111000000000000000    1    2   0.2815646       0.5668825        185.3269        186.8054       -267.0417       -268.7574      0.50470  Y  Y  Y  Y  Y  Y      1
+11100001000000000000    1    2   0.6939520       0.3831272       -161.3476       -161.7959       -28.41923       -29.13695      0.21202  Y  Y  Y  Y  Y  Y      1
+11001100000000000000    2    0   -22.02058       -22.02265      -0.1297322       0.3552887        58.82918        58.92325      0.09012  Y  Y  Y  Y  Y  Y      0
+11010010000000000000    1    2  -0.3914984      -0.2684601       -160.0403       -161.4184        30.82496        30.84047      0.21314  Y  Y  Y  Y  Y  Y      0
+00110011000000000000    2    0   -14.07067       -14.36925      -0.3715314       0.9423932E-02   -18.08970       -17.97407      0.03603  Y  Y  Y  Y  Y  Y      0
+01100110000000000000    2    4   -16.53297       -16.59848        2.620548        2.210033        2.443568        2.085417      0.02360  Y  Y  Y  Y  Y  Y      0
+10011001000000000000    2    4   -16.22349       -16.86879       -2.755426       -2.301059        2.045530        1.310802      0.02305  Y  Y  Y  Y  Y  Y      0
+00101101000000000000    3    2   -1.000000        1.113050        10.22585        11.52534        11.39668        11.88122      0.02618  Y  Y  Y  Y  Y  Y      0
+00111100000000000000    2    0   -17.77187       -18.12667      -0.2787284      -0.1589636       -2.409155       -2.478596      0.02289  Y  Y  Y  Y  Y  Y      1
+11000011000000000000    2    0   -17.35805       -17.74244      -0.1095578      -0.6561524E-03   0.7190364E-01  -0.4070478      0.01982  Y  Y  Y  Y  Y  Y      1
+01101001000000000000    2    4    15.83558        16.25270       -2.280034       -2.062022       -6.418126       -6.946367      0.02765  Y  Y  Y  Y  Y  Y      1
+10010110000000000000    2    4    15.91823        16.21039        2.204260        2.046365       -6.724066       -6.710753      0.02766  Y  Y  Y  Y  Y  Y      1
+00011110000000000000    3    2    0.000000        0.000000        10.89745        10.66648       -10.64205       -11.69274      0.02438  Y  Y  Y  Y  Y  Y      1
+ 
+
+ Load balancing information based on the last iteration:
+ Mean number of determinants/process     138.5000000000
+ Min number of determinants/process                138
+ Max number of determinants/process                139
+
+
+Calculating approximate errorbar for energy estimates...
+
+Attempting automatic reblocking analysis on data from iteration:          210
+ No FCIMCStats file found for error analysis
+ Current reference energy                              -5.697083122358
+ Projected correlation energy                          -0.065100752439
+ No automatic errorbar obtained for projected energy
+ No reliable averaged shift correlation energy could be obtained automatically
+
+ Total projected energy          -5.76218387
+
+
+ Final energy estimate for state 1:     -5.7621653223791    
+ Final energy estimate for state 2:     -5.7621253399263    
+ Final energy estimate for state 3:     -4.2430738914322    
+ Final energy estimate for state 4:     -4.2432676907614    
+ Final energy estimate for state 5:     -3.8334846479394    
+ Final energy estimate for state 6:     -3.8334435182794    
+ 
+ ================================================================
+ Memory usage
+ Maximum memory defined is (MB) :   99999.0
+ Maximum memory used is    (MB) :     199.2
+ 
+ Large memory allocations:
+ 
+ Name              Allocated in       Deallocated in         Size
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ arr               init_global_det_datclean_global_det_da 104.4MB
+ trial_space       init_trial_wf      create_trial_hashta  61.0MB
+ WalkVecDets       InitFCIMCPar       DeallocFciMCMemPar   17.8MB
+ current_trial_ampsinit_trial_wf      end_trial_wf          6.7MB
+ arr               realloc_SpawnedPartDeallocFciMCMemPar    4.6MB
+ arr               realloc_SpawnedPartDeallocFciMCMemPar    4.6MB
+ arr               InitFCIMCPar       realloc_SpawnedPart   3.7MB
+ arr               InitFCIMCPar       realloc_SpawnedPart   3.7MB
+ Spawned_Parents   init_rdms          dealloc_global_rdm_   1.4MB
+ Spawned_Parents_Ininit_rdms          dealloc_global_rdm_ 468.8KB
+ ================================================================
+
+ ================================================================
+ Timing report.
+
+ Timing of most expensive procedures.
+ Procedure                                 Calls       total time
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ WalkerTime                                4000      5.61
+ NECICUBE                                     1      1.04
+ AnnMainTime                               4000      0.89
+ Compress Sort interface                   4000      0.61
+ Compression interface                     4000      0.26
+ TrialInitTime                                1      0.10
+ SortTime                                  4000      0.08
+ SyncTime                                  8009      0.06
+ FinaliseRDMsTime                             1      0.05
+ StatsCommsTime                             400      0.05
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ Total                                   8.76
+
+ Global wall clock time          8.93
+ ================================================================
+ Calculation ended 18/08/2018 at 21:11:22
+ ================================================================

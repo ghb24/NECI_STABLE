@@ -1,0 +1,235 @@
+ Number of processors:            2
+ Processor            1 /           2  as head node.
+ Sum:            3
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on Aug 17 2018 at 19:36:41
+ Compiled using configuration:
+     cmake-Intel-par-RELEASE
+ VCS BASE repository version:
+     68985cec1bc75cbb33c0311464311eb97443a11a
+ Working directory: 
+     /home/guther/numerics/adi_devel/neci/test_suite/mneci/ftlm/hub_6
+ Running on: pcal014
+ Started running on 18/08/2018 at 21:13:03
+ ================================================================
+
+ Processing arguments
+ neci.inp                                                                       
+                                                                                
+                                                                                
+                   
+ Reading from file: neci.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+title
+
+system hubbard
+cell 6 1 1
+b -1
+u 1
+spin-restrict 0
+sym 0 0 0 0
+kpoints
+electrons 6
+endsys
+
+calc
+methods
+method vertex ftlm
+endmethods
+beta-ftlm 0.1
+num-init-vecs-ftlm 20
+num-lanc-vecs-ftlm 40
+num-beta-ftlm 60
+jump-shift off
+load-balance-blocks off
+endcalc
+
+end
+
+****************************************************************
+
+ Allocating each processor as a separate node.
+ I am the node root for node            0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :     6
+  Restricting the spin state of the system, TSPN :  T
+  GLOBAL MS :            0
+  *** HUBBARD MODEL ***  
+  MOMENTUM :            0           0           0
+  NMAXX :     6
+  NMAXY :     1
+  NMAXZ :     1
+  NMSH :    32
+   HUBBARD T :            -1.00000
+   HUBBARD U :             1.00000
+  X-LENGTH OF HUBBARD CHAIN:           6
+  Y-LENGTH OF HUBBARD CHAIN:           1
+  Z-LENGTH OF HUBBARD CHAIN:           1
+  Periodic Boundary Conditions: T
+  Real space basis: F
+  Orbital Energy Cutoff:  1.000000000000000E+020
+   VOLUME :             6.00000
+  TALPHA :  F
+   ALPHA :             0.00000
+   SCALED ALPHA :             0.00000
+  NUMBER OF SPIN ORBITALS IN BASIS :    12
+ Creating plane wave basis.
+  NUMBER OF BASIS FUNCTIONS :           12
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+HF determinant not yet defined.
+      1      5      0      0      0     -1    1   0       -2.000000000       -2.000000000
+      2      6      0      0      0      1    1   0       -2.000000000       -2.000000000
+      3      3     -1      0      0     -1    1   0       -1.000000000       -1.000000000
+      4      4     -1      0      0      1    1   0       -1.000000000       -1.000000000
+      5      7      1      0      0     -1    1   0       -1.000000000       -1.000000000
+      6      8      1      0      0      1    1   0       -1.000000000       -1.000000000
+      7      1     -2      0      0     -1    1   0        1.000000000        1.000000000
+      8      2     -2      0      0      1    1   0        1.000000000        1.000000000
+      9      9      2      0      0     -1    1   0        1.000000000        1.000000000
+     10     10      2      0      0      1    1   0        1.000000000        1.000000000
+     11     11      3      0      0     -1    1   0        2.000000000        2.000000000
+     12     12      3      0      0      1    1   0        2.000000000        2.000000000
+Generating abelian symmetry table with  6 generators for Hubbard momentum
+ SIZES           0          12 F F F F
+ Symmetry, Symmetry Conjugate
+                     1           1
+                     2           5
+                     3           4
+                     4           3
+                     5           2
+                     6           6
+HF determinant not yet defined.
+      1      5      0      0      0     -1    1   0       -2.000000000       -2.000000000
+      2      6      0      0      0      1    1   0       -2.000000000       -2.000000000
+      3      3     -1      0      0     -1    4   0       -1.000000000       -1.000000000
+      4      4     -1      0      0      1    4   0       -1.000000000       -1.000000000
+      5      7      1      0      0     -1    8   0       -1.000000000       -1.000000000
+      6      8      1      0      0      1    8   0       -1.000000000       -1.000000000
+      7      1     -2      0      0     -1    2   0        1.000000000        1.000000000
+      8      2     -2      0      0      1    2   0        1.000000000        1.000000000
+      9      9      2      0      0     -1   10   0        1.000000000        1.000000000
+     10     10      2      0      0      1   10   0        1.000000000        1.000000000
+     11     11      3      0      0     -1   20   0        2.000000000        2.000000000
+     12     12      3      0      0      1   20   0        2.000000000        2.000000000
+ Not precomputing HUBBARD 2-e integrals
+ kminz, kmaxz:            0           0
+ N_alpha:3 ; N_beta:3 ; LMS:0 ; NEl:6
+ Fermi det (D0):(    3,    4,    5,    6,    7,    8)
+ Symmetry:     1
+ Fock operator energy:  -8.00000000000000     
+ Calculation supports multiple parallel runs
+ Number of simultaneous walker distributions:            1
+ Number of sign components in bit representation of determinant:            1
+Setting integer length of determinants as bit-strings to:      2
+Setting integer bit-length of determinants as bit-strings to:     64
+ SYMMETRY MULTIPLICATION TABLE
+    1    2    4    8   10   20
+    2   10   20    4    1    8
+    4   20    2    1    8   10
+    8    4    1   10   20    2
+   10    1    8   20    2    4
+   20    8   10    2    4    1
+ Fast Abelian excitation generators specified,
+ but abelian symmetry not in use.  Using slow generators.
+          21  STATE PAIRS
+           6  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ kminz, kmaxz:            0           0
+ Total momentum is           0           0           0
+ Not storing the H matrix.
+ <D0|H|D0>=  -6.50000000000000     
+ <D0|T|D0>=  -8.00000000000000     
+ FDet has     3 alpha electrons, and     3 beta electrons.
+                3  alpha-alpha occupied electron pairs
+                3  beta-beta occupied electron pairs
+                9  alpha-beta occupied electron pairs
+                3 alpha-alpha (vacant) hole pairs
+                3 beta-beta (vacant) hole pairs
+                9 alpha-beta (vacant) hole pairs
+ 
+ Performing Parallel FCIQMC....
+ 
+ Generated reference determinants:
+(    3,    4,    5,    6,    7,    8) E =     -6.500000000
+Symmetry of reference determinant is:          1
+Value for seed is:            7
+Reference Energy set to:        -6.5000000000
+Highest energy determinant is (approximately):      9.50000000000000    
+Corresponding to a correlation energy of:      16.0000000000000    
+Brillouin theorem in use for calculation of projected energy.
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+ Since we are using a momentum-space hubbard model/UEG, only double excitaitons 
+                           are connected and will be generated.
+Small system. Setting initial timestep to be  0.07500 although this may be inappropriate. Care needed
+ Using initial time-step:   7.500000000000000E-002
+Will dynamically update timestep to limit spawning probability to   2.00000
+Initial Diagonal Shift:         0.0000000000
+ Connectivity of HF determinant is:           25
+Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors
+Memory allocated for a maximum particle number per node of:         873813
+ Determinant related persistent storage requires:      26.666656 Mb / processor
+Spawning vectors allowing for a total of         9000 particles to be spawned in any one iteration per core.
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:            2100
+Length of hash-table as a fraction of targetwalkers:              0.70000
+Reference processor is:        0
+Initial reference is: (    3,    4,    5,    6,    7,    8)
+Initial number of particles set to          1 and shift will be held at     0.000 until particle number gets to            6000
+ Initial memory (without excitgens + temp arrays) consists of :      13.607986 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+ =============================================
+
+ Beginning finite-temperature Lanczos calculation.
+
+ Expected number:         924
+ Enumerating and storing all determinants in the space... Complete.
+ ndets counted:           0 ndets expected:         924
+
+ ERROR.
+ NECI stops in subroutine: t_r
+ Reason:                   The number of determinants generated is not consistent with the expected number.
+ Processor:                    0
+ EXITING...
+
+ ERROR.
+ NECI stops in subroutine: t_r
+ Reason:                   The number of determinants generated is not consistent with the expected number.
+ Processor:                    1
+ EXITING...
+-----------------------------------
+Writing Backtrace
+-----------------------------------
+0: /home/guther/numerics/adi_devel/neci/test_suite/../release_build/bin/mneci() [0x4c86c4]
+1: /home/guther/numerics/adi_devel/neci/test_suite/../release_build/bin/mneci() [0x6c0d91]
+2: /home/guther/numerics/adi_devel/neci/test_suite/../release_build/bin/mneci() [0x6b985d]
+3: /home/guther/numerics/adi_devel/neci/test_suite/../release_build/bin/mneci() [0x6ade6f]
+4: /home/guther/numerics/adi_devel/neci/test_suite/../release_build/bin/mneci() [0x64ad70]
+5: /home/guther/numerics/adi_devel/neci/test_suite/../release_build/bin/mneci() [0x40690c]
+6: /home/guther/numerics/adi_devel/neci/test_suite/../release_build/bin/mneci() [0x40639a]
+7: /home/guther/numerics/adi_devel/neci/test_suite/../release_build/bin/mneci() [0x4062de]
+8: /lib64/libc.so.6(__libc_start_main+0xf5) [0x7f2e9cec6725]
+9: /home/guther/numerics/adi_devel/neci/test_suite/../release_build/bin/mneci() [0x4061e9]
+-----------------------------------
+-----------------------------------
+Writing Backtrace
+-----------------------------------
+0: /home/guther/numerics/adi_devel/neci/test_suite/../release_build/bin/mneci() [0x4c86c4]
+1: /home/guther/numerics/adi_devel/neci/test_suite/../release_build/bin/mneci() [0x6c0d91]
+2: /home/guther/numerics/adi_devel/neci/test_suite/../release_build/bin/mneci() [0x6b985d]
+3: /home/guther/numerics/adi_devel/neci/test_suite/../release_build/bin/mneci() [0x6ade6f]
+4: /home/guther/numerics/adi_devel/neci/test_suite/../release_build/bin/mneci() [0x64ad70]
+5: /home/guther/numerics/adi_devel/neci/test_suite/../release_build/bin/mneci() [0x40690c]
+6: /home/guther/numerics/adi_devel/neci/test_suite/../release_build/bin/mneci() [0x40639a]
+7: /home/guther/numerics/adi_devel/neci/test_suite/../release_build/bin/mneci() [0x4062de]
+8: /lib64/libc.so.6(__libc_start_main+0xf5) [0x7f3a4fae3725]
+9: /home/guther/numerics/adi_devel/neci/test_suite/../release_build/bin/mneci() [0x4061e9]
+-----------------------------------

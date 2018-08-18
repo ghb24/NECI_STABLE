@@ -1,0 +1,244 @@
+ Number of processors:            2
+ Processor            1 /           2  as head node.
+ Sum:            3
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on Aug 17 2018 at 19:36:41
+ Compiled using configuration:
+     cmake-Intel-par-RELEASE
+ VCS BASE repository version:
+     68985cec1bc75cbb33c0311464311eb97443a11a
+ Working directory: 
+     /home/guther/numerics/adi_devel/neci/test_suite/mneci/spectral_lanczos/hub_10
+ Running on: pcal014
+ Started running on 18/08/2018 at 21:20:00
+ ================================================================
+
+ Processing arguments
+ neci.inp                                                                       
+                                                                                
+                                                                                
+                   
+ Reading from file: neci.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+title
+
+system hubbard
+cell 10 1 1
+b -1
+u 1
+spin-restrict 0
+sym 3 0 0 0
+kpoints
+nonuniformrandexcits nosymgen
+lattice-excitgen
+electrons 8
+system-replicas 2
+endsys
+
+calc
+methods
+method vertex spectral-lanczos
+endmethods
+omega-spectral 0.01
+num-omega-spectral 1500
+num-lanc-vecs-spectral 40
+allrealcoeff
+left-annihilate-spectral 1
+15 18
+right-annihilate-spectral 1
+12 1
+ground-energy-spectral -11.61441
+include-ground-spectral
+jump-shift off
+load-balance-blocks off
+endcalc
+
+logging
+popsfile -1
+endlog
+end
+
+****************************************************************
+
+ Allocating each processor as a separate node.
+ I am the node root for node            0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :     8
+  Restricting the spin state of the system, TSPN :  T
+  GLOBAL MS :            0
+  *** HUBBARD MODEL ***  
+  MOMENTUM :            3           0           0
+  NMAXX :    10
+  NMAXY :     1
+  NMAXZ :     1
+  NMSH :    32
+   HUBBARD T :            -1.00000
+   HUBBARD U :             1.00000
+  X-LENGTH OF HUBBARD CHAIN:          10
+  Y-LENGTH OF HUBBARD CHAIN:           1
+  Z-LENGTH OF HUBBARD CHAIN:           1
+  Periodic Boundary Conditions: T
+  Real space basis: F
+  Orbital Energy Cutoff:  1.000000000000000E+020
+   VOLUME :            10.00000
+  TALPHA :  F
+   ALPHA :             0.00000
+   SCALED ALPHA :             0.00000
+  NUMBER OF SPIN ORBITALS IN BASIS :    20
+ Creating plane wave basis.
+  NUMBER OF BASIS FUNCTIONS :           20
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+HF determinant not yet defined.
+      1      9      0      0      0     -1    1   0       -2.000000000       -2.000000000
+      2     10      0      0      0      1    1   0       -2.000000000       -2.000000000
+      3      7     -1      0      0     -1    1   0       -1.618033989       -1.618033989
+      4      8     -1      0      0      1    1   0       -1.618033989       -1.618033989
+      5     11      1      0      0     -1    1   0       -1.618033989       -1.618033989
+      6     12      1      0      0      1    1   0       -1.618033989       -1.618033989
+      7      5     -2      0      0     -1    1   0       -0.618033989       -0.618033989
+      8      6     -2      0      0      1    1   0       -0.618033989       -0.618033989
+      9     13      2      0      0     -1    1   0       -0.618033989       -0.618033989
+     10     14      2      0      0      1    1   0       -0.618033989       -0.618033989
+     11      3     -3      0      0     -1    1   0        0.618033989        0.618033989
+     12      4     -3      0      0      1    1   0        0.618033989        0.618033989
+     13     15      3      0      0     -1    1   0        0.618033989        0.618033989
+     14     16      3      0      0      1    1   0        0.618033989        0.618033989
+     15      1     -4      0      0     -1    1   0        1.618033989        1.618033989
+     16      2     -4      0      0      1    1   0        1.618033989        1.618033989
+     17     17      4      0      0     -1    1   0        1.618033989        1.618033989
+     18     18      4      0      0      1    1   0        1.618033989        1.618033989
+     19     19      5      0      0     -1    1   0        2.000000000        2.000000000
+     20     20      5      0      0      1    1   0        2.000000000        2.000000000
+Generating abelian symmetry table with 10 generators for Hubbard momentum
+ SIZES           0          20 F F F F
+ Symmetry, Symmetry Conjugate
+                     1           1
+                     2           9
+                     3           8
+                     4           7
+                     5           6
+                     6           5
+                     7           4
+                     8           3
+                     9           2
+                    10          10
+HF determinant not yet defined.
+      1      9      0      0      0     -1    1   0       -2.000000000       -2.000000000
+      2     10      0      0      0      1    1   0       -2.000000000       -2.000000000
+      3      7     -1      0      0     -1   10   0       -1.618033989       -1.618033989
+      4      8     -1      0      0      1   10   0       -1.618033989       -1.618033989
+      5     11      1      0      0     -1   20   0       -1.618033989       -1.618033989
+      6     12      1      0      0      1   20   0       -1.618033989       -1.618033989
+      7      5     -2      0      0     -1    8   0       -0.618033989       -0.618033989
+      8      6     -2      0      0      1    8   0       -0.618033989       -0.618033989
+      9     13      2      0      0     -1   40   0       -0.618033989       -0.618033989
+     10     14      2      0      0      1   40   0       -0.618033989       -0.618033989
+     11      3     -3      0      0     -1    4   0        0.618033989        0.618033989
+     12      4     -3      0      0      1    4   0        0.618033989        0.618033989
+     13     15      3      0      0     -1   80   0        0.618033989        0.618033989
+     14     16      3      0      0      1   80   0        0.618033989        0.618033989
+     15      1     -4      0      0     -1    2   0        1.618033989        1.618033989
+     16      2     -4      0      0      1    2   0        1.618033989        1.618033989
+     17     17      4      0      0     -1  100   0        1.618033989        1.618033989
+     18     18      4      0      0      1  100   0        1.618033989        1.618033989
+     19     19      5      0      0     -1  200   0        2.000000000        2.000000000
+     20     20      5      0      0      1  200   0        2.000000000        2.000000000
+ Not precomputing HUBBARD 2-e integrals
+ kminz, kmaxz:            0           0
+ N_alpha:4 ; N_beta:4 ; LMS:0 ; NEl:8
+ Fermi det (D0):(    5,    7,    8,    9,   10,   11,   12,   20)
+ Symmetry:    80
+ Fock operator energy:  -9.09016994374947     
+ Calculation supports multiple parallel runs
+ Number of simultaneous walker distributions:            2
+ Number of sign components in bit representation of determinant:            2
+Setting integer length of determinants as bit-strings to:      3
+Setting integer bit-length of determinants as bit-strings to:     64
+ SYMMETRY MULTIPLICATION TABLE
+    1    2    4    8   10   20   40   80  100  200
+    2   40   80  100  200    4    8   10    1   20
+    4   80  100  200    2    8   10    1   20   40
+    8  100  200    2    4   10    1   20   40   80
+   10  200    2    4    8    1   20   40   80  100
+   20    4    8   10    1   40   80  100  200    2
+   40    8   10    1   20   80  100  200    2    4
+   80   10    1   20   40  100  200    2    4    8
+  100    1   20   40   80  200    2    4    8   10
+  200   20   40   80  100    2    4    8   10    1
+ Fast Abelian excitation generators specified,
+ but abelian symmetry not in use.  Using slow generators.
+          55  STATE PAIRS
+          10  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ kminz, kmaxz:            0           0
+ Total momentum is           3           0           0
+ Not storing the H matrix.
+ <D0|H|D0>=  -7.49016994374947     
+ <D0|T|D0>=  -9.09016994374947     
+ FDet has     4 alpha electrons, and     4 beta electrons.
+                6  alpha-alpha occupied electron pairs
+                6  beta-beta occupied electron pairs
+               16  alpha-beta occupied electron pairs
+               15 alpha-alpha (vacant) hole pairs
+               15 beta-beta (vacant) hole pairs
+               36 alpha-beta (vacant) hole pairs
+ 
+ Performing Parallel FCIQMC....
+ 
+ Generated reference determinants:
+(    5,    7,    8,    9,   10,   11,   12,   20) E =     -7.490169944
+(    5,    7,    8,    9,   10,   11,   12,   20) E =     -7.490169944
+Symmetry of reference determinant is:        128
+Value for seed is:            7
+Reference Energy set to:        -7.4901699437
+Highest energy determinant is (approximately):      13.3082039324994    
+Corresponding to a correlation energy of:      20.7983738762488    
+Brillouin theorem in use for calculation of projected energy.
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+ Since we are using a momentum-space hubbard model/UEG, only double excitaitons 
+                           are connected and will be generated.
+Small system. Setting initial timestep to be  0.07500 although this may be inappropriate. Care needed
+ Using initial time-step:   7.500000000000000E-002
+Will dynamically update timestep to limit spawning probability to   2.00000
+Initial Diagonal Shift:         0.0000000000
+ Connectivity of HF determinant is:           89
+Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors
+Memory allocated for a maximum particle number per node of:         655360
+ Determinant related persistent storage requires:      35.000000 Mb / processor
+Spawning vectors allowing for a total of        18000 particles to be spawned in any one iteration per core.
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:            2100
+Length of hash-table as a fraction of targetwalkers:              0.70000
+Reference processor is:        0
+Initial reference is: (    5,    7,    8,    9,   10,   11,   12,   20)
+Initial number of particles set to          1 and shift will be held at     0.000 until particle number gets to            6000
+ Initial memory (without excitgens + temp arrays) consists of :      15.823975 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+ =============================================
+
+ Beginning spectral Lanczos calculation.
+
+ Enumerating and storing all determinants in the space...
+ Complete.
+ Allocating arrays to hold Lanczos vectors... Complete.
+ Allocating and calculating Hamiltonian matrix...
+ Hamiltonian allocation and calculation complete.
+
+ Number of iterations in previous simulation:         1838
+Using timestep specified in POPSFILE!
+But continuing to dynamically adjust to optimise this
+ read-in time-step:   0.01000000
+Reading in a total of            6352 configurations from POPSFILE.
+Reading in a maximum of        18000 determinants at a time from POPSFILE'
+Number of batches required to distribute all determinants in POPSFILE:        1
+ Number of configurations read in to this process:                   3196
+ CurrWalkers:                   3196
