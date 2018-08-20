@@ -324,6 +324,7 @@ contains
           delta_beta_ftlm = 0.1_dp
           n_lanc_vecs_sl = 20
           nomega_spectral = 100
+          tIWSpec = .false.
           delta_omega_spectral = 0.01_dp
           min_omega_spectral = 0.0_dp
           spectral_broadening = 0.05_dp
@@ -2251,6 +2252,9 @@ contains
                 call getf(delta_omega_spectral)
             case("MIN-OMEGA-SPECTRAL")
                 call getf(min_omega_spectral)
+             case("I-OMEGA-SPECTRAL")
+                ! get the spectrum as a function of 1i*w
+                tIWSpec = .true.
             case("BROADENING_SPECTRAL")
                 call getf(spectral_broadening)
             case("INCLUDE-GROUND-SPECTRAL")
