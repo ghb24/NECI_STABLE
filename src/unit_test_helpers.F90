@@ -1015,6 +1015,37 @@ contains
 
     end subroutine create_hilbert_space
 
+    real(dp) function norm(vec,p_in)
+        ! function to calculate the Lp norm of a given vector
+        ! if p_in = -1 this indicates the p_inf norm
+        real(dp), intent(in) :: vec(:)
+        integer, intent(in), optional :: p_in
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "norm"
+#endif
+        integer :: p, i
+
+        if (present(p_in)) then 
+            ASSERT(p_in == -1 .or. p_in >= 0)
+            p = p_in
+        else
+            ! default is the L2 norm
+            p = 2
+        end if
+
+        if (p == -1) then
+            norm = maxval(abs(vec))
+        else
+            norm = 0.0_dp
+            do i = 1, size(vec)
+                norm = norm + abs(vec(i))**p
+            end do
+            
+            norm = norm**(1.0_dp/real(p,dp))
+        end if
+
+    end function norm
+
     subroutine gen_all_excits_default(nI, n_excits, det_list) 
         use SymExcit3, only: CountExcitations3, GenExcitations3
         integer, intent(in) :: nI(nel)
