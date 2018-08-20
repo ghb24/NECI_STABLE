@@ -211,7 +211,7 @@ contains
         call init_k_space_unit_tests()
         
         ! i have to define the lattice here.. 
-        lat => lattice('square', 6, 6, 1,.true.,.true.,.true.,'k-space')
+        lat => lattice('chain', 6, 1, 1,.true.,.true.,.true.,'k-space')
 
 !         x = [(-lat%dispersion_rel_orb(i), i = 1, 24)]
 !         ind = [(i, i = 1, 24)]
@@ -226,29 +226,29 @@ contains
 !             print *,lat%get_k_vec(ind(i)),"|", k_vec(1)*k1 + k_vec(2)*k2, "|", x(i)
 !         end do
         
-        nel = 24
+        nel = 6
         allocate(nI(nel))
         allocate(nJ(nel))
         nj = 0
 
         nbasis = 2*lat%get_nsites()
         
-        if (all(twisted_bc == 0)) then
-            ! 24 in 36 k = 0 open-shell
-!             nI=[    5,    6,   15,   16,   17,   18,   19,   20,   25, 26,   27, &
-!                 28,   29,   30,   31,   32,   39,   40,   41,   42,   43, &
+!         if (all(twisted_bc == 0)) then
+!             ! 24 in 36 k = 0 open-shell
+! !             nI=[    5,    6,   15,   16,   17,   18,   19,   20,   25, 26,   27, &
+! !                 28,   29,   30,   31,   32,   39,   40,   41,   42,   43, &
+! !                 44,   53,   54]
+! 
+!             ! 24 in 36 k!=0 closed-shell
+!             nI=[    5,    6,   15,   16,   17,   18,   19,   20,   26,   27, &
+!                 28,   29,   30,   31,   32,   33,   39,   40,   41,   42,   43, &
 !                 44,   53,   54]
-
-            ! 24 in 36 k!=0 closed-shell
-            nI=[    5,    6,   15,   16,   17,   18,   19,   20,   26,   27, &
-                28,   29,   30,   31,   32,   33,   39,   40,   41,   42,   43, &
-                44,   53,   54]
-        else
-            nI=[   13,   14,   15,   16,   17,   18,   19,   20,   25,   26,&
-                27,   28,   29,   30,   31,   32,   37,   38,   39,   40,   41, &
-                42,   43,   44]
-
-        end if
+!         else
+!             nI=[   13,   14,   15,   16,   17,   18,   19,   20,   25,   26,&
+!                 27,   28,   29,   30,   31,   32,   37,   38,   39,   40,   41, &
+!                 42,   43,   44]
+! 
+!         end if
         ! 36 in 36 k = 0
 !         if (all(twisted_bc == 0)) then
 !             nI =[  3,    4,    5,    6,    7,    8,   13,   14,   15,   16,  &
@@ -381,7 +381,7 @@ contains
         
         ! chain:
         ! 6 in 6, k = 0
-!         nI = [3,4,5,6,7,8]
+        nI = [3,4,5,6,7,8]
 
         ! 4 in 4, k = 0
 !         nI = [1,3,4,6]
@@ -645,7 +645,7 @@ contains
             close(iunit)
             t_trans_corr_2body = .false.
 
-            call stop_all("here", "now")
+!             call stop_all("here", "now")
         end if
 
         if (t_do_subspace_study) then
