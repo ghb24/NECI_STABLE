@@ -652,4 +652,38 @@ module fcimc_pointed_fns
 
     end function
 
+!------------------------------------------------------------------------------------------!
+
+    function powerScaleFunction(hdiag) result(Si)
+      implicit none
+      
+      real(dp), intent(in) :: hdiag
+      real(dp) :: Si
+
+      Si = (sFAlpha * (hdiag) + 1)**sFBeta
+    end function powerScaleFunction
+
+!------------------------------------------------------------------------------------------!
+
+    function expScaleFunction(hdiag) result(Si)
+      implicit none
+      
+      real(dp), intent(in) :: hdiag
+      real(dp) :: Si
+
+      Si = sfBeta*exp(sFAlpha*hdiag)
+    end function expScaleFunction
+
+!------------------------------------------------------------------------------------------!
+
+    function negScaleFunction(hdiag) result(Si)
+      implicit none
+
+      real(dp), intent(in) :: hdiag
+      real(dp) :: Si
+
+      Si = -1
+      
+    end function negScaleFunction
+
 end module

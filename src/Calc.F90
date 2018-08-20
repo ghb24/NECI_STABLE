@@ -28,7 +28,7 @@ MODULE Calc
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
                          alloc_popsfile_dets, tSearchTauOption, &
-                         sFAlpha, tEScaleWalkers, sFBeta
+                         sFAlpha, tEScaleWalkers, sFBeta, sFTag
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
          tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits, tSetDelayAllDoubsInits, &
          tSetDelayAllSingsInits, nExProd, NoTypeN, tAdiActive, tReadRefs, SIUpdateInterval, &
@@ -385,6 +385,7 @@ contains
           tEScaleWalkers = .false.
           sFAlpha = 1.0_dp
           sFBeta = 1.0_dp
+          sFTag = 0
 
           ! Epstein-Nesbet second-order correction logicals.
           tEN2 = .false.
@@ -2654,6 +2655,22 @@ contains
              case("ENERGY-SCALED-WALKERS")
                 ! the amplitude unit of a walker shall be scaled with energy
                 tEScaleWalkers = .true.
+                sfTag = 0
+                if(item < nItems) then
+                   call readu(w)
+                   select case(w)
+                   case("EXPONENTIAL")
+                      sfTag = 1
+                      sFAlpha = 0.1
+                   case("POWER")
+                      sfTag = 0
+                   case("NEGATIVE")
+                      sfTag = 2
+                   case default
+                      sfTag = 0
+                      call stop_all(t_r, "Invalid argument 1 of ENERGY-SCALED-WALKERS")
+                   end select
+                endif
                 if(item < nitems) &
                      ! an optional prefactor for scaling 
                    call readf(sFAlpha)

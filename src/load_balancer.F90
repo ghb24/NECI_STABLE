@@ -17,6 +17,7 @@ module load_balance
     use FciMCData, only: HashIndex, FreeSlot, CurrentDets, iter_data_fciqmc, &
                          tFillingStochRDMOnFly, full_determ_vecs, ntrial_excits, &
                          con_space_size, NConEntry, con_send_buf, sFAlpha, sFBeta
+    use procedure_pointers, only: scaleFunction
     use searching, only: hash_search_trial, bin_search_trial
     use determinants, only: get_helement, write_det
     use LoggingData, only: tOutputLoadDistribution
@@ -710,17 +711,5 @@ contains
         end if
 
     end subroutine CalcHashTableStats
-
-!------------------------------------------------------------------------------------------!
-
-    function scaleFunction(hdiag) result(Si)
-      implicit none
-      
-      real(dp), intent(in) :: hdiag
-      real(dp) :: Si
-
-      Si = (sFAlpha * (hdiag) + 1)**sFBeta
-    end function scaleFunction
-
 
 end module

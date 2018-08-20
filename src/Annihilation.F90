@@ -25,10 +25,10 @@ module AnnihilationMod
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData, only: tNoNewRDMContrib
     use load_balance, only: DetermineDetNode, AddNewHashDet, &
-                            CalcHashTableStats, scaleFunction
+                            CalcHashTableStats
     use searching
     use hash
-
+    use procedure_pointers, only: scaleFunction
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement
     use rdm_data, only: rdm_estimates, en_pert_main

@@ -44,11 +44,12 @@ module fcimc_helper
          tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
-    use procedure_pointers, only: attempt_die, extract_bit_rep_avsign
+    use procedure_pointers, only: attempt_die, extract_bit_rep_avsign, &
+         scaleFunction
     use DetCalcData, only: FCIDetIndex, ICILevel, det
     use hash, only: remove_hash_table_entry, add_hash_table_entry, hash_table_lookup
     use load_balance_calcnodes, only: DetermineDetNode, tLoadBalanceBlocks
-    use load_balance, only: adjust_load_balance, scaleFunction
+    use load_balance, only: adjust_load_balance
     use rdm_filling_old, only: det_removed_fill_diag_rdm_old
     use rdm_filling, only: det_removed_fill_diag_rdm
     use rdm_general, only: store_parent_with_spawned, extract_bit_rep_avsign_norm

@@ -141,6 +141,7 @@ MODULE FciMCData
       real(dp) :: HashLengthFrac
 
       ! scaling of walker-units
+      integer :: sfTag
       real(dp) :: sFAlpha, sFBeta
       logical :: tEScaleWalkers
 

@@ -85,7 +85,7 @@ module fcimc_initialisation
                                   get_spawn_helement, encode_child, &
                                   attempt_die, extract_bit_rep_avsign, &
                                   fill_rdm_diag_currdet_old, fill_rdm_diag_currdet, &
-                                  new_child_stats, get_conn_helement
+                                  new_child_stats, get_conn_helement, scaleFunction
     use symrandexcit3, only: gen_rand_excit3
     use symrandexcit_Ex_Mag, only: gen_rand_excit_Ex_Mag
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
@@ -112,7 +112,8 @@ module fcimc_initialisation
                                  attempt_create_trunc_spawn, &
                                  new_child_stats_hist_hamil, &
                                  new_child_stats_normal, &
-                                 null_encode_child, attempt_die_normal
+                                 null_encode_child, attempt_die_normal, &
+                                 powerScaleFunction, expScaleFunction, negScaleFunction
     use csf_data, only: csf_orbital_mask
     use initial_trial_states, only: calc_trial_states_lanczos, &
                                     set_trial_populations, set_trial_states, calc_trial_states_direct
@@ -1595,6 +1596,7 @@ contains
     end subroutine InitFCIMCCalcPar
 
     subroutine init_fcimc_fn_pointers()
+      character(*), parameter :: t_r = 'init_fcimc_fn_pointers'
         ! Select the excitation generator.
         if (tHPHF) then
             generate_excitation => gen_hphf_excit
@@ -1710,6 +1712,17 @@ contains
 
         fill_rdm_diag_currdet => fill_rdm_diag_currdet_norm
         fill_rdm_diag_currdet_old => fill_rdm_diag_currdet_norm_old
+
+        select case(sfTag)
+        case(0)
+           scaleFunction => powerScaleFunction
+        case(1)
+           scaleFunction => expScaleFunction
+        case(2)
+           scaleFunction => negScaleFunction
+        case default
+           call stop_all(t_r,"Invalid scale function specified")
+        end select
 
     end subroutine init_fcimc_fn_pointers
 
