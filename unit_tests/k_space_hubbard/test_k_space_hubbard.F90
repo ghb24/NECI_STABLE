@@ -74,7 +74,7 @@ program test_k_space_hubbard
     call dsfmt_init(0)
 
     ! misuse the unit tests for now to also do an exact study.. 
-    call exact_study() 
+!     call exact_study() 
     ! run the test-driver 
     call k_space_hubbard_test_driver()
     call fruit_summary()
@@ -1821,6 +1821,8 @@ contains
         get_helement_lattice_general => get_helement_k_space_hub_general
         call init_tmat_kspace(lat)
 
+        call init_bit_rep()
+
     end subroutine init_k_space_unit_tests
 
     subroutine k_space_hubbard_test_driver() 
@@ -1828,12 +1830,16 @@ contains
         ! k-space hubbard is really annoying.. 
         ! this is the main function which calls all the other tests 
        
+        call init_k_space_unit_tests()
+        call run_test_case(gen_excit_k_space_hub_transcorr_uniform_stoch_test, &
+            "gen_excit_k_space_hub_transcorr_uniform_stoch_test")
+        call stop_all("here","now")
+
         call run_test_case(setup_g1_test, "setup_g1_test")
         call run_test_case(setup_nbasismax_test, "setup_nbasismax_test")
         call run_test_case(setup_tmat_k_space_test, "setup_tmat_k_space_test")
         call run_test_case(setup_kPointToBasisFn_test, "setup_kPointToBasisFn_test")
 
-        call init_k_space_unit_tests()
         call run_test_case(test_3e_4orbs_par, "test_3e_4orbs_par")
         call run_test_case(test_3e_4orbs_trip, "test_3e_4orbs_trip")
         call run_test_case(test_4e_ms1, "test_4e_ms1")
@@ -4663,6 +4669,77 @@ contains
             gen_all_excits=gen_all_excits_k_space_hubbard) 
 
     end subroutine gen_excit_k_space_hub_test_stochastic
+
+    subroutine gen_excit_k_space_hub_transcorr_uniform_stoch_test
+
+        integer :: nI(nel), n_excits, i, nJ(nel), n_triples
+        integer(n_int), allocatable :: det_list(:,:)
+
+        print *, "" 
+        print *, "testing: gen_excit_k_space_hub_transcorr_uniform" 
+        print *, "first for a system with no possible triples, due to momentum conservation"
+
+        pDoubles = 0.8 
+        pParallel = 0.2 
+        t_trans_corr_2body = .true. 
+
+        nI = [1,2,3,4] 
+        call setup_k_total(nI)
+
+        call setup_system(lat, nI, trans_corr_param_2body, real(uhub,dp))
+        call init_two_body_trancorr_fac_matrix()
+        call init_three_body_const_mat()
+
+        call gen_all_triples_k_space(nI, n_excits, det_list)
+
+        call gen_all_excits_k_space_hubbard(nI, n_excits, det_list)
+
+        ! for this momentum sector there are no, triple excitations valid.. 
+        ! so test that for now! 
+        call run_excit_gen_tester(gen_excit_uniform_k_space_hub_test, &
+            "gen_excit_uniform_k_space_hub_test",opt_ni = nI, & 
+            gen_all_excits = gen_all_excits_k_space_hubbard) 
+
+        do i = 1, n_excits 
+            call decode_bit_det(nJ, det_list(:,i))
+            call run_excit_gen_tester(gen_excit_uniform_k_space_hub_test, &
+                "gen_excit_uniform_k_space_hub_test",opt_ni = nJ, & 
+                gen_all_excits = gen_all_excits_k_space_hubbard) 
+        end do
+
+        print *, "" 
+        print *, "and now for a system with triples: "
+        nI = [3,4,6,7]
+        call setup_k_total(nI) 
+
+        call setup_system(lat, nI, trans_corr_param_2body, real(uhub,dp))
+        call init_two_body_trancorr_fac_matrix()
+        call init_three_body_const_mat()
+
+        call gen_all_triples_k_space(nI, n_triples, det_list)
+
+        print *, "number of triple excitations: ", n_triples
+        do i = 1, n_triples
+            call writebitdet(6, det_list(:,i),.true.)
+        end do
+
+        call gen_all_excits_k_space_hubbard(nI, n_excits, det_list)
+
+        ! for this momentum sector there are no, triple excitations valid.. 
+        ! so test that for now! 
+        call run_excit_gen_tester(gen_excit_uniform_k_space_hub_test, &
+            "gen_excit_uniform_k_space_hub_test",opt_ni = nI, & 
+            gen_all_excits = gen_all_excits_k_space_hubbard) 
+
+        do i = 1, n_excits 
+            call decode_bit_det(nJ, det_list(:,i))
+            call run_excit_gen_tester(gen_excit_uniform_k_space_hub_test, &
+                "gen_excit_uniform_k_space_hub_test",opt_ni = nJ, & 
+                gen_all_excits = gen_all_excits_k_space_hubbard) 
+        end do
+
+
+    end subroutine gen_excit_k_space_hub_transcorr_uniform_stoch_test
 
     subroutine gen_excit_k_space_hub_transcorr_test_stoch
 
