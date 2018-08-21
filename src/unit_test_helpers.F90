@@ -882,9 +882,11 @@ contains
             if (nJ(1) == 0) cycle 
             call EncodeBitDet(nJ, tgt_ilut) 
             pos = binary_search(det_list, tgt_ilut, nifd+1)
+            if (abs(get_helement(nI,nJ)) < EPS) cycle
             if (pos < 0) then 
                 print *, "nJ: ", nJ 
                 print *, "ilutJ:", tgt_ilut
+                print *, "hel: ", get_helement_lattice(nI,nJ)
                 call stop_all(this_routine, 'Unexpected determinant generated')
             else 
                 generated_list(pos) = .true. 
