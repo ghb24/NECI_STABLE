@@ -211,7 +211,6 @@ module davidson_neci
         end if
         if (hamil_type == parallel_sparse_hamil_type) call mpibcast(skip_calc)
         if (skip_calc) return
-
         ! calculate the intial residual vector.
         call calculate_residual(this, 1)
         call calculate_residual_norm(this)
