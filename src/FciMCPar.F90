@@ -1089,6 +1089,8 @@ module FciMCParMod
 
             end if
 
+            call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, CurrentDets(:,j), HDiagCurr, 1.0_dp, tPairedReplicas, j)
+
             ! If we're on the Hartree-Fock, and all singles and doubles are in
             ! the core space, then there will be no stochastic spawning from
             ! this determinant, so we can the rest of this loop.
@@ -1298,18 +1300,6 @@ module FciMCParMod
         if(tTrialWavefunction .and. tTrialShift)then
             call fix_trial_overlap(iter_data)
         end if
-
-        ! Sum in any energy contribution from the determinant, including 
-        ! other parameters, such as excitlevel info.
-        ! This is where the projected energy is calculated.
-        do j = 1, int(TotWalkers,sizeof_int)
-            HDiagCurr = det_diagH(j)
-            call extract_bit_rep_avsign(rdm_definitions, CurrentDets(:,j), j, DetCurr, SignCurr, FlagsCurr, &
-                                        IterRDMStartCurr, AvSignCurr, fcimc_excit_gen_store)
-            walkExcitLevel = FindBitExcitLevel (iLutRef(:,1), CurrentDets(:,j), &
-                                                max_calc_ex_level)
-            call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, CurrentDets(:,j), HDiagCurr, 1.0_dp, tPairedReplicas, j)
-        end do
 
         call update_iter_data(iter_data)
 

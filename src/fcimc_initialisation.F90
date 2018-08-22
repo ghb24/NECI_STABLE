@@ -350,16 +350,16 @@ contains
         !Sorry here we make them the same to avoid errors there.
         !Let's hope that unkonwn parts of the code do not depend on HFDet_True
 
-        !if(tRef_Not_HF) then
-            !do i = 1, NEl
-                !HFDet_True(i) = BRR(i)
-            !enddo
-            !call sort(HFDet_True(1:NEl))
-            !CALL EncodeBitDet(HFDet_True,iLutHF_True)
-        !else
+        if(tRef_Not_HF) then
+            do i = 1, NEl
+                HFDet_True(i) = BRR(i)
+            enddo
+            call sort(HFDet_True(1:NEl))
+            CALL EncodeBitDet(HFDet_True,iLutHF_True)
+        else
             iLutHF_True = iLutHF
             HFDet_True = HFDet
-        !endif
+        endif
 
         if(tHPHF) then
             allocate(RefDetFlip(NEl, inum_runs), &
