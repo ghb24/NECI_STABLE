@@ -1702,6 +1702,10 @@ contains
                     tInstGrowthRate = .false.
                 end if
 
+             case("L2-GROWRATE")
+                ! use the L2-norm instead of the L1 norm to get the shift
+                tL2GrowRate = .true.
+
             case("RESTARTLARGEPOP")
                 tCheckHighestPop=.true.
                 tRestartHighPop=.true.

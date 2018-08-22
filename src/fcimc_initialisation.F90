@@ -93,7 +93,7 @@ module fcimc_initialisation
                                        gen_excit_4ind_reverse
     use hash, only: FindWalkerHash, add_hash_table_entry, init_hash_table
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
-    use load_balance, only: tLoadBalanceBlocks
+    use load_balance, only: tLoadBalanceBlocks, addNormContribution
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcit4, only: CountExcitations4, GenExcitations4
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
@@ -1246,9 +1246,6 @@ contains
             write(iout,*) "POPSFILE VERSION ",PopsVersion," detected."
         endif
 
-        ! Initialise measurement of norm, to avoid divide by zero
-        norm_psi = 1.0_dp
-
         if (tReadPops .and. (PopsVersion.lt.3) .and. &
             .not. (tPopsAlreadyRead .or. tHDF5PopsRead)) then
 !Read in particles from multiple POPSFILES for each processor
@@ -1472,10 +1469,11 @@ contains
             CALL neci_flush(iout)
 
         ENDIF   !End if initial walkers method
-
             
 !Put a barrier here so all processes synchronise
         CALL MPIBarrier(error)
+
+        call init_norm()
 
         IF(tPrintOrbOcc) THEN
             ALLOCATE(OrbOccs(nBasis),stat=ierr)
@@ -3714,6 +3712,43 @@ contains
     end subroutine setup_dynamic_core
 
 !------------------------------------------------------------------------------------------!
+
+    subroutine init_norm()
+      use bit_rep_data, only: test_flag, extract_sign
+      ! initialize the norm_psi, norm_psi_squared
+      implicit none
+      integer :: j
+      real(dp) :: sgn(lenof_sign)
+      logical :: tIsStateDeterm
+
+      norm_psi_squared = 0.0_dp
+      norm_semistoch_squared = 0.0_dp
+      ! has to be set only once, if it changes in one iteration, it is reset in every iteration
+      tIsStateDeterm = .false.
+      do j = 1, TotWalkers
+         ! get the sign
+         call extract_sign(CurrentDets(:,j),sgn)
+         if(tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,j),flag_deterministic)
+         call addNormContribution(sgn,tIsStateDeterm)
+      end do
+
+      ! sum up the norm over the procs
+      call MPISumAll(norm_psi_squared,all_norm_psi_squared)
+
+      ! assign the sqrt norm
+#ifdef __CMPLX
+      norm_psi = sqrt(sum(all_norm_psi_squared))
+      norm_semistoch = sqrt(sum(norm_semistoch_squared))
+#else
+      norm_psi = sqrt(all_norm_psi_squared)
+      norm_semistoch = sqrt(norm_semistoch_squared)
+#endif
+
+      old_norm_psi = norm_psi
+    end subroutine init_norm
+
+!------------------------------------------------------------------------------------------!
+
 
 
 end module fcimc_initialisation

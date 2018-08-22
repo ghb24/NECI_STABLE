@@ -714,7 +714,7 @@ contains
 
     subroutine update_shift (iter_data)
 
-        use CalcData, only: tInstGrowthRate
+        use CalcData, only: tInstGrowthRate, tL2GrowRate
      
         type(fcimc_iter_data), intent(in) :: iter_data
         integer(int64) :: tot_walkers
@@ -733,28 +733,34 @@ contains
         ! collate_iter_data --> The values used are only valid on Root
         if (iProcIndex == Root) then
 
-            if(tInstGrowthRate) then
+           if(tL2GrowRate) then 
+              ! use the L2 norm to determine the growrate
+              do run = 1, inum_runs
+                 AllGrowRate(run) = norm_psi(run) / old_norm_psi(run)
+              end do
 
-                ! Calculate the growth rate simply using the two points at
-                ! the beginning and the end of the update cycle. 
-                do run = 1, inum_runs
-                    lb = min_part_type(run)
-                    ub = max_part_type(run)
-                    AllGrowRate(run) = (sum(iter_data%update_growth_tot(lb:ub) &
-                               + iter_data%tot_parts_old(lb:ub))) &
-                              / real(sum(iter_data%tot_parts_old(lb:ub)), dp)
-                enddo
+           else if(tInstGrowthRate) then
 
-            else
+              ! Calculate the growth rate simply using the two points at
+              ! the beginning and the end of the update cycle. 
+              do run = 1, inum_runs
+                 lb = min_part_type(run)
+                 ub = max_part_type(run)
+                 AllGrowRate(run) = (sum(iter_data%update_growth_tot(lb:ub) &
+                      + iter_data%tot_parts_old(lb:ub))) &
+                      / real(sum(iter_data%tot_parts_old(lb:ub)), dp)
+              enddo
 
-                ! Instead attempt to calculate the average growth over every
-                ! iteration over the update cycle
-                do run = 1, inum_runs
-                    AllGrowRate(run) = AllSumWalkersCyc(run)/real(StepsSft,dp) &
-                                    /OldAllAvWalkersCyc(run)
-                enddo
+           else
 
-            end if
+              ! Instead attempt to calculate the average growth over every
+              ! iteration over the update cycle
+              do run = 1, inum_runs
+                 AllGrowRate(run) = AllSumWalkersCyc(run)/real(StepsSft,dp) &
+                      /OldAllAvWalkersCyc(run)
+              enddo
+
+           end if
 
             ! For complex case, obtain both Re and Im parts
 #ifdef __CMPLX
@@ -1100,6 +1106,8 @@ contains
         AllTotPartsOld = AllTotParts
         AllNoAbortedOld = AllNoAborted
 
+        ! and the norm
+        old_norm_psi = norm_psi
 
         ! Reset the counters
         iter_data%update_growth = 0.0_dp

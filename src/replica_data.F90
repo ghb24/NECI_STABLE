@@ -100,7 +100,7 @@ contains
 
                  ! Overall wavefunction properties
                  norm_psi(inum_runs), norm_psi_squared(inum_runs), &
-                 all_norm_psi_squared(inum_runs), &
+                 all_norm_psi_squared(inum_runs), old_norm_psi(inum_runs), &
                  norm_semistoch(inum_runs), norm_semistoch_squared(inum_runs),&
                  curr_S2(inum_runs), curr_S2_init(inum_runs), &
 

@@ -129,7 +129,7 @@ MODULE FciMCData
       real(dp), allocatable :: norm_psi_squared(:)
       real(dp), allocatable :: norm_semistoch_squared(:)
       real(dp), allocatable :: all_norm_psi_squared(:)
-      real(dp), allocatable :: norm_psi(:)
+      real(dp), allocatable :: norm_psi(:), old_norm_psi(:)
       ! The norm of the wavefunction in just the semi-stochastic space.
       real(dp), allocatable :: norm_semistoch(:)
 
