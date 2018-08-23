@@ -57,7 +57,8 @@ contains
                                   G1, tSpn, LMS, tParity, SymRestrict, ii, &
                                   iElecs, iSpins, iElec, kJ)
 
-        integer, intent(in) :: nel, nhg, LMS, brr(nhg), nBasisMax(5,*), iElec
+        integer, intent(in) :: nel, nhg, LMS, brr(nhg), nBasisMax(5,*)
+        integer, value :: iElec
         integer, intent(inout) :: ii, nMrks(:, :), iElecs(nel), iSpins(nel)
         type(BasisFn), intent(in) :: G1(:), kJ, SymRestrict
         logical, intent(in) :: tCount, tSpn, tParity
@@ -152,7 +153,7 @@ contains
         logical, intent(in) :: tCount
         integer, intent(inout) :: ndets
         integer, intent(inout) :: nI(nel)
-        integer, intent(in) :: ielec
+        integer, value :: ielec
         integer :: starting_orb, iorb, proc
         integer(n_int) :: ilut(0:NIfTot)
 

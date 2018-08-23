@@ -250,7 +250,7 @@ module verlet_aux
       
       unused_ex_level = 0
       do part = 1, lenof_sign
-         call decide_num_to_spawn(parent_sign(part),AvMCExcits,nspawn)
+         call decide_num_to_spawn(parent_sign(part),hdiag, AvMCExcits,nspawn)
          do ispawn = 1, nspawn
             ilut_child = 0_n_int
             

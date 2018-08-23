@@ -30,15 +30,16 @@ MODULE Calc
                          tLogGreensfunction, &
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
-                         alloc_popsfile_dets, tSearchTauOption 
+                         alloc_popsfile_dets, tSearchTauOption, &
+                         sFAlpha, tEScaleWalkers, sFBeta
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
          tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits, tSetDelayAllDoubsInits, &
          tSetDelayAllSingsInits, nExProd, NoTypeN, tAdiActive, tReadRefs, SIUpdateInterval, &
-         tProductReferences, tAccessibleDoubles, tAccessibleSingles, tInitiatorsSubspace, &
+         tProductReferences, tAccessibleDoubles, tAccessibleSingles, &
          tReferenceChanged, superInitiatorLevel, allDoubsInitsDelay, tStrictCoherentDoubles, &
          tWeakCoherentDoubles, tAvCoherentDoubles, coherenceThreshold, SIThreshold, &
          tSuppressSIOutput, targetRefPop, targetRefPopTol, tSingleSteps, tVariableNRef, &
-         nRefsSings, nRefsDoubs, minSIConnect, tWeightedConnections
+         nRefsSings, nRefsDoubs, minSIConnect, tWeightedConnections, tSignedRepAv
     use ras_data, only: core_ras, trial_ras
     use load_balance, only: tLoadBalanceBlocks
     use ftlm_neci
@@ -263,8 +264,12 @@ contains
 !           tKeepDoubSpawns = .true.
 !           tMultiSpawnThreshold = .false.
           tAddtoInitiator=.false.
+          tSTDInits = .false.
+          tAVReps = .false.
+          tGlobalInitFlag = .false.
           tInitCoherentRule=.true.
           InitiatorWalkNo=3.0_dp
+          ErrThresh = 0.3
           tSeniorInitiators =.false.
           SeniorityAge=1.0_dp
           tInitIncDoubs=.false.
@@ -365,6 +370,7 @@ contains
           tPopsJumpShift = .false.
           calc_seq_no = 1
 
+          ! Superinitiator flags and thresholds
           tAllDoubsInitiators = .false.
           tDelayAllDoubsInits = .false.
           allDoubsInitsDelay = 0
@@ -396,9 +402,12 @@ contains
           SIUpdateInterval = 100
           tAdiActive = .false.
           minSIConnect = 1
-
-          ! And disable the initiators subspace
-          tInitiatorsSubspace = .false.
+          
+          ! Walker scaling with energy
+          ! do not use scaled walkers
+          tEScaleWalkers = .false.
+          sFAlpha = 1.0_dp
+          sFBeta = 1.0_dp
 
           ! Epstein-Nesbet second-order correction logicals.
           tEN2 = .false.
@@ -1597,7 +1606,7 @@ contains
                 end if
             case("FIXED-N0")
 #ifdef __CMPL
-                call stop_all(this_routine, 'FIXED-N0 currently not implemented for complex')
+                call stop_all(t_r, 'FIXED-N0 currently not implemented for complex')
 #endif
                 tFixedN0 = .true.
                 call geti(N0_Target)
@@ -1609,7 +1618,7 @@ contains
                 tChangeProjEDet = .false.
             case("TRIAL-SHIFT")
 #ifdef __CMPL
-                call stop_all(this_routine, 'TRIAL-SHIFT currently not implemented for complex')
+                call stop_all(t_r, 'TRIAL-SHIFT currently not implemented for complex')
 #endif
                 if (item.lt.nitems) then
                     call readf(TrialTarget)
@@ -1934,6 +1943,20 @@ contains
 !determinants outside the active space, however if this is done, they
 !can only spawn back on to the determinant from which they came.  This is the star approximation from the CAS space. 
                 tTruncInitiator=.true.
+
+             case("REPLICA-GLOBAL-INITIATORS")
+! with this option, all replicas will use the same initiator flag, which is then set 
+! depending on the avereage population, else, the initiator flag is set for each replica
+! using the population of that replica
+                tGlobalInitFlag = .true.
+
+             case("AVERAGE-REPLICAS")
+                ! average the replica populations if they are not sign coherent
+                tAVReps = .true.
+                
+             case("REPLICA-COHERENT-INITS")
+                ! require initiators to be coherent across replcias
+                tReplicaCoherentInits = .true.
 
             case("NO-COHERENT-INIT-RULE")
                 tInitCoherentRule=.false.
@@ -2828,10 +2851,6 @@ contains
                 ! Also add all excitation products of references to the reference space
                 tProductReferences = .true.
 
-             case("INITIATORS-SUBSPACE")
-                ! Use Giovannis check to add initiators
-                tInitiatorsSubspace = .true.
-
              case("COHERENT-REFERENCES")
                 ! Only make those doubles/singles initiators that are sign coherent
                 ! with their reference(s)
@@ -2909,6 +2928,28 @@ contains
                       tWeightedConnections = .false.
                    end select
                 endif
+
+             case("SIGNED-REPLICA-AVERAGE")
+                tSignedRepAv = .true.
+                if(item < nitems) then
+                   call readu(w)
+                   select case(w)
+                   case("OFF")
+                      tSignedRepAv = .false.
+                   case default
+                      tSignedRepAv = .true.
+                   end select
+                endif
+
+             case("ENERGY-SCALED-WALKERS")
+                ! the amplitude unit of a walker shall be scaled with energy
+                tEScaleWalkers = .true.
+                if(item < nitems) &
+                     ! an optional prefactor for scaling 
+                   call readf(sFAlpha)
+                if(item < nitems) &
+                     ! an optional exponent for scaling
+                     call readf(sFBeta)
 
              case("SUPERINITIATOR-POPULATION-THRESHOLD")
                 ! set the minimum value for superinitiator population

@@ -848,8 +848,8 @@ contains
             call set_timer (s2_timer)
         endif
 
-        ssq_sum = 0
-        psi_squared = 0
+        ssq_sum = 0.0_dp
+        psi_squared = 0.0_dp
         do p = 0, nProcessors-1
 
             ! How many dets are on processor p
@@ -942,7 +942,7 @@ contains
                 !            system. I am somewhat astounded I haven't noticed
                 !            this before...
                 ssq(run) = ssq(run) &
-                         + real(calculated_ms * (calculated_ms + 2), dp) / 4
+                         + real(calculated_ms * (calculated_ms + 2), dp) / 4.0
             end if
         end do
 
@@ -967,7 +967,6 @@ contains
         logical, intent(in), optional :: only_init_
         integer, intent(in), optional :: n_opt
         integer(n_int), intent(in), optional :: ilut_list_opt(0:,:)
-!         integer(int64) :: ssq
         real(dp) :: ssq
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "ssquared_contrib"
@@ -1004,7 +1003,7 @@ contains
         ! Extract details of determinant
         call extract_bit_rep (ilut, nI, sgn, flg)
 
-        ssq = 0
+        ssq = 0.0_dp
         do j = 1, nel
             if (is_beta(nI(j)) &
                 .and. IsNotOcc(ilut, get_alpha(nI(j)))) then
@@ -1051,7 +1050,6 @@ contains
                             end if
 
                             call extract_sign (ilut_list(:,pos), sgn2)
-!                             ssq = ssq + int(sgn(1) * sgn2(1) * sgn_hphf,int64) 
                             ssq = ssq + sgn(1) * sgn2(1) * sgn_hphf
                         endif
                     endif

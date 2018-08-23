@@ -620,6 +620,13 @@ system: do
         ! does not use a cumulative list (it is much more efficient)
         case("UNIFORM-EXCITGEN")
             t_uniform_excits = .true.
+
+        case("MIXED-EXCITGEN")
+            ! use a mix of weighted and uniform excitation generators 
+            ! for the transcorrelated k-space hubbard. 
+            ! triples are weighted and doubles will be done uniformly 
+            t_mixed_excits = .true. 
+
         case("MESH")
             call geti(NMSH)
         case("BOXSIZE")

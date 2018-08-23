@@ -175,9 +175,8 @@ module LoggingData
 
     ! spatial resolved double occupancy and spin difference measurements
     logical :: t_spin_measurements = .false.
-!     logical :: t_inst_spin_diff = .false.
-!     logical :: t_inst_spat_doub_occ = .false. 
-!     logical :: t_spatial_double_occ = .false.
 
     logical :: t_print_core_info = .false.
+    logical :: tWriteConflictLvls
+
 end module LoggingData

@@ -31,25 +31,25 @@ module fcimc_helper
                            nHistEquilSteps, tCalcFCIMCPsi, StartPrintOrbOcc, &
                            HistInitPopsIter, tHistInitPops, iterRDMOnFly, &
                            FciMCDebug, tLogEXLEVELStats
-    use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, &
-                        tAddToInitiator, InitiatorWalkNo, &
+    use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, tReplicaCoherentInits, &
+                        tAddToInitiator, InitiatorWalkNo, tAvReps, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
-                        tRealCoeffByExcitLevel, &
+                        tRealCoeffByExcitLevel, tGlobalInitFlag, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
                         MaxWalkerBloom, tEN2, tEN2Started, &
-                        NMCyc, iSampleRDMIters, &
+                        NMCyc, iSampleRDMIters, ErrThresh, tSTDInits, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
                         t_back_spawn_flex, tau, DiagSft, &
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule
-    use adi_data, only: tAccessibleDoubles, tAccessibleSingles, tInitiatorsSubspace, &
-         tAllDoubsInitiators, tAllSingsInitiators
+    use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
+         tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
     use procedure_pointers, only: attempt_die, extract_bit_rep_avsign
     use DetCalcData, only: FCIDetIndex, ICILevel, det
-    use hash, only: remove_hash_table_entry
+    use hash, only: remove_hash_table_entry, add_hash_table_entry, hash_table_lookup
     use load_balance_calcnodes, only: DetermineDetNode, tLoadBalanceBlocks
-    use load_balance, only: adjust_load_balance
+    use load_balance, only: adjust_load_balance, scaleFunction
     use rdm_filling_old, only: det_removed_fill_diag_rdm_old
     use rdm_filling, only: det_removed_fill_diag_rdm
     use rdm_general, only: store_parent_with_spawned, extract_bit_rep_avsign_norm
@@ -969,22 +969,44 @@ contains
         integer, intent(in) :: run, nI(nel), exLvl, site_idx
         real(dp), intent(in) :: sgn(lenof_sign)
 
-        ! the following value is either a single sgn or an aggregate
-        real(dp) :: tot_sgn
-        logical :: initiator, staticInit
+        logical :: initiator, staticInit, popInit
         integer :: i
 
         logical :: Senior
         real(dp) :: DetAge, HalfLife, AvgShift, diagH
 
+        ! initiator flag according to population
+        popInit = initiator_criterium(sgn, det_diagH(site_idx), run)
+
+        ! initiator flag according to SI
+        staticInit = check_static_init(ilut, nI, sgn, exLvl, run)
+        ! check if there are sign conflicts across the replicas
+        if(any(sgn*(sgn_av_pop(sgn)) < 0)) then
+           ! check if this would be an initiator
+           if(popInit) then 
+              NoInitsConflicts = NoInitsConflicts + 1
+           endif
+          ! check if this would be an initiator due to SI criterium
+           ! (do not double - count)
+           if(staticInit .and. .not. popInit) then
+              NoSIInitsConflicts = NoSIInitsConflicts + 1
+           endif
+           ! one initial check: if the replicas dont agree on the sign
+           ! dont make this an initiator under any circumstances 
+           if(tReplicaCoherentInits .and. .not. &
+                ! maybe except for corepsace determinants
+                test_flag(ilut, flag_deterministic)) then
+              ! log this, if we remove an initiator here
+              if(is_init) NoAddedInitiators = NoAddedInitiators - 1_int64
+              initiator = .false.
+              return
+           endif
+        endif
+
         ! By default the particles status will stay the same
         initiator = is_init
 
-        tot_sgn = mag_of_run(sgn,run)
-
-        ! If we are allowed to unset the initiator flag
-        staticInit = check_static_init(ilut, nI, sgn, exLvl, run)
-        ! reference-caused initiators also have the initiator flag
+        ! SI-caused initiators also have the initiator flag
         if(staticInit) initiator = .true.
 
         Senior = .false.
@@ -1007,7 +1029,7 @@ contains
            ! Determinant wasn't previously initiator 
            ! - want to test if it has now got a large enough 
            !   population to become an initiator.
-           if (tot_sgn > InitiatorWalkNo) then
+           if (popInit) then
               initiator = .true.
               NoAddedInitiators = NoAddedInitiators + 1_int64
            endif
@@ -1026,18 +1048,50 @@ contains
            if ( .not. (staticInit) &
                 .and. .not. test_flag(ilut, flag_deterministic) &
                 .and. .not. Senior &
-                .and. (tot_sgn <= InitiatorWalkNo )) then
+                .and. (.not. popInit )) then
               ! Population has fallen too low. Initiator status 
               ! removed.
               initiator = .false.
               NoAddedInitiators = NoAddedInitiators - 1_int64
            endif
 
-        end if
+        end if       
 
       end function TestInitiator_explicit
       
+      function initiator_criterium(sign,hdiag,run) result(init_flag)
+        implicit none
+        real(dp), intent(in) :: sign(lenof_sign), hdiag
+        integer, intent(in) :: run
+        ! variance of sign and either a single value or an aggregate
+        real(dp) :: sigma, tot_sgn
+        integer :: crun, nOcc
+        real(dp) :: scaledInitiatorWalkNo
+        logical :: init_flag
 
+        if(tEScaleWalkers) then
+           scaledInitiatorWalkNo = InitiatorWalkNo / scaleFunction(hdiag)
+        else
+           scaledInitiatorWalkNo = InitiatorWalkNo
+        endif
+        
+        
+        ! option to use the average population instead of the local one
+        ! for purpose of initiator threshold
+        if(tGlobalInitFlag) then
+           ! we can use a signed or unsigned sum
+           if(tSignedRepAv) then
+              tot_sgn = real(abs(sum(sign)),dp)/inum_runs
+           else
+              tot_sgn = av_pop(sign)
+           endif
+        else
+           tot_sgn = mag_of_run(sign,run)
+        endif
+        ! make it an initiator 
+        init_flag = (tot_sgn > scaledInitiatorWalkNo)
+
+      end function initiator_criterium
 
     subroutine rezero_iter_stats_each_iter(iter_data, rdm_defs)
 
@@ -1055,6 +1109,11 @@ contains
         NoInitWalk = 0.0_dp
         NoNonInitWalk = 0.0_dp
         InitRemoved = 0_int64
+
+        ! replica-initiator info
+        NoSIInitsConflicts = 0
+        NoInitsConflicts = 0
+        avSigns = 0.0_dp
 
         NoAborted = 0.0_dp
         NoRemoved = 0.0_dp
@@ -1866,13 +1925,14 @@ contains
     end subroutine DiagWalkerSubspace
 
 
-    subroutine decide_num_to_spawn(parent_pop, av_spawns_per_walker, nspawn)
+    subroutine decide_num_to_spawn(parent_pop, hdiag, av_spawns_per_walker, nspawn)
 
         real(dp), intent(in) :: parent_pop
         real(dp), intent(in) :: av_spawns_per_walker
+        real(dp), intent(in) :: hdiag
         integer, intent(out) :: nspawn
         real(dp) :: prob_extra_walker, r
-
+        
         nspawn = abs(int(parent_pop*av_spawns_per_walker))
         if (abs(abs(parent_pop*av_spawns_per_walker) - real(nspawn,dp)) > 1.e-12_dp) then
             prob_extra_walker = abs(parent_pop*av_spawns_per_walker) - real(nspawn,dp)
@@ -2253,8 +2313,6 @@ contains
 
     end subroutine
 
-!------------------------------------------------------------------------------------------!
-
     function check_semistoch_flags(ilut_child, nI_child, tCoreDet) result(break)
       integer(n_int), intent(inout) :: ilut_child(0:niftot)
       integer, intent(in) :: nI_child(nel)
@@ -2302,4 +2360,39 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
+    subroutine replica_coherence_check(ilut,sgn,exLvl)
+
+      ! do a check if a determinant has sign consistent walkers across replicas
+      ! input: 
+      ! ilut = determinant + population in ilut-format
+      ! sgn = sign of ilut (i.e. #walkers)
+      ! exLvl = excitation level of ilut for logging purposes
+      ! this logs the number of conflicts per excitation level
+      implicit none
+      integer(n_int), intent(inout) :: ilut(0:NIfTot)
+      real(dp), intent(inout) :: sgn(lenof_sign)
+      integer, intent(in) :: exLvl
+      
+      integer :: run
+      real(dp) :: avSign
+
+#ifdef __CMPLX
+#else
+      ! check if there are any sign changes within sgn
+      if(any(sgn*sgn(1) < 0)) then
+         avSign = sum(sgn)/inum_runs
+         ! log the change in population
+         do run = 1, inum_runs
+            ! are we looking at an erroneous sign?
+            if(sgn(run)*avSign < 0) then
+               ! log the conflict
+               avSigns = avSigns + abs(sgn(run))
+               if(exLvl < maxConflictExLvl) ConflictExLvl(exLvl) = ConflictExLvl(exLvl) + 1
+            endif
+         end do
+      endif
+#endif
+    end subroutine replica_coherence_check
+
+    
 end module

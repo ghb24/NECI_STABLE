@@ -315,7 +315,10 @@ contains
         end do
 
         do i = 0, 7
-            ras_class%cum_sym(i) = sum(ras_class%num_sym(0:i-1))
+            ras_class%cum_sym(i) = 0
+            do j = 0, i-1
+               ras_class%cum_sym(i) = ras_class%cum_sym(i) + ras_class%num_sym(j)
+            end do
         end do
 
         deallocate(symmetries)
@@ -483,7 +486,10 @@ contains
             if (i > 1) block_address = block_address + classes(i-1)%class_size
 
             do j = 0, 7
-                min_indices(i,j) = block_address + sum(classes(i)%num_sym(0:j-1)) + 1
+                min_indices(i,j) = block_address + 1
+                do k = 0, j -1
+                   min_indices(i,j) = min_indices(i,j) + classes(i)%num_sym(k)
+                end do
             end do
 
             call generate_first_full_string(string, ras, classes(i))

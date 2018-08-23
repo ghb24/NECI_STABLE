@@ -5,7 +5,8 @@ module FciMCParMod
     ! main per-iteration processing loop.
     use SystemData, only: nel, tUEG2, hist_spin_dist_iter, tReltvy, tHub, & 
                           t_new_real_space_hubbard, t_tJ_model, t_heisenberg_model, & 
-                          t_k_space_hubbard, max_ex_level, t_uniform_excits
+                          t_k_space_hubbard, max_ex_level, t_uniform_excits, &
+                          t_mixed_excits
 
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
@@ -14,13 +15,13 @@ module FciMCParMod
                         tOrthogonaliseReplicas, orthogonalise_iter, &
                         tDetermHFSpawning, use_spawn_hash_table, &
                         ss_space_in, s_global_start, tContTimeFCIMC, &
-                        trial_shift_iter, tStartTrialLater,  &
+                        trial_shift_iter, tStartTrialLater, tAVReps, &
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
                         t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
                         t_back_spawn_flex, t_back_spawn_flex_option, &
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
                         DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
-                        tSkipRef, tFixTrial, tTrialShift, tSpinProject
+                        tSkipRef, tFixTrial, tTrialShift, tSpinProject, tRCCheck
 
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
                         tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
@@ -109,7 +110,8 @@ module FciMCParMod
     use real_space_hubbard, only: init_real_space_hubbard
     use tJ_model, only: init_tJ_model, init_heisenberg_model
     use k_space_hubbard, only: init_k_space_hubbard, gen_excit_k_space_hub_transcorr, & 
-                               gen_excit_uniform_k_space_hub_transcorr
+                               gen_excit_uniform_k_space_hub_transcorr, &
+                               gen_excit_mixed_k_space_hub_transcorr
     use cc_amplitudes, only: t_cc_amplitudes, init_cc_amplitudes, cc_delay, &
                             t_plot_cc_amplitudes, print_cc_amplitudes
 
@@ -139,7 +141,7 @@ module FciMCParMod
         real(dp) :: Weight, Energyxw, BestEnergy
         INTEGER :: error, irdm
         LOGICAL :: TIncrement, tWritePopsFound, tSingBiasChange, tPrintWarn
-        REAL(sp) :: s_start, s_end, tstart(2), tend(2), totaltime
+        REAL(dp) :: s_start, s_end, tstart(2), tend(2), totaltime
         real(dp) :: TotalTime8
         INTEGER(int64) :: MaxWalkers, MinWalkers
         real(dp) :: AllTotWalkers,MeanWalkers, Inpair(2), Outpair(2)
@@ -450,7 +452,7 @@ module FciMCParMod
                 .not. tSemiStochastic .and. .not. tFillingStochRDMOnFly) then
                 call adjust_load_balance(iter_data_fciqmc)
             end if
-
+            
             if(SIUpdateInterval > 0) then
                ! Regular update of the superinitiators. Use with care as it 
                ! is still rather expensive if secondary superinitiators are used
@@ -1087,6 +1089,10 @@ module FciMCParMod
                 walkExcitLevel_toHF = walkExcitLevel
             endif
 
+            ! if requested, average the sign over replicas if not coherent
+            if(inum_runs > 1 .and. tWriteConflictLvls) call replica_coherence_check(&
+                 CurrentDets(:,j), SignCurr, walkExcitLevel)
+
             if (tFillingStochRDMonFly) then
                 ! Set the average sign and occupation iteration which were
                 ! found in extract_bit_rep_avsign.
@@ -1211,6 +1217,8 @@ module FciMCParMod
                 end if
             end if
 
+            call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, CurrentDets(:,j), HDiagCurr, 1.0_dp, tPairedReplicas, j)
+
             ! If we're on the Hartree-Fock, and all singles and doubles are in
             ! the core space, then there will be no stochastic spawning from
             ! this determinant, so we can the rest of this loop.
@@ -1235,7 +1243,9 @@ module FciMCParMod
                 ! determinant. CurrentSign gives number of walkers. Multiply 
                 ! up by AvMCExcits if attempting multiple excitations from 
                 ! each walker (default 1.0_dp).
-                call decide_num_to_spawn(SignCurr(part_type), AvMCExcits, WalkersToSpawn)
+!                 call decide_num_to_spawn(SignCurr(part_type), AvMCExcits, WalkersToSpawn)
+                call decide_num_to_spawn(SignCurr(part_type), HDiagCurr, AvMCExcits, WalkersToSpawn)
+
                 do p = 1, WalkersToSpawn
 
                     ! Zero the bit representation, to ensure no extraneous
@@ -1252,6 +1262,12 @@ module FciMCParMod
                             call gen_excit_uniform_k_space_hub_transcorr(DetCurr, CurrentDets(:,j), &
                                 nJ, ilutnJ, exFlag, ic, ex, tParity, prob, & 
                                 HElGen, fcimc_excit_gen_store, part_type) 
+
+                        else if (t_mixed_excits) then 
+                            call gen_excit_mixed_k_space_hub_transcorr(DetCurr, CurrentDets(:,j), &
+                                nJ, ilutnJ, exFlag, ic, ex, tParity, prob, & 
+                                HElGen, fcimc_excit_gen_store, part_type) 
+
                         else
                             call gen_excit_k_space_hub_transcorr(DetCurr, CurrentDets(:,j), &
                                 nJ, ilutnJ, exFlag, ic, ex, tParity, prob, & 
@@ -1441,18 +1457,6 @@ module FciMCParMod
         if(tTrialWavefunction .and. tTrialShift)then
             call fix_trial_overlap(iter_data)
         end if
-
-        ! Sum in any energy contribution from the determinant, including 
-        ! other parameters, such as excitlevel info.
-        ! This is where the projected energy is calculated.
-        do j = 1, int(TotWalkers,sizeof_int)
-            HDiagCurr = det_diagH(j)
-            call extract_bit_rep_avsign(rdm_definitions, CurrentDets(:,j), j, DetCurr, SignCurr, FlagsCurr, &
-                                        IterRDMStartCurr, AvSignCurr, fcimc_excit_gen_store)
-            walkExcitLevel = FindBitExcitLevel (iLutRef(:,1), CurrentDets(:,j), &
-                                                max_calc_ex_level)
-            call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, CurrentDets(:,j), HDiagCurr, 1.0_dp, tPairedReplicas, j)
-        end do
 
         call update_iter_data(iter_data)
 
