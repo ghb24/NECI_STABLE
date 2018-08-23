@@ -468,16 +468,16 @@ contains
         upp = 0
 
         cnt = 1
-        sizes(cnt ) = size(SpawnFromSing);              cnt = cnt + 1
-        sizes(cnt ) = size(iter_data%update_growth);    cnt = cnt + 1
-        sizes(cnt ) = size(NoBorn);                     cnt = cnt + 1
-        sizes(cnt ) = size(NoDied);                     cnt = cnt + 1
-        sizes(cnt ) = size(HFCyc);                      cnt = cnt + 1
-        sizes(cnt ) = size(NoAtDoubs);                  cnt = cnt + 1
-        sizes(cnt ) = size(Annihilated);                cnt = cnt + 1
+        sizes(cnt) = size(SpawnFromSing);               cnt = cnt + 1
+        sizes(cnt) = size(iter_data%update_growth);     cnt = cnt + 1
+        sizes(cnt) = size(NoBorn);                      cnt = cnt + 1
+        sizes(cnt) = size(NoDied);                      cnt = cnt + 1
+        sizes(cnt) = size(HFCyc);                       cnt = cnt + 1
+        sizes(cnt) = size(NoAtDoubs);                   cnt = cnt + 1
+        sizes(cnt) = size(Annihilated);                 cnt = cnt + 1
         if (tTruncInitiator) then
-            sizes(cnt ) = size(NoAddedInitiators);      cnt = cnt + 1
-            sizes(cnt ) = size(NoInitDets);             cnt = cnt + 1
+            sizes(cnt) = size(NoAddedInitiators);       cnt = cnt + 1
+            sizes(cnt) = size(NoInitDets);              cnt = cnt + 1
             sizes(cnt) = size(NoNonInitDets);           cnt = cnt + 1
             sizes(cnt) = size(NoExtraInitDoubs);        cnt = cnt + 1
             sizes(cnt) = size(InitRemoved);             cnt = cnt + 1
@@ -486,7 +486,7 @@ contains
             sizes(cnt) = size(NoNonInitWalk);           cnt = cnt + 1
             sizes(cnt) = size(NoInitWalk);              cnt = cnt + 1
         end if
-        sizes(cnt) = 1 ! TotWalkersTemp (single int, not an array)
+        sizes(cnt) = 1;                                 cnt = cnt + 1! TotWalkersTemp (single int, not an array)
         sizes(cnt) = size(norm_psi_squared);            cnt = cnt + 1
         sizes(cnt) = size(norm_semistoch_squared);      cnt = cnt + 1
         sizes(cnt) = size(TotParts);                    cnt = cnt + 1
@@ -544,16 +544,16 @@ contains
 
         ! reset counter
         cnt = 1
-        low = upp + 1; upp = low + sizes(cnt ) - 1; send_arr(low:upp) = SpawnFromSing; cnt = cnt + 1
-        low = upp + 1; upp = low + sizes(cnt ) - 1; send_arr(low:upp) = iter_data%update_growth; cnt = cnt + 1
-        low = upp + 1; upp = low + sizes(cnt ) - 1; send_arr(low:upp) = NoBorn; cnt = cnt + 1
-        low = upp + 1; upp = low + sizes(cnt ) - 1; send_arr(low:upp) = NoDied; cnt = cnt + 1
-        low = upp + 1; upp = low + sizes(cnt ) - 1; send_arr(low:upp) = HFCyc; cnt = cnt + 1
-        low = upp + 1; upp = low + sizes(cnt ) - 1; send_arr(low:upp) = NoAtDoubs; cnt = cnt + 1
-        low = upp + 1; upp = low + sizes(cnt ) - 1; send_arr(low:upp) = Annihilated; cnt = cnt + 1
+        low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = SpawnFromSing; cnt = cnt + 1
+        low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = iter_data%update_growth; cnt = cnt + 1
+        low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = NoBorn; cnt = cnt + 1
+        low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = NoDied; cnt = cnt + 1
+        low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = HFCyc; cnt = cnt + 1
+        low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = NoAtDoubs; cnt = cnt + 1
+        low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = Annihilated; cnt = cnt + 1
         if (tTruncInitiator) then
-            low = upp + 1; upp = low + sizes(cnt ) - 1; send_arr(low:upp) = NoAddedInitiators; cnt = cnt + 1
-            low = upp + 1; upp = low + sizes(cnt ) - 1; send_arr(low:upp) = NoInitDets; cnt = cnt + 1
+            low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = NoAddedInitiators; cnt = cnt + 1
+            low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = NoInitDets; cnt = cnt + 1
             low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = NoNonInitDets; cnt = cnt + 1
             low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = NoExtraInitDoubs; cnt = cnt + 1
             low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = InitRemoved; cnt = cnt + 1
@@ -621,13 +621,13 @@ contains
         low = 0; upp = 0
 
         cnt = 1
-        low = upp + 1; upp = low + sizes(cnt ) - 1; AllSpawnFromSing = recv_arr(low:upp); cnt = cnt + 1
-        low = upp + 1; upp = low + sizes(cnt ) - 1; iter_data%update_growth_tot = recv_arr(low:upp); cnt = cnt + 1
-        low = upp + 1; upp = low + sizes(cnt ) - 1; AllNoBorn = recv_arr(low:upp); cnt = cnt + 1
-        low = upp + 1; upp = low + sizes(cnt ) - 1; AllNoDied = recv_arr(low:upp); cnt = cnt + 1
-        low = upp + 1; upp = low + sizes(cnt ) - 1; RealAllHFCyc = recv_arr(low:upp); cnt = cnt + 1
-        low = upp + 1; upp = low + sizes(cnt ) - 1; AllNoAtDoubs = recv_arr(low:upp); cnt = cnt + 1
-        low = upp + 1; upp = low + sizes(cnt ) - 1; AllAnnihilated = recv_arr(low:upp); cnt = cnt + 1
+        low = upp + 1; upp = low + sizes(cnt) - 1; AllSpawnFromSing = recv_arr(low:upp); cnt = cnt + 1
+        low = upp + 1; upp = low + sizes(cnt) - 1; iter_data%update_growth_tot = recv_arr(low:upp); cnt = cnt + 1
+        low = upp + 1; upp = low + sizes(cnt) - 1; AllNoBorn = recv_arr(low:upp); cnt = cnt + 1
+        low = upp + 1; upp = low + sizes(cnt) - 1; AllNoDied = recv_arr(low:upp); cnt = cnt + 1
+        low = upp + 1; upp = low + sizes(cnt) - 1; RealAllHFCyc = recv_arr(low:upp); cnt = cnt + 1
+        low = upp + 1; upp = low + sizes(cnt) - 1; AllNoAtDoubs = recv_arr(low:upp); cnt = cnt + 1
+        low = upp + 1; upp = low + sizes(cnt) - 1; AllAnnihilated = recv_arr(low:upp); cnt = cnt + 1
         if (tTruncInitiator) then
             low = upp + 1; upp = low + sizes(cnt ) - 1; AllNoAddedInitiators = nint(recv_arr(low:upp), int64); cnt = cnt + 1
             low = upp + 1; upp = low + sizes(cnt ) - 1; AllNoInitDets = nint(recv_arr(low:upp), int64); cnt = cnt + 1
