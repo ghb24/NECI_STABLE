@@ -25,7 +25,7 @@ module AnnihilationMod
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData, only: tNoNewRDMContrib
     use load_balance, only: DetermineDetNode, AddNewHashDet, &
-                            CalcHashTableStats
+                            CalcHashTableStats, scaleFunction
     use searching
     use hash
     use real_time_data, only: NoAborted_1, Annihilated_1, runge_kutta_step, &
@@ -605,8 +605,8 @@ module AnnihilationMod
         integer :: PartInd, i, j, PartIndex, m, run
         real(dp), dimension(lenof_sign) :: CurrentSign, SpawnedSign, SignTemp
         real(dp), dimension(lenof_sign) :: TempCurrentSign, SignProd
-        real(dp) :: pRemove, r
         integer :: ExcitLevel, DetHash, nJ(nel), ratio(lenof_sign)
+        real(dp) :: pRemove, r, scaledOccupiedThresh, diagH
         logical :: tSuccess, tSuc, tDetermState
         logical :: abort(lenof_sign)
         logical :: tTruncSpawn
@@ -793,6 +793,17 @@ module AnnihilationMod
                 
             if ( (.not.tSuccess) .or. ((tSuccess .and. IsUnoccDet(CurrentSign) .and. (.not. tDetermState))) ) then
 
+               if(tEScaleWalkers) then
+                  if(tHPHF) then
+                     diagH = hphf_diag_helement(nJ, SpawnedParts(:,i)) - Hii
+                  else
+                     diagH = get_helement(nJ,nJ,0) - Hii
+                  endif
+                  scaledOccupiedThresh = occupiedThresh / scaleFunction(diagH)
+               else
+                  scaledOccupiedThresh = occupiedThresh
+               endif
+
                 ! Determinant in newly spawned list is not found in CurrentDets.
                 ! Usually this would mean the walkers just stay in this list and
                 ! get merged later - but in this case we want to check where the
@@ -847,47 +858,75 @@ module AnnihilationMod
 
                         end if
                         
+#ifdef __REALTIME
+                        call stop_all(this_routine, &
+                            "i have to incorporate the code below for realtime!")
                         ! this below, probably has to be adjusted for the 
                         ! real-time in the future too! if we use non-integer
-                        ! occupations.. todo
+!                         ! occupations.. todo
+! 
+!                         ! RT_M_Merge: Initiators were treated separately here which is disabled
+!                         ! in the main build -> adjusted to main. Not sure what tEnhanceRemainder does, but
+!                         ! it is deprecated, so i removed it
+!                             ! Either the determinant has never been an initiator,
+!                             ! or we want to treat them all the same, as before.
+!                         
+!                         if( ( (.not. is_run_unnocc(SignTemp, run)) .and. &
+!                              (mag_of_run(SignTemp, run) < OccupiedThresh) ) ) then
+!                            ! We remove this walker with probability 1-RealSignTemp
+! 
+!                            pRemove=(OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
+!                            r = genrand_real2_dSFMT ()
+!                            if (pRemove > r) then
+!                               ! Remove this walker.
+!                               NoRemoved(run) = NoRemoved(run) + sum(abs(SignTemp( &
+!                                    min_part_type(run):max_part_type(run))))
+!                               !Annihilated = Annihilated + abs(SignTemp(j))
+!                               !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
+!                               do m=min_part_type(run),max_part_type(run)
+!                                  iter_data%nremoved(m) = iter_data%nremoved(m) &
+!                                       + abs(SignTemp(m))
+!                                  SignTemp(m) = 0.0_dp
+!                                  call nullify_ilut_part (SpawnedParts(:,i), m)
+!                               enddo
+!                            else !if (tEnhanceRemainder) then
+!                               do m=min_part_type(run),max_part_type(run)
+!                                  ! do not change the phase of the population
+!                                  ratio(m) = abs(SignTemp(m))/mag_of_run(SignTemp,run)
+!                                  iter_data%nborn(m) = iter_data%nborn(m) &
+!                                       + OccupiedThresh*ratio(m) - abs(SignTemp(m))
+!                                  NoBorn(run) = NoBorn(run) + OccupiedThresh*ratio(m) &
+!                                       - abs(CurrentSign(m))
+!                                  SignTemp(m) = sign(OccupiedThresh*ratio(m), SignTemp(m))
+!                                  call encode_part_sign (SpawnedParts(:,i), SignTemp(m), m)
+!                               enddo
+! 
+!                            end if
+#endif
 
-                        ! RT_M_Merge: Initiators were treated separately here which is disabled
-                        ! in the main build -> adjusted to main. Not sure what tEnhanceRemainder does, but
-                        ! it is deprecated, so i removed it
-                            ! Either the determinant has never been an initiator,
-                            ! or we want to treat them all the same, as before.
-                        
-                        if( ( (.not. is_run_unnocc(SignTemp, run)) .and. &
-                             (mag_of_run(SignTemp, run) < OccupiedThresh) ) ) then
-                           ! We remove this walker with probability 1-RealSignTemp
-
-                           pRemove=(OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
-                           r = genrand_real2_dSFMT ()
-                           if (pRemove > r) then
-                              ! Remove this walker.
-                              NoRemoved(run) = NoRemoved(run) + sum(abs(SignTemp( &
-                                   min_part_type(run):max_part_type(run))))
-                              !Annihilated = Annihilated + abs(SignTemp(j))
-                              !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
-                              do m=min_part_type(run),max_part_type(run)
-                                 iter_data%nremoved(m) = iter_data%nremoved(m) &
-                                      + abs(SignTemp(m))
-                                 SignTemp(m) = 0.0_dp
-                                 call nullify_ilut_part (SpawnedParts(:,i), m)
-                              enddo
-                           else !if (tEnhanceRemainder) then
-                              do m=min_part_type(run),max_part_type(run)
-                                 ! do not change the phase of the population
-                                 ratio(m) = abs(SignTemp(m))/mag_of_run(SignTemp,run)
-                                 iter_data%nborn(m) = iter_data%nborn(m) &
-                                      + OccupiedThresh*ratio(m) - abs(SignTemp(m))
-                                 NoBorn(run) = NoBorn(run) + OccupiedThresh*ratio(m) &
-                                      - abs(CurrentSign(m))
-                                 SignTemp(m) = sign(OccupiedThresh*ratio(m), SignTemp(m))
-                                 call encode_part_sign (SpawnedParts(:,i), SignTemp(m), m)
-                              enddo
-
-                           end if
+                        ! Either the determinant has never been an initiator,
+                        ! or we want to treat them all the same, as before.
+                        if ((abs(SignTemp(j)) > 1.e-12_dp) .and. (abs(SignTemp(j)) < scaledOccupiedThresh)) then
+                            ! We remove this walker with probability 1-RealSignTemp
+                            pRemove=(scaledOccupiedThresh-abs(SignTemp(j)))/scaledOccupiedThresh
+                            r = genrand_real2_dSFMT ()
+                            if (pRemove > r) then
+                                ! Remove this walker.
+                                NoRemoved(run) = NoRemoved(run) + abs(SignTemp(j))
+                                !Annihilated = Annihilated + abs(SignTemp(j))
+                                !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
+                                iter_data%nremoved(j) = iter_data%nremoved(j) &
+                                                      + abs(SignTemp(j))
+                                SignTemp(j) = 0.0_dp
+                                call nullify_ilut_part (SpawnedParts(:,i), j)
+                            else
+                                !Round up
+                                NoBorn(run) = NoBorn(run) + scaledOccupiedThresh - abs(SignTemp(j))
+                                iter_data%nborn(j) = iter_data%nborn(j) &
+                                          + scaledOccupiedThresh - abs(SignTemp(j))
+                                SignTemp(j) = sign(scaledOccupiedThresh, SignTemp(j))
+                                call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
+                            end if
                         end if
                     end do
 
@@ -920,9 +959,9 @@ module AnnihilationMod
                     else
                         do j = 1, lenof_sign
                             run = part_type_to_run(j)
-                            if ((abs(SignTemp(j)) > 1.e-12_dp) .and. (abs(SignTemp(j)) < OccupiedThresh)) then
+                            if ((abs(SignTemp(j)) > 1.e-12_dp) .and. (abs(SignTemp(j)) < scaledOccupiedThresh)) then
                                 ! We remove this walker with probability 1-RealSignTemp.
-                                pRemove = (OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
+                                pRemove = (scaledOccupiedThresh-abs(SignTemp(j)))/scaledOccupiedThresh
                                 r = genrand_real2_dSFMT ()
                                 if (pRemove  >  r) then
                                     ! Remove this walker.
@@ -934,10 +973,10 @@ module AnnihilationMod
                                     SignTemp(j) = 0
                                     call nullify_ilut_part (SpawnedParts(:,i), j)
                                 else
-                                    NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(SignTemp(j))
+                                    NoBorn(run) = NoBorn(run) + scaledOccupiedThresh - abs(SignTemp(j))
                                     iter_data%nborn(j) = iter_data%nborn(j) &
-                                                + OccupiedThresh - abs(SignTemp(j))
-                                    SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
+                                                + scaledOccupiedThresh - abs(SignTemp(j))
+                                    SignTemp(j) = sign(scaledOccupiedThresh, SignTemp(j))
                                     call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
                                 end if
                             end if

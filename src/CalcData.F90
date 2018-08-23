@@ -107,7 +107,8 @@ LOGICAL :: TUnbiasPGeninProjE, tCheckHighestPopOnce
 LOGICAL :: tCheckHighestPop,tRestartHighPop,tChangeProjEDet
 LOGICAL :: tRotoAnnihil,tSpawnAsDet
 LOGICAL :: tTruncCAS ! Truncation of the FCIMC excitation space by a CAS
-logical :: tTruncInitiator, tAddtoInitiator, tInitCoherentRule
+logical :: tTruncInitiator, tAddtoInitiator, tInitCoherentRule, tGlobalInitFlag
+logical :: tSTDInits
 logical :: tEN2, tEN2Init, tEN2Truncated, tEN2Started
 LOGICAL :: tSeniorInitiators !If a det. has lived long enough (called a senior det.), it is added to the initiator space.
 LOGICAL :: tInitIncDoubs,tWalkContGrow,tAnnihilatebyRange
@@ -153,7 +154,7 @@ integer :: iPopsFileNoRead, iPopsFileNoWrite,iRestartWalkNum
 real(dp) :: iWeightPopRead
 real(dp) :: MaxWalkerBloom   !Max number of walkers allowed in one bloom before reducing tau
 INTEGER(int64) :: HFPopThresh
-real(dp) :: InitWalkers, maxnoathf, InitiatorWalkNo
+real(dp) :: InitWalkers, maxnoathf, InitiatorWalkNo, ErrThresh
 real(dp) :: SeniorityAge !A threshold on the life time of a determinat (measured in its halftime) to become a senior determinant.
 integer :: multiSpawnThreshold
 
@@ -296,6 +297,8 @@ integer :: orthogonalise_iter
 logical :: t_test_overlap = .false.
 real(dp) :: overlap_eps = 1.0e-5_dp
 integer :: n_stop_ortho = -1
+
+logical :: tAVReps, tReplicaCoherentInits, tRCCheck
 ! Information on a trial space to create trial excited states with.
 
 type(subspace_in) :: init_trial_in
@@ -329,7 +332,7 @@ integer, allocatable :: trial_init_reorder(:)
 logical :: tPrintReplicaOverlaps = .true.
 
 ! Keep track of when the calculation began (globally)
-real(sp) :: s_global_start
+real(dp) :: s_global_start
 
 ! Use continuous time FCIQMC
 logical :: tContTimeFCIMC, tContTimeFull

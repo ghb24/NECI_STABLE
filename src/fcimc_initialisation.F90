@@ -27,7 +27,7 @@ module fcimc_initialisation
                         tTruncCAS, tTruncInitiator, DiagSft, tFCIMC, &
                         tTrialWavefunction, tSemiStochastic, OccCASOrbs, &
                         VirtCASOrbs, StepsSft, tStartSinglePart, InitWalkers, &
-                        tShiftOnHFPop, tReadPopsRestart, tTruncNOpen, &
+                        tShiftOnHFPop, tReadPopsRestart, tTruncNOpen, tAVReps, &
                         trunc_nopen_max, MemoryFacInit, MaxNoatHF, HFPopThresh, &
                         tAddToInitiator, InitiatorWalkNo, tRestartHighPop, &
                         tAllRealCoeff, tRealCoeffByExcitLevel, tTruncInitiator, &
@@ -44,13 +44,13 @@ module fcimc_initialisation
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, &
                         t_back_spawn_flex, back_spawn_delay, corespaceWalkers, &
-                        ScaleWalkers, tSpinProject, tFixedN0
-    use adi_data, only: g_markers, tReferenceChanged, tInitiatorsSubspace, tAdiActive, &
-                        nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
+                        ScaleWalkers, tSpinProject, tFixedN0, tRCCheck
 
     use spin_project, only: init_yama_store, clean_yama_store
 
-    use spin_project, only: init_yama_store, clean_yama_store
+    use adi_data, only: tReferenceChanged, tAdiActive, &
+                         nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
+
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
 
@@ -65,7 +65,7 @@ module fcimc_initialisation
     use LoggingData, only: tTruncRODump, tCalcVariationalEnergy, tReadRDMs, &
                            tDiagAllSpaceEver, tFCIMCStats2, tCalcFCIMCPsi, &
                            tLogComplexPops, tHistExcitToFrom, tPopsFile, &
-                           iWritePopsEvery, tRDMOnFly, &
+                           iWritePopsEvery, tRDMOnFly, tWriteConflictLvls, &
                            tDiagWalkerSubspace, tPrintOrbOcc, OrbOccs, &
                            tHistInitPops, OrbOccsTag, tHistEnergies, &
                            HistInitPops, AllHistInitPops, OffDiagMax, &
@@ -108,6 +108,7 @@ module fcimc_initialisation
                                        gen_excit_4ind_reverse
     use hash, only: FindWalkerHash, add_hash_table_entry, init_hash_table
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
+    use load_balance, only: tLoadBalanceBlocks
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcit4, only: CountExcitations4, GenExcitations4
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
@@ -399,16 +400,16 @@ contains
         !Sorry here we make them the same to avoid errors there.
         !Let's hope that unkonwn parts of the code do not depend on HFDet_True
 
-        !if(tRef_Not_HF) then
-            !do i = 1, NEl
-                !HFDet_True(i) = BRR(i)
-            !enddo
-            !call sort(HFDet_True(1:NEl))
-            !CALL EncodeBitDet(HFDet_True,iLutHF_True)
-        !else
+        if(tRef_Not_HF) then
+            do i = 1, NEl
+                HFDet_True(i) = BRR(i)
+            enddo
+            call sort(HFDet_True(1:NEl))
+            CALL EncodeBitDet(HFDet_True,iLutHF_True)
+        else
             iLutHF_True = iLutHF
             HFDet_True = HFDet
-        !endif
+        endif
 
         if(tHPHF) then
             allocate(RefDetFlip(NEl, inum_runs), &
@@ -896,6 +897,10 @@ contains
         NoAddedInitiators=0
         NoInitDets=0
         NoNonInitDets=0
+        NoSIInitsConflicts = 0
+        NoInitsConflicts = 0
+        NoConflicts = 0
+        avSigns = 0.0_dp
         NoInitWalk(:)=0.0_dp
         NoNonInitWalk(:)=0.0_dp
         NoExtraInitDoubs=0
@@ -966,6 +971,9 @@ contains
 !                open(mswalkercounts_unit, file='MSWALKERCOUNTS', status='UNKNOWN')
 !                write(mswalkercounts_unit, "(A)") "# ms real    imag    magnitude"
 !            endif
+
+        allocate(ConflictExLvl(maxConflictExLvl))
+        ConflictExLvl = 0
 
         IF(tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC)) THEN
             ALLOCATE(HistMinInd(NEl))
@@ -1697,8 +1705,6 @@ contains
         ! controlled over the reference population
         if(tFixedN0) tSinglePartPhase = .true.
 
-         if(tInitiatorsSubspace) call read_g_markers()
-
          if(tRDMonFly .and. tDynamicCoreSpace) call sync_rdm_sampling_iter()
 
     end subroutine InitFCIMCCalcPar
@@ -1857,6 +1863,8 @@ contains
         deallocate(FreeSlot,stat=ierr)
         if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
 
+        if(allocated(ConflictExLvl)) deallocate(ConflictExLvl)
+
         IF(tHistSpawn.or.tCalcFCIMCPsi) THEN
             DEALLOCATE(Histogram)
             DEALLOCATE(AllHistogram)
@@ -1999,8 +2007,6 @@ contains
 !                CALL neci_flush(iout)
 !            ENDIF
 !        ENDIF
-
-        if(allocated(g_markers)) deallocate(g_markers)
 
     end subroutine DeallocFCIMCMemPar
 
@@ -3774,7 +3780,7 @@ contains
       ! We initialize the flags for the adi feature
       use adi_data, only: tSetDelayAllDoubsInits, tSetDelayAllSingsInits, tDelayAllDoubsInits, &
            tDelayAllSingsInits, tAllDoubsInitiators, tAllSingsInitiators, tDelayGetRefs, &
-           NoTypeN, tReadRefs, tInitiatorsSubspace, maxNRefs, nRefsSings, nRefsDoubs, &
+           NoTypeN, tReadRefs, maxNRefs, nRefsSings, nRefsDoubs, &
            SIUpdateOffset
       use CalcData, only: InitiatorWalkNo
       use adi_references, only: enable_adi, reallocate_ilutRefAdi, setup_SIHash, &
@@ -3802,7 +3808,7 @@ contains
       if(tDelayAllSingsInits .and. tDelayAllDoubsInits) tDelayGetRefs = .true.
       ! Give a status message
       if(tAllDoubsInitiators) call enable_adi()
-      if(tAllSingsInitiators .or. tAllDoubsInitiators .or. tInitiatorsSubspace) &
+      if(tAllSingsInitiators .or. tAllDoubsInitiators) &
            tAdiActive = .true. 
 
       ! there is a minimum cycle lenght for updating the number of SIs, as the reference population
@@ -3830,57 +3836,6 @@ contains
 	coreSpaceUpdateCycle = SIUpdateInterval
       endif
     end subroutine setup_dynamic_core
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine read_g_markers()
-      use adi_data, only: g_markers_num
-      use util_mod, only: get_free_unit
-      use bit_rep_data, only: NIfD
-      implicit none
-      logical :: exists
-      integer :: iunit, read_buf(nBasis/2), i, stat
-      character(*), parameter :: this_routine = "read_g_markers"
-      character(*), parameter :: filename = "INIT_SUBSPACE"
-
-      ! First, set up the array for the markers
-      allocate(g_markers(0:NIfD))
-      g_markers = 0_n_int
-      ! Then, check if the file is there
-      inquire(file = filename, exist = exists)
-      if(.not. exists) call stop_all(this_routine, "No "//filename//" file detected.")
-      
-      ! now, read in the file
-      g_markers_num = 0
-      iunit = get_free_unit()
-      open(iunit, file = filename, status = 'old')
-      
-      read_buf = -1
-      read(iunit,*) read_buf
-      if(any(read_buf(1:nBasis/2)== -1)) call stop_all(this_routine, &
-           "Number of orbitals in FCIDUMP and in "//filename//" does not agree.")
-      
-      ! We only have read in information for the spatial orbitals
-      do i = 1, nBasis/2
-         ! For each entry, check if it is 0 or 1, if it is zero, it is not in the 'active' space
-         if(read_buf(i) == 0) then
-            ! The input is in spatial orbitals, g_markers is in spin orbitals
-            !g_markers = iBSET(g_markers,2*(i-1))
-            !g_markers = iBSET(g_markers,2*(i-1)+1)
-            set_orb(g_markers, 2*i-1)
-            set_orb(g_markers, 2*i)
-            g_markers_num = g_markers_num + 2
-         endif
-      enddo
-      
-      call neci_flush(iout)
-      write(iout,'()')
-      write(iout,*) "Using an initiator subspace"
-      write(iout,*) "Read g_markers, given by" 
-      call WriteDetBit(iout, g_markers, .true.)
-      write(iout,*) "Number of initiator-active spin orbitals: ", nBasis-g_markers_num
-      write(iout,'()')
-    end subroutine read_g_markers
 
 !------------------------------------------------------------------------------------------!
 

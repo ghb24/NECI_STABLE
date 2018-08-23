@@ -7,15 +7,14 @@ module fcimc_output
                            instant_s2_multiplier, tPrintFCIMCPsi, &
                            iWriteHistEvery, tDiagAllSpaceEver, OffDiagMax, &
                            OffDiagBinRange, tCalcVariationalEnergy, &
-                           iHighPopWrite, tLogEXLEVELStats
+                           iHighPopWrite, tLogEXLEVELStats, tWriteConflictLvls
     use hist_data, only: Histogram, AllHistogram, InstHist, AllInstHist, &
                          BeforeNormHist, iNoBins, BinRange, HistogramEnergy, &
                          AllHistogramEnergy
     use CalcData, only: tTruncInitiator, tTrialWavefunction, tReadPops, &
                         DiagSft, tSpatialOnlyHash, tOrthogonaliseReplicas, &
                         StepsSft, tPrintReplicaOverlaps, tStartTrialLater, tEN2, &
-                        tSemiStochastic, allCorespaceWalkers
-
+                        tSemiStochastic, allCorespaceWalkers, tGlobalInitFlag
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
     use IntegralsData, only: frozen_orb_list, frozen_orb_reverse_map, &
@@ -291,12 +290,13 @@ contains
                     IterTime
             endif
             if (tTruncInitiator) then
-               write(initiatorstats_unit,"(I12,4G16.7,3I20,7G16.7)")&
+               write(initiatorstats_unit,"(I12,4G16.7,3I20,7G16.7,2I20,1G16.7)")&
                    Iter + PreviousCycles, sum(AllTotParts), &
                    AllAnnihilated(1), AllNoDied(1), AllNoBorn(1), AllTotWalkers,&
                    AllNoInitDets(1), AllNoNonInitDets(1), AllNoInitWalk(1), &
                    AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1), &
-                   AllConnection, AllCoherentDoubles, AllIncoherentDets
+                   AllConnection, AllCoherentDoubles, AllIncoherentDets, &
+                   AllNoInitsConflicts, AllNoSIInitsConflicts, AllAvSigns
             endif
             if (tLogComplexPops) then
                 write (complexstats_unit,"(I12,6G16.7)") &
@@ -426,7 +426,8 @@ contains
                    AllAnnihilated(1), AllNoDied(1), AllNoBorn(1), AllTotWalkers,&
                    AllNoInitDets(1), AllNoNonInitDets(1), AllNoInitWalk(1), &
                    AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1), &
-                   AllConnection, AllCoherentDoubles, AllIncoherentDets
+                   AllConnection, AllCoherentDoubles, AllIncoherentDets, &
+                   AllNoInitsConflicts, AllNoSIInitsConflicts, AllAvSigns
             endif
 #endif
             if (tLogEXLEVELStats) then
@@ -456,9 +457,10 @@ contains
     end subroutine WriteFCIMCStats
 
 
-    subroutine open_create_fciqmc_stats(funit)
+    subroutine open_create_stats(stem,funit)
 
         integer, intent(in) :: funit
+        character(*), intent(in) :: stem
         character(*), parameter :: t_r = 'open_create_fciqmc_stats'
 
         character(30) :: filename
@@ -470,9 +472,9 @@ contains
         ! If we are using Molpro, then append the molpro ID to uniquely
         ! identify the output
         if (tMolpro .and. .not. tMolproMimic) then
-            filename = 'fciqmc_stats_' // adjustl(MolproID)
+            filename = stem // adjustl(MolproID)
         else
-            filename = 'fciqmc_stats'
+            filename = stem
         end if
 
 
@@ -512,66 +514,7 @@ contains
 
         end if
 
-    end subroutine open_create_fciqmc_stats
-
-    subroutine open_create_initiator_stats(funit)
-
-        integer, intent(in) :: funit
-        character(*), parameter :: t_r = 'open_create_initiator_stats'
-
-        character(30) :: filename
-        character(43) :: filename2
-        character(12) :: num
-        integer :: i, ierr
-        logical :: exists
-
-        ! If we are using Molpro, then append the molpro ID to uniquely
-        ! identify the output
-        if (tMolpro .and. .not. tMolproMimic) then
-            filename = 'initiator_stats_' // adjustl(MolproID)
-        else
-            filename = 'initiator_stats'
-        end if
-
-
-        if (tReadPops) then
-
-            ! If we are reading from a POPSFILE, then we want to continue an
-            ! existing initiator_stats file if it exists.
-            open(funit, file=filename, status='unknown', position='append')
-
-        else
-
-            ! If we are doing a normal calculation, move existing initiator_stats
-            ! files so that they are not overwritten, and then create a new one
-            inquire(file=filename, exist=exists)
-            if (exists) then
-
-                ! Loop until we find an available spot to move the existing
-                ! file to.
-                i = 1
-                do while(exists)
-                    write(num, '(i12)') i
-                    filename2 = trim(adjustl(filename)) // "." // &
-                                trim(adjustl(num))
-                    inquire(file=filename2, exist=exists)
-                    if (i > 10000) &
-                        call stop_all(t_r, 'Error finding free initiator_stats.*')
-                    i = i + 1
-                end do
-
-                ! Move the file
-                call rename(filename, filename2)
-
-            end if
-
-            ! And finally open the file
-            open(funit, file=filename, status='unknown', iostat=ierr)
-
-        end if
-
-    end subroutine open_create_initiator_stats
-
+    end subroutine open_create_stats
 
     subroutine write_fcimcstats2(iter_data, initial)
 
@@ -587,6 +530,7 @@ contains
         ! Use a state type to keep things compact and tidy below.
         type(write_state_t), save :: state
         type(write_state_t), save :: state_i
+        type(write_state_t), save :: state_cl
         logical, save :: inited = .false.
         character(5) :: tmpc, tmpc2, tmgf
         integer :: p, q, iGf, run
@@ -597,20 +541,27 @@ contains
         if (present(initial)) then
             state%init = initial
             if (tTruncInitiator) state_i%init = initial
+            if(tWriteConflictLvls) state_cl%init = initial
         else
             state%init = .false.
             if (tTruncInitiator) state_i%init = .false.
+            if(tWriteConflictLvls) state_cl%init = .false.
         end if
 
         ! If the output file hasn't been opened yet, then create it.
         if (iProcIndex == Root .and. .not. inited) then
             state%funit = get_free_unit()
-            call open_create_fciqmc_stats(state%funit)
+            call open_create_stats('fciqmc_stats',state%funit)
             ! For the initiator stats file here:
             if (tTruncInitiator) then
               state_i%funit = get_free_unit()
-              call open_create_initiator_stats(state_i%funit)
+              call open_create_stats('initiator_stats',state_i%funit)
             end if
+
+            if(tWriteConflictLvls) then
+               state_cl%funit = get_free_unit()
+               call open_create_stats('conflicts_stats',state_cl%funit)
+            endif
 
             inited = .true.
         end if
@@ -624,16 +575,21 @@ contains
 
             ! Only do the actual outputting on the head node.
 
-            ! Don't treat the header line as data. Add padding to align the
-            ! other columns. We do not add a # to the first line of data 
-            ! since we also need that datapoint for Green's functions
-           if (state%init) then
-              write(state%funit, '("#")', advance='no')
-              if (tMCOutput) write(iout, '(" ")', advance='no')
-           else
-              write(state%funit, '(" ")', advance='no')
-              if (tMCOutput) write(iout, '(" ")', advance='no')
-           end if
+! <<<<<<< HEAD
+!             ! Don't treat the header line as data. Add padding to align the
+!             ! other columns. We do not add a # to the first line of data 
+!             ! since we also need that datapoint for Green's functions
+!            if (state%init) then
+!               write(state%funit, '("#")', advance='no')
+!               if (tMCOutput) write(iout, '(" ")', advance='no')
+!            else
+!               write(state%funit, '(" ")', advance='no')
+!               if (tMCOutput) write(iout, '(" ")', advance='no')
+!            end if
+! =======
+            call write_padding_init(state)
+            call write_padding_init(state_i)
+            call write_padding_init(state_cl)
 
             ! And output the actual data!
             state%cols = 0
@@ -863,6 +819,11 @@ contains
             if (tTruncInitiator) then
                 call stats_out(state_i, .false., Iter + PreviousCycles, 'Iter.')
                 call stats_out(state_i, .false., AllTotWalkers, 'TotDets.')
+                call stats_out(state_i, .false., AllNoInitsConflicts/inum_runs,&
+                     'Inc. Inits (normal)')
+                call stats_out(state_i, .false., AllNoSIInitsConflicts/inum_runs,&
+                     'Inc. Inits (SI)')
+                call stats_out(state_i, .false., AllAvSigns, 'Replica-averaged Sign')
                 do p = 1, inum_runs
                     write(tmpc, '(i5)') p
                     call stats_out(state_i, .false., AllTotParts(p), 'TotWalk. (' // trim(adjustl(tmpc)) // ")")
@@ -878,18 +839,49 @@ contains
                 end do
             end if
 
+            ! gather sign conflict statistics
+            if(tWriteConflictLvls) then
+               call stats_out(state_cl, .false., Iter + PreviousCycles, 'Iter')
+               call stats_out(state_cl, .false., sum(conflictExLvl), 'confl. Dets')
+               do p = 1, maxConflictExLvl
+                  ! write the number of conflicts of this excitation lvl
+                  write(tmpc,('(i5)')) p
+                  call stats_out(state_cl, .false., ConflictExLvl(p), 'confl. (ex = '//&
+                       trim(adjustl(tmpc)) // ")")
+               end do
+            endif
+
             ! And we are done
             write(state%funit, *)
             if (tTruncInitiator) write(state_i%funit, *)
+            if(tWriteConflictLvls) write(state_cl%funit,*)
             if (tMCOutput) write(iout, *)
 
             call neci_flush(state%funit)
             if (tTruncInitiator) call neci_flush(state_i%funit)
+            if(tWriteConflictLvls) call neci_flush(state_cl%funit)
             call neci_flush(iout)
 
         end if
 
     end subroutine write_fcimcstats2
+
+    subroutine write_padding_init(state)
+      implicit none
+      type(write_state_t), intent(inout) :: state
+
+      ! Don't treat the header line as data. Add padding to align the
+      ! other columns. We also add a # to the first line of data, so
+      ! that there aren't repeats if starting from POPSFILES
+      if (state%init .or. state%prepend) then
+         write(state%funit, '("#")', advance='no')
+         if (tMCOutput) write(iout, '("#")', advance='no')
+         state%prepend = state%init
+      else if (.not. state%prepend) then
+         write(state%funit, '(" ")', advance='no')
+         if (tMCOutput) write(iout, '(" ")', advance='no')
+      end if
+    end subroutine write_padding_init
 
     subroutine writeMsWalkerCountsAndCloseUnit()
         integer :: i, ms, tempni(1:nel)
@@ -1533,7 +1525,7 @@ contains
                 write(iout,'(A)') "Current reference: "
                 call write_det (iout, ProjEDet(:,1), .true.)
                 if(tSetupSIs) call print_reference_notification(&
-                     1,nRefs,"Used Superinitiators",.true.)
+                     1,nRefs,"Used Superinitiator",.true.)
                 write(iout,*) "Number of superinitiators", nRefs
             end if
             

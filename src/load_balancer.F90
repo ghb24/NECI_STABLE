@@ -9,14 +9,14 @@ module load_balance
     use global_det_data, only: global_determinant_data, &
                                set_det_diagH, set_spawn_rate, &
                                set_all_spawn_pops, reset_all_tau_ints, &
-                               reset_all_shift_ints
+                               reset_all_shift_ints, det_diagH
     use bit_rep_data, only: flag_initiator, NIfDBO, &
                             flag_connected, flag_trial
     use bit_reps, only: set_flag, nullify_ilut_part, &
                         encode_part_sign, nullify_ilut, clr_flag
     use FciMCData, only: HashIndex, FreeSlot, CurrentDets, iter_data_fciqmc, &
                          tFillingStochRDMOnFly, full_determ_vecs, ntrial_excits, &
-                         con_space_size, NConEntry, con_send_buf
+                         con_space_size, NConEntry, con_send_buf, sFAlpha, sFBeta
     use searching, only: hash_search_trial, bin_search_trial
     use determinants, only: get_helement, write_det
     use LoggingData, only: tOutputLoadDistribution
@@ -406,11 +406,11 @@ contains
                   call MPISend(con_send_buf(:,1:nconsend),nelem,tgt_proc, &
                        mpi_tag_con, ierr)
                endif
-
                ! Do the same with the trial wavefunction itself
                nconsend = buffer_trial_ht_entries(block, trial_ht, trial_space_size)
                nelem = nconsend * (1 + NConEntry)
                call MPISend(nconsend,1,tgt_proc,mpi_tag_ntrialsend, ierr)
+
                if(nelem > 0) then
                     call MPISend(con_send_buf(:,1:nconsend),nelem,tgt_proc,&
                     mpi_tag_trial, ierr)
@@ -447,6 +447,7 @@ contains
             ! Recieve information on the trial + connected determinants
             ! only if trial wavefunction is enabled, of course
             if(tTrialWavefunction .and. tTrialHash) then
+
                ! first, we get the connected ones
                call MPIRecv(nconsend, 1, src_proc, mpi_tag_nconsend, ierr)
                nelem = nconsend * (1 + NConEntry)
@@ -457,7 +458,6 @@ contains
                   call add_trial_ht_entries(con_send_buf(:,1:nconsend), nconsend, &
                        con_ht, con_space_size)
                endif
-
                ! Recieve the information on the trial wave function
                call MPIRecv(nconsend, 1, src_proc, mpi_tag_ntrialsend, ierr)
                nelem = nconsend * (1 + NConEntry)
@@ -599,7 +599,7 @@ contains
         real(dp) :: pRemove, r
         integer :: run, ic, nI(nel)
         logical :: tIsStateDeterm
-        real(dp) :: hij
+        real(dp) :: hij, scaledOccupiedThresh
         character(*), parameter :: t_r = 'CalcHashTableStats'
 
         if (.not. bNodeRoot) return
@@ -627,8 +627,52 @@ contains
                    ! will most likely be the case for rotated time)
                    
                    ! The stochastic round preventing walker weights <1 is done here
-                   if (.not. tIsStateDeterm) call truncate_occupation(CurrentSign,i,iter_data)
-                   TotParts = TotParts + abs(CurrentSign)
+!                    if (.not. tIsStateDeterm) call truncate_occupation(CurrentSign,i,iter_data)
+!                    TotParts = TotParts + abs(CurrentSign)
+
+                   if(tEScaleWalkers) then
+                      scaledOccupiedThresh = OccupiedThresh / scaleFunction(det_diagH(i))
+                   else
+                      scaledOccupiedThresh = OccupiedThresh
+                   endif
+                    do j=1, lenof_sign
+                        run = part_type_to_run(j)
+                        if (.not. tIsStateDeterm) then
+                            if ((abs(CurrentSign(j)) > 1.e-12_dp) .and. (abs(CurrentSign(j)) < scaledOccupiedThresh)) then
+                                !We remove this walker with probability 1-RealSignTemp
+                                pRemove=(scaledOccupiedThresh-abs(CurrentSign(j)))/scaledOccupiedThresh
+                                r = genrand_real2_dSFMT ()
+                                if (pRemove  >  r) then
+                                    !Remove this walker
+                                    NoRemoved(run) = NoRemoved(run) + abs(CurrentSign(j))
+                                    iter_data%nremoved(j) = iter_data%nremoved(j) &
+                                                          + abs(CurrentSign(j))
+                                    CurrentSign(j) = 0.0_dp
+                                    call nullify_ilut_part(CurrentDets(:,i), j)
+                                    call decode_bit_det(nI, CurrentDets(:,i))
+                                    if (IsUnoccDet(CurrentSign)) then
+                                        call remove_hash_table_entry(HashIndex, nI, i)
+                                        iEndFreeSlot=iEndFreeSlot+1
+                                        FreeSlot(iEndFreeSlot)=i
+                                        
+                                        ! also update both the number of annihilated dets
+                                        AnnihilatedDet = AnnihilatedDet + 1
+                                        ! and the number of holes
+                                        HolesInList = HolesInList + 1
+                                    end if
+                                else
+                                    NoBorn(run) = NoBorn(run) + scaledOccupiedThresh - abs(CurrentSign(j))
+                                    iter_data%nborn(j) = iter_data%nborn(j) &
+                                         + scaledOccupiedThresh - abs(CurrentSign(j))
+                                    CurrentSign(j) = sign(scaledOccupiedThresh, CurrentSign(j))
+                                    call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
+                                end if
+                            end if
+                        end if
+                    end do
+
+                    TotParts = TotParts + abs(CurrentSign)
+
 #if defined(__CMPLX)
                     do run = 1, inum_runs
                         norm_psi_squared(run) = norm_psi_squared(run) + sum(CurrentSign(min_part_type(run):max_part_type(run))**2)
@@ -916,5 +960,15 @@ contains
       end do
       
     end subroutine count_trial_this_proc
+
+    function scaleFunction(hdiag) result(Si)
+      implicit none
+      
+      real(dp), intent(in) :: hdiag
+      real(dp) :: Si
+
+      Si = (sFAlpha * (hdiag) + 1)**sFBeta
+    end function scaleFunction
+
 
 end module

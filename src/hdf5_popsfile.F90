@@ -894,8 +894,9 @@ contains
 
         if (sum(counts) /= all_count .or. any(counts < 0)) &
             call stop_all(t_r, "Invalid particles counts")
-        do proc = 0, nProcessors - 1
-            offsets(proc) = sum(counts(0:proc-1))
+        offsets(0) = 0
+        do proc = 1, nProcessors - 1
+            offsets(proc) = offsets(proc-1) + counts(proc-1)
         end do
 
         write(6,*) 'Reading in ', counts(iProcIndex), &
@@ -1328,30 +1329,6 @@ contains
         AllTotParts = all_parts
 
     end subroutine
-#endif
-
-    !
-    ! This is only here for dependency circuit breaking
-    subroutine add_pops_norm_contrib(ilut)
-
-        use bit_rep_data, only: NIfTot
-        use bit_reps, only: extract_sign
-        use CalcData, only: pops_norm
-
-        integer(n_int), intent(in) :: ilut(0:NIfTot)
-        real(dp) :: real_sign(lenof_sign)
-
-        call extract_sign(ilut, real_sign)
-
-#ifdef __DOUBLERUN
-        pops_norm = pops_norm + real_sign(1)*real_sign(2)
-#elif __CMPLX
-        pops_norm = pops_norm + real_sign(1)**2 + real_sign(2)**2
-#else
-        pops_norm = pops_norm + real_sign(1)*real_sign(1)
-#endif
-
-    end subroutine add_pops_norm_contrib
 
 !------------------------------------------------------------------------------------------!
 #ifdef __USE_HDF
@@ -1449,5 +1426,32 @@ contains
 
       deallocate(tmp)
     end subroutine resize_attribute
+
+!------------------------------------------------------------------------------------------!
+
+#endif
+
+    !
+    ! This is only here for dependency circuit breaking
+    subroutine add_pops_norm_contrib(ilut)
+
+        use bit_rep_data, only: NIfTot
+        use bit_reps, only: extract_sign
+        use CalcData, only: pops_norm
+
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        real(dp) :: real_sign(lenof_sign)
+
+        call extract_sign(ilut, real_sign)
+
+#ifdef __DOUBLERUN
+        pops_norm = pops_norm + real_sign(1)*real_sign(2)
+#elif __CMPLX
+        pops_norm = pops_norm + real_sign(1)**2 + real_sign(2)**2
+#else
+        pops_norm = pops_norm + real_sign(1)*real_sign(1)
+#endif
+
+    end subroutine add_pops_norm_contrib
 
 end module

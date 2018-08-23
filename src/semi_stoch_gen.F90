@@ -420,7 +420,6 @@ contains
                 end if
                 call add_state_to_space(ilut, ilut_list, space_size, nI)
             end do
-
         end if
 
     end subroutine generate_sing_doub_determinants
@@ -1384,7 +1383,7 @@ contains
 
         use SystemData, only: nel
 
-        integer, intent(in) :: ispin
+        integer, value :: ispin
         integer, intent(inout) :: up_spins(nel/2+1)
         integer, intent(in) :: nsites, nup
         integer(n_int), intent(inout) :: ilut_list(0:,:)

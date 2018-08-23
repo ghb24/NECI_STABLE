@@ -5,7 +5,7 @@ module fcimc_pointed_fns
     use SystemData, only: nel, tGen_4ind_2, tGen_4ind_weighted, tHub, tUEG, &
                           tGen_4ind_reverse,  nBasis, t_3_body_excits, & 
                           t_k_space_hubbard, t_new_real_space_hubbard, & 
-                          t_trans_corr_2body, t_trans_corr_hop
+                          t_trans_corr_2body, t_trans_corr_hop, tHPHF
 
     use LoggingData, only: tHistExcitToFrom, FciMCDebug
 
@@ -20,6 +20,7 @@ module fcimc_pointed_fns
 
     use procedure_pointers, only: get_spawn_helement
     use fcimc_helper, only: CheckAllowedTruncSpawn
+    use load_balance, only: scaleFunction
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
     use bit_rep_data, only: NIfTot, test_flag
     use bit_reps, only: get_initiator_flag
@@ -41,6 +42,8 @@ module fcimc_pointed_fns
 
     use excit_gen_5, only: pgen_select_a_orb
     use cepa_shifts, only: t_cepa_shift, cepa_shift
+    use hphf_integrals, only: hphf_diag_helement
+    use Determinants, only: get_helement
 
     implicit none
 
@@ -145,7 +148,8 @@ module fcimc_pointed_fns
 
     function attempt_create_normal (DetCurr, iLutCurr, &
                                     RealwSign, nJ, iLutnJ, prob, HElGen, ic, ex, tParity,&
-                                    walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr) result(child)
+                                    walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr &
+                                    ) result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel)
         integer, intent(in) :: part_type    ! odd = Real parent particle, even = Imag parent particle
@@ -167,8 +171,9 @@ module fcimc_pointed_fns
         logical :: tRealSpawning
         HElement_t(dp) :: rh, rh_used
         logical :: t_par
-        real(dp) :: temp_prob, pgen_a, dummy_arr(nBasis), cum_sum
+        real(dp) :: temp_prob, pgen_a, dummy_arr(nBasis), cum_sum, childHii
         integer :: ispn
+        real(dp) :: ScaledRealSpawnCutoff
 
         integer :: temp_ex(2,ic)
         ! Just in case
@@ -178,6 +183,16 @@ module fcimc_pointed_fns
         ! (if AvMCExcits /= 1.0_dp) then the probability of an excitation
         ! having been chosen, prob, must be altered accordingly.
         prob = prob * AvMCExcits
+        ! for scaled walkers, rescale 
+        if(tEScaleWalkers) then
+           if(tHPHF) then
+              childHii = real(hphf_diag_helement (nJ,ilutnJ),dp) - Hii
+           else
+              childHii = real(get_helement(nJ,nJ,0),dp) - Hii
+           endif
+        else
+           childHii = 0.0_dp
+        endif
 
         ! In the case of using HPHF, and when tGenMatHEl is on, the matrix
         ! element is calculated at the time of the excitation generation, 
@@ -368,12 +383,17 @@ module fcimc_pointed_fns
             
             if (tRealSpawning) then
                 ! Continuous spawning. Add in acceptance probabilities.
-                
+               if(tEScaleWalkers) then
+                  ! for scaled walkers, the cutoff scales with the det energy
+                  ScaledRealSpawnCutoff = RealSpawnCutoff / scaleFunction(childHii)
+               else
+                  ScaledRealSpawnCutoff = RealSpawnCutoff
+               endif
                 if (tRealSpawnCutoff .and. &
-                    abs(nSpawn) < RealSpawnCutoff) then
-                    p_spawn_rdmfac=abs(nSpawn)/RealSpawnCutoff
-                    nSpawn = RealSpawnCutoff &
-                           * stochastic_round (nSpawn / RealSpawnCutoff)
+                    abs(nSpawn) < ScaledRealSpawnCutoff) then
+                    p_spawn_rdmfac=abs(nSpawn)/ScaledRealSpawnCutoff
+                    nSpawn = ScaledRealSpawnCutoff &
+                           * stochastic_round (nSpawn / ScaledRealSpawnCutoff)
                else
                     p_spawn_rdmfac=1.0_dp !The acceptance probability of some kind of child was equal to 1
                endif

@@ -693,6 +693,10 @@ contains
         nJ(1) = 0
         elecs = 0
 
+        ! try a change that we do the doubles always in a uniform way 
+        ! and only weight the triples.. since the triples are not so 
+        ! expensive, but they are decisive in the time-step ratio! 
+        ! especially for larger U and bigger lattices!
         if (genrand_real2_dsfmt() < pDoubles) then 
 
             ! double excitation
