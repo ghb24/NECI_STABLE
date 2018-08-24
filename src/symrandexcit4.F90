@@ -590,11 +590,12 @@ contains
                 ! This is based on an extract from sltcnd_1. We can assume
                 ! tExch, and SymLabelList2 ensures the spins are equal
                 id = gtID(orb)
+                ! for transcorrelation, change the order of the indices!
                 do j = 1, nel
                     if (nI(j) == src) cycle
-                    hel = hel + get_umat_el (id_src, n_id(j), id, n_id(j))
+                    hel = hel + get_umat_el (id, n_id(j), id_src, n_id(j))
                     if (is_beta(src) .eqv. is_beta(nI(j))) &
-                        hel = hel - get_umat_el (id_src, n_id(j), n_id(j), id)
+                        hel = hel - get_umat_el (id, n_id(j), n_id(j), id_src)
                 end do
                 hel = hel + GetTMATEl(src, orb)
 
