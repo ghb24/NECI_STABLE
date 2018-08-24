@@ -52,7 +52,7 @@ module bit_rep_data
                           flag_trial = 2, &
                           flag_connected = 3, &
                           flag_ic0_spawn = 4, &
-                          flag_death_done = 5
+                          flag_multi_spawn = 5
 
 #ifdef __PROG_NUMRUNS
     integer, parameter :: flag_initiator(lenof_sign_max) &

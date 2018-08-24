@@ -10,7 +10,7 @@ module fcimc_pointed_fns
                         tRealCoeffByExcitLevel, InitiatorWalkNo, &
                         t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, & 
                         t_matele_cutoff, matele_cutoff, tEN2Truncated, &
-                        tTruncInitiator, tSkipRef
+                        tTruncInitiator, tSkipRef, t_truncate_unocc
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement
     use fcimc_helper, only: CheckAllowedTruncSpawn
@@ -163,6 +163,7 @@ module fcimc_pointed_fns
         real(dp) :: temp_prob, pgen_a, dummy_arr(nBasis), cum_sum, childHii
         integer :: ispn
         real(dp) :: ScaledRealSpawnCutoff
+        real(dp) :: scFVal
 
         ! Just in case
         child = 0.0_dp
@@ -178,8 +179,10 @@ module fcimc_pointed_fns
            else
               childHii = real(get_helement(nJ,nJ,0),dp) - Hii
            endif
+           scFVal = 1.0/scaleFunction(childHii)
         else
            childHii = 0.0_dp
+           scFVal = 1.0_dp
         endif
 
         ! In the case of using HPHF, and when tGenMatHEl is on, the matrix
@@ -330,10 +333,11 @@ module fcimc_pointed_fns
 
             ! [Werner Dobrautz 4.4.2017:]
             ! apply the spawn truncation, when using histogramming tau-search
-            if (t_truncate_spawns .and. abs(nspawn) > n_truncate_spawns) then
+            if ((t_truncate_spawns .and. .not. t_truncate_unocc)  .and. abs(nspawn) > &
+                 n_truncate_spawns * scFVal) then
                 ! TODO: add some additional output if this event happens
 !                 write(iout,*) "Truncating spawn magnitude from: ", abs(nspawn), " to ", n_truncate_spawns
-                nSpawn = sign(n_truncate_spawns, nspawn)
+                nSpawn = sign(n_truncate_spawns * scFVal, nspawn)
 
 
             end if
@@ -356,7 +360,7 @@ module fcimc_pointed_fns
                 ! Continuous spawning. Add in acceptance probabilities.
                if(tEScaleWalkers) then
                   ! for scaled walkers, the cutoff scales with the det energy
-                  ScaledRealSpawnCutoff = RealSpawnCutoff / scaleFunction(childHii)
+                  ScaledRealSpawnCutoff = RealSpawnCutoff * scFVal
                else
                   ScaledRealSpawnCutoff = RealSpawnCutoff
                endif

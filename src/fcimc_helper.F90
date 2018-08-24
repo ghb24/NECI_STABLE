@@ -38,7 +38,7 @@ module fcimc_helper
                         MaxWalkerBloom, tEN2, tEN2Started, &
                         NMCyc, iSampleRDMIters, ErrThresh, tSTDInits, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
-                        t_back_spawn_flex, tau, DiagSft, &
+                        t_back_spawn_flex, tau, DiagSft, t_truncate_unocc, &
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
          tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
@@ -63,6 +63,7 @@ module fcimc_helper
                                get_spawn_pop, get_tau_int, get_shift_int
     use searching, only: BinSearchParts2
     use back_spawn, only: setup_virtual_mask
+    use bit_rep_data, only: flag_multi_spawn
     implicit none
     save
 
@@ -233,6 +234,8 @@ contains
             real_sign_new = real_sign_old + child_sign
             ! Encode the new sign.
             call encode_sign(SpawnedParts(:,ind), real_sign_new)
+
+            if(t_truncate_unocc) call set_flag(SpawnedParts(:,ind), flag_multi_spawn)
 
             ! Set the initiator flags appropriately.
             ! If this determinant (on this replica) has already been spawned to

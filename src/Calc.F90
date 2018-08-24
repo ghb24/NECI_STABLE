@@ -295,6 +295,8 @@ contains
           ! Truncation based on number of unpaired electrons
           tTruncNOpen = .false.
 
+          t_truncate_unocc = .false.
+
           hash_shift=0
           tUniqueHFNode = .false.
 
@@ -1181,6 +1183,15 @@ contains
                 t_truncate_spawns = .true. 
                 if (item < nitems) then 
                     call getf(n_truncate_spawns)
+                    if(item < nitems) then
+                       call readu(w)
+                       select case(w)
+                       case("UNOCC")
+                          t_truncate_unocc = .true.
+                       case default
+                          t_truncate_unocc = .false.
+                       end select
+                    endif
                 end if
                 
             case("MIX-RATIOS")
@@ -1798,7 +1809,7 @@ contains
 !                call Geti(VirtCASorbs)
 !                call Getf(FixShift)
 
-            case("TRUNCATECAS")
+            case("CAS")
 !A Parallel FCIMC option. With this, the excitation space of the determinants will only include 
 !the determinants accessible to the CAS
 !space as specified here. 

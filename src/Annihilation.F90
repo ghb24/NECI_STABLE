@@ -6,7 +6,8 @@ module AnnihilationMod
     use CalcData, only:   tTruncInitiator, OccupiedThresh, tSemiStochastic, &
                           tTrialWavefunction, tKP_FCIQMC, tContTimeFCIMC, &
                           tContTimeFull, InitiatorWalkNo, tau, tEN2, tEN2Init, &
-                          tEN2Started, tEN2Truncated, tInitCoherentRule
+                          tEN2Started, tEN2Truncated, tInitCoherentRule, t_truncate_unocc, &
+                          n_truncate_spawns
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -496,6 +497,9 @@ module AnnihilationMod
             end if
         end if
 
+        ! set the multi-spawn flag if there has been more than one spawn
+        if(abs(cum_sgn) > eps .and. abs(new_sgn) > eps) call set_flag(cum_det, flag_multi_spawn)
+
         sgn_prod = cum_sgn * new_sgn
 
         ! Update annihilation statistics.
@@ -574,11 +578,11 @@ module AnnihilationMod
         integer :: PartInd, i, j, PartIndex, run
         real(dp), dimension(lenof_sign) :: CurrentSign, SpawnedSign, SignTemp
         real(dp), dimension(lenof_sign) :: TempCurrentSign, SignProd
-        real(dp) :: pRemove, r, scaledOccupiedThresh, diagH
+        real(dp) :: pRemove, r, scaledOccupiedThresh, diagH, scFVal
         integer :: ExcitLevel, DetHash, nJ(nel)
         logical :: tSuccess, tSuc, tDetermState
         logical :: abort(lenof_sign)
-        logical :: tTruncSpawn
+        logical :: tTruncSpawn, t_truncate_unocc_this_det
 
         ! Only node roots to do this.
         if (.not. bNodeRoot) return
@@ -726,9 +730,14 @@ module AnnihilationMod
                      diagH = get_helement(nJ,nJ,0) - Hii
                   endif
                   scaledOccupiedThresh = occupiedThresh / scaleFunction(diagH)
+                  scFVal = 1.0/scaleFunction(diagH)
                else
                   scaledOccupiedThresh = occupiedThresh
+                  scFVal = 1.0_dp
                endif
+
+               t_truncate_unocc_this_det = t_truncate_unocc .and. .not. &
+                    test_flag(SpawnedParts(:,i), flag_multi_spawn)
 
                 ! Determinant in newly spawned list is not found in CurrentDets.
                 ! Usually this would mean the walkers just stay in this list and
@@ -797,6 +806,11 @@ module AnnihilationMod
                                 SignTemp(j) = sign(scaledOccupiedThresh, SignTemp(j))
                                 call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
                             end if
+                         else
+                            if(t_truncate_unocc_this_det) then
+                               if(abs(SignTemp(j)) > n_truncate_spawns*scFVal) &
+                                    SignTemp(j) = sign(n_truncate_spawns*scFVal, SignTemp(j))
+                            endif
                         end if
                     end do
 
@@ -848,6 +862,13 @@ module AnnihilationMod
                                                 + scaledOccupiedThresh - abs(SignTemp(j))
                                     SignTemp(j) = sign(scaledOccupiedThresh, SignTemp(j))
                                     call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
+                                end if
+                             else
+                                ! truncate down to a minimum number of spawns to
+                                ! prevent blooms if requested
+                                if(t_truncate_unocc_this_det) then
+                                   if(abs(SignTemp(j)) > n_truncate_spawns*scFVal) &
+                                        SignTemp(j) = sign(n_truncate_spawns*scFVal, SignTemp(j))
                                 end if
                             end if
                         end do
