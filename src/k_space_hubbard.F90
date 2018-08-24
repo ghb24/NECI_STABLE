@@ -897,6 +897,7 @@ contains
             ! do we have to reject or can we cycle if not fitting?
             ! a == b test has to be here for the spin-parallel 
             ! excitations!
+            ! try not returning but cycling
             if (IsOcc(ilutI,b) .or. a == b) then  
                 nJ(1) = 0
                 return 
@@ -1106,122 +1107,25 @@ contains
 
             if (genrand_real2_dsfmt() < pParallel) then 
 
-                ! pick two spin-parallel electrons 
-                call pick_spin_par_elecs(nI, elecs(1:2), p_elec, ispn)
+                call gen_uniform_double_para(nI, ilutI, nJ, ilutJ, ex, tParity, pgen)
 
-                ! i have to figure out the probabilty of two spin-parallel
-                if (ispn == 1) then
-                    spin = 1
-                    p_orb = 1.0_dp / real(nbasis/2 - nOccBeta, dp) 
-                else if (ispn == 3) then 
-                    spin = 2
-                    p_orb = 1.0_dp / real(nbasis/2 - nOccAlpha, dp)
-#ifdef __DEBUG
-                else 
-                    call stop_all(this_routine, "no parallel spin!")
-#endif
-                end if
-
-                do i = 1, max_trials
-                    ! ispn == 1 means both beta 
-                    a = 2*int(nbasis/2 * genrand_real2_dsfmt()) + spin 
-
-                    if (IsOcc(ilutI, a)) cycle 
-
-                    b = get_orb_from_kpoints(nI(elecs(1)), nI(elecs(2)), a)
-
-                    ! do we have to reject or can we cycle if not fitting?
-                    ! a == b test has to be here for the spin-parallel 
-                    ! excitations!
-                    if (IsOcc(ilutI,b) .or. a == b) then  
-                        nJ(1) = 0
-                        return 
-                    end if
-
-                    call make_double(nI, nJ, elecs(1), elecs(2), a, b, ex, tParity)
-
-                    ilutJ = make_ilutJ(ilutI, ex, 2)
-                    exit 
-                end do
-
-                ! times 2, since both ab, ba orders are possible
-                pgen = p_elec * p_orb * pDoubles * pParallel * 2.0_dp
+                pgen = pgen * pDoubles * pParallel
 
             else 
 
-                call pick_spin_opp_elecs(nI, elecs(1:2), p_elec) 
+                call gen_uniform_double_anti(nI, ilutI, nJ, ilutJ, ex, tParity, pgen)
 
-                p_orb = 2.0_dp / real(nbasis - nel, dp)
+                pgen = pgen * pDoubles * (1.0_dp - pParallel)
 
-                pgen = p_elec * p_orb * pDoubles * (1.0_dp - pParallel)
-
-                ! pick 2 holes now 
-                do i = 1, max_trials
-
-                    a = int(nbasis * genrand_real2_dsfmt()) + 1 
-
-                    if (IsOcc(ilutI, a)) cycle 
-
-                    b = get_orb_from_kpoints(nI(elecs(1)), nI(elecs(2)), a)
-
-                    ! do we have to reject or can we cycle if not fitting?
-                    ! a == b test has to be here for the spin-parallel 
-                    ! excitations!
-                    if (IsOcc(ilutI,b) .or. a == b) then  
-                        nJ(1) = 0
-                        return 
-                    end if
-
-                    call make_double(nI, nJ, elecs(1), elecs(2), a, b, ex, tParity)
-
-                    ilutJ = make_ilutJ(ilutI, ex, 2)
-                    exit 
-                end do
             end if
         else
             ! triple excitation 
             ic = 3 
 
-            call pick_three_opp_elecs(nI, elecs, p_elec, sum_ms) 
-            src = nI(elecs)
+            call gen_uniform_triple(nI, ilutI, nJ, ilutJ, temp_ex, tParity, pgen)
 
-            ASSERT(sum_ms == -1 .or. sum_ms == 1)
+            pgen = pgen * (1.0_dp - pDoubles)
 
-            call pick_a_orbital_hubbard(ilutI, a, p_orb_a, sum_ms)
-
-            ! and now i have to pick orbital b and fitting c in a uniform 
-            ! way.. i hope this still works with the probabilities 
-            ! if A is beta, we need to pick a alpha B uniformly and vv.
-            if (is_beta(a)) then 
-                p_orb = 1.0_dp / real(nbasis/2 - nOccAlpha, dp) 
-                ! also use a spin to specify the spin-orbital
-                ! is a is beta we want an alpha -> so add +1
-                ispn = 0
-            else 
-                p_orb = 1.0_dp / real(nBasis/2 - nOccBeta, dp)
-                ispn = 1
-            end if
-
-            ! times 2 since BC <> CB is both possible 
-            pgen = p_elec * p_orb * p_orb_a * (1.0_dp - pDoubles) * 2.0_dp
-            do i = 1, max_trials
-
-                b = 2 * (1 + int(genrand_real2_dsfmt() * nbasis/2)) - ispn
-
-                if (IsOcc(ilutI,b)) cycle 
-
-                c = get_orb_from_kpoints_three(src, a, b) 
-
-                if (IsOcc(ilutI,c) .or. b == c) then 
-                    nJ(1) = 0
-                    return
-                end if
-
-                call make_triple(nI, nJ, elecs, [a,b,c], temp_ex, tParity)
-
-                ilutJ = make_ilutJ(ilutI, temp_ex, 3) 
-                exit 
-            end do
         end if
 
     end subroutine gen_excit_uniform_k_space_hub_test
