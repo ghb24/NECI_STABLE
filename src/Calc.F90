@@ -295,7 +295,10 @@ contains
           ! Truncation based on number of unpaired electrons
           tTruncNOpen = .false.
 
+          ! trunaction for spawns/based on spawns
           t_truncate_unocc = .false.
+          t_prone_walkers = .false.
+          t_activate_decay = .false.
 
           hash_shift=0
           tUniqueHFNode = .false.
@@ -1193,6 +1196,11 @@ contains
                        end select
                     endif
                 end if
+
+             case("PRONE-DETERMINANTS")
+                ! when close to running out of memory, start culling 
+                ! the population by removing lonely spawns
+                t_prone_walkers = .true.
                 
             case("MIX-RATIOS")
                 ! pablos idea: mix the old and new contributions and not 

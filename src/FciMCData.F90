@@ -362,6 +362,10 @@ MODULE FciMCData
       INTEGER :: QuadDetsEst !Estimate of the number of symmetry allowed determinants at excit level 4
       INTEGER :: DoubDetsEst !Estimate of the number of symmetry allowed determinants at excit level 2
       logical :: tReplicaReferencesDiffer
+      
+      ! This data is for reducing the occupied determinants drastically when hitting 
+      ! the memory limit
+      integer :: n_prone_dets
 
       integer, allocatable :: ProjEDet(:, :)
       integer(n_int), allocatable :: HighestPopDet(:,:), iLutRef(:, :)
