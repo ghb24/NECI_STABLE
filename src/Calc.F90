@@ -2679,6 +2679,10 @@ contains
                       sFAlpha = 0.1
                    case("POWER")
                       sfTag = 0
+                   case("EXP-BOUND")
+                      sfTag = 3
+                      sFAlpha = 0.1
+                      sFBeta = 0.01
                    case("NEGATIVE")
                       sfTag = 2
                    case default

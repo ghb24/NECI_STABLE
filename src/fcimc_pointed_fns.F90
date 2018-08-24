@@ -179,7 +179,7 @@ module fcimc_pointed_fns
            else
               childHii = real(get_helement(nJ,nJ,0),dp) - Hii
            endif
-           scFVal = 1.0/scaleFunction(childHii)
+           scFVal = scaleFunction(childHii)
         else
            childHii = 0.0_dp
            scFVal = 1.0_dp
@@ -664,7 +664,7 @@ module fcimc_pointed_fns
       real(dp), intent(in) :: hdiag
       real(dp) :: Si
 
-      Si = (sFAlpha * (hdiag) + 1)**sFBeta
+      Si = 1.0 / ( (sFAlpha * (hdiag) + 1)**sFBeta )
     end function powerScaleFunction
 
 !------------------------------------------------------------------------------------------!
@@ -675,8 +675,19 @@ module fcimc_pointed_fns
       real(dp), intent(in) :: hdiag
       real(dp) :: Si
 
-      Si = sfBeta*exp(sFAlpha*hdiag)
+      Si = 1.0/( sfBeta*exp(sFAlpha*hdiag) )
     end function expScaleFunction
+
+!------------------------------------------------------------------------------------------!
+
+    function expCOScaleFunction(hdiag) result(Si)
+      implicit none
+      
+      real(dp), intent(in) :: hdiag
+      real(dp) :: Si
+
+      Si = (1 - sFbeta)/( exp(sFAlpha*hdiag) ) + sFbeta
+    end function expCOScaleFunction
 
 !------------------------------------------------------------------------------------------!
 

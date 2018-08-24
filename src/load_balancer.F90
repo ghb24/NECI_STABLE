@@ -588,7 +588,7 @@ contains
                 else
 
                    if(tEScaleWalkers) then
-                      scaledOccupiedThresh = OccupiedThresh / scaleFunction(det_diagH(i))
+                      scaledOccupiedThresh = OccupiedThresh * scaleFunction(det_diagH(i))
                    else
                       scaledOccupiedThresh = OccupiedThresh
                    endif

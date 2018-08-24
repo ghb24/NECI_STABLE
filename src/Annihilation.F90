@@ -729,8 +729,8 @@ module AnnihilationMod
                   else
                      diagH = get_helement(nJ,nJ,0) - Hii
                   endif
-                  scaledOccupiedThresh = occupiedThresh / scaleFunction(diagH)
-                  scFVal = 1.0/scaleFunction(diagH)
+                  scFVal = scaleFunction(diagH)
+                  scaledOccupiedThresh = occupiedThresh * scFVal
                else
                   scaledOccupiedThresh = occupiedThresh
                   scFVal = 1.0_dp

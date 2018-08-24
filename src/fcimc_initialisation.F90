@@ -113,7 +113,8 @@ module fcimc_initialisation
                                  new_child_stats_hist_hamil, &
                                  new_child_stats_normal, &
                                  null_encode_child, attempt_die_normal, &
-                                 powerScaleFunction, expScaleFunction, negScaleFunction
+                                 powerScaleFunction, expScaleFunction, negScaleFunction, &
+                                 expCOScaleFunction
     use csf_data, only: csf_orbital_mask
     use initial_trial_states, only: calc_trial_states_lanczos, &
                                     set_trial_populations, set_trial_states, calc_trial_states_direct
@@ -1718,6 +1719,8 @@ contains
            scaleFunction => expScaleFunction
         case(2)
            scaleFunction => negScaleFunction
+        case(3)
+           scaleFunction => expCOScaleFunction
         case default
            call stop_all(t_r,"Invalid scale function specified")
         end select

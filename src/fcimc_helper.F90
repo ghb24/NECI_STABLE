@@ -235,7 +235,7 @@ contains
             ! Encode the new sign.
             call encode_sign(SpawnedParts(:,ind), real_sign_new)
 
-            if(t_truncate_unocc) call set_flag(SpawnedParts(:,ind), flag_multi_spawn)
+            call set_flag(SpawnedParts(:,ind), flag_multi_spawn)
 
             ! Set the initiator flags appropriately.
             ! If this determinant (on this replica) has already been spawned to
@@ -949,7 +949,7 @@ contains
         logical :: init_flag
 
         if(tEScaleWalkers) then
-           scaledInitiatorWalkNo = InitiatorWalkNo / scaleFunction(hdiag)
+           scaledInitiatorWalkNo = InitiatorWalkNo * scaleFunction(hdiag)
         else
            scaledInitiatorWalkNo = InitiatorWalkNo
         endif
