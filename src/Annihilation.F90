@@ -7,7 +7,7 @@ module AnnihilationMod
                           tTrialWavefunction, tKP_FCIQMC, tContTimeFCIMC, &
                           tContTimeFull, InitiatorWalkNo, tau, tEN2, tEN2Init, &
                           tEN2Started, tEN2Truncated, tInitCoherentRule, t_truncate_unocc, &
-                          n_truncate_spawns
+                          n_truncate_spawns, t_prone_walkers
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -629,8 +629,11 @@ module AnnihilationMod
                     call encode_sign(SpawnedParts(:,i), null_part)
 
                     ! If the sign changed, the adi check has to be redone
-                    if(tUseFlags .and. any(real(SignProd,dp) < 0.0_dp)) &
+                    if(any(real(SignProd,dp) < 0.0_dp)) &
                          call clr_flag(CurrentDets(:,PartInd), flag_adi_checked)
+
+                    ! this det is not prone anymore
+                    if(t_prone_walkers) call clr_flag(CurrentDets(:,PartInd), flag_prone)
 
                     do j = 1, lenof_sign
                         run = part_type_to_run(j)
@@ -813,6 +816,11 @@ module AnnihilationMod
                             endif
                         end if
                     end do
+
+                    if(t_prone_walkers) then
+                       if(.not. test_flag(SpawnedParts(:,i), flag_multi_spawn)) &
+                            call set_flag(SpawnedParts(:,i), flag_prone)
+                    endif
 
                     if (.not. IsUnoccDet(SignTemp)) then
                         ! Walkers have not been aborted and so we should copy the

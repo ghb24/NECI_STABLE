@@ -45,13 +45,12 @@ module bit_rep_data
     integer :: nOffParentCoeff, nIfParentCoeff
 
     ! Flags which we can store
-    logical :: tUseFlags
     integer :: flag_counter
     integer, parameter :: flag_deterministic = 0, &
                           flag_determ_parent = 1, &
                           flag_trial = 2, &
                           flag_connected = 3, &
-                          flag_ic0_spawn = 4, &
+                          flag_prone = 4, &
                           flag_multi_spawn = 5
 
 #ifdef __PROG_NUMRUNS
@@ -91,11 +90,7 @@ contains
 
 !        bSet = btest(ilut(ind), off)
 
-        if(tUseFlags) then
-            bSet = btest(ilut(NOffFlag), flg)
-        else
-            bSet = .false.
-        endif
+        bSet = btest(ilut(NOffFlag), flg)
 
     end function test_flag
 
