@@ -1809,7 +1809,7 @@ contains
 !                call Geti(VirtCASorbs)
 !                call Getf(FixShift)
 
-            case("CAS")
+            case("TRUNCATECAS")
 !A Parallel FCIMC option. With this, the excitation space of the determinants will only include 
 !the determinants accessible to the CAS
 !space as specified here. 
