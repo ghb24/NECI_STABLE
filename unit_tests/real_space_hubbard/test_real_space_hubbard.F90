@@ -94,24 +94,26 @@ contains
 
         integer :: i, n_eig, n_orbs, n_states, iunit
         integer, allocatable :: ni(:), hilbert_space(:,:)
-        real(dp), allocatable :: e_values(:), e_vecs(:,:)
+        real(dp), allocatable :: e_values(:), e_vecs(:,:), e_vecs_right(:,:), e_vecs_left(:,:)
         integer(n_int), allocatable :: dummy(:,:)
         real(dp) :: j
-        real(dp), allocatable :: j_vec(:)
-        real(dp) :: exact_double_occ
+        real(dp), allocatable :: j_vec(:), e_orig(:), test_evec(:,:)
+        real(dp) :: exact_double_occ, e_pot_orig, e_kin_orig, overlap, &
+                    double_occ_t, e_pot_t, e_kin_t, e_kin_sim
         HElement_t(dp) :: H_hop, H_spin
         logical :: t_optimize_corr_param, t_do_diag_elements, t_do_exact_transcorr, &
                    t_do_exact_double_occ, t_j_vec
-        HElement_t(dp), allocatable :: hamil(:,:)
+        HElement_t(dp), allocatable :: hamil(:,:), t_mat(:,:), hamil_hop(:,:), &
+            gutzwiller(:,:), hamil_onsite(:,:), u_mat(:,:), t_mat_t(:,:)
 
         t_optimize_corr_param  = .false.
-        t_do_diag_elements = .true.
+        t_do_diag_elements = .false.
         t_do_exact_transcorr = .false.
-        t_do_exact_double_occ = .false.
+        t_do_exact_double_occ = .true.
         t_j_vec = .false.
 
         t_trans_corr_hop = .true.
-        lat => lattice('square', 3, 3, 1,.true.,.true.,.true.)
+        lat => lattice('chain', 6, 1, 1,.true.,.true.,.true.)
         t_trans_corr_hop = .false.
         uhub = 20
         bhub = -1
@@ -121,13 +123,13 @@ contains
 
         call init_realspace_tests
 
-        nel = 7
+        nel = 6
         allocate(nI(nel))
 !         nI = [(i, i = 1, nel)]
 !         nI = [1,3,6,7,9,12,13,16,17,20,21,24,25,28,30,31,34,36]
-!         nI = [1,4,5,8,9,12]
+        nI = [1,4,5,8,9,12]
 !         nI = [1,4]
-        nI = [1,2,3,4,5,6,7]
+!         nI = [1,2,3,4,5,6,7]
 
         nOccAlpha = 0
         nOccBeta = 0
@@ -179,21 +181,55 @@ contains
         call create_hilbert_space_realspace(n_orbs, nOccAlpha, nOccBeta, & 
             n_states, hilbert_space, dummy)
 
-!         n_eig = size(hilbert_space,2)
-        n_eig = 1
+        n_eig = size(hilbert_space,2)
+!         n_eig = 1
 
         allocate(e_values(n_eig))
+        allocate(e_orig(n_eig))
         allocate(e_vecs(n_eig, size(hilbert_space,2)))
+        allocate(e_vecs_right(n_eig, size(hilbert_space,2)))
+        allocate(e_vecs_left(n_eig, size(hilbert_space,2)))
 
-!         print *, "size hilbert: ", size(hilbert_space, 2)
-!         hamil = create_hamiltonian(hilbert_space)
-! 
-!         call eig(hamil, e_values, e_vecs)
-! 
-!         print *, "e-values:"
+        print *, "size hilbert: ", size(hilbert_space, 2)
+        hamil = create_hamiltonian(hilbert_space)
+
+        call eig(hamil, e_orig, e_vecs)
+
+!         print *, "orig: e-values:"
 !         do i = 1, size(hilbert_space,2)
-!             print *, e_values(i)
+!             print *, e_orig(i)
 !         end do
+
+        ! first create the exact similarity transformation 
+        allocate(t_mat(size(hamil,1),size(hamil,2)), source = hamil) 
+        ! and set the diagonal elements to 0
+        do i = 1, size(t_mat,1)
+            t_mat(i,i) = 0.0_dp
+        end do
+        allocate(gutzwiller(size(hamil,1),size(hamil,2)), source = 0.0_dp)
+        allocate(u_mat(size(hamil,1),size(hamil,2)), source = 0.0_dp)
+        do i = 1, size(hamil,1)
+            gutzwiller(i,i) =  hamil(i,i) / real(uhub,dp)
+            u_mat(i,i) = hamil(i,i)
+        end do
+
+        hamil_onsite = similarity_transform(hamil, j_vec(1) * gutzwiller)
+
+        hamil_hop = similarity_transform(hamil, j_vec(1) * t_mat)
+
+        t_mat_t = similarity_transform(t_mat, j_vec(1) * gutzwiller)
+
+        call eig(hamil_onsite, e_values, e_vecs_right)
+
+        print *, "onsite e_values correct?: "
+        do i = 1, size(hilbert_space,2)
+            if (abs(e_orig(i) - e_values(i)) > 1e-7) then
+                print *, e_values(i)
+            end if
+        end do
+
+        call eig(hamil_onsite, e_values, e_vecs_left, .true.)
+
         nblk = 4
         nkry = 8 
         ncycle = 200
@@ -204,15 +240,46 @@ contains
         print *, "b2l: ", b2l
         print *, "ncycle: ", ncycle
 
+        allocate(test_evec(size(hilbert_space,2),1), source = 0.0_dp)
+        test_evec(:,1) = matmul(matrix_exponential(-2.0*j_vec(1)*gutzwiller), e_vecs_left(:,1))
+        test_evec(:,1) = test_evec(:,1) / norm(test_evec(:,1))
+
+        print *, "test right e_vec: ", dot_product(test_evec(:,1), e_vecs_right(:,1))
+
         ! try too big systems here: 
-        call frsblk_wrapper(hilbert_space, size(hilbert_space, 2), n_eig, e_values, e_vecs)
-        print *, "e_value lanczos:", e_values(1)
+!         call frsblk_wrapper(hilbert_space, size(hilbert_space, 2), n_eig, e_values, e_vecs)
+!         print *, "e_value lanczos:", e_values(1)
 
         if (t_do_exact_double_occ) then
-            exact_double_occ = calc_exact_double_occ(n_states, dummy, e_vecs)
+            exact_double_occ = calc_exact_double_occ(n_states, dummy, e_vecs(:,1))
+            print *, "--- orig ---"
             print *, "exact double occupancy: ", exact_double_occ
+            e_pot_orig = real(uhub,dp) * exact_double_occ 
+            print *, "potential energy: ", real(uhub,dp) * exact_double_occ
+            print *, "<U>:", dot_product(e_vecs(:,1),matmul(u_mat, e_vecs(:,1)))
+            e_kin_orig = dot_product(e_vecs(:,1),matmul(t_mat,e_vecs(:,1))) 
+            print *, "kinetic energy: " , e_kin_orig
+            print *, "E tot: ", e_kin_orig + e_pot_orig
+            print *, "E0: ", e_orig(1)
+            print *, "transcorr j = ", j_vec(1)
+            overlap = dot_product(e_vecs_left(:,1),e_vecs_right(:,1)) 
+            double_occ_t = calc_exact_double_occ(n_states, dummy, e_vecs_right(:,1), & 
+                e_vecs_left(:,1)) / overlap
+            print *, "exact double occupancy transcorr: ", double_occ_t 
+            e_pot_t = double_occ_t * real(uhub,dp)
+            e_kin_t = dot_product(e_vecs_left(:,1), matmul(t_mat, e_vecs_right(:,1))) !/ &
+!                 overlap
+            e_kin_sim = dot_product(e_vecs_left(:,1), matmul(t_mat_t, e_vecs_right(:,1))) / &
+                overlap
+            print *, "E pot t: ", e_pot_t
+            print *, "E kin t: ", e_kin_t
+            print *, "E kin sim: ", e_kin_sim
+            print *, "E tot: ", e_pot_t + e_kin_sim
+            print *, "E0 t: ", e_values(1)
+        
         end if
 
+        print *, "overlap: ", dot_product(e_vecs_left(:,1),e_vecs_right(:,1))
 !         call stop_all("here","now")
 
         if (t_do_exact_transcorr) then
@@ -309,22 +376,30 @@ contains
 
     end subroutine get_real_space_hf
 
-    function calc_exact_double_occ(n_states, ilut_list, e_vec) result(double_occ)
+    function calc_exact_double_occ(n_states, ilut_list, e_vec, e_vec_left) result(double_occ)
         integer, intent(in) :: n_states
         integer(n_int), intent(in) :: ilut_list(0:NIfTot,n_states) 
         real(dp), intent(in) :: e_vec(1,n_states)
+        real(dp), intent(in), optional :: e_vec_left(1,n_states)
+
         real(dp) :: double_occ
 
         integer :: i
 
         double_occ = 0.0_dp 
         
-        do i = 1, n_states
+        if (present(e_vec_left)) then
+            do i = 1, n_states
+                double_occ = double_occ + e_vec(1,i) * e_vec_left(1,i) &
+                    * real(count_double_orbs(ilut_list(0:nifd,i)),dp)
+            end do
 
-            double_occ = double_occ + 2.0_dp * e_vec(1,i)**2 &
-                * real(count_double_orbs(ilut_list(0:nifd,i)),dp) / real(nBasis,dp)
-            
-        end do
+        else
+            do i = 1, n_states
+                double_occ = double_occ + e_vec(1,i)**2 &
+                    * real(count_double_orbs(ilut_list(0:nifd,i)),dp)
+            end do
+        end if
 
     end function calc_exact_double_occ
 

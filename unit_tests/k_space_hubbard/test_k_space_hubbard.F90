@@ -74,7 +74,7 @@ program test_k_space_hubbard
     call dsfmt_init(0)
 
     ! misuse the unit tests for now to also do an exact study.. 
-!     call exact_study() 
+    call exact_study() 
     ! run the test-driver 
     call k_space_hubbard_test_driver()
     call fruit_summary()
@@ -158,7 +158,7 @@ contains
         t_input_l = .false.
         t_optimize_j = .true.
         t_do_diags = .true.
-        t_do_doubles = .false.
+        t_do_doubles = .true.
         t_do_subspace_study = .false.
         t_input_U = .true.
         t_input_J = .false.
@@ -219,7 +219,7 @@ contains
         call init_k_space_unit_tests()
         
         ! i have to define the lattice here.. 
-        lat => lattice('square', 10, 10, 1,.true.,.true.,.true.,'k-space')
+        lat => lattice('chain', 21, 1, 1,.true.,.true.,.true.,'k-space')
 
 !         x = [(-lat%dispersion_rel_orb(i), i = 1, 24)]
 !         ind = [(i, i = 1, 24)]
@@ -234,13 +234,19 @@ contains
 !             print *,lat%get_k_vec(ind(i)),"|", k_vec(1)*k1 + k_vec(2)*k2, "|", x(i)
 !         end do
         
-        nel = 80
+        nel = 10
         allocate(nI(nel))
         allocate(nJ(nel))
         nj = 0
 
         nbasis = 2*lat%get_nsites()
         
+        ! 10 in 21 k = 0, closed-shell:
+!         ni = [17,18,19,20,21,22,23,24,25,26]
+
+        ! 10 in 21 k = 1, open-shell:
+        ni = [17,18,19,20,21,22,23,24,25,28]
+
         ! 80 in 100 k != 0 closed-shell: 
 !         nI=[   9,   10,   27,   28,   29,   30,   31,   32,   45,   46,   47, &
 !             48,   49,   50,   51,   52,   53,   54,   63,   64,   65,  &
@@ -252,14 +258,14 @@ contains
 !             150,  151,  152]
 
         ! 80 in 100 k = 0 open-shell: low energy
-        nI=[   9,   10,   27,   28,   29,   30,   31,   32,   45,   46,   47, &
-            48,   49,   50,   51,   52,   53,   54,   63,   64,   65,  &
-            66,   67,   68,   69,   70,   71,   72,   73,   74,   75,   76,  &
-            81,   82,   83,   84,   85,   86,   87,   88,   89,   90,   91,  &
-            92,   93,   94,   95,   96,   97,103,  104,  105,  106,  107, &
-            108,  109,  110,  111,  112,  113,  114,  115,  116,  125,  126,&
-            127,  128,  129,  130,  131,  132,  133,  134,  147,  148,  149,&
-            150,  151,  152,170]
+!         nI=[   9,   10,   27,   28,   29,   30,   31,   32,   45,   46,   47, &
+!             48,   49,   50,   51,   52,   53,   54,   63,   64,   65,  &
+!             66,   67,   68,   69,   70,   71,   72,   73,   74,   75,   76,  &
+!             81,   82,   83,   84,   85,   86,   87,   88,   89,   90,   91,  &
+!             92,   93,   94,   95,   96,   97,103,  104,  105,  106,  107, &
+!             108,  109,  110,  111,  112,  113,  114,  115,  116,  125,  126,&
+!             127,  128,  129,  130,  131,  132,  133,  134,  147,  148,  149,&
+!             150,  151,  152,170]
 
         ! 100 in 100 k = 0 closed-shell: 
 !         nI=[   7,    8,    9,   10,   11,   12,   25,   26,   27,   28,   29,   30,   31,   32,   33,   34,   43,   44,   45,   46,   47,   48,   49,   50,   51,   52,   53,   54,   55,   56,   61,   62,   63,   64,   65,   66,   67,   68,   69,   70,   71,   72,   73,   74,   75,   76,   77,   78,   81,   82,   83,   84,   85,   86,   87,   88,   89,   90,   91,   92,   93,   94,   95,   96,   97,   98,   99,  100,  103,  104,  105,  106,  107,  108,  109,  110,  111,  112,  113,  114,  115,  116,  125,  126,  127,  128,  129,  130,  131,  132,  133,  134,  147,  148,  149,  150,  151,  152,  169,  170]
