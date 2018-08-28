@@ -3,20 +3,23 @@ module load_balance
 
     use CalcData, only: tUniqueHFNode, tSemiStochastic, &
                         tCheckHighestPop, OccupiedThresh, &
-                        tContTimeFCIMC, &
+                        tContTimeFCIMC, t_prone_walkers, &
                         tContTimeFull, tTrialWavefunction, &
-                        tPairedReplicas, tau, tSeniorInitiators
+                        tPairedReplicas, tau, tSeniorInitiators, &
+                        t_activate_decay
     use global_det_data, only: global_determinant_data, &
                                set_det_diagH, set_spawn_rate, &
                                set_all_spawn_pops, reset_all_tau_ints, &
                                reset_all_shift_ints, det_diagH
     use bit_rep_data, only: flag_initiator, NIfDBO, &
-                            flag_connected, flag_trial
+                            flag_connected, flag_trial, flag_prone
     use bit_reps, only: set_flag, nullify_ilut_part, &
                         encode_part_sign, nullify_ilut, clr_flag
     use FciMCData, only: HashIndex, FreeSlot, CurrentDets, iter_data_fciqmc, &
                          tFillingStochRDMOnFly, full_determ_vecs, ntrial_excits, &
-                         con_space_size, NConEntry, con_send_buf, sFAlpha, sFBeta
+                         con_space_size, NConEntry, con_send_buf, sFAlpha, sFBeta, &
+                         n_prone_dets
+    use procedure_pointers, only: scaleFunction
     use searching, only: hash_search_trial, bin_search_trial
     use determinants, only: get_helement, write_det
     use LoggingData, only: tOutputLoadDistribution
@@ -512,7 +515,14 @@ contains
             if (TotWalkersNew >= MaxWalkersPart) then
                write(6,*) "Memory available:", MaxWalkersPart, " Required:", TotWalkersNew
                 call stop_all(t_r, "Not enough memory to merge walkers into main list. Increase MemoryFacPart")
-             end if
+            end if
+            CurrentDets(:,DetPosition) = iLutCurr(:)
+            
+            ! if the list is almost full, activate the walker decay
+            if(t_prone_walkers .and. TotWalkersNew > 0.95_dp * real(MaxWalkersPart,dp)) then
+               t_activate_decay = .true.
+               write(iout,*) "Warning: Starting to randomly kill singly-spawned walkers"
+            endif
         end if
         CurrentDets(:,DetPosition) = iLutCurr(:)
 
@@ -587,7 +597,7 @@ contains
 
         use DetBitOps, only: FindBitExcitLevel
         use hphf_integrals, only: hphf_off_diag_helement
-        use FciMCData, only: ProjEDet
+        use FciMCData, only: ProjEDet, CurrentDets, n_prone_dets
         use LoggingData, only: FCIMCDebug
         use bit_rep_data, only: NOffSgn 
 
@@ -611,6 +621,7 @@ contains
         AnnihilatedDet = 0
         tIsStateDeterm = .false.
         InstNoAtHf = 0.0_dp
+        n_prone_dets = 0
 
         if (TotWalkersNew > 0) then
             do i=1,TotWalkersNew
@@ -623,15 +634,12 @@ contains
                    AnnihilatedDet = AnnihilatedDet + 1 
                 else
                    
-                   ! This is only relevant if non-integer CurrentSign is used (which
-                   ! will most likely be the case for rotated time)
-                   
-                   ! The stochastic round preventing walker weights <1 is done here
-!                    if (.not. tIsStateDeterm) call truncate_occupation(CurrentSign,i,iter_data)
-!                    TotParts = TotParts + abs(CurrentSign)
+                   if(t_prone_walkers) then
+                      if(test_flag(CurrentDets(:,i), flag_prone)) n_prone_dets = n_prone_dets + 1
+                   endif
 
                    if(tEScaleWalkers) then
-                      scaledOccupiedThresh = OccupiedThresh / scaleFunction(det_diagH(i))
+                      scaledOccupiedThresh = OccupiedThresh * scaleFunction(det_diagH(i))
                    else
                       scaledOccupiedThresh = OccupiedThresh
                    endif
@@ -682,10 +690,8 @@ contains
                         endif
                     enddo
 
-#else
-                    norm_psi_squared = norm_psi_squared + CurrentSign**2
-                    if (tIsStateDeterm) norm_semistoch_squared = norm_semistoch_squared + CurrentSign**2
 #endif
+                    call addNormContribution(CurrentSign, tIsStateDeterm)
                     
                     if (tCheckHighestPop) then
                         ! If this option is on, then we want to compare the 
@@ -961,14 +967,25 @@ contains
       
     end subroutine count_trial_this_proc
 
-    function scaleFunction(hdiag) result(Si)
+    subroutine addNormContribution(CurrentSign, tIsStateDeterm)
       implicit none
-      
-      real(dp), intent(in) :: hdiag
-      real(dp) :: Si
+      real(dp), intent(in) :: CurrentSign(lenof_sign)
+      logical, intent(in) :: tIsStateDeterm
+      integer :: run
 
-      Si = (sFAlpha * (hdiag) + 1)**sFBeta
-    end function scaleFunction
+#if defined(__CMPLX)
+      do run = 1, inum_runs
+         norm_psi_squared(run) = norm_psi_squared(run) + sum(CurrentSign(min_part_type(run):max_part_type(run))**2)
+         if (tIsStateDeterm) then
+            norm_semistoch_squared(run) = norm_semistoch_squared(run) &
+                 + sum(CurrentSign(min_part_type(run):max_part_type(run))**2)
+         endif
+      enddo
 
+#else
+      norm_psi_squared = norm_psi_squared + CurrentSign**2
+      if (tIsStateDeterm) norm_semistoch_squared = norm_semistoch_squared + CurrentSign**2
+#endif
+    end subroutine addNormContribution
 
 end module
