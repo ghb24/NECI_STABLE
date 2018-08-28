@@ -14,8 +14,7 @@ module fcimc_pointed_fns
                         tRealCoeffByExcitLevel, InitiatorWalkNo, &
                         t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, & 
                         t_matele_cutoff, matele_cutoff, tEN2Truncated, &
-                        tTruncInitiator, tSkipRef, t_consider_par_bias
-
+                        tTruncInitiator, tSkipRef, t_consider_par_bias, t_truncate_unocc
     use DetCalcData, only: FciDetIndex, det
 
     use procedure_pointers, only: get_spawn_helement
@@ -174,6 +173,7 @@ module fcimc_pointed_fns
         real(dp) :: temp_prob, pgen_a, dummy_arr(nBasis), cum_sum, childHii
         integer :: ispn
         real(dp) :: ScaledRealSpawnCutoff
+        real(dp) :: scFVal
 
         integer :: temp_ex(2,ic)
         ! Just in case
@@ -190,8 +190,10 @@ module fcimc_pointed_fns
            else
               childHii = real(get_helement(nJ,nJ,0),dp) - Hii
            endif
+           scFVal = scaleFunction(childHii)
         else
            childHii = 0.0_dp
+           scFVal = 1.0_dp
         endif
 
         ! In the case of using HPHF, and when tGenMatHEl is on, the matrix
@@ -357,10 +359,11 @@ module fcimc_pointed_fns
 !            write(66,*) part_type, nspawn, RealSpawnCutoff, RealSpawnCutoff, stochastic_round (nSpawn / RealSpawnCutoff)
             ! [Werner Dobrautz 4.4.2017:]
             ! apply the spawn truncation, when using histogramming tau-search
-            if (t_truncate_spawns .and. abs(nspawn) > n_truncate_spawns) then
+            if ((t_truncate_spawns .and. .not. t_truncate_unocc)  .and. abs(nspawn) > &
+                 n_truncate_spawns * scFVal) then
                 ! TODO: add some additional output if this event happens
 !                 write(iout,*) "Truncating spawn magnitude from: ", abs(nspawn), " to ", n_truncate_spawns
-                nSpawn = sign(n_truncate_spawns, nspawn)
+                nSpawn = sign(n_truncate_spawns * scFVal, nspawn)
 
 
             end if
@@ -385,7 +388,7 @@ module fcimc_pointed_fns
                 ! Continuous spawning. Add in acceptance probabilities.
                if(tEScaleWalkers) then
                   ! for scaled walkers, the cutoff scales with the det energy
-                  ScaledRealSpawnCutoff = RealSpawnCutoff / scaleFunction(childHii)
+                  ScaledRealSpawnCutoff = RealSpawnCutoff * scFVal
                else
                   ScaledRealSpawnCutoff = RealSpawnCutoff
                endif
@@ -720,5 +723,50 @@ module fcimc_pointed_fns
         iUnused = DetCurr(1)
 
     end function
+
+!------------------------------------------------------------------------------------------!
+
+    function powerScaleFunction(hdiag) result(Si)
+      implicit none
+      
+      real(dp), intent(in) :: hdiag
+      real(dp) :: Si
+
+      Si = 1.0 / ( (sFAlpha * (hdiag) + 1)**sFBeta )
+    end function powerScaleFunction
+
+!------------------------------------------------------------------------------------------!
+
+    function expScaleFunction(hdiag) result(Si)
+      implicit none
+      
+      real(dp), intent(in) :: hdiag
+      real(dp) :: Si
+
+      Si = 1.0/( sfBeta*exp(sFAlpha*hdiag) )
+    end function expScaleFunction
+
+!------------------------------------------------------------------------------------------!
+
+    function expCOScaleFunction(hdiag) result(Si)
+      implicit none
+      
+      real(dp), intent(in) :: hdiag
+      real(dp) :: Si
+
+      Si = (1 - sFbeta)/( exp(sFAlpha*hdiag) ) + sFbeta
+    end function expCOScaleFunction
+
+!------------------------------------------------------------------------------------------!
+
+    function negScaleFunction(hdiag) result(Si)
+      implicit none
+
+      real(dp), intent(in) :: hdiag
+      real(dp) :: Si
+
+      Si = -1
+      
+    end function negScaleFunction
 
 end module

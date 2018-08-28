@@ -881,7 +881,7 @@ contains
 
     subroutine update_shift (iter_data)
 
-        use CalcData, only: tInstGrowthRate
+        use CalcData, only: tInstGrowthRate, tL2GrowRate
      
         type(fcimc_iter_data), intent(in) :: iter_data
         integer(int64) :: tot_walkers
@@ -899,7 +899,13 @@ contains
         ! collate_iter_data --> The values used are only valid on Root
         if (iProcIndex == Root) then
 
-           if(tInstGrowthRate) then
+           if(tL2GrowRate) then 
+              ! use the L2 norm to determine the growrate
+              do run = 1, inum_runs
+                 AllGrowRate(run) = norm_psi(run) / old_norm_psi(run)
+              end do
+
+           else if(tInstGrowthRate) then
 
               ! Calculate the growth rate simply using the two points at
               ! the beginning and the end of the update cycle. 
@@ -912,6 +918,15 @@ contains
               enddo
 
            else
+
+              ! Instead attempt to calculate the average growth over every
+              ! iteration over the update cycle
+              do run = 1, inum_runs
+                 AllGrowRate(run) = AllSumWalkersCyc(run)/real(StepsSft,dp) &
+                      /OldAllAvWalkersCyc(run)
+              enddo
+
+           end if
 
               ! Instead attempt to calculate the average growth over every
               ! iteration over the update cycle
@@ -934,7 +949,6 @@ contains
 #endif
                  enddo
               endif
-           end if
             ! For complex case, obtain both Re and Im parts
 #ifdef __CMPLX
             do run = 1, inum_runs
@@ -1164,7 +1178,7 @@ contains
         !                    endif
         !                endif
                     endif
-            end if !tFixedN0 or not
+                end if !tFixedN0 or not
                 ! only update the shift this way if possible
                 if(abs_sign(AllNoatHF(lb:ub)) > EPS) then
 #ifdef __CMPLX
@@ -1184,7 +1198,7 @@ contains
                                 ((AllTotParts(run) - AllTotPartsOld(run)) / &
                                  (Tau * real(StepsSft, dp)))
 #endif
-             endif
+                 endif
 
                  ! When using a linear combination, the denominator is summed
                  ! directly.
@@ -1335,6 +1349,8 @@ contains
         iter_data_fciqmc%update_iters = 0
         ! do i need old det numner and aborted number? 
 #endif
+        ! and the norm
+        old_norm_psi = norm_psi
 
         ! Reset the counters
         iter_data%update_growth = 0.0_dp

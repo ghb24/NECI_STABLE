@@ -1066,7 +1066,7 @@ contains
                 ! Copy determinant data across.
                 CurrentDets(0:NIfDBO, det_ind) = ilut(0:NIfDBO)
                 CurrentDets(NOffSgn:NOffSgn+lenof_sign_kp-1, det_ind) = int_sign
-                if (tUseFlags) CurrentDets(NOffFlag, det_ind) = 0_n_int
+                CurrentDets(NOffFlag, det_ind) = 0_n_int
                 TotParts = TotParts + abs(real_sign_1)
             end if
 

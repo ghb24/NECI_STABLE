@@ -31,7 +31,7 @@ MODULE Calc
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
                          alloc_popsfile_dets, tSearchTauOption, &
-                         sFAlpha, tEScaleWalkers, sFBeta
+                         sFAlpha, tEScaleWalkers, sFBeta, sFTag
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
          tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits, tSetDelayAllDoubsInits, &
          tSetDelayAllSingsInits, nExProd, NoTypeN, tAdiActive, tReadRefs, SIUpdateInterval, &
@@ -313,6 +313,11 @@ contains
           ! Truncation based on number of unpaired electrons
           tTruncNOpen = .false.
 
+          ! trunaction for spawns/based on spawns
+          t_truncate_unocc = .false.
+          t_prone_walkers = .false.
+          t_activate_decay = .false.
+
           hash_shift=0
           tUniqueHFNode = .false.
 
@@ -408,6 +413,7 @@ contains
           tEScaleWalkers = .false.
           sFAlpha = 1.0_dp
           sFBeta = 1.0_dp
+          sFTag = 0
 
           ! Epstein-Nesbet second-order correction logicals.
           tEN2 = .false.
@@ -1249,7 +1255,21 @@ contains
                 t_truncate_spawns = .true. 
                 if (item < nitems) then 
                     call getf(n_truncate_spawns)
+                    if(item < nitems) then
+                       call readu(w)
+                       select case(w)
+                       case("UNOCC")
+                          t_truncate_unocc = .true.
+                       case default
+                          t_truncate_unocc = .false.
+                       end select
+                    endif
                 end if
+
+             case("PRONE-DETERMINANTS")
+                ! when close to running out of memory, start culling 
+                ! the population by removing lonely spawns
+                t_prone_walkers = .true.
                 
             case("MIX-RATIOS")
                 ! pablos idea: mix the old and new contributions and not 
@@ -1833,6 +1853,10 @@ contains
                 else
                     tInstGrowthRate = .false.
                 end if
+
+             case("L2-GROWRATE")
+                ! use the L2-norm instead of the L1 norm to get the shift
+                tL2GrowRate = .true.
 
             case("RESTARTLARGEPOP")
                 tCheckHighestPop=.true.
@@ -2944,6 +2968,26 @@ contains
              case("ENERGY-SCALED-WALKERS")
                 ! the amplitude unit of a walker shall be scaled with energy
                 tEScaleWalkers = .true.
+                sfTag = 0
+                if(item < nItems) then
+                   call readu(w)
+                   select case(w)
+                   case("EXPONENTIAL")
+                      sfTag = 1
+                      sFAlpha = 0.1
+                   case("POWER")
+                      sfTag = 0
+                   case("EXP-BOUND")
+                      sfTag = 3
+                      sFAlpha = 0.1
+                      sFBeta = 0.01
+                   case("NEGATIVE")
+                      sfTag = 2
+                   case default
+                      sfTag = 0
+                      call stop_all(t_r, "Invalid argument 1 of ENERGY-SCALED-WALKERS")
+                   end select
+                endif
                 if(item < nitems) &
                      ! an optional prefactor for scaling 
                    call readf(sFAlpha)
