@@ -1107,13 +1107,13 @@ contains
 
             if (genrand_real2_dsfmt() < pParallel) then 
 
-                call gen_uniform_double_para(nI, ilutI, nJ, ilutJ, ex, tParity, pgen)
+                call gen_uniform_double_para(nI, ilutI, nJ, ilutJ, temp_ex, tParity, pgen)
 
                 pgen = pgen * pDoubles * pParallel
 
             else 
 
-                call gen_uniform_double_anti(nI, ilutI, nJ, ilutJ, ex, tParity, pgen)
+                call gen_uniform_double_anti(nI, ilutI, nJ, ilutJ, temp_ex, tParity, pgen)
 
                 pgen = pgen * pDoubles * (1.0_dp - pParallel)
 
