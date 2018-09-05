@@ -28,7 +28,7 @@ module fcimc_initialisation
                         tDynamicCoreSpace, RealCoeffExcitThresh, TargetGrowRate, &
                         TargetGrowRateWalk, InputTargetGrowRate, semistoch_shift_iter,&
                         InputTargetGrowRateWalk, tOrthogonaliseReplicas, &
-                        use_spawn_hash_table, tReplicaSingleDetStart, &
+                        use_spawn_hash_table, tReplicaSingleDetStart, RealSpawnCutoff, &
                         ss_space_in, trial_space_in, init_trial_in, trial_shift_iter, &
                         tContTimeFCIMC, tContTimeFull, tMultipleInitialRefs, &
                         initial_refs, trial_init_reorder, tStartTrialLater, &
@@ -894,6 +894,15 @@ contains
 !                open(mswalkercounts_unit, file='MSWALKERCOUNTS', status='UNKNOWN')
 !                write(mswalkercounts_unit, "(A)") "# ms real    imag    magnitude"
 !            endif
+
+        if(tEScaleWalkers) then
+           if(abs(RealSpawnCutoff-sFBeta) > eps) then
+              write(iout, *) &
+                "Warning: Overriding RealSpawnCutoff with scale function parameter"
+              RealSpawnCutoff = sFBeta
+           endif
+        endif
+           
 
         allocate(ConflictExLvl(maxConflictExLvl))
         ConflictExLvl = 0

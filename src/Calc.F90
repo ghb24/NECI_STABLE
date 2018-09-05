@@ -2704,6 +2704,8 @@ contains
                 if(item < nitems) &
                      ! an optional exponent for scaling
                      call readf(sFBeta)
+                ! set the cutoff to the minimal value
+                RealSpawnCutoff = sFBeta
 
              case("SUPERINITIATOR-POPULATION-THRESHOLD")
                 ! set the minimum value for superinitiator population
