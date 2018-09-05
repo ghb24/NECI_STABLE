@@ -319,14 +319,16 @@ module fcimc_pointed_fns
 
             ! [Werner Dobrautz 4.4.2017:]
             ! apply the spawn truncation, when using histogramming tau-search
-!            if ((t_truncate_spawns .and. .not. t_truncate_unocc)  .and. abs(nspawn) > &
-!                 n_truncate_spawns * scFVal) then
+            if ((t_truncate_spawns .and. .not. t_truncate_unocc)  .and. abs(nspawn) > &
+                 n_truncate_spawns .and. .not. tEScaleWalkers) then
+               ! does not work with scaled walkers, as the scaling factor is not
+               ! computed here for performance reasons (it was a huge performance bottleneck)
                 ! TODO: add some additional output if this event happens
-!                 write(iout,*) "Truncating spawn magnitude from: ", abs(nspawn), " to ", n_truncate_spawns
-!                nSpawn = sign(n_truncate_spawns * scFVal, nspawn)
+                 write(iout,*) "Truncating spawn magnitude from: ", abs(nspawn), " to ", n_truncate_spawns
+                nSpawn = sign(n_truncate_spawns, nspawn)
 
 
-!            end if
+            end if
             
             ! n.b. if we ever end up with |walkerweight| /= 1, then this
             !      will need to ffed further through.
