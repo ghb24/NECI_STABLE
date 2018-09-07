@@ -15,6 +15,7 @@ MODULE PopsfileMod
                         t_hist_tau_search_option, hdf5_diagsft
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt
+    use procedure_pointers, only: scaleFunction
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
     use hash, only: FindWalkerHash, clear_hash_table, &
                     fill_in_hash_table
@@ -39,7 +40,7 @@ MODULE PopsfileMod
     use global_det_data, only: global_determinant_data, init_global_det_data, set_det_diagH
     use fcimc_helper, only: update_run_reference, calc_inst_proje, TestInitiator
     use replica_data, only: set_initial_global_data
-    use load_balance, only: pops_init_balance_blocks
+    use load_balance, only: pops_init_balance_blocks, get_diagonal_matel
     use load_balance_calcnodes, only: tLoadBalanceBlocks, balance_blocks
     use hdf5_popsfile, only: write_popsfile_hdf5, read_popsfile_hdf5, &
                              add_pops_norm_contrib
@@ -2046,6 +2047,14 @@ r_loop: do while(.not.tStoreDet)
                   endif
                   write(iunit_2, '(f20.10,a20)', advance='no') &
                        abs(real_sgn(1)), ''
+
+                  ! If energy-scaled walkers are used, also print the scaled number of
+                  ! walkers
+                  if(tEScaleWalkers) then
+                     write(iunit_2, '(f20.10,a20)', advance='no') &
+                          abs(real_sgn(1) / scaleFunction(get_diagonal_matel(nI,det) - Hii) )
+                  endif
+                  
                   call writebitdet (iunit_2, det, .false.)
                   write(iunit_2,'(i30,i30,f20.10)') ex_level, nopen, detenergy
                endif
