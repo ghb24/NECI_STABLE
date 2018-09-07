@@ -2052,7 +2052,7 @@ r_loop: do while(.not.tStoreDet)
                   ! walkers
                   if(tEScaleWalkers) then
                      write(iunit_2, '(f20.10,a20)', advance='no') &
-                          abs(real_sgn(1) / scaleFunction(get_diagonal_matel(nI,det) - Hii) )
+                          abs(real_sgn(1) / scaleFunction(get_diagonal_matel(nI,det) - Hii) ), ''
                   endif
                   
                   call writebitdet (iunit_2, det, .false.)
@@ -2956,7 +2956,6 @@ r_loop: do while(.not.tStoreDet)
         endif
 
     END SUBROUTINE ReadFromPopsfileOnly
-
 
     subroutine write_pops_norm()
 
