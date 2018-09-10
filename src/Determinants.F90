@@ -564,6 +564,7 @@ contains
 
         ! Eliminate compiler warnings
         integer(n_int) :: iUnused; integer :: iUnused2; HElement_t(dp) :: hUnused
+	character(*), parameter :: this_routine = "get_helement_det_only"
         iUnused=iLutJ(1); iUnused=iLutI(1); iUnused2=nJ(1); hUnused = helgen
 
 #ifndef __CMPLX
