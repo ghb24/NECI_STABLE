@@ -4,9 +4,9 @@ module fcimc_pointed_fns
 
     use SystemData, only: nel, tGUGA, tGen_4ind_weighted, tGen_4ind_2, tGen_nosym_guga, &
                           tGen_sym_guga_mol, t_consider_diff_bias, nSpatOrbs, thub, & 
-                          tUEG, tGen_4ind_reverse, nBasis, t_3_body_excits, & 
+                          tUEG, nBasis, t_3_body_excits, & 
                           t_k_space_hubbard, t_new_real_space_hubbard, & 
-                          t_trans_corr_2body, t_trans_corr_hop
+                          t_trans_corr_2body, t_trans_corr_hop, tHPHF
 
     use LoggingData, only: tHistExcitToFrom, FciMCDebug
 
@@ -15,13 +15,20 @@ module fcimc_pointed_fns
                         tRealCoeffByExcitLevel, InitiatorWalkNo, &
                         t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, & 
                         t_matele_cutoff, matele_cutoff, tEN2Truncated, &
-                        tTruncInitiator, tSkipRef, t_consider_par_bias
+                        tTruncInitiator, tSkipRef, t_consider_par_bias, t_truncate_unocc
 
     use DetCalcData, only: FciDetIndex, det
+
     use procedure_pointers, only: get_spawn_helement
+
     use fcimc_helper, only: CheckAllowedTruncSpawn
+
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, count_open_orbs
+
+    use load_balance, only: scaleFunction
+
     use bit_rep_data, only: NIfTot, test_flag
+
     use bit_reps, only: get_initiator_flag
     use tau_search, only: log_death_magnitude, fill_frequency_histogram_nosym_diff, &
                           fill_frequency_histogram_nosym_nodiff, log_spawn_magnitude
@@ -49,7 +56,13 @@ module fcimc_pointed_fns
                                fill_frequency_histogram
 
     use excit_gen_5, only: pgen_select_a_orb
+
     use cepa_shifts, only: t_cepa_shift, cepa_shift
+
+    use hphf_integrals, only: hphf_diag_helement
+
+    use Determinants, only: get_helement
+
 
     implicit none
 
@@ -154,7 +167,8 @@ module fcimc_pointed_fns
 
     function attempt_create_normal (DetCurr, iLutCurr, &
                                     RealwSign, nJ, iLutnJ, prob, HElGen, ic, ex, tParity,&
-                                    walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr) result(child)
+                                    walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr &
+                                    ) result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel)
         integer, intent(in) :: part_type    ! odd = Real parent particle, even = Imag parent particle
@@ -336,9 +350,7 @@ module fcimc_pointed_fns
         tgt_cpt = part_type
         walkerweight = sign(1.0_dp, RealwSign(part_type))
         matEl = real(rh_used, dp)
-        if (t_matele_cutoff) then
-            if (abs(matEl) < matele_cutoff) matel = 0.0_dp
-        end if
+        if (t_matele_cutoff .and. abs(matEl) < matele_cutoff) matel = 0.0_dp
 #else
         do tgt_cpt = 1, (lenof_sign/inum_runs)
 
@@ -403,35 +415,41 @@ module fcimc_pointed_fns
                 ! etc. are used 
 #ifndef __CMPLX
 #ifdef __DEBUG 
-            if (abs(nSpawn) > 10.0_dp) then
-            if (tGUGA) then
-                write(iout,*) "=================================================="
-                call convert_ilut_toGUGA(iLutCurr, ilutTmpI)
-                call convert_ilut_toGUGA(ilutnj, ilutTmpJ)
-                write(iout,*) "nSpawn > n_truncate_spawns!", nSpawn
-                write(iout,*) "limit the number of spawned walkers to: ", n_truncate_spawns
-                write(iout,*) "for spawn from determinant: "
-                call write_det_guga(6,ilutTmpI) 
-                write(iout,*) "to: " 
-                call write_det_guga(iout, ilutTmpJ)
-                nOpen = count_open_orbs(iLutCurr)
-                write(iout,*) "# of openshell orbitals: ", nOpen, count_open_orbs(ilutnj)
-                write(iout,*) "open/spatial: ", nOpen/real(nSpatOrbs,dp)
-                write(iout,*) "(t |H_ij|/pgen) / #open ratio: ", abs(nSpawn) / real(nOpen,dp)
-                write(iout,*) " H_ij, pgen: ", MatEl, prob
-                write(iout,*) "=================================================="
-                ! excitation type would be cool too.. but how do i get it 
-                ! to here?? do i still have global_excitInfo??
-                call print_excitInfo(global_excitInfo)
-                call neci_flush(iout)
-            end if
-            end if
+                if (abs(nSpawn) > 10.0_dp) then
+                    if (tGUGA) then
+                        write(iout,*) "=================================================="
+                        call convert_ilut_toGUGA(iLutCurr, ilutTmpI)
+                        call convert_ilut_toGUGA(ilutnj, ilutTmpJ)
+                        write(iout,*) "nSpawn > n_truncate_spawns!", nSpawn
+                        write(iout,*) "limit the number of spawned walkers to: ", n_truncate_spawns
+                        write(iout,*) "for spawn from determinant: "
+                        call write_det_guga(6,ilutTmpI) 
+                        write(iout,*) "to: " 
+                        call write_det_guga(iout, ilutTmpJ)
+                        nOpen = count_open_orbs(iLutCurr)
+                        write(iout,*) "# of openshell orbitals: ", nOpen, count_open_orbs(ilutnj)
+                        write(iout,*) "open/spatial: ", nOpen/real(nSpatOrbs,dp)
+                        write(iout,*) "(t |H_ij|/pgen) / #open ratio: ", abs(nSpawn) / real(nOpen,dp)
+                        write(iout,*) " H_ij, pgen: ", MatEl, prob
+                        write(iout,*) "=================================================="
+                        ! excitation type would be cool too.. but how do i get it 
+                        ! to here?? do i still have global_excitInfo??
+                        call print_excitInfo(global_excitInfo)
+                        call neci_flush(iout)
+                    end if
+                end if
 #endif
 #endif
-
-                ! [Werner Dobrautz 4.4.2017:]
-                ! apply the spawn truncation, when using histogramming tau-search
-                nSpawn = sign(n_truncate_spawns, nSpawn)
+            end if
+            ! [Werner Dobrautz 4.4.2017:]
+            ! apply the spawn truncation, when using histogramming tau-search
+            if ((t_truncate_spawns .and. .not. t_truncate_unocc)  .and. abs(nspawn) > &
+                 n_truncate_spawns .and. .not. tEScaleWalkers) then
+               ! does not work with scaled walkers, as the scaling factor is not
+               ! computed here for performance reasons (it was a huge performance bottleneck)
+                ! TODO: add some additional output if this event happens
+                 write(iout,*) "Truncating spawn magnitude from: ", abs(nspawn), " to ", n_truncate_spawns
+                nSpawn = sign(n_truncate_spawns, nspawn)
 
             end if
             
@@ -453,7 +471,6 @@ module fcimc_pointed_fns
             
             if (tRealSpawning) then
                 ! Continuous spawning. Add in acceptance probabilities.
-                
                 if (tRealSpawnCutoff .and. &
                     abs(nSpawn) < RealSpawnCutoff) then
                     p_spawn_rdmfac=abs(nSpawn)/RealSpawnCutoff
@@ -788,5 +805,50 @@ module fcimc_pointed_fns
         iUnused = DetCurr(1)
 
     end function
+
+!------------------------------------------------------------------------------------------!
+
+    function powerScaleFunction(hdiag) result(Si)
+      implicit none
+      
+      real(dp), intent(in) :: hdiag
+      real(dp) :: Si
+
+      Si = 1.0 / ( (sFAlpha * (hdiag) + 1)**sFBeta )
+    end function powerScaleFunction
+
+!------------------------------------------------------------------------------------------!
+
+    function expScaleFunction(hdiag) result(Si)
+      implicit none
+      
+      real(dp), intent(in) :: hdiag
+      real(dp) :: Si
+
+      Si = 1.0/( sfBeta*exp(sFAlpha*hdiag) )
+    end function expScaleFunction
+
+!------------------------------------------------------------------------------------------!
+
+    function expCOScaleFunction(hdiag) result(Si)
+      implicit none
+      
+      real(dp), intent(in) :: hdiag
+      real(dp) :: Si
+
+      Si = (1 - sFbeta)/( exp(sFAlpha*hdiag) ) + sFbeta
+    end function expCOScaleFunction
+
+!------------------------------------------------------------------------------------------!
+
+    function negScaleFunction(hdiag) result(Si)
+      implicit none
+
+      real(dp), intent(in) :: hdiag
+      real(dp) :: Si
+
+      Si = -1
+      
+    end function negScaleFunction
 
 end module

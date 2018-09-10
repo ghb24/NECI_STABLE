@@ -165,7 +165,7 @@ contains
         pos_iter_occ_transition = pos_iter_occ + len_iter_occ
         pos_spawn_rate = pos_iter_occ_transition + len_iter_occ_transition
 
-        tot_len = len_hel + len_spawn_pop + len_tau_int + len_shift_int + len_av_sgn_tot + len_iter_occ_tot + len_spawn_rate
+        tot_len = len_hel + len_spawn_pop + len_tau_int + len_shift_int + len_av_sgn_tot + len_iter_occ_tot
 
         ! Allocate and log the required memory (globally)
         allocate(global_determinant_data(tot_len, MaxWalkersPart), stat=ierr)

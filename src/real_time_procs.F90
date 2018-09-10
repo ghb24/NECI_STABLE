@@ -27,7 +27,7 @@ module real_time_procs
                          sizeof_int, MPIArg
     use bit_reps, only: decode_bit_det, test_flag, encode_sign, &
                         set_flag, encode_bit_rep, extract_bit_rep, &
-                        flag_has_been_initiator, flag_deterministic, encode_part_sign, &
+                        flag_deterministic, encode_part_sign, &
                         get_initiator_flag, get_initiator_flag_by_run, &
                         clr_flag
     use util_mod, only: get_free_unit, get_unique_filename
@@ -265,7 +265,8 @@ contains
                      NoBorn(run) = NoBorn(run) + sum(abs(SignTemp(&
                           min_part_type(run):max_part_type(run))))
                   enddo
-                  call AddNewHashDet(TotWalkersNew, DiagParts(:,i), DetHash, nJ)
+                  call stop_all(this_routine, "fix for real-time:")
+!                   call AddNewHashDet(TotWalkersNew, DiagParts(:,i), DetHash, nJ)
 
                end if
             end if

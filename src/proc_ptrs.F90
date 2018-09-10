@@ -210,6 +210,15 @@ module procedure_pointers
 
         end function
 
+        function scale_function_t(hdiag) result(Si)
+          use constants
+          implicit none
+
+          real(dp), intent(in) :: hdiag
+          real(dp) :: Si
+
+        end function scale_function_t
+
     end interface
 
     !
@@ -231,5 +240,8 @@ module procedure_pointers
     ! 'stacking' scheme is in use (i.e. caching, memoization etc.)
     procedure(get_umat_el_t), pointer :: get_umat_el
     procedure(get_umat_el_t), pointer :: get_umat_el_secondary
+
+    ! the function used to scale the walkers
+    procedure(scale_function_t), pointer :: scaleFunction
 
 end module

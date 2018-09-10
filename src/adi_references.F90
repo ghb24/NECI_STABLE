@@ -6,7 +6,7 @@ use adi_data, only: ilutRefAdi, nRefs, nIRef, signsRef, &
      nTZero, SIHash, tAdiActive, tSetupSIs, NoTypeN, superInitiatorLevel, tSetupSIs, &
      tReferenceChanged, SIThreshold, tUseCaches, nIRef, signsRef, exLvlRef, tSuppressSIOutput, &
      targetRefPop, lastAllNoatHF, lastNRefs, tVariableNRef, maxNRefs, minSIConnect, &
-     nIncoherentDets, nConnection, tWeightedConnections
+     nIncoherentDets, nConnection, tWeightedConnections, tSignedRepAv
 use CalcData, only: InitiatorWalkNo
 use bit_rep_data, only: niftot, nifdbo, extract_sign
 use bit_reps, only: decode_bit_det
@@ -16,11 +16,6 @@ use constants
 use SystemData, only: nel, t_3_body_excits, tGUGA
 
 implicit none
-
-interface get_sign_op
-   module procedure get_sign_op_min
-   module procedure get_sign_op_run
-end interface get_sign_op
 
 contains
 
@@ -135,7 +130,6 @@ contains
       refs_displs(0) = 0
       do i = 1, nProcessors - 1
          refs_displs(i) = refs_displs(i-1) + refs_found_per_proc(i-1)
-!          refs_displs(i) = sum(refs_found_per_proc(0:i-1))
       enddo
       ! Store them on all processors
       call MPIAllGatherV(ref_buf(0:NIfTot, 1:refs_found), ilutRefAdi, &
@@ -205,7 +199,7 @@ contains
       integer(n_int) :: ref_buf(0:NIfTot,maxNRefs), si_buf(0:NIfTot,maxNRefs)
       character(*), parameter :: this_routine = "generate_ref_space"
 
-      if(NoTypeN > 1) then
+      if(NoTypeN > InitiatorWalkNo) then
          call get_threshold_based_SIs(ref_buf,refs_found)
 
          ! communicate the SIs
@@ -236,21 +230,26 @@ contains
       integer :: i, nBlocks
       integer, parameter :: blockSize = 5000
       real(dp) :: sgn(lenof_sign)
+      real(dp) :: repAvSgn
       
       ref_buf = 0
       refs_found = 0
-! <<<<<<< HEAD
-!       call generate_space_most_populated(nRefs, .false., 1, ref_buf, refs_found, &
-!            CurrentDets, TotWalkers)
-! =======
       nBlocks = 1
+      repAvSgn = 0.0_dp
 
       allocate(tmp(0:NIfTot,blockSize))
       tmp = 0
 
       do i = 1, TotWalkers
          call extract_sign(CurrentDets(:,i),sgn)
-         if((av_pop(sgn) .ge. NoTypeN)) then
+         ! either compare the sum of the signed or unsigned walker numbers to the 
+         ! initiator threshold
+         if(tSignedRepAv) then
+            repAvSgn = abs(sum(sgn)/inum_runs)
+         else
+            repAvSgn = av_pop(sgn)
+         endif
+         if((repAvSgn .ge. NoTypeN)) then
             refs_found = refs_found + 1
 
             ! If the temporary is full, resize it
@@ -308,7 +307,6 @@ contains
       refs_displs(0) = 0
       do i = 1, nProcessors - 1
          refs_displs(i) = refs_displs(i-1) + refs_found_per_proc(i-1)
-!          refs_displs(i) = sum(refs_found_per_proc(0:i-1))
       enddo
       ! Store them on all processors
       allocate(mpi_buf(0:NIfTot,all_refs_found), stat = ierr)
@@ -432,7 +430,7 @@ contains
       write(iout, "(5X)", advance = 'no')
       write(iout, "(G1.4)", advance = 'no') FindBitExcitLevel(ilut, ilutRef(:,1))
       ! And the sign coherence parameter
-      write(iout, "(G16.7)", advance = 'no') get_sign_op_min(ilut)
+      write(iout, "(G16.7)", advance = 'no') get_sign_op(ilut)
       ! And then the sign
       call extract_sign(ilut,temp_sgn)
       do j = 1, lenof_sign
@@ -637,7 +635,7 @@ contains
       real(dp) :: xi
 
       do iRef = 1, nRefs
-         xi = get_sign_op_min(ilutRefAdi(:,iRef))
+         xi = get_sign_op(ilutRefAdi(:,iRef))
          ! here, we guarantee that no SI is below the threshold
          if(xi < SIThreshold) SIThreshold = xi
       enddo
@@ -711,7 +709,6 @@ contains
       refs_displs(0) = 0
       do i = 1, nProcessors - 1
          refs_displs(i) = refs_displs(i-1) + refs_found_per_proc(i-1)
-!          refs_displs(i) = sum(refs_found_per_proc(0:i-1))
       enddo
       ! Store them on all processors
       call MPIAllGatherV(list(0:NIfTot, 1:listSize), mpi_buf, &
@@ -761,7 +758,7 @@ contains
       if(mag_of_run(ilut_sign, run) < NoTypeN) return
 
       ! obtain the xi-parameter
-      xi = get_sign_op_run(ilut, run) 
+      xi = get_sign_op(ilut) 
       ! and compare it to the superinitiator threshold
       if(xi > SIThreshold) is_tone = .true.
     end function check_type_n_ref
@@ -803,7 +800,7 @@ contains
       ! The first nKeep references are always above the threshold         
       do iRef = nKeep + 1, nRefs
          ! Get the minimal xi
-         sub_xi = get_sign_op_min(ilutRefAdi(:,iRef))
+         sub_xi = get_sign_op(ilutRefAdi(:,iRef))
          ! And the corresponding SI
          if(sub_xi < min_xi) then
             min_xi = sub_xi
@@ -901,7 +898,7 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-  subroutine update_coherence_check(ilut, nI, i, run, signedCache, unsignedCache, connections)
+  subroutine update_coherence_check(ilut, nI, i, signedCache, unsignedCache, connections)
     use SystemData, only: tHPHF 
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_off_diag_helement
@@ -910,12 +907,13 @@ contains
     use guga_data, only: excitationInformation
 #endif
     implicit none
-    integer, intent(in) :: nI(nel), i, run
+    integer, intent(in) :: nI(nel), i
     integer(n_int), intent(in) :: ilut(0:NIfTot)
     HElement_t(dp), intent(inout) :: signedCache
     real(dp), intent(inout) :: unsignedCache
     integer, intent(out) :: connections
     real(dp) :: i_sgn(lenof_sign)
+    integer :: run
     HElement_t(dp) :: h_el, tmp
     character(*), parameter :: this_routine = "upadte_coherence_check"
 #ifndef __CMPLX
@@ -940,19 +938,25 @@ contains
     if(abs(h_el) < eps) return
 
     ! Add tmp = Hij cj to the caches
+
+    tmp  = 0.0_dp
+    do run = 1, inum_runs
 #ifdef __CMPLX
-    tmp = h_el * cmplx(signsRef(min_part_type(run),i),&
-         signsRef(max_part_type(run),i),dp)
+       tmp = tmp + h_el * cmplx(signsRef(min_part_type(run),i),&
+            signsRef(max_part_type(run),i),dp)
 #else
-    tmp = h_el * signsRef(run,i)
+       tmp = h_el * signsRef(run,i)
 #endif
+    end do
     signedCache = signedCache + tmp
     unsignedCache = unsignedCache + abs(tmp)
     if(tWeightedConnections) then
        ! there is the option to have the connections weighted with
        ! the population
        i_sgn = signsRef(:,i)
-       connections = connections + mag_of_run(i_sgn,run)
+       do run = 1, inum_runs
+          connections = connections + mag_of_run(i_sgn,run)/inum_runs
+       enddo
     else
        connections = connections + 1
     endif
@@ -1004,26 +1008,10 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-  function get_sign_op_min(ilut) result(xi)
-    implicit none
-    integer(n_int) :: ilut(0:NIfTot)
-    integer :: run
-    real(dp) :: min_xi, xi
-
-    min_xi = 1.0_dp
-    do run = 1, inum_runs
-       xi = get_sign_op(ilut, run)
-       if(xi < min_xi) min_xi = xi
-    enddo
-  end function get_sign_op_min
-
-!------------------------------------------------------------------------------------------!
-
-  function get_sign_op_run(ilut, run) result(xi)
+  function get_sign_op(ilut) result(xi)
     ! compute the sign problem indicator xi for a given determinant
     implicit none
     integer(n_int), intent(in) :: ilut(0:NIfTot)
-    integer, intent(in) :: run
     real(dp) :: xi
     integer :: iRef, nI(nel), exLevel
     real(dp) :: unsignedCache
@@ -1041,7 +1029,7 @@ contains
        ! Of course, only singles/doubles of ilut can contribute
        if(exLevel < 3) then
           call decode_bit_det(nI, ilut)
-          call update_coherence_check(ilut, nI, iRef, run, &
+          call update_coherence_check(ilut, nI, iRef, &
                signedCache, unsignedCache, connections)
        endif
     enddo
@@ -1051,7 +1039,7 @@ contains
     else
        xi = 0.0_dp
     endif
-  end function get_sign_op_run
+  end function get_sign_op
 
 !------------------------------------------------------------------------------------------!
 
@@ -1437,39 +1425,12 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    function giovannis_check(ilut) result(init)
-      use adi_data, only: g_markers, g_markers_num
-      use DetBitOps, only: CountBits
-      use bit_rep_data, only: NIfD
-      ! Very much like DetBitOps::FindBitExcitLevel, but it does the check for the active-space
-      ! initiator criterium
-      implicit none
-      integer(n_int), intent(in) :: ilut(0:NIfD)
-      integer(n_int) :: tmp_ilut(0:NIfD)
-      integer :: nOrbs
-      logical :: init
-
-      init = .false.
-      ! Get the bitwise equivalence of the input with the reference
-      tmp_ilut = NOT(IEOR(ilut,ilutRef(:,1)))
-      ! Now compare tmp_ilut with the markers (these are 0 for the core orbitals and 1 else)
-      tmp_ilut = IAND(tmp_ilut, g_markers)
-      nOrbs = CountBits(tmp_ilut,NIfD)
-      ! If nOrbs is the markersize, it is an initiator
-      init = (nOrbs == g_markers_num)
-
-    end function giovannis_check
-
-!------------------------------------------------------------------------------------------!
-
     subroutine clean_adi()
-      use adi_data, only: g_markers
       implicit none
       
       call deallocate_adi_caches()
       if(associated(SIHash)) deallocate(SIHash)
       if(allocated(ilutRefAdi)) deallocate(ilutRefAdi)
-      if(allocated(g_markers)) deallocate(g_markers)
     end subroutine clean_adi
     
 end module adi_references

@@ -221,15 +221,13 @@ module errors
 
             !Now find all block lengths, and write them to file, so that blocklengths can be checked.
             !Call routine here to write out a file (Blocks_proje) with the projected energy mean and error for all block sizes.
-            ! this does not seem to be correct for mneci runs.. 
-            ! it will enter the second call below with no imnumerator_data
-            if(lenof_sign.eq.1) then
-                call print_proje_blocks(pophf_data,numerator_data,2,'Blocks_proje')
-            else
+            if(lenof_sign.eq.2) then
                 call print_proje_blocks(pophf_data,numerator_data,2,'Blocks_proje_re')
 #ifdef __CMPLX
                 call print_proje_blocks(pophf_data,imnumerator_data,2,'Blocks_proje_im')
 #endif
+            else
+                call print_proje_blocks(pophf_data,numerator_data,2,'Blocks_proje')
             endif
 
             !Now perform automatic reblocking again, to get expected blocklength

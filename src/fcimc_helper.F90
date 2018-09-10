@@ -33,23 +33,28 @@ module fcimc_helper
                            nHistEquilSteps, tCalcFCIMCPsi, StartPrintOrbOcc, &
                            HistInitPopsIter, tHistInitPops, iterRDMOnFly, &
                            FciMCDebug, tLogEXLEVELStats
-    use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, &
-                        tAddToInitiator, InitiatorWalkNo, &
+    use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, tReplicaCoherentInits, &
+                        tAddToInitiator, InitiatorWalkNo, tAvReps, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
-                        tRealCoeffByExcitLevel, &
+                        tRealCoeffByExcitLevel, tGlobalInitFlag, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
                         MaxWalkerBloom, t_guga_mat_eles, tEN2, tEN2Started, &
-                        NMCyc, iSampleRDMIters, &
+                        NMCyc, iSampleRDMIters, ErrThresh, tSTDInits, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
-                        t_back_spawn_flex, tau, DiagSft, &
+                        t_back_spawn_flex, tau, DiagSft,  &
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule
-    use adi_data, only: tAccessibleDoubles, tAccessibleSingles, tInitiatorsSubspace, &
-         tAllDoubsInitiators, tAllSingsInitiators
+
+    use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
+         tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
+
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
-    use procedure_pointers, only: attempt_die, extract_bit_rep_avsign
+
+    use procedure_pointers, only: attempt_die, extract_bit_rep_avsign, &
+         scaleFunction
+
     use DetCalcData, only: FCIDetIndex, ICILevel, det
-    use hash, only: remove_hash_table_entry
+    use hash, only: remove_hash_table_entry, add_hash_table_entry, hash_table_lookup
     use load_balance_calcnodes, only: DetermineDetNode, tLoadBalanceBlocks
     use load_balance, only: adjust_load_balance
     use rdm_filling_old, only: det_removed_fill_diag_rdm_old
@@ -77,6 +82,8 @@ module fcimc_helper
                         NoatHF_1, NoatDoubs_1, t_rotated_time, Annihilated_1, t_real_time_fciqmc
 
     use back_spawn, only: setup_virtual_mask
+
+    use bit_rep_data, only: flag_multi_spawn
 
     implicit none
     save
@@ -213,75 +220,81 @@ contains
            ASSERT((sum(abs(child_sign))-maxval(abs(child_sign)))<1.0e-12_dp)
         endif
 
-    call hash_table_lookup(nI_child, ilut_child, NIfDBO, spawn_ht, &
-        SpawnedParts, ind, hash_val, tSuccess)
-   
-    if (tSuccess) then
-        ! If the spawned child is already in the spawning array.
-        ! Extract the old sign.
-        call extract_sign(SpawnedParts(:,ind), real_sign_old)
-        ! If the new child has an opposite sign to that of walkers already
-        ! on the site, then annihilation occurs. The stats for this need
-        ! accumulating.
-        ! in the second real-time spawn loop, i can spawn also to 
-        ! determinants, which are actually diagonal particles
-        ! hence i have to update the diag_spawn flag if i annihilate all
-        ! particles eg. and maybe also update the ndied and nborn 
-        ! quantities, as this then is not done in the Annihilation if 
-        ! no info about the diagonal particles remain ...
+        call hash_table_lookup(nI_child, ilut_child, NIfDBO, spawn_ht, &
+            SpawnedParts, ind, hash_val, tSuccess)
+       
+        if (tSuccess) then
+            ! If the spawned child is already in the spawning array.
+            ! Extract the old sign.
+            call extract_sign(SpawnedParts(:,ind), real_sign_old)
+            ! If the new child has an opposite sign to that of walkers already
+            ! on the site, then annihilation occurs. The stats for this need
+            ! accumulating.
+            ! in the second real-time spawn loop, i can spawn also to 
+            ! determinants, which are actually diagonal particles
+            ! hence i have to update the diag_spawn flag if i annihilate all
+            ! particles eg. and maybe also update the ndied and nborn 
+            ! quantities, as this then is not done in the Annihilation if 
+            ! no info about the diagonal particles remain ...
 
-        ! but to know if its a death or a cloning event i have to know
-        ! the original sign in the stored y(n) array... but i dont 
-        ! wanna do a lookup in this original list..
-        ! hm: an idea, maybe in the end create a new SpawnedPartsDiag
-        ! array to store the "spawning" from the diagonal step which
-        ! where annhilations in the DirectAnnihilation routine gets 
-        ! treated as deaths/births.. -> yes! thats a good idea! 
-        ! also there i would be sure to not find the determinants if 
-        ! i loop over them, since it essentially is only a copy of the 
-        ! worked on y(n) + k1/2 list
-        ! and it would be nicer to seperate those 2 steps as they are 
-        ! essentially smth different...
+            ! but to know if its a death or a cloning event i have to know
+            ! the original sign in the stored y(n) array... but i dont 
+            ! wanna do a lookup in this original list..
+            ! hm: an idea, maybe in the end create a new SpawnedPartsDiag
+            ! array to store the "spawning" from the diagonal step which
+            ! where annhilations in the DirectAnnihilation routine gets 
+            ! treated as deaths/births.. -> yes! thats a good idea! 
+            ! also there i would be sure to not find the determinants if 
+            ! i loop over them, since it essentially is only a copy of the 
+            ! worked on y(n) + k1/2 list
+            ! and it would be nicer to seperate those 2 steps as they are 
+            ! essentially smth different...
 
-        ! UPDATE! decided to store the diagonal particles in the 2nd 
-        ! RK loop in a seperate DiagParts array -> so no need to 
-        ! distinguish here, as only "proper" spawns are treated here!
-        sgn_prod = real_sign_old * child_sign
+            ! UPDATE! decided to store the diagonal particles in the 2nd 
+            ! RK loop in a seperate DiagParts array -> so no need to 
+            ! distinguish here, as only "proper" spawns are treated here!
+            sgn_prod = real_sign_old * child_sign
 
 
-        do i = 1, lenof_sign
-            if (sgn_prod(i) < 0.0_dp) then
-                run = part_type_to_run(i)
+            do i = 1, lenof_sign
+                if (sgn_prod(i) < 0.0_dp) then
+                    run = part_type_to_run(i)
 #ifdef __REALTIME
-                if(runge_kutta_step == 1) then
-                   Annihilated_1(run) = Annihilated_1(run) + &
-                        2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
-                else if(runge_kutta_step == 2) then
-                   Annihilated(run) = Annihilated(run) + &
-                        2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
-                endif
+                    if(runge_kutta_step == 1) then
+                       Annihilated_1(run) = Annihilated_1(run) + &
+                            2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
+                    else if(runge_kutta_step == 2) then
+                       Annihilated(run) = Annihilated(run) + &
+                            2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
+                    endif
 #else
-                Annihilated(run) = Annihilated(run) + &
-                     2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
+                    Annihilated(run) = Annihilated(run) + &
+                         2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
 #endif
                 
-                iter_data%nannihil(i) = iter_data%nannihil(i) + 2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
-            end if
-        end do
+                    iter_data%nannihil(i) = iter_data%nannihil(i) + 2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
+                end if
+            end do
 
-        ! Find the total new sign.
-        real_sign_new = real_sign_old + child_sign
-        ! Encode the new sign.
-        call encode_sign(SpawnedParts(:,ind), real_sign_new)
-        ! Set the initiator flags appropriately.
-        ! If this determinant (on this replica) has already been spawned to
-        ! then set the initiator flag. Also if this child was spawned from
-        ! an initiator, set the initiator flag.
+            ! Find the total new sign.
+            real_sign_new = real_sign_old + child_sign
+            ! Encode the new sign.
+            call encode_sign(SpawnedParts(:,ind), real_sign_new)
+            ! Set the initiator flags appropriately.
+            ! If this determinant (on this replica) has already been spawned to
+            ! then set the initiator flag. Also if this child was spawned from
+            ! an initiator, set the initiator flag.
 
             ! this is not correctly considered for the real-time or complex 
             ! code .. probably nobody thought about using this in the __cmplx
             ! implementation..
 
+            call set_flag(SpawnedParts(:,ind), flag_multi_spawn)
+
+            ! Set the initiator flags appropriately.
+            ! If this determinant (on this replica) has already been spawned to
+            ! then set the initiator flag. Also if this child was spawned from
+            ! an initiator, set the initiator flag.
             ! (There is now an option (tInitCoherentRule = .false.) to turn this
             ! coherent spawning rule off, mainly for testing purposes).
             if (tTruncInitiator) then
@@ -1030,22 +1043,44 @@ contains
         integer, intent(in) :: run, nI(nel), exLvl, site_idx
         real(dp), intent(in) :: sgn(lenof_sign)
 
-        ! the following value is either a single sgn or an aggregate
-        real(dp) :: tot_sgn
-        logical :: initiator, staticInit
+        logical :: initiator, staticInit, popInit
         integer :: i
 
         logical :: Senior
         real(dp) :: DetAge, HalfLife, AvgShift, diagH
 
+        ! initiator flag according to population
+        popInit = initiator_criterium(sgn, det_diagH(site_idx), run)
+
+        ! initiator flag according to SI
+        staticInit = check_static_init(ilut, nI, sgn, exLvl, run)
+        ! check if there are sign conflicts across the replicas
+        if(any(sgn*(sgn_av_pop(sgn)) < 0)) then
+           ! check if this would be an initiator
+           if(popInit) then 
+              NoInitsConflicts = NoInitsConflicts + 1
+           endif
+          ! check if this would be an initiator due to SI criterium
+           ! (do not double - count)
+           if(staticInit .and. .not. popInit) then
+              NoSIInitsConflicts = NoSIInitsConflicts + 1
+           endif
+           ! one initial check: if the replicas dont agree on the sign
+           ! dont make this an initiator under any circumstances 
+           if(tReplicaCoherentInits .and. .not. &
+                ! maybe except for corepsace determinants
+                test_flag(ilut, flag_deterministic)) then
+              ! log this, if we remove an initiator here
+              if(is_init) NoAddedInitiators = NoAddedInitiators - 1_int64
+              initiator = .false.
+              return
+           endif
+        endif
+
         ! By default the particles status will stay the same
         initiator = is_init
 
-        tot_sgn = mag_of_run(sgn,run)
-
-        ! If we are allowed to unset the initiator flag
-        staticInit = check_static_init(ilut, nI, sgn, exLvl, run)
-        ! reference-caused initiators also have the initiator flag
+        ! SI-caused initiators also have the initiator flag
         if(staticInit) initiator = .true.
 
         Senior = .false.
@@ -1068,7 +1103,7 @@ contains
            ! Determinant wasn't previously initiator 
            ! - want to test if it has now got a large enough 
            !   population to become an initiator.
-           if (tot_sgn > InitiatorWalkNo) then
+           if (popInit) then
               initiator = .true.
               NoAddedInitiators = NoAddedInitiators + 1_int64
            endif
@@ -1087,18 +1122,50 @@ contains
            if ( .not. (staticInit) &
                 .and. .not. test_flag(ilut, flag_deterministic) &
                 .and. .not. Senior &
-                .and. (tot_sgn <= InitiatorWalkNo )) then
+                .and. (.not. popInit )) then
               ! Population has fallen too low. Initiator status 
               ! removed.
               initiator = .false.
               NoAddedInitiators = NoAddedInitiators - 1_int64
            endif
 
-        end if
+        end if       
 
       end function TestInitiator_explicit
       
+      function initiator_criterium(sign,hdiag,run) result(init_flag)
+        implicit none
+        real(dp), intent(in) :: sign(lenof_sign), hdiag
+        integer, intent(in) :: run
+        ! variance of sign and either a single value or an aggregate
+        real(dp) :: sigma, tot_sgn
+        integer :: crun, nOcc
+        real(dp) :: scaledInitiatorWalkNo
+        logical :: init_flag
 
+        if(tEScaleWalkers) then
+           scaledInitiatorWalkNo = InitiatorWalkNo * scaleFunction(hdiag)
+        else
+           scaledInitiatorWalkNo = InitiatorWalkNo
+        endif
+        
+        
+        ! option to use the average population instead of the local one
+        ! for purpose of initiator threshold
+        if(tGlobalInitFlag) then
+           ! we can use a signed or unsigned sum
+           if(tSignedRepAv) then
+              tot_sgn = real(abs(sum(sign)),dp)/inum_runs
+           else
+              tot_sgn = av_pop(sign)
+           endif
+        else
+           tot_sgn = mag_of_run(sign,run)
+        endif
+        ! make it an initiator 
+        init_flag = (tot_sgn > scaledInitiatorWalkNo)
+
+      end function initiator_criterium
 
     subroutine rezero_iter_stats_each_iter(iter_data, rdm_defs)
 
@@ -1116,6 +1183,11 @@ contains
         NoInitWalk = 0.0_dp
         NoNonInitWalk = 0.0_dp
         InitRemoved = 0_int64
+
+        ! replica-initiator info
+        NoSIInitsConflicts = 0
+        NoInitsConflicts = 0
+        avSigns = 0.0_dp
 
         NoAborted = 0.0_dp
         NoRemoved = 0.0_dp
@@ -1930,13 +2002,14 @@ contains
     end subroutine DiagWalkerSubspace
 
 
-    subroutine decide_num_to_spawn(parent_pop, av_spawns_per_walker, nspawn)
+    subroutine decide_num_to_spawn(parent_pop, hdiag, av_spawns_per_walker, nspawn)
 
         real(dp), intent(in) :: parent_pop
         real(dp), intent(in) :: av_spawns_per_walker
+        real(dp), intent(in) :: hdiag
         integer, intent(out) :: nspawn
         real(dp) :: prob_extra_walker, r
-
+        
         nspawn = abs(int(parent_pop*av_spawns_per_walker))
         if (abs(abs(parent_pop*av_spawns_per_walker) - real(nspawn,dp)) > 1.e-12_dp) then
             prob_extra_walker = abs(parent_pop*av_spawns_per_walker) - real(nspawn,dp)
@@ -2336,7 +2409,6 @@ contains
 
     end subroutine
 
-!------------------------------------------------------------------------------------------!
 
     function check_semistoch_flags(ilut_child, nI_child, tCoreDet) result(break)
       integer(n_int), intent(inout) :: ilut_child(0:niftot)
@@ -2384,5 +2456,39 @@ contains
     end subroutine verify_pop
 
 !------------------------------------------------------------------------------------------!
+
+    subroutine replica_coherence_check(ilut,sgn,exLvl)
+
+      ! do a check if a determinant has sign consistent walkers across replicas
+      ! input: 
+      ! ilut = determinant + population in ilut-format
+      ! sgn = sign of ilut (i.e. #walkers)
+      ! exLvl = excitation level of ilut for logging purposes
+      ! this logs the number of conflicts per excitation level
+      implicit none
+      integer(n_int), intent(inout) :: ilut(0:NIfTot)
+      real(dp), intent(inout) :: sgn(lenof_sign)
+      integer, intent(in) :: exLvl
+      
+      integer :: run
+      real(dp) :: avSign
+
+#ifdef __CMPLX
+#else
+      ! check if there are any sign changes within sgn
+      if(any(sgn*sgn(1) < 0)) then
+         avSign = sum(sgn)/inum_runs
+         ! log the change in population
+         do run = 1, inum_runs
+            ! are we looking at an erroneous sign?
+            if(sgn(run)*avSign < 0) then
+               ! log the conflict
+               avSigns = avSigns + abs(sgn(run))
+               if(exLvl < maxConflictExLvl) ConflictExLvl(exLvl) = ConflictExLvl(exLvl) + 1
+            endif
+         end do
+      endif
+#endif
+    end subroutine replica_coherence_check
 
 end module

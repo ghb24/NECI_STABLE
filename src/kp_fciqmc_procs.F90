@@ -39,7 +39,7 @@ contains
 
         ! The index of the first element referring to the sign, for this ivec.
         sign_ind = NIfDBO + lenof_sign_kp*(ivec-1) + 1
-        if (tUseFlags) flag_ind = NIfDBO + lenof_all_signs + 1
+        flag_ind = NIfDBO + lenof_all_signs + 1
 
         ! Loop over all occupied determinants for this new Krylov vector.
         do idet = 1, TotWalkers
@@ -74,7 +74,7 @@ contains
                 krylov_vecs(0:NIfDBO, det_ind) = CurrentDets(0:NIfDBO, idet)
                 krylov_vecs(sign_ind:sign_ind+lenof_sign_kp-1, det_ind) = int_sign
                 krylov_helems(det_ind) = det_diagH(idet)
-                if (tUseFlags) krylov_vecs(flag_ind, det_ind) = CurrentDets(NOffFlag, idet)
+                krylov_vecs(flag_ind, det_ind) = CurrentDets(NOffFlag, idet)
             end if
 
             ! Update information about how much of the hash table is filled.

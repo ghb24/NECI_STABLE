@@ -31,15 +31,16 @@ MODULE Calc
                          tLogGreensfunction, &
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
-                         alloc_popsfile_dets, tSearchTauOption 
+                         alloc_popsfile_dets, tSearchTauOption, &
+                         sFAlpha, tEScaleWalkers, sFBeta, sFTag
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
          tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits, tSetDelayAllDoubsInits, &
          tSetDelayAllSingsInits, nExProd, NoTypeN, tAdiActive, tReadRefs, SIUpdateInterval, &
-         tProductReferences, tAccessibleDoubles, tAccessibleSingles, tInitiatorsSubspace, &
+         tProductReferences, tAccessibleDoubles, tAccessibleSingles, &
          tReferenceChanged, superInitiatorLevel, allDoubsInitsDelay, tStrictCoherentDoubles, &
          tWeakCoherentDoubles, tAvCoherentDoubles, coherenceThreshold, SIThreshold, &
          tSuppressSIOutput, targetRefPop, targetRefPopTol, tSingleSteps, tVariableNRef, &
-         nRefsSings, nRefsDoubs, minSIConnect, tWeightedConnections
+         nRefsSings, nRefsDoubs, minSIConnect, tWeightedConnections, tSignedRepAv
     use ras_data, only: core_ras, trial_ras
     use load_balance, only: tLoadBalanceBlocks
     use ftlm_neci
@@ -272,8 +273,12 @@ contains
 !           tKeepDoubSpawns = .true.
 !           tMultiSpawnThreshold = .false.
           tAddtoInitiator=.false.
+          tSTDInits = .false.
+          tAVReps = .false.
+          tGlobalInitFlag = .false.
           tInitCoherentRule=.true.
           InitiatorWalkNo=3.0_dp
+          ErrThresh = 0.3
           tSeniorInitiators =.false.
           SeniorityAge=1.0_dp
           tInitIncDoubs=.false.
@@ -316,6 +321,11 @@ contains
 
           ! Truncation based on number of unpaired electrons
           tTruncNOpen = .false.
+
+          ! trunaction for spawns/based on spawns
+          t_truncate_unocc = .false.
+          t_prone_walkers = .false.
+          t_activate_decay = .false.
 
           hash_shift=0
           tUniqueHFNode = .false.
@@ -380,6 +390,7 @@ contains
           tPopsJumpShift = .false.
           calc_seq_no = 1
 
+          ! Superinitiator flags and thresholds
           tAllDoubsInitiators = .false.
           tDelayAllDoubsInits = .false.
           allDoubsInitsDelay = 0
@@ -411,9 +422,13 @@ contains
           SIUpdateInterval = 100
           tAdiActive = .false.
           minSIConnect = 1
-
-          ! And disable the initiators subspace
-          tInitiatorsSubspace = .false.
+          
+          ! Walker scaling with energy
+          ! do not use scaled walkers
+          tEScaleWalkers = .false.
+          sFAlpha = 1.0_dp
+          sFBeta = 1.0_dp
+          sFTag = 0
 
           ! Epstein-Nesbet second-order correction logicals.
           tEN2 = .false.
@@ -1280,7 +1295,21 @@ contains
                 t_truncate_spawns = .true. 
                 if (item < nitems) then 
                     call getf(n_truncate_spawns)
+                    if(item < nitems) then
+                       call readu(w)
+                       select case(w)
+                       case("UNOCC")
+                          t_truncate_unocc = .true.
+                       case default
+                          t_truncate_unocc = .false.
+                       end select
+                    endif
                 end if
+
+             case("PRONE-DETERMINANTS")
+                ! when close to running out of memory, start culling 
+                ! the population by removing lonely spawns
+                t_prone_walkers = .true.
                 
             case("MIX-RATIOS")
                 ! pablos idea: mix the old and new contributions and not 
@@ -1564,6 +1593,8 @@ contains
                 trial_space_in%tHeisenbergFCI = .true.
             case("TRIAL-BIN-SEARCH")
                 tTrialHash = .false.
+                write(iout,*) "WARNING: Disabled trial hashtable. Load balancing "//&
+                     "is not supported in this mode and might break the trial energy"
             case("TRIAL-ESTIMATE-REORDER")
                 allocate(trial_est_reorder(inum_runs))
                 trial_est_reorder = 0
@@ -1644,7 +1675,7 @@ contains
                 end if
             case("FIXED-N0")
 #ifdef __CMPL
-                call stop_all(this_routine, 'FIXED-N0 currently not implemented for complex')
+                call stop_all(t_r, 'FIXED-N0 currently not implemented for complex')
 #endif
                 tFixedN0 = .true.
                 call geti(N0_Target)
@@ -1656,7 +1687,7 @@ contains
                 tChangeProjEDet = .false.
             case("TRIAL-SHIFT")
 #ifdef __CMPL
-                call stop_all(this_routine, 'TRIAL-SHIFT currently not implemented for complex')
+                call stop_all(t_r, 'TRIAL-SHIFT currently not implemented for complex')
 #endif
                 if (item.lt.nitems) then
                     call readf(TrialTarget)
@@ -1872,6 +1903,10 @@ contains
                     tInstGrowthRate = .false.
                 end if
 
+             case("L2-GROWRATE")
+                ! use the L2-norm instead of the L1 norm to get the shift
+                tL2GrowRate = .true.
+
             case("RESTARTLARGEPOP")
                 tCheckHighestPop=.true.
                 tRestartHighPop=.true.
@@ -1981,6 +2016,20 @@ contains
 !determinants outside the active space, however if this is done, they
 !can only spawn back on to the determinant from which they came.  This is the star approximation from the CAS space. 
                 tTruncInitiator=.true.
+
+             case("REPLICA-GLOBAL-INITIATORS")
+! with this option, all replicas will use the same initiator flag, which is then set 
+! depending on the avereage population, else, the initiator flag is set for each replica
+! using the population of that replica
+                tGlobalInitFlag = .true.
+
+             case("AVERAGE-REPLICAS")
+                ! average the replica populations if they are not sign coherent
+                tAVReps = .true.
+                
+             case("REPLICA-COHERENT-INITS")
+                ! require initiators to be coherent across replcias
+                tReplicaCoherentInits = .true.
 
             case("NO-COHERENT-INIT-RULE")
                 tInitCoherentRule=.false.
@@ -2859,10 +2908,6 @@ contains
                 ! Also add all excitation products of references to the reference space
                 tProductReferences = .true.
 
-             case("INITIATORS-SUBSPACE")
-                ! Use Giovannis check to add initiators
-                tInitiatorsSubspace = .true.
-
              case("COHERENT-REFERENCES")
                 ! Only make those doubles/singles initiators that are sign coherent
                 ! with their reference(s)
@@ -2940,6 +2985,50 @@ contains
                       tWeightedConnections = .false.
                    end select
                 endif
+
+             case("SIGNED-REPLICA-AVERAGE")
+                tSignedRepAv = .true.
+                if(item < nitems) then
+                   call readu(w)
+                   select case(w)
+                   case("OFF")
+                      tSignedRepAv = .false.
+                   case default
+                      tSignedRepAv = .true.
+                   end select
+                endif
+
+             case("ENERGY-SCALED-WALKERS")
+                ! the amplitude unit of a walker shall be scaled with energy
+                tEScaleWalkers = .true.
+                sfTag = 0
+                if(item < nItems) then
+                   call readu(w)
+                   select case(w)
+                   case("EXPONENTIAL")
+                      sfTag = 1
+                      sFAlpha = 0.1
+                   case("POWER")
+                      sfTag = 0
+                   case("EXP-BOUND")
+                      sfTag = 3
+                      sFAlpha = 0.1
+                      sFBeta = 0.01
+                   case("NEGATIVE")
+                      sfTag = 2
+                   case default
+                      sfTag = 0
+                      call stop_all(t_r, "Invalid argument 1 of ENERGY-SCALED-WALKERS")
+                   end select
+                endif
+                if(item < nitems) &
+                     ! an optional prefactor for scaling 
+                   call readf(sFAlpha)
+                if(item < nitems) &
+                     ! an optional exponent for scaling
+                     call readf(sFBeta)
+                ! set the cutoff to the minimal value
+                RealSpawnCutoff = sFBeta
 
              case("SUPERINITIATOR-POPULATION-THRESHOLD")
                 ! set the minimum value for superinitiator population

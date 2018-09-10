@@ -48,7 +48,7 @@ module bit_rep_data
 
     ! Flags which we can store
     ! RT_M_Merge: Adapted real-time flags
-    logical :: tUseFlags
+    logical :: tUseFlags = .true.
 
     integer :: flag_counter
 
@@ -56,29 +56,29 @@ module bit_rep_data
                           flag_determ_parent = 1, &
                           flag_trial = 2, &
                           flag_connected = 3, &
-                          flag_has_been_initiator(1) = 4, &
-                          flag_deltaB_single = 5, & ! new flags added for GUGA
-                          flag_deltaB_double = 6, & ! new flags added for GUGA
-                          flag_deltaB_sign = 7, &   ! new flags added for GUGA
-                          flag_ic0_spawn = 8, &
-                          flag_death_done = 9, &
-                          flag_negative_sign = 10
-                          ! RT_M_Merge: These should only be adressed with __REALTIME
-                          ! use these unused to mark diagonal "spawns"
+                          flag_prone = 4, &
+                          flag_multi_spawn = 5, &
+                          flag_deltaB_single = 6, & ! new flags added for GUGA
+                          flag_deltaB_double = 7, & ! new flags added for GUGA
+                          flag_deltaB_sign = 8, &   ! new flags added for GUGA
+                          flag_ic0_spawn = 9, &
+                          flag_death_done = 10, &
+                          flag_negative_sign = 11
+
 #ifdef __PROG_NUMRUNS
     integer, parameter :: flag_initiator(lenof_sign_max) &
-                            = (/11, 12, 13, 14, 15, 16, 17, 18, 19, &
-                                20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30/), &
-                          flag_adi_checked = 31, &
+                            = (/ 12, 13, 14, 15, 16, 17, 18, 19, &
+                                20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31/), &
+                          flag_adi_checked = 32, &
                           flag_static_init(lenof_sign_max) &
-                            = (/32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, &
-                                45, 46, 47, 48, 49, 50, 51/), &
-                          num_flags = 52
+                            = (/33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, &
+                                45, 46, 47, 48, 49, 50, 51, 52/), &
+                          num_flags = 53
 #else
-    integer, parameter :: flag_initiator(2) = (/ 11, 12/), &
-                          flag_adi_checked = 13, &
-                          flag_static_init(2) = (/14, 15/), &
-                          num_flags = 16
+    integer, parameter :: flag_initiator(2) = (/ 12, 13/), &
+                          flag_adi_checked = 14, &
+                          flag_static_init(2) = (/15, 16/), &
+                          num_flags = 17
 #endif
 
 contains
@@ -101,11 +101,7 @@ contains
 
 !        bSet = btest(ilut(ind), off)
 
-        if(tUseFlags) then
-            bSet = btest(ilut(NOffFlag), flg)
-        else
-            bSet = .false.
-        endif
+        bSet = btest(ilut(NOffFlag), flg)
 
     end function test_flag
 

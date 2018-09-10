@@ -232,7 +232,7 @@ contains
 
         character(*), parameter :: this_routine = "perform_real_time_fciqmc"
         integer :: j, i, iterRK
-        real(sp) :: s_start, s_end, tstart(2), tend(2)
+        real(dp) :: s_start, s_end, tstart(2), tend(2)
         real(dp) :: totalTime
         complex(dp), allocatable :: overlap_buf(:)
         complex(dp), allocatable :: norm_buf(:)
@@ -688,7 +688,7 @@ contains
             if(.not. tGZero) then ! skip this if we only want the corespace-evolution
                do ireplica = 1, lenof_sign
 
-                  call decide_num_to_spawn(parent_sign(ireplica), AvMCExcits, nspawn)
+                  call decide_num_to_spawn(parent_sign(ireplica), parent_hdiag, AvMCExcits, nspawn)
                   !call merge_spawn(nspawn,prefactor)
                   do ispawn = 1, nspawn
 
@@ -862,7 +862,7 @@ contains
             ! cycle.. since this is only input dependent..
             do ireplica = 1, lenof_sign
 
-                call decide_num_to_spawn(parent_sign(ireplica), AvMCExcits, nspawn)
+                call decide_num_to_spawn(parent_sign(ireplica), parent_hdiag, AvMCExcits, nspawn)
                 !call merge_spawn(nspawn,prefactor)
                 do ispawn = 1, nspawn
 

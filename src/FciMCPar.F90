@@ -16,13 +16,13 @@ module FciMCParMod
                         tOrthogonaliseReplicas, orthogonalise_iter, &
                         tDetermHFSpawning, use_spawn_hash_table, &
                         ss_space_in, s_global_start, tContTimeFCIMC, &
-                        trial_shift_iter, tStartTrialLater,  &
+                        trial_shift_iter, tStartTrialLater, tAVReps, &
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
                         t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
                         t_back_spawn_flex, t_back_spawn_flex_option, &
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
                         DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
-                        tSkipRef, tFixTrial, tTrialShift, tSpinProject, t_guga_mat_eles
+                        tSkipRef, tFixTrial, tTrialShift, t_guga_mat_eles, t_activate_decay
 
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
                         tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
@@ -72,7 +72,7 @@ module FciMCParMod
     use bit_reps, only: set_flag, clr_flag, add_ilut_lists, get_initiator_flag
     use exact_diag, only: perform_exact_diag_all_symmetry
     use spectral_lanczos, only: perform_spectral_lanczos
-    use bit_rep_data, only: nOffFlag, flag_determ_parent, test_flag
+    use bit_rep_data, only: nOffFlag, flag_determ_parent, test_flag, flag_prone
     use errors, only: standalone_errors, error_analysis
     use PopsFileMod, only: WriteToPopsFileParOneArr
     use AnnihilationMod, only: DirectAnnihilation
@@ -152,7 +152,7 @@ module FciMCParMod
         real(dp) :: Weight, Energyxw, BestEnergy
         INTEGER :: error, irdm
         LOGICAL :: TIncrement, tWritePopsFound, tSingBiasChange, tPrintWarn
-        REAL(sp) :: s_start, s_end, tstart(2), tend(2), totaltime
+        REAL(dp) :: s_start, s_end, tstart(2), tend(2), totaltime
         real(dp) :: TotalTime8
         INTEGER(int64) :: MaxWalkers, MinWalkers
         real(dp) :: AllTotWalkers,MeanWalkers, Inpair(2), Outpair(2)
@@ -474,7 +474,7 @@ module FciMCParMod
                 .not. tSemiStochastic .and. .not. tFillingStochRDMOnFly) then
                 call adjust_load_balance(iter_data_fciqmc)
             end if
-
+            
             if(SIUpdateInterval > 0) then
                ! Regular update of the superinitiators. Use with care as it 
                ! is still rather expensive if secondary superinitiators are used
@@ -998,6 +998,8 @@ module FciMCParMod
         integer :: ms
         logical :: signChanged, newlyOccupied
         real(dp) :: currArg, spawnArg
+        ! how many entries were added to (the end of) CurrentDets in the last iteration
+        integer, save :: detGrowth = 0
 
         real(dp) :: inst_rdm_occ
 
@@ -1117,8 +1119,28 @@ module FciMCParMod
             call extract_bit_rep_avsign(rdm_definitions, CurrentDets(:,j), j, DetCurr, SignCurr, FlagsCurr, &
                                         IterRDMStartCurr, AvSignCurr, fcimc_excit_gen_store)
 
-            !call test_sym_excit_ExMag(DetCurr,100000000)
-            !call stop_all(this_routine, "Test complete")
+            ! if we CurrentDets is almost full, make some space
+            if(t_activate_decay) then
+               if(test_flag(CurrentDets(:,j), flag_prone)) then
+                  ! kill a prone determinant with probability given by the
+                  ! ratio of how many space we probably need to how many prone dets exist
+                  ! (prone dets always have only a single scaled walker)
+                  r = genrand_real2_dSFMT()
+                  if(n_prone_dets > 0) then
+                     if(r < detGrowth / n_prone_dets) then
+                        ! log the removal
+                        iter_data%nremoved = iter_data%nremoved + abs(SignCurr)
+                        ! remove all walkers here (this will be counted as unocc. later 
+                        ! and thus become an empty slot)
+                        SignCurr = 0.0_dp
+                        ! kill all walkers on the determinant
+                        call nullify_ilut(CurrentDets(:,j))
+                        ! and remove it from the hashtable
+                        call remove_hash_table_entry(HashIndex, DetCurr, j)
+                     endif
+                  endif
+               end if
+            endif
 
             ! We only need to find out if determinant is connected to the
             ! reference (so no ex. level above 2 required, 
@@ -1132,6 +1154,10 @@ module FciMCParMod
             else
                 walkExcitLevel_toHF = walkExcitLevel
             endif
+
+            ! if requested, average the sign over replicas if not coherent
+            if(inum_runs > 1 .and. tWriteConflictLvls) call replica_coherence_check(&
+                 CurrentDets(:,j), SignCurr, walkExcitLevel)
 
             if (tFillingStochRDMonFly) then
                 ! Set the average sign and occupation iteration which were
@@ -1256,7 +1282,7 @@ module FciMCParMod
             ! Sum in any energy contribution from the determinant, including 
             ! other parameters, such as excitlevel info.
             ! This is where the projected energy is calculated.
-!             call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, CurrentDets(:,j), HDiagCurr, 1.0_dp, tPairedReplicas, j)
+            call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, CurrentDets(:,j), HDiagCurr, 1.0_dp, tPairedReplicas, j)
 
             if (t_calc_double_occ) then 
                 inst_double_occ = inst_double_occ + & 
@@ -1267,6 +1293,7 @@ module FciMCParMod
                 call measure_double_occ_and_spin_diff(CurrentDets(:,j), &
                     DetCurr, SignCurr)
             end if
+
 
             ! If we're on the Hartree-Fock, and all singles and doubles are in
             ! the core space, then there will be no stochastic spawning from
@@ -1292,12 +1319,13 @@ module FciMCParMod
                 ! determinant. CurrentSign gives number of walkers. Multiply 
                 ! up by AvMCExcits if attempting multiple excitations from 
                 ! each walker (default 1.0_dp).
-                call decide_num_to_spawn(SignCurr(part_type), AvMCExcits, WalkersToSpawn)
+                call decide_num_to_spawn(SignCurr(part_type), HDiagCurr, AvMCExcits, WalkersToSpawn)
             
                 ! GUGA addition: only recalc b vector and stuff once for each
                 ! CSF -> set tNewDet once for each determinant 
                 ! which is set to false inside the guga excitaiton generator
                 tNewDet = .false.
+
 
                 do p = 1, WalkersToSpawn
 
@@ -1476,9 +1504,17 @@ module FciMCParMod
 
         call DirectAnnihilation (totWalkersNew, iter_data, .false.) !.false. for not single processor
 
+        ! The growth in the size of the occupied part of CurrentDets
+        ! this is important for the purpose of prone_walkers
+        detGrowth = TotWalkersNew - TotWalkers
+
         ! This indicates the number of determinants in the list + the number
         ! of holes that have been introduced due to annihilation.
         TotWalkers = TotWalkersNew
+
+        ! if we still have plenty of empty slots in the list, deactivate the decay
+        if(t_activate_decay .and. TotWalkers < 0.95_dp * real(MaxWalkersPart,dp)) &
+             t_activate_decay = .false.
 
         ! The superinitiators are now the same as they will be at the beginning of
         ! the next cycle (this flag is reset if they change)
@@ -1504,22 +1540,6 @@ module FciMCParMod
         if(tTrialWavefunction .and. tTrialShift)then
             call fix_trial_overlap(iter_data)
         end if
-
-        ! Sum in any energy contribution from the determinant, including 
-        ! other parameters, such as excitlevel info.
-        ! This is where the projected energy is calculated.
-        do j = 1, int(TotWalkers,sizeof_int)
-#ifndef __CMPLX 
-            if (tGUGA) call init_csf_information(CurrentDets(0:nifd,j))
-#endif
-            HDiagCurr = det_diagH(j)
-            call extract_bit_rep_avsign(rdm_definitions, CurrentDets(:,j), j, DetCurr, SignCurr, FlagsCurr, &
-                                        IterRDMStartCurr, AvSignCurr, fcimc_excit_gen_store)
-            walkExcitLevel = FindBitExcitLevel (iLutRef(:,1), CurrentDets(:,j), &
-                                                max_calc_ex_level)
-            call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, CurrentDets(:,j), HDiagCurr, 1.0_dp, tPairedReplicas, j)
-        end do
-
         call update_iter_data(iter_data)
 
         ! This routine will take the CurrentDets and search the array to find all single and double 

@@ -498,7 +498,6 @@ contains
                 end if
                 call add_state_to_space(ilut, ilut_list, space_size, nI)
             end do
-
         end if
 
     end subroutine generate_sing_doub_determinants
@@ -948,8 +947,7 @@ contains
             sendcounts = int(proc_space_sizes*(NIfTot+1),MPIArg)
             disps(0) = 0_MPIArg
             do i = 1, nProcessors-1
-!                 disps(i) = int(sum(proc_space_sizes(0:i-1))*(NIfTot+1),MPIArg)
-                disps(i) = disps(i-1) + int(proc_space_sizes(i-1)*(NIfTot+1), MPIArg)
+                disps(i) = int(disps(i-1) + proc_space_sizes(i-1)*(NIfTot+1),MPIArg)
             end do
         end if
 
@@ -1017,6 +1015,7 @@ contains
 
         n_pops_keep = target_space_size
 
+
         ! Quickly loop through and find the number of determinants with
         ! zero sign.
         nzero_dets = 0
@@ -1036,6 +1035,7 @@ contains
             length_this_proc = min( int(n_pops_keep, MPIArg), int(source_size-nzero_dets,MPIArg) )
         end if
 
+
         call MPIAllGather(length_this_proc, lengths, ierr)
         total_length = sum(lengths)
         if (total_length < n_pops_keep) then
@@ -1045,22 +1045,23 @@ contains
             n_pops_keep = total_length
         end if
 
+
         ! Allocate necessary arrays and log the memory used.
-        allocate(amps_this_proc(length_this_proc))
+        allocate(amps_this_proc(length_this_proc), stat = ierr)
         call LogMemAlloc("amps_this_proc", int(length_this_proc, sizeof_int), 8, t_r, TagA, ierr)
-        allocate(amps_all_procs(total_length))
+        allocate(amps_all_procs(total_length), stat = ierr)
         call LogMemAlloc("amps_all_procs", int(total_length, sizeof_int), 8, t_r, TagB, ierr)
-        allocate(indices_to_keep(n_pops_keep))
+        allocate(indices_to_keep(n_pops_keep), stat = ierr)
         call LogMemAlloc("indices_to_keep", n_pops_keep, sizeof_int, t_r, TagC, ierr)
-        allocate(largest_states(0:NIfTot, length_this_proc))
+        allocate(largest_states(0:NIfTot, length_this_proc), stat = ierr)
         call LogMemAlloc("largest_states", int(length_this_proc,sizeof_int)*(NIfTot+1), &
                          size_n_int, t_r, TagD, ierr)
 
         disps(0) = 0_MPIArg
         do i = 1, nProcessors-1
-!             disps(i) = sum(lengths(:i-1))
             disps(i) = disps(i-1) + lengths(i-1)
         end do
+        
 
         ! Return the most populated states in source on *this* processor.
         call return_most_populated_states(int(length_this_proc,sizeof_int), largest_states, &
@@ -1075,10 +1076,8 @@ contains
 
         ! Now we want to combine all the most populated states from each processor to find
         ! how many states to keep from each processor.
-
         ! Take the top length_this_proc states from each processor.
         call MPIAllGatherV(amps_this_proc(1:length_this_proc), amps_all_procs(1:total_length), lengths, disps)
-
         ! This routine returns indices_to_keep, which will store the indices in amps_all_procs
         ! of those amplitudes which are among the n_pops_keep largest (but not sorted).
         call return_largest_indices(n_pops_keep, int(total_length, sizeof_int), amps_all_procs, indices_to_keep)
@@ -1102,7 +1101,6 @@ contains
             end do
 
         end do
-
         ! Add the states to the ilut_list array.
         temp_ilut = 0_n_int
         do i = 1, n_states_this_proc
@@ -1110,7 +1108,6 @@ contains
             temp_ilut(0:NIfTot) = largest_states(0:NIfTot, length_this_proc-i+1)
             call add_state_to_space(temp_ilut, ilut_list, space_size)
         end do
-
         deallocate(amps_this_proc)
         call LogMemDealloc(t_r, TagA, ierr)
         deallocate(amps_all_procs)
@@ -1508,7 +1505,7 @@ contains
 
         use SystemData, only: nel
 
-        integer, intent(in) :: ispin
+        integer, value :: ispin
         integer, intent(inout) :: up_spins(nel/2+1)
         integer, intent(in) :: nsites, nup
         integer(n_int), intent(inout) :: ilut_list(0:,:)

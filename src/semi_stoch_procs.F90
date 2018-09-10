@@ -18,6 +18,7 @@ module semi_stoch_procs
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use Determinants, only: get_helement
     use timing_neci
+
     use unit_test_helpers, only: eig
 
     use bit_reps, only: encode_sign
@@ -31,6 +32,7 @@ module semi_stoch_procs
     use sparse_arrays, only: core_ht, SparseCoreHamilTags
     use sparse_arrays, only: SparseHamilTags, allocate_sparse_ham_row
     use unit_test_helpers, only: print_matrix
+    use adi_data, only: tSignedRepAv
 
     implicit none
 
@@ -582,7 +584,6 @@ contains
 
         counter(0) = 0
         do i = 1, nProcessors-1
-!             counter(i) = sum(num_states_procs(:i-1))
             counter(i) = counter(i-1) + num_states_procs(i-1)
         end do
 
@@ -743,7 +744,7 @@ contains
         ! on output, everything will be fine and ready for the FCIQMC calculation
         ! to start.
 
-        use bit_reps, only: set_flag, extract_sign, encode_sign
+        use bit_reps, only: set_flag, extract_sign
         use FciMCData, only: ll_node, indices_of_determ_states, HashIndex, nWalkerHashes
         use hash, only: clear_hash_table, FindWalkerHash
 
@@ -898,7 +899,11 @@ contains
 #ifdef __CMPLX
             sign_curr_real = sqrt(sum(abs(sign_curr(1::2)))**2 + sum(abs(sign_curr(2::2)))**2)
 #else
-            sign_curr_real = sum(real(abs(sign_curr),dp))
+            if(tSignedRepAv) then
+               sign_curr_real = real(abs(sum(sign_curr)),dp)
+            else
+               sign_curr_real = sum(real(abs(sign_curr),dp))
+            endif
 #endif
             if (present(norm)) norm = norm + (sign_curr_real**2.0)
 

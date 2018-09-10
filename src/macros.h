@@ -162,6 +162,7 @@ endif
 #define is_run_unnocc(signs, run) abs(signs(run))<1.0e-12_dp 
 #endif
 #define av_pop(signs) sum(abs((signs)))/(inum_runs)
+#define sgn_av_pop(signs) sum( (signs) ) /(inum_runs)
 
 #define overlap_index(runA, runB) (runA)+inum_runs*((runB)-1)
 

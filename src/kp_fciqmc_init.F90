@@ -710,7 +710,7 @@ contains
         real(dp) :: real_sign(lenof_sign_kp), TotPartsCheck(lenof_sign_kp)
         real(dp) :: nwalkers_target
         real(dp) :: norm, all_norm
-        real(sp) :: total_time_before, total_time_after
+        real(dp) :: total_time_before, total_time_after
         logical :: tCoreDet
         character(len=*), parameter :: t_r = "create_init_config"
 
@@ -1066,7 +1066,7 @@ contains
                 ! Copy determinant data across.
                 CurrentDets(0:NIfDBO, det_ind) = ilut(0:NIfDBO)
                 CurrentDets(NOffSgn:NOffSgn+lenof_sign_kp-1, det_ind) = int_sign
-                if (tUseFlags) CurrentDets(NOffFlag, det_ind) = 0_n_int
+                CurrentDets(NOffFlag, det_ind) = 0_n_int
                 TotParts = TotParts + abs(real_sign_1)
             end if
 

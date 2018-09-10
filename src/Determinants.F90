@@ -595,7 +595,6 @@ contains
         end if
     end function
 
-
     HElement_t(dp) function GetH0Element4(nI,HFDet)
         ! Returns the matrix element of the unperturbed Hamiltonian,
         ! which is just the sum of the eigenvalues of the occupied

@@ -94,6 +94,11 @@ MODULE FciMCData
     real(dp), allocatable :: NoAborted(:), AllNoAborted(:), AllNoAbortedOld(:)
     real(dp), allocatable :: NoRemoved(:), AllNoRemoved(:), AllNoRemovedOld(:)
     integer(int64), allocatable :: NoAddedInitiators(:), NoInitDets(:), NoNonInitDets(:)
+    integer :: NoInitsConflicts, NoSIInitsConflicts, AllNoInitsConflicts, AllNoSIInitsConflicts
+    integer :: NoConflicts
+    integer :: maxConflictExLvl
+    integer, allocatable :: ConflictExLvl(:)
+    real(dp) :: avSigns, AllAvSigns
     real(dp), allocatable :: NoInitWalk(:), NoNonInitWalk(:)
     integer(int64), allocatable :: NoExtraInitDoubs(:), InitRemoved(:)
 
@@ -131,7 +136,7 @@ MODULE FciMCData
       real(dp), allocatable :: norm_psi_squared(:)
       real(dp), allocatable :: norm_semistoch_squared(:)
       real(dp), allocatable :: all_norm_psi_squared(:)
-      real(dp), allocatable :: norm_psi(:)
+      real(dp), allocatable :: norm_psi(:), old_norm_psi(:)
       ! The norm of the wavefunction in just the semi-stochastic space.
       real(dp), allocatable :: norm_semistoch(:)
 
@@ -141,6 +146,11 @@ MODULE FciMCData
       type(ll_node), pointer :: HashIndex(:) 
       integer :: nWalkerHashes    ! The length of hash table.
       real(dp) :: HashLengthFrac
+
+      ! scaling of walker-units
+      integer :: sfTag
+      real(dp) :: sFAlpha, sFBeta
+      logical :: tEScaleWalkers
 
 !The following variables are calculated as per processor, but at the end of each update cycle, 
 !are combined to the root processor
@@ -268,7 +278,7 @@ MODULE FciMCData
                            SemiStoch_Init_Time, Trial_Init_Time, &
                            kp_generate_time, Stats_Comms_Time, &
                            subspace_hamil_time, exact_subspace_h_time, &
-                           subspace_spin_time
+                           subspace_spin_time, sign_correction_time
       
       ! Store the current value of S^2 between update cycles
       real(dp), allocatable :: curr_S2(:), curr_S2_init(:)
@@ -367,6 +377,10 @@ MODULE FciMCData
       INTEGER :: QuadDetsEst !Estimate of the number of symmetry allowed determinants at excit level 4
       INTEGER :: DoubDetsEst !Estimate of the number of symmetry allowed determinants at excit level 2
       logical :: tReplicaReferencesDiffer
+      
+      ! This data is for reducing the occupied determinants drastically when hitting 
+      ! the memory limit
+      integer :: n_prone_dets
 
       integer, allocatable :: ProjEDet(:, :)
       integer(n_int), allocatable :: HighestPopDet(:,:), iLutRef(:, :)

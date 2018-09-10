@@ -47,6 +47,7 @@ contains
 
         integer :: i, ierr, num_states_on_proc, con_space_size_old
         integer :: excit, tot_con_space_size
+        integer :: con_counts(0:nProcessors-1)
         integer :: min_elem, max_elem, num_elem
         integer(MPIArg) :: trial_counts(0:nProcessors-1), trial_displs(0:nProcessors-1)
         integer(MPIArg) :: con_sendcounts(0:nProcessors-1), con_recvcounts(0:nProcessors-1)
@@ -220,11 +221,16 @@ contains
 !        call remove_list1_states_from_list2(SpawnedParts, con_space, tot_trial_space_size, con_space_size)
 
         call MPISumAll(con_space_size, tot_con_space_size)
+        ! get the sizes of the connected/trial space on the other procs, for 
+        ! estimating the max size of the buffer
+        call MPIAllGather(con_space_size,con_counts,ierr)
         ! allocate buffer for communication of con_ht
         ! it is normally also allocated upon initialization, so deallocate
         ! the dummy version
         if(allocated(con_send_buf)) deallocate(con_send_buf)
-        allocate(con_send_buf(0:NConEntry,tot_con_space_size))
+        ! the most we can communicate at once is the full size of the largest
+        ! trial/connected space on a single proc
+        allocate(con_send_buf(0:NConEntry,max(maxval(con_counts),maxval(trial_counts))))
 
         write(6,'("Total size of connected space:",1X,i10)') tot_con_space_size
         write(6,'("Size of connected space on this processor:",1X,i10)') con_space_size
@@ -668,8 +674,12 @@ contains
             min_elem = 1
             max_elem = num_elem
         else
-            min_elem = sum(num_elem_all_procs(0:iProcIndex-1)) + 1
-            max_elem = sum(num_elem_all_procs(0:iProcIndex))
+           min_elem = 0
+           do i = 0, iProcIndex-1
+              min_elem = min_elem + num_elem_all_procs(i)
+           end do
+           max_elem = min_elem + num_elem_all_procs(iProcIndex)
+           min_elem = min_elem + 1
         end if
 
     end subroutine assign_elements_on_procs

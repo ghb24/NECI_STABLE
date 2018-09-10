@@ -17,7 +17,11 @@ MODULE PopsfileMod
 
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt, get_bit_excitmat
+
+    use procedure_pointers, only: scaleFunction
+
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
+
     use hash, only: FindWalkerHash, clear_hash_table, &
                     fill_in_hash_table
     use Determinants, only: get_helement, write_det
@@ -41,7 +45,7 @@ MODULE PopsfileMod
     use global_det_data, only: global_determinant_data, init_global_det_data, set_det_diagH
     use fcimc_helper, only: update_run_reference, calc_inst_proje, TestInitiator
     use replica_data, only: set_initial_global_data
-    use load_balance, only: pops_init_balance_blocks
+    use load_balance, only: pops_init_balance_blocks, get_diagonal_matel
     use load_balance_calcnodes, only: tLoadBalanceBlocks, balance_blocks
     use hdf5_popsfile, only: write_popsfile_hdf5, read_popsfile_hdf5, &
                              add_pops_norm_contrib
@@ -270,14 +274,13 @@ contains
         end if
 
         ! Clear all deterministic and trial flags so that they can be changed later.
-        if (tUseFlags) then
-            do i = 1, CurrWalkers
-                call clr_flag(Dets(:,i), flag_deterministic)
-                call clr_flag(Dets(:,i), flag_determ_parent)
-                call clr_flag(Dets(:,i), flag_trial)
-                call clr_flag(Dets(:,i), flag_connected)
-            end do
-        end if
+        do i = 1, CurrWalkers
+           call clr_flag(Dets(:,i), flag_deterministic)
+           call clr_flag(Dets(:,i), flag_determ_parent)
+           call clr_flag(Dets(:,i), flag_trial)
+           call clr_flag(Dets(:,i), flag_connected)
+        end do
+
 
         call halt_timer(read_timer)
         call set_timer(process_timer)
@@ -745,37 +748,19 @@ r_loop: do while(.not.tStoreDet)
             ! All basis parameters match --> Read in directly.
             if (tRealPOPSfile) then
                 if (BinPops) then
-                    if (tUseFlags) then
-                        read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), sgn,&
-                                                 flg_read
-                    else
-                        read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), sgn
-                    end if
+                   read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), sgn,&
+                        flg_read
                 else
-                    if (tUseFlags) then
-                        read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
-                                                   sgn, flg_read
-                    else
-                        read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), sgn
-                    end if
+                   read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
+                        sgn, flg_read
                 end if
             else
                 if (BinPops) then
-                    if (tUseFlags) then
-                        read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), &
-                                                 sgn_int, flg_read
-                    else
-                        read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), &
-                                                 sgn_int
-                    end if
+                   read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), &
+                        sgn_int, flg_read
                 else
-                    if (tUseFlags) then
-                        read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
-                                                   sgn_int, flg_read
-                    else
-                       read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
-                                                   sgn_int
-                    end if
+                   read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
+                        sgn_int, flg_read
                 end if
 
                 sgn = sgn_int
@@ -801,7 +786,7 @@ r_loop: do while(.not.tStoreDet)
             flg = int(flg_read,sizeof_int)
 
             call encode_sign (WalkerTemp, new_sgn)
-            if (tUseFlags) call encode_flags (WalkerTemp, flg)
+            call encode_flags (WalkerTemp, flg)
 
             if((inum_runs.eq.2).and.(PopNifSgn.eq.1)) then
                 if (test_flag(WalkerTemp, get_initiator_flag(1))) then
@@ -1140,7 +1125,7 @@ r_loop: do while(.not.tStoreDet)
         ! allowed to differ.
 !        if(PopNIfFlag.ne.NIfFlag) call stop_all(this_routine,"Popsfile NIfFlag and calculated NIfFlag not same")
         if (inum_runs.eq.1 .and. .not. t_real_time_fciqmc) then
-            if (tUseFlags .and. NIfFlag == 0) then
+            if (NIfFlag == 0) then
                 if (PopNIFTot /= NIfTot + 1) &
                     call stop_all(this_routine, "Popsfile NIfTot and &
                                  &calculated NIfTot don't match.")
@@ -2033,7 +2018,7 @@ r_loop: do while(.not.tStoreDet)
         ! the popsfile is one unit longer than in memory.
         pops_niftot = NIfTot
         pops_nifflag = NIfFlag
-        if (tUseFlags .and. NIfFlag == 0) then
+        if (NIfFlag == 0) then
             pops_niftot = pops_niftot + 1
             pops_nifflag = 1
         end if
@@ -2162,11 +2147,7 @@ r_loop: do while(.not.tStoreDet)
                 ! All write statements MUST be on the same line, or we end
                 ! up with multiple records.
                 ! TODO: For POPSFILE V5 --> stream output.
-                if (tUseFlags) then
                     write(iunit) det(0:NIfD), real_sgn, int(flg, n_int)
-                else
-                    write(iunit) det(0:NIfD), real_sgn
-                end if
             else
                 do k = 0, NIfDBO
                     write(iunit, '(i24)', advance='no') det(k)
@@ -2174,7 +2155,7 @@ r_loop: do while(.not.tStoreDet)
                 do k = 1, lenof_sign
                     write(iunit, '(f30.8)', advance='no') real_sgn(k)
                 end do
-                if (tUseFlags) write(iunit, '(i24)', advance='no') flg
+                write(iunit, '(i24)', advance='no') flg
                 write(iunit, *)
             end if
 
@@ -2236,6 +2217,13 @@ r_loop: do while(.not.tStoreDet)
 
                   write(iunit_2, format_string, advance='no') real_sgn, ''
 
+                  ! If energy-scaled walkers are used, also print the scaled number of
+                  ! walkers
+                  if(tEScaleWalkers) then
+                     write(iunit_2, '(f20.10,a20)', advance='no') &
+                          real_sgn(1) / scaleFunction(get_diagonal_matel(nI,det) - Hii) , ''
+                  endif
+                  
                   call writebitdet (iunit_2, det, .false.)
                   if (t_non_hermitian) then
                       write(iunit_2,'(i5,i5,3f20.10,4i5)') &
@@ -3152,7 +3140,6 @@ r_loop: do while(.not.tStoreDet)
         endif
 
     END SUBROUTINE ReadFromPopsfileOnly
-
 
     subroutine write_pops_norm()
 

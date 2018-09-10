@@ -421,7 +421,7 @@ contains
 #if defined __REALTIME
         integer, parameter :: real_arr_size = 2000
         integer, parameter :: hel_arr_size = 200
-        integer, parameter :: NoArrs = 50
+        integer, parameter :: NoArrs = 53
 #else
         integer, parameter :: real_arr_size = 1000
         integer, parameter :: hel_arr_size = 100
@@ -511,25 +511,30 @@ contains
             sizes(33) = nBasis/2
         end if
 
+        ! replica-initiator statistics
+        sizes(34) = 1
+        sizes(35) = 1
+        sizes(36) = 1
+
         ! RT_M_Merge: Added real-time data
 #ifdef __REALTIME
-        sizes(34) = size(Annihilated_1)
-        sizes(35) = size(NoAddedInitiators_1)
-        sizes(36) = size(NoInitDets_1)
-        sizes(37) = size(NoNonInitDets_1)
-        sizes(38) = size(InitRemoved_1)
-        sizes(39) = size(NoAborted_1)
-        sizes(40) = size(NoRemoved_1)
-        sizes(41) = size(NoNonInitWalk_1)
-        sizes(42) = size(NoInitWalk_1)
-        sizes(43) = size(bloom_count)
-        sizes(44) = size(SumWalkersCyc_1)
-        sizes(45) = 1 ! nspawned_1
-        sizes(46) = size(TotParts_1)
-        sizes(47) = 1 ! corespaceWalkers
-        sizes(48) = size(SpawnFromSing_1)
-        sizes(49) = size(iter_data_fciqmc%update_growth)
-        sizes(50) = size(popSnapShot)
+        sizes(37) = size(Annihilated_1)
+        sizes(38) = size(NoAddedInitiators_1)
+        sizes(39) = size(NoInitDets_1)
+        sizes(40) = size(NoNonInitDets_1)
+        sizes(41) = size(InitRemoved_1)
+        sizes(42) = size(NoAborted_1)
+        sizes(43) = size(NoRemoved_1)
+        sizes(44) = size(NoNonInitWalk_1)
+        sizes(45) = size(NoInitWalk_1)
+        sizes(46) = size(bloom_count)
+        sizes(47) = size(SumWalkersCyc_1)
+        sizes(48) = 1 ! nspawned_1
+        sizes(49) = size(TotParts_1)
+        sizes(50) = 1 ! corespaceWalkers
+        sizes(51) = size(SpawnFromSing_1)
+        sizes(52) = size(iter_data_fciqmc%update_growth)
+        sizes(53) = size(popSnapShot)
 #endif
 
         if (sum(sizes(1:NoArrs)) > real_arr_size) call stop_all(t_r, &
@@ -569,6 +574,7 @@ contains
 
         if(tTruncInitiator) &
              low = upp + 1; upp = low + sizes(28) -1; send_arr(low:upp) = doubleSpawns;
+
         low = upp + 1; upp = low + sizes(29) - 1; send_arr(low:upp) = nCoherentDoubles
         low = upp + 1; upp = low + sizes(30) - 1; send_arr(low:upp) = nIncoherentDets
         low = upp + 1; upp = low + sizes(31) - 1; send_arr(low:upp) = nConnection
@@ -578,26 +584,30 @@ contains
             low = upp + 1; upp = low + sizes(33) - 1; send_arr(low:upp) = inst_spatial_doub_occ
         end if
 
-#ifdef __REALTIME
-        low = upp + 1; upp = low + sizes(34) - 1; send_arr(low:upp) = Annihilated_1;
-        low = upp + 1; upp = low + sizes(35) - 1; send_arr(low:upp) = NoAddedInitiators_1;
-        low = upp + 1; upp = low + sizes(36) - 1; send_arr(low:upp) = NoInitDets_1;
-        low = upp + 1; upp = low + sizes(37) - 1; send_arr(low:upp) = NoNonInitDets_1;
-        low = upp + 1; upp = low + sizes(38) - 1; send_arr(low:upp) = InitRemoved_1;
-        low = upp + 1; upp = low + sizes(39) - 1; send_arr(low:upp) = NoAborted_1;
-        low = upp + 1; upp = low + sizes(40) - 1; send_arr(low:upp) = NoRemoved_1;
-        low = upp + 1; upp = low + sizes(41) - 1; send_arr(low:upp) = NoNonInitWalk_1;
-        low = upp + 1; upp = low + sizes(42) - 1; send_arr(low:upp) = NoInitWalk_1;
-        low = upp + 1; upp = low + sizes(43) - 1; send_arr(low:upp) = bloom_count_1;
-        low = upp + 1; upp = low + sizes(44) - 1; send_arr(low:upp) = SumWalkersCyc_1;
-        low = upp + 1; upp = low + sizes(45) - 1; send_arr(low:upp) = nspawned_1;
-        low = upp + 1; upp = low + sizes(46) - 1; send_arr(low:upp) = TotParts_1;
-        low = upp + 1; upp = low + sizes(47) - 1; send_arr(low:upp) = corespaceWalkers;
-        low = upp + 1; upp = low + sizes(48) - 1; send_arr(low:upp) = SpawnFromSing_1;
-        low = upp + 1; upp = low + sizes(49) - 1; send_arr(low:upp) = iter_data_fciqmc%update_growth;
-        low = upp + 1; upp = low + sizes(50) - 1; send_arr(low:upp) = popSnapShot;
-#endif
+        low = upp + 1; upp = low + sizes(34) - 1; send_arr(low:upp) = NoSIInitsConflicts;
+        low = upp + 1; upp = low + sizes(35) - 1; send_arr(low:upp) = NoInitsConflicts;
+        low = upp + 1; upp = low + sizes(36) - 1; send_arr(low:upp) = avSigns;
 
+#ifdef __REALTIME
+        low = upp + 1; upp = low + sizes(37) - 1; send_arr(low:upp) = Annihilated_1;
+        low = upp + 1; upp = low + sizes(38) - 1; send_arr(low:upp) = NoAddedInitiators_1;
+        low = upp + 1; upp = low + sizes(39) - 1; send_arr(low:upp) = NoInitDets_1;
+        low = upp + 1; upp = low + sizes(40) - 1; send_arr(low:upp) = NoNonInitDets_1;
+        low = upp + 1; upp = low + sizes(41) - 1; send_arr(low:upp) = InitRemoved_1;
+        low = upp + 1; upp = low + sizes(42) - 1; send_arr(low:upp) = NoAborted_1;
+        low = upp + 1; upp = low + sizes(43) - 1; send_arr(low:upp) = NoRemoved_1;
+        low = upp + 1; upp = low + sizes(44) - 1; send_arr(low:upp) = NoNonInitWalk_1;
+        low = upp + 1; upp = low + sizes(45) - 1; send_arr(low:upp) = NoInitWalk_1;
+        low = upp + 1; upp = low + sizes(46) - 1; send_arr(low:upp) = bloom_count_1;
+        low = upp + 1; upp = low + sizes(47) - 1; send_arr(low:upp) = SumWalkersCyc_1;
+        low = upp + 1; upp = low + sizes(48) - 1; send_arr(low:upp) = nspawned_1;
+        low = upp + 1; upp = low + sizes(49) - 1; send_arr(low:upp) = TotParts_1;
+        low = upp + 1; upp = low + sizes(50) - 1; send_arr(low:upp) = corespaceWalkers;
+        low = upp + 1; upp = low + sizes(51) - 1; send_arr(low:upp) = SpawnFromSing_1;
+        low = upp + 1; upp = low + sizes(52) - 1; send_arr(low:upp) = iter_data_fciqmc%update_growth;
+        low = upp + 1; upp = low + sizes(53) - 1; send_arr(low:upp) = popSnapShot;
+#endif
+        
         ! Perform the communication.
         call MPISumAll (send_arr(1:upp), recv_arr(1:upp))
 
@@ -641,6 +651,10 @@ contains
            low = upp + 1; upp = low + sizes(28) - 1; allDoubleSpawns = nint(recv_arr(low));
            doubleSpawns = 0
         endif
+
+!         low = upp + 1; upp = low + sizes(29) - 1; AllIncoherentDets = recv_arr(low);
+!         low = upp + 1; upp = low + sizes(30) - 1; AllConnection = recv_arr(low);
+
         low = upp + 1; upp = low + sizes(29) - 1; AllCoherentDoubles = recv_arr(low);
         low = upp + 1; upp = low + sizes(30) - 1; AllIncoherentDets = recv_arr(low);
         low = upp + 1; upp = low + sizes(31) - 1; AllConnection = recv_arr(low);
@@ -650,24 +664,29 @@ contains
             low = upp + 1; upp = low + sizes(33) - 1; all_inst_spatial_doub_occ = recv_arr(low:upp)
         end if
 
+        ! replica-averaged initiators
+        low = upp + 1; upp = low + sizes(34) - 1; AllNoSIInitsConflicts = recv_arr(low);
+        low = upp + 1; upp = low + sizes(35) - 1; AllNoInitsConflicts = recv_arr(low);
+        low = upp + 1; upp = low + sizes(36) - 1; AllAvSigns = recv_arr(low);
+
 #ifdef __REALTIME
-        low = upp + 1; upp = low + sizes(34) - 1; AllAnnihilated_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(35) - 1; AllNoAddedInitiators_1 = nint(recv_arr(low:upp), int64);
-        low = upp + 1; upp = low + sizes(36) - 1; AllNoInitDets_1 = nint(recv_arr(low:upp), int64);
-        low = upp + 1; upp = low + sizes(37) - 1; AllNoNonInitDets_1 = nint(recv_arr(low:upp), int64);
-        low = upp + 1; upp = low + sizes(38) - 1; AllInitRemoved_1 = nint(recv_arr(low:upp), int64);
-        low = upp + 1; upp = low + sizes(39) - 1; AllNoAborted_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(40) - 1; AllNoRemoved_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(41) - 1; AllNoNonInitWalk_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(42) - 1; AllNoInitWalk_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(43) - 1; all_bloom_count_1 = nint(recv_arr(low:upp));
-        low = upp + 1; upp = low + sizes(44) - 1; AllSumWalkersCyc_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(45) - 1; nspawned_tot_1 = nint(recv_arr(low));
-        low = upp + 1; upp = low + sizes(46) - 1; AllTotParts_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(47) - 1; allCorespaceWalkers = nint(recv_arr(low), int64);
-        low = upp + 1; upp = low + sizes(48) - 1; AllSpawnFromSing_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(49) - 1; iter_data_fciqmc%update_growth_tot = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(50) - 1; allPopSnapShot = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(37) - 1; AllAnnihilated_1 = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(38) - 1; AllNoAddedInitiators_1 = nint(recv_arr(low:upp), int64);
+        low = upp + 1; upp = low + sizes(39) - 1; AllNoInitDets_1 = nint(recv_arr(low:upp), int64);
+        low = upp + 1; upp = low + sizes(40) - 1; AllNoNonInitDets_1 = nint(recv_arr(low:upp), int64);
+        low = upp + 1; upp = low + sizes(41) - 1; AllInitRemoved_1 = nint(recv_arr(low:upp), int64);
+        low = upp + 1; upp = low + sizes(42) - 1; AllNoAborted_1 = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(43) - 1; AllNoRemoved_1 = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(44) - 1; AllNoNonInitWalk_1 = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(45) - 1; AllNoInitWalk_1 = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(46) - 1; all_bloom_count_1 = nint(recv_arr(low:upp));
+        low = upp + 1; upp = low + sizes(47) - 1; AllSumWalkersCyc_1 = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(48) - 1; nspawned_tot_1 = nint(recv_arr(low));
+        low = upp + 1; upp = low + sizes(49) - 1; AllTotParts_1 = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(50) - 1; allCorespaceWalkers = nint(recv_arr(low), int64);
+        low = upp + 1; upp = low + sizes(51) - 1; AllSpawnFromSing_1 = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(52) - 1; iter_data_fciqmc%update_growth_tot = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(53) - 1; allPopSnapShot = recv_arr(low:upp);
 #endif
 
         ! Communicate HElement_t variables:
@@ -702,7 +721,9 @@ contains
             low = upp + 1; upp = low + sizes(8) - 1; send_arr_helem(low:upp) = trial_num_inst;
             low = upp + 1; upp = low + sizes(9) - 1; send_arr_helem(low:upp) = trial_denom_inst;
         end if
-        if (tEN2) low = upp + 1; upp = low + sizes(10) - 1; send_arr_helem(low) = en_pert_main%ndets;
+        if (tEN2) then
+           low = upp + 1; upp = low + sizes(10) - 1; send_arr_helem(low) = en_pert_main%ndets;
+        endif
 
         call MPISumAll (send_arr_helem(1:upp), recv_arr_helem(1:upp))
 
@@ -719,7 +740,9 @@ contains
             low = upp + 1; upp = low + sizes(8) - 1; tot_trial_num_inst = recv_arr_helem(low:upp);
             low = upp + 1; upp = low + sizes(9) - 1; tot_trial_denom_inst = recv_arr_helem(low:upp);
         end if
-        if (tEN2) low = upp + 1; upp = low + sizes(10) - 1; en_pert_main%ndets_all = recv_arr_helem(low);
+        if (tEN2) then
+           low = upp + 1; upp = low + sizes(10) - 1; en_pert_main%ndets_all = recv_arr_helem(low);
+        endif
 
         ! Optionally communicate EXLEVEL_WNorm.
         if (tLogEXLEVELStats) then
@@ -841,7 +864,7 @@ contains
            ! as each RK step has to be monitored separately
 
            ! Write this 'ASSERTROOT' out explicitly to avoid line lengths problems
-           if ((iProcIndex == root) .and. .not. tSpinProject .and. &
+           if ((iProcIndex == root) .and. .not. tSpinProject .and. .not. tTrialShift .and. &
                 all(abs(iter_data%update_growth_tot-(AllTotParts-AllTotPartsOld)) > 1.0e-5)) then
               write(iout,*) "update_growth: ",iter_data%update_growth_tot
               write(iout,*) "AllTotParts: ",AllTotParts
@@ -857,7 +880,7 @@ contains
 
     subroutine update_shift (iter_data)
 
-        use CalcData, only: tInstGrowthRate
+        use CalcData, only: tInstGrowthRate, tL2GrowRate
      
         type(fcimc_iter_data), intent(in) :: iter_data
         integer(int64) :: tot_walkers
@@ -875,7 +898,13 @@ contains
         ! collate_iter_data --> The values used are only valid on Root
         if (iProcIndex == Root) then
 
-           if(tInstGrowthRate) then
+           if(tL2GrowRate) then 
+              ! use the L2 norm to determine the growrate
+              do run = 1, inum_runs
+                 AllGrowRate(run) = norm_psi(run) / old_norm_psi(run)
+              end do
+
+           else if(tInstGrowthRate) then
 
               ! Calculate the growth rate simply using the two points at
               ! the beginning and the end of the update cycle. 
@@ -1169,25 +1198,6 @@ contains
 
                  ! Calculate the projected energy.
 
-!<<<<<<< HEAD
-                ! did khaldoon move this part?
-!                  if(tFixedN0)then
-!                      !When reaching target N0, set flag to keep the population of reference det fixed.
-!                      if(.not. tSkipRef(run) .and. AllHFCyc(run)>=N0_Target) tSkipRef(run) = .True.
-!  
-!                      if(tSkipRef(run))then
-!                          !Use the projected energy as the shift to fix the
-!                          !population of the reference det and thus reduce the
-!                          !fluctuations of the projected energy.
-!                          DiagSft(run) = (AllENumCyc(run)) / (AllHFCyc(run))+proje_ref_energy_offsets(run)
-!                      else
-!                          !Keep shift equal to input till target reference population is reached.
-!                          DiagSft(run) = InputDiagSft(run)
-!                      end if
-!  
-!                  end if
-!>>>>>>>>>>>>> check that!
-
                 ! [W.D.21.3.2018:]
                 ! somehow this got changed through the merging..
 #ifdef __CMPLX 
@@ -1311,6 +1321,8 @@ contains
         iter_data_fciqmc%update_iters = 0
         ! do i need old det numner and aborted number? 
 #endif
+        ! and the norm
+        old_norm_psi = norm_psi
 
         ! Reset the counters
         iter_data%update_growth = 0.0_dp
@@ -1329,6 +1341,8 @@ contains
                 call rezero_spin_diff()
             end if
         end if
+        ! reset the number of conflicts
+        ConflictExLvl = 0
 
     end subroutine rezero_iter_stats_update_cycle
 
@@ -1428,7 +1442,7 @@ contains
 
 #ifdef __CMPLX
         call stop_all("fix_trial_overlap", "Complex wavefunction is not supported yet!")
-#endif
+#else
 
         !Calculate the new overlap
         new_trial_denom = 0.0
@@ -1529,6 +1543,7 @@ contains
             end if
         end if
 
+#endif
     end subroutine fix_trial_overlap
 
 end module fcimc_iter_utils

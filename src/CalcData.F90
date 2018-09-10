@@ -107,11 +107,13 @@ LOGICAL :: TUnbiasPGeninProjE, tCheckHighestPopOnce
 LOGICAL :: tCheckHighestPop,tRestartHighPop,tChangeProjEDet
 LOGICAL :: tRotoAnnihil,tSpawnAsDet
 LOGICAL :: tTruncCAS ! Truncation of the FCIMC excitation space by a CAS
-logical :: tTruncInitiator, tAddtoInitiator, tInitCoherentRule
+logical :: tTruncInitiator, tAddtoInitiator, tInitCoherentRule, tGlobalInitFlag
+logical :: tSTDInits
 logical :: tEN2, tEN2Init, tEN2Truncated, tEN2Started
 LOGICAL :: tSeniorInitiators !If a det. has lived long enough (called a senior det.), it is added to the initiator space.
 LOGICAL :: tInitIncDoubs,tWalkContGrow,tAnnihilatebyRange
 logical :: tReadPopsRestart, tReadPopsChangeRef, tInstGrowthRate
+logical :: tL2GrowRate
 logical :: tAllRealCoeff, tUseRealCoeffs
 logical :: tRealSpawnCutoff
 logical :: tRealCoeffByExcitLevel
@@ -153,7 +155,7 @@ integer :: iPopsFileNoRead, iPopsFileNoWrite,iRestartWalkNum
 real(dp) :: iWeightPopRead
 real(dp) :: MaxWalkerBloom   !Max number of walkers allowed in one bloom before reducing tau
 INTEGER(int64) :: HFPopThresh
-real(dp) :: InitWalkers, maxnoathf, InitiatorWalkNo
+real(dp) :: InitWalkers, maxnoathf, InitiatorWalkNo, ErrThresh
 real(dp) :: SeniorityAge !A threshold on the life time of a determinat (measured in its halftime) to become a senior determinant.
 integer :: multiSpawnThreshold
 
@@ -291,6 +293,7 @@ integer :: pops_norm_unit
 logical :: tOrthogonaliseReplicas, tReplicaSingleDetStart
 logical :: tOrthogonaliseSymmetric
 integer :: orthogonalise_iter
+logical :: tAVReps, tReplicaCoherentInits, tRCCheck
 ! Information on a trial space to create trial excited states with.
 type(subspace_in) :: init_trial_in
 
@@ -323,7 +326,7 @@ integer, allocatable :: trial_init_reorder(:)
 logical :: tPrintReplicaOverlaps = .true.
 
 ! Keep track of when the calculation began (globally)
-real(sp) :: s_global_start
+real(dp) :: s_global_start
 
 ! Use continuous time FCIQMC
 logical :: tContTimeFCIMC, tContTimeFull
@@ -414,6 +417,12 @@ logical :: t_test_hist_tau = .false.
 ! integer :: cnt_sing_hist, cnt_doub_hist, cnt_opp_hist, cnt_para_hist
 ! 
 ! logical :: enough_sing_hist, enough_doub_hist, enough_par_hist, enough_opp_hist
+
+! and i also need to truncate the spawns maybe: 
+logical :: t_truncate_spawns = .false. 
+logical :: t_truncate_unocc
+logical :: t_prone_walkers, t_activate_decay
+real(dp) :: n_truncate_spawns = 2.0_dp
 
 ! integer :: above_max_singles = 0, above_max_para = 0, above_max_anti = 0, &
 !            above_max_doubles = 0
@@ -510,10 +519,6 @@ logical :: enough_sing_hist, enough_doub_hist, enough_par_hist, enough_opp_hist
 ! determine what we should do with the spawning events above that .. 
 real(dp) :: int_ratio_singles, int_ratio_para, int_ratio_anti, int_ratio_doubles
 
-! also need an logical and real to try out the truncation of the badly 
-! behaving excitations 
-logical :: t_truncate_spawns = .false. 
-real(dp) :: n_truncate_spawns = 1.0_dp
 
 ! introduce a new logical to decide if we want to calculate matrix elements 
 ! by applying the full hamiltonian(the old way) or use the new guga matrix 

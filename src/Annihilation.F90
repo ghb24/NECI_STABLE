@@ -6,7 +6,8 @@ module AnnihilationMod
     use CalcData, only:   tTruncInitiator, OccupiedThresh, tSemiStochastic, &
                           tTrialWavefunction, tKP_FCIQMC, tContTimeFCIMC, &
                           tContTimeFull, InitiatorWalkNo, tau, tEN2, tEN2Init, &
-                          tEN2Started, tEN2Truncated, tInitCoherentRule
+                          tEN2Started, tEN2Truncated, tInitCoherentRule, t_truncate_unocc, &
+                          n_truncate_spawns, t_prone_walkers
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -25,13 +26,14 @@ module AnnihilationMod
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData, only: tNoNewRDMContrib
     use load_balance, only: DetermineDetNode, AddNewHashDet, &
-                            CalcHashTableStats
+                            CalcHashTableStats, get_diagonal_matel
     use searching
     use hash
     use real_time_data, only: NoAborted_1, Annihilated_1, runge_kutta_step, &
                               nspawned_1, t_real_time_fciqmc
 
 
+    use procedure_pointers, only: scaleFunction
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement
     use rdm_data, only: rdm_estimates, en_pert_main
@@ -516,6 +518,9 @@ module AnnihilationMod
             end if
         end if
 
+        ! set the multi-spawn flag if there has been more than one spawn
+        if(abs(cum_sgn) > eps .and. abs(new_sgn) > eps) call set_flag(cum_det, flag_multi_spawn)
+
         sgn_prod = cum_sgn * new_sgn
 
         ! Update annihilation statistics.
@@ -605,11 +610,11 @@ module AnnihilationMod
         integer :: PartInd, i, j, PartIndex, m, run
         real(dp), dimension(lenof_sign) :: CurrentSign, SpawnedSign, SignTemp
         real(dp), dimension(lenof_sign) :: TempCurrentSign, SignProd
-        real(dp) :: pRemove, r
-        integer :: ExcitLevel, DetHash, nJ(nel), ratio(lenof_sign)
+        real(dp) :: ScaledOccupiedThresh, diagH, scFVal
+        integer :: ExcitLevel, DetHash, nJ(nel)
         logical :: tSuccess, tSuc, tDetermState
         logical :: abort(lenof_sign)
-        logical :: tTruncSpawn
+        logical :: tTruncSpawn, t_truncate_unocc_this_det
 
         ! Only node roots to do this.
         if (.not. bNodeRoot) return
@@ -656,8 +661,11 @@ module AnnihilationMod
                     call encode_sign(SpawnedParts(:,i), null_part)
 
                     ! If the sign changed, the adi check has to be redone
-                    if(tUseFlags .and. any(real(SignProd,dp) < 0.0_dp)) &
+                    if(any(real(SignProd,dp) < 0.0_dp)) &
                          call clr_flag(CurrentDets(:,PartInd), flag_adi_checked)
+
+                    ! this det is not prone anymore
+                    if(t_prone_walkers) call clr_flag(CurrentDets(:,PartInd), flag_prone)
 
                     do j = 1, lenof_sign
                         run = part_type_to_run(j)
@@ -793,6 +801,19 @@ module AnnihilationMod
                 
             if ( (.not.tSuccess) .or. ((tSuccess .and. IsUnoccDet(CurrentSign) .and. (.not. tDetermState))) ) then
 
+               ! the diagonal element of H is to be stored anyway
+               diagH = get_diagonal_matel(nJ, SpawnedParts(:,i))
+               if(tEScaleWalkers) then
+                  ! evaluate the scaling function
+                  scFVal = scaleFunction(diagH - Hii)
+               else
+                  scFVal = 1.0_dp
+               endif
+               ScaledOccupiedThresh = scFVal * OccupiedThresh
+
+               t_truncate_unocc_this_det = t_truncate_unocc .and. .not. &
+                    test_flag(SpawnedParts(:,i), flag_multi_spawn)
+
                 ! Determinant in newly spawned list is not found in CurrentDets.
                 ! Usually this would mean the walkers just stay in this list and
                 ! get merged later - but in this case we want to check where the
@@ -816,7 +837,6 @@ module AnnihilationMod
                     end if
 
                     do j = 1, lenof_sign
-                        run = part_type_to_run(j)
 
                         if (abort(j)) then
 
@@ -833,7 +853,7 @@ module AnnihilationMod
                                 NoAborted(j) = NoAborted(j) + abs(SignTemp(j))
                             end if
 #else
-                            NoAborted(run) = NoAborted(run) + abs(SignTemp(j))
+                            NoAborted(j) = NoAborted(j) + abs(SignTemp(j))
 #endif
                             iter_data%naborted(j) = iter_data%naborted(j) + abs(SignTemp(j))
 
@@ -846,57 +866,25 @@ module AnnihilationMod
                             call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
 
                         end if
-                        
-                        ! this below, probably has to be adjusted for the 
-                        ! real-time in the future too! if we use non-integer
-                        ! occupations.. todo
 
-                        ! RT_M_Merge: Initiators were treated separately here which is disabled
-                        ! in the main build -> adjusted to main. Not sure what tEnhanceRemainder does, but
-                        ! it is deprecated, so i removed it
-                            ! Either the determinant has never been an initiator,
-                            ! or we want to treat them all the same, as before.
-                        
-                        if( ( (.not. is_run_unnocc(SignTemp, run)) .and. &
-                             (mag_of_run(SignTemp, run) < OccupiedThresh) ) ) then
-                           ! We remove this walker with probability 1-RealSignTemp
+                        ! truncate to a minimum population given by the scale factor
+                        call applySpawnTruncation(iter_data, SignTemp, i, j, scFVal, &
+                             ScaledOccupiedThresh, t_truncate_unocc_this_det)
 
-                           pRemove=(OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
-                           r = genrand_real2_dSFMT ()
-                           if (pRemove > r) then
-                              ! Remove this walker.
-                              NoRemoved(run) = NoRemoved(run) + sum(abs(SignTemp( &
-                                   min_part_type(run):max_part_type(run))))
-                              !Annihilated = Annihilated + abs(SignTemp(j))
-                              !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
-                              do m=min_part_type(run),max_part_type(run)
-                                 iter_data%nremoved(m) = iter_data%nremoved(m) &
-                                      + abs(SignTemp(m))
-                                 SignTemp(m) = 0.0_dp
-                                 call nullify_ilut_part (SpawnedParts(:,i), m)
-                              enddo
-                           else !if (tEnhanceRemainder) then
-                              do m=min_part_type(run),max_part_type(run)
-                                 ! do not change the phase of the population
-                                 ratio(m) = abs(SignTemp(m))/mag_of_run(SignTemp,run)
-                                 iter_data%nborn(m) = iter_data%nborn(m) &
-                                      + OccupiedThresh*ratio(m) - abs(SignTemp(m))
-                                 NoBorn(run) = NoBorn(run) + OccupiedThresh*ratio(m) &
-                                      - abs(CurrentSign(m))
-                                 SignTemp(m) = sign(OccupiedThresh*ratio(m), SignTemp(m))
-                                 call encode_part_sign (SpawnedParts(:,i), SignTemp(m), m)
-                              enddo
-
-                           end if
-                        end if
                     end do
+
+                    if(t_prone_walkers) then
+                       if(.not. test_flag(SpawnedParts(:,i), flag_multi_spawn)) &
+                            call set_flag(SpawnedParts(:,i), flag_prone)
+                    endif
 
                     if (.not. IsUnoccDet(SignTemp)) then
                         ! Walkers have not been aborted and so we should copy the
                         ! determinant straight over to the main list. We do not
                         ! need to recompute the hash, since this should be the
                         ! same one as was generated at the beginning of the loop.
-                        call AddNewHashDet(TotWalkersNew, SpawnedParts(:,i), DetHash, nJ)
+                        call AddNewHashDet(TotWalkersNew, SpawnedParts(:,i), DetHash, nJ, &
+                             diagH)
                     end if
 
                 else
@@ -919,28 +907,9 @@ module AnnihilationMod
                         call add_en2_pert_for_trunc_calc(i, nJ, SignTemp)
                     else
                         do j = 1, lenof_sign
-                            run = part_type_to_run(j)
-                            if ((abs(SignTemp(j)) > 1.e-12_dp) .and. (abs(SignTemp(j)) < OccupiedThresh)) then
-                                ! We remove this walker with probability 1-RealSignTemp.
-                                pRemove = (OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
-                                r = genrand_real2_dSFMT ()
-                                if (pRemove  >  r) then
-                                    ! Remove this walker.
-                                    NoRemoved(run) = NoRemoved(run) + abs(SignTemp(j))
-                                    !Annihilated = Annihilated + abs(SignTemp(j))
-                                    !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
-                                    iter_data%nremoved(j) = iter_data%nremoved(j) &
-                                                          + abs(SignTemp(j))
-                                    SignTemp(j) = 0
-                                    call nullify_ilut_part (SpawnedParts(:,i), j)
-                                else
-                                    NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(SignTemp(j))
-                                    iter_data%nborn(j) = iter_data%nborn(j) &
-                                                + OccupiedThresh - abs(SignTemp(j))
-                                    SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
-                                    call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
-                                end if
-                            end if
+                            ! truncate the spawn if required
+                            call applySpawnTruncation(iter_data, SignTemp, i, j, scFVal, &
+                                 ScaledOccupiedThresh, t_truncate_unocc_this_det)
                         end do
 
                         if (.not. IsUnoccDet(SignTemp)) then
@@ -948,7 +917,8 @@ module AnnihilationMod
                             ! determinant straight over to the main list. We do not
                             ! need to recompute the hash, since this should be the
                             ! same one as was generated at the beginning of the loop.
-                            call AddNewHashDet(TotWalkersNew, SpawnedParts(:,i), DetHash, nJ)
+                            call AddNewHashDet(TotWalkersNew, SpawnedParts(:,i), DetHash, nJ, &
+                                 diagH)
                         end if
                     end if
                 end if
@@ -975,7 +945,53 @@ module AnnihilationMod
         call halt_timer(AnnMain_time)
 
     end subroutine AnnihilateSpawnedParts
-  
+
+    subroutine applySpawnTruncation(iter_data, SignTemp, i, j, scFVal, ScaledOccupiedThresh, &
+         tTruncate)
+      implicit none
+      type(fcimc_iter_data), intent(inout) :: iter_data
+      real(dp), intent(inout) :: SignTemp(lenof_sign)
+      integer, intent(in) :: i, j
+      real(dp), intent(in) :: scFVal, ScaledOccupiedThresh
+      logical, intent(in) :: tTruncate
+
+      real(dp) :: pRemove, r
+      integer :: run
+
+      run = part_type_to_run(j)
+
+      if ((abs(SignTemp(j)) > 1.e-12_dp) .and. (abs(SignTemp(j)) < ScaledOccupiedThresh)) then
+         ! We remove this walker with probability OccupiedThresh - Sign/ScaleFactor
+         pRemove=1.0_dp-abs(SignTemp(j))/(ScaledOccupiedThresh)
+         r = genrand_real2_dSFMT ()
+         if (pRemove > r) then
+            ! Remove this walker.
+            NoRemoved(run) = NoRemoved(run) + abs(SignTemp(j))
+            !Annihilated = Annihilated + abs(SignTemp(j))
+            !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
+            iter_data%nremoved(j) = iter_data%nremoved(j) &
+                 + abs(SignTemp(j))
+            SignTemp(j) = 0.0_dp
+            call nullify_ilut_part (SpawnedParts(:,i), j)
+         else
+            !Round up
+            NoBorn(run) = NoBorn(run) + OccupiedThresh*scFVal - abs(SignTemp(j))
+            iter_data%nborn(j) = iter_data%nborn(j) &
+                 + scaledOccupiedThresh - abs(SignTemp(j))
+            SignTemp(j) = sign(scaledOccupiedThresh, SignTemp(j))
+            call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
+         end if
+      else
+         ! truncate down to a minimum number of spawns to
+         ! prevent blooms if requested
+         if(tTruncate) then
+            if(abs(SignTemp(j)) > n_truncate_spawns*scFVal) &
+                 SignTemp(j) = sign(n_truncate_spawns*scFVal, SignTemp(j))
+         endif
+      end if
+
+    end subroutine applySpawnTruncation
+    
     pure function test_abort_spawn(ilut_spwn, part_type) result(abort)
 
         ! Should this spawn be aborted (according to the initiator
@@ -1013,7 +1029,7 @@ module AnnihilationMod
         integer, intent(in) :: nJ(nel)
         real(dp), intent(in):: SpawnedSign(lenof_sign)
 
-        integer :: j, istate
+        integer :: istate
         real(dp) :: contrib_sign(en_pert_main%sign_length)
         logical :: pert_contrib(en_pert_main%sign_length)
         real(dp) :: trial_contrib(lenof_sign)
