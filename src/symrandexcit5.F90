@@ -12,7 +12,8 @@ module excit_gen_5
     use SymExcitDataMod, only: SpinOrbSymLabel, SymInvLabel, ScratchSize
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, projedet
     use SystemData, only: G1, tUHF, tStoreSpinOrbs, nbasis, nel, &
-                          tGen_4ind_part_exact, tGen_4ind_2_symmetric, tHPHF
+                          tGen_4ind_part_exact, tGen_4ind_2_symmetric, tHPHF, &
+                          tGen_guga_crude
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use GenRandSymExcitNUMod, only: init_excit_gen_store
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet
@@ -21,7 +22,7 @@ module excit_gen_5
     use procedure_pointers, only: get_umat_el
     use sym_general_mod, only: ClassCountInd
     use bit_rep_data, only: NIfTot, NIfD, test_flag
-    use bit_reps, only: decode_bit_det, get_initiator_flag
+    use bit_reps, only: decode_bit_det, get_initiator_flag, nifguga
     use get_excit, only: make_double
     use UMatCache, only: gtid
     use constants
@@ -31,6 +32,11 @@ module excit_gen_5
                         occ_virt_level
     use back_spawn, only: pick_virtual_electrons_double, pick_occupied_orbital, &
                           check_electron_location, pick_second_occupied_orbital
+
+    use guga_bitRepOps, only: isProperCSF_ilut, convert_ilut_toGUGA
+    use guga_data, only: excitationInformation, tNewDet
+    use guga_excitations, only: calc_guga_matrix_element, init_csf_information
+
     implicit none
 
 contains
@@ -51,6 +57,8 @@ contains
 
         real(dp) :: pgen2
         real(dp) :: cum_arr(nbasis)
+        type(excitationInformation) :: excitInfo
+        integer(n_int) :: ilutGi(0:nifguga), ilutGj(0:nifguga)
 
 #ifdef __DEBUG 
         HElement_t(dp) :: temp_hel
@@ -67,7 +75,6 @@ contains
                                      tParity, pGen)
             pgen = pgen * pSingles
 
-!             print *, "toto1: ", pgen
         else
 
             ! OK, we want to do a double excitation
@@ -75,6 +82,39 @@ contains
             call gen_double_4ind_ex2 (nI, ilutI, nJ, ilutJ, ExcitMat, tParity, &
                                       pGen)
             pgen = pgen * pDoubles
+
+        end if
+
+        ! try implementing the crude guga excitation approximation via the 
+        ! determinant excitation generator
+        if (tGen_guga_crude) then 
+
+            call convert_ilut_toGUGA(ilutJ, ilutGj)
+
+            if (.not. isProperCSF_ilut(ilutGJ)) then 
+                nJ(1) = 0
+                pgen = 0.0_dp
+            end if
+
+
+            if (tNewDet) then
+                call convert_ilut_toGUGA(ilutI, ilutGi)
+                ! use new setup function for additional CSF informtation
+                ! instead of calculating it all seperately..
+                call init_csf_information(ilutGi(0:nifd))
+
+                ! then set tNewDet to false and only set it after the walker loop
+                ! in FciMCPar
+                tNewDet = .false.
+
+            end if
+
+            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, HelGen, .true., 1)
+
+            if (abs(HelGen) < EPS) then 
+                nJ(1) = 0
+                pgen = 0.0_dp 
+            end if
 
         end if
 
@@ -281,7 +321,9 @@ contains
         ! Calculate the pgens. Note that all of these excitations can be
         ! selected as both A--B or B--A. So these need to be calculated
         ! explicitly.
-        ASSERT(tGen_4ind_part_exact)
+        if (.not. tGen_guga_crude) then
+            ASSERT(tGen_4ind_part_exact)
+        end if
         if ((is_beta(orbs(1)) .eqv. is_beta(orbs(2))) .or. tGen_4ind_2_symmetric) then
 
             ! in the case of parallel spin excitations or symmetrice excitation 

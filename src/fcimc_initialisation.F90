@@ -17,7 +17,8 @@ module fcimc_initialisation
                           tUEGNewGenerator, tGen_4ind_2, tReltvy, t_new_real_space_hubbard, &
                           t_lattice_model, t_tJ_model, t_heisenberg_model, & 
                           t_k_space_hubbard, t_3_body_excits, omega, breathingCont, &
-                          momIndexTable, t_trans_corr_2body, t_non_hermitian
+                          momIndexTable, t_trans_corr_2body, t_non_hermitian, &
+                          tgen_guga_crude
 
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
 
@@ -1827,7 +1828,11 @@ contains
             generate_excitation => gen_excit_4ind_reverse
 #ifndef __CMPLX
         elseif (tGUGA) then
-            generate_excitation => generate_excitation_guga
+            if (tgen_guga_crude) then 
+                generate_excitation => gen_excit_4ind_weighted2
+            else
+                generate_excitation => generate_excitation_guga
+            end if
 #endif
         else
             generate_excitation => gen_rand_excit

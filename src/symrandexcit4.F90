@@ -200,9 +200,6 @@ contains
                                      tParity, pGen)
             pgen = pgen * pSingles
 
-!             call write_det(6, nJ, .true.)
-!             print *, "pgen singles: ", pgen
-
         else
 
             ! OK, we want to do a double excitation
@@ -210,9 +207,6 @@ contains
             call gen_double_4ind_ex (nI, ilutI, nJ, ilutJ, ExcitMat, tParity, &
                                      pGen, store)
             pgen = pgen * pDoubles
-
-!             call write_det(6, nJ, .true.)
-!             print *, "pgen doubles: ", pgen
 
         end if
 

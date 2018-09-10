@@ -12,13 +12,19 @@ module guga_init
                           current_stepvector, currentOcc_ilut, currentOcc_int, &
                           currentB_ilut, currentB_int, current_cum_list, &
                           ref_stepvector, ref_b_vector_int, ref_occ_vector, &
-                          ref_b_vector_real, treal, tHUB, t_guga_noreorder
+                          ref_b_vector_real, treal, tHUB, t_guga_noreorder, tgen_guga_crude
+
     use CalcData, only: tUseRealCoeffs, tRealCoeffByExcitLevel, RealCoeffExcitThresh, &
-                t_guga_mat_eles, t_hist_tau_search, tSpinProject
+                        t_guga_mat_eles, t_hist_tau_search, tSpinProject
+
     use hist_data, only: tHistSpawn
+
     use LoggingData, only: tCalcFCIMCPsi, tPrintOrbOcc
+
     use bit_rep_data, only: tUseFlags
+
     use guga_data, only: init_guga_data_procPtrs, orbitalIndex
+
     use guga_procedure_pointers, only: pickOrbitals_single, pickOrbitals_double, &
                         calc_orbital_pgen_contr, calc_mixed_contr, calc_mixed_start_l2r_contr, &
                         calc_mixed_start_r2l_contr, calc_mixed_end_r2l_contr, calc_mixed_end_l2r_contr, &
@@ -38,9 +44,13 @@ module guga_init
                         orb_pgen_contrib_type_3_uniform, temp_step_i, temp_step_j, &
                         temp_delta_b, temp_occ_i, temp_b_real_i, calc_off_diag_guga_ref_direct, &
                         pickOrbs_real_hubbard_single, pickOrbs_real_hubbard_double
+
     use guga_matrixElements, only: calc_off_diag_guga_ref_list
+
     use FciMCData, only: pExcit2, pExcit4, pExcit2_same, pExcit3_same, tSearchTau
+
     use constants, only: dp
+
     use ParallelHelper, only: iProcIndex
 
     ! variable declaration
@@ -71,7 +81,7 @@ contains
             end if
             
         else if (tGen_sym_guga_mol) then
-!             pickOrbitals_single => pickOrbitals_nosym_single
+
             pickOrbitals_single => pickOrbs_sym_uniform_mol_single
             pickOrbitals_double => pickOrbs_sym_uniform_mol_double
             calc_mixed_contr => calc_mixed_contr_sym
@@ -80,6 +90,9 @@ contains
             calc_mixed_start_r2l_contr => calc_mixed_start_contr_sym
             calc_mixed_end_l2r_contr => calc_mixed_end_contr_sym
             calc_mixed_end_r2l_contr => calc_mixed_end_contr_sym
+
+!         else if (tgen_guga_crude) then 
+!             call stop_all("init_guga_orbital_pickers", "implement crude!")
 
         else if (tGen_nosym_guga) then
             pickOrbitals_single => pickOrbitals_nosym_single
@@ -193,12 +206,10 @@ contains
         allocate(currentB_int(nSpatOrbs), stat = ierr)
         allocate(currentOcc_int(nSpatOrbs), stat = ierr)
 
-!         if (tGen_sym_guga_mol) then 
-            if (allocated(current_cum_list)) deallocate(current_cum_list)
+        if (allocated(current_cum_list)) deallocate(current_cum_list)
 
-            allocate(current_cum_list(nSpatOrbs), stat = ierr)
+        allocate(current_cum_list(nSpatOrbs), stat = ierr)
 
-!         end if
 
         ! also allocate the temporary variables used in the matrix element 
         ! calculation and also the similar variables for the reference 
@@ -310,10 +321,6 @@ contains
 
         ! in the real-space do not reorder the orbitals! 
         if (treal) t_guga_noreorder = .true.
-!         if (tGen_sym_guga_mol .and. lNoSymmetry) then
-!             call stop_all(this_routine, &
-!                 "symmetric molecular GUGA excitation generator chosen, but NOSYMMETRY set! check input!")
-!         end if
         
         if (tExactSizeSpace) then
             call stop_all(this_routine, &

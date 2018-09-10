@@ -1200,9 +1200,16 @@ system: do
                     case ("MOL_GUGA")
                         tGen_sym_guga_mol = .true.
 
-                    case ("MOL_GUGA_WEIGHTED")
+                    case ("MOL_GUGA_WEIGHTED","MOL-GUGA-WEIGHTED")
                         tGen_sym_guga_mol = .true.
                         tgen_guga_weighted = .true. 
+
+                    case("GUGA-CRUDE")
+                        ! try a crude excitation approximation, where no 
+                        ! spin-flips in the excitation range are allowed 
+                        tgen_guga_crude = .true. 
+                        ! quick hack: 
+                        t_iiaa = .true.
 
                     case("CYCLETHRUORBS")
                         tCycleOrbs=.true.

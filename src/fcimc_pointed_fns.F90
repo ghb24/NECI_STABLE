@@ -4,7 +4,7 @@ module fcimc_pointed_fns
 
     use SystemData, only: nel, tGUGA, tGen_4ind_weighted, tGen_4ind_2, tGen_nosym_guga, &
                           tGen_sym_guga_mol, t_consider_diff_bias, nSpatOrbs, thub, & 
-                          tUEG, nBasis, t_3_body_excits, & 
+                          tUEG, nBasis, t_3_body_excits, tgen_guga_crude, & 
                           t_k_space_hubbard, t_new_real_space_hubbard, & 
                           t_trans_corr_2body, t_trans_corr_hop, tHPHF
 
@@ -273,7 +273,7 @@ module fcimc_pointed_fns
                         prob / AvMCExcits, ic, ex(1,1))
                 end if
 
-            else if (tGen_sym_guga_mol) then
+            else if (tGen_sym_guga_mol .or. tgen_guga_crude) then
                 call fill_frequency_histogram_sd(abs(rh), prob / AvMCExcits, ic)
 
             else 

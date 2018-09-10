@@ -11,7 +11,7 @@ module guga_excitations
                           currentB_ilut, currentB_int, current_cum_list, &
                           tGen_guga_weighted, ref_stepvector, ref_b_vector_real, & 
                           ref_occ_vector, ref_b_vector_int, t_full_guga_tests, &
-                          nBasisMax, tHub, treal, t_guga_testsuite
+                          nBasisMax, tHub, treal, t_guga_testsuite, tgen_guga_crude
     use constants, only: dp, n_int, bits_n_int, lenof_sign, Root2, THIRD, HEl_zero, &
                          EPS, bni_, bn2_, iout, int64, inum_runs
     use bit_reps, only: niftot, decode_bit_det, encode_det, encode_part_sign, &
@@ -236,6 +236,11 @@ module guga_excitations
 !     end interface calcAllSinglesGUGA
 
     
+    interface calc_pgen_guga_crude
+        module procedure calc_pgen_guga_crude_iluts
+        module procedure calc_pgen_guga_crude_exmat
+    end interface calc_pgen_guga_crude
+
     interface assign_excitInfo_values
         module procedure assign_excitInfo_values_single
         module procedure assign_excitInfo_values_double
@@ -2824,6 +2829,633 @@ contains
 
     end subroutine test_excit_gen_guga
 
+    ! implement a crude approximation in the guga excitation, where we only 
+    ! do changes a the beginning and the end of excitations 
+    subroutine generate_excitation_guga_crude(nI, ilutI, nJ, ilutJ, exFlag, IC, &
+            excitMat, tParity, pgen, HElGen, store, part_type)
+        integer, intent(in) :: nI(nEl), exFlag
+        integer(n_int), intent(in) :: ilutI(0:niftot)
+        integer, intent(out) :: nJ(nEl), IC, excitMat(2,2)
+        integer(n_int), intent(out) :: ilutJ(0:niftot)
+        logical, intent(out) :: tParity
+        real(dp), intent(out) :: pgen
+        real(dp), intent(out) :: HElGen
+        type(excit_gen_store_type), intent(inout), target :: store
+        integer, intent(in), optional :: part_type
+        character(*), parameter :: this_routine = "generate_excitation_guga_crude"
+
+        integer(n_int) :: ilut(0:nifguga), excitation(0:nifguga)
+        integer :: ierr, excit_typ(2)
+
+        type(excitationInformation) :: excitInfo
+        real(dp) :: tmp_mat, diff, tmp_mat1
+        integer :: tmp_ex1, tmp_ex2
+        ! think about default values and unneeded variables for GUGA, but 
+        ! which have to be processed anyway to interface to NECI
+        
+        ! excitatioin matrix... i could set that up for GUGA too.. 
+        ! but its not needed specifically except for RDM and logging purposes
+
+        ! in new implementation with changing relative probabilites of different
+        ! types of excitation, misuse this array to log the type of excitation
+        excitMat = 0
+
+        ! the parity flag is also unneccesary in GUGA
+        tParity = .true.
+
+        ! the inputted exFlag variable, is also not needed probably..
+
+        ! then choose between single or double excitations..
+        ! TODO: still have to think how to set up pSingles and pDoubles in
+        ! GUGA...
+        
+        ! and before i have to convert to GUGA iluts..
+        call convert_ilut_toGUGA(ilutI, ilut)
+
+        ASSERT(isProperCSF_ilut(ilut))
+
+        ! maybe i need to copy the flags of ilutI onto ilutJ
+        ilutJ = ilutI
+
+        ! TODO! probably have to do this allocation and calculation of 
+        ! those lists outside of generate_excitation in the main loop of 
+        ! NECI -> since it does this for every walker on an excitation
+
+        ! could essentially calc. b vector and occupation vector here...
+        ! do it only if tNewDet is set, so i only recalc this if i switch to a 
+        ! new determinant -> is set in FciMCPar!
+        ! or just init_csf_info outside in FciMCPar to also use this info
+        ! for the matrix element calculation.. 
+
+        if (tNewDet) then
+            ! use new setup function for additional CSF informtation
+            ! instead of calculating it all seperately..
+            call init_csf_information(ilut(0:nifd))
+
+            ! then set tNewDet to false and only set it after the walker loop
+            ! in FciMCPar
+            tNewDet = .false.
+
+        end if
+
+        if (genrand_real2_dSFMT() < pSingles) then
+
+            IC = 1
+            call create_crude_guga_single(ilut, nI, excitation, pgen)
+            pgen = pgen * pSingles
+
+        else 
+
+            IC = 2
+            call create_crude_guga_double(ilut, nI, excitation, pgen)
+            pgen = pgen * pDoubles
+        
+        end if
+
+        ! check if excitation generation was successful
+        if (pgen < EPS) then
+            ! indicate NullDet to skip spawn step
+            nJ(1) = 0
+            HElGen = 0.0_dp
+
+        else
+
+            ! also store information on type of excitation for the automated 
+            ! tau-search for the non-weighted guga excitation generator in 
+            ! the excitMat variable 
+            excitMat(1,:) = excit_typ
+
+            ! profile tells me this costs alot of time.. so remove it
+            ! and only do it in debug mode.. 
+            ! i just have to be sure that no wrong csfs are created..
+
+            ASSERT(isProperCSF_ilut(excitation, .true.))
+            ! otherwise extract H element and convert to 0
+            call convert_ilut_toNECI(excitation, ilutJ, HElgen)
+
+            call decode_bit_det(nJ, ilutJ)
+
+        end if
+
+    end subroutine generate_excitation_guga_crude
+
+    subroutine create_crude_guga_double(ilut, nI, exc, pgen)
+        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(out) :: exc(0:nifguga)
+        real(dp), intent(out) :: pgen
+        character(*), parameter :: this_routine = "create_crude_guga_double"
+
+    end subroutine create_crude_guga_double
+
+    function calc_pgen_guga_crude_iluts(ilutI, nI, ilutJ, nJ, excitInfo_in) result(pgen)
+        integer, intent(in) :: nI(nel), nJ(nel)
+        integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
+        type(excitationInformation), intent(in), optional :: excitInfo_in
+        real(dp) :: pgen 
+        character(*), parameter :: this_routine = "calc_pgen_guga_crude_iluts"
+
+        type(excitationInformation) :: excitInfo
+        integer :: ic
+
+        if (present(excitInfo_in)) then 
+            excitInfo = excitInfo_in
+        else 
+            excitInfo = identify_excitation(ilutI, ilutJ)
+        end if 
+
+        ic = get_excit_level_from_excitInfo(excitInfo)
+
+
+    end function calc_pgen_guga_crude_iluts
+
+    function calc_pgen_guga_crude_exmat(nI, ilutI, ex, ic) result(pgen)
+        ! ex and ic is not enougn for guga excitations. 
+        ! except in the crude approach i guess.. where the excit-mat 
+        ! specifies the chosen excitation! that is nice! 
+        ! i just realised, that i could actually take the "normal" 
+        ! determinant based excitation generator and "only" check if 
+        ! the created excitation is a valid CSF and the matrix element 
+        ! is non-zero! that would be the easiest implementation! 
+        integer, intent(in) :: nI, ex(2,2), ic
+        integer(n_int), intent(in) :: ilutI(0:niftot)
+        real(dp) :: pgen
+        character(*), parameter :: this_routine = "calc_pgen_guga_crude_exmat"
+
+
+    end function calc_pgen_guga_crude_exmat
+
+    subroutine create_crude_guga_single(ilut, nI, exc, pgen)
+        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(out) :: exc(0:nifguga)
+        real(dp), intent(out) :: pgen
+        character(*), parameter :: this_routine = "create_crude_guga_single"
+
+        type(excitationInformation) :: excitInfo
+        integer :: i, j
+        real(dp) :: integral, orb_pgen
+
+        ASSERT(isProperCSF_ilut(ilut))
+
+        ! can i use the original orbital picker? no.. since it allows for 
+        ! switches..
+        call pick_orbitals_single_crude(ilut, nI, excitInfo, orb_pgen)
+
+        if ( .not. excitInfo%valid ) then
+            ! if no valid indices were picked, return 0 excitation and return
+            exc = 0
+            pgen = 0.0_dp
+            return
+        end if
+
+        ! reimplement it from scratch
+        i = excitInfo%i
+        j = excitInfo%j 
+        ! first the "normal" contribution
+        ! not sure if i have to subtract that element or not...
+        integral = getTmatEl(2*i, 2*j)! - get_umat_el(i,i,j,j)
+
+
+    end subroutine create_crude_guga_single
+
+     
+    subroutine create_crude_double(ilut, excitInfo, exc, branch_pgen)
+        integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(excitationInformation), intent(in) :: excitInfo
+        integer(n_int), intent(inout) :: exc(0:nifguga)
+        real(dp), intent(out) :: branch_pgen
+        character(*), parameter :: this_routine = "create_crude_double"
+
+        
+        ! i think i still have to reuse the excitInfo information of the 
+        ! excitation type.. do I still know where the holes and electrons are 
+        ! in the double excitations?
+        exc = ilut
+
+        select case (excitInfo%typ)
+
+        ! maybe i can combine some of them together
+        ! i think i can.. but i have to think about that more clearly!
+        case (6,7)
+            ! single overlap excitation
+
+
+        end select
+
+        if (.not. isProperCSF_ilut(exc)) then 
+            ! i have to check if i created a proper CSF
+            branch_pgen = 0.0_dp
+        end if
+
+    end subroutine create_crude_double
+
+    subroutine create_crude_single(ilut, excitInfo, exc, branch_pgen)
+        integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(excitationInformation), intent(in) :: excitInfo
+        integer(n_int), intent(inout) :: exc(0:nifguga)
+        real(dp), intent(out) :: branch_pgen
+        character(*), parameter :: this_routine = "create_crude_single"
+
+        integer :: elec, orb
+        real(dp) :: r
+
+#ifdef __DEBUG
+        ! also assert we are not calling it for a weight gen. accidently
+        ASSERT(excitInfo%currentGen /= 0)
+        ASSERT(isProperCSF_ilut(ilut))
+        ! also check if calculated b vector really fits to ilut
+        ASSERT(all(currentB_ilut == calcB_vector_ilut(ilut(0:nifd))))
+        if (excitInfo%currentGen == 1) then
+            ASSERT(.not.isThree(ilut,excitInfo%fullStart))
+        else if (excitInfo%currentGen == -1) then
+            ASSERT(.not.isZero(ilut,excitInfo%fullStart))
+        end if
+#endif
+
+        elec = excitInfo%j
+        orb = excitInfo%i
+
+        exc = ilut 
+
+        select case (current_stepvector(elec))
+
+        case (0)
+            call stop_all(this_routine, "empty orbital picked as electron!")
+
+        case (1)
+
+            clr_orb(exc, 2*elec - 1)
+            branch_pgen = 1.0_dp
+
+            if (current_stepvector(orb) == 0) then 
+                
+                set_orb(exc, 2*orb - 1)
+
+            else if (current_stepvector(orb) == 1) then 
+
+                branch_pgen = 0.0_dp
+
+            else if (current_stepvector(orb) == 2) then 
+
+                set_orb(exc, 2*orb - 1)
+
+            end if
+
+        case (2) 
+
+            clr_orb(exc, 2*elec) 
+            branch_pgen = 1.0_dp
+
+            if (current_stepvector(orb) == 0) then 
+
+                set_orb(exc, 2*orb)
+
+            else if (current_stepvector(orb) == 1) then 
+
+                set_orb(exc, 2*orb) 
+
+            else if (current_stepvector(orb) == 2) then 
+
+                branch_pgen = 0.0_dp 
+
+            end if
+
+        case (3) 
+
+            if (current_stepvector(orb) == 0) then 
+
+                ! here i have to decide.. 
+                branch_pgen = 0.5_dp 
+
+                r = genrand_real2_dSFMT()
+
+                if (r < 0.5_dp) then 
+
+                    ! 1 -> 2
+                    clr_orb(exc, 2*elec)
+                    set_orb(exc, 2*orb) 
+
+                else
+                    ! 2 -> 1
+                    clr_orb(exc, 2*elec - 1)
+                    set_orb(exc, 2*orb - 1)
+
+                end if
+
+            else 
+                branch_pgen = 1.0_dp
+
+                if (current_stepvector(orb) == 1) then 
+
+                    clr_orb(exc, 2*elec)
+                    set_orb(exc, 2*orb)
+
+                else if (current_stepvector(orb) == 2) then 
+
+                    clr_orb(exc, 2*elec - 1)
+                    set_orb(exc, 2*orb - 1)
+
+                end if
+            end if
+        end select
+
+        if (.not. isProperCSF_ilut(exc)) then 
+            ! i have to check if i created a proper CSF
+            branch_pgen = 0.0_dp
+        end if
+
+    end subroutine create_crude_single
+
+    subroutine pick_orbitals_single_crude(ilut, nI, excitInfo, pgen)
+        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(in) :: nI(nel)
+        type(excitationInformation), intent(out) :: excitInfo
+        real(dp), intent(out) :: pgen
+        character(*), parameter :: this_routine = "pick_orbitals_single_crude"
+
+        integer :: elec, cc_i, ierr, nOrb, orb_ind, orb_i, orb_a
+        real(dp), allocatable :: cum_arr(:)
+        real(dp) :: cum_sum, r, elec_factor
+
+        ! first pick completely random from electrons only! 
+        elec = 1 + floor(genrand_real2_dSFMT() * nEl)
+        ! have to adjust pgen if it is a doubly occupied orbital afterwards 
+        ! -> since twice the chance to pick that orbital then! 
+
+        ! pick associated "spin orbital"
+        orb_i = nI(elec)
+
+        ! get the symmetry index:
+        ! since there is no spin restriction here have to consider both 
+        ! again
+        cc_i = ClassCountInd(1, SpinOrbSymLabel(orb_i), G1(orb_i)%Ml)
+
+        ! get the number of orbitals in this symmetry sector
+        nOrb = OrbClassCount(cc_i)
+        allocate(cum_arr(nOrb), stat = ierr)
+        select case (current_stepvector(gtID(orb_i)))
+                ! der stepvalue sagt mir auch, ob es ein alpha oder beta 
+                ! elektron war..
+                ! i have to change this for the crude implementation
+            case (1)
+                elec_factor = 1.0_dp
+                call gen_crude_guga_single_1(nI, orb_i, cc_i, cum_arr)
+
+            case (2)
+                ! to do
+                elec_factor = 1.0_dp
+                call gen_crude_guga_single_2(nI, orb_i, cc_i, cum_arr)
+
+            case (3)
+                ! adjust pgen, the chance to pick a doubly occupied with 
+                ! spinorbitals is twice as high..
+                elec_factor = 2.0_dp
+                call gen_crude_guga_single_3(nI, orb_i, cc_i, cum_arr)
+
+            case default
+                call stop_all(this_routine, "should not have picked empty orbital")
+
+        end select
+
+    end subroutine pick_orbitals_single_crude
+
+    subroutine gen_crude_guga_single_1(nI, orb_i, cc_i, cum_arr)
+        integer, intent(in) :: nI(nel)
+        integer, intent(in) :: orb_i, cc_i
+        real(dp), intent(out) :: cum_arr(OrbClassCount(cc_i))
+        character(*), parameter :: this_routine = "gen_crude_guga_single_1"
+
+        integer :: nOrb, i, label_index, j, n_id(nEl), id_i, id, &
+                   lower, upper, s_orb, st, en, gen
+        real(dp) :: cum_sum, hel
+
+        nOrb = OrbClassCount(cc_i)
+        label_index = SymLabelCounts2(1, cc_i)
+        n_id = gtID(nI)
+        id_i = gtID(orb_i)
+
+        cum_sum = 0.0_dp
+
+        do i = 1, nOrb
+            s_orb = sym_label_list_spat(label_index + i - 1) 
+
+            if (s_orb == id_i) then
+                cum_arr(i) = cum_sum
+                cycle
+            end if
+
+            hel = 0.0_dp
+
+            select case (current_stepvector(s_orb)) 
+                case (0)
+
+                    hel = hel + abs(GetTMatEl(orb_i, 2*s_orb))
+
+                    do j = 1, nEl
+                        
+                        ! todo: finish all contributions later for now only do 
+                        ! those which are the same for all
+                        ! exclude initial orbital, since this case gets 
+                        ! contributed already outside of loop over electrons!
+                        ! but only spin-orbital or spatial??
+                        if (n_id(j) == id_i) cycle
+                        hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
+                        hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
+
+                    end do
+
+                case (2) 
+                    ! no restrictions for 2 -> 1 excitations
+                    hel = hel + abs(GetTMatEl(orb_i, 2*s_orb))
+                    ! do the loop over all the other electrons 
+                    ! (is this always symmetrie allowed?..)
+                    hel = hel + abs(get_umat_el(id_i, s_orb, s_orb, s_orb))
+
+                    do j = 1, nEl
+                        ! todo: finish all contributions later for now only do 
+                        ! those which are the same for all
+                        if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
+                        hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
+                        hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
+
+                    end do
+
+            end select
+
+            cum_sum = cum_sum + abs_l1(hel)
+            cum_arr(i) = cum_sum
+
+        end do
+
+    end subroutine gen_crude_guga_single_1
+
+    subroutine gen_crude_guga_single_2(nI, orb_i, cc_i, cum_arr)
+        integer, intent(in) :: nI(nel)
+        integer, intent(in) :: orb_i, cc_i
+        real(dp), intent(out) :: cum_arr(OrbClassCount(cc_i))
+        character(*), parameter :: this_routine = "gen_crude_guga_single_2"
+
+        integer :: nOrb, i, label_index, j, n_id(nEl), id_i, id, &
+                   lower, upper, s_orb, st, en, gen
+        real(dp) :: cum_sum, hel
+
+        nOrb = OrbClassCount(cc_i)
+        label_index = SymLabelCounts2(1, cc_i)
+        n_id = gtID(nI)
+        id_i = gtID(orb_i)
+
+        cum_sum = 0.0_dp
+
+        do i = 1, nOrb
+            s_orb = sym_label_list_spat(label_index + i - 1) 
+
+            if (s_orb == id_i) then
+                cum_arr(i) = cum_sum
+                cycle
+            end if
+
+            hel = 0.0_dp
+
+            select case (current_stepvector(s_orb)) 
+                case (0)
+
+                    hel = hel + abs(GetTMatEl(orb_i, 2*s_orb))
+
+                    do j = 1, nEl
+                        
+                        ! todo: finish all contributions later for now only do 
+                        ! those which are the same for all
+                        ! exclude initial orbital, since this case gets 
+                        ! contributed already outside of loop over electrons!
+                        ! but only spin-orbital or spatial??
+!                         if (nI(j) == orb_i) cycle
+                        if (n_id(j) == id_i) cycle
+                        hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
+
+                        ! now depending on generator and relation of j to
+                        ! st and en -> i know sign or don't 
+                        
+                        hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
+
+                    end do
+
+                case (1) 
+                    ! no restrictions for 2 -> 1 excitations
+                    hel = hel + abs(GetTMatEl(orb_i, 2*s_orb))
+                    ! do the loop over all the other electrons 
+                    ! (is this always symmetrie allowed?..)
+                    hel = hel + abs(get_umat_el(id_i, s_orb, s_orb, s_orb))
+
+                    do j = 1, nEl
+                        ! todo: finish all contributions later for now only do 
+                        ! those which are the same for all
+                        if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
+                        hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
+                        hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
+
+                    end do
+
+            end select
+            cum_sum = cum_sum + abs_l1(hel)
+            cum_arr(i) = cum_sum
+        end do
+
+    end subroutine gen_crude_guga_single_2
+
+    subroutine gen_crude_guga_single_3(nI, orb_i, cc_i, cum_arr)
+        integer, intent(in) :: nI(nel)
+        integer, intent(in) :: orb_i, cc_i
+        real(dp), intent(out) :: cum_arr(OrbClassCount(cc_i))
+        character(*), parameter :: this_routine = "gen_crude_guga_single_3"
+
+        integer :: nOrb, i, label_index, j, n_id(nEl), id_i, id, &
+                   lower, upper, s_orb, st, en, gen
+        real(dp) :: cum_sum, hel
+
+        nOrb = OrbClassCount(cc_i)
+        label_index = SymLabelCounts2(1, cc_i)
+        n_id = gtID(nI)
+        id_i = gtID(orb_i)
+
+        cum_sum = 0.0_dp
+
+        do i = 1, nOrb
+            s_orb = sym_label_list_spat(label_index + i - 1) 
+
+            if (s_orb == id_i) then
+                cum_arr(i) = cum_sum
+                cycle
+            end if
+
+            hel = 0.0_dp
+
+            select case (current_stepvector(s_orb)) 
+                case (0)
+
+                    hel = hel + abs(GetTMatEl(orb_i, 2*s_orb))
+
+                    hel = hel + abs(get_umat_el(id_i, id_i, s_orb, id_i))
+
+                    do j = 1, nEl
+                        
+                        ! todo: finish all contributions later for now only do 
+                        ! those which are the same for all
+                        ! exclude initial orbital, since this case gets 
+                        ! contributed already outside of loop over electrons!
+                        ! but only spin-orbital or spatial??
+                        if (n_id(j) == id_i) cycle
+                        hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
+                        hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
+
+                    end do
+
+                case (1) 
+                    ! no restrictions for 2 -> 1 excitations
+                    hel = hel + abs(GetTMatEl(orb_i, 2*s_orb))
+                    ! do the loop over all the other electrons 
+
+                    hel = hel + abs(get_umat_el(id_i, s_orb, s_orb, s_orb))
+                    hel = hel + abs(get_umat_el(id_i, id_i, s_orb, id_i))
+
+                    do j = 1, nEl
+                        ! todo: finish all contributions later for now only do 
+                        ! those which are the same for all
+                        if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
+                        hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
+                        hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
+
+                    end do
+
+                case (2)
+                 
+                    hel = hel + abs(GetTMatEl(orb_i, 2*s_orb))
+                    ! do the loop over all the other electrons 
+                    ! (is this always symmetrie allowed?..)
+
+                    hel = hel + abs(get_umat_el(id_i, id_i, s_orb, id_i))
+                    hel = hel + abs(get_umat_el(id_i, s_orb, s_orb, s_orb))
+
+                    do j = 1, nEl
+                        
+                        ! todo: finish all contributions later for now only do 
+                        ! those which are the same for all
+                        if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
+
+                        hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
+                        hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
+
+                    end do
+
+            end select
+
+            cum_sum = cum_sum + abs_l1(hel)
+            cum_arr(i) = cum_sum
+
+        end do
+
+    end subroutine gen_crude_guga_single_3
+
     ! need an API interfacing function for generate_excitation to the rest of NECI:
     subroutine generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, &
             excitMat, tParity, pgen, HElGen, store, part_type)
@@ -2833,7 +3465,6 @@ contains
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pgen
-!         HElement_t(dp), intent(out) :: HElGen
         real(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
         integer, intent(in), optional :: part_type
@@ -2886,34 +3517,12 @@ contains
             ! use new setup function for additional CSF informtation
             ! instead of calculating it all seperately..
             call init_csf_information(ilut(0:nifd))
-! 
-!             if (allocated(currentB_ilut)) deallocate(currentB_ilut)
-!             if (allocated(currentOcc_ilut)) deallocate(currentOcc_ilut)
-!             if (allocated(current_stepvector)) deallocate(current_stepvector)
-!             if (allocated(currentOcc_int)) deallocate(currentOcc_int)
-!             if (allocated(currentB_int)) deallocate(currentB_int)
-! 
-!             allocate(currentB_ilut(nSpatOrbs), stat = ierr)
-!             currentB_ilut = calcB_vector_ilut(ilut(0:nifd))
-! 
-!             allocate(currentOcc_ilut(nSpatOrbs), stat = ierr)
-!             currentOcc_ilut = calcOcc_vector_ilut(ilut(0:nifd))
-! 
-!             allocate(current_stepvector(nSpatOrbs), stat = ierr)
-!             current_stepvector = calcStepvector(ilut(0:nifd))
-! 
-!             allocate(currentOcc_int(nSpatOrbs), stat = ierr)
-!             currentOcc_int = int(currentOcc_ilut)
-! 
-!             allocate(currentB_int(nSpatOrbs), stat = ierr)
-!             currentB_int = int(currentB_ilut)
-! 
+
             ! then set tNewDet to false and only set it after the walker loop
             ! in FciMCPar
             tNewDet = .false.
 
         end if
-!         call write_det_guga(6, ilut)
 
         if (genrand_real2_dSFMT() < pSingles) then
 
@@ -3101,7 +3710,8 @@ contains
         type(excitationInformation) :: excitInfo
         integer :: excitLvl, ierr
         integer(n_int), pointer :: excitations(:,:)
-        real(dp) :: orb_pgen, branch_pgen
+        integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
+        real(dp) :: orb_pgen, branch_pgen, mat_ele
         type(weight_obj) :: weights
 ! #ifdef __DEBUG
         logical :: compFlag
@@ -3113,40 +3723,10 @@ contains
         ! or maybe even in the FciMCPar to use the same b and occvector 
         ! for and occupied determinant/CSF
 
-        ! have to calc bVector for current CSF
-!         allocate(currentB_ilut(nBasis/2), stat = ierr)
-!         currentB_ilut = calcB_vector_ilut(ilut)
-
-!         allocate(currentOcc_ilut(nBasis/2), stat = ierr)
-!         currentOcc_ilut = calcOcc_vector_ilut(ilut)
-
-        ! have to choose which kind of double excitation i want.. -> 
-        ! think about the relative probabilities
-
-!         excitLvl = chooseDoubleType()
-        ! for testing purposes rand between 3 and 4
-        ! TODO!!
-        ! for now only choose 1:
-        ! (ii,jj) also possible! fullstart-> fullstop excitations!!
-!             excitLvl = 2
-!         if (rand() < 0.5_dp) then
-!             excitLvl = 3
-!         else 
-!             excitLvl = 4
-!         end if
-
         call pickOrbitals_double(ilut, nI, excitInfo, orb_pgen)
 
-!         if (excitInfo%excitLvl == 1) print *, "is it compatible?"
-! #ifdef __DEBUG
-!         print *, "valid?: ", excitInfo%valid
-!         print *, "excitLvl: ", excitLvl
-!         print *, "i, j, k, l: ", excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l
-!         print *, "typ: ", excitInfo%typ
-! #endif
         ! check if orbitals were correctly picked
         if ( .not. excitInfo%valid ) then
-!             if (excitInfo%excitLvl == 1) print *, "not valid!"
             excitation = 0
             pgen = 0.0_dp
             !deallocate(currentB_ilut)
@@ -3154,7 +3734,6 @@ contains
             return
         end if
 
-! #ifdef __DEBUG
         ! do i need the checkcomp flag here?? how often does it happen that 
         ! i create a wrong excitation information? can i avoid to create 
         ! a wrong excitation information and thus not use checkComp here? 
@@ -3168,20 +3747,47 @@ contains
         ! anyway if it does not work in the excitation generation.. 
         call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches, &
             weights)
-! 
-!         if ( excitInfo%typ == 8 ) then
-!             print *,"ijkl:", excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l
-!             print *,"comp?: ", compFlag
-!             ASSERT(compFlag .eqv. excitInfo%valid)
-!         end if
 
         if (.not.compFlag) then
             excitation = 0
             pgen = 0.0_dp
             return
         end if
-! #endif
-!         if (excitInfo%excitLvl == 1) print *, "yes!"
+
+        if (tgen_guga_crude) then
+            ! do the crude approximation here, where i do not switch 
+            ! in the excitation range, but only at the picked electrons 
+            ! and orbitals 
+            ! this includes the change, that I always switch at mixed 
+            ! start and ends too! 
+
+            call create_crude_double(ilut, excitInfo, excitation, branch_pgen)
+
+            if (branch_pgen < EPS) then 
+                excitation = 0
+                pgen = 0.0_dp
+                return
+            end if
+
+            call convert_ilut_toNECI(ilut, ilutI)
+            call convert_ilut_toNECI(excitation, ilutJ)
+            
+            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+                .true., 2)
+
+            if (abs(mat_ele) < EPS) then 
+                excitation = 0
+                pgen = 0.0_dp
+
+                return
+            end if
+
+            call encode_matrix_element(excitation, mat_ele, 1)
+
+            pgen = orb_pgen * branch_pgen
+
+            return
+        end if
 
         ! depending on the excitation chosen -> call specific stochastic
         ! excitation calculators. similar to the exact calculation
@@ -3562,12 +4168,6 @@ contains
         i = gtID(occ_orbs(1))
         j = gtID(occ_orbs(2))
 
-        ! given i and j determine the symmetry info: 
-!         sym_prod = RandExcitSymLabelProd(SpinOrbSymLabel(occ_orbs(1)), &
-!                                          SpinOrbSymLabel(occ_orbs(2)))
-! 
-!         sum_ml = sum(G1(occ_orbs)%ml)
-! 
         cum_sum = 0.0_dp
 ! 
         if (tGen_guga_weighted) then
@@ -10806,12 +11406,12 @@ contains
 
         type(excitationInformation) :: excitInfo
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), integral, &
-                     branch_pgen, orb_pgen, temp_pgen
+                     branch_pgen, orb_pgen, temp_pgen, mat_ele
 
         type(weight_obj) :: weights
         integer :: iO, st, en, step, ierr, i, j, gen, deltaB, step2
+        integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
        
-
         ASSERT(isProperCSF_ilut(ilut))
 
         !allocate(currentB_ilut(nBasis/2), stat = ierr)
@@ -10837,6 +11437,37 @@ contains
             ! if no valid indices were picked, return 0 excitation and return
             exc = 0
             pgen = 0.0_dp
+            return
+        end if
+
+        ! do the crude approximation here for now..
+        if (tgen_guga_crude) then 
+
+            call create_crude_single(ilut, excitInfo, exc, branch_pgen)
+
+            if (branch_pgen < EPS) then 
+                exc = 0
+                pgen = 0.0_dp
+                return
+            end if
+
+            call convert_ilut_toNECI(ilut, ilutI)
+            call convert_ilut_toNECI(exc, ilutJ)
+            
+            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+                .true., 2)
+
+            if (abs(mat_ele) < EPS) then 
+                exc = 0
+                pgen = 0.0_dp
+
+                return
+            end if
+
+            call encode_matrix_element(exc, mat_ele, 1)
+
+            pgen = orb_pgen * branch_pgen
+
             return
         end if
 
@@ -10878,7 +11509,7 @@ contains
         ! then do the stochastic updates..
         do iO = st + 1, en- 1
             
-            ! need the ingoing deltaB value to access the multFactor table in 
+            ! need the ongoing deltaB value to access the multFactor table in 
             ! the same way as single and double excitations..
             deltaB = getDeltaB(exc)
 
@@ -22214,8 +22845,6 @@ contains
 
     end subroutine pickOrbs_real_hubbard_single
 
-
-
     subroutine gen_cum_list_guga_single_1(nI, orb_i, cc_i, cum_arr)
         ! specific single orbital picker if stepvector of electron (i) is 1
         integer, intent(in) :: nI(nel)
@@ -22421,9 +23050,8 @@ contains
                         ! those which are the same for all
                         if (n_id(j) == id_i) cycle
                         hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
-
-!                         hel = hel - get_umat_el(id_i, n_id(j), n_id(j), s_orb)/2.0_dp
                         hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
+
                     end do
 
                 case (1)
@@ -22441,7 +23069,6 @@ contains
                         ! those which are the same for all
                         if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
                         hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
-
                         hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
 
                     end do
@@ -22467,7 +23094,6 @@ contains
                             ! those which are the same for all
                             if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
                             hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
-
                             hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
 
                         end do
@@ -22566,7 +23192,6 @@ contains
                         ! those which are the same for all
                         if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
                         hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
-
                         hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
 
                     end do
@@ -22587,7 +23212,6 @@ contains
                         if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
 
                         hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
-
                         hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
 
                     end do

@@ -7,7 +7,7 @@ module tau_search_hist
                           UMatEps, nBasis, tGen_sym_guga_mol, tGen_nosym_guga, &
                           tReal, t_k_space_hubbard, t_trans_corr_2body, & 
                           t_trans_corr, t_new_real_space_hubbard, t_3_body_excits, &
-                          t_trans_corr_hop, tGUGA
+                          t_trans_corr_hop, tGUGA, tgen_guga_crude
                           
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow, &                
@@ -339,7 +339,7 @@ contains
                 this_routine, mem_tag_histograms, ierr)
 
 
-        else if (tGen_sym_guga_mol) then
+        else if (tGen_sym_guga_mol .or. tgen_guga_crude) then
 
             ! i always use the singles histogram dont I? i think so.. 
             allocate(frequency_bins_singles(n_frequency_bins))
