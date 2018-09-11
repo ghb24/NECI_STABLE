@@ -7,7 +7,8 @@ module excit_gens_int_weighted
                           AB_elec_pairs, par_elec_pairs, AA_hole_pairs, &
                           par_hole_pairs, AB_hole_pairs, iMaxLz, &
                           tGen_4ind_part_exact, tGen_4ind_lin_exact, &
-                          tGen_4ind_unbound, t_iiaa, t_ratio, UMatEps, tGUGA
+                          tGen_4ind_unbound, t_iiaa, t_ratio, UMatEps, tGUGA, &
+                          tgen_guga_crude, tGen_guga_weighted
     use CalcData, only: matele_cutoff, t_matele_cutoff
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcitDataMod, only: SymLabelList2, SymLabelCounts2, OrbClassCount, &
@@ -36,6 +37,8 @@ module excit_gens_int_weighted
     use util_mod
     use LoggingData, only: t_log_ija, ija_bins_para, ija_bins_anti, ija_thresh, &
                            ija_orbs_para, ija_orbs_anti, ija_bins_sing, ija_orbs_sing
+
+    use guga_excitations, only: get_guga_integral_contrib
 
     implicit none
     save
@@ -934,6 +937,32 @@ contains
                 ! Select first orbital linearly
                 contrib = 1.0_dp
             end if
+
+        else if (tgen_guga_crude) then 
+
+            inda = gtID(orba)
+            indb = gtID(orbb)
+
+            if (tGen_guga_weighted) then 
+                if (orbb < 0) then 
+                    contrib = sqrt(abs_l1(UMat2D(max(indi, inda), min(indi, inda))))
+
+                else
+                    contrib = sqrt(abs(get_umat_el(indi,indj,inda,indb)) +&
+                                   abs(get_umat_el(indi,indj,indb,inda)))
+                end if
+            else
+                if (orbb < 0) then
+
+                    contrib = 1.0_dp
+                else
+                    contrib = sqrt(abs(get_umat_el(indi,indj,inda,indb)) +&
+                                   abs(get_umat_el(indi,indj,indb,inda)))
+
+                end if
+            end if
+
+
         else
             ! Include the contribution of this term sqrt(<ia|ia>)
             inda = gtID(orba)
@@ -1017,6 +1046,30 @@ contains
                 ! Select first orbital linearly.
                 contrib = 1.0_dp
             end if
+        else if (tgen_guga_crude) then 
+
+            inda = gtID(orba)
+            indb = gtID(orbb)
+
+            if (tGen_guga_weighted) then 
+                if (orbb < 0) then 
+                    contrib = sqrt(abs_l1(UMat2D(max(indi, inda), min(indi, inda))))
+
+                else
+                    contrib = sqrt(abs(get_umat_el(indi,indj,inda,indb)) +&
+                                   abs(get_umat_el(indi,indj,indb,inda)))
+                end if
+            else
+                if (orbb < 0) then
+
+                    contrib = 1.0_dp
+                else
+                    contrib = sqrt(abs(get_umat_el(indi,indj,inda,indb)) +&
+                                   abs(get_umat_el(indi,indj,indb,inda)))
+
+                end if
+            end if
+
         else
             ! Include a contribution of (orb can be a or b):
             ! sqrt((ii|aa) + (jj|aa))
