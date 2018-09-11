@@ -253,17 +253,23 @@ logical :: tGUGA = .false. ! flag to indicate usage of GUGA
 ! use a flag to determine if unit tests should be performed! with an 
 ! additional optional input how often the the excitation generator should 
 ! be tested! 
-logical :: t_guga_unit_tests, t_full_guga_tests
+logical :: t_guga_unit_tests = .false., t_full_guga_tests = .false.
 integer :: n_guga_excit_gen
 ! introduce a new flag to indicate the testsuite is running!
 logical :: t_guga_testsuite = .false.
 
 
 ! use new flags for the new guga excitation generator implementations
-logical :: tGen_nosym_guga, tGen_sym_guga_ueg, tGen_sym_guga_mol, &
-           tgen_guga_weighted, tgen_guga_crude, tgen_guga_mixed
+logical :: tGen_nosym_guga =    .false., & 
+           tGen_sym_guga_ueg =  .false., & 
+           tGen_sym_guga_mol =  .false., &
+           tgen_guga_weighted = .false., &
+           tgen_guga_crude =    .false., & 
+           tgen_guga_mixed =    .false.
 
-logical :: t_consider_diff_bias
+logical :: t_guga_mixed_init = .true., t_guga_mixed_semi = .false.
+
+logical :: t_consider_diff_bias = .false.
 
 ! also store the number of spatial orbitals here, to use it generally
 integer :: nSpatOrbs

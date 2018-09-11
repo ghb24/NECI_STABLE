@@ -8,7 +8,7 @@ module excit_gens_int_weighted
                           par_hole_pairs, AB_hole_pairs, iMaxLz, &
                           tGen_4ind_part_exact, tGen_4ind_lin_exact, &
                           tGen_4ind_unbound, t_iiaa, t_ratio, UMatEps, tGUGA, &
-                          tgen_guga_crude, tGen_guga_weighted
+                          tgen_guga_crude, tGen_guga_weighted, tgen_guga_mixed
     use CalcData, only: matele_cutoff, t_matele_cutoff
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcitDataMod, only: SymLabelList2, SymLabelCounts2, OrbClassCount, &
@@ -879,7 +879,7 @@ contains
                 contrib = 1.0_dp
             end if
 
-        else if (tgen_guga_crude) then 
+        else if (tgen_guga_crude .or. tgen_guga_mixed) then 
 
             inda = gtID(orba)
             indb = gtID(orbb)
@@ -987,7 +987,7 @@ contains
                 ! Select first orbital linearly.
                 contrib = 1.0_dp
             end if
-        else if (tgen_guga_crude) then 
+        else if (tgen_guga_crude .or. tgen_guga_mixed) then 
 
             inda = gtID(orba)
             indb = gtID(orbb)

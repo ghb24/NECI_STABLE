@@ -8,7 +8,7 @@ module FciMCParMod
                           tHub, tReltvy, & 
                           t_new_real_space_hubbard, t_tJ_model, t_heisenberg_model, & 
                           t_k_space_hubbard, max_ex_level, t_uniform_excits, &
-                          tGen_guga_mixed
+                          tGen_guga_mixed, t_guga_mixed_init, t_guga_mixed_semi
 
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
@@ -1000,7 +1000,7 @@ module FciMCParMod
         type(ll_node), pointer :: TempNode
 
         integer :: ms
-        logical :: signChanged, newlyOccupied
+        logical :: signChanged, newlyOccupied, flag_mixed
         real(dp) :: currArg, spawnArg
         ! how many entries were added to (the end of) CurrentDets in the last iteration
         integer, save :: detGrowth = 0
@@ -1318,7 +1318,13 @@ module FciMCParMod
             ! try a mixed excitation scheme for guga, where we only do a full 
             ! excitation for initiators and the crude one for non-inits
             if (tGen_guga_mixed) then 
-                if (any_run_is_initiator(CurrentDets(:,j))) then 
+                if (t_guga_mixed_init) then
+                    flag_mixed = any_run_is_initiator(CurrentDets(:,j))
+                else if (t_guga_mixed_semi) then 
+                    flag_mixed = tCoreDet
+                end if
+
+                if (flag_mixed) then
                     generate_excitation => generate_excitation_guga
                 else
                     generate_excitation => gen_excit_4ind_weighted2

@@ -1208,8 +1208,8 @@ system: do
                         ! try a crude excitation approximation, where no 
                         ! spin-flips in the excitation range are allowed 
                         tgen_guga_crude = .true. 
-                        ! quick hack: 
-                        t_iiaa = .true.
+                        tgen_guga_weighted = .true.
+                        tGen_sym_guga_mol = .true.
 
                     case('GUGA-MIXED')
                         ! try a mix of the crude and full implementation: 
@@ -1219,6 +1219,17 @@ system: do
                         tgen_guga_crude = .true.
                         tGen_sym_guga_mol = .true.
                         tgen_guga_weighted = .true. 
+
+                        if (item < nitems) then
+                            call readu(w)
+
+                            select case (w)
+                            case('SEMI')
+                                t_guga_mixed_init = .false.
+                                t_guga_mixed_semi = .true.
+
+                            end select
+                        end if
 
                     case("CYCLETHRUORBS")
                         tCycleOrbs=.true.
