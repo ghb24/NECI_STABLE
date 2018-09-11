@@ -7,7 +7,8 @@ module FciMCParMod
                           tGen_4ind_weighted, t_test_excit_gen, tGUGA, &
                           tHub, tReltvy, & 
                           t_new_real_space_hubbard, t_tJ_model, t_heisenberg_model, & 
-                          t_k_space_hubbard, max_ex_level, t_uniform_excits
+                          t_k_space_hubbard, max_ex_level, t_uniform_excits, &
+                          tGen_guga_mixed
 
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
@@ -69,7 +70,7 @@ module FciMCParMod
     use orthogonalise, only: orthogonalise_replicas, calc_replica_overlaps, &
                              orthogonalise_replica_pairs
     use load_balance, only: tLoadBalanceBlocks, adjust_load_balance
-    use bit_reps, only: set_flag, clr_flag, add_ilut_lists, get_initiator_flag
+    use bit_reps, only: set_flag, clr_flag, add_ilut_lists, any_run_is_initiator 
     use exact_diag, only: perform_exact_diag_all_symmetry
     use spectral_lanczos, only: perform_spectral_lanczos
     use bit_rep_data, only: nOffFlag, flag_determ_parent, test_flag, flag_prone
@@ -99,9 +100,12 @@ module FciMCParMod
 
     use guga_data, only: tNewDet
 
+    use excit_gen_5, only: gen_excit_4ind_weighted2
+
 #ifndef __CMPLX
     use guga_testsuite, only: run_test_excit_gen_det
-    use guga_excitations, only: deallocate_projE_list, init_csf_information
+    use guga_excitations, only: deallocate_projE_list, init_csf_information, &
+                                generate_excitation_guga
 #endif
     use real_time_data, only: t_prepare_real_time, n_real_time_copies, &    
                               cnt_real_time_copies    
@@ -1310,6 +1314,17 @@ module FciMCParMod
             ! alis additional idea to skip the number of attempted excitations
             ! for noninititators in the back-spawning approach
             ! remove that for now
+
+            ! try a mixed excitation scheme for guga, where we only do a full 
+            ! excitation for initiators and the crude one for non-inits
+            if (tGen_guga_mixed) then 
+                if (any_run_is_initiator(CurrentDets(:,j))) then 
+                    generate_excitation => generate_excitation_guga
+                else
+                    generate_excitation => gen_excit_4ind_weighted2
+                end if
+            end if
+
             do part_type = 1, lenof_sign
 
                 run = part_type_to_run(part_type)

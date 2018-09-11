@@ -12,7 +12,7 @@ module back_spawn_excit_gen
     use FciMCData, only: pSingles, projedet, pDoubles
     use dSFMT_interface, only: genrand_real2_dSFMT
     use excit_gens_int_weighted, only: gen_single_4ind_ex, select_orb_sing, &
-                                pick_weighted_elecs, get_paired_cc_ind, select_orb, &
+                                pick_weighted_elecs, select_orb, &
                                 pgen_select_orb, pgen_weighted_elecs, pgen_single_4ind
     use excit_gen_5, only: gen_double_4ind_ex2, pick_a_orb, pgen_select_a_orb, &
                         calc_pgen_4ind_weighted2
@@ -33,6 +33,8 @@ module back_spawn_excit_gen
     use util_mod, only: binary_search_first_ge
 
     use lattice_models_utils, only: make_ilutJ, get_orb_from_kpoints, get_ispn
+
+    use sym_general_mod, only: get_paired_cc_ind
 
 #ifdef __DEBUG 
     use SystemData, only: tNoFailAb

@@ -1211,6 +1211,15 @@ system: do
                         ! quick hack: 
                         t_iiaa = .true.
 
+                    case('GUGA-MIXED')
+                        ! try a mix of the crude and full implementation: 
+                        ! initiators spawn fully, while non-initiators 
+                        ! only spawn in the crude approximation 
+                        tgen_guga_mixed = .true. 
+                        tgen_guga_crude = .true.
+                        tGen_sym_guga_mol = .true.
+                        tgen_guga_weighted = .true. 
+
                     case("CYCLETHRUORBS")
                         tCycleOrbs=.true.
                     case("NOSYMGEN")

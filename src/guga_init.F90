@@ -91,8 +91,6 @@ contains
             calc_mixed_end_l2r_contr => calc_mixed_end_contr_sym
             calc_mixed_end_r2l_contr => calc_mixed_end_contr_sym
 
-!         else if (tgen_guga_crude) then 
-!             call stop_all("init_guga_orbital_pickers", "implement crude!")
 
         else if (tGen_nosym_guga) then
             pickOrbitals_single => pickOrbitals_nosym_single

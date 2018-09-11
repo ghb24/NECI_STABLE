@@ -261,7 +261,7 @@ logical :: t_guga_testsuite = .false.
 
 ! use new flags for the new guga excitation generator implementations
 logical :: tGen_nosym_guga, tGen_sym_guga_ueg, tGen_sym_guga_mol, &
-           tgen_guga_weighted, tgen_guga_crude
+           tgen_guga_weighted, tgen_guga_crude, tgen_guga_mixed
 
 logical :: t_consider_diff_bias
 

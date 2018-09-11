@@ -11,19 +11,26 @@ module guga_excitations
                           currentB_ilut, currentB_int, current_cum_list, &
                           tGen_guga_weighted, ref_stepvector, ref_b_vector_real, & 
                           ref_occ_vector, ref_b_vector_int, t_full_guga_tests, &
-                          nBasisMax, tHub, treal, t_guga_testsuite, tgen_guga_crude
+                          nBasisMax, tHub, treal, t_guga_testsuite, tgen_guga_crude, &
+                          tgen_guga_mixed
+
     use constants, only: dp, n_int, bits_n_int, lenof_sign, Root2, THIRD, HEl_zero, &
                          EPS, bni_, bn2_, iout, int64, inum_runs
+
     use bit_reps, only: niftot, decode_bit_det, encode_det, encode_part_sign, &
                         extract_part_sign, add_ilut_lists, nifguga, nifd
+
     use bit_rep_data, only: nifdbo
+
     use DetBitOps, only: EncodeBitDet, count_open_orbs, ilut_lt, ilut_gt, DetBitEQ
+
     use guga_data, only: excitationInformation, getSingleMatrixElement, &
                     getDoubleMatrixElement, getMixedFullStop, &
                     weight_data, orbitalIndex, funA_0_2overR2, minFunA_2_0_overR2, &
                     funA_m1_1_overR2, funA_3_1_overR2, minFunA_0_2_overR2, &
                     funA_2_0_overR2, getDoubleContribution, projE_replica, &
                     tNewDet, tag_excitations, tag_tmp_excits, tag_proje_list
+
     use guga_bitRepOps, only: isProperCSF_ilut, calcB_vector_ilut, getDeltaB, &
                         setDeltaB, count_open_orbs_ij, calcOcc_vector_ilut, &
                         encode_matrix_element, update_matrix_element, &
@@ -33,31 +40,46 @@ module guga_excitations
                         calcStepvector, find_switches, convert_ilut_toNECI, &
                         calcB_vector_int, calcOcc_vector_int, EncodeBitDet_guga, &
                         identify_excitation
+
     use guga_matrixElements, only: calcDiagMatEleGUGA_ilut, calcDiagMatEleGuga_nI, &
                                    calc_off_diag_guga_ref_list
+
     use OneEInts, only: GetTMatEl
+
     use Integrals_neci, only: get_umat_el
+
     use guga_data, only: branchWeight
-!     use Determinants, only: write_bit_rep
+
     use dSFMT_interface, only: genrand_real2_dSFMT
+
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, ilutRef, &
                          pExcit4, pExcit2, pExcit2_same, pExcit3_same, ilutHF
+
     use util_mod, only: get_free_unit, binary_search, get_unique_filename, &
                         binary_search_first_ge, abs_l1
+
     use sort_mod, only: sort
+
     use symrandexcit3, only: pick_elec_pair
+
     use GenRandSymExcitNUMod, only: RandExcitSymLabelProd, IsMomentumAllowed
+
     use SymExcitDataMod, only: SpinOrbSymLabel, OrbClassCount, SymLabelCounts2, &
                                SymLabelList2, KPointToBasisFn, sym_label_list_spat
-    use sym_general_mod, only: ClassCountInd
-    use excit_gens_int_weighted, only: get_paired_cc_ind
+
+    use sym_general_mod, only: ClassCountInd, get_paired_cc_ind
+
     use umatcache, only: gtID
+
     use guga_procedure_pointers, only: pickOrbitals_single, pickOrbitals_double, &
                 calc_orbital_pgen_contr, calc_mixed_contr, calc_mixed_start_r2l_contr, &
                 calc_mixed_start_l2r_contr, calc_mixed_end_l2r_contr, calc_mixed_end_r2l_contr, &
                 pick_first_orbital, orb_pgen_contrib_type_3, orb_pgen_contrib_type_2
+
     use Umatcache, only: UMat2D
+
     use timing_neci, only: timer, set_timer, halt_timer, get_total_time
+
     use guga_types, only: weight_obj
     use MemoryManager, only: LogMemAlloc, LogMemDealloc
     use sym_mod, only: MomPbcSym
@@ -3754,7 +3776,7 @@ contains
             return
         end if
 
-        if (tgen_guga_crude) then
+        if (tgen_guga_crude .and. .not. tgen_guga_mixed) then
             ! do the crude approximation here, where i do not switch 
             ! in the excitation range, but only at the picked electrons 
             ! and orbitals 
@@ -11441,7 +11463,7 @@ contains
         end if
 
         ! do the crude approximation here for now..
-        if (tgen_guga_crude) then 
+        if (tgen_guga_crude .and. .not. tgen_guga_mixed) then
 
             call create_crude_single(ilut, excitInfo, exc, branch_pgen)
 

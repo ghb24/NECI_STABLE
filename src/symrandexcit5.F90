@@ -35,7 +35,8 @@ module excit_gen_5
 
     use guga_bitRepOps, only: isProperCSF_ilut, convert_ilut_toGUGA
     use guga_data, only: excitationInformation, tNewDet
-    use guga_excitations, only: calc_guga_matrix_element, init_csf_information
+    use guga_excitations, only: calc_guga_matrix_element, init_csf_information, &
+                                global_excitinfo
 
     implicit none
 
@@ -89,13 +90,17 @@ contains
         ! determinant excitation generator
         if (tGen_guga_crude) then 
 
+            if (nJ(1) == 0) then 
+                pgen = 0.0_dp
+                return
+            end if
+
             call convert_ilut_toGUGA(ilutJ, ilutGj)
 
-            if (.not. isProperCSF_ilut(ilutGJ)) then 
+            if (.not. isProperCSF_ilut(ilutGJ, .true.)) then 
                 nJ(1) = 0
                 pgen = 0.0_dp
             end if
-
 
             if (tNewDet) then
                 call convert_ilut_toGUGA(ilutI, ilutGi)
@@ -109,13 +114,16 @@ contains
 
             end if
 
-            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, HelGen, .true., 1)
+            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, HelGen, .true., 2)
 
             if (abs(HelGen) < EPS) then 
                 nJ(1) = 0
                 pgen = 0.0_dp 
             end if
 
+            global_excitinfo = excitInfo
+
+            return
         end if
 
         ! And a careful check!
