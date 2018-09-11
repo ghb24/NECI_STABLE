@@ -168,6 +168,7 @@ set( SRC_FILES
     System_neci.F90
     tau_search.F90
     trial_wf_gen.F90
+    trial_ht_procs.F90
     UMatCache.F90
     vasp_init.F90
     vasp_interface.F90

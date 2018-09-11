@@ -119,7 +119,7 @@ contains
 
         disps_ftlm(0) = 0
         do i = 1, nProcessors-1
-            disps_ftlm(i) = sum(ndets_ftlm(:i-1))
+            disps_ftlm(i) = disps_ftlm(i-1) + ndets_ftlm(i-1)
         end do
 
         ndets_tot = int(sum(ndets_ftlm), sizeof_int)

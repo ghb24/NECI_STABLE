@@ -368,14 +368,16 @@ contains
             spectral_weight = 0.0_dp
             do j = min_vec, neigv
                if(tIWSpec) then
+
                   spectral_weight = spectral_weight + (trans_amps_left(j) * &
-                       trans_amps_right(j) ) * ( 1.0 / (spectral_ground_energy - eigv(j) + omega ) &
-                       + 1.0 / (omega - spectral_ground_energy + eigv(j)) )
+                       trans_amps_right(j) ) * (1.0 / ( (spectral_ground_energy - eigv(j)) &
+                       + omega ) + 1.0 / ( -1.0*(spectral_ground_energy - eigv(j)) &
+                       + omega ) ) 
                else
-                spectral_weight = spectral_weight + &
-                    (trans_amps_left(j)*trans_amps_right(j)*spectral_broadening)/&
-                    (pi*(spectral_broadening**2 + (spectral_ground_energy-eigv(j)+omega)**2))
-             endif
+                  spectral_weight = spectral_weight + &
+                       (trans_amps_left(j)*trans_amps_right(j)*spectral_broadening)/&
+                       (pi*(spectral_broadening**2 + (spectral_ground_energy-eigv(j)+omega)**2))
+               endif
             end do
             write(6,'(f18.12, 4x, f18.12, 4x, f18.12, 4x, f18.12)') real(real(omega)), &
                  real(aimag(omega)), real(real(spectral_weight)), real(aimag(spectral_weight))

@@ -66,8 +66,6 @@ C..   Now we need to match up any two determinants
          IF(STEP.EQ.0) STEP=1
          DO KJ=IBEGJ,IMAXJ,STEP
             call EncodeBitDet(NMRKS(:,KJ), ilutJ)
-!            CALL WRITEDET(6,NMRKS(1,KI),NEL,.FALSE.)
-!            CALL WRITEDET(6,NMRKS(1,KJ),NEL,.TRUE.)
             if (tHPHF) then
               if (KI == KJ) then
                 totsum = hphf_diag_helement(NMRKS(:,KI), ilutI)
