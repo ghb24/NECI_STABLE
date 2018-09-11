@@ -235,7 +235,7 @@ contains
             ! Encode the new sign.
             call encode_sign(SpawnedParts(:,ind), real_sign_new)
 
-            if(all(real_sign_old*child_sign > 0)) then
+            if(all(real_sign_old*child_sign > 0)) &
                call set_flag(SpawnedParts(:,ind), flag_multi_spawn)
 
             ! Set the initiator flags appropriately.
