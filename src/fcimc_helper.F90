@@ -235,7 +235,8 @@ contains
             ! Encode the new sign.
             call encode_sign(SpawnedParts(:,ind), real_sign_new)
 
-            call set_flag(SpawnedParts(:,ind), flag_multi_spawn)
+            if(all(real_sign_old*child_sign > 0)) then
+               call set_flag(SpawnedParts(:,ind), flag_multi_spawn)
 
             ! Set the initiator flags appropriately.
             ! If this determinant (on this replica) has already been spawned to
