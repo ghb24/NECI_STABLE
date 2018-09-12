@@ -35,7 +35,7 @@ module lattice_models_utils
 
     use Parallel_neci, only: iProcIndex, root
 
-    use get_excit, only: make_double
+    use get_excit, only: make_double, make_single
 
     implicit none
 
@@ -469,18 +469,21 @@ contains
 
     end subroutine gen_all_singles_rs_hub_hop_transcorr
 
-    subroutine gen_all_singles_rs_hub_default(nI, n_excits, det_list) 
+    subroutine gen_all_singles_rs_hub_default(nI, n_excits, det_list, sign_list) 
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits
         integer(n_int), intent(out), allocatable :: det_list(:,:) 
+        real(dp), intent(out), allocatable, optional :: sign_list(:)
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "gen_all_singles_rs_hub_default" 
 #endif
         integer(n_int) :: ilut(0:NIfTot), ilutJ(0:NIfTot)
-        integer :: n_bound, i, src, j, neigh, ex(2,2), pos
+        integer :: n_bound, i, src, j, neigh, ex(2,2), pos, nJ(nel)
         integer(n_int), allocatable :: temp_list(:,:)
         integer, allocatable :: neighbors(:)
         real(dp) :: elem
+        real(dp), allocatable :: temp_sign(:)
+        logical :: t_sign, tpar
 
         ASSERT(associated(lat))
 
@@ -491,6 +494,13 @@ contains
         n_bound = nel * (nbasis - nel)
         allocate(temp_list(0:NIfTot,n_bound))
         temp_list = 0_n_int
+
+        if (present(sign_list)) then 
+            t_sign = .true. 
+            allocate(temp_sign(n_bound), source = 0.0_dp)
+        else 
+            t_sign = .false.
+        end if
 
         ex = 0
         ! loop over electrons
@@ -515,9 +525,11 @@ contains
                     ! but use the lattice get_helement_lattice to 
                     ! avoid circular dependencies
 !                     elem = abs(get_offdiag_helement_rs_hub(nI,ex,.false.))
-                    elem = abs(get_helement_lattice(nI, 1, ex, .false.))
+                    call make_single(nI, nJ, i, neighbors(j),ex, tpar)
+                    elem = get_helement_lattice(nI,nJ)
+!                     elem = abs(get_helement_lattice(nI, 1, ex, .false.))
 
-                    if (elem > EPS) then 
+                    if (abs(elem) > EPS) then 
 
                         ilutJ = make_ilutJ(ilut, ex, 1)
 
@@ -528,6 +540,9 @@ contains
 
                         if (pos < 0) then 
 
+                            if (t_sign) then 
+                                temp_sign(n_excits) = sign(1.0_dp, elem)
+                            end if
                             temp_list(:,n_excits) = ilutJ
                             call sort(temp_list(:,1:n_excits),ilut_lt,ilut_gt)
                             n_excits = n_excits + 1
@@ -541,7 +556,13 @@ contains
         n_excits = n_excits - 1
         allocate(det_list(0:NIfTot,n_excits), source = temp_list(:,1:n_excits))
 
-        call sort(det_list, ilut_lt, ilut_gt)
+        if (t_sign) then 
+            allocate(sign_list(n_excits), source = temp_sign(1:n_excits))
+
+            call sort(det_list, sign_list)
+        else
+            call sort(det_list, ilut_lt, ilut_gt)
+        end if
 
     end subroutine gen_all_singles_rs_hub_default
 
