@@ -6,7 +6,7 @@ module AnnihilationMod
     use CalcData, only:   tTruncInitiator, OccupiedThresh, tSemiStochastic, &
                           tTrialWavefunction, tKP_FCIQMC, tContTimeFCIMC, &
                           tContTimeFull, InitiatorWalkNo, tau, tEN2, tEN2Init, &
-                          tEN2Started, tEN2Truncated, tInitCoherentRule, t_truncate_unocc, &
+                          tEN2Started, tEN2Truncated, tInitCoherentRule, t_truncate_spawns, &
                           n_truncate_spawns, t_prone_walkers
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
@@ -643,7 +643,7 @@ module AnnihilationMod
             tDetermState = .false.
 
 !            WRITE(6,*) 'i,SpawnedParts(:,i)',i,SpawnedParts(:,i)
-            
+
             if (tSuccess) then
 
                 ! Our SpawnedParts determinant is found in CurrentDets.
@@ -811,7 +811,7 @@ module AnnihilationMod
                endif
                ScaledOccupiedThresh = scFVal * OccupiedThresh
 
-               t_truncate_unocc_this_det = t_truncate_unocc .and. .not. &
+               t_truncate_unocc_this_det = t_truncate_spawns .and. .not. &
                     test_flag(SpawnedParts(:,i), flag_multi_spawn)
 
                 ! Determinant in newly spawned list is not found in CurrentDets.

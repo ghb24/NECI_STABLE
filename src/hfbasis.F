@@ -819,12 +819,12 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
 
           ! Working space
           INTEGER NELS(2)
-          INTEGER NELR, IREAL, IS, ISPN, NSBASIS,I, totSpin
+          INTEGER NELR, IREAL, IS, NSBASIS,I, totSpin, nclosed
           integer :: nspins(2)
           integer, dimension(3) :: totK
           logical :: sr
 
-          ! eigenvector N is in FMAT(i,N,ISPN), where i is the component of the
+          ! eigenvector N is in FMAT(i,N,IS), where i is the component of the
           ! vector unless transposed
           NSBASIS=NBASIS/2
           NELS(2)=(LMS+NEL)/2
@@ -837,6 +837,7 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
             WRITE(6,'(4(A,'//int_fmt(nel)//'))') " N_alpha:",NELS(1),
      &   " ; N_beta:",  NELS(2)," ; LMS:",LMS," ; NEl:",NEL
          end if
+          nclosed = minval(nels)
 
           if (tGiovannisBrokenInit) then
               call GLM_BROKEN_GENFDET(brr, g1, nbasis, lms, nel, fdet)
@@ -846,11 +847,11 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
           if(tMolpro) then
               !Assume that orbitals are ordered by occupation number
               !Assuming LMS positive, NELS(2) > NELS(1)
-              do i=1,NELS(1)*2
+              do i=1,nclosed*2
                   FDET(i)=i  !Fill up closed shells
               enddo
-              do i=1,LMS !Fill up open shells in odd orbitals
-                  FDET(NELS(1)*2+i)=NELS(1)*2+(i*2-1)
+              do i=1,abs(LMS) !Fill up open shells in odd orbitals
+                  FDET(nclosed*2+i)=nclosed*2+(i*2-(1-LMS)/2)
               enddo
               return
           endif
@@ -891,15 +892,10 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
           enddo
           else
           DO IS=1,2
-              IF(LMS.GE.0) THEN
-                  ISPN=3-IS
-              ELSE
-                  ISPN=IS
-              ENDIF
               IREAL=1
               DO I=1,NSBASIS
                   if (ireal > nbasis) exit
-                  DO WHILE(G1(BRR(IREAL))%Ms.NE.(-3+2*ISPN))
+                  DO WHILE(G1(BRR(IREAL))%Ms.NE.(-3+2*IS))
                       IREAL=IREAL+1
                       if (ireal > nbasis) exit
                   ENDDO
