@@ -662,8 +662,10 @@ module AnnihilationMod
                       scFVal = 1.0_dp
                    endif
                    do j = 1, lenof_sign
-                       if(abs(SpawnedSign(j)) > n_truncate_spawns*scFVal) &
-                       SpawnedSign(j) = sign(n_truncate_spawns*scFVal, SpawnedSign(j))
+                       if(abs(SpawnedSign(j)) > n_truncate_spawns*scFVal) then
+                           print *, "occ: ", SpawnedSign(j)
+                           SpawnedSign(j) = sign(n_truncate_spawns*scFVal, SpawnedSign(j))
+                       end if
                    end do
                 end if
 
@@ -1002,14 +1004,20 @@ module AnnihilationMod
          ! prevent blooms if requested
          ! in guga ignore multi-spawn events and still truncate!
          if (tGUGA .and. t_truncate_spawns) then
-            if(abs(SignTemp(j)) > n_truncate_spawns*scFVal) &
+            if(abs(SignTemp(j)) > n_truncate_spawns*scFVal) then
+                print *, "unocc: ", SignTemp(j)
                  SignTemp(j) = sign(n_truncate_spawns*scFVal, SignTemp(j))
+             end if
+
+            call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
 
             return
 
          else if(tTruncate) then
             if(abs(SignTemp(j)) > n_truncate_spawns*scFVal) &
                  SignTemp(j) = sign(n_truncate_spawns*scFVal, SignTemp(j))
+
+            call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
          endif
       end if
 
