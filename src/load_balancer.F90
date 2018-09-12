@@ -299,7 +299,6 @@ contains
             call CalcHashTableStats(TotWalkersTmp, iter_data)
             TotWalkers = int(TotWalkersTmp, int64)
         endif
-
         !   -- Test if sufficiently uniform
         !   -- If not, pick largest, and smallest, sites
         !   -- Transfer the largest block that will not take either of the
@@ -412,7 +411,6 @@ contains
 
                 ! Calculate the diagonal hamiltonian matrix element for the new particle to be merged.
                 HDiag = get_diagonal_matel(det, SpawnedParts(:,j))
-
                 call AddNewHashDet(TotWalkersTmp, SpawnedParts(:, j), &
                                    hash_val, det, HDiag)
                 TotWalkers = TotWalkersTmp

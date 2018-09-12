@@ -155,8 +155,8 @@ module FciMCParMod
         tPopsAlreadyRead = .false.
 
         call SetupParameters()
-        call InitFCIMCCalcPar()
         call init_fcimc_fn_pointers() 
+        call InitFCIMCCalcPar()
 
         ! Attach signal handlers to give a more graceful death-mannerism
         call init_signals()
