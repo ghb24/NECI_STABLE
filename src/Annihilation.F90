@@ -663,7 +663,6 @@ module AnnihilationMod
                    endif
                    do j = 1, lenof_sign
                        if(abs(SpawnedSign(j)) > n_truncate_spawns*scFVal) then
-                           print *, "occ: ", SpawnedSign(j)
                            SpawnedSign(j) = sign(n_truncate_spawns*scFVal, SpawnedSign(j))
                        end if
                    end do
@@ -1005,7 +1004,6 @@ module AnnihilationMod
          ! in guga ignore multi-spawn events and still truncate!
          if (tGUGA .and. t_truncate_spawns) then
             if(abs(SignTemp(j)) > n_truncate_spawns*scFVal) then
-                print *, "unocc: ", SignTemp(j)
                  SignTemp(j) = sign(n_truncate_spawns*scFVal, SignTemp(j))
              end if
 
