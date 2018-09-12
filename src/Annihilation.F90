@@ -661,8 +661,10 @@ module AnnihilationMod
                    else
                       scFVal = 1.0_dp
                    endif
-                   if(abs(SpawnedSign(j)) > n_truncate_spawns*scFVal) &
-                   SpawnedSign(j) = sign(n_truncate_spawns*scFVal, SpawnedSign(j))
+                   do j = 1, lenof_sign
+                       if(abs(SpawnedSign(j)) > n_truncate_spawns*scFVal) &
+                       SpawnedSign(j) = sign(n_truncate_spawns*scFVal, SpawnedSign(j))
+                   end do
                 end if
 
                 SignProd = CurrentSign*SpawnedSign
@@ -1002,6 +1004,8 @@ module AnnihilationMod
          if (tGUGA .and. t_truncate_spawns) then
             if(abs(SignTemp(j)) > n_truncate_spawns*scFVal) &
                  SignTemp(j) = sign(n_truncate_spawns*scFVal, SignTemp(j))
+
+            return
 
          else if(tTruncate) then
             if(abs(SignTemp(j)) > n_truncate_spawns*scFVal) &
