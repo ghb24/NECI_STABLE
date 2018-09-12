@@ -1191,6 +1191,8 @@ contains
                        select case(w)
                        case("UNOCC")
                           t_truncate_unocc = .true.
+                       case("MULTI")
+                          t_truncate_multi = .true.
                        case default
                           t_truncate_unocc = .false.
                        end select

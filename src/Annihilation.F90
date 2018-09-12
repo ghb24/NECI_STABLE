@@ -7,7 +7,7 @@ module AnnihilationMod
                           tTrialWavefunction, tKP_FCIQMC, tContTimeFCIMC, &
                           tContTimeFull, InitiatorWalkNo, tau, tEN2, tEN2Init, &
                           tEN2Started, tEN2Truncated, tInitCoherentRule, t_truncate_spawns, &
-                          n_truncate_spawns, t_prone_walkers
+                          n_truncate_spawns, t_prone_walkers, t_truncate_unocc
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -29,6 +29,7 @@ module AnnihilationMod
                             CalcHashTableStats, get_diagonal_matel
     use searching
     use hash
+    use global_det_data, only: det_diagH
     use procedure_pointers, only: scaleFunction
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement
@@ -582,7 +583,7 @@ module AnnihilationMod
         integer :: ExcitLevel, DetHash, nJ(nel)
         logical :: tSuccess, tSuc, tDetermState
         logical :: abort(lenof_sign)
-        logical :: tTruncSpawn, t_truncate_unocc_this_det
+        logical :: tTruncSpawn, t_truncate_this_det
 
         ! Only node roots to do this.
         if (.not. bNodeRoot) return
@@ -610,6 +611,12 @@ module AnnihilationMod
 
             tDetermState = .false.
 
+            ! for scaled walkers, truncation is done here
+            t_truncate_this_det = t_truncate_spawns .and. .not. &
+                 test_flag(SpawnedParts(:,i), flag_multi_spawn) .and. &
+                 tEScaleWalkers
+
+
 !            WRITE(6,*) 'i,SpawnedParts(:,i)',i,SpawnedParts(:,i)
 
             if (tSuccess) then
@@ -621,12 +628,20 @@ module AnnihilationMod
 
                 SignProd = CurrentSign*SpawnedSign
 
+                ! truncate if requested
+                if(t_truncate_this_det .and. .not. t_truncate_unocc) then
+                   scFVal = scaleFunction(det_diagH(PartInd))
+                   do j = 1, lenof_sign
+                      call truncateSpawn(iter_data, SpawnedSign, j, scFVal, SignProd(j))
+                   enddo
+                endif
+
                 tDetermState = test_flag(CurrentDets(:,PartInd), flag_deterministic)
 
                 if (sum(abs(CurrentSign)) >= 1.e-12_dp .or. tDetermState) then
                     ! Transfer new sign across.
                     call encode_sign(CurrentDets(:,PartInd), SpawnedSign+CurrentSign)
-                    call encode_sign(SpawnedParts(:,i), null_part)
+                    call encode_sign(SpawnedParts(:,i), null_part)                    
 
                     ! If the sign changed, the adi check has to be redone
                     if(any(real(SignProd,dp) < 0.0_dp)) &
@@ -736,9 +751,6 @@ module AnnihilationMod
                endif
                ScaledOccupiedThresh = scFVal * OccupiedThresh
 
-               t_truncate_unocc_this_det = t_truncate_spawns .and. .not. &
-                    test_flag(SpawnedParts(:,i), flag_multi_spawn)
-
                 ! Determinant in newly spawned list is not found in CurrentDets.
                 ! Usually this would mean the walkers just stay in this list and
                 ! get merged later - but in this case we want to check where the
@@ -782,8 +794,8 @@ module AnnihilationMod
 
                         end if
                         ! truncate to a minimum population given by the scale factor
-                        call applySpawnTruncation(iter_data, SignTemp, i, j, scFVal, &
-                             ScaledOccupiedThresh, t_truncate_unocc_this_det)
+                        call stochRoundSpawn(iter_data, SignTemp, i, j, scFVal, &
+                             ScaledOccupiedThresh, t_truncate_this_det)
                     end do
 
                     if(t_prone_walkers) then
@@ -821,8 +833,8 @@ module AnnihilationMod
                     else
                         do j = 1, lenof_sign
                             ! truncate the spawn if required
-                            call applySpawnTruncation(iter_data, SignTemp, i, j, scFVal, &
-                                 ScaledOccupiedThresh, t_truncate_unocc_this_det)
+                            call stochRoundSpawn(iter_data, SignTemp, i, j, scFVal, &
+                                 ScaledOccupiedThresh, t_truncate_this_det)
                         end do
 
                         if (.not. IsUnoccDet(SignTemp)) then
@@ -859,7 +871,7 @@ module AnnihilationMod
 
     end subroutine AnnihilateSpawnedParts
 
-    subroutine applySpawnTruncation(iter_data, SignTemp, i, j, scFVal, ScaledOccupiedThresh, &
+    subroutine stochRoundSpawn(iter_data, SignTemp, i, j, scFVal, ScaledOccupiedThresh, &
          tTruncate)
       implicit none
       type(fcimc_iter_data), intent(inout) :: iter_data
@@ -898,12 +910,29 @@ module AnnihilationMod
          ! truncate down to a minimum number of spawns to
          ! prevent blooms if requested
          if(tTruncate) then
-            if(abs(SignTemp(j)) > n_truncate_spawns*scFVal) &
-                 SignTemp(j) = sign(n_truncate_spawns*scFVal, SignTemp(j))
+            call truncateSpawn(iter_data,SignTemp,j,scFVal,1.0_dp)
+            call encode_part_sign(SpawnedParts(:,i), SignTemp(j), j)
          endif
       end if
 
-    end subroutine applySpawnTruncation
+    end subroutine stochRoundSpawn
+
+    subroutine truncateSpawn(iter_data, SignTemp, j, scFVal, SignProd)
+      implicit none
+      type(fcimc_iter_data), intent(inout) :: iter_data
+      real(dp), intent(inout) :: SignTemp(lenof_sign)
+      integer, intent(in) :: j
+      real(dp), intent(in) :: scFVal, SignProd
+
+
+      ! truncate the new walkers to a maximum value
+      if(abs(SignTemp(j)) > n_truncate_spawns*scFVal) then
+         iter_data%nremoved(j) = iter_data%nremoved(j) + &
+              abs(SignTemp(j)) - sign(n_truncate_spawns*scFVal,SignProd)
+         SignTemp(j) = sign(n_truncate_spawns*scFVal, SignTemp(j))
+      endif
+
+    end subroutine truncateSpawn
     
     pure function test_abort_spawn(ilut_spwn, part_type) result(abort)
 
