@@ -2,12 +2,12 @@
 
 module AnnihilationMod
 
-    use SystemData, only: NEl, tHPHF
+    use SystemData, only: NEl, tHPHF, tGUGA
     use CalcData, only:   tTruncInitiator, OccupiedThresh, tSemiStochastic, &
                           tTrialWavefunction, tKP_FCIQMC, tContTimeFCIMC, &
                           tContTimeFull, InitiatorWalkNo, tau, tEN2, tEN2Init, &
                           tEN2Started, tEN2Truncated, tInitCoherentRule, t_truncate_spawns, &
-                          n_truncate_spawns, t_prone_walkers
+                          n_truncate_spawns, t_prone_walkers, t_truncate_unocc
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -651,6 +651,20 @@ module AnnihilationMod
                 call extract_sign(CurrentDets(:,PartInd),CurrentSign)
                 call extract_sign(SpawnedParts(:,i),SpawnedSign)
 
+                ! in GUGA we might also want to truncate occupied dets
+                if(tGUGA .and. (t_truncate_spawns .and. .not. t_truncate_unocc)) then 
+                   ! the diagonal element of H is to be stored anyway
+                   diagH = get_diagonal_matel(nJ, SpawnedParts(:,i))
+                   if(tEScaleWalkers) then
+                      ! evaluate the scaling function
+                      scFVal = scaleFunction(diagH - Hii)
+                   else
+                      scFVal = 1.0_dp
+                   endif
+                   if(abs(SpawnedSign(j)) > n_truncate_spawns*scFVal) &
+                   SpawnedSign(j) = sign(n_truncate_spawns*scFVal, SpawnedSign(j))
+                end if
+
                 SignProd = CurrentSign*SpawnedSign
 
                 tDetermState = test_flag(CurrentDets(:,PartInd), flag_deterministic)
@@ -984,7 +998,12 @@ module AnnihilationMod
       else
          ! truncate down to a minimum number of spawns to
          ! prevent blooms if requested
-         if(tTruncate) then
+         ! in guga ignore multi-spawn events and still truncate!
+         if (tGUGA .and. t_truncate_spawns) then
+            if(abs(SignTemp(j)) > n_truncate_spawns*scFVal) &
+                 SignTemp(j) = sign(n_truncate_spawns*scFVal, SignTemp(j))
+
+         else if(tTruncate) then
             if(abs(SignTemp(j)) > n_truncate_spawns*scFVal) &
                  SignTemp(j) = sign(n_truncate_spawns*scFVal, SignTemp(j))
          endif
