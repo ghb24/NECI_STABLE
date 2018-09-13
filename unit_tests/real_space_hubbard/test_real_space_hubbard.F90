@@ -468,7 +468,7 @@ contains
 
         t_calc_singles = .true. 
         ! also consider the spin-flipped of the neel state
-        t_flip = .true.
+        t_flip = .false.
         phase = -1.0_dp
 
         ! initialize correctly for transcorrelation tests
