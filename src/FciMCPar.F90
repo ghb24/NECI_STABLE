@@ -1320,8 +1320,13 @@ module FciMCParMod
             if (tGen_guga_mixed) then 
                 if (t_guga_mixed_init) then
                     flag_mixed = any_run_is_initiator(CurrentDets(:,j))
+
                 else if (t_guga_mixed_semi) then 
-                    flag_mixed = tCoreDet
+                    if (tSemiStochastic) then 
+                        flag_mixed = tCoreDet
+                    else 
+                        flag_mixed = .true.
+                    end if
                 end if
 
                 if (flag_mixed) then

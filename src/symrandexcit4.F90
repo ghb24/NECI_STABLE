@@ -542,11 +542,23 @@ contains
                 id = gtID(orb)
                 do j = 1, nel
                     if (nI(j) == src) cycle
-                    hel = hel + get_umat_el (id_src, n_id(j), id, n_id(j))
-                    if (is_beta(src) .eqv. is_beta(nI(j))) &
-                        hel = hel - get_umat_el (id_src, n_id(j), n_id(j), id)
+                    if (tgen_guga_crude .or. tgen_guga_mixed) then 
+                        ! for guga we are not sure about the sign.. 
+                        hel = hel + abs(get_umat_el (id_src, n_id(j), id, n_id(j)))
+                        hel = hel + abs(get_umat_el (id_src, n_id(j), n_id(j), id))
+                    else
+                        hel = hel + get_umat_el (id_src, n_id(j), id, n_id(j))
+                        if (is_beta(src) .eqv. is_beta(nI(j))) then
+                            hel = hel - get_umat_el (id_src, n_id(j), n_id(j), id)
+                        end if
+                    end if
                 end do
-                hel = hel + GetTMATEl(src, orb)
+
+                if (tgen_guga_crude .or. tgen_guga_mixed) then 
+                    hel = hel + abs(GetTMATEl(src, orb))
+                else
+                    hel = hel + GetTMATEl(src, orb)
+                end if
 
             end if
 
