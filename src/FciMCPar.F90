@@ -1325,7 +1325,7 @@ module FciMCParMod
                     if (tSemiStochastic) then 
                         flag_mixed = tCoreDet
                     else 
-                        flag_mixed = .true.
+                        flag_mixed = any_run_is_initiator(CurrentDets(:,j))
                     end if
                 end if
 
