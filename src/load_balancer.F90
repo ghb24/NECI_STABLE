@@ -317,7 +317,7 @@ contains
         integer :: det(nel), TotWalkersTmp, nconsend, clashes, ntrial, ncon
         integer(n_int) :: con_state(0:NConEntry)
         real(dp) :: sgn(lenof_sign)
-        HElement_t(dp) :: HDiag
+        real(dp) :: HDiag
         
         ! A tag is used to identify this send/recv pair over any others
         integer, parameter :: mpi_tag_nsend = 223456
@@ -351,7 +351,7 @@ contains
                 det_block = get_det_block(nel, det, 0)
                 if (det_block == block) then
                     nsend = nsend + 1
-                    SpawnedParts(:,nsend) = CurrentDets(:,j)
+                    SpawnedParts(0:NIfTot,nsend) = CurrentDets(:,j)
 
                     ! Remove the det from the main list.
                     call nullify_ilut(CurrentDets(:,j))
@@ -467,7 +467,7 @@ contains
         integer, intent(inout) :: TotWalkersNew 
         integer(n_int), intent(inout) :: iLutCurr(0:NIfTot)
         integer, intent(in) :: DetHash, nJ(nel)
-        HElement_t(dp), intent(in) :: HDiag
+        real(dp), intent(in) :: HDiag
         integer :: DetPosition
         HElement_t(dp) :: trial_amps(ntrial_excits)
         logical :: tTrial, tCon
@@ -561,7 +561,7 @@ contains
       implicit none
       integer, intent(in) :: nI(nel)
       integer(n_int), intent(in) :: ilut(0:NIfTot)
-      HElement_t(dp) :: diagH
+      real(dp) :: diagH
 
       if(tHPHF) then
          diagH = hphf_diag_helement(nI, ilut)

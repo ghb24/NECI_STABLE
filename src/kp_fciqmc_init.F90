@@ -946,7 +946,7 @@ contains
         ! Copy the determinants themselves to CurrentDets.
         TotParts = 0.0_dp
         do i = 1, ndets
-            CurrentDets(:,i) = SpawnedParts(:,i)
+            CurrentDets(:,i) = SpawnedParts(0:NIfTot,i)
             walker_sign = transfer(CurrentDets(NOffSgn:NOffSgn+lenof_sign_kp-1, i), walker_sign)
             TotParts = TotParts + abs(walker_sign)
         end do

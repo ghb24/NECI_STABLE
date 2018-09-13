@@ -144,6 +144,7 @@ MODULE FciMCData
       integer :: sfTag
       real(dp) :: sFAlpha, sFBeta
       logical :: tEScaleWalkers
+      logical :: tLogNumSpawns
 
 !The following variables are calculated as per processor, but at the end of each update cycle, 
 !are combined to the root processor

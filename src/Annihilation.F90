@@ -21,7 +21,7 @@ module AnnihilationMod
                         encode_sign, test_flag, set_flag, &
                         flag_initiator, encode_part_sign, &
                         extract_part_sign, extract_bit_rep, &
-                        nullify_ilut_part, clr_flag, &
+                        nullify_ilut_part, clr_flag, get_num_spawns,&
                         encode_flags, bit_parent_zero, get_initiator_flag
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData, only: tNoNewRDMContrib
@@ -196,7 +196,7 @@ module AnnihilationMod
         integer :: EndBlockDet, part_type, Parent_Array_Ind
         integer :: No_Spawned_Parents
         integer(kind=n_int), pointer :: PointTemp(:,:)
-        integer(n_int) :: cum_det(0:niftot), temp_det(0:niftot)
+        integer(n_int) :: cum_det(0:nifbcast), temp_det(0:nifbcast)
         character(len=*), parameter :: t_r = 'CompressSpawnedList'
         type(timer), save :: Sort_time
 
@@ -209,7 +209,7 @@ module AnnihilationMod
         Sort_time%timer_name='Compress Sort interface'
         call set_timer(Sort_time, 20)
 
-        call sort(SpawnedParts(:,1:ValidSpawned), ilut_lt, ilut_gt)
+        call sort(SpawnedParts(0:NIfBCast,1:ValidSpawned), ilut_lt, ilut_gt)
 
         call halt_timer(Sort_time)
 
@@ -350,10 +350,14 @@ module AnnihilationMod
             end if
 
 
-            ! Annihilate in this block seperately for walkers of different types.
-            do part_type = 1, lenof_sign
-
-                do i = BeginningBlockDet, EndBlockDet
+            do i = BeginningBlockDet, EndBlockDet
+               ! if logged, accumulate the number of spawn events
+               if(tLogNumSpawns) then
+                  cum_det(nSpawnOffset) = cum_det(nSpawnOffset) + &
+                       SpawnedParts(nSpawnOffset,i)
+               end if
+               ! Annihilate in this block seperately for walkers of different types.
+               do part_type = 1, lenof_sign
                     if (tHistSpawn) then
                         call extract_sign (SpawnedParts(:,i), SpawnedSign)
                         call extract_sign (SpawnedParts(:,BeginningBlockDet), temp_sign)
@@ -579,7 +583,7 @@ module AnnihilationMod
         integer :: PartInd, i, j, PartIndex, run
         real(dp), dimension(lenof_sign) :: CurrentSign, SpawnedSign, SignTemp
         real(dp), dimension(lenof_sign) :: TempCurrentSign, SignProd
-        real(dp) :: ScaledOccupiedThresh, diagH, scFVal
+        real(dp) :: ScaledOccupiedThresh, scFVal, diagH
         integer :: ExcitLevel, DetHash, nJ(nel)
         logical :: tSuccess, tSuc, tDetermState
         logical :: abort(lenof_sign)
@@ -632,7 +636,7 @@ module AnnihilationMod
                 if(t_truncate_this_det .and. .not. t_truncate_unocc) then
                    scFVal = scaleFunction(det_diagH(PartInd))
                    do j = 1, lenof_sign
-                      call truncateSpawn(iter_data, SpawnedSign, j, scFVal, SignProd(j))
+                      call truncateSpawn(iter_data, SpawnedSign, i, j, scFVal, SignProd(j))
                    enddo
                 endif
 
@@ -808,7 +812,7 @@ module AnnihilationMod
                         ! determinant straight over to the main list. We do not
                         ! need to recompute the hash, since this should be the
                         ! same one as was generated at the beginning of the loop.
-                        call AddNewHashDet(TotWalkersNew, SpawnedParts(:,i), DetHash, nJ, &
+                        call AddNewHashDet(TotWalkersNew, SpawnedParts(0:NIfTot,i), DetHash, nJ, &
                              diagH)
                     end if
 
@@ -906,30 +910,33 @@ module AnnihilationMod
             SignTemp(j) = sign(scaledOccupiedThresh, SignTemp(j))
             call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
          end if
-      else
+      else if(abs(SignTemp(j)) > eps) then
          ! truncate down to a minimum number of spawns to
          ! prevent blooms if requested
          if(tTruncate) then
-            call truncateSpawn(iter_data,SignTemp,j,scFVal,1.0_dp)
+            call truncateSpawn(iter_data,SignTemp,i,j,scFVal,1.0_dp)
             call encode_part_sign(SpawnedParts(:,i), SignTemp(j), j)
          endif
       end if
 
     end subroutine stochRoundSpawn
 
-    subroutine truncateSpawn(iter_data, SignTemp, j, scFVal, SignProd)
+    subroutine truncateSpawn(iter_data, SignTemp, i, j, scFVal, SignProd)
       implicit none
       type(fcimc_iter_data), intent(inout) :: iter_data
       real(dp), intent(inout) :: SignTemp(lenof_sign)
-      integer, intent(in) :: j
+      integer, intent(in) :: i, j ! i: index of ilut in SpawnedParts, j: part index
       real(dp), intent(in) :: scFVal, SignProd
 
+      real(dp) :: maxSpawns
+
+      maxSpawns = n_truncate_spawns * scFVal * get_num_spawns(SpawnedParts(:,i))
 
       ! truncate the new walkers to a maximum value
-      if(abs(SignTemp(j)) > n_truncate_spawns*scFVal) then
+      if(abs(SignTemp(j)) > maxSpawns) then
          iter_data%nremoved(j) = iter_data%nremoved(j) + &
-              abs(SignTemp(j)) - sign(n_truncate_spawns*scFVal,SignProd)
-         SignTemp(j) = sign(n_truncate_spawns*scFVal, SignTemp(j))
+              abs(SignTemp(j)) - sign(maxSpawns,SignProd)
+         SignTemp(j) = sign(maxSpawns, SignTemp(j))
       endif
 
     end subroutine truncateSpawn

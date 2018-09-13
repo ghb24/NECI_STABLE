@@ -1,7 +1,7 @@
 #include "macros.h"
 
 module bit_reps
-    use FciMCData, only: CurrentDets, WalkVecDets, MaxWalkersPart
+    use FciMCData, only: CurrentDets, WalkVecDets, MaxWalkersPart, tLogNumSpawns
     use SystemData, only: nel, tCSF, tTruncateCSF, nbasis, csf_trunc_level
     use CalcData, only: tTruncInitiator, tUseRealCoeffs, tSemiStochastic, &
                         tCSFCore, tTrialWavefunction, semistoch_shift_iter, &
@@ -229,7 +229,16 @@ contains
         nIfParentCoeff = 0
 
         NIfBCast = NIfTot + nIfParentCoeff
-         
+        ! sometimes, we also need to store the number of spawn events
+        ! in this iteration
+        NSpawnOffset = NIfTot + 1
+        if(tLogNumSpawns) then
+           ! then, there is an extra integer in spawnedparts just behind
+           ! the ilut noting the number of spawn events
+           nOffParentCoeff = nOffParentCoeff + 1
+           NIfBCast = NIfBCast + 1
+        end if
+
     end subroutine
 
     subroutine extract_bit_rep (ilut, nI, real_sgn, flags, store)
@@ -607,6 +616,36 @@ contains
         coeff = transfer(ilut(nOffParentCoeff), coeff)
 
     end function
+
+    subroutine log_spawn(ilut)
+
+      ! set the spawn counter to 1
+      implicit none
+      integer(n_int), intent(inout) :: ilut(0:NIfBCast)
+
+      ilut(NSpawnOffset) = 1
+    end subroutine log_spawn
+    
+    subroutine increase_spawn_counter(ilut)
+      ! increase the spawn counter by 1
+      implicit none
+      integer(n_int), intent(inout) :: ilut(0:NIfBCast)
+
+      ilut(NSPawnOffset) = ilut(NSpawnOffset) + 1
+
+    end subroutine increase_spawn_counter
+    
+    function get_num_spawns(ilut) result(nSpawn)
+      ! read the number of spawns to this det so far
+      implicit none
+      integer(n_int), intent(inout) :: ilut(0:NIfBCast)
+      integer :: nSpawn
+
+      nSpawn = ilut(nSpawnOffset)
+
+    end function get_num_spawns
+
+    
 
     ! function test_flag is in bit_rep_data
     ! This avoids a circular dependence with DetBitOps.
