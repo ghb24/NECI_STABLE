@@ -325,8 +325,8 @@ module fcimc_pointed_fns
                ! computed here for performance reasons (it was a huge performance bottleneck)
                 ! TODO: add some additional output if this event happens
                  write(iout,*) "Truncating spawn magnitude from: ", abs(nspawn), " to ", n_truncate_spawns
+                truncatedWeight = truncatedWeight + abs(nSpawn) - n_truncate_spawns
                 nSpawn = sign(n_truncate_spawns, nspawn)
-
 
             end if
             

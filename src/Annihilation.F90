@@ -930,12 +930,16 @@ module AnnihilationMod
 
       real(dp) :: maxSpawns
 
+      ! we allow n_truncate_spawns unit walkers to be created per spawn event
       maxSpawns = n_truncate_spawns * scFVal * get_num_spawns(SpawnedParts(:,i))
 
       ! truncate the new walkers to a maximum value
       if(abs(SignTemp(j)) > maxSpawns) then
          iter_data%nremoved(j) = iter_data%nremoved(j) + &
               abs(SignTemp(j)) - sign(maxSpawns,SignProd)
+         ! log the truncated weight
+         truncatedWeight = truncatedWeight + abs(SignTemp(j)) - maxSpawns
+         ! reduce the sign to maxSpawns
          SignTemp(j) = sign(maxSpawns, SignTemp(j))
       endif
 
