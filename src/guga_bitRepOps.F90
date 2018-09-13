@@ -2174,7 +2174,7 @@ contains
         ! flag_deltaB_double ... 6
         integer, intent(in) :: deltaB
         integer(n_int), intent(inout) :: ilut(0:nIfGUGA)
-        character(*), parameter :: this_routine = "set_delta_b"
+        character(*), parameter :: this_routine = "setDeltaB"
     
 
         ASSERT(deltaB <= 2 .and. deltaB >= -2)

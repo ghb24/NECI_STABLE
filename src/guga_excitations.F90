@@ -84,6 +84,8 @@ module guga_excitations
     use MemoryManager, only: LogMemAlloc, LogMemDealloc
     use sym_mod, only: MomPbcSym
 
+    use excit_gen_5, only: gen_excit_4ind_weighted2
+
     ! variables
     implicit none
     ! use a "global" bVector variable here so that a b vector only has to be 
@@ -2712,8 +2714,13 @@ contains
                 write(6,*) i, '/', iterations, ' - ', contrib / (real(nexcit,dp)*i)
             end if
 
-            call generate_excitation_guga (src_det, ilut, det, tgt_ilut, 3, &
+            if (tgen_guga_crude) then 
+                call gen_excit_4ind_weighted2 (src_det, ilut, det, tgt_ilut, 3, &
                                           ic, ex, par, pgen, helgen, store)
+            else
+                call generate_excitation_guga (src_det, ilut, det, tgt_ilut, 3, &
+                                              ic, ex, par, pgen, helgen, store)
+            end if
             if (det(1) == 0) cycle
 
             call EncodeBitDet (det, tgt_ilut)
@@ -2772,11 +2779,11 @@ contains
         write(iunit,*) "=============================="
         do i = 1, nexcit
             call convert_ilut_toGUGA(det_list(:,i), ilutG)
-            call setDeltaB(excitTyp(i),ilutG)
             call write_det_guga(iunit, ilutG, .false.)
             write(iunit,"(f16.7)", advance='no') contrib_list(i) / real(iterations, dp)
             write(iunit, "(e16.7)", advance='no') pgen_list(i)
-            write(iunit, "(e16.7)") matEle_list(i)
+            write(iunit, "(e16.7)", advance='no') matEle_list(i)
+            write(iunit, *) excitTyp(i)
         end do
         close(iunit)
 
