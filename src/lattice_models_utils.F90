@@ -544,7 +544,8 @@ contains
                                 temp_sign(n_excits) = sign(1.0_dp, elem)
                             end if
                             temp_list(:,n_excits) = ilutJ
-                            call sort(temp_list(:,1:n_excits),ilut_lt,ilut_gt)
+                            call sort(temp_list(:,1:n_excits),temp_sign(1:n_excits))
+!                             call sort(temp_list(:,1:n_excits),ilut_lt,ilut_gt)
                             n_excits = n_excits + 1
                             ! damn.. i have to sort everytime i guess..
                         end if

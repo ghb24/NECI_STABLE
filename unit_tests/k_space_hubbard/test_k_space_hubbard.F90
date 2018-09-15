@@ -219,7 +219,7 @@ contains
         call init_k_space_unit_tests()
         
         ! i have to define the lattice here.. 
-        lat => lattice('chain', 21, 1, 1,.true.,.true.,.true.,'k-space')
+        lat => lattice('tilted', 3, 3, 1,.true.,.true.,.true.,'k-space')
 
 !         x = [(-lat%dispersion_rel_orb(i), i = 1, 24)]
 !         ind = [(i, i = 1, 24)]
@@ -234,7 +234,7 @@ contains
 !             print *,lat%get_k_vec(ind(i)),"|", k_vec(1)*k1 + k_vec(2)*k2, "|", x(i)
 !         end do
         
-        nel = 10
+        nel = 18
         allocate(nI(nel))
         allocate(nJ(nel))
         nj = 0
@@ -245,7 +245,7 @@ contains
 !         ni = [17,18,19,20,21,22,23,24,25,26]
 
         ! 10 in 21 k = 1, open-shell:
-        ni = [17,18,19,20,21,22,23,24,25,28]
+!         ni = [17,18,19,20,21,22,23,24,25,28]
 
         ! 80 in 100 k != 0 closed-shell: 
 !         nI=[   9,   10,   27,   28,   29,   30,   31,   32,   45,   46,   47, &
@@ -436,7 +436,7 @@ contains
 !             37,38,39,40,41,42,43,44,45,46,55,56,57,58,59,60,61,62,63,64,73,74,75,76,77,78,80]
 
         ! 18 in 18:
-!         nI = [3,4,5,6,7,8,11,12,13,14,15,16,21,22,23,24,25,26]
+        nI = [3,4,5,6,7,8,11,12,13,14,15,16,21,22,23,24,25,26]
 
         ! 12 in 18, k = 0
 !         nI = [ 3 ,5,6,11,12,13,14,15,16,23,24, 26 ]
@@ -460,7 +460,7 @@ contains
         
         ! chain:
         ! 6 in 6, k = 0
-        nI = [3,4,5,6,7,8]
+!         nI = [3,4,5,6,7,8]
 
         ! 4 in 4, k = 0
 !         nI = [1,3,4,6]
@@ -726,7 +726,7 @@ contains
             close(iunit)
             t_trans_corr_2body = .false.
 
-!             call stop_all("here", "now")
+            call stop_all("here", "now")
         end if
 
         if (t_do_subspace_study) then

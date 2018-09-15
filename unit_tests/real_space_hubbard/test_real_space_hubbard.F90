@@ -18,7 +18,8 @@ program test_real_space_hubbard
     use SystemData, only: lattice_type, t_new_real_space_hubbard, t_trans_corr, & 
                           trans_corr_param, t_lattice_model, t_trans_corr_hop, brr, & 
                           t_trans_corr_2body, trans_corr_param_2body, &
-                          t_trans_corr_new, t_uniform_excits, tHPHF
+                          t_trans_corr_new, t_uniform_excits, tHPHF, &
+                          length_x, length_y
 
     use lattice_mod, only: lat, init_dispersion_rel_cache
 
@@ -95,7 +96,7 @@ contains
         use lanczos_wrapper, only: frsblk_wrapper
 
         integer :: i, n_eig, n_orbs, n_states, iunit
-        integer, allocatable :: ni(:), hilbert_space(:,:), nJ(:)
+        integer, allocatable :: ni(:), hilbert_space(:,:), nJ(:), flip(:)
         real(dp), allocatable :: e_values(:), e_vecs(:,:), e_vecs_right(:,:), e_vecs_left(:,:)
         integer(n_int), allocatable :: dummy(:,:)
         real(dp) :: j
@@ -107,21 +108,29 @@ contains
                    t_do_exact_double_occ, t_j_vec, t_input_U, t_calc_singles
         HElement_t(dp), allocatable :: hamil(:,:), t_mat(:,:), hamil_hop(:,:), &
             gutzwiller(:,:), hamil_onsite(:,:), u_mat(:,:), t_mat_t(:,:)
-        integer :: n_excits, k
-        integer(n_int), allocatable :: singles(:,:)
-        real(dp) :: sum_singles, sum_singles_t
-        real(dp), allocatable :: sign_list(:)
+        integer :: n_excits, k, flip_excits
+        integer(n_int), allocatable :: singles(:,:), flip_singles(:,:)
+        real(dp) :: sum_singles, sum_singles_t, phase
+        real(dp), allocatable :: sign_list(:), flip_sign(:)
+        logical :: t_start_neel, t_flip
 
         t_optimize_corr_param  = .false.
         t_do_diag_elements = .true.
         t_do_exact_transcorr = .true.
-        t_do_exact_double_occ = .true.
+        t_do_exact_double_occ = .false.
         t_j_vec = .true.
         t_input_U = .true.
         t_calc_singles = .true.
+        t_start_neel = .true.
+        t_flip = .false.
+        phase = 1.0_dp
 
         t_trans_corr_hop = .true.
-        lat => lattice('chain', 6, 1, 1,.true.,.true.,.true.)
+        lat => lattice('tilted', 3, 3, 1,.true.,.true.,.true.)
+        lattice_type = lat%get_name()
+        length_x = lat%get_length(1)
+        length_y = lat%get_length(2)
+
         t_trans_corr_hop = .false.
 
         if (t_input_U) then 
@@ -137,11 +146,22 @@ contains
 
         call init_realspace_tests
 
-        nel = 6
+        nel = 18
         allocate(nI(nel))
 !         nI = [(i, i = 1, nel)]
 !         nI = [1,3,6,7,9,12,13,16,17,20,21,24,25,28,30,31,34,36]
-        nI = [1,4,5,8,9,12]
+
+        if (t_start_neel) then
+            nI = create_neel_state()
+            print *, "neel-state: ", nI
+        else
+            nI = [1,4,5,8,9,12]
+        end if
+
+        if (t_flip) then 
+            allocate(flip(nel), source = 0)
+            call finddetspinsym(nI,flip,nel)
+        end if
 
 !         nI = [1,4]
 !         nI = [1,2,3,4,5,6,7]
@@ -175,6 +195,9 @@ contains
                 allocate(nJ(nel), source = 0)
                 print *, "number of singles: ", n_excits
                 write(iunit, *) "# J, Hd hop, H_ij H_ji*"
+                if (t_flip) then
+                    call gen_all_singles_rs_hub_default(flip, flip_excits, flip_singles, flip_sign)
+                end if
             else
                 write(iunit, *) "# J, Hd hop, Hd spin"
             end if
@@ -192,11 +215,23 @@ contains
                 if (t_calc_singles) then 
                     sum_singles = 0.0_dp
                     sum_singles_t = 0.0_dp
+
                     do k = 1, n_excits
                         call decode_bit_det(nJ, singles(:,k))
                         sum_singles = sum_singles + sign_list(k)*get_helement_lattice(nI,nJ)
                         sum_singles_t = sum_singles_t + sign_list(k)*get_helement_lattice(nJ,nI)
                     end do
+
+                    if (t_flip) then 
+                        do k = 1, flip_excits
+                            call decode_bit_det(nJ, flip_singles(:,k))
+                            sum_singles = sum_singles + &
+                                phase * flip_sign(k) * get_helement_lattice(flip,nJ)
+                            sum_singles_t = sum_singles_t + &
+                                phase * flip_sign(k) * get_helement_lattice(nJ,flip)
+                        end do
+                    end if
+
                     write(iunit,*) J_vec(i), H_hop, sum_singles, sum_singles_t
                 else
                     t_trans_corr_hop = .false.
@@ -208,6 +243,7 @@ contains
                 end if
             end do
             close(iunit)
+            call stop_all("here","now")
         end if
 
         t_trans_corr_hop = .false.
@@ -460,16 +496,22 @@ contains
                                        diff(:,:), hamil_spin(:,:), hamil_spin_neci(:,:)
         HElement_t(dp), allocatable :: t_mat(:,:), t_mat_spin(:,:)
         real(dp), allocatable :: neci_eval(:), e_vec_hop(:,:), e_vec_spin(:,:), neci_spin_eval(:)
+        real(dp), allocatable :: e_vec_hop_left(:,:)
         character(30) :: filename, J_str
-        logical :: t_calc_singles, t_flip
-        real(dp), allocatable :: neel_states(:), singles(:), j_opt(:)
-        integer :: neel_ind, flip_ind
+        logical :: t_calc_singles, t_flip, t_norm_inside
+        real(dp), allocatable :: neel_states(:), singles(:), j_opt(:), &
+            norm_inside(:), norm_inside_left(:)
+        integer :: neel_ind, flip_ind, ic_inside, ic
         real(dp) :: phase
+        integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
 
         t_calc_singles = .true. 
         ! also consider the spin-flipped of the neel state
-        t_flip = .false.
-        phase = -1.0_dp
+        t_flip = .true.
+        phase = 1.0_dp
+
+        t_norm_inside = .true.
+        ic_inside = 2
 
         ! initialize correctly for transcorrelation tests
         ! just do it for the hopping transcorrelation now! 
@@ -534,9 +576,9 @@ contains
             t_mat(i,i) = 0.0_dp
         end do
 
-
         allocate(e_vec_hop(n_states, size(J))) 
         e_vec_hop = 0.0_dp
+        allocate(e_vec_hop_left(n_states,size(J)), source = 0.0_dp)
         allocate(e_vec_spin(n_states, size(J)))
         e_vec_spin = 0.0_dp
 
@@ -622,13 +664,18 @@ contains
                 call stop_all("HERE!", "energy incorrect!")
             end if
             ! how do i need to access the vectors to get the energy? 
+            e_vec_hop(:,i) = e_vec(:,ind)
             gs_vec = abs(e_vec(:,ind))
             call sort(gs_vec)
 
             gs_vec = gs_vec(n_states:1:-1)
 
             hf_coeff_hop(i) = gs_vec(1)
-            e_vec_hop(:,i) = gs_vec
+
+            ! also do the left-ev for the norm calcs
+            call eig(hamil_hop, e_values, e_vec, .true.)
+            ind = minloc(e_values,1)
+            e_vec_hop_left(:,i) = e_vec(:,ind)
 
             hamil_spin = similarity_transform(hamil, J(i) * t_mat_spin)
 
@@ -736,6 +783,33 @@ contains
 !         print *, "hamil-hop-neci:"
 !         call print_matrix(hamil_hop_neci)
 ! 
+
+        if (t_norm_inside) then 
+            allocate(norm_inside(size(j)), source = 0.0_dp)
+            allocate(norm_inside_left(size(J)), source = 0.0_dp)
+
+            call EncodeBitDet(nI, ilutI)
+            do i = 1, size(j)
+                do k = 1, n_states
+                    call EncodeBitDet(hilbert_space(:,k), ilutJ)
+                    ic  = findbitexcitlevel(ilutI,ilutJ)
+                    if (ic <= ic_inside) then
+                        norm_inside(i) = norm_inside(i) + & 
+                            e_vec_hop(k,i)**2
+                        norm_inside_left(i) = norm_inside_left(i) + & 
+                            e_vec_hop_left(k,i)**2
+                    end if
+                end do
+            end do
+
+            iunit = get_free_unit()
+            open(iunit, file = 'norm_inside')
+            write(iunit,*) "# J left right"
+            do i = 1, size(j)
+                write(iunit,*) J(i), norm_inside(i), norm_inside_left(i)
+            end do
+            close(iunit)
+        end if
 
         if (t_calc_singles) then 
             iunit = get_free_unit()
