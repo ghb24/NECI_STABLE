@@ -663,6 +663,21 @@ module AnnihilationMod
                    endif
                    do j = 1, lenof_sign
                        if(abs(SpawnedSign(j)) > n_truncate_spawns*scFVal) then
+#ifdef __DEBUG
+                            print *, " ------------"
+                            print *, " spawn unto an OCCUPIED CSF above Threshold!"
+                            print *, " Parent was initiator?: ",  & 
+                                any_run_is_initiator(SpawnedParts(:,i))
+                            print *, " Parent was in deterministic space?: ",  & 
+                                test_flag(SpawnedParts(:,i), flag_deterministic)
+                            print *, " Current det is initiator?: ", &
+                                any_run_is_initiator(CurrentDets(:,PartInd))
+                            print *, " Current det is in deterministic space?: ", &
+                                tDetermState
+                            print *, " ------------"
+#endif
+
+
                            SpawnedSign(j) = sign(n_truncate_spawns*scFVal, SpawnedSign(j))
                        end if
                    end do
@@ -1004,6 +1019,16 @@ module AnnihilationMod
          ! in guga ignore multi-spawn events and still truncate!
          if (tGUGA .and. t_truncate_spawns) then
             if(abs(SignTemp(j)) > n_truncate_spawns*scFVal) then
+#ifdef __DEBUG
+                print *, " ------------"
+                print *, " spawn unto an UN-OCCUPIED CSF above Threshold!"
+                print *, " Parent was initiator?: ",  & 
+                    any_run_is_initiator(SpawnedParts(:,i))
+                print *, " Parent was in deterministic space?: ",  & 
+                    test_flag(SpawnedParts(:,i), flag_deterministic)
+                print *, " ------------"
+#endif
+
                  SignTemp(j) = sign(n_truncate_spawns*scFVal, SignTemp(j))
              end if
 
