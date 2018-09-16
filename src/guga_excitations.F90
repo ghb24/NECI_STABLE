@@ -81,10 +81,12 @@ module guga_excitations
     use timing_neci, only: timer, set_timer, halt_timer, get_total_time
 
     use guga_types, only: weight_obj
+
     use MemoryManager, only: LogMemAlloc, LogMemDealloc
+
     use sym_mod, only: MomPbcSym
 
-    use excit_gen_5, only: gen_excit_4ind_weighted2
+!     use excit_gen_5, only: gen_excit_4ind_weighted2
 
     ! variables
     implicit none
@@ -2714,13 +2716,13 @@ contains
                 write(6,*) i, '/', iterations, ' - ', contrib / (real(nexcit,dp)*i)
             end if
 
-            if (tgen_guga_crude) then 
-                call gen_excit_4ind_weighted2 (src_det, ilut, det, tgt_ilut, 3, &
-                                          ic, ex, par, pgen, helgen, store)
-            else
+!             if (tgen_guga_crude) then 
+!                 call gen_excit_4ind_weighted2 (src_det, ilut, det, tgt_ilut, 3, &
+!                                           ic, ex, par, pgen, helgen, store)
+!             else
                 call generate_excitation_guga (src_det, ilut, det, tgt_ilut, 3, &
                                               ic, ex, par, pgen, helgen, store)
-            end if
+!             end if
             if (det(1) == 0) cycle
 
             call EncodeBitDet (det, tgt_ilut)
