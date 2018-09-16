@@ -240,7 +240,7 @@ contains
         allocate(trial_wfs_all_procs(nexcit_keep, tot_trial_space_size), stat=ierr)
         call MPIAllGatherV(trial_wfs, trial_wfs_all_procs, trial_counts, trial_displs)
 
-        call sort_space_by_proc(SpawnedParts(:, 1:tot_trial_space_size), tot_trial_space_size, trial_counts)
+        call sort_space_by_proc(SpawnedParts(0:NIfTot, 1:tot_trial_space_size), tot_trial_space_size, trial_counts)
 
         write(6,'("Generating the vector \sum_j H_{ij} \psi^T_j...")'); call neci_flush(6)
         allocate(con_space_vecs(nexcit_keep, con_space_size), stat=ierr)

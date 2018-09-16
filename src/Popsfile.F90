@@ -1077,7 +1077,6 @@ r_loop: do while(.not.tStoreDet)
             DiagSft = real(proje_iter, dp)
         end if
 
-
     end subroutine InitFCIMC_pops
     
     subroutine CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &

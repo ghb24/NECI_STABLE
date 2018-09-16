@@ -1017,6 +1017,10 @@ contains
 
         nExChecks = 0
         nExCheckFails = 0
+        
+        ! 0-initialize truncated weight
+        truncatedWeight = 0.0_dp
+        AllTruncatedWeight = 0.0_dp
 
 
         if(tEScaleWalkers) then

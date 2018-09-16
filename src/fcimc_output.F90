@@ -25,7 +25,8 @@ module fcimc_output
                         frequency_bins_type2, frequency_bins_type3, & 
                         frequency_bins_type4, frequency_bins_type2_diff, &
                         frequency_bins_type3_diff, n_frequency_bins, &
-                        tEN2, tSemiStochastic, allCorespaceWalkers
+                        tEN2, tSemiStochastic, allCorespaceWalkers, &
+                        t_truncate_spawns
 
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
@@ -62,6 +63,7 @@ contains
         integer i, j, k, run
         character(256) label
         character(32) tchar_r, tchar_i, tchar_j, tchar_k
+        character(17) trunc_caption
 
         IF(iProcIndex.eq.root) THEN
 !Print out initial starting configurations
@@ -186,9 +188,14 @@ contains
                   &29.Inst S^2   30.AbsProjE   31.PartsDiffProc &
                   &32.|Semistoch|/|Psi|  33.MaxCycSpawn"
            if (tTrialWavefunction .or. tStartTrialLater) then 
-                  write(fcimcstats_unit, "(A)", advance = 'no') &
-                  "  34.TrialNumerator  35.TrialDenom  36.TrialOverlap"
+              write(fcimcstats_unit, "(A)", advance = 'no') &
+                   "  34.TrialNumerator  35.TrialDenom  36.TrialOverlap"
+              trunc_caption = "  37. TruncWeight"
+           else
+              trunc_caption = "  34. TruncWeight"
            end if
+           if(t_truncate_spawns) write(fcimcstats_unit, "(A)", advance = 'no') &
+                trunc_caption
 
            write(fcimcstats_unit, "()", advance = 'yes')
 
@@ -405,6 +412,9 @@ contains
                     (tot_trial_denom(1) / StepsSft), &                  ! 35.
                     abs((tot_trial_denom(1) / (norm_psi(1)*StepsSft)))  ! 36.
                 end if
+                if(t_truncate_spawns) then
+                   write(fcimcstats_unit, "(1X,es18.11)", advance = 'no') AllTruncatedWeight
+                endif
                 write(fcimcstats_unit, "()", advance = 'yes')
 
             if(tMCOutput) then
@@ -676,34 +686,38 @@ contains
             ! frequently).
             ! This also makes column contiguity on resumes as likely as
             ! possible.
-        if(t_real_time_fciqmc .or. tLogGreensfunction) then
-            ! also output the overlaps and norm.. 
-            do iGf = 1, gf_count
-               write(tmgf, '(i5)') iGf
-               call stats_out(state,.true., overlap_real(iGf), 'Re. <y_i(0)|y(t)> (i=' // &
-                    trim(adjustl(tmgf)) // ')' )
-               call stats_out(state,.true., overlap_imag(iGf), 'Im. <y_i(0)|y(t)> (i=' // &
-                    trim(adjustl(tmgf)) // ')' )
-            enddo
-            do iGf = 1, gf_count
-               write(tmgf, '(i5)') iGf
-               do p = 1, normsize
-                  write(tmpc, '(i5)') p
-                  call stats_out(state,.false.,real(current_overlap(p,iGf)), 'Re. <y(0)|y(t)>(rep ' // &
-                       trim(adjustl(tmpc)) // ' i=' // trim(adjustl(tmgf)) //  ')')
-                  call stats_out(state,.false.,aimag(current_overlap(p,iGf)), 'Im. <y(0)|y(t)>(rep ' // &
-                       trim(adjustl(tmpc)) // ' i=' // trim(adjustl(tmgf)) //')')
-               enddo
-            enddo
+            if(t_real_time_fciqmc .or. tLogGreensfunction) then
+                ! also output the overlaps and norm.. 
+                do iGf = 1, gf_count
+                   write(tmgf, '(i5)') iGf
+                   call stats_out(state,.true., overlap_real(iGf), 'Re. <y_i(0)|y(t)> (i=' // &
+                        trim(adjustl(tmgf)) // ')' )
+                   call stats_out(state,.true., overlap_imag(iGf), 'Im. <y_i(0)|y(t)> (i=' // &
+                        trim(adjustl(tmgf)) // ')' )
+                enddo
+                do iGf = 1, gf_count
+                   write(tmgf, '(i5)') iGf
+                   do p = 1, normsize
+                      write(tmpc, '(i5)') p
+                      call stats_out(state,.false.,real(current_overlap(p,iGf)), 'Re. <y(0)|y(t)>(rep ' // &
+                           trim(adjustl(tmpc)) // ' i=' // trim(adjustl(tmgf)) //  ')')
+                      call stats_out(state,.false.,aimag(current_overlap(p,iGf)), 'Im. <y(0)|y(t)>(rep ' // &
+                           trim(adjustl(tmpc)) // ' i=' // trim(adjustl(tmgf)) //')')
+                   enddo
+                enddo
 #ifdef __REALTIME
-            do p = 1, numSnapshotOrbs
-               ! if any orbitals are monitored, output their population
-               write(tmpc, '(i5)') snapShotOrbs(p)
-               call stats_out(state,.false.,allPopSnapshot(p),'Population of ' &
-                    // trim(adjustl(tmpc)))
-            end do
+                do p = 1, numSnapshotOrbs
+                   ! if any orbitals are monitored, output their population
+                   write(tmpc, '(i5)') snapShotOrbs(p)
+                   call stats_out(state,.false.,allPopSnapshot(p),'Population of ' &
+                        // trim(adjustl(tmpc)))
+                end do
 #endif
-        endif
+            endif
+            
+            ! if we truncate walkers, print out the total truncated weight here
+            if(t_truncate_spawns) call stats_out(state, .false., AllTruncatedWeight, &
+                 'trunc. Weight')
 
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these

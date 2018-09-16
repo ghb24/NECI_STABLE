@@ -23,7 +23,8 @@ module AnnihilationMod
                         extract_part_sign, extract_bit_rep, &
                         nullify_ilut_part, clr_flag, &
                         encode_flags, bit_parent_zero, get_initiator_flag, &
-                        any_run_is_initiator
+                        any_run_is_initiator, get_num_spawns
+
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData, only: tNoNewRDMContrib
     use load_balance, only: DetermineDetNode, AddNewHashDet, &
@@ -33,6 +34,7 @@ module AnnihilationMod
     use real_time_data, only: NoAborted_1, Annihilated_1, runge_kutta_step, &
                               nspawned_1, t_real_time_fciqmc
 
+    use global_det_data, only: det_diagH
 
     use procedure_pointers, only: scaleFunction
     use Determinants, only: get_helement
@@ -217,7 +219,7 @@ module AnnihilationMod
         integer :: EndBlockDet, part_type, Parent_Array_Ind
         integer :: No_Spawned_Parents
         integer(kind=n_int), pointer :: PointTemp(:,:)
-        integer(n_int) :: cum_det(0:niftot), temp_det(0:niftot)
+        integer(n_int) :: cum_det(0:nifbcast), temp_det(0:nifbcast)
         character(len=*), parameter :: t_r = 'CompressSpawnedList'
         type(timer), save :: Sort_time
 
@@ -230,7 +232,7 @@ module AnnihilationMod
         Sort_time%timer_name='Compress Sort interface'
         call set_timer(Sort_time, 20)
 
-        call sort(SpawnedParts(:,1:ValidSpawned), ilut_lt, ilut_gt)
+        call sort(SpawnedParts(0:NIfBCast,1:ValidSpawned), ilut_lt, ilut_gt)
 
         call halt_timer(Sort_time)
 
@@ -371,10 +373,14 @@ module AnnihilationMod
             end if
 
 
-            ! Annihilate in this block seperately for walkers of different types.
-            do part_type = 1, lenof_sign
-
-                do i = BeginningBlockDet, EndBlockDet
+            do i = BeginningBlockDet, EndBlockDet
+               ! if logged, accumulate the number of spawn events
+               if(tLogNumSpawns) then
+                  cum_det(nSpawnOffset) = cum_det(nSpawnOffset) + &
+                       SpawnedParts(nSpawnOffset,i)
+               end if
+               ! Annihilate in this block seperately for walkers of different types.
+               do part_type = 1, lenof_sign
                     if (tHistSpawn) then
                         call extract_sign (SpawnedParts(:,i), SpawnedSign)
                         call extract_sign (SpawnedParts(:,BeginningBlockDet), temp_sign)
@@ -611,11 +617,11 @@ module AnnihilationMod
         integer :: PartInd, i, j, PartIndex, m, run
         real(dp), dimension(lenof_sign) :: CurrentSign, SpawnedSign, SignTemp
         real(dp), dimension(lenof_sign) :: TempCurrentSign, SignProd
-        real(dp) :: ScaledOccupiedThresh, diagH, scFVal
+        real(dp) :: ScaledOccupiedThresh, scFVal, diagH
         integer :: ExcitLevel, DetHash, nJ(nel)
         logical :: tSuccess, tSuc, tDetermState
         logical :: abort(lenof_sign)
-        logical :: tTruncSpawn, t_truncate_unocc_this_det
+        logical :: tTruncSpawn, t_truncate_this_det
 
         ! Only node roots to do this.
         if (.not. bNodeRoot) return
@@ -643,7 +649,12 @@ module AnnihilationMod
 
             tDetermState = .false.
 
-!            WRITE(6,*) 'i,SpawnedParts(:,i)',i,SpawnedParts(:,i)
+            ! for scaled walkers, truncation is done here
+            t_truncate_this_det = t_truncate_spawns .and. .not. &
+                 test_flag(SpawnedParts(:,i), flag_multi_spawn) .and. &
+                 tEScaleWalkers
+
+
 
             if (tSuccess) then
 
@@ -652,46 +663,59 @@ module AnnihilationMod
                 call extract_sign(CurrentDets(:,PartInd),CurrentSign)
                 call extract_sign(SpawnedParts(:,i),SpawnedSign)
 
+                SignProd = CurrentSign*SpawnedSign
+
                 ! in GUGA we might also want to truncate occupied dets
-                if(tGUGA .and. (t_truncate_spawns .and. .not. t_truncate_unocc)) then 
-                   ! the diagonal element of H is to be stored anyway
-                   diagH = get_diagonal_matel(nJ, SpawnedParts(:,i))
-                   if(tEScaleWalkers) then
-                      ! evaluate the scaling function
-                      scFVal = scaleFunction(diagH - Hii)
-                   else
-                      scFVal = 1.0_dp
-                   endif
-                   do j = 1, lenof_sign
-                       if(abs(SpawnedSign(j)) > n_truncate_spawns*scFVal) then
+                if(tGUGA) then
+                    if (t_truncate_spawns .and. .not. t_truncate_unocc) then 
+                       ! the diagonal element of H is to be stored anyway
+                       diagH = get_diagonal_matel(nJ, SpawnedParts(:,i))
+                       if(tEScaleWalkers) then
+                          ! evaluate the scaling function
+                          scFVal = scaleFunction(diagH - Hii)
+                       else
+                          scFVal = 1.0_dp
+                       endif
+                       do j = 1, lenof_sign
+                           if(abs(SpawnedSign(j)) > n_truncate_spawns*scFVal) then
 #ifdef __DEBUG
-                            print *, " ------------"
-                            print *, " spawn unto an OCCUPIED CSF above Threshold!"
-                            print *, " Parent was initiator?: ",  & 
-                                any_run_is_initiator(SpawnedParts(:,i))
-                            print *, " Parent was in deterministic space?: ",  & 
-                                test_flag(SpawnedParts(:,i), flag_deterministic)
-                            print *, " Current det is initiator?: ", &
-                                any_run_is_initiator(CurrentDets(:,PartInd))
-                            print *, " Current det is in deterministic space?: ", &
-                                tDetermState
-                            print *, " ------------"
+                                print *, " ------------"
+                                print *, " spawn unto an OCCUPIED CSF above Threshold!"
+                                print *, " Parent was initiator?: ",  & 
+                                    any_run_is_initiator(SpawnedParts(:,i))
+                                print *, " Parent was in deterministic space?: ",  & 
+                                    test_flag(SpawnedParts(:,i), flag_deterministic)
+                                print *, " Current det is initiator?: ", &
+                                    any_run_is_initiator(CurrentDets(:,PartInd))
+                                print *, " Current det is in deterministic space?: ", &
+                                    tDetermState
+                                print *, " ------------"
 #endif
 
+                               call truncateSpawn(iter_data, SpawnedSign, i, j, scFVal, SignProd(j))
 
-                           SpawnedSign(j) = sign(n_truncate_spawns*scFVal, SpawnedSign(j))
-                       end if
-                   end do
+!                                SpawnedSign(j) = sign(n_truncate_spawns*scFVal, SpawnedSign(j))
+                           end if
+                       end do
+                    end if
+
+
+                else
+                    ! truncate if requested
+                    if(t_truncate_this_det .and. .not. t_truncate_unocc) then
+                       scFVal = scaleFunction(det_diagH(PartInd))
+                       do j = 1, lenof_sign
+                          call truncateSpawn(iter_data, SpawnedSign, i, j, scFVal, SignProd(j))
+                       enddo
+                    endif
                 end if
-
-                SignProd = CurrentSign*SpawnedSign
 
                 tDetermState = test_flag(CurrentDets(:,PartInd), flag_deterministic)
 
                 if (sum(abs(CurrentSign)) >= 1.e-12_dp .or. tDetermState) then
                     ! Transfer new sign across.
                     call encode_sign(CurrentDets(:,PartInd), SpawnedSign+CurrentSign)
-                    call encode_sign(SpawnedParts(:,i), null_part)
+                    call encode_sign(SpawnedParts(:,i), null_part)                    
 
                     ! If the sign changed, the adi check has to be redone
                     if(any(real(SignProd,dp) < 0.0_dp)) &
@@ -844,9 +868,6 @@ module AnnihilationMod
                endif
                ScaledOccupiedThresh = scFVal * OccupiedThresh
 
-               t_truncate_unocc_this_det = t_truncate_spawns .and. .not. &
-                    test_flag(SpawnedParts(:,i), flag_multi_spawn)
-
                 ! Determinant in newly spawned list is not found in CurrentDets.
                 ! Usually this would mean the walkers just stay in this list and
                 ! get merged later - but in this case we want to check where the
@@ -901,9 +922,8 @@ module AnnihilationMod
                         end if
 
                         ! truncate to a minimum population given by the scale factor
-                        call applySpawnTruncation(iter_data, SignTemp, i, j, scFVal, &
-                             ScaledOccupiedThresh, t_truncate_unocc_this_det)
-
+                        call stochRoundSpawn(iter_data, SignTemp, i, j, scFVal, &
+                             ScaledOccupiedThresh, t_truncate_this_det)
                     end do
 
                     if(t_prone_walkers) then
@@ -916,7 +936,7 @@ module AnnihilationMod
                         ! determinant straight over to the main list. We do not
                         ! need to recompute the hash, since this should be the
                         ! same one as was generated at the beginning of the loop.
-                        call AddNewHashDet(TotWalkersNew, SpawnedParts(:,i), DetHash, nJ, &
+                        call AddNewHashDet(TotWalkersNew, SpawnedParts(0:NIfTot,i), DetHash, nJ, &
                              diagH)
                     end if
 
@@ -941,8 +961,8 @@ module AnnihilationMod
                     else
                         do j = 1, lenof_sign
                             ! truncate the spawn if required
-                            call applySpawnTruncation(iter_data, SignTemp, i, j, scFVal, &
-                                 ScaledOccupiedThresh, t_truncate_unocc_this_det)
+                            call stochRoundSpawn(iter_data, SignTemp, i, j, scFVal, &
+                                 ScaledOccupiedThresh, t_truncate_this_det)
                         end do
 
                         if (.not. IsUnoccDet(SignTemp)) then
@@ -979,7 +999,7 @@ module AnnihilationMod
 
     end subroutine AnnihilateSpawnedParts
 
-    subroutine applySpawnTruncation(iter_data, SignTemp, i, j, scFVal, ScaledOccupiedThresh, &
+    subroutine stochRoundSpawn(iter_data, SignTemp, i, j, scFVal, ScaledOccupiedThresh, &
          tTruncate)
       implicit none
       type(fcimc_iter_data), intent(inout) :: iter_data
@@ -1014,7 +1034,7 @@ module AnnihilationMod
             SignTemp(j) = sign(scaledOccupiedThresh, SignTemp(j))
             call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
          end if
-      else
+      else if(abs(SignTemp(j)) > eps) then
          ! truncate down to a minimum number of spawns to
          ! prevent blooms if requested
          ! in guga ignore multi-spawn events and still truncate!
@@ -1030,22 +1050,45 @@ module AnnihilationMod
                 print *, " ------------"
 #endif
 
-                 SignTemp(j) = sign(n_truncate_spawns*scFVal, SignTemp(j))
+!                  SignTemp(j) = sign(n_truncate_spawns*scFVal, SignTemp(j))
              end if
+             call truncateSpawn(iter_data,SignTemp,i,j,scFVal,1.0_dp)
 
-            call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
+             call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
 
-            return
+             return
 
          else if(tTruncate) then
-            if(abs(SignTemp(j)) > n_truncate_spawns*scFVal) &
-                 SignTemp(j) = sign(n_truncate_spawns*scFVal, SignTemp(j))
-
-            call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
+            call truncateSpawn(iter_data,SignTemp,i,j,scFVal,1.0_dp)
+            call encode_part_sign(SpawnedParts(:,i), SignTemp(j), j)
          endif
       end if
 
-    end subroutine applySpawnTruncation
+    end subroutine stochRoundSpawn
+
+    subroutine truncateSpawn(iter_data, SignTemp, i, j, scFVal, SignProd)
+      implicit none
+      type(fcimc_iter_data), intent(inout) :: iter_data
+      real(dp), intent(inout) :: SignTemp(lenof_sign)
+      integer, intent(in) :: i, j ! i: index of ilut in SpawnedParts, j: part index
+      real(dp), intent(in) :: scFVal, SignProd
+
+      real(dp) :: maxSpawns
+
+      ! we allow n_truncate_spawns unit walkers to be created per spawn event
+      maxSpawns = n_truncate_spawns * scFVal * get_num_spawns(SpawnedParts(:,i))
+
+      ! truncate the new walkers to a maximum value
+      if(abs(SignTemp(j)) > maxSpawns) then
+         iter_data%nremoved(j) = iter_data%nremoved(j) + &
+              abs(SignTemp(j)) - sign(maxSpawns,SignProd)
+         ! log the truncated weight
+         truncatedWeight = truncatedWeight + abs(SignTemp(j)) - maxSpawns
+         ! reduce the sign to maxSpawns
+         SignTemp(j) = sign(maxSpawns, SignTemp(j))
+      endif
+
+    end subroutine truncateSpawn
     
     pure function test_abort_spawn(ilut_spwn, part_type) result(abort)
 

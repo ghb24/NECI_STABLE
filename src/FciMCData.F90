@@ -151,6 +151,11 @@ MODULE FciMCData
       integer :: sfTag
       real(dp) :: sFAlpha, sFBeta
       logical :: tEScaleWalkers
+      ! flag to indicate that the number of spawns shall be tracked
+      logical :: tLogNumSpawns
+      ! total truncated weight
+      real(dp) :: truncatedWeight, AllTruncatedWeight
+      
 
 !The following variables are calculated as per processor, but at the end of each update cycle, 
 !are combined to the root processor

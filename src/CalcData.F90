@@ -420,7 +420,7 @@ logical :: t_test_hist_tau = .false.
 
 ! and i also need to truncate the spawns maybe: 
 logical :: t_truncate_spawns = .false. 
-logical :: t_truncate_unocc = .false.
+logical :: t_truncate_unocc = .false., t_truncate_multi = .false.
 logical :: t_prone_walkers, t_activate_decay
 real(dp) :: n_truncate_spawns = 2.0_dp
 

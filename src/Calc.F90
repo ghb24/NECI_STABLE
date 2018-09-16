@@ -32,7 +32,7 @@ MODULE Calc
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
                          alloc_popsfile_dets, tSearchTauOption, &
-                         sFAlpha, tEScaleWalkers, sFBeta, sFTag
+                         sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
          tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits, tSetDelayAllDoubsInits, &
          tSetDelayAllSingsInits, nExProd, NoTypeN, tAdiActive, tReadRefs, SIUpdateInterval, &
@@ -426,6 +426,7 @@ contains
           ! Walker scaling with energy
           ! do not use scaled walkers
           tEScaleWalkers = .false.
+          tLogNumSpawns = .false.
           sFAlpha = 1.0_dp
           sFBeta = 1.0_dp
           sFTag = 0
@@ -1300,6 +1301,8 @@ contains
                        select case(w)
                        case("UNOCC")
                           t_truncate_unocc = .true.
+                       case("MULTI")
+                          t_truncate_multi = .true.
                        case default
                           t_truncate_unocc = .false.
                        end select
@@ -3001,6 +3004,8 @@ contains
              case("ENERGY-SCALED-WALKERS")
                 ! the amplitude unit of a walker shall be scaled with energy
                 tEScaleWalkers = .true.
+                ! and the number of spawns shall be logged
+                tLogNumSpawns = .true.
                 sfTag = 0
                 if(item < nItems) then
                    call readu(w)

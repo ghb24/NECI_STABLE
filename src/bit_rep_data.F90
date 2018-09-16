@@ -46,6 +46,9 @@ module bit_rep_data
     ! initiator thresholds).
     integer :: nOffParentCoeff, nIfParentCoeff
 
+    ! position of the number of spawns in the broadcast
+    integer :: nSpawnOffset
+
     ! Flags which we can store
     ! RT_M_Merge: Adapted real-time flags
     logical :: tUseFlags = .true.

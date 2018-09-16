@@ -10,16 +10,21 @@ module fcimc_helper
                           ref_b_vector_real, t_3_body_excits, t_non_hermitian
 
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
+
     use semi_stoch_procs, only: recalc_core_hamil_diag, is_core_state
+
     use bit_reps, only: NIfTot, test_flag, extract_flags, &
                         encode_bit_rep, NIfD, set_flag_general, NIfDBO, &
                         extract_sign, set_flag, encode_sign, &
                         flag_trial, flag_connected, flag_deterministic, &
                         extract_part_sign, encode_part_sign, decode_bit_det, &
-                        get_initiator_flag, get_initiator_flag_by_run, flag_determ_parent
+                        get_initiator_flag, get_initiator_flag_by_run, &
+                        log_spawn, increase_spawn_counter, flag_determ_parent
+
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
                          DetBitEQ, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
+
     use adi_references, only: test_ref_double
     use Determinants, only: get_helement, write_det
     use FciMCData
@@ -176,6 +181,8 @@ contains
             endif
         end if
 
+        if(tLogNumSpawns) call log_spawn(SpawnedParts(:,ValidSpawnedList(proc) ) )
+
         if (tFillingStochRDMonFly) then
             ! We are spawning from ilutI to 
             ! SpawnedParts(:,ValidSpawnedList(proc)). We want to store the
@@ -307,6 +314,9 @@ contains
                         call set_flag(SpawnedParts(:,ind), get_initiator_flag(part_type))
                 end if
             end if
+
+            ! log the spawn
+            if(tLogNumSpawns) call increase_spawn_counter(SpawnedParts(:,ind))
         else
             ! Determine which processor the particle should end up on in the
             ! DirectAnnihilation algorithm.
@@ -349,6 +359,8 @@ contains
                     call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), &
                     get_initiator_flag(part_type))
             end if
+
+             if(tLogNumSpawns) call log_spawn(SpawnedParts(:,ValidSpawnedList(proc)))
 
             call add_hash_table_entry(spawn_ht, ValidSpawnedList(proc), hash_val)
             ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1

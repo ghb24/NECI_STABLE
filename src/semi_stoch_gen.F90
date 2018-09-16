@@ -331,7 +331,7 @@ contains
 
         ! If requested, remove high energy orbitals so that the space size is below some max.
         if (core_in%tLimitSpace) then
-            call remove_high_energy_orbs(SpawnedParts(:, 1:space_size), space_size, &
+            call remove_high_energy_orbs(SpawnedParts(0:NIfTot, 1:space_size), space_size, &
                                            core_in%max_size, .true.)
             determ_sizes(iProcIndex) = int(space_size, MPIArg)
         end if
