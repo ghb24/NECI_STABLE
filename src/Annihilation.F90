@@ -22,7 +22,8 @@ module AnnihilationMod
                         encode_part_sign, &
                         extract_part_sign, extract_bit_rep, &
                         nullify_ilut_part, clr_flag, &
-                        encode_flags, bit_parent_zero, get_initiator_flag
+                        encode_flags, bit_parent_zero, get_initiator_flag, &
+                        any_run_is_initiator
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData, only: tNoNewRDMContrib
     use load_balance, only: DetermineDetNode, AddNewHashDet, &
