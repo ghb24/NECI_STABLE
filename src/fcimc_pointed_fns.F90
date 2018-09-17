@@ -10,7 +10,7 @@ module fcimc_pointed_fns
                         tRealCoeffByExcitLevel, InitiatorWalkNo, &
                         t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, & 
                         t_matele_cutoff, matele_cutoff, tEN2Truncated, &
-                        tTruncInitiator, tSkipRef
+                        tTruncInitiator, tSkipRef, t_truncate_unocc
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement
     use fcimc_helper, only: CheckAllowedTruncSpawn
@@ -160,9 +160,8 @@ module fcimc_pointed_fns
         logical :: tRealSpawning
         HElement_t(dp) :: rh, rh_used
         logical :: t_par
-        real(dp) :: temp_prob, pgen_a, dummy_arr(nBasis), cum_sum, childHii
+        real(dp) :: temp_prob, pgen_a, dummy_arr(nBasis), cum_sum
         integer :: ispn
-        real(dp) :: ScaledRealSpawnCutoff
 
         ! Just in case
         child = 0.0_dp
@@ -171,16 +170,6 @@ module fcimc_pointed_fns
         ! (if AvMCExcits /= 1.0_dp) then the probability of an excitation
         ! having been chosen, prob, must be altered accordingly.
         prob = prob * AvMCExcits
-        ! for scaled walkers, rescale 
-        if(tEScaleWalkers) then
-           if(tHPHF) then
-              childHii = real(hphf_diag_helement (nJ,ilutnJ),dp) - Hii
-           else
-              childHii = real(get_helement(nJ,nJ,0),dp) - Hii
-           endif
-        else
-           childHii = 0.0_dp
-        endif
 
         ! In the case of using HPHF, and when tGenMatHEl is on, the matrix
         ! element is calculated at the time of the excitation generation, 
@@ -330,11 +319,14 @@ module fcimc_pointed_fns
 
             ! [Werner Dobrautz 4.4.2017:]
             ! apply the spawn truncation, when using histogramming tau-search
-            if (t_truncate_spawns .and. abs(nspawn) > n_truncate_spawns) then
+            if ((t_truncate_spawns .and. .not. t_truncate_unocc)  .and. abs(nspawn) > &
+                 n_truncate_spawns .and. .not. tEScaleWalkers) then
+               ! does not work with scaled walkers, as the scaling factor is not
+               ! computed here for performance reasons (it was a huge performance bottleneck)
                 ! TODO: add some additional output if this event happens
-!                 write(iout,*) "Truncating spawn magnitude from: ", abs(nspawn), " to ", n_truncate_spawns
+                 write(iout,*) "Truncating spawn magnitude from: ", abs(nspawn), " to ", n_truncate_spawns
+                truncatedWeight = truncatedWeight + abs(nSpawn) - n_truncate_spawns
                 nSpawn = sign(n_truncate_spawns, nspawn)
-
 
             end if
             
@@ -354,17 +346,11 @@ module fcimc_pointed_fns
             
             if (tRealSpawning) then
                 ! Continuous spawning. Add in acceptance probabilities.
-               if(tEScaleWalkers) then
-                  ! for scaled walkers, the cutoff scales with the det energy
-                  ScaledRealSpawnCutoff = RealSpawnCutoff / scaleFunction(childHii)
-               else
-                  ScaledRealSpawnCutoff = RealSpawnCutoff
-               endif
                 if (tRealSpawnCutoff .and. &
-                    abs(nSpawn) < ScaledRealSpawnCutoff) then
-                    p_spawn_rdmfac=abs(nSpawn)/ScaledRealSpawnCutoff
-                    nSpawn = ScaledRealSpawnCutoff &
-                           * stochastic_round (nSpawn / ScaledRealSpawnCutoff)
+                    abs(nSpawn) < RealSpawnCutoff) then
+                    p_spawn_rdmfac=abs(nSpawn)/RealSpawnCutoff
+                    nSpawn = RealSpawnCutoff &
+                           * stochastic_round (nSpawn / RealSpawnCutoff)
                else
                     p_spawn_rdmfac=1.0_dp !The acceptance probability of some kind of child was equal to 1
                endif
@@ -651,5 +637,50 @@ module fcimc_pointed_fns
         iUnused = DetCurr(1)
 
     end function
+
+!------------------------------------------------------------------------------------------!
+
+    function powerScaleFunction(hdiag) result(Si)
+      implicit none
+      
+      real(dp), intent(in) :: hdiag
+      real(dp) :: Si
+
+      Si = 1.0 / ( (sFAlpha * (hdiag) + 1)**sFBeta )
+    end function powerScaleFunction
+
+!------------------------------------------------------------------------------------------!
+
+    function expScaleFunction(hdiag) result(Si)
+      implicit none
+      
+      real(dp), intent(in) :: hdiag
+      real(dp) :: Si
+
+      Si = 1.0/( sfBeta*exp(sFAlpha*hdiag) )
+    end function expScaleFunction
+
+!------------------------------------------------------------------------------------------!
+
+    function expCOScaleFunction(hdiag) result(Si)
+      implicit none
+      
+      real(dp), intent(in) :: hdiag
+      real(dp) :: Si
+
+      Si = (1 - sFbeta)/( exp(sFAlpha*hdiag) ) + sFbeta
+    end function expCOScaleFunction
+
+!------------------------------------------------------------------------------------------!
+
+    function negScaleFunction(hdiag) result(Si)
+      implicit none
+
+      real(dp), intent(in) :: hdiag
+      real(dp) :: Si
+
+      Si = -1
+      
+    end function negScaleFunction
 
 end module

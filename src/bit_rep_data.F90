@@ -44,15 +44,17 @@ module bit_rep_data
     ! initiator thresholds).
     integer :: nOffParentCoeff, nIfParentCoeff
 
+    ! position of the number of spawns in the broadcast
+    integer :: nSpawnOffset
+
     ! Flags which we can store
-    logical :: tUseFlags
     integer :: flag_counter
     integer, parameter :: flag_deterministic = 0, &
                           flag_determ_parent = 1, &
                           flag_trial = 2, &
                           flag_connected = 3, &
-                          flag_ic0_spawn = 4, &
-                          flag_death_done = 5
+                          flag_prone = 4, &
+                          flag_multi_spawn = 5
 
 #ifdef __PROG_NUMRUNS
     integer, parameter :: flag_initiator(lenof_sign_max) &
@@ -91,11 +93,7 @@ contains
 
 !        bSet = btest(ilut(ind), off)
 
-        if(tUseFlags) then
-            bSet = btest(ilut(NOffFlag), flg)
-        else
-            bSet = .false.
-        endif
+        bSet = btest(ilut(NOffFlag), flg)
 
     end function test_flag
 

@@ -138,7 +138,7 @@ contains
             else
                 call decode_bit_det(nI, ilut)
                 proc = DetermineDetNode(nel,nI,0)
-                SpawnedParts(:, ValidSpawnedList(proc)) = ilut
+                SpawnedParts(0:NIfTot, ValidSpawnedList(proc)) = ilut
                 ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
             end if
         end do
@@ -158,7 +158,7 @@ contains
 
         ! Now move the contents of SpawnedParts to ilut_list.
         do i = 1, ndets
-            dets_out(:,i) = SpawnedParts(:,i)
+            dets_out(:,i) = SpawnedParts(0:NIfTot,i)
         end do
 
         call sort(dets_out(:, 1:ndets), ilut_lt, ilut_gt)

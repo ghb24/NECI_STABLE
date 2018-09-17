@@ -453,6 +453,8 @@ contains
         sizes(32) = 1
         sizes(33) = 1
         sizes(34) = 1
+        ! truncated weight
+        sizes(35) = 1
 
 
         if (sum(sizes(1:34)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
@@ -489,13 +491,16 @@ contains
         low = upp + 1; upp = low + sizes(26) - 1; send_arr(low:upp) = nspawned;
         ! double occ change:
         low = upp + 1; upp = low + sizes(27) - 1; send_arr(low:upp) = inst_double_occ
+        ! coherence conflict with SIs
         low = upp + 1; upp = low + sizes(28) - 1; send_arr(low:upp) = nCoherentDoubles
         low = upp + 1; upp = low + sizes(29) - 1; send_arr(low:upp) = nIncoherentDets
         low = upp + 1; upp = low + sizes(30) - 1; send_arr(low:upp) = nConnection
-
+        ! sign conflicts between replicas
         low = upp + 1; upp = low + sizes(32) - 1; send_arr(low:upp) = NoSIInitsConflicts;
         low = upp + 1; upp = low + sizes(33) - 1; send_arr(low:upp) = NoInitsConflicts;
         low = upp + 1; upp = low + sizes(34) - 1; send_arr(low:upp) = avSigns;
+        ! truncated weight
+        low = upp + 1; upp = low + sizes(35) - 1; send_arr(low:upp) = truncatedWeight;        
         
         ! Perform the communication.
         call MPISumAll (send_arr(1:upp), recv_arr(1:upp))
@@ -543,6 +548,8 @@ contains
         low = upp + 1; upp = low + sizes(32) - 1; AllNoSIInitsConflicts = recv_arr(low);
         low = upp + 1; upp = low + sizes(33) - 1; AllNoInitsConflicts = recv_arr(low);
         low = upp + 1; upp = low + sizes(34) - 1; AllAvSigns = recv_arr(low);
+        ! truncated weight
+        low = upp + 1; upp = low + sizes(35) - 1; AllTruncatedWeight = recv_arr(low);
         ! Communicate HElement_t variables:
 
         low = 0; upp = 0;
@@ -714,7 +721,7 @@ contains
 
     subroutine update_shift (iter_data)
 
-        use CalcData, only: tInstGrowthRate
+        use CalcData, only: tInstGrowthRate, tL2GrowRate
      
         type(fcimc_iter_data), intent(in) :: iter_data
         integer(int64) :: tot_walkers
@@ -733,28 +740,34 @@ contains
         ! collate_iter_data --> The values used are only valid on Root
         if (iProcIndex == Root) then
 
-            if(tInstGrowthRate) then
+           if(tL2GrowRate) then 
+              ! use the L2 norm to determine the growrate
+              do run = 1, inum_runs
+                 AllGrowRate(run) = norm_psi(run) / old_norm_psi(run)
+              end do
 
-                ! Calculate the growth rate simply using the two points at
-                ! the beginning and the end of the update cycle. 
-                do run = 1, inum_runs
-                    lb = min_part_type(run)
-                    ub = max_part_type(run)
-                    AllGrowRate(run) = (sum(iter_data%update_growth_tot(lb:ub) &
-                               + iter_data%tot_parts_old(lb:ub))) &
-                              / real(sum(iter_data%tot_parts_old(lb:ub)), dp)
-                enddo
+           else if(tInstGrowthRate) then
 
-            else
+              ! Calculate the growth rate simply using the two points at
+              ! the beginning and the end of the update cycle. 
+              do run = 1, inum_runs
+                 lb = min_part_type(run)
+                 ub = max_part_type(run)
+                 AllGrowRate(run) = (sum(iter_data%update_growth_tot(lb:ub) &
+                      + iter_data%tot_parts_old(lb:ub))) &
+                      / real(sum(iter_data%tot_parts_old(lb:ub)), dp)
+              enddo
 
-                ! Instead attempt to calculate the average growth over every
-                ! iteration over the update cycle
-                do run = 1, inum_runs
-                    AllGrowRate(run) = AllSumWalkersCyc(run)/real(StepsSft,dp) &
-                                    /OldAllAvWalkersCyc(run)
-                enddo
+           else
 
-            end if
+              ! Instead attempt to calculate the average growth over every
+              ! iteration over the update cycle
+              do run = 1, inum_runs
+                 AllGrowRate(run) = AllSumWalkersCyc(run)/real(StepsSft,dp) &
+                      /OldAllAvWalkersCyc(run)
+              enddo
+
+           end if
 
             ! For complex case, obtain both Re and Im parts
 #ifdef __CMPLX
@@ -1100,6 +1113,8 @@ contains
         AllTotPartsOld = AllTotParts
         AllNoAbortedOld = AllNoAborted
 
+        ! and the norm
+        old_norm_psi = norm_psi
 
         ! Reset the counters
         iter_data%update_growth = 0.0_dp
@@ -1113,6 +1128,9 @@ contains
 
         ! reset the number of conflicts
         ConflictExLvl = 0
+
+        ! reset the truncated weight
+        truncatedWeight = 0.0_dp
 
     end subroutine rezero_iter_stats_update_cycle
 

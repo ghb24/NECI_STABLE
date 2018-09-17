@@ -28,7 +28,7 @@ module fcimc_initialisation
                         tDynamicCoreSpace, RealCoeffExcitThresh, TargetGrowRate, &
                         TargetGrowRateWalk, InputTargetGrowRate, semistoch_shift_iter,&
                         InputTargetGrowRateWalk, tOrthogonaliseReplicas, &
-                        use_spawn_hash_table, tReplicaSingleDetStart, &
+                        use_spawn_hash_table, tReplicaSingleDetStart, RealSpawnCutoff, &
                         ss_space_in, trial_space_in, init_trial_in, trial_shift_iter, &
                         tContTimeFCIMC, tContTimeFull, tMultipleInitialRefs, &
                         initial_refs, trial_init_reorder, tStartTrialLater, &
@@ -85,7 +85,7 @@ module fcimc_initialisation
                                   get_spawn_helement, encode_child, &
                                   attempt_die, extract_bit_rep_avsign, &
                                   fill_rdm_diag_currdet_old, fill_rdm_diag_currdet, &
-                                  new_child_stats, get_conn_helement
+                                  new_child_stats, get_conn_helement, scaleFunction
     use symrandexcit3, only: gen_rand_excit3
     use symrandexcit_Ex_Mag, only: gen_rand_excit_Ex_Mag
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
@@ -93,7 +93,7 @@ module fcimc_initialisation
                                        gen_excit_4ind_reverse
     use hash, only: FindWalkerHash, add_hash_table_entry, init_hash_table
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
-    use load_balance, only: tLoadBalanceBlocks
+    use load_balance, only: tLoadBalanceBlocks, addNormContribution
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcit4, only: CountExcitations4, GenExcitations4
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
@@ -112,7 +112,9 @@ module fcimc_initialisation
                                  attempt_create_trunc_spawn, &
                                  new_child_stats_hist_hamil, &
                                  new_child_stats_normal, &
-                                 null_encode_child, attempt_die_normal
+                                 null_encode_child, attempt_die_normal, &
+                                 powerScaleFunction, expScaleFunction, negScaleFunction, &
+                                 expCOScaleFunction
     use csf_data, only: csf_orbital_mask
     use initial_trial_states, only: calc_trial_states_lanczos, &
                                     set_trial_populations, set_trial_states, calc_trial_states_direct
@@ -886,12 +888,25 @@ contains
 
         nExChecks = 0
         nExCheckFails = 0
+        
+        ! 0-initialize truncated weight
+        truncatedWeight = 0.0_dp
+        AllTruncatedWeight = 0.0_dp
 
 !            if (tReltvy) then
 !                ! write out the column headings for the MSWALKERCOUNTS
 !                open(mswalkercounts_unit, file='MSWALKERCOUNTS', status='UNKNOWN')
 !                write(mswalkercounts_unit, "(A)") "# ms real    imag    magnitude"
 !            endif
+
+        if(tEScaleWalkers) then
+           if(abs(RealSpawnCutoff-sFBeta) > eps) then
+              write(iout, *) &
+                "Warning: Overriding RealSpawnCutoff with scale function parameter"
+              RealSpawnCutoff = sFBeta
+           endif
+        endif
+           
 
         allocate(ConflictExLvl(maxConflictExLvl))
         ConflictExLvl = 0
@@ -1245,9 +1260,6 @@ contains
             write(iout,*) "POPSFILE VERSION ",PopsVersion," detected."
         endif
 
-        ! Initialise measurement of norm, to avoid divide by zero
-        norm_psi = 1.0_dp
-
         if (tReadPops .and. (PopsVersion.lt.3) .and. &
             .not. (tPopsAlreadyRead .or. tHDF5PopsRead)) then
 !Read in particles from multiple POPSFILES for each processor
@@ -1471,10 +1483,11 @@ contains
             CALL neci_flush(iout)
 
         ENDIF   !End if initial walkers method
-
             
 !Put a barrier here so all processes synchronise
         CALL MPIBarrier(error)
+
+        call init_norm()
 
         IF(tPrintOrbOcc) THEN
             ALLOCATE(OrbOccs(nBasis),stat=ierr)
@@ -1595,6 +1608,7 @@ contains
     end subroutine InitFCIMCCalcPar
 
     subroutine init_fcimc_fn_pointers()
+      character(*), parameter :: t_r = 'init_fcimc_fn_pointers'
         ! Select the excitation generator.
         if (tHPHF) then
             generate_excitation => gen_hphf_excit
@@ -1710,6 +1724,19 @@ contains
 
         fill_rdm_diag_currdet => fill_rdm_diag_currdet_norm
         fill_rdm_diag_currdet_old => fill_rdm_diag_currdet_norm_old
+
+        select case(sfTag)
+        case(0)
+           scaleFunction => powerScaleFunction
+        case(1)
+           scaleFunction => expScaleFunction
+        case(2)
+           scaleFunction => negScaleFunction
+        case(3)
+           scaleFunction => expCOScaleFunction
+        case default
+           call stop_all(t_r,"Invalid scale function specified")
+        end select
 
     end subroutine init_fcimc_fn_pointers
 
@@ -3701,6 +3728,43 @@ contains
     end subroutine setup_dynamic_core
 
 !------------------------------------------------------------------------------------------!
+
+    subroutine init_norm()
+      use bit_rep_data, only: test_flag, extract_sign
+      ! initialize the norm_psi, norm_psi_squared
+      implicit none
+      integer :: j
+      real(dp) :: sgn(lenof_sign)
+      logical :: tIsStateDeterm
+
+      norm_psi_squared = 0.0_dp
+      norm_semistoch_squared = 0.0_dp
+      ! has to be set only once, if it changes in one iteration, it is reset in every iteration
+      tIsStateDeterm = .false.
+      do j = 1, TotWalkers
+         ! get the sign
+         call extract_sign(CurrentDets(:,j),sgn)
+         if(tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,j),flag_deterministic)
+         call addNormContribution(sgn,tIsStateDeterm)
+      end do
+
+      ! sum up the norm over the procs
+      call MPISumAll(norm_psi_squared,all_norm_psi_squared)
+
+      ! assign the sqrt norm
+#ifdef __CMPLX
+      norm_psi = sqrt(sum(all_norm_psi_squared))
+      norm_semistoch = sqrt(sum(norm_semistoch_squared))
+#else
+      norm_psi = sqrt(all_norm_psi_squared)
+      norm_semistoch = sqrt(norm_semistoch_squared)
+#endif
+
+      old_norm_psi = norm_psi
+    end subroutine init_norm
+
+!------------------------------------------------------------------------------------------!
+
 
 
 end module fcimc_initialisation

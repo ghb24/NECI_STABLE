@@ -13,7 +13,8 @@ module fcimc_helper
                         extract_sign, set_flag, encode_sign, &
                         flag_trial, flag_connected, flag_deterministic, &
                         extract_part_sign, encode_part_sign, decode_bit_det, &
-                        get_initiator_flag, get_initiator_flag_by_run
+                        get_initiator_flag, get_initiator_flag_by_run, &
+                        log_spawn, increase_spawn_counter
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
                          DetBitEQ, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
@@ -38,17 +39,18 @@ module fcimc_helper
                         MaxWalkerBloom, tEN2, tEN2Started, &
                         NMCyc, iSampleRDMIters, ErrThresh, tSTDInits, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
-                        t_back_spawn_flex, tau, DiagSft, &
+                        t_back_spawn_flex, tau, DiagSft,  &
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
          tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
-    use procedure_pointers, only: attempt_die, extract_bit_rep_avsign
+    use procedure_pointers, only: attempt_die, extract_bit_rep_avsign, &
+         scaleFunction
     use DetCalcData, only: FCIDetIndex, ICILevel, det
     use hash, only: remove_hash_table_entry, add_hash_table_entry, hash_table_lookup
     use load_balance_calcnodes, only: DetermineDetNode, tLoadBalanceBlocks
-    use load_balance, only: adjust_load_balance, scaleFunction
+    use load_balance, only: adjust_load_balance
     use rdm_filling_old, only: det_removed_fill_diag_rdm_old
     use rdm_filling, only: det_removed_fill_diag_rdm
     use rdm_general, only: store_parent_with_spawned, extract_bit_rep_avsign_norm
@@ -62,6 +64,7 @@ module fcimc_helper
                                get_spawn_pop, get_tau_int, get_shift_int
     use searching, only: BinSearchParts2
     use back_spawn, only: setup_virtual_mask
+    use bit_rep_data, only: flag_multi_spawn
     implicit none
     save
 
@@ -170,6 +173,8 @@ contains
             endif
         end if
 
+        if(tLogNumSpawns) call log_spawn(SpawnedParts(:,ValidSpawnedList(proc) ) )
+
         if (tFillingStochRDMonFly) then
             ! We are spawning from ilutI to 
             ! SpawnedParts(:,ValidSpawnedList(proc)). We want to store the
@@ -233,6 +238,9 @@ contains
             ! Encode the new sign.
             call encode_sign(SpawnedParts(:,ind), real_sign_new)
 
+            if(all(real_sign_old*child_sign > 0)) &
+               call set_flag(SpawnedParts(:,ind), flag_multi_spawn)
+
             ! Set the initiator flags appropriately.
             ! If this determinant (on this replica) has already been spawned to
             ! then set the initiator flag. Also if this child was spawned from
@@ -248,6 +256,9 @@ contains
                         call set_flag(SpawnedParts(:,ind), get_initiator_flag(part_type))
                 end if
             end if
+
+            ! log the spawn
+            if(tLogNumSpawns) call increase_spawn_counter(SpawnedParts(:,ind))
         else
             ! Determine which processor the particle should end up on in the
             ! DirectAnnihilation algorithm.
@@ -288,6 +299,8 @@ contains
                if (allowed_child .or. test_flag(ilut_parent, get_initiator_flag(part_type))) &
                     call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), get_initiator_flag(part_type))
              end if
+
+             if(tLogNumSpawns) call log_spawn(SpawnedParts(:,ValidSpawnedList(proc)))
 
             call add_hash_table_entry(spawn_ht, ValidSpawnedList(proc), hash_val)
 
@@ -945,7 +958,7 @@ contains
         logical :: init_flag
 
         if(tEScaleWalkers) then
-           scaledInitiatorWalkNo = InitiatorWalkNo / scaleFunction(hdiag)
+           scaledInitiatorWalkNo = InitiatorWalkNo * scaleFunction(hdiag)
         else
            scaledInitiatorWalkNo = InitiatorWalkNo
         endif

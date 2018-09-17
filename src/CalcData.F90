@@ -113,6 +113,7 @@ logical :: tEN2, tEN2Init, tEN2Truncated, tEN2Started
 LOGICAL :: tSeniorInitiators !If a det. has lived long enough (called a senior det.), it is added to the initiator space.
 LOGICAL :: tInitIncDoubs,tWalkContGrow,tAnnihilatebyRange
 logical :: tReadPopsRestart, tReadPopsChangeRef, tInstGrowthRate
+logical :: tL2GrowRate
 logical :: tAllRealCoeff, tUseRealCoeffs
 logical :: tRealSpawnCutoff
 logical :: tRealCoeffByExcitLevel
@@ -394,6 +395,8 @@ logical :: t_test_hist_tau = .false.
 
 ! and i also need to truncate the spawns maybe: 
 logical :: t_truncate_spawns = .false. 
+logical :: t_truncate_unocc, t_truncate_multi
+logical :: t_prone_walkers, t_activate_decay
 real(dp) :: n_truncate_spawns = 3.0_dp
 
 ! integer :: above_max_singles = 0, above_max_para = 0, above_max_anti = 0, &

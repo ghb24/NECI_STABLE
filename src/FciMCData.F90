@@ -129,7 +129,7 @@ MODULE FciMCData
       real(dp), allocatable :: norm_psi_squared(:)
       real(dp), allocatable :: norm_semistoch_squared(:)
       real(dp), allocatable :: all_norm_psi_squared(:)
-      real(dp), allocatable :: norm_psi(:)
+      real(dp), allocatable :: norm_psi(:), old_norm_psi(:)
       ! The norm of the wavefunction in just the semi-stochastic space.
       real(dp), allocatable :: norm_semistoch(:)
 
@@ -141,8 +141,14 @@ MODULE FciMCData
       real(dp) :: HashLengthFrac
 
       ! scaling of walker-units
+      integer :: sfTag
       real(dp) :: sFAlpha, sFBeta
       logical :: tEScaleWalkers
+      ! flag to indicate that the number of spawns shall be tracked
+      logical :: tLogNumSpawns
+      ! total truncated weight
+      real(dp) :: truncatedWeight, AllTruncatedWeight
+      
 
 !The following variables are calculated as per processor, but at the end of each update cycle, 
 !are combined to the root processor
@@ -361,6 +367,10 @@ MODULE FciMCData
       INTEGER :: QuadDetsEst !Estimate of the number of symmetry allowed determinants at excit level 4
       INTEGER :: DoubDetsEst !Estimate of the number of symmetry allowed determinants at excit level 2
       logical :: tReplicaReferencesDiffer
+      
+      ! This data is for reducing the occupied determinants drastically when hitting 
+      ! the memory limit
+      integer :: n_prone_dets
 
       integer, allocatable :: ProjEDet(:, :)
       integer(n_int), allocatable :: HighestPopDet(:,:), iLutRef(:, :)
