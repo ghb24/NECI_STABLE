@@ -399,6 +399,8 @@ contains
           tEN2Truncated = .false.
           tEN2Started = .false.
 
+          tPreCond = .false.
+
         end subroutine SetCalcDefaults
 
         SUBROUTINE CalcReadInput()
@@ -2726,6 +2728,9 @@ contains
              case("TARGET-REFERENCE-POP")
                 tVariableNRef = .true.
                 if(item < nItems) call readi(targetRefPop)
+
+            case("PRECOND")
+                tPreCond = .true.
 
             case default
                 call report("Keyword "                                &

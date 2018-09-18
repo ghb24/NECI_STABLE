@@ -152,6 +152,58 @@ contains
 
     end subroutine determ_projection_kp_hamil
 
+    subroutine determ_projection_no_death()
+
+        ! This subroutine gathers together partial_determ_vecs from each processor so
+        ! that the full vector for the whole deterministic space is stored on each processor.
+        ! It then performs the deterministic multiplication of the projector on this full vector.
+
+        use FciMCData, only: partial_determ_vecs, full_determ_vecs, SemiStoch_Comms_Time
+        use FciMCData, only: SemiStoch_Multiply_Time, core_ham_diag
+        use Parallel_neci, only: MPIBarrier, MPIAllGatherV
+
+        integer :: i, j, ierr, run, part_type
+
+        call MPIBarrier(ierr)
+
+        call set_timer(SemiStoch_Comms_Time)
+
+        call MPIAllGatherV(partial_determ_vecs, full_determ_vecs, &
+                            determ_sizes, determ_displs)
+
+        call halt_timer(SemiStoch_Comms_Time)
+
+        call set_timer(SemiStoch_Multiply_Time)
+
+        if (determ_sizes(iProcIndex) >= 1) then
+
+            ! Perform the multiplication.
+
+            partial_determ_vecs = 0.0_dp
+
+            do i = 1, determ_sizes(iProcIndex)
+                do j = 1, sparse_core_ham(i)%num_elements
+                    partial_determ_vecs(:,i) = partial_determ_vecs(:,i) - &
+                        sparse_core_ham(i)%elements(j)*full_determ_vecs(:,sparse_core_ham(i)%positions(j))
+                end do
+            end do
+
+            ! Remove contribution from the diagonal elements, since the
+            ! propagator has no diagonal.
+            do i = 1, determ_sizes(iProcIndex)
+                partial_determ_vecs(:,i) = partial_determ_vecs(:,i) + &
+                   core_ham_diag(i) * full_determ_vecs(:,i+determ_displs(iProcIndex))
+            end do
+
+            ! Now multiply the vector by tau to get the final projected vector.
+            partial_determ_vecs = partial_determ_vecs * tau
+
+        end if
+
+        call halt_timer(SemiStoch_Multiply_Time)
+
+    end subroutine determ_projection_no_death
+
     subroutine average_determ_vector()
 
         use FciMCData, only: Iter, IterRDMStart

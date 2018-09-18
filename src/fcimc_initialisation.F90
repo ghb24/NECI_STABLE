@@ -32,7 +32,7 @@ module fcimc_initialisation
                         ss_space_in, trial_space_in, init_trial_in, trial_shift_iter, &
                         tContTimeFCIMC, tContTimeFull, tMultipleInitialRefs, &
                         initial_refs, trial_init_reorder, tStartTrialLater, &
-                        ntrial_ex_calc, tPairedReplicas, tMultiRefShift, &
+                        ntrial_ex_calc, tPairedReplicas, tMultiRefShift, tPreCond, &
                         tMultipleInitialStates, initial_states, t_hist_tau_search, &
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, tRCCheck, &
@@ -112,7 +112,7 @@ module fcimc_initialisation
                                  attempt_create_trunc_spawn, &
                                  new_child_stats_hist_hamil, &
                                  new_child_stats_normal, &
-                                 null_encode_child, attempt_die_normal, &
+                                 null_encode_child, attempt_die_normal, attempt_die_precond, &
                                  powerScaleFunction, expScaleFunction, negScaleFunction, &
                                  expCOScaleFunction
     use csf_data, only: csf_orbital_mask
@@ -1718,7 +1718,11 @@ contains
         ! Perform the correct statistics on new child particles
         new_child_stats => new_child_stats_normal
 
-        attempt_die => attempt_die_normal
+        if (tPreCond) then
+            attempt_die => attempt_die_precond
+        else
+            attempt_die => attempt_die_normal
+        end if
 
         extract_bit_rep_avsign => extract_bit_rep_avsign_no_rdm
 

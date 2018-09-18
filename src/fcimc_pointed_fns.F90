@@ -636,7 +636,80 @@ module fcimc_pointed_fns
         ! Avoid compiler warnings
         iUnused = DetCurr(1)
 
-    end function
+    end function attempt_die_normal
+
+    function attempt_die_precond (DetCurr, Kii, realwSign, WalkExcitLevel) result(ndie)
+
+        ! Should we kill the particle at determinant DetCurr.
+        ! The function allows multiple births (if +ve shift), or deaths from
+        ! the same particle. The returned number is the number of deaths if
+        ! positive, and the
+        !
+        ! In:  DetCurr - The determinant to consider
+        !      Kii     - The diagonal matrix element of DetCurr (-Ecore)
+        !      wSign   - The sign of the determinant being considered. If
+        !                |wSign| > 1, attempt to die multiple particles at
+        !                once (multiply probability of death by |wSign|)
+        ! Ret: ndie    - The number of deaths (if +ve), or births (If -ve).
+
+        integer, intent(in) :: DetCurr(nel)
+        real(dp), dimension(lenof_sign), intent(in) :: RealwSign
+        real(dp), intent(in) :: Kii
+        real(dp), dimension(lenof_sign) :: ndie
+        integer, intent(in) :: WalkExcitLevel
+        character(*), parameter :: t_r = 'attempt_die_normal'
+
+        real(dp) :: probsign, r
+        real(dp), dimension(inum_runs) :: fac
+        integer :: i, run, iUnused
+#ifdef __CMPLX
+        real(dp) :: rat(2)
+#else
+        real(dp) :: rat(1)
+#endif
+
+        do i=1, inum_runs
+            fac(i)=tau
+
+            ! And for tau searching purposes
+            call log_death_magnitude (1.0_dp)
+        enddo
+
+        if ((tRealCoeffByExcitLevel .and. (WalkExcitLevel .le. RealCoeffExcitThresh)) &
+            .or. tAllRealCoeff ) then
+            do run=1, inum_runs
+                ndie(min_part_type(run))=fac(run)*abs(realwSign(min_part_type(run)))
+#ifdef __CMPLX
+                ndie(max_part_type(run))=fac(run)*abs(realwSign(max_part_type(run)))
+#endif
+            enddo
+        else
+            do run = 1, inum_runs
+
+                ! Subtract the current value of the shift, and multiply by tau.
+                ! If there are multiple particles, scale the probability.
+
+                rat(:) = fac(run) * abs(realwSign(min_part_type(run):max_part_type(run)))
+
+                ndie(min_part_type(run):max_part_type(run)) = real(int(rat), dp)
+                rat(:) = rat(:) - ndie(min_part_type(run):max_part_type(run))
+
+                ! Choose to die or not stochastically
+                r = genrand_real2_dSFMT() 
+                if (abs(rat(1)) > r) ndie(min_part_type(run)) = &
+                    ndie(min_part_type(run)) + real(nint(sign(1.0_dp, rat(1))), dp)
+#ifdef __CMPLX
+                r = genrand_real2_dSFMT() 
+                if (abs(rat(2)) > r) ndie(max_part_type(run)) = &
+                    ndie(max_part_type(run)) + real(nint(sign(1.0_dp, rat(2))), dp)
+#endif
+            enddo
+        endif
+
+        ! Avoid compiler warnings
+        iUnused = DetCurr(1)
+
+    end function attempt_die_precond
 
 !------------------------------------------------------------------------------------------!
 

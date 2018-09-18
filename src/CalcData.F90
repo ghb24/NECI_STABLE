@@ -428,4 +428,6 @@ logical :: t_back_spawn_flex = .false., t_back_spawn_flex_option = .false.
 ! 1 -> maybe I should rename this than so that minus indicates de-excitation?!
 integer :: occ_virt_level = 0
 
+logical :: tPreCond
+
 end module CalcData

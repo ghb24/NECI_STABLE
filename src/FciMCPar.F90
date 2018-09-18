@@ -44,7 +44,8 @@ module FciMCParMod
     use semi_stoch_gen, only: write_most_pop_core_at_end, init_semi_stochastic, &
          refresh_semistochastic_space
     use semi_stoch_procs, only: is_core_state, check_determ_flag, &
-                                determ_projection, average_determ_vector
+                                determ_projection, average_determ_vector, &
+                                determ_projection_no_death
     use trial_wf_gen, only: update_compare_trial_file, init_trial_wf, refresh_trial_wf
     use hist, only: write_zero_hist_excit_tofrom, write_clear_hist_spin_dist
     use orthogonalise, only: orthogonalise_replicas, calc_replica_overlaps, &
@@ -57,6 +58,7 @@ module FciMCParMod
     use errors, only: standalone_errors, error_analysis
     use PopsFileMod, only: WriteToPopsFileParOneArr
     use AnnihilationMod, only: DirectAnnihilation
+    use precond_annihilation_mod, only: precond_annihilation
     use exact_spectrum, only: get_exact_spectrum
     use determ_proj, only: perform_determ_proj
     use cont_time, only: iterate_cont_time
@@ -1235,19 +1237,24 @@ module FciMCParMod
                                                   RDMBiasFacCurr, WalkersToSpawn)
                         end if
 
-                    endif ! (child /= 0), Child created.
+                    end if ! (child /= 0), Child created.
 
-                enddo ! Cycling over mulitple particles on same determinant.
+                end do ! Cycling over mulitple particles on same determinant.
 
-            enddo   ! Cycling over 'type' of particle on a given determinant.
+            end do   ! Cycling over 'type' of particle on a given determinant.
 
-                ! If we are performing a semi-stochastic simulation and this state
-                ! is in the deterministic space, then the death step is performed
-                ! deterministically later. Otherwise, perform the death step now.
-                if (.not. tCoreDet) call walker_death (iter_data, DetCurr, CurrentDets(:,j), &
-                                                       HDiagCurr, SignCurr, j, WalkExcitLevel)
+            ! If we are performing a semi-stochastic simulation and this state
+            ! is in the deterministic space, then the death step is performed
+            ! deterministically later. Otherwise, perform the death step now.
+            ! If using a preconditioner, then death is done in the annihilation
+            ! routine, after the energy has been calculated.
+            if ((.not. tPreCond) .and. (.not. tCoreDet)) then
+                call walker_death (iter_data, DetCurr, CurrentDets(:,j), &
+                                   HDiagCurr, SignCurr, j, WalkExcitLevel)
+            end if
 
-        enddo ! Loop over determinants.
+        end do ! Loop over determinants.
+
         IFDEBUGTHEN(FCIMCDebug,2) 
             write(iout,*) 'Finished loop over determinants'
             write(iout,*) "Holes in list: ", iEndFreeSlot
@@ -1256,7 +1263,11 @@ module FciMCParMod
             ! For semi-stochastic calculations only: Gather together the parts
             ! of the deterministic vector stored on each processor, and then
             ! perform the multiplication of the exact projector on this vector.
-            call determ_projection()
+            if (tPreCond) then
+                call determ_projection_no_death()
+            else
+                call determ_projection()
+            end if
 
             if (tFillingStochRDMonFly) then
                 ! For RDM calculations, add the current core amplitudes into the
@@ -1293,7 +1304,11 @@ module FciMCParMod
         !HolesInList is returned from direct annihilation with the number of unoccupied determinants in the list
         !They have already been removed from the hash table though.
 
-        call DirectAnnihilation (totWalkersNew, iter_data, .false.) !.false. for not single processor
+        if (tPreCond) then
+            call precond_annihilation (totWalkersNew, iter_data, .false.)
+        else
+            call DirectAnnihilation (totWalkersNew, iter_data, .false.) !.false. for not single processor
+        end if
 
         ! The growth in the size of the occupied part of CurrentDets
         ! this is important for the purpose of prone_walkers
