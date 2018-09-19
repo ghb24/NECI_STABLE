@@ -212,7 +212,7 @@ module FciMCParMod
             call WriteFCIMCStats()
         end if
 
-        if (tPreCond) then
+        if (tPreCond .and. iProcIndex == 0) then
             var_unit = get_free_unit()
             call open_create_stats('var_estimates', var_unit)
             write(var_unit, '("#", 4X, "Iteration")', advance='no')
@@ -691,7 +691,9 @@ module FciMCParMod
             close(unitWalkerDiag)
         endif
 
-        close(var_unit)
+        if (tPreCond .and. iProcIndex == 0) then
+            close(var_unit)
+        end if
 
         ! Print out some load balancing stats nicely to end.
         CALL MPIReduce(TotWalkers,MPI_MAX,MaxWalkers)
