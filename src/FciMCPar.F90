@@ -212,6 +212,15 @@ module FciMCParMod
             call WriteFCIMCStats()
         end if
 
+        if (tPreCond) then
+            var_unit = get_free_unit()
+            call open_create_stats('var_estimates', var_unit)
+            write(var_unit, '("#", 4X, "Iteration")', advance='no')
+            write(var_unit, '(7x,"Energy numerator")', advance='no')
+            write(var_unit, '(10x,"Normalisation")', advance='no')
+            write(var_unit,'()')
+        end if
+
         ! double occupancy: 
         if (t_calc_double_occ) then 
             call write_double_occ_stats(iter_data_fciqmc, initial = .true.)
@@ -681,6 +690,8 @@ module FciMCParMod
         if(tDiagWalkerSubspace) then
             close(unitWalkerDiag)
         endif
+
+        close(var_unit)
 
         ! Print out some load balancing stats nicely to end.
         CALL MPIReduce(TotWalkers,MPI_MAX,MaxWalkers)

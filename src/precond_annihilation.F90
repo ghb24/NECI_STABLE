@@ -34,7 +34,7 @@ module precond_annihilation_mod
         integer :: MaxIndex
         integer(n_int), pointer :: PointTemp(:,:)
         type(timer), save :: Compress_time
-        real(dp) :: proj_energy(lenof_sign)
+        real(dp) :: proj_energy(lenof_sign), var_e_num_all, overlap_all
 
         ! This routine will send all the newly-spawned particles to their
         ! correct processor. 
@@ -53,6 +53,8 @@ module precond_annihilation_mod
         ! and the particles will end up in the spawnedSign/SpawnedParts lists.
         call CompressSpawnedList(MaxIndex, iter_data)
         call halt_timer(Compress_time)
+
+        call calc_var_energy(MaxIndex, var_e_num_all, overlap_all)
 
         call get_proj_energy(MaxIndex, proj_energy)
 
@@ -74,6 +76,70 @@ module precond_annihilation_mod
         call halt_timer(Sort_Time)
 
     end subroutine precond_annihilation
+
+    subroutine calc_var_energy(ValidSpawned, var_e_num_all, overlap_all)
+
+        use CalcData, only: tau
+        use global_det_data, only: det_diagH
+
+        integer, intent(in) :: ValidSpawned
+        real(dp), intent(out) :: var_e_num_all, overlap_all
+
+        integer :: i, PartInd, DetHash
+        integer :: nI_spawn(nel)
+        real(dp) :: SpawnedSign(lenof_sign), CurrentSign(lenof_sign)
+        real(dp) :: h_diag, var_e_num, overlap
+        logical :: tSuccess
+
+        var_e_num = 0.0_dp
+        overlap = 0.0_dp
+        var_e_num_all = 0.0_dp
+        overlap_all = 0.0_dp
+
+        ! Contribution from diagonal
+        do i = 1, int(TotWalkers, sizeof_int)
+            h_diag = det_diagH(i) + Hii
+            call extract_sign(CurrentDets(:, i), CurrentSign)
+            overlap = overlap + CurrentSign(1) * CurrentSign(2)
+            var_e_num = var_e_num + h_diag * CurrentSign(1) * CurrentSign(2)
+        end do
+
+
+        ! Contribution from deterministic space
+        if (tSemiStochastic) then
+            do i = 1, determ_sizes(iProcIndex)
+                call extract_sign(CurrentDets(:, indices_of_determ_states(i)), CurrentSign)
+                var_e_num = var_e_num - &
+                    (partial_determ_vecs(1, i) * CurrentSign(2) + &
+                     partial_determ_vecs(2, i) * CurrentSign(1)) / (2.0_dp * tau)
+            end do
+        end if
+
+        ! Contribution from stochastic spawnings
+        do i = 1, ValidSpawned
+            ! Check if this spawned determinant is already in the walker list
+            call decode_bit_det(nI_spawn, SpawnedParts(:,i))
+            call hash_table_lookup(nI_spawn, SpawnedParts(:,i), NIfDBO, HashIndex, &
+                                   CurrentDets, PartInd, DetHash, tSuccess)
+
+            if (tSuccess) then
+                call extract_sign(SpawnedParts(:,i), SpawnedSign)
+                call extract_sign(CurrentDets(:,PartInd), CurrentSign)
+                var_e_num = var_e_num - &
+                    (SpawnedSign(1) * CurrentSign(2) + SpawnedSign(2) * CurrentSign(1))/(2.0_dp * tau)
+            end if
+        end do
+
+        call MPISumAll(var_e_num, var_e_num_all)
+        call MPISumAll(overlap, overlap_all)
+
+        if (iProcIndex == 0) then
+            write(var_unit, '(1x,i13)', advance='no') Iter + PreviousCycles
+            write(var_unit, '(2(3x,es20.13))', advance='no') var_e_num_all, overlap_all
+            write(var_unit,'()')
+        end if
+
+    end subroutine calc_var_energy
 
     subroutine get_proj_energy(ValidSpawned, proj_energy)
 

@@ -33,6 +33,8 @@ MODULE FciMCData
       integer :: Tot_Unique_Dets_Unit 
       integer :: EXLEVELStats_unit ! EXLEVELStats
 
+      integer :: var_unit ! Variational estimates
+
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: WalkVecDets(:,:)                !Contains determinant list
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVec(:,:),SpawnVec2(:,:)
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVecKP(:,:), SpawnVecKP2(:,:)
