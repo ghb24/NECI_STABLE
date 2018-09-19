@@ -1009,7 +1009,6 @@ module AnnihilationMod
         real(dp) :: contrib_sign(en_pert_main%sign_length)
         logical :: pert_contrib(en_pert_main%sign_length)
         real(dp) :: trial_contrib(lenof_sign)
-        HElement_t(dp) :: h_diag
 
         ! RDM-energy-based estimate:
         ! Only add a contribution if we've started accumulating this estimate.

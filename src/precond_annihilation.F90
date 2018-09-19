@@ -79,22 +79,27 @@ module precond_annihilation_mod
 
     subroutine calc_var_energy(ValidSpawned, var_e_num_all, overlap_all)
 
-        use CalcData, only: tau
+        use CalcData, only: tau, tEN2Init
         use global_det_data, only: det_diagH
 
         integer, intent(in) :: ValidSpawned
         real(dp), intent(out) :: var_e_num_all, overlap_all
 
-        integer :: i, PartInd, DetHash
+        integer :: i, j, PartInd, DetHash
         integer :: nI_spawn(nel)
         real(dp) :: SpawnedSign(lenof_sign), CurrentSign(lenof_sign)
-        real(dp) :: h_diag, var_e_num, overlap
-        logical :: tSuccess
+        real(dp) :: h_diag, var_e_num, overlap, en2_pert, en2_pert_all
+        logical :: tSuccess, abort(lenof_sign), pert_contrib
 
         var_e_num = 0.0_dp
         overlap = 0.0_dp
         var_e_num_all = 0.0_dp
         overlap_all = 0.0_dp
+        en2_pert = 0.0_dp
+        en2_pert_all = 0.0_dp
+
+        tSuccess = .false.
+        abort = .false.
 
         ! Contribution from diagonal
         do i = 1, int(TotWalkers, sizeof_int)
@@ -133,9 +138,46 @@ module precond_annihilation_mod
         call MPISumAll(var_e_num, var_e_num_all)
         call MPISumAll(overlap, overlap_all)
 
+        ! Contribution from stochastic spawnings
+        if (tEN2Init) then
+            do i = 1, ValidSpawned
+                ! Check if this spawned determinant is already in the walker list
+                call decode_bit_det(nI_spawn, SpawnedParts(:,i))
+                call hash_table_lookup(nI_spawn, SpawnedParts(:,i), NIfDBO, HashIndex, &
+                                       CurrentDets, PartInd, DetHash, tSuccess)
+
+                if (.not. tSuccess) then
+                    ! Not already in the main list - are we going to abort it?
+                    ! If so, add in a contribution to the EN2 correction
+                    do j = 1, lenof_sign
+                        abort(j) = test_abort_spawn(SpawnedParts(:, i), j)
+                    end do
+                    call extract_sign(SpawnedParts(:,i), SpawnedSign)
+
+                    pert_contrib = abort(1) .and. abort(2) .and. &
+                      abs(SpawnedSign(1)) > 1.e-12_dp .and. abs(SpawnedSign(2)) > 1.e-12_dp
+
+                    if (pert_contrib) then
+                        if (tHPHF) then
+                            h_diag = hphf_diag_helement(nI_spawn, SpawnedParts(:, i))
+                        else
+                            h_diag = get_helement(nI_spawn, nI_spawn, 0)
+                        end if
+
+                        en2_pert = en2_pert + &
+                          SpawnedSign(1)*SpawnedSign(2) / ( (tau**2) * ((var_e_num_all / overlap_all) - h_diag ) )
+                    end if
+
+                end if
+            end do
+        end if
+
+        call MPISumAll(en2_pert, en2_pert_all)
+
         if (iProcIndex == 0) then
             write(var_unit, '(1x,i13)', advance='no') Iter + PreviousCycles
-            write(var_unit, '(2(3x,es20.13))', advance='no') var_e_num_all, overlap_all
+            write(var_unit, '(4(3x,es20.13))', advance='no') var_e_num_all, en2_pert_all, &
+                                                              var_e_num_all+en2_pert_all, overlap_all
             write(var_unit,'()')
         end if
 
