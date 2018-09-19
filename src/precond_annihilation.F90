@@ -82,9 +82,9 @@ module precond_annihilation_mod
         integer, intent(in) :: ValidSpawned
         real(dp), intent(out) :: proj_energy(lenof_sign)
 
-        integer :: i
-        real(dp) :: SignTemp(lenof_sign)
-        logical :: ref_found, tSuccess
+        integer :: i, run
+        real(dp) :: SignTemp(lenof_sign), ref_pop(lenof_sign)
+        logical :: ref_found(lenof_sign), tSuccess
         integer :: PartInd, DetHash
 
         proj_energy = 0.0_dp
@@ -92,48 +92,54 @@ module precond_annihilation_mod
 
         ! Find the weight spawned on the Hartree--Fock determinant.
         if (tSemiStochastic) then
-            do i = 1, determ_sizes(iProcIndex)
-                if (DetBitEQ(core_space(0:NIfDBO,determ_displs(iProcIndex)+i), iLutHF, NIfDBO)) then
-                    proj_energy = -partial_determ_vecs(:,i)
-                    ref_found = .true.
-                    exit
-                end if
+            do run = 1, lenof_sign
+                do i = 1, determ_sizes(iProcIndex)
+                    if (DetBitEQ(core_space(0:NIfDBO, determ_displs(iProcIndex)+i), iLutRef(:,run), NIfDBO)) then
+                        proj_energy(run) = -partial_determ_vecs(run,i)
+                        ref_found(run) = .true.
+                        exit
+                    end if
+                end do
             end do
         end if
 
         do i = 1, ValidSpawned
-            if (DetBitEQ(SpawnedParts(:,i), iLutHF, NIfDBO)) then
-                call extract_sign(SpawnedParts(:,i), SignTemp)
-                proj_energy = proj_energy - SignTemp
-                ref_found = .true.
-                exit
-            end if
+            do run = 1, lenof_sign
+                if (DetBitEQ(SpawnedParts(:,i), iLutRef(:,run), NIfDBO)) then
+                    call extract_sign(SpawnedParts(:,i), SignTemp)
+                    proj_energy(run) = proj_energy(run) - SignTemp(run)
+                    ref_found(run) = .true.
+                    exit
+                end if
+            end do
         end do
 
-        if (iProcIndex == iRefProc(1)) then
-            if ( (.not. ref_found) ) then
-                proj_energy = -0.01_dp
-                write(6,'("WARNING: The reference determinant was not spawned to in the last iteration.")')
-            else if (abs(proj_energy(1)) < 1.e-12_dp) then
-                proj_energy = -0.01_dp
-                write(6,'("WARNING: The projected energy from the last iteration was zero. Setting to -0.1.")')
+        do run = 1, lenof_sign
+            if (iProcIndex == iRefProc(run)) then
+                if ( (.not. ref_found(run)) ) then
+                    proj_energy(run) = -0.01_dp
+                    write(6,'("WARNING: The reference determinant was not spawned to in the last iteration.")')
+                else if (abs(proj_energy(run)) < 1.e-12_dp) then
+                    proj_energy(run) = -0.01_dp
+                    write(6,'("WARNING: The projected energy from the last iteration was zero. Setting to -0.1.")')
+                end if
+
+                call hash_table_lookup(ProjEDet(:,run), ilutRef(:,run), NIfDBO, HashIndex, &
+                                       CurrentDets, PartInd, DetHash, tSuccess)
+
+                if (tSuccess) then
+                    call extract_sign(CurrentDets(:,PartInd), ref_pop)
+                    proj_energy(run) = proj_energy(run)/ref_pop(run)
+                else
+                    write(6,'("WARNING: Reference determinant not found in main walker list.")')
+                end if
             end if
 
-            call hash_table_lookup(HFDet, ilutHF, NIfDBO, HashIndex, &
-                                   CurrentDets, PartInd, DetHash, tSuccess)
-
-            if (tSuccess) then
-                call extract_sign(CurrentDets(:,PartInd), InstNoAtHF)
-                proj_energy = proj_energy/InstNoAtHF
-            else
-                write(6,'("WARNING: HF determinant not found in main walker list.")')
-            end if
-        end if
+            call MPIBCast(proj_energy(run), 1, iRefProc(run))
+        end do
 
         ! Remove time step
         proj_energy = proj_energy / tau
-
-        call MPIBCast(proj_energy, lenof_sign, iRefProc(1))
 
     end subroutine get_proj_energy
 
@@ -173,9 +179,6 @@ module precond_annihilation_mod
         use DetBitOps, only: FindBitExcitLevel
         use fcimc_helper, only: walker_death
         use global_det_data, only: det_diagH
-
-        ! Calculate an instantaneous value of the projected energy for the
-        ! given walkers distributions
 
         type(fcimc_iter_data), intent(inout) :: iter_data
 
