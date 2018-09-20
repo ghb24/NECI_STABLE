@@ -2509,7 +2509,7 @@ r_loop: do while(.not.tStoreDet)
 
         ! If we are changing the reference determinant to the largest
         ! weighted one in the file, do it here
-        if (tReadPopsChangeRef .or. tReadPopsRestart) then
+        if (tReadPopsChangeRef .and. tReadPopsRestart) then
             do run = 1, inum_runs
 
                 ! If using the same reference for all runs, then don't consider
