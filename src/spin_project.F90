@@ -9,7 +9,7 @@ module spin_project
                         get_initiator_flag_by_run
     use csf, only: csf_get_yamas, get_num_csfs, csf_coeff, random_spin_permute
     use constants, only: dp, bits_n_int, lenof_sign, n_int, end_n_int, int32,sizeof_int, &
-                        inum_runs
+                        inum_runs, maxExcit
     use FciMCData, only: TotWalkers, CurrentDets, fcimc_iter_data, &
                          yama_global, excit_gen_store_type, &
                          fcimc_excit_gen_store
@@ -366,7 +366,7 @@ contains
 
         integer, intent(in) :: nI(nel), nJ(nel)
         integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
-        integer, intent(in) :: ic, ex(2,2)
+        integer, intent(in) :: ic, ex(2,maxExcit)
         logical, intent(in) :: tParity
         HElement_t(dp), intent(in) :: HElGen
         HElement_t(dp) :: hel
@@ -420,7 +420,7 @@ ASSERT(count_open_orbs(ilutI) /= 0)
         integer, intent(in) :: exFlag
         integer, intent(out) :: nJ(nel) 
         integer(kind=n_int), intent(out) :: iLutJ(0:niftot)
-        integer, intent(out) :: ic, ex(2,2)
+        integer, intent(out) :: ic, ex(2,maxExcit)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
         HElement_t(dp), intent(out) :: HElGen

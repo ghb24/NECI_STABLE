@@ -25,7 +25,7 @@ module tau_search_hist
 
     use ParallelHelper, only: iprocindex, root
 
-    use constants, only: dp, EPS, iout
+    use constants, only: dp, EPS, iout, maxExcit
 
     use tau_search, only: FindMaxTauDoubs
 

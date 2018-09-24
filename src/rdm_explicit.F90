@@ -749,7 +749,7 @@ contains
         integer(n_int) :: iLutnJ(0:NIfTot)
         real(dp) :: SignDi(lenof_sign), SignDj(lenof_sign), full_sign(1)
         integer :: i, j, NoDets, StartDets, PartInd
-        integer :: nI(NEl), nJ(NEl), Ex(2,2), Ex_symm(2,2), FlagsDi, FlagsDj
+        integer :: nI(NEl), nJ(NEl), Ex(2,maxExcit), Ex_symm(2,maxExcit), FlagsDi, FlagsDj
         logical :: tDetFound, tParity
 
         ! Take each Dj, and binary search CurrentDets to see if it is occupied.
@@ -836,7 +836,7 @@ contains
         integer(n_int) :: iLutnJ(0:NIfTot)
         real(dp) :: SignDi(lenof_sign), SignDj(lenof_sign), full_sign(1)
         integer :: i, j, NoDets, StartDets, PartInd
-        integer :: nI(NEl), nJ(NEl), Ex(2,2), FlagsDi, FlagsDj
+        integer :: nI(NEl), nJ(NEl), Ex(2,maxExcit), FlagsDi, FlagsDj
         logical :: tDetFound, tParity
 
         ! Take each Dj, and binary search CurrentDets to see if it is occupied.
@@ -921,7 +921,7 @@ contains
         real(dp), dimension(lenof_sign) :: RealHistPos
 
         integer :: i, j, NoDets, StartDets, PartInd, ExcitLevel
-        integer :: nI(NEl), nJ(NEl), Ex(2,2), Ex_symm(2,2), FlagsDi, FlagsDj
+        integer :: nI(NEl), nJ(NEl), Ex(2,maxExcit), Ex_symm(2,maxExcit), FlagsDi, FlagsDj
         logical :: tDetFound, tParity
         real(dp) :: SignDi(lenof_sign), SignDj(lenof_sign), full_sign(1)
 
@@ -1026,7 +1026,7 @@ contains
         integer, dimension(lenof_sign) :: HistPos
         real(dp), dimension(lenof_sign) :: RealHistPos
         integer :: i, j, NoDets, StartDets,PartInd, ExcitLevel
-        integer :: nI(NEl), nJ(NEl), Ex(2,2), FlagsDi, FlagsDj
+        integer :: nI(NEl), nJ(NEl), Ex(2,maxExcit), FlagsDi, FlagsDj
         logical :: tDetFound, tParity
         real(dp) :: SignDi(lenof_sign), SignDj(lenof_sign), full_sign(1)
 

@@ -3,9 +3,9 @@ module tc_three_body_data
   implicit none
 
   ! biases for 3-body excitation generation
-  real(dp) :: pTriples, p0B, p1B, p2B
+  real(dp) :: pTriples, p0B, p0A, p2B
   ! number of empty alpha/beta electrons
-  integer :: nUnoccA, nUnoccB
+  integer :: nUnoccAlpha, nUnoccBeta
   
   HElement_t(dp), allocatable :: LMat(:)
 

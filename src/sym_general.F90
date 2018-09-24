@@ -254,7 +254,7 @@ contains
         ! symmetry specification of the determinant nI. This also checks that
         ! the excitation relating these two determinants (ic, ex) is valid.
 
-        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2, 2)
+        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2, ic)
         logical :: bValid
 
         integer :: exLevel, ms1, ms2, ml1, ml2, i

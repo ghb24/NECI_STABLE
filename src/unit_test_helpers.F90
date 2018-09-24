@@ -3,7 +3,7 @@
 ! a small module with functions needed for the unit-tests
 module unit_test_helpers
 
-    use constants, only: dp, EPS, n_int, bits_n_int
+    use constants, only: dp, EPS, n_int, bits_n_int, maxExcit
 
     use lattice_mod, only: get_helement_lattice, lattice
 
@@ -270,7 +270,7 @@ contains
         integer, intent(in), optional :: spin_opt
         HElement_t(dp) :: hamil(size(list_nI,2),size(list_nI,2))
 
-        integer :: i, j, spin, ex(2,2), ic
+        integer :: i, j, spin, ex(2,maxExcit), ic
         integer(n_int) :: ilutI(0:NifTot), ilutJ(0:niftot)
         logical :: tpar
 
@@ -762,7 +762,7 @@ contains
         integer :: default_n_dets = 1
 
         integer(n_int) :: ilut(0:niftot), tgt_ilut(0:niftot)
-        integer :: nJ(nel), n_excits, ex(2,2), ic, ex_flag, i_unused = 0
+        integer :: nJ(nel), n_excits, ex(2,maxExcit), ic, ex_flag, i_unused = 0
         type(excit_gen_store_type) :: store 
         logical :: tPar, found_all
         real(dp) :: pgen, contrib
@@ -994,7 +994,7 @@ contains
         integer(n_int), intent(out), allocatable :: det_list(:,:) 
         character(*), parameter :: this_routine = "gen_all_excits_default"
 
-        integer :: n_singles, n_doubles, n_dets, ex(2,2), ex_flag
+        integer :: n_singles, n_doubles, n_dets, ex(2,maxExcit), ex_flag
         integer :: nJ(nel) 
         logical :: tpar, found_all 
         integer(n_int) :: ilut(0:niftot)

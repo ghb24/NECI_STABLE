@@ -22,7 +22,7 @@ contains
         use sltcnd_mod, only: sltcnd_2
 
         integer, intent(in) :: i, j, k, l
-        integer :: ex(2,2)
+        integer :: ex(2,maxExcit)
         real(dp) :: integral
 
         ex(1,1) = j

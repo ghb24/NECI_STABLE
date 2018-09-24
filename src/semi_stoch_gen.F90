@@ -1173,7 +1173,7 @@ contains
         real(dp), allocatable :: amp_list(:)
         integer(n_int) :: ilut(0:NIfTot)
         integer :: nI(nel)
-        integer :: ex(2,2), ex_flag, ndets
+        integer :: ex(2,maxExcit), ex_flag, ndets
         integer :: pos, i
         real(dp) :: amp, energy_contrib
         logical :: tAllExcitFound, tParity

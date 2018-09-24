@@ -1,5 +1,5 @@
 module hphf_integrals
-    use constants, only: dp,n_int,sizeof_int
+    use constants, only: dp,n_int,sizeof_int, maxExcit
     use SystemData, only: NEl, nBasisMax, G1, nBasis, Brr, tHub, ECore, &
                           ALat, NMSH, tOddS_HPHF, modk_offdiag, t_lattice_model, & 
                           t_3_body_excits
@@ -21,7 +21,7 @@ module hphf_integrals
 
     function hphf_spawn_sign (nI, nJ, iLutI, iLutJ, ic, ex, &
                                   tParity, HElGen) result (hel)
-        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
+        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,maxExcit)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: tParity
         integer :: iUnused
@@ -41,7 +41,7 @@ module hphf_integrals
     ! TODO: comment as to why!
     function hphf_off_diag_helement_spawn (nI, nJ, iLutI, iLutJ, ic, ex, &
                                            tParity, HElGen) result (hel)
-        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
+        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,maxExcit)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: tParity
         integer :: iUnused
@@ -75,10 +75,9 @@ module hphf_integrals
 
         integer :: nI2(nel), iUnused
         integer(kind=n_int) :: iLutnI2(0:NIfTot)
-        integer :: ExcitLevel, OpenOrbsI, OpenOrbsJ, Ex(2,2)
+        integer :: ExcitLevel, OpenOrbsI, OpenOrbsJ, Ex(2,maxExcit)
         HElement_t(dp) :: MatEl2
         logical :: tSign
-        integer :: temp_ex(2,2)
 
         ! Avoid warnings
         iUnused = nJ(1)
@@ -128,7 +127,7 @@ module hphf_integrals
                 call FindExcitBitDetSym(iLutnI, iLutnI2)
                 ExcitLevel = FindBitExcitLevel(iLutnI2, ilutnJ, 2)
 
-                if (ExcitLevel.le.2) then
+                if (ExcitLevel.le.3) then
                     
                     ! We need to find out whether the nJ HPHF wavefunction is 
                     ! symmetric or antisymmetric. This is dependant on the 

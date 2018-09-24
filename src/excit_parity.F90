@@ -14,7 +14,7 @@ contains
     subroutine make_single (nI, nJ, elec, tgt, ex, tParity)
 
         integer, intent(in) :: nI(nel), elec, tgt
-        integer, intent(out) :: ex(2,2), nJ(nel)
+        integer, intent(out) :: ex(2,1), nJ(nel)
         logical, intent(out) :: tParity
 #ifdef __DEBUG
         character(*), parameter :: this_routine = 'make_single'

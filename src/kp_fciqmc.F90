@@ -52,7 +52,7 @@ contains
         integer :: iconfig, irepeat, ivec, nlowdin
         integer :: nspawn, parent_flags, unused_flags
         integer :: ex_level_to_ref, ex_level_to_hf
-        integer :: TotWalkersNew, determ_ind, ic, ex(2,2), ms_parent
+        integer :: TotWalkersNew, determ_ind, ic, ex(2,maxExcit), ms_parent
         integer :: nI_parent(nel), nI_child(nel)
         integer(n_int) :: ilut_child(0:NIfTot)
         integer(n_int), pointer :: ilut_parent(:)
@@ -375,7 +375,7 @@ contains
         integer :: iconfig, irepeat, ireport, nlowdin
         integer :: nspawn, parent_flags, unused_flags
         integer :: ex_level_to_ref, ex_level_to_hf
-        integer :: TotWalkersNew, determ_ind, ic, ex(2,2)
+        integer :: TotWalkersNew, determ_ind, ic, ex(2,maxExcit)
         integer :: nI_parent(nel), nI_child(nel), unused_vecslot
         integer(n_int) :: ilut_child(0:NIfTot)
         integer(n_int), pointer :: ilut_parent(:)

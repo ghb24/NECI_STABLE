@@ -15,7 +15,7 @@ MODULE HPHFRandExcitMod
                           tUEG, tUEGNewGenerator, t_new_real_space_hubbard, & 
                           t_tJ_model, t_heisenberg_model, t_lattice_model, &
                           t_k_space_hubbard, t_3_body_excits, t_uniform_excits, &
-                          t_trans_corr_hop, t_spin_dependent_transcorr
+                          t_trans_corr_hop, t_spin_dependent_transcorr, t_mol_3_body
 
     use IntegralsData, only: UMat, fck, nMax
 
@@ -30,7 +30,7 @@ MODULE HPHFRandExcitMod
                                        gen_excit_4ind_reverse, &
                                        calc_pgen_4ind_weighted, &
                                        calc_pgen_4ind_reverse
-
+    use tc_three_body_excitgen, only: gen_excit_mol_tc
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet, &
                          FindBitExcitLevel, MaskAlpha, MaskBeta, &
                          TestClosedShellDet, CalcOpenOrbs, IsAllowedHPHF, &
@@ -38,7 +38,7 @@ MODULE HPHFRandExcitMod
 
     use FciMCData, only: pDoubles, excit_gen_store_type, ilutRef
 
-    use constants, only: dp,n_int, EPS
+    use constants, only: dp,n_int, EPS, maxExcit
 
     use sltcnd_mod, only: sltcnd_excit
 
@@ -181,7 +181,7 @@ MODULE HPHFRandExcitMod
         integer, intent(in) :: exFlag
         integer, intent(out) :: nJ(nel)
         integer(kind=n_int), intent(out) :: iLutnJ(0:niftot)
-        integer, intent(out) :: IC, ExcitMat(2,2)
+        integer, intent(out) :: IC, ExcitMat(2,maxExcit)
         logical, intent(out) :: tParity ! Not used
         real(dp), intent(out) :: pGen
         HElement_t(dp), intent(out) :: HEl
@@ -190,12 +190,12 @@ MODULE HPHFRandExcitMod
         character(*), parameter :: this_routine = "gen_hphf_excit"
 
         integer(kind=n_int) :: iLutnJ2(0:niftot)
-        integer :: openOrbsI, openOrbsJ, nJ2(nel), ex2(2,2), excitLevel 
+        integer :: openOrbsI, openOrbsJ, nJ2(nel), ex2(2,maxExcit), excitLevel 
         real(dp) :: pGen2
         HElement_t(dp) :: MatEl, MatEl2
         logical :: tSign, tSignOrig
         logical :: tSwapped
-        integer :: temp_ex(2,2)
+        integer :: temp_ex(2,maxExcit)
 
         ! Avoid warnings
         tParity = .false.
@@ -203,8 +203,10 @@ MODULE HPHFRandExcitMod
         ! [W.D] this whole hphf should be optimized.. and cleaned up 
         ! because it is a mess really.. 
         ! Generate a normal excitation.
-        
-        if (t_back_spawn .or. t_back_spawn_flex) then 
+        if(t_mol_3_body) then
+           call gen_excit_mol_tc(nI, ilutnI, nJ, ilutnJ, exFlag, ic, ExcitMat, &
+                tSignOrig, pgen, Hel, store, part_type)
+        else if (t_back_spawn .or. t_back_spawn_flex) then 
             if (tUEGNewGenerator .and. tLatticeGens) then 
                 call gen_excit_back_spawn_ueg_new(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
                                           ExcitMat, tSignOrig, pgen, Hel, store, part_type)

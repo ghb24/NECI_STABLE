@@ -1173,7 +1173,7 @@ module FciMCParMod
             end if
 
             if (tTruncInitiator) then
-                call CalcParentFlag (j, parent_flags)
+                call CalcParentFlag (j, DetCurr, WalkExcitLevel, parent_flags)
             end if
 
             !Debug output.
@@ -1243,27 +1243,10 @@ module FciMCParMod
                     ilutnJ = 0_n_int
                     child = 0.0_dp
 
-                    ! for the 3-body excitations i really do not want to change 
-                    ! all the interfaces to the other excitation generators, 
-                    ! which all just assume ex(2,2) as size.. so use a 
-                    ! if here.. 
-                    if (t_3_body_excits) then 
-                        if (t_uniform_excits) then 
-                            call gen_excit_uniform_k_space_hub_transcorr(DetCurr, CurrentDets(:,j), &
-                                nJ, ilutnJ, exFlag, ic, ex, tParity, prob, & 
-                                HElGen, fcimc_excit_gen_store, part_type) 
-                        else
-                            call gen_excit_k_space_hub_transcorr(DetCurr, CurrentDets(:,j), &
-                                nJ, ilutnJ, exFlag, ic, ex, tParity, prob, & 
-                                HElGen, fcimc_excit_gen_store, part_type) 
-                        end if
-                    else 
-                        ! Generate a (random) excitation
-                        call generate_excitation(DetCurr, CurrentDets(:,j), nJ, &
-                                        ilutnJ, exFlag, IC, ex, tParity, prob, &
-                                        HElGen, fcimc_excit_gen_store, part_type)
-                    end if
-                    
+                    ! Generate a (random) excitation
+                    call generate_excitation(DetCurr, CurrentDets(:,j), nJ, &
+                         ilutnJ, exFlag, IC, ex, tParity, prob, &
+                         HElGen, fcimc_excit_gen_store, part_type)
 
                     !If we are fixing the population of reference det, skip spawing into it.
                     if(tSkipRef(run) .and. all(nJ==projEdet(:,run))) then

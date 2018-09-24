@@ -7,7 +7,7 @@ use procedure_pointers, only: get_umat_el
 use OneEInts, only: getTMatEl
 use FciMCData, only: pBath, nBath, nImp, pSingles
 use dSFMT_interface, only: genrand_real2_dSFMT
-use constants, only: dp, n_int, eps, bits_n_int
+use constants, only: dp, n_int, eps, bits_n_int, maxExcit
 use util_mod, only: abs_l1
 use util_mod_numerical, only: binary_search_first_ge
 use get_excit, only: make_single, make_double
@@ -126,7 +126,7 @@ contains
     integer, intent(in) :: nI(nel)
     integer, intent(in) :: exFlag
     integer(n_int), intent(in) :: iLut(0:niftot)
-    integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
+    integer, intent(out) :: nJ(nel), IC, ExcitMat(2,maxExcit)
     logical, intent(out) :: tParity
     real(dp), intent(out) :: pgen
     !type(excit_gen_store_type), intent(inout), target :: store
@@ -168,7 +168,7 @@ contains
   subroutine generate_imp_single_excitation(nI,ilut,nJ,ilutnJ,ex,tParity,pGen)
     implicit none    
     integer, intent(in) :: nI(nel)
-    integer, intent(out) :: nJ(nel),ex(2,2)
+    integer, intent(out) :: nJ(nel),ex(2,maxExcit)
     logical, intent(out) :: tParity
     real(dp), intent(inout) :: pGen
     integer(n_int), intent(in) :: ilut(0:niftot)
@@ -205,7 +205,7 @@ contains
   subroutine generate_imp_double_excitation(nI,ilut,nJ,ilutnJ,ex,tParity,pGen)
     implicit none    
     integer, intent(in) :: nI(nel)
-    integer, intent(out) :: nJ(nel),ex(2,2)
+    integer, intent(out) :: nJ(nel),ex(2,maxExcit)
     logical, intent(out) :: tParity
     real(dp), intent(inout) :: pGen
     integer(n_int), intent(in) :: ilut(0:niftot)

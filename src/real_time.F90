@@ -598,7 +598,7 @@ contains
         ! spawning step, but with a different death step and without the 
         ! annihilation step at the end! 
         integer :: idet, parent_flags, nI_parent(nel), unused_flags, ex_level_to_ref, &
-                   ireplica, nspawn, ispawn, nI_child(nel), ic, ex(2,2), &
+                   ireplica, nspawn, ispawn, nI_child(nel), ic, ex(2,maxExcit), &
                    ex_level_to_hf 
         integer(n_int) :: ilut_child(0:niftot)
         real(dp) :: parent_sign(lenof_sign), parent_hdiag, prob, child_sign(lenof_sign), &
@@ -774,7 +774,7 @@ contains
       implicit none
         character(*), parameter :: this_routine = "first_real_time_spawn"
         integer :: idet, parent_flags, nI_parent(nel), unused_flags, ex_level_to_ref, &
-                   ireplica, nspawn, ispawn, nI_child(nel), ic, ex(2,2), &
+                   ireplica, nspawn, ispawn, nI_child(nel), ic, ex(2,maxExcit), &
                    ex_level_to_hf
         integer(n_int) :: ilut_child(0:niftot)
         real(dp) :: parent_sign(lenof_sign), parent_hdiag, prob, child_sign(lenof_sign), &

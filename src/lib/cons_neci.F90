@@ -40,6 +40,9 @@ integer, parameter :: sizeof_dp = 8
 integer, parameter :: sizeof_complexdp = 16
 integer, parameter :: sizeof_sp = 4
 
+! number of possible excitations per step
+integer, parameter :: maxExcit = 3
+
 ! Give ourselves the option of lenof_sign/inum_runs being a runtime
 ! variable, rather than a compile-time constant
 #if defined(__PROG_NUMRUNS)

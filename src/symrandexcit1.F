@@ -17,14 +17,14 @@
          use SymData, only: tAbelianFastExcitgen
          use SymData, only: tStoreStateList
          use SystemData, only: tNoRenormRandExcits
-         use constants, only: dp,sizeof_int
+         use constants, only: dp,sizeof_int, maxExcit
          IMPLICIT NONE
          INTEGER nEl,nI(nEl)
          INTEGER I
          INTEGER iSpn,iFrom,iTo
          INTEGER iC
          real(dp) pGen
-         INTEGER ILUT(0:*),ExcitMat(2,2)
+         INTEGER ILUT(0:*),ExcitMat(2,maxExcit)
          LOGICAL TPARITY
          TYPE(SymClass) CLASSES(*)
          INTEGER ExcitTypes(5,*)

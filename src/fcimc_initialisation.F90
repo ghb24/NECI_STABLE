@@ -14,8 +14,8 @@ module fcimc_initialisation
                           tUEGNewGenerator, tGen_4ind_2, tReltvy, t_new_real_space_hubbard, &
                           t_lattice_model, t_tJ_model, t_heisenberg_model, & 
                           t_k_space_hubbard, t_3_body_excits, omega, breathingCont, &
-                          momIndexTable, t_trans_corr_2body, t_non_hermitian
-
+                          momIndexTable, t_trans_corr_2body, t_non_hermitian, &
+                          t_uniform_excits, t_mol_3_body
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
 
     use dSFMT_interface, only: dSFMT_init
@@ -143,7 +143,7 @@ module fcimc_initialisation
     use ueg_excit_gens, only: gen_ueg_excit
     use gndts_mod, only: gndts
     use excit_gen_5, only: gen_excit_4ind_weighted2
-
+    use tc_three_body_excitgen, only: gen_excit_mol_tc
     use csf, only: get_csf_helement
 
     use tau_search, only: init_tau_search, max_death_cpt
@@ -194,7 +194,8 @@ module fcimc_initialisation
 
     use tj_model, only: init_get_helement_tj, init_get_helement_heisenberg
 
-    use k_space_hubbard, only: init_get_helement_k_space_hub, init_k_space_hubbard
+    use k_space_hubbard, only: init_get_helement_k_space_hub, init_k_space_hubbard, &
+         gen_excit_k_space_hub_transcorr, gen_excit_uniform_k_space_hub_transcorr
 
     use OneEInts, only: tmat2d
 
@@ -1705,9 +1706,17 @@ contains
 
     subroutine init_fcimc_fn_pointers()
         ! Select the excitation generator.
-        if (tHPHF) then
+      if(t_mol_3_body) then
+         generate_excitation => gen_excit_mol_tc
+      else if(t_3_body_excits) then
+         if (t_uniform_excits) then 
+            generate_excitation => gen_excit_uniform_k_space_hub_transcorr
+         else
+            generate_excitation => gen_excit_k_space_hub_transcorr
+         endif
+      elseif (tHPHF) then
             generate_excitation => gen_hphf_excit
-        elseif ((t_back_spawn_option .or. t_back_spawn_flex_option)) then 
+         elseif ((t_back_spawn_option .or. t_back_spawn_flex_option)) then 
             if (tHUB .and. tLatticeGens) then 
                 ! for now the hubbard + back-spawn still uses the old 
                 ! genrand excit gen
@@ -2773,7 +2782,7 @@ contains
     subroutine InitFCIMC_MP1()
         real(dp) :: TotMP1Weight,amp,MP2Energy,PartFac,rat,r,energy_contrib
         HElement_t(dp) :: HDiagtemp
-        integer :: iExcits, exflag, Ex(2,2), nJ(NEl), DetIndex, iNode
+        integer :: iExcits, exflag, Ex(2,maxExcit), nJ(NEl), DetIndex, iNode
         integer :: iInit, DetHash, ExcitLevel, run, part_type
         integer(n_int) :: iLutnJ(0:NIfTot)
         real(dp) :: NoWalkers, temp_sign(lenof_sign)
@@ -3385,7 +3394,7 @@ contains
                                 Madelung,tMadelung,tUEGFreeze,FreezeCutoff, kvec, tUEG2
         use Determinants, only: GetH0Element4, get_helement_excit
         integer :: Ki(3),Kj(3),Ka(3),LowLoop,HighLoop,X,i,Elec1Ind,Elec2Ind,K,Orbi,Orbj
-        integer :: iSpn,FirstA,nJ(NEl),a_loc,Ex(2,2),kx,ky,kz,OrbB
+        integer :: iSpn,FirstA,nJ(NEl),a_loc,Ex(2,maxExcit),kx,ky,kz,OrbB
         integer :: ki2,kj2
         logical :: tParity
         real(dp) :: Ranger,mp2,mp2all,length

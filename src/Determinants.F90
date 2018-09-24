@@ -1,6 +1,6 @@
 #include "macros.h"
 MODULE Determinants
-    use constants, only: dp, n_int, bits_n_int, int64
+    use constants, only: dp, n_int, bits_n_int, int64, maxExcit
     use SystemData, only: BasisFN, tCSF, nel, G1, Brr, ECore, ALat, NMSH, &
                           nBasis, nBasisMax, tStoreAsExcitations, tHPHFInts, &
                           tCSF, tCPMD, tPickVirtUniform, LMS, modk_offdiag, &
@@ -436,7 +436,7 @@ contains
         ! Ret: hel          - The H matrix element
 
         integer, intent(in) :: nI(nel), nJ(nel), IC
-        integer, intent(in) :: ExcitMat(2,2)
+        integer, intent(in) :: ExcitMat(2,ic)
         logical, intent(in) :: tParity
         HElement_t(dp) :: hel
 
@@ -492,7 +492,7 @@ contains
         !      tParity      - Parity of the excitation
         ! Ret: hel          - The H matrix element
 
-        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
+        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,maxExcit)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: tParity
         HElement_t(dp) :: hel

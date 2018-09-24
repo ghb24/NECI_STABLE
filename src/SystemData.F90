@@ -14,7 +14,7 @@ logical :: tMolproMimic !True if the code is being run from standalone neci, but
 character(12) :: MolproID
 
 logical :: tNoSingExcits    !True if there are no single excitations in the system
-
+logical :: t_mol_3_body     ! using molecular 3-body transcorr. matels
 logical :: tStarBin, tReadInt, tHFOrder, tDFRead, tPBC, tUEG, tUEG2, tCPMD, tHUB, tHeisenberg
 logical :: tHPHF, tHPHFInts, tUHF, tSPN, tParity, tUseBrillouin, tExch, tReal
 logical :: tTilt, tOneElIntMax, tOnePartOrbEnMax, tROHF, tBrillouinsDefault

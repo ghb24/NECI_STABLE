@@ -2,7 +2,7 @@
 
 module back_spawn_excit_gen
 
-    use constants, only: dp, n_int, EPS, bits_n_int
+    use constants, only: dp, n_int, EPS, bits_n_int, maxExcit
     use SystemData, only: nel, G1, nbasis, tHPHF, NMAXX, NMAXY, NMAXZ, &
                           tOrbECutoff, OrbECutoff, nOccBeta, nOccAlpha, ElecPairs, &
                           tHPHF
@@ -46,7 +46,7 @@ contains
             ExcitMat, tParity, pgen, HelGen, store, part_type) 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(out) :: nJ(nel), ic, ExcitMat(2,2) 
+        integer, intent(out) :: nJ(nel), ic, ExcitMat(2,maxExcit) 
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity 
         real(dp), intent(out) :: pgen 
@@ -141,7 +141,7 @@ contains
     subroutine gen_double_back_spawn_ueg_new(nI, ilutI, part_type, nJ, ilutJ, tPar, ex, pgen)
         integer, intent(in) :: nI(nel), part_type
         integer(n_int), intent(in) :: ilutI(0:niftot) 
-        integer, intent(out) :: nJ(nel), ex(2,2)
+        integer, intent(out) :: nJ(nel), ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tPar 
         real(dp), intent(out) :: pgen 
@@ -307,7 +307,7 @@ contains
             ExcitMat, tParity, pgen, HelGen, store, part_type) 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(out) :: nJ(nel), ic, ExcitMat(2,2) 
+        integer, intent(out) :: nJ(nel), ic, ExcitMat(2,maxExcit) 
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity 
         real(dp), intent(out) :: pgen 
@@ -410,7 +410,7 @@ contains
                 pgen, part_type) 
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(out) :: nJ(nel), ExcitMat(2,2) 
+        integer, intent(out) :: nJ(nel), ExcitMat(2,maxExcit) 
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity 
         real(dp), intent(out) :: pgen 
@@ -652,7 +652,7 @@ contains
         ! generator! check if we hit all the relevant parts in the code though
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(out) :: nJ(nel), ic, ExcitMat(2,2) 
+        integer, intent(out) :: nJ(nel), ic, ExcitMat(2,maxExcit) 
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity 
         real(dp), intent(out) :: pgen 
@@ -754,7 +754,7 @@ contains
                 pgen, part_type) 
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(out) :: nJ(nel), ExcitMat(2,2) 
+        integer, intent(out) :: nJ(nel), ExcitMat(2,maxExcit) 
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity 
         real(dp), intent(out) :: pgen 
@@ -890,7 +890,7 @@ contains
             ExcitMat, tParity, pgen, HelGen, store, part_type) 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(out) :: nJ(nel), ic, ExcitMat(2,2) 
+        integer, intent(out) :: nJ(nel), ic, ExcitMat(2,maxExcit) 
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity 
         real(dp), intent(out) :: pgen 
@@ -1011,7 +1011,7 @@ contains
         integer, intent(in) :: nI(nel) 
         integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(in) :: part_type
-        integer, intent(out) :: nJ(nel), ex(2,2)
+        integer, intent(out) :: nJ(nel), ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tPar
         real(dp), intent(out) :: pgen
@@ -1091,7 +1091,7 @@ contains
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(in) :: part_type
-        integer, intent(out) :: nJ(nel), ex(2,2)
+        integer, intent(out) :: nJ(nel), ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         logical, intent(out) :: tpar
         real(dp), intent(out) :: pgen

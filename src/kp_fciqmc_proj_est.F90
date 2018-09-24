@@ -45,7 +45,7 @@ contains
         real(dp), intent(in), optional :: h_diag(:)
 
         integer :: idet, ispawn, nspawn, i, j, ex_level_to_hf
-        integer :: determ_ind, flag_ind, ic, ex(2,2), ms_parent
+        integer :: determ_ind, flag_ind, ic, ex(2,maxExcit), ms_parent
         integer :: ex_flag, nStore(6)
         integer, allocatable :: excit_gen(:)
         integer :: nI_parent(nel), nI_child(nel)
@@ -276,7 +276,7 @@ contains
         real(dp) :: parent_sign(lenof_all_signs), child_sign(lenof_all_signs)
         logical :: tNearlyFull, tAllFinished, tParity
         logical :: tFinished
-        integer :: ex(2,2)
+        integer :: ex(2,maxExcit)
 
         call set_timer(subspace_spin_time)
 

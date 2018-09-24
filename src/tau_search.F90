@@ -175,7 +175,7 @@ contains
 
     subroutine log_spawn_magnitude (ic, ex, matel, prob)
 
-        integer, intent(in) :: ic, ex(2,2)
+        integer, intent(in) :: ic, ex(2,ic)
         real(dp), intent(in) :: prob, matel
         real(dp) :: tmp_gamma, tmp_prob
         integer, parameter :: cnt_threshold = 50
@@ -593,11 +593,11 @@ contains
         logical :: tAllExcitFound,tParity,tSameFunc,tSwapped,tSign
         character(len=*), parameter :: t_r="FindMaxTauDoubs"
         character(len=*), parameter :: this_routine ="FindMaxTauDoubs"
-        integer :: ex(2,2),ex2(2,2),exflag,iMaxExcit,nStore(6),nExcitMemLen(1)
+        integer :: ex(2,maxExcit),ex2(2,maxExcit),exflag,iMaxExcit,nStore(6),nExcitMemLen(1)
         integer, allocatable :: Excitgen(:)
         real(dp) :: nAddFac,MagHel,pGen,pGenFac
         HElement_t(dp) :: hel
-        integer :: ic,nJ(nel),nJ2(nel),ierr,iExcit,ex_saved(2,2)
+        integer :: ic,nJ(nel),nJ2(nel),ierr,iExcit,ex_saved(2,maxExcit)
         integer(kind=n_int) :: iLutnJ(0:niftot),iLutnJ2(0:niftot)
 
         type(ExcitGenSessionType) :: session

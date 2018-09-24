@@ -25,7 +25,7 @@ module k_space_hubbard
 
     use procedure_pointers, only: get_umat_el, generate_excitation
 
-    use constants, only: n_int, dp, EPS, bits_n_int, int64
+    use constants, only: n_int, dp, EPS, bits_n_int, int64, maxExcit
 
     use bit_rep_data, only: NIfTot, nifd
 
@@ -534,7 +534,7 @@ contains
                                       ex, tParity, pGen, hel, store, run)
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2,2)
+        integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
@@ -594,7 +594,7 @@ contains
       implicit none
       integer, intent(in) :: nI(nel), exFlag
       integer(n_int), intent(in) :: ilutI(0:NIfTot)
-      integer, intent(out) :: nJ(nel), ic, ex(2,2)
+      integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
       real(dp), intent(out) :: pGen
       logical, intent(out) :: tParity
       type(excit_gen_store_type), intent(inout), target :: store
@@ -650,7 +650,7 @@ contains
             exFlag, ic, ex, tParity, pgen, hel, store, run) 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot) 
-        integer, intent(out) :: nJ(nel), ic, ex(2,3) 
+        integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         real(dp), intent(out) :: pgen 
         logical, intent(out) :: tParity
@@ -780,7 +780,7 @@ contains
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ic
-        integer, intent(out) :: ex(2,3)
+        integer, intent(out) :: ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
@@ -835,7 +835,7 @@ contains
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ic
-        integer, intent(out) :: ex(2,2)
+        integer, intent(out) :: ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity

@@ -9,7 +9,7 @@ module tJ_model
                           t_trans_corr, trans_corr_param, & 
                           t_trans_corr_2body, trans_corr_param_2body
 
-    use constants, only: dp, n_int, EPS, bits_n_int
+    use constants, only: dp, n_int, EPS, bits_n_int, maxExcit
 
     use real_space_hubbard, only: lat_tau_factor, t_start_neel_state,  & 
                                   check_real_space_hubbard_input, init_tmat
@@ -290,7 +290,7 @@ contains
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2,2)
+        integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
@@ -425,7 +425,7 @@ contains
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "create_cum_list_tJ_model"
 #endif
-        integer :: i, nI(nel), temp_ex(2,2)
+        integer :: i, nI(nel), temp_ex(2,maxExcit)
         integer, allocatable :: single_excits(:)
         integer, allocatable :: spin_flips(:)
         real(dp) :: elem
@@ -639,7 +639,7 @@ contains
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2,2)
+        integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
@@ -727,7 +727,7 @@ contains
 #ifdef __DEBUG 
         character(*), parameter :: this_routine = "create_cum_list_heisenberg"
 #endif 
-        integer :: flip, i, temp_ex(2,2), nI(nel)
+        integer :: flip, i, temp_ex(2,maxExcit), nI(nel)
         real(dp) :: elem
 
         ASSERT(IsOcc(ilutI,src))
@@ -802,7 +802,7 @@ contains
 
     function calc_pgen_heisenberg_model(ilutI, ex, ic) result(pgen)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(in) :: ex(2,2), ic
+        integer, intent(in) :: ex(2,ic), ic
         real(dp) :: pgen
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "calc_pgen_heisenberg_model"
@@ -950,7 +950,7 @@ contains
         integer, intent(inout), optional :: ic_ret
         HElement_t(dp) :: hel 
         
-        integer :: ic, ex(2,2)
+        integer :: ic, ex(2,maxExcit)
         logical :: tpar 
         integer(n_int) :: ilutI(0:NIfTot), ilutJ(0:NIfTot)
 
@@ -1038,7 +1038,7 @@ contains
         integer, intent(inout), optional :: ic_ret
         HElement_t(dp) :: hel 
  
-        integer :: ic, ex(2,2)
+        integer :: ic, ex(2,maxExcit)
         logical :: tpar
         integer(n_int) :: ilutI(0:NIfTot), ilutJ(0:NIfTot)
 

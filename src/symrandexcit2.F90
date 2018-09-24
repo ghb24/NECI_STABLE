@@ -44,7 +44,7 @@ MODULE GenRandSymExcitNUMod
     use SymExcitDataMod 
     use DetBitOps, only: FindExcitBitDet, EncodeBitDet, detbiteq
     use sltcnd_mod, only: sltcnd_1
-    use constants, only: dp, n_int, bits_n_int
+    use constants, only: dp, n_int, bits_n_int, maxExcit
     use bit_reps, only: NIfTot, nifdbo
     use sym_mod, only: mompbcsym, GetLz
     use timing_neci
@@ -72,7 +72,7 @@ MODULE GenRandSymExcitNUMod
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: iLut(0:niftot)
-        integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
+        integer, intent(out) :: nJ(nel), IC, ExcitMat(2,maxExcit)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pgen
         type(excit_gen_store_type), intent(inout), target :: store
@@ -163,7 +163,7 @@ MODULE GenRandSymExcitNUMod
     end subroutine
 
     SUBROUTINE GenRandSymExcitNU(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
-        INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),exFlag
+        INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,maxExcit),exFlag
         INTEGER :: ClassCount2(ScratchSize)
         INTEGER :: ClassCountUnocc2(ScratchSize)
         INTEGER(KIND=n_int) :: ILUT(0:NIfTot)
@@ -261,7 +261,7 @@ MODULE GenRandSymExcitNUMod
 
     SUBROUTINE CreateDoubExcit(nI,nJ,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
         integer, intent(in) :: nI(nel)
-        integer, intent(out) :: nJ(nel), ExcitMat(2,2)
+        integer, intent(out) :: nJ(nel), ExcitMat(2,maxExcit)
         integer, intent(in) :: ClassCountUnocc2(ScratchSize)
         integer(n_int), intent(in) :: iLut(0:NIfTot)
         real(dp), intent(out) :: pGen
@@ -332,7 +332,7 @@ MODULE GenRandSymExcitNUMod
 !This routine creates the final determinant.
     SUBROUTINE FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,OrbA,OrbB,ExcitMat,tParity)
         integer, intent(in) :: nI(nel), Elec1Ind, Elec2Ind, OrbA, OrbB
-        integer, intent(out) :: ExcitMat(2,2), nJ(nel)
+        integer, intent(out) :: ExcitMat(2,maxExcit), nJ(nel)
         logical, intent(out) :: tParity
 
 !First construct ExcitMat
@@ -1253,7 +1253,7 @@ MODULE GenRandSymExcitNUMod
     SUBROUTINE CreateSingleExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
         INTEGER :: ElecsWNoExcits,i,Attempts,nOrbs,z,Orb
         INTEGER :: Eleci,ElecSym,nI(NEl),nJ(NEl),NExcit,iSpn,ChosenUnocc
-        INTEGER :: ExcitMat(2,2)
+        INTEGER :: ExcitMat(2,maxExcit)
         INTEGER :: ClassCount2(ScratchSize)
         INTEGER :: ClassCountUnocc2(ScratchSize),ElecK,SymIndex
         INTEGER(KIND=n_int) :: ILUT(0:NIfTot)
@@ -1660,7 +1660,7 @@ MODULE GenRandSymExcitNUMod
 !Because of this, tau is needed for the timestep of the simulation, and iCreate is returned as the number of children to create
 !on the determinant. If this is zero, then no childred are to be created.
     SUBROUTINE GenRandSymExcitBiased(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,nParts,WSign,tau,iCreate)
-        INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),exFlag,iCreate,nParts,ElecsWNoExcits
+        INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,maxExcit),exFlag,iCreate,nParts,ElecsWNoExcits
         REAL(dp) :: WSign
         INTEGER(KIND=n_int) :: ILUT(0:NIfTot)
         LOGICAL :: tParity
@@ -1735,7 +1735,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: ElecsWNoExcits,nParts,iCreate,nI(NEl),nJ(NEl)
         REAL(dp) :: WSign
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
-        INTEGER :: ExcitMat(2,2),SpawnOrb(nBasis),Eleci,ElecSym,NExcit,VecInd,ispn,EndSymState,j
+        INTEGER :: ExcitMat(2,maxExcit),SpawnOrb(nBasis),Eleci,ElecSym,NExcit,VecInd,ispn,EndSymState,j
         real(dp) :: Tau,SpawnProb(nBasis),NormProb,r,rat
         LOGICAL :: tParity
         HElement_t(dp) :: rh
@@ -1912,7 +1912,7 @@ MODULE GenRandSymExcitNUMod
         
 
     SUBROUTINE CreateDoubExcitBiased(nI,nJ,iLut,ExcitMat,tParity,nParts,WSign,Tau,iCreate)
-        INTEGER :: nI(NEl),nJ(NEl),ExcitMat(2,2),iCreate,iSpn,OrbA,OrbB,SymProduct
+        INTEGER :: nI(NEl),nJ(NEl),ExcitMat(2,maxExcit),iCreate,iSpn,OrbA,OrbB,SymProduct
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
         INTEGER :: Elec1Ind,Elec2Ind,nParts,SumMl
         REAL(dp) :: WSign
@@ -2114,7 +2114,7 @@ MODULE GenRandSymExcitNUMod
 
         INTEGER :: i,nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,iSpn,kb_ms
         INTEGER(KIND=n_int) :: iLutnI(0:NIfTot)
-        INTEGER :: ChosenUnocc,Hole1BasisNum,Hole2BasisNum,ki(3),kj(3),ka(3),kb(3),ExcitMat(2,2),iSpinIndex,TestEnergyB
+        INTEGER :: ChosenUnocc,Hole1BasisNum,Hole2BasisNum,ki(3),kj(3),ka(3),kb(3),ExcitMat(2,maxExcit),iSpinIndex,TestEnergyB
         LOGICAL :: tAllowedExcit,tParity
         real(dp) :: r,pGen,pAIJ
         integer, intent(in), optional :: part_type
@@ -2428,7 +2428,7 @@ MODULE GenRandSymExcitNUMod
 
         INTEGER :: i,j ! Loop variables
         INTEGER :: Elec1, Elec2
-        INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ExcitMat(2,2),iSpn
+        INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ExcitMat(2,maxExcit),iSpn
         INTEGER(KIND=n_int) :: iLutnI(0:NIfTot)
         INTEGER :: ki(3),kj(3),kTrial(3),iElecInExcitRange,iExcludedKFromElec1,iAllowedExcites
         INTEGER :: KaXLowerLimit,KaXUpperLimit,KaXRange,KaYLowerLimit,KaYUpperLimit,KaYRange,KaZLowerLimit,KaZUpperLimit,KaZRange
@@ -2645,7 +2645,7 @@ MODULE GenRandSymExcitNUMod
     SUBROUTINE CreateExcitLattice2(nI,iLutnI,nJ,tParity,ExcitMat,pGen)
 
         INTEGER :: Elec1, Elec2, Hole1, Hole2,ms_sum
-        INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ExcitMat(2,2),rejections
+        INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ExcitMat(2,maxExcit),rejections
         INTEGER(KIND=n_int) :: iLutnI(0:NIfTot)
         LOGICAL :: tParity
         real(dp) :: r(4),pGen
@@ -2843,7 +2843,7 @@ MODULE GenRandSymExcitNUMod
     SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag)
 
         IMPLICIT NONE
-        INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),kx,ky,kz,ktrial(3)
+        INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,maxExcit),kx,ky,kz,ktrial(3)
         real(dp) :: pDoub,pGen,AverageContrib,AllAverageContrib
         INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot),iLut(0:NIfTot)
         INTEGER :: iExcit
@@ -2868,7 +2868,7 @@ MODULE GenRandSymExcitNUMod
         type(excit_gen_store_type) :: store
         character(*), parameter :: t_r = 'TestGenRandSymExcitNU'
         HElement_t(dp) :: HElGen
-        integer :: ex(2,2)
+        integer :: ex(2,maxExcit)
         logical :: tpar
 
         write(6,*) 'In HERE'

@@ -6,6 +6,7 @@ module SymExcit4
     use SystemData, only : nEl, nBasis, tkPntSym, tReltvy, G1, BasisFn
     use SymExcitDataMod, only : SpinOrbSymLabel
     use GenRandSymExcitNUMod, only : RandExcitSymLabelProd
+    use constants, only: maxExcit
 
     implicit none
 

@@ -52,7 +52,7 @@ contains
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
+        integer, intent(out) :: nJ(nel), IC, ExcitMat(2,maxExcit)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pGen
         HElement_t(dp), intent(out) :: HElGen
@@ -85,7 +85,7 @@ contains
 
         integer, intent(in) :: nI(nel), exFlag, nexcit
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ExcitMat(2,2)
+        integer, intent(out) :: nJ(nel), ic, ExcitMat(2,maxExcit)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pGen
         HElement_t(dp), intent(out) :: HElGen
@@ -95,7 +95,7 @@ contains
 
         integer(n_int) :: iluts(0:NIfTot, nexcit)
         real(dp) :: hels(nexcit), hel_sum, hel_cum
-        integer :: excit_count, ex(2,2), i, flag
+        integer :: excit_count, ex(2,maxExcit), i, flag
         logical :: found_all, par
 
         ! Generate two lists. One with all of the available excitations, and
@@ -165,7 +165,7 @@ contains
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
+        integer, intent(out) :: nJ(nel), IC, ExcitMat(2,maxExcit)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pGen
         HElement_t(dp), intent(out) :: HElGen
@@ -237,7 +237,7 @@ contains
         ! described by the excitation matrix ex, and the excitation level ic,
         ! being generated according to the 4ind_weighted excitaiton generator?
 
-        integer, intent(in) :: nI(nel), ex(2,2), ic
+        integer, intent(in) :: nI(nel), ex(2,ic), ic
         integer, intent(in) :: ClassCountUnocc(ScratchSize)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         real(dp) :: pgen
@@ -434,7 +434,7 @@ contains
         integer(n_int), intent(in) :: ilutI(0:NifTot)
         integer, intent(out) :: nJ(nel)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
-        integer, intent(out) :: ex(2,2)
+        integer, intent(out) :: ex(2,maxExcit)
         logical, intent(out) :: par
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "gen_single_4ind_ex"
@@ -659,7 +659,7 @@ contains
 
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ex(2,2)
+        integer, intent(out) :: nJ(nel), ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         type(excit_gen_store_type), intent(in) :: store
         logical, intent(out) :: par
@@ -751,22 +751,29 @@ contains
 
     end subroutine
 
-
-    subroutine pick_biased_elecs (nI, elecs, src, sym_prod, ispn, sum_ml, pgen)
+    subroutine pick_biased_elecs(nI, elecs, src, sym_prod, ispn, sum_ml, pgen, pBias)
 
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: elecs(2), src(2), sym_prod, ispn, sum_ml
         real(dp), intent(out) :: pgen
+        real(dp), intent(in), optional :: pBias
 
-        real(dp) :: ntot, r
+        real(dp) :: ntot, pBiasIntern, r
         integer :: al_req, be_req, al_num(2), be_num(2), elecs_found, i, idx
         integer :: al_count, be_count
 
         ! We want to have the n'th alpha, or beta electrons in the determinant
         ! Select them according to the availability of pairs (and the
         ! weighting of opposite-spin pairs relative to same-spin ones).
+
+        if(present(pBias)) then
+           pBiasIntern = pBias
+        else
+           pBiasIntern = pParallel
+        endif
+        
         r = genrand_real2_dSFMT()
-        if (r < pParallel) then
+        if (r < pBiasIntern) then
             ! Same spin case
             pgen = pParallel / real(par_elec_pairs, dp)
             r = (r / pParallel) * par_elec_pairs
@@ -1225,7 +1232,7 @@ contains
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
+        integer, intent(out) :: nJ(nel), IC, ExcitMat(2,maxExcit)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pGen
         HElement_t(dp), intent(out) :: HElGen
@@ -1281,7 +1288,7 @@ contains
 
     function calc_pgen_4ind_reverse (nI, ilutI, ex, ic) result(pgen)
 
-        integer, intent(in) :: nI(nel), ex(2,2), ic
+        integer, intent(in) :: nI(nel), ex(2,ic), ic
         integer(n_int), intent(in) :: ilutI(0:NifTot)
         real(dp) :: pgen
         character(*), parameter :: this_routine = 'calc_pgen_4ind_reverse'
@@ -1394,7 +1401,7 @@ contains
         integer(n_int), intent(in) :: ilutI(0:NifTot)
         integer, intent(out) :: nJ(nel)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
-        integer, intent(out) :: ex(2,2)
+        integer, intent(out) :: ex(2,maxExcit)
         logical, intent(out) :: par
         real(dp), intent(out) :: pgen
 
@@ -1515,7 +1522,7 @@ contains
 
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ex(2,2)
+        integer, intent(out) :: nJ(nel), ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         logical, intent(out) :: par
         real(dp), intent(out) :: pgen
@@ -1774,7 +1781,7 @@ contains
         integer, intent(in) :: iterations
         character(*), parameter :: this_routine = 'test_excit_gen_4ind'
 
-        integer :: src_det(nel), det(nel), nsing, ndoub, nexcit, ndet, ex(2,2)
+        integer :: src_det(nel), det(nel), nsing, ndoub, nexcit, ndet, ex(2,maxExcit)
         integer :: flag, ngen, pos, iunit, i, ic
         type(excit_gen_store_type) :: store
         integer(n_int) :: tgt_ilut(0:NifTot)

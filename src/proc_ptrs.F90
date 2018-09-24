@@ -21,7 +21,7 @@ module procedure_pointers
 
             integer, intent(in) :: nI(nel), exFlag
             integer(n_int), intent(in) :: ilutI(0:NIfTot)
-            integer, intent(out) :: nJ(nel), ic, ex(2,2)
+            integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
             integer(n_int), intent(out) :: ilutJ(0:NifTot)
             real(dp), intent(out) :: pGen
             logical, intent(out) :: tParity
@@ -70,7 +70,7 @@ module procedure_pointers
 
             integer, intent(in) :: nI(nel), nJ(nel)
             integer(n_int), intent(in) :: ilutI(0:NIfTot), ilutJ(0:NIfTot)
-            integer, intent(in) :: ic, ex(2,2)
+            integer, intent(in) :: ic, ex(2,ic)
             logical, intent(in) :: tParity
             HElement_t(dp), intent(in) :: HElGen
             HElement_t(dp) :: hel

@@ -572,7 +572,7 @@ contains
         integer, intent(in) :: nI(nel), nJ(nel)
         real(dp), intent(in) :: realSignI(:), realSignJ(:)
 
-        integer :: Ex(2,2), Ex_symm(2,2)
+        integer :: Ex(2,maxExcit), Ex_symm(2,maxExcit)
         logical :: tParity
         real(dp) :: full_sign(spawn%rdm_send%sign_length)
 #ifdef __DEBUG 
@@ -644,7 +644,7 @@ contains
         use SystemData, only: nel
 
         type(rdm_spawn_t), intent(inout) :: spawn
-        integer, intent(in) :: nI(nel), Ex(2,2)
+        integer, intent(in) :: nI(nel), Ex(2,maxExcit)
         real(dp), intent(in) :: full_sign(spawn%rdm_send%sign_length)
 
         integer :: iel
@@ -741,7 +741,7 @@ contains
         use UMatCache, only: gtID
 
         type(one_rdm_t), intent(inout) :: one_rdms(:)
-        integer, intent(in) :: Ex(2,2)
+        integer, intent(in) :: Ex(2,maxExcit)
         logical, intent(in) :: tParity
         real(dp), intent(in) :: contrib_sign_i(:), contrib_sign_j(:)
         logical, intent(in) :: fill_symmetric
@@ -799,7 +799,7 @@ contains
         type(one_rdm_t), intent(inout) :: one_rdms(:)
 
         integer :: i, j, irdm
-        integer :: SingEx(2,1), Ex(2,2)
+        integer :: SingEx(2,1), Ex(2,maxExcit)
         real(dp) :: AvSignI(spawn%rdm_send%sign_length), AvSignJ(spawn%rdm_send%sign_length)
         real(dp) :: full_sign(spawn%rdm_send%sign_length)
         logical :: tParity

@@ -1211,7 +1211,7 @@ contains
 
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilut(0:NIfTot)
-        integer, intent(in) :: ex(2,2)
+        integer, intent(in) :: ex(2,maxExcit)
         logical, intent(in) :: tParity
         real(dp), intent(out) :: amp, energy_contrib
         integer :: ic

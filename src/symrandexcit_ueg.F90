@@ -29,7 +29,7 @@ contains
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2,2)
+        integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
         logical, intent(out) :: tPar
         real(dp), intent(out) :: pgen
         HElement_t(dp), intent(out) :: HelGen
@@ -52,7 +52,7 @@ contains
     subroutine gen_double_ueg(nI, ilutI, nJ, ilutJ, tPar, ex, pgen)
         integer, intent(in) :: nI(nel) 
         integer(n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(out) :: nJ(nel), ex(2,2)
+        integer, intent(out) :: nJ(nel), ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tPar 
         real(dp), intent(out) :: pgen 

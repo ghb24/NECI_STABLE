@@ -4,7 +4,7 @@
 
 module verlet_aux
 
-  use constants, only: n_int, lenof_sign, dp, EPS, inum_runs, null_part
+  use constants, only: n_int, lenof_sign, dp, EPS, inum_runs, null_part, maxExcit
   use AnnihilationMod, only: DirectAnnihilation, SendProcNewParts, CompressSpawnedList
   use hash, only: clear_hash_table, hash_table_lookup, add_hash_table_entry
   use bit_rep_data, only: niftot, nifdbo, extract_sign, nOffFlag, tUseFlags
@@ -242,7 +242,7 @@ module verlet_aux
       integer, intent(in) :: nI(nel)
       integer(n_int), intent(in) :: ilut_parent(0:niftot)
       logical, intent(in) :: tCoreDet
-      integer :: part, nspawn, ispawn, nI_child(nel), ic, ex(2,2), unused_ex_level
+      integer :: part, nspawn, ispawn, nI_child(nel), ic, ex(2,maxExcit), unused_ex_level
       integer(n_int) :: ilut_child(0:niftot)!, ilut_parent_init(0:niftot)
       real(dp) :: prob, child_sign(lenof_sign), unused_rdm_real, unused_sign(nel)
       logical :: tParity, break

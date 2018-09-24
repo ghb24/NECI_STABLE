@@ -28,7 +28,7 @@ module real_space_hubbard
                     get_helement_lattice_general, init_dispersion_rel_cache, &
                     epsilon_kvec, setup_lattice_symmetry
 
-    use constants, only: dp, EPS, n_int, bits_n_int, pi
+    use constants, only: dp, EPS, n_int, bits_n_int, pi, maxExcit
 
     use procedure_pointers, only: get_umat_el, generate_excitation
 
@@ -888,7 +888,7 @@ contains
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2,2)
+        integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
@@ -1018,7 +1018,7 @@ contains
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2,2)
+        integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
@@ -1104,7 +1104,7 @@ contains
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2,2)
+        integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
@@ -1210,7 +1210,7 @@ contains
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "create_cum_list_rs_hubbard_transcorr_single"
 #endif
-        integer :: spin, ex(2,2), nJ(nel), i, orb
+        integer :: spin, ex(2,maxExcit), nJ(nel), i, orb
         integer, allocatable :: ex2(:,:)
         real(dp) :: elem
         real(dp) :: temp
@@ -1551,7 +1551,7 @@ contains
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2,2)
+        integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
@@ -1798,7 +1798,7 @@ contains
         integer, intent(inout), optional :: ic_ret 
         HElement_t(dp) :: hel
         
-        integer :: ic, ex(2,2)
+        integer :: ic, ex(2,maxExcit)
         logical :: tpar
         integer(n_int) :: ilutI(0:NIfTot), ilutJ(0:NIfTot)
 
