@@ -433,6 +433,7 @@ contains
             do j = 1, nsend
                 call decode_bit_det(det, SpawnedParts(:,j))
                 call extract_sign(SpawnedParts(:,j), sgn)
+
                 hash_val = FindWalkerHash(det, size(HashIndex))
 
                 ! n.b. Ensure that Totwalkers passed in always has the correct
@@ -775,6 +776,7 @@ contains
             write(6,*) "HolesInList: ", HolesInList
             write(6,*) "iStartFreeSlot, iEndFreeSlot:", iStartFreeSlot, iEndFreeSlot
             write(6,*) "TotParts: ", TotParts
+	    call neci_flush(6)
             call stop_all(t_r, "Error in determining annihilated determinants")
         end if
     end subroutine CalcHashTableStats

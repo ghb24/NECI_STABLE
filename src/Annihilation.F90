@@ -666,19 +666,20 @@ module AnnihilationMod
                 SignProd = CurrentSign*SpawnedSign
 
                 ! in GUGA we might also want to truncate occupied dets
-                if(tGUGA) then
+		! with no energy scaling we already truncate at the spawning event!
+                if(tGUGA .and. .not. tEScaleWalkers) then
                     if (t_truncate_spawns .and. .not. t_truncate_unocc) then 
                        ! the diagonal element of H is to be stored anyway
-                       diagH = get_diagonal_matel(nJ, SpawnedParts(:,i))
                        if(tEScaleWalkers) then
                           ! evaluate the scaling function
-                          scFVal = scaleFunction(diagH - Hii)
+			  scFVal = scaleFunction(det_diagH(PartInd))
                        else
                           scFVal = 1.0_dp
                        endif
+		       call truncateSpawn(iter_data, SpawnedSign, i, j, scFVal, SignProd(j))
+#ifdef __DEBUG
                        do j = 1, lenof_sign
                            if(abs(SpawnedSign(j)) > n_truncate_spawns*scFVal) then
-#ifdef __DEBUG
                                 print *, " ------------"
                                 print *, " spawn unto an OCCUPIED CSF above Threshold!"
                                 print *, " Parent was initiator?: ",  & 
@@ -690,13 +691,9 @@ module AnnihilationMod
                                 print *, " Current det is in deterministic space?: ", &
                                     tDetermState
                                 print *, " ------------"
-#endif
-
-                               call truncateSpawn(iter_data, SpawnedSign, i, j, scFVal, SignProd(j))
-
-!                                SpawnedSign(j) = sign(n_truncate_spawns*scFVal, SpawnedSign(j))
                            end if
                        end do
+#endif
                     end if
 
 
@@ -711,6 +708,8 @@ module AnnihilationMod
                 end if
 
                 tDetermState = test_flag(CurrentDets(:,PartInd), flag_deterministic)
+
+                SignProd = CurrentSign*SpawnedSign
 
                 if (sum(abs(CurrentSign)) >= 1.e-12_dp .or. tDetermState) then
                     ! Transfer new sign across.
@@ -1043,7 +1042,8 @@ module AnnihilationMod
          ! truncate down to a minimum number of spawns to
          ! prevent blooms if requested
          ! in guga ignore multi-spawn events and still truncate!
-         if (tGUGA .and. t_truncate_spawns) then
+	 ! we already truncate in the spawing step witout energy scaling!
+         if (tGUGA .and. t_truncate_spawns .and. .not. tEScaleWalkers) then
             if(abs(SignTemp(j)) > n_truncate_spawns*scFVal) then
 #ifdef __DEBUG
                 print *, " ------------"
