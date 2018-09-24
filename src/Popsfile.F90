@@ -57,6 +57,13 @@ MODULE PopsfileMod
 
      use lattice_mod, only: get_helement_lattice
 
+#ifndef __CMPLX
+    use SystemData, only: tGUGA
+    use guga_matrixElements, only: calcDiagMatEleGUGA_nI
+    use guga_excitations, only: calc_off_diag_guga_gen, calc_guga_matrix_element
+    use guga_data, only: excitationInformation
+#endif
+
     implicit none
 
     logical :: tRealPOPSfile
@@ -2123,6 +2130,9 @@ r_loop: do while(.not.tStoreDet)
         integer :: flg, j, k, ex_level, nopen, nI(nel), ex(2,nel)
         logical :: bWritten, is_init, is_init_tmp
         character(12) :: format_string
+#ifndef __CMPLX
+        type(excitationInformation) :: excitInfo
+#endif
 
         bWritten = .false.
 
@@ -2182,6 +2192,12 @@ r_loop: do while(.not.tStoreDet)
                                   ProjEDet(:,1), det, iLutRef(:,1))
 
                           end if
+#ifndef __CMPLX
+                      else if (tGUGA) then
+
+                          call calc_guga_matrix_element(det, ilutRef(:,1), & 
+                              excitInfo, hf_helemt, .true., 2)
+#endif
                       else
                           if (t_lattice_model) then 
                               hf_helemt = get_helement_lattice(ProjEDet(:,1), &

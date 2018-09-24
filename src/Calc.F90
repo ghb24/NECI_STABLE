@@ -1294,6 +1294,7 @@ contains
                 ! implemented a truncation of those. But this might be an 
                 ! uncontrolled approximation, so be careful! 
                 t_truncate_spawns = .true. 
+                tLogNumSpawns = .true.
                 if (item < nitems) then 
                     call getf(n_truncate_spawns)
                     if(item < nitems) then
