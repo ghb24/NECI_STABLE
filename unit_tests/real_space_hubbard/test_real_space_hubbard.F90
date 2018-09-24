@@ -112,7 +112,7 @@ contains
         integer(n_int), allocatable :: singles(:,:), flip_singles(:,:)
         real(dp) :: sum_singles, sum_singles_t, phase
         real(dp), allocatable :: sign_list(:), flip_sign(:)
-        logical :: t_start_neel, t_flip
+        logical :: t_start_neel, t_flip, t_input_nel, t_input_lattice
 
         t_optimize_corr_param  = .false.
         t_do_diag_elements = .true.
@@ -124,13 +124,34 @@ contains
         t_start_neel = .true.
         t_flip = .false.
         phase = 1.0_dp
+        t_input_nel = .true.
+        t_input_lattice = .true. 
+
+        if (t_input_lattice) then 
+            print *, "input lattice type: (chain,square,rectangle,tilted)"
+            read(*,*) lattice_type
+            print *, "input x-dim: "
+            read(*,*) length_x
+            print *, "input y-dim: "
+            read(*,*) length_y
+        else
+            lattice_type = 'square'
+            length_x = 2
+            length_y = 2
+        end if
+
+        if (t_input_nel) then
+            print *, "input number of electrons: "
+            read(*,*) nel
+            print *, "neel-state will be used!"
+            t_start_neel = .true.
+        else
+            nel = 3
+            t_start_neel = .true. 
+        end if
 
         t_trans_corr_hop = .true.
-        lat => lattice('tilted', 3, 3, 1,.true.,.true.,.true.)
-        lattice_type = lat%get_name()
-        length_x = lat%get_length(1)
-        length_y = lat%get_length(2)
-
+        lat => lattice(lattice_type, length_x, length_y, 1,.true.,.true.,.true.)
         t_trans_corr_hop = .false.
 
         if (t_input_U) then 
@@ -146,8 +167,8 @@ contains
 
         call init_realspace_tests
 
-        nel = 18
-        allocate(nI(nel))
+!         nel = 3
+!         allocate(nI(nel))
 !         nI = [(i, i = 1, nel)]
 !         nI = [1,3,6,7,9,12,13,16,17,20,21,24,25,28,30,31,34,36]
 
@@ -507,7 +528,7 @@ contains
 
         t_calc_singles = .true. 
         ! also consider the spin-flipped of the neel state
-        t_flip = .true.
+        t_flip = .false.
         phase = 1.0_dp
 
         t_norm_inside = .true.
@@ -695,43 +716,43 @@ contains
             hf_coeff_spin(i) = gs_vec(1)
             e_vec_spin(:,i) = gs_vec
 
-!             neci_eval = calc_eigenvalues(hamil_hop_neci)
-! 
-!             print *, "neci ground-state energy: ", minval(neci_eval) 
-! 
-!             if (abs(gs_energy_orig - minval(neci_eval)) > 1.0e-12) then 
-!                 if (n_states < 20) then 
-!                     print *, "hopping transformed NECI eigenvalue wrong"
-!                     print *, "basis: " 
-!                     call print_matrix(transpose(hilbert_space))
-!                     print *, "original hamiltonian: "
-!                     call print_matrix(hamil)
-!                     print *, "exactly transformed hamiltonian: "
-!                     call print_matrix(hamil_hop)
-!                     print *, "hopping transcorr hamiltonian neci: "
-!                     call print_matrix(hamil_hop_neci)
-!                     print *, "hopping transcorr transformed: "
-! 
-!                     print *, "difference: " 
-!                     allocate(diff(size(hamil_hop,1),size(hamil_hop,2)))
-!                     diff = hamil_hop - hamil_hop_neci
-!                     where (abs(diff) < EPS) diff = 0.0_dp
-! 
-!                     call print_matrix(diff)
-!                 end if
-!                 print *, "orig E0:    ", gs_energy_orig
-!                 print *, "hopping E0: ", minval(neci_eval)
-! !                 print *, "diagonal similarity transformed: "
-! !                 do l = 1, size(hamil_hop,1)
-! !                     print *, hamil_hop(l,l)
-! !                 end do
-! !                 print *, "diagonal neci hamil: " 
-! !                 do l = 1, size(hamil_hop_neci,1)
-! !                     print *, hamil_hop_neci(l,l)
-! !                 end do
-! 
-!                 call stop_all("here", "hopping transcorrelated energy not correct!")
-!             end if
+            neci_eval = calc_eigenvalues(hamil_hop_neci)
+
+            print *, "neci ground-state energy: ", minval(neci_eval) 
+
+            if (abs(gs_energy_orig - minval(neci_eval)) > 1.0e-8) then 
+                if (n_states < 20) then 
+                    print *, "hopping transformed NECI eigenvalue wrong"
+                    print *, "basis: " 
+                    call print_matrix(transpose(hilbert_space))
+                    print *, "original hamiltonian: "
+                    call print_matrix(hamil)
+                    print *, "exactly transformed hamiltonian: "
+                    call print_matrix(hamil_hop)
+                    print *, "hopping transcorr hamiltonian neci: "
+                    call print_matrix(hamil_hop_neci)
+                    print *, "hopping transcorr transformed: "
+
+                    print *, "difference: " 
+                    allocate(diff(size(hamil_hop,1),size(hamil_hop,2)))
+                    diff = hamil_hop - hamil_hop_neci
+                    where (abs(diff) < EPS) diff = 0.0_dp
+
+                    call print_matrix(diff)
+                end if
+                print *, "orig E0:    ", gs_energy_orig
+                print *, "hopping E0: ", minval(neci_eval)
+!                 print *, "diagonal similarity transformed: "
+!                 do l = 1, size(hamil_hop,1)
+!                     print *, hamil_hop(l,l)
+!                 end do
+!                 print *, "diagonal neci hamil: " 
+!                 do l = 1, size(hamil_hop_neci,1)
+!                     print *, hamil_hop_neci(l,l)
+!                 end do
+
+                call stop_all("here", "hopping transcorrelated energy not correct!")
+            end if
 
             neci_spin_eval = calc_eigenvalues(hamil_spin_neci)
 
