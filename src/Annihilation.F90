@@ -858,15 +858,6 @@ module AnnihilationMod
                 
             if ( (.not.tSuccess) .or. ((tSuccess .and. IsUnoccDet(CurrentSign) .and. (.not. tDetermState))) ) then
 
-               ! the diagonal element of H is to be stored anyway
-               diagH = get_diagonal_matel(nJ, SpawnedParts(:,i))
-               if(tEScaleWalkers) then
-                  ! evaluate the scaling function
-                  scFVal = scaleFunction(diagH - Hii)
-               else
-                  scFVal = 1.0_dp
-               endif
-               ScaledOccupiedThresh = scFVal * OccupiedThresh
 
                 ! Determinant in newly spawned list is not found in CurrentDets.
                 ! Usually this would mean the walkers just stay in this list and
@@ -922,8 +913,6 @@ module AnnihilationMod
                         end if
 
                         ! truncate to a minimum population given by the scale factor
-                        call stochRoundSpawn(iter_data, SignTemp, i, j, scFVal, &
-                             ScaledOccupiedThresh, t_truncate_this_det)
                     end do
 
                     if(t_prone_walkers) then
@@ -932,12 +921,23 @@ module AnnihilationMod
                     endif
 
                     if (.not. IsUnoccDet(SignTemp)) then
+                       
+                       ! if we did not kill the walkers, get the scaling factor
+                       call getEScale(nJ, i, diagH, scFVal, ScaledOccupiedThresh)
+                       do j = 1, lenof_sign
+                          call stochRoundSpawn(iter_data, SignTemp, i, j, scFVal, &
+                               ScaledOccupiedThresh, t_truncate_this_det)
+                       enddo
+
+                       if(.not. IsUnoccDet(SignTemp)) then
                         ! Walkers have not been aborted and so we should copy the
                         ! determinant straight over to the main list. We do not
                         ! need to recompute the hash, since this should be the
                         ! same one as was generated at the beginning of the loop.
-                        call AddNewHashDet(TotWalkersNew, SpawnedParts(0:NIfTot,i), DetHash, nJ, &
-                             diagH)
+                          if(.not. tEScaleWalkers) diagH = get_diagonal_matel(nJ, SpawnedParts(:,i))
+                          call AddNewHashDet(TotWalkersNew, SpawnedParts(0:NIfTot,i), DetHash, nJ, &
+                               diagH)
+                       end if
                     end if
 
                 else
@@ -945,6 +945,10 @@ module AnnihilationMod
                     ! Determinant in newly spawned list is not found in
                     ! CurrentDets. If coeff <1, apply removal criterion.
                     call extract_sign (SpawnedParts(:,i), SignTemp)
+
+                    ! no chance to kill the spawn by initiator criterium
+                    ! so get the diagH immediately
+                    call getEScale(nJ, i, diagH, scFVal, ScaledOccupiedThresh)
 
                     ! If using an EN2 perturbation to correct a truncated
                     ! calculation, then this spawn may need to be truncated
@@ -970,6 +974,7 @@ module AnnihilationMod
                             ! determinant straight over to the main list. We do not
                             ! need to recompute the hash, since this should be the
                             ! same one as was generated at the beginning of the loop.
+                           if(.not. tEScaleWalkers) diagH = get_diagonal_matel(nJ, SpawnedParts(:,i))
                             call AddNewHashDet(TotWalkersNew, SpawnedParts(:,i), DetHash, nJ, &
                                  diagH)
                         end if
@@ -1089,7 +1094,25 @@ module AnnihilationMod
       endif
 
     end subroutine truncateSpawn
-    
+
+    subroutine getEScale(nJ, i, diagH, scFVal, ScaledOccupiedThresh)
+      implicit none
+      integer, intent(in) :: nJ(nel), i
+      real(dp), intent(out) :: diagH, scFVal, ScaledOccupiedThresh
+
+      if(tEScaleWalkers) then
+         ! the diagonal element of H is needed anyway ONLY for scaled walkers
+         ! if we dont scale walkers, we might not need it, if the round kills the 
+         ! walkers
+         diagH = get_diagonal_matel(nJ, SpawnedParts(:,i))
+         ! evaluate the scaling function
+         scFVal = scaleFunction(diagH - Hii)
+      else
+         scFVal = 1.0_dp
+      endif
+      ScaledOccupiedThresh = scFVal * OccupiedThresh
+    end subroutine getEScale
+
     pure function test_abort_spawn(ilut_spwn, part_type) result(abort)
 
         ! Should this spawn be aborted (according to the initiator
