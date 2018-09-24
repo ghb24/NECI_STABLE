@@ -19,13 +19,13 @@ module load_balance
                          tFillingStochRDMOnFly, full_determ_vecs, ntrial_excits, &
                          con_space_size, NConEntry, con_send_buf, sFAlpha, sFBeta, &
                          n_prone_dets
+    use SystemData, only: tHPHF
     use procedure_pointers, only: scaleFunction
     use searching, only: hash_search_trial, bin_search_trial
     use determinants, only: get_helement, write_det
-    use LoggingData, only: tOutputLoadDistribution
     use hphf_integrals, only: hphf_diag_helement
+    use LoggingData, only: tOutputLoadDistribution
     use cont_time_rates, only: spawn_rate_full
-    use SystemData, only: nel, tHPHF
     use DetBitOps, only: DetBitEq
     use sparse_arrays, only: con_ht, trial_ht, trial_hashtable
     use trial_ht_procs, only: buffer_trial_ht_entries, add_trial_ht_entries
@@ -328,7 +328,6 @@ contains
             call CalcHashTableStats(TotWalkersTmp, iter_data)
             TotWalkers = int(TotWalkersTmp, int64)
         endif
-
         !   -- Test if sufficiently uniform
         !   -- If not, pick largest, and smallest, sites
         !   -- Transfer the largest block that will not take either of the
@@ -348,6 +347,7 @@ contains
         integer :: det(nel), TotWalkersTmp, nconsend, clashes, ntrial, ncon
         integer(n_int) :: con_state(0:NConEntry)
         real(dp) :: sgn(lenof_sign)
+        real(dp) :: HDiag
         
         ! A tag is used to identify this send/recv pair over any others
         integer, parameter :: mpi_tag_nsend = 223456
@@ -381,7 +381,7 @@ contains
                 det_block = get_det_block(nel, det, 0)
                 if (det_block == block) then
                     nsend = nsend + 1
-                    SpawnedParts(:,nsend) = CurrentDets(:,j)
+                    SpawnedParts(0:NIfTot,nsend) = CurrentDets(:,j)
 
                     ! Remove the det from the main list.
                     call nullify_ilut(CurrentDets(:,j))
@@ -438,8 +438,11 @@ contains
                 ! n.b. Ensure that Totwalkers passed in always has the correct
                 !      type even on 32-bit machines
                 TotWalkersTmp = TotWalkers
+
+                ! Calculate the diagonal hamiltonian matrix element for the new particle to be merged.
+                HDiag = get_diagonal_matel(det, SpawnedParts(:,j))
                 call AddNewHashDet(TotWalkersTmp, SpawnedParts(:, j), &
-                                   hash_val, det)
+                                   hash_val, det, HDiag)
                 TotWalkers = TotWalkersTmp
             end do
 
@@ -488,7 +491,8 @@ contains
 
     end subroutine
 
-    subroutine AddNewHashDet(TotWalkersNew, iLutCurr, DetHash, nJ)
+
+    subroutine AddNewHashDet(TotWalkersNew, iLutCurr, DetHash, nJ, HDiag)
 
         ! Add a new determinant to the main list. This involves updating the
         ! list length, copying it across, updating its flag, adding its diagonal
@@ -497,8 +501,8 @@ contains
         integer, intent(inout) :: TotWalkersNew 
         integer(n_int), intent(inout) :: iLutCurr(0:NIfTot)
         integer, intent(in) :: DetHash, nJ(nel)
+        real(dp), intent(in) :: HDiag
         integer :: DetPosition
-        HElement_t(dp) :: HDiag
         HElement_t(dp) :: trial_amps(ntrial_excits)
         logical :: tTrial, tCon
         real(dp), dimension(lenof_sign) :: SignCurr
@@ -525,13 +529,6 @@ contains
             endif
         end if
         CurrentDets(:,DetPosition) = iLutCurr(:)
-
-        ! Calculate the diagonal hamiltonian matrix element for the new particle to be merged.
-        if (tHPHF) then
-            HDiag = hphf_diag_helement (nJ,CurrentDets(:,DetPosition))
-        else
-            HDiag = get_helement (nJ, nJ, 0)
-        end if
 
         ! For the RDM code we need to set all of the elements of CurrentH to 0,
         ! except the first one, holding the diagonal Hamiltonian element.
@@ -592,6 +589,25 @@ contains
         
 
     end subroutine AddNewHashDet
+
+    function get_diagonal_matel(nI, ilut) result(diagH)
+      ! Get the diagonal element for a determinant nI with ilut representation ilut
+
+      ! In:  nI        - The determinant to evaluate
+      !      ilut      - Bit representation (only used with HPHF
+      ! Ret: diagH     - The diagonal matrix element
+      implicit none
+      integer, intent(in) :: nI(nel)
+      integer(n_int), intent(in) :: ilut(0:NIfTot)
+      real(dp) :: diagH
+
+      if(tHPHF) then
+         diagH = hphf_diag_helement(nI, ilut)
+      else
+         diagH = get_helement(nI,nI,0) 
+      endif
+
+    end function get_diagonal_matel
 
     subroutine CalcHashTableStats(TotWalkersNew, iter_data)
 

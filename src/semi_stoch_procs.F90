@@ -673,7 +673,7 @@ contains
                 ! If there is only one state in CurrentDets to check then BinSearchParts doesn't
                 ! return the desired value for PartInd, so do this separately...
                 if (MinInd == nwalkers) then
-                    comp = DetBitLT(CurrentDets(:,MinInd), SpawnedParts(:,i), NIfDBO)
+                    comp = DetBitLT(CurrentDets(:,MinInd), SpawnedParts(0:NIfTot,i), NIfDBO)
                     if (comp == 0) then
                         tSuccess = .true.
                         PartInd = MinInd
@@ -703,7 +703,7 @@ contains
             else
                 ! Move all states below PartInd down one and insert the new state in the slot.
                 CurrentDets(:, PartInd+2:nwalkers+1) = CurrentDets(:, PartInd+1:nwalkers)
-                CurrentDets(:, PartInd+1) = SpawnedParts(:,i)
+                CurrentDets(:, PartInd+1) = SpawnedParts(0:NIfTot,i)
                 nwalkers = nwalkers + 1
                 MinInd = PartInd + 1
             end if
@@ -1191,7 +1191,7 @@ contains
             proc = DetermineDetNode(nel,nI,0)
             if (proc == iProcIndex) then
                 ncore = ncore + 1
-                SpawnedParts(:,ncore) = core_space(:,i)
+                SpawnedParts(0:NIfTot,ncore) = core_space(:,i)
             end if
         end do
 

@@ -14,7 +14,9 @@ module fcimc_helper
                         extract_sign, set_flag, encode_sign, &
                         flag_trial, flag_connected, flag_deterministic, &
                         extract_part_sign, encode_part_sign, decode_bit_det, &
-                        get_initiator_flag, get_initiator_flag_by_run, flag_determ_parent
+                        get_initiator_flag, get_initiator_flag_by_run, flag_determ_parent, &
+                        log_spawn, increase_spawn_counter
+
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
                          DetBitEQ, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
@@ -39,7 +41,7 @@ module fcimc_helper
                         MaxWalkerBloom, tEN2, tEN2Started, &
                         NMCyc, iSampleRDMIters, ErrThresh, tSTDInits, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
-                        t_back_spawn_flex, tau, DiagSft, t_truncate_unocc, &
+                        t_back_spawn_flex, tau, DiagSft,  &
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
          tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
@@ -161,6 +163,8 @@ contains
             endif
         end if
 
+        if(tLogNumSpawns) call log_spawn(SpawnedParts(:,ValidSpawnedList(proc) ) )
+
         if (tFillingStochRDMonFly) then
             ! We are spawning from ilutI to 
             ! SpawnedParts(:,ValidSpawnedList(proc)). We want to store the
@@ -274,7 +278,8 @@ contains
             ! code .. probably nobody thought about using this in the __cmplx
             ! implementation..
 
-            call set_flag(SpawnedParts(:,ind), flag_multi_spawn)
+            if(all(real_sign_old*child_sign > 0)) &
+               call set_flag(SpawnedParts(:,ind), flag_multi_spawn)
 
             ! Set the initiator flags appropriately.
             ! If this determinant (on this replica) has already been spawned to
@@ -291,6 +296,9 @@ contains
                         call set_flag(SpawnedParts(:,ind), get_initiator_flag(part_type))
                 end if
             end if
+
+            ! log the spawn
+            if(tLogNumSpawns) call increase_spawn_counter(SpawnedParts(:,ind))
         else
             ! Determine which processor the particle should end up on in the
             ! DirectAnnihilation algorithm.
@@ -333,6 +341,8 @@ contains
                     call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), &
                     get_initiator_flag(part_type))
             end if
+
+             if(tLogNumSpawns) call log_spawn(SpawnedParts(:,ValidSpawnedList(proc)))
 
             call add_hash_table_entry(spawn_ht, ValidSpawnedList(proc), hash_val)
             ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1

@@ -421,11 +421,11 @@ contains
 #if defined __REALTIME
         integer, parameter :: real_arr_size = 2000
         integer, parameter :: hel_arr_size = 200
-        integer, parameter :: NoArrs = 52
+        integer, parameter :: NoArrs = 54
 #else
         integer, parameter :: real_arr_size = 1000
         integer, parameter :: hel_arr_size = 100
-        integer, parameter :: NoArrs = 35
+        integer, parameter :: NoArrs = 37
 #endif
         integer, parameter :: size_arr_size = 100
         ! RT_M_Merge: Doubled all array sizes since there are now two
@@ -513,8 +513,12 @@ contains
             sizes(cnt) = nBasis/2;                      cnt = cnt + 1
         end if
         ! replica-initiator statistics
+
         sizes(cnt) = 1;                                 cnt = cnt + 1
         sizes(cnt) = 1;                                 cnt = cnt + 1
+        sizes(cnt) = 1;                                 cnt = cnt + 1
+
+        ! truncated weight
         sizes(cnt) = 1;                                 cnt = cnt + 1
 
         ! RT_M_Merge: Added real-time data
@@ -573,6 +577,7 @@ contains
         low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = NoAtHF; cnt = cnt + 1
         low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = SumWalkersCyc; cnt = cnt + 1
         low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = nspawned; cnt = cnt + 1
+
         ! double occ change:
         low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = inst_double_occ; cnt = cnt + 1 
 
@@ -590,6 +595,9 @@ contains
         low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = NoSIInitsConflicts; cnt = cnt + 1
         low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = NoInitsConflicts; cnt = cnt + 1
         low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = avSigns; cnt = cnt + 1
+
+        ! truncated weight
+        low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = truncatedWeight; cnt = cnt + 1
 
 #ifdef __REALTIME
         low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = Annihilated_1; cnt = cnt + 1
@@ -611,7 +619,6 @@ contains
         low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = popSnapShot; cnt = cnt + 1
 #endif
 
-        
         ! Perform the communication.
         call MPISumAll (send_arr(1:upp), recv_arr(1:upp))
 
@@ -671,6 +678,9 @@ contains
         low = upp + 1; upp = low + sizes(cnt) - 1; AllNoInitsConflicts = recv_arr(low); cnt = cnt + 1
         low = upp + 1; upp = low + sizes(cnt) - 1; AllAvSigns = recv_arr(low); cnt = cnt + 1
 
+        ! truncated weight
+        low = upp + 1; upp = low + sizes(cnt) - 1; AllTruncatedWeight = recv_arr(low); cnt = cnt + 1
+
 #ifdef __REALTIME
         low = upp + 1; upp = low + sizes(cnt) - 1; AllAnnihilated_1 = recv_arr(low:upp); cnt = cnt + 1
         low = upp + 1; upp = low + sizes(cnt) - 1; AllNoAddedInitiators_1 = nint(recv_arr(low:upp), int64); cnt = cnt + 1
@@ -690,6 +700,7 @@ contains
         low = upp + 1; upp = low + sizes(cnt) - 1; iter_data_fciqmc%update_growth_tot = recv_arr(low:upp); cnt = cnt + 1
         low = upp + 1; upp = low + sizes(cnt) - 1; allPopSnapShot = recv_arr(low:upp); cnt = cnt + 1
 #endif
+
         ! Communicate HElement_t variables:
 
         low = 0; upp = 0;
@@ -1205,27 +1216,6 @@ contains
                  all_sum_proje_denominator(run) = ARR_RE_OR_CPLX(AllSumNoatHF,run)
                  all_cyc_proje_denominator(run) = AllHFCyc(run)
 
-                 ! Calculate the projected energy.
-
-!<<<<<<< HEAD
-                ! did khaldoon move this part?
-!                  if(tFixedN0)then
-!                      !When reaching target N0, set flag to keep the population of reference det fixed.
-!                      if(.not. tSkipRef(run) .and. AllHFCyc(run)>=N0_Target) tSkipRef(run) = .True.
-!  
-!                      if(tSkipRef(run))then
-!                          !Use the projected energy as the shift to fix the
-!                          !population of the reference det and thus reduce the
-!                          !fluctuations of the projected energy.
-!                          DiagSft(run) = (AllENumCyc(run)) / (AllHFCyc(run))+proje_ref_energy_offsets(run)
-!                      else
-!                          !Keep shift equal to input till target reference population is reached.
-!                          DiagSft(run) = InputDiagSft(run)
-!                      end if
-!  
-!                  end if
-!>>>>>>>>>>>>> check that!
-
                 ! [W.D.21.3.2018:]
                 ! somehow this got changed through the merging..
 #ifdef __CMPLX 
@@ -1371,6 +1361,9 @@ contains
         end if
         ! reset the number of conflicts
         ConflictExLvl = 0
+
+        ! reset the truncated weight
+        truncatedWeight = 0.0_dp
 
     end subroutine rezero_iter_stats_update_cycle
 

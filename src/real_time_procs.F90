@@ -68,6 +68,7 @@ module real_time_procs
     use LoggingData, only: tNoNewRDMContrib
     use AnnihilationMod, only: test_abort_spawn
     use load_balance, only: AddNewHashDet, CalcHashTableStats, test_hash_table
+    use Determinants, only: get_helement
     implicit none
 
     type(timer) :: calc_gf_time
@@ -265,7 +266,8 @@ contains
                      NoBorn(run) = NoBorn(run) + sum(abs(SignTemp(&
                           min_part_type(run):max_part_type(run))))
                   enddo
-                  call AddNewHashDet(TotWalkersNew, DiagParts(:,i), DetHash, nJ)
+
+                  call AddNewHashDet(TotWalkersNew, DiagParts(:,i), DetHash, nJ, get_helement(nJ,nJ,0))
 
                end if
             end if

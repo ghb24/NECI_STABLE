@@ -2,38 +2,59 @@
 module fcimc_output
 
     use SystemData, only: nel, tHPHF, tFixLz, tMolpro, tMolproMimic, MolproID
+
     use LoggingData, only: tLogComplexPops, tMCOutput, tCalcInstantS2, &
                            tCalcInstantS2Init, instant_s2_multiplier_init, &
                            instant_s2_multiplier, tPrintFCIMCPsi, &
                            iWriteHistEvery, tDiagAllSpaceEver, OffDiagMax, &
                            OffDiagBinRange, tCalcVariationalEnergy, &
                            iHighPopWrite, tLogEXLEVELStats, tWriteConflictLvls
+
     use hist_data, only: Histogram, AllHistogram, InstHist, AllInstHist, &
                          BeforeNormHist, iNoBins, BinRange, HistogramEnergy, &
                          AllHistogramEnergy
+
     use CalcData, only: tTruncInitiator, tTrialWavefunction, tReadPops, &
                         DiagSft, tSpatialOnlyHash, tOrthogonaliseReplicas, &
                         StepsSft, tPrintReplicaOverlaps, tStartTrialLater, tEN2, &
-                        tSemiStochastic, allCorespaceWalkers, tGlobalInitFlag
+                        tSemiStochastic, allCorespaceWalkers, tGlobalInitFlag, &
+                        t_truncate_spawns
+
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
+
     use IntegralsData, only: frozen_orb_list, frozen_orb_reverse_map, &
                              nel_pre_freezing
+
     use DetCalcData, only: det, fcidets, ReIndex, NDet, NRow, HAMIL, LAB
+
     use bit_reps, only: decode_bit_det, test_flag, extract_sign, get_initiator_flag
+
     use semi_stoch_procs, only: return_most_populated_states
+
     use bit_rep_data, only: niftot, nifd, flag_initiator
+
     use hist, only: calc_s_squared_star, calc_s_squared
+
     use fcimc_helper, only: LanczosFindGroundE
+
     use Determinants, only: write_det
+
     use adi_data, only: AllCoherentDoubles, AllIncoherentDets, nRefs, &
          ilutRefAdi, tAdiActive, nConnection, AllConnection
+
     use rdm_data, only: en_pert_main
+
     use Parallel_neci
+
     use FciMCData
+
     use constants
+
     use sort_mod
+
     use util_mod
+
     use real_time_data, only: AllNoBorn_1, AllNoAborted_1, AllAnnihilated_1, &
                               AllNoDied_1, AllTotWalkers_1, nspawned_tot_1,  gf_count, &
                               AllTotParts_1, AccRat_1, AllGrowRate_1, normsize, snapShotOrbs, &
@@ -48,6 +69,7 @@ contains
         integer i, j, k, run
         character(256) label
         character(32) tchar_r, tchar_i, tchar_j, tchar_k
+        character(17) trunc_caption
 
         IF(iProcIndex.eq.root) THEN
 !Print out initial starting configurations
@@ -172,9 +194,14 @@ contains
                   &29.Inst S^2   30.AbsProjE   31.PartsDiffProc &
                   &32.|Semistoch|/|Psi|  33.MaxCycSpawn"
            if (tTrialWavefunction .or. tStartTrialLater) then 
-                  write(fcimcstats_unit, "(A)", advance = 'no') &
-                  "  34.TrialNumerator  35.TrialDenom  36.TrialOverlap"
+              write(fcimcstats_unit, "(A)", advance = 'no') &
+                   "  34.TrialNumerator  35.TrialDenom  36.TrialOverlap"
+              trunc_caption = "  37. TruncWeight"
+           else
+              trunc_caption = "  34. TruncWeight"
            end if
+           if(t_truncate_spawns) write(fcimcstats_unit, "(A)", advance = 'no') &
+                trunc_caption
 
            write(fcimcstats_unit, "()", advance = 'yes')
 
@@ -391,6 +418,9 @@ contains
                     (tot_trial_denom(1) / StepsSft), &                  ! 35.
                     abs((tot_trial_denom(1) / (norm_psi(1)*StepsSft)))  ! 36.
                 end if
+                if(t_truncate_spawns) then
+                   write(fcimcstats_unit, "(1X,es18.11)", advance = 'no') AllTruncatedWeight
+                endif
                 write(fcimcstats_unit, "()", advance = 'yes')
 
             if(tMCOutput) then
@@ -421,7 +451,7 @@ contains
                     IterTime
             endif
             if (tTruncInitiator) then
-               write(initiatorstats_unit,"(I12,4G16.7,3I20,7G16.7)")&
+               write(initiatorstats_unit,"(I12,4G16.7,3I20,7G16.7,2I20,1G16.7)")&
                    Iter + PreviousCycles, AllTotParts(1), &
                    AllAnnihilated(1), AllNoDied(1), AllNoBorn(1), AllTotWalkers,&
                    AllNoInitDets(1), AllNoNonInitDets(1), AllNoInitWalk(1), &
@@ -574,19 +604,6 @@ contains
         if (iProcIndex == root) then
 
             ! Only do the actual outputting on the head node.
-
-! <<<<<<< HEAD
-!             ! Don't treat the header line as data. Add padding to align the
-!             ! other columns. We do not add a # to the first line of data 
-!             ! since we also need that datapoint for Green's functions
-!            if (state%init) then
-!               write(state%funit, '("#")', advance='no')
-!               if (tMCOutput) write(iout, '(" ")', advance='no')
-!            else
-!               write(state%funit, '(" ")', advance='no')
-!               if (tMCOutput) write(iout, '(" ")', advance='no')
-!            end if
-! =======
             call write_padding_init(state)
             call write_padding_init(state_i)
             call write_padding_init(state_cl)
@@ -676,34 +693,38 @@ contains
             ! frequently).
             ! This also makes column contiguity on resumes as likely as
             ! possible.
-        if(t_real_time_fciqmc .or. tLogGreensfunction) then
-            ! also output the overlaps and norm.. 
-            do iGf = 1, gf_count
-               write(tmgf, '(i5)') iGf
-               call stats_out(state,.true., overlap_real(iGf), 'Re. <y_i(0)|y(t)> (i=' // &
-                    trim(adjustl(tmgf)) // ')' )
-               call stats_out(state,.true., overlap_imag(iGf), 'Im. <y_i(0)|y(t)> (i=' // &
-                    trim(adjustl(tmgf)) // ')' )
-            enddo
-            do iGf = 1, gf_count
-               write(tmgf, '(i5)') iGf
-               do p = 1, normsize
-                  write(tmpc, '(i5)') p
-                  call stats_out(state,.false.,real(current_overlap(p,iGf)), 'Re. <y(0)|y(t)>(rep ' // &
-                       trim(adjustl(tmpc)) // ' i=' // trim(adjustl(tmgf)) //  ')')
-                  call stats_out(state,.false.,aimag(current_overlap(p,iGf)), 'Im. <y(0)|y(t)>(rep ' // &
-                       trim(adjustl(tmpc)) // ' i=' // trim(adjustl(tmgf)) //')')
-               enddo
-            enddo
+            if(t_real_time_fciqmc .or. tLogGreensfunction) then
+                ! also output the overlaps and norm.. 
+                do iGf = 1, gf_count
+                   write(tmgf, '(i5)') iGf
+                   call stats_out(state,.true., overlap_real(iGf), 'Re. <y_i(0)|y(t)> (i=' // &
+                        trim(adjustl(tmgf)) // ')' )
+                   call stats_out(state,.true., overlap_imag(iGf), 'Im. <y_i(0)|y(t)> (i=' // &
+                        trim(adjustl(tmgf)) // ')' )
+                enddo
+                do iGf = 1, gf_count
+                   write(tmgf, '(i5)') iGf
+                   do p = 1, normsize
+                      write(tmpc, '(i5)') p
+                      call stats_out(state,.false.,real(current_overlap(p,iGf)), 'Re. <y(0)|y(t)>(rep ' // &
+                           trim(adjustl(tmpc)) // ' i=' // trim(adjustl(tmgf)) //  ')')
+                      call stats_out(state,.false.,aimag(current_overlap(p,iGf)), 'Im. <y(0)|y(t)>(rep ' // &
+                           trim(adjustl(tmpc)) // ' i=' // trim(adjustl(tmgf)) //')')
+                   enddo
+                enddo
 #ifdef __REALTIME
-            do p = 1, numSnapshotOrbs
-               ! if any orbitals are monitored, output their population
-               write(tmpc, '(i5)') snapShotOrbs(p)
-               call stats_out(state,.false.,allPopSnapshot(p),'Population of ' &
-                    // trim(adjustl(tmpc)))
-            end do
+                do p = 1, numSnapshotOrbs
+                   ! if any orbitals are monitored, output their population
+                   write(tmpc, '(i5)') snapShotOrbs(p)
+                   call stats_out(state,.false.,allPopSnapshot(p),'Population of ' &
+                        // trim(adjustl(tmpc)))
+                end do
 #endif
-        endif
+            endif
+            
+            ! if we truncate walkers, print out the total truncated weight here
+            if(t_truncate_spawns) call stats_out(state, .false., AllTruncatedWeight, &
+                 'trunc. Weight')
 
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these

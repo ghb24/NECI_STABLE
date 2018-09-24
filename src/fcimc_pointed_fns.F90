@@ -170,10 +170,8 @@ module fcimc_pointed_fns
         logical :: tRealSpawning
         HElement_t(dp) :: rh, rh_used
         logical :: t_par
-        real(dp) :: temp_prob, pgen_a, dummy_arr(nBasis), cum_sum, childHii
+        real(dp) :: temp_prob, pgen_a, dummy_arr(nBasis), cum_sum
         integer :: ispn
-        real(dp) :: ScaledRealSpawnCutoff
-        real(dp) :: scFVal
 
         integer :: temp_ex(2,ic)
         ! Just in case
@@ -183,18 +181,6 @@ module fcimc_pointed_fns
         ! (if AvMCExcits /= 1.0_dp) then the probability of an excitation
         ! having been chosen, prob, must be altered accordingly.
         prob = prob * AvMCExcits
-        ! for scaled walkers, rescale 
-        if(tEScaleWalkers) then
-           if(tHPHF) then
-              childHii = real(hphf_diag_helement (nJ,ilutnJ),dp) - Hii
-           else
-              childHii = real(get_helement(nJ,nJ,0),dp) - Hii
-           endif
-           scFVal = scaleFunction(childHii)
-        else
-           childHii = 0.0_dp
-           scFVal = 1.0_dp
-        endif
 
         ! In the case of using HPHF, and when tGenMatHEl is on, the matrix
         ! element is calculated at the time of the excitation generation, 
@@ -360,11 +346,13 @@ module fcimc_pointed_fns
             ! [Werner Dobrautz 4.4.2017:]
             ! apply the spawn truncation, when using histogramming tau-search
             if ((t_truncate_spawns .and. .not. t_truncate_unocc)  .and. abs(nspawn) > &
-                 n_truncate_spawns * scFVal) then
+                 n_truncate_spawns .and. .not. tEScaleWalkers) then
+               ! does not work with scaled walkers, as the scaling factor is not
+               ! computed here for performance reasons (it was a huge performance bottleneck)
                 ! TODO: add some additional output if this event happens
-!                 write(iout,*) "Truncating spawn magnitude from: ", abs(nspawn), " to ", n_truncate_spawns
-                nSpawn = sign(n_truncate_spawns * scFVal, nspawn)
-
+                 write(iout,*) "Truncating spawn magnitude from: ", abs(nspawn), " to ", n_truncate_spawns
+                truncatedWeight = truncatedWeight + abs(nSpawn) - n_truncate_spawns
+                nSpawn = sign(n_truncate_spawns, nspawn)
 
             end if
             
@@ -386,17 +374,11 @@ module fcimc_pointed_fns
             
             if (tRealSpawning) then
                 ! Continuous spawning. Add in acceptance probabilities.
-               if(tEScaleWalkers) then
-                  ! for scaled walkers, the cutoff scales with the det energy
-                  ScaledRealSpawnCutoff = RealSpawnCutoff * scFVal
-               else
-                  ScaledRealSpawnCutoff = RealSpawnCutoff
-               endif
                 if (tRealSpawnCutoff .and. &
-                    abs(nSpawn) < ScaledRealSpawnCutoff) then
-                    p_spawn_rdmfac=abs(nSpawn)/ScaledRealSpawnCutoff
-                    nSpawn = ScaledRealSpawnCutoff &
-                           * stochastic_round (nSpawn / ScaledRealSpawnCutoff)
+                    abs(nSpawn) < RealSpawnCutoff) then
+                    p_spawn_rdmfac=abs(nSpawn)/RealSpawnCutoff
+                    nSpawn = RealSpawnCutoff &
+                           * stochastic_round (nSpawn / RealSpawnCutoff)
                else
                     p_spawn_rdmfac=1.0_dp !The acceptance probability of some kind of child was equal to 1
                endif

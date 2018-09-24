@@ -188,13 +188,14 @@ module FciMCParMod
         tPopsAlreadyRead = .false.
 
         call SetupParameters()
+
+
+        call init_fcimc_fn_pointers() 
         call InitFCIMCCalcPar()
 
         if(tLogGreensfunction .and. .not. t_real_time_fciqmc) then
            call init_overlap_buffers()
         endif
-
-        call init_fcimc_fn_pointers() 
 
         if (t_new_real_space_hubbard) then 
             call init_real_space_hubbard()

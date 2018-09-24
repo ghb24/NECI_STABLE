@@ -14,11 +14,17 @@ MODULE PopsfileMod
                         pops_norm, tWritePopsNorm, t_keep_tau_fixed, t_hist_tau_search, &
                         t_restart_hist_tau, t_fill_frequency_hists, t_previous_hist_tau, &
                         t_hist_tau_search_option, hdf5_diagsft
+
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt, get_bit_excitmat
+
+    use procedure_pointers, only: scaleFunction
+
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
+
     use hash, only: FindWalkerHash, clear_hash_table, &
                     fill_in_hash_table
+
     use Determinants, only: get_helement, write_det
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     USE dSFMT_interface, only: genrand_real2_dSFMT
@@ -40,7 +46,7 @@ MODULE PopsfileMod
     use global_det_data, only: global_determinant_data, init_global_det_data, set_det_diagH
     use fcimc_helper, only: update_run_reference, calc_inst_proje, TestInitiator
     use replica_data, only: set_initial_global_data
-    use load_balance, only: pops_init_balance_blocks
+    use load_balance, only: pops_init_balance_blocks, get_diagonal_matel
     use load_balance_calcnodes, only: tLoadBalanceBlocks, balance_blocks
     use hdf5_popsfile, only: write_popsfile_hdf5, read_popsfile_hdf5, &
                              add_pops_norm_contrib
@@ -1071,7 +1077,6 @@ r_loop: do while(.not.tStoreDet)
             call calc_inst_proje()
             DiagSft = real(proje_iter, dp)
         end if
-
 
     end subroutine InitFCIMC_pops
     
@@ -2211,6 +2216,13 @@ r_loop: do while(.not.tStoreDet)
 
                   write(iunit_2, format_string, advance='no') real_sgn, ''
 
+                  ! If energy-scaled walkers are used, also print the scaled number of
+                  ! walkers
+                  if(tEScaleWalkers) then
+                     write(iunit_2, '(f20.10,a20)', advance='no') &
+                          abs(real_sgn(1) / scaleFunction(get_diagonal_matel(nI,det) - Hii) ), ''
+                  endif
+                  
                   call writebitdet (iunit_2, det, .false.)
                   if (t_non_hermitian) then
                       write(iunit_2,'(i5,i5,3f20.10,4i5)') &
@@ -2679,7 +2691,7 @@ r_loop: do while(.not.tStoreDet)
 
         ! If we are changing the reference determinant to the largest
         ! weighted one in the file, do it here
-        if (tReadPopsChangeRef .or. tReadPopsRestart) then
+        if (tReadPopsChangeRef .and. tReadPopsRestart) then
             do run = 1, inum_runs
 
                 ! If using the same reference for all runs, then don't consider
@@ -3125,7 +3137,6 @@ r_loop: do while(.not.tStoreDet)
         endif
 
     END SUBROUTINE ReadFromPopsfileOnly
-
 
     subroutine write_pops_norm()
 
