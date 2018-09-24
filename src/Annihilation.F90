@@ -692,9 +692,9 @@ module AnnihilationMod
                                     tDetermState
                                 print *, " ------------"
                            end if
-                       end do
 #endif
-                    end if
+                   end do
+                   end if
 
 
                 else

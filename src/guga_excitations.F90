@@ -12,7 +12,7 @@ module guga_excitations
                           tGen_guga_weighted, ref_stepvector, ref_b_vector_real, & 
                           ref_occ_vector, ref_b_vector_int, t_full_guga_tests, &
                           nBasisMax, tHub, treal, t_guga_testsuite, tgen_guga_crude, &
-                          tgen_guga_mixed
+                          tgen_guga_mixed, t_new_hubbard, t_new_real_space_hubbard
 
     use constants, only: dp, n_int, bits_n_int, lenof_sign, Root2, THIRD, HEl_zero, &
                          EPS, bni_, bn2_, iout, int64, inum_runs
@@ -46,7 +46,7 @@ module guga_excitations
 
     use OneEInts, only: GetTMatEl
 
-    use Integrals_neci, only: get_umat_el
+    use procedure_pointers, only: get_umat_el
 
     use guga_data, only: branchWeight
 
@@ -482,8 +482,8 @@ contains
         ! excitation types which are definetly 0
         ! i could do that more efficiently if we identify it already 
         ! earlier but for now do it here! 
-        if (tHub) then 
-            if (treal) then
+        if (tHub .or. t_new_hubbard) then 
+            if (treal .or. t_new_real_space_hubbard) then
                 if (excitInfo%typ /= 0) then 
                     ! only singles in the real-space hubbard!
                     mat_ele = 0.0_dp
@@ -569,29 +569,6 @@ contains
 
         case (6) 
             ! single overlap lowering into raising 
-! 
-!         print *, "I:"
-!         call write_det_guga(6,ilutI,.true.)
-!         print *, ilutI, niftot
-! 
-!         do i = 1, nSpatOrbs
-!             write(6,"(i3)",advance='no') temp_step_i(i)
-!         end do
-! 
-!         print *, ""
-!         print *, "J :"
-!         call write_det_guga(6,ilutJ,.true.)
-!         print *, ilutJ, niftot
-!         do i = 1, nSpatOrbs
-!             write(6,"(i3)",advance='no') temp_step_j(i)
-!         end do
-!         print *, ""
-! 
-!         call print_excitInfo(excitInfo)
-! 
-!         print *, mat_ele, t_hamil
-! 
-!         call neci_flush(6)
 
             ! maybe i have to check special conditions on the overlap site.
             call calc_single_overlap_mixed_ex(ilutI, ilutJ, excitInfo, mat_ele, &
@@ -825,10 +802,12 @@ contains
 
             if (abs(mat_ele) < EPS) return 
 
-            integral = integral + get_umat_el(i,iOrb,j,iOrb) * temp_occ_i(iOrb) 
+            if (.not. t_new_real_space_hubbard) then
+                integral = integral + get_umat_el(i,iOrb,j,iOrb) * temp_occ_i(iOrb) 
 
-            integral = integral + get_umat_el(i,iOrb,iOrb,j) * &
-                getDoubleContribution(step2,step1,db,gen,bVal)
+                integral = integral + get_umat_el(i,iOrb,iOrb,j) * &
+                    getDoubleContribution(step2,step1,db,gen,bVal)
+            end if
 
         end do
 
@@ -855,7 +834,10 @@ contains
         currentOcc_ilut = temp_occ_i
         currentB_int = int(currentB_ilut)
 
-        call calc_integral_contribution_single(ilutI, ilutJ, i, j, st, en, integral)
+        ! i think i could also exclude the treal case here.. try!
+        if (.not. (treal .or. t_new_real_space_hubbard)) then
+            call calc_integral_contribution_single(ilutI, ilutJ, i, j, st, en, integral)
+        end if
 
         mat_ele = mat_ele * integral
 
@@ -11553,7 +11535,7 @@ contains
 
             ! how to modifiy the values? 
             ! one of it is just additional
-            if (.not. treal) then
+            if (.not. (treal .or. t_new_real_space_hubbard)) then
                 integral = integral + get_umat_el(i,iO,j,iO) * currentOcc_ilut(iO)
 
                 ! but the r_k part confuses me a bit ... 
@@ -11586,7 +11568,7 @@ contains
         ! hubbard model here? or should i write a more efficient 
         ! single-excitation creator? i guess i should.. 
         ! and also for the matrix element calculation maybe..
-        if (.not. treal) then
+        if (.not. (treal .or. t_new_real_space_hubbard)) then
             call calc_integral_contribution_single(ilut, exc, i, j,st, en, integral)
         end if
 
@@ -11619,7 +11601,6 @@ contains
         ! calculate the bottom contribution depending on the excited stepvalue
         select case (current_stepvector(st))
         case (0)
-!         if (current_stepvector(st) == 0) then
             ! this implicates a raising st:
             if (isOne(exc,st)) then
                 call getDoubleMatrixElement(1,0,0,-1,1, currentB_ilut(st),&
@@ -11631,7 +11612,6 @@ contains
             end if
 
         case (3)
-!         else if (current_stepvector(st) == 3) then
             ! implies lowering st
             if (isOne(exc,st)) then
                 ! need tA(0,2)
@@ -11643,47 +11623,39 @@ contains
             end if
 
         case (1)
-!         else if (current_stepvector(st) == 1) then
             botCont = funA_m1_1_overR2(currentB_ilut(st))
             ! check which generator
             if (isZero(exc,st)) botCont = -botCont
 
         case (2)
-!         else
             botCont = funA_3_1_overR2(currentB_ilut(st))
             if (isThree(exc,st)) botCont = -botCont
-!         end if
         end select
 
         ! do top contribution also already
 
         select case (current_stepvector(en))
         case (0)
-!         if (current_stepvector(en) == 0) then
             if (isOne(exc,en)) then
                 topCont = funA_2_0_overR2(currentB_ilut(en))
             else
                 topCont = minFunA_0_2_overR2(currentB_ilut(en))
             end if
         case (3)
-!         else if (current_stepvector(en) == 3) then
             if (isOne(exc,en)) then
                 topCont = minFunA_2_0_overR2(currentB_ilut(en))
             else 
                 topCont = funA_0_2overR2(currentB_ilut(en))
             end if
         case (1)
-!         else if (current_stepvector(en) == 1) then
             topCont = funA_2_0_overR2(currentB_ilut(en))
             if (isThree(exc,en)) topCont = -topCont
 
         case (2)
-!         else 
             topCont = funA_0_2overR2(currentB_ilut(en))
             if (isZero(exc,en)) topCont = -topCont
 
         end select
-!         end if
 
         ! depending on i and j calulate the corresponding single and double 
         ! integral weights and check if they are non-zero...

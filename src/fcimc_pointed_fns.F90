@@ -272,7 +272,7 @@ module fcimc_pointed_fns
                         prob / AvMCExcits, ic, ex(1,1))
                 end if
 
-            else if (tGen_sym_guga_mol .or. tgen_guga_crude) then
+            else if (tGen_sym_guga_mol .or. (tgen_guga_crude .and. .not. t_new_real_space_hubbard)) then
                 call fill_frequency_histogram_sd(abs(rh), prob / AvMCExcits, ic)
 
             else 

@@ -12,7 +12,8 @@ module guga_init
                           current_stepvector, currentOcc_ilut, currentOcc_int, &
                           currentB_ilut, currentB_int, current_cum_list, &
                           ref_stepvector, ref_b_vector_int, ref_occ_vector, &
-                          ref_b_vector_real, treal, tHUB, t_guga_noreorder, tgen_guga_crude
+                          ref_b_vector_real, treal, tHUB, t_guga_noreorder, tgen_guga_crude, &
+                          t_new_real_space_hubbard
 
     use CalcData, only: tUseRealCoeffs, tRealCoeffByExcitLevel, RealCoeffExcitThresh, &
                         t_guga_mat_eles, t_hist_tau_search, tSpinProject
@@ -65,7 +66,7 @@ contains
         ! now i have to differentiate between the real- and momentum space
         ! hubbard models..
         if (tGen_sym_guga_ueg) then
-            if (.not. treal) then
+            if (.not. (treal .or. t_new_real_space_hubbard)) then
                 pickOrbitals_single => pickOrbs_sym_uniform_ueg_single
                 pickOrbitals_double => pickOrbs_sym_uniform_ueg_double
                 calc_mixed_contr => calc_mixed_contr_sym

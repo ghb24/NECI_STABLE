@@ -20,8 +20,8 @@ module real_space_hubbard
                           t_open_bc_y, t_open_bc_z, G1, ecore, nel, nOccAlpha, nOccBeta, &
                           t_trans_corr, trans_corr_param, t_trans_corr_2body, & 
                           trans_corr_param_2body, tHPHF, t_trans_corr_new, & 
-                          t_trans_corr_hop, t_uniform_excits, &
-                          t_spin_dependent_transcorr
+                          t_trans_corr_hop, t_uniform_excits, tgen_guga_mixed, &
+                          t_spin_dependent_transcorr, tGUGA, tgen_guga_crude
 
     use lattice_mod, only: lattice, determine_optimal_time_step, lat, &
                     get_helement_lattice, get_helement_lattice_ex_mat, & 
@@ -44,7 +44,7 @@ module real_space_hubbard
 
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt
 
-    use bit_rep_data, only: NIfTot, nifd
+    use bit_rep_data, only: NIfTot, nifd, nifguga
 
     use util_mod, only: binary_search_first_ge, choose, swap, get_free_unit, &
                         binary_search
@@ -64,6 +64,13 @@ module real_space_hubbard
                                     make_ilutJ, get_ispn
 
     use ParallelHelper, only: iProcIndex
+
+#ifndef __CMPLX
+    use guga_data, only: excitationInformation, excitationInformation, tNewDet
+    use guga_excitations, only: calc_guga_matrix_element, generate_excitation_guga, &
+                               init_csf_information, global_excitinfo
+    use guga_bitRepOps, only: isProperCSF_ilut, convert_ilut_toGUGA
+#endif
 
     implicit none 
 
@@ -195,7 +202,11 @@ contains
 
         else
             if (.not. tHPHF) then
-                generate_excitation => gen_excit_rs_hubbard
+                if (tGUGA .and. .not. tgen_guga_crude) then 
+                    generate_excitation => generate_excitation_guga
+                else
+                    generate_excitation => gen_excit_rs_hubbard
+                end if
             end if
         end if
         
@@ -1566,6 +1577,9 @@ contains
         real(dp), allocatable :: cum_arr(:)
         real(dp) :: cum_sum, elem, r, p_elec, p_orb
 
+        type(excitationInformation) :: excitInfo
+        integer(n_int) :: ilutGi(0:nifguga), ilutGj(0:nifguga)
+
         iunused = exflag; 
 
         ASSERT(associated(lat))
@@ -1600,6 +1614,46 @@ contains
         call make_single(nI, nJ, elec, orb, ex, tParity) 
 
         ilutJ = make_ilutJ(ilutI, ex, 1)
+
+        ! change for the mixed guga implementation
+        if (tgen_guga_crude) then 
+
+            if (nJ(1) == 0) then 
+                pgen = 0.0_dp
+                return
+            end if
+
+            call convert_ilut_toGUGA(ilutJ, ilutGj)
+
+            if (.not. isProperCSF_ilut(ilutGJ, .true.)) then 
+                nJ(1) = 0
+                pgen = 0.0_dp
+            end if
+
+            if (tNewDet) then
+                call convert_ilut_toGUGA(ilutI, ilutGi)
+                ! use new setup function for additional CSF informtation
+                ! instead of calculating it all seperately..
+                call init_csf_information(ilutGi(0:nifd))
+
+                ! then set tNewDet to false and only set it after the walker loop
+                ! in FciMCPar
+                tNewDet = .false.
+
+            end if
+
+            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, hel, .true., 2)
+
+            if (abs(hel) < EPS) then 
+                nJ(1) = 0
+                pgen = 0.0_dp 
+            end if
+
+            global_excitinfo = excitInfo
+
+            return
+        end if
+
 
     end subroutine gen_excit_rs_hubbard
 
@@ -2003,8 +2057,20 @@ contains
         logical, intent(in) :: tpar
         HElement_t(dp) :: hel
 
-        integer(n_int) :: ilut(0:NIfTot)
+        integer(n_int) :: ilut(0:NIfTot), ilutJ(0:NIfTot)
         real(dp) :: n_i, n_j
+        type(excitationInformation) :: excitInfo
+
+        if (tGUGA) then 
+            call EncodeBitDet(nI, ilut)
+            ilutJ = make_ilutJ(ilut, ex, 1)
+
+            call calc_guga_matrix_element(ilut, ilutJ, excitInfo, hel, &
+                .true., 2)
+
+            if (tpar) hel = -hel
+            return
+        end if
 
         ! in case we need it, the off-diagonal, except parity is just 
         ! -t if the hop is possible
@@ -2146,6 +2212,7 @@ contains
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "get_umat_el_hub"
 #endif
+
         if (i == j .and. i == k .and. i == l) then 
             hel = h_cast(uhub)
         else 

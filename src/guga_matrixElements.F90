@@ -68,7 +68,6 @@ contains
 
     end function calc_off_diag_guga_ref_list
 
-
     function calcDiagMatEleGuga_nI(nI) result(hel_ret)
         ! calculates the diagonal Hamiltonian matrix element when a CSF in 
         ! nI(nEl) form is provided and returns hElement of type hElement_t
@@ -96,6 +95,7 @@ contains
                nOcc1 = 2.0_dp
                hel_ret = hel_ret + nOcc1 * GetTMatEl(nI(iOrb), nI(iOrb)) + &
                    get_umat_el(sOrb, sOrb, sOrb, sOrb)
+
                
                ! correctly count through spin orbitals if its a double occ.
                inc1 = 2

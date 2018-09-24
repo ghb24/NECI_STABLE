@@ -3,7 +3,8 @@ module fcimc_output
 
     use SystemData, only: nel, tHPHF, tFixLz, tMolpro, tMolproMimic, MolproID, &
                           tGen_4ind_weighted, tGen_4ind_2, tGUGA, tGen_sym_guga_mol, &
-                          tGen_nosym_guga, t_consider_diff_bias, tgen_guga_crude
+                          tGen_nosym_guga, t_consider_diff_bias, tgen_guga_crude, & 
+                          t_new_real_space_hubbard
 
     use LoggingData, only: tLogComplexPops, tMCOutput, tCalcInstantS2, &
                            tCalcInstantS2Init, instant_s2_multiplier_init, &
@@ -1941,7 +1942,7 @@ contains
 !                 deallocate(all_frequency_bins)
             end if
 
-        else if (tGen_sym_guga_mol .or. tgen_guga_crude) then
+        else if (tGen_sym_guga_mol .or. (tgen_guga_crude .and. .not. t_new_real_space_hubbard)) then
             ! do only doubles for now in the guga case 
 
             call comm_frequency_histogram_spec(size(frequency_bins_doubles), &

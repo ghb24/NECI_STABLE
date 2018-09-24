@@ -849,6 +849,7 @@ contains
             do i=1,NEl
                 HighEDet(i)=Brr(nBasis-(i-1))
             enddo
+            call sort(HighEDet)
             IF(tHPHF) THEN
                 call EncodeBitDet (HighEDet, iLutTemp)
                 TempHii = hphf_diag_helement (HighEDet, iLutTemp)
@@ -862,8 +863,8 @@ contains
             endif
             WRITE(iout,"(A,G25.15)") "Highest energy determinant is (approximately): ",REAL(TempHii,dp)
             write(iout,"(a,g25.15)") "Corresponding to a correlation energy of: ", real(temphii - hii, dp)
-!            WRITE(iout,"(A,F25.15)") "This means tau should be no more than about ",UpperTau
-!            WRITE(iout,*) "Highest energy determinant is: ", HighEDet(:)
+           WRITE(iout,"(A,F25.15)") "This means tau should be no more than about ",UpperTau
+           WRITE(iout,*) "Highest energy determinant is: ", HighEDet(:)
         else
             UpperTau=0.0_dp
         ENDIF
@@ -4075,8 +4076,8 @@ contains
         write(6,*) 'Generated reference determinants:'
         do run = 1, inum_runs
             call write_det(6, ProjEDet(:, run), .false.)
-            write(6, '(" E = ", f16.9)') &
-                real(get_helement(ProjEDet(:, run), ProjEDet(:, run), 0), dp)
+            hdiag = real(get_helement(ProjEDet(:, run), ProjEDet(:, run), 0), dp)
+            write(6, '(" E = ", f16.9)') hdiag
         end do
 
     end subroutine assign_reference_dets

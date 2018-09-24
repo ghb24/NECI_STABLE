@@ -125,7 +125,7 @@ module FciMCParMod
 
     use tau_search_hist, only: print_frequency_histograms, deallocate_histograms
     use back_spawn, only: init_back_spawn
-    use real_space_hubbard, only: init_real_space_hubbard
+    use real_space_hubbard, only: init_real_space_hubbard, gen_excit_rs_hubbard
     use tJ_model, only: init_tJ_model, init_heisenberg_model
     use k_space_hubbard, only: init_k_space_hubbard, gen_excit_k_space_hub_transcorr, & 
                                gen_excit_uniform_k_space_hub_transcorr, &
@@ -1321,8 +1321,8 @@ module FciMCParMod
                     if (tGen_sym_guga_mol) then
                         generate_excitation => gen_excit_4ind_weighted2
 
-                    else if (tGen_sym_guga_ueg .and. treal) then 
-                        ! todo merge my new real-space with the GUGA!
+                    else if (tGen_sym_guga_ueg .and. t_new_real_space_hubbard) then 
+                        generate_excitation => gen_excit_rs_hubbard
 
                     end if
 

@@ -4,7 +4,7 @@ module Integrals_neci
     use SystemData, only: tStoreSpinOrbs, nBasisMax, iSpinSkip, &
                           tFixLz, nBasis, G1, Symmetry, tCacheFCIDUMPInts, &
                           tRIIntegrals, tVASP,tComplexOrbs_RealInts, NEl, LMS,&
-                          ECore, tGUGA, t_new_real_space_hubbard, t_trans_corr_hop
+                          ECore, t_new_real_space_hubbard, t_trans_corr_hop
 
     use UmatCache, only: tUmat2D, UMatInd, UMatConj, umat2d, tTransFIndx, nHits, &
                          nMisses, GetCachedUMatEl, HasKPoints, TransTable, &

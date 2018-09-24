@@ -339,7 +339,7 @@ contains
                 this_routine, mem_tag_histograms, ierr)
 
 
-        else if (tGen_sym_guga_mol .or. tgen_guga_crude) then
+        else if (tGen_sym_guga_mol .or. (tgen_guga_crude .and. .not. t_new_real_space_hubbard)) then
 
             ! i always use the singles histogram dont I? i think so.. 
             allocate(frequency_bins_singles(n_frequency_bins))
