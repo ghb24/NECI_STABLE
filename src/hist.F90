@@ -1050,7 +1050,6 @@ contains
                             end if
 
                             call extract_sign (ilut_list(:,pos), sgn2)
-
                             ssq = ssq + sgn(1) * sgn2(1) * sgn_hphf
 
                         endif

@@ -881,7 +881,6 @@ contains
             sgn_run = sgn(run)
 #endif
 
-            ASSERT(.not. t_3_body_excits)
             hoffdiag = 0.0_dp
 
             if (exlevel == 0) then
@@ -895,7 +894,10 @@ contains
                     HFCyc(min_part_type(run)) = HFCyc(min_part_type(run)) + real(sgn_run)
                     HFCyc(max_part_type(run)) = HFCyc(max_part_type(run)) + aimag(sgn_run)
 #else
-                    SumNoatHF(run) = SumNoatHF(run) + sgn_run
+                    ! do we also need here: todo
+                    if (iter > nEquilSteps) then 
+                        SumNoatHF(run) = SumNoatHF(run) + sgn_run
+                    end if
                     NoatHF(run) = NoatHF(run) + sgn_run
                     HFCyc(run) = HFCyc(run) + sgn_run
 #endif
@@ -923,7 +925,13 @@ contains
                                              ilutRef(:,run), ilut)
                 endif
 
+            else if (exlevel == 3 .and. t_3_body_excits) then 
+                ASSERT(.not. tHPHF) 
+                hoffdiag = get_helement(ProjEDet(:,run), nI, exlevel, &
+                    iLutRef(:,run), ilut)
+
             end if
+
 
             ! Sum in energy contributions
             if (iter > nEquilSteps) &
@@ -2223,12 +2231,12 @@ contains
     end subroutine check_start_rdm
 
     subroutine update_run_reference(ilut, run)
-      use adi_references, only: update_first_reference
+        use adi_references, only: update_first_reference
         ! Update the reference used for a particular run to the one specified.
         ! Update the HPHF flipped arrays, and adjust the stored diagonal
         ! energies to account for the change if necessary.
-      use SystemData, only: BasisFn, nBasisMax
-      use sym_mod, only: writesym, getsym
+        use SystemData, only: BasisFn, nBasisMax
+        use sym_mod, only: writesym, getsym
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: run
         character(*), parameter :: this_routine = 'update_run_reference'
@@ -2421,7 +2429,6 @@ contains
         write(6,*) 'Calculated instantaneous projected energy', proje_iter
 
     end subroutine
-
 
     function check_semistoch_flags(ilut_child, nI_child, tCoreDet) result(break)
       integer(n_int), intent(inout) :: ilut_child(0:niftot)

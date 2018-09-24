@@ -453,8 +453,8 @@ contains
 
                 ! i think i need the left eigenvector for the trial-projection 
                 ! if it is non-hermitian..
-                call eig(H_tmp, evals_all, evecs_all,.true.)
-!                 call eig(H_tmp, evals_all, evecs_all)
+!                 call eig(H_tmp, evals_all, evecs_all,.true.)
+                call eig(H_tmp, evals_all, evecs_all)
                 ! is it sorted by energy? 
                 root_print "eigenvalues: ", evals_all
                 root_print "eigenvectors: "

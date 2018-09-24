@@ -427,15 +427,16 @@ contains
         !Use this instead of the default sort when parity is needed.
         !The default sort has issues in calculating parity.
 
-        integer, intent(inout) :: nI(1:nel)
+        integer, intent(inout) :: nI(:)
         integer, intent(out), optional :: par_opt
         integer :: temp, par
-        integer :: i, j
+        integer :: i, j, num
         logical :: swapped
         
+        num = size(nI)
         !Bubble sort
         par = 1
-        do j = nel-1, 1, -1
+        do j = num-1, 1, -1
             swapped = .FALSE.
             do i = 1, j
                 if (nI(i) > nI(i+1)) then

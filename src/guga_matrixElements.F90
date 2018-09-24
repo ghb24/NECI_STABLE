@@ -6,38 +6,19 @@ module guga_matrixElements
     ! used modules: 
     use SystemData, only: nEl, nBasis, ECore
     use constants, only: dp, n_int, hel_zero
-    use bit_reps, only: niftot, decode_bit_det, nifd
+    use bit_reps, only: decode_bit_det
     use OneEInts, only: GetTMatEl
-    use Integrals_neci, only: get_umat_el
+    use procedure_pointers, only: get_umat_el
     use guga_bitRepOps, only: isDouble, calcB_vector_nI, isProperCSF_nI, &
                             extract_matrix_element
     use util_mod, only: binary_search
     use guga_data, only: projE_replica
-    use bit_rep_data, only: nifdbo
+    use bit_rep_data, only: nifdbo, niftot, nifd
     use ParallelHelper, only: iprocindex
 
     ! variable declarations:
     implicit none
-    
-    ! interfaces
-    !interface calcDiagMatEleGUGA
-    !    ! general diagonal matrix element calculations:
-    !    ! chosen depending on input
-    !    module procedure calcDiagMatEleGUGA_nI
-    !    module procedure calcDiagMatEleGuga_ilut
-    !end interface calcDiagMatEleGUGA
-
-    !interface calcDiagExchangeGUGA
-    !    ! general diagonal exchange contribution calculation:
-    !    module procedure calcDiagExchangeGUGA_nI
-    !    module procedure calcDiagExchangeGUGA_ilut
-    !end interface calcDiagExchangeGUGA
-
-!     interface calc_off_diag_guga
-!         module procedure calc_off_diag_guga_ref
-!         module procedure calc_off_diag_guga_gen
-!     end interface calc_off_diag_guga
-
+   
 contains
 
     function calc_off_diag_guga_ref_list(ilut, run, exlevel) result(hel)

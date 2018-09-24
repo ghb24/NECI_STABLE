@@ -63,7 +63,6 @@ module fcimc_pointed_fns
 
     use Determinants, only: get_helement
 
-
     implicit none
 
     contains

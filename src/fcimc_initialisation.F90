@@ -54,7 +54,7 @@ module fcimc_initialisation
     use spin_project, only: init_yama_store, clean_yama_store
 
     use adi_data, only: tReferenceChanged, tAdiActive, &
-         nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
+                         nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
 
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only

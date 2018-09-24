@@ -6,7 +6,7 @@ MODULE UMatCache
     use SystemData, only: tROHF,tStoreSpinOrbs, tComplexWalkers_RealInts, &
                           Symmetry, BasisFN, UMatEps, tROHF
 
-    use SystemData, only: tRIIntegrals,tCacheFCIDUMPInts
+    use SystemData, only: tRIIntegrals,tCacheFCIDUMPInts, t_non_hermitian
 
     use util_mod, only: swap, get_free_unit, NECI_ICOPY
 
@@ -217,23 +217,38 @@ MODULE UMatCache
          !    nBasis: size of basis. If =0, use nStates instead.
          !    nOccupied: # of occupied orbitals.  If =0, then nOcc is used.
          !    Should only be passed as non-zero during the freezing process.
+         use SystemData, only: nbasis
          IMPLICIT NONE
          INTEGER, intent(in) :: I,J,K,L
-         INTEGER A,B
+         INTEGER A,B, nbi, iss
 
-         !Combine indices I and K, ensuring I>K
-         IF(I.GT.K) THEN
-             A=(I*(I-1))/2+K
-         ELSE
-             A=(K*(K-1))/2+I
-         ENDIF
+         if (t_non_hermitian) then 
+             IF(tStoreSpinOrbs) THEN
+                 iSS=1
+             ELSE
+                 iSS=2
+             ENDIF
 
-         !Combine indices J and L, ensuring J>K
-         IF(J.GT.L) THEN
-             B=(J*(J-1))/2+L
-         ELSE
-             B=(L*(L-1))/2+J
-         ENDIF
+             nBi=nBasis/iSS
+
+             A=(I-1)*nBi+K
+             B=(J-1)*nBi+L
+         else
+
+             !Combine indices I and K, ensuring I>K
+             IF(I.GT.K) THEN
+                 A=(I*(I-1))/2+K
+             ELSE
+                 A=(K*(K-1))/2+I
+             ENDIF
+
+             !Combine indices J and L, ensuring J>K
+             IF(J.GT.L) THEN
+                 B=(J*(J-1))/2+L
+             ELSE
+                 B=(L*(L-1))/2+J
+             ENDIF
+         end if
 
          !Combine (IK) and (JL) in a unique way  (k > l or if k = l then i > j)
          IF(A.GT.B) THEN
@@ -243,12 +258,12 @@ MODULE UMatCache
          ENDIF
 #ifdef __CMPLX
          if(.not. tComplexWalkers_RealInts) then
-         UMatInd = (UmatInd-1)*2 + 1
-         !We need to test whether we have swapped i and k or j and l independantly of each other
-         !If we have done this, it is one of the 'other' integrals - add one.
-         if (((I.gt.K).and.(J.lt.L)) .or. ((I.lt.K).and.(J.gt.L))) then
-            UMatInd = UMatInd + 1
-         endif
+             UMatInd = (UmatInd-1)*2 + 1
+             !We need to test whether we have swapped i and k or j and l independantly of each other
+             !If we have done this, it is one of the 'other' integrals - add one.
+             if (((I.gt.K).and.(J.lt.L)) .or. ((I.lt.K).and.(J.gt.L))) then
+                UMatInd = UMatInd + 1
+             endif
          endif
 #endif
       END FUNCTION UMatInd
@@ -349,9 +364,11 @@ MODULE UMatCache
          ENDIF
 
          nBi=nBasis/iSS
-!         WRITE(6,*) iSS,nBasis,nBi
-!         CALL neci_flush(6)
-         iPairs=(nBi*(nBi+1))/2
+         if (t_non_hermitian) then
+             iPairs = nbi**2
+         else
+             iPairs=(nBi*(nBi+1))/2
+         end if
          iSize=(int(iPairs,int64)*int(iPairs+1,int64))/2
 #ifdef __CMPLX
          !Since we now only have 4-fold symmetry, rather than 8-fold.

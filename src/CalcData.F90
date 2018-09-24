@@ -293,8 +293,15 @@ integer :: pops_norm_unit
 logical :: tOrthogonaliseReplicas, tReplicaSingleDetStart
 logical :: tOrthogonaliseSymmetric
 integer :: orthogonalise_iter
+
+! test reintroducing an overlap.
+logical :: t_test_overlap = .false.
+real(dp) :: overlap_eps = 1.0e-5_dp
+integer :: n_stop_ortho = -1
+
 logical :: tAVReps, tReplicaCoherentInits, tRCCheck
 ! Information on a trial space to create trial excited states with.
+
 type(subspace_in) :: init_trial_in
 
 ! If true then a hash table is kept for the spawning array and is used when

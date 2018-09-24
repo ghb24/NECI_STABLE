@@ -18,7 +18,8 @@ program test_real_space_hubbard
     use SystemData, only: lattice_type, t_new_real_space_hubbard, t_trans_corr, & 
                           trans_corr_param, t_lattice_model, t_trans_corr_hop, brr, & 
                           t_trans_corr_2body, trans_corr_param_2body, &
-                          t_trans_corr_new, t_uniform_excits, tHPHF
+                          t_trans_corr_new, t_uniform_excits, tHPHF, &
+                          length_x, length_y
 
     use lattice_mod, only: lat, init_dispersion_rel_cache
 
@@ -34,13 +35,15 @@ program test_real_space_hubbard
 
     use lattice_models_utils, only: gen_all_excits_r_space_hubbard, &
                                     create_hilbert_space_realspace, &
-                                    gen_all_doubles_k_space
+                                    gen_all_doubles_k_space, &
+                                    gen_all_singles_rs_hub_default
 
-    use HPHFRandexcitmod, only: gen_hphf_excit
+    use HPHFRandexcitmod, only: gen_hphf_excit, finddetspinsym
 
     use k_space_hubbard, only: setup_k_space_hub_sym, setup_symmetry_table
 
     use double_occ_mod, only: count_double_orbs
+
 
     implicit none 
 
@@ -93,19 +96,49 @@ contains
         use lanczos_wrapper, only: frsblk_wrapper
 
         integer :: i, n_eig, n_orbs, n_states, iunit
-        integer, allocatable :: ni(:), hilbert_space(:,:)
-        real(dp), allocatable :: e_values(:), e_vecs(:,:)
+        integer, allocatable :: ni(:), hilbert_space(:,:), nJ(:), flip(:)
+        real(dp), allocatable :: e_values(:), e_vecs(:,:), e_vecs_right(:,:), e_vecs_left(:,:)
         integer(n_int), allocatable :: dummy(:,:)
         real(dp) :: j
-        real(dp), allocatable :: j_vec(:)
-        real(dp) :: exact_double_occ
+        real(dp), allocatable :: j_vec(:), e_orig(:), test_evec(:,:)
+        real(dp) :: exact_double_occ, e_pot_orig, e_kin_orig, overlap, &
+                    double_occ_t, e_pot_t, e_kin_t, e_kin_sim
         HElement_t(dp) :: H_hop, H_spin
+        logical :: t_optimize_corr_param, t_do_diag_elements, t_do_exact_transcorr, &
+                   t_do_exact_double_occ, t_j_vec, t_input_U, t_calc_singles
+        HElement_t(dp), allocatable :: hamil(:,:), t_mat(:,:), hamil_hop(:,:), &
+            gutzwiller(:,:), hamil_onsite(:,:), u_mat(:,:), t_mat_t(:,:)
+        integer :: n_excits, k, flip_excits
+        integer(n_int), allocatable :: singles(:,:), flip_singles(:,:)
+        real(dp) :: sum_singles, sum_singles_t, phase
+        real(dp), allocatable :: sign_list(:), flip_sign(:)
+        logical :: t_start_neel, t_flip
 
+        t_optimize_corr_param  = .false.
+        t_do_diag_elements = .true.
+        t_do_exact_transcorr = .true.
+        t_do_exact_double_occ = .false.
+        t_j_vec = .true.
+        t_input_U = .true.
+        t_calc_singles = .true.
+        t_start_neel = .true.
+        t_flip = .false.
+        phase = 1.0_dp
 
         t_trans_corr_hop = .true.
-        lat => lattice('chain', 6, 1, 1,.true.,.true.,.true.)
+        lat => lattice('tilted', 3, 3, 1,.true.,.true.,.true.)
+        lattice_type = lat%get_name()
+        length_x = lat%get_length(1)
+        length_y = lat%get_length(2)
+
         t_trans_corr_hop = .false.
-        uhub = 8
+
+        if (t_input_U) then 
+            print *, "input U:"
+            read(*,*) uhub
+        else
+            uhub = 12
+        end if
         bhub = -1
 
         n_orbs = lat%get_nsites()
@@ -113,12 +146,25 @@ contains
 
         call init_realspace_tests
 
-        nel = 6
+        nel = 18
         allocate(nI(nel))
 !         nI = [(i, i = 1, nel)]
 !         nI = [1,3,6,7,9,12,13,16,17,20,21,24,25,28,30,31,34,36]
-        nI = [1,4,5,8,9,12]
+
+        if (t_start_neel) then
+            nI = create_neel_state()
+            print *, "neel-state: ", nI
+        else
+            nI = [1,4,5,8,9,12]
+        end if
+
+        if (t_flip) then 
+            allocate(flip(nel), source = 0)
+            call finddetspinsym(nI,flip,nel)
+        end if
+
 !         nI = [1,4]
+!         nI = [1,2,3,4,5,6,7]
 
         nOccAlpha = 0
         nOccBeta = 0
@@ -135,42 +181,124 @@ contains
 !         call init_dispersion_rel_cache()
 !         call init_umat_rs_hub_transcorr()
 
-        j_vec = linspace(-0.3,0.0,20)
-! !         j_vec = [0.0, 0.05, 0.1,0.12]
+        if (t_j_vec) then
+            j_vec = linspace(-0.5,0.5,100)
+        else
+            allocate(j_vec(1), source = -0.17_dp)
+        end if
 
-        iunit = get_free_unit()
-        open(iunit, file = 'diag_elements')
-        write(iunit, *) "# J, Hd hop, Hd spin"
-        print *, "H diag hopping: "
-        t_recalc_umat = .true.
-        t_recalc_tmat = .true.
-        do i = 1, size(j_vec) 
-            t_trans_corr_hop = .true.
-            trans_corr_param = j_vec(i)
-            ! i need to deallocate umat every time.. 
-            if (allocated(umat_rs_hub_trancorr_hop)) deallocate(umat_rs_hub_trancorr_hop)
-            call init_umat_rs_hub_transcorr()
-            H_hop = get_diag_helemen_rs_hub_transcorr_hop(nI)
-            t_trans_corr_hop = .false.
-            t_spin_dependent_transcorr = .true. 
-            call init_tmat_rs_hub_spin_transcorr()
-            H_spin = get_diag_helemen_rs_hub_transcorr_spin(nI)
-            t_spin_dependent_transcorr = .false.
-            write(iunit,*) J_vec(i), H_hop, H_spin
-        end do
+        if (t_do_diag_elements) then
+            iunit = get_free_unit()
+            open(iunit, file = 'diag_elements')
+            if (t_calc_singles) then
+                call gen_all_singles_rs_hub_default(nI, n_excits, singles, sign_list)
+                allocate(nJ(nel), source = 0)
+                print *, "number of singles: ", n_excits
+                write(iunit, *) "# J, Hd hop, H_ij H_ji*"
+                if (t_flip) then
+                    call gen_all_singles_rs_hub_default(flip, flip_excits, flip_singles, flip_sign)
+                end if
+            else
+                write(iunit, *) "# J, Hd hop, Hd spin"
+            end if
+            print *, "H diag hopping: "
+            t_recalc_umat = .true.
+            t_recalc_tmat = .true.
+            do i = 1, size(j_vec) 
+                t_trans_corr_hop = .true.
+                trans_corr_param = j_vec(i)
+                ! i need to deallocate umat every time.. 
+                if (allocated(umat_rs_hub_trancorr_hop)) deallocate(umat_rs_hub_trancorr_hop)
+                call init_umat_rs_hub_transcorr()
+                H_hop = get_diag_helemen_rs_hub_transcorr_hop(nI)
 
-        close(iunit)
+                if (t_calc_singles) then 
+                    sum_singles = 0.0_dp
+                    sum_singles_t = 0.0_dp
+
+                    do k = 1, n_excits
+                        call decode_bit_det(nJ, singles(:,k))
+                        sum_singles = sum_singles + sign_list(k)*get_helement_lattice(nI,nJ)
+                        sum_singles_t = sum_singles_t + sign_list(k)*get_helement_lattice(nJ,nI)
+                    end do
+
+                    if (t_flip) then 
+                        do k = 1, flip_excits
+                            call decode_bit_det(nJ, flip_singles(:,k))
+                            sum_singles = sum_singles + &
+                                phase * flip_sign(k) * get_helement_lattice(flip,nJ)
+                            sum_singles_t = sum_singles_t + &
+                                phase * flip_sign(k) * get_helement_lattice(nJ,flip)
+                        end do
+                    end if
+
+                    write(iunit,*) J_vec(i), H_hop, sum_singles, sum_singles_t
+                else
+                    t_trans_corr_hop = .false.
+                    t_spin_dependent_transcorr = .true. 
+                    call init_tmat_rs_hub_spin_transcorr()
+                    H_spin = get_diag_helemen_rs_hub_transcorr_spin(nI)
+                    t_spin_dependent_transcorr = .false.
+                    write(iunit,*) J_vec(i), H_hop, H_spin
+                end if
+            end do
+            close(iunit)
+            call stop_all("here","now")
+        end if
+
         t_trans_corr_hop = .false.
 
         call create_hilbert_space_realspace(n_orbs, nOccAlpha, nOccBeta, & 
             n_states, hilbert_space, dummy)
 
-        n_eig = 1
+        n_eig = size(hilbert_space,2)
 
         allocate(e_values(n_eig))
+        allocate(e_orig(n_eig))
         allocate(e_vecs(n_eig, size(hilbert_space,2)))
+        allocate(e_vecs_right(n_eig, size(hilbert_space,2)))
+        allocate(e_vecs_left(n_eig, size(hilbert_space,2)))
 
         print *, "size hilbert: ", size(hilbert_space, 2)
+        hamil = create_hamiltonian(hilbert_space)
+
+        call eig(hamil, e_orig, e_vecs)
+
+!         print *, "orig: e-values:"
+!         do i = 1, size(hilbert_space,2)
+!             print *, e_orig(i)
+!         end do
+
+        ! first create the exact similarity transformation 
+        allocate(t_mat(size(hamil,1),size(hamil,2)), source = hamil) 
+        ! and set the diagonal elements to 0
+        do i = 1, size(t_mat,1)
+            t_mat(i,i) = 0.0_dp
+        end do
+        allocate(gutzwiller(size(hamil,1),size(hamil,2)), source = 0.0_dp)
+        allocate(u_mat(size(hamil,1),size(hamil,2)), source = 0.0_dp)
+        do i = 1, size(hamil,1)
+            gutzwiller(i,i) =  hamil(i,i) / real(uhub,dp)
+            u_mat(i,i) = hamil(i,i)
+        end do
+
+        hamil_onsite = similarity_transform(hamil, j_vec(1) * gutzwiller)
+
+        hamil_hop = similarity_transform(hamil, j_vec(1) * t_mat)
+
+        t_mat_t = similarity_transform(t_mat, j_vec(1) * gutzwiller)
+
+        call eig(hamil_onsite, e_values, e_vecs_right)
+
+        print *, "onsite e_values correct?: "
+        do i = 1, size(hilbert_space,2)
+            if (abs(e_orig(i) - e_values(i)) > 1e-7) then
+                print *, e_values(i)
+            end if
+        end do
+
+        call eig(hamil_onsite, e_values, e_vecs_left, .true.)
+
         nblk = 4
         nkry = 8 
         ncycle = 200
@@ -181,40 +309,175 @@ contains
         print *, "b2l: ", b2l
         print *, "ncycle: ", ncycle
 
+        allocate(test_evec(size(hilbert_space,2),1), source = 0.0_dp)
+        test_evec(:,1) = matmul(matrix_exponential(-2.0*j_vec(1)*gutzwiller), e_vecs_left(:,1))
+        test_evec(:,1) = test_evec(:,1) / norm(test_evec(:,1))
+
+        print *, "test right e_vec: ", dot_product(test_evec(:,1), e_vecs_right(:,1))
+
         ! try too big systems here: 
-        call frsblk_wrapper(hilbert_space, size(hilbert_space, 2), n_eig, e_values, e_vecs)
-        print *, "e_value lanczos:", e_values(1)
+!         call frsblk_wrapper(hilbert_space, size(hilbert_space, 2), n_eig, e_values, e_vecs)
+!         print *, "e_value lanczos:", e_values(1)
 
-        exact_double_occ = calc_exact_double_occ(n_states, dummy, e_vecs)
+        if (t_do_exact_double_occ) then
+            exact_double_occ = calc_exact_double_occ(n_states, dummy, e_vecs(:,1))
+            print *, "--- orig ---"
+            print *, "exact double occupancy: ", exact_double_occ
+            e_pot_orig = real(uhub,dp) * exact_double_occ 
+            print *, "potential energy: ", real(uhub,dp) * exact_double_occ
+            print *, "<U>:", dot_product(e_vecs(:,1),matmul(u_mat, e_vecs(:,1)))
+            e_kin_orig = dot_product(e_vecs(:,1),matmul(t_mat,e_vecs(:,1))) 
+            print *, "kinetic energy: " , e_kin_orig
+            print *, "E tot: ", e_kin_orig + e_pot_orig
+            print *, "E0: ", e_orig(1)
+            print *, "transcorr j = ", j_vec(1)
+            overlap = dot_product(e_vecs_left(:,1),e_vecs_right(:,1)) 
+            double_occ_t = calc_exact_double_occ(n_states, dummy, e_vecs_right(:,1), & 
+                e_vecs_left(:,1)) / overlap
+            print *, "exact double occupancy transcorr: ", double_occ_t 
+            e_pot_t = double_occ_t * real(uhub,dp)
+            e_kin_t = dot_product(e_vecs_left(:,1), matmul(t_mat, e_vecs_right(:,1))) !/ &
+!                 overlap
+            e_kin_sim = dot_product(e_vecs_left(:,1), matmul(t_mat_t, e_vecs_right(:,1))) / &
+                overlap
+            print *, "E pot t: ", e_pot_t
+            print *, "E kin t: ", e_kin_t
+            print *, "E kin sim: ", e_kin_sim
+            print *, "E tot: ", e_pot_t + e_kin_sim
+            print *, "E0 t: ", e_values(1)
+        
+        end if
 
-        print *, "exact double occupancy: ", exact_double_occ
-
+        print *, "overlap: ", dot_product(e_vecs_left(:,1),e_vecs_right(:,1))
 !         call stop_all("here","now")
 
-        j = -0.17_dp
-!         call exact_transcorrelation(lat, nI, [j], real(uhub,dp), hilbert_space)
-        call exact_transcorrelation(lat, nI, j_vec, real(uhub,dp), hilbert_space)
+        call eig(hamil_hop, e_values, e_vecs_right)
+
+        print *, "hop e_values correct?: "
+        do i = 1, size(hilbert_space,2)
+            if (abs(e_orig(i) - e_values(i)) > 1e-7) then
+                print *, e_values(i)
+            end if
+        end do
+
+        if (t_do_exact_transcorr) then
+            call exact_transcorrelation(lat, nI, j_vec, real(uhub,dp), hilbert_space)
+        end if
+
+        if (t_optimize_corr_param) then
+            call optimize_correlation_parameters()
+        end if
 
         call stop_all("here","now")
 
     end subroutine exact_test
 
-    function calc_exact_double_occ(n_states, ilut_list, e_vec) result(double_occ)
+    subroutine optimize_correlation_parameters()
+        ! routine to optimize the correlation parameter in real-space 
+        ! based on hongjuns projection formula 
+        real(dp), allocatable :: g(:), hf_coeff(:), phi_coeff(:), energy(:)
+        integer :: n_j = 100, i, iunit
+        integer(n_int), allocatable :: hf_states(:,:), phi_states(:,:)
+        real(dp) :: J
+        logical :: t_full_ed = .true.
+        
+        ! first we need the HF solution in real-space 
+        ! is still need to decide, if i want to store the basis in ilut or 
+        ! nI representation.. 
+        call get_real_space_hf(hf_states, hf_coeff)
+
+        ! for the single parameter jastrow ansatz i just need to loop over 
+        ! J, or do a bisection search to find the optimal J, if it is a 
+        ! convex function 
+        g = linspace(0.0,1.0,n_j)
+        allocate(energy(n_j), source = 0.0_dp)
+
+        iunit = get_free_unit()
+        open(iunit, file = 'corr_param')
+
+        do i = 1, n_j
+            ! i need to set the hamiltonian with the correct j
+            J = -log(g(i))
+            call set_H_transcorr(J)
+            
+            ! then i need to apply H to the real-space HF solution 
+            call apply_H(hf_states, hf_coeff, phi_states, phi_coeff) 
+
+            ! then i need to calc the 'expectation' values of the 
+            ! correlation operator
+            ! <hf|t|phi> - <hf|t|hf><hf|phi>
+            energy(i) = get_corr_overlap(hf_states,hf_coeff,phi_states,phi_coeff) & 
+                - get_corr_overlap(hf_states,hf_coeff,hf_states,hf_coeff) & 
+                * get_overlap(hf_states,hf_coeff,phi_states,phi_coeff)
+
+            ! and then i just output it to post-process with python
+            write(iunit,*) J, energy(i)
+        end do
+        close(iunit)
+
+
+    end subroutine optimize_correlation_parameters
+
+    real(dp) function get_corr_overlap(phi_L_states, phi_L_coeff, phi_R_states, phi_R_coeff)
+        integer(n_int), intent(in) :: phi_L_states(:,:), phi_R_states(:,:)
+        real(dp), intent(in) :: phi_L_coeff(:), phi_R_coeff(:)
+
+    end function get_corr_overlap
+
+    real(dp) function get_overlap(phi_L_states, phi_L_coeff, phi_R_states, phi_R_coeff) 
+        integer(n_int), intent(in) :: phi_L_states(:,:), phi_R_states(:,:)
+        real(dp), intent(in) :: phi_L_coeff(:), phi_R_coeff(:)
+
+    end function get_overlap
+
+
+    subroutine apply_H(hf_states, hf_coeff, phi_states, phi_coeff)
+        integer(n_int), intent(in) :: hf_states(:,:)
+        real(dp), intent(in) :: hf_coeff(:)
+        integer(n_int), intent(out), allocatable :: phi_states(:,:)
+        real(dp), intent(out) :: phi_coeff(:)
+
+    end subroutine apply_H
+
+    subroutine set_H_transcorr(j)
+        real(dp), intent(in) :: j
+
+    end subroutine set_H_transcorr
+
+    subroutine get_real_space_hf(hf_states, hf_coeff) 
+        integer(n_int), intent(out), allocatable :: hf_states(:,:)
+        real(dp), intent(out), allocatable :: hf_coeff(:)
+        ! routine for a given system and filling, which gives me the real-space 
+        ! HF solution. essentially i only need to do a fourier transformation 
+        ! of the k-space HF solution, or if i have the eigenvectors of the 
+        ! t_ij matrix, it is just a unitary transformation of HF 
+
+    end subroutine get_real_space_hf
+
+    function calc_exact_double_occ(n_states, ilut_list, e_vec, e_vec_left) result(double_occ)
         integer, intent(in) :: n_states
         integer(n_int), intent(in) :: ilut_list(0:NIfTot,n_states) 
         real(dp), intent(in) :: e_vec(1,n_states)
+        real(dp), intent(in), optional :: e_vec_left(1,n_states)
+
         real(dp) :: double_occ
 
         integer :: i
 
         double_occ = 0.0_dp 
         
-        do i = 1, n_states
+        if (present(e_vec_left)) then
+            do i = 1, n_states
+                double_occ = double_occ + e_vec(1,i) * e_vec_left(1,i) &
+                    * real(count_double_orbs(ilut_list(0:nifd,i)),dp)
+            end do
 
-            double_occ = double_occ + 2.0_dp * e_vec(1,i)**2 &
-                * real(count_double_orbs(ilut_list(0:nifd,i)),dp) / real(nBasis,dp)
-            
-        end do
+        else
+            do i = 1, n_states
+                double_occ = double_occ + e_vec(1,i)**2 &
+                    * real(count_double_orbs(ilut_list(0:nifd,i)),dp)
+            end do
+        end if
 
     end function calc_exact_double_occ
 
@@ -225,7 +488,7 @@ contains
         integer, intent(in) :: hilbert_space(:,:)
         character(*), parameter :: this_routine = "exact_transcorrelation" 
 
-        integer :: n_states, iunit, ind, i, k, l
+        integer :: n_states, iunit, ind, i, k, l, flip(nel)
         real(dp), allocatable :: e_values(:), e_vec(:,:), gs_vec(:)
         real(dp) :: gs_energy_orig, gs_energy, hf_coeff_hop(size(J)), gs_energy_spin, &
                     hf_coeff_spin(size(J))
@@ -233,7 +496,22 @@ contains
                                        diff(:,:), hamil_spin(:,:), hamil_spin_neci(:,:)
         HElement_t(dp), allocatable :: t_mat(:,:), t_mat_spin(:,:)
         real(dp), allocatable :: neci_eval(:), e_vec_hop(:,:), e_vec_spin(:,:), neci_spin_eval(:)
+        real(dp), allocatable :: e_vec_hop_left(:,:)
         character(30) :: filename, J_str
+        logical :: t_calc_singles, t_flip, t_norm_inside
+        real(dp), allocatable :: neel_states(:), singles(:), j_opt(:), &
+            norm_inside(:), norm_inside_left(:)
+        integer :: neel_ind, flip_ind, ic_inside, ic
+        real(dp) :: phase
+        integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
+
+        t_calc_singles = .true. 
+        ! also consider the spin-flipped of the neel state
+        t_flip = .true.
+        phase = 1.0_dp
+
+        t_norm_inside = .true.
+        ic_inside = 2
 
         ! initialize correctly for transcorrelation tests
         ! just do it for the hopping transcorrelation now! 
@@ -298,14 +576,50 @@ contains
             t_mat(i,i) = 0.0_dp
         end do
 
-
         allocate(e_vec_hop(n_states, size(J))) 
         e_vec_hop = 0.0_dp
+        allocate(e_vec_hop_left(n_states,size(J)), source = 0.0_dp)
         allocate(e_vec_spin(n_states, size(J)))
         e_vec_spin = 0.0_dp
 
         t_recalc_umat = .true.
         t_recalc_tmat = .true.
+
+        if (t_calc_singles) then 
+            allocate(neel_states(n_states), source = 0.0_dp)
+            allocate(singles(n_states), source = 0.0_dp)
+            allocate(j_opt(size(j)), source = 0.0_dp)
+
+            ! find neel-state(only one for now..)
+            do i = 1, n_states
+                if (all(hilbert_space(:,i) == nI)) then 
+                    neel_ind = i
+                    neel_states(i) = 1.0_dp
+                end if
+            end do
+
+            if (t_flip) then 
+                call finddetspinsym(nI,flip,nel)
+                do i = 1, n_states 
+                    if (all(hilbert_space(:,i) == flip)) then
+                        flip_ind = i
+                        neel_states(i) = phase
+                    end if
+                end do
+                ! and normalize 
+                neel_states = neel_states/norm(neel_states,2)
+            end if
+
+            singles = matmul(hamil,neel_states)
+            singles(neel_ind) = 0.0_dp
+
+            if (t_flip) then 
+                singles(flip_ind) = 0.0_dp
+            end if
+
+        end if
+                    
+
         do i = 1, size(J) 
             print *, "J = ", J(i)
 
@@ -313,6 +627,10 @@ contains
             filename = 'gs_vec_trans_J_' // trim(adjustl((J_str)))
 
             hamil_hop = similarity_transform(hamil, J(i) * t_mat)
+
+            if (t_calc_singles) then 
+                j_opt(i) = dot_product(singles, matmul(hamil_hop, neel_states))
+            end if
 
             ! for the neci hopping hamiltonian: 
 
@@ -342,17 +660,22 @@ contains
             gs_energy = e_values(ind) 
             print *, "transformed ground-state energy: ", gs_energy 
 
-            if (abs(gs_energy - gs_energy_orig) > 1.e-12) then 
+            if (abs(gs_energy - gs_energy_orig) > 1.e-10) then 
                 call stop_all("HERE!", "energy incorrect!")
             end if
             ! how do i need to access the vectors to get the energy? 
+            e_vec_hop(:,i) = e_vec(:,ind)
             gs_vec = abs(e_vec(:,ind))
             call sort(gs_vec)
 
             gs_vec = gs_vec(n_states:1:-1)
 
             hf_coeff_hop(i) = gs_vec(1)
-            e_vec_hop(:,i) = gs_vec
+
+            ! also do the left-ev for the norm calcs
+            call eig(hamil_hop, e_values, e_vec, .true.)
+            ind = minloc(e_values,1)
+            e_vec_hop_left(:,i) = e_vec(:,ind)
 
             hamil_spin = similarity_transform(hamil, J(i) * t_mat_spin)
 
@@ -361,7 +684,7 @@ contains
             gs_energy_spin = e_values(ind)
             print *, "spin-transformed ground-state energy: ", gs_energy_spin
 
-            if (abs(gs_energy_spin - gs_energy_orig) > 1.e-12) then
+            if (abs(gs_energy_spin - gs_energy_orig) > 1.e-10) then
                 call stop_all("HERE", "spin-transformed energy incorrect!")
             end if
 
@@ -414,7 +737,7 @@ contains
 
             print *, "neci spin ground-state energy: ", minval(neci_spin_eval) 
 
-            if (abs(gs_energy_orig - minval(neci_spin_eval)) > 1.0e-12) then 
+            if (abs(gs_energy_orig - minval(neci_spin_eval)) > 1.0e-10) then 
                 if (n_states < 20) then 
                     print *, "spin transformed NECI eigenvalue wrong"
                     print *, "basis: " 
@@ -460,6 +783,43 @@ contains
 !         print *, "hamil-hop-neci:"
 !         call print_matrix(hamil_hop_neci)
 ! 
+
+        if (t_norm_inside) then 
+            allocate(norm_inside(size(j)), source = 0.0_dp)
+            allocate(norm_inside_left(size(J)), source = 0.0_dp)
+
+            call EncodeBitDet(nI, ilutI)
+            do i = 1, size(j)
+                do k = 1, n_states
+                    call EncodeBitDet(hilbert_space(:,k), ilutJ)
+                    ic  = findbitexcitlevel(ilutI,ilutJ)
+                    if (ic <= ic_inside) then
+                        norm_inside(i) = norm_inside(i) + & 
+                            e_vec_hop(k,i)**2
+                        norm_inside_left(i) = norm_inside_left(i) + & 
+                            e_vec_hop_left(k,i)**2
+                    end if
+                end do
+            end do
+
+            iunit = get_free_unit()
+            open(iunit, file = 'norm_inside')
+            write(iunit,*) "# J left right"
+            do i = 1, size(j)
+                write(iunit,*) J(i), norm_inside(i), norm_inside_left(i)
+            end do
+            close(iunit)
+        end if
+
+        if (t_calc_singles) then 
+            iunit = get_free_unit()
+            open(iunit, file = 'exact_j_opt')
+            do i = 1, size(j)
+                write(iunit,*) j(i), j_opt(i)
+            end do
+            close(iunit)
+        end if
+
         iunit = get_free_unit() 
         open(iunit, file = "hf_coeff_hop")
         do i = 1, size(J)

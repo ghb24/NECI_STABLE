@@ -62,9 +62,12 @@ program test_k_space_hubbard
 
     use bit_reps, only: init_bit_rep
 
+    use ras, only: sort_orbitals
+
     implicit none 
 
     integer :: failed_count 
+    real(dp) :: test_prefac = 2.0_dp
 
 
     call init_fruit()
@@ -112,11 +115,16 @@ contains
         integer :: A1g(9), A2g(9), B1g(9), B2g(9), Eg(9), A1u(9), A2u(9), &
                    B1u(9), B2u(9), Eu(9), irreps(10,9)
         integer, allocatable :: degen_ind(:,:), pairs(:,:), irrep(:), pair_ind(:)
-        logical, allocatable :: t_degen(:)
+        logical, allocatable :: t_degen(:), t_input_twist, t_do_doubles
         real(dp), allocatable :: gs_gap_J(:,:), gs_gap_U(:,:)
         integer :: n_syms
         character(3) :: irrep_names(0:10)
         integer, allocatable :: trunc(:), add(:,:)
+        integer :: l_norm, n_excited_states
+        logical :: t_exact_propagation, t_optimize_j, t_do_exact_transcorr
+        logical :: t_input_l 
+        real(dp) :: timestep, j_opt, tmp_hel
+        real(dp), allocatable :: sign_list(:)
 
         tmp_sign = 0.0_dp
         ! also define the point group character to determine the 
@@ -146,10 +154,15 @@ contains
 
         irrep_names = ['  x','A1g','A2g','B1g','B2g',' Eg','A1u','A2u','B1u','B2u',' Eu']
 
-        t_do_diags = .false.
+        t_do_exact_transcorr = .false.
+        t_input_l = .false.
+        t_optimize_j = .true.
+        t_do_diags = .true.
+        t_do_doubles = .true.
         t_do_subspace_study = .false.
         t_input_U = .true.
         t_input_J = .false.
+        t_input_twist = .false.
         t_U_vec = .false.
         t_J_vec = .true.
         t_do_twisted_bc = .false.
@@ -157,11 +170,56 @@ contains
         t_analyse_gap = .false.
         t_ignore_k = .false.
         t_do_ed = .false.
+        t_exact_propagation = .true.
+        n_excited_states = 10
+        timestep = 0.01_dp
+
+        if (t_input_U) then
+            print *, "input U: "
+            read(*,*) U
+        else if (t_U_vec) then
+!             U_vec = linspace(0.0,8.0,9)
+            U_vec = [4.0]
+        else
+            U = 4.0
+        end if
+
+        if (t_input_J) then
+            print *, "input J:"
+            read(*,*), J
+        else if (t_J_vec) then
+            J_vec = linspace(-2.0,2.0,200)
+!               J_vec = [0.5]
+        else 
+            J = 0.1
+        end if
+
+        if (t_input_l) then
+            print *, "input norm"
+            read(*,*), l_norm
+        else 
+            l_norm = 2
+        end if
+
+        if (t_input_twist) then 
+            print *, "input x-twist:"
+            read(*,*), twisted_bc(1)
+            print *, "input y-twist: "
+            read(*,*), twisted_bc(2)
+            if (all(twisted_bc == 0)) then
+                t_twisted_bc = .false.
+            else
+                t_twisted_bc = .true.
+            end if
+        else
+            t_twisted_bc = .false.
+            twisted_bc = 0.0_dp
+        end if
 
         call init_k_space_unit_tests()
-
+        
         ! i have to define the lattice here.. 
-        lat => lattice('chain', 6, 1, 1,.true.,.true.,.true.,'k-space')
+        lat => lattice('tilted', 5, 5, 1,.true.,.true.,.true.,'k-space')
 
 !         x = [(-lat%dispersion_rel_orb(i), i = 1, 24)]
 !         ind = [(i, i = 1, 24)]
@@ -175,44 +233,221 @@ contains
 !             k_vec = lat%get_k_vec(ind(i))
 !             print *,lat%get_k_vec(ind(i)),"|", k_vec(1)*k1 + k_vec(2)*k2, "|", x(i)
 !         end do
-
-        if (t_input_U) then
-            print *, "input U: "
-            read(*,*) U
-        else if (t_U_vec) then
-            U_vec = linspace(0.0,8.0,9)
-!             U_vec = [4.0]
-        else
-            U = 2.0
-        end if
-
-        if (t_input_J) then
-            print *, "input J:"
-            read(*,*), J
-        else if (t_J_vec) then
-            J_vec = linspace(0.0,2.0,100)
-!               J_vec = [0.5]
-        else 
-            J = 0.5
-        end if
         
-        nel = 6
+        nel = 18
         allocate(nI(nel))
         allocate(nJ(nel))
         nj = 0
 
         nbasis = 2*lat%get_nsites()
+        
+        ! 10 in 21 k = 0, closed-shell:
+!         ni = [17,18,19,20,21,22,23,24,25,26]
 
+        ! 10 in 21 k = 1, open-shell:
+!         ni = [17,18,19,20,21,22,23,24,25,28]
+
+        ! 80 in 100 k != 0 closed-shell: 
+!         nI=[   9,   10,   27,   28,   29,   30,   31,   32,   45,   46,   47, &
+!             48,   49,   50,   51,   52,   53,   54,   63,   64,   65,  &
+!             66,   67,   68,   69,   70,   71,   72,   73,   74,   75,   76,  &
+!             81,   82,   83,   84,   85,   86,   87,   88,   89,   90,   91,  &
+!             92,   93,   94,   95,   96,   97,98,  103,  104,  105,  106,  107, &
+!             108,  109,  110,  111,  112,  113,  114,  115,  116,  125,  126,&
+!             127,  128,  129,  130,  131,  132,  133,  134,  147,  148,  149,&
+!             150,  151,  152]
+
+        ! 80 in 100 k = 0 open-shell: low energy
+!         nI=[   9,   10,   27,   28,   29,   30,   31,   32,   45,   46,   47, &
+!             48,   49,   50,   51,   52,   53,   54,   63,   64,   65,  &
+!             66,   67,   68,   69,   70,   71,   72,   73,   74,   75,   76,  &
+!             81,   82,   83,   84,   85,   86,   87,   88,   89,   90,   91,  &
+!             92,   93,   94,   95,   96,   97,103,  104,  105,  106,  107, &
+!             108,  109,  110,  111,  112,  113,  114,  115,  116,  125,  126,&
+!             127,  128,  129,  130,  131,  132,  133,  134,  147,  148,  149,&
+!             150,  151,  152,170]
+
+        ! 100 in 100 k = 0 closed-shell: 
+!         nI=[   7,    8,    9,   10,   11,   12,   25,   26,   27,   28,   29,   30,   31,   32,   33,   34,   43,   44,   45,   46,   47,   48,   49,   50,   51,   52,   53,   54,   55,   56,   61,   62,   63,   64,   65,   66,   67,   68,   69,   70,   71,   72,   73,   74,   75,   76,   77,   78,   81,   82,   83,   84,   85,   86,   87,   88,   89,   90,   91,   92,   93,   94,   95,   96,   97,   98,   99,  100,  103,  104,  105,  106,  107,  108,  109,  110,  111,  112,  113,  114,  115,  116,  125,  126,  127,  128,  129,  130,  131,  132,  133,  134,  147,  148,  149,  150,  151,  152,  169,  170]
+
+        ! 100 in 100 k != 0 closed-shell:
+!         nI=[   7,8,9,   10, 11,12,25,26,  27,   28,   29,   30,   31,   32,33,34,45,43,   46,   47, &
+!             48,   49,   50,   51,   52,   53,   54, 63,   64,   65,  &
+!             66,   67,   68,   69,   70,   71,   72,   73,   74,   75,   76,&
+!             81,   82,   83,   84,   85,   86,   87,   88,   89,   90,   91,  &
+!             92,   93,   94,   95,   96,   97,98,103,  104,  105,  106,  107, &
+!             108,  109,  110,  111,  112,  113,  114,  115,  116,  125,  126,&
+!             127,  128,  129,  130,  131,  132,  133,  134,136, 145,146, 147,  148,  149,&
+!             150,  151,  152,153,154, 167,168,169, 170,171,172]
+
+
+
+!         nI=[   7,8,9,   10, 11,12,25,26,  27,   28,   29,   30,   31,   32,33,34,43,44,   45,   46,   47, &
+!             48,   49,   50,   51,   52,   53,   54, 55,56,61,62,  63,   64,   65,  &
+!             66,   67,   68,   69,   70,   71,   72,   73,   74,   75,   76,77,78,  &
+!             81,   82,   83,   84,   85,   86,   87,   88,   89,   90,   91,  &
+!             92,   93,   94,   95,   96,   97,98,99,100,  103,  104,  105,  106,  107, &
+!             108,  109,  110,  111,  112,  113,  114,  115,  116,  125,  126,&
+!             127,  128,  129,  130,  131,  132,  133,  134,  147,  148,  149,&
+!             150,  151,  152, 169, 170]
+
+        ! 100 in 100 k = 0 open-shell
+
+        ! 28 in 64 k!=0 closed shell 
+!         ni = [21,22,23,24,37,38,39,40,41,42,51,52,53,54,55,56,57,58,59,60,69,70,71,72,73,74,87,88]
+        ! 28 in 64 k = 0 open-shell
+!         ni = [21,23,24,37,38,39,40,41,42,51,52,53,54,55,56,57,58,59,60,69,70,71,72,73,74,87,88,90]
+
+        ! 44 in 64, k != 0 closed-shell
+!         nI=[    7,    8,   21,   22,   23,   24,   25,   26,   35,   36,   37,   38,   39,   40,   41,   42,   43,   44,   51,   52,   53,   54,   55,   56,   57,   58,   59,   60,   67,   68,   69,   70,   71,   72,   73,   74,   75,   76,   85,   86,   87,   88,   89,   90]
+
+        ! 44 in 64, k = 0 open
+!         nI=[    7,    21,   22,   23,   24,   25,   26,   35,   36,   37,   38,&
+!             39,   40,   41,   42,   43,   44,   51,   52,   53,   54,   55,  &
+!             56,   57,   58,   59,   60,   67,   68,   69,   70,   71,   72,  &
+!             73,   74,   75,   76,   85,   86,   87,  88,   89,   90,104]
+
+!         if (all(twisted_bc == 0)) then
+!             ! 24 in 36 k = 0 open-shell
+!             nI=[    5,    6,   15,   16,   17,   18,   19,   20,   25, 26,   27, &
+!                 28,   29,   30,   31,   32,   39,   40,   41,   42,   43, &
+!                 44,   53,   54]
+! 
+!             ! 24 in 36 k!=0 closed-shell
+! !             nI=[    5,    6,   15,   16,   17,   18,   19,   20,   26,   27, &
+! !                 28,   29,   30,   31,   32,   33,   39,   40,   41,   42,   43, &
+! !                 44,   53,   54]
+!         else
+!             nI=[   13,   14,   15,   16,   17,   18,   19,   20,   25,   26,&
+!                 27,   28,   29,   30,   31,   32,   37,   38,   39,   40,   41, &
+!                 42,   43,   44]
+! 
+!         end if
+        ! 36 in 36 k = 0
+!         if (all(twisted_bc == 0)) then
+!             nI =[  3,    4,    5,    6,    7,    8,   13,   14,   15,   16,  &
+!                 17,   18,   19,   20,   21,   22,   25,   26,   27,   28,   29,&
+!                 30,   31,   32,   33,   34,   39,   40,   41,   42,   43,   44,&
+!                 53,   54,   65,   66]
+!         else 
+!             nI=[  3,    4,    5,    6,   13,   14,   15,   16,   17,   18,  &
+!                 19,   20,   25,   26,   27,   28,   29,   30,   31,   32,   33,&
+!                 34,   35,   36,   37,   38,   39,   40,   41,   42,   43,   44,&
+!                 51,   52,   53,   54]
+!         end if
+        ! 256 in 16x16, k=0:
+!         if (all(twisted_bc == 0)) then
+!             nI = [13,   14,   15,   16,   17,   18,   43,   44,   45,   46,   47, &
+!                 48,   49,   50,   51,   52,   73,   74,   75,   76,   77,   78,   79,&
+!                 80,   81,   82,   83,   84,   85,   86,  103,  104,  105,  106,  107,&
+!                 108,  109,  110,  111,  112,  113,  114,  115,  116,  117,  118,  119,&
+!                 120,  133,  134,  135,  136,  137,  138,  139,  140,  141,  142,  143,&
+!                 144,  145,  146,  147,  148,  149,  150,  151,  152,  153,  154,  163,&
+!                 164,  165,  166,  167,  168,  169,  170,  171,  172,  173,  174,  175,&
+!                 176,  177,  178,  179,  180,  181,  182,  183,  184,  185,  186,  187,&
+!                 188,  193,  194,  195,  196,  197,  198,  199,  200,  201,  202,  203,&
+!                 204,  205,  206,  207,  208,  209,  210,  211,  212,  213,  214,  215,&
+!                 216,  217,  218,  219,  220,  221,  222,  225,  226,  227,  228,  229,&
+!                 230,  231,  232,  233,  234,  235,  236,  237,  238,  239,  240,  241,&
+!                 242,  243,  244,  245,  246,  247,  248,  249,  250,  251,  252,  253,&
+!                 254,  255,  256,  259,  260,  261,  262,  263,  264,  265,  266,  267,&
+!                 268,  269,  270,  271,  272,  273,  274,  275,  276,  277,  278,  279,&
+!                 280,  281,  282,  283,  284,  293,  294,  295,  296,  297,  298,  299,&
+!                 300,  301,  302,  303,  304,  305,  306,  307,  308,  309,  310,  311,&
+!                 312,  313,  314,  327,  328,  329,  330,  331,  332,  333,  334,  335,&
+!                 336,  337,  338,  339,  340,  341,  342,  343,  344,  361,  362,  363,&
+!                 364,  365,  366,  367,  368,  369,  370,  371,  372,  373,  374,  395,&
+!                 396,  397,  398,  399,  400,  401,  402,  403,  404,  429,  430,  431,&
+!                 432,  433,  434,  463,  464]
+! 
+!         ! 256 in 16x16, k = 0, twist = [0.5,0]
+!         else
+!             nI = [   13,   14,   15,   16,   43,   44,   45,   46,   47,   48,   &
+!                 49,   50,   73,   74,   75,   76,   77,   78,   79,   80,   81,  &
+!                 82,   83,   84,  103,  104,  105,  106,  107,  108,  109,  110,  &
+!                 111,  112,  113,  114,  115,  116,  117,  118,  133,  134,  135, &
+!                 136,  137,  138,  139,  140,  141,  142,  143,  144,  145,  146, &
+!                 147,  148,  149,  150,  151,  152,  163,  164,  165,  166,  167, &
+!                 168,  169,  170,  171,  172,  173,  174,  175,  176,  177,  178, &
+!                 179,  180,  181,  182,  183,  184,  185,  186,  193,  194,  195, &
+!                 196,  197,  198,  199,  200,  201,  202,  203,  204,  205,  206, &
+!                 207,  208,  209,  210,  211,  212,  213,  214,  215,  216,  217, &
+!                 218,  219,  220,  225,  226,  227,  228,  229,  230,  231,  232, &
+!                 233,  234,  235,  236,  237,  238,  239,  240,  241,  242,  243, &
+!                 244,  245,  246,  247,  248,  249,  250,  251,  252,  253,  254, &
+!                 255,  256,  257,  258,  259,  260,  261,  262,  263,  264,  265, &
+!                 266,  267,  268,  269,  270,  271,  272,  273,  274,  275,  276, &
+!                 277,  278,  279,  280,  281,  282,  283,  284,  291,  292,  293, &
+!                 294,  295,  296,  297,  298,  299,  300,  301,  302,  303,  304, &
+!                 305,  306,  307,  308,  309,  310,  311,  312,  313,  314,  325, &
+!                 326,  327,  328,  329,  330,  331,  332,  333,  334,  335,  336, &
+!                 337,  338,  339,  340,  341,  342,  343,  344,  359,  360,  361, &
+!                 362,  363,  364,  365,  366,  367,  368,  369,  370,  371,  372, &
+!                 373,  374,  393,  394,  395,  396,  397,  398,  399,  400,  401, &
+!                 402,  403,  404,  427,  428,  429,  430,  431,  432,  433,  434, &
+!                 461,  462,  463,  464]
+!         end if
+! 
+        ! 16 in 16, k != 0 
+!         nI = [1,2,3,4,5,6,9,10,11,12,13,14,17,18,19,20]
+        ! 16 in 16 k = 0 closed shell
+!         nI = [1,2,3,4,5,6,9,10,11,12,13,14,15,16,19,20]
+
+        ! 16 in 16 k = 0 open shell 
+!         nI = [1,3,4,5,6,9,10,11,12,13,14,17,18,19,20,22]
+
+        ! 14 in 16, k = 0, closed shell
+!         nI = [1,2,3,4,5,6,9,10,11,12,13,14,19,20]
+        ! 14 in 16, k = 0, open-shell 
+!         nI = [1, 3,4,5,9,10,11,12,13,14,18,19,20,22]
+        ! 14 in 16, k != 0, closed 
+!         nI = [1,2,3,4,5,6,9,10,11,12,13,14,19,20]
+        
 !         nI = [(i, i = 1,nel)]
+        ! 50 in 50:
+!         nI = [ 9,10,11,12,13,14,15,16,17,18,21,22,23,24,25,26,27,28,29,30,&
+!             37,38,39,40,41,42,43,44,45,46,55,56,57,58,59,60,61,62,63,64,71,72,73,74,75,76,77,78,79,80]
+
+        ! 42 in 50:
+!         nI = [11,12,13,14,15,16,21,22,23,24,25,26,27,28,29,30,37,38,39,40,&
+!             41,42,43,44,45,46,55,56,57,58,59,60,61,62,63,64,73,74,75,76,77,78]
+
+        ! 48 in 50:
+!         nI = [   10,   11,   12,   13,   14,   15,   16,   17,   18,   21,&
+!             22,   23,   24,   25,   26,   27,   28,   29,   30,   37,   38,&
+!             39,   40,   41,   42,   43,   44,   45,   46,   55,   56,   57, &
+!             58,   59,   60,   61,   62,   63,   64,   71,   72,   73,   74, &
+!             75,   76,   77,   78,   79]
+
         ! 46 in 50:
+!         nI =[    9,   10,   11,   12,   13,   14,   15,   16,   21,   22,   23,&
+!             24,   25,   26,   27,   28,   29,   30,   37,   38,   39,   40,   41,&
+!             42,   43,   44,   45,   46,   55,   56,   57,   58,   59,   60,   61,&
+!             62,   63,   64,   73,   74,   75,   76,   77,   78,   79,   80]
+
+        ! 44 in 50
+!         nI =[   9, 11,  12,  13,  14,  15,  16,  21,  22,  23,  24,  25,  26,&
+!             27,  28,  29,  30,  37,  38,  39,  40,  41,  42,  43,  44,  45,&
+!             46,  55,  56,  57,  58,  59,  60,  61,  62,  63,  64,  73,  74,  75,&
+!             76,  77,  78,  80]
+
+        ! 44 in 50:
 !         nI = [ 9,11,12,13,14,15,16,21,22,23,24,25,26,27,28,29,30,&
 !             37,38,39,40,41,42,43,44,45,46,55,56,57,58,59,60,61,62,63,64,73,74,75,76,77,78,80]
+
+        ! 18 in 18:
+!         nI = [3,4,5,6,7,8,11,12,13,14,15,16,21,22,23,24,25,26]
 
         ! 12 in 18, k = 0
 !         nI = [ 3 ,5,6,11,12,13,14,15,16,23,24, 26 ]
         ! 14 in 18:
+        ! closed shell k = 0
 !         nI = [ 3,4, 5, 6, 11,12,13,14,15,16,23,24,25,26 ]
+        ! open shell k = 0?
+!         nI = [4,5,6,7,11,12,13,14,15,16,22,23,24,25]
 
+        ! 14 in 18, closed shell k!=0:
+!         nI = [3,4,5,6,7,8,11,12,13,14,15,16,23,24]
         ! 6 in 9 k = 1 1
 !         nI = [3,4,7,8,9,10]
         ! 6 in 9 k = 0 0
@@ -222,15 +457,32 @@ contains
         ! 10 in 9, k = 1,-1:
 !         nI = [1,2,3,4,7,8,9,10,11,12]
 
+        
         ! chain:
         ! 6 in 6, k = 0
-        nI = [3,4,5,6,7,8]
+!         nI = [3,4,5,6,7,8]
+
+        ! 4 in 4, k = 0
+!         nI = [1,3,4,6]
+        ! 4 in 4, k != 0:
+!         nI = [1,2,3,4]
+
+        ! 5 in 5
+!         nI = [1,2,3,4,5]
+        ! 3 in 4, k != 0
+!         nI = [1,3,4]
+
+        ! 2 in 4 k = 0
+!         nI = [3,4]
+
+        ! 2 in 4 k!=0
+!         nI = [1,6]
 
         ! 6 in 8, 
 !         nI = [5,6,7,8,9,10]
 
         ! 6 in 6, k = 3
-!         nI = [2,3,4,5,6,7]
+!         ni = [2,3,4,5,6,7]
 
         ! 4 in 6, k = 0
 !         nI = [3,5,6,8]
@@ -260,6 +512,13 @@ contains
 !         nI = [1,2,3,4,5,6]
 !         nI = [5,6,7,8,9,10]
 
+        ! 18 in 50 
+        nI = [23,24,25,26,27,28,39,40,41,42,43,44,57,58,59,60,61,62]
+
+        ! 26 in 50
+!         nI = [13,14,23,24,25,26,27,28,37,38,39,40,41,42,43,44,45,46,57,58,59,&
+!             60,61,62,75,76]
+
         ! setup lanczos:
         nblk = 4
         nkry = 8 
@@ -281,10 +540,9 @@ contains
                 twist_x_vec = linspace(0.0,1.0,1000)
 !                 allocate(twist_x_vec(1))
 !                 twist_x_vec = 0.0
-!                 allocate(twist_y_vec(1))
-!                 twist_y_vec = 0.0
-                twist_y_vec = linspace(0.0,1.0,1000)
-
+                allocate(twist_y_vec(1))
+                twist_y_vec = 0.0
+!                 twist_y_vec = linspace(0.0,1.0,1000)
 
                 if (t_analyse_gap) then
 
@@ -374,20 +632,56 @@ contains
         end if
             
 
-
 !         NIfTot = 0
 !         nifd = 0
+
+        if (t_optimize_j) then 
+
+            t_trans_corr_2body = .true.
+            trans_corr_param_2body = J_vec((1))
+            three_body_prefac = real(bhub,dp)*test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+            call setup_system(lat, nI, J, U)
+            call init_two_body_trancorr_fac_matrix()
+            call init_three_body_const_mat()
+
+            write(U_str, *) int(U)
+            write(nel_str, *) nel 
+            write(lattice_name,*) lat%get_nsites() 
+            lattice_name = trim(lattice_name) // "_"
+
+            filename = 'J_optim_' // trim(adjustl(nel_str)) // 'in' // &
+                trim(adjustl(lattice_name)) // 'U_' // trim(adjustl(U_str))
+
+            iunit = get_free_unit()
+            open(iunit, file = filename)
+
+            do i = 1, size(J_vec)
+                trans_corr_param_2body = J_vec((i))
+                three_body_prefac = real(bhub,dp)*test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+                call init_two_body_trancorr_fac_matrix()
+                call init_three_body_const_mat()
+     
+                j_opt = get_j_opt(nI, J_vec(i))/real(omega,dp)
+
+                write(iunit,*) J_vec(i), j_opt
+            end do
+            close(iunit)
+
+!             call stop_all("here", "now")
+        end if
 
         if (t_do_diags) then
             t_trans_corr_2body = .true.
             trans_corr_param_2body = J_vec((1))
-            three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+            three_body_prefac = real(bhub,dp)*test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
             call setup_system(lat, nI, J, U)
+            call init_two_body_trancorr_fac_matrix()
+            call init_three_body_const_mat()
 
-    !         call gen_all_doubles_k_space(nI, n_excits, excits)
-            call gen_all_excits_k_space_hubbard(nI, n_excits, excits)
-
-            print *, "number of excitations: ", n_excits
+            if (t_do_doubles) then
+                call gen_all_doubles_k_space(nI, n_excits, excits, sign_list)
+                print *, "number of excitations: ", n_excits
+            end if
 
             write(U_str, *) int(U)
             write(nel_str, *) nel 
@@ -402,25 +696,40 @@ contains
             open(iunit, file = filename)
 
             print *, "writing to file..."
-            write(iunit, *) "# J, H diag, <I|H|K>, <K|H|I>:"
+            if (t_do_doubles) then
+                write(iunit, *) "# J, H diag, <I|H|K>, <K|H|I>:"
+            else 
+                write(iunit, *) "# J, H diag"
+            end if
+
             do i = 1, size(J_vec)
                 trans_corr_param_2body = J_vec((i))
-                three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+                three_body_prefac = real(bhub,dp)*test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+                call init_two_body_trancorr_fac_matrix()
+                call init_three_body_const_mat()
      
-                sum_doubles = 0.0_dp
-                sum_doubles_trans = 0.0_dp
+                if (t_do_doubles) then
+                    sum_doubles = 0.0_dp
+                    sum_doubles_trans = 0.0_dp
 
-                do k = 1, n_excits
-                    call decode_bit_det(nJ, excits(:,k))
+                    do k = 1, n_excits
+                        call decode_bit_det(nJ, excits(:,k))
+!                         print *, "-----"
+!                         print *, "nJ:", nJ
+!                         print *, "sign_k: ", sign_list(k)
+!                         tmp_hel = get_helement_lattice(nI,nJ)
+!                         print *, "hel: ", tmp_hel
 
-                    sum_doubles = sum_doubles + get_helement_lattice(nI, nJ)
-                    sum_doubles_trans = sum_doubles_trans + get_helement_lattice(nJ,nI)
+                        sum_doubles = sum_doubles + sign_list(k)*get_helement_lattice(nI, nJ)/real(omega,dp)
+                        sum_doubles_trans = sum_doubles_trans + sign_list(k)*get_helement_lattice(nJ,nI)/real(omega,dp)
 
-                end do
+                    end do
 
-                write(iunit, *)  J_vec(i), get_diag_helement_k_sp_hub(nI), sum_doubles, sum_doubles_trans
+                    write(iunit, *)  J_vec(i), get_diag_helement_k_sp_hub(nI), sum_doubles, sum_doubles_trans
+                else 
+                    write(iunit, *)  J_vec(i), get_diag_helement_k_sp_hub(nI)
+                end if
             end do
-
             close(iunit)
             t_trans_corr_2body = .false.
 
@@ -441,7 +750,6 @@ contains
                 ! 17 18 71 72
                 hilbert_space(:,2) = [ 11,12,13,14,15,16,17,18,21,22,23,24,25,26,27,28,29,30,&
                     37,38,39,40,41,42,43,44,45,46,55,56,57,58,59,60,61,62,63,64,71,72,73,74,75,76,77,78]
-
 
                 ! open shell:
                 ! 9 17 72 80
@@ -521,7 +829,7 @@ contains
                     add(:,5) = [3,4,7,8,21,22,19,20]
                     ! k = 0 open shell (with spin-flips)
                     add(:,6:11) = create_all_spin_flips([ 3, 7,8,21,22, 26 , 19 , 30 ])
-                    add(:,12:17) = create_all_spin_flips([3,7,8,212,22,26,27,34])
+                    add(:,12:17) = create_all_spin_flips([3,7,8,21,22,26,27,34])
                     add(:,18:23) = create_all_spin_flips([3,4,7,22,25,26,19,30])
                     add(:,24:29) = create_all_spin_flips([3,4,7,22,25,26,27,34])
                     ! k = (-2,0)
@@ -533,12 +841,16 @@ contains
                     ! k = (2,0)
                     add(:,48:53) = create_all_spin_flips([3,4,7,8,21,26,19,28])
 
-
+                    allocate(hilbert_space(nel, n_eig))
+                    hilbert_space = 0 
+                    do i = 1, 53 
+                        hilbert_space(:,i) = [trunc,add(:,i)]
+                        call sort_orbitals(hilbert_space(:,i))
+                    end do
 
                 end if
 
             end if
-
 
             call setup_system(lat, nI, J, U)
             call print_point_group_matrix_rep(hilbert_space)
@@ -793,25 +1105,611 @@ contains
 
             ! try too big systems here: 
             call frsblk_wrapper(hilbert_space, size(hilbert_space, 2), n_eig, e_values, e_vecs)
-! 
+! ! 
             print *, "e_value lanczos:", e_values
-            print *, "|i>, c_i:"
-            do i = 1, size(hilbert_space,2)
-                print *, hilbert_space(:,i), e_vecs(i,1), e_vecs(i,2), e_vecs(i,3)
-            end do
-        end if
-!         call stop_all("here", "now")
-        if (t_J_vec) then
-            call exact_transcorrelation(lat, nI, J_vec, U, hilbert_space) 
-        else 
-            call exact_transcorrelation(lat, nI, [J], U, hilbert_space) 
+!             print *, "|i>, c_i:"
+!             do i = 1, size(hilbert_space,2)
+!                 print *, hilbert_space(:,i), e_vecs(i,1), e_vecs(i,2), e_vecs(i,3)
+!             end do
         end if
 
+        if (t_do_exact_transcorr) then
+            if (t_J_vec) then
+                call exact_transcorrelation(lat, nI, J_vec, U, hilbert_space) 
+            else 
+                call exact_transcorrelation(lat, nI, [J], U, hilbert_space) 
+            end if
+        end if
+
+
+        if (t_exact_propagation) then 
+            call setup_system(lat, nI, J, U, hilbert_space)
+            call do_exact_propagation(hilbert_space, timestep, J, U, l_norm, n_excited_states)
+        end if
 
         call stop_all("here", "now")
 
     end subroutine exact_study
     
+    subroutine do_exact_propagation(hilbert_space, tau, J_param, U_param, l_norm, n_states) 
+        ! do an exact imaginary time-propagation of a given hamiltonian, 
+        ! constructed from the hilbert_space, J and U. 
+        ! tau specifies the time-step used
+        ! l_norm  = 1,2     decides which norm is used to adapt the shift.. 
+        ! n_states specifies how many states we want to calculate
+        integer, intent(in) :: hilbert_space(:,:)
+        real(dp) :: tau
+        real(dp), intent(in) :: J_param, U_param
+        integer, intent(inout) :: l_norm, n_states
+        character(*), parameter :: this_routine = "do_exact_propagation"
+
+        HElement_t(dp), allocatable :: hamil(:,:), hamil_conj(:,:)
+        integer :: size_hilbert, i, n_iters, k, l, m
+        real(dp), allocatable :: Psi_R(:,:), Psi_L(:,:), shift_R(:), shift_mat_R(:,:), shift_L(:)
+        real(dp), allocatable :: l1_norm_0_R(:), l1_norm_1_R(:), l2_norm_0_R(:), l2_norm_1_R(:)
+        real(dp), allocatable :: l1_norm_0_L(:), l1_norm_1_L(:), l2_norm_0_L(:), l2_norm_1_L(:)
+        real(dp), allocatable :: lp_norm_0_R(:), lp_norm_1_R(:), lp_norm_0_L(:), lp_norm_1_L(:)
+        real(dp) :: shift_damp, energy, tmp
+        real(dp) :: chosen_norm_0_R, chosen_norm_1_R, chosen_norm_0_L, chosen_norm_1_L
+        real(dp), allocatable :: e_values(:), e_vec(:,:), shift_mat_L(:,:), projector(:)
+        integer, allocatable :: sort_ind(:)
+        logical :: t_shoelace, t_normalize, t_neci, t_output
+        integer :: ind, iunit, iunit2
+        real(dp) :: alpha, corr, fI_i, d_ij, corr_E, fI_j, overlap, projE
+        real(dp), allocatable :: overlap_mat_exact(:,:), overlap_mat_neci(:,:), &
+                                 overlap_values(:), overlap_vecs(:,:), &
+                                 overlap_val_neci(:), overlap_vecs_neci(:,:), &
+                                 Psi_est(:,:), rotated_basis(:,:), rot_mat(:,:), &
+                                 gs_vec(:,:)
+
+        n_iters = 100000
+        shift_damp = 1.0_dp
+        t_shoelace = .false.
+        alpha = 1.0
+        ! the orthogonality of the Gram-Schmidt actually depends on the 
+        ! normalization, if it is based on a non-hermitian Hamiltonian!!
+        t_normalize = .false.
+        tau = 0.001_dp
+        ! false is more like the neci implementation! 
+
+        ! the even more neci-like
+        t_neci = .false.
+
+        if (t_neci) t_normalize = .false.
+
+        ! prepare the Hamiltonian:
+        hamil = create_hamiltonian(hilbert_space)
+        size_hilbert = size(hamil,1)
+        allocate(e_values(size_hilbert)); e_values = 0.0_dp
+        allocate(e_vec(size_hilbert,size_hilbert)); e_vec = 0.0_dp
+        call eig(hamil,e_values,e_vec)
+        print *, "original e-values: ", e_values
+        trans_corr_param_2body = -J_param
+        hamil_conj = similarity_transform(hamil)
+        trans_corr_param_2body = J_param
+        hamil = similarity_transform(hamil)
+
+        n_states = size_hilbert
+        ! prepare the initial states
+        allocate(Psi_R(size_hilbert,n_states)); Psi_R = 0.0_dp
+        allocate(Psi_L(size_hilbert,n_states)); Psi_L = 0.0_dp
+
+        do i = 1, n_states
+            ! just set 1 determinant to 1
+            Psi_R(i,i) = 1.0_dp
+            Psi_L(i,i) = 1.0_dp
+        end do
+
+        ! also initialize the shift_R: maybe we need a better start value than 0..
+        ! diagonal matrix elements maybe? 
+        allocate(shift_R(n_states)); shift_R = 0.0_dp
+        allocate(shift_L(n_states)); shift_L = 0.0_dp
+        allocate(shift_mat_R(size_hilbert,size_hilbert)); shift_mat_R = 0.0_dp
+        allocate(shift_mat_L(size_hilbert,size_hilbert)); shift_mat_L = 0.0_dp
+
+        allocate(l1_norm_0_R(n_states)); l1_norm_0_R = 0.0_dp
+        allocate(l1_norm_1_R(n_states)); l1_norm_1_R = 0.0_dp
+        allocate(l2_norm_0_R(n_states)); l2_norm_0_R = 0.0_dp
+        allocate(l2_norm_1_R(n_states)); l2_norm_1_R = 0.0_dp
+
+        allocate(l1_norm_0_L(n_states)); l1_norm_0_L = 0.0_dp
+        allocate(l1_norm_1_L(n_states)); l1_norm_1_L = 0.0_dp
+        allocate(l2_norm_0_L(n_states)); l2_norm_0_L = 0.0_dp
+        allocate(l2_norm_1_L(n_states)); l2_norm_1_L = 0.0_dp
+
+        allocate(lp_norm_0_R(n_states)); lp_norm_0_R = 0.0_dp
+        allocate(lp_norm_1_R(n_states)); lp_norm_1_R = 0.0_dp
+        allocate(lp_norm_0_L(n_states)); lp_norm_0_L = 0.0_dp
+        allocate(lp_norm_1_L(n_states)); lp_norm_1_L = 0.0_dp
+
+        ! also calculate the exact values for the comparison: 
+        allocate(sort_ind(size_hilbert))
+        sort_ind = [(i, i = 1, size_hilbert)]
+
+        call eig(hamil, e_values, e_vec)
+        call sort(e_values, sort_ind)
+
+        e_vec = e_vec(:,sort_ind)
+        print *, "linear dependent?: ", det(e_vec)
+
+        allocate(overlap_mat_exact(n_states,n_states)); overlap_mat_exact = 0.0_dp
+        do k = 1, n_states
+            do l = 1, n_states
+                overlap_mat_exact(k,l) = dot_product(e_vec(:,k),e_vec(:,l))
+            end do
+        end do
+
+        allocate(overlap_values(n_states)); overlap_values = 0.0_dp
+        allocate(overlap_vecs(n_states,n_states), source = 0.0_dp)
+
+        call eig(overlap_mat_exact, overlap_values, overlap_vecs)
+
+!         print *, "overlap eigenvalues: ", overlap_values
+!         print *, "rotation matrix: "
+!         call print_matrix(overlap_vecs)
+!         print *, "is rotation unitary U*U = 1? "
+!         call print_matrix(matmul(transpose(overlap_vecs),overlap_vecs))
+        allocate(rotated_basis(n_states,n_states), source = 0.0_dp)
+
+        do k = 1, n_states
+            do l = 1, n_states
+                rotated_basis(:,k) = rotated_basis(:,k) + overlap_vecs(l,k)*e_vec(:,l)
+            end do
+        end do
+
+        allocate(rot_mat(n_states,n_states), source = overlap_vecs)
+        do k = 1, n_states 
+            do l = 1, n_states
+                rot_mat(k,l) = rot_mat(k,l) / sqrt(overlap_values(l))
+            end do
+        end do
+
+!         print *, "is rot_mat unitary?"
+!         call print_matrix(matmul(transpose(rot_mat),rot_mat))
+
+!         print *, "S_ij in rot basis "
+!         do k = 1, n_states
+!             do l = 1, n_states
+!                 print *, k,l, dot_product(rotated_basis(:,k),rotated_basis(:,l))
+!             end do
+!         end do
+
+!         print *, "<rot|H|rot>"
+!         do k = 1, n_states
+!             energy = dot_product(rotated_basis(:,k), matmul(hamil, rotated_basis(:,k))) / &
+!                 dot_product(rotated_basis(:,k),rotated_basis(:,k))
+!             print *, energy, energy - e_values(k)
+!         end do
+
+        rotated_basis = 0.0
+        do k = 1, n_states
+            do l = 1, n_states
+                rotated_basis(:,k) = rotated_basis(:,k) + rot_mat(l,k)*e_vec(:,l)
+            end do
+        end do
+
+!         print *, "<rot|H|rot>'"
+!         do k = 1, n_states
+!             energy = dot_product(rotated_basis(:,k), matmul(hamil, rotated_basis(:,k))) / &
+!                 dot_product(rotated_basis(:,k),rotated_basis(:,k))
+!             print *, energy, energy - e_values(k)
+!         end do
+! 
+        print *, "exact eigenvalues: ", e_values
+        if (t_output) then
+            iunit = get_free_unit()
+            iunit2 = iunit+1
+            open(iunit,file='shift')
+            open(iunit2,file='norms')
+        end if
+        ! for the beginning try only the groundstate:
+        do i = 1, n_iters
+            ! |Psi(t+1)> = (1 - t(H - S))|Psi(t)>
+            if (mod(i,1000) == 0) print *, "n_iter: ", i
+            do k = 1, n_states
+
+                ! calculate norms before and after
+                l1_norm_0_R(k) = sum(abs(Psi_R(:,k)))
+                l2_norm_0_R(k) = sqrt(dot_product(Psi_R(:,k),Psi_R(:,k)))
+
+                l1_norm_0_L(k) = sum(abs(Psi_L(:,k)))
+                l2_norm_0_L(k) = sqrt(dot_product(Psi_L(:,k),Psi_L(:,k)))
+
+                lp_norm_0_R(k) = norm(Psi_R(:,k),l_norm)
+                lp_norm_0_L(k) = norm(Psi_L(:,k),l_norm)
+
+                if (l_norm == 1) then 
+                    if (abs(lp_norm_0_R(k) - l1_norm_0_R(k)) > 1.0e-4) then
+                        call stop_all(this_routine, "l1-norm-0 wrong!")
+                    end if 
+                else if (l_norm == 2) then 
+                    if (abs(lp_norm_0_R(k) - l2_norm_0_R(k)) > 1.0e-4) then
+                        call stop_all(this_routine, "l2-norm-0 wrong!")
+                    end if 
+                end if
+
+                do l = 1, size_hilbert
+                    shift_mat_R(l,l) = shift_R(k)
+                    shift_mat_L(l,l) = shift_L(k)
+                end do
+
+                Psi_R(:,k) = Psi_R(:,k) - tau * matmul(hamil - shift_mat_R,Psi_R(:,k))
+                Psi_L(:,k) = Psi_L(:,k) - tau * matmul(hamil_conj - shift_mat_L,Psi_L(:,k))
+
+                l1_norm_1_R(k) = sum(abs(Psi_R(:,k)))
+                l2_norm_1_R(k) = sqrt(dot_product(Psi_R(:,k),Psi_R(:,k)))
+                l1_norm_1_L(k) = sum(abs(Psi_L(:,k)))
+                l2_norm_1_L(k) = sqrt(dot_product(Psi_L(:,k),Psi_L(:,k)))
+
+                lp_norm_1_R(k) = norm(Psi_R(:,k),l_norm)
+                lp_norm_1_L(k) = norm(Psi_L(:,k),l_norm)
+
+                if (l_norm == 1) then 
+                    if (abs(lp_norm_1_R(k) - l1_norm_1_R(k)) > 1.0e-4) then
+                        call stop_all(this_routine, "l1-norm-1 wrong!")
+                    end if 
+                else if (l_norm == 2) then 
+                    if (abs(lp_norm_1_R(k) - l2_norm_1_R(k)) > 1.0e-4) then
+                        call stop_all(this_routine, "l2-norm-1 wrong!")
+                    end if 
+                end if
+
+                if (t_normalize) then
+                    Psi_R(:,k) = Psi_R(:,k)/l2_norm_1_R(k)
+                    Psi_L(:,k) = Psi_L(:,k)/l2_norm_1_L(k)
+                end if
+
+            end do
+
+            do k = 1, n_states
+                ! and now orthogonalise.. orthogonalise against the left 
+                ! eigenvectors..
+                do l = 1, k - 1
+                    if (t_normalize) then
+                        if (t_shoelace) then
+                            Psi_R(:,k) = Psi_R(:,k) - dot_product(Psi_R(:,k),Psi_L(:,l)) * Psi_L(:,l)
+                            Psi_L(:,k) = Psi_L(:,k) - dot_product(Psi_L(:,k),Psi_R(:,l)) * Psi_R(:,l)
+                       else 
+                            Psi_R(:,k) = Psi_R(:,k) - dot_product(Psi_R(:,k),Psi_R(:,l)) * Psi_R(:,l)
+                            Psi_L(:,k) = Psi_L(:,k) - dot_product(Psi_L(:,k),Psi_L(:,l)) * Psi_L(:,l)
+                       end if
+                   else
+                        if (t_shoelace) then
+                            Psi_R(:,k) = Psi_R(:,k) - dot_product(Psi_R(:,k),Psi_L(:,l))  / &
+                                (l2_norm_1_L(l) * l2_norm_1_R(k)) * Psi_L(:,l)
+                            Psi_L(:,k) = Psi_L(:,k) - dot_product(Psi_L(:,k),Psi_R(:,l)) / &
+                                (l2_norm_1_L(k) * l2_norm_1_R(l)) * Psi_R(:,l)
+                       else 
+                           if (t_neci) then
+                               ! in neci actual the wrong norms are taken.. 
+                               ! the ones of the non-yet-orthogonalised..
+                                Psi_R(:,k) = Psi_R(:,k) - dot_product(Psi_R(:,k),Psi_R(:,l)) / & 
+                                    (l2_norm_1_R(l)**2) * Psi_R(:,l)
+                                Psi_L(:,k) = Psi_L(:,k) - dot_product(Psi_L(:,k),Psi_L(:,l)) / & 
+                                    (l2_norm_1_L(l)**2) * Psi_L(:,l)
+                           else 
+                                Psi_R(:,k) = Psi_R(:,k) - dot_product(Psi_R(:,k),Psi_R(:,l)) / & 
+                                    (dot_product(Psi_R(:,l),Psi_R(:,l))) * Psi_R(:,l)
+                                Psi_L(:,k) = Psi_L(:,k) - dot_product(Psi_L(:,k),Psi_L(:,l)) / & 
+                                    (dot_product(Psi_L(:,l),Psi_L(:,l))) * Psi_L(:,l)
+                            end if
+                       end if
+                   end if
+                end do
+
+!                 if (k == 2) print *, "overlap: ", dot_product(Psi_R(:,k),Psi_R(:,1))
+
+                ! modify the norm to get the correct shift adaption..
+                if (t_normalize) then
+                    l1_norm_1_R(k) = sum(abs(Psi_R(:,k))) * l2_norm_1_R(k)
+                    l2_norm_1_R(k) = sqrt(dot_product(Psi_R(:,k),Psi_R(:,k))) * l2_norm_1_R(k)
+                    l1_norm_1_L(k) = sum(abs(Psi_L(:,k))) * l2_norm_1_L(k)
+                    l2_norm_1_L(k) = sqrt(dot_product(Psi_L(:,k),Psi_L(:,k))) * l2_norm_1_L(k)
+                else
+                    l1_norm_1_R(k) = sum(abs(Psi_R(:,k))) 
+                    l2_norm_1_R(k) = sqrt(dot_product(Psi_R(:,k),Psi_R(:,k))) 
+                    l1_norm_1_L(k) = sum(abs(Psi_L(:,k))) 
+                    l2_norm_1_L(k) = sqrt(dot_product(Psi_L(:,k),Psi_L(:,k))) 
+                end if
+
+                chosen_norm_0_R = lp_norm_0_R(k)
+                chosen_norm_1_R = lp_norm_1_R(k)
+                chosen_norm_0_L = lp_norm_0_L(k)
+                chosen_norm_1_L = lp_norm_1_L(k)
+!                 if (l_norm == 1) then
+!                     chosen_norm_0_R = l1_norm_0_R(k)
+!                     chosen_norm_1_R = l1_norm_1_R(k)
+!                     chosen_norm_0_L = l1_norm_0_L(k)
+!                     chosen_norm_1_L = l1_norm_1_L(k)
+!                 else if (l_norm == 2) then 
+!                     chosen_norm_0_R = l2_norm_0_R(k)
+!                     chosen_norm_1_R = l2_norm_1_R(k)
+!                     chosen_norm_0_L = l2_norm_0_L(k)
+!                     chosen_norm_1_L = l2_norm_1_L(k)
+!                 end if
+
+                shift_R(k) = shift_R(k) - shift_damp/tau * log(chosen_norm_1_R/chosen_norm_0_R)
+                shift_L(k) = shift_L(k) - shift_damp/tau * log(chosen_norm_1_L/chosen_norm_0_L)
+
+                    
+                ! and adapt the shift_R to keep the chosen norm constant
+                ! and normalize for a start.. 
+!                 Psi_R(:,k) = Psi_R(:,k) / sqrt(dot_product(Psi_R(:,k),Psi_R(:,k)))
+                ! measure energy
+!                 print *, "norms: ", l1_norm_1_R(k), l2_norm_1_R(k)
+!                 print *, "energy: ", dot_product(Psi_R(:,k),matmul(hamil, Psi_R(:,k)))
+!                 print *, "shift_R: ", shift_R(k)
+
+            end do
+
+            if (t_output) then
+                if (mod(i,100) == 0) then
+                    write(iunit,*) shift_R
+                    write(iunit2,*) lp_norm_0_R
+                end if
+            end if
+        end do
+        if (t_output) then
+            close(iunit)
+            close(iunit2)
+        end if
+
+        allocate(Psi_est(size_hilbert,n_states), source = 0.0_dp)
+
+        do k = 1, n_states
+            Psi_est(:,k) = Psi_R(:,k) - tau * matmul(hamil - shift_mat_R,Psi_R(:,k))
+        end do
+! 
+!         print *, "neci linear dependent?: ", det(Psi_R)
+! 
+!         allocate(overlap_mat_neci(n_states,n_states), source = 0.0_dp)
+!         allocate(overlap_val_neci(n_states), source = 0.0_dp)
+!         allocate(overlap_vecs_neci(n_states,n_states), source = 0.0_dp)
+! 
+!         do k = 1, n_states
+!             do l = 1, n_states
+!                 overlap_mat_neci(k,l) = dot_product(Psi_R(:,k), Psi_R(:,l)) / &
+!                     sqrt(dot_product(Psi_R(:,k),Psi_R(:,k))*dot_product(Psi_R(:,l),Psi_R(:,l)))
+!                 print *, "i,j, neci-neci overlap: ", k,l,overlap_mat_neci(k,l)
+!             end do
+!         end do
+! 
+!         do k = 1, n_states
+!             do l = 1, n_states
+!                 print *, "i,j, est-overlap: ", k,l,dot_product(Psi_est(:,k),Psi_est(:,l)) / &
+!                     sqrt(dot_product(Psi_est(:,k),Psi_est(:,k))*dot_product(Psi_est(:,l),Psi_est(:,l)))
+!             end do
+!         end do
+! 
+!         call eig(overlap_mat_neci, overlap_val_neci, overlap_vecs_neci)
+!         print *, "neci overlap values : ", overlap_val_neci
+
+        print *, "L1 norm: ", l1_norm_1_R(:)
+        print *, "L2 norm: ", l2_norm_1_R(:)
+        print *, "shift_R, error: "
+        do k = 1, n_states
+            print *, shift_R(k), shift_R(k) - e_values(k)
+        end do
+
+        print *, "shift_L, error: "
+        do k = 1, n_states
+            print *, shift_L(k), shift_L(k) - e_values(k)
+        end do
+! 
+!         print *, "<L|H|R> energy, error: "
+!         do k = 1, n_states
+!             energy = dot_product(Psi_L(:,k),matmul(hamil, Psi_R(:,k))) / & 
+!                 dot_product(Psi_L(:,k), Psi_R(:,k))
+!             print *, energy, energy - e_values(k)
+!         end do
+
+        print *, "<R|H|R> energy, error: "
+        do k = 1, n_states
+            energy = dot_product(Psi_R(:,k),matmul(hamil, Psi_R(:,k))) / & 
+                dot_product(Psi_R(:,k), Psi_R(:,k))
+            print *, energy, energy - e_values(k)
+        end do
+
+        print *, "<R|H|R> corrected energy, error, correction: "
+        do k = 1, n_states 
+            corr = 0.0_dp
+            do l = 1, k - 1
+                corr = corr + dot_product(Psi_R(:,l),Psi_R(:,k)) ** 2 / &
+                    sqrt(dot_product(Psi_R(:,l),Psi_R(:,l))*dot_product(Psi_R(:,k),Psi_R(:,k)))
+            end do
+
+            energy = dot_product(Psi_R(:,k),matmul(hamil, Psi_R(:,k))) / (1.0-corr) / &
+                dot_product(Psi_R(:,k),Psi_R(:,k))
+            print *, energy, corr, energy - e_values(k)
+        end do
+
+        allocate(projector(size_hilbert))
+        print *, "projected energy, error:"
+        do k = 1, n_states 
+            ind = maxloc(abs(Psi_R(:,k)),1)
+            projector = 0.0_dp
+            projector(ind) = 1.0_dp
+            energy = dot_product(projector, matmul(hamil, Psi_R(:,k))) / &
+                dot_product(projector,Psi_R(:,k))
+            print *, energy, energy - e_values(k)
+        end do
+
+        print *, "corrected projected energy, error: "
+        do k = 1, n_states
+            ind = maxloc(abs(Psi_R(:,k)),1)
+            projector = 0.0_dp
+            projector(ind) = 1.0_dp
+
+!             fI_i = dot_product(projector,Psi_R(:,k)/l2_norm_1_R(k))
+!             projE = dot_product(projector, matmul(hamil, Psi_R(:,k)/l2_norm_1_R(k))) / fI_i
+            projE = dot_product(projector, matmul(hamil, Psi_R(:,k))) / &
+                dot_product(projector,Psi_R(:,k))
+
+            fI_i = dot_product(projector, e_vec(:,k))
+
+            corr = 0.0_dp
+            corr_E = 0.0_dp
+
+            do l = 1, k - 1
+                overlap = dot_product(e_vec(:,k),Psi_R(:,l)) / &
+                    sqrt(dot_product(Psi_R(:,l),Psi_R(:,l)))
+
+                fI_j = dot_product(projector, Psi_R(:,l)) / & 
+                    sqrt(dot_product(Psi_R(:,l),Psi_R(:,l)))
+
+                corr = corr + overlap * fI_j
+                corr_E = corr_E + overlap * dot_product(projector, matmul(hamil,Psi_R(:,l))) / &
+                    sqrt(dot_product(Psi_R(:,l),Psi_R(:,l)))
+!                 do m = 1, l-1
+!                     corr_E = corr_E - e_values(m) * overlap * & 
+!                         (dot_product(e_vec(:,l),Psi_R(:,m)) / & 
+!                         sqrt(dot_product(Psi_R(:,m),Psi_R(:,m)))) * &
+!                         dot_product(e_vec(:,m),projector)
+!                         (dot_product(Psi_R(:,m)/l2_norm_1_R(m), projector))
+!                 end do
+            end do
+
+            energy = (projE * (fI_i - corr) + corr_E)/fI_i
+            print *, energy, energy - e_values(k), corr, corr_E, fI_i
+            
+        end do
+         
+        print *, "second method corrected projected energy: "
+        do k = 1, n_states
+            ind = maxloc(abs(Psi_R(:,k)),1)
+            projector = 0.0_dp
+            projector(ind) = 1.0_dp
+
+            fI_i = dot_product(projector, Psi_R(:,k)) / & 
+                sqrt(dot_product(Psi_R(:,k),Psi_R(:,k))) 
+
+            projE = dot_product(projector, matmul(hamil, Psi_R(:,k))) / &
+                dot_product(projector,Psi_R(:,k))
+
+            corr = 0.0_dp
+            corr_E = 0.0_dp
+
+            do l = 1, k - 1
+                tmp = dot_product(projector,Psi_R(:,l))*dot_product(Psi_R(:,l),e_vec(:,k))
+                corr = corr + tmp
+                corr_E = corr_E + tmp*dot_product(projector,matmul(hamil,Psi_R(:,l)))
+            end do
+
+            energy = (fI_i * projE + corr_E) / (fI_i + corr)
+            print *, energy, energy - e_values(k), corr, corr_E, fI_i
+        end do
+
+        print *, "estimated corrected projected energy: "
+        do k = 1, n_states
+            ind = maxloc(abs(Psi_R(:,k)),1)
+            projector = 0.0_dp
+            projector(ind) = 1.0_dp
+
+            fI_i = dot_product(projector, Psi_R(:,k)) / & 
+                sqrt(dot_product(Psi_R(:,k),Psi_R(:,k))) 
+
+            projE = dot_product(projector, matmul(hamil, Psi_R(:,k))) / &
+                dot_product(projector,Psi_R(:,k))
+
+            corr = 0.0_dp
+            corr_E = 0.0_dp
+
+            do l = 1, k - 1
+                tmp = dot_product(projector,Psi_R(:,l))*dot_product(Psi_R(:,l),Psi_est(:,k))
+                corr = corr + tmp
+                corr_E = corr_E + tmp*dot_product(projector,matmul(hamil,Psi_R(:,l)))
+
+            end do
+
+            energy = (fI_i * projE + corr_E) / (fI_i + corr)
+            print *, energy, energy - e_values(k), corr, corr_E, fI_i
+        end do
+
+        print *, "projected <D|PH|R> energy error: "
+        do k = 1, n_states 
+            ind = maxloc(abs(Psi_R(:,k)),1)
+            projector = 0.0_dp
+            projector(ind) = 1.0_dp
+
+            fI_i = dot_product(projector, Psi_R(:,k)) / & 
+                sqrt(dot_product(Psi_R(:,k),Psi_R(:,k))) 
+
+            Psi_est(:,k) = matmul(hamil, Psi_R(:,k)) / &
+                sqrt(dot_product(Psi_R(:,k),Psi_R(:,k))) 
+
+            do l = 1, k - 1
+                Psi_est(:,k) = Psi_est(:,k) - dot_product(Psi_est(:,k), Psi_R(:,l)) / & 
+                    dot_product(Psi_R(:,l),Psi_R(:,l)) * Psi_R(:,l)
+            end do
+
+            projE = dot_product(projector, Psi_est(:,k)) / fI_i
+            print *, projE, projE - e_values(k)
+
+        end do
+
+        print *, "<D|PH|R> energy error: "
+        do k = 1, n_states 
+            ind = maxloc(abs(Psi_R(:,k)),1)
+            projector = 0.0_dp
+            projector(ind) = 1.0_dp
+
+            fI_i = dot_product(projector, Psi_R(:,k)) / & 
+                sqrt(dot_product(Psi_R(:,k),Psi_R(:,k))) 
+
+!             Psi_est(:,k) = matmul(hamil, Psi_R(:,k)) / &
+!                 sqrt(dot_product(Psi_R(:,k),Psi_R(:,k))) 
+
+            do l = 1, k - 1
+                Psi_est(:,k) = Psi_est(:,k) - dot_product(Psi_est(:,k), Psi_R(:,l)) / & 
+                    dot_product(Psi_R(:,l),Psi_R(:,l)) * Psi_R(:,l)
+            end do
+
+            projE = dot_product(projector, Psi_est(:,k)) / fI_i
+            print *, projE, projE - e_values(k)
+
+        end do
+
+!         print *, "i, j, neci-neci overlap: "
+!         do k = 1, n_states
+!             do l = k, n_states
+!                 print *, k, l, dot_product(Psi_R(:,k), Psi_R(:,l)) / & 
+!                     sqrt(dot_product(Psi_R(:,k),Psi_R(:,k))*dot_product(Psi_R(:,l),Psi_R(:,l)))
+!             end do
+!         end do
+! 
+!         print *, "i, j: neci-exact  overlap"
+!         do k = 1, n_states
+! !             do l = 1, n_states
+!                 print *, k, k, dot_product(Psi_R(:,k), e_vec(:,k)) / &
+!                     sqrt(dot_product(Psi_R(:,k),Psi_R(:,k)))
+! !             end do
+!         end do
+! 
+!         allocate(gs_vec(n_states,n_states), source = 0.0_dp)
+!         print *, "test-overlap:"
+!         do k = 1, n_states 
+!             Psi_est(:,k) = e_vec(:,k)
+!             do l = 1, k - 1
+!                 Psi_est(:,k) = Psi_est(:,k) - dot_product(Psi_est(:,k),Psi_est(:,l)) / &
+!                         dot_product(Psi_est(:,l),Psi_est(:,l)) * Psi_est(:,l)
+! 
+!             end do
+! 
+!             gs_vec(:,k) = Psi_est(:,k) / sqrt(dot_product(Psi_est(:,k),Psi_est(:,k)))
+!             print *, k, k, dot_product(e_vec(:,k),gs_vec(:,k))! / &
+! !                 sqrt(dot_product(Psi_est(:,k),Psi_est(:,k)))
+!         end do
+! 
+!         print *, "S_ij:"
+!         do k = 1, n_states
+!             do l = 1, k 
+!                 print *, k,l,dot_product(gs_vec(:,k),gs_vec(:,l))
+!             end do
+!         end do
+
+
+    end subroutine do_exact_propagation
+
     subroutine setup_system(in_lat, nI, J, U, hilbert_space) 
         class(lattice), intent(in) :: in_lat
         integer, intent(in) :: nI(:) 
@@ -832,6 +1730,9 @@ contains
             if (is_alpha(nI(i))) nOccAlpha = nOccAlpha + 1
         end do
 
+        n_opp(-1) = real(nOccAlpha,dp)
+        n_opp(1) = real(nOccBeta,dp)
+
         call setup_all(in_lat, J, U) 
 
         call setup_k_total(nI) 
@@ -840,6 +1741,8 @@ contains
         get_helement_lattice_ex_mat => get_helement_k_space_hub_ex_mat
         get_helement_lattice_general => get_helement_k_space_hub_general
         call init_tmat_kspace(lat)
+        call init_two_body_trancorr_fac_matrix()
+        call init_three_body_const_mat()
 
 
         if (present(hilbert_space)) then
@@ -922,7 +1825,7 @@ contains
         get_umat_el => get_umat_kspace
 
         trans_corr_param_2body = 0.1
-        three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+        three_body_prefac = real(bhub,dp)*test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
 
         ! also initialize the lattice get_helement pointers to use 
         ! detham to do the Lanczos procedure for bigger systems.. 
@@ -931,6 +1834,8 @@ contains
         get_helement_lattice_general => get_helement_k_space_hub_general
         call init_tmat_kspace(lat)
 
+        call init_bit_rep()
+
     end subroutine init_k_space_unit_tests
 
     subroutine k_space_hubbard_test_driver() 
@@ -938,12 +1843,16 @@ contains
         ! k-space hubbard is really annoying.. 
         ! this is the main function which calls all the other tests 
        
+        call init_k_space_unit_tests()
+        call run_test_case(gen_excit_k_space_hub_transcorr_uniform_stoch_test, &
+            "gen_excit_k_space_hub_transcorr_uniform_stoch_test")
+        call stop_all("here","now")
+
         call run_test_case(setup_g1_test, "setup_g1_test")
         call run_test_case(setup_nbasismax_test, "setup_nbasismax_test")
         call run_test_case(setup_tmat_k_space_test, "setup_tmat_k_space_test")
         call run_test_case(setup_kPointToBasisFn_test, "setup_kPointToBasisFn_test")
 
-        call init_k_space_unit_tests()
         call run_test_case(test_3e_4orbs_par, "test_3e_4orbs_par")
         call run_test_case(test_3e_4orbs_trip, "test_3e_4orbs_trip")
         call run_test_case(test_4e_ms1, "test_4e_ms1")
@@ -1380,7 +2289,7 @@ contains
             trans_corr_param_2body = 0.1
         end if
 
-        three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+        three_body_prefac = real(bhub,dp)*test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
 
         ! after setup everything should be fine again.. or?
         ttilt = .false. 
@@ -1399,21 +2308,27 @@ contains
                                        hamil_next(:,:), hamil_neci_next(:,:)
         real(dp), allocatable :: e_values(:), e_values_neci(:), e_vec(:,:), gs_vec(:)
         real(dp), allocatable :: e_vec_trans(:,:), t_mat_next(:,:), e_vec_next(:,:)
+        real(dp), allocatable :: e_vec_left(:,:)
         real(dp), allocatable :: e_vec_trans_left(:,:), e_vec_next_left(:,:)
         real(dp) :: gs_energy, gs_energy_orig, hf_coeff_onsite(size(J))
         real(dp) :: hf_coeff_next(size(J)), hf_coeff_orig
-        real(dp), allocatable :: neci_eval(:)
+        real(dp), allocatable :: neci_eval(:), pca_eval(:), pca_evec(:,:)
         integer, allocatable :: hilbert_space(:,:)
         character(30) :: filename, J_str, U_str
-        logical :: t_norm_inside
-        integer :: ic_inside, ic
+        logical :: t_norm_inside, t_pca, t_check_orthogonality, t_calc_doubles
+        integer :: ic_inside, ic, l, hf_ind
         real(dp), allocatable :: norm_inside_orig(:), norm_inside_trans(:), &
             norm_inside_trans_left(:)
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
         real(dp) :: e_thresh = 1.0e-5_dp
+        integer, allocatable :: sort_ind(:)
+        real(dp), allocatable :: hf_det(:), doubles(:), j_opt(:)
         
-        t_norm_inside = .true.
+        t_norm_inside = .false.
+        t_pca = .false.
         ic_inside = 2
+        t_check_orthogonality = .false.
+        t_calc_doubles = .true.
 
         write(U_str,*) U
 
@@ -1438,7 +2353,34 @@ contains
         print *, "diagonalizing original hamiltonian: " 
         allocate(e_values(n_states));        e_values = 0.0_dp
         allocate(e_vec(n_states, n_states)); e_vec = 0.0_dp
+        allocate(e_vec_left(n_states, n_states)); e_vec_left = 0.0_dp
         allocate(gs_vec(n_states));          gs_vec = 0.0_dp
+
+        if (t_calc_doubles) then
+            allocate(hf_det(n_states), source = 0.0_dp)
+            allocate(doubles(n_states), source = 0.0_dp)
+            allocate(j_opt(size(j)), source = 0.0_dp)
+
+            ! find the hf determinant
+            do i = 1, n_states
+                if (all(hilbert_space(:,i) == nI)) then 
+                    hf_ind = i
+                    hf_det(i) = 1.0_dp
+                end if
+            end do
+
+            doubles = matmul(hamil,hf_det)
+            ! and i want to remove the HF det from the doubles 
+            doubles(hf_ind) = 0.0_dp
+
+            print *, "doubles: "
+            do i = 1, n_states 
+                if (abs(doubles(i)) > EPS) then 
+                    print *, hilbert_space(:,i), doubles(i)
+                end if
+            end do
+        end if
+
         do i = 1, size(hamil,1)
             do k = 1, size(hamil,2)
                 if (isnan(hamil(i,k)) .or. is_inf(hamil(i,k))) print *, i,k,hamil(i,k)
@@ -1514,7 +2456,9 @@ contains
             filename = 'gs_vec_trans_J_' // trim(adjustl((J_str)))
 
             trans_corr_param_2body = J(i)
-            three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+            three_body_prefac = real(bhub,dp)*test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+            call init_two_body_trancorr_fac_matrix()
+            call init_three_body_const_mat()
 
             print *, "creating transformed hamiltonian: "
             hamil_trans = similarity_transform(hamil) 
@@ -1535,6 +2479,12 @@ contains
             t_trans_corr = .false. 
 
             neci_eval = calc_eigenvalues(hamil_neci)
+
+            if (t_calc_doubles) then 
+
+                j_opt(i) = dot_product(doubles,matmul(hamil_trans, hf_det))
+
+            end if
 
             if (abs(gs_energy_orig - minval(neci_eval)) > e_thresh) then 
                 print *, "original hamiltonian: "
@@ -1565,6 +2515,48 @@ contains
 
             print *, "diagonalizing the transformed hamiltonian: " 
             call eig(hamil_trans, e_values, e_vec) 
+
+            if (t_check_orthogonality) then 
+
+                call eig(hamil_trans, e_values, e_vec_left, .true.) 
+                print *, "J: ", J(i)
+                allocate(sort_ind(n_states))
+                sort_ind = [(k, k = 1, n_states)]
+                call sort(e_values, sort_ind)
+                e_vec = e_vec(:,sort_ind)
+
+                print *, "e_values: ", e_values
+
+                print *, "overlap to GS:"
+                do k = 1, 9
+                    do l = k + 1, 10
+                        print *, "k,l, overlap: ", k, l, dot_product(e_vec(:,k),e_vec(:,l))
+                    end do
+                end do
+
+                sort_ind = [(k, k = 1, n_states)]
+                call sort(e_values, sort_ind)
+                e_vec_left = e_vec_left(:,sort_ind)
+
+                ! also output the full-ground-states vectors.. 
+                iunit = get_free_unit()
+                open(iunit, file = 'right_ev')
+                do k = 1, n_states
+                    call EncodeBitDet(hilbert_space(:,k), ilutI)
+                    call writedetbit(iunit, ilutI, .false.)
+                    write(iunit,*) e_vec(k,1:10)
+                end do
+                close(iunit)
+                iunit = get_free_unit()
+                open(iunit, file = 'left_ev')
+                do k = 1, n_states
+                    call EncodeBitDet(hilbert_space(:,k), ilutI)
+                    call writedetbit(iunit, ilutI, .false.)
+                    write(iunit,*) e_vec_left(k,1:10)
+                end do
+                close(iunit)
+
+            end if
 
             ! find the ground-state
             ind = minloc(e_values,1) 
@@ -1646,6 +2638,31 @@ contains
             e_vec_next_left(:,i) = gs_vec
 
         end do
+
+        if (t_calc_doubles) then 
+            iunit = get_free_unit()
+            open(iunit, file = 'exact_opt_J')
+            do i = 1, size(j)
+                write(iunit,*) j(i), j_opt(i)
+            end do
+            close(iunit)
+        end if
+
+        if (t_pca) then
+            ! try a principal component analysis
+            print *, "size(e_vec_trans):", size(e_vec_trans,1), size(e_vec_trans,2)
+            allocate(pca_eval(size(J)))
+            allocate(pca_evec(size(J),size(J)))
+            call eig(matmul(transpose(e_vec_trans),e_vec_trans), pca_eval, pca_evec)
+
+            print *, "principal components: "
+            do i = 1, size(J)
+                print *, pca_eval(i)
+            end do
+!             print *, "principal evs: "
+!             call print_matrix(pca_evec)
+
+        end if
 
         if (t_norm_inside) then 
             ! do also a l2 norm inside excitation level study for the 
@@ -2155,7 +3172,7 @@ contains
 
         trans_corr_param_2body = 1.0_dp 
 
-        three_body_prefac = 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+        three_body_prefac = real(bhub,dp)*test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
 
         umat = uhub/omega
 
@@ -2233,7 +3250,6 @@ contains
         ex(1,:) = [6,1]
         call assert_equals(h_cast(uhub/real(omega,dp)), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
 
-!         three_body_prefac = 1.0_dp
         ex(1,:) = [1,6]
         ex(2,:) = [3,4]
         print *, "---------------------------------" 
@@ -3666,6 +4682,77 @@ contains
             gen_all_excits=gen_all_excits_k_space_hubbard) 
 
     end subroutine gen_excit_k_space_hub_test_stochastic
+
+    subroutine gen_excit_k_space_hub_transcorr_uniform_stoch_test
+
+        integer :: nI(nel), n_excits, i, nJ(nel), n_triples
+        integer(n_int), allocatable :: det_list(:,:)
+
+        print *, "" 
+        print *, "testing: gen_excit_k_space_hub_transcorr_uniform" 
+        print *, "first for a system with no possible triples, due to momentum conservation"
+
+        pDoubles = 0.8 
+        pParallel = 0.2 
+        t_trans_corr_2body = .true. 
+
+        nI = [1,2,3,4] 
+        call setup_k_total(nI)
+
+        call setup_system(lat, nI, trans_corr_param_2body, real(uhub,dp))
+        call init_two_body_trancorr_fac_matrix()
+        call init_three_body_const_mat()
+
+        call gen_all_triples_k_space(nI, n_excits, det_list)
+
+        call gen_all_excits_k_space_hubbard(nI, n_excits, det_list)
+
+        ! for this momentum sector there are no, triple excitations valid.. 
+        ! so test that for now! 
+        call run_excit_gen_tester(gen_excit_uniform_k_space_hub_test, &
+            "gen_excit_uniform_k_space_hub_test",opt_ni = nI, & 
+            gen_all_excits = gen_all_excits_k_space_hubbard) 
+
+        do i = 1, n_excits 
+            call decode_bit_det(nJ, det_list(:,i))
+            call run_excit_gen_tester(gen_excit_uniform_k_space_hub_test, &
+                "gen_excit_uniform_k_space_hub_test",opt_ni = nJ, & 
+                gen_all_excits = gen_all_excits_k_space_hubbard) 
+        end do
+
+        print *, "" 
+        print *, "and now for a system with triples: "
+        nI = [3,4,6,7]
+        call setup_k_total(nI) 
+
+        call setup_system(lat, nI, trans_corr_param_2body, real(uhub,dp))
+        call init_two_body_trancorr_fac_matrix()
+        call init_three_body_const_mat()
+
+        call gen_all_triples_k_space(nI, n_triples, det_list)
+
+        print *, "number of triple excitations: ", n_triples
+        do i = 1, n_triples
+            call writebitdet(6, det_list(:,i),.true.)
+        end do
+
+        call gen_all_excits_k_space_hubbard(nI, n_excits, det_list)
+
+        ! for this momentum sector there are no, triple excitations valid.. 
+        ! so test that for now! 
+        call run_excit_gen_tester(gen_excit_uniform_k_space_hub_test, &
+            "gen_excit_uniform_k_space_hub_test",opt_ni = nI, & 
+            gen_all_excits = gen_all_excits_k_space_hubbard) 
+
+        do i = 1, n_excits 
+            call decode_bit_det(nJ, det_list(:,i))
+            call run_excit_gen_tester(gen_excit_uniform_k_space_hub_test, &
+                "gen_excit_uniform_k_space_hub_test",opt_ni = nJ, & 
+                gen_all_excits = gen_all_excits_k_space_hubbard) 
+        end do
+
+
+    end subroutine gen_excit_k_space_hub_transcorr_uniform_stoch_test
 
     subroutine gen_excit_k_space_hub_transcorr_test_stoch
 

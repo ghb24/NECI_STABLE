@@ -688,7 +688,7 @@ contains
             if(.not. tGZero) then ! skip this if we only want the corespace-evolution
                do ireplica = 1, lenof_sign
 
-                  call decide_num_to_spawn(parent_sign(ireplica), parent_hdiag, AvMCExcits, nspawn)
+                  call decide_num_to_spawn(parent_sign(ireplica),parent_hdiag, AvMCExcits, nspawn)
                   !call merge_spawn(nspawn,prefactor)
                   do ispawn = 1, nspawn
 

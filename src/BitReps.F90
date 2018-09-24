@@ -4,6 +4,7 @@ module bit_reps
     use FciMCData, only: CurrentDets, WalkVecDets, MaxWalkersPart, tLogNumSpawns
     use SystemData, only: nel, tCSF, tTruncateCSF, nbasis, csf_trunc_level, &
                         tGUGA
+
     use CalcData, only: tTruncInitiator, tUseRealCoeffs, tSemiStochastic, &
                         tCSFCore, tTrialWavefunction, semistoch_shift_iter, &
                         tStartTrialLater

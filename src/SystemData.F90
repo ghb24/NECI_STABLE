@@ -87,6 +87,7 @@ integer(int64) :: CalcDetPrint, CalcDetCycles   ! parameters
 logical :: tUEGTrueEnergies ! This is the logical for use of unscaled energies in the UEG calculation; will normally break spawning
 logical :: tLatticeGens   ! Use new UEG excitation generators
 logical :: t_uniform_excits = .false. 
+logical :: t_mixed_excits = .false.
 logical :: tNoFailAb
 logical :: tUEGOffset     ! Use twisted boundary conditions
 real(dp) :: k_offset(3)      ! UEG parameter for twist-averaging

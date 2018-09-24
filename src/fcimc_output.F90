@@ -30,23 +30,39 @@ module fcimc_output
 
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
+
     use IntegralsData, only: frozen_orb_list, frozen_orb_reverse_map, &
                              nel_pre_freezing
+
     use DetCalcData, only: det, fcidets, ReIndex, NDet, NRow, HAMIL, LAB
+
     use bit_reps, only: decode_bit_det, test_flag, extract_sign, get_initiator_flag
+
     use semi_stoch_procs, only: return_most_populated_states
+
     use bit_rep_data, only: niftot, nifd, flag_initiator
+
     use hist, only: calc_s_squared_star, calc_s_squared
+
     use fcimc_helper, only: LanczosFindGroundE
+
     use Determinants, only: write_det
+
     use adi_data, only: AllCoherentDoubles, AllIncoherentDets, nRefs, &
          ilutRefAdi, tAdiActive, nConnection, AllConnection
+
     use rdm_data, only: en_pert_main
+
     use Parallel_neci
+
     use FciMCData
+
     use constants
+
     use sort_mod
+
     use util_mod
+
     use tau_search, only: comm_frequency_histogram, comm_frequency_histogram_spec
 
     use real_time_data, only: AllNoBorn_1, AllNoAborted_1, AllAnnihilated_1, &
@@ -668,6 +684,7 @@ contains
             end if
             call stats_out(state,.false., AllTotWalkers, 'Dets occ.')
             call stats_out(state,.false., nspawned_tot, 'Dets spawned')
+            call stats_out(state,.false., Hii, 'reference energy')
 #ifdef __REALTIME
             call stats_out(state,.false., real(sum(dyn_norm_red(:,1))/normsize),'GF normalization')
 #else
@@ -728,6 +745,8 @@ contains
                                 'Parts (' // trim(adjustl(tmpc)) // ')')
                 call stats_out (state, .false., AllNoatHF(p), &
                                 'Ref (' // trim(adjustl(tmpc)) // ')')
+                call stats_out(state, .false., proje_ref_energy_offsets(p), &
+                                'ref. energy offset('//trim(adjustl(tmpc))// ')')
                 call stats_out (state, .false., DiagSft(p) + Hii, &
                                 'Shift (' // trim(adjustl(tmpc)) // ')')
 #ifdef __CMPLX
@@ -765,10 +784,9 @@ contains
 #else
                 call stats_out (state, .false., proje_iter(p) + Hii, &
                                 'Tot ProjE (' // trim(adjustl(tmpc)) // ')')
-                call stats_out (state, .false., AllHFCyc(p) / StepsSft, &
+                call stats_out (state, .false., all_cyc_proje_denominator(p) / StepsSft, &
                                 'ProjE Denom (' // trim(adjustl(tmpc)) // ')')
-                call stats_out (state, .false., &
-                                (AllENumCyc(p) + Hii*AllHFCyc(p)) / StepsSft,&
+                call stats_out (state, .false., AllENumCyc(p) / StepsSft,  &
                                 'ProjE Num (' // trim(adjustl(tmpc)) // ')')
                 if (tTrialWavefunction .or. tStartTrialLater) then
                     call stats_out (state, .false., &

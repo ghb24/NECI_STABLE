@@ -5,33 +5,50 @@
 module verlet_aux
 
   use constants, only: n_int, lenof_sign, dp, EPS, inum_runs, null_part
+
   use AnnihilationMod, only: DirectAnnihilation, SendProcNewParts, CompressSpawnedList
+
   use hash, only: clear_hash_table, hash_table_lookup, add_hash_table_entry
+
   use bit_rep_data, only: niftot, nifdbo, extract_sign, nOffFlag, tUseFlags
+
   use bit_reps, only: decode_bit_det, set_flag, get_initiator_flag_by_run, encode_sign, &
        add_ilut_lists, extract_bit_rep, test_flag, encode_bit_rep
+
   use real_time_data, only: spawnBuf, spawnBufSize, dpsi_cache, dpsi_size, max_cache_size, &
        backup_size, temp_det_list, tau_real, tau_imag, iterInit, tDynamicAlpha, tVerletSweep, &
        runge_kutta_step
+
   use real_time_procs, only: attempt_die_realtime, real_time_determ_projection
+
   use SystemData, only: nel 
+
   use FciMCData, only: CurrentDets, HashIndex, maxSpawned, iStartFreeSlot, iEndFreeSlot, &
                         inum_runs, SpawnedParts, TotWalkers, spawn_ht, iter_data_fciqmc, &
                         InitialSpawnedSlots, ValidSpawnedList, fcimc_excit_gen_store, &
                         indices_of_determ_states, partial_determ_vecs, FreeSlot, ll_node, &
                         popsfile_dets, WalkVecDets, exFlag, max_calc_ex_level, ilutRef, Hii, &
                         fcimc_iter_data, determ_sizes, partial_determ_vecs
+
   use CalcData, only: tTruncInitiator, tau, AvMCExcits, tPairedReplicas, &
        tSemiStochastic, tInitCoherentRule
+
   use procedure_pointers, only: attempt_create, attempt_die, generate_excitation, &
        encode_child
+
   use DetBitOps, only: FindBitExcitLevel
+
   use Determinants, only: get_helement
+
   use fcimc_pointed_fns, only: attempt_create_normal
+
   use fcimc_helper, only: CalcParentFlag, decide_num_to_spawn, create_particle_with_hash_table, &
        SumEContrib, check_semistoch_flags, checkValidSpawnedList, rezero_iter_stats_each_iter
+
   use semi_stoch_procs, only: check_determ_flag
+
   use load_balance_calcnodes, only: DetermineDetNode
+
   use ParallelHelper, only: iProcIndex
 
   implicit none
@@ -250,7 +267,7 @@ module verlet_aux
       
       unused_ex_level = 0
       do part = 1, lenof_sign
-         call decide_num_to_spawn(parent_sign(part),hdiag,AvMCExcits,nspawn)
+         call decide_num_to_spawn(parent_sign(part),hdiag, AvMCExcits,nspawn)
          do ispawn = 1, nspawn
             ilut_child = 0_n_int
             

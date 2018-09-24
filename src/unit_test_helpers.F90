@@ -3,7 +3,7 @@
 ! a small module with functions needed for the unit-tests
 module unit_test_helpers
 
-    use constants, only: dp, EPS, n_int
+    use constants, only: dp, EPS, n_int, bits_n_int, sp
 
     use lattice_mod, only: get_helement_lattice, lattice
 
@@ -24,7 +24,7 @@ module unit_test_helpers
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet, findbitexcitlevel, &
                          count_open_orbs
 
-    use sort_mod, only: sort
+    use sort_mod
 
     use ras, only: sort_orbitals
 
@@ -39,6 +39,14 @@ module unit_test_helpers
             integer(n_int), intent(out), allocatable :: det_list(:,:)
         end subroutine generate_all_excits_t
     end interface
+
+    interface linspace
+        module procedure linspace_sp
+        module procedure linspace_dp
+    end interface linspace
+!     interface is_in_list
+!         module procedure is_in_list_ilut
+!     end interface is_in_list
 
 contains
 
@@ -442,9 +450,11 @@ contains
         integer, intent(in) :: nI_in(:)
         integer, allocatable :: spin_flips(:,:)
 
-        integer :: nI(size(nI_in))
-        integer :: num, n_open, ms, n_states
-        integer(n_int) :: ilutI(0:niftot)
+        integer :: nI(size(nI_in)), nJ(size(nI_in))
+        integer :: num, n_open, ms, n_states, i, j, k, n_found
+        integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
+        integer, allocatable :: open_shells(:)
+        integer(n_int), allocatable :: ilut_list(:,:)
 
         nI = nI_in
 
@@ -466,10 +476,115 @@ contains
         ! the first det will be the original one
         spin_flips(:,1) = nI
 
-        call stop_all("here", "not yet implemented!")
+        allocate(ilut_list(0:niftot,n_states))
+        ilut_list = 0_n_int
+        ilut_list(:,1) = ilutI
 
+        n_found = 1
+        ! i have a brute force solution for now: 
+        ! loop over all the possible states, starting with the original,
+        ! since we need to account for multiple flips in this way
+        ! i dont need to take the last one.. 
+        do i = 1, n_states - 1
+            ! here determine the positions of the open-shell orbitals 
+            open_shells = find_open_shell_indices(spin_flips(:,i))
+
+            ! and now flip all possible open-shell pairs
+            do j = 1, n_open - 1
+                do k = j + 1, n_open
+                    ! cycle if same orbital or parallel spin 
+!                     if (j == k) cycle 
+                    if (same_spin(spin_flips(open_shells(j),i), spin_flips(open_shells(k),i))) cycle
+
+                    nj = spin_flips(:,i)
+                    if (is_beta(spin_flips(open_shells(j),i))) then
+                        ! then we know (j) is beta and (k) is alpha
+                        nJ(open_shells(j)) = &
+                            get_alpha(spin_flips(open_shells(j),i))
+                        nJ(open_shells(k)) = &
+                            get_beta(spin_flips(open_shells(k),i))
+                    else
+                        ! otherwise (j) is alpha and (k) is beta
+                        nJ(open_shells(j)) = &
+                            get_beta(spin_flips(open_shells(j),i))
+                        nJ(open_shells(k)) = &
+                            get_alpha(spin_flips(open_shells(k),i))
+                    end if
+
+                    ! if this determinant is not yet in the spin-flip 
+                    ! list, put it in
+                    call EncodeBitDet(nJ, ilutJ)
+                    if (.not. is_in_list_ilut(ilutJ, n_found, ilut_list)) then
+                        n_found = n_found + 1
+                        ilut_list(:,n_found) = ilutJ
+                        spin_flips(:,n_found) = nJ
+                    end if
+                end do
+            end do
+        end do
+
+!         call print_matrix(transpose(spin_flips))
 
     end function create_all_spin_flips
+
+    logical function is_in_list_ilut(tgt_ilut, n_states, ilut_list_in, t_sorted_opt)
+        ! interfaced function for finding a ilut rep. in a ilut list 
+        integer(n_int), intent(in) :: tgt_ilut(0:niftot)
+        integer, intent(in) :: n_states
+        integer(n_int), intent(in) :: ilut_list_in(0:niftot,n_states)
+        logical, intent(in), optional :: t_sorted_opt
+
+        logical :: t_sorted
+        integer :: pos
+        integer(n_int) :: ilut_list(0:niftot,n_states)
+
+        if (present(t_sorted_opt)) then 
+            t_sorted = t_sorted_opt
+        else
+            ! default it is believed that the list is NOT sorted
+            t_sorted = .false.
+        end if
+
+        ilut_list = ilut_list_in 
+
+        if (.not. t_sorted) then 
+            call sort(ilut_list, ilut_lt, ilut_gt)
+        end if
+
+        pos = binary_search(ilut_list, tgt_ilut, nifd+1)
+
+        if (pos > 0) then
+            is_in_list_ilut = .true.
+        else
+            is_in_list_ilut = .false.
+        end if
+
+    end function is_in_list_ilut
+        
+    function find_open_shell_indices(nI) result(open_shells)
+        ! find the indices of the open-shell orbitals of a nI rep.
+        integer, intent(in) :: nI(:)
+        integer, allocatable :: open_shells(:)
+
+        integer(n_int) :: ilutI(0:niftot)
+        integer :: n_open, i, cnt
+
+        call EncodeBitDet(nI, ilutI)
+
+        n_open = count_open_orbs(ilutI)
+
+        allocate(open_shells(n_open))
+        open_shells = 0
+
+        cnt = 0
+        do i = 1, size(nI)
+            if (.not. IsDoub(ilutI,nI(i))) then
+                cnt = cnt + 1
+                open_shells(cnt) = i
+            end if
+        end do
+
+    end function find_open_shell_indices
 
     function get_tranformation_matrix(hamil, n_pairs) result(t_matrix)
         ! n_pairs is actually also a global system dependent quantitiy.. 
@@ -498,6 +613,38 @@ contains
 
     end function get_tranformation_matrix
 
+    real(dp) function det(matrix) 
+        real(dp), intent(in) :: matrix(:,:)
+
+        integer :: n, i, info
+        integer, allocatable :: ipiv(:) 
+        real(dp) :: sgn 
+        real(dp), allocatable :: tmp_matrix(:,:)
+
+        n = size(matrix,1)
+        allocate(tmp_matrix(n,n), source = matrix)
+        allocate(ipiv(n))
+
+        ipiv = 0
+
+        call dgetrf(n,n,tmp_matrix,n,ipiv,info)
+
+        det = 1.0_dp
+
+        do i = 1, N
+            det = det * tmp_matrix(i,i)
+        end do
+
+        sgn = 1.0_dp
+        do i = 1, n
+            if (ipiv(i) /= i) then 
+                sgn = -sgn
+            end if
+        end do
+
+        det = sgn * det 
+
+    end function det
     function blas_matmul(A, B) result(C)
         ! a basic wrapper to the most fundamental matrix mult with blas 
         real(dp), intent(in) :: A(:,:), B(:,:) 
@@ -511,7 +658,31 @@ contains
 
     end function blas_matmul
 
-    function linspace(start_val, end_val, n_opt) result(vec) 
+    function linspace_sp(start_val, end_val, n_opt) result(vec) 
+        real(sp), intent(in) :: start_val, end_val 
+        integer, intent(in), optional :: n_opt
+        real(sp), allocatable :: vec(:) 
+
+        integer :: n, i 
+        real(sp) :: dist 
+
+        ! set default 
+        if (present(n_opt)) then 
+            n = n_opt
+        else 
+            n = 100
+        end if
+
+        dist = (end_val - start_val) / real(n - 1, dp) 
+
+        allocate(vec(n)) 
+
+        vec = [ ( start_val + i * dist, i = 0,n-1)]
+
+    end function linspace_sp
+
+
+    function linspace_dp(start_val, end_val, n_opt) result(vec) 
         real(dp), intent(in) :: start_val, end_val 
         integer, intent(in), optional :: n_opt
         real(dp), allocatable :: vec(:) 
@@ -532,7 +703,7 @@ contains
 
         vec = [ ( start_val + i * dist, i = 0,n-1)]
 
-    end function linspace 
+    end function linspace_dp
 
     function matrix_exponential(matrix) result(exp_matrix)
         ! calculate the matrix exponential of a real, symmetric 2-D matrix with lapack 
@@ -715,9 +886,11 @@ contains
             if (nJ(1) == 0) cycle 
             call EncodeBitDet(nJ, tgt_ilut) 
             pos = binary_search(det_list, tgt_ilut, nifd+1)
+            if (abs(get_helement(nI,nJ)) < EPS) cycle
             if (pos < 0) then 
                 print *, "nJ: ", nJ 
                 print *, "ilutJ:", tgt_ilut
+                print *, "hel: ", get_helement_lattice(nI,nJ)
                 call stop_all(this_routine, 'Unexpected determinant generated')
             else 
                 generated_list(pos) = .true. 
@@ -847,6 +1020,37 @@ contains
         allocate(state_list_ilut(0:niftot,n_states), source = temp_list_ilut(:,1:n_states))
 
     end subroutine create_hilbert_space
+
+    real(dp) function norm(vec,p_in)
+        ! function to calculate the Lp norm of a given vector
+        ! if p_in = -1 this indicates the p_inf norm
+        real(dp), intent(in) :: vec(:)
+        integer, intent(in), optional :: p_in
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "norm"
+#endif
+        integer :: p, i
+
+        if (present(p_in)) then 
+            ASSERT(p_in == -1 .or. p_in >= 0)
+            p = p_in
+        else
+            ! default is the L2 norm
+            p = 2
+        end if
+
+        if (p == -1) then
+            norm = maxval(abs(vec))
+        else
+            norm = 0.0_dp
+            do i = 1, size(vec)
+                norm = norm + abs(vec(i))**p
+            end do
+            
+            norm = norm**(1.0_dp/real(p,dp))
+        end if
+
+    end function norm
 
     subroutine gen_all_excits_default(nI, n_excits, det_list) 
         use SymExcit3, only: CountExcitations3, GenExcitations3

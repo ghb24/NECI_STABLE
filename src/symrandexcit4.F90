@@ -874,7 +874,7 @@ contains
             inda = gtID(orba)
             indb = gtID(orbb)
             if (tGen_4ind_unbound) then
-                contrib = abs(get_umat_el(indi, indj, inda, indb))
+                contrib = abs(get_umat_el(inda, indb, indi, indj))
             else
                 contrib = max(sqrt(abs(get_umat_el(indi, indj, inda, indb))), 0.0001_dp)
 !                 contrib = sqrt(abs(get_umat_el(indi, indj, inda, indb)))
@@ -978,8 +978,8 @@ contains
             inda = gtID(orba)
             indb = gtID(orbb)
             if (tGen_4ind_unbound) then
-                contrib = abs(get_umat_el(indi, indj, inda, indb) &
-                                - get_umat_el(indi, indj, indb, inda))
+                contrib = abs(get_umat_el(inda, indb, indi, indj) &
+                                - get_umat_el(inda, indb, indj, indi))
             else
                 ! finally get rid of this arbitrary thresholds..
                 contrib = max(sqrt(abs(get_umat_el(indi, indj, inda, indb) &

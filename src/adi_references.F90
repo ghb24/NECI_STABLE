@@ -298,7 +298,6 @@ contains
 
       si_buf = 0
       ! here, we gather the potential SIs found by the procs and gather them
-! >>>>>>> origin/all_doubs_initiators
       ! Communicate the refs_found info
       mpi_refs_found = int(refs_found,MPIArg)
       call MPIAllGather(mpi_refs_found, refs_found_per_proc, ierr)

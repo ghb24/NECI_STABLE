@@ -10,14 +10,13 @@ module guga_bitRepOps
 
     use SystemData, only: nEl, Stot, nSpatOrbs, current_stepvector
     use guga_data ! get explicit here too!
-    use bit_reps, only: niftot, set_flag, nIfGUGA, nIfD, nifdbo
     use constants, only: dp, n_int, bits_n_int, bni_, bn2_
     use DetBitOps, only: return_ms, count_set_bits, MaskAlpha, &
                     count_open_orbs, ilut_lt, ilut_gt, MaskAlpha, MaskBeta, &
                     CountBits, DetBitEQ
     use bit_rep_data, only: test_flag, flag_deltaB_single, &
-        flag_deltaB_double, flag_deltaB_sign
-    use util_mod, only: binary_search
+        flag_deltaB_double, flag_deltaB_sign, niftot, nIfGUGA, nIfd, nifdbo
+    use util_mod, only: binary_search, binary_search_custom
     use sort_mod, only: sort
 
     implicit none
@@ -62,7 +61,6 @@ contains
     ! and probably also the whole excitation information can be provided 
 
     function identify_excitation(ilutI, ilutJ) result(excitInfo) 
-!         use Determinants
         integer(n_int), intent(in) :: ilutI(0:nifd), ilutJ(0:nifd) 
         type(excitationInformation) :: excitInfo
         character(*), parameter :: this_routine = "identify_excitation"
@@ -1745,9 +1743,6 @@ contains
 
     ! write custom add_ilut_lists
     subroutine add_guga_lists(nDets1, nDets2, list1, list2)
-        use DetBitOps, only: ilut_lt, ilut_gt
-        use sort_mod, only: sort
-        use util_mod, only: binary_search_custom
         integer, intent(inout) :: nDets1
         integer, intent(in) :: nDets2 
         integer(n_int), intent(inout) :: list1(0:,1:), list2(0:,1:)
@@ -2182,36 +2177,6 @@ contains
         ! should no just be:
         ilut(nIfGUGA) = deltaB
 
-!         select case(deltaB)
-!             case(-2)
-!                 call set_flag(ilut, flag_deltaB_double, .true.)
-!                 call set_flag(ilut, flag_deltaB_sign, .true.)
-!                 call set_flag(ilut, flag_deltaB_single, .false.)
-! 
-!             case (-1)
-!                 call set_flag(ilut, flag_deltaB_double, .false.)
-!                 call set_flag(ilut, flag_deltaB_sign, .true.)
-!                 call set_flag(ilut, flag_deltaB_single, .true.)
-! 
-!             case (0)
-!                 call set_flag(ilut, flag_deltaB_double, .false.)
-!                 call set_flag(ilut, flag_deltaB_sign, .false.)
-!                 call set_flag(ilut, flag_deltaB_single, .false.)
-! 
-!             case (1)
-!                 call set_flag(ilut, flag_deltaB_double, .false.)
-!                 call set_flag(ilut, flag_deltaB_sign, .false.)
-!                 call set_flag(ilut, flag_deltaB_single, .true.)
-! 
-!             case (2)
-!                 call set_flag(ilut, flag_deltaB_double, .true.)
-!                 call set_flag(ilut, flag_deltaB_sign, .false.)
-!                 call set_flag(ilut, flag_deltaB_single, .false.)
-! 
-!             case default
-!                 call stop_all(this_routine, "invalid deltaB value!")
-! 
-!         end select
     end subroutine setDeltaB
 
     function getDeltaB(ilut) result(deltaB)

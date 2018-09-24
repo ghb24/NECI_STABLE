@@ -11,12 +11,11 @@ module OneEInts
 use constants, only: dp
 use MemoryManager, only: TagIntType, LogMemalloc, LogMemDealloc
 use util_mod, only: get_free_unit
-use SystemData, only: Symmetry, BasisFN, tCPMD, tVASP
+use SystemData, only: tCPMD, tVASP
 use LoggingData, only: iNumPropToEst
 use CPMDData, only: tKP
 use HElem, only: HElement_t_size
 use global_utilities
-use UMatCache, only: nStates
 use SymData
 
 implicit none
@@ -218,7 +217,6 @@ contains
 
     function GetPropIntEl(i,j,iprop) result(integral)
         
-!       use OneEInts, only: OneEPropInts
         integer, intent(in) :: i, j, iprop
         real(dp) :: integral
 
@@ -667,7 +665,6 @@ contains
         ! post-freezing.  Once freezing is done, clear all the pre-freezing
         ! arrays and point them to the post-freezing arrays, so the code
         ! referencing pre-freezing arrays can be used post-freezing.
-!         use sym_mod
         IMPLICIT NONE
         integer NBASIS,NHG,GG(NHG)
         character(*),parameter :: this_routine='SwapTMat'

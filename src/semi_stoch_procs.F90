@@ -6,32 +6,53 @@
 module semi_stoch_procs
 
     use bit_rep_data, only: flag_deterministic, nIfDBO, NIfD, NIfTot, test_flag
+
     use bit_reps, only: decode_bit_det, get_initiator_flag_by_run
+
     use CalcData
+
     use constants
+
     use FciMCData, only: determ_sizes, determ_displs, determ_space_size, &
                          SpawnedParts, TotWalkers, CurrentDets, core_space, &
                          MaxSpawned,indices_of_determ_states, ilutRef
+
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg
+
     use sparse_arrays, only: sparse_core_ham
+
     use SystemData, only: nel, t_non_hermitian, tHPHF, tGUGA
+
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
+
     use Determinants, only: get_helement
+
     use timing_neci
 
     use unit_test_helpers, only: eig
 
     use bit_reps, only: encode_sign
+
     use hamiltonian_linalg, only: parallel_sparse_hamil_type
+
     use davidson_neci, only: DavidsonCalcType, perform_davidson, DestroyDavidsonCalc
+
     use FciMCData, only: core_ham_diag, DavidsonTag
+
     use MemoryManager, only: LogMemAlloc, LogMemDealloc, TagIntType
+
     use Parallel_neci, only: MPIScatterV
+
     use ParallelHelper, only: root
+
     use sparse_arrays, only: deallocate_sparse_ham, sparse_ham, hamil_diag, HDiagTag
+
     use sparse_arrays, only: core_ht, SparseCoreHamilTags
+
     use sparse_arrays, only: SparseHamilTags, allocate_sparse_ham_row
+
     use unit_test_helpers, only: print_matrix
+
     use adi_data, only: tSignedRepAv
 
     implicit none

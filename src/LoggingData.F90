@@ -182,7 +182,6 @@ module LoggingData
     logical :: t_spin_measurements = .false.
 
     logical :: t_print_core_info = .false.
-
     logical :: tWriteConflictLvls
 
 end module LoggingData

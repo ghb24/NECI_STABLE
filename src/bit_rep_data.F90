@@ -50,10 +50,9 @@ module bit_rep_data
     integer :: nSpawnOffset
 
     ! Flags which we can store
-    ! RT_M_Merge: Adapted real-time flags
-    logical :: tUseFlags = .true.
-
     integer :: flag_counter
+
+    logical :: tuseflags = .true.
 
     integer, parameter :: flag_deterministic = 0, &
                           flag_determ_parent = 1, &

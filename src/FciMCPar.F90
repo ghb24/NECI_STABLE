@@ -9,7 +9,7 @@ module FciMCParMod
                           t_new_real_space_hubbard, t_tJ_model, t_heisenberg_model, & 
                           t_k_space_hubbard, max_ex_level, t_uniform_excits, &
                           tGen_guga_mixed, t_guga_mixed_init, t_guga_mixed_semi, &
-                          tReal
+                          tReal, t_mixed_excits
 
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
@@ -24,7 +24,8 @@ module FciMCParMod
                         t_back_spawn_flex, t_back_spawn_flex_option, &
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
                         DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
-                        tSkipRef, tFixTrial, tTrialShift, t_guga_mat_eles, t_activate_decay
+                        tSkipRef, tFixTrial, tTrialShift, tSpinProject, t_activate_decay, &
+                        t_guga_mat_eles
 
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
                         tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
@@ -127,7 +128,8 @@ module FciMCParMod
     use real_space_hubbard, only: init_real_space_hubbard
     use tJ_model, only: init_tJ_model, init_heisenberg_model
     use k_space_hubbard, only: init_k_space_hubbard, gen_excit_k_space_hub_transcorr, & 
-                               gen_excit_uniform_k_space_hub_transcorr
+                               gen_excit_uniform_k_space_hub_transcorr, &
+                               gen_excit_mixed_k_space_hub_transcorr
     use cc_amplitudes, only: t_cc_amplitudes, init_cc_amplitudes, cc_delay, &
                             t_plot_cc_amplitudes, print_cc_amplitudes
 
@@ -206,14 +208,12 @@ module FciMCParMod
 
         call SetupParameters()
 
-!         call InitFCIMCCalcPar()
+        call init_fcimc_fn_pointers() 
+        call InitFCIMCCalcPar()
 
         if(tLogGreensfunction .and. .not. t_real_time_fciqmc) then
            call init_overlap_buffers()
         endif
-
-        call init_fcimc_fn_pointers() 
-        call InitFCIMCCalcPar()
 
         if (t_new_real_space_hubbard) then 
             call init_real_space_hubbard()
@@ -725,23 +725,6 @@ module FciMCParMod
         write(iout,*) '- - - - - - - - - - - - - - - - - - - - - - - -'
         write(iout,*) 'Total loop-time: ', stop_time - start_time
         write(iout,*) '- - - - - - - - - - - - - - - - - - - - - - - -'
-
-        ! check if we can arrange that in guga to just call the general 
-        ! histogram printing:
-! <<<<<<< HEAD
-!         ! if i want to do the histogramming output the info now
-!         if (t_frequency_analysis .and. t_print_frq_histograms) then
-!             if (tGen_4ind_2 .or. tGen_4ind_weighted .or. tGen_sym_guga_mol) then
-!                 if (.not. tGen_nosym_guga) then
-!                     call print_frequency_histogram_spec
-!                 end if
-!             else if (tGen_sym_guga_ueg .or. tLatticeGens) then
-!                 call print_frequency_histogram()
-!             end if
-!             call MPIBarrier(error)
-!         end if
-
-!  =======
         ! [Werner Dobrautz 4.4.2017] 
         ! for now always print out the frequency histograms for the 
         ! tau-search.. maybe change that later to be an option 
@@ -1379,6 +1362,12 @@ module FciMCParMod
                             call gen_excit_uniform_k_space_hub_transcorr(DetCurr, CurrentDets(:,j), &
                                 nJ, ilutnJ, exFlag, ic, ex, tParity, prob, & 
                                 HElGen, fcimc_excit_gen_store, part_type) 
+
+                        else if (t_mixed_excits) then 
+                            call gen_excit_mixed_k_space_hub_transcorr(DetCurr, CurrentDets(:,j), &
+                                nJ, ilutnJ, exFlag, ic, ex, tParity, prob, & 
+                                HElGen, fcimc_excit_gen_store, part_type) 
+
                         else
                             call gen_excit_k_space_hub_transcorr(DetCurr, CurrentDets(:,j), &
                                 nJ, ilutnJ, exFlag, ic, ex, tParity, prob, & 
