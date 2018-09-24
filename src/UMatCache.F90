@@ -23,6 +23,8 @@ MODULE UMatCache
     use HElem, only: HElement_t_size
 
     use legacy_data, only: irat
+    
+    use procedure_pointers, only: get_umat_el
 
       IMPLICIT NONE
 
@@ -65,6 +67,9 @@ MODULE UMatCache
 !     <ij|ij> is stored in the upper diagaonal, <ij|ji> in the
 !     off-diagonal elements of the lower triangle.
       HElement_t(dp), Pointer :: UMat2D(:,:) => null() !(nStates,nStates)
+      HElement_t(dp), Pointer :: UMat2DExch(:,:) => null()
+      HElement_t(dp), Pointer :: UMat3d(:,:,:) => null()
+      HElement_t(dp), Pointer :: UMat3dExch(:,:,:) => null()
       LOGICAL :: tUMat2D, tDeferred_Umat2d
 
 ! This vector stores the energy ordering for each spatial orbital, which is the inverse of the BRR vector
@@ -435,8 +440,6 @@ MODULE UMatCache
             end if
          ENDIF
       END SUBROUTINE SetupUMatCache
-
-
 
       SUBROUTINE SETUPUMAT2D(G1,HarInt)
          ! Set up UMat2D for storing the <ij|u|ij> and <ij|u|ji> integrals,
@@ -1383,6 +1386,98 @@ MODULE UMatCache
          ENDIF
          RETURN
       END FUNCTION GETCACHEDUMATEL
+
+      !------------------------------------------------------------------------------------------!
+
+      function numBasisIndices(nBasis) result(nBI)
+        implicit none
+        integer, intent(in) :: nBasis
+        integer :: iSS
+        integer :: nBI
+
+        if(tStoreSpinOrbs) then
+           iSS = 1
+        else
+           iSS = 2
+        endif
+        
+        ! number of distinct indices of the integrals
+        nBI = nBasis / iSS
+      end function numBasisIndices
+
+      !------------------------------------------------------------------------------------------!
+
+      subroutine SetupUMat2d_dense(nBasis)
+        implicit none
+        integer, intent(in) :: nBasis
+        integer :: nBI, i, j, idX, idN
+        
+        nBI = numBasisIndices(nBasis)
+        allocate(UMat2D(nBI,nBI))
+        allocate(UMat2DExch(nBI,nBI))
+        
+        do i = 1, nBI
+           do j = 1, nBI
+              idX = max(i,j)
+              idN = min(i,j)
+              ! here, we introduce a cheap redundancy in memory to allow
+              ! for faster access (no need to get max/min of indices
+              ! and have contiguous access)
+              ! store the integrals <ij|ij> in UMat2D
+              UMat2D(j,i) = get_umat_el(idN,idX,idN,idX)
+              ! same for the integrals <ij|ji> in UMat2DExch
+              UMat2DExch(j,i) = get_umat_el(idN,idX,idX,idN)
+           end do
+        end do
+      end subroutine SetupUMat2d_dense
+
+      !------------------------------------------------------------------------------------------!
+
+      subroutine SetupUMat3d_dense(nBasis)
+        implicit none
+        integer, intent(in) :: nBasis
+        integer :: nBI, i, j, a
+
+        nBI = numBasisIndices(nBasis)
+        allocate(UMat3d(nBI,nBI,nBI))
+        allocate(UMat3dExch(nBI,nBI,nBI))
+
+        
+      end subroutine SetupUMat3d_dense
+
+    function get_2d_umat_el(idj,idi) result(hel)
+      ! gets the matrix element <ij|ij> (dense version, no symmetries
+      ! of umat are counted for faster access)
+      implicit none
+      
+      integer, intent(in) :: idi, idj
+      HElement_t(dp) :: hel
+
+      ! which is stored in UMat2D (dense)
+      hel = UMat2D(idj,idi)
+    end function get_2d_umat_el
+
+    function get_2d_umat_el_exch(idj,idi) result(hel)
+      ! gets the matrix element <ij|ji> (dense version, no symmetries
+      ! of umat are counted for faster access)
+      implicit none
+
+      integer, intent(in) :: idi, idj
+      HElement_t(dp) :: hel
+
+      ! this is stored in UMat2dExch
+      hel = UMat2DExch(idj,idi)
+    end function get_2d_umat_el_exch
+
+    function get_3d_umat_el(idi,idj,ida) result(hel)
+      implicit none
+      integer, intent(in) :: idi, idj, ida
+      HElement_t(dp) :: hel
+      
+      ! this is stored in UMat3d
+
+    end function get_3d_umat_el
+      
 
 END MODULE UMatCache
 ! Still useful to keep CacheUMatEl and GetCachedUMatEl outside of the module for

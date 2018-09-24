@@ -8,7 +8,7 @@ module Integrals_neci
 
     use UmatCache, only: tUmat2D, UMatInd, UMatConj, umat2d, tTransFIndx, nHits, &
                          nMisses, GetCachedUMatEl, HasKPoints, TransTable, &
-                         nTypes, gen2CPMDInts, tDFInts
+                         nTypes, gen2CPMDInts, tDFInts, SetupUMat2d_dense
 
     use util_mod, only: get_nan
 
@@ -693,8 +693,12 @@ contains
 !         enddo
 !     enddo
 
-    ! Setup the umatel pointers as well
-    call init_getumatel_fn_pointers ()
+      ! Setup the umatel pointers as well
+      call init_getumatel_fn_pointers ()
+
+      ! setup the cache for the 2-index integrals
+      ! (has to happen after pointer init, as it uses a fn pointer) 
+      call SetupUMat2d_dense(nBasis)
 
     End Subroutine IntInit
         

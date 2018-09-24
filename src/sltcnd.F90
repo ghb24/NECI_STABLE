@@ -10,7 +10,7 @@ module sltcnd_mod
     ! TODO: It would be nice to reduce the number of variants of sltcnd_...
     !       which are floating around.
     use constants, only: dp,n_int
-    use UMatCache, only: GTID
+    use UMatCache, only: GTID, get_2d_umat_el_exch, get_2d_umat_el
     use IntegralsData, only: UMAT
     use OneEInts, only: GetTMatEl, TMat2D
     use procedure_pointers, only: get_umat_el
@@ -36,7 +36,7 @@ contains
         character(*), parameter :: this_routine = "sltcnd_compat"
 #endif
 
-        integer :: ex(2,2)
+        integer :: ex(2,maxExcit)
         logical :: tParity
 
         select case (IC)
@@ -76,7 +76,7 @@ contains
         ! Ret: sltcnd_excit - The H matrix element
 
         integer, intent(in) :: nI(nel), IC
-        integer, intent(in), optional :: ex(2,2)
+        integer, intent(in), optional :: ex(2,maxExcit)
         logical, intent(in), optional :: tParity
         character(*), parameter :: this_routine = 'sltcnd_excit'
 
@@ -119,7 +119,7 @@ contains
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(in) :: IC
         HElement_t(dp) :: hel
-        integer :: ex(2,2)
+        integer :: ex(2,maxExcit)
         logical :: tSign
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "sltcnd_knowIC"
@@ -288,9 +288,7 @@ contains
         hel_tmp = (0)
         do i=1,nel-1
             do j=i+1,nel
-                idX = max(id(i), id(j))
-                idN = min(id(i), id(j))
-                hel_doub = hel_doub + get_umat_el (idN, idX, idN, idX)
+                hel_doub = hel_doub + get_2d_umat_el(id(j),id(i))
 !                 write(6,*) idN,idX,idN,idX,get_umat_el (idN,idX,idN,idX)
             enddo
         enddo
@@ -303,9 +301,7 @@ contains
                 do j=i+1,nel
                     ! Exchange contribution is zero if I,J are alpha/beta
                     if ((G1(nI(i))%Ms == G1(nI(j))%Ms).or.tReltvy) then
-                        idX = max(id(i), id(j))
-                        idN = min(id(i), id(j))
-                        hel_tmp = hel_tmp - get_umat_el (idN, idX, idX, idN)
+                        hel_tmp = hel_tmp - get_2d_umat_el_exch (id(j),id(i))
 !                         write(6,*) idN,idX,idX,idN,get_umat_el (idN,idX,idX,idN)
                     endif
                 enddo
