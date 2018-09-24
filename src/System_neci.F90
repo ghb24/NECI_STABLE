@@ -1197,6 +1197,30 @@ system: do
                     case ("UEG_GUGA")
                         tGen_sym_guga_ueg = .true.
 
+                        if (item < nitems) then
+                            call readu(w)
+
+                            select case (w)
+
+                            case ("MIXED")
+                                tgen_guga_mixed = .true.
+                                
+                                if (item < nitems) then
+                                    call readu(w)
+
+                                    select case (w)
+                                    case ("SEMI")
+                                        t_guga_mixed_init = .false.
+                                        t_guga_mixed_semi = .true.
+                                    end select
+                                end if
+
+                            case ("CRUDE")
+                                tgen_guga_crude = .true.
+
+                            end select
+                        end if
+
                     case ("MOL_GUGA")
                         tGen_sym_guga_mol = .true.
 

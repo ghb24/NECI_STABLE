@@ -8,7 +8,8 @@ module FciMCParMod
                           tHub, tReltvy, & 
                           t_new_real_space_hubbard, t_tJ_model, t_heisenberg_model, & 
                           t_k_space_hubbard, max_ex_level, t_uniform_excits, &
-                          tGen_guga_mixed, t_guga_mixed_init, t_guga_mixed_semi
+                          tGen_guga_mixed, t_guga_mixed_init, t_guga_mixed_semi, &
+                          tReal
 
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
@@ -1334,7 +1335,14 @@ module FciMCParMod
                 if (flag_mixed) then
                     generate_excitation => generate_excitation_guga
                 else
-                    generate_excitation => gen_excit_4ind_weighted2
+                    if (tGen_sym_guga_mol) then
+                        generate_excitation => gen_excit_4ind_weighted2
+
+                    else if (tGen_sym_guga_ueg .and. treal) then 
+                        ! todo merge my new real-space with the GUGA!
+
+                    end if
+
                 end if
             end if
 
