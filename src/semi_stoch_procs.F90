@@ -255,6 +255,36 @@ contains
 
     end function is_core_state
 
+    function core_space_pos(ilut, nI) result (pos)
+
+        use FciMCData, only: ll_node, determ_space_size_int
+        use hash, only: FindWalkerHash
+        use sparse_arrays, only: core_ht
+
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer, intent(in) :: nI(:)
+        integer :: i, hash_val
+        character(len=*), parameter :: t_r = "core_space_pos"
+
+        integer :: pos
+
+        pos = 0
+
+        hash_val = FindWalkerHash(nI, determ_space_size_int)
+
+        do i = 1, core_ht(hash_val)%nclash
+            if (all(ilut(0:NIfDBO) == core_space(0:NIfDBO,core_ht(hash_val)%ind(i)) )) then
+                pos = core_ht(hash_val)%ind(i)
+                return
+            end if
+        end do
+
+        if (pos == 0) then
+            call stop_all(t_r, "State not found in core hash table.")
+        end if
+
+    end function core_space_pos
+
     function check_determ_flag(ilut) result (core_state)
     
         ! The reason for using this instead of just using test_flag is that test_flag

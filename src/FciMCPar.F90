@@ -220,6 +220,12 @@ module FciMCParMod
             write(var_unit, '(10x,"EN2 numerator")', advance='no')
             write(var_unit, '(9x,"Var + EN2 num.")', advance='no')
             write(var_unit, '(10x,"Normalisation")', advance='no')
+            write(var_unit, '(6x,"Precond. energy 1")', advance='no')
+            write(var_unit, '(7x,"Precond. norm. 1")', advance='no')
+            write(var_unit, '(6x,"Precond. energy 2")', advance='no')
+            write(var_unit, '(7x,"Precond. norm. 2")', advance='no')
+            write(var_unit, '(4x,"Precond. energy av.")', advance='no')
+            write(var_unit, '(5x,"Precond. norm. av.")', advance='no')
             write(var_unit,'()')
         end if
 

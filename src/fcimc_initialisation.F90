@@ -81,6 +81,7 @@ module fcimc_initialisation
     use GenRandSymExcitCSF, only: gen_csf_excit
     use GenRandSymExcitNUMod, only: gen_rand_excit, init_excit_gen_store, &
                                     clean_excit_gen_store
+    use precond_annihilation_mod, only: tSpawnedTo
     use procedure_pointers, only: generate_excitation, attempt_create, &
                                   get_spawn_helement, encode_child, &
                                   attempt_die, extract_bit_rep_avsign, &
@@ -200,6 +201,7 @@ contains
         subspace_hamil_time%timer_name='SubspaceHamilTime'
         exact_subspace_h_time%timer_name='ExactSubspace_H_Time'
         subspace_spin_time%timer_name='SubspaceSpinTime'
+        precond_e_time%timer_name='PreCondEnergyTime'
 
         ! Initialise allocated arrays with input data
         TargetGrowRate(:) = InputTargetGrowRate
@@ -1602,8 +1604,11 @@ contains
         ! controlled over the reference population
         if(tFixedN0) tSinglePartPhase = .true.
 
-         if(tRDMonFly .and. tDynamicCoreSpace) call sync_rdm_sampling_iter()
+        if(tRDMonFly .and. tDynamicCoreSpace) call sync_rdm_sampling_iter()
 
+        if (tPreCond) then
+            allocate(tSpawnedTo(determ_sizes(iProcIndex)))
+        end if
 
     end subroutine InitFCIMCCalcPar
 

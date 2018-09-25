@@ -17,11 +17,12 @@ module precond_annihilation_mod
     use Parallel_neci
     use load_balance, only: CalcHashTableStats
     use searching
-    use semi_stoch_procs, only: fill_in_diag_helements, is_core_state
     use sort_mod
     use SystemData, only: NEl, tHPHF
 
     implicit none
+
+    logical, allocatable :: tSpawnedTo(:)
 
     contains
 
@@ -57,6 +58,10 @@ module precond_annihilation_mod
         call calc_var_energy(MaxIndex, var_e_num_all, overlap_all)
 
         call get_proj_energy(MaxIndex, proj_energy)
+
+        call set_timer(precond_e_time, 30)
+        call calc_precond_energy(MaxIndex, proj_energy)
+        call halt_timer(precond_e_time)
 
         call rescale_spawns(MaxIndex, proj_energy)
 
@@ -108,7 +113,6 @@ module precond_annihilation_mod
             overlap = overlap + CurrentSign(1) * CurrentSign(2)
             var_e_num = var_e_num + h_diag * CurrentSign(1) * CurrentSign(2)
         end do
-
 
         ! Contribution from deterministic space
         if (tSemiStochastic) then
@@ -178,7 +182,7 @@ module precond_annihilation_mod
             write(var_unit, '(1x,i13)', advance='no') Iter + PreviousCycles
             write(var_unit, '(4(3x,es20.13))', advance='no') var_e_num_all, en2_pert_all, &
                                                               var_e_num_all+en2_pert_all, overlap_all
-            write(var_unit,'()')
+            !write(var_unit,'()')
         end if
 
     end subroutine calc_var_energy
@@ -205,10 +209,9 @@ module precond_annihilation_mod
                     if (DetBitEQ(core_space(0:NIfDBO, determ_displs(iProcIndex)+i), iLutRef(:,run), NIfDBO)) then
                         proj_energy(run) = -partial_determ_vecs(run,i)
                         ref_found(run) = .true.
-                        exit
                     end if
                 end do
-            end do
+            end do 
         end if
 
         do i = 1, ValidSpawned
@@ -217,7 +220,6 @@ module precond_annihilation_mod
                     call extract_sign(SpawnedParts(:,i), SignTemp)
                     proj_energy(run) = proj_energy(run) - SignTemp(run)
                     ref_found(run) = .true.
-                    exit
                 end if
             end do
         end do
@@ -250,6 +252,135 @@ module precond_annihilation_mod
         proj_energy = proj_energy / tau
 
     end subroutine get_proj_energy
+
+    subroutine calc_precond_energy(ValidSpawned, proj_energy)
+
+        use CalcData, only: tau, tEN2Init
+        use global_det_data, only: det_diagH
+        use semi_stoch_procs, only: core_space_pos, check_determ_flag
+
+        integer, intent(in) :: ValidSpawned
+        real(dp), intent(in) :: proj_energy(lenof_sign)
+
+        integer :: i, j, PartInd, DetHash, determ_pos
+        integer :: nI_spawn(nel)
+        real(dp) :: SpawnedSign(lenof_sign), CurrentSign(lenof_sign)
+        real(dp) :: h_diag
+        real(dp) :: precond_e_num(lenof_sign), precond_denom(lenof_sign)
+        real(dp) :: precond_e_num_all(lenof_sign), precond_denom_all(lenof_sign)
+        real(dp) :: precond_e_num_av, precond_denom_av
+        logical :: tCoreDet, tSuccess, abort(lenof_sign)
+
+        precond_e_num = 0.0_dp
+        precond_denom = 0.0_dp
+        precond_e_num_all = 0.0_dp
+        precond_denom_all = 0.0_dp
+
+        tCoreDet = .false.
+        tSuccess = .false.
+        abort = .false.
+
+        tSpawnedTo = .false.
+
+        do i = 1, ValidSpawned
+            call decode_bit_det(nI_spawn, SpawnedParts(:,i))
+            call extract_sign(SpawnedParts(:,i), SpawnedSign)
+
+            ! Now add in the diagonal elements
+            call hash_table_lookup(nI_spawn, SpawnedParts(:,i), NIfDBO, HashIndex, &
+                                   CurrentDets, PartInd, DetHash, tSuccess)
+
+            if (tSuccess) then
+                call extract_sign(CurrentDets(:,PartInd), CurrentSign)
+                h_diag = det_diagH(PartInd) + Hii
+
+                tCoreDet = check_determ_flag(CurrentDets(:,PartInd))
+                if (tCoreDet) then
+                    determ_pos = core_space_pos(SpawnedParts(:,i), nI_spawn) - determ_displs(iProcIndex)
+                    tSpawnedTo(determ_pos) = .true.
+                    SpawnedSign = SpawnedSign + partial_determ_vecs(:, determ_pos)
+                end if
+
+                precond_e_num(1) = precond_e_num(1) - &
+                    SpawnedSign(1) * h_diag * CurrentSign(2) / (tau * (proj_energy(1) + Hii - h_diag ))
+
+                precond_e_num(2) = precond_e_num(2) - &
+                    SpawnedSign(2) * h_diag * CurrentSign(1) / (tau * (proj_energy(2) + Hii - h_diag ))
+
+                precond_denom(1) = precond_denom(1) - &
+                    SpawnedSign(1) * CurrentSign(2) / (tau * (proj_energy(1) + Hii - h_diag ))
+
+                precond_denom(2) = precond_denom(2) - &
+                    SpawnedSign(2) * CurrentSign(1) / (tau * (proj_energy(2) + Hii - h_diag ))
+            end if
+
+            ! Add in the contributions corresponding to off-diagonal
+            ! elements of the Hamiltonian
+            if (abs(SpawnedSign(1)) > 1.e-12_dp .and. abs(SpawnedSign(2)) > 1.e-12_dp) then
+                ! If we don't have h_diag already...
+                if (.not. tSuccess) then
+                    if (tHPHF) then
+                        h_diag = hphf_diag_helement(nI_spawn, SpawnedParts(:, i))
+                    else
+                        h_diag = get_helement(nI_spawn, nI_spawn, 0)
+                    end if
+                end if
+
+                precond_e_num(1) = precond_e_num(1) + &
+                  SpawnedSign(1) * SpawnedSign(2) / ((tau**2) * ( proj_energy(1) + Hii - h_diag ))
+
+                precond_e_num(2) = precond_e_num(2) + &
+                  SpawnedSign(1) * SpawnedSign(2) / ((tau**2) * ( proj_energy(2) + Hii - h_diag ))
+            end if
+        end do
+
+        ! Contribution from deterministic states that were not spawned to
+        if (tSemiStochastic) then
+            do i = 1, determ_sizes(iProcIndex)
+                if (.not. tSpawnedTo(i)) then
+                    call extract_sign(CurrentDets(:, indices_of_determ_states(i)), CurrentSign)
+
+                    precond_e_num(1) = precond_e_num(1) + &
+                      partial_determ_vecs(1, i) * partial_determ_vecs(2, i) / &
+                        ( (tau**2) * (proj_energy(1) - core_ham_diag(i)) )
+
+                    precond_e_num(2) = precond_e_num(2) + &
+                      partial_determ_vecs(1, i) * partial_determ_vecs(2, i) / &
+                       ( (tau**2) * (proj_energy(2) - core_ham_diag(i)) )
+
+                    precond_e_num(1) = precond_e_num(1) - &
+                      partial_determ_vecs(1, i) * (core_ham_diag(i) + Hii) * CurrentSign(2) / &
+                        ( tau * (proj_energy(1) - core_ham_diag(i)) )
+
+                    precond_e_num(2) = precond_e_num(2) - &
+                      partial_determ_vecs(2, i) * (core_ham_diag(i) + Hii) * CurrentSign(1) / &
+                       ( tau * (proj_energy(2) - core_ham_diag(i)) )
+
+                    precond_denom(1) = precond_denom(1) - &
+                      partial_determ_vecs(1, i) * CurrentSign(2) / &
+                        ( tau * (proj_energy(1) - core_ham_diag(i)) )
+
+                    precond_denom(2) = precond_denom(2)- &
+                      partial_determ_vecs(2, i) * CurrentSign(1) / &
+                       ( tau * (proj_energy(2) - core_ham_diag(i)) )
+                end if
+            end do
+        end if
+
+        call MPISumAll(precond_e_num, precond_e_num_all)
+        call MPISumAll(precond_denom, precond_denom_all)
+
+        precond_e_num_av = ( precond_e_num_all(1) + precond_e_num_all(2) ) / 2.0_dp
+        precond_denom_av = ( precond_denom_all(1) + precond_denom_all(2) ) / 2.0_dp
+
+        if (iProcIndex == 0) then
+            write(var_unit, '(2(3x,es20.13))', advance='no') precond_e_num_all(1), precond_denom_all(1)
+            write(var_unit, '(2(3x,es20.13))', advance='no') precond_e_num_all(2), precond_denom_all(2)
+            write(var_unit, '(2(3x,es20.13))', advance='no') precond_e_num_av, precond_denom_av
+            write(var_unit,'()')
+        end if
+
+    end subroutine calc_precond_energy
 
     subroutine rescale_spawns(ValidSpawned, proj_energy)
 
