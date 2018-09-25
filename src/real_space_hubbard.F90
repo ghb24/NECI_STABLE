@@ -21,7 +21,7 @@ module real_space_hubbard
                           t_trans_corr, trans_corr_param, t_trans_corr_2body, & 
                           trans_corr_param_2body, tHPHF, t_trans_corr_new, & 
                           t_trans_corr_hop, t_uniform_excits, &
-                          t_spin_dependent_transcorr
+                          t_spin_dependent_transcorr, tNoBrillouin, tUseBrillouin
 
     use lattice_mod, only: lattice, determine_optimal_time_step, lat, &
                     get_helement_lattice, get_helement_lattice_ex_mat, & 
@@ -127,6 +127,11 @@ contains
         thub = .false.
         ! and treal i can also set to false or? 
         treal = .false.
+
+        ! just to be save swithc of Brillouins
+        tNoBrillouin = .true.
+        tUseBrillouin = .false.
+
         ! first assert all the right input! 
         call check_real_space_hubbard_input() 
 
