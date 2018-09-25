@@ -454,6 +454,7 @@ contains
           use global_utilities
           use Parallel_neci, only : nProcessors
           use LoggingData, only: tLogDets
+          use guga_bitRepOps, only: isProperCSF_ni
           IMPLICIT NONE
           LOGICAL eof
           CHARACTER (LEN=100) w
@@ -912,6 +913,15 @@ contains
                     end if
                 end if
 
+                if (tGUGA) then
+                    if (.not. isProperCSF_ni(defdet)) then 
+                        write(iout,*) " automatic neel-state creation produced invalid CSF!"
+                        write(iout,*) "created neel-state: "
+                        call write_det(iout, DefDet, .true.)
+                        call stop_all(t_r, " definedet is not a proper CSF or has wrong SPIN!")
+                    end if
+                end if
+
 
 
             case("MULTIPLE-INITIAL-REFS")
@@ -1354,6 +1364,16 @@ contains
                 end if
                 ! i hope everything is setup already
                 DefDet = create_neel_state()
+
+                if (tGUGA) then
+                    if (.not. isProperCSF_ni(defdet)) then 
+                        write(iout,*) " automatic neel-state creation produced invalid CSF!"
+                        write(iout,*) "created neel-state: "
+                        call write_det(iout, DefDet, .true.)
+                        call stop_all(t_r, " automatic neel-state creation produced invalid CSF!")
+                    end if
+                end if
+
                 write(iout,*) "created neel-state: "
                 call write_det(iout, DefDet, .true.)
 
