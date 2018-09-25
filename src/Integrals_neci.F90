@@ -4,7 +4,8 @@ module Integrals_neci
     use SystemData, only: tStoreSpinOrbs, nBasisMax, iSpinSkip, &
                           tFixLz, nBasis, G1, Symmetry, tCacheFCIDUMPInts, &
                           tRIIntegrals, tVASP,tComplexOrbs_RealInts, NEl, LMS,&
-                          ECore, t_new_real_space_hubbard, t_trans_corr_hop
+                          ECore, t_new_real_space_hubbard, t_trans_corr_hop, &
+                          t_new_hubbard, t_k_space_hubbard
 
     use UmatCache, only: tUmat2D, UMatInd, UMatConj, umat2d, tTransFIndx, nHits, &
                          nMisses, GetCachedUMatEl, HasKPoints, TransTable, &
@@ -385,7 +386,6 @@ contains
       use SystemData, only: Omega,tAlpha,TBIN,tCPMD,tDFread,THFORDER,tRIIntegrals
       use SystemData, only: thub,tpbc,treadint,ttilt,TUEG,tVASP, tPickVirtUniform
       use SystemData, only: uhub, arr,alat,treal,tCacheFCIDUMPInts, tReltvy
-      use SystemData, only: t_new_real_space_hubbard, t_new_hubbard, t_k_space_hubbard
       use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
       use LoggingData, only:tCalcPropEst, iNumPropToEst, EstPropFile
       use Parallel_neci, only : iProcIndex,MPIBcast
@@ -1503,49 +1503,59 @@ contains
 
         use SystemData, only: t_k_space_hubbard
         use k_space_hubbard, only: get_umat_kspace
+        use real_space_hubbard, only: get_umat_el_hub
 
         integer :: iss
 
-        if (nBasisMax(1,3) >= 0) then
-            ! This is a hack. iss is not what it should be. grr.
-            iss = nBasisMax(2,3)
-            if (iss == 0) then
-                ! Store <ij|ij> and <ij|ji> in umat2d.
-                ! n.b. <ij|jk> == <ii|jj>
-                !
-                ! If complex, more difficult:
-                ! <ii|ii> is always real and allowed.
-                ! <ij|ij> is always real and allowed (densities i*i, j*j)
-                ! <ij|ji> is always reald and allowed (codensities i*j, and
-                !                                      j*i = (i*j)*)
-                ! <ii|jj> is not stored in umat2d, and may not be allowed by
-                !         symmetry. It can be complex.
-                ! If orbitals are real, we substitute <ij|ij> for <ii|jj>
+        if (t_new_hubbard) then 
 
-                if (tumat2d) then
-                    ! call umat2d routine
-                    get_umat_el => get_umat_el_tumat2d
-                else
-                    ! see if in the cache. This is the fallback if ids are
-                    ! such that umat2d canot be used anyway.
-                    get_umat_el => get_umat_el_cache
-                endif
-            else if (iss == -1) then
-                ! Non-stored hubbard integral
-                if (t_k_space_hubbard) then 
-                    get_umat_el => get_umat_kspace
-                else
-                    get_umat_el => get_hub_umat_el
-                end if
-
+            if (t_k_space_hubbard) then 
+                get_umat_el => get_umat_kspace
             else
-                write (6, '(" Setting normal GetUMatEl routine")')
-                get_umat_el => get_umat_el_normal
+                get_umat_el => get_umat_el_hub
+            end if
+        else
+            if (nBasisMax(1,3) >= 0) then
+                ! This is a hack. iss is not what it should be. grr.
+                iss = nBasisMax(2,3)
+                if (iss == 0) then
+                    ! Store <ij|ij> and <ij|ji> in umat2d.
+                    ! n.b. <ij|jk> == <ii|jj>
+                    !
+                    ! If complex, more difficult:
+                    ! <ii|ii> is always real and allowed.
+                    ! <ij|ij> is always real and allowed (densities i*i, j*j)
+                    ! <ij|ji> is always reald and allowed (codensities i*j, and
+                    !                                      j*i = (i*j)*)
+                    ! <ii|jj> is not stored in umat2d, and may not be allowed by
+                    !         symmetry. It can be complex.
+                    ! If orbitals are real, we substitute <ij|ij> for <ii|jj>
+
+                    if (tumat2d) then
+                        ! call umat2d routine
+                        get_umat_el => get_umat_el_tumat2d
+                    else
+                        ! see if in the cache. This is the fallback if ids are
+                        ! such that umat2d canot be used anyway.
+                        get_umat_el => get_umat_el_cache
+                    endif
+                else if (iss == -1) then
+                    ! Non-stored hubbard integral
+                    if (t_k_space_hubbard) then 
+                        get_umat_el => get_umat_kspace
+                    else
+                        get_umat_el => get_hub_umat_el
+                    end if
+
+                else
+                    write (6, '(" Setting normal GetUMatEl routine")')
+                    get_umat_el => get_umat_el_normal
+                endif
+            else if (nBasisMax(1,3) == -1) then
+                ! UEG integral
+                get_umat_el => get_ueg_umat_el
             endif
-        else if (nBasisMax(1,3) == -1) then
-            ! UEG integral
-            get_umat_el => get_ueg_umat_el
-        endif
+        end if
 
         ! Note that this comes AFTER the above tests
         ! --> the tfixlz case is earlier in the list and will therefore be
