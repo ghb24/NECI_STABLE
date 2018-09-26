@@ -17,7 +17,7 @@ module FciMCParMod
                         t_back_spawn_flex, t_back_spawn_flex_option, &
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
                         DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
-                        tSkipRef, tFixTrial, tTrialShift, t_activate_decay
+                        tSkipRef, tFixTrial, tTrialShift, t_activate_decay, tEN2Init
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
                         tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
                         SIUpdateInterval, tSuppressSIOutput, nRefUpdateInterval, &
@@ -217,8 +217,10 @@ module FciMCParMod
             call open_create_stats('var_estimates', var_unit)
             write(var_unit, '("#", 4X, "Iteration")', advance='no')
             write(var_unit, '(7x,"Energy numerator")', advance='no')
-            write(var_unit, '(10x,"EN2 numerator")', advance='no')
-            write(var_unit, '(9x,"Var + EN2 num.")', advance='no')
+            if (tEN2Init) then
+                write(var_unit, '(10x,"EN2 numerator")', advance='no')
+                write(var_unit, '(9x,"Var + EN2 num.")', advance='no')
+            end if
             write(var_unit, '(10x,"Normalisation")', advance='no')
             write(var_unit, '(6x,"Precond. energy 1")', advance='no')
             write(var_unit, '(7x,"Precond. norm. 1")', advance='no')

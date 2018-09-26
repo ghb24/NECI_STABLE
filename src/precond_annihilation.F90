@@ -6,8 +6,8 @@ module precond_annihilation_mod
     use AnnihilationMod, only: test_abort_spawn
     use AnnihilationMod, only: AnnihilateSpawnedParts, deterministic_annihilation
     use bit_rep_data
-    use bit_reps, only: encode_sign, set_flag, get_initiator_flag
-    use CalcData, only: OccupiedThresh, tTruncInitiator
+    use bit_reps, only: encode_sign, encode_part_sign, set_flag, get_initiator_flag
+    use CalcData, only: OccupiedThresh, tTruncInitiator, PrecondSpawnCutoff
     use constants, only: n_int, lenof_sign, null_part, sizeof_int
     use determinants, only: get_helement
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -55,17 +55,37 @@ module precond_annihilation_mod
         call CompressSpawnedList(MaxIndex, iter_data)
         call halt_timer(Compress_time)
 
-        call calc_var_energy(MaxIndex, var_e_num_all, overlap_all)
+        !call set_timer(hash_test_time, 30)
+        !call time_hash(MaxIndex)
+        !call halt_timer(hash_test_time)
 
+        !call set_timer(hii_test_time, 30)
+        !call time_hii(MaxIndex)
+        !call halt_timer(hii_test_time)
+
+        call set_timer(var_e_time, 30)
+        call calc_var_energy(MaxIndex, var_e_num_all, overlap_all)
+        call halt_timer(var_e_time)
+
+        call set_timer(proj_e_time, 30)
         call get_proj_energy(MaxIndex, proj_energy)
+        call halt_timer(proj_e_time)
 
         call set_timer(precond_e_time, 30)
         call calc_precond_energy(MaxIndex, proj_energy)
         call halt_timer(precond_e_time)
 
-        call rescale_spawns(MaxIndex, proj_energy)
+        call set_timer(precond_round_time, 30)
+        call round_spawns(MaxIndex, precondSpawnCutoff)
+        call halt_timer(precond_round_time)
 
+        call set_timer(rescale_time, 30)
+        call rescale_spawns(MaxIndex, proj_energy)
+        call halt_timer(rescale_time)
+
+        call set_timer(precond_death_time, 30)
         call perform_death_with_precond(iter_data)
+        call halt_timer(precond_death_time)
 
         ! If the semi-stochastic approach is being used then the following routine performs the
         ! annihilation of the deterministic states. These states are subsequently skipped in the
@@ -90,7 +110,7 @@ module precond_annihilation_mod
         integer, intent(in) :: ValidSpawned
         real(dp), intent(out) :: var_e_num_all, overlap_all
 
-        integer :: i, j, PartInd, DetHash
+        integer :: i, j, PartInd, DetHash, ierr
         integer :: nI_spawn(nel)
         real(dp) :: SpawnedSign(lenof_sign), CurrentSign(lenof_sign)
         real(dp) :: h_diag, var_e_num, overlap, en2_pert, en2_pert_all
@@ -139,6 +159,7 @@ module precond_annihilation_mod
             end if
         end do
 
+        call MPIBarrier(ierr)
         call MPISumAll(var_e_num, var_e_num_all)
         call MPISumAll(overlap, overlap_all)
 
@@ -174,15 +195,20 @@ module precond_annihilation_mod
 
                 end if
             end do
-        end if
 
-        call MPISumAll(en2_pert, en2_pert_all)
+            call MPIBarrier(ierr)
+            call MPISumAll(en2_pert, en2_pert_all)
+        end if
 
         if (iProcIndex == 0) then
             write(var_unit, '(1x,i13)', advance='no') Iter + PreviousCycles
-            write(var_unit, '(4(3x,es20.13))', advance='no') var_e_num_all, en2_pert_all, &
-                                                              var_e_num_all+en2_pert_all, overlap_all
-            !write(var_unit,'()')
+
+            if (tEN2Init) then
+                write(var_unit, '(4(3x,es20.13))', advance='no') var_e_num_all, en2_pert_all, &
+                                                                  var_e_num_all+en2_pert_all, overlap_all
+            else
+                write(var_unit, '(2(3x,es20.13))', advance='no') var_e_num_all, overlap_all
+            end if
         end if
 
     end subroutine calc_var_energy
@@ -194,7 +220,7 @@ module precond_annihilation_mod
         integer, intent(in) :: ValidSpawned
         real(dp), intent(out) :: proj_energy(lenof_sign)
 
-        integer :: i, run
+        integer :: i, run, ierr
         real(dp) :: SignTemp(lenof_sign), ref_pop(lenof_sign)
         logical :: ref_found(lenof_sign), tSuccess
         integer :: PartInd, DetHash
@@ -245,6 +271,7 @@ module precond_annihilation_mod
                 end if
             end if
 
+            call MPIBarrier(ierr)
             call MPIBCast(proj_energy(run), 1, iRefProc(run))
         end do
 
@@ -262,7 +289,7 @@ module precond_annihilation_mod
         integer, intent(in) :: ValidSpawned
         real(dp), intent(in) :: proj_energy(lenof_sign)
 
-        integer :: i, j, PartInd, DetHash, determ_pos
+        integer :: i, PartInd, DetHash, determ_pos, ierr
         integer :: nI_spawn(nel)
         real(dp) :: SpawnedSign(lenof_sign), CurrentSign(lenof_sign)
         real(dp) :: h_diag
@@ -367,6 +394,7 @@ module precond_annihilation_mod
             end do
         end if
 
+        call MPIBarrier(ierr)
         call MPISumAll(precond_e_num, precond_e_num_all)
         call MPISumAll(precond_denom, precond_denom_all)
 
@@ -381,6 +409,49 @@ module precond_annihilation_mod
         end if
 
     end subroutine calc_precond_energy
+
+    subroutine round_spawns(ValidSpawned, cutoff)
+
+        integer, intent(inout) :: ValidSpawned
+        real(dp), intent(in) :: cutoff
+
+        integer :: i, j, new_length
+        real(dp) :: SpawnedSign(lenof_sign), prob_remove, r
+
+        write(6,*) "Number of spawns before round:", ValidSpawned
+
+        new_length = 0
+
+        do i = 1, ValidSpawned
+            call extract_sign(SpawnedParts(:,i), SpawnedSign)
+
+            do j = 1, lenof_sign
+                if ( abs(SpawnedSign(j)) > 1.e-12_dp .and. abs(SpawnedSign(j)) < cutoff ) then
+                    prob_remove = (cutoff - abs(SpawnedSign(j)))/cutoff
+                    r = genrand_real2_dSFMT()
+
+                    if (prob_remove > r) then
+                        SpawnedSign(j) = 0.0_dp
+                    else
+                        SpawnedSign(j) = sign(cutoff, SpawnedSign(j))
+                    end if
+
+                    call encode_part_sign(SpawnedParts(:,i), SpawnedSign(j), j)
+                end if
+            end do
+
+            if (.not. IsUnoccDet(SpawnedSign)) then
+                new_length = new_length + 1
+                SpawnedParts(:,new_length) = SpawnedParts(:,i)
+            end if
+
+        end do
+
+        ValidSpawned = new_length
+
+        write(6,*) "Number of spawns after round:", ValidSpawned
+
+    end subroutine round_spawns
 
     subroutine rescale_spawns(ValidSpawned, proj_energy)
 
@@ -439,5 +510,38 @@ module precond_annihilation_mod
         end do
 
     end subroutine perform_death_with_precond
+
+    subroutine time_hash(ValidSpawned)
+
+        integer, intent(in) :: ValidSpawned
+
+        integer :: i, PartInd, DetHash, nI(nel)
+        logical :: tSuccess
+
+        do i = 1, ValidSpawned
+            call decode_bit_det(nI, SpawnedParts(:,i))
+            call hash_table_lookup(nI, SpawnedParts(:,i), NIfDBO, HashIndex, &
+                                   CurrentDets, PartInd, DetHash, tSuccess)
+        end do
+
+    end subroutine time_hash
+
+    subroutine time_hii(ValidSpawned)
+
+        integer, intent(in) :: ValidSpawned
+
+        integer :: i, nI(nel)
+        real(dp) :: hdiag
+
+        do i = 1, ValidSpawned
+            call decode_bit_det(nI, SpawnedParts(:,i))
+            if (tHPHF) then
+                HDiag = hphf_diag_helement (nI, SpawnedParts(:,i))
+            else
+                HDiag = get_helement (nI, nI, 0)
+            end if
+        end do
+
+    end subroutine time_hii
 
 end module precond_annihilation_mod

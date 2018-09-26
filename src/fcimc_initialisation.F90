@@ -201,7 +201,14 @@ contains
         subspace_hamil_time%timer_name='SubspaceHamilTime'
         exact_subspace_h_time%timer_name='ExactSubspace_H_Time'
         subspace_spin_time%timer_name='SubspaceSpinTime'
+        var_e_time%timer_name='VarEnergyTime'
         precond_e_time%timer_name='PreCondEnergyTime'
+        proj_e_time%timer_name='ProjEnergyTime'
+        rescale_time%timer_name='RescaleTime'
+        precond_death_time%timer_name='PDeathTime'
+        hash_test_time%timer_name='HashTestTime'
+        hii_test_time%timer_name='HiiTestTime'
+        precond_round_time%timer_name='PrecondRoundTime'
 
         ! Initialise allocated arrays with input data
         TargetGrowRate(:) = InputTargetGrowRate

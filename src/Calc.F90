@@ -400,6 +400,7 @@ contains
           tEN2Started = .false.
 
           tPreCond = .false.
+          PrecondSpawnCutoff = 0.5_dp
 
         end subroutine SetCalcDefaults
 
@@ -2731,6 +2732,8 @@ contains
 
             case("PRECOND")
                 tPreCond = .true.
+            case("PRECOND-SPAWN-CUTOFF")
+                call getf(PrecondSpawnCutoff)
 
             case default
                 call report("Keyword "                                &

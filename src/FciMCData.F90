@@ -276,7 +276,9 @@ MODULE FciMCData
                            kp_generate_time, Stats_Comms_Time, &
                            subspace_hamil_time, exact_subspace_h_time, &
                            subspace_spin_time, sign_correction_time, &
-                           precond_e_time
+                           var_e_time, precond_e_time, proj_e_time, &
+                           rescale_time, precond_death_time, &
+                           hash_test_time, hii_test_time, precond_round_time
       
       ! Store the current value of S^2 between update cycles
       real(dp), allocatable :: curr_S2(:), curr_S2_init(:)
