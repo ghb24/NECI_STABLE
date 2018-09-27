@@ -67,6 +67,8 @@ module precond_annihilation_mod
         call get_proj_energy(MaxIndex, proj_energy)
         call halt_timer(proj_e_time)
 
+        spawn_hii = 0.0_dp
+
         call set_timer(precond_e_time, 30)
         call calc_precond_energies(MaxIndex, proj_energy)
         call halt_timer(precond_e_time)
@@ -178,7 +180,7 @@ module precond_annihilation_mod
         integer :: nI_spawn(nel)
         real(dp) :: SpawnedSign(lenof_sign), CurrentSign(lenof_sign)
         real(dp) :: h_diag, mean_energy(lenof_sign)
-        logical :: tCoreDet, tSuccess, abort(lenof_sign)
+        logical :: tCoreDet, tSuccess, tCalcHii, abort(lenof_sign)
 
         real(dp) :: var_e_num(lenof_sign), overlap(lenof_sign)
         real(dp) :: var_e_num_all(lenof_sign), overlap_all(lenof_sign)
@@ -216,6 +218,7 @@ module precond_annihilation_mod
         end do
 
         do i = 1, ValidSpawned
+            tCalcHii = .false.
             call decode_bit_det(nI_spawn, SpawnedParts(:,i))
             call extract_sign(SpawnedParts(:,i), SpawnedSign)
 
@@ -226,6 +229,7 @@ module precond_annihilation_mod
             if (tSuccess) then
                 call extract_sign(CurrentDets(:,PartInd), CurrentSign)
                 h_diag = det_diagH(PartInd) + Hii
+                tCalcHii = .true.
 
                 tCoreDet = check_determ_flag(CurrentDets(:,PartInd))
                 if (tCoreDet) then
@@ -253,6 +257,7 @@ module precond_annihilation_mod
             ! Add in the contributions corresponding to off-diagonal
             ! elements of the Hamiltonian
             if (abs(SpawnedSign(1)) > 1.e-12_dp .and. abs(SpawnedSign(2)) > 1.e-12_dp) then
+                tCalcHii = .true.
                 ! If we don't have h_diag already...
                 if (.not. tSuccess) then
                     if (tHPHF) then
@@ -282,6 +287,9 @@ module precond_annihilation_mod
                 end if
 
             end if
+
+            ! Store, to avoid recalculating later
+            if (tCalcHii) spawn_hii(i) = h_diag
         end do
 
         ! Contribution from deterministic states that were not spawned to
@@ -379,6 +387,7 @@ module precond_annihilation_mod
             if (.not. IsUnoccDet(SpawnedSign)) then
                 new_length = new_length + 1
                 SpawnedParts(:,new_length) = SpawnedParts(:,i)
+                spawn_hii(new_length) = spawn_hii(i)
             end if
 
         end do
@@ -395,7 +404,7 @@ module precond_annihilation_mod
         real(dp), intent(in) :: proj_energy(lenof_sign)
 
         integer :: i, nJ(nel)
-        real(dp) :: SpawnedSign(lenof_sign), hdiag
+        real(dp) :: SpawnedSign(lenof_sign), h_diag
 
         ! Find the weight spawned on the Hartree--Fock determinant.
         if (tSemiStochastic) then
@@ -405,16 +414,20 @@ module precond_annihilation_mod
         end if
 
         do i = 1, ValidSpawned
-            call decode_bit_det(nJ, SpawnedParts(:,i))
+            if (abs(spawn_hii(i)) < 1e-12_dp) then
+                call decode_bit_det(nJ, SpawnedParts(:,i))
 
-            if (tHPHF) then
-                HDiag = hphf_diag_helement (nJ, SpawnedParts(:,i))
+                if (tHPHF) then
+                    h_diag = hphf_diag_helement (nJ, SpawnedParts(:,i))
+                else
+                    h_diag = get_helement (nJ, nJ, 0)
+                end if
             else
-                HDiag = get_helement (nJ, nJ, 0)
+                h_diag = spawn_hii(i)
             end if
 
             call extract_sign(SpawnedParts(:,i), SpawnedSign)
-            SpawnedSign = SpawnedSign / (hdiag - proj_energy - Hii)
+            SpawnedSign = SpawnedSign / (h_diag - proj_energy - Hii)
             call encode_sign(SpawnedParts(:,i), SpawnedSign)
         end do
 
