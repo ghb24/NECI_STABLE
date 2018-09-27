@@ -4,6 +4,8 @@ module tc_three_body_data
 
   ! biases for 3-body excitation generation
   real(dp) :: pTriples, p0B, p0A, p2B
+  ! precomputed probabilities
+  real(dp) :: pgen0B, pgen1B, pgen2B, pgen3B
   ! number of empty alpha/beta electrons
   integer :: nUnoccAlpha, nUnoccBeta
   

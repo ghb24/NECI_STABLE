@@ -4,11 +4,12 @@ module Integrals_neci
     use SystemData, only: tStoreSpinOrbs, nBasisMax, iSpinSkip, &
                           tFixLz, Symmetry, tCacheFCIDUMPInts, &
                           tRIIntegrals, tVASP,tComplexOrbs_RealInts, LMS, ECore, &
-                          t_new_real_space_hubbard, t_trans_corr_hop
+                          t_new_real_space_hubbard, t_trans_corr_hop, t_mol_3_body
 
     use UmatCache, only: tUmat2D, UMatInd, UMatConj, umat2d, tTransFIndx, nHits, &
                          nMisses, GetCachedUMatEl, HasKPoints, TransTable, &
-                         nTypes, gen2CPMDInts, tDFInts, SetupUMat2d_dense
+                         nTypes, gen2CPMDInts, tDFInts, SetupUMat2d_dense, &
+                         freeUMat2d_dense
 
     use util_mod, only: get_nan
 
@@ -392,6 +393,7 @@ contains
       use MemoryManager, only: TagIntType
       use sym_mod, only: GenSymStatePairs
       use read_fci
+      use LMat_mod, only: readLMat
       use real_space_hubbard, only: init_tmat
       use k_space_hubbard, only: init_tmat_kspace
       use lattice_mod, only: lat
@@ -696,11 +698,27 @@ contains
       ! Setup the umatel pointers as well
       call init_getumatel_fn_pointers ()
 
-      ! setup the cache for the 2-index integrals
-      ! (has to happen after pointer init, as it uses a fn pointer) 
-      call SetupUMat2d_dense(nBasis)
+      if(t_mol_3_body) call readLMat()
 
     End Subroutine IntInit
+
+    ! initialize auxiliary buffers for certain integrals appearing often
+    subroutine InitIntBuffers()
+      use SystemData, only: nBasis
+      implicit none
+
+      ! setup the cache for the 2-index integrals
+      ! (has to happen after pointer init, as it uses a fn pointer) 
+      
+      call SetupUMat2d_dense(nBasis)
+    end subroutine InitIntBuffers
+
+    ! clear auxiliary buffers
+    subroutine freeIntBuffers()
+      implicit none
+      
+      call freeUMat2d_dense()      
+    end subroutine freeIntBuffers
         
 
         
@@ -823,8 +841,13 @@ contains
         use UMatCache, only: iDumpCacheFlag, tReadInCache, nStates, &
                              nStatesDump, DumpUMatCache, DestroyUMatCache, &
                              WriteUMatCacheStats
+        use LMat_mod, only: freeLMat
         integer :: iCacheFlag
         character(*), parameter :: this_routine = 'IntCleanup'
+
+        call freeIntBuffers()
+
+        if(t_mol_3_body) call freeLMat()
 
         if ((btest(iDumpCacheFlag, 0) .and. &
             (nStatesDump < nStates .or. .not. tReadInCache)) .or. &

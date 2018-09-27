@@ -751,12 +751,12 @@ contains
 
     end subroutine
 
-    subroutine pick_biased_elecs(nI, elecs, src, sym_prod, ispn, sum_ml, pgen, pBias)
+    subroutine pick_biased_elecs(nI, elecs, src, sym_prod, ispn, sum_ml, pgen, pBias, pAA)
 
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: elecs(2), src(2), sym_prod, ispn, sum_ml
         real(dp), intent(out) :: pgen
-        real(dp), intent(in), optional :: pBias
+        real(dp), intent(in), optional :: pBias, pAA
 
         real(dp) :: ntot, pBiasIntern, r
         integer :: al_req, be_req, al_num(2), be_num(2), elecs_found, i, idx
@@ -776,7 +776,19 @@ contains
         if (r < pBiasIntern) then
             ! Same spin case
             pgen = pParallel / real(par_elec_pairs, dp)
-            r = (r / pParallel) * par_elec_pairs
+            ! map the random number either to get a uniform random parallel
+            ! excitation or a parallel excitation biased towards A/B spin
+            ! if a bias is present, use it to round r
+            if(present(pAA)) then
+               if(r < pBiasIntern * pAA) then
+                  r = (r / pBiasIntern * AA_elec_pairs)
+               else
+                  r = (r / pBiasIntern * (par_elec_pairs - AA_elec_pairs))
+               endif
+               ! else, round r to par_elec_pairs
+            else
+               r = (r / pBiasIntern) * par_elec_pairs
+            end if
             idx = floor(r)
             if (idx < AA_elec_pairs) then
                 al_req = 2

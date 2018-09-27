@@ -26,6 +26,8 @@ MODULE HPHFRandExcitMod
     use GenRandSymExcitNUMod, only: gen_rand_excit, calc_pgen_symrandexcit2, &
                                     ScratchSize, CalcPGenLattice
 
+    use tc_three_body_excitgen, only: calc_pgen_mol_tc, gen_excit_mol_tc
+
     use excit_gens_int_weighted, only: gen_excit_4ind_weighted, &
                                        gen_excit_4ind_reverse, &
                                        calc_pgen_4ind_weighted, &
@@ -1271,7 +1273,9 @@ MODULE HPHFRandExcitMod
         ! do i need to  check if it is actually a non-initiator? 
         ! i guess i do.. or i go the unnecessary way of checking again in 
         ! the called back-spawn functions 
-        if ((t_back_spawn .or. t_back_spawn_flex) .and. &
+        if(t_mol_3_body) then
+           pgen = calc_pgen_mol_tc(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2, pDoub)
+        else if ((t_back_spawn .or. t_back_spawn_flex) .and. &
             (.not. DetBitEq(ilutI,ilutRef(:,temp_part_type),nifdbo)) .and. &
             (.not. test_flag(ilutI, get_initiator_flag(temp_part_type)))) then 
             ! i just realised this also has to be done for the hubbard 

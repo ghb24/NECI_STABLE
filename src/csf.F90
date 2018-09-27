@@ -9,13 +9,13 @@ module csf
     use integralsdata, only: umat, fck, nmax
     use constants, only: dp, n_int, lenof_sign
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use sltcnd_mod, only: sltcnd, sltcnd_2
+    use sltcnd_mod, only: sltcnd
     use DetBitOps, only: EncodeBitDet, FindBitExcitLevel, count_open_orbs, &
                          get_bit_open_unique_ind, FindSpatialBitExcitLevel, &
                          DetBitEq
     use CalcData, only: InitiatorWalkNo
     use OneEInts, only: GetTMatEl
-    use procedure_pointers, only: get_umat_el
+    use procedure_pointers, only: get_umat_el, sltcnd_2
     use UMatCache, only: gtID
     use csf_data
     use timing_neci
@@ -483,7 +483,7 @@ contains
                     ex(2,:) = ab_pair(ex(1,:))
 
                     ! We know this is a double spin-orbital excitation.
-                    hel = sltcnd_2 (ex, .false.)
+                    hel = sltcnd_2 (dets1(:,det), ex, .false.)
 
                     hel_ret = hel_ret &
                               + hel*(coeffs1(det)*coeffs2(indj))&

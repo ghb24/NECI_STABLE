@@ -1433,6 +1433,16 @@ MODULE UMatCache
 
       !------------------------------------------------------------------------------------------!
 
+      subroutine freeUmat2d_dense()
+        implicit none
+        
+        ! deallocate auxiliary arrays storing the integrals <ij|ij> and <ij|ji>
+        deallocate(UMat2dExch)
+        deallocate(UMat2d)
+      end subroutine freeUmat2d_dense
+
+      !------------------------------------------------------------------------------------------!
+
       subroutine SetupUMat3d_dense(nBasis)
         implicit none
         integer, intent(in) :: nBasis

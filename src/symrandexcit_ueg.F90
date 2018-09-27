@@ -9,7 +9,8 @@ module ueg_excit_gens
     use DeterminantData, only: write_det
     use get_excit, only: make_double
     use bit_rep_data, only: NIfTot
-    use sltcnd_mod, only: sltcnd_2
+    use sltcnd_mod, only: sltcnd_2_kernel
+    use UMatCache, only: gtID
     use constants
     use util_mod
     use back_spawn, only: is_allowed_ueg_k_vector, get_orb_from_kpoints, get_ispn
@@ -156,7 +157,7 @@ contains
                         ! we don't care about the overall sign.
                         ex(2, 1) = orba
                         ex(2, 2) = orbb
-                        elem = abs(sltcnd_2(ex, .false.))
+                        elem = abs(sltcnd_2_kernel(ex,gtID(ex)))
                     end if
                 end if
             end if

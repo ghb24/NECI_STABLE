@@ -3,7 +3,7 @@
 !Module to non-iteratively calculate the RPA energy under the quasi-boson approximation
 module RPA_Mod
     use SystemData, only: nel, nBasis, Arr, Brr, G1, tReltvy
-    use sltcnd_mod, only: sltcnd_2
+    use procedure_pointers, only: sltcnd_2
     use constants, only: dp, int64, n_int, maxExcit
     use Determinants, only: get_helement, fDet
     use SymExcit3, only: GenExcitations3
@@ -154,8 +154,8 @@ module RPA_Mod
                             B_mat(mi_ind,nj_ind) = real(hel1,dp)
                         else
                             !Full antisymmetrized integrals
-                            HEl1 = sltcnd_2(ex,.false.)
-                            HEl2 = sltcnd_2(ex2,.false.)
+                            HEl1 = sltcnd_2(nJ,ex,.false.)
+                            HEl2 = sltcnd_2(nJ,ex2,.false.)
                             A_mat(mi_ind,nj_ind) = real(HEl1,dp)           
                             B_mat(mi_ind,nj_ind) = real(HEl2,dp)           
                         endif

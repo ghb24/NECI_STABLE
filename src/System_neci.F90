@@ -4,7 +4,7 @@ MODULE System
     use SystemData
     use CalcData, only: TAU, tTruncInitiator, InitiatorWalkNo, &
                         occCASorbs, virtCASorbs, tPairedReplicas
-
+    use FciMCData, only: tGenMatHEl
     use sort_mod
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use constants
@@ -31,7 +31,6 @@ MODULE System
 
       ! Default from SymExcitDataMod
       tBuildOccVirtList = .false.
-
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
@@ -186,9 +185,11 @@ MODULE System
       tGen_4ind_2_symmetric = .false.
       tmodHub = .false.
       t_uniform_excits = .false.
-
+      t_mol_3_body = .false.
       tMultiReplicas = .false.
       tGiovannisBrokenInit = .false.
+      ! by default, excitation generation already creates matrix elements
+      tGenMatHEl = .true.
 
 #ifdef __PROG_NUMRUNS
       inum_runs = 1
@@ -530,6 +531,19 @@ system: do
 
         case('MOLECULAR-TRANSCORR')
             t_non_hermitian = .true.
+            ! optionally supply the three-body integrals of the TC Hamiltonian
+            if(item < nitems) then
+               call readu(w)
+               select case(w)
+               case("3-BODY")
+                  t_mol_3_body = .true.
+                  ! this uses a uniform excitation generator, switch off matrix
+                  ! element computation for HPHF
+                  tGenMatHEl = .false.
+               case default
+                  t_mol_3_body = .false.
+               end select
+            endif
 
        case ('TRANSCORRELATED', 'TRANSCORR', 'TRANS-CORR')
            ! activate the transcorrelated Hamiltonian idea from hongjun for 

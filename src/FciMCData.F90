@@ -325,7 +325,7 @@ MODULE FciMCData
       integer :: WalkersDiffProc, PartsDiffProc
 
       !This is whether to generate matrix elements as generating excitations for the HPHF/MI/ISK options
-      LOGICAL , PARAMETER :: tGenMatHEl=.true.      
+      LOGICAL :: tGenMatHEl=.true.      
 
       ! Number of update cycles that the shift has been allowed to vary
       integer, allocatable :: VaryShiftCycles(:)

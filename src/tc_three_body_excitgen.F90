@@ -1,7 +1,7 @@
 #include "macros.h"
 module tc_three_body_excitgen
   use constants
-  use SystemData, only: nel, nOccAlpha, nOccBeta
+  use SystemData, only: nel, nOccAlpha, nOccBeta, nBasis, G1
   use lattice_mod, only: sort_unique
   use bit_rep_data, only: NIfTot
   use k_space_hubbard, only: make_triple
@@ -10,7 +10,7 @@ module tc_three_body_excitgen
   use dSFMT_interface, only: genrand_real2_dSFMT
   use lattice_models_utils, only: make_ilutJ
   use excit_gens_int_weighted, only: pick_biased_elecs
-  use GenRandSymExcitNUMod, only: gen_rand_excit
+  use GenRandSymExcitNUMod, only: gen_rand_excit, calc_pgen_symrandexcit2, ScratchSize
   contains
 
     subroutine gen_excit_mol_tc(nI, ilut, nJ, ilutJ, exFlag, ic, ExcitMat, &
@@ -45,6 +45,132 @@ module tc_three_body_excitgen
       endif
 
     end subroutine gen_excit_mol_tc
+
+!------------------------------------------------------------------------------------------!
+
+    function calc_pgen_mol_tc(nI, ilutI, ex, ic, ClassCount, &
+         ClassCountUnocc, pDoub) result(pgen)
+      implicit none
+      integer, intent(in) :: nI(nel), ex(2,ic), ic
+      integer, intent(in) :: ClassCount(ScratchSize)
+      integer, intent(in) :: ClassCountUnocc(ScratchSize)
+      integer(n_int), intent(in) :: ilutI(0:NIfTot)
+      real(dp), intent(in) :: pDoub
+      real(dp) :: pgen
+
+      character(*), parameter :: t_r = "calc_pgen_mol_tc"
+
+      pgen = 0.0_dp
+      if(ic < 3) then
+         ! for singles/doubles, delegate the calculation to the existing routines
+         call calc_pgen_symrandexcit2(nI, ex, ic, ClassCount, ClassCountUnocc, pDoub, pgen)
+         ! and take into account the bias for triples
+         pgen = pgen * (1 - pTriples)
+      else if(ic == 3) then
+         ! else, use the local routine
+         pgen = calc_pgen_triple(nI, ex)
+      endif
+      
+    end function calc_pgen_mol_tc
+
+!------------------------------------------------------------------------------------------!
+
+    function calc_pgen_triple(nI, ex) result(pgen)
+      ! get the probability to get excitation `ex` from a determinant `nI`
+      implicit none
+      integer, intent(in) :: nI(nel), ex(2,3)
+      real(dp) :: pgen
+      integer :: ms, i
+      character(*), parameter :: t_r = "calc_pgen_triple"
+
+      ! get the spin 
+      ms = 0
+      ! sum up the spin of the single orbitals
+      do i = 1, 3
+         ms = ms + G1(ex(2,i))%ms
+      end do
+      
+      ! start with pTriples
+      pgen = pTriples
+      ! then, add the spin bias
+      if(ms == -3) then
+         pgen = pgen * p0A * pgen3B
+      else if(ms == -1) then
+         pgen = pgen * p2B * pgen2B
+      else if(ms == 1) then
+         pgen = pgen * pgen1B * (1 - p2B - p0A - p0B)
+      else if(ms == 3) then
+         pgen = pgen * p0B * pgen0B
+      else
+         call stop_all(t_r, "Invalid spin")
+      endif
+
+    end function calc_pgen_triple
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine setup_mol_tc_excitgen(HF)
+      implicit none
+      integer, intent(in) :: HF(nel)
+
+      ! initialize the biases and auxiliary variables for the molecular
+      ! transcorrelated 3-body excitation generator
+
+      call precompute_pgen()
+
+      call init_mol_tc_biases(HF)
+    end subroutine setup_mol_tc_excitgen
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine precompute_pgen()
+      implicit none
+      
+      ! set the number of unoccupied alpha/beta
+      nUnoccAlpha = nBasis/2 - nOccAlpha
+      nUnoccBeta = nBasis/2 - nOccBeta
+
+      ! the number of valid triple excitations is just given by the binomial coefficients
+      pgen3B = nOccBeta * (nOccBeta - 1) * (nOccBeta - 2) * nUnoccBeta * (nUnoccBeta - 1) &
+           * (nUnoccBeta - 2)
+      pgen3B = scaleInvert(6.0_dp, pgen3B)
+
+      pgen2B = nOccBeta * (nOccBeta - 1) * nOccAlpha * nUnoccBeta * (nUnoccBeta - 1) * nUnoccAlpha
+      pgen2B = scaleInvert(4.0_dp, pgen2B)
+
+      pgen1B = nOccBeta * nOccAlpha * (nOccAlpha - 1) * nUnoccBeta * nUnoccAlpha * (nUnoccAlpha - 1)
+      pgen1B = scaleInvert(4.0_dp, pgen1B)
+      pgen1B = 4.0_dp / pgen2B
+
+      pgen0B = nOccAlpha * (nOccAlpha - 1) * (nOccAlpha - 2) * nUnoccAlpha * (nUnoccAlpha - 1) &
+           * (nUnoccAlpha - 2)
+      pgen0B = scaleInvert(6.0_dp, pgen0B)
+
+      contains
+        pure function scaleInvert(scl, p) result(sp)
+          real(dp), intent(in) :: scl, p
+          real(dp) :: sp
+
+          if(p > eps) then
+             sp = scl / p
+          else
+             sp = 0.0_dp
+          end if
+        end function scaleInvert
+    end subroutine precompute_pgen
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine init_mol_tc_biases(HF)
+      implicit none
+      ! reference determinant for initializing the biases
+      integer, intent(in) :: HF(nel)
+
+      pTriples = 0.2
+      p0A = 0.25
+      p0B = 0.25
+      p2B = 0.25
+    end subroutine init_mol_tc_biases
 
 !------------------------------------------------------------------------------------------!
 
@@ -99,7 +225,7 @@ module tc_three_body_excitgen
       logical :: pickAlpha
 
       call pick_biased_elecs(nI, elecs(1:2), src(1:2), sym_prod, ispn, sum_ml, &
-           pgen,p0B+p0A)
+           pgen,p0B+p0A,p0B)
       if(ispn .eq. 3 .or. ispn .eq. 1) then
          ! all elecs have the same spin
          pickAlpha = ispn .eq. 3
@@ -129,7 +255,9 @@ module tc_three_body_excitgen
 
       ! sort the generated electrons
       elecs = sort_unique(elecs)
-      if(elecs(3) == 0) then
+      ! check for invalid excitation
+      ! after sorting, invalid electrons are definitly at position 1
+      if(elecs(1) == 0) then
          src = 0
       else
          src = nI(elecs)
@@ -161,16 +289,8 @@ module tc_three_body_excitgen
       r = genrand_real2_dSFMT()
       ! pick a random index of an electron
       index = int((nOcc-nPicked)*r) + 1
-      ! the picked electrons are not counted, so skip their indices
-      if( (tAlpha .xor. is_beta(elecs(1))) .or. (nPicked .eq. 2) ) then
-         if(index >= elecs(1)) index = index + 1
-      endif
-      if((tAlpha .xor. is_alpha(elecs(1))) .or. (nPicked .eq. 2)) then
-         if(index >= elecs(2)) index = index + 1
-      endif
-      ! note that elecs(2) > elecs(1), so we cannot end up on elecs(1) at the end of
-      ! skipping
 
+      ! get the corresponding electron
       count = 0
       do i = 1, nel
          if(tAlpha .xor. is_beta(nI(i))) then
@@ -178,9 +298,37 @@ module tc_three_body_excitgen
             if(count == index) elecs(3) = i
          end if
       end do
+      ! the picked electrons are not counted, so skip their indices
+      
+      ! if we need, skip the first index
+      call skipElec(1)
+      ! if we need, skip the second index
+      call skipElec(2)
+      ! note that elecs(2) > elecs(1), so we cannot end up on elecs(1) at the end of
+      ! skipping
 
       ! uniformly chosen
       pgen = pgen / (nOcc - nPicked)
+
+      contains 
+        
+        subroutine skipElec(ind)
+          implicit none
+          integer, intent(in) :: ind
+
+          ! if we need to skip an index
+          if( (tAlpha .xor. is_beta(nI(elecs(ind))))) then
+             ! if we are above the index, we need to add 1 more, because we did not
+             ! take elecs(ind) into account when picking elecs(3)
+             if(elecs(3) >= elecs(ind)) then
+                ! jump to the next electron with the right spin
+                elecs(3) = elecs(3) + 1
+                do while(.not. (tAlpha .xor. is_beta(nI(elecs(3))) ) )
+                   elecs(3) = elecs(3) + 1
+                end do
+             end if
+          endif
+        end subroutine skipElec
     end subroutine get_missing_elec
 
 !------------------------------------------------------------------------------------------!
@@ -239,17 +387,17 @@ module tc_three_body_excitgen
       
       ! pick a random index
       r = genrand_real2_dSFMT()
-      iOrb = int(r*pool) + 1
+      iOrb = spinOrb(int(r*pool) + 1)
 
-      do i = 1, nPicked
-         ! check if the orb is already occuped
-         ! assumes tgt is sorted
-         if(tgt(i) .eq. (2*iOrb + (ms - 1)/2 ) ) iOrb = iOrb + 1
-      end do
+      ! check if the orb is already targeted
+      ! assumes tgt is sorted
+      call skipPicked()
       ! skip occupied orbitals -> translate from index of unocc to global index
       do i = 1, nel
-         if(nI(i) .eq. iOrb) iOrb = iOrb + 1
+         if(iOrb >= nI(i) .and. G1(nI(i))%ms .eq. ms) iOrb = iOrb + 2
       end do
+      ! now we might have landed in tgt, so skip again
+      call skipPicked()
       ! assign the orbital
       tgt(nPicked+1) = iOrb
 
@@ -257,7 +405,27 @@ module tc_three_body_excitgen
       pgen = pgen / pool
       
       ! we need to sort tgt (see above)
-      tgt = sort_unique(tgt)
+      tgt(1:(nPicked+1) ) = sort_unique(tgt(1:(nPicked+1) ))
+
+      contains
+        pure function spinOrb(orb) result(sorb)
+          implicit none
+          integer, intent(in) :: orb
+          integer :: sorb
+
+          sorb = 2*orb + (ms-1)/2
+        end function spinOrb
+
+        subroutine skipPicked()
+          implicit none
+          integer :: i
+
+          do i = 1, nPicked
+             ! check if the orb is already targeted
+             ! assumes tgt is sorted
+             if(tgt(i) .eq. iOrb ) iOrb = iOrb + 2
+          end do
+        end subroutine skipPicked
     end subroutine get_rand_orb
 
 !------------------------------------------------------------------------------------------!

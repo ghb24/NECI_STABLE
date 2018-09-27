@@ -143,7 +143,7 @@ module fcimc_initialisation
     use ueg_excit_gens, only: gen_ueg_excit
     use gndts_mod, only: gndts
     use excit_gen_5, only: gen_excit_4ind_weighted2
-    use tc_three_body_excitgen, only: gen_excit_mol_tc
+    use tc_three_body_excitgen, only: gen_excit_mol_tc, setup_mol_tc_excitgen
     use csf, only: get_csf_helement
 
     use tau_search, only: init_tau_search, max_death_cpt
@@ -1300,6 +1300,11 @@ contains
 !        if(TotDets.gt.0) then
 !            WRITE(iout,"(A,I20)") "Approximate size of determinant space is: ",NINT(TotDets)
 !        endif
+
+        ! for the (uniform) 3-body excitgen, the generation probabilities are uniquely given
+        ! by the number of alpha and beta electrons and the number of orbitals
+        ! and can hence be precomputed
+        if(t_mol_3_body) call setup_mol_tc_excitgen(hfdet)
 
     END SUBROUTINE SetupParameters
 

@@ -2962,6 +2962,7 @@ contains
           use hilbert_space_size, only: FindSymSizeofSpace, FindSymSizeofTruncSpace 
           use hilbert_space_size, only: FindSymMCSizeofSpace, FindSymMCSizeExcitLevel
           use global_utilities
+          use sltcnd_mod, only: initSltCndPtr
           
           real(dp) CalcT, CalcT2, GetRhoEps
           
@@ -2970,6 +2971,10 @@ contains
           INTEGER nList
           HElement_t(dp) HDiagTemp
           character(*), parameter :: this_routine='CalcInit'
+
+
+          ! initialize the slater condon rules
+          call initSltCndPtr()
 
           Allocate(MCDet(nEl))
           call LogMemAlloc('MCDet',nEl,4,this_routine,tagMCDet)

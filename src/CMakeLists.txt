@@ -87,6 +87,7 @@ set( SRC_FILES
     lanczos_wrapper.F90
     legacy_data.F90
     lineup.F
+    LMat_mod.F90
     load_balance_calcnodes.F90
     load_balancer.F90
     LoggingData.F90
