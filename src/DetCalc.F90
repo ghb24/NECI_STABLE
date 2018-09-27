@@ -419,7 +419,7 @@ CONTAINS
       INTEGER J,JR,iGetExcitLevel_2,ExcitLevel, iunit
       INTEGER LSCR,LISCR,MaxIndex
       LOGICAL tMC!,TestClosedShellDet,Found,tSign
-      real(dp) GetHElement, calct, calcmcen, calcdlwdb,norm
+      real(dp) GetHElement, calct, calcmcen, calcdlwdb,norm, temp_hel
       integer:: ic,TempnI(NEl),MomSymDet(NEl),ICSym,ICConnect,PairedUnit,SelfInvUnit
       integer(n_int) :: iLutMomSym(0:NIfTot)
       logical :: tSuccess
@@ -508,7 +508,8 @@ CONTAINS
             ENDDO
             CLOSE(iunit)
          ENDIF
-        WRITE(6,*) '<D0|H|D0>=',real(GETHELEMENT(IFDET,IFDET,HAMIL,LAB,NROW,NDET), dp)
+         temp_hel = real(GETHELEMENT(IFDET,IFDET,HAMIL,LAB,NROW,NDET), dp)
+        WRITE(6,*) '<D0|H|D0>=',temp_hel
         WRITE(6,*) '<D0|T|D0>=',CALCT(NMRKS(1,IFDET),NEL)
         CALL neci_flush(6)
 !CC         CALL HAMHIST(HMIN,HMAX,LENHAMIL,NHISTBOXES)

@@ -1855,7 +1855,7 @@ contains
             else if (ic_ret == 2 .and. t_trans_corr_hop) then 
 
                 ex(1,1) = 2 
-                call GetExcitation(nI, nI, nel, ex, tpar)
+                call GetExcitation(nI, nJ, nel, ex, tpar)
                 hel = get_double_helem_rs_hub_transcorr(nI, ex, tpar)
 
             else if (ic_ret == -1) then 
