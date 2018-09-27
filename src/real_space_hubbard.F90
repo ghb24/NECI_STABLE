@@ -904,6 +904,9 @@ contains
 
         integer :: iunused, elecs(2), orbs(2), src(2), spin
         real(dp) :: p_elec, p_orb
+#ifdef __DEBUG
+        real(dp) :: temp_pgen
+#endif
 
         iunused = exflag; 
         ilutJ = 0_n_int
@@ -978,6 +981,19 @@ contains
             end if
         end if
 
+#ifdef __DEBUG
+        temp_pgen = calc_pgen_rs_hubbard_transcorr_uniform(nI,ilutI,ex,ic)
+        if (abs(pgen - temp_pgen) > EPS) then
+            print *, "calculated pgen differ for exitation: "
+            print *, "nI: ", nI
+            print *, "ex: ", ex
+            print *, "ic: ", ic
+            print *, "pgen: ", pgen
+            print *, "calc. pgen: ", temp_pgen
+            print *, "H_ij: ", get_helement_lattice(nI, nJ, ic)
+        end if
+#endif
+
     end subroutine gen_excit_rs_hubbard_transcorr_uniform
 
     function calc_pgen_rs_hubbard_transcorr_uniform(nI, ilutI, ex, ic) result(pgen)
@@ -998,6 +1014,8 @@ contains
                 pgen = 1.0_dp / real(nel * (nBasis/2 - nOccAlpha), dp)
             end if
 
+            pgen = pgen * (1.0_dp - pDoubles)
+
         else if (ic == 2) then 
 
             ASSERT(.not. same_spin(ex(1,1), ex(1,2)))
@@ -1006,6 +1024,7 @@ contains
             pgen = 1.0_dp / real(nOccAlpha * nOccBeta * &
                 (nBasis/2 - nOccAlpha) * (nBasis/2 - nOccBeta), dp)
 
+            pgen = pgen * pDoubles
         else 
 
             pgen = 0.0_dp 
@@ -1036,6 +1055,9 @@ contains
         integer :: iunused, ind , elec, src, orb
         real(dp) :: cum_arr(nBasis/2)
         real(dp) :: cum_sum, p_elec, p_orb
+#ifdef __DEBUG
+        real(dp) :: temp_pgen
+#endif
 
         iunused = exflag; 
         ilutJ = 0_n_int
@@ -1095,6 +1117,20 @@ contains
         end if 
 
         ilutJ = make_ilutJ(ilutI, ex, ic)
+
+#ifdef __DEBUG
+        temp_pgen = calc_pgen_rs_hubbard_transcorr(nI,ilutI,ex,ic)
+        if (abs(pgen - temp_pgen) > EPS) then
+            print *, "calculated pgen differ for exitation: "
+            print *, "nI: ", nI
+            print *, "ex: ", ex
+            print *, "ic: ", ic
+            print *, "pgen: ", pgen
+            print *, "calc. pgen: ", temp_pgen
+            print *, "H_ij: ", get_helement_lattice(nI, nJ, ic)
+        end if
+#endif
+
 
     end subroutine gen_excit_rs_hubbard_transcorr
 

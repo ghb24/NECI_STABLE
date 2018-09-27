@@ -845,6 +845,7 @@ module AnnihilationMod
                     end if
 
                     do j = 1, lenof_sign
+                        run = part_type_to_run(j)
 
                         if (abort(j)) then
 

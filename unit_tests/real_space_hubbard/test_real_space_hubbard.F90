@@ -55,7 +55,7 @@ program test_real_space_hubbard
     call dsfmt_init(1)
     call init_fruit()
     ! run the test-driver 
-    call exact_test()
+!     call exact_test()
     call real_space_hubbard_test_driver()
     call fruit_summary()
     call fruit_finalize() 
@@ -71,10 +71,11 @@ contains
         ! or try running it with the provided runner of fruit: 
 !         call run_test_case(gen_excit_rs_hubbard_hphf_test_stoch, "gen_excit_rs_hubbard_hphf_test_stoch")
 !         call run_test_case(gen_excit_rs_hubbard_transcorr_hphf_test_stoch, "gen_excit_rs_hubbard_transcorr_hphf_test_stoch")
-        call run_test_case(gen_excit_rs_hubbard_transcorr_uniform_hphf_test_stoch, "gen_excit_rs_hubbard_transcorr_uniform_hphf_test_stoch")
+!         call run_test_case(gen_excit_rs_hubbard_transcorr_uniform_hphf_test_stoch, "gen_excit_rs_hubbard_transcorr_uniform_hphf_test_stoch")
 !         call run_test_case(gen_excit_rs_hubbard_test_stoch, "gen_excit_rs_hubbard_test_stoch")
-!         call run_test_case(gen_excit_rs_hubbard_transcorr_test_stoch, "gen_excit_rs_hubbard_transcorr_test_stoch")
+        call run_test_case(gen_excit_rs_hubbard_transcorr_test_stoch, "gen_excit_rs_hubbard_transcorr_test_stoch")
         call run_test_case(gen_excit_rs_hubbard_transcorr_uniform_test_stoch, "gen_excit_rs_hubbard_transcorr_uniform_test_stoch")
+        call stop_all("here", "for now")
         call run_test_case(get_umat_el_hub_test, "get_umat_el_hub_test")
         call run_test_case(init_tmat_test, "init_tmat_test")
         call run_test_case(get_helement_test, "get_helement_test")
@@ -264,7 +265,7 @@ contains
                 end if
             end do
             close(iunit)
-            call stop_all("here","now")
+!             call stop_all("here","now")
         end if
 
         t_trans_corr_hop = .false.
@@ -606,6 +607,14 @@ contains
         t_recalc_umat = .true.
         t_recalc_tmat = .true.
 
+        if (n_states <= 16) then 
+            print *, "hilbert-space:" 
+            call print_matrix(hilbert_space)
+            print *, "original hamiltonian: "
+            call print_matrix(hamil)
+
+        end if
+
         if (t_calc_singles) then 
             allocate(neel_states(n_states), source = 0.0_dp)
             allocate(singles(n_states), source = 0.0_dp)
@@ -653,8 +662,6 @@ contains
                 j_opt(i) = dot_product(singles, matmul(hamil_hop, neel_states))
             end if
 
-            ! for the neci hopping hamiltonian: 
-
             trans_corr_param = J(i)
 
             t_trans_corr_hop = .true. 
@@ -664,6 +671,17 @@ contains
 
             hamil_hop_neci = create_hamiltonian(hilbert_space)
             t_trans_corr_hop = .false. 
+
+            ! for the neci hopping hamiltonian: 
+            if (n_states <= 16) then 
+                if (i == 1) then 
+                    print *, "J: ", J(i)
+                    print *, "exact hop hamil: "
+                    call print_matrix(hamil_hop)
+                    print *, "neci hop hamil: "
+                    call print_matrix(hamil_hop_neci)
+                end if
+            end if
 
             t_spin_dependent_transcorr = .true. 
             if (allocated(umat_rs_hub_trancorr_hop)) deallocate(umat_rs_hub_trancorr_hop)
@@ -933,14 +951,14 @@ contains
         n_iters = 1000000
 
         t_trans_corr_hop = .true. 
-        trans_corr_param = 0.1_dp
+        trans_corr_param = 0.05_dp
 
-        uhub = 10
+        uhub = 16
         bhub = -1
         pSingles = 0.9_dp
         pDoubles = 1.0_dp - pSingles
 
-        lat => lattice('rectangle', 2, 3, 1,.true.,.true.,.true.)
+        lat => lattice('chain', 4, 1, 1,.true.,.true.,.true.)
 
         n_orbs = lat%get_nsites()
         nBasis = 2 * n_orbs
@@ -950,10 +968,10 @@ contains
 
         call init_realspace_tests()
 
-        nel = 6
+        nel = 2
         allocate(nI(nel))
 !         nI = [(i, i = 1, nel)]
-        nI = [1,4,5,8,9,12]
+        nI = [1,4]
 
         nOccAlpha = 0
         nOccBeta = 0
@@ -966,6 +984,20 @@ contains
         call run_excit_gen_tester(gen_excit_rs_hubbard_transcorr, & 
             "gen_excit_rs_hubbard_transcorr", nI, n_iters, gen_all_excits_r_space_hubbard)
 
+        nI = [1,2]
+        call run_excit_gen_tester(gen_excit_rs_hubbard_transcorr, & 
+            "gen_excit_rs_hubbard_transcorr", nI, n_iters, gen_all_excits_r_space_hubbard)
+
+        nI = [1,6]
+        call run_excit_gen_tester(gen_excit_rs_hubbard_transcorr, & 
+            "gen_excit_rs_hubbard_transcorr", nI, n_iters, gen_all_excits_r_space_hubbard)
+
+        nI = [1,8]
+        call run_excit_gen_tester(gen_excit_rs_hubbard_transcorr, & 
+            "gen_excit_rs_hubbard_transcorr", nI, n_iters, gen_all_excits_r_space_hubbard)
+        nI = [2,3]
+        call run_excit_gen_tester(gen_excit_rs_hubbard_transcorr, & 
+            "gen_excit_rs_hubbard_transcorr", nI, n_iters, gen_all_excits_r_space_hubbard)
         t_trans_corr_hop = .false.
 
     end subroutine gen_excit_rs_hubbard_transcorr_test_stoch
@@ -978,15 +1010,15 @@ contains
         n_iters = 1000000
 
         t_trans_corr_hop = .true. 
-        trans_corr_param = 0.1_dp
+        trans_corr_param = 0.05_dp
         t_uniform_excits = .true.
 
-        uhub = 10
+        uhub = 16
         bhub = -1
         pSingles = 0.9_dp
         pDoubles = 1.0_dp - pSingles
 
-        lat => lattice('rectangle', 2, 3, 1,.true.,.true.,.true.)
+        lat => lattice('chain', 4, 1, 1,.true.,.true.,.true.)
 
         n_orbs = lat%get_nsites()
         nBasis = 2 * n_orbs
@@ -996,10 +1028,10 @@ contains
 
         call init_realspace_tests()
 
-        nel = 6
+        nel = 2
         allocate(nI(nel))
 !         nI = [(i, i = 1, nel)]
-        nI = [1,4,5,8,9,12]
+        nI = [1,4]
 
         nOccAlpha = 0
         nOccBeta = 0
