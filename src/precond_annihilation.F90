@@ -35,7 +35,7 @@ module precond_annihilation_mod
         integer :: MaxIndex
         integer(n_int), pointer :: PointTemp(:,:)
         type(timer), save :: Compress_time
-        real(dp) :: proj_energy(lenof_sign), var_e_num_all, overlap_all
+        real(dp) :: proj_energy(lenof_sign)
 
         ! This routine will send all the newly-spawned particles to their
         ! correct processor. 
@@ -63,16 +63,12 @@ module precond_annihilation_mod
         !call time_hii(MaxIndex)
         !call halt_timer(hii_test_time)
 
-        call set_timer(var_e_time, 30)
-        call calc_var_energy(MaxIndex, var_e_num_all, overlap_all)
-        call halt_timer(var_e_time)
-
         call set_timer(proj_e_time, 30)
         call get_proj_energy(MaxIndex, proj_energy)
         call halt_timer(proj_e_time)
 
         call set_timer(precond_e_time, 30)
-        call calc_precond_energy(MaxIndex, proj_energy)
+        call calc_precond_energies(MaxIndex, proj_energy)
         call halt_timer(precond_e_time)
 
         call set_timer(precond_round_time, 30)
@@ -101,117 +97,6 @@ module precond_annihilation_mod
         call halt_timer(Sort_Time)
 
     end subroutine precond_annihilation
-
-    subroutine calc_var_energy(ValidSpawned, var_e_num_all, overlap_all)
-
-        use CalcData, only: tau, tEN2Init
-        use global_det_data, only: det_diagH
-
-        integer, intent(in) :: ValidSpawned
-        real(dp), intent(out) :: var_e_num_all, overlap_all
-
-        integer :: i, j, PartInd, DetHash, ierr
-        integer :: nI_spawn(nel)
-        real(dp) :: SpawnedSign(lenof_sign), CurrentSign(lenof_sign)
-        real(dp) :: h_diag, var_e_num, overlap, en2_pert, en2_pert_all
-        logical :: tSuccess, abort(lenof_sign), pert_contrib
-
-        var_e_num = 0.0_dp
-        overlap = 0.0_dp
-        var_e_num_all = 0.0_dp
-        overlap_all = 0.0_dp
-        en2_pert = 0.0_dp
-        en2_pert_all = 0.0_dp
-
-        tSuccess = .false.
-        abort = .false.
-
-        ! Contribution from diagonal
-        do i = 1, int(TotWalkers, sizeof_int)
-            h_diag = det_diagH(i) + Hii
-            call extract_sign(CurrentDets(:, i), CurrentSign)
-            overlap = overlap + CurrentSign(1) * CurrentSign(2)
-            var_e_num = var_e_num + h_diag * CurrentSign(1) * CurrentSign(2)
-        end do
-
-        ! Contribution from deterministic space
-        if (tSemiStochastic) then
-            do i = 1, determ_sizes(iProcIndex)
-                call extract_sign(CurrentDets(:, indices_of_determ_states(i)), CurrentSign)
-                var_e_num = var_e_num - &
-                    (partial_determ_vecs(1, i) * CurrentSign(2) + &
-                     partial_determ_vecs(2, i) * CurrentSign(1)) / (2.0_dp * tau)
-            end do
-        end if
-
-        ! Contribution from stochastic spawnings
-        do i = 1, ValidSpawned
-            ! Check if this spawned determinant is already in the walker list
-            call decode_bit_det(nI_spawn, SpawnedParts(:,i))
-            call hash_table_lookup(nI_spawn, SpawnedParts(:,i), NIfDBO, HashIndex, &
-                                   CurrentDets, PartInd, DetHash, tSuccess)
-
-            if (tSuccess) then
-                call extract_sign(SpawnedParts(:,i), SpawnedSign)
-                call extract_sign(CurrentDets(:,PartInd), CurrentSign)
-                var_e_num = var_e_num - &
-                    (SpawnedSign(1) * CurrentSign(2) + SpawnedSign(2) * CurrentSign(1))/(2.0_dp * tau)
-            end if
-        end do
-
-        call MPIBarrier(ierr)
-        call MPISumAll(var_e_num, var_e_num_all)
-        call MPISumAll(overlap, overlap_all)
-
-        ! Contribution from stochastic spawnings
-        if (tEN2Init) then
-            do i = 1, ValidSpawned
-                ! Check if this spawned determinant is already in the walker list
-                call decode_bit_det(nI_spawn, SpawnedParts(:,i))
-                call hash_table_lookup(nI_spawn, SpawnedParts(:,i), NIfDBO, HashIndex, &
-                                       CurrentDets, PartInd, DetHash, tSuccess)
-
-                if (.not. tSuccess) then
-                    ! Not already in the main list - are we going to abort it?
-                    ! If so, add in a contribution to the EN2 correction
-                    do j = 1, lenof_sign
-                        abort(j) = test_abort_spawn(SpawnedParts(:, i), j)
-                    end do
-                    call extract_sign(SpawnedParts(:,i), SpawnedSign)
-
-                    pert_contrib = abort(1) .and. abort(2) .and. &
-                      abs(SpawnedSign(1)) > 1.e-12_dp .and. abs(SpawnedSign(2)) > 1.e-12_dp
-
-                    if (pert_contrib) then
-                        if (tHPHF) then
-                            h_diag = hphf_diag_helement(nI_spawn, SpawnedParts(:, i))
-                        else
-                            h_diag = get_helement(nI_spawn, nI_spawn, 0)
-                        end if
-
-                        en2_pert = en2_pert + &
-                          SpawnedSign(1)*SpawnedSign(2) / ( (tau**2) * ((var_e_num_all / overlap_all) - h_diag ) )
-                    end if
-
-                end if
-            end do
-
-            call MPIBarrier(ierr)
-            call MPISumAll(en2_pert, en2_pert_all)
-        end if
-
-        if (iProcIndex == 0) then
-            write(var_unit, '(1x,i13)', advance='no') Iter + PreviousCycles
-
-            if (tEN2Init) then
-                write(var_unit, '(4(3x,es20.13))', advance='no') var_e_num_all, en2_pert_all, &
-                                                                  var_e_num_all+en2_pert_all, overlap_all
-            else
-                write(var_unit, '(2(3x,es20.13))', advance='no') var_e_num_all, overlap_all
-            end if
-        end if
-
-    end subroutine calc_var_energy
 
     subroutine get_proj_energy(ValidSpawned, proj_energy)
 
@@ -280,7 +165,7 @@ module precond_annihilation_mod
 
     end subroutine get_proj_energy
 
-    subroutine calc_precond_energy(ValidSpawned, proj_energy)
+    subroutine calc_precond_energies(ValidSpawned, proj_energy)
 
         use CalcData, only: tau, tEN2Init
         use global_det_data, only: det_diagH
@@ -289,25 +174,46 @@ module precond_annihilation_mod
         integer, intent(in) :: ValidSpawned
         real(dp), intent(in) :: proj_energy(lenof_sign)
 
-        integer :: i, PartInd, DetHash, determ_pos, ierr
+        integer :: i, j, PartInd, DetHash, determ_pos, ierr
         integer :: nI_spawn(nel)
         real(dp) :: SpawnedSign(lenof_sign), CurrentSign(lenof_sign)
-        real(dp) :: h_diag
+        real(dp) :: h_diag, mean_energy(lenof_sign)
+        logical :: tCoreDet, tSuccess, abort(lenof_sign)
+
+        real(dp) :: var_e_num(lenof_sign), overlap(lenof_sign)
+        real(dp) :: var_e_num_all(lenof_sign), overlap_all(lenof_sign)
+        real(dp) :: en2_pert(lenof_sign), en2_pert_all(lenof_sign)
         real(dp) :: precond_e_num(lenof_sign), precond_denom(lenof_sign)
         real(dp) :: precond_e_num_all(lenof_sign), precond_denom_all(lenof_sign)
         real(dp) :: precond_e_num_av, precond_denom_av
-        logical :: tCoreDet, tSuccess, abort(lenof_sign)
+
+        var_e_num = 0.0_dp
+        overlap = 0.0_dp
+        var_e_num_all = 0.0_dp
+        overlap_all(1) = 0.0_dp
+        en2_pert = 0.0_dp
+        en2_pert_all = 0.0_dp
 
         precond_e_num = 0.0_dp
         precond_denom = 0.0_dp
         precond_e_num_all = 0.0_dp
         precond_denom_all = 0.0_dp
 
+        mean_energy(1) = Hii + ( proj_energy(1) + proj_energy(2) ) / 2.0_dp
+
         tCoreDet = .false.
         tSuccess = .false.
         abort = .false.
 
         tSpawnedTo = .false.
+
+        ! Contribution from diagonal for variational energy
+        do i = 1, int(TotWalkers, sizeof_int)
+            h_diag = det_diagH(i) + Hii
+            call extract_sign(CurrentDets(:, i), CurrentSign)
+            overlap(1) = overlap(1) + CurrentSign(1) * CurrentSign(2)
+            var_e_num(1) = var_e_num(1) + h_diag * CurrentSign(1) * CurrentSign(2)
+        end do
 
         do i = 1, ValidSpawned
             call decode_bit_det(nI_spawn, SpawnedParts(:,i))
@@ -328,17 +234,20 @@ module precond_annihilation_mod
                     SpawnedSign = SpawnedSign + partial_determ_vecs(:, determ_pos)
                 end if
 
+                var_e_num(1) = var_e_num(1) - &
+                    (SpawnedSign(1) * CurrentSign(2) + SpawnedSign(2) * CurrentSign(1))/(2.0_dp * tau)
+
                 precond_e_num(1) = precond_e_num(1) - &
-                    SpawnedSign(1) * h_diag * CurrentSign(2) / (tau * (proj_energy(1) + Hii - h_diag ))
+                    SpawnedSign(1) * h_diag * CurrentSign(2) / ( (proj_energy(1) + Hii - h_diag ))
 
                 precond_e_num(2) = precond_e_num(2) - &
-                    SpawnedSign(2) * h_diag * CurrentSign(1) / (tau * (proj_energy(2) + Hii - h_diag ))
+                    SpawnedSign(2) * h_diag * CurrentSign(1) / ( (proj_energy(2) + Hii - h_diag ))
 
                 precond_denom(1) = precond_denom(1) - &
-                    SpawnedSign(1) * CurrentSign(2) / (tau * (proj_energy(1) + Hii - h_diag ))
+                    SpawnedSign(1) * CurrentSign(2) / ( (proj_energy(1) + Hii - h_diag ))
 
                 precond_denom(2) = precond_denom(2) - &
-                    SpawnedSign(2) * CurrentSign(1) / (tau * (proj_energy(2) + Hii - h_diag ))
+                    SpawnedSign(2) * CurrentSign(1) / ( (proj_energy(2) + Hii - h_diag ))
             end if
 
             ! Add in the contributions corresponding to off-diagonal
@@ -354,10 +263,24 @@ module precond_annihilation_mod
                 end if
 
                 precond_e_num(1) = precond_e_num(1) + &
-                  SpawnedSign(1) * SpawnedSign(2) / ((tau**2) * ( proj_energy(1) + Hii - h_diag ))
+                  SpawnedSign(1) * SpawnedSign(2) / (tau * ( proj_energy(1) + Hii - h_diag ))
 
                 precond_e_num(2) = precond_e_num(2) + &
-                  SpawnedSign(1) * SpawnedSign(2) / ((tau**2) * ( proj_energy(2) + Hii - h_diag ))
+                  SpawnedSign(1) * SpawnedSign(2) / (tau * ( proj_energy(2) + Hii - h_diag ))
+
+                ! Only get EN2 contribution is we're due to cancel this
+                ! spawning on both replicas
+                if (tEN2Init .and. (.not. tSuccess)) then
+                    do j = 1, lenof_sign
+                        abort(j) = test_abort_spawn(SpawnedParts(:, i), j)
+                    end do
+
+                    if (abort(1) .and. abort(2)) then
+                        en2_pert(1) = en2_pert(1) + &
+                          SpawnedSign(1)*SpawnedSign(2) / ( (tau**2) * (mean_energy(1) - h_diag ) )
+                    end if
+                end if
+
             end if
         end do
 
@@ -367,34 +290,41 @@ module precond_annihilation_mod
                 if (.not. tSpawnedTo(i)) then
                     call extract_sign(CurrentDets(:, indices_of_determ_states(i)), CurrentSign)
 
+                    var_e_num(1) = var_e_num(1) - &
+                        (partial_determ_vecs(1, i) * CurrentSign(2) + &
+                         partial_determ_vecs(2, i) * CurrentSign(1)) / (2.0_dp * tau)
+
                     precond_e_num(1) = precond_e_num(1) + &
                       partial_determ_vecs(1, i) * partial_determ_vecs(2, i) / &
-                        ( (tau**2) * (proj_energy(1) - core_ham_diag(i)) )
+                        ( tau * (proj_energy(1) - core_ham_diag(i)) )
 
                     precond_e_num(2) = precond_e_num(2) + &
                       partial_determ_vecs(1, i) * partial_determ_vecs(2, i) / &
-                       ( (tau**2) * (proj_energy(2) - core_ham_diag(i)) )
+                       ( tau * (proj_energy(2) - core_ham_diag(i)) )
 
                     precond_e_num(1) = precond_e_num(1) - &
                       partial_determ_vecs(1, i) * (core_ham_diag(i) + Hii) * CurrentSign(2) / &
-                        ( tau * (proj_energy(1) - core_ham_diag(i)) )
+                        ( (proj_energy(1) - core_ham_diag(i)) )
 
                     precond_e_num(2) = precond_e_num(2) - &
                       partial_determ_vecs(2, i) * (core_ham_diag(i) + Hii) * CurrentSign(1) / &
-                       ( tau * (proj_energy(2) - core_ham_diag(i)) )
+                       ( (proj_energy(2) - core_ham_diag(i)) )
 
                     precond_denom(1) = precond_denom(1) - &
                       partial_determ_vecs(1, i) * CurrentSign(2) / &
-                        ( tau * (proj_energy(1) - core_ham_diag(i)) )
+                        ( (proj_energy(1) - core_ham_diag(i)) )
 
                     precond_denom(2) = precond_denom(2)- &
                       partial_determ_vecs(2, i) * CurrentSign(1) / &
-                       ( tau * (proj_energy(2) - core_ham_diag(i)) )
+                       ( (proj_energy(2) - core_ham_diag(i)) )
                 end if
             end do
         end if
 
         call MPIBarrier(ierr)
+        call MPISumAll(var_e_num, var_e_num_all)
+        call MPISumAll(overlap, overlap_all)
+        call MPISumAll(en2_pert, en2_pert_all)
         call MPISumAll(precond_e_num, precond_e_num_all)
         call MPISumAll(precond_denom, precond_denom_all)
 
@@ -402,13 +332,19 @@ module precond_annihilation_mod
         precond_denom_av = ( precond_denom_all(1) + precond_denom_all(2) ) / 2.0_dp
 
         if (iProcIndex == 0) then
+            write(var_unit, '(1x,i13)', advance='no') Iter + PreviousCycles
+            write(var_unit, '(1(3x,es20.13))', advance='no') var_e_num_all(1)
+            if (tEN2Init) then
+                write(var_unit, '(2(3x,es20.13))', advance='no') en2_pert_all(1), var_e_num_all(1)+en2_pert_all(1)
+            end if
+            write(var_unit, '(1(3x,es20.13))', advance='no') overlap_all(1)
             write(var_unit, '(2(3x,es20.13))', advance='no') precond_e_num_all(1), precond_denom_all(1)
             write(var_unit, '(2(3x,es20.13))', advance='no') precond_e_num_all(2), precond_denom_all(2)
             write(var_unit, '(2(3x,es20.13))', advance='no') precond_e_num_av, precond_denom_av
             write(var_unit,'()')
         end if
 
-    end subroutine calc_precond_energy
+    end subroutine calc_precond_energies
 
     subroutine round_spawns(ValidSpawned, cutoff)
 
