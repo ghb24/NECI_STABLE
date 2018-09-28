@@ -204,6 +204,11 @@ module precond_annihilation_mod
         real(dp) :: precond_e_num_all(lenof_sign), precond_denom_all(lenof_sign)
         real(dp) :: precond_e_num_av, precond_denom_av
 
+        ! Allow room to send up to 1000 elements.
+        real(dp) :: send_arr(5*lenof_sign)
+        ! Allow room to receive up to 1000 elements.
+        real(dp) :: recv_arr(5*lenof_sign)
+
         var_e_num = 0.0_dp
         overlap = 0.0_dp
         var_e_num_all = 0.0_dp
@@ -353,12 +358,22 @@ module precond_annihilation_mod
             end do
         end if
 
+        ! ---- MPI communication --------------------------------
+        send_arr(0*lenof_sign+1:1*lenof_sign) = var_e_num
+        send_arr(1*lenof_sign+1:2*lenof_sign) = overlap
+        send_arr(2*lenof_sign+1:3*lenof_sign) = en2_pert
+        send_arr(3*lenof_sign+1:4*lenof_sign) = precond_e_num
+        send_arr(4*lenof_sign+1:5*lenof_sign) = precond_denom
+
         call MPIBarrier(ierr)
-        call MPISumAll(var_e_num, var_e_num_all)
-        call MPISumAll(overlap, overlap_all)
-        call MPISumAll(en2_pert, en2_pert_all)
-        call MPISumAll(precond_e_num, precond_e_num_all)
-        call MPISumAll(precond_denom, precond_denom_all)
+        call MPISumAll(send_arr, recv_arr)
+
+        var_e_num_all     = recv_arr(0*lenof_sign+1:1*lenof_sign)
+        overlap_all       = recv_arr(1*lenof_sign+1:2*lenof_sign)
+        en2_pert_all      = recv_arr(2*lenof_sign+1:3*lenof_sign)
+        precond_e_num_all = recv_arr(3*lenof_sign+1:4*lenof_sign)
+        precond_denom_all = recv_arr(4*lenof_sign+1:5*lenof_sign)
+        ! -------------------------------------------------------
 
         precond_e_num_av = ( precond_e_num_all(1) + precond_e_num_all(2) ) / 2.0_dp
         precond_denom_av = ( precond_denom_all(1) + precond_denom_all(2) ) / 2.0_dp
