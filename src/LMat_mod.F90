@@ -13,19 +13,42 @@ module LMat_mod
   contains
 
     function get_lmat_el(a,b,c,i,j,k) result(matel)
+      use SystemData, only: G1
+      use UMatCache, only: gtID
       ! Gets an entry of the 3-body tensor L:
       ! L_{abc}^{ijk} - triple excitation from abc to ijk
       implicit none
       integer, intent(in) :: a,b,c
       integer, intent(in) :: i,j,k
       HElement_t(dp) :: matel
+      integer :: ida, idb, idc, idi, idj, idk
 
-      matel = LMat(LMatInd(a,b,c,i,j,k)) &
-           + LMat(LMatInd(a,b,c,j,k,i)) &
-           + LMat(LMatInd(a,b,c,k,i,j)) &
-           - LMat(LMatInd(a,b,c,j,i,k)) &
-           - LMat(LMatInd(a,b,c,i,k,j)) &
-           - LMat(LMatInd(a,b,c,k,j,i)) 
+      ! convert to spatial orbs if required
+      ida = gtID(a)
+      idb = gtID(b)
+      idc = gtID(c)
+      idi = gtID(i)
+      idj = gtID(j)
+      idk = gtID(k)
+
+      matel = 0
+      ! only add the contribution if the spins match
+      call addMatelContribution(i,j,k,idi,idj,idk,1)
+      call addMatelContribution(j,k,i,idj,idk,idi,1)
+      call addMatelContribution(k,i,j,idk,idi,idj,1)
+      call addMatelContribution(j,i,k,idj,idi,idk,-1)
+      call addMatelContribution(i,k,j,idi,idk,idj,-1)
+      call addMatelContribution(k,j,i,idk,idj,idi,-1)
+
+      contains 
+        subroutine addMatelContribution(p,q,r,idp,idq,idr,sgn)
+          implicit none
+          integer, intent(in) :: idp,idq,idr,p,q,r
+          integer, intent(in) :: sgn
+          
+          if(G1(p)%ms == G1(a)%ms .and. G1(q)%ms == G1(b)%ms .and. G1(r)%ms == G1(c)%ms) &
+               matel = matel + sgn * LMat(LMatInd(ida,idb,idc,idp,idq,idr))
+        end subroutine addMatelContribution
     end function get_lmat_el
 
 !------------------------------------------------------------------------------------------!

@@ -31,7 +31,7 @@ contains
         ex(2,1) = l
         ex(2,2) = k
 
-        integral = real(sltcnd_2_kernel(ex,gtID(ex)), dp)
+        integral = real(sltcnd_2_kernel(ex), dp)
 
     end function two_elec_int
 

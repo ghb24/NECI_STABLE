@@ -157,7 +157,7 @@ contains
                         ! we don't care about the overall sign.
                         ex(2, 1) = orba
                         ex(2, 2) = orbb
-                        elem = abs(sltcnd_2_kernel(ex,gtID(ex)))
+                        elem = abs(sltcnd_2_kernel(ex))
                     end if
                 end if
             end if

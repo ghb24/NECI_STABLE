@@ -350,24 +350,23 @@ contains
         integer, intent(in) :: nI(nel), ex(2)
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel
-        integer :: id_ex(2), i
-
-        ! Obtain spatial rather than spin indices if required
-        id_ex = gtID(ex)
 
         ! Sum in the diagonal terms (same in both dets)
         ! Coulomb term only included if Ms values of ex(1) and ex(2) are the
         ! same.
         
-        hel = sltcnd_1_kernel(nI,ex,id_ex)
+        hel = sltcnd_1_kernel(nI,ex)
         if (tSign) hel = -hel
       end function sltcnd_1_base
 
-    function sltcnd_1_kernel(nI,ex,id_ex) result(hel)
+    function sltcnd_1_kernel(nI,ex) result(hel)
       implicit none
-      integer, intent(in) :: nI(nel), ex(2), id_ex(2)
+      integer, intent(in) :: nI(nel), ex(2)
       HElement_t(dp) :: hel
-      integer :: i, id
+      integer :: i, id, id_ex(2)
+
+      ! Obtain spatial rather than spin indices if required
+      id_ex = gtID(ex)
 
       hel = (0)
       if (tReltvy.or.(G1(ex(1))%Ms == G1(ex(2))%Ms)) then
@@ -407,22 +406,22 @@ contains
         integer, intent(in) :: ex(2,2)
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel
-        integer :: id(2,2)
-
-        ! Obtain spatial rather than spin indices if required
-        id = gtID(ex)
 
         ! Only non-zero contributions if Ms preserved in each term (consider
         ! physical notation).
-        hel = sltcnd_2_kernel(ex,id)
+        hel = sltcnd_2_kernel(ex)
 
         if (tSign) hel = -hel
       end function sltcnd_2_base
 
-    function sltcnd_2_kernel(ex,id) result(hel)
+    function sltcnd_2_kernel(ex) result(hel)
       implicit none
-      integer, intent(in) :: ex(2,2), id(2,2)
+      integer, intent(in) :: ex(2,2)
       HElement_t(dp) :: hel
+      integer :: id(2,2)
+      ! Obtain spatial rather than spin indices if required
+      id = gtID(ex)
+
       if ( tReltvy.or.((G1(ex(1,1))%Ms == G1(ex(2,1))%Ms) .and. &
            (G1(ex(1,2))%Ms == G1(ex(2,2))%Ms)) ) then
          hel = get_umat_el (id(1,1), id(1,2), id(2,1), id(2,2))
@@ -451,18 +450,14 @@ contains
       ! get the diagonal matrix element up to 2nd order
       hel = sltcnd_0_base(nI)
       ! then add the 3-body part
-      id = gtID(nI)
-      hel_tc = 0
       do i = 1, nel - 2
          do j = i + 1, nel - 1
             do k = j + 1, nel
-               hel = hel + get_lmat_el(id(i),id(j),id(k),id(i),id(j),id(k))
+               hel = hel + get_lmat_el(nI(i),nI(j),nI(k),nI(i),nI(j),nI(k))
             end do
          end do
       end do
-      
-      hel = hel_tc + hel
-      
+           
     end function sltcnd_0_tc
 
     function sltcnd_1_tc(nI,ex,tSign) result(hel)
@@ -472,18 +467,15 @@ contains
       integer, intent(in) :: nI(nel), ex(2)
       logical, intent(in) :: tSign
       HElement_t(dp) :: hel
-      integer :: id_ex(2), id_nI(nel)
       integer :: i, j
 
-      id_ex = gtId(ex)
-      id_nI = gtId(nI)
       ! start with the normal matrix element
-      hel = sltcnd_1_kernel(nI,ex,id_ex)
+      hel = sltcnd_1_kernel(nI,ex)
 
       ! then add the 3-body correction
       do i = 1, nel-1
          do j = i + 1, nel
-            hel = hel + get_lmat_el(id_ex(1),id_nI(i),id_nI(j),id_ex(2),id_nI(i),id_nI(j))
+            hel = hel + get_lmat_el(ex(1),nI(i),nI(j),ex(2),nI(i),nI(j))
          end do
       end do
 
@@ -498,16 +490,13 @@ contains
       integer, intent(in) :: nI(nel), ex(2,2)
       logical, intent(in) :: tSign
       HElement_t(dp) :: hel
-      integer :: id(2,2), id_nI(nel)
       integer :: i
 
-      id = gtID(ex)
       ! get the matrix element up to 2-body terms
-      hel = sltcnd_2_kernel(ex,id)
+      hel = sltcnd_2_kernel(ex)
       ! and the 3-body term
-      id_nI = gtID(nI)
       do i = 1, nel         
-         hel = hel + get_lmat_el(id(1,1),id(1,2),id_nI(i),id(2,1),id(2,2),id_nI(i))
+         hel = hel + get_lmat_el(ex(1,1),ex(1,2),nI(i),ex(2,1),ex(2,2),nI(i))
 !         if(is_alpha(nI(i)) .xor. is_beta(ex(1,1))) then
 !            call debugOut(id(1,1),id_nI(i),id(1,2),id_nI(i),id(2,1),id(2,2),-1)
 !            hel_tc = hel_tc - get_lmat_el(id(1,1),id_nI(i),id(1,2),id_nI(i),id(2,1),id(2,2))
@@ -530,18 +519,9 @@ contains
       integer, intent(in) :: ex(2,3)
       logical, intent(in) :: tSign
       HElement_t(dp) :: hel
-      integer :: id(2,3)
-
-      ! convert to indices used in storage
-      id = gtId(ex)
 
       ! this is directly the fully symmetrized entry of the L-matrix
-      hel = get_lmat_el(id(1,1),id(1,2),id(1,3),id(2,1),id(2,2),id(2,3)) !&
-!           + get_lmat_el(id(1,1),id(1,2),id(1,3),id(2,2),id(2,3),id(2,1)) &
-!           + get_lmat_el(id(1,1),id(1,2),id(1,3),id(2,3),id(2,1),id(2,2)) &
-!           - get_lmat_el(id(1,1),id(1,2),id(1,3),id(2,2),id(2,1),id(2,3)) &
-!           - get_lmat_el(id(1,1),id(1,2),id(1,3),id(2,3),id(2,2),id(2,1)) &
-!           - get_lmat_el(id(1,1),id(1,2),id(1,3),id(2,1),id(2,3),id(2,2))
+      hel = get_lmat_el(ex(1,1),ex(1,2),ex(1,3),ex(2,1),ex(2,2),ex(2,3)) 
       ! take fermi sign into account
       if(tSign) hel = - hel
     end function sltcnd_3_tc
