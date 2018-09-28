@@ -67,7 +67,7 @@ module precond_annihilation_mod
         call get_proj_energy(MaxIndex, proj_energy)
         call halt_timer(proj_e_time)
 
-        spawn_hii = 0.0_dp
+        spawn_hii(1:MaxIndex) = 0.0_dp
 
         call set_timer(precond_e_time, 30)
         call calc_precond_energies(MaxIndex, proj_energy)
