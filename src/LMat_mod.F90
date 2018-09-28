@@ -20,7 +20,12 @@ module LMat_mod
       integer, intent(in) :: i,j,k
       HElement_t(dp) :: matel
 
-      matel = LMat(LMatInd(a,b,c,i,j,k))
+      matel = LMat(LMatInd(a,b,c,i,j,k)) &
+           + LMat(LMatInd(a,b,c,j,k,i)) &
+           + LMat(LMatInd(a,b,c,k,i,j)) &
+           - LMat(LMatInd(a,b,c,j,i,k)) &
+           - LMat(LMatInd(a,b,c,i,k,j)) &
+           - LMat(LMatInd(a,b,c,k,j,i)) 
     end function get_lmat_el
 
 !------------------------------------------------------------------------------------------!
@@ -115,7 +120,8 @@ module LMat_mod
       LMatSize = LMatInd(nBI,nBI,nBI,nBI,nBI,nBI)
 
       ! allocate LMat
-      allocate(LMat(LMatSize), stat = ierr, source = 0.0_dp)
+      allocate(LMat(LMatSize), stat = ierr)
+      LMat = 0.0_dp
       call LogMemAlloc("LMat", LMatSize, HElement_t_SizeB, t_r, LMatTag, ierr)
 
       iunit = get_free_unit()

@@ -303,7 +303,7 @@ contains
 
         integer, intent(in) :: nI(nel)
         HElement_t(dp) :: hel, hel_sing, hel_doub, hel_tmp
-        integer :: id(nel), i, j, idN, idX
+        integer :: id(nel), i, j
 
         ! Sum in the one electron integrals (KE --> TMAT)
         hel_sing = sum(GetTMATEl(nI, nI))
@@ -445,7 +445,6 @@ contains
       implicit none
       integer, intent(in) :: nI(nel)
       HElement_t(dp) :: hel
-      HElement_t(dp) :: hel_tc
       integer :: id(nel)
       integer :: i,j,k
 
@@ -457,15 +456,12 @@ contains
       do i = 1, nel - 2
          do j = i + 1, nel - 1
             do k = j + 1, nel
-               ! TODO: Cache optimize these loops (split and reorder)
-               hel_tc = hel_tc + get_lmat_el(id(i),id(j),id(k),id(i),id(j),id(k)) &
-                    - 3*get_lmat_el(id(i),id(k),id(j),id(i),id(j),id(k)) &
-                    + 2*get_lmat_el(id(k),id(i),id(j),id(i),id(j),id(k))
+               hel = hel + get_lmat_el(id(i),id(j),id(k),id(i),id(j),id(k))
             end do
          end do
       end do
       
-      hel = hel_tc/2.0_dp + hel
+      hel = hel_tc + hel
       
     end function sltcnd_0_tc
 
@@ -476,7 +472,6 @@ contains
       integer, intent(in) :: nI(nel), ex(2)
       logical, intent(in) :: tSign
       HElement_t(dp) :: hel
-      HElement_t(dp) :: hel_tc
       integer :: id_ex(2), id_nI(nel)
       integer :: i, j
 
@@ -485,24 +480,13 @@ contains
       ! start with the normal matrix element
       hel = sltcnd_1_kernel(nI,ex,id_ex)
 
-      hel_tc = 0
       ! then add the 3-body correction
       do i = 1, nel-1
          do j = i + 1, nel
-            hel_tc = hel_tc + get_lmat_el(id_ex(1),id_nI(i),id_nI(j),id_ex(2),id_nI(i),id_nI(j))
-            hel_tc = hel_tc - get_lmat_el(id_ex(1),id_nI(j),id_nI(i),id_ex(2),id_nI(i),id_nI(j))
+            hel = hel + get_lmat_el(id_ex(1),id_nI(i),id_nI(j),id_ex(2),id_nI(i),id_nI(j))
          end do
       end do
-      hel_tc = hel_tc /2.0_dp
-      do i = 1, nel-1
-         do j = i + 1, nel
-            hel_tc = hel_tc + get_lmat_el(id_nI(i),id_ex(1),id_nI(j),id_nI(j),id_nI(i),id_ex(2))
-            hel_tc = hel_tc - get_lmat_el(id_nI(i),id_nI(j),id_ex(1),id_ex(2),id_nI(j),id_nI(i))
-         end do
-      end do
-      hel_tc = hel_tc * 3.0_dp
-      
-      hel = hel + hel_tc
+
       ! take fermi sign into account
       if(tSign) hel = -hel
     end function sltcnd_1_tc
@@ -514,7 +498,6 @@ contains
       integer, intent(in) :: nI(nel), ex(2,2)
       logical, intent(in) :: tSign
       HElement_t(dp) :: hel
-      HElement_t(dp) :: hel_tc
       integer :: id(2,2), id_nI(nel)
       integer :: i
 
@@ -523,17 +506,21 @@ contains
       hel = sltcnd_2_kernel(ex,id)
       ! and the 3-body term
       id_nI = gtID(nI)
-      hel_tc = 0
-      do i = 1, nel
-         hel_tc = hel_tc + get_lmat_el(id(1,1),id(1,2),id_nI(i),id(2,1),id(2,2),id_nI(i)) &
-              - (get_lmat_el(id(1,1),id_nI(i),id(1,2),id_nI(i),id(2,1),id(2,2)) + &
-                 get_lmat_el(id(1,2),id_nI(i),id(1,1),id_nI(i),id(2,2),id(2,1)) )
+      do i = 1, nel         
+         hel = hel + get_lmat_el(id(1,1),id(1,2),id_nI(i),id(2,1),id(2,2),id_nI(i))
+!         if(is_alpha(nI(i)) .xor. is_beta(ex(1,1))) then
+!            call debugOut(id(1,1),id_nI(i),id(1,2),id_nI(i),id(2,1),id(2,2),-1)
+!            hel_tc = hel_tc - get_lmat_el(id(1,1),id_nI(i),id(1,2),id_nI(i),id(2,1),id(2,2))
+!         endif
+!         if(is_alpha(nI(i)) .xor. is_beta(ex(1,2))) then
+!            call debugOut(id(1,2),id_nI(i),id(1,1),id_nI(i),id(2,2),id(2,1),-1)
+!            hel_tc = hel_tc -  get_lmat_el(id(1,2),id_nI(i),id(1,1),id_nI(i),id(2,2),id(2,1))
+!         endif
       end do
-
-      hel = hel_tc * 3.0_dp/2.0_dp + hel
 
       ! take fermi sign into account
       if(tSign) hel = -hel
+
     end function sltcnd_2_tc
 
     function sltcnd_3_tc(ex,tSign) result(hel)
@@ -548,9 +535,13 @@ contains
       ! convert to indices used in storage
       id = gtId(ex)
 
-      ! this is directly the entry of the L-matrix
-      hel = get_lmat_el(id(1,1),id(1,2),id(1,3),id(2,1),id(2,2),id(2,3))
-      ! as we use a symmetrized version of L, no additional terms arise
+      ! this is directly the fully symmetrized entry of the L-matrix
+      hel = get_lmat_el(id(1,1),id(1,2),id(1,3),id(2,1),id(2,2),id(2,3)) !&
+!           + get_lmat_el(id(1,1),id(1,2),id(1,3),id(2,2),id(2,3),id(2,1)) &
+!           + get_lmat_el(id(1,1),id(1,2),id(1,3),id(2,3),id(2,1),id(2,2)) &
+!           - get_lmat_el(id(1,1),id(1,2),id(1,3),id(2,2),id(2,1),id(2,3)) &
+!           - get_lmat_el(id(1,1),id(1,2),id(1,3),id(2,3),id(2,2),id(2,1)) &
+!           - get_lmat_el(id(1,1),id(1,2),id(1,3),id(2,1),id(2,3),id(2,2))
       ! take fermi sign into account
       if(tSign) hel = - hel
     end function sltcnd_3_tc
@@ -567,5 +558,23 @@ contains
       hel = 0
     end function sltcnd_3_base
 
+    function nullUMat(i,j,k,l) result(hel)
+      use constants
+      implicit none
+
+      integer, intent(in) :: i, j, k, l
+      HElement_t(dp) :: hel
+
+      hel = 0.0
+
+    end function nullUMat
+
+    subroutine debugOut(a,b,c,i,j,k,neg)
+      implicit none
+      integer, intent(in) :: a,b,c,i,j,k
+      integer, intent(in) :: neg
+
+      print *, "Add", a,b,c,i,j,k,neg*get_lmat_el(a,b,c,i,j,k)
+    end subroutine debugOut
     
 end module

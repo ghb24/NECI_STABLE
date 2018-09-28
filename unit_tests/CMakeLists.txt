@@ -1,3 +1,18 @@
+macro (add_unit_test test_name)
+      foreach( _config ${${PROJECT_NAME}_CONFIGURATIONS} )
+
+          neci_add_test(
+    	    TARGET test_${_config}_${test_name}
+	    SOURCES test_${test_name}.F90
+	    LIBS lib${_config} fruit
+	    LINKER_LANGUAGE Fortran
+	    META_TARGET test_${_config}
+	    DEFINITIONS
+	    	    "${${PROJECT_NAME}_${_config}_DEFINITIONS}"
+	)
+
+	endforeach()
+endmacro()
 
 # Make some stuff available to all the tests
 include_directories( ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -16,6 +31,8 @@ add_subdirectory( lattice_mod )
 
 
 add_subdirectory( impurity_excit_gen )
+
+add_subdirectory( molecular_tc)
 
 # finally do some unit-testing also with my newly added features 
 add_subdirectory( back_spawn )
