@@ -497,14 +497,6 @@ contains
       ! and the 3-body term
       do i = 1, nel         
          hel = hel + get_lmat_el(ex(1,1),ex(1,2),nI(i),ex(2,1),ex(2,2),nI(i))
-!         if(is_alpha(nI(i)) .xor. is_beta(ex(1,1))) then
-!            call debugOut(id(1,1),id_nI(i),id(1,2),id_nI(i),id(2,1),id(2,2),-1)
-!            hel_tc = hel_tc - get_lmat_el(id(1,1),id_nI(i),id(1,2),id_nI(i),id(2,1),id(2,2))
-!         endif
-!         if(is_alpha(nI(i)) .xor. is_beta(ex(1,2))) then
-!            call debugOut(id(1,2),id_nI(i),id(1,1),id_nI(i),id(2,2),id(2,1),-1)
-!            hel_tc = hel_tc -  get_lmat_el(id(1,2),id_nI(i),id(1,1),id_nI(i),id(2,2),id(2,1))
-!         endif
       end do
 
       ! take fermi sign into account

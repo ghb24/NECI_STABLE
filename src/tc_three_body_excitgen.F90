@@ -140,7 +140,6 @@ module tc_three_body_excitgen
 
       pgen1B = nOccBeta * nOccAlpha * (nOccAlpha - 1) * nUnoccBeta * nUnoccAlpha * (nUnoccAlpha - 1)
       pgen1B = scaleInvert(4.0_dp, pgen1B)
-      pgen1B = 4.0_dp / pgen2B
 
       pgen0B = nOccAlpha * (nOccAlpha - 1) * (nOccAlpha - 2) * nUnoccAlpha * (nUnoccAlpha - 1) &
            * (nUnoccAlpha - 2)
