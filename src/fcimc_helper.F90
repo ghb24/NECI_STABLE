@@ -1810,6 +1810,7 @@ contains
         use LoggingData, only: tOldRDMs
         use rdm_data, only: one_rdms, two_rdm_spawn, rdm_definitions
         use rdm_data_old, only: rdms, one_rdms_old
+        use semi_stoch_procs, only: check_determ_flag
 
         integer, intent(in) :: DetCurr(nel) 
         real(dp), dimension(lenof_sign), intent(in) :: RealwSign
@@ -1822,6 +1823,7 @@ contains
         real(dp) :: av_sign(len_av_sgn_tot), iter_occ(len_iter_occ_tot)
         integer, intent(in) :: walkExcitLevel
         integer :: i, irdm, run
+        logical :: tCoreDet
         character(len=*), parameter :: t_r = "walker_death"
 
         ! Do particles on determinant die? iDie can be both +ve (deaths), or
@@ -1878,7 +1880,9 @@ contains
             end do
         end if
 
-        if (any(abs(CopySign) > 1.0e-12_dp)) then
+        tCoreDet = check_determ_flag(iLutCurr)
+
+        if (any(abs(CopySign) > 1.0e-12_dp) .or. tCoreDet) then
             ! For the hashed walker main list, the particles don't move.
             ! Therefore just adjust the weight.
             call encode_sign (CurrentDets(:, DetPosition), CopySign)

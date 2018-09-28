@@ -70,7 +70,7 @@ module precond_annihilation_mod
         spawn_hii(1:MaxIndex) = 0.0_dp
 
         call set_timer(precond_e_time, 30)
-        call calc_precond_energies(MaxIndex, proj_energy)
+        call calc_e_and_set_init_flags(MaxIndex, proj_energy)
         call halt_timer(precond_e_time)
 
         call set_timer(precond_round_time, 30)
@@ -167,7 +167,22 @@ module precond_annihilation_mod
 
     end subroutine get_proj_energy
 
-    subroutine calc_precond_energies(ValidSpawned, proj_energy)
+    subroutine calc_e_and_set_init_flags(ValidSpawned, proj_energy)
+
+        ! This routine calculates the various energy estimates to be printed
+        ! to the file for the preconditioned approach.
+
+        ! *IMPORTANT* It also sets the initiator flag for all spawnings to
+        ! already-occupied determinants. This is because if tau=1, then
+        ! all walkers will die in the death step to follow, which causes
+        ! the initiator criteria to not be properly applied (as the
+        ! AnnihilateSpawnedParts routine thinks these are spawnings to
+        ! unoccupied determinants). So setting the initiator flag here
+        ! allows everything to proceed as normal.
+
+        ! This second point means that this routine *does* affect the
+        ! walker dynamics - it doesn't just calculate some energies
+        ! without affecting walkers. This step is done here for efficiency.
 
         use CalcData, only: tau, tEN2Init
         use global_det_data, only: det_diagH
@@ -228,6 +243,15 @@ module precond_annihilation_mod
 
             if (tSuccess) then
                 call extract_sign(CurrentDets(:,PartInd), CurrentSign)
+
+                ! Set initiator flags for the spawning, before the currently
+                ! occupied determinant is potentially killed in the death step.
+                do j = 1, lenof_sign
+                    if (abs(CurrentSign(j)) > 1.e-12_dp) then
+                        call set_flag(SpawnedParts(:,i), get_initiator_flag(j))
+                    end if
+                end do
+
                 h_diag = det_diagH(PartInd) + Hii
                 tCalcHii = .true.
 
@@ -352,7 +376,7 @@ module precond_annihilation_mod
             write(var_unit,'()')
         end if
 
-    end subroutine calc_precond_energies
+    end subroutine calc_e_and_set_init_flags
 
     subroutine round_spawns(ValidSpawned, cutoff)
 
