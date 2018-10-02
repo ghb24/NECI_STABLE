@@ -26,16 +26,16 @@ module precond_annihilation_mod
 
     contains
 
-    subroutine precond_annihilation(TotWalkersNew, iter_data, tSingleProc)
+    subroutine precond_annihilation(TotWalkersNew, proj_energy, iter_data, tSingleProc)
 
         integer, intent(inout) :: TotWalkersNew
+        real(dp), intent(inout) :: proj_energy(lenof_sign)
         type(fcimc_iter_data), intent(inout) :: iter_data
         logical, intent(in) :: tSingleProc
 
         integer :: MaxIndex
         integer(n_int), pointer :: PointTemp(:,:)
         type(timer), save :: Compress_time
-        real(dp) :: proj_energy(lenof_sign)
         integer :: ref_positions(lenof_sign)
 
         ! This routine will send all the newly-spawned particles to their

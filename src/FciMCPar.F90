@@ -1330,7 +1330,7 @@ module FciMCParMod
         !They have already been removed from the hash table though.
 
         if (tPreCond) then
-            call precond_annihilation (totWalkersNew, iter_data, .false.)
+            call precond_annihilation (totWalkersNew, precond_energies, iter_data, .false.)
         else
             call DirectAnnihilation (totWalkersNew, iter_data, .false.) !.false. for not single processor
         end if
