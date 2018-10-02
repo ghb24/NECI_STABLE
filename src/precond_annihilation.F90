@@ -36,6 +36,7 @@ module precond_annihilation_mod
         integer(n_int), pointer :: PointTemp(:,:)
         type(timer), save :: Compress_time
         real(dp) :: proj_energy(lenof_sign)
+        integer :: ref_positions(lenof_sign)
 
         ! This routine will send all the newly-spawned particles to their
         ! correct processor. 
@@ -64,7 +65,7 @@ module precond_annihilation_mod
         !call halt_timer(hii_test_time)
 
         call set_timer(proj_e_time, 30)
-        call get_proj_energy(MaxIndex, proj_energy)
+        call get_proj_energy(MaxIndex, proj_energy, ref_positions)
         call halt_timer(proj_e_time)
 
         spawn_hii(1:MaxIndex) = 0.0_dp
@@ -73,9 +74,9 @@ module precond_annihilation_mod
         call calc_e_and_set_init_flags(MaxIndex, proj_energy)
         call halt_timer(precond_e_time)
 
-        !call set_timer(precond_round_time, 30)
-        !call round_spawns(MaxIndex, precondSpawnCutoff)
-        !call halt_timer(precond_round_time)
+        call set_timer(precond_round_time, 30)
+        call round_spawns(MaxIndex, precondSpawnCutoff, ref_positions)
+        call halt_timer(precond_round_time)
 
         call set_timer(rescale_time, 30)
         call rescale_spawns(MaxIndex, proj_energy)
@@ -100,12 +101,13 @@ module precond_annihilation_mod
 
     end subroutine precond_annihilation
 
-    subroutine get_proj_energy(ValidSpawned, proj_energy)
+    subroutine get_proj_energy(ValidSpawned, proj_energy, ref_positions)
 
         use CalcData, only: tau
 
         integer, intent(in) :: ValidSpawned
         real(dp), intent(out) :: proj_energy(lenof_sign)
+        integer, intent(out) :: ref_positions(lenof_sign)
 
         integer :: i, run, ierr
         real(dp) :: SignTemp(lenof_sign), ref_pop(lenof_sign)
@@ -113,6 +115,7 @@ module precond_annihilation_mod
         integer :: PartInd, DetHash
 
         proj_energy = 0.0_dp
+        ref_positions = 0
         ref_found = .false.
 
         ! Find the weight spawned on the Hartree--Fock determinant.
@@ -120,7 +123,6 @@ module precond_annihilation_mod
             do run = 1, lenof_sign
                 do i = 1, determ_sizes(iProcIndex)
                     if (DetBitEQ(core_space(0:NIfDBO, determ_displs(iProcIndex)+i), iLutRef(:,run), NIfDBO)) then
-                    !if (DetBitEQ(core_space(0:NIfDBO, determ_displs(iProcIndex)+i), iLutHF, NIfDBO)) then
                         proj_energy(run) = -partial_determ_vecs(run,i)
                         ref_found(run) = .true.
                     end if
@@ -131,10 +133,10 @@ module precond_annihilation_mod
         do i = 1, ValidSpawned
             do run = 1, lenof_sign
                 if (DetBitEQ(SpawnedParts(:,i), iLutRef(:,run), NIfDBO)) then
-                !if (DetBitEQ(SpawnedParts(:,i), iLutHF, NIfDBO)) then
                     call extract_sign(SpawnedParts(:,i), SignTemp)
                     proj_energy(run) = proj_energy(run) - SignTemp(run)
                     ref_found(run) = .true.
+                    ref_positions(run) = i
                 end if
             end do
         end do
@@ -151,8 +153,6 @@ module precond_annihilation_mod
 
                 call hash_table_lookup(ProjEDet(:,run), ilutRef(:,run), NIfDBO, HashIndex, &
                                        CurrentDets, PartInd, DetHash, tSuccess)
-                !call hash_table_lookup(HFDet, ilutHF, NIfDBO, HashIndex, &
-                !                       CurrentDets, PartInd, DetHash, tSuccess)
 
                 if (tSuccess) then
                     call extract_sign(CurrentDets(:,PartInd), ref_pop)
@@ -397,10 +397,11 @@ module precond_annihilation_mod
 
     end subroutine calc_e_and_set_init_flags
 
-    subroutine round_spawns(ValidSpawned, cutoff)
+    subroutine round_spawns(ValidSpawned, cutoff, ref_positions)
 
         integer, intent(inout) :: ValidSpawned
         real(dp), intent(in) :: cutoff
+        integer, intent(in) :: ref_positions(lenof_sign)
 
         integer :: i, j, new_length
         real(dp) :: SpawnedSign(lenof_sign), prob_remove, r
@@ -412,27 +413,31 @@ module precond_annihilation_mod
         do i = 1, ValidSpawned
             call extract_sign(SpawnedParts(:,i), SpawnedSign)
 
-            do j = 1, lenof_sign
-                if ( abs(SpawnedSign(j)) > 1.e-12_dp .and. abs(SpawnedSign(j)) < cutoff ) then
-                    prob_remove = (cutoff - abs(SpawnedSign(j)))/cutoff
-                    r = genrand_real2_dSFMT()
+            ! Don't perform rounding on reference determinants
+            if (.not. any(ref_positions == i)) then
 
-                    if (prob_remove > r) then
-                        SpawnedSign(j) = 0.0_dp
-                    else
-                        SpawnedSign(j) = sign(cutoff, SpawnedSign(j))
+                do j = 1, lenof_sign
+                    if ( abs(SpawnedSign(j)) > 1.e-12_dp .and. abs(SpawnedSign(j)) < cutoff ) then
+                        prob_remove = (cutoff - abs(SpawnedSign(j)))/cutoff
+                        r = genrand_real2_dSFMT()
+
+                        if (prob_remove > r) then
+                            SpawnedSign(j) = 0.0_dp
+                        else
+                            SpawnedSign(j) = sign(cutoff, SpawnedSign(j))
+                        end if
+
+                        call encode_part_sign(SpawnedParts(:,i), SpawnedSign(j), j)
                     end if
+                end do
 
-                    call encode_part_sign(SpawnedParts(:,i), SpawnedSign(j), j)
-                end if
-            end do
+            end if
 
             if (.not. IsUnoccDet(SpawnedSign)) then
                 new_length = new_length + 1
                 SpawnedParts(:,new_length) = SpawnedParts(:,i)
                 spawn_hii(new_length) = spawn_hii(i)
             end if
-
         end do
 
         ValidSpawned = new_length
