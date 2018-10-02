@@ -150,7 +150,7 @@ set( SRC_FILES
     symrandexcit1.F
     symrandexcit2.F90
     symrandexcit3.F90
-	symrandexcit_Ex_Mag.F90
+    symrandexcit_Ex_Mag.F90
     symrandexcit4.F90
     symrandexcit5.F90
     symrandexcit_csf.F90
@@ -162,6 +162,7 @@ set( SRC_FILES
     trial_wf_gen.F90
     trial_ht_procs.F90
     UMatCache.F90
+    UMatHash.F90
     vasp_init.F90
     vasp_interface.F90
     vasp_neci_interface_stub.F90
