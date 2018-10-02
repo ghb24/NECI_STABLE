@@ -1250,13 +1250,6 @@ contains
                               &deprecated, and now does nothing")')
                 !call stop_all(t_r, "Option LINSCALEFCIMCALGO deprecated")
 
-            case("PARTICLE-HASH-MULTIPLIER")
-                ! Determine the absolute length of the hash table relative to
-                ! the target number of walkers (InitWalkers)
-                ! 
-                ! By default this value is 0.7 (see above)
-                call getf(HashLengthFrac)
-
             case("SEMI-STOCHASTIC")
                 tSemiStochastic = .true.
                 ! If there is ane extra item, it should specify that we turn
@@ -1793,6 +1786,12 @@ contains
                 ! processor, this is the factor of InitWalkers which will be
                 ! used for the size
                 call getf(MemoryFacInit)
+            case("MEMORYFACHASH")
+                ! Determine the absolute length of the hash table relative to
+                ! the target number of walkers (InitWalkers)
+                !
+                ! By default this value is 0.7 (see above)
+                call getf(HashLengthFrac)
             case("REGENEXCITGENS")
 !An FCIMC option. With this, the excitation generators for the walkers will NOT be stored, and regenerated 
 !each time. This will be slower, but save on memory.
