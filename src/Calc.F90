@@ -295,6 +295,11 @@ contains
           ! Truncation based on number of unpaired electrons
           tTruncNOpen = .false.
 
+          ! keep spawns up to a given seniority + excitation level
+          tSpawnSeniorityBased = .false.
+          maxKeepNOpen = 0
+          maxKeepExLvl = 8
+
           ! trunaction for spawns/based on spawns
           t_truncate_unocc = .false.
           t_prone_walkers = .false.
@@ -1854,6 +1859,17 @@ contains
 
             case("NO-COHERENT-INIT-RULE")
                 tInitCoherentRule=.false.
+
+             case("ALL-SENIORITY-SURVIVE")
+                ! keep all spawns, regardless of initiator criterium, onto 
+                ! determinants up to a given Seniority level and excitation level
+                tSpawnSeniorityBased = .true.
+                if(item < nitems) then
+                   ! Default: Max Seniority level 0
+                   call geti(maxKeepNOpen)
+                   ! Default: Max excit level 8
+                   if(item < nitems) call geti(maxKeepExLvl)
+                endif
 
 ! Epstein-Nesbet second-order perturbation using the stochastic spawnings to correct initiator error.
             case("EN2-INITIATOR")
