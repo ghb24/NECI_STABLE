@@ -138,7 +138,8 @@ integer :: trunc_nopen_max
 
 ! do we keep certain spawns up to a given excitation + seniority level
 logical :: tSpawnSeniorityBased 
-integer :: maxKeepNOpen, maxKeepExLvl
+integer, allocatable :: maxKeepExLvl(:)
+integer :: numMaxExLvlsSet
 
 logical :: tMaxBloom    !If this is on, then we only print out a bloom warning if it is the biggest to date.
 

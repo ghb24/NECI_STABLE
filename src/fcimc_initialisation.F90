@@ -36,7 +36,8 @@ module fcimc_initialisation
                         tMultipleInitialStates, initial_states, t_hist_tau_search, &
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, tRCCheck, &
-                        t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0
+                        t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
+                        maxKeepExLvl
     use adi_data, only: tReferenceChanged, tAdiActive, &
          nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
@@ -1892,6 +1893,8 @@ contains
         if (tSemiStochastic) call end_semistoch()
 
         if (tTrialWavefunction) call end_trial_wf()
+
+        deallocate(maxKeepExLvl)
 
 !There seems to be some problems freeing the derived mpi type.
 !        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN

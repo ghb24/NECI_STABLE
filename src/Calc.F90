@@ -297,8 +297,8 @@ contains
 
           ! keep spawns up to a given seniority + excitation level
           tSpawnSeniorityBased = .false.
-          maxKeepNOpen = 0
-          maxKeepExLvl = 8
+          numMaxExLvlsSet = 0
+          allocate(maxKeepExLvl(0))
 
           ! trunaction for spawns/based on spawns
           t_truncate_unocc = .false.
@@ -420,6 +420,7 @@ contains
           use ras_data
           use global_utilities
           use Parallel_neci, only : nProcessors
+          use util_mod, only: addToIntArray
           use LoggingData, only: tLogDets
           IMPLICIT NONE
           LOGICAL eof
@@ -431,6 +432,7 @@ contains
           logical :: tExitNow
           integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
           integer :: npops_pert, npert_spectral_left, npert_spectral_right
+          integer :: maxKeepNOpenBuf, maxKeepExLvlBuf
           real(dp) :: InputDiagSftSingle
 
           ! Allocate and set this default here, because we don't have inum_runs
@@ -1864,12 +1866,14 @@ contains
                 ! keep all spawns, regardless of initiator criterium, onto 
                 ! determinants up to a given Seniority level and excitation level
                 tSpawnSeniorityBased = .true.
-                if(item < nitems) then
+                do while(item < nitems) 
                    ! Default: Max Seniority level 0
-                   call geti(maxKeepNOpen)
+                   call geti(maxKeepNOpenBuf)
                    ! Default: Max excit level 8
-                   if(item < nitems) call geti(maxKeepExLvl)
-                endif
+                   call geti(maxKeepExLvlBuf)
+                   call addToIntArray(maxKeepExLvl,maxKeepNOpenBuf+1,maxKeepExLvlBuf)
+                   numMaxExLvlsSet = maxKeepNOpenBuf+1
+                end do
 
 ! Epstein-Nesbet second-order perturbation using the stochastic spawnings to correct initiator error.
             case("EN2-INITIATOR")

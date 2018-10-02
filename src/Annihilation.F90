@@ -8,7 +8,7 @@ module AnnihilationMod
                           tContTimeFull, InitiatorWalkNo, tau, tEN2, tEN2Init, &
                           tEN2Started, tEN2Truncated, tInitCoherentRule, t_truncate_spawns, &
                           n_truncate_spawns, t_prone_walkers, t_truncate_unocc, &
-                          tSpawnSeniorityBased, maxKeepNOpen, maxKeepExLvl
+                          tSpawnSeniorityBased, numMaxExLvlsSet, maxKeepExLvl
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -981,7 +981,7 @@ module AnnihilationMod
         integer(n_int), intent(in) :: ilut_spwn(0:nIfBCast)
         integer, intent(in) :: part_type
         logical :: abort
-        integer :: exLvl, nopen
+        integer :: maxExLvl, nopen
 
         ! If a particle comes from a site marked as an initiator, then it can
         ! live
@@ -990,8 +990,18 @@ module AnnihilationMod
         
         ! optionally keep spawns up to a given seniority level + excitaion level
         if(abort .and. tSpawnSeniorityBased) then
-           if(count_open_orbs(ilut_spwn) <= maxKeepNOpen) then 
-              if(FindBitExcitLevel(ilutHF, ilut_spwn) <= maxKeepExLvl) abort = .false.
+           ! get the seniority level
+           nopen = count_open_orbs(ilut_spwn) 
+           if(nopen < numMaxExLvlsSet) then
+              maxExLvl = 0
+              ! get the corresponding max excitation level
+              do while(maxExLvl == 0)
+                 maxExLvl = maxKeepExLvl(nopen+1)
+                 nopen = nopen + 1
+                 if(nopen => numMaxExLvlsSet) exit
+              end do
+              ! if we are below this level, keep the spawn anyway
+              if(FindBitExcitLevel(ilutHF, ilut_spwn) <= maxExLvl) abort = .false.
            end if
         end if
 
