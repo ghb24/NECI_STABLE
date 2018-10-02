@@ -401,6 +401,7 @@ contains
 
           tPreCond = .false.
           PrecondSpawnCutoff = 0.5_dp
+          tTrialInit = .false.
 
         end subroutine SetCalcDefaults
 
@@ -1440,13 +1441,16 @@ contains
             case("MP1-INIT")
                 init_trial_in%tMP1 = .true.
                 call geti(init_trial_in%mp1_ndets)
+                tTrialInit = .true.
             case("DOUBLES-INIT")
                 init_trial_in%tDoubles = .true.
+                tTrialInit = .true.
             case("CAS-INIT")
                 init_trial_in%tCAS = .true.
                 tSpn = .true.
                 call geti(init_trial_in%occ_cas) ! Number of electrons in CAS
                 call geti(init_trial_in%virt_cas) ! Number of virtual spin-orbitals in CAS
+                tTrialInit = .true.
             case("RAS-INIT")
                 init_trial_in%tRAS = .true.
                 call geti(ras_size_1)  ! Number of spatial orbitals in RAS1.
@@ -1459,8 +1463,10 @@ contains
                 init_trial_in%ras%size_3 = int(ras_size_3,sp)
                 init_trial_in%ras%min_1 = int(ras_min_1,sp)
                 init_trial_in%ras%max_3 = int(ras_max_3,sp)
+                tTrialInit = .true.
             case("OPTIMISED-INIT")
                 init_trial_in%tOptimised = .true.
+                tTrialInit = .true.
             case("OPTIMISED-INIT-CUTOFF-AMP")
                 init_trial_in%opt_data%tAmpCutoff = .true.
                 init_trial_in%opt_data%ngen_loops = nitems - 1
@@ -1477,16 +1483,21 @@ contains
                 end do
             case("HF-INIT")
                 init_trial_in%tHF = .true.
+                tTrialInit = .true.
             case("POPS-INIT")
                 init_trial_in%tPops = .true.
                 call geti(init_trial_in%npops)
+                tTrialInit = .true.
             case("READ-INIT")
                 init_trial_in%tRead = .true.
+                tTrialInit = .true.
             case("FCI-INIT")
                 init_trial_in%tFCI = .true.
                 tStartSinglePart = .false.
+                tTrialInit = .true.
             case("HEISENBERG-FCI-INIT")
                 init_trial_in%tHeisenbergFCI = .true.
+                tTrialInit = .true.
             case("START-FROM-HF")
                 tStartCoreGroundState = .false.
             case("INC-CANCELLED-INIT-ENERGY")

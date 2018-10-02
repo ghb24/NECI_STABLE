@@ -2117,6 +2117,9 @@ contains
         endif
         proje_ref_energy_offsets(run) = real(h_tmp, dp) - Hii
 
+        ! Update the processor on which the reference is held
+        iRefProc(run) = DetermineDetNode(nel, ProjEDet(:, run), 0)
+
         ! [W.D] need to also change the virtual mask
         if (t_back_spawn .or. t_back_spawn_flex) then 
             call setup_virtual_mask()

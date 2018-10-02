@@ -31,7 +31,7 @@ module fcimc_initialisation
                         use_spawn_hash_table, tReplicaSingleDetStart, RealSpawnCutoff, &
                         ss_space_in, trial_space_in, init_trial_in, trial_shift_iter, &
                         tContTimeFCIMC, tContTimeFull, tMultipleInitialRefs, &
-                        initial_refs, trial_init_reorder, tStartTrialLater, &
+                        initial_refs, trial_init_reorder, tStartTrialLater, tTrialInit, &
                         ntrial_ex_calc, tPairedReplicas, tMultiRefShift, tPreCond, &
                         tMultipleInitialStates, initial_states, t_hist_tau_search, &
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
@@ -1237,7 +1237,7 @@ contains
     ! initial walkers, and reading from a file if needed
     SUBROUTINE InitFCIMCCalcPar()
         INTEGER :: ierr,iunithead
-        logical :: formpops, binpops
+        logical :: formpops, binpops, tStartedFromCoreGround
         INTEGER :: error,MemoryAlloc,PopsVersion
         character(*), parameter :: t_r = 'InitFCIMCPar', this_routine = t_r
         integer :: PopBlockingIter
@@ -1467,8 +1467,8 @@ contains
                     !Initialise walkers according to a CAS diagonalisation.
                     call InitFCIMC_CAS()
 
-                else if (tOrthogonaliseReplicas .and. &
-                         .not. tReplicaSingleDetStart) then
+                else if (tTrialInit .or. (tOrthogonaliseReplicas .and. &
+                         .not. tReplicaSingleDetStart)) then
 
                     call InitFCIMC_trial()
 
@@ -1560,7 +1560,8 @@ contains
               tSemiStochastic = .false.
               semistoch_shift_iter = 1
            else
-              call init_semi_stochastic(ss_space_in)
+              call init_semi_stochastic(ss_space_in, tStartedFromCoreGround)
+              if (tStartedFromCoreGround) call set_initial_run_references()
            endif
         endif
 

@@ -124,6 +124,7 @@ module FciMCParMod
         logical :: tNoProjEValue, tNoShiftValue
         real(dp) :: BestErr
         real(dp) :: start_time, stop_time
+        logical :: tStartedFromCoreGround
 #ifdef MOLPRO
         real(dp) :: get_scalar
         include "common/molen"
@@ -280,7 +281,8 @@ module FciMCParMod
             if (semistoch_shift_iter /= 0 .and. all(.not. tSinglePartPhase)) then
                 if ((Iter - maxval(VaryShiftIter)) == semistoch_shift_iter + 1) then
                     tSemiStochastic = .true.
-                    call init_semi_stochastic(ss_space_in)
+                    call init_semi_stochastic(ss_space_in, tStartedFromCoreGround)
+                    if (tStartedFromCoreGround) call set_initial_run_references()
                     ! Count iterations for corespace updates from here
                     semistochStartIter = iter
                     ! and switch how iterations for SI updates are counted

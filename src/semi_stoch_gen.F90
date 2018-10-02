@@ -22,7 +22,7 @@ module semi_stoch_gen
 
 contains
 
-    subroutine init_semi_stochastic(core_in)
+    subroutine init_semi_stochastic(core_in, tStartedFromCoreGround)
 
         ! Initialise the semi-stochastic information. This includes enumerating a list of all
         ! determinants or CSFs in the deterministic space and calculating and storing the resulting
@@ -43,6 +43,7 @@ contains
         use SystemData, only: nel
 
         type(subspace_in) :: core_in
+        logical, intent(out) :: tStartedFromCoreGround
 
         integer :: i, j, ierr
         integer :: nI(nel)
@@ -166,8 +167,11 @@ contains
         SpawnedParts = 0_n_int
         TotWalkersOld = TotWalkers
 
-        if (tStartCoreGroundState .and. (.not. tReadPops) .and. tStaticCore) &
+        tStartedFromCoreGround = .false.
+        if (tStartCoreGroundState .and. (.not. tReadPops) .and. tStaticCore .and. (.not. tTrialInit)) then
             call start_walkers_from_core_ground(tPrintInfo = .true.)
+            tStartedFromCoreGround = .true.
+        end if
 
         ! Call MPIBarrier here so that Semistoch_Init_Time will give the
         ! initialisation time for all processors to finish.
@@ -1481,9 +1485,13 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine refresh_semistochastic_space()
+
       use FciMCData, only: iter_data_fciqmc
       use semi_stoch_procs, only: end_semistoch
+
       implicit none
+
+      logical :: tStartedFromCoreGround
 
       ! The reinitialization of the semistochastic space can affect population
       ! because of stochastic rounds. To log this correctly, set the iter_data to 0 here
@@ -1498,7 +1506,7 @@ contains
       ! assumed that no states have that flag when init_semi_stochastic starts
       call reset_core_space()
       ! Now, generate the new deterministic space
-      call init_semi_stochastic(ss_space_in)
+      call init_semi_stochastic(ss_space_in, tStartedFromCoreGround)
 
       ! Changing the semi-stochastic space can involve some roundings
       ! if determinants with population < realSpawnCutoff stop being 
@@ -1511,14 +1519,17 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine reset_core_space()
+
       use bit_reps, only: clr_flag
       use FciMCData, only: MaxWalkersPart
+
       implicit none
+
       integer :: i
       
-      do i=1, MaxWalkersPart
+      do i = 1, MaxWalkersPart
          call clr_flag(CurrentDets(:,i),flag_deterministic)
-      enddo
+      end do
       
     end subroutine reset_core_space
 

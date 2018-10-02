@@ -284,6 +284,9 @@ logical :: tAVReps, tReplicaCoherentInits, tRCCheck
 ! Information on a trial space to create trial excited states with.
 type(subspace_in) :: init_trial_in
 
+! Start wave function from solutions with a trial space
+logical :: tTrialInit
+
 ! If true then a hash table is kept for the spawning array and is used when
 ! new spawnings are added to the spawned list, to prevent adding the same
 ! determinant multiple times.

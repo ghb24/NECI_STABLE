@@ -506,6 +506,10 @@ MODULE Logging
             tHistInitPops=.true.
             call readi(HistInitPopsIter)
 
+        case("PAIRED-REPLICAS")
+            tPairedReplicas = .true.
+            nreplicas = 2
+
         case("UNPAIRED-REPLICAS")
             tUseOnlySingleReplicas = .true.
 #if defined(__PROG_NUMRUNS)

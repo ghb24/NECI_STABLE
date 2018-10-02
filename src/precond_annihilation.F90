@@ -73,9 +73,9 @@ module precond_annihilation_mod
         call calc_e_and_set_init_flags(MaxIndex, proj_energy)
         call halt_timer(precond_e_time)
 
-        call set_timer(precond_round_time, 30)
-        call round_spawns(MaxIndex, precondSpawnCutoff)
-        call halt_timer(precond_round_time)
+        !call set_timer(precond_round_time, 30)
+        !call round_spawns(MaxIndex, precondSpawnCutoff)
+        !call halt_timer(precond_round_time)
 
         call set_timer(rescale_time, 30)
         call rescale_spawns(MaxIndex, proj_energy)
@@ -120,6 +120,7 @@ module precond_annihilation_mod
             do run = 1, lenof_sign
                 do i = 1, determ_sizes(iProcIndex)
                     if (DetBitEQ(core_space(0:NIfDBO, determ_displs(iProcIndex)+i), iLutRef(:,run), NIfDBO)) then
+                    !if (DetBitEQ(core_space(0:NIfDBO, determ_displs(iProcIndex)+i), iLutHF, NIfDBO)) then
                         proj_energy(run) = -partial_determ_vecs(run,i)
                         ref_found(run) = .true.
                     end if
@@ -130,6 +131,7 @@ module precond_annihilation_mod
         do i = 1, ValidSpawned
             do run = 1, lenof_sign
                 if (DetBitEQ(SpawnedParts(:,i), iLutRef(:,run), NIfDBO)) then
+                !if (DetBitEQ(SpawnedParts(:,i), iLutHF, NIfDBO)) then
                     call extract_sign(SpawnedParts(:,i), SignTemp)
                     proj_energy(run) = proj_energy(run) - SignTemp(run)
                     ref_found(run) = .true.
@@ -149,6 +151,8 @@ module precond_annihilation_mod
 
                 call hash_table_lookup(ProjEDet(:,run), ilutRef(:,run), NIfDBO, HashIndex, &
                                        CurrentDets, PartInd, DetHash, tSuccess)
+                !call hash_table_lookup(HFDet, ilutHF, NIfDBO, HashIndex, &
+                !                       CurrentDets, PartInd, DetHash, tSuccess)
 
                 if (tSuccess) then
                     call extract_sign(CurrentDets(:,PartInd), ref_pop)
