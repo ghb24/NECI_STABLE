@@ -225,7 +225,8 @@ module precond_annihilation_mod
         precond_e_num_all = 0.0_dp
         precond_denom_all = 0.0_dp
 
-        mean_energy(1) = Hii + ( proj_energy(1) + proj_energy(2) ) / 2.0_dp
+        mean_energy(1) = Hii + ( proj_energy(1) + proje_ref_energy_offsets(1) + &
+                                 proj_energy(2) + proje_ref_energy_offsets(2) ) / 2.0_dp
 
         tCoreDet = .false.
         tSuccess = .false.
@@ -275,16 +276,16 @@ module precond_annihilation_mod
                     (SpawnedSign(1) * CurrentSign(2) + SpawnedSign(2) * CurrentSign(1))/(2.0_dp * tau)
 
                 precond_e_num(1) = precond_e_num(1) - &
-                    SpawnedSign(1) * h_diag * CurrentSign(2) / ( (proj_energy(1) + Hii - h_diag ))
+                    SpawnedSign(1) * h_diag * CurrentSign(2) / ( (proj_energy(1) + proje_ref_energy_offsets(1) + Hii - h_diag ))
 
                 precond_e_num(2) = precond_e_num(2) - &
-                    SpawnedSign(2) * h_diag * CurrentSign(1) / ( (proj_energy(2) + Hii - h_diag ))
+                    SpawnedSign(2) * h_diag * CurrentSign(1) / ( (proj_energy(2) + proje_ref_energy_offsets(2) + Hii - h_diag ))
 
                 precond_denom(1) = precond_denom(1) - &
-                    SpawnedSign(1) * CurrentSign(2) / ( (proj_energy(1) + Hii - h_diag ))
+                    SpawnedSign(1) * CurrentSign(2) / ( (proj_energy(1) + proje_ref_energy_offsets(1) + Hii - h_diag ))
 
                 precond_denom(2) = precond_denom(2) - &
-                    SpawnedSign(2) * CurrentSign(1) / ( (proj_energy(2) + Hii - h_diag ))
+                    SpawnedSign(2) * CurrentSign(1) / ( (proj_energy(2) + proje_ref_energy_offsets(2) + Hii - h_diag ))
             end if
 
             ! Add in the contributions corresponding to off-diagonal
@@ -301,10 +302,10 @@ module precond_annihilation_mod
                 end if
 
                 precond_e_num(1) = precond_e_num(1) + &
-                  SpawnedSign(1) * SpawnedSign(2) / (tau * ( proj_energy(1) + Hii - h_diag ))
+                  SpawnedSign(1) * SpawnedSign(2) / (tau * ( proj_energy(1) + proje_ref_energy_offsets(1) + Hii - h_diag ))
 
                 precond_e_num(2) = precond_e_num(2) + &
-                  SpawnedSign(1) * SpawnedSign(2) / (tau * ( proj_energy(2) + Hii - h_diag ))
+                  SpawnedSign(1) * SpawnedSign(2) / (tau * ( proj_energy(2) + proje_ref_energy_offsets(2) + Hii - h_diag ))
 
                 ! Only get EN2 contribution is we're due to cancel this
                 ! spawning on both replicas
@@ -337,27 +338,27 @@ module precond_annihilation_mod
 
                     precond_e_num(1) = precond_e_num(1) + &
                       partial_determ_vecs(1, i) * partial_determ_vecs(2, i) / &
-                        ( tau * (proj_energy(1) - core_ham_diag(i)) )
+                        ( tau * (proj_energy(1) + proje_ref_energy_offsets(1) - core_ham_diag(i)) )
 
                     precond_e_num(2) = precond_e_num(2) + &
                       partial_determ_vecs(1, i) * partial_determ_vecs(2, i) / &
-                       ( tau * (proj_energy(2) - core_ham_diag(i)) )
+                       ( tau * (proj_energy(2) + proje_ref_energy_offsets(2) - core_ham_diag(i)) )
 
                     precond_e_num(1) = precond_e_num(1) - &
                       partial_determ_vecs(1, i) * (core_ham_diag(i) + Hii) * CurrentSign(2) / &
-                        ( (proj_energy(1) - core_ham_diag(i)) )
+                        ( (proj_energy(1) + proje_ref_energy_offsets(1) - core_ham_diag(i)) )
 
                     precond_e_num(2) = precond_e_num(2) - &
                       partial_determ_vecs(2, i) * (core_ham_diag(i) + Hii) * CurrentSign(1) / &
-                       ( (proj_energy(2) - core_ham_diag(i)) )
+                       ( (proj_energy(2) + proje_ref_energy_offsets(2) - core_ham_diag(i)) )
 
                     precond_denom(1) = precond_denom(1) - &
                       partial_determ_vecs(1, i) * CurrentSign(2) / &
-                        ( (proj_energy(1) - core_ham_diag(i)) )
+                        ( (proj_energy(1) + proje_ref_energy_offsets(1) - core_ham_diag(i)) )
 
-                    precond_denom(2) = precond_denom(2)- &
+                    precond_denom(2) = precond_denom(2) - &
                       partial_determ_vecs(2, i) * CurrentSign(1) / &
-                       ( (proj_energy(2) - core_ham_diag(i)) )
+                       ( (proj_energy(2) + proje_ref_energy_offsets(2) - core_ham_diag(i)) )
                 end if
             end do
         end if
@@ -457,7 +458,8 @@ module precond_annihilation_mod
         ! Find the weight spawned on the Hartree--Fock determinant.
         if (tSemiStochastic) then
             do i = 1, determ_sizes(iProcIndex)
-                partial_determ_vecs(:,i) = partial_determ_vecs(:,i) / (core_ham_diag(i) - proj_energy)
+                partial_determ_vecs(:,i) = partial_determ_vecs(:,i) / &
+                  (core_ham_diag(i) - proj_energy -  proje_ref_energy_offsets)
             end do
         end if
 
@@ -475,7 +477,7 @@ module precond_annihilation_mod
             end if
 
             call extract_sign(SpawnedParts(:,i), SpawnedSign)
-            SpawnedSign = SpawnedSign / (h_diag - proj_energy - Hii)
+            SpawnedSign = SpawnedSign / (h_diag - proj_energy - proje_ref_energy_offsets - Hii)
             call encode_sign(SpawnedParts(:,i), SpawnedSign)
         end do
 

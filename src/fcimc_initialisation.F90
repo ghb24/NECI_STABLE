@@ -3581,71 +3581,79 @@ contains
                 call EncodeBitDet(ProjEDet(:, run), ilutRef(:, run))
             end do
 
-        else
-            if (.not. tOrthogonaliseReplicas) then
+        else if (tOrthogonaliseReplicas) then
 
-                ! This is the normal case. All simultions are essentially doing
-                ! the same thing...
+            tReplicaReferencesDiffer = .true.
 
-                do run = 1, inum_runs
-                    ilutRef(:, run) = ilutHF
-                    ProjEDet(:, run) = HFDet
-                end do
+            ! The first replica is just a normal FCIQMC simulation.
+            ilutRef(:, 1) = ilutHF
+            ProjEDet(:, 1) = HFDet
 
-                ! And make sure that the rest of the code knows this
-                tReplicaReferencesDiffer = .false.
+            found_orbs = 0
+            do run = 2, inum_runs
 
-            else
+                ! Now we want to find the lowest energy single excitation with
+                ! the same symmetry as the reference site.
+                do i = 1, nel
+                    ! Find the excitations, and their energy
+                    orb = HFDet(i)
+                    cc_idx = ClassCountInd(orb)
+                    label_idx = SymLabelCounts2(1, cc_idx)
+                    norb = OrbClassCount(cc_idx)
 
-                tReplicaReferencesDiffer = .true.
-
-                ! The first replica is just a normal FCIQMC simulation.
-                ilutRef(:, 1) = ilutHF
-                ProjEDet(:, 1) = HFDet
-
-                found_orbs = 0
-                do run = 2, inum_runs
-
-                    ! Now we want to find the lowest energy single excitation with
-                    ! the same symmetry as the reference site.
-                    do i = 1, nel
-                        ! Find the excitations, and their energy
-                        orb = HFDet(i)
-                        cc_idx = ClassCountInd(orb)
-                        label_idx = SymLabelCounts2(1, cc_idx)
-                        norb = OrbClassCount(cc_idx)
-
-                        ! nb. sltcnd_0 does not depend on the ordering of the det,
-                        !     so we don't need to do any sorting here.
-                        energies(i) = 9999999.9_dp
-                        do j = 1, norb
-                            orb2 = SymLabelList2(label_idx + j - 1)
-                            if ((.not. any(orb2 == HFDet)) .and. &
-                                (.not. any(orb2 == found_orbs))) then
-                                det = HFDet
-                                det(i) = orb2
-                                hdiag = real(sltcnd_0(det), dp)
-                                if (hdiag < energies(i)) then
-                                    energies(i) = hdiag
-                                    orbs(i) = orb2
-                                end if
+                    ! nb. sltcnd_0 does not depend on the ordering of the det,
+                    !     so we don't need to do any sorting here.
+                    energies(i) = 9999999.9_dp
+                    do j = 1, norb
+                        orb2 = SymLabelList2(label_idx + j - 1)
+                        if ((.not. any(orb2 == HFDet)) .and. &
+                            (.not. any(orb2 == found_orbs))) then
+                            det = HFDet
+                            det(i) = orb2
+                            hdiag = real(sltcnd_0(det), dp)
+                            if (hdiag < energies(i)) then
+                                energies(i) = hdiag
+                                orbs(i) = orb2
                             end if
-                        end do
+                        end if
                     end do
-
-                    ! Which of the electrons that is excited gives the lowest energy?
-                    i = minloc(energies, 1)
-                    found_orbs(run) = orbs(i)
-
-                    ! Construct that determinant, and set it as the reference.
-                    ProjEDet(:, run) = HFDet
-                    ProjEDet(i, run) = orbs(i)
-                    call sort(ProjEDet(:, run))
-                    call EncodeBitDet(ProjEDet(:, run), ilutRef(:, run))
-
                 end do
 
-            end if
+                ! Which of the electrons that is excited gives the lowest energy?
+                i = minloc(energies, 1)
+                found_orbs(run) = orbs(i)
+
+                ! Construct that determinant, and set it as the reference.
+                ProjEDet(:, run) = HFDet
+                ProjEDet(i, run) = orbs(i)
+                call sort(ProjEDet(:, run))
+                call EncodeBitDet(ProjEDet(:, run), ilutRef(:, run))
+
+            end do
+
+        else if (tPreCond) then
+
+            do run = 1, inum_runs
+                ilutRef(:, run) = ilutHF
+                ProjEDet(:, run) = HFDet
+            end do
+
+            ! And make sure that the rest of the code knows this
+            tReplicaReferencesDiffer = .true.
+
+        else
+
+            ! This is the normal case. All simultions are essentially doing
+            ! the same thing...
+
+            do run = 1, inum_runs
+                ilutRef(:, run) = ilutHF
+                ProjEDet(:, run) = HFDet
+            end do
+
+            ! And make sure that the rest of the code knows this
+            tReplicaReferencesDiffer = .false.
+
         end if
 
         write(6,*) 'Generated reference determinants:'
