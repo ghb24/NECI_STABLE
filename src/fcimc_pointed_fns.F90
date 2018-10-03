@@ -15,7 +15,8 @@ module fcimc_pointed_fns
                         tRealCoeffByExcitLevel, InitiatorWalkNo, &
                         t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, & 
                         t_matele_cutoff, matele_cutoff, tEN2Truncated, &
-                        tTruncInitiator, tSkipRef, t_consider_par_bias, t_truncate_unocc
+                        tTruncInitiator, tSkipRef, t_consider_par_bias, t_truncate_unocc, &
+                        t_hist_tau_search, t_hist_tau_search_option
 
     use DetCalcData, only: FciDetIndex, det
 
@@ -745,7 +746,8 @@ module fcimc_pointed_fns
 
         if(any(fac > 1.0_dp)) then
             if (any(fac > 2.0_dp)) then
-                if (tSearchTau) then
+                if (tSearchTauOption .or. t_hist_tau_search_option) then
+!                 if (tSearchTauDeath) then
                     ! If we are early in the calculation, and are using tau
                     ! searching, then this is not a big deal. Just let the
                     ! searching deal with it
