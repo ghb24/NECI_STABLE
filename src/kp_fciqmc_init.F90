@@ -893,6 +893,7 @@ contains
         logical :: tInitiatorTemp
         type(fcimc_iter_data) :: unused_data
         integer(n_int), pointer :: PointTemp(:,:)
+        HElement_t(dp) :: hdiag_spawn
 
         call allocate_iter_data(unused_data)
 
@@ -928,7 +929,7 @@ contains
             do ireplica = 1, inum_runs
                 walker_sign = 0.0_dp
                 walker_sign(ireplica) = walker_amp
-                call create_particle(nI, ilut, walker_sign, ireplica)
+                call create_particle(nI, ilut, walker_sign, ireplica, hdiag_spawn)
             end do
         end do
 

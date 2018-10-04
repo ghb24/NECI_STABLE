@@ -1402,8 +1402,6 @@ contains
             log_alloc(SpawnVec, SpawnVecTag, ierr)
             log_alloc(SpawnVec2, SpawnVec2Tag, ierr)
 
-            if (tPreCond) allocate(spawn_hii(MaxSpawned), stat=ierr)
-
             if (use_spawn_hash_table) then
                 nhashes_spawn = ceiling(0.8*MaxSpawned)
                 allocate(spawn_ht(nhashes_spawn), stat=ierr)
@@ -1839,8 +1837,6 @@ contains
         CALL LogMemDealloc(this_routine,SpawnVecTag)
         DEALLOCATE(SpawnVec2)
         CALL LogMemDealloc(this_routine,SpawnVec2Tag)
-
-        if (tPreCond) deallocate(spawn_hii)
 
         if(allocated(TempSpawnedParts)) then
             deallocate(TempSpawnedParts)

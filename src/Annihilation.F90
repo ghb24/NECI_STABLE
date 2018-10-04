@@ -7,7 +7,7 @@ module AnnihilationMod
                           tTrialWavefunction, tKP_FCIQMC, tContTimeFCIMC, &
                           tContTimeFull, InitiatorWalkNo, tau, tEN2, tEN2Init, &
                           tEN2Started, tEN2Truncated, tInitCoherentRule, t_truncate_spawns, &
-                          n_truncate_spawns, t_prone_walkers, t_truncate_unocc
+                          n_truncate_spawns, t_prone_walkers, t_truncate_unocc, tPreCond
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -22,7 +22,8 @@ module AnnihilationMod
                         flag_initiator, encode_part_sign, &
                         extract_part_sign, extract_bit_rep, &
                         nullify_ilut_part, clr_flag, get_num_spawns,&
-                        encode_flags, bit_parent_zero, get_initiator_flag
+                        encode_flags, bit_parent_zero, get_initiator_flag, &
+                        extract_spawn_hdiag
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData, only: tNoNewRDMContrib
     use load_balance, only: DetermineDetNode, AddNewHashDet, &
@@ -31,7 +32,6 @@ module AnnihilationMod
     use hash
     use global_det_data, only: det_diagH
     use procedure_pointers, only: scaleFunction
-    use Determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement
     use rdm_data, only: rdm_estimates, en_pert_main
     use rdm_data_utils, only: add_to_en_pert_t
@@ -200,6 +200,9 @@ module AnnihilationMod
         character(len=*), parameter :: t_r = 'CompressSpawnedList'
         type(timer), save :: Sort_time
 
+        integer :: nI_spawn(nel)
+        HElement_t(dp) :: hdiag
+
         ! We want to sort the list of newly spawned particles, in order for
         ! quicker binary searching later on. They should remain sorted after
         ! annihilation between spawned.
@@ -335,7 +338,11 @@ module AnnihilationMod
             ! Reset the cumulative determinant
             cum_det = 0_n_int
             cum_det (0:nifdbo) = SpawnedParts(0:nifdbo, BeginningBlockDet)
-        
+
+            if (tPreCond) then
+                cum_det(nOffSpawnHDiag) = SpawnedParts(nOffSpawnHDiag, BeginningBlockDet)
+            end if
+
             if (tFillingStochRDMonFly .and. (.not.tNoNewRDMContrib)) then
                 ! This is the first Dj determinant - set the index for the
                 ! beginning of where the parents for this Dj can be found in
@@ -351,13 +358,13 @@ module AnnihilationMod
 
 
             do i = BeginningBlockDet, EndBlockDet
-               ! if logged, accumulate the number of spawn events
-               if(tLogNumSpawns) then
-                  cum_det(nSpawnOffset) = cum_det(nSpawnOffset) + &
-                       SpawnedParts(nSpawnOffset,i)
-               end if
-               ! Annihilate in this block seperately for walkers of different types.
-               do part_type = 1, lenof_sign
+                ! if logged, accumulate the number of spawn events
+                if(tLogNumSpawns) then
+                   cum_det(nSpawnOffset) = cum_det(nSpawnOffset) + &
+                        SpawnedParts(nSpawnOffset,i)
+                end if
+                ! Annihilate in this block seperately for walkers of different types.
+                do part_type = 1, lenof_sign
                     if (tHistSpawn) then
                         call extract_sign (SpawnedParts(:,i), SpawnedSign)
                         call extract_sign (SpawnedParts(:,BeginningBlockDet), temp_sign)
@@ -384,7 +391,11 @@ module AnnihilationMod
                 ! the sign here.  Also getting rid of them here would make the
                 ! biased sign of Ci slightly wrong.
 
-                SpawnedParts2(0:NIfTot,VecInd) = cum_det(0:NIfTot)
+                SpawnedParts2(0:NIfTot, VecInd) = cum_det(0:NIfTot)
+                if (tPreCond) then
+                    SpawnedParts2(nOffSpawnHDiag, VecInd) = cum_det(nOffSpawnHDiag)
+                end if
+
                 VecInd = VecInd + 1
                 DetsMerged = DetsMerged + EndBlockDet - BeginningBlockDet
 

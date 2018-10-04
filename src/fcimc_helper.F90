@@ -14,7 +14,7 @@ module fcimc_helper
                         flag_trial, flag_connected, flag_deterministic, &
                         extract_part_sign, encode_part_sign, decode_bit_det, &
                         get_initiator_flag, get_initiator_flag_by_run, &
-                        log_spawn, increase_spawn_counter
+                        log_spawn, increase_spawn_counter, encode_spawn_hdiag
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
                          DetBitEQ, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
@@ -40,7 +40,8 @@ module fcimc_helper
                         NMCyc, iSampleRDMIters, ErrThresh, tSTDInits, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
                         t_back_spawn_flex, tau, DiagSft,  &
-                        tSeniorInitiators, SeniorityAge, tInitCoherentRule
+                        tSeniorInitiators, SeniorityAge, tInitCoherentRule, &
+                        tPreCond
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
          tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
@@ -96,7 +97,7 @@ contains
 
     end function TestMCExit
 
-    subroutine create_particle (nJ, iLutJ, child, part_type, ilutI, SignCurr, &
+    subroutine create_particle (nJ, iLutJ, child, part_type, hdiag_spawn, ilutI, SignCurr, &
                                 WalkerNo, RDMBiasFacCurr, WalkersToSpawn)
 
         ! Create a child in the spawned particles arrays. We spawn particles
@@ -109,6 +110,7 @@ contains
         integer, intent(in) :: nJ(nel), part_type
         integer(n_int), intent(in) :: iLutJ(0:niftot)
         real(dp), intent(in) :: child(lenof_sign)
+        HElement_t(dp), intent(in) :: hdiag_spawn
         integer(n_int), intent(in), optional :: ilutI(0:niftot)
         real(dp), intent(in), optional :: SignCurr(lenof_sign)
         integer, intent(in), optional :: WalkerNo
@@ -185,6 +187,10 @@ contains
             call store_parent_with_spawned (RDMBiasFacCurr, WalkerNo, &
                                             ilutI, WalkersToSpawn, ilutJ, &
                                             proc)
+        end if
+
+        if (tPreCond) then
+            call encode_spawn_hdiag(SpawnedParts(:, ValidSpawnedList(proc)), hdiag_spawn)
         end if
 
         ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1

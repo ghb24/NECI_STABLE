@@ -187,7 +187,7 @@ contains
         integer :: nspawn, spawn_sgn, det_spwn(nel), ic, i, y, nopen_spwn
         integer(n_int) :: ilut_spwn(0:NIfTot)
         logical :: child_survives
-        HElement_t(dp) :: hoffdiag, htmp
+        HElement_t(dp) :: hoffdiag, htmp, hdiag_spawn
 
         ! A quick sanity check that we have calculated the spawning rate
         ! reasonably
@@ -308,7 +308,7 @@ contains
                                          part_type, ilut, iter_data)
                     else
                         call create_particle(det_spwn, ilut_spwn, child, &
-                                             part_type, ilut)
+                                             part_type, hdiag_spawn, ilut)
                     end if
                 end if
 

@@ -867,7 +867,7 @@ module FciMCParMod
         integer :: DetHash, FinalVal, clash, PartInd, k, y
         type(ll_node), pointer :: TempNode
 
-        real(dp) :: h_diag_new, h_diag_correct
+        HElement_t(dp) :: hdiag_spawn, h_diag_correct
 
         integer :: ms
         logical :: signChanged, newlyOccupied
@@ -1244,19 +1244,21 @@ module FciMCParMod
                     ! Children have been chosen to be spawned.
                     if (any(child /= 0)) then
 
-                        h_diag_new = get_hdiag_from_excit(DetCurr, ic, ex, EnergyCurr)
-                        
-                        if (tHPHF) then
-                            h_diag_correct = hphf_diag_helement(nJ, iLutnJ)
-                        else
-                            h_diag_correct = get_helement(nJ, nJ, 0)
-                        end if
+                        if (tPreCond) then
+                            hdiag_spawn = get_hdiag_from_excit(DetCurr, ic, ex, EnergyCurr)
+                            
+                            !if (tHPHF) then
+                            !    h_diag_correct = hphf_diag_helement(nJ, iLutnJ)
+                            !else
+                            !    h_diag_correct = get_helement(nJ, nJ, 0)
+                            !end if
 
-                        !if ( abs(h_diag_correct - h_diag_new) > 1.e-12_dp ) then
-                        !    write(6,*) "IC:", IC, "Correct:", h_diag_correct, "New:", h_diag_new
-                        !    call stop_all(this_routine, "get_hdiag_from_excit not working.")
-                        !end if
-                        !write(6,*) "IC:", IC, "Correct:", h_diag_correct, "New:", h_diag_new
+                            !if ( abs(h_diag_correct - hdiag_spawn) > 1.e-12_dp ) then
+                            !    write(6,*) "IC:", IC, "Correct:", h_diag_correct, "New:", hdiag_spawn
+                            !    call stop_all(this_routine, "get_hdiag_from_excit not working.")
+                            !end if
+                            !write(6,*) "IC:", IC, "Correct:", h_diag_correct, "New:", hdiag_spawn
+                        end if
 
                         ! Encode child if not done already.
                         if(.not. (tSemiStochastic)) call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
@@ -1275,7 +1277,7 @@ module FciMCParMod
                             call create_particle_with_hash_table (nJ, ilutnJ, child, part_type, &
                                                                    CurrentDets(:,j), iter_data)
                         else
-                            call create_particle (nJ, iLutnJ, child, part_type, & 
+                            call create_particle (nJ, iLutnJ, child, part_type, hdiag_spawn, & 
                                                   CurrentDets(:,j), SignCurr, p, &
                                                   RDMBiasFacCurr, WalkersToSpawn)
                         end if

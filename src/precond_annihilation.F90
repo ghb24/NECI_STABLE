@@ -6,7 +6,8 @@ module precond_annihilation_mod
     use AnnihilationMod, only: test_abort_spawn
     use AnnihilationMod, only: AnnihilateSpawnedParts, deterministic_annihilation
     use bit_rep_data
-    use bit_reps, only: encode_sign, encode_part_sign, set_flag, get_initiator_flag
+    use bit_reps, only: encode_sign, encode_part_sign, set_flag, &
+                        get_initiator_flag, extract_spawn_hdiag
     use CalcData, only: OccupiedThresh, tTruncInitiator, PrecondSpawnCutoff
     use constants, only: n_int, lenof_sign, null_part, sizeof_int
     use determinants, only: get_helement
@@ -68,15 +69,13 @@ module precond_annihilation_mod
         call get_proj_energy(MaxIndex, proj_energy, ref_positions)
         call halt_timer(proj_e_time)
 
-        spawn_hii(1:MaxIndex) = 0.0_dp
-
         call set_timer(precond_e_time, 30)
         call calc_e_and_set_init_flags(MaxIndex, proj_energy)
         call halt_timer(precond_e_time)
 
-        call set_timer(precond_round_time, 30)
-        call round_spawns(MaxIndex, precondSpawnCutoff, ref_positions)
-        call halt_timer(precond_round_time)
+        !call set_timer(precond_round_time, 30)
+        !call round_spawns(MaxIndex, precondSpawnCutoff, ref_positions)
+        !call halt_timer(precond_round_time)
 
         call set_timer(rescale_time, 30)
         call rescale_spawns(MaxIndex, proj_energy)
@@ -198,7 +197,7 @@ module precond_annihilation_mod
         integer :: i, j, PartInd, DetHash, determ_pos, ierr
         integer :: nI_spawn(nel)
         real(dp) :: SpawnedSign(lenof_sign), CurrentSign(lenof_sign)
-        real(dp) :: h_diag, mean_energy(lenof_sign)
+        real(dp) :: hdiag, mean_energy(lenof_sign)
         logical :: tCoreDet, tSuccess, tCalcHii, abort(lenof_sign)
 
         real(dp) :: var_e_num(lenof_sign), overlap(lenof_sign)
@@ -236,10 +235,10 @@ module precond_annihilation_mod
 
         ! Contribution from diagonal for variational energy
         do i = 1, int(TotWalkers, sizeof_int)
-            h_diag = det_diagH(i) + Hii
+            hdiag = det_diagH(i) + Hii
             call extract_sign(CurrentDets(:, i), CurrentSign)
             overlap(1) = overlap(1) + CurrentSign(1) * CurrentSign(2)
-            var_e_num(1) = var_e_num(1) + h_diag * CurrentSign(1) * CurrentSign(2)
+            var_e_num(1) = var_e_num(1) + hdiag * CurrentSign(1) * CurrentSign(2)
         end do
 
         do i = 1, ValidSpawned
@@ -262,7 +261,7 @@ module precond_annihilation_mod
                     end if
                 end do
 
-                h_diag = det_diagH(PartInd) + Hii
+                hdiag = det_diagH(PartInd) + Hii
                 tCalcHii = .true.
 
                 tCoreDet = check_determ_flag(CurrentDets(:,PartInd))
@@ -276,36 +275,40 @@ module precond_annihilation_mod
                     (SpawnedSign(1) * CurrentSign(2) + SpawnedSign(2) * CurrentSign(1))/(2.0_dp * tau)
 
                 precond_e_num(1) = precond_e_num(1) - &
-                    SpawnedSign(1) * h_diag * CurrentSign(2) / ( (proj_energy(1) + proje_ref_energy_offsets(1) + Hii - h_diag ))
+                    SpawnedSign(1) * hdiag * CurrentSign(2) / ( (proj_energy(1) + proje_ref_energy_offsets(1) + Hii - hdiag ))
 
                 precond_e_num(2) = precond_e_num(2) - &
-                    SpawnedSign(2) * h_diag * CurrentSign(1) / ( (proj_energy(2) + proje_ref_energy_offsets(2) + Hii - h_diag ))
+                    SpawnedSign(2) * hdiag * CurrentSign(1) / ( (proj_energy(2) + proje_ref_energy_offsets(2) + Hii - hdiag ))
 
                 precond_denom(1) = precond_denom(1) - &
-                    SpawnedSign(1) * CurrentSign(2) / ( (proj_energy(1) + proje_ref_energy_offsets(1) + Hii - h_diag ))
+                    SpawnedSign(1) * CurrentSign(2) / ( (proj_energy(1) + proje_ref_energy_offsets(1) + Hii - hdiag ))
 
                 precond_denom(2) = precond_denom(2) - &
-                    SpawnedSign(2) * CurrentSign(1) / ( (proj_energy(2) + proje_ref_energy_offsets(2) + Hii - h_diag ))
+                    SpawnedSign(2) * CurrentSign(1) / ( (proj_energy(2) + proje_ref_energy_offsets(2) + Hii - hdiag ))
             end if
 
             ! Add in the contributions corresponding to off-diagonal
             ! elements of the Hamiltonian
             if (abs(SpawnedSign(1)) > 1.e-12_dp .and. abs(SpawnedSign(2)) > 1.e-12_dp) then
                 tCalcHii = .true.
-                ! If we don't have h_diag already...
-                if (.not. tSuccess) then
-                    if (tHPHF) then
-                        h_diag = hphf_diag_helement(nI_spawn, SpawnedParts(:, i))
-                    else
-                        h_diag = get_helement(nI_spawn, nI_spawn, 0)
-                    end if
-                end if
+                ! If we don't have hdiag already...
+                !if (.not. tSuccess) then
+                !    if (tHPHF) then
+                !        hdiag = hphf_diag_helement(nI_spawn, SpawnedParts(:,i))
+                !    else
+                !        hdiag = get_helement(nI_spawn, nI_spawn, 0)
+                !    end if
+                !end if
+
+                !write(6,*) "Correct:", hdiag, "New:", extract_spawn_hdiag(SpawnedParts(:,i))
+
+                hdiag = extract_spawn_hdiag(SpawnedParts(:,i))
 
                 precond_e_num(1) = precond_e_num(1) + &
-                  SpawnedSign(1) * SpawnedSign(2) / (tau * ( proj_energy(1) + proje_ref_energy_offsets(1) + Hii - h_diag ))
+                  SpawnedSign(1) * SpawnedSign(2) / (tau * ( proj_energy(1) + proje_ref_energy_offsets(1) + Hii - hdiag ))
 
                 precond_e_num(2) = precond_e_num(2) + &
-                  SpawnedSign(1) * SpawnedSign(2) / (tau * ( proj_energy(2) + proje_ref_energy_offsets(2) + Hii - h_diag ))
+                  SpawnedSign(1) * SpawnedSign(2) / (tau * ( proj_energy(2) + proje_ref_energy_offsets(2) + Hii - hdiag ))
 
                 ! Only get EN2 contribution is we're due to cancel this
                 ! spawning on both replicas
@@ -316,14 +319,11 @@ module precond_annihilation_mod
 
                     if (abort(1) .and. abort(2)) then
                         en2_pert(1) = en2_pert(1) + &
-                          SpawnedSign(1)*SpawnedSign(2) / ( (tau**2) * (mean_energy(1) - h_diag ) )
+                          SpawnedSign(1)*SpawnedSign(2) / ( (tau**2) * (mean_energy(1) - hdiag ) )
                     end if
                 end if
 
             end if
-
-            ! Store, to avoid recalculating later
-            if (tCalcHii) spawn_hii(i) = h_diag
         end do
 
         ! Contribution from deterministic states that were not spawned to
@@ -437,7 +437,6 @@ module precond_annihilation_mod
             if (.not. IsUnoccDet(SpawnedSign)) then
                 new_length = new_length + 1
                 SpawnedParts(:,new_length) = SpawnedParts(:,i)
-                spawn_hii(new_length) = spawn_hii(i)
             end if
         end do
 
@@ -453,7 +452,7 @@ module precond_annihilation_mod
         real(dp), intent(in) :: proj_energy(lenof_sign)
 
         integer :: i, nJ(nel)
-        real(dp) :: SpawnedSign(lenof_sign), h_diag
+        real(dp) :: SpawnedSign(lenof_sign), hdiag
 
         ! Find the weight spawned on the Hartree--Fock determinant.
         if (tSemiStochastic) then
@@ -464,20 +463,10 @@ module precond_annihilation_mod
         end if
 
         do i = 1, ValidSpawned
-            if (abs(spawn_hii(i)) < 1e-12_dp) then
-                call decode_bit_det(nJ, SpawnedParts(:,i))
-
-                if (tHPHF) then
-                    h_diag = hphf_diag_helement (nJ, SpawnedParts(:,i))
-                else
-                    h_diag = get_helement (nJ, nJ, 0)
-                end if
-            else
-                h_diag = spawn_hii(i)
-            end if
+            hdiag = extract_spawn_hdiag(SpawnedParts(:,i))
 
             call extract_sign(SpawnedParts(:,i), SpawnedSign)
-            SpawnedSign = SpawnedSign / (h_diag - proj_energy - proje_ref_energy_offsets - Hii)
+            SpawnedSign = SpawnedSign / (hdiag - proj_energy - proje_ref_energy_offsets - Hii)
             call encode_sign(SpawnedParts(:,i), SpawnedSign)
         end do
 
