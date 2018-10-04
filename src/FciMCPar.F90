@@ -80,6 +80,7 @@ module FciMCParMod
     use FciMCData
     use constants
     use bit_reps, only: decode_bit_det    
+    use hdiag_from_excit, only: get_hdiag_from_excit
     use double_occ_mod, only: get_double_occupancy, inst_double_occ, &
                         rezero_double_occ_stats, write_double_occ_stats, & 
                         sum_double_occ, sum_norm_psi_squared
@@ -854,7 +855,7 @@ module FciMCParMod
         integer :: IC, walkExcitLevel, walkExcitLevel_toHF, ex(2,2), TotWalkersNew, part_type, run
         integer(int64) :: tot_parts_tmp(lenof_sign)
         logical :: tParity, tSuccess, tCoreDet
-        real(dp) :: prob, HDiagCurr, TempTotParts, Di_Sign_Temp
+        real(dp) :: prob, HDiagCurr, EnergyCurr, TempTotParts, Di_Sign_Temp
         real(dp) :: RDMBiasFacCurr
         real(dp) :: AvSignCurr(len_av_sgn_tot), IterRDMStartCurr(len_iter_occ_tot)
         real(dp) :: av_sign(len_av_sgn_tot), iter_occ(len_iter_occ_tot)
@@ -865,6 +866,8 @@ module FciMCParMod
         real(dp) :: r, sgn(lenof_sign), prob_extra_walker
         integer :: DetHash, FinalVal, clash, PartInd, k, y
         type(ll_node), pointer :: TempNode
+
+        real(dp) :: h_diag_new, h_diag_correct
 
         integer :: ms
         logical :: signChanged, newlyOccupied
@@ -1070,6 +1073,7 @@ module FciMCParMod
 
             ! The current diagonal matrix element is stored persistently.
             HDiagCurr = det_diagH(j)
+            EnergyCurr = det_diagH(j) + Hii
 
             if (tSeniorInitiators) then
                 SpawnSign = get_all_spawn_pops(j)
@@ -1239,6 +1243,20 @@ module FciMCParMod
 
                     ! Children have been chosen to be spawned.
                     if (any(child /= 0)) then
+
+                        h_diag_new = get_hdiag_from_excit(DetCurr, ic, ex, EnergyCurr)
+                        
+                        if (tHPHF) then
+                            h_diag_correct = hphf_diag_helement(nJ, iLutnJ)
+                        else
+                            h_diag_correct = get_helement(nJ, nJ, 0)
+                        end if
+
+                        !if ( abs(h_diag_correct - h_diag_new) > 1.e-12_dp ) then
+                        !    write(6,*) "IC:", IC, "Correct:", h_diag_correct, "New:", h_diag_new
+                        !    call stop_all(this_routine, "get_hdiag_from_excit not working.")
+                        !end if
+                        !write(6,*) "IC:", IC, "Correct:", h_diag_correct, "New:", h_diag_new
 
                         ! Encode child if not done already.
                         if(.not. (tSemiStochastic)) call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)

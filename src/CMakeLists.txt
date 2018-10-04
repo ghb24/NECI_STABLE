@@ -61,6 +61,7 @@ set( SRC_FILES
 	hamiltonian_linalg.F90
     hdf5_popsfile.F90
     hdiag.F
+    hdiag_from_excit.F90
     HElem.F90
     hfbasis.F
     HFCalc.F90
