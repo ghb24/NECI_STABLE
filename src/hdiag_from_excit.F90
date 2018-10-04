@@ -1,18 +1,23 @@
 module hdiag_from_excit
 
-    use constants, only: dp
+    use bit_reps, only: NIfTot
+    use constants, only: dp, n_int
+    use DetBitOps, only: CalcOpenOrbs, TestClosedShellDet, FindBitExcitLevel
     use Integrals_neci, only: get_umat_el
+    use HPHFRandExcitMod, only: FindExcitBitDetSym
     use OneEInts, only: GetTMatEl
-    use SystemData, only: nel, tExch, G1, tReltvy
+    use sltcnd_mod, only: sltcnd
+    use SystemData, only: nel, tExch, G1, tReltvy, tHPHF, tOddS_HPHF
     use UMatCache, only: gtID
 
     implicit none
 
     contains
 
-    function get_hdiag_from_excit(nI, IC, ex, hel_old) result(hel)
+    function get_hdiag_from_excit(nI, nJ, iLutnJ, IC, ex, hel_old) result(hel)
 
-        integer, intent(in) :: nI(nel), IC, ex(2,2)
+        integer, intent(in) :: nI(nel), nJ(nel), IC, ex(2,2)
+        integer(n_int), intent(in) :: iLutnJ(0:NIfTot)
         HElement_t(dp), intent(in) :: hel_old
 
         HElement_t(dp) :: hel
@@ -24,6 +29,8 @@ module hdiag_from_excit
         else
             hel = 0.0_dp
         end if
+
+        if (tHPHF) call correct_hdiag_hphf(nJ, iLutnJ, hel)
 
     end function get_hdiag_from_excit
 
@@ -117,5 +124,93 @@ module hdiag_from_excit
         end if
 
     end function get_hdiag_from_doub_excit
+
+    function get_hdiag_bare_hphf(nI, iLutnI, hel_old) result(hel)
+
+        ! <X|H|X> = 1/2 [ <i|H|i> + <j|H|j> ] + <i|H|j> where i and j are
+        ! the two spin-coupled dets which make up X.
+
+        integer, intent(in) :: nI(nel) 
+        integer(n_int), intent(in) :: iLutnI(0:NIfTot)
+        HElement_t(dp), intent(in) :: hel_old
+
+        HElement_t(dp) :: hel
+
+        integer(n_int) :: iLutnI2(0:NIfTot)
+        integer :: ExcitLevel, OpenOrbs
+        HElement_t(dp) :: MatEl2
+
+        hel = hel_old
+
+        if (.not. TestClosedShellDet(iLutnI)) then
+            ! See if there is a cross-term. If there is, then remove this
+            ! from hel_old to get the desired value
+            call FindExcitBitDetSym(iLutnI, iLutnI2)
+            ExcitLevel = FindBitExcitLevel(iLutnI, iLutnI2, 2)
+            if (ExcitLevel <= 2) then
+                call CalcOpenOrbs (iLutnI, OpenOrbs)
+                MatEl2 = sltcnd (nI, iLutnI, iLutnI2)
+
+                if (tOddS_HPHF) then
+                    if (mod(OpenOrbs,2) == 1) then
+                        ! Subtract cross terms if determinant is antisymmetric.
+                        hel = hel - MatEl2
+                    else
+                        hel = hel + MatEl2
+                    end if
+                else
+                    if (mod(OpenOrbs,2) == 1) then
+                        ! Subtract cross terms if determinant is antisymmetric.
+                        hel = hel + MatEl2
+                    else
+                        hel = hel - MatEl2
+                    end if
+                end if
+            end if
+        end if
+
+    end function get_hdiag_bare_hphf
+
+    subroutine correct_hdiag_hphf(nJ, iLutnJ, hel)
+
+        ! <X|H|X> = 1/2 [ <i|H|i> + <j|H|j> ] + <i|H|j> where i and j are
+        ! the two spin-coupled dets which make up X.
+
+        integer, intent(in) :: nJ(nel)
+        integer(n_int), intent(in) :: iLutnJ(0:NIfTot)
+        HElement_t(dp), intent(inout) :: hel
+
+        integer(n_int) :: iLutnJ2(0:NIfTot)
+        integer :: ExcitLevel, OpenOrbs
+        HElement_t(dp) :: MatEl2
+
+        if (.not. TestClosedShellDet(iLutnJ)) then
+            ! See if there is a cross-term. If there is, then remove this
+            ! from hel_old to get the desired value
+            call FindExcitBitDetSym(iLutnJ, iLutnJ2)
+            ExcitLevel = FindBitExcitLevel(iLutnJ, iLutnJ2, 2)
+            if (ExcitLevel <= 2) then
+                call CalcOpenOrbs (iLutnJ, OpenOrbs)
+                MatEl2 = sltcnd (nJ, iLutnJ, iLutnJ2)
+
+                if (tOddS_HPHF) then
+                    if (mod(OpenOrbs,2) == 1) then
+                        ! Subtract cross terms if determinant is antisymmetric.
+                        hel = hel + MatEl2
+                    else
+                        hel = hel - MatEl2
+                    end if
+                else
+                    if (mod(OpenOrbs,2) == 1) then
+                        ! Subtract cross terms if determinant is antisymmetric.
+                        hel = hel - MatEl2
+                    else
+                        hel = hel + MatEl2
+                    end if
+                end if
+            end if
+        end if
+
+    end subroutine correct_hdiag_hphf
 
 end module hdiag_from_excit

@@ -80,13 +80,15 @@ module FciMCParMod
     use FciMCData
     use constants
     use bit_reps, only: decode_bit_det    
-    use hdiag_from_excit, only: get_hdiag_from_excit
+    use hdiag_from_excit, only: get_hdiag_from_excit, get_hdiag_bare_hphf
     use double_occ_mod, only: get_double_occupancy, inst_double_occ, &
                         rezero_double_occ_stats, write_double_occ_stats, & 
                         sum_double_occ, sum_norm_psi_squared
 
     use tau_search_hist, only: print_frequency_histograms, deallocate_histograms
     use back_spawn, only: init_back_spawn
+
+    use sltcnd_mod, only: sltcnd_excit
 
 #ifdef MOLPRO
     use outputResult
@@ -850,16 +852,16 @@ module FciMCParMod
         ! Now the local, iteration specific, variables
         integer :: j, p, error, proc_temp, i, HFPartInd,isym
         integer :: DetCurr(nel), nJ(nel), FlagsCurr, parent_flags
-        real(dp), dimension(lenof_sign) :: SignCurr, child, SpawnSign
+        real(dp), dimension(lenof_sign) :: SignCurr, child, child_for_stats, precond_fac, SpawnSign
         integer(kind=n_int) :: iLutnJ(0:niftot)
         integer :: IC, walkExcitLevel, walkExcitLevel_toHF, ex(2,2), TotWalkersNew, part_type, run
         integer(int64) :: tot_parts_tmp(lenof_sign)
         logical :: tParity, tSuccess, tCoreDet
-        real(dp) :: prob, HDiagCurr, EnergyCurr, TempTotParts, Di_Sign_Temp
+        real(dp) :: prob, HDiagCurr, EnergyCurr, hdiag_bare, TempTotParts, Di_Sign_Temp
         real(dp) :: RDMBiasFacCurr
         real(dp) :: AvSignCurr(len_av_sgn_tot), IterRDMStartCurr(len_iter_occ_tot)
         real(dp) :: av_sign(len_av_sgn_tot), iter_occ(len_iter_occ_tot)
-        HElement_t(dp) :: HDiagTemp,HElGen
+        HElement_t(dp) :: HDiagTemp, HElGen
         character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
         HElement_t(dp), dimension(inum_runs) :: delta
         integer :: proc, pos, determ_index, irdm
@@ -1149,6 +1151,17 @@ module FciMCParMod
             ! this determinant, so we can the rest of this loop.
             if (tSemiStochastic .and. ss_space_in%tDoubles .and. walkExcitLevel_toHF == 0 .and. tDetermHFSpawning) cycle
 
+            ! For HPHFs, get the diagonal Hamiltonian element without the
+            ! cross-term correction. This will make calculating the diagonal
+            ! elements for new spawnins more efficient
+            if (tPreCond) then
+                if (tHPHF) then
+                    hdiag_bare = get_hdiag_bare_hphf(DetCurr, CurrentDets(:,j), EnergyCurr)
+                else
+                    hdiag_bare = EnergyCurr
+                end if
+            end if
+
             ! Loop over the 'type' of particle. 
             ! lenof_sign == 1 --> Only real particles
             ! lenof_sign == 2 --> complex walkers
@@ -1244,22 +1257,6 @@ module FciMCParMod
                     ! Children have been chosen to be spawned.
                     if (any(child /= 0)) then
 
-                        if (tPreCond) then
-                            hdiag_spawn = get_hdiag_from_excit(DetCurr, ic, ex, EnergyCurr)
-                            
-                            !if (tHPHF) then
-                            !    h_diag_correct = hphf_diag_helement(nJ, iLutnJ)
-                            !else
-                            !    h_diag_correct = get_helement(nJ, nJ, 0)
-                            !end if
-
-                            !if ( abs(h_diag_correct - hdiag_spawn) > 1.e-12_dp ) then
-                            !    write(6,*) "IC:", IC, "Correct:", h_diag_correct, "New:", hdiag_spawn
-                            !    call stop_all(this_routine, "get_hdiag_from_excit not working.")
-                            !end if
-                            !write(6,*) "IC:", IC, "Correct:", h_diag_correct, "New:", hdiag_spawn
-                        end if
-
                         ! Encode child if not done already.
                         if(.not. (tSemiStochastic)) call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
                         ! FindExcitBitDet copies the parent flags so that unwanted flags must be unset.
@@ -1269,9 +1266,20 @@ module FciMCParMod
                             call clr_flag(iLutnJ, flag_connected)
                         end if
 
+                        ! If using a preconditioner, update the child weight for statistics
+                        ! (mainly for blooms and hence updating the time step).
+                        ! Note, the final preconiditoner is applied in annihilation, once
+                        ! the exact projected energy is know.
+                        child_for_stats = child
+                        if (tPreCond) then
+                            hdiag_spawn = get_hdiag_from_excit(DetCurr, nJ, iLutnJ, ic, ex, hdiag_bare)
+                            precond_fac = hdiag_spawn - precond_energies - proje_ref_energy_offsets - Hii
+                            child_for_stats = child_for_stats/precond_fac
+                        end if
+
                         call new_child_stats (iter_data, CurrentDets(:,j), &
                                               nJ, iLutnJ, ic, walkExcitLevel, &
-                                              child, parent_flags, part_type)
+                                              child_for_stats, parent_flags, part_type)
 
                         if (use_spawn_hash_table) then
                             call create_particle_with_hash_table (nJ, ilutnJ, child, part_type, &

@@ -10,11 +10,9 @@ module precond_annihilation_mod
                         get_initiator_flag, extract_spawn_hdiag
     use CalcData, only: OccupiedThresh, tTruncInitiator, PrecondSpawnCutoff
     use constants, only: n_int, lenof_sign, null_part, sizeof_int
-    use determinants, only: get_helement
     use dSFMT_interface, only: genrand_real2_dSFMT
     use FciMCData
     use hash
-    use hphf_integrals, only: hphf_diag_helement
     use Parallel_neci
     use load_balance, only: CalcHashTableStats
     use searching
@@ -61,10 +59,6 @@ module precond_annihilation_mod
         !call time_hash(MaxIndex)
         !call halt_timer(hash_test_time)
 
-        !call set_timer(hii_test_time, 30)
-        !call time_hii(MaxIndex)
-        !call halt_timer(hii_test_time)
-
         call set_timer(proj_e_time, 30)
         call get_proj_energy(MaxIndex, proj_energy, ref_positions)
         call halt_timer(proj_e_time)
@@ -72,10 +66,6 @@ module precond_annihilation_mod
         call set_timer(precond_e_time, 30)
         call calc_e_and_set_init_flags(MaxIndex, proj_energy)
         call halt_timer(precond_e_time)
-
-        !call set_timer(precond_round_time, 30)
-        !call round_spawns(MaxIndex, precondSpawnCutoff, ref_positions)
-        !call halt_timer(precond_round_time)
 
         call set_timer(rescale_time, 30)
         call rescale_spawns(MaxIndex, proj_energy)
@@ -198,7 +188,7 @@ module precond_annihilation_mod
         integer :: nI_spawn(nel)
         real(dp) :: SpawnedSign(lenof_sign), CurrentSign(lenof_sign)
         real(dp) :: hdiag, mean_energy(lenof_sign)
-        logical :: tCoreDet, tSuccess, tCalcHii, abort(lenof_sign)
+        logical :: tCoreDet, tSuccess, abort(lenof_sign)
 
         real(dp) :: var_e_num(lenof_sign), overlap(lenof_sign)
         real(dp) :: var_e_num_all(lenof_sign), overlap_all(lenof_sign)
@@ -242,7 +232,6 @@ module precond_annihilation_mod
         end do
 
         do i = 1, ValidSpawned
-            tCalcHii = .false.
             call decode_bit_det(nI_spawn, SpawnedParts(:,i))
             call extract_sign(SpawnedParts(:,i), SpawnedSign)
 
@@ -262,7 +251,6 @@ module precond_annihilation_mod
                 end do
 
                 hdiag = det_diagH(PartInd) + Hii
-                tCalcHii = .true.
 
                 tCoreDet = check_determ_flag(CurrentDets(:,PartInd))
                 if (tCoreDet) then
@@ -290,18 +278,6 @@ module precond_annihilation_mod
             ! Add in the contributions corresponding to off-diagonal
             ! elements of the Hamiltonian
             if (abs(SpawnedSign(1)) > 1.e-12_dp .and. abs(SpawnedSign(2)) > 1.e-12_dp) then
-                tCalcHii = .true.
-                ! If we don't have hdiag already...
-                !if (.not. tSuccess) then
-                !    if (tHPHF) then
-                !        hdiag = hphf_diag_helement(nI_spawn, SpawnedParts(:,i))
-                !    else
-                !        hdiag = get_helement(nI_spawn, nI_spawn, 0)
-                !    end if
-                !end if
-
-                !write(6,*) "Correct:", hdiag, "New:", extract_spawn_hdiag(SpawnedParts(:,i))
-
                 hdiag = extract_spawn_hdiag(SpawnedParts(:,i))
 
                 precond_e_num(1) = precond_e_num(1) + &
@@ -398,54 +374,6 @@ module precond_annihilation_mod
 
     end subroutine calc_e_and_set_init_flags
 
-    subroutine round_spawns(ValidSpawned, cutoff, ref_positions)
-
-        integer, intent(inout) :: ValidSpawned
-        real(dp), intent(in) :: cutoff
-        integer, intent(in) :: ref_positions(lenof_sign)
-
-        integer :: i, j, new_length
-        real(dp) :: SpawnedSign(lenof_sign), prob_remove, r
-
-        write(6,*) "Number of spawns before round:", ValidSpawned
-
-        new_length = 0
-
-        do i = 1, ValidSpawned
-            call extract_sign(SpawnedParts(:,i), SpawnedSign)
-
-            ! Don't perform rounding on reference determinants
-            if (.not. any(ref_positions == i)) then
-
-                do j = 1, lenof_sign
-                    if ( abs(SpawnedSign(j)) > 1.e-12_dp .and. abs(SpawnedSign(j)) < cutoff ) then
-                        prob_remove = (cutoff - abs(SpawnedSign(j)))/cutoff
-                        r = genrand_real2_dSFMT()
-
-                        if (prob_remove > r) then
-                            SpawnedSign(j) = 0.0_dp
-                        else
-                            SpawnedSign(j) = sign(cutoff, SpawnedSign(j))
-                        end if
-
-                        call encode_part_sign(SpawnedParts(:,i), SpawnedSign(j), j)
-                    end if
-                end do
-
-            end if
-
-            if (.not. IsUnoccDet(SpawnedSign)) then
-                new_length = new_length + 1
-                SpawnedParts(:,new_length) = SpawnedParts(:,i)
-            end if
-        end do
-
-        ValidSpawned = new_length
-
-        write(6,*) "Number of spawns after round:", ValidSpawned
-
-    end subroutine round_spawns
-
     subroutine rescale_spawns(ValidSpawned, proj_energy)
 
         integer, intent(in) :: ValidSpawned
@@ -458,7 +386,7 @@ module precond_annihilation_mod
         if (tSemiStochastic) then
             do i = 1, determ_sizes(iProcIndex)
                 partial_determ_vecs(:,i) = partial_determ_vecs(:,i) / &
-                  (core_ham_diag(i) - proj_energy -  proje_ref_energy_offsets)
+                  (core_ham_diag(i) - proj_energy - proje_ref_energy_offsets)
             end do
         end if
 
@@ -513,23 +441,5 @@ module precond_annihilation_mod
         end do
 
     end subroutine time_hash
-
-    subroutine time_hii(ValidSpawned)
-
-        integer, intent(in) :: ValidSpawned
-
-        integer :: i, nI(nel)
-        real(dp) :: hdiag
-
-        do i = 1, ValidSpawned
-            call decode_bit_det(nI, SpawnedParts(:,i))
-            if (tHPHF) then
-                HDiag = hphf_diag_helement (nI, SpawnedParts(:,i))
-            else
-                HDiag = get_helement (nI, nI, 0)
-            end if
-        end do
-
-    end subroutine time_hii
 
 end module precond_annihilation_mod

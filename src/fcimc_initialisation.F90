@@ -208,7 +208,6 @@ contains
         precond_death_time%timer_name='PDeathTime'
         hash_test_time%timer_name='HashTestTime'
         hii_test_time%timer_name='HiiTestTime'
-        precond_round_time%timer_name='PrecondRoundTime'
 
         ! Initialise allocated arrays with input data
         TargetGrowRate(:) = InputTargetGrowRate
