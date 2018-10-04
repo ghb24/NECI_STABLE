@@ -6,11 +6,12 @@ module tc_three_body_excitgen
   use bit_rep_data, only: NIfTot
   use k_space_hubbard, only: make_triple
   use tc_three_body_data
-  use FciMCData, only: excit_gen_store_type
+  use FciMCData, only: excit_gen_store_type, pDoubles, pSingles
   use dSFMT_interface, only: genrand_real2_dSFMT
   use lattice_models_utils, only: make_ilutJ
   use excit_gens_int_weighted, only: pick_biased_elecs
-  use GenRandSymExcitNUMod, only: gen_rand_excit, calc_pgen_symrandexcit2, ScratchSize
+  use GenRandSymExcitNUMod, only: calc_pgen_symrandexcit2, ScratchSize, &
+       createSingleExcit, createDoubExcit, construct_class_counts
   contains
 
     subroutine gen_excit_mol_tc(nI, ilut, nJ, ilutJ, exFlag, ic, ExcitMat, &
@@ -37,11 +38,21 @@ module tc_three_body_excitgen
          pGen = pGen * pTriples
          IC = 3
       else
+         HElGen = 0.0_dp
+
+         ! create the store%classcounts
+         if(.not. store%tFilled) then
+            call construct_class_counts(nI, store%ClassCountOcc, store%ClassCountUnocc)
+            store%tFilled = .true.
+         end if
          ! if no triple is generated, fall back to the normal excitation generation
          ! we need a uniform excitgen as evaluating matrix elements is too expensive
-         call gen_rand_excit(nI, ilut, nJ, ilutJ, exFlag, ic, ExcitMat, tParity, &
-              pGen, HelGen, store, part_type)
-         pGen = pGen * (1 - pTriples)
+         if(r < (pTriples + pDoubles)) then
+            call CreateDoubExcit(nI,nJ,store%ClassCountUnocc,ilut,ExcitMat,tParity,pGen)
+         else
+            call CreateSingleExcit(nI,nJ,store%ClassCountOcc, store%ClassCountUnocc, &
+                 ilut, ExcitMat, tParity, pGen)
+         endif
       endif
 
     end subroutine gen_excit_mol_tc
@@ -65,7 +76,6 @@ module tc_three_body_excitgen
          ! for singles/doubles, delegate the calculation to the existing routines
          call calc_pgen_symrandexcit2(nI, ex, ic, ClassCount, ClassCountUnocc, pDoub, pgen)
          ! and take into account the bias for triples
-         pgen = pgen * (1 - pTriples)
       else if(ic == 3) then
          ! else, use the local routine
          pgen = calc_pgen_triple(nI, ex)
@@ -165,7 +175,10 @@ module tc_three_body_excitgen
       ! reference determinant for initializing the biases
       integer, intent(in) :: HF(nel)
 
-      pTriples = 0.2
+      pTriples = 0.9
+      ! rescale pSingles/pDoubles
+      pSingles = pSingles * (1-pTriples)
+      pDoubles = pDoubles * (1-pDoubles)
       p0A = 0.25
       p0B = 0.25
       p2B = 0.25
@@ -187,6 +200,8 @@ module tc_three_body_excitgen
 
       integer :: sym_prod, src(3), tgt(3), elecs(3)
       integer :: ms
+
+      HElGen = 0.0_dp
 
       ! first, pick three electrons at random
       call pick_three_elecs(nI, elecs, src, sym_prod, pgen, ms)

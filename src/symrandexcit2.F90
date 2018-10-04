@@ -34,7 +34,7 @@ MODULE GenRandSymExcitNUMod
                           tUEG2, kvec, tAllSymSectors, NMAXX, NMAXY, NMAXZ, &
                           tOrbECutoff, OrbECutoff
     use CalcData, only: tSpinProject, t_back_spawn, t_back_spawn_flex
-    use FciMCData, only: pDoubles, iter, excit_gen_store_type, iluthf
+    use FciMCData, only: pDoubles, pSingles, iter, excit_gen_store_type, iluthf
     use Parallel_neci
     use IntegralsData, only: UMat
     use Determinants, only: get_helement, write_det
@@ -1442,7 +1442,7 @@ MODULE GenRandSymExcitNUMod
 !Now we need to find the probability of creating this excitation.
 !This is: P_single x P(i) x P(a|i) x N/(N-ElecsWNoExcits)
 !        pGen=(1.0_dp-pDoubNew)*(1.0_dp/real(NEl,dp))*(1.0_dp/real(NExcit,dp))*((real(NEl,dp))/(real((NEl-ElecsWNoExcits),dp)))
-        pGen=(1.0_dp-pDoubNew)/(REAL((NExcit*(NEl-ElecsWNoExcits)),dp))
+        pGen=(pSingles)/(REAL((NExcit*(NEl-ElecsWNoExcits)),dp))
 !         print *, "nI: ", nI
 !         print *, "elec: ", nI(eleci)
 !         print *, "orb: ", orb
@@ -1549,7 +1549,7 @@ MODULE GenRandSymExcitNUMod
 !This is: P_single x P(i) x P(a|i) x N/(N-ElecsWNoExcits)
 !Prob of generating a single is 1-pDoub
 !            pGen=(1.0_dp-pDoub)*(1.0_dp/real(NEl,dp))*(1.0_dp/real(NExcitA,dp))*((real(NEl,dp))/(real((NEl-ElecsWNoExcits),dp)))
-            pGen=(1.0_dp-pDoub)/(REAL((NExcitA*(NEl-ElecsWNoExcits)),dp))
+            pGen=(pSingles)/(REAL((NExcitA*(NEl-ElecsWNoExcits)),dp))
 
         ELSE
 !Prob of generating a double excitation.

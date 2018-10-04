@@ -22,6 +22,8 @@ module tau_search
     use GenRandSymExcitNUMod, only: construct_class_counts, &
                                     init_excit_gen_store, clean_excit_gen_store
 
+    use tc_three_body_data, only: pTriples
+
     use SymExcit3, only: GenExcitations3
 
     use Determinants, only: get_helement
@@ -57,12 +59,13 @@ module tau_search
     implicit none
 
     real(dp) :: gamma_sing, gamma_doub, gamma_opp, gamma_par, max_death_cpt
+    real(dp) :: gamma_trip
     real(dp) :: gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2
     real(dp) :: gamma_sum
     real(dp) :: max_permitted_spawn
-    integer :: cnt_sing, cnt_doub, cnt_opp, cnt_par
+    integer :: cnt_sing, cnt_doub, cnt_opp, cnt_par, cnt_trip
     integer :: n_opp, n_par
-    logical :: enough_sing, enough_doub, enough_opp, enough_par
+    logical :: enough_sing, enough_doub, enough_opp, enough_par, enough_trip
 !    logical :: enough_sing_spindiff1, enough_doub_spindiff1, enough_doub_spindiff2
     logical :: consider_par_bias
 
@@ -78,10 +81,11 @@ contains
         character(*), parameter :: this_routine = "init_tau_search"
 
         ! We want to start off with zero-values
-        gamma_sing = 0
-        gamma_doub = 0
-        gamma_opp = 0
-        gamma_par = 0
+        gamma_sing = 0.0_dp
+        gamma_doub = 0.0_dp
+        gamma_trip = 0.0_dp
+        gamma_opp = 0.0_dp
+        gamma_par = 0.0_dp
         if (tReltvy) then
             gamma_sing_spindiff1 = 0
             gamma_doub_spindiff1 = 0
@@ -294,14 +298,14 @@ contains
             ! k-space hubbard model, where there are still no single 
             ! excitations -> so reuse the quantities for the the singles 
             ! instead of introducing yet more variables
-            tmp_prob = prob / (1.0_dp - pDoubles)
+            tmp_prob = prob / pTriples
             tmp_gamma = abs(matel) / tmp_prob
 
-            if (tmp_gamma > gamma_sing) gamma_sing = tmp_gamma
+            if (tmp_gamma > gamma_trip) gamma_trip = tmp_gamma
             ! And keep count!
-            if (.not. enough_sing) then
-                cnt_sing = cnt_sing + 1
-                if (cnt_sing > cnt_threshold) enough_sing = .true.
+            if (.not. enough_trip) then
+                cnt_trip = cnt_trip + 1
+                if (cnt_sing > cnt_threshold) enough_trip = .true.
             endif
 
         end select
@@ -325,7 +329,7 @@ contains
 
         use FcimCData, only: iter
 
-        real(dp) :: psingles_new, tau_new, mpi_tmp, tau_death, pParallel_new
+        real(dp) :: psingles_new, tau_new, mpi_tmp, tau_death, pParallel_new, pTriples_new
         real(dp) :: pSing_spindiff1_new, pDoub_spindiff1_new, pDoub_spindiff2_new
         logical :: mpi_ltmp
         character(*), parameter :: this_routine = "update_tau"
@@ -373,12 +377,16 @@ contains
         enough_sing = mpi_ltmp
         call MPIAllLORLogical(enough_doub, mpi_ltmp)
         enough_doub = mpi_ltmp
+        call MPIAllLORLogical(enough_trip, mpi_ltmp)
+        enough_trip = mpi_ltmp
 
-        ! Only considering a direct singles/doubles bias
+        ! Only considering a direct singles/doubles/triples bias
         call MPIAllReduce (gamma_sing, MPI_MAX, mpi_tmp)
         gamma_sing = mpi_tmp
         call MPIAllReduce (gamma_doub, MPI_MAX, mpi_tmp)
         gamma_doub = mpi_tmp
+        call MPIAllReduce (gamma_trip, MPI_MAX, mpi_tmp)
+        gamma_trip = mpi_tmp
         if (tReltvy) then
             call MPIAllReduce (gamma_sing_spindiff1, MPI_MAX, mpi_tmp)
             gamma_sing_spindiff1 = mpi_tmp
@@ -388,7 +396,7 @@ contains
             gamma_doub_spindiff2 = mpi_tmp
             gamma_sum = gamma_sing + gamma_sing_spindiff1 + gamma_doub + gamma_doub_spindiff1 + gamma_doub_spindiff2
         else
-            gamma_sum = gamma_sing + gamma_doub
+            gamma_sum = gamma_sing + gamma_doub + gamma_trip
         endif
 
         if (consider_par_bias) then
@@ -440,8 +448,10 @@ contains
 
             ! Get the probabilities and tau that correspond to the stored
             ! values
-            if ((tUEG .or. tHub .or. t_k_space_hubbard .or. enough_sing) .and. enough_doub) then
+            if ((tUEG .or. tHub .or. t_k_space_hubbard .or. enough_sing) .and. enough_doub &
+                 .and. enough_trip) then
                 psingles_new = gamma_sing / gamma_sum
+                pTriples_new = gamma_trip / gamma_sum
                 if (tReltvy) then
                     pSing_spindiff1_new = gamma_sing_spindiff1/gamma_sum
                     pDoub_spindiff1_new = gamma_doub_spindiff1/gamma_sum
@@ -455,8 +465,9 @@ contains
                 ! but psingles stays 1
                 psingles_new = pSingles
                 tau_new = max_permitted_spawn / gamma_sum
-            else
+            else if(.not. enough_trip) then
                 psingles_new = pSingles
+                pTriples_new = pTriples
                 if (tReltvy) then
                     pSing_spindiff1_new = pSing_spindiff1
                     pDoub_spindiff1_new = pDoub_spindiff1
@@ -474,6 +485,10 @@ contains
                    ! else, we had to have some singles
                    tau_new = max_permitted_spawn * pSingles / gamma_sing
                 endif
+             else
+                pTriples_new = gamma_trip / gamma_sum
+                pSingles_new = pSingles
+                tau_new = max_permitted_spawn * pTriples / gamma_trip
             end if
 
         end if
@@ -538,6 +553,12 @@ contains
 
         end if
 
+        ! adjust the triple bias
+        if(enough_trip .and. min(pTriples_new,(1.0_dp-pTriples_new))>1e-5_dp) then
+           pTriples = max(pTriples_new,prob_min_thresh)
+           root_print "Updating triple-excitation bias. pTriples =", pTriples
+        end if
+
         ! Make sure that we have at least some of both singles and doubles
         ! before we allow ourselves to change the probabilities too much...
         if (enough_sing .and. enough_doub .and. psingles_new > 1e-5_dp &
@@ -563,7 +584,7 @@ contains
                 pDoubles = max(1.0_dp - pSingles - pSing_spindiff1_new - pDoub_spindiff1_new - pDoub_spindiff2_new, prob_min_thresh)
                 ASSERT(pDoubles-gamma_doub/gamma_sum < prob_min_thresh)
             else
-                pDoubles = 1.0_dp - pSingles
+                pDoubles = 1.0_dp - pSingles - pTriples
             endif
         end if
 
