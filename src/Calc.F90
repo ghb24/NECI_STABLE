@@ -299,6 +299,8 @@ contains
           tSpawnSeniorityBased = .false.
           numMaxExLvlsSet = 0
           allocate(maxKeepExLvl(0))
+          tLargeMatelSurvive = .true.
+          spawnMatelThresh = 1.0_dp
 
           ! trunaction for spawns/based on spawns
           t_truncate_unocc = .false.
@@ -1874,6 +1876,11 @@ contains
                    call addToIntArray(maxKeepExLvl,maxKeepNOpenBuf+1,maxKeepExLvlBuf)
                    numMaxExLvlsSet = maxKeepNOpenBuf+1
                 end do
+
+             case("LARGE-MATEL-SURVIVE")
+                ! keep all spawns with a matrix element larger than a given threshold
+                tLargeMatelSurvive = .true.
+                call getf(spawnMatelThresh)
 
 ! Epstein-Nesbet second-order perturbation using the stochastic spawnings to correct initiator error.
             case("EN2-INITIATOR")

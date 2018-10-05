@@ -980,8 +980,9 @@ module AnnihilationMod
 
         ! If a particle comes from a site marked as an initiator, then it can
         ! live
-
-        abort = .not. test_flag(ilut_spwn, get_initiator_flag(part_type))
+        ! same if the spawn matrix element was large enough
+        abort = .not. test_flag(ilut_spwn, get_initiator_flag(part_type)) .and. &
+             .not. test_flag(ilut_spwn, flag_large_matel)
         
         ! optionally keep spawns up to a given seniority level + excitaion level
         if(abort .and. tSpawnSeniorityBased) then
