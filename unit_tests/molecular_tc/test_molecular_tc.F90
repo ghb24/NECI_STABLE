@@ -35,7 +35,7 @@ program test_molecular_tc
       use SystemData, only: nOccAlpha, nOccBeta, AA_elec_pairs, AB_elec_pairs, &
            BB_elec_pairs, par_elec_pairs, tNoSymGenRandExcits, t_mol_3_body
       use dSFMT_interface, only: dSFMT_init
-      use FciMCData, only: pParallel
+      use FciMCData, only: pParallel, pSingles, pDoubles
       use tc_three_body_data, only: pTriples
       implicit none
 
@@ -77,7 +77,9 @@ program test_molecular_tc
 
       call dSFMT_init(4)
       
-      pTriples = 1.0
+      pSingles = 0.0_dp
+      pDoubles = 0.0_dp
+      pTriples = 1.0_dp
     end subroutine setup_tests
 
     subroutine run_lmat_test()

@@ -2,7 +2,7 @@
 #define LogAlloc(ERR,NAME,LEN,SIZE,TAG) CALL LogMemAlloc(NAME,LEN,SIZE,this_routine,TAG)
 #define LogDealloc(TAG) CALL LogMemDealloc(this_routine,TAG)
 #define log_dealloc(tag) LogDealloc(tag)
-#define IsNullDet(nI) (nI(1).eq.0)
+#define IsNullDet(nI) (any((nI) .eq. 0))
 
 ! i am too stupid to remember where the src and tgt is in ex(2,maxExcit)
 #define get_src(ex) ex(1,:)

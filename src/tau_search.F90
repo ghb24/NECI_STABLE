@@ -305,7 +305,7 @@ contains
             ! And keep count!
             if (.not. enough_trip) then
                 cnt_trip = cnt_trip + 1
-                if (cnt_sing > cnt_threshold) enough_trip = .true.
+                if (cnt_trip > cnt_threshold) enough_trip = .true.
             endif
 
         end select
@@ -335,6 +335,7 @@ contains
         character(*), parameter :: this_routine = "update_tau"
 
         integer :: itmp, itmp2
+        integer :: checkS, checkD, checkT
 
         ! This is an override. In case we need to adjust tau due to particle
         ! death rates, when it otherwise wouldn't be adjusted
@@ -398,6 +399,22 @@ contains
         else
             gamma_sum = gamma_sing + gamma_doub + gamma_trip
         endif
+        
+        if(tUEG .or. tHub .or. t_k_space_hubbard .or. enough_sing) then
+           checkS = 1
+        else
+           checkS = 0
+        endif
+        if(enough_doub) then
+           checkD = 1
+        else
+           checkD = 0
+        endif
+        if(enough_trip) then
+           checkT = 1
+        else
+           checkT = 0
+        endif
 
         if (consider_par_bias) then
             if (.not. tReltvy) then
@@ -445,13 +462,13 @@ contains
                 call stop_all(this_routine, "Parallel bias is incompatible with magnetic excitation classes")
             endif
         else
-
+           
+          
             ! Get the probabilities and tau that correspond to the stored
             ! values
-            if ((tUEG .or. tHub .or. t_k_space_hubbard .or. enough_sing) .and. enough_doub &
-                 .and. enough_trip) then
-                psingles_new = gamma_sing / gamma_sum
-                pTriples_new = gamma_trip / gamma_sum
+            if (checkS + checkD + checkT > 1) then
+                psingles_new = max(gamma_sing / gamma_sum, prob_min_thresh)
+                pTriples_new = max(gamma_trip / gamma_sum, prob_min_thresh)
                 if (tReltvy) then
                     pSing_spindiff1_new = gamma_sing_spindiff1/gamma_sum
                     pDoub_spindiff1_new = gamma_doub_spindiff1/gamma_sum
@@ -464,34 +481,37 @@ contains
                 ! actually also adapt the time-step!! 
                 ! but psingles stays 1
                 psingles_new = pSingles
-                tau_new = max_permitted_spawn / gamma_sum
-            else if(.not. enough_trip) then
-                psingles_new = pSingles
                 pTriples_new = pTriples
+                tau_new = max_permitted_spawn / gamma_sum
+             else
+                pTriples_new = pTriples
+                psingles_new = pSingles
+
                 if (tReltvy) then
-                    pSing_spindiff1_new = pSing_spindiff1
-                    pDoub_spindiff1_new = pDoub_spindiff1
-                    pDoub_spindiff2_new = pDoub_spindiff2
+                   pSing_spindiff1_new = pSing_spindiff1
+                   pDoub_spindiff1_new = pDoub_spindiff1
+                   pDoub_spindiff2_new = pDoub_spindiff2
                 endif
-           ! If no single/double spawns occurred, they are also not taken into account
-           ! (else would be undefined)
+                ! If no single/double spawns occurred, they are also not taken into account
+                ! (else would be undefined)
                 if(abs(gamma_doub) > EPS .and. abs(gamma_sing) > EPS) then
                    tau_new = max_permitted_spawn * &
                         min(pSingles / gamma_sing, pDoubles / gamma_doub)
                 else if(abs(gamma_doub) > EPS) then
                    ! If only doubles were counted, take them
                    tau_new = max_permitted_spawn * pDoubles / gamma_doub
-                else
+                else if(abs(gamma_sing) > eps) then
                    ! else, we had to have some singles
                    tau_new = max_permitted_spawn * pSingles / gamma_sing
+                else if(abs(gamma_trip) > eps) then
+                   tau_new = max_permitted_spawn * PTriples / gamma_trip
+                else
+                   ! no spawns
+                   tau_new = tau
                 endif
-             else
-                pTriples_new = gamma_trip / gamma_sum
-                pSingles_new = pSingles
-                tau_new = max_permitted_spawn * pTriples / gamma_trip
-            end if
+             end if
 
-        end if
+          end if
 
         ! The range of tau is restricted by particle death. It MUST be <=
         ! the value obtained to restrict the maximum death-factor to 1.0.
@@ -553,16 +573,11 @@ contains
 
         end if
 
-        ! adjust the triple bias
-        if(enough_trip .and. min(pTriples_new,(1.0_dp-pTriples_new))>1e-5_dp) then
-           pTriples = max(pTriples_new,prob_min_thresh)
-           root_print "Updating triple-excitation bias. pTriples =", pTriples
-        end if
-
         ! Make sure that we have at least some of both singles and doubles
         ! before we allow ourselves to change the probabilities too much...
-        if (enough_sing .and. enough_doub .and. psingles_new > 1e-5_dp &
-            .and. psingles_new < (1.0_dp - 1e-5_dp)) then
+        if ((checkS + checkD + checkT > 1) .and. psingles_new > 1e-5_dp &
+            .and. psingles_new < (1.0_dp - 1e-5_dp) .and. &
+            min(pTriples_new,(1.0_dp-pTriples_new))>1e-5_dp) then
 
             if (abs(psingles - psingles_new) / psingles > 0.0001_dp) then
                 if (tReltvy) then 
@@ -573,10 +588,16 @@ contains
                         ", pDoubles(st->s't') = ", pDoub_spindiff2_new
                 else
                     root_print "Updating singles/doubles bias. pSingles = ", psingles_new
-                    root_print " pDoubles = ", 1.0_dp - psingles_new
+                    root_print " pDoubles = ", 1.0_dp - pSingles_new - pTriples_new
                 endif
             end if
-            pSingles = max(psingles_new, prob_min_thresh)
+
+            if(abs(pTriples_new - pTriples) / pTriples > 0.0001_dp) then
+               root_print "Updating triple-excitation bias. pTriples =", pTriples_new
+            endif
+
+            pSingles = pSingles_new
+            pTriples = pTriples_new
             if (tReltvy) then
                 pSing_spindiff1 = max(pSing_spindiff1_new, prob_min_thresh)
                 pDoub_spindiff1 = max(pDoub_spindiff1_new, prob_min_thresh)

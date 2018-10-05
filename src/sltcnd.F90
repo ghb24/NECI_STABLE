@@ -121,6 +121,9 @@ contains
             ! The determinants differ by two orbitals
             sltcnd_excit = sltcnd_2 (nI, ex, tParity)
 
+         case(3)
+            sltcnd_excit = sltcnd_3(ex, tParity)
+
         case default
             ! The determinants differ yb more than 2 orbitals
             ASSERT(.not. t_3_body_excits)

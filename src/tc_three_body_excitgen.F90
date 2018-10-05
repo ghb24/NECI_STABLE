@@ -12,6 +12,7 @@ module tc_three_body_excitgen
   use excit_gens_int_weighted, only: pick_biased_elecs
   use GenRandSymExcitNUMod, only: calc_pgen_symrandexcit2, ScratchSize, &
        createSingleExcit, createDoubExcit, construct_class_counts
+  use SymExcitDataMod, only: pDoubNew
   contains
 
     subroutine gen_excit_mol_tc(nI, ilut, nJ, ilutJ, exFlag, ic, ExcitMat, &
@@ -29,6 +30,8 @@ module tc_three_body_excitgen
       character(*), parameter :: this_routine = 'gen_excit_mol_tc'
 
       real(dp) :: r
+
+      pDoubNew = pDoubles
 
       r = genrand_real2_dSFMT()
       ! select if a triple shall be generate
@@ -49,9 +52,11 @@ module tc_three_body_excitgen
          ! we need a uniform excitgen as evaluating matrix elements is too expensive
          if(r < (pTriples + pDoubles)) then
             call CreateDoubExcit(nI,nJ,store%ClassCountUnocc,ilut,ExcitMat,tParity,pGen)
+            ic = 2
          else
             call CreateSingleExcit(nI,nJ,store%ClassCountOcc, store%ClassCountUnocc, &
                  ilut, ExcitMat, tParity, pGen)
+            ic = 1
          endif
       endif
 
@@ -177,8 +182,8 @@ module tc_three_body_excitgen
 
       pTriples = 0.9
       ! rescale pSingles/pDoubles
-      pSingles = pSingles * (1-pTriples)
-      pDoubles = pDoubles * (1-pDoubles)
+      pSingles = pSingles * (1.0_dp-pTriples)
+      pDoubles = pDoubles * (1.0_dp-pTriples)
       p0A = 0.25
       p0B = 0.25
       p2B = 0.25
@@ -404,13 +409,6 @@ module tc_three_body_excitgen
       iOrb = spinOrb(int(r*pool) + 1)
 
       ! check if the orb is already targeted
-      ! assumes tgt is sorted
-      call skipPicked()
-      ! skip occupied orbitals -> translate from index of unocc to global index
-      do i = 1, nel
-         if(iOrb >= nI(i) .and. G1(nI(i))%ms .eq. ms) iOrb = iOrb + 2
-      end do
-      ! now we might have landed in tgt, so skip again
       call skipPicked()
       ! assign the orbital
       tgt(nPicked+1) = iOrb
@@ -433,11 +431,17 @@ module tc_three_body_excitgen
         subroutine skipPicked()
           implicit none
           integer :: i
+          integer :: invalidOrbs(nel+nPicked)
 
-          do i = 1, nPicked
+          invalidOrbs(1:nel) = nI
+          invalidOrbs((nel+1):(nel+nPicked)) = tgt(1:nPicked)
+          
+          invalidOrbs = sort_unique(invalidOrbs)
+
+          do i = 1, (nPicked+nel)
              ! check if the orb is already targeted
              ! assumes tgt is sorted
-             if(tgt(i) .eq. iOrb ) iOrb = iOrb + 2
+             if(invalidOrbs(i) <= iOrb .and. G1(invalidOrbs(i))%ms == ms) iOrb = iOrb + 2
           end do
         end subroutine skipPicked
     end subroutine get_rand_orb

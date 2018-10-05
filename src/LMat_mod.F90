@@ -132,6 +132,7 @@ module LMat_mod
       integer :: a,b,c,i,j,k
       HElement_t(dp) :: matel
       character(*), parameter :: t_r = "readLMat"
+      integer :: counter
 
       if(tStoreSpinOrbs) then
          nBI = nBasis
@@ -149,7 +150,7 @@ module LMat_mod
 
       iunit = get_free_unit()
       open(iunit,file = LMatFileName,status = 'old')
-
+      counter = 0
       do
          read(iunit,*,iostat = ierr) matel, a,b,c,i,j,k
          ! end of file reached?
@@ -161,9 +162,16 @@ module LMat_mod
          else
             ! else assign the matrix element
             LMat(LMatInd(a,b,c,i,j,k)) = matel
+            if(abs(matel)> 0.0_dp) counter = counter + 1
          endif
          
       end do
+
+      counter = counter / 12
+
+      write(iout, *), "Sparsity of LMat", real(counter)/real(LMatSize)
+      write(iout, *), "Nonzero elements in LMat", counter
+      write(iout, *), "Allocated size of LMat", LMatSize
     end subroutine readLMat
 
 !------------------------------------------------------------------------------------------!
