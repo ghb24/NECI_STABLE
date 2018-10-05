@@ -27,6 +27,7 @@ logical :: tImportanceSample, tERLocalization, tOffDiagMin, tFindCINatOrbs
 logical :: tNoRenormRandExcits, tAssumeSizeExcitgen, tCycleOrbs, tROIteration
 logical :: tShakeIter, tRotateOccOnly, tDoubExcMin, tUseHFOrbs, tRotateOrbs
 logical :: tNonUniRandExcits, tNoSymGenRandExcits, tLagrange, tShakeApprox
+logical :: tCachedExcits
 logical :: tShake, tRotateVirtOnly, tMaxHLGap, tCacheFCIDUMPInts
 logical :: tKPntSym        !Are we using KPoint symmetry?
 logical :: tRotatedOrbsReal     !This means we are reading in a complex FCIDUMP, but all 

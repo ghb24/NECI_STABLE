@@ -61,6 +61,7 @@ MODULE System
       iRanLuxLev=3      !This is the default level of quality for the random number generator.
       tNoSymGenRandExcits=.false.
       tNonUniRandExcits=.true. 
+      tCachedExcits = .false.
       tCycleOrbs=.false.
       TSTARBIN=.false.
       TREADINT=.false.
@@ -863,6 +864,9 @@ system: do
             tMCSizeSpace=.true.
             CALL GetiLong(CalcDetCycles)
             CALL GetiLong(CalcDetPrint)
+
+         case("SPARSE-EXCITGEN")
+            tCachedExcits = .true.
 
         case("NONUNIFORMRANDEXCITS")
 !This indicates that the new, non-uniform O[N] random excitation generators are to be used.

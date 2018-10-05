@@ -11,7 +11,7 @@ module fcimc_initialisation
                           tRotatedOrbs, MolproID, nBasis, arr, brr, nel, tCSF,&
                           tHistSpinDist, tPickVirtUniform, tGen_4ind_reverse, &
                           tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
-                          tUEGNewGenerator, tGen_4ind_2, tReltvy
+                          tUEGNewGenerator, tGen_4ind_2, tReltvy, tCachedExcits
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use dSFMT_interface, only: dSFMT_init
     use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
@@ -124,6 +124,7 @@ module fcimc_initialisation
     use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
+    use cachedExcitgen, only: gen_excit_hel_cached
     use kp_fciqmc_data_mod, only: tExcitedStateKP
     use sym_general_mod, only: ClassCountInd
     use trial_wf_gen, only: init_trial_wf, end_trial_wf
@@ -140,6 +141,7 @@ module fcimc_initialisation
     use get_excit, only: make_double
     use sltcnd_mod, only: sltcnd_0
     use rdm_data, only: nrdms_transition_input
+    use UMatHash, only: initializeSparseUMat
     use Parallel_neci
     use FciMCData
     use util_mod
@@ -1604,6 +1606,8 @@ contains
 
          if(tRDMonFly .and. tDynamicCoreSpace) call sync_rdm_sampling_iter()
 
+         if(tCachedExcits) call initializeSparseUMat()
+
 
     end subroutine InitFCIMCCalcPar
 
@@ -1611,7 +1615,9 @@ contains
       character(*), parameter :: t_r = 'init_fcimc_fn_pointers'
         ! Select the excitation generator.
         if (tHPHF) then
-            generate_excitation => gen_hphf_excit
+           generate_excitation => gen_hphf_excit
+        elseif(tCachedExcits) then
+           generate_excitation => gen_excit_hel_cached
         elseif ((t_back_spawn_option .or. t_back_spawn_flex_option)) then 
             if (tHUB .and. tLatticeGens) then 
                 ! for now the hubbard + back-spawn still uses the old 

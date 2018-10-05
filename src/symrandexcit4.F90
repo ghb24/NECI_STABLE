@@ -31,7 +31,7 @@ module excit_gens_int_weighted
                                     construct_class_counts, &
                                     RandExcitSymLabelProd
     use constants
-    use get_excit, only: make_double, make_single
+    use get_excit, only: make_double, make_single, exciteIlut
     use sort_mod
     use util_mod
     use LoggingData, only: t_log_ija, ija_bins_para, ija_bins_anti, ija_thresh, &
@@ -742,14 +742,8 @@ contains
         ! And generate the actual excitation.
         call make_double (nI, nJ, elecs(1), elecs(2), orbs(1), orbs(2), &
                           ex, par)
-        ilutJ = ilutI
-        clr_orb (ilutJ, src(1))
-        clr_orb (ilutJ, src(2))
-        set_orb (ilutJ, orbs(1))
-        set_orb (ilutJ, orbs(2))
-
+        ilutJ = exciteIlut(ilutI,src,orbs)
     end subroutine
-
 
     subroutine pick_biased_elecs (nI, elecs, src, sym_prod, ispn, sum_ml, pgen)
 

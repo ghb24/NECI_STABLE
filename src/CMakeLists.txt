@@ -9,6 +9,7 @@ set( SRC_FILES
     Annihilation.F90
     bit_rep_data.F90
     BitReps.F90
+    cachedExcitgen.F90
     CalcData.F90
     Calc.F90
     calcrho.F

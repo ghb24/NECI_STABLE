@@ -6,6 +6,8 @@ module UMatHash
   use sltcnd_mod, only: sltcnd_2
   use IntegralsData, only: UMat
   use util_mod_numerical
+  use UMatCache, only: UMatInd, getUMatSize
+  use sort_mod
   implicit none
 
   ! the cumulative sum only contains the absolute values, it 
@@ -23,7 +25,7 @@ module UMatHash
   integer, allocatable :: posPQ(:)
   integer, allocatable :: posPQPar(:)
   ! number of basis functions used for storage (number of (spin)-orbitals)
-  integer :: nStoreBas
+  integer :: nStoreBasis
   integer :: numPQPairs
   integer :: numPQPairsPar
 
@@ -44,11 +46,12 @@ module UMatHash
          nPQLoc,nLargePQLoc,rsPQLoc,posPQLoc,numPQPairsLoc,tPar)
       implicit none
       real(dp), intent(out), allocatable :: CumSparseUMatLoc(:), TotalCumWeightsLoc(:)
-      integer, intent(out), allocatable :: nPQLoc(:), nLargePQLoc(:), rsPQLoc(:)
-      integer, intent(out), allocatable :: posPQLoc(:), numPQPairsLoc
+      integer, intent(out), allocatable :: nPQLoc(:), nLargePQLoc(:), rsPQLoc(:,:)
+      integer, intent(out), allocatable :: posPQLoc(:)
+      integer, intent(out) :: numPQPairsLoc
       logical, intent(in) :: tPar      
       integer :: j, umatsize, nnz
-      integer :: p,q,r,s,ex(2,2),pq
+      integer :: p,q,r,s,pq
       ! current matrix element
       real(dp) :: matel
 
@@ -102,8 +105,9 @@ module UMatHash
          ! now, sort the entries + rsPQ entries
          ! remember to only act on the slice belonging to the current PQ
          ! last index belonging to this pq is nnz
-         call sortParallel(CumSparseUMatLoc(posPQLoc(pq):nnz),&
-              rsPQLoc(posPQLoc(pq):endThisPQ),nPQLoc(pq))
+         !call sortParallel(CumSparseUMatLoc(posPQLoc(pq):nnz),&
+         !    rsPQLoc(:,posPQLoc(pq):nnz),nPQLoc(pq))
+         call sort(CumSparseUMatLoc(posPQLoc(pq):nnz),rsPQLoc(:,posPQLoc(pq):nnz))
 
          ! accumulate the values of CumSparseUMat
          call accumulateValues(CumSparseUMatLoc(posPQLoc(pq):nnz))
@@ -138,7 +142,7 @@ module UMatHash
 
       ! sort the auxiliary indices using the comparison operator of valArray
       ! (sort in ascending order)
-      call sort(auxIndices,matel_gt,matel_lt)
+      !call sort(auxIndices,matel_gt,matel_lt)
       
       ! reorder valArray and indexArray
       valArray(1:nelems) = valArray(auxIndices)
@@ -149,6 +153,7 @@ module UMatHash
       contains 
         
         pure function matel_gt(mI, mJ) result(bGt)
+          use constants
           integer, intent(in) :: mI,mJ
           logical :: bGt
           
@@ -156,11 +161,12 @@ module UMatHash
         end function matel_gt
 
         pure function matel_lt(mI, mJ) result(bGt)
+          use constants
           integer, intent(in) :: mI,mJ
           logical :: bGt
           
           bGt = CumSparseUMat(mI) < CumSparseUMat(mJ)
-        end function matel_gt
+        end function matel_lt
 
     end subroutine sortParallel
 
@@ -169,7 +175,6 @@ module UMatHash
     ! convert an array of values into an array of accumulated sums of those values
     subroutine accumulateValues(valArray)
       real(dp), intent(inout) :: valArray(:)
-      integer, intent(in) :: nelems
       
       integer :: i
 
@@ -199,24 +204,6 @@ module UMatHash
     end subroutine freeCumulativeSparseUMat
 
     !------------------------------------------------------------------------------------------!
-
-    subroutine gen_excit_hel_cached(nI, ilutI, nJ, ilutJ, exFlag, ic, ex, tParity, &
-         pgen, helgen, store, part_type)
-      implicit none
-      
-      integer, intent(in) :: nI(nel), exFlag
-      integer(n_int), intent(in) :: ilutI(0:NIfTot)
-      integer, intent(out) :: nJ(nel), ic, ex(2,2)
-      logical, intent(out) :: tParity
-      real(dp), intent(out) :: pGen
-      HElement_t(dp), intent(out) :: HElGen
-      type(excit_gen_store_type), intent(inout), target :: store
-      integer, intent(in), optional :: part_type
-
-      
-
-    end subroutine gen_excit_hel_cached
-
     !------------------------------------------------------------------------------------------!
 
     ! may not be needed, or neads tweaking since we need to guarantee that
@@ -241,16 +228,16 @@ module UMatHash
     ! r,s, might be occupied and thus no valid excitation is generated
     ! we will answer this by generating multiple excitations, such that 1 valid one
     ! is generated on average
-    subroutine selectRSFromCSUM(p,q,r,s,pgen,CumSparseUMatLoc,TotalCumWeightsLoc, &
+    subroutine selectRSFromCSUM(p,q,rs,pgen,CumSparseUMatLoc, &
          nPQLoc,rsPQLoc,posPQLoc)
       implicit none
       ! input p,q
       integer, intent(in) :: p,q
       ! output r,s
-      integer, intent(out) :: r,s
+      integer, intent(out) :: rs(2)
       real(dp), intent(inout) :: pgen
-      real(dp), intent(in) :: CumSparseUMatLoc(:), TotalCumWeightsLoc(:)
-      integer, intent(in) :: nPQLoc(:), rsPQLoc(:), posPQLoc(:)
+      real(dp), intent(in) :: CumSparseUMatLoc(:)
+      integer, intent(in) :: nPQLoc(:), rsPQLoc(:,:), posPQLoc(:)
 
       real(dp) :: randThresh
       ! positions and aux indices
@@ -264,18 +251,17 @@ module UMatHash
       
       ! choose the HElement
       ! random factor between 0 and 1 times total cumulated value
-      randThresh = genrand_real2_dSFMT()*CumSparseUMat(endPQ)
+      randThresh = genrand_real2_dSFMT()*CumSparseUMatLoc(endPQ)
       
-      pos = binary_search_first_ge(CumSparseUMat(startPQ:endPQ), randThresh) + startPQ
+      pos = binary_search_first_ge(CumSparseUMatLoc(startPQ:endPQ), randThresh) + startPQ
       
       if(pos > 1) then
-         pgen = pgen * (CumSparseUMat(pos) - CumSparseUMat(pos-1))/CumSparseUMat(endPQ)
+         pgen = pgen * (CumSparseUMatLoc(pos) - CumSparseUMatLoc(pos-1))/CumSparseUMatLoc(endPQ)
       else
-         pgen = pgen * CumSparseUMat(pos)/CumSparseUMat(endPQ)
+         pgen = pgen * CumSparseUMatLoc(pos)/CumSparseUMatLoc(endPQ)
       end if
 
-      r = rsPQ(1,pos)
-      s = rsPQ(2,pos)
+      rs = rsPQLoc(:,pos)
       
     end subroutine selectRSFromCSUM
 
