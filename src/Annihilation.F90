@@ -998,7 +998,7 @@ module AnnihilationMod
               do while(maxExLvl == 0)
                  maxExLvl = maxKeepExLvl(nopen+1)
                  nopen = nopen + 1
-                 if(nopen => numMaxExLvlsSet) exit
+                 if(nopen >= numMaxExLvlsSet) exit
               end do
               ! if we are below this level, keep the spawn anyway
               if(FindBitExcitLevel(ilutHF, ilut_spwn) <= maxExLvl) abort = .false.
