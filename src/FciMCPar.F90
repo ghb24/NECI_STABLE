@@ -221,6 +221,7 @@ module FciMCParMod
             call open_create_stats('var_estimates', var_unit)
             write(var_unit, '("#", 4X, "Iteration")', advance='no')
             write(var_unit, '(7x,"Energy numerator")', advance='no')
+            write(var_unit, '(5x,"Energy^2 numerator")', advance='no')
             if (tEN2Init) then
                 write(var_unit, '(10x,"EN2 numerator")', advance='no')
                 write(var_unit, '(9x,"Var + EN2 num.")', advance='no')
