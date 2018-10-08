@@ -1147,12 +1147,12 @@ contains
 
       do j = 1, gf_count
          do i = 1, normsize
-            overlapList(i,j) = gf_overlap(i,j)/dyn_norm_red(i) * &
+            overlapList(i,j) = gf_overlap(i,j)/dyn_norm_red(i,j) * &
                  exp(shift_damping(((i-1)/inum_runs+1)))
          end do
 
          !normalize the greens function
-         overlap_buf(j) = sum(gf_overlap(:,j))/sum(dyn_norm_red(:)) * &
+         overlap_buf(j) = sum(gf_overlap(:,j))/sum(dyn_norm_red(:,j)) * &
               sum(exp(shift_damping))/inum_runs
 
          avReal(j) = real(overlap_buf(j))
@@ -1429,7 +1429,6 @@ contains
 
               call write_overlap_state_serial(perturbed_buf, TotWalkers_orig_max, i)
            else
-              ! CurrentDets is the overlap state, i.e. get <psi(t)|psi(0)>
               write(6,*) "Generated overlap state"
               call write_overlap_state_serial(CurrentDets, TotWalkers, i)
               write(6,*) "Written overlap state to array"

@@ -357,7 +357,7 @@ contains
       allocate(pert_norm(normsize,gf_count),stat = ierr)
       allocate(dyn_norm_psi(normsize),stat = ierr)
       dyn_norm_psi = 1.0_dp
-      allocate(dyn_norm_red(normsize), stat = ierr)
+      allocate(dyn_norm_red(normsize,gf_count), stat = ierr)
       allocate(current_overlap(normsize,gf_count),stat = ierr)
       dyn_norm_red = 1.0_dp
       gf_overlap = 0.0_dp
@@ -384,33 +384,11 @@ contains
       ! if a ground-state POPSFILE is used, we need to ensure coherence between the replicas
       if(.not. tRealTimePopsfile) call equalize_initial_phase()
 
-      if(.not. allocated(shift_damping)) then 
-         allocate(shift_damping(inum_runs), stat = ierr)
-         shift_damping = 0.0_dp
-      endif
-
-      if(tLogTrajectory) call openTauContourFile()
-
-    end subroutine init_overlap_buffers
-
-    subroutine setup_normalization()
-      ! get the norm of the original state, which is used to normalize the GF
-      implicit none
-      integer j, ierr
-      complex(dp), allocatable :: norm_buf(:)
-
-      allocate(norm_buf(normsize), stat = ierr)
-      
-      if(tReadPops) then
-         norm_buf = calc_norm(popsfile_dets, TotWalkers_orig)
-      else
-         norm_buf = calc_norm(CurrentDets, TotWalkers)
-      endif
-
-      call MPIReduce(norm_buf,MPI_SUM,dyn_norm_red)
-
-      ! used for coherence check
+      allocate(norm_buf(normsize),stat=ierr)
+      ! to avoid dividing by 0 if not all entries get filled
       pert_norm = 1.0_dp
+      norm_buf = calc_norm(CurrentDets,int(TotWalkers))
+      call MPIReduce(norm_buf,MPI_SUM,dyn_norm_psi)
       do j = 1,gf_count
          ! calc. the norm of the perturbed ground states
          norm_buf = calc_norm(overlap_states(j)%dets,overlap_states(j)%nDets)
@@ -419,10 +397,21 @@ contains
          call MPIReduce(norm_buf,MPI_SUM,pert_norm(:,j))
          ! for diagonal green's functions, this is the same as pert_norm, but 
          ! in general, this general normalization is required.
+         do i = 1, normsize
+            dyn_norm_red(i,j) = sqrt(pert_norm(i,j)*dyn_norm_psi(i))
+         end do
       enddo
 
       deallocate(norm_buf)
-    end subroutine setup_normalization
+
+      if(.not. allocated(shift_damping)) then 
+         allocate(shift_damping(inum_runs), stat = ierr)
+         shift_damping = 0.0_dp
+      endif
+
+      if(tLogTrajectory) call openTauContourFile()
+
+    end subroutine init_overlap_buffers
 
     ! write a routine which sets the defauls values, and maybe even turns off
     ! certain otherwise non-compatible variable to the appropriate values

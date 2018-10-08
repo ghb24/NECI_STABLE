@@ -727,7 +727,7 @@ contains
             call stats_out(state,.false., AllTotWalkers, 'Dets occ.')
             call stats_out(state,.false., AccRat(1), 'Acc. Rat.')
 #ifdef __REALTIME
-            call stats_out(state,.false., real(sum(dyn_norm_red(:))/normsize),'GF normalization')
+            call stats_out(state,.false., real(sum(dyn_norm_red(:,1))/normsize),'GF normalization')
 #else
             call stats_out(state,.false., IterTime, 'Iter. time')
 #endif
