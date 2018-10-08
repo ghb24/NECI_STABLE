@@ -774,120 +774,120 @@ if(t_real_time_fciqmc .or. tLogGreensfunction) then
 endif
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these
+if(.not. t_real_time_fciqmc) then
 #if defined __PROG_NUMRUNS
-            do p = 1, inum_runs
-                write(tmpc, '(i5)') p
-                call stats_out (state, .false., AllTotParts(p), &
-                                'Parts (' // trim(adjustl(tmpc)) // ')')
-                call stats_out (state, .false., AllNoatHF(p), &
-                                'Ref (' // trim(adjustl(tmpc)) // ')')
-                call stats_out (state, .false., DiagSft(p) + Hii, &
-                                'Shift (' // trim(adjustl(tmpc)) // ')')
-#if !defined __REALTIME
+   do p = 1, inum_runs
+      write(tmpc, '(i5)') p
+      call stats_out (state, .false., AllTotParts(p), &
+           'Parts (' // trim(adjustl(tmpc)) // ')')
+      call stats_out (state, .false., AllNoatHF(p), &
+           'Ref (' // trim(adjustl(tmpc)) // ')')
+      call stats_out (state, .false., DiagSft(p) + Hii, &
+           'Shift (' // trim(adjustl(tmpc)) // ')')
 #ifdef __CMPLX
-                call stats_out (state, .false., real(proje_iter(p) + Hii), &
-                                'Tot ProjE real (' // trim(adjustl(tmpc)) // ')')
-                call stats_out (state, .false., aimag(proje_iter(p) + Hii), &
-                                'Tot ProjE imag (' // trim(adjustl(tmpc)) // ')')
+      call stats_out (state, .false., real(proje_iter(p) + Hii), &
+           'Tot ProjE real (' // trim(adjustl(tmpc)) // ')')
+      call stats_out (state, .false., aimag(proje_iter(p) + Hii), &
+           'Tot ProjE imag (' // trim(adjustl(tmpc)) // ')')
 
-                call stats_out (state, .false., real(AllHFCyc(p) / StepsSft), &
-                                'ProjE Denom real (' // trim(adjustl(tmpc)) // ')')
-                call stats_out (state, .false., aimag(AllHFCyc(p) / StepsSft), &
-                                'ProjE Denom imag (' // trim(adjustl(tmpc)) // ')')
+      call stats_out (state, .false., real(AllHFCyc(p) / StepsSft), &
+           'ProjE Denom real (' // trim(adjustl(tmpc)) // ')')
+      call stats_out (state, .false., aimag(AllHFCyc(p) / StepsSft), &
+           'ProjE Denom imag (' // trim(adjustl(tmpc)) // ')')
 
-                call stats_out (state, .false., &
-                                real((AllENumCyc(p) + Hii*AllHFCyc(p))) / StepsSft,&
-                                'ProjE Num real (' // trim(adjustl(tmpc)) // ')')
-                call stats_out (state, .false., &
-                                aimag((AllENumCyc(p) + Hii*AllHFCyc(p))) / StepsSft,&
-                                'ProjE Num imag (' // trim(adjustl(tmpc)) // ')')
-                if (tTrialWavefunction .or. tStartTrialLater) then
-                    call stats_out (state, .false., &
-                                    real(tot_trial_numerator(p) / StepsSft), &
-                                    'TrialE Num real (' // trim(adjustl(tmpc)) // ')')
-                    call stats_out (state, .false., &
-                                    aimag(tot_trial_numerator(p) / StepsSft), &
-                                    'TrialE Num imag (' // trim(adjustl(tmpc)) // ')')
+      call stats_out (state, .false., &
+           real((AllENumCyc(p) + Hii*AllHFCyc(p))) / StepsSft,&
+           'ProjE Num real (' // trim(adjustl(tmpc)) // ')')
+      call stats_out (state, .false., &
+           aimag((AllENumCyc(p) + Hii*AllHFCyc(p))) / StepsSft,&
+           'ProjE Num imag (' // trim(adjustl(tmpc)) // ')')
+      if (tTrialWavefunction .or. tStartTrialLater) then
+         call stats_out (state, .false., &
+              real(tot_trial_numerator(p) / StepsSft), &
+              'TrialE Num real (' // trim(adjustl(tmpc)) // ')')
+         call stats_out (state, .false., &
+              aimag(tot_trial_numerator(p) / StepsSft), &
+              'TrialE Num imag (' // trim(adjustl(tmpc)) // ')')
 
-                    call stats_out (state, .false., &
-                                    real(tot_trial_denom(p) / StepsSft), &
-                                    'TrialE Denom real (' // trim(adjustl(tmpc)) // ')')
-                    call stats_out (state, .false., &
-                                    aimag(tot_trial_denom(p) / StepsSft), &
-                                    'TrialE Denom imag (' // trim(adjustl(tmpc)) // ')')
-                end if
+         call stats_out (state, .false., &
+              real(tot_trial_denom(p) / StepsSft), &
+              'TrialE Denom real (' // trim(adjustl(tmpc)) // ')')
+         call stats_out (state, .false., &
+              aimag(tot_trial_denom(p) / StepsSft), &
+              'TrialE Denom imag (' // trim(adjustl(tmpc)) // ')')
+      end if
 #else
-                call stats_out (state, .false., proje_iter(p) + Hii, &
-                                'Tot ProjE (' // trim(adjustl(tmpc)) // ')')
-                call stats_out (state, .false., AllHFCyc(p) / StepsSft, &
-                                'ProjE Denom (' // trim(adjustl(tmpc)) // ')')
-                call stats_out (state, .false., &
-                                (AllENumCyc(p) + Hii*AllHFCyc(p)) / StepsSft,&
-                                'ProjE Num (' // trim(adjustl(tmpc)) // ')')
-                if (tTrialWavefunction .or. tStartTrialLater) then
-                    call stats_out (state, .false., &
-                                    tot_trial_numerator(p) / StepsSft, &
-                                    'TrialE Num (' // trim(adjustl(tmpc)) // ')')
-                    call stats_out (state, .false., &
-                                    tot_trial_denom(p) / StepsSft, &
-                                    'TrialE Denom (' // trim(adjustl(tmpc)) // ')')
-                end if
+      call stats_out (state, .false., proje_iter(p) + Hii, &
+           'Tot ProjE (' // trim(adjustl(tmpc)) // ')')
+      call stats_out (state, .false., AllHFCyc(p) / StepsSft, &
+           'ProjE Denom (' // trim(adjustl(tmpc)) // ')')
+      call stats_out (state, .false., &
+           (AllENumCyc(p) + Hii*AllHFCyc(p)) / StepsSft,&
+           'ProjE Num (' // trim(adjustl(tmpc)) // ')')
+      if (tTrialWavefunction .or. tStartTrialLater) then
+         call stats_out (state, .false., &
+              tot_trial_numerator(p) / StepsSft, &
+              'TrialE Num (' // trim(adjustl(tmpc)) // ')')
+         call stats_out (state, .false., &
+              tot_trial_denom(p) / StepsSft, &
+              'TrialE Denom (' // trim(adjustl(tmpc)) // ')')
+      end if
 #endif
 
 
-                call stats_out (state, .false., &
-                                AllNoBorn(p), &
-                                'Born (' // trim(adjustl(tmpc)) // ')')
-                call stats_out (state, .false., &
-                                AllNoDied(p), &
-                                'Died (' // trim(adjustl(tmpc)) // ')')
-                call stats_out (state, .false., &
-                                AllAnnihilated(p), &
-                                'Annihil (' // trim(adjustl(tmpc)) // ')')
-                call stats_out (state, .false., &
-                                AllNoAtDoubs(p), &
-                                'Doubs (' // trim(adjustl(tmpc)) // ')')
-            end do
+      call stats_out (state, .false., &
+           AllNoBorn(p), &
+           'Born (' // trim(adjustl(tmpc)) // ')')
+      call stats_out (state, .false., &
+           AllNoDied(p), &
+           'Died (' // trim(adjustl(tmpc)) // ')')
+      call stats_out (state, .false., &
+           AllAnnihilated(p), &
+           'Annihil (' // trim(adjustl(tmpc)) // ')')
+      call stats_out (state, .false., &
+           AllNoAtDoubs(p), &
+           'Doubs (' // trim(adjustl(tmpc)) // ')')
+   end do
 
-            call stats_out(state,.false.,all_max_cyc_spawn, &
-                 'MaxCycSpawn')
+   call stats_out(state,.false.,all_max_cyc_spawn, &
+        'MaxCycSpawn')
 
-            ! Print overlaps between replicas at the end.
-            do p = 1, inum_runs
-                write(tmpc, '(i5)') p
-                if (tPrintReplicaOverlaps) then
-                    do q = p+1, inum_runs
-                        write(tmpc2, '(i5)') q
+   ! Print overlaps between replicas at the end.
+   do p = 1, inum_runs
+      write(tmpc, '(i5)') p
+      if (tPrintReplicaOverlaps) then
+         do q = p+1, inum_runs
+            write(tmpc2, '(i5)') q
 #ifdef __CMPLX
-                        call stats_out(state, .false.,  replica_overlaps_real(p, q),&
-                                       '<psi_' // trim(adjustl(tmpc)) // '|' &
-                                       // 'psi_' // trim(adjustl(tmpc2)) &
-                                       // '> (real)')
-                        call stats_out(state, .false.,  replica_overlaps_imag(p, q),&
-                                       '<psi_' // trim(adjustl(tmpc)) // '|' &
-                                       // 'psi_' // trim(adjustl(tmpc2)) &
-                                       // '> (imag)')
-            
+            call stats_out(state, .false.,  replica_overlaps_real(p, q),&
+                 '<psi_' // trim(adjustl(tmpc)) // '|' &
+                 // 'psi_' // trim(adjustl(tmpc2)) &
+                 // '> (real)')
+            call stats_out(state, .false.,  replica_overlaps_imag(p, q),&
+                 '<psi_' // trim(adjustl(tmpc)) // '|' &
+                 // 'psi_' // trim(adjustl(tmpc2)) &
+                 // '> (imag)')
+
 #else
-                        call stats_out(state, .false.,  replica_overlaps_real(p, q),&
-                                       '<psi_' // trim(adjustl(tmpc)) // '|' &
-                                       // 'psi_' // trim(adjustl(tmpc2)) &
-                                       // '>')
+            call stats_out(state, .false.,  replica_overlaps_real(p, q),&
+                 '<psi_' // trim(adjustl(tmpc)) // '|' &
+                 // 'psi_' // trim(adjustl(tmpc2)) &
+                 // '>')
 #endif
 
-                    end do
-                end if
-#endif
-            end do
+         end do
+      end if
+   end do
 
 #endif
 
-            if(tCalcInstantS2) &
-                 call stats_out(state,.true.,sum(curr_S2)/inum_runs,'S^2')
-            if(tCalcInstantS2Init) &
-                 call stats_out(state,.true.,sum(curr_S2_init)/inum_runs,'S^2 (inits)')
+   if(tCalcInstantS2) &
+        call stats_out(state,.true.,sum(curr_S2)/inum_runs,'S^2')
+   if(tCalcInstantS2Init) &
+        call stats_out(state,.true.,sum(curr_S2_init)/inum_runs,'S^2 (inits)')
 
-            if (tEN2) call stats_out(state,.true., en_pert_main%ndets_all, 'EN2 Dets.')
+   if (tEN2) call stats_out(state,.true., en_pert_main%ndets_all, 'EN2 Dets.')
+endif
 
             if (tTruncInitiator) then
                 call stats_out(state_i, .false., Iter + PreviousCycles, 'Iter.')
