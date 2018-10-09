@@ -196,7 +196,6 @@ module precond_annihilation_mod
         real(dp) :: en2_pert(lenof_sign), en2_pert_all(lenof_sign)
         real(dp) :: precond_e_num(lenof_sign), precond_denom(lenof_sign)
         real(dp) :: precond_e_num_all(lenof_sign), precond_denom_all(lenof_sign)
-        real(dp) :: precond_e_num_av, precond_denom_av
 
         ! Allow room to send up to 1000 elements.
         real(dp) :: send_arr(6*lenof_sign)
@@ -262,22 +261,16 @@ module precond_annihilation_mod
                 end if
 
                 var_e_num(1) = var_e_num(1) - &
-                    (SpawnedSign(1) * CurrentSign(2) + SpawnedSign(2) * CurrentSign(1))/(2.0_dp * tau)
+                 (SpawnedSign(1)*CurrentSign(2) + SpawnedSign(2)*CurrentSign(1)) / (2.0_dp*tau)
 
                 precond_e_num(1) = precond_e_num(1) - &
-                    SpawnedSign(1) * hdiag * CurrentSign(2) / ( (proj_energy(1) + proje_ref_energy_offsets(1) + Hii - hdiag ))
-
-                precond_e_num(2) = precond_e_num(2) - &
-                    SpawnedSign(2) * hdiag * CurrentSign(1) / ( (proj_energy(2) + proje_ref_energy_offsets(2) + Hii - hdiag ))
+                 (SpawnedSign(1)*hdiag*CurrentSign(2) + SpawnedSign(2)*hdiag*CurrentSign(1)) / (2.0_dp*(mean_energy(1) - hdiag))
 
                 precond_denom(1) = precond_denom(1) - &
-                    SpawnedSign(1) * CurrentSign(2) / ( (proj_energy(1) + proje_ref_energy_offsets(1) + Hii - hdiag ))
+                 (SpawnedSign(1)*CurrentSign(2) + SpawnedSign(2) * CurrentSign(1)) / (2.0_dp*(mean_energy(1) - hdiag))
 
-                precond_denom(2) = precond_denom(2) - &
-                    SpawnedSign(2) * CurrentSign(1) / ( (proj_energy(2) + proje_ref_energy_offsets(2) + Hii - hdiag ))
-
-                e_squared_num(1) = e_squared_num(1) - SpawnedSign(1) * hdiag * CurrentSign(2) / tau
-                e_squared_num(1) = e_squared_num(1) - SpawnedSign(2) * hdiag * CurrentSign(1) / tau
+                e_squared_num(1) = e_squared_num(1) - &
+                 (SpawnedSign(1)*hdiag*CurrentSign(2) + SpawnedSign(2)*hdiag*CurrentSign(1)) / tau
             end if
 
             ! Add in the contributions corresponding to off-diagonal
@@ -286,10 +279,7 @@ module precond_annihilation_mod
                 hdiag = extract_spawn_hdiag(SpawnedParts(:,i))
 
                 precond_e_num(1) = precond_e_num(1) + &
-                  SpawnedSign(1) * SpawnedSign(2) / (tau * ( proj_energy(1) + proje_ref_energy_offsets(1) + Hii - hdiag ))
-
-                precond_e_num(2) = precond_e_num(2) + &
-                  SpawnedSign(1) * SpawnedSign(2) / (tau * ( proj_energy(2) + proje_ref_energy_offsets(2) + Hii - hdiag ))
+                  SpawnedSign(1) * SpawnedSign(2) / (tau*(mean_energy(1) - hdiag))
 
                 e_squared_num(1) = e_squared_num(1) + SpawnedSign(1) * SpawnedSign(2) / (tau**2)
 
@@ -323,34 +313,22 @@ module precond_annihilation_mod
                     ! Preconditioned estimator
                     precond_e_num(1) = precond_e_num(1) + &
                       partial_determ_vecs(1, i) * partial_determ_vecs(2, i) / &
-                        ( tau * (proj_energy(1) + proje_ref_energy_offsets(1) - core_ham_diag(i)) )
-
-                    precond_e_num(2) = precond_e_num(2) + &
-                      partial_determ_vecs(1, i) * partial_determ_vecs(2, i) / &
-                       ( tau * (proj_energy(2) + proje_ref_energy_offsets(2) - core_ham_diag(i)) )
+                        (tau * (mean_energy(1) - core_ham_diag(i) - Hii))
 
                     precond_e_num(1) = precond_e_num(1) - &
-                      partial_determ_vecs(1, i) * (core_ham_diag(i) + Hii) * CurrentSign(2) / &
-                        ( (proj_energy(1) + proje_ref_energy_offsets(1) - core_ham_diag(i)) )
-
-                    precond_e_num(2) = precond_e_num(2) - &
-                      partial_determ_vecs(2, i) * (core_ham_diag(i) + Hii) * CurrentSign(1) / &
-                       ( (proj_energy(2) + proje_ref_energy_offsets(2) - core_ham_diag(i)) )
+                      (partial_determ_vecs(1, i) * (core_ham_diag(i) + Hii) * CurrentSign(2) + &
+                       partial_determ_vecs(2, i) * (core_ham_diag(i) + Hii) * CurrentSign(1)) / &
+                        (2.0_dp*(mean_energy(1) - core_ham_diag(i) - Hii))
 
                     precond_denom(1) = precond_denom(1) - &
-                      partial_determ_vecs(1, i) * CurrentSign(2) / &
-                        ( (proj_energy(1) + proje_ref_energy_offsets(1) - core_ham_diag(i)) )
-
-                    precond_denom(2) = precond_denom(2) - &
-                      partial_determ_vecs(2, i) * CurrentSign(1) / &
-                       ( (proj_energy(2) + proje_ref_energy_offsets(2) - core_ham_diag(i)) )
+                      (partial_determ_vecs(1, i) * CurrentSign(2) + partial_determ_vecs(2, i) * CurrentSign(1)) / &
+                        (2.0_dp*(mean_energy(1) - core_ham_diag(i) - Hii))
 
                     ! E squared terms
                     e_squared_num(1) = e_squared_num(1) + partial_determ_vecs(1, i) * partial_determ_vecs(2, i) / (tau**2)
                     e_squared_num(1) = e_squared_num(1) - &
-                      partial_determ_vecs(1, i) * (core_ham_diag(i) + Hii) * CurrentSign(2) / tau
-                    e_squared_num(1) = e_squared_num(1) - &
-                      partial_determ_vecs(2, i) * (core_ham_diag(i) + Hii) * CurrentSign(1) / tau
+                     (partial_determ_vecs(1, i) * (core_ham_diag(i) + Hii) * CurrentSign(2) + &
+                      partial_determ_vecs(2, i) * (core_ham_diag(i) + Hii) * CurrentSign(1)) / tau
                 end if
             end do
         end if
@@ -374,9 +352,6 @@ module precond_annihilation_mod
         e_squared_num_all = recv_arr(5*lenof_sign+1:6*lenof_sign)
         ! -------------------------------------------------------
 
-        precond_e_num_av = ( precond_e_num_all(1) + precond_e_num_all(2) ) / 2.0_dp
-        precond_denom_av = ( precond_denom_all(1) + precond_denom_all(2) ) / 2.0_dp
-
         if (iProcIndex == 0) then
             write(var_unit, '(1x,i13)', advance='no') Iter + PreviousCycles
             write(var_unit, '(2(3x,es20.13))', advance='no') var_e_num_all(1), e_squared_num_all(1)
@@ -385,8 +360,6 @@ module precond_annihilation_mod
             end if
             write(var_unit, '(1(3x,es20.13))', advance='no') overlap_all(1)
             write(var_unit, '(2(3x,es20.13))', advance='no') precond_e_num_all(1), precond_denom_all(1)
-            write(var_unit, '(2(3x,es20.13))', advance='no') precond_e_num_all(2), precond_denom_all(2)
-            write(var_unit, '(2(3x,es20.13))', advance='no') precond_e_num_av, precond_denom_av
             write(var_unit,'()')
         end if
 
