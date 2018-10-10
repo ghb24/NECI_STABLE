@@ -295,6 +295,10 @@ contains
           ! Truncation based on number of unpaired electrons
           tTruncNOpen = .false.
 
+          ! initiators based on number of open orbs
+          tSeniorityInits = .false.
+          initMaxSenior = 0
+
           ! keep spawns up to a given seniority + excitation level
           tSpawnSeniorityBased = .false.
           numMaxExLvlsSet = 0
@@ -1863,6 +1867,12 @@ contains
 
             case("NO-COHERENT-INIT-RULE")
                 tInitCoherentRule=.false.
+
+             case("ALL-SENIORITY-INITS")
+                ! make all determinants with at most initMaxSenior open orbitals initiators
+                tSeniorityInits = .true.
+                ! the maximum number of open orbs, default is 0
+                if(item < nitems) call getI(initMaxSenior)
 
              case("ALL-SENIORITY-SURVIVE")
                 ! keep all spawns, regardless of initiator criterium, onto 

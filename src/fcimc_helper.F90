@@ -41,7 +41,8 @@ module fcimc_helper
                         NMCyc, iSampleRDMIters, ErrThresh, tSTDInits, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
                         t_back_spawn_flex, tau, DiagSft, tLargeMatelSurvive, &
-                        tSeniorInitiators, SeniorityAge, tInitCoherentRule
+                        tSeniorInitiators, SeniorityAge, tInitCoherentRule, &
+                        initMaxSenior, tSeniorityInits
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
          tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
@@ -884,6 +885,10 @@ contains
 
         ! initiator flag according to SI
         staticInit = check_static_init(ilut, nI, sgn, exLvl, run)
+
+        if(tSeniorityInits) then
+           staticInit = staticInit .or. (count_open_orbs(ilut) <= initMaxSenior)
+        endif
         ! check if there are sign conflicts across the replicas
         if(any(sgn*(sgn_av_pop(sgn)) < 0)) then
            ! check if this would be an initiator
@@ -911,7 +916,11 @@ contains
         initiator = is_init
 
         ! SI-caused initiators also have the initiator flag
-        if(staticInit) initiator = .true.
+        if(staticInit) then
+           initiator = .true.
+           ! thats it, we never remove static initiators
+           return
+        endif
 
         Senior = .false.
         if (tSeniorInitiators .and. .not. is_run_unnocc(sgn, run) ) then
