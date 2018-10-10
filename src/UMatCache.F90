@@ -327,7 +327,7 @@ MODULE UMatCache
          IMPLICIT NONE
          INTEGER nBasis,iSS
          INTEGER iPairs,nBi,nEl,noccup
-         INTEGER(int64) :: iSize
+         INTEGER(int64), intent(out) :: iSize
          IF(tStoreSpinOrbs) THEN
              iSS=1
          ELSE

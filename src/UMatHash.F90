@@ -6,33 +6,37 @@ module UMatHash
   use sltcnd_mod, only: sltcnd_2
   use IntegralsData, only: UMat
   use util_mod_numerical
-  use UMatCache, only: UMatInd, getUMatSize
+  use UMatCache, only: UMatInd, getUMatSize, numBasisIndices
   use sort_mod
   implicit none
 
   ! the cumulative sum only contains the absolute values, it 
   ! is always real
-  real(dp), allocatable :: CumSparseUMat(:), TotalCumWeights(:)
+  real(dp), pointer :: CumSparseUMat(:), TotalCumWeights(:)
   ! copies of the same stuff for parallel spin excitations
-  real(dp), allocatable :: CumSparseUMatPar(:), TotalCumWeightsPar(:)
+  real(dp), pointer :: CumSparseUMatPar(:), TotalCumWeightsPar(:)
   ! number of nonzero elements per pq (using pq as index) / number of large elements
-  integer, allocatable :: nPQ(:), nLargePQ(:)
-  integer, allocatable :: nPQPar(:), nLargePQPar(:)
+  integer, pointer :: nPQ(:), nLargePQ(:)
+  integer, pointer :: nPQPar(:), nLargePQPar(:)
   ! rs indices for each pq
-  integer, allocatable :: rsPQ(:,:) 
-  integer, allocatable :: rsPQPar(:,:) 
+  integer, pointer :: rsPQ(:,:) 
+  integer, pointer :: rsPQPar(:,:) 
   ! position of first element of pq in CumSparseUMat and rspq
-  integer, allocatable :: posPQ(:)
-  integer, allocatable :: posPQPar(:)
+  integer, pointer :: posPQ(:)
+  integer, pointer :: posPQPar(:)
   ! number of basis functions used for storage (number of (spin)-orbitals)
   integer :: nStoreBasis
   integer :: numPQPairs
   integer :: numPQPairsPar
+  ! mpi windows for shared memory allocation
+  integer(MPIArg) :: nPQWin
 
   contains 
 
     subroutine initializeSparseUMat()
       implicit none
+
+      nStoreBasis = numBasisIndices(nBasis)
 
       call setupCumulativeSparseUMat(CumSparseUMat,TotalCumWeights,nPQ,nLargePQ,rsPQ,&
            posPQ, numPQPairs, .false.)
@@ -45,29 +49,42 @@ module UMatHash
     subroutine setupCumulativeSparseUMat(CumSparseUMatLoc,TotalCumWeightsLoc, &
          nPQLoc,nLargePQLoc,rsPQLoc,posPQLoc,numPQPairsLoc,tPar)
       implicit none
-      real(dp), intent(out), allocatable :: CumSparseUMatLoc(:), TotalCumWeightsLoc(:)
-      integer, intent(out), allocatable :: nPQLoc(:), nLargePQLoc(:), rsPQLoc(:,:)
-      integer, intent(out), allocatable :: posPQLoc(:)
+      real(dp), intent(out), pointer :: CumSparseUMatLoc(:), TotalCumWeightsLoc(:)
+      integer, intent(out), pointer :: nPQLoc(:), nLargePQLoc(:), rsPQLoc(:,:)
+      integer, intent(out), pointer :: posPQLoc(:)
       integer, intent(out) :: numPQPairsLoc
       logical, intent(in) :: tPar      
-      integer :: j, umatsize, nnz
-      integer :: p,q,r,s,pq
+      integer :: nnz
+      integer :: p,q,r,s,pq, offset
       ! current matrix element
       real(dp) :: matel
-
-      call GetUMatSize(nBasis,nel,umatsize)
+     
+      ! offset controls if we consider p==q/r==s?
+      if(tPar) then
+         offset = 1
+      else
+         offset = 0
+      endif
 
       ! number of pq-values
-      numPQPairsLoc = fuseIndex(nStoreBasis,nStoreBasis-1)
+      numPQPairsLoc = fuseIndex(nStoreBasis,nStoreBasis)
 
+      !call shared_allocate_mpi(nPQLWin,nPQLoc,numPQPairsLoc)
       allocate(nPQLoc(numPQPairsLoc))
+      allocate(nLargePQLoc(numPQPairsLoc))
       allocate(posPQLoc(numPQPairsLoc))
       allocate(TotalCumWeightsLoc(numPQPairsLoc))
 
       ! count the number of nonzero elements in umat
-      nnz = nnz + 1
-      do j = 1, umatsize
-         if(abs(UMat(j)) > eps) nnz = nnz + 1
+      nnz = 0
+      do p = 1, nStoreBasis
+         do q = p, nStoreBasis
+            do r = 1, nStoreBasis
+               do s = minInd(r), nStoreBasis
+                  if(umatel(p,q,r,s) > eps) nnz = nnz + 1
+               end do
+            end do
+         end do
       end do
       allocate(rsPQLoc(2,nnz))
       allocate(CumSparseUMatLoc(nnz))
@@ -79,12 +96,9 @@ module UMatHash
          ! store the starting position of the values for this pq
          posPQLoc(pq) = nnz + 1
          do r = 1, nStoreBasis
-            do s = r+1, nStoreBasis
-               if(tPar) then
-                  matel = abs(UMat(UMatInd(p,q,r,s)) - UMat(UMatInd(p,q,s,r)))
-               else
-                  matel = abs(UMat(UMatInd(p,q,r,s)))
-               endif
+            ! as we consider spatial orbs in general, we allow for s==r
+            do s = minInd(r), nStoreBasis
+               matel = umatel(p,q,r,s)
                if(matel > eps) then
                   nnz = nnz + 1
                   CumSparseUMatLoc(nnz) = matel
@@ -93,30 +107,63 @@ module UMatHash
                endif
             end do
          end do
-
+        
          ! number of matrix elements for this pq
-         if(r == 1 .and. p==2) then
-            nPQLoc(pq) = nnz
-         else
-            nPQLoc(pq) = nnz - posPQLoc(pq-1) - 1
-         endif
+         nPQLoc(pq) = nnz - posPQLoc(pq) + 1
          ! so far, we got the unordered matrix elements for pq
          ! with their respective r,s
          ! now, sort the entries + rsPQ entries
          ! remember to only act on the slice belonging to the current PQ
          ! last index belonging to this pq is nnz
-         !call sortParallel(CumSparseUMatLoc(posPQLoc(pq):nnz),&
-         !    rsPQLoc(:,posPQLoc(pq):nnz),nPQLoc(pq))
-         call sort(CumSparseUMatLoc(posPQLoc(pq):nnz),rsPQLoc(:,posPQLoc(pq):nnz))
+         if(nPQLoc(pq) > 0) then
+            call sort(CumSparseUMatLoc(posPQLoc(pq):nnz),rsPQLoc(:,posPQLoc(pq):nnz))
 
-         ! accumulate the values of CumSparseUMat
-         call accumulateValues(CumSparseUMatLoc(posPQLoc(pq):nnz))
+            ! ordering is increasing now, but we want it to be decreasing
+            CumSparseUMatLoc(posPQLoc(pq):nnz) = CumSparseUMatLoc(nnz:posPQLoc(pq):-1)
+            rsPQLoc(:,posPQLoc(pq):nnz) = rsPQLoc(:,nnz:posPQLoc(pq):-1)
 
-         nLargePQLoc(pq) = binary_search_first_ge(CumSparseUMatLoc(posPQLoc(pq):nnz),&
-              0.5*CumSparseUMatLoc(nnz))
+            ! accumulate the values of CumSparseUMat
+            call accumulateValues(CumSparseUMatLoc(posPQLoc(pq):nnz))
 
-         TotalCumWeightsLoc(pq) = CumSparseUMatLoc(nnz)
+            nLargePQLoc(pq) = binary_search_first_ge(CumSparseUMatLoc(posPQLoc(pq):nnz),&
+                 0.5*CumSparseUMatLoc(nnz))
+
+            TotalCumWeightsLoc(pq) = CumSparseUMatLoc(nnz)
+         else
+            ! if there are no excitations with this pq, posPQ(pq) is set to the position
+            ! of the next pq with valid excitations and the number nPQ/nPQLarge is set to 0
+            nPQLoc(pq) = 0
+            nLargePQLoc(pq) = 0
+            TotalCumWeightsLoc(pq) = 0.0_dp
+         end if
       end do
+
+    contains
+
+      function umatel(p,q,r,s) result(matel)
+        integer, intent(in) :: p,q,r,s
+        real(dp) :: matel
+
+        if(tPar) then
+           matel = abs(UMat(UMatInd(p,q,r,s)) - UMat(UMatInd(p,q,s,r)))
+        else
+           matel = abs(UMat(UMatInd(p,q,r,s)))
+        endif
+      end function umatel
+
+      function minInd(ind) result(lowerBound)
+        ! for parallel excitations, rs are ordered, for antiparallel, they are
+        ! not, since r and p and s and q have to have the same spin
+        implicit none
+        integer, intent(in) :: ind
+        integer :: lowerBound
+        
+        if(tPar) then
+           lowerBound = ind
+        else
+           lowerBound = 1
+        end if
+      end function minInd
 
     end subroutine setupCumulativeSparseUMat
 
@@ -189,17 +236,17 @@ module UMatHash
     subroutine freeCumulativeSparseUMat()
       implicit none
 
-      if(allocated(CumSparseUMat)) deallocate(CumSparseUMat)
-      if(allocated(TotalCumWeights)) deallocate(TotalCumWeights)
-      if(allocated(posPQ)) deallocate(posPQ)
-      if(allocated(rsPQ)) deallocate(rsPQ)
-      if(allocated(nPQ)) deallocate(nPQ)
+      if(associated(CumSparseUMat)) deallocate(CumSparseUMat)
+      if(associated(TotalCumWeights)) deallocate(TotalCumWeights)
+      if(associated(posPQ)) deallocate(posPQ)
+      if(associated(rsPQ)) deallocate(rsPQ)
+      if(associated(nPQ)) deallocate(nPQ)
 
-      if(allocated(CumSparseUMatPar)) deallocate(CumSparseUMatPar)
-      if(allocated(TotalCumWeightsPar)) deallocate(TotalCumWeightsPar)
-      if(allocated(posPQPar)) deallocate(posPQPar)
-      if(allocated(rsPQPar)) deallocate(rsPQPar)
-      if(allocated(nPQPar)) deallocate(nPQPar)
+      if(associated(CumSparseUMatPar)) deallocate(CumSparseUMatPar)
+      if(associated(TotalCumWeightsPar)) deallocate(TotalCumWeightsPar)
+      if(associated(posPQPar)) deallocate(posPQPar)
+      if(associated(rsPQPar)) deallocate(rsPQPar)
+      if(associated(nPQPar)) deallocate(nPQPar)
            
     end subroutine freeCumulativeSparseUMat
 
@@ -248,20 +295,24 @@ module UMatHash
       ! and the related positions in the cache
       startPQ = posPQLoc(pq)
       endPQ = startPQ + nPQLoc(pq) - 1
-      
-      ! choose the HElement
-      ! random factor between 0 and 1 times total cumulated value
-      randThresh = genrand_real2_dSFMT()*CumSparseUMatLoc(endPQ)
-      
-      pos = binary_search_first_ge(CumSparseUMatLoc(startPQ:endPQ), randThresh) + startPQ
-      
-      if(pos > 1) then
-         pgen = pgen * (CumSparseUMatLoc(pos) - CumSparseUMatLoc(pos-1))/CumSparseUMatLoc(endPQ)
-      else
-         pgen = pgen * CumSparseUMatLoc(pos)/CumSparseUMatLoc(endPQ)
-      end if
+      if(endPQ > startPQ) then
+         ! choose the HElement
+         ! random factor between 0 and 1 times total cumulated value
+         randThresh = genrand_real2_dSFMT()*CumSparseUMatLoc(endPQ)
 
-      rs = rsPQLoc(:,pos)
+         pos = binary_search_first_ge(CumSparseUMatLoc(startPQ:endPQ), randThresh) + startPQ - 1
+
+         if(pos > startPQ) then
+            pgen = pgen * (CumSparseUMatLoc(pos) - CumSparseUMatLoc(pos-1))/CumSparseUMatLoc(endPQ)
+         else
+            pgen = pgen * CumSparseUMatLoc(pos)/CumSparseUMatLoc(endPQ)
+         end if
+
+         rs = rsPQLoc(:,pos)
+      else
+         ! no non-zero matrix elements for this pq
+         rs = 0
+      end if
       
     end subroutine selectRSFromCSUM
 
@@ -290,19 +341,17 @@ module UMatHash
       integer, intent(in) :: ind
       integer, intent(out) :: p,q
       integer :: i, tmp
-      ! additionally, p > q, so reorder if necessary
+      ! additionally, q > p, so reorder if necessary
       
       tmp = 0
-      do i = 1, nBasis
-         if(ind > tmp) then
-            exit
-         end if
+      do i = 1, nStoreBasis
          tmp = tmp + i
+         if(ind <= tmp) exit
       end do
 
-      q = ind - tmp
+      p = ind - tmp + i
       ! i has the value of the larger index
-      p = i
+      q = i
     end subroutine splitIndex
 
 end module UMatHash
