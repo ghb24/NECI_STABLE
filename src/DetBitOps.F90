@@ -405,31 +405,114 @@ module DetBitOps
 
     ! This will return true if iLutI is identical to iLutJ and will return 
     ! false otherwise.
-    pure function DetBitEQ(iLutI,iLutJ,nLast) result(res)
-        integer, intent(in), optional :: nLast
+    pure function DetBitEQ(iLutI,iLutJ,nLast,t_hphf_in) result(res)
         integer(kind=n_int), intent(in) :: iLutI(0:), iLutJ(0:)
-        logical :: res
+        integer, intent(in), optional :: nLast
+        logical, intent(in), optional :: t_hphf_in
+        logical :: res, t_hphf
         integer :: i, lnLast
+        integer(n_int) :: ilut_hphf(0:niftot)
 
-        if(iLutI(0).ne.iLutJ(0)) then
-            res=.false.
-            return
+        if (present(t_hphf_in)) then 
+            t_hphf = t_hphf_in
         else
-            if (present(nLast)) then
-                lnLast = nLast
-            else
-                lnLast = NIfDBO
-            endif
+            t_hphf = .false.
+        end if
 
-            do i=1,lnLast
-                if(iLutI(i).ne.iLutJ(i)) then
-                    res=.false.
-                    return
+        if (t_hphf) then 
+            ilut_hphf = return_hphf_sym_det(ilutJ)
+
+            if (present(nLast)) then 
+                lnLast = nLast
+            else 
+                lnLast = nIfDBO
+            end if
+
+            if (.not. (all(ilutI(0:lnLast) == ilutJ(0:lnLast)) .or. & 
+                       all(ilutI(0:lnLast) == ilut_hphf(0:lnLast)))) then 
+
+                res = .false.
+                return
+            end if
+        else
+            if(iLutI(0).ne.iLutJ(0)) then
+                res=.false.
+                return
+            else
+                if (present(nLast)) then
+                    lnLast = nLast
+                else
+                    lnLast = NIfDBO
                 endif
-            enddo
-        endif
+
+                do i=1,lnLast
+                    if(iLutI(i).ne.iLutJ(i)) then
+                        res=.false.
+                        return
+                    endif
+                enddo
+            endif
+        end if
+
         res=.true.
+
     end function DetBitEQ
+
+    pure function return_hphf_sym_det(ilut_in) result(ilut_out)
+        ! to avoid circular dependencies and due to the strange implementation
+        ! to find the symmetry conjugated determinant of an HPHF pair 
+        ! create a new routine to return a open-shell determinant where the 
+        ! last single occupied spatial orbital is an alpha spin
+        ! this is the convention in the storage of the hphfs
+        ! this can easily be tested by checking if the bit-encoded determinant 
+        ! has an higher integer value! 
+        ! different to the original implementation of this routine 
+        ! standardyl we only return the determinant which should be stored 
+        ! in the CurrentDets. so if ilut_in is already this determinant 
+        ! ilut_out will be == ilut_in
+        ! and it also deals with closed-shell dets, where it will just 
+        ! return the same determinant 
+        integer(n_int), intent(in) :: ilut_in(0:niftot)
+        integer(n_int) :: ilut_out(0:niftot)
+#ifdef __DEBUG 
+        character(*), parameter :: this_routine = "return_hphf_sym_det"
+#endif
+        INTEGER(n_int) :: iLutAlpha(0:NIfTot),iLutBeta(0:NIfTot)
+        INTEGER :: i
+
+        if (TestClosedShellDet(ilut_in)) then 
+            ilut_out = ilut_in 
+            return 
+        end if
+
+        ilut_out(:)=0_n_int
+        iLutAlpha(:)=0_n_int
+        iLutBeta(:)=0_n_int
+
+        ! this is taken from HPHFRandExcitMod
+        do i=0,NIfDBO
+            !Seperate the alpha and beta bit strings
+            iLutAlpha(i)=IAND(ilut_in(i),MaskAlpha)    
+            iLutBeta(i)=IAND(ilut_in(i),MaskBeta)
+
+            !Shift all alpha bits to the left by one.
+            iLutAlpha(i)=ISHFT(iLutAlpha(i),-1)  
+            !Shift all beta bits to the right by one.
+            iLutBeta(i)=ISHFT(iLutBeta(i),1)   
+            !Combine the bit strings to give the final bit representation.
+            ilut_out(i)=IOR(iLutAlpha(i),iLutBeta(i))    
+        end do
+
+        i = DetBitLT(ilut_in, ilut_out)
+
+        ! i == 1 indicated that ilut_in is "less" than the symmetric
+        ! so ilut_out is the to be stored one 
+        if (i == -1) then 
+            ilut_out = ilut_in
+        end if
+
+    end function return_hphf_sym_det
+
 
     pure function sign_lt (ilutI, ilutJ) result (bLt)
 

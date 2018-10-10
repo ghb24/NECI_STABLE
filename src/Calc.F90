@@ -53,8 +53,7 @@ MODULE Calc
     use k_space_hubbard, only: init_get_helement_k_space_hub
     use real_time_data, only: t_real_time_fciqmc, gf_type, allGfs, gf_count
     use kp_fciqmc_data_mod, only: overlap_pert, tOverlapPert
-    use lattice_models_utils, only: return_hphf_sym_det
-    use DetBitOps, only: DetBitEq, EncodeBitDet
+    use DetBitOps, only: DetBitEq, EncodeBitDet, return_hphf_sym_det
     use DeterminantData, only: write_det
     use bit_reps, only: decode_bit_det
     use cepa_shifts, only: t_cepa_shift, cepa_method
