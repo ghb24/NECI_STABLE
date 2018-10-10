@@ -1228,11 +1228,11 @@ module FciMCParMod
 
                         if (use_spawn_hash_table) then
                             call create_particle_with_hash_table (nJ, ilutnJ, child, part_type, &
-                                                                   CurrentDets(:,j), iter_data, HElGen)
+                                                                   CurrentDets(:,j), iter_data, abs(HElGen))
                         else
                             call create_particle (nJ, iLutnJ, child, part_type, & 
                                                   CurrentDets(:,j), SignCurr, p, &
-                                                  RDMBiasFacCurr, WalkersToSpawn, HElGen)
+                                                  RDMBiasFacCurr, WalkersToSpawn, abs(HElGen))
                         end if
 
                     endif ! (child /= 0), Child created.
