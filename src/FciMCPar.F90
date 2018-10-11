@@ -1077,7 +1077,7 @@ module FciMCParMod
             end if
 
             if (tTruncInitiator) then
-                call CalcParentFlag (j, parent_flags)
+                call CalcParentFlag (j, DetCurr, WalkExcitLevel, parent_flags)
             end if
 
             !Debug output.
@@ -1228,11 +1228,11 @@ module FciMCParMod
 
                         if (use_spawn_hash_table) then
                             call create_particle_with_hash_table (nJ, ilutnJ, child, part_type, &
-                                                                   CurrentDets(:,j), iter_data)
+                                                                   CurrentDets(:,j), iter_data, HElGen)
                         else
                             call create_particle (nJ, iLutnJ, child, part_type, & 
                                                   CurrentDets(:,j), SignCurr, p, &
-                                                  RDMBiasFacCurr, WalkersToSpawn)
+                                                  RDMBiasFacCurr, WalkersToSpawn, HElGen)
                         end if
 
                     endif ! (child /= 0), Child created.

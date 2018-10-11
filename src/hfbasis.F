@@ -825,8 +825,8 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
           ! eigenvector N is in FMAT(i,N,IS), where i is the component of the
           ! vector unless transposed
           NSBASIS=NBASIS/2
-          NELS(2)=(LMS+NEL)/2
-          NELS(1)=NEL-NELS(2)
+          NELS(1)=(LMS+NEL)/2
+          NELS(2)=NEL-NELS(1)
           nclosed = minval(nels)
           WRITE(6,'(4(A,'//int_fmt(nel)//'))') " N_alpha:",NELS(1),
      &   " ; N_beta:",  NELS(2)," ; LMS:",LMS," ; NEl:",NEL
@@ -843,7 +843,7 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
                   FDET(i)=i  !Fill up closed shells
               enddo
               do i=1,abs(LMS) !Fill up open shells in odd orbitals
-                  FDET(nclosed*2+i)=nclosed*2+(i*2-(1-LMS)/2)
+                  FDET(nclosed*2+i)=nclosed*2+(i*2-(1-sign(1,LMS))/2)
               enddo
               return
           endif

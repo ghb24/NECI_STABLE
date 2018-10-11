@@ -295,6 +295,17 @@ contains
           ! Truncation based on number of unpaired electrons
           tTruncNOpen = .false.
 
+          ! initiators based on number of open orbs
+          tSeniorityInits = .false.
+          initMaxSenior = 0
+
+          ! keep spawns up to a given seniority + excitation level
+          tSpawnSeniorityBased = .false.
+          numMaxExLvlsSet = 0
+          allocate(maxKeepExLvl(0))
+          tLargeMatelSurvive = .true.
+          spawnMatelThresh = 1.0_dp
+
           ! trunaction for spawns/based on spawns
           t_truncate_unocc = .false.
           t_prone_walkers = .false.
@@ -415,6 +426,7 @@ contains
           use ras_data
           use global_utilities
           use Parallel_neci, only : nProcessors
+          use util_mod, only: addToIntArray
           use LoggingData, only: tLogDets
           IMPLICIT NONE
           LOGICAL eof
@@ -426,6 +438,7 @@ contains
           logical :: tExitNow
           integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
           integer :: npops_pert, npert_spectral_left, npert_spectral_right
+          integer :: maxKeepNOpenBuf, maxKeepExLvlBuf
           real(dp) :: InputDiagSftSingle
 
           ! Allocate and set this default here, because we don't have inum_runs
@@ -1854,6 +1867,30 @@ contains
 
             case("NO-COHERENT-INIT-RULE")
                 tInitCoherentRule=.false.
+
+             case("ALL-SENIORITY-INITS")
+                ! make all determinants with at most initMaxSenior open orbitals initiators
+                tSeniorityInits = .true.
+                ! the maximum number of open orbs, default is 0
+                if(item < nitems) call getI(initMaxSenior)
+
+             case("ALL-SENIORITY-SURVIVE")
+                ! keep all spawns, regardless of initiator criterium, onto 
+                ! determinants up to a given Seniority level and excitation level
+                tSpawnSeniorityBased = .true.
+                do while(item < nitems) 
+                   ! Default: Max Seniority level 0
+                   call geti(maxKeepNOpenBuf)
+                   ! Default: Max excit level 8
+                   call geti(maxKeepExLvlBuf)
+                   call addToIntArray(maxKeepExLvl,maxKeepNOpenBuf+1,maxKeepExLvlBuf)
+                   numMaxExLvlsSet = maxKeepNOpenBuf+1
+                end do
+
+             case("LARGE-MATEL-SURVIVE")
+                ! keep all spawns with a matrix element larger than a given threshold
+                tLargeMatelSurvive = .true.
+                call getf(spawnMatelThresh)
 
 ! Epstein-Nesbet second-order perturbation using the stochastic spawnings to correct initiator error.
             case("EN2-INITIATOR")

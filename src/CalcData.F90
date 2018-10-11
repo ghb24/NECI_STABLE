@@ -136,6 +136,17 @@ logical :: tSpatialOnlyHash
 logical :: tTruncNOpen
 integer :: trunc_nopen_max
 
+! are determinants with low number of open orbs always inits?
+logical :: tSeniorityInits
+integer :: initMaxSenior
+! do we keep certain spawns up to a given excitation + seniority level
+logical :: tSpawnSeniorityBased
+integer, allocatable :: maxKeepExLvl(:)
+integer :: numMaxExLvlsSet
+! do we keep certain spawns based on the matrix element (w.r. to initiator criterium)
+logical :: tLargeMatelSurvive
+real(dp) :: spawnMatelThresh
+
 logical :: tMaxBloom    !If this is on, then we only print out a bloom warning if it is the biggest to date.
 
 INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits,NShiftEquilSteps

@@ -7,13 +7,14 @@ module AnnihilationMod
                           tTrialWavefunction, tKP_FCIQMC, tContTimeFCIMC, &
                           tContTimeFull, InitiatorWalkNo, tau, tEN2, tEN2Init, &
                           tEN2Started, tEN2Truncated, tInitCoherentRule, t_truncate_spawns, &
-                          n_truncate_spawns, t_prone_walkers, t_truncate_unocc
+                          n_truncate_spawns, t_prone_walkers, t_truncate_unocc, &
+                          tSpawnSeniorityBased, numMaxExLvlsSet, maxKeepExLvl
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
     use FciMCData
     use DetBitOps, only: DetBitEQ, FindBitExcitLevel, ilut_lt, &
-                         ilut_gt, DetBitZero
+                         ilut_gt, DetBitZero, count_open_orbs
     use sort_mod
     use constants, only: n_int, lenof_sign, null_part, sizeof_int
     use bit_rep_data
@@ -502,9 +503,6 @@ module AnnihilationMod
             end if
         end if
 
-        ! set the multi-spawn flag if there has been more than one spawn
-        if(abs(cum_sgn) > eps .and. abs(new_sgn) > eps) call set_flag(cum_det, flag_multi_spawn)
-
         sgn_prod = cum_sgn * new_sgn
 
         ! Update annihilation statistics.
@@ -616,9 +614,7 @@ module AnnihilationMod
             tDetermState = .false.
 
             ! for scaled walkers, truncation is done here
-            t_truncate_this_det = t_truncate_spawns .and. .not. &
-                 test_flag(SpawnedParts(:,i), flag_multi_spawn) .and. &
-                 tEScaleWalkers
+            t_truncate_this_det = t_truncate_spawns .and. tEScaleWalkers
 
 
 !            WRITE(6,*) 'i,SpawnedParts(:,i)',i,SpawnedParts(:,i)
@@ -792,7 +788,7 @@ module AnnihilationMod
                     end do
 
                     if(t_prone_walkers) then
-                       if(.not. test_flag(SpawnedParts(:,i), flag_multi_spawn)) &
+                       if(get_num_spawns(SpawnedParts(:,i)) < 2.0_dp) &
                             call set_flag(SpawnedParts(:,i), flag_prone)
                     endif
 
@@ -980,11 +976,30 @@ module AnnihilationMod
         integer(n_int), intent(in) :: ilut_spwn(0:nIfBCast)
         integer, intent(in) :: part_type
         logical :: abort
+        integer :: maxExLvl, nopen
 
         ! If a particle comes from a site marked as an initiator, then it can
         ! live
-
-        abort = .not. test_flag(ilut_spwn, get_initiator_flag(part_type))
+        ! same if the spawn matrix element was large enough
+        abort = .not. test_flag(ilut_spwn, get_initiator_flag(part_type)) .and. &
+             .not. test_flag(ilut_spwn, flag_large_matel)
+        
+        ! optionally keep spawns up to a given seniority level + excitaion level
+        if(abort .and. tSpawnSeniorityBased) then
+           ! get the seniority level
+           nopen = count_open_orbs(ilut_spwn) 
+           if(nopen < numMaxExLvlsSet) then
+              maxExLvl = 0
+              ! get the corresponding max excitation level
+              do while(maxExLvl == 0)
+                 maxExLvl = maxKeepExLvl(nopen+1)
+                 nopen = nopen + 1
+                 if(nopen >= numMaxExLvlsSet) exit
+              end do
+              ! if we are below this level, keep the spawn anyway
+              if(FindBitExcitLevel(ilutHF, ilut_spwn) <= maxExLvl) abort = .false.
+           end if
+        end if
 
     end function test_abort_spawn
 
