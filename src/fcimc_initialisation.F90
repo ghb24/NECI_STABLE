@@ -121,7 +121,7 @@ module fcimc_initialisation
                                     set_trial_populations, set_trial_states, calc_trial_states_direct
     use global_det_data, only: global_determinant_data, set_det_diagH, &
                                clean_global_det_data, init_global_det_data, &
-                               set_spawn_rate
+                               set_spawn_rate, store_decoding
     use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
@@ -1973,6 +1973,8 @@ contains
             call set_det_diagH(1, 0.0_dp)
             HFInd = 1
 
+            call store_decoding(1,HFDet)
+
             if (tContTimeFCIMC .and. tContTimeFull) &
                 call set_spawn_rate(1, spawn_rate_full(HFDet, ilutHF))
 
@@ -2111,6 +2113,9 @@ contains
                     hdiag = get_helement(ProjEDet(:, run), ProjEDet(:, run), 0)
                 endif
                 call set_det_diagH(site, real(hdiag, dp) - Hii)
+
+                ! store the determinant
+                call store_decoding(site, ProjEDet(:,run))
 
                 ! Obtain the initial sign
                 if (.not. tStartSinglePart) &
@@ -2634,6 +2639,7 @@ contains
                         HDiagTemp = get_helement(CASFullDets(:,i),CASFullDets(:,i),0)
                     endif
                     call set_det_diagH(DetIndex, real(HDiagTemp, dp) - Hii)
+                    call store_decoding(DetIndex, CASFullDets(:,i))
 
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
@@ -2829,6 +2835,8 @@ contains
                         HDiagTemp = get_helement(nJ,nJ,0)
                     endif
                     call set_det_diagH(DetIndex, real(HDiagtemp, dp) - Hii)
+                    ! store the determinant
+                    call store_decoding(DetIndex,nJ)
 
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
@@ -2886,6 +2894,9 @@ contains
                     enddo
                 endif
                 call set_det_diagH(DetIndex, 0.0_dp)
+                
+                ! store the determinant
+                call store_decoding(DetIndex, HFDet)
 
                 ! Now add the Hartree-Fock determinant (not with index 1).
                 DetHash = FindWalkerHash(HFDet, nWalkerHashes)

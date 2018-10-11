@@ -1,8 +1,9 @@
 #include "macros.h"
 
 module global_det_data
-
-    use CalcData, only: tContTimeFCIMC, tContTimeFull
+  
+  use SystemData, only: nel
+    use CalcData, only: tContTimeFCIMC, tContTimeFull, tStoredDets
     use LoggingData, only: tRDMonFly, tExplicitAllRDM, tTransitionRDMs
     use FciMCData, only: MaxWalkersPart
     use constants
@@ -10,11 +11,11 @@ module global_det_data
     implicit none
 
     ! This is the tag for allocation/deallocation.
-    private :: glob_tag
-    integer :: glob_tag = 0
-
+    private :: glob_tag, glob_det_tag
     ! This is the data used to find the elements inside the storage array.
     private :: pos_hel, len_hel
+    integer :: glob_tag = 0
+    integer :: glob_det_tag = 0
 
     ! The diagonal matrix element is always stored. As it is a real value it
     ! always has a length of 1 (never cplx). Therefore, encode these values
@@ -48,10 +49,12 @@ module global_det_data
 
     integer :: pos_spawn_rate, len_spawn_rate
 
-    ! the average number of spawns needed for this determinant to get one valid excitation
+    ! lenght of the determinant and its position
+    integer :: pos_det_orbs, len_det_orbs
 
     ! And somewhere to store the actual data.
     real(dp), pointer :: global_determinant_data(:,:) => null()
+    integer, pointer :: global_determinants(:,:) => null()
 
     ! Routines for setting the properties of both standard and transition
     ! RDMs in a combined manner.
@@ -157,6 +160,12 @@ contains
             len_spawn_rate = 1
         end if
 
+        if(tStoredDets) then
+           len_det_orbs = nel
+        else
+           len_det_orbs = 0
+        endif
+
         ! Get the starting positions
         pos_spawn_pop = pos_hel+len_hel
         pos_tau_int = pos_spawn_pop+len_spawn_pop
@@ -173,13 +182,20 @@ contains
         allocate(global_determinant_data(tot_len, MaxWalkersPart), stat=ierr)
         log_alloc(global_determinant_data, glob_tag, ierr)
 
+        if(tStoredDets) then
+           allocate(global_determinants(len_det_orbs, MaxWalkersPart), stat=ierr)
+           log_alloc(global_determinants, glob_det_tag, ierr)
+        endif
+
         write(6,'(a,f14.6,a)') &
             ' Determinant related persistent storage requires: ', &
-            8.0_dp * real(tot_len * MaxWalkersPart,dp) / 1048576_dp, &
+            (4.0_dp*real(len_det_orbs* MaxWalkersPart,dp) &
+            + 8.0_dp * real(tot_len * MaxWalkersPart,dp)) / 1048576_dp, &
             ' Mb / processor'
 
         ! As an added safety feature
         global_determinant_data = 0.0_dp
+        if(tStoredDets) global_determinants = 0
                          
     end subroutine
 
@@ -189,6 +205,13 @@ contains
         character(*), parameter :: this_routine = 'clean_global_det_data'
 
         ! Cleanup the global storage for determinant specific data
+
+        if(associated(global_determinants)) then
+           deallocate(global_determinants)
+           log_dealloc(glob_det_tag)
+           glob_det_tag = 0
+           nullify(global_determinants)
+        endif
 
         if (associated(global_determinant_data)) then
             deallocate(global_determinant_data)
@@ -526,5 +549,28 @@ contains
         global_determinant_data(pos_spawn_rate, j) = rate
 
     end subroutine
+
+  !------------------------------------------------------------------------------------------!
+
+    subroutine store_decoding(j, nI)
+      implicit none
+      integer, intent(in) :: j, nI(nel)
+      
+      if(tStoredDets) then
+         global_determinants(:,j) = nI
+      endif
+    end subroutine store_decoding
+
+    function get_determinant(j) result(nI)
+      implicit none
+      integer, intent(in) :: j
+      integer :: nI(nel)
+      
+      if(tStoredDets) then
+         nI = global_determinants(:,j)
+      else
+         nI = 0
+      endif
+    end function get_determinant
 
 end module

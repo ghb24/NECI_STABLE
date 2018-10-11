@@ -730,7 +730,7 @@ contains
         integer :: iunused
         
         ! This extracts everything.
-        call extract_bit_rep (iLutnI, nI, SignI, FlagsI, store)
+        call extract_bit_rep (iLutnI, nI, SignI, FlagsI, j, store)
 
         IterRDMStartI = 0.0_dp
         AvSignI = 0.0_dp
@@ -784,7 +784,7 @@ contains
         IterRDMStartI = get_iter_occ_tot(j)
 
         ! This extracts everything.
-        call extract_bit_rep (iLutnI, nI, SignI, FlagsI)
+        call extract_bit_rep (iLutnI, nI, SignI, FlagsI, j, store)
 
         associate(ind => rdm_defs%sim_labels)
 
