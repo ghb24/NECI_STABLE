@@ -435,6 +435,9 @@ MODULE FciMCData
 !      ! Excitation generation storage 
       type(excit_gen_store_type) :: fcimc_excit_gen_store
 
+      ! auxiliary variables used to determine AvMCExcits on the fly
+      integer :: nInvalidExcits, nValidExcits, allNInvalidExcits, allNValidExcits
+
       ! Tau searching variables
       ! tSearchTau specifies if we are searching tau
       ! tSearchTauOption specifies if we have ever searched for tau

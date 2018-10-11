@@ -3,7 +3,7 @@ MODULE System
 
     use SystemData
     use CalcData, only: TAU, tTruncInitiator, InitiatorWalkNo, &
-                        occCASorbs, virtCASorbs, tPairedReplicas
+                        occCASorbs, virtCASorbs, tPairedReplicas, tDynamicAvMCEx
 
     use sort_mod
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
@@ -867,6 +867,7 @@ system: do
 
          case("SPARSE-EXCITGEN")
             tCachedExcits = .true.
+            tDynamicAvMCEx = .true.
 
         case("NONUNIFORMRANDEXCITS")
 !This indicates that the new, non-uniform O[N] random excitation generators are to be used.

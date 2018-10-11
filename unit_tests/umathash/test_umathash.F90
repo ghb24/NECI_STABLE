@@ -12,7 +12,7 @@ program test_umat_hash
   use SystemData, only: nel, nBasis, UMatEps, tStoreSpinOrbs, tReadFreeFormat, tCSF, &
        tReadInt
   use System, only: SysInit, SetSysDefaults
-  use Parallel_neci, only: MPIInit
+  use Parallel_neci, only: MPIInit, MPIEnd
   use UMatCache, only: GetUMatSize, tTransGTID
   use OneEInts, only: Tmat2D
   use bit_rep_data, only: NIfTot, NIfDBO, NOffSgn, NIfSgn, extract_sign
@@ -40,7 +40,6 @@ contains
     integer :: nBasisMax(5,3), lms
     integer(int64) :: umatsize
     real(dp) :: ecore
-    integer :: ierr
     umatsize = 0
     nel = 5
     NIfDBO = 0
@@ -87,12 +86,14 @@ contains
     call initializeSparseUMat()
 
     !call test_splitIndex()
+    write(iout,*) "Starting tests" 
+    call test_linearSearch()
     call test_cached_exgen()
 
     deallocate(TMat2D)
     call shared_deallocate_mpi(umat_win, UMat)
 
-    call MPI_finalize(ierr)
+    call MPIEnd(.false.)
 
   end subroutine umat_hash_test_driver
 
@@ -124,6 +125,31 @@ contains
     end do
     nStoreBasis = backup
   end subroutine test_splitIndex
+
+  subroutine test_linearSearch()
+    implicit none
+    integer, parameter :: numTries = 100
+    integer :: ind, pq, startPQ, endPQ, j
+    real(dp) :: thresh
+    integer :: maxInd 
+    maxInd = fuseIndex(nStoreBasis,nStoreBasis)
+
+    do j = 1, numTries
+       pq = int(genrand_real2_dSFMT()*maxInd)+1
+
+       startPQ = posPQ(pq)
+       endPQ = startPQ + nPQ(pq) - 1
+
+       thresh = genrand_real2_dSFMT()*CumSparseUMat(endPQ)
+
+       ind = linearSearch_old(CumSparseUMat(startPQ:endPQ), thresh) + startPQ - 1
+
+       call assert_true(CumSparseUMat(ind) > thresh)
+       if(ind > startPQ) then
+          call assert_true(CumSparseUMat(ind-1) < thresh)
+       endif
+    end do
+  end subroutine test_linearSearch
   
 
   subroutine test_cached_exgen()
@@ -135,7 +161,7 @@ contains
     logical :: tPar, tAllExFound, tFound
     integer :: j, numEx, nSingles, nDoubles
     integer(n_int), allocatable :: allEx(:,:)
-    integer, parameter :: sampleSize = 1000000
+    integer, parameter :: sampleSize = 10000
     real(dp) :: pgenArr(lenof_sign), pTot, pNull
     logical :: exDone(nel,nel,nBasis,nBasis)
     
@@ -201,14 +227,17 @@ contains
     do i = 1, numEx
        call extract_sign(allEx(:,i),pgenArr)
        call decode_bit_det(nJ,allEx(:,i))
-       write(iout,*) i, pgenArr(1), real(allEx(NIfTot+1,i))/real(sampleSize)
+!       write(iout,*) i, pgenArr(1), real(allEx(NIfTot+1,i))/real(sampleSize)
 !       write(iout,*), nJ
-       if(pgenArr(1) < eps) &
-           write(iout,*) "UMAT el ", get_helement_normal(nJ,(/1,2,3,4,5/))
+!       if(pgenArr(1) < eps) &
+!           write(iout,*) "UMAT el ", get_helement_normal(nJ,(/1,2,3,4,5/))
        pTot = pTot + pgenArr(1)
     end do
     write(iout,*) "Total prob. ", pTot
     write(iout,*) "pNull ", pNull
 
+    call assert_true(abs(pTot-1.0_dp) < eps)
+
   end subroutine test_cached_exgen
+
 end program test_umat_hash

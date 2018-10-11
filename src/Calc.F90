@@ -163,6 +163,7 @@ contains
           GrowGraphsExpo=2.0_dp
           TGrowInitGraph=.false.
           AvMCExcits=1.0_dp
+          tDynamiCAvMCEx = .false.
           TMaxExcit=.false.
           TFullDiag=.false.
           TSinglesExcitSpace=.false.
@@ -1005,6 +1006,8 @@ contains
             case("AVERAGEMCEXCITS")
 ! This sets the average number of spawning attempts from each walker.
                 call getf(AvMCExcits)
+             case("ADJUST-AVERAGEMCEXCITS")
+                tDynamicAvMCEx = .true.
             case("GROWINITGRAPH")
 !In GraphMorph, this means that the initial graph is grown non-stochastically from the excitations 
 !of consecutive determinants

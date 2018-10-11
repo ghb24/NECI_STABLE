@@ -6,6 +6,7 @@ module UMatHash
   use sltcnd_mod, only: sltcnd_2
   use IntegralsData, only: UMat
   use util_mod_numerical
+  use shared_memory_mpi
   use UMatCache, only: UMatInd, getUMatSize, numBasisIndices
   use sort_mod
   implicit none
@@ -29,7 +30,8 @@ module UMatHash
   integer :: numPQPairs
   integer :: numPQPairsPar
   ! mpi windows for shared memory allocation
-  integer(MPIArg) :: nPQWin
+  integer, parameter :: nShmWins = 6 ! number of shared memory windows
+  integer(MPIArg) :: PQshmWins(nShmWins), PQshmWinsPar(nShmWins)
 
   contains 
 
@@ -39,41 +41,38 @@ module UMatHash
       nStoreBasis = numBasisIndices(nBasis)
 
       call setupCumulativeSparseUMat(CumSparseUMat,TotalCumWeights,nPQ,nLargePQ,rsPQ,&
-           posPQ, numPQPairs, .false.)
+           posPQ, numPQPairs, PQShmWins, .false.)
       call setupCumulativeSparseUMat(CumSparseUMatPar, TotalCumWeightsPar, nPQPar, nLargePQPar, &
-           rsPQPar, posPQPar, numPQPairsPar, .true.)
+           rsPQPar, posPQPar, numPQPairsPar, PQshmWinsPar, .true.)
+
     end subroutine initializeSparseUMat
 
     !------------------------------------------------------------------------------------------!
 
     subroutine setupCumulativeSparseUMat(CumSparseUMatLoc,TotalCumWeightsLoc, &
-         nPQLoc,nLargePQLoc,rsPQLoc,posPQLoc,numPQPairsLoc,tPar)
+         nPQLoc,nLargePQLoc,rsPQLoc,posPQLoc,numPQPairsLoc, shmWins, tPar)
       implicit none
       real(dp), intent(out), pointer :: CumSparseUMatLoc(:), TotalCumWeightsLoc(:)
       integer, intent(out), pointer :: nPQLoc(:), nLargePQLoc(:), rsPQLoc(:,:)
       integer, intent(out), pointer :: posPQLoc(:)
       integer, intent(out) :: numPQPairsLoc
+      integer(MPIArg), intent(out) :: shmWins(nShmWins)
       logical, intent(in) :: tPar      
-      integer :: nnz
-      integer :: p,q,r,s,pq, offset
+      integer(int64) :: nnz
+      integer :: p,q,r,s,pq
+      integer(int64) :: nPQP_64
       ! current matrix element
       real(dp) :: matel
      
-      ! offset controls if we consider p==q/r==s?
-      if(tPar) then
-         offset = 1
-      else
-         offset = 0
-      endif
-
       ! number of pq-values
       numPQPairsLoc = fuseIndex(nStoreBasis,nStoreBasis)
+      ! 64-bit version
+      nPQP_64 = int(numPQPairsLoc,int64)
 
-      !call shared_allocate_mpi(nPQLWin,nPQLoc,numPQPairsLoc)
-      allocate(nPQLoc(numPQPairsLoc))
-      allocate(nLargePQLoc(numPQPairsLoc))
-      allocate(posPQLoc(numPQPairsLoc))
-      allocate(TotalCumWeightsLoc(numPQPairsLoc))
+      call shared_allocate_mpi(shmWins(1),nPQLoc,(/nPQP_64/))
+      call shared_allocate_mpi(shmWins(2),nLargePQLoc,(/nPQP_64/))
+      call shared_allocate_mpi(shmWins(3),posPQLoc,(/nPQP_64/))
+      call shared_allocate_mpi(shmWins(4),TotalCumWeightsLoc,(/nPQP_64/))
 
       ! count the number of nonzero elements in umat
       nnz = 0
@@ -86,6 +85,9 @@ module UMatHash
             end do
          end do
       end do
+      call shared_allocate_mpi(shmWins(5),rsPQLoc,(/2_int64,nnz/))
+      call shared_allocate_mpi(shmWins(6),CumSparseUMatLoc,(/nnz/))
+      
       allocate(rsPQLoc(2,nnz))
       allocate(CumSparseUMatLoc(nnz))
 
@@ -300,7 +302,7 @@ module UMatHash
          ! random factor between 0 and 1 times total cumulated value
          randThresh = genrand_real2_dSFMT()*CumSparseUMatLoc(endPQ)
 
-         pos = binary_search_first_ge(CumSparseUMatLoc(startPQ:endPQ), randThresh) + startPQ - 1
+         pos = linearSearch(CumSparseUMatLoc(startPQ:endPQ), randThresh) + startPQ - 1
 
          if(pos > startPQ) then
             pgen = pgen * (CumSparseUMatLoc(pos) - CumSparseUMatLoc(pos-1))/CumSparseUMatLoc(endPQ)
@@ -353,5 +355,58 @@ module UMatHash
       ! i has the value of the larger index
       q = i
     end subroutine splitIndex
+
+    function linearSearch(arr, thresh) result(ind)
+      implicit none
+      real(dp), intent(in) :: arr(:)
+      real(dp), intent(in) :: thresh
+      integer :: ind
+
+      ind = 1
+      do 
+         if(arr(ind) > thresh) return
+         ind = ind + 1
+      end do
+
+    end function linearSearch
+
+    function linearSearch_old(arr, thresh) result(ind)
+      implicit none
+      real(dp), intent(in) :: arr(:)
+      real(dp), intent(in) :: thresh
+      integer :: ind
+      
+      ! left and right point of extrapolation
+      integer :: a, b
+      real(dp) :: fa, fb, fx
+      real(dp), parameter :: scale = 0.5
+      
+      a = 0
+      b = size(arr)
+      ! for 1-sized arrays, the search does not work
+      if(size(arr) < 2) then
+         ind = 1
+         return
+      endif
+      fa = -thresh
+      fb = arr(b) - thresh
+      
+      do 
+         if(abs(a-b)==1) then
+            ind = max(a,b)
+            return
+         endif
+         ind = ceiling(a - (fa)/(fb-fa)*(b-a))
+         fx = arr(ind) - thresh
+         if(fx*fb < 0) then
+            a = b
+            fa = fb
+         else
+            fa = fa * scale
+         endif
+         b = ind
+         fb = fx
+      end do
+    end function linearSearch_old
 
 end module UMatHash

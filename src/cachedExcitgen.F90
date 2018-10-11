@@ -35,7 +35,7 @@ module cachedExcitgen
          pgen = pgen * pSingles
       else
          ic = 2
-         call generate_double_cached(nI,ilutI,nJ,ilutJ,ex,pgen,tpar)
+         call generate_double_cached(nI,ilutI,nJ,ilutJ,ex,pgen,store,tpar)
          pgen = pgen * (1-pSingles)
       end if
 
@@ -43,13 +43,14 @@ module cachedExcitgen
 
     !------------------------------------------------------------------------------------------!
 
-    subroutine generate_double_cached(nI,ilutI,nJ,ilutJ,ex,pgen,tpar)
+    subroutine generate_double_cached(nI,ilutI,nJ,ilutJ,ex,pgen,store,tpar)
       integer, intent(in) :: nI(nel)
       integer(n_int), intent(in) :: ilutI(0:NIfTot)
       integer, intent(out) :: nJ(nel)
       integer(n_int), intent(out) :: ilutJ(0:NIfTot)
       integer, intent(out) :: ex(2,2)
       real(dp), intent(out) :: pgen
+      type(excit_gen_store_type), intent(inout) :: store
       logical, intent(out) :: tpar
 
       integer :: elecs(2), src(2), sym_prod, ispn, sum_ml
@@ -57,9 +58,21 @@ module cachedExcitgen
       integer(n_int) :: ilutK(0:NIfTot)
       logical :: invalid
 
-      ! first, pick two random elecs
-      call pick_biased_elecs(nI,elecs,src,sym_prod,ispn,sum_ml,pgen)
-      ! TODO bias towards large/small
+      if(store%tFilled) then
+         elecs = store%pq
+         pgen = store%pPick
+         ispn = store%nel_alpha
+         src = nI(elecs)
+      else
+         ! first, pick two random elecs
+         call pick_biased_elecs(nI,elecs,src,sym_prod,ispn,sum_ml,pgen)
+         ! store the values for re-use
+         store%tFilled = .true.
+         store%pq = elecs
+         store%pPick = pgen
+         store%nel_alpha = ispn
+         ! TODO bias towards large/small
+      endif
       
       ! convert to spatial orbitals if required
       srcID = gtID(src)

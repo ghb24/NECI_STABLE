@@ -48,6 +48,8 @@ module global_det_data
 
     integer :: pos_spawn_rate, len_spawn_rate
 
+    ! the average number of spawns needed for this determinant to get one valid excitation
+
     ! And somewhere to store the actual data.
     real(dp), pointer :: global_determinant_data(:,:) => null()
 
