@@ -10,7 +10,7 @@ module load_balance
     use global_det_data, only: global_determinant_data, &
                                set_det_diagH, set_spawn_rate, &
                                set_all_spawn_pops, reset_all_tau_ints, &
-                               reset_all_shift_ints, det_diagH
+                               reset_all_shift_ints, det_diagH, store_decoding
     use bit_rep_data, only: flag_initiator, NIfDBO, &
                             flag_connected, flag_trial, flag_prone
     use bit_reps, only: set_flag, nullify_ilut_part, &
@@ -499,6 +499,9 @@ contains
         ! except the first one, holding the diagonal Hamiltonian element.
         global_determinant_data(:,DetPosition) = 0.0_dp
         call set_det_diagH(DetPosition, real(HDiag,dp) - Hii)
+        
+        ! we add the determinant to the cache
+        call store_decoding(DetPosition, nJ)
 
         if(tSeniorInitiators) then
             call extract_sign (ilutCurr, SignCurr)

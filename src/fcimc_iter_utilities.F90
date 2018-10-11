@@ -19,7 +19,6 @@ module fcimc_iter_utils
     use semi_stoch_procs, only: recalc_core_hamil_diag
     use bit_rep_data, only: NIfD, NIfTot, NIfDBO
     use hphf_integrals, only: hphf_diag_helement
-    use global_det_data, only: set_det_diagH
     use Determinants, only: get_helement
     use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av
     use tau_search, only: update_tau

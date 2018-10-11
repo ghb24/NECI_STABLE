@@ -132,6 +132,9 @@ real(dp) :: TrialTarget !The target for trial overlap in trial-shift mode
 ! --> All dets with same spatial structure on the same processor.
 logical :: tSpatialOnlyHash
 
+! if all determinants are stored to prevent the need for conversion each iteration
+logical :: tStoredDets
+
 ! Do we truncate spawning based on the number of unpaired electrons
 logical :: tTruncNOpen
 integer :: trunc_nopen_max

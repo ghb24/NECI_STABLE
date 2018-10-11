@@ -155,7 +155,7 @@ contains
                             fcimc_excit_gen_store%tFilled = .false.
 
                             call extract_bit_rep(ilut_parent, nI_parent, parent_sign, unused_flags, &
-                                                  fcimc_excit_gen_store)
+                                                  idet, fcimc_excit_gen_store)
 
                             ex_level_to_ref = FindBitExcitLevel(iLutRef(:,1), ilut_parent, &
                                  max_calc_ex_level)
@@ -517,7 +517,7 @@ contains
                         fcimc_excit_gen_store%tFilled = .false.
 
                         call extract_bit_rep(ilut_parent, nI_parent, parent_sign, unused_flags, &
-                                              fcimc_excit_gen_store)
+                                              idet, fcimc_excit_gen_store)
 
                         ex_level_to_ref = FindBitExcitLevel(iLutRef(:,1), ilut_parent, &
                              max_calc_ex_level)
