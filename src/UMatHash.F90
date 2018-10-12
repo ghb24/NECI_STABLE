@@ -79,15 +79,15 @@ module UMatHash
 
       ! count the number of nonzero elements in umat
       nnz = 0
-      do p = 1, nStoreBasis
-         do q = p, nStoreBasis
-            do r = 1, nStoreBasis
-               do s = minInd(r), nStoreBasis
-                  if(umatel(p,q,r,s) > eps) nnz = nnz + 1
-               end do
+      do pq = 1, numPQPairsLoc
+         ! add empty entries to align to 64 byte
+         call roundTo64(nnz)
+         ! get the indices p,q
+         call splitIndex(pq,p,q)
+         do r = 1, nStoreBasis
+            do s = minInd(r), nStoreBasis
+               if(umatel(p,q,r,s) > eps) nnz = nnz + 1
             end do
-            ! add empty entries to align to 64 byte
-            if(mod(nnz,64 .ne. 0)) nnz = nnz + (64-mod(nnz,64))
          end do
       end do
       call shared_allocate_mpi(shmWins(5),rsPQLoc,(/2_int64,nnz/))
@@ -98,10 +98,13 @@ module UMatHash
 
       nnz = 0
       do pq = 1, numPQPairsLoc
+         ! align to 64 byte
+         call roundTo64(nnz)
          ! recover the indices p,q from pq
-         call splitIndex(pq,p,q)
+         call splitIndex(pq,p,q)         
          ! store the starting position of the values for this pq
          posPQLoc(pq) = nnz + 1
+
          do r = 1, nStoreBasis
             ! as we consider spatial orbs in general, we allow for s==r
             do s = minInd(r), nStoreBasis
@@ -171,6 +174,13 @@ module UMatHash
            lowerBound = 1
         end if
       end function minInd
+
+      subroutine roundTo64(pos)
+        implicit none
+        integer(int64), intent(inout) :: pos
+
+        if(mod(pos,cLineSize) .ne. 0) pos = pos + cLineSize - mod(pos,cLineSize)
+      end subroutine roundTo64
 
     end subroutine setupCumulativeSparseUMat
 
@@ -426,21 +436,29 @@ module UMatHash
       real(dp), intent(in) :: thresh
       integer :: ind
 
-      integer :: i, iStartLinSearch
+      integer :: i, iStartLinSearch, modulus, nReads
       real(dp) :: fb, fa
 
       iStartLinSearch = 1
+      nReads = cLineSize - 1
       do 
          ! do a secant search using cache-line length blocks of data
          ind = iStartLinSearch
          fa = arr(ind)
          if(fa > thresh) return
-         do i = 1, 7
+         do i = 1, nReads
             ind = i + iStartLinSearch
             fb = arr(ind)
             if(fb > thresh) return
          end do
          iStartLinSearch = (thresh - fa)/(fb-fa)*(i-1) + iStartLinSearch
+         
+         ! align to 64 byte
+         modulus = mod(iStartLinSearch-1,cLineSize)
+         if(modulus .ne. 0) then
+            nReads = 7 - modulus
+            if(nReads .eq. 0) nReads = cLineSize
+         endif
       end do
    
 
