@@ -63,6 +63,9 @@ module UMatHash
       integer(int64) :: nPQP_64
       ! current matrix element
       real(dp) :: matel
+
+      ! temporary counters for aligning the sub-arrays of CumSparseUMatLoc
+      integer :: nnzPQ
      
       ! number of pq-values
       numPQPairsLoc = fuseIndex(nStoreBasis,nStoreBasis)
@@ -83,6 +86,8 @@ module UMatHash
                   if(umatel(p,q,r,s) > eps) nnz = nnz + 1
                end do
             end do
+            ! add empty entries to align to 64 byte
+            if(mod(nnz,64 .ne. 0)) nnz = nnz + (64-mod(nnz,64))
          end do
       end do
       call shared_allocate_mpi(shmWins(5),rsPQLoc,(/2_int64,nnz/))
@@ -302,7 +307,7 @@ module UMatHash
          ! random factor between 0 and 1 times total cumulated value
          randThresh = genrand_real2_dSFMT()*CumSparseUMatLoc(endPQ)
 
-         pos = linearSearch(CumSparseUMatLoc(startPQ:endPQ), randThresh) + startPQ - 1
+         pos = linearSearch_old(CumSparseUMatLoc(startPQ:endPQ), randThresh) + startPQ - 1
 
          if(pos > startPQ) then
             pgen = pgen * (CumSparseUMatLoc(pos) - CumSparseUMatLoc(pos-1))/CumSparseUMatLoc(endPQ)
@@ -356,6 +361,8 @@ module UMatHash
       q = i
     end subroutine splitIndex
 
+    !------------------------------------------------------------------------------------------!
+
     function linearSearch(arr, thresh) result(ind)
       implicit none
       real(dp), intent(in) :: arr(:)
@@ -369,6 +376,8 @@ module UMatHash
       end do
 
     end function linearSearch
+
+    !------------------------------------------------------------------------------------------!
 
     function linearSearch_old(arr, thresh) result(ind)
       implicit none
@@ -408,5 +417,33 @@ module UMatHash
          fb = fx
       end do
     end function linearSearch_old
+
+    !------------------------------------------------------------------------------------------!
+
+    function cacheLineSearch(arr, thresh) result(ind)
+      implicit none
+      real(dp), intent(in) :: arr(:)
+      real(dp), intent(in) :: thresh
+      integer :: ind
+
+      integer :: i, iStartLinSearch
+      real(dp) :: fb, fa
+
+      iStartLinSearch = 1
+      do 
+         ! do a secant search using cache-line length blocks of data
+         ind = iStartLinSearch
+         fa = arr(ind)
+         if(fa > thresh) return
+         do i = 1, 7
+            ind = i + iStartLinSearch
+            fb = arr(ind)
+            if(fb > thresh) return
+         end do
+         iStartLinSearch = (thresh - fa)/(fb-fa)*(i-1) + iStartLinSearch
+      end do
+   
+
+    end function cacheLineSearch
 
 end module UMatHash

@@ -1,7 +1,7 @@
 # Special defines for Intel fortran compiler
 
 set( ${PROJECT_NAME}_Fortran_FLAGS_DEBUG "-g -O0 -check all,noarg_temp_created -traceback -fpe0 -init=arrays,snan" )
-set( ${PROJECT_NAME}_Fortran_FLAGS_RELEASE "-O3 -xHost" )
+set( ${PROJECT_NAME}_Fortran_FLAGS_RELEASE "-O3 -xHost -align array64byte" )
 set( ${PROJECT_NAME}_Fortran_FLAGS_CLUSTER "-ipo" )
 
 # Warning flags ...

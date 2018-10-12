@@ -21,6 +21,7 @@ program test_umat_hash
   use SymExcit3, only: countExcitations3, GenExcitations3
   use dSFMT_interface, only: dSFMT_init
   use FciMCData, only: pSingles, pDoubles, pParallel
+  use SymExcitDataMod, only: excit_gen_store_type
   use Calc, only: CalcInit, SetCalcDefaults
   use Determinants, only: DetInit, DetPreFreezeInit, get_helement_normal
 
@@ -142,7 +143,7 @@ contains
 
        thresh = genrand_real2_dSFMT()*CumSparseUMat(endPQ)
 
-       ind = linearSearch_old(CumSparseUMat(startPQ:endPQ), thresh) + startPQ - 1
+       ind = cacheLineSearch(CumSparseUMat(startPQ:endPQ), thresh) + startPQ - 1
 
        call assert_true(CumSparseUMat(ind) > thresh)
        if(ind > startPQ) then
@@ -163,6 +164,7 @@ contains
     integer(n_int), allocatable :: allEx(:,:)
     integer, parameter :: sampleSize = 10000
     real(dp) :: pgenArr(lenof_sign), pTot, pNull
+    type(excit_gen_store_type) :: store
     logical :: exDone(nel,nel,nBasis,nBasis)
     
     exDone = .false.
@@ -196,7 +198,8 @@ contains
     
     pNull = 0.0_dp
     do i = 1, sampleSize
-       call generate_double_cached(nI,ilut,nJ,ilutJ,ex,pgen,tpar)
+       store%tFilled = .false.
+       call generate_double_cached(nI,ilut,nJ,ilutJ,ex,pgen,store,tpar)
        ! lookup the excitation
        tFound = .false.
        do j = 1, numEx
