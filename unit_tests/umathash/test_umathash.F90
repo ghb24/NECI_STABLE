@@ -65,6 +65,7 @@ contains
     get_umat_el => get_umat_el_normal
 
     call initfromfcid(nel,nbasismax,nBasis,lms,.false.)
+    lms = -1
 
     call GetUMatSize(nBasis, nel, umatsize)
 
@@ -88,8 +89,9 @@ contains
 
     !call test_splitIndex()
     write(iout,*) "Starting tests" 
-    call test_linearSearch()
-    call test_cached_exgen()
+    call test_aliasSampling()
+    !call test_linearSearch()
+    !call test_cached_exgen()
 
     deallocate(TMat2D)
     call shared_deallocate_mpi(umat_win, UMat)
@@ -127,6 +129,43 @@ contains
     nStoreBasis = backup
   end subroutine test_splitIndex
 
+  subroutine test_aliasSampling()
+    implicit none
+    integer, parameter :: numTries = 200000
+    integer, parameter :: numPQ = 10
+    integer :: ind(numTries), pq, startPQ, endPQ, j, i
+    real(dp) :: thresh, error, pI
+    integer :: maxInd, numRS
+    integer, allocatable :: hist(:)
+    maxInd = fuseIndex(nStoreBasis,nStoreBasis)
+
+    do j = 1, numPQ
+       error = 0.0_dp
+       pq = 1!int(genrand_real2_dSFMT()*maxInd)+1
+       numRS = nPQ(pq)
+       startPQ = posPQ(pq)
+       endPQ = startPQ + numRS - 1
+       allocate(hist(numRS))
+       hist = 0
+       do i = 1, numTries
+          ind(i) = aliasSampling(biasTable(startPQ:endPQ), aliasTable(startPQ:endPQ))
+          hist(ind(i)) = hist(ind(i)) + 1
+       end do
+       do i = 1, numRS
+          if(i > 1) then
+             pI = (CumSparseUMat(startPQ + i - 1) - CumSparseUMat(startPQ + i - 2)) / &
+                  CumSparseUMat(endPQ)
+          else
+             pI = CumSparseUMat(startPQ) / CumSparseUMat(endPQ)
+          endif
+          error = error + (pI - (real(hist(i),dp)/real(numTries,dp)))**2
+       end do       
+       call assert_true(error < 1.0e-5_dp)
+       deallocate(hist)
+    end do
+
+  end subroutine test_aliasSampling
+
   subroutine test_linearSearch()
     implicit none
     integer, parameter :: numTries = 100
@@ -162,10 +201,10 @@ contains
     logical :: tPar, tAllExFound, tFound
     integer :: j, numEx, nSingles, nDoubles
     integer(n_int), allocatable :: allEx(:,:)
-    integer, parameter :: sampleSize = 10000
+    integer, parameter :: sampleSize = 100000
     real(dp) :: pgenArr(lenof_sign), pTot, pNull
     type(excit_gen_store_type) :: store
-    logical :: exDone(nel,nel,nBasis,nBasis)
+    logical :: exDone(1:nel,1:nel,0:nBasis,0:nBasis)
     
     exDone = .false.
 
@@ -214,7 +253,7 @@ contains
        if(.not. tFound .and. .not. all(nJ==0)) then
           call decode_bit_det(nJ,ilutJ)
           write(iout,*) "Error: Invalid excitation", nJ
-          exit
+          stop
        endif
        if(nJ(1) == 0) then
           if(.not. exDone(ex(1,1),ex(1,2),ex(2,1),ex(2,2)))then
@@ -239,7 +278,7 @@ contains
     write(iout,*) "Total prob. ", pTot
     write(iout,*) "pNull ", pNull
 
-    call assert_true(abs(pTot-1.0_dp) < eps)
+    call assert_true(abs(pTot-1.0_dp) < 1.0e-5_dp)
 
   end subroutine test_cached_exgen
 

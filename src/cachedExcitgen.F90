@@ -82,11 +82,11 @@ module cachedExcitgen
       if(ispn == 2) then
          ! use the spin-opposite cache
          call selectRSFromCSUM(srcID(1),srcID(2),orbs,pgen,CumSparseUMat,&
-              nPQ, rsPQ, posPQ)
+              nPQ, rsPQ, posPQ, biasTable, aliasTable)
 
       else
          call selectRSFromCSUM(srcID(1),srcID(2),orbs,pgen,CumSparseUMatPar,&
-              nPQPar, rsPQPar, posPQPar)  
+              nPQPar, rsPQPar, posPQPar, biasTablePar, aliasTablePar)  
       endif
 
       ! convert the spatial orbitals picked from the cached CSUM to spin orbs

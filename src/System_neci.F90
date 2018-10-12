@@ -867,7 +867,7 @@ system: do
 
          case("SPARSE-EXCITGEN")
             tCachedExcits = .true.
-            tDynamicAvMCEx = .true.
+!            tDynamicAvMCEx = .true.
 
         case("NONUNIFORMRANDEXCITS")
 !This indicates that the new, non-uniform O[N] random excitation generators are to be used.
