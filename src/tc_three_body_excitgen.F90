@@ -312,7 +312,7 @@ module tc_three_body_excitgen
       ! get the corresponding electron
       count = 0
       do i = 1, nel
-         if(tAlpha .xor. is_beta(nI(i))) then
+         if(tAlpha .neqv. is_beta(nI(i))) then
             count = count + 1
             if(count == index) elecs(3) = i
          end if
@@ -336,13 +336,13 @@ module tc_three_body_excitgen
           integer, intent(in) :: ind
 
           ! if we need to skip an index
-          if( (tAlpha .xor. is_beta(nI(elecs(ind))))) then
+          if( (tAlpha .neqv. is_beta(nI(elecs(ind))))) then
              ! if we are above the index, we need to add 1 more, because we did not
              ! take elecs(ind) into account when picking elecs(3)
              if(elecs(3) >= elecs(ind)) then
                 ! jump to the next electron with the right spin
                 elecs(3) = elecs(3) + 1
-                do while(.not. (tAlpha .xor. is_beta(nI(elecs(3))) ) )
+                do while(.not. (tAlpha .neqv. is_beta(nI(elecs(3))) ) )
                    elecs(3) = elecs(3) + 1
                 end do
              end if
@@ -401,7 +401,7 @@ module tc_three_body_excitgen
       end if
       ! we need to see how many same spin orbs have been picked so far
       do i = 1, nPicked
-         if((ms > 0) .xor. is_beta(tgt(i))) pool = pool - 1
+         if((ms > 0) .neqv. is_beta(tgt(i))) pool = pool - 1
       end do
       
       ! pick a random index

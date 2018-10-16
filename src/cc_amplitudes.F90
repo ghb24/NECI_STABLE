@@ -1232,7 +1232,7 @@ contains
         logical :: t_found
         integer(n_int) :: temp_int(0:nifd)
 
-        HElement_t(dp) :: sign_tmp(lenof_sign) 
+        real(dp) :: sign_tmp(lenof_sign) 
 
         ! for this it is helpful to have an upper limit of the number of 
         ! possible amplitudes, but just do it for the singles for now..
