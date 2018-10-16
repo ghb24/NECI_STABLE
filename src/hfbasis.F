@@ -802,7 +802,7 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
 
       
       SUBROUTINE GENFDET(FDET)
-
+          use constants
           ! Generate an initial determinant of specified spin.
           use SystemData, only: BasisFN, tMolpro, brr, g1, nbasis, lms,
      &                          nel, tGiovannisBrokenInit, SymRestrict, 
@@ -908,10 +908,10 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
           endif
           call sort (fDet(1:nel))
 #ifdef __DEBUG
-          print *, "Total momentum", totK
-          print *, "Requested momentum",  SymRestrict%k
-          print *, "Total spin", totSpin, "Requested spin", lms
-          print *, "fDet", fdet
+          write(iout,*) "Total momentum", totK
+          write(iout,*) "Requested momentum",  SymRestrict%k
+          write(iout,*) "Total spin", totSpin, "Requested spin", lms
+          write(iout,*) "fDet", fdet
 #endif
       END
      

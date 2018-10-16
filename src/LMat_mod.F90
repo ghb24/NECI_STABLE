@@ -4,11 +4,14 @@ module LMat_mod
   use SystemData, only: tStoreSpinOrbs, nBasis
   use MemoryManager, only: LogMemAlloc, LogMemDealloc
   use util_mod, only: get_free_unit
+  use shared_memory_mpi
+  use ParallelHelper, only: iProcIndex_intra
   implicit none
 
   ! this is likely to be stored in a hashtable long term
-  HElement_t(dp), allocatable :: LMat(:)
-  integer :: nBI, LMatTag
+  HElement_t(dp), pointer :: LMat(:)
+  integer :: LMatTag, LMatWin
+  integer(int64) :: nBI
 
   contains
 
@@ -21,7 +24,7 @@ module LMat_mod
       integer, intent(in) :: a,b,c
       integer, intent(in) :: i,j,k
       HElement_t(dp) :: matel
-      integer :: ida, idb, idc, idi, idj, idk
+      integer(int64) :: ida, idb, idc, idi, idj, idk
 
       ! convert to spatial orbs if required
       ida = gtID(a)
@@ -47,7 +50,8 @@ module LMat_mod
           integer, intent(in) :: sgn
           
           if(G1(p)%ms == G1(a)%ms .and. G1(q)%ms == G1(b)%ms .and. G1(r)%ms == G1(c)%ms) &
-               matel = matel + sgn * LMat(LMatInd(ida,idb,idc,idp,idq,idr))
+               matel = matel + sgn * LMat(LMatInd(int(ida,int64),int(idb,int64),&
+               int(idc,int64),int(idp,int64),int(idq,int64),int(idr,int64)))
         end subroutine addMatelContribution
     end function get_lmat_el
 
@@ -55,9 +59,10 @@ module LMat_mod
 
     function LMatInd(a,b,c,i,j,k) result(index)
       implicit none
-      integer, intent(in) :: a,b,c ! occupied orb indices
-      integer, intent(in) :: i,j,k ! unoccupied orb
-      integer :: index, ap, bp, cp, ip, jp, kp
+      integer(int64), intent(in) :: a,b,c ! occupied orb indices
+      integer(int64), intent(in) :: i,j,k ! unoccupied orb
+      integer(int64) :: index
+      integer(int64) :: ap, bp, cp, ip, jp, kp
       logical :: iPermute
 
       ! we store the permutation where a < b < c (regardless of i,j,k)
@@ -92,8 +97,12 @@ module LMat_mod
       ! ones
       ! then, the restricted ones follow, limited by the previous index (the last ordered
       ! index has no restriction
-      index = kp + nBI * (jp-1) + nBI**2 * (ip-1) + nBI**3 * (ap-1) + &
-           nBI**3 * (bp-1)*bp/2 + nBI**3 * (cp+1)*(cp-1)*cp/6
+      index = kp + nBI * (jp-1) 
+      index = index + nBI**2 * (ip-1) 
+      index = index + nBI**3 * (ap-1) 
+      index = index + &
+           nBI**3 * (bp-1)*bp/2 
+      index = index + nBI**3 * (cp+1)*(cp-1)*cp/6
 
       contains
 
@@ -101,7 +110,7 @@ module LMat_mod
         ! ordering selected in iPermute
         pure subroutine sort2Els(r,s,p,q)
           implicit none
-          integer, intent(inout) :: r,s,p,q
+          integer(int64), intent(inout) :: r,s,p,q
 
           if(r > s) then
              call intswap(r,s)
@@ -114,8 +123,8 @@ module LMat_mod
 !------------------------------------------------------------------------------------------!
 
     pure subroutine intswap(a,b)
-      integer, intent(inout) :: a,b
-      integer :: tmp
+      integer(int64), intent(inout) :: a,b
+      integer(int64) :: tmp
       
       tmp = a
       a = b 
@@ -128,8 +137,8 @@ module LMat_mod
       implicit none
       character(*), parameter :: LMatFileName = "TCDUMP"
       integer :: iunit, ierr
-      integer :: LMatSize
-      integer :: a,b,c,i,j,k
+      integer(int64) :: LMatSize
+      integer(int64) :: a,b,c,i,j,k
       HElement_t(dp) :: matel
       character(*), parameter :: t_r = "readLMat"
       integer :: counter
@@ -143,35 +152,41 @@ module LMat_mod
       ! The size is given by the largest index (LMatInd is monotonous in all arguments)
       LMatSize = LMatInd(nBI,nBI,nBI,nBI,nBI,nBI)
 
-      ! allocate LMat
-      allocate(LMat(LMatSize), stat = ierr)
+      ! allocate LMat (shared memory)
+      call shared_allocate_mpi(LMatWin, LMat, (/LMatSize/))
       LMat = 0.0_dp
-      call LogMemAlloc("LMat", LMatSize, HElement_t_SizeB, t_r, LMatTag, ierr)
+      call LogMemAlloc("LMat", int(LMatSize), HElement_t_SizeB, t_r, LMatTag)
 
-      iunit = get_free_unit()
-      open(iunit,file = LMatFileName,status = 'old')
-      counter = 0
-      do
-         read(iunit,*,iostat = ierr) matel, a,b,c,i,j,k
-         ! end of file reached?
-         if(ierr < 0) then
-            exit
-         else if(ierr > 0) then
-            ! error while reading?
-            call stop_all(t_r,"Error reading TCDUMP file")
-         else
-            ! else assign the matrix element
-            LMat(LMatInd(a,b,c,i,j,k)) = matel
-            if(abs(matel)> 0.0_dp) counter = counter + 1
-         endif
-         
-      end do
+      if(iProcIndex_intra .eq. 0) then
+         iunit = get_free_unit()
+         open(iunit,file = LMatFileName,status = 'old')
+         counter = 0
+         do
+            read(iunit,*,iostat = ierr) matel, a,b,c,i,j,k
+            ! end of file reached?
+            if(ierr < 0) then
+               exit
+            else if(ierr > 0) then
+               ! error while reading?
+               call stop_all(t_r,"Error reading TCDUMP file")
+            else
+               ! else assign the matrix element
+               if(LMatInd(a,b,c,i,j,k) > LMatSize) then
+                  counter = LMatInd(a,b,c,i,j,k)
+                  write(iout,*) "Warning, exceeding size" 
+               endif
+               LMat(LMatInd(a,b,c,i,j,k)) = matel
+               if(abs(matel)> 0.0_dp) counter = counter + 1
+            endif
 
-      counter = counter / 12
+         end do
 
-      write(iout, *), "Sparsity of LMat", real(counter)/real(LMatSize)
-      write(iout, *), "Nonzero elements in LMat", counter
-      write(iout, *), "Allocated size of LMat", LMatSize
+         counter = counter / 12
+
+         write(iout, *), "Sparsity of LMat", real(counter)/real(LMatSize)
+         write(iout, *), "Nonzero elements in LMat", counter
+         write(iout, *), "Allocated size of LMat", LMatSize
+      endif
     end subroutine readLMat
 
 !------------------------------------------------------------------------------------------!
@@ -180,9 +195,10 @@ module LMat_mod
       implicit none
       character(*), parameter :: t_r = "freeLMat"
       
-      if(allocated(LMat)) then
-         deallocate(LMat)
+      if(associated(LMat)) then
+         call shared_deallocate_mpi(LMatWin,LMat)
          call LogMemDealloc(t_r, LMatTag)
+         LMAt => null()
       end if
       
     end subroutine freeLMat
