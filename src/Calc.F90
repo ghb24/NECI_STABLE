@@ -258,6 +258,7 @@ contains
           MaxNoatHF=0.0_dp
           HFPopThresh=0
           tSpatialOnlyHash = .false.
+          tStoredDets = .false.
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset 
           !(by Calc readinput) if I_VMAX=1 and TENERGY is false
 
@@ -2017,6 +2018,12 @@ contains
                 ! --> All determinants with the same spatial structure will
                 !     end up on the same processor
                 tSpatialOnlyHash = .true.
+
+             case("STORE-DETS")
+                ! store all determinants in their decoded form in memory
+                ! this gives a speed-up at the cost of the memory required for storing 
+                ! all of them
+                tStoredDets = .true.
 
             case("SPAWNASDETS")
 !This is a parallel FCIMC option, which means that the particles at the same determinant on each processor, 
