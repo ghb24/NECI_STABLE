@@ -10,7 +10,8 @@ module LMat_mod
 
   ! this is likely to be stored in a hashtable long term
   HElement_t(dp), pointer :: LMat(:)
-  integer :: LMatTag, LMatWin
+  integer :: LMatTag
+  integer(MPIarg) :: LMatWin
   integer(int64) :: nBI
 
   contains
