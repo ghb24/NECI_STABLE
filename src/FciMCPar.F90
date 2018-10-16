@@ -1183,8 +1183,6 @@ module FciMCParMod
 
                         end if
 
-                        nValidExcits = nValidExcits + 1
-
                         child = attempt_create (DetCurr, &
                                             CurrentDets(:,j), SignCurr, &
                                             nJ,iLutnJ, Prob, HElGen, IC, ex, &
@@ -1199,8 +1197,6 @@ module FciMCParMod
                         ! cases so it is safe to rescale all i guess
                         ! (remove this option for now!)
                         child = child 
-                     else
-                        nInvalidExcits = nInvalidExcits + 1
                     endif
 
                     IFDEBUG(FCIMCDebug, 3) then

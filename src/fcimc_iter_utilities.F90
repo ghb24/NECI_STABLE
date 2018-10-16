@@ -512,8 +512,8 @@ contains
         ! truncated weight
         low = upp + 1; upp = low + sizes(35) - 1; send_arr(low:upp) = truncatedWeight;        
         ! excitation number trackers
-        low = upp + 1; upp = low + sizes(35) - 1; send_arr(low:upp) = nInvalidExcits;        
-        low = upp + 1; upp = low + sizes(35) - 1; send_arr(low:upp) = nValidExcits;        
+        low = upp + 1; upp = low + sizes(36) - 1; send_arr(low:upp) = nInvalidExcits;        
+        low = upp + 1; upp = low + sizes(37) - 1; send_arr(low:upp) = nValidExcits;        
         
         ! Perform the communication.
         call MPISumAll (send_arr(1:upp), recv_arr(1:upp))
@@ -564,8 +564,8 @@ contains
         ! truncated weight
         low = upp + 1; upp = low + sizes(35) - 1; AllTruncatedWeight = recv_arr(low);
         ! excitation number trackers
-        low = upp + 1; upp = low + sizes(35) - 1; allNInvalidExcits = recv_arr(low);
-        low = upp + 1; upp = low + sizes(35) - 1; allNValidExcits = recv_arr(low);
+        low = upp + 1; upp = low + sizes(36) - 1; allNInvalidExcits = recv_arr(low);
+        low = upp + 1; upp = low + sizes(37) - 1; allNValidExcits = recv_arr(low);
         ! Communicate HElement_t variables:
 
         low = 0; upp = 0;

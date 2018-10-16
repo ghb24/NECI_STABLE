@@ -1,3 +1,4 @@
+#include "macros.h"
 module cachedExcitgen
   use constants
   use SystemData, only: nel, nBasis, G1
@@ -6,7 +7,7 @@ module cachedExcitgen
   use UMatHash
   use get_excit, only: make_double, exciteIlut
   use excit_gens_int_weighted, only: gen_single_4ind_ex, pick_biased_elecs
-  use FciMCData, only: pSingles, excit_gen_store_type
+  use FciMCData, only: pSingles, excit_gen_store_type, nInvalidExcits, nValidExcits
   use UMatCache, only: gtID
   use DetBitOps, only: DetBitEq, EncodeBitDet
   implicit none
@@ -37,6 +38,12 @@ module cachedExcitgen
          ic = 2
          call generate_double_cached(nI,ilutI,nJ,ilutJ,ex,pgen,store,tpar)
          pgen = pgen * (1-pSingles)
+
+         if(IsNullDet(nJ)) then
+            nInvalidExcits = nInvalidExcits + 1
+         else
+            nValidExcits = nValidExcits + 1
+         endif
       end if
 
     end subroutine gen_excit_hel_cached
@@ -91,7 +98,7 @@ module cachedExcitgen
 
       ! convert the spatial orbitals picked from the cached CSUM to spin orbs
       orbs(1) = getSpinOrb(orbs(1),G1(src(1))%ms)
-      orbs(2) = getSpinOrb(orbs(2),G1(src(2))%ms)
+      orbs(2) = getSpinOrb(orbs(2),G1(src(2))%ms)      
 
       invalid = (any(orbs==0) .or. any(orbs(1) == nI) &
            .or. any(orbs(2) == nI)) .or. (orbs(1) == orbs(2))
@@ -110,25 +117,6 @@ module cachedExcitgen
 
          ilutJ = exciteIlut(ilutI,src,orbs)
       endif
-
-      contains 
-
-        subroutine checkSpinVsOcc(ind)
-          integer, intent(in) :: ind
-
-          if(any(orbs(ind)==srcID)) then
-             if(any(nI == 2*orbs(ind))) then
-                if(any(nI == 2*orbs(ind) - 1) ) then
-                   invalid = .true.
-                else
-                   ms(ind) = -1               
-                endif
-             else
-                ms(ind) = 1
-             endif
-          endif
-
-        end subroutine checkSpinVsOcc
 
     end subroutine generate_double_cached
 

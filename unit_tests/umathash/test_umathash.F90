@@ -89,9 +89,9 @@ contains
 
     !call test_splitIndex()
     write(iout,*) "Starting tests" 
-    call test_aliasSampling()
+    !call test_aliasSampling()
     !call test_linearSearch()
-    !call test_cached_exgen()
+    call test_cached_exgen()
 
     deallocate(TMat2D)
     call shared_deallocate_mpi(umat_win, UMat)
@@ -132,7 +132,7 @@ contains
   subroutine test_aliasSampling()
     implicit none
     integer, parameter :: numTries = 200000
-    integer, parameter :: numPQ = 10
+    integer, parameter :: numPQ = 1
     integer :: ind(numTries), pq, startPQ, endPQ, j, i
     real(dp) :: thresh, error, pI
     integer :: maxInd, numRS
@@ -201,8 +201,9 @@ contains
     logical :: tPar, tAllExFound, tFound
     integer :: j, numEx, nSingles, nDoubles
     integer(n_int), allocatable :: allEx(:,:)
-    integer, parameter :: sampleSize = 100000
+    integer, parameter :: sampleSize = 1000000
     real(dp) :: pgenArr(lenof_sign), pTot, pNull
+    HElement_t(dp) :: matel
     type(excit_gen_store_type) :: store
     logical :: exDone(1:nel,1:nel,0:nBasis,0:nBasis)
     
@@ -229,6 +230,8 @@ contains
        numEx = numEx + 1
        allEx(0:NIfDBO,numEx) = ilutJ(0:NIfDBO)
     end do
+
+    print *, "In total", numEx, "excitations"
 
     ! set the biases for excitation generation
     pParallel = 0.5_dp
@@ -269,10 +272,12 @@ contains
     do i = 1, numEx
        call extract_sign(allEx(:,i),pgenArr)
        call decode_bit_det(nJ,allEx(:,i))
-!       write(iout,*) i, pgenArr(1), real(allEx(NIfTot+1,i))/real(sampleSize)
-!       write(iout,*), nJ
-!       if(pgenArr(1) < eps) &
-!           write(iout,*) "UMAT el ", get_helement_normal(nJ,(/1,2,3,4,5/))
+       matel = get_helement_normal(nJ,(/1,2,3,4,5/))
+       if(pgenArr(1) < eps .and. abs(matel) > eps) then 
+          write(iout,*) i, pgenArr(1), real(allEx(NIfTot+1,i))/real(sampleSize)
+          write(iout,*), nJ
+          write(iout,*) "UMAT el ", matel
+       endif
        pTot = pTot + pgenArr(1)
     end do
     write(iout,*) "Total prob. ", pTot

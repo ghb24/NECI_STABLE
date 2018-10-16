@@ -88,7 +88,7 @@ module UMatHash
       nnz = 0
       do pq = 1, numPQPairsLoc
          ! add empty entries to align to 64 byte
-         call roundTo64(nnz)
+!         call roundTo64(nnz)
          ! get the indices p,q
          call splitIndex(pq,p,q)
          do r = 1, nStoreBasis
@@ -108,7 +108,7 @@ module UMatHash
          nnz = 0
          do pq = 1, numPQPairsLoc
             ! align to 64 byte
-            call roundTo64(nnz)
+!            call roundTo64(nnz)
             ! recover the indices p,q from pq
             call splitIndex(pq,p,q)         
             ! store the starting position of the values for this pq
@@ -417,7 +417,7 @@ module UMatHash
          ! random factor between 0 and 1 times total cumulated value
 
 !         randThresh = genrand_real2_dSFMT()*CumSparseUMatLoc(endPQ)
-!         pos = linearSearch(CumSparseUMatLoc(startPQ:endPQ), randThresh) + startPQ - 1
+!         pos = binary_search_first_ge(CumSparseUMatLoc(startPQ:endPQ), randThresh) + startPQ - 1
          pos = aliasSampling(biasTableLoc(startPQ:endPQ), aliasTableLoc(startPQ:endPQ)) + startPQ - 1
 
          if(pos > startPQ) then
