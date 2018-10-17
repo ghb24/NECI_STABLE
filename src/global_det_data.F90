@@ -640,16 +640,37 @@ contains
       implicit none
       integer, intent(in) :: j
       
-      global_determinant_data(pos_death_timer,j) = global_determinant_data(pos_death_timer,j) + 1
+      global_determinant_data(pos_death_timer,j) = global_determinant_data(pos_death_timer,j) + 1.0_dp
     end subroutine clock_death_timer
 
+  !------------------------------------------------------------------------------------------!
+
+    function get_death_timer(j) result(niter)
+      implicit none
+      integer, intent(in) :: j
+      real(dp) :: niter
+
+      niter = global_determinant_data(pos_death_timer,j)
+
+    end function get_death_timer
+
+  !------------------------------------------------------------------------------------------!
+
+    subroutine mark_death(j) 
+      implicit none
+      integer, intent(in) :: j
+
+      global_determinant_data(pos_death_timer,j) = -1.0_dp
+    end subroutine mark_death
+      
+      
   !------------------------------------------------------------------------------------------!
 
     subroutine reset_death_timer(j)
       implicit none
       integer, intent(in) :: j
       
-      global_determinant_data(pos_death_timer,j) = 0
+      global_determinant_data(pos_death_timer,j) = 0.0_dp
     end subroutine reset_death_timer
 
   !------------------------------------------------------------------------------------------!

@@ -415,9 +415,10 @@ real(dp) :: n_truncate_spawns = 3.0_dp
 
 ! flags for global storage
 logical :: tLogAverageSpawns, tActivateLAS
+logical :: tTimedDeaths
 ! threshold value to make something an initiator based on spawn coherence
 real(dp) :: spawnSgnThresh
-integer :: minInitSpawns
+integer :: minInitSpawns, lingerTime
 
 ! integer :: above_max_singles = 0, above_max_para = 0, above_max_anti = 0, &
 !            above_max_doubles = 0

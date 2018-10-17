@@ -43,7 +43,7 @@ module fcimc_helper
                         t_back_spawn_flex, tau, DiagSft, tLargeMatelSurvive, &
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule, &
                         initMaxSenior, tSeniorityInits, tLogAverageSpawns, &
-                        spawnSgnThresh, minInitSpawns
+                        spawnSgnThresh, minInitSpawns, tTimedDeaths
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
          tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
@@ -53,7 +53,7 @@ module fcimc_helper
     use DetCalcData, only: FCIDetIndex, ICILevel, det
     use hash, only: remove_hash_table_entry, add_hash_table_entry, hash_table_lookup
     use load_balance_calcnodes, only: DetermineDetNode, tLoadBalanceBlocks
-    use load_balance, only: adjust_load_balance
+    use load_balance, only: adjust_load_balance, RemoveHashDet
     use rdm_filling_old, only: det_removed_fill_diag_rdm_old
     use rdm_filling, only: det_removed_fill_diag_rdm
     use rdm_general, only: store_parent_with_spawned, extract_bit_rep_avsign_norm
@@ -1973,10 +1973,7 @@ contains
             end if
 
             ! Remove the determinant from the indexing list
-            call remove_hash_table_entry(HashIndex, DetCurr, DetPosition)
-            ! Add to the "freeslot" list
-            iEndFreeSlot = iEndFreeSlot + 1
-            FreeSlot(iEndFreeSlot) = DetPosition
+            if(.not. tTimedDeaths) call RemoveHashDet(HashIndex, DetCurr, DetPosition)
             ! Encode a null det to be picked up
             call encode_sign(CurrentDets(:,DetPosition), null_part)
         end if

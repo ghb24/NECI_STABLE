@@ -9,7 +9,7 @@ module AnnihilationMod
                           tEN2Started, tEN2Truncated, tInitCoherentRule, t_truncate_spawns, &
                           n_truncate_spawns, t_prone_walkers, t_truncate_unocc, &
                           tSpawnSeniorityBased, numMaxExLvlsSet, maxKeepExLvl, &
-                          tLogAverageSpawns
+                          tLogAverageSpawns, tTimedDeaths
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -28,7 +28,7 @@ module AnnihilationMod
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData, only: tNoNewRDMContrib
     use load_balance, only: DetermineDetNode, AddNewHashDet, &
-                            CalcHashTableStats, get_diagonal_matel
+                            CalcHashTableStats, get_diagonal_matel, RemoveHashDet
     use searching
     use hash
     use global_det_data, only: det_diagH, store_spawn
@@ -716,10 +716,8 @@ module AnnihilationMod
                             ! away. Remove it from the hash index array so that
                             ! no others find it (it is impossible to have another
                             ! spawned walker yet to find this determinant).
-                            call remove_hash_table_entry(HashIndex, nJ, PartInd)
-                            ! Add to "freeslot" list so it can be filled in.
-                            iEndFreeSlot = iEndFreeSlot + 1
-                            FreeSlot(iEndFreeSlot) = PartInd
+                           if(.not. tTimedDeaths) &
+                                call RemoveHashDet(HashIndex, nJ, PartInd)
                         end if
                     end if
 
@@ -870,7 +868,7 @@ module AnnihilationMod
         call halt_timer(BinSearch_time)
 
         ! Update remaining number of holes in list for walkers stats.
-        if (iStartFreeSlot > iEndFreeSlot) then
+        if ((iStartFreeSlot > iEndFreeSlot) .or. tTimedDeaths) then
             ! All slots filled
             HolesInList = 0
         else

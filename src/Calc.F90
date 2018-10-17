@@ -251,6 +251,8 @@ contains
           tLogAverageSpawns = .false.
           spawnSgnThresh = 3.0_dp
           minInitSpawns = 20
+          lingerTime = 300
+          tTimedDeaths = .false.
           tAVReps = .false.
           tGlobalInitFlag = .false.
           tInitCoherentRule=.true.
@@ -1860,6 +1862,13 @@ contains
                 tActivateLAS = .true.
                 if(item < nitems) call getf(spawnSgnThresh)
                 if(item < nitems) call geti(minInitSpawns)
+                
+             case("DELAY-DEATHS")
+                ! have determinants persits for a number of iterations after their
+                ! occupation reached 0
+                tTimedDeaths = .true.
+                ! read in said number of iterations
+                if(item < nitems) call geti(lingerTime)
 
              case("REPLICA-GLOBAL-INITIATORS")
 ! with this option, all replicas will use the same initiator flag, which is then set 
