@@ -42,7 +42,8 @@ module fcimc_helper
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
                         t_back_spawn_flex, tau, DiagSft, tLargeMatelSurvive, &
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule, &
-                        initMaxSenior, tSeniorityInits
+                        initMaxSenior, tSeniorityInits, tLogAverageSpawns, &
+                        spawnSgnThresh
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
          tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
@@ -63,7 +64,8 @@ module fcimc_helper
     use hphf_integrals, only: hphf_diag_helement
     use global_det_data, only: get_av_sgn_tot, set_av_sgn_tot, set_det_diagH, &
                                global_determinant_data, det_diagH, &
-                               get_spawn_pop, get_tau_int, get_shift_int
+                               get_spawn_pop, get_tau_int, get_shift_int, &
+                               get_neg_spawns, get_pos_spawns, store_spawn
     use searching, only: BinSearchParts2
     use back_spawn, only: setup_virtual_mask
     implicit none
@@ -215,6 +217,7 @@ contains
         real(dp) :: real_sign_old(lenof_sign), real_sign_new(lenof_sign)
         real(dp) :: sgn_prod(lenof_sign)
         logical :: list_full, tSuccess, allowed_child
+        integer :: global_position
         integer, parameter :: flags = 0
         character(*), parameter :: this_routine = 'create_particle_with_hash_table'
         
@@ -259,10 +262,9 @@ contains
                 end if
             end if
 
-            if(present(matel)) call setLargeMatelFlag(ind,matel)
 
             ! log the spawn
-            if(tLogNumSpawns) call increase_spawn_counter(SpawnedParts(:,ind))
+            global_position = ind
         else
             ! Determine which processor the particle should end up on in the
             ! DirectAnnihilation algorithm.
@@ -304,14 +306,19 @@ contains
                     call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), get_initiator_flag(part_type))
              end if
 
-             if(present(matel)) call setLargeMatelFlag(ValidSpawnedList(proc),matel)
-
-             if(tLogNumSpawns) call log_spawn(SpawnedParts(:,ValidSpawnedList(proc)))
+             ! where to store the global data
+             global_position = ValidSpawnedList(proc)
 
             call add_hash_table_entry(spawn_ht, ValidSpawnedList(proc), hash_val)
 
             ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
         end if
+
+        ! set large matel flag
+        if(present(matel)) call setLargeMatelFlag(global_position,matel)
+        ! store global data
+        if(tLogNumSpawns) call increase_spawn_counter(SpawnedParts(:,global_position))
+        if(tLogAverageSpawns) call store_spawn(global_position, child_sign) 
         
         ! Sum the number of created children to use in acceptance ratio.
         ! Note that if child is an array, it should only have one non-zero
@@ -855,7 +862,7 @@ contains
         
       end function TestInitiator_ilut
 
-      function TestInitiator_explicit(ilut, nI, site_idx,is_init, sgn, exLvl, run) result(initiator)
+      function TestInitiator_explicit(ilut, nI, det_idx,is_init, sgn, exLvl, run) result(initiator)
         use adi_initiators, only: check_static_init
         use adi_references, only: check_superinitiator
         implicit none
@@ -871,17 +878,18 @@ contains
 
         integer(n_int), intent(inout) :: ilut(0:NIfTot)
         logical, intent(in) :: is_init
-        integer, intent(in) :: run, nI(nel), exLvl, site_idx
+        integer, intent(in) :: run, nI(nel), exLvl, det_idx
         real(dp), intent(in) :: sgn(lenof_sign)
 
-        logical :: initiator, staticInit, popInit
+        logical :: initiator, staticInit, popInit, spawnInit
         integer :: i
 
         logical :: Senior
         real(dp) :: DetAge, HalfLife, AvgShift, diagH
 
-        ! initiator flag according to population
-        popInit = initiator_criterium(sgn, det_diagH(site_idx), run)
+        ! initiator flag according to population/spawn coherence
+        popInit = initiator_criterium(sgn, det_diagH(det_idx), run) .or. &
+             spawn_criterium(det_idx)
 
         ! initiator flag according to SI
         staticInit = check_static_init(ilut, nI, sgn, exLvl, run)
@@ -924,9 +932,9 @@ contains
 
         Senior = .false.
         if (tSeniorInitiators .and. .not. is_run_unnocc(sgn, run) ) then
-            DetAge = get_tau_int(site_idx, run)
-            diagH = det_diagH(site_idx)
-            AvgShift = get_shift_int(site_idx, run)/DetAge
+            DetAge = get_tau_int(det_idx, run)
+            diagH = det_diagH(det_idx)
+            AvgShift = get_shift_int(det_idx, run)/DetAge
             HalfLife = log(2.0_dp) / (diagH  - AvgShift)
             !Usually the shift is negative, so the HalfLife is always positive.
             !In some cases, however, the shift is set to positive (to increase the birth at HF).
@@ -970,41 +978,69 @@ contains
 
         end if       
 
-      end function TestInitiator_explicit
-      
-      function initiator_criterium(sign,hdiag,run) result(init_flag)
-        implicit none
-        real(dp), intent(in) :: sign(lenof_sign), hdiag
-        integer, intent(in) :: run
-        ! variance of sign and either a single value or an aggregate
-        real(dp) :: sigma, tot_sgn
-        integer :: crun, nOcc
-        real(dp) :: scaledInitiatorWalkNo
-        logical :: init_flag
+        contains
+     
+          function initiator_criterium(sign,hdiag,run) result(init_flag)
+            implicit none
+            real(dp), intent(in) :: sign(lenof_sign), hdiag
+            integer, intent(in) :: run
+            ! variance of sign and either a single value or an aggregate
+            real(dp) :: sigma, tot_sgn
+            integer :: crun, nOcc
+            real(dp) :: scaledInitiatorWalkNo
+            logical :: init_flag
 
-        if(tEScaleWalkers) then
-           scaledInitiatorWalkNo = InitiatorWalkNo * scaleFunction(hdiag)
-        else
-           scaledInitiatorWalkNo = InitiatorWalkNo
-        endif
-        
-        
-        ! option to use the average population instead of the local one
-        ! for purpose of initiator threshold
-        if(tGlobalInitFlag) then
-           ! we can use a signed or unsigned sum
-           if(tSignedRepAv) then
-              tot_sgn = real(abs(sum(sign)),dp)/inum_runs
-           else
-              tot_sgn = av_pop(sign)
-           endif
-        else
-           tot_sgn = mag_of_run(sign,run)
-        endif
-        ! make it an initiator 
-        init_flag = (tot_sgn > scaledInitiatorWalkNo)
+            if(tEScaleWalkers) then
+               scaledInitiatorWalkNo = InitiatorWalkNo * scaleFunction(hdiag)
+            else
+               scaledInitiatorWalkNo = InitiatorWalkNo
+            endif
 
-      end function initiator_criterium
+
+            ! option to use the average population instead of the local one
+            ! for purpose of initiator threshold
+            if(tGlobalInitFlag) then
+               ! we can use a signed or unsigned sum
+               if(tSignedRepAv) then
+                  tot_sgn = real(abs(sum(sign)),dp)/inum_runs
+               else
+                  tot_sgn = av_pop(sign)
+               endif
+            else
+               tot_sgn = mag_of_run(sign,run)
+            endif
+            ! make it an initiator 
+            init_flag = (tot_sgn > scaledInitiatorWalkNo)
+
+          end function initiator_criterium
+
+          function spawn_criterium(idx) result(spawnInit)
+            implicit none
+            ! makes something an initiator if the sign of spawns is sufficiently unique
+            integer, intent(in) :: idx
+            logical :: spawnInit
+            
+            real(dp) :: negSpawn(lenof_sign), posSpawn(lenof_sign)
+
+            if(tLogAverageSpawns) then
+               negSpawn = get_neg_spawns(idx)
+               posSpawn = get_pos_spawns(idx)
+               if(negSpawn + posSpawn .ge. minInitSpawns) then
+                  if(all(min(negSpawn,posSpawn) > eps)) then
+                     spawnInit = all(max(negSpawn,posSpawn)/min(negSpawn,posSpawn) > spawnSgnThresh)
+                  else
+                     spawnInit = .true.
+                  endif
+               else
+                  spawnInit = .false.
+               endif
+            else
+               spawnInit = .false.
+            endif
+
+          end function spawn_criterium
+
+        end function TestInitiator_explicit
 
     subroutine rezero_iter_stats_each_iter(iter_data, rdm_defs)
 

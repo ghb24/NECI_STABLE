@@ -247,6 +247,9 @@ contains
           tTruncInitiator=.false.
           tAddtoInitiator=.false.
           tSTDInits = .false.
+          tLogAverageSpawns = .false.
+          spawnSgnThresh = 3.0_dp
+          minInitSpawns = 20
           tAVReps = .false.
           tGlobalInitFlag = .false.
           tInitCoherentRule=.true.
@@ -1851,6 +1854,11 @@ contains
 !determinants outside the active space, however if this is done, they
 !can only spawn back on to the determinant from which they came.  This is the star approximation from the CAS space. 
                 tTruncInitiator=.true.
+             case("AVSPAWN-INITIATORS")
+! Create initiators based on the average spawn onto some determinant                
+                tLogAverageSpawns = .true.
+                if(item < nitems) call getf(spawnSgnThresh)
+                if(item < nitems) call geti(minInitSpawns)
 
              case("REPLICA-GLOBAL-INITIATORS")
 ! with this option, all replicas will use the same initiator flag, which is then set 

@@ -3,7 +3,7 @@
 module global_det_data
   
   use SystemData, only: nel
-    use CalcData, only: tContTimeFCIMC, tContTimeFull, tStoredDets
+    use CalcData, only: tContTimeFCIMC, tContTimeFull, tStoredDets, tLogAverageSpawns
     use LoggingData, only: tRDMonFly, tExplicitAllRDM, tTransitionRDMs
     use FciMCData, only: MaxWalkersPart
     use constants
@@ -48,6 +48,11 @@ module global_det_data
     integer :: len_av_sgn_tot, len_iter_occ_tot
 
     integer :: pos_spawn_rate, len_spawn_rate
+
+    ! global storage of history of determinants: number of pos/neg spawns and 
+    ! time since a determinant died
+    integer :: len_pos_spawns, len_neg_spawns, len_death_timer, len_occ_time
+    integer :: pos_pos_spawns, pos_neg_spawns, pos_death_timer, pos_occ_time
 
     ! lenght of the determinant and its position
     integer :: pos_det_orbs, len_det_orbs
@@ -166,6 +171,15 @@ contains
            len_det_orbs = 0
         endif
 
+        if(tLogAverageSpawns) then
+           len_pos_spawns = lenof_sign
+           len_neg_spawns = lenof_sign
+        else
+           len_pos_spawns = 0
+           len_neg_spawns = 0
+        endif
+        len_death_timer = 1
+
         ! Get the starting positions
         pos_spawn_pop = pos_hel+len_hel
         pos_tau_int = pos_spawn_pop+len_spawn_pop
@@ -175,8 +189,14 @@ contains
         pos_iter_occ = pos_av_sgn_transition + len_av_sgn_transition
         pos_iter_occ_transition = pos_iter_occ + len_iter_occ
         pos_spawn_rate = pos_iter_occ_transition + len_iter_occ_transition
+        pos_pos_spawns = pos_spawn_rate + len_spawn_rate
+        pos_neg_spawns = pos_pos_spawns + len_pos_spawns
+        pos_death_timer = pos_neg_spawns + len_neg_spawns
+        pos_occ_time = pos_death_timer + pos_death_timer
 
-        tot_len = len_hel + len_spawn_pop + len_tau_int + len_shift_int + len_av_sgn_tot + len_iter_occ_tot
+        tot_len = len_hel + len_spawn_pop + len_tau_int + len_shift_int + &
+             len_av_sgn_tot + len_iter_occ_tot + len_pos_spawns + len_neg_spawns + &
+             len_death_timer + len_occ_time
 
         ! Allocate and log the required memory (globally)
         allocate(global_determinant_data(tot_len, MaxWalkersPart), stat=ierr)
@@ -550,6 +570,91 @@ contains
 
     end subroutine
 
+  !------------------------------------------------------------------------------------------!
+  ! functions for storing information on the history of spawns onto a determinant
+  !------------------------------------------------------------------------------------------!
+
+    subroutine store_spawn(j, spawn_sgn)
+      implicit none
+      integer, intent(in) :: j
+      real(dp), intent(in) :: spawn_sgn(lenof_sign)
+
+      integer :: part
+
+      do part = 1, lenof_sign
+         if(spawn_sgn(part) > eps) then
+            global_determinant_data(pos_pos_spawns+part-1,j) = &
+                 global_determinant_data(pos_pos_spawns+part-1,j) + spawn_sgn(part)
+         else if(spawn_sgn(part) < -eps) then
+            global_determinant_data(pos_neg_spawns+part-1,j) = &
+                 global_determinant_data(pos_neg_spawns+part-1,j) + spawn_sgn(part)
+         endif
+      end do
+    end subroutine store_spawn
+
+  !------------------------------------------------------------------------------------------!
+
+    pure function get_pos_spawns(j) result(avSpawn)
+      implicit none
+      integer, intent(in) :: j
+      real(dp) :: avSpawn(lenof_sign)
+
+      avSpawn = global_determinant_data(pos_pos_spawns:(pos_pos_spawns + lenof_sign - 1),j)
+    end function get_pos_spawns
+
+  !------------------------------------------------------------------------------------------!
+
+    pure function get_neg_spawns(j) result(avSpawn)
+      implicit none
+      integer, intent(in) :: j
+      real(dp) :: avSpawn(lenof_sign)
+
+      avSpawn = global_determinant_data(pos_neg_spawns:(pos_neg_spawns + lenof_sign - 1),j)
+    end function get_neg_spawns
+
+  !------------------------------------------------------------------------------------------!
+
+    subroutine clock_occ_time(j)
+      implicit none
+      integer, intent(in) :: j
+      
+      global_determinant_data(pos_occ_time,j) = global_determinant_data(pos_occ_time,j) + 1
+      global_determinant_data(pos_pos_spawns:(pos_death_timer-1),j) = &
+           global_determinant_data(pos_pos_spawns:(pos_death_timer-1),j) * &
+           (global_determinant_data(pos_occ_time,j)-1)/global_determinant_data(pos_occ_time,j)
+
+    end subroutine clock_occ_time
+
+  !------------------------------------------------------------------------------------------!
+
+    subroutine reset_occ_time(j)
+      implicit none
+      integer, intent(in) :: j
+      
+      global_determinant_data(pos_occ_time,j) = 0
+    end subroutine reset_occ_time
+
+  !------------------------------------------------------------------------------------------!
+
+    subroutine clock_death_timer(j)
+      implicit none
+      integer, intent(in) :: j
+      
+      global_determinant_data(pos_death_timer,j) = global_determinant_data(pos_death_timer,j) + 1
+    end subroutine clock_death_timer
+
+  !------------------------------------------------------------------------------------------!
+
+    subroutine reset_death_timer(j)
+      implicit none
+      integer, intent(in) :: j
+      
+      global_determinant_data(pos_death_timer,j) = 0
+    end subroutine reset_death_timer
+
+  !------------------------------------------------------------------------------------------!
+  !    Global storage for storing nI for each occupied determinant to save time for
+  !    conversion from ilut to nI
   !------------------------------------------------------------------------------------------!
 
     subroutine store_decoding(j, nI)

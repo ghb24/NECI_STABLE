@@ -413,6 +413,12 @@ logical :: t_truncate_unocc, t_truncate_multi
 logical :: t_prone_walkers, t_activate_decay
 real(dp) :: n_truncate_spawns = 3.0_dp
 
+! flags for global storage
+logical :: tLogAverageSpawns
+! threshold value to make something an initiator based on spawn coherence
+real(dp) :: spawnSgnThresh
+integer :: minInitSpawns
+
 ! integer :: above_max_singles = 0, above_max_para = 0, above_max_anti = 0, &
 !            above_max_doubles = 0
 
