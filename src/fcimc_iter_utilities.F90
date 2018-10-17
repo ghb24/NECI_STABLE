@@ -1071,7 +1071,7 @@ contains
                 tSearchTau=.false.
             endif
         enddo
-
+       
     end subroutine update_shift 
 
     subroutine rezero_iter_stats_update_cycle (iter_data, tot_parts_new_all)

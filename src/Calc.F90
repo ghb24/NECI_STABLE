@@ -247,6 +247,7 @@ contains
           tTruncInitiator=.false.
           tAddtoInitiator=.false.
           tSTDInits = .false.
+          tActivateLAS = .false.
           tLogAverageSpawns = .false.
           spawnSgnThresh = 3.0_dp
           minInitSpawns = 20
@@ -1856,7 +1857,7 @@ contains
                 tTruncInitiator=.true.
              case("AVSPAWN-INITIATORS")
 ! Create initiators based on the average spawn onto some determinant                
-                tLogAverageSpawns = .true.
+                tActivateLAS = .true.
                 if(item < nitems) call getf(spawnSgnThresh)
                 if(item < nitems) call geti(minInitSpawns)
 

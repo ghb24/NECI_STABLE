@@ -17,7 +17,8 @@ module FciMCParMod
                         t_back_spawn_flex, t_back_spawn_flex_option, &
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
                         DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
-                        tSkipRef, tFixTrial, tTrialShift, t_activate_decay
+                        tSkipRef, tFixTrial, tTrialShift, t_activate_decay, &
+                        tLogAverageSpawns, tActivateLAS
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
                         tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
                         SIUpdateInterval, tSuppressSIOutput, nRefUpdateInterval, &
@@ -242,6 +243,9 @@ module FciMCParMod
                call MPISumAll(TotParts,AllTotParts)
                exit
             endif
+
+            ! start logging average spawns once we enter the variable shift mode
+            if(.not. any(tSinglePartPhase) .and. tActivateLAS) tLogAverageSpawns = .true.
 
             IFDEBUG(FCIMCDebug, 2) write(iout,*) 'Iter', iter
 

@@ -43,7 +43,7 @@ module fcimc_helper
                         t_back_spawn_flex, tau, DiagSft, tLargeMatelSurvive, &
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule, &
                         initMaxSenior, tSeniorityInits, tLogAverageSpawns, &
-                        spawnSgnThresh
+                        spawnSgnThresh, minInitSpawns
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
          tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
@@ -65,7 +65,7 @@ module fcimc_helper
     use global_det_data, only: get_av_sgn_tot, set_av_sgn_tot, set_det_diagH, &
                                global_determinant_data, det_diagH, &
                                get_spawn_pop, get_tau_int, get_shift_int, &
-                               get_neg_spawns, get_pos_spawns, store_spawn
+                               get_neg_spawns, get_pos_spawns
     use searching, only: BinSearchParts2
     use back_spawn, only: setup_virtual_mask
     implicit none
@@ -177,8 +177,9 @@ contains
             endif
         end if
 
+        ! set flag for large spawn matrix element
         if(present(matel)) call setLargeMatelFlag(ValidSpawnedList(proc),matel)
-
+        ! store global data - number of spawns
         if(tLogNumSpawns) call log_spawn(SpawnedParts(:,ValidSpawnedList(proc) ) )
 
         if (tFillingStochRDMonFly) then
@@ -318,7 +319,6 @@ contains
         if(present(matel)) call setLargeMatelFlag(global_position,matel)
         ! store global data
         if(tLogNumSpawns) call increase_spawn_counter(SpawnedParts(:,global_position))
-        if(tLogAverageSpawns) call store_spawn(global_position, child_sign) 
         
         ! Sum the number of created children to use in acceptance ratio.
         ! Note that if child is an array, it should only have one non-zero
@@ -1025,7 +1025,7 @@ contains
             if(tLogAverageSpawns) then
                negSpawn = get_neg_spawns(idx)
                posSpawn = get_pos_spawns(idx)
-               if(negSpawn + posSpawn .ge. minInitSpawns) then
+               if(any((negSpawn + posSpawn) .ge. minInitSpawns)) then
                   if(all(min(negSpawn,posSpawn) > eps)) then
                      spawnInit = all(max(negSpawn,posSpawn)/min(negSpawn,posSpawn) > spawnSgnThresh)
                   else

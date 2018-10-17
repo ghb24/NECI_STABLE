@@ -8,7 +8,8 @@ module AnnihilationMod
                           tContTimeFull, InitiatorWalkNo, tau, tEN2, tEN2Init, &
                           tEN2Started, tEN2Truncated, tInitCoherentRule, t_truncate_spawns, &
                           n_truncate_spawns, t_prone_walkers, t_truncate_unocc, &
-                          tSpawnSeniorityBased, numMaxExLvlsSet, maxKeepExLvl
+                          tSpawnSeniorityBased, numMaxExLvlsSet, maxKeepExLvl, &
+                          tLogAverageSpawns
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -30,7 +31,7 @@ module AnnihilationMod
                             CalcHashTableStats, get_diagonal_matel
     use searching
     use hash
-    use global_det_data, only: det_diagH
+    use global_det_data, only: det_diagH, store_spawn
     use procedure_pointers, only: scaleFunction
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement
@@ -601,6 +602,7 @@ module AnnihilationMod
             call decode_bit_det(nJ, SpawnedParts(:,i)) 
             ! Just to be sure
             CurrentSign = 0.0_dp
+            SignTemp = 0.0_dp
             ! Search the hash table HashIndex for the determinant defined by
             ! nJ and SpawnedParts(:,i). If it is found, tSuccess will be
             ! returned .true. and PartInd will hold the position of the
@@ -750,7 +752,7 @@ module AnnihilationMod
                 ! as they have been spawned on an unoccupied determinant.
                 if (tTruncInitiator) then
 
-                    call extract_sign (SpawnedParts(:,i), SignTemp)
+                    call extract_sign (SpawnedParts(:,i), SpawnedSign)
 
                     ! Are we about to abort this spawn (on any replica) due to
                     ! initiator criterion?
@@ -761,7 +763,7 @@ module AnnihilationMod
                     ! If calculating an EN2 correction to initiator error,
                     ! check now if we should add anything.
                     if (tEN2Init) then
-                        call add_en2_pert_for_init_calc(i, abort, nJ, SignTemp)
+                        call add_en2_pert_for_init_calc(i, abort, nJ, SpawnedSign)
                     end if
 
                     do j = 1, lenof_sign
@@ -770,18 +772,18 @@ module AnnihilationMod
 
                             ! If this option is on, include the walker to be
                             ! cancelled in the trial energy estimate.
-                            if (tIncCancelledInitEnergy) call add_trial_energy_contrib(SpawnedParts(:,i), SignTemp(j), j)
+                            if (tIncCancelledInitEnergy) call add_trial_energy_contrib(SpawnedParts(:,i), SpawnedSign(j), j)
 
                             ! Walkers came from outside initiator space.
-                            NoAborted(j) = NoAborted(j) + abs(SignTemp(j))
-                            iter_data%naborted(j) = iter_data%naborted(j) + abs(SignTemp(j))
+                            NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
+                            iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
                             ! We've already counted the walkers where SpawnedSign
                             ! become zero in the compress, and in the merge, all
                             ! that's left is those which get aborted which are
                             ! counted here only if the sign was not already zero
                             ! (when it already would have been counted).
-                            SignTemp(j) = 0.0_dp
-                            call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
+                            SpawnedSign(j) = 0.0_dp
+                            call encode_part_sign (SpawnedParts(:,i), SpawnedSign(j), j)
 
                         end if
                         ! truncate to a minimum population given by the scale factor
@@ -792,23 +794,23 @@ module AnnihilationMod
                             call set_flag(SpawnedParts(:,i), flag_prone)
                     endif
 
-                    if (.not. IsUnoccDet(SignTemp)) then
+                    if (.not. IsUnoccDet(SpawnedSign)) then
                        
                        ! if we did not kill the walkers, get the scaling factor
                        call getEScale(nJ, i, diagH, scFVal, ScaledOccupiedThresh)
                        do j = 1, lenof_sign
-                          call stochRoundSpawn(iter_data, SignTemp, i, j, scFVal, &
+                          call stochRoundSpawn(iter_data, SpawnedSign, i, j, scFVal, &
                                ScaledOccupiedThresh, t_truncate_this_det)
                        enddo
 
-                       if(.not. IsUnoccDet(SignTemp)) then
+                       if(.not. IsUnoccDet(SpawnedSign)) then
                         ! Walkers have not been aborted and so we should copy the
                         ! determinant straight over to the main list. We do not
                         ! need to recompute the hash, since this should be the
                         ! same one as was generated at the beginning of the loop.
                           if(.not. tEScaleWalkers) diagH = get_diagonal_matel(nJ, SpawnedParts(:,i))
                           call AddNewHashDet(TotWalkersNew, SpawnedParts(0:NIfTot,i), DetHash, nJ, &
-                               diagH)
+                               diagH, PartInd)
                        end if
                     end if
 
@@ -816,7 +818,7 @@ module AnnihilationMod
                     ! Running the full, non-initiator scheme.
                     ! Determinant in newly spawned list is not found in
                     ! CurrentDets. If coeff <1, apply removal criterion.
-                    call extract_sign (SpawnedParts(:,i), SignTemp)
+                    call extract_sign (SpawnedParts(:,i), SpawnedSign)
 
                     ! no chance to kill the spawn by initiator criterium
                     ! so get the diagH immediately
@@ -833,32 +835,35 @@ module AnnihilationMod
                     if (tTruncSpawn) then
                         ! Needs to be truncated away, and a contribution
                         ! added to the EN2 correction.
-                        call add_en2_pert_for_trunc_calc(i, nJ, SignTemp)
+                        call add_en2_pert_for_trunc_calc(i, nJ, SpawnedSign)
                     else
                         do j = 1, lenof_sign
                             ! truncate the spawn if required
-                            call stochRoundSpawn(iter_data, SignTemp, i, j, scFVal, &
+                            call stochRoundSpawn(iter_data, SpawnedSign, i, j, scFVal, &
                                  ScaledOccupiedThresh, t_truncate_this_det)
                         end do
 
-                        if (.not. IsUnoccDet(SignTemp)) then
+                        if (.not. IsUnoccDet(SpawnedSign)) then
                             ! Walkers have not been aborted and so we should copy the
                             ! determinant straight over to the main list. We do not
                             ! need to recompute the hash, since this should be the
                             ! same one as was generated at the beginning of the loop.
                            if(.not. tEScaleWalkers) diagH = get_diagonal_matel(nJ, SpawnedParts(:,i))
                             call AddNewHashDet(TotWalkersNew, SpawnedParts(:,i), DetHash, nJ, &
-                                 diagH)
+                                 diagH, PartInd)
                         end if
                     end if
                 end if
 
                 if (tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) then
                     ! We must use the instantaneous value for the off-diagonal contribution.
-                    if (tOldRDMs) call check_fillRDM_DiDj_old(rdms, one_rdms_old, i, SpawnedParts(0:NifTot,i), SignTemp)
-                    call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, SpawnedParts(0:NifTot,i), SignTemp)
+                    if (tOldRDMs) call check_fillRDM_DiDj_old(rdms, one_rdms_old, i, SpawnedParts(0:NifTot,i), SpawnedSign)
+                    call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, SpawnedParts(0:NifTot,i), SpawnedSign)
                 end if 
             end if
+
+            ! store the spawn in the global data
+            if(tLogAverageSpawns) call store_spawn(PartInd, SpawnedSign)
 
         end do
 

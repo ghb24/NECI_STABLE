@@ -3,7 +3,7 @@
 module global_det_data
   
   use SystemData, only: nel
-    use CalcData, only: tContTimeFCIMC, tContTimeFull, tStoredDets, tLogAverageSpawns
+    use CalcData, only: tContTimeFCIMC, tContTimeFull, tStoredDets, tActivateLAS
     use LoggingData, only: tRDMonFly, tExplicitAllRDM, tTransitionRDMs
     use FciMCData, only: MaxWalkersPart
     use constants
@@ -171,7 +171,7 @@ contains
            len_det_orbs = 0
         endif
 
-        if(tLogAverageSpawns) then
+        if(tActivateLAS) then
            len_pos_spawns = lenof_sign
            len_neg_spawns = lenof_sign
         else
@@ -584,10 +584,10 @@ contains
       do part = 1, lenof_sign
          if(spawn_sgn(part) > eps) then
             global_determinant_data(pos_pos_spawns+part-1,j) = &
-                 global_determinant_data(pos_pos_spawns+part-1,j) + spawn_sgn(part)
+                 global_determinant_data(pos_pos_spawns+part-1,j) + abs(spawn_sgn(part))
          else if(spawn_sgn(part) < -eps) then
             global_determinant_data(pos_neg_spawns+part-1,j) = &
-                 global_determinant_data(pos_neg_spawns+part-1,j) + spawn_sgn(part)
+                 global_determinant_data(pos_neg_spawns+part-1,j) + abs(spawn_sgn(part))
          endif
       end do
     end subroutine store_spawn

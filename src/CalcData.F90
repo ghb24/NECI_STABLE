@@ -414,7 +414,7 @@ logical :: t_prone_walkers, t_activate_decay
 real(dp) :: n_truncate_spawns = 3.0_dp
 
 ! flags for global storage
-logical :: tLogAverageSpawns
+logical :: tLogAverageSpawns, tActivateLAS
 ! threshold value to make something an initiator based on spawn coherence
 real(dp) :: spawnSgnThresh
 integer :: minInitSpawns

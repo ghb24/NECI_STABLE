@@ -313,7 +313,7 @@ contains
     subroutine move_block(block, tgt_proc)
       implicit none
         integer, intent(in) :: block, tgt_proc
-        integer :: src_proc, ierr, nsend, nelem, j, k, det_block, hash_val
+        integer :: src_proc, ierr, nsend, nelem, j, k, det_block, hash_val, PartInd
         integer :: det(nel), TotWalkersTmp, nconsend, clashes, ntrial, ncon
         integer(n_int) :: con_state(0:NConEntry)
         real(dp) :: sgn(lenof_sign)
@@ -412,7 +412,7 @@ contains
                 ! Calculate the diagonal hamiltonian matrix element for the new particle to be merged.
                 HDiag = get_diagonal_matel(det, SpawnedParts(:,j))
                 call AddNewHashDet(TotWalkersTmp, SpawnedParts(:, j), &
-                                   hash_val, det, HDiag)
+                                   hash_val, det, HDiag, PartInd)
                 TotWalkers = TotWalkersTmp
             end do
 
@@ -457,7 +457,7 @@ contains
     end subroutine
 
 
-    subroutine AddNewHashDet(TotWalkersNew, iLutCurr, DetHash, nJ, HDiag)
+    subroutine AddNewHashDet(TotWalkersNew, iLutCurr, DetHash, nJ, HDiag, DetPosition)
 
         ! Add a new determinant to the main list. This involves updating the
         ! list length, copying it across, updating its flag, adding its diagonal
@@ -468,7 +468,7 @@ contains
         integer(n_int), intent(inout) :: iLutCurr(0:NIfTot)
         integer, intent(in) :: DetHash, nJ(nel)
         real(dp), intent(in) :: HDiag
-        integer :: DetPosition
+        integer, intent(out) :: DetPosition
         HElement_t(dp) :: trial_amps(ntrial_excits)
         logical :: tTrial, tCon
         real(dp), dimension(lenof_sign) :: SignCurr
