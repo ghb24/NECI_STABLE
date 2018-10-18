@@ -2,13 +2,19 @@ module gen_coul_ueg_mod
     use UMatCache, only: UMatInd, GTID
     use SystemData, only: BasisFN, nel, nBasisMax, nBasis, G1, NMSH, nMax, &
                           iSpinSkip, tHub, uHub, omega, iPeriodicDampingType,&
-                          ALAT, btHub, momIndexTable, breathingCont, tmodHub
+                          btHub, momIndexTable, breathingCont, tmodHub,&
+                          ALAT,OrbECutoff,t_ueg_transcorr
     use IntegralsData, only: UMat, FCK
     use global_utilities
     use constants, only: sp, dp, pi, pi2, THIRD
     use iso_c_hack
     use breathing_Hub, only: bHubIndexFunction
     implicit none
+    
+    save
+! approximate the 3 body potential by 2 body terms and store them in  UMAT
+     HElement_t(dp),  ALLOCATABLE :: UMAT_TC2(:,:,:)
+     real(dp) :: ktc_cutoff2
 
 contains
 
@@ -351,13 +357,15 @@ contains
     end function
 
       
+!  the following fun is modified for transcorrelated Hamiltonian under RPA approx     
     function get_ueg_umat_el (idi, idj, idk, idl) result(hel)
 
         use SystemData, only: tUEG2, kvec, k_lattice_constant, dimen
         integer, intent(in) :: idi, idj, idk, idl
         HElement_t(dp) :: hel
-        integer :: i, j, k, l, a, b, c, iss
+        integer :: i, j, k, l, a, b, c, iss, id1, id2, id3, id4
         real(dp) :: G, G2
+        real(dp) :: k_tc(3), pq_tc(3), u_tc, gamma_RPA, gamma_kmax
         logical :: tCoulomb, tExchange          
         real(dp), parameter :: EulersConst = 0.5772156649015328606065120900824024_dp
         character(*), parameter :: this_routine = 'get_ueg_umat_el'
@@ -429,6 +437,8 @@ contains
         if ( (i == k) .and. (j == l) ) tCoulomb = .true.
         if ( (i == l) .and. (j == k) ) tExchange = .true.
 
+        
+     if(dimen==3)then
         ! The Uniform Electron Gas
         a = G1(i)%k(1) - G1(k)%k(1)
         b = G1(i)%k(2) - G1(k)%k(2)
@@ -451,18 +461,42 @@ contains
                 ! This is the equivalent of adding a positive uniform 
                 ! background.
                 ! The effects
-                G2 = ((a / ALAT(1))**2 +(b / ALAT(2))**2)
-                if (ALAT(3) /= 0) G2 = G2 + (c / ALAT(3))**2
+                
 
-                ! Sum is G^2 / 4 Pi*Pi
-                G = 2 * PI * sqrt(G2)
-                hel = (1.0_dp / PI) / (G2 * ALAT(1) * ALAT(2) * ALAT(3))
+              if(t_ueg_transcorr)then  
+! ============== the transcorrelated H under RPA =============================
+                k_tc(1) = -2 * PI * a / ALAT(1)
+                k_tc(2) = -2 * PI * b / ALAT(2)                
+                k_tc(3) = -2 * PI * c / ALAT(3)
+                G2 = k_tc (1) * k_tc (1) + k_tc (2) * k_tc (2) + k_tc (3) * k_tc (3)
+                G = sqrt(G2)
+                pq_tc(1) = (G1(k)%k(1) - G1(l)%k(1))*2*PI/ ALAT(1)
+                pq_tc(2) = (G1(k)%k(2) - G1(l)%k(2))*2*PI/ ALAT(2)
+                pq_tc(3) = (G1(k)%k(3) - G1(l)%k(3))*2*PI/ ALAT(3)
+                
+                if(G2<=ktc_cutoff2*(1.0+1.d-10))then
+                 u_tc = 0.0
+                else 
+                 u_tc = - 4 * PI / G2**2
+                end if
+                
+                
+                 hel = 4 * PI / G2 + G2 * u_tc - (pq_tc(1) * k_tc(1) +pq_tc(2) * k_tc(2) +pq_tc(3) * k_tc(3)) *u_tc  &
+                        - (nel-2) * G2 / (ALAT(1) * ALAT(2) * ALAT(3)) * u_tc**2&
+                        - UMAT_TC2(-a,-b,-c)
+               else
+! =============== The original coulomb potential  ===================================              
+                 G2 = ((a / ALAT(1))**2 +(b / ALAT(2))**2)
+                 if (ALAT(3) /= 0) G2 = G2 + (c / ALAT(3))**2
  
-                ! Sum is now (4 Pi / G^2 ) / Omega
-                ! ALAT(4) is Rc, a cutoff length.
-                ! For Exchange integrals we calculate <ij|kl>cell with a 
-                ! potenial v(r)=1/r (r<Rc) and 0 (r>=Rc)
-                if (tExchange) then
+                 ! Sum is G^2 / 4 Pi*Pi
+                 G = 2 * PI * sqrt(G2)
+                 hel = (1.0_dp / PI) / G2 
+               end if 
+                        
+                 hel=hel / (ALAT(1) * ALAT(2) * ALAT(3)) 
+
+                 if (tExchange) then
                     if (iPeriodicDampingType == 2) then
                         ! Spherical cutoff used.
                         ! For non-Coulomb integrals we calculate <ij|kl>_cell
@@ -477,7 +511,18 @@ contains
                 endif
             else
                 ! <ii|ii>
-                hel = 0
+                 hel = 0.
+!                TC energy
+                 if(t_ueg_transcorr)then
+!                  if(i==j)then
+!                   hel = -UMAT_TC2(0,0,0) / (ALAT(1) * ALAT(2) * ALAT(3))/4
+!                    hel=0.0
+!                  else 
+!                   hel = -UMAT_TC2(0,0,0) / (ALAT(1) * ALAT(2) * ALAT(3))
+!                  end if 
+                  hel = -UMAT_TC2(0,0,0) / (ALAT(1) * ALAT(2) * ALAT(3))
+                 end if 
+                
                 if (.not. tCoulomb .and. iPeriodicDampingType /= 0) then
                     ! The G=0 component is explicitly calculated for
                     ! non-Coulomb interactions as 2 PI Rc**2.
@@ -492,7 +537,622 @@ contains
         else
             hel = 0
         endif
+      else if(dimen==2)then
+        ! The Uniform Electron Gas
+        a = G1(i)%k(1) - G1(k)%k(1)
+        b = G1(i)%k(2) - G1(k)%k(2)
+
+        if ( ((G1(l)%k(1) - G1(j)%k(1)) == a) .and. &
+             ((G1(l)%k(2) - G1(j)%k(2)) == b) ) then
+
+
+
+            if ( (a /= 0) .or. (b /= 0) ) then
+
+              if(t_ueg_transcorr)then  
+! ============== the transcorrelated H under RPA =============================
+                k_tc(1) = -2 * PI * a / ALAT(1)
+                k_tc(2) = -2 * PI * b / ALAT(2)                
+                G2 = k_tc (1) * k_tc (1) + k_tc (2) * k_tc (2)
+                G = sqrt(G2)
+                pq_tc(1) = (G1(k)%k(1) - G1(l)%k(1))*2*PI/ ALAT(1)
+                pq_tc(2) = (G1(k)%k(2) - G1(l)%k(2))*2*PI/ ALAT(2)
+                
+                if(G2<=ktc_cutoff2*(1.0+1.d-10))then
+                 u_tc = 0.0
+                else 
+                 u_tc = - 2 * PI / G2/G
+                end if
+                
+                
+                 hel = 2 * PI / G + G2 * u_tc - (pq_tc(1) * k_tc(1) +pq_tc(2) * k_tc(2)) *u_tc  &
+                        - (nel-2) * G2 / (ALAT(1) * ALAT(2)) * u_tc**2&
+                        - UMAT_TC2(-a,-b,0)
+               else
+! =============== The original coulomb potential  ===================================              
+                 G2 = ((a / ALAT(1))**2 +(b / ALAT(2))**2)
+ 
+                 G = 2 * PI * sqrt(G2)
+                 
+                 hel = (2 * PI) / G 
+               end if 
+                        
+                 hel=hel / (ALAT(1) * ALAT(2) ) 
+
+                 if (tExchange) then
+                    if (iPeriodicDampingType == 2) then
+                        ! Spherical cutoff used.
+                        ! For non-Coulomb integrals we calculate <ij|kl>_cell
+                        ! with a potenial v(r)=1/r (r<Rc) and 0 (r>=Rc).
+                        hel = hel * (1.0_dp - cos(G * ALAT(4)))
+                    else if (iPeriodicDampingType == 1) then
+                        ! Screened potential used.
+                        ! For non-Coulomb integrals we calculate <ij|kl>
+                        ! with a potenial v(r)=erfc(r/Rc)/r.
+                        hel = hel * (1.0_dp - exp(-(G * ALAT(4))**2 / 2.0_dp))
+                    endif
+                endif
+            else
+                ! <ii|ii>
+                 hel = 0.
+!                TC energy
+                 if(t_ueg_transcorr)then
+!                  if(i==j)then
+!                    hel=0.
+!                  else 
+                   hel = -UMAT_TC2(0,0,0) / (ALAT(1) * ALAT(2))
+!                  end if 
+                 end if 
+                
+                if (.not. tCoulomb .and. iPeriodicDampingType /= 0) then
+                    ! The G=0 component is explicitly calculated for
+                    ! non-Coulomb interactions as 2 PI Rc**2.
+                    ! This is found by taking the Taylor expansion of the
+                    ! attenuated and screened potentials and
+                    ! considering the limit of G->0.  Both give the same
+                    ! result.
+                    call stop_all (this_routine, "<ii|ii> calculation error")
+                    hel = 2 * pi * ALAT(4)**2 / (ALAT(1) * ALAT(2))
+                endif
+            endif
+        else
+            hel = 0
+        endif
+      
+      else
+        write(6,*)'dimension error in get_ueg_umat_el',dimen
+        stop
+      end if  
+      
 
     end function
+
+    
+    
+    
+    
+ 
+    
+    
+    
+   
+    
+    
+     subroutine GEN_Umat_TC
+        use SystemData, only: dimen
+!        use Determinants, only: FDet
+        use sym_mod, only: roundsym, addelecsym, setupsym, lchksym
+        type(BasisFn) :: ka, kb
+        integer :: a, b, c, d, tx, ty, kmax2, kmax2_cut
+        integer :: ii, i, j, k, l, id1, id2, id3, id4, ind, AllocateStatus
+        real(dp) :: lx, ly, p, q, t2, sum
+        complex(dp) :: s, ci
+        type(timer), save :: proc_timer
+
+        real(dp) :: k_tc(3), pq_tc(3), u_tc, gamma_RPA, gamma_kmax, G2, G,k1_tc(3),k2_tc(3)
+        logical :: tCoulomb, tExchange          
+        character(*), parameter :: this_routine = 'GEN_Umat_TC'
+        
+
+! ============== parameter for the correlation factor for TC method =============================
+!        gamma_RPA=(4 * PI * nel/ (ALAT(1) * ALAT(2) * ALAT(3)))**0.25
+!        gamma_kmax=sqrt(((NBASISMAX(1,2))*2*PI/ALAT(1))**2+ &
+!                   ((NBASISMAX(2,2))*2*PI/ALAT(2))**2+((NBASISMAX(3,2))*2*PI/ALAT(3))**2)  
+         ktc_cutoff2=OrbECutoff*(2*PI/ALAT(1))**2
+       
+        
+        i=1       
+        if(i==0)then
+        
+         call Madelungterm
+         stop
+        end if 
+        
+        
+        
+        open(10,file='3Bstatus',status='unknown')
+        write(10,*)' With 3B RPA term -_-'
+        close(10)
+
+        proc_timer%timer_name = this_routine
+        call set_timer (proc_timer)
+      
+
+!!!!!!!! generate UMAT_TC2, the Fourier transformation of (D u)^2
+        kmax2=2*abs(NBASISMAX(1,2))
+        
+        
+        
+     if(dimen==3) then
+     
+        ALLOCATE ( UMAT_TC2(-kmax2:kmax2,-kmax2:kmax2,-kmax2:kmax2), STAT = AllocateStatus)
+        IF (AllocateStatus /= 0) STOP "*** Not enough memory for UMAT_TC2 ***"
+        
+     
+     
+        kmax2_cut=100
+        
+        do i = -kmax2, kmax2
+           do j = -kmax2, kmax2
+               do k = -kmax2, kmax2
+                 UMAT_TC2(i,j,k) = 0.0
+                 do id1= -kmax2_cut, kmax2_cut
+                  k1_tc(1)= 2 * PI * id1 / ALAT(1)
+                  k2_tc(1)= 2 * PI * (i-id1) / ALAT(1)
+                 do id2= -kmax2_cut, kmax2_cut
+                  k1_tc(2)= 2 * PI * id2 / ALAT(2)
+                  k2_tc(2)= 2 * PI * (j-id2) / ALAT(2)
+                 do id3= -kmax2_cut, kmax2_cut
+                  k1_tc(3)= 2 * PI * id3 / ALAT(3)
+                  k2_tc(3)= 2 * PI * (k-id3) / ALAT(3)
+                  UMAT_TC2(i,j,k) = UMAT_TC2(i,j,k) - uu_tc_prod (k1_tc,k2_tc)
+                 end do
+                 end do
+                 end do
+                 UMAT_TC2(i,j,k) = UMAT_TC2(i,j,k) / (ALAT(1) * ALAT(2) * ALAT(3)) 
+              end do
+           end do
+        end do  
+        
+      else if(dimen==2)then
+      
+        ALLOCATE ( UMAT_TC2(-kmax2:kmax2,-kmax2:kmax2,0:0), STAT = AllocateStatus)
+        IF (AllocateStatus /= 0) STOP "*** Not enough memory for UMAT_TC2 ***"
+        
+
+      
+        kmax2_cut=1000
+      
+         do i = -kmax2, kmax2
+           do j = -kmax2, kmax2
+                 UMAT_TC2(i,j,0) = 0.0
+                 do id1= -kmax2_cut, kmax2_cut
+                  k1_tc(1)= 2 * PI * id1 / ALAT(1)
+                  k2_tc(1)= 2 * PI * (i-id1) / ALAT(1)
+                 do id2= -kmax2_cut, kmax2_cut
+                  k1_tc(2)= 2 * PI * id2 / ALAT(2)
+                  k2_tc(2)= 2 * PI * (j-id2) / ALAT(2)
+                  k1_tc(3)= 0.0_dp
+                  k2_tc(3)= 0.0_dp
+                  
+                   UMAT_TC2(i,j,0) = UMAT_TC2(i,j,0) - uu_tc_prod (k1_tc,k2_tc)
+                 end do
+                 end do
+                 UMAT_TC2(i,j,0) = UMAT_TC2(i,j,0) / (ALAT(1) * ALAT(2) ) 
+           end do
+        end do  
+     
+      
+      else 
+        write(6,*) 'dimension error in GEN_Umat_TC', dimen
+        stop
+      end if  
+         
+!       open(10,file='UMAT_TC2',status='unknown')
+!        do i=0,2
+!        do j=0,2
+!        do k=0,2
+!         write(10,*),i,j,k,UMAT_TC2(i,j,k)
+!        end do
+!        end do
+!        end do
+!       close(10)
+         
+      
+      
+        call halt_timer(proc_timer)
+    end subroutine
+
+
+! Here we calculate the product k1*k2*u(k1)*u(k2) for the transcorrelated method
+    function uu_tc_prod (k1_tc,k2_tc) result(uu_prod)
+
+        use SystemData, only: tUEG2, kvec, k_lattice_constant, dimen
+        real(dp), intent(in) :: k1_tc(3), k2_tc(3)
+        real(dp) :: uu_prod, k1,k2,u1,u2,k12
+        
+        
+      if(dimen==3)then  
+        k12=k1_tc(1)*k2_tc(1)+k1_tc(2)*k2_tc(2)+k1_tc(3)*k2_tc(3)
+        k1=k1_tc(1)*k1_tc(1)+k1_tc(2)*k1_tc(2)+k1_tc(3)*k1_tc(3)
+        k2=k2_tc(1)*k2_tc(1)+k2_tc(2)*k2_tc(2)+k2_tc(3)*k2_tc(3)
+        if(k1<=ktc_cutoff2*(1.0+1.d-10))then
+         u1 = 0.0
+        else 
+         u1 = - 12.566370614359173 / k1**2
+        end if 
+        
+        if(k2<=ktc_cutoff2*(1.0+1.d-10))then
+         u2 = 0.0
+        else 
+         u2 = - 12.566370614359173 / k2**2
+        end if
+        
+        uu_prod=k12*u1*u2
+      else if (dimen==2)then
+        k12=k1_tc(1)*k2_tc(1)+k1_tc(2)*k2_tc(2)
+        k1=k1_tc(1)*k1_tc(1)+k1_tc(2)*k1_tc(2)
+        k2=k2_tc(1)*k2_tc(1)+k2_tc(2)*k2_tc(2)
+        if(k1<=ktc_cutoff2*(1.0+1.d-10))then
+         u1 = 0.0
+        else 
+         u1 = - 6.283185307179586 / k1/dsqrt(k1)
+        end if 
+        
+        if(k2<=ktc_cutoff2*(1.0+1.d-10))then
+         u2 = 0.0
+        else 
+         u2 = - 6.283185307179586 / k2/dsqrt(k2)
+        end if
+        
+        uu_prod=k12*u1*u2
+      
+      else
+        write(6,*) 'dimension error in uu_tc_prod', dimen
+        stop
+      end if
+      
+    end function    
+
+    subroutine Madelungterm
+    use SystemData, only: dimen
+    
+    real(dp) :: kapa, sum, a,r
+    integer  :: i,j,k,ii,m_cut
+    
+    
+    if(dimen==3)then  !======================
+    
+    kapa=sqrt(pi)/ALAT(1)
+    m_cut=20
+    
+    sum=0.0
+    
+    do i=-m_cut,m_cut
+    do j=-m_cut,m_cut
+    do k=-m_cut,m_cut
+     
+     ii=i*i+j*j+k*k
+     a=dsqrt(ii*ALAT(1)*ALAT(1))
+     if(ii>0)then
+      sum=sum+exp(-pi*ii)/pi/ii*(ALAT(1))**2
+     end if
+    end do
+    end do
+    end do
+    
+    sum=(sum-pi/kapa/kapa)/(ALAT(1))**3
+    
+    
+    do i=-m_cut,m_cut
+    do j=-m_cut,m_cut
+    do k=-m_cut,m_cut
+    
+     ii=i*i+j*j+k*k
+     if(ii>0)then
+      r=sqrt(1.0*ii)*ALAT(1) 
+      sum=sum+erfc(kapa*r)/r
+     end if
+    end do
+    end do
+    end do
+    sum=sum-2*kapa/sqrt(pi)
+    
+    else !============================ dimen=2
+    
+    kapa=sqrt(pi)/ALAT(1)
+    m_cut=20
+    
+    sum=0.0
+    
+    do i=-m_cut,m_cut
+    do j=-m_cut,m_cut
+     
+     ii=i*i+j*j
+     if(ii>0)then
+      a=sqrt(1.0*ii)*2*pi/ALAT(1)
+      sum=sum+erfc(a/2/kapa)/a
+     end if
+    end do
+    end do
+    
+    
+    sum=(sum*2*pi-2*dsqrt(pi)/kapa)/(ALAT(1))**2
+    
+    
+    do i=-m_cut,m_cut
+    do j=-m_cut,m_cut
+    
+     ii=i*i+j*j
+     if(ii>0)then
+      r=sqrt(1.0*ii)*ALAT(1) 
+      sum=sum+erfc(kapa*r)/r
+     end if
+    end do
+    end do
+    sum=sum-2*kapa/sqrt(pi)
+    
+    
+    end if !========================= not yet for other dimensions
+    
+    
+    
+    open(10,file='MadelungTerm.dat', status='unknown')
+    write(10,*)sum*Nel/2
+    close(10)
+    
+    end subroutine
+    
+!   prepare FCIDUMP for UEG, Debug    
+    subroutine prep_ueg_dump
+
+        use SystemData, only: tUEG2, kvec, k_lattice_constant, dimen
+        HElement_t(dp) :: hel
+        integer :: i, j, k, l, a, b, c, iss, id1, id2, id3, id4,ms2,nelec,i0,norb
+        real(dp) :: G, G2,energy
+        real(dp) :: k_tc(3), pq_tc(3), u_tc, gamma_RPA, gamma_kmax
+        logical :: tCoulomb, tExchange  
+        character(*), parameter :: this_routine = 'prep_ueg_dump'
+        namelist /FCI/ NORB,nelec,MS2
+        
+        ms2=0
+        nelec=nel 
+        norb=nBasis/2
+       open(10,file='FCIDUMP_HF',status='unknown')
+      write(10,FCI)
+      do id1=1,norb
+       do id2=1,norb
+        do id3=1,norb
+         do id4=1,norb
+          i=(id1-1)*2+1
+          j=(id2-1)*2+1
+          k=(id3-1)*2+1
+          l=(id4-1)*2+1
+          
+!============ copy from above
+        
+     if(dimen==3)then
+        ! The Uniform Electron Gas
+        a = G1(i)%k(1) - G1(k)%k(1)
+        b = G1(i)%k(2) - G1(k)%k(2)
+        c = G1(i)%k(3) - G1(k)%k(3)
+
+        if ( ((G1(l)%k(1) - G1(j)%k(1)) == a) .and. &
+             ((G1(l)%k(2) - G1(j)%k(2)) == b) .and. &
+             ((G1(l)%k(3) - G1(j)%k(3)) == c) ) then
+
+
+
+            if ( (a /= 0) .or. (b /= 0) .or. (c /= 0) ) then
+                ! WRITE(6,*) "(",I,J,"|",K,L,")",A,B,C
+                ! Coulomb integrals are long-ranged, so calculated with 
+                ! 4 pi/G**2.
+                !AJWT <IJ|r_12^-1|KL> = v_(G_I-G_K) delta_((G_I-G_K)-(G_L-G_J)
+                ! v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
+                ! For Coulomb interactions <ij|ij> we have explicitly excluded
+                ! the G=0 component as it is divergent.
+                ! This is the equivalent of adding a positive uniform 
+                ! background.
+                ! The effects
+                
+
+              if(t_ueg_transcorr)then  
+! ============== the transcorrelated H under RPA =============================
+                k_tc(1) = -2 * PI * a / ALAT(1)
+                k_tc(2) = -2 * PI * b / ALAT(2)                
+                k_tc(3) = -2 * PI * c / ALAT(3)
+                G2 = k_tc (1) * k_tc (1) + k_tc (2) * k_tc (2) + k_tc (3) * k_tc (3)
+                G = sqrt(G2)
+                pq_tc(1) = (G1(k)%k(1) - G1(l)%k(1))*2*PI/ ALAT(1)
+                pq_tc(2) = (G1(k)%k(2) - G1(l)%k(2))*2*PI/ ALAT(2)
+                pq_tc(3) = (G1(k)%k(3) - G1(l)%k(3))*2*PI/ ALAT(3)
+                
+                if(G2<=ktc_cutoff2*(1.0+1.d-10))then
+                 u_tc = 0.0
+                else 
+                 u_tc = - 4 * PI / G2**2
+                end if
+                
+                
+                 hel = 4 * PI / G2 + G2 * u_tc - (pq_tc(1) * k_tc(1) +pq_tc(2) * k_tc(2) +pq_tc(3) * k_tc(3)) *u_tc  &
+                        - (nel-2) * G2 / (ALAT(1) * ALAT(2) * ALAT(3)) * u_tc**2&
+                        - UMAT_TC2(-a,-b,-c)
+               else
+! =============== The original coulomb potential  ===================================              
+                 G2 = ((a / ALAT(1))**2 +(b / ALAT(2))**2)
+                 if (ALAT(3) /= 0) G2 = G2 + (c / ALAT(3))**2
+ 
+                 ! Sum is G^2 / 4 Pi*Pi
+                 G = 2 * PI * sqrt(G2)
+                 hel = (1.0_dp / PI) / G2 
+               end if 
+                        
+                 hel=hel / (ALAT(1) * ALAT(2) * ALAT(3)) 
+
+                 if (tExchange) then
+                    if (iPeriodicDampingType == 2) then
+                        ! Spherical cutoff used.
+                        ! For non-Coulomb integrals we calculate <ij|kl>_cell
+                        ! with a potenial v(r)=1/r (r<Rc) and 0 (r>=Rc).
+                        hel = hel * (1.0_dp - cos(G * ALAT(4)))
+                    else if (iPeriodicDampingType == 1) then
+                        ! Screened potential used.
+                        ! For non-Coulomb integrals we calculate <ij|kl>
+                        ! with a potenial v(r)=erfc(r/Rc)/r.
+                        hel = hel * (1.0_dp - exp(-(G * ALAT(4))**2 / 2.0_dp))
+                    endif
+                endif
+            else
+                ! <ii|ii>
+                 hel = 0.
+!                TC energy
+                 if(t_ueg_transcorr)then
+!                  if(i==j)then
+!                   hel = -UMAT_TC2(0,0,0) / (ALAT(1) * ALAT(2) * ALAT(3))/4
+!                    hel=0.0
+!                  else 
+!                   hel = -UMAT_TC2(0,0,0) / (ALAT(1) * ALAT(2) * ALAT(3))
+!                  end if 
+                  hel = -UMAT_TC2(0,0,0) / (ALAT(1) * ALAT(2) * ALAT(3))
+                 end if 
+                
+                if (.not. tCoulomb .and. iPeriodicDampingType /= 0) then
+                    ! The G=0 component is explicitly calculated for
+                    ! non-Coulomb interactions as 2 PI Rc**2.
+                    ! This is found by taking the Taylor expansion of the
+                    ! attenuated and screened potentials and
+                    ! considering the limit of G->0.  Both give the same
+                    ! result.
+                    call stop_all (this_routine, "<ii|ii> calculation error")
+                    hel = 2 * pi * ALAT(4)**2 / (ALAT(1) * ALAT(2) * ALAT(3))
+                endif
+            endif
+        else
+            hel = 0
+        endif
+      else if(dimen==2)then
+        ! The Uniform Electron Gas
+        a = G1(i)%k(1) - G1(k)%k(1)
+        b = G1(i)%k(2) - G1(k)%k(2)
+
+        if ( ((G1(l)%k(1) - G1(j)%k(1)) == a) .and. &
+             ((G1(l)%k(2) - G1(j)%k(2)) == b) ) then
+
+
+
+            if ( (a /= 0) .or. (b /= 0) ) then
+
+              if(t_ueg_transcorr)then  
+! ============== the transcorrelated H under RPA =============================
+                k_tc(1) = -2 * PI * a / ALAT(1)
+                k_tc(2) = -2 * PI * b / ALAT(2)                
+                G2 = k_tc (1) * k_tc (1) + k_tc (2) * k_tc (2)
+                G = sqrt(G2)
+                pq_tc(1) = (G1(k)%k(1) - G1(l)%k(1))*2*PI/ ALAT(1)
+                pq_tc(2) = (G1(k)%k(2) - G1(l)%k(2))*2*PI/ ALAT(2)
+                
+                if(G2<=ktc_cutoff2*(1.0+1.d-10))then
+                 u_tc = 0.0
+                else 
+                 u_tc = - 2 * PI / G2/G
+                end if
+                
+                
+                 hel = 2 * PI / G + G2 * u_tc - (pq_tc(1) * k_tc(1) +pq_tc(2) * k_tc(2)) *u_tc  &
+                        - (nel-2) * G2 / (ALAT(1) * ALAT(2)) * u_tc**2&
+                        - UMAT_TC2(-a,-b,0)
+               else
+! =============== The original coulomb potential  ===================================              
+                 G2 = ((a / ALAT(1))**2 +(b / ALAT(2))**2)
+ 
+                 G = 2 * PI * sqrt(G2)
+                 
+                 hel = (2 * PI) / G 
+               end if 
+                        
+                 hel=hel / (ALAT(1) * ALAT(2) ) 
+
+                 if (tExchange) then
+                    if (iPeriodicDampingType == 2) then
+                        ! Spherical cutoff used.
+                        ! For non-Coulomb integrals we calculate <ij|kl>_cell
+                        ! with a potenial v(r)=1/r (r<Rc) and 0 (r>=Rc).
+                        hel = hel * (1.0_dp - cos(G * ALAT(4)))
+                    else if (iPeriodicDampingType == 1) then
+                        ! Screened potential used.
+                        ! For non-Coulomb integrals we calculate <ij|kl>
+                        ! with a potenial v(r)=erfc(r/Rc)/r.
+                        hel = hel * (1.0_dp - exp(-(G * ALAT(4))**2 / 2.0_dp))
+                    endif
+                endif
+            else
+                ! <ii|ii>
+                 hel = 0.
+!                TC energy
+                 if(t_ueg_transcorr)then
+                  if(i==j)then
+                   hel = -UMAT_TC2(0,0,0) / (ALAT(1) * ALAT(2))
+!                    hel=0.
+                  else 
+                   hel = -UMAT_TC2(0,0,0) / (ALAT(1) * ALAT(2))
+                  end if 
+                 end if 
+                
+                if (.not. tCoulomb .and. iPeriodicDampingType /= 0) then
+                    ! The G=0 component is explicitly calculated for
+                    ! non-Coulomb interactions as 2 PI Rc**2.
+                    ! This is found by taking the Taylor expansion of the
+                    ! attenuated and screened potentials and
+                    ! considering the limit of G->0.  Both give the same
+                    ! result.
+                    call stop_all (this_routine, "<ii|ii> calculation error")
+                    hel = 2 * pi * ALAT(4)**2 / (ALAT(1) * ALAT(2))
+                endif
+            endif
+        else
+            hel = 0
+        endif
+      
+      else
+        write(6,*)'dimension error in get_ueg_umat_el',dimen
+        stop
+      end if  
+!================================================
+
+             
+          
+          if(abs(hel).gt.1.d-30)then
+            write(10,'(1x,e23.16,4I4)')hel,id1,id3,id2,id4
+          end if
+         end do
+        end do
+       end do
+      end do
+      i0=0
+      do i=1,norb
+      do j=i,i
+       
+          id1=(i-1)*2+1
+                   
+         a = G1(id1)%k(1) 
+         b = G1(id1)%k(2) 
+         c = G1(id1)%k(3)
+         
+         hel=a*a/2.0+b*b/2.0+c*c/2.0
+         hel=hel*(2*pi/ALAT(1))**2
+         
+       if(abs(hel).gt.1.d-30)then
+       write(10,'(1x,e23.16,4I4)')hel,i,j,i0,i0
+       end if
+      end do
+      end do
+      energy=0.0
+      write(10,'(1x,e23.16,4I4)')energy,i0,i0,i0,i0
+      close(10)
+     
+     stop
+    end subroutine 
+            
+
 
 end module

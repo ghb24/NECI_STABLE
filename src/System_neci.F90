@@ -92,6 +92,7 @@ MODULE System
       STOT=0
       TPARITY = .false.
       IParity(:)=0
+      dimen = 3
       NMAXX = 0
       NMAXY = 0
       NMAXZ = 0
@@ -190,6 +191,7 @@ MODULE System
       t_uniform_excits = .false.
       t_mol_3_body = .false.
       t_exclude_3_body_excits = .false.
+      t_ueg_transcorr = .false.
       tMultiReplicas = .false.
       tGiovannisBrokenInit = .false.
       ! by default, excitation generation already creates matrix elements
@@ -566,6 +568,9 @@ system: do
        case('EXCLUDE-3-BODY-EX')
           ! Do not generate 3-body excitations, even in the molecular-transcorr mode
           t_exclude_3_body_excits = .true.
+       
+       case('UEG-TRANSCORR')
+           t_ueg_transcorr = .true.
 
        case ('TRANSCORRELATED', 'TRANSCORR', 'TRANS-CORR')
            ! activate the transcorrelated Hamiltonian idea from hongjun for 
@@ -1404,7 +1409,7 @@ system: do
       real(dp) FKF,Rs
         
 ! General variables
-      INTEGER i,j,k,l,iG
+      INTEGER i,j,k,l,iG,k2_max_2d
       INTEGER len
       type(timer), save :: proc_timer
       real(dp) SUM
@@ -1917,15 +1922,33 @@ system: do
                  nBasisMax(2,3) = 1
                  tStoreSpinOrbs = .true.
              end if
+             
+             if(t_ueg_transcorr)WRITE(6,*) 'Using Transcorrelated method on UEG'
+             
              IF(FUEGRS.NE.0.0_dp) THEN
                 WRITE(6,'(A,F20.16)') '  Electron Gas Rs set to ',FUEGRS
-                OMEGA=BOX*BOX*BOX*BOA*COA
+                WRITE(6,'(A,I4)') '  DIMENSION set to ',dimen
+                if(dimen==3) then
+                 OMEGA=BOX*BOX*BOX*BOA*COA
 !C.. required density is (3/(4 pi rs^3))
 !C.. need omega to be (NEL* 4 pi rs^3 / 3)
 !C.. need box to be (NEL*4 pi/(3 BOA COA))^(1/3) rs
-                BOX=(NEL*4.0_dp*PI/(3.0_dp*BOA*COA))**(1.0_dp/3.0_dp)
-                BOX=BOX*FUEGRS
-                WRITE(6,'(A, F20.16)') "  Resetting box size to ", BOX
+                 BOX=(NEL*4.0_dp*PI/(3.0_dp*BOA*COA))**(1.0_dp/3.0_dp)
+                 BOX=BOX*FUEGRS
+                 WRITE(6,'(A, F20.16)') "  Resetting box size to ", BOX
+                else if(dimen==2) then
+                 OMEGA=BOX*BOX*BOA
+!C.. required density is (1/( pi rs^2))
+!C.. need omega to be (NEL* pi rs^2)
+!C.. need box to be (NEL* pi/ BOA)^(1/2) rs
+                 BOX=(NEL*PI/BOA)**(1.0_dp/2.0_dp)
+                 BOX=BOX*FUEGRS
+                 WRITE(6,'(A, F20.16)') "  Resetting box size to ", BOX
+                else
+                 WRITE(6,'(A, I4)') " Dimension problem  ", dimen 
+                stop
+                end if 
+                
              ENDIF
           ENDIF
           IF(THUB) WRITE(6,'(A)') '  *** HUBBARD MODEL ***  ' 
@@ -2031,6 +2054,7 @@ system: do
              end if
              RS=1.0_dp
           ELSE
+            if(dimen==3)then
              OMEGA=ALAT(1)*ALAT(2)*ALAT(3)
              RS=(3.0_dp*OMEGA/(4.0_dp*PI*NEL))**THIRD
              ALAT(5)=RS
@@ -2048,6 +2072,30 @@ system: do
              WRITE(6,*) " Fermi vector kF=",FKF
              WRITE(6,*) " Fermi Energy EF=",FKF*FKF/2
              WRITE(6,*) " Unscaled Fermi Energy nmax**2=",(FKF*FKF/2)/(0.5*(2*PI/ALAT(5))**2)
+            else if(dimen==2)then
+             OMEGA=ALAT(1)*ALAT(2)
+             RS=dsqrt(OMEGA/(PI*NEL))
+             ALAT(5)=RS
+             IF(iPeriodicDampingType.NE.0) THEN
+                IF(iPeriodicDampingType.EQ.1) THEN
+                   WRITE(6,*) " Using attenuated Coulomb potential for exchange interactions."
+                ELSEIF(iPeriodicDampingType.EQ.2) THEN
+                   WRITE(6,*) " Using cut-off Coulomb potential for exchange interactions."
+                ENDIF
+          
+                WRITE(6,*) " Rc cutoff: ",ALAT(4)
+             ENDIF
+             WRITE(6,*) " Wigner-Seitz radius Rs=",RS
+             FKF=dsqrt(2.0_dp)/RS
+             WRITE(6,*) " Fermi vector kF=",FKF
+             WRITE(6,*) " Fermi Energy EF=",FKF*FKF/2
+             WRITE(6,*) " Unscaled Fermi Energy nmax**2=",(FKF*FKF/2)/(0.5*(2*PI/ALAT(5))**2) !??????????
+            
+            else 
+             WRITE(6,'(A, I4)') " Dimension problem  ", dimen 
+             stop
+            end if
+
           ENDIF
           IF(OrbECutoff.ne.1e-20_dp) WRITE(6,*) " Orbital Energy Cutoff:",OrbECutoff
           WRITE(6,'(1X,A,F19.5)') '  VOLUME : ' , OMEGA
@@ -2103,9 +2151,17 @@ system: do
              NBASISMAX(3,1)=-NMAXZ
              NBASISMAX(3,2)=NMAXZ
              NBASISMAX(1,3)=-1
-             LEN=(2*NMAXX+1)*(2*NMAXY+1)*(2*NMAXZ+1)*((NBASISMAX(4,2)-NBASISMAX(4,1))/2+1)
+             if(dimen==3)then
+              LEN=(2*NMAXX+1)*(2*NMAXY+1)*(2*NMAXZ+1)*((NBASISMAX(4,2)-NBASISMAX(4,1))/2+1)
+             else if (dimen==2)then
+              LEN=(2*NMAXX+1)*(2*NMAXY+1)*((NBASISMAX(4,2)-NBASISMAX(4,1))/2+1)
+             else
+              WRITE(6,'(A, I4)') " Dimension problem  ", dimen 
+              stop
+             end if
 !C.. UEG
              NBASISMAX(3,3)=-1
+             
           ELSE
              NBASISMAX(1,1)=1
              NBASISMAX(1,2)=NMAXX
@@ -2223,7 +2279,7 @@ system: do
                 G1(2*i)%Sym = TotSymRep()
                 ! and in the k-space i still need to 
             end do
-        else
+        else if(dimen==3) then
          IG=0
          DO I=NBASISMAX(1,1),NBASISMAX(1,2)
            DO J=NBASISMAX(2,1),NBASISMAX(2,2)
@@ -2247,7 +2303,14 @@ system: do
                        ENDIF
                     ELSEIF(TUEG) THEN
                        CALL GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,SUM,dUnscaledE)
-                       IF(dUnscaledE.gt.OrbECutoff) CYCLE
+!                      Bug for  non-trueEnergy                      
+!                      IF(dUnscaledE.gt.OrbECutoff) CYCLE
+                       IF(tUEGTrueEnergies)then
+                        IF(dUnscaledE.gt.OrbECutoff) CYCLE
+                       ELSE 
+                        IF(SUM.gt.OrbECutoff) CYCLE
+                       END IF 
+                       
                     ELSE
                        SUM=(BOX**2)*((I*I/ALAT(1)**2)+(J*J/ALAT(2)**2)+(K*K/ALAT(3)**2))
                     ENDIF
@@ -2267,7 +2330,62 @@ system: do
              ENDDO
            ENDDO
          ENDDO
-     end if
+        else if(dimen==2) then
+          IG=0
+          k2_max_2d=int(OrbECutoff)+1
+         do  k=0, k2_max_2d
+         DO I=NBASISMAX(1,1),NBASISMAX(1,2)
+           DO J=NBASISMAX(2,1),NBASISMAX(2,2)
+               DO L=NBASISMAX(4,1),NBASISMAX(4,2),2
+                  G%k(1)=I
+                  G%k(2)=J
+                  G%k(3)=0
+                  G%Ms=L
+                  ! change to implement the tilted real-space
+                  if ((treal .and. .not. ttilt) .or. KALLOWED(G,nBasisMax))then
+!                   IF((THUB.AND.(TREAL.OR..NOT.TPBC)).OR.KALLOWED(G,NBASISMAX)) THEN
+                    IF(THUB) THEN
+!C..Note for the Hubbard model, the t is defined by ALAT(1)!
+                       IF(TPBC) THEN
+                       CALL HUBKIN(I,J,K,NBASISMAX,BHUB,TTILT,SUM,TREAL)
+                       ELSE
+                      CALL HUBKINN(I,J,K,NBASISMAX,BHUB,TTILT,SUM,TREAL)
+                       ENDIF
+                    ELSEIF(TUEG) THEN
+                       CALL GetUEGKE(I,J,0,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,SUM,dUnscaledE)
+!                      Bug for  non-trueEnergy                      
+!                      IF(dUnscaledE.gt.OrbECutoff) CYCLE
+                       IF(tUEGTrueEnergies)then
+                        IF(dUnscaledE.gt.OrbECutoff) CYCLE
+                       ELSE 
+                        if((sum.gt.(k*1.d0+1.d-20)).or.(sum.lt.(k*1.d0-1.d-20)))CYCLE
+                        IF(SUM.gt.OrbECutoff) CYCLE
+                       END IF 
+                       
+                    ELSE
+                       SUM=(BOX**2)*((I*I/ALAT(1)**2)+(J*J/ALAT(2)**2))
+                    ENDIF
+                    IF(.NOT.TUEG.AND.SUM.GT.OrbECutoff) CYCLE
+                    IG=IG+1
+                    ARR(IG,1)=SUM
+                    ARR(IG,2)=SUM
+                    BRR(IG)=IG
+!C..These are the quantum numbers: n,l,m and sigma
+                    G1(IG)%K(1)=I
+                    G1(IG)%K(2)=J
+                    G1(IG)%K(3)=0
+                    G1(IG)%MS=L
+                    G1(IG)%Sym=TotSymRep()
+                  ENDIF
+               ENDDO
+           ENDDO
+         ENDDO
+         end do
+!C..Check to see if all's well       
+        else
+              WRITE(6,'(A, I4)') " Dimension problem  ", dimen 
+              stop
+        end if
 !C..Check to see if all's well
          WRITE(6,*) ' NUMBER OF BASIS FUNCTIONS : ' , IG 
          NBASIS=IG
