@@ -241,7 +241,7 @@ subroutine NECICalcInit(iCacheFlag)
     !=                                calculation.
 
     use System, only : SysInit
-    use SystemData, only : tRotateOrbs,tFindCINatOrbs
+    use SystemData, only : tRotateOrbs,tFindCINatOrbs,tUEG,t_ueg_transcorr
     use Integrals_neci, only : IntInit,IntFreeze,tPostFreezeHF,DumpFCIDUMP, &
          InitIntBuffers
     use IntegralsData, only : tDumpFCIDUMP
@@ -251,7 +251,8 @@ subroutine NECICalcInit(iCacheFlag)
     use HFCalc, only: HFDoCalc
     use RotateOrbsMod, only : RotateOrbs
     use replica_data, only: init_replica_arrays
-
+    use gen_coul_ueg_mod, only: GEN_Umat_TC
+    
     implicit none
     integer,intent(in) :: iCacheFlag
    
@@ -275,6 +276,27 @@ subroutine NECICalcInit(iCacheFlag)
 
 !   This will also call SysPostFreezeInit()
     call DetPreFreezeInit()
+    
+    !!$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ 
+    !! we prepare the contribution of the 3 body transcorrelated operator 
+           write(6,*) 'prepare the contribution of the 3 body transcorrelated operator'
+           write(6,*)'tUEG',tUEG,'t_UEG_Transcorr',t_ueg_transcorr
+           
+           If(tUEG.and.t_ueg_transcorr)then
+!                  CALL GetUMatSize(nBasis,nEl,UMATINT)
+!                  call shared_allocate ("umat_TC3", umat_TC3, (/UMatInt/))
+!                  !Allocate(UMat(UMatInt), stat=ierr)
+!                  LogAlloc(ierr, 'UMat_TC3', int(UMatInt),HElement_t_SizeB, tagUMat)
+!                  UMat_TC3 = 0.0_dp
+!                  WRITE(6,*) "Size of UMat_TC3 is: ",UMATINT
+                   
+                   call GEN_Umat_TC
+                   
+      
+    !!$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+          end if
+    
+    
     if (.not.tPostFreezeHF) call HFDoCalc()
     call IntFreeze()
     if (tPostFreezeHF) call HFDoCalc()
