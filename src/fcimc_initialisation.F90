@@ -51,7 +51,7 @@ module fcimc_initialisation
     use LoggingData, only: tTruncRODump, tCalcVariationalEnergy, tReadRDMs, &
                            tDiagAllSpaceEver, tFCIMCStats2, tCalcFCIMCPsi, &
                            tLogComplexPops, tHistExcitToFrom, tPopsFile, &
-                           iWritePopsEvery, tRDMOnFly, tWriteConflictLvls, &
+                           iWritePopsEvery, tRDMOnFly, &
                            tDiagWalkerSubspace, tPrintOrbOcc, OrbOccs, &
                            tHistInitPops, OrbOccsTag, tHistEnergies, &
                            HistInitPops, AllHistInitPops, OffDiagMax, &
@@ -828,7 +828,6 @@ contains
         NoNonInitDets=0
         NoSIInitsConflicts = 0
         NoInitsConflicts = 0
-        NoConflicts = 0
         avSigns = 0.0_dp
         NoInitWalk(:)=0.0_dp
         NoNonInitWalk(:)=0.0_dp
@@ -911,6 +910,17 @@ contains
 
         allocate(ConflictExLvl(maxConflictExLvl))
         ConflictExLvl = 0
+        allocate(AllConflictExLvl(maxConflictExLvl))
+        AllConflictExLvl = 0
+        NoConflicts = 0
+        AllNoConflicts = 0
+
+        allocate(HolesByExLvl(maxHoleExLvlWrite))
+        allocate(allHolesByExLvl(maxHoleExLvlWrite))
+        allHolesByExLvl = 0
+        HolesByExLvl = 0
+        nUnoccDets = 0
+        allNUnoccDets = 0
 
         IF(tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC)) THEN
             ALLOCATE(HistMinInd(NEl))
@@ -1770,7 +1780,10 @@ contains
         deallocate(FreeSlot,stat=ierr)
         if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
 
-        if(allocated(ConflictExLvl)) deallocate(ConflictExLvl)
+        if(allocated(ConflictExLvl)) deallocate(ConflictExLvl)        
+        if(allocated(HolesByExLvl)) deallocate(HolesByExLvl)
+        if(allocated(AllConflictExLvl)) deallocate(AllConflictExLvl)        
+        if(allocated(AllHolesByExLvl)) deallocate(AllHolesByExLvl)
 
         IF(tHistSpawn.or.tCalcFCIMCPsi) THEN
             DEALLOCATE(Histogram)

@@ -25,7 +25,7 @@ module FciMCParMod
                         SIUpdateOffset
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
-                           compare_amps_period, PopsFileTimer, tOldRDMs, &
+                           compare_amps_period, PopsFileTimer, tOldRDMs, tWriteUnocc, &
                            write_end_core_size, t_calc_double_occ, t_calc_double_occ_av, &
                            equi_iter_double_occ, t_print_frq_histograms, ref_filename
     use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
@@ -211,6 +211,10 @@ module FciMCParMod
             end if
             call WriteFCIMCStats()
         end if
+        if(tWriteUnocc) then
+           call write_unoccstats(.true.)
+           call write_unoccstats()
+        endif
 
         ! double occupancy: 
         if (t_calc_double_occ) then 
@@ -1052,6 +1056,8 @@ module FciMCParMod
                   ! this is done via the death timer: if it is <0, the det is dead
                   if(tau_dead .ge. 0) then
                      call clock_death_timer(j)
+                     HolesByExLvl(walkExcitLevel) = HolesByExLvl(walkExcitLevel) + 1
+                     nUnoccDets = nUnoccDets + 1
                      ! if the determinant exceedes its linger time, kill it
                      if(int(tau_dead) > lingerTime) then
                         call RemoveHashDet(HashIndex, DetCurr, j) 

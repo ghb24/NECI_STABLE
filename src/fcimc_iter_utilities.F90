@@ -20,7 +20,7 @@ module fcimc_iter_utils
     use bit_rep_data, only: NIfD, NIfTot, NIfDBO
     use hphf_integrals, only: hphf_diag_helement
     use Determinants, only: get_helement
-    use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av
+    use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av, tWriteUnocc
     use tau_search, only: update_tau
     use rdm_data, only: en_pert_main
     use Parallel_neci
@@ -452,11 +452,16 @@ contains
         sizes(32) = 1
         sizes(33) = 1
         sizes(34) = 1
-        ! truncated weight
         sizes(35) = 1
+        sizes(36) = size(ConflictExLvl)
+        ! truncated weight
+        sizes(37) = 1
+        ! unoccupied dets        
+        sizes(38) = 1 
+        sizes(39) = size(HolesByExLvl)
 
 
-        if (sum(sizes(1:34)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
+        if (sum(sizes(1:39)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
                                                         & the size of the send_arr and recv_arr arrays in the source code.")
 
         low = upp + 1; upp = low + sizes(1 ) - 1; send_arr(low:upp) = SpawnFromSing;
@@ -498,9 +503,14 @@ contains
         low = upp + 1; upp = low + sizes(32) - 1; send_arr(low:upp) = NoSIInitsConflicts;
         low = upp + 1; upp = low + sizes(33) - 1; send_arr(low:upp) = NoInitsConflicts;
         low = upp + 1; upp = low + sizes(34) - 1; send_arr(low:upp) = avSigns;
+        low = upp + 1; upp = low + sizes(35) - 1; send_arr(low:upp) = NoConflicts;
+        low = upp + 1; upp = low + sizes(36) - 1; send_arr(low:upp) = ConflictExLvl;
         ! truncated weight
-        low = upp + 1; upp = low + sizes(35) - 1; send_arr(low:upp) = truncatedWeight;        
-        
+        low = upp + 1; upp = low + sizes(37) - 1; send_arr(low:upp) = truncatedWeight;        
+        ! unocc dets
+        low = upp + 1; upp = low + sizes(38) - 1; send_arr(low:upp) = nUnoccDets;        
+        low = upp + 1; upp = low + sizes(39) - 1; send_arr(low:upp) = HolesByExLvl;        
+
         ! Perform the communication.
         call MPISumAll (send_arr(1:upp), recv_arr(1:upp))
 
@@ -547,8 +557,14 @@ contains
         low = upp + 1; upp = low + sizes(32) - 1; AllNoSIInitsConflicts = recv_arr(low);
         low = upp + 1; upp = low + sizes(33) - 1; AllNoInitsConflicts = recv_arr(low);
         low = upp + 1; upp = low + sizes(34) - 1; AllAvSigns = recv_arr(low);
+        low = upp + 1; upp = low + sizes(35) - 1; AllNoConflicts = recv_arr(low);
+        low = upp + 1; upp = low + sizes(36) - 1; AllConflictExLvl = recv_arr(low:upp);
         ! truncated weight
-        low = upp + 1; upp = low + sizes(35) - 1; AllTruncatedWeight = recv_arr(low);
+        low = upp + 1; upp = low + sizes(37) - 1; AllTruncatedWeight = recv_arr(low);
+        ! unocc dets
+        low = upp + 1; upp = low + sizes(38) - 1; AllNUnoccDets = recv_arr(low);
+        low = upp + 1; upp = low + sizes(39) - 1; AllHolesByExLvl = recv_arr(low:upp);
+
         ! Communicate HElement_t variables:
 
         low = 0; upp = 0;
@@ -1152,6 +1168,7 @@ contains
             else
                 call WriteFCIMCStats ()
             end if
+            if(tWriteUnocc) call write_unoccstats()
         end if
         
         call rezero_iter_stats_update_cycle (iter_data, tot_parts_new_all)

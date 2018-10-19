@@ -434,7 +434,7 @@ contains
           use global_utilities
           use Parallel_neci, only : nProcessors
           use util_mod, only: addToIntArray
-          use LoggingData, only: tLogDets
+          use LoggingData, only: tLogDets, tWriteUnocc
           IMPLICIT NONE
           LOGICAL eof
           CHARACTER (LEN=100) w
@@ -1867,6 +1867,7 @@ contains
                 ! have determinants persits for a number of iterations after their
                 ! occupation reached 0
                 tTimedDeaths = .true.
+                tWriteUnocc = .true.
                 ! read in said number of iterations
                 if(item < nitems) call geti(lingerTime)
 

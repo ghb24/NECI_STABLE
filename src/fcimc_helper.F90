@@ -2250,6 +2250,7 @@ contains
             if(sgn(run)*avSign < 0) then
                ! log the conflict
                avSigns = avSigns + abs(sgn(run))
+               NoConflicts = NoConflicts + 1
                if(exLvl < maxConflictExLvl) ConflictExLvl(exLvl) = ConflictExLvl(exLvl) + 1
             endif
          end do
