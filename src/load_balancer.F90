@@ -655,7 +655,7 @@ contains
                                    call decode_bit_det(nI, CurrentDets(:,i))
                                    if (IsUnoccDet(CurrentSign) .and. &
                                         .not. tTimedDeaths) then
-                                      call removeHashDet(HashIndex, nI, i)
+                                      call RemoveHashDet(HashIndex, nI, i)
                                       ! also update both the number of annihilated dets
                                       AnnihilatedDet = AnnihilatedDet + 1
                                       ! and the number of holes

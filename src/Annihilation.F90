@@ -31,7 +31,7 @@ module AnnihilationMod
                             CalcHashTableStats, get_diagonal_matel, RemoveHashDet
     use searching
     use hash
-    use global_det_data, only: det_diagH, store_spawn
+    use global_det_data, only: det_diagH, store_spawn, get_death_timer
     use procedure_pointers, only: scaleFunction
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement
@@ -598,148 +598,142 @@ module AnnihilationMod
         call set_timer(BinSearch_time,45)
 
         do i = 1, ValidSpawned
+           
+           call decode_bit_det(nJ, SpawnedParts(:,i)) 
+           ! Just to be sure
+           CurrentSign = 0.0_dp
+           SignTemp = 0.0_dp
+           ! Search the hash table HashIndex for the determinant defined by
+           ! nJ and SpawnedParts(:,i). If it is found, tSuccess will be
+           ! returned .true. and PartInd will hold the position of the
+           ! determinant in CurrentDets. Else, tSuccess will be returned
+           ! .false. (and PartInd shouldn't be accessed).
+           ! Also, the hash value, DetHash, is returned by this routine.
+           ! tSuccess will determine whether the particle has been found or not.
+           call hash_table_lookup(nJ, SpawnedParts(:,i), NIfDBO, HashIndex, &
+                CurrentDets, PartInd, DetHash, tSuccess)
 
-            call decode_bit_det(nJ, SpawnedParts(:,i)) 
-            ! Just to be sure
-            CurrentSign = 0.0_dp
-            SignTemp = 0.0_dp
-            ! Search the hash table HashIndex for the determinant defined by
-            ! nJ and SpawnedParts(:,i). If it is found, tSuccess will be
-            ! returned .true. and PartInd will hold the position of the
-            ! determinant in CurrentDets. Else, tSuccess will be returned
-            ! .false. (and PartInd shouldn't be accessed).
-            ! Also, the hash value, DetHash, is returned by this routine.
-            ! tSuccess will determine whether the particle has been found or not.
-            call hash_table_lookup(nJ, SpawnedParts(:,i), NIfDBO, HashIndex, &
-                                   CurrentDets, PartInd, DetHash, tSuccess)
+           tDetermState = .false.
 
-            tDetermState = .false.
-
-            ! for scaled walkers, truncation is done here
-            t_truncate_this_det = t_truncate_spawns .and. tEScaleWalkers
+           ! for scaled walkers, truncation is done here
+           t_truncate_this_det = t_truncate_spawns .and. tEScaleWalkers
 
 
-!            WRITE(6,*) 'i,SpawnedParts(:,i)',i,SpawnedParts(:,i)
+           !            WRITE(6,*) 'i,SpawnedParts(:,i)',i,SpawnedParts(:,i)
 
-            if (tSuccess) then
+           if (tSuccess) then
 
-                ! Our SpawnedParts determinant is found in CurrentDets.
+              ! Our SpawnedParts determinant is found in CurrentDets.
 
-                call extract_sign(CurrentDets(:,PartInd),CurrentSign)
-                call extract_sign(SpawnedParts(:,i),SpawnedSign)
+              call extract_sign(CurrentDets(:,PartInd),CurrentSign)
+              call extract_sign(SpawnedParts(:,i),SpawnedSign)
 
-                SignProd = CurrentSign*SpawnedSign
+              SignProd = CurrentSign*SpawnedSign
 
-                ! truncate if requested
-                if(t_truncate_this_det .and. .not. t_truncate_unocc) then
-                   scFVal = scaleFunction(det_diagH(PartInd))
-                   do j = 1, lenof_sign
-                      call truncateSpawn(iter_data, SpawnedSign, i, j, scFVal, SignProd(j))
-                   enddo
-                endif
+              ! truncate if requested
+              if(t_truncate_this_det .and. .not. t_truncate_unocc) then
+                 scFVal = scaleFunction(det_diagH(PartInd))
+                 do j = 1, lenof_sign
+                    call truncateSpawn(iter_data, SpawnedSign, i, j, scFVal, SignProd(j))
+                 enddo
+              endif
 
-                tDetermState = test_flag(CurrentDets(:,PartInd), flag_deterministic)
+              tDetermState = test_flag(CurrentDets(:,PartInd), flag_deterministic)
 
-                if (sum(abs(CurrentSign)) >= 1.e-12_dp .or. tDetermState) then
-                    ! Transfer new sign across.
-                    call encode_sign(CurrentDets(:,PartInd), SpawnedSign+CurrentSign)
-                    call encode_sign(SpawnedParts(:,i), null_part)                    
+              ! Transfer new sign across.
+              call encode_sign(CurrentDets(:,PartInd), SpawnedSign+CurrentSign)
+              call encode_sign(SpawnedParts(:,i), null_part)                    
 
-                    ! If the sign changed, the adi check has to be redone
-                    if(any(real(SignProd,dp) < 0.0_dp)) &
-                         call clr_flag(CurrentDets(:,PartInd), flag_adi_checked)
+              ! If the sign changed, the adi check has to be redone
+              if(any(real(SignProd,dp) < 0.0_dp)) &
+                   call clr_flag(CurrentDets(:,PartInd), flag_adi_checked)
 
-                    ! this det is not prone anymore
-                    if(t_prone_walkers) call clr_flag(CurrentDets(:,PartInd), flag_prone)
+              ! this det is not prone anymore
+              if(t_prone_walkers) call clr_flag(CurrentDets(:,PartInd), flag_prone)
 
-                    do j = 1, lenof_sign
-                        run = part_type_to_run(j)
+              do j = 1, lenof_sign
+                 run = part_type_to_run(j)
 
-                        if (is_run_unnocc(CurrentSign,run)) then
-                            ! This determinant is actually *unoccupied* for the
-                            ! run we're considering. We need to
-                            ! decide whether to abort it or not.
-                            if (tTruncInitiator) then
-                                if (.not. test_flag (SpawnedParts(:,i), get_initiator_flag(j)) .and. &
-                                     .not. tDetermState) then
-                                    ! Walkers came from outside initiator space.
-                                    NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
-                                    iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
-                                    call encode_part_sign (CurrentDets(:,PartInd), 0.0_dp, j)
-                                end if
-                            end if
-                        end if
-                            
-
-                        if (SignProd(j) < 0) then
-                            ! This indicates that the particle has found the
-                            ! same particle of opposite sign to annihilate with.
-                            ! In this case we just need to update some statistics:
-                            Annihilated(run) = Annihilated(run) + 2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
-                            iter_data%nannihil(j) = iter_data%nannihil(j) + &
-                                2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j))))
-
-                            if (tHistSpawn) then
-                                ! We want to histogram where the particle
-                                ! annihilations are taking place.
-                                ExcitLevel = FindBitExcitLevel(SpawnedParts(:,i), iLutHF, nel)
-                                if (ExcitLevel == NEl) then
-                                    call BinSearchParts2(SpawnedParts(:,i), HistMinInd2(ExcitLevel), Det, PartIndex, tSuc)
-                                else if (ExcitLevel == 0) then
-                                    PartIndex = 1
-                                    tSuc = .true.
-                                else
-                                    call BinSearchParts2(SpawnedParts(:,i), HistMinInd2(ExcitLevel), &
-                                            FCIDetIndex(ExcitLevel+1)-1, PartIndex, tSuc)
-                                end if
-                                HistMinInd2(ExcitLevel) = PartIndex
-                                if (tSuc) then
-                                    AvAnnihil(j,PartIndex) = AvAnnihil(j,PartIndex)+ &
-                                    real(2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j)))), dp)
-                                    InstAnnihil(j,PartIndex) = InstAnnihil(j,PartIndex)+ &
-                                    real(2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j)))), dp)
-                                else
-                                    write(6,*) "***",SpawnedParts(0:NIftot,i)
-                                    Call WriteBitDet(6,SpawnedParts(0:NIfTot,i), .true.)
-                                    call stop_all("AnnihilateSpawnedParts","Cannot find corresponding FCI "&
-                                        & //"determinant when histogramming")
-                                end if
-                            end if
-                        end if
-
-                    end do ! Over all components of the sign.
-
-                    if (.not. tDetermState) then
-                        call extract_sign (CurrentDets(:,PartInd), SignTemp)
-                        if (IsUnoccDet(SignTemp)) then
-                            ! All walkers in this main list have been annihilated
-                            ! away. Remove it from the hash index array so that
-                            ! no others find it (it is impossible to have another
-                            ! spawned walker yet to find this determinant).
-                           if(.not. tTimedDeaths) &
-                                call RemoveHashDet(HashIndex, nJ, PartInd)
-                        end if
+                 if (tTruncInitiator) then
+                    ! This determinant is actually *unoccupied* for the
+                    ! run we're considering. We need to
+                    ! decide whether to abort it or not.
+                    if (is_run_unnocc(CurrentSign,run)) then
+                       if (.not. test_flag (SpawnedParts(:,i), get_initiator_flag(j)) .and. &
+                            .not. tDetermState .and. (get_death_timer(PartInd) < 0)) then
+                          ! Walkers came from outside initiator space.
+                          NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
+                          iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
+                          call encode_part_sign (CurrentDets(:,PartInd), 0.0_dp, j)
+                       end if
                     end if
+                 end if
 
-                    if (tFillingStochRDMonFly .and. (.not.tNoNewRDMContrib)) then
-                        call extract_sign(CurrentDets(:,PartInd), TempCurrentSign)
-                        ! We must use the instantaneous value for the off-diagonal
-                        ! contribution. However, we can't just use CurrentSign from
-                        ! the previous iteration, as this has been subject to death
-                        ! but not the new walkers. We must add on SpawnedSign, so
-                        ! we're effectively taking the instantaneous value from the
-                        ! next iter. This is fine as it's from the other population,
-                        ! and the Di and Dj signs are already strictly uncorrelated.
-                        if (tOldRDMs) call check_fillRDM_DiDj_old(rdms, one_rdms_old, i, CurrentDets(:,PartInd), TempCurrentSign)
-                        call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, &
-                                                CurrentDets(:,PartInd), TempCurrentSign)
-                    end if 
 
-                end if
+                 if (SignProd(j) < 0) then
+                    ! This indicates that the particle has found the
+                    ! same particle of opposite sign to annihilate with.
+                    ! In this case we just need to update some statistics:
+                    Annihilated(run) = Annihilated(run) + 2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
+                    iter_data%nannihil(j) = iter_data%nannihil(j) + &
+                         2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j))))
 
-            end if
-                
-            if ( (.not.tSuccess) .or. (tSuccess .and. IsUnoccDet(CurrentSign) .and. (.not. tDetermState)) ) then
+                    if (tHistSpawn) then
+                       ! We want to histogram where the particle
+                       ! annihilations are taking place.
+                       ExcitLevel = FindBitExcitLevel(SpawnedParts(:,i), iLutHF, nel)
+                       if (ExcitLevel == NEl) then
+                          call BinSearchParts2(SpawnedParts(:,i), HistMinInd2(ExcitLevel), Det, PartIndex, tSuc)
+                       else if (ExcitLevel == 0) then
+                          PartIndex = 1
+                          tSuc = .true.
+                       else
+                          call BinSearchParts2(SpawnedParts(:,i), HistMinInd2(ExcitLevel), &
+                               FCIDetIndex(ExcitLevel+1)-1, PartIndex, tSuc)
+                       end if
+                       HistMinInd2(ExcitLevel) = PartIndex
+                       if (tSuc) then
+                          AvAnnihil(j,PartIndex) = AvAnnihil(j,PartIndex)+ &
+                               real(2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j)))), dp)
+                          InstAnnihil(j,PartIndex) = InstAnnihil(j,PartIndex)+ &
+                               real(2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j)))), dp)
+                       else
+                          write(6,*) "***",SpawnedParts(0:NIftot,i)
+                          Call WriteBitDet(6,SpawnedParts(0:NIfTot,i), .true.)
+                          call stop_all("AnnihilateSpawnedParts","Cannot find corresponding FCI "&
+                               & //"determinant when histogramming")
+                       end if
+                    end if
+                 end if
+
+              end do ! Over all components of the sign.
+
+              if (.not. tDetermState) then
+                 call extract_sign (CurrentDets(:,PartInd), SignTemp)
+                 if (IsUnoccDet(SignTemp)) then
+                    ! All walkers in this main list have been annihilated
+                    ! away. Remove it from the hash index array so that
+                    ! no others find it (it is impossible to have another
+                    ! spawned walker yet to find this determinant).
+                    if(.not. tTimedDeaths) &
+                         call RemoveHashDet(HashIndex, nJ, PartInd)
+                 end if
+              end if
+
+              if (tFillingStochRDMonFly .and. (.not.tNoNewRDMContrib)) then
+                 call extract_sign(CurrentDets(:,PartInd), TempCurrentSign)
+                 ! We must use the instantaneous value for the off-diagonal
+                 ! contribution. However, we can't just use CurrentSign from
+                 ! the previous iteration, as this has been subject to death
+                 ! but not the new walkers. We must add on SpawnedSign, so
+                 ! we're effectively taking the instantaneous value from the
+                 ! next iter. This is fine as it's from the other population,
+                 ! and the Di and Dj signs are already strictly uncorrelated.
+                 if (tOldRDMs) call check_fillRDM_DiDj_old(rdms, one_rdms_old, i, CurrentDets(:,PartInd), TempCurrentSign)
+                 call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, &
+                      CurrentDets(:,PartInd), TempCurrentSign)
+              end if
+           else
 
 
                 ! Determinant in newly spawned list is not found in CurrentDets.

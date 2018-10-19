@@ -1059,6 +1059,7 @@ module FciMCParMod
                         call mark_death(j)
                      endif
                   else
+                     ! this determinant has been removed from the hashtable
                      iEndFreeSlot=iEndFreeSlot+1
                      FreeSlot(iEndFreeSlot)=j
                   endif
