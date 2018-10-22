@@ -11,6 +11,7 @@ module LMat_mod
   ! this is likely to be stored in a hashtable long term
   HElement_t(dp), pointer :: LMat(:)
   integer :: LMatTag
+  integer, allocatable :: n2Ind(:)
   integer(MPIarg) :: LMatWin
   integer(int64) :: nBI
 
@@ -67,43 +68,25 @@ module LMat_mod
       logical :: iPermute
 
       ! we store the permutation where a < b < c (regardless of i,j,k)
-      ! or i < j < k, depending on (permuted) a < i
-      iPermute = minVal([a,b,c]) > minVal([i,j,k])
-      if(iPermute) then
-         ! permute (a,b,c) <-> (i,j,k) if required
-         ap = i
-         bp = j
-         cp = k
-         ip = a
-         jp = b
-         kp = c
-      else
-         ! or not
-         ap = a
-         bp = b
-         cp = c
-         ip = i
-         jp = j
-         kp = k
-      endif
-      
+      ! or i < j < k, depending on (permuted) a < i, b < j, c < k
+
+      ap = min(a,i)
+      ip = max(a,i)
+      bp = min(j,b)
+      jp = max(j,b)
+      cp = min(c,k)
+      kp = max(c,k)
+
       ! -> create that permutation
       call sort2Els(ap,bp,ip,jp)
       call sort2Els(bp,cp,jp,kp)
       call sort2Els(ap,bp,ip,jp)
 
       ! indexing function: there are three ordered indices (ap,bp,cp)
-      ! and three unrestricted indices (ip,jp,kp)
-      ! the last unrestricted index is the contiguous one, then follow the other unrestricted
-      ! ones
-      ! then, the restricted ones follow, limited by the previous index (the last ordered
-      ! index has no restriction
-      index = kp + nBI * (jp-1) 
-      index = index + nBI**2 * (ip-1) 
-      index = index + nBI**3 * (ap-1) 
-      index = index + &
-           nBI**3 * (bp-1)*bp/2 
-      index = index + nBI**3 * (cp+1)*(cp-1)*cp/6
+      ! and three larger indices (ip,jp,kp)
+      ! the last larger index kp, it is the contigous index, then follow (jp,cp) 
+      ! then (ip,bp) and then the smallest index ap
+      index = kp + kp*(ind3(bp,jp,cp) + n2Ind(bp+1)*(ind3(ap,ip,bp) - 1) - 1)
 
       contains
 
@@ -118,6 +101,15 @@ module LMat_mod
              call intswap(p,q)
           end if
         end subroutine sort2Els
+
+        function ind3(p,q,r) result(ind)
+          ! contiguous 3-index function for p <= q,r (arbitrarily chosen r as contiguous
+          integer, intent(in) :: p,q,r
+          integer :: ind
+          
+          ! n2Ind is stored in cache
+          ind = r + 1 - p + (nBI + 1 - p)*(q-p) + n2Ind(p)
+        end function ind3
       
     end function LMatInd
 
@@ -149,6 +141,8 @@ module LMat_mod
       else
          nBI = nBasis / 2
       endif
+
+      call initializeN2Ind()
 
       ! The size is given by the largest index (LMatInd is monotonous in all arguments)
       LMatSize = LMatInd(nBI,nBI,nBI,nBI,nBI,nBI)
@@ -192,6 +186,21 @@ module LMat_mod
 
 !------------------------------------------------------------------------------------------!
 
+    subroutine initializeN2Ind()
+      implicit none
+      integer :: i
+      
+      ! prepare an array containing the offset of certain blocks in the
+      ! LMat array
+      allocate(n2Ind(nBI+1))
+      n2Ind(1) = 0
+      do i = 2, nBI+1
+         n2Ind(i) = n2Ind(i-1) + (nBI + 2 - i)**2
+      end do
+    end subroutine initializeN2Ind
+
+!------------------------------------------------------------------------------------------!
+
     subroutine freeLMat()
       implicit none
       character(*), parameter :: t_r = "freeLMat"
@@ -201,6 +210,7 @@ module LMat_mod
          call LogMemDealloc(t_r, LMatTag)
          LMAt => null()
       end if
+      deallocate(n2Ind)
       
     end subroutine freeLMat
 

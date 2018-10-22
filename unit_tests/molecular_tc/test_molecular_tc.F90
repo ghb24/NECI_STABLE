@@ -6,8 +6,11 @@ program test_molecular_tc
   use bit_rep_data, only: NIfTot
   use LMat_mod
   use fruit
-  
+  use Parallel_neci, only: MPIInit, MPIEnd
+
   implicit none
+
+  call MPIInit(.false.)
 
   call init_fruit()
   
@@ -15,6 +18,8 @@ program test_molecular_tc
   
   call fruit_summary()
   call fruit_finalize()
+
+  call MPIEnd(.false.)
 
   contains
 
