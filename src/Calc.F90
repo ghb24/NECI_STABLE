@@ -310,7 +310,7 @@ contains
           tSpawnSeniorityBased = .false.
           numMaxExLvlsSet = 0
           allocate(maxKeepExLvl(0))
-          tLargeMatelSurvive = .true.
+          tLargeMatelSurvive = .false.
           spawnMatelThresh = 1.0_dp
 
           ! trunaction for spawns/based on spawns
