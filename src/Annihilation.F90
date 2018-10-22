@@ -640,10 +640,6 @@ module AnnihilationMod
 
               tDetermState = test_flag(CurrentDets(:,PartInd), flag_deterministic)
 
-              ! Transfer new sign across.
-              call encode_sign(CurrentDets(:,PartInd), SpawnedSign+CurrentSign)
-              call encode_sign(SpawnedParts(:,i), null_part)                    
-
               ! If the sign changed, the adi check has to be redone
               if(any(real(SignProd,dp) < 0.0_dp)) &
                    call clr_flag(CurrentDets(:,PartInd), flag_adi_checked)
@@ -660,11 +656,13 @@ module AnnihilationMod
                     ! decide whether to abort it or not.
                     if (is_run_unnocc(CurrentSign,run)) then
                        if (.not. test_flag (SpawnedParts(:,i), get_initiator_flag(j)) .and. &
-                            .not. tDetermState .and. (get_death_timer(PartInd) < 0)) then
+                            .not. tDetermState .and. ((.not. tTimedDeaths) .or. &
+                            get_death_timer(PartInd) < 0)) then
                           ! Walkers came from outside initiator space.
                           NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
                           iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
-                          call encode_part_sign (CurrentDets(:,PartInd), 0.0_dp, j)
+                          call encode_part_sign (SpawnedParts(:,PartInd), 0.0_dp, j)
+                          SpawnedSign(j) = 0.0_dp
                        end if
                     end if
                  end if
@@ -707,6 +705,10 @@ module AnnihilationMod
                  end if
 
               end do ! Over all components of the sign.
+
+              ! Transfer new sign across.
+              call encode_sign(CurrentDets(:,PartInd), SpawnedSign+CurrentSign)
+              call encode_sign(SpawnedParts(:,i), null_part)    
 
               if (.not. tDetermState) then
                  call extract_sign (CurrentDets(:,PartInd), SignTemp)
