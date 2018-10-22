@@ -11,7 +11,7 @@ module LMat_mod
   ! this is likely to be stored in a hashtable long term
   HElement_t(dp), pointer :: LMat(:)
   integer :: LMatTag
-  integer, allocatable :: n2Ind(:)
+  integer, allocatable :: n2Ind(:), n3Ind(:)
   integer(MPIarg) :: LMatWin
   integer(int64) :: nBI
 
@@ -86,7 +86,8 @@ module LMat_mod
       ! and three larger indices (ip,jp,kp)
       ! the last larger index kp, it is the contigous index, then follow (jp,cp) 
       ! then (ip,bp) and then the smallest index ap
-      index = kp + kp*(ind3(bp,jp,cp) + n2Ind(bp+1)*(ind3(ap,ip,bp) - 1) - 1)
+      index = kp + nBI*(jp-1) + nBI**2*(ip-1) + nBI**3*(ap-1) + nbI**3*(bp-1)*bp/2+&
+           nBI**3*(cp+1)*(cp-1)*cp/6
 
       contains
 
@@ -142,7 +143,7 @@ module LMat_mod
          nBI = nBasis / 2
       endif
 
-      call initializeN2Ind()
+      call initializeNInd()
 
       ! The size is given by the largest index (LMatInd is monotonous in all arguments)
       LMatSize = LMatInd(nBI,nBI,nBI,nBI,nBI,nBI)
@@ -186,18 +187,24 @@ module LMat_mod
 
 !------------------------------------------------------------------------------------------!
 
-    subroutine initializeN2Ind()
+    subroutine initializeNInd()
       implicit none
-      integer :: i
-      
+      integer :: i,j      
       ! prepare an array containing the offset of certain blocks in the
       ! LMat array
-      allocate(n2Ind(nBI+1))
+      
+      allocate(n2Ind(nBI))
       n2Ind(1) = 0
-      do i = 2, nBI+1
+      do i = 2, nBI
          n2Ind(i) = n2Ind(i-1) + (nBI + 2 - i)**2
       end do
-    end subroutine initializeN2Ind
+
+      allocate(n3Ind(nBI))
+      n3Ind(1) = 1
+      do i = 1, nBI-1
+         n3Ind(nBI-i) = n3Ind(nBI-i+1) + (nBI+1-i)**2
+      end do
+    end subroutine initializeNInd
 
 !------------------------------------------------------------------------------------------!
 
@@ -210,6 +217,7 @@ module LMat_mod
          call LogMemDealloc(t_r, LMatTag)
          LMAt => null()
       end if
+      deallocate(n3Ind)
       deallocate(n2Ind)
       
     end subroutine freeLMat
