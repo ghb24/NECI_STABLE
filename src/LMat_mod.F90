@@ -64,8 +64,42 @@ module LMat_mod
       integer(int64), intent(in) :: a,b,c ! occupied orb indices
       integer(int64), intent(in) :: i,j,k ! unoccupied orb
       integer(int64) :: index
+
+      integer(int64) :: ai,bj,ck
+
+      ai = fuseIndex(a,i)
+      bj = fuseIndex(b,j)
+      ck = fuseIndex(c,k)
+
+      ! sort the indices
+      if(ai > bj) call intswap(ai,bj)
+      if(bj > ck) call intswap(bj,ck)
+      if(ai > bj) call intswap(ai,bj)
+
+      index = ai + bj*(bj-1)/2 + ck*(ck-1)*(ck+1)/6
+
+      contains
+
+        function fuseIndex(x,y) result(xy)
+          implicit none
+          integer(int64), intent(in) :: x,y
+          integer(int64) :: xy
+          
+          if(x < y) then
+             xy = x + y*(y-1)/2
+          else
+             xy = y + x*(x-1)/2
+          endif
+        end function fuseIndex
+      
+    end function LMatInd
+
+    function oldLMatInd(a,b,c,i,j,k) result(index)
+      implicit none
+      integer(int64), intent(in) :: a,b,c ! occupied orb indices
+      integer(int64), intent(in) :: i,j,k ! unoccupied orb
+      integer(int64) :: index
       integer(int64) :: ap, bp, cp, ip, jp, kp
-      logical :: iPermute
 
       ! we store the permutation where a < b < c (regardless of i,j,k)
       ! or i < j < k, depending on (permuted) a < i, b < j, c < k
@@ -102,17 +136,8 @@ module LMat_mod
              call intswap(p,q)
           end if
         end subroutine sort2Els
-
-        function ind3(p,q,r) result(ind)
-          ! contiguous 3-index function for p <= q,r (arbitrarily chosen r as contiguous
-          integer, intent(in) :: p,q,r
-          integer :: ind
-          
-          ! n2Ind is stored in cache
-          ind = r + 1 - p + (nBI + 1 - p)*(q-p) + n2Ind(p)
-        end function ind3
       
-    end function LMatInd
+    end function oldLMatInd
 
 !------------------------------------------------------------------------------------------!
 
