@@ -344,7 +344,7 @@ module UMatHash
       end do
     end subroutine accumulateValues
 
-    !-----------------------------------------------------------------------------------------!-
+    !------------------------------------------------------------------------------------------!
 
     subroutine freeCumulativeSparseUMat()
       implicit none

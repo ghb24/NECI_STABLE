@@ -203,7 +203,7 @@ contains
     integer(n_int), allocatable :: allEx(:,:)
     integer, parameter :: sampleSize = 1000000
     real(dp) :: pgenArr(lenof_sign), pTot, pNull
-    HElement_t(dp) :: matel
+    real(dp) :: matel, matelN
     type(excit_gen_store_type) :: store
     logical :: exDone(1:nel,1:nel,0:nBasis,0:nBasis)
     
@@ -266,18 +266,26 @@ contains
        endif
     end do
 
+    matelN = 0.0_dp
+    do i = 1, numEx
+       call decode_bit_det(nJ,allEx(:,i))
+       matelN = matelN + abs(get_helement_normal(nJ,nI))
+    end do
     ! check that all excits have been generated and all pGens are right
     ! probability normalization
     pTot = pNull
     do i = 1, numEx
        call extract_sign(allEx(:,i),pgenArr)
        call decode_bit_det(nJ,allEx(:,i))
-       matel = get_helement_normal(nJ,(/1,2,3,4,5/))
-       if(pgenArr(1) < eps .and. abs(matel) > eps) then 
-          write(iout,*) i, pgenArr(1), real(allEx(NIfTot+1,i))/real(sampleSize)
-          write(iout,*), nJ
-          write(iout,*) "UMAT el ", matel
+       matel = abs(get_helement_normal(nJ,nI))
+       if(pgenArr(1) > eps) then
+          write(iout,*) i, pgenArr(1), real(allEx(NIfTot+1,i))/real(sampleSize), &
+               matel/(pgenArr(1)*matelN)
        endif
+!       if(pgenArr(1) < eps .and. abs(matel) > eps) then 
+!          write(iout,*), nJ
+!          write(iout,*) "UMAT el ", matel
+!       endif
        pTot = pTot + pgenArr(1)
     end do
     write(iout,*) "Total prob. ", pTot
