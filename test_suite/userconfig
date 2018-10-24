@@ -1,5 +1,5 @@
 [neci]
-exe = ../build/bin/neci
+exe = ../cluster_build/bin/neci
 vcs = git
 inputs_args = ('*.inp', '')
 extract_program = ./tools/extract.py
@@ -11,7 +11,7 @@ inputs_args = ('*.inp', '')
 extract_program = ./tools/extract.py
 
 [dneci]
-exe = ../build/bin/dneci
+exe = ../cluster_build/bin/dneci
 vcs = git
 inputs_args = ('*.inp', '')
 extract_program = ./tools/extract.py
