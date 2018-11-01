@@ -135,6 +135,8 @@ contains
           tTrialShift = .false.
           tFixTrial(:) = .false.
           TrialTarget = 0.0
+          tAdaptiveShift = .false.
+          AdaptiveShiftSigma = 1.0
           NEquilSteps=0
           NShiftEquilSteps=1000
           TRhoElems=.false.
@@ -1537,10 +1539,15 @@ contains
                 call stop_all(t_r, 'TRIAL-SHIFT currently not implemented for complex')
 #endif
                 if (item.lt.nitems) then
-                    call readf(TrialTarget)
+                    call getf(TrialTarget)
                 end if
                 tTrialShift = .true.
                 StepsSft = 1
+            case("ADAPTIVE-SHIFT")
+                if (item.lt.nitems) then
+                    call getf(AdaptiveShiftSigma)
+                end if
+                tAdaptiveShift = .true.
             case("EXITWALKERS")
 !For FCIMC, this is an exit criterion based on the total number of walkers in the system.
                 call getiLong(iExitWalkers)
