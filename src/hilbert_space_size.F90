@@ -384,7 +384,8 @@ contains
          use SystemData, only: nEl,G1,nBasis,nOccAlpha,nOccBeta,tMolpro
          use SystemData, only: tUEG,tHPHF,tHub,tKPntSym,Symmetry
          use SystemData, only : CalcDetCycles, CalcDetPrint,tFixLz
-         use CalcData, only : tTruncNOpen, trunc_nopen_max
+         use CalcData, only : tTruncNOpen, trunc_nopen_max, &
+                              t_trunc_nopen_diff, trunc_nopen_diff
          use DeterminantData, only : FDet
          use DetCalcData, only : ICILevel
          use dSFMT_interface
@@ -393,6 +394,7 @@ contains
          use DetBitops, only: EncodeBitDet, IsAllowedHPHF, count_open_orbs
          use bit_rep_data, only: NIfTot
          use sym_mod, only: SymProd
+         use fcimcdata, only: ilutRef
          IMPLICIT NONE
          INTEGER :: IUNIT,j,SpatOrbs,FDetMom,ExcitLev
          INTEGER(KIND=n_int) :: FDetiLut(0:NIfTot),iLut(0:NIfTot)
@@ -582,7 +584,7 @@ contains
 
              enddo
 
-             if(tTruncNOpen) nOpenOrbs = count_open_orbs(iLut)
+             if(tTruncNOpen .or. t_trunc_nopen_diff) nOpenOrbs = count_open_orbs(iLut)
 
              tAcc=.true.
              if(TotalSym.ne.FDetSym) then
@@ -624,6 +626,12 @@ contains
                      tAcc=.false.
                  endif
              endif
+
+             if (tAcc .and. t_trunc_nopen_diff) then 
+                 if (abs(nOpenOrbs - count_open_orbs(ilutRef(:,1))) > trunc_nopen_diff) then
+                     tAcc = .false.
+                 end if
+             end if
 
              if(tAcc) Accept = Accept + 1
 

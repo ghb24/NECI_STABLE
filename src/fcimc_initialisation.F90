@@ -44,7 +44,8 @@ module fcimc_initialisation
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, &
                         t_back_spawn_flex, back_spawn_delay, corespaceWalkers, &
-                        ScaleWalkers, tSpinProject, tFixedN0, tRCCheck
+                        ScaleWalkers, tSpinProject, tFixedN0, tRCCheck, &
+                        t_trunc_nopen_diff
 
     use spin_project, only: init_yama_store, clean_yama_store
 
@@ -1310,7 +1311,7 @@ contains
             write(iout, '("Truncating determinant space at a maximum of ",i3," &
                     &unpaired electrons.")') trunc_nopen_max
         endif
-        
+
 !        SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.0_dp)
 !        TotDets=1.0_dp
 !        do i=1,NEl
@@ -1780,7 +1781,7 @@ contains
             attempt_create => attempt_create_realtime
          else if (tTruncCas .or. tTruncSpace .or. &
             tPartFreezeCore .or. tPartFreezeVirt .or. tFixLz .or. &
-            (tUEG .and. .not. tLatticeGens) .or. tTruncNOpen) then
+            (tUEG .and. .not. tLatticeGens) .or. tTruncNOpen .or. t_trunc_nopen_diff) then
             if (tHPHF .or. tCSF .or. tSemiStochastic) then
                 attempt_create => attempt_create_trunc_spawn
             else

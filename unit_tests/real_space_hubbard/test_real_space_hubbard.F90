@@ -44,6 +44,8 @@ program test_real_space_hubbard
 
     use double_occ_mod, only: count_double_orbs
 
+    use Detbitops, only: count_open_orbs
+
 
     implicit none 
 
@@ -55,7 +57,7 @@ program test_real_space_hubbard
     call dsfmt_init(1)
     call init_fruit()
     ! run the test-driver 
-!     call exact_test()
+    call exact_test()
     call real_space_hubbard_test_driver()
     call fruit_summary()
     call fruit_finalize() 
@@ -520,10 +522,11 @@ contains
         real(dp), allocatable :: neci_eval(:), e_vec_hop(:,:), e_vec_spin(:,:), neci_spin_eval(:)
         real(dp), allocatable :: e_vec_hop_left(:,:)
         character(30) :: filename, J_str
-        logical :: t_calc_singles, t_flip, t_norm_inside
+        logical :: t_calc_singles, t_flip, t_norm_inside, t_norm_inside_sen
         real(dp), allocatable :: neel_states(:), singles(:), j_opt(:), &
-            norm_inside(:), norm_inside_left(:)
-        integer :: neel_ind, flip_ind, ic_inside, ic
+            norm_inside(:), norm_inside_left(:), norm_inside_sen(:), &
+            norm_inside_sen_left(:)
+        integer :: neel_ind, flip_ind, ic_inside, ic, sen, sen_inside
         real(dp) :: phase
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
 
@@ -534,6 +537,9 @@ contains
 
         t_norm_inside = .true.
         ic_inside = 2
+
+        t_norm_inside_sen = .true. 
+        sen_inside = 6
 
         ! initialize correctly for transcorrelation tests
         ! just do it for the hopping transcorrelation now! 
@@ -849,6 +855,38 @@ contains
             end do
             close(iunit)
         end if
+
+        if (t_norm_inside_sen) then 
+            allocate(norm_inside_sen(size(j)), source = 0.0_dp)
+            allocate(norm_inside_sen_left(size(J)), source = 0.0_dp)
+
+            call EncodeBitDet(nI, ilutI)
+            do i = 1, size(j)
+                do k = 1, n_states
+                    call EncodeBitDet(hilbert_space(:,k), ilutJ)
+                    sen = count_open_orbs(ilutJ)
+                    if (sen >= sen_inside) then
+                        norm_inside_sen(i) = norm_inside_sen(i) + & 
+                            e_vec_hop(k,i)**2
+                        norm_inside_sen_left(i) = norm_inside_sen_left(i) + & 
+                            e_vec_hop_left(k,i)**2
+                    end if
+                end do
+            end do
+
+            norm_inside_sen = sqrt(norm_inside_sen)
+            norm_inside_sen_left = sqrt(norm_inside_sen_left)
+
+            iunit = get_free_unit()
+            open(iunit, file = 'norm_inside_sen')
+            write(iunit,*) "# J left right"
+            do i = 1, size(j)
+                write(iunit,*) J(i), norm_inside_sen(i), norm_inside_sen_left(i)
+            end do
+            close(iunit)
+        end if
+
+
 
         if (t_calc_singles) then 
             iunit = get_free_unit()

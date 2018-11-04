@@ -140,6 +140,12 @@ logical :: tSpatialOnlyHash
 logical :: tTruncNOpen
 integer :: trunc_nopen_max
 
+! introduce a new truncation scheme based on the difference of seniority
+! compared to the reference determinant 
+logical :: t_trunc_nopen_diff = .false.
+integer :: trunc_nopen_diff = 0
+integer :: reference_seniority = 0
+
 logical :: tMaxBloom    !If this is on, then we only print out a bloom warning if it is the biggest to date.
 
 INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits,NShiftEquilSteps

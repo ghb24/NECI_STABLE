@@ -2275,6 +2275,12 @@ contains
                 tTruncNOpen = .true.
                 call geti (trunc_nopen_max)
 
+            case("TRUNC-NOPEN-DIFF")
+                ! trunc the seniority based on the difference to the seniority
+                ! of the reference determinant 
+                t_trunc_nopen_diff = .true.
+                call geti(trunc_nopen_diff)
+
             case("WEAKINITIATORS")
                 !Additionally allow the children of initiators to spawn freely
                 !This adaptation is applied stochastically with probability weakthresh

@@ -42,7 +42,8 @@ module fcimc_helper
                         NMCyc, iSampleRDMIters, ErrThresh, tSTDInits, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
                         t_back_spawn_flex, tau, DiagSft,  &
-                        tSeniorInitiators, SeniorityAge, tInitCoherentRule
+                        tSeniorInitiators, SeniorityAge, tInitCoherentRule, &
+                        t_trunc_nopen_diff, trunc_nopen_diff
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
          tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
@@ -1505,6 +1506,13 @@ contains
             if (count_open_orbs(ilutnJ) > trunc_nopen_max) &
                 bAllowed = .false.
         endif
+
+        if (t_trunc_nopen_diff .and. bAllowed) then 
+            ! for now only implement it for single runs! 
+            if (abs(count_open_orbs(ilutnJ) - count_open_orbs(ilutRef(:,1))) > trunc_nopen_diff) then
+                bAllowed = .false.
+            end if
+        end if
 
 
         ! If the FCI space is restricted by a predetermined CAS space

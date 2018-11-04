@@ -375,6 +375,7 @@ CONTAINS
       use util_mod, only: get_free_unit
       use Determinants , only : get_helement,FDet, DefDet, tDefineDet
       use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
+      use SystemData, only: t_new_real_space_hubbard
       use SystemData, only : nBasis, nBasisMax,nEl,nMsh,LzTot, TSPN,LMS
       use IntegralsData, only: FCK,NMAX, UMat
       Use LoggingData, only: iLogging,tLogDets, tCalcVariationalEnergy
@@ -401,6 +402,7 @@ CONTAINS
       use hamiltonian_linalg, only: direct_ci_type, tCalcHFIndex
       use FCIMCData, only: davidson_ras, davidson_classes
       use ras, only: generate_entire_ras_space
+      use real_space_hubbard, only: init_real_space_hubbard
 
       real(dp) , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),FCIGS(:)
       HElement_t(dp), ALLOCATABLE :: WORK(:)
@@ -450,6 +452,9 @@ CONTAINS
 
 !C.. now back to the storing H
       IF(TCALCHMAT) THEN
+          if (t_new_real_space_hubbard) then
+              call init_real_space_hubbard()
+          end if
          WRITE(6,*) "Calculating H matrix"
 !C..We need to measure HAMIL and LAB first 
          ALLOCATE(NROW(NDET),stat=ierr)
