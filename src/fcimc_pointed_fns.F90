@@ -10,7 +10,8 @@ module fcimc_pointed_fns
                         tRealCoeffByExcitLevel, InitiatorWalkNo, &
                         t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, & 
                         t_matele_cutoff, matele_cutoff, tEN2Truncated, &
-                        tTruncInitiator, tSkipRef, t_truncate_unocc, tAdaptiveShift, AdaptiveShiftSigma
+                        tTruncInitiator, tSkipRef, t_truncate_unocc, &
+                        tAdaptiveShift, AdaptiveShiftSigma, AdaptiveShiftF1, AdaptiveShiftF2
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement
     use fcimc_helper, only: CheckAllowedTruncSpawn
@@ -567,7 +568,7 @@ module fcimc_pointed_fns
 #else
         real(dp) :: rat(1)
 #endif        
-        real(dp) :: shift, population
+        real(dp) :: shift, population, slope
 
         do i=1, inum_runs
             !If we are fixing the population of reference det, skip death/birth
@@ -576,12 +577,20 @@ module fcimc_pointed_fns
             else
                 if(tAdaptiveShift)then
                     population = mag_of_run(realwSign, i)
-                    if(population>=InitiatorWalkNo)then
+                    if(population>InitiatorWalkNo)then
                         shift = DiagSft(i)
                     elseif(population<AdaptiveShiftSigma)then
                         shift = 0.0
                     else
-                        shift = DiagSft(i)*((population-AdaptiveShiftSigma)/(InitiatorWalkNo-AdaptiveShiftSigma))
+                        if(InitiatorWalkNo==AdaptiveShiftSigma)then
+                            !In this case the slope is ill-defined.
+                            !Since initiators are strictly large than InitiatorWalkNo, set shift to zero
+                            shift = 0.0
+                        else
+                            !Apply linear modifcation that equals F1 at Sigma and F2 at InitatorWalkNo
+                            slope = (AdaptiveShiftF2-AdaptiveShiftF1)/(InitiatorWalkNo-AdaptiveShiftSigma)
+                            shift = DiagSft(i)*(AdaptiveShiftF1+(population-AdaptiveShiftSigma)*slope)
+                    end if
                     end if
                 else
                     shift = DiagSft(i)

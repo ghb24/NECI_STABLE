@@ -130,6 +130,8 @@ integer :: N0_Target !The target reference population in fixed-N0 mode
 real(dp) :: TrialTarget !The target for trial overlap in trial-shift mode
 logical :: tAdaptiveShift !Make shift depends on the population
 real(dp) :: AdaptiveShiftSigma !Population which below the shift is set to zero
+real(dp) :: AdaptiveShiftF1 !Shift modification factor at AdaptiveShiftSigma
+real(dp) :: AdaptiveShiftF2 !Shift modification factor at InitiatorWalkNo
 ! Base hash values only on spatial orbitals
 ! --> All dets with same spatial structure on the same processor.
 logical :: tSpatialOnlyHash

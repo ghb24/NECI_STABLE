@@ -137,6 +137,8 @@ contains
           TrialTarget = 0.0
           tAdaptiveShift = .false.
           AdaptiveShiftSigma = 1.0
+          AdaptiveShiftF1 = 0.0
+          AdaptiveShiftF2 = 1.0
           NEquilSteps=0
           NShiftEquilSteps=1000
           TRhoElems=.false.
@@ -1546,6 +1548,12 @@ contains
             case("ADAPTIVE-SHIFT")
                 if (item.lt.nitems) then
                     call getf(AdaptiveShiftSigma)
+                end if
+                if (item.lt.nitems) then
+                    call getf(AdaptiveShiftF1)
+                end if
+                if (item.lt.nitems) then
+                    call getf(AdaptiveShiftF2)
                 end if
                 tAdaptiveShift = .true.
             case("EXITWALKERS")
