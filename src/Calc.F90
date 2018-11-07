@@ -1551,9 +1551,15 @@ contains
                 end if
                 if (item.lt.nitems) then
                     call getf(AdaptiveShiftF1)
+                    if(AdaptiveShiftF1<0.0 .or. AdaptiveShiftF1>1.0)then
+                        call stop_all(t_r, 'AdaptiveShiftF1 is a scaling parameter and should be between 0.0 and 1.0')
+                    end if
                 end if
                 if (item.lt.nitems) then
                     call getf(AdaptiveShiftF2)
+                    if(AdaptiveShiftF2<0.0 .or. AdaptiveShiftF2>1.0)then
+                        call stop_all(t_r, 'AdaptiveShiftF2 is a scaling parameter and should be between 0.0 and 1.0')
+                    end if
                 end if
                 tAdaptiveShift = .true.
             case("EXITWALKERS")
