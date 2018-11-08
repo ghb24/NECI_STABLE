@@ -67,7 +67,7 @@ contains
         do j = 1, int(TotWalkers, sizeof_int)
 
             fcimc_excit_gen_store%tFilled = .false.
-            call extract_bit_rep(CurrentDets(:, j), det, sgn, flags, &
+            call extract_bit_rep(CurrentDets(:, j), det, sgn, flags, j, &
                                  fcimc_excit_gen_store)
 
             ! As the main list is not contiguous, skip (but store) empty sites.
