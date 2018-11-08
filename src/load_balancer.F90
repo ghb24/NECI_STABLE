@@ -6,11 +6,11 @@ module load_balance
                         tContTimeFCIMC, t_prone_walkers, &
                         tContTimeFull, tTrialWavefunction, &
                         tPairedReplicas, tau, tSeniorInitiators, &
-                        t_activate_decay
-    use global_det_data, only: global_determinant_data, &
+                        t_activate_decay, tTimedDeaths
+    use global_det_data, only: global_determinant_data, reset_death_timer, &
                                set_det_diagH, set_spawn_rate, &
                                set_all_spawn_pops, reset_all_tau_ints, &
-                               reset_all_shift_ints, det_diagH
+                               reset_all_shift_ints, det_diagH, store_decoding
     use bit_rep_data, only: flag_initiator, NIfDBO, &
                             flag_connected, flag_trial, flag_prone
     use bit_reps, only: set_flag, nullify_ilut_part, &
@@ -343,7 +343,7 @@ contains
         use real_time_aux, only: move_overlap_block
         implicit none
         integer, intent(in) :: block, tgt_proc
-        integer :: src_proc, ierr, nsend, nelem, j, k, det_block, hash_val
+        integer :: src_proc, ierr, nsend, nelem, j, k, det_block, hash_val, PartInd
         integer :: det(nel), TotWalkersTmp, nconsend, clashes, ntrial, ncon
         integer(n_int) :: con_state(0:NConEntry)
         real(dp) :: sgn(lenof_sign)
@@ -385,9 +385,7 @@ contains
 
                     ! Remove the det from the main list.
                     call nullify_ilut(CurrentDets(:,j))
-                    call remove_hash_table_entry(HashIndex, det, j)
-                    iEndFreeSlot = iEndFreeSlot + 1
-                    FreeSlot(iEndFreeSlot) = j
+                    call RemoveHashDet(HashIndex, det, j)
                 end if
             end do
 
@@ -442,7 +440,7 @@ contains
                 ! Calculate the diagonal hamiltonian matrix element for the new particle to be merged.
                 HDiag = get_diagonal_matel(det, SpawnedParts(:,j))
                 call AddNewHashDet(TotWalkersTmp, SpawnedParts(:, j), &
-                                   hash_val, det, HDiag)
+                                   hash_val, det, HDiag, PartInd)
                 TotWalkers = TotWalkersTmp
             end do
 
@@ -492,7 +490,7 @@ contains
     end subroutine
 
 
-    subroutine AddNewHashDet(TotWalkersNew, iLutCurr, DetHash, nJ, HDiag)
+    subroutine AddNewHashDet(TotWalkersNew, iLutCurr, DetHash, nJ, HDiag, DetPosition)
 
         ! Add a new determinant to the main list. This involves updating the
         ! list length, copying it across, updating its flag, adding its diagonal
@@ -502,7 +500,7 @@ contains
         integer(n_int), intent(inout) :: iLutCurr(0:NIfTot)
         integer, intent(in) :: DetHash, nJ(nel)
         real(dp), intent(in) :: HDiag
-        integer :: DetPosition
+        integer, intent(out) :: DetPosition
         HElement_t(dp) :: trial_amps(ntrial_excits)
         logical :: tTrial, tCon
         real(dp), dimension(lenof_sign) :: SignCurr
@@ -534,6 +532,13 @@ contains
         ! except the first one, holding the diagonal Hamiltonian element.
         global_determinant_data(:,DetPosition) = 0.0_dp
         call set_det_diagH(DetPosition, real(HDiag,dp) - Hii)
+
+        ! we reset the death timer, so this determinant can linger again if
+        ! it died before
+        call reset_death_timer(DetPosition)
+        
+        ! we add the determinant to the cache
+        call store_decoding(DetPosition, nJ)
 
         if(tSeniorInitiators) then
             call extract_sign (ilutCurr, SignCurr)
@@ -589,6 +594,17 @@ contains
         
 
     end subroutine AddNewHashDet
+
+    subroutine RemoveHashDet(HashIndex, nJ, partInd)
+      implicit none
+      type(ll_node), pointer, intent(inout) :: HashIndex(:)
+      integer, intent(in) :: nJ(nel), partInd
+      ! remove a determinant from the hashtable
+      call remove_hash_table_entry(HashIndex, nJ, PartInd)
+      ! Add to "freeslot" list so it can be filled in.
+      iEndFreeSlot = iEndFreeSlot + 1
+      FreeSlot(iEndFreeSlot) = PartInd
+    end subroutine RemoveHashDet
 
     function get_diagonal_matel(nI, ilut) result(diagH)
       ! Get the diagonal element for a determinant nI with ilut representation ilut
@@ -646,8 +662,10 @@ contains
 
                 if (tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,i), flag_deterministic)
 
-                if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then                   
-                   AnnihilatedDet = AnnihilatedDet + 1 
+                if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm) .and. &
+                     .not. tTimedDeaths) then
+                    AnnihilatedDet = AnnihilatedDet + 1 
+
                 else
                    
                    if(t_prone_walkers) then
@@ -667,33 +685,31 @@ contains
                                 pRemove=(scaledOccupiedThresh-abs(CurrentSign(j)))/scaledOccupiedThresh
                                 r = genrand_real2_dSFMT ()
                                 if (pRemove  >  r) then
-                                    !Remove this walker
-                                    NoRemoved(run) = NoRemoved(run) + abs(CurrentSign(j))
-                                    iter_data%nremoved(j) = iter_data%nremoved(j) &
-                                                          + abs(CurrentSign(j))
-                                    CurrentSign(j) = 0.0_dp
-                                    call nullify_ilut_part(CurrentDets(:,i), j)
-                                    call decode_bit_det(nI, CurrentDets(:,i))
-                                    if (IsUnoccDet(CurrentSign)) then
-                                        call remove_hash_table_entry(HashIndex, nI, i)
-                                        iEndFreeSlot=iEndFreeSlot+1
-                                        FreeSlot(iEndFreeSlot)=i
-                                        
-                                        ! also update both the number of annihilated dets
-                                        AnnihilatedDet = AnnihilatedDet + 1
-                                        ! and the number of holes
-                                        HolesInList = HolesInList + 1
-                                    end if
+                                   !Remove this walker
+                                   NoRemoved(run) = NoRemoved(run) + abs(CurrentSign(j))
+                                   iter_data%nremoved(j) = iter_data%nremoved(j) &
+                                        + abs(CurrentSign(j))
+                                   CurrentSign(j) = 0.0_dp
+                                   call nullify_ilut_part(CurrentDets(:,i), j)
+                                   call decode_bit_det(nI, CurrentDets(:,i))
+                                   if (IsUnoccDet(CurrentSign) .and. &
+                                        .not. tTimedDeaths) then
+                                      call RemoveHashDet(HashIndex, nI, i)
+                                      ! also update both the number of annihilated dets
+                                      AnnihilatedDet = AnnihilatedDet + 1
+                                      ! and the number of holes
+                                      HolesInList = HolesInList + 1
+                                   end if
                                 else
-                                    NoBorn(run) = NoBorn(run) + scaledOccupiedThresh - abs(CurrentSign(j))
-                                    iter_data%nborn(j) = iter_data%nborn(j) &
-                                         + scaledOccupiedThresh - abs(CurrentSign(j))
-                                    CurrentSign(j) = sign(scaledOccupiedThresh, CurrentSign(j))
-                                    call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
+                                   NoBorn(run) = NoBorn(run) + scaledOccupiedThresh - abs(CurrentSign(j))
+                                   iter_data%nborn(j) = iter_data%nborn(j) &
+                                        + scaledOccupiedThresh - abs(CurrentSign(j))
+                                   CurrentSign(j) = sign(scaledOccupiedThresh, CurrentSign(j))
+                                   call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
                                 end if
-                            end if
-                        end if
-                    end do
+                             end if
+                          end if
+                       end do
 
                     TotParts = TotParts + abs(CurrentSign)
 

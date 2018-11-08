@@ -21,7 +21,9 @@ module FciMCParMod
                         t_back_spawn_flex, t_back_spawn_flex_option, &
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
                         DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
-                        tSkipRef, tFixTrial, tTrialShift, tSpinProject, t_activate_decay
+                        tSkipRef, tFixTrial, tTrialShift, tSpinProject, t_activate_decay, &
+                        tLogAverageSpawns, tActivateLAS, tTimedDeaths, lingerTime
+
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
                         tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
                         SIUpdateInterval, tSuppressSIOutput, nRefUpdateInterval, &
@@ -29,7 +31,7 @@ module FciMCParMod
 
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
-                           compare_amps_period, PopsFileTimer, tOldRDMs, &
+                           compare_amps_period, PopsFileTimer, tOldRDMs, tWriteUnocc, &
                            write_end_core_size, t_calc_double_occ, t_calc_double_occ_av, &
                            equi_iter_double_occ, t_print_frq_histograms, &
                            t_spin_measurements
@@ -61,7 +63,7 @@ module FciMCParMod
     use hist, only: write_zero_hist_excit_tofrom, write_clear_hist_spin_dist
     use orthogonalise, only: orthogonalise_replicas, calc_replica_overlaps, &
                              orthogonalise_replica_pairs
-    use load_balance, only: tLoadBalanceBlocks, adjust_load_balance
+    use load_balance, only: tLoadBalanceBlocks, adjust_load_balance, RemoveHashDet
     use bit_reps, only: set_flag, clr_flag, add_ilut_lists, get_initiator_flag
     use exact_diag, only: perform_exact_diag_all_symmetry
     use spectral_lanczos, only: perform_spectral_lanczos
@@ -74,7 +76,8 @@ module FciMCParMod
     use cont_time, only: iterate_cont_time
     use global_det_data, only: det_diagH, reset_tau_int, get_all_spawn_pops, &
                                reset_shift_int, update_shift_int, &
-                               update_tau_int, set_spawn_pop
+                               update_tau_int, set_spawn_pop, get_death_timer, &
+                               clock_death_timer, mark_death
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
     use ftlm_neci, only: perform_ftlm
@@ -273,6 +276,10 @@ module FciMCParMod
             end if
             call WriteFCIMCStats()
         end if
+        if(tWriteUnocc) then
+           call write_unoccstats(.true.)
+           call write_unoccstats()
+        endif
 
         ! double occupancy: 
         if (t_calc_double_occ) then 
@@ -314,6 +321,9 @@ module FciMCParMod
                call MPISumAll(TotParts,AllTotParts)
                exit
             endif
+
+            ! start logging average spawns once we enter the variable shift mode
+            if(.not. any(tSinglePartPhase) .and. tActivateLAS) tLogAverageSpawns = .true.
 
             IFDEBUG(FCIMCDebug, 2) write(iout,*) 'Iter', iter
 
@@ -957,7 +967,7 @@ module FciMCParMod
 
         integer :: ms
         logical :: signChanged, newlyOccupied
-        real(dp) :: currArg, spawnArg
+        real(dp) :: currArg, spawnArg, tau_dead
         ! how many entries were added to (the end of) CurrentDets in the last iteration
         integer, save :: detGrowth = 0
 
@@ -1092,7 +1102,8 @@ module FciMCParMod
                         ! kill all walkers on the determinant
                         call nullify_ilut(CurrentDets(:,j))
                         ! and remove it from the hashtable
-                        call remove_hash_table_entry(HashIndex, DetCurr, j)
+                        call RemoveHashDet(HashIndex, DetCurr, j)
+                        cycle
                      endif
                   endif
                end if
@@ -1158,11 +1169,33 @@ module FciMCParMod
             ! As the main list (which is storing a hash table) no longer needs
             ! to be contiguous, we need to skip sites that are empty.
             if(IsUnoccDet(SignCurr)) then
-                !It has been removed from the hash table already
-                !Add to the "freeslot" list
-                iEndFreeSlot=iEndFreeSlot+1
-                FreeSlot(iEndFreeSlot)=j
-                cycle
+               !It has been removed from the hash table already
+               !Add to the "freeslot" list
+               if(.not. tTimedDeaths) then
+                  iEndFreeSlot=iEndFreeSlot+1
+                  FreeSlot(iEndFreeSlot)=j
+               else
+                  ! clock the death timer
+                  tau_dead = get_death_timer(j)
+                  ! we need to distinguish lingering from actually dead determinants
+                  ! this is done via the death timer: if it is <0, the det is dead
+                  if(tau_dead .ge. 0) then
+                     call clock_death_timer(j)
+                     HolesByExLvl(walkExcitLevel) = HolesByExLvl(walkExcitLevel) + 1
+                     nUnoccDets = nUnoccDets + 1
+                     ! if the determinant exceedes its linger time, kill it
+                     if(int(tau_dead) > lingerTime) then
+                        call RemoveHashDet(HashIndex, DetCurr, j) 
+                        ! mark this determinant as dead
+                        call mark_death(j)
+                     endif
+                  else
+                     ! this determinant has been removed from the hashtable
+                     iEndFreeSlot=iEndFreeSlot+1
+                     FreeSlot(iEndFreeSlot)=j
+                  endif
+               endif
+               cycle
             endif
 
             ! The current diagonal matrix element is stored persistently.
@@ -1384,11 +1417,11 @@ module FciMCParMod
 
                         if (use_spawn_hash_table) then
                             call create_particle_with_hash_table (nJ, ilutnJ, child, part_type, &
-                                                                   CurrentDets(:,j), iter_data)
+                                                                   CurrentDets(:,j), iter_data, abs(HElGen))
                         else
                             call create_particle (nJ, iLutnJ, child, part_type, & 
                                                   CurrentDets(:,j), SignCurr, p, &
-                                                  RDMBiasFacCurr, WalkersToSpawn)
+                                                  RDMBiasFacCurr, WalkersToSpawn, abs(HElGen))
                         end if
 
                     endif ! (child /= 0), Child created.

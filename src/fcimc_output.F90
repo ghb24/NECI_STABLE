@@ -18,7 +18,7 @@ module fcimc_output
                         DiagSft, tSpatialOnlyHash, tOrthogonaliseReplicas, &
                         StepsSft, tPrintReplicaOverlaps, tStartTrialLater, tEN2, &
                         tSemiStochastic, allCorespaceWalkers, tGlobalInitFlag, &
-                        t_truncate_spawns
+                        t_truncate_spawns, tTimedDeaths
 
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
@@ -546,6 +546,45 @@ contains
 
     end subroutine open_create_stats
 
+    subroutine write_unoccstats(initial)
+      logical, intent(in), optional :: initial
+      
+      type(write_state_t), save :: state_ud
+      integer :: p
+      logical, save :: inited = .false.
+      character(5) :: tmpc
+
+      if(present(initial)) then
+         state_ud%init = initial
+      else
+         state_ud%init = .false.
+      endif
+
+      ! only root prints the info on the unocc dets    
+      if(iProcIndex == root) then
+         if(.not. inited) then
+            call open_state_file('unoccupied_stats',state_ud)
+            inited = .true.
+         endif
+
+         call write_padding_init(state_ud)
+
+         call stats_out(state_ud, .false., Iter + PreviousCycles, 'Iter')
+         call stats_out(state_ud, .false., AllNUnoccDets, 'Unocc Dets')
+         do p = 1, maxHoleExLvlWrite
+            ! write the number of conflicts of this excitation lvl
+            write(tmpc,('(i5)')) p
+            call stats_out(state_ud, .false., AllHolesByExLvl(p), 'nUnocc (ex = '//&
+                 trim(adjustl(tmpc)) // ")")
+         end do
+
+         write(state_ud%funit,*)
+         ! flush output
+         call neci_flush(state_ud%funit)
+      end if
+      
+    end subroutine write_unoccstats
+
     subroutine write_fcimcstats2(iter_data, initial)
 
         ! Write output to our FCIMCStats file.
@@ -580,20 +619,14 @@ contains
 
         ! If the output file hasn't been opened yet, then create it.
         if (iProcIndex == Root .and. .not. inited) then
-            state%funit = get_free_unit()
-            call open_create_stats('fciqmc_stats',state%funit)
-            ! For the initiator stats file here:
-            if (tTruncInitiator) then
-              state_i%funit = get_free_unit()
-              call open_create_stats('initiator_stats',state_i%funit)
-            end if
+           
+           call open_state_file('fciqmc_stats',state)
+           ! For the initiator stats file here:
+           if (tTruncInitiator) call open_state_file('initiator_stats',state_i)
 
-            if(tWriteConflictLvls) then
-               state_cl%funit = get_free_unit()
-               call open_create_stats('conflicts_stats',state_cl%funit)
-            endif
+           if(tWriteConflictLvls) call open_state_file('conflict_stats',state_cl)
 
-            inited = .true.
+           inited = .true.
         end if
 
         ! ------------------------------------------------
@@ -863,15 +896,15 @@ contains
             ! gather sign conflict statistics
             if(tWriteConflictLvls) then
                call stats_out(state_cl, .false., Iter + PreviousCycles, 'Iter')
-               call stats_out(state_cl, .false., sum(conflictExLvl), 'confl. Dets')
+               call stats_out(state_cl, .false., AllNoConflicts, 'confl. Dets')
                do p = 1, maxConflictExLvl
                   ! write the number of conflicts of this excitation lvl
                   write(tmpc,('(i5)')) p
-                  call stats_out(state_cl, .false., ConflictExLvl(p), 'confl. (ex = '//&
+                  call stats_out(state_cl, .false., AllConflictExLvl(p), 'confl. (ex = '//&
                        trim(adjustl(tmpc)) // ")")
                end do
             endif
-
+     
             ! And we are done
             write(state%funit, *)
             if (tTruncInitiator) write(state_i%funit, *)
@@ -886,6 +919,16 @@ contains
         end if
 
     end subroutine write_fcimcstats2
+
+    subroutine open_state_file(filename,state)
+      implicit none
+      character(*), intent(in) :: filename
+      type(write_state_t), intent(inout) :: state
+      ! mini-subroutine for opening a file and assigning it to a state
+      state%funit = get_free_unit()
+      call open_create_stats(filename,state%funit)
+
+    end subroutine open_state_file
 
     subroutine write_padding_init(state)
       implicit none
