@@ -830,8 +830,8 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
           NELS(2)=(LMS+NEL)/2
           NELS(1)=NEL-NELS(2)
           nclosed = minval(nels)
-          WRITE(6,'(4(A,'//int_fmt(nel)//'))') " N_alpha:",NELS(1),
-     &   " ; N_beta:",  NELS(2)," ; LMS:",LMS," ; NEl:",NEL
+          WRITE(6,'(4(A,'//int_fmt(nel)//'))') " N_alpha:",NELS(2),
+     &   " ; N_beta:",  NELS(1)," ; LMS:",LMS," ; NEl:",NEL
 
           if (tGiovannisBrokenInit) then
               call GLM_BROKEN_GENFDET(brr, g1, nbasis, lms, nel, fdet)
@@ -845,7 +845,7 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
                   FDET(i)=i  !Fill up closed shells
               enddo
               do i=1,abs(LMS) !Fill up open shells in odd orbitals
-                  FDET(nclosed*2+i)=nclosed*2+(i*2-(1-LMS)/2)
+                  FDET(nclosed*2+i)=nclosed*2+(i*2-(1-sign(1,LMS))/2)
               enddo
               return
           endif
