@@ -43,7 +43,7 @@ MODULE FciMCData
       integer :: nhashes_spawn
 
       INTEGER(TagIntType) :: WalkVecDetsTag=0
-      INTEGER(TagIntType) :: SpawnVecTag=0,SpawnVec2Tag=0
+      INTEGER(TagIntType) :: SpawnVecTag=0,SpawnVec2Tag=0,SpawnVec3Tag=0
 
 !Pointers to point at the correct arrays for use
       INTEGER(KIND=n_int) , POINTER :: CurrentDets(:,:)
