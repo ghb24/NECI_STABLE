@@ -32,6 +32,10 @@ module global_det_data
     !The integral of shift since the spawning of this determinant.
     integer :: pos_shift_int, len_shift_int
 
+    ! Total spawns and the number of successful ones according the initiator criterion
+    integer :: len_tot_spawns, len_acc_spawns
+    integer :: pos_tot_spawns, pos_acc_spawns
+
     ! Average sign and first occupation of iteration.
     private :: pos_av_sgn, len_av_sgn, pos_iter_occ, len_iter_occ
     integer :: pos_av_sgn, len_av_sgn
@@ -132,6 +136,8 @@ contains
         len_spawn_pop = lenof_sign
         len_tau_int = inum_runs
         len_shift_int = inum_runs
+        len_tot_spawns = inum_runs
+        len_acc_spawns = inum_runs
         
 
         ! If we are using calculating RDMs stochastically, need to include the
@@ -184,7 +190,9 @@ contains
         pos_spawn_pop = pos_hel+len_hel
         pos_tau_int = pos_spawn_pop+len_spawn_pop
         pos_shift_int = pos_tau_int+len_tau_int
-        pos_av_sgn = pos_shift_int + len_shift_int
+        pos_tot_spawns = pos_shift_int+len_shift_int
+        pos_acc_spawns = pos_tot_spawns+len_tot_spawns
+        pos_av_sgn = pos_acc_spawns + len_acc_spawns
         pos_av_sgn_transition = pos_av_sgn + len_av_sgn
         pos_iter_occ = pos_av_sgn_transition + len_av_sgn_transition
         pos_iter_occ_transition = pos_iter_occ + len_iter_occ
@@ -194,7 +202,7 @@ contains
         pos_death_timer = pos_neg_spawns + len_neg_spawns
         pos_occ_time = pos_death_timer + pos_death_timer
 
-        tot_len = len_hel + len_spawn_pop + len_tau_int + len_shift_int + &
+        tot_len = len_hel + len_spawn_pop + len_tau_int + len_shift_int + len_tot_spawns + len_acc_spawns + &
              len_av_sgn_tot + len_iter_occ_tot + len_pos_spawns + len_neg_spawns + &
              len_death_timer + len_occ_time
 
@@ -370,6 +378,74 @@ contains
         real(dp) :: t
 
         t = global_determinant_data(pos_shift_int+run-1, j)
+
+    end function
+
+    subroutine reset_all_tot_spawns(j)
+
+        integer, intent(in) :: j
+
+        global_determinant_data(pos_tot_spawns:pos_tot_spawns+len_tot_spawns-1, j) = 0.0_dp
+
+    end subroutine
+
+    subroutine reset_tot_spawns(j, run)
+
+        integer, intent(in) :: j, run
+
+        global_determinant_data(pos_tot_spawns+run-1, j) = 0.0_dp
+
+    end subroutine
+
+    subroutine update_tot_spawns(j, run, t)
+
+        integer, intent(in) :: j, run
+        real(dp), intent(in) :: t
+
+        global_determinant_data(pos_tot_spawns+run-1, j) = global_determinant_data(pos_tot_spawns, j) + t
+
+    end subroutine
+
+    function get_tot_spawns(j, run) result(t)
+        
+        integer, intent(in) :: j, run
+        real(dp) :: t
+
+        t = global_determinant_data(pos_tot_spawns+run-1, j)
+
+    end function
+
+    subroutine reset_all_acc_spawns(j)
+
+        integer, intent(in) :: j
+
+        global_determinant_data(pos_acc_spawns:pos_acc_spawns+len_acc_spawns-1, j) = 0.0_dp
+
+    end subroutine
+
+    subroutine reset_acc_spawns(j, run)
+
+        integer, intent(in) :: j, run
+
+        global_determinant_data(pos_acc_spawns+run-1, j) = 0.0_dp
+
+    end subroutine
+
+    subroutine update_acc_spawns(j, run, t)
+
+        integer, intent(in) :: j, run
+        real(dp), intent(in) :: t
+
+        global_determinant_data(pos_acc_spawns+run-1, j) = global_determinant_data(pos_acc_spawns, j) + t
+
+    end subroutine
+
+    function get_acc_spawns(j, run) result(t)
+        
+        integer, intent(in) :: j, run
+        real(dp) :: t
+
+        t = global_determinant_data(pos_acc_spawns+run-1, j)
 
     end function
 

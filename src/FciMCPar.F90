@@ -18,7 +18,7 @@ module FciMCParMod
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
                         DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
                         tSkipRef, tFixTrial, tTrialShift, t_activate_decay, &
-                        tLogAverageSpawns, tActivateLAS, tTimedDeaths, lingerTime
+                        tLogAverageSpawns, tActivateLAS, tTimedDeaths, lingerTime, tAutoAdaptiveShift
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
                         tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
                         SIUpdateInterval, tSuppressSIOutput, nRefUpdateInterval, &
@@ -64,7 +64,7 @@ module FciMCParMod
     use global_det_data, only: det_diagH, reset_tau_int, get_all_spawn_pops, &
                                reset_shift_int, update_shift_int, &
                                update_tau_int, set_spawn_pop, get_death_timer, &
-                               clock_death_timer, mark_death
+                               clock_death_timer, mark_death, update_tot_spawns
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
     use ftlm_neci, only: perform_ftlm
@@ -1265,6 +1265,10 @@ module FciMCParMod
                             call create_particle (nJ, iLutnJ, child, part_type, & 
                                                   CurrentDets(:,j), SignCurr, p, &
                                                   RDMBiasFacCurr, WalkersToSpawn, abs(HElGen))
+                        end if
+
+                        if(tAutoAdaptiveShift)then
+                            call update_tot_spawns(j, run, 1.0_dp)
                         end if
 
                     endif ! (child /= 0), Child created.
