@@ -43,7 +43,8 @@ module fcimc_helper
                         t_back_spawn_flex, tau, DiagSft, tLargeMatelSurvive, &
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule, &
                         initMaxSenior, tSeniorityInits, tLogAverageSpawns, &
-                        spawnSgnThresh, minInitSpawns, tTimedDeaths
+                        spawnSgnThresh, minInitSpawns, tTimedDeaths, &
+                        tAutoAdaptiveShift
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
          tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
@@ -177,6 +178,9 @@ contains
             endif
         end if
 
+        if(tAutoAdaptiveShift)then
+            SpawnedParents(:, ValidSpawnedList(proc)) = ilutI(:)
+        end if
         ! set flag for large spawn matrix element
         if(present(matel)) call setLargeMatelFlag(ValidSpawnedList(proc),matel)
         ! store global data - number of spawns

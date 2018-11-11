@@ -9,7 +9,7 @@ module AnnihilationMod
                           tEN2Started, tEN2Truncated, tInitCoherentRule, t_truncate_spawns, &
                           n_truncate_spawns, t_prone_walkers, t_truncate_unocc, &
                           tSpawnSeniorityBased, numMaxExLvlsSet, maxKeepExLvl, &
-                          tLogAverageSpawns, tTimedDeaths
+                          tLogAverageSpawns, tTimedDeaths, tAutoAdaptiveShift
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -48,7 +48,6 @@ module AnnihilationMod
         integer, intent(inout) :: TotWalkersNew
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer :: MaxIndex
-        integer(kind=n_int), pointer :: PointTemp(:,:)
         logical, intent(in) :: tSingleProc
         type(timer), save :: Compress_time
 
@@ -57,10 +56,6 @@ module AnnihilationMod
 
         call SendProcNewParts(MaxIndex,tSingleProc)
 
-        ! CompressSpawnedList works on SpawnedParts arrays, so swap the pointers around.
-        PointTemp => SpawnedParts2
-        SpawnedParts2 => SpawnedParts
-        SpawnedParts => PointTemp
 
         Compress_time%timer_name='Compression interface'
         call set_timer(Compress_time,20)
@@ -100,6 +95,7 @@ module AnnihilationMod
                                                    recvcounts, recvdisps
         integer :: MaxSendIndex
         integer(MPIArg) :: SpawnedPartsWidth
+        integer(kind=n_int), pointer :: PointTemp(:,:)
 
         if (tSingleProc) then
             ! Put all particles and gap on one proc.
@@ -181,6 +177,19 @@ module AnnihilationMod
         end if
 
         call MPIAlltoAllv(SpawnedParts,sendcounts,disps,SpawnedParts2,recvcounts,recvdisps,error)
+
+        ! CompressSpawnedList works on SpawnedParts arrays, so swap the pointers around.
+        PointTemp => SpawnedParts2
+        SpawnedParts2 => SpawnedParts
+        SpawnedParts => PointTemp
+
+        if(tAutoAdaptiveShift) then
+            call MPIAlltoAllv(SpawnedParents,sendcounts,disps,SpawnedParts2,recvcounts,recvdisps,error)
+
+            PointTemp => SpawnedParts2
+            SpawnedParts2 => SpawnedParents
+            SpawnedParents => PointTemp
+        end if
 
         call halt_timer(Comms_Time)
 
