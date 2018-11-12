@@ -1423,7 +1423,7 @@ contains
                 allocate(SpawnVec3(0:NIfBCast, MaxSpawned), stat=ierr)
                 log_alloc(SpawnVec3, SpawnVec3Tag, ierr)
                 SpawnVec3(:,:)=0
-                SpawnedParents=>SpawnVec3
+                SpawnInfo=>SpawnVec3
                 MemoryAlloc=MemoryAlloc+(NIfTot+1)*MaxSpawned*size_n_int
             end if
 

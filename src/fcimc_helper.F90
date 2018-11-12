@@ -101,7 +101,7 @@ contains
     end function TestMCExit
 
     subroutine create_particle (nJ, iLutJ, child, part_type, ilutI, SignCurr, &
-                                WalkerNo, RDMBiasFacCurr, WalkersToSpawn, matel)
+                                WalkerNo, RDMBiasFacCurr, WalkersToSpawn, matel, ParentPos)
 
         ! Create a child in the spawned particles arrays. We spawn particles
         ! into a separate array, but non-contiguously. The processor that the
@@ -119,6 +119,7 @@ contains
         real(dp), intent(in), optional :: RDMBiasFacCurr
         integer, intent(in), optional :: WalkersToSpawn
         real(dp), intent(in), optional :: matel
+        integer, intent(in), optional :: ParentPos
         integer :: proc, j, run
         real(dp) :: r
         integer, parameter :: flags = 0
@@ -179,8 +180,12 @@ contains
         end if
 
         if(tAutoAdaptiveShift)then
-            SpawnedParents(:, ValidSpawnedList(proc)) = ilutI(:)
+            SpawnInfo(0, ValidSpawnedList(proc)) = ParentPos
+            write(6, *), ParentPos
+            SpawnInfo(1, ValidSpawnedList(proc)) = run
+            write(6, *), run
         end if
+
         ! set flag for large spawn matrix element
         if(present(matel)) call setLargeMatelFlag(ValidSpawnedList(proc),matel)
         ! store global data - number of spawns

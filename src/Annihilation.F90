@@ -24,14 +24,15 @@ module AnnihilationMod
                         flag_initiator, encode_part_sign, &
                         extract_part_sign, extract_bit_rep, &
                         nullify_ilut_part, clr_flag, get_num_spawns,&
-                        encode_flags, bit_parent_zero, get_initiator_flag
+                        encode_flags, bit_parent_zero, get_initiator_flag, get_initiator_flag_by_run
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData, only: tNoNewRDMContrib
     use load_balance, only: DetermineDetNode, AddNewHashDet, &
                             CalcHashTableStats, get_diagonal_matel, RemoveHashDet
     use searching
     use hash
-    use global_det_data, only: det_diagH, store_spawn, get_death_timer
+    use global_det_data, only: det_diagH, store_spawn, get_death_timer, &
+                               update_tot_spawns, update_acc_spawns
     use procedure_pointers, only: scaleFunction
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement
@@ -96,6 +97,12 @@ module AnnihilationMod
         integer :: MaxSendIndex
         integer(MPIArg) :: SpawnedPartsWidth
         integer(kind=n_int), pointer :: PointTemp(:,:)
+
+        integer :: j, run, ParentPos, proc
+        integer :: PartInd, DetHash, nI(nel)
+        real(dp) :: CurrentSign(lenof_sign)
+        real(dp) :: val
+        logical :: tUnocc, tSuccess, tDetermState, tToEmptyDet
 
         if (tSingleProc) then
             ! Put all particles and gap on one proc.
@@ -183,15 +190,52 @@ module AnnihilationMod
         SpawnedParts2 => SpawnedParts
         SpawnedParts => PointTemp
 
-        if(tAutoAdaptiveShift) then
-            call MPIAlltoAllv(SpawnedParents,sendcounts,disps,SpawnedParts2,recvcounts,recvdisps,error)
+        call halt_timer(Comms_Time)
 
+        if(tAutoAdaptiveShift) then
+            call MPIAlltoAllv(SpawnInfo,sendcounts,disps,SpawnedParts2,recvcounts,recvdisps,error)
             PointTemp => SpawnedParts2
-            SpawnedParts2 => SpawnedParents
-            SpawnedParents => PointTemp
+            SpawnedParts2 => SpawnInfo
+            SpawnInfo => PointTemp
+
+            do i = 1, MaxIndex                
+                SpawnInfo(2,i) = 1
+                if(tTruncInitiator)then
+                    call decode_bit_det(nI, SpawnedParts(:,i))
+                    call hash_table_lookup(nI, SpawnedParts(:,i), NIfDBO, HashIndex, &
+                                   CurrentDets, PartInd, DetHash, tSuccess)
+                    if (tSuccess) then
+                        tDetermState = test_flag(CurrentDets(:,PartInd), flag_deterministic)
+                        call extract_sign(CurrentDets(:,PartInd),CurrentSign)
+                        run = SpawnInfo(1,i)
+                        tUnocc = is_run_unnocc(CurrentSign,run)
+                        tToEmptyDet =  tUnocc .and. (.not. tDetermState)
+                    else
+                        tToEmptyDet = .True.
+                    end if
+                    
+                    if (.not. test_flag (SpawnedParts(:,i), get_initiator_flag_by_run(run)) .and. tToEmptyDet)then 
+                        SpawnInfo(2,i) = 0
+                    endif
+                end if
+            end do
+            !replaceing: sendcount <-> recvcounts, disps <-> recvdips, we send the info back into its original location
+            call MPIAlltoAllv(SpawnInfo,recvcounts,recvdisps,SpawnedParts2,sendcounts,disps,error)
+            PointTemp => SpawnedParts2
+            SpawnedParts2 => SpawnInfo
+            SpawnInfo => PointTemp
+
+            do proc = 0, nProcessors-1
+                do i=InitialSpawnedSlots(proc), ValidSpawnedList(proc)-1
+                    ParentPos = SpawnInfo(0,i)
+                    run = SpawnInfo(1,i)
+                    val = SpawnInfo(2,i) 
+                    call update_tot_spawns(ParentPos, run, 1.0_dp)
+                    call update_acc_spawns(ParentPos, run, val)
+                end do
+            end do
         end if
 
-        call halt_timer(Comms_Time)
 
     end subroutine SendProcNewParts
 
