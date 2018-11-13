@@ -34,7 +34,7 @@ MODULE FciMCData
       integer :: EXLEVELStats_unit ! EXLEVELStats
 
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: WalkVecDets(:,:)                !Contains determinant list
-      INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVec(:,:),SpawnVec2(:,:),SpawnVec3(:,:)
+      INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVec(:,:),SpawnVec2(:,:)
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVecKP(:,:), SpawnVecKP2(:,:)
 
       ! Hash table to spawning array. Currently not used by default, except in KP-FCIQMC.
@@ -43,11 +43,11 @@ MODULE FciMCData
       integer :: nhashes_spawn
 
       INTEGER(TagIntType) :: WalkVecDetsTag=0
-      INTEGER(TagIntType) :: SpawnVecTag=0,SpawnVec2Tag=0,SpawnVec3Tag=0
+      INTEGER(TagIntType) :: SpawnVecTag=0,SpawnVec2Tag=0
 
 !Pointers to point at the correct arrays for use
       INTEGER(KIND=n_int) , POINTER :: CurrentDets(:,:)
-      INTEGER(KIND=n_int) , POINTER :: SpawnedParts(:,:),SpawnedParts2(:,:), SpawnInfo(:,:)
+      INTEGER(KIND=n_int) , POINTER :: SpawnedParts(:,:),SpawnedParts2(:,:)
       INTEGER(KIND=n_int) , POINTER :: SpawnedPartsKP(:,:), SpawnedPartsKP2(:,:)
 
 
@@ -605,5 +605,19 @@ MODULE FciMCData
       ! counting the total walker population all determinants of each ms value
       real(dp), allocatable :: walkPopByMsReal(:), walkPopByMsImag(:)
 
+
+      !This arrays contain information related to the spawns. Currently only used with auto-adaptive-shift
+      INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnInfoVec(:,:),SpawnInfoVec2(:,:)
+      INTEGER(KIND=n_int) , POINTER :: SpawnInfo(:,:),SpawnInfo2(:,:)
+      INTEGER(TagIntType) :: SpawnInfoVecTag=0,SpawnInfoVec2Tag=0
+     
+      !Size of SpawnInfo array elements
+      integer, parameter :: SpawnInfoWidth = 3
+      !Where is the spawn's parent index is stored inside SpawnInfo
+      integer, parameter :: SpawnParentIdx = 0
+      !Where is the spawn's run is stored inside SpawnInfo
+      integer, parameter :: SpawnRun = 1
+      !Where is the spawn acceptance status is stored inside SpawnInfo
+      integer, parameter :: SpawnAccepted = 2
 
 end module FciMCData

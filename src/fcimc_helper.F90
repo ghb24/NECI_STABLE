@@ -180,10 +180,8 @@ contains
         end if
 
         if(tAutoAdaptiveShift)then
-            SpawnInfo(0, ValidSpawnedList(proc)) = ParentPos
-            write(6, *), ParentPos
-            SpawnInfo(1, ValidSpawnedList(proc)) = run
-            write(6, *), run
+            SpawnInfo(SpawnParentIdx, ValidSpawnedList(proc)) = ParentPos
+            SpawnInfo(SpawnRun, ValidSpawnedList(proc)) = run
         end if
 
         ! set flag for large spawn matrix element

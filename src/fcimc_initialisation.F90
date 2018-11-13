@@ -1420,13 +1420,16 @@ contains
             MemoryAlloc=MemoryAlloc+(NIfTot+1)*MaxSpawned*2*size_n_int
 
             if(tAutoAdaptiveShift)then
-                allocate(SpawnVec3(0:NIfBCast, MaxSpawned), stat=ierr)
-                log_alloc(SpawnVec3, SpawnVec3Tag, ierr)
-                SpawnVec3(:,:)=0
-                SpawnInfo=>SpawnVec3
-                MemoryAlloc=MemoryAlloc+(NIfTot+1)*MaxSpawned*size_n_int
+                allocate(SpawnInfoVec(0:SpawnInfoWidth-1, MaxSpawned), &
+                         SpawnInfoVec2(0:SpawnInfoWidth-1, MaxSpawned), stat=ierr)
+                log_alloc(SpawnInfoVec, SpawnInfoVecTag, ierr)
+                log_alloc(SpawnInfoVec2, SpawnInfoVec2Tag, ierr)
+                SpawnInfoVec(:,:)=0
+                SpawnInfoVec2(:,:)=0
+                SpawnInfo=>SpawnInfoVec
+                SpawnInfo2=>SpawnInfoVec2
+                MemoryAlloc=MemoryAlloc+(SpawnInfoWidth)*MaxSpawned*2*size_n_int
             end if
-
 
             write(iout,"(A)") "Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number"
             write(iout,"(A,I15)") "Length of hash-table: ",nWalkerHashes
@@ -1844,8 +1847,10 @@ contains
         DEALLOCATE(SpawnVec2)
         CALL LogMemDealloc(this_routine,SpawnVec2Tag)
         if(tAutoAdaptiveShift)then
-            DEALLOCATE(SpawnVec3)
-            CALL LogMemDealloc(this_routine,SpawnVec3Tag)
+            DEALLOCATE(SpawnInfoVec)
+            CALL LogMemDealloc(this_routine,SpawnInfoVecTag)
+            DEALLOCATE(SpawnInfoVec2)
+            CALL LogMemDealloc(this_routine,SpawnInfoVec2Tag)
         end if
 
         if(allocated(TempSpawnedParts)) then
