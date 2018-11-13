@@ -3,7 +3,7 @@
 module global_det_data
   
   use SystemData, only: nel
-    use CalcData, only: tContTimeFCIMC, tContTimeFull, tStoredDets, tActivateLAS
+    use CalcData, only: tContTimeFCIMC, tContTimeFull, tStoredDets, tActivateLAS, tSeniorInitiators
     use LoggingData, only: tRDMonFly, tExplicitAllRDM, tTransitionRDMs
     use FciMCData, only: MaxWalkersPart
     use constants
@@ -134,8 +134,13 @@ contains
         ! len_hel = 1
 
         len_spawn_pop = lenof_sign
-        len_tau_int = inum_runs
-        len_shift_int = inum_runs
+        if(tSeniorInitiators)then
+            len_tau_int = inum_runs
+            len_shift_int = inum_runs
+        else
+            len_tau_int = 0
+            len_shift_int = 0
+        end if
         len_tot_spawns = inum_runs
         len_acc_spawns = inum_runs
         
