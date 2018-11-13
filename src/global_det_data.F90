@@ -3,7 +3,8 @@
 module global_det_data
   
   use SystemData, only: nel
-    use CalcData, only: tContTimeFCIMC, tContTimeFull, tStoredDets, tActivateLAS, tSeniorInitiators
+    use CalcData, only: tContTimeFCIMC, tContTimeFull, tStoredDets, tActivateLAS, &
+                        tSeniorInitiators, tAutoAdaptiveShift
     use LoggingData, only: tRDMonFly, tExplicitAllRDM, tTransitionRDMs
     use FciMCData, only: MaxWalkersPart
     use constants
@@ -141,8 +142,13 @@ contains
             len_tau_int = 0
             len_shift_int = 0
         end if
-        len_tot_spawns = inum_runs
-        len_acc_spawns = inum_runs
+        if(tAutoAdaptiveShift)then
+            len_tot_spawns = inum_runs
+            len_acc_spawns = inum_runs
+        else
+            len_tot_spawns = 0
+            len_acc_spawns = 0
+        end if
         
 
         ! If we are using calculating RDMs stochastically, need to include the
