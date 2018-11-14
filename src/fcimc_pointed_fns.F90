@@ -599,6 +599,7 @@ module fcimc_pointed_fns
                     population = mag_of_run(realwSign, i)
                     tot = get_tot_spawns(DetPosition, i)
                     acc = get_acc_spawns(DetPosition, i)
+                    !write(6,*), DetPosition, i, tot, acc
                     if(population>InitiatorWalkNo)then
                         shift = DiagSft(i)
                     elseif(tot>AdaptiveShiftThresh)then

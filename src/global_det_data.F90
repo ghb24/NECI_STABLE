@@ -379,7 +379,7 @@ contains
         integer, intent(in) :: j, run
         real(dp), intent(in) :: t
 
-        global_determinant_data(pos_shift_int+run-1, j) = global_determinant_data(pos_shift_int, j) + t
+        global_determinant_data(pos_shift_int+run-1, j) = global_determinant_data(pos_shift_int+run-1, j) + t
 
     end subroutine
 
@@ -413,7 +413,7 @@ contains
         integer, intent(in) :: j, run
         real(dp), intent(in) :: t
 
-        global_determinant_data(pos_tot_spawns+run-1, j) = global_determinant_data(pos_tot_spawns, j) + t
+        global_determinant_data(pos_tot_spawns+run-1, j) = global_determinant_data(pos_tot_spawns+run-1, j) + t
 
     end subroutine
 
@@ -447,7 +447,7 @@ contains
         integer, intent(in) :: j, run
         real(dp), intent(in) :: t
 
-        global_determinant_data(pos_acc_spawns+run-1, j) = global_determinant_data(pos_acc_spawns, j) + t
+        global_determinant_data(pos_acc_spawns+run-1, j) = global_determinant_data(pos_acc_spawns+run-1, j) + t
 
     end subroutine
 

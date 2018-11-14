@@ -32,7 +32,7 @@ module AnnihilationMod
     use searching
     use hash
     use global_det_data, only: det_diagH, store_spawn, get_death_timer, &
-                               update_tot_spawns, update_acc_spawns
+                               update_tot_spawns, update_acc_spawns, get_tot_spawns, get_acc_spawns
     use procedure_pointers, only: scaleFunction
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement
@@ -1213,6 +1213,7 @@ module AnnihilationMod
         !we send the info back into its original location
         call MPIAlltoAllv(SpawnInfo2,recvcounts,recvdisps,SpawnInfo,sendcounts,disps,error)
 
+        !write(6,*), "++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
         do proc = 0, nProcessors-1
             do i=InitialSpawnedSlots(proc), ValidSpawnedList(proc)-1
                 ParentIdx = SpawnInfo(SpawnParentIdx,i)
@@ -1220,8 +1221,10 @@ module AnnihilationMod
                 val = SpawnInfo(SpawnAccepted,i) 
                 call update_tot_spawns(ParentIdx, run, 1.0_dp)
                 call update_acc_spawns(ParentIdx, run, val)
+                !write(6,*), ParentIdx, run, get_tot_spawns(ParentIdx, run), get_acc_spawns(ParentIdx, run) 
             end do
         end do
+        !write(6,*), "---------------------------------------------------------"
     end subroutine
 
 end module AnnihilationMod
