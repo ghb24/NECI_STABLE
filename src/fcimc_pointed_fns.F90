@@ -602,7 +602,7 @@ module fcimc_pointed_fns
                     if(population>InitiatorWalkNo)then
                         shift = DiagSft(i)
                     elseif(tot>AdaptiveShiftThresh)then
-                        shift = acc/tot
+                        shift = (acc/tot)*DiagSft(i)
                     else
                         shift = 0.0
                     endif 
