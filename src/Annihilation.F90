@@ -1111,6 +1111,7 @@ module AnnihilationMod
     subroutine SendSpawnInfo(tSingleProc)
         logical, intent(in) :: tSingleProc
 
+        integer :: MaxIndex
         integer :: i, error
         integer(MPIArg), dimension(nProcessors) :: sendcounts, disps, &
                                                    recvcounts, recvdisps
@@ -1160,6 +1161,7 @@ module AnnihilationMod
            end do
         end if
 
+
         ! We now need to calculate the recvcounts and recvdisps - this is a
         ! job for AlltoAll
         recvcounts(1:nProcessors) = 0
@@ -1175,6 +1177,7 @@ module AnnihilationMod
         do i = 2, nProcessors
             recvdisps(i) = recvdisps(i-1) + recvcounts(i-1)
         end do
+        MaxIndex = recvdisps(nProcessors) + recvcounts(nProcessors)
 
         do i = 1, nProcessors
             recvdisps(i) = recvdisps(i)*SpawnInfoWidth

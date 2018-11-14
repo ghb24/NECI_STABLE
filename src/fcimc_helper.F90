@@ -1894,7 +1894,7 @@ contains
 
         ! Do particles on determinant die? iDie can be both +ve (deaths), or
         ! -ve (births, if shift > 0)
-        iDie = attempt_die (DetCurr, Kii, realwSign, WalkExcitLevel)
+        iDie = attempt_die (DetCurr, Kii, realwSign, WalkExcitLevel, DetPosition)
 
         IFDEBUG(FCIMCDebug,3) then 
             if (sum(abs(iDie)) > 1.0e-10_dp) then

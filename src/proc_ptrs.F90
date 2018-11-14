@@ -115,7 +115,7 @@ module procedure_pointers
 
         !
         ! Generic particle death routine
-        function attempt_die_t (nI, Kii, wSign, exLevel) result(ndie)
+        function attempt_die_t (nI, Kii, wSign, exLevel, DetPosition) result(ndie)
 
             use SystemData, only: nel
             use constants
@@ -123,6 +123,7 @@ module procedure_pointers
 
             integer, intent(in) :: nI(nel), exLevel
             real(dp), intent(in) :: Kii, wSign(lenof_sign)
+            integer, intent(in), optional :: DetPosition
             real(dp), dimension(lenof_sign) :: ndie
 
         end function
