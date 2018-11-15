@@ -128,6 +128,12 @@ logical :: tSkipRef(1:inum_runs_max) !Skip spawing onto reference det and death/
 logical :: tFixTrial(1:inum_runs_max) !Fix trial overlap by determinstically updating one det. One flag for each run.
 integer :: N0_Target !The target reference population in fixed-N0 mode
 real(dp) :: TrialTarget !The target for trial overlap in trial-shift mode
+logical :: tAdaptiveShift !Make shift depends on the population
+real(dp) :: AdaptiveShiftSigma !Population which below the shift is set to zero
+real(dp) :: AdaptiveShiftF1 !Shift modification factor at AdaptiveShiftSigma
+real(dp) :: AdaptiveShiftF2 !Shift modification factor at InitiatorWalkNo
+logical :: tAutoAdaptiveShift !Let the modification factor of adaptive shift be computed autmatically
+real(dp) :: AdaptiveShiftThresh !Number of spawn under which below the shift is set to zero (in auto-adaptive-shift)
 ! Base hash values only on spatial orbitals
 ! --> All dets with same spatial structure on the same processor.
 logical :: tSpatialOnlyHash
