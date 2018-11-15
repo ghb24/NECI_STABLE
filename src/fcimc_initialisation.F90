@@ -140,7 +140,8 @@ module fcimc_initialisation
     use soft_exit, only: tSoftExitFound
     use get_excit, only: make_double
     use sltcnd_mod, only: sltcnd_0
-    use rdm_data, only: nrdms_transition_input
+    use rdm_data, only: nrdms_transition_input, rdmCorrectionFactor, InstRDMCorrectionFactor, &
+         ThisRDMIter
     use Parallel_neci
     use FciMCData
     use util_mod
@@ -893,6 +894,11 @@ contains
         truncatedWeight = 0.0_dp
         AllTruncatedWeight = 0.0_dp
 
+        ! RDMs are taken as they are until we have some data on the f-function
+        ! of the adaptive shift
+        rdmCorrectionFactor = 0.0_dp
+        InstRDMCorrectionFactor = 0.0_dp
+        ThisRDMIter = 0.0_dp
 !            if (tReltvy) then
 !                ! write out the column headings for the MSWALKERCOUNTS
 !                open(mswalkercounts_unit, file='MSWALKERCOUNTS', status='UNKNOWN')

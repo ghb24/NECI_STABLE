@@ -22,7 +22,7 @@ module fcimc_iter_utils
     use Determinants, only: get_helement
     use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av, tWriteUnocc
     use tau_search, only: update_tau
-    use rdm_data, only: en_pert_main
+    use rdm_data, only: en_pert_main, InstRDMCorrectionFactor
     use Parallel_neci
     use fcimc_initialisation
     use fcimc_output

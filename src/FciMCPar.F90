@@ -6,7 +6,7 @@ module FciMCParMod
     use SystemData, only: nel, tUEG2, hist_spin_dist_iter, tReltvy, tHub
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
-                        AvMCExcits, pops_norm_unit, iExitWalkers, &
+                        AvMCExcits, pops_norm_unit, iExitWalkers, tAdaptiveShift, &
                         iFullSpaceIter, semistoch_shift_iter, tEN2, &
                         tOrthogonaliseReplicas, orthogonalise_iter, &
                         tDetermHFSpawning, use_spawn_hash_table, &
@@ -32,10 +32,10 @@ module FciMCParMod
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
                             attempt_die_spin_proj
-    use rdm_data, only: print_2rdm_est
+    use rdm_data, only: print_2rdm_est, ThisRDMIter
     use rdm_data_old, only: rdms, one_rdms_old, rdm_estimates_old
     use rdm_finalising, only: finalise_rdms
-    use rdm_general, only: init_rdms
+    use rdm_general, only: init_rdms, SumCorrectionContrib, UpdateRDMCorrectionTerm
     use rdm_general_old, only: InitRDMs_old, FinaliseRDMs_old
     use rdm_filling_old, only: fill_rdm_offdiag_deterministic_old, fill_rdm_diag_wrapper_old
     use rdm_filling, only: fill_rdm_offdiag_deterministic, fill_rdm_diag_wrapper
@@ -371,6 +371,9 @@ module FciMCParMod
                 attempt_die => ad_tmp
             endif
 
+            ! accumulate the rdm correction due to adaptive shift
+            if(tAdaptiveShift) call UpdateRDMCorrectionTerm()
+
             if(iProcIndex.eq.root) then
                 s_end=neci_etime(tend)
                 IterTime=IterTime+(s_end-s_start)
@@ -542,6 +545,9 @@ module FciMCParMod
                 ! and this is an iteration where the energy should be calculated, do so.
                 if (print_2rdm_est .and. ((Iter - maxval(VaryShiftIter)) > IterRDMonFly) &
                     .and. (mod(Iter+PreviousCycles-IterRDMStart+1, RDMEnergyIter) == 0) ) then
+
+                   ! rezero the count of how many iterations we have been averaging over
+                   ThisRDMIter = 0.0_dp
            
                     call calc_2rdm_estimates_wrapper(rdm_definitions, rdm_estimates, two_rdm_main, en_pert_main)
                     if (tOldRDMs) then
@@ -995,6 +1001,11 @@ module FciMCParMod
                                                 max_calc_ex_level)
             else
                 walkExcitLevel_toHF = walkExcitLevel
+            endif
+            
+            ! sum in (fmu-1)*cmu^2 for the purpose of RDMs
+            if(tAdaptiveShift) then
+               call SumCorrectionContrib(SignCurr,j)
             endif
 
             ! if requested, average the sign over replicas if not coherent
