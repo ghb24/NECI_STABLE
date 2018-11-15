@@ -11,7 +11,8 @@ module fcimc_pointed_fns
                         t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, & 
                         t_matele_cutoff, matele_cutoff, tEN2Truncated, &
                         tTruncInitiator, tSkipRef, t_truncate_unocc, &
-                        tAdaptiveShift, AdaptiveShiftSigma, AdaptiveShiftF1, AdaptiveShiftF2
+                        tAdaptiveShift, AdaptiveShiftSigma, AdaptiveShiftF1, AdaptiveShiftF2, &
+                        tAutoAdaptiveShift, AdaptiveShiftThresh
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement
     use fcimc_helper, only: CheckAllowedTruncSpawn
@@ -34,6 +35,7 @@ module fcimc_pointed_fns
     use excit_gen_5, only: pgen_select_a_orb
     use hphf_integrals, only: hphf_diag_helement
     use Determinants, only: get_helement
+    use global_det_data, only: get_tot_spawns, get_acc_spawns
 
     implicit none
 
@@ -539,7 +541,7 @@ module fcimc_pointed_fns
 
     end subroutine
 
-    function attempt_die_normal (DetCurr, Kii, realwSign, WalkExcitLevel) result(ndie)
+    function attempt_die_normal (DetCurr, Kii, realwSign, WalkExcitLevel, DetPosition) result(ndie)
         
         ! Should we kill the particle at determinant DetCurr. 
         ! The function allows multiple births (if +ve shift), or deaths from
@@ -558,6 +560,7 @@ module fcimc_pointed_fns
         real(dp), intent(in) :: Kii
         real(dp), dimension(lenof_sign) :: ndie
         integer, intent(in) :: WalkExcitLevel
+        integer, intent(in), optional :: DetPosition
         character(*), parameter :: t_r = 'attempt_die_normal'
 
         real(dp) :: probsign, r
@@ -568,7 +571,7 @@ module fcimc_pointed_fns
 #else
         real(dp) :: rat(1)
 #endif        
-        real(dp) :: shift, population, slope
+        real(dp) :: shift, population, slope, tot, acc
 
         do i=1, inum_runs
             !If we are fixing the population of reference det, skip death/birth
@@ -590,8 +593,20 @@ module fcimc_pointed_fns
                             !Apply linear modifcation that equals F1 at Sigma and F2 at InitatorWalkNo
                             slope = (AdaptiveShiftF2-AdaptiveShiftF1)/(InitiatorWalkNo-AdaptiveShiftSigma)
                             shift = DiagSft(i)*(AdaptiveShiftF1+(population-AdaptiveShiftSigma)*slope)
+                        end if
                     end if
-                    end if
+                elseif(tAutoAdaptiveShift)then
+                    population = mag_of_run(realwSign, i)
+                    tot = get_tot_spawns(DetPosition, i)
+                    acc = get_acc_spawns(DetPosition, i)
+                    !write(6,*), DetPosition, i, tot, acc
+                    if(population>InitiatorWalkNo)then
+                        shift = DiagSft(i)
+                    elseif(tot>AdaptiveShiftThresh)then
+                        shift = (acc/tot)*DiagSft(i)
+                    else
+                        shift = 0.0
+                    endif 
                 else
                     shift = DiagSft(i)
                 endif

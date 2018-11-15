@@ -541,13 +541,14 @@ ASSERT(count_open_orbs(ilutI) /= 0)
 
     end subroutine generate_excit_spin_proj
 
-    function attempt_die_spin_proj (nI, Kii, RealwSign, WalkExcitLevel) result (ndie)
+    function attempt_die_spin_proj (nI, Kii, RealwSign, WalkExcitLevel, DetPosition) result (ndie)
 
         integer, intent(in) :: nI(nel)
         real(dp), dimension(lenof_sign), intent(in) :: RealwSign
         real(dp), intent(in) :: Kii
         real(dp), dimension(lenof_sign) :: ndie
         integer, intent(in) :: WalkExcitLevel
+        integer, intent(in), optional :: DetPosition
 
         real(dp) :: elem, r, rat, rUnused
         integer :: i, iUnused

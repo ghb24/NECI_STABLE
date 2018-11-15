@@ -43,7 +43,8 @@ module fcimc_helper
                         t_back_spawn_flex, tau, DiagSft, tLargeMatelSurvive, &
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule, &
                         initMaxSenior, tSeniorityInits, tLogAverageSpawns, &
-                        spawnSgnThresh, minInitSpawns, tTimedDeaths
+                        spawnSgnThresh, minInitSpawns, tTimedDeaths, &
+                        tAutoAdaptiveShift
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
          tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
@@ -100,7 +101,7 @@ contains
     end function TestMCExit
 
     subroutine create_particle (nJ, iLutJ, child, part_type, ilutI, SignCurr, &
-                                WalkerNo, RDMBiasFacCurr, WalkersToSpawn, matel)
+                                WalkerNo, RDMBiasFacCurr, WalkersToSpawn, matel, ParentPos)
 
         ! Create a child in the spawned particles arrays. We spawn particles
         ! into a separate array, but non-contiguously. The processor that the
@@ -118,6 +119,7 @@ contains
         real(dp), intent(in), optional :: RDMBiasFacCurr
         integer, intent(in), optional :: WalkersToSpawn
         real(dp), intent(in), optional :: matel
+        integer, intent(in), optional :: ParentPos
         integer :: proc, j, run
         real(dp) :: r
         integer, parameter :: flags = 0
@@ -128,8 +130,8 @@ contains
 
         !Ensure no cross spawning between runs - run of child same as run of
         !parent
-#ifdef __DEBUG
         run = part_type_to_run(part_type)
+#ifdef __DEBUG
         ASSERT(sum(abs(child))-sum(abs(child(min_part_type(run):max_part_type(run)))) < 1.0e-12_dp)
 #endif
 
@@ -175,6 +177,11 @@ contains
             if (allowed_child .or. test_flag(ilutI, get_initiator_flag(part_type))) then
                 call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), get_initiator_flag(part_type))
             endif
+        end if
+
+        if(tAutoAdaptiveShift)then
+            SpawnInfo(SpawnParentIdx, ValidSpawnedList(proc)) = ParentPos
+            SpawnInfo(SpawnRun, ValidSpawnedList(proc)) = run
         end if
 
         ! set flag for large spawn matrix element
@@ -1887,7 +1894,7 @@ contains
 
         ! Do particles on determinant die? iDie can be both +ve (deaths), or
         ! -ve (births, if shift > 0)
-        iDie = attempt_die (DetCurr, Kii, realwSign, WalkExcitLevel)
+        iDie = attempt_die (DetCurr, Kii, realwSign, WalkExcitLevel, DetPosition)
 
         IFDEBUG(FCIMCDebug,3) then 
             if (sum(abs(iDie)) > 1.0e-10_dp) then

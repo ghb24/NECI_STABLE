@@ -37,7 +37,7 @@ module fcimc_initialisation
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, tRCCheck, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
-                        maxKeepExLvl
+                        maxKeepExLvl, tAutoAdaptiveShift
     use adi_data, only: tReferenceChanged, tAdiActive, &
          nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
@@ -1419,6 +1419,18 @@ contains
 
             MemoryAlloc=MemoryAlloc+(NIfTot+1)*MaxSpawned*2*size_n_int
 
+            if(tAutoAdaptiveShift)then
+                allocate(SpawnInfoVec(0:SpawnInfoWidth-1, MaxSpawned), &
+                         SpawnInfoVec2(0:SpawnInfoWidth-1, MaxSpawned), stat=ierr)
+                log_alloc(SpawnInfoVec, SpawnInfoVecTag, ierr)
+                log_alloc(SpawnInfoVec2, SpawnInfoVec2Tag, ierr)
+                SpawnInfoVec(:,:)=0
+                SpawnInfoVec2(:,:)=0
+                SpawnInfo=>SpawnInfoVec
+                SpawnInfo2=>SpawnInfoVec2
+                MemoryAlloc=MemoryAlloc+(SpawnInfoWidth)*MaxSpawned*2*size_n_int
+            end if
+
             write(iout,"(A)") "Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number"
             write(iout,"(A,I15)") "Length of hash-table: ",nWalkerHashes
             write(iout,"(A,F20.5)") "Length of hash-table as a fraction of targetwalkers: ",HashLengthFrac
@@ -1834,6 +1846,12 @@ contains
         CALL LogMemDealloc(this_routine,SpawnVecTag)
         DEALLOCATE(SpawnVec2)
         CALL LogMemDealloc(this_routine,SpawnVec2Tag)
+        if(tAutoAdaptiveShift)then
+            DEALLOCATE(SpawnInfoVec)
+            CALL LogMemDealloc(this_routine,SpawnInfoVecTag)
+            DEALLOCATE(SpawnInfoVec2)
+            CALL LogMemDealloc(this_routine,SpawnInfoVec2Tag)
+        end if
 
         if(allocated(TempSpawnedParts)) then
             deallocate(TempSpawnedParts)
