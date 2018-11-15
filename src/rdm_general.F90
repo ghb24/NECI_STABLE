@@ -886,7 +886,6 @@ contains
 
       ! increase the iteration number count for averaging
       ThisRDMIter = ThisRDMIter + 1.0_dp
-      write(iout,*) "New correction factor", RDMCorrectionFactor
     end subroutine UpdateRDMCorrectionTerm
 
     subroutine SumCorrectionContrib(DetSgn, DetPosition)
