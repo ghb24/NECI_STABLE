@@ -1,7 +1,7 @@
 #include "macros.h"
 module cachedExcitgen
   use constants
-  use SystemData, only: nel, nBasis, G1
+  use SystemData, only: nel, nBasis, G1, tStoreSpinOrbs
   use bit_rep_data, only: NIfTot
   use dSFMT_interface, only: genrand_real2_dSFMT
   use UMatHash
@@ -90,12 +90,13 @@ module cachedExcitgen
          ! use the spin-opposite cache
          call selectRSFromCSUM(srcID(1),srcID(2),orbs,pgen,CumSparseUMat,&
               nPQ, rsPQ, posPQ, biasTable, aliasTable)
-
       else
          call selectRSFromCSUM(srcID(1),srcID(2),orbs,pgen,CumSparseUMatPar,&
               nPQPar, rsPQPar, posPQPar, biasTablePar, aliasTablePar)  
       endif
 
+      ! TODO: CHECK THAT 1<->2 IS NOT ANOTHER EXCITATION, i.e. that orbs(1) can be both
+      ! alpha and beta, and src is not ordered
       ! convert the spatial orbitals picked from the cached CSUM to spin orbs
       orbs(1) = getSpinOrb(orbs(1),G1(src(1))%ms)
       orbs(2) = getSpinOrb(orbs(2),G1(src(2))%ms)      
@@ -110,7 +111,7 @@ module cachedExcitgen
          ilutJ = 0_n_int
          ex(2,:) = orbs
          ex(1,:) = src
-      else      
+      else
          ! else, construct the det from the chosen orbs/elecs
 
          call make_double(nI,nJ,elecs(1),elecs(2),orbs(1),orbs(2),ex,tpar)

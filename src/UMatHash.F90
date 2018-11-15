@@ -399,7 +399,7 @@ module UMatHash
       integer, intent(in) :: p,q
       ! output r,s
       integer, intent(out) :: rs(2)
-      real(dp), intent(inout) :: pgen
+      real(dp), intent(out) :: pgen
       real(dp), intent(in) :: CumSparseUMatLoc(:), biasTableLoc(:)
       integer, intent(in) :: nPQLoc(:), rsPQLoc(:,:), posPQLoc(:), aliasTableLoc(:)
 
