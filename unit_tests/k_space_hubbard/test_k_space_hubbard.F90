@@ -154,9 +154,9 @@ contains
 
         irrep_names = ['  x','A1g','A2g','B1g','B2g',' Eg','A1u','A2u','B1u','B2u',' Eu']
 
-        t_do_exact_transcorr = .false.
+        t_do_exact_transcorr = .true.
         t_input_l = .false.
-        t_optimize_j = .true.
+        t_optimize_j = .false.
         t_do_diags = .true.
         t_do_doubles = .true.
         t_do_subspace_study = .false.
@@ -2324,11 +2324,11 @@ contains
         integer, allocatable :: sort_ind(:)
         real(dp), allocatable :: hf_det(:), doubles(:), j_opt(:)
         
-        t_norm_inside = .false.
+        t_norm_inside = .true.
         t_pca = .false.
         ic_inside = 2
         t_check_orthogonality = .false.
-        t_calc_doubles = .true.
+        t_calc_doubles = .false.
 
         write(U_str,*) U
 
@@ -2689,6 +2689,9 @@ contains
                     end if
                 end do
             end do
+
+            norm_inside_trans = sqrt(norm_inside_trans)
+            norm_inside_trans_left = sqrt(norm_inside_trans_left)
 
             iunit = get_free_unit()
             open(iunit, file = "norm_inside_U_" // trim(adjustl(U_str)))

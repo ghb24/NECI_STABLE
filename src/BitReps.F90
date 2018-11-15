@@ -7,7 +7,7 @@ module bit_reps
 
     use CalcData, only: tTruncInitiator, tUseRealCoeffs, tSemiStochastic, &
                         tCSFCore, tTrialWavefunction, semistoch_shift_iter, &
-                        tStartTrialLater
+                        tStartTrialLater, tStoredDets
     use csf_data, only: csf_yama_bit, csf_test_bit
     use constants, only: lenof_sign, end_n_int, bits_n_int, n_int, dp,sizeof_int
     use DetBitOps, only: count_open_orbs, CountBits
@@ -18,9 +18,12 @@ module bit_reps
                                OrbClassCount, ScratchSize, SymLabelList2, &
                                SymLabelCounts2
     use sym_general_mod, only: ClassCountInd
-    use real_time_data, only: tGenerateCoreSpace
+
     use util_mod, only: binary_search_custom
+
     use sort_mod, only: sort
+
+    use global_det_data, only: get_determinant
 
     implicit none
 
@@ -267,17 +270,20 @@ contains
 
     end subroutine
 
-    subroutine extract_bit_rep (ilut, nI, real_sgn, flags, store)
+    subroutine extract_bit_rep (ilut, nI, real_sgn, flags, j, store)
         
         ! Extract useful terms out of the bit-representation of a walker
 
         integer(n_int), intent(in) :: ilut(0:nIfTot)
         integer, intent(out) :: nI(nel), flags
+        integer, intent(in), optional :: j
         type(excit_gen_store_type), intent(inout), optional :: store
         real(dp), intent(out) :: real_sgn(lenof_sign)
         integer(n_int) :: sgn(lenof_sign)
 
-        if (tBuildOccVirtList .and. present(store)) then
+        if(tStoredDets .and. present(j)) then
+           nI = get_determinant(j)
+        else if (tBuildOccVirtList .and. present(store)) then
             if(tBuildSpinSepLists) then
                 call decode_bit_det_spinsep (nI, ilut, store)
             else

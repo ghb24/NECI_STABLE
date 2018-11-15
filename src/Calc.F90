@@ -54,8 +54,7 @@ MODULE Calc
     use k_space_hubbard, only: init_get_helement_k_space_hub
     use real_time_data, only: t_real_time_fciqmc, gf_type, allGfs, gf_count
     use kp_fciqmc_data_mod, only: overlap_pert, tOverlapPert
-    use lattice_models_utils, only: return_hphf_sym_det
-    use DetBitOps, only: DetBitEq, EncodeBitDet
+    use DetBitOps, only: DetBitEq, EncodeBitDet, return_hphf_sym_det
     use DeterminantData, only: write_det
     use bit_reps, only: decode_bit_det
     use cepa_shifts, only: t_cepa_shift, cepa_method
@@ -159,6 +158,10 @@ contains
           tTrialShift = .false.
           tFixTrial(:) = .false.
           TrialTarget = 0.0
+          tAdaptiveShift = .false.
+          AdaptiveShiftSigma = 1.0
+          AdaptiveShiftF1 = 0.0
+          AdaptiveShiftF2 = 1.0
           NEquilSteps=0
           NShiftEquilSteps=1000
           TRhoElems=.false.
@@ -274,6 +277,12 @@ contains
 !           tMultiSpawnThreshold = .false.
           tAddtoInitiator=.false.
           tSTDInits = .false.
+          tActivateLAS = .false.
+          tLogAverageSpawns = .false.
+          spawnSgnThresh = 3.0_dp
+          minInitSpawns = 20
+          lingerTime = 300
+          tTimedDeaths = .false.
           tAVReps = .false.
           tGlobalInitFlag = .false.
           tInitCoherentRule=.true.
@@ -285,6 +294,7 @@ contains
           MaxNoatHF=0.0_dp
           HFPopThresh=0
           tSpatialOnlyHash = .false.
+          tStoredDets = .false.
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset 
           !(by Calc readinput) if I_VMAX=1 and TENERGY is false
 
@@ -321,6 +331,17 @@ contains
 
           ! Truncation based on number of unpaired electrons
           tTruncNOpen = .false.
+
+          ! initiators based on number of open orbs
+          tSeniorityInits = .false.
+          initMaxSenior = 0
+
+          ! keep spawns up to a given seniority + excitation level
+          tSpawnSeniorityBased = .false.
+          numMaxExLvlsSet = 0
+          allocate(maxKeepExLvl(0))
+          tLargeMatelSurvive = .false.
+          spawnMatelThresh = 1.0_dp
 
           ! trunaction for spawns/based on spawns
           t_truncate_unocc = .false.
@@ -453,8 +474,9 @@ contains
           use ras_data
           use global_utilities
           use Parallel_neci, only : nProcessors
-          use LoggingData, only: tLogDets
           use guga_bitRepOps, only: isProperCSF_ni
+          use util_mod, only: addToIntArray
+          use LoggingData, only: tLogDets, tWriteUnocc
           IMPLICIT NONE
           LOGICAL eof
           CHARACTER (LEN=100) w
@@ -466,6 +488,7 @@ contains
           logical :: tExitNow
           integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
           integer :: npops_pert, npert_spectral_left, npert_spectral_right
+          integer :: maxKeepNOpenBuf, maxKeepExLvlBuf
           real(dp) :: InputDiagSftSingle
           integer(n_int) :: def_ilut(0:niftot), def_ilut_sym(0:niftot)
 
@@ -1714,10 +1737,27 @@ contains
                 call stop_all(t_r, 'TRIAL-SHIFT currently not implemented for complex')
 #endif
                 if (item.lt.nitems) then
-                    call readf(TrialTarget)
+                    call getf(TrialTarget)
                 end if
                 tTrialShift = .true.
                 StepsSft = 1
+            case("ADAPTIVE-SHIFT")
+                if (item.lt.nitems) then
+                    call getf(AdaptiveShiftSigma)
+                end if
+                if (item.lt.nitems) then
+                    call getf(AdaptiveShiftF1)
+                    if(AdaptiveShiftF1<0.0 .or. AdaptiveShiftF1>1.0)then
+                        call stop_all(t_r, 'AdaptiveShiftF1 is a scaling parameter and should be between 0.0 and 1.0')
+                    end if
+                end if
+                if (item.lt.nitems) then
+                    call getf(AdaptiveShiftF2)
+                    if(AdaptiveShiftF2<0.0 .or. AdaptiveShiftF2>1.0)then
+                        call stop_all(t_r, 'AdaptiveShiftF2 is a scaling parameter and should be between 0.0 and 1.0')
+                    end if
+                end if
+                tAdaptiveShift = .true.
             case("EXITWALKERS")
 !For FCIMC, this is an exit criterion based on the total number of walkers in the system.
                 call getiLong(iExitWalkers)
@@ -2040,6 +2080,19 @@ contains
 !determinants outside the active space, however if this is done, they
 !can only spawn back on to the determinant from which they came.  This is the star approximation from the CAS space. 
                 tTruncInitiator=.true.
+             case("AVSPAWN-INITIATORS")
+! Create initiators based on the average spawn onto some determinant                
+                tActivateLAS = .true.
+                if(item < nitems) call getf(spawnSgnThresh)
+                if(item < nitems) call geti(minInitSpawns)
+                
+             case("DELAY-DEATHS")
+                ! have determinants persits for a number of iterations after their
+                ! occupation reached 0
+                tTimedDeaths = .true.
+                tWriteUnocc = .true.
+                ! read in said number of iterations
+                if(item < nitems) call geti(lingerTime)
 
              case("REPLICA-GLOBAL-INITIATORS")
 ! with this option, all replicas will use the same initiator flag, which is then set 
@@ -2057,6 +2110,30 @@ contains
 
             case("NO-COHERENT-INIT-RULE")
                 tInitCoherentRule=.false.
+
+             case("ALL-SENIORITY-INITS")
+                ! make all determinants with at most initMaxSenior open orbitals initiators
+                tSeniorityInits = .true.
+                ! the maximum number of open orbs, default is 0
+                if(item < nitems) call getI(initMaxSenior)
+
+             case("ALL-SENIORITY-SURVIVE")
+                ! keep all spawns, regardless of initiator criterium, onto 
+                ! determinants up to a given Seniority level and excitation level
+                tSpawnSeniorityBased = .true.
+                do while(item < nitems) 
+                   ! Default: Max Seniority level 0
+                   call geti(maxKeepNOpenBuf)
+                   ! Default: Max excit level 8
+                   call geti(maxKeepExLvlBuf)
+                   call addToIntArray(maxKeepExLvl,maxKeepNOpenBuf+1,maxKeepExLvlBuf)
+                   numMaxExLvlsSet = maxKeepNOpenBuf+1
+                end do
+
+             case("LARGE-MATEL-SURVIVE")
+                ! keep all spawns with a matrix element larger than a given threshold
+                tLargeMatelSurvive = .true.
+                call getf(spawnMatelThresh)
 
 ! Epstein-Nesbet second-order perturbation using the stochastic spawnings to correct initiator error.
             case("EN2-INITIATOR")
@@ -2194,6 +2271,12 @@ contains
                 ! --> All determinants with the same spatial structure will
                 !     end up on the same processor
                 tSpatialOnlyHash = .true.
+
+             case("STORE-DETS")
+                ! store all determinants in their decoded form in memory
+                ! this gives a speed-up at the cost of the memory required for storing 
+                ! all of them
+                tStoredDets = .true.
 
             case("SPAWNASDETS")
 !This is a parallel FCIMC option, which means that the particles at the same determinant on each processor, 
@@ -2345,6 +2428,12 @@ contains
                 ! unpaired electrons.
                 tTruncNOpen = .true.
                 call geti (trunc_nopen_max)
+
+            case("TRUNC-NOPEN-DIFF")
+                ! trunc the seniority based on the difference to the seniority
+                ! of the reference determinant 
+                t_trunc_nopen_diff = .true.
+                call geti(trunc_nopen_diff)
 
             case("WEAKINITIATORS")
                 !Additionally allow the children of initiators to spawn freely

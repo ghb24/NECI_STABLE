@@ -851,7 +851,7 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
                   FDET(i)=i  !Fill up closed shells
               enddo
               do i=1,abs(LMS) !Fill up open shells in odd orbitals
-                  FDET(nclosed*2+i)=nclosed*2+(i*2-(1-LMS)/2)
+                  FDET(nclosed*2+i)=nclosed*2+(i*2-(1-sign(1,LMS))/2)
               enddo
               return
           endif

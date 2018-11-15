@@ -52,7 +52,7 @@ module procedure_pointers
             real(dp), intent(inout) :: prob
             real(dp), dimension(lenof_sign), intent(in) :: AvSignCurr
             real(dp), intent(out) :: RDMBiasFacCurr
-            HElement_t(dp), intent(in) :: HElGen
+            HElement_t(dp), intent(inout) :: HElGen
             real(dp) :: child(lenof_sign)    
 
         end function

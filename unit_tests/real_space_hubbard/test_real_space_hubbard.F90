@@ -44,6 +44,8 @@ program test_real_space_hubbard
 
     use double_occ_mod, only: count_double_orbs
 
+    use Detbitops, only: count_open_orbs
+
 
     implicit none 
 
@@ -71,10 +73,11 @@ contains
         ! or try running it with the provided runner of fruit: 
 !         call run_test_case(gen_excit_rs_hubbard_hphf_test_stoch, "gen_excit_rs_hubbard_hphf_test_stoch")
 !         call run_test_case(gen_excit_rs_hubbard_transcorr_hphf_test_stoch, "gen_excit_rs_hubbard_transcorr_hphf_test_stoch")
-        call run_test_case(gen_excit_rs_hubbard_transcorr_uniform_hphf_test_stoch, "gen_excit_rs_hubbard_transcorr_uniform_hphf_test_stoch")
+!         call run_test_case(gen_excit_rs_hubbard_transcorr_uniform_hphf_test_stoch, "gen_excit_rs_hubbard_transcorr_uniform_hphf_test_stoch")
 !         call run_test_case(gen_excit_rs_hubbard_test_stoch, "gen_excit_rs_hubbard_test_stoch")
-!         call run_test_case(gen_excit_rs_hubbard_transcorr_test_stoch, "gen_excit_rs_hubbard_transcorr_test_stoch")
+        call run_test_case(gen_excit_rs_hubbard_transcorr_test_stoch, "gen_excit_rs_hubbard_transcorr_test_stoch")
         call run_test_case(gen_excit_rs_hubbard_transcorr_uniform_test_stoch, "gen_excit_rs_hubbard_transcorr_uniform_test_stoch")
+        call stop_all("here", "for now")
         call run_test_case(get_umat_el_hub_test, "get_umat_el_hub_test")
         call run_test_case(init_tmat_test, "init_tmat_test")
         call run_test_case(get_helement_test, "get_helement_test")
@@ -112,7 +115,7 @@ contains
         integer(n_int), allocatable :: singles(:,:), flip_singles(:,:)
         real(dp) :: sum_singles, sum_singles_t, phase
         real(dp), allocatable :: sign_list(:), flip_sign(:)
-        logical :: t_start_neel, t_flip
+        logical :: t_start_neel, t_flip, t_input_nel, t_input_lattice
 
         t_optimize_corr_param  = .false.
         t_do_diag_elements = .true.
@@ -124,13 +127,34 @@ contains
         t_start_neel = .true.
         t_flip = .false.
         phase = 1.0_dp
+        t_input_nel = .true.
+        t_input_lattice = .true. 
+
+        if (t_input_lattice) then 
+            print *, "input lattice type: (chain,square,rectangle,tilted)"
+            read(*,*) lattice_type
+            print *, "input x-dim: "
+            read(*,*) length_x
+            print *, "input y-dim: "
+            read(*,*) length_y
+        else
+            lattice_type = 'square'
+            length_x = 2
+            length_y = 2
+        end if
+
+        if (t_input_nel) then
+            print *, "input number of electrons: "
+            read(*,*) nel
+            print *, "neel-state will be used!"
+            t_start_neel = .true.
+        else
+            nel = 3
+            t_start_neel = .true. 
+        end if
 
         t_trans_corr_hop = .true.
-        lat => lattice('tilted', 3, 3, 1,.true.,.true.,.true.)
-        lattice_type = lat%get_name()
-        length_x = lat%get_length(1)
-        length_y = lat%get_length(2)
-
+        lat => lattice(lattice_type, length_x, length_y, 1,.true.,.true.,.true.)
         t_trans_corr_hop = .false.
 
         if (t_input_U) then 
@@ -146,8 +170,8 @@ contains
 
         call init_realspace_tests
 
-        nel = 18
-        allocate(nI(nel))
+!         nel = 3
+!         allocate(nI(nel))
 !         nI = [(i, i = 1, nel)]
 !         nI = [1,3,6,7,9,12,13,16,17,20,21,24,25,28,30,31,34,36]
 
@@ -243,7 +267,7 @@ contains
                 end if
             end do
             close(iunit)
-            call stop_all("here","now")
+!             call stop_all("here","now")
         end if
 
         t_trans_corr_hop = .false.
@@ -498,20 +522,24 @@ contains
         real(dp), allocatable :: neci_eval(:), e_vec_hop(:,:), e_vec_spin(:,:), neci_spin_eval(:)
         real(dp), allocatable :: e_vec_hop_left(:,:)
         character(30) :: filename, J_str
-        logical :: t_calc_singles, t_flip, t_norm_inside
+        logical :: t_calc_singles, t_flip, t_norm_inside, t_norm_inside_sen
         real(dp), allocatable :: neel_states(:), singles(:), j_opt(:), &
-            norm_inside(:), norm_inside_left(:)
-        integer :: neel_ind, flip_ind, ic_inside, ic
+            norm_inside(:), norm_inside_left(:), norm_inside_sen(:), &
+            norm_inside_sen_left(:)
+        integer :: neel_ind, flip_ind, ic_inside, ic, sen, sen_inside
         real(dp) :: phase
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
 
         t_calc_singles = .true. 
         ! also consider the spin-flipped of the neel state
-        t_flip = .true.
+        t_flip = .false.
         phase = 1.0_dp
 
         t_norm_inside = .true.
         ic_inside = 2
+
+        t_norm_inside_sen = .true. 
+        sen_inside = 6
 
         ! initialize correctly for transcorrelation tests
         ! just do it for the hopping transcorrelation now! 
@@ -585,6 +613,14 @@ contains
         t_recalc_umat = .true.
         t_recalc_tmat = .true.
 
+        if (n_states <= 16) then 
+            print *, "hilbert-space:" 
+            call print_matrix(hilbert_space)
+            print *, "original hamiltonian: "
+            call print_matrix(hamil)
+
+        end if
+
         if (t_calc_singles) then 
             allocate(neel_states(n_states), source = 0.0_dp)
             allocate(singles(n_states), source = 0.0_dp)
@@ -632,8 +668,6 @@ contains
                 j_opt(i) = dot_product(singles, matmul(hamil_hop, neel_states))
             end if
 
-            ! for the neci hopping hamiltonian: 
-
             trans_corr_param = J(i)
 
             t_trans_corr_hop = .true. 
@@ -643,6 +677,17 @@ contains
 
             hamil_hop_neci = create_hamiltonian(hilbert_space)
             t_trans_corr_hop = .false. 
+
+            ! for the neci hopping hamiltonian: 
+            if (n_states <= 16) then 
+                if (i == 1) then 
+                    print *, "J: ", J(i)
+                    print *, "exact hop hamil: "
+                    call print_matrix(hamil_hop)
+                    print *, "neci hop hamil: "
+                    call print_matrix(hamil_hop_neci)
+                end if
+            end if
 
             t_spin_dependent_transcorr = .true. 
             if (allocated(umat_rs_hub_trancorr_hop)) deallocate(umat_rs_hub_trancorr_hop)
@@ -695,43 +740,43 @@ contains
             hf_coeff_spin(i) = gs_vec(1)
             e_vec_spin(:,i) = gs_vec
 
-!             neci_eval = calc_eigenvalues(hamil_hop_neci)
-! 
-!             print *, "neci ground-state energy: ", minval(neci_eval) 
-! 
-!             if (abs(gs_energy_orig - minval(neci_eval)) > 1.0e-12) then 
-!                 if (n_states < 20) then 
-!                     print *, "hopping transformed NECI eigenvalue wrong"
-!                     print *, "basis: " 
-!                     call print_matrix(transpose(hilbert_space))
-!                     print *, "original hamiltonian: "
-!                     call print_matrix(hamil)
-!                     print *, "exactly transformed hamiltonian: "
-!                     call print_matrix(hamil_hop)
-!                     print *, "hopping transcorr hamiltonian neci: "
-!                     call print_matrix(hamil_hop_neci)
-!                     print *, "hopping transcorr transformed: "
-! 
-!                     print *, "difference: " 
-!                     allocate(diff(size(hamil_hop,1),size(hamil_hop,2)))
-!                     diff = hamil_hop - hamil_hop_neci
-!                     where (abs(diff) < EPS) diff = 0.0_dp
-! 
-!                     call print_matrix(diff)
-!                 end if
-!                 print *, "orig E0:    ", gs_energy_orig
-!                 print *, "hopping E0: ", minval(neci_eval)
-! !                 print *, "diagonal similarity transformed: "
-! !                 do l = 1, size(hamil_hop,1)
-! !                     print *, hamil_hop(l,l)
-! !                 end do
-! !                 print *, "diagonal neci hamil: " 
-! !                 do l = 1, size(hamil_hop_neci,1)
-! !                     print *, hamil_hop_neci(l,l)
-! !                 end do
-! 
-!                 call stop_all("here", "hopping transcorrelated energy not correct!")
-!             end if
+            neci_eval = calc_eigenvalues(hamil_hop_neci)
+
+            print *, "neci ground-state energy: ", minval(neci_eval) 
+
+            if (abs(gs_energy_orig - minval(neci_eval)) > 1.0e-8) then 
+                if (n_states < 20) then 
+                    print *, "hopping transformed NECI eigenvalue wrong"
+                    print *, "basis: " 
+                    call print_matrix(transpose(hilbert_space))
+                    print *, "original hamiltonian: "
+                    call print_matrix(hamil)
+                    print *, "exactly transformed hamiltonian: "
+                    call print_matrix(hamil_hop)
+                    print *, "hopping transcorr hamiltonian neci: "
+                    call print_matrix(hamil_hop_neci)
+                    print *, "hopping transcorr transformed: "
+
+                    print *, "difference: " 
+                    allocate(diff(size(hamil_hop,1),size(hamil_hop,2)))
+                    diff = hamil_hop - hamil_hop_neci
+                    where (abs(diff) < EPS) diff = 0.0_dp
+
+                    call print_matrix(diff)
+                end if
+                print *, "orig E0:    ", gs_energy_orig
+                print *, "hopping E0: ", minval(neci_eval)
+!                 print *, "diagonal similarity transformed: "
+!                 do l = 1, size(hamil_hop,1)
+!                     print *, hamil_hop(l,l)
+!                 end do
+!                 print *, "diagonal neci hamil: " 
+!                 do l = 1, size(hamil_hop_neci,1)
+!                     print *, hamil_hop_neci(l,l)
+!                 end do
+
+                call stop_all("here", "hopping transcorrelated energy not correct!")
+            end if
 
             neci_spin_eval = calc_eigenvalues(hamil_spin_neci)
 
@@ -810,6 +855,38 @@ contains
             end do
             close(iunit)
         end if
+
+        if (t_norm_inside_sen) then 
+            allocate(norm_inside_sen(size(j)), source = 0.0_dp)
+            allocate(norm_inside_sen_left(size(J)), source = 0.0_dp)
+
+            call EncodeBitDet(nI, ilutI)
+            do i = 1, size(j)
+                do k = 1, n_states
+                    call EncodeBitDet(hilbert_space(:,k), ilutJ)
+                    sen = count_open_orbs(ilutJ)
+                    if (sen >= sen_inside) then
+                        norm_inside_sen(i) = norm_inside_sen(i) + & 
+                            e_vec_hop(k,i)**2
+                        norm_inside_sen_left(i) = norm_inside_sen_left(i) + & 
+                            e_vec_hop_left(k,i)**2
+                    end if
+                end do
+            end do
+
+            norm_inside_sen = sqrt(norm_inside_sen)
+            norm_inside_sen_left = sqrt(norm_inside_sen_left)
+
+            iunit = get_free_unit()
+            open(iunit, file = 'norm_inside_sen')
+            write(iunit,*) "# J left right"
+            do i = 1, size(j)
+                write(iunit,*) J(i), norm_inside_sen(i), norm_inside_sen_left(i)
+            end do
+            close(iunit)
+        end if
+
+
 
         if (t_calc_singles) then 
             iunit = get_free_unit()
@@ -912,14 +989,14 @@ contains
         n_iters = 1000000
 
         t_trans_corr_hop = .true. 
-        trans_corr_param = 0.1_dp
+        trans_corr_param = 0.05_dp
 
-        uhub = 10
+        uhub = 16
         bhub = -1
         pSingles = 0.9_dp
         pDoubles = 1.0_dp - pSingles
 
-        lat => lattice('rectangle', 2, 3, 1,.true.,.true.,.true.)
+        lat => lattice('chain', 4, 1, 1,.true.,.true.,.true.)
 
         n_orbs = lat%get_nsites()
         nBasis = 2 * n_orbs
@@ -929,10 +1006,10 @@ contains
 
         call init_realspace_tests()
 
-        nel = 6
+        nel = 2
         allocate(nI(nel))
 !         nI = [(i, i = 1, nel)]
-        nI = [1,4,5,8,9,12]
+        nI = [1,4]
 
         nOccAlpha = 0
         nOccBeta = 0
@@ -945,6 +1022,20 @@ contains
         call run_excit_gen_tester(gen_excit_rs_hubbard_transcorr, & 
             "gen_excit_rs_hubbard_transcorr", nI, n_iters, gen_all_excits_r_space_hubbard)
 
+        nI = [1,2]
+        call run_excit_gen_tester(gen_excit_rs_hubbard_transcorr, & 
+            "gen_excit_rs_hubbard_transcorr", nI, n_iters, gen_all_excits_r_space_hubbard)
+
+        nI = [1,6]
+        call run_excit_gen_tester(gen_excit_rs_hubbard_transcorr, & 
+            "gen_excit_rs_hubbard_transcorr", nI, n_iters, gen_all_excits_r_space_hubbard)
+
+        nI = [1,8]
+        call run_excit_gen_tester(gen_excit_rs_hubbard_transcorr, & 
+            "gen_excit_rs_hubbard_transcorr", nI, n_iters, gen_all_excits_r_space_hubbard)
+        nI = [2,3]
+        call run_excit_gen_tester(gen_excit_rs_hubbard_transcorr, & 
+            "gen_excit_rs_hubbard_transcorr", nI, n_iters, gen_all_excits_r_space_hubbard)
         t_trans_corr_hop = .false.
 
     end subroutine gen_excit_rs_hubbard_transcorr_test_stoch
@@ -957,15 +1048,15 @@ contains
         n_iters = 1000000
 
         t_trans_corr_hop = .true. 
-        trans_corr_param = 0.1_dp
+        trans_corr_param = 0.05_dp
         t_uniform_excits = .true.
 
-        uhub = 10
+        uhub = 16
         bhub = -1
         pSingles = 0.9_dp
         pDoubles = 1.0_dp - pSingles
 
-        lat => lattice('rectangle', 2, 3, 1,.true.,.true.,.true.)
+        lat => lattice('chain', 4, 1, 1,.true.,.true.,.true.)
 
         n_orbs = lat%get_nsites()
         nBasis = 2 * n_orbs
@@ -975,10 +1066,10 @@ contains
 
         call init_realspace_tests()
 
-        nel = 6
+        nel = 2
         allocate(nI(nel))
 !         nI = [(i, i = 1, nel)]
-        nI = [1,4,5,8,9,12]
+        nI = [1,4]
 
         nOccAlpha = 0
         nOccBeta = 0

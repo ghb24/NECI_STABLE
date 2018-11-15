@@ -26,9 +26,8 @@ module fcimc_iter_utils
 
     use bit_rep_data, only: NIfD, NIfTot, NIfDBO
     use hphf_integrals, only: hphf_diag_helement
-    use global_det_data, only: set_det_diagH
     use Determinants, only: get_helement
-    use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av
+    use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av, tWriteUnocc
     use tau_search, only: update_tau
     use rdm_data, only: en_pert_main
     use Parallel_neci
@@ -421,11 +420,11 @@ contains
 #if defined __REALTIME
         integer, parameter :: real_arr_size = 2000
         integer, parameter :: hel_arr_size = 200
-        integer, parameter :: NoArrs = 54
+        integer, parameter :: NoArrs = 58
 #else
         integer, parameter :: real_arr_size = 1000
         integer, parameter :: hel_arr_size = 100
-        integer, parameter :: NoArrs = 37
+        integer, parameter :: NoArrs = 41
 #endif
         integer, parameter :: size_arr_size = 100
         ! RT_M_Merge: Doubled all array sizes since there are now two
@@ -495,7 +494,7 @@ contains
         sizes(cnt) = size(bloom_count(0:max_ex_level)); cnt = cnt + 1
         sizes(cnt) = size(NoAtHF);                      cnt = cnt + 1
         sizes(cnt) = size(SumWalkersCyc);               cnt = cnt + 1
-        sizes(cnt) = 1 ! nspawned (single int, not an array)
+        sizes(cnt) = 1;                                 cnt = cnt + 1! nspawned (single int, not an array)
 
         ! [W.D]
         ! communicate the inst_double_occ
@@ -519,8 +518,17 @@ contains
         sizes(cnt) = 1;                                 cnt = cnt + 1
         sizes(cnt) = 1;                                 cnt = cnt + 1
 
+        ! NoConflicts
+        sizes(cnt) = 1;                                 cnt = cnt + 1
+        ! ConflictExLvl
+        sizes(cnt) = size(ConflictExLvl);                                 cnt = cnt + 1
         ! truncated weight
         sizes(cnt) = 1;                                 cnt = cnt + 1
+
+        ! nUnoccDets
+        sizes(cnt) = 1;                                 cnt = cnt + 1
+        ! HolesByExLvl
+        sizes(cnt) = size(HolesByExLvl);                                 cnt = cnt + 1
 
         ! RT_M_Merge: Added real-time data
 #ifdef __REALTIME
@@ -585,6 +593,7 @@ contains
 
         if(tTruncInitiator) &
              low = upp + 1; upp = low + sizes(cnt) -1; send_arr(low:upp) = doubleSpawns; cnt = cnt + 1
+
         low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = nCoherentDoubles; cnt = cnt + 1
         low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = nIncoherentDets; cnt = cnt + 1
         low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = nConnection; cnt = cnt + 1
@@ -598,8 +607,16 @@ contains
         low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = NoInitsConflicts; cnt = cnt + 1
         low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = avSigns; cnt = cnt + 1
 
+        low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = NoConflicts; cnt = cnt + 1
+        low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = ConflictExLvl; cnt = cnt + 1
+
         ! truncated weight
         low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = truncatedWeight; cnt = cnt + 1
+
+        ! unocc dets
+        low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = nUnoccDets; cnt = cnt + 1
+        ! holes
+        low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = HolesByExLvl; cnt = cnt + 1
 
 #ifdef __REALTIME
         low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = Annihilated_1; cnt = cnt + 1
@@ -681,8 +698,15 @@ contains
         low = upp + 1; upp = low + sizes(cnt) - 1; AllNoInitsConflicts = recv_arr(low); cnt = cnt + 1
         low = upp + 1; upp = low + sizes(cnt) - 1; AllAvSigns = recv_arr(low); cnt = cnt + 1
 
+        low = upp + 1; upp = low + sizes(cnt) - 1; AllNoConflicts = recv_arr(low); cnt = cnt + 1
+        low = upp + 1; upp = low + sizes(cnt) - 1; AllConflictExLvl = recv_arr(low:upp); cnt = cnt + 1
+
         ! truncated weight
         low = upp + 1; upp = low + sizes(cnt) - 1; AllTruncatedWeight = recv_arr(low); cnt = cnt + 1
+
+        ! unocc dets
+        low = upp + 1; upp = low + sizes(cnt) - 1; AllNUnoccDets = recv_arr(low); cnt = cnt + 1
+        low = upp + 1; upp = low + sizes(cnt) - 1; AllHolesByExLvl = recv_arr(low:upp); cnt = cnt + 1
 
 #ifdef __REALTIME
         low = upp + 1; upp = low + sizes(cnt) - 1; AllAnnihilated_1 = recv_arr(low:upp); cnt = cnt + 1
@@ -895,8 +919,8 @@ contains
            write(iout,*) "update_growth: ",iter_data%update_growth_tot
            write(iout,*) "AllTotParts: ",AllTotParts
            write(iout,*) "AllTotPartsOld: ", AllTotPartsOld
-            call stop_all (this_routine, &
-                "Assertation failed: all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld)")
+!            call stop_all (this_routine, &
+!                "Assertation failed: all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld)")
         endif
 #endif
     
@@ -1288,7 +1312,7 @@ contains
                 tSearchTau=.false.
             endif
         enddo
-
+       
     end subroutine update_shift 
 
     subroutine rezero_iter_stats_update_cycle (iter_data, tot_parts_new_all)
@@ -1404,6 +1428,7 @@ contains
             else
                 call WriteFCIMCStats ()
             end if
+            if(tWriteUnocc) call write_unoccstats()
         end if
         
         call rezero_iter_stats_update_cycle (iter_data, tot_parts_new_all)

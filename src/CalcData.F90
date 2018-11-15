@@ -132,13 +132,36 @@ logical :: tFixTrial(1:inum_runs_max) !Fix trial overlap by determinstically upd
 integer :: N0_Target !The target reference population in fixed-N0 mode
 
 real(dp) :: TrialTarget !The target for trial overlap in trial-shift mode
+logical :: tAdaptiveShift !Make shift depends on the population
+real(dp) :: AdaptiveShiftSigma !Population which below the shift is set to zero
+real(dp) :: AdaptiveShiftF1 !Shift modification factor at AdaptiveShiftSigma
+real(dp) :: AdaptiveShiftF2 !Shift modification factor at InitiatorWalkNo
 ! Base hash values only on spatial orbitals
 ! --> All dets with same spatial structure on the same processor.
 logical :: tSpatialOnlyHash
 
+! if all determinants are stored to prevent the need for conversion each iteration
+logical :: tStoredDets
+
 ! Do we truncate spawning based on the number of unpaired electrons
 logical :: tTruncNOpen
 integer :: trunc_nopen_max
+
+! introduce a new truncation scheme based on the difference of seniority
+! compared to the reference determinant 
+logical :: t_trunc_nopen_diff = .false.
+integer :: trunc_nopen_diff = 0
+integer :: reference_seniority = 0
+! are determinants with low number of open orbs always inits?
+logical :: tSeniorityInits
+integer :: initMaxSenior
+! do we keep certain spawns up to a given excitation + seniority level
+logical :: tSpawnSeniorityBased
+integer, allocatable :: maxKeepExLvl(:)
+integer :: numMaxExLvlsSet
+! do we keep certain spawns based on the matrix element (w.r. to initiator criterium)
+logical :: tLargeMatelSurvive
+real(dp) :: spawnMatelThresh
 
 logical :: tMaxBloom    !If this is on, then we only print out a bloom warning if it is the biggest to date.
 
@@ -430,6 +453,13 @@ logical :: t_truncate_spawns = .false.
 logical :: t_truncate_unocc = .false., t_truncate_multi = .false.
 logical :: t_prone_walkers, t_activate_decay
 real(dp) :: n_truncate_spawns = 2.0_dp
+
+! flags for global storage
+logical :: tLogAverageSpawns, tActivateLAS
+logical :: tTimedDeaths
+! threshold value to make something an initiator based on spawn coherence
+real(dp) :: spawnSgnThresh
+integer :: minInitSpawns, lingerTime
 
 ! integer :: above_max_singles = 0, above_max_para = 0, above_max_anti = 0, &
 !            above_max_doubles = 0

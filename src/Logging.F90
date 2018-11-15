@@ -7,8 +7,9 @@ MODULE Logging
     use MemoryManager, only: LogMemAlloc, LogMemDealloc,TagIntType
     use SystemData, only: nel, LMS, nbasis, tHistSpinDist, nI_spindist, &
                           hist_spin_dist_iter
-    use FciMCData, only: maxConflictExLvl
-    use CalcData, only: tCheckHighestPop, semistoch_shift_iter, trial_shift_iter, tPairedReplicas
+    use FciMCData, only: maxConflictExLvl, maxHoleExLvlWrite
+    use CalcData, only: tCheckHighestPop, semistoch_shift_iter, trial_shift_iter, &
+         tPairedReplicas
     use constants, only: n_int, size_n_int, bits_n_int
     use bit_rep_data, only: NIfTot, NIfD
     use DetBitOps, only: EncodeBitDet
@@ -178,11 +179,13 @@ MODULE Logging
       tWriteRefs = .false.
       tWriteConflictLvls = .false.
       maxConflictExlvl = 8
+      maxHoleExLvlWrite = 12
 #ifdef __PROG_NUMRUNS
       tFCIMCStats2 = .true.
 #else
       tFCIMCStats2 = .false.
 #endif
+      tWriteUnocc = .false.
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -759,6 +762,10 @@ MODULE Logging
             ! write the excitation levels of sign conflicts between replicas
             tWriteConflictLvls = .true.
             if(item < nitems) call geti(maxConflictExLvl)
+
+         case("WRITE-HOLE-LVL")
+            ! the excitation level up to which unocc. dets are logged
+            call geti(maxHoleExLvlWrite)
         
         case("NONEWRDMCONTRIB")
             ! To be used with READRDMs.  This option makes sure that we don't add in any 

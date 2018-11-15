@@ -43,7 +43,8 @@ MODULE PopsfileMod
     use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
         gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2, max_death_cpt
     use FciMcData, only : pSingles, pDoubles, pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2
-    use global_det_data, only: global_determinant_data, init_global_det_data, set_det_diagH
+    use global_det_data, only: global_determinant_data, init_global_det_data, set_det_diagH, &
+         store_decoding
     use fcimc_helper, only: update_run_reference, calc_inst_proje, TestInitiator
     use replica_data, only: set_initial_global_data
     use load_balance, only: pops_init_balance_blocks, get_diagonal_matel
@@ -287,6 +288,12 @@ contains
            call clr_flag(Dets(:,i), flag_determ_parent)
            call clr_flag(Dets(:,i), flag_trial)
            call clr_flag(Dets(:,i), flag_connected)
+
+           ! store the determinant 
+           if(tStoredDets) then
+              call decode_bit_det(TempnI,Dets(:,i))
+              call store_decoding(i,TempnI)
+           end if
         end do
 
 
@@ -2708,7 +2715,7 @@ r_loop: do while(.not.tStoreDet)
 
         ! If we are changing the reference determinant to the largest
         ! weighted one in the file, do it here
-        if (tReadPopsChangeRef .and. tReadPopsRestart) then
+        if (tReadPopsChangeRef .or. tReadPopsRestart) then
             do run = 1, inum_runs
 
                 ! If using the same reference for all runs, then don't consider
@@ -2730,7 +2737,7 @@ r_loop: do while(.not.tStoreDet)
             ! works and thats all what is necessary here! 
             Excitlevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j), 2)
             IF(Excitlevel.eq.0) THEN
-                call set_det_diagH(j, 0.0_dp)
+                call set_det_diagH(j, 0.0_dp)                
             ELSE
                 if (tHPHF) then
                     HElemTemp = hphf_diag_helement (TempnI, &
@@ -2740,6 +2747,7 @@ r_loop: do while(.not.tStoreDet)
                 endif
                 call set_det_diagH(j, real(HElemTemp, dp) - Hii)
             ENDIF
+            call store_decoding(j, TempnI)
             call extract_sign(CurrentDets(:,j),RealTempSign)
             TotParts(1)=TotParts(1)+abs(RealTempSign(1))
             TotParts(inum_runs)=TotParts(1)

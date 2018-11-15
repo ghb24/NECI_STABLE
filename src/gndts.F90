@@ -6,9 +6,11 @@ module gndts_mod
     use sort_mod
     use sym_mod
     use DetBitOps, only: count_open_orbs,encodebitdet
-    use CalcData, only: tTruncNOpen,trunc_nopen_max
+    use CalcData, only: tTruncNOpen,trunc_nopen_max, t_trunc_nopen_diff, &
+                        trunc_nopen_diff
     use bit_reps, only: niftot,encode_bit_rep
     use constants, only: n_int
+    use fcimcdata, only: ilutRef
     implicit none
 
 contains
@@ -104,6 +106,15 @@ contains
                         tSkip = .false.
                     endif
                 endif
+
+                if (t_trunc_nopen_diff) then 
+                    call EncodeBitDet(nI,ilut)
+                    if (abs(count_open_orbs(ilut) - count_open_orbs(ilutRef(:,1))) > trunc_nopen_diff) then 
+                        tSkip = .true.
+                    else
+                        tSkip = .false.
+                    end if
+                end if
 
                 IF(LCHKSYM(KI,KJ)) THEN
                     IF((.not.tFixLz).or.(KI%Ml.eq.KJ%Ml)) THEN

@@ -243,6 +243,34 @@ contains
          RETURN
       END SUBROUTINE NECI_ICOPY
 
+      subroutine addToIntArray(arr,ind,elem)
+        implicit none
+        integer, intent(inout), allocatable :: arr(:)
+        integer, intent(in) :: ind, elem
+
+        integer, allocatable :: tmp(:)
+        integer :: nelems
+
+        if(allocated(arr)) then
+           nelems = size(arr)
+
+           if(ind > nelems) then
+              ! resize the array
+              allocate(tmp(nelems))
+              tmp = arr
+              deallocate(arr)
+              allocate(arr(ind), source = 0)
+              arr(1:nelems) = tmp(1:nelems)
+           endif
+        else
+           allocate(arr(ind), source = 0)
+        endif
+
+        arr(ind) = elem           
+           
+      end subroutine addToIntArray
+
+
 !--- Numerical utilities ---
 
     ! If all of the compilers supported ieee_arithmetic

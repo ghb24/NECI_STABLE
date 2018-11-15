@@ -16,7 +16,8 @@ module fcimc_pointed_fns
                         t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, & 
                         t_matele_cutoff, matele_cutoff, tEN2Truncated, &
                         tTruncInitiator, tSkipRef, t_consider_par_bias, t_truncate_unocc, &
-                        t_hist_tau_search, t_hist_tau_search_option
+                        t_hist_tau_search_option, &
+                        tAdaptiveShift, AdaptiveShiftSigma, AdaptiveShiftF1, AdaptiveShiftF2
 
     use DetCalcData, only: FciDetIndex, det
 
@@ -83,7 +84,7 @@ module fcimc_pointed_fns
         real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
         logical :: tAllowForEN2Calc
-        HElement_t(dp), intent(in) :: HElGen
+        HElement_t(dp), intent(inout) :: HElGen
 
         ! If tEN2Truncated is true, then we want to allow the otherwise
         ! truncated spawning to allow an EN2 correction to be calculated,
@@ -138,7 +139,8 @@ module fcimc_pointed_fns
         real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
         logical :: tAllowForEN2Calc
-        HElement_t(dp) , intent(in) :: HElGen
+        ! make sure that HElgen is assigned on return
+        HElement_t(dp) , intent(inout) :: HElGen
 
         call EncodeBitDet (nJ, iLutnJ)
 
@@ -181,7 +183,7 @@ module fcimc_pointed_fns
         real(dp), dimension(lenof_sign) :: child
         real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
-        HElement_t(dp) , intent(in) :: HElGen
+        HElement_t(dp) , intent(inout) :: HElGen
         character(*), parameter :: this_routine = 'attempt_create_normal'
 
         real(dp) :: rat, r, walkerweight, pSpawn, nSpawn, MatEl, p_spawn_rdmfac
@@ -230,7 +232,8 @@ module fcimc_pointed_fns
 #else
         rh_used = rh
 #endif
-        
+        ! assign the matrix element
+        HElGen = abs(rh)
         ! [W.D.]
         ! if the matrix element happens to be zero, i guess i should 
         ! abort as early as possible? so check that here already, or even 
@@ -725,6 +728,7 @@ module fcimc_pointed_fns
 #else
         real(dp) :: rat(1)
 #endif        
+        real(dp) :: shift, population, slope
 
 
         do i=1, inum_runs
@@ -737,11 +741,31 @@ module fcimc_pointed_fns
                 !If we are fixing the population of reference det, skip death/birth
                 fac(i)=0.0
             else
-                fac(i)=tau*(Kii-DiagSft(i))
+                if(tAdaptiveShift)then
+                    population = mag_of_run(realwSign, i)
+                    if(population>InitiatorWalkNo)then
+                        shift = DiagSft(i)
+                    elseif(population<AdaptiveShiftSigma)then
+                        shift = 0.0
+                    else
+                        if(InitiatorWalkNo==AdaptiveShiftSigma)then
+                            !In this case the slope is ill-defined.
+                            !Since initiators are strictly large than InitiatorWalkNo, set shift to zero
+                            shift = 0.0
+                        else
+                            !Apply linear modifcation that equals F1 at Sigma and F2 at InitatorWalkNo
+                            slope = (AdaptiveShiftF2-AdaptiveShiftF1)/(InitiatorWalkNo-AdaptiveShiftSigma)
+                            shift = DiagSft(i)*(AdaptiveShiftF1+(population-AdaptiveShiftSigma)*slope)
+                    end if
+                    end if
+                else
+                    shift = DiagSft(i)
+                endif
+                fac(i)=tau*(Kii-shift)
                 ! And for tau searching purposes
-                call log_death_magnitude (Kii - DiagSft(i))
-            end if
 
+                call log_death_magnitude (Kii - shift)
+            endif
         enddo
 
         if(any(fac > 1.0_dp)) then

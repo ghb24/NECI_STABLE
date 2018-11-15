@@ -49,7 +49,8 @@ module fcimc_initialisation
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, &
                         t_back_spawn_flex, back_spawn_delay, corespaceWalkers, &
-                        ScaleWalkers, tFixedN0, tSpinProject
+                        ScaleWalkers, tSpinProject, tFixedN0, tRCCheck, &
+                        t_trunc_nopen_diff, maxKeepExLvl
 
     use spin_project, only: init_yama_store, clean_yama_store
 
@@ -70,7 +71,7 @@ module fcimc_initialisation
     use LoggingData, only: tTruncRODump, tCalcVariationalEnergy, tReadRDMs, &
                            tDiagAllSpaceEver, tFCIMCStats2, tCalcFCIMCPsi, &
                            tLogComplexPops, tHistExcitToFrom, tPopsFile, &
-                           iWritePopsEvery, tRDMOnFly, tWriteConflictLvls, &
+                           iWritePopsEvery, tRDMOnFly, &
                            tDiagWalkerSubspace, tPrintOrbOcc, OrbOccs, &
                            tHistInitPops, OrbOccsTag, tHistEnergies, &
                            HistInitPops, AllHistInitPops, OffDiagMax, &
@@ -140,7 +141,7 @@ module fcimc_initialisation
                                     set_trial_populations, set_trial_states, calc_trial_states_direct
     use global_det_data, only: global_determinant_data, set_det_diagH, &
                                clean_global_det_data, init_global_det_data, &
-                               set_spawn_rate
+                               set_spawn_rate, store_decoding
     use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
@@ -952,7 +953,6 @@ contains
         NoNonInitDets=0
         NoSIInitsConflicts = 0
         NoInitsConflicts = 0
-        NoConflicts = 0
         avSigns = 0.0_dp
         NoInitWalk(:)=0.0_dp
         NoNonInitWalk(:)=0.0_dp
@@ -1035,6 +1035,17 @@ contains
 
         allocate(ConflictExLvl(maxConflictExLvl))
         ConflictExLvl = 0
+        allocate(AllConflictExLvl(maxConflictExLvl))
+        AllConflictExLvl = 0
+        NoConflicts = 0
+        AllNoConflicts = 0
+
+        allocate(HolesByExLvl(maxHoleExLvlWrite))
+        allocate(allHolesByExLvl(maxHoleExLvlWrite))
+        allHolesByExLvl = 0
+        HolesByExLvl = 0
+        nUnoccDets = 0
+        allNUnoccDets = 0
 
         IF(tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC)) THEN
             ALLOCATE(HistMinInd(NEl))
@@ -1368,7 +1379,7 @@ contains
             write(iout, '("Truncating determinant space at a maximum of ",i3," &
                     &unpaired electrons.")') trunc_nopen_max
         endif
-        
+
 !        SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.0_dp)
 !        TotDets=1.0_dp
 !        do i=1,NEl
@@ -1849,7 +1860,7 @@ contains
             attempt_create => attempt_create_realtime
          else if (tTruncCas .or. tTruncSpace .or. &
             tPartFreezeCore .or. tPartFreezeVirt .or. tFixLz .or. &
-            (tUEG .and. .not. tLatticeGens) .or. tTruncNOpen) then
+            (tUEG .and. .not. tLatticeGens) .or. tTruncNOpen .or. t_trunc_nopen_diff) then
             if (tHPHF .or. tCSF .or. tSemiStochastic) then
                 attempt_create => attempt_create_trunc_spawn
             else
@@ -1970,7 +1981,10 @@ contains
         deallocate(FreeSlot,stat=ierr)
         if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
 
-        if(allocated(ConflictExLvl)) deallocate(ConflictExLvl)
+        if(allocated(ConflictExLvl)) deallocate(ConflictExLvl)        
+        if(allocated(HolesByExLvl)) deallocate(HolesByExLvl)
+        if(allocated(AllConflictExLvl)) deallocate(AllConflictExLvl)        
+        if(allocated(AllHolesByExLvl)) deallocate(AllHolesByExLvl)
 
         IF(tHistSpawn.or.tCalcFCIMCPsi) THEN
             DEALLOCATE(Histogram)
@@ -2099,6 +2113,8 @@ contains
 
         if (tTrialWavefunction) call end_trial_wf()
 
+        deallocate(maxKeepExLvl)
+
 !There seems to be some problems freeing the derived mpi type.
 !        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
 !Free the mpi derived type that we have created for the hashes.
@@ -2161,6 +2177,8 @@ contains
             ! HF energy is equal to 0 (by definition)
             call set_det_diagH(1, 0.0_dp)
             HFInd = 1
+
+            call store_decoding(1,HFDet)
 
             if (tContTimeFCIMC .and. tContTimeFull) &
                 call set_spawn_rate(1, spawn_rate_full(HFDet, ilutHF))
@@ -2299,6 +2317,9 @@ contains
                     hdiag = get_helement(ProjEDet(:, run), ProjEDet(:, run), 0)
                 endif
                 call set_det_diagH(site, real(hdiag, dp) - Hii)
+
+                ! store the determinant
+                call store_decoding(site, ProjEDet(:,run))
 
                 ! Obtain the initial sign
                 if (.not. tStartSinglePart) &
@@ -2830,6 +2851,7 @@ contains
                         HDiagTemp = get_helement(CASFullDets(:,i),CASFullDets(:,i),0)
                     endif
                     call set_det_diagH(DetIndex, real(HDiagTemp, dp) - Hii)
+                    call store_decoding(DetIndex, CASFullDets(:,i))
 
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
@@ -3061,6 +3083,8 @@ contains
                         HDiagTemp = get_helement(nJ,nJ,0)
                     endif
                     call set_det_diagH(DetIndex, real(HDiagtemp, dp) - Hii)
+                    ! store the determinant
+                    call store_decoding(DetIndex,nJ)
 
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
@@ -3121,6 +3145,9 @@ contains
                     enddo
                 endif
                 call set_det_diagH(DetIndex, 0.0_dp)
+                
+                ! store the determinant
+                call store_decoding(DetIndex, HFDet)
 
                 ! Now add the Hartree-Fock determinant (not with index 1).
                 DetHash = FindWalkerHash(HFDet, nWalkerHashes)

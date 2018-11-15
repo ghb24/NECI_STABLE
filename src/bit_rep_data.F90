@@ -65,22 +65,23 @@ module bit_rep_data
                           flag_deltaB_sign = 8, &   ! new flags added for GUGA
                           flag_ic0_spawn = 9, &
                           flag_death_done = 10, &
-                          flag_negative_sign = 11
+                          flag_negative_sign = 11, &
+                          flag_large_matel = 12
 
 #ifdef __PROG_NUMRUNS
     integer, parameter :: flag_initiator(lenof_sign_max) &
-                            = (/ 12, 13, 14, 15, 16, 17, 18, 19, &
-                                20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31/), &
-                          flag_adi_checked = 32, &
+                            = (/ 13, 14, 15, 16, 17, 18, 19, &
+                                20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32/), &
+                          flag_adi_checked = 33, &
                           flag_static_init(lenof_sign_max) &
-                            = (/33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, &
-                                45, 46, 47, 48, 49, 50, 51, 52/), &
-                          num_flags = 53
+                            = (/34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, &
+                                45, 46, 47, 48, 49, 50, 51, 52, 53/), &
+                          num_flags = 54
 #else
-    integer, parameter :: flag_initiator(2) = (/ 12, 13/), &
-                          flag_adi_checked = 14, &
-                          flag_static_init(2) = (/15, 16/), &
-                          num_flags = 17
+    integer, parameter :: flag_initiator(2) = (/ 13, 14/), &
+                          flag_adi_checked = 15, &
+                          flag_static_init(2) = (/16, 17/), &
+                          num_flags = 18
 #endif
 
 contains

@@ -126,7 +126,7 @@ contains
         real(dp), dimension(lenof_sign) :: SignProd
         integer :: DetHash, nJ(nel)
         logical :: tSuccess, tDetermState
-        integer :: run       
+        integer :: run, temp_ind
         
         ! rewrite the original Annihilation routine to fit the new 
         ! requirements here
@@ -270,10 +270,10 @@ contains
 
                   if (tHPHF) then 
                       call AddNewHashDet(TotWalkersNew, DiagParts(:,i), DetHash, &
-                          nJ, hphf_diag_helement(nJ,DiagParts(:,i)))
+                          nJ, hphf_diag_helement(nJ,DiagParts(:,i)), temp_ind)
                   else
                       call AddNewHashDet(TotWalkersNew, DiagParts(:,i), DetHash, &
-                          nJ, get_helement(nJ,nJ,0))
+                          nJ, get_helement(nJ,nJ,0), temp_ind)
                   end if
 
                end if
@@ -303,8 +303,7 @@ contains
 
             ilut_parent => CurrentDets(:,idet) 
 
-            call extract_bit_rep(ilut_parent, nI_parent, parent_sign, unused_flags, &
-                fcimc_excit_gen_store)
+            call extract_bit_rep(ilut_parent, nI_parent, parent_sign, unused_flags)
 
             if (IsUnoccDet(parent_sign)) then
                 holes = holes + 1
@@ -696,7 +695,7 @@ contains
         real(dp), dimension(lenof_sign) :: child
         real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
-        HElement_t(dp) , intent(in) :: HElGen
+        HElement_t(dp) , intent(inout) :: HElGen
         character(*), parameter :: this_routine = 'attempt_create_realtime'
 
         real(dp) :: walkerweight, pSpawn, nSpawn, MatEl, p_spawn_rdmfac, &

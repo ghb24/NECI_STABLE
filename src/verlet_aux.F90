@@ -208,8 +208,7 @@ module verlet_aux
          fcimc_excit_gen_store%tFilled = .false.
          unused_flags = 0
 
-         call extract_bit_rep(population(:,idet), nI, parent_sign, unused_flags, &
-              fcimc_excit_gen_store)
+         call extract_bit_rep(population(:,idet), nI, parent_sign, unused_flags)
 
          tEmptyDet = IsUnoccDet(parent_sign)
          ! we collect free slots only in the first application
