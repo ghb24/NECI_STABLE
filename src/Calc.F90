@@ -153,6 +153,8 @@ contains
           AdaptiveShiftSigma = 1.0
           AdaptiveShiftF1 = 0.0
           AdaptiveShiftF2 = 1.0
+          tAutoAdaptiveShift = .false.
+          AdaptiveShiftThresh = 10
           NEquilSteps=0
           NShiftEquilSteps=1000
           TRhoElems=.false.
@@ -1688,6 +1690,11 @@ contains
                     end if
                 end if
                 tAdaptiveShift = .true.
+            case("AUTO-ADAPTIVE-SHIFT")
+                tAutoAdaptiveShift = .true.
+                if (item.lt.nitems) then
+                    call getf(AdaptiveShiftThresh)
+                end if
             case("EXITWALKERS")
 !For FCIMC, this is an exit criterion based on the total number of walkers in the system.
                 call getiLong(iExitWalkers)

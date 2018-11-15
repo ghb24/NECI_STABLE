@@ -77,7 +77,7 @@ module FciMCParMod
     use global_det_data, only: det_diagH, reset_tau_int, get_all_spawn_pops, &
                                reset_shift_int, update_shift_int, &
                                update_tau_int, set_spawn_pop, get_death_timer, &
-                               clock_death_timer, mark_death
+                               clock_death_timer, mark_death, get_tot_spawns, get_acc_spawns
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
     use ftlm_neci, only: perform_ftlm
@@ -1294,6 +1294,11 @@ module FciMCParMod
                 run = part_type_to_run(part_type)
                 TempSpawnedPartsInd = 0
 
+                !write (6,*), "Det Index: ", j
+                !write (6,*), "Run Index: ", run
+                !write (6,*), "Is Initiator: ", test_flag (CurrentDets(:,j), get_initiator_flag_by_run(run))
+                !write (6,*), "Total Spawns: ", get_tot_spawns(j, run)
+                !write (6,*), "Accepted Spawns: ", get_acc_spawns(j, run)
                 ! Loop over all the particles of a given type on the 
                 ! determinant. CurrentSign gives number of walkers. Multiply 
                 ! up by AvMCExcits if attempting multiple excitations from 
@@ -1421,7 +1426,7 @@ module FciMCParMod
                         else
                             call create_particle (nJ, iLutnJ, child, part_type, & 
                                                   CurrentDets(:,j), SignCurr, p, &
-                                                  RDMBiasFacCurr, WalkersToSpawn, abs(HElGen))
+                                                  RDMBiasFacCurr, WalkersToSpawn, abs(HElGen), j)
                         end if
 
                     endif ! (child /= 0), Child created.

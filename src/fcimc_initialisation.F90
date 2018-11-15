@@ -45,7 +45,7 @@ module fcimc_initialisation
                         t_back_spawn_option, t_back_spawn_flex_option, &
                         t_back_spawn_flex, back_spawn_delay, corespaceWalkers, &
                         ScaleWalkers, tSpinProject, tFixedN0, tRCCheck, &
-                        t_trunc_nopen_diff, maxKeepExLvl
+                        t_trunc_nopen_diff, maxKeepExLvl, tAutoAdaptiveShift
 
     use spin_project, only: init_yama_store, clean_yama_store
 
@@ -1533,6 +1533,18 @@ contains
 
             MemoryAlloc=MemoryAlloc+(NIfTot+1)*MaxSpawned*2*size_n_int
 
+            if(tAutoAdaptiveShift)then
+                allocate(SpawnInfoVec(0:SpawnInfoWidth-1, MaxSpawned), &
+                         SpawnInfoVec2(0:SpawnInfoWidth-1, MaxSpawned), stat=ierr)
+                log_alloc(SpawnInfoVec, SpawnInfoVecTag, ierr)
+                log_alloc(SpawnInfoVec2, SpawnInfoVec2Tag, ierr)
+                SpawnInfoVec(:,:)=0
+                SpawnInfoVec2(:,:)=0
+                SpawnInfo=>SpawnInfoVec
+                SpawnInfo2=>SpawnInfoVec2
+                MemoryAlloc=MemoryAlloc+(SpawnInfoWidth)*MaxSpawned*2*size_n_int
+            end if
+
             write(iout,"(A)") "Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number"
             write(iout,"(A,I15)") "Length of hash-table: ",nWalkerHashes
             write(iout,"(A,F20.5)") "Length of hash-table as a fraction of targetwalkers: ",HashLengthFrac
@@ -1955,6 +1967,12 @@ contains
         CALL LogMemDealloc(this_routine,SpawnVecTag)
         DEALLOCATE(SpawnVec2)
         CALL LogMemDealloc(this_routine,SpawnVec2Tag)
+        if(tAutoAdaptiveShift)then
+            DEALLOCATE(SpawnInfoVec)
+            CALL LogMemDealloc(this_routine,SpawnInfoVecTag)
+            DEALLOCATE(SpawnInfoVec2)
+            CALL LogMemDealloc(this_routine,SpawnInfoVec2Tag)
+        end if
 
         if(allocated(TempSpawnedParts)) then
             deallocate(TempSpawnedParts)

@@ -6,11 +6,12 @@ module load_balance
                         tContTimeFCIMC, t_prone_walkers, &
                         tContTimeFull, tTrialWavefunction, &
                         tPairedReplicas, tau, tSeniorInitiators, &
-                        t_activate_decay, tTimedDeaths
+                        t_activate_decay, tTimedDeaths, tAutoAdaptiveShift
     use global_det_data, only: global_determinant_data, reset_death_timer, &
                                set_det_diagH, set_spawn_rate, &
                                set_all_spawn_pops, reset_all_tau_ints, &
-                               reset_all_shift_ints, det_diagH, store_decoding
+                               reset_all_shift_ints, det_diagH, store_decoding, &
+                               reset_all_tot_spawns, reset_all_acc_spawns
     use bit_rep_data, only: flag_initiator, NIfDBO, &
                             flag_connected, flag_trial, flag_prone
     use bit_reps, only: set_flag, nullify_ilut_part, &
@@ -545,6 +546,11 @@ contains
             call set_all_spawn_pops(DetPosition, SignCurr)
             call reset_all_tau_ints(DetPosition)
             call reset_all_shift_ints(DetPosition)
+        end if
+
+        if(tAutoAdaptiveShift) then
+            call reset_all_tot_spawns(DetPosition)
+            call reset_all_acc_spawns(DetPosition)
         end if
 
         ! If using a trial wavefunction, search to see if this state is in

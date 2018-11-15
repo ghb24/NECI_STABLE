@@ -9,7 +9,7 @@ module AnnihilationMod
                           tEN2Started, tEN2Truncated, tInitCoherentRule, t_truncate_spawns, &
                           n_truncate_spawns, t_prone_walkers, t_truncate_unocc, &
                           tSpawnSeniorityBased, numMaxExLvlsSet, maxKeepExLvl, &
-                          tLogAverageSpawns, tTimedDeaths
+                          tLogAverageSpawns, tTimedDeaths, tAutoAdaptiveShift
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -24,7 +24,7 @@ module AnnihilationMod
                         encode_part_sign, &
                         extract_part_sign, extract_bit_rep, &
                         nullify_ilut_part, clr_flag, get_num_spawns,&
-                        encode_flags, bit_parent_zero, get_initiator_flag
+                        encode_flags, bit_parent_zero, get_initiator_flag, get_initiator_flag_by_run
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData, only: tNoNewRDMContrib
     use load_balance, only: DetermineDetNode, AddNewHashDet, &
@@ -34,7 +34,8 @@ module AnnihilationMod
     use real_time_data, only: NoAborted_1, Annihilated_1, runge_kutta_step, &
                               nspawned_1, t_real_time_fciqmc
 
-    use global_det_data, only: det_diagH, store_spawn, get_death_timer
+    use global_det_data, only: det_diagH, store_spawn, get_death_timer, &
+                               update_tot_spawns, update_acc_spawns, get_tot_spawns, get_acc_spawns
 
     use procedure_pointers, only: scaleFunction
 
@@ -66,6 +67,10 @@ module AnnihilationMod
         PointTemp => SpawnedParts2
         SpawnedParts2 => SpawnedParts
         SpawnedParts => PointTemp
+
+        if(tAutoAdaptiveShift)then
+            call SendSpawnInfo(tSingleProc)
+        end if
 
         Compress_time%timer_name='Compression interface'
         call set_timer(Compress_time,20)
@@ -1231,5 +1236,125 @@ module AnnihilationMod
         end do
 
     end subroutine add_en2_pert_for_trunc_calc
+
+
+    subroutine SendSpawnInfo(tSingleProc)
+        logical, intent(in) :: tSingleProc
+
+        integer :: MaxIndex
+        integer :: i, error
+        integer(MPIArg), dimension(nProcessors) :: sendcounts, disps, &
+                                                   recvcounts, recvdisps
+        integer :: j, run, ParentIdx, proc
+        integer :: PartInd, DetHash, nI(nel)
+        real(dp) :: CurrentSign(lenof_sign)
+        real(dp) :: val
+        logical :: tUnocc, tSuccess, tDetermState, tToEmptyDet
+
+
+        !The first part which involves calculating the displacements is basically copied 
+        !from SendProcNewParts. Maybe we should refactor into a its own subroutine
+        if (tSingleProc) then
+            ! Put all particles and gap on one proc.
+
+            ! ValidSpawnedList(0:nNodes-1) indicates the next free index for each
+            ! processor (for spawnees from this processor) i.e. the list of spawned
+            ! particles has already been arranged so that newly spawned particles are 
+            ! grouped according to the processor they go to.
+
+            ! sendcounts(1:) indicates the number of spawnees to send to each processor.
+            ! disps(1:) is the index into the spawned list of the beginning of the list
+            ! to send to each processor (0-based).
+           sendcounts(1)=int(ValidSpawnedList(0)-1,MPIArg)
+           disps(1)=0
+           if (nNodes>1) then
+              sendcounts(2:nNodes)=0
+              ! n.b. work around PGI bug.
+              do i = 2, nNodes
+                  disps(i) = int(ValidSpawnedList(1), MPIArg)
+              end do
+              !disps(2:nNodes)=int(ValidSpawnedList(1),MPIArg)
+           end if
+                                                                       
+        else
+          ! Distribute the gaps on all procs.
+           do i = 0 ,nProcessors-1
+               if (NodeRoots(ProcNode(i)) == i) then
+                  sendcounts(i+1) = int(ValidSpawnedList(ProcNode(i)) - &
+                        InitialSpawnedSlots(ProcNode(i)),MPIArg)
+                  ! disps is zero-based, but InitialSpawnedSlots is 1-based.
+                  disps(i+1)=int(InitialSpawnedSlots(ProcNode(i))-1,MPIArg)
+               else
+                  sendcounts(i+1) = 0
+                  disps(i+1) = disps(i)
+               end if
+           end do
+        end if
+
+
+        ! We now need to calculate the recvcounts and recvdisps - this is a
+        ! job for AlltoAll
+        recvcounts(1:nProcessors) = 0
+        
+        call MPIBarrier(error)
+
+        call MPIAlltoAll(sendcounts,1,recvcounts,1,error)
+
+
+        ! We can now get recvdisps from recvcounts, since we want the data to
+        ! be contiguous after the move.
+        recvdisps(1) = 0
+        do i = 2, nProcessors
+            recvdisps(i) = recvdisps(i-1) + recvcounts(i-1)
+        end do
+        MaxIndex = recvdisps(nProcessors) + recvcounts(nProcessors)
+
+        do i = 1, nProcessors
+            recvdisps(i) = recvdisps(i)*SpawnInfoWidth
+            recvcounts(i) = recvcounts(i)*SpawnInfoWidth
+            sendcounts(i) = sendcounts(i)*SpawnInfoWidth
+            disps(i) = disps(i)*SpawnInfoWidth
+        end do
+
+        call MPIAlltoAllv(SpawnInfo,sendcounts,disps,SpawnInfo2,recvcounts,recvdisps,error)
+
+        do i = 1, MaxIndex                
+            SpawnInfo2(SpawnAccepted,i) = 1
+            if(tTruncInitiator)then
+                call decode_bit_det(nI, SpawnedParts(:,i))
+                call hash_table_lookup(nI, SpawnedParts(:,i), NIfDBO, HashIndex, &
+                               CurrentDets, PartInd, DetHash, tSuccess)
+                if (tSuccess) then
+                    tDetermState = test_flag(CurrentDets(:,PartInd), flag_deterministic)
+                    call extract_sign(CurrentDets(:,PartInd),CurrentSign)
+                    run = SpawnInfo2(SpawnRun,i)
+                    tUnocc = is_run_unnocc(CurrentSign,run)
+                    tToEmptyDet =  tUnocc .and. (.not. tDetermState)
+                else
+                    tToEmptyDet = .True.
+                end if
+                
+                if (.not. test_flag (SpawnedParts(:,i), get_initiator_flag_by_run(run)) .and. tToEmptyDet)then 
+                    SpawnInfo2(SpawnAccepted,i) = 0
+                endif
+            end if
+        end do
+        !Simply replaceing: SpawnInfo <-> SpawnInfo2, sendcount <-> recvcounts, disps <-> recvdips, 
+        !we send the info back into its original location
+        call MPIAlltoAllv(SpawnInfo2,recvcounts,recvdisps,SpawnInfo,sendcounts,disps,error)
+
+        !write(6,*), "++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+        do proc = 0, nProcessors-1
+            do i=InitialSpawnedSlots(proc), ValidSpawnedList(proc)-1
+                ParentIdx = SpawnInfo(SpawnParentIdx,i)
+                run = SpawnInfo(SpawnRun,i)
+                val = SpawnInfo(SpawnAccepted,i) 
+                call update_tot_spawns(ParentIdx, run, 1.0_dp)
+                call update_acc_spawns(ParentIdx, run, val)
+                !write(6,*), ParentIdx, run, get_tot_spawns(ParentIdx, run), get_acc_spawns(ParentIdx, run) 
+            end do
+        end do
+        !write(6,*), "---------------------------------------------------------"
+    end subroutine
 
 end module AnnihilationMod
