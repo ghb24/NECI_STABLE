@@ -1007,7 +1007,8 @@ contains
 
         use DetBitOps, only: DetBitEQ
         use FciMCData, only: SpawnedParts, ValidSpawnedList, TempSpawnedParts, TempSpawnedPartsInd
-        use bit_reps, only: zero_parent, encode_parent
+        use bit_reps, only: zero_parent, encode_parent, all_runs_are_initiator
+        use CalcData, only: tNonInitsForRDMs
 
         real(dp), intent(in) :: RDMBiasFacCurr
         integer, intent(in) :: WalkerNumber, procJ
@@ -1020,7 +1021,7 @@ contains
             ! If RDMBiasFacCurr is exactly zero, any contribution from Ci.Cj will be zero 
             ! so it is not worth carrying on. 
             call zero_parent(SpawnedParts(:, ValidSpawnedList(procJ)))
-        else
+        else if(tNonInitsForRDMs .or. all_runs_are_initiator(ilutI)) then
 
             ! First we want to check if this Di.Dj pair has already been accounted for.
             ! This means searching the Dj's that have already been spawned from this Di, to make sure 
@@ -1070,6 +1071,9 @@ contains
                 ! double count this pair.
                 call zero_parent(SpawnedParts(:, ValidSpawnedList(procJ)))
             end if
+         else
+            ! This Di is a non-initiator, and we specified to take only initiators into account
+            call zero_parent(SpawnedParts(:, ValidSpawnedList(procJ)))
         end if
 
     end subroutine store_parent_with_spawned

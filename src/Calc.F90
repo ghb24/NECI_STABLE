@@ -423,6 +423,9 @@ contains
           tEN2Truncated = .false.
           tEN2Started = .false.
 
+          ! Giovannis option for RDMs without non-initiators
+          tNonInitsForRDMs = .true.
+
         end subroutine SetCalcDefaults
 
         SUBROUTINE CalcReadInput()
@@ -637,6 +640,10 @@ contains
                     call report(trim(w)//" only valid for MC "        &
      &                 //"method",.true.)
                 end if
+
+             case("INITS-RDM")
+                ! only take into account initiators when calculating RDMs
+                tNonInitsForRDMs = .false.
             case("VVDISALLOW")
                 TVVDISALLOW=.TRUE.
             case("MCDIRECTSUM")

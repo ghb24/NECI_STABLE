@@ -134,6 +134,8 @@ real(dp) :: AdaptiveShiftF1 !Shift modification factor at AdaptiveShiftSigma
 real(dp) :: AdaptiveShiftF2 !Shift modification factor at InitiatorWalkNo
 logical :: tAutoAdaptiveShift !Let the modification factor of adaptive shift be computed autmatically
 real(dp) :: AdaptiveShiftThresh !Number of spawn under which below the shift is set to zero (in auto-adaptive-shift)
+! Giovannis option for using only initiators for the RDMs (off by default)
+logical :: tNonInitsForRDMs = .true.
 ! Base hash values only on spatial orbitals
 ! --> All dets with same spatial structure on the same processor.
 logical :: tSpatialOnlyHash

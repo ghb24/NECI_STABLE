@@ -359,7 +359,19 @@ contains
         enddo
     end function any_run_is_initiator
 
-
+    pure function all_runs_are_initiator(ilut) result(t)
+      integer(n_int), intent(in) :: ilut(0:niftot)
+      integer :: run
+      logical :: t
+      t = .true.
+      do run = 1, inum_runs
+        if(.not. test_flag(ilut, get_initiator_flag_by_run(run))) then
+           t = .false.
+           return
+        endif
+      end do
+    end function all_runs_are_initiator
+    
     subroutine clear_all_flags (ilut)
 
         ! Clear all of the flags
