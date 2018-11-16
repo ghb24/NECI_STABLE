@@ -9,7 +9,7 @@ module AnnihilationMod
                           tEN2Started, tEN2Truncated, tInitCoherentRule, t_truncate_spawns, &
                           n_truncate_spawns, t_prone_walkers, t_truncate_unocc, &
                           tSpawnSeniorityBased, numMaxExLvlsSet, maxKeepExLvl, &
-                          tLogAverageSpawns, tTimedDeaths, tAutoAdaptiveShift
+                          tLogAverageSpawns, tTimedDeaths, tAutoAdaptiveShift, tSkipRef
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -672,6 +672,13 @@ module AnnihilationMod
                     end if
                  end if
 
+                 !If we are fixing the population of reference det, skip spawing into it.
+                 if(tSkipRef(run) .and. DetBitEQ(CurrentDets(:,PartInd),iLutRef(:,run),nIfD)) then
+                      NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
+                      iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
+                      call encode_part_sign (SpawnedParts(:,i), 0.0_dp, j)
+                      SpawnedSign(j) = 0.0_dp
+                 end if
 
                  if (SignProd(j) < 0) then
                     ! This indicates that the particle has found the

@@ -17,7 +17,7 @@ module FciMCParMod
                         t_back_spawn_flex, t_back_spawn_flex_option, &
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
                         DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
-                        tSkipRef, tFixTrial, tTrialShift, t_activate_decay, &
+                        tFixTrial, tTrialShift, t_activate_decay, &
                         tLogAverageSpawns, tActivateLAS, tTimedDeaths, lingerTime
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
                         tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
@@ -1200,12 +1200,6 @@ module FciMCParMod
                                         HElGen, fcimc_excit_gen_store, part_type)
                     
 
-
-                    !If we are fixing the population of reference det, skip spawing into it.
-                    if(tSkipRef(run) .and. all(nJ==projEdet(:,run))) then
-                        !Set nJ to null
-                        nJ(1) = 0
-                    end if
 
                     ! If a valid excitation, see if we should spawn children.
                     if (.not. IsNullDet(nJ)) then
