@@ -7,7 +7,10 @@ module rdm_filling
 
     use bit_rep_data, only: NIfTot, NIfDBO
     use constants
-    use rdm_data, only: rdm_spawn_t
+    use rdm_data, only: rdm_spawn_t, rdmCorrectionFactor
+    use CalcData, only: tAdaptiveShift
+    use FciMCData, only: projEDet, ilutRef
+    use DetBitOps, only: DetBitEq
 
     implicit none
 
@@ -194,6 +197,10 @@ contains
                     call fill_diag_1rdm(one_rdms, nI, av_sign, tCoreSpaceDet, IterRDM_new)
                 else
                     full_sign = IterRDM_new*av_sign(1::2)*av_sign(2::2)
+                    ! in adaptive shift mode, the reference contribution is rescaled
+                    ! projEDet has to be the same on all runs
+                    if(tAdaptiveShift .and. DetBitEq(ilutRef(:,1), ilutnI)) &
+                         full_sign = full_sign + IterRDM_new * rdmCorrectionFactor
                     call fill_spawn_rdm_diag(spawn, nI, full_sign)
                 end if
             end if
@@ -310,7 +317,6 @@ contains
         ! non-zero ci.cj to contribute to the RDM. The index i tells us where
         ! to look in the parent array, for the Di's to go with this Dj.
 
-        use DetBitOps, only: DetBitEq
         use FciMCData, only: iLutHF_True
         use rdm_data, only: one_rdm_t, rdm_definitions_t
 
@@ -335,7 +341,6 @@ contains
         ! (with appropriate de-biasing factors) into the 1 and 2 electron RDM.
 
         use bit_reps, only: decode_bit_det
-        use DetBitOps, only: DetBitEq
         use FciMCData, only: Spawned_Parents, Spawned_Parents_Index, iLutHF_True
         use rdm_data, only: one_rdm_t, rdm_definitions_t
         use SystemData, only: nel, tHPHF
@@ -715,6 +720,10 @@ contains
             end if
 
             final_contrib = contrib_sign(1::2) * contrib_sign(2::2) * RDMIters * ScaleContribFac
+            ! in adaptive shift mode, the reference contribution is rescaled
+            ! we assume that projEDet is the same on all runs, else there is no point
+            if(tAdaptiveShift .and. all(nI == projEDet(:,1))) &
+                 final_contrib = final_contrib + RDMIters * ScaleContribFac * rdmCorrectionFactor
 
             do irdm = 1, size(one_rdms)
                 one_rdms(irdm)%matrix(ind,ind) = one_rdms(irdm)%matrix(ind,ind) + final_contrib(irdm)
@@ -773,7 +782,7 @@ contains
 
         use bit_rep_data, only: NIfD
         use bit_reps, only: decode_bit_det
-        use DetBitOps, only: get_bit_excitmat, DetBitEq
+        use DetBitOps, only: get_bit_excitmat
         use FciMCData, only: Iter, IterRDMStart, PreviousCycles, iLutHF_True
         use FciMCData, only: core_space, determ_sizes, determ_displs, full_determ_vecs_av
         use LoggingData, only: RDMExcitLevel, RDMEnergyIter

@@ -322,6 +322,13 @@ module rdm_data
     ! Timers.
     type(timer), save :: nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time
 
+    ! ---- Data for using adaptive shift mode ------------------------!
+    
+    ! when using adaptive shift, the RDMs require a correction, namely
+    ! the reference contribution
+
+    real(dp) :: rdmCorrectionFactor, InstRDMCorrectionFactor, ThisRDMIter
+
     ! ---- Data for the explicit RDM code -----------------------------
 
     ! Arrays for when filling RDMs explicitly. See rdm_explicit for the

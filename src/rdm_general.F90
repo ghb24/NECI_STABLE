@@ -5,6 +5,7 @@ module rdm_general
     use bit_rep_data, only: NIfTot, NIfDBO
     use constants
     use SystemData, only: nel, nbasis
+    use rdm_data, only: InstRDMCorrectionFactor, RDMCorrectionFactor, ThisRDMIter
 
     implicit none
 
@@ -867,6 +868,83 @@ contains
         iunused = store%nopen
 
     end subroutine extract_bit_rep_avsign_norm
+
+    subroutine UpdateRDMCorrectionTerm()
+      use Parallel_neci
+      ! first, communicate the rdm correction term between the procs
+      ! take the instantaneous correction term and sum it into the accumulated one
+      implicit none
+      real(dp) :: AllInstRDMCorrectionFactor
+      
+      call MPISumAll(InstRDMCorrectionFactor, AllInstRDMCorrectionFactor)
+      ! rezero the instantaneous, proc local correction
+      InstRDMCorrectionFactor = 0.0_dp
+
+      ! average the so-far accumulated RDMCorrection factor with the instantaneous one
+      RDMCorrectionFactor = (RDMCorrectionFactor * ThisRDMIter + AllInstRDMCorrectionFactor) /&
+           (ThisRDMIter+1.0_dp)
+
+      ! increase the iteration number count for averaging
+      ThisRDMIter = ThisRDMIter + 1.0_dp
+    end subroutine UpdateRDMCorrectionTerm
+
+    subroutine SumCorrectionContrib(DetSgn, DetPosition)
+      ! gather the sum (f_mu - 1) c_mu^2 used in the rdm filling
+      implicit none
+      real(dp), intent(in) :: DetSgn(lenof_sign)
+      integer, intent(in) :: DetPosition
+
+      InstRDMCorrectionFactor = InstRDMCorrectionFactor + getRDMCorrectionTerm(DetSgn, &
+           DetPosition)
+      
+    end subroutine SumCorrectionContrib
+
+    function getRDMCorrectionTerm(DetSgn, DetPosition) result(rdmC)
+      ! get (fmu - 1) c_mu^2 for a single mu
+      use CalcData, only: AdaptiveShiftSigma, AdaptiveShiftF1, AdaptiveShiftF2, &
+           InitiatorWalkNo, tAutoAdaptiveShift
+      use global_det_data, only: get_acc_spawns, get_tot_spawns
+
+      implicit none
+      real(dp), intent(in) :: DetSgn(lenof_sign)
+      integer, intent(in) :: DetPosition
+      real(dp) :: rdmC
+
+      real(dp) :: population, fmu, AvFmu
+      integer :: run
+
+
+      AvFmu = 1.0_dp
+      do run = 1, inum_runs
+         population = mag_of_run(DetSgn,run)
+         if(population > InitiatorWalkNo) then 
+            ! initiators have f=1
+            fmu = 1.0_dp
+         else
+            ! use the f-function used in the adaptive shift
+            if(tAutoAdaptiveShift) then
+               fmu = get_acc_spawns(DetPosition, run) / get_tot_spawns(DetPosition, run)
+            else
+               if(population < adaptiveShiftSigma) then
+                  fmu = 0.0_dp
+               else
+                  fmu = AdaptiveShiftF1 + (population - AdaptiveShiftSigma) * &
+                       (AdaptiveShiftF2-AdaptiveShiftF1)/(InitiatorWalkNo-AdaptiveShiftSigma)
+               endif
+            endif
+
+         endif
+         
+         AvFmu = AvFmu * fmu
+      end do
+      AvFmu = AvFmu ** (1.0_dp/real(inum_runs,dp))
+      
+      rdmC = 0.0_dp
+      do run = 1, inum_runs, 2
+         rdmC = rdmC + (AvFmu-1) * DetSgn(run)*DetSgn(run+1)
+      end do
+
+    end function getRDMCorrectionTerm
 
     subroutine calc_rdmbiasfac(p_spawn_rdmfac, p_gen, SignCurr, RDMBiasFacCurr)
 
