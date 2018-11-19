@@ -208,7 +208,8 @@ contains
                     full_sign = IterRDM_new*av_sign(1::2)*av_sign(2::2)
                     ! in adaptive shift mode, the reference contribution is rescaled
                     ! projEDet has to be the same on all runs
-                    if(tAdaptiveShift .and. DetBitEq(ilutRef(:,1), ilutnI)) &
+                    if(tAdaptiveShift .and. DetBitEq(ilutRef(:,1), ilutnI) .and. &
+                         tNonInitsForRDMs) &
                          full_sign = full_sign + IterRDM_new * rdmCorrectionFactor
                     call fill_spawn_rdm_diag(spawn, nI, full_sign)
                  end if
