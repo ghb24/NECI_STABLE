@@ -371,9 +371,6 @@ module FciMCParMod
                 attempt_die => ad_tmp
             endif
 
-            ! accumulate the rdm correction due to adaptive shift
-            if(tAdaptiveShift) call UpdateRDMCorrectionTerm()
-
             if(iProcIndex.eq.root) then
                 s_end=neci_etime(tend)
                 IterTime=IterTime+(s_end-s_start)
@@ -539,6 +536,10 @@ module FciMCParMod
             IF(tHistSpawn.and.(mod(Iter,iWriteHistEvery).eq.0).and.(.not.tRDMonFly)) THEN
                 CALL WriteHistogram()
             ENDIF
+            
+            ! accumulate the rdm correction due to adaptive shift
+            if(tAdaptiveShift .and. all(.not. tSinglePartPhase)) call UpdateRDMCorrectionTerm()
+
 
             if (tRDMonFly .and. all(.not. tSinglePartPhase)) then
                 ! If we wish to calculate the energy, have started accumulating the RDMs, 
@@ -1003,11 +1004,6 @@ module FciMCParMod
                 walkExcitLevel_toHF = walkExcitLevel
             endif
             
-            ! sum in (fmu-1)*cmu^2 for the purpose of RDMs
-            if(tAdaptiveShift) then
-               call SumCorrectionContrib(SignCurr,j)
-            endif
-
             ! if requested, average the sign over replicas if not coherent
             if(inum_runs > 1 .and. tWriteConflictLvls) call replica_coherence_check(&
                  CurrentDets(:,j), SignCurr, walkExcitLevel)
@@ -1082,6 +1078,11 @@ module FciMCParMod
                   endif
                endif
                cycle
+            endif
+
+            ! sum in (fmu-1)*cmu^2 for the purpose of RDMs
+            if(tAdaptiveShift .and. all(.not. tSinglePartPhase)) then
+               call SumCorrectionContrib(SignCurr,j)
             endif
 
             ! The current diagonal matrix element is stored persistently.

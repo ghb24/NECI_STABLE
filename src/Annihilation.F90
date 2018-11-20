@@ -1198,13 +1198,13 @@ module AnnihilationMod
         do i = 1, MaxIndex                
             SpawnInfo2(SpawnAccepted,i) = 1
             if(tTruncInitiator)then
+               run = SpawnInfo2(SpawnRun,i)
                 call decode_bit_det(nI, SpawnedParts(:,i))
                 call hash_table_lookup(nI, SpawnedParts(:,i), NIfDBO, HashIndex, &
                                CurrentDets, PartInd, DetHash, tSuccess)
                 if (tSuccess) then
                     tDetermState = test_flag(CurrentDets(:,PartInd), flag_deterministic)
                     call extract_sign(CurrentDets(:,PartInd),CurrentSign)
-                    run = SpawnInfo2(SpawnRun,i)
                     tUnocc = is_run_unnocc(CurrentSign,run)
                     tToEmptyDet =  tUnocc .and. (.not. tDetermState)
                 else

@@ -578,7 +578,7 @@ module fcimc_pointed_fns
             if(tSkipRef(i) .and. all(DetCurr==projEdet(:,i))) then
                 fac(i)=0.0
             else
-                if(tAdaptiveShift)then
+                if(tAdaptiveShift .and. .not. tAutoAdaptiveShift)then
                     population = mag_of_run(realwSign, i)
                     if(population>InitiatorWalkNo)then
                         shift = DiagSft(i)

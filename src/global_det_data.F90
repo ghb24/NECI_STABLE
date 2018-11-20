@@ -426,6 +426,55 @@ contains
 
     end function
 
+    subroutine set_tot_acc_spawns(fvals, ndets, initial) 
+      implicit none
+      integer, intent(in) :: ndets
+      real(dp), intent(in) :: fvals(2*inum_runs, ndets)
+      integer, intent(in), optional :: initial
+
+      integer :: j, run, start
+
+      if(present(initial)) then
+         start = initial
+      else
+         start = 1
+      endif
+
+      ! set all values of tot/acc spawns using the read-in values from fvals
+      ! this is used in popsfile read-in to get the values from the previous calculation
+      do j = 1, ndets
+         do run=1, inum_runs
+            global_determinant_data(pos_acc_spawns+run-1,j + start - 1) = &
+                 fvals(run,j)
+            global_determinant_data(pos_tot_spawns+run-1,j + start - 1) = &
+                 fvals(inum_runs+run,j)
+         end do
+      end do
+    end subroutine set_tot_acc_spawns
+
+    subroutine writeFFunc(Dets, ndets, fvals)
+      implicit none
+      integer(n_int), intent(in) :: Dets(:,:)
+      integer, intent(in) :: ndets
+      ! Popsfile I/O uses integers, so we reinterpret cast the reals to ints 
+      real(dp), intent(inout) :: fvals(:,:)
+
+      integer :: j, k
+
+      ! write the acc. and tot. spawns per determinant in a contiguous array
+      ! fvals(:,j) = (acc, tot) for determinant j (2*inum_runs in size)
+      do j = 1, nDets
+         do k = 1, inum_runs
+            fvals(k,j) = get_acc_spawns(j,k)
+         end do
+         do k = 1, inum_runs
+            fvals(k+inum_runs,j) = get_tot_spawns(j,k)
+         end do
+      end do
+    end subroutine writeFFunc
+
+  !------------------------------------------------------------------------------------------!
+
     subroutine reset_all_acc_spawns(j)
 
         integer, intent(in) :: j

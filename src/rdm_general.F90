@@ -869,6 +869,8 @@ contains
 
     end subroutine extract_bit_rep_avsign_norm
 
+  !------------------------------------------------------------------------------------------!
+
     subroutine UpdateRDMCorrectionTerm()
       use Parallel_neci
       ! first, communicate the rdm correction term between the procs
@@ -888,6 +890,8 @@ contains
       ThisRDMIter = ThisRDMIter + 1.0_dp
     end subroutine UpdateRDMCorrectionTerm
 
+  !------------------------------------------------------------------------------------------!
+
     subroutine SumCorrectionContrib(DetSgn, DetPosition)
       ! gather the sum (f_mu - 1) c_mu^2 used in the rdm filling
       implicit none
@@ -899,21 +903,39 @@ contains
       
     end subroutine SumCorrectionContrib
 
+  !------------------------------------------------------------------------------------------!
+
     function getRDMCorrectionTerm(DetSgn, DetPosition) result(rdmC)
       ! get (fmu - 1) c_mu^2 for a single mu
-      use CalcData, only: AdaptiveShiftSigma, AdaptiveShiftF1, AdaptiveShiftF2, &
-           InitiatorWalkNo, tAutoAdaptiveShift
-      use global_det_data, only: get_acc_spawns, get_tot_spawns
-
       implicit none
       real(dp), intent(in) :: DetSgn(lenof_sign)
       integer, intent(in) :: DetPosition
       real(dp) :: rdmC
 
-      real(dp) :: population, fmu, AvFmu
       integer :: run
+      
+      rdmC = 0.0_dp
+      do run = 1, inum_runs, 2
+         rdmC = rdmC + (avFFunc(DetSgn,DetPosition)-1) * DetSgn(run)*DetSgn(run+1)
+      end do
 
+    end function getRDMCorrectionTerm
 
+  !------------------------------------------------------------------------------------------!
+
+    function avFFunc(DetSgn,DetPosition) result(AvFmu)
+      ! get fmu
+      use CalcData, only: AdaptiveShiftSigma, AdaptiveShiftF1, AdaptiveShiftF2, &
+           InitiatorWalkNo, tAutoAdaptiveShift, AdaptiveShiftThresh
+      use global_det_data, only: get_acc_spawns, get_tot_spawns
+      implicit none
+      real(dp), intent(in) :: DetSgn(lenof_sign)
+      integer, intent(in) :: DetPosition
+      real(dp) :: AvFmu
+      
+      integer :: run
+      real(dp) :: population, fmu, tot
+      
       AvFmu = 1.0_dp
       do run = 1, inum_runs
          population = mag_of_run(DetSgn,run)
@@ -923,7 +945,12 @@ contains
          else
             ! use the f-function used in the adaptive shift
             if(tAutoAdaptiveShift) then
-               fmu = get_acc_spawns(DetPosition, run) / get_tot_spawns(DetPosition, run)
+               tot = get_tot_spawns(DetPosition, run)
+               if(tot > AdaptiveShiftThresh) then
+                  fmu = get_acc_spawns(DetPosition, run) / tot
+               else
+                  fmu = 0.0_dp
+               endif
             else
                if(population < adaptiveShiftSigma) then
                   fmu = 0.0_dp
@@ -938,13 +965,9 @@ contains
          AvFmu = AvFmu * fmu
       end do
       AvFmu = AvFmu ** (1.0_dp/real(inum_runs,dp))
-      
-      rdmC = 0.0_dp
-      do run = 1, inum_runs, 2
-         rdmC = rdmC + (AvFmu-1) * DetSgn(run)*DetSgn(run+1)
-      end do
+    end function avFFunc
 
-    end function getRDMCorrectionTerm
+  !------------------------------------------------------------------------------------------!
 
     subroutine calc_rdmbiasfac(p_spawn_rdmfac, p_gen, SignCurr, RDMBiasFacCurr)
 

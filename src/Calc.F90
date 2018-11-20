@@ -1573,6 +1573,7 @@ contains
                 tAdaptiveShift = .true.
             case("AUTO-ADAPTIVE-SHIFT")
                 tAutoAdaptiveShift = .true.
+                tAdaptiveShift = .true.
                 if (item.lt.nitems) then
                     call getf(AdaptiveShiftThresh)
                 end if

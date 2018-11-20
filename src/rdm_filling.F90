@@ -736,7 +736,6 @@ contains
             ! we assume that projEDet is the same on all runs, else there is no point
             if(tAdaptiveShift .and. all(nI == projEDet(:,1))) &
                  final_contrib = final_contrib + RDMIters * ScaleContribFac * rdmCorrectionFactor
-
             do irdm = 1, size(one_rdms)
                 one_rdms(irdm)%matrix(ind,ind) = one_rdms(irdm)%matrix(ind,ind) + final_contrib(irdm)
             end do
