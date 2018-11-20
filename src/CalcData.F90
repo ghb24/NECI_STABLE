@@ -136,6 +136,8 @@ logical :: tAutoAdaptiveShift !Let the modification factor of adaptive shift be 
 real(dp) :: AdaptiveShiftThresh !Number of spawn under which below the shift is set to zero (in auto-adaptive-shift)
 ! Giovannis option for using only initiators for the RDMs (off by default)
 logical :: tNonInitsForRDMs = .true.
+! Preliminary option for having the projected energy only from inits
+logical :: tInitsEnergy = .false.
 ! Base hash values only on spatial orbitals
 ! --> All dets with same spatial structure on the same processor.
 logical :: tSpatialOnlyHash

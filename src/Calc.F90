@@ -141,6 +141,7 @@ contains
           AdaptiveShiftF2 = 1.0
           tAutoAdaptiveShift = .false.
           AdaptiveShiftThresh = 10
+          tInitsEnergy = .false.
           NEquilSteps=0
           NShiftEquilSteps=1000
           TRhoElems=.false.
@@ -1577,6 +1578,10 @@ contains
                 if (item.lt.nitems) then
                     call getf(AdaptiveShiftThresh)
                 end if
+
+             case("INITS-PROJE")
+                ! only take initiators into account for the projected energy
+                tInitsEnergy = .true.
             case("EXITWALKERS")
 !For FCIMC, this is an exit criterion based on the total number of walkers in the system.
                 call getiLong(iExitWalkers)
