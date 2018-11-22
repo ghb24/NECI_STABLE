@@ -141,6 +141,8 @@ contains
           AdaptiveShiftF2 = 1.0
           tAutoAdaptiveShift = .false.
           AdaptiveShiftThresh = 10
+          AdaptiveShiftExpo = 1
+          AdaptiveShiftCut = -1 !If the user does not specify a value, this will be set to 1.0/HFConn later
           tInitsEnergy = .false.
           NEquilSteps=0
           NShiftEquilSteps=1000
@@ -1577,6 +1579,14 @@ contains
                 tAdaptiveShift = .true.
                 if (item.lt.nitems) then
                     call getf(AdaptiveShiftThresh)
+                end if
+
+                if (item.lt.nitems) then
+                    call getf(AdaptiveShiftExpo)
+                end if
+
+                if (item.lt.nitems) then
+                    call getf(AdaptiveShiftCut)
                 end if
 
              case("INITS-PROJE")

@@ -37,7 +37,7 @@ module fcimc_initialisation
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, tRCCheck, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
-                        maxKeepExLvl, tAutoAdaptiveShift
+                        maxKeepExLvl, tAutoAdaptiveShift, AdaptiveShiftCut
     use adi_data, only: tReferenceChanged, tAdiActive, &
          nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
@@ -556,6 +556,11 @@ contains
             call enumerate_sing_doub_kpnt(exflag, .false., nSingles, nDoubles, .false.)
         ENDIF
         HFConn=nSingles+nDoubles
+
+        if(AdaptiveShiftCut<0.0)then
+            !The user did not specify the value, use this as a default
+            AdaptiveShiftCut = 1.0/HFConn
+        end if
 
         ! Initialise random number seed - since the seeds need to be different
         ! on different processors, subract processor rank from random number
