@@ -31,7 +31,7 @@ MODULE PopsfileMod
                        tPrintPopsDefault, tIncrementPops, tPrintInitiators, &
                        tSplitPops, tZeroProjE, tRDMonFly, tExplicitAllRDM, &
                        binarypops_min_weight, tHDF5PopsRead, tHDF5PopsWrite, &
-                       t_print_frq_histograms
+                       t_print_frq_histograms, tPopAutoAdaptiveShift
     use sort_mod
     use util_mod, only: get_free_unit,get_unique_filename
     use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
@@ -51,7 +51,6 @@ MODULE PopsfileMod
     implicit none
 
     logical :: tRealPOPSfile
-    logical :: tPopAutoAdaptiveShift
 
     interface
         subroutine ChangeRefDet(det)

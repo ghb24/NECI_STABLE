@@ -74,6 +74,7 @@ module hdf5_popsfile
     use hdf5_util
     use util_mod
     use CalcData, only: tAutoAdaptiveShift
+    use LoggingData, only: tPopAutoAdaptiveShift
     use global_det_data, only: writeFFuncAsInt
 #ifdef __USE_HDF
     use hdf5
@@ -97,6 +98,7 @@ module hdf5_popsfile
             nm_iters = 'completed_iters', &
             nm_tot_imag = 'tot_imag_time', &
             nm_shift = 'shift', &
+            nm_tAuto = 'tAutoAdaptiveShift', &
 
             nm_tau_grp = 'tau_search', &
             nm_gam_sing = 'gamma_sing', &
@@ -136,6 +138,9 @@ module hdf5_popsfile
 
     integer(n_int), dimension(:,:), allocatable :: receivebuff
     integer:: receivebuff_tag
+
+    ! if fvals (acc/tot spawns) for auto-adaptive shift are read in
+    logical :: tReadFVals
 
     public :: write_popsfile_hdf5, read_popsfile_hdf5
     public :: add_pops_norm_contrib
@@ -750,6 +755,10 @@ contains
         call write_int64_attribute(wfn_grp_id, nm_num_dets, all_count)
         ! TODO: Check these values. May need to sum them explicitly
 
+        ! denote if auto-adaptive shift was used
+        call write_log_scalar(wfn_grp_id, nm_tauto, tAutoAdaptiveShift)
+
+
         ! Accumulated values only valid on head node. collate_iter_data
         ! has not yet run.
         all_parts = AllTotParts
@@ -875,7 +884,6 @@ contains
         if (bit_rep_width /= NIfD + 1) &
             call stop_all(t_r, "Mismatched bit representations")
 
-        ! TODO: Deal with increasing the number of runs (e.g. for seeding RDMs)
         call read_int32_attribute(grp_id, nm_sgn_len, read_lenof_sign)
         ! as lenof_sign is of type int, do not force tmp_lenof_sign to be int32
         tmp_lenof_sign = int(read_lenof_sign)
@@ -885,6 +893,13 @@ contains
 #else
         tmp_inum_runs = tmp_lenof_sign
 #endif
+
+        ! read in if auto-adaptive shift was used
+        ! even though this is technically calcdata, we already need it
+        ! here, so we read it in alongside the walkers
+        ! (calcdata has to be read in after the walkers, ugh)
+        call read_log_scalar(grp_id, nm_tauto, tPopAutoAdaptiveShift, &
+             default = .false., required=.false.)
         
         ! these variables are for consistency-checks
         allocate(pops_norm_sqr(tmp_lenof_sign), stat = ierr)
@@ -935,7 +950,11 @@ contains
         ! Open the relevant datasets
         call h5dopen_f(grp_id, nm_ilut, ds_ilut, err)
         call h5dopen_f(grp_id, nm_sgns, ds_sgns, err)
-        if(tAutoAdaptiveShift) then
+
+        ! only read in acc/tot spawns for auto-adaptive shift
+        ! if auto-adaptive shift is active and the popsfile has them
+        tReadFVals = tAutoAdaptiveShift .and. tPopAutoAdaptiveShift
+        if(tReadFVals) then
            call h5dopen_f(grp_id, nm_fvals, ds_fvals, err)
         endif
 
@@ -944,7 +963,7 @@ contains
                                   [int(bit_rep_width, hsize_t), all_count])
         call check_dataset_params(ds_sgns, nm_sgns, 8_hsize_t, H5T_FLOAT_F, &
                                   [int(tmp_lenof_sign, hsize_t), all_count])
-        if(tAutoAdaptiveShift) then
+        if(tReadFVals) then
            call check_dataset_params(ds_fvals, nm_fvals, 8_hsize_t, H5T_FLOAT_F, &
                 [int(2*tmp_inum_runs, hsize_t), all_count])
         endif
@@ -989,7 +1008,7 @@ contains
         allocate(temp_sgns(int(tmp_lenof_sign),int(this_block_size)),stat=ierr)
         call LogMemAlloc('temp_sgns',size(temp_sgns),sizeof(temp_sgns(1,1)),'read_walkers',temp_sgns_tag,ierr)
 
-        if(tAutoAdaptiveShift) then
+        if(tReadFVals) then
            allocate(temp_fvals(int(2*tmp_inum_runs), int(this_block_size)), stat=ierr)
         else
            allocate(temp_fvals(0,0))
@@ -1012,7 +1031,7 @@ contains
             if(tmp_lenof_sign /= lenof_sign) then
                call clone_signs(temp_sgns,tmp_lenof_sign, lenof_sign, this_block_size)
                ! resize the fvals in the same manner
-               if(tAutoAdaptiveShift) &
+               if(tReadFVals) &
                     call clone_signs(temp_fvals,2*tmp_inum_runs,2*inum_runs, this_block_size)
             endif
 
@@ -1089,7 +1108,7 @@ contains
              [0_hsize_t, block_start], &
              [0_hsize_t, 0_hsize_t])
 
-        if(tAutoAdaptiveShift) then
+        if(tReadFVals) then
            call read_2d_multi_chunk( &
                 ds_fvals, temp_fvals, H5T_NATIVE_REAL_8, &
                 [int(2*tmp_inum_runs, hsize_t), block_size], &
@@ -1121,7 +1140,7 @@ contains
       integer(hsize_t), allocatable :: fvals_comm(:,:), fvals_loc(:,:)
       
       ! allocate the buffers for the fvals
-      if(tAutoAdaptiveShift) then
+      if(tReadFVals) then
          allocate(fvals_comm(2*inum_runs,MaxSpawned), stat=ierr)
          allocate(fvals_loc(2*inum_runs,MaxSpawned), stat=ierr)
       else
@@ -1207,7 +1226,7 @@ contains
                     onepart(0:sizeilut-1)=temp_ilut(:,j)
                     onepart(sizeilut:sizeilut+int(lenof_sign)-1)=temp_sgns(:,j)
                     SpawnedParts2(:,index2)=onepart
-                    if(tAutoAdaptiveShift)&
+                    if(tReadFVals)&
                          fvals_loc(:,index2)=temp_fvals(:,j)
                     index2=index2+1
                  end if
@@ -1219,7 +1238,7 @@ contains
                     onepart(0:sizeilut-1)=temp_ilut(:,j)
                     onepart(sizeilut:sizeilut+int(lenof_sign)-1)=temp_sgns(:,j)
                     SpawnedParts(:,index)=onepart
-                    if(tAutoAdaptiveShift) &
+                    if(tReadFVals) &
                          fvals_comm(:,index)=temp_fvals(:,j)
                     index=index+1
                  end if
@@ -1279,7 +1298,7 @@ contains
                 recvcounts, recvdisps, ierr)
 
            ! fvals communication for auto-adaptive shift mode
-           if(tAutoAdaptiveShift) then
+           if(tReadFVals) then
               if(allocated(fvals_loc)) deallocate(fvals_loc)
               allocate(fvals_loc(2*inum_runs,num_received))
            endif
@@ -1287,7 +1306,7 @@ contains
            call MPIAllToAllV(SpawnedParts, sendcounts, disps, SpawnedParts2, &
                 recvcounts, recvdisps, ierr)
         end if
-        if(tAutoAdaptiveShift) then
+        if(tReadFVals) then
            call MPIAllToAllV(fvals_comm, sendcounts, disps, fvals_loc, &
                 recvcounts, recvdisps, ierr)
         endif
@@ -1327,7 +1346,7 @@ contains
                  norm = norm + sgn**2
                  parts = parts + abs(sgn)
 
-                 if(tAutoAdaptiveShift) &
+                 if(tReadFVals) &
                       call set_tot_acc_spawn_hdf5Int(fvals_write(:,j),CurrWalkers)
               end if
            end do
@@ -1347,7 +1366,7 @@ contains
                  norm = norm + sgn**2
                  parts = parts + abs(sgn)
 
-                 if(tAutoAdaptiveShift) &
+                 if(tReadFVals) &
                       call set_tot_acc_spawn_hdf5Int(fvals_write(:,j),CurrWalkers)
               end if
            end do
