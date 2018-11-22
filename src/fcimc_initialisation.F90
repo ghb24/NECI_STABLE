@@ -57,7 +57,8 @@ module fcimc_initialisation
                            HistInitPops, AllHistInitPops, OffDiagMax, &
                            OffDiagBinRange, iDiagSubspaceIter, tOldRDMs, &
                            AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead, &
-                           tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats
+                           tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats, &
+                           maxInitExLvlWrite, initsPerExLvl, AllInitsPerExLvl
     use DetCalcData, only: NMRKS, tagNMRKS, FCIDets, NKRY, NBLK, B2L, nCycle, &
                            ICILevel, det
     use IntegralsData, only: tPartFreezeCore, nHolesFrozen, tPartFreezeVirt, &
@@ -927,6 +928,11 @@ contains
         HolesByExLvl = 0
         nUnoccDets = 0
         allNUnoccDets = 0
+
+        allocate(allInitsPerExLvl(maxInitExLvlWrite))
+        allocate(initsPerExLvl(maxInitExLvlWrite))
+        initsPerExlvl = 0
+        allInitsPerExLvl = 0
 
         IF(tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC)) THEN
             ALLOCATE(HistMinInd(NEl))

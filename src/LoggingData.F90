@@ -145,6 +145,10 @@ module LoggingData
     ! behavior in the future
     logical :: t_print_frq_histograms = .true.
 
+    ! up to which exLvl we track the number of initiators per exLvl
+    integer :: maxInitExLvlWrite
+    integer, allocatable :: initsPerExLvl(:), allInitsPerExLvl(:)
+
     ! if this is true, force moving fcimcstats and initiatorstats files, and accumulate stats in new files
     logical :: t_no_append_stats = .false.
 
