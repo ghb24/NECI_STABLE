@@ -1835,7 +1835,7 @@ r_loop: do while(.not.tStoreDet)
             nMaxDets = int(maxval(node_write_attempts), sizeof_int)
             if(tAutoAdaptiveShift) then
                allocate(fvals(2*inum_runs,nMaxDets), stat=error)
-               call writeFFunc(Dets, ndets, fvals)
+               call writeFFunc(ndets, fvals)
             else
                ! when not using auto-adaptive shift, no fvals are written, but the 
                ! array is passed and later deallocated, so allocate empty
@@ -1913,7 +1913,7 @@ r_loop: do while(.not.tStoreDet)
             j = int(nDets, sizeof_int) * (NIfTot + 1)
             call MPISend (Dets(0:NIfTot, 1:nDets), j, root, Tag, error)
             if(tAutoAdaptiveShift) then
-               call writeFFunc(Dets, nDets, fvals)
+               call writeFFunc(nDets, fvals)
                call MPISend(fvals(1:inum_runs, 1:nDets), j, root, fTag, error)
             endif
             !!!if(tRDMonFly.and.(.not.tExplicitAllRDM)) then

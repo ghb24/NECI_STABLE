@@ -73,6 +73,8 @@ module hdf5_popsfile
     use constants
     use hdf5_util
     use util_mod
+    use CalcData, only: tAutoAdaptiveShift
+    use global_det_data, only: writeFFuncAsInt
 #ifdef __USE_HDF
     use hdf5
 #endif
@@ -129,7 +131,8 @@ module hdf5_popsfile
             nm_ilut = 'ilut', &
             nm_sgns = 'sgns', &
             nm_norm_sqr = 'norm_sqr', &
-            nm_num_parts = 'num_parts'
+            nm_num_parts = 'num_parts', &
+            nm_fvals = 'fvals'
 
     integer(n_int), dimension(:,:), allocatable :: receivebuff
     integer:: receivebuff_tag
@@ -718,6 +721,7 @@ contains
         integer(hsize_t) :: block_size, block_start, block_end
         integer(hsize_t), dimension(:,:), allocatable :: temp_dets
         integer :: ierr
+        integer(n_int), allocatable :: fvals(:,:)
 
         ! TODO: Add a (slower) fallback routine for weird cases, odd HDF libs
 
@@ -779,6 +783,24 @@ contains
                 [0_hsize_t, sum(counts(0:iProcIndex-1))] & ! output offset
         )
 
+        ! if auto-adaptive shift was used, also write the gathered information on
+        ! accepted/total spawns
+        if(tAutoAdaptiveShift) then
+           allocate(fvals(2*inum_runs,TotWalkers))
+           ! get the statistics of THIS processor
+           call writeFFuncAsInt(TotWalkers, fvals)
+           ! output it
+           call write_2d_multi_arr_chunk_buff(&
+                wfn_grp_id, nm_fvals, H5T_NATIVE_REAL_8, &
+                fvals, arr_2d_dims(fvals), &
+                [int(2*inum_runs, hsize_t), int(TotWalkers, hsize_t)], & ! dims
+                [0_hsize_t, 0_hsize_t], &
+                [int(2*inum_runs, hsize_t), all_count], &
+                [0_hsize_t, sum(counts(0:iProcIndex-1))] &
+                )
+           deallocate(fvals)
+        endif
+
         ! And we are done
         call h5gclose_f(wfn_grp_id, err)
 
@@ -810,7 +832,7 @@ contains
 
         integer :: proc, nreceived
         integer(hid_t) :: grp_id, err
-        integer(hid_t) :: ds_sgns, ds_ilut
+        integer(hid_t) :: ds_sgns, ds_ilut, ds_fvals
         integer(int64) :: nread_walkers
         integer :: ierr
 
@@ -822,7 +844,7 @@ contains
         real(dp), allocatable :: pops_num_parts(:), pops_norm_sqr(:)
         real(dp) :: norm(lenof_sign), parts(lenof_sign)
         logical :: running, any_running
-        integer(hsize_t), dimension(:,:), allocatable :: temp_ilut, temp_sgns
+        integer(hsize_t), dimension(:,:), allocatable :: temp_ilut, temp_sgns, temp_fvals
         integer :: temp_ilut_tag, temp_sgns_tag, rest
         integer(int32) :: read_lenof_sign
 
@@ -857,6 +879,12 @@ contains
         call read_int32_attribute(grp_id, nm_sgn_len, read_lenof_sign)
         ! as lenof_sign is of type int, do not force tmp_lenof_sign to be int32
         tmp_lenof_sign = int(read_lenof_sign)
+        ! assign the tmp_inum_runs accordingly
+#ifdef __CMPLX
+        tmp_inum_runs = tmp_lenof_sign/2
+#else
+        tmp_inum_runs = tmp_lenof_sign
+#endif
         
         ! these variables are for consistency-checks
         allocate(pops_norm_sqr(tmp_lenof_sign), stat = ierr)
@@ -907,12 +935,19 @@ contains
         ! Open the relevant datasets
         call h5dopen_f(grp_id, nm_ilut, ds_ilut, err)
         call h5dopen_f(grp_id, nm_sgns, ds_sgns, err)
+        if(tAutoAdaptiveShift) then
+           call h5dopen_f(grp_id, nm_fvals, ds_fvals, err)
+        endif
 
         ! Check that these datasets look like we expect them to.
         call check_dataset_params(ds_ilut, nm_ilut, 8_hsize_t, H5T_INTEGER_F, &
                                   [int(bit_rep_width, hsize_t), all_count])
         call check_dataset_params(ds_sgns, nm_sgns, 8_hsize_t, H5T_FLOAT_F, &
                                   [int(tmp_lenof_sign, hsize_t), all_count])
+        if(tAutoAdaptiveShift) then
+           call check_dataset_params(ds_fvals, nm_fvals, 8_hsize_t, H5T_FLOAT_F, &
+                [int(2*tmp_inum_runs, hsize_t), all_count])
+        endif
 
         !limit the buffer size per MPI task to 50MB or MaxSpawned entries
         block_size=50000000/(bit_rep_width*lenof_sign)/sizeof(SpawnedParts(1,1))
@@ -954,6 +989,12 @@ contains
         allocate(temp_sgns(int(tmp_lenof_sign),int(this_block_size)),stat=ierr)
         call LogMemAlloc('temp_sgns',size(temp_sgns),sizeof(temp_sgns(1,1)),'read_walkers',temp_sgns_tag,ierr)
 
+        if(tAutoAdaptiveShift) then
+           allocate(temp_fvals(int(2*tmp_inum_runs), int(this_block_size)), stat=ierr)
+        else
+           allocate(temp_fvals(0,0))
+        endif
+
         do while (any_running)
 
             ! If this is the last block, its size will differ from the biggest
@@ -964,14 +1005,19 @@ contains
                 this_block_size = 0
             end if
 
-            call read_walker_block_buff(ds_ilut, ds_sgns, block_start, &
-                                   this_block_size, bit_rep_width, temp_ilut, temp_sgns)
+            call read_walker_block_buff(ds_ilut, ds_sgns, ds_fvals, block_start, &
+                                   this_block_size, bit_rep_width, temp_ilut, temp_sgns, &
+                                   temp_fvals)
                                 
-            if(tmp_lenof_sign /= lenof_sign) call clone_signs(temp_sgns,&
-                 tmp_lenof_sign, lenof_sign, this_block_size)
+            if(tmp_lenof_sign /= lenof_sign) then
+               call clone_signs(temp_sgns,tmp_lenof_sign, lenof_sign, this_block_size)
+               ! resize the fvals in the same manner
+               if(tAutoAdaptiveShift) &
+                    call clone_signs(temp_fvals,2*tmp_inum_runs,2*inum_runs, this_block_size)
+            endif
 
-            call distribute_and_add_walkers(this_block_size, temp_ilut, temp_sgns, dets, &
-                 nreceived, CurrWalkers, norm, parts)
+            call distribute_and_add_walkers(this_block_size, temp_ilut, temp_sgns, &
+                 temp_fvals, dets, nreceived, CurrWalkers, norm, parts)
 
             nread_walkers = nread_walkers + nreceived
             
@@ -989,6 +1035,7 @@ contains
 
         end do
 
+        deallocate(temp_fvals)
         deallocate(temp_ilut, temp_sgns)
         call LogMemDeAlloc('read_walkers',temp_ilut_tag)
         call LogMemDeAlloc('read_walkers',temp_sgns_tag)
@@ -1007,8 +1054,8 @@ contains
 
     end subroutine read_walkers
 
-    subroutine read_walker_block_buff(ds_ilut, ds_sgns, block_start, block_size, &
-                                 bit_rep_width, temp_ilut, temp_sgns)
+    subroutine read_walker_block_buff(ds_ilut, ds_sgns, ds_fvals, block_start, block_size, &
+                                 bit_rep_width, temp_ilut, temp_sgns, temp_fvals)
 
         use bit_rep_data, only: NIfD
         use FciMCData, only: SpawnedParts2
@@ -1021,11 +1068,12 @@ contains
         ! --> It would also be possible to read into scratch arrays, and then
         !     do some transferring.
 
-        integer(hid_t), intent(in) :: ds_ilut, ds_sgns
+        integer(hid_t), intent(in) :: ds_ilut, ds_sgns, ds_fvals
         integer(hsize_t), intent(in) :: block_start, block_size
         integer(int32), intent(in) :: bit_rep_width
-        integer(hsize_t), dimension(:,:) :: temp_ilut, temp_sgns
+        integer(hsize_t), dimension(:,:) :: temp_ilut, temp_sgns, temp_fvals
         integer(hid_t) :: plist_id
+        integer :: tmp_lenof_fvals
 
 #ifdef __INT64
 
@@ -1041,6 +1089,13 @@ contains
              [0_hsize_t, block_start], &
              [0_hsize_t, 0_hsize_t])
 
+        if(tAutoAdaptiveShift) then
+           call read_2d_multi_chunk( &
+                ds_fvals, temp_fvals, H5T_NATIVE_REAL_8, &
+                [int(2*tmp_inum_runs, hsize_t), block_size], &
+                [0_hsize_t, block_start], &
+                [0_hsize_t, 0_hsize_t])
+        endif
 #else
         call stop_all("read_walker_block", "32-64bit conversion not yet implemented")
 #endif
@@ -1050,30 +1105,44 @@ contains
     end subroutine read_walker_block_buff
 
 
-    subroutine distribute_and_add_walkers(block_size, temp_ilut, temp_sgns, dets, &
-         nreceived, CurrWalkers, norm, parts)
+    subroutine distribute_and_add_walkers(block_size, temp_ilut, temp_sgns, temp_fvals, &
+         dets, nreceived, CurrWalkers, norm, parts)
+      use FciMCData, only: MaxSpawned
+      implicit none
       integer(n_int), intent(out) :: dets(:, :)
       integer(int64), intent(inout) :: CurrWalkers
       integer(hsize_t) :: block_size
       integer:: nreceived
       real(dp), intent(inout) :: norm(lenof_sign), parts(lenof_sign)
-      integer(hsize_t):: temp_ilut(:,:), temp_sgns(:,:)
+      integer(hsize_t):: temp_ilut(:,:), temp_sgns(:,:), temp_fvals(:,:)
       integer(MPIArg) :: sendcount(0:nProcessors-1)
       integer :: nlocal=0
+      integer :: ierr
+      integer(hsize_t), allocatable :: fvals_comm(:,:), fvals_loc(:,:)
+      
+      ! allocate the buffers for the fvals
+      if(tAutoAdaptiveShift) then
+         allocate(fvals_comm(2*inum_runs,MaxSpawned), stat=ierr)
+         allocate(fvals_loc(2*inum_runs,MaxSpawned), stat=ierr)
+      else
+         allocate(fvals_comm(0,0))
+         allocate(fvals_loc(0,0))
+      endif
 
-      call assign_dets_to_procs_buff(block_size, temp_ilut, temp_sgns, sendcount)
+      call assign_dets_to_procs_buff(block_size, temp_ilut, temp_sgns, &
+           temp_fvals, fvals_loc, fvals_comm, sendcount)
 
       !add elements that are on the right processor already
 #define localfirst
 !#undef localfirst
 #ifdef localfirst
       nlocal=sendcount(iProcIndex)
-      call add_new_parts(dets, nlocal, CurrWalkers, norm, parts)      
+      call add_new_parts(dets, nlocal, CurrWalkers, norm, parts, fvals_loc)      
       sendcount(iProcIndex)=0
 #endif
       !communicate the remaining elements
-      nreceived = communicate_read_walkers_buff(sendcount)
-      call add_new_parts(dets, nreceived, CurrWalkers, norm, parts)
+      nreceived = communicate_read_walkers_buff(sendcount, fvals_comm, fvals_loc)
+      call add_new_parts(dets, nreceived, CurrWalkers, norm, parts, fvals_loc)
 
       if (allocated(receivebuff)) then
          deallocate(receivebuff)
@@ -1082,9 +1151,13 @@ contains
 
       nreceived=nreceived+nlocal
 
+      if(allocated(fvals_loc)) deallocate(fvals_loc)
+      if(allocated(fvals_comm)) deallocate(fvals_comm)
+
     end subroutine distribute_and_add_walkers
 
-    subroutine assign_dets_to_procs_buff(block_size, temp_ilut, temp_sgns, sendcount)
+    subroutine assign_dets_to_procs_buff(block_size, temp_ilut, temp_sgns, &
+         temp_fvals, fvals_loc, fvals_comm, sendcount)
 
         use load_balance_calcnodes, only: DetermineDetNode
         use bit_reps, only: decode_bit_det, extract_sign
@@ -1096,7 +1169,8 @@ contains
 
         integer(hsize_t), intent(in) :: block_size
         character(*), parameter :: t_r = 'distribute_walkers_from_block'
-        integer(hsize_t), dimension(:,:) :: temp_ilut, temp_sgns
+        integer(hsize_t), dimension(:,:) :: temp_ilut, temp_sgns, temp_fvals, fvals_comm
+        integer(hsize_t), dimension(:,:) :: fvals_loc
         integer(hsize_t) :: onepart(0:NIfBCast)
         integer :: det(nel), p, j, proc, sizeilut, targetproc(block_size)
         integer(MPIArg) :: sendcount(0:nProcessors-1)
@@ -1133,6 +1207,8 @@ contains
                     onepart(0:sizeilut-1)=temp_ilut(:,j)
                     onepart(sizeilut:sizeilut+int(lenof_sign)-1)=temp_sgns(:,j)
                     SpawnedParts2(:,index2)=onepart
+                    if(tAutoAdaptiveShift)&
+                         fvals_loc(:,index2)=temp_fvals(:,j)
                     index2=index2+1
                  end if
               end do
@@ -1143,6 +1219,8 @@ contains
                     onepart(0:sizeilut-1)=temp_ilut(:,j)
                     onepart(sizeilut:sizeilut+int(lenof_sign)-1)=temp_sgns(:,j)
                     SpawnedParts(:,index)=onepart
+                    if(tAutoAdaptiveShift) &
+                         fvals_comm(:,index)=temp_fvals(:,j)
                     index=index+1
                  end if
               end do
@@ -1151,8 +1229,11 @@ contains
 
     end subroutine assign_dets_to_procs_buff
 
-    function communicate_read_walkers_buff(sendcounts) result(num_received)
+    function communicate_read_walkers_buff(sendcounts, fvals_comm, &
+         fvals_loc) result(num_received)
         integer(MPIArg), intent(inout) :: sendcounts(0:nProcessors-1)
+        integer(hsize_t), intent(inout) :: fvals_comm(:,:)
+        integer(hsize_t), allocatable, intent(inout) :: fvals_loc(:,:)
         integer :: num_received
         integer(int64) :: lnum_received
 
@@ -1196,20 +1277,31 @@ contains
                 'communicate_read_walkers',receivebuff_tag,ierr)
            call MPIAllToAllV(SpawnedParts, sendcounts, disps, receivebuff, &
                 recvcounts, recvdisps, ierr)
+
+           ! fvals communication for auto-adaptive shift mode
+           if(tAutoAdaptiveShift) then
+              if(allocated(fvals_loc)) deallocate(fvals_loc)
+              allocate(fvals_loc(2*inum_runs,num_received))
+           endif
         else
            call MPIAllToAllV(SpawnedParts, sendcounts, disps, SpawnedParts2, &
                 recvcounts, recvdisps, ierr)
         end if
+        if(tAutoAdaptiveShift) then
+           call MPIAllToAllV(fvals_comm, sendcounts, disps, fvals_loc, &
+                recvcounts, recvdisps, ierr)
+        endif
       end function communicate_read_walkers_buff
 
-    subroutine add_new_parts(dets, nreceived, CurrWalkers, norm, parts)
-
+    subroutine add_new_parts(dets, nreceived, CurrWalkers, norm, parts, fvals_write)
+      use global_det_data, only: set_tot_acc_spawn_hdf5Int
         use CalcData, only: iWeightPopRead
         use bit_reps, only: extract_sign
 
         ! Integrate the just-read block of walkers into the main list.
 
         integer(n_int), intent(inout) :: dets(:, :)
+        integer(hsize_t), intent(in) :: fvals_write(:,:)
         integer, intent(in) :: nreceived
         integer(int64), intent(inout) :: CurrWalkers
         real(dp), intent(inout) :: norm(lenof_sign), parts(lenof_sign)
@@ -1234,6 +1326,9 @@ contains
                  call extract_sign(receivebuff(:,j), sgn)
                  norm = norm + sgn**2
                  parts = parts + abs(sgn)
+
+                 if(tAutoAdaptiveShift) &
+                      call set_tot_acc_spawn_hdf5Int(fvals_write(:,j),CurrWalkers)
               end if
            end do
         else
@@ -1251,12 +1346,14 @@ contains
                  call extract_sign(SpawnedParts2(:,j), sgn)
                  norm = norm + sgn**2
                  parts = parts + abs(sgn)
+
+                 if(tAutoAdaptiveShift) &
+                      call set_tot_acc_spawn_hdf5Int(fvals_write(:,j),CurrWalkers)
               end if
            end do
            
         endif
         ! TODO: Add check that we have read in the correct number of parts
-
     end subroutine
 
     subroutine check_read_particles(nread_walkers, norm, parts, &
