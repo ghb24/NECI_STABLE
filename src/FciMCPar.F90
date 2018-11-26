@@ -9,7 +9,7 @@ module FciMCParMod
                         AvMCExcits, pops_norm_unit, iExitWalkers, tAdaptiveShift, &
                         iFullSpaceIter, semistoch_shift_iter, tEN2, &
                         tOrthogonaliseReplicas, orthogonalise_iter, &
-                        tDetermHFSpawning, use_spawn_hash_table, &
+                        tDetermHFSpawning, use_spawn_hash_table, tInitsRDMRef, &
                         ss_space_in, s_global_start, tContTimeFCIMC, &
                         trial_shift_iter, tStartTrialLater, tAVReps, &
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
@@ -32,7 +32,8 @@ module FciMCParMod
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
                             attempt_die_spin_proj
-    use rdm_data, only: print_2rdm_est, ThisRDMIter
+    use rdm_data, only: print_2rdm_est, ThisRDMIter, inits_one_rdms, two_rdm_inits_spawn, &
+         two_rdm_inits, rdm_inits_defs, RDMCorrectionFactor
     use rdm_data_old, only: rdms, one_rdms_old, rdm_estimates_old
     use rdm_finalising, only: finalise_rdms
     use rdm_general, only: init_rdms, SumCorrectionContrib, UpdateRDMCorrectionTerm
@@ -51,7 +52,8 @@ module FciMCParMod
     use orthogonalise, only: orthogonalise_replicas, calc_replica_overlaps, &
                              orthogonalise_replica_pairs
     use load_balance, only: tLoadBalanceBlocks, adjust_load_balance, RemoveHashDet
-    use bit_reps, only: set_flag, clr_flag, add_ilut_lists, get_initiator_flag
+    use bit_reps, only: set_flag, clr_flag, add_ilut_lists, get_initiator_flag, &
+         all_runs_are_initiator
     use exact_diag, only: perform_exact_diag_all_symmetry
     use spectral_lanczos, only: perform_spectral_lanczos
     use bit_rep_data, only: nOffFlag, flag_determ_parent, test_flag, flag_prone
@@ -830,7 +832,7 @@ module FciMCParMod
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
         use rdm_data, only: two_rdm_spawn, two_rdm_recv, two_rdm_main, one_rdms
         use rdm_data, only: rdm_definitions
-        use rdm_data_utils, only: communicate_rdm_spawn_t, add_rdm_1_to_rdm_2
+        use rdm_data_utils, only: communicate_rdm_spawn_t, add_rdm_1_to_rdm_2, scale_rdm
         use symrandexcit_Ex_Mag, only: test_sym_excit_ExMag 
         ! Iteration specific data
         type(fcimc_iter_data), intent(inout) :: iter_data
@@ -1028,6 +1030,10 @@ module FciMCParMod
                     iter_occ = get_iter_occ_tot(j)
                     call fill_rdm_diag_currdet(two_rdm_spawn, one_rdms, CurrentDets(:,j), DetCurr, &
                                                 walkExcitLevel_toHF, av_sign, iter_occ, tCoreDet)
+                    if(tInitsRDMRef .and. all_runs_are_initiator(CurrentDets(:,j))) &
+                         call fill_rdm_diag_currdet(two_rdm_inits_spawn, inits_one_rdms, &
+                         CurrentDets(:,j), DetCurr, walkExcitLevel_toHF, av_sign, iter_occ, &
+                         tCoreDet)
                 endif
             endif
 
@@ -1313,6 +1319,10 @@ module FciMCParMod
                 if (tFill_RDM) then
                     if (tOldRDMs) call fill_RDM_offdiag_deterministic_old(rdms, one_rdms_old)
                     call fill_RDM_offdiag_deterministic(rdm_definitions, two_rdm_spawn, one_rdms)
+                    ! deterministic space is always only initiators, so it fully counts towards
+                    ! the initiator-only RDMs
+                    if(tInitsRDMRef) call fill_RDM_offdiag_deterministic(rdm_inits_defs, &
+                         two_rdm_inits_spawn, inits_one_rdms)
                 end if
             end if
         end if
@@ -1368,6 +1378,9 @@ module FciMCParMod
         if (tFillingStochRDMonFly) then
             if (tOldRDMs) call fill_rdm_diag_wrapper_old(rdms, one_rdms_old, CurrentDets, int(TotWalkers, sizeof_int))
             call fill_rdm_diag_wrapper(rdm_definitions, two_rdm_spawn, one_rdms, CurrentDets, int(TotWalkers, sizeof_int))
+            ! if we use the initiator-only rdms as gamma_0, get them in their own entity
+            if(tInitsRDMRef) call fill_rdm_diag_wrapper(rdm_inits_defs, two_rdm_inits_spawn, &
+                 inits_one_rdms, CurrentDets, int(TotWalkers, sizeof_int), .false.)
         end if
 
         if(tTrialWavefunction .and. tTrialShift)then
@@ -1392,6 +1405,11 @@ module FciMCParMod
             two_rdm_recv%nelements = 0
             call communicate_rdm_spawn_t(two_rdm_spawn, two_rdm_recv)
             call add_rdm_1_to_rdm_2(two_rdm_recv, two_rdm_main)
+            if(tInitsRDMRef) then
+               call communicate_rdm_spawn_t(two_rdm_inits_spawn, two_rdm_recv)
+               call scale_rdm(two_rdm_recv, RDMCorrectionFactor)
+               call add_rdm_1_to_rdm_2(two_rdm_recv, two_rdm_main)
+            end if
         end if
 
     end subroutine PerformFCIMCycPar

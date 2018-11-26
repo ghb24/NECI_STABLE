@@ -909,6 +909,24 @@ contains
 
     end subroutine add_rdm_1_to_rdm_2
 
+    subroutine scale_rdm(rdm, scale_factor)
+      ! rescale all entries of one rdm by a scale factor
+      ! required in the adaptive shift correction, where a weighted sum
+      ! of two rdms is taken
+      implicit none
+      type(rdm_list_t), intent(inout) :: rdm
+      real(dp) :: scale_factor
+      
+      integer :: i
+      real(dp) :: tmp_sign(rdm%sign_length)
+      
+      do i = 1, rdm%nelements
+         call extract_sign_rdm(rdm%elements(:,i), tmp_sign)
+         tmp_sign = tmp_sign * scale_factor
+         call encode_sign_rdm(rdm%elements(:,i), tmp_sign)
+      end do
+    end subroutine scale_rdm
+
     subroutine annihilate_rdm_list(rdm)
 
         ! Perform annihilation on RDM elements in rdm%elements.
