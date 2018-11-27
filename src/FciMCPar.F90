@@ -103,6 +103,7 @@ module FciMCParMod
         use rdm_data, only: two_rdm_spawn, one_rdms, rdm_definitions, en_pert_main
         use rdm_estimators, only: calc_2rdm_estimates_wrapper, write_rdm_estimates
         use rdm_estimators_old, only: rdm_output_wrapper_old, write_rdm_estimates_old
+        use rdm_data_utils, only: clear_rdm_list_t, add_rdm_1_to_rdm_2
 
         real(dp), intent(out), allocatable :: energy_final_output(:)
 
@@ -546,31 +547,37 @@ module FciMCParMod
             if (tRDMonFly .and. all(.not. tSinglePartPhase)) then
                 ! If we wish to calculate the energy, have started accumulating the RDMs, 
                 ! and this is an iteration where the energy should be calculated, do so.
-                if (print_2rdm_est .and. ((Iter - maxval(VaryShiftIter)) > IterRDMonFly) &
+               if (print_2rdm_est .and. ((Iter - maxval(VaryShiftIter)) > IterRDMonFly) &
                     .and. (mod(Iter+PreviousCycles-IterRDMStart+1, RDMEnergyIter) == 0) ) then
 
-                   ! rezero the count of how many iterations we have been averaging over
-                   ThisRDMIter = 0.0_dp
-           
-                    call calc_2rdm_estimates_wrapper(rdm_definitions, rdm_estimates, two_rdm_main, en_pert_main)
-                    if (tOldRDMs) then
-                        do irdm = 1, rdm_definitions%nrdms
-                            call rdm_output_wrapper_old(rdms(irdm), one_rdms_old(irdm), irdm, rdm_estimates_old(irdm), .false.)
-                        end do
-                    end if
+                  ! rezero the count of how many iterations we have been averaging over
+                  ThisRDMIter = 0.0_dp
+                  if(tInitsRDMRef) then                      
+                     ! add the initiator-only rdm of this cycle to the main rdm (rescaled
+                     ! with the correction factor)
+                     call add_rdm_1_to_rdm_2(two_rdm_inits, two_rdm_main, RDMCorrectionFactor)
+                     ! and reset the initiator-only rdm
+                     call clear_rdm_list_t(two_rdm_inits)
+                  endif
+                  call calc_2rdm_estimates_wrapper(rdm_definitions, rdm_estimates, two_rdm_main, en_pert_main)
+                  if (tOldRDMs) then
+                     do irdm = 1, rdm_definitions%nrdms
+                        call rdm_output_wrapper_old(rdms(irdm), one_rdms_old(irdm), irdm, rdm_estimates_old(irdm), .false.)
+                     end do
+                  end if
 
-                    if (iProcIndex == 0) then
-                        call write_rdm_estimates(rdm_definitions, rdm_estimates, .false., print_2rdm_est)
-                        if (tOldRDMs) call write_rdm_estimates_old(rdm_estimates_old, .false.)
-                    end if
+                  if (iProcIndex == 0) then
+                     call write_rdm_estimates(rdm_definitions, rdm_estimates, .false., print_2rdm_est)
+                     if (tOldRDMs) call write_rdm_estimates_old(rdm_estimates_old, .false.)
+                  end if
 
-                    if (tEN2) then
-                        ! If calculating the Epstein-Nesbet perturbation, reset the
-                        ! array and hash table where contributions are accumulated.
-                        en_pert_main%ndets = 0
-                        call clear_hash_table(en_pert_main%hash_table)
-                    end if
-                end if
+                  if (tEN2) then
+                     ! If calculating the Epstein-Nesbet perturbation, reset the
+                     ! array and hash table where contributions are accumulated.
+                     en_pert_main%ndets = 0
+                     call clear_hash_table(en_pert_main%hash_table)
+                  end if
+               end if
 
             end if
 
@@ -832,7 +839,7 @@ module FciMCParMod
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
         use rdm_data, only: two_rdm_spawn, two_rdm_recv, two_rdm_main, one_rdms
         use rdm_data, only: rdm_definitions
-        use rdm_data_utils, only: communicate_rdm_spawn_t, add_rdm_1_to_rdm_2, scale_rdm
+        use rdm_data_utils, only: communicate_rdm_spawn_t, add_rdm_1_to_rdm_2, clear_rdm_list_t
         use symrandexcit_Ex_Mag, only: test_sym_excit_ExMag 
         ! Iteration specific data
         type(fcimc_iter_data), intent(inout) :: iter_data
@@ -1407,8 +1414,7 @@ module FciMCParMod
             call add_rdm_1_to_rdm_2(two_rdm_recv, two_rdm_main)
             if(tInitsRDMRef) then
                call communicate_rdm_spawn_t(two_rdm_inits_spawn, two_rdm_recv)
-               call scale_rdm(two_rdm_recv, RDMCorrectionFactor)
-               call add_rdm_1_to_rdm_2(two_rdm_recv, two_rdm_main)
+               call add_rdm_1_to_rdm_2(two_rdm_recv, two_rdm_inits)
             end if
         end if
 

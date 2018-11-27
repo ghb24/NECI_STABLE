@@ -850,16 +850,18 @@ contains
 
     end subroutine try_rdm_spawn_realloc
 
-    subroutine add_rdm_1_to_rdm_2(rdm_1, rdm_2)
+    subroutine add_rdm_1_to_rdm_2(rdm_1, rdm_2, scale_factor)
 
         ! Take the RDM elements in the rdm_1 object, and add them to the rdm_2
         ! object. The has table for rdm_2 will also be updated. This literally
         ! performs the numerical addition of the two RDM objects.
-
+        use SystemData, only: nel
         use hash, only: hash_table_lookup, add_hash_table_entry
+        use Parallel_neci, only: MPISumAll
 
         type(rdm_list_t), intent(in) :: rdm_1
         type(rdm_list_t), intent(inout) :: rdm_2
+        real(dp), intent(in), optional :: scale_factor
 
         integer :: ielem
         integer(int_rdm) :: ijkl
@@ -867,8 +869,18 @@ contains
         integer :: ind, hash_val
         real(dp) :: real_sign_old(rdm_2%sign_length), real_sign_new(rdm_2%sign_length)
         real(dp) :: spawn_sign(rdm_2%sign_length)
+        real(dp) :: internal_scale_factor(rdm_1%sign_length), rdm_trace(rdm_1%sign_length)
         logical :: tSuccess
         character(*), parameter :: t_r = 'add_rdm_1_to_rdm_2'
+
+        if(present(scale_factor)) then
+           ! normalize and rescale the rdm_1 if requested here
+           call calc_rdm_trace(rdm_1, rdm_trace)
+           call MPISumAll(rdm_trace, internal_scale_factor)
+           internal_scale_factor = scale_factor*(nel*(nel-1))/(2*internal_scale_factor)
+        else
+           internal_scale_factor = 1.0_dp
+        endif
 
         do ielem = 1, rdm_1%nelements
             ! Decode the compressed RDM labels.
@@ -888,7 +900,7 @@ contains
                 call extract_sign_rdm(rdm_2%elements(:,ind), real_sign_old)
 
                 ! Update the total sign.
-                real_sign_new = real_sign_old + spawn_sign
+                real_sign_new = real_sign_old + spawn_sign*internal_scale_factor
                 ! Encode the new sign.
                 call encode_sign_rdm(rdm_2%elements(:,ind), real_sign_new)
             else
@@ -915,9 +927,9 @@ contains
       ! of two rdms is taken
       implicit none
       type(rdm_list_t), intent(inout) :: rdm
-      real(dp) :: scale_factor
+      real(dp) :: scale_factor(rdm%sign_length)
       
-      integer :: i
+      integer :: i, j
       real(dp) :: tmp_sign(rdm%sign_length)
       
       do i = 1, rdm%nelements
@@ -1033,5 +1045,43 @@ contains
         end if
 
     end subroutine add_to_en_pert_t
+
+    subroutine calc_rdm_trace(rdm, rdm_trace)
+
+        ! Calculate trace of the 2-RDM in the rdm object, and output it to
+        ! rdm_trace.
+
+        ! This trace is defined as
+        !
+        ! rdm_trace = \sum_{ij} \Gamma_{ij,ij},
+        !
+        ! where \Gamma_{ij,kl} is the 2-RDM stored in rdm, and i and j are
+        ! spin orbital labels.
+
+        use rdm_data, only: rdm_spawn_t
+
+        type(rdm_list_t), intent(in) :: rdm
+        real(dp), intent(out) :: rdm_trace(rdm%sign_length)
+
+        integer(int_rdm) :: ijkl
+        integer :: ielem
+        integer :: ij, kl, i, j, k, l ! spin orbitals
+        real(dp) :: rdm_sign(rdm%sign_length)
+
+        rdm_trace = 0.0_dp
+
+        ! Loop over all RDM elements.
+        do ielem = 1, rdm%nelements
+            ijkl = rdm%elements(0,ielem)
+            call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+
+            ! If this is a diagonal element, add the element to the trace.
+            if (ij == kl) then
+                call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
+                rdm_trace = rdm_trace + rdm_sign
+            end if
+        end do
+
+    end subroutine calc_rdm_trace
 
 end module rdm_data_utils
