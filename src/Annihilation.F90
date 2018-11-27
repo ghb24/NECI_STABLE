@@ -481,7 +481,7 @@ module AnnihilationMod
         ! --> Should be called for real/imaginary particles seperately
 
         integer(n_int), intent(inout) :: cum_det(0:nIfTot)
-        integer(n_int), intent(in) :: new_det(0:niftot+nifdbo+2)
+        integer(n_int), intent(in) :: new_det(0:niftot+nifdbo+3)
         integer, intent(in) :: part_type, Spawned_No 
         integer, intent(inout) :: Parent_Array_Ind
         type(fcimc_iter_data), intent(inout) :: iter_data
@@ -530,8 +530,8 @@ module AnnihilationMod
             (.not. DetBitZero(new_det(NIfTot+1:NIfTot+NIfDBO+1), NIfDBO)))) then
             if (abs(new_sgn) > 1.e-12_dp) then
                 ! Add parent (Di) stored in SpawnedParts to the parent array.
-                Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = new_det(NIfTot+1:NIfTot+NIfDBO+2)
-                Spawned_Parents(NIfDBO+2,Parent_Array_Ind) = part_type
+                Spawned_Parents(0:NIfDBO+2,Parent_Array_Ind) = new_det(NIfTot+1:NIfTot+NIfDBO+3)
+                Spawned_Parents(NIfDBO+3,Parent_Array_Ind) = part_type
                 Parent_Array_Ind = Parent_Array_Ind + 1
                 Spawned_Parents_Index(2,Spawned_No) = Spawned_Parents_Index(2,Spawned_No) + 1
             end if
