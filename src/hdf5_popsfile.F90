@@ -1059,7 +1059,7 @@ contains
         call LogMemDeAlloc('read_walkers',temp_ilut_tag)
         call LogMemDeAlloc('read_walkers',temp_sgns_tag)
 
-
+        if(tReadFVals) call h5dclose_f(ds_fvals, err)
         call h5dclose_f(ds_sgns, err)
         call h5dclose_f(ds_ilut, err)
         call h5gclose_f(grp_id, err)
