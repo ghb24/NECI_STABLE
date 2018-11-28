@@ -161,8 +161,8 @@ MODULE FciMCData
       HElement_t(dp) :: ProjectionE_tot
 
       ! The averaged projected energy - calculated over the last update cycle
-      HElement_t(dp), allocatable :: proje_iter(:)
-      HElement_t(dp) :: proje_iter_tot
+      HElement_t(dp), allocatable :: proje_iter(:), inits_proje_iter(:)
+      HElement_t(dp) :: proje_iter_tot, inits_proje_iter_tot
 
       ! The averaged 'absolute' projected energy - calculated over the last update cycle
       ! The magnitude of each contribution is taken before it is summed in
@@ -208,9 +208,9 @@ MODULE FciMCData
       !This is the sum of HF*sign particles over all processors over the course of the update cycle
       HElement_t(dp), allocatable :: OldAllHFCyc(:) 
       !This is the old *average* (not sum) of HF*sign over all procs over previous update cycle
-      HElement_t(dp), allocatable :: ENumCyc(:)
+      HElement_t(dp), allocatable :: ENumCyc(:), InitsENumCyc(:)
       !This is the sum of doubles*sign*Hij on a given processor over the course of the update c
-      HElement_t(dp), allocatable :: AllENumCyc(:)
+      HElement_t(dp), allocatable :: AllENumCyc(:), AllInitsENumCyc(:)
       !This is the sum of double*sign*Hij over all processors over the course of the update cyc
       HElement_t(dp), allocatable :: ENumCycAbs(:)
       !This is the sum of abs(doubles*sign*Hij) on a given processor "" "" "" 

@@ -106,8 +106,10 @@ contains
 
                  ! Wavefunction output values
                  SumENum(inum_runs), AllSumENum(inum_runs), &
+                 InitsENumCyc(inum_runs), AllInitsENumCyc(inum_runs), &
                  ProjectionE(inum_runs), &
                  proje_iter(inum_runs), &
+                 inits_proje_iter(inum_runs), &
                  AbsProjE(inum_runs), &
                  trial_numerator(inum_runs), tot_trial_numerator(inum_runs), &
                  trial_denom(inum_runs), tot_trial_denom(inum_runs), &
@@ -202,6 +204,7 @@ contains
                    AccRat, &
                    AllHFCyc, OldAllHFCyc, &
                    ENumCyc, AllENumCyc, ENumCycAbs, AllENumCycAbs, &
+                   InitsENumCyc, AllInitsEnumCyc, &
                    ProjECyc, &
                    AllGrowRate, &
                    SumWalkersCyc, AllSumWalkersCyc, &
@@ -214,6 +217,7 @@ contains
                    
                    SumENum, AllSumENum, ProjectionE, &
                    proje_iter, AbsProjE, &
+                   inits_proje_iter, &
                    trial_numerator, tot_trial_numerator, &
                    trial_denom, tot_trial_denom, &
                    trial_num_inst, tot_trial_num_inst, &

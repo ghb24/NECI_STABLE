@@ -525,14 +525,16 @@ contains
 
         ! Sum in energy contribution
         do run=1, inum_runs
-           if(.not. tInitsEnergy .or. test_flag(ilut, get_initiator_flag_by_run(run))) then
-              if (iter > NEquilSteps) &
-                   SumENum(run) = SumENum(run) + (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) &
-                   / dProbFin
+           if (iter > NEquilSteps) &
+                SumENum(run) = SumENum(run) + (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) &
+                / dProbFin
 
-              ENumCyc(run) = ENumCyc(run) + (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) / dProbFin
-              ENumCycAbs(run) = ENumCycAbs(run) + abs(HoffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) &
-                   / dProbFin
+           ENumCyc(run) = ENumCyc(run) + (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) / dProbFin
+           ENumCycAbs(run) = ENumCycAbs(run) + abs(HoffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) &
+                / dProbFin
+           if(test_flag(ilut, get_initiator_flag_by_run(run))) then
+              InitsENumCyc(run) = ENumCyc(run) + (HOffDiag(run) &
+                   * ARR_RE_OR_CPLX(RealwSign,run)) / dProbFin
            endif
         end do
 

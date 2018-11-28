@@ -15,7 +15,7 @@ module fcimc_output
     use CalcData, only: tTruncInitiator, tTrialWavefunction, tReadPops, &
                         DiagSft, tSpatialOnlyHash, tOrthogonaliseReplicas, &
                         StepsSft, tPrintReplicaOverlaps, tStartTrialLater, tEN2, &
-                        tGlobalInitFlag, t_truncate_spawns, tTimedDeaths
+                        tGlobalInitFlag, t_truncate_spawns, tTimedDeaths, tInitsEnergy
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
     use IntegralsData, only: frozen_orb_list, frozen_orb_reverse_map, &
@@ -54,8 +54,7 @@ contains
                     "# ","1.Step","2.TotWalk","3.Annihil","4.Died", &
                     & "5.Born","6.TotUniqDets",&
                     &               "7.InitDets","8.NonInitDets","9.InitWalks","10.NonInitWalks","11.AbortedWalks", &
-                    "12. Removed Dets",  "13. Insufficiently connected", "14. Coherent Doubles", &
-                    "15. Incoherent Dets"
+                    "12. Removed Dets",  "13. Initiator Proj.E"
                 do k = 1, maxInitExLvlWrite
                    write(tchar_k,*) k+15
                    write(tchar_r,*) k
@@ -198,6 +197,13 @@ contains
     subroutine WriteFCIMCStats()
         INTEGER :: i, j, run
         real(dp),dimension(inum_runs) :: FracFromSing
+        real(dp) :: projE(inum_runs)
+
+        if(tInitsEnergy) then
+           projE = inits_proje_iter
+        else
+           projE = proje_iter
+        endif
 
         ! What is the current value of S2
         if (tCalcInstantS2) then
@@ -249,9 +255,9 @@ contains
                 AllTotParts(2), &                       !6.
                 real(ProjectionE, dp), &                !7.     real \sum[ nj H0j / n0 ]
                 aimag(projectionE), &                   !8.     Im   \sum[ nj H0j / n0 ]
-                real(proje_iter, dp), &                 !9.     
-                aimag(proje_iter), &                    !10.
-                real(proje_iter,dp) + Hii, &            !11.
+                real(projE, dp), &                 !9.     
+                aimag(projE), &                    !10.
+                real(projE,dp) + Hii, &            !11.
                 AllNoatHF(1), &                         !12.
                 AllNoatHF(2), &                         !13.
                 AllNoatDoubs, &                         !14.
@@ -290,8 +296,8 @@ contains
                     AllTotParts(2), &
                     real(ProjectionE, dp), &
                     aimag(ProjectionE), &
-                    real(proje_iter, dp), &
-                    aimag(proje_iter), &
+                    real(projE, dp), &
+                    aimag(projE), &
                     AllNoatHF(1), &
                     AllNoatHF(2), &
                     AllNoatDoubs, &
@@ -307,8 +313,7 @@ contains
                    AllAnnihilated(1), AllNoDied(1), AllNoBorn(1), AllTotWalkers,&
                    AllNoInitDets(1), AllNoNonInitDets(1), AllNoInitWalk(1), &
                    AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1), &
-                   AllConnection, AllCoherentDoubles, AllIncoherentDets, &
-                   AllNoInitsConflicts, AllNoSIInitsConflicts, AllAvSigns
+                   inits_proje_iter(1) + Hii
                do j = 1, maxInitExLvlWrite
                   write(initiatorstats_unit,'(1I20)', advance ='no') AllInitsPerExLvl(j)
                end do
@@ -333,7 +338,7 @@ contains
                 AllNoBorn(2), &                            ! 8.
                 ProjectionE(2), &                          ! 9.
                 AvDiagSft(2), &                            ! 10.
-                proje_iter(2), &                           ! 11.
+                projE(2), &                           ! 11.
                 AllNoatHF(2), &                            ! 12.
                 AllNoatDoubs(2), &                         ! 13.
                 AccRat(2), &                               ! 14.
@@ -345,7 +350,7 @@ contains
                 0.0_dp, &                                  ! 20.
                 HFShift(2), &                              ! 21.
                 InstShift(2), &                            ! 22.
-                proje_iter(2) + Hii, &                     ! 23.
+                projE(2) + Hii, &                     ! 23.
                 (AllHFCyc(2) / StepsSft), &                ! 24.
                 (AllENumCyc(2) / StepsSft), &              ! 25.
                 AllNoatHF(2) / norm_psi(2), &              ! 26.
@@ -379,7 +384,7 @@ contains
                 AllNoBorn(1), &                            ! 8.
                 ProjectionE(1), &                          ! 9.
                 AvDiagSft(1), &                            ! 10.
-                proje_iter(1), &                           ! 11.
+                projE(1), &                           ! 11.
                 AllNoatHF(1), &                            ! 12.
                 AllNoatDoubs(1), &                         ! 13.
                 AccRat(1), &                               ! 14.
@@ -391,7 +396,7 @@ contains
                 0.0_dp, &                                  ! 20.
                 HFShift(1), &                              ! 21.
                 InstShift(1), &                            ! 22.
-                proje_iter(1) + Hii, &                     ! 23.
+                projE(1) + Hii, &                     ! 23.
                 (AllHFCyc(1) / StepsSft), &                ! 24.
                 (AllENumCyc(1) / StepsSft), &              ! 25.
                 AllNoatHF(1) / norm_psi(1), &              ! 26.
@@ -424,7 +429,7 @@ contains
                     AllNoBorn(1), &
                     ProjectionE(1), &
                     AvDiagSft(1), &
-                    proje_iter(1)
+                    projE(1)
                 if (tTrialWavefunction) then
                      write(iout, "(G20.11)", advance = 'no') &
                          (tot_trial_numerator(1)/tot_trial_denom(1))
@@ -446,8 +451,7 @@ contains
                    AllAnnihilated(1), AllNoDied(1), AllNoBorn(1), AllTotWalkers,&
                    AllNoInitDets(1), AllNoNonInitDets(1), AllNoInitWalk(1), &
                    AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1), &
-                   AllConnection, AllCoherentDoubles, AllIncoherentDets, &
-                   AllNoInitsConflicts, AllNoSIInitsConflicts, AllAvSigns
+                   inits_proje_iter(1) + Hii
                do j = 1, maxInitExLvlWrite
                   write(initiatorstats_unit,'(1I20)', advance ='no') AllInitsPerExLvl(j)
                end do
