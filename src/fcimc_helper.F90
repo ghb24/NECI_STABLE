@@ -45,7 +45,7 @@ module fcimc_helper
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule, &
                         initMaxSenior, tSeniorityInits, tLogAverageSpawns, &
                         spawnSgnThresh, minInitSpawns, tTimedDeaths, &
-                        tAutoAdaptiveShift, tInitsEnergy
+                        tAutoAdaptiveShift, tInitsEnergy, tAAS_MatEle2
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
          tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
@@ -55,7 +55,7 @@ module fcimc_helper
     use DetCalcData, only: FCIDetIndex, ICILevel, det
     use hash, only: remove_hash_table_entry, add_hash_table_entry, hash_table_lookup
     use load_balance_calcnodes, only: DetermineDetNode, tLoadBalanceBlocks
-    use load_balance, only: adjust_load_balance, RemoveHashDet
+    use load_balance, only: adjust_load_balance, RemoveHashDet, get_diagonal_matel
     use rdm_filling_old, only: det_removed_fill_diag_rdm_old
     use rdm_filling, only: det_removed_fill_diag_rdm
     use rdm_general, only: store_parent_with_spawned, extract_bit_rep_avsign_norm
@@ -128,6 +128,7 @@ contains
         character(*), parameter :: this_routine = 'create_particle'
 
         logical :: parent_init
+        real(dp)  :: matel2
 
         !Ensure no cross spawning between runs - run of child same as run of
         !parent
@@ -185,6 +186,10 @@ contains
             SpawnInfo(SpawnRun, ValidSpawnedList(proc)) = run
             !Enocde matel, which is real, as an integer
             SpawnInfo(SpawnMatEle, ValidSpawnedList(proc)) = transfer(matel, SpawnInfo(SpawnMatEle, ValidSpawnedList(proc)))
+            if(tAAS_MatEle2)then
+                matel2 = abs((get_diagonal_matel(nJ, ilutJ)-Hii) - DiagSft(run))
+                SpawnInfo(SpawnMatEle2, ValidSpawnedList(proc)) = transfer(matel2, SpawnInfo(SpawnMatEle2, ValidSpawnedList(proc)))
+            end if
         end if
 
         ! set flag for large spawn matrix element
