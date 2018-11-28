@@ -588,8 +588,9 @@ contains
             sizes(9) = size(trial_denom_inst)
         end if
         if (tEN2) sizes(10) = 1
+        sizes(11) = size(InitsEnumCyc)
 
-        if (sum(sizes(1:10)) > 100) call stop_all(t_r, "No space left in arrays for communication of estimates. Please &
+        if (sum(sizes(1:11)) > 100) call stop_all(t_r, "No space left in arrays for communication of estimates. Please &
                                                         & increase the size of the send_arr_helem and recv_arr_helem &
                                                         & arrays in the source code.")
 
@@ -607,6 +608,7 @@ contains
         if (tEN2) then
            low = upp + 1; upp = low + sizes(10) - 1; send_arr_helem(low) = en_pert_main%ndets;
         endif
+        low = upp + 1; upp = low + sizes(11) - 1; send_arr_helem(low:upp) = InitsENumCyc;
 
         call MPISumAll (send_arr_helem(1:upp), recv_arr_helem(1:upp))
 
@@ -626,6 +628,7 @@ contains
         if (tEN2) then
            low = upp + 1; upp = low + sizes(10) - 1; en_pert_main%ndets_all = recv_arr_helem(low);
         endif
+        low = upp + 1; upp = low + sizes(11) - 1; AllInitsENumCyc = recv_arr_helem(low:upp);
 
         ! Optionally communicate EXLEVEL_WNorm.
         if (tLogEXLEVELStats) then
@@ -1055,6 +1058,8 @@ contains
                          + proje_ref_energy_offsets(run)
                     AbsProjE(run) = (AllENumCycAbs(run)) / (all_cyc_proje_denominator(run)) &
                          + proje_ref_energy_offsets(run)
+                    inits_proje_iter(run) = (AllInitsENumCyc(run)) / (all_cyc_proje_denominator(run)) &
+                         + proje_ref_energy_offsets(run)
                  endif
 
                 ! If we are re-zeroing the shift
@@ -1073,6 +1078,8 @@ contains
             endif
             if(abs(sum(all_cyc_proje_denominator(1:inum_runs))) > EPS) then
                proje_iter_tot = sum(AllENumCyc(1:inum_runs)) &
+                    / sum(all_cyc_proje_denominator(1:inum_runs))
+               inits_proje_iter_tot = sum(AllInitsENumCyc(1:inum_runs)) &
                     / sum(all_cyc_proje_denominator(1:inum_runs))
             endif
 
@@ -1112,6 +1119,7 @@ contains
         SpawnFromSing = 0.0_dp
         NoDied = 0.0_dp
         ENumCyc = 0.0_dp
+        InitsENumCyc = 0.0_dp
         ENumCycAbs = 0.0_dp
         HFCyc = 0.0_dp
         cyc_proje_denominator=0.0_dp

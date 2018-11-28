@@ -807,6 +807,7 @@ contains
         AvSign=0.0_dp
         AvSignHFD=0.0_dp
         SumENum(:)=0.0_dp
+        InitsENumCyc(:) = 0.0_dp
         SumNoatHF(:)=0.0_dp
         NoatHF(:)=0.0_dp
         InstNoatHF(:)=0.0_dp
@@ -848,6 +849,7 @@ contains
 
 !Also reinitialise the global variables - should not necessarily need to do this...
         AllSumENum(:)=0.0_dp
+        AllInitsENumCyc(:) = 0.0_dp
         AllNoatHF(:)=0.0_dp
         AllNoatDoubs(:)=0.0_dp
         if (tLogEXLEVELStats) AllEXLEVEL_WNorm(:,:,:)=0.0_dp
@@ -876,6 +878,7 @@ contains
         AllNoExtraInitDoubs=0
         AllInitRemoved=0
         proje_iter = 0
+        inits_proje_iter = 0.0_dp
         AccRat = 0
         HFShift = 0
         InstShift = 0
