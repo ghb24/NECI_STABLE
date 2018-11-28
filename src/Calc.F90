@@ -144,6 +144,7 @@ contains
           AdaptiveShiftExpo = 1
           AdaptiveShiftCut = -1 !If the user does not specify a value, this will be set to 1.0/HFConn later
           tInitsEnergy = .false.
+          tInitsRDMRef = .false.
           NEquilSteps=0
           NShiftEquilSteps=1000
           TRhoElems=.false.
@@ -1592,6 +1593,10 @@ contains
              case("INITS-PROJE")
                 ! only take initiators into account for the projected energy
                 tInitsEnergy = .true.
+             case("INITS-GAMMA0")
+                ! use the density matrix obtained from the initiator space to 
+                ! correct for the adaptive shift
+                tInitsRDMRef = .true.
             case("EXITWALKERS")
 !For FCIMC, this is an exit criterion based on the total number of walkers in the system.
                 call getiLong(iExitWalkers)

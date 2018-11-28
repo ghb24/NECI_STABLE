@@ -138,6 +138,8 @@ real(dp) :: AdaptiveShiftExpo !Exponent of the modification factor, value 1 is d
 real(dp) :: AdaptiveShiftCut  !The modification factor should never go below this.
 ! Giovannis option for using only initiators for the RDMs (off by default)
 logical :: tNonInitsForRDMs = .true.
+! Adaptive shift RDM correction using initiators as reference
+logical :: tInitsRDMRef
 ! Preliminary option for having the projected energy only from inits
 logical :: tInitsEnergy = .false.
 ! Base hash values only on spatial orbitals

@@ -5,7 +5,7 @@ module rdm_estimators
     use bit_rep_data, only: NIfTot
     use constants
     use rdm_data, only: rdm_list_t, rdm_spawn_t
-    use rdm_data_utils, only: calc_separate_rdm_labels, extract_sign_rdm
+    use rdm_data_utils, only: calc_separate_rdm_labels, extract_sign_rdm, calc_rdm_trace
 
     implicit none
 
@@ -421,44 +421,6 @@ contains
         end if
 
     end subroutine write_rdm_estimates
-
-    subroutine calc_rdm_trace(rdm, rdm_trace)
-
-        ! Calculate trace of the 2-RDM in the rdm object, and output it to
-        ! rdm_trace.
-
-        ! This trace is defined as
-        !
-        ! rdm_trace = \sum_{ij} \Gamma_{ij,ij},
-        !
-        ! where \Gamma_{ij,kl} is the 2-RDM stored in rdm, and i and j are
-        ! spin orbital labels.
-
-        use rdm_data, only: rdm_spawn_t
-
-        type(rdm_list_t), intent(in) :: rdm
-        real(dp), intent(out) :: rdm_trace(rdm%sign_length)
-
-        integer(int_rdm) :: ijkl
-        integer :: ielem
-        integer :: ij, kl, i, j, k, l ! spin orbitals
-        real(dp) :: rdm_sign(rdm%sign_length)
-
-        rdm_trace = 0.0_dp
-
-        ! Loop over all RDM elements.
-        do ielem = 1, rdm%nelements
-            ijkl = rdm%elements(0,ielem)
-            call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
-
-            ! If this is a diagonal element, add the element to the trace.
-            if (ij == kl) then
-                call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
-                rdm_trace = rdm_trace + rdm_sign
-            end if
-        end do
-
-    end subroutine calc_rdm_trace
 
     subroutine calc_rdm_energy(rdm, rdm_energy_1, rdm_energy_2)
 

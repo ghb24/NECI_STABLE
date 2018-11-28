@@ -20,7 +20,8 @@ module fcimc_iter_utils
     use bit_rep_data, only: NIfD, NIfTot, NIfDBO
     use hphf_integrals, only: hphf_diag_helement
     use Determinants, only: get_helement
-    use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av, tWriteUnocc
+    use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av, tWriteUnocc, &
+         AllInitsPerExLvl, initsPerExLvl
     use tau_search, only: update_tau
     use rdm_data, only: en_pert_main, InstRDMCorrectionFactor
     use Parallel_neci
@@ -459,9 +460,11 @@ contains
         ! unoccupied dets        
         sizes(38) = 1 
         sizes(39) = size(HolesByExLvl)
+        ! inits per ex lvl
+        sizes(40) = size(initsPerExLvl)
 
 
-        if (sum(sizes(1:39)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
+        if (sum(sizes(1:40)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
                                                         & the size of the send_arr and recv_arr arrays in the source code.")
 
         low = upp + 1; upp = low + sizes(1 ) - 1; send_arr(low:upp) = SpawnFromSing;
@@ -510,6 +513,8 @@ contains
         ! unocc dets
         low = upp + 1; upp = low + sizes(38) - 1; send_arr(low:upp) = nUnoccDets;        
         low = upp + 1; upp = low + sizes(39) - 1; send_arr(low:upp) = HolesByExLvl;        
+        ! initiators per excitation level
+        low = upp + 1; upp = low + sizes(40) - 1; send_arr(low:upp) = initsPerExLvl;        
 
         ! Perform the communication.
         call MPISumAll (send_arr(1:upp), recv_arr(1:upp))
@@ -564,6 +569,8 @@ contains
         ! unocc dets
         low = upp + 1; upp = low + sizes(38) - 1; AllNUnoccDets = recv_arr(low);
         low = upp + 1; upp = low + sizes(39) - 1; AllHolesByExLvl = recv_arr(low:upp);
+        ! initiators per excitation level
+        low = upp + 1; upp = low + sizes(40) - 1; AllInitsPerExLvl = recv_arr(low:upp);
 
         ! Communicate HElement_t variables:
 
@@ -1146,6 +1153,9 @@ contains
 
         ! reset the truncated weight
         truncatedWeight = 0.0_dp
+
+        ! reset the logged number of initiators
+        initsPerExLvl = 0
 
     end subroutine rezero_iter_stats_update_cycle
 

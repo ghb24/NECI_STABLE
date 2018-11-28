@@ -452,11 +452,46 @@ contains
       end do
     end subroutine set_tot_acc_spawns
 
-    subroutine writeFFunc(Dets, ndets, fvals)
+#ifdef __USE_HDF
+    ! nasty bit of code to cope with hdf5 I/O which is using integer(hsize_t)
+    subroutine set_tot_acc_spawn_hdf5Int(fvals, j)
+      use hdf5
       implicit none
-      integer(n_int), intent(in) :: Dets(:,:)
+      integer(hsize_t), intent(in) :: fvals(:)
+      integer, intent(in) :: j
+
+      integer :: run
+      real(dp) :: realVal = 0.0_dp
+
+      do run = 1, inum_runs
+         global_determinant_data(pos_acc_spawns+run-1,j) = transfer(fvals(run),realVal)
+         global_determinant_data(pos_tot_spawns+run-1,j) = transfer(fvals(run+inum_runs),realVal)
+      end do
+    end subroutine set_tot_acc_spawn_hdf5Int
+#endif
+
+    subroutine writeFFuncAsInt(ndets, fvals)
+      implicit none
       integer, intent(in) :: ndets
-      ! Popsfile I/O uses integers, so we reinterpret cast the reals to ints 
+      integer(n_int), intent(inout) :: fvals(:,:)
+
+      integer :: j, k
+
+      ! write the acc. and tot. spawns per determinant in a contiguous array
+      ! fvals(:,j) = (acc, tot) for determinant j (2*inum_runs in size)
+      do j = 1, nDets
+         do k = 1, inum_runs
+            fvals(k,j) = transfer(get_acc_spawns(j,k), fvals(k,j))
+         end do
+         do k = 1, inum_runs
+            fvals(k+inum_runs,j) = transfer(get_tot_spawns(j,k), fvals(k,j))
+         end do
+      end do
+    end subroutine writeFFuncAsInt
+
+    subroutine writeFFunc(ndets, fvals)
+      implicit none
+      integer, intent(in) :: ndets
       real(dp), intent(inout) :: fvals(:,:)
 
       integer :: j, k

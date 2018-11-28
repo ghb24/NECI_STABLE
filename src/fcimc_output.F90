@@ -7,7 +7,8 @@ module fcimc_output
                            instant_s2_multiplier, tPrintFCIMCPsi, &
                            iWriteHistEvery, tDiagAllSpaceEver, OffDiagMax, &
                            OffDiagBinRange, tCalcVariationalEnergy, &
-                           iHighPopWrite, tLogEXLEVELStats, tWriteConflictLvls
+                           iHighPopWrite, tLogEXLEVELStats, tWriteConflictLvls, &
+                           maxInitExLvlWrite, AllInitsPerExLvl
     use hist_data, only: Histogram, AllHistogram, InstHist, AllInstHist, &
                          BeforeNormHist, iNoBins, BinRange, HistogramEnergy, &
                          AllHistogramEnergy
@@ -49,11 +50,20 @@ contains
 !Print out initial starting configurations
             WRITE(iout,*) ""
             IF(tTruncInitiator) THEN
-                WRITE(initiatorstats_unit,"(A2,A17,15A23)") "# ","1.Step","2.TotWalk","3.Annihil","4.Died", &
-                & "5.Born","6.TotUniqDets",&
-&               "7.InitDets","8.NonInitDets","9.InitWalks","10.NonInitWalks","11.AbortedWalks", &
-               "12. Removed Dets",  "13. Insufficiently connected", "14. Coherent Doubles", &
-               "15. Incoherent Dets"
+               WRITE(initiatorstats_unit,"(A2,A17,15A23)", advance = 'no') &
+                    "# ","1.Step","2.TotWalk","3.Annihil","4.Died", &
+                    & "5.Born","6.TotUniqDets",&
+                    &               "7.InitDets","8.NonInitDets","9.InitWalks","10.NonInitWalks","11.AbortedWalks", &
+                    "12. Removed Dets",  "13. Insufficiently connected", "14. Coherent Doubles", &
+                    "15. Incoherent Dets"
+                do k = 1, maxInitExLvlWrite
+                   write(tchar_k,*) k+15
+                   write(tchar_r,*) k
+                   tchar_r = trim(adjustl(tchar_k))//'. Inits on ex. lvl '//trim(adjustl(tchar_r))
+                   write(initiatorstats_unit,'(1x,a)', advance = 'no') &
+                        trim(adjustl(tchar_r))
+                end do
+                write(initiatorstats_unit,'()', advance = 'yes')
             ENDIF
             IF(tLogComplexPops) THEN
                 WRITE(complexstats_unit,"(A)") '#   1.Step  2.Shift     3.RealShift     4.ImShift   5.TotParts      " &
@@ -291,13 +301,18 @@ contains
                     IterTime
             endif
             if (tTruncInitiator) then
-               write(initiatorstats_unit,"(I12,4G16.7,3I20,7G16.7,2I20,1G16.7)")&
+               write(initiatorstats_unit,"(I12,4G16.7,3I20,7G16.7,2I20,1G16.7)", &
+                    advance = 'no')&
                    Iter + PreviousCycles, sum(AllTotParts), &
                    AllAnnihilated(1), AllNoDied(1), AllNoBorn(1), AllTotWalkers,&
                    AllNoInitDets(1), AllNoNonInitDets(1), AllNoInitWalk(1), &
                    AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1), &
                    AllConnection, AllCoherentDoubles, AllIncoherentDets, &
                    AllNoInitsConflicts, AllNoSIInitsConflicts, AllAvSigns
+               do j = 1, maxInitExLvlWrite
+                  write(initiatorstats_unit,'(1I20)', advance ='no') AllInitsPerExLvl(j)
+               end do
+               write(initiatorstats_unit,'()', advance = 'yes')
             endif
             if (tLogComplexPops) then
                 write (complexstats_unit,"(I12,6G16.7)") &
@@ -425,13 +440,18 @@ contains
                     IterTime
             endif
             if (tTruncInitiator) then
-               write(initiatorstats_unit,"(I12,4G16.7,3I20,7G16.7,2I20,1G16.7)")&
+               write(initiatorstats_unit,"(I12,4G16.7,3I20,7G16.7,2I20,1G16.7)", &
+                    advance = 'no')&
                    Iter + PreviousCycles, AllTotParts(1), &
                    AllAnnihilated(1), AllNoDied(1), AllNoBorn(1), AllTotWalkers,&
                    AllNoInitDets(1), AllNoNonInitDets(1), AllNoInitWalk(1), &
                    AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1), &
                    AllConnection, AllCoherentDoubles, AllIncoherentDets, &
                    AllNoInitsConflicts, AllNoSIInitsConflicts, AllAvSigns
+               do j = 1, maxInitExLvlWrite
+                  write(initiatorstats_unit,'(1I20)', advance ='no') AllInitsPerExLvl(j)
+               end do
+               write(initiatorstats_unit,'()', advance = 'yes')
             endif
 #endif
             if (tLogEXLEVELStats) then

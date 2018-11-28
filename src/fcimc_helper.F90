@@ -31,7 +31,8 @@ module fcimc_helper
                            RDMEnergyIter, tFullHFAv, tLogComplexPops, &
                            nHistEquilSteps, tCalcFCIMCPsi, StartPrintOrbOcc, &
                            HistInitPopsIter, tHistInitPops, iterRDMOnFly, &
-                           FciMCDebug, tLogEXLEVELStats
+                           FciMCDebug, tLogEXLEVELStats, maxInitExLvlWrite, &
+                           initsPerExLvl
     use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, tReplicaCoherentInits, &
                         tAddToInitiator, InitiatorWalkNo, tAvReps, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
@@ -817,6 +818,12 @@ contains
                 ! for spawning purposes.
                 parent_init = TestInitiator_explicit(CurrentDets(:,j), nI, j, parent_init, &
                                             CurrentSign, exLvl, run)
+
+                ! log the initiator
+                if(parent_init) then
+                   if(exLvl <= maxInitExLvlWrite .and. exLvl >0) &
+                        initsPerExLvl(exLvl) = initsPerExLvl(exLvl) + 1
+                endif
 
                 ! Update counters as required.
                 if (parent_init) then

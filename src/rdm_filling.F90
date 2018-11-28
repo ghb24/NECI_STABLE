@@ -5,7 +5,8 @@ module rdm_filling
     ! This module contains routines used to perform filling of the RDM arrays,
     ! as done on-the-fly during an FCIQMC simulation.
 
-    use bit_rep_data, only: NIfTot, NIfDBO
+    use bit_rep_data, only: NIfTot, NIfDBO, test_flag
+    use bit_reps, only: get_initiator_flag_by_run
     use constants
     use rdm_data, only: rdm_spawn_t, rdmCorrectionFactor
     use CalcData, only: tAdaptiveShift
@@ -16,7 +17,7 @@ module rdm_filling
 
 contains
 
-    subroutine fill_rdm_diag_wrapper(rdm_defs, spawn, one_rdms, ilut_list, ndets)
+    subroutine fill_rdm_diag_wrapper(rdm_defs, spawn, one_rdms, ilut_list, ndets, tNonInit)
 
         ! Loop over all states in ilut_list and see if any signs have just
         ! become unoccupied or become reoccupied. In which case, we have
@@ -24,6 +25,7 @@ contains
         ! contributions from the last block to the corresponding RDMs.
 
         use bit_rep_data, only: extract_sign
+        use bit_reps, only: all_runs_are_initiator
         use CalcData, only: tPairedReplicas
         use global_det_data, only: get_iter_occ_tot, get_av_sgn_tot
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
@@ -34,10 +36,18 @@ contains
         type(one_rdm_t), intent(inout) :: one_rdms(:)
         integer(n_int), intent(in) :: ilut_list(:,:)
         integer, intent(in) :: ndets
+        logical, intent(in), optional :: tNonInit
 
         integer :: idet, irdm, av_ind_1, av_ind_2
         real(dp) :: curr_sign(lenof_sign), adapted_sign(len_av_sgn_tot)
         real(dp) :: av_sign(len_av_sgn_tot), iter_occ(len_iter_occ_tot)
+        logical :: tAllContribs
+
+        if(present(tNonInit)) then
+           tAllContribs = tNonInit
+        else
+           tAllContribs = .true.
+        endif
 
         associate(ind => rdm_defs%sim_labels)
 
@@ -72,7 +82,8 @@ contains
                 ! At least one of the signs has just gone to zero or just become
                 ! reoccupied, so we need to add in diagonal elements and connections to HF
                 if (any(abs(adapted_sign) > 1.e-12_dp)) then
-                    call det_removed_fill_diag_rdm(spawn, one_rdms, ilut_list(:,idet), adapted_sign, iter_occ)
+                   if(tAllContribs .or. all_runs_are_initiator(ilut_list(:,idet))) &
+                        call det_removed_fill_diag_rdm(spawn, one_rdms, ilut_list(:,idet), adapted_sign, iter_occ)
                 end if
 
             end do
@@ -321,7 +332,8 @@ contains
 
     end subroutine Add_RDM_HFConnections_HPHF
 
-    subroutine check_fillRDM_DiDj(rdm_defs, spawn, one_rdms, Spawned_No, iLutJ, realSignJ)
+    subroutine check_fillRDM_DiDj(rdm_defs, spawn, one_rdms, Spawned_No, iLutJ, realSignJ, &
+         tNonInits)
 
         ! The spawned parts contain the Dj's spawned by the Di's in CurrentDets.
         ! If the SpawnedPart is found in the CurrentDets list, it means that
@@ -338,14 +350,25 @@ contains
         integer, intent(in) :: Spawned_No
         integer(n_int), intent(in) :: iLutJ(0:NIfTot)
         real(dp), intent(in) :: realSignJ(lenof_sign)
+        logical, intent(in), optional :: tNonInits
+        logical :: tAllContribs
+
+        ! optionally only sum in initiator contributions
+        if(present(tNonInits)) then
+           tAllContribs = tNonInits
+        else
+           tAllContribs = .true.
+        endif
 
         if (.not. DetBitEQ(iLutHF_True, iLutJ, NIfDBO)) then
-                call DiDj_Found_FillRDM(rdm_defs, spawn, one_rdms, Spawned_No, iLutJ, realSignJ)
+                call DiDj_Found_FillRDM(rdm_defs, spawn, one_rdms, Spawned_No, iLutJ, &
+                     realSignJ, tAllContribs)
         end if
 
     end subroutine check_fillRDM_DiDj
  
-    subroutine DiDj_Found_FillRDM(rdm_defs, spawn, one_rdms, Spawned_No, iLutJ, real_sign_j_all)
+    subroutine DiDj_Found_FillRDM(rdm_defs, spawn, one_rdms, Spawned_No, iLutJ, real_sign_j_all, &
+         tNonInits)
 
         ! This routine is called when we have found a Di (or multiple Di's)
         ! spawning onto a Dj with sign /= 0 (i.e. occupied). We then want to
@@ -363,11 +386,13 @@ contains
         integer, intent(in) :: Spawned_No
         integer(n_int), intent(in) :: iLutJ(0:NIfTot)
         real(dp), intent(in) :: real_sign_j_all(lenof_sign)
+        logical, intent(in) :: tNonInits
 
         integer :: i, irdm, rdm_ind, nI(nel), nJ(nel)
         real(dp) :: realSignI
         real(dp) :: input_sign_i(rdm_defs%nrdms), input_sign_j(rdm_defs%nrdms)
         integer :: dest_part_type, source_part_type
+        integer(n_int) :: source_flags
         logical :: spawning_from_ket_to_bra
 
         ! Spawning from multiple parents, to iLutJ, which has SignJ.        
@@ -396,7 +421,7 @@ contains
             realSignI = transfer( Spawned_Parents(NIfDBO+1,i), realSignI )
             ! The original spawning event (and the RealSignI) came from this
             ! population.
-            source_part_type = Spawned_Parents(NIfDBO+2,i)
+            source_part_type = Spawned_Parents(NIfDBO+3,i)
 
             ! Loop over all RDMs to which the simulation with label
             ! source_part_type contributes to.
@@ -404,6 +429,16 @@ contains
                 ! Get the label of the simulation that is paired with this, 
                 ! replica, for this particular RDM.
                 dest_part_type = rdm_defs%sim_pairs(irdm, source_part_type)
+
+                ! if we only sum in initiator contriubtions, check the flags here
+                if(.not. tNonInits) then
+                   if(.not. btest(Spawned_Parents(NIfDBO+2,i),get_initiator_flag_by_run(&
+                        part_type_to_run(source_part_type))) .or. &
+                        .not. test_flag(ilutJ, part_type_to_run(dest_part_type))) cycle
+                   ! if a non-initiator is participating in this case, do not sum in
+                   ! that contribution
+                endif
+
                 ! The label of the RDM that this is contributing to.
                 rdm_ind = rdm_defs%rdm_labels(irdm, source_part_type)
 
