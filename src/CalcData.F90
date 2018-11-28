@@ -134,6 +134,9 @@ real(dp) :: AdaptiveShiftF1 !Shift modification factor at AdaptiveShiftSigma
 real(dp) :: AdaptiveShiftF2 !Shift modification factor at InitiatorWalkNo
 logical :: tAutoAdaptiveShift !Let the modification factor of adaptive shift be computed autmatically
 real(dp) :: AdaptiveShiftThresh !Number of spawn under which below the shift is set to zero (in auto-adaptive-shift)
+real(dp) :: AdaptiveShiftExpo !Exponent of the modification factor, value 1 is default. values 0 means going back to full shift.
+real(dp) :: AdaptiveShiftCut  !The modification factor should never go below this.
+logical :: tAAS_MatEle !Use the magnitude of |Hij| in the modifcation factor i.e. sum_{accepted} |H_ij| / sum_{all attempts} |H_ij|
 ! Giovannis option for using only initiators for the RDMs (off by default)
 logical :: tNonInitsForRDMs = .true.
 ! Adaptive shift RDM correction using initiators as reference

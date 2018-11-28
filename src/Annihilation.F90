@@ -9,7 +9,7 @@ module AnnihilationMod
                           tEN2Started, tEN2Truncated, tInitCoherentRule, t_truncate_spawns, &
                           n_truncate_spawns, t_prone_walkers, t_truncate_unocc, &
                           tSpawnSeniorityBased, numMaxExLvlsSet, maxKeepExLvl, &
-                          tLogAverageSpawns, tTimedDeaths, tAutoAdaptiveShift, tSkipRef
+                          tLogAverageSpawns, tTimedDeaths, tAutoAdaptiveShift, tSkipRef, tAAS_MatEle
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -1228,8 +1228,14 @@ module AnnihilationMod
             do i=InitialSpawnedSlots(proc), ValidSpawnedList(proc)-1
                 ParentIdx = SpawnInfo(SpawnParentIdx,i)
                 run = SpawnInfo(SpawnRun,i)
-                val = SpawnInfo(SpawnAccepted,i) 
-                call update_tot_spawns(ParentIdx, run, 1.0_dp)
+                if(tAAS_MatEle)then
+                    val = transfer(SpawnInfo(SpawnMatEle, i), val) !MatEle is real encoded in an integer. Decoded it!
+                    call update_tot_spawns(ParentIdx, run, val)
+                    val = SpawnInfo(SpawnAccepted,i) * val 
+                else
+                    call update_tot_spawns(ParentIdx, run, 1.0_dp)
+                    val = SpawnInfo(SpawnAccepted,i) 
+                endif
                 call update_acc_spawns(ParentIdx, run, val)
                 !write(6,*), ParentIdx, run, get_tot_spawns(ParentIdx, run), get_acc_spawns(ParentIdx, run) 
             end do
