@@ -183,6 +183,8 @@ contains
         if(tAutoAdaptiveShift)then
             SpawnInfo(SpawnParentIdx, ValidSpawnedList(proc)) = ParentPos
             SpawnInfo(SpawnRun, ValidSpawnedList(proc)) = run
+            !Enocde matel, which is real, as an integer
+            SpawnInfo(SpawnMatEle, ValidSpawnedList(proc)) = transfer(matel, SpawnInfo(SpawnMatEle, ValidSpawnedList(proc)))
         end if
 
         ! set flag for large spawn matrix element

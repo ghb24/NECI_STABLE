@@ -143,6 +143,7 @@ contains
           AdaptiveShiftThresh = 10
           AdaptiveShiftExpo = 1
           AdaptiveShiftCut = -1 !If the user does not specify a value, this will be set to 1.0/HFConn later
+          tAAS_MatEle = .false. 
           tInitsEnergy = .false.
           tInitsRDMRef = .false.
           NEquilSteps=0
@@ -1589,7 +1590,10 @@ contains
                 if (item.lt.nitems) then
                     call getf(AdaptiveShiftCut)
                 end if
-
+            case("AAS-MATELE")
+                tAAS_MatEle = .true.
+                !When using the MatEle, the default value of 10 becomes meaningless
+                AdaptiveShiftThresh = 0.0
              case("INITS-PROJE")
                 ! only take initiators into account for the projected energy
                 tInitsEnergy = .true.
