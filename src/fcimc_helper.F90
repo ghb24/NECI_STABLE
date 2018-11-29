@@ -45,7 +45,7 @@ module fcimc_helper
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule, &
                         initMaxSenior, tSeniorityInits, tLogAverageSpawns, &
                         spawnSgnThresh, minInitSpawns, tTimedDeaths, &
-                        tAutoAdaptiveShift, tInitsEnergy, tAAS_MatEle2
+                        tAutoAdaptiveShift, tAAS_MatEle2
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
          tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &

@@ -142,8 +142,6 @@ logical :: tAAS_MatEle2 !Use the weight |Hij|/(Hjj-E) in the modifcation factor
 logical :: tNonInitsForRDMs = .true.
 ! Adaptive shift RDM correction using initiators as reference
 logical :: tInitsRDMRef
-! Preliminary option for having the projected energy only from inits
-logical :: tInitsEnergy = .false.
 ! Base hash values only on spatial orbitals
 ! --> All dets with same spatial structure on the same processor.
 logical :: tSpatialOnlyHash
