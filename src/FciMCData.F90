@@ -614,7 +614,7 @@ MODULE FciMCData
       INTEGER(TagIntType) :: SpawnInfoVecTag=0,SpawnInfoVec2Tag=0
      
       !Size of SpawnInfo array elements
-      integer, parameter :: SpawnInfoWidth = 4
+      integer, parameter :: SpawnInfoWidth = 5
       !Where is the spawn's parent index is stored inside SpawnInfo
       integer, parameter :: SpawnParentIdx = 0
       !Where is the spawn's run is stored inside SpawnInfo
@@ -623,5 +623,7 @@ MODULE FciMCData
       integer, parameter :: SpawnAccepted = 2
       !Where is the spawn MatrixElement status is stored inside SpawnInfo
       integer, parameter :: SpawnMatEle = 3
+      !Where is the spawn MatrixElement status is stored inside SpawnInfo
+      integer, parameter :: SpawnMatEle2 = 4
 
 end module FciMCData
