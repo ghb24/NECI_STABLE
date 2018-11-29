@@ -115,6 +115,8 @@ contains
                  trial_denom(inum_runs), tot_trial_denom(inum_runs), &
                  trial_num_inst(inum_runs), tot_trial_num_inst(inum_runs), &
                  trial_denom_inst(inum_runs), tot_trial_denom_inst(inum_runs), &
+                 init_trial_denom(inum_runs), init_trial_numerator(inum_runs), &
+                 tot_init_trial_denom(inum_runs), tot_init_trial_numerator(inum_runs), &
                  sum_proje_denominator(inum_runs), &
                  all_sum_proje_denominator(inum_runs), &
                  cyc_proje_denominator(inum_runs), &

@@ -9,7 +9,8 @@ module AnnihilationMod
                           tEN2Started, tEN2Truncated, tInitCoherentRule, t_truncate_spawns, &
                           n_truncate_spawns, t_prone_walkers, t_truncate_unocc, &
                           tSpawnSeniorityBased, numMaxExLvlsSet, maxKeepExLvl, &
-                          tLogAverageSpawns, tTimedDeaths, tAutoAdaptiveShift, tSkipRef, tAAS_MatEle
+                          tLogAverageSpawns, tTimedDeaths, tAutoAdaptiveShift, tSkipRef, &
+                          tAAS_MatEle, tAAS_MatEle2
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -1128,7 +1129,7 @@ module AnnihilationMod
         integer :: j, run, ParentIdx, proc
         integer :: PartInd, DetHash, nI(nel)
         real(dp) :: CurrentSign(lenof_sign)
-        real(dp) :: val
+        real(dp) :: val, val2
         logical :: tUnocc, tSuccess, tDetermState, tToEmptyDet
 
 
@@ -1232,6 +1233,11 @@ module AnnihilationMod
                     val = transfer(SpawnInfo(SpawnMatEle, i), val) !MatEle is real encoded in an integer. Decoded it!
                     call update_tot_spawns(ParentIdx, run, val)
                     val = SpawnInfo(SpawnAccepted,i) * val 
+                elseif(tAAS_MatEle2)then
+                    val = transfer(SpawnInfo(SpawnMatEle, i), val)
+                    val2 = transfer(SpawnInfo(SpawnMatEle2, i), val2)
+                    call update_tot_spawns(ParentIdx, run, val/val2)
+                    val = SpawnInfo(SpawnAccepted,i) * (val/val2)
                 else
                     call update_tot_spawns(ParentIdx, run, 1.0_dp)
                     val = SpawnInfo(SpawnAccepted,i) 

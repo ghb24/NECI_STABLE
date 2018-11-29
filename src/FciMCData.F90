@@ -169,7 +169,9 @@ MODULE FciMCData
       HElement_t(dp), allocatable :: AbsProjE(:)
 
       HElement_t(dp), allocatable :: trial_numerator(:), tot_trial_numerator(:)
+      HElement_t(dp), allocatable :: init_trial_numerator(:), tot_init_trial_numerator(:)
       HElement_t(dp), allocatable :: trial_denom(:), tot_trial_denom(:)
+      HElement_t(dp), allocatable :: init_trial_denom(:), tot_init_trial_denom(:)
       HElement_t(dp), allocatable :: trial_num_inst(:), tot_trial_num_inst(:)
       HElement_t(dp), allocatable :: trial_denom_inst(:), tot_trial_denom_inst(:)
       integer(n_int), allocatable :: con_send_buf(:,:)
@@ -612,7 +614,7 @@ MODULE FciMCData
       INTEGER(TagIntType) :: SpawnInfoVecTag=0,SpawnInfoVec2Tag=0
      
       !Size of SpawnInfo array elements
-      integer, parameter :: SpawnInfoWidth = 4
+      integer, parameter :: SpawnInfoWidth = 5
       !Where is the spawn's parent index is stored inside SpawnInfo
       integer, parameter :: SpawnParentIdx = 0
       !Where is the spawn's run is stored inside SpawnInfo
@@ -621,5 +623,7 @@ MODULE FciMCData
       integer, parameter :: SpawnAccepted = 2
       !Where is the spawn MatrixElement status is stored inside SpawnInfo
       integer, parameter :: SpawnMatEle = 3
+      !Where is the spawn MatrixElement status is stored inside SpawnInfo
+      integer, parameter :: SpawnMatEle2 = 4
 
 end module FciMCData

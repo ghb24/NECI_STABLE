@@ -586,9 +586,11 @@ contains
             sizes(7) = size(trial_denom)
             sizes(8) = size(trial_num_inst)
             sizes(9) = size(trial_denom_inst)
+            sizes(10) = size(init_trial_numerator)
+            sizes(11) = size(init_trial_denom)
         end if
-        if (tEN2) sizes(10) = 1
-        sizes(11) = size(InitsEnumCyc)
+        if (tEN2) sizes(12) = 1
+        sizes(13) = size(InitsEnumCyc)
 
         if (sum(sizes(1:11)) > 100) call stop_all(t_r, "No space left in arrays for communication of estimates. Please &
                                                         & increase the size of the send_arr_helem and recv_arr_helem &
@@ -604,11 +606,13 @@ contains
             low = upp + 1; upp = low + sizes(7) - 1; send_arr_helem(low:upp) = trial_denom;
             low = upp + 1; upp = low + sizes(8) - 1; send_arr_helem(low:upp) = trial_num_inst;
             low = upp + 1; upp = low + sizes(9) - 1; send_arr_helem(low:upp) = trial_denom_inst;
+            low = upp + 1; upp = low + sizes(10) - 1; send_arr_helem(low:upp) = init_trial_numerator;
+            low = upp + 1; upp = low + sizes(11) - 1; send_arr_helem(low:upp) = init_trial_denom;
         end if
         if (tEN2) then
-           low = upp + 1; upp = low + sizes(10) - 1; send_arr_helem(low) = en_pert_main%ndets;
+           low = upp + 1; upp = low + sizes(12) - 1; send_arr_helem(low) = en_pert_main%ndets;
         endif
-        low = upp + 1; upp = low + sizes(11) - 1; send_arr_helem(low:upp) = InitsENumCyc;
+        low = upp + 1; upp = low + sizes(13) - 1; send_arr_helem(low:upp) = InitsENumCyc;
 
         call MPISumAll (send_arr_helem(1:upp), recv_arr_helem(1:upp))
 
@@ -624,11 +628,13 @@ contains
             low = upp + 1; upp = low + sizes(7) - 1; tot_trial_denom = recv_arr_helem(low:upp);
             low = upp + 1; upp = low + sizes(8) - 1; tot_trial_num_inst = recv_arr_helem(low:upp);
             low = upp + 1; upp = low + sizes(9) - 1; tot_trial_denom_inst = recv_arr_helem(low:upp);
+            low = upp + 1; upp = low + sizes(10) - 1; tot_init_trial_numerator = recv_arr_helem(low:upp);
+            low = upp + 1; upp = low + sizes(11) - 1; tot_init_trial_denom = recv_arr_helem(low:upp);
         end if
         if (tEN2) then
-           low = upp + 1; upp = low + sizes(10) - 1; en_pert_main%ndets_all = recv_arr_helem(low);
+           low = upp + 1; upp = low + sizes(12) - 1; en_pert_main%ndets_all = recv_arr_helem(low);
         endif
-        low = upp + 1; upp = low + sizes(11) - 1; AllInitsENumCyc = recv_arr_helem(low:upp);
+        low = upp + 1; upp = low + sizes(13) - 1; AllInitsENumCyc = recv_arr_helem(low:upp);
 
         ! Optionally communicate EXLEVEL_WNorm.
         if (tLogEXLEVELStats) then
@@ -701,14 +707,19 @@ contains
                 ! make it relative to the HF energy.
                 if (ntrial_excits == 1) then
                     tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies(1))
+                    tot_init_trial_numerator = tot_init_trial_numerator + (tot_init_trial_denom*&
+                         trial_energies(1))
                 else
                     if (replica_pairs) then
                         do run = 2, inum_runs, 2
                             tot_trial_numerator(run-1:run) = tot_trial_numerator(run-1:run) + &
                                 tot_trial_denom(run-1:run)*trial_energies(run/2)
+                            tot_init_trial_numerator(run-1:run) = tot_init_trial_numerator(run-1:run) + &
+                                tot_init_trial_denom(run-1:run)*trial_energies(run/2)
                         end do
                     else
                         tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies)
+                        tot_init_trial_numerator = tot_init_trial_numerator + (tot_init_trial_denom*trial_energies)
                     end if
                 end if
             end if

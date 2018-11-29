@@ -144,7 +144,7 @@ contains
           AdaptiveShiftExpo = 1
           AdaptiveShiftCut = -1 !If the user does not specify a value, this will be set to 1.0/HFConn later
           tAAS_MatEle = .false. 
-          tInitsEnergy = .false.
+          tAAS_MatEle2 = .false.
           tInitsRDMRef = .false.
           NEquilSteps=0
           NShiftEquilSteps=1000
@@ -1594,9 +1594,12 @@ contains
                 tAAS_MatEle = .true.
                 !When using the MatEle, the default value of 10 becomes meaningless
                 AdaptiveShiftThresh = 0.0
+            case("AAS-MATELE2")
+                tAAS_MatEle2 = .true.
+                !When using the MatEle, the default value of 10 becomes meaningless
+                AdaptiveShiftThresh = 0.0
              case("INITS-PROJE")
-                ! only take initiators into account for the projected energy
-                tInitsEnergy = .true.
+                ! deprecated
              case("INITS-GAMMA0")
                 ! use the density matrix obtained from the initiator space to 
                 ! correct for the adaptive shift
