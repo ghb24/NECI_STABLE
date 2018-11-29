@@ -1626,6 +1626,11 @@ contains
             trial_denom = 0.0_dp
             tot_trial_denom = 0.0_dp
 
+            init_trial_numerator = 0.0_dp
+            tot_init_trial_numerator = 0.0_dp
+            init_trial_denom = 0.0_dp
+            tot_init_trial_denom = 0.0_dp
+
             trial_num_inst = 0.0_dp
             tot_trial_num_inst = 0.0_dp
             trial_denom_inst = 0.0_dp

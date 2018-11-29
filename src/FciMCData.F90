@@ -169,7 +169,9 @@ MODULE FciMCData
       HElement_t(dp), allocatable :: AbsProjE(:)
 
       HElement_t(dp), allocatable :: trial_numerator(:), tot_trial_numerator(:)
+      HElement_t(dp), allocatable :: init_trial_numerator(:), tot_init_trial_numerator(:)
       HElement_t(dp), allocatable :: trial_denom(:), tot_trial_denom(:)
+      HElement_t(dp), allocatable :: init_trial_denom(:), tot_init_trial_denom(:)
       HElement_t(dp), allocatable :: trial_num_inst(:), tot_trial_num_inst(:)
       HElement_t(dp), allocatable :: trial_denom_inst(:), tot_trial_denom_inst(:)
       integer(n_int), allocatable :: con_send_buf(:,:)

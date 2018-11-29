@@ -41,7 +41,7 @@ module fcimc_output
 contains
 
     SUBROUTINE WriteFciMCStatsHeader()
-        integer i, j, k, run
+        integer i, j, k, run, offset
         character(256) label
         character(32) tchar_r, tchar_i, tchar_j, tchar_k
         character(17) trunc_caption
@@ -55,8 +55,14 @@ contains
                     & "5.Born","6.TotUniqDets",&
                     &               "7.InitDets","8.NonInitDets","9.InitWalks","10.NonInitWalks","11.AbortedWalks", &
                     "12. Removed Dets",  "13. Initiator Proj.E"
+               offset = 13            
+               if(tTrialWavefunction .or. tStartTrialLater) then
+                  write(initiatorstats_unit,"(A)", advance = 'no') &
+                  "14. TrialNumerators (inits)   15. TrialDenom (inits)"
+                  offset = 15
+               end if
                 do k = 1, maxInitExLvlWrite
-                   write(tchar_k,*) k+15
+                   write(tchar_k,*) k+offset
                    write(tchar_r,*) k
                    tchar_r = trim(adjustl(tchar_k))//'. Inits on ex. lvl '//trim(adjustl(tchar_r))
                    write(initiatorstats_unit,'(1x,a)', advance = 'no') &
@@ -314,6 +320,9 @@ contains
                    AllNoInitDets(1), AllNoNonInitDets(1), AllNoInitWalk(1), &
                    AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1), &
                    inits_proje_iter(1) + Hii
+               if(tTrialWavefunction .or. tStartTrialLater) &
+                    write(initiatorstats_unit, "(2G16.7)", advance = 'no') &
+                    tot_init_trial_numerator(1)/StepsSft, tot_init_trial_denom(1)/StepsSft
                do j = 1, maxInitExLvlWrite
                   write(initiatorstats_unit,'(1I20)', advance ='no') AllInitsPerExLvl(j)
                end do
@@ -452,6 +461,9 @@ contains
                    AllNoInitDets(1), AllNoNonInitDets(1), AllNoInitWalk(1), &
                    AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1), &
                    inits_proje_iter(1) + Hii
+               if(tTrialWavefunction .or. tStartTrialLater) &
+                    write(initiatorstats_unit, "(2G16.7)", advance = 'no') &
+                    tot_init_trial_numerator(1)/StepsSft, tot_init_trial_denom(1)/StepsSft
                do j = 1, maxInitExLvlWrite
                   write(initiatorstats_unit,'(1I20)', advance ='no') AllInitsPerExLvl(j)
                end do
