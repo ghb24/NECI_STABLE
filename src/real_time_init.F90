@@ -366,9 +366,6 @@ contains
       ! overlaps to |y(t)> 
       call create_perturbed_ground()
 
-      ! we have to set up the norm before we apply the perturbation
-      call setup_normalization()
-
       if(tSemiStochastic) call init_semi_stochastic(ss_space_in)
       ! If only the corespace time-evolution is to be taken, truncate the
       ! initial wavefunction to the corespace
