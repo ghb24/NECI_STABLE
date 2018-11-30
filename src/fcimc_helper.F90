@@ -961,15 +961,6 @@ contains
         endif
         ! check if there are sign conflicts across the replicas
         if(any(sgn*(sgn_av_pop(sgn)) < 0)) then
-           ! check if this would be an initiator
-           if(popInit) then 
-              NoInitsConflicts = NoInitsConflicts + 1
-           endif
-          ! check if this would be an initiator due to SI criterium
-           ! (do not double - count)
-           if(staticInit .and. .not. popInit) then
-              NoSIInitsConflicts = NoSIInitsConflicts + 1
-           endif
            ! one initial check: if the replicas dont agree on the sign
            ! dont make this an initiator under any circumstances 
            if(tReplicaCoherentInits .and. .not. &
@@ -1122,9 +1113,6 @@ contains
         InitRemoved = 0_int64
 
         ! replica-initiator info
-        NoSIInitsConflicts = 0
-        NoInitsConflicts = 0
-        avSigns = 0.0_dp
 
         NoAborted = 0.0_dp
         NoRemoved = 0.0_dp
@@ -2283,42 +2271,5 @@ contains
         write(6,*) 'Calculated instantaneous projected energy', proje_iter
 
     end subroutine
-
-
-    subroutine replica_coherence_check(ilut,sgn,exLvl)
-
-      ! do a check if a determinant has sign consistent walkers across replicas
-      ! input: 
-      ! ilut = determinant + population in ilut-format
-      ! sgn = sign of ilut (i.e. #walkers)
-      ! exLvl = excitation level of ilut for logging purposes
-      ! this logs the number of conflicts per excitation level
-      implicit none
-      integer(n_int), intent(inout) :: ilut(0:NIfTot)
-      real(dp), intent(inout) :: sgn(lenof_sign)
-      integer, intent(in) :: exLvl
-      
-      integer :: run
-      real(dp) :: avSign
-
-#ifdef __CMPLX
-#else
-      ! check if there are any sign changes within sgn
-      if(any(sgn*sgn(1) < 0)) then
-         avSign = sum(sgn)/inum_runs
-         ! log the change in population
-         do run = 1, inum_runs
-            ! are we looking at an erroneous sign?
-            if(sgn(run)*avSign < 0) then
-               ! log the conflict
-               avSigns = avSigns + abs(sgn(run))
-               NoConflicts = NoConflicts + 1
-               if(exLvl < maxConflictExLvl) ConflictExLvl(exLvl) = ConflictExLvl(exLvl) + 1
-            endif
-         end do
-      endif
-#endif
-    end subroutine replica_coherence_check
-
     
 end module

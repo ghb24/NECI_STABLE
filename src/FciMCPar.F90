@@ -214,10 +214,6 @@ module FciMCParMod
             end if
             call WriteFCIMCStats()
         end if
-        if(tWriteUnocc) then
-           call write_unoccstats(.true.)
-           call write_unoccstats()
-        endif
 
         ! double occupancy: 
         if (t_calc_double_occ) then 
@@ -1013,10 +1009,6 @@ module FciMCParMod
                 walkExcitLevel_toHF = walkExcitLevel
             endif
             
-            ! if requested, average the sign over replicas if not coherent
-            if(inum_runs > 1 .and. tWriteConflictLvls) call replica_coherence_check(&
-                 CurrentDets(:,j), SignCurr, walkExcitLevel)
-
             if (tFillingStochRDMonFly) then
                 ! Set the average sign and occupation iteration which were
                 ! found in extract_bit_rep_avsign.
@@ -1076,8 +1068,6 @@ module FciMCParMod
                   ! this is done via the death timer: if it is <0, the det is dead
                   if(tau_dead .ge. 0) then
                      call clock_death_timer(j)
-                     HolesByExLvl(walkExcitLevel) = HolesByExLvl(walkExcitLevel) + 1
-                     nUnoccDets = nUnoccDets + 1
                      ! if the determinant exceedes its linger time, kill it
                      if(int(tau_dead) > lingerTime) then
                         call RemoveHashDet(HashIndex, DetCurr, j) 

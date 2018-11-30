@@ -839,9 +839,6 @@ contains
         NoAddedInitiators=0
         NoInitDets=0
         NoNonInitDets=0
-        NoSIInitsConflicts = 0
-        NoInitsConflicts = 0
-        avSigns = 0.0_dp
         NoInitWalk(:)=0.0_dp
         NoNonInitWalk(:)=0.0_dp
         NoExtraInitDoubs=0
@@ -926,24 +923,9 @@ contains
               RealSpawnCutoff = sFBeta
            endif
         endif
-           
 
-        allocate(ConflictExLvl(maxConflictExLvl))
-        ConflictExLvl = 0
-        allocate(AllConflictExLvl(maxConflictExLvl))
-        AllConflictExLvl = 0
-        NoConflicts = 0
-        AllNoConflicts = 0
-
-        allocate(HolesByExLvl(maxHoleExLvlWrite))
-        allocate(allHolesByExLvl(maxHoleExLvlWrite))
-        allHolesByExLvl = 0
-        HolesByExLvl = 0
-        nUnoccDets = 0
-        allNUnoccDets = 0
-
-        allocate(allInitsPerExLvl(maxInitExLvlWrite))
-        allocate(initsPerExLvl(maxInitExLvlWrite))
+        if(.not. allocated(allInitsPerExLvl)) allocate(allInitsPerExLvl(maxInitExLvlWrite))
+        if(.not. allocated(initsPerExLvl)) allocate(initsPerExLvl(maxInitExLvlWrite))
         initsPerExlvl = 0
         allInitsPerExLvl = 0
 
@@ -1822,11 +1804,6 @@ contains
         deallocate(FreeSlot,stat=ierr)
         if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
 
-        if(allocated(ConflictExLvl)) deallocate(ConflictExLvl)        
-        if(allocated(HolesByExLvl)) deallocate(HolesByExLvl)
-        if(allocated(AllConflictExLvl)) deallocate(AllConflictExLvl)        
-        if(allocated(AllHolesByExLvl)) deallocate(AllHolesByExLvl)
-
         IF(tHistSpawn.or.tCalcFCIMCPsi) THEN
             DEALLOCATE(Histogram)
             DEALLOCATE(AllHistogram)
@@ -1955,7 +1932,7 @@ contains
 
         if (tTrialWavefunction) call end_trial_wf()
 
-        deallocate(maxKeepExLvl)
+        if(allocated(maxKeepExLvl)) deallocate(maxKeepExLvl)
 
 !There seems to be some problems freeing the derived mpi type.
 !        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN

@@ -617,7 +617,8 @@ contains
             write(6, '(a,i12,a)') "Reading in a maximum of ", ReadBatch, &
                                   " determinants at a time from POPSFILE'"
             call neci_flush(6)
-
+         else
+            allocate(fvalsRead(0,0))
         end if
 
         ! Keep reading until all of the particles have been read in!
@@ -743,6 +744,7 @@ r_loop: do while (.not. tReadAllPops)
         write(6,*) "Number of configurations read in to this process: ", &
                    CurrWalkers 
 
+        deallocate(fvalsRead)
         deallocate(BatchRead)
 
     end function read_pops_general

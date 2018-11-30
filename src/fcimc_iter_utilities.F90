@@ -444,27 +444,13 @@ contains
         sizes(26) = 1 ! nspawned (single int, not an array)
         ! communicate the inst_double_occ and the coherence numbers
         sizes(27) = 1
-        sizes(28) = 1
-        sizes(29) = 1
-        sizes(30) = 1
-        ! Perturbation correction
-        sizes(31) = 1
-        ! replica-initiator statistics
-        sizes(32) = 1
-        sizes(33) = 1
-        sizes(34) = 1
-        sizes(35) = 1
-        sizes(36) = size(ConflictExLvl)
         ! truncated weight
-        sizes(37) = 1
-        ! unoccupied dets        
-        sizes(38) = 1 
-        sizes(39) = size(HolesByExLvl)
+        sizes(28) = 1
         ! inits per ex lvl
-        sizes(40) = size(initsPerExLvl)
+        sizes(29) = size(initsPerExLvl)
 
 
-        if (sum(sizes(1:40)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
+        if (sum(sizes(1:29)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
                                                         & the size of the send_arr and recv_arr arrays in the source code.")
 
         low = upp + 1; upp = low + sizes(1 ) - 1; send_arr(low:upp) = SpawnFromSing;
@@ -498,23 +484,10 @@ contains
         low = upp + 1; upp = low + sizes(26) - 1; send_arr(low:upp) = nspawned;
         ! double occ change:
         low = upp + 1; upp = low + sizes(27) - 1; send_arr(low:upp) = inst_double_occ
-        ! coherence conflict with SIs
-        low = upp + 1; upp = low + sizes(28) - 1; send_arr(low:upp) = nCoherentDoubles
-        low = upp + 1; upp = low + sizes(29) - 1; send_arr(low:upp) = nIncoherentDets
-        low = upp + 1; upp = low + sizes(30) - 1; send_arr(low:upp) = nConnection
-        ! sign conflicts between replicas
-        low = upp + 1; upp = low + sizes(32) - 1; send_arr(low:upp) = NoSIInitsConflicts;
-        low = upp + 1; upp = low + sizes(33) - 1; send_arr(low:upp) = NoInitsConflicts;
-        low = upp + 1; upp = low + sizes(34) - 1; send_arr(low:upp) = avSigns;
-        low = upp + 1; upp = low + sizes(35) - 1; send_arr(low:upp) = NoConflicts;
-        low = upp + 1; upp = low + sizes(36) - 1; send_arr(low:upp) = ConflictExLvl;
         ! truncated weight
-        low = upp + 1; upp = low + sizes(37) - 1; send_arr(low:upp) = truncatedWeight;        
-        ! unocc dets
-        low = upp + 1; upp = low + sizes(38) - 1; send_arr(low:upp) = nUnoccDets;        
-        low = upp + 1; upp = low + sizes(39) - 1; send_arr(low:upp) = HolesByExLvl;        
+        low = upp + 1; upp = low + sizes(28) - 1; send_arr(low:upp) = truncatedWeight;        
         ! initiators per excitation level
-        low = upp + 1; upp = low + sizes(40) - 1; send_arr(low:upp) = initsPerExLvl;        
+        low = upp + 1; upp = low + sizes(29) - 1; send_arr(low:upp) = initsPerExLvl;        
 
         ! Perform the communication.
         call MPISumAll (send_arr(1:upp), recv_arr(1:upp))
@@ -555,22 +528,10 @@ contains
         low = upp + 1; upp = low + sizes(26) - 1; nspawned_tot = nint(recv_arr(low));
         ! double occ: 
         low = upp + 1; upp = low + sizes(27) - 1; all_inst_double_occ = recv_arr(low);
-        low = upp + 1; upp = low + sizes(29) - 1; AllCoherentDoubles = recv_arr(low);
-        low = upp + 1; upp = low + sizes(29) - 1; AllIncoherentDets = recv_arr(low);
-        low = upp + 1; upp = low + sizes(30) - 1; AllConnection = recv_arr(low);
-        ! replica-averaged initiators
-        low = upp + 1; upp = low + sizes(32) - 1; AllNoSIInitsConflicts = recv_arr(low);
-        low = upp + 1; upp = low + sizes(33) - 1; AllNoInitsConflicts = recv_arr(low);
-        low = upp + 1; upp = low + sizes(34) - 1; AllAvSigns = recv_arr(low);
-        low = upp + 1; upp = low + sizes(35) - 1; AllNoConflicts = recv_arr(low);
-        low = upp + 1; upp = low + sizes(36) - 1; AllConflictExLvl = recv_arr(low:upp);
         ! truncated weight
-        low = upp + 1; upp = low + sizes(37) - 1; AllTruncatedWeight = recv_arr(low);
-        ! unocc dets
-        low = upp + 1; upp = low + sizes(38) - 1; AllNUnoccDets = recv_arr(low);
-        low = upp + 1; upp = low + sizes(39) - 1; AllHolesByExLvl = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(28) - 1; AllTruncatedWeight = recv_arr(low);
         ! initiators per excitation level
-        low = upp + 1; upp = low + sizes(40) - 1; AllInitsPerExLvl = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(29) - 1; AllInitsPerExLvl = recv_arr(low:upp);
 
         ! Communicate HElement_t variables:
 
@@ -1167,9 +1128,6 @@ contains
         cont_spawn_attempts = 0
         cont_spawn_success = 0
 
-        ! reset the number of conflicts
-        ConflictExLvl = 0
-
         ! reset the truncated weight
         truncatedWeight = 0.0_dp
 
@@ -1197,7 +1155,6 @@ contains
             else
                 call WriteFCIMCStats ()
             end if
-            if(tWriteUnocc) call write_unoccstats()
         end if
         
         call rezero_iter_stats_update_cycle (iter_data, tot_parts_new_all)
