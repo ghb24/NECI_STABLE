@@ -349,6 +349,7 @@ contains
         ! determinant.
         integer(n_int), allocatable :: buffer(:,:)
         real(dp), allocatable :: fvalsBuf(:,:)
+        real(dp) :: fvals_tmp(2*inum_runs)
         integer :: ndets, det, ierr, nelem, proc
         integer(int64) :: nattempts, nread
         logical :: tEOF
@@ -402,7 +403,7 @@ contains
                     tEOF = read_popsfile_det (iunit, PopNel, binary_pops, &
                          buffer(:, ndets), unused, &
                          PopNIfSgn, .false., nread, &
-                         fvalsBuf, ndets, &
+                         fvals_tmp, &
                          read_walkers_on_nodes(proc) - nattempts, &
                          trimmed_parts=trimmed_parts)
                     nattempts = nattempts + nread
@@ -421,6 +422,7 @@ contains
                         ! Add the contribution from this determinant to the
                         ! norm of the popsfile wave function.
                         call add_pops_norm_contrib(buffer(:, ndets))
+                        fvalsBuf(:,ndets) = fvals_tmp(:)
                     end if
 
                 end do
@@ -493,6 +495,7 @@ contains
 
         integer(n_int), allocatable :: BatchRead(:,:)
         real(dp), allocatable :: fvals(:,:)
+        real(dp) :: fvals_tmp(2*inum_runs)
         logical :: tEOF
         integer :: proc
         integer(int64) :: nread
@@ -524,13 +527,14 @@ contains
                 tEOF = read_popsfile_det (iunit, PopNel, binary_pops, &
                                           det_list(:, CurrWalkers+1), &
                                           det_tmp, PopNIfSgn, &
-                                          .true., nread, fvals, CurrWalkers+1, &
+                                          .true., nread, fvals_tmp, &
                                           trimmed_parts=trimmed_parts)
 
                 ! When we have got to the end of the file, we are done.
                 if (tEOF) exit
 
                 CurrWalkers = CurrWalkers + 1
+                if(tAutoAdaptiveShift) fvals(:,CurrWalkers) = fvals_tmp(:)
 
                 ! Add the contribution from this determinant to the
                 ! norm of the popsfile wave function.
@@ -581,6 +585,7 @@ contains
         integer :: batch_size, MaxSendIndex, i, j, nBatches, err, proc
         integer(n_int) :: ilut_tmp(0:NIfTot)
         real(dp), allocatable :: fvalsRead(:,:), fvals(:,:)
+        real(dp) :: fvals_tmp(2*inum_runs)
         integer(int64) :: det_attempt, nread
 
         integer(n_int), allocatable :: BatchRead(:,:)
@@ -641,7 +646,7 @@ r_loop: do while (.not. tReadAllPops)
                     ! The decoded form is placed in det_tmp
                     tEOF = read_popsfile_det (iunit, PopNel, binary_pops, &
                                               ilut_tmp, det_tmp, PopNIfSgn, &
-                                              .true., nread, fvalsRead, PopsSendList(proc), &
+                                              .true., nread, fvals_tmp, &
                                               trimmed_parts=trimmed_parts)
                     det_attempt = det_attempt + nread
 
@@ -665,6 +670,7 @@ r_loop: do while (.not. tReadAllPops)
                     ! and if we have filled up the slot in the list then
                     ! distribute it when it is full.
                     BatchRead(:,PopsSendList(proc)) = ilut_tmp(:)
+                    fvalsRead(:,PopsSendList(proc)) = fvals_tmp(:)
                     PopsSendList(proc) = PopsSendList(proc) + 1
 
                     ! If we have filled up the lists, exit the loop so that the
@@ -750,7 +756,7 @@ r_loop: do while (.not. tReadAllPops)
     ! WalkerTemp = Determinant entry returned
     function read_popsfile_det (iunit, nel_loc, BinPops, WalkerTemp, nI, &
                                 PopNifSgn, decode_det, &
-                                nread, fvals, ndets, read_max, trimmed_parts) result(tEOF)
+                                nread, fvals_tmp, read_max, trimmed_parts) result(tEOF)
 
         integer, intent(in) :: iunit
         integer, intent(in) :: nel_loc
@@ -759,11 +765,10 @@ r_loop: do while (.not. tReadAllPops)
         integer, intent(in) :: PopNifSgn
         logical, intent(in) :: decode_det
         logical, intent(in) :: BinPops
-        integer, intent(in) :: ndets
         logical, intent(inout), optional :: trimmed_parts
         integer(int64), intent(out) :: nread
         integer(int64), intent(in), optional :: read_max
-        real(dp), intent(out) :: fvals(:,:)
+        real(dp), intent(out) :: fvals_tmp(:)
         integer(n_int) :: sgn_int(PopNifSgn)
         integer :: flg, stat, k
         real(dp) :: sgn(PopNifSgn)
@@ -793,7 +798,7 @@ r_loop: do while(.not.tStoreDet)
                 if (BinPops) then
                    if(tReadFvals) then
                       read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), sgn,&
-                           flg_read, fvals(:,ndets)
+                           flg_read, fvals_tmp
                    else
                       read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), sgn,&
                            flg_read
@@ -801,7 +806,7 @@ r_loop: do while(.not.tStoreDet)
                 else
                    if(tReadFvals) then
                       read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
-                           sgn, flg_read, fvals(:,ndets)
+                           sgn, flg_read, fvals_tmp
                    else
                       read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
                            sgn, flg_read
@@ -811,7 +816,7 @@ r_loop: do while(.not.tStoreDet)
                 if (BinPops) then
                    if(tReadFvals) then
                       read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), &
-                           sgn_int, flg_read, fvals(:,ndets)
+                           sgn_int, flg_read, fvals_tmp
                    else
                       read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), &
                         sgn_int, flg_read
@@ -819,7 +824,7 @@ r_loop: do while(.not.tStoreDet)
                 else
                    if(tReadFvals) then
                       read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
-                           sgn_int, flg_read, fvals(:,ndets)
+                           sgn_int, flg_read, fvals_tmp
                    else
                       read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
                            sgn_int, flg_read
@@ -828,7 +833,7 @@ r_loop: do while(.not.tStoreDet)
 
                 sgn = sgn_int
             end if
-            if(tAutoAdaptiveShift .and. .not. tPopAutoAdaptiveShift) fvals(:,ndets) = 0_n_int
+            if(tAutoAdaptiveShift .and. .not. tPopAutoAdaptiveShift) fvals_tmp = 0_n_int
             if (stat < 0) then
                 tEOF = .true. ! End of file reached.
                 exit r_loop
@@ -1783,6 +1788,17 @@ r_loop: do while(.not.tStoreDet)
 
         write_count = 0
         write_count_sum = 0
+
+        nMaxDets = int(maxval(node_write_attempts), sizeof_int)
+        if(tAutoAdaptiveShift) then
+           allocate(fvals(2*inum_runs,nMaxDets), stat=error)
+           call writeFFunc(ndets, fvals)
+        else
+           ! when not using auto-adaptive shift, no fvals are written, but the 
+           ! array is passed and later deallocated, so allocate empty
+           allocate(fvals(0,0), stat=error)
+        endif
+
         if ((tSplitPops .and. bNodeRoot) .or. iProcIndex == root) then
 
             ! For a binary popsfile, the actual data is stored more
@@ -1831,15 +1847,6 @@ r_loop: do while(.not.tStoreDet)
 
             ! Write out the dets from this node (the head node, unless we
             ! are in split-pops mode.
-            nMaxDets = int(maxval(node_write_attempts), sizeof_int)
-            if(tAutoAdaptiveShift) then
-               allocate(fvals(2*inum_runs,nMaxDets), stat=error)
-               call writeFFunc(ndets, fvals)
-            else
-               ! when not using auto-adaptive shift, no fvals are written, but the 
-               ! array is passed and later deallocated, so allocate empty
-               allocate(fvals(0,0), stat=error)
-            endif
             do j = 1, int(ndets, sizeof_int)
                 ! Count the number of written particles
                 if (write_pops_det (iunit, iunit_2, Dets(:,j), j, fvals)) then
@@ -1872,9 +1879,11 @@ r_loop: do while(.not.tStoreDet)
                     j = int(node_write_attempts(i), sizeof_int) * (NIfTot+1)
                     call MPIRecv (Parts(:, 1:node_write_attempts(i)), j, &
                                   NodeRoots(i), Tag, error)
-                    if(tAutoAdaptiveShift) &
-                    call MPIRecv(fvals(:,1:node_write_attempts(i)), j, NodeRoots(i), &
-                         fTag, error)
+                    if(tAutoAdaptiveShift) then
+                       j = int(node_write_attempts(i), sizeof_int) * 2 * inum_runs
+                       call MPIRecv(fvals(:,1:node_write_attempts(i)), j, NodeRoots(i), &
+                            fTag, error)
+                    endif
                     ! SDS: Catherine seems to have disabled writing these out
                     !      so no need to communicate them.
                     !!!if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
@@ -1912,8 +1921,9 @@ r_loop: do while(.not.tStoreDet)
             j = int(nDets, sizeof_int) * (NIfTot + 1)
             call MPISend (Dets(0:NIfTot, 1:nDets), j, root, Tag, error)
             if(tAutoAdaptiveShift) then
-               call writeFFunc(nDets, fvals)
-               call MPISend(fvals(1:inum_runs, 1:nDets), j, root, fTag, error)
+               ! fvals have already been written
+               j = int(nDets, sizeof_int) * 2 * inum_runs
+               call MPISend(fvals(:, 1:nDets), j, root, fTag, error)
             endif
             !!!if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
             !!!    j = int(nDets, sizeof_int) * (1+2*lenof_sign)

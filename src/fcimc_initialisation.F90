@@ -560,7 +560,12 @@ contains
 
         if(AdaptiveShiftCut<0.0)then
             !The user did not specify the value, use this as a default
-            AdaptiveShiftCut = 1.0/HFConn
+           if(HFConn > 0) then
+              AdaptiveShiftCut = 1.0_dp/HFConn
+           else
+              ! if the HF is disconnected (can happen in rare corner cases), set it to 0
+              AdaptiveShiftCut = 0.0_dp
+           endif
         end if
 
         ! Initialise random number seed - since the seeds need to be different

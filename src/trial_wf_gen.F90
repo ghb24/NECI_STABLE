@@ -27,6 +27,8 @@ contains
         use FciMCData, only: MaxWalkersPart, tTrialHash, tIncCancelledInitEnergy
         use FciMCData, only: con_space_vecs, ntrial_excits, trial_numerator, trial_denom
         use FciMCData, only: tot_trial_numerator, tot_trial_denom, HashIndex
+        use FciMCData, only: tot_init_trial_numerator, tot_init_trial_denom
+        use FciMCData, only: init_trial_numerator, init_trial_denom
         use initial_trial_states, only: calc_trial_states_lanczos, calc_trial_states_qmc, calc_trial_states_direct
         use LoggingData, only: tWriteTrial, tCompareTrialAmps
         use MemoryManager, only: LogMemAlloc, LogMemDealloc
@@ -254,10 +256,15 @@ contains
 
         ! Set these to zero, to prevent junk being printed in the initial report.
         trial_numerator = 0.0_dp
-        tot_trial_numerator = 0.0_dp
+        tot_trial_numerator = 0.0_dp        
         trial_denom = 0.0_dp
         tot_trial_denom = 1.0_dp
-
+        
+        init_trial_numerator = 0.0_dp
+        tot_init_trial_numerator = 0.0_dp
+        init_trial_denom = 0.0_dp
+        tot_init_trial_denom = 0.0_dp
+        
         call halt_timer(Trial_Init_Time)
 
         if (.not. qmc_trial_wf) then
