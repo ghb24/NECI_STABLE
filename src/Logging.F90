@@ -994,7 +994,7 @@ MODULE Logging
             tLogEXLEVELStats=.true.
          case("INITS-EXLVL-WRITE")
             ! up to which excitation level the number of initiators is written out
-            call readi(maxInitExLvlWrite)
+            if(item < nitems) call readi(maxInitExLvlWrite)
         case ("INSTANT-S2-FULL")
             ! Calculate an instantaneous value for S^2, and output it to the
             ! relevant column in the FCIMCStats file.
