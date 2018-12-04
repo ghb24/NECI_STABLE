@@ -292,7 +292,7 @@ module errors
             mean_ProjE_re = mean_num/mean_denom
             ProjE_Err_re = abs(mean_ProjE_re)* sqrt( (abs(error_denom/mean_denom))**2.0_dp &
                 + (abs(error_num/mean_num))**2.0_dp - correction_re )
-            if(lenof_sign.eq.2) then
+            if(lenof_sign/inum_runs .eq. 2) then
                 mean_ProjE_im = mean_imnum/mean_denom
 
                 ProjE_Err_im = abs(mean_ProjE_im)* sqrt( (abs(error_denom/mean_denom))**2.0_dp &
