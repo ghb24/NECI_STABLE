@@ -793,10 +793,6 @@ module AnnihilationMod
                         ! away. Remove it from the hash index array so that
                         ! no others find it (it is impossible to have another
                         ! spawned walker yet to find this determinant).
-                        call remove_hash_table_entry(HashIndex, nJ, PartInd)
-                        ! Add to "freeslot" list so it can be filled in.
-                        iEndFreeSlot = iEndFreeSlot + 1
-                        FreeSlot(iEndFreeSlot) = PartInd
                         if(.not. tTimedDeaths) &
                              call RemoveHashDet(HashIndex, nJ, PartInd)
                     end if
