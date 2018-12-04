@@ -686,6 +686,9 @@ module FciMCParMod
                                two_rdm_recv_2, en_pert_main, two_rdm_spawn, rdm_estimates)
             if (tOldRDMs) call FinaliseRDMs_old(rdms, one_rdms_old, rdm_estimates_old)
         end if
+        if(tAdaptiveShift) then
+           write(iout,*) "Prefactor of RDM correction due to adaptive shift", RDMCorrectionFactor
+        endif
 
         call PrintHighPops()
 
