@@ -4,7 +4,7 @@ module AnnihilationMod
 
     use SystemData, only: NEl, tHPHF
     use CalcData, only:   tTruncInitiator, OccupiedThresh, tSemiStochastic, &
-                          tTrialWavefunction, tKP_FCIQMC, tContTimeFCIMC, tInitsRDMRef, &
+                          tTrialWavefunction, tKP_FCIQMC, tContTimeFCIMC, tInitsRDM, &
                           tContTimeFull, InitiatorWalkNo, tau, tEN2, tEN2Init, &
                           tEN2Started, tEN2Truncated, tInitCoherentRule, t_truncate_spawns, &
                           n_truncate_spawns, t_prone_walkers, t_truncate_unocc, &
@@ -748,7 +748,7 @@ module AnnihilationMod
                  if (tOldRDMs) call check_fillRDM_DiDj_old(rdms, one_rdms_old, i, CurrentDets(:,PartInd), TempCurrentSign)
                  call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, &
                       CurrentDets(:,PartInd), TempCurrentSign)
-                 if(tInitsRDMRef) call check_fillRDM_DiDj(rdm_inits_defs, two_rdm_inits_spawn, &
+                 if(tInitsRDM) call check_fillRDM_DiDj(rdm_inits_defs, two_rdm_inits_spawn, &
                       inits_one_rdms, i, CurrentDets(:,PartInd), TempCurrentSign, .false.)
               end if
            else

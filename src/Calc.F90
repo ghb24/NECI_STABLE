@@ -146,6 +146,7 @@ contains
           tAAS_MatEle = .false. 
           tAAS_MatEle2 = .false.
           tInitsRDMRef = .false.
+          tInitsRDM = .false.
           NEquilSteps=0
           NShiftEquilSteps=1000
           TRhoElems=.false.
@@ -430,6 +431,7 @@ contains
 
           ! Giovannis option for RDMs without non-initiators
           tNonInitsForRDMs = .true.
+          tOutputInitsRDM = .false.
 
         end subroutine SetCalcDefaults
 
@@ -648,7 +650,8 @@ contains
 
              case("INITS-RDM")
                 ! only take into account initiators when calculating RDMs
-                tNonInitsForRDMs = .false.
+                tOutputInitsRDM = .true.
+                tInitsRDM = .true.
             case("VVDISALLOW")
                 TVVDISALLOW=.TRUE.
             case("MCDIRECTSUM")
@@ -1604,6 +1607,7 @@ contains
                 ! use the density matrix obtained from the initiator space to 
                 ! correct for the adaptive shift
                 tInitsRDMRef = .true.
+                tInitsRDM = .true.
             case("EXITWALKERS")
 !For FCIMC, this is an exit criterion based on the total number of walkers in the system.
                 call getiLong(iExitWalkers)

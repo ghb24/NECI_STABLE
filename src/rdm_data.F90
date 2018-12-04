@@ -297,6 +297,7 @@ module rdm_data
     type(rdm_list_t) :: two_rdm_recv_2
     ! Object to hold RDM estimates.
     type(rdm_estimates_t) :: rdm_estimates
+    type(rdm_estimates_t) :: inits_estimates
     ! Object which defines the states and FCIQMC simulations contributing
     ! to the various RDMs in the above arrays.
     type(rdm_definitions_t) :: rdm_definitions
