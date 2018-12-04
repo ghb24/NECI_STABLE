@@ -100,7 +100,7 @@ contains
         ! Ret: sltcnd_excit - The H matrix element
 
         integer, intent(in) :: nI(nel), IC
-        integer, intent(in), optional :: ex(2,maxExcit)
+        integer, intent(in), optional :: ex(2,ic)
         logical, intent(in), optional :: tParity
         character(*), parameter :: this_routine = 'sltcnd_excit'
 

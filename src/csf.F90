@@ -72,7 +72,7 @@ contains
     function get_csf_helement (nI, nJ, iLutI, iLutJ, notic, notex, &
                                nottParity, notHElGen) result (hel_ret)
         integer, intent(in) :: nI(nel), nJ(nel)
-        integer, intent(in) :: notic, notex(2,2)
+        integer, intent(in) :: notic, notex(2,notic)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: nottParity
         HElement_t(dp) :: hel_ret
