@@ -50,10 +50,24 @@ module LMat_mod
           implicit none
           integer, intent(in) :: idp,idq,idr,p,q,r
           integer, intent(in) :: sgn
+          integer(int64) :: ai,bj,ck
+          real(dp) :: fac
           
-          if(G1(p)%ms == G1(a)%ms .and. G1(q)%ms == G1(b)%ms .and. G1(r)%ms == G1(c)%ms) &
-               matel = matel + sgn * LMat(LMatInd(int(ida,int64),int(idb,int64),&
-               int(idc,int64),int(idp,int64),int(idq,int64),int(idr,int64)))
+          if(G1(p)%ms == G1(a)%ms .and. G1(q)%ms == G1(b)%ms .and. G1(r)%ms == G1(c)%ms) then
+             ai = fuseIndex(int(ida,int64),int(idp,int64))
+             bj = fuseIndex(int(idb,int64),int(idq,int64))
+             ck = fuseIndex(int(idc,int64),int(idr,int64))
+             ! get the number of permutations, i.e. the number of distinct index pairs
+             ! the prefactor is the number of permutations/2
+             if(ai.ne.bj .and. bj.ne.ck) then
+                ! three different index pairs
+                fac = 3.0_dp
+             else 
+                ! two different index pairs (we cannot have all index pairs equal)
+                fac = 1.5_dp
+             endif
+             matel = matel + sgn * fac * LMat(LMatIndFused(ai,bj,ck))
+          endif
         end subroutine addMatelContribution
     end function get_lmat_el
 
@@ -71,28 +85,34 @@ module LMat_mod
       bj = fuseIndex(b,j)
       ck = fuseIndex(c,k)
 
+      index = LMatIndFused(ai,bj,ck)
+      
+    end function LMatInd
+
+    function LMatIndFused(ai,bj,ck) result(index)
+      integer(int64) :: ai,bj,ck
+      integer(int64) :: index
+
       ! sort the indices
       if(ai > bj) call intswap(ai,bj)
       if(bj > ck) call intswap(bj,ck)
       if(ai > bj) call intswap(ai,bj)
 
       index = ai + bj*(bj-1)/2 + ck*(ck-1)*(ck+1)/6
-
-      contains
-
-        function fuseIndex(x,y) result(xy)
-          implicit none
-          integer(int64), intent(in) :: x,y
-          integer(int64) :: xy
-          
-          if(x < y) then
-             xy = x + y*(y-1)/2
-          else
-             xy = y + x*(x-1)/2
-          endif
-        end function fuseIndex
       
-    end function LMatInd
+    end function LMatIndFused
+
+    function fuseIndex(x,y) result(xy)
+      implicit none
+      integer(int64), intent(in) :: x,y
+      integer(int64) :: xy
+
+      if(x < y) then
+         xy = x + y*(y-1)/2
+      else
+         xy = y + x*(x-1)/2
+      endif
+    end function fuseIndex
 
     function oldLMatInd(a,b,c,i,j,k) result(index)
       implicit none
