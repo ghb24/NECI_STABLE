@@ -548,6 +548,10 @@ module FciMCParMod
 
                   ! rezero the count of how many iterations we have been averaging over
                   ThisRDMIter = 0.0_dp
+                  if(tOutputInitsRDM) then
+                     call calc_2rdm_estimates_wrapper(rdm_inits_defs, inits_estimates, &
+                          two_rdm_inits, en_pert_main)
+                  endif
                   if(tInitsRDMRef) then                      
                      ! add the initiator-only rdm of this cycle to the main rdm (rescaled
                      ! with the correction factor)
@@ -556,10 +560,6 @@ module FciMCParMod
                      call clear_rdm_list_t(two_rdm_inits)
                   endif
                   call calc_2rdm_estimates_wrapper(rdm_definitions, rdm_estimates, two_rdm_main, en_pert_main)
-                  if(tOutputInitsRDM) then
-                     call calc_2rdm_estimates_wrapper(rdm_inits_defs, inits_estimates, &
-                          two_rdm_inits, en_pert_main)
-                  endif
                   if (tOldRDMs) then
                      do irdm = 1, rdm_definitions%nrdms
                         call rdm_output_wrapper_old(rdms(irdm), one_rdms_old(irdm), irdm, rdm_estimates_old(irdm), .false.)
