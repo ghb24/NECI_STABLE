@@ -756,8 +756,8 @@ contains
              
              IF(mod(i,CalcDetPrint).eq.0) THEN
                  !Write out statistics
-                 call MPIReduce(Accept,MPI_SUM,AcceptAll)
-                 call MPIReduce(ExcitBin(0:NEl),MPI_SUM,ExcitBinAll(0:NEl))
+                 call MPIAllReduce(Accept,MPI_SUM,AcceptAll)
+                 call MPIAllReduce(ExcitBin(0:NEl),MPI_SUM,ExcitBinAll(0:NEl))
 
                  Frac=REAL(AcceptAll,dp)/REAL(i*nProcessors,dp)
                  do j=0,NEl
@@ -785,8 +785,8 @@ contains
 
          enddo
 
-         call MPIReduce(Accept,MPI_SUM,AcceptAll)
-         call MPIReduce(ExcitBin(0:NEl),MPI_SUM,ExcitBinAll(0:NEl))
+         call MPIAllReduce(Accept,MPI_SUM,AcceptAll)
+         call MPIAllReduce(ExcitBin(0:NEl),MPI_SUM,ExcitBinAll(0:NEl))
 
          Frac=REAL(AcceptAll,dp)/REAL(i*nProcessors,dp)
          do j=0,NEl
