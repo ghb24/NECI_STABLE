@@ -1040,9 +1040,8 @@ module FciMCParMod
                     if(tInitsRDM .and. all_runs_are_initiator(CurrentDets(:,j))) &
                          call fill_rdm_diag_currdet(two_rdm_inits_spawn, inits_one_rdms, &
                          CurrentDets(:,j), DetCurr, walkExcitLevel_toHF, av_sign, iter_occ, &
-                         tCoreDet)
-
-                         call fill_rdm_diag_currdet(two_rdm_spawn, one_rdms, CurrentDets(:,j), &
+                         tCoreDet)                    
+                    call fill_rdm_diag_currdet(two_rdm_spawn, one_rdms, CurrentDets(:,j), &
                          DetCurr, walkExcitLevel_toHF, av_sign, iter_occ, tCoreDet)
                 endif
             endif
