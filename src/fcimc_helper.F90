@@ -569,7 +569,7 @@ contains
         endif ! tLogEXLEVELStats
 
         ! Sum in energy contribution
-        do run=1, inum_runs
+        do run=1, inum_runs           
            if (iter > NEquilSteps) &
                 SumENum(run) = SumENum(run) + (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) &
                 / dProbFin
@@ -578,7 +578,7 @@ contains
            ENumCycAbs(run) = ENumCycAbs(run) + abs(HoffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) &
                 / dProbFin
            if(test_flag(ilut, get_initiator_flag_by_run(run))) then
-              InitsENumCyc(run) = ENumCyc(run) + (HOffDiag(run) &
+              InitsENumCyc(run) = InitsENumCyc(run) + (HOffDiag(run) &
                    * ARR_RE_OR_CPLX(RealwSign,run)) / dProbFin
            endif
         end do
