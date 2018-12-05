@@ -22,7 +22,7 @@ module AnnihilationMod
     use bit_rep_data
     use bit_reps, only: decode_bit_det, &
                         encode_sign, test_flag, set_flag, &
-                        flag_initiator, encode_part_sign, &
+                        flag_initiator, encode_part_sign, all_runs_are_initiator, &
                         extract_part_sign, extract_bit_rep, &
                         nullify_ilut_part, clr_flag, get_num_spawns,&
                         encode_flags, bit_parent_zero, get_initiator_flag, get_initiator_flag_by_run
@@ -746,10 +746,10 @@ module AnnihilationMod
                  ! next iter. This is fine as it's from the other population,
                  ! and the Di and Dj signs are already strictly uncorrelated.
                  if (tOldRDMs) call check_fillRDM_DiDj_old(rdms, one_rdms_old, i, CurrentDets(:,PartInd), TempCurrentSign)
-                 call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, &
-                      CurrentDets(:,PartInd), TempCurrentSign)
                  if(tInitsRDM) call check_fillRDM_DiDj(rdm_inits_defs, two_rdm_inits_spawn, &
                       inits_one_rdms, i, CurrentDets(:,PartInd), TempCurrentSign, .false.)
+                 call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, &
+                      CurrentDets(:,PartInd), TempCurrentSign)
               end if
            else
 

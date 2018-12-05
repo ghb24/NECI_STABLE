@@ -560,6 +560,7 @@ module FciMCParMod
                      call clear_rdm_list_t(two_rdm_inits)
                   endif
                   call calc_2rdm_estimates_wrapper(rdm_definitions, rdm_estimates, two_rdm_main, en_pert_main)
+
                   if (tOldRDMs) then
                      do irdm = 1, rdm_definitions%nrdms
                         call rdm_output_wrapper_old(rdms(irdm), one_rdms_old(irdm), irdm, rdm_estimates_old(irdm), .false.)
@@ -1036,12 +1037,13 @@ module FciMCParMod
 
                     av_sign = get_av_sgn_tot(j)
                     iter_occ = get_iter_occ_tot(j)
-                    call fill_rdm_diag_currdet(two_rdm_spawn, one_rdms, CurrentDets(:,j), DetCurr, &
-                                                walkExcitLevel_toHF, av_sign, iter_occ, tCoreDet)
                     if(tInitsRDM .and. all_runs_are_initiator(CurrentDets(:,j))) &
                          call fill_rdm_diag_currdet(two_rdm_inits_spawn, inits_one_rdms, &
                          CurrentDets(:,j), DetCurr, walkExcitLevel_toHF, av_sign, iter_occ, &
                          tCoreDet)
+
+                         call fill_rdm_diag_currdet(two_rdm_spawn, one_rdms, CurrentDets(:,j), &
+                         DetCurr, walkExcitLevel_toHF, av_sign, iter_occ, tCoreDet)
                 endif
             endif
 
@@ -1383,10 +1385,10 @@ module FciMCParMod
 
         if (tFillingStochRDMonFly) then
             if (tOldRDMs) call fill_rdm_diag_wrapper_old(rdms, one_rdms_old, CurrentDets, int(TotWalkers, sizeof_int))
-            call fill_rdm_diag_wrapper(rdm_definitions, two_rdm_spawn, one_rdms, CurrentDets, int(TotWalkers, sizeof_int))
             ! if we use the initiator-only rdms as gamma_0, get them in their own entity
             if(tInitsRDM) call fill_rdm_diag_wrapper(rdm_inits_defs, two_rdm_inits_spawn, &
                  inits_one_rdms, CurrentDets, int(TotWalkers, sizeof_int), .false.)
+            call fill_rdm_diag_wrapper(rdm_definitions, two_rdm_spawn, one_rdms, CurrentDets, int(TotWalkers, sizeof_int))
         end if
 
         if(tTrialWavefunction .and. tTrialShift)then
@@ -1411,6 +1413,7 @@ module FciMCParMod
             two_rdm_recv%nelements = 0
             call communicate_rdm_spawn_t(two_rdm_spawn, two_rdm_recv)
             call add_rdm_1_to_rdm_2(two_rdm_recv, two_rdm_main)
+            two_rdm_recv%nelements = 0
             if(tInitsRDM) then
                call communicate_rdm_spawn_t(two_rdm_inits_spawn, two_rdm_recv)
                call add_rdm_1_to_rdm_2(two_rdm_recv, two_rdm_inits)

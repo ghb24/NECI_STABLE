@@ -14,7 +14,7 @@ module fcimc_helper
                         flag_trial, flag_connected, flag_deterministic, &
                         extract_part_sign, encode_part_sign, decode_bit_det, &
                         get_initiator_flag, get_initiator_flag_by_run, &
-                        log_spawn, increase_spawn_counter
+                        log_spawn, increase_spawn_counter, all_runs_are_initiator
     use bit_rep_data, only: flag_large_matel
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
                          DetBitEQ, count_open_orbs, EncodeBitDet, &
@@ -36,7 +36,7 @@ module fcimc_helper
     use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, tReplicaCoherentInits, &
                         tAddToInitiator, InitiatorWalkNo, tAvReps, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
-                        tRealCoeffByExcitLevel, tGlobalInitFlag, &
+                        tRealCoeffByExcitLevel, tGlobalInitFlag, tInitsRDM, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
                         MaxWalkerBloom, tEN2, tEN2Started, spawnMatelThresh, &
                         NMCyc, iSampleRDMIters, ErrThresh, tSTDInits, &
@@ -1920,6 +1920,7 @@ contains
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
         use LoggingData, only: tOldRDMs
         use rdm_data, only: one_rdms, two_rdm_spawn, rdm_definitions
+        use rdm_data, only: inits_one_rdms, two_rdm_inits_spawn
         use rdm_data_old, only: rdms, one_rdms_old
 
         integer, intent(in) :: DetCurr(nel) 
@@ -2006,6 +2007,9 @@ contains
                 av_sign = get_av_sgn_tot(DetPosition)
                 iter_occ = get_iter_occ_tot(DetPosition)
                 call det_removed_fill_diag_rdm(two_rdm_spawn, one_rdms, CurrentDets(:,DetPosition), av_sign, iter_occ)
+                if(tInitsRDM .and. all_runs_are_initiator(CurrentDets(:,DetPosition))) &
+                     call det_removed_fill_diag_rdm(two_rdm_inits_spawn, inits_one_rdms, &
+                     CurrentDets(:,DetPosition), av_sign, iter_occ)
                 ! Set the average sign and occupation iteration to zero, so
                 ! that the same contribution will not be added in in
                 ! CalcHashTableStats, if this determinant is not overwritten

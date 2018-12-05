@@ -652,6 +652,8 @@ contains
                 ! only take into account initiators when calculating RDMs
                 tOutputInitsRDM = .true.
                 tInitsRDM = .true.
+             case("STRICT-INITS-RDM")
+                tNonInitsForRDMs = .false.
             case("VVDISALLOW")
                 TVVDISALLOW=.TRUE.
             case("MCDIRECTSUM")
