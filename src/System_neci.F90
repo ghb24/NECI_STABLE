@@ -15,6 +15,7 @@ MODULE System
     use k_space_hubbard, only: setup_symmetry_table
     use breathing_Hub, only: setupMomIndexTable, setupBreathingCont
     use ParallelHelper, only: iprocindex, root
+    use LMat_mod, only: tDebugLMat
 
     IMPLICIT NONE
 
@@ -190,6 +191,7 @@ MODULE System
       tGiovannisBrokenInit = .false.
       ! by default, excitation generation already creates matrix elements
       tGenMatHEl = .true.
+      tDebugLMat = .false.
 
 #ifdef __PROG_NUMRUNS
       inum_runs = 1
@@ -540,6 +542,10 @@ system: do
                   ! this uses a uniform excitation generator, switch off matrix
                   ! element computation for HPHF
                   tGenMatHEl = .false.
+               case("DEBUG")
+                  t_mol_3_body = .true.
+                  tGenMatHEl = .false.
+                  tDebugLMat = .true.
                case default
                   t_mol_3_body = .false.
                end select

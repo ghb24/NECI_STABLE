@@ -14,6 +14,7 @@ module LMat_mod
   integer, allocatable :: n2Ind(:), n3Ind(:)
   integer(MPIarg) :: LMatWin
   integer(int64) :: nBI
+  logical :: tDebugLMat
 
   contains
 
@@ -23,7 +24,7 @@ module LMat_mod
       ! Gets an entry of the 3-body tensor L:
       ! L_{abc}^{ijk} - triple excitation from abc to ijk
       implicit none
-      integer, intent(in) :: a,b,c
+      integer :: a,b,c
       integer, intent(in) :: i,j,k
       HElement_t(dp) :: matel
       integer(int64) :: ida, idb, idc, idi, idj, idk
@@ -38,14 +39,51 @@ module LMat_mod
 
       matel = 0
       ! only add the contribution if the spins match
-      call addMatelContribution(i,j,k,idi,idj,idk,1)
-      call addMatelContribution(j,k,i,idj,idk,idi,1)
-      call addMatelContribution(k,i,j,idk,idi,idj,1)
-      call addMatelContribution(j,i,k,idj,idi,idk,-1)
-      call addMatelContribution(i,k,j,idi,idk,idj,-1)
-      call addMatelContribution(k,j,i,idk,idj,idi,-1)
-
+      if(tDebugLMat) then
+         call addAllMatelConts(a,b,c,1)
+         call addAllMatelConts(b,c,a,1)
+         call addAllMatelConts(c,a,b,1)
+         call addAllMatelConts(b,a,c,-1)
+         call addAllMatelConts(a,c,b,-1)
+         call addAllMatelConts(c,b,a,-1)
+      else
+         call addMatelContribution(i,j,k,idi,idj,idk,1)
+         call addMatelContribution(j,k,i,idj,idk,idi,1)
+         call addMatelContribution(k,i,j,idk,idi,idj,1)
+         call addMatelContribution(j,i,k,idj,idi,idk,-1)
+         call addMatelContribution(i,k,j,idi,idk,idj,-1)
+         call addMatelContribution(k,j,i,idk,idj,idi,-1)
+      endif
       contains 
+
+        subroutine addAllMatelConts(aI,bI,cI,sgn)
+          implicit none
+          integer, intent(in) :: aI,bI,cI
+          integer, intent(in) :: sgn
+          integer :: ab, bb, cb
+          
+          ab = a
+          bb = b
+          cb = c
+          
+          a = aI
+          b = bI
+          c = cI
+          
+          ida = gtID(a)
+          idb = gtID(b)
+          idc = gtID(c)
+          call addMatelContribution(i,j,k,idi,idj,idk,sgn)
+          call addMatelContribution(j,k,i,idj,idk,idi,sgn)
+          call addMatelContribution(k,i,j,idk,idi,idj,sgn)
+          call addMatelContribution(j,i,k,idj,idi,idk,-sgn)
+          call addMatelContribution(i,k,j,idi,idk,idj,-sgn)
+          call addMatelContribution(k,j,i,idk,idj,idi,-sgn)    
+          c = cb
+          a = ab
+          b = bb
+        end subroutine addAllMatelConts
+
         subroutine addMatelContribution(p,q,r,idp,idq,idr,sgn)
           implicit none
           integer, intent(in) :: idp,idq,idr,p,q,r
@@ -69,12 +107,15 @@ module LMat_mod
 
       integer(int64) :: ai,bj,ck
 
+      if(tDebugLMat) then
+         index = k + nBI*j + nBI**2*i + nBI**3*c + nBI**4*b + nBI**5*a
+      else
       ai = fuseIndex(a,i)
       bj = fuseIndex(b,j)
       ck = fuseIndex(c,k)
 
       index = LMatIndFused(ai,bj,ck)
-      
+   endif
     end function LMatInd
 
     function LMatIndFused(ai,bj,ck) result(index)

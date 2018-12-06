@@ -90,6 +90,7 @@ program test_molecular_tc
     subroutine run_lmat_test()
       implicit none
 
+      tDebugLMat = .true.
       call readLMat()
     end subroutine run_lmat_test
    
