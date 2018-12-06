@@ -267,6 +267,10 @@ module LMat_mod
           integer(int64) :: a,b,c,i,j,k
           real(dp) :: fac
 
+          if(tDebugLMat) then
+             fac = 1.0_dp
+             return
+          end if
           if(a.eq.b .and. i.eq.j) then 
              ! two index pairs match
              fac = 3.0/2.0_dp
