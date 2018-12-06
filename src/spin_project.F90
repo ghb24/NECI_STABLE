@@ -366,7 +366,7 @@ contains
 
         integer, intent(in) :: nI(nel), nJ(nel)
         integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
-        integer, intent(in) :: ic, ex(2,maxExcit)
+        integer, intent(in) :: ic, ex(2,ic)
         logical, intent(in) :: tParity
         HElement_t(dp), intent(in) :: HElGen
         HElement_t(dp) :: hel
