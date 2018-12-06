@@ -604,16 +604,16 @@ MODULE FciMCData
       INTEGER(TagIntType) :: SpawnInfoVecTag=0,SpawnInfoVec2Tag=0
      
       !Size of SpawnInfo array elements
-      integer, parameter :: SpawnInfoWidth = 5
-      !Where is the spawn's parent index is stored inside SpawnInfo
-      integer, parameter :: SpawnParentIdx = 0
-      !Where is the spawn's run is stored inside SpawnInfo
-      integer, parameter :: SpawnRun = 1
-      !Where is the spawn acceptance status is stored inside SpawnInfo
-      integer, parameter :: SpawnAccepted = 2
-      !Where is the spawn MatrixElement status is stored inside SpawnInfo
-      integer, parameter :: SpawnMatEle = 3
-      !Where is the spawn MatrixElement status is stored inside SpawnInfo
-      integer, parameter :: SpawnMatEle2 = 4
+      integer :: SpawnInfoWidth = 5
+      !Where is the spawn's parent index stored inside SpawnInfo
+      integer, parameter :: SpawnParentIdx = 1
+      !Where is the spawn's run stored inside SpawnInfo
+      integer, parameter :: SpawnRun = 2
+      !Where is the spawn acceptance status stored inside SpawnInfo
+      integer, parameter :: SpawnAccepted = 3
+      !Where is the spawn weight stored inside SpawnInfo
+      integer, parameter :: SpawnWeight = 4
+      !Where is the reverse spawn weight stored inside SpawnInfo
+      integer, parameter :: SpawnWeightRev = 5
 
 end module FciMCData

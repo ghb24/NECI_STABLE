@@ -45,7 +45,7 @@ module fcimc_helper
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule, &
                         initMaxSenior, tSeniorityInits, tLogAverageSpawns, &
                         spawnSgnThresh, minInitSpawns, tTimedDeaths, &
-                        tAutoAdaptiveShift, tAAS_MatEle2
+                        tAutoAdaptiveShift, tAAS_MatEle, tAAS_MatEle2, tAAS_Reverse
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
          tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
@@ -128,7 +128,7 @@ contains
         character(*), parameter :: this_routine = 'create_particle'
 
         logical :: parent_init
-        real(dp)  :: matel2
+        real(dp)  :: weight, weight_rev
 
         !Ensure no cross spawning between runs - run of child same as run of
         !parent
@@ -184,11 +184,26 @@ contains
         if(tAutoAdaptiveShift)then
             SpawnInfo(SpawnParentIdx, ValidSpawnedList(proc)) = ParentPos
             SpawnInfo(SpawnRun, ValidSpawnedList(proc)) = run
-            !Enocde matel, which is real, as an integer
-            SpawnInfo(SpawnMatEle, ValidSpawnedList(proc)) = transfer(matel, SpawnInfo(SpawnMatEle, ValidSpawnedList(proc)))
-            if(tAAS_MatEle2)then
-                matel2 = abs((get_diagonal_matel(nJ, ilutJ)-Hii) - DiagSft(run))
-                SpawnInfo(SpawnMatEle2, ValidSpawnedList(proc)) = transfer(matel2, SpawnInfo(SpawnMatEle2, ValidSpawnedList(proc)))
+            if(tAAS_MatEle)then
+                weight = abs(matel)
+            else if(tAAS_MatEle2) then
+                weight = abs(matel)/abs((get_diagonal_matel(nJ, ilutJ)-Hii) - DiagSft(run))
+            else
+                weight = 1.0_dp
+            end if
+            !Enocde weight, which is real, as an integer
+            SpawnInfo(SpawnWeight, ValidSpawnedList(proc)) = transfer(weight, SpawnInfo(SpawnWeight, ValidSpawnedList(proc)))
+
+            if(tAAS_Reverse)then
+                if(tAAS_MatEle)then
+                    weight_rev = abs(matel)
+                else if(tAAS_MatEle2) then
+                    weight_rev = abs(matel)/abs(det_diagH(ParentPos) - DiagSft(run))
+                else
+                    weight_rev = 1.0_dp
+                end if
+                !Enocde weight, which is real, as an integer
+                SpawnInfo(SpawnWeightRev, ValidSpawnedList(proc)) = transfer(weight_rev, SpawnInfo(SpawnWeightRev, ValidSpawnedList(proc)))
             end if
         end if
 

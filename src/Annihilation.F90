@@ -10,7 +10,7 @@ module AnnihilationMod
                           n_truncate_spawns, t_prone_walkers, t_truncate_unocc, &
                           tSpawnSeniorityBased, numMaxExLvlsSet, maxKeepExLvl, &
                           tLogAverageSpawns, tTimedDeaths, tAutoAdaptiveShift, tSkipRef, &
-                          tAAS_MatEle, tAAS_MatEle2
+                          tAAS_MatEle, tAAS_MatEle2, tAAS_Reverse
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -67,6 +67,9 @@ module AnnihilationMod
 
         if(tAutoAdaptiveShift)then
             call SendSpawnInfo(tSingleProc)
+            PointTemp => SpawnInfo2
+            SpawnInfo2 => SpawnInfo
+            SpawnInfo => PointTemp
         end if
 
         Compress_time%timer_name='Compression interface'
@@ -208,6 +211,8 @@ module AnnihilationMod
         integer(n_int) :: cum_det(0:nifbcast), temp_det(0:nifbcast)
         character(len=*), parameter :: t_r = 'CompressSpawnedList'
         type(timer), save :: Sort_time
+        real(dp) :: weight_rev, weights_rev(inum_runs)
+        integer :: run
 
         ! We want to sort the list of newly spawned particles, in order for
         ! quicker binary searching later on. They should remain sorted after
@@ -218,7 +223,12 @@ module AnnihilationMod
         Sort_time%timer_name='Compress Sort interface'
         call set_timer(Sort_time, 20)
 
-        call sort(SpawnedParts(0:NIfBCast,1:ValidSpawned), ilut_lt, ilut_gt)
+        if(tAutoAdaptiveShift .and. tAAS_Reverse)then
+            call sort(SpawnedParts(:,1:ValidSpawned), SpawnInfo(:,1:ValidSpawned),ilut_lt, ilut_gt)
+        else
+            call sort(SpawnedParts(0:NIfBCast,1:ValidSpawned), ilut_lt, ilut_gt)
+        endif
+
 
         call halt_timer(Sort_time)
 
@@ -275,6 +285,11 @@ module AnnihilationMod
 
                 ! Transfer all info to the other array.
                 SpawnedParts2(:, VecInd) = SpawnedParts(:, BeginningBlockDet)
+                if(tAutoAdaptiveShift .and. tAAS_Reverse)then
+                    SpawnInfo2(:, VecInd) = 0
+                    run = SpawnInfo(SpawnRun, BeginningBlockDet)
+                    SpawnInfo2(run, VecInd) = SpawnInfo(SpawnWeightRev, BeginningBlockDet)
+                end if
 
                 if (tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) then
                     ! SpawnedParts contains the determinants spawned on (Dj),
@@ -358,6 +373,9 @@ module AnnihilationMod
                 Spawned_Parents_Index(2,VecInd) = 0
             end if
 
+            if(tAutoAdaptiveShift .and. tAAS_Reverse)then
+                weights_rev(:) = 0.0_dp
+            end if
 
             do i = BeginningBlockDet, EndBlockDet
                ! if logged, accumulate the number of spawn events
@@ -374,7 +392,12 @@ module AnnihilationMod
                     end if
                     call FindResidualParticle (cum_det, SpawnedParts(:,i), part_type, iter_data, &
                                                     VecInd, Parent_Array_Ind)
-                end do
+               end do
+               if(tAutoAdaptiveShift .and. tAAS_Reverse)then
+                   weight_rev = transfer(SpawnInfo(SpawnWeightRev, i), weight_rev)
+                   run = SpawnInfo(SpawnRun, i)
+                   weights_rev(run) = weights_rev(run) + weight_rev
+               end if
 
             end do ! Loop over particle type.
 
@@ -394,6 +417,9 @@ module AnnihilationMod
                 ! biased sign of Ci slightly wrong.
 
                 SpawnedParts2(0:NIfTot,VecInd) = cum_det(0:NIfTot)
+                do run = 1, inum_runs
+                   SpawnInfo2(run, VecInd)= transfer(weights_rev(run),SpawnInfo2(run, VecInd))
+                end do
                 VecInd = VecInd + 1
                 DetsMerged = DetsMerged + EndBlockDet - BeginningBlockDet
 
@@ -433,6 +459,11 @@ module AnnihilationMod
         SpawnedParts2 => SpawnedParts
         SpawnedParts => PointTemp
 
+        if(tAutoAdaptiveShift)then
+            PointTemp => SpawnInfo2
+            SpawnInfo2 => SpawnInfo
+            SpawnInfo => PointTemp
+        end if
     end subroutine CompressSpawnedList
 
     subroutine HistAnnihilEvent(iLut, Sign1, Sign2, part_type)
@@ -589,7 +620,7 @@ module AnnihilationMod
         integer :: PartInd, i, j, PartIndex, run
         real(dp), dimension(lenof_sign) :: CurrentSign, SpawnedSign, SignTemp
         real(dp), dimension(lenof_sign) :: TempCurrentSign, SignProd
-        real(dp) :: ScaledOccupiedThresh, scFVal, diagH
+        real(dp) :: ScaledOccupiedThresh, scFVal, diagH, weight_rev
         integer :: ExcitLevel, DetHash, nJ(nel)
         logical :: tSuccess, tSuc, tDetermState
         logical :: abort(lenof_sign)
@@ -751,6 +782,14 @@ module AnnihilationMod
                  if(tInitsRDMRef) call check_fillRDM_DiDj(rdm_inits_defs, two_rdm_inits_spawn, &
                       inits_one_rdms, i, CurrentDets(:,PartInd), TempCurrentSign, .false.)
               end if
+
+              if(tAutoAdaptiveShift .and. tAAS_Reverse)then
+                do run = 1, inum_runs
+                 weight_rev = transfer(SpawnInfo(run, i), weight_rev)
+                 call update_tot_spawns(PartInd, run, 0.5 * weight_rev)
+                 call update_acc_spawns(PartInd, run, 0.5 * weight_rev)
+                end do
+              end if
            else
 
 
@@ -821,6 +860,13 @@ module AnnihilationMod
                           if(.not. tEScaleWalkers) diagH = get_diagonal_matel(nJ, SpawnedParts(:,i))
                           call AddNewHashDet(TotWalkersNew, SpawnedParts(0:NIfTot,i), DetHash, nJ, &
                                diagH, PartInd)
+                          if(tAutoAdaptiveShift .and. tAAS_Reverse)then
+                            do run = 1, inum_runs
+                             weight_rev = transfer(SpawnInfo(run, i), weight_rev)
+                             call update_tot_spawns(PartInd, run, 0.5 * weight_rev)
+                             call update_acc_spawns(PartInd, run, 0.5 * weight_rev)
+                            end do
+                          end if
                        end if
                     end if
 
@@ -861,6 +907,13 @@ module AnnihilationMod
                            if(.not. tEScaleWalkers) diagH = get_diagonal_matel(nJ, SpawnedParts(:,i))
                             call AddNewHashDet(TotWalkersNew, SpawnedParts(:,i), DetHash, nJ, &
                                  diagH, PartInd)
+                          if(tAutoAdaptiveShift .and. tAAS_Reverse)then
+                            do run = 1, inum_runs
+                             weight_rev = transfer(SpawnInfo(run, i), weight_rev)
+                             call update_tot_spawns(PartInd, run, 0.5 * weight_rev)
+                             call update_acc_spawns(PartInd, run, 0.5 * weight_rev)
+                            end do
+                          end if
                         end if
                     end if
                 end if
@@ -1129,7 +1182,7 @@ module AnnihilationMod
         integer :: j, run, ParentIdx, proc
         integer :: PartInd, DetHash, nI(nel)
         real(dp) :: CurrentSign(lenof_sign)
-        real(dp) :: val, val2
+        real(dp) :: weight
         logical :: tUnocc, tSuccess, tDetermState, tToEmptyDet
 
 
@@ -1224,29 +1277,30 @@ module AnnihilationMod
         !we send the info back into its original location
         call MPIAlltoAllv(SpawnInfo2,recvcounts,recvdisps,SpawnInfo,sendcounts,disps,error)
 
-        !write(6,*), "++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
         do proc = 0, nProcessors-1
             do i=InitialSpawnedSlots(proc), ValidSpawnedList(proc)-1
                 ParentIdx = SpawnInfo(SpawnParentIdx,i)
                 run = SpawnInfo(SpawnRun,i)
-                if(tAAS_MatEle)then
-                    val = transfer(SpawnInfo(SpawnMatEle, i), val) !MatEle is real encoded in an integer. Decoded it!
-                    call update_tot_spawns(ParentIdx, run, val)
-                    val = SpawnInfo(SpawnAccepted,i) * val 
-                elseif(tAAS_MatEle2)then
-                    val = transfer(SpawnInfo(SpawnMatEle, i), val)
-                    val2 = transfer(SpawnInfo(SpawnMatEle2, i), val2)
-                    call update_tot_spawns(ParentIdx, run, val/val2)
-                    val = SpawnInfo(SpawnAccepted,i) * (val/val2)
+                weight = transfer(SpawnInfo(SpawnWeight, i), weight) !weight is a real encoded in an integer. Decoded it!
+                if(tAAS_Reverse)then
+                    if(SpawnInfo(SpawnAccepted,i)==1)then
+                        !We add only half the weight for accepted spawns, 
+                        !because we expect the reverse spawning to compensate for the other half (on average)
+                        call update_tot_spawns(ParentIdx, run, 0.5*weight)
+                        call update_acc_spawns(ParentIdx, run, 0.5*weight)
+                    else
+                        call update_tot_spawns(ParentIdx, run, weight)
+                    end if
                 else
-                    call update_tot_spawns(ParentIdx, run, 1.0_dp)
-                    val = SpawnInfo(SpawnAccepted,i) 
-                endif
-                call update_acc_spawns(ParentIdx, run, val)
-                !write(6,*), ParentIdx, run, get_tot_spawns(ParentIdx, run), get_acc_spawns(ParentIdx, run) 
+                    if(SpawnInfo(SpawnAccepted,i)==1)then
+                        call update_tot_spawns(ParentIdx, run, weight)
+                        call update_acc_spawns(ParentIdx, run, weight)
+                    else
+                        call update_tot_spawns(ParentIdx, run, weight)
+                    end if
+                end if
             end do
         end do
-        !write(6,*), "---------------------------------------------------------"
     end subroutine
 
 end module AnnihilationMod

@@ -37,7 +37,7 @@ module fcimc_initialisation
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, tRCCheck, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
-                        maxKeepExLvl, tAutoAdaptiveShift, AdaptiveShiftCut
+                        maxKeepExLvl, tAutoAdaptiveShift, AdaptiveShiftCut, tAAS_Reverse
     use adi_data, only: tReferenceChanged, tAdiActive, &
          nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
@@ -1427,8 +1427,11 @@ contains
             MemoryAlloc=MemoryAlloc+(NIfTot+1)*MaxSpawned*2*size_n_int
 
             if(tAutoAdaptiveShift)then
-                allocate(SpawnInfoVec(0:SpawnInfoWidth-1, MaxSpawned), &
-                         SpawnInfoVec2(0:SpawnInfoWidth-1, MaxSpawned), stat=ierr)
+                if(tAAS_Reverse.and. SpawnInfoWidth<inum_runs)then
+                    SpawnInfoWidth = inum_runs
+                end if
+                allocate(SpawnInfoVec(1:SpawnInfoWidth, MaxSpawned), &
+                         SpawnInfoVec2(1:SpawnInfoWidth, MaxSpawned), stat=ierr)
                 log_alloc(SpawnInfoVec, SpawnInfoVecTag, ierr)
                 log_alloc(SpawnInfoVec2, SpawnInfoVec2Tag, ierr)
                 SpawnInfoVec(:,:)=0
