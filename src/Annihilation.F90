@@ -416,10 +416,12 @@ module AnnihilationMod
                 ! the sign here.  Also getting rid of them here would make the
                 ! biased sign of Ci slightly wrong.
 
-                SpawnedParts2(0:NIfTot,VecInd) = cum_det(0:NIfTot)
-                do run = 1, inum_runs
-                   SpawnInfo2(run, VecInd)= transfer(weights_rev(run),SpawnInfo2(run, VecInd))
-                end do
+               SpawnedParts2(0:NIfTot,VecInd) = cum_det(0:NIfTot)
+               if(tAutoAdaptiveShift) then
+                  do run = 1, inum_runs
+                     SpawnInfo2(run, VecInd)= transfer(weights_rev(run),SpawnInfo2(run, VecInd))
+                  end do
+               endif
                 VecInd = VecInd + 1
                 DetsMerged = DetsMerged + EndBlockDet - BeginningBlockDet
 
