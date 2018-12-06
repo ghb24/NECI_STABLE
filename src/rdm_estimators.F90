@@ -11,7 +11,8 @@ module rdm_estimators
 
 contains
 
-    subroutine init_rdm_estimates_t(est, nrdms_standard, nrdms_transition, open_output_file)
+    subroutine init_rdm_estimates_t(est, nrdms_standard, nrdms_transition, open_output_file, &
+         filename)
 
         ! Initialise an rdm_estimates_t object. Allocate arrays to be large
         ! enough to hold estimates for nrdms_srandard+nrdms_transition RDMs.
@@ -28,8 +29,10 @@ contains
         type(rdm_estimates_t), intent(out) :: est
         integer, intent(in) :: nrdms_standard, nrdms_transition
         logical, intent(in) :: open_output_file
+        character(*), intent(in), optional :: filename
 
         integer :: nrdms, ierr
+        character(255) :: rdm_filename
 
         nrdms = nrdms_standard + nrdms_transition
 
@@ -86,7 +89,13 @@ contains
         ! If appropriate, create a new RDMEstimates file.
         if (iProcIndex == 0 .and. open_output_file) then
             est%write_unit = get_free_unit()
-            call write_rdm_est_file_header(est%write_unit, nrdms_standard, nrdms_transition)
+            if(present(filename)) then
+               rdm_filename = filename
+            else
+               rdm_filename = "RDMEstimates"
+            endif
+            call write_rdm_est_file_header(est%write_unit, nrdms_standard, nrdms_transition, &
+                 rdm_filename)
         else
             ! If we don't have a file open with this unit, set it to something
             ! unique, so we can easily check, and which will cause an obvious
@@ -138,7 +147,8 @@ contains
 
     end subroutine dealloc_rdm_estimates_t
 
-    subroutine write_rdm_est_file_header(write_unit, nrdms_standard, nrdms_transition)
+    subroutine write_rdm_est_file_header(write_unit, nrdms_standard, nrdms_transition, &
+         filename)
 
         ! Open a new RDMEstimates file (overwriting any existing file), and
         ! write a header to it, appropriate for when we are sampling nrdms RDMs.
@@ -147,10 +157,11 @@ contains
         use LoggingData, only: tCalcPropEst, iNumPropToEst
 
         integer, intent(in) :: write_unit, nrdms_standard, nrdms_transition
+        character(255), intent(in) :: filename
 
         integer :: irdm, iprop
 
-        open(write_unit, file='RDMEstimates', status='unknown', position='append')
+        open(write_unit, file=trim(filename), status='unknown', position='append')
 
         write(write_unit, '("#", 4X, "Iteration")', advance='no')
 

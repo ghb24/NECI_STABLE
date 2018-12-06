@@ -140,9 +140,10 @@ logical :: tAAS_MatEle !Use the magnitude of |Hij| in the modifcation factor i.e
 logical :: tAAS_MatEle2 !Use the weight |Hij|/(Hjj-E) in the modifcation factor
 logical :: tAAS_Reverse !Add weights in the opposite direction i.e. to the modification factor of the child
 ! Giovannis option for using only initiators for the RDMs (off by default)
+logical :: tOutputInitsRDM = .false.
 logical :: tNonInitsForRDMs = .true.
 ! Adaptive shift RDM correction using initiators as reference
-logical :: tInitsRDMRef
+logical :: tInitsRDMRef, tInitsRDM
 ! Base hash values only on spatial orbitals
 ! --> All dets with same spatial structure on the same processor.
 logical :: tSpatialOnlyHash

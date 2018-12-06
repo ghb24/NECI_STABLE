@@ -318,7 +318,7 @@ contains
                     write(initiatorstats_unit, "(2G16.7)", advance = 'no') &
                     tot_init_trial_numerator(1)/StepsSft, tot_init_trial_denom(1)/StepsSft
                do j = 1, maxInitExLvlWrite
-                  write(initiatorstats_unit,'(1I20)', advance ='no') AllInitsPerExLvl(j)
+                  write(initiatorstats_unit,'(1I20)', advance ='no') AllInitsPerExLvl(j)/StepsSft
                end do
                write(initiatorstats_unit,'()', advance = 'yes')
             endif

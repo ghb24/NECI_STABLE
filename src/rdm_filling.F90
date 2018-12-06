@@ -379,6 +379,7 @@ contains
         use FciMCData, only: Spawned_Parents, Spawned_Parents_Index, iLutHF_True
         use rdm_data, only: one_rdm_t, rdm_definitions_t
         use SystemData, only: nel, tHPHF
+        use bit_reps, only: all_runs_are_initiator
 
         type(rdm_definitions_t), intent(in) :: rdm_defs
         type(rdm_spawn_t), intent(inout) :: spawn
@@ -391,7 +392,7 @@ contains
         integer :: i, irdm, rdm_ind, nI(nel), nJ(nel)
         real(dp) :: realSignI
         real(dp) :: input_sign_i(rdm_defs%nrdms), input_sign_j(rdm_defs%nrdms)
-        integer :: dest_part_type, source_part_type
+        integer :: dest_part_type, source_part_type, run
         integer(n_int) :: source_flags
         logical :: spawning_from_ket_to_bra
 
@@ -422,6 +423,17 @@ contains
             ! The original spawning event (and the RealSignI) came from this
             ! population.
             source_part_type = Spawned_Parents(NIfDBO+3,i)
+            
+            ! if we only sum in initiator contriubtions, check the flags here
+            if(.not. tNonInits) then
+               if(.not. all_runs_are_initiator(ilutJ)) return
+               do run = 1, inum_runs
+                  if(.not. btest(Spawned_Parents(NIfDBO+2,i),&
+                       get_initiator_flag_by_run(run))) return
+                  ! if a non-initiator is participating in this case, do not sum in
+                  ! that contribution
+               end do
+            endif
 
             ! Loop over all RDMs to which the simulation with label
             ! source_part_type contributes to.
@@ -429,15 +441,6 @@ contains
                 ! Get the label of the simulation that is paired with this, 
                 ! replica, for this particular RDM.
                 dest_part_type = rdm_defs%sim_pairs(irdm, source_part_type)
-
-                ! if we only sum in initiator contriubtions, check the flags here
-                if(.not. tNonInits) then
-                   if(.not. btest(Spawned_Parents(NIfDBO+2,i),get_initiator_flag_by_run(&
-                        part_type_to_run(source_part_type))) .or. &
-                        .not. test_flag(ilutJ, part_type_to_run(dest_part_type))) cycle
-                   ! if a non-initiator is participating in this case, do not sum in
-                   ! that contribution
-                endif
 
                 ! The label of the RDM that this is contributing to.
                 rdm_ind = rdm_defs%rdm_labels(irdm, source_part_type)
