@@ -17,7 +17,8 @@ module FciMCParMod
                         t_back_spawn_flex, t_back_spawn_flex_option, &
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
                         DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
-                        tSkipRef, tFixTrial, tTrialShift, t_activate_decay, tEN2Init
+                        tSkipRef, tFixTrial, tTrialShift, t_activate_decay, &
+                        tEN2Init, tEN2Rigorous
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
                         tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
                         SIUpdateInterval, tSuppressSIOutput, nRefUpdateInterval, &
@@ -225,6 +226,9 @@ module FciMCParMod
             if (tEN2Init) then
                 write(var_unit, '(10x,"EN2 numerator")', advance='no')
                 write(var_unit, '(9x,"Var + EN2 num.")', advance='no')
+            end if
+            if (tEN2Rigorous) then
+                write(var_unit, '(8x,"Var + EN2 new")', advance='no')
             end if
             write(var_unit, '(10x,"Normalisation")', advance='no')
             write(var_unit, '(8x,"Precond. energy")', advance='no')

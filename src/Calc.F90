@@ -398,6 +398,7 @@ contains
           tEN2Init = .false.
           tEN2Truncated = .false.
           tEN2Started = .false.
+          tEN2Rigorous = .false.
 
           tPreCond = .false.
           PrecondSpawnCutoff = 0.5_dp
@@ -1879,6 +1880,10 @@ contains
             case("EN2-TRUNCATED")
                 tEN2 = .true.
                 tEN2Truncated = .true.
+
+            case("EN2-RIGOROUS")
+                tEN2 = .true.
+                tEN2Rigorous = .true.
 
             case("KEEPDOUBSPAWNS")
 !This means that two sets of walkers spawned on the same determinant with the same sign will live, 

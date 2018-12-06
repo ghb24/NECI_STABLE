@@ -8,7 +8,8 @@ module precond_annihilation_mod
     use bit_rep_data
     use bit_reps, only: encode_sign, encode_part_sign, set_flag, &
                         get_initiator_flag, extract_spawn_hdiag
-    use CalcData, only: OccupiedThresh, tTruncInitiator, PrecondSpawnCutoff
+    use CalcData, only: OccupiedThresh, tTruncInitiator, PrecondSpawnCutoff, &
+                        tEN2Rigorous
     use constants, only: n_int, lenof_sign, null_part, sizeof_int
     use dSFMT_interface, only: genrand_real2_dSFMT
     use FciMCData
@@ -194,6 +195,7 @@ module precond_annihilation_mod
         real(dp) :: var_e_num_all(lenof_sign), overlap_all(lenof_sign)
         real(dp) :: e_squared_num(lenof_sign), e_squared_num_all(lenof_sign)
         real(dp) :: en2_pert(lenof_sign), en2_pert_all(lenof_sign)
+        real(dp) :: en2_new(lenof_sign), en2_new_all(lenof_sign)
         real(dp) :: precond_e_num(lenof_sign), precond_denom(lenof_sign)
         real(dp) :: precond_e_num_all(lenof_sign), precond_denom_all(lenof_sign)
 
@@ -206,6 +208,7 @@ module precond_annihilation_mod
         overlap = 0.0_dp
         var_e_num_all = 0.0_dp
         overlap_all(1) = 0.0_dp
+
         en2_pert = 0.0_dp
         en2_pert_all = 0.0_dp
 
@@ -352,11 +355,65 @@ module precond_annihilation_mod
         e_squared_num_all = recv_arr(5*lenof_sign+1:6*lenof_sign)
         ! -------------------------------------------------------
 
+        ! Use a slightly more rigorous expression for the variational plus
+        ! EN2 energy.
+        if (tEN2Rigorous) then
+            en2_new = 0.0_dp
+            en2_new_all = 0.0_dp
+            mean_energy = var_e_num_all / overlap_all
+
+            do i = 1, int(TotWalkers, sizeof_int)
+                hdiag = det_diagH(i) + Hii
+                call extract_sign(CurrentDets(:, i), CurrentSign)
+                en2_new(1) = en2_new(1) + hdiag * CurrentSign(1) * CurrentSign(2)
+            end do
+
+            do i = 1, ValidSpawned
+                call decode_bit_det(nI_spawn, SpawnedParts(:,i))
+                call extract_sign(SpawnedParts(:,i), SpawnedSign)
+
+                ! Now add in the diagonal elements
+                call hash_table_lookup(nI_spawn, SpawnedParts(:,i), NIfDBO, HashIndex, &
+                                       CurrentDets, PartInd, DetHash, tSuccess)
+
+                if (tSuccess) then
+                    tCoreDet = check_determ_flag(CurrentDets(:,PartInd))
+                    if (tCoreDet) then
+                        determ_pos = core_space_pos(SpawnedParts(:,i), nI_spawn) - determ_displs(iProcIndex)
+                        tSpawnedTo(determ_pos) = .true.
+                        SpawnedSign = SpawnedSign + partial_determ_vecs(:, determ_pos)
+                    end if
+                end if
+
+                if (abs(SpawnedSign(1)) > 1.e-12_dp .and. abs(SpawnedSign(2)) > 1.e-12_dp) then
+                    hdiag = extract_spawn_hdiag(SpawnedParts(:,i))
+
+                    en2_new(1) = en2_new(1) + &
+                      SpawnedSign(1) * SpawnedSign(2) / ((tau**2)*(mean_energy(1) - hdiag))
+                end if
+            end do
+
+            if (tSemiStochastic) then
+                do i = 1, determ_sizes(iProcIndex)
+                    if (.not. tSpawnedTo(i)) then
+                        en2_new(1) = en2_new(1) + &
+                          partial_determ_vecs(1, i) * partial_determ_vecs(2, i) / &
+                            ((tau)**2 * (mean_energy(1) - core_ham_diag(i) - Hii))
+                    end if
+                end do
+            end if
+
+            call MPISumAll(en2_new, en2_new_all)
+        end if
+
         if (iProcIndex == 0) then
             write(var_unit, '(1x,i13)', advance='no') Iter + PreviousCycles
             write(var_unit, '(2(3x,es20.13))', advance='no') var_e_num_all(1), e_squared_num_all(1)
             if (tEN2Init) then
                 write(var_unit, '(2(3x,es20.13))', advance='no') en2_pert_all(1), var_e_num_all(1)+en2_pert_all(1)
+            end if
+            if (tEN2Rigorous) then
+                write(var_unit, '(1(3x,es20.13))', advance='no') en2_new_all(1)
             end if
             write(var_unit, '(1(3x,es20.13))', advance='no') overlap_all(1)
             write(var_unit, '(2(3x,es20.13))', advance='no') precond_e_num_all(1), precond_denom_all(1)
