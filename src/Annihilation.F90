@@ -417,7 +417,7 @@ module AnnihilationMod
                 ! biased sign of Ci slightly wrong.
 
                SpawnedParts2(0:NIfTot,VecInd) = cum_det(0:NIfTot)
-               if(tAutoAdaptiveShift) then
+               if(tAutoAdaptiveShift .and. tAAS_Reverse) then
                   do run = 1, inum_runs
                      SpawnInfo2(run, VecInd)= transfer(weights_rev(run),SpawnInfo2(run, VecInd))
                   end do

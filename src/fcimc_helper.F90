@@ -128,7 +128,7 @@ contains
         character(*), parameter :: this_routine = 'create_particle'
 
         logical :: parent_init
-        real(dp)  :: weight, weight_rev
+        real(dp)  :: weight, weight_rev, weight_den
 
         !Ensure no cross spawning between runs - run of child same as run of
         !parent
@@ -187,7 +187,11 @@ contains
             if(tAAS_MatEle)then
                 weight = abs(matel)
             else if(tAAS_MatEle2) then
-                weight = abs(matel)/abs((get_diagonal_matel(nJ, ilutJ)-Hii) - DiagSft(run))
+                weight_den = abs((get_diagonal_matel(nJ, ilutJ)-Hii) - DiagSft(run))
+                if(weight_den<0.5)then
+                    weight_den = 0.5
+                end if
+                weight = abs(matel)/weight_den
             else
                 weight = 1.0_dp
             end if
@@ -198,7 +202,11 @@ contains
                 if(tAAS_MatEle)then
                     weight_rev = abs(matel)
                 else if(tAAS_MatEle2) then
-                    weight_rev = abs(matel)/abs(det_diagH(ParentPos) - DiagSft(run))
+                    weight_den = abs(det_diagH(ParentPos) - DiagSft(run))
+                    if(weight_den<0.5)then
+                        weight_den = 0.5
+                    end if
+                    weight_rev = abs(matel)/weight_den
                 else
                     weight_rev = 1.0_dp
                 end if
