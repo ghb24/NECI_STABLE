@@ -779,8 +779,9 @@ module AnnihilationMod
                  ! next iter. This is fine as it's from the other population,
                  ! and the Di and Dj signs are already strictly uncorrelated.
                  if (tOldRDMs) call check_fillRDM_DiDj_old(rdms, one_rdms_old, i, CurrentDets(:,PartInd), TempCurrentSign)
-                 if(tNonInitsForRDMs) &
-                      call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, &
+                 if(tInitsRDM) call check_fillRDM_DiDj(rdm_inits_defs, two_rdm_inits_spawn, &
+                      inits_one_rdms, i, CurrentDets(:, PartInd), TempCurrentSign, .false.)
+                 call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, &
                       CurrentDets(:,PartInd), TempCurrentSign)
               end if
 
@@ -922,9 +923,8 @@ module AnnihilationMod
                 if (tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) then
                     ! We must use the instantaneous value for the off-diagonal contribution.
                     if (tOldRDMs) call check_fillRDM_DiDj_old(rdms, one_rdms_old, i, SpawnedParts(0:NifTot,i), SpawnedSign)
-                    call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, SpawnedParts(0:NifTot,i), SpawnedSign)
-                    if(tInitsRDM) call check_fillRDM_DiDj(rdm_inits_defs, two_rdm_inits_spawn, &
-                         inits_one_rdms, i, SpawnedParts(0:NIfTot,i), SpawnedSign)
+                    if(tNonInitsForRDMs) &
+                         call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, SpawnedParts(0:NifTot,i), SpawnedSign)
                 end if 
             end if
 

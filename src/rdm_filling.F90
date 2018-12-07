@@ -9,7 +9,7 @@ module rdm_filling
     use bit_reps, only: get_initiator_flag_by_run
     use constants
     use rdm_data, only: rdm_spawn_t, rdmCorrectionFactor
-    use CalcData, only: tAdaptiveShift
+    use CalcData, only: tAdaptiveShift, tNonInitsForRDMs
     use FciMCData, only: projEDet, ilutRef
     use DetBitOps, only: DetBitEq
 
@@ -425,7 +425,7 @@ contains
             source_part_type = Spawned_Parents(NIfDBO+3,i)
             
             ! if we only sum in initiator contriubtions, check the flags here
-            if(.not. tNonInits) then
+            if(.not. (tNonInits .and. tNonInitsForRDMs)) then
                if(.not. all_runs_are_initiator(ilutJ)) return
                do run = 1, inum_runs
                   if(.not. btest(Spawned_Parents(NIfDBO+2,i),&
