@@ -9,7 +9,7 @@ module rdm_filling
     use bit_reps, only: get_initiator_flag_by_run
     use constants
     use rdm_data, only: rdm_spawn_t, rdmCorrectionFactor
-    use CalcData, only: tAdaptiveShift, tNonInitsForRDMs
+    use CalcData, only: tAdaptiveShift, tNonInitsForRDMs, tInitsRDMRef
     use FciMCData, only: projEDet, ilutRef
     use DetBitOps, only: DetBitEq
 
@@ -220,7 +220,7 @@ contains
                     ! in adaptive shift mode, the reference contribution is rescaled
                     ! projEDet has to be the same on all runs
                     if(tAdaptiveShift .and. DetBitEq(ilutRef(:,1), ilutnI) .and. &
-                         tNonInitsForRDMs) &
+                         tNonInitsForRDMs .and. .not. tInitsRDMRef) &
                          full_sign = full_sign + IterRDM_new * rdmCorrectionFactor
                     call fill_spawn_rdm_diag(spawn, nI, full_sign)
                  end if
