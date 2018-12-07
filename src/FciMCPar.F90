@@ -8,7 +8,7 @@ module FciMCParMod
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
                         AvMCExcits, pops_norm_unit, iExitWalkers, tAdaptiveShift, &
                         iFullSpaceIter, semistoch_shift_iter, tEN2, tOutputInitsRDM, &
-                        tOrthogonaliseReplicas, orthogonalise_iter, &
+                        tOrthogonaliseReplicas, orthogonalise_iter, tNonInitsForRDMs, &
                         tDetermHFSpawning, use_spawn_hash_table, tInitsRDMRef, &
                         ss_space_in, s_global_start, tContTimeFCIMC, tInitsRDM, &
                         trial_shift_iter, tStartTrialLater, tAVReps, &
@@ -552,7 +552,7 @@ module FciMCParMod
                      call calc_2rdm_estimates_wrapper(rdm_inits_defs, inits_estimates, &
                           two_rdm_inits, en_pert_main)
                   endif
-                  if(tInitsRDMRef) then                      
+                  if(tInitsRDMRef .and. tNonInitsForRDMs) then                      
                      ! add the initiator-only rdm of this cycle to the main rdm (rescaled
                      ! with the correction factor)
                      call add_rdm_1_to_rdm_2(two_rdm_inits, two_rdm_main, RDMCorrectionFactor)

@@ -2882,6 +2882,9 @@ contains
           ! them if we're doing a complete diagonalisation.
           gen2CPMDInts=MAXVAL(NWHTAY(3,:)).ge.3.or.TEnergy
 
+          if(tOutputInitsRDM .and. tInitsRDMRef) call stop_all(t_r, &
+               "Incompatible keywords INITS-GAMMA0 and INITS-RDM")
+
 
         END SUBROUTINE CalcReadInput
 

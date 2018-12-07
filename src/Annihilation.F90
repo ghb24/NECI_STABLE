@@ -10,7 +10,7 @@ module AnnihilationMod
                           n_truncate_spawns, t_prone_walkers, t_truncate_unocc, &
                           tSpawnSeniorityBased, numMaxExLvlsSet, maxKeepExLvl, &
                           tLogAverageSpawns, tTimedDeaths, tAutoAdaptiveShift, tSkipRef, &
-                          tAAS_MatEle, tAAS_MatEle2, tAAS_Reverse
+                          tAAS_MatEle, tAAS_MatEle2, tAAS_Reverse, tNonInitsForRDMs
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -779,9 +779,8 @@ module AnnihilationMod
                  ! next iter. This is fine as it's from the other population,
                  ! and the Di and Dj signs are already strictly uncorrelated.
                  if (tOldRDMs) call check_fillRDM_DiDj_old(rdms, one_rdms_old, i, CurrentDets(:,PartInd), TempCurrentSign)
-                 if(tInitsRDM) call check_fillRDM_DiDj(rdm_inits_defs, two_rdm_inits_spawn, &
-                      inits_one_rdms, i, CurrentDets(:,PartInd), TempCurrentSign, .false.)
-                 call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, &
+                 if(tNonInitsForRDMs) &
+                      call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, &
                       CurrentDets(:,PartInd), TempCurrentSign)
               end if
 
