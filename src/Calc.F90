@@ -146,6 +146,7 @@ contains
           tAAS_MatEle = .false. 
           tAAS_MatEle2 = .false.
           tAAS_Reverse = .false.
+          tAAS_Reverse_Weighted = .false.
           tInitsRDMRef = .false.
           tInitsRDM = .false.
           NEquilSteps=0
@@ -1606,6 +1607,9 @@ contains
                 AdaptiveShiftThresh = 0.0
             case("AAS-REVERSE")
                 tAAS_Reverse = .true.
+            case("AAS-REVERSE-WEIGHTED")
+                tAAS_Reverse = .true.
+                tAAS_Reverse_Weighted = .true.
              case("INITS-PROJE")
                 ! deprecated
              case("INITS-GAMMA0")
