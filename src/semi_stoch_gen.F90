@@ -1012,6 +1012,7 @@ contains
         !             On output space_size will equal the total number of
         !             generated plus what space_size was on input.
 
+        use DetBitOps, only: IsAllowedHPHF, spin_sym_ilut
         use util_mod, only: get_free_unit
 
         character(255), intent(in) :: filename
@@ -1019,7 +1020,7 @@ contains
         integer, intent(inout) :: space_size
 
         integer :: iunit, stat
-        integer(n_int) :: ilut(0:NIfTot)
+        integer(n_int) :: ilut(0:NIfTot), ilut_tmp(0:NIfTot)
         logical :: does_exist
 
         inquire(file=trim(filename), exist=does_exist)
@@ -1030,12 +1031,26 @@ contains
         open(iunit, file=trim(filename), status='old')
 
         ilut = 0_n_int
+        ilut_tmp = 0_n_int
 
         do
             read(iunit, *, iostat=stat) ilut(0:NIfDBO)
 
             ! If the end of the file.
             if (stat < 0) exit
+
+            ! If this determinant isn't the correct determinant for the time
+            ! reversal symmetry, then try the spin-flipped version.
+            if (tHPHF) then
+                if (.not. IsAllowedHPHF(ilut(0:NIfD))) then
+                    call spin_sym_ilut (ilut(0:NIfD), ilut_tmp(0:NIfD))
+                    if (.not. IsAllowedHPHF(ilut_tmp(0:NIfD))) then
+                        cycle
+                    else
+                        ilut(0:NIfD) = ilut_tmp(0:NIfD)
+                    end if
+                end if
+            end if
 
             call add_state_to_space(ilut, ilut_list, space_size)
         end do
