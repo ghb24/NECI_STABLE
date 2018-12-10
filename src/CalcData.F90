@@ -143,6 +143,7 @@ logical :: tAAS_Reverse_Weighted !Scale the reverse weights down by the number o
 ! Giovannis option for using only initiators for the RDMs (off by default)
 logical :: tOutputInitsRDM = .false.
 logical :: tNonInitsForRDMs = .true.
+logical :: tNonVariationalRDMs = .false.
 ! Adaptive shift RDM correction using initiators as reference
 logical :: tInitsRDMRef, tInitsRDM
 ! Base hash values only on spatial orbitals

@@ -434,6 +434,7 @@ contains
           ! Giovannis option for RDMs without non-initiators
           tNonInitsForRDMs = .true.
           tOutputInitsRDM = .false.
+          tNonVariationalRDMs = .false.
 
         end subroutine SetCalcDefaults
 
@@ -656,6 +657,8 @@ contains
                 tInitsRDM = .true.
              case("STRICT-INITS-RDM")
                 tNonInitsForRDMs = .false.
+             case("NON-VARIATIONAL-RDMS")
+                tNonVariationalRDMs = .true.
             case("VVDISALLOW")
                 TVVDISALLOW=.TRUE.
             case("MCDIRECTSUM")

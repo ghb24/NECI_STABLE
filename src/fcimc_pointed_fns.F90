@@ -633,6 +633,10 @@ module fcimc_pointed_fns
                         fac(i) = min(2.0_dp, fac(i))
                     end do
                 else
+                   write(iout,*) "Acc spawns", acc
+                   write(iout,*) "Tot spawns", tot
+                   write(iout,*) "Diag sft", DiagSft
+                   write(iout,*) "Death probability", fac
                     call stop_all(t_r, "Death probability > 2: Algorithm unstable. Reduce timestep.")
                 end if
             else

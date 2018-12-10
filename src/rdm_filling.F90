@@ -426,7 +426,7 @@ contains
             
             ! if we only sum in initiator contriubtions, check the flags here
             if(.not. (tNonInits .and. tNonInitsForRDMs)) then
-               if(.not. all_runs_are_initiator(ilutJ)) return
+               if(.not. (all_runs_are_initiator(ilutJ) .or. tNonVariationalRDMs)) return
                do run = 1, inum_runs
                   if(.not. btest(Spawned_Parents(NIfDBO+2,i),&
                        get_initiator_flag_by_run(run))) return
