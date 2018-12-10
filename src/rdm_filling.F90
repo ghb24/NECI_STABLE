@@ -9,7 +9,8 @@ module rdm_filling
     use bit_reps, only: get_initiator_flag_by_run
     use constants
     use rdm_data, only: rdm_spawn_t, rdmCorrectionFactor
-    use CalcData, only: tAdaptiveShift, tNonInitsForRDMs, tInitsRDMRef
+    use CalcData, only: tAdaptiveShift, tNonInitsForRDMs, tInitsRDMRef, &
+         tNonVariationalRDMs
     use FciMCData, only: projEDet, ilutRef
     use DetBitOps, only: DetBitEq
 
