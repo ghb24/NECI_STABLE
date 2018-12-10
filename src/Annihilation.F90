@@ -10,7 +10,8 @@ module AnnihilationMod
                           n_truncate_spawns, t_prone_walkers, t_truncate_unocc, &
                           tSpawnSeniorityBased, numMaxExLvlsSet, maxKeepExLvl, &
                           tLogAverageSpawns, tTimedDeaths, tAutoAdaptiveShift, tSkipRef, &
-                          tAAS_MatEle, tAAS_MatEle2, tAAS_Reverse, tNonInitsForRDMs
+                          tAAS_MatEle, tAAS_MatEle2, tAAS_Reverse, tNonInitsForRDMs, &
+                          tNonVariationalRDMs
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -923,8 +924,11 @@ module AnnihilationMod
                 if (tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) then
                     ! We must use the instantaneous value for the off-diagonal contribution.
                     if (tOldRDMs) call check_fillRDM_DiDj_old(rdms, one_rdms_old, i, SpawnedParts(0:NifTot,i), SpawnedSign)
-                    if(tNonInitsForRDMs) &
+                    if(tNonInitsForRDMs .or. tNonVariationalRDMs) &
                          call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, SpawnedParts(0:NifTot,i), SpawnedSign)
+                    if(tInitsRDM .and. tNonVariationalRDMs) &
+                         call check_fillRDM_DiDj(rdm_inits_defs, two_rdm_inits_spawn, &
+                         inits_one_rdms, i, SpawnedParts(0:NIfTot,i), SpawnedSign)
                 end if 
             end if
 
