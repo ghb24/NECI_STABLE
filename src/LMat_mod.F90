@@ -46,6 +46,7 @@ module LMat_mod
          call addAllMatelConts(b,a,c,-1)
          call addAllMatelConts(a,c,b,-1)
          call addAllMatelConts(c,b,a,-1)
+         matel = matel/2.0_dp
       else
          call addMatelContribution(i,j,k,idi,idj,idk,1)
          call addMatelContribution(j,k,i,idj,idk,idi,1)
@@ -58,7 +59,7 @@ module LMat_mod
 
         subroutine addAllMatelConts(aI,bI,cI,sgn)
           implicit none
-          integer, intent(in) :: aI,bI,cI
+          integer, value :: aI,bI,cI
           integer, intent(in) :: sgn
           integer :: ab, bb, cb
           
@@ -90,11 +91,18 @@ module LMat_mod
           integer, intent(in) :: sgn
           integer(int64) :: ai,bj,ck
           
-          if(G1(p)%ms == G1(a)%ms .and. G1(q)%ms == G1(b)%ms .and. G1(r)%ms == G1(c)%ms) &
-               matel = matel + sgn * LMat(LMatInd(int(ida,int64),int(idb,int64),&
-               int(idc,int64),int(idp,int64),int(idq,int64),int(idr,int64)))
+          if(G1(p)%ms == G1(a)%ms .and. G1(q)%ms == G1(b)%ms .and. G1(r)%ms == G1(c)%ms) then
+             matel = matel + sgn * LMat(LMatInd(int(ida,int64),int(idb,int64),&
+                  int(idc,int64),int(idp,int64),int(idq,int64),int(idr,int64)))
+          endif
 
+          print *, "Matel is now", matel
+          print *, "By adding", LMat(LMatInd(int(ida,int64),int(idb,int64),&
+               int(idc,int64),int(idp,int64),int(idq,int64),int(idr,int64)))
+          print *, "From indices", ida, idb, idc, idp, idq, idr, LMatInd(int(ida,int64),int(idb,int64),&
+               int(idc,int64),int(idp,int64),int(idq,int64),int(idr,int64))
         end subroutine addMatelContribution
+        
     end function get_lmat_el
 
 !------------------------------------------------------------------------------------------!
@@ -246,8 +254,7 @@ module LMat_mod
                   counter = LMatInd(a,b,c,i,j,k)
                   write(iout,*) "Warning, exceeding size" 
                endif
-               fac = prefactorFromDistinctIndexPairs(a,b,c,i,j,k)
-               LMat(LMatInd(a,b,c,i,j,k)) = fac*matel
+               LMat(LMatInd(a,b,c,i,j,k)) = 3.0_dp * matel
                if(abs(matel)> 0.0_dp) counter = counter + 1
             endif
 
@@ -260,32 +267,6 @@ module LMat_mod
          write(iout, *), "Allocated size of LMat", LMatSize
       endif
       
-      contains
-        
-        function prefactorFromDistinctIndexPairs(a,b,c,i,j,k) result(fac)
-          implicit none
-          integer(int64) :: a,b,c,i,j,k
-          real(dp) :: fac
-
-          if(tDebugLMat) then
-             fac = 1.0_dp
-             return
-          end if
-          if(a.eq.b .and. i.eq.j) then 
-             ! two index pairs match
-             fac = 3.0/2.0_dp
-          else if(a.eq.c .and. i.eq.k) then
-             ! two index pairs match
-             fac = 3.0/2.0_dp
-          else if(b.eq.c .and. j.eq.k) then
-             ! two index pairs match
-             fac = 3.0/2.0_dp
-          else
-             ! three distinct index pairs
-             fac = 3.0_dp
-          endif
-        end function prefactorFromDistinctIndexPairs
-        
     end subroutine readLMat
 
 !------------------------------------------------------------------------------------------!
