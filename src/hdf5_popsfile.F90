@@ -798,7 +798,6 @@ contains
            allocate(fvals(2*inum_runs,TotWalkers))
            ! get the statistics of THIS processor
            call writeFFuncAsInt(TotWalkers, fvals)
-           ! output it
            call write_2d_multi_arr_chunk_buff(&
                 wfn_grp_id, nm_fvals, H5T_NATIVE_REAL_8, &
                 fvals, arr_2d_dims(fvals), &
@@ -1250,14 +1249,16 @@ contains
 
     function communicate_read_walkers_buff(sendcounts, fvals_comm, &
          fvals_loc) result(num_received)
-        integer(MPIArg), intent(inout) :: sendcounts(0:nProcessors-1)
+        integer(MPIArg), intent(in) :: sendcounts(0:nProcessors-1)
         integer(hsize_t), intent(inout) :: fvals_comm(:,:)
         integer(hsize_t), allocatable, intent(inout) :: fvals_loc(:,:)
         integer :: num_received
         integer(int64) :: lnum_received
 
-        integer(MPIArg) :: recvcounts(0:nProcessors-1)
+        integer(MPIArg) :: recvcounts(0:nProcessors-1), recvcountsScaled(0:nProcessors-1)
         integer(MPIArg) :: disps(0:nProcessors-1), recvdisps(0:nProcessors-1)
+        integer(MPIArg) :: dispsScaled(0:nProcessors-1), recvdispsScaled(0:nProcessors-1)
+        integer(MPIArg) :: sendcountsScaled(0:nProcessors-1)
         integer :: j, ierr
 
 
@@ -1281,10 +1282,7 @@ contains
         lnum_received = recvdisps(nProcessors-1) + recvcounts(nProcessors-1)
 
         ! Adjust offsets so that they match the size of the array
-        recvcounts = recvcounts * size(SpawnedParts, 1)
-        recvdisps = recvdisps * size(SpawnedParts, 1)
-        sendcounts = sendcounts * size(SpawnedParts, 1)
-        disps = disps * size(SpawnedParts, 1)
+        call scaleCounts(size(SpawnedParts,1))
 
         if (num_received.gt.size(SpawnedParts2,2)) then
            ! there could in principle be a memory problem because we are not limiting the
@@ -1294,8 +1292,8 @@ contains
            allocate(receivebuff(size(SpawnedParts,1),num_received))
            call LogMemAlloc('receivebuff',size(receivebuff),sizeof(receivebuff(1,1)),&
                 'communicate_read_walkers',receivebuff_tag,ierr)
-           call MPIAllToAllV(SpawnedParts, sendcounts, disps, receivebuff, &
-                recvcounts, recvdisps, ierr)
+           call MPIAllToAllV(SpawnedParts, sendcountsScaled, dispsScaled, receivebuff, &
+                recvcountsScaled, recvdispsScaled, ierr)
 
            ! fvals communication for auto-adaptive shift mode
            if(tReadFVals) then
@@ -1303,13 +1301,27 @@ contains
               allocate(fvals_loc(2*inum_runs,num_received))
            endif
         else
-           call MPIAllToAllV(SpawnedParts, sendcounts, disps, SpawnedParts2, &
-                recvcounts, recvdisps, ierr)
+           call MPIAllToAllV(SpawnedParts, sendcountsScaled, dispsScaled, SpawnedParts2, &
+                recvcountsScaled, recvdispsScaled, ierr)
         end if
+  
+        call scaleCounts(size(fvals_loc,1))
         if(tReadFVals) then
-           call MPIAllToAllV(fvals_comm, sendcounts, disps, fvals_loc, &
-                recvcounts, recvdisps, ierr)
+           call MPIAllToAllV(fvals_comm, sendcountsScaled, dispsScaled, fvals_loc, &
+                recvcountsScaled, recvdispsScaled, ierr)
         endif
+
+        contains
+          
+          subroutine scaleCounts(argSize)
+            implicit none
+            integer, intent(in) :: argSize
+            
+            recvcountsScaled = recvcounts * argSize
+            recvdispsScaled = recvdisps * argSize
+            sendcountsScaled = sendcounts * argSize
+            dispsScaled = disps * argSize
+          end subroutine scaleCounts
       end function communicate_read_walkers_buff
 
     subroutine add_new_parts(dets, nreceived, CurrWalkers, norm, parts, fvals_write)
