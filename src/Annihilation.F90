@@ -827,8 +827,8 @@ module AnnihilationMod
                         ! Add to "freeslot" list so it can be filled in.
                         iEndFreeSlot = iEndFreeSlot + 1
                         FreeSlot(iEndFreeSlot) = PartInd
-                        if(.not. tTimedDeaths) &
-                             call RemoveHashDet(HashIndex, nJ, PartInd)
+!                         if(.not. tTimedDeaths) &
+!                              call RemoveHashDet(HashIndex, nJ, PartInd)
                     end if
                 end if
 

@@ -9,7 +9,7 @@ module FciMCParMod
                           t_new_real_space_hubbard, t_tJ_model, t_heisenberg_model, & 
                           t_k_space_hubbard, max_ex_level, t_uniform_excits, &
                           tGen_guga_mixed, t_guga_mixed_init, t_guga_mixed_semi, &
-                          tReal, t_mixed_excits
+                          tReal, t_mixed_excits, tgen_nosym_guga
 
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
@@ -742,7 +742,11 @@ module FciMCParMod
         ! tau-search.. maybe change that later to be an option 
         ! to be turned off
         if (t_print_frq_histograms .and. t_hist_tau_search_option) then
-            call print_frequency_histograms()
+            if (tgen_nosym_guga) then 
+                call print_frequency_histogram_spec()
+            else
+                call print_frequency_histograms()
+            end if
 
             ! also deallocate here after no use of the histograms anymore
             call deallocate_histograms()
