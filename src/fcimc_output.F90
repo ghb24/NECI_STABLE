@@ -1863,6 +1863,7 @@ contains
             open(iunit, file = filename, status = "unknown")
 
             do i = 1, max_size
+                if (all_frequency_bins_s(i) == 0) cycle
                 write(iunit, "(f16.7)", advance = "no") frq_step_size * i
                 write(iunit, "(i12)") all_frequency_bins_s(i)
             end do
@@ -1890,6 +1891,7 @@ contains
                 open(iunit, file = filename, status = "unknown")
 
                 do i = 1, max_size
+                    if (all_frequency_bins_p(i) == 0) cycle
                     write(iunit, "(f16.7)", advance = "no") frq_step_size * i
                     write(iunit, "(i12)") all_frequency_bins_p(i)
                 end do
@@ -1913,6 +1915,7 @@ contains
                 open(iunit, file = filename, status = "unknown") 
 
                 do i = 1, max_size
+                    if (all_frequency_bins_a(i) == 0) cycle
                     write(iunit, "(f16.7)", advance = "no") frq_step_size * i
                     write(iunit, "(i12)") all_frequency_bins_a(i) 
                 end do
@@ -1948,6 +1951,7 @@ contains
                     open(iunit, file = filename, status = "unknown") 
 
                     do i = 1, max_size
+                        if (all_frequency_bins(i) == 0) cycle
                         write(iunit, "(f16.7)", advance = "no") frq_step_size * i
                         write(iunit, "(i12)") all_frequency_bins(i) 
                     end do
@@ -1972,6 +1976,7 @@ contains
 
                     ! and change x and y axis finally
                     do i = 1, max_size
+                        if (all_frequency_bins(i) == 0) cycle
                         write(iunit, "(f16.7)", advance = "no") frq_step_size * i 
                         write(iunit, "(f16.7)") real(all_frequency_bins(i),dp) / norm
                     end do
@@ -2000,6 +2005,7 @@ contains
                 open(iunit, file = filename, status = "unknown") 
 
                 do i = 1, max_size
+                    if (all_frequency_bins_d(i) == 0) cycle
                     write(iunit, "(f16.7)", advance = "no") frq_step_size * i
                     write(iunit, "(i12)") all_frequency_bins_d(i) 
                 end do 
@@ -2027,6 +2033,7 @@ contains
                     open(iunit, file = filename, status = "unknown")
 
                     do i = 1, max_size
+                        if (all_frequency_bins(i) == 0) cycle
                         write(iunit, "(f16.7)", advance = "no") frq_step_size * i
                         write(iunit, "(i12)") all_frequency_bins(i) 
                     end do
@@ -2050,6 +2057,7 @@ contains
 
                     ! and change x and y axis finally
                     do i = 1, max_size
+                        if (all_frequency_bins(i) == 0) cycle
                         write(iunit, "(f16.7)", advance = "no") frq_step_size * i 
                         write(iunit, "(f16.7)") real(all_frequency_bins(i),dp) / norm
                     end do
@@ -2080,6 +2088,7 @@ contains
                 open(iunit, file = filename, status = "unknown")
 
                 do i = 1, max_size 
+                    if (all_frequency_bins_2(i) == 0) cycle
                     write(iunit, "(f16.7)", advance = "no") frq_step_size * i 
                     write(iunit, "(i12)") all_frequency_bins_2(i)
                 end do
@@ -2100,6 +2109,7 @@ contains
                 open(iunit, file = filename, status = "unknown") 
 
                 do i = 1, max_size
+                    if (all_frequency_bins_3(i) == 0) cycle
                     write(iunit, "(f16.7)", advance = "no") frq_step_size * i 
                     write(iunit, "(i12)") all_frequency_bins_3(i)
                 end do
@@ -2118,6 +2128,7 @@ contains
                 open(iunit, file = filename, status = "unknown")
 
                 do i = 1, max_size
+                    if (all_frequency_bins_4(i) == 0) cycle
                     write(iunit, "(f16.7)", advance = "no") frq_step_size * i
                     write(iunit, "(i12)") all_frequency_bins_4(i) 
                 end do
@@ -2142,6 +2153,7 @@ contains
                     open(iunit, file = filename, status = "unknown") 
 
                     do i = 1, max_size
+                        if (all_frequency_bins_2_d(i) == 0) cycle
                         write(iunit, "(f16.7)", advance = "no") frq_step_size * i 
                         write(iunit, "(i12)") all_frequency_bins_2_d(i)
                     end do
@@ -2161,6 +2173,7 @@ contains
                     open(iunit, file = filename, status = "unknown") 
 
                     do i = 1, max_size
+                        if (all_frequency_bins_3_d(i) == 0) cycle
                         write(iunit, "(f16.7)", advance = "no") frq_step_size * i 
                         write(iunit, "(i12)") all_frequency_bins_3_d(i)
                     end do
@@ -2210,8 +2223,9 @@ contains
                     open(iunit, file = filename, status = "unknown") 
 
                     do i = 1, max_size 
-                        write(iunit, "(i12)", advance = "no") all_frequency_bins(i) 
+                        if (all_frequency_bins(i) == 0) cycle
                         write(iunit, "(f16.7)") frq_step_size * i
+                        write(iunit, "(i12)", advance = "no") all_frequency_bins(i) 
                     end do
                     close(iunit)
                 else
@@ -2233,6 +2247,7 @@ contains
 
                     ! and change x and y axis finally
                     do i = 1, max_size
+                        if (all_frequency_bins(i) == 0) cycle
                         write(iunit, "(f16.7)", advance = "no") frq_step_size * i 
                         write(iunit, "(f16.7)") real(all_frequency_bins(i),dp) / norm
                     end do
