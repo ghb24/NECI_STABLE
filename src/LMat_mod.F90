@@ -24,7 +24,7 @@ module LMat_mod
       ! Gets an entry of the 3-body tensor L:
       ! L_{abc}^{ijk} - triple excitation from abc to ijk
       implicit none
-      integer :: a,b,c
+      integer, value :: a,b,c
       integer, intent(in) :: i,j,k
       HElement_t(dp) :: matel
       integer(int64) :: ida, idb, idc, idi, idj, idk
@@ -87,7 +87,7 @@ module LMat_mod
 
         subroutine addMatelContribution(p,q,r,idp,idq,idr,sgn)
           implicit none
-          integer, intent(in) :: idp,idq,idr,p,q,r
+          integer, value :: idp,idq,idr,p,q,r
           integer, intent(in) :: sgn
           integer(int64) :: ai,bj,ck
           
@@ -97,9 +97,14 @@ module LMat_mod
           endif
 
           print *, "Matel is now", matel
+          if(G1(p)%ms == G1(a)%ms .and. G1(q)%ms == G1(b)%ms .and. G1(r)%ms == G1(c)%ms) then
           print *, "By adding", LMat(LMatInd(int(ida,int64),int(idb,int64),&
                int(idc,int64),int(idp,int64),int(idq,int64),int(idr,int64)))
-          print *, "From indices", ida, idb, idc, idp, idq, idr, LMatInd(int(ida,int64),int(idb,int64),&
+       else
+          print *, "By adding 0"
+       end if
+       print *, "With sign", sgn
+          print *, "From indices", a, b, c, p, q, r, LMatInd(int(ida,int64),int(idb,int64),&
                int(idc,int64),int(idp,int64),int(idq,int64),int(idr,int64))
         end subroutine addMatelContribution
         

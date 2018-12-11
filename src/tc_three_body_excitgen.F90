@@ -148,7 +148,7 @@ module tc_three_body_excitgen
       ! the number of valid triple excitations is just given by the binomial coefficients
       pgen3B = nOccBeta * (nOccBeta - 1) * (nOccBeta - 2) * nUnoccBeta * (nUnoccBeta - 1) &
            * (nUnoccBeta - 2)
-      pgen3B = scaleInvert(6.0_dp, pgen3B)
+      pgen3B = scaleInvert(36.0_dp, pgen3B)
 
       pgen2B = nOccBeta * (nOccBeta - 1) * nOccAlpha * nUnoccBeta * (nUnoccBeta - 1) * nUnoccAlpha
       pgen2B = scaleInvert(4.0_dp, pgen2B)
@@ -158,7 +158,7 @@ module tc_three_body_excitgen
 
       pgen0B = nOccAlpha * (nOccAlpha - 1) * (nOccAlpha - 2) * nUnoccAlpha * (nUnoccAlpha - 1) &
            * (nUnoccAlpha - 2)
-      pgen0B = scaleInvert(6.0_dp, pgen0B)
+      pgen0B = scaleInvert(36.0_dp, pgen0B)
 
       contains
         pure function scaleInvert(scl, p) result(sp)
