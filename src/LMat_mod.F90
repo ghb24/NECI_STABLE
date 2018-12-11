@@ -95,17 +95,6 @@ module LMat_mod
              matel = matel + sgn * LMat(LMatInd(int(ida,int64),int(idb,int64),&
                   int(idc,int64),int(idp,int64),int(idq,int64),int(idr,int64)))
           endif
-
-          print *, "Matel is now", matel
-          if(G1(p)%ms == G1(a)%ms .and. G1(q)%ms == G1(b)%ms .and. G1(r)%ms == G1(c)%ms) then
-          print *, "By adding", LMat(LMatInd(int(ida,int64),int(idb,int64),&
-               int(idc,int64),int(idp,int64),int(idq,int64),int(idr,int64)))
-       else
-          print *, "By adding 0"
-       end if
-       print *, "With sign", sgn
-          print *, "From indices", a, b, c, p, q, r, LMatInd(int(ida,int64),int(idb,int64),&
-               int(idc,int64),int(idp,int64),int(idq,int64),int(idr,int64))
         end subroutine addMatelContribution
         
     end function get_lmat_el
