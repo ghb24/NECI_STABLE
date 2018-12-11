@@ -87,7 +87,8 @@ contains
         ! but atleast still runs.. and since tau is updated on the fly then
         ! this shouldn't be too big of a problem..
         if (.not. tRestart .and. (.not. tReadPops) .and. tau < EPS) then
-            call find_max_tau_doubs_guga()
+            call FindMaxTauDoubs()
+!             call find_max_tau_doubs_guga()
         end if
         write(6,*) "Using initial time-step: ", tau
         write(6,*) "NOTE: this is not yet correctly adapted for the GUGA implementation"
@@ -189,7 +190,8 @@ contains
 
             ! Unless it is already specified, set an initial value for tau
             if (.not. tRestart .and. .not. tReadPops .and. tau == 0) &
-                call find_max_tau_doubs_guga()
+                call FindMaxTauDoubs()
+!                 call find_max_tau_doubs_guga()
             write(6,*) 'Using initial time-step: ', tau
      
             ! Set the maximum spawn size

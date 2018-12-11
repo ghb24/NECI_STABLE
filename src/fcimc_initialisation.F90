@@ -1933,9 +1933,9 @@ contains
         fill_rdm_diag_currdet_old => fill_rdm_diag_currdet_norm_old
 
         ! tau-search functions, dependent on the excitation generator in use
-        if (tGen_nosym_guga) then
-            call stop_all(this_routine, "tGen_nosym_guga deprecated!")
-        end if
+!         if (tGen_nosym_guga) then
+!             call stop_all(this_routine, "tGen_nosym_guga deprecated!")
+!         end if
 
         select case(sfTag)
         case(0)

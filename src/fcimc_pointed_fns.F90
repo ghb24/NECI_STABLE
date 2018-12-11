@@ -258,32 +258,40 @@ module fcimc_pointed_fns
         ! and divide prob by AvMCExcits again to get correct pgen! 
         if (t_fill_frequency_hists) then
             ! use specific ones for different types of excitation gens
-            if (tGen_4ind_weighted .or. tGen_4ind_2) then
-                ! determine if excitation was parallel or anti-parallel
-                ! ex(1,1) and ex(1,2) are the electrons 
-                t_par = (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2)))
+            if (tHUB .or. tUEG .or. & 
+                (t_new_real_space_hubbard .and. .not. t_trans_corr_hop) .or. &
+                (t_k_space_hubbard .and. .not. t_trans_corr_2body)) then 
+                call fill_frequency_histogram(abs(rh_used), prob / AvMCExcits)
 
-                call fill_frequency_histogram_4ind(abs(rh), prob / AvMCExcits, &
-                    ic, t_par)
+            else
+!                 if (tGen_4ind_weighted .or. tGen_4ind_2) then
+                if (t_consider_par_bias) then
+                    ! determine if excitation was parallel or anti-parallel
+                    ! ex(1,1) and ex(1,2) are the electrons 
+                    t_par = (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2)))
 
-            else if (tGen_nosym_guga) then 
-                ! have to also check if diff bias is considered 
-                if (t_consider_diff_bias) then 
-                    call fill_frequency_histogram_nosym_diff(abs(rh), prob / AvMCExcits, & 
-                        ic, ex(1,1), ex(1,2))
+                    call fill_frequency_histogram_4ind(abs(rh), prob / AvMCExcits, &
+                        ic, t_par)
+
+                else if (tGen_nosym_guga) then 
+                    ! have to also check if diff bias is considered 
+                    if (t_consider_diff_bias) then 
+                        call fill_frequency_histogram_nosym_diff(abs(rh), prob / AvMCExcits, & 
+                            ic, ex(1,1), ex(1,2))
+                    else 
+                        call fill_frequency_histogram_nosym_nodiff(abs(rh), &
+                            prob / AvMCExcits, ic, ex(1,1))
+                    end if
+
+                else if (tGen_sym_guga_mol .or. (tgen_guga_crude .and. .not. t_new_real_space_hubbard)) then
+                    call fill_frequency_histogram_sd(abs(rh), prob / AvMCExcits, ic)
+
                 else 
-                    call fill_frequency_histogram_nosym_nodiff(abs(rh), &
-                        prob / AvMCExcits, ic, ex(1,1))
+                    ! for any other excitation generator just use one histogram 
+                    ! for all the excitations.. 
+                    call fill_frequency_histogram(abs(rh), prob / AvMCExcits)
+
                 end if
-
-            else if (tGen_sym_guga_mol .or. (tgen_guga_crude .and. .not. t_new_real_space_hubbard)) then
-                call fill_frequency_histogram_sd(abs(rh), prob / AvMCExcits, ic)
-
-            else 
-                ! for any other excitation generator just use one histogram 
-                ! for all the excitations.. 
-                call fill_frequency_histogram(abs(rh), prob / AvMCExcits)
-
             end if
         end if
 
@@ -302,30 +310,25 @@ module fcimc_pointed_fns
 
         ! fill in the frequency histograms here! 
         ! [Werner Dobrautz 4.4.2017:]
-        if (t_fill_frequency_hists) then 
-            ! not yet implemented for triples!
-            ! it is now! 
-!             ASSERT(.not. t_3_body_excits)
-            if (tHUB .or. tUEG .or. & 
-                (t_new_real_space_hubbard .and. .not. t_trans_corr_hop) .or. &
-                (t_k_space_hubbard .and. .not. t_trans_corr_2body)) then 
-                call fill_frequency_histogram(abs(rh_used), prob / AvMCExcits)
-
-            else 
-                if (t_consider_par_bias) then
-                    t_par = (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2)))
-
-                    ! not sure about the AvMCExcits!! TODO
-                    call fill_frequency_histogram_4ind(abs(rh_used), prob / AvMCExcits, &
-                        ic, t_par, ex)
-
-                else
-
-                    call fill_frequency_histogram_sd(abs(rh_used), prob / AvMCExcits, ic)
-                    
-                end if
-            end if
-        end if
+!         if (t_fill_frequency_hists) then 
+!             ! not yet implemented for triples!
+!             ! it is now! 
+! !             ASSERT(.not. t_3_body_excits)
+!             else 
+!                 if (t_consider_par_bias) then
+!                     t_par = (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2)))
+! 
+!                     ! not sure about the AvMCExcits!! TODO
+!                     call fill_frequency_histogram_4ind(abs(rh_used), prob / AvMCExcits, &
+!                         ic, t_par, ex)
+! 
+!                 else
+! 
+!                     call fill_frequency_histogram_sd(abs(rh_used), prob / AvMCExcits, ic)
+!                     
+!                 end if
+!             end if
+!         end if
         ! Are we doing real spawning?
         
         tRealSpawning = .false.
