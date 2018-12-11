@@ -27,7 +27,8 @@ module FciMCParMod
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, tOldRDMs, tWriteUnocc, &
                            write_end_core_size, t_calc_double_occ, t_calc_double_occ_av, &
-                           equi_iter_double_occ, t_print_frq_histograms, ref_filename
+                           equi_iter_double_occ, t_print_frq_histograms, ref_filename, &
+                           t_hist_fvals, enGrid, arGrid
     use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
@@ -631,6 +632,7 @@ module FciMCParMod
             call deallocate_histograms()
         end if
 
+        if(t_hist_fvals) call print_fval_hist(enGrid,arGrid)
 
         ! Remove the signal handlers now that there is no way for the
         ! soft-exit part to work
