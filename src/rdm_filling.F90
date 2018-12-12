@@ -18,7 +18,8 @@ module rdm_filling
 
 contains
 
-    subroutine fill_rdm_diag_wrapper(rdm_defs, spawn, one_rdms, ilut_list, ndets, tNonInit)
+    subroutine fill_rdm_diag_wrapper(rdm_defs, spawn, one_rdms, ilut_list, ndets, tNonInit, &
+         tLagrCorr)
 
         ! Loop over all states in ilut_list and see if any signs have just
         ! become unoccupied or become reoccupied. In which case, we have
@@ -37,17 +38,24 @@ contains
         type(one_rdm_t), intent(inout) :: one_rdms(:)
         integer(n_int), intent(in) :: ilut_list(:,:)
         integer, intent(in) :: ndets
-        logical, intent(in), optional :: tNonInit
+        logical, intent(in), optional :: tNonInit, tLagrCorr
 
         integer :: idet, irdm, av_ind_1, av_ind_2
         real(dp) :: curr_sign(lenof_sign), adapted_sign(len_av_sgn_tot)
         real(dp) :: av_sign(len_av_sgn_tot), iter_occ(len_iter_occ_tot)
         logical :: tAllContribs
+        logical :: tLC
 
         if(present(tNonInit)) then
            tAllContribs = tNonInit
         else
            tAllContribs = .true.
+        endif
+
+        if(present(tLagrCorr)) then
+           tLC = tLagrCorr
+        else
+           tLC = .true.
         endif
 
         associate(ind => rdm_defs%sim_labels)
@@ -84,7 +92,7 @@ contains
                 ! reoccupied, so we need to add in diagonal elements and connections to HF
                 if (any(abs(adapted_sign) > 1.e-12_dp)) then
                    if(tAllContribs .or. all_runs_are_initiator(ilut_list(:,idet))) &
-                        call det_removed_fill_diag_rdm(spawn, one_rdms, ilut_list(:,idet), adapted_sign, iter_occ)
+                        call det_removed_fill_diag_rdm(spawn, one_rdms, ilut_list(:,idet), adapted_sign, iter_occ, tLC)
                 end if
 
             end do
@@ -93,7 +101,7 @@ contains
 
     end subroutine fill_rdm_diag_wrapper
 
-    subroutine fill_rdm_diag_currdet_norm(spawn, one_rdms, iLutnI, nI, ExcitLevelI, av_sign, iter_occ, tCoreSpaceDet)
+    subroutine fill_rdm_diag_currdet_norm(spawn, one_rdms, iLutnI, nI, ExcitLevelI, av_sign, iter_occ, tCoreSpaceDet, tLagrCorr)
 
         ! This routine calculates the diagonal RDM contribution, and explicit
         ! connections to the HF, from the current determinant.
@@ -125,19 +133,25 @@ contains
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         integer, intent(in) :: nI(nel), ExcitLevelI
         real(dp), intent(in) :: av_sign(:), iter_occ(:)
-        logical, intent(in), optional :: tCoreSpaceDet
+        logical, intent(in), optional :: tCoreSpaceDet, tLagrCorr
 
         real(dp) :: full_sign(spawn%rdm_send%sign_length), IterDetOcc_all(len_iter_occ_tot)
         integer(n_int) :: SpinCoupDet(0:nIfTot)
         integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel
         integer :: IterLastRDMFill, AvSignIters, IterRDM
         integer :: AvSignIters_new(spawn%rdm_send%sign_length), IterRDM_new(spawn%rdm_send%sign_length)
-        logical :: tUseDet, tInit
+        logical :: tUseDet, tInit, tLC
         integer :: run
 
         tUseDet = tNonInitsForRDMs
         if(.not. tUseDet) then
            tUseDet = all_runs_are_initiator(ilutnI)
+        endif
+        
+        if(present(tLagrCorr)) then
+           tLC = tLagrCorr
+        else
+           tLC = .true.
         endif
 
         if(tUseDet) then
@@ -221,7 +235,7 @@ contains
                     ! in adaptive shift mode, the reference contribution is rescaled
                     ! projEDet has to be the same on all runs
                     if(tAdaptiveShift .and. DetBitEq(ilutRef(:,1), ilutnI) .and. &
-                         tNonInitsForRDMs .and. .not. tInitsRDMRef) &
+                         tNonInitsForRDMs .and. .not. tInitsRDMRef .and. tLC) &
                          full_sign = full_sign + IterRDM_new * rdmCorrectionFactor
                     call fill_spawn_rdm_diag(spawn, nI, full_sign)
                  end if
@@ -234,7 +248,7 @@ contains
 
     end subroutine fill_rdm_diag_currdet_norm
 
-    subroutine det_removed_fill_diag_rdm(spawn, one_rdms, iLutnI, av_sign, iter_occ)
+    subroutine det_removed_fill_diag_rdm(spawn, one_rdms, iLutnI, av_sign, iter_occ, tLagrCorr)
 
         ! This routine is called if a determinant is removed from the list of
         ! currently occupied. At this point we need to add in its diagonal
@@ -253,8 +267,16 @@ contains
         type(one_rdm_t), intent(inout) :: one_rdms(:)
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         real(dp), intent(in) :: av_sign(:), iter_occ(:)
+        logical, intent(in), optional :: tLagrCorr
 
         integer :: nI(nel), ExcitLevel
+        logical :: tLC
+
+        if(present(tLagrCorr)) then
+           tLC = tLagrCorr
+        else
+           tLC = .true.
+        endif
 
         ! If the determinant is removed on an iteration that the diagonal
         ! RDM elements are  already being calculated, it will already have
@@ -263,7 +285,7 @@ contains
             call decode_bit_det (nI, iLutnI)
             ExcitLevel = FindBitExcitLevel(iLutHF_True, iLutnI, 2)
 
-            call fill_rdm_diag_currdet_norm(spawn, one_rdms, iLutnI, nI, ExcitLevel, av_sign, iter_occ, .false.)
+            call fill_rdm_diag_currdet_norm(spawn, one_rdms, iLutnI, nI, ExcitLevel, av_sign, iter_occ, .false., tLC)
         end if
 
     end subroutine det_removed_fill_diag_rdm

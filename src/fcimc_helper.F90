@@ -2036,7 +2036,7 @@ contains
                 call det_removed_fill_diag_rdm(two_rdm_spawn, one_rdms, CurrentDets(:,DetPosition), av_sign, iter_occ)
                 if(tInitsRDM .and. all_runs_are_initiator(CurrentDets(:,DetPosition))) &
                      call det_removed_fill_diag_rdm(two_rdm_inits_spawn, inits_one_rdms, &
-                     CurrentDets(:,DetPosition), av_sign, iter_occ)
+                     CurrentDets(:,DetPosition), av_sign, iter_occ, .false.)
                 ! Set the average sign and occupation iteration to zero, so
                 ! that the same contribution will not be added in in
                 ! CalcHashTableStats, if this determinant is not overwritten
