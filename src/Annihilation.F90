@@ -928,7 +928,7 @@ module AnnihilationMod
                          call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, SpawnedParts(0:NifTot,i), SpawnedSign)
                     if(tInitsRDM .and. tNonVariationalRDMs) &
                          call check_fillRDM_DiDj(rdm_inits_defs, two_rdm_inits_spawn, &
-                         inits_one_rdms, i, SpawnedParts(0:NIfTot,i), SpawnedSign)
+                         inits_one_rdms, i, SpawnedParts(0:NIfTot,i), SpawnedSign,.false.)
                 end if 
             end if
 
