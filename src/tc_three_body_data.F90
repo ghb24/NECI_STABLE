@@ -3,9 +3,13 @@ module tc_three_body_data
   implicit none
 
   ! biases for 3-body excitation generation
+<<<<<<< HEAD
   real(dp) :: pTriples = 0.0_dp
   real(dp) :: p0B, p0A, p2B, p1B
   logical :: tReadPTriples = .false.
+=======
+  real(dp) :: pTriples, p0B, p0A, p2B, p1B
+>>>>>>> combine Kai's modifications
   ! precomputed probabilities
   real(dp) :: pgen0B, pgen1B, pgen2B, pgen3B
   ! number of empty alpha/beta electrons
