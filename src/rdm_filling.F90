@@ -196,6 +196,9 @@ contains
                          tCoreSpaceDet, IterRDM_new)
                  else
                     full_sign = IterRDM_new*av_sign(1::2)*av_sign(2::2)/2.0_dp
+                    if(tAdaptiveShift .and. DetBitEq(ilutRef(:,1), ilutnI) .and. &
+                         tNonInitsForRDMs .and. .not. tInitsRDMRef .and. tLC) &
+                         full_sign = full_sign + IterRDM_new * rdmCorrectionFactor
                     call fill_spawn_rdm_diag(spawn, nI, full_sign)
                  end if
 
@@ -219,6 +222,9 @@ contains
                     call fill_diag_1rdm(one_rdms, nI, av_sign, tCoreSpaceDet, IterRDM_new)
                  else
                     full_sign = IterRDM_new*av_sign(1::2)*av_sign(2::2)
+                    if(tAdaptiveShift .and. DetBitEq(ilutRef(:,1), ilutnI) .and. &
+                         tNonInitsForRDMs .and. .not. tInitsRDMRef .and. tLC) &
+                         full_sign = full_sign + IterRDM_new * rdmCorrectionFactor
                     call fill_spawn_rdm_diag(spawn, nI, full_sign)
                  end if
 
