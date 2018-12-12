@@ -138,6 +138,7 @@ real(dp) :: AdaptiveShiftExpo !Exponent of the modification factor, value 1 is d
 real(dp) :: AdaptiveShiftCut  !The modification factor should never go below this.
 logical :: tAAS_MatEle !Use the magnitude of |Hij| in the modifcation factor i.e. sum_{accepted} |H_ij| / sum_{all attempts} |H_ij|
 logical :: tAAS_MatEle2 !Use the weight |Hij|/(Hjj-E) in the modifcation factor
+logical :: tAAS_MatEle3 !Same as MatEle2 but use weight of one for accepted moves.
 logical :: tAAS_Reverse !Add weights in the opposite direction i.e. to the modification factor of the child
 logical :: tAAS_Reverse_Weighted !Scale the reverse weights down by the number of walkers on the parent
 ! Giovannis option for using only initiators for the RDMs (off by default)

@@ -46,7 +46,7 @@ module fcimc_helper
                         initMaxSenior, tSeniorityInits, tLogAverageSpawns, &
                         spawnSgnThresh, minInitSpawns, tTimedDeaths, &
                         tAutoAdaptiveShift, tAAS_MatEle, tAAS_MatEle2, tAAS_Reverse,&
-                        tAAS_Reverse_Weighted
+                        tAAS_Reverse_Weighted, tAAS_MatEle3
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
          tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
@@ -129,7 +129,7 @@ contains
         character(*), parameter :: this_routine = 'create_particle'
 
         logical :: parent_init
-        real(dp)  :: weight, weight_rev, weight_den
+        real(dp)  :: weight_acc, weight_rej, weight_rev, weight_den
 
         !Ensure no cross spawning between runs - run of child same as run of
         !parent
@@ -186,18 +186,29 @@ contains
             SpawnInfo(SpawnParentIdx, ValidSpawnedList(proc)) = ParentPos
             SpawnInfo(SpawnRun, ValidSpawnedList(proc)) = run
             if(tAAS_MatEle)then
-                weight = abs(matel)
+                weight_acc = abs(matel)
+                weight_rej = abs(matel)
             else if(tAAS_MatEle2) then
                 weight_den = abs((get_diagonal_matel(nJ, ilutJ)-Hii) - DiagSft(run))
                 if(weight_den<0.5)then
                     weight_den = 0.5
                 end if
-                weight = abs(matel)/weight_den
+                weight_acc = abs(matel)/weight_den
+                weight_rej = abs(matel)/weight_den
+            else if(tAAS_MatEle3) then
+                weight_den = abs((get_diagonal_matel(nJ, ilutJ)-Hii) - DiagSft(run))
+                if(weight_den<0.5)then
+                    weight_den = 0.5
+                end if
+                weight_acc = 1.0_dp 
+                weight_rej = abs(matel)/weight_den
             else
-                weight = 1.0_dp
+                weight_acc = 1.0_dp
+                weight_rej = 1.0_dp
             end if
             !Enocde weight, which is real, as an integer
-            SpawnInfo(SpawnWeight, ValidSpawnedList(proc)) = transfer(weight, SpawnInfo(SpawnWeight, ValidSpawnedList(proc)))
+            SpawnInfo(SpawnWeightAcc, ValidSpawnedList(proc)) = transfer(weight_acc, SpawnInfo(SpawnWeightAcc, ValidSpawnedList(proc)))
+            SpawnInfo(SpawnWeightRej, ValidSpawnedList(proc)) = transfer(weight_rej, SpawnInfo(SpawnWeightRej, ValidSpawnedList(proc)))
 
             if(tAAS_Reverse)then
                 if(tAAS_MatEle)then
@@ -208,6 +219,8 @@ contains
                         weight_den = 0.5
                     end if
                     weight_rev = abs(matel)/weight_den
+                else if(tAAS_MatEle3) then
+                    weight_rev = 1.0_dp
                 else
                     weight_rev = 1.0_dp
                 end if

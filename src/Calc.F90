@@ -145,6 +145,7 @@ contains
           AdaptiveShiftCut = -1 !If the user does not specify a value, this will be set to 1.0/HFConn later
           tAAS_MatEle = .false. 
           tAAS_MatEle2 = .false.
+          tAAS_MatEle3 = .false.
           tAAS_Reverse = .false.
           tAAS_Reverse_Weighted = .false.
           tInitsRDMRef = .false.
@@ -1606,6 +1607,10 @@ contains
                 AdaptiveShiftThresh = 0.0
             case("AAS-MATELE2")
                 tAAS_MatEle2 = .true.
+                !When using the MatEle, the default value of 10 becomes meaningless
+                AdaptiveShiftThresh = 0.0
+            case("AAS-MATELE3")
+                tAAS_MatEle3 = .true.
                 !When using the MatEle, the default value of 10 becomes meaningless
                 AdaptiveShiftThresh = 0.0
             case("AAS-REVERSE")
