@@ -1189,7 +1189,7 @@ module AnnihilationMod
         integer :: j, run, ParentIdx, proc
         integer :: PartInd, DetHash, nI(nel)
         real(dp) :: CurrentSign(lenof_sign)
-        real(dp) :: weight
+        real(dp) :: weight_acc, weight_rej
         logical :: tUnocc, tSuccess, tDetermState, tToEmptyDet
 
 
@@ -1288,22 +1288,23 @@ module AnnihilationMod
             do i=InitialSpawnedSlots(proc), ValidSpawnedList(proc)-1
                 ParentIdx = SpawnInfo(SpawnParentIdx,i)
                 run = SpawnInfo(SpawnRun,i)
-                weight = transfer(SpawnInfo(SpawnWeight, i), weight) !weight is a real encoded in an integer. Decoded it!
+                weight_acc = transfer(SpawnInfo(SpawnWeightAcc, i), weight_acc) !weight is a real encoded in an integer. Decoded it!
+                weight_rej = transfer(SpawnInfo(SpawnWeightRej, i), weight_rej) !weight is a real encoded in an integer. Decoded it!
                 if(tAAS_Reverse)then
                     if(SpawnInfo(SpawnAccepted,i)==1)then
                         !We add only half the weight for accepted spawns, 
                         !because we expect the reverse spawning to compensate for the other half (on average)
-                        call update_tot_spawns(ParentIdx, run, 0.5*weight)
-                        call update_acc_spawns(ParentIdx, run, 0.5*weight)
+                        call update_tot_spawns(ParentIdx, run, 0.5*weight_acc)
+                        call update_acc_spawns(ParentIdx, run, 0.5*weight_acc)
                     else
-                        call update_tot_spawns(ParentIdx, run, weight)
+                        call update_tot_spawns(ParentIdx, run, weight_rej)
                     end if
                 else
                     if(SpawnInfo(SpawnAccepted,i)==1)then
-                        call update_tot_spawns(ParentIdx, run, weight)
-                        call update_acc_spawns(ParentIdx, run, weight)
+                        call update_tot_spawns(ParentIdx, run, weight_acc)
+                        call update_acc_spawns(ParentIdx, run, weight_acc)
                     else
-                        call update_tot_spawns(ParentIdx, run, weight)
+                        call update_tot_spawns(ParentIdx, run, weight_rej)
                     end if
                 end if
             end do
