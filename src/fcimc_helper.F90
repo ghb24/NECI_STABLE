@@ -46,7 +46,7 @@ module fcimc_helper
                         initMaxSenior, tSeniorityInits, tLogAverageSpawns, &
                         spawnSgnThresh, minInitSpawns, tTimedDeaths, &
                         tAutoAdaptiveShift, tAAS_MatEle, tAAS_MatEle2, tAAS_Reverse,&
-                        tAAS_Reverse_Weighted, tAAS_MatEle3
+                        tAAS_Reverse_Weighted, tAAS_MatEle3, tAAS_MatEle4, AAS_DenCut
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
          tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
@@ -129,7 +129,7 @@ contains
         character(*), parameter :: this_routine = 'create_particle'
 
         logical :: parent_init
-        real(dp)  :: weight_acc, weight_rej, weight_rev, weight_den
+        real(dp)  :: weight_acc, weight_rej, weight_rev, weight_den, weight_den2
 
         !Ensure no cross spawning between runs - run of child same as run of
         !parent
@@ -190,18 +190,29 @@ contains
                 weight_rej = abs(matel)
             else if(tAAS_MatEle2) then
                 weight_den = abs((get_diagonal_matel(nJ, ilutJ)-Hii) - DiagSft(run))
-                if(weight_den<0.5)then
-                    weight_den = 0.5
+                if(weight_den<AAS_DenCut)then
+                    weight_den = AAS_DenCut
                 end if
                 weight_acc = abs(matel)/weight_den
                 weight_rej = abs(matel)/weight_den
             else if(tAAS_MatEle3) then
                 weight_den = abs((get_diagonal_matel(nJ, ilutJ)-Hii) - DiagSft(run))
-                if(weight_den<0.5)then
-                    weight_den = 0.5
+                if(weight_den<AAS_DenCut)then
+                    weight_den = AAS_DenCut
                 end if
                 weight_acc = 1.0_dp 
                 weight_rej = abs(matel)/weight_den
+            else if(tAAS_MatEle4) then
+                weight_den = abs((get_diagonal_matel(nJ, ilutJ)-Hii) - DiagSft(run))
+                if(weight_den<AAS_DenCut)then
+                    weight_den = AAS_DenCut
+                end if
+                weight_den2 = abs((get_diagonal_matel(nJ, ilutJ)-Hii))
+                if(weight_den2<AAS_DenCut)then
+                    weight_den2 = AAS_DenCut
+                end if
+                weight_rej = abs(matel)/weight_den
+                weight_acc = abs(matel)/weight_den2
             else
                 weight_acc = 1.0_dp
                 weight_rej = 1.0_dp
@@ -215,12 +226,18 @@ contains
                     weight_rev = abs(matel)
                 else if(tAAS_MatEle2) then
                     weight_den = abs(det_diagH(ParentPos) - DiagSft(run))
-                    if(weight_den<0.5)then
-                        weight_den = 0.5
+                    if(weight_den<AAS_DenCut)then
+                        weight_den = AAS_DenCut
                     end if
                     weight_rev = abs(matel)/weight_den
                 else if(tAAS_MatEle3) then
                     weight_rev = 1.0_dp
+                else if(tAAS_MatEle4) then
+                    weight_den = abs(det_diagH(ParentPos))
+                    if(weight_den<AAS_DenCut)then
+                        weight_den = AAS_DenCut
+                    end if
+                    weight_rev = abs(matel)/weight_den
                 else
                     weight_rev = 1.0_dp
                 end if

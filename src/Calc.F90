@@ -146,6 +146,8 @@ contains
           tAAS_MatEle = .false. 
           tAAS_MatEle2 = .false.
           tAAS_MatEle3 = .false.
+          tAAS_MatEle4 = .false.
+          AAS_DenCut = 1e-3
           tAAS_Reverse = .false.
           tAAS_Reverse_Weighted = .false.
           tInitsRDMRef = .false.
@@ -1613,6 +1615,12 @@ contains
                 tAAS_MatEle3 = .true.
                 !When using the MatEle, the default value of 10 becomes meaningless
                 AdaptiveShiftThresh = 0.0
+            case("AAS-MATELE4")
+                tAAS_MatEle4 = .true.
+                !When using the MatEle, the default value of 10 becomes meaningless
+                AdaptiveShiftThresh = 0.0
+            case("AAS-DEN-CUT")
+                call getf(AAS_DenCut)
             case("AAS-REVERSE")
                 tAAS_Reverse = .true.
             case("AAS-REVERSE-WEIGHTED")
