@@ -15,7 +15,7 @@ module fcimc_initialisation
                           t_lattice_model, t_tJ_model, t_heisenberg_model, & 
                           t_k_space_hubbard, t_3_body_excits, omega, breathingCont, &
                           momIndexTable, t_trans_corr_2body, t_non_hermitian, &
-                          t_uniform_excits, t_mol_3_body
+                          t_uniform_excits, t_mol_3_body,t_ueg_transcorr,t_ueg_3_body
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
 
     use dSFMT_interface, only: dSFMT_init

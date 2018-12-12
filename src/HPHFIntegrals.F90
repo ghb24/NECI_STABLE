@@ -21,7 +21,7 @@ module hphf_integrals
 
     function hphf_spawn_sign (nI, nJ, iLutI, iLutJ, ic, ex, &
                                   tParity, HElGen) result (hel)
-        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,maxExcit)
+        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,ic)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: tParity
         integer :: iUnused
@@ -41,7 +41,7 @@ module hphf_integrals
     ! TODO: comment as to why!
     function hphf_off_diag_helement_spawn (nI, nJ, iLutI, iLutJ, ic, ex, &
                                            tParity, HElGen) result (hel)
-        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,maxExcit)
+        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,ic)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: tParity
         integer :: iUnused

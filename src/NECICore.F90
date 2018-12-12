@@ -241,7 +241,7 @@ subroutine NECICalcInit(iCacheFlag)
     !=                                calculation.
 
     use System, only : SysInit
-    use SystemData, only : tRotateOrbs,tFindCINatOrbs,tUEG,t_ueg_transcorr
+    use SystemData, only : tRotateOrbs,tFindCINatOrbs,tUEG,t_ueg_transcorr,t_ueg_dump
     use Integrals_neci, only : IntInit,IntFreeze,tPostFreezeHF,DumpFCIDUMP, &
          InitIntBuffers
     use IntegralsData, only : tDumpFCIDUMP
@@ -251,7 +251,7 @@ subroutine NECICalcInit(iCacheFlag)
     use HFCalc, only: HFDoCalc
     use RotateOrbsMod, only : RotateOrbs
     use replica_data, only: init_replica_arrays
-    use gen_coul_ueg_mod, only: GEN_Umat_TC
+    use gen_coul_ueg_mod, only: GEN_Umat_TC,prep_ueg_dump
     
     implicit none
     integer,intent(in) :: iCacheFlag
@@ -291,6 +291,7 @@ subroutine NECICalcInit(iCacheFlag)
 !                  WRITE(6,*) "Size of UMat_TC3 is: ",UMATINT
                    
                    call GEN_Umat_TC
+              if(t_ueg_dump) call prep_ueg_dump
                    
       
     !!$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$

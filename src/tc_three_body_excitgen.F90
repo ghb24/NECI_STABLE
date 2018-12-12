@@ -131,9 +131,8 @@ module tc_three_body_excitgen
       ! initialize the biases and auxiliary variables for the molecular
       ! transcorrelated 3-body excitation generator
 
-      call precompute_pgen()
-
       call init_mol_tc_biases(HF)
+      call precompute_pgen()
     end subroutine setup_mol_tc_excitgen
 
 !------------------------------------------------------------------------------------------!
@@ -148,7 +147,7 @@ module tc_three_body_excitgen
       ! the number of valid triple excitations is just given by the binomial coefficients
       pgen3B = nOccBeta * (nOccBeta - 1) * (nOccBeta - 2) * nUnoccBeta * (nUnoccBeta - 1) &
            * (nUnoccBeta - 2)
-      pgen3B = scaleInvert(6.0_dp, pgen3B)
+      pgen3B = scaleInvert(36.0_dp, pgen3B)
 
       pgen2B = nOccBeta * (nOccBeta - 1) * nOccAlpha * nUnoccBeta * (nUnoccBeta - 1) * nUnoccAlpha
       pgen2B = scaleInvert(4.0_dp, pgen2B)
@@ -158,7 +157,7 @@ module tc_three_body_excitgen
 
       pgen0B = nOccAlpha * (nOccAlpha - 1) * (nOccAlpha - 2) * nUnoccAlpha * (nUnoccAlpha - 1) &
            * (nUnoccAlpha - 2)
-      pgen0B = scaleInvert(6.0_dp, pgen0B)
+      pgen0B = scaleInvert(36.0_dp, pgen0B)
 
       contains
         pure function scaleInvert(scl, p) result(sp)
@@ -187,6 +186,7 @@ module tc_three_body_excitgen
       p0A = 0.25
       p0B = 0.25
       p2B = 0.25
+      p1B = 1.0_dp - p0A - p0B - p2B
     end subroutine init_mol_tc_biases
 
 !------------------------------------------------------------------------------------------!
@@ -251,11 +251,14 @@ module tc_three_body_excitgen
          if(pickAlpha) then
             nOcc = nOccAlpha
             ms = 3
+            pgen = pgen * p0B/(p0B+p0A)
          else
             nOcc = nOccBeta
             ms = -3
+            pgen = pgen * p0A/(p0B+p0A)
          endif
-         call get_missing_elec(nI,elecs,nOcc,2,pickAlpha,pgen)        
+         call get_missing_elec(nI,elecs,nOcc,2,pickAlpha,pgen)
+         pgen = pgen * 3.0_dp
       else
          ! first picked one alpha and the beta
          r = genrand_real2_dSFMT()
@@ -264,11 +267,13 @@ module tc_three_body_excitgen
             ! then pick the second beta
             call get_missing_elec(nI,elecs,nOccBeta,1,.false.,pgen)
             ms = -1
+            pgen = pgen * p2B/(1.0_dp - (p0B+p0A))
          else
             ! we have 2 alpha elecs + 1 beta
             ! then pick the second alpha
             call get_missing_elec(nI,elecs,nOccAlpha,1,.true.,pgen)
             ms = 1
+            pgen = pgen * p1B/(1.0_dp - (p0B+p0A))
          endif
       endif
 
@@ -377,7 +382,7 @@ module tc_three_body_excitgen
       end do
 
       ! adjust the probability by taking permutations into account
-      pgen = pgen * 2 * abs(ms)
+      pgen = pgen * 4 * abs(ms)
       
     end subroutine pick_three_orbs
 

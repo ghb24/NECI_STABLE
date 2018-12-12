@@ -1,20 +1,31 @@
-module gen_coul_ueg_mod
+ module gen_coul_ueg_mod
     use UMatCache, only: UMatInd, GTID
     use SystemData, only: BasisFN, nel, nBasisMax, nBasis, G1, NMSH, nMax, &
                           iSpinSkip, tHub, uHub, omega, iPeriodicDampingType,&
                           btHub, momIndexTable, breathingCont, tmodHub,&
-                          ALAT,OrbECutoff,t_ueg_transcorr
+                          ALAT,OrbECutoff,t_ueg_transcorr,t_ueg_3_body
     use IntegralsData, only: UMat, FCK
     use global_utilities
     use constants, only: sp, dp, pi, pi2, THIRD
+    use Parallel_neci, only: iProcIndex
     use iso_c_hack
     use breathing_Hub, only: bHubIndexFunction
     implicit none
-    
+     
+    interface
+     function uu_tc_t (k2) result(u_tc)
+        use constants, only: dp
+        real(dp), intent(in) :: k2
+        real(dp)  :: u_tc
+     end function
+    end interface
+   
+    procedure(uu_tc_t), pointer :: uu_tc
+
     save
 ! approximate the 3 body potential by 2 body terms and store them in  UMAT
      HElement_t(dp),  ALLOCATABLE :: UMAT_TC2(:,:,:)
-     real(dp) :: ktc_cutoff2
+     real(dp) :: ktc_cutoff2,omega_p
 
 contains
 
@@ -649,7 +660,7 @@ contains
         complex(dp) :: s, ci
         type(timer), save :: proc_timer
 
-        real(dp) :: k_tc(3), pq_tc(3), u_tc, gamma_RPA, gamma_kmax, G2, G,k1_tc(3),k2_tc(3)
+        real(dp) :: k_tc(3), pq_tc(3), gamma_RPA, gamma_kmax, G2, G,k1_tc(3),k2_tc(3)
         logical :: tCoulomb, tExchange          
         character(*), parameter :: this_routine = 'GEN_Umat_TC'
         
@@ -659,7 +670,16 @@ contains
 !        gamma_kmax=sqrt(((NBASISMAX(1,2))*2*PI/ALAT(1))**2+ &
 !                   ((NBASISMAX(2,2))*2*PI/ALAT(2))**2+((NBASISMAX(3,2))*2*PI/ALAT(3))**2)  
          ktc_cutoff2=OrbECutoff*(2*PI/ALAT(1))**2
-       
+         omega_p=dsqrt(4*pi*nel/ (ALAT(1) * ALAT(2) * ALAT(3)))
+         
+         
+         
+         if(t_ueg_3_body)then
+          uu_tc => uu_tc_interpl
+         else
+          uu_tc => uu_tc_trunc
+         end if 
+        
         
         i=1       
         if(i==0)then
@@ -688,8 +708,7 @@ contains
         ALLOCATE ( UMAT_TC2(-kmax2:kmax2,-kmax2:kmax2,-kmax2:kmax2), STAT = AllocateStatus)
         IF (AllocateStatus /= 0) STOP "*** Not enough memory for UMAT_TC2 ***"
         
-     
-     
+        
         kmax2_cut=100
         
         do i = -kmax2, kmax2
@@ -761,9 +780,50 @@ contains
       
       
         call halt_timer(proc_timer)
+        
     end subroutine
+    
 
+    
+    function uu_tc_interpl (k2) result(u_tc)
 
+     !   use SystemData, only: tUEG2, kvec, k_lattice_constant, dimen
+        real(dp), intent(in) :: k2
+        real(dp) :: u_tc
+        
+        if( k2<1.d-12 )then
+         u_tc=0.0
+        else 
+         u_tc=-4*PI/k2/(k2+omega_p)
+        end if
+        
+    end function
+    
+    function uu_tc_trunc (k2) result(u_tc)
+
+        use SystemData, only: dimen
+        real(dp), intent(in) :: k2
+        real(dp) :: u_tc
+      if(dimen==3)then  
+        if(k2<=ktc_cutoff2*(1.0+1.d-10))then
+         u_tc = 0.0
+        else 
+         u_tc = - 12.566370614359173 /k2/k2
+        end if 
+      else if (dimen==2)then
+        if(k2<=ktc_cutoff2*(1.0+1.d-10))then
+         u_tc = 0.0
+        else 
+         u_tc = - 6.283185307179586 / k2/dsqrt(k2)
+        end if 
+      else
+        write(6,*) 'dimension error in uu_tc_prod', dimen
+        stop
+      end if
+
+        
+    end function
+    
 ! Here we calculate the product k1*k2*u(k1)*u(k2) for the transcorrelated method
     function uu_tc_prod (k1_tc,k2_tc) result(uu_prod)
 
@@ -776,35 +836,16 @@ contains
         k12=k1_tc(1)*k2_tc(1)+k1_tc(2)*k2_tc(2)+k1_tc(3)*k2_tc(3)
         k1=k1_tc(1)*k1_tc(1)+k1_tc(2)*k1_tc(2)+k1_tc(3)*k1_tc(3)
         k2=k2_tc(1)*k2_tc(1)+k2_tc(2)*k2_tc(2)+k2_tc(3)*k2_tc(3)
-        if(k1<=ktc_cutoff2*(1.0+1.d-10))then
-         u1 = 0.0
-        else 
-         u1 = - 12.566370614359173 / k1**2
-        end if 
-        
-        if(k2<=ktc_cutoff2*(1.0+1.d-10))then
-         u2 = 0.0
-        else 
-         u2 = - 12.566370614359173 / k2**2
-        end if
+        u1=uu_tc(k1)
+        u2=uu_tc(k2)
         
         uu_prod=k12*u1*u2
       else if (dimen==2)then
         k12=k1_tc(1)*k2_tc(1)+k1_tc(2)*k2_tc(2)
         k1=k1_tc(1)*k1_tc(1)+k1_tc(2)*k1_tc(2)
         k2=k2_tc(1)*k2_tc(1)+k2_tc(2)*k2_tc(2)
-        if(k1<=ktc_cutoff2*(1.0+1.d-10))then
-         u1 = 0.0
-        else 
-         u1 = - 6.283185307179586 / k1/dsqrt(k1)
-        end if 
-        
-        if(k2<=ktc_cutoff2*(1.0+1.d-10))then
-         u2 = 0.0
-        else 
-         u2 = - 6.283185307179586 / k2/dsqrt(k2)
-        end if
-        
+        u1=uu_tc(k1)
+        u2=uu_tc(k2)
         uu_prod=k12*u1*u2
       
       else
@@ -907,19 +948,24 @@ contains
     subroutine prep_ueg_dump
 
         use SystemData, only: tUEG2, kvec, k_lattice_constant, dimen
+        use util_mod, only: get_free_unit
         HElement_t(dp) :: hel
-        integer :: i, j, k, l, a, b, c, iss, id1, id2, id3, id4,ms2,nelec,i0,norb
-        real(dp) :: G, G2,energy
+        integer :: i, j, k, l, a, b, c, iss, id1, id2, id3, id4,ms2,nelec,i0,norb,i_unit
+        integer :: l1,l2,l3,r1,r2,r3,k1(3),k2(3),k3(3)
+        real(dp) :: G, G2,energy,ak(3),bk(3),ck(3),a2,b2,c2
         real(dp) :: k_tc(3), pq_tc(3), u_tc, gamma_RPA, gamma_kmax
         logical :: tCoulomb, tExchange  
         character(*), parameter :: this_routine = 'prep_ueg_dump'
         namelist /FCI/ NORB,nelec,MS2
+
+!        if(iProcIndex == root) then
         
         ms2=0
         nelec=nel 
         norb=nBasis/2
-       open(10,file='FCIDUMP_HF',status='unknown')
-      write(10,FCI)
+       i_unit=get_free_unit() 
+      open(i_unit,file='FCIDUMP_HF',status='unknown')
+      write(i_unit,FCI)
       do id1=1,norb
        do id2=1,norb
         do id3=1,norb
@@ -967,15 +1013,11 @@ contains
                 pq_tc(2) = (G1(k)%k(2) - G1(l)%k(2))*2*PI/ ALAT(2)
                 pq_tc(3) = (G1(k)%k(3) - G1(l)%k(3))*2*PI/ ALAT(3)
                 
-                if(G2<=ktc_cutoff2*(1.0+1.d-10))then
-                 u_tc = 0.0
-                else 
-                 u_tc = - 4 * PI / G2**2
-                end if
+                u_tc = uu_tc(G2)
                 
                 
                  hel = 4 * PI / G2 + G2 * u_tc - (pq_tc(1) * k_tc(1) +pq_tc(2) * k_tc(2) +pq_tc(3) * k_tc(3)) *u_tc  &
-                        - (nel-2) * G2 / (ALAT(1) * ALAT(2) * ALAT(3)) * u_tc**2&
+                   !     - (nel-2) * G2 / (ALAT(1) * ALAT(2) * ALAT(3)) * u_tc**2&
                         - UMAT_TC2(-a,-b,-c)
                else
 ! =============== The original coulomb potential  ===================================              
@@ -1051,12 +1093,7 @@ contains
                 pq_tc(1) = (G1(k)%k(1) - G1(l)%k(1))*2*PI/ ALAT(1)
                 pq_tc(2) = (G1(k)%k(2) - G1(l)%k(2))*2*PI/ ALAT(2)
                 
-                if(G2<=ktc_cutoff2*(1.0+1.d-10))then
-                 u_tc = 0.0
-                else 
-                 u_tc = - 2 * PI / G2/G
-                end if
-                
+                u_tc= uu_tc (G2)
                 
                  hel = 2 * PI / G + G2 * u_tc - (pq_tc(1) * k_tc(1) +pq_tc(2) * k_tc(2)) *u_tc  &
                         - (nel-2) * G2 / (ALAT(1) * ALAT(2)) * u_tc**2&
@@ -1122,7 +1159,7 @@ contains
              
           
           if(abs(hel).gt.1.d-30)then
-            write(10,'(1x,e23.16,4I4)')hel,id1,id3,id2,id4
+            write(i_unit,'(1x,e23.16,4I4)')hel,id1,id3,id2,id4
           end if
          end do
         end do
@@ -1142,14 +1179,97 @@ contains
          hel=hel*(2*pi/ALAT(1))**2
          
        if(abs(hel).gt.1.d-30)then
-       write(10,'(1x,e23.16,4I4)')hel,i,j,i0,i0
+       write(i_unit,'(1x,e23.16,4I4)')hel,i,j,i0,i0
        end if
       end do
       end do
       energy=0.0
-      write(10,'(1x,e23.16,4I4)')energy,i0,i0,i0,i0
-      close(10)
+      write(i_unit,'(1x,e23.16,4I4)')energy,i0,i0,i0,i0
+      close(i_unit)
      
+!========= L mat ========================
+     if(.not.t_ueg_3_body)stop
+     
+       i_unit=get_free_unit() 
+       open(i_unit,file='TCDUMP',status='new')
+      do l1=1,norb
+      do l2=l1,norb
+      do l3=l2,norb
+      do r1=1,norb
+      do r2=2,norb
+      do r3=3,norb
+
+        
+          i=(l1-1)*2+1
+          j=(l2-1)*2+1
+          k=(l3-1)*2+1
+          a=(r1-1)*2+1
+          b=(r2-1)*2+1
+          c=(r3-1)*2+1
+          
+          
+!============ copy from above
+        
+     if(dimen==3)then
+        ! The Uniform Electron Gas
+        k1(1) = G1(i)%k(1) - G1(a)%k(1)
+        k1(2) = G1(i)%k(2) - G1(a)%k(2)
+        k1(3) = G1(i)%k(3) - G1(a)%k(3)
+        
+        k2(1) = G1(j)%k(1) - G1(b)%k(1)
+        k2(2) = G1(j)%k(2) - G1(b)%k(2)
+        k2(3) = G1(j)%k(3) - G1(b)%k(3)
+        
+        k3(1) = G1(k)%k(1) - G1(c)%k(1)
+        k3(2) = G1(k)%k(2) - G1(c)%k(2)
+        k3(3) = G1(k)%k(3) - G1(c)%k(3)
+       
+        if(all((k1+k2+k3)==0)) then
+           ak(1) = -2 * PI * k1(1) / ALAT(1)
+           ak(2) = -2 * PI * k1(2) / ALAT(2)                
+           ak(3) = -2 * PI * k1(3) / ALAT(3)
+           bk(1) = -2 * PI * k2(1) / ALAT(1)
+           bk(2) = -2 * PI * k2(2) / ALAT(2)                
+           bk(3) = -2 * PI * k2(3) / ALAT(3)
+           ck(1) = -2 * PI * k3(1) / ALAT(1)
+           ck(2) = -2 * PI * k3(2) / ALAT(2)                
+           ck(3) = -2 * PI * k3(3) / ALAT(3)
+           
+           
+           a2=ak(1)*ak(1)+ak(2)*ak(2)+ak(3)*ak(3)
+           b2=bk(1)*bk(1)+bk(2)*bk(2)+bk(3)*bk(3)
+           c2=ck(1)*ck(1)+ck(2)*ck(2)+ck(3)*ck(3)
+           
+           hel= uu_tc(a2)*uu_tc(b2)*(ak(1)*bk(1)+ak(2)*bk(2)+ak(3)*bk(3))&
+               +uu_tc(a2)*uu_tc(c2)*(ak(1)*ck(1)+ak(2)*ck(2)+ak(3)*ck(3))&
+               +uu_tc(b2)*uu_tc(c2)*(bk(1)*ck(1)+bk(2)*ck(2)+bk(3)*ck(3))
+           hel=hel/(ALAT(1) * ALAT(2) * ALAT(3))**2/3
+           
+
+           
+           
+           if(dabs(hel)>1.d-8)then
+            write(i_unit,'(1x,e23.16,6I4)')hel,l1,l2,l3,r1,r2,r3
+ !           print '(1x,e23.16,6I4)', hel,l1,l2,l3,r1,r2,r3
+           end if
+         end if
+      else
+       print *, 'at moment Lmat is only available for 3D UEG'
+       stop
+      end if
+      
+      end do
+      end do
+      end do
+      end do
+      end do
+      end do
+      
+           
+
+       
+     close(i_unit)
+!      end if
      stop
     end subroutine 
             

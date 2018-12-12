@@ -775,7 +775,7 @@ contains
         r = genrand_real2_dSFMT()
         if (r < pBiasIntern) then
             ! Same spin case
-            pgen = pParallel / real(par_elec_pairs, dp)
+            pgen = pBiasIntern / real(par_elec_pairs, dp)
             ! map the random number either to get a uniform random parallel
             ! excitation or a parallel excitation biased towards A/B spin
             ! if a bias is present, use it to round r
@@ -783,7 +783,7 @@ contains
                if(r < pBiasIntern * pAA) then
                   r = (r / pBiasIntern * AA_elec_pairs)
                else
-                  r = (r / pBiasIntern * (par_elec_pairs - AA_elec_pairs))
+                  r = (r / pBiasIntern * (par_elec_pairs - AA_elec_pairs)) + AA_elec_pairs
                endif
                ! else, round r to par_elec_pairs
             else
@@ -809,7 +809,7 @@ contains
             iSpn = 2
             al_req = 1
             be_req = 1
-            pgen = (1.0_dp - pParallel) / real(AB_elec_pairs, dp)
+            pgen = (1.0_dp - pBiasIntern) / real(AB_elec_pairs, dp)
             r = ((r - pParallel) / (1.0_dp - pParallel)) * AB_elec_pairs
             idx = floor(r)
             al_num(1) = 1 + mod(idx, nOccAlpha)

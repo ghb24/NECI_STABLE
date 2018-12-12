@@ -48,6 +48,7 @@ MODULE System
       tISKFuncs=.false.       !This is for kpoint symmetry with inversion so that determinants can be combined.
       tKPntSym=.false.        !This is for k-point symmetry with the symrandexcit2 excitation generators.
       t_mol_3_body = .false.
+      t_ueg_3_body = .false.
       tMCSizeSpace=.false.
       CalcDetPrint=1000
       CalcDetCycles=10000
@@ -187,7 +188,9 @@ MODULE System
       tmodHub = .false.
       t_uniform_excits = .false.
       t_mol_3_body = .false.
+      t_ueg_3_body = .false.
       t_ueg_transcorr = .false.
+      t_ueg_dump = .false.
       tMultiReplicas = .false.
       tGiovannisBrokenInit = .false.
       ! by default, excitation generation already creates matrix elements
@@ -210,6 +213,8 @@ MODULE System
 ! Coulomb damping function currently removed.
       FCOULDAMPBETA=-1.0_dp
       COULDAMPORB=0
+! set the UEG offset to 0
+      k_offset = 0.0_dp
         
     end subroutine SetSysDefaults
 
@@ -549,6 +554,18 @@ system: do
        
        case('UEG-TRANSCORR')
            t_ueg_transcorr = .true.
+            if(item < nitems) then
+               call readu(w)
+               select case(w)
+               case("3-BODY")
+                  t_ueg_3_body = .true.
+               case default
+                  t_ueg_3_body = .false.
+               end select
+            endif
+
+       case('UEG-DUMP')
+           t_ueg_dump = .true.
 
        case ('TRANSCORRELATED', 'TRANSCORR', 'TRANS-CORR')
            ! activate the transcorrelated Hamiltonian idea from hongjun for 

@@ -493,7 +493,7 @@ contains
         !      tParity      - Parity of the excitation
         ! Ret: hel          - The H matrix element
 
-        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,maxExcit)
+        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,ic)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: tParity
         HElement_t(dp) :: hel

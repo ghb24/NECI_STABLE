@@ -100,7 +100,7 @@ contains
         ! Ret: sltcnd_excit - The H matrix element
 
         integer, intent(in) :: nI(nel), IC
-        integer, intent(in), optional :: ex(2,maxExcit)
+        integer, intent(in), optional :: ex(2,ic)
         logical, intent(in), optional :: tParity
         character(*), parameter :: this_routine = 'sltcnd_excit'
 
@@ -478,7 +478,8 @@ contains
       ! then add the 3-body correction
       do i = 1, nel-1
          do j = i + 1, nel
-            hel = hel + get_lmat_el(ex(1),nI(i),nI(j),ex(2),nI(i),nI(j))
+            if(ex(1).ne.nI(i) .and. ex(1).ne.nI(j)) &
+                 hel = hel + get_lmat_el(ex(1),nI(i),nI(j),ex(2),nI(i),nI(j))
          end do
       end do
 
@@ -498,7 +499,8 @@ contains
       ! get the matrix element up to 2-body terms
       hel = sltcnd_2_kernel(ex)
       ! and the 3-body term
-      do i = 1, nel         
+      do i = 1, nel     
+         if(ex(1,1).ne.nI(i) .and. ex(1,2).ne.nI(i)) &
          hel = hel + get_lmat_el(ex(1,1),ex(1,2),nI(i),ex(2,1),ex(2,2),nI(i))
       end do
 
