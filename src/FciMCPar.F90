@@ -59,13 +59,13 @@ module FciMCParMod
     use errors, only: standalone_errors, error_analysis
     use PopsFileMod, only: WriteToPopsFileParOneArr
     use AnnihilationMod, only: DirectAnnihilation
-    use precond_annihilation_mod, only: precond_annihilation
+    use precond_annihilation_mod, only: precond_annihilation, replica_est_unit
     use exact_spectrum, only: get_exact_spectrum
     use determ_proj, only: perform_determ_proj
     use cont_time, only: iterate_cont_time
     use global_det_data, only: det_diagH, reset_tau_int, get_all_spawn_pops, &
                                reset_shift_int, update_shift_int, &
-                               update_tau_int, set_spawn_pop
+                               update_tau_int, set_spawn_pop, replica_est_len
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
     use ftlm_neci, only: perform_ftlm
@@ -215,25 +215,6 @@ module FciMCParMod
                       write(EXLEVELStats_unit,'("#")', advance='no')
             end if
             call WriteFCIMCStats()
-        end if
-
-        if (tPreCond .and. iProcIndex == 0) then
-            var_unit = get_free_unit()
-            call open_create_stats('var_estimates', var_unit)
-            write(var_unit, '("#", 4X, "Iteration")', advance='no')
-            write(var_unit, '(7x,"Energy numerator")', advance='no')
-            write(var_unit, '(5x,"Energy^2 numerator")', advance='no')
-            if (tEN2Init) then
-                write(var_unit, '(10x,"EN2 numerator")', advance='no')
-                write(var_unit, '(9x,"Var + EN2 num.")', advance='no')
-            end if
-            if (tEN2Rigorous) then
-                write(var_unit, '(8x,"Var + EN2 new")', advance='no')
-            end if
-            write(var_unit, '(10x,"Normalisation")', advance='no')
-            write(var_unit, '(8x,"Precond. energy")', advance='no')
-            write(var_unit, '(9x,"Precond. norm.")', advance='no')
-            write(var_unit,'()')
         end if
 
         ! double occupancy: 
@@ -707,8 +688,8 @@ module FciMCParMod
             close(unitWalkerDiag)
         endif
 
-        if (tPreCond .and. iProcIndex == 0) then
-            close(var_unit)
+        if (tReplicaEstimates .and. iProcIndex == 0) then
+            close(replica_est_unit)
         end if
 
         ! Print out some load balancing stats nicely to end.

@@ -2,7 +2,7 @@
 
 module global_det_data
 
-    use CalcData, only: tContTimeFCIMC, tContTimeFull
+    use CalcData, only: tContTimeFCIMC, tContTimeFull, tPairedReplicas
     use LoggingData, only: tRDMonFly, tExplicitAllRDM, tTransitionRDMs
     use FciMCData, only: MaxWalkersPart
     use constants
@@ -47,6 +47,9 @@ module global_det_data
     integer :: len_av_sgn_tot, len_iter_occ_tot
 
     integer :: pos_spawn_rate, len_spawn_rate
+
+    ! Legth of arrays storing estimates to be written to the replica_est file
+    integer :: replica_est_len
 
     ! And somewhere to store the actual data.
     real(dp), pointer :: global_determinant_data(:,:) => null()
@@ -166,6 +169,12 @@ contains
         pos_spawn_rate = pos_iter_occ_transition + len_iter_occ_transition
 
         tot_len = len_hel + len_spawn_pop + len_tau_int + len_shift_int + len_av_sgn_tot + len_iter_occ_tot
+
+        if (tPairedReplicas) then
+            replica_est_len = lenof_sign/2
+        else
+            replica_est_len = lenof_sign
+        end if
 
         ! Allocate and log the required memory (globally)
         allocate(global_determinant_data(tot_len, MaxWalkersPart), stat=ierr)

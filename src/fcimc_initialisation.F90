@@ -36,7 +36,8 @@ module fcimc_initialisation
                         tMultipleInitialStates, initial_states, t_hist_tau_search, &
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, tRCCheck, &
-                        t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0
+                        t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
+                        tReplicaEstimates
     use adi_data, only: tReferenceChanged, tAdiActive, &
          nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
@@ -81,7 +82,7 @@ module fcimc_initialisation
     use GenRandSymExcitCSF, only: gen_csf_excit
     use GenRandSymExcitNUMod, only: gen_rand_excit, init_excit_gen_store, &
                                     clean_excit_gen_store
-    use precond_annihilation_mod, only: tSpawnedTo
+    use precond_annihilation_mod, only: tSpawnedTo, open_replica_est_file
     use procedure_pointers, only: generate_excitation, attempt_create, &
                                   get_spawn_helement, encode_child, &
                                   attempt_die, extract_bit_rep_avsign, &
@@ -1613,8 +1614,14 @@ contains
 
         if(tRDMonFly .and. tDynamicCoreSpace) call sync_rdm_sampling_iter()
 
-        if (tPreCond) then
+        if (tReplicaEstimates) then
+            if (.not. tPairedReplicas) then
+                call stop_all(this_routine, "The paired-replicas option must be used the logging &
+                                            &block, in order to calculate replica estimates.)")
+            end if
+
             allocate(tSpawnedTo(determ_sizes(iProcIndex)))
+            call open_replica_est_file()
         end if
 
     end subroutine InitFCIMCCalcPar

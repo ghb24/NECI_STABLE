@@ -400,9 +400,11 @@ contains
           tEN2Started = .false.
           tEN2Rigorous = .false.
 
+          tTrialInit = .false.
+
           tPreCond = .false.
           PrecondSpawnCutoff = 0.5_dp
-          tTrialInit = .false.
+          tReplicaEstimates = .false.
 
         end subroutine SetCalcDefaults
 
@@ -2747,8 +2749,12 @@ contains
 
             case("PRECOND")
                 tPreCond = .true.
+                tReplicaEstimates = .true.
             case("PRECOND-SPAWN-CUTOFF")
                 call getf(PrecondSpawnCutoff)
+
+            case("REPLICA-ESTIMATES")
+                tReplicaEstimates = .true.
 
             case default
                 call report("Keyword "                                &
