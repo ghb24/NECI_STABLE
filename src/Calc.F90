@@ -147,7 +147,7 @@ contains
           tAAS_MatEle2 = .false.
           tAAS_MatEle3 = .false.
           tAAS_MatEle4 = .false.
-          AAS_DenCut = 1e-3
+          AAS_DenCut = 0.5
           tAAS_Reverse = .false.
           tAAS_Reverse_Weighted = .false.
           tInitsRDMRef = .false.
