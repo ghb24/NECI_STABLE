@@ -182,6 +182,10 @@ MODULE System
       tMultiReplicas = .false.
       tGiovannisBrokenInit = .false.
 
+      ! GAS options
+      tSpinConservingGAS = .false.
+      tNConservingGAS = .false.
+
 #ifdef __PROG_NUMRUNS
       inum_runs = 1
 #ifdef __CMPLX
@@ -1083,6 +1087,14 @@ system: do
 
             ! Looks nice, but it currently breaks lots of other stuff!
             tGiovannisBrokenInit = .true.
+            
+         case("PART-CONSERVING-GAS")
+            tNConservingGAS = .true.
+            tSpinConservingGAS = .true.
+
+         case("SPIN-ADAPTED-GAS")
+            tNConservingGAS = .true.
+            tSpinConservingGAS = .false.
 
         case("ENDSYS") 
             exit system

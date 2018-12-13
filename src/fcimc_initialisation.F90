@@ -11,7 +11,7 @@ module fcimc_initialisation
                           tRotatedOrbs, MolproID, nBasis, arr, brr, nel, tCSF,&
                           tHistSpinDist, tPickVirtUniform, tGen_4ind_reverse, &
                           tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
-                          tUEGNewGenerator, tGen_4ind_2, tReltvy
+                          tUEGNewGenerator, tGen_4ind_2, tReltvy, tNConservingGAS
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use dSFMT_interface, only: dSFMT_init
     use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
@@ -152,7 +152,7 @@ module fcimc_initialisation
     use back_spawn, only: init_back_spawn
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
-
+    use gasci, only: loadGAS
     implicit none
 
 contains

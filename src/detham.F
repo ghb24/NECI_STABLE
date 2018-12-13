@@ -3,13 +3,14 @@
       use global_utilities
       use constants, only: dp, n_int
       Use Determinants, only: get_helement
-      use SystemData , only : BasisFN
+      use SystemData , only : BasisFN, tNConservingGAS
       use CalcData , only : TStar
       use bit_rep_data, only: NIfTot
       use SystemData, only: tHPHF
       use hphf_integrals, only: hphf_diag_helement
       use hphf_integrals, only: hphf_off_diag_helement
       use DetBitOps, only: EncodeBitDet
+      use gasci, only: isValidExcit
       IMPLICIT NONE
       HElement_t(dp) HAMIL(*)
       INTEGER NDET,NEL
@@ -81,6 +82,9 @@ C..   Now we need to match up any two determinants
             end if
 C            CALL SLTCND(NEL,NBASISMAX,NHG,
 C     &     FCK,NMAX,ALAT,UMAT,TOTSUM)
+            if(tNConservingGAS) then
+               if(.not. isValidExcit(ilutI,ilutJ)) totsum = 0.0_dp
+            endif
             IF(ABS(TOTSUM).LT.1.0e-10_dp) TOTSUM=0.0_dp
             IF(TOTSUM.NE.0.0_dp.OR.KI.EQ.KJ) THEN
                GC=GC+1
