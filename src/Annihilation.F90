@@ -513,9 +513,6 @@ module AnnihilationMod
             end if
         end if
 
-        ! set the multi-spawn flag if there has been more than one spawn
-        if(abs(cum_sgn) > eps .and. abs(new_sgn) > eps) call set_flag(cum_det, flag_multi_spawn)
-
         sgn_prod = cum_sgn * new_sgn
 
         ! Update annihilation statistics.
@@ -627,9 +624,7 @@ module AnnihilationMod
             tDetermState = .false.
 
             ! for scaled walkers, truncation is done here
-            t_truncate_this_det = t_truncate_spawns .and. .not. &
-                 test_flag(SpawnedParts(:,i), flag_multi_spawn) .and. &
-                 tEScaleWalkers
+            t_truncate_this_det = t_truncate_spawns .and. tEScaleWalkers
 
 
 !            WRITE(6,*) 'i,SpawnedParts(:,i)',i,SpawnedParts(:,i)
@@ -803,7 +798,7 @@ module AnnihilationMod
                     end do
 
                     if(t_prone_walkers) then
-                       if(.not. test_flag(SpawnedParts(:,i), flag_multi_spawn)) &
+                       if(get_num_spawns(SpawnedParts(:,i)) < 2.0_dp) &
                             call set_flag(SpawnedParts(:,i), flag_prone)
                     endif
 

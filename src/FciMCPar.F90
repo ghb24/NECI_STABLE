@@ -1092,7 +1092,7 @@ module FciMCParMod
             end if
 
             if (tTruncInitiator) then
-                call CalcParentFlag (j, parent_flags)
+                call CalcParentFlag (j, DetCurr, WalkExcitLevel, parent_flags)
             end if
 
             !Debug output.
