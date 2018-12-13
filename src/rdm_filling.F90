@@ -428,7 +428,7 @@ contains
         real(dp) :: input_sign_i(rdm_defs%nrdms), input_sign_j(rdm_defs%nrdms)
         integer :: dest_part_type, source_part_type, run
         integer(n_int) :: source_flags
-        logical :: spawning_from_ket_to_bra
+        logical :: spawning_from_ket_to_bra, tNonInitParent
 
         ! Spawning from multiple parents, to iLutJ, which has SignJ.        
 
@@ -460,13 +460,15 @@ contains
             
             ! if we only sum in initiator contriubtions, check the flags here
             if(.not. (tNonInits .and. tNonInitsForRDMs)) then
+               tNonInitParent = .false.
                if(.not. (all_runs_are_initiator(ilutJ) .or. tNonVariationalRDMs)) return
                do run = 1, inum_runs
                   if(.not. btest(Spawned_Parents(NIfDBO+2,i),&
-                       get_initiator_flag_by_run(run))) return
-                  ! if a non-initiator is participating in this case, do not sum in
+                       get_initiator_flag_by_run(run))) tNonInitParent = .true.
+                  ! if a non-initiator is participating, do not sum in
                   ! that contribution
                end do
+               if(tNonInitParent) cycle
             endif
 
             ! Loop over all RDMs to which the simulation with label
