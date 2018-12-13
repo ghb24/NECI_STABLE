@@ -18,7 +18,7 @@ module hdiag_from_excit
 
         integer, intent(in) :: nI(nel), nJ(nel), IC, ex(2,2)
         integer(n_int), intent(in) :: iLutnJ(0:NIfTot)
-        HElement_t(dp), intent(in) :: hel_old
+        real(dp), intent(in) :: hel_old
 
         HElement_t(dp) :: hel
         
@@ -40,7 +40,7 @@ module hdiag_from_excit
         ! determinants are the same (so we only need to specify one).
 
         integer, intent(in) :: nI(nel), ex(2)
-        HElement_t(dp), intent(in) :: hel_old
+        real(dp), intent(in) :: hel_old
 
         HElement_t(dp) :: hel
         integer :: id(nel), id_ex(2), i
@@ -72,7 +72,7 @@ module hdiag_from_excit
         ! determinants are the same (so we only need to specify one).
 
         integer, intent(in) :: nI(nel), ex(2,2)
-        HElement_t(dp), intent(in) :: hel_old
+        real(dp), intent(in) :: hel_old
 
         HElement_t(dp) :: hel
         integer :: id(nel), ex_ordered(2,2), id_ex(2,2), i
@@ -132,7 +132,7 @@ module hdiag_from_excit
 
         integer, intent(in) :: nI(nel) 
         integer(n_int), intent(in) :: iLutnI(0:NIfTot)
-        HElement_t(dp), intent(in) :: hel_old
+        real(dp), intent(in) :: hel_old
 
         HElement_t(dp) :: hel
 
