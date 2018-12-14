@@ -445,4 +445,7 @@ logical :: tPreCond
 ! tDeathBeforeComms = .false.
 logical :: tDeathBeforeComms
 
+! Allow the user to input the following values for the excitation generator
+real(dp) :: pSinglesIn, pParallelIn
+
 end module CalcData

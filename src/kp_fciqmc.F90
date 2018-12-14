@@ -58,7 +58,7 @@ contains
         integer(n_int), pointer :: ilut_parent(:)
         real(dp) :: prob, unused_rdm_real, parent_hdiag
         real(dp) :: child_sign(lenof_sign), parent_sign(lenof_sign)
-        real(dp) :: unused_sign(lenof_sign)
+        real(dp) :: unused_sign(lenof_sign), precond_fac
         real(dp), allocatable :: lowdin_evals(:,:)
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied
         logical :: tParity, tSingBiasChange, tWritePopsFound
@@ -77,6 +77,9 @@ contains
         integer(n_int) :: int_sign(lenof_all_signs)
         real(dp) :: test_sign(lenof_all_signs)
         type(ll_node), pointer :: temp_node
+
+        ! Unused factor
+        precond_fac = 1.0_dp
 
         call init_kp_fciqmc(kp)
         if (.not. tAllSymSectors) ms_parent = lms
@@ -249,7 +252,8 @@ contains
 
                                             child_sign = attempt_create (nI_parent, ilut_parent, parent_sign, &
                                                                 nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
-                                                                ex_level_to_ref, ireplica, unused_sign, unused_rdm_real)
+                                                                ex_level_to_ref, ireplica, unused_sign, &
+                                                                unused_rdm_real, precond_fac)
 
                                         else
                                             child_sign = 0.0_dp
@@ -382,7 +386,7 @@ contains
         integer(n_int), pointer :: ilut_parent(:)
         real(dp) :: prob, unused_rdm_real, parent_hdiag
         real(dp) :: child_sign(lenof_sign), parent_sign(lenof_sign)
-        real(dp) :: unused_sign(lenof_sign)
+        real(dp) :: unused_sign(lenof_sign), precond_fac
         real(dp), allocatable :: lowdin_evals(:,:), lowdin_spin(:,:)
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied
         logical :: tParity, tSingBiasChange, tWritePopsFound
@@ -401,6 +405,9 @@ contains
 
         ! Variables to hold information output for the test suite.
         real(dp) :: s_sum, h_sum
+
+        ! Unused factor
+        precond_fac = 1.0_dp
 
         call init_kp_fciqmc(kp)
 
@@ -602,7 +609,8 @@ contains
 
                                     child_sign = attempt_create (nI_parent, ilut_parent, parent_sign, &
                                                         nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
-                                                        ex_level_to_ref, ireplica, unused_sign, unused_rdm_real)
+                                                        ex_level_to_ref, ireplica, unused_sign, &
+                                                        unused_rdm_real, precond_fac)
                                 else
                                     child_sign = 0.0_dp
                                 end if

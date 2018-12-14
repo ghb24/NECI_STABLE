@@ -835,7 +835,7 @@ module FciMCParMod
         ! Now the local, iteration specific, variables
         integer :: j, p, error, proc_temp, i, HFPartInd,isym
         integer :: DetCurr(nel), nJ(nel), FlagsCurr, parent_flags
-        real(dp), dimension(lenof_sign) :: SignCurr, child, child_for_stats, precond_fac, SpawnSign
+        real(dp), dimension(lenof_sign) :: SignCurr, child, child_for_stats, SpawnSign
         integer(kind=n_int) :: iLutnJ(0:niftot)
         integer :: IC, walkExcitLevel, walkExcitLevel_toHF, ex(2,2), TotWalkersNew, part_type, run
         integer(int64) :: tot_parts_tmp(lenof_sign)
@@ -852,7 +852,7 @@ module FciMCParMod
         integer :: DetHash, FinalVal, clash, PartInd, k, y, MaxIndex
         type(ll_node), pointer :: TempNode
 
-        real(dp) :: proj_e_for_precond(lenof_sign)
+        real(dp) :: proj_e_for_precond(lenof_sign), precond_fac
         HElement_t(dp) :: hdiag_spawn, h_diag_correct
 
         integer :: ms
@@ -900,6 +900,7 @@ module FciMCParMod
         ! It would be nice to fix this properly
         if (tCSF) exFlag = 7
 
+        precond_fac = 1.0_dp
         proj_e_for_precond = 0.0_dp
 
         IFDEBUGTHEN(FCIMCDebug,iout)
@@ -1213,11 +1214,20 @@ module FciMCParMod
 
                         end if
 
+                        if (tPreCond .or. tReplicaEstimates) then
+                            hdiag_spawn = get_hdiag_from_excit(DetCurr, nJ, iLutnJ, ic, ex, hdiag_bare)
+
+                            if (tPreCond) then
+                                precond_fac = hdiag_spawn - proj_e_for_precond(part_type) - &
+                                               proje_ref_energy_offsets(part_type) - Hii
+                            end if
+                        end if
+
                         child = attempt_create (DetCurr, &
                                             CurrentDets(:,j), SignCurr, &
                                             nJ,iLutnJ, Prob, HElGen, IC, ex, &
-                                            tParity, walkExcitLevel,part_type, &
-                                            AvSignCurr,RDMBiasFacCurr)     
+                                            tParity, walkExcitLevel, part_type, &
+                                            AvSignCurr, RDMBiasFacCurr, precond_fac)
                                             ! Note these last two, AvSignCurr and 
                                             ! RDMBiasFacCurr are not used unless we're 
                                             ! doing an RDM calculation.
@@ -1257,14 +1267,8 @@ module FciMCParMod
                         ! Note, the final preconiditoner is applied in annihilation, once
                         ! the exact projected energy is know.
                         child_for_stats = child
-                        if (tPreCond .or. tReplicaEstimates) then
-                            hdiag_spawn = get_hdiag_from_excit(DetCurr, nJ, iLutnJ, ic, ex, hdiag_bare)
 
-                            if (tPreCond) then
-                                precond_fac = hdiag_spawn - proj_e_for_precond - proje_ref_energy_offsets - Hii
-                                child_for_stats = child_for_stats/precond_fac
-                            end if
-                        end if
+                        if (tPreCond) child_for_stats = child_for_stats/precond_fac
 
                         call new_child_stats (iter_data, CurrentDets(:,j), &
                                               nJ, iLutnJ, ic, walkExcitLevel, &

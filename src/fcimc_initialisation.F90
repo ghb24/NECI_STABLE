@@ -37,7 +37,7 @@ module fcimc_initialisation
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, tRCCheck, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
-                        tReplicaEstimates, tDeathBeforeComms
+                        tReplicaEstimates, tDeathBeforeComms, pSinglesIn, pParallelIn
     use adi_data, only: tReferenceChanged, tAdiActive, &
          nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
@@ -3205,6 +3205,17 @@ contains
                 write (iout,'(A,F14.6)') " pSingles set to: ", pSingles
             endif
         ENDIF
+
+        if (pSinglesIn > 1.e-12_dp) then
+            pSingles = pSinglesIn
+            pDoubles = 1.0_dp - pSinglesIn
+            write (iout,'(" Using the input value of pSingles:",1x, f14.6)') pSingles
+            write (iout,'(" Using the input value of pSingles:",1x, f14.6)') pDoubles
+        end if
+        if (pParallelIn > 1.e-12_dp) then
+            write (iout,'(" Using the input value of pSingles:",1x, f14.6)') pParallelIn
+            pParallel = pParallelIn
+        end if
 
     END SUBROUTINE CalcApproxpDoubles
 

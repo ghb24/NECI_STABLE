@@ -407,6 +407,9 @@ contains
 
           tDeathBeforeComms = .false.
 
+          pSinglesIn = 0.0_dp
+          pParallelIn = 0.0_dp
+
         end subroutine SetCalcDefaults
 
         SUBROUTINE CalcReadInput()
@@ -2754,6 +2757,11 @@ contains
 
             case("REPLICA-ESTIMATES")
                 tReplicaEstimates = .true.
+
+            case("PSINGLES")
+                call getf(pSinglesIn)
+            case("PPARALLEL")
+                call getf(pParallelIn)
 
             case default
                 call report("Keyword "                                &
