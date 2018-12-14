@@ -1,62 +1,24 @@
 #include "macros.h"
 
-module precond_annihilation_mod
+module replica_estimates
 
-    use AnnihilationMod, only: SendProcNewParts, CompressSpawnedList
     use AnnihilationMod, only: test_abort_spawn
-    use AnnihilationMod, only: AnnihilateSpawnedParts, deterministic_annihilation
     use bit_rep_data
-    use bit_reps, only: encode_sign, encode_part_sign, set_flag, &
+    use bit_reps, only: encode_sign, set_flag, &
                         get_initiator_flag, extract_spawn_hdiag
-    use CalcData, only: OccupiedThresh, tTruncInitiator, PrecondSpawnCutoff
-    use constants, only: n_int, lenof_sign, null_part, sizeof_int
-    use dSFMT_interface, only: genrand_real2_dSFMT
+    use constants, only: lenof_sign, sizeof_int
     use FciMCData
     use hash
     use Parallel_neci
-    use load_balance, only: CalcHashTableStats
     use searching
     use sort_mod
-    use SystemData, only: NEl, tHPHF
+    use SystemData, only: NEl
 
     implicit none
 
-    logical, allocatable :: tSpawnedTo(:)
-
     contains
 
-    subroutine precond_annihilation(TotWalkersNew, proj_energy, iter_data, tSingleProc)
-
-        integer, intent(inout) :: TotWalkersNew
-        real(dp), intent(inout) :: proj_energy(lenof_sign)
-        type(fcimc_iter_data), intent(inout) :: iter_data
-        logical, intent(in) :: tSingleProc
-
-        integer :: MaxIndex
-        integer(n_int), pointer :: PointTemp(:,:)
-        type(timer), save :: Compress_time
-        integer :: ref_positions(lenof_sign)
-
-        !call set_timer(hash_test_time, 30)
-        !call time_hash(MaxIndex)
-        !call halt_timer(hash_test_time)
-
-        ! If the semi-stochastic approach is being used then the following routine performs the
-        ! annihilation of the deterministic states. These states are subsequently skipped in the
-        ! AnnihilateSpawnedParts routine.
-        if (tSemiStochastic) call deterministic_annihilation(iter_data)
-
-        ! Binary search the main list and copy accross/annihilate determinants which are found.
-        ! This will also remove the found determinants from the spawnedparts lists.
-        call AnnihilateSpawnedParts(MaxIndex, TotWalkersNew, iter_data)
-
-        call set_timer(Sort_Time, 30)
-        call CalcHashTableStats(TotWalkersNew, iter_data)
-        call halt_timer(Sort_Time)
-
-    end subroutine precond_annihilation
-
-    subroutine get_precond_energy(ValidSpawned, proj_energy)
+    subroutine get_proj_e_for_preconditioner(ValidSpawned, proj_energy)
 
         use CalcData, only: tau
 
@@ -121,7 +83,7 @@ module precond_annihilation_mod
         ! Remove time step
         proj_energy = proj_energy / tau
 
-    end subroutine get_precond_energy
+    end subroutine  get_proj_e_for_preconditioner
 
     subroutine calc_ests_and_set_init_flags(ValidSpawned, proj_energy)
 
@@ -188,7 +150,7 @@ module precond_annihilation_mod
         tSuccess = .false.
         abort = .false.
 
-        tSpawnedTo = .false.
+        tDetermSpawnedTo = .false.
 
         ! Contributions from diagonal where necessary
         do i = 1, int(TotWalkers, sizeof_int)
@@ -225,7 +187,7 @@ module precond_annihilation_mod
                 tCoreDet = check_determ_flag(CurrentDets(:,PartInd))
                 if (tCoreDet) then
                     determ_pos = core_space_pos(SpawnedParts(:,i), nI_spawn) - determ_displs(iProcIndex)
-                    tSpawnedTo(determ_pos) = .true.
+                    tDetermSpawnedTo(determ_pos) = .true.
                     spwnsign = spwnsign + partial_determ_vecs(:, determ_pos)
                 end if
 
@@ -276,7 +238,7 @@ module precond_annihilation_mod
         ! Contribution from deterministic states that were not spawned to
         if (tSemiStochastic) then
             do i = 1, determ_sizes(iProcIndex)
-                if (.not. tSpawnedTo(i)) then
+                if (.not. tDetermSpawnedTo(i)) then
                     call extract_sign(CurrentDets(:, indices_of_determ_states(i)), cursign)
 
                     do j = 1, replica_est_len
@@ -358,7 +320,7 @@ module precond_annihilation_mod
                     tCoreDet = check_determ_flag(CurrentDets(:,PartInd))
                     if (tCoreDet) then
                         determ_pos = core_space_pos(SpawnedParts(:,i), nI_spawn) - determ_displs(iProcIndex)
-                        tSpawnedTo(determ_pos) = .true.
+                        tDetermSpawnedTo(determ_pos) = .true.
                         spwnsign = spwnsign + partial_determ_vecs(:, determ_pos)
                     end if
                 end if
@@ -375,7 +337,7 @@ module precond_annihilation_mod
 
             if (tSemiStochastic) then
                 do i = 1, determ_sizes(iProcIndex)
-                    if (.not. tSpawnedTo(i)) then
+                    if (.not. tDetermSpawnedTo(i)) then
 
                         do j = 1, replica_est_len
                             en2_new(j) = en2_new(j) + &
@@ -409,59 +371,6 @@ module precond_annihilation_mod
 
     end subroutine calc_ests_and_set_init_flags
 
-    subroutine rescale_spawns(ValidSpawned, proj_energy)
-
-        integer, intent(in) :: ValidSpawned
-        real(dp), intent(in) :: proj_energy(lenof_sign)
-
-        integer :: i
-        real(dp) :: spwnsign(lenof_sign), hdiag
-
-        ! Find the weight spawned on the Hartree--Fock determinant.
-        if (tSemiStochastic) then
-            do i = 1, determ_sizes(iProcIndex)
-                partial_determ_vecs(:,i) = partial_determ_vecs(:,i) / &
-                  (core_ham_diag(i) - proj_energy - proje_ref_energy_offsets)
-            end do
-        end if
-
-        do i = 1, ValidSpawned
-            hdiag = extract_spawn_hdiag(SpawnedParts(:,i))
-
-            call extract_sign(SpawnedParts(:,i), spwnsign)
-            spwnsign = spwnsign / (hdiag - proj_energy - proje_ref_energy_offsets - Hii)
-            call encode_sign(SpawnedParts(:,i), spwnsign)
-        end do
-
-    end subroutine rescale_spawns
-
-    subroutine perform_death_all_walkers(iter_data)
-
-        use DetBitOps, only: FindBitExcitLevel
-        use fcimc_helper, only: walker_death
-        use global_det_data, only: det_diagH
-
-        type(fcimc_iter_data), intent(inout) :: iter_data
-
-        integer :: ex_level, nI(nel), j
-        real(dp) :: sgn(lenof_sign), hdiag
-
-        do j = 1, int(TotWalkers, sizeof_int)
-
-            call extract_sign(CurrentDets(:,j), sgn)
-            if (IsUnoccDet(sgn)) cycle
-
-            ex_level = FindBitExcitLevel(iLutRef(:,1), CurrentDets(:,j))
-            hdiag = det_diagH(j)
-
-            call decode_bit_det(nI, CurrentDets(:,j))
-
-            call walker_death(iter_data, nI, CurrentDets(:,j), hdiag, &
-                              sgn, j, ex_level)
-        end do
-
-    end subroutine perform_death_all_walkers
-
     subroutine time_hash(ValidSpawned)
 
         integer, intent(in) :: ValidSpawned
@@ -488,7 +397,7 @@ module precond_annihilation_mod
 
         if (iProcIndex == 0) then
             replica_est_unit = get_free_unit()
-            call open_create_stats('var_estimates', replica_est_unit)
+            call open_create_stats('replica_estimates', replica_est_unit)
             write(replica_est_unit, '("#", 4X, "Iteration")', advance='no')
             do j = 1, replica_est_len
                 write(replica_est_unit, '(7x,"Energy numerator")', advance='no')
@@ -509,4 +418,4 @@ module precond_annihilation_mod
 
     end subroutine open_replica_est_file
 
-end module precond_annihilation_mod
+end module replica_estimates

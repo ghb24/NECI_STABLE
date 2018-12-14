@@ -7,7 +7,8 @@ module AnnihilationMod
                           tTrialWavefunction, tKP_FCIQMC, tContTimeFCIMC, &
                           tContTimeFull, InitiatorWalkNo, tau, tEN2, tEN2Init, &
                           tEN2Started, tEN2Truncated, tInitCoherentRule, t_truncate_spawns, &
-                          n_truncate_spawns, t_prone_walkers, t_truncate_unocc, tPreCond
+                          n_truncate_spawns, t_prone_walkers, t_truncate_unocc, &
+                          tPreCond, tReplicaEstimates
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -345,7 +346,7 @@ module AnnihilationMod
             cum_det = 0_n_int
             cum_det (0:nifdbo) = SpawnedParts(0:nifdbo, BeginningBlockDet)
 
-            if (tPreCond) then
+            if (tPreCond .or. tReplicaEstimates) then
                 cum_det(nOffSpawnHDiag) = SpawnedParts(nOffSpawnHDiag, BeginningBlockDet)
             end if
 
@@ -398,7 +399,7 @@ module AnnihilationMod
                 ! biased sign of Ci slightly wrong.
 
                 SpawnedParts2(0:NIfTot, VecInd) = cum_det(0:NIfTot)
-                if (tPreCond) then
+                if (tPreCond .or. tReplicaEstimates) then
                     SpawnedParts2(nOffSpawnHDiag, VecInd) = cum_det(nOffSpawnHDiag)
                 end if
 

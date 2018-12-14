@@ -83,7 +83,6 @@ set( SRC_FILES
     kp_fciqmc_init.F90
     kp_fciqmc_procs.F90
     kp_fciqmc_proj_est.F90
-    precond_annihilation.F90
     lanczos_general.F90
     lanczos_wrapper.F90
     legacy_data.F90
@@ -124,6 +123,7 @@ set( SRC_FILES
     read_psi.F
     readri.F90
     replica_data.F90
+    replica_estimates.F90
     rhodiag.F
     RhoElement.F90
     rootfind.F

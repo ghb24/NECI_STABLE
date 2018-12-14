@@ -14,7 +14,8 @@ module fcimc_helper
                         flag_trial, flag_connected, flag_deterministic, &
                         extract_part_sign, encode_part_sign, decode_bit_det, &
                         get_initiator_flag, get_initiator_flag_by_run, &
-                        log_spawn, increase_spawn_counter, encode_spawn_hdiag
+                        log_spawn, increase_spawn_counter, encode_spawn_hdiag, &
+                        extract_spawn_hdiag
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
                          DetBitEQ, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
@@ -41,7 +42,7 @@ module fcimc_helper
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
                         t_back_spawn_flex, tau, DiagSft,  &
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule, &
-                        tPreCond
+                        tPreCond, tReplicaEstimates
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
          tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
@@ -188,7 +189,7 @@ contains
                                             proc)
         end if
 
-        if (tPreCond) then
+        if (tPreCond .or. tReplicaEstimates) then
             call encode_spawn_hdiag(SpawnedParts(:, ValidSpawnedList(proc)), hdiag_spawn)
         end if
 
@@ -1803,6 +1804,58 @@ contains
         end if
 
     end subroutine decide_num_to_spawn
+
+    subroutine rescale_spawns(ValidSpawned, proj_energy)
+
+        integer, intent(in) :: ValidSpawned
+        real(dp), intent(in) :: proj_energy(lenof_sign)
+
+        integer :: i
+        real(dp) :: spwnsign(lenof_sign), hdiag
+
+        ! Find the weight spawned on the Hartree--Fock determinant.
+        if (tSemiStochastic) then
+            do i = 1, determ_sizes(iProcIndex)
+                partial_determ_vecs(:,i) = partial_determ_vecs(:,i) / &
+                  (core_ham_diag(i) - proj_energy - proje_ref_energy_offsets)
+            end do
+        end if
+
+        do i = 1, ValidSpawned
+            hdiag = extract_spawn_hdiag(SpawnedParts(:,i))
+
+            call extract_sign(SpawnedParts(:,i), spwnsign)
+            spwnsign = spwnsign / (hdiag - proj_energy - proje_ref_energy_offsets - Hii)
+            call encode_sign(SpawnedParts(:,i), spwnsign)
+        end do
+
+    end subroutine rescale_spawns
+
+    subroutine perform_death_all_walkers(iter_data)
+
+        use DetBitOps, only: FindBitExcitLevel
+        use global_det_data, only: det_diagH
+
+        type(fcimc_iter_data), intent(inout) :: iter_data
+
+        integer :: ex_level, nI(nel), j
+        real(dp) :: sgn(lenof_sign), hdiag
+
+        do j = 1, int(TotWalkers, sizeof_int)
+
+            call extract_sign(CurrentDets(:,j), sgn)
+            if (IsUnoccDet(sgn)) cycle
+
+            ex_level = FindBitExcitLevel(iLutRef(:,1), CurrentDets(:,j))
+            hdiag = det_diagH(j)
+
+            call decode_bit_det(nI, CurrentDets(:,j))
+
+            call walker_death(iter_data, nI, CurrentDets(:,j), hdiag, &
+                              sgn, j, ex_level)
+        end do
+
+    end subroutine perform_death_all_walkers
 
     subroutine walker_death (iter_data, DetCurr, iLutCurr, Kii, RealwSign, &
                              DetPosition, walkExcitLevel)

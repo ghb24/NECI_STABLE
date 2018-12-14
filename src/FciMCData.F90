@@ -501,6 +501,11 @@ MODULE FciMCData
       ! will start from the ground state of the core space
       logical :: tStartCoreGroundState
 
+      ! If tDetermSpawnedTo(i) is true, then the i'th deterministic state on
+      ! this processor was spawned to in the current iteration. This is only
+      ! allocated and used, currently, if replica estimates are being calculated.
+      logical, allocatable :: tDetermSpawnedTo(:)
+
       ! Trial wavefunction data.
 
       ! This list stores the iluts from which the trial wavefunction is formed,

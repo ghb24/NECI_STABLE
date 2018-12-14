@@ -59,8 +59,7 @@ module FciMCParMod
     use errors, only: standalone_errors, error_analysis
     use PopsFileMod, only: WriteToPopsFileParOneArr
     use AnnihilationMod, only: DirectAnnihilation, communicate_and_merge_spawns
-    use precond_annihilation_mod, only: replica_est_unit, perform_death_all_walkers, &
-                                        rescale_spawns, get_precond_energy, &
+    use replica_estimates, only: replica_est_unit, get_proj_e_for_preconditioner, &
                                         calc_ests_and_set_init_flags
     use exact_spectrum, only: get_exact_spectrum
     use determ_proj, only: perform_determ_proj
@@ -853,7 +852,7 @@ module FciMCParMod
         integer :: DetHash, FinalVal, clash, PartInd, k, y, MaxIndex
         type(ll_node), pointer :: TempNode
 
-        real(dp) :: precond_energy(lenof_sign)
+        real(dp) :: proj_e_for_precond(lenof_sign)
         HElement_t(dp) :: hdiag_spawn, h_diag_correct
 
         integer :: ms
@@ -1139,7 +1138,7 @@ module FciMCParMod
             ! For HPHFs, get the diagonal Hamiltonian element without the
             ! cross-term correction. This will make calculating the diagonal
             ! elements for new spawnins more efficient
-            if (tPreCond) then
+            if (tPreCond .or. tReplicaEstimates) then
                 if (tHPHF) then
                     hdiag_bare = get_hdiag_bare_hphf(DetCurr, CurrentDets(:,j), EnergyCurr)
                 else
@@ -1256,10 +1255,13 @@ module FciMCParMod
                         ! Note, the final preconiditoner is applied in annihilation, once
                         ! the exact projected energy is know.
                         child_for_stats = child
-                        if (tPreCond) then
+                        if (tPreCond .or. tReplicaEstimates) then
                             hdiag_spawn = get_hdiag_from_excit(DetCurr, nJ, iLutnJ, ic, ex, hdiag_bare)
-                            precond_fac = hdiag_spawn - precond_energies - proje_ref_energy_offsets - Hii
-                            child_for_stats = child_for_stats/precond_fac
+
+                            if (tPreCond) then
+                                precond_fac = hdiag_spawn - precond_energies - proje_ref_energy_offsets - Hii
+                                child_for_stats = child_for_stats/precond_fac
+                            end if
                         end if
 
                         call new_child_stats (iter_data, CurrentDets(:,j), &
@@ -1290,10 +1292,6 @@ module FciMCParMod
                 call walker_death (iter_data, DetCurr, CurrentDets(:,j), &
                                    HDiagCurr, SignCurr, j, WalkExcitLevel)
             end if
-            !if ((.not. tPreCond) .and. (.not. tCoreDet)) then
-            !    call walker_death (iter_data, DetCurr, CurrentDets(:,j), &
-            !                       HDiagCurr, SignCurr, j, WalkExcitLevel)
-            !end if
 
         end do ! Loop over determinants.
 
@@ -1355,11 +1353,11 @@ module FciMCParMod
             ! The preconditioned energy is used in perturbative estimates
             ! (and also when performing preconditioned FCIQMC).
             call set_timer(proj_e_time, 30)
-            call get_precond_energy(MaxIndex, precond_energy)
+            call get_proj_e_for_preconditioner(MaxIndex, proj_e_for_precond)
             call halt_timer(proj_e_time)
 
             call set_timer(precond_e_time, 30)
-            call calc_ests_and_set_init_flags(MaxIndex, precond_energy)
+            call calc_ests_and_set_init_flags(MaxIndex, proj_e_for_precond)
             call halt_timer(precond_e_time)
         end if
 
@@ -1367,7 +1365,7 @@ module FciMCParMod
         ! the preconditioner to the spawnings, and perform the death step.
         if (tPreCond) then
             call set_timer(rescale_time, 30)
-            call rescale_spawns(MaxIndex, precond_energy)
+            call rescale_spawns(MaxIndex, proj_e_for_precond)
             call halt_timer(rescale_time)
         end if
 
@@ -1378,29 +1376,7 @@ module FciMCParMod
             call halt_timer(death_time)
         end if
 
-        ! Perform death for each walker, if not done already
-        !if (.not. tDeathBeforeComms) then
-        !    do j = 1, int(TotWalkers, sizeof_int)
-        !        call extract_sign(CurrentDets(:,j), SignCurr)
-        !        if (IsUnoccDet(SignCurr)) cycle
-
-        !        WalkExcitLevel = FindBitExcitLevel(iLutRef(:,1), CurrentDets(:,j))
-        !        HDiagCurr = det_diagH(j)
-
-        !        call decode_bit_det(DetCurr, CurrentDets(:,j))
-
-        !        call walker_death(iter_data, DetCurr, CurrentDets(:,j), HDiagCurr, &
-        !                          SignCurr, j, WalkExcitLevel)
-        !    end do
-        !end if
-
         call DirectAnnihilation (TotWalkersNew, MaxIndex, iter_data)
-
-        !if (tPreCond) then
-        !    call precond_annihilation (TotWalkersNew, precond_energies, iter_data, .false.)
-        !else
-        !    call DirectAnnihilation (TotWalkersNew, MaxIndex, iter_data)
-        !end if
 
         ! The growth in the size of the occupied part of CurrentDets
         ! this is important for the purpose of prone_walkers

@@ -82,7 +82,7 @@ module fcimc_initialisation
     use GenRandSymExcitCSF, only: gen_csf_excit
     use GenRandSymExcitNUMod, only: gen_rand_excit, init_excit_gen_store, &
                                     clean_excit_gen_store
-    use precond_annihilation_mod, only: tSpawnedTo, open_replica_est_file
+    use replica_estimates, only: open_replica_est_file
     use procedure_pointers, only: generate_excitation, attempt_create, &
                                   get_spawn_helement, encode_child, &
                                   attempt_die, extract_bit_rep_avsign, &
@@ -1620,7 +1620,8 @@ contains
                                             &block, in order to calculate replica estimates.)")
             end if
 
-            allocate(tSpawnedTo(determ_sizes(iProcIndex)))
+            allocate(tDetermSpawnedTo(determ_sizes(iProcIndex)))
+
             call open_replica_est_file()
         end if
 
