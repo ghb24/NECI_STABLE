@@ -900,6 +900,8 @@ module FciMCParMod
         ! It would be nice to fix this properly
         if (tCSF) exFlag = 7
 
+        proj_e_for_precond = 0.0_dp
+
         IFDEBUGTHEN(FCIMCDebug,iout)
             write(iout,"(A)") "Hash Table: "
             write(iout,"(A)") "Position in hash table, Position in CurrentDets"
@@ -1259,7 +1261,7 @@ module FciMCParMod
                             hdiag_spawn = get_hdiag_from_excit(DetCurr, nJ, iLutnJ, ic, ex, hdiag_bare)
 
                             if (tPreCond) then
-                                precond_fac = hdiag_spawn - precond_energies - proje_ref_energy_offsets - Hii
+                                precond_fac = hdiag_spawn - proj_e_for_precond - proje_ref_energy_offsets - Hii
                                 child_for_stats = child_for_stats/precond_fac
                             end if
                         end if
