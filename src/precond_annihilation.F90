@@ -37,43 +37,9 @@ module precond_annihilation_mod
         type(timer), save :: Compress_time
         integer :: ref_positions(lenof_sign)
 
-        ! This routine will send all the newly-spawned particles to their
-        ! correct processor. 
-        call SendProcNewParts(MaxIndex, tSingleProc)
-
-        ! CompressSpawnedList works on SpawnedParts arrays, so swap the pointers around.
-        PointTemp => SpawnedParts2
-        SpawnedParts2 => SpawnedParts
-        SpawnedParts => PointTemp
-
-        Compress_time%timer_name='Compression interface'
-        call set_timer(Compress_time, 20)
-        ! Now we want to order and compress the spawned list of particles. 
-        ! This will also annihilate the newly spawned particles amongst themselves.
-        ! MaxIndex will change to reflect the final number of unique determinants in the newly-spawned list, 
-        ! and the particles will end up in the spawnedSign/SpawnedParts lists.
-        call CompressSpawnedList(MaxIndex, iter_data)
-        call halt_timer(Compress_time)
-
         !call set_timer(hash_test_time, 30)
         !call time_hash(MaxIndex)
         !call halt_timer(hash_test_time)
-
-        call set_timer(proj_e_time, 30)
-        call get_proj_energy(MaxIndex, proj_energy, ref_positions)
-        call halt_timer(proj_e_time)
-
-        call set_timer(precond_e_time, 30)
-        call calc_e_and_set_init_flags(MaxIndex, proj_energy)
-        call halt_timer(precond_e_time)
-
-        call set_timer(rescale_time, 30)
-        call rescale_spawns(MaxIndex, proj_energy)
-        call halt_timer(rescale_time)
-
-        call set_timer(precond_death_time, 30)
-        call perform_death_with_precond(iter_data)
-        call halt_timer(precond_death_time)
 
         ! If the semi-stochastic approach is being used then the following routine performs the
         ! annihilation of the deterministic states. These states are subsequently skipped in the
@@ -90,13 +56,12 @@ module precond_annihilation_mod
 
     end subroutine precond_annihilation
 
-    subroutine get_proj_energy(ValidSpawned, proj_energy, ref_positions)
+    subroutine get_precond_energy(ValidSpawned, proj_energy)
 
         use CalcData, only: tau
 
         integer, intent(in) :: ValidSpawned
         real(dp), intent(out) :: proj_energy(lenof_sign)
-        integer, intent(out) :: ref_positions(lenof_sign)
 
         integer :: i, run, ierr
         real(dp) :: SignTemp(lenof_sign), ref_pop(lenof_sign)
@@ -104,7 +69,6 @@ module precond_annihilation_mod
         integer :: PartInd, DetHash
 
         proj_energy = 0.0_dp
-        ref_positions = 0
         ref_found = .false.
 
         ! Find the weight spawned on the Hartree--Fock determinant.
@@ -125,7 +89,6 @@ module precond_annihilation_mod
                     call extract_sign(SpawnedParts(:,i), SignTemp)
                     proj_energy(run) = proj_energy(run) - SignTemp(run)
                     ref_found(run) = .true.
-                    ref_positions(run) = i
                 end if
             end do
         end do
@@ -158,9 +121,9 @@ module precond_annihilation_mod
         ! Remove time step
         proj_energy = proj_energy / tau
 
-    end subroutine get_proj_energy
+    end subroutine get_precond_energy
 
-    subroutine calc_e_and_set_init_flags(ValidSpawned, proj_energy)
+    subroutine calc_ests_and_set_init_flags(ValidSpawned, proj_energy)
 
         ! This routine calculates the various energy estimates to be printed
         ! to the file for the preconditioned approach.
@@ -444,7 +407,7 @@ module precond_annihilation_mod
             write(replica_est_unit,'()')
         end if
 
-    end subroutine calc_e_and_set_init_flags
+    end subroutine calc_ests_and_set_init_flags
 
     subroutine rescale_spawns(ValidSpawned, proj_energy)
 
@@ -472,7 +435,7 @@ module precond_annihilation_mod
 
     end subroutine rescale_spawns
 
-    subroutine perform_death_with_precond(iter_data)
+    subroutine perform_death_all_walkers(iter_data)
 
         use DetBitOps, only: FindBitExcitLevel
         use fcimc_helper, only: walker_death
@@ -497,7 +460,7 @@ module precond_annihilation_mod
                               sgn, j, ex_level)
         end do
 
-    end subroutine perform_death_with_precond
+    end subroutine perform_death_all_walkers
 
     subroutine time_hash(ValidSpawned)
 

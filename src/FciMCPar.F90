@@ -59,7 +59,9 @@ module FciMCParMod
     use errors, only: standalone_errors, error_analysis
     use PopsFileMod, only: WriteToPopsFileParOneArr
     use AnnihilationMod, only: DirectAnnihilation, communicate_and_merge_spawns
-    use precond_annihilation_mod, only: precond_annihilation, replica_est_unit
+    use precond_annihilation_mod, only: replica_est_unit, perform_death_all_walkers, &
+                                        rescale_spawns, get_precond_energy, &
+                                        calc_ests_and_set_init_flags
     use exact_spectrum, only: get_exact_spectrum
     use determ_proj, only: perform_determ_proj
     use cont_time, only: iterate_cont_time
@@ -851,6 +853,7 @@ module FciMCParMod
         integer :: DetHash, FinalVal, clash, PartInd, k, y, MaxIndex
         type(ll_node), pointer :: TempNode
 
+        real(dp) :: precond_energy(lenof_sign)
         HElement_t(dp) :: hdiag_spawn, h_diag_correct
 
         integer :: ms
@@ -1283,11 +1286,10 @@ module FciMCParMod
             ! deterministically later. Otherwise, perform the death step now.
             ! If using a preconditioner, then death is done in the annihilation
             ! routine, after the energy has been calculated.
-            if (tDeathBeforeComms) then
+            if (tDeathBeforeComms .and. (.not. tCoreDet)) then
                 call walker_death (iter_data, DetCurr, CurrentDets(:,j), &
                                    HDiagCurr, SignCurr, j, WalkExcitLevel)
             end if
-            !end if
             !if ((.not. tPreCond) .and. (.not. tCoreDet)) then
             !    call walker_death (iter_data, DetCurr, CurrentDets(:,j), &
             !                       HDiagCurr, SignCurr, j, WalkExcitLevel)
@@ -1304,12 +1306,11 @@ module FciMCParMod
             ! For semi-stochastic calculations only: Gather together the parts
             ! of the deterministic vector stored on each processor, and then
             ! perform the multiplication of the exact projector on this vector.
-            !if (tPreCond) then
-            !    call determ_projection_no_death()
-            !else
-            !    call determ_projection()
-            !end if
-            call determ_projection_no_death()
+            if (tDeathBeforeComms) then
+                call determ_projection()
+            else
+                call determ_projection_no_death()
+            end if
 
             if (tFillingStochRDMonFly) then
                 ! For RDM calculations, add the current core amplitudes into the
@@ -1346,31 +1347,60 @@ module FciMCParMod
         !HolesInList is returned from direct annihilation with the number of unoccupied determinants in the list
         !They have already been removed from the hash table though.
 
-        if (.not. tPreCond) then
-            call communicate_and_merge_spawns(MaxIndex, iter_data, .false.)
+        call communicate_and_merge_spawns(MaxIndex, iter_data, .false.)
 
-            ! Perform death for each walker, if not done already
-            if (.not. tDeathBeforeComms) then
-                do j = 1, int(TotWalkers, sizeof_int)
-                    call extract_sign(CurrentDets(:,j), SignCurr)
-                    if (IsUnoccDet(SignCurr)) cycle
+        ! Calculate replica-based estimates, and write them to the
+        ! replica_est file.
+        if (tPreCond .or. tReplicaEstimates) then
+            ! The preconditioned energy is used in perturbative estimates
+            ! (and also when performing preconditioned FCIQMC).
+            call set_timer(proj_e_time, 30)
+            call get_precond_energy(MaxIndex, precond_energy)
+            call halt_timer(proj_e_time)
 
-                    WalkExcitLevel = FindBitExcitLevel(iLutRef(:,1), CurrentDets(:,j))
-                    HDiagCurr = det_diagH(j)
-
-                    call decode_bit_det(DetCurr, CurrentDets(:,j))
-
-                    call walker_death(iter_data, DetCurr, CurrentDets(:,j), HDiagCurr, &
-                                      SignCurr, j, WalkExcitLevel)
-                end do
-            end if
+            call set_timer(precond_e_time, 30)
+            call calc_ests_and_set_init_flags(MaxIndex, precond_energy)
+            call halt_timer(precond_e_time)
         end if
 
+        ! If performing FCIQMC with preconditioning, then apply the
+        ! the preconditioner to the spawnings, and perform the death step.
         if (tPreCond) then
-            call precond_annihilation (TotWalkersNew, precond_energies, iter_data, .false.)
-        else
-            call DirectAnnihilation (TotWalkersNew, MaxIndex, iter_data)
+            call set_timer(rescale_time, 30)
+            call rescale_spawns(MaxIndex, precond_energy)
+            call halt_timer(rescale_time)
         end if
+
+        ! If we haven't performed the death step yet, then do it now.
+        if (.not. tDeathBeforeComms) then
+            call set_timer(death_time, 30)
+            call perform_death_all_walkers(iter_data)
+            call halt_timer(death_time)
+        end if
+
+        ! Perform death for each walker, if not done already
+        !if (.not. tDeathBeforeComms) then
+        !    do j = 1, int(TotWalkers, sizeof_int)
+        !        call extract_sign(CurrentDets(:,j), SignCurr)
+        !        if (IsUnoccDet(SignCurr)) cycle
+
+        !        WalkExcitLevel = FindBitExcitLevel(iLutRef(:,1), CurrentDets(:,j))
+        !        HDiagCurr = det_diagH(j)
+
+        !        call decode_bit_det(DetCurr, CurrentDets(:,j))
+
+        !        call walker_death(iter_data, DetCurr, CurrentDets(:,j), HDiagCurr, &
+        !                          SignCurr, j, WalkExcitLevel)
+        !    end do
+        !end if
+
+        call DirectAnnihilation (TotWalkersNew, MaxIndex, iter_data)
+
+        !if (tPreCond) then
+        !    call precond_annihilation (TotWalkersNew, precond_energies, iter_data, .false.)
+        !else
+        !    call DirectAnnihilation (TotWalkersNew, MaxIndex, iter_data)
+        !end if
 
         ! The growth in the size of the occupied part of CurrentDets
         ! this is important for the purpose of prone_walkers

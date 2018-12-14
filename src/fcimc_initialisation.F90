@@ -206,7 +206,7 @@ contains
         precond_e_time%timer_name='PreCondEnergyTime'
         proj_e_time%timer_name='ProjEnergyTime'
         rescale_time%timer_name='RescaleTime'
-        precond_death_time%timer_name='PDeathTime'
+        death_time%timer_name='DeathTime'
         hash_test_time%timer_name='HashTestTime'
         hii_test_time%timer_name='HiiTestTime'
 
