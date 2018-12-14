@@ -406,6 +406,8 @@ contains
           PrecondSpawnCutoff = 0.5_dp
           tReplicaEstimates = .false.
 
+          tDeathBeforeComms = .false.
+
         end subroutine SetCalcDefaults
 
         SUBROUTINE CalcReadInput()

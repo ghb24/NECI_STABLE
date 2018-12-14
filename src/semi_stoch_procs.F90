@@ -158,6 +158,7 @@ contains
         ! that the full vector for the whole deterministic space is stored on each processor.
         ! It then performs the deterministic multiplication of the projector on this full vector.
 
+        use DetBitOps, only: DetBitEQ
         use FciMCData, only: partial_determ_vecs, full_determ_vecs, SemiStoch_Comms_Time
         use FciMCData, only: SemiStoch_Multiply_Time, core_ham_diag
         use Parallel_neci, only: MPIBarrier, MPIAllGatherV
@@ -181,12 +182,27 @@ contains
 
             partial_determ_vecs = 0.0_dp
 
+#ifdef __CMPLX
+            do i = 1, determ_sizes(iProcIndex)
+                do j = 1, sparse_core_ham(i)%num_elements
+                    do run = 1, inum_runs
+                        partial_determ_vecs(min_part_type(run),i) = partial_determ_vecs(min_part_type(run),i) - &
+                            Real(sparse_core_ham(i)%elements(j))*full_determ_vecs(min_part_type(run),sparse_core_ham(i)%positions(j)) +&
+                            Aimag(sparse_core_ham(i)%elements(j))*full_determ_vecs(max_part_type(run),sparse_core_ham(i)%positions(j))
+                        partial_determ_vecs(max_part_type(run),i) = partial_determ_vecs(max_part_type(run),i) - &
+                            Aimag(sparse_core_ham(i)%elements(j))*full_determ_vecs(min_part_type(run),sparse_core_ham(i)%positions(j)) -&
+                            Real(sparse_core_ham(i)%elements(j))*full_determ_vecs(max_part_type(run),sparse_core_ham(i)%positions(j))
+                    end do
+                end do
+            end do
+#else
             do i = 1, determ_sizes(iProcIndex)
                 do j = 1, sparse_core_ham(i)%num_elements
                     partial_determ_vecs(:,i) = partial_determ_vecs(:,i) - &
                         sparse_core_ham(i)%elements(j)*full_determ_vecs(:,sparse_core_ham(i)%positions(j))
                 end do
             end do
+#endif
 
             ! Remove contribution from the diagonal elements, since the
             ! propagator has no diagonal.
@@ -197,6 +213,15 @@ contains
 
             ! Now multiply the vector by tau to get the final projected vector.
             partial_determ_vecs = partial_determ_vecs * tau
+
+            do i = 1, determ_sizes(iProcIndex)
+                do part_type  = 1, lenof_sign
+                    run = part_type_to_run(part_type)
+                    if(tSkipRef(run) .and. DetBitEQ(CurrentDets(:,indices_of_determ_states(i)),iLutRef(:,run),nIfD)) then
+                        partial_determ_vecs(part_type, i) = 0.0_dp
+                    end if
+                end do
+            end do
 
         end if
 

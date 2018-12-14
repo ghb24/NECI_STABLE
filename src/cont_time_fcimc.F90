@@ -17,7 +17,7 @@ module cont_time
     use Determinants, only: get_helement, write_det
     use orthogonalise, only: orthogonalise_replicas
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use AnnihilationMod, only: DirectAnnihilation
+    use AnnihilationMod, only: DirectAnnihilation, communicate_and_merge_spawns
     use bit_reps, only: nullify_ilut, encode_sign
     use fcimc_iter_utils, only: update_iter_data
     use hphf_integrals, only: hphf_diag_helement
@@ -44,7 +44,7 @@ contains
 
         real(dp) :: sgn(lenof_sign), rate, hdiag
         integer :: sgn_abs, iunused, flags, det(nel), j, p, TotWalkersNew
-        integer :: part_type, ic_hf, nopen
+        integer :: part_type, ic_hf, nopen, MaxIndex
         logical :: survives
 
         if (lenof_sign /= 1) then
@@ -153,7 +153,8 @@ contains
 
         ! Send walkers to the correct nodes, and annihilate
         call set_timer(annihil_time)
-        call DirectAnnihilation(TotWalkersNew, iter_data, .false.)
+        call communicate_and_merge_spawns(MaxIndex, iter_data, .false.)
+        call DirectAnnihilation(TotWalkersNew, MaxIndex, iter_data)
         TotWalkers = TotWalkersNew
         call halt_timer(annihil_time)
         IFDEBUG(FCIMCDebug, 2) write(iout, '("Finished annihilation")')

@@ -18,7 +18,7 @@ module FciMCParMod
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
                         DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
                         tSkipRef, tFixTrial, tTrialShift, t_activate_decay, &
-                        tEN2Init, tEN2Rigorous
+                        tEN2Init, tEN2Rigorous, tDeathBeforeComms
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
                         tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
                         SIUpdateInterval, tSuppressSIOutput, nRefUpdateInterval, &
@@ -58,7 +58,7 @@ module FciMCParMod
     use bit_rep_data, only: nOffFlag, flag_determ_parent, test_flag, flag_prone
     use errors, only: standalone_errors, error_analysis
     use PopsFileMod, only: WriteToPopsFileParOneArr
-    use AnnihilationMod, only: DirectAnnihilation
+    use AnnihilationMod, only: DirectAnnihilation, communicate_and_merge_spawns
     use precond_annihilation_mod, only: precond_annihilation, replica_est_unit
     use exact_spectrum, only: get_exact_spectrum
     use determ_proj, only: perform_determ_proj
@@ -848,7 +848,7 @@ module FciMCParMod
         HElement_t(dp), dimension(inum_runs) :: delta
         integer :: proc, pos, determ_index, irdm
         real(dp) :: r, sgn(lenof_sign), prob_extra_walker
-        integer :: DetHash, FinalVal, clash, PartInd, k, y
+        integer :: DetHash, FinalVal, clash, PartInd, k, y, MaxIndex
         type(ll_node), pointer :: TempNode
 
         HElement_t(dp) :: hdiag_spawn, h_diag_correct
@@ -1283,10 +1283,15 @@ module FciMCParMod
             ! deterministically later. Otherwise, perform the death step now.
             ! If using a preconditioner, then death is done in the annihilation
             ! routine, after the energy has been calculated.
-            if ((.not. tPreCond) .and. (.not. tCoreDet)) then
+            if (tDeathBeforeComms) then
                 call walker_death (iter_data, DetCurr, CurrentDets(:,j), &
                                    HDiagCurr, SignCurr, j, WalkExcitLevel)
             end if
+            !end if
+            !if ((.not. tPreCond) .and. (.not. tCoreDet)) then
+            !    call walker_death (iter_data, DetCurr, CurrentDets(:,j), &
+            !                       HDiagCurr, SignCurr, j, WalkExcitLevel)
+            !end if
 
         end do ! Loop over determinants.
 
@@ -1294,15 +1299,17 @@ module FciMCParMod
             write(iout,*) 'Finished loop over determinants'
             write(iout,*) "Holes in list: ", iEndFreeSlot
         ENDIFDEBUG
+
         if (tSemiStochastic) then
             ! For semi-stochastic calculations only: Gather together the parts
             ! of the deterministic vector stored on each processor, and then
             ! perform the multiplication of the exact projector on this vector.
-            if (tPreCond) then
-                call determ_projection_no_death()
-            else
-                call determ_projection()
-            end if
+            !if (tPreCond) then
+            !    call determ_projection_no_death()
+            !else
+            !    call determ_projection()
+            !end if
+            call determ_projection_no_death()
 
             if (tFillingStochRDMonFly) then
                 ! For RDM calculations, add the current core amplitudes into the
@@ -1339,10 +1346,30 @@ module FciMCParMod
         !HolesInList is returned from direct annihilation with the number of unoccupied determinants in the list
         !They have already been removed from the hash table though.
 
+        if (.not. tPreCond) then
+            call communicate_and_merge_spawns(MaxIndex, iter_data, .false.)
+
+            ! Perform death for each walker, if not done already
+            if (.not. tDeathBeforeComms) then
+                do j = 1, int(TotWalkers, sizeof_int)
+                    call extract_sign(CurrentDets(:,j), SignCurr)
+                    if (IsUnoccDet(SignCurr)) cycle
+
+                    WalkExcitLevel = FindBitExcitLevel(iLutRef(:,1), CurrentDets(:,j))
+                    HDiagCurr = det_diagH(j)
+
+                    call decode_bit_det(DetCurr, CurrentDets(:,j))
+
+                    call walker_death(iter_data, DetCurr, CurrentDets(:,j), HDiagCurr, &
+                                      SignCurr, j, WalkExcitLevel)
+                end do
+            end if
+        end if
+
         if (tPreCond) then
-            call precond_annihilation (totWalkersNew, precond_energies, iter_data, .false.)
+            call precond_annihilation (TotWalkersNew, precond_energies, iter_data, .false.)
         else
-            call DirectAnnihilation (totWalkersNew, iter_data, .false.) !.false. for not single processor
+            call DirectAnnihilation (TotWalkersNew, MaxIndex, iter_data)
         end if
 
         ! The growth in the size of the occupied part of CurrentDets

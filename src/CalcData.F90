@@ -434,6 +434,15 @@ logical :: t_back_spawn_flex = .false., t_back_spawn_flex_option = .false.
 ! 1 -> maybe I should rename this than so that minus indicates de-excitation?!
 integer :: occ_virt_level = 0
 
+! Use a Jacobi preconditioner in evolution equation
 logical :: tPreCond
+
+! Do we perform the death step before the communication of spawnings, or after?
+! If tReplicaEstimates is is true, then it is essential that tDeathBeforeComms
+! is false. To calculate these replica-based estimates, we use the summed-together
+! spawnings (i.e. after communication), and the current walkers *before* death
+! has been performed. So if tReplicaEstimates = .true., then we *must* have
+! tDeathBeforeComms = .false.
+logical :: tDeathBeforeComms
 
 end module CalcData

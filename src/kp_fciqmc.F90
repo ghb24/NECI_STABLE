@@ -6,7 +6,7 @@ module kp_fciqmc
     use kp_fciqmc_proj_est
     use kp_fciqmc_procs
 
-    use AnnihilationMod, only: DirectAnnihilation
+    use AnnihilationMod, only: DirectAnnihilation, communicate_and_merge_spawns
     use bit_rep_data, only: NIfTot, NOffFlag, test_flag
     use bit_reps, only: flag_deterministic, flag_determ_parent, set_flag
     use bit_reps, only: extract_bit_rep
@@ -52,7 +52,7 @@ contains
         integer :: iconfig, irepeat, ivec, nlowdin
         integer :: nspawn, parent_flags, unused_flags
         integer :: ex_level_to_ref, ex_level_to_hf
-        integer :: TotWalkersNew, determ_ind, ic, ex(2,2), ms_parent
+        integer :: TotWalkersNew, MaxIndex, determ_ind, ic, ex(2,2), ms_parent
         integer :: nI_parent(nel), nI_child(nel)
         integer(n_int) :: ilut_child(0:NIfTot)
         integer(n_int), pointer :: ilut_parent(:)
@@ -292,7 +292,8 @@ contains
 
                         call set_timer(annihil_time)
 
-                        call DirectAnnihilation (TotWalkersNew, iter_data_fciqmc, .false.)
+                        call communicate_and_merge_spawns(MaxIndex, iter_data_fciqmc, .false.)
+                        call DirectAnnihilation (TotWalkersNew, MaxIndex, iter_data_fciqmc)
 
                         TotWalkers = int(TotWalkersNew, int64)
 
@@ -375,7 +376,7 @@ contains
         integer :: iconfig, irepeat, ireport, nlowdin
         integer :: nspawn, parent_flags, unused_flags
         integer :: ex_level_to_ref, ex_level_to_hf
-        integer :: TotWalkersNew, determ_ind, ic, ex(2,2)
+        integer :: TotWalkersNew, MaxIndex, determ_ind, ic, ex(2,2)
         integer :: nI_parent(nel), nI_child(nel), unused_vecslot
         integer(n_int) :: ilut_child(0:NIfTot)
         integer(n_int), pointer :: ilut_parent(:)
@@ -642,7 +643,8 @@ contains
 
                     call set_timer(annihil_time)
 
-                    call DirectAnnihilation (TotWalkersNew, iter_data_fciqmc, .false.)
+                    call communicate_and_merge_spawns(MaxIndex, iter_data_fciqmc, .false.)
+                    call DirectAnnihilation (TotWalkersNew, MaxIndex, iter_data_fciqmc)
 
                     TotWalkers = int(TotWalkersNew, int64)
 

@@ -41,27 +41,45 @@ module AnnihilationMod
 
     contains
 
-    subroutine DirectAnnihilation(TotWalkersNew, iter_data, tSingleProc)
+    subroutine DirectAnnihilation(TotWalkersNew, MaxIndex, iter_data)
 
-        integer, intent(inout) :: TotWalkersNew
+        integer, intent(inout) :: TotWalkersNew, MaxIndex
         type(fcimc_iter_data), intent(inout) :: iter_data
-        integer :: MaxIndex
-        integer(kind=n_int), pointer :: PointTemp(:,:)
+
+        ! If the semi-stochastic approach is being used then the following routine performs the
+        ! annihilation of the deterministic states. These states are subsequently skipped in the
+        ! AnnihilateSpawnedParts routine.
+        if (tSemiStochastic) call deterministic_annihilation(iter_data)
+
+        ! Binary search the main list and copy accross/annihilate determinants which are found.
+        ! This will also remove the found determinants from the spawnedparts lists.
+        call AnnihilateSpawnedParts(MaxIndex, TotWalkersNew, iter_data)
+
+        call set_timer(Sort_Time, 30)
+        call CalcHashTableStats(TotWalkersNew, iter_data)
+        call halt_timer(Sort_Time)
+
+    end subroutine DirectAnnihilation
+
+    subroutine communicate_and_merge_spawns(MaxIndex, iter_data, tSingleProc)
+
+        integer, intent(out) :: MaxIndex
+        type(fcimc_iter_data), intent(inout) :: iter_data
         logical, intent(in) :: tSingleProc
+        integer(kind=n_int), pointer :: PointTemp(:,:)
         type(timer), save :: Compress_time
 
         ! This routine will send all the newly-spawned particles to their
         ! correct processor. 
-
-        call SendProcNewParts(MaxIndex,tSingleProc)
+        call SendProcNewParts(MaxIndex, tSingleProc)
 
         ! CompressSpawnedList works on SpawnedParts arrays, so swap the pointers around.
         PointTemp => SpawnedParts2
         SpawnedParts2 => SpawnedParts
         SpawnedParts => PointTemp
 
-        Compress_time%timer_name='Compression interface'
-        call set_timer(Compress_time,20)
+        Compress_time%timer_name = 'Compression interface'
+        call set_timer(Compress_time, 20)
 
         ! Now we want to order and compress the spawned list of particles. 
         ! This will also annihilate the newly spawned particles amongst themselves.
@@ -70,20 +88,8 @@ module AnnihilationMod
         call CompressSpawnedList(MaxIndex, iter_data)  
 
         call halt_timer(Compress_time)
-         ! If the semi-stochastic approach is being used then the following routine performs the
-         ! annihilation of the deterministic states. These states are subsequently skipped in the
-         ! AnnihilateSpawnedParts routine.
-         if (tSemiStochastic) call deterministic_annihilation(iter_data)
 
-        ! Binary search the main list and copy accross/annihilate determinants which are found.
-        ! This will also remove the found determinants from the spawnedparts lists.
-        call AnnihilateSpawnedParts(MaxIndex,TotWalkersNew, iter_data)  
-
-        CALL set_timer(Sort_Time,30)
-        call CalcHashTableStats(TotWalkersNew, iter_data) 
-        CALL halt_timer(Sort_Time)
-
-    end subroutine DirectAnnihilation
+    end subroutine communicate_and_merge_spawns
 
     subroutine SendProcNewParts(MaxIndex,tSingleProc)
 

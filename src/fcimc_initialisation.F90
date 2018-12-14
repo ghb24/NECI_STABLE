@@ -37,7 +37,7 @@ module fcimc_initialisation
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, tRCCheck, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
-                        tReplicaEstimates
+                        tReplicaEstimates, tDeathBeforeComms
     use adi_data, only: tReferenceChanged, tAdiActive, &
          nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
@@ -1622,6 +1622,26 @@ contains
 
             allocate(tSpawnedTo(determ_sizes(iProcIndex)))
             call open_replica_est_file()
+        end if
+
+        ! When should we perform death before communication?
+        ! For integer walkers, do death before comms just so the tests don't fail (or need updating).
+        if (.not. tAllRealCoeff) then
+            tDeathBeforeComms = .true.
+        end if
+        if (t_back_spawn .or. t_back_spawn_flex) then 
+            tDeathBeforeComms = .true.
+        end if
+
+        ! Make sure we are performing death *after* communication, in cases
+        ! where this is essential.
+        if (tPreCond .and. tDeathBeforeComms) then
+            call stop_all(this_routine, "With preconditioning, death must &
+                                        &be performed after communication.")
+        end if
+        if (tReplicaEstimates .and. tDeathBeforeComms) then
+            call stop_all(this_routine, "In order to calculate replica estimates, &
+                                        &death must be performed after communication.")
         end if
 
     end subroutine InitFCIMCCalcPar
