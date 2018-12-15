@@ -409,7 +409,8 @@ MODULE FciMCData
       ! Diag shift from the input file, if it needed to be reset after restart
       real(dp), allocatable :: InputDiagSft(:)
       
-      real(dp), allocatable :: precond_energies(:)
+      ! Projected energy used in preconditioner
+      real(dp), allocatable :: proj_e_for_precond(:)
 
       ! ********************** FCIMCPar control variables *****************
       ! Store data from one fcimc iteration

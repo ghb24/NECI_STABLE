@@ -852,7 +852,7 @@ module FciMCParMod
         integer :: DetHash, FinalVal, clash, PartInd, k, y, MaxIndex
         type(ll_node), pointer :: TempNode
 
-        real(dp) :: proj_e_for_precond(lenof_sign), precond_fac
+        real(dp) :: precond_fac
         HElement_t(dp) :: hdiag_spawn, h_diag_correct
 
         integer :: ms
@@ -901,7 +901,6 @@ module FciMCParMod
         if (tCSF) exFlag = 7
 
         precond_fac = 1.0_dp
-        proj_e_for_precond = 0.0_dp
 
         IFDEBUGTHEN(FCIMCDebug,iout)
             write(iout,"(A)") "Hash Table: "
