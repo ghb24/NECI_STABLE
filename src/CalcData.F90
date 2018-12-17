@@ -329,6 +329,8 @@ logical :: tPairedReplicas = .false.
 ! Calculate and print estimates which use the replica approach to a file
 logical :: tReplicaEstimates
 
+logical :: tSetInitFlagsBeforeDeath
+
 ! If true then swap the sign of the FCIQMC wave function if the sign of the
 ! Hartree-Fock population becomes negative.
 logical :: tPositiveHFSign = .false.

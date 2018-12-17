@@ -18,7 +18,7 @@ module FciMCParMod
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
                         DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
                         tSkipRef, tFixTrial, tTrialShift, t_activate_decay, &
-                        tEN2Init, tEN2Rigorous, tDeathBeforeComms
+                        tEN2Init, tEN2Rigorous, tDeathBeforeComms, tSetInitFlagsBeforeDeath
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
                         tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
                         SIUpdateInterval, tSuppressSIOutput, nRefUpdateInterval, &
@@ -1364,6 +1364,16 @@ module FciMCParMod
             call set_timer(precond_e_time, 30)
             call calc_ests_and_set_init_flags(MaxIndex, proj_e_for_precond)
             call halt_timer(precond_e_time)
+        end if
+
+        ! With preconditiong and a time step of 1, death will kill all
+        ! walkers entirely, so the initiator criterion will not be applied
+        ! unless we set flags now. Do this now, unless done already in
+        ! calc_ests_and_set_init_flags (for efficiency improvement).
+        if (tSetInitFlagsBeforeDeath .and. (.not. tReplicaEstimates)) then
+            call set_timer(init_flag_time, 30)
+            call set_init_flag_spawns_to_occ(MaxIndex)
+            call halt_timer(init_flag_time)
         end if
 
         ! If performing FCIQMC with preconditioning, then apply the

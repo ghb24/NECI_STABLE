@@ -406,6 +406,7 @@ contains
           tReplicaEstimates = .false.
 
           tDeathBeforeComms = .false.
+          tSetInitFlagsBeforeDeath = .false.
 
           pSinglesIn = 0.0_dp
           pParallelIn = 0.0_dp

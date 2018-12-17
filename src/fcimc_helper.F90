@@ -1831,6 +1831,50 @@ contains
 
     end subroutine rescale_spawns
 
+    subroutine set_init_flag_spawns_to_occ(ValidSpawned)
+
+        ! Loop through the SpawnedParts array and set the initiator flag for
+        ! any spawnings to determinants already occupied in CurrenDets.
+
+        ! Usually this is done in AnnihilateSpawnedParts, but with
+        ! preconditioning and a time step of exactly 1, all walkers are
+        ! killed and removed from CurrenDets before then.
+
+        ! IMPORTANT: This should only be used after spawnings have been
+        ! sent to their parent process. And preferably should not be
+        ! called until repeated spawnings ahve been compressed, for the
+        ! sake of efficiency.
+
+        integer, intent(in) :: ValidSpawned
+
+        integer :: i, j, PartInd, DetHash
+        integer :: nI_spawn(nel)
+        real(dp) :: cursign(lenof_sign)
+        logical :: tSuccess
+
+        do i = 1, ValidSpawned
+            call decode_bit_det(nI_spawn, SpawnedParts(:,i))
+
+            ! Now add in the diagonal elements
+            call hash_table_lookup(nI_spawn, SpawnedParts(:,i), NIfDBO, HashIndex, &
+                                   CurrentDets, PartInd, DetHash, tSuccess)
+
+            if (tSuccess) then
+                call extract_sign(CurrentDets(:,PartInd), cursign)
+
+                ! Set initiator flags for the spawning, before the currently
+                ! occupied determinant is potentially killed in the death step.
+                do j = 1, lenof_sign
+                    if (abs(cursign(j)) > 1.e-12_dp) then
+                        call set_flag(SpawnedParts(:,i), get_initiator_flag(j))
+                    end if
+                end do
+            end if
+
+        end do
+
+    end subroutine set_init_flag_spawns_to_occ
+
     subroutine perform_death_all_walkers(iter_data)
 
         use DetBitOps, only: FindBitExcitLevel

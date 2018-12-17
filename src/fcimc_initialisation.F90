@@ -37,7 +37,8 @@ module fcimc_initialisation
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, tRCCheck, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
-                        tReplicaEstimates, tDeathBeforeComms, pSinglesIn, pParallelIn
+                        tReplicaEstimates, tDeathBeforeComms, pSinglesIn, pParallelIn, &
+                        tSetInitFlagsBeforeDeath
     use adi_data, only: tReferenceChanged, tAdiActive, &
          nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
@@ -209,6 +210,7 @@ contains
         death_time%timer_name='DeathTime'
         hash_test_time%timer_name='HashTestTime'
         hii_test_time%timer_name='HiiTestTime'
+        init_flag_time%timer_name='InitFlagTime'
 
         ! Initialise allocated arrays with input data
         TargetGrowRate(:) = InputTargetGrowRate
@@ -1633,6 +1635,12 @@ contains
         if (t_back_spawn .or. t_back_spawn_flex) then 
             tDeathBeforeComms = .true.
         end if
+
+        ! For FCIQMC with preconditioning and a time step of 1, death will
+        ! kill all walkers and remove them from the hash table. In this
+        ! case, we must set the initiator flags for spawning to occupied
+        ! determinants before this occurs.
+        if (tPreCond .and. tau == 1.0_dp) tSetInitFlagsBeforeDeath = .true.
 
         ! Make sure we are performing death *after* communication, in cases
         ! where this is essential.
