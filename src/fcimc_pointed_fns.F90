@@ -232,18 +232,18 @@ module fcimc_pointed_fns
         ! [Werner Dobrautz 4.4.2017:]
         if (t_fill_frequency_hists) then 
             if (tHUB .or. tUEG) then 
-                call fill_frequency_histogram(abs(rh_used), prob / AvMCExcits)
+                call fill_frequency_histogram(abs(rh_used / precond_fac), prob)
             else 
                 if (tGen_4ind_2 .or. tGen_4ind_weighted .or. tGen_4ind_reverse) then 
                     t_par = (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2)))
 
                     ! not sure about the AvMCExcits!! TODO
-                    call fill_frequency_histogram_4ind(abs(rh_used), prob / AvMCExcits, &
+                    call fill_frequency_histogram_4ind(abs(rh_used / precond_fac), prob, &
                         ic, t_par, ex)
 
                 else
 
-                    call fill_frequency_histogram_sd(abs(rh_used), prob / AvMCExcits, ic)
+                    call fill_frequency_histogram_sd(abs(rh_used / precond_fac), prob, ic)
                     
                 end if
             end if
