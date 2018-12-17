@@ -143,6 +143,7 @@ logical :: tAAS_MatEle4 !Same as MatEle2 but use E_0 in the weight of accepted m
 logical :: tAAS_Reverse !Add weights in the opposite direction i.e. to the modification factor of the child
 logical :: tAAS_Reverse_Weighted !Scale the reverse weights down by the number of walkers on the parent
 real(dp) :: AAS_DenCut !Threshold on the denominators of MatEles
+logical :: tAAS_Add_Diag !Add the diagonal term (Hii-E0)*tau to the weights
 ! Giovannis option for using only initiators for the RDMs (off by default)
 logical :: tOutputInitsRDM = .false.
 logical :: tNonInitsForRDMs = .true.

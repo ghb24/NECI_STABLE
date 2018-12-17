@@ -12,7 +12,8 @@ module fcimc_pointed_fns
                         t_matele_cutoff, matele_cutoff, tEN2Truncated, &
                         tTruncInitiator, tSkipRef, t_truncate_unocc, &
                         tAdaptiveShift, AdaptiveShiftSigma, AdaptiveShiftF1, AdaptiveShiftF2, &
-                        tAutoAdaptiveShift, AdaptiveShiftThresh, AdaptiveShiftExpo, AdaptiveShiftCut
+                        tAutoAdaptiveShift, AdaptiveShiftThresh, AdaptiveShiftExpo, AdaptiveShiftCut, &
+                        tAAS_Add_Diag
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement
     use fcimc_helper, only: CheckAllowedTruncSpawn
@@ -599,6 +600,10 @@ module fcimc_pointed_fns
                     population = mag_of_run(realwSign, i)
                     tot = get_tot_spawns(DetPosition, i)
                     acc = get_acc_spawns(DetPosition, i)
+                    if(tAAS_Add_Diag)then
+                        tot = tot + Kii*tau
+                        acc = tot + Kii*tau
+                    end if
                     if(population>InitiatorWalkNo)then
                         tmp = 1.0
                     elseif(tot>AdaptiveShiftThresh)then

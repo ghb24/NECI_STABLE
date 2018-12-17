@@ -150,6 +150,7 @@ contains
           AAS_DenCut = 0.5
           tAAS_Reverse = .false.
           tAAS_Reverse_Weighted = .false.
+          tAAS_Add_Diag = .false.
           tInitsRDMRef = .false.
           tInitsRDM = .false.
           NEquilSteps=0
@@ -1626,6 +1627,8 @@ contains
             case("AAS-REVERSE-WEIGHTED")
                 tAAS_Reverse = .true.
                 tAAS_Reverse_Weighted = .true.
+            case("AAS-ADD-DIAG")
+                tAAS_Add_Diag = .true.
              case("INITS-PROJE")
                 ! deprecated
              case("INITS-GAMMA0")
