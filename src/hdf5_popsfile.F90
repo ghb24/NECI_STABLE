@@ -202,6 +202,8 @@ contains
         call h5fclose_f(file_id, err)
         call h5close_f(err)
 
+        call h5garbage_collect_f(err)
+
         call MPIBarrier(ierr)
         write(6,*) "popsfile write successful"
 #else
@@ -1066,6 +1068,9 @@ contains
         ! Do some checking
         call check_read_particles(nread_walkers, norm, parts, all_count, &
                                   pops_num_parts, pops_norm_sqr)
+
+        deallocate(pops_num_parts)
+        deallocate(pops_norm_sqr)
 
         write(6,*) "... done"
         write(6,*)
