@@ -1352,15 +1352,15 @@ module FciMCParMod
 
         call communicate_and_merge_spawns(MaxIndex, iter_data, .false.)
 
-        ! Calculate replica-based estimates, and write them to the
-        ! replica_est file.
         if (tPreCond .or. tReplicaEstimates) then
             ! The preconditioned energy is used in perturbative estimates
             ! (and also when performing preconditioned FCIQMC).
             call set_timer(proj_e_time, 30)
             call get_proj_e_for_preconditioner(MaxIndex, proj_e_for_precond)
             call halt_timer(proj_e_time)
+        end if
 
+        if (tReplicaEstimates) then
             call set_timer(precond_e_time, 30)
             call calc_ests_and_set_init_flags(MaxIndex, proj_e_for_precond)
             call halt_timer(precond_e_time)

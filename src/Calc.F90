@@ -2753,10 +2753,6 @@ contains
 
             case("PRECOND")
                 tPreCond = .true.
-                tReplicaEstimates = .true.
-
-            case("REPLICA-ESTIMATES")
-                tReplicaEstimates = .true.
 
             case("PSINGLES")
                 call getf(pSinglesIn)

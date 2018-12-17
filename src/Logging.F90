@@ -8,7 +8,8 @@ MODULE Logging
     use SystemData, only: nel, LMS, nbasis, tHistSpinDist, nI_spindist, &
                           hist_spin_dist_iter
     use FciMCData, only: maxConflictExLvl
-    use CalcData, only: tCheckHighestPop, semistoch_shift_iter, trial_shift_iter, tPairedReplicas
+    use CalcData, only: tCheckHighestPop, semistoch_shift_iter, trial_shift_iter, &
+                        tPairedReplicas, tReplicaEstimates
     use constants, only: n_int, size_n_int, bits_n_int
     use bit_rep_data, only: NIfTot, NIfD
     use DetBitOps, only: EncodeBitDet
@@ -520,6 +521,11 @@ MODULE Logging
 #elif defined(__DOUBLERUN)
             call stop_all(t_r, "The unpaired-replicas option cannot be used with the dneci.x executable.")
 #endif
+
+        case("REPLICA-ESTIMATES")
+            tReplicaEstimates = .true.
+            tPairedReplicas = .true.
+            nreplicas = 2
 
         case("CALCRDMONFLY")
 !This keyword sets the calculation to calculate the reduced density matrix on the fly.  
