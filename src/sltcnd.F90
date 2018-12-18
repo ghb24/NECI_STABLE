@@ -2,7 +2,7 @@
 
 module sltcnd_mod
     use SystemData, only: nel, nBasisMax, tExch, G1, ALAT, tReltvy, t_3_body_excits, &
-         t_mol_3_body
+         t_mol_3_body,t_ueg_3_body
     use SystemData, only: nBasis!, iSpinSkip
     ! HACK - We use nBasisMax(2,3) here rather than iSpinSkip, as it appears
     !        to be more reliably set (see for example test H2O_RI)
@@ -26,9 +26,7 @@ contains
 
   subroutine initSltCndPtr()
     implicit none
-    ! six-index integrals are only used for three and more
-    ! electrons
-    if(t_mol_3_body .and. nel > 2) then
+    if((t_mol_3_body.or.t_ueg_3_body) .and. nel > 2) then
        sltcnd_0 => sltcnd_0_tc
        sltcnd_1 => sltcnd_1_tc
        sltcnd_2 => sltcnd_2_tc

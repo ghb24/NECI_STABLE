@@ -576,11 +576,13 @@ system: do
        
        case('UEG-TRANSCORR')
            t_ueg_transcorr = .true.
+           t_non_hermitian = .true.
             if(item < nitems) then
                call readu(w)
                select case(w)
                case("3-BODY")
                   t_ueg_3_body = .true.
+                  tGenMatHEl = .false.
                case default
                   t_ueg_3_body = .false.
                end select

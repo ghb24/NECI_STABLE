@@ -1342,6 +1342,11 @@ contains
 !            WRITE(iout,"(A,I20)") "Approximate size of determinant space is: ",NINT(TotDets)
 !        endif
 
+        ! for the (uniform) 3-body excitgen, the generation probabilities are uniquely given
+        ! by the number of alpha and beta electrons and the number of orbitals
+        ! and can hence be precomputed
+        if(t_ueg_3_body) call setup_mol_tc_excitgen(hfdet)
+
     END SUBROUTINE SetupParameters
 
     ! This initialises the calculation, by allocating memory, setting up the
@@ -1772,7 +1777,7 @@ contains
     subroutine init_fcimc_fn_pointers()
       character(*), parameter :: t_r = 'init_fcimc_fn_pointers'
         ! Select the excitation generator.
-      if(t_mol_3_body) then
+      if(t_mol_3_body.or.t_ueg_3_body) then
          generate_excitation => gen_excit_mol_tc
       else if(t_3_body_excits) then
          if (t_uniform_excits) then 
