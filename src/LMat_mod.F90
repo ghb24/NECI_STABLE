@@ -4,6 +4,7 @@ module LMat_mod
   use SystemData, only: tStoreSpinOrbs, nBasis
   use MemoryManager, only: LogMemAlloc, LogMemDealloc
   use util_mod, only: get_free_unit
+  use gen_coul_ueg_mod, only: get_lmat_ueg
   use shared_memory_mpi
   use ParallelHelper, only: iProcIndex_intra
   implicit none
@@ -92,8 +93,10 @@ module LMat_mod
           integer(int64) :: ai,bj,ck
           
           if(G1(p)%ms == G1(a)%ms .and. G1(q)%ms == G1(b)%ms .and. G1(r)%ms == G1(c)%ms) then
-             matel = matel + sgn * LMat(LMatInd(int(ida,int64),int(idb,int64),&
-                  int(idc,int64),int(idp,int64),int(idq,int64),int(idr,int64)))
+!             matel = matel + sgn * LMat(LMatInd(int(ida,int64),int(idb,int64),&
+!                  int(idc,int64),int(idp,int64),int(idq,int64),int(idr,int64)))
+!======== temporary modified for ueg
+             matel = matel + sgn * get_lmat_ueg(ida,idb,idc,idp,idq,idr)
           endif
         end subroutine addMatelContribution
         

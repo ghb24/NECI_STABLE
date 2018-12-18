@@ -15,7 +15,7 @@ MODULE HPHFRandExcitMod
                           tUEG, tUEGNewGenerator, t_new_real_space_hubbard, & 
                           t_tJ_model, t_heisenberg_model, t_lattice_model, &
                           t_k_space_hubbard, t_3_body_excits, t_uniform_excits, &
-                          t_trans_corr_hop, t_spin_dependent_transcorr, t_mol_3_body
+                          t_trans_corr_hop, t_spin_dependent_transcorr, t_mol_3_body, t_ueg_3_body
 
     use IntegralsData, only: UMat, fck, nMax
 
@@ -205,7 +205,7 @@ MODULE HPHFRandExcitMod
         ! [W.D] this whole hphf should be optimized.. and cleaned up 
         ! because it is a mess really.. 
         ! Generate a normal excitation.
-        if(t_mol_3_body) then
+        if(t_mol_3_body.or.t_ueg_3_body) then
            call gen_excit_mol_tc(nI, ilutnI, nJ, ilutnJ, exFlag, ic, ExcitMat, &
                 tSignOrig, pgen, Hel, store, part_type)
         else if (t_back_spawn .or. t_back_spawn_flex) then 
@@ -1273,7 +1273,7 @@ MODULE HPHFRandExcitMod
         ! do i need to  check if it is actually a non-initiator? 
         ! i guess i do.. or i go the unnecessary way of checking again in 
         ! the called back-spawn functions 
-        if(t_mol_3_body) then
+        if(t_mol_3_body.or.t_ueg_3_body) then
            pgen = calc_pgen_mol_tc(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2, pDoub)
         else if ((t_back_spawn .or. t_back_spawn_flex) .and. &
             (.not. DetBitEq(ilutI,ilutRef(:,temp_part_type),nifdbo)) .and. &

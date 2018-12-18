@@ -278,8 +278,8 @@ subroutine NECICalcInit(iCacheFlag)
     call DetPreFreezeInit()
     
     !!$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ 
-    !! we prepare the contribution of the 3 body transcorrelated operator 
-           write(6,*) 'prepare the contribution of the 3 body transcorrelated operator'
+    !! we prepare the contribution of the 2 body transcorrelated operator 
+           write(6,*) 'prepare the convolution part of the 2 body transcorrelated operator'
            write(6,*)'tUEG',tUEG,'t_UEG_Transcorr',t_ueg_transcorr
            
            If(tUEG.and.t_ueg_transcorr)then

@@ -485,16 +485,16 @@ contains
                 pq_tc(2) = (G1(k)%k(2) - G1(l)%k(2))*2*PI/ ALAT(2)
                 pq_tc(3) = (G1(k)%k(3) - G1(l)%k(3))*2*PI/ ALAT(3)
                 
-                if(G2<=ktc_cutoff2*(1.0+1.d-10))then
-                 u_tc = 0.0
-                else 
-                 u_tc = - 4 * PI / G2**2
-                end if
+                 u_tc = uu_tc(G2)
                 
-                
-                 hel = 4 * PI / G2 + G2 * u_tc - (pq_tc(1) * k_tc(1) +pq_tc(2) * k_tc(2) +pq_tc(3) * k_tc(3)) *u_tc  &
-                        - (nel-2) * G2 / (ALAT(1) * ALAT(2) * ALAT(3)) * u_tc**2&
-                        - UMAT_TC2(-a,-b,-c)
+                 if(t_ueg_3_body)then
+                   hel = 4 * PI / G2 + G2 * u_tc - (pq_tc(1) * k_tc(1) +pq_tc(2) * k_tc(2) +pq_tc(3) * k_tc(3)) *u_tc  &
+                         - UMAT_TC2(-a,-b,-c)
+                 else
+                   hel = 4 * PI / G2 + G2 * u_tc - (pq_tc(1) * k_tc(1) +pq_tc(2) * k_tc(2) +pq_tc(3) * k_tc(3)) *u_tc  &
+                          - (nel-2) * G2 / (ALAT(1) * ALAT(2) * ALAT(3)) * u_tc**2&
+                         - UMAT_TC2(-a,-b,-c)
+                 end if       
                else
 ! =============== The original coulomb potential  ===================================              
                  G2 = ((a / ALAT(1))**2 +(b / ALAT(2))**2)
@@ -1191,7 +1191,7 @@ contains
      if(.not.t_ueg_3_body)stop
      
        i_unit=get_free_unit() 
-       open(i_unit,file='TCDUMP',status='new')
+       open(i_unit,file='TCDUMP',status='unknown',access='append')
       do l1=1,norb
       do l2=l1,norb
       do l3=l2,norb
@@ -1272,7 +1272,68 @@ contains
 !      end if
      stop
     end subroutine 
-            
+    
+    function get_lmat_ueg (l1,l2,l3,r1,r2,r3) result(hel)
 
+        use SystemData, only: dimen
+        integer, intent(in) :: l1,l2,l3,r1,r2,r3
+        integer :: i,j,k,a,b,c,k1(3),k2(3),k3(3)
+        real(dp) :: hel,ak(3),bk(3),ck(3),a2,b2,c2
+          i=(l1-1)*2+1
+          j=(l2-1)*2+1
+          k=(l3-1)*2+1
+          a=(r1-1)*2+1
+          b=(r2-1)*2+1
+          c=(r3-1)*2+1
+          
+          
+!============ copy from above
+        
+     if(dimen==3)then
+        ! The Uniform Electron Gas
+        k1(1) = G1(i)%k(1) - G1(a)%k(1)
+        k1(2) = G1(i)%k(2) - G1(a)%k(2)
+        k1(3) = G1(i)%k(3) - G1(a)%k(3)
+        
+        k2(1) = G1(j)%k(1) - G1(b)%k(1)
+        k2(2) = G1(j)%k(2) - G1(b)%k(2)
+        k2(3) = G1(j)%k(3) - G1(b)%k(3)
+        
+        k3(1) = G1(k)%k(1) - G1(c)%k(1)
+        k3(2) = G1(k)%k(2) - G1(c)%k(2)
+        k3(3) = G1(k)%k(3) - G1(c)%k(3)
+       
+        if(all((k1+k2+k3)==0)) then
+           ak(1) = -2 * PI * k1(1) / ALAT(1)
+           ak(2) = -2 * PI * k1(2) / ALAT(2)                
+           ak(3) = -2 * PI * k1(3) / ALAT(3)
+           bk(1) = -2 * PI * k2(1) / ALAT(1)
+           bk(2) = -2 * PI * k2(2) / ALAT(2)                
+           bk(3) = -2 * PI * k2(3) / ALAT(3)
+           ck(1) = -2 * PI * k3(1) / ALAT(1)
+           ck(2) = -2 * PI * k3(2) / ALAT(2)                
+           ck(3) = -2 * PI * k3(3) / ALAT(3)
+           
+           
+           a2=ak(1)*ak(1)+ak(2)*ak(2)+ak(3)*ak(3)
+           b2=bk(1)*bk(1)+bk(2)*bk(2)+bk(3)*bk(3)
+           c2=ck(1)*ck(1)+ck(2)*ck(2)+ck(3)*ck(3)
+           
+           hel= uu_tc(a2)*uu_tc(b2)*(ak(1)*bk(1)+ak(2)*bk(2)+ak(3)*bk(3))&
+               +uu_tc(a2)*uu_tc(c2)*(ak(1)*ck(1)+ak(2)*ck(2)+ak(3)*ck(3))&
+               +uu_tc(b2)*uu_tc(c2)*(bk(1)*ck(1)+bk(2)*ck(2)+bk(3)*ck(3))
+!           hel=hel/(ALAT(1) * ALAT(2) * ALAT(3))**2/3
+! a permutation factor 3 is missing in other place, so here we ignore the /3
+           hel=hel/(ALAT(1) * ALAT(2) * ALAT(3))**2
+
+         else
+           hel=0.0
+         end if
+      else
+       print *, 'at moment Lmat is only available for 3D UEG'
+       stop
+      end if
+            
+    end function
 
 end module
