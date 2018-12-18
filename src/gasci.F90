@@ -239,7 +239,13 @@ module gasci
       pgen = 1.0_dp / nel
       ! from the same active space, get a hole
       ms = get_spin(src)
-      tgt = pick_weighted_hole(nI, nI, elec, ms, gasTable(src), pgen)
+      tgt = pick_weighted_hole(nI, src, 0, 0, 1, ms, gasTable(src), pgen)
+
+      if(tgt == 0) then
+         nJ(1) = 0
+         ilutJ = 0_n_int
+         return
+      endif
 
       call make_single(nI, nJ, elec, tgt, ex, par)
       ilutJ = ilutI
@@ -301,9 +307,7 @@ module gasci
          ms = get_spin(src(2))
       endif
       ! the second hole is chosen in a weighted fashion
-      nJBase = nI
-      nJBase(elecs(1)) = tgt(1)
-      tgt(2) = pick_weighted_hole(nI, nJBase, elecs(2), ms, srcGAS(2), pgen_pick1)
+      tgt(2) = pick_weighted_hole(nI, src(1), src(2), tgt(1), 2, ms, srcGAS(2), pgen_pick1)
       if(any(tgt==0) .or. tgt(1) == tgt(2)) then
          call zeroResult()
          return
@@ -350,19 +354,13 @@ module gasci
       
       real(dp) :: pgenVal
       real(dp) :: cSum(gasSize(gasTable(tgt2)))
-      integer :: gasList(gasSize(gasTable(tgt2))), nOrbs, i
-      integer :: ex(2,2), gasInd2
+      integer :: gasList(gasSize(gasTable(tgt2))), nOrbs
+      integer :: gasInd2
 
       nOrbs = gasSize(gasTable(tgt2))
       gasList = gasSpinOrbList(1:nOrbs,gasTable(tgt2),get_spin(tgt2))
-      ex(1,1) = src1
-      ex(1,2) = src2
-      ex(2,1) = tgt1
-      ! build the cumulative list of matrix elements <src|H|tgt>
-      call addToCumulative(1,0.0_dp)
-      do i = 2, nOrbs
-         call addToCumulative(i,cSum(i-1))
-      end do
+
+      cSum = get_cumulative_list(gasList, nI, src1, src2, tgt1, 2)
       ! we know gasList contains tgt2, so we can look up its index with binary search
       gasInd2 = binary_search_first_ge(gasList,tgt2)
       if(gasInd2==1) then
@@ -370,21 +368,6 @@ module gasci
       else
          pgenVal = (cSum(gasInd2) - cSum(gasInd2-1))/cSum(nOrbs)
       endif
-
-      contains
-
-        subroutine addToCumulative(i, base)
-          implicit none
-          integer, intent(in) :: i
-          real(dp), intent(in) :: base
-
-          if(.not. tgt1==gasList(i) .and. .not. any(nI==gasList(i))) then
-             ex(2,2) = gasList(i)
-             cSum(i) = abs(sltcnd_excit(nI,2,ex,.false.)) + base
-          else
-             cSum(i) = base
-          endif
-        end subroutine addToCumulative
 
     end function get_pgen_pick_weighted_hole
 
@@ -404,26 +387,58 @@ module gasci
 
 !------------------------------------------------------------------------------------------!
 
-    function getCumulativeList(gasInd, nI, nJBase) result(cSum)
+    function get_cumulative_list(gasList, nI, src1, src2, tgt1, ic) result(cSum)
       implicit none
-      integer, intent(in) :: gasInd
-      integer, intent(in) :: nI(nel), nJBase(nel)
-      real(dp) :: cSum(gasSize(gasInd))
-    end function getCumulativeList
+      integer, intent(in) :: gasList(:)
+      integer, intent(in) :: nI(nel), ic, src1, src2, tgt1
+      real(dp) :: cSum(size(gasList))
+
+      integer :: ex(2,2), i, nOrbs
+
+      nOrbs = size(gasList)
+      ex(1,1) = src1
+      if(ic == 2) then
+         ex(1,2) = src2
+         ex(2,1) = tgt1
+      else
+         ex(1,2) = 0
+         ex(2,1) = 0
+      endif
+      ! build the cumulative list of matrix elements <src|H|tgt>
+      call addToCumulative(1,0.0_dp)
+      do i = 2, nOrbs
+         call addToCumulative(i,cSum(i-1))
+      end do
+
+      contains
+
+        subroutine addToCumulative(i, base)
+          implicit none
+          integer, intent(in) :: i
+          real(dp), intent(in) :: base
+
+          if(.not. ex(2,1)==gasList(i) .and. .not. any(nI==gasList(i))) then
+             ex(2,ic) = gasList(i)
+             cSum(i) = abs(sltcnd_excit(nI,ic,ex,.false.)) + base
+          else
+             cSum(i) = base
+          endif
+        end subroutine addToCumulative
+    end function get_cumulative_list
 
 !------------------------------------------------------------------------------------------!
 
-    function pick_weighted_hole(nI, nJBase, elec, ms, srcGASInd, pgen) result(tgt)
+    function pick_weighted_hole(nI, src1, src2, tgt1, ic, ms, srcGASInd, pgen) result(tgt)
       implicit none
       ! pick a hole of nI with spin ms from the active space with index srcGASInd
       ! the random number is to be supplied as r
       ! nI is the source determinant, nJBase the one from which we obtain the ket of
       ! the matrix element by single excitation 
-      integer, intent(in) :: nI(nel), nJBase(nel)
-      integer, intent(in) :: elec, ms, srcGASInd
+      integer, intent(in) :: nI(nel)
+      integer, intent(in) :: src1, src2, tgt1, ic, ms, srcGASInd
       real(dp), intent(inout) :: pgen
       integer :: tgt
-      integer :: nOrbs, i
+      integer :: nOrbs
       real(dp) :: r
       real(dp) :: cSum(gasSize(srcGASInd))
       integer :: gasList(gasSize(srcGASInd))
@@ -432,10 +447,7 @@ module gasci
       nOrbs = gasSize(srcGASInd)
       gasList = gasSpinOrbList(1:nOrbs,srcGASInd,ms)
       ! build the cumulative list of matrix elements <src|H|tgt>
-      call addToCumulative(1,0.0_dp)
-      do i = 2, nOrbs
-         call addToCumulative(i,cSum(i-1))
-      end do
+      cSum = get_cumulative_list(gasList, nI, src1, src2, tgt1, ic)
       
       ! now, pick with the weight from the cumulative list
       r = genrand_real2_dSFMT() * cSum(nOrbs)
@@ -457,23 +469,6 @@ module gasci
       else
          tgt = 0
       endif
-      
-      contains
-        
-        subroutine addToCumulative(i,base)
-          implicit none
-          integer, intent(in) :: i
-          real(dp), intent(in) :: base
-          integer :: nJ(nel)
-
-          if(.not. any(nJBase==gasList(i)) .and. .not. any(nI==gasList(i))) then
-             nJ = nJBase
-             nJ(elec) = gasList(i)
-             cSum(i) = abs(get_helement(nI,sort_unique(nJ))) + base
-          else
-             cSum(i) = base
-          endif
-        end subroutine addToCumulative
       
     end function pick_weighted_hole
 
