@@ -1071,7 +1071,7 @@ contains
                 TargetGrowRate(run)=0.0_dp
 
                 if (tPreCond) then
-                    if (iter > 40) tSearchTau = .false.
+                    if (iter > 80) tSearchTau = .false.
                 else
                     tSearchTau = .false.
                 end if
