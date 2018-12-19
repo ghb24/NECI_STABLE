@@ -411,6 +411,8 @@ contains
           pSinglesIn = 0.0_dp
           pParallelIn = 0.0_dp
 
+          tSetInitialRunRef = .true.
+
         end subroutine SetCalcDefaults
 
         SUBROUTINE CalcReadInput()
@@ -2762,6 +2764,9 @@ contains
                 call getf(pSinglesIn)
             case("PPARALLEL")
                 call getf(pParallelIn)
+
+            case("NO-INIT-REF-CHANGE")
+                tSetInitialRunRef = .false.
 
             case default
                 call report("Keyword "                                &

@@ -38,7 +38,7 @@ module fcimc_initialisation
                         t_back_spawn_option, t_back_spawn_flex_option, tRCCheck, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
                         tReplicaEstimates, tDeathBeforeComms, pSinglesIn, pParallelIn, &
-                        tSetInitFlagsBeforeDeath
+                        tSetInitFlagsBeforeDeath, tSetInitialRunRef
     use adi_data, only: tReferenceChanged, tAdiActive, &
          nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
@@ -1561,7 +1561,7 @@ contains
               semistoch_shift_iter = 1
            else
               call init_semi_stochastic(ss_space_in, tStartedFromCoreGround)
-              if (tStartedFromCoreGround) call set_initial_run_references()
+              if (tStartedFromCoreGround .and. tSetInitialRunRef) call set_initial_run_references()
            endif
         endif
 
@@ -2212,7 +2212,7 @@ contains
 
         deallocate(evecs_this_proc)
 
-        call set_initial_run_references()
+        if (tSetInitialRunRef) call set_initial_run_references()
 
         ! Add an initialisation check on symmetries.
         if ((.not. tHub) .and. (.not. tUEG)) then
