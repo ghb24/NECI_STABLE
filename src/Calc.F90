@@ -2755,6 +2755,9 @@ contains
             case("PRECOND")
                 tPreCond = .true.
 
+                call getf(InitialPart)
+                InitWalkers = nint(real(InitialPart, dp) / real(nProcessors, dp), int64)
+
             case("PSINGLES")
                 call getf(pSinglesIn)
             case("PPARALLEL")
