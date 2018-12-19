@@ -522,10 +522,12 @@ MODULE Logging
             call stop_all(t_r, "The unpaired-replicas option cannot be used with the dneci.x executable.")
 #endif
 
+#if defined(__PROG_NUMRUNS)
         case("REPLICA-ESTIMATES")
             tReplicaEstimates = .true.
             tPairedReplicas = .true.
             nreplicas = 2
+#endif
 
         case("CALCRDMONFLY")
 !This keyword sets the calculation to calculate the reduced density matrix on the fly.  
