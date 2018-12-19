@@ -96,6 +96,9 @@ module FciMCParMod
 
     implicit none
 
+    !array for timings of the main compute loop
+    real(dp),dimension(100) :: lt_arr
+
     contains
 
     subroutine FciMCPar(energy_final_output)
@@ -128,6 +131,11 @@ module FciMCParMod
         logical :: tNoProjEValue, tNoShiftValue
         real(dp) :: BestErr
         real(dp) :: start_time, stop_time
+        real(dp),dimension(100) :: lt_sum, lt_max
+
+        real(dp):: lt_imb
+        integer:: rest
+
 #ifdef MOLPRO
         real(dp) :: get_scalar
         include "common/molen"
@@ -239,6 +247,9 @@ module FciMCParMod
 
         ! In we go - start the timer for scaling curve!
         start_time = neci_etime(tstart)
+        lt_imb=0.
+        lt_max=0.
+        lt_sum=0.
 
         do while (.true.)
 !Main iteration loop...
@@ -606,6 +617,14 @@ module FciMCParMod
                 endif
             endif
 
+            ! Compute the time lost due to load imbalance - aggregation done for 100 iterations 
+            ! at a time to avoid unnecessary synchronisation points            
+            if (mod(Iter,100).eq.0) then
+               call mpi_reduce(lt_arr,lt_sum,100,MPI_DOUBLE_PRECISION,MPI_SUM,0,CommGlobal,error)
+               call mpi_reduce(lt_arr,lt_max,100,MPI_DOUBLE_PRECISION,MPI_MAX,0,CommGlobal,error)
+               lt_imb=lt_imb+sum(lt_max-lt_sum/nProcessors)
+            end if
+
             Iter=Iter+1
             if(tFillingStochRDMonFly) iRDMSamplingIter = iRDMSamplingIter + 1 
 
@@ -619,7 +638,17 @@ module FciMCParMod
         stop_time = neci_etime(tend)
         write(iout,*) '- - - - - - - - - - - - - - - - - - - - - - - -'
         write(iout,*) 'Total loop-time: ', stop_time - start_time
+
+        !add load imbalance from remaining iterations (if any)
+        rest=mod(Iter-1,100)
+        if (rest.gt.0) then
+           call mpi_reduce(lt_arr,lt_sum,rest,MPI_DOUBLE_PRECISION,MPI_SUM,0,CommGlobal,error)
+           call mpi_reduce(lt_arr,lt_max,rest,MPI_DOUBLE_PRECISION,MPI_MAX,0,CommGlobal,error)
+           lt_imb=lt_imb+sum(lt_max(1:rest)-lt_sum(1:rest)/nProcessors)
+        end if
+        if (iProcIndex.eq.0) write(iout,*) 'Time lost due to load imbalance: ', lt_imb
         write(iout,*) '- - - - - - - - - - - - - - - - - - - - - - - -'
+
 
         ! [Werner Dobrautz 4.4.2017] 
         ! for now always print out the frequency histograms for the 
@@ -862,6 +891,7 @@ module FciMCParMod
         logical :: tParity, tSuccess, tCoreDet
         real(dp) :: prob, HDiagCurr, TempTotParts, Di_Sign_Temp
         real(dp) :: RDMBiasFacCurr
+        real(dp) :: lstart
         real(dp) :: AvSignCurr(len_av_sgn_tot), IterRDMStartCurr(len_iter_occ_tot)
         real(dp) :: av_sign(len_av_sgn_tot), iter_occ(len_iter_occ_tot)
         HElement_t(dp) :: HDiagTemp,HElGen
@@ -954,7 +984,7 @@ module FciMCParMod
                 IterLastRDMFill = mod((Iter+PreviousCycles - IterRDMStart + 1), RDMEnergyIter)
             endif
         endif
-
+        lstart=mpi_wtime()
         do j = 1, int(TotWalkers,sizeof_int)
 
             ! N.B. j indicates the number of determinants, not the number
@@ -1306,6 +1336,10 @@ module FciMCParMod
                                                        HDiagCurr, SignCurr, j, WalkExcitLevel)
 
         enddo ! Loop over determinants.
+
+        !loop timing for this iteration on this MPI rank
+        lt_arr(mod(Iter-1,100)+1)=mpi_wtime()-lstart
+
         IFDEBUGTHEN(FCIMCDebug,2) 
             write(iout,*) 'Finished loop over determinants'
             write(iout,*) "Holes in list: ", iEndFreeSlot
