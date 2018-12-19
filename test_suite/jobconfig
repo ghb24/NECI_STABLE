@@ -37,12 +37,14 @@ max_nprocs = 2
 [neci/rdm_singlerun/serial/*]
 program = neci
 max_nprocs = 1
+tolerance = (1e-9, None, 'final_energy_1')
 
 [neci/rdm_singlerun/parallel/*]
 program = neci
 nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
+tolerance = (1e-9, None, 'final_energy_1')
 
 # Jobs to test the various spaces in use for semi-stochastic and trial
 # wavefunctions.
@@ -52,6 +54,10 @@ min_nprocs = 2
 max_nprocs = 2
 
 # Specify non-default tolerances.
+[neci/determ_and_trial_spaces/*/]
+program = neci
+tolerance = (1e-9, None, 'final_energy_1')
+
 [neci/serial/Ne_SS_Trial_Pops/]
 program = neci
 tolerance = (5e-10, None, 'energy_summed')
@@ -78,7 +84,7 @@ tolerance = (5.01e-8, None, 'overlap_sum'), (3.01e-7, None, 'hamil_sum')
 
 [mneci/excited_state/Ne_hphf_2_states_rdm_transition/]
 program = mneci
-tolerance = (5e-8, None, 'sum_error_rdm_2'), (5e-8, None, 'sum_diff_trdm_1_2(1)'), (5e-8, None, 'sum_diff_trdm_1_2(2)')
+tolerance = (5e-8, None, 'sum_error_rdm_2'), (5e-8, None, 'sum_diff_trdm_1_2(1)'), (5e-8, None, 'sum_diff_trdm_1_2(2)'), (1e-9, None, 'max_diff_trdm_1_2(2)')
 
 [kmneci/Rn_lanczos_dci_init/]
 program = kmneci
