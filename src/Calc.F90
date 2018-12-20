@@ -413,6 +413,8 @@ contains
 
           tSetInitialRunRef = .true.
 
+          tInitiatorSpace = .false.
+
         end subroutine SetCalcDefaults
 
         SUBROUTINE CalcReadInput()
@@ -1503,6 +1505,70 @@ contains
                 tTrialInit = .true.
             case("START-FROM-HF")
                 tStartCoreGroundState = .false.
+
+            case("INITIATOR-SPACE")
+                tInitiatorSpace = .true.
+            case("DOUBLES-INITIATOR")
+                i_space_in%tDoubles = .true.
+            case("HF-CONN-INITIATOR")
+                i_space_in%tDoubles = .true.
+                i_space_in%tHFConn = .true.
+            case("CAS-INITIATOR")
+                i_space_in%tCAS = .true.
+                tSpn = .true.
+                call geti(i_space_in%occ_cas)  !Number of electrons in CAS 
+                call geti(i_space_in%virt_cas)  !Number of virtual spin-orbitals in CAS
+            case("RAS-INITIATOR")
+                i_space_in%tRAS = .true.
+                call geti(ras_size_1)  ! Number of spatial orbitals in RAS1.
+                call geti(ras_size_2)  ! Number of spatial orbitals in RAS2.
+                call geti(ras_size_3)  ! Number of spatial orbitals in RAS3.
+                call geti(ras_min_1)  ! Min number of electrons (alpha and beta) in RAS1 orbs. 
+                call geti(ras_max_3)  ! Max number of electrons (alpha and beta) in RAS3 orbs.
+                i_space_in%ras%size_1 = int(ras_size_1,sp)
+                i_space_in%ras%size_2 = int(ras_size_2,sp)
+                i_space_in%ras%size_3 = int(ras_size_3,sp)
+                i_space_in%ras%min_1 = int(ras_min_1,sp)
+                i_space_in%ras%max_3 = int(ras_max_3,sp)
+            case("OPTIMISED-INITIATOR")
+                i_space_in%tOptimised = .true.
+            case("OPTIMISED-INITIATOR-CUTOFF-AMP")
+                i_space_in%opt_data%tAmpCutoff = .true.
+                i_space_in%opt_data%ngen_loops = nitems - 1
+                allocate(i_space_in%opt_data%cutoff_amps(i_space_in%opt_data%ngen_loops))
+                do I = 1, i_space_in%opt_data%ngen_loops
+                    call getf(i_space_in%opt_data%cutoff_amps(I))
+                end do
+            case("OPTIMISED-INITIATOR-CUTOFF-NUM")
+                i_space_in%opt_data%tAmpCutoff = .false.
+                i_space_in%opt_data%ngen_loops = nitems - 1
+                allocate(i_space_in%opt_data%cutoff_nums(i_space_in%opt_data%ngen_loops))
+                do I = 1, i_space_in%opt_data%ngen_loops
+                    call geti(i_space_in%opt_data%cutoff_nums(I))
+                end do
+            case("FCI-INITIATOR")
+                i_space_in%tFCI = .true.
+            case("HEISENBERG-FCI-INITIATOR")
+                i_space_in%tHeisenbergFCI = .true.
+            case("HF-INITIATOR")
+                i_space_in%tHF = .true.
+            case("POPS-INITIATOR")
+                i_space_in%tPops = .true.
+                call geti(i_space_in%npops)
+            case("POPS-INITIATOR-APPROX")
+                i_space_in%tPops = .true.
+                i_space_in%tApproxSpace = .true.
+                call geti(i_space_in%npops)
+                if(item.lt.nitems) then
+                   call geti(i_space_in%nApproxSpace)
+                endif
+            case("MP1-INITIATOR")
+                i_space_in%tMP1 = .true.
+                call geti(i_space_in%mp1_ndets)
+            case("READ-INITIATOR")
+                i_space_in%tRead = .true.
+                i_space_in%read_filename = 'INITIATOR_SPACE'
+
             case("INC-CANCELLED-INIT-ENERGY")
 !If true, include the spawnings cancelled due the the initiator criterion in the trial energy.
                 tIncCancelledInitEnergy = .true.

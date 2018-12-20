@@ -38,7 +38,8 @@ module fcimc_initialisation
                         t_back_spawn_option, t_back_spawn_flex_option, tRCCheck, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
                         tReplicaEstimates, tDeathBeforeComms, pSinglesIn, pParallelIn, &
-                        tSetInitFlagsBeforeDeath, tSetInitialRunRef, tEN2Init
+                        tSetInitFlagsBeforeDeath, tSetInitialRunRef, tEN2Init, &
+                        tInitiatorSpace, i_space_in
     use adi_data, only: tReferenceChanged, tAdiActive, &
          nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
@@ -127,6 +128,7 @@ module fcimc_initialisation
     use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
+    use initiator_space_gen, only: init_initiator_space
     use kp_fciqmc_data_mod, only: tExcitedStateKP
     use sym_general_mod, only: ClassCountInd
     use trial_wf_gen, only: init_trial_wf, end_trial_wf
@@ -198,6 +200,7 @@ contains
         Trial_Search_Time%timer_name='TrialSearchTime'
         SemiStoch_Init_Time%timer_name='SemiStochInitTime'
         Trial_Init_Time%timer_name='TrialInitTime'
+        InitSpace_Init_Time%timer_name='InitSpaceTime'
         kp_generate_time%timer_name='KPGenerateTime'
         Stats_Comms_Time%timer_name='StatsCommsTime'
         subspace_hamil_time%timer_name='SubspaceHamilTime'
@@ -1606,7 +1609,6 @@ contains
          replica_overlaps_imag(:, :) = 0.0_dp
 #endif
 
-
         ! Set up the reference space for the adi-approach
          call setup_reference_space(tReadPops)
 
@@ -1615,6 +1617,8 @@ contains
         if(tFixedN0) tSinglePartPhase = .true.
 
         if(tRDMonFly .and. tDynamicCoreSpace) call sync_rdm_sampling_iter()
+
+        if (tInitiatorSpace) call init_initiator_space(i_space_in)
 
         if (tReplicaEstimates) then
             if (.not. tPairedReplicas) then

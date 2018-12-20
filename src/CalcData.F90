@@ -263,6 +263,10 @@ integer :: trialSpaceUpdateCycle
 ! wave function is turned on.
 logical :: qmc_trial_wf = .false.
 
+! Define a space in which all determinants are initiators
+logical :: tInitiatorSpace
+type(subspace_in) :: i_space_in
+
 ! True if running a kp-fciqmc calculation.
 logical :: tKP_FCIQMC
 

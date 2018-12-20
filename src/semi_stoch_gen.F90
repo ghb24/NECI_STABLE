@@ -36,7 +36,7 @@ contains
         use FciMCData, only: TotWalkers, TotWalkersOld, indices_of_determ_states, SpawnedParts
         use FciMCData, only: FDetermTag, FDetermAvTag, PDetermTag, IDetermTag
         use FciMCData, only: tStartCoreGroundState, iter_data_fciqmc, SemiStoch_Init_Time
-        use FciMCData, only: tFillingStochRdmOnFly
+        use FciMCData, only: tFillingStochRdmOnFly, core_space
         use load_balance, only: adjust_load_balance
         use load_balance_calcnodes, only: tLoadBalanceBlocks
         use sort_mod, only: sort
@@ -142,7 +142,7 @@ contains
         ! Store every core determinant from all processors on all processors, in core_space.
         call store_whole_core_space()
         ! Create the hash table to address the core determinants.
-        call initialise_core_hash_table()
+        call initialise_core_hash_table(core_space, determ_space_size, core_ht)
 
         if (tWriteCore) call write_core_space()
 
@@ -193,7 +193,6 @@ contains
         use bit_rep_data, only: flag_deterministic, flag_initiator
         use bit_reps, only: set_flag, encode_sign
         use FciMCData, only: determ_sizes, SpawnedParts
-        use ras_data, only: core_ras
         use searching, only: remove_repeated_states
         use SystemData, only: tAllSymSectors
 

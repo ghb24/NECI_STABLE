@@ -442,43 +442,46 @@ contains
 
     end subroutine store_whole_core_space
 
-    subroutine initialise_core_hash_table()
+    subroutine initialise_core_hash_table(ilut_list, space_size, hash_table)
 
         use bit_reps, only: decode_bit_det
-        use FciMCData, only: core_space
         use hash, only: FindWalkerHash
-        use sparse_arrays, only: core_ht
+        use sparse_arrays, only: core_hashtable
         use SystemData, only: nel
+
+        integer(n_int), intent(in) :: ilut_list(0:,:)
+        integer, intent(in) :: space_size
+        type(core_hashtable), allocatable, intent(out) :: hash_table(:)
 
         integer :: nI(nel)
         integer :: i, ierr, hash_val
 
-        allocate(core_ht(determ_space_size), stat=ierr)
+        allocate(hash_table(space_size), stat=ierr)
 
-        do i = 1, determ_space_size
-            core_ht(i)%nclash = 0
+        do i = 1, space_size
+            hash_table(i)%nclash = 0
         end do
 
         ! Count the number of states with each hash value.
-        do i = 1, determ_space_size
-            call decode_bit_det(nI, core_space(:,i))
-            hash_val = FindWalkerHash(nI, int(determ_space_size,sizeof_int))
-            core_ht(hash_val)%nclash = core_ht(hash_val)%nclash + 1
+        do i = 1, space_size
+            call decode_bit_det(nI, ilut_list(:,i))
+            hash_val = FindWalkerHash(nI, int(space_size,sizeof_int))
+            hash_table(hash_val)%nclash = hash_table(hash_val)%nclash + 1
         end do
 
-        do i = 1, determ_space_size
-            allocate(core_ht(i)%ind(core_ht(i)%nclash), stat=ierr)
-            core_ht(i)%ind = 0
+        do i = 1, space_size
+            allocate(hash_table(i)%ind(hash_table(i)%nclash), stat=ierr)
+            hash_table(i)%ind = 0
             ! Reset this for now.
-            core_ht(i)%nclash = 0
+            hash_table(i)%nclash = 0
         end do
 
-        ! Now fill in the indices of the states in core_space.
-        do i = 1, determ_space_size
-            call decode_bit_det(nI, core_space(:,i))
-            hash_val = FindWalkerHash(nI, int(determ_space_size,sizeof_int))
-            core_ht(hash_val)%nclash = core_ht(hash_val)%nclash + 1
-            core_ht(hash_val)%ind(core_ht(hash_val)%nclash) = i
+        ! Now fill in the indices of the states in the space.
+        do i = 1, space_size
+            call decode_bit_det(nI, ilut_list(:,i))
+            hash_val = FindWalkerHash(nI, int(space_size, sizeof_int))
+            hash_table(hash_val)%nclash = hash_table(hash_val)%nclash + 1
+            hash_table(hash_val)%ind(hash_table(hash_val)%nclash) = i
         end do
 
     end subroutine initialise_core_hash_table
