@@ -129,6 +129,7 @@ module FciMCParMod
 
         real(dp):: lt_imb
         integer:: rest
+        integer(MPIArg) :: ierror
 
 #ifdef MOLPRO
         real(dp) :: get_scalar
@@ -591,8 +592,8 @@ module FciMCParMod
             ! Compute the time lost due to load imbalance - aggregation done for 100 iterations 
             ! at a time to avoid unnecessary synchronisation points            
             if (mod(Iter,100).eq.0) then
-               call mpi_reduce(lt_arr,lt_sum,100,MPI_DOUBLE_PRECISION,MPI_SUM,0,CommGlobal,error)
-               call mpi_reduce(lt_arr,lt_max,100,MPI_DOUBLE_PRECISION,MPI_MAX,0,CommGlobal,error)
+               call mpi_reduce(lt_arr,lt_sum,100,MPI_DOUBLE_PRECISION,MPI_SUM,0,CommGlobal,ierror)
+               call mpi_reduce(lt_arr,lt_max,100,MPI_DOUBLE_PRECISION,MPI_MAX,0,CommGlobal,ierror)
                lt_imb=lt_imb+sum(lt_max-lt_sum/nProcessors)
             end if
 
@@ -613,8 +614,8 @@ module FciMCParMod
         !add load imbalance from remaining iterations (if any)
         rest=mod(Iter-1,100)
         if (rest.gt.0) then
-           call mpi_reduce(lt_arr,lt_sum,rest,MPI_DOUBLE_PRECISION,MPI_SUM,0,CommGlobal,error)
-           call mpi_reduce(lt_arr,lt_max,rest,MPI_DOUBLE_PRECISION,MPI_MAX,0,CommGlobal,error)
+           call mpi_reduce(lt_arr,lt_sum,rest,MPI_DOUBLE_PRECISION,MPI_SUM,0,CommGlobal,ierror)
+           call mpi_reduce(lt_arr,lt_max,rest,MPI_DOUBLE_PRECISION,MPI_MAX,0,CommGlobal,ierror)
            lt_imb=lt_imb+sum(lt_max(1:rest)-lt_sum(1:rest)/nProcessors)
         end if
         if (iProcIndex.eq.0) write(iout,*) 'Time lost due to load imbalance: ', lt_imb
