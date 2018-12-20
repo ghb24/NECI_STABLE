@@ -129,7 +129,6 @@ module FciMCParMod
 
         real(dp):: lt_imb
         integer:: rest
-        integer(MPIArg) :: ierror
 
 #ifdef MOLPRO
         real(dp) :: get_scalar
