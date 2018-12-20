@@ -1,6 +1,6 @@
 #include "macros.h"
 
-module initiator_space_gen
+module initiator_space_procs
 
     use bit_rep_data, only: nIfDBO, NIfTot
     use bit_reps, only: decode_bit_det
@@ -23,6 +23,7 @@ module initiator_space_gen
     integer(MPIArg), allocatable :: initiator_displs(:)
 
     integer(MPIArg) :: initiator_space_size
+    integer :: initiator_space_size_int
 
     type(core_hashtable), allocatable :: initiator_ht(:)
 
@@ -71,6 +72,7 @@ contains
         call MPIAllGather(mpi_temp, initiator_sizes, ierr)
 
         initiator_space_size = sum(initiator_sizes)
+        initiator_space_size_int = int(initiator_space_size, sizeof_int)
 
         write(6,'("Total size of initiator space:",1X,i8)') initiator_space_size
         write(6,'("Size of initiator space on this processor:",1X,i8)') initiator_sizes(iProcIndex)
@@ -101,6 +103,8 @@ contains
         call store_whole_initiator_space()
         ! Create the hash table to address the initiator determinants.
         call initialise_core_hash_table(initiator_space, initiator_space_size, initiator_ht)
+
+        call set_initiator_space_flags()
 
         SpawnedParts = 0_n_int
 
@@ -161,16 +165,16 @@ contains
         ! ndets_this_proc accordingly.
         call remove_repeated_states(SpawnedParts, ndets_this_proc)
 
-        zero_sign = 0.0_dp
-        do i = 1, ndets_this_proc
-            call encode_sign(SpawnedParts(:,i), zero_sign)
+        !zero_sign = 0.0_dp
+        !do i = 1, ndets_this_proc
+        !    call encode_sign(SpawnedParts(:,i), zero_sign)
 
-            if (tTruncInitiator) then
-                do run = 1, inum_runs
-                    call set_flag(SpawnedParts(:,i), get_initiator_flag_by_run(run))
-                end do
-            end if
-        end do
+        !    if (tTruncInitiator) then
+        !        do run = 1, inum_runs
+        !            call set_flag(SpawnedParts(:,i), get_initiator_flag_by_run(run))
+        !        end do
+        !    end if
+        !end do
 
         ! Set the initiator space size for this process.
         initiator_sizes(iProcIndex) = int(ndets_this_proc, MPIArg)
@@ -199,4 +203,56 @@ contains
 
     end subroutine store_whole_initiator_space
 
-end module initiator_space_gen
+    function is_in_initiator_space(ilut, nI) result (initiator_state)
+
+        use hash, only: FindWalkerHash
+
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+
+        integer, intent(in) :: nI(:)
+        integer :: i, hash_val
+
+        logical :: initiator_state
+
+        initiator_state = .false.
+
+        hash_val = FindWalkerHash(nI, initiator_space_size_int)
+
+        do i = 1, initiator_ht(hash_val)%nclash
+            if (all(ilut(0:NIfDBO) == initiator_space(0:NIfDBO, initiator_ht(hash_val)%ind(i)) )) then
+                initiator_state = .true.
+                return
+            end if
+        end do
+
+    end function is_in_initiator_space
+
+    subroutine set_initiator_space_flags()
+
+        use bit_rep_data, only: flag_static_init
+        use bit_reps, only: set_flag, get_initiator_flag_by_run
+        use FciMCData, only: CurrentDets, TotWalkers
+
+        integer :: i, j
+        integer :: nI(nel)
+        logical :: tInitiatorDet
+
+        tInitiatorDet = .false.
+
+        do i = 1, TotWalkers
+
+            call decode_bit_det(nI, CurrentDets(:,i))
+            tInitiatorDet = is_in_initiator_space(CurrentDets(:,i), nI)
+
+            if (tInitiatorDet) then
+                do j = 1, inum_runs
+                    call set_flag(CurrentDets(:,i), get_initiator_flag_by_run(j))
+                    call set_flag(CurrentDets(:,i), flag_static_init(j))
+                end do
+            end if
+
+        end do
+
+    end subroutine set_initiator_space_flags
+
+end module initiator_space_procs

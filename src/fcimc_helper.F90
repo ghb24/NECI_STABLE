@@ -15,7 +15,7 @@ module fcimc_helper
                         extract_part_sign, encode_part_sign, decode_bit_det, &
                         get_initiator_flag, get_initiator_flag_by_run, &
                         log_spawn, increase_spawn_counter, encode_spawn_hdiag, &
-                        extract_spawn_hdiag
+                        extract_spawn_hdiag, flag_static_init
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
                          DetBitEQ, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
@@ -42,7 +42,7 @@ module fcimc_helper
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
                         t_back_spawn_flex, tau, DiagSft,  &
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule, &
-                        tPreCond, tReplicaEstimates
+                        tPreCond, tReplicaEstimates, tInitiatorSpace
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
          tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
@@ -66,7 +66,11 @@ module fcimc_helper
                                get_spawn_pop, get_tau_int, get_shift_int
     use searching, only: BinSearchParts2
     use back_spawn, only: setup_virtual_mask
+    use initiator_space_procs, only: is_in_initiator_space
+
+
     implicit none
+
     save
 
     interface CalcParentFlag
@@ -871,6 +875,17 @@ contains
 
         ! initiator flag according to SI
         staticInit = check_static_init(ilut, nI, sgn, exLvl, run)
+
+        if (tInitiatorSpace) then
+            staticInit = test_flag(ilut, flag_static_init(run))
+            if (.not. staticInit) then
+                if (is_in_initiator_space(ilut, nI)) then
+                    staticInit = .true.
+                    call set_flag(CurrentDets(:,i), flag_static_init(run))
+                end if
+            end if
+        end if
+
         ! check if there are sign conflicts across the replicas
         if(any(sgn*(sgn_av_pop(sgn)) < 0)) then
            ! check if this would be an initiator

@@ -258,7 +258,7 @@ contains
 
     function is_core_state(ilut, nI) result (core_state)
 
-        use FciMCData, only: ll_node, determ_space_size_int
+        use FciMCData, only: determ_space_size_int
         use hash, only: FindWalkerHash
         use sparse_arrays, only: core_ht
 
