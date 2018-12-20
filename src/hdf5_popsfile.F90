@@ -964,6 +964,12 @@ contains
                 this_block_size = 0
             end if
 
+            ! if we resized the sign, we need to go back to the original buffer size now
+            if(tmp_lenof_sign /= lenof_sign) then
+               deallocate(temp_sgns)
+               allocate(temp_sgns(int(tmp_lenof_sign),int(this_block_size)),stat=ierr)        
+            end if
+
             call read_walker_block_buff(ds_ilut, ds_sgns, block_start, &
                                    this_block_size, bit_rep_width, temp_ilut, temp_sgns)
                                 
@@ -974,12 +980,6 @@ contains
                  nreceived, CurrWalkers, norm, parts)
 
             nread_walkers = nread_walkers + nreceived
-
-            ! if we resized the sign, we need to go back to the original buffer size now
-            if(tmp_lenof_sign /= lenof_sign) then
-               deallocate(temp_sgns)
-               allocate(temp_sgns(int(tmp_lenof_sign),int(this_block_size)),stat=ierr)        
-            end if
             
             ! And update for the next block
             if (running) then
