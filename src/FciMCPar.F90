@@ -1371,9 +1371,11 @@ module FciMCParMod
         ! unless we set flags now. Do this now, unless done already in
         ! calc_ests_and_set_init_flags (for efficiency improvement).
         if (tSetInitFlagsBeforeDeath .and. (.not. tReplicaEstimates)) then
-            call set_timer(init_flag_time, 30)
-            call set_init_flag_spawns_to_occ(MaxIndex)
-            call halt_timer(init_flag_time)
+            if (tTruncInitiator) then
+                call set_timer(init_flag_time, 30)
+                call set_init_flag_spawns_to_occ(MaxIndex)
+                call halt_timer(init_flag_time)
+            end if
         end if
 
         ! If performing FCIQMC with preconditioning, then apply the

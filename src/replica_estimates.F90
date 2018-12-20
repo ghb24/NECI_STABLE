@@ -102,7 +102,7 @@ module replica_estimates
         ! walker dynamics - it doesn't just calculate some energies
         ! without affecting walkers. This step is done here for efficiency.
 
-        use CalcData, only: tau, tEN2Init, tEN2Rigorous
+        use CalcData, only: tau, tEN2Init, tEN2Rigorous, tTruncInitiator
         use global_det_data, only: det_diagH, replica_est_len
         use semi_stoch_procs, only: core_space_pos, check_determ_flag
 
@@ -176,19 +176,23 @@ module replica_estimates
 
                 ! Set initiator flags for the spawning, before the currently
                 ! occupied determinant is potentially killed in the death step.
-                do j = 1, lenof_sign
-                    if (abs(cursign(j)) > 1.e-12_dp) then
-                        call set_flag(SpawnedParts(:,i), get_initiator_flag(j))
-                    end if
-                end do
+                if (tTruncInitiator) then
+                    do j = 1, lenof_sign
+                        if (abs(cursign(j)) > 1.e-12_dp) then
+                            call set_flag(SpawnedParts(:,i), get_initiator_flag(j))
+                        end if
+                    end do
+                end if
 
                 hdiag = det_diagH(PartInd) + Hii
 
-                tCoreDet = check_determ_flag(CurrentDets(:,PartInd))
-                if (tCoreDet) then
-                    determ_pos = core_space_pos(SpawnedParts(:,i), nI_spawn) - determ_displs(iProcIndex)
-                    tDetermSpawnedTo(determ_pos) = .true.
-                    spwnsign = spwnsign + partial_determ_vecs(:, determ_pos)
+                if (tSemiStochastic) then
+                    tCoreDet = check_determ_flag(CurrentDets(:,PartInd))
+                    if (tCoreDet) then
+                        determ_pos = core_space_pos(SpawnedParts(:,i), nI_spawn) - determ_displs(iProcIndex)
+                        tDetermSpawnedTo(determ_pos) = .true.
+                        spwnsign = spwnsign + partial_determ_vecs(:, determ_pos)
+                    end if
                 end if
 
                 do j = 1, replica_est_len
@@ -316,7 +320,7 @@ module replica_estimates
                 call hash_table_lookup(nI_spawn, SpawnedParts(:,i), NIfDBO, HashIndex, &
                                        CurrentDets, PartInd, DetHash, tSuccess)
 
-                if (tSuccess) then
+                if (tSuccess .and. tSemiStochastic) then
                     tCoreDet = check_determ_flag(CurrentDets(:,PartInd))
                     if (tCoreDet) then
                         determ_pos = core_space_pos(SpawnedParts(:,i), nI_spawn) - determ_displs(iProcIndex)

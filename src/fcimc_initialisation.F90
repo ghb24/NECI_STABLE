@@ -38,7 +38,7 @@ module fcimc_initialisation
                         t_back_spawn_option, t_back_spawn_flex_option, tRCCheck, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
                         tReplicaEstimates, tDeathBeforeComms, pSinglesIn, pParallelIn, &
-                        tSetInitFlagsBeforeDeath, tSetInitialRunRef
+                        tSetInitFlagsBeforeDeath, tSetInitialRunRef, tEN2Init
     use adi_data, only: tReferenceChanged, tAdiActive, &
          nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
@@ -1622,7 +1622,7 @@ contains
                                             &block, in order to calculate replica estimates.)")
             end if
 
-            allocate(tDetermSpawnedTo(determ_sizes(iProcIndex)))
+            if (tSemiStochastic) allocate(tDetermSpawnedTo(determ_sizes(iProcIndex)))
 
             call open_replica_est_file()
         end if
@@ -1651,6 +1651,10 @@ contains
         if (tReplicaEstimates .and. tDeathBeforeComms) then
             call stop_all(this_routine, "In order to calculate replica estimates, &
                                         &death must be performed after communication.")
+        end if
+        if (tEN2Init .and. (.not. tTruncInitiator)) then
+            call stop_all(this_routine, "Cannot calculate the EN2 correction to initiator &
+                                        &error as the initiator method is not in use.")
         end if
 
     end subroutine InitFCIMCCalcPar
