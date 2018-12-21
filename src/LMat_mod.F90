@@ -27,7 +27,7 @@ module LMat_mod
       integer, value :: a,b,c
       integer, intent(in) :: i,j,k
       HElement_t(dp) :: matel
-      integer(int64) :: ida, idb, idc, idi, idj, idk
+      integer :: ida, idb, idc, idi, idj, idk
 
       ! convert to spatial orbs if required
       ida = gtID(a)
@@ -89,7 +89,6 @@ module LMat_mod
           implicit none
           integer, value :: idp,idq,idr,p,q,r
           integer, intent(in) :: sgn
-          integer(int64) :: ai,bj,ck
           
           if(G1(p)%ms == G1(a)%ms .and. G1(q)%ms == G1(b)%ms .and. G1(r)%ms == G1(c)%ms) then
              matel = matel + sgn * LMat(LMatInd(int(ida,int64),int(idb,int64),&
@@ -212,7 +211,6 @@ module LMat_mod
       HElement_t(dp) :: matel
       character(*), parameter :: t_r = "readLMat"
       integer :: counter
-      real(dp) :: fac
 
       if(tStoreSpinOrbs) then
          nBI = nBasis
@@ -267,7 +265,7 @@ module LMat_mod
 
     subroutine initializeNInd()
       implicit none
-      integer :: i,j      
+      integer :: i
       ! prepare an array containing the offset of certain blocks in the
       ! LMat array
       
