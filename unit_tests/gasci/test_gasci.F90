@@ -39,7 +39,7 @@ contains
     integer :: nBasisMax(5,3), lms
     integer(int64) :: umatsize
     real(dp) :: ecore
-    integer :: ierr
+    integer(MPIArg) :: ierr
     umatsize = 0
     nel = 5
     NIfDBO = 0
