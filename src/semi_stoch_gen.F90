@@ -190,7 +190,7 @@ contains
 
         ! A wrapper to call the correct generating routine.
 
-        use bit_rep_data, only: flag_deterministic, flag_initiator
+        use bit_rep_data, only: flag_deterministic, flag_initiator, flag_static_init
         use bit_reps, only: set_flag, encode_sign
         use FciMCData, only: determ_sizes, SpawnedParts
         use searching, only: remove_repeated_states
@@ -259,6 +259,7 @@ contains
             if (tTruncInitiator) then
                 do run = 1, inum_runs
                     call set_flag(SpawnedParts(:,i), get_initiator_flag_by_run(run))
+                    call set_flag(CurrentDets(:,i), flag_static_init(run))
                 end do
             end if
         end do

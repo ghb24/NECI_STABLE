@@ -42,7 +42,8 @@ module fcimc_helper
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
                         t_back_spawn_flex, tau, DiagSft,  &
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule, &
-                        tPreCond, tReplicaEstimates, tInitiatorSpace
+                        tPreCond, tReplicaEstimates, tInitiatorSpace, &
+                        tPureInitiatorSpace
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
          tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
@@ -790,8 +791,12 @@ contains
 
                 ! Should this particle be considered to be an initiator
                 ! for spawning purposes.
-                parent_init = TestInitiator_explicit(CurrentDets(:,j), nI, j, parent_init, &
-                                            CurrentSign, exLvl, run)
+                if (tPureInitiatorSpace) then
+                    parent_init = TestInitiator_pure_space(CurrentDets(:,j), nI, j, parent_init, run)
+                else
+                    parent_init = TestInitiator_explicit(CurrentDets(:,j), nI, j, parent_init, &
+                                                CurrentSign, exLvl, run)
+                end if
 
                 ! Update counters as required.
                 if (parent_init) then
@@ -828,9 +833,8 @@ contains
 
       end subroutine CalcParentFlag_det
 
-
       function TestInitiator_ilut(ilut, site_idx, is_init, run) result(initiator)
-        implicit none
+
         integer(n_int), intent(inout) :: ilut(0:NIfTot)
         integer, intent(in) :: run, site_idx
         logical, intent(in) :: is_init
@@ -841,11 +845,16 @@ contains
         exLvl = FindBitExcitLevel(ilut, ilutRef(:,run))
         call decode_bit_det(nI,ilut)
         call extract_sign(ilut, sgn)
-        initiator = TestInitiator_explicit(ilut, nI, site_idx, is_init, sgn, exLvl, run)
-        
+
+        if (tPureInitiatorSpace) then
+            initiator = TestInitiator_pure_space(ilut, nI, site_idx, is_init, run)
+        else
+            initiator = TestInitiator_explicit(ilut, nI, site_idx, is_init, sgn, exLvl, run)
+        end if
+
       end function TestInitiator_ilut
 
-      function TestInitiator_explicit(ilut, nI, site_idx,is_init, sgn, exLvl, run) result(initiator)
+      function TestInitiator_explicit(ilut, nI, site_idx, is_init, sgn, exLvl, run) result(initiator)
         use adi_initiators, only: check_static_init
         use adi_references, only: check_superinitiator
         implicit none
@@ -873,15 +882,15 @@ contains
         ! initiator flag according to population
         popInit = initiator_criterium(sgn, det_diagH(site_idx), run)
 
-        ! initiator flag according to SI
+        ! initiator flag according to SI or a static initiator space
         staticInit = check_static_init(ilut, nI, sgn, exLvl, run)
 
         if (tInitiatorSpace) then
-            staticInit = test_flag(ilut, flag_static_init(run))
+            staticInit = test_flag(ilut, flag_static_init(run)) .or. test_flag(ilut, flag_deterministic)
             if (.not. staticInit) then
                 if (is_in_initiator_space(ilut, nI)) then
                     staticInit = .true.
-                    call set_flag(CurrentDets(:,i), flag_static_init(run))
+                    call set_flag(CurrentDets(:, site_idx), flag_static_init(run))
                 end if
             end if
         end if
@@ -964,6 +973,35 @@ contains
         end if       
 
       end function TestInitiator_explicit
+
+      function TestInitiator_pure_space(ilut, nI, site_idx, initiator_before, run) result(initiator)
+
+          integer(n_int), intent(inout) :: ilut(0:NIfTot)
+          integer, intent(in) :: nI(nel), site_idx, run
+          logical, intent(in) :: initiator_before
+
+          logical :: initiator
+
+          ! Has this already been marked as a determinant in the static space?
+          initiator = test_flag(ilut, flag_static_init(run)) .or. test_flag(ilut, flag_deterministic)
+
+          ! If not, then it may be new, so check.
+          ! Deterministic states are always in CurrentDets, so don't need to
+          ! check if it's a new state in the deterministic space.
+          if (.not. initiator) then
+              if (is_in_initiator_space(ilut, nI)) then
+                  initiator = .true.
+                  call set_flag(CurrentDets(:, site_idx), flag_static_init(run))
+              end if
+          end if
+
+          if (initiator .and. (.not. initiator_before)) then
+              NoAddedInitiators = NoAddedInitiators + 1_int64
+          else if ((.not. initiator) .and. initiator_before) then
+              NoAddedInitiators = NoAddedInitiators - 1_int64
+          end if
+
+      end function TestInitiator_pure_space
       
       function initiator_criterium(sign,hdiag,run) result(init_flag)
         implicit none
@@ -1731,7 +1769,7 @@ contains
 
         if(tTruncInitiator) then
             !First, diagonalise initiator subspace
-            write(iout,'(A)') 'Diagonalising initator subspace...'
+            write(iout,'(A)') 'Diagonalising initiator subspace...'
 
             iSubspaceSize = 0
             do i=1,int(TotWalkers,sizeof_int)

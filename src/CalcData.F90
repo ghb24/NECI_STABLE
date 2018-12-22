@@ -267,6 +267,9 @@ logical :: qmc_trial_wf = .false.
 logical :: tInitiatorSpace
 type(subspace_in) :: i_space_in
 
+! If true then initiators can only be those determinants in the defined fixed space.
+logical :: tPureInitiatorSpace
+
 ! True if running a kp-fciqmc calculation.
 logical :: tKP_FCIQMC
 

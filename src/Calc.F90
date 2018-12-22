@@ -414,6 +414,7 @@ contains
           tSetInitialRunRef = .true.
 
           tInitiatorSpace = .false.
+          tPureInitiatorSpace = .false.
 
         end subroutine SetCalcDefaults
 
@@ -1508,6 +1509,10 @@ contains
 
             case("INITIATOR-SPACE")
                 tInitiatorSpace = .true.
+            case("PURE-INITIATOR-SPACE")
+                tInitiatorSpace = .true.
+                tPureInitiatorSpace = .true.
+                tInitCoherentRule = .false.
             case("DOUBLES-INITIATOR")
                 i_space_in%tDoubles = .true.
             case("HF-CONN-INITIATOR")
