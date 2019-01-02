@@ -17,6 +17,7 @@ module semi_stoch_procs
     use SystemData, only: nel
     use timing_neci
     use adi_data, only: tSignedRepAv
+    use global_det_data, only: set_tot_acc_spawns
 
     implicit none
 
@@ -739,6 +740,7 @@ contains
         type(ll_node), pointer :: temp_node
         logical :: tSuccess
         character(*), parameter :: this_routine = 'add_core_states_currentdet'
+        real(dp), allocatable :: fvals(:,:)
 
         nwalkers = int(TotWalkers,sizeof_int)
 
@@ -755,6 +757,11 @@ contains
 #endif
             call stop_all(this_routine, "Insufficient memory assigned")
         end if
+
+        ! we need to reorder the adaptive shift data, too
+        if(tAutoAdaptiveShift) then
+           allocate(fvals(2*inum_runs,nwalkers))           
+        endif
 
         ! First find which CurrentDet states are in the core space.
         ! The warning above refers to this bit of code: If a core determinant is not in the
@@ -783,6 +790,7 @@ contains
                 ! Copy the amplitude of the state across to SpawnedParts.
                 call extract_sign(CurrentDets(:,PartInd), walker_sign)
                 call encode_sign(SpawnedParts(:,i), walker_sign)
+                if(tAutoAdaptiveShift) call cache_fvals(i,PartInd)
             else
                 ! This will be a new state added to CurrentDets.
                 nwalkers = nwalkers + 1
@@ -813,6 +821,7 @@ contains
                 end if
                 
                 SpawnedParts(0:NIfTot,i_non_core) = CurrentDets(:,i)
+                if(tAutoAdaptiveShift) call cache_fvals(i_non_core,i)
             end if
         end do
 
@@ -820,6 +829,8 @@ contains
         ! Note that the amplitude in CurrentDets was copied across, so this is fine.
         do i = 1, nwalkers
             CurrentDets(:,i) = SpawnedParts(0:NIfTot,i)
+            ! also re-order the adaptive shift data if auto-adapive shift is used
+            if(tAutoAdaptiveShift) call set_tot_acc_spawns(fvals, nwalkers)
         end do
 
         call clear_hash_table(HashIndex)
@@ -851,6 +862,20 @@ contains
         end do
 
         TotWalkers = int(nwalkers, int64)
+
+        contains
+
+          subroutine cache_fvals(i,j)
+            use global_det_data, only: get_acc_spawns, get_tot_spawns
+            implicit none
+            integer, intent(in) :: i,j
+            integer :: run
+
+            do run = 1, inum_runs
+               fvals(run,i) = get_acc_spawns(j,run)
+               fvals(run+inum_runs,i) = get_tot_spawns(j,run)
+            end do
+          end subroutine cache_fvals
 
     end subroutine add_core_states_currentdet_hash
 
