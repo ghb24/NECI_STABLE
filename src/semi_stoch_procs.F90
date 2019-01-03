@@ -739,6 +739,7 @@ contains
         real(dp) :: walker_sign(lenof_sign)
         type(ll_node), pointer :: temp_node
         logical :: tSuccess
+        integer :: ierr
         character(*), parameter :: this_routine = 'add_core_states_currentdet'
         real(dp), allocatable :: fvals(:,:)
 
@@ -760,7 +761,12 @@ contains
 
         ! we need to reorder the adaptive shift data, too
         if(tAutoAdaptiveShift) then
-           allocate(fvals(2*inum_runs,nwalkers))           
+           ! the maximally required buffer size is the current size of the
+           ! determinant list plus the size of the semi-stochastic space (in case
+           ! all core-dets are new)
+           allocate(fvals(2*inum_runs,(nwalkers+determ_sizes(iProcIndex))), stat = ierr)  
+           if(ierr.ne.0) call stop_all(this_routine, &
+                "Failed to allocate buffer for adaptive shift data")
         endif
 
         ! First find which CurrentDet states are in the core space.
@@ -794,10 +800,11 @@ contains
             else
                 ! This will be a new state added to CurrentDets.
                 nwalkers = nwalkers + 1
+                ! no auto-adaptive shift data available
+                if(tAutoAdaptiveShift) fvals(:,i) = 0.0_dp
             end if
 
         end do
-
         ! Next loop through CurrentDets and move all non-core states to after the last
         ! core state slot in SpawnedParts.
         i_non_core = determ_sizes(iProcIndex)
@@ -824,14 +831,13 @@ contains
                 if(tAutoAdaptiveShift) call cache_fvals(i_non_core,i)
             end if
         end do
-
         ! Now copy all the core states in SpawnedParts into CurrentDets.
         ! Note that the amplitude in CurrentDets was copied across, so this is fine.
         do i = 1, nwalkers
             CurrentDets(:,i) = SpawnedParts(0:NIfTot,i)
             ! also re-order the adaptive shift data if auto-adapive shift is used
-            if(tAutoAdaptiveShift) call set_tot_acc_spawns(fvals, nwalkers)
         end do
+        if(tAutoAdaptiveShift) call set_tot_acc_spawns(fvals, nwalkers)
 
         call clear_hash_table(HashIndex)
 

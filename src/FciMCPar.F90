@@ -661,7 +661,7 @@ module FciMCParMod
             call deallocate_histograms()
         end if
 
-!        if(t_hist_fvals) call print_fval_hist(enGrid,arGrid)
+        if(t_hist_fvals) call print_fval_hist(enGrid,arGrid)
 
         ! Remove the signal handlers now that there is no way for the
         ! soft-exit part to work
