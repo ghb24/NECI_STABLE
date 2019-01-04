@@ -13,16 +13,16 @@ contains
     subroutine init_rdms(nrdms_standard, nrdms_transition)
 
         use DeterminantData, only: write_det
-        use CalcData, only: MemoryFacPart
+        use CalcData, only: MemoryFacPart, tEN2
         use FciMCData, only: MaxSpawned, Spawned_Parents, Spawned_Parents_Index
-        use FciMCData, only: Spawned_ParentsTag, Spawned_Parents_IndexTag
+        use FciMCData, only: Spawned_ParentsTag, Spawned_Parents_IndexTag, nhashes_spawn
         use FciMCData, only: HFDet_True, tSinglePartPhase, AvNoatHF, IterRDM_HF
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
         use LoggingData, only: tDo_Not_Calc_2RDM_est, RDMExcitLevel, tExplicitAllRDM
         use LoggingData, only: tDiagRDM, tDumpForcesInfo, tDipoles, tPrint1RDM
         use LoggingData, only: tRDMInstEnergy, tReadRDMs, tPopsfile, tno_RDMs_to_read
         use LoggingData, only: twrite_RDMs_to_read, tPrint1RDMsFrom2RDMPops
-        use LoggingData, only: tPrint1RDMsFromSpinfree
+        use LoggingData, only: tPrint1RDMsFromSpinfree, t_spin_resolved_rdms
         use Parallel_neci, only: iProcIndex, nProcessors
         use rdm_data, only: rdm_estimates, one_rdms, two_rdm_spawn, two_rdm_main, two_rdm_recv
         use rdm_data, only: two_rdm_recv_2, tOpenShell, print_2rdm_est, Sing_ExcDjs, Doub_ExcDjs
@@ -31,9 +31,10 @@ contains
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
         use rdm_data, only: nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time, states_for_transition_rdm
         use rdm_data, only: rdm_main_size_fac, rdm_spawn_size_fac, rdm_recv_size_fac
-        use rdm_data, only: rdm_definitions
+        use rdm_data, only: rdm_definitions, en_pert_main
         use rdm_data_utils, only: init_rdm_spawn_t, init_rdm_list_t, init_one_rdm_t
         use rdm_data_utils, only: init_rdm_definitions_t, clear_one_rdms, clear_rdm_list_t
+        use rdm_data_utils, only: init_en_pert_t
         use rdm_estimators, only: init_rdm_estimates_t, calc_2rdm_estimates_wrapper
         use rdm_reading
         use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
@@ -44,10 +45,12 @@ contains
 
         integer, intent(in) :: nrdms_standard, nrdms_transition
 
-        integer :: nrdms, rdm_nrows, nhashes_rdm_main, nhashes_rdm_spawn
-        integer :: standard_spawn_size, min_spawn_size
-        integer :: max_nelems_main, max_nelems_spawn, max_nelems_recv, max_nelems_recv_2
-        integer :: memory_alloc, main_mem, spawn_mem, recv_mem
+        integer :: nrdms
+        integer(kind=int64) :: rdm_nrows, nhashes_rdm_main, nhashes_rdm_spawn
+        integer(kind=int64) :: standard_spawn_size, min_spawn_size
+        integer(kind=int64) :: max_nelems_main, max_nelems_spawn, max_nelems_recv, max_nelems_recv_2
+        integer(kind=int64) :: memory_alloc, main_mem, spawn_mem, recv_mem
+        integer(kind=int64) :: ndets_en_pert, nhashes_en_pert
         integer :: irdm, iproc, ierr
         character(len=*), parameter :: t_r = 'init_rdms'
 
@@ -62,7 +65,7 @@ contains
             call stop_all(t_r, '2-RDM calculations not set up for systems stored as spin orbitals.')
         end if
 
-        if (tROHF .or. tStoreSpinOrbs) then
+        if (tROHF .or. tStoreSpinOrbs.or.t_spin_resolved_rdms) then
             tOpenShell = .true.
         else
             tOpenShell = .false.
@@ -117,15 +120,15 @@ contains
         end if
 
         ! The memory of (large) alloctaed arrays, per MPI process.
-        memory_alloc = 0
+        memory_alloc = 0_int64
 
         ! For now, create RDM array big enough so that *all* RDM elements on
         ! a particular processor can be stored, using the usual approximations
         ! to take symmetry into account. Include a factor of 1.5 to account for
         ! factors such as imperfect load balancing (which affects the spawned
         ! array).
-        rdm_nrows = nbasis*(nbasis-1)/2
-        max_nelems_main = 1.5*(rdm_nrows**2)/(8*nProcessors)*rdm_main_size_fac
+        rdm_nrows = nbasis*(nbasis-1_int64)/2_int64
+        max_nelems_main = 1.5*(rdm_nrows**2)/(8_int64*nProcessors)*rdm_main_size_fac
         nhashes_rdm_main = 0.75*max_nelems_main*rdm_main_size_fac
 
         main_mem = max_nelems_main*(nrdms+1)*size_int_rdm
@@ -134,23 +137,23 @@ contains
         write(6,'(1X,"Allocation of main RDM array complete.")')
 
         ! Factor of 10 over perfectly distributed size, for some safety.
-        standard_spawn_size = 10.0*(rdm_nrows**2)/(8*nProcessors)
+        standard_spawn_size = 10_int64*(rdm_nrows**2_int64)/(8_int64*nProcessors)
         ! For cases where we have a small number of orbitals but large number
         ! of processors (i.e., large CASSCF calculations), we may find the
         ! above standard_spawn_size is less than nProcessors. Thus, there
         ! would not be at least one spawning slot per processor. In such cases
         ! make sure that we have at least 50 per processor, for some safety.
-        min_spawn_size = 50*nProcessors
+        min_spawn_size = 50_int64*nProcessors
         max_nelems_spawn = max(standard_spawn_size, min_spawn_size)*rdm_spawn_size_fac
         nhashes_rdm_spawn = 0.75*max_nelems_spawn*rdm_spawn_size_fac
 
-        spawn_mem = max_nelems_spawn*(nrdms+1)*size_int_rdm
+        spawn_mem = max_nelems_spawn*(nrdms+1_int64)*size_int_rdm
         write(6,'(1X,"About to allocate RDM spawning array, size per MPI process (MB):", f14.6)') real(spawn_mem,dp)/1048576.0_dp
         call init_rdm_spawn_t(two_rdm_spawn, rdm_nrows, nrdms, max_nelems_spawn, nhashes_rdm_spawn)
         write(6,'(1X,"Allocation of RDM spawning array complete.")')
 
-        max_nelems_recv = 4.0*(rdm_nrows**2)/(8*nProcessors)*rdm_recv_size_fac
-        max_nelems_recv_2 = 2.0*(rdm_nrows**2)/(8*nProcessors)*rdm_recv_size_fac
+        max_nelems_recv = 4_int64*(rdm_nrows**2)/(8*nProcessors)*rdm_recv_size_fac
+        max_nelems_recv_2 = 2_int64*(rdm_nrows**2)/(8*nProcessors)*rdm_recv_size_fac
 
         recv_mem = (max_nelems_recv + max_nelems_recv_2)*(nrdms+1)*size_int_rdm
         write(6,'(1X,"About to allocate RDM receiving arrays, size per MPI process (MB):", f14.6)') real(recv_mem,dp)/1048576.0_dp
@@ -178,6 +181,13 @@ contains
 
                 memory_alloc = memory_alloc + ( NoOrbs * NoOrbs * 8 )
             end do
+        end if
+
+        if (tEN2) then
+            ! Initialise Epstein-Nesbet perturbation object.
+            ndets_en_pert = MaxSpawned
+            nhashes_en_pert = 0.8*MaxSpawned
+            call init_en_pert_t(en_pert_main, nrdms_standard, ndets_en_pert, nhashes_en_pert)
         end if
 
         ! We then need to allocate the arrays for excitations etc when doing
@@ -339,7 +349,7 @@ contains
                 end do
             else
                 call read_2rdm_popsfile(two_rdm_main, two_rdm_spawn)
-                if (print_2rdm_est) call calc_2rdm_estimates_wrapper(rdm_definitions, rdm_estimates, two_rdm_main)
+                if (print_2rdm_est) call calc_2rdm_estimates_wrapper(rdm_definitions, rdm_estimates, two_rdm_main, en_pert_main)
 
                 if (tPrint1RDMsFrom2RDMPops) then
                     call print_1rdms_from_2rdms_wrapper(rdm_definitions, one_rdms, two_rdm_main, tOpenShell)
@@ -580,17 +590,19 @@ contains
         ! If the NECI calculation softexits before the RDMs start to fill,
         ! this is all that is called at the end.
 
+        use CalcData, only: tEN2
         use FciMCData, only: Spawned_Parents, Spawned_Parents_Index
         use FciMCData, only: Spawned_ParentsTag, Spawned_Parents_IndexTag
         use FciMCData, only: AvNoatHF, IterRDM_HF
         use LoggingData, only: RDMExcitLevel, tExplicitAllRDM
-        use rdm_data, only: two_rdm_main, two_rdm_recv, two_rdm_recv_2, two_rdm_spawn
+        use rdm_data, only: two_rdm_main, two_rdm_recv, two_rdm_recv_2, two_rdm_spawn, en_pert_main
         use rdm_data, only: rdm_estimates, one_rdms, Sing_ExcDjs, Doub_ExcDjs
         use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, Sing_ExcDjsTag, Doub_ExcDjsTag
         use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
         use rdm_data_old, only: rdms
         use rdm_data_utils, only: dealloc_rdm_list_t, dealloc_rdm_spawn_t, dealloc_one_rdm_t
+        use rdm_data_utils, only: dealloc_en_pert_t
         use rdm_estimators, only: dealloc_rdm_estimates_t
         use RotateOrbsData, only: SymLabelCounts2_rot, SymLabelList2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag
@@ -607,6 +619,11 @@ contains
         call dealloc_rdm_list_t(two_rdm_recv)
         call dealloc_rdm_list_t(two_rdm_recv_2)
         call dealloc_rdm_spawn_t(two_rdm_spawn)
+
+        ! Deallocate the EN perturbation orbject.
+        if (tEN2) then
+            call dealloc_en_pert_t(en_pert_main)
+        end if
 
         ! Deallocate the RDM estimates object.
         call dealloc_rdm_estimates_t(rdm_estimates)

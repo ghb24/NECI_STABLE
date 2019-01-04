@@ -33,6 +33,7 @@ MODULE System
 !     specifying a new set of DEFAULTS.
       tReltvy = .false.
       tComplexOrbs_RealInts = .false.
+      tComplexWalkers_RealInts = .false.
       tReadFreeFormat=.true.
       tMolproMimic=.false.
       tNoSingExcits=.false.
@@ -105,6 +106,7 @@ MODULE System
       tUEGOffset = .false.
       TTILT = .false.
       TALPHA = .false.
+      ALPHA = 0.0_dp
       ISTATE = 1
       OrbECutoff=1e20_dp
       tOrbECutoff=.false.
@@ -195,8 +197,8 @@ MODULE System
       ENDIF
 
 ! Coulomb damping function currently removed.
-!      FCOULDAMPBETA=-1.0_dp
-!      COULDAMPORB=0
+      FCOULDAMPBETA=-1.0_dp
+      COULDAMPORB=0
         
     end subroutine SetSysDefaults
 
@@ -471,6 +473,17 @@ system: do
             call getf(UHUB)
         case("B")
             call getf(BHUB)
+
+        case ("NEXT-NEAREST-HOPPING")
+            call getf(nn_bhub)
+
+        case ("TWISTED-BC")
+            t_twisted_bc = .true. 
+            call getf(twisted_bc(1))
+            if (item < nitems) then
+                call getf(twisted_bc(2))
+            end if
+
         case("REAL")
             TREAL = .true.
             ! in case of the real-space lattice also turn off symmetries
@@ -929,6 +942,38 @@ system: do
                         tGen_4ind_2 = .true.
                         tGen_4ind_part_exact = .true.
                         tGen_4ind_2_symmetric = .false.
+
+                    case("4IND-WEIGHTED-UNBOUND")
+                        ! [Werner Dobrautz 26.4.2017:]
+                        ! new tests for optimizations for the latest 
+                        ! excitation generator implementation, without using
+                        ! the artificial lower bounds for the energy
+                        tGen_4ind_2 = .true.
+                        tGen_4ind_part_exact = .true.
+                        tGen_4ind_2_symmetric = .false.
+                        tGen_4ind_unbound = .true.
+
+                        ! make a few small tests for the frequency histograms
+                        if (item < nitems) then 
+                            call readu(w) 
+
+                            select case (w) 
+                            case ("IIAA")
+                                ! weight with <ii|aa> instead of <ia|ia> 
+                                t_iiaa = .true. 
+
+                            case ("RATIO") 
+                                ! weigh with the ratio <ia|ia>/<ja|ja> 
+                                t_ratio = .true. 
+
+                            case ("IIAA-RATIO", "RATIO-IIAA")
+                                t_iiaa = .true. 
+                                t_ratio = .true.
+
+                            end select 
+                        end if
+
+
                     case("4IND-WEIGHTED-2-SYMMETRIC")
                         ! The other version of this generator. This permits
                         ! selecting orbitals in both directions
@@ -994,6 +1039,10 @@ system: do
             !We have complex orbitals, but real integrals. This means that we only have 4x permutational symmetry,
             !so we need to check the (momentum) symmetry before we look up any integrals
             tComplexOrbs_RealInts = .true.
+            
+         case("COMPLEXWALKERS-REALINTS")
+            ! We have real orbitals and integrals, but the walker weights are complex
+            tComplexWalkers_RealInts = .true.
 
         case("SYSTEM-REPLICAS")
             ! How many copies of the simulation do we want to run in parallel?
@@ -1649,6 +1698,10 @@ system: do
           IF(THUB) THEN
              WRITE(6,'(1X,A,F19.5)') '  HUBBARD T : ' , BHUB
              WRITE(6,'(1X,A,F19.5)') '  HUBBARD U : ' , UHUB
+             if (abs(nn_bhub) > EPS) then 
+                 WRITE(6,'(1X,A,F19.5)') '  HUBBARD T* : ' , nn_bhub
+                 print *, "Also next-nearest neighbor hopping!"
+             end if
              IF(TTILT) WRITE(6,*) ' TILTED LATTICE: ',ITILTX, ",",ITILTY
              IF(TTILT.AND.ITILTX.GT.ITILTY) call stop_all(this_routine, 'ERROR: ITILTX>ITILTY')
           ELSE

@@ -11,6 +11,7 @@
 #                  [ MPI <nprocessors> ]
 #                  [ LIBS <lib1> [<lib2> ...]
 #                  [ META_TARGET <target> ]
+#		   [ DEFINITIONS <define1> [<define2> ... ] ]
 #
 # Options
 # -------
@@ -38,13 +39,18 @@
 # META_TARGET : optional
 #   add the test to the specified meta target (and create that target if required)
 #
+# DEFINITIONS : optional 
+#   list of definitions to add to preprocessor defines
+#	same as in neci_add_library, since unit-tests may also depend on build-target!
+#       but i cannot get it running yet with the preprocessor running across the file first..
+#
 ##############################################################################
 
 macro( neci_add_test )
 
     set( options )
     set( single_value_args TARGET LINKER_LANGUAGE MPI META_TARGET )
-    set( multi_value_args SOURCES LIBS )
+    set( multi_value_args SOURCES LIBS DEFINITIONS)
 
     cmake_parse_arguments( _p "${options}" "${single_value_args}" "${multi_value_args}" ${_FIRST_ARG} ${ARGN} )
 
@@ -63,8 +69,15 @@ macro( neci_add_test )
 
     add_executable( ${_p_TARGET} ${_p_SOURCES} )
 
-    # Add the link libraries
+    # Add definitions to the compliation
+    if (DEFINED _p_DEFINITIONS )
+        get_property( _target_defs TARGET ${_p_TARGET} PROPERTY COMPILE_DEFINITIONS )
+        list( APPEND _target_defs ${_p_DEFINITIONS} )
+        message( STATUS "Library ${_p_TARGET} using definitions: ${_target_defs}" )
+        set_property( TARGET ${_p_TARGET} PROPERTY COMPILE_DEFINITIONS ${_target_defs} )
+    endif()
 
+    # Add the link libraries
     if( _p_LIBS )
         list( REMOVE_DUPLICATES _p_LIBS )
         foreach( _lib ${_p_LIBS} )

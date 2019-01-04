@@ -7,6 +7,7 @@ MODULE Logging
     use MemoryManager, only: LogMemAlloc, LogMemDealloc,TagIntType
     use SystemData, only: nel, LMS, nbasis, tHistSpinDist, nI_spindist, &
                           hist_spin_dist_iter
+    use FciMCData, only: maxConflictExLvl
     use CalcData, only: tCheckHighestPop, semistoch_shift_iter, trial_shift_iter, tPairedReplicas
     use constants, only: n_int, size_n_int, bits_n_int
     use bit_rep_data, only: NIfTot, NIfD
@@ -157,7 +158,9 @@ MODULE Logging
       tOutputLoadDistribution = .false.
       tHDF5PopsRead = .false.
       tHDF5PopsWrite = .false.
-
+      tWriteRefs = .false.
+      tWriteConflictLvls = .false.
+      maxConflictExlvl = 8
 #ifdef __PROG_NUMRUNS
       tFCIMCStats2 = .true.
 #else
@@ -169,6 +172,8 @@ MODULE Logging
           !Mcpaths set
           ILOGGINGDef=2
       ENDIF
+
+      ref_filename = "REFERENCES"
 
     end subroutine SetLogDefaults
 
@@ -567,6 +572,9 @@ MODULE Logging
         case("PRINT-1RDMS-FROM-SPINFREE")
             tPrint1RDMsFromSpinfree = .true.
 
+        case("NO-APPEND-STATS")
+            t_no_append_stats = .true.
+
         case("DIAGFLYONERDM")
 !This sets the calculation to diagonalise the *1* electron reduced density matrix.   
 !The eigenvalues give the occupation numbers of the natural orbitals (eigenfunctions).
@@ -724,6 +732,11 @@ MODULE Logging
         case("READRDMS")
 ! Read in the RDMs from a previous calculation, and continue accumulating the RDMs from the very beginning of this restart. 
             tReadRDMs = .true.
+
+         case("WRITE-CONFLICT-LEVELS")
+            ! write the excitation levels of sign conflicts between replicas
+            tWriteConflictLvls = .true.
+            if(item < nitems) call geti(maxConflictExLvl)
         
         case("NONEWRDMCONTRIB")
             ! To be used with READRDMs.  This option makes sure that we don't add in any 
@@ -1044,6 +1057,11 @@ MODULE Logging
             ! varying excitation levels from the Hartree--Fock.
             tHistExcitToFrom = .true.
 
+!         case("PRINT-FREQUENCY-HISTOGRAMS")
+!             ! option to print out the histograms used in the tau-search! 
+!             ! note: but for now they are always printed by default
+!             t_print_frq_histograms = .true.
+
         case("ENDLOG")
             exit logging
 
@@ -1072,6 +1090,40 @@ MODULE Logging
             ! particles between blocks, as for any reasonable sized system
             ! there are _many_ blocks.
             tOutputLoadDistribution = .true.
+
+        case("DOUBLE-OCCUPANCY")
+            ! new functionality to measure the mean double occupancy 
+            ! as this is a only diagonal quantitity i decided to detach it 
+            ! from the RDM calculation, although it could be calculated 
+            ! from the RDMs and this should be used to test this functionality!
+            ! Also, as it is a diagonal quantity, we need to unbias the 
+            ! quantitiy by using the replica trick, just like for the 
+            ! RDMs! Also this should be tested, to what extend the 
+            ! quantity differs in a biased and unbiased calculation
+
+            t_calc_double_occ = .true.
+            t_calc_double_occ_av = .true.
+
+            if (item < nitems) then
+                t_calc_double_occ_av = .false.
+                call geti(equi_iter_double_occ)
+            end if
+
+        case ("PRINT-SPIN-RESOLVED-RDMS")
+            ! for giovanni enable the output of the spin-resolved rdms not 
+            ! only for ROHF calculations
+            t_spin_resolved_rdms = .true.
+
+        case ("LOG-IJA") 
+            t_log_ija = .true. 
+
+            if (item < nitems) then 
+                call getf(ija_thresh)
+            end if
+
+         case("WRITE-REFERENCES")
+            ! Output the reference dets to a file
+            tWriteRefs = .true.
 
         case default
            CALL report("Logging keyword "//trim(w)//" not recognised",.true.)

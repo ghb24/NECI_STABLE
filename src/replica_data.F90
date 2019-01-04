@@ -81,6 +81,8 @@ contains
                  iRefProc(inum_runs), proje_ref_energy_offsets(inum_runs), &
                  iHighestPop(inum_runs), &
                  replica_overlaps_real(inum_runs, inum_runs), &
+                 all_norms(inum_runs), &
+                 all_overlaps(inum_runs, inum_runs), &
 #ifdef __CMPLX
                  replica_overlaps_imag(inum_runs, inum_runs), &
 #endif
@@ -98,7 +100,7 @@ contains
 
                  ! Overall wavefunction properties
                  norm_psi(inum_runs), norm_psi_squared(inum_runs), &
-                 all_norm_psi_squared(inum_runs), &
+                 all_norm_psi_squared(inum_runs), old_norm_psi(inum_runs), &
                  norm_semistoch(inum_runs), norm_semistoch_squared(inum_runs),&
                  curr_S2(inum_runs), curr_S2_init(inum_runs), &
 
@@ -109,6 +111,8 @@ contains
                  AbsProjE(inum_runs), &
                  trial_numerator(inum_runs), tot_trial_numerator(inum_runs), &
                  trial_denom(inum_runs), tot_trial_denom(inum_runs), &
+                 trial_num_inst(inum_runs), tot_trial_num_inst(inum_runs), &
+                 trial_denom_inst(inum_runs), tot_trial_denom_inst(inum_runs), &
                  sum_proje_denominator(inum_runs), &
                  all_sum_proje_denominator(inum_runs), &
                  cyc_proje_denominator(inum_runs), &
@@ -124,6 +128,7 @@ contains
                  InstShift(inum_runs), &
                  AvDiagSft(inum_runs), SumDiagSft(inum_runs), &
                  DiagSft(inum_runs), &
+                 hdf5_diagsft(inum_runs), & 
                  DiagSftRe(inum_runs), &
                  DiagSftIm(inum_runs), &
                  tSinglePartPhase(inum_runs), stat=ierr)
@@ -157,6 +162,8 @@ contains
                    iRefProc, proje_ref_energy_offsets, &
                    iHighestPop, &
                    replica_overlaps_real, &
+                   all_norms, &
+                   all_overlaps, &
 #ifdef __CMPLX
                    replica_overlaps_imag, &
 #endif
@@ -209,6 +216,8 @@ contains
                    proje_iter, AbsProjE, &
                    trial_numerator, tot_trial_numerator, &
                    trial_denom, tot_trial_denom, &
+                   trial_num_inst, tot_trial_num_inst, &
+                   trial_denom_inst, tot_trial_denom_inst, &
                    sum_proje_denominator, all_sum_proje_denominator, &
                    cyc_proje_denominator, all_cyc_proje_denominator, &
 
@@ -248,6 +257,9 @@ contains
                  iter_data%update_growth(lenof_sign), &
                  iter_data%update_growth_tot(lenof_sign), &
                  iter_data%tot_parts_old(lenof_sign), stat=ierr)
+
+        ! initialize to 0
+        iter_data%update_growth_tot = 0.0_dp
 
     end subroutine
 

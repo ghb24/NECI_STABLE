@@ -46,7 +46,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,tMolcas_local,int_name,
     character(64) :: cString
     logical :: toverride_input,tFCIDUMP_exist,tMOLCASinput
     type(kp_fciqmc_data) :: kp
-    real(sp) :: tend(2)
+    real(dp) :: tend(2)
 
     ! Measure when NECICore is called. We need to do this here, as molcas
     ! and molpro can call NECI part way through a run, so it is no use to time
@@ -192,8 +192,6 @@ subroutine NECICodeInit(tCPMD,tVASP)
     implicit none
     logical, intent(in) :: tCPMD,tVASP
 
-    call init_timing()
-
     ! MPIInit contains dummy initialisation for serial jobs, e.g. so we
     ! can refer to the processor index being 0 for the parent processor.
     Call MPIInit(tCPMD.or.tVASP.or.tMolpro.or.tMolcas) ! CPMD and VASP have their own MPI initialisation and termination routines.
@@ -201,6 +199,8 @@ subroutine NECICodeInit(tCPMD,tVASP)
     ! find out whether this is a Molpro plugin
     CALL MolproPluginInit(tMolpro)
     ! end find out whether this is a Molpro plugin
+    ! If we use MPI_WTIME for timing, we have to call MPIInit first
+    call init_timing()
 
     if (.not.TCPMD) then
         call InitMemoryManager()
@@ -347,9 +347,6 @@ subroutine NECICalcEnd(iCacheFlag)
     use Integrals_neci, only: IntCleanup
     use Determinants, only: DetCleanup
     use Calc, only: CalcCleanup
-#ifdef __SHARED_MEM
-    use shared_alloc, only: cleanup_shared_alloc
-#endif
     use replica_data, only: clean_replica_arrays
     use OneEInts, only: DestroyTMat, DestroyPropInts
     use Parallel_neci, only: clean_parallel
@@ -371,9 +368,6 @@ subroutine NECICalcEnd(iCacheFlag)
     call DestroyTMAT(.false.)
     if(tCalcPropEst) call DestroyPropInts
     call SysCleanup()
-#ifdef __SHARED_MEM
-    call cleanup_shared_alloc ()
-#endif
     call clean_replica_arrays()
 #ifndef _MOLCAS_
     call clean_parallel()

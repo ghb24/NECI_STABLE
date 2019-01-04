@@ -106,9 +106,14 @@ LOGICAL :: TStartSinglePart,TRegenExcitgens
 LOGICAL :: TUnbiasPGeninProjE, tCheckHighestPopOnce
 LOGICAL :: tCheckHighestPop,tRestartHighPop,tChangeProjEDet
 LOGICAL :: tRotoAnnihil,tSpawnAsDet
-LOGICAL :: tTruncCAS,tTruncInitiator,tAddtoInitiator    !Truncation the FCIMC excitation space by CAS
+LOGICAL :: tTruncCAS ! Truncation of the FCIMC excitation space by a CAS
+logical :: tTruncInitiator, tAddtoInitiator, tInitCoherentRule, tGlobalInitFlag
+logical :: tSTDInits
+logical :: tEN2, tEN2Init, tEN2Truncated, tEN2Started
+LOGICAL :: tSeniorInitiators !If a det. has lived long enough (called a senior det.), it is added to the initiator space.
 LOGICAL :: tInitIncDoubs,tWalkContGrow,tAnnihilatebyRange
 logical :: tReadPopsRestart, tReadPopsChangeRef, tInstGrowthRate
+logical :: tL2GrowRate
 logical :: tAllRealCoeff, tUseRealCoeffs
 logical :: tRealSpawnCutoff
 logical :: tRealCoeffByExcitLevel
@@ -117,7 +122,12 @@ real(dp) :: RealSpawnCutoff, OccupiedThresh
 logical :: tRPA_QBA     !RPA calculation with QB approximation
 logical :: tStartCAS    !Start FCIMC dynamic with walkers distributed according to CAS diag.
 logical :: tShiftonHFPop    !Adjust shift in order to keep the population on HF constant, rather than total pop.
-
+logical :: tFixedN0 !Fix the reference population by using projected energy as shift.
+logical :: tTrialShift !Fix the overlap with trial wavefunction by using trial energy as shift.
+logical :: tSkipRef(1:inum_runs_max) !Skip spawing onto reference det and death/birth on it. One flag for each run.
+logical :: tFixTrial(1:inum_runs_max) !Fix trial overlap by determinstically updating one det. One flag for each run.
+integer :: N0_Target !The target reference population in fixed-N0 mode
+real(dp) :: TrialTarget !The target for trial overlap in trial-shift mode
 ! Base hash values only on spatial orbitals
 ! --> All dets with same spatial structure on the same processor.
 logical :: tSpatialOnlyHash
@@ -141,7 +151,8 @@ integer :: iPopsFileNoRead, iPopsFileNoWrite,iRestartWalkNum
 real(dp) :: iWeightPopRead
 real(dp) :: MaxWalkerBloom   !Max number of walkers allowed in one bloom before reducing tau
 INTEGER(int64) :: HFPopThresh
-real(dp) :: InitWalkers, maxnoathf, InitiatorWalkNo
+real(dp) :: InitWalkers, maxnoathf, InitiatorWalkNo, ErrThresh
+real(dp) :: SeniorityAge !A threshold on the life time of a determinat (measured in its halftime) to become a senior determinant.
 
 ! The average number of excitations to be performed from each walker.
 real(dp) :: AvMCExcits
@@ -159,6 +170,9 @@ real(dp) :: MemoryFacSpawn,SinglesBias,TauFactor,StepsSftImag
 real(dp) :: MemoryFacInit
 
 real(dp), allocatable, target :: DiagSft(:)
+! for consistency with forgetting the walkcontgrow keyword and hdf5 read-in 
+! use a temporary storage of the read-in diags-shift 
+real(dp), allocatable :: hdf5_diagsft(:)
 
 real(dp) :: GraphEpsilon
 real(dp) :: PGenEpsilon
@@ -173,6 +187,7 @@ integer(int64) :: iExitWalkers  !Exit criterion, based on total walker number
 logical :: t_lanczos_init
 logical :: t_lanczos_store_vecs
 logical :: t_lanczos_orthogonalise
+logical :: t_force_lanczos
 integer :: lanczos_max_restarts
 integer :: lanczos_max_vecs
 integer :: lanczos_energy_precision
@@ -200,6 +215,8 @@ logical :: tUniqueHFNode
 
 ! Options relating to the semi-stochastic code.
 logical :: tSemiStochastic ! Performing a semi-stochastic simulation if true.
+logical :: tDynamicCoreSpace, tStaticCore, tIntervalSet ! update the corespace
+integer :: coreSpaceUpdateCycle, semistochStartIter
 ! Input type describing which space(s) type to use.
 type(subspace_in) :: ss_space_in
 
@@ -235,6 +252,10 @@ logical :: tStartTrialLater = .false.
 ! of trial estimators?
 integer :: trial_shift_iter
 
+! Update the trial wf?
+logical :: tDynamicTrial
+integer :: trialSpaceUpdateCycle
+
 ! If false then create the trial wave function by diagonalising the
 ! Hamiltonian in the trial subspace.
 ! If true then create the trial wave function by taking the weights from the
@@ -259,6 +280,7 @@ integer :: pops_norm_unit
 logical :: tOrthogonaliseReplicas, tReplicaSingleDetStart
 logical :: tOrthogonaliseSymmetric
 integer :: orthogonalise_iter
+logical :: tAVReps, tReplicaCoherentInits, tRCCheck
 ! Information on a trial space to create trial excited states with.
 type(subspace_in) :: init_trial_in
 
@@ -291,7 +313,7 @@ integer, allocatable :: trial_init_reorder(:)
 logical :: tPrintReplicaOverlaps = .true.
 
 ! Keep track of when the calculation began (globally)
-real(sp) :: s_global_start
+real(dp) :: s_global_start
 
 ! Use continuous time FCIQMC
 logical :: tContTimeFCIMC, tContTimeFull
@@ -321,5 +343,89 @@ real(dp) :: min_tau_global = 1.0e-7_dp
 ! alis suggestion: have an option after restarting to keep the time-step 
 ! fixed to the values obtained from the POPSFILE 
 logical :: t_keep_tau_fixed = .false.
+
+! new tau-search using HISTOGRAMS: 
+logical :: t_hist_tau_search = .false., t_hist_tau_search_option = .false.
+logical :: t_fill_frequency_hists = .false.
+
+! also use a logical, read-in in the case of a continued run, which turns 
+! off the tau-search independent of the input and uses the time-step 
+! pSingles and pDoubles values from the previous calculation. 
+logical :: t_previous_hist_tau = .false.
+
+! it can be forced to do a tau-search again, if one provides an additional 
+! input restart-hist-tau-search in addition to the the hist-tau-search 
+! keyword in case the tau-search is not converged enough
+logical :: t_restart_hist_tau = .false. 
+
+! also introduce an integer, to delay the actual changing of the time-step 
+! for a set amount of iterations
+! (in the restart case for now!)
+integer :: hist_search_delay = 0
+
+! maybe also introduce a mixing between the old and new quantities in the 
+! histogramming tau-search, since it is a stochastic process now
+logical :: t_mix_ratios = .false.
+! and choose a mixing ration p_new = (1-mix_ratio)*p_old + mix_ratio * p_new
+! for now default it to 1.0_dp, meaning if it is not inputted, i only 
+! take the new contribution, like it is already done, and if it is 
+! inputted, without an additional argument default it to 0.7_dp
+real(dp) :: mix_ratio = 1.0_dp
+! use default values for bin-width and number of bins and a max ratio:
+integer :: n_frequency_bins = 100000
+real(dp) :: max_frequency_bound = 10000.0_dp
+! also use a sensible default integration cut-off: 99.9%
+real(dp) :: frq_ratio_cutoff = 0.999_dp
+
+logical :: t_test_hist_tau = .false.
+! real(dp) :: frq_step_size = 0.1_dp
+! 
+! 
+! ! i need bin arrays for all types of possible spawns: 
+! integer, allocatable :: frequency_bins_singles(:), frequency_bins_para(:), &
+!                         frequency_bins_anti(:), frequency_bins_doubles(:), &
+!                         frequency_bins(:)
+! 
+! ! for the rest of the tau-search, reuse the quantities from the "standard" 
+! ! tau search, like enough_sing, etc. although they are not global yet.. 
+! ! so maybe define new ones to not get confused
+! integer :: cnt_sing_hist, cnt_doub_hist, cnt_opp_hist, cnt_para_hist
+! 
+! logical :: enough_sing_hist, enough_doub_hist, enough_par_hist, enough_opp_hist
+
+! and i also need to truncate the spawns maybe: 
+logical :: t_truncate_spawns = .false. 
+logical :: t_truncate_unocc, t_truncate_multi
+logical :: t_prone_walkers, t_activate_decay
+real(dp) :: n_truncate_spawns = 3.0_dp
+
+! integer :: above_max_singles = 0, above_max_para = 0, above_max_anti = 0, &
+!            above_max_doubles = 0
+
+! and make the change to always read the psingles etc. quantity from 
+! previous runs: 
+logical :: t_read_probs = .true.
+
+! introduce a cutoff for the matrix elements, to be more consistent with 
+! UMATEPS (let the default be zero, so no matrix elements are ignored!)
+logical :: t_matele_cutoff = .false.
+real(dp) :: matele_cutoff = EPS
+
+! alis new idea to increase the chance of non-initiators to spawn to 
+! already occupied determinant
+logical :: t_back_spawn = .false., t_back_spawn_option = .false.
+! logical to control where first orbital is chosen from
+logical :: t_back_spawn_occ_virt = .false.
+! also use an integer to maybe start the backspawning later, or otherwise 
+! it may never correctly grow
+integer :: back_spawn_delay = 0
+
+! new more flexible implementation: 
+logical :: t_back_spawn_flex = .false., t_back_spawn_flex_option = .false.
+! also make an combination of the flexible with occ-virt with an additional 
+! integer which manages the degree of how much you want to de-excite
+! change now: we also want to enable to increase the excitation by possibly 
+! 1 -> maybe I should rename this than so that minus indicates de-excitation?!
+integer :: occ_virt_level = 0
 
 end module CalcData

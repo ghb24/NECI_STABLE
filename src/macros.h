@@ -4,6 +4,10 @@
 #define log_dealloc(tag) LogDealloc(tag)
 #define IsNullDet(nI) (nI(1).eq.0)
 
+! i am too stupid to remember where the src and tgt is in ex(2,2)
+#define get_src(ex) ex(1,:)
+#define get_tgt(ex) ex(2,:)
+
 ! Is the specified orbital occupied or not?
 ! TODO: Use ilut_int/ilut_off here?
 #define IsOcc(ilut,orb) btest(ilut((orb-1)/bits_n_int), mod(orb-1,bits_n_int))
@@ -20,6 +24,9 @@
 
 ! Do the two orbitals have the same spin?
 #define same_spin(orb1, orb2) (mod(orb1,2) == mod(orb2,2))
+
+#define get_src(ex) ex(1,:)
+#define get_tgt(ex) ex(2,:)
 
 ! Get the index of the replica that is paired with ind:
 #define paired_replica(ind) (ind+2*mod(ind,2)-1)
@@ -126,6 +133,8 @@ endif
 #define mag_of_run(signs, run) abs(signs(run)) 
 #define is_run_unnocc(signs, run) abs(signs(run))<1.0e-12_dp 
 #endif
+#define av_pop(signs) sum(abs((signs)))/(inum_runs)
+#define sgn_av_pop(signs) sum( (signs) ) /(inum_runs)
 
 
 ! Define types for C pointers to work between various compilers with

@@ -1,0 +1,91 @@
+ Number of processors:                     2
+ Processor                     1 /                    2  as head node.
+ Sum:                     3
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on May 12 2017 at 02:55:44
+ Compiled using configuration:
+     cmake-GNU-par-RELEASE
+ VCS BASE repository version:
+     e698a6fd5b0c95901f29572c35ec6987517b74de
+ Working directory: 
+     /home/anderson/code/neci_benchmark/test_suite/neci/parallel/FeMoco_rename_popsfile
+ Running on: altest
+ Started running on 12/05/2017 at 03:26:42
+ ================================================================
+
+ Processing argumentsrenamePopsfileHDF5.inp                                                                                                                                                                                                                                         
+ Reading from file: renamePopsfileHDF5.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+title
+
+system read
+electrons 54
+spin-restrict 0
+nonuniformrandexcits 4ind-weighted-part-exact
+nobrillouintheorem
+molpromimic
+endsys
+
+calc
+time 0.25
+methods
+method vertex fcimc
+endmethods
+diagshift 0.0
+shiftdamp 0.1
+ totalwalkers  2e6
+ walkcontgrow
+(readpops
+proje-changeref 1.2
+truncinitiator
+maxwalkerbloom 0.5
+allrealcoeff
+realspawncutoff 0.3
+memoryfacpart  5.0
+memoryfacspawn  5.0
+stepsshift 10
+jump-shift
+endcalc
+
+logging
+popsfiletimer 0.001
+binarypops
+hdf5-pops
+endlog
+end
+
+****************************************************************
+
+
+ ERROR.
+ NECI stops in subroutine: checkinput
+ Reason:                   Support for HDF5 files disabled at compile time
+ Processor:                    0
+ EXITING...
+-----------------------------------
+Writing Backtrace
+-----------------------------------
+0: /home/anderson/code/neci_benchmark/test_suite/../build/bin/neci(stop_all_+0x4dd) [0x4b5f1d]
+1: /home/anderson/code/neci_benchmark/test_suite/../build/bin/neci(__readinput_neci_MOD_checkinput+0x81b) [0x45b00b]
+2: /home/anderson/code/neci_benchmark/test_suite/../build/bin/neci(__readinput_neci_MOD_readinputmain+0x56a) [0x45c2ca]
+3: /home/anderson/code/neci_benchmark/test_suite/../build/bin/neci(necicore_+0x6ad) [0x45629d]
+4: /home/anderson/code/neci_benchmark/test_suite/../build/bin/neci(main+0xba) [0x4556ca]
+5: /lib64/libc.so.6(__libc_start_main+0xf5) [0x7f11bf2ccb05]
+6: /home/anderson/code/neci_benchmark/test_suite/../build/bin/neci() [0x4557e1]
+-----------------------------------
+-----------------------------------
+Writing Backtrace
+-----------------------------------
+0: /home/anderson/code/neci_benchmark/test_suite/../build/bin/neci(stop_all_+0x4dd) [0x4b5f1d]
+1: /home/anderson/code/neci_benchmark/test_suite/../build/bin/neci(__readinput_neci_MOD_checkinput+0x81b) [0x45b00b]
+2: /home/anderson/code/neci_benchmark/test_suite/../build/bin/neci(__readinput_neci_MOD_readinputmain+0x56a) [0x45c2ca]
+3: /home/anderson/code/neci_benchmark/test_suite/../build/bin/neci(necicore_+0x6ad) [0x45629d]
+4: /home/anderson/code/neci_benchmark/test_suite/../build/bin/neci(main+0xba) [0x4556ca]
+5: /lib64/libc.so.6(__libc_start_main+0xf5) [0x7f8539acab05]
+6: /home/anderson/code/neci_benchmark/test_suite/../build/bin/neci() [0x4557e1]
+-----------------------------------

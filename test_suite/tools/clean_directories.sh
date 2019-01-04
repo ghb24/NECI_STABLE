@@ -34,6 +34,8 @@ for f in *; do
         rm -f fciqmc_data*
         rm -f EIGV_DATA
         rm -f NO_*
+	rm -f frequency_histog*
+	rm -f double_occu*
 
         cd ..
     fi

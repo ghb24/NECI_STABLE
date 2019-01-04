@@ -63,8 +63,14 @@ if ( HAVE_BUILD_HDF5 )
 		hdf5
 		# -- Download step ---
 		PREFIX ${HDF_DIR}-prefix
-        URL http://support.hdfgroup.org/ftp/HDF5/current18/src/hdf5-1.8.18.tar.gz
-        URL_MD5 dd2148b740713ca0295442ec683d7b1c
+		URL https://support.hdfgroup.org/ftp/HDF5/current18/src/hdf5-1.8.20.tar.gz
+		URL_MD5 7f2d3fd67106968eb45d133f5a22150f
+
+	# previous 1.8.19 hash:
+		# URL https://support.hdfgroup.org/ftp/HDF5/current18/src/hdf5-1.8.19.tar.gz
+		# URL_MD5 7f568e2464d4ab0a74d16b23956d900b
+	# previous 1.8.18 hash:
+	# URL_MD5 dd2148b740713ca0295442ec683d7b1c
         # URL http://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8.15-patch1/src/hdf5-1.8.15-patch1.tar.gz
 		# URL_MD5 4467c25ed9c0b126b194a4d9d66c29ac
 		# -- Configure step --
@@ -86,6 +92,8 @@ if ( HAVE_BUILD_HDF5 )
     # Add the appropriate variable components
     
     set( HDF5_FOUND on )
+    # [W.D]: here is a problem.. on some configurations the libs get installes to lib64/ with the new 1.8.19 hdf5..
+    # but how do i detect this beforehand? or try to add both?? or make sure it gets installed to the same place all the time?
     set( HDF5_LIBRARIES ${HDF_DIR}/lib/libhdf5.a dl ${ZLIB_LIBRARIES} )
     set( HDF5_Fortran_LIBRARIES  ${HDF_DIR}/lib/libhdf5_fortran.a )
     set( HDF5_INCLUDE_DIRS  ${HDF_DIR}/include )

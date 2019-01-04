@@ -11,6 +11,7 @@ test.err*
 test.out*
 POPS*
 INITIATORStats
+initiator_stats*
 FCIMCStats
 Blocks_Shift
 TMAT
@@ -50,3 +51,9 @@ build*/
 *.swo
 *.swp
 fort.7
+frequency_hist*
+double_occupancy_stat*
+.nfs*
+UMAT
+popsfile.h5*
+RDM_POPSFILE

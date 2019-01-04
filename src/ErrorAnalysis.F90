@@ -221,11 +221,11 @@ module errors
 
             !Now find all block lengths, and write them to file, so that blocklengths can be checked.
             !Call routine here to write out a file (Blocks_proje) with the projected energy mean and error for all block sizes.
-            if(lenof_sign.eq.1) then
-                call print_proje_blocks(pophf_data,numerator_data,2,'Blocks_proje')
-            else
+            if(lenof_sign.eq.2) then
                 call print_proje_blocks(pophf_data,numerator_data,2,'Blocks_proje_re')
                 call print_proje_blocks(pophf_data,imnumerator_data,2,'Blocks_proje_im')
+            else
+                call print_proje_blocks(pophf_data,numerator_data,2,'Blocks_proje')
             endif
 
             !Now perform automatic reblocking again, to get expected blocklength
@@ -292,7 +292,7 @@ module errors
             mean_ProjE_re = mean_num/mean_denom
             ProjE_Err_re = abs(mean_ProjE_re)* sqrt( (abs(error_denom/mean_denom))**2.0_dp &
                 + (abs(error_num/mean_num))**2.0_dp - correction_re )
-            if(lenof_sign.eq.2) then
+            if(lenof_sign/inum_runs .eq. 2) then
                 mean_ProjE_im = mean_imnum/mean_denom
 
                 ProjE_Err_im = abs(mean_ProjE_im)* sqrt( (abs(error_denom/mean_denom))**2.0_dp &

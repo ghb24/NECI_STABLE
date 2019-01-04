@@ -404,7 +404,7 @@ ASSERT(count_open_orbs(ilutI) /= 0)
     end function get_spawn_helement_spin_proj
 
     subroutine generate_excit_spin_proj (nI, iLutI, nJ, iLutJ, exFlag, IC, &
-                                         ex, tParity, pGen, HElGen, store)
+                                         ex, tParity, pGen, HElGen, store, part_type)
 
         ! This returns an excitation of the source determiant (iLutI).
         !
@@ -424,6 +424,7 @@ ASSERT(count_open_orbs(ilutI) /= 0)
         logical, intent(out) :: tParity
         HElement_t(dp), intent(out) :: HElGen
         type(excit_gen_store_type), intent(inout), target :: store
+        integer, intent(in), optional :: part_type
 
         integer :: nopen, nchoose, i
         integer :: nTmp(nel), iUnused

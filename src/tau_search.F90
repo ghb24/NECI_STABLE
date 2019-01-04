@@ -77,10 +77,11 @@ contains
         enough_par = .false.
 
         ! Unless it is already specified, set an initial value for tau
-        if (.not. tRestart .and. .not. tReadPops .and. tau == 0) &
+        if (.not. tRestart .and. .not. tReadPops .and. tau == 0) then
             call FindMaxTauDoubs()
-        write(6,*) 'Using initial time-step: ', tau
+        end if
 
+        write(6,*) 'Using initial time-step: ', tau
         
         ! Set the maximum spawn size
         if (MaxWalkerBloom == -1) then
@@ -296,18 +297,20 @@ contains
             ! the value obtained to restrict the maximum death-factor to 1.0.
             call MPIAllReduce (max_death_cpt, MPI_MAX, mpi_tmp)
             max_death_cpt = mpi_tmp
-            tau_death = 1.0_dp / max_death_cpt
+            if(abs(max_death_cpt) > EPS) then
+               tau_death = 1.0_dp / max_death_cpt
 
-            ! If this actually constrains tau, then adjust it!
-            if (tau_death < tau) then
-                tau = tau_death
-
-                root_print "******"
-                root_print "WARNING: Updating time step due to particle death &
-                           &magnitude"
-                root_print "This occurs despite variable shift mode"
-                root_print "Updating time-step. New time-step = ", tau
-                root_print "******"
+               ! If this actually constrains tau, then adjust it!
+               if (tau_death < tau) then
+                  tau = tau_death
+                  
+                  root_print "******"
+                  root_print "WARNING: Updating time step due to particle death &
+                       &magnitude"
+                  root_print "This occurs despite variable shift mode"
+                  root_print "Updating time-step. New time-step = ", tau
+                  root_print "******"
+               end if
             end if
 
             ! Condition met --> no need to do this again next iteration
@@ -363,10 +366,15 @@ contains
                 else
                     pparallel_new = pParallel
                     psingles_new = pSingles
-                    tau_new = max_permitted_spawn * &
+                    if(gamma_sing > EPS .and. gamma_par > EPS .and. gamma_opp > EPS) then 
+                       tau_new = max_permitted_spawn * &
                             min(pSingles / gamma_sing, &
                             min(pDoubles * pParallel / gamma_par, &
-                                pDoubles * pParallel / gamma_opp))
+                            pDoubles * pParallel / gamma_opp))
+                    else                       
+                       ! if no spawns happened, do nothing
+                       tau_new = tau
+                    endif
                 end if
 
                 ! We only want to update the opposite spins bias here, as we only
@@ -400,8 +408,18 @@ contains
                     pDoub_spindiff1_new = pDoub_spindiff1
                     pDoub_spindiff2_new = pDoub_spindiff2
                 endif
-                tau_new = max_permitted_spawn * &
-                            min(pSingles / gamma_sing, pDoubles / gamma_doub)
+           ! If no single/double spawns occurred, they are also not taken into account
+           ! (else would be undefined)
+                if(abs(gamma_doub) > EPS .and. abs(gamma_sing) > EPS) then
+                   tau_new = max_permitted_spawn * &
+                        min(pSingles / gamma_sing, pDoubles / gamma_doub)
+                else if(abs(gamma_doub) > EPS) then
+                   ! If only doubles were counted, take them
+                   tau_new = max_permitted_spawn * pDoubles / gamma_doub
+                else
+                   ! else, we had to have some singles
+                   tau_new = max_permitted_spawn * pSingles / gamma_sing
+                endif
             end if
 
         end if
@@ -410,14 +428,17 @@ contains
         ! the value obtained to restrict the maximum death-factor to 1.0.
         call MPIAllReduce (max_death_cpt, MPI_MAX, mpi_tmp)
         max_death_cpt = mpi_tmp
-        tau_death = 1.0_dp / max_death_cpt
-        if (tau_death < tau_new) then
-            if (t_min_tau) then
-                root_print "time-step reduced, due to death events! reset min_tau to:", tau_death
-                min_tau_global = tau_death
-            end if
-            tau_new = tau_death
-        end if
+        ! If there is no death logged, dont do anything
+        if(abs(max_death_cpt) > EPS) then
+           tau_death = 1.0_dp / max_death_cpt
+           if (tau_death < tau_new) then
+              if (t_min_tau) then
+                 root_print "time-step reduced, due to death events! reset min_tau to:", tau_death
+                 min_tau_global = tau_death
+              end if
+              tau_new = tau_death
+           end if
+        endif
 
         ! And a last sanity check/hard limit
         tau_new = min(tau_new, MaxTau)
@@ -617,7 +638,7 @@ contains
             if(tSameFunc) cycle
             if(MagHel.gt.0.0_dp) then
                 pGenFac = pGen*nAddFac/MagHel
-                if(Tau.gt.pGenFac) then
+                if(Tau.gt.pGenFac .and. pGenFac > EPS) then
                     Tau = pGenFac
                 endif
             endif
@@ -643,7 +664,7 @@ contains
             if(tSameFunc) cycle
             if(MagHel.gt.0.0_dp) then
                 pGenFac = pGen*nAddFac/MagHel
-                if(Tau.gt.pGenFac) then
+                if(Tau.gt.pGenFac .and. pGenFac > EPS) then
                     Tau = pGenFac
                 endif
             endif

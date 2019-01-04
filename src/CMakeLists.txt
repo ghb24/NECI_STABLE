@@ -3,6 +3,9 @@
 
 set( SRC_FILES 
 
+    adi_references.F90
+    adi_initiators.F90
+    adi_data.F90
     Annihilation.F90
     bit_rep_data.F90
     BitReps.F90
@@ -131,6 +134,7 @@ set( SRC_FILES
     searching.F90
     semi_stoch_gen.F90
     semi_stoch_procs.F90
+    shared_memory_mpi.F90
     sltcnd.F90
     sparse_arrays.F90
     spectral_data.F90
@@ -158,12 +162,16 @@ set( SRC_FILES
     System_neci.F90
     tau_search.F90
     trial_wf_gen.F90
+    trial_ht_procs.F90
     UMatCache.F90
     vasp_init.F90
     vasp_interface.F90
     vasp_neci_interface_stub.F90
+    double_occ.F90
+    tau_search_hist.F90
+    back_spawn.F90
+    back_spawn_excit_gen.F90
 
-    lib/allocate_shared_worker.cpp
     lib/backtrace.cpp
     lib/cons_neci.F90
     lib/dSFMT.cpp
@@ -192,7 +200,6 @@ set( TEMPLATED_SRC_FILES
 
     BinSearch.F90.template
     Parallel.F90.template
-    lib/allocate_shared.F90.template
     lib/quicksort.F90.template
     lib/util_mod_byte_size.F90.template
     lib/util_mod_comparisons.F90.template

@@ -119,7 +119,7 @@ contains
 
         disps_ftlm(0) = 0
         do i = 1, nProcessors-1
-            disps_ftlm(i) = sum(ndets_ftlm(:i-1))
+            disps_ftlm(i) = disps_ftlm(i-1) + ndets_ftlm(i-1)
         end do
 
         ndets_tot = int(sum(ndets_ftlm), sizeof_int)
@@ -185,7 +185,6 @@ contains
         integer(MPIArg), intent(in) :: counts(0:nProcessors-1), disps(0:nProcessors-1)
         integer :: i, j
         real(dp) :: overlap, tot_overlap, last_norm, norm, tot_norm
-
         call MPIAllGatherV(lanc_vecs(:,ivec), full_vec, counts, disps)
 
         ! Multiply the last Lanczos vector by the Hamiltonian.
@@ -193,13 +192,13 @@ contains
         do i = 1, counts(iProcIndex)
             do j = 1, sparse_ham(i)%num_elements
                 lanc_vecs(i, ivec+1) = lanc_vecs(i, ivec+1) + &
-                    sparse_ham(i)%elements(j)*full_vec(sparse_ham(i)%positions(j))
+                    sparse_ham(i)%elements(j)*full_vec(sparse_ham(i)%positions(j))        
             end do
         end do
-
+        
         overlap = dot_product(lanc_vecs(:,ivec+1), lanc_vecs(:,ivec))
-        call MPISumAll(overlap, tot_overlap)
-
+        call MPISumAll(overlap,tot_overlap)
+        
         if (ivec == 1) then
             lanc_vecs(:,ivec+1) = lanc_vecs(:,ivec+1) - tot_overlap*lanc_vecs(:,ivec)
         else

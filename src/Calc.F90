@@ -7,7 +7,7 @@ MODULE Calc
                           BB_elec_pairs, par_elec_pairs, AB_elec_pairs, &
                           AA_hole_pairs, BB_hole_pairs, AB_hole_pairs, &
                           par_hole_pairs, hole_pairs, nholes_a, nholes_b, &
-                          nholes
+                          nholes, UMATEPS, tHub
     use Determinants, only: write_det
     use spin_project, only: spin_proj_interval, tSpinProject, &
                             spin_proj_gamma, spin_proj_shift, &
@@ -27,7 +27,16 @@ MODULE Calc
                          nWalkerHashes, HashLengthFrac, tSearchTauDeath, &
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
-                         alloc_popsfile_dets, tSearchTauOption
+                         alloc_popsfile_dets, tSearchTauOption, &
+                         sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns
+    use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
+         tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits, tSetDelayAllDoubsInits, &
+         tSetDelayAllSingsInits, nExProd, NoTypeN, tAdiActive, tReadRefs, SIUpdateInterval, &
+         tProductReferences, tAccessibleDoubles, tAccessibleSingles, &
+         tReferenceChanged, superInitiatorLevel, allDoubsInitsDelay, tStrictCoherentDoubles, &
+         tWeakCoherentDoubles, tAvCoherentDoubles, coherenceThreshold, SIThreshold, &
+         tSuppressSIOutput, targetRefPop, targetRefPopTol, tSingleSteps, tVariableNRef, &
+         nRefsSings, nRefsDoubs, minSIConnect, tWeightedConnections, tSignedRepAv
     use ras_data, only: core_ras, trial_ras
     use load_balance, only: tLoadBalanceBlocks
     use ftlm_neci
@@ -83,6 +92,7 @@ contains
           t_lanczos_init = .false.
           t_lanczos_store_vecs = .true.
           t_lanczos_orthogonalise = .false.
+          t_force_lanczos = .false.
           lanczos_max_restarts = 10
           lanczos_max_vecs = 40
           lanczos_energy_precision = 8
@@ -120,6 +130,11 @@ contains
           TProjEMP2=.false.
           THFRetBias=.false.
           TSignShift=.false.
+          tFixedN0 = .false.
+          tSkipRef(:) = .false.
+          tTrialShift = .false.
+          tFixTrial(:) = .false.
+          TrialTarget = 0.0
           NEquilSteps=0
           NShiftEquilSteps=1000
           TRhoElems=.false.
@@ -231,7 +246,14 @@ contains
           tDefineDet=.false.
           tTruncInitiator=.false.
           tAddtoInitiator=.false.
+          tSTDInits = .false.
+          tAVReps = .false.
+          tGlobalInitFlag = .false.
+          tInitCoherentRule=.true.
           InitiatorWalkNo=3.0_dp
+          ErrThresh = 0.3
+          tSeniorInitiators =.false.
+          SeniorityAge=1.0_dp
           tInitIncDoubs=.false.
           MaxNoatHF=0.0_dp
           HFPopThresh=0
@@ -273,14 +295,25 @@ contains
           ! Truncation based on number of unpaired electrons
           tTruncNOpen = .false.
 
+          ! trunaction for spawns/based on spawns
+          t_truncate_unocc = .false.
+          t_prone_walkers = .false.
+          t_activate_decay = .false.
+
           hash_shift=0
           tUniqueHFNode = .false.
 
           ! Semi-stochastic and trial wavefunction options.
           tSemiStochastic = .false.
           tCSFCore = .false.
+          tDynamicCoreSpace = .false.
+          tIntervalSet = .false.
+          tStaticCore = .true.
+          coreSpaceUpdateCycle = 400
           semistoch_shift_iter = 0
           tTrialWavefunction = .false.
+          tDynamicTrial = .false.
+          trialSpaceUpdateCycle = 400
           tKP_FCIQMC = .false.
           tLetInitialPopDie = .false.
           tWritePopsNorm = .false.
@@ -318,6 +351,53 @@ contains
           tLoadBalanceBlocks = .true.
           tPopsJumpShift = .false.
           calc_seq_no = 1
+
+          ! Superinitiator flags and thresholds
+          tAllDoubsInitiators = .false.
+          tDelayAllDoubsInits = .false.
+          allDoubsInitsDelay = 0
+          tAllSingsInitiators = .false.
+          tDelayAllSingsInits = .false.
+          tSetDelayAllSingsInits = .false.
+          tSetDelayAllDoubsInits = .false.
+          ! By default, we have one reference for the purpose of all-doubs-initiators      
+          nRefs = 1
+          maxNRefs = 400
+          targetRefPop = 1000
+          targetRefPopTol = 80
+          tVariableNref = .false.
+          tSingleSteps = .true.
+          tReadRefs = .false.
+          tDelayGetRefs = .false.
+          tProductReferences = .false.
+          tAccessibleSingles = .false.
+          tAccessibleDoubles = .false.
+          tSuppressSIOutput = .true.
+          nExProd = 2
+          NoTypeN = InitiatorWalkNo
+          tStrictCoherentDoubles = .false.
+          tWeakCoherentDoubles = .true.
+          tAvCoherentDoubles = .true.
+          superInitiatorLevel = 0
+          coherenceThreshold = 0.5
+          SIThreshold = 0.95
+          SIUpdateInterval = 100
+          tAdiActive = .false.
+          minSIConnect = 1
+          
+          ! Walker scaling with energy
+          ! do not use scaled walkers
+          tEScaleWalkers = .false.
+          tLogNumSpawns = .false.
+          sFAlpha = 1.0_dp
+          sFBeta = 1.0_dp
+          sFTag = 0
+
+          ! Epstein-Nesbet second-order correction logicals.
+          tEN2 = .false.
+          tEN2Init = .false.
+          tEN2Truncated = .false.
+          tEN2Started = .false.
 
         end subroutine SetCalcDefaults
 
@@ -386,6 +466,8 @@ contains
             case("LANCZOS-NO-STORE-VECTORS")
                 t_lanczos_init = .true.
                 t_lanczos_store_vecs = .true.
+            case("LANCZOS-FORCE")
+                t_force_lanczos = .true.
             case("LANCZOS-MAX-SUBSPACE-SIZE")
                 call readi(lanczos_max_vecs)
             case("LANCZOS-MAX-RESTARTS")
@@ -1032,6 +1114,124 @@ contains
                 tSearchTau = .false.
                 tSearchTauOption = .false.
 
+            case("HIST-TAU-SEARCH","NEW-TAU-SEARCH")
+                ! [Werner Dobrautz, 4.4.2017:]
+                ! the new tau search method using histograms of the 
+                ! H_ij / pgen ratio and integrating the histograms up to 
+                ! a certain value, to obtain the time-step and not using 
+                ! only the worst case H_ij / pgen ration
+                
+                ! this option has 3 possible input parameters: 
+                ! 1) the integration cutoff in percentage [0.999 default]
+                ! 2) the number of bins used [100000 default]
+                ! 3) the upper bound of the bins [10000.0 default]
+                t_hist_tau_search = .true.
+                t_hist_tau_search_option = .true.
+                t_fill_frequency_hists = .true.
+
+                ! turn off the other tau-search, if by mistake both were 
+                ! chosen! 
+                if (tSearchTau .or. tSearchTauOption) then 
+                   write(iout, &
+                       '("(WARNING: both the histogramming and standard tau&
+                       &-search option were chosen! TURNING STANDARD VERSION OFF!")')
+                   tSearchTau = .false.
+                   tSearchTauOption = .false.
+               end if
+
+               if (item < nitems) then
+                   call getf(frq_ratio_cutoff)
+               end if
+
+               if (item < nitems) then 
+                   call geti(n_frequency_bins)
+                   
+                   ! check that not too many bins are used which may crash 
+                   ! the MPI communication of the histograms! 
+                   if (n_frequency_bins > 1000000) then 
+                       write(iout, &
+                           '("WARNING: maybe too many bins used for the &
+                           &histograms! This might cause MPI problems!")')
+                   end if
+               end if
+
+               if (item < nitems) then 
+                   call getf(max_frequency_bound) 
+               end if
+
+            case("RESTART-HIST-TAU-SEARCH", "RESTART-NEW-TAU-SEARCH")
+                ! [Werner Dobrautz 5.5.2017:]
+                ! a keyword, which in case of a continued run from a 
+                ! previous hist-tau-search run restarts the histogramming 
+                ! tau-search anyway, in case the tau-search is not yet 
+                ! converged enough
+                t_restart_hist_tau = .true.
+
+                if (item < nitems) then 
+                    call geti(hist_search_delay) 
+                end if
+
+            case ("TEST-HIST-TAU", "LESS-MPI-HEAVY")
+                ! test a change to the tau search to avoid those nasty 
+                ! MPI communications each iteration
+                t_test_hist_tau = .true. 
+
+            case("TRUNCATE-SPAWNS")
+                ! [Werner Dobrautz, 4.4.2017:]
+                ! in combination with the above HIST-TAU-SEARCH option I 
+                ! also introduced a truncation keyword for spawning events
+                ! which are missed by the integrated time-step. 
+                ! to limit the effect of these possible large blooms I 
+                ! implemented a truncation of those. But this might be an 
+                ! uncontrolled approximation, so be careful! 
+                t_truncate_spawns = .true. 
+                if (item < nitems) then 
+                    call getf(n_truncate_spawns)
+                    if(item < nitems) then
+                       call readu(w)
+                       select case(w)
+                       case("UNOCC")
+                          t_truncate_unocc = .true.
+                       case("MULTI")
+                          t_truncate_multi = .true.
+                       case default
+                          t_truncate_unocc = .false.
+                       end select
+                    endif
+                end if
+
+             case("PRONE-DETERMINANTS")
+                ! when close to running out of memory, start culling 
+                ! the population by removing lonely spawns
+                t_prone_walkers = .true.
+                
+            case("MIX-RATIOS")
+                ! pablos idea: mix the old and new contributions and not 
+                ! only take the new ones, since we are doing a stochastic 
+                ! process now, maybe make that the default behavior..
+                t_mix_ratios = .true.
+
+                if (item < nitems) then
+                    call getf(mix_ratio)
+                else
+                    ! if no additional input default it to 0.7
+                    mix_ratio = 0.7_dp
+                end if
+
+            case("MATRIX-CUTOFF")
+                ! [Werner Dobrautz 26.4.2017:]
+                ! introduce a matrix element cutoff similar to the 
+                ! UMATEPS quantity when ignoring 2-body integrals
+                t_matele_cutoff = .true.
+                if (item < nitems) then
+                    call getf(matele_cutoff)
+                else
+                    ! does this work? is umateps already defined properly?
+                    matele_cutoff = UMATEPS
+                    print *, "TEST cutoff: ", matele_cutoff
+                end if
+
+
             case("MAXWALKERBLOOM")
                 !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.
                 call getf(MaxWalkerBloom)
@@ -1058,7 +1258,8 @@ contains
                 ! If there is ane extra item, it should specify that we turn
                 ! semi-stochastic on later.
                 if (item < nitems) then
-                    call geti(semistoch_shift_iter)
+                   if(item < nitems) &
+                      call geti(semistoch_shift_iter)
                     tSemiStochastic = .false.
                     tStartCoreGroundState = .false.
                 end if
@@ -1134,6 +1335,13 @@ contains
             case("MAX-CORE-SIZE")
                 ss_space_in%tLimitSpace = .true.
                 call geti(ss_space_in%max_size)
+            case("DYNAMIC-CORE")
+                tDynamicCoreSpace = .true.
+                tIntervalSet = .true.
+                if( item < nitems) call geti(coreSpaceUpdateCycle)
+            case("STATIC-CORE")
+                tDynamicCoreSpace = .false.
+                tIntervalSet = .true.
             case("STOCHASTIC-HF-SPAWNING")
                 tDetermHFSpawning = .false.
 
@@ -1144,6 +1352,7 @@ contains
                     tStartTrialLater = .true.
                     call geti(trial_shift_iter)
                 end if
+
             case("NUM-TRIAL-STATES-CALC")
                 call geti(ntrial_ex_calc)
             case("QMC-TRIAL-WF")
@@ -1156,6 +1365,10 @@ contains
                 call geti(trial_space_in%mp1_ndets)
             case("DOUBLES-TRIAL")
                 trial_space_in%tDoubles = .true.
+             case("DYNAMIC-TRIAL")
+                ! Update the trial wavefunction periodically
+                tDynamicTrial = .true.
+                if(item < nitems) call geti(trialSpaceUpdateCycle)
             case("CAS-TRIAL")
                 trial_space_in%tCAS = .true.
                 tSpn = .true.
@@ -1207,6 +1420,8 @@ contains
                 trial_space_in%tHeisenbergFCI = .true.
             case("TRIAL-BIN-SEARCH")
                 tTrialHash = .false.
+                write(iout,*) "WARNING: Disabled trial hashtable. Load balancing "//&
+                     "is not supported in this mode and might break the trial energy"
             case("TRIAL-ESTIMATE-REORDER")
                 allocate(trial_est_reorder(inum_runs))
                 trial_est_reorder = 0
@@ -1279,7 +1494,33 @@ contains
                 call getf(StepsSftImag)
             case("STEPSSHIFT")
 !For FCIMC, this is the number of steps taken before the Diag shift is updated
-                call geti(StepsSft)
+                if(tFixedN0 .or. tTrialShift)then
+                    write(6,*) "WARNING: 'STEPSSHIFT' cannot be changed. &
+                    & 'FIXED-N0' or 'TRIAL-SHIFT' is already specified and sets this parameter to 1."
+                else
+                    call geti(StepsSft)
+                end if
+            case("FIXED-N0")
+#ifdef __CMPL
+                call stop_all(t_r, 'FIXED-N0 currently not implemented for complex')
+#endif
+                tFixedN0 = .true.
+                call geti(N0_Target)
+                !In this mode, the shift should be updated every iteration.
+                !Otherwise, the dynamics is biased.
+                StepsSft = 1
+                !Also avoid changing the reference determinant.
+                tReadPopsChangeRef = .false.
+                tChangeProjEDet = .false.
+            case("TRIAL-SHIFT")
+#ifdef __CMPL
+                call stop_all(t_r, 'TRIAL-SHIFT currently not implemented for complex')
+#endif
+                if (item.lt.nitems) then
+                    call readf(TrialTarget)
+                end if
+                tTrialShift = .true.
+                StepsSft = 1
             case("EXITWALKERS")
 !For FCIMC, this is an exit criterion based on the total number of walkers in the system.
                 call getiLong(iExitWalkers)
@@ -1483,6 +1724,10 @@ contains
                     tInstGrowthRate = .false.
                 end if
 
+             case("L2-GROWRATE")
+                ! use the L2-norm instead of the L1 norm to get the shift
+                tL2GrowRate = .true.
+
             case("RESTARTLARGEPOP")
                 tCheckHighestPop=.true.
                 tRestartHighPop=.true.
@@ -1593,6 +1838,35 @@ contains
 !can only spawn back on to the determinant from which they came.  This is the star approximation from the CAS space. 
                 tTruncInitiator=.true.
 
+             case("REPLICA-GLOBAL-INITIATORS")
+! with this option, all replicas will use the same initiator flag, which is then set 
+! depending on the avereage population, else, the initiator flag is set for each replica
+! using the population of that replica
+                tGlobalInitFlag = .true.
+
+             case("AVERAGE-REPLICAS")
+                ! average the replica populations if they are not sign coherent
+                tAVReps = .true.
+                
+             case("REPLICA-COHERENT-INITS")
+                ! require initiators to be coherent across replcias
+                tReplicaCoherentInits = .true.
+
+            case("NO-COHERENT-INIT-RULE")
+                tInitCoherentRule=.false.
+
+! Epstein-Nesbet second-order perturbation using the stochastic spawnings to correct initiator error.
+            case("EN2-INITIATOR")
+                tEN2 = .true.
+                tEN2Init = .true.
+
+! Epstein-Nesbet second-order perturbation using stochastic spawnings. However, this is not used to
+! correct initiator error. Currently, it is only used for the full non-initiator scheme when applied
+! to a truncated space. Then, an EN2 correction is applied to the space outside that truncation.
+            case("EN2-TRUNCATED")
+                tEN2 = .true.
+                tEN2Truncated = .true.
+
             case("KEEPDOUBSPAWNS")
 !This means that two sets of walkers spawned on the same determinant with the same sign will live, 
 !whether they've come from inside or outside the CAS space.  Before, if both of these
@@ -1607,6 +1881,13 @@ contains
                 tAddtoInitiator=.true.
                 call getf(InitiatorWalkNo)
 
+            case("SENIOR-INITIATORS")
+!This option means that if a determinant has lived  long enough (called a 'senior determinant'),
+!it is added to the initiaor space. A determinant is considered 'senior' if its life time (measured in its halftime) exceeds SeniortyAge.
+                tSeniorInitiators =.true.
+                if(item.lt.nitems) then
+                    call getf(SeniorityAge)
+                end if
             case("INITIATOR-ENERGY-CUTOFF")
                 !
                 ! Specify both a threshold an an addtoinitiator value for
@@ -2236,6 +2517,215 @@ contains
                 !
                 ! log((N_t + (N_t - N_(t-1))) / N_t)
                 call stop_all(t_r,'Option deprecated')
+
+            case ("BACK-SPAWN")
+                ! Alis idea to increase the chance of non-initiators to spawn
+                ! to occupied determinants
+                ! and out of laziness this is only introduced for 
+                ! 4ind-weighted-2 and above excitation generators! 
+                ! maybe for hubbard model too, but lets see..
+                t_back_spawn = .true.
+                t_back_spawn_option = .true.
+
+                if (item < nitems) then 
+                    t_back_spawn = .false.
+                    call geti(back_spawn_delay)
+                end if
+
+            case ("BACK-SPAWN-OCC-VIRT")
+                t_back_spawn = .true.
+                t_back_spawn_occ_virt = .true.
+                
+                t_back_spawn_option = .true.
+
+                if (item < nitems) then 
+                    t_back_spawn = .false.
+
+                    call geti(back_spawn_delay)
+                end if
+
+            case("BACK-SPAWN-FLEX")
+                t_back_spawn_flex = .true. 
+                t_back_spawn_flex_option = .true.
+
+                if (item < nitems) then 
+                    t_back_spawn_flex = .false.
+
+                    call geti(back_spawn_delay)
+                end if
+
+                ! can be value: -1, 0(default), 1, 2) 
+                ! to indicate (de-)excitation
+                if (item < nitems) then 
+                    call geti(occ_virt_level)
+                end if
+
+             case("ALL-DOUBS-INITIATORS")
+                ! Set all doubles to be treated as initiators
+                ! If truncinitiator is not set, this does nothing
+                tAllDoubsInitiators = .true.   
+                ! If given, take the number of references for doubles
+                if(item < nitems) call geti(nRefsDoubs)
+
+             case("ALL-DOUBS-INITIATORS-DELAY")
+                ! Only start after this number of steps in variable shift mode with 
+                ! the all-doubs-initiators
+                if(item < nitems) call geti(allDoubsInitsDelay)
+                tSetDelayAllDoubsInits = .true.
+                tSetDelayAllSingsInits = .true.
+
+             case("ALL-SINGS-INITIATORS")
+                ! Make the singles of given references initiators
+                tAllSingsInitiators = .true.
+                ! If given, take the number of references for singles
+                if(item < nitems) call geti(nRefsSings)
+                
+             case("READ-REFERENCES")
+                ! Instead of generating new references, read in existing ones
+                tReadRefs = .true.
+                
+             case("EXCITATION-PRODUCT-REFERENCES")
+                ! Also add all excitation products of references to the reference space
+                tProductReferences = .true.
+
+             case("COHERENT-REFERENCES")
+                ! Only make those doubles/singles initiators that are sign coherent
+                ! with their reference(s)
+                if(item < nitems) then
+                   call readu(w)
+                   select case(w)
+                   case("STRICT")
+                      tStrictCoherentDoubles = .true.
+                   case("WEAK")
+                      ! This is recommended, we first check if there is a sign 
+                      ! tendency and then if it agrees with the sign on the det
+                      tAvCoherentDoubles = .true.
+                      tWeakCoherentDoubles = .true.
+                   case("XI")
+                      ! This is a minimalistic version that should not
+                      ! be used unless you know what you're doing
+                      tWeakCoherentDoubles = .true.
+                   case("AV")
+                      ! only using av ignores sign tendency and can overestimate
+                      ! the correctness of a sign
+                      tAvCoherentDoubles = .true.
+		   case("OFF")
+		      ! do not perform a coherence check
+		      tAvCoherentDoubles = .false.
+		      tWeakCoherentDoubles = .false.
+                   case default
+                      ! default is WEAK
+                      tAvCoherentDoubles = .true.
+                      tWeakCoherentDoubles = .true.
+                   end select
+                else
+                   tWeakCoherentDoubles = .true.
+                   tAvCoherentDoubles = .true.
+                endif                   
+
+             case("SECONDARY-SUPERINITIATORS")
+                ! Enable superinitiators by coherence criteria
+                superInitiatorLevel = 1
+                ! As the secondary SIs are now self-consistently determined, it is
+                ! highly unlikely that a level above 1 will do anything more
+                if(item < nItems) call readi(superInitiatorLevel)
+                
+             case("DYNAMIC-SUPERINITIATORS")
+                ! Re-evaluate the superinitiators every SIUpdateInterval steps
+                ! Beware, this can be very expensive
+		! By default, it is 100, to turn it off, use 0
+                call readi(SIUpdateInterval)
+		
+       	     case("STATIC-SUPERINITIATORS")
+	        ! Do not re-evaluate the superinitiators
+		SIUpdateInterval = 0
+
+             case("INITIATOR-COHERENCE-THRESHOLD")
+                ! Set the minimal coherence parameter for superinitiator-related
+                ! initiators
+                call readf(coherenceThreshold)
+
+             case("SUPERINITIATOR-COHERENCE-THRESHOLD")
+                ! set the minimal coherence parameter for superinitiators
+                call readf(SIThreshold)
+
+             case("MIN-SI-CONNECTIONS")
+                ! set the minimal number of connections with superinititators for 
+                ! superinitiators-related initiators
+                call readi(minSIConnect)
+                ! optionally, allow to weight the connections with the population
+                if(item < nItems) then
+                   call readu(w)
+                   select case(w)
+                   case("WEIGHTED")
+                      tWeightedConnections = .true.
+                   case("UNWEIGHTED")
+                      tWeightedConnections = .false.
+                   case default
+                      tWeightedConnections = .false.
+                   end select
+                endif
+
+             case("SIGNED-REPLICA-AVERAGE")
+                tSignedRepAv = .true.
+                if(item < nitems) then
+                   call readu(w)
+                   select case(w)
+                   case("OFF")
+                      tSignedRepAv = .false.
+                   case default
+                      tSignedRepAv = .true.
+                   end select
+                endif
+
+             case("ENERGY-SCALED-WALKERS")
+                ! the amplitude unit of a walker shall be scaled with energy
+                tEScaleWalkers = .true.
+                ! and the number of spawns shall be logged
+                tLogNumSpawns = .true.
+                sfTag = 0
+                if(item < nItems) then
+                   call readu(w)
+                   select case(w)
+                   case("EXPONENTIAL")
+                      sfTag = 1
+                      sFAlpha = 0.1
+                   case("POWER")
+                      sfTag = 0
+                   case("EXP-BOUND")
+                      sfTag = 3
+                      sFAlpha = 0.1
+                      sFBeta = 0.01
+                   case("NEGATIVE")
+                      sfTag = 2
+                   case default
+                      sfTag = 0
+                      call stop_all(t_r, "Invalid argument 1 of ENERGY-SCALED-WALKERS")
+                   end select
+                endif
+                if(item < nitems) &
+                     ! an optional prefactor for scaling 
+                   call readf(sFAlpha)
+                if(item < nitems) &
+                     ! an optional exponent for scaling
+                     call readf(sFBeta)
+                ! set the cutoff to the minimal value
+                RealSpawnCutoff = sFBeta
+
+             case("SUPERINITIATOR-POPULATION-THRESHOLD")
+                ! set the minimum value for superinitiator population
+                call readf(NoTypeN)
+
+	     case("SUPPRESS-SUPERINITIATOR-OUTPUT")	
+	        ! just for backwards-compatibility
+
+             case("WRITE-SUPERINITIATOR-OUTPUT")
+                ! Do not output the newly generated superinitiators upon generation
+                tSuppressSIOutput = .false.
+                
+             case("TARGET-REFERENCE-POP")
+                tVariableNRef = .true.
+                if(item < nItems) call readi(targetRefPop)
 
             case default
                 call report("Keyword "                                &

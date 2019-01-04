@@ -51,6 +51,7 @@ logical :: tAntisym_MI    !Antisymmetric MI functions.
 logical :: tComplexOrbs_RealInts    !We are using complex orbitals, but real integrals. 
                                     !Therefore, check the mom sym before looking up integral, 
                                     !since we only have 4x perm sym.
+logical :: tComplexWalkers_RealInts !We are using real orbitals, but complex walkers
 integer :: iParity(5), nMaxX, nMaxY, nMaxZ, nMSH, coulDampOrb, elecPairs
 integer :: roIterMax, iRanLuxLev, DiagMaxMinFac, OneElmaxMinFac, iState
 integer :: iTiltX, iTiltY, nOccAlpha, nOccBeta, ShakeIterMax, ShakeStart
@@ -236,6 +237,21 @@ logical :: tGiovannisBrokenInit
 ! full open BC are implemented
 logical :: t_open_bc_x = .false.
 logical :: t_open_bc_y = .false.
+
+! use an intermediate flag for a new implementation of the newest excitation
+! generator
+logical :: tGen_4ind_unbound = .false.
+
+! also implement a next-nearest neighbor Hubbard model implementation: 
+! for k-space hubbard, this only affects the diagonal part! 
+real(dp) :: nn_bhub = 0.0_dp
+
+! i have to merge the twisted bc into master i just realized!
+logical :: t_twisted_bc = .false.
+real(dp) :: twisted_bc(2) = 0.0_dp
+
+! do a quick test with different weightings of picking orbitals (a) 
+logical :: t_iiaa = .false., t_ratio = .false. 
 
 ! Operators for type(symmetry)
 interface assignment (=)
