@@ -1632,7 +1632,7 @@ contains
       ! communicate the energy window
       call MPIAllReduce(locMinEn, MPI_MIN, minEn)
       call MPIAllReduce(locMaxEn, MPI_MAX, maxEn)
-      enWindow = maxEn - minEn / real(enPoints,dp)
+      enWindow = (maxEn - minEn) / real(enPoints,dp)
 
       if(enWindow > eps) then
          ! set up the histogram axes
