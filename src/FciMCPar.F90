@@ -244,6 +244,8 @@ module FciMCParMod
         lt_imb=0.
         lt_max=0.
         lt_sum=0.
+        ! For calculations with only few iterations
+        lt_arr=0.
 
         do while (.true.)
 !Main iteration loop...
