@@ -1007,7 +1007,7 @@ contains
         call LogMemAlloc('temp_ilut',size(temp_ilut),sizeof(temp_ilut(1,1)),'read_walkers',temp_ilut_tag,ierr)
 
         allocate(temp_sgns(int(tmp_lenof_sign),int(this_block_size)),stat=ierr)
-        call LogMemAlloc('temp_sgns',size(temp_sgns),sizeof(temp_sgns(1,1)),'read_walkers',temp_sgns_tag,ierr)
+        call LogMemAlloc('temp_sgns',size(temp_sgns),lenof_sign,'read_walkers',temp_sgns_tag,ierr)
 
         if(tReadFVals) then
            allocate(temp_fvals(int(2*tmp_inum_runs), int(this_block_size)), stat=ierr)
@@ -1023,6 +1023,16 @@ contains
                 this_block_size = block_end - block_start + 1
             else
                 this_block_size = 0
+            end if
+
+            ! if we resized the sign, we need to go back to the original buffer size now
+            if(tmp_lenof_sign /= lenof_sign) then
+               deallocate(temp_sgns)
+               allocate(temp_sgns(int(tmp_lenof_sign),int(this_block_size)),stat=ierr)        
+               if(tReadFVals) then
+                  deallocate(temp_fvals)
+                  allocate(temp_fvals(int(2*tmp_inum_runs), int(this_block_size)), stat=ierr)
+               end if
             end if
 
             call read_walker_block_buff(ds_ilut, ds_sgns, ds_fvals, block_start, &
@@ -1310,7 +1320,8 @@ contains
                 recvcountsScaled, recvdispsScaled, ierr)
         end if
   
-        call scaleCounts(size(fvals_loc,1))
+        call scaleCounts(size(fvals_loc,1))        
+
         if(tReadFVals) then
            call MPIAllToAllV(fvals_comm, sendcountsScaled, dispsScaled, fvals_loc, &
                 recvcountsScaled, recvdispsScaled, ierr)
