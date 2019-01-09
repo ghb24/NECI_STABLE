@@ -19,11 +19,11 @@ module fcimc_iter_utils
     use semi_stoch_procs, only: recalc_core_hamil_diag
     use bit_rep_data, only: NIfD, NIfTot, NIfDBO
     use hphf_integrals, only: hphf_diag_helement
-    use global_det_data, only: set_det_diagH
     use Determinants, only: get_helement
-    use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av
+    use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av, tWriteUnocc, &
+         AllInitsPerExLvl, initsPerExLvl
     use tau_search, only: update_tau
-    use rdm_data, only: en_pert_main
+    use rdm_data, only: en_pert_main, InstRDMCorrectionFactor
     use Parallel_neci
     use fcimc_initialisation
     use fcimc_output
@@ -444,20 +444,13 @@ contains
         sizes(26) = 1 ! nspawned (single int, not an array)
         ! communicate the inst_double_occ and the coherence numbers
         sizes(27) = 1
-        sizes(28) = 1
-        sizes(29) = 1
-        sizes(30) = 1
-        ! Perturbation correction
-        sizes(31) = 1
-        ! replica-initiator statistics
-        sizes(32) = 1
-        sizes(33) = 1
-        sizes(34) = 1
         ! truncated weight
-        sizes(35) = 1
+        sizes(28) = 1
+        ! inits per ex lvl
+        sizes(29) = size(initsPerExLvl)
 
 
-        if (sum(sizes(1:34)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
+        if (sum(sizes(1:29)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
                                                         & the size of the send_arr and recv_arr arrays in the source code.")
 
         low = upp + 1; upp = low + sizes(1 ) - 1; send_arr(low:upp) = SpawnFromSing;
@@ -491,17 +484,11 @@ contains
         low = upp + 1; upp = low + sizes(26) - 1; send_arr(low:upp) = nspawned;
         ! double occ change:
         low = upp + 1; upp = low + sizes(27) - 1; send_arr(low:upp) = inst_double_occ
-        ! coherence conflict with SIs
-        low = upp + 1; upp = low + sizes(28) - 1; send_arr(low:upp) = nCoherentDoubles
-        low = upp + 1; upp = low + sizes(29) - 1; send_arr(low:upp) = nIncoherentDets
-        low = upp + 1; upp = low + sizes(30) - 1; send_arr(low:upp) = nConnection
-        ! sign conflicts between replicas
-        low = upp + 1; upp = low + sizes(32) - 1; send_arr(low:upp) = NoSIInitsConflicts;
-        low = upp + 1; upp = low + sizes(33) - 1; send_arr(low:upp) = NoInitsConflicts;
-        low = upp + 1; upp = low + sizes(34) - 1; send_arr(low:upp) = avSigns;
         ! truncated weight
-        low = upp + 1; upp = low + sizes(35) - 1; send_arr(low:upp) = truncatedWeight;        
-        
+        low = upp + 1; upp = low + sizes(28) - 1; send_arr(low:upp) = truncatedWeight;        
+        ! initiators per excitation level
+        low = upp + 1; upp = low + sizes(29) - 1; send_arr(low:upp) = initsPerExLvl;        
+
         ! Perform the communication.
         call MPISumAll (send_arr(1:upp), recv_arr(1:upp))
 
@@ -541,15 +528,11 @@ contains
         low = upp + 1; upp = low + sizes(26) - 1; nspawned_tot = nint(recv_arr(low));
         ! double occ: 
         low = upp + 1; upp = low + sizes(27) - 1; all_inst_double_occ = recv_arr(low);
-        low = upp + 1; upp = low + sizes(29) - 1; AllCoherentDoubles = recv_arr(low);
-        low = upp + 1; upp = low + sizes(29) - 1; AllIncoherentDets = recv_arr(low);
-        low = upp + 1; upp = low + sizes(30) - 1; AllConnection = recv_arr(low);
-        ! replica-averaged initiators
-        low = upp + 1; upp = low + sizes(32) - 1; AllNoSIInitsConflicts = recv_arr(low);
-        low = upp + 1; upp = low + sizes(33) - 1; AllNoInitsConflicts = recv_arr(low);
-        low = upp + 1; upp = low + sizes(34) - 1; AllAvSigns = recv_arr(low);
         ! truncated weight
-        low = upp + 1; upp = low + sizes(35) - 1; AllTruncatedWeight = recv_arr(low);
+        low = upp + 1; upp = low + sizes(28) - 1; AllTruncatedWeight = recv_arr(low);
+        ! initiators per excitation level
+        low = upp + 1; upp = low + sizes(29) - 1; AllInitsPerExLvl = recv_arr(low:upp);
+
         ! Communicate HElement_t variables:
 
         low = 0; upp = 0;
@@ -564,10 +547,13 @@ contains
             sizes(7) = size(trial_denom)
             sizes(8) = size(trial_num_inst)
             sizes(9) = size(trial_denom_inst)
+            sizes(10) = size(init_trial_numerator)
+            sizes(11) = size(init_trial_denom)
         end if
-        if (tEN2) sizes(10) = 1
+        if (tEN2) sizes(12) = 1
+        sizes(13) = size(InitsEnumCyc)
 
-        if (sum(sizes(1:10)) > 100) call stop_all(t_r, "No space left in arrays for communication of estimates. Please &
+        if (sum(sizes(1:11)) > 100) call stop_all(t_r, "No space left in arrays for communication of estimates. Please &
                                                         & increase the size of the send_arr_helem and recv_arr_helem &
                                                         & arrays in the source code.")
 
@@ -581,10 +567,13 @@ contains
             low = upp + 1; upp = low + sizes(7) - 1; send_arr_helem(low:upp) = trial_denom;
             low = upp + 1; upp = low + sizes(8) - 1; send_arr_helem(low:upp) = trial_num_inst;
             low = upp + 1; upp = low + sizes(9) - 1; send_arr_helem(low:upp) = trial_denom_inst;
+            low = upp + 1; upp = low + sizes(10) - 1; send_arr_helem(low:upp) = init_trial_numerator;
+            low = upp + 1; upp = low + sizes(11) - 1; send_arr_helem(low:upp) = init_trial_denom;
         end if
         if (tEN2) then
-           low = upp + 1; upp = low + sizes(10) - 1; send_arr_helem(low) = en_pert_main%ndets;
+           low = upp + 1; upp = low + sizes(12) - 1; send_arr_helem(low) = en_pert_main%ndets;
         endif
+        low = upp + 1; upp = low + sizes(13) - 1; send_arr_helem(low:upp) = InitsENumCyc;
 
         call MPISumAll (send_arr_helem(1:upp), recv_arr_helem(1:upp))
 
@@ -600,10 +589,13 @@ contains
             low = upp + 1; upp = low + sizes(7) - 1; tot_trial_denom = recv_arr_helem(low:upp);
             low = upp + 1; upp = low + sizes(8) - 1; tot_trial_num_inst = recv_arr_helem(low:upp);
             low = upp + 1; upp = low + sizes(9) - 1; tot_trial_denom_inst = recv_arr_helem(low:upp);
+            low = upp + 1; upp = low + sizes(10) - 1; tot_init_trial_numerator = recv_arr_helem(low:upp);
+            low = upp + 1; upp = low + sizes(11) - 1; tot_init_trial_denom = recv_arr_helem(low:upp);
         end if
         if (tEN2) then
-           low = upp + 1; upp = low + sizes(10) - 1; en_pert_main%ndets_all = recv_arr_helem(low);
+           low = upp + 1; upp = low + sizes(12) - 1; en_pert_main%ndets_all = recv_arr_helem(low);
         endif
+        low = upp + 1; upp = low + sizes(13) - 1; AllInitsENumCyc = recv_arr_helem(low:upp);
 
         ! Optionally communicate EXLEVEL_WNorm.
         if (tLogEXLEVELStats) then
@@ -676,14 +668,19 @@ contains
                 ! make it relative to the HF energy.
                 if (ntrial_excits == 1) then
                     tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies(1))
+                    tot_init_trial_numerator = tot_init_trial_numerator + (tot_init_trial_denom*&
+                         trial_energies(1))
                 else
                     if (replica_pairs) then
                         do run = 2, inum_runs, 2
                             tot_trial_numerator(run-1:run) = tot_trial_numerator(run-1:run) + &
                                 tot_trial_denom(run-1:run)*trial_energies(run/2)
+                            tot_init_trial_numerator(run-1:run) = tot_init_trial_numerator(run-1:run) + &
+                                tot_init_trial_denom(run-1:run)*trial_energies(run/2)
                         end do
                     else
                         tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies)
+                        tot_init_trial_numerator = tot_init_trial_numerator + (tot_init_trial_denom*trial_energies)
                     end if
                 end if
             end if
@@ -1033,6 +1030,8 @@ contains
                          + proje_ref_energy_offsets(run)
                     AbsProjE(run) = (AllENumCycAbs(run)) / (all_cyc_proje_denominator(run)) &
                          + proje_ref_energy_offsets(run)
+                    inits_proje_iter(run) = (AllInitsENumCyc(run)) / (all_cyc_proje_denominator(run)) &
+                         + proje_ref_energy_offsets(run)
                  endif
 
                 ! If we are re-zeroing the shift
@@ -1051,6 +1050,8 @@ contains
             endif
             if(abs(sum(all_cyc_proje_denominator(1:inum_runs))) > EPS) then
                proje_iter_tot = sum(AllENumCyc(1:inum_runs)) &
+                    / sum(all_cyc_proje_denominator(1:inum_runs))
+               inits_proje_iter_tot = sum(AllInitsENumCyc(1:inum_runs)) &
                     / sum(all_cyc_proje_denominator(1:inum_runs))
             endif
 
@@ -1072,7 +1073,7 @@ contains
                 tSearchTau=.false.
             endif
         enddo
-
+       
     end subroutine update_shift 
 
     subroutine rezero_iter_stats_update_cycle (iter_data, tot_parts_new_all)
@@ -1090,6 +1091,7 @@ contains
         SpawnFromSing = 0.0_dp
         NoDied = 0.0_dp
         ENumCyc = 0.0_dp
+        InitsENumCyc = 0.0_dp
         ENumCycAbs = 0.0_dp
         HFCyc = 0.0_dp
         cyc_proje_denominator=0.0_dp
@@ -1126,11 +1128,11 @@ contains
         cont_spawn_attempts = 0
         cont_spawn_success = 0
 
-        ! reset the number of conflicts
-        ConflictExLvl = 0
-
         ! reset the truncated weight
         truncatedWeight = 0.0_dp
+
+        ! reset the logged number of initiators
+        initsPerExLvl = 0
 
     end subroutine rezero_iter_stats_update_cycle
 

@@ -36,7 +36,8 @@ module fcimc_initialisation
                         tMultipleInitialStates, initial_states, t_hist_tau_search, &
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, tRCCheck, &
-                        t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0
+                        t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
+                        maxKeepExLvl, tAutoAdaptiveShift, AdaptiveShiftCut, tAAS_Reverse
     use adi_data, only: tReferenceChanged, tAdiActive, &
          nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
@@ -50,13 +51,14 @@ module fcimc_initialisation
     use LoggingData, only: tTruncRODump, tCalcVariationalEnergy, tReadRDMs, &
                            tDiagAllSpaceEver, tFCIMCStats2, tCalcFCIMCPsi, &
                            tLogComplexPops, tHistExcitToFrom, tPopsFile, &
-                           iWritePopsEvery, tRDMOnFly, tWriteConflictLvls, &
+                           iWritePopsEvery, tRDMOnFly, &
                            tDiagWalkerSubspace, tPrintOrbOcc, OrbOccs, &
                            tHistInitPops, OrbOccsTag, tHistEnergies, &
                            HistInitPops, AllHistInitPops, OffDiagMax, &
                            OffDiagBinRange, iDiagSubspaceIter, tOldRDMs, &
                            AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead, &
-                           tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats
+                           tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats, &
+                           maxInitExLvlWrite, initsPerExLvl, AllInitsPerExLvl
     use DetCalcData, only: NMRKS, tagNMRKS, FCIDets, NKRY, NBLK, B2L, nCycle, &
                            ICILevel, det
     use IntegralsData, only: tPartFreezeCore, nHolesFrozen, tPartFreezeVirt, &
@@ -120,7 +122,7 @@ module fcimc_initialisation
                                     set_trial_populations, set_trial_states, calc_trial_states_direct
     use global_det_data, only: global_determinant_data, set_det_diagH, &
                                clean_global_det_data, init_global_det_data, &
-                               set_spawn_rate
+                               set_spawn_rate, store_decoding
     use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
@@ -139,7 +141,8 @@ module fcimc_initialisation
     use soft_exit, only: tSoftExitFound
     use get_excit, only: make_double
     use sltcnd_mod, only: sltcnd_0
-    use rdm_data, only: nrdms_transition_input
+    use rdm_data, only: nrdms_transition_input, rdmCorrectionFactor, InstRDMCorrectionFactor, &
+         ThisRDMIter
     use Parallel_neci
     use FciMCData
     use util_mod
@@ -555,6 +558,16 @@ contains
         ENDIF
         HFConn=nSingles+nDoubles
 
+        if(AdaptiveShiftCut<0.0)then
+            !The user did not specify the value, use this as a default
+           if(HFConn > 0) then
+              AdaptiveShiftCut = 1.0_dp/HFConn
+           else
+              ! if the HF is disconnected (can happen in rare corner cases), set it to 0
+              AdaptiveShiftCut = 0.0_dp
+           endif
+        end if
+
         ! Initialise random number seed - since the seeds need to be different
         ! on different processors, subract processor rank from random number
         if(.not.tRestart) then
@@ -799,6 +812,7 @@ contains
         AvSign=0.0_dp
         AvSignHFD=0.0_dp
         SumENum(:)=0.0_dp
+        InitsENumCyc(:) = 0.0_dp
         SumNoatHF(:)=0.0_dp
         NoatHF(:)=0.0_dp
         InstNoatHF(:)=0.0_dp
@@ -825,10 +839,6 @@ contains
         NoAddedInitiators=0
         NoInitDets=0
         NoNonInitDets=0
-        NoSIInitsConflicts = 0
-        NoInitsConflicts = 0
-        NoConflicts = 0
-        avSigns = 0.0_dp
         NoInitWalk(:)=0.0_dp
         NoNonInitWalk(:)=0.0_dp
         NoExtraInitDoubs=0
@@ -841,6 +851,7 @@ contains
 
 !Also reinitialise the global variables - should not necessarily need to do this...
         AllSumENum(:)=0.0_dp
+        AllInitsENumCyc(:) = 0.0_dp
         AllNoatHF(:)=0.0_dp
         AllNoatDoubs(:)=0.0_dp
         if (tLogEXLEVELStats) AllEXLEVEL_WNorm(:,:,:)=0.0_dp
@@ -869,6 +880,7 @@ contains
         AllNoExtraInitDoubs=0
         AllInitRemoved=0
         proje_iter = 0
+        inits_proje_iter = 0.0_dp
         AccRat = 0
         HFShift = 0
         InstShift = 0
@@ -893,6 +905,11 @@ contains
         truncatedWeight = 0.0_dp
         AllTruncatedWeight = 0.0_dp
 
+        ! RDMs are taken as they are until we have some data on the f-function
+        ! of the adaptive shift
+        rdmCorrectionFactor = 0.0_dp
+        InstRDMCorrectionFactor = 0.0_dp
+        ThisRDMIter = 0.0_dp
 !            if (tReltvy) then
 !                ! write out the column headings for the MSWALKERCOUNTS
 !                open(mswalkercounts_unit, file='MSWALKERCOUNTS', status='UNKNOWN')
@@ -906,10 +923,11 @@ contains
               RealSpawnCutoff = sFBeta
            endif
         endif
-           
 
-        allocate(ConflictExLvl(maxConflictExLvl))
-        ConflictExLvl = 0
+        if(.not. allocated(allInitsPerExLvl)) allocate(allInitsPerExLvl(maxInitExLvlWrite))
+        if(.not. allocated(initsPerExLvl)) allocate(initsPerExLvl(maxInitExLvlWrite))
+        initsPerExlvl = 0
+        allInitsPerExLvl = 0
 
         IF(tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC)) THEN
             ALLOCATE(HistMinInd(NEl))
@@ -1408,6 +1426,21 @@ contains
 
             MemoryAlloc=MemoryAlloc+(NIfTot+1)*MaxSpawned*2*size_n_int
 
+            if(tAutoAdaptiveShift)then
+                if(tAAS_Reverse.and. SpawnInfoWidth<inum_runs)then
+                    SpawnInfoWidth = inum_runs
+                end if
+                allocate(SpawnInfoVec(1:SpawnInfoWidth, MaxSpawned), &
+                         SpawnInfoVec2(1:SpawnInfoWidth, MaxSpawned), stat=ierr)
+                log_alloc(SpawnInfoVec, SpawnInfoVecTag, ierr)
+                log_alloc(SpawnInfoVec2, SpawnInfoVec2Tag, ierr)
+                SpawnInfoVec(:,:)=0
+                SpawnInfoVec2(:,:)=0
+                SpawnInfo=>SpawnInfoVec
+                SpawnInfo2=>SpawnInfoVec2
+                MemoryAlloc=MemoryAlloc+(SpawnInfoWidth)*MaxSpawned*2*size_n_int
+            end if
+
             write(iout,"(A)") "Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number"
             write(iout,"(A,I15)") "Length of hash-table: ",nWalkerHashes
             write(iout,"(A,F20.5)") "Length of hash-table as a fraction of targetwalkers: ",HashLengthFrac
@@ -1582,6 +1615,11 @@ contains
             tot_trial_numerator = 0.0_dp
             trial_denom = 0.0_dp
             tot_trial_denom = 0.0_dp
+
+            init_trial_numerator = 0.0_dp
+            tot_init_trial_numerator = 0.0_dp
+            init_trial_denom = 0.0_dp
+            tot_init_trial_denom = 0.0_dp
 
             trial_num_inst = 0.0_dp
             tot_trial_num_inst = 0.0_dp
@@ -1771,8 +1809,6 @@ contains
         deallocate(FreeSlot,stat=ierr)
         if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
 
-        if(allocated(ConflictExLvl)) deallocate(ConflictExLvl)
-
         IF(tHistSpawn.or.tCalcFCIMCPsi) THEN
             DEALLOCATE(Histogram)
             DEALLOCATE(AllHistogram)
@@ -1822,6 +1858,12 @@ contains
         CALL LogMemDealloc(this_routine,SpawnVecTag)
         DEALLOCATE(SpawnVec2)
         CALL LogMemDealloc(this_routine,SpawnVec2Tag)
+        if(tAutoAdaptiveShift)then
+            DEALLOCATE(SpawnInfoVec)
+            CALL LogMemDealloc(this_routine,SpawnInfoVecTag)
+            DEALLOCATE(SpawnInfoVec2)
+            CALL LogMemDealloc(this_routine,SpawnInfoVec2Tag)
+        end if
 
         if(allocated(TempSpawnedParts)) then
             deallocate(TempSpawnedParts)
@@ -1895,6 +1937,8 @@ contains
 
         if (tTrialWavefunction) call end_trial_wf()
 
+        if(allocated(maxKeepExLvl)) deallocate(maxKeepExLvl)
+
 !There seems to be some problems freeing the derived mpi type.
 !        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
 !Free the mpi derived type that we have created for the hashes.
@@ -1959,6 +2003,8 @@ contains
             ! HF energy is equal to 0 (by definition)
             call set_det_diagH(1, 0.0_dp)
             HFInd = 1
+
+            call store_decoding(1,HFDet)
 
             if (tContTimeFCIMC .and. tContTimeFull) &
                 call set_spawn_rate(1, spawn_rate_full(HFDet, ilutHF))
@@ -2098,6 +2144,9 @@ contains
                     hdiag = get_helement(ProjEDet(:, run), ProjEDet(:, run), 0)
                 endif
                 call set_det_diagH(site, real(hdiag, dp) - Hii)
+
+                ! store the determinant
+                call store_decoding(site, ProjEDet(:,run))
 
                 ! Obtain the initial sign
                 if (.not. tStartSinglePart) &
@@ -2621,6 +2670,7 @@ contains
                         HDiagTemp = get_helement(CASFullDets(:,i),CASFullDets(:,i),0)
                     endif
                     call set_det_diagH(DetIndex, real(HDiagTemp, dp) - Hii)
+                    call store_decoding(DetIndex, CASFullDets(:,i))
 
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
@@ -2816,6 +2866,8 @@ contains
                         HDiagTemp = get_helement(nJ,nJ,0)
                     endif
                     call set_det_diagH(DetIndex, real(HDiagtemp, dp) - Hii)
+                    ! store the determinant
+                    call store_decoding(DetIndex,nJ)
 
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
@@ -2873,6 +2925,9 @@ contains
                     enddo
                 endif
                 call set_det_diagH(DetIndex, 0.0_dp)
+                
+                ! store the determinant
+                call store_decoding(DetIndex, HFDet)
 
                 ! Now add the Hartree-Fock determinant (not with index 1).
                 DetHash = FindWalkerHash(HFDet, nWalkerHashes)

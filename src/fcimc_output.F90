@@ -7,14 +7,15 @@ module fcimc_output
                            instant_s2_multiplier, tPrintFCIMCPsi, &
                            iWriteHistEvery, tDiagAllSpaceEver, OffDiagMax, &
                            OffDiagBinRange, tCalcVariationalEnergy, &
-                           iHighPopWrite, tLogEXLEVELStats, tWriteConflictLvls
+                           iHighPopWrite, tLogEXLEVELStats, &
+                           maxInitExLvlWrite, AllInitsPerExLvl
     use hist_data, only: Histogram, AllHistogram, InstHist, AllInstHist, &
                          BeforeNormHist, iNoBins, BinRange, HistogramEnergy, &
                          AllHistogramEnergy
     use CalcData, only: tTruncInitiator, tTrialWavefunction, tReadPops, &
                         DiagSft, tSpatialOnlyHash, tOrthogonaliseReplicas, &
                         StepsSft, tPrintReplicaOverlaps, tStartTrialLater, tEN2, &
-                        tGlobalInitFlag, t_truncate_spawns
+                        tGlobalInitFlag, t_truncate_spawns, tTimedDeaths
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
     use IntegralsData, only: frozen_orb_list, frozen_orb_reverse_map, &
@@ -40,7 +41,7 @@ module fcimc_output
 contains
 
     SUBROUTINE WriteFciMCStatsHeader()
-        integer i, j, k, run
+        integer i, j, k, run, offset
         character(256) label
         character(32) tchar_r, tchar_i, tchar_j, tchar_k
         character(17) trunc_caption
@@ -49,11 +50,25 @@ contains
 !Print out initial starting configurations
             WRITE(iout,*) ""
             IF(tTruncInitiator) THEN
-                WRITE(initiatorstats_unit,"(A2,A17,15A23)") "# ","1.Step","2.TotWalk","3.Annihil","4.Died", &
-                & "5.Born","6.TotUniqDets",&
-&               "7.InitDets","8.NonInitDets","9.InitWalks","10.NonInitWalks","11.AbortedWalks", &
-               "12. Removed Dets",  "13. Insufficiently connected", "14. Coherent Doubles", &
-               "15. Incoherent Dets"
+               WRITE(initiatorstats_unit,"(A2,A17,15A23)", advance = 'no') &
+                    "# ","1.Step","2.TotWalk","3.Annihil","4.Died", &
+                    & "5.Born","6.TotUniqDets",&
+                    &               "7.InitDets","8.NonInitDets","9.InitWalks","10.NonInitWalks","11.AbortedWalks", &
+                    "12. Removed Dets",  "13. Initiator Proj.E"
+               offset = 13            
+               if(tTrialWavefunction .or. tStartTrialLater) then
+                  write(initiatorstats_unit,"(A)", advance = 'no') &
+                  "14. TrialNumerators (inits)   15. TrialDenom (inits)"
+                  offset = 15
+               end if
+                do k = 1, maxInitExLvlWrite
+                   write(tchar_k,*) k+offset
+                   write(tchar_r,*) k
+                   tchar_r = trim(adjustl(tchar_k))//'. Inits on ex. lvl '//trim(adjustl(tchar_r))
+                   write(initiatorstats_unit,'(1x,a)', advance = 'no') &
+                        trim(adjustl(tchar_r))
+                end do
+                write(initiatorstats_unit,'()', advance = 'yes')
             ENDIF
             IF(tLogComplexPops) THEN
                 WRITE(complexstats_unit,"(A)") '#   1.Step  2.Shift     3.RealShift     4.ImShift   5.TotParts      " &
@@ -188,6 +203,7 @@ contains
     subroutine WriteFCIMCStats()
         INTEGER :: i, j, run
         real(dp),dimension(inum_runs) :: FracFromSing
+        real(dp) :: projE(inum_runs)
 
         ! What is the current value of S2
         if (tCalcInstantS2) then
@@ -291,13 +307,20 @@ contains
                     IterTime
             endif
             if (tTruncInitiator) then
-               write(initiatorstats_unit,"(I12,4G16.7,3I20,7G16.7,2I20,1G16.7)")&
+               write(initiatorstats_unit,"(I12,4G16.7,3I20,4G16.7,F16.9,2G16.7,2I20,1G16.7)", &
+                    advance = 'no')&
                    Iter + PreviousCycles, sum(AllTotParts), &
                    AllAnnihilated(1), AllNoDied(1), AllNoBorn(1), AllTotWalkers,&
                    AllNoInitDets(1), AllNoNonInitDets(1), AllNoInitWalk(1), &
                    AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1), &
-                   AllConnection, AllCoherentDoubles, AllIncoherentDets, &
-                   AllNoInitsConflicts, AllNoSIInitsConflicts, AllAvSigns
+                   inits_proje_iter(1) + Hii
+               if(tTrialWavefunction .or. tStartTrialLater) &
+                    write(initiatorstats_unit, "(2G16.7)", advance = 'no') &
+                    tot_init_trial_numerator(1)/StepsSft, tot_init_trial_denom(1)/StepsSft
+               do j = 1, maxInitExLvlWrite
+                  write(initiatorstats_unit,'(1I20)', advance ='no') AllInitsPerExLvl(j)/StepsSft
+               end do
+               write(initiatorstats_unit,'()', advance = 'yes')
             endif
             if (tLogComplexPops) then
                 write (complexstats_unit,"(I12,6G16.7)") &
@@ -425,13 +448,20 @@ contains
                     IterTime
             endif
             if (tTruncInitiator) then
-               write(initiatorstats_unit,"(I12,4G16.7,3I20,7G16.7,2I20,1G16.7)")&
+               write(initiatorstats_unit,"(I12,4G16.7,3I20,4G16.7,F16.9,2G16.7,2I20,1G16.7)", &
+                    advance = 'no')&
                    Iter + PreviousCycles, AllTotParts(1), &
                    AllAnnihilated(1), AllNoDied(1), AllNoBorn(1), AllTotWalkers,&
                    AllNoInitDets(1), AllNoNonInitDets(1), AllNoInitWalk(1), &
                    AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1), &
-                   AllConnection, AllCoherentDoubles, AllIncoherentDets, &
-                   AllNoInitsConflicts, AllNoSIInitsConflicts, AllAvSigns
+                   inits_proje_iter(1) + Hii
+               if(tTrialWavefunction .or. tStartTrialLater) &
+                    write(initiatorstats_unit, "(2G16.7)", advance = 'no') &
+                    tot_init_trial_numerator(1)/StepsSft, tot_init_trial_denom(1)/StepsSft
+               do j = 1, maxInitExLvlWrite
+                  write(initiatorstats_unit,'(1I20)', advance ='no') AllInitsPerExLvl(j)
+               end do
+               write(initiatorstats_unit,'()', advance = 'yes')
             endif
 #endif
             if (tLogEXLEVELStats) then
@@ -534,39 +564,28 @@ contains
         ! Use a state type to keep things compact and tidy below.
         type(write_state_t), save :: state
         type(write_state_t), save :: state_i
-        type(write_state_t), save :: state_cl
         logical, save :: inited = .false.
         character(5) :: tmpc, tmpc2
         integer :: p, q
         logical :: init
-
+       
         ! Provide default 'initial' option
         if (present(initial)) then
             state%init = initial
             if (tTruncInitiator) state_i%init = initial
-            if(tWriteConflictLvls) state_cl%init = initial
         else
             state%init = .false.
             if (tTruncInitiator) state_i%init = .false.
-            if(tWriteConflictLvls) state_cl%init = .false.
         end if
 
         ! If the output file hasn't been opened yet, then create it.
         if (iProcIndex == Root .and. .not. inited) then
-            state%funit = get_free_unit()
-            call open_create_stats('fciqmc_stats',state%funit)
-            ! For the initiator stats file here:
-            if (tTruncInitiator) then
-              state_i%funit = get_free_unit()
-              call open_create_stats('initiator_stats',state_i%funit)
-            end if
+           
+           call open_state_file('fciqmc_stats',state)
+           ! For the initiator stats file here:
+           if (tTruncInitiator) call open_state_file('initiator_stats',state_i)
 
-            if(tWriteConflictLvls) then
-               state_cl%funit = get_free_unit()
-               call open_create_stats('conflicts_stats',state_cl%funit)
-            endif
-
-            inited = .true.
+           inited = .true.
         end if
 
         ! ------------------------------------------------
@@ -580,7 +599,6 @@ contains
 
             call write_padding_init(state)
             call write_padding_init(state_i)
-            call write_padding_init(state_cl)
 
             ! And output the actual data!
             state%cols = 0
@@ -739,11 +757,6 @@ contains
             if (tTruncInitiator) then
                 call stats_out(state_i, .false., Iter + PreviousCycles, 'Iter.')
                 call stats_out(state_i, .false., AllTotWalkers, 'TotDets.')
-                call stats_out(state_i, .false., AllNoInitsConflicts/inum_runs,&
-                     'Inc. Inits (normal)')
-                call stats_out(state_i, .false., AllNoSIInitsConflicts/inum_runs,&
-                     'Inc. Inits (SI)')
-                call stats_out(state_i, .false., AllAvSigns, 'Replica-averaged Sign')
                 do p = 1, inum_runs
                     write(tmpc, '(i5)') p
                     call stats_out(state_i, .false., AllTotParts(p), 'TotWalk. (' // trim(adjustl(tmpc)) // ")")
@@ -758,32 +771,28 @@ contains
                     call stats_out(state_i, .false., AllNoNonInitWalk(p), 'NonInitWalks (' // trim(adjustl(tmpc)) // ")")
                 end do
             end if
-
-            ! gather sign conflict statistics
-            if(tWriteConflictLvls) then
-               call stats_out(state_cl, .false., Iter + PreviousCycles, 'Iter')
-               call stats_out(state_cl, .false., sum(conflictExLvl), 'confl. Dets')
-               do p = 1, maxConflictExLvl
-                  ! write the number of conflicts of this excitation lvl
-                  write(tmpc,('(i5)')) p
-                  call stats_out(state_cl, .false., ConflictExLvl(p), 'confl. (ex = '//&
-                       trim(adjustl(tmpc)) // ")")
-               end do
-            endif
-
+     
             ! And we are done
             write(state%funit, *)
             if (tTruncInitiator) write(state_i%funit, *)
-            if(tWriteConflictLvls) write(state_cl%funit,*)
             if (tMCOutput) write(iout, *)
             call neci_flush(state%funit)
             if (tTruncInitiator) call neci_flush(state_i%funit)
-            if(tWriteConflictLvls) call neci_flush(state_cl%funit)
             call neci_flush(iout)
 
         end if
 
     end subroutine write_fcimcstats2
+
+    subroutine open_state_file(filename,state)
+      implicit none
+      character(*), intent(in) :: filename
+      type(write_state_t), intent(inout) :: state
+      ! mini-subroutine for opening a file and assigning it to a state
+      state%funit = get_free_unit()
+      call open_create_stats(filename,state%funit)
+
+    end subroutine open_state_file
 
     subroutine write_padding_init(state)
       implicit none
@@ -1540,6 +1549,145 @@ contains
         deallocate(LargestWalkers)
 
     END SUBROUTINE PrintHighPops
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine print_fval_hist(enPoints, arPoints)
+      use CalcData, only: tAutoAdaptiveShift
+      implicit none
+      integer, intent(in) :: enPoints, arPoints ! number of points in the histogram's axes
+      integer, allocatable :: hist(:,:), allHist(:,:)
+      real(dp), allocatable :: histEnergy(:), histAccRate(:)
+      integer :: hist_unit
+      integer :: j, i
+      character, parameter :: tab = char(9)
+
+      if(tAutoAdaptiveShift) then
+         ! allocate the buffers
+         allocate(histAccRate(aRPoints))
+         allocate(histEnergy(enPoints))
+         allocate(hist(enPoints,arPoints))
+         allocate(allHist(enPoints, arPoints))
+         ! generate the histogram
+         
+         call generate_fval_histogram(hist, histEnergy, histAccRate, enPoints, &
+              aRPoints ,allHist)
+
+         if(iProcIndex == root) then 
+            ! output the histogram
+            hist_unit = get_free_unit()
+            open(hist_unit, file = 'AccRateHistogram', status = 'unknown')
+            write(hist_unit, *) "# Acc. Rate",tab,tab,"Tot. Occ.",tab,tab,"Occ./Energy"
+            write(hist_unit, '("#",36X)', advance = 'no')
+            do j = 1, enPoints
+               write(hist_unit, '(G17.5)', advance = 'no') histEnergy(j)
+            end do
+            write(hist_unit, '()', advance = 'yes')
+            do i = 1, aRPoints
+               write(hist_unit, '(2G17.5)', advance = 'no') histAccRate(i), sum(allHist(:,i))
+               do j = 1, enPoints
+                  write(hist_unit, '(G17.5)', advance = 'no') allHist(j,i)
+               end do
+               write(hist_unit, '()', advance = 'yes')
+            end do
+
+            close(hist_unit)
+         endif
+
+         ! deallocate the buffers
+         if(allocated(allHist)) deallocate(allHist)
+         if(allocated(hist)) deallocate(hist)
+         if(allocated(histEnergy)) deallocate(histEnergy)
+         if(allocated(histAccRate)) deallocate(histAccRate)
+      endif
+    end subroutine print_fval_hist
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine generate_fval_histogram(hist, histEnergy, histAccRate, &
+         enPoints, accRatePoints, allHist)
+      use global_det_data, only: det_diagH, get_acc_spawns, get_tot_spawns
+      ! count the acceptance ratio per energy and create
+      ! a histogram hist(:,:) with axes histEnergy(:), histAccRate(:)
+      ! entries of hist(:,:) : numer of occurances
+      ! entries of histEnergy(:) : energies of histogram entries (with tolerance, second dimension)
+      ! entries of histAccRate(:) : acc. rates of histogram entries (first dimension)
+      implicit none
+      ! number of energy/acc rate windows in the histogram
+      integer, intent(in) :: enPoints, accRatePoints
+      integer, intent(out) :: hist(enPoints,accRatePoints)
+      integer, intent(out) :: allHist(:,:)
+      real(dp), intent(out) :: histEnergy(enPoints), histAccRate(accRatePoints)
+      integer :: i, run
+      integer :: enInd, arInd
+      real(dp) :: minEn, maxEn, enWindow, arWindow, locMinEn, locMaxEn, totSpawn
+
+      ! get the energy window size (the acc. rate window size is just 1.0/(accRatePoints+1))
+      locMinEn = det_diagH(1)
+      locMaxEn = det_diagH(1)
+      do i = 2, TotWalkers
+         if(det_diagH(i) > locMaxEn) locMaxEn = det_diagH(i)
+         if(det_diagH(i) < locMinEn) locMinEn = det_diagH(i)
+      end do
+      ! communicate the energy window
+      call MPIAllReduce(locMinEn, MPI_MIN, minEn)
+      call MPIAllReduce(locMaxEn, MPI_MAX, maxEn)
+      enWindow = maxEn - minEn / real(enPoints,dp)
+
+      if(enWindow > eps) then
+         ! set up the histogram axes
+         arWindow = 1.0_dp / real(accRatePoints,dp)
+         do i = 1, accRatePoints
+            histAccRate(i) = ((i-1)+1.0_dp/2.0_dp)*arWindow
+         end do
+
+         do i = 1, enPoints
+            histEnergy(i) = minEn + (i-1)*enWindow + enWindow/2.0_dp
+         end do
+
+         ! then, fill the histogram itself      
+         hist = 0
+         do i = 1, TotWalkers
+            do run = 1, inum_runs
+               totSpawn = get_tot_spawns(i,run)
+               if(abs(totSpawn) > eps) then
+                  enInd = getHistIndex(det_diagH(i), minEn, enPoints, enWindow)
+                  arInd = getHistIndex(get_acc_spawns(i,run)/totSpawn, &
+                       0.0_dp, accRatePoints, arWindow)
+                  hist(enInd, arInd) = hist(enInd, arInd) + 1
+               end if
+            end do
+         end do
+
+         ! communicate the histogram
+         call MPISum(hist, allHist)
+      else
+         write(iout,*) "WARNING: Empty histogram of acceptance rates"
+      endif
+
+    contains
+
+      function getHistIndex(val, minVal, nPoints, windowSize) result(ind)
+        ! for a given energy, get the position in the histogram
+        implicit none
+        real(dp), intent(in) :: val, minVal, windowSize
+        integer, intent(in) :: nPoints
+        integer :: ind
+
+        if(abs(val - minVal) < eps) then 
+           ! val == minval would else yield 0, but it still belongs to index 1
+           ind = 1
+        else if(abs(val - (minVal + nPoints*windowSize)) < eps) then
+           ! val == maxVal would else yield nPoints + 1, but it still belongs to the last index
+           ind = nPoints
+        else
+           ind = ceiling((val - minVal) / windowSize)
+        endif
+      end function getHistIndex
+
+    end subroutine generate_fval_histogram
+
+!------------------------------------------------------------------------------------------!
             
     subroutine end_iteration_print_warn (totWalkersNew)
         

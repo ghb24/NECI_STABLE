@@ -7,8 +7,8 @@ MODULE Logging
     use MemoryManager, only: LogMemAlloc, LogMemDealloc,TagIntType
     use SystemData, only: nel, LMS, nbasis, tHistSpinDist, nI_spindist, &
                           hist_spin_dist_iter
-    use FciMCData, only: maxConflictExLvl
-    use CalcData, only: tCheckHighestPop, semistoch_shift_iter, trial_shift_iter, tPairedReplicas
+    use CalcData, only: tCheckHighestPop, semistoch_shift_iter, trial_shift_iter, &
+         tPairedReplicas
     use constants, only: n_int, size_n_int, bits_n_int
     use bit_rep_data, only: NIfTot, NIfD
     use DetBitOps, only: EncodeBitDet
@@ -159,13 +159,17 @@ MODULE Logging
       tHDF5PopsRead = .false.
       tHDF5PopsWrite = .false.
       tWriteRefs = .false.
-      tWriteConflictLvls = .false.
-      maxConflictExlvl = 8
+      maxInitExLvlWrite = 8
 #ifdef __PROG_NUMRUNS
       tFCIMCStats2 = .true.
 #else
       tFCIMCStats2 = .false.
 #endif
+      tWriteUnocc = .false.
+
+      t_hist_fvals = .true.
+      enGrid = 100
+      arGrid = 100
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -363,6 +367,10 @@ MODULE Logging
                 i = i+1
             enddo
 
+         case("ACC-RATE-POINTS")
+            ! number of grid points for 2d-histogramming the acc rate used for adaptive shift
+            if(item < nitems) call readi(arGrid)
+            if(item < nitems) call readi(enGrid)
 
         case("ROHISTOGRAMALL")
 !This option goes with the orbital rotation routine.  If this keyword is included, all possible histograms are included.
@@ -732,11 +740,6 @@ MODULE Logging
         case("READRDMS")
 ! Read in the RDMs from a previous calculation, and continue accumulating the RDMs from the very beginning of this restart. 
             tReadRDMs = .true.
-
-         case("WRITE-CONFLICT-LEVELS")
-            ! write the excitation levels of sign conflicts between replicas
-            tWriteConflictLvls = .true.
-            if(item < nitems) call geti(maxConflictExLvl)
         
         case("NONEWRDMCONTRIB")
             ! To be used with READRDMs.  This option makes sure that we don't add in any 
@@ -997,6 +1000,9 @@ MODULE Logging
             tLogDets=.true.
         case("EXLEVEL")
             tLogEXLEVELStats=.true.
+         case("INITS-EXLVL-WRITE")
+            ! up to which excitation level the number of initiators is written out
+            if(item < nitems) call readi(maxInitExLvlWrite)
         case ("INSTANT-S2-FULL")
             ! Calculate an instantaneous value for S^2, and output it to the
             ! relevant column in the FCIMCStats file.
