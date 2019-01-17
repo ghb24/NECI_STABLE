@@ -92,6 +92,8 @@ set( SRC_FILES
     Logging.F90
     Makefile
     matmul.F
+    MolproPlugin.F90
+    PluginGuest.cpp
     NatOrbs.F90
     NECICore.F90
     neci_intfce.F90

@@ -108,6 +108,7 @@ module FciMCParMod
         use rdm_estimators, only: calc_2rdm_estimates_wrapper, write_rdm_estimates
         use rdm_estimators_old, only: rdm_output_wrapper_old, write_rdm_estimates_old
         use rdm_data_utils, only: clear_rdm_list_t, add_rdm_1_to_rdm_2
+        USE MolproPlugin, only : MolproPluginResult
 
         real(dp), intent(out), allocatable :: energy_final_output(:)
 
@@ -250,6 +251,8 @@ module FciMCParMod
         lt_imb=0.
         lt_max=0.
         lt_sum=0.
+        ! For calculations with only few iterations
+        lt_arr=0.
 
         do while (.true.)
 !Main iteration loop...
@@ -862,6 +865,8 @@ module FciMCParMod
 !            energ(i) = get_scalar("FCIQMC_ERR")
         endif
 #endif
+        CALL MolproPluginResult('ENERGY',[BestEnergy])
+        CALL MolproPluginResult('FCIQMC_ERR',[min(ProjE_Err_re,shift_err)])
         write(iout,"(/)")
 
         ! Deallocate memory
