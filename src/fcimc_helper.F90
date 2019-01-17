@@ -180,6 +180,19 @@ contains
             endif
         end if
 
+        ! Is using the pure initiator space option, then if this spawning
+        ! occurs to within the defined initiator space (regardless of
+        ! whether or not it is occupied already), then it should never be
+        ! rejected by to the initiator criterion, so set the initiator
+        ! flag now if not done already.
+        if (tPureInitiatorSpace) then
+            if ( .not. test_flag(SpawnedParts(:, ValidSpawnedList(proc)), get_initiator_flag(part_type)) ) then
+                if (is_in_initiator_space(SpawnedParts(:, ValidSpawnedList(proc)), nJ)) then
+                    call set_flag(SpawnedParts(:,ValidSpawnedList(proc)), get_initiator_flag(part_type))
+                end if
+            end if
+        end if
+
         if(tLogNumSpawns) call log_spawn(SpawnedParts(:,ValidSpawnedList(proc) ) )
 
         if (tFillingStochRDMonFly) then
@@ -226,6 +239,11 @@ contains
         
         ! Only one element of child should be non-zero
         ASSERT((sum(abs(child_sign))-maxval(abs(child_sign)))<1.0e-12_dp)
+
+        if (tPureInitiatorSpace) then
+            call stop_all(this_routine, "Cannot use a hash table to the spawned list when using the &
+                                        &pure-initiator-space option.")
+        end if
 
         call hash_table_lookup(nI_child, ilut_child, NIfDBO, spawn_ht, SpawnedParts, ind, hash_val, tSuccess)
 

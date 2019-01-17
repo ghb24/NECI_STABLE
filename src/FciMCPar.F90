@@ -14,7 +14,7 @@ module FciMCParMod
                         trial_shift_iter, tStartTrialLater, tAVReps, &
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
                         t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
-                        t_back_spawn_flex, t_back_spawn_flex_option, &
+                        t_back_spawn_flex, t_back_spawn_flex_option, tPureInitiatorSpace, &
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
                         DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
                         tSkipRef, tFixTrial, tTrialShift, t_activate_decay, &
@@ -58,9 +58,11 @@ module FciMCParMod
     use bit_rep_data, only: nOffFlag, flag_determ_parent, test_flag, flag_prone
     use errors, only: standalone_errors, error_analysis
     use PopsFileMod, only: WriteToPopsFileParOneArr
-    use AnnihilationMod, only: DirectAnnihilation, communicate_and_merge_spawns
+    use AnnihilationMod, only: DirectAnnihilation, communicate_and_merge_spawns, &
+                               rm_non_inits_from_spawnedparts
     use replica_estimates, only: replica_est_unit, get_proj_e_for_preconditioner, &
-                                        calc_ests_and_set_init_flags
+                                 calc_ests_and_set_init_flags, get_estimators_from_spawns, &
+                                 get_estimators_from_spawns_pure
     use exact_spectrum, only: get_exact_spectrum
     use determ_proj, only: perform_determ_proj
     use cont_time, only: iterate_cont_time
@@ -1352,31 +1354,13 @@ module FciMCParMod
 
         call communicate_and_merge_spawns(MaxIndex, iter_data, .false.)
 
-        if (tPreCond .or. tReplicaEstimates) then
-            ! The preconditioned energy is used in perturbative estimates
-            ! (and also when performing preconditioned FCIQMC).
-            call set_timer(proj_e_time, 30)
-            call get_proj_e_for_preconditioner(MaxIndex, proj_e_for_precond)
-            call halt_timer(proj_e_time)
+        if (tPureInitiatorSpace) then
+            call get_estimators_from_spawns_pure(MaxIndex, proj_e_for_precond)
+        else
+            call get_estimators_from_spawns(MaxIndex, proj_e_for_precond)
         end if
 
-        if (tReplicaEstimates) then
-            call set_timer(precond_e_time, 30)
-            call calc_ests_and_set_init_flags(MaxIndex, proj_e_for_precond)
-            call halt_timer(precond_e_time)
-        end if
-
-        ! With preconditiong and a time step of 1, death will kill all
-        ! walkers entirely, so the initiator criterion will not be applied
-        ! unless we set flags now. Do this now, unless done already in
-        ! calc_ests_and_set_init_flags (for efficiency improvement).
-        if (tSetInitFlagsBeforeDeath .and. (.not. tReplicaEstimates)) then
-            if (tTruncInitiator) then
-                call set_timer(init_flag_time, 30)
-                call set_init_flag_spawns_to_occ(MaxIndex)
-                call halt_timer(init_flag_time)
-            end if
-        end if
+        if (tPureInitiatorSpace) call rm_non_inits_from_spawnedparts(MaxIndex)
 
         ! If performing FCIQMC with preconditioning, then apply the
         ! the preconditioner to the spawnings, and perform the death step.
