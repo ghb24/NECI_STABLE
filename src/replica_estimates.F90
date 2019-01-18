@@ -566,27 +566,29 @@ module replica_estimates
 
                     e_squared_num(j) = e_squared_num(j) - &
                      (spwnsign(2*j-1)*hdiag*cursign(2*j) + spwnsign(2*j)*hdiag*cursign(2*j-1)) / tau
+
+                    !if (tEN2Init) then
+                    !    en2_pert(j) = en2_pert(j) - &
+                    !      (spwnsign_non(2*j-1)*cursign(2*j) + spwnsign_non(2*j)*cursign(2*j-1)) / (2.0_dp*tau)
+                    !end if
                 end do
             end if
 
             ! Add in the contributions corresponding to off-diagonal
             ! elements of the Hamiltonian
             do j = 1, replica_est_len
-                if (abs(spwnsign(2*j-1)) > 1.e-12_dp .and. abs(spwnsign(2*j)) > 1.e-12_dp) then
-                    hdiag = extract_spawn_hdiag(SpawnedParts(:,i))
+                hdiag = extract_spawn_hdiag(SpawnedParts(:,i))
 
-                    precond_e_num(j) = precond_e_num(j) + &
-                      spwnsign(2*j-1) * spwnsign(2*j) / (tau*(mean_energy(j) - hdiag))
+                precond_e_num(j) = precond_e_num(j) + &
+                  spwnsign(2*j-1) * spwnsign(2*j) / (tau*(mean_energy(j) - hdiag))
 
-                    e_squared_num(j) = e_squared_num(j) + spwnsign(2*j-1) * spwnsign(2*j) / (tau**2)
+                e_squared_num(j) = e_squared_num(j) + spwnsign(2*j-1) * spwnsign(2*j) / (tau**2)
 
-                    ! Only get EN2 contribution if we're due to cancel this
-                    ! spawning on both replicas
-                    if (tEN2Init) then
-                        en2_pert(j) = en2_pert(j) + &
-                          spwnsign_non(2*j-1)*spwnsign_non(2*j) / ( (tau**2) * (mean_energy(j) - hdiag ) )
-                    end if
-
+                ! Only get EN2 contribution if we're due to cancel this
+                ! spawning on both replicas
+                if (tEN2Init) then
+                    en2_pert(j) = en2_pert(j) + &
+                      spwnsign_non(2*j-1)*spwnsign_non(2*j) / ( (tau**2) * (mean_energy(j) - hdiag ) )
                 end if
             end do
 
