@@ -11,11 +11,11 @@
 
 module sparse_arrays
 
-    use bit_rep_data, only: NIfTot, NIfDBO
+    use bit_rep_data, only: NIfTot, NIfDBO, NIfD
     use bit_reps, only: decode_bit_det
     use CalcData, only: tReadPops
     use constants
-    use DetBitOps, only: DetBitEq
+    use DetBitOps, only: DetBitEq, CountBits
     use Determinants, only: get_helement
     use FciMCData, only: determ_space_size, determ_sizes, determ_displs, &
                          SpawnedParts, Hii, core_ham_diag
@@ -304,9 +304,13 @@ contains
         integer :: i, j, row_size, counter, ierr
         integer :: nI(nel), nJ(nel)
         integer(n_int), allocatable, dimension(:,:) :: temp_store
+        integer, allocatable :: temp_store_nI(:,:)
         integer(TagIntType) :: HRTag, TempStoreTag
         HElement_t(dp), allocatable, dimension(:) :: hamiltonian_row
         character(len=*), parameter :: t_r = "calculate_det_hamiltonian_sparse"
+
+        integer(kind=n_int) :: tmp(0:NIfD)
+        integer :: IC
 
         allocate(sparse_core_ham(determ_sizes(iProcIndex)), stat=ierr)
         allocate(SparseCoreHamilTags(2, determ_sizes(iProcIndex)))
@@ -315,6 +319,7 @@ contains
         allocate(core_ham_diag(determ_sizes(iProcIndex)), stat=ierr)
         allocate(temp_store(0:NIfTot, determ_space_size), stat=ierr)
         call LogMemAlloc('temp_store', determ_space_size*(NIfTot+1), 8, t_r, TempStoreTag, ierr)
+        safe_realloc_e(temp_store_nI, (nel, determ_space_size), ierr)
 
         ! Stick together the deterministic states from all processors, on
         ! all processors.
@@ -322,10 +327,15 @@ contains
         call MPIAllGatherV(SpawnedParts(0:NIfTot, 1:determ_sizes(iProcIndex)),&
                            temp_store, determ_sizes, determ_displs)
 
+        do i = 1, determ_space_size
+            call decode_bit_det(temp_store_nI(:,i), temp_store(:,i))
+        end do
+
         ! Loop over all deterministic states on this processor.
         do i = 1, determ_sizes(iProcIndex)
 
-            call decode_bit_det(nI, SpawnedParts(:, i))
+            !call decode_bit_det(nI, SpawnedParts(:, i))
+            nI = temp_store_nI(:, i + determ_displs(iProcIndex))
 
             row_size = 0
             hamiltonian_row = 0.0_dp
@@ -333,15 +343,12 @@ contains
             ! Loop over all deterministic states.
             do j = 1, determ_space_size
 
-                call decode_bit_det(nJ, temp_store(:,j))
+                !call decode_bit_det(nJ, temp_store(:,j))
+                nJ = temp_store_nI(:,j)
 
                 ! If on the diagonal of the Hamiltonian.
-                if (all( SpawnedParts(0:NIfDBO, i) == temp_store(0:NIfDBO, j) )) then
-                    if (tHPHF) then
-                        hamiltonian_row(j) = hphf_diag_helement(nI, SpawnedParts(:,i)) - Hii
-                    else
-                        hamiltonian_row(j) = get_helement(nI, nJ, 0) - Hii
-                    end if
+                if (j == i + determ_displs(iProcIndex)) then
+                    hamiltonian_row(j) = get_helement(nI, nJ, 0) - Hii
                     core_ham_diag(i) = hamiltonian_row(j)
                     ! We calculate and store the diagonal matrix element at
                     ! this point for later access.
@@ -350,11 +357,114 @@ contains
                     ! Always include the diagonal elements.
                     row_size = row_size + 1
                 else
-                    if (tHPHF) then
-                        hamiltonian_row(j) = hphf_off_diag_helement(nI, nJ, SpawnedParts(:,i), temp_store(:,j))
-                    else
-                        hamiltonian_row(j) = get_helement(nI, nJ, SpawnedParts(:, i), temp_store(:, j))
+                    tmp = ieor(SpawnedParts(0:NIfD,i), temp_store(0:NIfD,j))
+                    tmp = iand(SpawnedParts(0:NIfD,i), tmp)
+                    IC = CountBits(tmp, NIfD)
+
+                    if (IC <= 2) then
+                        hamiltonian_row(j) = get_helement(nI, nJ, IC, SpawnedParts(:, i), temp_store(:, j))
+                        if (abs(hamiltonian_row(j)) > 0.0_dp) row_size = row_size + 1
                     end if
+                end if
+
+            end do
+
+            ! Now we know the number of non-zero elements in this row of the Hamiltonian, so allocate it.
+            call allocate_sparse_ham_row(sparse_core_ham, i, row_size, "sparse_core_ham", SparseCoreHamilTags(:,i))
+
+            sparse_core_ham(i)%elements = 0.0_dp
+            sparse_core_ham(i)%positions = 0
+            sparse_core_ham(i)%num_elements = row_size
+
+            counter = 1
+            do j = 1, determ_space_size
+                ! If non-zero or a diagonal element.
+                if (abs(hamiltonian_row(j)) > 0.0_dp .or. (j == i + determ_displs(iProcIndex)) ) then
+                    sparse_core_ham(i)%positions(counter) = j
+                    sparse_core_ham(i)%elements(counter) = hamiltonian_row(j)
+                    counter = counter + 1
+                end if
+                if (counter == row_size + 1) exit
+            end do
+
+        end do
+
+        ! Don't time the mpi_barrier call, because if we did then we wouldn't
+        ! be able separate out some of the core Hamiltonian creation time from
+        ! the MPIBarrier calls in the main loop.
+        call MPIBarrier(ierr, tTimeIn=.false.)
+
+        deallocate(temp_store, stat=ierr)
+        call LogMemDealloc(t_r, TempStoreTag, ierr)
+        deallocate(hamiltonian_row, stat=ierr)
+        call LogMemDealloc(t_r, HRTag, ierr)
+        deallocate(temp_store_nI, stat=ierr)
+
+    end subroutine calc_determ_hamil_sparse
+
+    subroutine calc_determ_hamil_sparse_hphf()
+
+        integer :: i, j, row_size, counter, ierr
+        integer :: nI(nel), nJ(nel)
+        integer(n_int), allocatable, dimension(:,:) :: temp_store
+        integer, allocatable :: temp_store_nI(:,:)
+        integer(TagIntType) :: HRTag, TempStoreTag
+        HElement_t(dp), allocatable, dimension(:) :: hamiltonian_row
+        character(len=*), parameter :: t_r = "calculate_det_hamiltonian_sparse"
+
+        integer(kind=n_int) :: tmp(0:NIfD)
+        integer :: IC
+
+        allocate(sparse_core_ham(determ_sizes(iProcIndex)), stat=ierr)
+        allocate(SparseCoreHamilTags(2, determ_sizes(iProcIndex)))
+        allocate(hamiltonian_row(determ_space_size), stat=ierr)
+        call LogMemAlloc('hamiltonian_row', int(determ_space_size,sizeof_int), 8, t_r, HRTag, ierr)
+        allocate(core_ham_diag(determ_sizes(iProcIndex)), stat=ierr)
+        allocate(temp_store(0:NIfTot, determ_space_size), stat=ierr)
+        call LogMemAlloc('temp_store', determ_space_size*(NIfTot+1), 8, t_r, TempStoreTag, ierr)
+        safe_realloc_e(temp_store_nI, (nel, determ_space_size), ierr)
+
+        ! Stick together the deterministic states from all processors, on
+        ! all processors.
+        ! n.b. Explicitly use 0:NIfTot, as NIfTot may not equal NIfBCast
+        call MPIAllGatherV(SpawnedParts(0:NIfTot, 1:determ_sizes(iProcIndex)),&
+                           temp_store, determ_sizes, determ_displs)
+
+        do i = 1, determ_space_size
+            call decode_bit_det(temp_store_nI(:,i), temp_store(:,i))
+        end do
+
+        ! Loop over all deterministic states on this processor.
+        do i = 1, determ_sizes(iProcIndex)
+
+            !call decode_bit_det(nI, SpawnedParts(:, i))
+            nI = temp_store_nI(:, i + determ_displs(iProcIndex))
+
+            row_size = 0
+            hamiltonian_row = 0.0_dp
+
+            ! Loop over all deterministic states.
+            do j = 1, determ_space_size
+
+                !call decode_bit_det(nJ, temp_store(:,j))
+                nJ = temp_store_nI(:,j)
+
+                ! If on the diagonal of the Hamiltonian.
+                if (j == i + determ_displs(iProcIndex)) then
+                    hamiltonian_row(j) = hphf_diag_helement(nI, SpawnedParts(:,i)) - Hii
+                    core_ham_diag(i) = hamiltonian_row(j)
+                    ! We calculate and store the diagonal matrix element at
+                    ! this point for later access.
+                    if (.not. tReadPops) &
+                        call set_det_diagH(i, Real(hamiltonian_row(j), dp))
+                    ! Always include the diagonal elements.
+                    row_size = row_size + 1
+                else
+                    !tmp = ieor(SpawnedParts(0:NIfD,i), temp_store(0:NIfD,j))
+                    !tmp = iand(SpawnedParts(0:NIfD,i), tmp)
+                    !IC = CountBits(tmp, NIfD)
+
+                    hamiltonian_row(j) = hphf_off_diag_helement(nI, nJ, SpawnedParts(:,i), temp_store(:,j))
                     if (abs(hamiltonian_row(j)) > 0.0_dp) row_size = row_size + 1
                 end if
 
@@ -389,8 +499,9 @@ contains
         call LogMemDealloc(t_r, TempStoreTag, ierr)
         deallocate(hamiltonian_row, stat=ierr)
         call LogMemDealloc(t_r, HRTag, ierr)
+        deallocate(temp_store_nI, stat=ierr)
 
-    end subroutine calc_determ_hamil_sparse
+    end subroutine calc_determ_hamil_sparse_hphf
 
     subroutine allocate_sparse_ham_row(sparse_matrix, row, sparse_row_size, sparse_matrix_name, sparse_tags)
 

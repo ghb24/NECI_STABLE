@@ -147,7 +147,11 @@ contains
         if (tWriteCore) call write_core_space()
 
         write(6,'("Generating the Hamiltonian in the deterministic space...")'); call neci_flush(6)
-        call calc_determ_hamil_sparse()
+        if (tHPHF) then
+            call calc_determ_hamil_sparse_hphf()
+        else
+            call calc_determ_hamil_sparse()
+        end if
 
         if (tRDMonFly) call generate_core_connections()
 
