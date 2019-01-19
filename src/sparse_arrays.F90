@@ -15,11 +15,12 @@ module sparse_arrays
     use bit_reps, only: decode_bit_det
     use CalcData, only: tReadPops
     use constants
-    use DetBitOps, only: DetBitEq, CountBits
+    use DetBitOps, only: DetBitEq, CountBits, TestClosedShellDet
     use Determinants, only: get_helement
     use FciMCData, only: determ_space_size, determ_sizes, determ_displs, &
                          SpawnedParts, Hii, core_ham_diag
-    use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
+    use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
+                              hphf_off_diag_helement_opt
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBarrier, MPIAllGatherV
     use SystemData, only: tHPHF, nel
@@ -412,8 +413,10 @@ contains
         HElement_t(dp), allocatable, dimension(:) :: hamiltonian_row
         character(len=*), parameter :: t_r = "calculate_det_hamiltonian_sparse"
 
-        integer(kind=n_int) :: tmp(0:NIfD)
+        integer(n_int) :: tmp(0:NIfD)
         integer :: IC
+        logical :: CS_I
+        logical, allocatable :: cs(:)
 
         allocate(sparse_core_ham(determ_sizes(iProcIndex)), stat=ierr)
         allocate(SparseCoreHamilTags(2, determ_sizes(iProcIndex)))
@@ -422,7 +425,8 @@ contains
         allocate(core_ham_diag(determ_sizes(iProcIndex)), stat=ierr)
         allocate(temp_store(0:NIfTot, determ_space_size), stat=ierr)
         call LogMemAlloc('temp_store', determ_space_size*(NIfTot+1), 8, t_r, TempStoreTag, ierr)
-        safe_realloc_e(temp_store_nI, (nel, determ_space_size), ierr)
+        allocate(temp_store_nI(nel, determ_space_size), stat=ierr)
+        allocate(cs(determ_space_size), stat=ierr)
 
         ! Stick together the deterministic states from all processors, on
         ! all processors.
@@ -432,6 +436,7 @@ contains
 
         do i = 1, determ_space_size
             call decode_bit_det(temp_store_nI(:,i), temp_store(:,i))
+            cs(i) = TestClosedShellDet(temp_store(:,i))
         end do
 
         ! Loop over all deterministic states on this processor.
@@ -442,6 +447,8 @@ contains
 
             row_size = 0
             hamiltonian_row = 0.0_dp
+
+            CS_I = cs(i + determ_displs(iProcIndex))
 
             ! Loop over all deterministic states.
             do j = 1, determ_space_size
@@ -460,12 +467,14 @@ contains
                     ! Always include the diagonal elements.
                     row_size = row_size + 1
                 else
-                    !tmp = ieor(SpawnedParts(0:NIfD,i), temp_store(0:NIfD,j))
-                    !tmp = iand(SpawnedParts(0:NIfD,i), tmp)
-                    !IC = CountBits(tmp, NIfD)
+                    tmp = ieor(SpawnedParts(0:NIfD,i), temp_store(0:NIfD,j))
+                    tmp = iand(SpawnedParts(0:NIfD,i), tmp)
+                    IC = CountBits(tmp, NIfD)
 
-                    hamiltonian_row(j) = hphf_off_diag_helement(nI, nJ, SpawnedParts(:,i), temp_store(:,j))
-                    if (abs(hamiltonian_row(j)) > 0.0_dp) row_size = row_size + 1
+                    if ( IC <= 2 .or. ((.not. CS_I) .and. (.not. cs(j))) ) then
+                        hamiltonian_row(j) = hphf_off_diag_helement_opt(nI, SpawnedParts(:,i), temp_store(:,j), IC, CS_I, cs(j))
+                        if (abs(hamiltonian_row(j)) > 0.0_dp) row_size = row_size + 1
+                    end if
                 end if
 
             end do
@@ -500,6 +509,7 @@ contains
         deallocate(hamiltonian_row, stat=ierr)
         call LogMemDealloc(t_r, HRTag, ierr)
         deallocate(temp_store_nI, stat=ierr)
+        deallocate(cs, stat=ierr)
 
     end subroutine calc_determ_hamil_sparse_hphf
 
