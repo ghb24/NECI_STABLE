@@ -14,7 +14,7 @@ module FciMCParMod
                         trial_shift_iter, tStartTrialLater, tAVReps, &
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
                         t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
-                        t_back_spawn_flex, t_back_spawn_flex_option, tPureInitiatorSpace, &
+                        t_back_spawn_flex, t_back_spawn_flex_option, tSimpleInit, &
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
                         DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
                         tSkipRef, tFixTrial, tTrialShift, t_activate_decay, &
@@ -61,8 +61,8 @@ module FciMCParMod
     use AnnihilationMod, only: DirectAnnihilation, communicate_and_merge_spawns, &
                                rm_non_inits_from_spawnedparts
     use replica_estimates, only: replica_est_unit, get_proj_e_for_preconditioner, &
-                                 calc_ests_and_set_init_flags, get_estimators_from_spawns, &
-                                 get_estimators_from_spawns_pure
+                                 calc_ests_and_set_init_flags, get_ests_from_spawns, &
+                                 get_ests_from_spawns_simple
     use exact_spectrum, only: get_exact_spectrum
     use determ_proj, only: perform_determ_proj
     use cont_time, only: iterate_cont_time
@@ -1354,13 +1354,13 @@ module FciMCParMod
 
         call communicate_and_merge_spawns(MaxIndex, iter_data, .false.)
 
-        if (tPureInitiatorSpace) then
-            call get_estimators_from_spawns_pure(MaxIndex, proj_e_for_precond)
+        if (tSimpleInit) then
+            call get_ests_from_spawns_simple(MaxIndex, proj_e_for_precond)
         else
-            call get_estimators_from_spawns(MaxIndex, proj_e_for_precond)
+            call get_ests_from_spawns(MaxIndex, proj_e_for_precond)
         end if
 
-        if (tPureInitiatorSpace) call rm_non_inits_from_spawnedparts(MaxIndex)
+        if (tSimpleInit) call rm_non_inits_from_spawnedparts(MaxIndex)
 
         ! If performing FCIQMC with preconditioning, then apply the
         ! the preconditioner to the spawnings, and perform the death step.

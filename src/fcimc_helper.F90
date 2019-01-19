@@ -43,7 +43,7 @@ module fcimc_helper
                         t_back_spawn_flex, tau, DiagSft,  &
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule, &
                         tPreCond, tReplicaEstimates, tInitiatorSpace, &
-                        tPureInitiatorSpace
+                        tPureInitiatorSpace, tSimpleInit
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
          tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
@@ -240,9 +240,9 @@ contains
         ! Only one element of child should be non-zero
         ASSERT((sum(abs(child_sign))-maxval(abs(child_sign)))<1.0e-12_dp)
 
-        if (tPureInitiatorSpace) then
+        if (tSimpleInit) then
             call stop_all(this_routine, "Cannot use a hash table to the spawned list when using the &
-                                        &pure-initiator-space option.")
+                                        &simple-initiator option.")
         end if
 
         call hash_table_lookup(nI_child, ilut_child, NIfDBO, spawn_ht, SpawnedParts, ind, hash_val, tSuccess)

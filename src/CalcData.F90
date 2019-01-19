@@ -270,6 +270,10 @@ type(subspace_in) :: i_space_in
 ! If true then initiators can only be those determinants in the defined fixed space.
 logical :: tPureInitiatorSpace
 
+! If this is true, don't allow non-initiators to spawn to another non-initiator,
+! even if it is occupied.
+logical :: tSimpleInit
+
 ! True if running a kp-fciqmc calculation.
 logical :: tKP_FCIQMC
 

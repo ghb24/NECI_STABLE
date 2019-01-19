@@ -18,7 +18,7 @@ module replica_estimates
 
     contains
 
-    subroutine get_estimators_from_spawns(ValidSpawned, proj_e_for_precond)
+    subroutine get_ests_from_spawns(ValidSpawned, proj_e_for_precond)
 
         use CalcData, only: tPreCond, tReplicaEstimates, tTruncInitiator
         use CalcData, only: tSetInitFlagsBeforeDeath
@@ -53,9 +53,9 @@ module replica_estimates
             end if
         end if
 
-    end subroutine get_estimators_from_spawns
+    end subroutine get_ests_from_spawns
 
-    subroutine get_estimators_from_spawns_pure(ValidSpawned, proj_e_for_precond)
+    subroutine get_ests_from_spawns_simple(ValidSpawned, proj_e_for_precond)
 
         use CalcData, only: tPreCond, tReplicaEstimates, tTruncInitiator
         use CalcData, only: tSetInitFlagsBeforeDeath
@@ -74,11 +74,11 @@ module replica_estimates
 
         if (tReplicaEstimates) then
             call set_timer(precond_e_time, 30)
-            call calc_ests_pure_initiator(ValidSpawned, proj_e_for_precond)
+            call calc_ests_simple_initiator(ValidSpawned, proj_e_for_precond)
             call halt_timer(precond_e_time)
         end if
 
-    end subroutine get_estimators_from_spawns_pure
+    end subroutine get_ests_from_spawns_simple
 
     subroutine get_proj_e_for_preconditioner(ValidSpawned, proj_energy)
 
@@ -437,7 +437,7 @@ module replica_estimates
 
     end subroutine calc_ests_and_set_init_flags
 
-    subroutine calc_ests_pure_initiator(ValidSpawned, proj_energy)
+    subroutine calc_ests_simple_initiator(ValidSpawned, proj_energy)
 
         ! This routine calculates the various energy estimates to be printed
         ! to the file for the preconditioned approach.
@@ -455,7 +455,7 @@ module replica_estimates
         real(dp) :: spwnsign(lenof_sign), cursign(lenof_sign)
         real(dp) :: hdiag, mean_energy(replica_est_len)
         logical :: tCoreDet, tSuccess, abort(lenof_sign)
-        character(len=*), parameter :: t_r = 'calc_ests_pure_initiator'
+        character(len=*), parameter :: t_r = 'calc_ests_simple_initiator'
 
         real(dp) :: var_e_num(replica_est_len),         overlap(replica_est_len)
         real(dp) :: var_e_num_all(replica_est_len),     overlap_all(replica_est_len)
@@ -516,8 +516,8 @@ module replica_estimates
             spwnsign_non = 0.0_dp
 
             ! Only need to check initiator status for one replica - if
-            ! one is an initiator then they all are, when using a pure
-            ! initiator space.
+            ! one is an initiator then they all are, when using the simple
+            ! initiator approximation.
             if (test_flag(SpawnedParts(:,i), get_initiator_flag(1))) then
                 ! This is an initiator
                 call extract_sign(SpawnedParts(:,i), spwnsign_init)
@@ -672,7 +672,7 @@ module replica_estimates
             write(replica_est_unit,'()')
         end if
 
-    end subroutine calc_ests_pure_initiator
+    end subroutine calc_ests_simple_initiator
 
     subroutine time_hash(ValidSpawned)
 

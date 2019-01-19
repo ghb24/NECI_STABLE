@@ -8,7 +8,7 @@ module AnnihilationMod
                           tContTimeFull, InitiatorWalkNo, tau, tEN2, tEN2Init, &
                           tEN2Started, tEN2Truncated, tInitCoherentRule, t_truncate_spawns, &
                           n_truncate_spawns, t_prone_walkers, t_truncate_unocc, &
-                          tPreCond, tReplicaEstimates, tPureInitiatorSpace
+                          tPreCond, tReplicaEstimates, tSimpleInit
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -87,8 +87,8 @@ module AnnihilationMod
         ! This will also annihilate the newly spawned particles amongst themselves.
         ! MaxIndex will change to reflect the final number of unique determinants in the newly-spawned list, 
         ! and the particles will end up in the spawnedSign/SpawnedParts lists.
-        if (tPureInitiatorSpace) then
-            call CompressSpawnedList_pure(MaxIndex, iter_data)
+        if (tSimpleInit) then
+            call CompressSpawnedList_simple(MaxIndex, iter_data)
         else
             call CompressSpawnedList(MaxIndex, iter_data)
         end if
@@ -555,7 +555,7 @@ module AnnihilationMod
 
     end subroutine FindResidualParticle
 
-    subroutine CompressSpawnedList_pure(ValidSpawned, iter_data)
+    subroutine CompressSpawnedList_simple(ValidSpawned, iter_data)
 
         ! This sorts and compresses the spawned list to make it easier for the
         ! rest of the annihilation process. This is not essential, but should
@@ -569,7 +569,7 @@ module AnnihilationMod
         integer(n_int), pointer :: PointTemp(:,:)
         integer(n_int) :: cum_det(0:nifbcast), cum_det_cancel(0:nifbcast)
         logical :: any_allow, any_cancel
-        character(len=*), parameter :: t_r = 'CompressSpawnedList_pure'
+        character(len=*), parameter :: t_r = 'CompressSpawnedList_simple'
         type(timer), save :: Sort_time
 
         if (.not. bNodeRoot) return
@@ -683,9 +683,9 @@ module AnnihilationMod
                     ! the normal initiator approach. Here, check if this
                     ! particular spawning needs to be rejected.
                     if (test_flag(SpawnedParts(:,i), get_initiator_flag(part_type))) then
-                        call FindResidualParticle_pure(cum_det, SpawnedParts(:,i), part_type, iter_data)
+                        call FindResidualParticle_simple(cum_det, SpawnedParts(:,i), part_type, iter_data)
                     else
-                        call FindResidualParticle_pure(cum_det_cancel, SpawnedParts(:,i), part_type, iter_data)
+                        call FindResidualParticle_simple(cum_det_cancel, SpawnedParts(:,i), part_type, iter_data)
                     end if
                 end do ! Over all spawns to the same determinant
 
@@ -750,9 +750,9 @@ module AnnihilationMod
         !        test_flag(SpawnedParts(:,i), get_initiator_flag(1))
         !end do
 
-    end subroutine CompressSpawnedList_pure
+    end subroutine CompressSpawnedList_simple
 
-    subroutine FindResidualParticle_pure (cum_det, new_det, part_type, iter_data)
+    subroutine FindResidualParticle_simple(cum_det, new_det, part_type, iter_data)
 
         ! This routine is called whilst compressing the spawned list during
         ! annihilation. It considers the sign and flags from two particles
@@ -797,7 +797,7 @@ module AnnihilationMod
         updated_sign = cum_sgn + new_sgn
         call encode_part_sign (cum_det, updated_sign, part_type)
 
-    end subroutine FindResidualParticle_pure
+    end subroutine FindResidualParticle_simple
 
     subroutine rm_non_inits_from_spawnedparts(ValidSpawned)
 
