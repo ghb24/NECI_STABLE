@@ -199,6 +199,8 @@ contains
         SemiStoch_Multiply_Time%timer_name='SemiStochMultiplyTime'
         Trial_Search_Time%timer_name='TrialSearchTime'
         SemiStoch_Init_Time%timer_name='SemiStochInitTime'
+        SemiStoch_Hamil_Time%timer_name='SemiStochHamilTime'
+        SemiStoch_Davidson_Time%timer_name='SemiStochDavidsonTime'
         Trial_Init_Time%timer_name='TrialInitTime'
         InitSpace_Init_Time%timer_name='InitSpaceTime'
         kp_generate_time%timer_name='KPGenerateTime'

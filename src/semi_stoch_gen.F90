@@ -36,7 +36,8 @@ contains
         use FciMCData, only: TotWalkers, TotWalkersOld, indices_of_determ_states, SpawnedParts
         use FciMCData, only: FDetermTag, FDetermAvTag, PDetermTag, IDetermTag
         use FciMCData, only: tStartCoreGroundState, iter_data_fciqmc, SemiStoch_Init_Time
-        use FciMCData, only: tFillingStochRdmOnFly, core_space
+        use FciMCData, only: tFillingStochRdmOnFly, core_space, SemiStoch_Hamil_Time
+        use FciMCData, only: SemiStoch_Davidson_Time
         use load_balance, only: adjust_load_balance
         use load_balance_calcnodes, only: tLoadBalanceBlocks
         use sort_mod, only: sort
@@ -147,11 +148,15 @@ contains
         if (tWriteCore) call write_core_space()
 
         write(6,'("Generating the Hamiltonian in the deterministic space...")'); call neci_flush(6)
+        call set_timer(SemiStoch_Hamil_Time)
         if (tHPHF) then
             call calc_determ_hamil_sparse_hphf()
         else
             call calc_determ_hamil_sparse()
         end if
+        call halt_timer(SemiStoch_Hamil_Time)
+        write(6,'("Total time (seconds) taken for Hamiltonian generation:", f9.3)') &
+           get_total_time(SemiStoch_Hamil_Time)
 
         if (tRDMonFly) call generate_core_connections()
 
@@ -173,8 +178,12 @@ contains
 
         tStartedFromCoreGround = .false.
         if (tStartCoreGroundState .and. (.not. tReadPops) .and. tStaticCore .and. (.not. tTrialInit)) then
+            call set_timer(SemiStoch_Davidson_Time)
             call start_walkers_from_core_ground(tPrintInfo = .true.)
+            call halt_timer(SemiStoch_Davidson_Time)
             tStartedFromCoreGround = .true.
+            write(6,'("Total time (seconds) taken for Davidson calculation:", f9.3)') &
+               get_total_time(SemiStoch_Davidson_Time)
         end if
 
         ! Call MPIBarrier here so that Semistoch_Init_Time will give the
@@ -184,7 +193,7 @@ contains
         call halt_timer(SemiStoch_Init_Time)
 
         write(6,'("Semi-stochastic initialisation complete.")')
-        write(6,'("Total time (seconds) taken for semi-stochastic initialisation:", f9.3, /)') &
+        write(6,'("Time (seconds) taken for semi-stochastic initialisation:", f9.3, /)') &
            get_total_time(SemiStoch_Init_Time)
         call neci_flush(6)
 
