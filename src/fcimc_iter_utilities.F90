@@ -59,6 +59,8 @@ module fcimc_iter_utils
 
     use tau_search_hist, only: update_tau_hist
 
+    use guga_tausearch, only: update_tau_guga_nosym
+
     implicit none
 
 contains
@@ -843,7 +845,12 @@ contains
         ! mode..
         if (((tSearchTau .or. (tSearchTauOption .and. tSearchTauDeath)) .and. &
             .not. tFillingStochRDMOnFly)) then   
-            call update_tau()
+
+            if (tGen_nosym_guga) then
+                call update_tau_guga_nosym()
+            else
+                call update_tau()
+            end if
 
         ! [Werner Dobrautz 4.4.2017:]
         else if (((t_hist_tau_search .or. (t_hist_tau_search_option .and. tSearchTauDeath)) .and. &
