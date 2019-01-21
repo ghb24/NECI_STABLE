@@ -1,11 +1,14 @@
 module LMat_mod
   use constants
   use HElem, only: HElement_t_SizeB
-  use SystemData, only: tStoreSpinOrbs, nBasis
+  use SystemData, only: tStoreSpinOrbs, nBasis, tHDF5LMat
   use MemoryManager, only: LogMemAlloc, LogMemDealloc
   use util_mod, only: get_free_unit
   use shared_memory_mpi
   use ParallelHelper, only: iProcIndex_intra
+#ifdef __USE_HDF5
+  use hdf5
+#endif
   implicit none
 
   ! this is likely to be stored in a hashtable long term
@@ -91,8 +94,8 @@ module LMat_mod
           integer, intent(in) :: sgn
           
           if(G1(p)%ms == G1(a)%ms .and. G1(q)%ms == G1(b)%ms .and. G1(r)%ms == G1(c)%ms) then
-             matel = matel + sgn * LMat(LMatInd(int(ida,int64),int(idb,int64),&
-                  int(idc,int64),int(idp,int64),int(idq,int64),int(idr,int64)))
+             matel = matel + sgn * real(LMat(LMatInd(int(ida,int64),int(idb,int64),&
+                  int(idc,int64),int(idp,int64),int(idq,int64),int(idr,int64))),dp)
           endif
         end subroutine addMatelContribution
         
@@ -203,6 +206,8 @@ module LMat_mod
 !------------------------------------------------------------------------------------------!
 
     subroutine readLMat()
+      use ParallelHelper, only: mpi_comm_intra
+      use HElem, only: Helement_t_sizeB
       implicit none
       character(*), parameter :: LMatFileName = "TCDUMP"
       integer :: iunit, ierr
@@ -211,6 +216,9 @@ module LMat_mod
       HElement_t(dp) :: matel
       character(*), parameter :: t_r = "readLMat"
       integer :: counter
+      integer(int64) :: iChunk, chunkSize
+      integer :: iNodeSize, iProcInNode
+      integer(MPIArg) :: err
 
       if(tStoreSpinOrbs) then
          nBI = nBasis
@@ -223,41 +231,67 @@ module LMat_mod
       ! The size is given by the largest index (LMatInd is monotonous in all arguments)
       LMatSize = LMatInd(nBI,nBI,nBI,nBI,nBI,nBI)
 
+      write(iout,*) "Allocating LMat, memory required:", LMatSize*HElement_t_sizeB/(2.0_dp**30), "GB"
+
       ! allocate LMat (shared memory)
       call shared_allocate_mpi(LMatWin, LMat, (/LMatSize/))
-      LMat = 0.0_dp
       call LogMemAlloc("LMat", int(LMatSize), HElement_t_SizeB, t_r, LMatTag)
+!      call MPI_Comm_Size(mpi_comm_intra,iNodeSize,err)
+!      call MPI_Comm_Rank(mpi_comm_intra,iProcInNode,err)
+!      chunkSize = LMatSize / int(iNodeSize,int64)
+!      iChunk = int(iProcInNode,int64)*chunkSize
+!      print *, "On proc", iProcInNode, "on node", iNodeSize, "slice", iChunk+1, iChunk+chunkSize 
 
-      if(iProcIndex_intra .eq. 0) then
-         iunit = get_free_unit()
-         open(iunit,file = LMatFileName,status = 'old')
-         counter = 0
-         do
-            read(iunit,*,iostat = ierr) matel, a,b,c,i,j,k
-            ! end of file reached?
-            if(ierr < 0) then
-               exit
-            else if(ierr > 0) then
-               ! error while reading?
-               call stop_all(t_r,"Error reading TCDUMP file")
-            else
-               ! else assign the matrix element
-               if(LMatInd(a,b,c,i,j,k) > LMatSize) then
-                  counter = LMatInd(a,b,c,i,j,k)
-                  write(iout,*) "Warning, exceeding size" 
-               endif
-               LMat(LMatInd(a,b,c,i,j,k)) = 3.0_dp * matel
-               if(abs(matel)> 0.0_dp) counter = counter + 1
-            endif
-
+      if(iProcIndex_intra.eq.0) then
+         do k = 1, LMatSize
+            LMat(k) = 0.0_dp
+            if(mod(k,10000).eq.0) write(iout,*) "Now at", k
          end do
-
-         counter = counter / 12
-
-         write(iout, *), "Sparsity of LMat", real(counter)/real(LMatSize)
-         write(iout, *), "Nonzero elements in LMat", counter
-         write(iout, *), "Allocated size of LMat", LMatSize
       endif
+
+      call MPI_Barrier(mpi_comm_intra, err)
+
+      if(tHDF5LMat) then
+#ifdef __USE_HDF
+         call readHDF5LMat()
+#else
+         call stop_all(t_r, "HDF5 integral files disabled at compile time")
+#endif
+      else
+
+         if(iProcIndex_intra .eq. 0) then
+            iunit = get_free_unit()
+            open(iunit,file = LMatFileName,status = 'old')
+            counter = 0
+            do
+               read(iunit,*,iostat = ierr) matel, a,b,c,i,j,k
+               ! end of file reached?
+               if(ierr < 0) then
+                  exit
+               else if(ierr > 0) then
+                  ! error while reading?
+                  call stop_all(t_r,"Error reading TCDUMP file")
+               else
+                  ! else assign the matrix element
+                  if(LMatInd(a,b,c,i,j,k) > LMatSize) then
+                     counter = LMatInd(a,b,c,i,j,k)
+                     write(iout,*) "Warning, exceeding size" 
+                  endif
+                  LMat(LMatInd(a,b,c,i,j,k)) = 3.0_dp * matel
+                  if(abs(matel)> 0.0_dp) counter = counter + 1
+               endif
+
+            end do
+
+            counter = counter / 12
+
+            write(iout, *), "Sparsity of LMat", real(counter)/real(LMatSize)
+            write(iout, *), "Nonzero elements in LMat", counter
+            write(iout, *), "Allocated size of LMat", LMatSize
+         endif
+      end if
+
+      call MPI_Barrier(mpi_comm_intra, err)
       
     end subroutine readLMat
 
@@ -297,5 +331,91 @@ module LMat_mod
       deallocate(n2Ind)
       
     end subroutine freeLMat
+
+!------------------------------------------------------------------------------------------!
+
+#ifdef __USE_HDF
+    subroutine readHDF5LMat()
+      use hdf5
+      use hdf5_util
+      use ParallelHelper, only: mpi_comm_inter, mpiInfoNull, iProcIndex, &
+           mpi_comm_intra
+      use Parallel_neci, only: nProcessors
+      implicit none
+      integer :: procs_per_node, proc, i
+      integer(hid_t) :: err, file_id, plist_id, grp_id, ds_vals, ds_inds
+      integer(hsize_t) :: nInts, rest, blocksize, blockstart
+      integer(hsize_t), allocatable :: counts(:), offsets(:)
+      integer(int64), allocatable :: indices(:,:), entries(:,:)
+      character(*), parameter :: filename = 'tcdump.h5'
+      character(*), parameter :: nm_grp = "tcdump", nm_nInts = "nInts", nm_vals = "values", nm_indices = "indices"
+      integer(MPIArg) :: ierr
+      real(dp) :: rVal
+      rVal = 0.0_dp
+
+      call h5open_f(err)
+      call h5pcreate_f(H5P_FILE_ACCESS_F, plist_id, err)
+      call h5pset_fapl_mpio_f(plist_id, mpi_comm_inter, mpiInfoNull, err)
+
+      ! open the file
+      call h5fopen_f(filename, H5F_ACC_RDONLY_F, file_id, err, access_prp=plist_id)
+
+      call h5gopen_f(file_id, nm_grp, grp_id, err)
+
+      ! get the number of integrals
+      call read_int64_attribute(grp_id, nm_nInts, nInts, required=.true.)
+      
+      ! how many entries does each proc get?
+      call MPI_Comm_Size(mpi_comm_intra, procs_per_node, ierr)
+      allocate(counts(0:procs_per_node-1))
+      allocate(offsets(0:procs_per_node-1))
+      counts = nInts / int(procs_per_node, hsize_t)
+      rest = mod(nInts, procs_per_node)
+      if(rest>0) counts(0:rest-1) = counts(0:rest-1) + 1
+      allocate(indices(6,counts(iProcIndex_intra)), source = 0_int64)
+      allocate(entries(1,counts(iProcIndex_intra)), source = 0_int64)
+
+      offsets(0) = 0
+      do proc = 1, procs_per_node - 1
+         offsets(proc) = offsets(proc-1) + counts(proc-1)
+      end do
+      ! TODO: max. read-in size
+      blocksize = counts(iProcIndex_intra)
+      blockstart = offsets(iProcIndex_intra)
+
+      call h5dopen_f(grp_id, nm_vals, ds_vals, err)
+      call h5dopen_f(grp_id, nm_indices, ds_inds, err)
+
+      ! read in the data
+      call read_2d_multi_chunk(&
+           ds_vals, entries, H5T_NATIVE_REAL_8, &
+           [1_hsize_t, blocksize],&
+           [0_hsize_t, blockstart],&
+           [0_hsize_t, 0_hsize_t])
+
+      call read_2d_multi_chunk(&
+           ds_inds, indices, H5T_NATIVE_INTEGER_8, &
+           [6_hsize_t, blocksize], &
+           [0_hsize_t, blockstart], &
+           [0_hsize_t, 0_hsize_t])
+
+      ! assign LMat entries
+      do i = 1, counts(iProcIndex)
+         LMat(LMatInd(int(indices(1,i),int64),int(indices(2,i),int64),int(indices(3,i),int64),&
+              int(indices(4,i),int64),int(indices(5,i),int64),int(indices(6,i),int64))) &
+              = 3.0_dp * transfer(entries(1,i),rVal)
+      end do
+      
+      deallocate(entries)
+      deallocate(indices)
+      deallocate(offsets)
+      deallocate(counts)
+      ! close the file, finalize hdf5
+      call h5pclose_f(plist_id, err)
+      call h5fclose_f(file_id, err)
+      call h5close_f(err)
+      
+    end subroutine readHDF5LMat
+#endif
 
 end module LMat_mod

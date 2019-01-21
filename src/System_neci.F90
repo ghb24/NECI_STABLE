@@ -192,6 +192,7 @@ MODULE System
       ! by default, excitation generation already creates matrix elements
       tGenMatHEl = .true.
       tDebugLMat = .false.
+      tHDF5LMat = .false.
 
 #ifdef __PROG_NUMRUNS
       inum_runs = 1
@@ -363,6 +364,8 @@ system: do
            tRIIntegrals = .true.
         case("READCACHEINTS")
            tCacheFCIDUMPInts=.true.
+        case("HDF5-INTEGRALS")
+           tHDF5LMat = .true.
         case("ELECTRONS","NEL")
             call geti(NEL)
         case("SPIN-RESTRICT")
