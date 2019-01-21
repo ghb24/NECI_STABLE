@@ -158,6 +158,10 @@ module FciMCParMod
             return
         endif
 
+        ProjE_Err_re = 1.0_dp
+        ProjE_Err_im = 1.0_dp
+        shift_err = 1.0_dp
+
         TDebug = .false.  ! Set debugging flag
                     
 !OpenMPI does not currently support MPI_Comm_set_errhandler - a bug in its F90 interface code.

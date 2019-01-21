@@ -119,7 +119,6 @@ contains
         call MPIBCast(tRestart)
         if(tRestart) then
 !Initialise variables for calculation on each node
-            Iter=1
             CALL DeallocFCIMCMemPar()
             IF(iProcIndex.eq.Root) THEN
                 CLOSE(fcimcstats_unit)
@@ -146,6 +145,7 @@ contains
                 end if
                 call WriteFCIMCStats()
             end if
+            Iter=1
             if (iProcIndex==root .and. tLogEXLEVELStats) &
                   write(EXLEVELStats_unit,'("#")', advance='no')
             return
