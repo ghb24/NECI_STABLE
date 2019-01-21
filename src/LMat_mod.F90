@@ -344,13 +344,14 @@ module LMat_mod
       implicit none
       integer :: procs_per_node, proc, i
       integer(hid_t) :: err, file_id, plist_id, grp_id, ds_vals, ds_inds
-      integer(hsize_t) :: nInts, rest, blocksize, blockstart
+      integer(hsize_t) :: nInts, rest, blocksize, blockstart, blockend, this_blocksize, countsEnd
       integer(hsize_t), allocatable :: counts(:), offsets(:)
-      integer(int64), allocatable :: indices(:,:), entries(:,:)
+      integer(hsize_t), allocatable :: indices(:,:), entries(:,:)
       character(*), parameter :: filename = 'tcdump.h5'
       character(*), parameter :: nm_grp = "tcdump", nm_nInts = "nInts", nm_vals = "values", nm_indices = "indices"
-      integer(MPIArg) :: ierr
+      integer :: ierr
       real(dp) :: rVal
+      logical :: running, any_running
       rVal = 0.0_dp
 
       call h5open_f(err)
@@ -372,42 +373,72 @@ module LMat_mod
       counts = nInts / int(procs_per_node, hsize_t)
       rest = mod(nInts, procs_per_node)
       if(rest>0) counts(0:rest-1) = counts(0:rest-1) + 1
-      allocate(indices(6,counts(iProcIndex_intra)), source = 0_int64)
-      allocate(entries(1,counts(iProcIndex_intra)), source = 0_int64)
 
       offsets(0) = 0
       do proc = 1, procs_per_node - 1
          offsets(proc) = offsets(proc-1) + counts(proc-1)
       end do
-      ! TODO: max. read-in size
-      blocksize = counts(iProcIndex_intra)
-      blockstart = offsets(iProcIndex_intra)
-
       call h5dopen_f(grp_id, nm_vals, ds_vals, err)
       call h5dopen_f(grp_id, nm_indices, ds_inds, err)
 
-      ! read in the data
-      call read_2d_multi_chunk(&
-           ds_vals, entries, H5T_NATIVE_REAL_8, &
-           [1_hsize_t, blocksize],&
-           [0_hsize_t, blockstart],&
-           [0_hsize_t, 0_hsize_t])
+      ! reserve max. 100MB buffer size for dumpfile I/O
+      blocksize = 100000000/(7*sizeof(LMat(1)))
+      blockstart = offsets(iProcIndex_intra)
 
-      call read_2d_multi_chunk(&
-           ds_inds, indices, H5T_NATIVE_INTEGER_8, &
-           [6_hsize_t, blocksize], &
-           [0_hsize_t, blockstart], &
-           [0_hsize_t, 0_hsize_t])
+      ! the last element to read on each proc
+      if(iProcIndex_intra.eq.nProcessors - 1) then
+         countsEnd = nInts - 1
+      else
+         countsEnd = offsets(iProcIndex_intra + 1) - 1
+      end if
+      blockend = min(blockstart + blocksize - 1, countsEnd)
+      any_running = .true.
+      running = .true.
+      do while(any_running)
 
-      ! assign LMat entries
-      do i = 1, counts(iProcIndex)
-         LMat(LMatInd(int(indices(1,i),int64),int(indices(2,i),int64),int(indices(3,i),int64),&
-              int(indices(4,i),int64),int(indices(5,i),int64),int(indices(6,i),int64))) &
-              = 3.0_dp * transfer(entries(1,i),rVal)
+         if(running) then
+            ! the number of elements to read in this block
+            this_blocksize = blockend - blockstart + 1
+         else
+            this_blocksize = 0
+         end if
+
+         allocate(indices(6,this_blocksize), source = 0_int64)
+         allocate(entries(1,this_blocksize), source = 0_int64)
+
+         ! read in the data
+         call read_2d_multi_chunk(&
+              ds_vals, entries, H5T_NATIVE_REAL_8, &
+              [1_hsize_t, this_blocksize],&
+              [0_hsize_t, blockstart],&
+              [0_hsize_t, 0_hsize_t])
+
+         call read_2d_multi_chunk(&
+              ds_inds, indices, H5T_NATIVE_INTEGER_8, &
+              [6_hsize_t, this_blocksize], &
+              [0_hsize_t, blockstart], &
+              [0_hsize_t, 0_hsize_t])
+
+         ! assign LMat entries
+         do i = 1, this_blocksize
+            LMat(LMatInd(int(indices(1,i),int64),int(indices(2,i),int64),int(indices(3,i),int64),&
+                 int(indices(4,i),int64),int(indices(5,i),int64),int(indices(6,i),int64))) &
+                 = 3.0_dp * transfer(entries(1,i),rVal)
+         end do
+
+         ! set the size/offset for the next block
+         if(running) then
+            blockstart = blockend + 1
+            blockend = min(blockstart + blocksize - 1, countsEnd)
+            if(blockstart > countsEnd) running = .false.
+         end if
+
+         deallocate(entries)
+         deallocate(indices)
+
+         call MPIAllLORLogical(running, any_running)
+
       end do
-      
-      deallocate(entries)
-      deallocate(indices)
       deallocate(offsets)
       deallocate(counts)
       ! close the file, finalize hdf5
