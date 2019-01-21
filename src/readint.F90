@@ -347,14 +347,18 @@ contains
          ENDIF
 
          ! Count the number of orbs per irrep
-         orbsPerIrrep = 0
-         do i = 1, NORB
-            orbsPerIrrep(ORBSYM(i)) = orbsPerIrrep(ORBSYM(i)) + ISPINS
-         end do
-         irrepOrbOffset(1) = 0
-         do i = 2, nIrreps
-            irrepOrbOffset(i) = irrepOrbOffset(i-1) + orbsPerIrrep(i-1)
-         end do
+         if(any(ORBSYM(1:NORB).eq.0)) then
+            write(6,*) "WARNING: Invalid ORBSYM in FCIDUMP, are you sure you know what you are doing?"
+         else
+            orbsPerIrrep = 0
+            do i = 1, NORB
+               orbsPerIrrep(ORBSYM(i)) = orbsPerIrrep(ORBSYM(i)) + ISPINS
+            end do
+            irrepOrbOffset(1) = 0
+            do i = 2, nIrreps
+               irrepOrbOffset(i) = irrepOrbOffset(i-1) + orbsPerIrrep(i-1)
+            end do
+         endif
 
          !Below is a mistake - since ISPINS is always two, it will be doubled up for us automatically for G1
 !         if(tMolpro.and.tUHF) then

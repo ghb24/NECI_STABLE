@@ -38,7 +38,7 @@ PRIVATE
 PUBLIC :: item, nitems, read_line, stream, reada, readu, readl,        &
     readf, readi,readiLong, getf, geta, geti, getiLong, reread,        &
     input_options, upcase, locase, report, die, assert, find_io,       &
-    read_colour, getargs, parse, char, ir, readt_default
+    read_colour, getargs, parse, char, ir, readt_default, getRange
 !  AJWT - added , ir to above
 !  Free-format input routines
 
@@ -930,6 +930,20 @@ endif
 if (item .lt. 0) item=0
 
 END SUBROUTINE reread
+
+!-----------------------------------------------------------------------
+
+subroutine getRange(w, start, end)
+  implicit none
+  character(*), intent(inout) :: w
+  integer, intent(out) :: start, end
+  integer :: index
+  
+  w = adjustl(trim(w))
+  index = scan(w,"-")
+  read(w(1:index-1),*) start
+  read(w(index+1:),*) end
+end subroutine getRange
 
 !-----------------------------------------------------------------------
 

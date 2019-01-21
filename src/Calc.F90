@@ -421,7 +421,7 @@ contains
           CHARACTER (LEN=100) w
           CHARACTER (LEN=100) input_string
           CHARACTER(*),PARAMETER :: t_r='CalcReadInput'
-          integer :: l, i, j, line, ierr
+          integer :: l, i, j, line, ierr, start, end
           integer :: tempMaxNoatHF,tempHFPopThresh
           logical :: tExitNow
           integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
@@ -844,9 +844,20 @@ contains
                   CALL LogMemAlloc('DefDet',NEl,4,t_r,tagDefDet,ierr)
                 end if
                 DefDet(:)=0
-                do i=1,NEl
-                    call geti(DefDet(i))
-                enddo
+                i = 1
+                do while(item.lt.nitems)
+                   call readu(w)
+                   if(scan(w,"-").eq.0) then
+                      read(w,*) start
+                      call setDefdet(i,start)
+                   else
+                      call getRange(w, start, end)
+                      do j = start, end
+                         call setDefdet(i,j)
+                      end do
+                   endif
+                end do
+                if(i-1.ne.nel) call stop_all(t_r, "Insufficient orbitals given in DEFINEDET")
 
             case("MULTIPLE-INITIAL-REFS")
                 tMultipleInitialRefs = .true.
@@ -2747,6 +2758,16 @@ contains
           ! them if we're doing a complete diagonalisation.
           gen2CPMDInts=MAXVAL(NWHTAY(3,:)).ge.3.or.TEnergy
 
+          contains
+
+            subroutine setDefdet(m, orb)
+              implicit none
+              integer, intent(inout) :: m
+              integer, intent(in) :: orb
+              if(m > nel) call stop_all(t_r, "Too many orbitals given in Definedet")
+              DefDet(m) = orb
+              m = m + 1
+            end subroutine setDefdet
 
         END SUBROUTINE CalcReadInput
 
