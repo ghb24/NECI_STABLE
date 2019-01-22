@@ -11,7 +11,8 @@ module fcimc_initialisation
                           tRotatedOrbs, MolproID, nBasis, arr, brr, nel, tCSF,&
                           tHistSpinDist, tPickVirtUniform, tGen_4ind_reverse, &
                           tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
-                          tUEGNewGenerator, tGen_4ind_2, tReltvy
+                          tUEGNewGenerator, tGen_4ind_2, tReltvy, nOccOrbs, &
+                          nClosedOrbs, irrepOrbOffset, nIrreps
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use dSFMT_interface, only: dSFMT_init
     use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
@@ -37,7 +38,8 @@ module fcimc_initialisation
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, tRCCheck, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
-                        maxKeepExLvl, tAutoAdaptiveShift, AdaptiveShiftCut, tAAS_Reverse
+                        maxKeepExLvl, tAutoAdaptiveShift, AdaptiveShiftCut, tAAS_Reverse, &
+                        tInitializeCSF, S2Init
     use adi_data, only: tReferenceChanged, tAdiActive, &
          nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
@@ -95,7 +97,8 @@ module fcimc_initialisation
                                        gen_excit_4ind_reverse
     use hash, only: FindWalkerHash, add_hash_table_entry, init_hash_table
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
-    use load_balance, only: tLoadBalanceBlocks, addNormContribution
+    use load_balance, only: tLoadBalanceBlocks, addNormContribution, get_diagonal_matel, &
+         AddNewHashDet
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcit4, only: CountExcitations4, GenExcitations4
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
@@ -1494,6 +1497,10 @@ contains
 
                     call InitFCIMC_trial()
 
+                else if(tInitializeCSF) then
+                   
+                   call InitFCIMC_CSF()
+
                 else !Set up walkers on HF det
 
                     if(tStartSinglePart) then
@@ -1954,6 +1961,208 @@ contains
 !        ENDIF
 
     end subroutine DeallocFCIMCMemPar
+
+    subroutine InitFCIMC_CSF()
+      implicit none
+      integer(n_int), allocatable ::  initSpace(:,:)
+      integer :: count, nUp, nOpen
+      integer :: i, j, k, lwork, refLoc, proc
+      integer :: DetHash, pos, TotWalkersTmp, nI(nel)
+      integer(n_int), allocatable :: openSubspace(:)
+      real(dp),allocatable :: S2(:,:), eigsImag(:), eigs(:),evs(:,:),void(:,:),work(:)
+      real(dp) :: normalization, rawWeight, HDiag, tmpSgn(lenof_sign)
+      integer :: err, nJ(nel)
+      
+      ! first, set up the space considered for the CSF
+      call generateInitSpace()
+      if(allocated(openSubspace)) deallocate(openSubspace)
+      ! we now have initSpace(:,:) with iluts belonging to all possible initial
+      ! dets (i.e. all dets contributing to the target CSF) -> construct S2 
+      allocate(S2(count,count))
+      do i  = 1, count
+         do j = 1, count
+            S2(i,j) = S2Matel(initSpace(:,i),initSpace(:,j))
+         end do
+      end do
+
+      ! prepare the diagonalization
+      allocate(eigs(count))
+      allocate(evs(count,count))
+      allocate(eigsImag(count))
+      allocate(work(1))
+      allocate(void(0,0))
+      ! workspace query, get how much tmp memory we need
+      call dgeev('N','V',count,S2,count,eigs,eigsImag,void,count,evs,count,work,-1,err)
+      ! allocate work array
+      lwork = work(1)
+      deallocate(work)
+      allocate(work(lwork))
+      ! diagonalize S2
+      call dgeev('N','V',count,S2,count,eigs,eigsImag,void,count,evs,count,work,lwork,err)
+      deallocate(void)
+      deallocate(work)
+      deallocate(eigsImag)
+
+      ! transfer the eigenvector
+      do i = 1, count
+         if(abs(S2Init*(S2Init+1) - eigs(i)) < eps) exit
+      end do
+      eigs = evs(:,i)
+!      normalization = minval(eigs)
+      rawWeight = sum(abs(eigs))
+      normalization = InitialPart / rawWeight 
+
+!      refLoc = maxloc(eigs)
+      eigs = eigs * normalization
+      
+      TotWalkers = 0
+      iStartFreeSlot = 1
+      iEndFreeSlot = 0
+      do i = 1, count
+         call decode_bit_det(nI,initSpace(:,i))
+         proc = DetermineDetNode(nel, nI, 0)
+         if(iProcIndex.eq.proc) then
+            HDiag = get_diagonal_matel(nI,initSpace(:,i))
+            DetHash = FindWalkerHash(nI,size(HashIndex))
+            TotWalkersTmp = TotWalkers
+            tmpSgn = eigs(i)
+            call encode_sign(initSpace(:,i),tmpSgn)
+            call AddNewHashDet(TotWalkersTmp,initSpace(:,i),DetHash,nI,HDiag,pos)
+            TotWalkers = TotWalkersTmp
+         end if
+         ! reset the reference?
+      end do
+
+      ! cleanup
+      deallocate(evs)
+      deallocate(eigs)
+      deallocate(S2)
+      deallocate(initSpace)
+      contains 
+        
+  !------------------------------------------------------------------------------------------!
+
+        subroutine generateOpenOrbIluts()
+          implicit none
+
+          count = 0
+          nUp = (nel + lms)/2 - sum(nClosedOrbs)
+          do i = 1, 2**nOpen-1
+             if(popcnt(i).eq.nUp) then
+                count = count + 1
+                if(allocated(openSubspace)) openSubspace(count) = i
+             end if
+          end do
+        end subroutine generateOpenOrbIluts
+
+  !------------------------------------------------------------------------------------------!
+
+        subroutine generateInitSpace()
+          implicit none
+
+          integer :: nI(nel), nIBase(nel), alphaFlag
+          integer :: iEl, iElBase
+          integer :: nOpenOrbs(nIrreps), openOffset(nIrreps)
+
+          ! get the number of open orbitals
+          nOpenOrbs = nOccOrbs - nClosedOrbs
+          nOpen = sum(nOpenOrbs)
+          ! check where in the open-shell ilut each irrep starts
+          openOffset(1) = 0
+          do i = 2, nIrreps
+             openOffset(i) = openOffset(i-1) + nOpenOrbs(i-1)
+          end do
+          ! create a list of all open-shell determinants with the correct spin+orbs
+          nUp = (nel + lms)/2
+          call generateOpenOrbIluts()
+          allocate(openSubspace(count))
+          call generateOpenOrbIluts()
+
+          ! convert open-shell-only iluts into full iluts
+          iElBase = 1
+          nIBase = 0
+          ! first comes the closed-shell base
+          do i = 1, nIrreps
+             do j = 1, nClosedOrbs(i)
+                nIBase(iElBase) = irrepOrbOffset(i) + 2*j - 1
+                iElBase = iElBase + 1
+                nIBase(iElBase) = irrepOrbOffset(i) + 2*j
+                iElBase = iElBase + 1
+             end do
+          end do
+
+          allocate(initSpace(0:NIfTot,count))
+          ! now, add the open-shell contribution
+          do i = 1, count
+             ! start from the closed-shell base
+             print *, "Verifying", openSubspace(i)
+             nI = nIBase
+             iEl = iElBase
+             ! for each irrep, add the open-shell part
+             do j = 1, nIrreps
+                ! for each open orb of this irrep, check the spin in openSubspace
+                do k = 1, nOpenOrbs(j)
+                   ! based on openSubspace(i), we are considering alpha/beta for this
+                   ! orb
+                   if(btest(openSubspace(i),k+openOffset(j)-1)) then
+                      alphaFlag = -1
+                   else
+                      alphaFlag = 0
+                   endif
+                   ! we start counting from the last closed orb
+                   nI(iEl) = irrepOrbOffset(j) + 2*(k+nClosedOrbs(j)) + alphaFlag
+                   iEl = iEl + 1
+                end do
+             end do
+             ! encode the determinant to the initial space
+             call sort(nI)
+             call EncodeBitDet(nI,initSpace(:,i))
+          end do
+
+        end subroutine generateInitSpace
+
+        function S2Matel(ilutA, ilutB) result(matel)
+          implicit none
+          integer(n_int), intent(in) :: ilutA(0:NIfTot), ilutB(0:NIfTot)
+          integer(n_int) :: splus(0:NIfTot), sminus(0:NIfTot)
+          real(dp) :: matel
+          integer :: k,m,nI(nel),upOrb,downOrb
+          
+          matel = 0.0_dp
+          if(DetBitEq(ilutA,ilutB,NIfD)) then
+             matel = matel + real(lms * (lms+2),dp) / 4.0_dp
+          end if
+          ! get the offdiag part of S2: S-S+
+          call decode_bit_det(nI,ilutA)
+          do k = 1, nel
+             ! first, apply S- to all electrons (additively)
+             if(is_beta(nI(k))) then
+                sminus = ilutA
+                downOrb = get_alpha(nI(k))
+                clr_orb(sminus,nI(k))
+                set_orb(sminus,downOrb)
+                ! now, apply S+ to all electrons (again, sum)
+                do m = 1, nel
+                   ! check if it yields 0
+                   if(is_alpha(nI(m)) .or. m==k) then
+                      splus = sminus
+                      ! if not, go on
+                      if(m==k) then
+                         clr_orb(splus,downOrb)
+                      else
+                         clr_orb(splus,nI(m))
+                      endif
+                      upOrb = get_beta(nI(m))
+                      set_orb(splus,upOrb)
+                      if(DetBitEq(splus,ilutB,NIFD)) matel = matel + 1.0_dp
+                   end if
+                end do
+             endif
+          end do
+        end function S2Matel
+    end subroutine InitFCIMC_CSF
+
+  !------------------------------------------------------------------------------------------!
 
     subroutine InitFCIMC_HF()
 

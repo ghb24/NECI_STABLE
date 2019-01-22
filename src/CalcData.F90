@@ -122,6 +122,8 @@ real(dp) :: RealSpawnCutoff, OccupiedThresh
 logical :: tRPA_QBA     !RPA calculation with QB approximation
 logical :: tStartCAS    !Start FCIMC dynamic with walkers distributed according to CAS diag.
 logical :: tShiftonHFPop    !Adjust shift in order to keep the population on HF constant, rather than total pop.
+logical :: tInitializeCSF
+real(dp) :: S2Init
 logical :: tFixedN0 !Fix the reference population by using projected energy as shift.
 logical :: tTrialShift !Fix the overlap with trial wavefunction by using trial energy as shift.
 logical :: tSkipRef(1:inum_runs_max) !Skip spawing onto reference det and death/birth on it. One flag for each run.
