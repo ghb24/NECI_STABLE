@@ -2047,10 +2047,11 @@ contains
   !------------------------------------------------------------------------------------------!
 
         subroutine generateOpenOrbIluts()
+          use IntegralsData, only: nfrozen
           implicit none
 
           count = 0
-          nUp = (nel + lms)/2 - sum(nClosedOrbs)
+          nUp = (nel + lms)/2 - sum(nClosedOrbs) + nfrozen/2
           do i = 1, 2**nOpen-1
              if(popcnt(i).eq.nUp) then
                 count = count + 1
