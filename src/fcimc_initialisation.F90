@@ -1966,12 +1966,13 @@ contains
       implicit none
       integer(n_int), allocatable ::  initSpace(:,:)
       integer :: count, nUp, nOpen
-      integer :: i, j, k, lwork, refLoc, proc
+      integer :: i, j, lwork, proc
       integer :: DetHash, pos, TotWalkersTmp, nI(nel)
       integer(n_int), allocatable :: openSubspace(:)
       real(dp),allocatable :: S2(:,:), eigsImag(:), eigs(:),evs(:,:),void(:,:),work(:)
       real(dp) :: normalization, rawWeight, HDiag, tmpSgn(lenof_sign)
-      integer :: err, nJ(nel)
+      integer :: err
+      character(*), parameter :: t_r = "InitFCIMC_CSF"
       
       ! first, set up the space considered for the CSF
       call generateInitSpace()
@@ -2007,6 +2008,9 @@ contains
       do i = 1, count
          if(abs(S2Init*(S2Init+1) - eigs(i)) < eps) exit
       end do
+      if(i>count) then
+         call stop_all(t_r,"Requested S2 eigenvalue does not exist")
+      end if
       eigs = evs(:,i)
 !      normalization = minval(eigs)
       rawWeight = sum(abs(eigs))
@@ -2060,18 +2064,14 @@ contains
         subroutine generateInitSpace()
           implicit none
 
-          integer :: nI(nel), nIBase(nel), alphaFlag
-          integer :: iEl, iElBase
-          integer :: nOpenOrbs(nIrreps), openOffset(nIrreps)
+          integer :: nI(nel), nIBase(nel)
+          integer :: iEl, iElBase, iOpen
+          integer :: openOrbList(nel)
+          logical :: previousCont,nextCont,tClosed
+          character(*), parameter :: t_r = "generateInitSpace"
 
           ! get the number of open orbitals
-          nOpenOrbs = nOccOrbs - nClosedOrbs
-          nOpen = sum(nOpenOrbs)
-          ! check where in the open-shell ilut each irrep starts
-          openOffset(1) = 0
-          do i = 2, nIrreps
-             openOffset(i) = openOffset(i-1) + nOpenOrbs(i-1)
-          end do
+          nOpen = sum(nOccOrbs) - sum(nClosedOrbs)
           ! create a list of all open-shell determinants with the correct spin+orbs
           nUp = (nel + lms)/2
           call generateOpenOrbIluts()
@@ -2079,40 +2079,72 @@ contains
           call generateOpenOrbIluts()
 
           ! convert open-shell-only iluts into full iluts
+          ! use the reference to determine which orbitals shall participate
           iElBase = 1
           nIBase = 0
-          ! first comes the closed-shell base
-          do i = 1, nIrreps
-             do j = 1, nClosedOrbs(i)
-                nIBase(iElBase) = irrepOrbOffset(i) + 2*j - 1
+          ! generate a list of open orbitals 
+          iOpen = 0
+          openOrbList = 0
+          do i = 1, nel
+             if(i.eq.1) then
+                previousCont = .false.
+             else
+                previousCont = FDet(i-1).eq.FDet(i)-1
+             endif
+             if(i.eq.nel) then
+                nextCont = .false.
+             else
+                nextCont = FDet(i+1).eq.FDet(i)+1
+             end if
+             tClosed = .true.
+             ! identify open orbitals, using the ordering: does the next one belong
+             ! to the same spatial orb?
+             if(is_beta(FDet(i)) .and. .not.nextCont) then
+                iOpen = iOpen + 1
+                openOrbList(iOpen) = FDet(i)
+                tClosed = .false.
+             end if
+             ! or the previous one?
+             if(is_alpha(FDet(i)) .and. .not.previousCont) then
+                iOpen = iOpen + 1
+                openOrbList(iOpen) = FDet(i)
+                tClosed = .false.
+             end if
+             ! if the orbital is not open, it is closed
+             if(tClosed) then
+                nIBase(iElBase) = FDet(i)
                 iElBase = iElBase + 1
-                nIBase(iElBase) = irrepOrbOffset(i) + 2*j
-                iElBase = iElBase + 1
-             end do
+             end if
           end do
+          if(iOpen.ne.nOpen) then
+             write(iout,*) "nOpen/iOpen conflict", FDet, openOrbList, iOpen, nOpen
+             call stop_all(t_r,"Error in determining open shell orbitals")
+          end if
+!          do i = 1, nIrreps
+!             do j = 1, nClosedOrbs(i)
+!                nIBase(iElBase) = irrepOrbOffset(i) + 2*j - 1
+!                iElBase = iElBase + 1
+!                nIBase(iElBase) = irrepOrbOffset(i) + 2*j
+!                iElBase = iElBase + 1
+!             end do
+!          end do
 
           allocate(initSpace(0:NIfTot,count))
           ! now, add the open-shell contribution
           do i = 1, count
              ! start from the closed-shell base
-             print *, "Verifying", openSubspace(i)
              nI = nIBase
              iEl = iElBase
-             ! for each irrep, add the open-shell part
-             do j = 1, nIrreps
-                ! for each open orb of this irrep, check the spin in openSubspace
-                do k = 1, nOpenOrbs(j)
-                   ! based on openSubspace(i), we are considering alpha/beta for this
-                   ! orb
-                   if(btest(openSubspace(i),k+openOffset(j)-1)) then
-                      alphaFlag = -1
-                   else
-                      alphaFlag = 0
-                   endif
-                   ! we start counting from the last closed orb
-                   nI(iEl) = irrepOrbOffset(j) + 2*(k+nClosedOrbs(j)) + alphaFlag
-                   iEl = iEl + 1
-                end do
+             ! for each open orb, add the electron
+             do j = 1, nOpen
+                ! based on openSubspace(i), we are considering alpha/beta for this
+                ! orb
+                if(btest(openSubspace(i),j-1)) then
+                   nI(iEl) = get_alpha(openOrbList(j))
+                else
+                   nI(iEl) = get_beta(openOrbList(j))
+                endif
+                iEl = iEl + 1
              end do
              ! encode the determinant to the initial space
              call sort(nI)

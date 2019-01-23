@@ -60,7 +60,7 @@ contains
         use sym_mod
         use util_mod, only: NECI_ICOPY
         use sltcnd_mod, only: CalcFockOrbEnergy 
-        integer ierr, ms, iEl, flagAlpha
+        integer ierr, ms, iEl, flagAlpha, iIrrep, msTmp
         integer i,j,Lz,OrbOrder(8,2),FDetTemp(NEl),lmsMax
         type(BasisFn) s
         logical :: tGenFDet
@@ -68,11 +68,12 @@ contains
         character(25), parameter :: this_routine='DetPreFreezeInit'
         Allocate(FDet(nEl), stat=ierr)
         LogAlloc(ierr, 'FDet', nEl, 4, tagFDet)
-        IF(tDefineDet) THEN
+        IF(tDefineDet) THEN           
             WRITE(6,*) 'Defining FDet according to input'
             do i=1,NEl
                 FDet(i)=DefDet(i)
             enddo
+            call assignOccOrbs()
 
             ! A quick check that we have defined a reasonable det.
             ms = sum(get_spin_pn(fdet(1:nel)))
@@ -85,33 +86,36 @@ contains
             end if
             tRef_Not_HF = .true.
         else
-           tGenFDet = .true.
-           lmsMax = sum(nOccOrbs) - sum(nClosedOrbs)
-           if((sum(nOccOrbs) + sum(nClosedOrbs)) .eq. nel &
-                .and. (.not. TSPN .or. abs(LMS).eq.lmsMax)) then
+           if((sum(nOccOrbs) + sum(nClosedOrbs)) .eq. nel) then
               tGenFDet = .false.
-              if(LMS<0) then
-                 flagAlpha = 0
-              else
-                 flagAlpha = 1
-              endif
               iEl = 1
+              msTmp = -1*lms
               do i = 1, nIrreps
-                 ! nClosedOrbs is the number of alpha/beta orbs (the ones with minority spin)
+                 ! doubly occupy the closed orbs 
                  do j = 1, nClosedOrbs(i)
-                    FDet(iEl) = irrepOrbOffset(i) + 2*j - flagAlpha
+                    FDet(iEl) = irrepOrbOffset(i) + 2*j - 1
+                    iEl = iEl + 1
+                    FDet(iEl) = irrepOrbOffset(i) + 2*j
                     iEl = iEl + 1
                  end do
-                 ! nOccOrbs is the number of majority spin orbs (per irrep)
-                 do j = 1, nOccOrbs(i)
-                    FDet(iEl) = irrepOrbOffset(i) + 2*j - (1-flagAlpha)
+                 ! now distribute electrons to the open orbs
+                 ! such that the total sz matches the requested
+                 ! only consider occ orbs which are not closed
+                 do j = nClosedOrbs(i)+1, nOccOrbs(i)
+                    if(msTmp<0) then
+                       flagAlpha = 0
+                    else
+                       flagAlpha = 1
+                    endif
+                    FDet(iEl) = irrepOrbOffset(i) + 2*j - flagAlpha
                     iEl = iEl + 1
+                    msTmp = msTmp + (1-2*flagAlpha)
                  end do
               end do
               call sort(FDet)
-           endif
-           if(tGenFDet) then
+           else
               CALL GENFDET(FDET)
+              call assignOccOrbs()
               IF(tUEGSpecifyMomentum) THEN
                  WRITE(6,*) 'Defining FDet according to a momentum input'
                  CALL ModifyMomentum(FDET)
@@ -163,6 +167,24 @@ contains
       calculated_ms = sum(get_spin_pn(fdet(1:nel)))
 
       contains
+
+        subroutine assignOccOrbs
+          implicit none
+          integer :: k
+          ! assign the occ/closed orbs
+          nOccOrbs = 0
+          nClosedOrbs = 0
+          do k = 1, nel
+             iIrrep = G1(FDet(k))%Sym%s + 1
+             if(k>1) then
+                if(is_alpha(FDet(k)) .and. FDet(k-1).eq.FDet(k)-1) then
+                   nClosedOrbs(iIrrep) = nClosedOrbs(iIrrep) + 1
+                   cycle
+                endif
+             end if
+             nOccOrbs(iIrrep) = nOccOrbs(iIrrep) + 1
+          end do
+        end subroutine assignOccOrbs
         
     End Subroutine DetPreFreezeInit
 
