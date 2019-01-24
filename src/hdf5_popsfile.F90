@@ -254,6 +254,7 @@ contains
         ! Open the popsfile
         call h5fopen_f(filename, H5F_ACC_RDONLY_F, file_id, err, &
                        access_prp=plist_id)
+        if(err.ne.0) call stop_all(t_r,"No popsfile.h5 found")
 
         call read_metadata(file_id)
         call read_walkers(file_id, dets, CurrWalkers)
@@ -1322,7 +1323,6 @@ contains
         end if
   
         call scaleCounts(size(fvals_loc,1))        
-
         if(tReadFVals) then
            call MPIAllToAllV(fvals_comm, sendcountsScaled, dispsScaled, fvals_loc, &
                 recvcountsScaled, recvdispsScaled, ierr)

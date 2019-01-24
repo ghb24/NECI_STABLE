@@ -1342,7 +1342,7 @@ contains
                          + proje_ref_energy_offsets(run)
                     inits_proje_iter(run) = (AllInitsENumCyc(run)) / (all_cyc_proje_denominator(run)) &
                          + proje_ref_energy_offsets(run)
-                endif
+                 endif
 
                 ! If we are re-zeroing the shift
                 if (tReZeroShift(run)) then

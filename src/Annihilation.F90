@@ -794,13 +794,50 @@ module AnnihilationMod
                             end if
                         end if
                     end if
-                    !If we are fixing the population of reference det, skip spawing into it.
-                    if(tSkipRef(run) .and. DetBitEQ(CurrentDets(:,PartInd),iLutRef(:,run),nIfD)) then
-                         NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
-                         iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
-                         call encode_part_sign (SpawnedParts(:,i), 0.0_dp, j)
-                         SpawnedSign(j) = 0.0_dp
-                    end if
+                 !end if
+
+                 !If we are fixing the population of reference det, skip spawing into it.
+                 if(tSkipRef(run) .and. DetBitEQ(CurrentDets(:,PartInd),iLutRef(:,run),nIfD)) then
+                      NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
+                      iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
+                      call encode_part_sign (SpawnedParts(:,i), 0.0_dp, j)
+                      SpawnedSign(j) = 0.0_dp
+                 end if
+
+                ! if (SignProd(j) < 0) then
+                !    ! This indicates that the particle has found the
+                !    ! same particle of opposite sign to annihilate with.
+                !    ! In this case we just need to update some statistics:
+                !    Annihilated(run) = Annihilated(run) + 2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
+                !    iter_data%nannihil(j) = iter_data%nannihil(j) + &
+                !         2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j))))
+
+                !    if (tHistSpawn) then
+                !       ! We want to histogram where the particle
+                !       ! annihilations are taking place.
+                !       ExcitLevel = FindBitExcitLevel(SpawnedParts(:,i), iLutHF, nel)
+                !       if (ExcitLevel == NEl) then
+                !          call BinSearchParts2(SpawnedParts(:,i), HistMinInd2(ExcitLevel), Det, PartIndex, tSuc)
+                !       else if (ExcitLevel == 0) then
+                !          PartIndex = 1
+                !          tSuc = .true.
+                !       else
+                !          call BinSearchParts2(SpawnedParts(:,i), HistMinInd2(ExcitLevel), &
+                !               FCIDetIndex(ExcitLevel+1)-1, PartIndex, tSuc)
+                !       end if
+                !       HistMinInd2(ExcitLevel) = PartIndex
+                !       if (tSuc) then
+                !          AvAnnihil(j,PartIndex) = AvAnnihil(j,PartIndex)+ &
+                !               real(2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j)))), dp)
+                !          InstAnnihil(j,PartIndex) = InstAnnihil(j,PartIndex)+ &
+                !               real(2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j)))), dp)
+                !       else
+                !          write(6,*) "***",SpawnedParts(0:NIftot,i)
+                !          Call WriteBitDet(6,SpawnedParts(0:NIfTot,i), .true.)
+                !          call stop_all("AnnihilateSpawnedParts","Cannot find corresponding FCI "&
+                !               & //"determinant when histogramming")
+                !       end if
+                !    end if
                             
                     if (SignProd(j) < 0) then
                         ! in the real-time for the final combination
@@ -855,19 +892,7 @@ module AnnihilationMod
                             end if
                         end if
                     end if
-!<<<<<<< HEAD
-!=======
                  !end if
-
-
-!                 if (SignProd(j) < 0) then
-!                    ! This indicates that the particle has found the
-!                    ! same particle of opposite sign to annihilate with.
-!                    ! In this case we just need to update some statistics:
-!                    Annihilated(run) = Annihilated(run) + 2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
-!                    iter_data%nannihil(j) = iter_data%nannihil(j) + &
-!                         2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j))))
-!>>>>>>> origin/all_doubs_initiators
 
                 end do ! Over all components of the sign.
 
@@ -906,6 +931,7 @@ module AnnihilationMod
                  call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, &
                       CurrentDets(:,PartInd), TempCurrentSign)
               end if
+
 
               if(tAutoAdaptiveShift .and. tAAS_Reverse)then
                 do run = 1, inum_runs

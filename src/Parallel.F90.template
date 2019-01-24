@@ -2002,6 +2002,7 @@ contains
 
 
     subroutine MPIStopAll(error_str)
+    use MolproPlugin, only : MolproPluginTerm
 
         !  Abort all processors.
         !  
@@ -2014,6 +2015,7 @@ contains
 
         error_code=0
 #ifdef PARALLEL
+        CALL MolproPluginTerm(-1)
 
         ! errorcode: Error returned to invoking environment.
         ! ierror: error status (of abort: was abort successful?)

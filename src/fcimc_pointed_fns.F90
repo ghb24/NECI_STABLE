@@ -737,7 +737,6 @@ module fcimc_pointed_fns
 #endif        
         real(dp) :: shift, population, slope, tot, acc, tmp
 
-
         do i=1, inum_runs
             if (t_cepa_shift) then 
 
@@ -813,10 +812,10 @@ module fcimc_pointed_fns
                     print *, "Kii: ", Kii 
                     print *, "weight: ", realwSign
                     print *, "excit_level: ", WalkExcitLevel
-                   print *, "Acc spawns", acc
-                   print *, "Tot spawns", tot
-                   print *, "Diag sft", DiagSft
-                   print *, "Death probability", fac
+                    print *, "Acc spawns", acc
+                    print *, "Tot spawns", tot
+                    print *, "Diag sft", DiagSft
+                    print *, "Death probability", fac
                     call stop_all(t_r, "Death probability > 2: Algorithm unstable. Reduce timestep.")
                 end if
             else

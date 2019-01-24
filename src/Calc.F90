@@ -947,7 +947,6 @@ contains
                   CALL LogMemAlloc('DefDet',NEl,4,t_r,tagDefDet,ierr)
                 end if
                 DefDet(:)=0
-!<<<<<<< HEAD
                 do i=1,NEl
                     call geti(DefDet(i))
                 enddo
@@ -975,22 +974,20 @@ contains
                 end if
 
 
-!=======
-!                i = 1
-!                do while(item.lt.nitems)
-!                   call readu(w)
-!                   if(scan(w,"-").eq.0) then
-!                      read(w,*) start
-!                      call setDefdet(i,start)
-!                   else
-!                      call getRange(w, start, end)
-!                      do j = start, end
-!                         call setDefdet(i,j)
-!                      end do
-!                   endif
-!                end do
-!                if(i-1.ne.nel) call stop_all(t_r, "Insufficient orbitals given in DEFINEDET")
-!>>>>>>> origin/all_doubs_initiators
+                i = 1
+                do while(item.lt.nitems)
+                   call readu(w)
+                   if(scan(w,"-").eq.0) then
+                      read(w,*) start
+                      call setDefdet(i,start)
+                   else
+                      call getRange(w, start, end)
+                      do j = start, end
+                         call setDefdet(i,j)
+                      end do
+                   endif
+                end do
+                if(i-1.ne.nel) call stop_all(t_r, "Insufficient orbitals given in DEFINEDET")
 
             case("MULTIPLE-INITIAL-REFS")
                 tMultipleInitialRefs = .true.

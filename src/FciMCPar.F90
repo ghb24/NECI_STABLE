@@ -789,6 +789,8 @@ module FciMCParMod
         end if
         if (iProcIndex.eq.0) write(iout,*) 'Time lost due to load imbalance: ', lt_imb
         write(iout,*) '- - - - - - - - - - - - - - - - - - - - - - - -'
+
+
         ! [Werner Dobrautz 4.4.2017] 
         ! for now always print out the frequency histograms for the 
         ! tau-search.. maybe change that later to be an option 
@@ -1220,7 +1222,6 @@ module FciMCParMod
             else
                 walkExcitLevel_toHF = walkExcitLevel
             endif
-            
             if (tFillingStochRDMonFly) then
                 ! Set the average sign and occupation iteration which were
                 ! found in extract_bit_rep_avsign.
