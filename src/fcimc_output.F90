@@ -7,7 +7,7 @@ module fcimc_output
                            instant_s2_multiplier, tPrintFCIMCPsi, &
                            iWriteHistEvery, tDiagAllSpaceEver, OffDiagMax, &
                            OffDiagBinRange, tCalcVariationalEnergy, &
-                           iHighPopWrite, tLogEXLEVELStats, tWriteConflictLvls
+                           iHighPopWrite, tLogEXLEVELStats
     use hist_data, only: Histogram, AllHistogram, InstHist, AllInstHist, &
                          BeforeNormHist, iNoBins, BinRange, HistogramEnergy, &
                          AllHistogramEnergy
@@ -534,7 +534,6 @@ contains
         ! Use a state type to keep things compact and tidy below.
         type(write_state_t), save :: state
         type(write_state_t), save :: state_i
-        type(write_state_t), save :: state_cl
         logical, save :: inited = .false.
         character(5) :: tmpc, tmpc2
         integer :: p, q
@@ -544,11 +543,9 @@ contains
         if (present(initial)) then
             state%init = initial
             if (tTruncInitiator) state_i%init = initial
-            if(tWriteConflictLvls) state_cl%init = initial
         else
             state%init = .false.
             if (tTruncInitiator) state_i%init = .false.
-            if(tWriteConflictLvls) state_cl%init = .false.
         end if
 
         ! If the output file hasn't been opened yet, then create it.
@@ -560,11 +557,6 @@ contains
               state_i%funit = get_free_unit()
               call open_create_stats('initiator_stats',state_i%funit)
             end if
-
-            if(tWriteConflictLvls) then
-               state_cl%funit = get_free_unit()
-               call open_create_stats('conflicts_stats',state_cl%funit)
-            endif
 
             inited = .true.
         end if
@@ -580,7 +572,6 @@ contains
 
             call write_padding_init(state)
             call write_padding_init(state_i)
-            call write_padding_init(state_cl)
 
             ! And output the actual data!
             state%cols = 0
@@ -759,26 +750,12 @@ contains
                 end do
             end if
 
-            ! gather sign conflict statistics
-            if(tWriteConflictLvls) then
-               call stats_out(state_cl, .false., Iter + PreviousCycles, 'Iter')
-               call stats_out(state_cl, .false., sum(conflictExLvl), 'confl. Dets')
-               do p = 1, maxConflictExLvl
-                  ! write the number of conflicts of this excitation lvl
-                  write(tmpc,('(i5)')) p
-                  call stats_out(state_cl, .false., ConflictExLvl(p), 'confl. (ex = '//&
-                       trim(adjustl(tmpc)) // ")")
-               end do
-            endif
-
             ! And we are done
             write(state%funit, *)
             if (tTruncInitiator) write(state_i%funit, *)
-            if(tWriteConflictLvls) write(state_cl%funit,*)
             if (tMCOutput) write(iout, *)
             call neci_flush(state%funit)
             if (tTruncInitiator) call neci_flush(state_i%funit)
-            if(tWriteConflictLvls) call neci_flush(state_cl%funit)
             call neci_flush(iout)
 
         end if

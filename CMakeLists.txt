@@ -19,6 +19,13 @@ include(neci_system)
 # Declare options that this project uses
 # <Package>_NECI has a custom finder that does a bit more work than normal...
 
+
+  if (CMAKE_VERSION VERSION_LESS "3.1")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+  else ()
+    set (CMAKE_CXX_STANDARD 11)
+  endif ()
+  
 neci_add_option(
     FEATURE MPI
     DEFAULT ON

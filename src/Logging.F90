@@ -159,7 +159,6 @@ MODULE Logging
       tHDF5PopsRead = .false.
       tHDF5PopsWrite = .false.
       tWriteRefs = .false.
-      tWriteConflictLvls = .false.
       maxConflictExlvl = 8
 #ifdef __PROG_NUMRUNS
       tFCIMCStats2 = .true.
@@ -732,11 +731,6 @@ MODULE Logging
         case("READRDMS")
 ! Read in the RDMs from a previous calculation, and continue accumulating the RDMs from the very beginning of this restart. 
             tReadRDMs = .true.
-
-         case("WRITE-CONFLICT-LEVELS")
-            ! write the excitation levels of sign conflicts between replicas
-            tWriteConflictLvls = .true.
-            if(item < nitems) call geti(maxConflictExLvl)
         
         case("NONEWRDMCONTRIB")
             ! To be used with READRDMs.  This option makes sure that we don't add in any 

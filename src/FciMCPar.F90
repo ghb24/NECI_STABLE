@@ -1026,10 +1026,6 @@ module FciMCParMod
                 walkExcitLevel_toHF = walkExcitLevel
             endif
 
-            ! if requested, average the sign over replicas if not coherent
-            if(inum_runs > 1 .and. tWriteConflictLvls) call replica_coherence_check(&
-                 CurrentDets(:,j), SignCurr, walkExcitLevel)
-
             if (tFillingStochRDMonFly) then
                 ! Set the average sign and occupation iteration which were
                 ! found in extract_bit_rep_avsign.
