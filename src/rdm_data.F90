@@ -280,20 +280,28 @@ module rdm_data
     ! The primary global RDM objects.
     ! Arrays of objects, one for each 1-RDM being sampled.
     type(one_rdm_t), allocatable :: one_rdms(:) ! nrdms
+    ! same for the initiator-only 1-RDMs
+    type(one_rdm_t), allocatable :: inits_one_rdms(:) ! nrdms
     ! Object to hold spawnings to the 2-RDMs.
     type(rdm_spawn_t) :: two_rdm_spawn
+    ! spawnings to the initiator space 2-RDMs
+    type(rdm_spawn_t) :: two_rdm_inits_spawn
     ! Object to hold the main RDM itself, over the *entire* period of RDM
     ! sampling (note that this is not reset each sampling block).
     type(rdm_list_t) :: two_rdm_main
+    ! Initiator-only RDMs
+    type(rdm_list_t) :: two_rdm_inits
     ! Objects to hold the received RDM object, after communication of the
     ! spawned RDM list. This is then added into two_rdm_main.
     type(rdm_list_t) :: two_rdm_recv
     type(rdm_list_t) :: two_rdm_recv_2
     ! Object to hold RDM estimates.
     type(rdm_estimates_t) :: rdm_estimates
+    type(rdm_estimates_t) :: inits_estimates
     ! Object which defines the states and FCIQMC simulations contributing
     ! to the various RDMs in the above arrays.
     type(rdm_definitions_t) :: rdm_definitions
+    type(rdm_definitions_t) :: rdm_inits_defs
 
     ! Object to hold information about the Epstein-Nesbet perturbation
     ! contributions.
@@ -321,6 +329,13 @@ module rdm_data
 
     ! Timers.
     type(timer), save :: nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time
+
+    ! ---- Data for using adaptive shift mode ------------------------!
+    
+    ! when using adaptive shift, the RDMs require a correction, namely
+    ! the reference contribution
+
+    real(dp) :: rdmCorrectionFactor, InstRDMCorrectionFactor, ThisRDMIter
 
     ! ---- Data for the explicit RDM code -----------------------------
 

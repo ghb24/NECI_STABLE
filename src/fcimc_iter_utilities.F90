@@ -27,9 +27,10 @@ module fcimc_iter_utils
     use bit_rep_data, only: NIfD, NIfTot, NIfDBO
     use hphf_integrals, only: hphf_diag_helement
     use Determinants, only: get_helement
-    use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av, tWriteUnocc
+    use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av, tWriteUnocc, &
+         AllInitsPerExLvl, initsPerExLvl
     use tau_search, only: update_tau
-    use rdm_data, only: en_pert_main
+    use rdm_data, only: en_pert_main, InstRDMCorrectionFactor
     use Parallel_neci
     use fcimc_initialisation
     use fcimc_output
@@ -155,7 +156,6 @@ contains
                    "a restart due to all died walkers not wanted in the real-time fciqmc!")
            endif
 !Initialise variables for calculation on each node
-            Iter=1
             CALL DeallocFCIMCMemPar()
             IF(iProcIndex.eq.Root) THEN
                 CLOSE(fcimcstats_unit)
@@ -182,6 +182,7 @@ contains
                 end if
                 call WriteFCIMCStats()
             end if
+            Iter=1
             if (iProcIndex==root .and. tLogEXLEVELStats) &
                   write(EXLEVELStats_unit,'("#")', advance='no')
             return
@@ -525,6 +526,9 @@ contains
         ! truncated weight
         sizes(cnt) = 1;                                 cnt = cnt + 1
 
+        ! inits per ex lvl, from all_doub_in
+        sizes(cnt) = size(initsPerExLvl);               cnt = cnt + 1
+
         ! nUnoccDets
         sizes(cnt) = 1;                                 cnt = cnt + 1
         ! HolesByExLvl
@@ -564,6 +568,36 @@ contains
         low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = HFCyc; cnt = cnt + 1
         low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = NoAtDoubs; cnt = cnt + 1
         low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = Annihilated; cnt = cnt + 1
+!=======
+!        sizes(17) = 1 ! TotWalkersTemp (single int, not an array)
+!        sizes(18) = size(norm_psi_squared)
+!        sizes(19) = size(norm_semistoch_squared)
+!        sizes(20) = size(TotParts)
+!        sizes(21) = size(tot_parts_new)
+!        sizes(22) = size(SumNoAtHF)
+!        sizes(23) = size(bloom_count)
+!        sizes(24) = size(NoAtHF)
+!        sizes(25) = size(SumWalkersCyc)
+!        sizes(26) = 1 ! nspawned (single int, not an array)
+!        ! communicate the inst_double_occ and the coherence numbers
+!        sizes(27) = 1
+!        ! truncated weight
+!        sizes(28) = 1
+!        ! inits per ex lvl
+!        sizes(29) = size(initsPerExLvl)
+!
+!
+!        if (sum(sizes(1:29)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
+!                                                        & the size of the send_arr and recv_arr arrays in the source code.")
+!
+!        low = upp + 1; upp = low + sizes(1 ) - 1; send_arr(low:upp) = SpawnFromSing;
+!        low = upp + 1; upp = low + sizes(2 ) - 1; send_arr(low:upp) = iter_data%update_growth;
+!        low = upp + 1; upp = low + sizes(3 ) - 1; send_arr(low:upp) = NoBorn;
+!        low = upp + 1; upp = low + sizes(4 ) - 1; send_arr(low:upp) = NoDied;
+!        low = upp + 1; upp = low + sizes(5 ) - 1; send_arr(low:upp) = HFCyc;
+!        low = upp + 1; upp = low + sizes(6 ) - 1; send_arr(low:upp) = NoAtDoubs;
+!        low = upp + 1; upp = low + sizes(7 ) - 1; send_arr(low:upp) = Annihilated;
+!>>>>>>> origin/all_doubs_initiators
         if (tTruncInitiator) then
             low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = NoAddedInitiators; cnt = cnt + 1
             low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = NoInitDets; cnt = cnt + 1
@@ -613,6 +647,9 @@ contains
         ! truncated weight
         low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = truncatedWeight; cnt = cnt + 1
 
+        ! initiators per excitation level
+        low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = initsPerExLvl;   cnt = cnt + 1 
+
         ! unocc dets
         low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = nUnoccDets; cnt = cnt + 1
         ! holes
@@ -637,6 +674,13 @@ contains
         low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = iter_data_fciqmc%update_growth; cnt = cnt + 1
         low = upp + 1; upp = low + sizes(cnt) - 1; send_arr(low:upp) = popSnapShot; cnt = cnt + 1
 #endif
+!=======
+!        low = upp + 1; upp = low + sizes(27) - 1; send_arr(low:upp) = inst_double_occ
+!        ! truncated weight
+!        low = upp + 1; upp = low + sizes(28) - 1; send_arr(low:upp) = truncatedWeight;        
+!        ! initiators per excitation level
+!        low = upp + 1; upp = low + sizes(29) - 1; send_arr(low:upp) = initsPerExLvl;        
+!>>>>>>> origin/all_doubs_initiators
 
         ! Perform the communication.
         call MPISumAll (send_arr(1:upp), recv_arr(1:upp))
@@ -703,6 +747,8 @@ contains
 
         ! truncated weight
         low = upp + 1; upp = low + sizes(cnt) - 1; AllTruncatedWeight = recv_arr(low); cnt = cnt + 1
+        ! initiators per excitation level
+        low = upp + 1; upp = low + sizes(cnt) - 1; AllInitsPerExLvl = recv_arr(low:upp); cnt = cnt + 1
 
         ! unocc dets
         low = upp + 1; upp = low + sizes(cnt) - 1; AllNUnoccDets = recv_arr(low); cnt = cnt + 1
@@ -727,6 +773,13 @@ contains
         low = upp + 1; upp = low + sizes(cnt) - 1; iter_data_fciqmc%update_growth_tot = recv_arr(low:upp); cnt = cnt + 1
         low = upp + 1; upp = low + sizes(cnt) - 1; allPopSnapShot = recv_arr(low:upp); cnt = cnt + 1
 #endif
+!=======
+!        low = upp + 1; upp = low + sizes(27) - 1; all_inst_double_occ = recv_arr(low);
+!        ! truncated weight
+!        low = upp + 1; upp = low + sizes(28) - 1; AllTruncatedWeight = recv_arr(low);
+!        ! initiators per excitation level
+!        low = upp + 1; upp = low + sizes(29) - 1; AllInitsPerExLvl = recv_arr(low:upp);
+!>>>>>>> origin/all_doubs_initiators
 
         ! Communicate HElement_t variables:
 
@@ -742,10 +795,13 @@ contains
             sizes(7) = size(trial_denom)
             sizes(8) = size(trial_num_inst)
             sizes(9) = size(trial_denom_inst)
+            sizes(10) = size(init_trial_numerator)
+            sizes(11) = size(init_trial_denom)
         end if
-        if (tEN2) sizes(10) = 1
+        if (tEN2) sizes(12) = 1
+        sizes(13) = size(InitsEnumCyc)
 
-        if (sum(sizes(1:10)) > 100) call stop_all(t_r, "No space left in arrays for communication of estimates. Please &
+        if (sum(sizes(1:11)) > 100) call stop_all(t_r, "No space left in arrays for communication of estimates. Please &
                                                         & increase the size of the send_arr_helem and recv_arr_helem &
                                                         & arrays in the source code.")
 
@@ -759,10 +815,13 @@ contains
             low = upp + 1; upp = low + sizes(7) - 1; send_arr_helem(low:upp) = trial_denom;
             low = upp + 1; upp = low + sizes(8) - 1; send_arr_helem(low:upp) = trial_num_inst;
             low = upp + 1; upp = low + sizes(9) - 1; send_arr_helem(low:upp) = trial_denom_inst;
+            low = upp + 1; upp = low + sizes(10) - 1; send_arr_helem(low:upp) = init_trial_numerator;
+            low = upp + 1; upp = low + sizes(11) - 1; send_arr_helem(low:upp) = init_trial_denom;
         end if
         if (tEN2) then
-           low = upp + 1; upp = low + sizes(10) - 1; send_arr_helem(low) = en_pert_main%ndets;
+           low = upp + 1; upp = low + sizes(12) - 1; send_arr_helem(low) = en_pert_main%ndets;
         endif
+        low = upp + 1; upp = low + sizes(13) - 1; send_arr_helem(low:upp) = InitsENumCyc;
 
         call MPISumAll (send_arr_helem(1:upp), recv_arr_helem(1:upp))
 
@@ -778,10 +837,13 @@ contains
             low = upp + 1; upp = low + sizes(7) - 1; tot_trial_denom = recv_arr_helem(low:upp);
             low = upp + 1; upp = low + sizes(8) - 1; tot_trial_num_inst = recv_arr_helem(low:upp);
             low = upp + 1; upp = low + sizes(9) - 1; tot_trial_denom_inst = recv_arr_helem(low:upp);
+            low = upp + 1; upp = low + sizes(10) - 1; tot_init_trial_numerator = recv_arr_helem(low:upp);
+            low = upp + 1; upp = low + sizes(11) - 1; tot_init_trial_denom = recv_arr_helem(low:upp);
         end if
         if (tEN2) then
-           low = upp + 1; upp = low + sizes(10) - 1; en_pert_main%ndets_all = recv_arr_helem(low);
+           low = upp + 1; upp = low + sizes(12) - 1; en_pert_main%ndets_all = recv_arr_helem(low);
         endif
+        low = upp + 1; upp = low + sizes(13) - 1; AllInitsENumCyc = recv_arr_helem(low:upp);
 
         ! Optionally communicate EXLEVEL_WNorm.
         if (tLogEXLEVELStats) then
@@ -863,14 +925,19 @@ contains
                 ! make it relative to the HF energy.
                 if (ntrial_excits == 1) then
                     tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies(1))
+                    tot_init_trial_numerator = tot_init_trial_numerator + (tot_init_trial_denom*&
+                         trial_energies(1))
                 else
                     if (replica_pairs) then
                         do run = 2, inum_runs, 2
                             tot_trial_numerator(run-1:run) = tot_trial_numerator(run-1:run) + &
                                 tot_trial_denom(run-1:run)*trial_energies(run/2)
+                            tot_init_trial_numerator(run-1:run) = tot_init_trial_numerator(run-1:run) + &
+                                tot_init_trial_denom(run-1:run)*trial_energies(run/2)
                         end do
                     else
                         tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies)
+                        tot_init_trial_numerator = tot_init_trial_numerator + (tot_init_trial_denom*trial_energies)
                     end if
                 end if
             end if
@@ -919,8 +986,8 @@ contains
            write(iout,*) "update_growth: ",iter_data%update_growth_tot
            write(iout,*) "AllTotParts: ",AllTotParts
            write(iout,*) "AllTotPartsOld: ", AllTotPartsOld
-!            call stop_all (this_routine, &
-!                "Assertation failed: all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld)")
+            call stop_all (this_routine, &
+                "Assertation failed: all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld)")
         endif
 #endif
     
@@ -1269,10 +1336,12 @@ contains
 #else
                 if (abs(AllHFCyc(run)) > EPS) then
 #endif
-                   proje_iter(run) = (AllENumCyc(run)) / (all_cyc_proje_denominator(run)) &
-                        + proje_ref_energy_offsets(run)
-                   AbsProjE(run) = (AllENumCycAbs(run)) / (all_cyc_proje_denominator(run)) &
-                        + proje_ref_energy_offsets(run)
+                    proje_iter(run) = (AllENumCyc(run)) / (all_cyc_proje_denominator(run)) &
+                         + proje_ref_energy_offsets(run)
+                    AbsProjE(run) = (AllENumCycAbs(run)) / (all_cyc_proje_denominator(run)) &
+                         + proje_ref_energy_offsets(run)
+                    inits_proje_iter(run) = (AllInitsENumCyc(run)) / (all_cyc_proje_denominator(run)) &
+                         + proje_ref_energy_offsets(run)
                 endif
 
                 ! If we are re-zeroing the shift
@@ -1291,6 +1360,8 @@ contains
             endif
             if(abs(sum(all_cyc_proje_denominator(1:inum_runs))) > EPS) then
                proje_iter_tot = sum(AllENumCyc(1:inum_runs)) &
+                    / sum(all_cyc_proje_denominator(1:inum_runs))
+               inits_proje_iter_tot = sum(AllInitsENumCyc(1:inum_runs)) &
                     / sum(all_cyc_proje_denominator(1:inum_runs))
             endif
 
@@ -1330,6 +1401,7 @@ contains
         SpawnFromSing = 0.0_dp
         NoDied = 0.0_dp
         ENumCyc = 0.0_dp
+        InitsENumCyc = 0.0_dp
         ENumCycAbs = 0.0_dp
         HFCyc = 0.0_dp
         cyc_proje_denominator=0.0_dp
@@ -1402,6 +1474,9 @@ contains
         ! reset the truncated weight
         truncatedWeight = 0.0_dp
 
+        ! reset the logged number of initiators
+        initsPerExLvl = 0
+
     end subroutine rezero_iter_stats_update_cycle
 
     subroutine calculate_new_shift_wrapper (iter_data, tot_parts_new, replica_pairs)
@@ -1428,7 +1503,6 @@ contains
             else
                 call WriteFCIMCStats ()
             end if
-            if(tWriteUnocc) call write_unoccstats()
         end if
         
         call rezero_iter_stats_update_cycle (iter_data, tot_parts_new_all)

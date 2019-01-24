@@ -6,7 +6,8 @@ MODULE Determinants
                           tCSF, tCPMD, tPickVirtUniform, LMS, modk_offdiag, &
                           tGUGA, STOT, &
                           t_lattice_model, arr, lms, tFixLz, tUEGSpecifyMomentum, &
-                          tRef_Not_HF, tMolpro, tHub, tUEG
+                          tRef_Not_HF, tMolpro, tHub, tUEG, &
+                          nClosedOrbs, nOccOrbs, nIrreps, tspn, irrepOrbOffset
     use IntegralsData, only: UMat, FCK, NMAX
     use csf, only: det_to_random_csf, iscsf, csf_orbital_mask, &
                    csf_yama_bit, CSFGetHelement
@@ -64,18 +65,27 @@ MODULE Determinants
 contains
 
     Subroutine DetPreFreezeInit()
-        integer ierr, ms
-        integer i,Lz,OrbOrder(8,2),FDetTemp(NEl)
+        Use global_utilities
+        use SystemData, only : nEl, ECore, Arr, Brr, G1, nBasis, LMS, nBasisMax,&
+                                tFixLz, tUEGSpecifyMomentum, tRef_Not_HF
+        use SystemData, only : tMolpro
+        use sym_mod
+        use util_mod, only: NECI_ICOPY
+        use sltcnd_mod, only: CalcFockOrbEnergy 
+        integer ierr, ms, iEl, flagAlpha, iIrrep, msTmp
+        integer i,j,Lz,OrbOrder(8,2),FDetTemp(NEl),lmsMax
         type(BasisFn) s
+        logical :: tGenFDet
         HElement_t(dp) :: OrbE
         character(25), parameter :: this_routine='DetPreFreezeInit'
         Allocate(FDet(nEl), stat=ierr)
         LogAlloc(ierr, 'FDet', nEl, 4, tagFDet)
-        IF(tDefineDet) THEN
+        IF(tDefineDet) THEN           
             WRITE(6,*) 'Defining FDet according to input'
             do i=1,NEl
                 FDet(i)=DefDet(i)
             enddo
+            call assignOccOrbs()
 
             ! A quick check that we have defined a reasonable det.
             ms = sum(get_spin_pn(fdet(1:nel)))
@@ -102,15 +112,45 @@ contains
             end if
 #endif
             tRef_Not_HF = .true.
-        ELSE
-             CALL GENFDET(FDET)
-             IF(tUEGSpecifyMomentum) THEN
-                WRITE(6,*) 'Defining FDet according to a momentum input'
-                CALL ModifyMomentum(FDET)
-            ENDIF
-            tRef_Not_HF = .false.
+        else
+           if((sum(nOccOrbs) + sum(nClosedOrbs)) .eq. nel) then
+              tGenFDet = .false.
+              iEl = 1
+              msTmp = -1*lms
+              do i = 1, nIrreps
+                 ! doubly occupy the closed orbs 
+                 do j = 1, nClosedOrbs(i)
+                    FDet(iEl) = irrepOrbOffset(i) + 2*j - 1
+                    iEl = iEl + 1
+                    FDet(iEl) = irrepOrbOffset(i) + 2*j
+                    iEl = iEl + 1
+                 end do
+                 ! now distribute electrons to the open orbs
+                 ! such that the total sz matches the requested
+                 ! only consider occ orbs which are not closed
+                 do j = nClosedOrbs(i)+1, nOccOrbs(i)
+                    if(msTmp<0) then
+                       flagAlpha = 0
+                    else
+                       flagAlpha = 1
+                    endif
+                    FDet(iEl) = irrepOrbOffset(i) + 2*j - flagAlpha
+                    iEl = iEl + 1
+                    msTmp = msTmp + (1-2*flagAlpha)
+                 end do
+              end do
+              call sort(FDet)
+           else
+              CALL GENFDET(FDET)
+              call assignOccOrbs()
+              IF(tUEGSpecifyMomentum) THEN
+                 WRITE(6,*) 'Defining FDet according to a momentum input'
+                 CALL ModifyMomentum(FDET)
+              ENDIF
+              tRef_Not_HF = .false.
+           endif
         ENDIF
-!      ENDIF
+        !      ENDIF
       WRITE(6,"(A)",advance='no') " Fermi det (D0):"
       call write_det (6, FDET, .true.)
       Call GetSym(FDet,nEl,G1,nBasisMax,s)
@@ -156,6 +196,27 @@ contains
           calculated_ms = abs(calculated_ms)
       end if
 
+
+      contains
+
+        subroutine assignOccOrbs
+          implicit none
+          integer :: k
+          ! assign the occ/closed orbs
+          nOccOrbs = 0
+          nClosedOrbs = 0
+          do k = 1, nel
+             iIrrep = G1(FDet(k))%Sym%s + 1
+             if(k>1) then
+                if(is_alpha(FDet(k)) .and. FDet(k-1).eq.FDet(k)-1) then
+                   nClosedOrbs(iIrrep) = nClosedOrbs(iIrrep) + 1
+                   cycle
+                endif
+             end if
+             nOccOrbs(iIrrep) = nOccOrbs(iIrrep) + 1
+          end do
+        end subroutine assignOccOrbs
+        
     End Subroutine DetPreFreezeInit
 
     

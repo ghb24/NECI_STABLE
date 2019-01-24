@@ -50,6 +50,7 @@ MODULE FciMCData
       INTEGER(KIND=n_int) , POINTER :: SpawnedParts(:,:),SpawnedParts2(:,:)
       INTEGER(KIND=n_int) , POINTER :: SpawnedPartsKP(:,:), SpawnedPartsKP2(:,:)
 
+
       ! The number of walkers spawned onto this process.
       integer :: nspawned
       ! The number of walkers spawned in total, on all processes.
@@ -93,15 +94,14 @@ MODULE FciMCData
 
     real(dp), allocatable :: NoAborted(:), AllNoAborted(:), AllNoAbortedOld(:)
     real(dp), allocatable :: NoRemoved(:), AllNoRemoved(:), AllNoRemovedOld(:)
-    integer(int64), allocatable :: NoAddedInitiators(:), NoInitDets(:), NoNonInitDets(:)
     integer :: NoInitsConflicts, NoSIInitsConflicts, AllNoInitsConflicts, AllNoSIInitsConflicts
+    integer(int64), allocatable :: NoAddedInitiators(:), NoInitDets(:), NoNonInitDets(:)
+    real(dp), allocatable :: NoInitWalk(:), NoNonInitWalk(:)
+    integer(int64), allocatable :: NoExtraInitDoubs(:), InitRemoved(:)
     integer :: NoConflicts, AllNoConflicts
     integer :: maxConflictExLvl
     integer, allocatable :: ConflictExLvl(:), AllConflictExLvl(:)
     real(dp) :: avSigns, AllAvSigns
-    real(dp), allocatable :: NoInitWalk(:), NoNonInitWalk(:)
-    integer(int64), allocatable :: NoExtraInitDoubs(:), InitRemoved(:)
-
     integer(int64), allocatable :: AllNoAddedInitiators(:), AllNoInitDets(:)
     integer(int64), allocatable :: AllNoNonInitDets(:)
     real(dp),allocatable :: AllNoInitWalk(:), AllNoNonInitWalk(:)
@@ -167,15 +167,17 @@ MODULE FciMCData
       HElement_t(dp) :: ProjectionE_tot
 
       ! The averaged projected energy - calculated over the last update cycle
-      HElement_t(dp), allocatable :: proje_iter(:)
-      HElement_t(dp) :: proje_iter_tot
+      HElement_t(dp), allocatable :: proje_iter(:), inits_proje_iter(:)
+      HElement_t(dp) :: proje_iter_tot, inits_proje_iter_tot
 
       ! The averaged 'absolute' projected energy - calculated over the last update cycle
       ! The magnitude of each contribution is taken before it is summed in
       HElement_t(dp), allocatable :: AbsProjE(:)
 
       HElement_t(dp), allocatable :: trial_numerator(:), tot_trial_numerator(:)
+      HElement_t(dp), allocatable :: init_trial_numerator(:), tot_init_trial_numerator(:)
       HElement_t(dp), allocatable :: trial_denom(:), tot_trial_denom(:)
+      HElement_t(dp), allocatable :: init_trial_denom(:), tot_init_trial_denom(:)
       HElement_t(dp), allocatable :: trial_num_inst(:), tot_trial_num_inst(:)
       HElement_t(dp), allocatable :: trial_denom_inst(:), tot_trial_denom_inst(:)
       integer(n_int), allocatable :: con_send_buf(:,:)
@@ -214,9 +216,9 @@ MODULE FciMCData
       !This is the sum of HF*sign particles over all processors over the course of the update cycle
       HElement_t(dp), allocatable :: OldAllHFCyc(:) 
       !This is the old *average* (not sum) of HF*sign over all procs over previous update cycle
-      HElement_t(dp), allocatable :: ENumCyc(:)
+      HElement_t(dp), allocatable :: ENumCyc(:), InitsENumCyc(:)
       !This is the sum of doubles*sign*Hij on a given processor over the course of the update c
-      HElement_t(dp), allocatable :: AllENumCyc(:)
+      HElement_t(dp), allocatable :: AllENumCyc(:), AllInitsENumCyc(:)
       !This is the sum of double*sign*Hij over all processors over the course of the update cyc
       HElement_t(dp), allocatable :: ENumCycAbs(:)
       !This is the sum of abs(doubles*sign*Hij) on a given processor "" "" "" 
@@ -332,7 +334,6 @@ MODULE FciMCData
       INTEGER(TagIntType) :: DoublesDetsTag
       INTEGER :: NoDoubs
 
-      ! this is used for logging the excitation level of the unocc dets when delaying the deletion
       integer, allocatable :: HolesByExLvl(:)
       integer, allocatable :: AllHolesByExLvl(:)
       integer :: nUnoccDets, AllNUnoccDets
@@ -623,5 +624,24 @@ MODULE FciMCData
       ! for the automated tau-search with the guga non-weighted excitation 
       ! generator, i need multiple new specific excitation type probabilities
       real(dp) :: pExcit2, pExcit4, pExcit2_same, pExcit3_same
+      !This arrays contain information related to the spawns. Currently only used with auto-adaptive-shift
+      INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnInfoVec(:,:),SpawnInfoVec2(:,:)
+      INTEGER(KIND=n_int) , POINTER :: SpawnInfo(:,:),SpawnInfo2(:,:)
+      INTEGER(TagIntType) :: SpawnInfoVecTag=0,SpawnInfoVec2Tag=0
+     
+      !Size of SpawnInfo array elements
+      integer :: SpawnInfoWidth = 6
+      !Where is the spawn's parent index stored inside SpawnInfo
+      integer, parameter :: SpawnParentIdx = 1
+      !Where is the spawn's run stored inside SpawnInfo
+      integer, parameter :: SpawnRun = 2
+      !Where is the spawn acceptance status stored inside SpawnInfo
+      integer, parameter :: SpawnAccepted = 3
+      !Where is the spawn rejection weight stored inside SpawnInfo
+      integer, parameter :: SpawnWeightRej = 4
+      !Where is the spawn acceptance weight stored inside SpawnInfo
+      integer, parameter :: SpawnWeightAcc = 5
+      !Where is the reverse spawn weight stored inside SpawnInfo
+      integer, parameter :: SpawnWeightRev = 6
 
 end module FciMCData

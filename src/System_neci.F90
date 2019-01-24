@@ -4,7 +4,8 @@ MODULE System
 
     use SystemData
     use CalcData, only: TAU, tTruncInitiator, InitiatorWalkNo, &
-                        occCASorbs, virtCASorbs, tPairedReplicas
+                        occCASorbs, virtCASorbs, tPairedReplicas, tInitializeCSF, &
+                        S2Init
 
     use sort_mod
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
@@ -96,6 +97,7 @@ MODULE System
       LMS=0
       TSPN=.false.
       TCSF=.false.
+      tInitializeCSF = .false.
       TCSFOLD = .false.
       csf_trunc_level = 0
       tTruncateCSF = .false.
@@ -444,6 +446,9 @@ system: do
             ! do not reorder the orbitals in the hubbard + guga implementation
             t_guga_noreorder = .true.
 
+        case("INITIAL-SPIN")
+           call getf(S2Init)
+           tInitializeCSF = .true.
         case("CSF")
             if(item.lt.nitems) then
                call geti(STOT)

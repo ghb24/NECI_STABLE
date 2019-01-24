@@ -32,6 +32,8 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,tMolcas_local,int_name,
     use global_utilities
     use constants
     use util_mod, only: get_free_unit, neci_etime
+    
+    USE MolproPlugin
 
     Implicit none
     integer,intent(in) :: iCacheFlag
@@ -40,7 +42,8 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,tMolcas_local,int_name,
     type(timer), save :: proc_timer
     integer :: ios,iunit,iunit2,i,j,isfreeunit
     character(*), parameter :: this_routine = 'NECICore'
-    character(64) :: Filename,cString
+    character(1024) :: Filename
+    character(64) :: cString
     logical :: toverride_input,tFCIDUMP_exist,tMOLCASinput
     type(kp_fciqmc_data) :: kp
     real(dp) :: tend(2)
@@ -67,15 +70,24 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,tMolcas_local,int_name,
     toverride_input=.false.
 #ifndef _MOLCAS_
     if(tMolpro) then
+      IF (molpro_plugin) THEN
+        FCIDUMP_name = TRIM(molpro_plugin_fcidumpname)
+       ELSE
         FCIDUMP_name = adjustl(int_name)
+       END IF
         inquire(file="FCIQMC_input_override",exist=toverride_input)
         if(toverride_input) then
             Filename="FCIQMC_input_override"
         else
+          IF (molpro_plugin) THEN
+            filename=TRIM(molpro_plugin_datafilename)
+          ELSE
             filename=filename_in
+          ENDIF
             MolproID = ''
             if(iProcIndex.eq.Root) then
             !Now, extract the unique identifier for the input file that is read in.
+#ifdef old_and_buggy
                 i=14
                 j=1
                 do while(filename(i:i).ne.' ')
@@ -83,6 +95,11 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,tMolcas_local,int_name,
                     i=i+1
                     j=j+1
                 enddo
+#else
+                i=INDEX(filename,'/',.TRUE.)+1
+                j=INDEX(filename(i:),'NECI'); IF (j.NE.0) i=i+j-1
+                MolproID=filename(i:MIN(i+LEN(MolproID)-1,LEN(filename)))
+#endif
                 write(iout,"(A,A)") "Molpro unique filename suffix: ",MolproID
             endif
         endif
@@ -158,6 +175,7 @@ End Subroutine NECICore
 
 
 subroutine NECICodeInit(tCPMD,tVASP)
+ use MolproPlugin
     != Initialise the NECI code.  This contains all the initialisation
     != procedures for the code (as opposed to the system in general): e.g. for
     != the memory handling scheme, the timing routines, any parallel routines etc.
@@ -178,6 +196,9 @@ subroutine NECICodeInit(tCPMD,tVASP)
     ! can refer to the processor index being 0 for the parent processor.
     Call MPIInit(tCPMD.or.tVASP.or.tMolpro.or.tMolcas) ! CPMD and VASP have their own MPI initialisation and termination routines.
 
+    ! find out whether this is a Molpro plugin
+    CALL MolproPluginInit(tMolpro)
+    ! end find out whether this is a Molpro plugin
     ! If we use MPI_WTIME for timing, we have to call MPIInit first
     call init_timing()
 
@@ -206,14 +227,18 @@ subroutine NECICodeEnd(tCPMD,tVASP)
     use Determinants, only: FDet, tagFDet
 #ifdef PARALLEL
     use Parallel_neci, only: MPIEnd
+    USE MolproPlugin
 #endif
 
     implicit none
     logical, intent(in) :: tCPMD,tVASP
+    INTEGER :: rank, ierr
 
 #ifdef PARALLEL
+! Tell Molpro plugin server that we have finished
+    CALL MolproPluginTerm(0)
 ! CPMD and VASP have their own MPI initialisation and termination routines.
-    call MPIEnd((tMolpro.and.(.not.tMolproMimic)).or.tCPMD.or.tVASP.or.tMolcas) 
+    call MPIEnd(molpro_plugin.or.(tMolpro.and.(.not.tMolproMimic)).or.tCPMD.or.tVASP.or.tMolcas) 
 #endif
 
 !    CALL N_MEMORY_CHECK
@@ -384,3 +409,4 @@ subroutine NECICalcEnd(iCacheFlag)
 
     return
 end subroutine NECICalcEnd
+
