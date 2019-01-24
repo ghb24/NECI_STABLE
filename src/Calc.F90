@@ -1283,6 +1283,8 @@ contains
                 tCSFCore = .true.
                 tCSF = .true.
                 LMS = STOT
+            case("ALL-CONN-CORE")
+                ss_space_in%tAllConnCore = .true.
             case("DOUBLES-CORE")
                 ss_space_in%tDoubles = .true.
             case("HF-CONN-CORE")

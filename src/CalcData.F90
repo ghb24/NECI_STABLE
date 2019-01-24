@@ -51,6 +51,8 @@ type subspace_in
     ! each iteration to find which states to keep, we keep the states
     ! with the lowest energies.
     logical :: tLowE = .false.
+    ! Actually use the space of all connections to the chosen space
+    logical :: tAllConnCore = .false.
     ! Use the entire FCI space.
     logical :: tFCI = .false.
     ! Use the entire FCI space in Heisenberg model calculations.

@@ -278,6 +278,12 @@ contains
         ! update space_size accordingly.
         call remove_repeated_states(SpawnedParts, space_size)
 
+        ! Create and use the space of all connections to the current space
+        if (core_in%tAllConnCore) then
+            call generate_all_conn_space(SpawnedParts, space_size)
+            call remove_repeated_states(SpawnedParts, space_size)
+        end if
+
         zero_sign = 0.0_dp
         do i = 1, space_size
             call encode_sign(SpawnedParts(:,i), zero_sign)
@@ -1461,6 +1467,97 @@ contains
         end do
 
     end subroutine generate_fci_core
+
+    subroutine generate_all_conn_space(ilut_list, space_size)
+
+        use enumerate_excitations, only: generate_connected_space
+        use Parallel_neci, only: MPIAlltoAll, MPIAlltoAllv
+        use searching, only: remove_repeated_states
+
+        integer(n_int), intent(inout) :: ilut_list(0:,:)
+        integer, intent(inout) :: space_size
+
+        integer :: conn_size, conn_size_old, i, ierr
+        integer(n_int), allocatable :: conn_space(:,:), temp_space(:,:)
+        integer(MPIArg) :: con_sendcounts(0:nProcessors-1), con_recvcounts(0:nProcessors-1)
+        integer(MPIArg) :: con_senddispls(0:nProcessors-1), con_recvdispls(0:nProcessors-1)
+
+        if (space_size > 0) then
+
+            ! Find the states connected to the trial space. This typically takes a long time, so
+            ! it is done in parallel by letting each processor find the states connected to a
+            ! portion of the trial space.
+            write(6,'("Calculating the number of states in the connected space...")'); call neci_flush(6)
+
+            call generate_connected_space(space_size, ilut_list(0:NIfTot, 1:space_size), conn_size)
+
+            write(6,'("Attempting to allocate conn_space. Size =",1X,F12.3,1X,"Mb")') &
+                    real(conn_size,dp)*(NIfTot+1.0_dp)*7.629392e-06_dp; call neci_flush(6)
+            allocate(conn_space(0:NIfTot, conn_size), stat=ierr)
+            conn_space = 0_n_int
+
+            write(6,'("States found on this processor, including repeats:",1X,i8)') conn_size
+
+            write(6,'("Generating and storing the connected space...")'); call neci_flush(6)
+
+            call generate_connected_space(space_size, ilut_list(0:NIfTot, 1:space_size), &
+                                          conn_size, conn_space)
+
+            write(6,'("Removing repeated states and sorting by processor...")'); call neci_flush(6)
+
+            call remove_repeated_states(conn_space, conn_size)
+
+            call sort_space_by_proc(conn_space(:, 1:conn_size), conn_size, con_sendcounts)
+
+        else
+
+            conn_size = 0
+            con_sendcounts = 0
+            allocate(conn_space(0,0),stat=ierr)
+            write(6,'("This processor will not search for connected states.")'); call neci_flush(6)
+            !Although the size is zero, we should allocate it, because the rest of the code use it.
+            !Otherwise, we get segmentation fault later.
+            allocate(conn_space(0:NIfTot, conn_size), stat=ierr)
+
+        end if
+
+        write(6,'("Performing MPI communication of connected states...")'); call neci_flush(6)
+
+        ! Send the connected states to their processors.
+        ! con_sendcounts holds the number of states to send to other processors from this one.
+        ! con_recvcounts will hold the number of states to be sent to this processor from the others.
+        call MPIAlltoAll(con_sendcounts, 1, con_recvcounts, 1, ierr)
+        conn_size_old = conn_size
+        conn_size = sum(con_recvcounts)
+        ! The displacements necessary for mpi_alltoall.
+        con_sendcounts = con_sendcounts*int(NIfTot+1,MPIArg)
+        con_recvcounts = con_recvcounts*int(NIfTot+1,MPIArg)
+        con_senddispls(0) = 0
+        con_recvdispls(0) = 0
+        do i = 1, nProcessors-1
+            con_senddispls(i) = con_senddispls(i-1) + con_sendcounts(i-1)
+            con_recvdispls(i) = con_recvdispls(i-1) + con_recvcounts(i-1)
+        end do
+
+        !write(6,'("Attempting to allocate temp_space. Size =",1X,F12.3,1X,"Mb")') &
+        !    real(conn_size,dp)*(NIfTot+1.0_dp)*7.629392e-06_dp; call neci_flush(6)
+        !allocate(temp_space(0:NIfTot, conn_size), stat=ierr)
+
+        call MPIAlltoAllV(conn_space(:,1:conn_size_old), con_sendcounts, con_senddispls, &
+                          ilut_list(:,1:conn_size), con_recvcounts, con_recvdispls, ierr)
+
+        space_size = conn_size
+
+        if (allocated(conn_space)) then
+            deallocate(conn_space, stat=ierr)
+        end if
+        !write(6,'("Attempting to allocate conn_space. Size =",1X,F12.3,1X,"Mb")') &
+        !    real(conn_size,dp)*(NIfTot+1.0_dp)*7.629392e-06_dp; call neci_flush(6)
+        !allocate(conn_space(0:NIfTot, 1:conn_size), stat=ierr)
+        !conn_space = temp_space
+        !deallocate(temp_space, stat=ierr)
+
+    end subroutine generate_all_conn_space
 
     subroutine write_most_pop_core_at_end(target_space_size)
 
