@@ -39,6 +39,7 @@ set( SRC_FILES
     exact_spectrum.F90
     excit.F
     excit_parity.F90
+    fast_determ_hamil.F90
     FciMCData.F90
     fcimc_helper.F90
     fcimc_initialisation.F90

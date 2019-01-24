@@ -491,6 +491,10 @@ MODULE FciMCData
       ! total number of core states on all processors up to processor i.
       ! (determ_displs(1) == 0).
       integer(MPIArg), allocatable, dimension(:) :: determ_displs
+      ! determ_last(i) holds the final index belonging process i.
+      integer(MPIArg), allocatable, dimension(:) :: determ_last
+      ! The first and last indices on this process.
+      integer :: s_first_ind, s_last_ind
       ! The total size of the core space on all processors.
       integer(MPIArg) :: determ_space_size
       ! determ_space_size_int is identical to determ_space_size, but converted

@@ -308,9 +308,9 @@ contains
         integer, allocatable :: temp_store_nI(:,:)
         integer(TagIntType) :: HRTag, TempStoreTag
         HElement_t(dp), allocatable, dimension(:) :: hamiltonian_row
-        character(len=*), parameter :: t_r = "calculate_det_hamiltonian_sparse"
+        character(len=*), parameter :: t_r = "calc_determ_hamil_sparse"
 
-        integer(kind=n_int) :: tmp(0:NIfD)
+        integer(n_int) :: tmp(0:NIfD)
         integer :: IC
 
         allocate(sparse_core_ham(determ_sizes(iProcIndex)), stat=ierr)
@@ -411,7 +411,7 @@ contains
         integer, allocatable :: temp_store_nI(:,:)
         integer(TagIntType) :: HRTag, TempStoreTag
         HElement_t(dp), allocatable, dimension(:) :: hamiltonian_row
-        character(len=*), parameter :: t_r = "calculate_det_hamiltonian_sparse"
+        character(len=*), parameter :: t_r = "calc_determ_hamil_sparse_hphf"
 
         integer(n_int) :: tmp(0:NIfD)
         integer :: IC

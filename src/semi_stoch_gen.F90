@@ -7,6 +7,7 @@ module semi_stoch_gen
     use CalcData
     use constants
     use DetBitOps, only: EncodeBitDet
+    use fast_determ_hamil
     use FciMCData, only: HFDet, ilutHF
     use gndts_mod, only: gndts, gndts_all_sym_this_proc
     use LoggingData, only: tWriteCore, tRDMonFly
@@ -37,7 +38,7 @@ contains
         use FciMCData, only: FDetermTag, FDetermAvTag, PDetermTag, IDetermTag
         use FciMCData, only: tStartCoreGroundState, iter_data_fciqmc, SemiStoch_Init_Time
         use FciMCData, only: tFillingStochRdmOnFly, core_space, SemiStoch_Hamil_Time
-        use FciMCData, only: SemiStoch_Davidson_Time
+        use FciMCData, only: SemiStoch_Davidson_Time, determ_last, s_first_ind, s_last_ind
         use load_balance, only: adjust_load_balance
         use load_balance_calcnodes, only: tLoadBalanceBlocks
         use sort_mod, only: sort
@@ -70,8 +71,9 @@ contains
 
         allocate(determ_sizes(0:nProcessors-1))
         allocate(determ_displs(0:nProcessors-1))
+        allocate(determ_last(0:nProcessors-1))
         determ_sizes = 0_MPIArg
-        determ_displs = 0_MPIArg
+        determ_last = 0_MPIArg
 
         if (.not. (tStartCAS .or. core_in%tPops .or. core_in%tDoubles .or. core_in%tCAS .or. core_in%tRAS .or. &
                    core_in%tOptimised .or. core_in%tLowE .or. core_in%tRead .or. core_in%tMP1 .or. &
@@ -125,6 +127,16 @@ contains
             determ_displs(i) = determ_displs(i-1) + determ_sizes(i-1)
         end do
 
+        ! Calculate the indices in the full vector at which the various processors end.
+        determ_last(0) = determ_sizes(0)
+        do i = 1, nProcessors-1
+            determ_last(i) = determ_last(i-1) + determ_sizes(i)
+        end do
+
+        ! The first and last indices on this process
+        s_first_ind = determ_displs(iProcIndex) + 1
+        s_last_ind = determ_last(iProcIndex)
+
         call sort(spawnedparts(0:NIfTot,1:determ_sizes(iprocindex)), ilut_lt, ilut_gt)
 
         ! Do a check that no states are in the deterministic space twice. The list is sorted
@@ -152,7 +164,9 @@ contains
         if (tHPHF) then
             call calc_determ_hamil_sparse_hphf()
         else
-            call calc_determ_hamil_sparse()
+            !call calc_determ_hamil_sparse()
+            !call deallocate_sparse_ham(sparse_core_ham, 'sparse_core_ham', SparseCoreHamilTags)
+            call calc_determ_hamil_opt()
         end if
         call halt_timer(SemiStoch_Hamil_Time)
         write(6,'("Total time (seconds) taken for Hamiltonian generation:", f9.3)') &
