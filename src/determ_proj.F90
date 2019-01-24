@@ -13,6 +13,7 @@ module determ_proj
     use bit_rep_data, only: flag_deterministic, NIfD
     use bit_reps, only: test_flag
     use CalcData, only: NMCyc, tSemiStochastic, tOrthogonaliseReplicas
+    use CalcData, only: tau, DiagSft
     use constants
     use DetBitOps, only: DetBitLT
     use FciMCData, only: HFDet, ilutHF, iRefProc, CurrentDets, determ_sizes, &
@@ -31,8 +32,11 @@ contains
         integer :: counter, iter, comp, hf_index, ierr
         integer(int64) :: i, j
         real(dp), allocatable, dimension(:) :: wavefunction
+        real(dp), allocatable, dimension(:) :: wavefunction_old
         real(dp), allocatable, dimension(:) :: ham_times_hf
-        real(dp) :: energy_num, energy_denom, tot_e_num, tot_e_denom
+        real(dp), allocatable, dimension(:) :: ham_times_wf
+        real(dp) :: var_e_num, var_e_denom, energy_num, energy_denom
+        real(dp) :: tot_var_e_num, tot_var_e_denom, tot_e_num, tot_e_denom
         character(*), parameter :: this_routine = 'perform_determ_proj'
 
         if ((.not. tSemiStochastic) .or. (.not. allocated(sparse_core_ham))) &
@@ -40,7 +44,9 @@ contains
                 &option and define a core space to use the determ-proj option.") 
 
         allocate(wavefunction(determ_sizes(iProcIndex)))
+        allocate(wavefunction_old(determ_sizes(iProcIndex)))
         allocate(ham_times_hf(determ_sizes(iProcIndex)))
+        allocate(ham_times_wf(determ_sizes(iProcIndex)))
 
         write(6,'()')
         write(6,'(a83)') "Performing a deterministic projection using the defined &
@@ -71,22 +77,27 @@ contains
                             determ_displs)
 
         partial_determ_vecs = 0.0_dp
+        ham_times_hf = 0.0_dp
 
         do i = 1, determ_sizes(iProcIndex)
             do j = 1, sparse_core_ham(i)%num_elements
-                ham_times_hf(i) = ham_times_hf(i) - &
+                ham_times_hf(i) = ham_times_hf(i) + &
                     sparse_core_ham(i)%elements(j)*full_determ_vecs(1,sparse_core_ham(i)%positions(j))
             end do
         end do
 
-        write(6,'(a9,7X,a6)') "Iteration", "Energy"
+        write(6,'(a11,7X,a12,7X,a11)') "# Iteration", "Proj. Energy", "Var. Energy"
         call neci_flush(6)
 
         do while(iter <= NMCyc .or. NMCyc == -1)
 
+            wavefunction_old = wavefunction
+
             partial_determ_vecs(1,:) = wavefunction
 
             call determ_projection()
+
+            ham_times_wf = -partial_determ_vecs(1,:) / tau + (DiagSft(1) * wavefunction)
 
             wavefunction = wavefunction + partial_determ_vecs(1,:)
 
@@ -94,10 +105,15 @@ contains
             ASSERT(.not. tOrthogonaliseReplicas)
             if (iProcIndex == iRefProc(1)) energy_denom = wavefunction(hf_index)
 
+            var_e_num = dot_product(ham_times_wf, wavefunction_old)
+            var_e_denom = dot_product(wavefunction_old, wavefunction_old)
+
+            call MPISum(var_e_num, tot_var_e_num)
+            call MPISum(var_e_denom, tot_var_e_denom)
             call MPISum(energy_num, tot_e_num)
             call MPISum(energy_denom, tot_e_denom)
 
-            write(6,'(i9,7X,f13.10)') iter, tot_e_num/tot_e_denom
+            write(6,'(i9,7X,f13.10,7X,f13.10)') iter, tot_e_num/tot_e_denom, tot_var_e_num/tot_var_e_denom
             call neci_flush(6)
 
             iter = iter + 1
