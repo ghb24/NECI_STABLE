@@ -94,7 +94,10 @@ void PluginGuest::close()
 
 // pure C interface
 #include <memory>
-static std::shared_ptr<PluginGuest> guest = nullptr;
+// 24.01.2019 K.G. I had to change the constructor here to the default one (which does
+// the same as guest=nullptr) because some older implementations do not support the
+// construction from nullptr
+static std::shared_ptr<PluginGuest> guest{};
 void PluginGuestOpen(const char* host) { guest = std::make_shared<PluginGuest>(std::string(host)); }
 int PluginGuestActive() { return guest!=nullptr && guest->active() ? 1 : 0;}
 int PluginGuestSend(const char* value) { return guest->send(std::string(value)) ? 1 : 0 ; }

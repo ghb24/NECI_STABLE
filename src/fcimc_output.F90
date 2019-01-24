@@ -580,7 +580,6 @@ contains
 
         ! If the output file hasn't been opened yet, then create it.
         if (iProcIndex == Root .and. .not. inited) then
-           
            call open_state_file('fciqmc_stats',state)
            ! For the initiator stats file here:
            if (tTruncInitiator) call open_state_file('initiator_stats',state_i)
@@ -771,7 +770,6 @@ contains
                     call stats_out(state_i, .false., AllNoNonInitWalk(p), 'NonInitWalks (' // trim(adjustl(tmpc)) // ")")
                 end do
             end if
-     
             ! And we are done
             write(state%funit, *)
             if (tTruncInitiator) write(state_i%funit, *)

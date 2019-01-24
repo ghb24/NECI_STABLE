@@ -178,7 +178,6 @@ module LoggingData
     ! for the output of the references in the adi-mode
     logical :: tWriteRefs
     character(255) :: ref_filename
-    
     ! for the histogramming of the acceptance rates used in the adaptive shift mode
     logical :: t_hist_fvals
     integer :: enGrid, arGrid

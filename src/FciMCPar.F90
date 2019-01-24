@@ -1059,7 +1059,6 @@ module FciMCParMod
             else
                 walkExcitLevel_toHF = walkExcitLevel
             endif
-            
             if (tFillingStochRDMonFly) then
                 ! Set the average sign and occupation iteration which were
                 ! found in extract_bit_rep_avsign.

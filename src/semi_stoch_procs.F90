@@ -953,6 +953,11 @@ contains
 
         end do
 
+        do i = 1, n_keep
+           call extract_sign(largest_walkers(:,i), low_sign)
+           write(iout,*) low_sign
+        end do
+
         call sort(largest_walkers(:,1:n_keep), sign_lt, sign_gt)
 
     end subroutine return_most_populated_states
