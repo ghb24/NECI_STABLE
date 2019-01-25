@@ -175,14 +175,15 @@ contains
           nOccOrbs = 0
           nClosedOrbs = 0
           do k = 1, nel
-             iIrrep = G1(FDet(k))%Sym%s + 1
              if(k>1) then
                 if(is_alpha(FDet(k)) .and. FDet(k-1).eq.FDet(k)-1) then
-                   nClosedOrbs(iIrrep) = nClosedOrbs(iIrrep) + 1
+                   ! we do not need to resolve the irrep anymore (not relevant
+                   ! for further usage)
+                   nClosedOrbs(1) = nClosedOrbs(1) + 1
                    cycle
                 endif
              end if
-             nOccOrbs(iIrrep) = nOccOrbs(iIrrep) + 1
+             nOccOrbs(1) = nOccOrbs(1) + 1
           end do
         end subroutine assignOccOrbs
         

@@ -66,7 +66,7 @@ module fcimc_initialisation
     use IntegralsData, only: tPartFreezeCore, nHolesFrozen, tPartFreezeVirt, &
                              nVirtPartFrozen, nPartFrozen, nelVirtFrozen
     use bit_rep_data, only: NIfTot, NIfD, NIfDBO, NIfBCast, flag_initiator, &
-                            flag_deterministic
+                            flag_deterministic, extract_sign
     use bit_reps, only: encode_det, clear_all_flags, set_flag, encode_sign, &
                         decode_bit_det, nullify_ilut, encode_part_sign, &
                         extract_run_sign, tBuildSpinSepLists , &
@@ -95,7 +95,8 @@ module fcimc_initialisation
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
                                        gen_excit_4ind_weighted, &
                                        gen_excit_4ind_reverse
-    use hash, only: FindWalkerHash, add_hash_table_entry, init_hash_table
+    use hash, only: FindWalkerHash, add_hash_table_entry, init_hash_table, &
+         hash_table_lookup
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
     use load_balance, only: tLoadBalanceBlocks, addNormContribution, get_diagonal_matel, &
          AddNewHashDet
@@ -1972,6 +1973,8 @@ contains
       real(dp),allocatable :: S2(:,:), eigsImag(:), eigs(:),evs(:,:),void(:,:),work(:)
       real(dp) :: normalization, rawWeight, HDiag, tmpSgn(lenof_sign)
       integer :: err
+      real(dp) :: HFWeight(inum_runs)
+      logical :: tSuccess
       character(*), parameter :: t_r = "InitFCIMC_CSF"
       
       ! first, set up the space considered for the CSF
@@ -2036,6 +2039,22 @@ contains
          end if
          ! reset the reference?
       end do
+
+      call hash_table_lookup(HFDet,ilutHF,NIfDBO,HashIndex,CurrentDets,i,DetHash,tSuccess)
+      if(tSuccess) then
+         call extract_sign(CurrentDets(:,i),tmpSgn)
+         do i = 1, inum_runs
+            HFWeight(i) = mag_of_run(tmpSgn,i)
+         end do
+      else
+         HFWeight = 0.0_dp
+      endif
+          
+      AllTotParts = InitialPart
+      AllTotPartsOld = InitialPart
+      OldAllAvWalkersCyc = InitialPart
+      OldAllHFCyc = HFWeight
+      OldAllNoatHF = HFWeight
 
       ! cleanup
       deallocate(evs)
@@ -4027,7 +4046,7 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine init_norm()
-      use bit_rep_data, only: test_flag, extract_sign
+      use bit_rep_data, only: test_flag
       ! initialize the norm_psi, norm_psi_squared
       implicit none
       integer :: j
