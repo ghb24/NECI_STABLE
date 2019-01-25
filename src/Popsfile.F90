@@ -38,6 +38,7 @@ MODULE PopsfileMod
         gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2, max_death_cpt
     use FciMcData, only : pSingles, pDoubles, pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2
     use global_det_data, only: global_determinant_data, init_global_det_data, set_det_diagH
+    use tc_three_body_data, only: pTriples, tReadPTriples
     use fcimc_helper, only: update_run_reference, calc_inst_proje, TestInitiator
     use replica_data, only: set_initial_global_data
     use load_balance, only: pops_init_balance_blocks
@@ -106,7 +107,7 @@ contains
         integer :: PopRandomHash(2056)
         integer(int64) :: iPopAllTotWalkers
         real(dp) :: PopDiagSft(inum_runs), read_tau, read_psingles
-        real(dp) :: read_pparallel
+        real(dp) :: read_pparallel, read_ptriples
         real(dp) , dimension(lenof_sign) :: PopSumNoatHF
         integer(int64) :: read_walkers_on_nodes(0:nProcessors-1)
         integer, intent(in) :: DetsLen
@@ -133,6 +134,7 @@ contains
         ! These values might not be present in some popsfile versions, causing
         ! potential undefined behaviour
         read_psingles = 0.0_dp
+        read_ptriples = 0.0_dp
         read_pparallel = 0.0_dp
         read_tau = 0.0_dp
         PopDiagSft = 0.0_dp
@@ -156,7 +158,7 @@ contains
                         iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
                         PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot,read_tau, &
                         PopBlockingIter, PopRandomHash, read_psingles, read_pparallel, &
-                        read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
+                        read_ptriples, read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
                 endif
 
                 if(EndPopsList.ne.iPopAllTotWalkers) then
@@ -841,7 +843,7 @@ r_loop: do while(.not.tStoreDet)
         integer(int64) :: iPopAllTotWalkers
         integer(int64) :: read_walkers_on_nodes(0:nProcessors-1)
         real(dp) :: PopDiagSft(inum_runs), read_tau
-        real(dp) :: read_psingles, read_pparallel
+        real(dp) :: read_psingles, read_pparallel, read_ptriples
         real(dp), dimension(lenof_sign) :: PopSumNoatHF
         HElement_t(dp) :: PopAllSumENum(inum_runs)
         integer :: perturb_ncreate, perturb_nannihilate, PopBalanceBlocks
@@ -849,6 +851,7 @@ r_loop: do while(.not.tStoreDet)
         character(len=*), parameter :: t_r = "read_popsfile_wrapper"
 
         read_psingles = 0.0_dp
+        read_ptriples = 0.0_dp
         read_pparallel = 0.0_dp
         read_tau = 0.0_dp
         PopDiagSft = 0.0_dp
@@ -863,7 +866,7 @@ r_loop: do while(.not.tStoreDet)
                     iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
                     PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot, &
                     read_tau,PopBlockingIter, PopRandomHash, read_psingles, &
-                    read_pparallel, read_nnodes, read_walkers_on_nodes, &
+                    read_pparallel, read_ptriples, read_nnodes, read_walkers_on_nodes, &
                     PopBalanceBlocks)
         else
             call stop_all(t_r, "Only version 4 popsfile are supported with kp-fciqmc.")
@@ -883,7 +886,7 @@ r_loop: do while(.not.tStoreDet)
                 iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
                 PopNIfD,PopNIfY,PopNIfSgn,PopNIfTot, &
                 WalkerListSize,read_tau,PopBlockingIter, read_psingles, read_pparallel, &
-                perturb_ncreate, perturb_nannihilate)
+                read_ptriples, perturb_ncreate, perturb_nannihilate)
 
         if (iProcIndex == root) close(iunithead)
 
@@ -1098,14 +1101,14 @@ r_loop: do while(.not.tStoreDet)
                     iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                     PopNIfD,PopNIfY,PopNIfSgn,PopNIfTot, &
                     WalkerListSize,read_tau,PopBlockingIter, read_psingles, &
-                    read_pparallel, perturb_ncreate, perturb_nann)
+                    read_pparallel, read_ptriples, perturb_ncreate, perturb_nann)
         use LoggingData , only : tZeroProjE
         logical, intent(in) :: tPop64Bit,tPopHPHF,tPopLz
         integer , intent(in) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfTot
         integer , intent(in) :: PopBlockingIter
         integer(int64) , intent(in) :: iPopAllTotWalkers
         real(dp) , intent(in) :: PopDiagSft(inum_runs),read_tau
-        real(dp), intent(in) :: read_psingles, read_pparallel
+        real(dp), intent(in) :: read_psingles, read_pparallel, read_ptriples
         real(dp) , dimension(lenof_sign) , intent(in) :: PopSumNoatHF
         HElement_t(dp) , intent(in) :: PopAllSumENum(inum_runs)
         integer, intent(in) :: perturb_ncreate, perturb_nann
@@ -1223,6 +1226,12 @@ r_loop: do while(.not.tStoreDet)
                write(iout,*)" pSingles set to: ", pSingles
                write(iout,*) " pDoubles set to: ", pDoubles
             end if
+            tReadPTriples = .false.
+            if(abs(read_ptriples) > eps) then
+               pTriples = read_ptriples
+               tReadPTriples = .true.
+               write(iout,*) "Using pTriples provided by POPSFILE"
+            end if
 
             ! also do that for pParallel
             if (read_pparallel /= 0.0_dp) then
@@ -1312,7 +1321,11 @@ r_loop: do while(.not.tStoreDet)
                write(6,*) "Using read-in pSingles=", pSingles
                write(6,*) "Using read-in pDoubles=", pDoubles
             end if
-
+            tReadPTriples = .false.
+            if(abs(read_pTriples) > eps) then
+               pTriples = read_pTriples
+               tReadPTriples = .true.
+            end if
 #endif
             iBlockingIter = PopBlockingIter
          endif
@@ -1376,7 +1389,7 @@ r_loop: do while(.not.tStoreDet)
     subroutine ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                 iPopAllTotWalkers,PopDiagSft,PopSumNoatHF_out,PopAllSumENum,iPopIter,   &
                 PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot,read_tau, &
-                PopBlockingIter, PopRandomHash, read_psingles, read_pparallel, &
+                PopBlockingIter, PopRandomHash, read_psingles, read_pparallel, read_ptriples, &
                 read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
         integer , intent(in) :: iunithead
         logical, intent(out) :: tPop64Bit,tPopHPHF,tPopLz
@@ -1386,7 +1399,7 @@ r_loop: do while(.not.tStoreDet)
         integer, intent(out) :: PopRandomHash(2056), PopBalanceBlocks
         integer(int64), intent(out) :: read_walkers_on_nodes(0:nProcessors-1)
         integer(int64) , intent(out) :: iPopAllTotWalkers
-        real(dp) , intent(out) :: PopDiagSft(inum_runs),read_tau, read_psingles
+        real(dp) , intent(out) :: PopDiagSft(inum_runs),read_tau, read_psingles, read_ptriples
         real(dp), intent(out) :: PopSumNoatHF_out(lenof_sign)
         real(dp) :: PopSumNoatHF(2056), PopMultiSft(2056)
         real(dp) :: PopMultiSumENum(2056), PopMultiSumNoatHF(2056)
@@ -1399,7 +1412,7 @@ r_loop: do while(.not.tStoreDet)
         integer, parameter :: max_nodes = 30000
         integer(int64) :: PopTotwalk, PopWalkersOnNodes(max_nodes)
         integer :: PopNNodes
-        real(dp) :: PopSft, PopTau, PopPSingles, PopPParallel, PopGammaSing
+        real(dp) :: PopSft, PopTau, PopPSingles, PopPParallel, PopGammaSing, PopPTriples
         real(dp) :: PopPDoubles, PopPSing_spindiff1, PopPDoub_spindiff1, PopPDoub_spindiff2
         real(dp) :: PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt
         real(dp) :: PopTotImagTime, PopSft2, PopParBias        
@@ -1418,7 +1431,7 @@ r_loop: do while(.not.tStoreDet)
                     PopTotwalk,PopSft,PopSft2,PopSumNoatHF,PopSumENum, &
                     PopCyc,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot, &
                     PopTau,PopiBlockingIter,PopRandomHash,&
-                    PopPSingles, PopPSing_spindiff1, PopPDoubles, PopPDoub_spindiff1, PopPDoub_spindiff2, &
+                    PopPSingles, PopPSing_spindiff1, PopPDoubles, PopPDoub_spindiff1, PopPDoub_spindiff2, PopPTriples, &
                     PopPParallel, PopNNodes, PopWalkersOnNodes, PopGammaSing, &
                     PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt, &
                     PopGammaSing_spindiff1, PopGammaDoub_spindiff1, PopGammaDoub_spindiff2, &
@@ -1432,6 +1445,7 @@ r_loop: do while(.not.tStoreDet)
         PopParBias = 0.0_dp
         PopPParallel = 0.0_dp
         PopPSingles = 0.0_dp
+        PopPTriples = 0.0_dp
         PopMultiSft = 0.0_dp
         PopMaxDeathCpt = 0.0_dp
         PopTotImagTime = 0.0_dp
@@ -1461,6 +1475,7 @@ r_loop: do while(.not.tStoreDet)
         call MPIBCast(PopTau)
         call MPIBCast(PopiBlockingIter)
         call MPIBCast(PopPSingles)
+        call MPIBCast(PopPTriples)
         if (tReltvy) then
             call MPIBCast(PopPDoubles)
             call MPIBCast(PopPSing_spindiff1)
@@ -1509,6 +1524,7 @@ r_loop: do while(.not.tStoreDet)
         read_tau=PopTau 
         PopBlockingIter=PopiBlockingIter
         read_psingles = PopPSingles
+        read_pTriples = PopPTriples
         if (abs(PopParBias) > 1.0e-12_dp .and. abs(PopPParallel) < 1.0e-12_dp) then
             popPParallel = (PopParBias * par_elec_pairs) &
                          / (PopParBias * par_elec_pairs + AB_elec_pairs)
@@ -2064,6 +2080,7 @@ r_loop: do while(.not.tStoreDet)
         write(iunit, '(a,f18.12,a,f18.12)') 'PopPSingles=', pSingles, &
             ',PopPParallel=', pParallel, &
             ',PopPDoubles=', pDoubles, &
+            ',PopPTriples=', pTriples, &
             ',PopPSing_spindiff1=', pSing_spindiff1, &
             ',PopPDoub_spindiff1=', pDoub_spindiff1, &
             ',PopPDoub_spindiff2=', pDoub_spindiff2

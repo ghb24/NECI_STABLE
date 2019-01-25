@@ -1301,11 +1301,6 @@ contains
 !            WRITE(iout,"(A,I20)") "Approximate size of determinant space is: ",NINT(TotDets)
 !        endif
 
-        ! for the (uniform) 3-body excitgen, the generation probabilities are uniquely given
-        ! by the number of alpha and beta electrons and the number of orbitals
-        ! and can hence be precomputed
-        if(t_mol_3_body) call setup_mol_tc_excitgen(hfdet)
-
     END SUBROUTINE SetupParameters
 
     ! This initialises the calculation, by allocating memory, setting up the
@@ -1316,7 +1311,7 @@ contains
         INTEGER :: error,MemoryAlloc,PopsVersion
         character(*), parameter :: t_r = 'InitFCIMCPar', this_routine = t_r
         integer :: PopBlockingIter
-        real(dp) :: ExpectedMemWalk,read_tau, read_psingles, read_pparallel
+        real(dp) :: ExpectedMemWalk,read_tau, read_psingles, read_pparallel, read_ptriples
         integer(int64) :: read_walkers_on_nodes(0:nProcessors-1)
         integer :: read_nnodes
         !Variables from popsfile header...
@@ -1391,7 +1386,7 @@ contains
                             iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
                             PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot, &
                             read_tau,PopBlockingIter, PopRandomHash, read_psingles, &
-                            read_pparallel, read_nnodes, read_walkers_on_nodes,&
+                            read_pparallel, read_ptriples, read_nnodes, read_walkers_on_nodes,&
                             PopBalanceBlocks)
                     ! Use the random hash from the Popsfile. This is so that,
                     ! if we are using the same number of processors as the job
@@ -1420,7 +1415,7 @@ contains
                         iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
                         PopNIfD,PopNIfY,PopNIfSgn,PopNIfTot, &
                         MaxWalkersUncorrected,read_tau,PopBlockingIter, read_psingles, read_pparallel, &
-                        perturb_ncreate, perturb_nannihilate)
+                        read_ptriples, perturb_ncreate, perturb_nannihilate)
 
                 if(iProcIndex.eq.root) close(iunithead)
             else
@@ -1706,7 +1701,11 @@ contains
          if(tInitiatorsSubspace) call read_g_markers()
 
          if(tRDMonFly .and. tDynamicCoreSpace) call sync_rdm_sampling_iter()
-
+         
+         ! for the (uniform) 3-body excitgen, the generation probabilities are uniquely given
+         ! by the number of alpha and beta electrons and the number of orbitals
+         ! and can hence be precomputed
+         if(t_mol_3_body) call setup_mol_tc_excitgen(hfdet)
     end subroutine InitFCIMCCalcPar
 
     subroutine init_fcimc_fn_pointers()

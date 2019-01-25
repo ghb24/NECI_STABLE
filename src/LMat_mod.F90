@@ -245,7 +245,6 @@ module LMat_mod
       if(iProcIndex_intra.eq.0) then
          do k = 1, LMatSize
             LMat(k) = 0.0_dp
-            if(mod(k,10000).eq.0) write(iout,*) "Now at", k
          end do
       endif
 

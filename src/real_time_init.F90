@@ -567,7 +567,7 @@ contains
         logical :: formpops, binpops, tPop64Bit, tPopHPHF, tPopLz
         integer(int64) :: iPopAllTotWalkers, read_walkers_on_nodes(0:nProcessors-1)
         real(dp) :: PopDiagSft(inum_runs), read_tau, PopSumNoatHF(lenof_sign), &
-                    read_psingles, read_pparallel
+                    read_psingles, read_pparallel, read_ptriples
         HElement_t(dp) :: PopAllSumENum(inum_runs)
         character(255) :: popsfile
 
@@ -585,7 +585,7 @@ contains
                 iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                 PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs, PopNIfFlag,PopNIfTot, &
                 read_tau,PopBlockingIter, PopRandomHash, read_psingles, &
-                read_pparallel, read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
+                read_pparallel, read_ptriples, read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
 
         else 
             ! if popsfiles are stored in binary! there are seperate files for 
@@ -617,7 +617,7 @@ contains
         logical :: formpops, binpops, tPop64Bit, tPopHPHF, tPopLz
         integer(int64) :: iPopAllTotWalkers, read_walkers_on_nodes(0:nProcessors-1)
         real(dp) :: PopDiagSft(inum_runs), read_tau, PopSumNoatHF(lenof_sign), &
-                    read_psingles, read_pparallel
+                    read_psingles, read_pparallel, read_ptriples
         HElement_t(dp) :: PopAllSumENum(inum_runs)
         integer :: ierr
 
@@ -645,7 +645,7 @@ contains
              iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
              PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs, PopNIfFlag,PopNIfTot, &
              read_tau,PopBlockingIter, PopRandomHash, read_psingles, &
-             read_pparallel, read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
+             read_pparallel, read_ptriples, read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
 
         ! at this point, we do not want to perturb the state and have no use for the 
         ! pops_pert variable anymore -> deallocate it

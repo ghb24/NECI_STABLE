@@ -9,6 +9,7 @@ module tc_three_body_excitgen
   use FciMCData, only: excit_gen_store_type, pDoubles, pSingles
   use dSFMT_interface, only: genrand_real2_dSFMT
   use lattice_models_utils, only: make_ilutJ
+  use util_mod, only: choose
   use excit_gens_int_weighted, only: pick_biased_elecs
   use GenRandSymExcitNUMod, only: calc_pgen_symrandexcit2, ScratchSize, &
        createSingleExcit, createDoubExcit, construct_class_counts
@@ -178,14 +179,26 @@ module tc_three_body_excitgen
       implicit none
       ! reference determinant for initializing the biases
       integer, intent(in) :: HF(nel)
+      real(dp) :: normalization
 
-      pTriples = 0.9
+      ! if we read in a value, use that one
+      if(abs(pTriples < eps)) then
+         pTriples = 0.1
+      endif
       ! rescale pSingles/pDoubles
-      pSingles = pSingles * (1.0_dp-pTriples)
-      pDoubles = pDoubles * (1.0_dp-pTriples)
-      p0A = 0.25
-      p0B = 0.25
-      p2B = 0.25
+      ! only required if not continuing a run w rescaled values
+      if(.not.tReadPTriples) then
+         pSingles = pSingles * (1.0_dp-pTriples)
+         pDoubles = pDoubles * (1.0_dp-pTriples)
+         write(iout,*) "Reset pSingles to ", pSingles
+         write(iout,*) "Reset pDoubles to ", pDoubles    
+      endif
+      write(iout,*) "pTriples set to ", pTriples
+      ! scale the probabilities with the number of possible picks
+      normalization = choose(nel,3)
+      p0A = choose(nOccBeta,3)/normalization
+      p0B = choose(noccAlpha,3)/normalization
+      p2B = choose(nOccBeta,2)*nOccAlpha/normalization
       p1B = 1.0_dp - p0A - p0B - p2B
     end subroutine init_mol_tc_biases
 

@@ -810,7 +810,7 @@ contains
             al_req = 1
             be_req = 1
             pgen = (1.0_dp - pBiasIntern) / real(AB_elec_pairs, dp)
-            r = ((r - pParallel) / (1.0_dp - pParallel)) * AB_elec_pairs
+            r = ((r - pBiasIntern) / (1.0_dp - pBiasIntern)) * AB_elec_pairs
             idx = floor(r)
             al_num(1) = 1 + mod(idx, nOccAlpha)
             be_num(1) = 1 + floor(idx / real(nOccAlpha, dp))
