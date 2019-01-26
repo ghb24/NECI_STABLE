@@ -164,9 +164,9 @@ contains
         if (tHPHF) then
             call calc_determ_hamil_sparse_hphf()
         else
-            call calc_determ_hamil_sparse()
+            !call calc_determ_hamil_sparse()
             !call deallocate_sparse_ham(sparse_core_ham, 'sparse_core_ham', SparseCoreHamilTags)
-            !call calc_determ_hamil_opt()
+            call calc_determ_hamil_opt()
         end if
         call halt_timer(SemiStoch_Hamil_Time)
         write(6,'("Total time (seconds) taken for Hamiltonian generation:", f9.3)') &
