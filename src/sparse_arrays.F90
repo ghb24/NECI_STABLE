@@ -486,6 +486,8 @@ contains
             sparse_core_ham(i)%positions = 0
             sparse_core_ham(i)%num_elements = row_size
 
+            write(6,*) "i:", i, "num_conns:", row_size
+
             counter = 1
             do j = 1, determ_space_size
                 ! If non-zero or a diagonal element.
@@ -497,6 +499,13 @@ contains
                 if (counter == row_size + 1) exit
             end do
 
+        end do
+
+        do i = 1, determ_sizes(iProcIndex)
+            write(6,*) "i:", i
+            do j = 1, sparse_core_ham(i)%num_elements
+                write(6,*) "pos:", sparse_core_ham(i)%positions(j), "elem:", sparse_core_ham(i)%elements(j)
+            end do
         end do
 
         ! Don't time the mpi_barrier call, because if we did then we wouldn't
