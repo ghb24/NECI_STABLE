@@ -160,7 +160,7 @@ contains
         if (tWriteCore) call write_core_space()
 
         write(6,'("Generating the Hamiltonian in the deterministic space...")'); call neci_flush(6)
-        call set_timer(SemiStoch_Hamil_Time)
+        !call set_timer(SemiStoch_Hamil_Time)
         if (tHPHF) then
             !call calc_determ_hamil_sparse_hphf()
             !call deallocate_sparse_ham(sparse_core_ham, 'sparse_core_ham', SparseCoreHamilTags)
@@ -170,9 +170,9 @@ contains
             !call deallocate_sparse_ham(sparse_core_ham, 'sparse_core_ham', SparseCoreHamilTags)
             call calc_determ_hamil_opt()
         end if
-        call halt_timer(SemiStoch_Hamil_Time)
-        write(6,'("Total time (seconds) taken for Hamiltonian generation:", f9.3)') &
-           get_total_time(SemiStoch_Hamil_Time)
+        !call halt_timer(SemiStoch_Hamil_Time)
+        !write(6,'("Total time (seconds) taken for Hamiltonian generation:", f9.3)') &
+        !   get_total_time(SemiStoch_Hamil_Time)
 
         if (tRDMonFly) call generate_core_connections()
 

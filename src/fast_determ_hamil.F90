@@ -53,7 +53,7 @@ contains
         integer :: nbeta, nalpha, nbeta_m1, nalpha_m1
         ! The number of beta and alpha strings in the 'unpaired' determinants
         ! in the HPHFs
-        integer :: nbeta_stored, nalpha_stored
+        integer :: nbeta_unpaired, nalpha_unpaired
 
         integer :: nintersec
         integer, allocatable :: intersec_inds(:)
@@ -140,8 +140,8 @@ contains
         do hphf_ind = 1, 2
 
             if (hphf_ind == 2) then
-                nbeta_stored = nbeta
-                nalpha_stored = nalpha
+                nbeta_unpaired = nbeta
+                nalpha_unpaired = nalpha
             end if
 
             do i = 1, determ_space_size
@@ -270,21 +270,21 @@ contains
         ! Now we know the size of the auxiliary arrays
 
         ! --- Allocate the auxiliary arrays ---------------
-        allocate(beta_dets(nbeta_stored), stat=ierr)
-        allocate(alpha_dets(nalpha_stored), stat=ierr)
-        allocate(beta_with_alpha(nalpha_stored), stat=ierr)
-        !allocate(alpha_with_beta(nbeta_stored), stat=ierr)
+        allocate(beta_dets(nbeta_unpaired), stat=ierr)
+        allocate(alpha_dets(nalpha_unpaired), stat=ierr)
+        allocate(beta_with_alpha(nalpha_unpaired), stat=ierr)
+        !allocate(alpha_with_beta(nbeta_unpaired), stat=ierr)
 
         allocate(beta_m1_contribs(nbeta_m1), stat=ierr)
         allocate(alpha_m1_contribs(nalpha_m1), stat=ierr)
 
-        do i = 1, nbeta_stored
+        do i = 1, nbeta_unpaired
             allocate(beta_dets(i)%pos(nbeta_dets(i)), stat=ierr)
         end do
-        do i = 1, nalpha_stored
+        do i = 1, nalpha_unpaired
             allocate(alpha_dets(i)%pos(nalpha_dets(i)), stat=ierr)
         end do
-        do i = 1, nalpha_stored
+        do i = 1, nalpha_unpaired
             allocate(beta_with_alpha(i)%pos(nalpha_dets(i)), stat=ierr)
         end do
         do i = 1, nbeta_m1
@@ -295,8 +295,8 @@ contains
         end do
 
         ! --- Now fill the auxiliary arrays ----------------
-        nbeta_dets(1:nbeta_stored) = 0
-        nalpha_dets(1:nalpha_stored) = 0
+        nbeta_dets(1:nbeta_unpaired) = 0
+        nalpha_dets(1:nalpha_unpaired) = 0
         nbeta_m1_contribs(1:nbeta_m1) = 0
         nalpha_m1_contribs(1:nalpha_m1) = 0
 
@@ -394,7 +394,7 @@ contains
                 do k = 1, nbeta_m1_contribs(i)
                     if (j == k) cycle
                     ! Don't need to consider beta values that aren't in the unpaired detereminants
-                    if (beta_m1_contribs(i)%pos(k) > nbeta_stored) cycle
+                    if (beta_m1_contribs(i)%pos(k) > nbeta_unpaired) cycle
                     nbeta_beta(beta_m1_contribs(i)%pos(j)) = nbeta_beta(beta_m1_contribs(i)%pos(j)) + 1
                 end do
             end do
@@ -414,7 +414,7 @@ contains
                 do k = 1, nbeta_m1_contribs(i)
                     if (j == k) cycle
                     ! Don't need to consider beta values that aren't in the unpaired detereminants
-                    if (beta_m1_contribs(i)%pos(k) > nbeta_stored) cycle
+                    if (beta_m1_contribs(i)%pos(k) > nbeta_unpaired) cycle
                     nbeta_beta(beta_m1_contribs(i)%pos(j)) = nbeta_beta(beta_m1_contribs(i)%pos(j)) + 1
                     beta_beta( beta_m1_contribs(i)%pos(j) )%pos(nbeta_beta( beta_m1_contribs(i)%pos(j) )) = beta_m1_contribs(i)%pos(k)
                 end do
@@ -428,7 +428,7 @@ contains
                 do k = 1, nalpha_m1_contribs(i)
                     if (j == k) cycle
                     ! Don't need to consider alpha values that aren't in the unpaired detereminants
-                    if (alpha_m1_contribs(i)%pos(k) > nalpha_stored) cycle
+                    if (alpha_m1_contribs(i)%pos(k) > nalpha_unpaired) cycle
                     nalpha_alpha(alpha_m1_contribs(i)%pos(j)) = nalpha_alpha(alpha_m1_contribs(i)%pos(j)) + 1
                 end do
             end do
@@ -448,7 +448,7 @@ contains
                 do k = 1, nalpha_m1_contribs(i)
                     if (j == k) cycle
                     ! Don't need to consider alpha values that aren't in the unpaired detereminants
-                    if (alpha_m1_contribs(i)%pos(k) > nalpha_stored) cycle
+                    if (alpha_m1_contribs(i)%pos(k) > nalpha_unpaired) cycle
                     nalpha_alpha(alpha_m1_contribs(i)%pos(j)) = nalpha_alpha(alpha_m1_contribs(i)%pos(j)) + 1
                     alpha_alpha( alpha_m1_contribs(i)%pos(j) )%pos(nalpha_alpha( alpha_m1_contribs(i)%pos(j) )) = alpha_m1_contribs(i)%pos(k)
 
@@ -463,7 +463,7 @@ contains
         ! Sort auxiliary arrays into the required order
         call set_timer(sort_aux_time)
 
-        do i = 1, nalpha_stored
+        do i = 1, nalpha_unpaired
             call sort(beta_with_alpha(i)%pos, alpha_dets(i)%pos)
         end do
 
@@ -476,6 +476,28 @@ contains
         end do
 
         call halt_timer(sort_aux_time)
+
+        ! Deallocate the arrays which we don't need for the following.
+
+        do i = nbeta_m1, 1, -1
+            deallocate(beta_m1_contribs(i)%pos, stat=ierr)
+        end do
+        do i = nalpha_m1, 1, -1
+            deallocate(alpha_m1_contribs(i)%pos, stat=ierr)
+        end do
+
+        deallocate(nbeta_m1_contribs)
+        deallocate(nalpha_m1_contribs)
+        deallocate(beta_m1_contribs)
+        deallocate(alpha_m1_contribs)
+
+        call clear_hash_table(beta_m1_ht)
+        deallocate(beta_m1_ht, stat=ierr)
+        nullify(beta_m1_ht)
+
+        call clear_hash_table(alpha_m1_ht)
+        deallocate(alpha_m1_ht, stat=ierr)
+        nullify(alpha_m1_ht)
 
         write(6,'("Time to sort auxiliary arrays:", f9.3)') get_total_time(sort_aux_time); call neci_flush(6)
 
@@ -542,7 +564,7 @@ contains
                 ! If the beta string of the paired determinant is in one of the
                 ! unpaired determinants - it might not be!
                 !if (tSuccess_b_paired) then
-                if (ind_beta_paired <= nbeta_stored) then
+                if (ind_beta_paired <= nbeta_unpaired) then
                     do j = 1, nbeta_dets(ind_beta_paired)
                         ind_j = beta_dets(ind_beta_paired)%pos(j)
                         ! This is a diagonal elements, included later
@@ -608,7 +630,7 @@ contains
                 ! If the alpha string of the paired determinant is in one of the
                 ! unpaired determinants - it might not be!
                 !if (tSuccess_a_paired) then
-                if (ind_alpha_paired <= nalpha_stored) then
+                if (ind_alpha_paired <= nalpha_unpaired) then
                     do j = 1, nalpha_dets(ind_alpha_paired)
                         ind_j = alpha_dets(ind_alpha_paired)%pos(j)
                         ! This is a diagonal elements, included later
@@ -737,6 +759,45 @@ contains
 
         total_time = get_total_time(aux_time) + get_total_time(sort_aux_time) + get_total_time(ham_time)
         write(6,'("total_time:", f9.3)') total_time; call neci_flush(6)
+
+        ! --- Deallocate all auxiliary arrays -------------
+
+        do i = nbeta_unpaired, 1, -1
+            deallocate(beta_dets(i)%pos, stat=ierr)
+        end do
+        do i = nalpha_unpaired, 1, -1
+            deallocate(alpha_dets(i)%pos, stat=ierr)
+        end do
+        do i = nalpha_unpaired, 1, -1
+            deallocate(beta_with_alpha(i)%pos, stat=ierr)
+        end do
+
+        deallocate(nbeta_dets)
+        deallocate(nalpha_dets)
+
+        deallocate(beta_dets)
+        deallocate(alpha_dets)
+        deallocate(beta_with_alpha)
+
+        deallocate(nI_list)
+        deallocate(num_conns)
+
+        call clear_hash_table(beta_ht)
+        deallocate(beta_ht, stat=ierr)
+        nullify(beta_ht)
+
+        call clear_hash_table(alpha_ht)
+        deallocate(alpha_ht, stat=ierr)
+        nullify(alpha_ht)
+
+        deallocate(beta_list)
+        deallocate(alpha_list)
+
+        deallocate(intersec_inds)
+        deallocate(hamil_row)
+        deallocate(hamil_pos)
+
+        call MPIBarrier(ierr, tTimeIn=.false.)
 
     end subroutine calc_determ_hamil_opt_hphf
 
