@@ -7,7 +7,7 @@ module rdm_general
     use SystemData, only: nel, nbasis
     use rdm_data, only: InstRDMCorrectionFactor, RDMCorrectionFactor, ThisRDMIter
     use rdm_data, only: inits_one_rdms, two_rdm_inits_spawn, two_rdm_inits, rdm_inits_defs
-    use CalcData, only: tInitsRDM, tOutputInitsRDM
+    use CalcData, only: tInitsRDM, tOutputInitsRDM, tInitsRDMRef
 
     implicit none
 
@@ -995,8 +995,26 @@ contains
          
          AvFmu = AvFmu * fmu
       end do
-      AvFmu = AvFmu ** (1.0_dp/real(inum_runs,dp))
+      AvFmu = dressedFactor(AvFmu ** (1.0_dp/real(inum_runs,dp)))
     end function avFFunc
+
+  !------------------------------------------------------------------------------------------!
+
+    function dressedFactor(fmu) result(fmup)
+      implicit none
+      real(dp) :: eCorr, e0Inits
+      if(tInitsRDMRef) then
+         ! initiator-only reference energy
+         e0Inits = inits_estimates%energy_num(1)/inits_estimates%norm(1)
+         ! correlation energy
+         eCorr = sum(proje_iter)/inum_runs + Hii - e0Inits
+         enOffset = (Hii - e0Inits)/eCorr
+
+         fmup = enOffset + fmu*(inum_runs*eCorr)/(sum(proje_iter))
+      else
+         fmup = fmu
+      endif
+    end function dressedFactor
 
   !------------------------------------------------------------------------------------------!
 
