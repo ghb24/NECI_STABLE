@@ -5,7 +5,7 @@ module fast_determ_hamil
     use bit_rep_data, only: NIfTot, NIfDBO, NIfD
     use bit_reps, only: decode_bit_det
     use constants
-    use DetBitOps, only: CountBits, TestClosedShellDet
+    use DetBitOps, only: CountBits, TestClosedShellDet, CalcOpenOrbs
     use Determinants, only: get_helement
     use FciMCData, only: determ_space_size, determ_sizes, determ_displs, &
                          Hii, core_ham_diag, core_space
@@ -51,6 +51,9 @@ contains
         integer :: nI_alpha(nOccAlpha), nI_alpha_m1(nOccAlpha-1), nI_beta(nOccBeta), nI_beta_m1(nOccBeta-1)
         integer :: nI_paired(nel)
         integer :: nbeta, nalpha, nbeta_m1, nalpha_m1
+        ! The number of beta and alpha strings in the 'unpaired' determinants
+        ! in the HPHFs
+        integer :: nbeta_stored, nalpha_stored
 
         integer :: nintersec
         integer, allocatable :: intersec_inds(:)
@@ -82,6 +85,7 @@ contains
         logical :: CS_I, CS_J, CS_K
         logical, allocatable :: cs(:)
         integer :: num_hphfs, hphf_ind
+        integer :: OpenOrbsI, OpenOrbsJ, OpenOrbsK
 
         type(timer), save :: aux_time
         type(timer), save :: sort_aux_time
@@ -133,23 +137,28 @@ contains
 
         ! First time through, just count the number entries in each of the
         ! lists to be set up. Then allocate those lists and fill them in.
-        do i = 1, determ_space_size
+        do hphf_ind = 1, 2
 
-            ! If this is a closed shell HPHF then only one determinant contributes.
-            ! Otherwise, two do, and they both must be considered.
-            !if (cs(i)) then
-                num_hphfs = 1
-            !else
-            !    num_hphfs = 2
-            !end if
+            if (hphf_ind == 2) then
+                nbeta_stored = nbeta
+                nalpha_stored = nalpha
+            end if
 
-            do hphf_ind = 1, num_hphfs
+            do i = 1, determ_space_size
 
-                !if (hphf_ind == 1) then
+                if (hphf_ind == 1) then
                     ilut_full(0:NIfD) = core_space(0:NIfD,i)
-                !else
-                !    call FindExcitBitDetSym(core_space(:,i), ilut_full)
-                !end if
+                else
+                    ! For the second loop through, only looks at the determinants
+                    ! 'paired' with the stored determinant in the HPHF.
+                    if (cs(i)) then
+                        ! For a closed shell determinant, there is no paired det
+                        ! to consider.
+                        cycle
+                    else
+                        call FindExcitBitDetSym(core_space(:,i), ilut_full)
+                    end if
+                end if
 
                 !write(6,*) "hphf_ind:", hphf_ind; call neci_flush(6)
 
@@ -173,7 +182,8 @@ contains
 
                 ! Now add this determinant to the list of determinants with this
                 ! beta string.
-                nbeta_dets(ind_beta) = nbeta_dets(ind_beta) + 1
+                ! Only store the 'unpaired' dets in this array
+                if (hphf_ind == 1) nbeta_dets(ind_beta) = nbeta_dets(ind_beta) + 1
 
                 ! --- Alpha string ---------------------------
                 alpha_ilut(0:NIfD) = iand(ilut_full(0:NIfD), MaskAlpha)
@@ -195,10 +205,11 @@ contains
 
                 ! Now add this determinant to the list of determinants with this
                 ! alpha string.
-                nalpha_dets(ind_alpha) = nalpha_dets(ind_alpha) + 1
+                ! Only store the 'unpaired' dets in this array
+                if (hphf_ind == 1) nalpha_dets(ind_alpha) = nalpha_dets(ind_alpha) + 1
 
-            end do ! Over all determinants contributing to the HPHF
-        end do ! Over all HPHFs
+            end do
+        end do 
 
         ! --- Find the size of beta-1 arrays -----------------
 
@@ -265,18 +276,25 @@ contains
         ! Now we know the size of the auxiliary arrays
 
         ! --- Allocate the auxiliary arrays ---------------
-        allocate(beta_dets(nbeta), stat=ierr)
-        allocate(alpha_dets(nalpha), stat=ierr)
+        allocate(beta_dets(nbeta_stored), stat=ierr)
+        allocate(alpha_dets(nalpha_stored), stat=ierr)
+        allocate(beta_with_alpha(nalpha_stored), stat=ierr)
+        allocate(alpha_with_beta(nbeta_stored), stat=ierr)
+
         allocate(beta_m1_contribs(nbeta_m1), stat=ierr)
         allocate(alpha_m1_contribs(nalpha_m1), stat=ierr)
-        allocate(beta_with_alpha(nalpha), stat=ierr)
-        allocate(alpha_with_beta(nbeta), stat=ierr)
 
-        do i = 1, nbeta
+        do i = 1, nbeta_stored
             allocate(beta_dets(i)%pos(nbeta_dets(i)), stat=ierr)
         end do
-        do i = 1, nalpha
+        do i = 1, nalpha_stored
             allocate(alpha_dets(i)%pos(nalpha_dets(i)), stat=ierr)
+        end do
+        do i = 1, nalpha_stored
+            allocate(beta_with_alpha(i)%pos(nalpha_dets(i)), stat=ierr)
+        end do
+        do i = 1, nbeta_stored
+            allocate(alpha_with_beta(i)%pos(nbeta_dets(i)), stat=ierr)
         end do
         do i = 1, nbeta_m1
             allocate(beta_m1_contribs(i)%pos(nbeta_m1_contribs(i)), stat=ierr)
@@ -284,16 +302,10 @@ contains
         do i = 1, nalpha_m1
             allocate(alpha_m1_contribs(i)%pos(nalpha_m1_contribs(i)), stat=ierr)
         end do
-        do i = 1, nalpha
-            allocate(beta_with_alpha(i)%pos(nalpha_dets(i)), stat=ierr)
-        end do
-        do i = 1, nbeta
-            allocate(alpha_with_beta(i)%pos(nbeta_dets(i)), stat=ierr)
-        end do
 
         ! --- Now fill the auxiliary arrays ----------------
-        nbeta_dets(1:nbeta) = 0
-        nalpha_dets(1:nalpha) = 0
+        nbeta_dets(1:nbeta_stored) = 0
+        nalpha_dets(1:nalpha_stored) = 0
         nbeta_m1_contribs(1:nbeta_m1) = 0
         nalpha_m1_contribs(1:nalpha_m1) = 0
 
@@ -395,7 +407,13 @@ contains
         ! Find the size of the beta_beta array to be created
         do i = 1, nbeta_m1
             do j = 1, nbeta_m1_contribs(i)
-                nbeta_beta(beta_m1_contribs(i)%pos(j)) = nbeta_beta(beta_m1_contribs(i)%pos(j)) + nbeta_m1_contribs(i) - 1
+                !nbeta_beta(beta_m1_contribs(i)%pos(j)) = nbeta_beta(beta_m1_contribs(i)%pos(j)) + nbeta_m1_contribs(i) - 1
+                do k = 1, nbeta_m1_contribs(i)
+                    if (j == k) cycle
+                    ! Don't need to consider beta values that aren't in the unpaired detereminants
+                    if (beta_m1_contribs(i)%pos(k) > nbeta_stored) cycle
+                    nbeta_beta(beta_m1_contribs(i)%pos(j)) = nbeta_beta(beta_m1_contribs(i)%pos(j)) + 1
+                end do
             end do
         end do
 
@@ -410,12 +428,18 @@ contains
         ! ...and finally fill the beta_beta array.
         do i = 1, nbeta_m1
             do j = 1, nbeta_m1_contribs(i)
-                do k = j+1, nbeta_m1_contribs(i)
-                    nbeta_beta( beta_m1_contribs(i)%pos(j) ) = nbeta_beta( beta_m1_contribs(i)%pos(j) ) + 1
+                do k = 1, nbeta_m1_contribs(i)
+                    if (j == k) cycle
+                    ! Don't need to consider beta values that aren't in the unpaired detereminants
+                    if (beta_m1_contribs(i)%pos(k) > nbeta_stored) cycle
+                    nbeta_beta(beta_m1_contribs(i)%pos(j)) = nbeta_beta(beta_m1_contribs(i)%pos(j)) + 1
                     beta_beta( beta_m1_contribs(i)%pos(j) )%pos(nbeta_beta( beta_m1_contribs(i)%pos(j) )) = beta_m1_contribs(i)%pos(k)
 
-                    nbeta_beta( beta_m1_contribs(i)%pos(k) ) = nbeta_beta( beta_m1_contribs(i)%pos(k) ) + 1
-                    beta_beta( beta_m1_contribs(i)%pos(k) )%pos(nbeta_beta( beta_m1_contribs(i)%pos(k) )) = beta_m1_contribs(i)%pos(j)
+                    !nbeta_beta( beta_m1_contribs(i)%pos(j) ) = nbeta_beta( beta_m1_contribs(i)%pos(j) ) + 1
+                    !beta_beta( beta_m1_contribs(i)%pos(j) )%pos(nbeta_beta( beta_m1_contribs(i)%pos(j) )) = beta_m1_contribs(i)%pos(k)
+
+                    !nbeta_beta( beta_m1_contribs(i)%pos(k) ) = nbeta_beta( beta_m1_contribs(i)%pos(k) ) + 1
+                    !beta_beta( beta_m1_contribs(i)%pos(k) )%pos(nbeta_beta( beta_m1_contribs(i)%pos(k) )) = beta_m1_contribs(i)%pos(j)
                 end do
             end do
         end do
@@ -423,7 +447,13 @@ contains
         ! Find the size of the alpha_alpha array to be created
         do i = 1, nalpha_m1
             do j = 1, nalpha_m1_contribs(i)
-                nalpha_alpha(alpha_m1_contribs(i)%pos(j)) = nalpha_alpha(alpha_m1_contribs(i)%pos(j)) + nalpha_m1_contribs(i) - 1
+                !nalpha_alpha(alpha_m1_contribs(i)%pos(j)) = nalpha_alpha(alpha_m1_contribs(i)%pos(j)) + nalpha_m1_contribs(i) - 1
+                do k = 1, nalpha_m1_contribs(i)
+                    if (j == k) cycle
+                    ! Don't need to consider alpha values that aren't in the unpaired detereminants
+                    if (alpha_m1_contribs(i)%pos(k) > nalpha_stored) cycle
+                    nalpha_alpha(alpha_m1_contribs(i)%pos(j)) = nalpha_alpha(alpha_m1_contribs(i)%pos(j)) + 1
+                end do
             end do
         end do
 
@@ -438,12 +468,18 @@ contains
         ! ...and finally fill the alpha_alpha array.
         do i = 1, nalpha_m1
             do j = 1, nalpha_m1_contribs(i)
-                do k = j+1, nalpha_m1_contribs(i)
-                    nalpha_alpha( alpha_m1_contribs(i)%pos(j) ) = nalpha_alpha( alpha_m1_contribs(i)%pos(j) ) + 1
+                do k = 1, nalpha_m1_contribs(i)
+                    if (j == k) cycle
+                    ! Don't need to consider alpha values that aren't in the unpaired detereminants
+                    if (alpha_m1_contribs(i)%pos(k) > nalpha_stored) cycle
+                    nalpha_alpha(alpha_m1_contribs(i)%pos(j)) = nalpha_alpha(alpha_m1_contribs(i)%pos(j)) + 1
                     alpha_alpha( alpha_m1_contribs(i)%pos(j) )%pos(nalpha_alpha( alpha_m1_contribs(i)%pos(j) )) = alpha_m1_contribs(i)%pos(k)
 
-                    nalpha_alpha( alpha_m1_contribs(i)%pos(k) ) = nalpha_alpha( alpha_m1_contribs(i)%pos(k) ) + 1
-                    alpha_alpha( alpha_m1_contribs(i)%pos(k) )%pos(nalpha_alpha( alpha_m1_contribs(i)%pos(k) )) = alpha_m1_contribs(i)%pos(j)
+                    !nalpha_alpha( alpha_m1_contribs(i)%pos(j) ) = nalpha_alpha( alpha_m1_contribs(i)%pos(j) ) + 1
+                    !alpha_alpha( alpha_m1_contribs(i)%pos(j) )%pos(nalpha_alpha( alpha_m1_contribs(i)%pos(j) )) = alpha_m1_contribs(i)%pos(k)
+
+                    !nalpha_alpha( alpha_m1_contribs(i)%pos(k) ) = nalpha_alpha( alpha_m1_contribs(i)%pos(k) ) + 1
+                    !alpha_alpha( alpha_m1_contribs(i)%pos(k) )%pos(nalpha_alpha( alpha_m1_contribs(i)%pos(k) )) = alpha_m1_contribs(i)%pos(j)
                 end do
             end do
         end do
@@ -455,20 +491,20 @@ contains
         ! Sort auxiliary arrays into the required order
         call set_timer(sort_aux_time)
 
+        do i = 1, nbeta_stored
+            call sort(alpha_with_beta(i)%pos, beta_dets(i)%pos)
+        end do
+
+        do i = 1, nalpha_stored
+            call sort(beta_with_alpha(i)%pos, alpha_dets(i)%pos)
+        end do
+
         do i = 1, nbeta
             call sort(beta_beta(i)%pos)
         end do
 
         do i = 1, nalpha
             call sort(alpha_alpha(i)%pos)
-        end do
-
-        do i = 1, nbeta
-            call sort(alpha_with_beta(i)%pos, beta_dets(i)%pos)
-        end do
-
-        do i = 1, nalpha
-            call sort(beta_with_alpha(i)%pos, alpha_dets(i)%pos)
         end do
 
         call halt_timer(sort_aux_time)
@@ -491,6 +527,8 @@ contains
         allocate(nI_list(nel, determ_space_size), stat=ierr)
         do i = 1, determ_space_size
             call decode_bit_det(nI_list(:,i), core_space(:,i))
+            !write(6,*) "i:", i
+            !write(6,*) "nI:", nI_list(:,i)
         end do
 
         ! Loop over the determinants on this process
@@ -500,6 +538,7 @@ contains
             CS_I = cs(i_full)
 
             if (.not. CS_I) then
+                call CalcOpenOrbs(core_space(:,i_full), OpenOrbsI)
                 call FindExcitBitDetSym(core_space(:,i_full), ilut_paired)
                 call decode_bit_det(nI_paired, ilut_paired)
             end if
@@ -519,22 +558,28 @@ contains
 
                 if (IC <= 2) then
                     !hel = get_helement(nI_list(:,i_full), nI_list(:,ind_j), IC, core_space(:,i_full), core_space(:,ind_j))
-                    hel = sltcnd_knowIC(nI_list(:,i_full), core_space(:,i_full), core_space(:,ind_j), IC)
+                    !hel = sltcnd_knowIC(nI_list(:,i_full), core_space(:,i_full), core_space(:,ind_j), IC)
+                    hel = hphf_off_diag_helement_opt(nI_list(:,i_full), core_space(:,i_full), core_space(:,ind_j), IC, CS_I, CS_J)
 
-                    if (CS_I .and. (.not. CS_J)) then
-                        hel = hel * sqrt(2.0_dp)
-                    else if ((.not. CS_I) .and. CS_J) then
-                        hel = hel * sqrt(2.0_dp)
-                    else if ((.not. CS_I) .and. (.not. CS_J)) then
-                        tmp = ieor(ilut_paired(0:NIfD), core_space(0:NIfD,ind_j))
-                        tmp = iand(ilut_paired(0:NIfD), tmp)
-                        IC = CountBits(tmp, NIfD)
-                        if (IC <= 2) then
-                            !hel_paired = get_helement(nI_paired, nI_list(:,ind_j), IC, ilut_paired, core_space(:,ind_j))
-                            hel_paired = sltcnd_knowIC(nI_paired, ilut_paired, core_space(:,ind_j), IC)
-                            hel = hel + hel_paired
-                        end if
-                    end if
+                    !if (CS_I .and. (.not. CS_J)) then
+                    !    hel = hel * sqrt(2.0_dp)
+                    !else if ((.not. CS_I) .and. CS_J) then
+                    !    hel = hel * sqrt(2.0_dp)
+                    !else if ((.not. CS_I) .and. (.not. CS_J)) then
+                    !    tmp = ieor(ilut_paired(0:NIfD), core_space(0:NIfD,ind_j))
+                    !    tmp = iand(ilut_paired(0:NIfD), tmp)
+                    !    IC = CountBits(tmp, NIfD)
+                    !    if (IC <= 2) then
+                    !        call CalcOpenOrbs(core_space(:,ind_j), OpenOrbsJ)
+                    !        !hel_paired = get_helement(nI_paired, nI_list(:,ind_j), IC, ilut_paired, core_space(:,ind_j))
+                    !        if ( mod(OpenOrbsI,2) == 1 .and. mod(OpenOrbsJ,2) == 1) then
+                    !            hel_paired = -sltcnd_knowIC(nI_paired, ilut_paired, core_space(:,ind_j), IC)
+                    !        else
+                    !            hel_paired =  sltcnd_knowIC(nI_paired, ilut_paired, core_space(:,ind_j), IC)
+                    !        end if
+                    !        hel = hel + hel_paired
+                    !    end if
+                    !end if
 
                     num_conns(i) = num_conns(i) + 1
                     hamil_pos(num_conns(i)) = ind_j
@@ -551,7 +596,8 @@ contains
 
                 ! If the beta string of the paired determinant is in one of the
                 ! unpaired determinants - it might not be!
-                if (tSuccess_b_paired) then
+                !if (tSuccess_b_paired) then
+                if (ind_beta_paired <= nbeta_stored) then
                     do j = 1, nbeta_dets(ind_beta_paired)
                         ind_j = beta_dets(ind_beta_paired)%pos(j)
                         ! This is a diagonal elements, included later
@@ -576,8 +622,16 @@ contains
                         if (IC <= 2) then
                             num_conns(i) = num_conns(i) + 1
                             !hel = get_helement(nI_paired, nI_list(:,ind_j), IC, ilut_paired, core_space(:,ind_j))
-                            hel = sltcnd_knowIC(nI_paired, ilut_paired, core_space(:,ind_j), IC)
 
+                            !call CalcOpenOrbs(core_space(:,ind_j), OpenOrbsJ)
+                            !if ( mod(OpenOrbsI,2) == 1 .and. mod(OpenOrbsJ,2) == 1) then
+                            !    hel = -sltcnd_knowIC(nI_paired, ilut_paired, core_space(:,ind_j), IC)
+                            !else
+                            !    hel = sltcnd_knowIC(nI_paired, ilut_paired, core_space(:,ind_j), IC)
+                            !end if
+
+                            !hel = hphf_off_diag_helement_opt(nI_paired, ilut_paired, core_space(:,ind_j), IC, CS_I, CS_J)
+                            hel = hphf_off_diag_helement(nI_list(:,i), nI_list(:,j), core_space(:,i), core_space(:,ind_j))
                             hamil_pos(num_conns(i)) = ind_j
                             hamil_row(num_conns(i)) = hel
                         end if
@@ -600,22 +654,29 @@ contains
 
                 if (IC <= 2) then
                     !hel = get_helement(nI_list(:,i_full), nI_list(:,ind_j), IC, core_space(:,i_full), core_space(:,ind_j))
-                    hel = sltcnd_knowIC(nI_list(:,i_full), core_space(:,i_full), core_space(:,ind_j), IC)
+                    !hel = sltcnd_knowIC(nI_list(:,i_full), core_space(:,i_full), core_space(:,ind_j), IC)
+                    hel = hphf_off_diag_helement_opt(nI_list(:,i_full), core_space(:,i_full), core_space(:,ind_j), IC, CS_I, CS_J)
 
-                    if (CS_I .and. (.not. CS_J)) then
-                        hel = hel * sqrt(2.0_dp)
-                    else if ((.not. CS_I) .and. CS_J) then
-                        hel = hel * sqrt(2.0_dp)
-                    else if ((.not. CS_I) .and. (.not. CS_J)) then
-                        tmp = ieor(ilut_paired(0:NIfD), core_space(0:NIfD,ind_j))
-                        tmp = iand(ilut_paired(0:NIfD), tmp)
-                        IC = CountBits(tmp, NIfD)
-                        if (IC <= 2) then
-                            !hel_paired = get_helement(nI_paired, nI_list(:,ind_j), IC, ilut_paired, core_space(:,ind_j))
-                            hel_paired = sltcnd_knowIC(nI_paired, ilut_paired, core_space(:,ind_j), IC)
-                            hel = hel + hel_paired
-                        end if
-                    end if
+                    !if (CS_I .and. (.not. CS_J)) then
+                    !    hel = hel * sqrt(2.0_dp)
+                    !else if ((.not. CS_I) .and. CS_J) then
+                    !    hel = hel * sqrt(2.0_dp)
+                    !else if ((.not. CS_I) .and. (.not. CS_J)) then
+                    !    tmp = ieor(ilut_paired(0:NIfD), core_space(0:NIfD,ind_j))
+                    !    tmp = iand(ilut_paired(0:NIfD), tmp)
+                    !    IC = CountBits(tmp, NIfD)
+                    !    if (IC <= 2) then
+                    !        !hel_paired = get_helement(nI_paired, nI_list(:,ind_j), IC, ilut_paired, core_space(:,ind_j))
+                    !        !hel_paired = sltcnd_knowIC(nI_paired, ilut_paired, core_space(:,ind_j), IC)
+                    !        call CalcOpenOrbs(core_space(:,ind_j), OpenOrbsJ)
+                    !        if ( mod(OpenOrbsI,2) == 1 .and. mod(OpenOrbsJ,2) == 1) then
+                    !            hel_paired = -sltcnd_knowIC(nI_paired, ilut_paired, core_space(:,ind_j), IC)
+                    !        else
+                    !            hel_paired =  sltcnd_knowIC(nI_paired, ilut_paired, core_space(:,ind_j), IC)
+                    !        end if
+                    !        hel = hel + hel_paired
+                    !    end if
+                    !end if
 
                     num_conns(i) = num_conns(i) + 1
                     hamil_pos(num_conns(i)) = ind_j
@@ -632,7 +693,8 @@ contains
 
                 ! If the alpha string of the paired determinant is in one of the
                 ! unpaired determinants - it might not be!
-                if (tSuccess_a_paired) then
+                !if (tSuccess_a_paired) then
+                if (ind_alpha_paired <= nalpha_stored) then
                     do j = 1, nalpha_dets(ind_alpha_paired)
                         ind_j = alpha_dets(ind_alpha_paired)%pos(j)
                         ! This is a diagonal elements, included later
@@ -657,7 +719,17 @@ contains
                         if (IC <= 2) then
                             num_conns(i) = num_conns(i) + 1
                             !hel = get_helement(nI_paired, nI_list(:,ind_j), IC, ilut_paired, core_space(:,ind_j))
-                            hel = sltcnd_knowIC(nI_paired, ilut_paired, core_space(:,ind_j), IC)
+                            !hel = sltcnd_knowIC(nI_paired, ilut_paired, core_space(:,ind_j), IC)
+
+                            !call CalcOpenOrbs(core_space(:,ind_j), OpenOrbsJ)
+                            !if ( mod(OpenOrbsI,2) == 1 .and. mod(OpenOrbsJ,2) == 1) then
+                            !    hel = -sltcnd_knowIC(nI_paired, ilut_paired, core_space(:,ind_j), IC)
+                            !else
+                            !    hel = sltcnd_knowIC(nI_paired, ilut_paired, core_space(:,ind_j), IC)
+                            !end if
+
+                            !hel = hphf_off_diag_helement_opt(nI_paired, ilut_paired, core_space(:,ind_j), IC, CS_I, CS_J)
+                            hel = hphf_off_diag_helement(nI_list(:,i), nI_list(:,j), core_space(:,i), core_space(:,ind_j))
 
                             hamil_pos(num_conns(i)) = ind_j
                             hamil_row(num_conns(i)) = hel
@@ -680,22 +752,29 @@ contains
                     CS_K = cs(ind_k)
 
                     !hel = get_helement(nI_list(:,i_full), nI_list(:,ind_k), 2, core_space(:,i_full), core_space(:,ind_k))
-                    hel = sltcnd_knowIC(nI_list(:,i_full), core_space(:,i_full), core_space(:,ind_k), 2)
+                    !hel = sltcnd_knowIC(nI_list(:,i_full), core_space(:,i_full), core_space(:,ind_k), 2)
+                    hel = hphf_off_diag_helement_opt(nI_list(:,i_full), core_space(:,i_full), core_space(:,ind_k), 2, CS_I, CS_K)
 
-                    if (CS_I .and. (.not. CS_K)) then
-                        hel = hel * sqrt(2.0_dp)
-                    else if ((.not. CS_I) .and. CS_K) then
-                        hel = hel * sqrt(2.0_dp)
-                    else if ((.not. CS_I) .and. (.not. CS_K)) then
-                        tmp = ieor(ilut_paired(0:NIfD), core_space(0:NIfD,ind_k))
-                        tmp = iand(ilut_paired(0:NIfD), tmp)
-                        IC = CountBits(tmp, NIfD)
-                        if (IC <= 2) then
-                            !hel_paired = get_helement(nI_paired, nI_list(:,ind_k), IC, ilut_paired, core_space(:,ind_k))
-                            hel_paired = sltcnd_knowIC(nI_paired, ilut_paired, core_space(:,ind_k), IC)
-                            hel = hel + hel_paired
-                        end if
-                    end if
+                    !if (CS_I .and. (.not. CS_K)) then
+                    !    hel = hel * sqrt(2.0_dp)
+                    !else if ((.not. CS_I) .and. CS_K) then
+                    !    hel = hel * sqrt(2.0_dp)
+                    !else if ((.not. CS_I) .and. (.not. CS_K)) then
+                    !    tmp = ieor(ilut_paired(0:NIfD), core_space(0:NIfD,ind_k))
+                    !    tmp = iand(ilut_paired(0:NIfD), tmp)
+                    !    IC = CountBits(tmp, NIfD)
+                    !    if (IC <= 2) then
+                    !        !hel_paired = get_helement(nI_paired, nI_list(:,ind_k), IC, ilut_paired, core_space(:,ind_k))
+                    !        !hel_paired = sltcnd_knowIC(nI_paired, ilut_paired, core_space(:,ind_k), IC)
+                    !        call CalcOpenOrbs(core_space(:,ind_k), OpenOrbsK)
+                    !        if ( mod(OpenOrbsI,2) == 1 .and. mod(OpenOrbsK,2) == 1) then
+                    !            hel_paired = -sltcnd_knowIC(nI_paired, ilut_paired, core_space(:,ind_k), IC)
+                    !        else
+                    !            hel_paired =  sltcnd_knowIC(nI_paired, ilut_paired, core_space(:,ind_k), IC)
+                    !        end if
+                    !        hel = hel + hel_paired
+                    !    end if
+                    !end if
 
                     num_conns(i) = num_conns(i) + 1
                     hamil_pos(num_conns(i)) = ind_k
@@ -705,7 +784,7 @@ contains
 
             ! Now consider any open-open connections that would not have been found above
             if (.not. CS_I) then
-                if (tSuccess_a_paired .and. tSuccess_b_paired) then
+                !if (tSuccess_a_paired .and. tSuccess_b_paired) then
                     do j = 1, nalpha_alpha(ind_alpha_paired)
                         ! This is the index of the connected alpha string
                         ind_alpha_conn = alpha_alpha(ind_alpha_paired)%pos(j)
@@ -730,21 +809,32 @@ contains
 
                             ! Finally, check if this paired determiannt is connected to this one
                             ! that we've just generated
-                            tmp = ieor(ilut_paired, core_space(0:NIfD,ind_k))
-                            tmp = iand(ilut_paired, tmp)
-                            IC = CountBits(tmp, NIfD)
+                            !tmp = ieor(ilut_paired, core_space(0:NIfD,ind_k))
+                            !tmp = iand(ilut_paired, tmp)
+                            !IC = CountBits(tmp, NIfD)
+                            IC = 2
 
-                            if (IC <= 2) then
+                            !if (IC <= 2) then
                                 num_conns(i) = num_conns(i) + 1
                                 !hel = get_helement(nI_paired, nI_list(:,ind_j), IC, ilut_paired, core_space(:,ind_j))
-                                hel = sltcnd_knowIC(nI_paired, ilut_paired, core_space(:,ind_k), IC)
+                                !hel = sltcnd_knowIC(nI_paired, ilut_paired, core_space(:,ind_k), IC)
+
+                                !call CalcOpenOrbs(core_space(:,ind_k), OpenOrbsK)
+                                !if ( mod(OpenOrbsI,2) == 1 .and. mod(OpenOrbsK,2) == 1) then
+                                !    hel = -sltcnd_knowIC(nI_paired, ilut_paired, core_space(:,ind_k), IC)
+                                !else
+                                !    hel = sltcnd_knowIC(nI_paired, ilut_paired, core_space(:,ind_k), IC)
+                                !end if
+
+                                !hel = hphf_off_diag_helement_opt(nI_paired, ilut_paired, core_space(:,ind_k), IC, CS_I, CS_K)
+                                hel = hphf_off_diag_helement(nI_list(:,i), nI_list(:,k), core_space(:,i), core_space(:,ind_k))
 
                                 hamil_pos(num_conns(i)) = ind_k
                                 hamil_row(num_conns(i)) = hel
-                            end if
+                            !end if
                         end do
                     end do
-                end if
+                !end if
             end if
 
             ! Calculate and add the diagonal element
@@ -758,6 +848,7 @@ contains
             ! Hamiltonian row for this determinant
             allocate(sparse_core_ham(i)%elements(num_conns(i)), stat=ierr)
             allocate(sparse_core_ham(i)%positions(num_conns(i)), stat=ierr)
+
             sparse_core_ham(i)%num_elements = num_conns(i)
             sparse_core_ham(i)%elements(1:num_conns(i)) = hamil_row(1:num_conns(i))
             sparse_core_ham(i)%positions(1:num_conns(i)) = hamil_pos(1:num_conns(i))

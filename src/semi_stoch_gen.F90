@@ -165,7 +165,6 @@ contains
             !call calc_determ_hamil_sparse_hphf()
             !call deallocate_sparse_ham(sparse_core_ham, 'sparse_core_ham', SparseCoreHamilTags)
             call calc_determ_hamil_opt_hphf()
-            call stop_all("Here","Here")
         else
             !call calc_determ_hamil_sparse()
             !call deallocate_sparse_ham(sparse_core_ham, 'sparse_core_ham', SparseCoreHamilTags)
