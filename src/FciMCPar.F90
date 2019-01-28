@@ -34,7 +34,7 @@ module FciMCParMod
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
                             attempt_die_spin_proj
     use rdm_data, only: print_2rdm_est, ThisRDMIter, inits_one_rdms, two_rdm_inits_spawn, &
-         two_rdm_inits, rdm_inits_defs, RDMCorrectionFactor, inits_estimates
+         two_rdm_inits, rdm_inits_defs, RDMCorrectionFactor, inits_estimates, tSetupInitsEst
     use rdm_data_old, only: rdms, one_rdms_old, rdm_estimates_old
     use rdm_finalising, only: finalise_rdms
     use rdm_general, only: init_rdms, SumCorrectionContrib, UpdateRDMCorrectionTerm
@@ -578,6 +578,7 @@ module FciMCParMod
                      ! get the inits-only energy
                      call calc_2rdm_estimates_wrapper(rdm_inits_defs, inits_estimates, &
                           two_rdm_inits, en_pert_main)
+                     tSetupInitsEst = .true.
                      ! and reset the initiator-only rdm
                      call clear_rdm_list_t(two_rdm_inits)
                   endif
@@ -590,9 +591,10 @@ module FciMCParMod
                   end if
 
                   if (iProcIndex == 0) then
-                     call write_rdm_estimates(rdm_definitions, rdm_estimates, .false., print_2rdm_est)
+                     if(.not.tInitsRDMRef .or. tSetupInitsEst) &
+                          call write_rdm_estimates(rdm_definitions, rdm_estimates, .false., print_2rdm_est,.false.)
                      if(tOutputInitsRDM) call write_rdm_estimates(rdm_inits_defs, &
-                          inits_estimates, .false., print_2rdm_est)
+                          inits_estimates, .false., print_2rdm_est,.true.)
                      if (tOldRDMs) call write_rdm_estimates_old(rdm_estimates_old, .false.)
                   end if
 
@@ -725,7 +727,12 @@ module FciMCParMod
 
         if (tFillingStochRDMonFly .or. tFillingExplicRDMonFly) then
             call finalise_rdms(rdm_definitions, one_rdms, two_rdm_main, two_rdm_recv, &
-                               two_rdm_recv_2, en_pert_main, two_rdm_spawn, rdm_estimates)
+                               two_rdm_recv_2, en_pert_main, two_rdm_spawn, rdm_estimates, &
+                               .false.)
+            ! if available, also output the initiator-rdms
+            if(tInitsRDM) call finalise_rdms(rdm_inits_defs, inits_one_rdms, two_rdm_inits, &
+                 two_rdm_recv, two_rdm_recv_2, en_pert_main, two_rdm_inits_spawn, inits_estimates, &
+                 .true.)
             if (tOldRDMs) call FinaliseRDMs_old(rdms, one_rdms_old, rdm_estimates_old)
         end if
         if(tAdaptiveShift) then

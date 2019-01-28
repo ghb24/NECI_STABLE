@@ -6,7 +6,7 @@ module rdm_general
     use constants
     use SystemData, only: nel, nbasis
     use rdm_data, only: InstRDMCorrectionFactor, RDMCorrectionFactor, ThisRDMIter, &
-         inits_estimates
+         inits_estimates, tSetupInitsEst
     use FciMCData, only: proje_iter, Hii
     use rdm_data, only: inits_one_rdms, two_rdm_inits_spawn, two_rdm_inits, rdm_inits_defs
     use CalcData, only: tInitsRDM, tOutputInitsRDM, tInitsRDMRef
@@ -101,7 +101,7 @@ contains
 
         call init_rdm_definitions_t(rdm_definitions, nrdms_standard, nrdms_transition, states_for_transition_rdm)
         if(tinitsRDM) call init_rdm_definitions_t(&
-             rdm_inits_defs, nrdms_standard, nrdms_transition, states_for_transition_rdm)
+             rdm_inits_defs, nrdms_standard, nrdms_transition, states_for_transition_rdm,'Inits_TwoRDM')
 
         ! Allocate arrays for holding averaged signs and block lengths for the
         ! HF determinant.
@@ -185,7 +185,8 @@ contains
         memory_alloc = memory_alloc + main_mem + spawn_mem + recv_mem
 
         call init_rdm_estimates_t(rdm_estimates, nrdms_standard, nrdms_transition, print_2rdm_est)
-        if(tOutputInitsRDM) call init_rdm_estimates_t(inits_estimates, nrdms_standard, &
+        if(tOutputInitsRDM .or. tInitsRDMRef) &
+             call init_rdm_estimates_t(inits_estimates, nrdms_standard, &
              nrdms_transition, print_2rdm_est, 'InitsRDMEstimates')
 
         ! Initialise 1-RDM objects.
@@ -1007,13 +1008,12 @@ contains
       real(dp), intent(in) :: fmu
       real(dp) :: fmup
       real(dp) :: eCorr, e0Inits, enOffset
-      if(tInitsRDMRef) then
+      if(tInitsRDMRef .and. tSetupInitsEst .and. sum(proje_iter) > eps) then
          ! initiator-only reference energy
          e0Inits = inits_estimates%energy_num(1)/inits_estimates%norm(1)
          ! correlation energy
          eCorr = sum(proje_iter)/inum_runs + Hii - e0Inits
          enOffset = (Hii - e0Inits)/eCorr
-
          fmup = enOffset + fmu*(inum_runs*eCorr)/(sum(proje_iter))
       else
          fmup = fmu

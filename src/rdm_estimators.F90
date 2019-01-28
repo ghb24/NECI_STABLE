@@ -2,6 +2,7 @@
 
 module rdm_estimators
 
+    use CalcData, only: tAdaptiveShift
     use bit_rep_data, only: NIfTot
     use constants
     use rdm_data, only: rdm_list_t, rdm_spawn_t
@@ -292,7 +293,8 @@ contains
 
     end subroutine calc_2rdm_estimates_wrapper
 
-    subroutine write_rdm_estimates(rdm_defs, est, final_output, write_to_separate_file)
+    subroutine write_rdm_estimates(rdm_defs, est, final_output, write_to_separate_file, &
+         tInitsRDM)
 
         ! Write RDM estimates to the RDMEstimates file. Specifically, the
         ! numerator of the energy and spin^2 estimators are output, as is the
@@ -309,7 +311,7 @@ contains
 
         type(rdm_definitions_t), intent(in) :: rdm_defs
         type(rdm_estimates_t), intent(in) :: est
-        logical, intent(in) :: final_output, write_to_separate_file
+        logical, intent(in) :: final_output, write_to_separate_file, tInitsRDM
 
         integer :: irdm, iprop
 
@@ -377,7 +379,13 @@ contains
 
         if (final_output) then
             ! Banner for the start of the 2-RDM section in output.
-            write(6,'(1x,2("="),1x,"INFORMATION FOR FINAL 2-RDMS",1x,57("="),/)')
+           if(tInitsRDM) then
+              write(6,'(1x,2("="),1x,"INFORMATION FOR FINAL 2-RDMS (Initiators)",1x,57("="),/)')
+           else if(tAdaptiveShift) then
+              write(6,'(1x,2("="),1x,"INFORMATION FOR FINAL 2-RDMS (Lagrangian)",1x,57("="),/)')
+           else
+              write(6,'(1x,2("="),1x,"INFORMATION FOR FINAL 2-RDMS",1x,57("="),/)')
+           endif
 
             do irdm = 1, est%nrdms_standard
                 write(6,'(1x,"2-RDM ESTIMATES FOR STATE",1x,'//int_fmt(irdm)//',":",)') irdm

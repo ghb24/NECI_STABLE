@@ -155,7 +155,7 @@ contains
 
     end subroutine init_one_rdm_t
 
-    subroutine init_rdm_definitions_t(rdm_defs, nrdms_standard, nrdms_transition, states_for_transition_rdm)
+    subroutine init_rdm_definitions_t(rdm_defs, nrdms_standard, nrdms_transition, states_for_transition_rdm,filename)
 
         ! Set up arrays which define which RDMs and tRDMs are being sampled by
         ! specifying which states and FCIQMC simualtions are involved in those
@@ -171,6 +171,7 @@ contains
         type(rdm_definitions_t), intent(out) :: rdm_defs
         integer, intent(in) :: nrdms_standard, nrdms_transition
         integer, intent(in) :: states_for_transition_rdm(:,:) ! (2, nrdms_transition/nreplicas)
+        character(*), intent(in), optional :: filename
 
         integer :: nrdms, irdm, counter
 
@@ -258,6 +259,12 @@ contains
                 rdm_defs%rdm_labels(counter, rdm_defs%sim_labels(1,irdm)) = irdm
             end if
         end do
+
+        if(present(filename)) then
+           rdm_defs%output_file_prefix = filename
+        else
+           rdm_defs%output_file_prefix = 'TwoRDM'
+        endif
 
     end subroutine init_rdm_definitions_t
 

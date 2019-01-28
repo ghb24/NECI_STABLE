@@ -266,6 +266,8 @@ module rdm_data
         ! contributes to. Elements which are not needed (due a simulation not
         ! contributing to all RDMs) are set to 0.
         integer, allocatable :: rdm_labels(:,:) ! (nrdms, lenof_sign)
+        ! prefix for the names of the files to output to
+        character(255) :: output_file_prefix
     end type rdm_definitions_t
 
     ! Global data.
@@ -302,6 +304,8 @@ module rdm_data
     ! to the various RDMs in the above arrays.
     type(rdm_definitions_t) :: rdm_definitions
     type(rdm_definitions_t) :: rdm_inits_defs
+
+    logical :: tSetupInitsEst = .false.
 
     ! Object to hold information about the Epstein-Nesbet perturbation
     ! contributions.
