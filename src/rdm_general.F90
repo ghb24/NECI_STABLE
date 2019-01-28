@@ -5,7 +5,9 @@ module rdm_general
     use bit_rep_data, only: NIfTot, NIfDBO
     use constants
     use SystemData, only: nel, nbasis
-    use rdm_data, only: InstRDMCorrectionFactor, RDMCorrectionFactor, ThisRDMIter
+    use rdm_data, only: InstRDMCorrectionFactor, RDMCorrectionFactor, ThisRDMIter, &
+         inits_estimates
+    use FciMCData, only: proje_iter, Hii
     use rdm_data, only: inits_one_rdms, two_rdm_inits_spawn, two_rdm_inits, rdm_inits_defs
     use CalcData, only: tInitsRDM, tOutputInitsRDM, tInitsRDMRef
 
@@ -1002,7 +1004,9 @@ contains
 
     function dressedFactor(fmu) result(fmup)
       implicit none
-      real(dp) :: eCorr, e0Inits
+      real(dp), intent(in) :: fmu
+      real(dp) :: fmup
+      real(dp) :: eCorr, e0Inits, enOffset
       if(tInitsRDMRef) then
          ! initiator-only reference energy
          e0Inits = inits_estimates%energy_num(1)/inits_estimates%norm(1)
