@@ -81,7 +81,7 @@ module fcimc_initialisation
     use PopsfileMod, only: FindPopsfileVersion, initfcimc_pops, &
                            ReadFromPopsfilePar, ReadPopsHeadv3, &
                            ReadPopsHeadv4, open_pops_head, checkpopsparams
-    use HPHFRandExcitMod, only: gen_hphf_excit
+    use HPHFRandExcitMod, only: gen_hphf_excit, FindDetSpinSym
     use GenRandSymExcitCSF, only: gen_csf_excit
     use GenRandSymExcitNUMod, only: gen_rand_excit, init_excit_gen_store, &
                                     clean_excit_gen_store
@@ -112,7 +112,7 @@ module fcimc_initialisation
     use rdm_filling, only: fill_rdm_diag_currdet_norm
     use DetBitOps, only: FindBitExcitLevel, CountBits, TestClosedShellDet, &
                          FindExcitBitDet, IsAllowedHPHF, DetBitEq, &
-                         EncodeBitDet
+                         EncodeBitDet, DetBitLT
     use fcimc_pointed_fns, only: att_create_trunc_spawn_enc, &
                                  attempt_create_normal, &
                                  attempt_create_trunc_spawn, &
@@ -1968,7 +1968,8 @@ contains
       integer(n_int), allocatable ::  initSpace(:,:)
       integer :: count, nUp, nOpen
       integer :: i, j, lwork, proc
-      integer :: DetHash, pos, TotWalkersTmp, nI(nel)
+      integer :: DetHash, pos, TotWalkersTmp, nI(nel), nJ(nel)
+      integer(n_int) :: ilutJ(0:NIfTot)
       integer(n_int), allocatable :: openSubspace(:)
       real(dp),allocatable :: S2(:,:), eigsImag(:), eigs(:),evs(:,:),void(:,:),work(:)
       real(dp) :: normalization, rawWeight, HDiag, tmpSgn(lenof_sign)
@@ -1977,6 +1978,14 @@ contains
       logical :: tSuccess
       character(*), parameter :: t_r = "InitFCIMC_CSF"
       
+
+      ! get the number of open orbitals
+      nOpen = sum(nOccOrbs) - sum(nClosedOrbs)
+      ! in a closed shell system, nothing to do
+      if(nOpen .eq. 0) then
+         call InitFCIMC_HF()
+         return
+      endif
       ! first, set up the space considered for the CSF
       call generateInitSpace()
       if(allocated(openSubspace)) deallocate(openSubspace)
@@ -2034,6 +2043,14 @@ contains
             TotWalkersTmp = TotWalkers
             tmpSgn = eigs(i)
             call encode_sign(initSpace(:,i),tmpSgn)
+            if(tHPHF) then
+               call FindDetSpinSym(nI,nJ,nel)
+               call encodebitdet(nJ,ilutJ)
+               ! if initSpace(:,i) is not the det of the HPHF pair we are storing, 
+               ! skip this - the correct contribution will be stored once
+               ! the spin-flipped version is stored
+               if(DetBitLT(initSpace(:,i),ilutJ,NIfD).eq.1) cycle
+            endif
             call AddNewHashDet(TotWalkersTmp,initSpace(:,i),DetHash,nI,HDiag,pos)
             TotWalkers = TotWalkersTmp
          end if
@@ -2090,8 +2107,6 @@ contains
           logical :: previousCont,nextCont,tClosed
           character(*), parameter :: t_r = "generateInitSpace"
 
-          ! get the number of open orbitals
-          nOpen = sum(nOccOrbs) - sum(nClosedOrbs)
           ! create a list of all open-shell determinants with the correct spin+orbs
           nUp = (nel + lms)/2
           call generateOpenOrbIluts()

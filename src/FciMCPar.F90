@@ -575,6 +575,9 @@ module FciMCParMod
                      ! add the initiator-only rdm of this cycle to the main rdm (rescaled
                      ! with the correction factor)
                      call add_rdm_1_to_rdm_2(two_rdm_inits, two_rdm_main, RDMCorrectionFactor)
+                     ! get the inits-only energy
+                     call calc_2rdm_estimates_wrapper(rdm_inits_defs, inits_estimates, &
+                          two_rdm_inits, en_pert_main)
                      ! and reset the initiator-only rdm
                      call clear_rdm_list_t(two_rdm_inits)
                   endif
