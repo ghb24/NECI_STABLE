@@ -248,6 +248,69 @@ module hphf_integrals
 
     end function
 
+    function hphf_off_diag_special_case (nI2, iLutnI2, iLutnJ, ExcitLevel, OpenOrbsI) result(hel)
+
+        ! This calculates the off-diagonal H element between two HPHFs for a
+        ! special case: where we know that the two 'unpaired' determinants
+        ! (i.e. the ones we actually store) have no connection, but where
+        ! we know that the paired and unpaired combination *is* connected,
+        ! and we know that the corresponding excitation level is ExcitLevel.
+
+        ! This has been implemented especiallly for the fast Hamiltonian
+        ! generation, where this case comes up and is performance critical.
+        ! It's hard to imagine that it will be required elsewhere.
+
+        ! In:  nI2             - The 'paired' Determinant to consider
+        !      iLutnI2, iLutnJ - Bit representations of nI2 and nJ
+        !      ExcitLevel      - Excitation level between nI2 and nJ
+        !      OpenOrbs        - The number of open orbitals in nI
+        ! Ret: hel             - The calculated matrix element
+
+        integer, intent(in) :: nI2(nel)
+        integer(n_int), intent(in) :: iLutnI2(0:NIfTot), iLutnJ(0:NIfTot)
+        integer, intent(in) :: ExcitLevel, OpenOrbsI
+        HElement_t(dp) :: hel
+
+        integer :: OpenOrbsJ, Ex(2,2)
+        HElement_t(dp) :: MatEl2
+        logical :: tSign
+
+        ! We need to find out whether the nJ HPHF wavefunction is
+        ! symmetric or antisymmetric. This is dependant on the
+        ! number of open shell orbitals and total spin of the wavefunction.
+        !call FindDetSpinSym(nI, nI2, nel)
+        call CalcOpenOrbs(iLutnJ, OpenOrbsJ)
+
+        ! Original HPHF is antisymmetric if OpenOrbs is odd (and S even),
+        ! or symmetric if it is even.
+        ! If S is odd, then HPHF is Symmetric if OpenOrbs is odd, and
+        ! antisymmetric if it is even.
+        !call CalcOpenOrbs(iLutnI,OpenOrbsI)
+        Ex(1,1) = ExcitLevel
+        call GetBitExcitation(iLutnI2, iLutnJ, Ex, tSign)
+
+        MatEl2 = sltcnd_excit(nI2, ExcitLevel, Ex, tSign)
+
+        if (tOddS_HPHF) then
+            if (((mod(OpenOrbsI,2) == 1).and.(mod(OpenOrbsJ,2) == 1)) &
+                .or. ((mod(OpenOrbsI,2) == 1) .and. &
+                      (mod(OpenOrbsJ,2) == 0))) then
+                hel = MatEl2
+            else
+                hel = -MatEl2
+            endif
+        else
+            if (((mod(OpenOrbsI,2) == 0).and.(mod(OpenOrbsJ,2) == 0)) &
+                .or. ((mod(OpenOrbsI,2) == 0) .and. &
+                      (mod(OpenOrbsJ,2) == 1))) then
+                hel = MatEl2
+            else
+                hel = -MatEl2
+            endif
+        endif
+
+    end function
+
     function hphf_diag_helement (nI, iLutnI) result(hel)
 
         ! Find the diagonal HElment for a half-projected hartree-fock 
