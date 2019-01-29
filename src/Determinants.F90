@@ -161,9 +161,7 @@ contains
 
       ! Store the value of Ms for use in other areas
       calculated_ms = sum(get_spin_pn(fdet(1:nel)))
-
-      contains
-        
+       
     End Subroutine DetPreFreezeInit
 
     
