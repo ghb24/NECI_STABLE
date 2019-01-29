@@ -553,15 +553,15 @@ contains
         do i = sparse_matrix_size, 1, -1
 
             deallocate(sparse_matrix(i)%elements, stat=ierr)
-            call LogMemDealloc(t_r, sparse_tags(1,i), ierr)
+            !call LogMemDealloc(t_r, sparse_tags(1,i), ierr)
 
             deallocate(sparse_matrix(i)%positions, stat=ierr)
-            call LogMemDealloc(t_r, sparse_tags(2,i), ierr)
+            !call LogMemDealloc(t_r, sparse_tags(2,i), ierr)
 
         end do
 
-        deallocate(sparse_tags)
-        deallocate(sparse_matrix)
+        if (allocated(sparse_tags)) deallocate(sparse_tags)
+        if (allocated(sparse_matrix)) deallocate(sparse_matrix)
 
     end subroutine deallocate_sparse_ham
 
