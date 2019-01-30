@@ -111,30 +111,33 @@ contains
       
       ! we need to be sure ilutRefAdi has the right size
       call reallocate_ilutRefAdi(maxNRefs)
+      if(maxNRefs>0) then
+         ! Get the nRefs most populated determinants
+         refs_found = 0
+         call generate_space_most_populated(maxNRefs, .false., 1, ref_buf, refs_found)
+         ! Communicate the refs_found info
+         mpi_refs_found = int(refs_found,MPIArg)
+         call MPIAllGather(mpi_refs_found, refs_found_per_proc, ierr)
+         all_refs_found = sum(refs_found_per_proc)
+         if(all_refs_found .ne. maxNRefs) then
+            write(6,*) "Warning: Less than ", maxNRefs, &
+                 " superinitiators found, using only ", all_refs_found, " superinitiators"
+         endif
+         ! Set the number of SIs to the number actually found
+         nRefs = all_refs_found
+         ! Prepare communication of SIs
+         refs_displs(0) = 0
+         do i = 1, nProcessors - 1
+            refs_displs(i) = refs_displs(i-1) + refs_found_per_proc(i-1)
+         enddo
+         ! Store them on all processors
+         call MPIAllGatherV(ref_buf(0:NIfTot, 1:refs_found), ilutRefAdi, &
+              refs_found_per_proc, refs_displs)
 
-      ! Get the nRefs most populated determinants
-      refs_found = 0
-      call generate_space_most_populated(maxNRefs, .false., 1, ref_buf, refs_found)
-      ! Communicate the refs_found info
-      mpi_refs_found = int(refs_found,MPIArg)
-      call MPIAllGather(mpi_refs_found, refs_found_per_proc, ierr)
-      all_refs_found = sum(refs_found_per_proc)
-      if(all_refs_found .ne. maxNRefs) then
-         write(6,*) "Warning: Less than ", maxNRefs, &
-              " superinitiators found, using only ", all_refs_found, " superinitiators"
+         if(tWriteRefs) call output_reference_space(ref_filename)
+      else
+         nRefs = 0
       endif
-      ! Set the number of SIs to the number actually found
-      nRefs = all_refs_found
-      ! Prepare communication of SIs
-      refs_displs(0) = 0
-      do i = 1, nProcessors - 1
-         refs_displs(i) = refs_displs(i-1) + refs_found_per_proc(i-1)
-      enddo
-      ! Store them on all processors
-      call MPIAllGatherV(ref_buf(0:NIfTot, 1:refs_found), ilutRefAdi, &
-           refs_found_per_proc, refs_displs)
-      
-      if(tWriteRefs) call output_reference_space(ref_filename)
   end subroutine fixed_number_SI_generation
 
 !------------------------------------------------------------------------------------------!

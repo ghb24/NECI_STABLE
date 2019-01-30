@@ -18,7 +18,8 @@ stepsshift 75
 load-balance-blocks off
 truncinitiator
 addtoinitiator 3
-all-doubs-initiators
+all-doubs-initiators 0
+all-sings-initiators 0		   
 all-doubs-initiators-delay 100
 endcalc
 
