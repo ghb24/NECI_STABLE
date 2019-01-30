@@ -11,7 +11,7 @@ module semi_stoch_procs
     use constants
     use FciMCData, only: determ_sizes, determ_displs, determ_space_size, &
                          SpawnedParts, TotWalkers, CurrentDets, core_space, &
-                         MaxSpawned,indices_of_determ_states, ilutRef
+                         MaxSpawned,indices_of_determ_states, ilutRef, determ_last
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg
     use sparse_arrays, only: sparse_core_ham
     use SystemData, only: nel
@@ -1382,6 +1382,10 @@ contains
         if (allocated(determ_displs)) then
             deallocate(determ_displs, stat=ierr)
             if (ierr /= 0) write(6,'("Error when deallocating determ_displs:",1X,i8)') ierr
+        end if
+        if (allocated(determ_last)) then
+            deallocate(determ_last, stat=ierr)
+            if (ierr /= 0) write(6,'("Error when deallocating determ_last:",1X,i8)') ierr
         end if
 
     end subroutine end_semistoch
