@@ -27,12 +27,6 @@ include(neci_system)
 # <Package>_NECI has a custom finder that does a bit more work than normal...
   
 neci_add_option(
-    FEATURE MPI
-    DEFAULT ON
-    DESCRIPTION "Use MPI for parallel compilation"
-    REQUIRED_PACKAGES MPI_NECI )
-
-neci_add_option(
     FEATURE FFTW
     DEFAULT ON
     DESCRIPTION "Enable functionality requiring FFTW"
@@ -70,6 +64,7 @@ endif()
 # <Package>_NECI has a custom finder that does a bit more work than normal...
 
 find_package( LAPACK_NECI REQUIRED )
+find_package( MPI_NECI REQUIRED )
 
 # Build-type configuration
 
