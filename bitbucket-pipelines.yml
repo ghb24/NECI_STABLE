@@ -11,7 +11,7 @@ pipelines:
       #- echo "building debug version + hdf5!"
       - rm -rf build 
       - mkdir build 
-      - cd build 
+      - cd src 
       #- cmake -DENABLE_BUILD_HDF5=On -DENABLE_HDF5=On -DCMAKE_BUILD_TYPE=Debug ..
       #- make -j neci mneci kneci kmneci dneci
       #- echo "done building debug version. clean up!"
