@@ -224,9 +224,10 @@ endif()
 
 set( _library_link_libs
     "${LAPACK_NECI_LIBRARIES}"
-    "${MPI_NECI_LIBRARIES}"
     "${LIBRT_LIBRARIES}"
-    "${_conditional_libraries}" )
+    "${_conditional_libraries}" 
+    "${MPI_NECI_LIBRARIES}"
+    "${MPI_NECI_Fortran_LIBRARIES}")
 
 if( HAVE_SHARED )
     set( _link_type SHARED )
