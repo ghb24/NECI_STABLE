@@ -254,8 +254,8 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
         LINKER_LANGUAGE Fortran
 
         PRIVATE_INCLUDES
-            "${HDF5_NECI_INCLUDE_PATH}"
 	    "${MPI_NECI_INCLUDE_PATH}"
+            "${HDF5_NECI_INCLUDE_PATH}"
 
         DEFINITIONS
             "${NECI_GLOBAL_DEFINES}"
