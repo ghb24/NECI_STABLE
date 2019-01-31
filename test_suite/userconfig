@@ -11,7 +11,7 @@ inputs_args = ('*.inp', '')
 extract_program = ./tools/extract.py
 
 [dneci]
-exe = ../build/bin/dneci
+exe = ../reference_build/bin/dneci
 vcs = git
 inputs_args = ('*.inp', '')
 extract_program = ./tools/extract.py

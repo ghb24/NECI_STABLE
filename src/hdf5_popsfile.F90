@@ -215,7 +215,7 @@ contains
         !      for initialising perturbations, etc.
         integer(n_int), intent(out) :: dets(:, :)
         integer(int64) :: CurrWalkers
-        character(*), parameter :: t_r = 'write_popsfile_hdf5'
+        character(*), parameter :: t_r = 'read_popsfile_hdf5'
 #ifdef __USE_HDF
         integer(hid_t) :: err, file_id, plist_id
         integer :: ierr
