@@ -545,12 +545,14 @@ contains
                 IC = CountBits(tmp, NIfD)
 
                 if (IC <= 2) then
-                    num_conns(i) = num_conns(i) + 1
-
                     hel = hphf_off_diag_helement_opt(nI_list(:,i_full), core_space(:,i_full), &
                                                      core_space(:,ind_j), IC, CS_I, CS_J)
-                    hamil_pos(num_conns(i)) = ind_j
-                    hamil_row(num_conns(i)) = hel
+
+                    if (abs(hel) > 0.0_dp) then
+                        num_conns(i) = num_conns(i) + 1
+                        hamil_pos(num_conns(i)) = ind_j
+                        hamil_row(num_conns(i)) = hel
+                    end if
                 end if
             end do
 
@@ -587,12 +589,14 @@ contains
                         tmp = iand(ilut_paired, tmp)
                         IC = CountBits(tmp, NIfD)
                         if (IC <= 2) then
-                            num_conns(i) = num_conns(i) + 1
-
                             hel = hphf_off_diag_special_case(nI_paired, ilut_paired, core_space(:,ind_j), IC, OpenOrbsI)
-                            hamil_pos(num_conns(i)) = ind_j
-                            hamil_row(num_conns(i)) = hel
+                            if (abs(hel) > 0.0_dp) then
+                                num_conns(i) = num_conns(i) + 1
+                                hamil_pos(num_conns(i)) = ind_j
+                                hamil_row(num_conns(i)) = hel
+                            end if
                         end if
+
                     end do
                 end if
             end if
@@ -611,13 +615,15 @@ contains
                 IC = CountBits(tmp, NIfD)
 
                 if (IC <= 2) then
-                    num_conns(i) = num_conns(i) + 1
-
                     hel = hphf_off_diag_helement_opt(nI_list(:,i_full), core_space(:,i_full), &
                                                      core_space(:,ind_j), IC, CS_I, CS_J)
-                    hamil_pos(num_conns(i)) = ind_j
-                    hamil_row(num_conns(i)) = hel
+                    if (abs(hel) > 0.0_dp) then
+                        num_conns(i) = num_conns(i) + 1
+                        hamil_pos(num_conns(i)) = ind_j
+                        hamil_row(num_conns(i)) = hel
+                    end if
                 end if
+
             end do
 
             ! Now consider any open-open connections that would not have been found above
@@ -653,12 +659,14 @@ contains
                         tmp = iand(ilut_paired, tmp)
                         IC = CountBits(tmp, NIfD)
                         if (IC <= 2) then
-                            num_conns(i) = num_conns(i) + 1
-
                             hel = hphf_off_diag_special_case(nI_paired, ilut_paired, core_space(:,ind_j), IC, OpenOrbsI)
-                            hamil_pos(num_conns(i)) = ind_j
-                            hamil_row(num_conns(i)) = hel
+                            if (abs(hel) > 0.0_dp) then
+                                num_conns(i) = num_conns(i) + 1
+                                hamil_pos(num_conns(i)) = ind_j
+                                hamil_row(num_conns(i)) = hel
+                            end if
                         end if
+
                     end do
                 end if
             end if
@@ -675,11 +683,13 @@ contains
                 do k = 1, nintersec
                     ind_k = alpha_dets(ind_alpha_conn)%pos( intersec_inds(k) )
                     CS_K = cs(ind_k)
-                    num_conns(i) = num_conns(i) + 1
 
                     hel = hphf_off_diag_helement_opt(nI_list(:,i_full), core_space(:,i_full), core_space(:,ind_k), 2, CS_I, CS_K)
-                    hamil_pos(num_conns(i)) = ind_k
-                    hamil_row(num_conns(i)) = hel
+                    if (abs(hel) > 0.0_dp) then
+                        num_conns(i) = num_conns(i) + 1
+                        hamil_pos(num_conns(i)) = ind_k
+                        hamil_row(num_conns(i)) = hel
+                    end if
                 end do
             end do
 
@@ -708,11 +718,13 @@ contains
                             IC = CountBits(tmp, NIfD)
                             if (IC <= 2) cycle
 
-                            num_conns(i) = num_conns(i) + 1
-
                             hel = hphf_off_diag_special_case(nI_paired, ilut_paired, core_space(:,ind_k), 2, OpenOrbsI)
-                            hamil_pos(num_conns(i)) = ind_k
-                            hamil_row(num_conns(i)) = hel
+                            if (abs(hel) > 0.0_dp) then
+                                num_conns(i) = num_conns(i) + 1
+                                hamil_pos(num_conns(i)) = ind_k
+                                hamil_row(num_conns(i)) = hel
+                            end if
+
                         end do
                     end do
                 !end if
@@ -1230,10 +1242,12 @@ contains
                 tmp = iand(core_space(0:NIfD,i_full), tmp)
                 IC = CountBits(tmp, NIfD)
                 if (IC <= 2) then
-                    num_conns(i) = num_conns(i) + 1
                     hel = get_helement(nI_list(:,i_full), nI_list(:,ind_j), IC, core_space(:,i_full), core_space(:,ind_j))
-                    hamil_pos(num_conns(i)) = ind_j
-                    hamil_row(num_conns(i)) = hel
+                    if (abs(hel) > 0.0_dp) then
+                        num_conns(i) = num_conns(i) + 1
+                        hamil_pos(num_conns(i)) = ind_j
+                        hamil_row(num_conns(i)) = hel
+                    end if
                 end if
             end do
 
@@ -1249,10 +1263,12 @@ contains
                 tmp = iand(core_space(0:NIfD,i_full), tmp)
                 IC = CountBits(tmp, NIfD)
                 if (IC <= 2) then
-                    num_conns(i) = num_conns(i) + 1
                     hel = get_helement(nI_list(:,i_full), nI_list(:,ind_j), IC, core_space(:,i_full), core_space(:,ind_j))
-                    hamil_pos(num_conns(i)) = ind_j
-                    hamil_row(num_conns(i)) = hel
+                    if (abs(hel) > 0.0_dp) then
+                        num_conns(i) = num_conns(i) + 1
+                        hamil_pos(num_conns(i)) = ind_j
+                        hamil_row(num_conns(i)) = hel
+                    end if
                 end if
             end do
 
@@ -1267,16 +1283,18 @@ contains
 
                 do k = 1, nintersec
                     ind_k = alpha_dets(ind_alpha_conn)%pos( intersec_inds(k) )
-                    num_conns(i) = num_conns(i) + 1
                     hel = get_helement(nI_list(:,i_full), nI_list(:,ind_k), 2, core_space(:,i_full), core_space(:,ind_k))
-                    hamil_pos(num_conns(i)) = ind_k
-                    hamil_row(num_conns(i)) = hel
+                    if (abs(hel) > 0.0_dp) then
+                        num_conns(i) = num_conns(i) + 1
+                        hamil_pos(num_conns(i)) = ind_k
+                        hamil_row(num_conns(i)) = hel
+                    end if
                 end do
             end do
 
             ! Calculate and add the diagonal element
-            num_conns(i) = num_conns(i) + 1
             hel = get_helement(nI_list(:,i_full), nI_list(:,i_full), 0) - Hii
+            num_conns(i) = num_conns(i) + 1
             hamil_pos(num_conns(i)) = i_full
             hamil_row(num_conns(i)) = hel
 
