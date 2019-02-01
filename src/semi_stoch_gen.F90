@@ -42,7 +42,7 @@ contains
         use load_balance, only: adjust_load_balance
         use load_balance_calcnodes, only: tLoadBalanceBlocks
         use sort_mod, only: sort
-        use SystemData, only: nel
+        use SystemData, only: nel, tAllSymSectors
 
         type(subspace_in) :: core_in
         logical, intent(out) :: tStartedFromCoreGround
@@ -160,19 +160,25 @@ contains
         if (tWriteCore) call write_core_space()
 
         write(6,'("Generating the Hamiltonian in the deterministic space...")'); call neci_flush(6)
-        !call set_timer(SemiStoch_Hamil_Time)
-        if (tHPHF) then
-            !call calc_determ_hamil_sparse_hphf()
-            !call deallocate_sparse_ham(sparse_core_ham, 'sparse_core_ham', SparseCoreHamilTags)
-            call calc_determ_hamil_opt_hphf()
+        if (tAllSymSectors) then
+            ! In this case the faster generation is implemented, so use the
+            ! original algorithm.
+            call set_timer(SemiStoch_Hamil_Time)
+            if (tHPHF) then
+                call calc_determ_hamil_sparse_hphf()
+            else
+                call calc_determ_hamil_sparse()
+            end if
+            call halt_timer(SemiStoch_Hamil_Time)
+            write(6,'("Total time (seconds) taken for Hamiltonian generation:", f9.3)') &
+               get_total_time(SemiStoch_Hamil_Time)
         else
-            !call calc_determ_hamil_sparse()
-            !call deallocate_sparse_ham(sparse_core_ham, 'sparse_core_ham', SparseCoreHamilTags)
-            call calc_determ_hamil_opt()
+            if (tHPHF) then
+                call calc_determ_hamil_opt_hphf()
+            else
+                call calc_determ_hamil_opt()
+            end if
         end if
-        !call halt_timer(SemiStoch_Hamil_Time)
-        !write(6,'("Total time (seconds) taken for Hamiltonian generation:", f9.3)') &
-        !   get_total_time(SemiStoch_Hamil_Time)
 
         if (tRDMonFly) call generate_core_connections()
 
