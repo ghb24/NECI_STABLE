@@ -42,7 +42,7 @@ contains
         use load_balance, only: adjust_load_balance
         use load_balance_calcnodes, only: tLoadBalanceBlocks
         use sort_mod, only: sort
-        use SystemData, only: nel, tAllSymSectors
+        use SystemData, only: nel, tAllSymSectors, tReltvy
 
         type(subspace_in) :: core_in
         logical, intent(out) :: tStartedFromCoreGround
@@ -160,7 +160,7 @@ contains
         if (tWriteCore) call write_core_space()
 
         write(6,'("Generating the Hamiltonian in the deterministic space...")'); call neci_flush(6)
-        if (tAllSymSectors) then
+        if (tAllSymSectors .or. tReltvy) then
             ! In this case the faster generation is implemented, so use the
             ! original algorithm.
             call set_timer(SemiStoch_Hamil_Time)
