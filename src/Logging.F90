@@ -7,7 +7,6 @@ MODULE Logging
     use MemoryManager, only: LogMemAlloc, LogMemDealloc,TagIntType
     use SystemData, only: nel, LMS, nbasis, tHistSpinDist, nI_spindist, &
                           hist_spin_dist_iter
-    use FciMCData, only: maxConflictExLvl, maxHoleExLvlWrite
     use CalcData, only: tCheckHighestPop, semistoch_shift_iter, trial_shift_iter, &
          tPairedReplicas
     use constants, only: n_int, size_n_int, bits_n_int
@@ -177,9 +176,7 @@ MODULE Logging
       tHDF5PopsRead = .false.
       tHDF5PopsWrite = .false.
       tWriteRefs = .false.
-      tWriteConflictLvls = .false.
-      maxConflictExlvl = 8
-      maxHoleExLvlWrite = 12
+      maxInitExLvlWrite = 8
 #ifdef __PROG_NUMRUNS
       tFCIMCStats2 = .true.
 #else
@@ -752,15 +749,6 @@ MODULE Logging
         case("READRDMS")
 ! Read in the RDMs from a previous calculation, and continue accumulating the RDMs from the very beginning of this restart. 
             tReadRDMs = .true.
-
-         case("WRITE-CONFLICT-LEVELS")
-            ! write the excitation levels of sign conflicts between replicas
-            tWriteConflictLvls = .true.
-            if(item < nitems) call geti(maxConflictExLvl)
-
-         case("WRITE-HOLE-LVL")
-            ! the excitation level up to which unocc. dets are logged
-            call geti(maxHoleExLvlWrite)
         
         case("NONEWRDMCONTRIB")
             ! To be used with READRDMs.  This option makes sure that we don't add in any 
@@ -1021,6 +1009,9 @@ MODULE Logging
             tLogDets=.true.
         case("EXLEVEL")
             tLogEXLEVELStats=.true.
+         case("INITS-EXLVL-WRITE")
+            ! up to which excitation level the number of initiators is written out
+            if(item < nitems) call readi(maxInitExLvlWrite)
         case ("INSTANT-S2-FULL")
             ! Calculate an instantaneous value for S^2, and output it to the
             ! relevant column in the FCIMCStats file.

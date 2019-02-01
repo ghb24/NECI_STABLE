@@ -366,7 +366,19 @@ contains
         enddo
     end function any_run_is_initiator
 
-
+    pure function all_runs_are_initiator(ilut) result(t)
+      integer(n_int), intent(in) :: ilut(0:niftot)
+      integer :: run
+      logical :: t
+      t = .true.
+      do run = 1, inum_runs
+        if(.not. test_flag(ilut, get_initiator_flag_by_run(run))) then
+           t = .false.
+           return
+        endif
+      end do
+    end function all_runs_are_initiator
+    
     subroutine clear_all_flags (ilut)
 
         ! Clear all of the flags
@@ -566,7 +578,7 @@ contains
     subroutine encode_parent(ilut, ilut_parent, RDMBiasFacCurr)
 
         integer(n_int), intent(inout) :: ilut(0:NIfBCast)
-        integer(n_int), intent(in) :: ilut_parent(0:NIfDBO)
+        integer(n_int), intent(in) :: ilut_parent(0:NIfTot)
         real(dp), intent(in) :: RDMBiasFacCurr
 #ifdef __DEBUG
         character(*), parameter :: this_routine = 'encode_parent'
@@ -574,10 +586,12 @@ contains
 
         ASSERT(bit_rdm_init)
 
-        ilut(nOffParent:nOffParent + nIfDBO) = ilut_parent
+        ilut(nOffParent:nOffParent + nIfDBO) = ilut_parent(0:NIfDBO)
 
         ilut(nOffParent + nIfDBO + 1) = &
             transfer(RDMBiasFacCurr, ilut(nOffParent + nIfDBO + 1))
+        ! store the flag
+        ilut(nOffParent + nIfDBO + 2) = ilut_parent(NIfTot)
 
     end subroutine
 

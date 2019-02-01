@@ -16,8 +16,7 @@ module fcimc_pointed_fns
                         t_matele_cutoff, matele_cutoff, tEN2Truncated, &
                         tTruncInitiator, tSkipRef, t_consider_par_bias, t_truncate_unocc, &
                         tAdaptiveShift, AdaptiveShiftSigma, AdaptiveShiftF1, AdaptiveShiftF2, &
-                        tAutoAdaptiveShift, AdaptiveShiftThresh
-
+                        tAutoAdaptiveShift, AdaptiveShiftThresh, AdaptiveShiftExpo, AdaptiveShiftCut
     use DetCalcData, only: FciDetIndex, det
 
     use procedure_pointers, only: get_spawn_helement
@@ -629,7 +628,7 @@ module fcimc_pointed_fns
 #else
         real(dp) :: rat(1)
 #endif        
-        real(dp) :: shift, population, slope, tot, acc
+        real(dp) :: shift, population, slope, tot, acc, tmp
 
 
         do i=1, inum_runs
@@ -642,7 +641,7 @@ module fcimc_pointed_fns
                 !If we are fixing the population of reference det, skip death/birth
                 fac(i)=0.0
             else
-                if(tAdaptiveShift)then
+                if(tAdaptiveShift .and. .not. tAutoAdaptiveShift)then
                     population = mag_of_run(realwSign, i)
                     if(population>InitiatorWalkNo)then
                         shift = DiagSft(i)
@@ -663,14 +662,19 @@ module fcimc_pointed_fns
                     population = mag_of_run(realwSign, i)
                     tot = get_tot_spawns(DetPosition, i)
                     acc = get_acc_spawns(DetPosition, i)
-                    !write(6,*), DetPosition, i, tot, acc
                     if(population>InitiatorWalkNo)then
-                        shift = DiagSft(i)
+                        tmp = 1.0
                     elseif(tot>AdaptiveShiftThresh)then
-                        shift = (acc/tot)*DiagSft(i)
+                        tmp = acc/tot
                     else
-                        shift = 0.0
+                        tmp = 0.0
                     endif 
+                    !The factor is actually never zero, because at least the parent is occupied
+                    !As a heuristic, we use the connectivity of HF
+                    if(tmp<AdaptiveShiftCut)then
+                        tmp = AdaptiveShiftCut
+                    endif
+                    shift = DiagSft(i)*tmp**AdaptiveShiftExpo
                 else
                     shift = DiagSft(i)
                 endif

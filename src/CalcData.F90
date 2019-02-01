@@ -138,6 +138,16 @@ real(dp) :: AdaptiveShiftF1 !Shift modification factor at AdaptiveShiftSigma
 real(dp) :: AdaptiveShiftF2 !Shift modification factor at InitiatorWalkNo
 logical :: tAutoAdaptiveShift !Let the modification factor of adaptive shift be computed autmatically
 real(dp) :: AdaptiveShiftThresh !Number of spawn under which below the shift is set to zero (in auto-adaptive-shift)
+real(dp) :: AdaptiveShiftExpo !Exponent of the modification factor, value 1 is default. values 0 means going back to full shift.
+real(dp) :: AdaptiveShiftCut  !The modification factor should never go below this.
+logical :: tAAS_MatEle !Use the magnitude of |Hij| in the modifcation factor i.e. sum_{accepted} |H_ij| / sum_{all attempts} |H_ij|
+logical :: tAAS_MatEle2 !Use the weight |Hij|/(Hjj-E) in the modifcation factor
+logical :: tAAS_Reverse !Add weights in the opposite direction i.e. to the modification factor of the child
+! Giovannis option for using only initiators for the RDMs (off by default)
+logical :: tOutputInitsRDM = .false.
+logical :: tNonInitsForRDMs = .true.
+! Adaptive shift RDM correction using initiators as reference
+logical :: tInitsRDMRef, tInitsRDM
 ! Base hash values only on spatial orbitals
 ! --> All dets with same spatial structure on the same processor.
 logical :: tSpatialOnlyHash

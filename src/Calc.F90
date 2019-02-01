@@ -155,6 +155,13 @@ contains
           AdaptiveShiftF2 = 1.0
           tAutoAdaptiveShift = .false.
           AdaptiveShiftThresh = 10
+          AdaptiveShiftExpo = 1
+          AdaptiveShiftCut = -1 !If the user does not specify a value, this will be set to 1.0/HFConn later
+          tAAS_MatEle = .false. 
+          tAAS_MatEle2 = .false.
+          tAAS_Reverse = .false.
+          tInitsRDMRef = .false.
+          tInitsRDM = .false.
           NEquilSteps=0
           NShiftEquilSteps=1000
           TRhoElems=.false.
@@ -445,6 +452,10 @@ contains
           tEN2Truncated = .false.
           tEN2Started = .false.
 
+          ! Giovannis option for RDMs without non-initiators
+          tNonInitsForRDMs = .true.
+          tOutputInitsRDM = .false.
+
         end subroutine SetCalcDefaults
 
         SUBROUTINE CalcReadInput()
@@ -672,6 +683,11 @@ contains
                     call report(trim(w)//" only valid for MC "        &
      &                 //"method",.true.)
                 end if
+
+             case("INITS-RDM")
+                ! only take into account initiators when calculating RDMs
+                tOutputInitsRDM = .true.
+                tInitsRDM = .true.
             case("VVDISALLOW")
                 TVVDISALLOW=.TRUE.
             case("MCDIRECTSUM")
@@ -1692,9 +1708,35 @@ contains
                 tAdaptiveShift = .true.
             case("AUTO-ADAPTIVE-SHIFT")
                 tAutoAdaptiveShift = .true.
+                tAdaptiveShift = .true.
                 if (item.lt.nitems) then
                     call getf(AdaptiveShiftThresh)
                 end if
+
+                if (item.lt.nitems) then
+                    call getf(AdaptiveShiftExpo)
+                end if
+
+                if (item.lt.nitems) then
+                    call getf(AdaptiveShiftCut)
+                end if
+            case("AAS-MATELE")
+                tAAS_MatEle = .true.
+                !When using the MatEle, the default value of 10 becomes meaningless
+                AdaptiveShiftThresh = 0.0
+            case("AAS-MATELE2")
+                tAAS_MatEle2 = .true.
+                !When using the MatEle, the default value of 10 becomes meaningless
+                AdaptiveShiftThresh = 0.0
+            case("AAS-REVERSE")
+                tAAS_Reverse = .true.
+             case("INITS-PROJE")
+                ! deprecated
+             case("INITS-GAMMA0")
+                ! use the density matrix obtained from the initiator space to 
+                ! correct for the adaptive shift
+                tInitsRDMRef = .true.
+                tInitsRDM = .true.
             case("EXITWALKERS")
 !For FCIMC, this is an exit criterion based on the total number of walkers in the system.
                 call getiLong(iExitWalkers)

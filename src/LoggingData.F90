@@ -34,7 +34,7 @@ module LoggingData
     ! Logical(4) datatypes for compilation with builds of openmpi that don't
     ! have support for logical(8). Gah.
     logical :: tExplicitAllRDM, tChangeVarsRDM
-
+    logical :: tPopAutoAdaptiveShift
     LOGICAL tSaveBlocking !Do not overwrite blocking files
     INTEGER iWriteBlockingEvery !How often to write out blocking files
     INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs
@@ -145,6 +145,10 @@ module LoggingData
     ! for now always print out the histograms at the end, maybe change that 
     ! behavior in the future
     logical :: t_print_frq_histograms = .true.
+
+    ! up to which exLvl we track the number of initiators per exLvl
+    integer :: maxInitExLvlWrite
+    integer, allocatable :: initsPerExLvl(:), allInitsPerExLvl(:)
 
     ! if this is true, force moving fcimcstats and initiatorstats files, and accumulate stats in new files
     logical :: t_no_append_stats = .false.

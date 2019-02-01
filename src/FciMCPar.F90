@@ -10,11 +10,11 @@ module FciMCParMod
 
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
-                        AvMCExcits, pops_norm_unit, iExitWalkers, &
-                        iFullSpaceIter, semistoch_shift_iter, tEN2, &
+                        AvMCExcits, pops_norm_unit, iExitWalkers, tAdaptiveShift, &
+                        iFullSpaceIter, semistoch_shift_iter, tEN2, tOutputInitsRDM, &
                         tOrthogonaliseReplicas, orthogonalise_iter, &
-                        tDetermHFSpawning, use_spawn_hash_table, &
-                        ss_space_in, s_global_start, tContTimeFCIMC, &
+                        tDetermHFSpawning, use_spawn_hash_table, tInitsRDMRef, &
+                        ss_space_in, s_global_start, tContTimeFCIMC, tInitsRDM, &
                         trial_shift_iter, tStartTrialLater, tAVReps, &
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
                         t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
@@ -40,15 +40,12 @@ module FciMCParMod
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
                             attempt_die_spin_proj
-
-    use rdm_data, only: print_2rdm_est
-
+    use rdm_data, only: print_2rdm_est, ThisRDMIter, inits_one_rdms, two_rdm_inits_spawn, &
+         two_rdm_inits, rdm_inits_defs, RDMCorrectionFactor, inits_estimates
     use rdm_data_old, only: rdms, one_rdms_old, rdm_estimates_old
 
     use rdm_finalising, only: finalise_rdms
-
-    use rdm_general, only: init_rdms
-
+    use rdm_general, only: init_rdms, SumCorrectionContrib, UpdateRDMCorrectionTerm
     use rdm_general_old, only: InitRDMs_old, FinaliseRDMs_old
     use rdm_filling_old, only: fill_rdm_offdiag_deterministic_old, fill_rdm_diag_wrapper_old
     use rdm_filling, only: fill_rdm_offdiag_deterministic, fill_rdm_diag_wrapper
@@ -64,7 +61,8 @@ module FciMCParMod
     use orthogonalise, only: orthogonalise_replicas, calc_replica_overlaps, &
                              orthogonalise_replica_pairs
     use load_balance, only: tLoadBalanceBlocks, adjust_load_balance, RemoveHashDet
-    use bit_reps, only: set_flag, clr_flag, add_ilut_lists, get_initiator_flag
+    use bit_reps, only: set_flag, clr_flag, add_ilut_lists, get_initiator_flag, &
+         all_runs_are_initiator
     use exact_diag, only: perform_exact_diag_all_symmetry
     use spectral_lanczos, only: perform_spectral_lanczos
     use bit_rep_data, only: nOffFlag, flag_determ_parent, test_flag, flag_prone
@@ -133,6 +131,7 @@ module FciMCParMod
         use rdm_data, only: two_rdm_spawn, one_rdms, rdm_definitions, en_pert_main
         use rdm_estimators, only: calc_2rdm_estimates_wrapper, write_rdm_estimates
         use rdm_estimators_old, only: rdm_output_wrapper_old, write_rdm_estimates_old
+        use rdm_data_utils, only: clear_rdm_list_t, add_rdm_1_to_rdm_2
 
         real(dp), intent(out), allocatable :: energy_final_output(:)
 
@@ -276,10 +275,6 @@ module FciMCParMod
             end if
             call WriteFCIMCStats()
         end if
-        if(tWriteUnocc) then
-           call write_unoccstats(.true.)
-           call write_unoccstats()
-        endif
 
         ! double occupancy: 
         if (t_calc_double_occ) then 
@@ -641,32 +636,51 @@ module FciMCParMod
             IF(tHistSpawn.and.(mod(Iter,iWriteHistEvery).eq.0).and.(.not.tRDMonFly)) THEN
                 CALL WriteHistogram()
             ENDIF
+            
+            ! accumulate the rdm correction due to adaptive shift
+            if(tAdaptiveShift .and. all(.not. tSinglePartPhase)) call UpdateRDMCorrectionTerm()
+
 
             if (tRDMonFly .and. all(.not. tSinglePartPhase)) then
                 ! If we wish to calculate the energy, have started accumulating the RDMs, 
                 ! and this is an iteration where the energy should be calculated, do so.
-                if (print_2rdm_est .and. ((Iter - maxval(VaryShiftIter)) > IterRDMonFly) &
+               if (print_2rdm_est .and. ((Iter - maxval(VaryShiftIter)) > IterRDMonFly) &
                     .and. (mod(Iter+PreviousCycles-IterRDMStart+1, RDMEnergyIter) == 0) ) then
-           
-                    call calc_2rdm_estimates_wrapper(rdm_definitions, rdm_estimates, two_rdm_main, en_pert_main)
-                    if (tOldRDMs) then
-                        do irdm = 1, rdm_definitions%nrdms
-                            call rdm_output_wrapper_old(rdms(irdm), one_rdms_old(irdm), irdm, rdm_estimates_old(irdm), .false.)
-                        end do
-                    end if
 
-                    if (iProcIndex == 0) then
-                        call write_rdm_estimates(rdm_definitions, rdm_estimates, .false., print_2rdm_est)
-                        if (tOldRDMs) call write_rdm_estimates_old(rdm_estimates_old, .false.)
-                    end if
+                  ! rezero the count of how many iterations we have been averaging over
+                  ThisRDMIter = 0.0_dp
+                  if(tOutputInitsRDM) then
+                     call calc_2rdm_estimates_wrapper(rdm_inits_defs, inits_estimates, &
+                          two_rdm_inits, en_pert_main)
+                  endif
+                  if(tInitsRDMRef) then                      
+                     ! add the initiator-only rdm of this cycle to the main rdm (rescaled
+                     ! with the correction factor)
+                     call add_rdm_1_to_rdm_2(two_rdm_inits, two_rdm_main, RDMCorrectionFactor)
+                     ! and reset the initiator-only rdm
+                     call clear_rdm_list_t(two_rdm_inits)
+                  endif
+                  call calc_2rdm_estimates_wrapper(rdm_definitions, rdm_estimates, two_rdm_main, en_pert_main)
+                  if (tOldRDMs) then
+                     do irdm = 1, rdm_definitions%nrdms
+                        call rdm_output_wrapper_old(rdms(irdm), one_rdms_old(irdm), irdm, rdm_estimates_old(irdm), .false.)
+                     end do
+                  end if
 
-                    if (tEN2) then
-                        ! If calculating the Epstein-Nesbet perturbation, reset the
-                        ! array and hash table where contributions are accumulated.
-                        en_pert_main%ndets = 0
-                        call clear_hash_table(en_pert_main%hash_table)
-                    end if
-                end if
+                  if (iProcIndex == 0) then
+                     call write_rdm_estimates(rdm_definitions, rdm_estimates, .false., print_2rdm_est)
+                     if(tOutputInitsRDM) call write_rdm_estimates(rdm_inits_defs, &
+                          inits_estimates, .false., print_2rdm_est)
+                     if (tOldRDMs) call write_rdm_estimates_old(rdm_estimates_old, .false.)
+                  end if
+
+                  if (tEN2) then
+                     ! If calculating the Epstein-Nesbet perturbation, reset the
+                     ! array and hash table where contributions are accumulated.
+                     en_pert_main%ndets = 0
+                     call clear_hash_table(en_pert_main%hash_table)
+                  end if
+               end if
 
             end if
 
@@ -781,6 +795,9 @@ module FciMCParMod
                                two_rdm_recv_2, en_pert_main, two_rdm_spawn, rdm_estimates)
             if (tOldRDMs) call FinaliseRDMs_old(rdms, one_rdms_old, rdm_estimates_old)
         end if
+        if(tAdaptiveShift) then
+           write(iout,*) "Prefactor of RDM correction due to adaptive shift", RDMCorrectionFactor
+        endif
 
         call PrintHighPops()
 
@@ -939,8 +956,8 @@ module FciMCParMod
         use global_det_data, only: set_av_sgn_tot, set_iter_occ_tot
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
         use rdm_data, only: two_rdm_spawn, two_rdm_recv, two_rdm_main, one_rdms
-        use rdm_data, only: rdm_definitions, rdm_estimates
-        use rdm_data_utils, only: communicate_rdm_spawn_t, add_rdm_1_to_rdm_2
+        use rdm_data, only: rdm_definitions
+        use rdm_data_utils, only: communicate_rdm_spawn_t, add_rdm_1_to_rdm_2, clear_rdm_list_t
         use symrandexcit_Ex_Mag, only: test_sym_excit_ExMag 
         ! Iteration specific data
         type(fcimc_iter_data), intent(inout) :: iter_data
@@ -1121,11 +1138,7 @@ module FciMCParMod
             else
                 walkExcitLevel_toHF = walkExcitLevel
             endif
-
-            ! if requested, average the sign over replicas if not coherent
-            if(inum_runs > 1 .and. tWriteConflictLvls) call replica_coherence_check(&
-                 CurrentDets(:,j), SignCurr, walkExcitLevel)
-
+            
             if (tFillingStochRDMonFly) then
                 ! Set the average sign and occupation iteration which were
                 ! found in extract_bit_rep_avsign.
@@ -1146,6 +1159,10 @@ module FciMCParMod
                     iter_occ = get_iter_occ_tot(j)
                     call fill_rdm_diag_currdet(two_rdm_spawn, one_rdms, CurrentDets(:,j), DetCurr, &
                                                 walkExcitLevel_toHF, av_sign, iter_occ, tCoreDet)
+                    if(tInitsRDM .and. all_runs_are_initiator(CurrentDets(:,j))) &
+                         call fill_rdm_diag_currdet(two_rdm_inits_spawn, inits_one_rdms, &
+                         CurrentDets(:,j), DetCurr, walkExcitLevel_toHF, av_sign, iter_occ, &
+                         tCoreDet)
                 endif
             endif
 
@@ -1181,8 +1198,6 @@ module FciMCParMod
                   ! this is done via the death timer: if it is <0, the det is dead
                   if(tau_dead .ge. 0) then
                      call clock_death_timer(j)
-                     HolesByExLvl(walkExcitLevel) = HolesByExLvl(walkExcitLevel) + 1
-                     nUnoccDets = nUnoccDets + 1
                      ! if the determinant exceedes its linger time, kill it
                      if(int(tau_dead) > lingerTime) then
                         call RemoveHashDet(HashIndex, DetCurr, j) 
@@ -1196,6 +1211,11 @@ module FciMCParMod
                   endif
                endif
                cycle
+            endif
+
+            ! sum in (fmu-1)*cmu^2 for the purpose of RDMs
+            if(tAdaptiveShift .and. all(.not. tSinglePartPhase)) then
+               call SumCorrectionContrib(SignCurr,j)
             endif
 
             ! The current diagonal matrix element is stored persistently.
@@ -1340,13 +1360,12 @@ module FciMCParMod
                                         HElGen, fcimc_excit_gen_store, part_type)
                     end if
                     
-
                     !If we are fixing the population of reference det, skip spawing into it.
                     if(tSkipRef(run) .and. all(nJ==projEdet(:,run))) then
                         !Set nJ to null
                         nJ(1) = 0
                     end if
-
+                   
                     ! If a valid excitation, see if we should spawn children.
                     if (.not. IsNullDet(nJ)) then
 
@@ -1464,6 +1483,10 @@ module FciMCParMod
                 if (tFill_RDM) then
                     if (tOldRDMs) call fill_RDM_offdiag_deterministic_old(rdms, one_rdms_old)
                     call fill_RDM_offdiag_deterministic(rdm_definitions, two_rdm_spawn, one_rdms)
+                    ! deterministic space is always only initiators, so it fully counts towards
+                    ! the initiator-only RDMs
+                    if(tInitsRDM) call fill_RDM_offdiag_deterministic(rdm_inits_defs, &
+                         two_rdm_inits_spawn, inits_one_rdms)
                 end if
             end if
         end if
@@ -1520,6 +1543,9 @@ module FciMCParMod
         if (tFillingStochRDMonFly) then
             if (tOldRDMs) call fill_rdm_diag_wrapper_old(rdms, one_rdms_old, CurrentDets, int(TotWalkers, sizeof_int))
             call fill_rdm_diag_wrapper(rdm_definitions, two_rdm_spawn, one_rdms, CurrentDets, int(TotWalkers, sizeof_int))
+            ! if we use the initiator-only rdms as gamma_0, get them in their own entity
+            if(tInitsRDM) call fill_rdm_diag_wrapper(rdm_inits_defs, two_rdm_inits_spawn, &
+                 inits_one_rdms, CurrentDets, int(TotWalkers, sizeof_int), .false.)
         end if
 
         if(tTrialWavefunction .and. tTrialShift)then

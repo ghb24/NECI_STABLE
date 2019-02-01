@@ -45,7 +45,8 @@ module fcimc_initialisation
                         t_back_spawn_option, t_back_spawn_flex_option, &
                         t_back_spawn_flex, back_spawn_delay, corespaceWalkers, &
                         ScaleWalkers, tSpinProject, tFixedN0, tRCCheck, &
-                        t_trunc_nopen_diff, maxKeepExLvl, tAutoAdaptiveShift
+                        t_trunc_nopen_diff, maxKeepExLvl, tAutoAdaptiveShift, &
+                        AdaptiveShiftCut, tAAS_Reverse
 
     use spin_project, only: init_yama_store, clean_yama_store
 
@@ -73,6 +74,7 @@ module fcimc_initialisation
                            OffDiagBinRange, iDiagSubspaceIter, tOldRDMs, &
                            AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead, &
                            tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats, &
+                           maxInitExLvlWrite, initsPerExLvl, AllInitsPerExLvl, &
                            t_spin_measurements
     use DetCalcData, only: NMRKS, tagNMRKS, FCIDets, NKRY, NBLK, B2L, nCycle, &
                            ICILevel, det
@@ -162,9 +164,8 @@ module fcimc_initialisation
     use get_excit, only: make_double
 
     use sltcnd_mod, only: sltcnd_0
-
-    use rdm_data, only: nrdms_transition_input
-
+    use rdm_data, only: nrdms_transition_input, rdmCorrectionFactor, InstRDMCorrectionFactor, &
+         ThisRDMIter
     use Parallel_neci
 
     use FciMCData
@@ -618,6 +619,16 @@ contains
         ENDIF
         HFConn=nSingles+nDoubles
 
+        if(AdaptiveShiftCut<0.0)then
+            !The user did not specify the value, use this as a default
+           if(HFConn > 0) then
+              AdaptiveShiftCut = 1.0_dp/HFConn
+           else
+              ! if the HF is disconnected (can happen in rare corner cases), set it to 0
+              AdaptiveShiftCut = 0.0_dp
+           endif
+        end if
+
         ! Initialise random number seed - since the seeds need to be different
         ! on different processors, subract processor rank from random number
         if(.not.tRestart) then
@@ -874,6 +885,7 @@ contains
         AvSign=0.0_dp
         AvSignHFD=0.0_dp
         SumENum(:)=0.0_dp
+        InitsENumCyc(:) = 0.0_dp
         SumNoatHF(:)=0.0_dp
         NoatHF(:)=0.0_dp
         InstNoatHF(:)=0.0_dp
@@ -900,9 +912,6 @@ contains
         NoAddedInitiators=0
         NoInitDets=0
         NoNonInitDets=0
-        NoSIInitsConflicts = 0
-        NoInitsConflicts = 0
-        avSigns = 0.0_dp
         NoInitWalk(:)=0.0_dp
         NoNonInitWalk(:)=0.0_dp
         NoExtraInitDoubs=0
@@ -915,6 +924,7 @@ contains
 
 !Also reinitialise the global variables - should not necessarily need to do this...
         AllSumENum(:)=0.0_dp
+        AllInitsENumCyc(:) = 0.0_dp
         AllNoatHF(:)=0.0_dp
         AllNoatDoubs(:)=0.0_dp
         if (tLogEXLEVELStats) AllEXLEVEL_WNorm(:,:,:)=0.0_dp
@@ -943,6 +953,7 @@ contains
         AllNoExtraInitDoubs=0
         AllInitRemoved=0
         proje_iter = 0
+        inits_proje_iter = 0.0_dp
         AccRat = 0
         HFShift = 0
         InstShift = 0
@@ -972,6 +983,11 @@ contains
         truncatedWeight = 0.0_dp
         AllTruncatedWeight = 0.0_dp
 
+        ! RDMs are taken as they are until we have some data on the f-function
+        ! of the adaptive shift
+        rdmCorrectionFactor = 0.0_dp
+        InstRDMCorrectionFactor = 0.0_dp
+        ThisRDMIter = 0.0_dp
 !            if (tReltvy) then
 !                ! write out the column headings for the MSWALKERCOUNTS
 !                open(mswalkercounts_unit, file='MSWALKERCOUNTS', status='UNKNOWN')
@@ -985,21 +1001,11 @@ contains
               RealSpawnCutoff = sFBeta
            endif
         endif
-           
 
-        allocate(ConflictExLvl(maxConflictExLvl))
-        ConflictExLvl = 0
-        allocate(AllConflictExLvl(maxConflictExLvl))
-        AllConflictExLvl = 0
-        NoConflicts = 0
-        AllNoConflicts = 0
-
-        allocate(HolesByExLvl(maxHoleExLvlWrite))
-        allocate(allHolesByExLvl(maxHoleExLvlWrite))
-        allHolesByExLvl = 0
-        HolesByExLvl = 0
-        nUnoccDets = 0
-        allNUnoccDets = 0
+        if(.not. allocated(allInitsPerExLvl)) allocate(allInitsPerExLvl(maxInitExLvlWrite))
+        if(.not. allocated(initsPerExLvl)) allocate(initsPerExLvl(maxInitExLvlWrite))
+        initsPerExlvl = 0
+        allInitsPerExLvl = 0
 
         IF(tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC)) THEN
             ALLOCATE(HistMinInd(NEl))
@@ -1454,12 +1460,12 @@ contains
 
             MaxWalkersPart=NINT(MemoryFacPart*MaxWalkersUncorrected)
             ! this hardly makes sense at all - it can even REDUCE the allocated memory
-!            ExpectedMemWalk=real((NIfTot+1)*MaxWalkersPart*size_n_int+8*MaxWalkersPart,dp)/1048576.0_dp
-!            if(ExpectedMemWalk.lt.20.0) then
-!                !Increase memory allowance for small runs to a min of 20mb
-!                MaxWalkersPart=int(20.0*1048576.0/real((NIfTot+1)*size_n_int+8,dp),sizeof_int)
-!                write(iout,"(A)") "Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors"
-!            endif
+            ExpectedMemWalk=real((NIfTot+1)*MaxWalkersPart*size_n_int+8*MaxWalkersPart,dp)/1048576.0_dp
+            if(ExpectedMemWalk.lt.20.0) then
+                !Increase memory allowance for small runs to a min of 20mb
+                MaxWalkersPart=int(20.0*1048576.0/real((NIfTot+1)*size_n_int+8,dp),sizeof_int)
+                write(iout,"(A)") "Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors"
+            endif
             WRITE(iout,"(A,I14)") "Memory allocated for a maximum particle number per node of: ",MaxWalkersPart
             !Here is where MaxSpawned is set up - do we want to set up a minimum allocation here too?
             Call SetupValidSpawned(int(InitWalkers, int64))
@@ -1535,7 +1541,12 @@ contains
 
             if(tAutoAdaptiveShift)then
                 allocate(SpawnInfoVec(0:SpawnInfoWidth-1, MaxSpawned), &
-                         SpawnInfoVec2(0:SpawnInfoWidth-1, MaxSpawned), stat=ierr)
+                    SpawnInfoVec2(0:SpawnInfoWidth-1, MaxSpawned), stat=ierr)
+                if(tAAS_Reverse.and. SpawnInfoWidth<inum_runs)then
+                    SpawnInfoWidth = inum_runs
+                end if
+                allocate(SpawnInfoVec(1:SpawnInfoWidth, MaxSpawned), &
+                    SpawnInfoVec2(1:SpawnInfoWidth, MaxSpawned), stat=ierr)
                 log_alloc(SpawnInfoVec, SpawnInfoVecTag, ierr)
                 log_alloc(SpawnInfoVec2, SpawnInfoVec2Tag, ierr)
                 SpawnInfoVec(:,:)=0
@@ -1719,6 +1730,11 @@ contains
             tot_trial_numerator = 0.0_dp
             trial_denom = 0.0_dp
             tot_trial_denom = 0.0_dp
+
+            init_trial_numerator = 0.0_dp
+            tot_init_trial_numerator = 0.0_dp
+            init_trial_denom = 0.0_dp
+            tot_init_trial_denom = 0.0_dp
 
             trial_num_inst = 0.0_dp
             tot_trial_num_inst = 0.0_dp
@@ -1913,11 +1929,6 @@ contains
         deallocate(FreeSlot,stat=ierr)
         if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
 
-        if(allocated(ConflictExLvl)) deallocate(ConflictExLvl)        
-        if(allocated(HolesByExLvl)) deallocate(HolesByExLvl)
-        if(allocated(AllConflictExLvl)) deallocate(AllConflictExLvl)        
-        if(allocated(AllHolesByExLvl)) deallocate(AllHolesByExLvl)
-
         IF(tHistSpawn.or.tCalcFCIMCPsi) THEN
             DEALLOCATE(Histogram)
             DEALLOCATE(AllHistogram)
@@ -2051,7 +2062,7 @@ contains
 
         if (tTrialWavefunction) call end_trial_wf()
 
-        deallocate(maxKeepExLvl)
+        if(allocated(maxKeepExLvl)) deallocate(maxKeepExLvl)
 
 !There seems to be some problems freeing the derived mpi type.
 !        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
