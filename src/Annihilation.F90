@@ -962,7 +962,8 @@ module AnnihilationMod
                                     ! Walkers came from outside initiator space.
                                     NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
                                     iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
-                                    call encode_part_sign (CurrentDets(:,PartInd), CurrentSign(run), j)
+                                    !call encode_part_sign (CurrentDets(:,PartInd), CurrentSign(run), j)
+                                    call encode_part_sign (CurrentDets(:,PartInd), 0.0_dp, j)
                                 end if
                             end if
                         end if
