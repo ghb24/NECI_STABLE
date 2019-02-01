@@ -102,7 +102,7 @@ contains
         ! Store every determinant from all processors on all processors, in initiator_space.
         call store_whole_initiator_space()
         ! Create the hash table to address the initiator determinants.
-        call initialise_core_hash_table(initiator_space, initiator_space_size, initiator_ht)
+        call initialise_core_hash_table(initiator_space, initiator_space_size_int, initiator_ht)
 
         call set_initiator_space_flags()
 
