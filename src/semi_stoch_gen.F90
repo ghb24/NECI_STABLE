@@ -155,7 +155,7 @@ contains
         ! Store every core determinant from all processors on all processors, in core_space.
         call store_whole_core_space()
         ! Create the hash table to address the core determinants.
-        call initialise_core_hash_table(core_space, determ_space_size, core_ht)
+        call initialise_core_hash_table(core_space, determ_space_size_int, core_ht)
 
         if (tWriteCore) call write_core_space()
 
