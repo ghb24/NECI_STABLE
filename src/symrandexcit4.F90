@@ -2062,14 +2062,15 @@ contains
         ! Enumerate possibilities for the first electron, and select the
         ! relevant orbitals.
         inds = gtID(nI)
-        ind1 = gtID(orbs)
+        ind1 = gtID(orbs)        
+        cpt = 1.0_dp
         if (tlinear) then
             cum_sum1 = 0
             cum_sum2 = 0
             do i = 1, nel
 
                 ! Contributions for selection of electron 1
-                if (.not. tlinear) then
+                if (.not. tlinear) then ! ??? What is this ???
                     cpt = abs(get_umat_el(inds(i), inds(i), inds(i), inds(i)))
                     cum_sum1 = cum_sum1 + cpt
                 end if
