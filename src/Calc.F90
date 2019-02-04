@@ -398,6 +398,8 @@ contains
           tSetDelayAllDoubsInits = .false.
           ! By default, we have one reference for the purpose of all-doubs-initiators      
           nRefs = 1
+          nRefsSings = 1
+          nRefsDoubs = 1
           maxNRefs = 400
           targetRefPop = 1000
           targetRefPopTol = 80

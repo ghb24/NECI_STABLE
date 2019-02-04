@@ -1402,6 +1402,7 @@ r_loop: do while(.not.tStoreDet)
         PopMaxDeathCpt = 0.0_dp
         PopTotImagTime = 0.0_dp
         PopBalanceBlocks = -1
+        PopNNodes = 0
         PopPreviousHistTau = .false.
         tPopAutoAdaptiveShift = .false.
         if(iProcIndex.eq.root) then

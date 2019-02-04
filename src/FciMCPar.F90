@@ -889,7 +889,7 @@ module FciMCParMod
     end subroutine FciMCPar
 
     subroutine PerformFCIMCycPar(iter_data)
-
+      use mpi
         use global_det_data, only: get_iter_occ_tot, get_av_sgn_tot
         use global_det_data, only: set_av_sgn_tot, set_iter_occ_tot
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot

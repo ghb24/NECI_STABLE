@@ -8,6 +8,8 @@ module rdm_nat_orbs
     use RotateOrbsData, only: SymLabelListInv_rot, NoOrbs, SpatOrbs
     use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag
     use RotateOrbsData, only: SymLabelListInv_rotTag
+    use rdm_data, only: tOpenSpatialOrbs, tOpenShell
+    use UMATCache, only: gtID
 
     implicit none
 
@@ -600,7 +602,14 @@ contains
                     a2 = sym_list(a)
                     do g = 1, NoOrbs
                         g2 = sym_list(g)
-
+                        ! if tStoreSpinOrbs is false but NoOrbs == nBasis, the UMAT
+                        ! indices have to be converted
+                        if(tOpenSpatialOrbs) then
+                           a2 = gtID(a2)
+                           b2 = gtID(b2)
+                           g2 = gtID(g2)
+                           d2 = gtID(d2)
+                        endif
                         ! UMatInd in physical notation, but FourIndInts in
                         ! chemical (just to make it more clear in these
                         ! transformations). This means that here, a and g are
@@ -651,7 +660,7 @@ contains
 
         use MemoryManager, only: LogMemAlloc, LogMemDealloc
         use rdm_data, only: one_rdm_t
-        use SystemData, only: nbasis, ARR, BRR, tStoreSpinOrbs
+        use SystemData, only: nbasis, ARR, BRR
 
         type(one_rdm_t), intent(in) :: rdm
 
@@ -687,7 +696,7 @@ contains
         FOCKDiagSumNew = 0.0_dp
         do j = 1, NoOrbs
             l = rdm%sym_list_no(j)
-            if (tStoreSpinOrbs) then
+            if (tOpenShell) then
                 ArrDiagNew(l) = 0.0_dp
             else
                 ArrDiagNew(2*l) = 0.0_dp
@@ -695,14 +704,14 @@ contains
             end if
             do a = 1, NoOrbs
                 b = rdm%sym_list_no(a)
-                if (tStoreSpinOrbs) then
+                if (tOpenShell) then
                     ArrDiagNew(l)=ArrDiagNew(l)+(rdm%matrix(a,j)*ARR(b,2)*rdm%matrix(a,j))
                 else
                     ArrDiagNew(2*l)=ArrDiagNew(2*l)+(rdm%matrix(a,j)*ARR(2*b,2)*rdm%matrix(a,j))
                     ArrDiagNew((2*l)-1)=ArrDiagNew((2*l)-1)+(rdm%matrix(a,j)*ARR((2*b)-1,2)*rdm%matrix(a,j))
                 end if
             end do
-            if (tStoreSpinOrbs) then
+            if (tOpenShell) then
                 FOCKDiagSumNew = FOCKDiagSumNew + (ArrDiagNew(l))
             else
                 FOCKDiagSumNew = FOCKDiagSumNew + (ArrDiagNew(2*l))
@@ -741,7 +750,7 @@ contains
         use OneEInts, only: TMAT2D
         use rdm_data, only: tRotatedNOs
         use RotateOrbsMod, only: FourIndInts
-        use SystemData, only: nbasis, tStoreSpinOrbs
+        use SystemData, only: nbasis
         use UMatCache, only: UMatInd
 
         real(dp), intent(in) :: one_rdm(:,:)
@@ -776,6 +785,12 @@ contains
                     g = sym_list(j)
                     do i = 1, NoOrbs
                         a = sym_list(i)
+                        if(tOpenSpatialOrbs) then
+                           a = gtID(a)
+                           b = gtID(b)
+                           g = gtID(g)
+                           d = gtID(d)
+                        endif
                         ! The FourIndInts are in chemical notation, the UMatInd
                         ! in physical.
                         UMAT(UMatInd(a,b,g,d)) = FourIndInts(i,j,k,l)
@@ -793,13 +808,13 @@ contains
                 NewTMAT = 0.0_dp
                 do b = 1,NoOrbs
                     d = sym_list(b)
-                    if (tStoreSpinOrbs) then
+                    if (tOpenShell) then
                         NewTMAT = NewTMAT + (one_rdm(b,k)*real(TMAT2D(d,a),dp))
                     else
                         NewTMAT = NewTMAT + (one_rdm(b,k)*real(TMAT2D(2*d,a),dp))
                     end if
                 end do
-                if (tStoreSpinOrbs) then
+                if (tOpenShell) then
                     TMAT2DPart(i,a) = NewTMAT
                 else
                     if (mod(a,2).eq.0) then
@@ -817,13 +832,13 @@ contains
                 NewTMAT = 0.0_dp
                 do a = 1, NoOrbs
                     c = sym_list(a)
-                    if (tStoreSpinOrbs) then
+                    if (tOpenShell) then
                         NewTMAT = NewTMAT+(one_rdm(a,l)*TMAT2DPart(k,c))
                     else
                         NewTMAT = NewTMAT+(one_rdm(a,l)*TMAT2DPart(k,2*c))
                     end if
                 end do
-                if (tStoreSpinOrbs) then
+                if (tOpenShell) then
                     TMAT2D(k,j) = NewTMAT
                 else
                     if (mod(k,2) .eq. 0) then
@@ -856,7 +871,7 @@ contains
         use UMatCache, only: UMatInd
         use util_mod, only: get_free_unit
 
-        integer :: i, j, k, l, iunit, orb
+        integer :: i, j, k, l, iunit, orb, a, b, g, d
         character(len=9) :: filename
 
 !        PrintROFCIDUMP_Time%timer_name='PrintROFCIDUMP'
@@ -868,7 +883,7 @@ contains
         write(iunit,'(2A6,I3,A7,I3,A5,I2,A)') '&FCI ','NORB=', NoOrbs, ',NELEC=', NEl, ',MS2=', LMS, ','
         write(iunit,'(A9)',advance='no') 'ORBSYM='
         do i=1,NoOrbs
-            if (tStoreSpinOrbs) then
+            if (tOpenShell) then
                 write(iunit,'(I1,A1)',advance='no') int(G1(i)%sym%S)+1,','
             else
                 if (tRotatedNOs .and. tBrokenSymNOs) then
@@ -899,7 +914,7 @@ contains
             write(iunit,'(A8)',advance='no') 'SYMLZ='
             do i = 1, NoOrbs
                 orb = i
-                if (.not. tStoreSpinOrbs) orb = 2 * orb
+                if (.not. tOpenShell) orb = 2 * orb
                 write(iunit, '(i3,",")', advance='no') int(g1(orb)%ml)
             end do
             write(iunit,*)
@@ -916,9 +931,20 @@ contains
                     do k = 1, i
                         ! UMatInd is in physical notation <ij|kl>, but the indices
                         ! printed in the FCIDUMP are in chemical notation (ik|jl).
-                        if ((abs(real(UMat(UMatInd(i,j,k,l)),dp))).ne.0.0_dp) &
+                       if(tOpenSpatialOrbs) then
+                          a = gtID(i)
+                          b = gtID(j)
+                          g = gtID(k) 
+                          d = gtID(l)
+                       else
+                          a = i
+                          b = j
+                          g = k
+                          d = l
+                       endif
+                        if ((abs(real(UMat(UMatInd(a,b,g,d)),dp))).ne.0.0_dp) &
                                 write(iunit,'(F21.12,4I5)') &
-                                real(UMat(UMatInd(i,j,k,l)),dp), i, k, j, l 
+                                real(UMat(UMatInd(a,b,g,d)),dp), a, b, g, d 
  
                     end do
                 end do
@@ -933,8 +959,15 @@ contains
                     if ((real(TMAT2D(i,k),dp)).ne.0.0_dp) write(iunit,'(F21.12,4I5)') &
                                                         real(TMAT2D(i,k),dp),i,k,0,0
                 else
-                    if ((real(TMAT2D(2*i,2*k),dp)).ne.0.0_dp) write(iunit,'(F21.12,4I5)') &
-                                                        real(TMAT2D(2*i,2*k),dp),i,k,0,0
+                   if(tOpenSpatialOrbs) then
+                      a = gtID(i)
+                      b = gtID(k)
+                   else
+                      a = i
+                      b = k
+                   endif
+                   if ((real(TMAT2D(2*a,2*b),dp)).ne.0.0_dp) write(iunit,'(F21.12,4I5)') &
+                        real(TMAT2D(2*a,2*b),dp),a,b,0,0
                 end if
             end do
         end do
@@ -947,7 +980,12 @@ contains
             if (tStoreSpinOrbs) then
                 write(iunit,'(F21.12,4I5)') Arr(k,2), k, 0, 0, 0
             else
-                write(iunit,'(F21.12,4I5)') Arr(2*k,2), k, 0, 0, 0
+               if(tOpenSpatialOrbs) then
+                  a = gtID(k)
+               else
+                  a = k
+               endif
+                write(iunit,'(F21.12,4I5)') Arr(2*a,2), a, 0, 0, 0
             end if
         end do
 
@@ -1009,7 +1047,7 @@ contains
             ! Normalisation.
             SumDiag = sum(evalues)
 
-            if (tStoreSpinOrbs) then
+            if (tOpenShell) then
                 diffnorm = SumDiag/dble(NEl)
             else
                 diffnorm = 2.0_dp*(SumDiag/dble(NEl))
