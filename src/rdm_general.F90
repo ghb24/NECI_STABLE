@@ -31,7 +31,7 @@ contains
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
         use rdm_data, only: nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time, states_for_transition_rdm
         use rdm_data, only: rdm_main_size_fac, rdm_spawn_size_fac, rdm_recv_size_fac
-        use rdm_data, only: rdm_definitions, en_pert_main
+        use rdm_data, only: rdm_definitions, en_pert_main, tOpenSpatialOrbs
         use rdm_data_utils, only: init_rdm_spawn_t, init_rdm_list_t, init_one_rdm_t
         use rdm_data_utils, only: init_rdm_definitions_t, clear_one_rdms, clear_rdm_list_t
         use rdm_data_utils, only: init_en_pert_t
@@ -70,6 +70,9 @@ contains
         else
             tOpenShell = .false.
         end if
+        ! it is possible to have open-shell systems with spatial orbitals, 
+        ! these have to be indexed differently
+        tOpenSpatialOrbs = tOpenShell .and. .not.tStoreSpinOrbs
 
         if (tExplicitAllRDM) then
             write(6,'(1X,"Explicitly calculating the reduced density matrices from the FCIQMC wavefunction.")')

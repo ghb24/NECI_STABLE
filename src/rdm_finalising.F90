@@ -12,6 +12,7 @@ module rdm_finalising
     use rdm_data_utils, only: calc_separate_rdm_labels, extract_sign_rdm, add_to_rdm_spawn_t
     use rdm_data_utils, only: communicate_rdm_spawn_t_wrapper
     use util_mod
+    use RotateOrbsMod, only: FourIndInts
 
     implicit none
 
@@ -131,6 +132,9 @@ contains
             write(6,*) 'NECI_E at rdm_general.f90 ', NECI_E
         end if
 #endif
+        ! this is allocated in find_nat_orb_occ_numbers and used later in
+        ! brokensymno, ugh. Have to deallocate it somewhere though
+        if(allocated(FourIndInts)) deallocate(FourIndInts)
 
         call halt_timer(FinaliseRDMs_Time)
 
