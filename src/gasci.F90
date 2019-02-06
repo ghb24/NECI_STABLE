@@ -39,6 +39,7 @@ module gasci
       read(gas_unit,*) iGAS(1:nOrbs)
       nGAS = maxval(iGAS)
       allocate(gasOrbs(0:NIfD,nGAS))
+      gasOrbs = 0_n_int
       do iOrb = 1, nOrbs
          ! now write the orbitals read in to the current GAS
          ! set both the alpha- and the beta-spin orbital
@@ -72,7 +73,7 @@ module gasci
       end do
 
       do iOrb = 1, nGAS
-         print *, "Number of orbs in GAS", iOrb, "is", sum(popCnt(gasOrbs(:,iOrb)))
+         write(iout, *) "Number of orbs in GAS", iOrb, "is", sum(popCnt(gasOrbs(:,iOrb)))
       end do
 
       contains 
