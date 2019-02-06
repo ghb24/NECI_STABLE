@@ -35,10 +35,10 @@ startsinglepart 100
 readpops
 (walkcontgrow
 semi-stochastic
-pops-core 10000
+pops-core 1000
 trial-wavefunction
 pops-trial 500
-rdmsamplingiters 50
+rdmsamplingiters 40
 endcalc
  
 logging
