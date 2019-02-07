@@ -1460,12 +1460,12 @@ contains
 
             MaxWalkersPart=NINT(MemoryFacPart*MaxWalkersUncorrected)
             ! this hardly makes sense at all - it can even REDUCE the allocated memory
-            ExpectedMemWalk=real((NIfTot+1)*MaxWalkersPart*size_n_int+8*MaxWalkersPart,dp)/1048576.0_dp
-            if(ExpectedMemWalk.lt.20.0) then
-                !Increase memory allowance for small runs to a min of 20mb
-                MaxWalkersPart=int(20.0*1048576.0/real((NIfTot+1)*size_n_int+8,dp),sizeof_int)
-                write(iout,"(A)") "Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors"
-            endif
+            !ExpectedMemWalk=real((NIfTot+1)*MaxWalkersPart*size_n_int+8*MaxWalkersPart,dp)/1048576.0_dp
+            !if(ExpectedMemWalk.lt.20.0) then
+            !    !Increase memory allowance for small runs to a min of 20mb
+            !    MaxWalkersPart=int(20.0*1048576.0/real((NIfTot+1)*size_n_int+8,dp),sizeof_int)
+            !    write(iout,"(A)") "Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors"
+            !endif
             WRITE(iout,"(A,I14)") "Memory allocated for a maximum particle number per node of: ",MaxWalkersPart
             !Here is where MaxSpawned is set up - do we want to set up a minimum allocation here too?
             Call SetupValidSpawned(int(InitWalkers, int64))
@@ -1540,13 +1540,13 @@ contains
             MemoryAlloc=MemoryAlloc+(NIfTot+1)*MaxSpawned*2*size_n_int
 
             if(tAutoAdaptiveShift)then
-                allocate(SpawnInfoVec(0:SpawnInfoWidth-1, MaxSpawned), &
-                    SpawnInfoVec2(0:SpawnInfoWidth-1, MaxSpawned), stat=ierr)
+!                allocate(SpawnInfoVec(0:SpawnInfoWidth-1, MaxSpawned), &
+!                    SpawnInfoVec2(0:SpawnInfoWidth-1, MaxSpawned), stat=ierr)
                 if(tAAS_Reverse.and. SpawnInfoWidth<inum_runs)then
                     SpawnInfoWidth = inum_runs
                 end if
-                allocate(SpawnInfoVec(1:SpawnInfoWidth, MaxSpawned), &
-                    SpawnInfoVec2(1:SpawnInfoWidth, MaxSpawned), stat=ierr)
+                allocate(SpawnInfoVec(0:SpawnInfoWidth, MaxSpawned), &
+                    SpawnInfoVec2(0:SpawnInfoWidth, MaxSpawned), stat=ierr)
                 log_alloc(SpawnInfoVec, SpawnInfoVecTag, ierr)
                 log_alloc(SpawnInfoVec2, SpawnInfoVec2Tag, ierr)
                 SpawnInfoVec(:,:)=0

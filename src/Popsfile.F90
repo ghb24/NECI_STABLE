@@ -1996,6 +1996,7 @@ r_loop: do while(.not.tStoreDet)
                 !       should we have deallocated spawnedparts by here to 
                 !       ensure we have room, or does the deallocated space from
                 !       dealing with freezing give us plenty of room?
+                nMaxDets = int(maxval(node_write_attempts), sizeof_int)
                 allocate(Parts(0:NIfTot, nMaxDets), stat=error)
 
                 call LogMemAlloc ('Parts', int(nMaxDets,int32)*(NIfTot+1), &
