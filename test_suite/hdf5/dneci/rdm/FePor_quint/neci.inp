@@ -37,7 +37,7 @@ readpops
 semi-stochastic
 pops-core 1000
 trial-wavefunction
-pops-trial 500
+pops-trial 100
 rdmsamplingiters 30
 endcalc
  
