@@ -701,8 +701,12 @@ module AnnihilationMod
             if ( any_allow .and. any_cancel ) then
                 SpawnedParts2(0:NIfTot, VecInd) = cum_det(0:NIfTot)
                 SpawnedParts2(0:NIfTot, VecInd+1) = cum_det_cancel(0:NIfTot)
-                VecInd = VecInd + 2
+                if (tPreCond .or. tReplicaEstimates) then
+                    SpawnedParts2(nOffSpawnHDiag, VecInd) = cum_det(nOffSpawnHDiag)
+                    SpawnedParts2(nOffSpawnHDiag, VecInd+1) = cum_det_cancel(nOffSpawnHDiag)
+                end if
 
+                VecInd = VecInd + 2
                 DetsMerged = DetsMerged + EndBlockDet - BeginningBlockDet - 1
             else if ( any_allow .and. (.not. any_cancel) ) then
                 SpawnedParts2(0:NIfTot, VecInd) = cum_det(0:NIfTot)
