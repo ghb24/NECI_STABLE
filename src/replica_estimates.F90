@@ -462,6 +462,8 @@ module replica_estimates
         real(dp) :: e_squared_num(replica_est_len),     e_squared_num_all(replica_est_len)
         real(dp) :: en2_pert(replica_est_len),          en2_pert_all(replica_est_len)
         real(dp) :: en2_new(replica_est_len),           en2_new_all(replica_est_len)
+        real(dp) :: b_term(replica_est_len),            b_term_all(replica_est_len)
+        real(dp) :: c_term(replica_est_len),            c_term_all(replica_est_len)
         real(dp) :: precond_e_num(replica_est_len),     precond_denom(replica_est_len)
         real(dp) :: precond_e_num_all(replica_est_len), precond_denom_all(replica_est_len)
 
@@ -655,6 +657,118 @@ module replica_estimates
         e_squared_num_all = recv_arr(5*replica_est_len+1:6*replica_est_len)
         ! -------------------------------------------------------
 
+        ! Use a slightly more rigorous expression for the variational plus
+        ! EN2 energy.
+        if (tEN2Rigorous) then
+            en2_new = 0.0_dp
+            en2_new_all = 0.0_dp
+            b_term = 0.0_dp
+            b_term_all = 0.0_dp
+            c_term = 0.0_dp
+            c_term_all = 0.0_dp
+
+            mean_energy = var_e_num_all / overlap_all
+
+            do i = 1, int(TotWalkers, sizeof_int)
+                hdiag = det_diagH(i) + Hii
+                call extract_sign(CurrentDets(:, i), cursign)
+                do j = 1, replica_est_len
+                    en2_new(j) = en2_new(j) + hdiag * cursign(2*j-1) * cursign(2*j)
+                    b_term(j)  = b_term(j)  + cursign(2*j-1) * cursign(2*j)
+                    c_term(j)  = c_term(j)  - cursign(2*j-1) * cursign(2*j) / (mean_energy(j) - hdiag)
+                end do
+            end do
+
+            i = 1
+            do
+                call decode_bit_det(nI_spawn, SpawnedParts(:,i))
+
+                ! How many times is this particular determinant repeated in the
+                ! spawning array (either 0 or 1)?
+                nrepeats = 0
+                spwnsign_init = 0.0_dp
+                spwnsign_non = 0.0_dp
+
+                ! Only need to check initiator status for one replica - if
+                ! one is an initiator then they all are, when using the simple
+                ! initiator approximation.
+                if (test_flag(SpawnedParts(:,i), get_initiator_flag(1))) then
+                    ! This is an initiator
+                    call extract_sign(SpawnedParts(:,i), spwnsign_init)
+                    if (i+1 <= ValidSpawned) then
+                        if (DetBitEq(SpawnedParts(:,i), SpawnedParts(:,i+1), NIfDBO)) then
+                            ! This next state is a different state, and so will
+                            ! be a non-initiator
+                            call extract_sign(SpawnedParts(:,i+1), spwnsign_non)
+                            nrepeats = 1
+                        end if
+                    end if
+                else
+                    call extract_sign(SpawnedParts(:,i), spwnsign_non)
+                end if
+
+                spwnsign = spwnsign_init + spwnsign_non
+
+                ! Now add in the diagonal elements
+                call hash_table_lookup(nI_spawn, SpawnedParts(:,i), NIfDBO, HashIndex, &
+                                       CurrentDets, PartInd, DetHash, tSuccess)
+
+                if (tSuccess) then
+                    call extract_sign(CurrentDets(:,PartInd), cursign)
+
+                    hdiag = det_diagH(PartInd) + Hii
+
+                    if (tSemiStochastic) then
+                        tCoreDet = check_determ_flag(CurrentDets(:,PartInd))
+                        if (tCoreDet) then
+                            determ_pos = core_space_pos(SpawnedParts(:,i), nI_spawn) - determ_displs(iProcIndex)
+                            tDetermSpawnedTo(determ_pos) = .true.
+                            spwnsign = spwnsign + partial_determ_vecs(:, determ_pos)
+                        end if
+                    end if
+
+                    do j = 1, replica_est_len
+                        b_term(j) = b_term(j) + &
+                         (spwnsign(2*j-1)*cursign(2*j) + spwnsign(2*j)*cursign(2*j-1)) / (2.0_dp*tau*(mean_energy(j) - hdiag))
+                    end do
+                end if
+
+                do j = 1, replica_est_len
+                    hdiag = extract_spawn_hdiag(SpawnedParts(:,i))
+
+                    en2_new(j) = en2_new(j) + &
+                      spwnsign(2*j-1) * spwnsign(2*j) / ((tau**2)*(mean_energy(j) - hdiag))
+                end do
+
+                i = i + 1 + nrepeats
+                if (i > ValidSpawned + 1) call stop_all(t_r, "The spawning array index is larger than it should be.")
+                if (i == ValidSpawned + 1) exit
+            end do
+
+            if (tSemiStochastic) then
+                do i = 1, determ_sizes(iProcIndex)
+                    if (.not. tDetermSpawnedTo(i)) then
+                        call extract_sign(CurrentDets(:, indices_of_determ_states(i)), cursign)
+
+                        do j = 1, replica_est_len
+                            en2_new(j) = en2_new(j) + &
+                              partial_determ_vecs(2*j-1, i) * partial_determ_vecs(2*j, i) / &
+                                ((tau)**2 * (mean_energy(j) - core_ham_diag(i) - Hii))
+
+                            b_term(j) = b_term(j) + &
+                              (partial_determ_vecs(2*j-1, i) * cursign(2*j) + partial_determ_vecs(2*j, i) * cursign(2*j-1)) / &
+                                (2.0_dp*tau*(mean_energy(j) - core_ham_diag(i) - Hii))
+                        end do
+
+                    end if
+                end do
+            end if
+
+            call MPISumAll(en2_new, en2_new_all)
+            call MPISumAll(b_term,  b_term_all)
+            call MPISumAll(c_term,  c_term_all)
+        end if
+
         if (iProcIndex == 0) then
             write(replica_est_unit, '(1x,i13)', advance='no') Iter + PreviousCycles
 
@@ -663,10 +777,13 @@ module replica_estimates
                 if (tEN2Init) then
                     write(replica_est_unit, '(2(3x,es20.13))', advance='no') en2_pert_all(j), var_e_num_all(j)+en2_pert_all(j)
                 end if
-                !if (tEN2Rigorous) then
-                !    write(replica_est_unit, '(1(3x,es20.13))', advance='no') en2_new_all(j)
-                !end if
+                if (tEN2Rigorous) then
+                    write(replica_est_unit, '(1(3x,es20.13))', advance='no') en2_new_all(j)
+                end if
                 write(replica_est_unit, '(1(3x,es20.13))', advance='no') overlap_all(j)
+                if (tEN2Rigorous) then
+                    write(replica_est_unit, '(2(3x,es20.13))', advance='no') b_term_all(j), c_term_all(j)
+                end if
                 write(replica_est_unit, '(2(3x,es20.13))', advance='no') precond_e_num_all(j), precond_denom_all(j)
             end do
             write(replica_est_unit,'()')
@@ -710,9 +827,13 @@ module replica_estimates
                     write(replica_est_unit, '(9x,"Var + EN2 num.")', advance='no')
                 end if
                 if (tEN2Rigorous) then
-                    write(replica_est_unit, '(8x,"Var + EN2 new")', advance='no')
+                    write(replica_est_unit, '(10x,"Var + EN2 new")', advance='no')
                 end if
                 write(replica_est_unit, '(10x,"Normalisation")', advance='no')
+                if (tEN2Rigorous) then
+                    write(replica_est_unit, '(11x,"B correction")', advance='no')
+                    write(replica_est_unit, '(10x,"C denominator")', advance='no')
+                end if
                 write(replica_est_unit, '(8x,"Precond. energy")', advance='no')
                 write(replica_est_unit, '(9x,"Precond. norm.")', advance='no')
             end do
