@@ -5,7 +5,8 @@ module fcimc_pointed_fns
     use SystemData, only: nel, tGen_4ind_2, tGen_4ind_weighted, tHub, tUEG, &
                           tGen_4ind_reverse,  nBasis, t_3_body_excits, & 
                           t_k_space_hubbard, t_new_real_space_hubbard, & 
-                          t_trans_corr_2body, t_trans_corr_hop, tHPHF
+                          t_trans_corr_2body, t_trans_corr_hop, tHPHF, &
+                          t_precond_hub, uhub, t_hole_focus_excits !temporarily for the symple hubbard preconditioner
 
     use LoggingData, only: tHistExcitToFrom, FciMCDebug
 
@@ -619,6 +620,8 @@ module fcimc_pointed_fns
         integer, intent(in) :: WalkExcitLevel
         integer, intent(in), optional :: DetPosition
         character(*), parameter :: t_r = 'attempt_die_normal'
+        
+        integer(kind=n_int) :: iLutnI(0:niftot),N_double
 
         real(dp) :: probsign, r
         real(dp), dimension(inum_runs) :: fac
@@ -631,6 +634,19 @@ module fcimc_pointed_fns
         real(dp) :: shift, population, slope, tot, acc, tmp
 
 
+        if(t_precond_hub)then
+          if(t_hole_focus_excits)then
+           call EncodeBitDet(DetCurr, ilutnI)
+           N_double = 0
+           do i=1,nBasis/2
+            if(IsOcc(ilutnI,2*i-1).and.IsOcc(ilutnI,2*i))N_double=N_double+1
+           end do
+          else
+           call stop_all(t_r,"PRECOND-HUB at moment is only tested together with transcorr-hop and hole-focus")
+          end if 
+        end if 
+
+         
         do i=1, inum_runs
             if (t_cepa_shift) then 
 
@@ -679,6 +695,10 @@ module fcimc_pointed_fns
                     shift = DiagSft(i)
                 endif
                 fac(i)=tau*(Kii-shift)
+                if(t_precond_hub)then
+                 fac(i)=fac(i)/(1.0_dp+N_double*uhub)
+                end if 
+
                 ! And for tau searching purposes
 
                 call log_death_magnitude (Kii - shift)

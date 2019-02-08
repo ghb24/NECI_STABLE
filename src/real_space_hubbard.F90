@@ -20,7 +20,7 @@ module real_space_hubbard
                           t_open_bc_y, t_open_bc_z, G1, ecore, nel, nOccAlpha, nOccBeta, &
                           t_trans_corr, trans_corr_param, t_trans_corr_2body, & 
                           trans_corr_param_2body, tHPHF, t_trans_corr_new, & 
-                          t_trans_corr_hop, t_uniform_excits, &
+                          t_trans_corr_hop, t_uniform_excits, t_hole_focus_excits, pholefocus,t_precond_hub,&
                           t_spin_dependent_transcorr, tNoBrillouin, tUseBrillouin
 
     use lattice_mod, only: lattice, determine_optimal_time_step, lat, &
@@ -190,7 +190,9 @@ contains
         ! where i need the connectivity of the lattice i guess? 
         if (t_trans_corr_hop .and. .not. tHPHF) then 
 !             ASSERT(.not. tHPHF)
-            if (t_uniform_excits) then 
+            if(t_hole_focus_excits)then 
+                generate_excitation => gen_excit_rs_hubbard_transcorr_hole_focus
+            else if (t_uniform_excits) then 
                 generate_excitation => gen_excit_rs_hubbard_transcorr_uniform
             else
                 generate_excitation => gen_excit_rs_hubbard_transcorr
@@ -1133,6 +1135,186 @@ contains
 
 
     end subroutine gen_excit_rs_hubbard_transcorr
+    
+    
+    subroutine gen_excit_rs_hubbard_transcorr_hole_focus (nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                                      ex, tParity, pGen, hel, store, run)
+        ! new excitation generator for the real-space hubbard model with 
+        ! the hopping transcorrelation, which leads to double excitations 
+        ! and long-range single excitations in the real-space hubbard.. 
+        ! this complicates things alot! 
+
+        integer, intent(in) :: nI(nel), exFlag
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: nJ(nel), ic, ex(2,2)
+        integer(n_int), intent(out) :: ilutJ(0:NifTot)
+        real(dp), intent(out) :: pGen
+        logical, intent(out) :: tParity
+        HElement_t(dp), intent(out) :: hel
+        type(excit_gen_store_type), intent(inout), target :: store
+        integer, intent(in), optional :: run
+
+        character(*), parameter :: this_routine = "gen_excit_rs_hubbard_transcorr_hole_focus"
+
+        integer :: iunused, ind , elec, src, orb
+        real(dp) :: cum_arr(nBasis/2)
+        real(dp) :: cum_sum, p_elec, p_orb
+#ifdef __DEBUG
+        real(dp) :: temp_pgen
+#endif
+        integer :: n_spatial_hole,ind_spatial_hole(nBasis/2),n_e_h_pair,ind_e_h_pair(4*nel,2),i,n_double
+        integer, allocatable :: neighbors(:)
+
+        
+        iunused = exflag; 
+        ilutJ = 0_n_int
+        ic = 0
+        nJ(1) = 0
+
+        ASSERT(associated(lat))
+
+        if (genrand_real2_dsfmt() < pDoubles) then 
+            ic = 2 
+
+            call gen_double_excit_rs_hub_transcorr(nI, ilutI, nJ, ilutJ, ex, tParity, pgen)
+
+            pgen = pDoubles * pgen 
+
+            if (nJ(1) == 0) then 
+                pgen = 0.0_dp 
+                return 
+            end if
+
+        else 
+            ic = 1
+           if(genrand_real2_dsfmt()<pholefocus)then
+            ! Here we make the 1 body excitations focus more on the hopping of the 'spatial holes'.
+            ! 1)Find the list of all spatial holes; 
+            ! 2)For every hole  find its all nearest neighbor electrons and list all such electron hole pairs,  
+            ! 3)Select one of these pairs and construct exitation 
+            n_spatial_hole =0
+            do i = 1,nBasis/2
+             if(IsOcc(ilutI,2*i-1).or.IsOcc(ilutI,2*i))cycle
+             n_spatial_hole = n_spatial_hole + 1
+             ind_spatial_hole(n_spatial_hole) = 2*i-1
+            end do
+            if(n_spatial_hole==0)then
+             call stop_all(this_routine, "n_spatial_hole is 0, HOLE-FOCUS doesn't apply")
+            end if
+            
+            n_e_h_pair=0
+            do ind=1,n_spatial_hole
+             src=ind_spatial_hole(ind)
+             neighbors = lat%get_spinorb_neighbors(src)
+             do i=1,size(neighbors)
+              if(IsOcc(ilutI,neighbors(i))) then
+               n_e_h_pair=n_e_h_pair+1
+               ind_e_h_pair(n_e_h_pair,1)=neighbors(i)
+               ind_e_h_pair(n_e_h_pair,2)=src
+              end if 
+              if(IsOcc(ilutI,neighbors(i)+1)) then
+               n_e_h_pair=n_e_h_pair+1
+               ind_e_h_pair(n_e_h_pair,1)=neighbors(i)+1
+               ind_e_h_pair(n_e_h_pair,2)=src+1
+              end if 
+             end do
+            end do 
+             if(n_e_h_pair==0)then
+              call stop_all(this_routine, "Bug!!, no electron hole pair detected.")
+             end if 
+            
+            ind = 1 + int(genrand_real2_dsfmt() * n_e_h_pair)
+            
+            src=ind_e_h_pair(ind,1)
+            orb=ind_e_h_pair(ind,2)
+            ASSERT(IsOcc(ilutI,src))
+            ASSERT(.not.IsOcc(ilutI,orb))
+            ASSERT(same_spin(src,orb))
+            
+            do elec =1,nel
+             if(nI(elec)==src) goto 112
+            end do
+            call stop_all(this_routine, "BUG! Wrong index of hole neighbor")
+112         pgen = (1.0_dp-pdoubles)*pholefocus /n_e_h_pair
+            
+           else 
+            ! still choose an electron at random
+            elec = 1 + int(genrand_real2_dsfmt() * nel) 
+
+            p_elec = 1.0_dp / real(nel, dp)
+            ! and then from the neighbors of this electron we pick an empty 
+            ! spinorbital randomly, since all have the same matrix element 
+            src = nI(elec) 
+
+            ! now we can have more than only nearest neighbor hopping! 
+            ! so implement a new cum-list creator
+            call create_cum_list_rs_hubbard_transcorr_single(nI, ilutI, src, cum_arr, cum_sum)
+
+            ! the rest stays the same i guess..
+            if (cum_sum < EPS) then 
+                nJ(1) = 0
+                pgen = 0.0_dp 
+                return
+            end if
+
+            call pick_from_cum_list(cum_arr, cum_sum, ind, p_orb)
+
+            ! all orbitals are possible i guess, so make cum_arr for all 
+            ! orbitals as ind already. we "just" have to fix the spin 
+            if (is_beta(src)) then 
+                orb = 2*ind - 1
+            else 
+                orb = 2*ind 
+            end if
+            
+            !remove those hole focus part
+              if(is_beta(orb))then
+               i=orb+1
+              else
+               i=orb-1
+              end if
+              if(.not.IsOcc(iLutI,i))then
+               neighbors=lat%get_spinorb_neighbors(orb)
+               do i = 1 , size(neighbors)
+                if(neighbors(i)==src)then
+                 nJ(1)=0
+                 pgen = 0.0_dp
+                 return
+                end if
+               end do
+              end if
+               
+            pgen = p_elec * p_orb * (1.0_dp - pDoubles)* (1.0_dp-pholefocus) 
+           end if 
+
+           call make_single(nI, nJ, elec, orb, ex, tParity) 
+            
+        end if 
+
+        ilutJ = make_ilutJ(ilutI, ex, ic)
+        if(t_precond_hub)then
+         n_double=0
+         do i=1,nBasis
+          if(IsOcc(ilutJ,2*i-1).and.IsOcc(ilutJ,2*i))n_double=n_double+1
+         end do
+         pgen=pgen*(1.0_dp+n_double*uhub)
+        end if
+
+#ifdef __DEBUG
+        temp_pgen = calc_pgen_rs_hubbard_transcorr(nI,ilutI,ex,ic)
+        if (abs(pgen - temp_pgen) > EPS) then
+            print *, "calculated pgen differ for exitation: "
+            print *, "nI: ", nI
+            print *, "ex: ", ex
+            print *, "ic: ", ic
+            print *, "pgen: ", pgen
+            print *, "calc. pgen: ", temp_pgen
+            print *, "H_ij: ", get_helement_lattice(nI, nJ, ic)
+        end if
+#endif
+
+
+    end subroutine gen_excit_rs_hubbard_transcorr_hole_focus
 
     subroutine gen_excit_rs_hubbard_spin_dependent_transcorr(nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                       ex, tParity, pGen, hel, store, run)
