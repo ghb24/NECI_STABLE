@@ -1088,11 +1088,11 @@ system: do
             ! Looks nice, but it currently breaks lots of other stuff!
             tGiovannisBrokenInit = .true.
             
-         case("PART-CONSERVING-GAS")
+         case("SPIN-CONSERVING-GAS")
             tNConservingGAS = .true.
             tSpinConservingGAS = .true.
 
-         case("SPIN-ADAPTED-GAS")
+         case("PART-CONSERVING-GAS")
             tNConservingGAS = .true.
             tSpinConservingGAS = .false.
 
