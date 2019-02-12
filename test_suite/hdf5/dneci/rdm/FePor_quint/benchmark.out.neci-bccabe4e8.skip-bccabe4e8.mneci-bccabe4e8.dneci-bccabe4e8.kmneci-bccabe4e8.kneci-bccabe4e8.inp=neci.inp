@@ -4,15 +4,15 @@
  Memory Manager initialised with  99999.0 MB
 
  ================================================================
- Compiled on Feb 06 2019 at 11:16:21
+ Compiled on Feb 06 2019 at 14:42:44
  Compiled using configuration:
      cmake-Intel-par-RELEASE
  VCS BASE repository version:
-     f663da1c2e7e8e82772e93be6dde3a3758792cb8
+     1f96468715cf1f70eadfc3b127ef6f3747f2e1d6
  Working directory: 
-     /pool/guther/numerics/adi_devel/neci/test_suite/hdf5/dneci/rdm/FePor_quint
+     /pool/guther/numerics/transcorr_devel/neci/test_suite/hdf5/dneci/rdm/FePor_quint
  Running on: pcal014
- Started running on 06/02/2019 at 12:10:59
+ Started running on 07/02/2019 at 12:47:40
  ================================================================
 
  Processing arguments
@@ -64,8 +64,8 @@ readpops
 semi-stochastic
 pops-core 1000
 trial-wavefunction
-pops-trial 500
-rdmsamplingiters 40
+pops-trial 100
+rdmsamplingiters 30
 endcalc
 
 logging
@@ -74,7 +74,7 @@ Highlypopwrite 50
 popsfile -1
 printonerdm
 diagflyonerdm
-calcrdmonfly          3     50    10
+calcrdmonfly          3     30    10
 no-append-stats
 endlog
 end
@@ -370,69 +370,60 @@ Total size of deterministic space:     1000
 Size of deterministic space on this processor:      576
 Generating the Hamiltonian in the deterministic space...
 Semi-stochastic initialisation complete.
-Total time (seconds) taken for semi-stochastic initialisation:    0.473
+Total time (seconds) taken for semi-stochastic initialisation:    0.486
 
 
 =========== Trial wavefunction initialisation ==========
 Generating the trial space...
   Initialising wavefunctions by the Lanczos algorithm
   Aborting Lanczos and initialising trial states with direct diagonalisation
-  MAXIMUM WIDTH OF HAMIL :          145
-  TOTAL NUMBER OF NON-ZERO ELEMENTS :        11465
-Size of trial space on this processor:      267
-Total size of the trial space:      500
+  MAXIMUM WIDTH OF HAMIL :           48
+  TOTAL NUMBER OF NON-ZERO ELEMENTS :         1141
+Size of trial space on this processor:       47
+Total size of the trial space:      100
 Calculating the number of states in the connected space...
-Attempting to allocate con_space. Size =        9.403 Mb
-States found on this processor, including repeats:   308123
+Attempting to allocate con_space. Size =        1.879 Mb
+States found on this processor, including repeats:    61581
 Generating and storing the connected space...
 Removing repeated states and sorting by processor...
 Performing MPI communication of connected states...
-Attempting to allocate temp_space. Size =        4.909 Mb
-Attempting to allocate con_space. Size =        4.909 Mb
-Total size of connected space:     202109
-Size of connected space on this processor:     128366
+Attempting to allocate temp_space. Size =        1.443 Mb
+Attempting to allocate con_space. Size =        1.443 Mb
+Total size of connected space:      64093
+Size of connected space on this processor:      40756
 Generating the vector \sum_j H_{ij} \psi^T_j...
-Energy eigenvalue(s) of the trial space:  -1949.88960294     
+Energy eigenvalue(s) of the trial space:  -1949.88141629     
 Trial wavefunction initialisation complete.
-Total time (seconds) taken for trial wavefunction initialisation:    3.948
+Total time (seconds) taken for trial wavefunction initialisation:    0.404
 
  Allocating temporary array for walkers spawned from a particular Di.
  This requires       0.155136 Mb/Processor
  
         Step    Shift           WalkerCng       GrowRate        TotWalkers      Annihil         NoDied          NoBorn          Proj.E          Av.Shift        Proj.E.Cyc    Trial.E.Cyc       NoatHF          NoatDoubs       AccRat        UniqueDets    NumDetsSpawned   IterTime
        41960  -0.7483889E-01    0.000000        0.000000        1515156.        0.000000        0.000000        0.000000      -0.7495037E-01    0.000000        0.000000        0.0000000000        221754.3        0.000000        0.000000          408476           0   0.0000    
-       41970  -0.7486363E-01    420.9660        1.000135        1515577.        471207.2        338996.5        1132132.      -0.7495037E-01    0.000000      -0.7494858E-01   -1949.8914822        221756.4        539682.9       0.7539582E-01      360009      617420   1.9722    
-       41980  -0.7490942E-01    428.8329        1.000251        1516006.        470894.4        339186.1        1133052.      -0.7495037E-01    0.000000      -0.7494722E-01   -1949.8914823        221759.2        539741.3       0.7549372E-01      359967      617219   1.9043    
+       41970  -0.7486363E-01    420.9660        1.000135        1515577.        471207.2        338996.5        1132132.      -0.7495037E-01    0.000000      -0.7494858E-01   -1949.8914825        221756.4        539682.9       0.7539582E-01      360009      617420   1.9319    
+       41980  -0.7490942E-01    428.8329        1.000251        1516006.        470894.4        339186.1        1133052.      -0.7495037E-01    0.000000      -0.7494722E-01   -1949.8914831        221759.2        539741.3       0.7549372E-01      359967      617219   1.8949    
  Allocating temporary array for walkers spawned from a particular Di.
  This requires       0.155159 Mb/Processor
-       41990  -0.7490266E-01   -414.0124       0.9999630        1515592.        471050.7        339178.5        1132857.      -0.7495037E-01    0.000000      -0.7494593E-01   -1949.8914816        221759.9        539788.7       0.7542329E-01      359992      615731   1.9136    
-       42000  -0.7488409E-01   -468.4683       0.9998984        1515124.        471847.9        338952.0        1132895.      -0.7495037E-01    0.000000      -0.7494558E-01   -1949.8914817        221760.7        539685.5       0.7541534E-01      360029      616637   1.8925    
- Allocating temporary array for walkers spawned from a particular Di.
- This requires       0.155167 Mb/Processor
-       42010  -0.7490258E-01    317.8833        1.000101        1515442.        471770.6        338910.3        1133230.      -0.7495036E-01    0.000000      -0.7494709E-01   -1949.8914821        221762.3        539836.3       0.7551973E-01      360160      615284   1.8879    
+       41990  -0.7490266E-01   -414.0124       0.9999630        1515592.        471050.7        339178.5        1132857.      -0.7495037E-01    0.000000      -0.7494593E-01   -1949.8914826        221759.9        539788.7       0.7542329E-01      359992      615731   1.8849    
  Memory requirement for spawned arrays increased from   610.3516 to   915.5273 Mb/Processor
 Calculating the 2 electron density matrix on the fly.
-Beginning to fill the RDMs during iteration        51
+Beginning to fill the RDMs during iteration        31
+ Reset fdv av at iteration           31
+       42000  -0.7488409E-01   -468.4683       0.9998984        1515124.        471847.9        338952.0        1132895.      -0.7495037E-01    0.000000      -0.7494558E-01   -1949.8914807        221760.7        539685.5       0.7541534E-01      360029      616637   2.2709    
+ Writing RDMs to file at iteration           40
+ Reset fdv av at iteration           41
+ Allocating temporary array for walkers spawned from a particular Di.
+ This requires       0.155167 Mb/Processor
+       42010  -0.7490258E-01    317.8833        1.000101        1515442.        471770.6        338910.3        1133230.      -0.7495036E-01    0.000000      -0.7494709E-01   -1949.8914809        221762.3        539836.3       0.7551973E-01      360160      615284   2.2698    
+ Writing RDMs to file at iteration           50
  Reset fdv av at iteration           51
-       42020  -0.7491067E-01    716.9360        1.000044        1516159.        471321.0        338824.3        1132538.      -0.7495037E-01    0.000000      -0.7495401E-01   -1949.8914820        221763.3        539680.9       0.7545333E-01      360490      615640   2.2729    
+       42020  -0.7491067E-01    716.9360        1.000044        1516159.        471321.0        338824.3        1132538.      -0.7495037E-01    0.000000      -0.7495401E-01   -1949.8914825        221763.3        539680.9       0.7545333E-01      360490      615640   2.2777    
  Writing RDMs to file at iteration           60
- Reset fdv av at iteration           61
- Allocating temporary array for walkers spawned from a particular Di.
- This requires       0.155182 Mb/Processor
-       42030  -0.7493632E-01   -168.8498        1.000140        1515990.        471555.1        339072.2        1132854.      -0.7495037E-01    0.000000      -0.7495707E-01   -1949.8914814        221763.7        539654.8       0.7544320E-01      359985      617635   2.2708    
- Writing RDMs to file at iteration           70
- Reset fdv av at iteration           71
-       42040  -0.7498119E-01    595.1914        1.000246        1516585.        472753.2        339350.0        1135002.      -0.7495037E-01    0.000000      -0.7495786E-01   -1949.8914818        221764.7        539507.1       0.7549493E-01      360913      616720   2.2742    
- Writing RDMs to file at iteration           80
- Reset fdv av at iteration           81
- Allocating temporary array for walkers spawned from a particular Di.
- This requires       0.155205 Mb/Processor
-       42050  -0.7498695E-01   -64.73172        1.000032        1516520.        471905.2        339533.9        1133442.      -0.7495037E-01    0.000000      -0.7495867E-01   -1949.8914818        221763.5        539488.9       0.7545793E-01      360411      617347   2.2781    
- Writing RDMs to file at iteration           90
 RDM Sampling iteration number limit reached. Finishing FCIQMC loop...
  - - - - - - - - - - - - - - - - - - - - - - - -
- Total loop-time:    186.712461471558     
- Time lost due to load imbalance:    4.07854819297791     
+ Total loop-time:    125.339850187302     
+ Time lost due to load imbalance:    2.79271566867828     
  - - - - - - - - - - - - - - - - - - - - - - - -
 
 **** RDMs CALCULATED STOCHASTICALLY ****
@@ -441,30 +432,30 @@ RDM Sampling iteration number limit reached. Finishing FCIQMC loop...
 
  INFORMATION FOR 1-RDM 1:
 
- SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:      7.9823504022391
+ SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:      7.9823512618824
  Writing out the *normalised* 1 electron density matrix to file
  
  Calculating eigenvectors and eigenvalues of the 1-RDM
  Matrix diagonalised
-  SUM OF THE N LARGEST NO OCCUPATION NUMBERS:        11.94097648371644559973
-  CORRELATION ENTROPY        3.19081722179625204561
-  CORRELATION ENTROPY PER ELECTRON        0.22791551584258942786
+  SUM OF THE N LARGEST NO OCCUPATION NUMBERS:        11.94097879813645946001
+  CORRELATION ENTROPY        3.19080401143628344940
+  CORRELATION ENTROPY PER ELECTRON        0.22791457224544880988
 
  =========================================================================================
 
- Writing RDMs to file at iteration           90
+ Writing RDMs to file at iteration           60
  == INFORMATION FOR FINAL 2-RDMS =========================================================
 
  2-RDM ESTIMATES FOR STATE 1:
- Trace of 2-el-RDM before normalisation:  1.8591325947E+14
+ Trace of 2-el-RDM before normalisation:  1.3943307627E+14
  Trace of 2-el-RDM after normalisation:  9.1000000000E+01
- Energy contribution from the 1-RDM: -8.9817695964E+01
- Energy contribution from the 2-RDM:  3.8084040843E+01
- *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*: -1.9498914848209E+03
+ Energy contribution from the 1-RDM: -8.9817659627E+01
+ Energy contribution from the 2-RDM:  3.8083999667E+01
+ *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*: -1.9498914896603E+03
 
  Hermiticty error estimates:
-           42050        0.00965922064900940312     (Iteration, MAX ABS ERROR IN HERMITICITY)
-           42050        0.18617721358077346516     (Iteration, SUM ABS ERROR IN HERMITICITY)
+           42020        0.01204985716668476904     (Iteration, MAX ABS ERROR IN HERMITICITY)
+           42020        0.17906293241316870168     (Iteration, SUM ABS ERROR IN HERMITICITY)
 
  =========================================================================================
  
@@ -478,62 +469,62 @@ definedet     1-3  5   11-14  17-19  25-27
 Most occupied         50 determinants as excitations from reference: 
  
  Excitation   ExcitLevel Seniority   Walkers(Re)   Walkers(Im)  Weight   Init?(Re)   Init?(Im)   Proc
-11101000001111001110000011100000    0    4    221764.1        221599.5      0.98090  Y  Y      1
-11101000001111000010001111100000    2    4   -13557.49       -13543.95      0.05996  Y  Y      1
-11101000001111001110000000100011    2    4   -13562.00       -13534.77      0.05995  Y  Y      0
-11100010001111001100100011100000    2    4   -7734.613       -7726.711      0.03421  Y  Y      0
-11100010001111001110000011001000    2    4   -7724.912       -7721.417      0.03417  Y  Y      0
-11101000001111000110000110100010    2    8   -7721.045       -7715.574      0.03415  Y  Y      1
-11101000001111001010001001100001    2    8   -7714.552       -7714.426      0.03414  Y  Y      1
-11101000001100001110000011110010    2    4   -7567.436       -7567.937      0.03349  Y  Y      1
-11101000001100001111001011100000    2    4   -7557.355       -7555.586      0.03344  Y  Y      0
-11001000101110011110000011100000    2    6    7490.316        7485.625      0.03313  Y  Y      1
-11101000001100111110000011100000    2    4   -7334.309       -7325.931      0.03243  Y  Y      0
-11000010101111001110000011100000    2    4    7245.885        7240.575      0.03205  Y  Y      0
-11001000101101101110000011100000    2    6   -6773.295       -6770.325      0.02996  Y  Y      0
-11100010001110011110000011100000    2    6   -6670.840       -6661.976      0.02950  Y  Y      1
-11001000101111001100100011100000    2    4    6390.091        6380.240      0.02825  Y  Y      1
-11001000101111001110000011001000    2    4    6390.685        6376.912      0.02825  Y  Y      1
-11101000001110011110000011001000    2    6   -6115.485       -6101.602      0.02703  Y  Y      1
-11101000001110011100100011100000    2    6   -6109.356       -6106.960      0.02703  Y  Y      1
-11100010001101101110000011100000    2    6    5760.763        5756.856      0.02548  Y  Y      0
-11101000001111001100100011001000    2    4   -5738.897       -5740.672      0.02540  Y  Y      0
-11101000001111000010000011100011    2    4   -5595.976       -5583.231      0.02473  Y  Y      0
-11101000001111001110001100100000    2    4   -5585.427       -5591.052      0.02473  Y  Y      1
-11101000001101101110000011001000    2    6    5199.799        5189.944      0.02299  Y  Y      1
-11101000001101101100100011100000    2    6    5198.728        5189.637      0.02298  Y  Y      0
-11101110001100001110000011100000    2    4   -4779.121       -4778.199      0.02114  Y  Y      1
-11101000001111001010000101100010    2    8    4708.436        4701.581      0.02082  Y  Y      1
-11101000001111000110001010100001    2    8    4706.517        4702.601      0.02082  Y  Y      1
-11100010001111001110000011000010    2    4   -4396.822       -4380.745      0.01942  Y  Y      0
-11100010001111001100001011100000    2    4   -4384.199       -4378.774      0.01939  Y  Y      1
-11101000001111001110000010010010    2    6    3639.626        3631.592      0.01609  Y  Y      0
-11101000001111001001001011100000    2    6    3617.579        3617.093      0.01601  Y  Y      0
-11001000101111001110000011000010    2    4    3545.358        3539.247      0.01567  Y  Y      1
-11001000101111001100001011100000    2    4    3535.352        3540.990      0.01566  Y  Y      0
-11101000001110011110000011100000    1    6    3197.447        3191.153      0.01413  Y  Y      0
-11101000001111001100100011000010    2    4   -3137.183       -3141.995      0.01389  Y  Y      0
-11101000001111001100001011001000    2    4   -3128.445       -3133.485      0.01385  Y  Y      1
-11101000001111000110001001100010    2    8    3126.473        3125.971      0.01383  Y  Y      1
-11101000001110011100001011100000    2    6   -3109.089       -3103.247      0.01374  Y  Y      0
-11101000001110011110000011000010    2    6   -3109.019       -3102.318      0.01374  Y  Y      1
-11101000001111001010000110100001    2    8    3032.672        3019.906      0.01339  Y  Y      0
-11101000001111001000001111100000    2    4   -2982.460       -2980.997      0.01319  Y  Y      0
-11101000001111001110000010000011    2    4   -2981.110       -2973.037      0.01317  Y  Y      1
-11101000001101101110000011000010    2    6    2760.690        2757.618      0.01221  Y  Y      1
-11101000001101101100001011100000    2    6    2755.034        2753.928      0.01219  Y  Y      1
-11101000001101101110000011100000    1    6    2678.518        2678.393      0.01185  Y  Y      0
-11101000001111001110000001100010    1    6   -2589.752       -2597.176      0.01148  Y  Y      1
-11101000001111000110001011100000    1    6   -2599.524       -2582.674      0.01147  Y  Y      1
-11101000001111001110000010100001    1    6   -2500.350       -2504.600      0.01107  Y  Y      1
-11101000001111001010000111100000    1    6   -2497.898       -2489.135      0.01103  Y  Y      0
-11101000001111001110000000110010    2    4    2419.297        2400.306      0.01066  Y  Y      0
+11101000001111001110000011100000    0    4    221763.2        221599.5      0.98090  Y  Y      1
+11101000001111000010001111100000    2    4   -13557.73       -13544.82      0.05996  Y  Y      1
+11101000001111001110000000100011    2    4   -13558.24       -13537.56      0.05995  Y  Y      0
+11100010001111001100100011100000    2    4   -7734.215       -7727.519      0.03421  Y  Y      0
+11100010001111001110000011001000    2    4   -7727.317       -7721.373      0.03418  Y  Y      0
+11101000001111001010001001100001    2    8   -7718.703       -7715.815      0.03415  Y  Y      1
+11101000001111000110000110100010    2    8   -7720.128       -7710.884      0.03414  Y  Y      1
+11101000001100001110000011110010    2    4   -7567.308       -7563.011      0.03347  Y  Y      1
+11101000001100001111001011100000    2    4   -7556.544       -7557.674      0.03344  Y  Y      0
+11001000101110011110000011100000    2    6    7494.507        7485.196      0.03314  Y  Y      1
+11101000001100111110000011100000    2    4   -7333.371       -7329.548      0.03244  Y  Y      0
+11000010101111001110000011100000    2    4    7243.760        7239.960      0.03204  Y  Y      0
+11001000101101101110000011100000    2    6   -6772.065       -6770.602      0.02996  Y  Y      0
+11100010001110011110000011100000    2    6   -6671.709       -6662.889      0.02950  Y  Y      1
+11001000101111001100100011100000    2    4    6390.757        6381.157      0.02826  Y  Y      1
+11001000101111001110000011001000    2    4    6391.162        6380.016      0.02826  Y  Y      1
+11101000001110011100100011100000    2    6   -6112.891       -6108.579      0.02704  Y  Y      1
+11101000001110011110000011001000    2    6   -6111.874       -6100.434      0.02702  Y  Y      1
+11100010001101101110000011100000    2    6    5758.546        5755.700      0.02547  Y  Y      0
+11101000001111001100100011001000    2    4   -5739.177       -5744.811      0.02541  Y  Y      0
+11101000001111001110001100100000    2    4   -5590.812       -5591.260      0.02474  Y  Y      1
+11101000001111000010000011100011    2    4   -5593.161       -5582.771      0.02473  Y  Y      0
+11101000001101101110000011001000    2    6    5195.815        5191.368      0.02298  Y  Y      1
+11101000001101101100100011100000    2    6    5196.818        5189.885      0.02298  Y  Y      0
+11101110001100001110000011100000    2    4   -4777.915       -4768.138      0.02112  Y  Y      1
+11101000001111000110001010100001    2    8    4708.077        4705.719      0.02083  Y  Y      1
+11101000001111001010000101100010    2    8    4706.544        4706.677      0.02083  Y  Y      1
+11100010001111001110000011000010    2    4   -4394.393       -4382.324      0.01942  Y  Y      0
+11100010001111001100001011100000    2    4   -4385.326       -4382.659      0.01940  Y  Y      1
+11101000001111001110000010010010    2    6    3626.977        3636.150      0.01607  Y  Y      0
+11101000001111001001001011100000    2    6    3616.341        3617.603      0.01600  Y  Y      0
+11001000101111001110000011000010    2    4    3543.438        3537.271      0.01567  Y  Y      1
+11001000101111001100001011100000    2    4    3537.020        3537.671      0.01565  Y  Y      0
+11101000001110011110000011100000    1    6    3198.139        3190.827      0.01414  Y  Y      0
+11101000001111001100100011000010    2    4   -3136.608       -3133.123      0.01387  Y  Y      0
+11101000001111001100001011001000    2    4   -3133.390       -3135.136      0.01387  Y  Y      1
+11101000001111000110001001100010    2    8    3128.580        3126.558      0.01384  Y  Y      1
+11101000001110011110000011000010    2    6   -3107.622       -3105.092      0.01375  Y  Y      1
+11101000001110011100001011100000    2    6   -3100.673       -3102.152      0.01372  Y  Y      0
+11101000001111001010000110100001    2    8    3023.465        3019.873      0.01337  Y  Y      0
+11101000001111001000001111100000    2    4   -2983.993       -2982.568      0.01320  Y  Y      0
+11101000001111001110000010000011    2    4   -2979.560       -2970.814      0.01316  Y  Y      1
+11101000001101101110000011000010    2    6    2756.524        2758.264      0.01220  Y  Y      1
+11101000001101101100001011100000    2    6    2751.566        2753.431      0.01218  Y  Y      1
+11101000001101101110000011100000    1    6    2680.710        2683.195      0.01187  Y  Y      0
+11101000001111001110000001100010    1    6   -2592.200       -2592.933      0.01147  Y  Y      1
+11101000001111000110001011100000    1    6   -2592.387       -2585.374      0.01146  Y  Y      1
+11101000001111001110000010100001    1    6   -2494.877       -2500.040      0.01105  Y  Y      1
+11101000001111001010000111100000    1    6   -2494.242       -2494.417      0.01104  Y  Y      0
+11101000001111001110000000110010    2    4    2412.804        2401.376      0.01065  Y  Y      0
  
 
  Load balancing information based on the last iteration:
- Mean number of determinants/process  209423.5000000000
+ Mean number of determinants/process  209289.0000000000
  Min number of determinants/process             180395
- Max number of determinants/process             238452
+ Max number of determinants/process             238183
 
 
 Calculating approximate errorbar for energy estimates...
@@ -541,8 +532,8 @@ Calculating approximate errorbar for energy estimates...
 Attempting automatic reblocking analysis on data from iteration:            0
 Reading back in FCIMCStats datafile...
 Number of comment lines found in file:            3
-Number of data points found in file:            9
-Number of useable data points:            9
+Number of data points found in file:            6
+Number of useable data points:            6
 
 *** ERROR *** Failure to automatically detect equilibration time for projected energy numerator
 Skipping blocking analysis of projected energy, and energy estimate will be simple average over 
@@ -552,19 +543,19 @@ Relaxation time for shift estimated to be        1 update cycles.
 WARNING: Error increases monotonically on the blocking graph for *shift*
          whilst performing Flyvbjerg and Petersen blocking analysis.
          Inspect BLOCKING files carefully. Manual reblocking may be necessary.
-Number of blocks assumed for calculation of error in shift:       8
+Number of blocks assumed for calculation of error in shift:       5
  Current reference energy                           -1949.816532077637
- Projected correlation energy                          -0.074950374234
+ Projected correlation energy                          -0.074950365772
  No automatic errorbar obtained for projected energy
- Shift correlation energy                              -0.074926735000
- Estimated error in shift correlation energy            0.000013510991
+ Shift correlation energy                              -0.074901884000
+ Estimated error in shift correlation energy            0.000004752358
 
- Total projected energy       -1949.89148245
- Total shift energy           -1949.89145881 +/-    0.135110E-04
+ Total projected energy       -1949.89148244
+ Total shift energy           -1949.89143396 +/-    0.475236E-05
 
 
- Final energy estimate for state 1:     -1949.8914817501    
- Final energy estimate for state 2:     -1949.8914810063    
+ Final energy estimate for state 1:     -1949.8914825246    
+ Final energy estimate for state 2:     -1949.8914800704    
  
  ================================================================
  Memory usage
@@ -593,20 +584,20 @@ Number of blocks assumed for calculation of error in shift:       8
  Timing of most expensive procedures.
  Procedure                                 Calls       total time
  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
- WalkerTime                                  90    158.40
- AnnMainTime                                 90     12.94
- Compress Sort interface                     90      9.79
- TrialInitTime                                1      3.95
- NECICUBE                                     1      3.66
- Compression interface                       90      1.76
- SortTime                                    90      1.48
- SemiStochInitTime                            1      0.47
- CommsTime                                   90      0.28
- POPS-read                                    1      0.21
+ WalkerTime                                  60    105.76
+ AnnMainTime                                 60      9.13
+ Compress Sort interface                     60      6.53
+ NECICUBE                                     1      3.10
+ Compression interface                       60      1.19
+ SortTime                                    60      0.99
+ POPS-read                                    1      0.70
+ SemiStochInitTime                            1      0.49
+ TrialInitTime                                1      0.40
+ CommsTime                                   60      0.19
  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
- Total                                 192.93
+ Total                                 128.48
 
- Global wall clock time        193.18
+ Global wall clock time        128.64
  ================================================================
- Calculation ended 06/02/2019 at 12:14:12
+ Calculation ended 07/02/2019 at 12:49:48
  ================================================================

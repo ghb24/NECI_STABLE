@@ -37,8 +37,8 @@ readpops
 semi-stochastic
 pops-core 1000
 trial-wavefunction
-pops-trial 500
-rdmsamplingiters 40
+pops-trial 100
+rdmsamplingiters 30
 endcalc
  
 logging
@@ -47,7 +47,7 @@ Highlypopwrite 50
 popsfile -1
 printonerdm
 diagflyonerdm
-calcrdmonfly          3     50    10
+calcrdmonfly          3     30    10
 no-append-stats
 endlog
 end
