@@ -916,7 +916,7 @@ module FciMCParMod
         HElement_t(dp) :: HDiagTemp,HElGen
         character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
         HElement_t(dp), dimension(inum_runs) :: delta
-        integer :: proc, pos, determ_index, irdm
+        integer :: proc, pos, determ_index, irdm, err
         real(dp) :: r, sgn(lenof_sign), prob_extra_walker
         integer :: DetHash, FinalVal, clash, PartInd, k, y
         type(ll_node), pointer :: TempNode
