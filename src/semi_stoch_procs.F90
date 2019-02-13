@@ -13,7 +13,7 @@ module semi_stoch_procs
                          SpawnedParts, TotWalkers, CurrentDets, core_space, &
                          MaxSpawned,indices_of_determ_states, ilutRef, determ_last
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg
-    use sparse_arrays, only: sparse_core_ham
+    use sparse_arrays, only: sparse_core_ham, approx_ham
     use SystemData, only: nel
     use timing_neci
     use adi_data, only: tSignedRepAv
@@ -82,7 +82,7 @@ contains
             ! sparse_core_ham.
 #ifdef __CMPLX
             do i = 1, determ_sizes(iProcIndex)
-                do part_type  = 1, lenof_sign 
+                do part_type  = 1, lenof_sign
                     partial_determ_vecs(part_type,i) = partial_determ_vecs(part_type,i) + &
                        DiagSft(part_type_to_run(part_type)) * full_determ_vecs(part_type,i+determ_displs(iProcIndex))
                 enddo
@@ -96,7 +96,7 @@ contains
 
             ! Now multiply the vector by tau to get the final projected vector.
             partial_determ_vecs = partial_determ_vecs * tau
-            
+
             do i = 1, determ_sizes(iProcIndex)
                 do part_type  = 1, lenof_sign
                     run = part_type_to_run(part_type)
@@ -228,6 +228,95 @@ contains
         call halt_timer(SemiStoch_Multiply_Time)
 
     end subroutine determ_projection_no_death
+
+    subroutine determ_proj_approx()
+
+        ! This subroutine gathers together partial_determ_vecs from each processor so
+        ! that the full vector for the whole deterministic space is stored on each processor.
+        ! It then performs the deterministic multiplication of the projector on this full vector.
+
+        use FciMCData, only: partial_determ_vecs, full_determ_vecs, SemiStoch_Comms_Time
+        use FciMCData, only: SemiStoch_Multiply_Time
+        use Parallel_neci, only: MPIBarrier, MPIAllGatherV
+        use DetBitOps, only: DetBitEQ
+
+        integer :: i, j, ierr, run, part_type
+
+        call MPIBarrier(ierr)
+
+        call set_timer(SemiStoch_Comms_Time)
+
+        call MPIAllGatherV(partial_determ_vecs, full_determ_vecs, &
+                            determ_sizes, determ_displs)
+
+        call halt_timer(SemiStoch_Comms_Time)
+
+        call set_timer(SemiStoch_Multiply_Time)
+
+        if (determ_sizes(iProcIndex) >= 1) then
+
+            ! For the moment, we're only adding in these contributions when we need the energy
+            ! This will need refinement if we want to continue with the option of inst vs true full RDMs
+            ! (as in another CMO branch).
+
+            ! Perform the multiplication.
+
+            partial_determ_vecs = 0.0_dp
+
+#ifdef __CMPLX
+            do i = 1, determ_sizes(iProcIndex)
+                do j = 1, approx_ham(i)%num_elements
+                    do run = 1, inum_runs
+                        partial_determ_vecs(min_part_type(run),i) = partial_determ_vecs(min_part_type(run),i) - &
+                            Real(approx_ham(i)%elements(j))*full_determ_vecs(min_part_type(run),approx_ham(i)%positions(j)) +&
+                            Aimag(approx_ham(i)%elements(j))*full_determ_vecs(max_part_type(run),approx_ham(i)%positions(j))
+                        partial_determ_vecs(max_part_type(run),i) = partial_determ_vecs(max_part_type(run),i) - &
+                            Aimag(approx_ham(i)%elements(j))*full_determ_vecs(min_part_type(run),approx_ham(i)%positions(j)) -&
+                            Real(approx_ham(i)%elements(j))*full_determ_vecs(max_part_type(run),approx_ham(i)%positions(j))
+                    end do
+                end do
+            end do
+#else
+            do i = 1, determ_sizes(iProcIndex)
+                do j = 1, approx_ham(i)%num_elements
+                    partial_determ_vecs(:,i) = partial_determ_vecs(:,i) - &
+                        approx_ham(i)%elements(j)*full_determ_vecs(:,approx_ham(i)%positions(j))
+                end do
+            end do
+#endif
+
+            ! Now add shift*full_determ_vecs to account for the shift, not stored in
+            ! approx_ham.
+#ifdef __CMPLX
+            do i = 1, determ_sizes(iProcIndex)
+                do part_type  = 1, lenof_sign
+                    partial_determ_vecs(part_type,i) = partial_determ_vecs(part_type,i) + &
+                       DiagSft(part_type_to_run(part_type)) * full_determ_vecs(part_type,i+determ_displs(iProcIndex))
+                enddo
+            end do
+#else
+            do i = 1, determ_sizes(iProcIndex)
+                partial_determ_vecs(:,i) = partial_determ_vecs(:,i) + &
+                   DiagSft * full_determ_vecs(:,i+determ_displs(iProcIndex))
+            end do
+#endif
+
+            ! Now multiply the vector by tau to get the final projected vector.
+            partial_determ_vecs = partial_determ_vecs * tau
+
+            do i = 1, determ_sizes(iProcIndex)
+                do part_type  = 1, lenof_sign
+                    run = part_type_to_run(part_type)
+                    if(tSkipRef(run) .and. DetBitEQ(CurrentDets(:,indices_of_determ_states(i)),iLutRef(:,run),nIfD)) then
+                        partial_determ_vecs(part_type, i) = 0.0_dp
+                    end if
+                end do
+            end do
+        end if
+
+        call halt_timer(SemiStoch_Multiply_Time)
+
+    end subroutine determ_proj_approx
 
     subroutine average_determ_vector()
 

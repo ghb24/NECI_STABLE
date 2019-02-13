@@ -101,6 +101,7 @@ LOGICAL :: TInitStar,TNoSameExcit,TLanczos,TStarTrips
 LOGICAL :: TMaxExcit,TOneExcitConn,TSinglesExcitSpace,TFullDiag
 LOGICAL ::THDiag,TMCStar,TReadPops,TBinCancel,TFCIMC,TMCDets,tDirectAnnihil
 LOGICAL :: tDetermProj, tFTLM, tSpecLanc, tExactSpec, tExactDiagAllSym
+LOGICAL :: tDetermProjApproxHamil
 LOGICAL :: TFullUnbias,TNoAnnihil,tStartMP1
 LOGICAL :: TRhoElems,TReturnPathMC,TSignShift
 LOGICAL :: THFRetBias,TProjEMP2,TFixParticleSign

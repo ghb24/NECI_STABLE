@@ -616,5 +616,22 @@ MODULE FciMCData
       ! counting the total walker population all determinants of each ms value
       real(dp), allocatable :: walkPopByMsReal(:), walkPopByMsImag(:)
 
+      ! --- Data for when using the determ-proj-approx-hamil option -----
+
+      ! The 'main' space in which the entire Hamiltonian is stored.
+      integer(n_int), allocatable, dimension(:,:) :: var_space
+
+      ! Temporary space for storing the variational space states when they
+      ! are first generated.
+      integer(n_int), allocatable, dimension(:,:) :: temp_var_space
+
+      integer(MPIArg) :: var_size_this_proc
+      integer(MPIArg) :: var_space_size
+      integer(MPIArg) :: var_space_size_int
+
+      integer(MPIArg), allocatable, dimension(:) :: var_sizes
+      integer(MPIArg), allocatable, dimension(:) :: var_displs
+
+      ! -----------------------------------------------------------------
 
 end module FciMCData

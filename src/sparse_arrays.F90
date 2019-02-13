@@ -72,6 +72,10 @@ module sparse_arrays
     type(trial_hashtable), allocatable, dimension(:) :: con_ht
     type(core_hashtable), allocatable, dimension(:) :: core_ht
 
+    ! --- For when using the determ-proj-approx-hamil option -----
+    type(core_hashtable), allocatable, dimension(:) :: var_ht
+    type(sparse_matrix_real), allocatable, dimension(:) :: approx_ham
+
 contains
 
     subroutine calculate_sparse_hamiltonian(num_states, ilut_list)
@@ -513,6 +517,111 @@ contains
 
     end subroutine calc_determ_hamil_sparse_hphf
 
+    subroutine calc_approx_hamil_sparse_hphf()
+
+        use FciMCData, only: core_space
+
+        integer :: i, j, row_size, counter, ierr
+        integer :: nI(nel), nJ(nel)
+        integer, allocatable :: temp_store_nI(:,:)
+        HElement_t(dp), allocatable, dimension(:) :: hamiltonian_row
+        character(len=*), parameter :: t_r = "calc_approx_hamil_sparse_hphf"
+
+        integer(n_int) :: tmp(0:NIfD)
+        integer :: IC
+        logical :: CS_I, var_state_i, var_state_j
+        logical, allocatable :: cs(:)
+
+        allocate(approx_ham(determ_sizes(iProcIndex)), stat=ierr)
+        allocate(hamiltonian_row(determ_space_size), stat=ierr)
+        allocate(temp_store_nI(nel, determ_space_size), stat=ierr)
+        allocate(cs(determ_space_size), stat=ierr)
+
+        do i = 1, determ_space_size
+            call decode_bit_det(temp_store_nI(:,i), core_space(:,i))
+            cs(i) = TestClosedShellDet(core_space(:,i))
+        end do
+
+        ! Loop over all deterministic states on this processor.
+        do i = 1, determ_sizes(iProcIndex)
+
+            !call decode_bit_det(nI, SpawnedParts(:, i))
+            nI = temp_store_nI(:, i + determ_displs(iProcIndex))
+
+            var_state_i = is_var_state(core_space(:,i + determ_displs(iProcIndex)), nI)
+
+            row_size = 0
+            hamiltonian_row = 0.0_dp
+
+            CS_I = cs(i + determ_displs(iProcIndex))
+
+            ! Loop over all deterministic states.
+            do j = 1, determ_space_size
+
+                !call decode_bit_det(nJ, core_space(:,j))
+                nJ = temp_store_nI(:,j)
+
+                ! If on the diagonal of the Hamiltonian.
+                if (j == i + determ_displs(iProcIndex)) then
+                    hamiltonian_row(j) = hphf_diag_helement(nI, core_space(:, i + determ_displs(iProcIndex))) - Hii
+                    !core_ham_diag(i) = hamiltonian_row(j)
+                    ! We calculate and store the diagonal matrix element at
+                    ! this point for later access.
+                    if (.not. tReadPops) &
+                        call set_det_diagH(i, Real(hamiltonian_row(j), dp))
+                    ! Always include the diagonal elements.
+                    row_size = row_size + 1
+                else
+                    var_state_j = is_var_state(core_space(:,j), nJ)
+
+                    if (var_state_i .or. var_state_j) then
+                        tmp = ieor(core_space(0:NIfD,i+determ_displs(iProcIndex)), core_space(0:NIfD,j))
+                        tmp = iand(core_space(0:NIfD,i+determ_displs(iProcIndex)), tmp)
+                        IC = CountBits(tmp, NIfD)
+
+                        if ( IC <= 2 .or. ((.not. CS_I) .and. (.not. cs(j))) ) then
+                            hamiltonian_row(j) = hphf_off_diag_helement_opt(nI, core_space(:,i+determ_displs(iProcIndex)), &
+                                                                             core_space(:,j), IC, CS_I, cs(j))
+
+                            if (abs(hamiltonian_row(j)) > 0.0_dp) row_size = row_size + 1
+                        end if
+                    end if
+                end if
+
+            end do
+
+            ! Now we know the number of non-zero elements in this row of the Hamiltonian, so allocate it.
+            allocate(approx_ham(i)%elements(row_size), stat=ierr)
+            allocate(approx_ham(i)%positions(row_size), stat=ierr)
+
+            approx_ham(i)%elements = 0.0_dp
+            approx_ham(i)%positions = 0
+            approx_ham(i)%num_elements = row_size
+
+            counter = 1
+            do j = 1, determ_space_size
+                ! If non-zero or a diagonal element.
+                if (abs(hamiltonian_row(j)) > 0.0_dp .or. (j == i + determ_displs(iProcIndex)) ) then
+                    approx_ham(i)%positions(counter) = j
+                    approx_ham(i)%elements(counter) = hamiltonian_row(j)
+                    counter = counter + 1
+                end if
+                if (counter == row_size + 1) exit
+            end do
+
+        end do
+
+        ! Don't time the mpi_barrier call, because if we did then we wouldn't
+        ! be able separate out some of the core Hamiltonian creation time from
+        ! the MPIBarrier calls in the main loop.
+        call MPIBarrier(ierr, tTimeIn=.false.)
+
+        deallocate(hamiltonian_row, stat=ierr)
+        deallocate(temp_store_nI, stat=ierr)
+        deallocate(cs, stat=ierr)
+
+    end subroutine calc_approx_hamil_sparse_hphf
+
     subroutine allocate_sparse_ham_row(sparse_matrix, row, sparse_row_size, sparse_matrix_name, sparse_tags)
 
         ! Allocate a single row and add it to the memory manager.
@@ -628,5 +737,28 @@ contains
         end if
 
     end subroutine deallocate_trial_hashtable
+
+    function is_var_state(ilut, nI) result (var_state)
+
+        use FciMCData, only: var_space, var_space_size_int
+        use hash, only: FindWalkerHash
+
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer, intent(in) :: nI(:)
+        integer :: i, hash_val
+        logical :: var_state
+
+        var_state = .false.
+
+        hash_val = FindWalkerHash(nI, var_space_size_int)
+
+        do i = 1, var_ht(hash_val)%nclash
+            if (all(ilut(0:NIfDBO) == var_space(0:NIfDBO, var_ht(hash_val)%ind(i)) )) then
+                var_state = .true.
+                return
+            end if
+        end do
+
+    end function is_var_state
 
 end module sparse_arrays

@@ -417,6 +417,8 @@ contains
           tPureInitiatorSpace = .false.
           tSimpleInit = .false.
 
+          tDetermProjApproxHamil = .false.
+
         end subroutine SetCalcDefaults
 
         SUBROUTINE CalcReadInput()
@@ -1357,6 +1359,9 @@ contains
                 tIntervalSet = .true.
             case("STOCHASTIC-HF-SPAWNING")
                 tDetermHFSpawning = .false.
+            case("DETERM-PROJ-APPROX-HAMIL")
+                tDetermProjApproxHamil = .true.
+                ss_space_in%tAllConnCore = .true.
 
             case("TRIAL-WAVEFUNCTION")
                 if (item == nitems) then

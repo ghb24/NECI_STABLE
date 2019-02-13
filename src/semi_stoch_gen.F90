@@ -182,6 +182,8 @@ contains
 
         if (tRDMonFly) call generate_core_connections()
 
+        if (tDetermProjApproxHamil) call init_var_space()
+
         ! Move the states to CurrentDets.
         call add_core_states_currentdet_hash()
 
@@ -227,7 +229,7 @@ contains
 
         use bit_rep_data, only: flag_deterministic, flag_initiator, flag_static_init
         use bit_reps, only: set_flag, encode_sign
-        use FciMCData, only: determ_sizes, SpawnedParts
+        use FciMCData, only: determ_sizes, SpawnedParts, var_size_this_proc, temp_var_space
         use searching, only: remove_repeated_states
         use SystemData, only: tAllSymSectors
 
@@ -285,6 +287,12 @@ contains
         ! be some repeated states. We don't want repeats, so remove them and
         ! update space_size accordingly.
         call remove_repeated_states(SpawnedParts, space_size)
+
+        if (tDetermProjApproxHamil) then
+            var_size_this_proc = space_size
+            allocate(temp_var_space(0:NIfTot, var_size_this_proc), stat=ierr)
+            temp_var_space = SpawnedParts(:, 1:var_size_this_proc)
+        end if
 
         ! Create and use the space of all connections to the current space
         if (core_in%tAllConnCore) then
@@ -1681,5 +1689,43 @@ contains
     end subroutine reset_core_space
 
 !------------------------------------------------------------------------------------------!
+
+    subroutine init_var_space()
+
+        use FciMCData, only: var_size_this_proc, var_sizes, var_displs, temp_var_space
+        use FciMCData, only: var_space_size, var_space_size_int, var_space
+
+        integer :: i, ierr
+        integer(MPIArg) :: mpi_temp
+
+        allocate(var_sizes(0:nProcessors-1))
+        allocate(var_displs(0:nProcessors-1))
+        var_sizes = 0_MPIArg
+
+        mpi_temp = var_size_this_proc
+        call MPIAllGather(mpi_temp, var_sizes, ierr)
+
+        var_space_size = sum(var_sizes)
+        var_space_size_int = int(var_space_size, sizeof_int)
+
+        var_displs(0) = 0
+        do i = 1, nProcessors-1
+            var_displs(i) = var_displs(i-1) + var_sizes(i-1)
+        end do
+
+        allocate(var_space(0:NIfTot, var_space_size), stat=ierr)
+        call MPIAllGatherV(temp_var_space(0:NIfTot, 1:var_sizes(iProcIndex)), &
+                           var_space, var_sizes, var_displs)
+
+        call initialise_core_hash_table(var_space, var_space_size_int, var_ht)
+
+        write(6,'("Generating the approximate Hamiltonian...")'); call neci_flush(6)
+        if (tHPHF) then
+            call calc_approx_hamil_sparse_hphf()
+        else
+            call stop_all("init_var_space", "Not implemented yet.")
+        end if
+
+    end subroutine init_var_space
 
 end module semi_stoch_gen

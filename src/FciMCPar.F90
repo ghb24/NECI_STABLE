@@ -18,7 +18,8 @@ module FciMCParMod
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
                         DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
                         tSkipRef, tFixTrial, tTrialShift, t_activate_decay, &
-                        tEN2Init, tEN2Rigorous, tDeathBeforeComms, tSetInitFlagsBeforeDeath
+                        tEN2Init, tEN2Rigorous, tDeathBeforeComms, tSetInitFlagsBeforeDeath, &
+                        tDetermProjApproxHamil
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
                         tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
                         SIUpdateInterval, tSuppressSIOutput, nRefUpdateInterval, &
@@ -64,7 +65,7 @@ module FciMCParMod
                                  calc_ests_and_set_init_flags, get_ests_from_spawns, &
                                  get_ests_from_spawns_simple
     use exact_spectrum, only: get_exact_spectrum
-    use determ_proj, only: perform_determ_proj
+    use determ_proj, only: perform_determ_proj, perform_determ_proj_approx_ham
     use cont_time, only: iterate_cont_time
     use global_det_data, only: det_diagH, reset_tau_int, get_all_spawn_pops, &
                                reset_shift_int, update_shift_int, &
@@ -182,7 +183,11 @@ module FciMCParMod
 
         if (tDetermProj) then
             ! If performing a deterministic projection instead of an FCIQMC calc:
-            call perform_determ_proj()
+            if (tDetermProjApproxHamil) then
+                call perform_determ_proj_approx_ham()
+            else
+                call perform_determ_proj()
+            end if
             return
         else if (tFTLM) then
             ! If performing a finite-temperature Lanczos method job instead of FCIQMC:

@@ -183,7 +183,7 @@ contains
         ! Is using the pure initiator space option, then if this spawning
         ! occurs to within the defined initiator space (regardless of
         ! whether or not it is occupied already), then it should never be
-        ! rejected by to the initiator criterion, so set the initiator
+        ! rejected by the initiator criterion, so set the initiator
         ! flag now if not done already.
         if (tPureInitiatorSpace) then
             if ( .not. test_flag(SpawnedParts(:, ValidSpawnedList(proc)), get_initiator_flag(part_type)) ) then
