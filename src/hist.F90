@@ -854,8 +854,8 @@ contains
             call set_timer (s2_timer)
         endif
 
-        ssq_sum = 0
-        psi_squared = 0
+        ssq_sum = 0.0_dp
+        psi_squared = 0.0_dp
         do p = 0, nProcessors-1
 
             ! How many dets are on processor p
@@ -948,7 +948,7 @@ contains
                 !            system. I am somewhat astounded I haven't noticed
                 !            this before...
                 ssq(run) = ssq(run) &
-                         + real(calculated_ms * (calculated_ms + 2), dp) / 4
+                         + real(calculated_ms * (calculated_ms + 2), dp) / 4.0
             end if
         end do
 
@@ -971,11 +971,12 @@ contains
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         logical, intent(in), optional :: only_init_
+        real(dp) :: ssq
+
         integer(n_int) :: splus(0:NIfD), sminus(0:NIfD)
         integer(n_int) :: ilut_srch(0:NIfD), ilut_sym(0:NIfD)
         real(dp) :: sgn(lenof_sign), sgn2(lenof_sign), sgn_hphf
         integer :: flg, nI(nel), j, k, orb2, pos, orb_tmp
-        integer(int64) :: ssq
         logical :: only_init, inc
 
         if (present(only_init_)) then
@@ -987,7 +988,7 @@ contains
         ! Extract details of determinant
         call extract_bit_rep (ilut, nI, sgn, flg)
 
-        ssq = 0
+        ssq = 0.0_dp
         do j = 1, nel
             if (is_beta(nI(j)) &
                 .and. IsNotOcc(ilut, get_alpha(nI(j)))) then
@@ -1034,7 +1035,7 @@ contains
                             end if
 
                             call extract_sign (CurrentDets(:,pos), sgn2)
-                            ssq = ssq + int(sgn(1) * sgn2(1) * sgn_hphf,int64) 
+                            ssq = ssq + sgn(1) * sgn2(1) * sgn_hphf
                         endif
                     endif
                 enddo
@@ -1099,8 +1100,8 @@ contains
         abschild = sum(abs(child))
 
         ! Get the excitation levels of the source and target
-        exlevelI = FindBitExcitLevel(ilutRef, ilutI)
-        exlevelJ = FindBitExcitLevel(ilutRef, ilutJ)
+        exlevelI = FindBitExcitLevel(ilutRef(:,1), ilutI)
+        exlevelJ = FindBitExcitLevel(ilutRef(:,1), ilutJ)
 
         ! And store it!
         hist_excit_tofrom(exlevelI, exlevelJ) = &

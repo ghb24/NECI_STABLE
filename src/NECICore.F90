@@ -20,7 +20,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,tMolcas_local,int_name,
 
     ! main-level modules.
     use Calc, only: CalcDoCalc
-    use CalcData, only: tUseProcsAsNodes, s_global_start
+    use CalcData, only: tUseProcsAsNodes
     use kp_fciqmc_procs, only: kp_fciqmc_data
     use Parallel_neci, only: MPINodes, iProcIndex
     use read_fci, only: FCIDUMP_name
@@ -31,7 +31,9 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,tMolcas_local,int_name,
     ! Utility modules.
     use global_utilities
     use constants
-    use util_mod, only: get_free_unit, neci_etime
+    use util_mod, only: get_free_unit
+    
+    USE MolproPlugin
 
     Implicit none
     integer,intent(in) :: iCacheFlag
@@ -40,15 +42,10 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,tMolcas_local,int_name,
     type(timer), save :: proc_timer
     integer :: ios,iunit,iunit2,i,j,isfreeunit
     character(*), parameter :: this_routine = 'NECICore'
-    character(64) :: Filename,cString
+    character(1024) :: Filename
+    character(64) :: cString
     logical :: toverride_input,tFCIDUMP_exist,tMOLCASinput
     type(kp_fciqmc_data) :: kp
-    real(sp) :: tend(2)
-
-    ! Measure when NECICore is called. We need to do this here, as molcas
-    ! and molpro can call NECI part way through a run, so it is no use to time
-    ! from when the _process_ began.
-    s_global_start = neci_etime(tend)
     
     tMolpro = tMolpro_local
     tMolcas = tMolcas_local
@@ -67,15 +64,24 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,tMolcas_local,int_name,
     toverride_input=.false.
 #ifndef _MOLCAS_
     if(tMolpro) then
+      IF (molpro_plugin) THEN
+        FCIDUMP_name = TRIM(molpro_plugin_fcidumpname)
+       ELSE
         FCIDUMP_name = adjustl(int_name)
+       END IF
         inquire(file="FCIQMC_input_override",exist=toverride_input)
         if(toverride_input) then
             Filename="FCIQMC_input_override"
         else
+          IF (molpro_plugin) THEN
+            filename=TRIM(molpro_plugin_datafilename)
+          ELSE
             filename=filename_in
+          ENDIF
             MolproID = ''
             if(iProcIndex.eq.Root) then
             !Now, extract the unique identifier for the input file that is read in.
+#ifdef old_and_buggy
                 i=14
                 j=1
                 do while(filename(i:i).ne.' ')
@@ -83,6 +89,11 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,tMolcas_local,int_name,
                     i=i+1
                     j=j+1
                 enddo
+#else
+                i=INDEX(filename,'/',.TRUE.)+1
+                j=INDEX(filename(i:),'NECI'); IF (j.NE.0) i=i+j-1
+                MolproID=filename(i:MIN(i+LEN(MolproID)-1,LEN(filename)))
+#endif
                 write(iout,"(A,A)") "Molpro unique filename suffix: ",MolproID
             endif
         endif
@@ -158,6 +169,7 @@ End Subroutine NECICore
 
 
 subroutine NECICodeInit(tCPMD,tVASP)
+ use MolproPlugin
     != Initialise the NECI code.  This contains all the initialisation
     != procedures for the code (as opposed to the system in general): e.g. for
     != the memory handling scheme, the timing routines, any parallel routines etc.
@@ -170,15 +182,29 @@ subroutine NECICodeInit(tCPMD,tVASP)
     use timing_neci, only: init_timing
     use Parallel_neci, only: MPIInit
     use SystemData, only : tMolpro,tMolcas
+    use CalcData, only: s_global_start
+    use constants, only: dp
+    use util_mod, only: neci_etime
 
     implicit none
     logical, intent(in) :: tCPMD,tVASP
-
-    call init_timing()
+    real(dp) :: tend(2)
 
     ! MPIInit contains dummy initialisation for serial jobs, e.g. so we
     ! can refer to the processor index being 0 for the parent processor.
     Call MPIInit(tCPMD.or.tVASP.or.tMolpro.or.tMolcas) ! CPMD and VASP have their own MPI initialisation and termination routines.
+    
+    ! Measure when NECICore is called. We need to do this here, as molcas
+    ! and molpro can call NECI part way through a run, so it is no use to time
+    ! from when the _process_ began.
+    ! As this can use MPI_WTIME, we can only call this after the MPIInit call
+    s_global_start = neci_etime(tend)
+
+    ! find out whether this is a Molpro plugin
+    CALL MolproPluginInit(tMolpro)
+    ! end find out whether this is a Molpro plugin
+    ! If we use MPI_WTIME for timing, we have to call MPIInit first
+    call init_timing()
 
     if (.not.TCPMD) then
         call InitMemoryManager()
@@ -205,14 +231,18 @@ subroutine NECICodeEnd(tCPMD,tVASP)
     use Determinants, only: FDet, tagFDet
 #ifdef PARALLEL
     use Parallel_neci, only: MPIEnd
+    USE MolproPlugin
 #endif
 
     implicit none
     logical, intent(in) :: tCPMD,tVASP
+    INTEGER :: rank, ierr
 
 #ifdef PARALLEL
+! Tell Molpro plugin server that we have finished
+    CALL MolproPluginTerm(0)
 ! CPMD and VASP have their own MPI initialisation and termination routines.
-    call MPIEnd((tMolpro.and.(.not.tMolproMimic)).or.tCPMD.or.tVASP.or.tMolcas) 
+    call MPIEnd(molpro_plugin.or.(tMolpro.and.(.not.tMolproMimic)).or.tCPMD.or.tVASP.or.tMolcas) 
 #endif
 
 !    CALL N_MEMORY_CHECK
@@ -321,9 +351,6 @@ subroutine NECICalcEnd(iCacheFlag)
     use Integrals_neci, only: IntCleanup
     use Determinants, only: DetCleanup
     use Calc, only: CalcCleanup
-#ifdef __SHARED_MEM
-    use shared_alloc, only: cleanup_shared_alloc
-#endif
     use replica_data, only: clean_replica_arrays
     use OneEInts, only: DestroyTMat, DestroyPropInts
     use Parallel_neci, only: clean_parallel
@@ -345,9 +372,6 @@ subroutine NECICalcEnd(iCacheFlag)
     call DestroyTMAT(.false.)
     if(tCalcPropEst) call DestroyPropInts
     call SysCleanup()
-#ifdef __SHARED_MEM
-    call cleanup_shared_alloc ()
-#endif
     call clean_replica_arrays()
 #ifndef _MOLCAS_
     call clean_parallel()
@@ -375,3 +399,4 @@ subroutine NECICalcEnd(iCacheFlag)
 
     return
 end subroutine NECICalcEnd
+

@@ -4,6 +4,7 @@ module searching
 
     use bit_rep_data, only: nIfDBO, NIfTot, flag_trial, flag_connected, test_flag
     use bit_reps, only: decode_bit_det, set_flag
+    use CalcData, only: tPairedReplicas
     use constants
     use DetBitOps, only: DetBitLt, ilut_gt, DetBitEq
     use FciMCData, only: CurrentDets, trial_space, min_trial_ind, trial_space_size, trial_wfs, &
@@ -290,6 +291,44 @@ contains
         end if
 
     end subroutine add_trial_energy_contrib
+
+    subroutine return_EN_trial_contrib(nI, ilut, amp)
+    
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:)
+        real(dp), intent(out) :: amp(lenof_sign)
+
+        integer :: i, istate, hash_val
+
+        amp = 0.0_dp
+
+        ! Search the connected space to see if this state is present.
+        if (tPairedReplicas) then
+            if (con_space_size > 0) then
+                hash_val = FindWalkerHash(nI, con_space_size)
+                do i = 1, con_ht(hash_val)%nclash
+                    if (DetBitEq(con_ht(hash_val)%states(0:NIfDBO,i), ilut)) then
+                        do istate = 1, lenof_sign/2
+                            amp(istate*2-1) = transfer(con_ht(hash_val)%states(NIfDBO+istate,i), amp(istate*2-1))
+                            amp(istate*2) = amp(istate*2-1)
+                        end do 
+                        return
+                    end if
+                end do
+            end if
+        else
+            if (con_space_size > 0) then
+                hash_val = FindWalkerHash(nI, con_space_size)
+                do i = 1, con_ht(hash_val)%nclash
+                    if (DetBitEq(con_ht(hash_val)%states(0:NIfDBO,i), ilut)) then
+                        amp = transfer(con_ht(hash_val)%states(NIfDBO+1:,i), amp)
+                        return
+                    end if
+                end do
+            end if
+        end if
+
+    end subroutine return_EN_trial_contrib
 
     ! This is the same as BinSearchParts1, but this time, it searches though the 
     ! full list of determinants created by the full diagonalizer when the 

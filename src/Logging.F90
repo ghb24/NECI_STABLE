@@ -7,6 +7,7 @@ MODULE Logging
     use MemoryManager, only: LogMemAlloc, LogMemDealloc,TagIntType
     use SystemData, only: nel, LMS, nbasis, tHistSpinDist, nI_spindist, &
                           hist_spin_dist_iter
+    use FciMCData, only: maxConflictExLvl
     use CalcData, only: tCheckHighestPop, semistoch_shift_iter, trial_shift_iter, tPairedReplicas
     use constants, only: n_int, size_n_int, bits_n_int
     use bit_rep_data, only: NIfTot, NIfD
@@ -157,7 +158,8 @@ MODULE Logging
       tOutputLoadDistribution = .false.
       tHDF5PopsRead = .false.
       tHDF5PopsWrite = .false.
-
+      tWriteRefs = .false.
+      maxConflictExlvl = 8
 #ifdef __PROG_NUMRUNS
       tFCIMCStats2 = .true.
 #else
@@ -169,6 +171,8 @@ MODULE Logging
           !Mcpaths set
           ILOGGINGDef=2
       ENDIF
+
+      ref_filename = "REFERENCES"
 
     end subroutine SetLogDefaults
 
@@ -1110,6 +1114,10 @@ MODULE Logging
             if (item < nitems) then 
                 call getf(ija_thresh)
             end if
+
+         case("WRITE-REFERENCES")
+            ! Output the reference dets to a file
+            tWriteRefs = .true.
 
         case default
            CALL report("Logging keyword "//trim(w)//" not recognised",.true.)

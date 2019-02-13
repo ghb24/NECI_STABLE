@@ -101,7 +101,7 @@ C ====================================================================
       integer :: NCONV
       integer :: INDEX(N),NROW(M),LAB(M,ICMAX),INFO 
       type(timer), save :: proc_timer
-      real(sp) t1,t2,t3,tarr(2)
+      real(dp) t1,t2,t3,tarr(2)
 C..temp
       real(dp) ::  H(*)
       character(*), parameter :: this_routine = 'NECI_FRSBLK'

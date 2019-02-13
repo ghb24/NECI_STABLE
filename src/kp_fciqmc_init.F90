@@ -534,6 +534,10 @@ contains
         ! If av_mc_excits_kp hasn't been set by the user, just use AvMCExcits.
         if (av_mc_excits_kp == 0.0_dp) av_mc_excits_kp = AvMCExcits
 
+        ! Initialize
+        kp_overlap_mean = 0.0_dp
+        kp_hamil_mean = 0.0_dp
+
         MaxSpawnedEachProc = int(0.88_dp*real(MaxSpawned,dp)/nProcessors)
 
         if (tFCIMCStats2) then
@@ -706,7 +710,7 @@ contains
         real(dp) :: real_sign(lenof_sign_kp), TotPartsCheck(lenof_sign_kp)
         real(dp) :: nwalkers_target
         real(dp) :: norm, all_norm
-        real(sp) :: total_time_before, total_time_after
+        real(dp) :: total_time_before, total_time_after
         logical :: tCoreDet
         character(len=*), parameter :: t_r = "create_init_config"
 
@@ -942,7 +946,7 @@ contains
         ! Copy the determinants themselves to CurrentDets.
         TotParts = 0.0_dp
         do i = 1, ndets
-            CurrentDets(:,i) = SpawnedParts(:,i)
+            CurrentDets(:,i) = SpawnedParts(0:NIfTot,i)
             walker_sign = transfer(CurrentDets(NOffSgn:NOffSgn+lenof_sign_kp-1, i), walker_sign)
             TotParts = TotParts + abs(walker_sign)
         end do
@@ -1062,7 +1066,7 @@ contains
                 ! Copy determinant data across.
                 CurrentDets(0:NIfDBO, det_ind) = ilut(0:NIfDBO)
                 CurrentDets(NOffSgn:NOffSgn+lenof_sign_kp-1, det_ind) = int_sign
-                if (tUseFlags) CurrentDets(NOffFlag, det_ind) = 0_n_int
+                CurrentDets(NOffFlag, det_ind) = 0_n_int
                 TotParts = TotParts + abs(real_sign_1)
             end if
 

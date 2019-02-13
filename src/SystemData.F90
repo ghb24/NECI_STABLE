@@ -51,9 +51,12 @@ logical :: tAntisym_MI    !Antisymmetric MI functions.
 logical :: tComplexOrbs_RealInts    !We are using complex orbitals, but real integrals. 
                                     !Therefore, check the mom sym before looking up integral, 
                                     !since we only have 4x perm sym.
+logical :: tComplexWalkers_RealInts !We are using real orbitals, but complex walkers
 integer :: iParity(5), nMaxX, nMaxY, nMaxZ, nMSH, coulDampOrb, elecPairs
 integer :: roIterMax, iRanLuxLev, DiagMaxMinFac, OneElmaxMinFac, iState
 integer :: iTiltX, iTiltY, nOccAlpha, nOccBeta, ShakeIterMax, ShakeStart
+integer, parameter :: nIrreps = 8
+integer :: nClosedOrbs(nIrreps), nOccOrbs(nIrreps), irrepOrbOffset(nIrreps)
 integer :: MaxMinFac, MaxABPairs
 real(dp) :: BOX, BOA, COA, fUEGRs, fRc, OrbECutoff, UHUB, BHUB
 real(dp) :: Diagweight, OffDiagWeight, OrbEnMaxAlpha, Alpha, fCoulDampBeta

@@ -24,9 +24,6 @@ subroutine stop_all (sub_name, error_msg)
     ! In: sub_name    - Calling routine
     !     error_msg   - Error message
 
-#ifdef __SHARED_MEM
-    use shared_alloc, only: cleanup_shared_alloc
-#endif
 #ifdef PARALLEL
     use Parallel_neci, only: iProcIndex, MPIStopAll
 #endif
@@ -43,6 +40,7 @@ subroutine stop_all (sub_name, error_msg)
     ! MPI_Abort requires an integer though.
     character(3), parameter :: error_str='999'
 
+#ifdef __DEBUG
     write (6,'(/a7)') 'ERROR.'
     write (6,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
     write (6,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
@@ -51,6 +49,15 @@ subroutine stop_all (sub_name, error_msg)
 #endif
     write (6,'(a11)') 'EXITING...'
     call neci_flush (6)
+#else
+    write (*,'(/a7)') 'ERROR.'
+    write (*,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
+    write (*,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
+#ifdef PARALLEL
+    write (*,'(a12,15X,i5)') 'Processor: ',iProcIndex
+#endif
+    write (*,'(a11)') 'EXITING...'
+#endif
 
     ! Also push this to the stderr unit, so it hopefully ends up somewhere
     ! more useful.
@@ -64,9 +71,6 @@ subroutine stop_all (sub_name, error_msg)
 
     call print_backtrace_neci()
 
-#ifdef __SHARED_MEM
-    call cleanup_shared_alloc()
-#endif
 #ifdef PARALLEL
     call MPIStopAll(error_str)
 #else
@@ -89,8 +93,13 @@ subroutine warning_neci(sub_name,error_msg)
 implicit none
 character(*), intent(in) :: sub_name,error_msg
 
+#ifdef __DEBUG
 write (6,'(/a)') 'WARNING.  Error in '//adjustl(sub_name)
 write (6,'(a/)') adjustl(error_msg)
+#else
+write (*,'(/a)') 'WARNING.  Error in '//adjustl(sub_name)
+write (*,'(a/)') adjustl(error_msg)
+#endif
 
 return
 end subroutine warning_neci
