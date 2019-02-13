@@ -1692,6 +1692,20 @@ contains
 
     subroutine init_var_space()
 
+        ! Initialize data needed for the determ-proj-approx-hamil option.
+        ! This basically does a deterministic version of the simple-init
+        ! option, i.e. it uses the full Hamiltonian in the main 'variational'
+        ! space, and just the rectangular block of the Hamiltonian connecting
+        ! the vartiational space to the connected space.
+
+        ! To be able to set up this Hamiltonian, we need a way of checking
+        ! whether a given state in the full deterministic space is also within
+        ! the smaller variational space. To do this, we need a hash table to
+        ! the variational space. The following sets that up.
+
+        ! After this has table (var_ht) is created, then generate the
+        ! approximate Hamiltonian.
+
         use FciMCData, only: var_size_this_proc, var_sizes, var_displs, temp_var_space
         use FciMCData, only: var_space_size, var_space_size_int, var_space
 
@@ -1713,6 +1727,7 @@ contains
             var_displs(i) = var_displs(i-1) + var_sizes(i-1)
         end do
 
+        ! var_space is the variational space from all processes stuck together.
         allocate(var_space(0:NIfTot, var_space_size), stat=ierr)
         call MPIAllGatherV(temp_var_space(0:NIfTot, 1:var_sizes(iProcIndex)), &
                            var_space, var_sizes, var_displs)

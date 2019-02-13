@@ -574,6 +574,9 @@ contains
                 else
                     var_state_j = is_var_state(core_space(:,j), nJ)
 
+                    ! Only add a matrix element if both states are variational
+                    ! states, or if one of them is (the rectangular portion of
+                    ! H connected var_space to the space of connections to it).
                     if (var_state_i .or. var_state_j) then
                         tmp = ieor(core_space(0:NIfD,i+determ_displs(iProcIndex)), core_space(0:NIfD,j))
                         tmp = iand(core_space(0:NIfD,i+determ_displs(iProcIndex)), tmp)
