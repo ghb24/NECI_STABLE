@@ -12,7 +12,7 @@ module fcimc_initialisation
                           tHistSpinDist, tPickVirtUniform, tGen_4ind_reverse, &
                           tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
                           tUEGNewGenerator, tGen_4ind_2, tReltvy, nOccOrbs, &
-                          nClosedOrbs, irrepOrbOffset, nIrreps
+                          nClosedOrbs, irrepOrbOffset, nIrreps, tNConservingGAS
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use dSFMT_interface, only: dSFMT_init
     use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
@@ -159,7 +159,7 @@ module fcimc_initialisation
     use back_spawn, only: init_back_spawn
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
-
+    use gasci, only: generate_nGAS_excitation
     implicit none
 
 contains
@@ -1658,6 +1658,8 @@ contains
         ! Select the excitation generator.
         if (tHPHF) then
             generate_excitation => gen_hphf_excit
+         elseif(tNConservingGAS) then
+            generate_excitation => generate_nGAS_excitation
         elseif ((t_back_spawn_option .or. t_back_spawn_flex_option)) then 
             if (tHUB .and. tLatticeGens) then 
                 ! for now the hubbard + back-spawn still uses the old 

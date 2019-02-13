@@ -233,6 +233,8 @@ logical :: tSymSet = .false.
 
 logical :: tGiovannisBrokenInit
 
+! Are we restricting excitations 
+logical :: tNConservingGAS, tSpinConservingGAS
 ! flags for the use of open boundary conditions in the real-space 
 ! hubbard model. 
 ! for the cubic lattice the can be set separately, for the tilted only 
