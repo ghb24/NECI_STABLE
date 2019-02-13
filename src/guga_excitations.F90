@@ -12,7 +12,10 @@ module guga_excitations
                           tGen_guga_weighted, ref_stepvector, ref_b_vector_real, & 
                           ref_occ_vector, ref_b_vector_int, t_full_guga_tests, &
                           nBasisMax, tHub, treal, t_guga_testsuite, tgen_guga_crude, &
-                          tgen_guga_mixed, t_new_hubbard, t_new_real_space_hubbard
+                          tgen_guga_mixed, t_new_hubbard, t_new_real_space_hubbard, &
+                          t_crude_exchange, t_crude_exchange_noninits, & 
+                          t_approx_exchange, t_approx_exchange_noninits, & 
+                          is_init_guga
 
     use constants, only: dp, n_int, bits_n_int, lenof_sign, Root2, THIRD, HEl_zero, &
                          EPS, bni_, bn2_, iout, int64, inum_runs
@@ -3891,12 +3894,12 @@ contains
                 ! determinant-like excitation without spin-recouplings
                 ! but only for non-inits.. so this information has to 
                 ! be passed in here!
-                call perform_crude_excitation(ilut, excitInfo, excitation, t_comp)
+                call perform_crude_excitation(ilut, excitInfo, excitation, compFlag)
 
                 ! in this case the pgen is just the orbital pgen, as only 
                 ! on CSF can be created from it.. 
                 ! but be sure if the excitation is then actually possible
-                if (.not. t_comp) then
+                if (.not. compFlag) then
                     excitation = 0
                     pgen = 0.0_dp
                     return
@@ -3912,12 +3915,12 @@ contains
         case (17) ! full-stop raising into lowering
 
             if (t_crude_exchange .or. (t_crude_exchange_noninits .and. (.not. is_init_guga))) then
-                call perform_crude_excitation(ilut, excitInfo, excitation, t_comp)
+                call perform_crude_excitation(ilut, excitInfo, excitation, compFlag)
 
                 ! in this case the pgen is just the orbital pgen, as only 
                 ! on CSF can be created from it.. 
                 ! but be sure if the excitation is then actually possible
-                if (.not. t_comp) then
+                if (.not. compFlag) then
                     excitation = 0
                     pgen = 0.0_dp
                     return
@@ -3951,12 +3954,12 @@ contains
         case (20) ! full-start lowering into raising
 
             if (t_crude_exchange .or. (t_crude_exchange_noninits .and. (.not. is_init_guga))) then
-                call perform_crude_excitation(ilut, excitInfo, excitation, t_comp)
+                call perform_crude_excitation(ilut, excitInfo, excitation, compFlag)
 
                 ! in this case the pgen is just the orbital pgen, as only 
                 ! on CSF can be created from it.. 
                 ! but be sure if the excitation is then actually possible
-                if (.not. t_comp) then
+                if (.not. compFlag) then
                     excitation = 0
                     pgen = 0.0_dp
                     return
@@ -3974,12 +3977,12 @@ contains
         case (21) ! full-start raising into lowering
 
             if (t_crude_exchange .or. (t_crude_exchange_noninits .and. (.not. is_init_guga))) then
-                call perform_crude_excitation(ilut, excitInfo, excitation, t_comp)
+                call perform_crude_excitation(ilut, excitInfo, excitation, compFlag)
 
                 ! in this case the pgen is just the orbital pgen, as only 
                 ! on CSF can be created from it.. 
                 ! but be sure if the excitation is then actually possible
-                if (.not. t_comp) then
+                if (.not. compFlag) then
                     excitation = 0
                     pgen = 0.0_dp
                     return
@@ -4047,12 +4050,12 @@ contains
             ! thats seems a bit inefficient. 
 
             if (t_crude_exchange .or. (t_crude_exchange_noninits .and. (.not. is_init_guga))) then
-                call perform_crude_excitation(ilut, excitInfo, excitation, t_comp)
+                call perform_crude_excitation(ilut, excitInfo, excitation, compFlag)
 
                 ! in this case the pgen is just the orbital pgen, as only 
                 ! on CSF can be created from it.. 
                 ! but be sure if the excitation is then actually possible
-                if (.not. t_comp) then
+                if (.not. compFlag) then
                     excitation = 0
                     pgen = 0.0_dp
                     return
@@ -6652,7 +6655,7 @@ contains
             weights = opt_weight
         else 
             if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
-                weights = init_forced_end_semistart_weight(ilut, se, e, negSwitches(se), &
+                weights = init_forced_end_semistart_weight(ilut, se, en, negSwitches(se), &
                     posSwitches(se), currentB_ilut(se))
             else
                 weights = init_semiStartWeight(ilut, se, en, negSwitches(se), &
@@ -12552,6 +12555,19 @@ contains
 
     end function getPlus_single
 
+
+    function init_forced_end_exchange_weight(ilut, sOrb) result(forced_double)
+        ! obj has the same structure as the semi-start weight, reuse them!
+        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(in) :: sOrb
+        type(weight_obj) :: forced_double
+        character(*), parameter :: this_routine = "init_forced_end_exchange_weight"
+        ASSERT(isProperCSF_ilut(ilut))
+
+        call stop_all(this_routine, "todo")
+
+    end function init_forced_end_exchange_weight
+
     function init_doubleWeight(ilut, sOrb) result(doubleWeight)
         ! obj has the same structure as the semi-start weight, reuse them!
         integer(n_int), intent(in) :: ilut(0:nifguga)
@@ -12743,6 +12759,21 @@ contains
 
     end function getZero_fullStart
         
+    function init_forced_end_semistart_weight(ilut, sOrb, pOrb, negSwitches, posSwitches, bVal) &
+            result(forced_semistart)
+        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(in) :: sOrb, pOrb
+        real(dp), intent(in) :: negSwitches, posSwitches, bVal
+        type(weight_obj) :: forced_semistart
+        character(*), parameter :: this_routine = "init_forced_end_semistart_weight"
+
+        type(weight_obj), target, save :: double
+
+        call stop_all(this_routine, "todo")
+
+
+    end function init_forced_end_semistart_weight
+
     function init_semiStartWeight(ilut, sOrb, pOrb, negSwitches, posSwitches, bVal) &
             result(semiStart)
         integer(n_int), intent(in) :: ilut(0:nifguga)

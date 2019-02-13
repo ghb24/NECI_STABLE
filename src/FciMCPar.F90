@@ -9,7 +9,9 @@ module FciMCParMod
                           t_new_real_space_hubbard, t_tJ_model, t_heisenberg_model, & 
                           t_k_space_hubbard, max_ex_level, t_uniform_excits, &
                           tGen_guga_mixed, t_guga_mixed_init, t_guga_mixed_semi, &
-                          tReal, t_mixed_excits, tgen_nosym_guga
+                          tReal, t_mixed_excits, tgen_nosym_guga, & 
+                          t_crude_exchange_noninits, t_approx_exchange_noninits, &
+                          is_init_guga
 
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
