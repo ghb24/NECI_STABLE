@@ -3,6 +3,9 @@
 
 set( SRC_FILES 
 
+    adi_references.F90
+    adi_initiators.F90
+    adi_data.F90
     Annihilation.F90
     bit_rep_data.F90
     BitReps.F90
@@ -89,6 +92,8 @@ set( SRC_FILES
     Logging.F90
     Makefile
     matmul.F
+    MolproPlugin.F90
+    PluginGuest.cpp
     NatOrbs.F90
     NECICore.F90
     neci_intfce.F90
@@ -129,6 +134,7 @@ set( SRC_FILES
     searching.F90
     semi_stoch_gen.F90
     semi_stoch_procs.F90
+    shared_memory_mpi.F90
     sltcnd.F90
     sparse_arrays.F90
     spectral_data.F90
@@ -156,6 +162,7 @@ set( SRC_FILES
     System_neci.F90
     tau_search.F90
     trial_wf_gen.F90
+    trial_ht_procs.F90
     UMatCache.F90
     vasp_init.F90
     vasp_interface.F90
@@ -165,7 +172,6 @@ set( SRC_FILES
     back_spawn.F90
     back_spawn_excit_gen.F90
 
-    lib/allocate_shared_worker.cpp
     lib/backtrace.cpp
     lib/cons_neci.F90
     lib/dSFMT.cpp
@@ -194,7 +200,6 @@ set( TEMPLATED_SRC_FILES
 
     BinSearch.F90.template
     Parallel.F90.template
-    lib/allocate_shared.F90.template
     lib/quicksort.F90.template
     lib/util_mod_byte_size.F90.template
     lib/util_mod_comparisons.F90.template
@@ -208,9 +213,6 @@ set( TEMPLATED_SRC_FILES
 # Don't use generator expressions for including libraries, as this causes problems when there are list
 # expansions.
 set( _conditional_libraries "" )
-if (HAVE_MPI)
-    list(APPEND _conditional_libraries ${MPI_NECI_Fortran_LIBRARIES} )
-endif()
 if (HAVE_FFTW)
     list(APPEND _conditional_libraries ${FFTW_LIBRARIES} )
 endif()
@@ -223,7 +225,9 @@ endif()
 set( _library_link_libs
     "${LAPACK_NECI_LIBRARIES}"
     "${LIBRT_LIBRARIES}"
-    "${_conditional_libraries}" )
+    "${_conditional_libraries}" 
+    "${MPI_NECI_LIBRARIES}"
+    "${MPI_NECI_Fortran_LIBRARIES}")
 
 if( HAVE_SHARED )
     set( _link_type SHARED )
@@ -251,7 +255,7 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
         LINKER_LANGUAGE Fortran
 
         PRIVATE_INCLUDES
-            "${MPI_NECI_INCLUDE_PATH}"
+	    "${MPI_NECI_INCLUDE_PATH}"
             "${HDF5_NECI_INCLUDE_PATH}"
 
         DEFINITIONS

@@ -37,7 +37,7 @@ contains
         use dSFMT_interface, only: dSFMT_init
         use constants, only: dp, n_int
         use bit_reps, only: set_flag, get_initiator_flag, test_flag
-        use bit_rep_data, only: niftot, noffflag, tUseflags
+        use bit_rep_data, only: niftot, noffflag
         use detbitops, only: encodebitdet
         use CalcData, only: occ_virt_level
         use symexcitdatamod, only: kpointtobasisfn
@@ -53,7 +53,6 @@ contains
         tNoFailAb = .false. 
         niftot = 2
         noffflag = 1
-        tUseflags = .true. 
         nBasis = 4
         occ_virt_level = 0
 
@@ -100,7 +99,6 @@ contains
         print *, "set_flag() "
         print *, "get_initiator_flag()"
         print *, "noffflag: ", noffflag
-        print *, "tUseflags: ", tUseflags
         print *, "nBasis: ", nBasis
 
         call dSFMT_init(123)
@@ -216,7 +214,6 @@ contains
         noffflag = -1
         nBasis = -1
         occ_virt_level = 0
-        tUseflags = .false.
         tUEG = .false.
         nmaxx = -1
         nmaxy = -1
@@ -230,7 +227,7 @@ contains
         use dSFMT_interface, only: dSFMT_init
         use constants, only: dp, n_int
         use bit_reps, only: set_flag, get_initiator_flag, test_flag
-        use bit_rep_data, only: niftot, noffflag, tUseflags
+        use bit_rep_data, only: niftot, noffflag
         use detbitops, only: encodebitdet
         use CalcData, only: occ_virt_level, t_back_spawn
 
@@ -247,7 +244,6 @@ contains
         tHub = .true. 
         niftot = 2
         noffflag = 1
-        tUseflags = .true. 
         nBasis = 4
         occ_virt_level = 0
         t_back_spawn = .false.
@@ -270,7 +266,6 @@ contains
         print *, "set_flag() "
         print *, "get_initiator_flag()"
         print *, "noffflag: ", noffflag
-        print *, "tUseflags: ", tUseflags
         print *, "nBasis: ", nBasis
 
         call dSFMT_init(123)
@@ -371,7 +366,7 @@ contains
     subroutine calc_pgen_back_spawn_ueg_new_test
         use SystemData, only: nel, nBasis, G1, nmaxx, nmaxy, nmaxz, ElecPairs, &
                               tOrbECutoff
-        use bit_rep_data, only: niftot, tUseflags, noffflag
+        use bit_rep_data, only: niftot, noffflag
         use constants, only: dp, n_int
         use detbitops, only: encodebitdet
         use dSFMT_interface, only: dSFMT_init
@@ -392,8 +387,6 @@ contains
         nBasis = 4
         niftot = 1
         noffflag = 0
-        tUseflags = .true.
-
         allocate(cum_arr(nBasis))
         get_umat_el => get_umat_test
         ElecPairs = 1

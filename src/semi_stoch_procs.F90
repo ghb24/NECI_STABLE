@@ -11,11 +11,12 @@ module semi_stoch_procs
     use constants
     use FciMCData, only: determ_sizes, determ_displs, determ_space_size, &
                          SpawnedParts, TotWalkers, CurrentDets, core_space, &
-                         MaxSpawned
+                         MaxSpawned,indices_of_determ_states, ilutRef
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg
     use sparse_arrays, only: sparse_core_ham
     use SystemData, only: nel
     use timing_neci
+    use adi_data, only: tSignedRepAv
 
     implicit none
 
@@ -30,6 +31,7 @@ contains
         use FciMCData, only: partial_determ_vecs, full_determ_vecs, SemiStoch_Comms_Time
         use FciMCData, only: SemiStoch_Multiply_Time
         use Parallel_neci, only: MPIBarrier, MPIAllGatherV
+        use DetBitOps, only: DetBitEQ
 
         integer :: i, j, ierr, run, part_type
 
@@ -94,7 +96,15 @@ contains
 
             ! Now multiply the vector by tau to get the final projected vector.
             partial_determ_vecs = partial_determ_vecs * tau
-
+            
+            do i = 1, determ_sizes(iProcIndex)
+                do part_type  = 1, lenof_sign
+                    run = part_type_to_run(part_type)
+                    if(tSkipRef(run) .and. DetBitEQ(CurrentDets(:,indices_of_determ_states(i)),iLutRef(:,run),nIfD)) then
+                        partial_determ_vecs(part_type, i) = 0.0_dp
+                    end if
+                end do
+            end do
         end if
 
         call halt_timer(SemiStoch_Multiply_Time)
@@ -153,8 +163,9 @@ contains
         ! If this condition is met then RDM energies were added in on the
         ! previous iteration. We now want to start a new averaging block so
         ! that the same contributions aren't added in again later.
-        if (mod(Iter+PreviousCycles - IterRDMStart, RDMEnergyIter) == 0) then 
+        if (mod(Iter+PreviousCycles-IterRDMStart, RDMEnergyIter) == 0) then 
             full_determ_vecs_av = 0.0_dp
+            write(6,*) "Reset fdv av at iteration ", iter
         end if
 
         ! The current iteration, converted to a double precision real.
@@ -258,7 +269,7 @@ contains
                          TempStoreTag, ierr)
 
         ! Stick together the deterministic states from all processors, on all processors.
-        call MPIAllGatherV(SpawnedParts(:,1:determ_sizes(iProcIndex)), temp_store, &
+        call MPIAllGatherV(SpawnedParts(0:NIfTot,1:determ_sizes(iProcIndex)), temp_store, &
                        determ_sizes, determ_displs)
 
         ! Over all core states on this processor.
@@ -557,7 +568,7 @@ contains
 
         counter(0) = 0
         do i = 1, nProcessors-1
-            counter(i) = sum(num_states_procs(:i-1))
+            counter(i) = counter(i-1) + num_states_procs(i-1)
         end do
 
         do i = 1, ilut_list_size
@@ -654,7 +665,7 @@ contains
                 ! If there is only one state in CurrentDets to check then BinSearchParts doesn't
                 ! return the desired value for PartInd, so do this separately...
                 if (MinInd == nwalkers) then
-                    comp = DetBitLT(CurrentDets(:,MinInd), SpawnedParts(:,i), NIfDBO)
+                    comp = DetBitLT(CurrentDets(:,MinInd), SpawnedParts(0:NIfTot,i), NIfDBO)
                     if (comp == 0) then
                         tSuccess = .true.
                         PartInd = MinInd
@@ -684,7 +695,7 @@ contains
             else
                 ! Move all states below PartInd down one and insert the new state in the slot.
                 CurrentDets(:, PartInd+2:nwalkers+1) = CurrentDets(:, PartInd+1:nwalkers)
-                CurrentDets(:, PartInd+1) = SpawnedParts(:,i)
+                CurrentDets(:, PartInd+1) = SpawnedParts(0:NIfTot,i)
                 nwalkers = nwalkers + 1
                 MinInd = PartInd + 1
             end if
@@ -733,9 +744,15 @@ contains
 
         ! Test that SpawnedParts is going to be big enough
         if (determ_sizes(iProcIndex) > MaxSpawned) then
+#ifdef __DEBUG
             write(6,*) 'Spawned parts array will not be big enough for &
                        &Semi-Stochastic initialisation'
             write(6,*) 'Please increase MEMORYFACSPAWN'
+#else
+            write(*,*) 'Spawned parts array will not be big enough for &
+                       &Semi-Stochastic initialisation on task ', iProcIndex
+            write(*,*) 'Please increase MEMORYFACSPAWN'
+#endif
             call stop_all(this_routine, "Insufficient memory assigned")
         end if
 
@@ -783,9 +800,15 @@ contains
                 ! Add a quick test in, to ensure that we don't overflow the
                 ! spawned parts array...
                 if (i_non_core > MaxSpawned) then
+#ifdef __DEBUG
                     write(6,*) 'Spawned parts array too small for &
                                &semi-stochastic initialisation'
                     write(6,*) 'Please increase MEMORYFACSPAWN'
+#else
+                    write(*,*) 'Spawned parts array too small for &
+                               &semi-stochastic initialisation on task ', iProcIndex
+                    write(*,*) 'Please increase MEMORYFACSPAWN'
+#endif
                     call stop_all(this_routine, 'Insufficient memory assigned')
                 end if
                 
@@ -859,7 +882,11 @@ contains
 #ifdef __CMPLX
             sign_curr_real = sqrt(sum(abs(sign_curr(1::2)))**2 + sum(abs(sign_curr(2::2)))**2)
 #else
-            sign_curr_real = sum(real(abs(sign_curr),dp))
+            if(tSignedRepAv) then
+               sign_curr_real = real(abs(sum(sign_curr)),dp)
+            else
+               sign_curr_real = sum(real(abs(sign_curr),dp))
+            endif
 #endif
             if (present(norm)) norm = norm + (sign_curr_real**2.0)
 
@@ -1062,7 +1089,7 @@ contains
             proc = DetermineDetNode(nel,nI,0)
             if (proc == iProcIndex) then
                 ncore = ncore + 1
-                SpawnedParts(:,ncore) = core_space(:,i)
+                SpawnedParts(0:NIfTot,ncore) = core_space(:,i)
             end if
         end do
 
@@ -1228,7 +1255,7 @@ contains
         end if
         if (allocated(core_ham_diag)) then
             deallocate(core_ham_diag, stat=ierr)
-            call LogMemDealloc(t_r, IDetermTag, ierr)
+!            call LogMemDealloc(t_r, IDetermTag, ierr)
         end if
         if (allocated(core_space)) then
             deallocate(core_space, stat=ierr)

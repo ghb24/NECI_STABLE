@@ -12,17 +12,18 @@ module fcimc_iter_utils
                         nShiftEquilSteps, TargetGrowRateWalk, tContTimeFCIMC, &
                         tContTimeFull, pop_change_min, tPositiveHFSign, &
                         qmc_trial_wf, nEquilSteps, t_hist_tau_search, &
-                        t_hist_tau_search_option
+                        t_hist_tau_search_option, tFixedN0, tSkipRef, N0_Target, &
+                        tTrialShift, tFixTrial, TrialTarget, tEN2
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tFCIMCStats2, tPrintDataTables, tLogEXLEVELStats
     use semi_stoch_procs, only: recalc_core_hamil_diag
-    use fcimc_helper, only: update_run_reference
     use bit_rep_data, only: NIfD, NIfTot, NIfDBO
     use hphf_integrals, only: hphf_diag_helement
     use global_det_data, only: set_det_diagH
     use Determinants, only: get_helement
     use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av
     use tau_search, only: update_tau
+    use rdm_data, only: en_pert_main
     use Parallel_neci
     use fcimc_initialisation
     use fcimc_output
@@ -56,9 +57,17 @@ contains
 
         ! Calculate the acceptance ratio
         if (tContTimeFCIMC .and. .not. tContTimeFull) then
-            AccRat = real(cont_spawn_success) / real(cont_spawn_attempts)
+           if(abs(real(cont_spawn_attempts)) > eps) then 
+              AccRat = real(cont_spawn_success) / real(cont_spawn_attempts)
+           else
+              AccRat = 0.0_dp
+           endif
         else
-            AccRat = real(Acceptances, dp) / SumWalkersCyc
+           if(all(abs(SumWalkersCyc) > eps)) then
+              AccRat = real(Acceptances, dp) / SumWalkersCyc
+           else
+              AccRat = 0.0_dp
+           endif
         end if
 
 
@@ -110,7 +119,6 @@ contains
         call MPIBCast(tRestart)
         if(tRestart) then
 !Initialise variables for calculation on each node
-            Iter=1
             CALL DeallocFCIMCMemPar()
             IF(iProcIndex.eq.Root) THEN
                 CLOSE(fcimcstats_unit)
@@ -137,6 +145,7 @@ contains
                 end if
                 call WriteFCIMCStats()
             end if
+            Iter=1
             if (iProcIndex==root .and. tLogEXLEVELStats) &
                   write(EXLEVELStats_unit,'("#")', advance='no')
             return
@@ -348,7 +357,7 @@ contains
     end subroutine population_check
 
     subroutine communicate_estimates(iter_data, tot_parts_new, tot_parts_new_all)
-
+      
         ! This routine sums all estimators and stats over all processes.
 
         ! We want this to be done in as few MPI calls as possible. Therefore, all
@@ -367,7 +376,8 @@ contains
         ! in send_arr or send_arr_helem array. It is hopefully clear how to do
         ! this by analogy. You should also update the indices in the appropriate
         ! stop_all, so that it can be checked if enough memory has been assigned.
-
+      use adi_data, only: nCoherentDoubles, nIncoherentDets, nConnection, &
+           AllCoherentDoubles, AllIncoherentDets, AllConnection
         type(fcimc_iter_data) :: iter_data
         real(dp), intent(in) :: tot_parts_new(lenof_sign)
         real(dp), intent(out) :: tot_parts_new_all(lenof_sign)
@@ -432,11 +442,22 @@ contains
         sizes(24) = size(NoAtHF)
         sizes(25) = size(SumWalkersCyc)
         sizes(26) = 1 ! nspawned (single int, not an array)
-        ! communicate the inst_double_occ
+        ! communicate the inst_double_occ and the coherence numbers
         sizes(27) = 1
+        sizes(28) = 1
+        sizes(29) = 1
+        sizes(30) = 1
+        ! Perturbation correction
+        sizes(31) = 1
+        ! replica-initiator statistics
+        sizes(32) = 1
+        sizes(33) = 1
+        sizes(34) = 1
+        ! truncated weight
+        sizes(35) = 1
 
 
-        if (sum(sizes(1:26)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
+        if (sum(sizes(1:34)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
                                                         & the size of the send_arr and recv_arr arrays in the source code.")
 
         low = upp + 1; upp = low + sizes(1 ) - 1; send_arr(low:upp) = SpawnFromSing;
@@ -470,7 +491,17 @@ contains
         low = upp + 1; upp = low + sizes(26) - 1; send_arr(low:upp) = nspawned;
         ! double occ change:
         low = upp + 1; upp = low + sizes(27) - 1; send_arr(low:upp) = inst_double_occ
-
+        ! coherence conflict with SIs
+        low = upp + 1; upp = low + sizes(28) - 1; send_arr(low:upp) = nCoherentDoubles
+        low = upp + 1; upp = low + sizes(29) - 1; send_arr(low:upp) = nIncoherentDets
+        low = upp + 1; upp = low + sizes(30) - 1; send_arr(low:upp) = nConnection
+        ! sign conflicts between replicas
+        low = upp + 1; upp = low + sizes(32) - 1; send_arr(low:upp) = NoSIInitsConflicts;
+        low = upp + 1; upp = low + sizes(33) - 1; send_arr(low:upp) = NoInitsConflicts;
+        low = upp + 1; upp = low + sizes(34) - 1; send_arr(low:upp) = avSigns;
+        ! truncated weight
+        low = upp + 1; upp = low + sizes(35) - 1; send_arr(low:upp) = truncatedWeight;        
+        
         ! Perform the communication.
         call MPISumAll (send_arr(1:upp), recv_arr(1:upp))
 
@@ -510,7 +541,15 @@ contains
         low = upp + 1; upp = low + sizes(26) - 1; nspawned_tot = nint(recv_arr(low));
         ! double occ: 
         low = upp + 1; upp = low + sizes(27) - 1; all_inst_double_occ = recv_arr(low);
-
+        low = upp + 1; upp = low + sizes(29) - 1; AllCoherentDoubles = recv_arr(low);
+        low = upp + 1; upp = low + sizes(29) - 1; AllIncoherentDets = recv_arr(low);
+        low = upp + 1; upp = low + sizes(30) - 1; AllConnection = recv_arr(low);
+        ! replica-averaged initiators
+        low = upp + 1; upp = low + sizes(32) - 1; AllNoSIInitsConflicts = recv_arr(low);
+        low = upp + 1; upp = low + sizes(33) - 1; AllNoInitsConflicts = recv_arr(low);
+        low = upp + 1; upp = low + sizes(34) - 1; AllAvSigns = recv_arr(low);
+        ! truncated weight
+        low = upp + 1; upp = low + sizes(35) - 1; AllTruncatedWeight = recv_arr(low);
         ! Communicate HElement_t variables:
 
         low = 0; upp = 0;
@@ -520,8 +559,15 @@ contains
         sizes(3) = size(ENumCycAbs)
         sizes(4) = size(cyc_proje_denominator)
         sizes(5) = size(sum_proje_denominator)
+        if (tTrialWavefunction) then
+            sizes(6) = size(trial_numerator)
+            sizes(7) = size(trial_denom)
+            sizes(8) = size(trial_num_inst)
+            sizes(9) = size(trial_denom_inst)
+        end if
+        if (tEN2) sizes(10) = 1
 
-        if (sum(sizes(1:5)) > 100) call stop_all(t_r, "No space left in arrays for communication of estimates. Please &
+        if (sum(sizes(1:10)) > 100) call stop_all(t_r, "No space left in arrays for communication of estimates. Please &
                                                         & increase the size of the send_arr_helem and recv_arr_helem &
                                                         & arrays in the source code.")
 
@@ -533,7 +579,12 @@ contains
         if (tTrialWavefunction) then
             low = upp + 1; upp = low + sizes(6) - 1; send_arr_helem(low:upp) = trial_numerator;
             low = upp + 1; upp = low + sizes(7) - 1; send_arr_helem(low:upp) = trial_denom;
+            low = upp + 1; upp = low + sizes(8) - 1; send_arr_helem(low:upp) = trial_num_inst;
+            low = upp + 1; upp = low + sizes(9) - 1; send_arr_helem(low:upp) = trial_denom_inst;
         end if
+        if (tEN2) then
+           low = upp + 1; upp = low + sizes(10) - 1; send_arr_helem(low) = en_pert_main%ndets;
+        endif
 
         call MPISumAll (send_arr_helem(1:upp), recv_arr_helem(1:upp))
 
@@ -547,7 +598,12 @@ contains
         if (tTrialWavefunction) then
             low = upp + 1; upp = low + sizes(6) - 1; tot_trial_numerator = recv_arr_helem(low:upp);
             low = upp + 1; upp = low + sizes(7) - 1; tot_trial_denom = recv_arr_helem(low:upp);
+            low = upp + 1; upp = low + sizes(8) - 1; tot_trial_num_inst = recv_arr_helem(low:upp);
+            low = upp + 1; upp = low + sizes(9) - 1; tot_trial_denom_inst = recv_arr_helem(low:upp);
         end if
+        if (tEN2) then
+           low = upp + 1; upp = low + sizes(10) - 1; en_pert_main%ndets_all = recv_arr_helem(low);
+        endif
 
         ! Optionally communicate EXLEVEL_WNorm.
         if (tLogEXLEVELStats) then
@@ -577,7 +633,7 @@ contains
 
         ! These require a different type of reduce operation, so are communicated
         ! separately to the above communication.
-        call MPIReduce(bloom_sizes(1:2), MPI_MAX, bloom_sz_tmp(1:2))
+        call MPIAllReduce(bloom_sizes(1:2), MPI_MAX, bloom_sz_tmp(1:2))
         bloom_sizes(1:2) = bloom_sz_tmp(1:2)
 
         ! Arrays for checking load balancing.
@@ -651,11 +707,11 @@ contains
 
 #ifdef __DEBUG
         ! Write this 'ASSERTROOT' out explicitly to avoid line lengths problems
-        if ((iProcIndex == root) .and. .not. tSpinProject .and. &
+        if ((iProcIndex == root) .and. .not. tSpinProject .and. .not. tTrialShift .and. &
          all(abs(iter_data%update_growth_tot-(AllTotParts-AllTotPartsOld)) > 1.0e-5)) then
-            write(iout,*) "update_growth: ",iter_data%update_growth_tot
-            write(iout,*) "AllTotParts: ",AllTotParts
-            write(iout,*) "AllTotPartsOld: ", AllTotPartsOld
+           write(iout,*) "update_growth: ",iter_data%update_growth_tot
+           write(iout,*) "AllTotParts: ",AllTotParts
+           write(iout,*) "AllTotPartsOld: ", AllTotPartsOld
             call stop_all (this_routine, &
                 "Assertation failed: all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld)")
         endif
@@ -665,7 +721,7 @@ contains
 
     subroutine update_shift (iter_data)
 
-        use CalcData, only: tInstGrowthRate
+        use CalcData, only: tInstGrowthRate, tL2GrowRate
      
         type(fcimc_iter_data), intent(in) :: iter_data
         integer(int64) :: tot_walkers
@@ -684,28 +740,34 @@ contains
         ! collate_iter_data --> The values used are only valid on Root
         if (iProcIndex == Root) then
 
-            if(tInstGrowthRate) then
+           if(tL2GrowRate) then 
+              ! use the L2 norm to determine the growrate
+              do run = 1, inum_runs
+                 AllGrowRate(run) = norm_psi(run) / old_norm_psi(run)
+              end do
 
-                ! Calculate the growth rate simply using the two points at
-                ! the beginning and the end of the update cycle. 
-                do run = 1, inum_runs
-                    lb = min_part_type(run)
-                    ub = max_part_type(run)
-                    AllGrowRate(run) = (sum(iter_data%update_growth_tot(lb:ub) &
-                               + iter_data%tot_parts_old(lb:ub))) &
-                              / real(sum(iter_data%tot_parts_old(lb:ub)), dp)
-                enddo
+           else if(tInstGrowthRate) then
 
-            else
+              ! Calculate the growth rate simply using the two points at
+              ! the beginning and the end of the update cycle. 
+              do run = 1, inum_runs
+                 lb = min_part_type(run)
+                 ub = max_part_type(run)
+                 AllGrowRate(run) = (sum(iter_data%update_growth_tot(lb:ub) &
+                      + iter_data%tot_parts_old(lb:ub))) &
+                      / real(sum(iter_data%tot_parts_old(lb:ub)), dp)
+              enddo
 
-                ! Instead attempt to calculate the average growth over every
-                ! iteration over the update cycle
-                do run = 1, inum_runs
-                    AllGrowRate(run) = AllSumWalkersCyc(run)/real(StepsSft,dp) &
-                                    /OldAllAvWalkersCyc(run)
-                enddo
+           else
 
-            end if
+              ! Instead attempt to calculate the average growth over every
+              ! iteration over the update cycle
+              do run = 1, inum_runs
+                 AllGrowRate(run) = AllSumWalkersCyc(run)/real(StepsSft,dp) &
+                      /OldAllAvWalkersCyc(run)
+              enddo
+
+           end if
 
             ! For complex case, obtain both Re and Im parts
 #ifdef __CMPLX
@@ -732,144 +794,210 @@ contains
             do run=1,inum_runs
                 lb = min_part_type(run)
                 ub = max_part_type(run)
-                if (TSinglePartPhase(run)) then
-                    tot_walkers = InitWalkers * int(nNodes,int64)
 
-#ifdef __CMPLX
-                    if ((sum(AllTotParts(lb:ub)) > tot_walkers) .or. &
-                         (abs_sign(AllNoatHF(lb:ub)) > MaxNoatHF)) then
-    !                     WRITE(iout,*) "AllTotParts: ",AllTotParts(1),AllTotParts(2),tot_walkers
-                        write (iout, '(a,i13,a)') 'Exiting the single particle growth phase on iteration: ',iter + PreviousCycles, &
-                                     ' - Shift can now change'
+
+                if (tTrialShift .and. .not. tFixTrial(run) .and. tTrialWavefunction .and. abs(tot_trial_denom(run))>=TrialTarget) then
+                    !When reaching target overlap with trial wavefunction, set flag to keep it fixed.
+                    tFixTrial(run) = .True.
+
+                    write (iout, '(a,i13,a,i1)') 'Exiting the varaible shift phase on iteration: ' &
+                                 ,iter + PreviousCycles, ' - overlap with trial wavefunction of the following run is now fixed: ', run
+                end if
+
+
+                if(tFixedN0)then
+                    if (.not. tSkipRef(run) .and. abs(AllHFCyc(run))>=N0_Target) then
+                        !When reaching target N0, set flag to keep the population of reference det fixed.
+                        tSkipRef(run) = .True.
+
+                        write (iout, '(a,i13,a,i1)') 'Exiting the fixed shift phase on iteration: ' &
+                                     ,iter + PreviousCycles, ' - reference population of the following run is now fixed: ', run
+                        !Set these parameters because other parts of the code depends on them
                         VaryShiftIter(run) = Iter
                         iBlockingIter(run) = Iter + PreviousCycles
                         tSinglePartPhase(run) = .false.
-                        ! [W.D.15.5.2017:]
-                        ! we should remove these equal 0 comparisons..
-!                         if(TargetGrowRate(run).ne.0.0_dp) then
-                        if(abs(TargetGrowRate(run)) > EPS) then
-                            write(iout,"(A)") "Setting target growth rate to 1."
-                            TargetGrowRate=0.0_dp
-                        endif
-
-                        ! If enabled, jump the shift to the value preducted by the
-                        ! projected energy!
-                        if (tJumpShift) then
-                            DiagSft(run) = real(proje_iter(run),dp)
-                            defer_update(run) = .true.
-                        end if
-                    endif
-#else
-                    start_varying_shift = .false.
-                    if (tLetInitialPopDie) then
-                        if (AllTotParts(run) < tot_walkers) start_varying_shift = .true.
-                    else
-                        if ((AllTotParts(run) > tot_walkers) .or. &
-                             (abs(AllNoatHF(run)) > MaxNoatHF)) start_varying_shift = .true.
                     end if
 
-                    if (start_varying_shift) then
-    !                     WRITE(iout,*) "AllTotParts: ",AllTotParts(1),AllTotParts(2),tot_walkers
-                        write (iout, '(a,i13,a,i1)') 'Exiting the single particle growth phase on iteration: ' &
-                                     ,iter + PreviousCycles, ' - Shift can now change for population', run
-                        VaryShiftIter(run) = Iter
-                        iBlockingIter(run) = Iter + PreviousCycles
-                        tSinglePartPhase(run) = .false.
-                        ! [W.D. 15.5.2017]
-                        ! change equal 0 comps
-!                         if(TargetGrowRate(run).ne.0.0_dp) then
-                        if(abs(TargetGrowRate(run)) > EPS) then
-                            write(iout,"(A)") "Setting target growth rate to 1."
-                            TargetGrowRate(run)=0.0_dp
-                        endif
+                    if(tSkipRef(run))then
+                        !Use the projected energy as the shift to fix the
+                        !population of the reference det and thus reduce the
+                        !fluctuations of the projected energy.
 
-                        ! If enabled, jump the shift to the value preducted by the
-                        ! projected energy!
-                        if (tJumpShift) then
-                            DiagSft(run) = real(proje_iter(run),dp)
-                            defer_update(run) = .true.
-                        end if
-                    endif
-#endif
-                else ! .not.tSinglePartPhase(run)
+                        !ToDo: Make DiafSft complex
+                        DiagSft(run) = (AllENumCyc(run)) / (AllHFCyc(run))+proje_ref_energy_offsets(run)
 
-#ifdef __CMPLX
-                    if (abs_sign(AllNoatHF(lb:ub)) < MaxNoatHF-HFPopThresh) then
-#else
-                    if (abs(AllNoatHF(run)) < MaxNoatHF-HFPopThresh) then
-#endif
-                        write (iout, '(a,i13,a)') 'No at HF has fallen too low - reentering the &
-                                     &single particle growth phase on iteration',iter + PreviousCycles,' - particle number &
-                                     &may grow again.'
-                        tSinglePartPhase(run) = .true.
-                        tReZeroShift(run) = .true.
-                    endif
-
-                endif ! tSinglePartPhase(run) or not
-
-                ! How should the shift change for the entire ensemble of walkers 
-                ! over all processors.
-                if (((.not. tSinglePartPhase(run)).or.(TargetGrowRate(run).ne.0.0_dp)) .and.&
-                    .not. defer_update(run)) then
-
-                    !In case we want to continue growing, TargetGrowRate > 0.0_dp
-                    ! New shift value
-!                     if(TargetGrowRate(run).ne.0.0_dp) then
-                    ! [W.D. 15.5.2017]
-                    if(abs(TargetGrowRate(run)) > EPS) then
-#ifdef __CMPLX
-                        if(sum(AllTotParts(lb:ub)).gt.TargetGrowRateWalk(run)) then
-#else
-                        if(AllTotParts(run).gt.TargetGrowRateWalk(run)) then
-#endif
-                            !Only allow targetgrowrate to kick in once we have > TargetGrowRateWalk walkers.
-                            DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)-TargetGrowRate(run)) * SftDamp) / &
-                                                (Tau * StepsSft)
+                        ! Update the shift averages
+                        if ((iter - VaryShiftIter(run)) >= nShiftEquilSteps) then
+                            if ((iter-VaryShiftIter(run)-nShiftEquilSteps) < StepsSft) &
+                                write (iout, '(a,i14)') 'Beginning to average shift value on iteration: ',iter + PreviousCycles
+                            VaryShiftCycles(run) = VaryShiftCycles(run) + 1
+                            SumDiagSft(run) = SumDiagSft(run) + DiagSft(run)
+                            AvDiagSft(run) = SumDiagSft(run) / real(VaryShiftCycles(run), dp)                            
                         endif
                     else
-                        if(tShiftonHFPop) then
-                            !Calculate the shift required to keep the HF population constant
+                        !Keep shift equal to input till target reference population is reached.
+                        DiagSft(run) = InputDiagSft(run)
+                    end if
 
-                            AllHFGrowRate(run) = abs(AllHFCyc(run)/real(StepsSft,dp)) / abs(OldAllHFCyc(run))
+                else if(tFixTrial(run))then
+                        !Use the trial energy as the shift to fix the
+                        !overlap with trial wavefunction and thus reduce the
+                        !fluctuations of the trial energy.
 
-                            DiagSft(run) = DiagSft(run) - (log(AllHFGrowRate(run)) * SftDamp) / &
-                                                (Tau * StepsSft)
-                        else
-                            !"WRITE(6,*) "AllGrowRate, TargetGrowRate", AllGrowRate, TargetGrowRate
-                            DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)) * SftDamp) / &
-                                                (Tau * StepsSft)
+                        !ToDo: Make DiafSft complex
+                        DiagSft(run) = (tot_trial_numerator(run) / tot_trial_denom(run))-Hii
+
+                        ! Update the shift averages
+                        if ((iter - VaryShiftIter(run)) >= nShiftEquilSteps) then
+                            if ((iter-VaryShiftIter(run)-nShiftEquilSteps) < StepsSft) &
+                                write (iout, '(a,i14)') 'Beginning to average shift value on iteration: ',iter + PreviousCycles
+                            VaryShiftCycles(run) = VaryShiftCycles(run) + 1
+                            SumDiagSft(run) = SumDiagSft(run) + DiagSft(run)
+                            AvDiagSft(run) = SumDiagSft(run) / real(VaryShiftCycles(run), dp)
                         endif
-                    endif
+
+                else !not Fixed-N0 and not Trial-Shift
+                    if (TSinglePartPhase(run)) then
+                        tot_walkers = InitWalkers * int(nNodes,int64)
 
 #ifdef __CMPLX
-                    DiagSftRe(run) = DiagSftRe(run) - (log(AllGrowRateRe(run)-TargetGrowRate(run)) * SftDamp) / &
-                                                (Tau * StepsSft)
-                    DiagSftIm(run) = DiagSftIm(run) - (log(AllGrowRateIm(run)-TargetGrowRate(run)) * SftDamp) / &
-                                                (Tau * StepsSft)
+                        if ((sum(AllTotParts(lb:ub)) > tot_walkers) .or. &
+                             (abs_sign(AllNoatHF(lb:ub)) > MaxNoatHF)) then
+        !                     WRITE(iout,*) "AllTotParts: ",AllTotParts(1),AllTotParts(2),tot_walkers
+                            write (iout, '(a,i13,a)') 'Exiting the single particle growth phase on iteration: ',iter + PreviousCycles, &
+                                         ' - Shift can now change'
+                            VaryShiftIter(run) = Iter
+                            iBlockingIter(run) = Iter + PreviousCycles
+                            tSinglePartPhase(run) = .false.
+                            ! [W.D.15.5.2017:]
+                            ! we should remove these equal 0 comparisons..
+    !                         if(TargetGrowRate(run).ne.0.0_dp) then
+                            if(abs(TargetGrowRate(run)) > EPS) then
+                                write(iout,"(A)") "Setting target growth rate to 1."
+                                TargetGrowRate=0.0_dp
+                            endif
+
+                            ! If enabled, jump the shift to the value preducted by the
+                            ! projected energy!
+                            if (tJumpShift) then
+                                DiagSft(run) = real(proje_iter(run),dp)
+                                defer_update(run) = .true.
+                            end if
+                        endif
+#else
+                        start_varying_shift = .false.
+                        if (tLetInitialPopDie) then
+                            if (AllTotParts(run) < tot_walkers) start_varying_shift = .true.
+                        else
+                            if ((AllTotParts(run) > tot_walkers) .or. &
+                                 (abs(AllNoatHF(run)) > MaxNoatHF)) start_varying_shift = .true.
+                        end if
+
+                        if (start_varying_shift) then
+        !                     WRITE(iout,*) "AllTotParts: ",AllTotParts(1),AllTotParts(2),tot_walkers
+                            write (iout, '(a,i13,a,i1)') 'Exiting the single particle growth phase on iteration: ' &
+                                         ,iter + PreviousCycles, ' - Shift can now change for population', run
+                            VaryShiftIter(run) = Iter
+                            iBlockingIter(run) = Iter + PreviousCycles
+                            tSinglePartPhase(run) = .false.
+                            ! [W.D. 15.5.2017]
+                            ! change equal 0 comps
+    !                         if(TargetGrowRate(run).ne.0.0_dp) then
+                            if(abs(TargetGrowRate(run)) > EPS) then
+                                write(iout,"(A)") "Setting target growth rate to 1."
+                                TargetGrowRate(run)=0.0_dp
+                            endif
+
+                            ! If enabled, jump the shift to the value preducted by the
+                            ! projected energy!
+                            if (tJumpShift) then
+                                DiagSft(run) = real(proje_iter(run),dp)
+                                defer_update(run) = .true.
+                            end if
+                        endif
 #endif
+                    else ! .not.tSinglePartPhase(run)
 
-                    ! Update the shift averages
-                    if ((iter - VaryShiftIter(run)) >= nShiftEquilSteps) then
-                        if ((iter-VaryShiftIter(run)-nShiftEquilSteps) < StepsSft) &
-                            write (iout, '(a,i14)') 'Beginning to average shift value on iteration: ',iter + PreviousCycles
-                        VaryShiftCycles(run) = VaryShiftCycles(run) + 1
-                        SumDiagSft(run) = SumDiagSft(run) + DiagSft(run)
-                        AvDiagSft(run) = SumDiagSft(run) / real(VaryShiftCycles(run), dp)
+#ifdef __CMPLX
+                        if (abs_sign(AllNoatHF(lb:ub)) < MaxNoatHF-HFPopThresh) then
+#else
+                        if (abs(AllNoatHF(run)) < MaxNoatHF-HFPopThresh) then
+#endif
+                            write (iout, '(a,i13,a)') 'No at HF has fallen too low - reentering the &
+                                         &single particle growth phase on iteration',iter + PreviousCycles,' - particle number &
+                                         &may grow again.'
+                            tSinglePartPhase(run) = .true.
+                            tReZeroShift(run) = .true.
+                        endif
+
+                    endif ! tSinglePartPhase(run) or not
+
+                    ! How should the shift change for the entire ensemble of walkers 
+                    ! over all processors.
+                    if (((.not. tSinglePartPhase(run)).or.(TargetGrowRate(run).ne.0.0_dp)) .and.&
+                        .not. defer_update(run)) then
+
+                        !In case we want to continue growing, TargetGrowRate > 0.0_dp
+                        ! New shift value
+    !                     if(TargetGrowRate(run).ne.0.0_dp) then
+                        ! [W.D. 15.5.2017]
+                        if(abs(TargetGrowRate(run)) > EPS) then
+#ifdef __CMPLX
+                            if(sum(AllTotParts(lb:ub)).gt.TargetGrowRateWalk(run)) then
+#else
+                            if(AllTotParts(run).gt.TargetGrowRateWalk(run)) then
+#endif
+                                !Only allow targetgrowrate to kick in once we have > TargetGrowRateWalk walkers.
+                                DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)-TargetGrowRate(run)) * SftDamp) / &
+                                                    (Tau * StepsSft)
+                                ! Same for the info shifts for complex walkers
+#ifdef __CMPLX
+                        DiagSftRe(run) = DiagSftRe(run) - (log(AllGrowRateRe(run)-TargetGrowRate(run)) * SftDamp) / &
+                                                    (Tau * StepsSft)
+                        DiagSftIm(run) = DiagSftIm(run) - (log(AllGrowRateIm(run)-TargetGrowRate(run)) * SftDamp) / &
+                                                    (Tau * StepsSft)
+#endif
+                            endif
+                        else
+                            if(tShiftonHFPop) then
+                                !Calculate the shift required to keep the HF population constant
+
+                                AllHFGrowRate(run) = abs(AllHFCyc(run)/real(StepsSft,dp)) / abs(OldAllHFCyc(run))
+
+                                DiagSft(run) = DiagSft(run) - (log(AllHFGrowRate(run)) * SftDamp) / &
+                                                    (Tau * StepsSft)
+                            else
+                                !"WRITE(6,*) "AllGrowRate, TargetGrowRate", AllGrowRate, TargetGrowRate
+                                DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)) * SftDamp) / &
+                                                    (Tau * StepsSft)
+                            endif
+                        endif
+
+                        ! Update the shift averages
+                        if ((iter - VaryShiftIter(run)) >= nShiftEquilSteps) then
+                            if ((iter-VaryShiftIter(run)-nShiftEquilSteps) < StepsSft) &
+                                write (iout, '(a,i14)') 'Beginning to average shift value on iteration: ',iter + PreviousCycles
+                            VaryShiftCycles(run) = VaryShiftCycles(run) + 1
+                            SumDiagSft(run) = SumDiagSft(run) + DiagSft(run)
+                            AvDiagSft(run) = SumDiagSft(run) / real(VaryShiftCycles(run), dp)
+                        endif
+
+        !                ! Update DiagSftAbort for initiator algorithm
+        !                if (tTruncInitiator) then
+        !                    DiagSftAbort = DiagSftAbort - &
+        !                              (log(real(AllGrowRateAbort-TargetGrowRate, dp)) * SftDamp) / &
+        !                              (Tau * StepsSft)
+        !
+        !                    if (iter - VaryShiftIter >= nShiftEquilSteps) then
+        !                        SumDiagSftAbort = SumDiagSftAbort + DiagSftAbort
+        !                        AvDiagSftAbort = SumDiagSftAbort / &
+        !                                         real(VaryShiftCycles, dp)
+        !                    endif
+        !                endif
                     endif
-
-    !                ! Update DiagSftAbort for initiator algorithm
-    !                if (tTruncInitiator) then
-    !                    DiagSftAbort = DiagSftAbort - &
-    !                              (log(real(AllGrowRateAbort-TargetGrowRate, dp)) * SftDamp) / &
-    !                              (Tau * StepsSft)
-    !
-    !                    if (iter - VaryShiftIter >= nShiftEquilSteps) then
-    !                        SumDiagSftAbort = SumDiagSftAbort + DiagSftAbort
-    !                        AvDiagSftAbort = SumDiagSftAbort / &
-    !                                         real(VaryShiftCycles, dp)
-    !                    endif
-    !                endif
-                endif
+            end if !tFixedN0 or not
+                ! only update the shift this way if possible
+                if(abs_sign(AllNoatHF(lb:ub)) > EPS) then
 #ifdef __CMPLX
                 ! Calculate the instantaneous 'shift' from the HF population
                 HFShift(run) = -1.0_dp / abs_sign(AllNoatHF(lb:ub)) * &
@@ -887,6 +1015,7 @@ contains
                             ((AllTotParts(run) - AllTotPartsOld(run)) / &
                              (Tau * real(StepsSft, dp)))
 #endif
+             endif
 
                  ! When using a linear combination, the denominator is summed
                  ! directly.
@@ -894,21 +1023,18 @@ contains
                  all_cyc_proje_denominator(run) = AllHFCyc(run)
 
                  ! Calculate the projected energy.
-#ifdef __CMPLX
-                ! [W.D. 15.5.2017:]
-!                  if (any(AllSumNoatHF(lb:ub) /= 0.0_dp)) then
-                 if (any(abs(AllSumNoatHF(lb:ub)) > EPS)) then
-#else
-!                  if ((AllSumNoatHF(run) /= 0.0_dp)) then
-                 if (abs(AllSumNoatHF(run)) > EPS) then
-#endif
-                         ProjectionE(run) = (AllSumENum(run)) / (all_sum_proje_denominator(run)) &
-                                          + proje_ref_energy_offsets(run)
-                         proje_iter(run) = (AllENumCyc(run)) / (all_cyc_proje_denominator(run)) &
-                                         + proje_ref_energy_offsets(run)
-                        AbsProjE(run) = (AllENumCycAbs(run)) / (all_cyc_proje_denominator(run)) &
-                                      + proje_ref_energy_offsets(run)
-                endif
+
+                 if ((AllSumNoatHF(run) /= 0.0_dp)) then
+                    ProjectionE(run) = (AllSumENum(run)) / (all_sum_proje_denominator(run)) &
+                         + proje_ref_energy_offsets(run)
+                 endif
+                 if (abs(AllHFCyc(run)) > EPS) then
+                    proje_iter(run) = (AllENumCyc(run)) / (all_cyc_proje_denominator(run)) &
+                         + proje_ref_energy_offsets(run)
+                    AbsProjE(run) = (AllENumCycAbs(run)) / (all_cyc_proje_denominator(run)) &
+                         + proje_ref_energy_offsets(run)
+                 endif
+
                 ! If we are re-zeroing the shift
                 if (tReZeroShift(run)) then
                     DiagSft(run) = 0.0_dp
@@ -919,10 +1045,14 @@ contains
             enddo
 
             ! Get some totalled values
-            projectionE_tot = sum(AllSumENum(1:inum_runs)) &
-                            / sum(all_sum_proje_denominator(1:inum_runs))
-            proje_iter_tot = sum(AllENumCyc(1:inum_runs)) &
-                           / sum(all_cyc_proje_denominator(1:inum_runs))
+            if(abs(sum(all_sum_proje_denominator(1:inum_runs))) > EPS) then
+               projectionE_tot = sum(AllSumENum(1:inum_runs)) &
+                    / sum(all_sum_proje_denominator(1:inum_runs))
+            endif
+            if(abs(sum(all_cyc_proje_denominator(1:inum_runs))) > EPS) then
+               proje_iter_tot = sum(AllENumCyc(1:inum_runs)) &
+                    / sum(all_cyc_proje_denominator(1:inum_runs))
+            endif
 
         endif ! iProcIndex == root
 
@@ -930,7 +1060,12 @@ contains
         call MPIBcast (tSinglePartPhase)
         call MPIBcast (VaryShiftIter)
         call MPIBcast (DiagSft)
-        
+        call MPIBcast (tSkipRef)
+        call MPIBcast (tFixTrial)
+        call MPIBcast (VaryShiftCycles)
+        call MPIBcast (SumDiagSft)
+        call MPIBcast (AvDiagSft)
+
         do run=1,inum_runs
             if(.not.tSinglePartPhase(run)) then
                 TargetGrowRate(run)=0.0_dp
@@ -978,6 +1113,8 @@ contains
         AllTotPartsOld = AllTotParts
         AllNoAbortedOld = AllNoAborted
 
+        ! and the norm
+        old_norm_psi = norm_psi
 
         ! Reset the counters
         iter_data%update_growth = 0.0_dp
@@ -988,6 +1125,12 @@ contains
 
         cont_spawn_attempts = 0
         cont_spawn_success = 0
+
+        ! reset the number of conflicts
+        ConflictExLvl = 0
+
+        ! reset the truncated weight
+        truncatedWeight = 0.0_dp
 
     end subroutine rezero_iter_stats_update_cycle
 
@@ -1026,5 +1169,126 @@ contains
         iter_data%update_iters = iter_data%update_iters + 1
 
     end subroutine update_iter_data
+
+    
+
+    !Fix the overlap with trial wavefunction by enforcing the value of a random determinant of the trial space
+    !As long as the shift equals the trial energy, this should still give the right dynamics.
+    subroutine fix_trial_overlap(iter_data)
+        use util_mod, only: binary_search_first_ge
+        type(fcimc_iter_data), intent(inout) :: iter_data
+
+        HElement_t(dp), dimension(inum_runs) :: new_trial_denom, new_tot_trial_denom
+        real(dp), dimension(lenof_sign) :: trial_delta, SignCurr, newSignCurr
+        integer :: j, rand, det_idx, proc_idx, run, part_type, lbnd, ubnd,err
+        integer :: trial_count, trial_indices(tot_trial_space_size)
+        real(dp) :: amps(tot_trial_space_size), total_amp, total_amps(nProcessors)
+        logical :: tIsStateDeterm
+
+#ifdef __CMPLX
+        call stop_all("fix_trial_overlap", "Complex wavefunction is not supported yet!")
+#else
+
+        !Calculate the new overlap
+        new_trial_denom = 0.0
+        new_tot_trial_denom = 0.0
+
+        trial_count = 0
+        total_amp = 0.0
+        do j = 1, int(TotWalkers,sizeof_int)
+            call extract_sign (CurrentDets(:,j), SignCurr)
+            if (.not. IsUnoccDet(SignCurr) .and. test_flag(CurrentDets(:,j), flag_trial)) then
+                trial_count = trial_count + 1
+                trial_indices(trial_count) = j 
+                amps(trial_count) = abs(current_trial_amps(1,j))
+                total_amp = total_amp + amps(trial_count)
+                !Update the overlap
+                if (ntrial_excits == 1) then
+                    new_trial_denom = new_trial_denom + current_trial_amps(1,j)*SignCurr
+                else if (tReplicaReferencesDiffer.and. tPairedReplicas) then
+                    do run = 2, inum_runs, 2
+                        new_trial_denom(run-1:run) = new_trial_denom(run-1:run) + current_trial_amps(run/2,j)*SignCurr(run-1:run)
+                    end do
+                else if (ntrial_excits == lenof_sign) then
+                    new_trial_denom = new_trial_denom + current_trial_amps(:,j)*SignCurr
+                end if
+            end if
+        end do
+
+        !Collecte overlaps from call processors
+        call MPIAllReduce(new_trial_denom,MPI_SUM,new_tot_trial_denom)
+
+        !Choose a random processor propotioanl to the sum of amplitudes of its trial space
+        call MPIGather(total_amp, total_amps, err)
+        if(iProcIndex .eq. root) then
+            !write(6,*) "total_amps: ", total_amps
+            do j=2, nProcessors
+                total_amps(j) = total_amps(j)+total_amps(j-1)
+            end do
+            proc_idx = binary_search_first_ge(total_amps, genrand_real2_dSFMT() * total_amps(nProcessors))-1
+        end if
+        call MPIBCast(proc_idx)
+
+
+        !write(6,*) "proc_idx", proc_idx
+        !write(6,*) "total_count: ", trial_count
+        !write(6,*) "amps: ", amps(1:trial_count)
+        !Enforcing an update of the random determinant of the random processor
+        if(iProcIndex .eq. proc_idx) then
+            !Choose a random determinant
+            do j=2, trial_count 
+                amps(j) = amps(j)+amps(j-1)
+            end do
+            det_idx = trial_indices(binary_search_first_ge(amps(1:trial_count), genrand_real2_dSFMT() * amps(trial_count)))
+            do part_type = 1, lenof_sign
+                run = part_type_to_run(part_type)
+                if(tFixTrial(run))then
+                    trial_delta(part_type) = (tot_trial_denom(run)-new_tot_trial_denom(run))/current_trial_amps(part_type,det_idx)
+                else
+                    trial_delta(part_type) = 0.0
+                end if
+            end do
+
+            call extract_sign (CurrentDets(:,det_idx), SignCurr)
+            newSignCurr = SignCurr+trial_delta
+            call encode_sign (CurrentDets(:,det_idx), newSignCurr)
+
+            !Correct statistics filled by CalcHashTableStats
+            iter_data%ndied = iter_data%ndied + abs(SignCurr)
+            iter_data%nborn = iter_data%nborn + abs(newSignCurr)
+            TotParts = TotParts + abs(newSignCurr) - abs(SignCurr)
+
+            tIsStateDeterm = .False.
+            if (tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,det_idx), flag_deterministic)
+
+            norm_psi_squared = norm_psi_squared + (newSignCurr)**2 - SignCurr**2
+            if (tIsStateDeterm) norm_semistoch_squared = norm_semistoch_squared + (newSignCurr)**2 - SignCurr**2
+
+            if (tCheckHighestPop) then
+                do run = 1, inum_runs
+                    lbnd = min_part_type(run)
+                    ubnd = max_part_type(run)
+                    if (abs_sign(newSignCurr(lbnd:ubnd)) > iHighestPop(run)) then
+                        iHighestPop(run) = int(abs_sign(newSignCurr(lbnd:ubnd)))
+                        HighestPopDet(:,run)=CurrentDets(:,det_idx)
+                    end if
+                end do
+            end if
+            if (tFillingStochRDMonFly) then
+                if (IsUnoccDet(newSignCurr) .and. (.not. tIsStateDeterm)) then
+                    if (DetBitEQ(CurrentDets(:,det_idx), iLutHF_True, NIfDBO)) then
+                        AvNoAtHF = 0.0_dp
+                        IterRDM_HF = Iter + 1
+                    end if
+                end if
+            end if
+
+            if (DetBitEQ(CurrentDets(:,det_idx), iLutHF_True, NIfDBO)) then
+                InstNoAtHF=newSignCurr
+            end if
+        end if
+
+#endif
+    end subroutine fix_trial_overlap
 
 end module fcimc_iter_utils

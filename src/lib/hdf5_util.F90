@@ -17,6 +17,7 @@ module hdf5_util
     use constants
     use util_mod
     use hdf5
+    use ParallelHelper
     implicit none
 
     interface read_int32_attribute
@@ -53,6 +54,8 @@ module hdf5_util
         module procedure read_int64_scalar_4
         module procedure read_int64_scalar_8
     end interface
+
+    integer :: tmp_lenof_sign
 
 contains
 
@@ -226,7 +229,7 @@ contains
         call h5screate_f(H5S_SCALAR_F, dataspace, err)
         call h5dcreate_f(parent, nm, H5T_NATIVE_REAL_8, dataspace, &
                          dataset, err)
-        call h5dwrite_f(dataset, H5T_NATIVE_REAL_8, val, [1_hsize_t], err)
+        if(iProcIndex.eq.0) call h5dwrite_f(dataset, H5T_NATIVE_REAL_8, val, [1_hsize_t], err)
         call h5dclose_f(dataset, err)
         call h5sclose_f(dataspace, err)
 
@@ -288,7 +291,7 @@ contains
         call h5screate_f(H5S_SCALAR_F, dataspace, err)
         call h5dcreate_f(parent, nm, H5T_NATIVE_INTEGER_4, dataspace, &
                          dataset, err)
-        call h5dwrite_f(dataset, H5T_NATIVE_INTEGER_4, tmp, [1_hsize_t], err)
+        if(iProcIndex.eq.0) call h5dwrite_f(dataset, H5T_NATIVE_INTEGER_4, tmp, [1_hsize_t], err)
         call h5dclose_f(dataset, err)
         call h5sclose_f(dataspace, err)
 
@@ -386,7 +389,7 @@ contains
         call h5dcreate_f(parent, nm, H5T_NATIVE_INTEGER_8, dataspace, &
                          dataset, err)
         call ptr_abuse_scalar(val, ptr)
-        call h5dwrite_f(dataset, H5T_NATIVE_INTEGER_8, ptr, [1_hsize_t], err)
+        if(iProcIndex.eq.0) call h5dwrite_f(dataset, H5T_NATIVE_INTEGER_8, ptr, [1_hsize_t], err)
         call h5dclose_f(dataset, err)
         call h5sclose_f(dataspace, err)
 
@@ -482,7 +485,7 @@ contains
 
         ! write the data
         call ptr_abuse_1d(val, ptr)
-        call h5dwrite_f(dataset, H5T_NATIVE_INTEGER_8, ptr, dims, err)
+        if(iProcIndex.eq.0) call h5dwrite_f(dataset, H5T_NATIVE_INTEGER_8, ptr, dims, err)
 
         ! Close the residual handles
         call h5dclose_f(dataset, err)
@@ -520,7 +523,7 @@ contains
                          dataset, err)
 
         ! write the data
-        call h5dwrite_f(dataset, H5T_NATIVE_REAL_8, val, dims, err)
+        if(iProcIndex.eq.0) call h5dwrite_f(dataset, H5T_NATIVE_REAL_8, val, dims, err)
 
         ! Close the residual handles
         call h5dclose_f(dataset, err)
@@ -541,21 +544,30 @@ contains
         integer(hid_t) :: dataset, err, type_id
         integer(hsize_t) :: dims(1)
         logical(hid_t) :: exists_
+        real(dp), allocatable :: buf(:)
 
         call h5lexists_f(parent, nm, exists_, err)
         if (exists_) then
             call h5dopen_f(parent, nm, dataset, err)
             call h5dget_type_f(dataset, type_id, err)
 
+            ! set up the read-buffer: We might need to add/remove replicas
+            call setup_dp_1d_dataset_buffer(buf,val)
+
             ! Check dimensions and types.
-            dims = [size(val)]
+            dims = [size(buf)]
+            ! check versus the input, not the calculation's parameters
             call check_dataset_params(dataset, nm, 8_hsize_t, H5T_FLOAT_F, dims)
 
             ! And actually read the data.
-            call h5dread_f(dataset, type_id, val, dims, err)
+            call h5dread_f(dataset, type_id, buf, dims, err)
 
+            ! and move the data to val
+            call move_dp_1d_dataset_buffer(val,buf)
+            
             call h5tclose_f(type_id, err)
             call h5dclose_f(dataset, err)
+
         end if
 
         if (present(required)) then
@@ -568,6 +580,62 @@ contains
         if (present(default) .and. .not. exists_) val = default
 
     end subroutine read_dp_1d_dataset
+
+    subroutine setup_dp_1d_dataset_buffer(buf,val)
+      ! allocate a buffer for reading dp_1d_datasets
+      implicit none
+      real(dp), allocatable, intent(out) :: buf(:)
+      real(dp), target, intent(in) :: val(:)
+      
+      integer :: dims, ierr
+
+      dims = size(val)
+      ! if we change the number of replicas, we have to be careful
+      if(lenof_sign /= tmp_lenof_sign) then
+         if(dims .eq. lenof_sign) then
+            allocate(buf(tmp_lenof_sign), stat = ierr)
+         endif
+      else
+         ! else, the buffer is not very interesting
+         allocate(buf(dims))
+      endif
+    end subroutine setup_dp_1d_dataset_buffer
+
+    subroutine move_dp_1d_dataset_buffer(val,buf)
+      ! moves the data from buf to val, eventually truncating/expanding it
+      ! deallocates buf
+      implicit none
+      real(dp), allocatable, intent(inout) :: buf(:)
+      real(dp), target, intent(inout) :: val(:)
+      
+      integer dimsVal, dimsBuf, ierr
+
+      ! if buf is unallocated, this is not going anywhere
+      if(.not. allocated(buf)) then
+         write(iout,*) "WARNING: Trying to move data from empty buffer"
+         return
+      endif
+      
+      ! we need to check if the buffer can be copied 1:1
+      dimsVal = size(val)
+      dimsBuf = size(buf)
+      if(dimsVal .eq. dimsBuf) then
+         val(:) = buf(:)
+      else
+         ! now it depends if val is larger or smaller than buf
+         if(dimsVal < dimsBuf) then
+            ! depending, we either omit the last entries
+            val(1:dimsVal) = buf(1:dimsBuf)
+         else
+            ! or copy the last one
+            val(1:dimsBuf) = buf(1:dimsBuf)
+            val(dimsBuf+1:dimsVal) = buf(dimsBuf)
+         endif
+      endif
+
+      deallocate(buf)
+      
+    end subroutine move_dp_1d_dataset_buffer
 
     subroutine h5t_complex_t(dtype)
 
@@ -603,7 +671,7 @@ contains
 
         ! write the data
         call ptr_abuse_1d(val, ptr)
-        call h5dwrite_f(dataset, dtype, ptr, dims, err)
+        if(iProcIndex.eq.0) call h5dwrite_f(dataset, dtype, ptr, dims, err)
 
         ! Close the residual handles
         call h5tclose_f(dtype, err)
@@ -656,8 +724,9 @@ contains
 
     end subroutine read_cplx_1d_dataset
 
-    subroutine write_2d_multi_arr_chunk_offset( &
-                       parent, nm, itype, cptr, arr_dims, mem_dims, mem_offset, &
+
+   subroutine write_2d_multi_arr_chunk_buff( &
+                       parent, nm, itype, arr, arr_dims, mem_dims, mem_offset, &
                        dataspace_dims, dataspace_offset)
 
         ! Write a chunk of memory from each of the MPI processes into the
@@ -674,49 +743,80 @@ contains
 
         integer(hid_t), intent(in) :: parent, itype
         character(*), intent(in) :: nm
-        type(c_ptr), intent(in) :: cptr
+        integer(hsize_t) :: arr(1:,1:)
         integer(hsize_t), intent(in) :: arr_dims(2)
         integer(hsize_t), intent(in) :: mem_dims(2), mem_offset(2)
         integer(hsize_t), intent(in) :: dataspace_dims(2), dataspace_offset(2)
 
-        integer(hsize_t) :: dims(2)
+        integer(hsize_t) :: buff_dims(2)
         integer(hid_t) :: memspace, dataspace, dataset, plist_id, err
+        integer(hsize_t), dimension(:,:), allocatable :: arr_buff
+        integer(hsize_t) :: block_start, block_end, block_size, this_block_size
+        type(c_ptr) :: cptr
         integer(int32), pointer :: ptr(:)
-
-        ! Create the source (memory) dataspace, and select the appropriate
-        ! hyperslab inside it
-        call h5screate_simple_f(2_hid_t, arr_dims, memspace, err)
-        call h5sselect_hyperslab_f(memspace, H5S_SELECT_SET_F, mem_offset, &
-                                   mem_dims, err)
+        integer:: arr_buff_tag, ierr
 
         ! Create an array in the target file with the size of the total amount
         ! to be written out, across the processors
         call h5screate_simple_f(2_hid_t, dataspace_dims, dataspace, err)
-        call h5sselect_hyperslab_f(dataspace, H5S_SELECT_SET_F, &
-                                   dataspace_offset, mem_dims, err)
 
-        ! Create a property list to do multi-process collective writes
-        ! TODO: Do we want MPIO_COLLECTIVE or MPIO_INDEPENDENT?
+        ! Create a property list to do multi-process writes
         call h5pcreate_f(H5P_DATASET_XFER_F, plist_id, err)
-        call h5pset_dxpl_mpio_f(plist_id, H5FD_MPIO_COLLECTIVE_F, err)
+        call h5pset_dxpl_mpio_f(plist_id, H5FD_MPIO_INDEPENDENT_F, err)
 
         ! Create the dataset with the correct type
         call h5dcreate_f(parent, nm, itype, dataspace, dataset, err)
 
-        ! Get access to a pointer to the array that will always be considered
-        ! to have a valid type by the HDF5 library. For some reason the
-        ! 64-bit, 2d array is not always given an interface...
-        call c_f_pointer(cptr, ptr, [1])
+        !we use our own, contiguous buffers and independent MPI-IO to improve scaling
+        !limit buffer size to 50 MB per task
+        block_size=50000000/sizeof(arr(1,1))/mem_dims(1)
+        block_size=min(block_size,mem_dims(2))
 
-        call h5dwrite_f(dataset, itype, ptr, arr_dims, err, memspace, &
-                        dataspace, xfer_prp=plist_id)
+        buff_dims=[mem_dims(1), block_size]
+
+        ! Create the source (memory) dataspace
+        call h5screate_simple_f(2_hid_t, buff_dims, memspace, err)
+
+        allocate(arr_buff(mem_dims(1),block_size),stat = ierr)
+        if(block_size.gt.0) &
+             call LogMemAlloc('arr_buff',size(arr_buff),sizeof(arr_buff(1,1)),&
+             'write_2d_multi',arr_buff_tag,ierr)
+        block_start=1
+        block_end=min(block_start+block_size-1,mem_dims(2))
+        this_block_size=block_end-block_start+1
+        do while (this_block_size.gt.0)
+           arr_buff(:,1:this_block_size)=&
+                arr(1+mem_offset(1):mem_offset(1)+mem_dims(1),block_start+mem_offset(2):block_end+mem_offset(2))
+
+           !the last block might be smaller than block_size
+           if (this_block_size.lt.block_size) call h5sselect_hyperslab_f(memspace, &
+                H5S_SELECT_SET_F, [0_hsize_t,0_hsize_t], [buff_dims(1),this_block_size], err)
+
+           call h5sselect_hyperslab_f(dataspace, H5S_SELECT_SET_F, &
+                [dataspace_offset(1),dataspace_offset(2)+block_start-1], [buff_dims(1),this_block_size], err)
+           
+           ! Get access to a pointer to the array that will always be considered
+           ! to have a valid type by the HDF5 library. For some reason the
+           ! 64-bit, 2d array is not always given an interface...
+           cptr=arr_2d_ptr(arr_buff)
+           call c_f_pointer(cptr, ptr, [1])
+           call h5dwrite_f(dataset, itype, ptr, buff_dims, err, memspace, &
+                dataspace, xfer_prp=plist_id)
+           block_start=block_start+block_size
+           block_end=min(block_start+block_size-1,mem_dims(2))
+           this_block_size=block_end-block_start+1
+        end do
+
+        deallocate(arr_buff)
+        if(block_size.gt.0) call LogMemDealloc('write_2d_multi',arr_buff_tag)
 
         call h5dclose_f(dataset, err)
         call h5pclose_f(plist_id, err)
         call h5sclose_f(dataspace, err)
         call h5sclose_f(memspace, err)
 
-    end subroutine write_2d_multi_arr_chunk_offset
+    end subroutine write_2d_multi_arr_chunk_buff
+
 
     subroutine read_2d_multi_chunk(dataset, val, itype, dims, src_offset, &
                                    tgt_offset)
@@ -731,10 +831,14 @@ contains
         integer(hsize_t) :: mem_dims(2)
         integer(int32), pointer :: ptr(:,:)
 
-        ! Create a property list to do multi-process collective reads
-        ! TODO: Do we want MPIO_COLLECTIVE or MPIO_INDEPENDENT?
+        ! Create a property list to do multi-process reads
         call h5pcreate_f(H5P_DATASET_XFER_F, plist_id, err)
-        call h5pset_dxpl_mpio_f(plist_id, H5FD_MPIO_COLLECTIVE_F, err)
+        ! We use independent reads to contiguous buffers, which is the most 
+        ! reliable/scalable option. We use explicit buffering because there 
+        ! is a massive performance problem when writing directly to a 
+        ! (non-contiguous) hyperslab in SpawnedParts. Buffering by collective
+        ! MPI-IO can create performance and memory problems for large task counts
+        call h5pset_dxpl_mpio_f(plist_id, H5FD_MPIO_INDEPENDENT_F, err)
 
         ! Create the target (memory) dataspace, and select the appropriate
         ! hyperslab inside it.

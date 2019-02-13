@@ -33,6 +33,7 @@ MODULE System
 !     specifying a new set of DEFAULTS.
       tReltvy = .false.
       tComplexOrbs_RealInts = .false.
+      tComplexWalkers_RealInts = .false.
       tReadFreeFormat=.true.
       tMolproMimic=.false.
       tNoSingExcits=.false.
@@ -105,6 +106,7 @@ MODULE System
       tUEGOffset = .false.
       TTILT = .false.
       TALPHA = .false.
+      ALPHA = 0.0_dp
       ISTATE = 1
       OrbECutoff=1e20_dp
       tOrbECutoff=.false.
@@ -195,8 +197,8 @@ MODULE System
       ENDIF
 
 ! Coulomb damping function currently removed.
-!      FCOULDAMPBETA=-1.0_dp
-!      COULDAMPORB=0
+      FCOULDAMPBETA=-1.0_dp
+      COULDAMPORB=0
         
     end subroutine SetSysDefaults
 
@@ -1037,6 +1039,10 @@ system: do
             !We have complex orbitals, but real integrals. This means that we only have 4x permutational symmetry,
             !so we need to check the (momentum) symmetry before we look up any integrals
             tComplexOrbs_RealInts = .true.
+            
+         case("COMPLEXWALKERS-REALINTS")
+            ! We have real orbitals and integrals, but the walker weights are complex
+            tComplexWalkers_RealInts = .true.
 
         case("SYSTEM-REPLICAS")
             ! How many copies of the simulation do we want to run in parallel?
