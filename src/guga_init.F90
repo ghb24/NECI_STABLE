@@ -85,13 +85,12 @@ contains
 
             pickOrbitals_single => pickOrbs_sym_uniform_mol_single
             pickOrbitals_double => pickOrbs_sym_uniform_mol_double
-            calc_mixed_contr => calc_mixed_contr_sym
             calc_orbital_pgen_contr => calc_orbital_pgen_contr_mol
             calc_mixed_start_l2r_contr => calc_mixed_start_contr_sym
             calc_mixed_start_r2l_contr => calc_mixed_start_contr_sym
             calc_mixed_end_l2r_contr => calc_mixed_end_contr_sym
             calc_mixed_end_r2l_contr => calc_mixed_end_contr_sym
-
+            calc_mixed_contr => calc_mixed_contr_sym
 
         else if (tGen_nosym_guga) then
             pickOrbitals_single => pickOrbitals_nosym_single

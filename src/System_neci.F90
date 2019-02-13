@@ -1269,6 +1269,55 @@ system: do
                             end select
                         end if
 
+                    case ('GUGA-APPROX-EXCHANGE')
+                        ! in this case I force an exchange at the 
+                        ! chosen indices of exchange type and 3-ind 
+                        ! excitations to reduce the complexity of the 
+                        ! algorithm
+                        tGen_sym_guga_mol = .true.
+                        tgen_guga_weighted = .true.
+                        t_approx_exchange = .true.
+
+                        if (item < nitems) then 
+                            call readu(w)
+                            select case (w)
+                            case ('NON-INITS')
+                                ! only do the approx. for noninits
+                                t_approx_exchange = .false.
+                                t_approx_exchange_noninits = .true.
+
+                            end select
+                        end if
+
+                    case ('GUGA-CRUDE-EXCHANGE')
+                        ! calculate exchange type excitation like 
+                        ! determinants.. for all states, initiators and 
+                        ! non-inits (also for 3-index excitation of 
+                        ! mixed type)
+                        tGen_sym_guga_mol = .true.
+                        tgen_guga_weighted = .true.
+                        t_crude_exchange = .true.
+
+                        if (item < nitems) then 
+                            call readu(w)
+
+                            select case (w)
+                            case('NON-INITS')
+                                ! only to the approx. for non-inits
+                                t_crude_exchange = .false.
+                                t_crude_exchange_noninits = .true.
+
+                            end select 
+                        end if
+
+!                     case ('GUGA-EXCHANGE')
+!                         ! only truncate the troublesome exchange excitations
+!                         ! for non-initiators
+!                         tgen_guga_mixed = .true.
+!                         tGen_sym_guga_mol = .true.
+!                         tgen_guga_weighted = .true.
+!                         tgen_guga_exchange = .true.
+
                     case("CYCLETHRUORBS")
                         tCycleOrbs=.true.
                     case("NOSYMGEN")

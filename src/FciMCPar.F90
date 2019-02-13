@@ -1431,6 +1431,12 @@ module FciMCParMod
                 end if
             end if
 
+            if (t_crude_exchange_noninits .or. t_approx_exchange_noninits) then 
+
+                is_init_guga = any_run_is_initiator(CurrentDets(:,j))
+
+            end if
+
             do part_type = 1, lenof_sign
 
                 run = part_type_to_run(part_type)

@@ -268,7 +268,13 @@ logical :: tGen_nosym_guga =    .false., &
            tGen_sym_guga_mol =  .false., &
            tgen_guga_weighted = .false., &
            tgen_guga_crude =    .false., & 
-           tgen_guga_mixed =    .false.
+           tgen_guga_mixed =    .false., &
+           tgen_guga_exchange = .false., &
+           t_approx_exchange =  .false., &
+           t_crude_exchange =   .false., &
+           t_crude_exchange_noninits = .false., &
+           is_init_guga = .false., &
+           t_approx_exchange_noninits = .false.
 
 logical :: t_guga_mixed_init = .true., t_guga_mixed_semi = .false.
 

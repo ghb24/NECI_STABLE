@@ -3885,12 +3885,51 @@ contains
             pgen = orb_pgen * branch_pgen
 
         case (16) ! full-stop lowering into raising
-            call calcFullStopL2R_stochastic(ilut, excitInfo, excitation, pgen, &
-                posSwitches, negSwitches, weights)
+
+            if (t_crude_exchange .or. (t_crude_exchange_noninits .and. (.not. is_init_guga))) then
+                ! in case of "crude" exchange excitation perform a 
+                ! determinant-like excitation without spin-recouplings
+                ! but only for non-inits.. so this information has to 
+                ! be passed in here!
+                call perform_crude_excitation(ilut, excitInfo, excitation, t_comp)
+
+                ! in this case the pgen is just the orbital pgen, as only 
+                ! on CSF can be created from it.. 
+                ! but be sure if the excitation is then actually possible
+                if (.not. t_comp) then
+                    excitation = 0
+                    pgen = 0.0_dp
+                    return
+                else
+                    pgen = orb_pgen
+                end if
+
+            else
+                call calcFullStopL2R_stochastic(ilut, excitInfo, excitation, pgen, &
+                    posSwitches, negSwitches, weights)
+            end if
 
         case (17) ! full-stop raising into lowering
-            call calcFullStopR2L_stochastic(ilut, excitInfo, excitation, pgen, &
-                posSwitches, negSwitches, weights)
+
+            if (t_crude_exchange .or. (t_crude_exchange_noninits .and. (.not. is_init_guga))) then
+                call perform_crude_excitation(ilut, excitInfo, excitation, t_comp)
+
+                ! in this case the pgen is just the orbital pgen, as only 
+                ! on CSF can be created from it.. 
+                ! but be sure if the excitation is then actually possible
+                if (.not. t_comp) then
+                    excitation = 0
+                    pgen = 0.0_dp
+                    return
+                else
+                    pgen = orb_pgen
+                end if
+
+            else
+
+                call calcFullStopR2L_stochastic(ilut, excitInfo, excitation, pgen, &
+                    posSwitches, negSwitches, weights)
+            end if
 
 
         case (18) ! full-start 2 lowering
@@ -3910,12 +3949,50 @@ contains
             pgen = orb_pgen * branch_pgen
 
         case (20) ! full-start lowering into raising
-            call calcFullStartL2R_stochastic(ilut, excitInfo, excitation, pgen, &
-                posSwitches, negSwitches, weights)
+
+            if (t_crude_exchange .or. (t_crude_exchange_noninits .and. (.not. is_init_guga))) then
+                call perform_crude_excitation(ilut, excitInfo, excitation, t_comp)
+
+                ! in this case the pgen is just the orbital pgen, as only 
+                ! on CSF can be created from it.. 
+                ! but be sure if the excitation is then actually possible
+                if (.not. t_comp) then
+                    excitation = 0
+                    pgen = 0.0_dp
+                    return
+                else
+                    pgen = orb_pgen
+                end if
+
+            else
+
+                call calcFullStartL2R_stochastic(ilut, excitInfo, excitation, pgen, &
+                    posSwitches, negSwitches, weights)
+
+            end if
 
         case (21) ! full-start raising into lowering
-            call calcFullStartR2L_stochastic(ilut, excitInfo, excitation, pgen, &
-                posSwitches, negSwitches, weights)
+
+            if (t_crude_exchange .or. (t_crude_exchange_noninits .and. (.not. is_init_guga))) then
+                call perform_crude_excitation(ilut, excitInfo, excitation, t_comp)
+
+                ! in this case the pgen is just the orbital pgen, as only 
+                ! on CSF can be created from it.. 
+                ! but be sure if the excitation is then actually possible
+                if (.not. t_comp) then
+                    excitation = 0
+                    pgen = 0.0_dp
+                    return
+                else
+                    pgen = orb_pgen
+                end if
+
+            else
+
+                call calcFullStartR2L_stochastic(ilut, excitInfo, excitation, pgen, &
+                    posSwitches, negSwitches, weights)
+
+            end if
 
          ! start, case by case how they appear in the documentary
         case (22) ! full-start into full-stop alike
@@ -3968,8 +4045,28 @@ contains
             ! or use the x0 matrix element as a kind of flag... 
             ! since if its 0 it means a switch happended at some point, but 
             ! thats seems a bit inefficient. 
-            call calcFullStartFullStopMixedStochastic(ilut, excitInfo, &
-                excitation, pgen, posSwitches, negSwitches, weights)
+
+            if (t_crude_exchange .or. (t_crude_exchange_noninits .and. (.not. is_init_guga))) then
+                call perform_crude_excitation(ilut, excitInfo, excitation, t_comp)
+
+                ! in this case the pgen is just the orbital pgen, as only 
+                ! on CSF can be created from it.. 
+                ! but be sure if the excitation is then actually possible
+                if (.not. t_comp) then
+                    excitation = 0
+                    pgen = 0.0_dp
+                    return
+                else
+                    pgen = orb_pgen
+                end if
+
+            else
+
+                call calcFullStartFullStopMixedStochastic(ilut, excitInfo, &
+                    excitation, pgen, posSwitches, negSwitches, weights)
+
+            end if
+
 
             ! random notes:
 
@@ -4075,11 +4172,19 @@ contains
         if (present(opt_weight)) then
             weights = opt_weight 
         else
-            weights = init_doubleWeight(ilut, excitInfo%fullEnd)
+            if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
+                weights = init_forced_end_exchange_weight(ilut, excitInfo%fullEnd)
+            else
+                weights = init_doubleWeight(ilut, excitInfo%fullEnd)
+            end if
         end if
 
-        call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitches, &
-            negSwitches, t, branch_pgen)
+        if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
+            call stop_all(this_routine, "todo")
+        else
+            call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitches, &
+                negSwitches, t, branch_pgen)
+        end if
 
         ! set pgen to 0 in case of early exit
         pgen = 0.0_dp
@@ -4119,7 +4224,11 @@ contains
         end if
 
 !         print *, "orig bra pgen", excitInfo%fullStart, excitInfo%fullEnd, branch_pgen
-        call calc_mixed_contr(ilut, t, excitInfo, pgen, integral)
+        if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
+            call calc_mixed_contr_approx(ilut, t, excitInfo, pgen, integral)
+        else
+            call calc_mixed_contr(ilut, t, excitInfo, pgen, integral)
+        end if
   
         if (abs(integral) < EPS) then
             t = 0
@@ -5934,8 +6043,16 @@ contains
         if (present(opt_weight)) then
             weights = opt_weight
         else 
-            weights = init_semiStartWeight(ilut, se, e, negSwitches(se), &
-                posSwitches(se), currentB_ilut(se))
+            if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
+                ! the weights should be the only necessary change to force 
+                ! a switch at the end, as the other branches get 0 weight..
+                weights = init_forced_end_semistart_weight(ilut, se, e, negSwitches(se), &
+                    posSwitches(se), currentB_ilut(se))
+
+            else
+                weights = init_semiStartWeight(ilut, se, e, negSwitches(se), &
+                    posSwitches(se), currentB_ilut(se))
+            end if
         end if
 
         ! create st
@@ -6009,8 +6126,21 @@ contains
             return
         end if
 
-        call calc_mixed_end_l2r_contr(ilut, t, excitInfo, branch_pgen, pgen, &
-            integral)
+!         if (t_approx_exchange) then 
+            ! actually I should provide a new routine, which "just" 
+            ! calculates the matrix element contribution and not 
+            ! the modified pgen, as the spatial orbitals are now fixed
+            ! this could be done in the initialisation, where i just 
+            ! point to a new function, which only calculates the 
+            ! matrix element contribution
+
+        if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
+            call calc_mixed_end_contr_approx(ilut, t, excitInfo, branch_pgen, pgen, &
+                integral)
+        else
+            call calc_mixed_end_l2r_contr(ilut, t, excitInfo, branch_pgen, pgen, &
+                integral)
+        end if
         
         call update_matrix_element(t, (get_umat_el(e,se,st,e) + &
             get_umat_el(se,e,e,st))/2.0_dp + integral, 1)
@@ -6521,8 +6651,13 @@ contains
         if (present(opt_weight)) then 
             weights = opt_weight
         else 
-            weights = init_semiStartWeight(ilut, se, en, negSwitches(se), &
-                posSwitches(se), currentB_ilut(se))
+            if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
+                weights = init_forced_end_semistart_weight(ilut, se, e, negSwitches(se), &
+                    posSwitches(se), currentB_ilut(se))
+            else
+                weights = init_semiStartWeight(ilut, se, en, negSwitches(se), &
+                    posSwitches(se), currentB_ilut(se))
+            end if
         end if
 
         ! create start
@@ -6595,7 +6730,11 @@ contains
             return
         end if
 
-        call calc_mixed_end_r2l_contr(ilut, t, excitInfo, branch_pgen, pgen, integral)
+        if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
+            call calc_mixed_end_contr_approx(ilut, t, excitInfo, branch_pgen, pgen, integral)
+        else
+            call calc_mixed_end_r2l_contr(ilut, t, excitInfo, branch_pgen, pgen, integral)
+        end if
 
         call update_matrix_element(t, (get_umat_el(en,st,se,en) + &
             get_umat_el(st,en,en,se))/2.0_dp + integral, 1)
@@ -8754,8 +8893,13 @@ contains
                 posSwitches(se), currentB_ilut(se))
         end if
 
-        call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitches, &
-            negSwitches, t, branch_pgen)
+        if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
+            ! todo the switch
+            call stop_all(this_routine, "todo")
+        else
+            call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitches, &
+                negSwitches, t, branch_pgen)
+        end if
 
         ! set pgen to 0 in case of early exit
         pgen = 0.0_dp
@@ -8820,8 +8964,14 @@ contains
         ! same fix as in fullstop
         if (excitInfo%typ == 0) print *, extract_matrix_element(t, 2)
 
-        call calc_mixed_start_r2l_contr(ilut, t, excitInfo, branch_pgen, pgen,&
-            integral)
+        if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
+            call calc_mixed_start_contr_approx(ilut, t, excitInfo, branch_pgen, pgen,&
+                integral)
+
+        else
+            call calc_mixed_start_r2l_contr(ilut, t, excitInfo, branch_pgen, pgen,&
+                integral)
+        end if
 !
         ! and finally update the matrix element with all contributions
         call update_matrix_element(t, (get_umat_el(st,en,se,st) + &
@@ -9332,8 +9482,15 @@ contains
                 posSwitches(se), currentB_ilut(se))
         end if
 
-        call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitches, &
-            negSwitches, t, branch_pgen)
+        ! in the case of the approximate exchange excitations I need to 
+        ! force a switch at the beginning
+        if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
+            ! todo the switch
+            call stop_all(this_routine, "todo")
+        else
+            call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitches, &
+                negSwitches, t, branch_pgen)
+        end if
 
         ! in case of early exit pgen should be set to 0
         pgen = 0.0_dp
@@ -9410,7 +9567,11 @@ contains
             return
         end if
 
-        call calc_mixed_start_l2r_contr(ilut, t, excitInfo, branch_pgen, pgen, integral)
+        if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
+            call calc_mixed_start_contr_approx(ilut, t, excitInfo, branch_pgen, pgen, integral)
+        else
+            call calc_mixed_start_l2r_contr(ilut, t, excitInfo, branch_pgen, pgen, integral)
+        end if
 
         ! same fix as in full-stops
         if (excitInfo%typ == 0) print *, extract_matrix_element(t,2)
@@ -22007,31 +22168,50 @@ contains
 !                 flag = .false.
 !             end if
 
-                if (current_stepvector(st) == 0 .or. current_stepvector(ss) == 3 &
-                    .or. current_stepvector(en) == 0) then
-                    flag = .false.
-                    return
+                if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
+                    ! the approximate exchange forces a switch of the 
+                    ! spin-couplings at open-shell orbitals of the 
+                    ! the exchange index. this is esp. problematic for the 
+                    ! full-stop part, where we now have to enforce 
+                    ! a delta-b = +-2 at the end index to ensure a 
+                    ! flip is happening there.. 
+                    ! we need new weighting functions for that and also 
+                    ! need to check the compatibility differently as 
+                    ! the flips at the indices are enforced
+                    
+                    weights = init_forced_end_semistart_weight(L, ss, en, & 
+                        negSwitches(ss), posSwitches(ss), currentB_ilut(ss))
+
+                    ! todo: the logic
+                    call stop_all(this_routine, "todo")
+
+                else
+                    if (current_stepvector(st) == 0 .or. current_stepvector(ss) == 3 &
+                        .or. current_stepvector(en) == 0) then
+                        flag = .false.
+                        return
+                    end if
+
+                    weights = init_semiStartWeight(L, ss, en, negSwitches(ss), &
+                        posSwitches(ss), currentB_ilut(ss))
+
+                    pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
+                    mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+
+                    if ((mw < EPS .and. pw < EPS) .or. &
+                        (current_stepvector(st) == 1 .and. pw < EPS) .or. &
+                        (current_stepvector(st) == 2 .and. mw < EPS)) then
+                        flag = .false.
+                        return
+                    end if
                 end if
-
-                weights = init_semiStartWeight(L, ss, en, negSwitches(ss), &
-                    posSwitches(ss), currentB_ilut(ss))
-
-                pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
-                mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
-
-                if ((mw < EPS .and. pw < EPS) .or. &
-                    (current_stepvector(st) == 1 .and. pw < EPS) .or. &
-                    (current_stepvector(st) == 2 .and. mw < EPS)) then
-                    flag = .false.
-                    return
-                end if
-! 
-!                 if (isOne(L,st) .and. pw <EPS) then
-!                     flag = .false.
-!                 end if
-!                 if (isTwo(L,st) .and. mw <EPS ) then
-!                     flag = .false.
-!                 end if
+    ! 
+    !                 if (isOne(L,st) .and. pw <EPS) then
+    !                     flag = .false.
+    !                 end if
+    !                 if (isTwo(L,st) .and. mw <EPS ) then
+    !                     flag = .false.
+    !                 end if
 
             ! full stop raising into lowering
             case(17)
@@ -22041,24 +22221,36 @@ contains
 !                 flag = .false.
 !             end if
 
-                if (current_stepvector(ss) == 0 .or. current_stepvector(st) == 3 &
-                    .or. current_stepvector(en) == 0) then
-                    flag = .false.
-                    return
-                end if
+
+                if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
+                    ! todo: the logic
+
+                    weights = init_forced_end_semistart_weight(L, ss, en, & 
+                        negSwitches(ss), posSwitches(ss), currentB_ilut(ss))
+
+                    ! todo the logic
+                    call stop_all(this_routine, "todo")
+
+                else
+                    if (current_stepvector(ss) == 0 .or. current_stepvector(st) == 3 &
+                        .or. current_stepvector(en) == 0) then
+                        flag = .false.
+                        return
+                    end if
 
 
-                weights = init_semiStartWeight(L, ss, en, negSwitches(ss), &
-                    posSwitches(ss), currentB_ilut(ss))
+                    weights = init_semiStartWeight(L, ss, en, negSwitches(ss), &
+                        posSwitches(ss), currentB_ilut(ss))
 
-                pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
-                mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+                    pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
+                    mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
 
-                if ((mw < EPS .and. pw < EPS) .or. &
-                    (current_stepvector(st) == 1 .and. pw < EPS) .or. &
-                    (current_stepvector(st) == 2 .and. mw < EPS)) then
-                    flag = .false. 
-                    return
+                    if ((mw < EPS .and. pw < EPS) .or. &
+                        (current_stepvector(st) == 1 .and. pw < EPS) .or. &
+                        (current_stepvector(st) == 2 .and. mw < EPS)) then
+                        flag = .false. 
+                        return
+                    end if
                 end if
 ! 
 !                 if (isOne(L,st) .and. pw < EPS) then
@@ -22167,27 +22359,37 @@ contains
                 weights = init_fullStartWeight(L, fe, en, negSwitches(fe), posSwitches(fe), &
                     currentB_ilut(fe))
 
-                ! if its a 3 start no switches in overlap region are possible
-!                 if (isThree(L,st)) then
-                if (current_stepvector(st) == 3) then
-                    zw = weights%proc%zero(0.0_dp,0.0_dp, currentB_ilut(st), weights%dat)
-                    pw = 0.0_dp
-                    mw = 0.0_dp
+                if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
+                    ! for the full-starts the weights do not have to be 
+                    ! changed, but the conditions for a valid excitation 
+                    ! change a bit, since a change is enforced at the 
+                    ! full-start! 
+                    ! todo!
+                    call stop_all(this_routine, "todo")
+
                 else
+                    ! if its a 3 start no switches in overlap region are possible
+    !                 if (isThree(L,st)) then
+                    if (current_stepvector(st) == 3) then
+                        zw = weights%proc%zero(0.0_dp,0.0_dp, currentB_ilut(st), weights%dat)
+                        pw = 0.0_dp
+                        mw = 0.0_dp
+                    else
 
-                    zw = weights%proc%zero(negSwitches(st), posSwitches(st), currentB_ilut(st), &
-                        weights%dat)
+                        zw = weights%proc%zero(negSwitches(st), posSwitches(st), currentB_ilut(st), &
+                            weights%dat)
 
-                    pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
-                    mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
-                end if
+                        pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
+                        mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+                    end if
 
-                if ((mw < EPS .and.pw < EPS .and. zw < EPS) .or. &
-                    (current_stepvector(st) == 1 .and. zw + pw < EPS) .or. &
-                    (current_stepvector(st) == 2 .and. zw + mw < EPS) .or. &
-                    (current_stepvector(st) == 3 .and. zw < EPS)) then
-                    flag = .false.
-                    return
+                    if ((mw < EPS .and.pw < EPS .and. zw < EPS) .or. &
+                        (current_stepvector(st) == 1 .and. zw + pw < EPS) .or. &
+                        (current_stepvector(st) == 2 .and. zw + mw < EPS) .or. &
+                        (current_stepvector(st) == 3 .and. zw < EPS)) then
+                        flag = .false.
+                        return
+                    end if
                 end if
 
 !                 if (isOne(L,st).and.zw+pw<EPS) then
@@ -22218,26 +22420,33 @@ contains
                 weights = init_fullStartWeight(L, fe, en, negSwitches(fe), posSwitches(fe), &
                     currentB_ilut(fe))
 
-                ! if its a 3 start no switches in overlap region are possible
-!                 if (isThree(L,st)) then
-                if (current_stepvector(st) == 3) then
-                    zw = weights%proc%zero(0.0_dp,0.0_dp, currentB_ilut(st), weights%dat)
-                    pw = 0.0_dp
-                    mw = 0.0_dp
-                else
-                    zw = weights%proc%zero(negSwitches(st), posSwitches(st), currentB_ilut(st), &
-                        weights%dat)
+                if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
+                    ! todo logic
+                    call stop_all(this_routine, "todo")
 
-                    pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
-                    mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
-                end if        
-                
-                if ((pw + mw + zw < EPS) .or. &
-                    (current_stepvector(st) == 1 .and. zw + pw < EPS) .or. &
-                    (current_stepvector(st) == 2 .and. zw + mw < EPS) .or. &
-                    (current_stepvector(st) == 3 .and. zw < EPS)) then
-                    flag = .false.
-                    return
+                else
+
+                    ! if its a 3 start no switches in overlap region are possible
+    !                 if (isThree(L,st)) then
+                    if (current_stepvector(st) == 3) then
+                        zw = weights%proc%zero(0.0_dp,0.0_dp, currentB_ilut(st), weights%dat)
+                        pw = 0.0_dp
+                        mw = 0.0_dp
+                    else
+                        zw = weights%proc%zero(negSwitches(st), posSwitches(st), currentB_ilut(st), &
+                            weights%dat)
+
+                        pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
+                        mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+                    end if        
+                    
+                    if ((pw + mw + zw < EPS) .or. &
+                        (current_stepvector(st) == 1 .and. zw + pw < EPS) .or. &
+                        (current_stepvector(st) == 2 .and. zw + mw < EPS) .or. &
+                        (current_stepvector(st) == 3 .and. zw < EPS)) then
+                        flag = .false.
+                        return
+                    end if
                 end if
 
 !                 if(isOne(L,st).and.zw+pw<EPS) then
@@ -22300,23 +22509,33 @@ contains
                     return
                 end if
                 
-                weights = init_doubleWeight(L, en)
+                if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
+                    ! the weights also change for fully-exchange type
+                    weights = init_forced_end_exchange_weight(L, en)
 
-                zw = weights%proc%zero(negSwitches(st), posSwitches(st), currentB_ilut(st ), &
-                    weights%dat)
-                pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
-                mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+                    ! todo logic
+                    call stop_all(this_routine, "todo")
 
-                ! if only the 0 branch is non-zero, and both + and - branch are
-                ! zero, we should abort too, since this means we would produce a
-                ! diagonal contribution.. 
-!                 if ((mw < EPS .and. pw < EPS .and. zw < EPS) .or. &
-                if ((mw < EPS .and. pw < EPS) .or. &
-                    (current_stepvector(st) == 1 .and. zw + pw < EPS) .or. &
-                    (current_stepvector(st) == 2 .and. zw + mw < EPS) .or. &
-                    (current_stepvector(st) == 3 .and. zw < EPS)) then
-                    flag = .false.
-                    return
+                else
+            
+                    weights = init_doubleWeight(L, en)
+
+                    zw = weights%proc%zero(negSwitches(st), posSwitches(st), currentB_ilut(st ), &
+                        weights%dat)
+                    pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
+                    mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+
+                    ! if only the 0 branch is non-zero, and both + and - branch are
+                    ! zero, we should abort too, since this means we would produce a
+                    ! diagonal contribution.. 
+    !                 if ((mw < EPS .and. pw < EPS .and. zw < EPS) .or. &
+                    if ((mw < EPS .and. pw < EPS) .or. &
+                        (current_stepvector(st) == 1 .and. zw + pw < EPS) .or. &
+                        (current_stepvector(st) == 2 .and. zw + mw < EPS) .or. &
+                        (current_stepvector(st) == 3 .and. zw < EPS)) then
+                        flag = .false.
+                        return
+                    end if
                 end if
 
 !                 if (isOne(L,st).and.zw+pw<EPS) then 
