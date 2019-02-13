@@ -627,7 +627,7 @@ MODULE FciMCData
 
       integer(MPIArg) :: var_size_this_proc
       integer(MPIArg) :: var_space_size
-      integer(MPIArg) :: var_space_size_int
+      integer :: var_space_size_int
 
       integer(MPIArg), allocatable, dimension(:) :: var_sizes
       integer(MPIArg), allocatable, dimension(:) :: var_displs
