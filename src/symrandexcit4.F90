@@ -314,9 +314,9 @@ contains
                 return
             else
                if(abs(cpt_tgt)<eps) then
-                  print *, "Error: ", cpt_tgt, "invalid excitation input"
+                  write(iout,*) "Error: ", cpt_tgt, "invalid excitation input"
                   cc_j = get_paired_cc_ind(cc_i_final, sym_product, sum_ml, iSpn)
-                  print *, "Namely", cc_i_final, "to", cc_j, "(should be", cc_j_final, ")"
+                  write(iout,*) "Namely", cc_i_final, "to", cc_j, "(should be", cc_j_final, ")"
                endif
                 pgen = pgen * cpt_tgt / cum_sum
             end if

@@ -680,7 +680,7 @@ contains
         end if
 
         if(any(Ex(:,1)<=0)) then
-           print *, "Error: invalid Ex", Ex, nI, nJ, nel, tParity
+           write(iout,*) "Error: invalid Ex", Ex, nI, nJ, nel, tParity
            call stop_all("Debug","Got ill-posed Excitation matrix")
         endif
 

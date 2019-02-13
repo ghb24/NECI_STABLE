@@ -909,7 +909,7 @@ contains
             ! If it, tSuccess will be true and ind will hold the position of the
             ! element in rdm.
             if(any((/i,j,k,l/)<=0) .or. any((/i,j,k,l/)>nBasis)) then
-               print *, "Invalid rdm element", i,j,k,l,ijkl, ielem, rdm_1%nelements
+               write(iout,*) "Invalid rdm element", i,j,k,l,ijkl, ielem, rdm_1%nelements
                call stop_all(t_r,"Erroneous indices")
             endif
             call hash_table_lookup((/i,j,k,l/), (/ijkl/), 0, rdm_2%hash_table, rdm_2%elements, ind, hash_val, tSuccess)
