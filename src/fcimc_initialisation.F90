@@ -87,7 +87,10 @@ module fcimc_initialisation
                            ICILevel, det
     use IntegralsData, only: tPartFreezeCore, nHolesFrozen, tPartFreezeVirt, &
                              nVirtPartFrozen, nPartFrozen, nelVirtFrozen
-    use bit_rep_data, only: NIfTot, NIfD, NIfDBO, NIfBCast, flag_deterministic
+
+    use bit_rep_data, only: NIfTot, NIfD, NIfDBO, NIfBCast, flag_initiator, &
+                            flag_deterministic, extract_sign
+
     use bit_reps, only: encode_det, clear_all_flags, set_flag, encode_sign, &
                         decode_bit_det, nullify_ilut, encode_part_sign, &
                         extract_run_sign, tBuildSpinSepLists , nifguga, &
@@ -102,7 +105,7 @@ module fcimc_initialisation
     use PopsfileMod, only: FindPopsfileVersion, initfcimc_pops, &
                            ReadFromPopsfilePar, ReadPopsHeadv3, &
                            ReadPopsHeadv4, open_pops_head, checkpopsparams
-    use HPHFRandExcitMod, only: gen_hphf_excit
+    use HPHFRandExcitMod, only: gen_hphf_excit, FindDetSpinSym
     use GenRandSymExcitCSF, only: gen_csf_excit
     use GenRandSymExcitNUMod, only: gen_rand_excit, init_excit_gen_store, &
                                     clean_excit_gen_store
@@ -116,7 +119,8 @@ module fcimc_initialisation
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
                                        gen_excit_4ind_weighted, &
                                        gen_excit_4ind_reverse
-    use hash, only: FindWalkerHash, add_hash_table_entry, init_hash_table
+    use hash, only: FindWalkerHash, add_hash_table_entry, init_hash_table, &
+         hash_table_lookup
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
     use load_balance, only: tLoadBalanceBlocks, addNormContribution, get_diagonal_matel, &
          AddNewHashDet
@@ -132,7 +136,7 @@ module fcimc_initialisation
     use rdm_filling, only: fill_rdm_diag_currdet_norm
     use DetBitOps, only: FindBitExcitLevel, CountBits, TestClosedShellDet, &
                          FindExcitBitDet, IsAllowedHPHF, DetBitEq, &
-                         EncodeBitDet
+                         EncodeBitDet, DetBitLT
     use fcimc_pointed_fns, only: att_create_trunc_spawn_enc, &
                                  attempt_create_normal, &
                                  attempt_create_trunc_spawn, &
@@ -2190,13 +2194,24 @@ contains
       integer(n_int), allocatable ::  initSpace(:,:)
       integer :: count, nUp, nOpen
       integer :: i, j, lwork, proc
-      integer :: DetHash, pos, TotWalkersTmp, nI(nel)
+      integer :: DetHash, pos, TotWalkersTmp, nI(nel), nJ(nel)
+      integer(n_int) :: ilutJ(0:NIfTot)
       integer(n_int), allocatable :: openSubspace(:)
       real(dp),allocatable :: S2(:,:), eigsImag(:), eigs(:),evs(:,:),void(:,:),work(:)
       real(dp) :: normalization, rawWeight, HDiag, tmpSgn(lenof_sign)
       integer :: err
+      real(dp) :: HFWeight(inum_runs)
+      logical :: tSuccess
       character(*), parameter :: t_r = "InitFCIMC_CSF"
       
+
+      ! get the number of open orbitals
+      nOpen = sum(nOccOrbs) - sum(nClosedOrbs)
+      ! in a closed shell system, nothing to do
+      if(nOpen .eq. 0) then
+         call InitFCIMC_HF()
+         return
+      endif
       ! first, set up the space considered for the CSF
       call generateInitSpace()
       if(allocated(openSubspace)) deallocate(openSubspace)
@@ -2254,11 +2269,35 @@ contains
             TotWalkersTmp = TotWalkers
             tmpSgn = eigs(i)
             call encode_sign(initSpace(:,i),tmpSgn)
+            if(tHPHF) then
+               call FindDetSpinSym(nI,nJ,nel)
+               call encodebitdet(nJ,ilutJ)
+               ! if initSpace(:,i) is not the det of the HPHF pair we are storing, 
+               ! skip this - the correct contribution will be stored once
+               ! the spin-flipped version is stored
+               if(DetBitLT(initSpace(:,i),ilutJ,NIfD).eq.1) cycle
+            endif
             call AddNewHashDet(TotWalkersTmp,initSpace(:,i),DetHash,nI,HDiag,pos)
             TotWalkers = TotWalkersTmp
          end if
          ! reset the reference?
       end do
+
+      call hash_table_lookup(HFDet,ilutHF,NIfDBO,HashIndex,CurrentDets,i,DetHash,tSuccess)
+      if(tSuccess) then
+         call extract_sign(CurrentDets(:,i),tmpSgn)
+         do i = 1, inum_runs
+            HFWeight(i) = mag_of_run(tmpSgn,i)
+         end do
+      else
+         HFWeight = 0.0_dp
+      endif
+          
+      AllTotParts = InitialPart
+      AllTotPartsOld = InitialPart
+      OldAllAvWalkersCyc = InitialPart
+      OldAllHFCyc = HFWeight
+      OldAllNoatHF = HFWeight
 
       ! cleanup
       deallocate(evs)
@@ -2294,8 +2333,6 @@ contains
           logical :: previousCont,nextCont,tClosed
           character(*), parameter :: t_r = "generateInitSpace"
 
-          ! get the number of open orbitals
-          nOpen = sum(nOccOrbs) - sum(nClosedOrbs)
           ! create a list of all open-shell determinants with the correct spin+orbs
           nUp = (nel + lms)/2
           call generateOpenOrbIluts()
@@ -2660,9 +2697,15 @@ contains
         nexcit = inum_runs/nreplicas
 
         ! Create the trial excited states
-        call calc_trial_states_lanczos(init_trial_in, nexcit, ndets_this_proc, &
-                               SpawnedParts, evecs_this_proc, evals, &
-                               space_sizes, space_displs, trial_init_reorder)
+        if(allocated(trial_init_reorder)) then
+           call calc_trial_states_lanczos(init_trial_in, nexcit, ndets_this_proc, &
+                SpawnedParts, evecs_this_proc, evals, &
+                space_sizes, space_displs, trial_init_reorder)
+        else
+           call calc_trial_states_lanczos(init_trial_in, nexcit, ndets_this_proc, &
+                SpawnedParts, evecs_this_proc, evals, &
+                space_sizes, space_displs)
+        endif
         ! Determine the walker populations associated with these states
         call set_trial_populations(nexcit, ndets_this_proc, evecs_this_proc)
         ! Set the trial excited states as the FCIQMC wave functions
@@ -4490,7 +4533,7 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine init_norm()
-      use bit_rep_data, only: test_flag, extract_sign
+      use bit_rep_data, only: test_flag
       ! initialize the norm_psi, norm_psi_squared
       implicit none
       integer :: j

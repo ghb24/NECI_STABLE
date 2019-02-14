@@ -466,8 +466,11 @@ contains
             call decode_bit_det (nJ, iLutJ)
 
             realSignI = transfer( Spawned_Parents(NIfDBO+1,i), realSignI )
+            ! if the sign is 0, there is nothing to do, i.e. all contributions will be 0
+            if(abs(realSignI)<eps) cycle
+
             ! The original spawning event (and the RealSignI) came from this
-            ! population.
+            ! population.            
             source_part_type = Spawned_Parents(NIfDBO+3,i)
             
             ! if we only sum in initiator contriubtions, check the flags here
@@ -699,6 +702,11 @@ contains
         else
             full_sign = realSignI*realSignJ
         end if
+
+        if(any(Ex(:,1)<=0)) then
+           write(iout,*) "Error: invalid Ex", Ex, nI, nJ, nel, tParity
+           call stop_all("Debug","Got ill-posed Excitation matrix")
+        endif
 
         if ((Ex(1,2) .eq. 0) .and. (Ex(2,2) .eq. 0)) then
             

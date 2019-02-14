@@ -38,7 +38,6 @@ module timing_neci
 != set_timer and print_timing_report take optional arguments.
 != See the individual routines for more information.
 ! ========================================================================
-
 use constants
 implicit none
 save
@@ -76,6 +75,7 @@ contains
 
 
    subroutine init_timing()
+     use mpi
       != Start global timer for timing the total calculation time.
 
       implicit none
@@ -99,6 +99,7 @@ contains
 
 
    subroutine end_timing()
+     use mpi
       != Stop global timer for timing the total calculation time.
 
       implicit none
@@ -130,7 +131,7 @@ contains
       !=           called multiple times, the timer is not reinitialised, but
       !=           rather updated with new timing information (i.e. the current
       !=           timer is set).
-
+     use mpi
       Use LoggingData, only: iGlobalTimerLevel
       implicit none
       type(timer) :: proc_timer
@@ -192,7 +193,7 @@ contains
       !=               set_timer.  The timer is stopped and the total cpu and
       !=               system time spent in the procedure is updated with the time
       !=               spent for the current call.
-      
+     use mpi
       implicit none
       type(timer), intent(inout) :: proc_timer
       integer :: i
@@ -238,7 +239,7 @@ contains
       !=   t_elapsed(optional): include the elapsed time.  Warning: involves an
       !=               additional call to etime, so will affect performance if
       !=               called large numbers (10s of millions) of times.
-
+     use mpi
       implicit none
       type(timer) :: proc_timer
       logical,optional :: t_elapsed
@@ -270,7 +271,7 @@ contains
       !=    Default value: 10, as set in Logging module.
       !=    iunit (optional): file unit to which the timing  report is printed.
       !=    Default value: 6 (stdout).
-
+     use mpi
       Use LoggingData, only: nPrintTimer
       implicit none
       integer, optional, intent(in) :: ntimer_objects

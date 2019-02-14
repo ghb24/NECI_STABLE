@@ -5,9 +5,11 @@ module rdm_general
     use bit_rep_data, only: NIfTot, NIfDBO
     use constants
     use SystemData, only: nel, nbasis
-    use rdm_data, only: InstRDMCorrectionFactor, RDMCorrectionFactor, ThisRDMIter
+    use rdm_data, only: InstRDMCorrectionFactor, RDMCorrectionFactor, ThisRDMIter, &
+         inits_estimates, tSetupInitsEst
+    use FciMCData, only: proje_iter, Hii
     use rdm_data, only: inits_one_rdms, two_rdm_inits_spawn, two_rdm_inits, rdm_inits_defs
-    use CalcData, only: tInitsRDM, tOutputInitsRDM
+    use CalcData, only: tInitsRDM, tOutputInitsRDM, tInitsRDMRef
 
     implicit none
 
@@ -34,7 +36,7 @@ contains
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
         use rdm_data, only: nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time, states_for_transition_rdm
         use rdm_data, only: rdm_main_size_fac, rdm_spawn_size_fac, rdm_recv_size_fac
-        use rdm_data, only: rdm_definitions, en_pert_main, inits_estimates
+        use rdm_data, only: rdm_definitions, en_pert_main, inits_estimates, tOpenSpatialOrbs
         use rdm_data_utils, only: init_rdm_spawn_t, init_rdm_list_t, init_one_rdm_t
         use rdm_data_utils, only: init_rdm_definitions_t, clear_one_rdms, clear_rdm_list_t
         use rdm_data_utils, only: init_en_pert_t
@@ -73,6 +75,9 @@ contains
         else
             tOpenShell = .false.
         end if
+        ! it is possible to have open-shell systems with spatial orbitals, 
+        ! these have to be indexed differently
+        tOpenSpatialOrbs = tOpenShell .and. .not.tStoreSpinOrbs
 
         if (tExplicitAllRDM) then
             write(6,'(1X,"Explicitly calculating the reduced density matrices from the FCIQMC wavefunction.")')
@@ -99,7 +104,7 @@ contains
 
         call init_rdm_definitions_t(rdm_definitions, nrdms_standard, nrdms_transition, states_for_transition_rdm)
         if(tinitsRDM) call init_rdm_definitions_t(&
-             rdm_inits_defs, nrdms_standard, nrdms_transition, states_for_transition_rdm)
+             rdm_inits_defs, nrdms_standard, nrdms_transition, states_for_transition_rdm,'Inits_TwoRDM')
 
         ! Allocate arrays for holding averaged signs and block lengths for the
         ! HF determinant.
@@ -183,7 +188,8 @@ contains
         memory_alloc = memory_alloc + main_mem + spawn_mem + recv_mem
 
         call init_rdm_estimates_t(rdm_estimates, nrdms_standard, nrdms_transition, print_2rdm_est)
-        if(tOutputInitsRDM) call init_rdm_estimates_t(inits_estimates, nrdms_standard, &
+        if(tOutputInitsRDM .or. tInitsRDMRef) &
+             call init_rdm_estimates_t(inits_estimates, nrdms_standard, &
              nrdms_transition, print_2rdm_est, 'InitsRDMEstimates')
 
         ! Initialise 1-RDM objects.
@@ -665,7 +671,7 @@ contains
                 if(tinitsRDM) call dealloc_one_rdm_t(inits_one_rdms(irdm))
             end do
             deallocate(one_rdms)
-            if(tinitsRDM) deallocate(inits_one_rdms)
+            if(tinitsRDM .and. allocated(inits_one_rdms)) deallocate(inits_one_rdms)
         end if
 
         if (tExplicitAllRDM) then
@@ -995,8 +1001,27 @@ contains
          
          AvFmu = AvFmu * fmu
       end do
-      AvFmu = AvFmu ** (1.0_dp/real(inum_runs,dp))
+      AvFmu = dressedFactor(AvFmu ** (1.0_dp/real(inum_runs,dp)))
     end function avFFunc
+
+  !------------------------------------------------------------------------------------------!
+
+    function dressedFactor(fmu) result(fmup)
+      implicit none
+      real(dp), intent(in) :: fmu
+      real(dp) :: fmup
+      real(dp) :: eCorr, e0Inits, enOffset
+      if(tInitsRDMRef .and. tSetupInitsEst .and. sum(abs(proje_iter)) > eps) then
+         ! initiator-only reference energy
+         e0Inits = inits_estimates%energy_num(1)/inits_estimates%norm(1)
+         ! correlation energy
+         eCorr = sum(proje_iter)/inum_runs + Hii - e0Inits
+         enOffset = (Hii - e0Inits)/eCorr
+         fmup = enOffset + fmu*(inum_runs*eCorr)/(sum(proje_iter))
+      else
+         fmup = fmu
+      endif
+    end function dressedFactor
 
   !------------------------------------------------------------------------------------------!
 

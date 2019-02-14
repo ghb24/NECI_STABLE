@@ -64,160 +64,157 @@ MODULE Determinants
 
 contains
 
-    Subroutine DetPreFreezeInit()
-        Use global_utilities
-        use SystemData, only : nEl, ECore, Arr, Brr, G1, nBasis, LMS, nBasisMax,&
-                                tFixLz, tUEGSpecifyMomentum, tRef_Not_HF
-        use SystemData, only : tMolpro
-        use sym_mod
-        use util_mod, only: NECI_ICOPY
-        use sltcnd_mod, only: CalcFockOrbEnergy 
-        integer ierr, ms, iEl, flagAlpha, iIrrep, msTmp
-        integer i,j,Lz,OrbOrder(8,2),FDetTemp(NEl),lmsMax
-        type(BasisFn) s
-        logical :: tGenFDet
-        HElement_t(dp) :: OrbE
-        character(25), parameter :: this_routine='DetPreFreezeInit'
-        Allocate(FDet(nEl), stat=ierr)
-        LogAlloc(ierr, 'FDet', nEl, 4, tagFDet)
-        IF(tDefineDet) THEN           
-            WRITE(6,*) 'Defining FDet according to input'
-            do i=1,NEl
-                FDet(i)=DefDet(i)
-            enddo
-            call assignOccOrbs()
+  Subroutine DetPreFreezeInit()
+    Use global_utilities
+    use SystemData, only : nEl, ECore, Arr, Brr, G1, nBasis, LMS, nBasisMax,&
+         tFixLz, tUEGSpecifyMomentum, tRef_Not_HF
+    use SystemData, only : tMolpro
+    use sym_mod
+    use util_mod, only: NECI_ICOPY
+    use sltcnd_mod, only: CalcFockOrbEnergy 
+    integer ierr, ms, iEl, flagAlpha, iIrrep, msTmp
+    integer i,j,Lz,OrbOrder(8,2),FDetTemp(NEl),lmsMax
+    type(BasisFn) s
+    logical :: tGenFDet
+    HElement_t(dp) :: OrbE
+    character(25), parameter :: this_routine='DetPreFreezeInit'
+    Allocate(FDet(nEl), stat=ierr)
+    LogAlloc(ierr, 'FDet', nEl, 4, tagFDet)
+    IF(tDefineDet) THEN           
+       WRITE(6,*) 'Defining FDet according to input'
+       do i=1,NEl
+          FDet(i)=DefDet(i)
+       enddo
+       call assignOccOrbs()
 
-            ! A quick check that we have defined a reasonable det.
-            ms = sum(get_spin_pn(fdet(1:nel)))
-            if (abs(ms) /= abs(lms) .and. .not. (tCSF .or. tGUGA)) then
-                write(6,*) 'LMS', lms
-                write(6,*) 'Calculated Ms', ms
-                call stop_all (this_routine, "Defined determinant has the &
-                              &wrong Ms value. Change DEFINEDET or &
-                              &SPIN-RESTRICT")
-            end if
-            ! also use that to check correctness of guga csf 
-            ! remember in guga approach beta orbitals are associated with 
-            ! positive spin coupled orbitals and S >= 0 
+       ! A quick check that we have defined a reasonable det.
+       ms = sum(get_spin_pn(fdet(1:nel)))
+       if (abs(ms) /= abs(lms) .and. .not. tCSF) then
+          write(6,*) 'LMS', lms
+          write(6,*) 'Calculated Ms', ms
+          call stop_all (this_routine, "Defined determinant has the &
+               &wrong Ms value. Change DEFINEDET or &
+               &SPIN-RESTRICT")
+       end if
 #ifndef __CMPLX
-            if (tGUGA) then
-                ms = abs(ms)
-                if (ms < 0 .or. ms /= STOT) then
-                    write(6,*) "S: ", STOT
-                    write(6,*) "calculated S of inputted CSF: ", ms
-                    call stop_all(this_routine, " Defined CSF has the &
-                        &wrong total spin quantum number! Change DEFINEDET or &
-                        &S quantum numnber!")
-                end if
+        if (tGUGA) then
+            ms = abs(ms)
+            if (ms < 0 .or. ms /= STOT) then
+                write(6,*) "S: ", STOT
+                write(6,*) "calculated S of inputted CSF: ", ms
+                call stop_all(this_routine, " Defined CSF has the &
+                    &wrong total spin quantum number! Change DEFINEDET or &
+                    &S quantum numnber!")
             end if
+        end if
 #endif
-            tRef_Not_HF = .true.
-        else
-           if((sum(nOccOrbs) + sum(nClosedOrbs)) .eq. nel) then
-              tGenFDet = .false.
-              iEl = 1
-              msTmp = -1*lms
-              do i = 1, nIrreps
-                 ! doubly occupy the closed orbs 
-                 do j = 1, nClosedOrbs(i)
-                    FDet(iEl) = irrepOrbOffset(i) + 2*j - 1
-                    iEl = iEl + 1
-                    FDet(iEl) = irrepOrbOffset(i) + 2*j
-                    iEl = iEl + 1
-                 end do
-                 ! now distribute electrons to the open orbs
-                 ! such that the total sz matches the requested
-                 ! only consider occ orbs which are not closed
-                 do j = nClosedOrbs(i)+1, nOccOrbs(i)
-                    if(msTmp<0) then
-                       flagAlpha = 0
-                    else
-                       flagAlpha = 1
-                    endif
-                    FDet(iEl) = irrepOrbOffset(i) + 2*j - flagAlpha
-                    iEl = iEl + 1
-                    msTmp = msTmp + (1-2*flagAlpha)
-                 end do
-              end do
-              call sort(FDet)
-           else
-              CALL GENFDET(FDET)
-              call assignOccOrbs()
-              IF(tUEGSpecifyMomentum) THEN
-                 WRITE(6,*) 'Defining FDet according to a momentum input'
-                 CALL ModifyMomentum(FDET)
-              ENDIF
-              tRef_Not_HF = .false.
-           endif
-        ENDIF
-        !      ENDIF
-      WRITE(6,"(A)",advance='no') " Fermi det (D0):"
-      call write_det (6, FDET, .true.)
-      Call GetSym(FDet,nEl,G1,nBasisMax,s)
-      WRITE(6,"(A)",advance='no') " Symmetry: "
-      Call WriteSym(6,s%Sym,.true.)
-      IF(tFixLz) THEN
-         Call GetLz(FDet,nEl,Lz)
-         WRITE(6,"(A,I5)") "Lz of Fermi det:",Lz
-      ENDIF
-      CALL NECI_ICOPY(NEL,FDET,1,NUHFDET,1)
-      if(tMolpro) then
-          !Orbitals are ordered by occupation number from MOLPRO, and not reordered in NECI
-          !Therefore, we know HF determinant is first four occupied orbitals.
-          write(6,"(A)") "NECI called from MOLPRO, so assuming orbitals ordered by occupation number."
-          if(.not.tDefineDet) then
-              FDetTemp(:)=FDet(:)
-          else
-              !We have defined our own reference determinant, but still use the first orbitals for the calculation
-              !of 'orbital energies'
-              CALL GENFDET(FDETTEMP)
-          endif
-          write(6,"(A)") "Calculating orbital energies..."
-          do i=1,nBasis
-               OrbE=CalcFockOrbEnergy(i,FDetTemp)
-               Arr(i,1)=real(OrbE,dp)
-               Brr(i)=i
-          enddo
-          write(6,"(A)") "Reordering basis by orbital energies..."
-          OrbOrder(:,:)=0
-          call ORDERBASIS(NBASIS,Arr,Brr,OrbOrder,nBasisMax,G1)
-          !However, we reorder them here
-          call writebasis(6,G1,nBasis,Arr,Brr)
-      endif
-      E0HFDET=ECORE
-      DO I=1,NEL
-         E0HFDET=E0HFDET+ARR(NUHFDET(i),2)
-      ENDDO     
-      WRITE(6,*) "Fock operator energy:",E0HFDET
-
-      ! Store the value of Ms for use in other areas
-      calculated_ms = sum(get_spin_pn(fdet(1:nel)))
-      if (tGUGA) then
-          calculated_ms = abs(calculated_ms)
-      end if
-
-
-      contains
-
-        subroutine assignOccOrbs
-          implicit none
-          integer :: k
-          ! assign the occ/closed orbs
-          nOccOrbs = 0
-          nClosedOrbs = 0
-          do k = 1, nel
-             iIrrep = G1(FDet(k))%Sym%s + 1
-             if(k>1) then
-                if(is_alpha(FDet(k)) .and. FDet(k-1).eq.FDet(k)-1) then
-                   nClosedOrbs(iIrrep) = nClosedOrbs(iIrrep) + 1
-                   cycle
+       tRef_Not_HF = .true.
+    else
+       if((sum(nOccOrbs) + sum(nClosedOrbs)) .eq. nel) then
+          tGenFDet = .false.
+          iEl = 1
+          msTmp = -1*lms
+          do i = 1, nIrreps
+             ! doubly occupy the closed orbs 
+             do j = 1, nClosedOrbs(i)
+                FDet(iEl) = irrepOrbOffset(i) + 2*j - 1
+                iEl = iEl + 1
+                FDet(iEl) = irrepOrbOffset(i) + 2*j
+                iEl = iEl + 1
+             end do
+             ! now distribute electrons to the open orbs
+             ! such that the total sz matches the requested
+             ! only consider occ orbs which are not closed
+             do j = nClosedOrbs(i)+1, nOccOrbs(i)
+                if(msTmp<0) then
+                   flagAlpha = 0
+                else
+                   flagAlpha = 1
                 endif
-             end if
-             nOccOrbs(iIrrep) = nOccOrbs(iIrrep) + 1
+                FDet(iEl) = irrepOrbOffset(i) + 2*j - flagAlpha
+                iEl = iEl + 1
+                msTmp = msTmp + (1-2*flagAlpha)
+             end do
           end do
-        end subroutine assignOccOrbs
-        
-    End Subroutine DetPreFreezeInit
+          call sort(FDet)
+       else
+          CALL GENFDET(FDET)
+          call assignOccOrbs()
+          IF(tUEGSpecifyMomentum) THEN
+             WRITE(6,*) 'Defining FDet according to a momentum input'
+             CALL ModifyMomentum(FDET)
+          ENDIF
+          tRef_Not_HF = .false.
+       endif
+    ENDIF
+    !      ENDIF
+    WRITE(6,"(A)",advance='no') " Fermi det (D0):"
+    call write_det (6, FDET, .true.)
+    Call GetSym(FDet,nEl,G1,nBasisMax,s)
+    WRITE(6,"(A)",advance='no') " Symmetry: "
+    Call WriteSym(6,s%Sym,.true.)
+    IF(tFixLz) THEN
+       Call GetLz(FDet,nEl,Lz)
+       WRITE(6,"(A,I5)") "Lz of Fermi det:",Lz
+    ENDIF
+    CALL NECI_ICOPY(NEL,FDET,1,NUHFDET,1)
+    if(tMolpro) then
+       !Orbitals are ordered by occupation number from MOLPRO, and not reordered in NECI
+       !Therefore, we know HF determinant is first four occupied orbitals.
+       write(6,"(A)") "NECI called from MOLPRO, so assuming orbitals ordered by occupation number."
+       if(.not.tDefineDet) then
+          FDetTemp(:)=FDet(:)
+       else
+          !We have defined our own reference determinant, but still use the first orbitals for the calculation
+          !of 'orbital energies'
+          CALL GENFDET(FDETTEMP)
+       endif
+       write(6,"(A)") "Calculating orbital energies..."
+       do i=1,nBasis
+          OrbE=CalcFockOrbEnergy(i,FDetTemp)
+          Arr(i,1)=real(OrbE,dp)
+          Brr(i)=i
+       enddo
+       write(6,"(A)") "Reordering basis by orbital energies..."
+       OrbOrder(:,:)=0
+       call ORDERBASIS(NBASIS,Arr,Brr,OrbOrder,nBasisMax,G1)
+       !However, we reorder them here
+       call writebasis(6,G1,nBasis,Arr,Brr)
+    endif
+    E0HFDET=ECORE
+    DO I=1,NEL
+       E0HFDET=E0HFDET+ARR(NUHFDET(i),2)
+    ENDDO
+    WRITE(6,*) "Fock operator energy:",E0HFDET
+
+    ! Store the value of Ms for use in other areas
+    calculated_ms = sum(get_spin_pn(fdet(1:nel)))
+
+    if (tGUGA) then
+         calculated_ms = abs(calculated_ms)
+    end if
+
+  contains
+
+    subroutine assignOccOrbs
+      implicit none
+      integer :: k
+      ! assign the occ/closed orbs
+      nOccOrbs = 0
+      nClosedOrbs = 0
+      do k = 1, nel
+         if(k>1) then
+            if(is_alpha(FDet(k)) .and. FDet(k-1).eq.FDet(k)-1) then
+               ! we do not need to resolve the irrep anymore (not relevant
+               ! for further usage)
+               nClosedOrbs(1) = nClosedOrbs(1) + 1
+               cycle
+            endif
+         end if
+         nOccOrbs(1) = nOccOrbs(1) + 1
+      end do
+    end subroutine assignOccOrbs
+  End Subroutine DetPreFreezeInit
 
     
     Subroutine DetInit()

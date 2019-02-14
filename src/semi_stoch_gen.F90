@@ -972,7 +972,8 @@ contains
 
     end subroutine generate_optimised_space
 
-    subroutine generate_space_most_populated(target_space_size, tApproxSpace, nApproxSpace, ilut_list, space_size, source, source_size)
+    subroutine generate_space_most_populated(target_space_size, tApproxSpace, &
+            nApproxSpace, ilut_list, space_size, source, source_size)
 
         ! In: target_space_size - The number of determinants to attempt to keep
         !         from if less determinants are present then use all of them.

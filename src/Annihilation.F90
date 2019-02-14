@@ -1097,7 +1097,7 @@ module AnnihilationMod
                     if (tTruncSpawn) then
                         ! Needs to be truncated away, and a contribution
                         ! added to the EN2 correction.
-                        call add_en2_pert_for_trunc_calc(i, nJ, SpawnedSign)
+                        call add_en2_pert_for_trunc_calc(i, nJ, SignTemp, iter_data)
                     else
                         do j = 1, lenof_sign
                             ! truncate the spawn if required
@@ -1354,7 +1354,7 @@ module AnnihilationMod
 
     end subroutine add_en2_pert_for_init_calc
 
-    subroutine add_en2_pert_for_trunc_calc(ispawn, nJ, SpawnedSign)
+    subroutine add_en2_pert_for_trunc_calc(ispawn, nJ, SpawnedSign, iter_data)
 
         ! Add a contribution to the second-order Epstein-Nesbet correction to
         ! error due to truncation of the Hilbert space being sampled.
@@ -1367,6 +1367,7 @@ module AnnihilationMod
         integer, intent(in) :: ispawn
         integer, intent(in) :: nJ(nel)
         real(dp), intent(inout):: SpawnedSign(lenof_sign)
+        type(fcimc_iter_data), intent(inout) :: iter_data
 
         integer :: j, istate
         real(dp) :: contrib_sign(en_pert_main%sign_length)
@@ -1397,7 +1398,9 @@ module AnnihilationMod
 
         ! Remove the spawning
         do j = 1, lenof_sign
-            SpawnedSign(j) = 0.0_dp
+           ! track the removal for correct logging
+           iter_data%nremoved(j) = iter_data%nremoved(j) + abs(SpawnedSign(j))
+           SpawnedSign(j) = 0.0_dp
             call encode_part_sign (SpawnedParts(:,ispawn), SpawnedSign(j), j)
         end do
 

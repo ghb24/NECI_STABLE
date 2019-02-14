@@ -23,15 +23,11 @@ include(neci_system)
 # toolchain on archer
 # PGI
 
+find_package( MPI_NECI REQUIRED )
+
 # Declare options that this project uses
 # <Package>_NECI has a custom finder that does a bit more work than normal...
   
-neci_add_option(
-    FEATURE MPI
-    DEFAULT ON
-    DESCRIPTION "Use MPI for parallel compilation"
-    REQUIRED_PACKAGES MPI_NECI )
-
 neci_add_option(
     FEATURE FFTW
     DEFAULT ON

@@ -20,7 +20,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,tMolcas_local,int_name,
 
     ! main-level modules.
     use Calc, only: CalcDoCalc
-    use CalcData, only: tUseProcsAsNodes, s_global_start
+    use CalcData, only: tUseProcsAsNodes
     use kp_fciqmc_procs, only: kp_fciqmc_data
     use Parallel_neci, only: MPINodes, iProcIndex
     use read_fci, only: FCIDUMP_name
@@ -31,7 +31,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,tMolcas_local,int_name,
     ! Utility modules.
     use global_utilities
     use constants
-    use util_mod, only: get_free_unit, neci_etime
+    use util_mod, only: get_free_unit
     
     USE MolproPlugin
 
@@ -46,12 +46,6 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,tMolcas_local,int_name,
     character(64) :: cString
     logical :: toverride_input,tFCIDUMP_exist,tMOLCASinput
     type(kp_fciqmc_data) :: kp
-    real(dp) :: tend(2)
-
-    ! Measure when NECICore is called. We need to do this here, as molcas
-    ! and molpro can call NECI part way through a run, so it is no use to time
-    ! from when the _process_ began.
-    s_global_start = neci_etime(tend)
     
     tMolpro = tMolpro_local
     tMolcas = tMolcas_local
@@ -188,13 +182,23 @@ subroutine NECICodeInit(tCPMD,tVASP)
     use timing_neci, only: init_timing
     use Parallel_neci, only: MPIInit
     use SystemData, only : tMolpro,tMolcas
+    use CalcData, only: s_global_start
+    use constants, only: dp
+    use util_mod, only: neci_etime
 
     implicit none
     logical, intent(in) :: tCPMD,tVASP
+    real(dp) :: tend(2)
 
     ! MPIInit contains dummy initialisation for serial jobs, e.g. so we
     ! can refer to the processor index being 0 for the parent processor.
     Call MPIInit(tCPMD.or.tVASP.or.tMolpro.or.tMolcas) ! CPMD and VASP have their own MPI initialisation and termination routines.
+    
+    ! Measure when NECICore is called. We need to do this here, as molcas
+    ! and molpro can call NECI part way through a run, so it is no use to time
+    ! from when the _process_ began.
+    ! As this can use MPI_WTIME, we can only call this after the MPIInit call
+    s_global_start = neci_etime(tend)
 
     ! find out whether this is a Molpro plugin
     CALL MolproPluginInit(tMolpro)
