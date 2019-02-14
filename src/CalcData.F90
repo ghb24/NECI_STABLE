@@ -81,7 +81,7 @@ type subspace_in
     ! kept on each processor, 1 =< nApproxSpace =< nProcessors. The larger nApproxSpace, the more  
     ! memory is consumed and the slower (but more accurate) is the semi-stochastic initialisation   
     ! (see subroutine generate_space_most_populated).
-    integer :: nApproxSpace = 100
+    integer :: nApproxSpace = 10
     ! When using the tMP1Core option, this specifies how many determinants to keep.
     integer :: mp1_ndets = 0
 
@@ -427,5 +427,10 @@ logical :: t_back_spawn_flex = .false., t_back_spawn_flex_option = .false.
 ! change now: we also want to enable to increase the excitation by possibly 
 ! 1 -> maybe I should rename this than so that minus indicates de-excitation?!
 integer :: occ_virt_level = 0
+
+! If true, then when using the pops-core option, don't allow the
+! pops-core-approx option to take over, even in the default case
+! where it has been decided that it is efficient and appropriate.
+logical :: tForceFullPops
 
 end module CalcData
