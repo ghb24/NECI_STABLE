@@ -8,7 +8,7 @@ module AnnihilationMod
                           tContTimeFull, InitiatorWalkNo, tau, tEN2, tEN2Init, &
                           tEN2Started, tEN2Truncated, tInitCoherentRule, t_truncate_spawns, &
                           n_truncate_spawns, t_prone_walkers, t_truncate_unocc, &
-                          tPreCond, tReplicaEstimates, tSimpleInit
+                          tPreCond, tReplicaEstimates, tSimpleInit, tAllConnsPureInit
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -37,7 +37,7 @@ module AnnihilationMod
     use rdm_data, only: rdm_estimates, en_pert_main
     use rdm_data_utils, only: add_to_en_pert_t
     use fcimc_helper, only: CheckAllowedTruncSpawn
-    use initiator_space_procs, only: is_in_initiator_space
+    use initiator_space_procs, only: is_in_initiator_space, set_conn_init_space_flags_slow
 
     implicit none
 
@@ -92,6 +92,8 @@ module AnnihilationMod
         else
             call CompressSpawnedList(MaxIndex, iter_data)
         end if
+
+        if (tAllConnsPureInit) call set_conn_init_space_flags_slow(SpawnedParts, MaxIndex)
 
         call halt_timer(Compress_time)
 

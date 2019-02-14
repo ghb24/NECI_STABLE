@@ -416,6 +416,7 @@ contains
           tInitiatorSpace = .false.
           tPureInitiatorSpace = .false.
           tSimpleInit = .false.
+          tAllConnsPureInit = .false.
 
           tDetermProjApproxHamil = .false.
 
@@ -1523,6 +1524,8 @@ contains
                 tInitCoherentRule = .false.
             case("SIMPLE-INITIATOR")
                 tSimpleInit = .true.
+            CASE("INITIATOR-SPACE-CONNS")
+                tAllConnsPureInit = .true.
             case("DOUBLES-INITIATOR")
                 i_space_in%tDoubles = .true.
             case("HF-CONN-INITIATOR")

@@ -322,9 +322,9 @@ contains
         ! A wrapper function to call the correct generation routine.
 
         integer, intent(in) :: original_space_size
-        integer(n_int), intent(in) :: original_space(0:NIfTot, original_space_size)
+        integer(n_int), intent(in) :: original_space(0:,:)
         integer, intent(inout) :: connected_space_size
-        integer(n_int), optional, intent(out) :: connected_space(0:NIfTot, connected_space_size)
+        integer(n_int), optional, intent(out) :: connected_space(0:,:)
         logical, intent(in), optional :: tSinglesOnlyOpt
 
         if (tKPntSym) then
@@ -349,9 +349,9 @@ contains
         ! determinants.
 
         integer, intent(in) :: original_space_size
-        integer(n_int), intent(in) :: original_space(0:NIfTot, original_space_size)
+        integer(n_int), intent(in) :: original_space(0:,:)
         integer, intent(inout) :: connected_space_size
-        integer(n_int), optional, intent(out) :: connected_space(0:NIfTot, connected_space_size)
+        integer(n_int), optional, intent(out) :: connected_space(0:,:)
         logical, intent(in), optional :: tSinglesOnlyOpt
 
         integer(n_int) :: ilutJ(0:NIfTot)
@@ -387,7 +387,7 @@ contains
             
             do while(.true.)
 
-                call generate_connection_normal(nI, original_space(:,i), nJ, ilutJ, ex_flag, excit, &
+                call generate_connection_normal(nI, original_space(0:NIfTot,i), nJ, ilutJ, ex_flag, excit, &
                                                  tAllExcitFound, ncon=connected_space_size)
                 if (tAllExcitFound) exit
 
@@ -466,9 +466,9 @@ contains
         ! determinants.
 
         integer, intent(in) :: original_space_size
-        integer(n_int), intent(in) :: original_space(0:NIfTot, original_space_size)
+        integer(n_int), intent(in) :: original_space(0:,:)
         integer, intent(inout) :: connected_space_size
-        integer(n_int), optional, intent(out) :: connected_space(0:NIfTot, connected_space_size)
+        integer(n_int), optional, intent(out) :: connected_space(0:,:)
         logical, intent(in), optional :: tSinglesOnlyOpt
 
         integer(n_int) :: ilutJ(0:NIfTot)
@@ -495,14 +495,14 @@ contains
         ! Over all the states in the original list:
         do i = 1, original_space_size
 
-            call decode_bit_det(nI, original_space(:,i))
+            call decode_bit_det(nI, original_space(0:NIfTot,i))
 
             call init_generate_connected_space(nI, ex_flag, tAllExcitFound, excit, excit_gen, nstore, tTempUseBrill)
             if (tSinglesOnly) ex_flag = 1
 
             do while(.true.)
 
-                call generate_connection_kpnt(nI, original_space(:,i), nJ, ilutJ, ex_flag, tAllExcitFound, &
+                call generate_connection_kpnt(nI, original_space(0:NIfTot,i), nJ, ilutJ, ex_flag, tAllExcitFound, &
                                                nStore, excit_gen, ncon=connected_space_size)
 
                 if (tAllExcitFound) exit

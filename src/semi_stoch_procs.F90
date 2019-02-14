@@ -739,28 +739,32 @@ contains
         use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
 
         integer, intent(in) :: ilut_list_size
-        integer(n_int), intent(inout) :: ilut_list(0:NIfTot, 1:ilut_list_size)
+        integer(n_int), intent(inout) :: ilut_list(0:,:)
         integer(MPIArg), intent(out) :: num_states_procs(0:nProcessors-1)
         integer(n_int), allocatable, dimension(:,:) :: temp_list
         integer, allocatable, dimension(:) :: proc_list
         integer :: nI(nel)
         integer :: i, ierr
+        integer :: width, max_ind
         integer :: counter(0:nProcessors-1)
         integer(TagIntType) :: TempConTag, ProcListTag
         character(len=*), parameter :: t_r = "sort_space_by_proc"
 
+        width = int(size(ilut_list, 1), MPIArg)
+        max_ind = width - 1
+
         allocate(proc_list(ilut_list_size), stat=ierr)
         call LogMemAlloc('proc_list', ilut_list_size, sizeof_int, t_r, ProcListTag, ierr)
 
-        allocate(temp_list(0:NIfTot, ilut_list_size), stat=ierr)
-        call LogMemAlloc('con_space_temp', ilut_list_size*(NIfTot+1), size_n_int, t_r, &
+        allocate(temp_list(0:max_ind, ilut_list_size), stat=ierr)
+        call LogMemAlloc('temp_list', ilut_list_size*width, size_n_int, t_r, &
                          TempConTag, ierr)
 
         num_states_procs = 0
 
         ! Create a list, proc_list, with the processor numbers of the corresponding iluts.
         do i = 1, ilut_list_size
-            call decode_bit_det(nI, ilut_list(:,i))
+            call decode_bit_det(nI, ilut_list(0:NIfTot,i))
             proc_list(i) = DetermineDetNode(nel,nI,0)
             num_states_procs(proc_list(i)) = int(num_states_procs(proc_list(i)) + 1, MPIArg)
         end do
@@ -772,10 +776,10 @@ contains
 
         do i = 1, ilut_list_size
             counter(proc_list(i)) = counter(proc_list(i)) + 1 
-            temp_list(:, counter(proc_list(i))) = ilut_list(:,i)
+            temp_list(0:NIfTot, counter(proc_list(i))) = ilut_list(0:NIfTot,i)
         end do
 
-        ilut_list = temp_list
+        ilut_list(:,1:ilut_list_size) = temp_list(:,1:ilut_list_size)
 
         deallocate(temp_list, stat=ierr)
         deallocate(proc_list, stat=ierr)

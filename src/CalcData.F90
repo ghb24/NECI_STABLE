@@ -273,6 +273,9 @@ type(subspace_in) :: i_space_in
 ! If true then initiators can only be those determinants in the defined fixed space.
 logical :: tPureInitiatorSpace
 
+! Run FCIQMC in the truncated space of all connections to the initiator space
+logical :: tAllConnsPureInit
+
 ! If this is true, don't allow non-initiators to spawn to another non-initiator,
 ! even if it is occupied.
 logical :: tSimpleInit

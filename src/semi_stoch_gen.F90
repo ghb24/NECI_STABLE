@@ -754,8 +754,8 @@ contains
 
         if (iProcIndex /= root) then
             ! Allocate some space so that the MPIScatterV call does not crash.
-            allocate(ilut_store(0:1, 1), stat=ierr)
-            call LogMemAlloc("ilut_store", 1000000*(NIfTot+1), size_n_int, t_r, IlutTag, ierr)
+            allocate(ilut_store(0:NIfTot, 1), stat=ierr)
+            call LogMemAlloc("ilut_store", (NIfTot+1), size_n_int, t_r, IlutTag, ierr)
         else if (iProcIndex == root) then
             ! Allocate the stores of ilut's that will hold these deterministic states.
             ! For now, assume that we won't have a deterministic space of more than one
@@ -870,7 +870,7 @@ contains
 
         if (iProcIndex == root) then
             ! Find which core each state belongs to and sort accordingly.
-            call sort_space_by_proc(ilut_store, old_num_states, proc_space_sizes)
+            call sort_space_by_proc(ilut_store(:,1:old_num_states), old_num_states, proc_space_sizes)
 
             ! Create displacement and sendcount arrays for MPIScatterV later:
             sendcounts = int(proc_space_sizes*(NIfTot+1),MPIArg)
@@ -1494,9 +1494,14 @@ contains
         integer, intent(inout) :: space_size
 
         integer :: conn_size, conn_size_old, i, ierr
-        integer(n_int), allocatable :: conn_space(:,:), temp_space(:,:)
+        integer(n_int), allocatable :: conn_space(:,:)
         integer(MPIArg) :: con_sendcounts(0:nProcessors-1), con_recvcounts(0:nProcessors-1)
         integer(MPIArg) :: con_senddispls(0:nProcessors-1), con_recvdispls(0:nProcessors-1)
+        integer(MPIArg) :: SpawnedPartsWidth
+        integer :: SpawnedPartsMax
+
+        SpawnedPartsWidth = int(size(SpawnedParts, 1), MPIArg)
+        SpawnedPartsMax = int(SpawnedPartsWidth, sizeof_int) - 1
 
         if (space_size > 0) then
 
@@ -1505,18 +1510,18 @@ contains
             ! portion of the trial space.
             write(6,'("Calculating the number of states in the connected space...")'); call neci_flush(6)
 
-            call generate_connected_space(space_size, ilut_list(0:NIfTot, 1:space_size), conn_size)
+            call generate_connected_space(space_size, ilut_list(0:SpawnedPartsMax, 1:space_size), conn_size)
 
             write(6,'("Attempting to allocate conn_space. Size =",1X,F12.3,1X,"Mb")') &
-                    real(conn_size,dp)*(NIfTot+1.0_dp)*7.629392e-06_dp; call neci_flush(6)
-            allocate(conn_space(0:NIfTot, conn_size), stat=ierr)
+                    real(conn_size,dp)*SpawnedPartsWidth*7.629392e-06_dp; call neci_flush(6)
+            allocate(conn_space(0:SpawnedPartsMax, conn_size), stat=ierr)
             conn_space = 0_n_int
 
             write(6,'("States found on this processor, including repeats:",1X,i8)') conn_size
 
             write(6,'("Generating and storing the connected space...")'); call neci_flush(6)
 
-            call generate_connected_space(space_size, ilut_list(0:NIfTot, 1:space_size), &
+            call generate_connected_space(space_size, ilut_list(0:SpawnedPartsMax, 1:space_size), &
                                           conn_size, conn_space)
 
             write(6,'("Removing repeated states and sorting by processor...")'); call neci_flush(6)
@@ -1533,9 +1538,11 @@ contains
             write(6,'("This processor will not search for connected states.")'); call neci_flush(6)
             !Although the size is zero, we should allocate it, because the rest of the code use it.
             !Otherwise, we get segmentation fault later.
-            allocate(conn_space(0:NIfTot, conn_size), stat=ierr)
+            allocate(conn_space(0:SpawnedPartsMax, conn_size), stat=ierr)
 
         end if
+
+        write(6,'("States found on this processor, without repeats:",1X,i8)') conn_size; call neci_flush(6)
 
         write(6,'("Performing MPI communication of connected states...")'); call neci_flush(6)
 
@@ -1546,8 +1553,8 @@ contains
         conn_size_old = conn_size
         conn_size = sum(con_recvcounts)
         ! The displacements necessary for mpi_alltoall.
-        con_sendcounts = con_sendcounts*int(NIfTot+1,MPIArg)
-        con_recvcounts = con_recvcounts*int(NIfTot+1,MPIArg)
+        con_sendcounts = con_sendcounts*SpawnedPartsWidth
+        con_recvcounts = con_recvcounts*SpawnedPartsWidth
         con_senddispls(0) = 0
         con_recvdispls(0) = 0
         do i = 1, nProcessors-1
@@ -1556,8 +1563,8 @@ contains
         end do
 
         !write(6,'("Attempting to allocate temp_space. Size =",1X,F12.3,1X,"Mb")') &
-        !    real(conn_size,dp)*(NIfTot+1.0_dp)*7.629392e-06_dp; call neci_flush(6)
-        !allocate(temp_space(0:NIfTot, conn_size), stat=ierr)
+        !    real(conn_size,dp)*SpawnedPartsWidth*7.629392e-06_dp; call neci_flush(6)
+        !allocate(temp_space(0:SpawnedPartsMax, conn_size), stat=ierr)
 
         call MPIAlltoAllV(conn_space(:,1:conn_size_old), con_sendcounts, con_senddispls, &
                           ilut_list(:,1:conn_size), con_recvcounts, con_recvdispls, ierr)
@@ -1568,8 +1575,8 @@ contains
             deallocate(conn_space, stat=ierr)
         end if
         !write(6,'("Attempting to allocate conn_space. Size =",1X,F12.3,1X,"Mb")') &
-        !    real(conn_size,dp)*(NIfTot+1.0_dp)*7.629392e-06_dp; call neci_flush(6)
-        !allocate(conn_space(0:NIfTot, 1:conn_size), stat=ierr)
+        !    real(conn_size,dp)*SpawnedPartsWidth*7.629392e-06_dp; call neci_flush(6)
+        !allocate(conn_space(0:SpawnedPartsMax, 1:conn_size), stat=ierr)
         !conn_space = temp_space
         !deallocate(temp_space, stat=ierr)
 

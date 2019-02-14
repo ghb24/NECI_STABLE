@@ -39,7 +39,7 @@ contains
 
         type(subspace_in) :: space_in
 
-        integer :: i, j, ierr
+        integer :: i, ierr
         integer :: nI(nel)
         integer(MPIArg) :: mpi_temp
         character (len=*), parameter :: t_r = "init_initiator_space"
@@ -133,8 +133,8 @@ contains
 
         type(subspace_in) :: space_in
 
-        integer :: ndets_this_proc, i, run
-        real(dp) :: zero_sign(lenof_sign)
+        integer :: ndets_this_proc, run
+        !real(dp) :: zero_sign(lenof_sign)
         character (len=*), parameter :: t_r = "generate_initiator_space"
 
         ndets_this_proc = 0
@@ -254,5 +254,40 @@ contains
         end do
 
     end subroutine set_initiator_space_flags
+
+    subroutine set_conn_init_space_flags_slow(ilut_list, list_size)
+
+        use bit_reps, only: set_flag, get_initiator_flag
+        use DetBitOps, only: CountBits, TestClosedShellDet
+
+        ! Set initiator flags for any determinants in ilut_list which are
+        ! connected to states within the initiator space
+
+        integer(n_int), intent(inout) :: ilut_list(0:,:)
+        integer, intent(in) :: list_size
+
+        integer :: i, j, part_type, IC
+        integer(n_int) :: tmp(0:NIfD)
+
+        do i = 1, list_size
+            ! If the initiator flag is already set, then we don't need to check
+            ! whether or not to set it
+            if ( test_flag(ilut_list(:,i), get_initiator_flag(1)) ) cycle
+
+            ! First the naive way: just check every single state in the initiator space...
+            do j = 1, initiator_space_size
+                tmp = ieor(ilut_list(0:NIfD,i), initiator_space(0:NIfD,j))
+                tmp = iand(ilut_list(0:NIfD,i), tmp)
+                IC = CountBits(tmp, NIfD)
+                if (IC <= 2) then
+                    do part_type = 1, lenof_sign
+                        call set_flag(ilut_list(:,i), get_initiator_flag(part_type))
+                    end do
+                    exit
+                end if
+            end do
+        end do
+
+    end subroutine set_conn_init_space_flags_slow
 
 end module initiator_space_procs
