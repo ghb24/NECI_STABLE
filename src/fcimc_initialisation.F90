@@ -1766,8 +1766,8 @@ contains
                                 &i8, " blooms occurred.")'
         else
             ! Use this variable to store the bloom cutoff level.
-            InitiatorWalkNo = 25.0_dp
-            bloom_warn_string = '("Bloom of more than 25 on ", a, " excit: &
+            InitiatorWalkNo = 3.0_dp
+            bloom_warn_string = '("Bloom of more than 3 on ", a, " excit: &
                                 &A max of ", f10.2, " particles created. ", &
                                 &i8, " blooms occurred.")'
         endif

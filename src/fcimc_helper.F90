@@ -33,7 +33,7 @@ module fcimc_helper
                            HistInitPopsIter, tHistInitPops, iterRDMOnFly, &
                            FciMCDebug, tLogEXLEVELStats
     use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, tReplicaCoherentInits, &
-                        tAddToInitiator, InitiatorWalkNo, tAvReps, &
+                        InitiatorWalkNo, tAvReps, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
                         tRealCoeffByExcitLevel, tGlobalInitFlag, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
@@ -796,10 +796,7 @@ contains
 
         call extract_sign (CurrentDets(:,j), CurrentSign)
 
-        ! The default path through this section makes no changes, leaving
-        ! the initiator status of each parent unchanged.  If 
-        ! tAddToInitiator is set, then the state of the parent may change.
-        if (tAddToInitiator) then
+        if (tTruncInitiator) then
 
             ! Now loop over the particle types, and update the flags
             do run = 1, inum_runs

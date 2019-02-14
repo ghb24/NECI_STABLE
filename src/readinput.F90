@@ -210,7 +210,6 @@ MODULE ReadInput_neci
                             tSpatialOnlyHash, InitWalkers, tUniqueHFNode, &
                             tCheckHighestPop, &
                             tKP_FCIQMC, &
-                            tAddToInitiator, &
                             tRealCoeffByExcitLevel, &
                             tAllRealCoeff, tUseRealCoeffs, tChangeProjEDet, &
                             tOrthogonaliseReplicas, tReadPops, tStartMP1, &

@@ -1517,8 +1517,10 @@ contains
                 tStartCoreGroundState = .false.
 
             case("INITIATOR-SPACE")
+                tTruncInitiator=.true.
                 tInitiatorSpace = .true.
             case("PURE-INITIATOR-SPACE")
+                tTruncInitiator=.true.
                 tInitiatorSpace = .true.
                 tPureInitiatorSpace = .true.
                 tInitCoherentRule = .false.
