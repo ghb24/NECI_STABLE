@@ -671,7 +671,7 @@ contains
                 if(tinitsRDM) call dealloc_one_rdm_t(inits_one_rdms(irdm))
             end do
             deallocate(one_rdms)
-            if(tinitsRDM) deallocate(inits_one_rdms)
+            if(tinitsRDM .and. allocated(inits_one_rdms)) deallocate(inits_one_rdms)
         end if
 
         if (tExplicitAllRDM) then
