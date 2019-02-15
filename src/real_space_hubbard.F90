@@ -20,7 +20,7 @@ module real_space_hubbard
                           t_open_bc_y, t_open_bc_z, G1, ecore, nel, nOccAlpha, nOccBeta, &
                           t_trans_corr, trans_corr_param, t_trans_corr_2body, & 
                           trans_corr_param_2body, tHPHF, t_trans_corr_new, & 
-                          t_trans_corr_hop, t_uniform_excits, t_hole_focus_excits, pholefocus,t_precond_hub,&
+                          t_trans_corr_hop, t_uniform_excits, t_hole_focus_excits, pholefocus,&
                           t_spin_dependent_transcorr, tNoBrillouin, tUseBrillouin
 
     use lattice_mod, only: lattice, determine_optimal_time_step, lat, &
@@ -1292,13 +1292,6 @@ contains
         end if 
 
         ilutJ = make_ilutJ(ilutI, ex, ic)
-        if(t_precond_hub)then
-         n_double=0
-         do i=1,nBasis
-          if(IsOcc(ilutJ,2*i-1).and.IsOcc(ilutJ,2*i))n_double=n_double+1
-         end do
-         pgen=pgen*(1.0_dp+n_double*uhub)
-        end if
 
 #ifdef __DEBUG
         temp_pgen = calc_pgen_rs_hubbard_transcorr(nI,ilutI,ex,ic)
