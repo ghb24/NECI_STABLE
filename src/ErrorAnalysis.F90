@@ -294,7 +294,7 @@ module errors
             mean_ProjE_re = mean_num/mean_denom
             ProjE_Err_re = abs(mean_ProjE_re)* sqrt( (abs(error_denom/mean_denom))**2.0_dp &
                 + (abs(error_num/mean_num))**2.0_dp - correction_re )
-            if(lenof_sign.eq.2) then
+            if(lenof_sign/inum_runs .eq. 2) then
                 mean_ProjE_im = mean_imnum/mean_denom
 
                 ProjE_Err_im = abs(mean_ProjE_im)* sqrt( (abs(error_denom/mean_denom))**2.0_dp &
@@ -1130,6 +1130,7 @@ module errors
     !Routine to just calculate errors from FCIMCStats file
     subroutine Standalone_Errors()
         use sym_mod, only: getsym
+        USE MolproPlugin, only : MolproPluginResult
 #ifdef MOLPRO
         use outputResult
         integer :: nv,ityp(1)
@@ -1226,6 +1227,8 @@ module errors
         if (iroot.eq.1) call clearvar('FCIQMC_ERR')
         call setvar('FCIQMC_ERR',min(ProjE_Err_re,shift_err),'AU',ityp,1,nv,iroot)
 #endif
+        CALL MolproPluginResult('ENERGY',[BestEnergy])
+        CALL MolproPluginResult('FCIQMC_ERR',[min(ProjE_Err_re,shift_err)])
         write(iout,"(/)")
 
     end subroutine Standalone_Errors

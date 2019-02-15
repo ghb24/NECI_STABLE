@@ -1,13 +1,14 @@
 module read_fci
 
-    character(len=64) :: FCIDUMP_name
+    character(len=1024) :: FCIDUMP_name
 
 contains
 
     SUBROUTINE INITFROMFCID(NEL,NBASISMAX,LEN,LMS,TBIN)
          use SystemData , only : tNoSymGenRandExcits,lNoSymmetry,tROHF,tHub,tUEG
          use SystemData , only : tStoreSpinOrbs,tKPntSym,tRotatedOrbsReal,tFixLz,tUHF
-         use SystemData , only : tMolpro,tReadFreeFormat,tReltvy
+         use SystemData , only : tMolpro,tReadFreeFormat,tReltvy, nclosedOrbs, nOccOrbs
+         use SystemData , only : nIrreps
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
          use Parallel_neci
          use util_mod, only: get_free_unit
@@ -16,6 +17,7 @@ contains
          integer, intent(out) :: nBasisMax(5,*),LEN,LMS
          integer, intent(in) :: NEL
          integer SYMLZ(1000)
+         integer OCC(nIrreps), CLOSED(nIrreps), FROZEN(nIrreps)
          integer(int64) :: ORBSYM(1000)
          INTEGER NORB,NELEC,MS2,ISYM,i,SYML(1000), iunit,iuhf
          LOGICAL exists
@@ -27,7 +29,8 @@ contains
 #endif
 
          CHARACTER(len=3) :: fmat
-         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
+         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,OCC,CLOSED,FROZEN,&
+              ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
          UHF=.FALSE.
          fmat='NO'
          PROPBITLEN = 0
@@ -35,6 +38,9 @@ contains
          IUHF = 0
          TREL = .false.
          SYMLZ(:) = 0
+         OCC = -1
+         CLOSED = -1
+         FROZEN = -1
          ! [W.D. 15.5.2017:]
          ! with the new relativistic calculations, withoug a ms value in the 
          ! FCIDUMP, we have to set some more defaults..
@@ -90,11 +96,16 @@ contains
          CALL MPIBCast(tRel)
          CALL MPIBCast(PROPBITLEN,1)
          CALL MPIBCast(NPROP,3)
+         call MPIBCast(OCC,8)
+         call MPIBCast(CLOSED,nIrreps)
+         call MPIBCast(FROZEN,nIrreps)
          ! If PropBitLen has been set then assume we're not using an Abelian
          ! symmetry group which has two cycle generators (ie the group has
          ! complex representations).
          TwoCycleSymGens = PropBitLen == 0
          tReltvy = tRel
+         nOccOrbs = OCC
+         nClosedOrbs = CLOSED
 
          IF(.not.TwoCycleSymGens.and.((NPROP(1)+NPROP(2)+NPROP(3)).gt.3)) THEN
              !We are using abelian k-point symmetry. Turn it on.
@@ -213,7 +224,7 @@ contains
       SUBROUTINE GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN,TBIN)
          use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn,tMolpro,tUHF
          use SystemData, only: tCacheFCIDUMPInts,tROHF,tFixLz,iMaxLz,tRotatedOrbsReal
-         use SystemData, only: tReadFreeFormat,SYMMAX,tReltvy
+         use SystemData, only: tReadFreeFormat,SYMMAX,tReltvy, irrepOrbOffset, nIrreps
          use UMatCache, only: nSlotsInit,CalcNSlotsInit
          use UMatCache, only: GetCacheIndexStates,GTID
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
@@ -235,17 +246,19 @@ contains
          INTEGER I,J,K,L,I1
          INTEGER ISYMNUM,ISNMAX,SYMLZ(1000), iunit
          INTEGER NORB,NELEC,MS2,ISYM,ISPINS,ISPN,SYML(1000)
+         integer OCC(nIrreps), CLOSED(nIrreps), FROZEN(nIrreps)
          integer(int64) ORBSYM(1000)
          INTEGER nPairs,iErr,MaxnSlot,MaxIndex,IUHF
          INTEGER , ALLOCATABLE :: MaxSlots(:)
          character(len=*), parameter :: t_r='GETFCIBASIS'
          LOGICAL TBIN
-         ! RT_M_Merge: Adjusted declarations from real-time branch to current master
-         logical :: uhf, tRel
 
          real(dp) :: real_time_Z
 
-         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
+         logical :: uhf,tRel
+         integer :: orbsPerIrrep(nIrreps)
+         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,OCC,CLOSED,FROZEN,&
+              ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
 
 #ifdef _MOLCAS_
          logical :: tExists     !test for existence of input file.
@@ -308,6 +321,7 @@ contains
          ISYMNUM=0
          ISNMAX=0
          ISPINS=2
+
          IF((UHF.and.(.not.tROHF)).or.tReltvy) ISPINS=1
 
          IF(tROHF) THEN
@@ -337,6 +351,20 @@ contains
                  write(6,*) "Reading in ROHF FCIDUMP, and storing as spatial orbitals."
              endif
          ENDIF
+
+         ! Count the number of orbs per irrep
+         if(any(ORBSYM(1:NORB).eq.0)) then
+            write(6,*) "WARNING: Invalid ORBSYM in FCIDUMP, are you sure you know what you are doing?"
+         else
+            orbsPerIrrep = 0
+            do i = 1, NORB
+               orbsPerIrrep(ORBSYM(i)) = orbsPerIrrep(ORBSYM(i)) + ISPINS
+            end do
+            irrepOrbOffset(1) = 0
+            do i = 2, nIrreps
+               irrepOrbOffset(i) = irrepOrbOffset(i-1) + orbsPerIrrep(i-1)
+            end do
+         endif
 
          !Below is a mistake - since ISPINS is always two, it will be doubled up for us automatically for G1
 !         if(tMolpro.and.tUHF) then
@@ -629,7 +657,7 @@ contains
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,tMolpro
          use SystemData, only: UMatEps,tCacheFCIDUMPInts,tUHF
          use SystemData, only: tRIIntegrals,nBasisMax,tROHF,tRotatedOrbsReal
-         use SystemData, only: tReadFreeFormat, G1, tFixLz, tReltvy
+         use SystemData, only: tReadFreeFormat, G1, tFixLz, tReltvy, nIrreps
          USE UMatCache, only: UMatInd,UMatConj,UMAT2D,TUMAT2D,nPairs,CacheFCIDUMP
          USE UMatCache, only: FillUpCache,GTID,nStates,nSlots,nTypes
          USE UMatCache, only: UMatCacheData,UMatLabels,GetUMatSize
@@ -657,6 +685,7 @@ contains
          LOGICAL LWRITE
          logical :: uhf
          INTEGER ISPINS,ISPN,ierr,SYMLZ(1000)!,IDI,IDJ,IDK,IDL
+         integer OCC(nIrreps), CLOSED(nIrreps), FROZEN(nIrreps)
          INTEGER TMatSize,IUHF
          integer(int64) :: UMatSize
          INTEGER , ALLOCATABLE :: CacheInd(:)
@@ -669,7 +698,8 @@ contains
          integer(int64) :: start_ind, end_ind
          integer(int64), parameter :: chunk_size = 1000000
          integer:: bytecount
-         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
+         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,OCC,CLOSED,FROZEN,&
+              ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
 
 #ifdef _MOLCAS_
          logical :: tExists     !test for existence of input file.

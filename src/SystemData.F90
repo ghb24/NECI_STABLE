@@ -55,6 +55,8 @@ logical :: tComplexWalkers_RealInts !We are using real orbitals, but complex wal
 integer :: iParity(5), nMaxX, nMaxY, nMaxZ, nMSH, coulDampOrb, elecPairs
 integer :: roIterMax, iRanLuxLev, DiagMaxMinFac, OneElmaxMinFac, iState
 integer :: iTiltX, iTiltY, nOccAlpha, nOccBeta, ShakeIterMax, ShakeStart
+integer, parameter :: nIrreps = 8
+integer :: nClosedOrbs(nIrreps), nOccOrbs(nIrreps), irrepOrbOffset(nIrreps)
 integer :: MaxMinFac, MaxABPairs
 real(dp) :: BOX, BOA, COA, fUEGRs, fRc, OrbECutoff, UHUB, BHUB, btHub
 real(dp) :: Diagweight, OffDiagWeight, OrbEnMaxAlpha, Alpha, fCoulDampBeta
@@ -266,7 +268,13 @@ logical :: tGen_nosym_guga =    .false., &
            tGen_sym_guga_mol =  .false., &
            tgen_guga_weighted = .false., &
            tgen_guga_crude =    .false., & 
-           tgen_guga_mixed =    .false.
+           tgen_guga_mixed =    .false., &
+           tgen_guga_exchange = .false., &
+           t_approx_exchange =  .false., &
+           t_crude_exchange =   .false., &
+           t_crude_exchange_noninits = .false., &
+           is_init_guga = .false., &
+           t_approx_exchange_noninits = .false.
 
 logical :: t_guga_mixed_init = .true., t_guga_mixed_semi = .false.
 

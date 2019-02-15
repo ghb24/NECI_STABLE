@@ -12,12 +12,14 @@ module rdm_finalising
     use rdm_data_utils, only: calc_separate_rdm_labels, extract_sign_rdm, add_to_rdm_spawn_t
     use rdm_data_utils, only: communicate_rdm_spawn_t_wrapper
     use util_mod
+    use CalcData, only: tAdaptiveShift
+    use RotateOrbsMod, only: FourIndInts
 
     implicit none
 
 contains
 
-    subroutine finalise_rdms(rdm_defs, one_rdms, two_rdms, rdm_recv, rdm_recv_2, en_pert, spawn, rdm_estimates)
+    subroutine finalise_rdms(rdm_defs, one_rdms, two_rdms, rdm_recv, rdm_recv_2, en_pert, spawn, rdm_estimates,tInitsRDMs)
 
         ! Wrapper routine, called at the end of a simulation, which in turn
         ! calls all required finalisation routines.
@@ -43,16 +45,25 @@ contains
         type(en_pert_t), intent(in) :: en_pert
         type(rdm_spawn_t), intent(inout) :: spawn
         type(rdm_estimates_t), intent(inout) :: rdm_estimates
+        logical, intent(in) :: tInitsRDMs
 
         integer :: irdm, ierr
         real(dp) :: norm_1rdm(size(one_rdms)), SumN_Rho_ii(size(one_rdms))
+        character(255) :: RDMName
 
         call set_timer(FinaliseRDMs_Time)
+        if(tInitsRDMS) then
+           RDMName = 'RDMs (Initiators)'
+        else if(tAdaptiveShift) then
+           RDMName = 'RDMs (Lagrangian)'
+        else
+           RDMName = 'RDMs'
+        endif
 
         if (tExplicitAllRDM) then
-            write(6,'(/,"**** RDMs CALCULATED EXPLICITLY ****",1X,/)')
+            write(6,'(/,"****","'//trim(RDMName)//'"," CALCULATED EXPLICITLY ****",1X,/)')
         else
-            write(6,'(/,"**** RDMs CALCULATED STOCHASTICALLY ****",1X,/)')
+            write(6,'(/,"****","'//trim(RDMName)//'"," CALCULATED STOCHASTICALLY ****",1X,/)')
         end if
 
         ! Combine the 1- or 2-RDM from all processors, etc.
@@ -82,7 +93,7 @@ contains
         ! Stuff using the 1-RDMs:
         if (RDMExcitLevel == 1 .or. RDMExcitLevel == 3) then
             ! Output banner for start of 1-RDM section in the output.
-            write(6,'(1x,2("="),1x,"INFORMATION FOR FINAL 1-RDMS",1x,57("="))')
+            write(6,'(1x,2("="),1x,"INFORMATION FOR FINAL 1-","'//trim(RDMName)//'",1x,57("="))')
 
             if (RDMExcitLevel == 1) call finalise_1e_rdm(rdm_defs, one_rdms, norm_1rdm, .false.)
 
@@ -95,7 +106,7 @@ contains
 
                     if (RDMExcitLevel == 1 .or. tPrint1RDM) then
                         ! Write out the final, normalised, hermitian OneRDM.
-                        call write_1rdm(rdm_defs, one_rdms(irdm)%matrix, irdm, norm_1rdm(irdm), .true., .false.)
+                        call write_1rdm(rdm_defs, one_rdms(irdm)%matrix, irdm, norm_1rdm(irdm), .true., .false.,tInitsRDMs)
                     end if
                 end do
             end if
@@ -121,7 +132,8 @@ contains
         ! Write the final instantaneous 2-RDM estimates, and also the final
         ! report of the total 2-RDM estimates.
         if (RDMExcitLevel /= 1 .and. iProcIndex == 0) then
-            call write_rdm_estimates(rdm_defs, rdm_estimates, .true., print_2rdm_est)
+            call write_rdm_estimates(rdm_defs, rdm_estimates, .true., print_2rdm_est, &
+                 tInitsRDMs)
         end if
 #ifdef _MOLCAS_
         if (print_2rdm_est) then
@@ -131,6 +143,9 @@ contains
             write(6,*) 'NECI_E at rdm_general.f90 ', NECI_E
         end if
 #endif
+        ! this is allocated in find_nat_orb_occ_numbers and used later in
+        ! brokensymno, ugh. Have to deallocate it somewhere though
+        if(allocated(FourIndInts)) deallocate(FourIndInts)
 
         call halt_timer(FinaliseRDMs_Time)
 
@@ -976,33 +991,45 @@ contains
                     ! Let the first processor clear all the files to start with.
                     if (iproc == 0) then
                         iunit_aaaa = get_free_unit()
-                        open(iunit_aaaa, file='TwoRDM_aaaa.'//trim(suffix), status='replace')
+                        open(iunit_aaaa, file=trim(rdm_defs%output_file_prefix)//&
+                             '_aaaa.'//trim(suffix), status='replace')
                         iunit_abab = get_free_unit()
-                        open(iunit_abab, file='TwoRDM_abab.'//trim(suffix), status='replace')
+                        open(iunit_abab, file=trim(rdm_defs%output_file_prefix)//&
+                             '_abab.'//trim(suffix), status='replace')
                         iunit_abba = get_free_unit()
-                        open(iunit_abba, file='TwoRDM_abba.'//trim(suffix), status='replace')
+                        open(iunit_abba, file=trim(rdm_defs%output_file_prefix)//&
+                             '_abba.'//trim(suffix), status='replace')
                         if (open_shell) then
                             iunit_bbbb = get_free_unit()
-                            open(iunit_bbbb, file='TwoRDM_bbbb.'//trim(suffix), status='replace')
+                            open(iunit_bbbb, file=trim(rdm_defs%output_file_prefix)//&
+                                 '_bbbb.'//trim(suffix), status='replace')
                             iunit_baba = get_free_unit()
-                            open(iunit_baba, file='TwoRDM_baba.'//trim(suffix), status='replace')
+                            open(iunit_baba, file=trim(rdm_defs%output_file_prefix)//&
+                                 '_baba.'//trim(suffix), status='replace')
                             iunit_baab = get_free_unit()
-                            open(iunit_baab, file='TwoRDM_baab.'//trim(suffix), status='replace')
+                            open(iunit_baab, file=trim(rdm_defs%output_file_prefix)//&
+                                 '_baab.'//trim(suffix), status='replace')
                         end if
                     else
                         iunit_aaaa = get_free_unit()
-                        open(iunit_aaaa, file='TwoRDM_aaaa.'//trim(suffix), status='old', position='append')
+                        open(iunit_aaaa, file=trim(rdm_defs%output_file_prefix)//&
+                             '_aaaa.'//trim(suffix), status='old', position='append')
                         iunit_abab = get_free_unit()
-                        open(iunit_abab, file='TwoRDM_abab.'//trim(suffix), status='old', position='append')
+                        open(iunit_abab, file=trim(rdm_defs%output_file_prefix)//&
+                             '_abab.'//trim(suffix), status='old', position='append')
                         iunit_abba = get_free_unit()
-                        open(iunit_abba, file='TwoRDM_abba.'//trim(suffix), status='old', position='append')
+                        open(iunit_abba, file=trim(rdm_defs%output_file_prefix)//&
+                             '_abba.'//trim(suffix), status='old', position='append')
                         if (open_shell) then
                             iunit_bbbb = get_free_unit()
-                            open(iunit_bbbb, file='TwoRDM_bbbb.'//trim(suffix), status='old', position='append')
+                            open(iunit_bbbb, file=trim(rdm_defs%output_file_prefix)//&
+                                 '_bbbb.'//trim(suffix), status='old', position='append')
                             iunit_baba = get_free_unit()
-                            open(iunit_baba, file='TwoRDM_baba.'//trim(suffix), status='old', position='append')
+                            open(iunit_baba, file=trim(rdm_defs%output_file_prefix)//&
+                                 '_baba.'//trim(suffix), status='old', position='append')
                             iunit_baab = get_free_unit()
-                            open(iunit_baab, file='TwoRDM_baab.'//trim(suffix), status='old', position='append')
+                            open(iunit_baab, file=trim(rdm_defs%output_file_prefix)//&
+                                 '_baab.'//trim(suffix), status='old', position='append')
                         end if
                     end if
 
@@ -1097,11 +1124,13 @@ contains
                 ! Loop over all RDMs beings sampled.
                 do irdm = 1, rdm_defs%nrdms
                     if (state_labels(1,irdm) == state_labels(2,irdm)) then
-                        write(rdm_filename, '("spinfree_TwoRDM.",'//int_fmt(state_labels(1,irdm),0)//')') irdm
+                       write(rdm_filename, '("spinfree_",'//trim(rdm_defs%output_file_prefix)//',".",'&
+                             //int_fmt(state_labels(1,irdm),0)//')') irdm
                     else
-                        write(rdm_filename, '("spinfree_TwoRDM.",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
-                                                                  //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
-                                            state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
+                        write(rdm_filename, '("spinfree_",'//trim(rdm_defs%output_file_prefix)//&
+                             ',".",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
+                             //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
+                             state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
                     end if
 
                     ! Open the file to be written to.
@@ -1373,7 +1402,7 @@ contains
 
     end subroutine make_1e_rdm_hermitian
 
-    subroutine write_1rdm(rdm_defs, one_rdm, irdm, norm_1rdm, tNormalise, tOldRDMs)
+    subroutine write_1rdm(rdm_defs, one_rdm, irdm, norm_1rdm, tNormalise, tOldRDMs, tInitsRDM)
 
         ! This routine writes out the OneRDM. If tNormalise is true, we are
         ! printing the normalised, hermitian matrix. Otherwise, norm_1rdm is
@@ -1391,10 +1420,23 @@ contains
         integer, intent(in) :: irdm
         real(dp), intent(in) :: norm_1rdm
         logical, intent(in) :: tNormalise, tOldRDMs
+        logical, intent(in), optional :: tInitsRDM
 
         integer :: i, j, iSpat, jSpat, one_rdm_unit
         logical :: is_transition_rdm
         character(20) :: filename
+        character(20) :: filename_prefix
+        character(*), parameter :: default_prefix = "OneRDM."
+
+        if(present(tInitsRDM)) then
+           if(tInitsRDM) then
+              filename_prefix = "InitsOneRDM."
+           else
+              filename_prefix = default_prefix
+           endif
+        else
+           filename_prefix = default_prefix
+        endif
 
         associate(state_labels => rdm_defs%state_labels, &
                   repeat_label => rdm_defs%repeat_label, &
@@ -1415,11 +1457,13 @@ contains
                 open(one_rdm_unit, file=trim(filename), status='unknown')
             else
                 if (is_transition_rdm) then
-                    write(filename, '("OneRDM.",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
-                                                 //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
-                                        state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
+                    write(filename, '("'//trim(filename_prefix)//'",'&
+                         //int_fmt(state_labels(1,irdm),0)//',"_",'&
+                         //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
+                         state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
                 else
-                    write(filename, '("OneRDM.",'//int_fmt(state_labels(1,irdm),0)//')') irdm
+                    write(filename, '("'//trim(filename_prefix)//'",'&
+                         //int_fmt(state_labels(1,irdm),0)//')') irdm
                 end if
                 open(one_rdm_unit, file=trim(filename), status='unknown')
             end if

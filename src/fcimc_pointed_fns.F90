@@ -15,10 +15,12 @@ module fcimc_pointed_fns
                         tRealCoeffByExcitLevel, InitiatorWalkNo, &
                         t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, & 
                         t_matele_cutoff, matele_cutoff, tEN2Truncated, &
-                        tTruncInitiator, tSkipRef, t_consider_par_bias, t_truncate_unocc, &
+                        t_consider_par_bias, &
                         t_hist_tau_search_option, &
-                        tAdaptiveShift, AdaptiveShiftSigma, AdaptiveShiftF1, AdaptiveShiftF2
-
+                        tTruncInitiator, tSkipRef, t_truncate_unocc, &
+                        tAdaptiveShift, AdaptiveShiftSigma, AdaptiveShiftF1, AdaptiveShiftF2, &
+                        tAutoAdaptiveShift, AdaptiveShiftThresh, AdaptiveShiftExpo, AdaptiveShiftCut, &
+                        tAAS_Add_Diag
     use DetCalcData, only: FciDetIndex, det
 
     use procedure_pointers, only: get_spawn_helement
@@ -64,6 +66,7 @@ module fcimc_pointed_fns
     use hphf_integrals, only: hphf_diag_helement
 
     use Determinants, only: get_helement
+    use global_det_data, only: get_tot_spawns, get_acc_spawns
 
     implicit none
 
@@ -702,7 +705,7 @@ module fcimc_pointed_fns
 
     end subroutine
 
-    function attempt_die_normal (DetCurr, Kii, realwSign, WalkExcitLevel) result(ndie)
+    function attempt_die_normal (DetCurr, Kii, realwSign, WalkExcitLevel, DetPosition) result(ndie)
         
         ! Should we kill the particle at determinant DetCurr. 
         ! The function allows multiple births (if +ve shift), or deaths from
@@ -721,6 +724,7 @@ module fcimc_pointed_fns
         real(dp), intent(in) :: Kii
         real(dp), dimension(lenof_sign) :: ndie
         integer, intent(in) :: WalkExcitLevel
+        integer, intent(in), optional :: DetPosition
         character(*), parameter :: t_r = 'attempt_die_normal'
 
         real(dp) :: probsign, r
@@ -731,8 +735,7 @@ module fcimc_pointed_fns
 #else
         real(dp) :: rat(1)
 #endif        
-        real(dp) :: shift, population, slope
-
+        real(dp) :: shift, population, slope, tot, acc, tmp
 
         do i=1, inum_runs
             if (t_cepa_shift) then 
@@ -744,7 +747,7 @@ module fcimc_pointed_fns
                 !If we are fixing the population of reference det, skip death/birth
                 fac(i)=0.0
             else
-                if(tAdaptiveShift)then
+                if(tAdaptiveShift .and. .not. tAutoAdaptiveShift)then
                     population = mag_of_run(realwSign, i)
                     if(population>InitiatorWalkNo)then
                         shift = DiagSft(i)
@@ -759,8 +762,29 @@ module fcimc_pointed_fns
                             !Apply linear modifcation that equals F1 at Sigma and F2 at InitatorWalkNo
                             slope = (AdaptiveShiftF2-AdaptiveShiftF1)/(InitiatorWalkNo-AdaptiveShiftSigma)
                             shift = DiagSft(i)*(AdaptiveShiftF1+(population-AdaptiveShiftSigma)*slope)
+                        end if
                     end if
+                elseif(tAutoAdaptiveShift)then
+                    population = mag_of_run(realwSign, i)
+                    tot = get_tot_spawns(DetPosition, i)
+                    acc = get_acc_spawns(DetPosition, i)
+                    if(tAAS_Add_Diag)then
+                        tot = tot + Kii*tau
+                        acc = tot + Kii*tau
                     end if
+                    if(population>InitiatorWalkNo)then
+                        tmp = 1.0
+                    elseif(tot>AdaptiveShiftThresh)then
+                        tmp = acc/tot
+                    else
+                        tmp = 0.0
+                    endif 
+                    !The factor is actually never zero, because at least the parent is occupied
+                    !As a heuristic, we use the connectivity of HF
+                    if(tmp<AdaptiveShiftCut)then
+                        tmp = AdaptiveShiftCut
+                    endif
+                    shift = DiagSft(i)*tmp**AdaptiveShiftExpo
                 else
                     shift = DiagSft(i)
                 endif
@@ -788,6 +812,10 @@ module fcimc_pointed_fns
                     print *, "Kii: ", Kii 
                     print *, "weight: ", realwSign
                     print *, "excit_level: ", WalkExcitLevel
+                    print *, "Acc spawns", acc
+                    print *, "Tot spawns", tot
+                    print *, "Diag sft", DiagSft
+                    print *, "Death probability", fac
                     call stop_all(t_r, "Death probability > 2: Algorithm unstable. Reduce timestep.")
                 end if
             else

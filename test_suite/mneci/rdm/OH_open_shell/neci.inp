@@ -5,7 +5,7 @@ system read
 nonuniformrandexcits 4ind-weighted
 rohf
 electrons 9
-spin-restrict 1
+spin-restrict -1
 molpromimic
 freeformat
 endsys

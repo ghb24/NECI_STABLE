@@ -145,6 +145,10 @@ macro( neci_add_library )
         endforeach()
     endif()
 
+    # We need c++11 for the molpro plugin
+    
+    set_property(TARGET ${_p_TARGET} PROPERTY CXX_STANDARD 11)
+
     # Add the link libraries
 
     if ( _p_LIBS )

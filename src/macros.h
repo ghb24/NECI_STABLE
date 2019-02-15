@@ -72,6 +72,13 @@
 #define set_orb(ilut, orb) ilut(ilut_int(orb))=ibset(ilut(ilut_int(orb)),ilut_off(orb))
 #define clr_orb(ilut, orb) ilut(ilut_int(orb))=ibclr(ilut(ilut_int(orb)),ilut_off(orb))
 
+! define some macros to set guga step-vectors without making mistakes
+#define set_one(ilut, spat) set_orb(ilut, 2*spat - 1)
+#define clr_one(ilut, spat) clr_orb(ilut, 2*spat - 1)
+
+#define set_two(ilut, spat) set_orb(ilut, 2*spat)
+#define clr_two(ilut, spat) clr_orb(ilut, 2*spat)
+
 ! Useful for fixing things. Requires this_routine to be defined
 #ifdef __DEBUG
 #define ASSERT(x) \

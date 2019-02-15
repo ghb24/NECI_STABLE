@@ -94,6 +94,8 @@ set( SRC_FILES
     Makefile
     matmul.F
     modifiedHub.F90
+    MolproPlugin.F90
+    PluginGuest.cpp
     NatOrbs.F90
     NECICore.F90
     neci_intfce.F90
@@ -238,9 +240,6 @@ set( TEMPLATED_SRC_FILES
 # Don't use generator expressions for including libraries, as this causes problems when there are list
 # expansions.
 set( _conditional_libraries "" )
-if (HAVE_MPI)
-    list(APPEND _conditional_libraries ${MPI_NECI_Fortran_LIBRARIES} )
-endif()
 if (HAVE_FFTW)
     list(APPEND _conditional_libraries ${FFTW_LIBRARIES} )
 endif()
@@ -253,7 +252,9 @@ endif()
 set( _library_link_libs
     "${LAPACK_NECI_LIBRARIES}"
     "${LIBRT_LIBRARIES}"
-    "${_conditional_libraries}" )
+    "${_conditional_libraries}" 
+    "${MPI_NECI_LIBRARIES}"
+    "${MPI_NECI_Fortran_LIBRARIES}")
 
 if( HAVE_SHARED )
     set( _link_type SHARED )
@@ -281,7 +282,7 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
         LINKER_LANGUAGE Fortran
 
         PRIVATE_INCLUDES
-            "${MPI_NECI_INCLUDE_PATH}"
+	    "${MPI_NECI_INCLUDE_PATH}"
             "${HDF5_NECI_INCLUDE_PATH}"
 
         DEFINITIONS

@@ -6,10 +6,10 @@ use constants, only: sp,dp,int64
 
 IMPLICIT NONE
 
-CHARACTER(LEN=800), SAVE :: char=""
+CHARACTER(LEN=1900), SAVE :: char=""
 LOGICAL, SAVE :: skipbl=.false., clear=.true., echo=.false.,           &
     debug=.false., more
-INTEGER, SAVE :: item=0, nitems=0, loc(0:80)=0, end(80)=0,               &
+INTEGER, SAVE :: item=0, nitems=0, loc(0:120)=0, end(120)=0,               &
     line(0:10)=0, level=0, nerror=0, ir=5, last=0, unit(0:10)
 
 CHARACTER(LEN=26), PARAMETER ::                                        &
@@ -19,8 +19,8 @@ CHARACTER, PARAMETER :: space = " ", bra = "(", ket = ")",             &
     comma = ",", squote = "'", dquote = '"', tab=achar(9),             &
     plus="+", minus="-", dot="."
 
-CHARACTER(LEN=255), SAVE :: concat = "+++"
-CHARACTER(LEN=255) :: file(10)=""
+CHARACTER(LEN=455), SAVE :: concat = "+++"
+CHARACTER(LEN=455) :: file(10)=""
 
 INTEGER, SAVE :: lc=3
 
@@ -38,7 +38,7 @@ PRIVATE
 PUBLIC :: item, nitems, read_line, stream, reada, readu, readl,        &
     readf, readi,readiLong, getf, geta, geti, getiLong, reread,        &
     input_options, upcase, locase, report, die, assert, find_io,       &
-    read_colour, getargs, parse, char, ir, readt_default
+    read_colour, getargs, parse, char, ir, readt_default, getRange
 !  AJWT - added , ir to above
 !  Free-format input routines
 
@@ -184,10 +184,10 @@ SUBROUTINE read_line(eof,inunit)
 LOGICAL, INTENT(OUT) :: eof
 INTEGER, INTENT(IN), OPTIONAL :: inunit
 
-CHARACTER(LEN=255) :: w, f
+CHARACTER(LEN=455) :: w, f
 CHARACTER :: term
 
-INTEGER, SAVE :: lrecl = 256
+INTEGER, SAVE :: lrecl = 466
 INTEGER :: in, fail, i, k, l, m
 
 eof=.false.
@@ -484,7 +484,7 @@ END SUBROUTINE parse
 
 SUBROUTINE getargs
 
-CHARACTER(LEN=80) :: word
+CHARACTER(LEN=120) :: word
 
 nitems=0
 last=-1
@@ -635,7 +635,7 @@ SUBROUTINE read_double(A,factor)
 
 REAL(KIND=dp), INTENT(INOUT) :: a
 REAL(KIND=dp), INTENT(IN), OPTIONAL :: factor
-CHARACTER(LEN=50) :: string
+CHARACTER(LEN=90) :: string
 
 if (clear) a=0d0
 
@@ -693,7 +693,7 @@ SUBROUTINE readi(I)
 
 INTEGER, INTENT(INOUT) :: i
 
-CHARACTER(LEN=50) :: string
+CHARACTER(LEN=90) :: string
 
 if (clear) i=0
 
@@ -725,7 +725,7 @@ END SUBROUTINE readi
 
         logical, intent(in), optional :: def
         logical :: val
-        character(100) :: w
+        character(210) :: w
 
         ! Default value
         if (present(def)) then
@@ -774,7 +774,7 @@ SUBROUTINE readiLong(I)
 
 integer(int64), INTENT(INOUT) :: i
 
-CHARACTER(LEN=50) :: string
+CHARACTER(LEN=90) :: string
 
 if (clear) i=0
 
@@ -933,6 +933,20 @@ END SUBROUTINE reread
 
 !-----------------------------------------------------------------------
 
+subroutine getRange(w, start, end)
+  implicit none
+  character(*), intent(inout) :: w
+  integer, intent(out) :: start, end
+  integer :: index
+  
+  w = adjustl(trim(w))
+  index = scan(w,"-")
+  read(w(1:index-1),*) start
+  read(w(index+1:),*) end
+end subroutine getRange
+
+!-----------------------------------------------------------------------
+
 SUBROUTINE upcase(word)
 CHARACTER(LEN=*), INTENT(INOUT) :: word
 INTEGER :: i,k
@@ -1026,9 +1040,9 @@ INTEGER FUNCTION find_io(start)
 IMPLICIT NONE
 INTEGER, INTENT(IN) :: start
 LOGICAL :: in_use, exists
-CHARACTER(LEN=40) :: string
+CHARACTER(LEN=90) :: string
 INTEGER :: n, n0
-INTEGER, PARAMETER :: max_unit=99
+INTEGER, PARAMETER :: max_unit=199
 
 n0=start
 if (n0 .le. 1 .or. n0 .gt. max_unit) n0=1

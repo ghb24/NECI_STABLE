@@ -19,8 +19,8 @@ module fcimc_helper
                         flag_trial, flag_connected, flag_deterministic, &
                         extract_part_sign, encode_part_sign, decode_bit_det, &
                         get_initiator_flag, get_initiator_flag_by_run, &
-                        log_spawn, increase_spawn_counter, flag_determ_parent
-
+                        flag_determ_parent, &
+                        log_spawn, increase_spawn_counter, all_runs_are_initiator
     use bit_rep_data, only: flag_large_matel
 
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
@@ -39,11 +39,12 @@ module fcimc_helper
                            RDMEnergyIter, tFullHFAv, tLogComplexPops, &
                            nHistEquilSteps, tCalcFCIMCPsi, StartPrintOrbOcc, &
                            HistInitPopsIter, tHistInitPops, iterRDMOnFly, &
-                           FciMCDebug, tLogEXLEVELStats
+                           FciMCDebug, tLogEXLEVELStats, maxInitExLvlWrite, &
+                           initsPerExLvl
     use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, tReplicaCoherentInits, &
                         tAddToInitiator, InitiatorWalkNo, tAvReps, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
-                        tRealCoeffByExcitLevel, tGlobalInitFlag, &
+                        tRealCoeffByExcitLevel, tGlobalInitFlag, tInitsRDM, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
                         MaxWalkerBloom, tEN2, tEN2Started, spawnMatelThresh, &
                         NMCyc, iSampleRDMIters, ErrThresh, tSTDInits, &
@@ -52,8 +53,9 @@ module fcimc_helper
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule, &
                         initMaxSenior, tSeniorityInits, tLogAverageSpawns, &
                         spawnSgnThresh, minInitSpawns, tTimedDeaths, &
-                        t_trunc_nopen_diff, trunc_nopen_diff, t_guga_mat_eles
-
+                        t_trunc_nopen_diff, trunc_nopen_diff, t_guga_mat_eles,&
+                        tAutoAdaptiveShift, tAAS_MatEle, tAAS_MatEle2, tAAS_Reverse,&
+                        tAAS_Reverse_Weighted, tAAS_MatEle3, tAAS_MatEle4, AAS_DenCut
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
          tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
 
@@ -66,7 +68,7 @@ module fcimc_helper
     use DetCalcData, only: FCIDetIndex, ICILevel, det
     use hash, only: remove_hash_table_entry, add_hash_table_entry, hash_table_lookup
     use load_balance_calcnodes, only: DetermineDetNode, tLoadBalanceBlocks
-    use load_balance, only: adjust_load_balance, RemoveHashDet
+    use load_balance, only: adjust_load_balance, RemoveHashDet, get_diagonal_matel
     use rdm_filling_old, only: det_removed_fill_diag_rdm_old
     use rdm_filling, only: det_removed_fill_diag_rdm
     use rdm_general, only: store_parent_with_spawned, extract_bit_rep_avsign_norm
@@ -126,7 +128,7 @@ contains
     end function TestMCExit
 
     subroutine create_particle (nJ, iLutJ, child, part_type, ilutI, SignCurr, &
-                                WalkerNo, RDMBiasFacCurr, WalkersToSpawn, matel)
+                                WalkerNo, RDMBiasFacCurr, WalkersToSpawn, matel, ParentPos)
 
         ! Create a child in the spawned particles arrays. We spawn particles
         ! into a separate array, but non-contiguously. The processor that the
@@ -144,6 +146,7 @@ contains
         real(dp), intent(in), optional :: RDMBiasFacCurr
         integer, intent(in), optional :: WalkersToSpawn
         real(dp), intent(in), optional :: matel
+        integer, intent(in), optional :: ParentPos
         integer :: proc, j, run
         real(dp) :: r
         integer, parameter :: flags = 0
@@ -151,6 +154,7 @@ contains
         character(*), parameter :: this_routine = 'create_particle'
 
         logical :: parent_init
+        real(dp)  :: weight_acc, weight_rej, weight_rev, weight_den, weight_den2
 
         !Ensure no cross spawning between runs - run of child same as run of
         !parent
@@ -184,6 +188,73 @@ contains
             if (allowed_child .or. test_flag(ilutI, get_initiator_flag(part_type))) then
                 call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), get_initiator_flag(part_type))
             endif
+        end if
+
+        if(tAutoAdaptiveShift)then
+            SpawnInfo(SpawnParentIdx, ValidSpawnedList(proc)) = ParentPos
+            SpawnInfo(SpawnRun, ValidSpawnedList(proc)) = run
+            if(tAAS_MatEle)then
+                weight_acc = abs(matel)
+                weight_rej = abs(matel)
+            else if(tAAS_MatEle2) then
+                weight_den = abs((get_diagonal_matel(nJ, ilutJ)-Hii) - DiagSft(run))
+                if(weight_den<AAS_DenCut)then
+                    weight_den = AAS_DenCut
+                end if
+                weight_acc = abs(matel)/weight_den
+                weight_rej = abs(matel)/weight_den
+            else if(tAAS_MatEle3) then
+                weight_den = abs((get_diagonal_matel(nJ, ilutJ)-Hii) - DiagSft(run))
+                if(weight_den<AAS_DenCut)then
+                    weight_den = AAS_DenCut
+                end if
+                weight_acc = 1.0_dp 
+                weight_rej = abs(matel)/weight_den
+            else if(tAAS_MatEle4) then
+                weight_den = abs((get_diagonal_matel(nJ, ilutJ)-Hii) - DiagSft(run))
+                if(weight_den<AAS_DenCut)then
+                    weight_den = AAS_DenCut
+                end if
+                weight_den2 = abs((get_diagonal_matel(nJ, ilutJ)-Hii))
+                if(weight_den2<AAS_DenCut)then
+                    weight_den2 = AAS_DenCut
+                end if
+                weight_rej = abs(matel)/weight_den
+                weight_acc = abs(matel)/weight_den2
+            else
+                weight_acc = 1.0_dp
+                weight_rej = 1.0_dp
+            end if
+            !Enocde weight, which is real, as an integer
+            SpawnInfo(SpawnWeightAcc, ValidSpawnedList(proc)) = transfer(weight_acc, SpawnInfo(SpawnWeightAcc, ValidSpawnedList(proc)))
+            SpawnInfo(SpawnWeightRej, ValidSpawnedList(proc)) = transfer(weight_rej, SpawnInfo(SpawnWeightRej, ValidSpawnedList(proc)))
+
+            if(tAAS_Reverse)then
+                if(tAAS_MatEle)then
+                    weight_rev = abs(matel)
+                else if(tAAS_MatEle2) then
+                    weight_den = abs(det_diagH(ParentPos) - DiagSft(run))
+                    if(weight_den<AAS_DenCut)then
+                        weight_den = AAS_DenCut
+                    end if
+                    weight_rev = abs(matel)/weight_den
+                else if(tAAS_MatEle3) then
+                    weight_rev = 1.0_dp
+                else if(tAAS_MatEle4) then
+                    weight_den = abs(det_diagH(ParentPos))
+                    if(weight_den<AAS_DenCut)then
+                        weight_den = AAS_DenCut
+                    end if
+                    weight_rev = abs(matel)/weight_den
+                else
+                    weight_rev = 1.0_dp
+                end if
+                if(tAAS_Reverse_Weighted)then
+                    weight_rev = weight_rev/mag_of_run(SignCurr, run)
+                endif
+                !Enocde weight, which is real, as an integer
+                SpawnInfo(SpawnWeightRev, ValidSpawnedList(proc)) = transfer(weight_rev, SpawnInfo(SpawnWeightRev, ValidSpawnedList(proc)))
+            end if
         end if
 
         ! set flag for large spawn matrix element
@@ -487,6 +558,10 @@ contains
             if (test_flag(ilut,flag_trial)) then
                 if(ntrial_excits == 1) then
                    trial_denom = trial_denom + conjg(current_trial_amps(1,ind))*CmplxwSign
+                   ! this does somehow not support kmneci
+                   if(test_flag(ilut, get_initiator_flag_by_run(1))) &
+                        init_trial_denom = init_trial_denom + conjg(&
+                        current_trial_amps(1,ind))*CmplxwSign
                 else if(ntrial_excits == lenof_sign) then
                    call stop_all(this_routine, 'ntrial_excits has to be 1 currently for complex')
                 end if
@@ -497,6 +572,9 @@ contains
             else if (test_flag(ilut,flag_connected)) then
                 if(ntrial_excits == 1) then
                    trial_numerator = trial_numerator + conjg(current_trial_amps(1,ind))*cmplxwsign
+                   if(test_flag(ilut, get_initiator_flag_by_run(1))) &
+                        init_trial_numerator = init_trial_numerator + conjg(&
+                        current_trial_amps(1,ind))*CmplxwSign
                 else if(ntrial_excits == lenof_sign) then
                    call stop_all(this_routine, 'ntrial_excits has to be 1 currently for complex')
                 end if
@@ -508,9 +586,19 @@ contains
                 if (ntrial_excits == 1) then
                     trial_denom = trial_denom + current_trial_amps(1,ind)*RealwSign
                     trial_denom_inst = trial_denom_inst + current_trial_amps(1,ind)*RealwSign
+                    do run = 1, inum_runs
+                       if(test_flag(ilut, get_initiator_flag_by_run(run))) &
+                            init_trial_denom(run) = init_trial_denom(run) + &
+                            current_trial_amps(1,ind) * RealwSign(run)
+                    end do
                 else if (ntrial_excits == lenof_sign) then
                     trial_denom = trial_denom + current_trial_amps(:,ind)*RealwSign
                     trial_denom_inst = trial_denom_inst + current_trial_amps(:,ind)*RealwSign
+                    do run = 1, inum_runs
+                       if(test_flag(ilut, get_initiator_flag_by_run(run))) &
+                            init_trial_denom(run) = init_trial_denom(run) + &
+                            current_trial_amps(run,ind) * RealwSign(run)
+                    end do
                 end if
 
                 if (qmc_trial_wf) then
@@ -518,8 +606,18 @@ contains
 
                     if (ntrial_excits == 1) then
                         trial_numerator = trial_numerator + amps(1)*RealwSign
+                        do run = 1, inum_runs
+                           if(test_flag(ilut, get_initiator_flag_by_run(run))) &
+                                init_trial_numerator(run) = init_trial_numerator(run) + &
+                                amps(1) * RealwSign(run)
+                        end do
                     else if (ntrial_excits == lenof_sign) then
                         trial_numerator = trial_numerator + amps*RealwSign
+                        do run = 1, inum_runs
+                           if(test_flag(ilut, get_initiator_flag_by_run(run))) &
+                                init_trial_numerator(run) = init_trial_numerator(run) + &
+                                amps(run) * RealwSign(run)
+                        end do
                     end if
                 end if
 
@@ -529,9 +627,20 @@ contains
                 if (ntrial_excits == 1) then
                     trial_numerator = trial_numerator + current_trial_amps(1,ind)*RealwSign
                     trial_num_inst = trial_num_inst + current_trial_amps(1,ind)*RealwSign
+                    do run = 1, inum_runs
+                       if(test_flag(ilut, get_initiator_flag_by_run(run))) &
+                            ! this is the real case, so inum_runs == lenof_sign
+                            init_trial_numerator(run) = init_trial_numerator(run) + &
+                            current_trial_amps(1,ind) * RealwSign(run)
+                    end do
                 else if (ntrial_excits == lenof_sign) then
                     trial_numerator = trial_numerator + current_trial_amps(:,ind)*RealwSign
                     trial_num_inst = trial_num_inst + current_trial_amps(:,ind)*RealwSign
+                    do run = 1, inum_runs
+                       if(test_flag(ilut, get_initiator_flag_by_run(run))) &
+                            init_trial_numerator(run) = init_trial_numerator(run) + &
+                            current_trial_amps(run,ind)*RealwSign(run)
+                    end do
                 end if
             end if
         end if
@@ -711,13 +820,18 @@ contains
 #endif
 
         ! Sum in energy contribution
-        do run=1, inum_runs
-            if (iter > NEquilSteps) &
-                SumENum(run) = SumENum(run) + (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run))
+        do run=1, inum_runs           
+           if (iter > NEquilSteps) &
+                SumENum(run) = SumENum(run) + (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) &
+                / dProbFin
 
-            ENumCyc(run) = ENumCyc(run) + (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run))
-            ENumCycAbs(run) = ENumCycAbs(run) + abs(HoffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run))
-
+           ENumCyc(run) = ENumCyc(run) + (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) / dProbFin
+           ENumCycAbs(run) = ENumCycAbs(run) + abs(HoffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) &
+                / dProbFin
+           if(test_flag(ilut, get_initiator_flag_by_run(run))) then
+              InitsENumCyc(run) = InitsENumCyc(run) + (HOffDiag(run) &
+                   * ARR_RE_OR_CPLX(RealwSign,run)) / dProbFin
+           endif
         end do
 
         ! -----------------------------------
@@ -1017,6 +1131,12 @@ contains
                 parent_init = TestInitiator_explicit(CurrentDets(:,j), nI, j, parent_init, &
                                             CurrentSign, exLvl, run)
 
+                ! log the initiator
+                if(parent_init) then
+                   if(exLvl <= maxInitExLvlWrite .and. exLvl >0) &
+                        initsPerExLvl(exLvl) = initsPerExLvl(exLvl) + 1
+                endif
+
                 ! Update counters as required.
                 if (parent_init) then
                     NoInitDets(run) = NoInitDets(run) + 1_int64
@@ -1106,15 +1226,6 @@ contains
         endif
         ! check if there are sign conflicts across the replicas
         if(any(sgn*(sgn_av_pop(sgn)) < 0)) then
-           ! check if this would be an initiator
-           if(popInit) then 
-              NoInitsConflicts = NoInitsConflicts + 1
-           endif
-          ! check if this would be an initiator due to SI criterium
-           ! (do not double - count)
-           if(staticInit .and. .not. popInit) then
-              NoSIInitsConflicts = NoSIInitsConflicts + 1
-           endif
            ! one initial check: if the replicas dont agree on the sign
            ! dont make this an initiator under any circumstances 
            if(tReplicaCoherentInits .and. .not. &
@@ -1267,9 +1378,6 @@ contains
         InitRemoved = 0_int64
 
         ! replica-initiator info
-        NoSIInitsConflicts = 0
-        NoInitsConflicts = 0
-        avSigns = 0.0_dp
 
         NoAborted = 0.0_dp
         NoRemoved = 0.0_dp
@@ -2115,6 +2223,7 @@ contains
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
         use LoggingData, only: tOldRDMs
         use rdm_data, only: one_rdms, two_rdm_spawn, rdm_definitions
+        use rdm_data, only: inits_one_rdms, two_rdm_inits_spawn
         use rdm_data_old, only: rdms, one_rdms_old
 
         integer, intent(in) :: DetCurr(nel) 
@@ -2132,7 +2241,7 @@ contains
 
         ! Do particles on determinant die? iDie can be both +ve (deaths), or
         ! -ve (births, if shift > 0)
-        iDie = attempt_die (DetCurr, Kii, realwSign, WalkExcitLevel)
+        iDie = attempt_die (DetCurr, Kii, realwSign, WalkExcitLevel, DetPosition)
 
         IFDEBUG(FCIMCDebug,3) then 
             if (sum(abs(iDie)) > 1.0e-10_dp) then
@@ -2203,6 +2312,9 @@ contains
                 av_sign = get_av_sgn_tot(DetPosition)
                 iter_occ = get_iter_occ_tot(DetPosition)
                 call det_removed_fill_diag_rdm(two_rdm_spawn, one_rdms, CurrentDets(:,DetPosition), av_sign, iter_occ)
+                if(tInitsRDM .and. all_runs_are_initiator(CurrentDets(:,DetPosition))) &
+                     call det_removed_fill_diag_rdm(two_rdm_inits_spawn, inits_one_rdms, &
+                     CurrentDets(:,DetPosition), av_sign, iter_occ, .false.)
                 ! Set the average sign and occupation iteration to zero, so
                 ! that the same contribution will not be added in in
                 ! CalcHashTableStats, if this determinant is not overwritten

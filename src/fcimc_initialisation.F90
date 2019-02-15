@@ -18,8 +18,9 @@ module fcimc_initialisation
                           t_lattice_model, t_tJ_model, t_heisenberg_model, & 
                           t_k_space_hubbard, t_3_body_excits, omega, breathingCont, &
                           momIndexTable, t_trans_corr_2body, t_non_hermitian, &
-                          tgen_guga_crude
-
+                          tgen_guga_crude, &
+                          nOccOrbs, &
+                          nClosedOrbs, irrepOrbOffset, nIrreps
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
 
     use dSFMT_interface, only: dSFMT_init
@@ -50,7 +51,9 @@ module fcimc_initialisation
                         t_back_spawn_option, t_back_spawn_flex_option, &
                         t_back_spawn_flex, back_spawn_delay, corespaceWalkers, &
                         ScaleWalkers, tSpinProject, tFixedN0, tRCCheck, &
-                        t_trunc_nopen_diff, maxKeepExLvl
+                        t_trunc_nopen_diff, maxKeepExLvl, &
+                        tAutoAdaptiveShift, AdaptiveShiftCut, tAAS_Reverse, &
+                        tInitializeCSF, S2Init
 
     use spin_project, only: init_yama_store, clean_yama_store
 
@@ -78,12 +81,16 @@ module fcimc_initialisation
                            OffDiagBinRange, iDiagSubspaceIter, tOldRDMs, &
                            AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead, &
                            tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats, &
-                           t_spin_measurements
+                           t_spin_measurements,&
+                           maxInitExLvlWrite, initsPerExLvl, AllInitsPerExLvl
     use DetCalcData, only: NMRKS, tagNMRKS, FCIDets, NKRY, NBLK, B2L, nCycle, &
                            ICILevel, det
     use IntegralsData, only: tPartFreezeCore, nHolesFrozen, tPartFreezeVirt, &
                              nVirtPartFrozen, nPartFrozen, nelVirtFrozen
-    use bit_rep_data, only: NIfTot, NIfD, NIfDBO, NIfBCast, flag_deterministic
+
+    use bit_rep_data, only: NIfTot, NIfD, NIfDBO, NIfBCast, flag_initiator, &
+                            flag_deterministic, extract_sign
+
     use bit_reps, only: encode_det, clear_all_flags, set_flag, encode_sign, &
                         decode_bit_det, nullify_ilut, encode_part_sign, &
                         extract_run_sign, tBuildSpinSepLists , nifguga, &
@@ -98,7 +105,7 @@ module fcimc_initialisation
     use PopsfileMod, only: FindPopsfileVersion, initfcimc_pops, &
                            ReadFromPopsfilePar, ReadPopsHeadv3, &
                            ReadPopsHeadv4, open_pops_head, checkpopsparams
-    use HPHFRandExcitMod, only: gen_hphf_excit
+    use HPHFRandExcitMod, only: gen_hphf_excit, FindDetSpinSym
     use GenRandSymExcitCSF, only: gen_csf_excit
     use GenRandSymExcitNUMod, only: gen_rand_excit, init_excit_gen_store, &
                                     clean_excit_gen_store
@@ -112,9 +119,11 @@ module fcimc_initialisation
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
                                        gen_excit_4ind_weighted, &
                                        gen_excit_4ind_reverse
-    use hash, only: FindWalkerHash, add_hash_table_entry, init_hash_table
+    use hash, only: FindWalkerHash, add_hash_table_entry, init_hash_table, &
+         hash_table_lookup
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
-    use load_balance, only: tLoadBalanceBlocks, addNormContribution
+    use load_balance, only: tLoadBalanceBlocks, addNormContribution, get_diagonal_matel, &
+         AddNewHashDet
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcit4, only: CountExcitations4, GenExcitations4
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
@@ -127,7 +136,7 @@ module fcimc_initialisation
     use rdm_filling, only: fill_rdm_diag_currdet_norm
     use DetBitOps, only: FindBitExcitLevel, CountBits, TestClosedShellDet, &
                          FindExcitBitDet, IsAllowedHPHF, DetBitEq, &
-                         EncodeBitDet
+                         EncodeBitDet, DetBitLT
     use fcimc_pointed_fns, only: att_create_trunc_spawn_enc, &
                                  attempt_create_normal, &
                                  attempt_create_trunc_spawn, &
@@ -166,9 +175,8 @@ module fcimc_initialisation
     use get_excit, only: make_double
 
     use sltcnd_mod, only: sltcnd_0
-
-    use rdm_data, only: nrdms_transition_input
-
+    use rdm_data, only: nrdms_transition_input, rdmCorrectionFactor, InstRDMCorrectionFactor, &
+         ThisRDMIter
     use Parallel_neci
 
     use FciMCData
@@ -668,6 +676,16 @@ contains
         ENDIF
         HFConn=nSingles+nDoubles
 
+        if(AdaptiveShiftCut<0.0)then
+            !The user did not specify the value, use this as a default
+           if(HFConn > 0) then
+              AdaptiveShiftCut = 1.0_dp/HFConn
+           else
+              ! if the HF is disconnected (can happen in rare corner cases), set it to 0
+              AdaptiveShiftCut = 0.0_dp
+           endif
+        end if
+
         ! Initialise random number seed - since the seeds need to be different
         ! on different processors, subract processor rank from random number
         if(.not.tRestart) then
@@ -925,6 +943,7 @@ contains
         AvSign=0.0_dp
         AvSignHFD=0.0_dp
         SumENum(:)=0.0_dp
+        InitsENumCyc(:) = 0.0_dp
         SumNoatHF(:)=0.0_dp
         NoatHF(:)=0.0_dp
         InstNoatHF(:)=0.0_dp
@@ -951,9 +970,6 @@ contains
         NoAddedInitiators=0
         NoInitDets=0
         NoNonInitDets=0
-        NoSIInitsConflicts = 0
-        NoInitsConflicts = 0
-        avSigns = 0.0_dp
         NoInitWalk(:)=0.0_dp
         NoNonInitWalk(:)=0.0_dp
         NoExtraInitDoubs=0
@@ -966,6 +982,7 @@ contains
 
 !Also reinitialise the global variables - should not necessarily need to do this...
         AllSumENum(:)=0.0_dp
+        AllInitsENumCyc(:) = 0.0_dp
         AllNoatHF(:)=0.0_dp
         AllNoatDoubs(:)=0.0_dp
         if (tLogEXLEVELStats) AllEXLEVEL_WNorm(:,:,:)=0.0_dp
@@ -994,6 +1011,7 @@ contains
         AllNoExtraInitDoubs=0
         AllInitRemoved=0
         proje_iter = 0
+        inits_proje_iter = 0.0_dp
         AccRat = 0
         HFShift = 0
         InstShift = 0
@@ -1019,20 +1037,6 @@ contains
         nExChecks = 0
         nExCheckFails = 0
         
-        ! 0-initialize truncated weight
-        truncatedWeight = 0.0_dp
-        AllTruncatedWeight = 0.0_dp
-
-
-        if(tEScaleWalkers) then
-           if(abs(RealSpawnCutoff-sFBeta) > eps) then
-              write(iout, *) &
-                "Warning: Overriding RealSpawnCutoff with scale function parameter"
-              RealSpawnCutoff = sFBeta
-           endif
-        endif
-           
-
         allocate(ConflictExLvl(maxConflictExLvl))
         ConflictExLvl = 0
         allocate(AllConflictExLvl(maxConflictExLvl))
@@ -1046,6 +1050,33 @@ contains
         HolesByExLvl = 0
         nUnoccDets = 0
         allNUnoccDets = 0
+        ! 0-initialize truncated weight
+        truncatedWeight = 0.0_dp
+        AllTruncatedWeight = 0.0_dp
+
+        ! RDMs are taken as they are until we have some data on the f-function
+        ! of the adaptive shift
+        rdmCorrectionFactor = 0.0_dp
+        InstRDMCorrectionFactor = 0.0_dp
+        ThisRDMIter = 0.0_dp
+!            if (tReltvy) then
+!                ! write out the column headings for the MSWALKERCOUNTS
+!                open(mswalkercounts_unit, file='MSWALKERCOUNTS', status='UNKNOWN')
+!                write(mswalkercounts_unit, "(A)") "# ms real    imag    magnitude"
+!            endif
+
+        if(tEScaleWalkers) then
+           if(abs(RealSpawnCutoff-sFBeta) > eps) then
+              write(iout, *) &
+                "Warning: Overriding RealSpawnCutoff with scale function parameter"
+              RealSpawnCutoff = sFBeta
+           endif
+        endif
+
+        if(.not. allocated(allInitsPerExLvl)) allocate(allInitsPerExLvl(maxInitExLvlWrite))
+        if(.not. allocated(initsPerExLvl)) allocate(initsPerExLvl(maxInitExLvlWrite))
+        initsPerExlvl = 0
+        allInitsPerExLvl = 0
 
         IF(tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC)) THEN
             ALLOCATE(HistMinInd(NEl))
@@ -1591,6 +1622,21 @@ contains
 
             MemoryAlloc=MemoryAlloc+(NIfTot+1)*MaxSpawned*2*size_n_int
 
+            if(tAutoAdaptiveShift)then
+                if(tAAS_Reverse.and. SpawnInfoWidth<inum_runs)then
+                    SpawnInfoWidth = inum_runs
+                end if
+                allocate(SpawnInfoVec(1:SpawnInfoWidth, MaxSpawned), &
+                         SpawnInfoVec2(1:SpawnInfoWidth, MaxSpawned), stat=ierr)
+                log_alloc(SpawnInfoVec, SpawnInfoVecTag, ierr)
+                log_alloc(SpawnInfoVec2, SpawnInfoVec2Tag, ierr)
+                SpawnInfoVec(:,:)=0
+                SpawnInfoVec2(:,:)=0
+                SpawnInfo=>SpawnInfoVec
+                SpawnInfo2=>SpawnInfoVec2
+                MemoryAlloc=MemoryAlloc+(SpawnInfoWidth)*MaxSpawned*2*size_n_int
+            end if
+
             write(iout,"(A)") "Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number"
             write(iout,"(A,I15)") "Length of hash-table: ",nWalkerHashes
             write(iout,"(A,F20.5)") "Length of hash-table as a fraction of targetwalkers: ",HashLengthFrac
@@ -1643,6 +1689,10 @@ contains
                          .not. tReplicaSingleDetStart) then
 
                     call InitFCIMC_trial()
+
+                else if(tInitializeCSF) then
+                   
+                   call InitFCIMC_CSF()
 
                 else !Set up walkers on HF det
 
@@ -1766,6 +1816,11 @@ contains
             tot_trial_numerator = 0.0_dp
             trial_denom = 0.0_dp
             tot_trial_denom = 0.0_dp
+
+            init_trial_numerator = 0.0_dp
+            tot_init_trial_numerator = 0.0_dp
+            init_trial_denom = 0.0_dp
+            tot_init_trial_denom = 0.0_dp
 
             trial_num_inst = 0.0_dp
             tot_trial_num_inst = 0.0_dp
@@ -1981,11 +2036,6 @@ contains
         deallocate(FreeSlot,stat=ierr)
         if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
 
-        if(allocated(ConflictExLvl)) deallocate(ConflictExLvl)        
-        if(allocated(HolesByExLvl)) deallocate(HolesByExLvl)
-        if(allocated(AllConflictExLvl)) deallocate(AllConflictExLvl)        
-        if(allocated(AllHolesByExLvl)) deallocate(AllHolesByExLvl)
-
         IF(tHistSpawn.or.tCalcFCIMCPsi) THEN
             DEALLOCATE(Histogram)
             DEALLOCATE(AllHistogram)
@@ -2035,6 +2085,12 @@ contains
         CALL LogMemDealloc(this_routine,SpawnVecTag)
         DEALLOCATE(SpawnVec2)
         CALL LogMemDealloc(this_routine,SpawnVec2Tag)
+        if(tAutoAdaptiveShift)then
+            DEALLOCATE(SpawnInfoVec)
+            CALL LogMemDealloc(this_routine,SpawnInfoVecTag)
+            DEALLOCATE(SpawnInfoVec2)
+            CALL LogMemDealloc(this_routine,SpawnInfoVec2Tag)
+        end if
 
         if(allocated(TempSpawnedParts)) then
             deallocate(TempSpawnedParts)
@@ -2113,7 +2169,7 @@ contains
 
         if (tTrialWavefunction) call end_trial_wf()
 
-        deallocate(maxKeepExLvl)
+        if(allocated(maxKeepExLvl)) deallocate(maxKeepExLvl)
 
 !There seems to be some problems freeing the derived mpi type.
 !        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
@@ -2132,6 +2188,274 @@ contains
 !        ENDIF
 
     end subroutine DeallocFCIMCMemPar
+
+    subroutine InitFCIMC_CSF()
+      implicit none
+      integer(n_int), allocatable ::  initSpace(:,:)
+      integer :: count, nUp, nOpen
+      integer :: i, j, lwork, proc
+      integer :: DetHash, pos, TotWalkersTmp, nI(nel), nJ(nel)
+      integer(n_int) :: ilutJ(0:NIfTot)
+      integer(n_int), allocatable :: openSubspace(:)
+      real(dp),allocatable :: S2(:,:), eigsImag(:), eigs(:),evs(:,:),void(:,:),work(:)
+      real(dp) :: normalization, rawWeight, HDiag, tmpSgn(lenof_sign)
+      integer :: err
+      real(dp) :: HFWeight(inum_runs)
+      logical :: tSuccess
+      character(*), parameter :: t_r = "InitFCIMC_CSF"
+      
+
+      ! get the number of open orbitals
+      nOpen = sum(nOccOrbs) - sum(nClosedOrbs)
+      ! in a closed shell system, nothing to do
+      if(nOpen .eq. 0) then
+         call InitFCIMC_HF()
+         return
+      endif
+      ! first, set up the space considered for the CSF
+      call generateInitSpace()
+      if(allocated(openSubspace)) deallocate(openSubspace)
+      ! we now have initSpace(:,:) with iluts belonging to all possible initial
+      ! dets (i.e. all dets contributing to the target CSF) -> construct S2 
+      allocate(S2(count,count))
+      do i  = 1, count
+         do j = 1, count
+            S2(i,j) = S2Matel(initSpace(:,i),initSpace(:,j))
+         end do
+      end do
+
+      ! prepare the diagonalization
+      allocate(eigs(count))
+      allocate(evs(count,count))
+      allocate(eigsImag(count))
+      allocate(work(1))
+      allocate(void(0,0))
+      ! workspace query, get how much tmp memory we need
+      call dgeev('N','V',count,S2,count,eigs,eigsImag,void,count,evs,count,work,-1,err)
+      ! allocate work array
+      lwork = work(1)
+      deallocate(work)
+      allocate(work(lwork))
+      ! diagonalize S2
+      call dgeev('N','V',count,S2,count,eigs,eigsImag,void,count,evs,count,work,lwork,err)
+      deallocate(void)
+      deallocate(work)
+      deallocate(eigsImag)
+
+      ! transfer the eigenvector
+      do i = 1, count
+         if(abs(S2Init*(S2Init+1) - eigs(i)) < eps) exit
+      end do
+      if(i>count) then
+         call stop_all(t_r,"Requested S2 eigenvalue does not exist")
+      end if
+      eigs = evs(:,i)
+!      normalization = minval(eigs)
+      rawWeight = sum(abs(eigs))
+      normalization = InitialPart / rawWeight 
+
+!      refLoc = maxloc(eigs)
+      eigs = eigs * normalization
+      
+      TotWalkers = 0
+      iStartFreeSlot = 1
+      iEndFreeSlot = 0
+      do i = 1, count
+         call decode_bit_det(nI,initSpace(:,i))
+         proc = DetermineDetNode(nel, nI, 0)
+         if(iProcIndex.eq.proc) then
+            HDiag = get_diagonal_matel(nI,initSpace(:,i))
+            DetHash = FindWalkerHash(nI,size(HashIndex))
+            TotWalkersTmp = TotWalkers
+            tmpSgn = eigs(i)
+            call encode_sign(initSpace(:,i),tmpSgn)
+            if(tHPHF) then
+               call FindDetSpinSym(nI,nJ,nel)
+               call encodebitdet(nJ,ilutJ)
+               ! if initSpace(:,i) is not the det of the HPHF pair we are storing, 
+               ! skip this - the correct contribution will be stored once
+               ! the spin-flipped version is stored
+               if(DetBitLT(initSpace(:,i),ilutJ,NIfD).eq.1) cycle
+            endif
+            call AddNewHashDet(TotWalkersTmp,initSpace(:,i),DetHash,nI,HDiag,pos)
+            TotWalkers = TotWalkersTmp
+         end if
+         ! reset the reference?
+      end do
+
+      call hash_table_lookup(HFDet,ilutHF,NIfDBO,HashIndex,CurrentDets,i,DetHash,tSuccess)
+      if(tSuccess) then
+         call extract_sign(CurrentDets(:,i),tmpSgn)
+         do i = 1, inum_runs
+            HFWeight(i) = mag_of_run(tmpSgn,i)
+         end do
+      else
+         HFWeight = 0.0_dp
+      endif
+          
+      AllTotParts = InitialPart
+      AllTotPartsOld = InitialPart
+      OldAllAvWalkersCyc = InitialPart
+      OldAllHFCyc = HFWeight
+      OldAllNoatHF = HFWeight
+
+      ! cleanup
+      deallocate(evs)
+      deallocate(eigs)
+      deallocate(S2)
+      deallocate(initSpace)
+      contains 
+        
+  !------------------------------------------------------------------------------------------!
+
+        subroutine generateOpenOrbIluts()
+          use IntegralsData, only: nfrozen
+          implicit none
+
+          count = 0
+          nUp = (nel + lms)/2 - sum(nClosedOrbs) + nfrozen/2
+          do i = 1, 2**nOpen-1
+             if(popcnt(i).eq.nUp) then
+                count = count + 1
+                if(allocated(openSubspace)) openSubspace(count) = i
+             end if
+          end do
+        end subroutine generateOpenOrbIluts
+
+  !------------------------------------------------------------------------------------------!
+
+        subroutine generateInitSpace()
+          implicit none
+
+          integer :: nI(nel), nIBase(nel)
+          integer :: iEl, iElBase, iOpen
+          integer :: openOrbList(nel)
+          logical :: previousCont,nextCont,tClosed
+          character(*), parameter :: t_r = "generateInitSpace"
+
+          ! create a list of all open-shell determinants with the correct spin+orbs
+          nUp = (nel + lms)/2
+          call generateOpenOrbIluts()
+          allocate(openSubspace(count))
+          call generateOpenOrbIluts()
+
+          ! convert open-shell-only iluts into full iluts
+          ! use the reference to determine which orbitals shall participate
+          iElBase = 1
+          nIBase = 0
+          ! generate a list of open orbitals 
+          iOpen = 0
+          openOrbList = 0
+          do i = 1, nel
+             if(i.eq.1) then
+                previousCont = .false.
+             else
+                previousCont = FDet(i-1).eq.FDet(i)-1
+             endif
+             if(i.eq.nel) then
+                nextCont = .false.
+             else
+                nextCont = FDet(i+1).eq.FDet(i)+1
+             end if
+             tClosed = .true.
+             ! identify open orbitals, using the ordering: does the next one belong
+             ! to the same spatial orb?
+             if(is_beta(FDet(i)) .and. .not.nextCont) then
+                iOpen = iOpen + 1
+                openOrbList(iOpen) = FDet(i)
+                tClosed = .false.
+             end if
+             ! or the previous one?
+             if(is_alpha(FDet(i)) .and. .not.previousCont) then
+                iOpen = iOpen + 1
+                openOrbList(iOpen) = FDet(i)
+                tClosed = .false.
+             end if
+             ! if the orbital is not open, it is closed
+             if(tClosed) then
+                nIBase(iElBase) = FDet(i)
+                iElBase = iElBase + 1
+             end if
+          end do
+          if(iOpen.ne.nOpen) then
+             write(iout,*) "nOpen/iOpen conflict", FDet, openOrbList, iOpen, nOpen
+             call stop_all(t_r,"Error in determining open shell orbitals")
+          end if
+!          do i = 1, nIrreps
+!             do j = 1, nClosedOrbs(i)
+!                nIBase(iElBase) = irrepOrbOffset(i) + 2*j - 1
+!                iElBase = iElBase + 1
+!                nIBase(iElBase) = irrepOrbOffset(i) + 2*j
+!                iElBase = iElBase + 1
+!             end do
+!          end do
+
+          allocate(initSpace(0:NIfTot,count))
+          ! now, add the open-shell contribution
+          do i = 1, count
+             ! start from the closed-shell base
+             nI = nIBase
+             iEl = iElBase
+             ! for each open orb, add the electron
+             do j = 1, nOpen
+                ! based on openSubspace(i), we are considering alpha/beta for this
+                ! orb
+                if(btest(openSubspace(i),j-1)) then
+                   nI(iEl) = get_alpha(openOrbList(j))
+                else
+                   nI(iEl) = get_beta(openOrbList(j))
+                endif
+                iEl = iEl + 1
+             end do
+             ! encode the determinant to the initial space
+             call sort(nI)
+             call EncodeBitDet(nI,initSpace(:,i))
+          end do
+
+        end subroutine generateInitSpace
+
+        function S2Matel(ilutA, ilutB) result(matel)
+          implicit none
+          integer(n_int), intent(in) :: ilutA(0:NIfTot), ilutB(0:NIfTot)
+          integer(n_int) :: splus(0:NIfTot), sminus(0:NIfTot)
+          real(dp) :: matel
+          integer :: k,m,nI(nel),upOrb,downOrb
+          
+          matel = 0.0_dp
+          if(DetBitEq(ilutA,ilutB,NIfD)) then
+             matel = matel + real(lms * (lms+2),dp) / 4.0_dp
+          end if
+          ! get the offdiag part of S2: S-S+
+          call decode_bit_det(nI,ilutA)
+          do k = 1, nel
+             ! first, apply S- to all electrons (additively)
+             if(is_beta(nI(k))) then
+                sminus = ilutA
+                downOrb = get_alpha(nI(k))
+                clr_orb(sminus,nI(k))
+                set_orb(sminus,downOrb)
+                ! now, apply S+ to all electrons (again, sum)
+                do m = 1, nel
+                   ! check if it yields 0
+                   if(is_alpha(nI(m)) .or. m==k) then
+                      splus = sminus
+                      ! if not, go on
+                      if(m==k) then
+                         clr_orb(splus,downOrb)
+                      else
+                         clr_orb(splus,nI(m))
+                      endif
+                      upOrb = get_beta(nI(m))
+                      set_orb(splus,upOrb)
+                      if(DetBitEq(splus,ilutB,NIFD)) matel = matel + 1.0_dp
+                   end if
+                end do
+             endif
+          end do
+        end function S2Matel
+    end subroutine InitFCIMC_CSF
+
+  !------------------------------------------------------------------------------------------!
 
     subroutine InitFCIMC_HF()
 
@@ -2373,9 +2697,15 @@ contains
         nexcit = inum_runs/nreplicas
 
         ! Create the trial excited states
-        call calc_trial_states_lanczos(init_trial_in, nexcit, ndets_this_proc, &
-                               SpawnedParts, evecs_this_proc, evals, &
-                               space_sizes, space_displs, trial_init_reorder)
+        if(allocated(trial_init_reorder)) then
+           call calc_trial_states_lanczos(init_trial_in, nexcit, ndets_this_proc, &
+                SpawnedParts, evecs_this_proc, evals, &
+                space_sizes, space_displs, trial_init_reorder)
+        else
+           call calc_trial_states_lanczos(init_trial_in, nexcit, ndets_this_proc, &
+                SpawnedParts, evecs_this_proc, evals, &
+                space_sizes, space_displs)
+        endif
         ! Determine the walker populations associated with these states
         call set_trial_populations(nexcit, ndets_this_proc, evecs_this_proc)
         ! Set the trial excited states as the FCIQMC wave functions
@@ -4203,7 +4533,7 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine init_norm()
-      use bit_rep_data, only: test_flag, extract_sign
+      use bit_rep_data, only: test_flag
       ! initialize the norm_psi, norm_psi_squared
       implicit none
       integer :: j
