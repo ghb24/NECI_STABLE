@@ -49,7 +49,7 @@ contains
         integer(n_int) :: ilut_full(0:NIfTot), ilut_paired(0:NIfTot), beta_ilut_1(0:NIfD), beta_ilut_2(0:NIfD)
         integer(n_int), allocatable :: beta_list(:,:), alpha_list(:,:), alpha_m1_list(:,:), beta_m1_list(:,:)
         integer :: nI_alpha(nOccAlpha), nI_alpha_m1(nOccAlpha-1), nI_beta(nOccBeta), nI_beta_m1(nOccBeta-1)
-        integer :: nI_paired(nel)
+        integer :: nI(nel), nI_paired(nel)
         integer :: nbeta, nalpha, nbeta_m1, nalpha_m1
         ! The number of beta and alpha strings in the 'unpaired' determinants
         ! in the HPHFs
@@ -69,12 +69,9 @@ contains
         type(auxiliary_array), allocatable :: beta_m1_contribs(:)
         type(auxiliary_array), allocatable :: alpha_m1_contribs(:)
         type(auxiliary_array), allocatable :: beta_with_alpha(:)
-        !type(auxiliary_array), allocatable :: alpha_with_beta(:)
 
         integer, allocatable :: nalpha_alpha(:), nbeta_beta(:)
         type(auxiliary_array), allocatable :: alpha_alpha(:), beta_beta(:)
-
-        integer, allocatable :: nI_list(:,:), nI_alpha_list(:,:), nI_beta_list(:,:)
 
         HElement_t(dp) :: hel, hel_paired
         HElement_t(dp), allocatable :: hamil_row(:)
@@ -95,29 +92,15 @@ contains
 
         character(len=*), parameter :: t_r = "calc_determ_hamil_opt_hphf"
 
-        allocate(num_conns(determ_space_size), stat=ierr)
-
         allocate(beta_list(0:NIfD, 2*determ_space_size), stat=ierr)
-        allocate(nbeta_dets(2*determ_space_size), stat=ierr)
+        allocate(nbeta_dets(determ_space_size), stat=ierr)
         allocate(alpha_list(0:NIfD, 2*determ_space_size), stat=ierr)
-        allocate(nalpha_dets(2*determ_space_size), stat=ierr)
-        allocate(beta_m1_list(0:NIfD, 2*determ_space_size*(nOccBeta-1)), stat=ierr)
-        allocate(nbeta_m1_contribs(2*determ_space_size*(nOccBeta-1)), stat=ierr)
-        allocate(alpha_m1_list(0:NIfD, 2*determ_space_size*(nOccAlpha-1)), stat=ierr)
-        allocate(nalpha_m1_contribs(2*determ_space_size*(nOccAlpha-1)), stat=ierr)
+        allocate(nalpha_dets(determ_space_size), stat=ierr)
 
-        allocate(beta_ht(2*determ_space_size), stat=ierr)
+        allocate(beta_ht( int(determ_space_size/10.0) ), stat=ierr)
         call init_hash_table(beta_ht)
-        allocate(alpha_ht(2*determ_space_size), stat=ierr)
+        allocate(alpha_ht( int(determ_space_size/10.0) ), stat=ierr)
         call init_hash_table(alpha_ht)
-
-        allocate(beta_m1_ht(2*determ_space_size*(nOccBeta-1)), stat=ierr)
-        call init_hash_table(beta_m1_ht)
-        allocate(alpha_m1_ht(2*determ_space_size*(nOccAlpha-1)), stat=ierr)
-        call init_hash_table(alpha_m1_ht)
-
-        allocate(nI_alpha_list(nOccAlpha, 2*determ_space_size), stat=ierr)
-        allocate(nI_beta_list(nOccBeta, 2*determ_space_size), stat=ierr)
 
         call set_timer(aux_time)
 
@@ -171,7 +154,6 @@ contains
                     nbeta = nbeta + 1
                     nbeta_dets(nbeta) = 0
                     beta_list(0:NIfD, nbeta) = beta_ilut(0:NIfD)
-                    nI_beta_list(:, nbeta) = nI_beta
                     call add_hash_table_entry(beta_ht, nbeta, hash_val_beta)
                     ind_beta = nbeta
                 end if
@@ -192,7 +174,6 @@ contains
                     nalpha = nalpha + 1
                     nalpha_dets(nalpha) = 0
                     alpha_list(0:NIfD, nalpha) = alpha_ilut(0:NIfD)
-                    nI_alpha_list(:, nalpha) = nI_alpha
                     call add_hash_table_entry(alpha_ht, nalpha, hash_val_alpha)
                     ind_alpha = nalpha
                 end if
@@ -205,11 +186,21 @@ contains
             end do
         end do 
 
+        allocate(beta_m1_list(0:NIfD, nbeta*(nOccBeta-1)), stat=ierr)
+        allocate(nbeta_m1_contribs(nbeta*(nOccBeta-1)), stat=ierr)
+        allocate(alpha_m1_list(0:NIfD, nalpha*(nOccAlpha-1)), stat=ierr)
+        allocate(nalpha_m1_contribs(nalpha*(nOccAlpha-1)), stat=ierr)
+
+        allocate(beta_m1_ht( int(nbeta*(nOccBeta-1)/10.0) ), stat=ierr)
+        call init_hash_table(beta_m1_ht)
+        allocate(alpha_m1_ht( int(nalpha*(nOccAlpha-1)/10.0) ), stat=ierr)
+        call init_hash_table(alpha_m1_ht)
+
         ! --- Find the size of beta-1 arrays -----------------
 
         do i = 1, nbeta
             beta_ilut(0:NIfD) = beta_list(0:NIfD,i)
-            nI_beta = nI_beta_list(:,i)
+            call decode_bit_det(nI_beta, beta_ilut)
 
             do j = 1, nOccBeta
                 ! Create the beta-1 orbitals and ilut
@@ -240,7 +231,7 @@ contains
 
         do i = 1, nalpha
             alpha_ilut(0:NIfD) = alpha_list(0:NIfD,i)
-            nI_alpha = nI_alpha_list(:,i)
+            call decode_bit_det(nI_alpha, alpha_ilut)
 
             do j = 1, nOccAlpha
                 ! Create the alpha-1 orbitals and ilut
@@ -273,7 +264,6 @@ contains
         allocate(beta_dets(nbeta_unpaired), stat=ierr)
         allocate(alpha_dets(nalpha_unpaired), stat=ierr)
         allocate(beta_with_alpha(nalpha_unpaired), stat=ierr)
-        !allocate(alpha_with_beta(nbeta_unpaired), stat=ierr)
 
         allocate(beta_m1_contribs(nbeta_m1), stat=ierr)
         allocate(alpha_m1_contribs(nalpha_m1), stat=ierr)
@@ -323,7 +313,6 @@ contains
                 ! beta string.
                 nbeta_dets(ind_beta) = nbeta_dets(ind_beta) + 1
                 beta_dets(ind_beta)%pos(nbeta_dets(ind_beta)) = i
-                !alpha_with_beta(ind_beta)%pos(nbeta_dets(ind_beta)) = ind_alpha
 
                 ! Now add this determinant to the list of determinants with this
                 ! alpha string.
@@ -335,7 +324,8 @@ contains
 
         do i = 1, nbeta
             beta_ilut(0:NIfD) = beta_list(0:NIfD,i)
-            nI_beta = nI_beta_list(:,i)
+            call decode_bit_det(nI_beta, beta_ilut)
+
             call hash_table_lookup(nI_beta, beta_ilut, NIfD, beta_ht, beta_list, ind_beta, hash_val_beta, tSuccess)
             ! --- Beta-1 string ----------------------------
             do j = 1, nOccBeta
@@ -358,7 +348,8 @@ contains
 
         do i = 1, nalpha
             alpha_ilut(0:NIfD) = alpha_list(0:NIfD,i)
-            nI_alpha = nI_alpha_list(:,i)
+            call decode_bit_det(nI_alpha, alpha_ilut)
+
             call hash_table_lookup(nI_alpha, alpha_ilut, NIfD, alpha_ht, alpha_list, ind_alpha, hash_val_alpha, tSuccess)
             ! --- Alpha-1 string ---------------------------
             do j = 1, nOccAlpha
@@ -378,6 +369,17 @@ contains
                 alpha_m1_contribs(ind)%pos(nalpha_m1_contribs(ind)) = ind_alpha
             end do
         end do
+
+        deallocate(beta_m1_list)
+        deallocate(alpha_m1_list)
+
+        call clear_hash_table(beta_m1_ht)
+        deallocate(beta_m1_ht, stat=ierr)
+        nullify(beta_m1_ht)
+
+        call clear_hash_table(alpha_m1_ht)
+        deallocate(alpha_m1_ht, stat=ierr)
+        nullify(alpha_m1_ht)
 
         allocate(nbeta_beta(nbeta), stat=ierr)
         allocate(nalpha_alpha(nalpha), stat=ierr)
@@ -491,14 +493,6 @@ contains
         deallocate(beta_m1_contribs)
         deallocate(alpha_m1_contribs)
 
-        call clear_hash_table(beta_m1_ht)
-        deallocate(beta_m1_ht, stat=ierr)
-        nullify(beta_m1_ht)
-
-        call clear_hash_table(alpha_m1_ht)
-        deallocate(alpha_m1_ht, stat=ierr)
-        nullify(alpha_m1_ht)
-
         write(6,'("Time to sort auxiliary arrays:", f9.3)') get_total_time(sort_aux_time); call neci_flush(6)
 
         ! Actually create the Hamiltonian
@@ -506,24 +500,22 @@ contains
 
         allocate(intersec_inds(nbeta), stat=ierr)
 
-        allocate(hamil_row(2*determ_space_size), stat=ierr)
-        allocate(hamil_pos(2*determ_space_size), stat=ierr)
+        allocate(hamil_row(determ_space_size), stat=ierr)
+        allocate(hamil_pos(determ_space_size), stat=ierr)
 
         allocate(sparse_core_ham(determ_sizes(iProcIndex)), stat=ierr)
         allocate(core_ham_diag(determ_sizes(iProcIndex)), stat=ierr)
 
+        allocate(num_conns(determ_space_size), stat=ierr)
         num_conns = 0
-
-        allocate(nI_list(nel, determ_space_size), stat=ierr)
-        do i = 1, determ_space_size
-            call decode_bit_det(nI_list(:,i), core_space(:,i))
-        end do
 
         ! Loop over the determinants on this process
         do i = 1, determ_sizes(iProcIndex)
             ! Find the index in the *full* list of determinants
             i_full = i + determ_displs(iProcIndex)
             CS_I = cs(i_full)
+
+            call decode_bit_det(nI, core_space(:,i_full))
 
             if (.not. CS_I) then
                 call CalcOpenOrbs(core_space(:,i_full), OpenOrbsI)
@@ -545,7 +537,7 @@ contains
                 IC = CountBits(tmp, NIfD)
 
                 if (IC <= 2) then
-                    hel = hphf_off_diag_helement_opt(nI_list(:,i_full), core_space(:,i_full), &
+                    hel = hphf_off_diag_helement_opt(nI, core_space(:,i_full), &
                                                      core_space(:,ind_j), IC, CS_I, CS_J)
 
                     if (abs(hel) > 0.0_dp) then
@@ -615,7 +607,7 @@ contains
                 IC = CountBits(tmp, NIfD)
 
                 if (IC <= 2) then
-                    hel = hphf_off_diag_helement_opt(nI_list(:,i_full), core_space(:,i_full), &
+                    hel = hphf_off_diag_helement_opt(nI, core_space(:,i_full), &
                                                      core_space(:,ind_j), IC, CS_I, CS_J)
                     if (abs(hel) > 0.0_dp) then
                         num_conns(i) = num_conns(i) + 1
@@ -684,7 +676,7 @@ contains
                     ind_k = alpha_dets(ind_alpha_conn)%pos( intersec_inds(k) )
                     CS_K = cs(ind_k)
 
-                    hel = hphf_off_diag_helement_opt(nI_list(:,i_full), core_space(:,i_full), core_space(:,ind_k), 2, CS_I, CS_K)
+                    hel = hphf_off_diag_helement_opt(nI, core_space(:,i_full), core_space(:,ind_k), 2, CS_I, CS_K)
                     if (abs(hel) > 0.0_dp) then
                         num_conns(i) = num_conns(i) + 1
                         hamil_pos(num_conns(i)) = ind_k
@@ -732,7 +724,7 @@ contains
 
             ! Calculate and add the diagonal element
             num_conns(i) = num_conns(i) + 1
-            hel = hphf_diag_helement(nI_list(:,i_full), core_space(:,i_full)) - Hii
+            hel = hphf_diag_helement(nI, core_space(:,i_full)) - Hii
             hamil_pos(num_conns(i)) = i_full
             hamil_row(num_conns(i)) = hel
 
@@ -791,7 +783,6 @@ contains
         deallocate(alpha_dets)
         deallocate(beta_with_alpha)
 
-        deallocate(nI_list)
         deallocate(num_conns)
 
         call clear_hash_table(beta_ht)
@@ -850,12 +841,11 @@ contains
         type(auxiliary_array), allocatable :: beta_m1_contribs(:)
         type(auxiliary_array), allocatable :: alpha_m1_contribs(:)
         type(auxiliary_array), allocatable :: beta_with_alpha(:)
-        !type(auxiliary_array), allocatable :: alpha_with_beta(:)
 
         integer, allocatable :: nalpha_alpha(:), nbeta_beta(:)
         type(auxiliary_array), allocatable :: alpha_alpha(:), beta_beta(:)
 
-        integer, allocatable :: nI_list(:,:), nI_alpha_list(:,:), nI_beta_list(:,:)
+        integer :: nI(nel), nJ(nel), nK(nel)
 
         HElement_t(dp) :: hel
         HElement_t(dp), allocatable :: hamil_row(:)
@@ -870,29 +860,18 @@ contains
 
         character(len=*), parameter :: t_r = "calc_determ_hamil_opt"
 
-        allocate(num_conns(determ_space_size), stat=ierr)
-
         allocate(beta_list(0:NIfD, determ_space_size), stat=ierr)
         allocate(nbeta_dets(determ_space_size), stat=ierr)
         allocate(alpha_list(0:NIfD, determ_space_size), stat=ierr)
         allocate(nalpha_dets(determ_space_size), stat=ierr)
-        allocate(beta_m1_list(0:NIfD, determ_space_size*(nOccBeta-1)), stat=ierr)
-        allocate(nbeta_m1_contribs(determ_space_size*(nOccBeta-1)), stat=ierr)
-        allocate(alpha_m1_list(0:NIfD, determ_space_size*(nOccAlpha-1)), stat=ierr)
-        allocate(nalpha_m1_contribs(determ_space_size*(nOccAlpha-1)), stat=ierr)
 
-        allocate(beta_ht(determ_space_size), stat=ierr)
+        allocate(beta_ht( int(determ_space_size/10.0) ), stat=ierr)
         call init_hash_table(beta_ht)
-        allocate(alpha_ht(determ_space_size), stat=ierr)
+        allocate(alpha_ht( int(determ_space_size/10.0) ), stat=ierr)
         call init_hash_table(alpha_ht)
 
-        allocate(beta_m1_ht(determ_space_size*(nOccBeta-1)), stat=ierr)
-        call init_hash_table(beta_m1_ht)
-        allocate(alpha_m1_ht(determ_space_size*(nOccAlpha-1)), stat=ierr)
-        call init_hash_table(alpha_m1_ht)
-
-        allocate(nI_alpha_list(nOccAlpha, determ_space_size), stat=ierr)
-        allocate(nI_beta_list(nOccBeta, determ_space_size), stat=ierr)
+        !allocate(nI_alpha_list(nOccAlpha, determ_space_size), stat=ierr)
+        !allocate(nI_beta_list(nOccBeta, determ_space_size), stat=ierr)
 
         call set_timer(aux_time)
 
@@ -919,7 +898,7 @@ contains
                 nbeta = nbeta + 1
                 nbeta_dets(nbeta) = 0
                 beta_list(0:NIfD, nbeta) = beta_ilut(0:NIfD)
-                nI_beta_list(:, nbeta) = nI_beta
+                !nI_beta_list(:, nbeta) = nI_beta
                 call add_hash_table_entry(beta_ht, nbeta, hash_val_beta)
                 ind_beta = nbeta
             end if
@@ -939,7 +918,7 @@ contains
                 nalpha = nalpha + 1
                 nalpha_dets(nalpha) = 0
                 alpha_list(0:NIfD, nalpha) = alpha_ilut(0:NIfD)
-                nI_alpha_list(:, nalpha) = nI_alpha
+                !nI_alpha_list(:, nalpha) = nI_alpha
                 call add_hash_table_entry(alpha_ht, nalpha, hash_val_alpha)
                 ind_alpha = nalpha
             end if
@@ -949,11 +928,23 @@ contains
             nalpha_dets(ind_alpha) = nalpha_dets(ind_alpha) + 1
         end do
 
+        ! Allocate beta-1 and alpha-1 arrays
+        allocate(beta_m1_list(0:NIfD, nbeta*(nOccBeta-1)), stat=ierr)
+        allocate(nbeta_m1_contribs(nbeta*(nOccBeta-1)), stat=ierr)
+        allocate(alpha_m1_list(0:NIfD, nalpha*(nOccAlpha-1)), stat=ierr)
+        allocate(nalpha_m1_contribs(nalpha*(nOccAlpha-1)), stat=ierr)
+
+        allocate(beta_m1_ht( int(nbeta*(nOccBeta-1)/10.0) ), stat=ierr)
+        call init_hash_table(beta_m1_ht)
+        allocate(alpha_m1_ht( int(nalpha*(nOccAlpha-1)/10.0) ), stat=ierr)
+        call init_hash_table(alpha_m1_ht)
+
         ! --- Find the size of beta-1 arrays -----------------
 
         do i = 1, nbeta
             beta_ilut(0:NIfD) = beta_list(0:NIfD,i)
-            nI_beta = nI_beta_list(:,i)
+            !nI_beta = nI_beta_list(:,i)
+            call decode_bit_det(nI_beta, beta_ilut)
 
             do j = 1, nOccBeta
                 ! Create the beta-1 orbitals and ilut
@@ -984,7 +975,8 @@ contains
 
         do i = 1, nalpha
             alpha_ilut(0:NIfD) = alpha_list(0:NIfD,i)
-            nI_alpha = nI_alpha_list(:,i)
+            !nI_alpha = nI_alpha_list(:,i)
+            call decode_bit_det(nI_alpha, alpha_ilut)
 
             do j = 1, nOccAlpha
                 ! Create the alpha-1 orbitals and ilut
@@ -1019,7 +1011,6 @@ contains
         allocate(beta_m1_contribs(nbeta_m1), stat=ierr)
         allocate(alpha_m1_contribs(nalpha_m1), stat=ierr)
         allocate(beta_with_alpha(nalpha), stat=ierr)
-        !allocate(alpha_with_beta(nbeta), stat=ierr)
 
         do i = 1, nbeta
             allocate(beta_dets(i)%pos(nbeta_dets(i)), stat=ierr)
@@ -1036,9 +1027,6 @@ contains
         do i = 1, nalpha
             allocate(beta_with_alpha(i)%pos(nalpha_dets(i)), stat=ierr)
         end do
-        !do i = 1, nbeta
-        !    allocate(alpha_with_beta(i)%pos(nbeta_dets(i)), stat=ierr)
-        !end do
 
         ! --- Now fill the auxiliary arrays ----------------
         nbeta_dets(1:nbeta) = 0
@@ -1061,7 +1049,6 @@ contains
             ! beta string.
             nbeta_dets(ind_beta) = nbeta_dets(ind_beta) + 1
             beta_dets(ind_beta)%pos(nbeta_dets(ind_beta)) = i
-            !alpha_with_beta(ind_beta)%pos(nbeta_dets(ind_beta)) = ind_alpha
 
             ! Now add this determinant to the list of determinants with this
             ! alpha string.
@@ -1072,7 +1059,9 @@ contains
 
         do i = 1, nbeta
             beta_ilut(0:NIfD) = beta_list(0:NIfD,i)
-            nI_beta = nI_beta_list(:,i)
+            !nI_beta = nI_beta_list(:,i)
+            call decode_bit_det(nI_beta, beta_ilut)
+
             call hash_table_lookup(nI_beta, beta_ilut, NIfD, beta_ht, beta_list, ind_beta, hash_val_beta, tSuccess)
             ! --- Beta-1 string ----------------------------
             do j = 1, nOccBeta
@@ -1095,7 +1084,9 @@ contains
 
         do i = 1, nalpha
             alpha_ilut(0:NIfD) = alpha_list(0:NIfD,i)
-            nI_alpha = nI_alpha_list(:,i)
+            !nI_alpha = nI_alpha_list(:,i)
+            call decode_bit_det(nI_alpha, alpha_ilut)
+
             call hash_table_lookup(nI_alpha, alpha_ilut, NIfD, alpha_ht, alpha_list, ind_alpha, hash_val_alpha, tSuccess)
             ! --- Alpha-1 string ---------------------------
             do j = 1, nOccAlpha
@@ -1115,6 +1106,17 @@ contains
                 alpha_m1_contribs(ind)%pos(nalpha_m1_contribs(ind)) = ind_alpha
             end do
         end do
+
+        deallocate(beta_m1_list)
+        deallocate(alpha_m1_list)
+
+        call clear_hash_table(beta_m1_ht)
+        deallocate(beta_m1_ht, stat=ierr)
+        nullify(beta_m1_ht)
+
+        call clear_hash_table(alpha_m1_ht)
+        deallocate(alpha_m1_ht, stat=ierr)
+        nullify(alpha_m1_ht)
 
         allocate(nbeta_beta(nbeta), stat=ierr)
         allocate(nalpha_alpha(nalpha), stat=ierr)
@@ -1195,15 +1197,25 @@ contains
             call sort(alpha_alpha(i)%pos)
         end do
 
-        !do i = 1, nbeta
-        !    call sort(alpha_with_beta(i)%pos, beta_dets(i)%pos)
-        !end do
-
         do i = 1, nalpha
             call sort(beta_with_alpha(i)%pos, alpha_dets(i)%pos)
         end do
 
         call halt_timer(sort_aux_time)
+
+        ! Deallocate the arrays which we don't need for the following.
+
+        do i = nbeta_m1, 1, -1
+            deallocate(beta_m1_contribs(i)%pos, stat=ierr)
+        end do
+        do i = nalpha_m1, 1, -1
+            deallocate(alpha_m1_contribs(i)%pos, stat=ierr)
+        end do
+
+        deallocate(nbeta_m1_contribs)
+        deallocate(nalpha_m1_contribs)
+        deallocate(beta_m1_contribs)
+        deallocate(alpha_m1_contribs)
 
         write(6,'("Time to sort auxiliary arrays:", f9.3)') get_total_time(sort_aux_time); call neci_flush(6)
 
@@ -1212,23 +1224,21 @@ contains
 
         allocate(intersec_inds(nbeta), stat=ierr)
 
-        allocate(nI_list(nel, determ_space_size), stat=ierr)
-        do i = 1, determ_space_size
-            call decode_bit_det(nI_list(:,i), core_space(:,i))
-        end do
-
         allocate(hamil_row(determ_space_size), stat=ierr)
         allocate(hamil_pos(determ_space_size), stat=ierr)
 
         allocate(sparse_core_ham(determ_sizes(iProcIndex)), stat=ierr)
         allocate(core_ham_diag(determ_sizes(iProcIndex)), stat=ierr)
 
+        allocate(num_conns(determ_space_size), stat=ierr)
         num_conns = 0
 
         ! Loop over the determinants on this process
         do i = 1, determ_sizes(iProcIndex)
             ! Find the index in the *full* list of determinants
             i_full = i + determ_displs(iProcIndex)
+
+            call decode_bit_det(nI, core_space(:,i_full))
 
             ! --- Beta string -----------------------------
             beta_ilut(0:NIfD) = iand(core_space(0:NIfD,i_full), MaskBeta)
@@ -1242,7 +1252,8 @@ contains
                 tmp = iand(core_space(0:NIfD,i_full), tmp)
                 IC = CountBits(tmp, NIfD)
                 if (IC <= 2) then
-                    hel = get_helement(nI_list(:,i_full), nI_list(:,ind_j), IC, core_space(:,i_full), core_space(:,ind_j))
+                    call decode_bit_det(nJ, core_space(:,ind_j))
+                    hel = get_helement(nI, nJ, IC, core_space(:,i_full), core_space(:,ind_j))
                     if (abs(hel) > 0.0_dp) then
                         num_conns(i) = num_conns(i) + 1
                         hamil_pos(num_conns(i)) = ind_j
@@ -1263,7 +1274,8 @@ contains
                 tmp = iand(core_space(0:NIfD,i_full), tmp)
                 IC = CountBits(tmp, NIfD)
                 if (IC <= 2) then
-                    hel = get_helement(nI_list(:,i_full), nI_list(:,ind_j), IC, core_space(:,i_full), core_space(:,ind_j))
+                    call decode_bit_det(nJ, core_space(:,ind_j))
+                    hel = get_helement(nI, nJ, IC, core_space(:,i_full), core_space(:,ind_j))
                     if (abs(hel) > 0.0_dp) then
                         num_conns(i) = num_conns(i) + 1
                         hamil_pos(num_conns(i)) = ind_j
@@ -1283,7 +1295,8 @@ contains
 
                 do k = 1, nintersec
                     ind_k = alpha_dets(ind_alpha_conn)%pos( intersec_inds(k) )
-                    hel = get_helement(nI_list(:,i_full), nI_list(:,ind_k), 2, core_space(:,i_full), core_space(:,ind_k))
+                    call decode_bit_det(nK, core_space(:,ind_k))
+                    hel = get_helement(nI, nK, 2, core_space(:,i_full), core_space(:,ind_k))
                     if (abs(hel) > 0.0_dp) then
                         num_conns(i) = num_conns(i) + 1
                         hamil_pos(num_conns(i)) = ind_k
@@ -1293,7 +1306,7 @@ contains
             end do
 
             ! Calculate and add the diagonal element
-            hel = get_helement(nI_list(:,i_full), nI_list(:,i_full), 0) - Hii
+            hel = get_helement(nI, nI, 0) - Hii
             num_conns(i) = num_conns(i) + 1
             hamil_pos(num_conns(i)) = i_full
             hamil_row(num_conns(i)) = hel
@@ -1328,6 +1341,44 @@ contains
 
         total_time = get_total_time(aux_time) + get_total_time(sort_aux_time) + get_total_time(ham_time)
         write(6,'("total_time:", f9.3)') total_time; call neci_flush(6)
+
+        ! --- Deallocate all auxiliary arrays -------------
+
+        do i = nbeta, 1, -1
+            deallocate(beta_dets(i)%pos, stat=ierr)
+        end do
+        do i = nalpha, 1, -1
+            deallocate(alpha_dets(i)%pos, stat=ierr)
+        end do
+        do i = nalpha, 1, -1
+            deallocate(beta_with_alpha(i)%pos, stat=ierr)
+        end do
+
+        deallocate(nbeta_dets)
+        deallocate(nalpha_dets)
+
+        deallocate(beta_dets)
+        deallocate(alpha_dets)
+        deallocate(beta_with_alpha)
+
+        deallocate(num_conns)
+
+        call clear_hash_table(beta_ht)
+        deallocate(beta_ht, stat=ierr)
+        nullify(beta_ht)
+
+        call clear_hash_table(alpha_ht)
+        deallocate(alpha_ht, stat=ierr)
+        nullify(alpha_ht)
+
+        deallocate(beta_list)
+        deallocate(alpha_list)
+
+        deallocate(intersec_inds)
+        deallocate(hamil_row)
+        deallocate(hamil_pos)
+
+        call MPIBarrier(ierr, tTimeIn=.false.)
 
     end subroutine calc_determ_hamil_opt
 
