@@ -870,9 +870,6 @@ contains
         allocate(alpha_ht( int(determ_space_size/10.0) ), stat=ierr)
         call init_hash_table(alpha_ht)
 
-        !allocate(nI_alpha_list(nOccAlpha, determ_space_size), stat=ierr)
-        !allocate(nI_beta_list(nOccBeta, determ_space_size), stat=ierr)
-
         call set_timer(aux_time)
 
         ! --- Set up auxiliary arrays ------------------------------
@@ -898,7 +895,6 @@ contains
                 nbeta = nbeta + 1
                 nbeta_dets(nbeta) = 0
                 beta_list(0:NIfD, nbeta) = beta_ilut(0:NIfD)
-                !nI_beta_list(:, nbeta) = nI_beta
                 call add_hash_table_entry(beta_ht, nbeta, hash_val_beta)
                 ind_beta = nbeta
             end if
@@ -918,7 +914,6 @@ contains
                 nalpha = nalpha + 1
                 nalpha_dets(nalpha) = 0
                 alpha_list(0:NIfD, nalpha) = alpha_ilut(0:NIfD)
-                !nI_alpha_list(:, nalpha) = nI_alpha
                 call add_hash_table_entry(alpha_ht, nalpha, hash_val_alpha)
                 ind_alpha = nalpha
             end if
@@ -943,7 +938,6 @@ contains
 
         do i = 1, nbeta
             beta_ilut(0:NIfD) = beta_list(0:NIfD,i)
-            !nI_beta = nI_beta_list(:,i)
             call decode_bit_det(nI_beta, beta_ilut)
 
             do j = 1, nOccBeta
@@ -975,7 +969,6 @@ contains
 
         do i = 1, nalpha
             alpha_ilut(0:NIfD) = alpha_list(0:NIfD,i)
-            !nI_alpha = nI_alpha_list(:,i)
             call decode_bit_det(nI_alpha, alpha_ilut)
 
             do j = 1, nOccAlpha
@@ -1059,7 +1052,6 @@ contains
 
         do i = 1, nbeta
             beta_ilut(0:NIfD) = beta_list(0:NIfD,i)
-            !nI_beta = nI_beta_list(:,i)
             call decode_bit_det(nI_beta, beta_ilut)
 
             call hash_table_lookup(nI_beta, beta_ilut, NIfD, beta_ht, beta_list, ind_beta, hash_val_beta, tSuccess)
@@ -1084,7 +1076,6 @@ contains
 
         do i = 1, nalpha
             alpha_ilut(0:NIfD) = alpha_list(0:NIfD,i)
-            !nI_alpha = nI_alpha_list(:,i)
             call decode_bit_det(nI_alpha, alpha_ilut)
 
             call hash_table_lookup(nI_alpha, alpha_ilut, NIfD, alpha_ht, alpha_list, ind_alpha, hash_val_alpha, tSuccess)
