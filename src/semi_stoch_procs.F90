@@ -1179,35 +1179,18 @@ contains
 
         use bit_reps, only: encode_sign
         use davidson_semistoch, only: davidson_ss, perform_davidson_ss, destroy_davidson_ss
-        use FciMCData, only: core_ham_diag, DavidsonTag
-        use MemoryManager, only: LogMemAlloc, LogMemDealloc
-        use Parallel_neci, only: MPIScatterV
+        use FciMCData, only: DavidsonTag
+        use Parallel_neci, only: MPISumAll, MPIScatterV
         use ParallelHelper, only: root
         use sparse_arrays, only: deallocate_sparse_ham, sparse_ham, hamil_diag, HDiagTag
         use sparse_arrays, only: SparseHamilTags, allocate_sparse_ham_row
 
         logical, intent(in) :: tPrintInfo
         integer :: i, counter, ierr
-        real(dp) :: eigenvec_pop, pop_sign(lenof_sign)
+        real(dp) :: eigenvec_pop, eigenvec_pop_tot, pop_sign(lenof_sign)
         real(dp), allocatable :: temp_determ_vec(:)
         character(len=*), parameter :: t_r = "start_walkers_from_core_ground"
-        type(davidson_ss) :: davidsonCalc
-
-        ! Create the arrays used by the Davidson routine.
-        ! First, the whole Hamiltonian in sparse form.
-        !allocate(sparse_ham(determ_sizes(iProcIndex)))
-        !allocate(SparseHamilTags(2, determ_sizes(iProcIndex)))
-        !do i = 1, determ_sizes(iProcIndex)
-        !    call allocate_sparse_ham_row(sparse_ham, i, sparse_core_ham(i)%num_elements, "sparse_ham", SparseHamilTags(:,i)) 
-        !    sparse_ham(i)%elements = sparse_core_ham(i)%elements
-        !    sparse_ham(i)%positions = sparse_core_ham(i)%positions
-        !    sparse_ham(i)%num_elements = sparse_core_ham(i)%num_elements
-        !end do
-
-        !! Next create the diagonal used by Davidson by copying the core one.
-        !allocate(hamil_diag(determ_sizes(iProcIndex)),stat=ierr)
-        !call LogMemAlloc('hamil_diag', int(determ_sizes(iProcIndex),sizeof_int), 8, t_r, HDiagTag, ierr)
-        !hamil_diag = core_ham_diag
+        type(davidson_ss) :: dc
 
         if (tPrintInfo) then
             write(6,'(a69)') "Using the deterministic ground state as initial walker configuration."
@@ -1216,52 +1199,39 @@ contains
         end if
 
         ! Call the Davidson routine to find the ground state of the core space.
-        call perform_davidson_ss(davidsonCalc, .true.)
-        associate( &
-            davidson_eigenvector => davidsonCalc%davidson_eigenvector, &
-            davidson_eigenvalue => davidsonCalc%davidson_eigenvalue &
-        )
+        call perform_davidson_ss(dc, .true.)
 
         if (tPrintInfo) then
             write(6,'(a30)') "Davidson calculation complete."
-            write(6,'("Deterministic subspace correlation energy:",1X,f15.10)') davidson_eigenvalue
+            write(6,'("Deterministic subspace correlation energy:",1X,f15.10)') dc%davidson_eigenvalue
             call neci_flush(6)
         end if
 
         ! The ground state compnents are now stored in davidson_eigenvector on the root.
         ! First, we need to normalise this vector to have the correct 'number of walkers'.
-        if (iProcIndex == root) then
-            eigenvec_pop = 0.0_dp
-            do i = 1, determ_space_size
-                eigenvec_pop = eigenvec_pop + abs(davidson_eigenvector(i))
-            end do
-            if (tStartSinglePart) then
-                davidson_eigenvector = davidson_eigenvector*InitialPart/eigenvec_pop
-            else
-                davidson_eigenvector = davidson_eigenvector*InitWalkers/eigenvec_pop
-            end if
-        end if
+        eigenvec_pop = 0.0_dp
+        do i = 1, determ_sizes(iProcIndex)
+            eigenvec_pop = eigenvec_pop + abs(dc%davidson_eigenvector(i))
+        end do
+        call MPISumAll(eigenvec_pop, eigenvec_pop_tot)
 
-        ! Send the components to the correct processors using the following
-        ! array as temporary space.
-        allocate(temp_determ_vec(determ_sizes(iProcIndex)))
-        call MPIScatterV(real(davidson_eigenvector, dp), determ_sizes, determ_displs, &
-                         temp_determ_vec, determ_sizes(iProcIndex), ierr)
+        if (tStartSinglePart) then
+            dc%davidson_eigenvector = dc%davidson_eigenvector*InitialPart/eigenvec_pop_tot
+        else
+            dc%davidson_eigenvector = dc%davidson_eigenvector*InitWalkers/eigenvec_pop_tot
+        end if
 
         ! Finally, copy these amplitudes across to the corresponding states in CurrentDets.
         counter = 0
         do i = 1, int(TotWalkers, sizeof_int)
             if (test_flag(CurrentDets(:,i), flag_deterministic)) then
                 counter = counter + 1
-                pop_sign = temp_determ_vec(counter)
+                pop_sign = dc%davidson_eigenvector(counter)
                 call encode_sign(CurrentDets(:,i), pop_sign)
             end if
         end do
 
-        call destroy_davidson_ss(davidsonCalc)
-        call LogMemDealloc(t_r, DavidsonTag, ierr)
-        deallocate(temp_determ_vec)
-        end associate
+        call destroy_davidson_ss(dc)
 
     end subroutine start_walkers_from_core_ground
 
