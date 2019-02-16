@@ -52,8 +52,6 @@ module davidson_semistoch
         ! Hence it is a measure of how converged the solution is.
         real(dp) :: residual_norm
         real(dp) :: davidson_eigenvalue
-        ! temp vectors for real matrix-vector calculations even when compiling in complex mode
-        real(dp), allocatable :: temp_in(:), temp_out(:)
         ! the hamiltonian projected into basis_vectors
         real(dp), allocatable :: projected_hamil(:,:)
         ! we'll usually need some working space for diagonalisation of H in the small basis
@@ -65,7 +63,6 @@ module davidson_semistoch
 
     interface multiply_hamil_and_vector_ss
         module procedure mult_ham_vector_real_ss
-        module procedure mult_ham_vector_complex_ss
     end interface
 
     contains
@@ -419,41 +416,7 @@ module davidson_semistoch
             end do
         end do
 
-        ! this templated routine forbids mixing real and complex arrays
-        !call MPIGatherV(real(partial, dp), output_vector, sizes, displs, ierr)
-
     end subroutine mult_ham_vector_real_ss
-
-    subroutine mult_ham_vector_complex_ss(input_vector, output_vector, partial, sizes, displs)
-
-        complex(dp), intent(in) :: input_vector(:)
-        complex(dp), intent(out) :: output_vector(:)
-        HElement_t(dp), intent(out) :: partial(:)
-        integer(MPIArg), intent(in) :: sizes(0:), displs(0:)
-
-        integer :: i, j, ierr
-
-        ! Use output_vector as temporary space.
-        output_vector = input_vector
-
-        call MPIBarrier(ierr, tTimeIn=.false.)
-
-        call MPIBCast(output_vector)
-
-        partial = 0.0_dp
-
-        do i = 1, sizes(iProcIndex)
-            do j = 1, sparse_core_ham(i)%num_elements
-                partial(i) = partial(i) + sparse_core_ham(i)%elements(j)*output_vector(sparse_core_ham(i)%positions(j))
-            end do
-        end do
-#ifdef __CMPLX
-        call MPIGatherV(partial, output_vector, sizes, displs, ierr)
-#else
-        call MPIGatherV(cmplx(partial, 0.0_dp,dp), output_vector, sizes, displs, ierr)
-#endif
-
-    end subroutine mult_ham_vector_complex_ss
 
     subroutine calculate_residual_ss(this, basis_index)
 
@@ -498,8 +461,6 @@ module davidson_semistoch
         safe_free(this%multiplied_basis_vectors)
         safe_free(this%residual)
         safe_free(this%eigenvector_proj)
-        safe_free(this%temp_in)
-        safe_free(this%temp_out)
         ! but keep the davidson eigenvector
 
     end subroutine free_davidson_ss

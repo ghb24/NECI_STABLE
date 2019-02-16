@@ -1179,16 +1179,11 @@ contains
 
         use bit_reps, only: encode_sign
         use davidson_semistoch, only: davidson_ss, perform_davidson_ss, destroy_davidson_ss
-        use FciMCData, only: DavidsonTag
-        use Parallel_neci, only: MPISumAll, MPIScatterV
-        use ParallelHelper, only: root
-        use sparse_arrays, only: deallocate_sparse_ham, sparse_ham, hamil_diag, HDiagTag
-        use sparse_arrays, only: SparseHamilTags, allocate_sparse_ham_row
+        use Parallel_neci, only: MPISumAll
 
         logical, intent(in) :: tPrintInfo
         integer :: i, counter, ierr
         real(dp) :: eigenvec_pop, eigenvec_pop_tot, pop_sign(lenof_sign)
-        real(dp), allocatable :: temp_determ_vec(:)
         character(len=*), parameter :: t_r = "start_walkers_from_core_ground"
         type(davidson_ss) :: dc
 
@@ -1207,8 +1202,7 @@ contains
             call neci_flush(6)
         end if
 
-        ! The ground state compnents are now stored in davidson_eigenvector on the root.
-        ! First, we need to normalise this vector to have the correct 'number of walkers'.
+        ! We need to normalise this vector to have the correct 'number of walkers'.
         eigenvec_pop = 0.0_dp
         do i = 1, determ_sizes(iProcIndex)
             eigenvec_pop = eigenvec_pop + abs(dc%davidson_eigenvector(i))
@@ -1221,7 +1215,7 @@ contains
             dc%davidson_eigenvector = dc%davidson_eigenvector*InitWalkers/eigenvec_pop_tot
         end if
 
-        ! Finally, copy these amplitudes across to the corresponding states in CurrentDets.
+        ! Then copy these amplitudes across to the corresponding states in CurrentDets.
         counter = 0
         do i = 1, int(TotWalkers, sizeof_int)
             if (test_flag(CurrentDets(:,i), flag_deterministic)) then
