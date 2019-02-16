@@ -124,7 +124,7 @@ module davidson_semistoch
 
         logical, intent(in) :: print_info
 
-        integer :: i, hfindex, hf_proc, mem_reqd, residual_mem_reqd, ierr
+        integer :: i, hfindex, hf_proc, mem_reqd, mem_reqd_full, ierr
         real(dp) :: hf_elem, hf_elem_this_proc, hf_elem_all_procs(0:nProcessors-1)
         logical :: skip_calc, skip_calc_all(0:nProcessors-1)
         integer(MPIArg) :: mpi_temp
@@ -170,9 +170,9 @@ module davidson_semistoch
 
         ! the memory required to allocate each of basis_vectors and
         ! multipied_basis_vectors, in mb.
-        mem_reqd = (max_num_davidson_iters*space_size*8)/1000000
+        mem_reqd = (max_num_davidson_iters*space_size_this_proc*8)/1000000
         ! the memory required to allocate residual.
-        residual_mem_reqd = space_size*8/1000000
+        mem_reqd_full = space_size*8/1000000
 
         if (print_info) then
             write(6,'(1x,"allocating array to hold subspace vectors (",'//int_fmt(mem_reqd,0)//',1x,"mb).")') mem_reqd
@@ -186,8 +186,8 @@ module davidson_semistoch
         end if
 
         if (print_info) then
-            write(6,'(1x,"allocating array to hold the residual vector (",'&
-            //int_fmt(residual_mem_reqd,0)//',1x,"mb).",/)') residual_mem_reqd
+            write(6,'(1x,"allocating temporary vector (",'&
+            //int_fmt(mem_reqd_full,0)//',1x,"mb).",/)') mem_reqd_full
             call neci_flush(6)
         end if
 
