@@ -1178,8 +1178,7 @@ contains
     subroutine start_walkers_from_core_ground(tPrintInfo)
 
         use bit_reps, only: encode_sign
-        use hamiltonian_linalg, only: parallel_sparse_hamil_type
-        use davidson_neci, only: DavidsonCalcType, perform_davidson, DestroyDavidsonCalc
+        use davidson_semistoch, only: davidson_ss, perform_davidson_ss, destroy_davidson_ss
         use FciMCData, only: core_ham_diag, DavidsonTag
         use MemoryManager, only: LogMemAlloc, LogMemDealloc
         use Parallel_neci, only: MPIScatterV
@@ -1187,32 +1186,28 @@ contains
         use sparse_arrays, only: deallocate_sparse_ham, sparse_ham, hamil_diag, HDiagTag
         use sparse_arrays, only: SparseHamilTags, allocate_sparse_ham_row
 
-        use hamiltonian_linalg, only: sparse_hamil_type
-        use lanczos_general, only: LanczosCalcType, DestroyLanczosCalc
-        use lanczos_general, only: perform_lanczos
-
         logical, intent(in) :: tPrintInfo
         integer :: i, counter, ierr
         real(dp) :: eigenvec_pop, pop_sign(lenof_sign)
         real(dp), allocatable :: temp_determ_vec(:)
         character(len=*), parameter :: t_r = "start_walkers_from_core_ground"
-        type(DavidsonCalcType) :: davidsonCalc
+        type(davidson_ss) :: davidsonCalc
 
         ! Create the arrays used by the Davidson routine.
         ! First, the whole Hamiltonian in sparse form.
-        allocate(sparse_ham(determ_sizes(iProcIndex)))
-        allocate(SparseHamilTags(2, determ_sizes(iProcIndex)))
-        do i = 1, determ_sizes(iProcIndex)
-            call allocate_sparse_ham_row(sparse_ham, i, sparse_core_ham(i)%num_elements, "sparse_ham", SparseHamilTags(:,i)) 
-            sparse_ham(i)%elements = sparse_core_ham(i)%elements
-            sparse_ham(i)%positions = sparse_core_ham(i)%positions
-            sparse_ham(i)%num_elements = sparse_core_ham(i)%num_elements
-        end do
+        !allocate(sparse_ham(determ_sizes(iProcIndex)))
+        !allocate(SparseHamilTags(2, determ_sizes(iProcIndex)))
+        !do i = 1, determ_sizes(iProcIndex)
+        !    call allocate_sparse_ham_row(sparse_ham, i, sparse_core_ham(i)%num_elements, "sparse_ham", SparseHamilTags(:,i)) 
+        !    sparse_ham(i)%elements = sparse_core_ham(i)%elements
+        !    sparse_ham(i)%positions = sparse_core_ham(i)%positions
+        !    sparse_ham(i)%num_elements = sparse_core_ham(i)%num_elements
+        !end do
 
-        ! Next create the diagonal used by Davidson by copying the core one.
-        allocate(hamil_diag(determ_sizes(iProcIndex)),stat=ierr)
-        call LogMemAlloc('hamil_diag', int(determ_sizes(iProcIndex),sizeof_int), 8, t_r, HDiagTag, ierr)
-        hamil_diag = core_ham_diag
+        !! Next create the diagonal used by Davidson by copying the core one.
+        !allocate(hamil_diag(determ_sizes(iProcIndex)),stat=ierr)
+        !call LogMemAlloc('hamil_diag', int(determ_sizes(iProcIndex),sizeof_int), 8, t_r, HDiagTag, ierr)
+        !hamil_diag = core_ham_diag
 
         if (tPrintInfo) then
             write(6,'(a69)') "Using the deterministic ground state as initial walker configuration."
@@ -1220,8 +1215,8 @@ contains
             call neci_flush(6)
         end if
 
-        ! Call the Davidson routine to find the ground state of the core space. 
-        call perform_davidson(davidsonCalc, parallel_sparse_hamil_type, .false.)
+        ! Call the Davidson routine to find the ground state of the core space.
+        call perform_davidson_ss(davidsonCalc, .true.)
         associate( &
             davidson_eigenvector => davidsonCalc%davidson_eigenvector, &
             davidson_eigenvalue => davidsonCalc%davidson_eigenvalue &
@@ -1263,11 +1258,8 @@ contains
             end if
         end do
 
-        call DestroyDavidsonCalc(davidsonCalc)
+        call destroy_davidson_ss(davidsonCalc)
         call LogMemDealloc(t_r, DavidsonTag, ierr)
-        deallocate(hamil_diag, stat=ierr)
-        call LogMemDealloc(t_r, HDiagTag, ierr)
-        call deallocate_sparse_ham(sparse_ham, 'sparse_ham', SparseHamilTags)
         deallocate(temp_determ_vec)
         end associate
 

@@ -33,7 +33,6 @@ contains
         use lanczos_general, only: LanczosCalcType, DestroyLanczosCalc
         use lanczos_general, only: perform_lanczos
 
-        use davidson_neci, only: DavidsonCalcType, perform_davidson, DestroyDavidsonCalc
         use lanczos_general, only: LanczosCalcType, perform_lanczos, DestroyLanczosCalc
 
 
@@ -57,7 +56,6 @@ contains
         HElement_t(dp), allocatable :: evecs(:,:), evecs_transpose(:,:)
         character(len=*), parameter :: t_r = "calc_trial_states_lanczos"
 
-        type(DavidsonCalcType) :: davidsonCalc
         type(LanczosCalcType) :: lanczosCalc
 
         ndets_this_proc = 0

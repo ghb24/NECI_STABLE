@@ -23,6 +23,7 @@ set( SRC_FILES
     csf.F90
     csf_old.F
     davidson_neci.F90
+    davidson_semistoch.F90
     default_sets.F90
     DetBitOps.F90
     DetCalcData.F90
