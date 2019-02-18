@@ -26,7 +26,7 @@ pipelines:
       - echo "running limited test_suite(to save build-minutes)"
       - useradd temp
       - cd ../test_suite
-      - su -c "/testcode/bin/testcode.py -c dneci/double_occ/hub_2x2 -c kmneci/Rn_lanczos_fci -c kneci/C_221_int -c mneci/cfqmc/HeHe_5_states -c neci/parallel/C_Solid" -s /bin/sh temp
+      - su -c "/testcode/bin/testcode.py -c dneci/double_occ/hub_2x2 -c kmneci/Rn_lanczos_fci -c kneci/C_221_int -c mneci/cfqmc/HeHe_5_states -c neci/parallel/C_Solid -vvv" -s /bin/sh temp
 
 # [W.D.] ignore the stuff below for now, will clean up later
  custom:
@@ -69,7 +69,7 @@ pipelines:
        - cd ../test_suite 
          # i have to run mpi as non root.. do some workaround
        - adduser temp
-       - su -c "/testcode/bin/testcode.py -c neci/parallel/C_Solid" -s /bin/sh temp
+       - su -c "/testcode/bin/testcode.py -c neci/parallel/C_Solid -vvv" -s /bin/sh temp
          # - /testcode/bin/testcode.py -c neci/parallel/C_Solid
        - echo "the question is does this flag it as succesfull only if it passes??"
 
@@ -97,7 +97,7 @@ pipelines:
         - make -j 
         - cd ../test_suite 
         - adduser temp
-        - su -c "/testcode/bin/testcode.py" -s /bin/sh temp 
+        - su -c "/testcode/bin/testcode.py -vvv" -s /bin/sh temp 
         - echo "everything passed!"
 
   debug_build: 
@@ -110,7 +110,7 @@ pipelines:
         - make -j neci mneci kneci kmneci dneci
         - cd ../test_suite
         - adduser temp
-        - su -c "/testcode/bin/testcode.py" -s /bin/sh temp
+        - su -c "/testcode/bin/testcode.py -vvv" -s /bin/sh temp
         - echo "debug build + test_suite passed!"
 
 
