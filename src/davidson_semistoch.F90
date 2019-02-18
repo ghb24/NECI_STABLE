@@ -244,9 +244,14 @@ module davidson_semistoch
         call multiply_hamil_and_vector_ss(this%davidson_eigenvector, this%multiplied_basis_vectors(:,1), &
                                           this%full_vector, this%sizes, this%displs)
 
-        if (all(abs(this%multiplied_basis_vectors(:,1)-core_ham_diag(hfindex)*this%davidson_eigenvector) < 1.0e-12_dp)) then
+        if (space_size_this_proc > 0) then
+            if (all(abs(this%multiplied_basis_vectors(:,1)-core_ham_diag(hfindex)*this%davidson_eigenvector) < 1.0e-12_dp)) then
+                skip_calc = .true.
+            end if
+        else
             skip_calc = .true.
         end if
+
         call MPIAllGather(skip_calc, skip_calc_all, ierr)
         if (all(skip_calc_all)) return
 
