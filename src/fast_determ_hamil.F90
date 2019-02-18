@@ -154,7 +154,7 @@ contains
                 ! the list of all beta strings, and the associated hash table.
                 if (.not. tSuccess) then
                     nbeta = nbeta + 1
-                    nbeta_dets(nbeta) = 0
+                    if (hphf_ind == 1) nbeta_dets(nbeta) = 0
                     beta_list(0:NIfD, nbeta) = beta_ilut(0:NIfD)
                     call add_hash_table_entry(beta_ht, nbeta, hash_val_beta)
                     ind_beta = nbeta
@@ -174,7 +174,7 @@ contains
                 ! the list of all alpha strings, and the associated hash table.
                 if (.not. tSuccess) then
                     nalpha = nalpha + 1
-                    nalpha_dets(nalpha) = 0
+                    if (hphf_ind == 1) nalpha_dets(nalpha) = 0
                     alpha_list(0:NIfD, nalpha) = alpha_ilut(0:NIfD)
                     call add_hash_table_entry(alpha_ht, nalpha, hash_val_alpha)
                     ind_alpha = nalpha
@@ -186,7 +186,7 @@ contains
                 if (hphf_ind == 1) nalpha_dets(ind_alpha) = nalpha_dets(ind_alpha) + 1
 
             end do
-        end do 
+        end do
 
         allocate(beta_m1_list(0:NIfD, nbeta*(nOccBeta-1)), stat=ierr)
         allocate(nbeta_m1_contribs(nbeta*(nOccBeta-1)), stat=ierr)
