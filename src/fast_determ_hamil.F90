@@ -39,7 +39,7 @@ contains
         integer :: i, j, k, ierr
         integer :: IC, IC_beta
         integer :: ind_i, ind_j, ind_k, i_full
-        integer :: ind, hash_val
+        integer :: ind, hash_val, hash_size_1, hash_size_2, hash_size_3
         integer :: ind_beta, ind_alpha, hash_val_beta, hash_val_alpha, ind_alpha_conn
         integer :: ind_alpha_paired, ind_beta_paired
         logical :: tSuccess, tSuccess_a_paired, tSuccess_b_paired
@@ -97,9 +97,11 @@ contains
         allocate(alpha_list(0:NIfD, 2*determ_space_size), stat=ierr)
         allocate(nalpha_dets(determ_space_size), stat=ierr)
 
-        allocate(beta_ht( int(determ_space_size/10.0) ), stat=ierr)
+        hash_size_1 = max(10, int(determ_space_size/10.0))
+
+        allocate(beta_ht( hash_size_1 ), stat=ierr)
         call init_hash_table(beta_ht)
-        allocate(alpha_ht( int(determ_space_size/10.0) ), stat=ierr)
+        allocate(alpha_ht( hash_size_1 ), stat=ierr)
         call init_hash_table(alpha_ht)
 
         call set_timer(aux_time)
@@ -191,9 +193,12 @@ contains
         allocate(alpha_m1_list(0:NIfD, nalpha*(nOccAlpha-1)), stat=ierr)
         allocate(nalpha_m1_contribs(nalpha*(nOccAlpha-1)), stat=ierr)
 
-        allocate(beta_m1_ht( int(nbeta*(nOccBeta-1)/10.0) ), stat=ierr)
+        hash_size_2 = max(10, int(nbeta*(nOccBeta-1)/10.0))
+        hash_size_3 = max(10, int(nalpha*(nOccAlpha-1)/10.0))
+
+        allocate(beta_m1_ht( hash_size_2 ), stat=ierr)
         call init_hash_table(beta_m1_ht)
-        allocate(alpha_m1_ht( int(nalpha*(nOccAlpha-1)/10.0) ), stat=ierr)
+        allocate(alpha_m1_ht( hash_size_3 ), stat=ierr)
         call init_hash_table(alpha_m1_ht)
 
         ! --- Find the size of beta-1 arrays -----------------
@@ -816,7 +821,7 @@ contains
         integer :: i, j, k, ierr
         integer :: IC, IC_beta
         integer :: ind_i, ind_j, ind_k, i_full
-        integer :: ind, hash_val
+        integer :: ind, hash_val, hash_size_1, hash_size_2, hash_size_3
         integer :: ind_beta, ind_alpha, hash_val_beta, hash_val_alpha, ind_alpha_conn
         logical :: tSuccess
         integer(n_int) :: tmp(0:NIfD)
@@ -865,9 +870,11 @@ contains
         allocate(alpha_list(0:NIfD, determ_space_size), stat=ierr)
         allocate(nalpha_dets(determ_space_size), stat=ierr)
 
-        allocate(beta_ht( int(determ_space_size/10.0) ), stat=ierr)
+        hash_size_1 = max(10, int(determ_space_size/10.0))
+
+        allocate(beta_ht( hash_size_1 ), stat=ierr)
         call init_hash_table(beta_ht)
-        allocate(alpha_ht( int(determ_space_size/10.0) ), stat=ierr)
+        allocate(alpha_ht( hash_size_1 ), stat=ierr)
         call init_hash_table(alpha_ht)
 
         call set_timer(aux_time)
@@ -929,9 +936,12 @@ contains
         allocate(alpha_m1_list(0:NIfD, nalpha*(nOccAlpha-1)), stat=ierr)
         allocate(nalpha_m1_contribs(nalpha*(nOccAlpha-1)), stat=ierr)
 
-        allocate(beta_m1_ht( int(nbeta*(nOccBeta-1)/10.0) ), stat=ierr)
+        hash_size_2 = max(10, int(nbeta*(nOccBeta-1)/10.0))
+        hash_size_3 = max(10, int(nalpha*(nOccAlpha-1)/10.0))
+
+        allocate(beta_m1_ht( hash_size_2 ), stat=ierr)
         call init_hash_table(beta_m1_ht)
-        allocate(alpha_m1_ht( int(nalpha*(nOccAlpha-1)/10.0) ), stat=ierr)
+        allocate(alpha_m1_ht( hash_size_3 ), stat=ierr)
         call init_hash_table(alpha_m1_ht)
 
         ! --- Find the size of beta-1 arrays -----------------
