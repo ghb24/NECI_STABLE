@@ -553,6 +553,7 @@ system: do
                   t_mol_3_body = .false.
                end select
             endif
+            if(t_mol_3_body) max_ex_level = 3
 
        case ('TRANSCORRELATED', 'TRANSCORR', 'TRANS-CORR')
            ! activate the transcorrelated Hamiltonian idea from hongjun for 

@@ -248,6 +248,8 @@ module LMat_mod
          end do
       endif
 
+      write(iout,*) "Successfully allocated LMat"
+
       call MPI_Barrier(mpi_comm_intra, err)
 
       if(tHDF5LMat) then
@@ -394,7 +396,6 @@ module LMat_mod
       any_running = .true.
       running = .true.
       do while(any_running)
-
          if(running) then
             ! the number of elements to read in this block
             this_blocksize = blockend - blockstart + 1
