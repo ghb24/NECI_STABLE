@@ -16,7 +16,7 @@ module davidson_semistoch
 
     implicit none
 
-    integer, parameter :: max_num_davidson_iters = 20
+    integer, parameter :: max_num_davidson_iters = 25
     real(dp), parameter :: residual_norm_target = 0.0000001_dp
 
     ! To cut down on the amount of global data, introduce a derived type to hold a Davidson session
