@@ -7,7 +7,7 @@
     use IntegralsData, only: UMat, FCK
     use global_utilities
     use constants, only: sp, dp, pi, pi2, THIRD
-    use Parallel_neci, only: iProcIndex
+    use Parallel_neci, only: iProcIndex,root
     use iso_c_hack
     use breathing_Hub, only: bHubIndexFunction
     implicit none
@@ -958,13 +958,13 @@ contains
         character(*), parameter :: this_routine = 'prep_ueg_dump'
         namelist /FCI/ NORB,nelec,MS2
 
-!        if(iProcIndex == root) then
+        if(iProcIndex == root) then
         
         ms2=0
         nelec=nel 
         norb=nBasis/2
        i_unit=get_free_unit() 
-      open(i_unit,file='FCIDUMP_HF',status='unknown')
+      open(i_unit,file='FCIDUMP',status='unknown')
       write(i_unit,FCI)
       do id1=1,norb
        do id2=1,norb
@@ -1189,7 +1189,6 @@ contains
      
 !========= L mat ========================
      if(.not.t_ueg_3_body)stop
-     
        i_unit=get_free_unit() 
        open(i_unit,file='TCDUMP',status='unknown',access='append')
       do l1=1,norb
@@ -1268,8 +1267,8 @@ contains
            
 
        
-     close(i_unit)
-!      end if
+      close(i_unit)
+     end if
      stop
     end subroutine 
     

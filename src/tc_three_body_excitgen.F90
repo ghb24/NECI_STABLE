@@ -1,7 +1,7 @@
 #include "macros.h"
 module tc_three_body_excitgen
   use constants
-  use SystemData, only: nel, nOccAlpha, nOccBeta, nBasis, G1
+  use SystemData, only: nel, nOccAlpha, nOccBeta, nBasis, G1,t_ueg_3_body
   use lattice_mod, only: sort_unique
   use bit_rep_data, only: NIfTot
   use k_space_hubbard, only: make_triple
@@ -178,11 +178,17 @@ module tc_three_body_excitgen
       implicit none
       ! reference determinant for initializing the biases
       integer, intent(in) :: HF(nel)
-
-      pTriples = 0.9
-      ! rescale pSingles/pDoubles
-      pSingles = pSingles * (1.0_dp-pTriples)
-      pDoubles = pDoubles * (1.0_dp-pTriples)
+      if(t_ueg_3_body)then
+     !  pDoubles = 2.0/nBasis
+       pDoubles = 0.1_dp 
+       pTriples = 1.0_dp-pDoubles
+       pSingles = 0.0
+      else
+       pTriples = 0.9
+       ! rescale pSingles/pDoubles
+       pSingles = pSingles * (1.0_dp-pTriples)
+       pDoubles = pDoubles * (1.0_dp-pTriples)
+      end if
       p0A = 0.25
       p0B = 0.25
       p2B = 0.25

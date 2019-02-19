@@ -1,7 +1,7 @@
 module LMat_mod
   use constants
   use HElem, only: HElement_t_SizeB
-  use SystemData, only: tStoreSpinOrbs, nBasis
+  use SystemData, only: tStoreSpinOrbs, nBasis,t_ueg_3_body
   use MemoryManager, only: LogMemAlloc, LogMemDealloc
   use util_mod, only: get_free_unit
   use gen_coul_ueg_mod, only: get_lmat_ueg
@@ -28,7 +28,8 @@ module LMat_mod
       integer, value :: a,b,c
       integer, intent(in) :: i,j,k
       HElement_t(dp) :: matel
-      integer(int64) :: ida, idb, idc, idi, idj, idk
+!      integer(int64) :: ida, idb, idc, idi, idj, idk
+      integer :: ida, idb, idc, idi, idj, idk
 
       ! convert to spatial orbs if required
       ida = gtID(a)
@@ -90,13 +91,15 @@ module LMat_mod
           implicit none
           integer, value :: idp,idq,idr,p,q,r
           integer, intent(in) :: sgn
-          integer(int64) :: ai,bj,ck
+     !     integer(int64) :: ai,bj,ck
           
           if(G1(p)%ms == G1(a)%ms .and. G1(q)%ms == G1(b)%ms .and. G1(r)%ms == G1(c)%ms) then
-!             matel = matel + sgn * LMat(LMatInd(int(ida,int64),int(idb,int64),&
-!                  int(idc,int64),int(idp,int64),int(idq,int64),int(idr,int64)))
-!======== temporary modified for ueg
+           if(t_ueg_3_body)then
              matel = matel + sgn * get_lmat_ueg(ida,idb,idc,idp,idq,idr)
+           else
+             matel = matel + sgn * LMat(LMatInd(int(ida,int64),int(idb,int64),&
+                  int(idc,int64),int(idp,int64),int(idq,int64),int(idr,int64)))
+           end if
           endif
         end subroutine addMatelContribution
         

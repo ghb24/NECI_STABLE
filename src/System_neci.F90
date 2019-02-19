@@ -544,6 +544,7 @@ system: do
                select case(w)
                case("3-BODY")
                   t_mol_3_body = .true.
+                  max_ex_level = 3
                   ! this uses a uniform excitation generator, switch off matrix
                   ! element computation for HPHF
                   tGenMatHEl = .false.
@@ -561,6 +562,7 @@ system: do
                case("3-BODY")
                   t_ueg_3_body = .true.
                   tGenMatHEl = .false.
+                  max_ex_level = 3
                case default
                   t_ueg_3_body = .false.
                end select
