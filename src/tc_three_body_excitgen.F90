@@ -1,7 +1,7 @@
 #include "macros.h"
 module tc_three_body_excitgen
   use constants
-  use SystemData, only: nel, nOccAlpha, nOccBeta, nBasis, G1, t_exclude_3_body_excits
+  use SystemData, only: nel, nOccAlpha, nOccBeta, nBasis, G1, t_exclude_3_body_excits, t_ueg_3_body
   use lattice_mod, only: sort_unique
   use bit_rep_data, only: NIfTot
   use k_space_hubbard, only: make_triple
@@ -198,7 +198,11 @@ module tc_three_body_excitgen
          pSingles = pSingles * (1.0_dp-pTriples)
          pDoubles = pDoubles * (1.0_dp-pTriples)
          write(iout,*) "Reset pSingles to ", pSingles
-         write(iout,*) "Reset pDoubles to ", pDoubles    
+         write(iout,*) "Reset pDoubles to ", pDoubles 
+      else if (t_ueg_3_body) then
+         pDoubles = 0.1_dp
+         pTriples = 1.0_dp-pDoubles
+         pSingles = 0.0
       endif
       write(iout,*) "pTriples set to ", pTriples
       ! scale the probabilities with the number of possible picks

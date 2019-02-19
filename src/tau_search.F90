@@ -9,7 +9,7 @@ module tau_search
                           t_3_body_excits, t_k_space_hubbard, t_trans_corr_2body, &
                           t_uniform_excits, t_new_real_space_hubbard, & 
                           t_trans_corr, tHub, t_trans_corr_hop, tNoSinglesPossible, &
-                          t_exclude_3_body_excits
+                          t_exclude_3_body_excits, t_ueg_3_body
 
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow, t_min_tau, min_tau_global, &
@@ -405,7 +405,7 @@ contains
             gamma_sum = gamma_sing + gamma_doub + gamma_trip
         endif
         
-        if(tUEG .or. tHub .or. t_k_space_hubbard .or. enough_sing) then
+        if((tUEG.and..not.t_ueg_3_body).or. tHub .or. t_k_space_hubbard .or. enough_sing) then
            checkS = 1
         else
            checkS = 0
@@ -547,7 +547,7 @@ contains
         ! remember enough_sing is (mis)used for triples in the 
         ! 2-body transcorrelated k-space hubbard 
         if (tau_new < tau .or. & 
-            (tUEG .or. tHub .or. enough_sing .or. & 
+            ((tUEG.and..not.t_ueg_3_body) .or. tHub .or. enough_sing .or. & 
             (t_k_space_hubbard .and. .not. t_trans_corr_2body) .and. enough_doub) .or. & 
             (t_new_real_space_hubbard .and. enough_sing .and. & 
             (t_trans_corr_2body .or. t_trans_corr)) .or. & 

@@ -1,7 +1,7 @@
 module LMat_mod
   use constants
   use HElem, only: HElement_t_SizeB
-  use SystemData, only: tStoreSpinOrbs, nBasis, tHDF5LMat, t12FoldSym
+  use SystemData, only: tStoreSpinOrbs, nBasis, tHDF5LMat, t12FoldSym, t_ueg_3_body
   use MemoryManager, only: LogMemAlloc, LogMemDealloc
   use util_mod, only: get_free_unit
   use gen_coul_ueg_mod, only: get_lmat_ueg
@@ -94,7 +94,7 @@ module LMat_mod
           implicit none
           integer, value :: idp,idq,idr,p,q,r
           integer, intent(in) :: sgn
-          integer(int64) :: ai,bj,ck
+     !     integer(int64) :: ai,bj,ck
           
           if(G1(p)%ms == G1(a)%ms .and. G1(q)%ms == G1(b)%ms .and. G1(r)%ms == G1(c)%ms) then
            if(t_ueg_3_body)then
@@ -103,7 +103,6 @@ module LMat_mod
              matel = matel + sgn * real(LMat(LMatInd(int(ida,int64),int(idb,int64),&
                   int(idc,int64),int(idp,int64),int(idq,int64),int(idr,int64))),dp)
            end if
-          endif
           endif
         end subroutine addMatelContribution
         
@@ -119,7 +118,6 @@ module LMat_mod
 
       integer(int64) :: ai,bj,ck
 
-<<<<<<< HEAD
       if(t12FoldSym) then
          index = oldLMatInd(a,b,c,i,j,k)
       else
@@ -130,17 +128,6 @@ module LMat_mod
 
          index = LMatIndFused(ai,bj,ck)
       endif
-=======
-      if(tDebugLMat) then
-         index = k + nBI*j + nBI**2*i + nBI**3*c + nBI**4*b + nBI**5*a
-      else
-      ai = fuseIndex(a,i)
-      bj = fuseIndex(b,j)
-      ck = fuseIndex(c,k)
-
-      index = LMatIndFused(ai,bj,ck)
-   endif
->>>>>>> combine Kai's modifications
     end function LMatInd
 
     function LMatIndFused(ai,bj,ck) result(index)
@@ -170,7 +157,6 @@ module LMat_mod
 
     function oldLMatInd(a,b,c,i,j,k) result(index)
       implicit none
-<<<<<<< HEAD
       integer(int64), value :: a,b,c ! occupied orb indices
       integer(int64), value :: i,j,k ! unoccupied orb
       integer(int64) :: index
@@ -187,39 +173,13 @@ module LMat_mod
       call sort2Els(a,b,i,j)
       call sort2Els(b,c,j,k)
       call sort2Els(a,b,i,j)
-=======
-      integer(int64), intent(in) :: a,b,c ! occupied orb indices
-      integer(int64), intent(in) :: i,j,k ! unoccupied orb
-      integer(int64) :: index
-      integer(int64) :: ap, bp, cp, ip, jp, kp
-
-      ! we store the permutation where a < b < c (regardless of i,j,k)
-      ! or i < j < k, depending on (permuted) a < i, b < j, c < k
-
-      ap = min(a,i)
-      ip = max(a,i)
-      bp = min(j,b)
-      jp = max(j,b)
-      cp = min(c,k)
-      kp = max(c,k)
-
-      ! -> create that permutation
-      call sort2Els(ap,bp,ip,jp)
-      call sort2Els(bp,cp,jp,kp)
-      call sort2Els(ap,bp,ip,jp)
->>>>>>> combine Kai's modifications
 
       ! indexing function: there are three ordered indices (ap,bp,cp)
       ! and three larger indices (ip,jp,kp)
       ! the last larger index kp, it is the contigous index, then follow (jp,cp) 
       ! then (ip,bp) and then the smallest index ap
-<<<<<<< HEAD
       index = k + nBI*(j-1) + nBI**2*(i-1) + nBI**3*(a-1) + nbI**3*(b-1)*b/2+&
            nBI**3*(c+1)*(c-1)*c/6
-=======
-      index = kp + nBI*(jp-1) + nBI**2*(ip-1) + nBI**3*(ap-1) + nbI**3*(bp-1)*bp/2+&
-           nBI**3*(cp+1)*(cp-1)*cp/6
->>>>>>> combine Kai's modifications
 
       contains
 
@@ -262,7 +222,6 @@ module LMat_mod
       HElement_t(dp) :: matel
       character(*), parameter :: t_r = "readLMat"
       integer :: counter
-<<<<<<< HEAD
       integer(int64) :: iChunk, chunkSize
       integer :: iNodeSize, iProcInNode
       integer :: dummy(6)
@@ -271,9 +230,6 @@ module LMat_mod
       ! we need at least three electrons to make use of the six-index integrals
       ! => for less electrons, this can be skipped
       if(nel<=2) return
-=======
-      real(dp) :: fac
->>>>>>> combine Kai's modifications
 
       if(tStoreSpinOrbs) then
          nBI = nBasis
@@ -337,18 +293,14 @@ module LMat_mod
                   LMat(LMatInd(a,b,c,i,j,k)) = 3.0_dp * matel
                   if(abs(matel)> 0.0_dp) counter = counter + 1
                endif
-<<<<<<< HEAD
-=======
                LMat(LMatInd(a,b,c,i,j,k)) = 3.0_dp * matel
                if(abs(matel)> 0.0_dp) counter = counter + 1
             endif
->>>>>>> combine Kai's modifications
 
             end do
 
             counter = counter / 12
 
-<<<<<<< HEAD
             write(iout, *), "Sparsity of LMat", real(counter)/real(LMatSize)
             write(iout, *), "Nonzero elements in LMat", counter
             write(iout, *), "Allocated size of LMat", LMatSize
@@ -356,12 +308,6 @@ module LMat_mod
       end if
 
       call MPI_Barrier(mpi_comm_intra, err)
-=======
-         write(iout, *), "Sparsity of LMat", real(counter)/real(LMatSize)
-         write(iout, *), "Nonzero elements in LMat", counter
-         write(iout, *), "Allocated size of LMat", LMatSize
-      endif
->>>>>>> combine Kai's modifications
       
     end subroutine readLMat
 
@@ -369,11 +315,7 @@ module LMat_mod
 
     subroutine initializeNInd()
       implicit none
-<<<<<<< HEAD
       integer :: i
-=======
-      integer :: i,j      
->>>>>>> combine Kai's modifications
       ! prepare an array containing the offset of certain blocks in the
       ! LMat array
       
@@ -401,13 +343,8 @@ module LMat_mod
          call LogMemDealloc(t_r, LMatTag)
          LMAt => null()
       end if
-<<<<<<< HEAD
       if(allocated(n3Ind)) deallocate(n3Ind)
       if(allocated(n2Ind)) deallocate(n2Ind)
-=======
-      deallocate(n3Ind)
-      deallocate(n2Ind)
->>>>>>> combine Kai's modifications
       
     end subroutine freeLMat
 

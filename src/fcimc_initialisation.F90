@@ -17,7 +17,9 @@ module fcimc_initialisation
                           momIndexTable, t_trans_corr_2body, t_non_hermitian, &
                           t_uniform_excits, t_mol_3_body, nClosedOrbs, irrepOrbOffset, nIrreps, &
                           nOccOrbs, tNoSinglesPossible, &
-                          t_ueg_transcorr,t_ueg_3_body
+                          t_ueg_transcorr,t_ueg_3_body,tLatticeGens
+    use tc_three_body_data, only: ptriples
+
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
 
     use dSFMT_interface, only: dSFMT_init
@@ -1631,7 +1633,9 @@ contains
 
                 endif   !tStartmp1
             endif  
-        
+            print *, "tLatticeGens=",tLatticeGens
+            if(t_ueg_3_body)tLatticeGens = .false.
+            print *,"ptriples,pdoubles=",ptriples,pdoubles,psingles
             WRITE(iout,"(A,F14.6,A)") " Initial memory (without excitgens + temp arrays) consists of : ", &
                 & REAL(MemoryAlloc,dp)/1048576.0_dp," Mb/Processor"
             WRITE(iout,*) "Only one array of memory to store main particle list allocated..."
