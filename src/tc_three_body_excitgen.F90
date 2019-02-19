@@ -182,7 +182,7 @@ module tc_three_body_excitgen
       real(dp) :: normalization
 
       ! if we read in a value, use that one
-      if(abs(pTriples < eps)) then
+      if(abs(pTriples) < eps) then
          pTriples = 0.1
       endif
       ! rescale pSingles/pDoubles
