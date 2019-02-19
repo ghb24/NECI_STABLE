@@ -343,14 +343,14 @@ module LMat_mod
            mpi_comm_intra
       use Parallel_neci, only: nProcessors
       implicit none
-      integer :: procs_per_node, proc, i
+      integer :: proc, i
       integer(hid_t) :: err, file_id, plist_id, grp_id, ds_vals, ds_inds
       integer(hsize_t) :: nInts, rest, blocksize, blockstart, blockend, this_blocksize, countsEnd
       integer(hsize_t), allocatable :: counts(:), offsets(:)
       integer(hsize_t), allocatable :: indices(:,:), entries(:,:)
       character(*), parameter :: filename = 'tcdump.h5'
       character(*), parameter :: nm_grp = "tcdump", nm_nInts = "nInts", nm_vals = "values", nm_indices = "indices"
-      integer :: ierr
+      integer(MPIArg) :: procs_per_node, ierr
       real(dp) :: rVal
       logical :: running, any_running
       rVal = 0.0_dp
