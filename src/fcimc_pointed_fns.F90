@@ -602,7 +602,7 @@ module fcimc_pointed_fns
                     acc = get_acc_spawns(DetPosition, i)
                     if(tAAS_Add_Diag)then
                         tot = tot + Kii*tau
-                        acc = tot + Kii*tau
+                        acc = acc + Kii*tau
                     end if
                     if(population>InitiatorWalkNo)then
                         tmp = 1.0
