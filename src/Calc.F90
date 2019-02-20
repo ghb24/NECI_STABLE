@@ -437,6 +437,8 @@ contains
           SIUpdateInterval = 100
           tAdiActive = .false.
           minSIConnect = 1
+
+          tForceFullPops = .false.
           
           ! Walker scaling with energy
           ! do not use scaled walkers
@@ -1458,6 +1460,11 @@ contains
             case("POPS-CORE")
                 ss_space_in%tPops = .true.
                 call geti(ss_space_in%npops)
+                if (ss_space_in%npops * nProcessors > 1000000) then
+                    if (.not. tForceFullPops) then
+                        ss_space_in%tApproxSpace = .true.
+                    end if
+                end if
             case("POPS-CORE-APPROX")
                 ss_space_in%tPops = .true.
                 ss_space_in%tApproxSpace = .true.
@@ -1589,6 +1596,11 @@ contains
             case("POPS-TRIAL")
                 trial_space_in%tPops = .true.
                 call geti(trial_space_in%npops)
+                if (trial_space_in%npops * nProcessors > 1000000) then
+                    if (.not. tForceFullPops) then
+                        trial_space_in%tApproxSpace = .true.
+                    end if
+                end if
             case("POPS-TRIAL-APPROX")
                 trial_space_in%tPops = .true.
                 trial_space_in%tApproxSpace = .true.
@@ -1949,6 +1961,11 @@ contains
                 if (item < nitems) then
                     call getf(pop_change_min)
                 endif
+
+            case("FORCE-FULL-POPS")
+                tForceFullPops = .false.
+                ss_space_in%tApproxSpace = .false.
+                trial_space_in%tApproxSpace = .false.
 
             case("NO-CHANGEREF")
 
