@@ -21,6 +21,7 @@ sizeb=(2*dp)
 ===================
 
 module shared_memory_mpi
+  use mpi
   use Parallel_neci
   use constants
   implicit none

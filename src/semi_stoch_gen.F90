@@ -303,7 +303,7 @@ contains
 
         ! If requested, remove high energy orbitals so that the space size is below some max.
         if (core_in%tLimitSpace) then
-            call remove_high_energy_orbs(SpawnedParts(:, 1:space_size), space_size, &
+            call remove_high_energy_orbs(SpawnedParts(0:NIfTot, 1:space_size), space_size, &
                                            core_in%max_size, .true.)
             determ_sizes(iProcIndex) = int(space_size, MPIArg)
         end if
@@ -420,7 +420,6 @@ contains
                 end if
                 call add_state_to_space(ilut, ilut_list, space_size, nI)
             end do
-
         end if
 
     end subroutine generate_sing_doub_determinants
@@ -1384,7 +1383,7 @@ contains
 
         use SystemData, only: nel
 
-        integer, intent(in) :: ispin
+        integer, value :: ispin
         integer, intent(inout) :: up_spins(nel/2+1)
         integer, intent(in) :: nsites, nup
         integer(n_int), intent(inout) :: ilut_list(0:,:)

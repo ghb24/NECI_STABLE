@@ -313,6 +313,11 @@ contains
                 pgen = 0
                 return
             else
+               if(abs(cpt_tgt)<eps) then
+                  write(iout,*) "Error: ", cpt_tgt, "invalid excitation input"
+                  cc_j = get_paired_cc_ind(cc_i_final, sym_product, sum_ml, iSpn)
+                  write(iout,*) "Namely", cc_i_final, "to", cc_j, "(should be", cc_j_final, ")"
+               endif
                 pgen = pgen * cpt_tgt / cum_sum
             end if
 
@@ -2082,14 +2087,15 @@ contains
         ! Enumerate possibilities for the first electron, and select the
         ! relevant orbitals.
         inds = gtID(nI)
-        ind1 = gtID(orbs)
+        ind1 = gtID(orbs)        
+        cpt = 1.0_dp
         if (tlinear) then
             cum_sum1 = 0
             cum_sum2 = 0
             do i = 1, nel
 
                 ! Contributions for selection of electron 1
-                if (.not. tlinear) then
+                if (.not. tlinear) then ! ??? What is this ???
                     cpt = abs(get_umat_el(inds(i), inds(i), inds(i), inds(i)))
                     cum_sum1 = cum_sum1 + cpt
                 end if

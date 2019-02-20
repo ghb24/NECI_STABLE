@@ -7,6 +7,7 @@ U 8
 cell 2 1 1
 real
 nonuniformrandexcits nosymgen
+spin-restrict 1
 endsys
 
 calc

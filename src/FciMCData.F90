@@ -50,6 +50,7 @@ MODULE FciMCData
       INTEGER(KIND=n_int) , POINTER :: SpawnedParts(:,:),SpawnedParts2(:,:)
       INTEGER(KIND=n_int) , POINTER :: SpawnedPartsKP(:,:), SpawnedPartsKP2(:,:)
 
+
       ! The number of walkers spawned onto this process.
       integer :: nspawned
       ! The number of walkers spawned in total, on all processes.
@@ -76,9 +77,6 @@ MODULE FciMCData
       integer :: IterRDMStart
       integer, allocatable :: IterRDM_HF(:)
       real(dp), allocatable :: InstNoatHf(:)
-
-      logical :: tLogGreensfunction
-
 
       INTEGER(KIND=n_int) , ALLOCATABLE :: TempSpawnedParts(:,:)
       INTEGER :: TempSpawnedPartsTag, TempSpawnedPartsInd, TempSpawnedPartsSize
@@ -131,7 +129,7 @@ MODULE FciMCData
       real(dp), allocatable :: norm_psi_squared(:)
       real(dp), allocatable :: norm_semistoch_squared(:)
       real(dp), allocatable :: all_norm_psi_squared(:)
-      real(dp), allocatable :: norm_psi(:)
+      real(dp), allocatable :: norm_psi(:), old_norm_psi(:)
       ! The norm of the wavefunction in just the semi-stochastic space.
       real(dp), allocatable :: norm_semistoch(:)
 
@@ -141,6 +139,16 @@ MODULE FciMCData
       type(ll_node), pointer :: HashIndex(:) 
       integer :: nWalkerHashes    ! The length of hash table.
       real(dp) :: HashLengthFrac
+
+      ! scaling of walker-units
+      integer :: sfTag
+      real(dp) :: sFAlpha, sFBeta
+      logical :: tEScaleWalkers
+      ! flag to indicate that the number of spawns shall be tracked
+      logical :: tLogNumSpawns
+      ! total truncated weight
+      real(dp) :: truncatedWeight, AllTruncatedWeight
+      
 
 !The following variables are calculated as per processor, but at the end of each update cycle, 
 !are combined to the root processor
@@ -152,15 +160,17 @@ MODULE FciMCData
       HElement_t(dp) :: ProjectionE_tot
 
       ! The averaged projected energy - calculated over the last update cycle
-      HElement_t(dp), allocatable :: proje_iter(:)
-      HElement_t(dp) :: proje_iter_tot
+      HElement_t(dp), allocatable :: proje_iter(:), inits_proje_iter(:)
+      HElement_t(dp) :: proje_iter_tot, inits_proje_iter_tot
 
       ! The averaged 'absolute' projected energy - calculated over the last update cycle
       ! The magnitude of each contribution is taken before it is summed in
       HElement_t(dp), allocatable :: AbsProjE(:)
 
       HElement_t(dp), allocatable :: trial_numerator(:), tot_trial_numerator(:)
+      HElement_t(dp), allocatable :: init_trial_numerator(:), tot_init_trial_numerator(:)
       HElement_t(dp), allocatable :: trial_denom(:), tot_trial_denom(:)
+      HElement_t(dp), allocatable :: init_trial_denom(:), tot_init_trial_denom(:)
       HElement_t(dp), allocatable :: trial_num_inst(:), tot_trial_num_inst(:)
       HElement_t(dp), allocatable :: trial_denom_inst(:), tot_trial_denom_inst(:)
       integer(n_int), allocatable :: con_send_buf(:,:)
@@ -199,9 +209,9 @@ MODULE FciMCData
       !This is the sum of HF*sign particles over all processors over the course of the update cycle
       HElement_t(dp), allocatable :: OldAllHFCyc(:) 
       !This is the old *average* (not sum) of HF*sign over all procs over previous update cycle
-      HElement_t(dp), allocatable :: ENumCyc(:)
+      HElement_t(dp), allocatable :: ENumCyc(:), InitsENumCyc(:)
       !This is the sum of doubles*sign*Hij on a given processor over the course of the update c
-      HElement_t(dp), allocatable :: AllENumCyc(:)
+      HElement_t(dp), allocatable :: AllENumCyc(:), AllInitsENumCyc(:)
       !This is the sum of double*sign*Hij over all processors over the course of the update cyc
       HElement_t(dp), allocatable :: ENumCycAbs(:)
       !This is the sum of abs(doubles*sign*Hij) on a given processor "" "" "" 
@@ -268,7 +278,7 @@ MODULE FciMCData
                            SemiStoch_Init_Time, Trial_Init_Time, &
                            kp_generate_time, Stats_Comms_Time, &
                            subspace_hamil_time, exact_subspace_h_time, &
-                           subspace_spin_time
+                           subspace_spin_time, sign_correction_time
       
       ! Store the current value of S^2 between update cycles
       real(dp), allocatable :: curr_S2(:), curr_S2_init(:)
@@ -316,6 +326,7 @@ MODULE FciMCData
       INTEGER , ALLOCATABLE :: DoublesDets(:,:)
       INTEGER(TagIntType) :: DoublesDetsTag
       INTEGER :: NoDoubs
+
 !This is used for the direct annihilation, and ValidSpawnedList(i) indicates the next 
 !free slot in the processor iProcIndex ( 0 -> nProcessors-1 )
       INTEGER , ALLOCATABLE :: ValidSpawnedList(:) 
@@ -367,6 +378,10 @@ MODULE FciMCData
       INTEGER :: QuadDetsEst !Estimate of the number of symmetry allowed determinants at excit level 4
       INTEGER :: DoubDetsEst !Estimate of the number of symmetry allowed determinants at excit level 2
       logical :: tReplicaReferencesDiffer
+      
+      ! This data is for reducing the occupied determinants drastically when hitting 
+      ! the memory limit
+      integer :: n_prone_dets
 
       integer, allocatable :: ProjEDet(:, :)
       integer(n_int), allocatable :: HighestPopDet(:,:), iLutRef(:, :)
@@ -594,5 +609,25 @@ MODULE FciMCData
       ! counting the total walker population all determinants of each ms value
       real(dp), allocatable :: walkPopByMsReal(:), walkPopByMsImag(:)
 
+
+      !This arrays contain information related to the spawns. Currently only used with auto-adaptive-shift
+      INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnInfoVec(:,:),SpawnInfoVec2(:,:)
+      INTEGER(KIND=n_int) , POINTER :: SpawnInfo(:,:),SpawnInfo2(:,:)
+      INTEGER(TagIntType) :: SpawnInfoVecTag=0,SpawnInfoVec2Tag=0
+     
+      !Size of SpawnInfo array elements
+      integer :: SpawnInfoWidth = 6
+      !Where is the spawn's parent index stored inside SpawnInfo
+      integer, parameter :: SpawnParentIdx = 1
+      !Where is the spawn's run stored inside SpawnInfo
+      integer, parameter :: SpawnRun = 2
+      !Where is the spawn acceptance status stored inside SpawnInfo
+      integer, parameter :: SpawnAccepted = 3
+      !Where is the spawn rejection weight stored inside SpawnInfo
+      integer, parameter :: SpawnWeightRej = 4
+      !Where is the spawn acceptance weight stored inside SpawnInfo
+      integer, parameter :: SpawnWeightAcc = 5
+      !Where is the reverse spawn weight stored inside SpawnInfo
+      integer, parameter :: SpawnWeightRev = 6
 
 end module FciMCData

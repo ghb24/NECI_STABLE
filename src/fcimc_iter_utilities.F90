@@ -26,11 +26,11 @@ module fcimc_iter_utils
 
     use bit_rep_data, only: NIfD, NIfTot, NIfDBO
     use hphf_integrals, only: hphf_diag_helement
-    use global_det_data, only: set_det_diagH
     use Determinants, only: get_helement
-    use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av
+    use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av, tWriteUnocc, &
+         AllInitsPerExLvl, initsPerExLvl
     use tau_search, only: update_tau
-    use rdm_data, only: en_pert_main
+    use rdm_data, only: en_pert_main, InstRDMCorrectionFactor
     use Parallel_neci
     use fcimc_initialisation
     use fcimc_output
@@ -38,20 +38,6 @@ module fcimc_iter_utils
     use FciMCData
     use constants
     use util_mod
-    use real_time_procs, only: normalize_gf_overlap
-    use real_time_data, only: current_overlap, overlap_real, overlap_imag, &
-         t_real_time_fciqmc
-#ifdef __REALTIME
-    use real_time_data, only: SpawnFromSing_1, AllSpawnFromSing_1, &
-        NoBorn_1, NoDied_1, AllNoBorn_1, AllNoDied_1, NoAtDoubs_1, AllNoAtDoubs_1, &
-        Annihilated_1, AllAnnihilated_1, AllNoAddedInitiators_1, AllNoInitDets_1, &
-        AllNoNonInitDets_1, AllInitRemoved_1, bloom_count_1, bloom_sizes_1, &
-        AllNoAborted_1, AllNoInitWalk_1, AllNoNonInitWalk_1, AllNoRemoved_1, &
-        all_bloom_count_1, NoAddedInitiators_1, AccRat_1, SumWalkersCyc_1, &
-        nspawned_1, nspawned_tot_1, second_spawn_iter_data, TotParts_1, &
-        AllTotParts_1, AllTotPartsOld_1, allPopSnapshot, &
-        AllSumWalkersCyc_1, OldAllAvWalkersCyc_1, popSnapshot
-#endif 
     use double_occ_mod, only: inst_double_occ, all_inst_double_occ, sum_double_occ, &
                               sum_norm_psi_squared, inst_spin_diff, all_inst_spin_diff, &
                               inst_spatial_doub_occ, all_inst_spatial_doub_occ, &
@@ -89,14 +75,8 @@ contains
             ! in the real-time fciqmc keep track of both distinct RK steps
             ! -> also need to keep track of the SumWalkersCyc... todo..
            if(all(abs(SumWalkersCyc) > eps)) then
-#ifdef __REALTIME
-              AccRat_1 = real(Acceptances_1, dp) / SumWalkersCyc_1
-#endif
               AccRat = real(Acceptances, dp) / SumWalkersCyc
            else
-#ifdef __REALTIME
-              AccRat_1 = 0.0_dp
-#endif
               AccRat = 0.0_dp
            endif
         end if
@@ -150,13 +130,7 @@ contains
         call MPIBCast(tRestart)
         if(tRestart) then
             ! a restart not wanted in the real-time fciqmc.. 
-           if(t_real_time_fciqmc .or. tLogGreensfunction) then
-              write(6,*) "NUMBER OF WALKERS", AllTotParts
-              call stop_all(this_routine, &
-                   "a restart due to all died walkers not wanted in the real-time fciqmc!")
-           endif
 !Initialise variables for calculation on each node
-            Iter=1
             CALL DeallocFCIMCMemPar()
             IF(iProcIndex.eq.Root) THEN
                 CLOSE(fcimcstats_unit)
@@ -183,6 +157,7 @@ contains
                 end if
                 call WriteFCIMCStats()
             end if
+            Iter=1
             if (iProcIndex==root .and. tLogEXLEVELStats) &
                   write(EXLEVELStats_unit,'("#")', advance='no')
             return
@@ -418,15 +393,9 @@ contains
         real(dp), intent(in) :: tot_parts_new(lenof_sign)
         real(dp), intent(out) :: tot_parts_new_all(lenof_sign)
         ! RT_M_Merge: Added real-time statistics for the newer communication scheme
-#if defined __REALTIME
-        integer, parameter :: real_arr_size = 2000
-        integer, parameter :: hel_arr_size = 200
-        integer, parameter :: NoArrs = 50
-#else
         integer, parameter :: real_arr_size = 1000
         integer, parameter :: hel_arr_size = 100
-        integer, parameter :: NoArrs = 33
-#endif
+        integer, parameter :: NoArrs = 35
         integer, parameter :: size_arr_size = 100
         ! RT_M_Merge: Doubled all array sizes since there are now two
         ! copies of most of the variables (necessary?)
@@ -495,8 +464,6 @@ contains
         sizes(25) = size(SumWalkersCyc)
         sizes(26) = 1 ! nspawned (single int, not an array)
 
-        ! [W.D]
-        ! communicate the inst_double_occ
         sizes(27) = 1 ! inst_double_occ
         if(tTruncInitiator) sizes(28) = 1 ! doubleSpawns
         ! communicate the coherence numbers for SI
@@ -510,31 +477,15 @@ contains
             sizes(32) = nBasis/2
             sizes(33) = nBasis/2
         end if
-
-        ! RT_M_Merge: Added real-time data
-#ifdef __REALTIME
-        sizes(34) = size(Annihilated_1)
-        sizes(35) = size(NoAddedInitiators_1)
-        sizes(36) = size(NoInitDets_1)
-        sizes(37) = size(NoNonInitDets_1)
-        sizes(38) = size(InitRemoved_1)
-        sizes(39) = size(NoAborted_1)
-        sizes(40) = size(NoRemoved_1)
-        sizes(41) = size(NoNonInitWalk_1)
-        sizes(42) = size(NoInitWalk_1)
-        sizes(43) = size(bloom_count)
-        sizes(44) = size(SumWalkersCyc_1)
-        sizes(45) = 1 ! nspawned_1
-        sizes(46) = size(TotParts_1)
-        sizes(47) = 1 ! corespaceWalkers
-        sizes(48) = size(SpawnFromSing_1)
-        sizes(49) = size(iter_data_fciqmc%update_growth)
-        sizes(50) = size(popSnapShot)
-#endif
+        ! truncated weight
+        sizes(34) = 1
+        ! inits per ex lvl
+        sizes(35) = size(initsPerExLvl)
 
         if (sum(sizes(1:NoArrs)) > real_arr_size) call stop_all(t_r, &
              "No space left in arrays for communication of estimates. Please increase &
              & the size of the send_arr and recv_arr arrays in the source code.")
+
 
         low = upp + 1; upp = low + sizes(1 ) - 1; send_arr(low:upp) = SpawnFromSing;
         low = upp + 1; upp = low + sizes(2 ) - 1; send_arr(low:upp) = iter_data%update_growth;
@@ -578,26 +529,11 @@ contains
             low = upp + 1; upp = low + sizes(32) -1; send_arr(low:upp) = inst_spin_diff
             low = upp + 1; upp = low + sizes(33) - 1; send_arr(low:upp) = inst_spatial_doub_occ
         end if
+        ! truncated weight
+        low = upp + 1; upp = low + sizes(34) - 1; send_arr(low:upp) = truncatedWeight;        
+        ! initiators per excitation level
+        low = upp + 1; upp = low + sizes(35) - 1; send_arr(low:upp) = initsPerExLvl;     
 
-#ifdef __REALTIME
-        low = upp + 1; upp = low + sizes(34) - 1; send_arr(low:upp) = Annihilated_1;
-        low = upp + 1; upp = low + sizes(35) - 1; send_arr(low:upp) = NoAddedInitiators_1;
-        low = upp + 1; upp = low + sizes(36) - 1; send_arr(low:upp) = NoInitDets_1;
-        low = upp + 1; upp = low + sizes(37) - 1; send_arr(low:upp) = NoNonInitDets_1;
-        low = upp + 1; upp = low + sizes(38) - 1; send_arr(low:upp) = InitRemoved_1;
-        low = upp + 1; upp = low + sizes(39) - 1; send_arr(low:upp) = NoAborted_1;
-        low = upp + 1; upp = low + sizes(40) - 1; send_arr(low:upp) = NoRemoved_1;
-        low = upp + 1; upp = low + sizes(41) - 1; send_arr(low:upp) = NoNonInitWalk_1;
-        low = upp + 1; upp = low + sizes(42) - 1; send_arr(low:upp) = NoInitWalk_1;
-        low = upp + 1; upp = low + sizes(43) - 1; send_arr(low:upp) = bloom_count_1;
-        low = upp + 1; upp = low + sizes(44) - 1; send_arr(low:upp) = SumWalkersCyc_1;
-        low = upp + 1; upp = low + sizes(45) - 1; send_arr(low:upp) = nspawned_1;
-        low = upp + 1; upp = low + sizes(46) - 1; send_arr(low:upp) = TotParts_1;
-        low = upp + 1; upp = low + sizes(47) - 1; send_arr(low:upp) = corespaceWalkers;
-        low = upp + 1; upp = low + sizes(48) - 1; send_arr(low:upp) = SpawnFromSing_1;
-        low = upp + 1; upp = low + sizes(49) - 1; send_arr(low:upp) = iter_data_fciqmc%update_growth;
-        low = upp + 1; upp = low + sizes(50) - 1; send_arr(low:upp) = popSnapShot;
-#endif
 
         ! Perform the communication.
         call MPISumAll (send_arr(1:upp), recv_arr(1:upp))
@@ -638,7 +574,6 @@ contains
         low = upp + 1; upp = low + sizes(26) - 1; nspawned_tot = nint(recv_arr(low));
         ! double occ: 
         low = upp + 1; upp = low + sizes(27) - 1; all_inst_double_occ = recv_arr(low);
-
         if(tTruncInitiator) then
            low = upp + 1; upp = low + sizes(28) - 1; allDoubleSpawns = nint(recv_arr(low));
            doubleSpawns = 0
@@ -652,25 +587,10 @@ contains
             low = upp + 1; upp = low + sizes(33) - 1; all_inst_spatial_doub_occ = recv_arr(low:upp)
         end if
 
-#ifdef __REALTIME
-        low = upp + 1; upp = low + sizes(34) - 1; AllAnnihilated_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(35) - 1; AllNoAddedInitiators_1 = nint(recv_arr(low:upp), int64);
-        low = upp + 1; upp = low + sizes(36) - 1; AllNoInitDets_1 = nint(recv_arr(low:upp), int64);
-        low = upp + 1; upp = low + sizes(37) - 1; AllNoNonInitDets_1 = nint(recv_arr(low:upp), int64);
-        low = upp + 1; upp = low + sizes(38) - 1; AllInitRemoved_1 = nint(recv_arr(low:upp), int64);
-        low = upp + 1; upp = low + sizes(39) - 1; AllNoAborted_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(40) - 1; AllNoRemoved_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(41) - 1; AllNoNonInitWalk_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(42) - 1; AllNoInitWalk_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(43) - 1; all_bloom_count_1 = nint(recv_arr(low:upp));
-        low = upp + 1; upp = low + sizes(44) - 1; AllSumWalkersCyc_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(45) - 1; nspawned_tot_1 = nint(recv_arr(low));
-        low = upp + 1; upp = low + sizes(46) - 1; AllTotParts_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(47) - 1; allCorespaceWalkers = nint(recv_arr(low), int64);
-        low = upp + 1; upp = low + sizes(48) - 1; AllSpawnFromSing_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(49) - 1; iter_data_fciqmc%update_growth_tot = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(50) - 1; allPopSnapShot = recv_arr(low:upp);
-#endif
+        ! truncated weight
+        low = upp + 1; upp = low + sizes(34) - 1; AllTruncatedWeight = recv_arr(low);
+        ! initiators per excitation level
+        low = upp + 1; upp = low + sizes(35) - 1; AllInitsPerExLvl = recv_arr(low:upp);
 
         ! Communicate HElement_t variables:
 
@@ -686,10 +606,13 @@ contains
             sizes(7) = size(trial_denom)
             sizes(8) = size(trial_num_inst)
             sizes(9) = size(trial_denom_inst)
+            sizes(10) = size(init_trial_numerator)
+            sizes(11) = size(init_trial_denom)
         end if
-        if (tEN2) sizes(10) = 1
+        if (tEN2) sizes(12) = 1
+        sizes(13) = size(InitsEnumCyc)
 
-        if (sum(sizes(1:10)) > 100) call stop_all(t_r, "No space left in arrays for communication of estimates. Please &
+        if (sum(sizes(1:11)) > 100) call stop_all(t_r, "No space left in arrays for communication of estimates. Please &
                                                         & increase the size of the send_arr_helem and recv_arr_helem &
                                                         & arrays in the source code.")
 
@@ -703,10 +626,13 @@ contains
             low = upp + 1; upp = low + sizes(7) - 1; send_arr_helem(low:upp) = trial_denom;
             low = upp + 1; upp = low + sizes(8) - 1; send_arr_helem(low:upp) = trial_num_inst;
             low = upp + 1; upp = low + sizes(9) - 1; send_arr_helem(low:upp) = trial_denom_inst;
+            low = upp + 1; upp = low + sizes(10) - 1; send_arr_helem(low:upp) = init_trial_numerator;
+            low = upp + 1; upp = low + sizes(11) - 1; send_arr_helem(low:upp) = init_trial_denom;
         end if
         if (tEN2) then
-           low = upp + 1; upp = low + sizes(10) - 1; send_arr_helem(low) = en_pert_main%ndets;
+           low = upp + 1; upp = low + sizes(12) - 1; send_arr_helem(low) = en_pert_main%ndets;
         endif
+        low = upp + 1; upp = low + sizes(13) - 1; send_arr_helem(low:upp) = InitsENumCyc;
 
         call MPISumAll (send_arr_helem(1:upp), recv_arr_helem(1:upp))
 
@@ -722,10 +648,13 @@ contains
             low = upp + 1; upp = low + sizes(7) - 1; tot_trial_denom = recv_arr_helem(low:upp);
             low = upp + 1; upp = low + sizes(8) - 1; tot_trial_num_inst = recv_arr_helem(low:upp);
             low = upp + 1; upp = low + sizes(9) - 1; tot_trial_denom_inst = recv_arr_helem(low:upp);
+            low = upp + 1; upp = low + sizes(10) - 1; tot_init_trial_numerator = recv_arr_helem(low:upp);
+            low = upp + 1; upp = low + sizes(11) - 1; tot_init_trial_denom = recv_arr_helem(low:upp);
         end if
         if (tEN2) then
-           low = upp + 1; upp = low + sizes(10) - 1; en_pert_main%ndets_all = recv_arr_helem(low);
+           low = upp + 1; upp = low + sizes(12) - 1; en_pert_main%ndets_all = recv_arr_helem(low);
         endif
+        low = upp + 1; upp = low + sizes(13) - 1; AllInitsENumCyc = recv_arr_helem(low:upp);
 
         ! Optionally communicate EXLEVEL_WNorm.
         if (tLogEXLEVELStats) then
@@ -798,14 +727,19 @@ contains
                 ! make it relative to the HF energy.
                 if (ntrial_excits == 1) then
                     tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies(1))
+                    tot_init_trial_numerator = tot_init_trial_numerator + (tot_init_trial_denom*&
+                         trial_energies(1))
                 else
                     if (replica_pairs) then
                         do run = 2, inum_runs, 2
                             tot_trial_numerator(run-1:run) = tot_trial_numerator(run-1:run) + &
                                 tot_trial_denom(run-1:run)*trial_energies(run/2)
+                            tot_init_trial_numerator(run-1:run) = tot_init_trial_numerator(run-1:run) + &
+                                tot_init_trial_denom(run-1:run)*trial_energies(run/2)
                         end do
                     else
                         tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies)
+                        tot_init_trial_numerator = tot_init_trial_numerator + (tot_init_trial_denom*trial_energies)
                     end if
                 end if
             end if
@@ -833,7 +767,6 @@ contains
 
 #ifdef __DEBUG
         if(.not. tfirst_cycle) then
-#ifndef __REALTIME
            ! realtime case is handled seperately with the check_update_growth function
            ! as each RK step has to be monitored separately
 
@@ -846,7 +779,6 @@ contains
               call stop_all (this_routine, &
                    "Assertation failed: all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld)")
            endif
-#endif
         end if
 #endif
     
@@ -854,7 +786,7 @@ contains
 
     subroutine update_shift (iter_data)
 
-        use CalcData, only: tInstGrowthRate
+        use CalcData, only: tInstGrowthRate, tL2GrowRate
      
         type(fcimc_iter_data), intent(in) :: iter_data
         integer(int64) :: tot_walkers
@@ -872,7 +804,13 @@ contains
         ! collate_iter_data --> The values used are only valid on Root
         if (iProcIndex == Root) then
 
-           if(tInstGrowthRate) then
+           if(tL2GrowRate) then 
+              ! use the L2 norm to determine the growrate
+              do run = 1, inum_runs
+                 AllGrowRate(run) = norm_psi(run) / old_norm_psi(run)
+              end do
+
+           else if(tInstGrowthRate) then
 
               ! Calculate the growth rate simply using the two points at
               ! the beginning and the end of the update cycle. 
@@ -888,25 +826,17 @@ contains
 
               ! Instead attempt to calculate the average growth over every
               ! iteration over the update cycle
-              ! RT_M_Merge : Merged with real-time
-              if (lenof_sign == 2 .and. inum_runs == 1) then
-                 !COMPLEX
-                 AllGrowRate = (sum(AllSumWalkersCyc)/real(StepsSft,dp)) &
-                      /sum(OldAllAvWalkersCyc)
-#ifdef __REALTIME
-                 AllGrowRate_1 = (sum(AllSumWalkersCyc_1)/real(StepsSft,dp))  & 
-                      / sum(OldAllAvWalkersCyc_1)
+              do run = 1, inum_runs
+#ifdef __CMPLX
+                    AllGrowRate = (sum(AllSumWalkersCyc(min_part_type(run):max_part_type(run)))&
+                         /real(StepsSft,dp)) &
+                         /sum(OldAllAvWalkersCyc(min_part_type(run):max_part_type(run)))
+#else
+                 AllGrowRate(run) = AllSumWalkersCyc(run)/real(StepsSft,dp) &
+                      /OldAllAvWalkersCyc(run)
 #endif
-              else
-                 do run=1,inum_runs
-                    AllGrowRate(run) = (AllSumWalkersCyc(run)/real(StepsSft,dp)) &
-                         /OldAllAvWalkersCyc(run)
-#ifdef __REALTIME
-                 AllGrowRate_1(run) = ((AllSumWalkersCyc_1(run))/real(StepsSft,dp))  & 
-                      / (OldAllAvWalkersCyc_1(run))
-#endif
-                 enddo
-              endif
+              enddo
+
            end if
             ! For complex case, obtain both Re and Im parts
 #ifdef __CMPLX
@@ -1002,31 +932,31 @@ contains
 #ifdef __CMPLX
                         if ((sum(AllTotParts(lb:ub)) > tot_walkers) .or. &
                              (abs_sign(AllNoatHF(lb:ub)) > MaxNoatHF)) then
-        !                     WRITE(iout,*) "AllTotParts: ",AllTotParts(1),AllTotParts(2),tot_walkers
-                            write (iout, '(a,i13,a)') 'Exiting the single particle growth phase on iteration: ',iter + PreviousCycles, &
-                                         ' - Shift can now change'
-                            VaryShiftIter(run) = Iter
-                            iBlockingIter(run) = Iter + PreviousCycles
-                            tSinglePartPhase(run) = .false.
-                            ! [W.D.15.5.2017:]
-                            ! we should remove these equal 0 comparisons..
-    !                         if(TargetGrowRate(run).ne.0.0_dp) then
-                            if(abs(TargetGrowRate(run)) > EPS) then
-                                write(iout,"(A)") "Setting target growth rate to 1."
-                                TargetGrowRate=0.0_dp
-                            endif
+                           !                     WRITE(iout,*) "AllTotParts: ",AllTotParts(1),AllTotParts(2),tot_walkers
+                           write (iout, '(a,i13,a)') 'Exiting the single particle growth phase on iteration: ',iter + PreviousCycles, &
+                                ' - Shift can now change'
+                           VaryShiftIter(run) = Iter
+                           iBlockingIter(run) = Iter + PreviousCycles
+                           tSinglePartPhase(run) = .false.
+                           ! [W.D.15.5.2017:]
+                           ! we should remove these equal 0 comparisons..
+                           !                         if(TargetGrowRate(run).ne.0.0_dp) then
+                           if(abs(TargetGrowRate(run)) > EPS) then
+                              write(iout,"(A)") "Setting target growth rate to 1."
+                              TargetGrowRate=0.0_dp
+                           endif
 
-                            ! If enabled, jump the shift to the value preducted by the
-                            ! projected energy!
-                            if (tJumpShift) then
-                            if (tJumpShift .and. & 
-                                (.not. (isnan(real(proje_iter(run),dp))) .or. & 
-                                 .not. (is_inf(real(proje_iter(run),dp))))) then
-                                DiagSft(run) = real(proje_iter(run),dp)
-                                defer_update(run) = .true.
-                            end if
+                           ! If enabled, jump the shift to the value preducted by the
+                           ! projected energy!
+                           if (tJumpShift) then
+                              if (tJumpShift .and. & 
+                                   (.not. (isnan(real(proje_iter(run),dp))) .or. & 
+                                   .not. (is_inf(real(proje_iter(run),dp))))) then
+                                 DiagSft(run) = real(proje_iter(run),dp)
+                                 defer_update(run) = .true.
+                              end if
+                           endif
                         endif
-                     endif
 #else
                         start_varying_shift = .false.
                         if (tLetInitialPopDie) then
@@ -1186,28 +1116,18 @@ contains
 !                  end if
 !>>>>>>>>>>>>> check that!
 
-                ! [W.D.21.3.2018:]
-                ! somehow this got changed through the merging..
-#ifdef __CMPLX 
-                if (any(abs(AllSumNoatHF(lb:ub)) > EPS)) then 
-#else 
                 if (abs(AllSumNoAtHF(run)) > EPS) then 
-#endif
                     ProjectionE(run) = (AllSumENum(run)) / (all_sum_proje_denominator(run)) &
                          + proje_ref_energy_offsets(run)
-                endif
-                ! and this is a new statement..
-#ifdef __CMPLX 
-                if (any(abs(AllHFCyc(lb:ub)) > EPS)) then
-#else
-                if (abs(AllHFCyc(run)) > EPS) then
-#endif
-                   proje_iter(run) = (AllENumCyc(run)) / (all_cyc_proje_denominator(run)) &
-                        + proje_ref_energy_offsets(run)
-                   AbsProjE(run) = (AllENumCycAbs(run)) / (all_cyc_proje_denominator(run)) &
-                        + proje_ref_energy_offsets(run)
-                endif
-
+                 endif
+                 if (abs(AllHFCyc(run)) > EPS) then
+                    proje_iter(run) = (AllENumCyc(run)) / (all_cyc_proje_denominator(run)) &
+                         + proje_ref_energy_offsets(run)
+                    AbsProjE(run) = (AllENumCycAbs(run)) / (all_cyc_proje_denominator(run)) &
+                         + proje_ref_energy_offsets(run)
+                    inits_proje_iter(run) = (AllInitsENumCyc(run)) / (all_cyc_proje_denominator(run)) &
+                         + proje_ref_energy_offsets(run)
+                 endif
                 ! If we are re-zeroing the shift
                 if (tReZeroShift(run)) then
                     DiagSft(run) = 0.0_dp
@@ -1224,6 +1144,8 @@ contains
             endif
             if(abs(sum(all_cyc_proje_denominator(1:inum_runs))) > EPS) then
                proje_iter_tot = sum(AllENumCyc(1:inum_runs)) &
+                    / sum(all_cyc_proje_denominator(1:inum_runs))
+               inits_proje_iter_tot = sum(AllInitsENumCyc(1:inum_runs)) &
                     / sum(all_cyc_proje_denominator(1:inum_runs))
             endif
 
@@ -1245,7 +1167,7 @@ contains
                 tSearchTau=.false.
             endif
         enddo
-
+       
     end subroutine update_shift 
 
     subroutine rezero_iter_stats_update_cycle (iter_data, tot_parts_new_all)
@@ -1263,6 +1185,7 @@ contains
         SpawnFromSing = 0.0_dp
         NoDied = 0.0_dp
         ENumCyc = 0.0_dp
+        InitsENumCyc = 0.0_dp
         ENumCycAbs = 0.0_dp
         HFCyc = 0.0_dp
         cyc_proje_denominator=0.0_dp
@@ -1272,15 +1195,6 @@ contains
         ! also reset the real-time specific quantities: 
         ! and maybe have to call this routine twice to rezero also the 
         ! inputted iter_data for both RK steps..
-#ifdef __REALTIME 
-        SumWalkersCyc_1(:) = 0.0_dp
-        Annihilated_1 = 0.0_dp
-        Acceptances_1 = 0.0_dp
-        NoBorn_1 = 0.0_dp
-        SpawnFromSing_1 = 0.0_dp
-        NoDied = 0.0_dp
-#endif
-
         ! Reset TotWalkersOld so that it is the number of walkers now
         TotWalkersOld = TotWalkers
         TotPartsOld = TotParts
@@ -1293,22 +1207,13 @@ contains
         !TODO CMO: are these summed across real/complex? 
         OldAllAvWalkersCyc = AllSumWalkersCyc/real(StepsSft,dp)
 
-#ifdef __REALTIME
-        if(iter .eq. 0) OldAllAvWalkersCyc = AllSumWalkersCyc
-        OldAllAvWalkersCyc_1 = AllSumWalkersCyc_1 / real(StepsSft,dp)
-#endif
-
         ! Also the cumulative global variables
         AllTotWalkersOld = AllTotWalkers
         AllTotPartsOld = AllTotParts
         AllNoAbortedOld = AllNoAborted
 
-#ifdef __REALTIME 
-        AllTotPartsOld_1 = AllTotParts_1
-        iter_data_fciqmc%update_growth = 0.0_dp
-        iter_data_fciqmc%update_iters = 0
-        ! do i need old det numner and aborted number? 
-#endif
+        ! and the norm
+        old_norm_psi = norm_psi
 
         ! Reset the counters
         iter_data%update_growth = 0.0_dp
@@ -1327,6 +1232,11 @@ contains
                 call rezero_spin_diff()
             end if
         end if
+        ! reset the truncated weight
+        truncatedWeight = 0.0_dp
+
+        ! reset the logged number of initiators
+        initsPerExLvl = 0
 
     end subroutine rezero_iter_stats_update_cycle
 
@@ -1344,10 +1254,6 @@ contains
         call population_check ()
         call update_shift (iter_data)
         if(tSemiStochastic) call getCoreSpaceWalkers()
-        if(tLogGreensfunction) then 
-           DiagSft = 0.0_dp
-           call normalize_gf_overlap(current_overlap, overlap_real, overlap_imag)
-        endif
         if (tPrintDataTables) then
             if (tFCIMCStats2) then
                 call write_fcimcstats2(iter_data_fciqmc)

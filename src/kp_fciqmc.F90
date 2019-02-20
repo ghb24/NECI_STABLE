@@ -7,7 +7,7 @@ module kp_fciqmc
     use kp_fciqmc_procs
 
     use AnnihilationMod, only: DirectAnnihilation
-    use bit_rep_data, only: NIfTot, NOffFlag, tUseFlags, test_flag
+    use bit_rep_data, only: NIfTot, NOffFlag, test_flag
     use bit_reps, only: flag_deterministic, flag_determ_parent, set_flag
     use bit_reps, only: extract_bit_rep
     use CalcData, only: AvMCExcits, tSemiStochastic, tTruncInitiator, StepsSft
@@ -155,7 +155,7 @@ contains
                             fcimc_excit_gen_store%tFilled = .false.
 
                             call extract_bit_rep(ilut_parent, nI_parent, parent_sign, unused_flags, &
-                                                  fcimc_excit_gen_store)
+                                                  idet, fcimc_excit_gen_store)
 
                             ex_level_to_ref = FindBitExcitLevel(iLutRef(:,1), ilut_parent, &
                                  max_calc_ex_level)
@@ -217,7 +217,7 @@ contains
 
                                 do ireplica = 1, lenof_sign
 
-                                    call decide_num_to_spawn(parent_sign(ireplica), AvMCExcits, nspawn)
+                                    call decide_num_to_spawn(parent_sign(ireplica), parent_hdiag, AvMCExcits, nspawn)
                                     
                                     do ispawn = 1, nspawn
 
@@ -232,7 +232,7 @@ contains
                                         if (.not. IsNullDet(nI_child)) then
 
                                             call encode_child (ilut_parent, ilut_child, ic, ex)
-                                            if (tUseFlags) ilut_child(nOffFlag) = 0_n_int
+                                            ilut_child(nOffFlag) = 0_n_int
 
                                             if (tSemiStochastic) then
                                                 tChildIsDeterm = is_core_state(ilut_child, nI_child)
@@ -517,7 +517,7 @@ contains
                         fcimc_excit_gen_store%tFilled = .false.
 
                         call extract_bit_rep(ilut_parent, nI_parent, parent_sign, unused_flags, &
-                                              fcimc_excit_gen_store)
+                                              idet, fcimc_excit_gen_store)
 
                         ex_level_to_ref = FindBitExcitLevel(iLutRef(:,1), ilut_parent, &
                              max_calc_ex_level)
@@ -569,7 +569,7 @@ contains
 
                         do ireplica = 1, lenof_sign
 
-                            call decide_num_to_spawn(parent_sign(ireplica), AvMCExcits, nspawn)
+                            call decide_num_to_spawn(parent_sign(ireplica), parent_hdiag, AvMCExcits, nspawn)
                             
                             do ispawn = 1, nspawn
 
@@ -584,7 +584,7 @@ contains
                                 if (.not. IsNullDet(nI_child)) then
 
                                     call encode_child(ilut_parent, ilut_child, ic, ex)
-                                    if (tUseFlags) ilut_child(nOffFlag) = 0_n_int
+                                    ilut_child(nOffFlag) = 0_n_int
 
                                     if (tSemiStochastic) then
                                         tChildIsDeterm = is_core_state(ilut_child, nI_child)

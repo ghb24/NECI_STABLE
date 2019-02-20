@@ -95,6 +95,8 @@ set( SRC_FILES
     Makefile
     matmul.F
     modifiedHub.F90
+    MolproPlugin.F90
+    PluginGuest.cpp
     NatOrbs.F90
     NECICore.F90
     neci_intfce.F90
@@ -123,12 +125,6 @@ set( SRC_FILES
     readinput.F90
     readint.F90
     read_psi.F
-    real_time_data.F90
-    real_time.F90
-    real_time_procs.F90
-    real_time_init.F90
-    real_time_aux.F90
-    real_time_read_input.F90
     readri.F90
     replica_data.F90
     rhodiag.F
@@ -175,7 +171,6 @@ set( SRC_FILES
     vasp_init.F90
     vasp_interface.F90
     vasp_neci_interface_stub.F90
-    verlet_aux.F90
     double_occ.F90
     tau_search_hist.F90
     real_space_hubbard.F90
@@ -232,9 +227,6 @@ set( TEMPLATED_SRC_FILES
 # Don't use generator expressions for including libraries, as this causes problems when there are list
 # expansions.
 set( _conditional_libraries "" )
-if (HAVE_MPI)
-    list(APPEND _conditional_libraries ${MPI_NECI_Fortran_LIBRARIES} )
-endif()
 if (HAVE_FFTW)
     list(APPEND _conditional_libraries ${FFTW_LIBRARIES} )
 endif()
@@ -247,7 +239,9 @@ endif()
 set( _library_link_libs
     "${LAPACK_NECI_LIBRARIES}"
     "${LIBRT_LIBRARIES}"
-    "${_conditional_libraries}" )
+    "${_conditional_libraries}" 
+    "${MPI_NECI_LIBRARIES}"
+    "${MPI_NECI_Fortran_LIBRARIES}")
 
 if( HAVE_SHARED )
     set( _link_type SHARED )
@@ -275,7 +269,7 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
         LINKER_LANGUAGE Fortran
 
         PRIVATE_INCLUDES
-            "${MPI_NECI_INCLUDE_PATH}"
+	    "${MPI_NECI_INCLUDE_PATH}"
             "${HDF5_NECI_INCLUDE_PATH}"
 
         DEFINITIONS

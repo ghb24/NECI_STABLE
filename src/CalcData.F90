@@ -107,11 +107,13 @@ LOGICAL :: TUnbiasPGeninProjE, tCheckHighestPopOnce
 LOGICAL :: tCheckHighestPop,tRestartHighPop,tChangeProjEDet
 LOGICAL :: tRotoAnnihil,tSpawnAsDet
 LOGICAL :: tTruncCAS ! Truncation of the FCIMC excitation space by a CAS
-logical :: tTruncInitiator, tAddtoInitiator, tInitCoherentRule
+logical :: tTruncInitiator, tAddtoInitiator, tInitCoherentRule, tGlobalInitFlag
+logical :: tSTDInits
 logical :: tEN2, tEN2Init, tEN2Truncated, tEN2Started
 LOGICAL :: tSeniorInitiators !If a det. has lived long enough (called a senior det.), it is added to the initiator space.
 LOGICAL :: tInitIncDoubs,tWalkContGrow,tAnnihilatebyRange
 logical :: tReadPopsRestart, tReadPopsChangeRef, tInstGrowthRate
+logical :: tL2GrowRate
 logical :: tAllRealCoeff, tUseRealCoeffs
 logical :: tRealSpawnCutoff
 logical :: tRealCoeffByExcitLevel
@@ -120,9 +122,9 @@ real(dp) :: RealSpawnCutoff, OccupiedThresh
 logical :: tRPA_QBA     !RPA calculation with QB approximation
 logical :: tStartCAS    !Start FCIMC dynamic with walkers distributed according to CAS diag.
 logical :: tShiftonHFPop    !Adjust shift in order to keep the population on HF constant, rather than total pop.
-
 logical :: tSpecifiedTau
-
+logical :: tInitializeCSF
+real(dp) :: S2Init
 logical :: tFixedN0 !Fix the reference population by using projected energy as shift.
 logical :: tTrialShift !Fix the overlap with trial wavefunction by using trial energy as shift.
 logical :: tSkipRef(1:inum_runs_max) !Skip spawing onto reference det and death/birth on it. One flag for each run.
@@ -130,13 +132,46 @@ logical :: tFixTrial(1:inum_runs_max) !Fix trial overlap by determinstically upd
 integer :: N0_Target !The target reference population in fixed-N0 mode
 
 real(dp) :: TrialTarget !The target for trial overlap in trial-shift mode
+logical :: tAdaptiveShift !Make shift depends on the population
+real(dp) :: AdaptiveShiftSigma !Population which below the shift is set to zero
+real(dp) :: AdaptiveShiftF1 !Shift modification factor at AdaptiveShiftSigma
+real(dp) :: AdaptiveShiftF2 !Shift modification factor at InitiatorWalkNo
+logical :: tAutoAdaptiveShift !Let the modification factor of adaptive shift be computed autmatically
+real(dp) :: AdaptiveShiftThresh !Number of spawn under which below the shift is set to zero (in auto-adaptive-shift)
+real(dp) :: AdaptiveShiftExpo !Exponent of the modification factor, value 1 is default. values 0 means going back to full shift.
+real(dp) :: AdaptiveShiftCut  !The modification factor should never go below this.
+logical :: tAAS_MatEle !Use the magnitude of |Hij| in the modifcation factor i.e. sum_{accepted} |H_ij| / sum_{all attempts} |H_ij|
+logical :: tAAS_MatEle2 !Use the weight |Hij|/(Hjj-E) in the modifcation factor
+logical :: tAAS_MatEle3 !Same as MatEle2 but use weight of one for accepted moves.
+logical :: tAAS_MatEle4 !Same as MatEle2 but use E_0 in the weight of accepted moves.
+logical :: tAAS_Reverse !Add weights in the opposite direction i.e. to the modification factor of the child
+logical :: tAAS_Reverse_Weighted !Scale the reverse weights down by the number of walkers on the parent
+real(dp) :: AAS_DenCut !Threshold on the denominators of MatEles
+logical :: tAAS_Add_Diag !Add the diagonal term (Hii-E0)*tau to the weights
+! Giovannis option for using only initiators for the RDMs (off by default)
+logical :: tOutputInitsRDM = .false.
+logical :: tNonInitsForRDMs = .true.
+logical :: tNonVariationalRDMs = .false.
+! Adaptive shift RDM correction using initiators as reference
+logical :: tInitsRDMRef, tInitsRDM
 ! Base hash values only on spatial orbitals
 ! --> All dets with same spatial structure on the same processor.
 logical :: tSpatialOnlyHash
 
+! if all determinants are stored to prevent the need for conversion each iteration
+logical :: tStoredDets
+
 ! Do we truncate spawning based on the number of unpaired electrons
 logical :: tTruncNOpen
 integer :: trunc_nopen_max
+
+! are determinants with low number of open orbs always inits?
+logical :: tSeniorityInits
+integer :: initMaxSenior
+! do we keep certain spawns up to a given excitation + seniority level
+logical :: tSpawnSeniorityBased
+integer, allocatable :: maxKeepExLvl(:)
+integer :: numMaxExLvlsSet
 
 logical :: tMaxBloom    !If this is on, then we only print out a bloom warning if it is the biggest to date.
 
@@ -153,7 +188,7 @@ integer :: iPopsFileNoRead, iPopsFileNoWrite,iRestartWalkNum
 real(dp) :: iWeightPopRead
 real(dp) :: MaxWalkerBloom   !Max number of walkers allowed in one bloom before reducing tau
 INTEGER(int64) :: HFPopThresh
-real(dp) :: InitWalkers, maxnoathf, InitiatorWalkNo
+real(dp) :: InitWalkers, maxnoathf, InitiatorWalkNo, ErrThresh
 real(dp) :: SeniorityAge !A threshold on the life time of a determinat (measured in its halftime) to become a senior determinant.
 integer :: multiSpawnThreshold
 
@@ -296,6 +331,7 @@ integer :: orthogonalise_iter
 logical :: t_test_overlap = .false.
 real(dp) :: overlap_eps = 1.0e-5_dp
 integer :: n_stop_ortho = -1
+logical :: tAVReps, tReplicaCoherentInits
 ! Information on a trial space to create trial excited states with.
 
 type(subspace_in) :: init_trial_in
@@ -329,7 +365,7 @@ integer, allocatable :: trial_init_reorder(:)
 logical :: tPrintReplicaOverlaps = .true.
 
 ! Keep track of when the calculation began (globally)
-real(sp) :: s_global_start
+real(dp) :: s_global_start
 
 ! Use continuous time FCIQMC
 logical :: tContTimeFCIMC, tContTimeFull
@@ -428,7 +464,16 @@ logical :: t_test_hist_tau = .false.
 
 ! and i also need to truncate the spawns maybe: 
 logical :: t_truncate_spawns = .false. 
+logical :: t_truncate_unocc, t_truncate_multi
+logical :: t_prone_walkers, t_activate_decay
 real(dp) :: n_truncate_spawns = 3.0_dp
+
+! flags for global storage
+logical :: tLogAverageSpawns, tActivateLAS
+logical :: tTimedDeaths
+! threshold value to make something an initiator based on spawn coherence
+real(dp) :: spawnSgnThresh
+integer :: minInitSpawns, lingerTime
 
 ! integer :: above_max_singles = 0, above_max_para = 0, above_max_anti = 0, &
 !            above_max_doubles = 0

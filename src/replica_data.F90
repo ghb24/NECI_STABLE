@@ -7,7 +7,6 @@ module replica_data
     use CalcData
     use util_mod
     use kp_fciqmc_data_mod
-    use real_time_data
     use SystemData, only : NEl
     use IntegralsData, only : NFrozen
     use LoggingData, only : tLogEXLEVELStats
@@ -43,7 +42,6 @@ contains
 
                  TotParts(lenof_sign), AllTotParts(lenof_sign), &
                  TotPartsOld(lenof_sign), AllTotPartsOld(lenof_sign), &
-                 TotPartsStorage(lenof_sign), TotPartsLastAlpha(lenof_sign), &
                  ! n.b. AllHFCyc is in inum_runs, with different type
                  HFCyc(lenof_sign), &
                  proje_denominator_cyc(lenof_sign), &
@@ -102,19 +100,23 @@ contains
 
                  ! Overall wavefunction properties
                  norm_psi(inum_runs), norm_psi_squared(inum_runs), &
-                 all_norm_psi_squared(inum_runs), &
+                 all_norm_psi_squared(inum_runs), old_norm_psi(inum_runs), &
                  norm_semistoch(inum_runs), norm_semistoch_squared(inum_runs),&
                  curr_S2(inum_runs), curr_S2_init(inum_runs), &
 
                  ! Wavefunction output values
                  SumENum(inum_runs), AllSumENum(inum_runs), &
+                 InitsENumCyc(inum_runs), AllInitsENumCyc(inum_runs), &
                  ProjectionE(inum_runs), &
                  proje_iter(inum_runs), &
+                 inits_proje_iter(inum_runs), &
                  AbsProjE(inum_runs), &
                  trial_numerator(inum_runs), tot_trial_numerator(inum_runs), &
                  trial_denom(inum_runs), tot_trial_denom(inum_runs), &
                  trial_num_inst(inum_runs), tot_trial_num_inst(inum_runs), &
                  trial_denom_inst(inum_runs), tot_trial_denom_inst(inum_runs), &
+                 init_trial_denom(inum_runs), init_trial_numerator(inum_runs), &
+                 tot_init_trial_denom(inum_runs), tot_init_trial_numerator(inum_runs), &
                  sum_proje_denominator(inum_runs), &
                  all_sum_proje_denominator(inum_runs), &
                  cyc_proje_denominator(inum_runs), &
@@ -147,37 +149,6 @@ contains
         ! real-time FCIQMC: keep track of first and second Runge-Kutta step 
         ! seperately, think of which stats i need for it!
         ! maybe move that to real-time init module..
-#ifdef __REALTIME
-        allocate(NoAborted_1(lenof_sign), AllNoAborted_1(lenof_sign), &
-                 AllNoAbortedOld_1(lenof_sign), &
-                 NoRemoved_1(lenof_sign), AllNoRemoved_1(lenof_sign), &
-                 AllNoRemovedOld_1(lenof_sign), &
-
-                 ! initiator related: 
-                 NoAddedInitiators_1(lenof_sign), InitRemoved_1(lenof_sign), &
-                 AllNoAddedInitiators_1(lenof_sign), AllInitRemoved_1(lenof_sign), &
-
-                 ! dynamics: 
-                 NoBorn_1(inum_runs), AllNoBorn_1(inum_runs), &
-                 NoDied_1(inum_runs), AllNoDied_1(inum_runs), &
-                 Annihilated_1(inum_runs), AllAnnihilated_1(inum_runs), &
-                 Acceptances_1(inum_runs), &
-                 SpawnFromSing_1(inum_runs), AllSpawnFromSing_1(inum_runs), &
-                 NoatDoubs_1(inum_runs), AllNoatDoubs_1(inum_runs), &
-                 AccRat_1(inum_runs), &
-                 AllGrowRateAbort_1(inum_runs), AllGrowRate_1(inum_runs), &
-
-                 ! additional, maybe unused stat. vars. 
-                 NoInitDets_1(lenof_sign), NoNonInitDets_1(lenof_sign), &
-                 NoInitWalk_1(lenof_sign), NoNonInitWalk_1(lenof_sign), &
-                 NoatHF_1(lenof_sign), AllNoInitDets_1(lenof_sign), &
-                 AllNoNonInitDets_1(lenof_sign), AllNoInitWalk_1(lenof_sign), &
-                 AllNoNonInitWalk_1(lenof_sign), SumWalkersCyc_1(inum_runs), &
-                 TotParts_1(lenof_sign), AllTotParts_1(lenof_sign), &
-                 AllTotPartsOld_1(lenof_sign), AllNoatHF_1(lenof_sign), &
-                 AllSumWalkersCyc_1(inum_runs), OldAllAvWalkersCyc_1(inum_runs), &
-                 stat = ierr)
-#endif
         ! KPFCIQMC
         allocate(TotPartsInit(lenof_sign), &
                  AllTotPartsInit(lenof_sign), &
@@ -238,6 +209,7 @@ contains
                    AccRat, &
                    AllHFCyc, OldAllHFCyc, &
                    ENumCyc, AllENumCyc, ENumCycAbs, AllENumCycAbs, &
+                   InitsENumCyc, AllInitsEnumCyc, &
                    ProjECyc, &
                    AllGrowRate, &
                    SumWalkersCyc, AllSumWalkersCyc, &
@@ -250,6 +222,7 @@ contains
                    
                    SumENum, AllSumENum, ProjectionE, &
                    proje_iter, AbsProjE, &
+                   inits_proje_iter, &
                    trial_numerator, tot_trial_numerator, &
                    trial_denom, tot_trial_denom, &
                    trial_num_inst, tot_trial_num_inst, &
@@ -275,16 +248,6 @@ contains
                    tSinglePartPhaseKPInit)
 
                    ! real-time fciqmc
-#ifdef __REALTIME 
-                   deallocate(NoAborted_1, AllNoAborted_1, AllNoAbortedOld_1, &
-                       NoRemoved_1, AllNoRemoved_1, AllNoRemovedOld_1, &
-                       NoAddedInitiators_1, AllNoAddedInitiators_1, &
-                       InitRemoved_1, AllInitRemoved_1, NoBorn_1, AllNoBorn_1, &
-                       NoDied_1, AllNoDied_1, Annihilated_1, AllAnnihilated_1, &
-                       Acceptances_1, SpawnFromSing_1, AllSpawnFromSing_1, &
-                       NoatDoubs_1, AllNoatDoubs_1, AccRat_1, AllGrowRate_1, &
-                       AllGrowRateAbort_1)
-#endif
         if (tLogEXLEVELStats) deallocate(EXLEVEL_WNorm, AllEXLEVEL_WNorm)
 
 

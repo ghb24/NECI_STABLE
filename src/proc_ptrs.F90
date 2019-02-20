@@ -52,7 +52,7 @@ module procedure_pointers
             real(dp), intent(inout) :: prob
             real(dp), dimension(lenof_sign), intent(in) :: AvSignCurr
             real(dp), intent(out) :: RDMBiasFacCurr
-            HElement_t(dp), intent(in) :: HElGen
+            HElement_t(dp), intent(inout) :: HElGen
             real(dp) :: child(lenof_sign)    
 
         end function
@@ -116,7 +116,7 @@ module procedure_pointers
 
         !
         ! Generic particle death routine
-        function attempt_die_t (nI, Kii, wSign, exLevel) result(ndie)
+        function attempt_die_t (nI, Kii, wSign, exLevel, DetPosition) result(ndie)
 
             use SystemData, only: nel
             use constants
@@ -124,6 +124,7 @@ module procedure_pointers
 
             integer, intent(in) :: nI(nel), exLevel
             real(dp), intent(in) :: Kii, wSign(lenof_sign)
+            integer, intent(in), optional :: DetPosition
             real(dp), dimension(lenof_sign) :: ndie
 
         end function
@@ -180,7 +181,7 @@ module procedure_pointers
 
         !
         ! Generic fill_rdm_diag_currdet routine
-        subroutine fill_rdm_diag_currdet_t (spawn, one_rdms, ilutI, nI, ExcitLevelI, av_sign, iter_occ, tCoreSpaceDet)
+        subroutine fill_rdm_diag_currdet_t (spawn, one_rdms, ilutI, nI, ExcitLevelI, av_sign, iter_occ, tCoreSpaceDet, tLC)
 
             use bit_rep_data, only: NIfTot
             use constants
@@ -193,7 +194,7 @@ module procedure_pointers
             integer(n_int), intent(in) :: ilutI(0:NIfTot)
             integer, intent(in) :: nI(nel), ExcitLevelI
             real(dp), intent(in) :: av_sign(:), iter_occ(:)
-            logical, intent(in), optional :: tCoreSpaceDet
+            logical, intent(in), optional :: tCoreSpaceDet, tLC
 
         end subroutine
 
@@ -256,6 +257,15 @@ module procedure_pointers
           HElement_t(dp) :: hel
         end function sltcnd_3_t
 
+        function scale_function_t(hdiag) result(Si)
+          use constants
+          implicit none
+
+          real(dp), intent(in) :: hdiag
+          real(dp) :: Si
+
+        end function scale_function_t
+
     end interface
 
     !
@@ -283,5 +293,7 @@ module procedure_pointers
     procedure(sltcnd_1_t), pointer :: sltcnd_1
     procedure(sltcnd_2_t), pointer :: sltcnd_2
     procedure(sltcnd_3_t), pointer :: sltcnd_3
+    ! the function used to scale the walkers
+    procedure(scale_function_t), pointer :: scaleFunction
 
 end module

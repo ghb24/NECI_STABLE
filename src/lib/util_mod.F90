@@ -243,6 +243,34 @@ contains
          RETURN
       END SUBROUTINE NECI_ICOPY
 
+      subroutine addToIntArray(arr,ind,elem)
+        implicit none
+        integer, intent(inout), allocatable :: arr(:)
+        integer, intent(in) :: ind, elem
+
+        integer, allocatable :: tmp(:)
+        integer :: nelems
+
+        if(allocated(arr)) then
+           nelems = size(arr)
+
+           if(ind > nelems) then
+              ! resize the array
+              allocate(tmp(nelems))
+              tmp = arr
+              deallocate(arr)
+              allocate(arr(ind), source = 0)
+              arr(1:nelems) = tmp(1:nelems)
+           endif
+        else
+           allocate(arr(ind), source = 0)
+        endif
+
+        arr(ind) = elem           
+           
+      end subroutine addToIntArray
+
+
 !--- Numerical utilities ---
 
     ! If all of the compilers supported ieee_arithmetic
@@ -867,25 +895,31 @@ contains
     end subroutine find_next_comb
 
     function neci_etime(time) result(ret)
-
+#ifndef __IFORT
+      use mpi
+#endif
         ! Return elapsed time for timing and calculation ending purposes.
 
-        real(sp), intent(out) :: time(2)
-        real(sp) :: ret
+        real(dp), intent(out) :: time(2)
+        real(dp) :: ret
 
 #ifdef __IFORT
+        ! intels etime takes a real(4)
+        real(4) :: ioTime(2)
         ! Ifort defines etime directly in its compatibility modules. 
         ! Avoid timing inaccuracies from using cpu_time on cerebro.
-        ret = etime(time)
+        ret = real(etime(ioTime),dp)
+        time = real(ioTime,dp)
 #else
 #ifdef BLUEGENE_HACKS
-        time = 0
-        ret = 0
+        time = 0.0_dp
+        ret = 0.0_dp
 #else
-        ! Use Fortran95 timing intrinsic
-        call cpu_time(ret)
+        ! use MPI_WTIME - etime returns wall-clock time on multi-processor
+        ! environments, so keep it consistent
+        ret = MPI_WTIME()
         time(1) = ret
-        time(2) = real(0.0,sp)
+        time(2) = real(0.0,dp)
 #endif
 #endif
 

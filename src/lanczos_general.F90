@@ -488,7 +488,7 @@ module lanczos_general
         real(dp) :: norm
 
         safe_malloc(H_ket, (this%super%space_size))
-
+        H_ket = 0.0_dp
         call MPIBCast(this%eigenvectors)
         call MPIBCast(this%eigenvalues)
         if (iprocindex==root) then
@@ -528,7 +528,7 @@ module lanczos_general
         logical, intent(in) :: print_info_in
         logical :: print_info, t_deltas_pass
         integer :: k, i, ierr, delta_check_outcome, restart_counter
-        real(sp) :: start_time, end_time
+        real(dp) :: start_time, end_time
         real(dp) :: exp_val, overlap
         character(40) :: main_output_fmt, final_output_fmt
         character(*), parameter :: t_r = "perform_lanczos"
@@ -583,7 +583,7 @@ module lanczos_general
             do k = 1, this%super%max_subspace_size-1
                 if (this%super%skip_calc) exit
 
-                call cpu_time(start_time)
+                start_time = MPI_WTIME()
 
                 if (iprocindex==root) then
                     if (this%super%t_orthogonalise .and. t_lanczos_store_vecs) then
@@ -617,7 +617,7 @@ module lanczos_general
 
                 call project_hamiltonian_lanczos(this, k+1)
 
-                call cpu_time(end_time)
+                end_time = MPI_WTIME()
 
                 if (iprocindex==root) then
                     if (t_lanczos_store_vecs) then
@@ -680,13 +680,16 @@ module lanczos_general
                         this%t_states_converged(i) = .true.
                     endif
                 enddo
-                this%lanczos_vector = this%lanczos_vector / euclidean_norm(this%lanczos_vector)
             endif
             call MPIBCast(this%t_states_converged)
 
             if (.not.any(.not.this%t_states_converged)) then
                 exit
             endif
+            
+            ! only normalize the lanczos vector if we are not 
+            ! already converged, as it will be 0 else
+            this%lanczos_vector = this%lanczos_vector / euclidean_norm(this%lanczos_vector)
 
             restart_counter = restart_counter + 1
             if (restart_counter<this%max_restarts) then
@@ -703,50 +706,49 @@ module lanczos_general
         ! end Lanczos restart loop
         enddo
 
+        ! serialize the printout
         if (iprocindex==root) then
-            do i = 1, this%n_states
-                this%eigenvectors(:,i) = this%ritz_vectors(:,i)
-                this%eigenvalues(i) = this%ritz_values(i)
-            enddo
-        endif
+           do i = 1, this%n_states
+              this%eigenvectors(:,i) = this%ritz_vectors(:,i)
+              this%eigenvalues(i) = this%ritz_values(i)
+           enddo
 
-        if (check_deltas(this, k)) then
-            if (print_info) then
-                write(6, '(i2" eigenvalues(s) were successfully converged to within ",5ES16.7)') &
-                    this%n_states, this%convergence_error
-                call neci_flush(6)
-            endif
-        endif
+           if (check_deltas(this, k)) then
+              if (print_info) then
+                 write(6, '(i2" eigenvalues(s) were successfully converged to within ",5ES16.7)') &
+                      this%n_states, this%convergence_error
+                 call neci_flush(6)
+              endif
+           endif
 
-        if (iprocindex==root) then
-            call perform_orthogonality_test(this)
-        endif
+           call perform_orthogonality_test(this)
 
-        if (print_info) then
-            write(6,'(/,1x,"Final calculated energies:")')
-            do i=1, this%n_states
-                write(6,final_output_fmt) i, this%eigenvalues(i)
-                call neci_flush(6)
-            enddo
+           if (print_info) then
+              write(6,'(/,1x,"Final calculated energies:")')
+              do i=1, this%n_states
+                 write(6,final_output_fmt) i, this%eigenvalues(i)
+                 call neci_flush(6)
+              enddo
+           endif
         endif
-
+        
         ! how good are the ritz vectors?
         write(6,'(/,1x,"Ritz vector expectation energies:")')
         do i=1, this%n_states
-            exp_val = get_rayleigh_quotient(this, i)
-            if (print_info) then
-                write(6,final_output_fmt) i, exp_val
-                call neci_flush(6)
-            endif
+           exp_val = get_rayleigh_quotient(this, i)
+           if (print_info) then
+              write(6,final_output_fmt) i, exp_val
+              call neci_flush(6)
+           endif
         enddo
 
         write(6,'(/,1x,"Ritz vector residual norms:")')
         do i=1, this%n_states
-            exp_val = compute_residual_norm(this, i)
-            if (print_info) then
-                write(6,final_output_fmt) i, exp_val
-                call neci_flush(6)
-            endif
+           exp_val = compute_residual_norm(this, i)
+           if (print_info) then
+              write(6,final_output_fmt) i, exp_val
+              call neci_flush(6)
+           endif
         enddo
 
         write(6,'(/,1x,"End of Lanczos procedure.",/)')

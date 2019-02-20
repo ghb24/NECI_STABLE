@@ -12,7 +12,7 @@ contains
 
     subroutine calc_projected_hamil(nvecs, krylov_array, krylov_ht, ndets, h_matrix, partial_vecs, full_vecs, h_diag)
 
-        use bit_rep_data, only: NOffFlag, tUseFlags
+        use bit_rep_data, only: NOffFlag
         use bit_reps, only: decode_bit_det
         use CalcData, only: ss_space_in, tDetermHFSpawning
         use constants
@@ -62,7 +62,7 @@ contains
 
         h_matrix(:,:) = 0.0_dp
         ilut_parent = 0_n_int
-        if (tUseFlags) flag_ind = NIfDBO + lenof_all_signs + 1
+        flag_ind = NIfDBO + lenof_all_signs + 1
         ValidSpawnedList = InitialSpawnedSlots
         call clear_hash_table(spawn_ht)
         tNearlyFull = .false.
@@ -81,7 +81,7 @@ contains
 
             ! The 'parent' determinant from which spawning is to be attempted.
             ilut_parent(0:NIfDBO) = krylov_array(0:NIfDBO,idet)
-            if (tUseFlags) ilut_parent(NOffFlag) = krylov_array(flag_ind,idet)
+            ilut_parent(NOffFlag) = krylov_array(flag_ind,idet)
 
             ! Indicate that the scratch storage used for excitation generation from the
             ! same walker has not been filled (it is filled when we excite from the first
