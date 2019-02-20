@@ -1026,6 +1026,7 @@ contains
                                 defer_update(run) = .true.
                             end if
                         endif
+                     endif
 #else
                         start_varying_shift = .false.
                         if (tLetInitialPopDie) then
@@ -1425,7 +1426,7 @@ contains
 
 #ifdef __CMPLX
         call stop_all("fix_trial_overlap", "Complex wavefunction is not supported yet!")
-#endif
+#else
 
         !Calculate the new overlap
         new_trial_denom = 0.0
@@ -1525,7 +1526,7 @@ contains
                 InstNoAtHF=newSignCurr
             end if
         end if
-
+#endif
     end subroutine fix_trial_overlap
 
 end module fcimc_iter_utils

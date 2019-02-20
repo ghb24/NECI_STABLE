@@ -1123,7 +1123,7 @@ contains
             e_values = 0.0_dp
             e_vectors = 0.0_dp
 
-            call eig(full_H, e_values, e_vectors)
+            call eig(real(full_H,dp), e_values, e_vectors)
 
             ! maybe we also want to start from a different eigenvector in 
             ! this case? this would be practial for the hubbard problem case..
