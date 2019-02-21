@@ -196,7 +196,6 @@ module FciMCParMod
         tPopsAlreadyRead = .false.
 
         call SetupParameters()
-        call InitFCIMCCalcPar()
 
         call init_fcimc_fn_pointers() 
         call InitFCIMCCalcPar()

@@ -251,7 +251,7 @@ module fcimc_pointed_fns
                 call fill_frequency_histogram(abs(rh_used), prob / AvMCExcits)
 
             else 
-                if (t_consider_par_bias) then
+                if (t_consider_par_bias .and. ic > 1) then
                     t_par = (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2)))
 
                     ! not sure about the AvMCExcits!! TODO

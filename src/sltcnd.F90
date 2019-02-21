@@ -306,7 +306,7 @@ contains
 
         integer, intent(in) :: nI(nel)
         HElement_t(dp) :: hel, hel_sing, hel_doub, hel_tmp
-        integer :: id(nel), i, j
+        integer :: id(nel), i, j, idN, idX
 
         ! Sum in the one electron integrals (KE --> TMAT)
         hel_sing = sum(GetTMATEl(nI, nI))
@@ -321,8 +321,7 @@ contains
         hel_tmp = (0)
         do i=1,nel-1
             do j=i+1,nel
-                hel_doub = hel_doub + get_2d_umat_el(id(j),id(i))
-!                 write(6,*) idN,idX,idN,idX,get_umat_el (idN,idX,idN,idX)
+               hel_doub = hel_doub + get_2d_umat_el(id(j),id(i))
             enddo
         enddo
                 

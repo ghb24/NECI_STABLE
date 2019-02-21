@@ -519,8 +519,9 @@ contains
         ! double occ change:
         low = upp + 1; upp = low + sizes(27) - 1; send_arr(low:upp) = inst_double_occ
 
-        if(tTruncInitiator) &
-             low = upp + 1; upp = low + sizes(28) -1; send_arr(low:upp) = doubleSpawns;
+        if(tTruncInitiator) then
+           low = upp + 1; upp = low + sizes(28) -1; send_arr(low:upp) = doubleSpawns;
+        endif
         low = upp + 1; upp = low + sizes(29) - 1; send_arr(low:upp) = nCoherentDoubles
         low = upp + 1; upp = low + sizes(30) - 1; send_arr(low:upp) = nIncoherentDets
         low = upp + 1; upp = low + sizes(31) - 1; send_arr(low:upp) = nConnection
@@ -827,14 +828,8 @@ contains
               ! Instead attempt to calculate the average growth over every
               ! iteration over the update cycle
               do run = 1, inum_runs
-#ifdef __CMPLX
-                    AllGrowRate = (sum(AllSumWalkersCyc(min_part_type(run):max_part_type(run)))&
-                         /real(StepsSft,dp)) &
-                         /sum(OldAllAvWalkersCyc(min_part_type(run):max_part_type(run)))
-#else
                  AllGrowRate(run) = AllSumWalkersCyc(run)/real(StepsSft,dp) &
                       /OldAllAvWalkersCyc(run)
-#endif
               enddo
 
            end if

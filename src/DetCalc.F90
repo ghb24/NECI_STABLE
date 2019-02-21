@@ -13,7 +13,7 @@ MODULE DetCalc
 
         use gndts_mod, only: gndts
 
-        use UMatCache, only: UMat2D, tUMat2D, tDeferred_UMat2D, tagUMat2D
+        use UMatCache, only: UMat2D, tUMat2D, tDeferred_UMat2D, tagUMat2D, SetupUMat2d_dense
 
         use procedure_pointers, only: get_umat_el
         
@@ -86,28 +86,8 @@ CONTAINS
 
           ASSERT(.not. btest(nbasis, 0))
 
-          ! Is the storage in spin, or spatial, orbitals?
-          if (tStoreSpinOrbs) then
-              norb = nbasis
-          else
-              norb = nbasis / 2
-          end if
-
-          ! Allocate the storage
-          allocate(umat2d(norb, norb), stat=ierr)
-          LogAlloc(ierr, 'umat2d', norb*norb, HElement_t_sizeB, tagUMat2D)
-
           ! And fill in the array
-          do i = 1, norb
-              do j = i, norb
-                  if (i == j) then
-                      umat2d(i, i) = get_umat_el (i, i, i, i)
-                  else
-                      UMat2D(i, j) = get_umat_el(i, j, i, j)
-                      UMat2D(j, i) = get_umat_el(i, j, j, i)
-                  end if
-              end do
-          end do
+          call SetupUMat2d_dense(nBasis)
       end if
 
 
