@@ -10,7 +10,5 @@ module tc_three_body_data
   real(dp) :: pgen0B, pgen1B, pgen2B, pgen3B
   ! number of empty alpha/beta electrons
   integer :: nUnoccAlpha, nUnoccBeta
-  
-  HElement_t(dp), allocatable :: LMat(:)
 
 end module tc_three_body_data
