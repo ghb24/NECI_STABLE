@@ -216,7 +216,7 @@ MODULE UMatCache
          ELSE
              B=(L*(L-1))/2+J
          ENDIF
-
+ 
          !Combine (IK) and (JL) in a unique way  (k > l or if k = l then i > j)
          IF(A.GT.B) THEN
              UMatInd=(int(A,int64)*int(A-1,int64))/2+int(B,int64)
