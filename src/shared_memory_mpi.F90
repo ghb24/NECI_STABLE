@@ -1,4 +1,5 @@
 module shared_memory_mpi
+  use mpi
   use Parallel_neci
   implicit none
 

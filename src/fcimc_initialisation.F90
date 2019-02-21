@@ -2476,9 +2476,15 @@ contains
         nexcit = inum_runs/nreplicas
 
         ! Create the trial excited states
-        call calc_trial_states_lanczos(init_trial_in, nexcit, ndets_this_proc, &
-                               SpawnedParts, evecs_this_proc, evals, &
-                               space_sizes, space_displs, trial_init_reorder)
+        if(allocated(trial_init_reorder)) then
+           call calc_trial_states_lanczos(init_trial_in, nexcit, ndets_this_proc, &
+                SpawnedParts, evecs_this_proc, evals, &
+                space_sizes, space_displs, trial_init_reorder)
+        else
+           call calc_trial_states_lanczos(init_trial_in, nexcit, ndets_this_proc, &
+                SpawnedParts, evecs_this_proc, evals, &
+                space_sizes, space_displs)
+        endif
         ! Determine the walker populations associated with these states
         call set_trial_populations(nexcit, ndets_this_proc, evecs_this_proc)
         ! Set the trial excited states as the FCIQMC wave functions

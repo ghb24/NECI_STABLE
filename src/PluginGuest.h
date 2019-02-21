@@ -1,6 +1,8 @@
 #ifndef PLUGINGUEST_H
 #define PLUGINGUEST_H
 
+// the MPI c++ bindings are deprecated, so we do not include them
+#define OMPI_SKIP_MPICXX
 #include "mpi.h"
 #include <string>
 #include <vector>
