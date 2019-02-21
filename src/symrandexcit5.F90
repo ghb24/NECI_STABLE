@@ -33,10 +33,10 @@ module excit_gen_5
     use back_spawn, only: pick_virtual_electrons_double, pick_occupied_orbital, &
                           check_electron_location, pick_second_occupied_orbital
 
-    use guga_bitRepOps, only: isProperCSF_ilut, convert_ilut_toGUGA
+    use guga_bitRepOps, only: isProperCSF_ilut, convert_ilut_toGUGA, write_det_guga
     use guga_data, only: excitationInformation, tNewDet
     use guga_excitations, only: calc_guga_matrix_element, init_csf_information, &
-                                global_excitinfo
+                                global_excitinfo, print_excitInfo
 
     implicit none
 
@@ -100,6 +100,7 @@ contains
             if (.not. isProperCSF_ilut(ilutGJ, .true.)) then 
                 nJ(1) = 0
                 pgen = 0.0_dp
+                return
             end if
 
             if (tNewDet) then

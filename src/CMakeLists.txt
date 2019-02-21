@@ -198,6 +198,7 @@ set( SRC_FILES
     cc_amplitudes.F90
     cepa_shifts.F90
     analyse_wf_symmetry.F90
+    guga_rdm.F90
 
     lib/backtrace.cpp
     lib/cons_neci.F90

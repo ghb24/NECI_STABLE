@@ -422,6 +422,9 @@ contains
         integer(int_rdm), intent(out) :: ijkl
         integer :: ij, kl
 
+        ! maybe I need a change for the GUGA implementation, since 
+        ! we only need spatial orbitals here.. 
+        ! todo
         ij = (i-1)*nbasis + j
         kl = (k-1)*nbasis + l
         ijkl = (ij-1)*(int(nbasis, int_rdm)**2) + kl

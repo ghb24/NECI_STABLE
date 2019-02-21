@@ -976,20 +976,20 @@ contains
                 end if
 
 
-                i = 1
-                do while(item.lt.nitems)
-                   call readu(w)
-                   if(scan(w,"-").eq.0) then
-                      read(w,*) start
-                      call setDefdet(i,start)
-                   else
-                      call getRange(w, start, end)
-                      do j = start, end
-                         call setDefdet(i,j)
-                      end do
-                   endif
-                end do
-                if(i-1.ne.nel) call stop_all(t_r, "Insufficient orbitals given in DEFINEDET")
+!                 i = 1
+!                 do while(item.lt.nitems)
+!                    call readu(w)
+!                    if(scan(w,"-").eq.0) then
+!                       read(w,*) start
+!                       call setDefdet(i,start)
+!                    else
+!                       call getRange(w, start, end)
+!                       do j = start, end
+!                          call setDefdet(i,j)
+!                       end do
+!                    endif
+!                 end do
+!                 if(i-1.ne.nel) call stop_all(t_r, "Insufficient orbitals given in DEFINEDET")
 
             case("MULTIPLE-INITIAL-REFS")
                 tMultipleInitialRefs = .true.

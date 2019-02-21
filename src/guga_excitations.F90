@@ -2669,8 +2669,8 @@ contains
                     call write_det_guga(6,excitations(:,i))
                     print *, "actHamiltonian result: ", helgen
                     print *, "calc_guga_matrix_element result: ", temp_mat
-                    call stop_all(this_routine, &
-                        "actHamiltonian and calc_guga_matrix_element give different result!")
+!                     call stop_all(this_routine, &
+!                         "actHamiltonian and calc_guga_matrix_element give different result!")
                 end if
             end if
         end do
@@ -2701,13 +2701,15 @@ contains
                 write(6,*) i, '/', iterations, ' - ', contrib / (real(nexcit,dp)*i)
             end if
 
-!             if (tgen_guga_crude) then 
+            if (tgen_guga_crude) then 
+                call stop_all(this_routine, &
+                    "change in source code below this line to activate tests!")
 !                 call gen_excit_4ind_weighted2 (src_det, ilut, det, tgt_ilut, 3, &
 !                                           ic, ex, par, pgen, helgen, store)
-!             else
+            else
                 call generate_excitation_guga (src_det, ilut, det, tgt_ilut, 3, &
                                               ic, ex, par, pgen, helgen, store)
-!             end if
+            end if
             if (det(1) == 0) cycle
 
             call EncodeBitDet (det, tgt_ilut)
@@ -12910,6 +12912,20 @@ contains
 !         case default
 !         else
             ! just staying possibility... 
+
+            
+            if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
+                plusWeight = weights%proc%plus(posSwitches(s), bVal, weights%dat)
+                minusWeight = weights%proc%minus(negSwitches(s), bVal, weights%dat)
+
+                if ((deltaB == -1 .and. minusWeight < EPS) &
+                    .or. (deltaB == 1 .and. plusWeight < EPS)) then 
+                    t = 0_n_int
+                    probWeight = 0.0_dp
+                    return
+                end if
+            end if
+
 #ifdef __DEBUG
             ! for sanity check for weights here too just to be sure to not get 
             ! into non compatible excitations
@@ -17180,7 +17196,7 @@ contains
 
         ! otherwise get excitation information
         excitInfo = excitationIdentifier(i, j, k, l)
-        
+       
         ! screw it. for now write a function which checks if indices and ilut
         ! are compatible, and not initiate the excitation right away
         ! but check cases again 
@@ -22348,6 +22364,7 @@ contains
                 mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
                 pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
 
+
 !                 if (pw <EPS .and. mw <EPS) flag = .false.
 !                 if (isOne(L,st).and.pw < EPS) then
                 if ((current_stepvector(st) == 1 .and.pw < EPS) .or. &
@@ -23094,11 +23111,13 @@ contains
                     ! and should not be considered here, as it is already 
                     ! contained in the single excitations
                     if (current_stepvector(st) == 3) then
-                        flag = .false.
-                        return
-!                         zw = weights%proc%zero(0.0_dp,0.0_dp, currentB_ilut(st), weights%dat)
-!                         pw = 0.0_dp
-!                         mw = 0.0_dp
+                        ! but i need them for the exact excitation 
+                        ! generation
+!                         flag = .false.
+!                         return
+                        zw = weights%proc%zero(0.0_dp,0.0_dp, currentB_ilut(st), weights%dat)
+                        pw = 0.0_dp
+                        mw = 0.0_dp
                     else
 
                         zw = weights%proc%zero(negSwitches(st), posSwitches(st), currentB_ilut(st), &
@@ -23154,12 +23173,12 @@ contains
                     ! if its a 3 start no switches in overlap region are possible
     !                 if (isThree(L,st)) then
                     if (current_stepvector(st) == 3) then
-                        flag = .false.
-                        return
+!                         flag = .false.
+!                         return
 ! 
-!                         zw = weights%proc%zero(0.0_dp,0.0_dp, currentB_ilut(st), weights%dat)
-!                         pw = 0.0_dp
-!                         mw = 0.0_dp
+                        zw = weights%proc%zero(0.0_dp,0.0_dp, currentB_ilut(st), weights%dat)
+                        pw = 0.0_dp
+                        mw = 0.0_dp
                     else
                         zw = weights%proc%zero(negSwitches(st), posSwitches(st), currentB_ilut(st), &
                             weights%dat)
