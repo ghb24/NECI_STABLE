@@ -8,7 +8,7 @@ module tau_search
                           nOccAlpha, nOccBeta, tUEG, tGen_4ind_2, tReltvy, & 
                           t_3_body_excits, t_k_space_hubbard, t_trans_corr_2body, &
                           t_uniform_excits, t_new_real_space_hubbard, & 
-                          t_trans_corr, tHub, t_trans_corr_hop
+                          t_trans_corr, tHub, t_trans_corr_hop, tNoSinglesPossible
 
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow, t_min_tau, min_tau_global, &
@@ -578,7 +578,7 @@ contains
         ! Make sure that we have at least some of both singles and doubles
         ! before we allow ourselves to change the probabilities too much...
         if ((checkS + checkD + checkT > 1)) then
-           if(psingles_new > 1e-5_dp &
+           if((psingles_new > 1e-5_dp .or. tNoSinglesPossible) &
                 .and. psingles_new < (1.0_dp - 1e-5_dp) .and. &
                 min(pTriples_new,(1.0_dp-pTriples_new))>1e-5_dp) then
 

@@ -195,11 +195,7 @@ module fcimc_pointed_fns
 
         rh = get_spawn_helement (nJ, DetCurr, ilutnJ, iLutCurr,  ic, temp_ex, &
                                  tParity, HElGen)
-
-!         if (abs(rh) > EPS) then
-!             print *, "HElGen: ", rh
-!             print *, "prob: ", prob
-!         end if
+            
         ! We actually want to calculate Hji - take the complex conjugate, 
         ! rather than swap around DetCurr and nJ.
 #ifdef __CMPLX

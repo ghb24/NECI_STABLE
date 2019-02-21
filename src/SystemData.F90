@@ -289,6 +289,9 @@ logical :: t12FoldSym = .false.
 logical :: t_tJ_model = .false. 
 logical :: t_heisenberg_model = .false. 
 
+! if the hamiltonian supports singles
+logical :: tNoSinglesPossible = .false.
+
 ! and also the exchange strength
 real(dp) :: exchange_j = 0.0_dp
 

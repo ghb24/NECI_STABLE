@@ -48,6 +48,7 @@ MODULE System
       tRotatedOrbsReal=.false.  !This is set if compiled in real, but reading in a complex FCIDUMP.
       tISKFuncs=.false.       !This is for kpoint symmetry with inversion so that determinants can be combined.
       tKPntSym=.false.        !This is for k-point symmetry with the symrandexcit2 excitation generators.
+      tNoSinglesPossible = .false.
       t_mol_3_body = .false.
       tMCSizeSpace=.false.
       CalcDetPrint=1000
@@ -553,6 +554,7 @@ system: do
                   t_mol_3_body = .true.
                   tGenMatHEl = .false.
                   t12FoldSym = .true.
+                  tNoSinglesPossible = .true.
                case default
                   t_mol_3_body = .false.
                end select

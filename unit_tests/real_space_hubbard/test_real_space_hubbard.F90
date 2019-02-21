@@ -135,7 +135,7 @@ contains
 !         call init_dispersion_rel_cache()
 !         call init_umat_rs_hub_transcorr()
 
-        j_vec = linspace(-0.3,0.0,20)
+        j_vec = linspace(-0.3_dp,0.0_dp,20)
 ! !         j_vec = [0.0, 0.05, 0.1,0.12]
 
         iunit = get_free_unit()
@@ -1312,7 +1312,7 @@ contains
         
         integer, allocatable :: nI(:), nJ(:)
         integer(n_int), allocatable :: ilutI(:), ilutJ(:)
-        integer :: ex(2,2), ic 
+        integer :: ex(2,maxExcit), ic 
         logical :: tpar 
         real(dp) :: pgen 
         HElement_t(dp) :: hel

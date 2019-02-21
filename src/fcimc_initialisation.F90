@@ -16,7 +16,7 @@ module fcimc_initialisation
                           t_k_space_hubbard, t_3_body_excits, omega, breathingCont, &
                           momIndexTable, t_trans_corr_2body, t_non_hermitian, &
                           t_uniform_excits, t_mol_3_body, nClosedOrbs, irrepOrbOffset, nIrreps, &
-                          nOccOrbs
+                          nOccOrbs, tNoSinglesPossible
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
 
     use dSFMT_interface, only: dSFMT_init
@@ -1000,6 +1000,8 @@ contains
               RealSpawnCutoff = sFBeta
            endif
         endif
+
+        tNoSinglesPossible = t_k_space_hubbard .or. tUEG .or. tNoSinglesPossible
 
         if(.not. allocated(allInitsPerExLvl)) allocate(allInitsPerExLvl(maxInitExLvlWrite))
         if(.not. allocated(initsPerExLvl)) allocate(initsPerExLvl(maxInitExLvlWrite))

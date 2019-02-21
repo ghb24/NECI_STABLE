@@ -5,6 +5,7 @@ module LMat_mod
   use MemoryManager, only: LogMemAlloc, LogMemDealloc
   use util_mod, only: get_free_unit
   use shared_memory_mpi
+  use sort_mod
   use ParallelHelper, only: iProcIndex_intra
 #ifdef __USE_HDF5
   use hdf5
@@ -51,7 +52,7 @@ module LMat_mod
          call addAllMatelConts(c,b,a,-1)
          matel = matel/2.0_dp
       else
-         call addMatelContribution(i,j,k,idi,idj,idk,1)
+         call addMatelContribution(i,j,k,idi,idj,idk,1)         
          call addMatelContribution(j,k,i,idj,idk,idi,1)
          call addMatelContribution(k,i,j,idk,idi,idj,1)
          call addMatelContribution(j,i,k,idj,idi,idk,-1)
@@ -150,32 +151,29 @@ module LMat_mod
 
     function oldLMatInd(a,b,c,i,j,k) result(index)
       implicit none
-      integer(int64), intent(in) :: a,b,c ! occupied orb indices
-      integer(int64), intent(in) :: i,j,k ! unoccupied orb
+      integer(int64), value :: a,b,c ! occupied orb indices
+      integer(int64), value :: i,j,k ! unoccupied orb
       integer(int64) :: index
-      integer(int64) :: ap, bp, cp, ip, jp, kp
 
       ! we store the permutation where a < b < c (regardless of i,j,k)
-      ! or i < j < k, depending on (permuted) a < i, b < j, c < k
-
-      ap = min(a,i)
-      ip = max(a,i)
-      bp = min(j,b)
-      jp = max(j,b)
-      cp = min(c,k)
-      kp = max(c,k)
-
-      ! -> create that permutation
-      call sort2Els(ap,bp,ip,jp)
-      call sort2Els(bp,cp,jp,kp)
-      call sort2Els(ap,bp,ip,jp)
+      ! or i < j < k, depending on (permuted) a < i
+      ! sort such that the ordered indices start with the smallest index
+      if(minval((/a,b,c/)) > minval((/i,j,k/))) then
+         call intswap(a,i)
+         call intswap(b,j)
+         call intswap(c,k)
+      endif
+      ! -> create the ordered permutation on ap,bp,cp
+      call sort2Els(a,b,i,j)
+      call sort2Els(b,c,j,k)
+      call sort2Els(a,b,i,j)
 
       ! indexing function: there are three ordered indices (ap,bp,cp)
       ! and three larger indices (ip,jp,kp)
       ! the last larger index kp, it is the contigous index, then follow (jp,cp) 
       ! then (ip,bp) and then the smallest index ap
-      index = kp + nBI*(jp-1) + nBI**2*(ip-1) + nBI**3*(ap-1) + nbI**3*(bp-1)*bp/2+&
-           nBI**3*(cp+1)*(cp-1)*cp/6
+      index = k + nBI*(j-1) + nBI**2*(i-1) + nBI**3*(a-1) + nbI**3*(b-1)*b/2+&
+           nBI**3*(c+1)*(c-1)*c/6
 
       contains
 
@@ -219,6 +217,7 @@ module LMat_mod
       integer :: counter
       integer(int64) :: iChunk, chunkSize
       integer :: iNodeSize, iProcInNode
+      integer :: dummy(6)
       integer(MPIArg) :: err
 
       if(tStoreSpinOrbs) then
@@ -279,6 +278,10 @@ module LMat_mod
                      counter = LMatInd(a,b,c,i,j,k)
                      write(iout,*) "Warning, exceeding size" 
                   endif
+                  if(LMatInd(a,b,c,i,j,k).eq.LMatInd(19,1,7,5,7,1)) then
+                     print *, "WARNING: This should be 0", a,b,c,i,j,k,matel
+                  endif
+
                   LMat(LMatInd(a,b,c,i,j,k)) = 3.0_dp * matel
                   if(abs(matel)> 0.0_dp) counter = counter + 1
                endif
