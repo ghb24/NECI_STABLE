@@ -1,7 +1,7 @@
 module LMat_mod
   use constants
   use HElem, only: HElement_t_SizeB
-  use SystemData, only: tStoreSpinOrbs, nBasis, tHDF5LMat
+  use SystemData, only: tStoreSpinOrbs, nBasis, tHDF5LMat, t12FoldSym
   use MemoryManager, only: LogMemAlloc, LogMemDealloc
   use util_mod, only: get_free_unit
   use shared_memory_mpi
@@ -111,15 +111,16 @@ module LMat_mod
 
       integer(int64) :: ai,bj,ck
 
-      if(tDebugLMat) then
-         index = k + nBI*j + nBI**2*i + nBI**3*c + nBI**4*b + nBI**5*a
+      if(t12FoldSym) then
+         index = oldLMatInd(a,b,c,i,j,k)
       else
-      ai = fuseIndex(a,i)
-      bj = fuseIndex(b,j)
-      ck = fuseIndex(c,k)
 
-      index = LMatIndFused(ai,bj,ck)
-   endif
+         ai = fuseIndex(a,i)
+         bj = fuseIndex(b,j)
+         ck = fuseIndex(c,k)
+
+         index = LMatIndFused(ai,bj,ck)
+      endif
     end function LMatInd
 
     function LMatIndFused(ai,bj,ck) result(index)

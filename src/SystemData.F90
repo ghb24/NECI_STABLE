@@ -283,6 +283,7 @@ real(dp) :: trans_corr_param_2body = 0.0_dp
 ! real-space hubbard. it comes from a hopping correlation form in real-space
 ! reuse the trans_corr_param variable though!
 logical :: t_trans_corr_hop = .false. 
+logical :: t12FoldSym = .false.
  
 ! and the other lattice models: 
 logical :: t_tJ_model = .false. 
