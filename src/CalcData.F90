@@ -31,6 +31,9 @@ type subspace_in
     logical :: tHF = .false.
     ! Use the most populated states in CurrentDets.
     logical :: tPops = .false.
+    ! Automatically choosing 10% of the total initiator space, if this number
+    ! is larger than 50000, then use npops = 50000
+    logical :: tPopsAuto = .false.
     ! Read states from a file.
     logical :: tRead = .false.
     ! Use the space of all single and double excitations from the
