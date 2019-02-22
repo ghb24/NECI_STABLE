@@ -88,12 +88,14 @@ contains
         integer :: sym_i, sym_j, sym_k, sym_m
         integer :: ex1(2), ex2(2)
         integer :: BRR_ex1(2), BRR_ex2(2)
+        integer :: ierr
 
         ! Initialisation - allocate arrays.
 
         do class_i = 1, ras%num_classes
             do sym_i = 0, 7
-                allocate(factors(class_i,sym_i)%elements(1:classes(class_i)%num_sym(sym_i)))
+                allocate(factors(class_i,sym_i)%elements(1:classes(class_i)%num_sym(sym_i)), &
+                     stat = ierr)
             end do
         end do
 
@@ -122,7 +124,6 @@ contains
 
         ! Beta and beta-beta (sigma_1) and alpha and alpha-alpha (sigma_2) contributions.
         ! See Eq. 20 for algorithm.
-
         ! Loop over all strings.
         do i = 1, ras%num_strings
 
@@ -241,9 +242,7 @@ contains
             end do ! Over all classes connected to string_i.
 
         end do ! Over all strings.
-
         ! Next, calculate the contribution from the alpha-beta term (sigma_3) (Eq. 23).
-
         ! Loop over all combinations of two spatial indices, (kl).
         do k = 1, tot_norbs
             do l = 1, tot_norbs
@@ -301,8 +300,8 @@ contains
                                     c(min_ind:max_ind, i) = real(r(i),dp)*vec_in(class_j,class_m,sym_j)%elements(ind_j,:)
                                 end if
                             end do
-                        end if
-                    end if
+                         end if
+                      endif
 
                 end do
 
@@ -376,7 +375,6 @@ contains
 
             end do ! Over all orbitals, l.
         end do ! Over all orbitals, k.
-
         ! Deallocate arrays.
         do class_i = 1, ras%num_classes
             do sym_i = 0, 7
@@ -386,7 +384,6 @@ contains
         deallocate(alpha_beta_fac)
         deallocate(c)
         deallocate(r)
-
     end subroutine perform_multiplication
 
     subroutine zero_factors_array(num_classes, factors)
@@ -466,7 +463,7 @@ contains
         type(direct_ci_excit), intent(out) :: ras_excit(ras%num_strings)
         integer(n_int) :: ilut_i(0:NIfD)
         integer :: class_i, ind, new_ind, counter
-        integer :: nras1, nras3, par
+        integer :: nras1, nras3, par, k
         integer :: ex(2)
         integer :: string_i(tot_nelec)
         logical :: none_left, tgen
@@ -482,7 +479,9 @@ contains
             ! Loop over all strings.
             do
                 ind = classes(class_i)%address_map(get_address(classes(class_i), string_i))
-                ind = ind + sum(classes(1:class_i-1)%class_size)
+                do k = 1, class_i-1
+                   ind = ind + classes(k)%class_size
+                end do
 
                 ! Store the string, along with the symmetry, RAS class and ilut.
                 ras_strings(1:tot_nelec,ind) = string_i
@@ -569,7 +568,7 @@ contains
         logical, intent(in) :: tcount
 
         integer, pointer :: i, j
-        integer :: orb1, orb2, temp1, temp3, class_k
+        integer :: orb1, orb2, temp1, temp3, class_k, m
         integer :: string_k(tot_nelec)
 
         ! Map the local variables onto the store.
@@ -631,7 +630,9 @@ contains
 
                 class_k = ras%class_label(temp1, temp3)
                 ind = classes(class_k)%address_map(get_address(classes(class_k), string_k))
-                ind = ind + sum(classes(1:class_k-1)%class_size)
+                do m = 1, class_k-1
+                   ind = ind  + classes(m)%class_size
+                end do
                 par = get_single_parity(ilut_i, ex(1), ex(2))
 
                 return

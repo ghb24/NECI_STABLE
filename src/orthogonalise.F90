@@ -30,9 +30,9 @@ contains
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer :: tgt_run, src_run, run, j, TotWalkersNew
         integer :: tgt_sgn, src_sgn
+        real(dp) :: all_overlaps_real(inum_runs, inum_runs)
         integer :: low_loop_bound, high_loop_bound, loop_step
         real(dp) :: norms(inum_runs), overlaps_real(inum_runs, inum_runs)
-        real(dp) :: all_norms(inum_runs), all_overlaps_real(inum_runs, inum_runs)
         real(dp) :: sgn(lenof_sign), sgn_orig, delta_real, r
 #ifdef __CMPLX
         ! the min_part_type and max_part_type macros return the index of the sgns
@@ -219,6 +219,7 @@ contains
         ! Store a normalised overlap matrix for each of the replicas.
         do src_run = 1, inum_runs - 1
             do tgt_run = src_run + 1, inum_runs
+               if(all_norms(src_run)*all_norms(tgt_run) > EPS) then
                 replica_overlaps_real(src_run, tgt_run) = &
                     all_overlaps_real(src_run, tgt_run) / &
                     sqrt(all_norms(src_run) * all_norms(tgt_run))
@@ -227,9 +228,12 @@ contains
                     all_overlaps_imag(src_run, tgt_run) / &
                     sqrt(all_norms(src_run) * all_norms(tgt_run))
 #endif
+             endif
             end do
         end do
 
+        ! Store in global data for perturbation accumulation.
+        all_overlaps = all_overlaps_real
 
         ! We now need to aggregate statistics here, rather than at the end
         ! of annihilation, as they have been modified by this routine...
@@ -266,7 +270,6 @@ contains
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer :: tgt_state, src_state, run, j, irep, imod1, imod2, TotWalkersNew
         real(dp) :: norms(inum_runs/2), overlaps(inum_runs, inum_runs)
-        real(dp) :: all_norms(inum_runs/2), all_overlaps(inum_runs, inum_runs)
         real(dp) :: sgn(lenof_sign), sgn_orig(2), delta, r
         logical :: tCoreDet
         character(len=*), parameter :: this_routine = "orthogonalise_replica_pairs"
@@ -679,7 +682,6 @@ contains
         integer :: j, run, tgt_run, src_run
         real(dp) :: sgn(lenof_sign)
         real(dp) :: norms(inum_runs), overlaps(inum_runs, inum_runs)
-        real(dp) :: all_norms(inum_runs), all_overlaps(inum_runs, inum_runs)
         character(*), parameter :: this_routine = 'calc_replica_overlaps'
 
         norms = 0.0_dp
@@ -712,9 +714,11 @@ contains
         ! Store a normalised overlap matrix for each of the replicas.
         do src_run = 1, inum_runs - 1
             do tgt_run = src_run + 1, inum_runs
-                replica_overlaps_real(src_run, tgt_run) = &
-                    all_overlaps(src_run, tgt_run) / &
-                    sqrt(all_norms(src_run) * all_norms(tgt_run))
+               if(all_norms(src_run)*all_norms(tgt_run) > EPS) then
+                  replica_overlaps_real(src_run, tgt_run) = &
+                       all_overlaps(src_run, tgt_run) / &
+                       sqrt(all_norms(src_run) * all_norms(tgt_run))
+               endif
                 replica_overlaps_real(src_run, tgt_run) = &
                     replica_overlaps_real(src_run, tgt_run)
             end do

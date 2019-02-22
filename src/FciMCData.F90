@@ -92,6 +92,11 @@ MODULE FciMCData
     real(dp), allocatable :: NoAborted(:), AllNoAborted(:), AllNoAbortedOld(:)
     real(dp), allocatable :: NoRemoved(:), AllNoRemoved(:), AllNoRemovedOld(:)
     integer(int64), allocatable :: NoAddedInitiators(:), NoInitDets(:), NoNonInitDets(:)
+    integer :: NoInitsConflicts, NoSIInitsConflicts, AllNoInitsConflicts, AllNoSIInitsConflicts
+    integer :: NoConflicts
+    integer :: maxConflictExLvl
+    integer, allocatable :: ConflictExLvl(:)
+    real(dp) :: avSigns, AllAvSigns
     real(dp), allocatable :: NoInitWalk(:), NoNonInitWalk(:)
     integer(int64), allocatable :: NoExtraInitDoubs(:), InitRemoved(:)
 
@@ -124,7 +129,7 @@ MODULE FciMCData
       real(dp), allocatable :: norm_psi_squared(:)
       real(dp), allocatable :: norm_semistoch_squared(:)
       real(dp), allocatable :: all_norm_psi_squared(:)
-      real(dp), allocatable :: norm_psi(:)
+      real(dp), allocatable :: norm_psi(:), old_norm_psi(:)
       ! The norm of the wavefunction in just the semi-stochastic space.
       real(dp), allocatable :: norm_semistoch(:)
 
@@ -134,6 +139,16 @@ MODULE FciMCData
       type(ll_node), pointer :: HashIndex(:) 
       integer :: nWalkerHashes    ! The length of hash table.
       real(dp) :: HashLengthFrac
+
+      ! scaling of walker-units
+      integer :: sfTag
+      real(dp) :: sFAlpha, sFBeta
+      logical :: tEScaleWalkers
+      ! flag to indicate that the number of spawns shall be tracked
+      logical :: tLogNumSpawns
+      ! total truncated weight
+      real(dp) :: truncatedWeight, AllTruncatedWeight
+      
 
 !The following variables are calculated as per processor, but at the end of each update cycle, 
 !are combined to the root processor
@@ -154,6 +169,10 @@ MODULE FciMCData
 
       HElement_t(dp), allocatable :: trial_numerator(:), tot_trial_numerator(:)
       HElement_t(dp), allocatable :: trial_denom(:), tot_trial_denom(:)
+      HElement_t(dp), allocatable :: trial_num_inst(:), tot_trial_num_inst(:)
+      HElement_t(dp), allocatable :: trial_denom_inst(:), tot_trial_denom_inst(:)
+      integer(n_int), allocatable :: con_send_buf(:,:)
+      integer :: NConEntry
 
       ! The sum over all previous cycles of the number of particles on the
       ! reference site
@@ -199,7 +218,7 @@ MODULE FciMCData
 
       ! The projected energy over the current update cycle.
       HElement_t(dp), allocatable :: ProjECyc(:)
-      
+
       real(dp) :: bloom_sizes(0:2), bloom_max(0:2)
       integer :: bloom_count(0:2), all_bloom_count(0:2)
 
@@ -254,7 +273,7 @@ MODULE FciMCData
                            SemiStoch_Init_Time, Trial_Init_Time, &
                            kp_generate_time, Stats_Comms_Time, &
                            subspace_hamil_time, exact_subspace_h_time, &
-                           subspace_spin_time
+                           subspace_spin_time, sign_correction_time
       
       ! Store the current value of S^2 between update cycles
       real(dp), allocatable :: curr_S2(:), curr_S2_init(:)
@@ -348,6 +367,10 @@ MODULE FciMCData
       INTEGER :: QuadDetsEst !Estimate of the number of symmetry allowed determinants at excit level 4
       INTEGER :: DoubDetsEst !Estimate of the number of symmetry allowed determinants at excit level 2
       logical :: tReplicaReferencesDiffer
+      
+      ! This data is for reducing the occupied determinants drastically when hitting 
+      ! the memory limit
+      integer :: n_prone_dets
 
       integer, allocatable :: ProjEDet(:, :)
       integer(n_int), allocatable :: HighestPopDet(:,:), iLutRef(:, :)
@@ -355,7 +378,6 @@ MODULE FciMCData
                                                         !an open-shell determinant, then it is useful
                                                         !to store the spin-coupled determinant, 
                                                         !so we can calculate projection onto both.
-
       ! Even with multiple reference determinants, the calculation is done
       ! relative to Hii. So we need to adjust the calculated projected energy
       ! by a different amount.
@@ -480,6 +502,7 @@ MODULE FciMCData
       integer(n_int), allocatable, dimension(:,:) :: trial_space
       ! The number of states in the trial vector space.
       integer :: trial_space_size = 0
+      integer :: tot_trial_space_size = 0
       ! This list stores the iluts from which the trial wavefunction is formed,
       ! but only those that reside on this processor.
       integer(n_int), allocatable, dimension(:,:) :: con_space
@@ -569,6 +592,7 @@ MODULE FciMCData
 #ifdef __CMPLX
       real(dp), allocatable :: replica_overlaps_imag(:,:)
 #endif
+      real(dp), allocatable :: all_norms(:), all_overlaps(:,:)
 
 
       ! counting the total walker population all determinants of each ms value

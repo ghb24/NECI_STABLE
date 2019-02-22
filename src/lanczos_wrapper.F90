@@ -53,7 +53,13 @@ contains
         ICMax = 1
         tMC = .false.
 
+        ! just to make sure we pass valid objects
+        allocate(Lab(1),stat=ierr)
+        allocate(Hamil(1),stat=ierr)
         call Detham(ndets, nel, det_list, Hamil, Lab, nRow, .true., ICMax, LenHamil, tMC)
+
+        deallocate(Hamil, stat=ierr)
+        deallocate(Lab, stat=ierr)
 
         allocate(Hamil(LenHamil), stat=ierr)
         if (ierr /= 0) call stop_all(t_r, "Error allocating Hamil.")

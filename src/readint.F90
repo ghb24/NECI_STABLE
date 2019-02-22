@@ -1,13 +1,14 @@
 module read_fci
 
-    character(len=64) :: FCIDUMP_name
+    character(len=1024) :: FCIDUMP_name
 
 contains
 
     SUBROUTINE INITFROMFCID(NEL,NBASISMAX,LEN,LMS,TBIN)
          use SystemData , only : tNoSymGenRandExcits,lNoSymmetry,tROHF,tHub,tUEG
          use SystemData , only : tStoreSpinOrbs,tKPntSym,tRotatedOrbsReal,tFixLz,tUHF
-         use SystemData , only : tMolpro,tReadFreeFormat,tReltvy
+         use SystemData , only : tMolpro,tReadFreeFormat,tReltvy, nclosedOrbs, nOccOrbs
+         use SystemData , only : nIrreps
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
          use Parallel_neci
          use util_mod, only: get_free_unit
@@ -16,6 +17,7 @@ contains
          integer, intent(out) :: nBasisMax(5,*),LEN,LMS
          integer, intent(in) :: NEL
          integer SYMLZ(1000)
+         integer OCC(nIrreps), CLOSED(nIrreps), FROZEN(nIrreps)
          integer(int64) :: ORBSYM(1000)
          INTEGER NORB,NELEC,MS2,ISYM,i,SYML(1000), iunit,iuhf
          LOGICAL exists
@@ -27,7 +29,8 @@ contains
 #endif
 
          CHARACTER(len=3) :: fmat
-         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
+         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,OCC,CLOSED,FROZEN,&
+              ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
          UHF=.FALSE.
          fmat='NO'
          PROPBITLEN = 0
@@ -35,6 +38,9 @@ contains
          IUHF = 0
          TREL = .false.
          SYMLZ(:) = 0
+         OCC = -1
+         CLOSED = -1
+         FROZEN = -1
          ! [W.D. 15.5.2017:]
          ! with the new relativistic calculations, withoug a ms value in the 
          ! FCIDUMP, we have to set some more defaults..
@@ -90,11 +96,16 @@ contains
          CALL MPIBCast(tRel)
          CALL MPIBCast(PROPBITLEN,1)
          CALL MPIBCast(NPROP,3)
+         call MPIBCast(OCC,8)
+         call MPIBCast(CLOSED,nIrreps)
+         call MPIBCast(FROZEN,nIrreps)
          ! If PropBitLen has been set then assume we're not using an Abelian
          ! symmetry group which has two cycle generators (ie the group has
          ! complex representations).
          TwoCycleSymGens = PropBitLen == 0
          tReltvy = tRel
+         nOccOrbs = OCC
+         nClosedOrbs = CLOSED
 
          IF(.not.TwoCycleSymGens.and.((NPROP(1)+NPROP(2)+NPROP(3)).gt.3)) THEN
              !We are using abelian k-point symmetry. Turn it on.
@@ -213,7 +224,7 @@ contains
       SUBROUTINE GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN,TBIN)
          use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn,tMolpro,tUHF
          use SystemData, only: tCacheFCIDUMPInts,tROHF,tFixLz,iMaxLz,tRotatedOrbsReal
-         use SystemData, only: tReadFreeFormat,SYMMAX,tReltvy
+         use SystemData, only: tReadFreeFormat,SYMMAX,tReltvy, irrepOrbOffset, nIrreps
          use UMatCache, only: nSlotsInit,CalcNSlotsInit
          use UMatCache, only: GetCacheIndexStates,GTID
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
@@ -232,13 +243,16 @@ contains
          INTEGER I,J,K,L,I1
          INTEGER ISYMNUM,ISNMAX,SYMLZ(1000), iunit
          INTEGER NORB,NELEC,MS2,ISYM,ISPINS,ISPN,SYML(1000)
+         integer OCC(nIrreps), CLOSED(nIrreps), FROZEN(nIrreps)
          integer(int64) ORBSYM(1000)
          INTEGER nPairs,iErr,MaxnSlot,MaxIndex,IUHF
          INTEGER , ALLOCATABLE :: MaxSlots(:)
          character(len=*), parameter :: t_r='GETFCIBASIS'
          LOGICAL TBIN
          logical :: uhf,tRel
-         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
+         integer :: orbsPerIrrep(nIrreps)
+         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,OCC,CLOSED,FROZEN,&
+              ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
 
 #ifdef _MOLCAS_
          logical :: tExists     !test for existence of input file.
@@ -301,6 +315,7 @@ contains
          ISYMNUM=0
          ISNMAX=0
          ISPINS=2
+
          IF((UHF.and.(.not.tROHF)).or.tReltvy) ISPINS=1
 
          IF(tROHF) THEN
@@ -330,6 +345,20 @@ contains
                  write(6,*) "Reading in ROHF FCIDUMP, and storing as spatial orbitals."
              endif
          ENDIF
+
+         ! Count the number of orbs per irrep
+         if(any(ORBSYM(1:NORB).eq.0)) then
+            write(6,*) "WARNING: Invalid ORBSYM in FCIDUMP, are you sure you know what you are doing?"
+         else
+            orbsPerIrrep = 0
+            do i = 1, NORB
+               orbsPerIrrep(ORBSYM(i)) = orbsPerIrrep(ORBSYM(i)) + ISPINS
+            end do
+            irrepOrbOffset(1) = 0
+            do i = 2, nIrreps
+               irrepOrbOffset(i) = irrepOrbOffset(i-1) + orbsPerIrrep(i-1)
+            end do
+         endif
 
          !Below is a mistake - since ISPINS is always two, it will be doubled up for us automatically for G1
 !         if(tMolpro.and.tUHF) then
@@ -607,19 +636,20 @@ contains
 !It is set if we want to cache the integrals to enable the freezing routine to take place, i.e. the <ij|kj> integrals.
 !The UMAT2D integrals will also be read in in this case.
 !If tReadFreezeInts is false, then if we are cacheing the FCIDUMP file, then we will read and cache all the integrals.
-      SUBROUTINE READFCIINT(UMAT,NBASIS,ECORE,tReadFreezeInts)
+      SUBROUTINE READFCIINT(UMAT,umat_win,NBASIS,ECORE,tReadFreezeInts)
          use constants, only: dp,sizeof_int
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,NEl
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,tMolpro
          use SystemData, only: UMatEps,tCacheFCIDUMPInts,tUHF
          use SystemData, only: tRIIntegrals,nBasisMax,tROHF,tRotatedOrbsReal
-         use SystemData, only: tReadFreeFormat, G1, tFixLz, tReltvy
+         use SystemData, only: tReadFreeFormat, G1, tFixLz, tReltvy, nIrreps
          USE UMatCache, only: UMatInd,UMatConj,UMAT2D,TUMAT2D,nPairs,CacheFCIDUMP
          USE UMatCache, only: FillUpCache,GTID,nStates,nSlots,nTypes
          USE UMatCache, only: UMatCacheData,UMatLabels,GetUMatSize
          use OneEInts, only: TMatind,TMat2D,TMATSYM
          use OneEInts, only: CalcTMatSize
          use Parallel_neci
+         use shared_memory_mpi
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
          use util_mod, only: get_free_unit
          IMPLICIT NONE
@@ -627,6 +657,7 @@ contains
          logical, intent(in) :: tReadFreezeInts
          real(dp), intent(out) :: ECORE
          HElement_t(dp), intent(out) :: UMAT(:)
+         integer(MPIArg) :: umat_win
          HElement_t(dp) Z
          COMPLEX(dp) :: CompInt
          INTEGER(int64) :: ZeroedInt,NonZeroInt, LzDisallowed
@@ -636,6 +667,7 @@ contains
          LOGICAL LWRITE
          logical :: uhf
          INTEGER ISPINS,ISPN,ierr,SYMLZ(1000)!,IDI,IDJ,IDK,IDL
+         integer OCC(nIrreps), CLOSED(nIrreps), FROZEN(nIrreps)
          INTEGER TMatSize,IUHF
          integer(int64) :: UMatSize
          INTEGER , ALLOCATABLE :: CacheInd(:)
@@ -644,7 +676,9 @@ contains
          logical :: tbad,tRel
          integer(int64) :: start_ind, end_ind
          integer(int64), parameter :: chunk_size = 1000000
-         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
+         integer:: bytecount
+         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,OCC,CLOSED,FROZEN,&
+              ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
 
 #ifdef _MOLCAS_
          logical :: tExists     !test for existence of input file.
@@ -743,6 +777,7 @@ contains
              ! functions and so the integer labels run into each other.
              ! This means it won't work with more than 999 basis
              ! functions...
+
 #ifdef __CMPLX
 101          READ(iunit,*,END=199) Z,I,J,K,L
 #else
@@ -940,6 +975,7 @@ contains
 !             IF(I.NE.0) GOTO 101
              GOTO 101
 199          CONTINUE
+
              CLOSE(iunit)
              if(tMolpro.and.tUHF.and.(iSpinType.ne.6)) then
                  call stop_all(t_r,"Error in reading UHF FCIDUMP from molpro")
@@ -966,12 +1002,19 @@ contains
              ! --> We need to loop around this
              start_ind = 1
              end_ind = min(UMatSize, chunk_size)
+             
              do while(start_ind <= UMatSize)
-                 call MPIBcast(UMat(start_ind:end_ind), int(end_ind-start_ind+1,sizeof_int))
-                 start_ind = end_ind + 1
-                 end_ind = min(UMatSize, end_ind + chunk_size)
+                !use MPI_BYTE for transfer to be independent of the data type of UMat
+                bytecount=int(end_ind-start_ind+1,sizeof_int)*sizeof(UMat(1))
+                call MPIBCast_inter_byte(UMat(start_ind),bytecount)
+                start_ind = end_ind + 1
+                end_ind = min(UMatSize, end_ind + chunk_size)
              end do
+             
+             !make sure the shared memory data is synchronized on all tasks
+             call shared_sync_mpi(umat_win)
          ENDIF
+
          IF(tCacheFCIDUMPInts) THEN
 !Need to broadcast the cache...
              CALL MPIBCast(UMATLABELS,nSlots*nPairs)
@@ -1082,27 +1125,27 @@ contains
          RETURN
       END SUBROUTINE READFCIINTBIN
 
-      SUBROUTINE ReadPropInts(iProp,nBasis)
+      SUBROUTINE ReadPropInts(iProp,nBasis,iNumProp,PropFile,CoreVal,OneElInts)
  
       use constants, only: dp, int64
       use util_mod, only: get_free_unit
       use SymData, only: PropBitLen,nProp
       use SystemData, only: UMatEps, tROHF, tReltvy
       use Parallel_neci, only : iProcIndex,MPIBcast
-      use LoggingData, only:iNumPropToEst, EstPropFile 
-      use OneEInts, only: OneEPropInts, PropCore
  
       implicit none
       integer, intent(in) :: iProp, nBasis
+      HElement_t(dp) :: OneElInts(nBasis,nBasis)
       HElement_t(dp) z
-      integer :: i,j,k,l,iunit
+      real(dp) :: CoreVal
+      integer :: i,j,k,l,iunit, iNumProp
       integer :: NORB,NELEC,MS2,ISYM,SYML(1000),IUHF
       integer(int64) :: ORBSYM(1000)
       integer :: iSpins,ispn,SYMLZ(1000)
       integer(int64) :: ZeroedInt
       integer :: IntSize
       real(dp) :: diff, core
-      character(len=100) :: file_name
+      character(len=100) :: file_name, PropFile
       logical :: TREL,UHF
       character(*), parameter :: t_r='ReadPropInts'
       NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
@@ -1112,7 +1155,7 @@ contains
  
       if(iProcIndex.eq.0) then
           iunit = get_free_unit()
-          file_name = EstPropFile(iProp) 
+          file_name = PropFile
           write(*,*) 'Reading integral from the file:', trim(file_name)
           open(iunit,FILE=file_name,STATUS='OLD')
           read(iunit,FCI)
@@ -1131,7 +1174,7 @@ contains
       CALL MPIBCast(TREL)
       CALL MPIBCast(PROPBITLEN,1)
       CALL MPIBCast(NPROP,3)
- 
+
       core = 0.0d0
       iSpins=2
       IF((UHF.and.(.not.tROHF)).or.tReltvy) ISPINS=1
@@ -1163,17 +1206,17 @@ contains
               do ispn=1,iSpins
                   ! Have read in T_ij.  Check it's consistent with T_ji
                   ! (if T_ji has been read in).
-                  diff = abs(OneEPropInts(iSpins*i-ispn+1,iSpins*j-ispn+1,iprop)-z)
-                  if(abs(OneEPropInts(iSpins*i-ispn+1,iSpins*j-ispn+1,iprop)).gt. 0.0d-6 .and. diff > 1.0e-7_dp) then
-                  write(6,*) i,j,z,OneEPropInts(iSpins*i-ispn+1,iSpins*j-ispn+1,iprop)
-                  call Stop_All(t_R,"Error filling OneEPropInts - different values for same orbitals")
+                  diff = abs(OneElInts(iSpins*i-ispn+1,iSpins*j-ispn+1)-z)
+                  if(abs(OneElInts(iSpins*i-ispn+1,iSpins*j-ispn+1)).gt. 0.0d-6 .and. diff > 1.0e-7_dp) then
+                  write(6,*) i,j,z,OneElInts(iSpins*i-ispn+1,iSpins*j-ispn+1)
+                  call Stop_All(t_R,"Error filling OneElInts - different values for same orbitals")
                   endif
  
-                  OneEPropInts(iSpins*I-ispn+1,iSpins*J-ispn+1,iprop)=z
+                  OneElInts(iSpins*I-ispn+1,iSpins*J-ispn+1)=z
 #ifdef __CMPLX
-                  OneEPropInts(iSpins*J-ispn+1,iSpins*I-ispn+1,iprop)=conjg(z)
+                  OneElInts(iSpins*J-ispn+1,iSpins*I-ispn+1)=conjg(z)
 #else
-                  OneEPropInts(iSpins*J-ispn+1,iSpins*I-ispn+1,iprop)=z
+                  OneElInts(iSpins*J-ispn+1,iSpins*I-ispn+1)=z
 #endif
               enddo
 
@@ -1185,10 +1228,7 @@ contains
 199       continue
       if(iProcIndex.eq.0) close(iunit)
 
-      PropCore(iProp) = core
-      call MPIBCast(PropCore(iProp),1)
-      IntSize = nBasis*nBasis
-      call MPIBCast(OneEPropInts(:,:,iProp),IntSize)
+      CoreVal = core
 
       END SUBROUTINE ReadPropInts
 
