@@ -195,6 +195,15 @@ MODULE System
       tGiovannisBrokenInit = .false.
       ! by default, excitation generation already creates matrix elements
       tGenMatHEl = .true.
+      tInfSumTCCalc= .false.
+      tInfSumTCPrint= .false.
+      tInfSumTCRead= .false.
+      tRPA_tc= .true.
+      PotentialStrength=1.0_dp
+      TranscorrCutoff=0
+      TranscorrIntCutoff=0
+      TContact=.false.
+      TUnitary=.false.
 
 #ifdef __PROG_NUMRUNS
       inum_runs = 1
@@ -648,6 +657,56 @@ system: do
        ! Options for the dimension (1, 2, or 3)
          case("DIMENSION")
             call geti(dimen)       
+
+        ! Options for transcorrelated method (only: UEG 2D 3D, Homogeneous 1D 3D
+        ! gas with contact interaction)
+         case("TRANSCORRCUTOFF")
+           tTranscorr=.true.
+           call geti(TranscorrCutoff)
+           if(tContact.and.dimen.eq.3) then
+                tInfSumTCCalc=.true.
+                call geti(TranscorrIntCutoff)
+           endif
+
+       !Options for turn off the RPA term(only: transcorrelated homogeneous 1D
+       !gas with contact interaction)
+         case("NORPATC")
+           tRPA_tc=.false.
+
+       ! Contact interaction for homogenous one dimensional Fermi gas is applied
+         case("CONTACTINTERACTION")
+           tContact=.true.
+           call getf(PotentialStrength)
+           if(dimen.ne.1) &
+                stop 'Contact interaction only for 1D!'
+
+       ! Contact interaction forthe three dimensional Fermi gas in the unitary
+       ! regime
+         case("CONTACTINTERACTIONUNITARY")
+           tContact=.true.
+           tUnitary=.true.
+           if(dimen.ne.3) stop 'Unitary regime only for 3D!'
+
+       ! Option for infinite summation at transcorrelated method for homogeneous
+       ! 3D gas with contact interaction 
+         case("TRANSCORRINFSUM")
+           if(item < nitems) then
+                call readu(w)
+                select case(w)
+                        case("CALC")
+                                tInfSumTCCalc=.true.
+
+                        case("CALCANDPRINT")
+                                tInfSumTCCalc=.true.
+                                tInfSumTCPrint=.true.
+
+                        case("READ")
+                                tInfSumTCCalc=.false.
+                                tInfSumTCRead=.true.
+                end select
+           endif
+
+
 
         ! This means that no a is generated when b would be made and rejected
         ! O(N^2) loop makes this a poor choice for larger systems.
