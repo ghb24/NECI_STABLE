@@ -3,7 +3,9 @@
     use SystemData, only: BasisFN, nel, nBasisMax, nBasis, G1, NMSH, nMax, &
                           iSpinSkip, tHub, uHub, omega, iPeriodicDampingType,&
                           btHub, momIndexTable, breathingCont, tmodHub,&
-                          ALAT,OrbECutoff,t_ueg_transcorr,t_ueg_3_body
+                          ALAT,OrbECutoff,t_ueg_transcorr,t_ueg_3_body,&
+                          tTranscorr,tContact,trpa_tc,tInfSumTCCalc,&
+                          tInfSumTCPrint,tInfSumTCRead
     use IntegralsData, only: UMat, FCK
     use global_utilities
     use constants, only: sp, dp, pi, pi2, THIRD
@@ -24,7 +26,8 @@
 
     save
 ! approximate the 3 body potential by 2 body terms and store them in  UMAT
-     HElement_t(dp),  ALLOCATABLE :: UMAT_TC2(:,:,:)
+     HElement_t(dp),  ALLOCATABLE :: UMAT_TC2(:,:,:)  
+     HElement_t(dp),  ALLOCATABLE ::  UMAT_TC2_Contact(:), UMAT_TC2_Contact3D(:,:,:)
      real(dp) :: ktc_cutoff2,omega_p
 
 contains
@@ -371,15 +374,16 @@ contains
 !  the following fun is modified for transcorrelated Hamiltonian under RPA approx     
     function get_ueg_umat_el (idi, idj, idk, idl) result(hel)
 
-        use SystemData, only: tUEG2, kvec, k_lattice_constant, dimen
+        use SystemData, only: tUEG2, kvec, k_lattice_constant, dimen,PotentialStrength,TranscorrCutoff,nOccAlpha,nOccBeta
         integer, intent(in) :: idi, idj, idk, idl
         HElement_t(dp) :: hel
-        integer :: i, j, k, l, a, b, c, iss, id1, id2, id3, id4
-        real(dp) :: G, G2
-        real(dp) :: k_tc(3), pq_tc(3), u_tc, gamma_RPA, gamma_kmax
+        integer :: i, j, k, l, a, b, c, iss, id1, id2, id3,id4,kmax,nsigma,sumind
+        real(dp) :: G, G2,prefack,sprod
+        real(dp) :: k_tc(3), pq_tc(3), u_tc, gamma_RPA, gamma_kmax,kveclength
         logical :: tCoulomb, tExchange          
         real(dp), parameter :: EulersConst = 0.5772156649015328606065120900824024_dp
         character(*), parameter :: this_routine = 'get_ueg_umat_el'
+
 
         ! Initialisation to satisfy compiler warnings
         hel = 0
@@ -458,8 +462,6 @@ contains
         if ( ((G1(l)%k(1) - G1(j)%k(1)) == a) .and. &
              ((G1(l)%k(2) - G1(j)%k(2)) == b) .and. &
              ((G1(l)%k(3) - G1(j)%k(3)) == c) ) then
-
-
 
             if ( (a /= 0) .or. (b /= 0) .or. (c /= 0) ) then
                 ! WRITE(6,*) "(",I,J,"|",K,L,")",A,B,C
@@ -548,7 +550,7 @@ contains
         else
             hel = 0
         endif
-      else if(dimen==2)then
+     else if(dimen==2)then
         ! The Uniform Electron Gas
         a = G1(i)%k(1) - G1(k)%k(1)
         b = G1(i)%k(2) - G1(k)%k(2)
@@ -640,13 +642,341 @@ contains
 
     
     
+!  the following fun is modified for transcorrelated Hamiltonian under RPA approx     
+    function get_ueg_umat_el (idi, idj, idk, idl) result(hel)
+
+        use SystemData, only: kvec, k_lattice_constant, dimen,PotentialStrength,TranscorrCutoff,nOccAlpha,nOccBeta
+        integer, intent(in) :: idi, idj, idk, idl
+        HElement_t(dp) :: hel
+        integer :: i, j, k, l, a, b, c, iss, id1, id2, id3,id4,kmax,nsigma,sumind
+        real(dp) :: G, G2,prefack,sprod
+        real(dp) :: k_tc(3), pq_tc(3), u_tc, gamma_RPA, gamma_kmax,kveclength
+        logical :: tCoulomb, tExchange          
+        real(dp), parameter :: EulersConst = 0.5772156649015328606065120900824024_dp
+        character(*), parameter :: this_routine = 'get_ueg_umat_el'
+
+
+        ! Initialisation to satisfy compiler warnings
+        hel = 0
+
+        !==================================================      
+        ISS = nBasisMax(2,3) ! ick
+
+        i = idi
+        j = idj 
+        k = idk
+        l = idl 
+
+        tCoulomb = .false.
+        tExchange = .false.
+
+        if ( (i == k) .and. (j == l) ) tCoulomb = .true.
+        if ( (i == l) .and. (j == k) ) tExchange = .true.
+
+        
+     if(dimen==3)then
+        ! The Uniform Electron Gas
+        a = G1(i)%k(1) - G1(k)%k(1)
+        b = G1(i)%k(2) - G1(k)%k(2)
+        c = G1(i)%k(3) - G1(k)%k(3)
+
+        if ( ((G1(l)%k(1) - G1(j)%k(1)) == a) .and. &
+             ((G1(l)%k(2) - G1(j)%k(2)) == b) .and. &
+             ((G1(l)%k(3) - G1(j)%k(3)) == c) ) then
+
+                if (t_ueg_transcorr) then !transcorr
+
+                        kmax=TranscorrCutoff
+                        kveclength=dsqrt(dfloat(a**2+b**2+c**2))
+                        prefack=2*PI/ALAT(1)
+                        if(G1(i)%Ms.eq.G1(j)%Ms) then !parallel spin case
+
+                                hel=0
+                                if(kveclength.ge.kmax.and.trpa_tc) then
+                                        G2 = kveclength*prefack
+                                        if(G1(i)%Ms.eq.-1) then
+                                                nsigma=nOccAlpha
+                                        else
+                                                nsigma=nOccBeta
+                                        endif
+                                        hel=-nsigma*2*PI**2/G2**4/ALAT(1)**3
+
+!                                       write(6,*)'spin par',hel
+                                endif
+
+
+                        else !anti-parallel spin case
+
+
+                                hel = UMAT_TC2_Contact3D(abs(a),abs(b),abs(c))!/ PI**2
+                                if(kveclength.ge.kmax ) then
+                                         k_tc(1) = prefack * a
+                                         k_tc(2) = prefack * b
+                                         k_tc(3) = prefack * c
+                                         G2 = kveclength*prefack
+                                         pq_tc(1) = (G1(k)%k(1) -G1(l)%k(1))*prefack
+                                         pq_tc(2) = (G1(k)%k(2) -G1(l)%k(2))*prefack
+                                         pq_tc(3) = (G1(k)%k(3) -G1(l)%k(3))*prefack
+
+                                         sprod=0.d0
+                                         do sumind=1,3
+                                                sprod=sprod+pq_tc(sumind)*k_tc(sumind)
+                                         enddo
+
+!                                       write(6,*)'spin apar',hel,
+!                                       2*PI**2/G2,-sprod*2*PI**2/G2**3
+                                         hel = hel + 2*PI**2/G2 -sprod*2*PI**2/G2**3
+                                end if
+
+                        endif
+
+                        hel = hel/ALAT(1)**3
+
+!                       write(6,*)'in hel'
+!                       write(6,*)hel, PotentialStrength, ALAT(1)
+
+                else    !renormalization
+
+                                write(6,*)G1(i)%Ms,G1(j)%Ms
+                        if(G1(i)%Ms.ne.G1(j)%Ms) then   ! we only have interaction between antiparallel femrions
+                                write(6,*)"Can I get in the if cond?"
+                                stop
+                                hel=-4.d0*PI/(2.442749d0*dfloat(2*abs(NBASISMAX(1,2))+1))
+                        else
+                                hel=0.d0
+                        endif
+
+                endif !transcorr or renormalization
+          
+        else
+            hel = 0
+        endif
+
+      elseif(dimen==1) then
+
+         write(6,*) '1D case should came here...' 
+               stop
+ 
+      else
+        write(6,*)'dimension error in get_ueg_umat_el',dimen
+        stop
+      end if  
     
     
  
     
     
-    
-   
+      subroutine GEN_Umat_TC_Contact
+        use SystemData, only: dimen,PotentialStrength,TranscorrCutoff,TranscorrIntCutoff
+        use SystemData, only: tUnitary
+!       use Determinants, only: FDet
+        use sym_mod, only: roundsym, addelecsym, setupsym, lchksym
+        type(BasisFn) :: ka, kb
+        integer :: i,j,k,shifti,shiftj,shiftk,diffi,diffj,diffk,sprodi,sprodij
+        real(dp) :: sprod,length,difflength
+        integer :: AllocateStatus,kmax,kmaxcutoff
+        integer :: maxj,mink,maxk,maxshiftj,maxshiftk,twokmax,signk
+        integer :: shiftmaxj, shiftmaxk
+        integer :: TrCutoffRead, TrIntCutoffRead, KmaxRead
+        type(timer), save :: proc_timer
+        logical :: tfile_exists
+
+        real(dp) :: summasumma,prefactk,restofsum
+        character(*), parameter :: this_routine = 'GEN_Umat_TC_Contact'
+        character(LEN=100) :: dummyword
+
+
+        proc_timer%timer_name = this_routine
+        call set_timer (proc_timer)
+
+
+
+
+      kmax=abs(NBASISMAX(1,2))
+      twokmax=2*kmax
+      if(TranscorrCutoff.gt.0) then
+                kmaxcutoff=TranscorrCutoff
+      else
+                kmaxcutoff=kmax
+      endif
+
+      if(dimen==1) then
+
+        ALLOCATE ( UMAT_TC2_Contact(0:2*kmax), STAT = AllocateStatus)
+        IF (AllocateStatus /= 0) STOP "*** Not enough memory for UMAT_TC2 ***"
+        prefactk=-ALAT(1)*PotentialStrength**2/2.d0/PI**2
+
+!       k=0
+        summasumma=PI**2/6
+        do i=1, kmaxcutoff-1
+           summasumma=summasumma-1.d0/dfloat(i)**2
+        enddo !i
+
+        UMAT_TC2_Contact(0)=summasumma
+
+
+!       k=!0
+        UMAT_TC2_Contact(1) = 1.d0/dfloat(kmaxcutoff)
+        do i=2, 2*kmax
+           UMAT_TC2_Contact(i)=UMAT_TC2_Contact(i-1)+1.d0/dfloat(kmaxcutoff+i-1)
+        enddo !i
+
+        do i=1, 2*kmax
+           UMAT_TC2_Contact(i)=UMAT_TC2_Contact(i)/i
+        enddo !i
+
+        if(kmaxcutoff.le.kmax) then
+
+          do i=2*kmaxcutoff, 2*kmax
+           summasumma=0.d0
+           do j=kmaxcutoff, i-kmaxcutoff
+                summasumma=summasumma+1.d0/(dfloat(j)*dfloat(i-j))
+           enddo
+
+           UMAT_TC2_Contact(i)=UMAT_TC2_Contact(i)-summasumma/2.d0
+
+          enddo !i
+        endif
+
+!        write(6,*)'Umat TC'
+!        write(6,*)kmax
+!        write(6,*)UMAT_TC2_Contact(0:2*kmax)
+
+         UMAT_TC2_Contact(0:2*kmax)=prefactk*UMAT_TC2_Contact(0:2*kmax)
+
+      elseif(dimen.eq.3.and.tUnitary) then
+        ALLOCATE ( UMAT_TC2_Contact3D(0:twokmax,0:twokmax,0:twokmax), STAT = AllocateStatus)
+        IF (AllocateStatus /= 0) STOP "*** Not enough memory for UMAT_TC2 ***"
+
+        if(tInfSumTCPrint) then
+                open(32,file='TranscorrInfSum',status='unknown')
+                write(32,*)"TrcorrCutoff=", kmaxcutoff
+                write(32,*)"TrcorrIntCutoff=", TranscorrIntCutoff
+                write(32,*)"Kmax=", kmax
+        endif
+
+
+        if(tInfSumTCCalc) then
+        prefactk=(ALAT(1)/4.d0)
+        !using the integral approximation
+        restofsum=-4*PI/TranscorrIntCutoff
+!       As the value is symmetric by exchanging i,j,k directions. We consider
+!       only the i>=j>=k cases.
+        do shifti=0,twokmax
+!          shiftmaxj=min(int(dsqrt(dfloat(twokmax**2-shifti**2))),shifti)
+           shiftmaxj=shifti
+        do shiftj=0,shiftmaxj
+!          shiftmaxk=min(int(dsqrt(dfloat(twokmax**2-shifti**2-shiftj**2))),shiftj)
+           shiftmaxk=shiftj
+        do shiftk=0,shiftmaxk
+           summasumma=restofsum
+                do i=-TranscorrIntCutoff+1,TranscorrIntCutoff-1
+                        diffi=shifti-i
+                        sprodi=i*diffi
+                        maxj=int(dsqrt(dfloat(TranscorrIntCutoff**2-i**2)))
+                do j=-maxj,maxj
+                        diffj=shiftj-j
+                        sprodij=j*diffj+sprodi
+                        maxk=int(dsqrt(dfloat(TranscorrIntCutoff**2-i**2-j**2)))
+                do k=-maxk,maxk
+                        length=dsqrt(dfloat(i**2+j**2+k**2))
+                        if(length.ge.TranscorrIntCutoff.or.length.lt.kmaxcutoff) cycle
+                        diffk=shiftk-k
+                        difflength=dsqrt(dfloat(diffi**2+diffj**2+diffk**2))
+!                        write(6,*)'diff', diffi,diffj,diffk
+                        if(difflength.lt.kmaxcutoff) cycle
+                         sprod=dfloat(k*diffk+sprodij)
+                        summasumma=summasumma+sprod/(length**3*difflength**3)
+!                       write(6,*)'summasumma',i,j,k,summasumma,sprod/(length**3*difflength**3)
+                enddo !k
+                enddo !j
+                enddo !i 
+!                       write(6,*)'summasumma',shifti,shiftj,shiftk,summasumma
+!                      if(shiftk.eq.1) stop
+          summasumma=prefactk*summasumma
+          UMAT_TC2_Contact3D(shifti,shiftj,shiftk)=summasumma
+          if(tInfSumTCPrint) write(32,*)shifti,shiftj,shiftk,summasumma
+          if(shifti.gt.shiftj)  then
+                UMAT_TC2_Contact3D(shiftj,shifti,shiftk)=summasumma
+                UMAT_TC2_Contact3D(shiftk,shiftj,shifti)=summasumma
+                if(shiftj.gt.shiftk) then
+                        UMAT_TC2_Contact3D(shiftj,shiftk,shifti)=summasumma
+                        UMAT_TC2_Contact3D(shiftk,shifti,shiftj)=summasumma
+                        UMAT_TC2_Contact3D(shifti,shiftk,shiftj)=summasumma
+                endif
+          else
+              if(shiftj.gt.shiftk) then
+                UMAT_TC2_Contact3D(shifti,shiftk,shiftj)=summasumma
+                UMAT_TC2_Contact3D(shiftk,shifti,shiftj)=summasumma
+              endif
+          endif
+        enddo !shiftk
+        enddo !shiftj
+        enddo !shifti
+
+        elseif(tInfSumTCRead) then
+                INQUIRE(FILE="TranscorrInfSum", EXIST=tfile_exists)
+                if(.not.tfile_exists) stop "TranscorrInfSum is cannot be found!"
+                open(32,file='TranscorrInfSum',status='unknown')
+
+                read(32,*)dummyword, trcutoffread
+                if(trcutoffread.ne.kmaxcutoff) then
+                        stop "The value of TrCutoff is different in TranscorrInfSum."
+                endif
+
+                read(32,*)dummyword, trintcutoffread
+                if(trintcutoffread.ne.TranscorrIntCutoff) then
+                        stop "The value of TranscorrIntCutoff is different in TranscorrInfSum."
+                endif
+
+                read(32,*)dummyword, kmaxread
+                if(kmaxread.lt.kmax) then
+                        stop "The value of kmax is larger than kmaxread in TranscorrInfSum."
+                endif
+
+                do
+                read(32,*,end=32) shifti,shiftj,shiftk,summasumma
+                if(shifti.le.twokmax.and.shiftj.le.twokmax.and.shiftk.le.twokmax) then
+                        UMAT_TC2_Contact3D(shifti,shiftj,shiftk)=summasumma
+                        if(shifti.gt.shiftj)  then
+                                UMAT_TC2_Contact3D(shiftj,shifti,shiftk)=summasumma
+                                UMAT_TC2_Contact3D(shiftk,shiftj,shifti)=summasumma
+                                if(shiftj.gt.shiftk) then
+                                        UMAT_TC2_Contact3D(shiftj,shiftk,shifti)=summasumma
+                                        UMAT_TC2_Contact3D(shiftk,shifti,shiftj)=summasumma
+                                        UMAT_TC2_Contact3D(shifti,shiftk,shiftj)=summasumma
+                                endif
+                        else
+                                if(shiftj.gt.shiftk) then
+                                        UMAT_TC2_Contact3D(shifti,shiftk,shiftj)=summasumma
+                                        UMAT_TC2_Contact3D(shiftk,shifti,shiftj)=summasumma
+                                endif
+                        endif
+                endif
+                enddo
+32              write(6,*)"The values of inifinite sums are readed from TranscorrInfSum."
+        endif
+
+
+        if(tInfSumTCPrint.or.tInfSumTCRead) close(32)
+      else
+!       write(6,*) 'dimension error in GEN_Umat_TC', dimen
+!       stop
+      endif
+
+!     write(6,*)'UMAT_TC2_Contact3D'
+
+!     do i=0, twokmax
+!     do j=0, twokmax
+!     do k=0, twokmax
+!       write(6,*)i,j,k,UMAT_TC2_Contact3D(i,j,k)
+!     enddo
+!     enddo
+!     enddo
+!     stop
+
+      call halt_timer(proc_timer)
+    end subroutine
     
     
      subroutine GEN_Umat_TC

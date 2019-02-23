@@ -271,7 +271,7 @@ subroutine NECICalcInit(iCacheFlag)
     !=                                calculation.
 
     use System, only : SysInit
-    use SystemData, only : tRotateOrbs,tFindCINatOrbs,tUEG,t_ueg_transcorr,t_ueg_dump
+    use SystemData, only : tRotateOrbs,tFindCINatOrbs,tUEG,t_ueg_transcorr,t_ueg_dump,tContact
     use Integrals_neci, only : IntInit,IntFreeze,tPostFreezeHF,DumpFCIDUMP, &
          InitIntBuffers
     use IntegralsData, only : tDumpFCIDUMP
@@ -281,7 +281,7 @@ subroutine NECICalcInit(iCacheFlag)
     use HFCalc, only: HFDoCalc
     use RotateOrbsMod, only : RotateOrbs
     use replica_data, only: init_replica_arrays
-    use gen_coul_ueg_mod, only: GEN_Umat_TC,prep_ueg_dump
+    use gen_coul_ueg_mod, only: GEN_Umat_TC,prep_ueg_dump, GEN_Umat_TC_Contact
     
     implicit none
     integer,intent(in) :: iCacheFlag
@@ -319,8 +319,14 @@ subroutine NECICalcInit(iCacheFlag)
 !                  LogAlloc(ierr, 'UMat_TC3', int(UMatInt),HElement_t_SizeB, tagUMat)
 !                  UMat_TC3 = 0.0_dp
 !                  WRITE(6,*) "Size of UMat_TC3 is: ",UMATINT
-                   
-                   call GEN_Umat_TC
+                  
+                 If(tContact) then
+                      call GEN_Umat_TC_contact
+                 else
+                      call GEN_Umat_TC
+                 endif
+                write(6,*) "The infinite sums for the transcorrelated approach is determined." 
+ 
               if(t_ueg_dump) call prep_ueg_dump
                    
       

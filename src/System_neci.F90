@@ -683,7 +683,6 @@ system: do
         ! Options for transcorrelated method (only: UEG 2D 3D, Homogeneous 1D 3D
         ! gas with contact interaction)
          case("TRANSCORRCUTOFF")
-           tTranscorr=.true.
            call geti(TranscorrCutoff)
            if(tContact.and.dimen.eq.3) then
                 tInfSumTCCalc=.true.
