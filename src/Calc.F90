@@ -1339,6 +1339,14 @@ contains
                         ss_space_in%tApproxSpace = .true.
                     end if
                 end if
+            case("POPS-CORE-AUTO")
+                ! this keyword will force intialisation of core space after
+                ! constant shift mode ends.
+                ss_space_in%tPops = .true.
+                ss_space_in%tPopsAuto = .true.
+                tSemiStochastic = .false.
+                tStartCoreGroundState = .false.
+                semistoch_shift_iter = 1
             case("POPS-CORE-APPROX")
                 ss_space_in%tPops = .true.
                 ss_space_in%tApproxSpace = .true.

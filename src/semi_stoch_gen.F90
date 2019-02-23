@@ -36,6 +36,7 @@ contains
         use FciMCData, only: TotWalkers, TotWalkersOld, indices_of_determ_states, SpawnedParts
         use FciMCData, only: FDetermTag, FDetermAvTag, PDetermTag, IDetermTag
         use FciMCData, only: tStartCoreGroundState, iter_data_fciqmc, SemiStoch_Init_Time
+        use FciMCData, only: NoInitDets, AllNoInitDets
         use FciMCData, only: tFillingStochRdmOnFly
         use load_balance, only: adjust_load_balance
         use load_balance_calcnodes, only: tLoadBalanceBlocks
@@ -44,7 +45,7 @@ contains
 
         type(subspace_in) :: core_in
 
-        integer :: i, j, ierr
+        integer :: i, j, ierr, run
         integer :: nI(nel)
         integer(MPIArg) :: mpi_temp
         character (len=*), parameter :: t_r = "init_semi_stochastic"
@@ -73,7 +74,8 @@ contains
 
         if (.not. (tStartCAS .or. core_in%tPops .or. core_in%tDoubles .or. core_in%tCAS .or. core_in%tRAS .or. &
                    core_in%tOptimised .or. core_in%tLowE .or. core_in%tRead .or. core_in%tMP1 .or. &
-                   core_in%tFCI .or. core_in%tHeisenbergFCI .or. core_in%tHF)) then
+                   core_in%tFCI .or. core_in%tHeisenbergFCI .or. core_in%tHF .or. &
+               core_in%tPopsAuto)) then
             call stop_all("init_semi_stochastic", "You have not selected a semi-stochastic core space to use.")
         end if
         if (.not. tUseRealCoeffs) call stop_all(t_r, "To use semi-stochastic you must also use real coefficients.")
@@ -82,6 +84,23 @@ contains
         ! SpawnedParts on the correct processor. As they do this, they count the size of the
         ! deterministic space (on their own processor only).
         write(6,'("Generating the deterministic space...")'); call neci_flush(6)
+        if (core_in%tPopsAuto) then
+            write(6,'("Choosing 10% of initiator space as core space, if this number is larger than 50000, then use 50000")')
+            call neci_flush(6)
+            ! from my understanding npops refers to the total core space size
+            do run = 1, inum_runs
+                write(6,'("Estimated size of core space:",1X,i5)') int(AllNoInitDets(run)*0.1)
+                call neci_flush(6)
+                if (int(AllNoInitDets(run)*0.1) > 50000) then
+                    core_in%npops = 50000
+                else
+                    core_in%npops = int(AllNoInitDets(run)*0.1)
+                end if
+            end do
+            ! might also need to check if the total space is too large so that
+            ! tApproxSpace should be used instead...
+        end if
+
         if (core_in%tApproxSpace) write(6,'(" ... approximately using the factor of",1X,i5)') core_in%nApproxSpace
         call generate_space(core_in)
 
