@@ -26,6 +26,22 @@ contains
 
   subroutine initSltCndPtr()
     implicit none
+   if(TContact) then
+        
+    if(t_mol_3_body.or.t_ueg_3_body) then
+       sltcnd_0 => sltcnd_0_tc_ua
+       sltcnd_1 => sltcnd_1_tc_ua
+       sltcnd_2 => sltcnd_2_tc_ua
+       sltcnd_3 => sltcnd_3_tc_ua
+    else
+       sltcnd_0 => sltcnd_0_base_ua
+       sltcnd_1 => sltcnd_1_base_ua
+       sltcnd_2 => sltcnd_2_base_ua
+       sltcnd_3 => sltcnd_3_base
+    end if
+
+   else
+
     if(t_mol_3_body.or.t_ueg_3_body) then
        sltcnd_0 => sltcnd_0_tc
        sltcnd_1 => sltcnd_1_tc
@@ -37,6 +53,8 @@ contains
        sltcnd_2 => sltcnd_2_base
        sltcnd_3 => sltcnd_3_base
     end if
+
+   endif
   end subroutine initSltCndPtr
 
 
@@ -553,5 +571,59 @@ contains
 
       print *, "Add", a,b,c,i,j,k,neg*get_lmat_el(a,b,c,i,j,k)
     end subroutine debugOut
+
+  !------------------------------------------------------------------------------------------!
+  !      slater condon rules for ultracold atoms
+  !------------------------------------------------------------------------------------------!
+
+    function sltcnd_0_base_ua (nI) result(hel)
+      use constants, only: dp
+      use SystemData, only: nel
+      implicit none
+        ! Calculate the  by the SlaterCondon Rules when the two
+        ! determinants are the same (so we only need to specify one).
+
+        integer, intent(in) :: nI(nel)
+        HElement_t(dp) :: hel, hel_sing, hel_doub, hel_tmp
+        integer :: id(nel), i, j
+
+        ! Sum in the one electron integrals (KE --> TMAT)
+        hel_sing = sum(GetTMATEl(nI, nI))
+
+        ! Obtain the spatial rather than spin indices if required
+        id = nI
+        !write(6,*) "****",id(:)
+
+        ! Sum in the two electron contributions. Use max(id...) as we cannot
+        ! guarantee that if j>i then nI(j)>nI(i).
+        hel_doub = (0)
+        hel_tmp = (0)
+        do i=1,nel-1
+            do j=i+1,nel
+                hel_doub = hel_doub + get_2d_umat_el(id(j),id(i))
+!                 write(6,*) idN,idX,idN,idX,get_umat_el (idN,idX,idN,idX)
+            enddo
+        enddo
+
+        ! Exchange contribution only considered if tExch set.
+        ! This is only separated from the above loop to keep "if (tExch)" out
+        ! of the tight loop for efficiency.
+        if (tExch) then
+            do i=1,nel-1
+                do j=i+1,nel
+                    ! Exchange contribution is zero if I,J are alpha/beta
+                    if ((G1(nI(i))%Ms == G1(nI(j))%Ms).or.tReltvy) then
+                        hel_tmp = hel_tmp - get_2d_umat_el_exch (id(j),id(i))
+!                         write(6,*) idN,idX,idX,idN,get_umat_el
+!                         (idN,idX,idX,idN)
+                    endif
+                enddo
+            enddo
+        endif
+        hel = hel_doub + hel_tmp + hel_sing
+
+    end function sltcnd_0_base
+
+
     
 end module

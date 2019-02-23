@@ -1559,7 +1559,11 @@ contains
             endif
         else if (nBasisMax(1,3) == -1) then
             ! UEG integral
-            get_umat_el => get_ueg_umat_el
+            if (tContact) then
+                   get_umat_el => get_contact_umat_el
+            else
+                   get_umat_el => get_ueg_umat_el
+            endif
         endif
 
         ! Note that this comes AFTER the above tests
