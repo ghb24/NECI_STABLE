@@ -102,12 +102,17 @@ void mpi_init_wrap (int * ierr)
     *ierr = MPI_Init (NULL, NULL);
 }
 
+void mpi_initialized_wrap(int * flag, int * ierr)
+{
+  *ierr = MPI_Initialized(flag);
+}
+
 
 //
 // Wrapper for MPI_Finalize
-void mpi_finalize_wrap (int * ierr)
+void mpi_finalize_wrap (int *ierr)
 {
-    *ierr = MPI_Finalize ();
+    *ierr = MPI_Finalize();
 }
 
 
