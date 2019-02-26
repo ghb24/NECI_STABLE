@@ -56,10 +56,10 @@ include( ${CMAKE_CURRENT_LIST_DIR}/contrib/GetGitRevisionDescription.cmake )
 
 include( neci_compiler_flags )
 include( neci_build_bits )
+include( neci_build_types )
 
 if( PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME )
     include( neci_cluster_detection ) # This should go AFTER any automatic tweaking
-    include( neci_build_types )
     include( neci_warnings )
 endif()
 
