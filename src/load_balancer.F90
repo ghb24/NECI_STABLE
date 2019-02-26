@@ -939,6 +939,8 @@ contains
       
     end subroutine count_trial_this_proc
 
+!------------------------------------------------------------------------------------------!
+
     subroutine addNormContribution(CurrentSign, tIsStateDeterm)
       implicit none
       real(dp), intent(in) :: CurrentSign(lenof_sign)
