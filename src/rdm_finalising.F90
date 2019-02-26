@@ -126,7 +126,7 @@ contains
 #ifdef _MOLCAS_
         if (print_2rdm_est) then
 !            NECI_E = rdm_estimates%rdm_energy_tot_accum(1)
-            NECI_E = 5.2d0
+            NECI_E = rdm_estimates%energy_num(1)/rdm_estimates%norm(1)
             call MPIBarrier(ierr)
             call MPIBCast(NECI_E)
             write(6,*) 'NECI_E at rdm_general.f90 ', NECI_E
