@@ -137,7 +137,8 @@ contains
         end if
 #ifdef _MOLCAS_
         if (print_2rdm_est) then
-            NECI_E = rdm_estimates%rdm_energy_tot_accum(1)
+!            NECI_E = rdm_estimates%rdm_energy_tot_accum(1)
+            NECI_E = rdm_estimates%energy_num(1)/rdm_estimates%norm(1)
             call MPIBarrier(ierr)
             call MPIBCast(NECI_E)
             write(6,*) 'NECI_E at rdm_general.f90 ', NECI_E
@@ -675,8 +676,8 @@ contains
         ! Only print non-transition RDMs, for now.
         nrdms_to_print = rdm_defs%nrdms_standard
         call print_rdms_with_spin(rdm_defs, nrdms_to_print, rdm_recv_2, rdm_trace, open_shell)
-        ! intermediate hack: 
-        if (t_calc_double_occ) then 
+        ! intermediate hack:
+        if (t_calc_double_occ) then
             call calc_double_occ_from_rdm(rdm_recv_2, rdm_trace, nrdms_to_print)
         end if
 
@@ -1216,7 +1217,7 @@ contains
             end do
 
             if (RDMExcitLevel == 1) then
-                ! Only non-transition RDMs should be hermitian and obey the 
+                ! Only non-transition RDMs should be hermitian and obey the
                 ! Cauchy-Schwarz inequalityo.
                 do irdm = 1, rdm_defs%nrdms_standard
                     call make_1e_rdm_hermitian(one_rdms(irdm)%matrix, norm_1rdm(irdm))
