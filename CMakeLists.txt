@@ -34,7 +34,7 @@ find_package( MPI_NECI REQUIRED )
 
 # Declare options that this project uses
 # <Package>_NECI has a custom finder that does a bit more work than normal...
-  
+
 neci_add_option(
     FEATURE FFTW
     DEFAULT ON
@@ -118,7 +118,7 @@ list(APPEND NECI_GLOBAL_DEFINES
 )
 
 # Add the source directory as an include path for everything
-include_directories( ${CMAKE_SOURCE_DIR}/src )
+include_directories( ${PROJECT_SOURCE_DIR}/src )
 
 # Include source directory
 
