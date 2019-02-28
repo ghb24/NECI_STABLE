@@ -643,7 +643,7 @@ contains
     
     
 !  the following fun is modified for transcorrelated Hamiltonian under RPA approx     
-    function get_ueg_umat_el (idi, idj, idk, idl) result(hel)
+    function get_contact_umat_el (idi, idj, idk, idl) result(hel)
 
         use SystemData, only: kvec, k_lattice_constant, dimen,PotentialStrength,TranscorrCutoff,nOccAlpha,nOccBeta
         integer, intent(in) :: idi, idj, idk, idl
@@ -653,7 +653,7 @@ contains
         real(dp) :: k_tc(3), pq_tc(3), u_tc, gamma_RPA, gamma_kmax,kveclength
         logical :: tCoulomb, tExchange          
         real(dp), parameter :: EulersConst = 0.5772156649015328606065120900824024_dp
-        character(*), parameter :: this_routine = 'get_ueg_umat_el'
+        character(*), parameter :: this_routine = 'get_contact_umat_el'
 
 
         ! Initialisation to satisfy compiler warnings
@@ -676,13 +676,13 @@ contains
         
      if(dimen==3)then
         ! The Uniform Electron Gas
-        a = G1(i)%k(1) - G1(k)%k(1)
-        b = G1(i)%k(2) - G1(k)%k(2)
-        c = G1(i)%k(3) - G1(k)%k(3)
+        a = G1(j)%k(1) - G1(l)%k(1)
+        b = G1(j)%k(2) - G1(l)%k(2)
+        c = G1(j)%k(3) - G1(l)%k(3)
 
-        if ( ((G1(l)%k(1) - G1(j)%k(1)) == a) .and. &
-             ((G1(l)%k(2) - G1(j)%k(2)) == b) .and. &
-             ((G1(l)%k(3) - G1(j)%k(3)) == c) ) then
+        if ( ((G1(k)%k(1) - G1(i)%k(1)) == a) .and. &
+             ((G1(k)%k(2) - G1(i)%k(2)) == b) .and. &
+             ((G1(k)%k(3) - G1(i)%k(3)) == c) ) then
 
                 if (t_ueg_transcorr) then !transcorr
 
@@ -705,6 +705,7 @@ contains
                                 endif
 
 
+
                         else !anti-parallel spin case
 
 
@@ -723,8 +724,7 @@ contains
                                                 sprod=sprod+pq_tc(sumind)*k_tc(sumind)
                                          enddo
 
-!                                       write(6,*)'spin apar',hel,
-!                                       2*PI**2/G2,-sprod*2*PI**2/G2**3
+!                                       write(6,*)'spin apar',a,b,c,hel,2*PI**2/G2,-sprod*2*PI**2/G2**3
                                          hel = hel + 2*PI**2/G2 -sprod*2*PI**2/G2**3
                                 end if
 
@@ -737,10 +737,7 @@ contains
 
                 else    !renormalization
 
-                                write(6,*)G1(i)%Ms,G1(j)%Ms
                         if(G1(i)%Ms.ne.G1(j)%Ms) then   ! we only have interaction between antiparallel femrions
-                                write(6,*)"Can I get in the if cond?"
-                                stop
                                 hel=-4.d0*PI/(2.442749d0*dfloat(2*abs(NBASISMAX(1,2))+1))
                         else
                                 hel=0.d0
@@ -762,7 +759,7 @@ contains
         stop
       end if  
     
-    
+   end function 
  
     
     
@@ -1423,6 +1420,98 @@ contains
        stop
       end if
             
+    end function
+
+function get_lmat_ua (l1,l2,l3,r1,r2,r3) result(hel)
+!I have a strong feeling that it can be faster if the if condition to the 2 up
+!and one down spins or two down and oen up spins would be brought to one or two
+!subroutine up.
+        use SystemData, only: dimen, TranscorrCutoff
+        integer, intent(in) :: l1,l2,l3,r1,r2,r3
+        integer :: i,j,k,a,b,c,k1(3),k2(3),k3(3)
+        real(dp) :: hel,ak(3),bk(3),ck(3),a3,b3,c3,klength1, klength2
+        logical :: tSpinCorrect
+
+        
+
+     if(dimen==3)then
+
+        if(G1(l1)%Ms.eq.G1(l2)%Ms.and.G1(l1)%Ms.ne.G1(l3)%Ms) then
+          i=l1
+          j=l2
+          k=l3
+          a=r1
+          b=r2
+          c=r3
+          tSpinCorrect=.true.
+        elseif(G1(l1)%Ms.eq.G1(l3)%Ms.and.G1(l1)%Ms.ne.G1(l2)%Ms) then
+          i=l1
+          j=l3
+          k=l2
+          a=r1
+          b=r3
+          c=r2
+          tSpinCorrect=.true.
+        elseif(G1(l2)%Ms.eq.G1(l3)%Ms.and.G1(l1)%Ms.ne.G1(l2)%Ms) then
+          i=l3
+          j=l2
+          k=l1
+          a=r3
+          b=r2
+          c=r1
+          tSpinCorrect=.true.
+        else
+          tSpinCorrect=.false.
+        endif
+        if(tSpinCorrect) then
+        k1(1) = G1(i)%k(1) - G1(a)%k(1)
+        k1(2) = G1(i)%k(2) - G1(a)%k(2)
+        k1(3) = G1(i)%k(3) - G1(a)%k(3)
+
+        klength1=dsqrt(dfloat(k1(1)**2+k1(2)**2+k1(3)**2))
+
+        k2(1) = G1(b)%k(1) - G1(j)%k(1)
+        k2(2) = G1(b)%k(2) - G1(j)%k(2)
+        k2(3) = G1(b)%k(3) - G1(j)%k(3)
+
+        klength2=dsqrt(dfloat(k2(1)**2+k2(2)**2+k2(3)**2))
+
+        k3(1) = G1(k)%k(1) - G1(c)%k(1)
+        k3(2) = G1(k)%k(2) - G1(c)%k(2)
+        k3(3) = G1(k)%k(3) - G1(c)%k(3)
+
+        if(all((k2-k1+k3)==0).and.klength1.gt.TranscorrCutoff.and.klength2.gt.TranscorrCutoff) then
+           ak(1) = 2 * PI * k1(1) / ALAT(1)
+           ak(2) = 2 * PI * k1(2) / ALAT(2)
+           ak(3) = 2 * PI * k1(3) / ALAT(3)
+           bk(1) = 2 * PI * k2(1) / ALAT(1)
+           bk(2) = 2 * PI * k2(2) / ALAT(2)
+           bk(3) = 2 * PI * k2(3) / ALAT(3)
+!          ck(1) = -2 * PI * k3(1) / ALAT(1)
+!          ck(2) = -2 * PI * k3(2) / ALAT(2)
+!          ck(3) = -2 * PI * k3(3) / ALAT(3)
+
+
+           a3=dsqrt(ak(1)*ak(1)+ak(2)*ak(2)+ak(3)*ak(3))**(-3)
+           b3=dsqrt(bk(1)*bk(1)+bk(2)*bk(2)+bk(3)*bk(3))**(-3)
+!          c3=dsqrt(ck(1)*ck(1)+ck(2)*ck(2)+ck(3)*ck(3))**(-3)
+
+           hel= 4.d0*PI**4*a3*b3*(ak(1)*bk(1)+ak(2)*bk(2)+ak(3)*bk(3)) !&
+!               +uu_tc(a2)*uu_tc(c2)*(ak(1)*ck(1)+ak(2)*ck(2)+ak(3)*ck(3))&
+!               +uu_tc(b2)*uu_tc(c2)*(bk(1)*ck(1)+bk(2)*ck(2)+bk(3)*ck(3))
+!           hel=hel/(ALAT(1) * ALAT(2) * ALAT(3))**2/3
+! a permutation factor 3 is missing in other place, so here we ignore the /3
+           hel=hel/(ALAT(1) * ALAT(2) * ALAT(3))**2
+
+         else
+           hel=0.0
+         end if
+        endif !G1(i)%Ms.eq.G1(j)%Ms.and.G1(i)%Ms.ne.G1(k)%Ms
+      else
+       print *, 'at moment Lmat is only available for 3D contact interaction'
+       stop
+      end if
+
     end function
 
 end module

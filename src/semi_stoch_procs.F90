@@ -1114,9 +1114,9 @@ contains
             call calc_determin_hamil_full(full_H)
 
             root_print "deterministic hamiltonian:"
-            if_root
-                call print_matrix(full_H)
-            end_if_root
+!           if_root
+!               call print_matrix(full_H)
+!           end_if_root
 
             allocate(e_values(size(full_H,1)))
             allocate(e_vectors(size(full_H,1),size(full_H,1)))
