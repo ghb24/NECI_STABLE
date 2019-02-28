@@ -4,7 +4,8 @@ module Integrals_neci
     use SystemData, only: tStoreSpinOrbs, nBasisMax, iSpinSkip, &
                           tFixLz, Symmetry, tCacheFCIDUMPInts, &
                           tRIIntegrals, tVASP,tComplexOrbs_RealInts, LMS, ECore, &
-                          t_new_real_space_hubbard, t_trans_corr_hop, t_mol_3_body
+                          t_new_real_space_hubbard, t_trans_corr_hop, t_mol_3_body, &
+                          tContact
 
     use UmatCache, only: tUmat2D, UMatInd, UMatConj, umat2d, tTransFIndx, nHits, &
                          nMisses, GetCachedUMatEl, HasKPoints, TransTable, &
@@ -22,7 +23,7 @@ module Integrals_neci
     use global_utilities
 
     use gen_coul_ueg_mod, only: gen_coul_hubnpbc, get_ueg_umat_el, &
-                                get_hub_umat_el
+                                get_hub_umat_el, get_contact_umat_el
 
     use HElem, only: HElement_t_size, HElement_t_sizeB
 
@@ -1567,6 +1568,7 @@ contains
             ! UEG integral
             if (tContact) then
                    get_umat_el => get_contact_umat_el
+                    write(6,*) 'get_contact_umat_el is setted'
             else
                    get_umat_el => get_ueg_umat_el
             endif

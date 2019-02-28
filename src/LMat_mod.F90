@@ -4,7 +4,7 @@ module LMat_mod
   use SystemData, only: tStoreSpinOrbs, nBasis, tHDF5LMat, t12FoldSym, t_ueg_3_body
   use MemoryManager, only: LogMemAlloc, LogMemDealloc
   use util_mod, only: get_free_unit
-  use gen_coul_ueg_mod, only: get_lmat_ueg
+  use gen_coul_ueg_mod, only: get_lmat_ueg, get_lmat_ua
   use shared_memory_mpi
   use sort_mod
   use ParallelHelper, only: iProcIndex_intra
@@ -467,5 +467,43 @@ module LMat_mod
       
     end subroutine readHDF5LMat
 #endif
+!------------------------------------------------------------------------------------------------
+!functions for contact interaction
+
+    function get_lmat_el_ua(a,b,c,i,j,k) result(matel)
+      use SystemData, only: G1
+      use UMatCache, only: gtID
+      ! Gets an entry of the 3-body tensor L:
+      ! L_{abc}^{ijk} - triple excitation from abc to ijk
+      implicit none
+      integer, value :: a,b,c
+      integer, intent(in) :: i,j,k
+      HElement_t(dp) :: matel
+
+      ! convert to spatial orbs if required
+
+      matel = 0
+      ! only add the contribution if the spins match
+         call addMatelContribution_ua(i,j,k,1)
+         call addMatelContribution_ua(j,k,i,1)
+         call addMatelContribution_ua(k,i,j,1)
+         call addMatelContribution_ua(j,i,k,-1)
+         call addMatelContribution_ua(i,k,j,-1)
+         call addMatelContribution_ua(k,j,i,-1)
+      contains
+
+        subroutine addMatelContribution_ua(p,q,r,sgn)
+          implicit none
+          integer, value :: p,q,r
+          integer, intent(in) :: sgn
+     !     integer(int64) :: ai,bj,ck
+
+          if(G1(p)%ms == G1(a)%ms .and. G1(q)%ms == G1(b)%ms .and. G1(r)%ms ==G1(c)%ms) then
+             matel = matel + sgn * get_lmat_ua(a,b,c,p,q,r)
+          endif
+        end subroutine addMatelContribution_ua
+
+    end function get_lmat_el_ua
 
 end module LMat_mod
+
