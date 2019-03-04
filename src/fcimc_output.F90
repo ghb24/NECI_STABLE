@@ -136,7 +136,7 @@ contains
                   &31.PartsDiffProc    32.|Semistoch|/|Psi|     33.MaxCycSpawn"
            if (tTrialWavefunction .or. tStartTrialLater) then 
                   write(fcimcstats_unit2, "(A)", advance = 'no') &
-                  "  33.TrialNumerator  34.TrialDenom  35.TrialOverlap"
+                  "  34.TrialNumerator  35.TrialDenom  36.TrialOverlap"
               trunc_caption = "  37. TruncWeight"
            else
               trunc_caption = "  34. TruncWeight"
