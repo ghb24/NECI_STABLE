@@ -459,6 +459,8 @@ contains
           SIUpdateInterval = 100
           tAdiActive = .false.
           minSIConnect = 1
+
+          tForceFullPops = .false.
           
           ! Walker scaling with energy
           ! do not use scaled walkers
@@ -965,7 +967,6 @@ contains
                         call write_det(iout, DefDet, .true.)
                     end if
                 end if
-
                 if (tGUGA) then
                     if (.not. isProperCSF_ni(defdet)) then 
                         write(iout,*) " automatic neel-state creation produced invalid CSF!"
@@ -975,21 +976,6 @@ contains
                     end if
                 end if
 
-
-!                 i = 1
-!                 do while(item.lt.nitems)
-!                    call readu(w)
-!                    if(scan(w,"-").eq.0) then
-!                       read(w,*) start
-!                       call setDefdet(i,start)
-!                    else
-!                       call getRange(w, start, end)
-!                       do j = start, end
-!                          call setDefdet(i,j)
-!                       end do
-!                    endif
-!                 end do
-!                 if(i-1.ne.nel) call stop_all(t_r, "Insufficient orbitals given in DEFINEDET")
 
             case("MULTIPLE-INITIAL-REFS")
                 tMultipleInitialRefs = .true.
@@ -1540,6 +1526,19 @@ contains
             case("POPS-CORE")
                 ss_space_in%tPops = .true.
                 call geti(ss_space_in%npops)
+                if (ss_space_in%npops * nProcessors > 1000000) then
+                    if (.not. tForceFullPops) then
+                        ss_space_in%tApproxSpace = .true.
+                    end if
+                end if
+            case("POPS-CORE-AUTO")
+                ! this keyword will force intialisation of core space after
+                ! constant shift mode ends.
+                ss_space_in%tPops = .true.
+                ss_space_in%tPopsAuto = .true.
+                tSemiStochastic = .false.
+                tStartCoreGroundState = .false.
+                semistoch_shift_iter = 1
             case("POPS-CORE-APPROX")
                 ss_space_in%tPops = .true.
                 ss_space_in%tApproxSpace = .true.
@@ -1671,6 +1670,11 @@ contains
             case("POPS-TRIAL")
                 trial_space_in%tPops = .true.
                 call geti(trial_space_in%npops)
+                if (trial_space_in%npops * nProcessors > 1000000) then
+                    if (.not. tForceFullPops) then
+                        trial_space_in%tApproxSpace = .true.
+                    end if
+                end if
             case("POPS-TRIAL-APPROX")
                 trial_space_in%tPops = .true.
                 trial_space_in%tApproxSpace = .true.
@@ -2031,6 +2035,11 @@ contains
                 if (item < nitems) then
                     call getf(pop_change_min)
                 endif
+
+            case("FORCE-FULL-POPS")
+                tForceFullPops = .false.
+                ss_space_in%tApproxSpace = .false.
+                trial_space_in%tApproxSpace = .false.
 
             case("NO-CHANGEREF")
 

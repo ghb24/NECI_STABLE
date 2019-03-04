@@ -493,6 +493,18 @@ contains
                 ! replica, for this particular RDM.
                 dest_part_type = rdm_defs%sim_pairs(irdm, source_part_type)
 
+! <<<<<<< HEAD
+!                 ! if we only sum in initiator contriubtions, check the flags here
+!                 if(.not. tNonInits) then
+!                    if(.not. btest(Spawned_Parents(NIfDBO+2,i),get_initiator_flag_by_run(&
+!                         part_type_to_run(source_part_type))) .or. &
+!                         .not. test_flag(ilutJ, part_type_to_run(dest_part_type))) cycle
+!                    ! if a non-initiator is participating in this case, do not sum in
+!                    ! that contribution
+!                 endif
+! 
+! =======
+! >>>>>>> all_doubs_initiators
                 ! The label of the RDM that this is contributing to.
                 rdm_ind = rdm_defs%rdm_labels(irdm, source_part_type)
 

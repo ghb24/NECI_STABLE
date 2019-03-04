@@ -15,6 +15,7 @@ MODULE PopsfileMod
                         t_restart_hist_tau, t_fill_frequency_hists, t_previous_hist_tau, &
                         t_read_probs, &
                         t_hist_tau_search_option, hdf5_diagsft, tAutoAdaptiveShift
+
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt, get_bit_excitmat
 

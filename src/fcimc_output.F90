@@ -14,6 +14,7 @@ module fcimc_output
                            tWriteConflictLvls,&
                            iHighPopWrite, tLogEXLEVELStats, &
                            maxInitExLvlWrite, AllInitsPerExLvl
+
     use hist_data, only: Histogram, AllHistogram, InstHist, AllInstHist, &
                          BeforeNormHist, iNoBins, BinRange, HistogramEnergy, &
                          AllHistogramEnergy

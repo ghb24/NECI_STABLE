@@ -681,7 +681,19 @@ system: do
                 trans_corr_param = 0.5_dp
             end if
 
-                
+         case ("HOLE-FOCUS")
+            t_hole_focus_excits = .true. 
+
+            if (item < nitems) then 
+                call getf(pholefocus)
+            else
+                pholefocus = 0.5_dp
+            end if
+
+         case ("PRECOND-HUB")
+            t_precond_hub = .true.
+
+               
        ! Options for the type of the reciprocal lattice (eg sc, fcc, bcc)
         case("REAL_LATTICE_TYPE")
             call readl(real_lattice_type) 

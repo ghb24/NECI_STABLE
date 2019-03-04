@@ -12,7 +12,7 @@ module fcimc_initialisation
                           tHistSpinDist, tPickVirtUniform, tGen_4ind_reverse, &
                           tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
                           tGUGA, tGen_nosym_guga, &
-                          tGen_sym_guga_ueg, tGen_sym_guga_mol, ref_stepvector, &
+                          ref_stepvector, &
                           ref_b_vector_int, ref_occ_vector, ref_b_vector_real, &
                           tUEGNewGenerator, tGen_4ind_2, tReltvy, t_new_real_space_hubbard, &
                           t_lattice_model, t_tJ_model, t_heisenberg_model, & 
@@ -21,6 +21,7 @@ module fcimc_initialisation
                           tgen_guga_crude, &
                           nOccOrbs, &
                           nClosedOrbs, irrepOrbOffset, nIrreps
+
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
 
     use dSFMT_interface, only: dSFMT_init
@@ -83,6 +84,7 @@ module fcimc_initialisation
                            tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats, &
                            t_spin_measurements,&
                            maxInitExLvlWrite, initsPerExLvl, AllInitsPerExLvl
+
     use DetCalcData, only: NMRKS, tagNMRKS, FCIDets, NKRY, NBLK, B2L, nCycle, &
                            ICILevel, det
     use IntegralsData, only: tPartFreezeCore, nHolesFrozen, tPartFreezeVirt, &
@@ -1543,12 +1545,12 @@ contains
 
             MaxWalkersPart=NINT(MemoryFacPart*MaxWalkersUncorrected)
             ! this hardly makes sense at all - it can even REDUCE the allocated memory
-!            ExpectedMemWalk=real((NIfTot+1)*MaxWalkersPart*size_n_int+8*MaxWalkersPart,dp)/1048576.0_dp
-!            if(ExpectedMemWalk.lt.20.0) then
-!                !Increase memory allowance for small runs to a min of 20mb
-!                MaxWalkersPart=int(20.0*1048576.0/real((NIfTot+1)*size_n_int+8,dp),sizeof_int)
-!                write(iout,"(A)") "Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors"
-!            endif
+            !ExpectedMemWalk=real((NIfTot+1)*MaxWalkersPart*size_n_int+8*MaxWalkersPart,dp)/1048576.0_dp
+            !if(ExpectedMemWalk.lt.20.0) then
+            !    !Increase memory allowance for small runs to a min of 20mb
+            !    MaxWalkersPart=int(20.0*1048576.0/real((NIfTot+1)*size_n_int+8,dp),sizeof_int)
+            !    write(iout,"(A)") "Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors"
+            !endif
             WRITE(iout,"(A,I14)") "Memory allocated for a maximum particle number per node of: ",MaxWalkersPart
             !Here is where MaxSpawned is set up - do we want to set up a minimum allocation here too?
             Call SetupValidSpawned(int(InitWalkers, int64))

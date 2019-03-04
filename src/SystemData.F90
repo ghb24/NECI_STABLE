@@ -348,7 +348,15 @@ real(dp) :: trans_corr_param_2body = 0.0_dp
 ! new transcorrelation implementation with double excitations for the 
 ! real-space hubbard. it comes from a hopping correlation form in real-space
 ! reuse the trans_corr_param variable though!
-logical :: t_trans_corr_hop = .false. 
+logical :: t_trans_corr_hop = .false.
+
+! hole focusing (one body) excitation generator, designed for Hubbard model at extremely large U ragion.
+logical :: t_hole_focus_excits = .false.
+real(dp) :: pholefocus = 0.5_dp
+
+! simple preconditioner for Hubbard model
+logical :: t_precond_hub = .false.
+ 
  
 ! and the other lattice models: 
 logical :: t_tJ_model = .false. 

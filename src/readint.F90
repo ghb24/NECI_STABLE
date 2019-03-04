@@ -252,9 +252,7 @@ contains
          INTEGER , ALLOCATABLE :: MaxSlots(:)
          character(len=*), parameter :: t_r='GETFCIBASIS'
          LOGICAL TBIN
-
          real(dp) :: real_time_Z
-
          logical :: uhf,tRel
          integer :: orbsPerIrrep(nIrreps)
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,OCC,CLOSED,FROZEN,&

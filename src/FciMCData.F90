@@ -98,12 +98,12 @@ MODULE FciMCData
     integer(int64), allocatable :: NoAddedInitiators(:), NoInitDets(:), NoNonInitDets(:)
     real(dp), allocatable :: NoInitWalk(:), NoNonInitWalk(:)
     integer(int64), allocatable :: NoExtraInitDoubs(:), InitRemoved(:)
-    integer :: NoConflicts, AllNoConflicts
-    integer :: maxConflictExLvl
     integer, allocatable :: ConflictExLvl(:), AllConflictExLvl(:)
-    real(dp) :: avSigns, AllAvSigns
     integer(int64), allocatable :: AllNoAddedInitiators(:), AllNoInitDets(:)
     integer(int64), allocatable :: AllNoNonInitDets(:)
+    integer :: NoConflicts, AllNoConflicts
+    integer :: maxConflictExLvl
+    real(dp) :: avSigns, AllAvSigns
     real(dp),allocatable :: AllNoInitWalk(:), AllNoNonInitWalk(:)
     integer(int64), allocatable :: AllNoExtraInitDoubs(:), AllInitRemoved(:)
     integer(int64), allocatable :: AllGrowRateAbort(:)
@@ -334,10 +334,13 @@ MODULE FciMCData
       INTEGER(TagIntType) :: DoublesDetsTag
       INTEGER :: NoDoubs
 
+      ! this is used for logging the excitation level of the unocc dets when
+      ! delaying the deletion
       integer, allocatable :: HolesByExLvl(:)
       integer, allocatable :: AllHolesByExLvl(:)
       integer :: nUnoccDets, AllNUnoccDets
       integer :: maxHoleExLvlWrite
+
 !This is used for the direct annihilation, and ValidSpawnedList(i) indicates the next 
 !free slot in the processor iProcIndex ( 0 -> nProcessors-1 )
       INTEGER , ALLOCATABLE :: ValidSpawnedList(:) 

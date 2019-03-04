@@ -1,7 +1,7 @@
 
 # List the files that ought to be compiled
 
-set( SRC_FILES 
+set( SRC_FILES
 
     adi_references.F90
     adi_initiators.F90
@@ -94,6 +94,7 @@ set( SRC_FILES
     Makefile
     matmul.F
     modifiedHub.F90
+    molcas_interface.F90
     MolproPlugin.F90
     PluginGuest.cpp
     NatOrbs.F90
@@ -253,7 +254,7 @@ endif()
 set( _library_link_libs
     "${LAPACK_NECI_LIBRARIES}"
     "${LIBRT_LIBRARIES}"
-    "${_conditional_libraries}" 
+    "${_conditional_libraries}"
     "${MPI_NECI_LIBRARIES}"
     "${MPI_NECI_Fortran_LIBRARIES}")
 
@@ -274,7 +275,7 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
     message(STATUS "Adding library for configuration ${_config}")
     message(STATUS "Library definitions: ${${PROJECT_NAME}_${_config}_DEFINITIONS}")
     neci_add_library(
-    
+
         TARGET lib${_config}
         TYPE ${_link_type}
         OUTPUT_NAME ${_config}
@@ -283,7 +284,7 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
         LINKER_LANGUAGE Fortran
 
         PRIVATE_INCLUDES
-	    "${MPI_NECI_INCLUDE_PATH}"
+            "${MPI_NECI_INCLUDE_PATH}"
             "${HDF5_NECI_INCLUDE_PATH}"
 
         DEFINITIONS

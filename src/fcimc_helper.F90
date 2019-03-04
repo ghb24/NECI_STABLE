@@ -21,6 +21,7 @@ module fcimc_helper
                         get_initiator_flag, get_initiator_flag_by_run, &
                         flag_determ_parent, &
                         log_spawn, increase_spawn_counter, all_runs_are_initiator
+
     use bit_rep_data, only: flag_large_matel
 
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
@@ -56,6 +57,7 @@ module fcimc_helper
                         t_trunc_nopen_diff, trunc_nopen_diff, t_guga_mat_eles,&
                         tAutoAdaptiveShift, tAAS_MatEle, tAAS_MatEle2, tAAS_Reverse,&
                         tAAS_Reverse_Weighted, tAAS_MatEle3, tAAS_MatEle4, AAS_DenCut
+
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
          tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
 
@@ -158,7 +160,7 @@ contains
 
         !Ensure no cross spawning between runs - run of child same as run of
         !parent
-        
+
         ! this surely does not work - run has to be passed as an argument
         run = part_type_to_run(part_type)
 #ifdef __DEBUG
@@ -2608,6 +2610,7 @@ contains
     end subroutine
 
     function check_semistoch_flags(ilut_child, nI_child, tCoreDet) result(break)
+        use bit_rep_data, only: flag_determ_parent
       integer(n_int), intent(inout) :: ilut_child(0:niftot)
       integer, intent(in) :: nI_child(nel)
       logical, intent(in) :: tCoreDet

@@ -7,7 +7,8 @@ MODULE Determinants
                           tGUGA, STOT, &
                           t_lattice_model, arr, lms, tFixLz, tUEGSpecifyMomentum, &
                           tRef_Not_HF, tMolpro, tHub, tUEG, &
-                          nClosedOrbs, nOccOrbs, nIrreps, tspn, irrepOrbOffset
+                          nClosedOrbs, nOccOrbs, nIrreps, irrepOrbOffset
+
     use IntegralsData, only: UMat, FCK, NMAX
     use csf, only: det_to_random_csf, iscsf, csf_orbital_mask, &
                    csf_yama_bit, CSFGetHelement
@@ -215,7 +216,6 @@ contains
       end do
     end subroutine assignOccOrbs
   End Subroutine DetPreFreezeInit
-
     
     Subroutine DetInit()
      

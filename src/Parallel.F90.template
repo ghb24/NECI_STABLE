@@ -1528,11 +1528,14 @@ supermodule par_internal
 contains
 
     subroutine MPIInit (tExternal)
+        use SystemData, only : tMolcas
 #ifdef MOLPRO
         USE molpro_options, only : molpro_helper_server
+#endif
+        implicit none
+#ifdef MOLPRO
         integer :: iglobal_worker_comm
 #endif
-
         ! Determine the number of processors, and fork each off to its own 
         ! NodeFile output file
         !
@@ -1545,36 +1548,29 @@ contains
         integer(MPIArg) :: ierr
         integer :: a, g
         character(len=20) NodeFile
-        logical, save :: initialised=.false.
+        logical, save :: neci_mpi_initialised = .false.
+        logical(MPIArg) :: initialised
         character(*), parameter :: t_r = 'MPIInit'
-
-#ifdef _MOLCAS_
         character(8) :: MCPUs
-#endif
-
 #ifdef MOLPRO
         integer :: MolpComm
-        character(8) :: MCPUs
 #endif
 
 #ifdef PARALLEL
-        if (.not.initialised) then
-            initialised = .true. !GLM added it for compatibility with Molcas loops
+        if (.not. neci_mpi_initialised) then
+            neci_mpi_initialised = .true.
             nNodes = 0  !Indicate we haven't setup nodes yet
-            
-            if(tExternal) then
-                write(6,*) 'Using external MPI configuration'
-            else 
-#if !(defined(MOLPRO) || defined(_MOLCAS_))
-#ifdef __DEBUG
-                write(6,*) 'Initing MPI'
-#endif
 
+            call MPI_Initialized(initialised, ierr)
+            if (ierr /= MPI_SUCCESS) &
+                call stop_all (t_r, 'MPI Error. Terminating.')
+
+            if (.not. initialised) then
+                write(6,*) 'Initing MPI'
                 call MPI_Init (ierr)
                 if (ierr /= MPI_SUCCESS) &
                     call stop_all (t_r, 'MPI Error. Terminating.')
-#endif
-            endif
+            end if
 
 #ifdef CBINDMPI
             ! Extract the value of MPI_COMM_WORLD from the C-bindings.
@@ -1597,7 +1593,11 @@ contains
                 call stop_all (t_r, 'MPI Error. Terminating.')
 
             call MPI_Comm_size (CommGlobal, nProcess, ierr)
-	    
+            if (tMolcas) then
+                call get_environment_variable('MOLCAS_NPROCS',MCPUs)
+                Read(MCPUS,*) nProcess
+            end if
+
             !initialize intra node and inter node communicators
 #ifdef __SHARED_MEM
             !the 'intra' range is the full node for now.
@@ -1607,17 +1607,12 @@ contains
             call MPI_Comm_split(CommGlobal,iProcIndex_intra,int(iProcIndex,MPIArg),mpi_comm_inter,ierr)
             call MPI_Comm_rank(mpi_comm_inter,iProcIndex_inter,ierr)
 #else
-	    !no sharing between tasks, i.e. the 'intra' task range is 1
+! no sharing between tasks, i.e. the 'intra' task range is 1
             mpi_comm_intra=MPI_COMM_SELF
             iProcIndex_intra=0
              
             mpi_comm_inter=MPI_COMM_WORLD
             iProcIndex_inter=iProcIndex
-#endif
-#ifdef _MOLCAS_
-            ! call getenvf('MOLCAS_CPUS',MCPUs) replaced by the newer env variable MOLCAS_NPROCS
-            call getenvf('MOLCAS_NPROCS',MCPUs)
-            Read(MCPUS,*) nProcess
 #endif
             nProcessors = nProcess
             if (ierr /= MPI_SUCCESS) &

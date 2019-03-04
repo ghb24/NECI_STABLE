@@ -11,7 +11,7 @@ module FciMCParMod
                           tGen_guga_mixed, t_guga_mixed_init, t_guga_mixed_semi, &
                           tReal, t_mixed_excits, tgen_nosym_guga, & 
                           t_crude_exchange_noninits, t_approx_exchange_noninits, &
-                          is_init_guga
+                          is_init_guga, tGen_sym_guga_ueg
 
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
@@ -55,6 +55,7 @@ module FciMCParMod
                             attempt_die_spin_proj
     use rdm_data, only: print_2rdm_est, ThisRDMIter, inits_one_rdms, two_rdm_inits_spawn, &
          two_rdm_inits, rdm_inits_defs, RDMCorrectionFactor, inits_estimates, tSetupInitsEst
+
     use rdm_data_old, only: rdms, one_rdms_old, rdm_estimates_old
 
     use rdm_finalising, only: finalise_rdms
@@ -719,7 +720,6 @@ module FciMCParMod
                      call clear_rdm_list_t(two_rdm_inits)
                   endif
                   call calc_2rdm_estimates_wrapper(rdm_definitions, rdm_estimates, two_rdm_main, en_pert_main)
-
                   if (tOldRDMs) then
                      do irdm = 1, rdm_definitions%nrdms
                         call rdm_output_wrapper_old(rdms(irdm), one_rdms_old(irdm), irdm, rdm_estimates_old(irdm), .false.)
@@ -818,11 +818,10 @@ module FciMCParMod
             if (.not. t_guga_mat_eles) call deallocate_projE_list()
         end if
 #endif
-!
-! >>>>>>> origin/master
         if (t_cc_amplitudes .and. t_plot_cc_amplitudes) then
             call print_cc_amplitudes()
         end if
+
         if(t_hist_fvals) call print_fval_hist(enGrid,arGrid)
 
         ! Remove the signal handlers now that there is no way for the
@@ -1047,7 +1046,7 @@ module FciMCParMod
         use global_det_data, only: set_av_sgn_tot, set_iter_occ_tot
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
         use rdm_data, only: two_rdm_spawn, two_rdm_recv, two_rdm_main, one_rdms
-        use rdm_data, only: rdm_definitions, rdm_estimates
+        use rdm_data, only: rdm_definitions
         use rdm_data_utils, only: communicate_rdm_spawn_t, add_rdm_1_to_rdm_2, clear_rdm_list_t
         use symrandexcit_Ex_Mag, only: test_sym_excit_ExMag 
         ! Iteration specific data
@@ -1234,6 +1233,7 @@ module FciMCParMod
             else
                 walkExcitLevel_toHF = walkExcitLevel
             endif
+
             if (tFillingStochRDMonFly) then
                 ! Set the average sign and occupation iteration which were
                 ! found in extract_bit_rep_avsign.
@@ -1505,13 +1505,12 @@ module FciMCParMod
                                         HElGen, fcimc_excit_gen_store, part_type)
                     end if
                     
-
-                    !If we are fixing the population of reference det, skip spawing into it.
-                    if(tSkipRef(run) .and. all(nJ==projEdet(:,run))) then
-                        !Set nJ to null
-                        nJ(1) = 0
-                    end if
-
+!                     !If we are fixing the population of reference det, skip spawing into it.
+!                     if(tSkipRef(run) .and. all(nJ==projEdet(:,run))) then
+!                         !Set nJ to null
+!                         nJ(1) = 0
+!                     end if
+                   
                     ! If a valid excitation, see if we should spawn children.
                     if (.not. IsNullDet(nJ)) then
 
@@ -1696,6 +1695,9 @@ module FciMCParMod
             if(tInitsRDM) call fill_rdm_diag_wrapper(rdm_inits_defs, two_rdm_inits_spawn, &
                  inits_one_rdms, CurrentDets, int(TotWalkers, sizeof_int), .false.)
             call fill_rdm_diag_wrapper(rdm_definitions, two_rdm_spawn, one_rdms, CurrentDets, int(TotWalkers, sizeof_int))
+            ! if we use the initiator-only rdms as gamma_0, get them in their own entity
+            if(tInitsRDM) call fill_rdm_diag_wrapper(rdm_inits_defs, two_rdm_inits_spawn, &
+                 inits_one_rdms, CurrentDets, int(TotWalkers, sizeof_int), .false.)
         end if
 
         if(tTrialWavefunction .and. tTrialShift)then
@@ -1726,12 +1728,6 @@ module FciMCParMod
             end if
         end if
 
-!             if (t_calc_double_occ) then 
-!                 call calc_double_occ_from_rdm(two_rdm_main, rdm_estimates%norm, &
-!                     inst_rdm_occ)
-!             end if
-
-!        end if
     end subroutine PerformFCIMCycPar
 
     subroutine test_routine()

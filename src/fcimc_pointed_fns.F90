@@ -6,7 +6,8 @@ module fcimc_pointed_fns
                           tGen_sym_guga_mol, t_consider_diff_bias, nSpatOrbs, thub, & 
                           tUEG, nBasis, t_3_body_excits, tgen_guga_crude, & 
                           t_k_space_hubbard, t_new_real_space_hubbard, & 
-                          t_trans_corr_2body, t_trans_corr_hop, tHPHF
+                          t_trans_corr_2body, t_trans_corr_hop, tHPHF, &
+                          t_precond_hub, uhub !temporarily for the symple hubbard preconditioner
 
     use LoggingData, only: tHistExcitToFrom, FciMCDebug
 
@@ -21,6 +22,7 @@ module fcimc_pointed_fns
                         tAdaptiveShift, AdaptiveShiftSigma, AdaptiveShiftF1, AdaptiveShiftF2, &
                         tAutoAdaptiveShift, AdaptiveShiftThresh, AdaptiveShiftExpo, AdaptiveShiftCut, &
                         tAAS_Add_Diag
+
     use DetCalcData, only: FciDetIndex, det
 
     use procedure_pointers, only: get_spawn_helement
@@ -200,7 +202,7 @@ module fcimc_pointed_fns
 #endif
         logical :: t_par
         real(dp) :: temp_prob, pgen_a, dummy_arr(nBasis), cum_sum
-        integer :: ispn
+        integer :: ispn, n_double
 
         integer :: temp_ex(2,ic)
         ! Just in case
@@ -210,6 +212,15 @@ module fcimc_pointed_fns
         ! (if AvMCExcits /= 1.0_dp) then the probability of an excitation
         ! having been chosen, prob, must be altered accordingly.
         prob = prob * AvMCExcits
+        ! the simple preconditioner for hubbard
+       
+        if(t_precond_hub)then
+          ! call EncodeBitDet(DetCurr, ilutnI)
+           N_double = 0
+           do i=1,nBasis/2
+            if(IsOcc(ilutnJ,2*i-1).and.IsOcc(ilutnJ,2*i))N_double=N_double+1
+           end do
+        end if
 
         ! In the case of using HPHF, and when tGenMatHEl is on, the matrix
         ! element is calculated at the time of the excitation generation, 
@@ -450,6 +461,10 @@ module fcimc_pointed_fns
 #endif
 #endif
             end if
+            if(t_precond_hub)then
+             nSpawn = nSpawn / (1.0_dp+n_double*uhub)
+            end if
+
             ! [Werner Dobrautz 4.4.2017:]
             ! apply the spawn truncation, when using histogramming tau-search
             if ((t_truncate_spawns .and. .not. t_truncate_unocc)  .and. abs(nspawn) > &
@@ -516,6 +531,8 @@ module fcimc_pointed_fns
 #else
             child(tgt_cpt) = nSpawn
 #endif
+
+
 
 #if defined(__CMPLX) || !defined(__PROG_NUMRUNS) && !defined(__DOUBLERUN)
         enddo
@@ -726,6 +743,9 @@ module fcimc_pointed_fns
         integer, intent(in) :: WalkExcitLevel
         integer, intent(in), optional :: DetPosition
         character(*), parameter :: t_r = 'attempt_die_normal'
+        
+        integer(kind=n_int) :: iLutnI(0:niftot)
+        integer :: N_double
 
         real(dp) :: probsign, r
         real(dp), dimension(inum_runs) :: fac
@@ -770,7 +790,7 @@ module fcimc_pointed_fns
                     acc = get_acc_spawns(DetPosition, i)
                     if(tAAS_Add_Diag)then
                         tot = tot + Kii*tau
-                        acc = tot + Kii*tau
+                        acc = acc + Kii*tau
                     end if
                     if(population>InitiatorWalkNo)then
                         tmp = 1.0
@@ -789,10 +809,17 @@ module fcimc_pointed_fns
                     shift = DiagSft(i)
                 endif
                 fac(i)=tau*(Kii-shift)
+
                 ! And for tau searching purposes
 
                 call log_death_magnitude (Kii - shift)
             endif
+            
+            if(t_precond_hub)then
+                 fac(i)=fac(i)/(1.0_dp+N_double*uhub)
+            end if 
+           
+            
         enddo
 
         if(any(fac > 1.0_dp)) then

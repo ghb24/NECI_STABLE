@@ -132,7 +132,7 @@ contains
                            SpawnedParts(0:NIfTot, 1:tot_trial_space_size), trial_counts, trial_displs)
 
         call sort(SpawnedParts(0:NIfTot, 1:tot_trial_space_size), ilut_lt, ilut_gt)
-        
+
         call assign_elements_on_procs(tot_trial_space_size, min_elem, max_elem, num_elem)
 
         ! set the size of the entries in con_ht
@@ -228,7 +228,7 @@ contains
 !        call remove_list1_states_from_list2(SpawnedParts, con_space, tot_trial_space_size, con_space_size)
 
         call MPISumAll(con_space_size, tot_con_space_size)
-        ! get the sizes of the connected/trial space on the other procs, for 
+        ! get the sizes of the connected/trial space on the other procs, for
         ! estimating the max size of the buffer
         call MPIAllGather(con_space_size,con_counts,ierr)
         ! allocate buffer for communication of con_ht
@@ -451,7 +451,7 @@ contains
 
 
     subroutine remove_states_not_on_proc(ilut_list, ilut_list_size, update_trial_vector)
-        
+
         use FciMCData, only: trial_wfs
         use load_balance_calcnodes, only: DetermineDetNode
 
@@ -720,8 +720,8 @@ contains
                     if(.not.texist) call stop_all(t_r,'"TRIALSPACE" file not found')
                     open(iunit, file='TRIALSPACE', status='old', position='append')
                 end if
-                
-                do j = 1, trial_space_size 
+
+                do j = 1, trial_space_size
                     do k = 0, NIfDBO
                         write(iunit, '(i24)', advance = 'no') trial_space(k,j)
                     end do
@@ -789,7 +789,7 @@ contains
                         open(iunit, file='TRIALCOMPARE', status='old', position='append')
                     end if
 
-                    do j = 1, trial_space_size 
+                    do j = 1, trial_space_size
                         write(iunit, '(es15.8,3x)', advance = 'no') trial_wfs(1,j)
 
                         call BinSearchParts(trial_space(:,j), MinInd, n_walkers, PartInd, tSuccess)
@@ -884,7 +884,7 @@ contains
         use MemoryManager, only: LogMemDealloc
 
         integer, intent(in) :: nexcit
-    
+
         integer :: i, nclash, hash_val, mode, ierr
         integer :: nI(nel)
 #ifdef __CMPLX
@@ -1042,7 +1042,7 @@ contains
       type(subspace_in) :: trial_in
       integer, intent(in) :: nexcit_calc, nexcit_keep
       logical, intent(in) :: replica_pairs
-      
+
       ! first, clear the current trial wavefunction
       call end_trial_wf()
       ! then, remove the flag from all determinants
