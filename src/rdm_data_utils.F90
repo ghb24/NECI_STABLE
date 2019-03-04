@@ -155,7 +155,7 @@ contains
 
     end subroutine init_one_rdm_t
 
-    subroutine init_rdm_definitions_t(rdm_defs, nrdms_standard, nrdms_transition, states_for_transition_rdm)
+    subroutine init_rdm_definitions_t(rdm_defs, nrdms_standard, nrdms_transition, states_for_transition_rdm,filename)
 
         ! Set up arrays which define which RDMs and tRDMs are being sampled by
         ! specifying which states and FCIQMC simualtions are involved in those
@@ -171,6 +171,7 @@ contains
         type(rdm_definitions_t), intent(out) :: rdm_defs
         integer, intent(in) :: nrdms_standard, nrdms_transition
         integer, intent(in) :: states_for_transition_rdm(:,:) ! (2, nrdms_transition/nreplicas)
+        character(*), intent(in), optional :: filename
 
         integer :: nrdms, irdm, counter
 
@@ -258,6 +259,12 @@ contains
                 rdm_defs%rdm_labels(counter, rdm_defs%sim_labels(1,irdm)) = irdm
             end if
         end do
+
+        if(present(filename)) then
+           rdm_defs%output_file_prefix = filename
+        else
+           rdm_defs%output_file_prefix = 'TwoRDM'
+        endif
 
     end subroutine init_rdm_definitions_t
 
@@ -603,7 +610,7 @@ contains
         type(rdm_spawn_t), intent(inout) :: spawn
         type(rdm_list_t), intent(inout) :: rdm_recv
 
-        integer :: iproc, nelements_old, new_nelements, ierr
+        integer :: iproc, nelements_old, new_nelements, ierr, i
         integer(MPIArg) :: send_sizes(0:nProcessors-1), recv_sizes(0:nProcessors-1)
         integer(MPIArg) :: send_displs(0:nProcessors-1), recv_displs(0:nProcessors-1)
 
@@ -612,11 +619,13 @@ contains
         ! How many rows of data to send to each processor.
         do iproc = 0, nProcessors-1
             send_sizes(iproc) = int(spawn%free_slots(iproc) - spawn%init_free_slots(iproc), MPIArg)
+            ! The displacement of the beginning of each processor's section of the
+            ! free_slots array, relative to the first element of this array.
+            send_displs(iproc) = int(spawn%init_free_slots(iproc)-1,MPIArg)
         end do
 
-        ! The displacement of the beginning of each processor's section of the
-        ! free_slots array, relative to the first element of this array.
-        send_displs = int(spawn%init_free_slots(0:nProcessors-1) - 1, MPIArg)
+        ! this does not work with some compilers
+        !send_displs = int(spawn%init_free_slots(0:nProcessors-1) - 1, MPIArg)
 
         call MPIAlltoAll(send_sizes, 1, recv_sizes, 1, ierr)
 
@@ -642,12 +651,16 @@ contains
         send_displs = send_displs*size(spawn%rdm_send%elements,1)
         recv_displs = recv_displs*size(spawn%rdm_send%elements,1)
 
+        rdm_recv%elements(:,nelements_old+1:) = 0
         ! Perform the communication.
         call MPIAlltoAllv(spawn%rdm_send%elements, send_sizes, send_displs, &
-                          rdm_recv%elements(:,nelements_old+1:), recv_sizes, recv_displs, ierr)
+                          rdm_recv%elements(:,nelements_old+1:), &
+                          recv_sizes, recv_displs, ierr)
 
         ! Now we can reset the free_slots array and reset the hash table.
-        spawn%free_slots = spawn%init_free_slots(0:nProcessors-1)
+        do iproc = 0, nProcessors - 1
+           spawn%free_slots(iproc) = spawn%init_free_slots(iproc)
+        end do
         call clear_hash_table(spawn%rdm_send%hash_table)
 
     end subroutine communicate_rdm_spawn_t
@@ -855,7 +868,7 @@ contains
         ! Take the RDM elements in the rdm_1 object, and add them to the rdm_2
         ! object. The has table for rdm_2 will also be updated. This literally
         ! performs the numerical addition of the two RDM objects.
-        use SystemData, only: nel
+        use SystemData, only: nel, nBasis
         use hash, only: hash_table_lookup, add_hash_table_entry
         use Parallel_neci, only: MPISumAll
 
@@ -881,6 +894,8 @@ contains
         else
            internal_scale_factor = 1.0_dp
         endif
+        
+        if(rdm_1%sign_length .ne. rdm_2%sign_length) call stop_all(t_r,"nrdms mismatch")
 
         do ielem = 1, rdm_1%nelements
             ! Decode the compressed RDM labels.
@@ -893,6 +908,10 @@ contains
             ! Search to see if this RDM element is already in the RDM 2.
             ! If it, tSuccess will be true and ind will hold the position of the
             ! element in rdm.
+            if(any((/i,j,k,l/)<=0) .or. any((/i,j,k,l/)>nBasis)) then
+               write(iout,*) "Invalid rdm element", i,j,k,l,ijkl, ielem, rdm_1%nelements
+               call stop_all(t_r,"Erroneous indices")
+            endif
             call hash_table_lookup((/i,j,k,l/), (/ijkl/), 0, rdm_2%hash_table, rdm_2%elements, ind, hash_val, tSuccess)
 
             if (tSuccess) then

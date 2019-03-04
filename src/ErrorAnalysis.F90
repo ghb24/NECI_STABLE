@@ -1128,6 +1128,7 @@ module errors
     !Routine to just calculate errors from FCIMCStats file
     subroutine Standalone_Errors()
         use sym_mod, only: getsym
+        USE MolproPlugin, only : MolproPluginResult
 #ifdef MOLPRO
         use outputResult
         integer :: nv,ityp(1)
@@ -1224,6 +1225,8 @@ module errors
         if (iroot.eq.1) call clearvar('FCIQMC_ERR')
         call setvar('FCIQMC_ERR',min(ProjE_Err_re,shift_err),'AU',ityp,1,nv,iroot)
 #endif
+        CALL MolproPluginResult('ENERGY',[BestEnergy])
+        CALL MolproPluginResult('FCIQMC_ERR',[min(ProjE_Err_re,shift_err)])
         write(iout,"(/)")
 
     end subroutine Standalone_Errors

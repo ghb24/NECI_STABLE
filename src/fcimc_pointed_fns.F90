@@ -17,7 +17,9 @@ module fcimc_pointed_fns
                         t_matele_cutoff, matele_cutoff, tEN2Truncated, &
                         tTruncInitiator, tSkipRef, t_consider_par_bias, t_truncate_unocc, &
                         tAdaptiveShift, AdaptiveShiftSigma, AdaptiveShiftF1, AdaptiveShiftF2, &
-                        tAutoAdaptiveShift, AdaptiveShiftThresh, AdaptiveShiftExpo, AdaptiveShiftCut
+                        tAutoAdaptiveShift, AdaptiveShiftThresh, AdaptiveShiftExpo, AdaptiveShiftCut, &
+                        tAAS_Add_Diag
+
     use DetCalcData, only: FciDetIndex, det
 
     use procedure_pointers, only: get_spawn_helement
@@ -649,14 +651,16 @@ module fcimc_pointed_fns
 #endif        
         real(dp) :: shift, population, slope, tot, acc, tmp
 
-
-        if(t_precond_hub)then
-           call EncodeBitDet(DetCurr, ilutnI)
-           N_double = 0
-           do i=1,nBasis/2
-            if(IsOcc(ilutnI,2*i-1).and.IsOcc(ilutnI,2*i))N_double=N_double+1
-           end do
-        end if 
+! <<<<<<< HEAD
+!         if(t_precond_hub)then
+!            call EncodeBitDet(DetCurr, ilutnI)
+!            N_double = 0
+!            do i=1,nBasis/2
+!             if(IsOcc(ilutnI,2*i-1).and.IsOcc(ilutnI,2*i))N_double=N_double+1
+!            end do
+!         end if 
+! =======
+! >>>>>>> all_doubs_initiators
 
          
         do i=1, inum_runs
@@ -690,6 +694,10 @@ module fcimc_pointed_fns
                     population = mag_of_run(realwSign, i)
                     tot = get_tot_spawns(DetPosition, i)
                     acc = get_acc_spawns(DetPosition, i)
+                    if(tAAS_Add_Diag)then
+                        tot = tot + Kii*tau
+                        acc = acc + Kii*tau
+                    end if
                     if(population>InitiatorWalkNo)then
                         tmp = 1.0
                     elseif(tot>AdaptiveShiftThresh)then
@@ -736,6 +744,10 @@ module fcimc_pointed_fns
                     print *, "Kii: ", Kii 
                     print *, "weight: ", realwSign
                     print *, "excit_level: ", WalkExcitLevel
+                   print *, "Acc spawns", acc
+                   print *, "Tot spawns", tot
+                   print *, "Diag sft", DiagSft
+                   print *, "Death probability", fac
                     call stop_all(t_r, "Death probability > 2: Algorithm unstable. Reduce timestep.")
                 end if
             else

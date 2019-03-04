@@ -9,7 +9,8 @@ module rdm_filling
     use bit_reps, only: get_initiator_flag_by_run
     use constants
     use rdm_data, only: rdm_spawn_t, rdmCorrectionFactor
-    use CalcData, only: tAdaptiveShift
+    use CalcData, only: tAdaptiveShift, tNonInitsForRDMs, tInitsRDMRef, &
+         tNonVariationalRDMs
     use FciMCData, only: projEDet, ilutRef
     use DetBitOps, only: DetBitEq
 
@@ -17,7 +18,8 @@ module rdm_filling
 
 contains
 
-    subroutine fill_rdm_diag_wrapper(rdm_defs, spawn, one_rdms, ilut_list, ndets, tNonInit)
+    subroutine fill_rdm_diag_wrapper(rdm_defs, spawn, one_rdms, ilut_list, ndets, tNonInit, &
+         tLagrCorr)
 
         ! Loop over all states in ilut_list and see if any signs have just
         ! become unoccupied or become reoccupied. In which case, we have
@@ -36,17 +38,24 @@ contains
         type(one_rdm_t), intent(inout) :: one_rdms(:)
         integer(n_int), intent(in) :: ilut_list(:,:)
         integer, intent(in) :: ndets
-        logical, intent(in), optional :: tNonInit
+        logical, intent(in), optional :: tNonInit, tLagrCorr
 
         integer :: idet, irdm, av_ind_1, av_ind_2
         real(dp) :: curr_sign(lenof_sign), adapted_sign(len_av_sgn_tot)
         real(dp) :: av_sign(len_av_sgn_tot), iter_occ(len_iter_occ_tot)
         logical :: tAllContribs
+        logical :: tLC
 
         if(present(tNonInit)) then
            tAllContribs = tNonInit
         else
            tAllContribs = .true.
+        endif
+
+        if(present(tLagrCorr)) then
+           tLC = tLagrCorr
+        else
+           tLC = .true.
         endif
 
         associate(ind => rdm_defs%sim_labels)
@@ -83,7 +92,7 @@ contains
                 ! reoccupied, so we need to add in diagonal elements and connections to HF
                 if (any(abs(adapted_sign) > 1.e-12_dp)) then
                    if(tAllContribs .or. all_runs_are_initiator(ilut_list(:,idet))) &
-                        call det_removed_fill_diag_rdm(spawn, one_rdms, ilut_list(:,idet), adapted_sign, iter_occ)
+                        call det_removed_fill_diag_rdm(spawn, one_rdms, ilut_list(:,idet), adapted_sign, iter_occ, tLC)
                 end if
 
             end do
@@ -92,7 +101,7 @@ contains
 
     end subroutine fill_rdm_diag_wrapper
 
-    subroutine fill_rdm_diag_currdet_norm(spawn, one_rdms, iLutnI, nI, ExcitLevelI, av_sign, iter_occ, tCoreSpaceDet)
+    subroutine fill_rdm_diag_currdet_norm(spawn, one_rdms, iLutnI, nI, ExcitLevelI, av_sign, iter_occ, tCoreSpaceDet, tLagrCorr)
 
         ! This routine calculates the diagonal RDM contribution, and explicit
         ! connections to the HF, from the current determinant.
@@ -124,19 +133,25 @@ contains
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         integer, intent(in) :: nI(nel), ExcitLevelI
         real(dp), intent(in) :: av_sign(:), iter_occ(:)
-        logical, intent(in), optional :: tCoreSpaceDet
+        logical, intent(in), optional :: tCoreSpaceDet, tLagrCorr
 
         real(dp) :: full_sign(spawn%rdm_send%sign_length), IterDetOcc_all(len_iter_occ_tot)
         integer(n_int) :: SpinCoupDet(0:nIfTot)
         integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel
         integer :: IterLastRDMFill, AvSignIters, IterRDM
         integer :: AvSignIters_new(spawn%rdm_send%sign_length), IterRDM_new(spawn%rdm_send%sign_length)
-        logical :: tUseDet, tInit
+        logical :: tUseDet, tInit, tLC
         integer :: run
 
         tUseDet = tNonInitsForRDMs
         if(.not. tUseDet) then
            tUseDet = all_runs_are_initiator(ilutnI)
+        endif
+        
+        if(present(tLagrCorr)) then
+           tLC = tLagrCorr
+        else
+           tLC = .true.
         endif
 
         if(tUseDet) then
@@ -181,6 +196,7 @@ contains
                          tCoreSpaceDet, IterRDM_new)
                  else
                     full_sign = IterRDM_new*av_sign(1::2)*av_sign(2::2)/2.0_dp
+                    call applyRDMCorrection()
                     call fill_spawn_rdm_diag(spawn, nI, full_sign)
                  end if
 
@@ -204,6 +220,7 @@ contains
                     call fill_diag_1rdm(one_rdms, nI, av_sign, tCoreSpaceDet, IterRDM_new)
                  else
                     full_sign = IterRDM_new*av_sign(1::2)*av_sign(2::2)
+                    call applyRDMCorrection()
                     call fill_spawn_rdm_diag(spawn, nI, full_sign)
                  end if
 
@@ -220,7 +237,7 @@ contains
                     ! in adaptive shift mode, the reference contribution is rescaled
                     ! projEDet has to be the same on all runs
                     if(tAdaptiveShift .and. DetBitEq(ilutRef(:,1), ilutnI) .and. &
-                         tNonInitsForRDMs) &
+                         tNonInitsForRDMs .and. .not. tInitsRDMRef .and. tLC) &
                          full_sign = full_sign + IterRDM_new * rdmCorrectionFactor
                     call fill_spawn_rdm_diag(spawn, nI, full_sign)
                  end if
@@ -231,9 +248,18 @@ contains
 
      endif
 
+     contains 
+
+       subroutine applyRDMCorrection()
+         implicit none
+         if(tAdaptiveShift .and. DetBitEq(ilutRef(:,1), ilutnI) .and. &
+              tNonInitsForRDMs .and. .not. tInitsRDMRef .and. tLC) &
+              full_sign = full_sign + IterRDM_new * rdmCorrectionFactor
+       end subroutine applyRDMCorrection
+
     end subroutine fill_rdm_diag_currdet_norm
 
-    subroutine det_removed_fill_diag_rdm(spawn, one_rdms, iLutnI, av_sign, iter_occ)
+    subroutine det_removed_fill_diag_rdm(spawn, one_rdms, iLutnI, av_sign, iter_occ, tLagrCorr)
 
         ! This routine is called if a determinant is removed from the list of
         ! currently occupied. At this point we need to add in its diagonal
@@ -252,8 +278,16 @@ contains
         type(one_rdm_t), intent(inout) :: one_rdms(:)
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         real(dp), intent(in) :: av_sign(:), iter_occ(:)
+        logical, intent(in), optional :: tLagrCorr
 
         integer :: nI(nel), ExcitLevel
+        logical :: tLC
+
+        if(present(tLagrCorr)) then
+           tLC = tLagrCorr
+        else
+           tLC = .true.
+        endif
 
         ! If the determinant is removed on an iteration that the diagonal
         ! RDM elements are  already being calculated, it will already have
@@ -262,7 +296,7 @@ contains
             call decode_bit_det (nI, iLutnI)
             ExcitLevel = FindBitExcitLevel(iLutHF_True, iLutnI, max_ex_level)
 
-            call fill_rdm_diag_currdet_norm(spawn, one_rdms, iLutnI, nI, ExcitLevel, av_sign, iter_occ, .false.)
+            call fill_rdm_diag_currdet_norm(spawn, one_rdms, iLutnI, nI, ExcitLevel, av_sign, iter_occ, .false., tLC)
         end if
 
     end subroutine det_removed_fill_diag_rdm
@@ -387,6 +421,7 @@ contains
         use FciMCData, only: Spawned_Parents, Spawned_Parents_Index, iLutHF_True
         use rdm_data, only: one_rdm_t, rdm_definitions_t
         use SystemData, only: nel, tHPHF
+        use bit_reps, only: all_runs_are_initiator
 
         type(rdm_definitions_t), intent(in) :: rdm_defs
         type(rdm_spawn_t), intent(inout) :: spawn
@@ -399,9 +434,9 @@ contains
         integer :: i, irdm, rdm_ind, nI(nel), nJ(nel)
         real(dp) :: realSignI
         real(dp) :: input_sign_i(rdm_defs%nrdms), input_sign_j(rdm_defs%nrdms)
-        integer :: dest_part_type, source_part_type
+        integer :: dest_part_type, source_part_type, run
         integer(n_int) :: source_flags
-        logical :: spawning_from_ket_to_bra
+        logical :: spawning_from_ket_to_bra, tNonInitParent
 
         ! Spawning from multiple parents, to iLutJ, which has SignJ.        
 
@@ -427,9 +462,25 @@ contains
             call decode_bit_det (nJ, iLutJ)
 
             realSignI = transfer( Spawned_Parents(NIfDBO+1,i), realSignI )
+            ! if the sign is 0, there is nothing to do, i.e. all contributions will be 0
+            if(abs(realSignI)<eps) cycle
+
             ! The original spawning event (and the RealSignI) came from this
-            ! population.
+            ! population.            
             source_part_type = Spawned_Parents(NIfDBO+3,i)
+            
+            ! if we only sum in initiator contriubtions, check the flags here
+            if(.not. (tNonInits .and. tNonInitsForRDMs)) then
+               tNonInitParent = .false.
+               if(.not. (all_runs_are_initiator(ilutJ) .or. tNonVariationalRDMs)) return
+               do run = 1, inum_runs
+                  if(.not. btest(Spawned_Parents(NIfDBO+2,i),&
+                       get_initiator_flag_by_run(run))) tNonInitParent = .true.
+                  ! if a non-initiator is participating, do not sum in
+                  ! that contribution
+               end do
+               if(tNonInitParent) cycle
+            endif
 
             ! Loop over all RDMs to which the simulation with label
             ! source_part_type contributes to.
@@ -438,15 +489,18 @@ contains
                 ! replica, for this particular RDM.
                 dest_part_type = rdm_defs%sim_pairs(irdm, source_part_type)
 
-                ! if we only sum in initiator contriubtions, check the flags here
-                if(.not. tNonInits) then
-                   if(.not. btest(Spawned_Parents(NIfDBO+2,i),get_initiator_flag_by_run(&
-                        part_type_to_run(source_part_type))) .or. &
-                        .not. test_flag(ilutJ, part_type_to_run(dest_part_type))) cycle
-                   ! if a non-initiator is participating in this case, do not sum in
-                   ! that contribution
-                endif
-
+! <<<<<<< HEAD
+!                 ! if we only sum in initiator contriubtions, check the flags here
+!                 if(.not. tNonInits) then
+!                    if(.not. btest(Spawned_Parents(NIfDBO+2,i),get_initiator_flag_by_run(&
+!                         part_type_to_run(source_part_type))) .or. &
+!                         .not. test_flag(ilutJ, part_type_to_run(dest_part_type))) cycle
+!                    ! if a non-initiator is participating in this case, do not sum in
+!                    ! that contribution
+!                 endif
+! 
+! =======
+! >>>>>>> all_doubs_initiators
                 ! The label of the RDM that this is contributing to.
                 rdm_ind = rdm_defs%rdm_labels(irdm, source_part_type)
 
@@ -647,6 +701,11 @@ contains
         else
             full_sign = realSignI*realSignJ
         end if
+
+        if(any(Ex(:,1)<=0)) then
+           write(iout,*) "Error: invalid Ex", Ex, nI, nJ, nel, tParity
+           call stop_all("Debug","Got ill-posed Excitation matrix")
+        endif
 
         if ((Ex(1,2) .eq. 0) .and. (Ex(2,2) .eq. 0)) then
             

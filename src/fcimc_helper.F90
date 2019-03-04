@@ -14,8 +14,8 @@ module fcimc_helper
                         extract_sign, set_flag, encode_sign, &
                         flag_trial, flag_connected, flag_deterministic, &
                         extract_part_sign, encode_part_sign, decode_bit_det, &
-                        get_initiator_flag, get_initiator_flag_by_run, flag_determ_parent, &
-                        log_spawn, increase_spawn_counter
+                        get_initiator_flag, get_initiator_flag_by_run, &
+                        log_spawn, increase_spawn_counter, all_runs_are_initiator
 
     use bit_rep_data, only: flag_large_matel
 
@@ -39,7 +39,7 @@ module fcimc_helper
     use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, tReplicaCoherentInits, &
                         tAddToInitiator, InitiatorWalkNo, tAvReps, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
-                        tRealCoeffByExcitLevel, tGlobalInitFlag, &
+                        tRealCoeffByExcitLevel, tGlobalInitFlag, tInitsRDM, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
                         MaxWalkerBloom, tEN2, tEN2Started, spawnMatelThresh, &
                         NMCyc, iSampleRDMIters, ErrThresh, tSTDInits, &
@@ -49,8 +49,9 @@ module fcimc_helper
                         initMaxSenior, tSeniorityInits, tLogAverageSpawns, &
                         spawnSgnThresh, minInitSpawns, tTimedDeaths, &
                         t_trunc_nopen_diff, trunc_nopen_diff, &
-                        tAutoAdaptiveShift, tAAS_MatEle2, tAAS_Reverse, &
-                        tAAS_MatEle
+                        tAutoAdaptiveShift, tAAS_MatEle, tAAS_MatEle2, tAAS_Reverse,&
+                        tAAS_Reverse_Weighted, tAAS_MatEle3, tAAS_MatEle4, AAS_DenCut
+
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
          tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
@@ -138,7 +139,7 @@ contains
         character(*), parameter :: this_routine = 'create_particle'
 
         logical :: parent_init
-        real(dp)  :: weight, weight_rev
+        real(dp)  :: weight_acc, weight_rej, weight_rev, weight_den, weight_den2
 
         !Ensure no cross spawning between runs - run of child same as run of
         !parent
@@ -177,28 +178,66 @@ contains
             SpawnInfo(SpawnParentIdx, ValidSpawnedList(proc)) = ParentPos
             SpawnInfo(SpawnRun, ValidSpawnedList(proc)) = run
             if(tAAS_MatEle)then
-                weight = abs(matel)
-                else if(tAAS_MatEle2) then
-                    weight = abs(matel)/abs((get_diagonal_matel(nJ,ilutJ)-Hii) - DiagSft(run))
-                else
-                weight = 1.0_dp
-             end if
-
+                weight_acc = abs(matel)
+                weight_rej = abs(matel)
+            else if(tAAS_MatEle2) then
+                weight_den = abs((get_diagonal_matel(nJ, ilutJ)-Hii) - DiagSft(run))
+                if(weight_den<AAS_DenCut)then
+                    weight_den = AAS_DenCut
+                end if
+                weight_acc = abs(matel)/weight_den
+                weight_rej = abs(matel)/weight_den
+            else if(tAAS_MatEle3) then
+                weight_den = abs((get_diagonal_matel(nJ, ilutJ)-Hii) - DiagSft(run))
+                if(weight_den<AAS_DenCut)then
+                    weight_den = AAS_DenCut
+                end if
+                weight_acc = 1.0_dp 
+                weight_rej = abs(matel)/weight_den
+            else if(tAAS_MatEle4) then
+                weight_den = abs((get_diagonal_matel(nJ, ilutJ)-Hii) - DiagSft(run))
+                if(weight_den<AAS_DenCut)then
+                    weight_den = AAS_DenCut
+                end if
+                weight_den2 = abs((get_diagonal_matel(nJ, ilutJ)-Hii))
+                if(weight_den2<AAS_DenCut)then
+                    weight_den2 = AAS_DenCut
+                end if
+                weight_rej = abs(matel)/weight_den
+                weight_acc = abs(matel)/weight_den2
+            else
+                weight_acc = 1.0_dp
+                weight_rej = 1.0_dp
+            end if
             !Enocde weight, which is real, as an integer
-            SpawnInfo(SpawnWeight, ValidSpawnedList(proc)) = transfer(weight, SpawnInfo(SpawnWeight, ValidSpawnedList(proc)))
+            SpawnInfo(SpawnWeightAcc, ValidSpawnedList(proc)) = transfer(weight_acc, SpawnInfo(SpawnWeightAcc, ValidSpawnedList(proc)))
+            SpawnInfo(SpawnWeightRej, ValidSpawnedList(proc)) = transfer(weight_rej, SpawnInfo(SpawnWeightRej, ValidSpawnedList(proc)))
 
             if(tAAS_Reverse)then
                 if(tAAS_MatEle)then
-                   weight_rev = abs(matel)
+                    weight_rev = abs(matel)
                 else if(tAAS_MatEle2) then
-                   weight_rev = abs(matel)/abs(det_diagH(ParentPos) - DiagSft(run))
+                    weight_den = abs(det_diagH(ParentPos) - DiagSft(run))
+                    if(weight_den<AAS_DenCut)then
+                        weight_den = AAS_DenCut
+                    end if
+                    weight_rev = abs(matel)/weight_den
+                else if(tAAS_MatEle3) then
+                    weight_rev = 1.0_dp
+                else if(tAAS_MatEle4) then
+                    weight_den = abs(det_diagH(ParentPos))
+                    if(weight_den<AAS_DenCut)then
+                        weight_den = AAS_DenCut
+                    end if
+                    weight_rev = abs(matel)/weight_den
                 else
-            weight_rev = 1.0_dp
+                    weight_rev = 1.0_dp
                 end if
-            !Enocde weight, which is real, as an integer
-
-                SpawnInfo(SpawnWeightRev, ValidSpawnedList(proc)) = transfer(weight_rev, SpawnInfo(SpawnWeightRev, &
-                    ValidSpawnedList(proc)))
+                if(tAAS_Reverse_Weighted)then
+                    weight_rev = weight_rev/mag_of_run(SignCurr, run)
+                endif
+                !Enocde weight, which is real, as an integer
+                SpawnInfo(SpawnWeightRev, ValidSpawnedList(proc)) = transfer(weight_rev, SpawnInfo(SpawnWeightRev, ValidSpawnedList(proc)))
             end if
         end if
 
@@ -2106,6 +2145,7 @@ contains
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
         use LoggingData, only: tOldRDMs
         use rdm_data, only: one_rdms, two_rdm_spawn, rdm_definitions
+        use rdm_data, only: inits_one_rdms, two_rdm_inits_spawn
         use rdm_data_old, only: rdms, one_rdms_old
 
         integer, intent(in) :: DetCurr(nel) 
@@ -2193,6 +2233,9 @@ contains
                 av_sign = get_av_sgn_tot(DetPosition)
                 iter_occ = get_iter_occ_tot(DetPosition)
                 call det_removed_fill_diag_rdm(two_rdm_spawn, one_rdms, CurrentDets(:,DetPosition), av_sign, iter_occ)
+                if(tInitsRDM .and. all_runs_are_initiator(CurrentDets(:,DetPosition))) &
+                     call det_removed_fill_diag_rdm(two_rdm_inits_spawn, inits_one_rdms, &
+                     CurrentDets(:,DetPosition), av_sign, iter_occ, .false.)
                 ! Set the average sign and occupation iteration to zero, so
                 ! that the same contribution will not be added in in
                 ! CalcHashTableStats, if this determinant is not overwritten
@@ -2468,6 +2511,7 @@ contains
     end subroutine
 
     function check_semistoch_flags(ilut_child, nI_child, tCoreDet) result(break)
+        use bit_rep_data, only: flag_determ_parent
       integer(n_int), intent(inout) :: ilut_child(0:niftot)
       integer, intent(in) :: nI_child(nel)
       logical, intent(in) :: tCoreDet
@@ -2549,5 +2593,4 @@ contains
 #endif
     end subroutine replica_coherence_check
 
-    
 end module

@@ -778,7 +778,8 @@ contains
         call h5screate_simple_f(2_hid_t, buff_dims, memspace, err)
 
         allocate(arr_buff(mem_dims(1),block_size),stat = ierr)
-        call LogMemAlloc('arr_buff',size(arr_buff),sizeof(arr_buff(1,1)),&
+        if(block_size.gt.0) &
+             call LogMemAlloc('arr_buff',size(arr_buff),sizeof(arr_buff(1,1)),&
              'write_2d_multi',arr_buff_tag,ierr)
         block_start=1
         block_end=min(block_start+block_size-1,mem_dims(2))
@@ -807,7 +808,7 @@ contains
         end do
 
         deallocate(arr_buff)
-        call LogMemDealloc('write_2d_multi',arr_buff_tag)
+        if(block_size.gt.0) call LogMemDealloc('write_2d_multi',arr_buff_tag)
 
         call h5dclose_f(dataset, err)
         call h5pclose_f(plist_id, err)

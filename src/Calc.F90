@@ -159,7 +159,12 @@ contains
           AdaptiveShiftCut = -1 !If the user does not specify a value, this will be set to 1.0/HFConn later
           tAAS_MatEle = .false. 
           tAAS_MatEle2 = .false.
+          tAAS_MatEle3 = .false.
+          tAAS_MatEle4 = .false.
+          AAS_DenCut = 0.5
           tAAS_Reverse = .false.
+          tAAS_Reverse_Weighted = .false.
+          tAAS_Add_Diag = .false.
           tInitsRDMRef = .false.
           tInitsRDM = .false.
           NEquilSteps=0
@@ -415,6 +420,8 @@ contains
           tSetDelayAllDoubsInits = .false.
           ! By default, we have one reference for the purpose of all-doubs-initiators      
           nRefs = 1
+          nRefsSings = 1
+          nRefsDoubs = 1
           maxNRefs = 400
           targetRefPop = 1000
           targetRefPopTol = 80
@@ -437,6 +444,8 @@ contains
           SIUpdateInterval = 100
           tAdiActive = .false.
           minSIConnect = 1
+
+          tForceFullPops = .false.
           
           ! Walker scaling with energy
           ! do not use scaled walkers
@@ -455,6 +464,7 @@ contains
           ! Giovannis option for RDMs without non-initiators
           tNonInitsForRDMs = .true.
           tOutputInitsRDM = .false.
+          tNonVariationalRDMs = .false.
 
         end subroutine SetCalcDefaults
 
@@ -480,7 +490,7 @@ contains
           CHARACTER (LEN=100) input_string
           CHARACTER(*),PARAMETER :: t_r='CalcReadInput'
           character(*), parameter :: this_routine = t_r
-          integer :: l, i, j, line, ierr
+          integer :: l, i, j, line, ierr, start, end
           integer :: tempMaxNoatHF,tempHFPopThresh
           logical :: tExitNow
           integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
@@ -688,6 +698,10 @@ contains
                 ! only take into account initiators when calculating RDMs
                 tOutputInitsRDM = .true.
                 tInitsRDM = .true.
+             case("STRICT-INITS-RDM")
+                tNonInitsForRDMs = .false.
+             case("NON-VARIATIONAL-RDMS")
+                tNonVariationalRDMs = .true.
             case("VVDISALLOW")
                 TVVDISALLOW=.TRUE.
             case("MCDIRECTSUM")
@@ -921,24 +935,38 @@ contains
                   CALL LogMemAlloc('DefDet',NEl,4,t_r,tagDefDet,ierr)
                 end if
                 DefDet(:)=0
-                do i=1,NEl
-                    call geti(DefDet(i))
-                enddo
-                ! what if HPHF? i think this is not adressed correctyl..
-                ! there is something going wrong later in the init, so 
-                ! do it actually here 
-                if (tHPHF) then 
-                    call EncodeBitDet(DefDet, def_ilut)
+!                 do i=1,NEl
+!                     call geti(DefDet(i))
+!                 enddo
+!                 ! what if HPHF? i think this is not adressed correctyl..
+!                 ! there is something going wrong later in the init, so 
+!                 ! do it actually here 
+!                 if (tHPHF) then 
+!                     call EncodeBitDet(DefDet, def_ilut)
+! 
+!                     def_ilut_sym = return_hphf_sym_det(def_ilut)
+!                     if (.not. DetBitEq(def_ilut, def_ilut_sym)) then 
+!                         call decode_bit_det(DefDet, def_ilut_sym)
+!                         write(iout, *) "definedet changed to HPHF symmetric:"
+!                         call write_det(iout, DefDet, .true.)
+!                     end if
+!                 end if
 
-                    def_ilut_sym = return_hphf_sym_det(def_ilut)
-                    if (.not. DetBitEq(def_ilut, def_ilut_sym)) then 
-                        call decode_bit_det(DefDet, def_ilut_sym)
-                        write(iout, *) "definedet changed to HPHF symmetric:"
-                        call write_det(iout, DefDet, .true.)
-                    end if
-                end if
 
-
+                i = 1
+                do while(item.lt.nitems)
+                   call readu(w)
+                   if(scan(w,"-").eq.0) then
+                      read(w,*) start
+                      call setDefdet(i,start)
+                   else
+                      call getRange(w, start, end)
+                      do j = start, end
+                         call setDefdet(i,j)
+                      end do
+                   endif
+                end do
+                if(i-1.ne.nel) call stop_all(t_r, "Insufficient orbitals given in DEFINEDET")
 
             case("MULTIPLE-INITIAL-REFS")
                 tMultipleInitialRefs = .true.
@@ -1444,6 +1472,19 @@ contains
             case("POPS-CORE")
                 ss_space_in%tPops = .true.
                 call geti(ss_space_in%npops)
+                if (ss_space_in%npops * nProcessors > 1000000) then
+                    if (.not. tForceFullPops) then
+                        ss_space_in%tApproxSpace = .true.
+                    end if
+                end if
+            case("POPS-CORE-AUTO")
+                ! this keyword will force intialisation of core space after
+                ! constant shift mode ends.
+                ss_space_in%tPops = .true.
+                ss_space_in%tPopsAuto = .true.
+                tSemiStochastic = .false.
+                tStartCoreGroundState = .false.
+                semistoch_shift_iter = 1
             case("POPS-CORE-APPROX")
                 ss_space_in%tPops = .true.
                 ss_space_in%tApproxSpace = .true.
@@ -1575,6 +1616,11 @@ contains
             case("POPS-TRIAL")
                 trial_space_in%tPops = .true.
                 call geti(trial_space_in%npops)
+                if (trial_space_in%npops * nProcessors > 1000000) then
+                    if (.not. tForceFullPops) then
+                        trial_space_in%tApproxSpace = .true.
+                    end if
+                end if
             case("POPS-TRIAL-APPROX")
                 trial_space_in%tPops = .true.
                 trial_space_in%tApproxSpace = .true.
@@ -1728,8 +1774,23 @@ contains
                 tAAS_MatEle2 = .true.
                 !When using the MatEle, the default value of 10 becomes meaningless
                 AdaptiveShiftThresh = 0.0
+            case("AAS-MATELE3")
+                tAAS_MatEle3 = .true.
+                !When using the MatEle, the default value of 10 becomes meaningless
+                AdaptiveShiftThresh = 0.0
+            case("AAS-MATELE4")
+                tAAS_MatEle4 = .true.
+                !When using the MatEle, the default value of 10 becomes meaningless
+                AdaptiveShiftThresh = 0.0
+            case("AAS-DEN-CUT")
+                call getf(AAS_DenCut)
             case("AAS-REVERSE")
                 tAAS_Reverse = .true.
+            case("AAS-REVERSE-WEIGHTED")
+                tAAS_Reverse = .true.
+                tAAS_Reverse_Weighted = .true.
+            case("AAS-ADD-DIAG")
+                tAAS_Add_Diag = .true.
              case("INITS-PROJE")
                 ! deprecated
              case("INITS-GAMMA0")
@@ -1920,6 +1981,11 @@ contains
                 if (item < nitems) then
                     call getf(pop_change_min)
                 endif
+
+            case("FORCE-FULL-POPS")
+                tForceFullPops = .false.
+                ss_space_in%tApproxSpace = .false.
+                trial_space_in%tApproxSpace = .false.
 
             case("NO-CHANGEREF")
 
@@ -3175,6 +3241,20 @@ contains
           ! them if we're doing a complete diagonalisation.
           gen2CPMDInts=MAXVAL(NWHTAY(3,:)).ge.3.or.TEnergy
 
+          if(tOutputInitsRDM .and. tInitsRDMRef) call stop_all(t_r, &
+               "Incompatible keywords INITS-GAMMA0 and INITS-RDM")
+
+
+          contains
+
+            subroutine setDefdet(m, orb)
+              implicit none
+              integer, intent(inout) :: m
+              integer, intent(in) :: orb
+              if(m > nel) call stop_all(t_r, "Too many orbitals given in Definedet")
+              DefDet(m) = orb
+              m = m + 1
+            end subroutine setDefdet
 
         END SUBROUTINE CalcReadInput
 

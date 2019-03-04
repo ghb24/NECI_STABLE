@@ -10,7 +10,8 @@ module AnnihilationMod
                           n_truncate_spawns, t_prone_walkers, t_truncate_unocc, &
                           tSpawnSeniorityBased, numMaxExLvlsSet, maxKeepExLvl, &
                           tLogAverageSpawns, tTimedDeaths, tAutoAdaptiveShift, tSkipRef, &
-                          tAAS_MatEle, tAAS_MatEle2, tAAS_Reverse
+                          tAAS_MatEle, tAAS_MatEle2, tAAS_Reverse, tNonInitsForRDMs, &
+                          tNonVariationalRDMs
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -416,12 +417,12 @@ module AnnihilationMod
                 ! the sign here.  Also getting rid of them here would make the
                 ! biased sign of Ci slightly wrong.
 
-                SpawnedParts2(0:NIfTot,VecInd) = cum_det(0:NIfTot)
-                if(tAutoAdaptiveShift .and. tAAS_Reverse) then
-                    do run = 1, inum_runs
-                        SpawnInfo2(run, VecInd)= transfer(weights_rev(run),SpawnInfo2(run, VecInd))
-                    end do
-                end if
+               SpawnedParts2(0:NIfTot,VecInd) = cum_det(0:NIfTot)
+               if(tAutoAdaptiveShift .and. tAAS_Reverse) then
+                  do run = 1, inum_runs
+                     SpawnInfo2(run, VecInd)= transfer(weights_rev(run),SpawnInfo2(run, VecInd))
+                  end do
+               endif
                 VecInd = VecInd + 1
                 DetsMerged = DetsMerged + EndBlockDet - BeginningBlockDet
 
@@ -780,7 +781,7 @@ module AnnihilationMod
                  ! and the Di and Dj signs are already strictly uncorrelated.
                  if (tOldRDMs) call check_fillRDM_DiDj_old(rdms, one_rdms_old, i, CurrentDets(:,PartInd), TempCurrentSign)
                  if(tInitsRDM) call check_fillRDM_DiDj(rdm_inits_defs, two_rdm_inits_spawn, &
-                      inits_one_rdms, i, CurrentDets(:,PartInd), TempCurrentSign, .false.)
+                      inits_one_rdms, i, CurrentDets(:, PartInd), TempCurrentSign, .false.)
                  call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, &
                       CurrentDets(:,PartInd), TempCurrentSign)
               end if
@@ -893,7 +894,7 @@ module AnnihilationMod
                     if (tTruncSpawn) then
                         ! Needs to be truncated away, and a contribution
                         ! added to the EN2 correction.
-                        call add_en2_pert_for_trunc_calc(i, nJ, SpawnedSign)
+                        call add_en2_pert_for_trunc_calc(i, nJ, SignTemp, iter_data)
                     else
                         do j = 1, lenof_sign
                             ! truncate the spawn if required
@@ -923,9 +924,11 @@ module AnnihilationMod
                 if (tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) then
                     ! We must use the instantaneous value for the off-diagonal contribution.
                     if (tOldRDMs) call check_fillRDM_DiDj_old(rdms, one_rdms_old, i, SpawnedParts(0:NifTot,i), SpawnedSign)
-                    call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, SpawnedParts(0:NifTot,i), SpawnedSign)
-                    if(tInitsRDM) call check_fillRDM_DiDj(rdm_inits_defs, two_rdm_inits_spawn, &
-                         inits_one_rdms, i, SpawnedParts(0:NIfTot,i), SpawnedSign)
+                    if(tNonInitsForRDMs .or. tNonVariationalRDMs) &
+                         call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, SpawnedParts(0:NifTot,i), SpawnedSign)
+                    if(tInitsRDM .and. tNonVariationalRDMs) &
+                         call check_fillRDM_DiDj(rdm_inits_defs, two_rdm_inits_spawn, &
+                         inits_one_rdms, i, SpawnedParts(0:NIfTot,i), SpawnedSign,.false.)
                 end if 
             end if
 
@@ -1126,7 +1129,7 @@ module AnnihilationMod
 
     end subroutine add_en2_pert_for_init_calc
 
-    subroutine add_en2_pert_for_trunc_calc(ispawn, nJ, SpawnedSign)
+    subroutine add_en2_pert_for_trunc_calc(ispawn, nJ, SpawnedSign, iter_data)
 
         ! Add a contribution to the second-order Epstein-Nesbet correction to
         ! error due to truncation of the Hilbert space being sampled.
@@ -1139,6 +1142,7 @@ module AnnihilationMod
         integer, intent(in) :: ispawn
         integer, intent(in) :: nJ(nel)
         real(dp), intent(inout):: SpawnedSign(lenof_sign)
+        type(fcimc_iter_data), intent(inout) :: iter_data
 
         integer :: j, istate
         real(dp) :: contrib_sign(en_pert_main%sign_length)
@@ -1169,7 +1173,9 @@ module AnnihilationMod
 
         ! Remove the spawning
         do j = 1, lenof_sign
-            SpawnedSign(j) = 0.0_dp
+           ! track the removal for correct logging
+           iter_data%nremoved(j) = iter_data%nremoved(j) + abs(SpawnedSign(j))
+           SpawnedSign(j) = 0.0_dp
             call encode_part_sign (SpawnedParts(:,ispawn), SpawnedSign(j), j)
         end do
 
@@ -1186,7 +1192,7 @@ module AnnihilationMod
         integer :: j, run, ParentIdx, proc
         integer :: PartInd, DetHash, nI(nel)
         real(dp) :: CurrentSign(lenof_sign)
-        real(dp) :: weight
+        real(dp) :: weight_acc, weight_rej
         logical :: tUnocc, tSuccess, tDetermState, tToEmptyDet
 
 
@@ -1285,22 +1291,23 @@ module AnnihilationMod
             do i=InitialSpawnedSlots(proc), ValidSpawnedList(proc)-1
                 ParentIdx = SpawnInfo(SpawnParentIdx,i)
                 run = SpawnInfo(SpawnRun,i)
-                weight = transfer(SpawnInfo(SpawnWeight, i), weight) !weight is a real encoded in an integer. Decoded it!
+                weight_acc = transfer(SpawnInfo(SpawnWeightAcc, i), weight_acc) !weight is a real encoded in an integer. Decoded it!
+                weight_rej = transfer(SpawnInfo(SpawnWeightRej, i), weight_rej) !weight is a real encoded in an integer. Decoded it!
                 if(tAAS_Reverse)then
                     if(SpawnInfo(SpawnAccepted,i)==1)then
                         !We add only half the weight for accepted spawns, 
                         !because we expect the reverse spawning to compensate for the other half (on average)
-                        call update_tot_spawns(ParentIdx, run, 0.5*weight)
-                        call update_acc_spawns(ParentIdx, run, 0.5*weight)
+                        call update_tot_spawns(ParentIdx, run, 0.5*weight_acc)
+                        call update_acc_spawns(ParentIdx, run, 0.5*weight_acc)
                     else
-                        call update_tot_spawns(ParentIdx, run, weight)
+                        call update_tot_spawns(ParentIdx, run, weight_rej)
                     end if
                 else
                     if(SpawnInfo(SpawnAccepted,i)==1)then
-                        call update_tot_spawns(ParentIdx, run, weight)
-                        call update_acc_spawns(ParentIdx, run, weight)
+                        call update_tot_spawns(ParentIdx, run, weight_acc)
+                        call update_acc_spawns(ParentIdx, run, weight_acc)
                     else
-                        call update_tot_spawns(ParentIdx, run, weight)
+                        call update_tot_spawns(ParentIdx, run, weight_rej)
                     end if
                 end if
             end do

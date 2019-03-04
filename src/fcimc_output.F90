@@ -10,6 +10,7 @@ module fcimc_output
                            OffDiagBinRange, tCalcVariationalEnergy, &
                            iHighPopWrite, tLogEXLEVELStats, tWriteConflictLvls, &
                            maxInitExLvlWrite, AllInitsPerExLvl
+
     use hist_data, only: Histogram, AllHistogram, InstHist, AllInstHist, &
                          BeforeNormHist, iNoBins, BinRange, HistogramEnergy, &
                          AllHistogramEnergy
@@ -606,7 +607,6 @@ contains
 
         ! If the output file hasn't been opened yet, then create it.
         if (iProcIndex == Root .and. .not. inited) then
-           
            call open_state_file('fciqmc_stats',state)
            ! For the initiator stats file here:
            if (tTruncInitiator) call open_state_file('initiator_stats',state_i)
@@ -871,7 +871,6 @@ contains
                     call stats_out(state_i, .false., AllNoNonInitWalk(p), 'NonInitWalks (' // trim(adjustl(tmpc)) // ")")
                 end do
             end if
-     
             ! And we are done
             write(state%funit, *)
             if (tTruncInitiator) write(state_i%funit, *)
@@ -1448,6 +1447,8 @@ contains
         integer(n_int) , allocatable :: GlobalLargestWalkers(:,:)
         integer(n_int) :: HighestDet(0:NIfTot)
         integer, allocatable :: GlobalProc(:), tmp_ni(:)
+        character(100) :: bufEnd, bufStart
+        integer :: lenEnd, lenStart
         character(len=*), parameter :: t_r='PrintHighPops'
 
         character(1024) :: header
@@ -1568,14 +1569,16 @@ contains
                     if (nel /= nel_pre_freezing) &
                         tmp_ni(nel+1:nel_pre_freezing) = frozen_orb_list
                     call sort(tmp_ni)
-                    do i = 1, nel_pre_freezing
-                        write(6, '(i3," ")', advance='no') tmp_ni(i)
-                    end do
+                    call writeDefDet(tmp_ni, nel_pre_freezing)
+!                    do i = 1, nel_pre_freezing
+!                        write(6, '(i3," ")', advance='no') tmp_ni(i)
+!                    end do
                     deallocate(tmp_ni)
                 else
-                    do i = 1, nel
-                        write(6, '(i3," ")', advance='no') ProjEDet(i, run)
-                    end do
+                   call writeDefDet(ProjEDet(:,run), nel)
+!                    do i = 1, nel
+!                        write(6, '(i3," ")', advance='no') ProjEDet(i, run)
+!                    end do
                 end if
                 do i = 1, nel
                     full_orb = ProjEDet(i, run)
@@ -1682,8 +1685,192 @@ contains
         endif
 
         deallocate(LargestWalkers)
+        
+        contains 
+
+          subroutine writeDefDet(defdet, numEls)
+            implicit none
+            integer, intent(in) :: numEls
+            integer, intent(in) :: defdet(:)
+            logical :: nextInRange, previousInRange
+
+            do i = 1, numEls
+               ! if the previous orbital is in the same contiguous range
+               if(i.eq.1) then
+                  ! for the first one, there is no previous one
+                  previousInRange = .false.
+               else
+                  previousInRange = defdet(i).eq.defdet(i-1)+1
+               endif
+
+               ! if the following orbital is in the same contiguous range
+               if(i.eq.numEls) then
+                  ! there is no following orbital
+                  nextInRange = .false.
+               else
+                  nextInRange = defdet(i).eq.defdet(i+1)-1
+               endif
+               ! there are three cases that need output: 
+               
+               ! the last orbital of a contigous range of orbs
+               if(previousInRange .and. .not.nextInRange) then
+                  write(bufEnd,'(i3)') defdet(i)
+                  lenEnd = len_trim(bufEnd)
+                  bufStart(lenStart+2:lenStart+lenEnd+1) = adjustl(trim(bufEnd))
+                  write(iout,'(A7)',advance='no') trim(adjustl(bufStart))
+               ! the first orbital of a contiguous range of orbs
+               else if(.not.previousInRange .and. nextInRange) then
+                  write(bufStart,'(i3)') defdet(i)
+                  lenStart = len_trim(bufStart)
+                  bufStart(lenStart+1:lenStart+1) = "-"
+               ! and an orbital not in any range
+               else if(.not.previousInRange .and. .not.nextInRange) then
+                  write(iout,'(i3," ")', advance='no') defdet(i)
+               endif
+            end do
+
+          end subroutine writeDefDet
 
     END SUBROUTINE PrintHighPops
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine print_fval_hist(enPoints, arPoints)
+      use CalcData, only: tAutoAdaptiveShift
+      implicit none
+      integer, intent(in) :: enPoints, arPoints ! number of points in the histogram's axes
+      integer, allocatable :: hist(:,:), allHist(:,:)
+      real(dp), allocatable :: histEnergy(:), histAccRate(:)
+      integer :: hist_unit
+      integer :: j, i
+      character, parameter :: tab = char(9)
+
+      if(tAutoAdaptiveShift) then
+         ! allocate the buffers
+         allocate(histAccRate(aRPoints))
+         allocate(histEnergy(enPoints))
+         allocate(hist(enPoints,arPoints))
+         allocate(allHist(enPoints, arPoints))
+         ! generate the histogram
+         
+         call generate_fval_histogram(hist, histEnergy, histAccRate, enPoints, &
+              aRPoints ,allHist)
+
+         if(iProcIndex == root) then 
+            ! output the histogram
+            hist_unit = get_free_unit()
+            open(hist_unit, file = 'AccRateHistogram', status = 'unknown')
+            write(hist_unit, *) "# Acc. Rate",tab,tab,"Tot. Occ.",tab,tab,"Occ./Energy"
+            write(hist_unit, '("#",36X)', advance = 'no')
+            do j = 1, enPoints
+               write(hist_unit, '(G17.5)', advance = 'no') histEnergy(j)
+            end do
+            write(hist_unit, '()', advance = 'yes')
+            do i = 1, aRPoints
+               write(hist_unit, '(2G17.5)', advance = 'no') histAccRate(i), sum(allHist(:,i))
+               do j = 1, enPoints
+                  write(hist_unit, '(G17.5)', advance = 'no') allHist(j,i)
+               end do
+               write(hist_unit, '()', advance = 'yes')
+            end do
+
+            close(hist_unit)
+         endif
+
+         ! deallocate the buffers
+         if(allocated(allHist)) deallocate(allHist)
+         if(allocated(hist)) deallocate(hist)
+         if(allocated(histEnergy)) deallocate(histEnergy)
+         if(allocated(histAccRate)) deallocate(histAccRate)
+      endif
+    end subroutine print_fval_hist
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine generate_fval_histogram(hist, histEnergy, histAccRate, &
+         enPoints, accRatePoints, allHist)
+      use global_det_data, only: det_diagH, get_acc_spawns, get_tot_spawns
+      ! count the acceptance ratio per energy and create
+      ! a histogram hist(:,:) with axes histEnergy(:), histAccRate(:)
+      ! entries of hist(:,:) : numer of occurances
+      ! entries of histEnergy(:) : energies of histogram entries (with tolerance, second dimension)
+      ! entries of histAccRate(:) : acc. rates of histogram entries (first dimension)
+      implicit none
+      ! number of energy/acc rate windows in the histogram
+      integer, intent(in) :: enPoints, accRatePoints
+      integer, intent(out) :: hist(enPoints,accRatePoints)
+      integer, intent(out) :: allHist(:,:)
+      real(dp), intent(out) :: histEnergy(enPoints), histAccRate(accRatePoints)
+      integer :: i, run
+      integer :: enInd, arInd
+      real(dp) :: minEn, maxEn, enWindow, arWindow, locMinEn, locMaxEn, totSpawn
+
+      ! get the energy window size (the acc. rate window size is just 1.0/(accRatePoints+1))
+      locMinEn = det_diagH(1)
+      locMaxEn = det_diagH(1)
+      do i = 2, TotWalkers
+         if(det_diagH(i) > locMaxEn) locMaxEn = det_diagH(i)
+         if(det_diagH(i) < locMinEn) locMinEn = det_diagH(i)
+      end do
+      ! communicate the energy window
+      call MPIAllReduce(locMinEn, MPI_MIN, minEn)
+      call MPIAllReduce(locMaxEn, MPI_MAX, maxEn)
+      enWindow = (maxEn - minEn) / real(enPoints,dp)
+
+      if(enWindow > eps) then
+         ! set up the histogram axes
+         arWindow = 1.0_dp / real(accRatePoints,dp)
+         do i = 1, accRatePoints
+            histAccRate(i) = ((i-1)+1.0_dp/2.0_dp)*arWindow
+         end do
+
+         do i = 1, enPoints
+            histEnergy(i) = minEn + (i-1)*enWindow + enWindow/2.0_dp
+         end do
+
+         ! then, fill the histogram itself      
+         hist = 0
+         do i = 1, TotWalkers
+            do run = 1, inum_runs
+               totSpawn = get_tot_spawns(i,run)
+               if(abs(totSpawn) > eps) then
+                  enInd = getHistIndex(det_diagH(i), minEn, enPoints, enWindow)
+                  arInd = getHistIndex(get_acc_spawns(i,run)/totSpawn, &
+                       0.0_dp, accRatePoints, arWindow)
+                  hist(enInd, arInd) = hist(enInd, arInd) + 1
+               end if
+            end do
+         end do
+
+         ! communicate the histogram
+         call MPISum(hist, allHist)
+      else
+         write(iout,*) "WARNING: Empty histogram of acceptance rates"
+      endif
+
+    contains
+
+      function getHistIndex(val, minVal, nPoints, windowSize) result(ind)
+        ! for a given energy, get the position in the histogram
+        implicit none
+        real(dp), intent(in) :: val, minVal, windowSize
+        integer, intent(in) :: nPoints
+        integer :: ind
+
+        if(abs(val - minVal) < eps) then 
+           ! val == minval would else yield 0, but it still belongs to index 1
+           ind = 1
+        else if(abs(val - (minVal + nPoints*windowSize)) < eps) then
+           ! val == maxVal would else yield nPoints + 1, but it still belongs to the last index
+           ind = nPoints
+        else
+           ind = ceiling((val - minVal) / windowSize)
+        endif
+      end function getHistIndex
+
+    end subroutine generate_fval_histogram
+
+!------------------------------------------------------------------------------------------!
             
     subroutine end_iteration_print_warn (totWalkersNew)
         

@@ -185,5 +185,8 @@ module LoggingData
 
     logical :: t_print_core_info = .false.
     logical :: tWriteConflictLvls
+    ! for the histogramming of the acceptance rates used in the adaptive shift mode
+    logical :: t_hist_fvals
+    integer :: enGrid, arGrid
 
 end module LoggingData

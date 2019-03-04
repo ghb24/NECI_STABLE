@@ -184,6 +184,10 @@ MODULE Logging
 #endif
       tWriteUnocc = .false.
 
+      t_hist_fvals = .true.
+      enGrid = 100
+      arGrid = 100
+
 ! Feb08 defaults
       IF(Feb08) THEN
           !Mcpaths set
@@ -380,6 +384,10 @@ MODULE Logging
                 i = i+1
             enddo
 
+         case("ACC-RATE-POINTS")
+            ! number of grid points for 2d-histogramming the acc rate used for adaptive shift
+            if(item < nitems) call readi(arGrid)
+            if(item < nitems) call readi(enGrid)
 
         case("ROHISTOGRAMALL")
 !This option goes with the orbital rotation routine.  If this keyword is included, all possible histograms are included.

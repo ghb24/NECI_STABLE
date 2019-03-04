@@ -439,7 +439,7 @@ contains
                         ! Add the contribution from this determinant to the
                         ! norm of the popsfile wave function.
                         call add_pops_norm_contrib(buffer(:, ndets))
-                        fvalsBuf(:,ndets) = fvals_tmp(:)
+                        if(tAutoAdaptiveShift) fvalsBuf(:,ndets) = fvals_tmp(:)
                     end if
 
                 end do
@@ -687,7 +687,7 @@ r_loop: do while (.not. tReadAllPops)
                     ! and if we have filled up the slot in the list then
                     ! distribute it when it is full.
                     BatchRead(:,PopsSendList(proc)) = ilut_tmp(:)
-                    fvalsRead(:,PopsSendList(proc)) = fvals_tmp(:)
+                    if(tAutoAdaptiveShift) fvalsRead(:,PopsSendList(proc)) = fvals_tmp(:)
                     PopsSendList(proc) = PopsSendList(proc) + 1
 
                     ! If we have filled up the lists, exit the loop so that the
@@ -1509,6 +1509,7 @@ r_loop: do while(.not.tStoreDet)
         PopTotImagTime = 0.0_dp
 
         PopBalanceBlocks = -1
+        PopNNodes = 0
         PopPreviousHistTau = .false.
         tPopAutoAdaptiveShift = .false.
         if(iProcIndex.eq.root) then
@@ -1996,7 +1997,6 @@ r_loop: do while(.not.tStoreDet)
                 !       should we have deallocated spawnedparts by here to 
                 !       ensure we have room, or does the deallocated space from
                 !       dealing with freezing give us plenty of room?
-                nMaxDets = int(maxval(node_write_attempts), sizeof_int)
                 allocate(Parts(0:NIfTot, nMaxDets), stat=error)
 
                 call LogMemAlloc ('Parts', int(nMaxDets,int32)*(NIfTot+1), &

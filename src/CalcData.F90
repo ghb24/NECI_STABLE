@@ -31,6 +31,9 @@ type subspace_in
     logical :: tHF = .false.
     ! Use the most populated states in CurrentDets.
     logical :: tPops = .false.
+    ! Automatically choosing 10% of the total initiator space, if this number
+    ! is larger than 50000, then use npops = 50000
+    logical :: tPopsAuto = .false.
     ! Read states from a file.
     logical :: tRead = .false.
     ! Use the space of all single and double excitations from the
@@ -81,7 +84,7 @@ type subspace_in
     ! kept on each processor, 1 =< nApproxSpace =< nProcessors. The larger nApproxSpace, the more  
     ! memory is consumed and the slower (but more accurate) is the semi-stochastic initialisation   
     ! (see subroutine generate_space_most_populated).
-    integer :: nApproxSpace = 100
+    integer :: nApproxSpace = 10
     ! When using the tMP1Core option, this specifies how many determinants to keep.
     integer :: mp1_ndets = 0
 
@@ -125,6 +128,8 @@ logical :: tShiftonHFPop    !Adjust shift in order to keep the population on HF 
 
 logical :: tSpecifiedTau
 
+logical :: tInitializeCSF
+real(dp) :: S2Init
 logical :: tFixedN0 !Fix the reference population by using projected energy as shift.
 logical :: tTrialShift !Fix the overlap with trial wavefunction by using trial energy as shift.
 logical :: tSkipRef(1:inum_runs_max) !Skip spawing onto reference det and death/birth on it. One flag for each run.
@@ -142,10 +147,16 @@ real(dp) :: AdaptiveShiftExpo !Exponent of the modification factor, value 1 is d
 real(dp) :: AdaptiveShiftCut  !The modification factor should never go below this.
 logical :: tAAS_MatEle !Use the magnitude of |Hij| in the modifcation factor i.e. sum_{accepted} |H_ij| / sum_{all attempts} |H_ij|
 logical :: tAAS_MatEle2 !Use the weight |Hij|/(Hjj-E) in the modifcation factor
+logical :: tAAS_MatEle3 !Same as MatEle2 but use weight of one for accepted moves.
+logical :: tAAS_MatEle4 !Same as MatEle2 but use E_0 in the weight of accepted moves.
 logical :: tAAS_Reverse !Add weights in the opposite direction i.e. to the modification factor of the child
+logical :: tAAS_Reverse_Weighted !Scale the reverse weights down by the number of walkers on the parent
+real(dp) :: AAS_DenCut !Threshold on the denominators of MatEles
+logical :: tAAS_Add_Diag !Add the diagonal term (Hii-E0)*tau to the weights
 ! Giovannis option for using only initiators for the RDMs (off by default)
 logical :: tOutputInitsRDM = .false.
 logical :: tNonInitsForRDMs = .true.
+logical :: tNonVariationalRDMs = .false.
 ! Adaptive shift RDM correction using initiators as reference
 logical :: tInitsRDMRef, tInitsRDM
 ! Base hash values only on spatial orbitals
@@ -509,4 +520,9 @@ integer :: occ_virt_level = 0
 
 ! move tSpinProject here to avoid circular dependencies 
 logical :: tSpinProject
+! If true, then when using the pops-core option, don't allow the
+! pops-core-approx option to take over, even in the default case
+! where it has been decided that it is efficient and appropriate.
+logical :: tForceFullPops
+
 end module CalcData

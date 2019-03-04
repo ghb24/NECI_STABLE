@@ -470,9 +470,11 @@ contains
                 else if(abs(gamma_doub) > EPS) then
                    ! If only doubles were counted, take them
                    tau_new = max_permitted_spawn * pDoubles / gamma_doub
-                else
+                else if(abs(gamma_sing) > EPS) then
                    ! else, we had to have some singles
                    tau_new = max_permitted_spawn * pSingles / gamma_sing
+                else
+                   tau_new = tau
                 endif
             end if
 
