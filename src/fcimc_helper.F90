@@ -1665,7 +1665,18 @@ contains
             ! disallowed if double. If higher, then all excits could
             ! be disallowed. If HPHF, excit could be single or double,
             ! and IC not returned --> Always test.
-            if (tHPHF .or. WalkExcitLevel >= ICILevel .or. &
+            ! for 3-body excits we want to make this test more stringent
+            if (t_3_body_excits) then 
+                if (WalkExcitLevel >= ICILevel .or. & 
+                    (WalkExcitLevel == (ICILevel-1) .and. ic == 2) .or. &
+                    (WalkExcitLevel == (ICILevel-2) .and. ic == 3)) then 
+
+                        ExcitLevel = FindBitExcitLevel (iLutHF, ilutnJ, ICILevel, .true.)
+
+                        if (ExcitLevel > ICILevel) bAllowed = .false.
+                end if
+
+            else if (tHPHF .or. WalkExcitLevel >= ICILevel .or. &
                 (WalkExcitLevel == (ICILevel-1) .and. IC == 2)) then
                 ExcitLevel = FindBitExcitLevel (iLutHF, ilutnJ, ICILevel, .true.)
                 if (ExcitLevel > ICILevel) &
