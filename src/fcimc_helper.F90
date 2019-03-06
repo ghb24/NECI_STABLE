@@ -1667,14 +1667,9 @@ contains
             ! and IC not returned --> Always test.
             ! for 3-body excits we want to make this test more stringent
             if (t_3_body_excits) then 
-                if (WalkExcitLevel >= ICILevel .or. & 
-                    (WalkExcitLevel == (ICILevel-1) .and. ic == 2) .or. &
-                    (WalkExcitLevel == (ICILevel-2) .and. ic == 3)) then 
+                ExcitLevel = FindBitExcitLevel (iLutHF, ilutnJ, ICILevel, .true.)
 
-                        ExcitLevel = FindBitExcitLevel (iLutHF, ilutnJ, ICILevel, .true.)
-
-                        if (ExcitLevel > ICILevel) bAllowed = .false.
-                end if
+                if (ExcitLevel > ICILevel) bAllowed = .false.
 
             else if (tHPHF .or. WalkExcitLevel >= ICILevel .or. &
                 (WalkExcitLevel == (ICILevel-1) .and. IC == 2)) then
