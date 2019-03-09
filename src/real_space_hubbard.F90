@@ -84,7 +84,7 @@ module real_space_hubbard
 
     logical :: t_recalc_umat = .false.
     logical :: t_recalc_tmat = .false.
-    logical :: t_print_umat = .false.
+    logical :: t_print_umat = .true.
     logical :: t_print_tmat = .true.
 
     interface get_helement_rs_hub
@@ -840,7 +840,7 @@ contains
         ! this also depends on the boundary conditions
         character(*), parameter :: this_routine = "init_tmat"
 
-        integer :: i, ind
+        integer :: i, ind, iunit
         ! depending on the input i either create tmat2d here or is have to 
         ! set it up, so it can be used to create the lattice.. 
         ! but for the beginning i think i want to set it up here from the 
@@ -856,6 +856,10 @@ contains
             allocate(tmat2d(nbasis,nbasis))
             tmat2d = 0.0_dp
 
+            if (t_print_tmat) then 
+                iunit = get_free_unit()
+                open(iunit, file = 'TMAT')
+            end if
 !             if (t_trans_corr_hop) then 
                 ! for the new transcorrelation term, we have modified 
                 ! one-body matrix elements.. but these are dependent on the 
@@ -872,10 +876,15 @@ contains
                     
                     ASSERT(all(next > 0))
                     ASSERT(all(next <= nbasis/2))
+
+                    if (t_print_tmat) then
+                        write(iunit,*) 2*i - 1, 2*next - 1, bhub
+                        write(iunit,*) 2*i, 2*next, bhub
+                    end if
                 end associate
                 ASSERT(lat%get_nsites() == nbasis/2)
                 ASSERT(ind > 0) 
-            ASSERT(ind <= nbasis/2)
+                ASSERT(ind <= nbasis/2)
             
             end do
 
@@ -883,6 +892,8 @@ contains
             ! this indicates that tmat has to be created from an fcidump 
             ! and the lattice is set up afterwards!
         end if
+
+        if (t_print_umat) close(iunit)
 
     end subroutine init_tmat
 

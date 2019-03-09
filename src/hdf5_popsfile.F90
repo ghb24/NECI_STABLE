@@ -1016,12 +1016,6 @@ contains
            allocate(temp_fvals(0,0))
         endif
 
-        if(tReadFVals) then
-           allocate(temp_fvals(int(2*tmp_inum_runs), int(this_block_size)), stat=ierr)
-        else
-           allocate(temp_fvals(0,0))
-        endif
-
         do while (any_running)
 
             ! If this is the last block, its size will differ from the biggest
