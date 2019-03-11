@@ -1,4 +1,6 @@
- module gen_coul_ueg_mod
+#include "macros.h" 
+
+module gen_coul_ueg_mod
     use UMatCache, only: UMatInd, GTID
     use SystemData, only: BasisFN, nel, nBasisMax, nBasis, G1, NMSH, nMax, &
                           iSpinSkip, tHub, uHub, omega, iPeriodicDampingType,&
@@ -1432,8 +1434,12 @@ function get_lmat_ua (l1,l2,l3,r1,r2,r3) result(hel)
         real(dp) :: hel,ak(3),bk(3),ck(3),a3,b3,c3,klength1, klength2
         logical :: tSpinCorrect
 
-        
 
+!       root_print "from:"
+!       root_print r1,r2,r3
+!       root_print "to"
+!       root_print l1,l2,l3
+        
      if(dimen==3)then
 
         if(G1(l1)%Ms.eq.G1(l2)%Ms.and.G1(l1)%Ms.ne.G1(l3)%Ms) then
@@ -1476,41 +1482,36 @@ function get_lmat_ua (l1,l2,l3,r1,r2,r3) result(hel)
 
         klength2=dsqrt(dfloat(k2(1)**2+k2(2)**2+k2(3)**2))
 
-        k3(1) = G1(k)%k(1) - G1(c)%k(1)
-        k3(2) = G1(k)%k(2) - G1(c)%k(2)
-        k3(3) = G1(k)%k(3) - G1(c)%k(3)
+        k3(1) = G1(c)%k(1) - G1(k)%k(1)
+        k3(2) = G1(c)%k(2) - G1(k)%k(2)
+        k3(3) = G1(c)%k(3) - G1(k)%k(3)
 
-        if(all((k2-k1+k3)==0).and.klength1.gt.TranscorrCutoff.and.klength2.gt.TranscorrCutoff) then
+        if(all((k2-k1+k3)==0).and.klength1.ge.TranscorrCutoff.and.klength2.ge.TranscorrCutoff) then
            ak(1) = 2 * PI * k1(1) / ALAT(1)
            ak(2) = 2 * PI * k1(2) / ALAT(2)
            ak(3) = 2 * PI * k1(3) / ALAT(3)
            bk(1) = 2 * PI * k2(1) / ALAT(1)
            bk(2) = 2 * PI * k2(2) / ALAT(2)
            bk(3) = 2 * PI * k2(3) / ALAT(3)
-!          ck(1) = -2 * PI * k3(1) / ALAT(1)
-!          ck(2) = -2 * PI * k3(2) / ALAT(2)
-!          ck(3) = -2 * PI * k3(3) / ALAT(3)
 
 
            a3=dsqrt(ak(1)*ak(1)+ak(2)*ak(2)+ak(3)*ak(3))**(-3)
            b3=dsqrt(bk(1)*bk(1)+bk(2)*bk(2)+bk(3)*bk(3))**(-3)
-!          c3=dsqrt(ck(1)*ck(1)+ck(2)*ck(2)+ck(3)*ck(3))**(-3)
 
-           hel= 4.d0*PI**4*a3*b3*(ak(1)*bk(1)+ak(2)*bk(2)+ak(3)*bk(3)) !&
-!               +uu_tc(a2)*uu_tc(c2)*(ak(1)*ck(1)+ak(2)*ck(2)+ak(3)*ck(3))&
-!               +uu_tc(b2)*uu_tc(c2)*(bk(1)*ck(1)+bk(2)*ck(2)+bk(3)*ck(3))
-!           hel=hel/(ALAT(1) * ALAT(2) * ALAT(3))**2/3
-! a permutation factor 3 is missing in other place, so here we ignore the /3
-           hel=hel/(ALAT(1) * ALAT(2) * ALAT(3))**2
+           hel=-2.d0*PI**4*a3*b3*(ak(1)*bk(1)+ak(2)*bk(2)+ak(3)*bk(3)) !&
 
          else
-           hel=0.0
+
+                hel=0.d0
          end if
+
         endif !G1(i)%Ms.eq.G1(j)%Ms.and.G1(i)%Ms.ne.G1(k)%Ms
       else
        print *, 'at moment Lmat is only available for 3D contact interaction'
        stop
       end if
+
+        hel=hel/(ALAT(1) * ALAT(2) * ALAT(3))**2
 
     end function
 

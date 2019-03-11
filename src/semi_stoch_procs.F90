@@ -1141,6 +1141,14 @@ contains
     subroutine diagonalize_core_non_hermitian(e_values, e_vectors)
         real(dp), allocatable, intent(out) :: e_values(:), e_vectors(:,:)
         HElement_t(dp), allocatable :: full_H(:,:)
+        integer i, nI(nel)
+
+!       root_print "The determinants are"
+
+!      do i=1, determ_space_size
+!       call decode_bit_det(nI, core_space(:,i))
+!       root_print i, nI(1:nel)
+!      enddo
 
         ! if the Hamiltonian is non-hermitian we cannot use the 
         ! standard Lanzcos or Davidson routines. so:
@@ -1148,10 +1156,10 @@ contains
 !         if (iProcIndex == root) then
             call calc_determin_hamil_full(full_H)
 
-            root_print "deterministic hamiltonian:"
-!           if_root
-!               call print_matrix(full_H)
-!           end_if_root
+!           root_print "deterministic hamiltonian:"
+!         if_root
+!             call print_matrix(full_H)
+!         end_if_root
 
             allocate(e_values(size(full_H,1)))
             allocate(e_vectors(size(full_H,1),size(full_H,1)))
