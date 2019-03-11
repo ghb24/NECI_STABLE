@@ -760,8 +760,12 @@ contains
       ! then add the 3-body correction
       do i = 1, nel-1
          do j = i + 1, nel
-            if(ex(1).ne.nI(i) .and. ex(1).ne.nI(j)) &
+            if(ex(1).ne.nI(i) .and. ex(1).ne.nI(j)) then
                  hel = hel + get_lmat_el_ua(ex(1),nI(i),nI(j),ex(2),nI(i),nI(j))
+!      print *, "from", ex(1), nI(i),nI(j)
+!      print *, "to", ex(2),nI(i),nI(j)
+!      print *, "hel", hel,get_lmat_el_ua(ex(1),nI(i),nI(j),ex(2),nI(i),nI(j))
+                endif
          end do
       end do
 
@@ -782,9 +786,11 @@ contains
       hel = sltcnd_2_kernel_ua(ex)
       ! and the 3-body term
       do i = 1, nel
-         if(ex(1,1).ne.nI(i) .and. ex(1,2).ne.nI(i)) &
+         if(ex(1,1).ne.nI(i) .and. ex(1,2).ne.nI(i)) then! &
          hel = hel + get_lmat_el_ua(ex(1,1),ex(1,2),nI(i),ex(2,1),ex(2,2),nI(i))
+        endif
       end do
+
 
       ! take fermi sign into account
       if(tSign) hel = -hel

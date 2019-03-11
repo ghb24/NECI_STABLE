@@ -338,7 +338,7 @@ module LMat_mod
      !     integer(int64) :: ai,bj,ck
 
           if(G1(p)%ms == G1(a)%ms .and. G1(q)%ms == G1(b)%ms .and. G1(r)%ms ==G1(c)%ms) then
-             matel = matel + sgn * get_lmat_ua(a,b,c,p,q,r)
+             matel = matel + 2.d0 * sgn * get_lmat_ua(a,b,c,p,q,r)
           endif
         end subroutine addMatelContribution_ua
 
