@@ -631,8 +631,6 @@ contains
             ! hphf not yet implemented! 
             ASSERT(.not. tHPHF) 
             HOffDiag(1:inum_runs) = get_helement( ProjEDet(:,1), nI, ilutRef(:,1), ilut) 
-            write(6,*)'I am in the three-body'
-
 
         endif ! ExcitLevel_local == 1, 2, 3
 
