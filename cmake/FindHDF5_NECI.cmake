@@ -64,8 +64,8 @@ if ( HAVE_BUILD_HDF5 )
 		# -- Download step ---
 		PREFIX ${HDF_DIR}-prefix
 
-		URL https://support.hdfgroup.org/ftp/HDF5/current18/src/hdf5-1.8.20.tar.gz
-		URL_MD5 7f2d3fd67106968eb45d133f5a22150f
+                URL https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8/hdf5-1.8.20/src/hdf5-1.8.20.tar.gz
+                URL_MD5 7f2d3fd67106968eb45d133f5a22150f
 
 		# -- Configure step --
 		SOURCE_DIR ${HDF_DIR}

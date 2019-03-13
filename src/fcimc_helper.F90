@@ -6,7 +6,7 @@ module fcimc_helper
     use util_mod
     use systemData, only: nel, tHPHF, tNoBrillouin, G1, tUEG, &
                           tLatticeGens, nBasis, tHistSpinDist, tRef_Not_HF, & 
-                          t_3_body_excits, t_non_hermitian
+                          t_3_body_excits, t_non_hermitian, t_ueg_3_body, t_mol_3_body
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use semi_stoch_procs, only: recalc_core_hamil_diag, is_core_state
     use bit_reps, only: NIfTot, test_flag, extract_flags, &
@@ -558,11 +558,12 @@ contains
                                                       ExcitLevel, ilutRef(:,1), ilut)
             endif
 
-        else if (ExcitLevel_local == 3 .and. t_3_body_excits) then 
+        else if (ExcitLevel_local == 3 .and. (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body)) then 
             ! the new 3-body terms in the transcorrelated momentum space hubbard 
             ! hphf not yet implemented! 
             ASSERT(.not. tHPHF) 
             HOffDiag(1:inum_runs) = get_helement( ProjEDet(:,1), nI, ilutRef(:,1), ilut) 
+            write(6,*)'I am in the three-body'
 
 
         endif ! ExcitLevel_local == 1, 2, 3
@@ -830,7 +831,7 @@ contains
                                              ilutRef(:,run), ilut)
                 endif
 
-            else if (exlevel == 3 .and. t_3_body_excits) then 
+            else if (exlevel == 3 .and. (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body) ) then 
                 ASSERT(.not. tHPHF) 
                 hoffdiag = get_helement(ProjEDet(:,run), nI, exlevel, &
                     iLutRef(:,run), ilut)
