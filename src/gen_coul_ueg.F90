@@ -1114,7 +1114,7 @@ contains
     
 
     
-    function uu_tc_interpl (k2) result(u_tc)
+    function uu_tc_interpl0 (k2) result(u_tc)
 
      !   use SystemData, only: tUEG2, kvec, k_lattice_constant, dimen
         real(dp), intent(in) :: k2
@@ -1127,6 +1127,22 @@ contains
         end if
         
     end function
+    
+    function uu_tc_interpl (k2) result(u_tc)
+
+     !   use SystemData, only: tUEG2, kvec, k_lattice_constant, dimen
+        real(dp), intent(in) :: k2
+        real(dp) :: u_tc
+        
+        if( k2<1.d-12 )then
+         u_tc=0.0
+        else 
+         u_tc=-4*PI/k2/(k2+omega_p*2)
+        end if
+        
+    end function
+    
+
     
     function uu_tc_trunc (k2) result(u_tc)
 
