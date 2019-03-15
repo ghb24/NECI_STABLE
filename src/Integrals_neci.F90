@@ -781,7 +781,6 @@ contains
         if (associated(UMAT)) then
             LogDealloc (tagUMat)
             call shared_deallocate_mpi (int(umat_win,MPIArg),UMAT)
-            call shared_deallocate_mpi (umat_win,UMAT)
         endif
 
         if (allocated(frozen_orb_list)) then

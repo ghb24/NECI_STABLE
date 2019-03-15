@@ -1523,7 +1523,6 @@ supermodule par_internal
     integer :: iProcMinE, iProcMaxE, nProcessors
     logical :: neci_MPIInit_called, neci_MPINodes_called
 
-
 contains
 
     subroutine MPIInit (tExternal)
