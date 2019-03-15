@@ -541,6 +541,7 @@ system: do
 
         case('MOLECULAR-TRANSCORR')
             t_non_hermitian = .true.
+            t_3_body_excits = .true.
             ! optionally supply the three-body integrals of the TC Hamiltonian
             if(item < nitems) then
                call readu(w)
