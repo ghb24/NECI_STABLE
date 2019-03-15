@@ -19,9 +19,10 @@ contains
         ! We run the specified number of replicas in parallel.
         !
         ! This is initialisation of _global_ data that depends on the number
-        ! of 
+        ! of
 
         character(*), parameter :: this_routine = 'init_replica_arrays'
+        character(120) :: error_message
         integer :: ierr
 
         if (inum_runs > inum_runs_max .or. lenof_sign > lenof_sign_max) then
@@ -128,10 +129,16 @@ contains
                  InstShift(inum_runs), &
                  AvDiagSft(inum_runs), SumDiagSft(inum_runs), &
                  DiagSft(inum_runs), &
-                 hdf5_diagsft(inum_runs), & 
+                 hdf5_diagsft(inum_runs), &
                  DiagSftRe(inum_runs), &
                  DiagSftIm(inum_runs), &
                  tSinglePartPhase(inum_runs), stat=ierr)
+
+        if (ierr /= MPI_SUCCESS) then
+            write(error_message, '(A, I0)') &
+                'Error during allocation. ierr = ', ierr
+            call Stop_All(this_routine, error_message)
+        end if
 
         ! Variables which are only used conditionally.
         ! NB, NFrozen has not been subtracted from NEl yet!
@@ -155,6 +162,7 @@ contains
     subroutine clean_replica_arrays()
 
         ! The reverse of the above routine...
+        write(*, *) 'clean_replica_arrays called'
 
         deallocate(InstNoatHF, &
                    SumNoatHF, AllSumNoatHF, &
@@ -208,10 +216,10 @@ contains
                    OldAllAvWalkersCyc, &
 
                    norm_psi, norm_psi_squared, &
-                   all_norm_psi_squared, &
+                   all_norm_psi_squared, old_norm_psi, &
                    norm_semistoch, norm_semistoch_squared, &
                    curr_S2, curr_S2_init, &
-                   
+
                    SumENum, AllSumENum, ProjectionE, &
                    proje_iter, AbsProjE, &
                    trial_numerator, tot_trial_numerator, &
@@ -231,6 +239,9 @@ contains
                    InstShift, &
                    AvDiagSft, SumDiagSft, &
                    DiagSft, &
+                   hdf5_diagsft, &
+                   DiagSftRe, &
+                   DiagSftIm, &
                    tSinglePartPhase, &
 
                    ! KPFCIQMC
@@ -342,13 +353,13 @@ contains
         AllNoAbortedOld(:) = 0.0_dp
 
         iter_data_fciqmc%tot_parts_old = AllTotParts
-        
+
         do run = 1, inum_runs
 
             ! Calculate the projected energy for this iteration.
             if (ARR_RE_OR_CPLX(AllSumNoAtHF,run) /= 0) &
                 ProjectionE(run) = AllSumENum(run) / ARR_RE_OR_CPLX(AllSumNoatHF,run)
-            
+
             ! Keep track of where the particles are
             if (iProcIndex == iRefProc(run)) then
                 SumNoatHF(run) = AllSumNoatHF(run)
@@ -356,7 +367,7 @@ contains
                 InstNoatHF(run) = NoatHF(run)
             end if
 
-        enddo 
+        enddo
 
     end subroutine set_initial_global_data
 

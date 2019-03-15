@@ -22,7 +22,8 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,tMolcas_local,int_name,
     use Calc, only: CalcDoCalc
     use CalcData, only: tUseProcsAsNodes
     use kp_fciqmc_procs, only: kp_fciqmc_data
-    use Parallel_neci, only: MPINodes, iProcIndex
+    use Parallel_neci, only: MPINodes, iProcIndex, &
+        neci_MPIInit_called, neci_MPINodes_called
     use read_fci, only: FCIDUMP_name
 
     use ParallelHelper
@@ -32,7 +33,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,tMolcas_local,int_name,
     use global_utilities
     use constants
     use util_mod, only: get_free_unit
-    
+
     USE MolproPlugin
 
     Implicit none
@@ -46,7 +47,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,tMolcas_local,int_name,
     character(64) :: cString
     logical :: toverride_input,tFCIDUMP_exist,tMOLCASinput
     type(kp_fciqmc_data) :: kp
-    
+
     tMolpro = tMolpro_local
     tMolcas = tMolcas_local
 
@@ -54,6 +55,10 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,tMolcas_local,int_name,
     call stop_all(this_routine, 'The NEC compiler does not produce a working &
                                 &version of NECI.')
 #endif
+
+    neci_MPIInit_called = .false.
+    neci_MPINodes_called = .false.
+
     ! Do the program initialisation.
     call NECICodeInit(tCPMD,tVASP)
 
@@ -98,7 +103,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,tMolcas_local,int_name,
             endif
         endif
     else
-        Filename='' 
+        Filename=''
         FCIDUMP_name = 'FCIDUMP'
     endif
 #else
@@ -126,7 +131,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,tMolcas_local,int_name,
         else
           stop 'Error in Reading FCINP file passed by Molcas!'
         endif
-#endif        
+#endif
     ios=0
 
     if (.not.tCPMD.and..not.tVASP) then
@@ -148,7 +153,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,tMolcas_local,int_name,
     call NECICalcEnd(iCacheFlag)
 
     call halt_timer(proc_timer)
-    
+
     if(tMolpro.and.(.not.toverride_input).and.(.not.tMolproMimic)) then
         !Delete the FCIDUMP unless we are overriding the input, or mimicing molpro run-time behaviour
         if(iProcIndex.eq.0) then
@@ -193,7 +198,7 @@ subroutine NECICodeInit(tCPMD,tVASP)
     ! MPIInit contains dummy initialisation for serial jobs, e.g. so we
     ! can refer to the processor index being 0 for the parent processor.
     Call MPIInit(tCPMD.or.tVASP.or.tMolpro.or.tMolcas) ! CPMD and VASP have their own MPI initialisation and termination routines.
-    
+
     ! Measure when NECICore is called. We need to do this here, as molcas
     ! and molpro can call NECI part way through a run, so it is no use to time
     ! from when the _process_ began.
@@ -216,7 +221,7 @@ end subroutine NECICodeInit
 
 
 subroutine NECICodeEnd(tCPMD,tVASP)
-    != End the NECI code.  This contains all the termination 
+    != End the NECI code.  This contains all the termination
     != procedures for the code (as opposed to the system in general): e.g. for
     != the memory handling scheme, the timing routines, any parallel routines etc.
     != In:
@@ -242,7 +247,7 @@ subroutine NECICodeEnd(tCPMD,tVASP)
 ! Tell Molpro plugin server that we have finished
     CALL MolproPluginTerm(0)
 ! CPMD and VASP have their own MPI initialisation and termination routines.
-    call MPIEnd(molpro_plugin.or.(tMolpro.and.(.not.tMolproMimic)).or.tCPMD.or.tVASP.or.tMolcas) 
+    call MPIEnd(molpro_plugin.or.(tMolpro.and.(.not.tMolproMimic)).or.tCPMD.or.tVASP.or.tMolcas)
 #endif
 
 !    CALL N_MEMORY_CHECK
@@ -267,7 +272,7 @@ subroutine NECICalcInit(iCacheFlag)
     !=                Currently relevant only for CPMD and VASP calculations.
     !=                iCacheFlag=0,1: initialise the cache.
     !=                iCacheFlag=2,3: reuse the cache from the previous NECI
-    !=                                calculation from within the same CPMD/VASP 
+    !=                                calculation from within the same CPMD/VASP
     !=                                calculation.
 
     use System, only : SysInit
@@ -283,12 +288,12 @@ subroutine NECICalcInit(iCacheFlag)
 
     implicit none
     integer,intent(in) :: iCacheFlag
-   
+
     ! Initialise the global data arrays, whose size depends on global values
     ! that used to be constant.
     ! These are essentially constant arrays available after the input has
     ! been read
-    call init_replica_arrays()   
+    call init_replica_arrays()
 
 !   Initlialize the system.  Sets up ...
 !   Symmetry is a subset of the system
@@ -325,7 +330,7 @@ subroutine NECICalcInit(iCacheFlag)
 
 !   Do any initializations we need to do for calculations (e.g. ...?)
     call CalcInit()
-    
+
     IF(tRotateOrbs.and.(.not.tFindCINatOrbs)) THEN
         CALL RotateOrbs()
     ENDIF
@@ -343,7 +348,7 @@ subroutine NECICalcEnd(iCacheFlag)
     !=                Currently relevant only for CPMD and VASP calculations.
     !=                iCacheFlag=0,2: destroy the cache on exit.
     !=                iCacheFlag=1,3: keep the cache on exit: it will be re-used
-    !=                                in subsequent calculations within the same 
+    !=                                in subsequent calculations within the same
     !=                                call to CPMD/VASP.
 
     ! Main level modules.
@@ -358,13 +363,13 @@ subroutine NECICalcEnd(iCacheFlag)
     use SystemData, only: arr, brr, g1, tagArr, tagBrr, tagG1
     use Determinants, only: FDet, tagFDet
     use MemoryManager
-    use FciMCData, only:ValidSpawnedList,InitialSpawnedSlots 
+    use FciMCData, only:ValidSpawnedList,InitialSpawnedSlots
     use LoggingData, only: tCalcPropEst
 
     implicit none
     integer,intent(in) :: iCacheFlag
 
-!   Tidy up: 
+!   Tidy up:
     call CalcCleanup()
     call DetCleanup()
     call IntCleanup(iCacheFlag)
