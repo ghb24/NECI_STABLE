@@ -1453,6 +1453,7 @@ system: do
       use legacy_data, only: CSF_NBSTART
       use read_fci
       use sym_mod
+      use SymExcitDataMod, only: kPointToBasisFn
       implicit none
       character(*), parameter :: this_routine='SysInit'
       integer ierr
@@ -1760,6 +1761,7 @@ system: do
           Allocate(G1(Len),STAT=ierr)
           LogAlloc(ierr,'G1',LEN,BasisFNSizeB,tagG1)
           G1(1:LEN)=NullBasisFn
+          
 
           IF(TCPMD) THEN
               WRITE(6,'(A)') '*** INITIALIZING BASIS FNs FROM CPMD ***'
@@ -1798,7 +1800,7 @@ system: do
       
           ELSE
 !C.. Create plane wave basis functions
-
+ 
               WRITE(6,*) "Creating plane wave basis."     
               IG=0
               DO I=NBASISMAX(1,1),NBASISMAX(1,2)
@@ -2104,6 +2106,8 @@ system: do
              RS=1.0_dp
           ELSE
             if(dimen==3)then
+            
+            
              OMEGA=ALAT(1)*ALAT(2)*ALAT(3)
              RS=(3.0_dp*OMEGA/(4.0_dp*PI*NEL))**THIRD
              ALAT(5)=RS
@@ -2329,6 +2333,7 @@ system: do
                 ! and in the k-space i still need to 
             end do
         else if(dimen==3) then
+         
          IG=0
          DO I=NBASISMAX(1,1),NBASISMAX(1,2)
            DO J=NBASISMAX(2,1),NBASISMAX(2,2)
@@ -2374,6 +2379,7 @@ system: do
                     G1(IG)%K(3)=K
                     G1(IG)%MS=L
                     G1(IG)%Sym=TotSymRep()
+                    
                   ENDIF
                ENDDO
              ENDDO

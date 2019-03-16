@@ -6,7 +6,7 @@ module fcimc_helper
     use util_mod
     use systemData, only: nel, tHPHF, tNoBrillouin, G1, tUEG, &
                           tLatticeGens, nBasis, tHistSpinDist, tRef_Not_HF, & 
-                          t_3_body_excits, t_non_hermitian, t_ueg_3_body, t_mol_3_body
+                          t_3_body_excits, t_non_hermitian,t_ueg_3_body,t_mol_3_body
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use semi_stoch_procs, only: recalc_core_hamil_diag, is_core_state
     use bit_reps, only: NIfTot, test_flag, extract_flags, &
