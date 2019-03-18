@@ -162,8 +162,6 @@ contains
     subroutine clean_replica_arrays()
 
         ! The reverse of the above routine...
-        write(*, *) 'clean_replica_arrays called'
-
         deallocate(InstNoatHF, &
                    SumNoatHF, AllSumNoatHF, &
                    NoatHF, AllNoatHF, OldAllNoatHF, &

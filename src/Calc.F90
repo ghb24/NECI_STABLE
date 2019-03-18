@@ -3060,7 +3060,6 @@ contains
                  end if
               ENDIF
           endif
-          write(*, *) "test"
           IF(TMONTE.and..not.tMP2Standalone) THEN
 !             DBRAT=0.01
 !             DBETA=DBRAT*BETA
