@@ -164,6 +164,9 @@ contains
             write(*,*) "No memory slots available for this spawn."
             write(*,*) "Please increase MEMORYFACSPAWN"
 #endif
+            ! give a note on the counter-intuitive scaling behaviour
+            if(MaxSpawned/nProcessors < 0.1*TotWalkers) write(iout,*) &
+                 "Memory available for spawns is too low, number of processes might be too high for the given walker number" 
             call stop_all(this_routine, "Out of memory for spawned particles")
         end if
 
