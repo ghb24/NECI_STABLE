@@ -3,13 +3,13 @@
 module ueg_excit_gens
 
     use SystemData, only: nel, nbasis, tOrbECutoff, ElecPairs, OrbECutoff, &
-                          nmaxx, nmaxy, nmaxz, G1
+                          nmaxx, nmaxy, nmaxz, G1, TContact
     use dSFMT_interface, only: genrand_real2_dSFMT
     use FciMCData, only: excit_gen_store_type
     use DeterminantData, only: write_det
     use get_excit, only: make_double
     use bit_rep_data, only: NIfTot
-    use sltcnd_mod, only: sltcnd_2_kernel
+    use sltcnd_mod, only: sltcnd_2_kernel, sltcnd_2_kernel_ua
     use UMatCache, only: gtID
     use constants
     use util_mod
@@ -78,7 +78,11 @@ contains
         ! find the orbital, B, that will complete the excitation given i,j.
         ! If this is also unoccupied, then contribute to the cumulative list
         ! for making selections
-        call create_ab_list_ueg(ilutI, [orbi,orbj], cum_arr, cum_sum) 
+        if (TContact) then
+                call create_ab_list_ueg_ua(ilutI, [orbi,orbj], cum_arr, cum_sum) 
+        else
+                call create_ab_list_ueg(ilutI, [orbi,orbj], cum_arr, cum_sum) 
+        endif
 
         ! If there are no available excitations, then we need to reject this
         ! excitation
@@ -169,6 +173,51 @@ contains
         end do
 
     end subroutine create_ab_list_ueg
+
+    subroutine create_ab_list_ueg_ua(ilutI, src, cum_arr, cum_sum)
+        integer(n_int), intent(in) :: ilutI(0:niftot)
+        integer, intent(in) :: src(2)
+        real(dp), intent(out) :: cum_arr(nbasis), cum_sum
+
+        integer :: ex(2,2), orba, orbb, ispn
+        real(dp) :: elem, testE
+
+        ex(1,:) = src
+
+        ispn = get_ispn(src)
+
+        cum_sum = 0.0_dp
+        do orba = 1, nbasis
+
+            ! TODO: Symmetry restrictions on A (if parallel, can't pick opp)
+            elem = 0.0_dp
+            if (IsNotOcc(ilutI, orba) .and. &
+                (.not. ((iSpn == 1 .and. .not. is_beta(orba)) .or. &
+                       (iSpn == 3 .and. is_beta(orba))))) then
+
+                if (is_allowed_ueg_k_vector(src(1), src(2), orba)) then
+
+                    orbb = get_orb_from_kpoints(src(1), src(2), orba)
+
+                   ! n.b. we enforce strict selection a-b, not b-a
+                    if (orbb > orba .and. IsNotOcc(ilutI, orbb)) then
+
+                        ! We don't need to worry about which a,b is which, as
+                        ! we don't care about the overall sign.
+                        ex(2, 1) = orba
+                        ex(2, 2) = orbb
+                        elem = abs(sltcnd_2_kernel_ua(ex))
+                    end if
+                end if
+            end if
+
+            ! Increment the cumulative sum
+            cum_sum = cum_sum + elem
+            cum_arr(orba) = cum_sum
+
+        end do
+
+    end subroutine create_ab_list_ueg_ua
 
      function calc_pgen_ueg(nI, ilutI, ex, ic) result(pgen) 
         ! i also have to write a pgen recalculator for the pgens with this 
