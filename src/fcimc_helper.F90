@@ -95,7 +95,7 @@ contains
 
     end function TestMCExit
 
-    subroutine create_particle (nJ, iLutJ, child, part_type, ilutI, SignCurr, &
+    subroutine create_particle (nJ, iLutJ, child, part_type, err, ilutI, SignCurr, &
                                 WalkerNo, RDMBiasFacCurr, WalkersToSpawn)
 
         ! Create a child in the spawned particles arrays. We spawn particles
@@ -108,6 +108,7 @@ contains
         integer, intent(in) :: nJ(nel), part_type
         integer(n_int), intent(in) :: iLutJ(0:niftot)
         real(dp), intent(in) :: child(lenof_sign)
+        integer, intent(out) :: err
         integer(n_int), intent(in), optional :: ilutI(0:niftot)
         real(dp), intent(in), optional :: SignCurr(lenof_sign)
         integer, intent(in), optional :: WalkerNo
@@ -121,6 +122,8 @@ contains
 
         logical :: parent_init
 
+        ! error flag to indicate if the attempt was successful
+        err = 0
         !Ensure no cross spawning between runs - run of child same as run of
         !parent
 #ifdef __DEBUG
@@ -157,7 +160,9 @@ contains
             ! give a note on the counter-intuitive scaling behaviour
             if(MaxSpawned/nProcessors < 0.1*TotWalkers) write(iout,*) &
                  "Memory available for spawns is too low, number of processes might be too high for the given walker number" 
-            call stop_all(this_routine, "Out of memory for spawned particles")
+            ! return with error
+            err = 1
+            return
         end if
 
         !We initially encode no flags
@@ -199,13 +204,14 @@ contains
 
     end subroutine create_particle
 
-    subroutine create_particle_with_hash_table (nI_child, ilut_child, child_sign, part_type, ilut_parent, iter_data)
+    subroutine create_particle_with_hash_table (nI_child, ilut_child, child_sign, part_type, ilut_parent, iter_data, err)
 
         use hash, only: hash_table_lookup, add_hash_table_entry
         integer, intent(in) :: nI_child(nel), part_type
         integer(n_int), intent(in) :: ilut_child(0:NIfTot), ilut_parent(0:NIfTot)
         real(dp), intent(in) :: child_sign(lenof_sign)
         type(fcimc_iter_data), intent(inout) :: iter_data
+        integer, intent(out) :: err
 
         integer :: proc, ind, hash_val, i, run
         integer(n_int) :: int_sign(lenof_sign)
@@ -215,6 +221,7 @@ contains
         integer, parameter :: flags = 0
         character(*), parameter :: this_routine = 'create_particle_with_hash_table'
         
+        err = 0
         ! Only one element of child should be non-zero
         ASSERT((sum(abs(child_sign))-maxval(abs(child_sign)))<1.0e-12_dp)
 
@@ -285,7 +292,8 @@ contains
                 write(*,*) "No memory slots available for this spawn."
                 write(*,*) "Please increase MEMORYFACSPAWN"
 #endif
-                call stop_all(this_routine, "Out of memory for spawned particles")
+                err = 1
+                return
             end if
 
             call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), ilut_child(0:NIfDBO), child_sign, flags)

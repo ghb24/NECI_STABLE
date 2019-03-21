@@ -129,7 +129,7 @@ module FciMCParMod
         real(dp),dimension(100) :: lt_sum, lt_max
 
         real(dp):: lt_imb
-        integer:: rest
+        integer:: rest, err
 
 #ifdef MOLPRO
         real(dp) :: get_scalar
@@ -151,7 +151,7 @@ module FciMCParMod
             call Standalone_Errors()
             return
         endif
-
+        err = 0
         ProjE_Err_re = 1.0_dp
         ProjE_Err_im = 1.0_dp
         shift_err = 1.0_dp
@@ -354,7 +354,7 @@ module FciMCParMod
                 call iterate_cont_time(iter_data_fciqmc)
             else
                 if (.not. (tSpinProject .and. spin_proj_interval == -1)) &
-                    call PerformFciMCycPar(iter_data_fciqmc)
+                    call PerformFciMCycPar(iter_data_fciqmc, err)
             end if
 
             ! Are we projecting the spin out between iterations?
@@ -371,7 +371,8 @@ module FciMCParMod
                 attempt_die => attempt_die_spin_proj
 
                 do i = 1, max(spin_proj_iter_count, 1)
-                    call PerformFciMCycPar (iter_data_spin_proj)
+                    call PerformFciMCycPar (iter_data_spin_proj, err)
+                    if(err.ne.0) exit
                 enddo
 
                 ! Return to prior config
@@ -379,6 +380,8 @@ module FciMCParMod
                 get_spawn_helement => gs_tmp
                 attempt_die => ad_tmp
             endif
+            ! if the iteration failed, stop the calculation now
+            if(err.ne.0) exit
 
             if(iProcIndex.eq.root) then
                 s_end=neci_etime(tend)
@@ -845,7 +848,7 @@ module FciMCParMod
 
     end subroutine FciMCPar
 
-    subroutine PerformFCIMCycPar(iter_data)
+    subroutine PerformFCIMCycPar(iter_data, err)
       use mpi
         use global_det_data, only: get_iter_occ_tot, get_av_sgn_tot
         use global_det_data, only: set_av_sgn_tot, set_iter_occ_tot
@@ -856,6 +859,7 @@ module FciMCParMod
         use symrandexcit_Ex_Mag, only: test_sym_excit_ExMag 
         ! Iteration specific data
         type(fcimc_iter_data), intent(inout) :: iter_data
+        integer, intent(out) :: err
 
         ! Now the local, iteration specific, variables
         integer :: j, p, error, proc_temp, i, HFPartInd,isym
@@ -885,7 +889,7 @@ module FciMCParMod
         integer, save :: detGrowth = 0
 
         call set_timer(Walker_Time,30)
-
+        err = 0
         MaxInitPopPos=0.0_dp
         MaxInitPopNeg=0.0_dp
         HighPopNeg=1
@@ -1263,11 +1267,15 @@ module FciMCParMod
 
                         if (use_spawn_hash_table) then
                             call create_particle_with_hash_table (nJ, ilutnJ, child, part_type, &
-                                                                   CurrentDets(:,j), iter_data)
+                                                                   CurrentDets(:,j), iter_data, err)
                         else
-                            call create_particle (nJ, iLutnJ, child, part_type, & 
+                            call create_particle (nJ, iLutnJ, child, part_type, err, & 
                                                   CurrentDets(:,j), SignCurr, p, &
                                                   RDMBiasFacCurr, WalkersToSpawn)
+                        end if
+                        if(err.ne.0) then
+                           ! exit the fcimc calculation in a soft manner
+                           return
                         end if
 
                     endif ! (child /= 0), Child created.
