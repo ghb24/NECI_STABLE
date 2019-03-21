@@ -133,11 +133,16 @@ contains
                   &20.ProjE.ThisIter  21.HFInstShift  22.TotInstShift  &
                   &23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE &
                   &26.HF weight    27.|Psi|     28.Inst S^2 29.Inst S^2 30.AbsProjE &
-                  &31.|Semistoch|/|Psi|   32.PartsDiffProc"
+                  &31.PartsDiffProc    32.|Semistoch|/|Psi|     33.MaxCycSpawn"
            if (tTrialWavefunction .or. tStartTrialLater) then 
                   write(fcimcstats_unit2, "(A)", advance = 'no') &
-                  "  33.TrialNumerator  34.TrialDenom  35.TrialOverlap"
+                  "  34.TrialNumerator  35.TrialDenom  36.TrialOverlap"
+              trunc_caption = "  37. TruncWeight"
+           else
+              trunc_caption = "  34. TruncWeight"
            end if
+           if(t_truncate_spawns) write(fcimcstats_unit2, "(A)", advance = 'no') &
+                trunc_caption
 
            write(fcimcstats_unit2, "()", advance = 'yes')
 #endif
@@ -346,6 +351,9 @@ contains
                     (tot_trial_denom(2) / StepsSft), &
                     abs(tot_trial_denom(2) / (norm_psi(2)*StepsSft))
                 end if
+                if(t_truncate_spawns) then
+                   write(fcimcstats_unit2, "(1X,es18.11)", advance = 'no') AllTruncatedWeight
+                endif
                 
                 write(fcimcstats_unit2, "()", advance = 'yes')
 #endif
