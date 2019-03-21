@@ -129,7 +129,7 @@ module FciMCParMod
         real(dp),dimension(100) :: lt_sum, lt_max
 
         real(dp):: lt_imb
-        integer:: rest, err
+        integer:: rest, err, allErr
 
 #ifdef MOLPRO
         real(dp) :: get_scalar
@@ -882,7 +882,7 @@ module FciMCParMod
         integer :: DetHash, FinalVal, clash, PartInd, k, y
         type(ll_node), pointer :: TempNode
 
-        integer :: ms
+        integer :: ms, allErr
         logical :: signChanged, newlyOccupied
         real(dp) :: currArg, spawnArg
         ! how many entries were added to (the end of) CurrentDets in the last iteration
@@ -890,6 +890,7 @@ module FciMCParMod
 
         call set_timer(Walker_Time,30)
         err = 0
+        allErr = 0
         MaxInitPopPos=0.0_dp
         MaxInitPopNeg=0.0_dp
         HighPopNeg=1
@@ -1275,7 +1276,7 @@ module FciMCParMod
                         end if
                         if(err.ne.0) then
                            ! exit the fcimc calculation in a soft manner
-                           return
+                           exit
                         end if
 
                     endif ! (child /= 0), Child created.
@@ -1291,6 +1292,12 @@ module FciMCParMod
                                                        HDiagCurr, SignCurr, j, WalkExcitLevel)
 
         enddo ! Loop over determinants.
+        ! if any proc ran out of memory, terminate
+        call MPISumAll(err,allErr)
+        if(allErr.ne.0) then
+           err = allErr
+           return
+        endif
 
         !loop timing for this iteration on this MPI rank
         lt_arr(mod(Iter-1,100)+1)=mpi_wtime()-lstart
@@ -1340,7 +1347,13 @@ module FciMCParMod
         !HolesInList is returned from direct annihilation with the number of unoccupied determinants in the list
         !They have already been removed from the hash table though.
 
-        call DirectAnnihilation (totWalkersNew, iter_data, .false.) !.false. for not single processor
+        call DirectAnnihilation (totWalkersNew, iter_data, .false., err) !.false. for not single processor
+        ! if any proc ran out of memory, terminate
+        call MPISumAll(err,allErr)
+        if(allErr.ne.0) then
+           err = allErr
+           return 
+        endif
 
         ! The growth in the size of the occupied part of CurrentDets
         ! this is important for the purpose of prone_walkers

@@ -44,7 +44,7 @@ contains
 
         real(dp) :: sgn(lenof_sign), rate, hdiag
         integer :: sgn_abs, iunused, flags, det(nel), j, p, TotWalkersNew
-        integer :: part_type, ic_hf, nopen
+        integer :: part_type, ic_hf, nopen, err
         logical :: survives
 
         if (lenof_sign /= 1) then
@@ -153,7 +153,7 @@ contains
 
         ! Send walkers to the correct nodes, and annihilate
         call set_timer(annihil_time)
-        call DirectAnnihilation(TotWalkersNew, iter_data, .false.)
+        call DirectAnnihilation(TotWalkersNew, iter_data, .false.,err)
         TotWalkers = TotWalkersNew
         call halt_timer(annihil_time)
         IFDEBUG(FCIMCDebug, 2) write(iout, '("Finished annihilation")')

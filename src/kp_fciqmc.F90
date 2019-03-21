@@ -292,7 +292,7 @@ contains
 
                         call set_timer(annihil_time)
 
-                        call DirectAnnihilation (TotWalkersNew, iter_data_fciqmc, .false.)
+                        call DirectAnnihilation (TotWalkersNew, iter_data_fciqmc, .false.,ierr)
 
                         TotWalkers = int(TotWalkersNew, int64)
 
@@ -642,7 +642,7 @@ contains
 
                     call set_timer(annihil_time)
 
-                    call DirectAnnihilation (TotWalkersNew, iter_data_fciqmc, .false.)
+                    call DirectAnnihilation (TotWalkersNew, iter_data_fciqmc, .false.,ierr)
 
                     TotWalkers = int(TotWalkersNew, int64)
 

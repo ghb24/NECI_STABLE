@@ -314,7 +314,7 @@ contains
       implicit none
         integer, intent(in) :: block, tgt_proc
         integer :: src_proc, ierr, nsend, nelem, j, k, det_block, hash_val
-        integer :: det(nel), TotWalkersTmp, nconsend, clashes, ntrial, ncon
+        integer :: det(nel), TotWalkersTmp, nconsend, clashes, ntrial, ncon, err
         integer(n_int) :: con_state(0:NConEntry)
         real(dp) :: sgn(lenof_sign)
         real(dp) :: HDiag
@@ -412,7 +412,7 @@ contains
                 ! Calculate the diagonal hamiltonian matrix element for the new particle to be merged.
                 HDiag = get_diagonal_matel(det, SpawnedParts(:,j))
                 call AddNewHashDet(TotWalkersTmp, SpawnedParts(:, j), &
-                                   hash_val, det, HDiag)
+                                   hash_val, det, HDiag, err)
                 TotWalkers = TotWalkersTmp
             end do
 
@@ -457,7 +457,7 @@ contains
     end subroutine
 
 
-    subroutine AddNewHashDet(TotWalkersNew, iLutCurr, DetHash, nJ, HDiag)
+    subroutine AddNewHashDet(TotWalkersNew, iLutCurr, DetHash, nJ, HDiag, err)
 
         ! Add a new determinant to the main list. This involves updating the
         ! list length, copying it across, updating its flag, adding its diagonal
@@ -468,12 +468,14 @@ contains
         integer(n_int), intent(inout) :: iLutCurr(0:NIfTot)
         integer, intent(in) :: DetHash, nJ(nel)
         real(dp), intent(in) :: HDiag
+        integer, intent(out) :: err
         integer :: DetPosition
         HElement_t(dp) :: trial_amps(ntrial_excits)
         logical :: tTrial, tCon
         real(dp), dimension(lenof_sign) :: SignCurr
         character(len=*), parameter :: t_r = "AddNewHashDet"
 
+        err = 0
         if (iStartFreeSlot <= iEndFreeSlot) then
             ! We can slot it into a free slot in the main list, rather than increase its length
             DetPosition = FreeSlot(iStartFreeSlot)
@@ -484,7 +486,9 @@ contains
             TotWalkersNew = TotWalkersNew + 1
             DetPosition = TotWalkersNew
             if (TotWalkersNew >= MaxWalkersPart) then
-                call stop_all(t_r, "Not enough memory to merge walkers into main list. Increase MemoryFacPart")
+               ! return with an error
+               err = 1
+               return
             end if
             CurrentDets(:,DetPosition) = iLutCurr(:)
             
