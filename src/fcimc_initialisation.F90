@@ -2051,7 +2051,7 @@ contains
                ! the spin-flipped version is stored
                if(DetBitLT(initSpace(:,i),ilutJ,NIfD).eq.1) cycle
             endif
-            call AddNewHashDet(TotWalkersTmp,initSpace(:,i),DetHash,nI,HDiag,pos)
+            call AddNewHashDet(TotWalkersTmp,initSpace(:,i),DetHash,nI,HDiag,pos,err)
             TotWalkers = TotWalkersTmp
          end if
          ! reset the reference?

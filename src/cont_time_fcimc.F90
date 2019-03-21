@@ -44,7 +44,7 @@ contains
 
         real(dp) :: sgn(lenof_sign), rate, hdiag
         integer :: sgn_abs, iunused, flags, det(nel), j, p, TotWalkersNew
-        integer :: part_type, ic_hf, nopen
+        integer :: part_type, ic_hf, nopen, err
         logical :: survives
 
         if (lenof_sign /= 1) then
@@ -153,7 +153,7 @@ contains
 
         ! Send walkers to the correct nodes, and annihilate
         call set_timer(annihil_time)
-        call DirectAnnihilation(TotWalkersNew, iter_data, .false.)
+        call DirectAnnihilation(TotWalkersNew, iter_data, .false.,err)
         TotWalkers = TotWalkersNew
         call halt_timer(annihil_time)
         IFDEBUG(FCIMCDebug, 2) write(iout, '("Finished annihilation")')
@@ -184,7 +184,7 @@ contains
 
         real(dp) :: time, child(lenof_sign), dt, rate_adj, rate_spwn
         real(dp) :: hdiag_spwn, spwn_sgn
-        integer :: nspawn, spawn_sgn, det_spwn(nel), ic, i, y, nopen_spwn
+        integer :: nspawn, spawn_sgn, det_spwn(nel), ic, i, y, nopen_spwn, err
         integer(n_int) :: ilut_spwn(0:NIfTot)
         logical :: child_survives
         HElement_t(dp) :: hoffdiag, htmp
@@ -303,12 +303,12 @@ contains
                     end if
 
                     if (use_spawn_hash_table) then
-                        call create_particle_with_hash_table( &
+                        call create_particle_with_hash_table(&
                                          det_spwn, ilut_spwn, child, &
-                                         part_type, ilut, iter_data)
+                                         part_type, ilut, iter_data, err)
                     else
                         call create_particle(det_spwn, ilut_spwn, child, &
-                                             part_type, ilut)
+                                             part_type, err, ilut)
                     end if
                 end if
 
