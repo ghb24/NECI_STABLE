@@ -1548,12 +1548,9 @@ contains
         character(len=20) NodeFile
         logical(MPIArg) :: initialised
         character(*), parameter :: t_r = 'MPIInit'
-#ifdef _MOLCAS_
         character(8) :: MCPUs
-#endif
 #ifdef MOLPRO
         integer :: MolpComm
-        character(8) :: MCPUs
 #endif
 
     if (neci_MPIInit_called) return
