@@ -1,7 +1,7 @@
 #include "macros.h"
 module tc_three_body_excitgen
   use constants
-  use SystemData, only: nel, nOccAlpha, nOccBeta, nBasis, G1
+  use SystemData, only: nel, nOccAlpha, nOccBeta, nBasis, G1, t_exclude_3_body_excits
   use lattice_mod, only: sort_unique
   use bit_rep_data, only: NIfTot
   use k_space_hubbard, only: make_triple
@@ -185,6 +185,7 @@ module tc_three_body_excitgen
       if(abs(pTriples) < eps) then
          pTriples = 0.1
       endif
+      if(t_exclude_3_body_excits) pTriples = 0.0_dp
       ! rescale pSingles/pDoubles
       ! only required if not continuing a run w rescaled values
       if(.not.tReadPTriples) then

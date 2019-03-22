@@ -189,6 +189,7 @@ MODULE System
       tmodHub = .false.
       t_uniform_excits = .false.
       t_mol_3_body = .false.
+      t_exclude_3_body_excits = .false.
       tMultiReplicas = .false.
       tGiovannisBrokenInit = .false.
       ! by default, excitation generation already creates matrix elements
@@ -561,6 +562,9 @@ system: do
                end select
             endif
             if(t_mol_3_body) max_ex_level = 3
+
+       case('EXCLUDE-3-BODY-EX')
+          t_exclude_3_body_excits = .true.
 
        case ('TRANSCORRELATED', 'TRANSCORR', 'TRANS-CORR')
            ! activate the transcorrelated Hamiltonian idea from hongjun for 

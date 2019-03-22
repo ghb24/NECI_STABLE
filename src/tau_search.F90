@@ -8,7 +8,8 @@ module tau_search
                           nOccAlpha, nOccBeta, tUEG, tGen_4ind_2, tReltvy, & 
                           t_3_body_excits, t_k_space_hubbard, t_trans_corr_2body, &
                           t_uniform_excits, t_new_real_space_hubbard, & 
-                          t_trans_corr, tHub, t_trans_corr_hop, tNoSinglesPossible
+                          t_trans_corr, tHub, t_trans_corr_hop, tNoSinglesPossible, &
+                          t_exclude_3_body_excits
 
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow, t_min_tau, min_tau_global, &
@@ -298,8 +299,12 @@ contains
             ! k-space hubbard model, where there are still no single 
             ! excitations -> so reuse the quantities for the the singles 
             ! instead of introducing yet more variables
-            tmp_prob = prob / pTriples
-            tmp_gamma = abs(matel) / tmp_prob
+           if(.not. t_exclude_3_body_excits) then
+              tmp_prob = prob / pTriples
+              tmp_gamma = abs(matel) / tmp_prob
+           else
+              tmp_gamma = 0.0_dp
+           end if
 
             if (tmp_gamma > gamma_trip) gamma_trip = tmp_gamma
             ! And keep count!
@@ -580,7 +585,8 @@ contains
         if ((checkS + checkD + checkT > 1)) then
            if((psingles_new > 1e-5_dp .or. tNoSinglesPossible) &
                 .and. psingles_new < (1.0_dp - 1e-5_dp) .and. &
-                min(pTriples_new,(1.0_dp-pTriples_new))>1e-5_dp) then
+                (t_3_body_excits .and. min(pTriples_new,(1.0_dp-pTriples_new))>1e-5_dp .or. &
+                t_exclude_3_body_excits)) then
 
               if (abs(psingles - psingles_new) / psingles > 0.0001_dp) then
                  if (tReltvy) then 
@@ -595,7 +601,9 @@ contains
                  endif
               end if
 
-              if(abs(pTriples_new - pTriples) / pTriples > 0.0001_dp) then
+              if(t_exclude_3_body_excits) then 
+                 pTriples_new = 0.0_dp
+              else if(abs(pTriples_new - pTriples) / pTriples > 0.0001_dp) then
                  root_print "Updating triple-excitation bias. pTriples =", pTriples_new
               endif
 

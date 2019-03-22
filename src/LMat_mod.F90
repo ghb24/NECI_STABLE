@@ -278,9 +278,6 @@ module LMat_mod
                      counter = LMatInd(a,b,c,i,j,k)
                      write(iout,*) "Warning, exceeding size" 
                   endif
-                  if(LMatInd(a,b,c,i,j,k).eq.LMatInd(19,1,7,5,7,1)) then
-                     print *, "WARNING: This should be 0", a,b,c,i,j,k,matel
-                  endif
 
                   LMat(LMatInd(a,b,c,i,j,k)) = 3.0_dp * matel
                   if(abs(matel)> 0.0_dp) counter = counter + 1
@@ -370,7 +367,8 @@ module LMat_mod
 
       ! get the number of integrals
       call read_int64_attribute(grp_id, nm_nInts, nInts, required=.true.)
-      
+      write(iout,*) "Reading", nInts, "integrals"
+
       ! how many entries does each proc get?
       call MPI_Comm_Size(mpi_comm_intra, procs_per_node, ierr)
       allocate(counts(0:procs_per_node-1))
@@ -445,7 +443,10 @@ module LMat_mod
       end do
       deallocate(offsets)
       deallocate(counts)
+      call h5dclose_f(ds_vals, err)
+      call h5dclose_f(ds_inds, err)
       ! close the file, finalize hdf5
+      call h5gclose_f(grp_id, err)
       call h5pclose_f(plist_id, err)
       call h5fclose_f(file_id, err)
       call h5close_f(err)
