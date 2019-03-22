@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 2.8.4 FATAL_ERROR)
 
+if (POLICY CMP0074)
+    cmake_policy(SET CMP0074 NEW)
+endif ()
+
 project(NECI Fortran CXX C)
 
 # Get access to custom cmake modules
