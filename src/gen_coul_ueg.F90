@@ -753,11 +753,62 @@ contains
 
       elseif(dimen==1) then
 
-         write(6,*) '1D case should came here...' 
-               stop
+        a = G1(j)%k(1) - G1(l)%k(1)
+
+        if(TranscorrCutoff.gt.0) then
+                kmax=TranscorrCutoff
+        else
+                kmax=abs(NBASISMAX(1,2))
+        endif
+
+        if ( ((G1(k)%k(1) - G1(i)%k(1)) == a)) then
+
+         if(G1(i)%Ms.eq.G1(j)%Ms) then
+
+           hel=0
+
+           if(t_ueg_transcorr.and.abs(a).ge.kmax.and.trpa_tc) then
+                k_tc(1) = 2 * PI * a / ALAT(1)
+                G2 = k_tc (1) * k_tc (1)
+                if(G1(i)%Ms.eq.-1) then
+                        nsigma=nOccAlpha
+                else
+                        nsigma=nOccBeta
+                endif
+                hel=hel-nsigma*PotentialStrength**2/G2/ALAT(1)
+           endif
+
+
+         else
+
+
+           hel = PotentialStrength
+
+           if(t_ueg_transcorr)then
+                  hel = hel+UMAT_TC2_Contact(abs(a)) !/ PI**2
+
+                  k_tc(1) = 2 * PI * a / ALAT(1)
+                  G2 = k_tc (1) * k_tc (1)
+                  if( abs(a).ge.kmax ) then
+                      pq_tc(1) = (G1(k)%k(1) - G1(l)%k(1))*2*PI/ ALAT(1)
+                      u_tc = -PotentialStrength/G2 !/PI
+
+                      hel = hel - PotentialStrength - pq_tc(1)*k_tc(1)*u_tc
+
+
+                  end if
+           end if
+
+         endif !spin-parallel
+
+           hel = hel/ALAT(1)
+
+        else
+            hel = 0
+        endif ! ((G1(k)%k(1) - G1(i)%k(1)) == a)
  
       else
-        write(6,*)'dimension error in get_ueg_umat_el',dimen
+        write(6,*)'dimension error in get_contact_umat_el',dimen
         stop
       end if  
     
