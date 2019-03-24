@@ -2144,10 +2144,31 @@ system: do
              WRITE(6,*) " Fermi Energy EF=",FKF*FKF/2
              WRITE(6,*) " Unscaled Fermi Energy nmax**2=",(FKF*FKF/2)/(0.5*(2*PI/ALAT(5))**2) !??????????
             
-            else 
-             WRITE(6,'(A, I4)') " Dimension problem  ", dimen 
-             stop
+            else if (dimen==1) then
+                OMEGA=ALAT(1)
+                RS=OMEGA/(2*NEL)
+                ALAT(5)=RS
+                write(6,*)'Be cautios, the 1D rs and kF values have not been checked thorougHly!'
+                IF(iPeriodicDampingType.NE.0) THEN
+                IF(iPeriodicDampingType.EQ.1) THEN
+                   WRITE(6,*) " Using attenuated Coulomb potential for exchange interactions."
+                ELSEIF(iPeriodicDampingType.EQ.2) THEN
+                   WRITE(6,*) " Using cut-off Coulomb potential for exchange interactions."
+                ENDIF
+
+                WRITE(6,*) " Rc cutoff: ",ALAT(4)
+             ENDIF
+             WRITE(6,*) " Wigner-Seitz radius Rs=",RS
+             FKF=PI*RS
+             WRITE(6,*) " Fermi vector kF=",FKF
+             WRITE(6,*) " Fermi Energy EF=",FKF*FKF/2
+             WRITE(6,*) " Unscaled Fermi Energy nmax**2=",(FKF*FKF/2)/(0.5*(2*PI/ALAT(5))**2)
+
+            else
+                write(6,*)'Dimension problem'
+                stop
             end if
+            
 
           ENDIF
           IF(OrbECutoff.ne.1e-20_dp) WRITE(6,*) " Orbital Energy Cutoff:",OrbECutoff
@@ -2208,6 +2229,8 @@ system: do
               LEN=(2*NMAXX+1)*(2*NMAXY+1)*(2*NMAXZ+1)*((NBASISMAX(4,2)-NBASISMAX(4,1))/2+1)
              else if (dimen==2)then
               LEN=(2*NMAXX+1)*(2*NMAXY+1)*((NBASISMAX(4,2)-NBASISMAX(4,1))/2+1)
+             else if (dimen ==1) then
+                LEN=(2*NMAXX+1)*((NBASISMAX(4,2)-NBASISMAX(4,1))/2+1)
              else
               WRITE(6,'(A, I4)') " Dimension problem  ", dimen 
               stop
@@ -2437,6 +2460,59 @@ system: do
          ENDDO
          end do
 !C..Check to see if all's well       
+        else if (dimen==1) then
+         IG=0
+         DO I=NBASISMAX(1,1),NBASISMAX(1,2)
+           DO J=NBASISMAX(2,1),NBASISMAX(2,2)
+             DO K=NBASISMAX(3,1),NBASISMAX(3,2)
+               DO L=NBASISMAX(4,1),NBASISMAX(4,2),2
+                  G%k(1)=I
+                  G%k(2)=J
+                  G%k(3)=K
+                  G%Ms=L
+                  ! change to implement the tilted real-space
+                  if ((treal .and. .not. ttilt) .or. KALLOWED(G,nBasisMax))then
+!                   IF((THUB.AND.(TREAL.OR..NOT.TPBC)).OR.KALLOWED(G,NBASISMAX))
+!                   THEN
+                    IF(THUB) THEN
+!C..Note for the Hubbard model, the t is defined by ALAT(1)!
+                       call setupMomIndexTable()
+                       call setupBreathingCont(2*btHub/OMEGA)
+                       IF(TPBC) THEN
+                       CALL HUBKIN(I,J,K,NBASISMAX,BHUB,TTILT,SUM,TREAL)
+                       ELSE
+                      CALL HUBKINN(I,J,K,NBASISMAX,BHUB,TTILT,SUM,TREAL)
+                       ENDIF
+                    ELSEIF(TUEG) THEN
+                       CALL GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,SUM,dUnscaledE)
+!                      Bug for  non-trueEnergy                      
+!                      IF(dUnscaledE.gt.OrbECutoff) CYCLE
+                       IF(tUEGTrueEnergies)then
+                        IF(dUnscaledE.gt.OrbECutoff) CYCLE
+                       ELSE
+                        IF(SUM.gt.OrbECutoff) CYCLE
+                       END IF
+
+                    ELSE
+                       SUM=(BOX**2)*((I*I/ALAT(1)**2)+(J*J/ALAT(2)**2)+(K*K/ALAT(3)**2))
+                    ENDIF
+                    IF(.NOT.TUEG.AND.SUM.GT.OrbECutoff) CYCLE
+                    IG=IG+1
+                    ARR(IG,1)=SUM
+                    ARR(IG,2)=SUM
+                    BRR(IG)=IG
+!C..These are the quantum numbers: n,l,m and sigma
+                    G1(IG)%K(1)=I
+                    G1(IG)%K(2)=J
+                    G1(IG)%K(3)=K
+                    G1(IG)%MS=L
+                    G1(IG)%Sym=TotSymRep()
+
+                  ENDIF
+               ENDDO
+             ENDDO
+           ENDDO
+         ENDDO 
         else
               WRITE(6,'(A, I4)') " Dimension problem  ", dimen 
               stop
