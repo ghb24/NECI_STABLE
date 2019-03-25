@@ -316,12 +316,30 @@ module LMat_mod
       ! L_{abc}^{ijk} - triple excitation from abc to ijk
       implicit none
       integer, value :: a,b,c
+      integer :: a2,b2,c2
       integer, intent(in) :: i,j,k
       HElement_t(dp) :: matel
 
       ! convert to spatial orbs if required
 
       matel = 0
+      
+      if(G1(a)%ms == G1(b)%ms .and. G1(a)%ms.ne.G1(c)%ms ) then
+         a2=a
+         b2=b
+         c2=c
+      elseif(G1(a)%ms == G1(c)%ms .and. G1(a)%ms.ne.G1(b)%ms ) then
+         a2=c
+         b2=a
+         c2=b
+      elseif(G1(b)%ms == G1(c)%ms .and. G1(a)%ms.ne.G1(b)%ms ) then
+         a2=b
+         b2=c
+         c2=a
+      else
+        return
+      endif
+
       ! only add the contribution if the spins match
          call addMatelContribution_ua(i,j,k,1)
          call addMatelContribution_ua(j,k,i,1)
@@ -337,8 +355,8 @@ module LMat_mod
           integer, intent(in) :: sgn
      !     integer(int64) :: ai,bj,ck
 
-          if(G1(p)%ms == G1(a)%ms .and. G1(q)%ms == G1(b)%ms .and. G1(r)%ms ==G1(c)%ms) then
-             matel = matel + 2.d0 * sgn * get_lmat_ua(a,b,c,p,q,r)
+          if(G1(p)%ms == G1(a2)%ms .and. G1(q)%ms == G1(b2)%ms .and. G1(r)%ms ==G1(c2)%ms) then
+             matel = matel + 2.d0 * sgn * get_lmat_ua(a2,b2,c2,p,q,r)
           endif
         end subroutine addMatelContribution_ua
 

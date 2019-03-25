@@ -572,6 +572,7 @@ system: do
                   t_ueg_3_body = .true.
                   tGenMatHEl = .false.
                   max_ex_level = 3
+                  tRPA_tc= .false.
                case default
                   t_ueg_3_body = .false.
                end select

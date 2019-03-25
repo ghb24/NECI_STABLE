@@ -647,14 +647,13 @@ contains
 !  the following fun is modified for transcorrelated Hamiltonian under RPA approx     
     function get_contact_umat_el (idi, idj, idk, idl) result(hel)
 
-        use SystemData, only: kvec, k_lattice_constant, dimen,PotentialStrength,TranscorrCutoff,nOccAlpha,nOccBeta
+        use SystemData, only: kvec, dimen,PotentialStrength,TranscorrCutoff,nOccAlpha,nOccBeta
         integer, intent(in) :: idi, idj, idk, idl
         HElement_t(dp) :: hel
-        integer :: i, j, k, l, a, b, c, iss, id1, id2, id3,id4,kmax,nsigma,sumind
-        real(dp) :: G, G2,prefack,sprod
-        real(dp) :: k_tc(3), pq_tc(3), u_tc, gamma_RPA, gamma_kmax,kveclength
-        logical :: tCoulomb, tExchange          
-        real(dp), parameter :: EulersConst = 0.5772156649015328606065120900824024_dp
+        integer :: i, j, k, l, a, b, c, kmax,nsigma,sumind
+        real(dp) ::  G2,prefack,sprod
+        real(dp) :: k_tc(3), pq_tc(3), u_tc,kveclength
+        logical :: tparallel
         character(*), parameter :: this_routine = 'get_contact_umat_el'
 
 
@@ -662,20 +661,21 @@ contains
         hel = 0
 
         !==================================================      
-        ISS = nBasisMax(2,3) ! ick
-
         i = idi
         j = idj 
         k = idk
-        l = idl 
+        l = idl
 
-        tCoulomb = .false.
-        tExchange = .false.
+        if(G1(i)%Ms.eq.G1(j)%Ms) then
+                tparallel=.true.
+                if(.not.trpa_tc) then
+                        hel=0
+                        return
+                endif
+        else
+                tparallel=.false.
+        endif 
 
-        if ( (i == k) .and. (j == l) ) tCoulomb = .true.
-        if ( (i == l) .and. (j == k) ) tExchange = .true.
-
-        
      if(dimen==3)then
         ! The Uniform Electron Gas
         a = G1(j)%k(1) - G1(l)%k(1)
@@ -691,10 +691,10 @@ contains
                         kmax=TranscorrCutoff
                         kveclength=dsqrt(dfloat(a**2+b**2+c**2))
                         prefack=2*PI/ALAT(1)
-                        if(G1(i)%Ms.eq.G1(j)%Ms) then !parallel spin case
+                        if(tparallel) then !parallel spin case
 
                                 hel=0
-                                if(kveclength.ge.kmax.and.trpa_tc) then
+                                if(kveclength.ge.kmax) then
                                         G2 = kveclength*prefack
                                         if(G1(i)%Ms.eq.-1) then
                                                 nsigma=nOccAlpha
@@ -703,7 +703,6 @@ contains
                                         endif
                                         hel=-nsigma*2*PI**2/G2**4/ALAT(1)**3
 
-!                                       write(6,*)'spin par',hel
                                 endif
 
 
@@ -726,7 +725,6 @@ contains
                                                 sprod=sprod+pq_tc(sumind)*k_tc(sumind)
                                          enddo
 
-!                                       write(6,*)'spin apar',a,b,c,hel,2*PI**2/G2,-sprod*2*PI**2/G2**3
                                          hel = hel + 2*PI**2/G2 -sprod*2*PI**2/G2**3
                                 end if
 
@@ -739,11 +737,7 @@ contains
 
                 else    !renormalization
 
-                        if(G1(i)%Ms.ne.G1(j)%Ms) then   ! we only have interaction between antiparallel femrions
-                                hel=-4.d0*PI/(2.442749d0*dfloat(2*abs(NBASISMAX(1,2))+1))
-                        else
-                                hel=0.d0
-                        endif
+                     hel=-4.d0*PI/(2.442749d0*dfloat(2*abs(NBASISMAX(1,2))+1))
 
                 endif !transcorr or renormalization
           
@@ -763,11 +757,11 @@ contains
 
         if ( ((G1(k)%k(1) - G1(i)%k(1)) == a)) then
 
-         if(G1(i)%Ms.eq.G1(j)%Ms) then
+         if(tparallel) then
 
            hel=0
 
-           if(t_ueg_transcorr.and.abs(a).ge.kmax.and.trpa_tc) then
+           if(t_ueg_transcorr.and.abs(a).ge.kmax) then
                 k_tc(1) = 2 * PI * a / ALAT(1)
                 G2 = k_tc (1) * k_tc (1)
                 if(G1(i)%Ms.eq.-1) then
@@ -1499,44 +1493,49 @@ function get_lmat_ua (l1,l2,l3,r1,r2,r3) result(hel)
         integer, intent(in) :: l1,l2,l3,r1,r2,r3
         integer :: i,j,k,a,b,c,k1(3),k2(3),k3(3)
         real(dp) :: hel,ak(3),bk(3),ck(3),a3,b3,c3,klength1, klength2
-        logical :: tSpinCorrect
+!       logical :: tSpinCorrect
 
 
-!       root_print "from:"
-!       root_print r1,r2,r3
-!       root_print "to"
-!       root_print l1,l2,l3
-        
      if(dimen==3)then
 
-        if(G1(l1)%Ms.eq.G1(l2)%Ms.and.G1(l1)%Ms.ne.G1(l3)%Ms) then
-          i=l1
-          j=l2
-          k=l3
-          a=r1
-          b=r2
-          c=r3
-          tSpinCorrect=.true.
-        elseif(G1(l1)%Ms.eq.G1(l3)%Ms.and.G1(l1)%Ms.ne.G1(l2)%Ms) then
-          i=l1
-          j=l3
-          k=l2
-          a=r1
-          b=r3
-          c=r2
-          tSpinCorrect=.true.
-        elseif(G1(l2)%Ms.eq.G1(l3)%Ms.and.G1(l1)%Ms.ne.G1(l2)%Ms) then
-          i=l3
-          j=l2
-          k=l1
-          a=r3
-          b=r2
-          c=r1
-          tSpinCorrect=.true.
-        else
-          tSpinCorrect=.false.
-        endif
-        if(tSpinCorrect) then
+!       if(G1(l1)%Ms.eq.G1(l2)%Ms.and.G1(l1)%Ms.ne.G1(l3)%Ms) then
+!         i=l1
+!         j=l2
+!         k=l3
+!         a=r1
+!         b=r2
+!         c=r3
+!         tSpinCorrect=.true.
+!       elseif(G1(l1)%Ms.eq.G1(l3)%Ms.and.G1(l1)%Ms.ne.G1(l2)%Ms) then
+!         i=l1
+!         j=l3
+!         k=l2
+!         a=r1
+!         b=r3
+!         c=r2
+!         tSpinCorrect=.true.
+!       elseif(G1(l2)%Ms.eq.G1(l3)%Ms.and.G1(l1)%Ms.ne.G1(l2)%Ms) then
+!         i=l3
+!         j=l2
+!         k=l1
+!         a=r3
+!         b=r2
+!         c=r1
+!         tSpinCorrect=.true.
+!       else
+!         tSpinCorrect=.false.
+!       endif
+!       if(tSpinCorrect) then
+
+!       The spin has been set before in get_lmat_el_ua l1,l2,r1,r2 have the same
+!       spin. l3 and r3 have the opposite spin.
+        i=l1
+        j=l2
+        k=l3
+        a=r1
+        b=r2
+        c=r3
+
         k1(1) = G1(i)%k(1) - G1(a)%k(1)
         k1(2) = G1(i)%k(2) - G1(a)%k(2)
         k1(3) = G1(i)%k(3) - G1(a)%k(3)
@@ -1569,10 +1568,10 @@ function get_lmat_ua (l1,l2,l3,r1,r2,r3) result(hel)
 
          else
 
-                hel=0.d0
+               hel=0.d0
          end if
 
-        endif !G1(i)%Ms.eq.G1(j)%Ms.and.G1(i)%Ms.ne.G1(k)%Ms
+!       endif !G1(i)%Ms.eq.G1(j)%Ms.and.G1(i)%Ms.ne.G1(k)%Ms
       else
        print *, 'at moment Lmat is only available for 3D contact interaction'
        stop
