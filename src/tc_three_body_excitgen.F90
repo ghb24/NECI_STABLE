@@ -185,7 +185,13 @@ module tc_three_body_excitgen
       if(abs(pTriples) < eps) then
          pTriples = 0.1
       endif
-      if(t_exclude_3_body_excits) pTriples = 0.0_dp
+      ! for 2 electrons, there are obviously no 
+      ! triple excitations
+      if(nel.eq.2) t_exclude_3_body_excits = .true.
+      if(t_exclude_3_body_excits) then
+         pTriples = 0.0_dp
+         return
+      endif
       ! rescale pSingles/pDoubles
       ! only required if not continuing a run w rescaled values
       if(.not.tReadPTriples) then

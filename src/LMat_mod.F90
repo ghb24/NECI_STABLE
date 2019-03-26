@@ -207,6 +207,7 @@ module LMat_mod
     subroutine readLMat()
       use ParallelHelper, only: mpi_comm_intra
       use HElem, only: Helement_t_sizeB
+      use SystemData, only: nel
       implicit none
       character(*), parameter :: LMatFileName = "TCDUMP"
       integer :: iunit, ierr
@@ -219,6 +220,10 @@ module LMat_mod
       integer :: iNodeSize, iProcInNode
       integer :: dummy(6)
       integer(MPIArg) :: err
+
+      ! we need at least three electrons to make use of the six-index integrals
+      ! => for less electrons, this can be skipped
+      if(nel<=2) return
 
       if(tStoreSpinOrbs) then
          nBI = nBasis
@@ -329,8 +334,8 @@ module LMat_mod
          call LogMemDealloc(t_r, LMatTag)
          LMAt => null()
       end if
-      deallocate(n3Ind)
-      deallocate(n2Ind)
+      if(allocated(n3Ind)) deallocate(n3Ind)
+      if(allocated(n2Ind)) deallocate(n2Ind)
       
     end subroutine freeLMat
 

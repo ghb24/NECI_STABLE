@@ -26,7 +26,9 @@ contains
 
   subroutine initSltCndPtr()
     implicit none
-    if(t_mol_3_body) then
+    ! six-index integrals are only used for three and more
+    ! electrons
+    if(t_mol_3_body .and. nel > 2) then
        sltcnd_0 => sltcnd_0_tc
        sltcnd_1 => sltcnd_1_tc
        sltcnd_2 => sltcnd_2_tc

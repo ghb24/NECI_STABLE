@@ -542,8 +542,8 @@ system: do
 
         case('MOLECULAR-TRANSCORR')
             t_non_hermitian = .true.
-            t_3_body_excits = .true.
             ! optionally supply the three-body integrals of the TC Hamiltonian
+            t_3_body_excits = .true.
             if(item < nitems) then
                call readu(w)
                select case(w)
@@ -564,6 +564,7 @@ system: do
             if(t_mol_3_body) max_ex_level = 3
 
        case('EXCLUDE-3-BODY-EX')
+          ! Do not generate 3-body excitations, even in the molecular-transcorr mode
           t_exclude_3_body_excits = .true.
 
        case ('TRANSCORRELATED', 'TRANSCORR', 'TRANS-CORR')
