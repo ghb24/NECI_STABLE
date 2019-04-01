@@ -1591,7 +1591,7 @@ contains
 
         call MPI_Comm_size (CommGlobal, nProcess, ierr)
         if (tMolcas) then
-            call getenvf('MOLCAS_NPROCS', MCPUs)
+            call GET_ENVIRONMENT_VARIABLE('MOLCAS_NPROCS', MCPUs)
             Read(MCPUS,*) nProcess
         end if
 
