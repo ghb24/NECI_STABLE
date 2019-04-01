@@ -155,7 +155,7 @@ contains
     character(len=16) MMem
 
     !MemSizeMolcas is already in MB.
-    call getenvf('MOLCAS_MEM',MMem)
+    call GET_ENVIRONMENT_VARIABLE('MOLCAS_MEM',MMem)
     read(MMem,*) MemSizeMolcas
     initialised=.false.
 #endif

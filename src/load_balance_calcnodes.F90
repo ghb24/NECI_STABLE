@@ -40,7 +40,7 @@ contains
         integer, intent(in) :: nI(nel_loc)
         integer, intent(in) :: iIterOffset
         integer :: node
-        
+
         integer :: block
 
         block = get_det_block(nel_loc, nI, iIterOffset)
@@ -68,13 +68,13 @@ contains
         integer, intent(in) :: nI(nel_loc)
         integer, intent(in) :: iIterOffset
         integer :: block
-        
+
         integer :: i
         integer(int64) :: acc
         integer(int64) :: offset
         integer(int64), parameter :: large_prime = 1099511628211_int64
 
-        ! If we are assigning the HF to a unique processor, then put it 
+        ! If we are assigning the HF to a unique processor, then put it
         ! on the last available processor.
         if (size(nI) == size(HFDet)) then
             if (tUniqueHFNode .and. all(nI == HFDet)) then
@@ -90,7 +90,7 @@ contains
         ! 2^hash_shift iterations, but the change spread throughout the
         ! different iters.
         ! Generate a hash to work out an offset.  Probably very inefficient.
-        if (hash_iter>0) then  
+        if (hash_iter>0) then
            acc = 0
            do i = 1, nel_loc
                acc = (large_prime * acc) + &
