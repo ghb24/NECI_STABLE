@@ -9,7 +9,7 @@ module ueg_excit_gens
     use DeterminantData, only: write_det
     use get_excit, only: make_double
     use bit_rep_data, only: NIfTot
-    use sltcnd_mod, only: sltcnd_2_kernel, sltcnd_2_kernel_ua
+    use sltcnd_mod, only: sltcnd_2_kernel, sltcnd_2
     use UMatCache, only: gtID
     use constants
     use util_mod
@@ -79,7 +79,7 @@ contains
         ! If this is also unoccupied, then contribute to the cumulative list
         ! for making selections
         if (TContact) then
-                call create_ab_list_ueg_ua(ilutI, [orbi,orbj], cum_arr, cum_sum) 
+                call create_ab_list_ueg_ua(nI,ilutI, [orbi,orbj], cum_arr, cum_sum) 
         else
                 call create_ab_list_ueg(ilutI, [orbi,orbj], cum_arr, cum_sum) 
         endif
@@ -174,7 +174,8 @@ contains
 
     end subroutine create_ab_list_ueg
 
-    subroutine create_ab_list_ueg_ua(ilutI, src, cum_arr, cum_sum)
+    subroutine create_ab_list_ueg_ua(nI,ilutI, src, cum_arr, cum_sum)
+        integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(in) :: src(2)
         real(dp), intent(out) :: cum_arr(nbasis), cum_sum
@@ -206,7 +207,8 @@ contains
                         ! we don't care about the overall sign.
                         ex(2, 1) = orba
                         ex(2, 2) = orbb
-                        elem = abs(sltcnd_2_kernel_ua(ex))
+!                       elem = abs(sltcnd_2_kernel_ua(ex))
+                        elem = abs(sltcnd_2(nI,ex,.false.))
                     end if
                 end if
             end if
@@ -254,7 +256,7 @@ contains
 
         orb_a = tgt(1)
 
-        ! i need to recalct the cum_arr 
+        ! i need to recalct the cum_arr
         call create_ab_list_ueg(ilutI, src, cum_arr, cum_sum)
 
         if (cum_sum < EPS) then 
