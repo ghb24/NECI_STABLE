@@ -2058,7 +2058,9 @@ contains
         if (run == 1) then
 
             old_Hii = Hii
-            if (tHPHF) then
+            if(tZeroRef) then
+               h_tmp = 0.0_dp
+            else if (tHPHF) then
                 h_tmp = hphf_diag_helement (ProjEDet(:,1), &
                                             iLutRef(:,1))
             else
