@@ -356,6 +356,7 @@ real(dp) :: pholefocus = 0.5_dp
 
 ! simple preconditioner for Hubbard model
 logical :: t_precond_hub = .false.
+logical :: t_no_ref_shift = .false.
  
  
 ! and the other lattice models: 

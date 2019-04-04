@@ -4,7 +4,7 @@ module fcimc_output
     use SystemData, only: nel, tHPHF, tFixLz, tMolpro, tMolproMimic, MolproID, &
                           tGen_4ind_weighted, tGen_4ind_2, tGUGA, tGen_sym_guga_mol, &
                           tGen_nosym_guga, t_consider_diff_bias, tgen_guga_crude, & 
-                          t_new_real_space_hubbard
+                          t_new_real_space_hubbard, t_no_ref_shift
 
     use LoggingData, only: tLogComplexPops, tMCOutput, tCalcInstantS2, &
                            tCalcInstantS2Init, instant_s2_multiplier_init, &
@@ -49,7 +49,7 @@ module fcimc_output
 
     use fcimc_helper, only: LanczosFindGroundE
 
-    use Determinants, only: write_det
+    use Determinants, only: write_det, get_helement
 
     use adi_data, only: AllCoherentDoubles, AllIncoherentDets, nRefs, &
          ilutRefAdi, tAdiActive, nConnection, AllConnection
@@ -239,9 +239,11 @@ contains
     END SUBROUTINE WriteFciMCStatsHeader
 
     subroutine WriteFCIMCStats()
+        use guga_matrixElements, only: calcDiagMatEleGUGA_nI
+
         INTEGER :: i, j, run
         real(dp),dimension(inum_runs) :: FracFromSing
-        real(dp) :: projE(inum_runs)
+        real(dp) :: projE(inum_runs),E_ref_tmp(inum_runs)
 
         ! What is the current value of S2
         if (tCalcInstantS2) then
@@ -276,17 +278,29 @@ contains
             else
                 FracFromSing(run)=0.0_dp
             endif
+            
+            if(t_no_ref_shift)then
+              if(tguga)then
+               E_ref_tmp(run) = calcDiagMatEleGUGA_nI(ProjEDet(:,run))
+              else 
+               E_ref_tmp(run) = get_helement (ProjEDet(:,run), ProjEDet(:,run), 0)
+              end if 
+              
+            else
+              E_ref_tmp(run) = 0.0_dp
+            end if  
+            
+            
         enddo
 
         if (iProcIndex == root) then
-
 #ifdef __CMPLX
             write(fcimcstats_unit,"(I12,5G16.7,8G18.9e3,&
                                   &G13.5,I12,G13.5,G17.5,I13,G13.5,8G18.9e3,I13,&
 
                                   &g16.7)",advance='no') &
                 Iter + PreviousCycles, &                !1.
-                DiagSft, &                              !2.
+                DiagSft + E_ref_tmp, &                  !2.
                 AllTotParts(1) - AllTotPartsOld(1), &   !3.
                 AllTotParts(2) - AllTotPartsOld(2), &   !4.
                 AllTotParts(1), &                       !5.
@@ -327,7 +341,7 @@ contains
             if(tMCOutput) then
                 write (iout, "(I12,13G16.7,2I12,G13.5)") &
                     Iter + PreviousCycles, &
-                    DiagSft, &
+                    DiagSft + E_ref_tmp, &
                     AllTotParts(1) - AllTotPartsOld(1), &
                     AllTotParts(2) - AllTotPartsOld(2), &
                     AllTotParts(1), &
@@ -370,7 +384,7 @@ contains
                                    &i13,g13.5,4g18.9e3,1X,2(es18.11,1X),5g18.9e3,&
                                    &i13,2g16.7)",advance = 'no') &
                 Iter + PreviousCycles, &                   ! 1.
-                DiagSft(2), &                              ! 2.
+                DiagSft(2) + E_ref_tmp(2), &                              ! 2.
                 AllTotParts(2) - AllTotPartsOld(2), &      ! 3.
                 AllGrowRate(2), &                          ! 4.
                 AllTotParts(2), &                          ! 5.
@@ -416,7 +430,7 @@ contains
                                    &i13,g13.5,4g18.9e3,1X,2(es18.11,1X),5g18.9e3,&
                                    &i13,2g16.7)",advance = 'no') &
                 Iter + PreviousCycles, &                   ! 1.
-                DiagSft(1), &                              ! 2.
+                DiagSft(1) + E_ref_tmp(1), &                              ! 2.
                 AllTotParts(1) - AllTotPartsOld(1), &      ! 3.
                 AllGrowRate(1), &                          ! 4.
                 AllTotParts(1), &                          ! 5.
@@ -461,7 +475,7 @@ contains
             if(tMCOutput) then
                 write (iout, "(I12,10G16.7)", advance = 'no') &
                     Iter + PreviousCycles, &
-                    DiagSft(1), &
+                    DiagSft(1)+E_ref_tmp(1), &
                     AllTotParts(1) - AllTotPartsOld(1), &
                     AllGrowRate(1), &
                     AllTotParts(1), &
