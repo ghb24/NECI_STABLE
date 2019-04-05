@@ -244,7 +244,7 @@ MODULE FciMCData
       HElement_t(dp), allocatable :: AllSumENum(:)
 
       HElement_t(dp) :: rhii
-      real(dp) :: Hii,Fii
+      real(dp) :: Hii,Fii,OutputHii
       ! option forcing the reference energy to 0, particularly useful for the
       ! hubbard model
       logical :: tZeroRef

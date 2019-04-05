@@ -750,10 +750,13 @@ module FciMCParMod
             energy_final_output = ProjectionE + Hii
         end if
         
+        ! get the value of OutputHii - the offset used for the projected energy
+        ! (not necessarily the one used for the Shift!)
+        call getProjEOffset()
         iroot=1
         CALL GetSym(ProjEDet(:,1),NEl,G1,NBasisMax,RefSym)
         isymh=int(RefSym%Sym%S,sizeof_int)+1
-        write (iout,'('' Current reference energy'',T52,F19.12)') Hii 
+        write (iout,'('' Current reference energy'',T52,F19.12)') OutputHii 
         if(tNoProjEValue) then
             write (iout,'('' Projected correlation energy'',T52,F19.12)') real(ProjectionE(1),dp)
             write (iout,"(A)") " No automatic errorbar obtained for projected energy"
@@ -786,28 +789,28 @@ module FciMCParMod
                     & //"within approximate errorbars: EDiff = ",EnergyDiff
             endif
             if(ProjE_Err_re.lt.shift_err) then
-                BestEnergy = mean_ProjE_re + Hii
+                BestEnergy = mean_ProjE_re + OutputHii
                 BestErr = ProjE_Err_re
             else
                 BestEnergy = mean_shift + Hii
                 BestErr = shift_err
             endif
         elseif(tNoShiftValue.and.(.not.tNoProjEValue)) then
-            BestEnergy = mean_ProjE_re + Hii
+            BestEnergy = mean_ProjE_re + OutputHii
             BestErr = ProjE_Err_re
         elseif(tNoProjEValue.and.(.not.tNoShiftValue)) then
             BestEnergy = mean_shift + Hii
             BestErr = shift_err 
         else
-            BestEnergy = ProjectionE(1) + Hii
+            BestEnergy = ProjectionE(1) + OutputHii
             BestErr = 0.0_dp
         endif
         write(iout,"(A)")
         if(tNoProjEValue) then
-            write(iout,"(A,F20.8)") " Total projected energy ",real(ProjectionE(1),dp) + Hii
+            write(iout,"(A,F20.8)") " Total projected energy ",real(ProjectionE(1),dp) + OutputHii
         else
             write(iout,"(A,F20.8,A,G15.6)") " Total projected energy ", &
-                mean_ProjE_re+Hii," +/- ",ProjE_Err_re
+                mean_ProjE_re+OutputHii," +/- ",ProjE_Err_re
         endif
         if(.not.tNoShiftValue) then
             write(iout,"(A,F20.8,A,G15.6)") " Total shift energy     ", &
