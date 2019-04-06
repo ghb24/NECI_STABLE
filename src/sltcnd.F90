@@ -20,6 +20,7 @@ module sltcnd_mod
     use timing_neci
     use bit_reps, only: NIfTot
     use LMat_mod, only: get_lmat_el, get_lmat_el_ua
+    use gen_coul_ueg_mod, only: get_contact_umat_el_3b_sp, get_contact_umat_el_3b_sap
     implicit none
 
 contains
@@ -723,6 +724,38 @@ contains
       endif
     end function sltcnd_2_kernel_ua
     
+    function sltcnd_2_kernel_ua_3b(nI,ex) result(hel)
+      implicit none
+      integer, intent(in) :: nI(nel), ex(2,2)
+      HElement_t(dp) :: hel
+      integer :: id(2,2)
+      ! Obtain spatial rather than spin indices if required
+      id = ex
+
+      hel = (0)
+      if (G1(ex(1,1))%Ms == G1(ex(1,2))%Ms) then
+        if ( tReltvy.or.((G1(ex(2,1))%Ms == G1(ex(2,2))%Ms) .and. &
+           (G1(ex(1,1))%Ms == G1(ex(2,2))%Ms) ) ) then
+          hel = get_contact_umat_el_3b_sp (id(1,1), id(1,2), id(2,1), id(2,2)) - &
+                get_contact_umat_el_3b_sp (id(1,1), id(1,2), id(2,2), id(2,1))
+        endif
+      else
+        ! We have an additional sign factor due to the exchange of the creation
+        ! operators:
+        !a_(p-k)^+ a_(s+k)^+ a_q^+ a_q a_s a_p -> -a_q^+ a_(s+k)^+ a_(p-k)^+ a_q a_s a_p
+        !a_(p-k)^+ a_(s+k)^+ a_q^+ a_q a_s a_p -> -a_(p-k)^+ a_q^+ a_(s+k)^+ a_q a_s a_p
+        if ( tReltvy.or.((G1(ex(1,1))%Ms == G1(ex(2,1))%Ms) .and. &
+           (G1(ex(1,2))%Ms == G1(ex(2,2))%Ms)) ) then
+             hel = -get_contact_umat_el_3b_sap (id(1,1), id(1,2), id(2,1), id(2,2), nI)
+        endif
+        if ( tReltvy.or.((G1(ex(1,1))%Ms == G1(ex(2,2))%Ms) .and. &
+           (G1(ex(1,2))%Ms == G1(Ex(2,1))%Ms)) ) then
+           hel = hel + get_contact_umat_el_3b_sap (id(1,1), id(1,2), id(2,2), id(2,1), nI)
+        endif
+      endif
+
+    end function sltcnd_2_kernel_ua_3b
+
     function sltcnd_0_tc_ua(nI) result(hel)
       use constants, only: dp
       use SystemData, only: nel
@@ -779,17 +812,29 @@ contains
       implicit none
       integer, intent(in) :: nI(nel), ex(2,2)
       logical, intent(in) :: tSign
-      HElement_t(dp) :: hel
+      HElement_t(dp) :: hel, heltc
       integer :: i
 
       ! get the matrix element up to 2-body terms
       hel = sltcnd_2_kernel_ua(ex)
       ! and the 3-body term
-      do i = 1, nel
-         if(ex(1,1).ne.nI(i) .and. ex(1,2).ne.nI(i)) then! &
-         hel = hel + get_lmat_el_ua(ex(1,1),ex(1,2),nI(i),ex(2,1),ex(2,2),nI(i))
-        endif
-      end do
+!       heltc= 0.d0
+!     do i = 1, nel
+!        if(ex(1,1).ne.nI(i) .and. ex(1,2).ne.nI(i)) then! &
+!        heltc = heltc + get_lmat_el_ua(ex(1,1),ex(1,2),nI(i),ex(2,1),ex(2,2),nI(i))
+!       endif
+!     end do
+!         heltc=0.d0
+          heltc = sltcnd_2_kernel_ua_3b(nI,ex)
+!       if(dabs(hel-heltc).gt.0.000000001) then
+!       write(6,*) 'nI', nI(1:nel) 
+!       write(6,*) 'ex', ex(1,1:2), '->', ex(2,1:2)
+!       write(6,*) 'heltc', heltc
+!       write(6,*) 'hel', hel
+!               call stop_all()
+!       endif
+
+          hel=hel+heltc
 
 
       ! take fermi sign into account
