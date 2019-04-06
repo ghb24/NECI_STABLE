@@ -44,7 +44,7 @@ module tc_three_body_excitgen
          IC = 3
       else
        if(t_ueg_3_body)then
-!      if(.true.)then
+!      if(.false.)then
          call  gen_ueg_excit (nI, ilut, nJ, ilutJ, exFlag, ic, ExcitMat, tParity, &
                               pGen, HelGen, store, part_type)
          pGen =  pGen * pDoubles             

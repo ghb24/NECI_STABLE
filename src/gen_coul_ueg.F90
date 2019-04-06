@@ -642,6 +642,163 @@ contains
 
     end function
 
+
+!  the following fun is modified for three-particle excitations when one of the
+!  creation and annhillaiton operator is the same from the minorirty component, and we sum-up all the
+!  occupied orbitals
+    function get_contact_umat_el_3b_sp(idi, idj, idk, idl) result(hel)
+
+        use SystemData, only: kvec,dimen,PotentialStrength,TranscorrCutoff,nOccAlpha,nOccBeta
+        integer, intent(in) :: idi, idj, idk, idl
+        HElement_t(dp) :: hel
+        integer :: i, j, k, l, a, b, c, kmax,nsigma
+        real(dp) ::  G2,prefack
+        real(dp) :: kveclength
+        character(*), parameter :: this_routine = 'get_contact_umat_el_3b'
+
+
+        ! Initialisation to satisfy compiler warnings
+        hel = 0
+
+        !==================================================      
+        i = idi
+        j = idj
+        k = idk
+        l = idl
+
+        ! The Uniform Electron Gas
+        a = G1(j)%k(1) - G1(l)%k(1)
+        b = G1(j)%k(2) - G1(l)%k(2)
+        c = G1(j)%k(3) - G1(l)%k(3)
+
+        if ( ((G1(k)%k(1) - G1(i)%k(1)) == a) .and. &
+             ((G1(k)%k(2) - G1(i)%k(2)) == b) .and. &
+             ((G1(k)%k(3) - G1(i)%k(3)) == c) ) then
+
+                        kmax=TranscorrCutoff
+                        kveclength=dsqrt(dfloat(a**2+b**2+c**2))
+                        prefack=2*PI/ALAT(1)
+                        hel=0
+                        if(kveclength.ge.kmax) then
+                           G2 = kveclength*prefack
+                           if(G1(i)%Ms.eq.-1) then
+                                                nsigma=nOccAlpha
+                           else
+                                                nsigma=nOccBeta
+                           endif
+                         hel=-nsigma*4*PI**4/G2**4/ALAT(1)**3
+                        endif
+
+         endif !abc
+
+
+   end function
+
+
+!  the following fun is modified for three-particle excitations when one of the
+!  creation and annhillaiton operator is the same from the minorirty component,
+!  and we sum-up all the
+!  occupied orbitals
+    function get_contact_umat_el_3b_sap(idi, idj, idk, idl,nI) result(hel)
+
+        use SystemData, only:kvec,dimen,PotentialStrength,TranscorrCutoff,nOccAlpha,nOccBeta
+        integer, intent(in) :: idi, idj, idk, idl, nI(nel)
+        HElement_t(dp) :: hel
+        integer :: i, j, k, l, a, b, c, sumind,sumind2,qocc,sumval
+        integer :: alkvec(3), alexkvec(3), bekvec(3), beexkvec(3), kkvec(3), qocckvec(3)
+        integer :: diffvec(3), diff2vec(3)
+        real(dp) ::  G2,prefac, kveclength, sprod, difflength, diff2length
+        character(*), parameter :: this_routine = 'get_contact_umat_el_3b'
+
+
+        ! Initialisation to satisfy compiler warnings
+        hel = 0
+
+        !==================================================      
+
+        if(is_beta(idi)) then 
+                i = idj
+                j = idi
+                k = idl
+                l = idk
+
+        else
+                i = idi
+                j = idj
+                k = idk
+                l = idl
+
+        endif
+
+        alkvec(1:3)=G1(i)%k(1:3)
+        bekvec(1:3)=G1(j)%k(1:3)
+        alexkvec(1:3)=G1(k)%k(1:3)
+        beexkvec(1:3)=G1(l)%k(1:3)
+                
+        ! The Uniform Electron Gas
+        kkvec(1:3) = beexkvec(1:3) - bekvec(1:3)
+
+        if ( ((alkvec(1) - alexkvec(1)) == kkvec(1)) .and. &
+             ((alkvec(2) - alexkvec(2)) == kkvec(2)) .and. &
+             ((alkvec(3) - alexkvec(3)) == kkvec(3)) ) then
+
+                        prefac=1/4.d0/(ALAT(1) * ALAT(2) * ALAT(3))**2
+                        do sumind=1, nel
+                          qocc=nI(sumind)
+                          qocckvec(1:3)=G1(qocc)%k(1:3)
+
+                          if(is_beta(qocc)) then
+                            if(qocc.eq.j) cycle
+
+                            diffvec(1:3)=qocckvec(1:3)-bekvec(1:3)
+                            sumval=0
+                            do sumind2=1,3
+                                sumval=sumval+diffvec(sumind2)**2
+                            enddo
+                            difflength=dsqrt(dfloat(sumval))
+                            if(difflength.lt.TranscorrCutoff) cycle
+
+
+                            diff2vec(1:3)=qocckvec(1:3)-beexkvec(1:3)
+                            sumval=0
+                            do sumind2=1,3
+                                sumval=sumval+diff2vec(sumind2)**2
+                            enddo
+                            diff2length=dsqrt(dfloat(sumval))
+                            if(diff2length.lt.TranscorrCutoff) cycle
+                          else
+                            if(qocc.eq.i) cycle
+                            diffvec(1:3)=qocckvec(1:3)-alkvec(1:3)
+                            sumval=0
+                            do sumind2=1,3
+                                sumval=sumval+diffvec(sumind2)**2
+                            enddo
+                            difflength=dsqrt(dfloat(sumval))
+                            if(difflength.lt.TranscorrCutoff) cycle
+
+
+                            diff2vec(1:3)=qocckvec(1:3)-alexkvec(1:3)
+                            sumval=0
+                            do sumind2=1,3
+                                sumval=sumval+diff2vec(sumind2)**2
+                            enddo
+                            diff2length=dsqrt(dfloat(sumval))
+                            if(diff2length.lt.TranscorrCutoff) cycle
+                                
+                          endif
+
+                          sprod=0.d0
+                          do sumind2=1,3
+                             sprod=sprod+diffvec(sumind2)*diff2vec(sumind2)   
+                          enddo
+                          hel=hel-prefac*sprod/(difflength*diff2length)**3
+                        enddo !sumind
+
+         endif !abc
+
+
+   end function
+
     
     
 !  the following fun is modified for transcorrelated Hamiltonian under RPA approx     
