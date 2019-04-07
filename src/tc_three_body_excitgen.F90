@@ -7,6 +7,7 @@ module tc_three_body_excitgen
   use k_space_hubbard, only: make_triple
   use tc_three_body_data
   use FciMCData, only: excit_gen_store_type, pDoubles, pSingles
+  use CalcData, only: p_doubles_input
   use dSFMT_interface, only: genrand_real2_dSFMT
   use lattice_models_utils, only: make_ilutJ
   use excit_gens_int_weighted, only: pick_biased_elecs
@@ -189,7 +190,7 @@ module tc_three_body_excitgen
       integer, intent(in) :: HF(nel)
       if(t_ueg_3_body)then
      !  pDoubles = 2.0/nBasis
-       pDoubles = 0.1_dp 
+       pDoubles = p_doubles_input 
        pTriples = 1.0_dp-pDoubles
        pSingles = 0.0
       else
