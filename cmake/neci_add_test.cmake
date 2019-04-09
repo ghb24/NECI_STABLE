@@ -92,6 +92,13 @@ macro( neci_add_test )
         endforeach()
     endif()
 
+    # add MPI include dir
+    if( "${CMAKE_VERSION}" VERSION_LESS "2.8.11" ) # PRIVATE functionality doesn't exist before 2.8.11
+        target_include_directories( ${_p_TARGET} PUBLIC ${MPI_NECI_INCLUDE_PATH} )
+    else()
+	target_include_directories( ${_p_TARGET} PRIVATE ${MPI_NECI_INCLUDE_PATH} )
+    endif()
+    
     # Specify the linker language (and additional associated properties)
 
     if( NOT DEFINED _p_LINKER_LANGUAGE OR NOT _p_LINKER_LANGUAGE MATCHES "(C|CXX|Fortran)" )
