@@ -3,7 +3,7 @@
 module ueg_excit_gens
 
     use SystemData, only: nel, nbasis, tOrbECutoff, ElecPairs, OrbECutoff, &
-                          nmaxx, nmaxy, nmaxz, G1, TContact
+                          nmaxx, nmaxy, nmaxz, G1, TContact, tTrcorrExgen
     use dSFMT_interface, only: genrand_real2_dSFMT
     use FciMCData, only: excit_gen_store_type
     use DeterminantData, only: write_det
@@ -79,7 +79,7 @@ contains
         ! If this is also unoccupied, then contribute to the cumulative list
         ! for making selections
         if (TContact) then
-                call create_ab_list_ueg_ua(nI,ilutI, [orbi,orbj], cum_arr, cum_sum) 
+                call create_ab_list_ua(nI,ilutI, [orbi,orbj], cum_arr, cum_sum) 
         else
                 call create_ab_list_ueg(ilutI, [orbi,orbj], cum_arr, cum_sum) 
         endif
@@ -174,7 +174,7 @@ contains
 
     end subroutine create_ab_list_ueg
 
-    subroutine create_ab_list_ueg_ua(nI,ilutI, src, cum_arr, cum_sum)
+    subroutine create_ab_list_ua(nI,ilutI, src, cum_arr, cum_sum)
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(in) :: src(2)
@@ -207,7 +207,6 @@ contains
                         ! we don't care about the overall sign.
                         ex(2, 1) = orba
                         ex(2, 2) = orbb
-!                       elem = abs(sltcnd_2_kernel_ua(ex))
                         elem = abs(sltcnd_2(nI,ex,.false.))
                     end if
                 end if
@@ -219,7 +218,7 @@ contains
 
         end do
 
-    end subroutine create_ab_list_ueg_ua
+    end subroutine create_ab_list_ua
 
      function calc_pgen_ueg(nI, ilutI, ex, ic) result(pgen) 
         ! i also have to write a pgen recalculator for the pgens with this 

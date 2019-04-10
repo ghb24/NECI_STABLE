@@ -1725,7 +1725,7 @@ contains
          endif
       elseif (tHPHF) then
             generate_excitation => gen_hphf_excit
-         elseif ((t_back_spawn_option .or. t_back_spawn_flex_option)) then 
+      elseif ((t_back_spawn_option .or. t_back_spawn_flex_option)) then 
             if (tHUB .and. tLatticeGens) then 
                 ! for now the hubbard + back-spawn still uses the old 
                 ! genrand excit gen
@@ -1737,28 +1737,28 @@ contains
             else 
                 generate_excitation => gen_excit_back_spawn
             end if
-        elseif (tUEGNewGenerator) then
+      elseif (tUEGNewGenerator) then
             generate_excitation => gen_ueg_excit
-        elseif (tCSF) then
+      elseif (tCSF) then
             generate_excitation => gen_csf_excit
-        elseif (tPickVirtUniform) then
+      elseif (tPickVirtUniform) then
             ! pick-uniform-random-mag is on
             if (tReltvy) then
                 generate_excitation => gen_rand_excit_Ex_Mag
             else
                 generate_excitation => gen_rand_excit3
             endif
-        elseif (tGenHelWeighted) then
+      elseif (tGenHelWeighted) then
             generate_excitation => gen_excit_hel_weighted
-        elseif (tGen_4ind_2) then
-            generate_excitation => gen_excit_4ind_weighted2
-        elseif (tGen_4ind_weighted) then
-            generate_excitation => gen_excit_4ind_weighted
-        elseif (tGen_4ind_reverse) then
+      elseif (tGen_4ind_2) then
+           generate_excitation => gen_excit_4ind_weighted2
+      elseif (tGen_4ind_weighted) then
+           generate_excitation => gen_excit_4ind_weighted
+      elseif (tGen_4ind_reverse) then
             generate_excitation => gen_excit_4ind_reverse
-        else
+      else
             generate_excitation => gen_rand_excit
-        endif
+      endif
         ! In the main loop, we only need to find out if a determinant is
         ! connected to the reference det or not (so no ex. level above 2 is
         ! required). Except in some cases where we need to know the maximum

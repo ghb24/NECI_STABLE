@@ -106,7 +106,7 @@ logical :: tRef_Not_HF
 logical :: tTranscorr, tRPA_tc, tInfSumTCCalc, tInfSumTCPrint, tInfSumTCRead
 integer :: TranscorrCutoff, TranscorrIntCutoff
 real(dp) :: PotentialStrength
-logical :: tContact, tUnitary
+logical :: tContact, tUnitary, tTrcorrExgen, tTrCorrRandExgen !used for ultracold atoms
 
 ! Inputs for the UEG2
 character(len=3) :: real_lattice_type ! type of reciprocal lattice (eg. fcc, sc, bcc, hcp)
