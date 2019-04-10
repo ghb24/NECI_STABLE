@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 2.8.4 FATAL_ERROR)
 
+if (POLICY CMP0074)
+    cmake_policy(SET CMP0074 NEW)
+endif ()
+
 project(NECI Fortran CXX C)
 
 # Get access to custom cmake modules
@@ -34,7 +38,7 @@ find_package( MPI_NECI REQUIRED )
 
 # Declare options that this project uses
 # <Package>_NECI has a custom finder that does a bit more work than normal...
-  
+
 neci_add_option(
     FEATURE FFTW
     DEFAULT ON
@@ -49,8 +53,8 @@ neci_add_option(
 
 neci_add_option(
     FEATURE HDF5
-    DEFAULT off
-    DESCRIPTION "Use shared memory to store integrals"
+    DEFAULT OFF
+    DESCRIPTION "Use HDF5 file format for storage"
     REQUIRED_PACKAGES HDF5_NECI ) # HDF5_NECI adds the Fortran COMPONENT to the default (and the ability to build)
 
 neci_add_option(
@@ -118,7 +122,7 @@ list(APPEND NECI_GLOBAL_DEFINES
 )
 
 # Add the source directory as an include path for everything
-include_directories( ${CMAKE_SOURCE_DIR}/src )
+include_directories( ${PROJECT_SOURCE_DIR}/src )
 
 # Include source directory
 

@@ -27,43 +27,44 @@ if( ${CMAKE_VERSION} VERSION_LESS ${NECI_CMAKE_MINIMUM} )
     message(FATAL_ERROR "${PROJECT_NAME} requires at least CMake ${NECI_CMAKE_MINIMUM} -- you are using ${CMAKE_COMMAND} [${CMAKE_VERSION}]\n Please, get a newer version of CMake @ www.cmake.org" )
 endif()
 
-# Include our further macros (only if this is the top project)
+# Include our further macros 
 # ============================================================
+
+# Add extra macros from the contrib/ directory (externally sourced finders)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_LIST_DIR}/contrib" )
+
+# CMake provided macro sets
+
+include(CMakeParseArguments)
+include(FeatureSummary)
+
+# Enable testing
+include(CTest)
+enable_testing()
+
+# Our local macros
+
+include( neci_add_option )
+include( neci_add_library )
+include( neci_add_test )
+include( neci_add_executable )
+include( neci_print_summary )
+
+include( ${CMAKE_CURRENT_LIST_DIR}/contrib/GetGitRevisionDescription.cmake )
+
+# Start off the build process!!!
+
+include( neci_compiler_flags )
+include( neci_build_bits )
+include( neci_build_types )
+
 if( PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME )
-
-    # Add extra macros from the contrib/ directory (externally sourced finders)
-    set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_LIST_DIR}/contrib" )
-
-    # CMake provided macro sets
-
-    include(CMakeParseArguments)
-    include(FeatureSummary)
-
-    # Enable testing
-    include(CTest)
-    enable_testing()
-
-    # Our local macros
-
-    include( neci_add_option )
-    include( neci_add_library )
-    include( neci_add_test )
-    include( neci_add_executable )
-    include( neci_print_summary )
-
-    include( ${CMAKE_CURRENT_LIST_DIR}/contrib/GetGitRevisionDescription.cmake )
-
-    # Start off the build process!!!
-
-    include( neci_compiler_flags )
-    include( neci_build_bits )
     include( neci_cluster_detection ) # This should go AFTER any automatic tweaking
-    include( neci_build_types )
     include( neci_warnings )
-
-    message(STATUS "------------------------------------------------------------")
-
 endif()
+
+message(STATUS "------------------------------------------------------------")
+
 
 # ========================================================================================================
 # Initialise the project
