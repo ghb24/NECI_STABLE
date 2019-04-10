@@ -69,7 +69,9 @@ module fcimc_pointed_fns
 
     use Determinants, only: get_helement
     use global_det_data, only: get_tot_spawns, get_acc_spawns
-
+    
+    use guga_matrixElements, only: calcDiagMatEleGUGA_nI
+    
     implicit none
 
     contains
@@ -195,7 +197,7 @@ module fcimc_pointed_fns
         integer :: extracreate, tgt_cpt, component, i, iUnused
         integer :: TargetExcitLevel
         logical :: tRealSpawning
-        HElement_t(dp) :: rh, rh_used
+        HElement_t(dp) :: rh, rh_used, Eii_curr
 #ifdef __DEBUG
         integer :: nOpen
         integer(n_int) :: ilutTmpI(0:nifguga), ilutTmpJ(0:nifguga)
@@ -215,11 +217,7 @@ module fcimc_pointed_fns
         ! the simple preconditioner for hubbard
        
         if(t_precond_hub)then
-          ! call EncodeBitDet(DetCurr, ilutnI)
-           N_double = 0
-           do i=1,nBasis/2
-            if(IsOcc(ilutnJ,2*i-1).and.IsOcc(ilutnJ,2*i))N_double=N_double+1
-           end do
+          Eii_curr = calcDiagMatEleGUGA_nI(nJ)
         end if
 
         ! In the case of using HPHF, and when tGenMatHEl is on, the matrix
@@ -461,8 +459,8 @@ module fcimc_pointed_fns
 #endif
 #endif
             end if
-            if(t_precond_hub)then
-             nSpawn = nSpawn / (1.0_dp+n_double*uhub)
+            if(t_precond_hub.and.Eii_curr.gt.10.0_dp)then
+             nSpawn = nSpawn / (1.0_dp+Eii_curr)
             end if
 
             ! [Werner Dobrautz 4.4.2017:]
@@ -747,7 +745,7 @@ module fcimc_pointed_fns
         integer(kind=n_int) :: iLutnI(0:niftot)
         integer :: N_double
 
-        real(dp) :: probsign, r
+        real(dp) :: probsign, r, Eii_curr
         real(dp), dimension(inum_runs) :: fac
         integer :: i, run, iUnused
 #ifdef __CMPLX
@@ -815,8 +813,8 @@ module fcimc_pointed_fns
                 call log_death_magnitude (Kii - shift)
             endif
             
-            if(t_precond_hub)then
-                 fac(i)=fac(i)/(1.0_dp+N_double*uhub)
+            if(t_precond_hub.and.Kii.gt.10.0_dp)then
+                 fac(i)=fac(i)/(1.0_dp+Kii)
             end if 
            
             
