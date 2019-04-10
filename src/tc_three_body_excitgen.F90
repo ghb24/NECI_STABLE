@@ -1,8 +1,8 @@
 #include "macros.h"
 module tc_three_body_excitgen
   use constants
-  use SystemData, only: nel, nOccAlpha, nOccBeta, nBasis, G1, t_exclude_3_body_excits, t_ueg_3_body
-  use lattice_mod, only: sort_unique
+  use SystemData, only: nel, nOccAlpha, nOccBeta, nBasis, G1, t_exclude_3_body_excits, t_ueg_3_body, tTrcorrExgen,tTrcorrRandExgen
+          use lattice_mod, only: sort_unique
   use bit_rep_data, only: NIfTot
   use k_space_hubbard, only: make_triple
   use tc_three_body_data
@@ -12,7 +12,8 @@ module tc_three_body_excitgen
   use util_mod, only: choose
   use excit_gens_int_weighted, only: pick_biased_elecs
   use GenRandSymExcitNUMod, only: calc_pgen_symrandexcit2, ScratchSize, &
-       createSingleExcit, createDoubExcit, construct_class_counts
+       createSingleExcit, createDoubExcit, construct_class_counts,      &
+       gen_rand_excit 
   use SymExcitDataMod, only: pDoubNew
   contains
 
@@ -45,8 +46,19 @@ module tc_three_body_excitgen
       else
        if(t_ueg_3_body)then
 !      if(.false.)then
-         call  gen_ueg_excit (nI, ilut, nJ, ilutJ, exFlag, ic, ExcitMat, tParity, &
+         if(tTrcorrExgen) then
+
+                call  gen_ueg_excit (nI, ilut, nJ, ilutJ, exFlag, ic, ExcitMat, tParity, &
                               pGen, HelGen, store, part_type)
+
+         elseif(TTrcorrRandExgen) then
+
+                call  gen_rand_excit (nI, ilut, nJ, ilutJ, exFlag, ic,ExcitMat,tParity, &
+                              pGen, HelGen, store, part_type)
+         else
+                call stop_all("Something is wrong with the setting of the excitation generator!")
+         endif
+
          pGen =  pGen * pDoubles             
          ic = 2
        else

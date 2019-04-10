@@ -50,7 +50,6 @@ MODULE System
       tKPntSym=.false.        !This is for k-point symmetry with the symrandexcit2 excitation generators.
       tNoSinglesPossible = .false.
       t_mol_3_body = .false.
-      t_ueg_3_body = .false.
       tMCSizeSpace=.false.
       CalcDetPrint=1000
       CalcDetCycles=10000
@@ -210,6 +209,8 @@ MODULE System
       TranscorrIntCutoff=0
       TContact=.false.
       TUnitary=.false.
+      tTrcorrExgen = .true.                
+      tTrCorrRandExgen = .false.                
 
 #ifdef __PROG_NUMRUNS
       inum_runs = 1
@@ -595,8 +596,19 @@ system: do
                   tGenMatHEl = .false.
                   max_ex_level = 3
                   tRPA_tc= .false.
+
+               case("trcorr-excitgen")
+                  tTrcorrExgen = .true.                
+
+               case("rand-excitgen")
+                  tTrCorrRandExgen = .true.                
+                  tTrcorrExgen = .false.                
+
                case default
                   t_ueg_3_body = .false.
+                  tTrcorrExgen = .true.                
+                  tTrCorrRandExgen = .false.                
+   
                end select
             endif
 
