@@ -27,7 +27,7 @@ MODULE Calc
                          nWalkerHashes, HashLengthFrac, tSearchTauDeath, &
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
-                         alloc_popsfile_dets, tSearchTauOption, &
+                         alloc_popsfile_dets, tSearchTauOption, tZeroRef, &
                          sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
          tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits, tSetDelayAllDoubsInits, &
@@ -285,7 +285,7 @@ contains
           tStoredDets = .false.
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset 
           !(by Calc readinput) if I_VMAX=1 and TENERGY is false
-
+          tZeroRef = .false.
           lNoTriples=.false.
           tReadPopsChangeRef = .false.
           tReadPopsRestart = .false.
@@ -1391,6 +1391,14 @@ contains
                         ss_space_in%tApproxSpace = .true.
                     end if
                 end if
+            case("POPS-CORE-AUTO")
+                ! this keyword will force intialisation of core space after
+                ! constant shift mode ends.
+                ss_space_in%tPops = .true.
+                ss_space_in%tPopsAuto = .true.
+                tSemiStochastic = .false.
+                tStartCoreGroundState = .false.
+                semistoch_shift_iter = 1
             case("POPS-CORE-APPROX")
                 ss_space_in%tPops = .true.
                 ss_space_in%tApproxSpace = .true.
@@ -1820,6 +1828,11 @@ contains
             case("PROJECTE-MP2")
 !This will find the energy by projection of the configuration of walkers onto the MP2 wavefunction.
                 TProjEMP2=.true.
+            case("ABSOLUTE-ENERGIES")
+! This will zero the reference energy and use absolute energies through the calculation
+! particularly useful for the hubbard model at high U, where no clear reference can be defined
+! and energies are close to 0
+               tZeroRef = .true.
             case("PROJE-CHANGEREF")
 
                 ! If there is a determinant larger than the current reference,

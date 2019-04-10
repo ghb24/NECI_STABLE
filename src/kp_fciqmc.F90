@@ -263,7 +263,7 @@ contains
                                                                   child_sign, parent_flags, ireplica)
 
                                             call create_particle_with_hash_table (nI_child, ilut_child, child_sign, &
-                                                                                   ireplica, ilut_parent, iter_data_fciqmc)
+                                                                                   ireplica, ilut_parent, iter_data_fciqmc, ierr)
 
                                         end if ! If a child was spawned.
 
@@ -292,7 +292,7 @@ contains
 
                         call set_timer(annihil_time)
 
-                        call DirectAnnihilation (TotWalkersNew, iter_data_fciqmc, .false.)
+                        call DirectAnnihilation (TotWalkersNew, iter_data_fciqmc, .false.,ierr)
 
                         TotWalkers = int(TotWalkersNew, int64)
 
@@ -615,7 +615,7 @@ contains
 
 
                                     call create_particle_with_hash_table (nI_child, ilut_child, child_sign, &
-                                                                           ireplica, ilut_parent, iter_data_fciqmc)
+                                                                           ireplica, ilut_parent, iter_data_fciqmc, ierr)
 
                                 end if ! If a child was spawned.
 
@@ -642,7 +642,7 @@ contains
 
                     call set_timer(annihil_time)
 
-                    call DirectAnnihilation (TotWalkersNew, iter_data_fciqmc, .false.)
+                    call DirectAnnihilation (TotWalkersNew, iter_data_fciqmc, .false.,ierr)
 
                     TotWalkers = int(TotWalkersNew, int64)
 

@@ -47,10 +47,12 @@ module AnnihilationMod
 
     contains
 
-    subroutine DirectAnnihilation(TotWalkersNew, iter_data, tSingleProc)
+    subroutine DirectAnnihilation(TotWalkersNew, iter_data, tSingleProc, err)
 
         integer, intent(inout) :: TotWalkersNew
         type(fcimc_iter_data), intent(inout) :: iter_data
+        ! annihilation can fail, if not enough memory is available
+        integer, intent(out) :: err
         integer :: MaxIndex
         integer(kind=n_int), pointer :: PointTemp(:,:)
         logical, intent(in) :: tSingleProc
@@ -90,7 +92,7 @@ module AnnihilationMod
 
         ! Binary search the main list and copy accross/annihilate determinants which are found.
         ! This will also remove the found determinants from the spawnedparts lists.
-        call AnnihilateSpawnedParts(MaxIndex,TotWalkersNew, iter_data)  
+        call AnnihilateSpawnedParts(MaxIndex,TotWalkersNew, iter_data, err)  
 
         CALL set_timer(Sort_Time,30)
         call CalcHashTableStats(TotWalkersNew, iter_data) 
@@ -600,7 +602,7 @@ module AnnihilationMod
 
     end subroutine deterministic_annihilation
     
-    subroutine AnnihilateSpawnedParts(ValidSpawned, TotWalkersNew, iter_data)
+    subroutine AnnihilateSpawnedParts(ValidSpawned, TotWalkersNew, iter_data, err)
 
         ! In this routine we want to search through the list of spawned
         ! particles. For each spawned particle, we search the list of particles
@@ -620,6 +622,7 @@ module AnnihilationMod
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer, intent(inout) :: TotWalkersNew
         integer, intent(inout) :: ValidSpawned 
+        integer, intent(out) :: err
         integer :: PartInd, i, j, PartIndex, run
         real(dp), dimension(lenof_sign) :: CurrentSign, SpawnedSign, SignTemp
         real(dp), dimension(lenof_sign) :: TempCurrentSign, SignProd
@@ -862,7 +865,9 @@ module AnnihilationMod
                         ! same one as was generated at the beginning of the loop.
                           if(.not. tEScaleWalkers) diagH = get_diagonal_matel(nJ, SpawnedParts(:,i))
                           call AddNewHashDet(TotWalkersNew, SpawnedParts(0:NIfTot,i), DetHash, nJ, &
-                               diagH, PartInd)
+                               diagH, PartInd, err)
+                          ! abort upon error
+                          if(err.ne.0) return
                           if(tAutoAdaptiveShift .and. tAAS_Reverse)then
                             do run = 1, inum_runs
                              weight_rev = transfer(SpawnInfo(run, i), weight_rev)
@@ -909,7 +914,9 @@ module AnnihilationMod
                             ! same one as was generated at the beginning of the loop.
                            if(.not. tEScaleWalkers) diagH = get_diagonal_matel(nJ, SpawnedParts(:,i))
                             call AddNewHashDet(TotWalkersNew, SpawnedParts(:,i), DetHash, nJ, &
-                                 diagH, PartInd)
+                                 diagH, PartInd, err)
+                            ! abort annihilation upon error
+                            if(err.ne.0) return
                           if(tAutoAdaptiveShift .and. tAAS_Reverse)then
                             do run = 1, inum_runs
                              weight_rev = transfer(SpawnInfo(run, i), weight_rev)
@@ -931,10 +938,8 @@ module AnnihilationMod
                          inits_one_rdms, i, SpawnedParts(0:NIfTot,i), SpawnedSign,.false.)
                 end if 
             end if
-
             ! store the spawn in the global data
             if(tLogAverageSpawns) call store_spawn(PartInd, SpawnedSign)
-
         end do
 
         call halt_timer(BinSearch_time)
@@ -1180,7 +1185,6 @@ module AnnihilationMod
         end do
 
     end subroutine add_en2_pert_for_trunc_calc
-
 
     subroutine SendSpawnInfo(tSingleProc)
         logical, intent(in) :: tSingleProc
