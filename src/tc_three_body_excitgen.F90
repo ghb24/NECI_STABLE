@@ -1,8 +1,8 @@
 #include "macros.h"
 module tc_three_body_excitgen
   use constants
-  use SystemData, only: nel, nOccAlpha, nOccBeta, nBasis, G1, t_exclude_3_body_excits, t_ueg_3_body, tTrcorrExgen,tTrcorrRandExgen
-          use lattice_mod, only: sort_unique
+  use SystemData, only: nel, nOccAlpha, nOccBeta, nBasis, G1, t_exclude_3_body_excits, t_ueg_3_body, tTrcorrExgen,tTrcorrRandExgen, tLatticeGens
+  use lattice_mod, only: sort_unique
   use bit_rep_data, only: NIfTot
   use k_space_hubbard, only: make_triple
   use tc_three_body_data
@@ -44,24 +44,23 @@ module tc_three_body_excitgen
          pGen = pGen * pTriples
          IC = 3
       else
-       if(t_ueg_3_body)then
-!      if(.false.)then
-         if(tTrcorrExgen) then
+        if(tTrcorrExgen) then
 
                 call  gen_ueg_excit (nI, ilut, nJ, ilutJ, exFlag, ic, ExcitMat, tParity, &
                               pGen, HelGen, store, part_type)
 
-         elseif(TTrcorrRandExgen) then
+              pGen =  pGen * pDoubles             
+              ic = 2
+
+        elseif(TLatticeGens) then
 
                 call  gen_rand_excit (nI, ilut, nJ, ilutJ, exFlag, ic,ExcitMat,tParity, &
                               pGen, HelGen, store, part_type)
-         else
-                call stop_all("Something is wrong with the setting of the excitation generator!")
-         endif
 
-         pGen =  pGen * pDoubles             
-         ic = 2
-       else
+              pGen =  pGen * pDoubles             
+              ic = 2
+
+        else
          HElGen = 0.0_dp
 
          ! create the store%classcounts
