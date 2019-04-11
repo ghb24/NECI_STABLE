@@ -33,7 +33,7 @@ module real_space_hubbard
 
     use procedure_pointers, only: get_umat_el, generate_excitation
 
-    use OneEInts, only: tmat2d, GetTMatEl
+    use OneEInts, only: tmat2d, GetTMatEl, spin_free_tmat
 
     use fcimcdata, only: pSingles, pDoubles, tsearchtau, tsearchtauoption, &
                         excit_gen_store_type
@@ -897,6 +897,40 @@ contains
         end if
 
     end subroutine init_tmat
+
+    subroutine init_spin_free_tmat(lat)
+        ! also construct a spin-free form of the hopping matrix 
+        class(lattice), optional :: lat
+        character(*), parameter :: this_routine = "init_spin_free_tmat"
+
+        integer :: i, ind
+
+        if (present(lat)) then 
+            if (associated(spin_free_tmat)) deallocate(spin_free_tmat)
+            allocate(spin_free_tmat(nBasis/2, nBasis/2), source = 0.0_dp)
+
+            do i = 1, lat%get_nsites()
+                ind = lat%get_site_index(i)
+                
+                ASSERT(lat%get_nsites() == nBasis/2)
+                ASSERT(ind > 0)
+                ASSERT(ind <= nBasis/2)
+
+                associate(next => lat%get_neighbors(i))
+
+                    ASSERT(all(next > 0))
+                    ASSERT(all(next <= nBasis/2))
+
+                    spin_free_tmat(ind, next) = bhub
+
+                end associate
+            end do
+        else
+            call stop_all(this_routine, "not yet implemented!")
+        end if
+
+    end subroutine init_spin_free_tmat
+                    
 
     subroutine gen_excit_rs_hubbard_transcorr_uniform (nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                       ex, tParity, pGen, hel, store, run)

@@ -35,6 +35,7 @@ HElement_t(dp), dimension(:), POINTER :: TMATSYM
 ! symmetric representation (and are not necessarily the same).  We could
 ! compress this in a similar fashion at some point.
 HElement_t(dp), dimension(:,:), POINTER :: TMAT2D
+HElement_t(dp), pointer :: spin_free_tmat(:,:)
 
 HElement_t(dp), dimension(:), POINTER :: TMATSYM2
 HElement_t(dp), dimension(:,:), POINTER :: TMAT2D2

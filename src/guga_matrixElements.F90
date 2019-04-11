@@ -4,7 +4,7 @@
 #ifndef __CMPLX
 module guga_matrixElements
     ! used modules: 
-    use SystemData, only: nEl, nBasis, ECore
+    use SystemData, only: nEl, nBasis, ECore, t_tJ_model, t_heisenberg_model
     use constants, only: dp, n_int, hel_zero
     use bit_reps, only: decode_bit_det
     use OneEInts, only: GetTMatEl
@@ -122,9 +122,11 @@ contains
 
                end if
                ! standard two particle contribution
-               hel_ret = hel_ret + nOcc1 * nOcc2 *( &
-                   get_umat_el(sOrb,pOrb,sOrb,pOrb) - &
-                   get_umat_el(sOrb,pOrb,pOrb,sOrb)/2.0_dp)
+               if (.not. (t_tJ_model .or. t_heisenberg_model)) then 
+                   hel_ret = hel_ret + nOcc1 * nOcc2 *( &
+                       get_umat_el(sOrb,pOrb,sOrb,pOrb) - &
+                       get_umat_el(sOrb,pOrb,pOrb,sOrb)/2.0_dp)
+               end if
 
                ! calculate exchange integral part, involving Shavitt 
                ! rules for matrix elements, only contributes if both

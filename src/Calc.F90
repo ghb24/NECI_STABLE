@@ -10,7 +10,7 @@ MODULE Calc
                           nholes, UMATEPS, tHub, t_lattice_model, t_tJ_model, & 
                           t_new_real_space_hubbard, t_heisenberg_model, & 
                           t_k_space_hubbard, tHPHF, t_non_hermitian, &
-                          tGUGA, t_guga_unit_tests
+                          tGUGA
     use Determinants, only: write_det
     use spin_project, only: spin_proj_interval, &
                             spin_proj_gamma, spin_proj_shift, &
@@ -50,7 +50,8 @@ MODULE Calc
     use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
     use real_space_hubbard, only: t_start_neel_state, create_neel_state, & 
                                   init_get_helement_hubbard
-    use tJ_model, only: init_get_helement_heisenberg, init_get_helement_tj
+    use tJ_model, only: init_get_helement_heisenberg, init_get_helement_tj, &
+                        init_get_helement_heisenberg_guga, init_get_helement_tj_guga
     use k_space_hubbard, only: init_get_helement_k_space_hub
     use real_time_data, only: t_real_time_fciqmc, gf_type, allGfs, gf_count
     use kp_fciqmc_data_mod, only: overlap_pert, tOverlapPert
@@ -62,7 +63,6 @@ MODULE Calc
 
 #ifndef __CMPLX
     use guga_data, only: tGUGACore
-    use guga_testsuite, only: runTestsGUGA, run_test_excit_gen_det
 #endif
 
     implicit none
@@ -3384,9 +3384,17 @@ contains
 
             if (t_lattice_model) then 
                 if (t_tJ_model) then 
-                    call init_get_helement_tj()
+                    if (tGUGA) then
+                        call init_get_helement_tj_guga()
+                    else
+                        call init_get_helement_tj()
+                    end if
                 else if (t_heisenberg_model) then 
-                    call init_get_helement_heisenberg() 
+                    if (tGUGA) then
+                        call init_get_helement_heisenberg_guga()
+                    else
+                        call init_get_helement_heisenberg() 
+                    end if
                 else if (t_new_real_space_hubbard) then
                     call init_get_helement_hubbard()
                 else if (t_k_space_hubbard) then 
@@ -3555,16 +3563,6 @@ contains
           type(kp_fciqmc_data), intent(inout) :: kp
           character(*), parameter :: this_routine = 'CalcDoCalc'
           type(DavidsonCalcType) :: davidsonCalc
-
-#ifndef __CMPLX
-          ! call guga test routine here, so everything is correctly set up,
-          ! or atleast should be. only temporarily here.
-          if (tGUGA) then
-              ! only run guga - testsuite if flag is provided
-              if (t_guga_unit_tests) call runTestsGUGA()
-                  
-          end if
-#endif
 
 
 !C.. we need to calculate a value for RHOEPS, so we approximate that

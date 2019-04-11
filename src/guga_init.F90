@@ -13,7 +13,8 @@ module guga_init
                           currentB_ilut, currentB_int, current_cum_list, &
                           ref_stepvector, ref_b_vector_int, ref_occ_vector, &
                           ref_b_vector_real, treal, tHUB, t_guga_noreorder, tgen_guga_crude, &
-                          t_new_real_space_hubbard
+                          t_new_real_space_hubbard, t_heisenberg_model, &
+                          t_tJ_model
 
     use CalcData, only: tUseRealCoeffs, tRealCoeffByExcitLevel, RealCoeffExcitThresh, &
                         t_guga_mat_eles, t_hist_tau_search, tSpinProject
@@ -54,6 +55,9 @@ module guga_init
 
     use ParallelHelper, only: iProcIndex
 
+    use tj_model, only: pick_orbitals_guga_heisenberg, calc_orbital_pgen_contr_heisenberg, &
+                        init_get_helement_tj_guga, init_get_helement_heisenberg_guga, &
+                        init_guga_tJ_model, init_guga_heisenberg_model
     ! variable declaration
     implicit none
 
@@ -111,6 +115,15 @@ contains
                 orb_pgen_contrib_type_2 => orb_pgen_contrib_type_2_uniform
                 orb_pgen_contrib_type_3 => orb_pgen_contrib_type_3_uniform
             end if
+
+        else if (t_heisenberg_model) then 
+!             pickOrbitals_single => pickOrbs_sym_uniform_ueg_single
+            pickOrbitals_double => pick_orbitals_guga_heisenberg
+            calc_orbital_pgen_contr => calc_orbital_pgen_contr_heisenberg
+            calc_mixed_contr => calc_mixed_contr_sym
+
+        else if (t_tJ_model) then 
+            !TODO
 
         else ! standardly also use nosymmetry version
             pickOrbitals_single => pickOrbitals_nosym_single
@@ -266,6 +279,17 @@ contains
             calc_off_diag_guga_ref => calc_off_diag_guga_ref_list
 
         end if
+! 
+!         if (t_tJ_model) then 
+!             call init_get_helement_tj_guga
+!             call init_guga_tJ_model()
+!         end if
+! 
+!         if (t_heisenberg_model) then 
+!             call init_get_helement_heisenberg_guga
+!             call init_guga_heisenberg_model
+!         end if
+
 
         ! also if i restart from a POPSFILE in the GUGA case, always 
         ! read in the pSingles etc. quantities, as a default

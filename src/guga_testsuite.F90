@@ -254,6 +254,13 @@ contains
                 pSingles = 1.0_dp
                 pDoubles = 0.0_dp
             end if
+        else if (t_heisenberg_model) then 
+            pSingles = 0.0_dp
+            pDoubles = 1.0_dp
+
+        else if (t_tJ_model) then 
+            pSingles = 0.1_dp 
+            pDoubles = 1.0 - pSingles
         else
             pSingles = 0.1_dp
             pDoubles = 1.0_dp - pSingles

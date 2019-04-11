@@ -10,7 +10,6 @@ module lattice_mod
 
     ! for now disable the OneEInts usage, due to circular dependencies over 
     ! the sym_mod!
-!     use OneEInts, only: tmat2d, gettmatel
     use constants, only: dp, pi, EPS
     use SystemData, only: twisted_bc, nbasis, basisfn, t_trans_corr_2body, &
                           symmetry, brr
