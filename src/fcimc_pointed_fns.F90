@@ -810,7 +810,11 @@ module fcimc_pointed_fns
 
                 ! And for tau searching purposes
 
+               if(t_precond_hub.and.Kii.gt.10.0_dp)then
+                call log_death_magnitude (((Kii - shift)/(1.0_dp+Kii)))
+               else
                 call log_death_magnitude (Kii - shift)
+               end if 
             endif
             
             if(t_precond_hub.and.Kii.gt.10.0_dp)then
