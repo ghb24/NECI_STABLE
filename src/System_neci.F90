@@ -566,8 +566,9 @@ system: do
        case('UEG-TRANSCORR')
            t_ueg_transcorr = .true.
            t_non_hermitian = .true.
-            if(item < nitems) then
+            do while(item < nitems) 
                call readu(w)
+                write(6,*) item, nitems, w
                select case(w)
                case("3-BODY")
                   t_ueg_3_body = .true.
@@ -575,20 +576,23 @@ system: do
                   max_ex_level = 3
                   tRPA_tc= .false.
 
-               case("trcorr-excitgen")
+               case("TRCORR-EXCITGEN")
                   tTrcorrExgen = .true.                
 
-               case("rand-excitgen")
+               case("RAND-EXCITGEN")
                   tTrCorrRandExgen = .true.                
                   tTrcorrExgen = .false.                
+ 
+!              case default
+!                 t_ueg_3_body = .false.
+!                 tTrcorrExgen = .true.                
+!                 tTrCorrRandExgen = .false.                
 
-               case default
-                  t_ueg_3_body = .false.
-                  tTrcorrExgen = .true.                
-                  tTrCorrRandExgen = .false.                
    
                end select
-            endif
+!               write(6,*) tTrcorrExgen, tTrCorrRandExgen, t_ueg_3_body
+            enddo
+!               call stop_all('debug stop')
 
        case('UEG-DUMP')
            t_ueg_dump = .true.
