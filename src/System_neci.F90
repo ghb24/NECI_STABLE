@@ -692,7 +692,9 @@ system: do
 
          case ("PRECOND-HUB")
             t_precond_hub = .true.
-
+         
+         case ("NO_REF_SHIFT")
+            t_no_ref_shift = .true.
                
        ! Options for the type of the reciprocal lattice (eg sc, fcc, bcc)
         case("REAL_LATTICE_TYPE")

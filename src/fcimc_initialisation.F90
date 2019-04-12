@@ -855,8 +855,10 @@ contains
             end if
         end if
 
-!Calculate Hii
-        IF(tHPHF) THEN
+!Calculate Hii (unless suppressed)
+        if(tZeroRef) then
+           TempHii = 0.0_dp
+        else IF(tHPHF) THEN
             TempHii = hphf_diag_helement (HFDet, iLutHF)
         ELSE
             TempHii = get_helement (HFDet, HFDet, 0)
@@ -2472,6 +2474,7 @@ contains
 
         integer :: run, DetHash
         real(dp) , dimension(lenof_sign) :: InitialSign
+        real(dp) :: h_temp
 
         if (tOrthogonaliseReplicas) then
             call InitFCIMC_HF_orthog()
@@ -2509,8 +2512,18 @@ contains
             ! deterministic space.
             if (tSemiStochastic) call set_flag (CurrentDets(:,1), flag_deterministic)
 
-            ! HF energy is equal to 0 (by definition)
-            call set_det_diagH(1, 0.0_dp)
+            ! if no reference energy is used, explicitly get the HF energy
+            if(tZeroRef) then
+               if(tHPHF) then
+                  h_temp = hphf_diag_helement(HFDet, ilutHF)
+               else
+                  h_temp = get_helement(HFDet,HFDet,0)
+               endif
+            else
+               ! HF energy is equal to 0 (when used as reference energy)
+               h_temp = 0.0_dp
+            end if
+            call set_det_diagH(1, h_temp)
             HFInd = 1
 
             call store_decoding(1,HFDet)
