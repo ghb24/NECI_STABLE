@@ -208,6 +208,7 @@ contains
                         ex(2, 1) = orba
                         ex(2, 2) = orbb
                         elem = abs(sltcnd_2(nI,ex,.false.))
+!                       elem = 1.0_dp
                     end if
                 end if
             end if
