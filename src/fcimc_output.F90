@@ -26,7 +26,8 @@ module fcimc_output
     use bit_rep_data, only: niftot, nifd, flag_initiator
     use hist, only: calc_s_squared_star, calc_s_squared
     use fcimc_helper, only: LanczosFindGroundE
-    use Determinants, only: write_det
+    use hphf_integrals, only: hphf_diag_helement
+    use Determinants, only: write_det, get_helement
     use adi_data, only: AllCoherentDoubles, AllIncoherentDets, nRefs, &
          ilutRefAdi, tAdiActive, nConnection, AllConnection
     use rdm_data, only: en_pert_main
@@ -45,6 +46,8 @@ contains
         character(256) label
         character(32) tchar_r, tchar_i, tchar_j, tchar_k
         character(17) trunc_caption
+
+        call getProjEOffset()
 
         IF(iProcIndex.eq.root) THEN
 !Print out initial starting configurations
@@ -210,6 +213,9 @@ contains
         real(dp),dimension(inum_runs) :: FracFromSing
         real(dp) :: projE(inum_runs)
 
+        ! get the offset for the projected energy (i.e. reference energy)
+        call getProjEOffset()
+
         ! What is the current value of S2
         if (tCalcInstantS2) then
             if (mod(iter / StepsSft, instant_s2_multiplier) == 0) then
@@ -262,7 +268,7 @@ contains
                 aimag(projectionE), &                   !8.     Im   \sum[ nj H0j / n0 ]
                 real(proje_iter, dp), &                 !9.     
                 aimag(proje_iter), &                    !10.
-                real(proje_iter,dp) + Hii, &            !11.
+                real(proje_iter,dp) + OutputHii, &            !11.
                 AllNoatHF(1), &                         !12.
                 AllNoatHF(2), &                         !13.
                 AllNoatDoubs, &                         !14.
@@ -358,7 +364,7 @@ contains
                 0.0_dp, &                                  ! 20.
                 HFShift(2), &                              ! 21.
                 InstShift(2), &                            ! 22.
-                proje_iter(2) + Hii, &                     ! 23.
+                proje_iter(2) + OutputHii, &                     ! 23.
                 (AllHFCyc(2) / StepsSft), &                ! 24.
                 (AllENumCyc(2) / StepsSft), &              ! 25.
                 AllNoatHF(2) / norm_psi(2), &              ! 26.
@@ -407,7 +413,7 @@ contains
                 0.0_dp, &                                  ! 20.
                 HFShift(1), &                              ! 21.
                 InstShift(1), &                            ! 22.
-                proje_iter(1) + Hii, &                     ! 23.
+                proje_iter(1) + OutputHii, &                     ! 23.
                 (AllHFCyc(1) / StepsSft), &                ! 24.
                 (AllENumCyc(1) / StepsSft), &              ! 25.
                 AllNoatHF(1) / norm_psi(1), &              ! 26.
@@ -576,7 +582,9 @@ contains
         character(5) :: tmpc, tmpc2
         integer :: p, q
         logical :: init
-       
+
+        call getProjEOffset()
+
         ! Provide default 'initial' option
         if (present(initial)) then
             state%init = initial
@@ -628,12 +636,12 @@ contains
 !!            call stats_out(state,.false., AllGrowRate(1), 'Growth fac.')
 !!            call stats_out(state,.false., AccRat(1), 'Acc. rate')
 #ifdef __CMPLX
-                call stats_out(state,.true., real(proje_iter_tot) + Hii, &
+                call stats_out(state,.true., real(proje_iter_tot) + OutputHii, &
                                'Tot. Proj. E')
-                call stats_out(state,.true., aimag(proje_iter_tot) + Hii, &
+                call stats_out(state,.true., aimag(proje_iter_tot) + OutputHii, &
                                'Tot. Proj. E')
 #else
-                call stats_out(state,.true., proje_iter_tot + Hii, &
+                call stats_out(state,.true., proje_iter_tot + OutputHii, &
                                'Tot. Proj. E')
 #endif
             end if
@@ -666,9 +674,9 @@ contains
                 call stats_out (state, .false., DiagSft(p) + Hii, &
                                 'Shift (' // trim(adjustl(tmpc)) // ")")
 #ifdef __CMPLX
-                call stats_out (state, .false., real(proje_iter(p) + Hii), &
+                call stats_out (state, .false., real(proje_iter(p) + OutputHii), &
                                 'Tot ProjE real (' // trim(adjustl(tmpc)) // ")")
-                call stats_out (state, .false., aimag(proje_iter(p) + Hii), &
+                call stats_out (state, .false., aimag(proje_iter(p) + OutputHii), &
                                 'Tot ProjE imag (' // trim(adjustl(tmpc)) // ")")
 
                 call stats_out (state, .false., real(AllHFCyc(p) / StepsSft), &
@@ -677,10 +685,10 @@ contains
                                 'ProjE Denom imag (' // trim(adjustl(tmpc)) // ")")
 
                 call stats_out (state, .false., &
-                                real((AllENumCyc(p) + Hii*AllHFCyc(p))) / StepsSft,&
+                                real((AllENumCyc(p) + OutputHii*AllHFCyc(p))) / StepsSft,&
                                 'ProjE Num real (' // trim(adjustl(tmpc)) // ")")
                 call stats_out (state, .false., &
-                                aimag((AllENumCyc(p) + Hii*AllHFCyc(p))) / StepsSft,&
+                                aimag((AllENumCyc(p) + OutputHii*AllHFCyc(p))) / StepsSft,&
                                 'ProjE Num imag (' // trim(adjustl(tmpc)) // ")")
                 if (tTrialWavefunction .or. tStartTrialLater) then
                     call stats_out (state, .false., &
@@ -698,12 +706,12 @@ contains
                                     'TrialE Denom imag (' // trim(adjustl(tmpc)) // ")")
                 end if
 #else
-                call stats_out (state, .false., proje_iter(p) + Hii, &
+                call stats_out (state, .false., proje_iter(p) + OutputHii, &
                                 'Tot ProjE (' // trim(adjustl(tmpc)) // ")")
                 call stats_out (state, .false., AllHFCyc(p) / StepsSft, &
                                 'ProjE Denom (' // trim(adjustl(tmpc)) // ")")
                 call stats_out (state, .false., &
-                                (AllENumCyc(p) + Hii*AllHFCyc(p)) / StepsSft,&
+                                (AllENumCyc(p) + OutputHii*AllHFCyc(p)) / StepsSft,&
                                 'ProjE Num (' // trim(adjustl(tmpc)) // ")")
                 if (tTrialWavefunction .or. tStartTrialLater) then
                     call stats_out (state, .false., &
@@ -1838,5 +1846,26 @@ contains
         endif
 
     end subroutine end_iteration_print_warn 
+
+    subroutine getProjEOffset()
+      ! get the offset of the projected energy versus the total energy, 
+      ! which is the reference energy
+
+      implicit none
+      ! if the reference energy is used as an offset to the hamiltonian (default behaviour)
+      ! just get it
+      if(.not.tZeroRef) then
+         OutputHii = Hii         
+      ! else, calculate the reference energy
+      else if (tHPHF) then
+         OutputHii = hphf_diag_helement (ProjEDet(:,1), &
+              iLutRef(:,1))
+      else
+         OutputHii = get_helement (ProjEDet(:,1), &
+              ProjEDet(:,1), 0)
+      endif
+
+
+    end subroutine getProjEOffset
 
 end module
