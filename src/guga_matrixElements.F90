@@ -134,6 +134,10 @@ contains
                if (nOcc1 == 1.0_dp .and. nOcc2 == 1.0_dp) then
                    hel_ret = hel_ret - get_umat_el(sOrb,pOrb,pOrb,sOrb) * &
                        calcDiagExchangeGUGA_nI(iOrb, jOrb, nI)/2.0_dp
+
+                   if (t_tJ_model) then 
+                       hel_ret = hel_ret + get_umat_el(sOrb,pOrb,pOrb,sOrb)/2.0
+                   end if
                end if
         
                ! increment the counters 
