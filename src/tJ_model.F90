@@ -7,26 +7,29 @@ module tJ_model
                           t_open_bc_z, ecore, tHPHF, tHub, tReal, t_tJ_model, & 
                           t_heisenberg_model, t_new_real_space_hubbard, exchange_j, &
                           t_trans_corr, trans_corr_param, & 
-                          t_trans_corr_2body, trans_corr_param_2body
+                          t_trans_corr_2body, trans_corr_param_2body, &
+                          nSpatOrbs, current_stepvector, currentB_int
 
     use constants, only: dp, n_int, EPS, bits_n_int
 
     use real_space_hubbard, only: lat_tau_factor, t_start_neel_state,  & 
-                                  check_real_space_hubbard_input, init_tmat
+                                  check_real_space_hubbard_input, init_tmat, &
+                                  init_spin_free_tmat
 
     use procedure_pointers, only: get_umat_el, generate_excitation
 
-    use FciMCData, only: tsearchtau, tsearchtauoption, excit_gen_store_type
+    use FciMCData, only: tsearchtau, tsearchtauoption, excit_gen_store_type, &
+                         pSingles, pDoubles
 
     use CalcData, only: t_hist_tau_search_option, t_hist_tau_search, tau
 
-    use bit_rep_data, only: NIfTot
+    use bit_rep_data, only: NIfTot, nifguga, nifd
 
     use umatcache, only: gtid
 
     use util_mod, only: binary_search_first_ge
 
-    use OneEInts, only: GetTMatEl
+    use OneEInts, only: GetTMatEl, tmat2d
 
     use lattice_mod, only: lattice, lat, determine_optimal_time_step, &
             get_helement_lattice_ex_mat, get_helement_lattice_general
@@ -43,13 +46,29 @@ module tJ_model
                                     find_elec_in_ni, get_spin_density_neighbors, &
                                     get_occ_neighbors
 
+    use ParallelHelper, only: iProcIndex
+
     use get_excit, only: make_single, make_double
 
     use dsfmt_interface, only: genrand_real2_dsfmt
 
+#ifndef __CMPLX
+    use guga_excitations, only: calc_guga_matrix_element, generate_excitation_guga, &
+                                assign_excitInfo_values_double, assign_excitInfo_values_single
+
+    use guga_data, only: excitationInformation
+
+    use guga_bitRepOps, only: count_alpha_orbs_ij, count_beta_orbs_ij
+
+!     use guga_init, only: init_guga
+
+!     use guga_matrixElements
+#endif
+
     implicit none 
 
     real(dp), allocatable :: exchange_matrix(:,:) 
+    real(dp), allocatable :: spin_free_exchange(:,:)
 
     interface get_helement_tJ
         module procedure get_helement_tJ_ex_mat
@@ -62,6 +81,89 @@ module tJ_model
     end interface get_helement_heisenberg
 
 contains 
+
+    subroutine init_guga_tJ_model 
+        ! write a specific subroutine to init the spin-free tJ model
+        character(*), parameter :: this_routine = "init_guga_tJ_model"
+
+        real(dp) :: tau_opt
+
+        root_print "initializing the spin-free t-J model, with parameter: "
+        root_print "t:",  bhub
+        root_print "J:", exchange_j
+
+!         call init_guga()
+
+        tHub = .false. 
+        treal = .false. 
+        t_new_real_space_hubbard = .true.
+
+        call check_real_space_hubbard_input()
+
+        nSpatOrbs = nBasis/2 
+
+        pSingles = 0.1_dp
+        pDoubles = 1.0_dp - pSingles
+        
+        get_umat_el => get_umat_heisenberg_spin_free
+
+        if (trim(adjustl(lattice_type)) == 'read') then 
+            ! then i have to construct tmat first 
+            call stop_all(this_routine, "starting from fcidump not yet implemented!")
+            ! and then construct the lattice 
+            lat => lattice(lattice_type, length_x, length_y, length_z, .not. t_open_bc_x, &
+                .not. t_open_bc_y, .not. t_open_bc_z)
+        else 
+            ! otherwise i have to do it the other way around 
+            lat => lattice(lattice_type, length_x, length_y, length_z, .not. t_open_bc_x, &
+                .not. t_open_bc_y, .not. t_open_bc_z)
+     
+            ! if nbasis was not yet provided:
+            if (nbasis <= 0) then 
+                nbasis = 2 * lat%get_nsites() 
+            end if
+
+            call init_tmat(lat)
+            call init_spin_free_tmat(lat)
+            call setup_exchange_matrix(lat)
+            call setup_spin_free_exchange(lat)
+
+        end if
+
+        if (nel >= nbasis/2) then 
+            call stop_all(this_routine, &
+                " too many electrons for the tJ model! nel >= nbasis/2")
+        end if
+        
+        ! and also check the double occupancy in the starting det, 
+        ! no double occupancy allowed! 
+        if (count_double_orbs(ilutRef) > 0) then 
+            call stop_all(this_routine, &
+                "incorrect starting state for tJ model: there is an doubly occupied site!")
+        end if
+
+        ! i guess i have to setup G1 also.. argh.. i hate this! 
+        allocate(G1(nbasis)) 
+        G1(1:nbasis-1:2)%ms = -1
+        G1(2:nbasis:2)%ms = 1
+
+        ! Ecore should default to 0, but be sure anyway! 
+        ecore = 0.0_dp
+
+        tau_opt = determine_optimal_time_step()
+        if (tau < EPS) then 
+            print *, "setting time-step to optimally determined time-step: ", tau_opt
+            print *, "times: ", lat_tau_factor
+            tau = lat_tau_factor * tau_opt
+
+        else 
+            print *, "optimal time-step would be: ", tau_opt
+            print *, "but tau specified in input!"
+        end if
+
+        generate_excitation => generate_excitation_guga
+
+    end subroutine init_guga_tJ_model
 
     subroutine init_tJ_model 
         character(*), parameter :: this_routine = "init_tJ_model"
@@ -168,6 +270,95 @@ contains
 
     end subroutine init_tJ_model 
 
+
+    subroutine init_guga_heisenberg_model()
+        character(*), parameter :: this_routine = "init_guga_heisenberg_model"
+        real(dp) :: tau_opt
+
+        root_print "initializing spin-free Heisenberg model, with "
+        root_print "J: ", exchange_j
+
+!         call init_guga()
+
+        tHub = .false. 
+        treal = .false. 
+        t_new_real_space_hubbard = .false. 
+
+        call check_real_space_hubbard_input()
+
+        pSingles = 0.0_dp
+        pDoubles = 1.0_dp
+
+        get_umat_el => get_umat_heisenberg_spin_free
+
+        if (associated(tmat2d)) deallocate(tmat2d)
+        allocate(tmat2d(nbasis,nbasis), source = 0.0_dp)
+
+        if (trim(adjustl(lattice_type)) == 'read') then 
+            ! then i have to construct tmat first 
+            ! no need for tmat in the heisenberg model 
+            call stop_all(this_routine, "starting from fcidump not yet implemented!")
+            ! and then construct the lattice 
+            lat => lattice(lattice_type, length_x, length_y, length_z, .not. t_open_bc_x, &
+                .not. t_open_bc_y, .not. t_open_bc_z)
+        else 
+            ! otherwise i have to do it the other way around 
+            lat => lattice(lattice_type, length_x, length_y, length_z, .not. t_open_bc_x, &
+                .not. t_open_bc_y, .not. t_open_bc_z)
+     
+            ! if nbasis was not yet provided:
+            if (nbasis <= 0) then 
+                nbasis = 2 * lat%get_nsites() 
+            end if
+
+            call setup_exchange_matrix(lat)
+            call setup_spin_free_exchange(lat)
+
+        end if
+
+        if (nel /= nbasis/2) then 
+            call stop_all(this_routine, &
+                "heisenberg model need half filling nel == nbasis/2")
+        end if
+
+        if (count_double_orbs(ilutref) > 0) then 
+            call stop_all(this_routine, &
+                " no double occupancies allowed in the heisenberg model")
+        end if
+
+        ! i guess i have to setup G1 also.. argh.. i hate this! 
+        allocate(G1(nbasis)) 
+        G1(1:nbasis-1:2)%ms = -1
+        G1(2:nbasis:2)%ms = 1
+
+        ! Ecore should default to 0, but be sure anyway! 
+        ecore = 0.0_dp
+
+
+        ! TODO: maybe I need the tau-search for the GUGA..
+        tau_opt = determine_optimal_time_step()
+        if (tau < EPS) then 
+            print *, "setting time-step to optimally determined time-step: ", tau_opt
+            print *, "times: ", lat_tau_factor
+            tau = lat_tau_factor * tau_opt
+
+        else 
+            print *, "optimal time-step would be: ", tau_opt
+            print *, "but tau specified in input!"
+        end if
+
+        ! and i have to turn off the time-step search for the hubbard 
+        tsearchtau = .false.
+        ! set tsearchtauoption to true to use the death-tau search option
+        tsearchtauoption = .true.
+
+        t_hist_tau_search = .false. 
+        t_hist_tau_search_option = .false. 
+
+        generate_excitation => generate_excitation_guga
+
+    end subroutine init_guga_heisenberg_model
+
     subroutine init_heisenberg_model
         character(*), parameter :: this_routine = "init_heisenberg_model"
         real(dp) :: tau_opt
@@ -272,6 +463,29 @@ contains
 
     end subroutine init_heisenberg_model
 
+    subroutine init_get_helement_tj_guga
+
+        call init_tmat(lat)
+        call init_spin_free_tmat(lat)
+        call setup_exchange_matrix(lat)
+        call setup_spin_free_exchange(lat)
+
+        get_umat_el => get_umat_heisenberg_spin_free
+
+    end subroutine init_get_helement_tj_guga
+
+    subroutine init_get_helement_heisenberg_guga
+
+        if (associated(tmat2d)) deallocate(tmat2d)
+        allocate(tmat2d(nbasis,nbasis), source = 0.0_dp)
+
+        call setup_exchange_matrix(lat)
+        call setup_spin_free_exchange(lat)
+
+        get_umat_el => get_umat_heisenberg_spin_free
+
+    end subroutine init_get_helement_heisenberg_guga
+    
     subroutine init_get_helement_tj
         get_helement_lattice_ex_mat => get_helement_tJ_ex_mat
         get_helement_lattice_general => get_helement_tJ_general
@@ -284,6 +498,91 @@ contains
         get_helement_lattice_general => get_helement_heisenberg_general
         call setup_exchange_matrix(lat)
     end subroutine init_get_helement_heisenberg
+ 
+    subroutine gen_excit_heisenberg_model (nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                                      ex, tParity, pGen, hel, store, run)
+        ! the heisenberg excitation generator is only a small modification of 
+        ! the t-J excitation generator without single excitation hoppings, 
+        ! due to half-filling 
+
+        integer, intent(in) :: nI(nel), exFlag
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: nJ(nel), ic, ex(2,2)
+        integer(n_int), intent(out) :: ilutJ(0:NifTot)
+        real(dp), intent(out) :: pGen
+        logical, intent(out) :: tParity
+        HElement_t(dp), intent(out) :: hel
+        type(excit_gen_store_type), intent(inout), target :: store
+        integer, intent(in), optional :: run
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "gen_excit_heisenberg_model"
+#endif
+        integer :: elec, src, ind, tgt, src_opp, tgt_opp, elec_opp
+        real(dp) :: p_elec, cum_sum, r, p_orb, cpt_opp
+        integer, allocatable :: neighbors(:) 
+        real(dp), allocatable :: cum_arr(:)
+
+        ASSERT(associated(lat))
+        ASSERT(nel == nbasis/2)
+        
+        ic = 2
+
+        ! still pick the first electron at random 
+        elec = 1 + int(genrand_real2_dsfmt() * nel)
+
+        p_elec = 1.0_dp / real(nel, dp)
+
+        src = nI(elec) 
+
+        ! in the heisenberg model i am sure that every site is occupied.. 
+        ! so i could pick the spin-orbit neighbors and check if the spin-orbital 
+        ! is empty, this would indicate opposite neighboring spins.. 
+        neighbors = lat%get_spinorb_neighbors(src)
+
+        call create_cum_list_heisenberg(ilutI, src, neighbors, cum_arr, cum_sum)
+
+        if (cum_sum < EPS) then 
+            nJ(1) = 0
+            pgen = 0.0_dp
+            return 
+        end if
+
+        r = genrand_real2_dsfmt() * cum_sum 
+
+        ind = binary_search_first_ge(cum_arr, r) 
+
+        tgt = neighbors(ind) 
+
+        if (ind == 1) then 
+            p_orb = cum_arr(1) / cum_sum 
+        else 
+            p_orb = (cum_arr(ind) - cum_arr(ind-1)) / cum_sum 
+        end if
+
+        ! and then i have to check for the opposite order generation prob 
+        if (is_beta(src)) then 
+            src_opp = neighbors(ind) + 1 
+            tgt_opp = src + 1
+        else 
+            src_opp = neighbors(ind) - 1
+            tgt_opp = src - 1 
+        end if
+
+        ASSERT(IsOcc(ilutI,src_opp))
+        ASSERT(IsNotOcc(ilutI, tgt_opp))
+
+        call create_cum_list_heisenberg(ilutI, src_opp, lat%get_spinorb_neighbors(src_opp), & 
+            cum_arr, cum_sum, tgt_opp, cpt_opp) 
+
+        pgen = p_elec * (p_orb + cpt_opp) 
+
+        elec_opp = find_elec_in_ni(nI, src_opp) 
+
+        call make_double(nI, nJ, elec, elec_opp, tgt, tgt_opp, ex, tParity)
+
+        ilutJ = make_ilutJ(ilutI, ex, 2)
+
+    end subroutine gen_excit_heisenberg_model
 
     subroutine gen_excit_tJ_model (nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                       ex, tParity, pGen, hel, store, run)
@@ -631,90 +930,336 @@ contains
 
     end function calc_pgen_tJ_model
 
-    subroutine gen_excit_heisenberg_model (nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                      ex, tParity, pGen, hel, store, run)
-        ! the heisenberg excitation generator is only a small modification of 
-        ! the t-J excitation generator without single excitation hoppings, 
-        ! due to half-filling 
+    subroutine pick_orbitals_guga_tJ(ilut, nI, excitInfo, orb_pgen)
+        ! orbital picking routine for the GUGA t-J model. 
+        ! the most effective way would be to pick a hole first, instead 
+        ! of an random electron, so the chance of a succesful hop 
+        ! increases.. but I might be too lazy for now to do that 
+        ! actually. 
+        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(in) :: nI(nel)
+        type(excitationInformation), intent(out) :: excitInfo 
+        real(dp), intent(out) :: orb_pgen
+        character(*), parameter :: this_routine = "pick_orbitals_guga_tJ"
 
-        integer, intent(in) :: nI(nel), exFlag
-        integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2,2)
-        integer(n_int), intent(out) :: ilutJ(0:NifTot)
-        real(dp), intent(out) :: pGen
-        logical, intent(out) :: tParity
-        HElement_t(dp), intent(out) :: hel
-        type(excit_gen_store_type), intent(inout), target :: store
-        integer, intent(in), optional :: run
-#ifdef __DEBUG
-        character(*), parameter :: this_routine = "gen_excit_heisenberg_model"
-#endif
-        integer :: elec, src, ind, tgt, src_opp, tgt_opp, elec_opp
-        real(dp) :: p_elec, cum_sum, r, p_orb, cpt_opp
-        integer, allocatable :: neighbors(:) 
+        integer :: elec, id, ind, tgt
+        real(dp) :: p_elec, cum_sum, r, p_orb
+        integer, allocatable :: neighbors(:)
         real(dp), allocatable :: cum_arr(:)
 
-        ASSERT(associated(lat))
-        ASSERT(nel == nbasis/2)
-        
-        ic = 2
-
-        ! still pick the first electron at random 
         elec = 1 + int(genrand_real2_dsfmt() * nel)
-
         p_elec = 1.0_dp / real(nel, dp)
 
-        src = nI(elec) 
+        id = gtID(nI(elec))
 
-        ! in the heisenberg model i am sure that every site is occupied.. 
-        ! so i could pick the spin-orbit neighbors and check if the spin-orbital 
-        ! is empty, this would indicate opposite neighboring spins.. 
-        neighbors = lat%get_spinorb_neighbors(src)
+        neighbors = lat%get_neighbors(id)
 
-        call create_cum_list_heisenberg(ilutI, src, neighbors, cum_arr, cum_sum)
+        call gen_guga_tJ_cum_list(id, cum_arr)
+
+        cum_sum = cum_arr(size(neighbors))
 
         if (cum_sum < EPS) then 
-            nJ(1) = 0
-            pgen = 0.0_dp
-            return 
+            excitInfo%valid = .false. 
+            orb_pgen = 0.0_dp
+            return
         end if
 
         r = genrand_real2_dsfmt() * cum_sum 
+        ind = binary_search_first_ge(cum_arr, r)
 
-        ind = binary_search_first_ge(cum_arr, r) 
-
-        tgt = neighbors(ind) 
+        tgt = neighbors(ind)
 
         if (ind == 1) then 
             p_orb = cum_arr(1) / cum_sum 
         else 
-            p_orb = (cum_arr(ind) - cum_arr(ind-1)) / cum_sum 
+            p_orb = (cum_arr(ind) - cum_arr(ind - 1)) / cum_sum
         end if
 
-        ! and then i have to check for the opposite order generation prob 
-        if (is_beta(src)) then 
-            src_opp = neighbors(ind) + 1 
-            tgt_opp = src + 1
+        if (tgt < id) then 
+            excitInfo = assign_excitInfo_values_single(1, tgt, id, tgt, id)
+        else
+            excitInfo = assign_excitInfo_values_single(-1, tgt, id, id, tgt)
+        end if
+
+        orb_pgen = p_elec * p_orb
+
+    end subroutine pick_orbitals_guga_tJ
+
+    subroutine gen_guga_tJ_cum_list(id, cum_arr, tgt, tgt_pgen)
+        integer, intent(in) :: id
+        real(dp), allocatable, intent(out) :: cum_arr(:)
+        integer, intent(in), optional :: tgt 
+        real(dp), intent(out), optional :: tgt_pgen
+        character(*), parameter :: this_routine = "gen_guga_tJ_cum_list"
+
+        integer, allocatable :: neighbors(:)
+        integer :: i, n
+        real(dp) :: cum_sum, tmp
+
+        neighbors = lat%get_neighbors(id) 
+
+        allocate(cum_arr(size(neighbors)), source = 0.0_dp)
+
+        cum_sum = 0.0_dp 
+        tmp = 0.0_dp
+
+        if (present(tgt)) then 
+            tgt_pgen = 0.0_dp 
+
+            do i = 1, size(neighbors)
+
+                n = neighbors(i)
+
+                if (current_stepvector(n) == 0) then 
+                    tmp = 1.0_dp
+                    cum_sum = cum_sum + tmp
+                    if (tgt == n) tgt_pgen = tmp
+                end if
+            end do
+        else
+            do i = 1, size(neighbors)
+                n = neighbors(i)
+
+                if (current_stepvector(n) == 0) then 
+                    cum_sum = cum_sum + 1.0_dp 
+                end if
+
+                cum_arr(i) = cum_sum
+            end do
+        end if
+        
+    end subroutine gen_guga_tJ_cum_list
+
+    subroutine pick_orbitals_guga_heisenberg(ilut, nI, excitInfo, orb_pgen)
+        ! i "just" need to implement a custom orbital picker for the 
+        ! spin-free Heisenberg exchange
+        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(in) :: nI(nel)
+        type(excitationInformation), intent(out) :: excitInfo
+        real(dp), intent(out) :: orb_pgen
+        character(*), parameter :: this_routine = "pick_orbitals_guga_heisenberg"
+
+        integer :: elec, src, id, ind, tgt, start, ende
+        real(dp) :: p_elec, cum_sum, r, p_orb
+        integer, allocatable :: neighbors(:)
+        real(dp), allocatable :: cum_arr(:)
+
+        ! here i want to only pick nearest neighbor electrons, where a 
+        ! spin recoupling is possible
+
+        ! i need to pick one orbital at random: since it should be 
+        ! general for the t-J model too, pick an occupied orbital
+        elec = 1 + int(genrand_real2_dsfmt() * nel)
+        p_elec = 1.0_dp / real(nel, dp)
+
+        src = nI(elec)
+        ! spatial orbital:
+        id = gtID(src)
+
+        neighbors = lat%get_neighbors(id)
+
+        call gen_guga_heisenberg_cum_list(ilut, id, cum_arr)
+
+
+        cum_sum = cum_arr(size(neighbors))
+
+        if (cum_sum < EPS) then 
+            excitInfo%valid = .false.
+            orb_pgen = 0.0_dp
+            return 
+        end if
+
+        r = genrand_real2_dsfmt() * cum_sum 
+        ind = binary_search_first_ge(cum_arr, r)
+
+        tgt = neighbors(ind)
+
+        if (ind == 1) then 
+            p_orb = cum_arr(1) / cum_sum
         else 
-            src_opp = neighbors(ind) - 1
-            tgt_opp = src - 1 
+            p_orb = (cum_arr(ind) - cum_arr(ind-1))/cum_sum
         end if
 
-        ASSERT(IsOcc(ilutI,src_opp))
-        ASSERT(IsNotOcc(ilutI, tgt_opp))
+        ! and now we have to to the GUGA excitation: 
+        ! were I just realised, everything will get recalculated anyway.. 
+        ! so i have to adapt the pgen recalculation.. to fit this 
+        ! scheme above.. 
+        start = min(id, tgt)
+        ende = max(id, tgt)
 
-        call create_cum_list_heisenberg(ilutI, src_opp, lat%get_spinorb_neighbors(src_opp), & 
-            cum_arr, cum_sum, tgt_opp, cpt_opp) 
+        excitInfo =  assign_excitInfo_values_double(23, -1, 1, 1, 1, 1, &
+            start, ende, ende, start, start, start, ende, ende, 0, 2, 1.0_dp, 1.0_dp)
+       
+        orb_pgen = p_elec * p_orb
+ 
+!         if (id == 1 .or. id == 6) then 
+!         print *, "===================="
+!         print *, "nI: ", nI
+!         print *, "id: ", id
+!         print *, "neighbors: ", neighbors
+!         print *, "cum_arr: ", cum_arr
+!         end if
 
-        pgen = p_elec * (p_orb + cpt_opp) 
+    end subroutine pick_orbitals_guga_heisenberg
+        
+    subroutine gen_guga_heisenberg_cum_list(ilut, id,  cum_arr, tgt, tgt_pgen)
+        ! make a routine for this, for easy pgen recalculation
+        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(in) :: id 
+        real(dp), allocatable, intent(out) :: cum_arr(:)
+        integer, intent(in), optional :: tgt
+        real(dp), intent(out), optional :: tgt_pgen
+        character(*), parameter :: this_routine = "gen_guga_heisenberg_cum_list"
 
-        elec_opp = find_elec_in_ni(nI, src_opp) 
+        integer :: step, i, n
+        integer, allocatable :: neighbors(:)
+        real(dp) :: cum_sum, tmp
 
-        call make_double(nI, nJ, elec, elec_opp, tgt, tgt_opp, ex, tParity)
+        neighbors = lat%get_neighbors(id)
 
-        ilutJ = make_ilutJ(ilutI, ex, 2)
+        ! then check if the neighbors are available for exchange 
+        allocate(cum_arr(size(neighbors)), source = 0.0_dp)
 
-    end subroutine gen_excit_heisenberg_model
+        cum_sum = 0.0_dp
+        tmp = 0.0_dp
+
+        step = current_stepvector(id)
+
+        if (present(tgt)) then 
+
+            tgt_pgen = 0.0_dp
+
+            do i = 1, size(neighbors)
+                n = neighbors(i)
+                
+                if (current_stepvector(n) == 0) then 
+                    cycle 
+
+                else if (current_stepvector(n) == step) then 
+                    if (abs(id -n) == 1) then 
+                        cycle
+                    else
+
+                        if (step == 1 .and. & 
+                            count_alpha_orbs_ij(ilut(0:nifd), min(id,n),max(id,n)) == 0) cycle
+
+                        if (step == 2 .and. & 
+                            count_beta_orbs_ij(ilut(0:nifd), min(id,n),max(id,n)) == 0) cycle
+
+                        tmp = 1.0_dp
+
+                        cum_sum = cum_sum + tmp
+
+                        if (tgt == n) tgt_pgen = tmp
+                    end if
+
+                else if (current_stepvector(n) /= 0 .and. &
+                    current_stepvector(n) /= step) then 
+
+                    if (id - n == -1 .and. current_stepvector(id) == 1 .and. &
+                        currentB_int(id) == 1) cycle 
+
+                    if (id - n == 1 .and. current_stepvector(n) == 1 .and. & 
+                        currentB_int(n) == 1) cycle 
+
+                    tmp = 1.0_dp
+
+                    cum_sum = cum_sum + tmp 
+
+                    if (tgt == n) tgt_pgen = tmp
+                end if
+            end do
+
+            tgt_pgen = tgt_pgen / cum_sum
+
+        else
+            do i = 1, size(neighbors)
+                n = neighbors(i)
+                if (current_stepvector(n) == 0) then 
+                    ! t-J case
+                    cum_arr(i) = cum_sum
+                    cycle
+
+                else if (current_stepvector(n) == step) then 
+                    ! this can only be if we have space 
+                    ! between the step-vectors 
+                    if (abs(id - n) == 1) then 
+                        cum_arr(i) = cum_sum
+                        cycle 
+                    else 
+                        if (step == 1 .and. &
+                           count_alpha_orbs_ij(ilut(0:nifd), min(id,n), max(id,n)) == 0) then
+                           cum_arr(i) = cum_sum
+                           cycle
+                       end if
+                       
+                        if (step == 2 .and. & 
+                            count_beta_orbs_ij(ilut(0:nifd), min(id,n),max(id,n)) == 0) then
+                            cum_arr(i) = cum_sum
+                            cycle
+                        end if
+
+                        cum_arr(i) = cum_sum + 1.0_dp 
+                        cum_sum = cum_sum + 1.0_dp 
+                    end if
+
+                else if (current_stepvector(n) /= 0 .and. & 
+                    current_stepvector(n) /= step) then 
+
+                    if (id - n == -1 .and. current_stepvector(id) == 1 .and. &
+                        currentB_int(id) == 1) then
+                        cum_arr(i) = cum_sum
+                        cycle
+                    end if
+
+                    if (id - n == 1 .and. current_stepvector(n) == 1 .and. & 
+                        currentB_int(n) == 1) then
+                        cum_arr(i) = cum_sum
+                        cycle
+                    end if
+
+                    cum_arr(i) = cum_sum + 1.0_dp
+                    cum_sum = cum_sum + 1.0_dp
+                end if
+            end do
+        end if
+
+    end subroutine gen_guga_heisenberg_cum_list
+
+    subroutine calc_orbital_pgen_contr_heisenberg(ilut, occ_orbs, above_cpt, below_cpt)
+        ! and I also need an orbital pgen recalculator for the 
+        ! exchange type excitations 
+        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(in) :: occ_orbs(2)
+        real(dp), intent(out) :: above_cpt, below_cpt
+        character(*), parameter :: this_routine = "calc_orbital_pgen_contr_heisenberg"
+
+        real(dp) :: p_elec
+        real(dp), allocatable :: cum_arr(:)
+        integer :: sp_orbs(2)
+
+        ! here I have to somehow recalculate the probability of 
+        ! picking a pair (i,j)
+        p_elec = 1.0_dp/real(nel,dp)
+
+        ! i could have taken both of the orbitals in any order.. so I have 
+        ! to take this into account 
+
+        ASSERT(all(occ_orbs > 0)) 
+        ASSERT(all(occ_orbs <= nBasis))
+        ! the occ_orbs are spin-orbitals!  so convert!
+        sp_orbs = gtID(occ_orbs)
+
+        call gen_guga_heisenberg_cum_list(ilut, minval(sp_orbs), cum_arr, &
+            maxval(sp_orbs), below_cpt) 
+
+        call gen_guga_heisenberg_cum_list(ilut, maxval(sp_orbs), cum_arr, &
+            minval(sp_orbs), above_cpt) 
+
+        above_cpt = above_cpt * p_elec 
+        below_cpt = below_cpt * p_elec
+
+    end subroutine calc_orbital_pgen_contr_heisenberg
 
     subroutine create_cum_list_heisenberg(ilutI, src, neighbors, cum_arr, cum_sum, &
             tgt, cpt) 
@@ -885,6 +1430,39 @@ contains
         hel = h_cast(exchange_matrix(src, tgt))
 
     end function get_heisenberg_exchange
+
+    subroutine setup_spin_free_exchange(in_lat)
+        ! spin-free version of the exchange matrix 
+        class(lattice), intent(in), pointer :: in_lat 
+        character(*), parameter :: this_routine = "setup_spin_free_exchange"
+
+        integer :: i, ind 
+
+        ASSERT(associated(in_lat))
+
+        if (allocated(spin_free_exchange)) deallocate(spin_free_exchange)
+        allocate(spin_free_exchange(nBasis/2, nBasis/2), source = 0.0_dp)
+
+        ASSERT(in_lat%get_nsites() == nBasis/2)
+
+        do i = 1, in_lat%get_nsites() 
+            ind = in_lat%get_site_index(i)
+
+            ASSERT(ind > 0)
+            ASSERT(ind <= nBasis/2)
+
+            associate(next => in_lat%get_neighbors(i))
+                ASSERT(all(next > 0))
+                ASSERT(all(next <= nBasis/2))
+
+                ! in the spin-free form I have to divide by one 1/2 more!
+                spin_free_exchange(ind, next) = -exchange_j/2.0_dp
+
+            end associate
+
+        end do
+
+    end subroutine setup_spin_free_exchange
 
     subroutine setup_exchange_matrix(in_lat)
         ! by convention encode the exchange matrix element by the two 
@@ -1272,6 +1850,32 @@ contains
 
     end function determine_optimal_time_step_heisenberg
 
+
+    function get_umat_heisenberg_spin_free(i,j,k,l) result(hel) 
+        ! for the spin-free form, I do not need information about 
+        ! the spin-orbitals 
+        integer, intent(in) :: i, j, k, l
+        HElement_t(dp) :: hel 
+#ifdef __DEBUG
+        character(*), parameter :: this_routine = "get_umat_heisenberg_spin_free"
+#endif
+
+        ASSERT(allocated(spin_free_exchange))
+
+        if (i == j) then 
+            hel = h_cast(0.0_dp)
+        else 
+            if (i == k .and. j == l) then 
+                hel = h_cast(spin_free_exchange(i, j))
+            else if (i == l .and. j == k) then 
+                hel = h_cast(spin_free_exchange(i, j))
+            else
+                hel = h_cast(0.0_dp)
+            end if
+        end if
+
+    end function get_umat_heisenberg_spin_free
+
     function get_umat_el_heisenberg(i,j,k,l) result(hel) 
         integer, intent(in) :: i,j,k,l
         HElement_t(dp) :: hel 
@@ -1332,5 +1936,242 @@ contains
         end if
 
     end function get_offdiag_helement_tJ
+
+    ! maybe implement a more efficient Heisenberg/t-J GUGA implementation:
+! 
+!     subroutine generate_guga_exchange(nI, ilutI, nJ, ilutJ, ex, tParity, pgen)
+!         integer, intent(in) :: nI(nel)
+!         integer, intent(in) :: ilutI(0:niftot)
+!         integer, intent(out) :: nJ(nel), ex(2,2)
+!         integer(n_int), intent(out) :: ilutJ(0:niftot)
+!         logical, intent(out) :: tParity
+!         real(dp), intent(out) :: pgen 
+!         character(*), parameter :: this_routine = "generate_guga_exchange"
+! 
+!         integer(n_int) :: ilut(0:nifguga), excit(0:nifguga)
+! 
+!         call convert_ilut_toGUGA(ilutI, ilut)
+!         ASSERT(isProperCSF_ilut(ilut))
+! 
+!         ilutJ = ilutI
+! 
+!         if (tNewDet) then
+!             ! use new setup function for additional CSF informtation
+!             ! instead of calculating it all seperately..
+!             call init_csf_information(ilut(0:nifd))
+! 
+!             ! then set tNewDet to false and only set it after the walker loop
+!             ! in FciMCPar
+!             tNewDet = .false.
+! 
+!         end if
+!         call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, &
+!             negSwitches, weights)
+! 
+!         if (.not.compFlag) then
+!             excitation = 0
+!             pgen = 0.0_dp
+!             return
+!         end if
+!  
+!         ! combine this directly with my approximation
+!         if (t_crude_exchange .or. (t_crude_exchange_noninits .and. (.not. is_init_guga))) then
+!             call perform_crude_excitation(ilut, excitInfo, excitation, compFlag)
+! 
+!             ! in this case the pgen is just the orbital pgen, as only 
+!             ! on CSF can be created from it.. 
+!             ! but be sure if the excitation is then actually possible
+!             if (.not. compFlag) then
+!                 excitation = 0
+!                 pgen = 0.0_dp
+!                 return
+!             else
+!                 pgen = orb_pgen
+!             end if
+! 
+!         else
+! 
+!             
+!             call calcFullStartFullStopMixedStochastic(ilut, excitInfo, &
+!                 excitation, branch_pgen, posSwitches, negSwitches, weights)
+! 
+!             if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
+!                 pgen = branch_pgen * orb_pgen
+!             else
+!                 pgen = branch_pgen
+!             end if
+! 
+!         end if
+! 
+!         if (abs(extract_matrix_element(excitation, 1)) < EPS) then
+!             pgen = 0.0_dp
+!             excitation = 0
+!         else
+!             ! also store information of type of excitation for automated tau-search
+!             ! for the non-weighted guga-excitation-generator
+!             ! (ii,jj) RL excitation
+!             excit_typ(1) = 2
+!             excit_typ(2) = 0
+!         end if
+! 
+!         global_excitInfo = excitInfo
+! 
+! 
+! #ifdef __DEBUG 
+!         if (.not. pgen < EPS) then
+!             call convert_ilut_toNECI(excitation, ilutJ, HElgen)
+!             call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, tmp_mat, &
+!                 .true., 2)
+! 
+!             diff = abs(HElGen - tmp_mat)
+!             if (diff > 1.0e-10_dp) then 
+!                 print *, "WARNING: differing stochastic and exact matrix elements!"
+!                 call write_det_guga(6, ilutI, .true.)
+!                 call write_det_guga(6, ilutJ, .true.)
+!                 print *, "mat eles and diff:", HElGen, tmp_mat, diff
+!                 print *, " pgen: ", pgen
+!                 call print_excitInfo(excitInfo)
+!                 call neci_flush(6)
+!             end if
+! 
+!             ! is the other order also fullfilled? 
+!             call calc_guga_matrix_element(ilutJ, ilutI, excitInfo, tmp_mat1, &
+!                 .true., 2)
+! 
+!             diff = abs(tmp_mat1 - tmp_mat) 
+!             if (diff > 1.0e-10_dp) then 
+!                 print *, "WARNING: differing sign in matrix elements!"
+!                 call write_det_guga(6, ilutI, .true.)
+!                 call write_det_guga(6, ilutJ, .true.)
+!                 print *, "mat eles and diff:", tmp_mat, tmp_mat1, diff
+!                 print *, "<I|H|J> excitInfo:"
+!                 call print_excitInfo(excitInfo)
+!                 excitInfo = identify_excitation(ilutI, ilutJ)
+!                 print *, "<J|H|I> excitInfo:"
+!                 call print_excitInfo(excitInfo)
+!                 call neci_flush(6)
+!             end if
+!         end if
+! #endif
+!         ! check if excitation generation was successful
+!         if (pgen < EPS) then
+!             ! indicate NullDet to skip spawn step
+!             nJ(1) = 0
+!             HElGen = 0.0_dp
+!             
+!         else
+!             excitMat(1,:) excit_typ
+! 
+!             call convert_ilut_toNECI(excit, ilutI, HElgen)
+!             call decode_bit_det(nJ, ilutJ
+!         end if
+! 
+! 
+!     end subroutine generate_guga_exchange
+!! 
+! 
+!     function get_guga_tJ_helement_ex_mat(nI, ic, ex, tpar) result(hel)
+!         integer, intent(in) :: nI(nel), ic, ex(2,ic)
+!         logical, intent(in) :: tpar 
+!         HElement_t(dp) :: hel 
+! 
+!         if (ic == 0) then 
+!             hel = get_guga_diag_heisenberg(nI) 
+! 
+!         else if (ic == 1) then 
+!             hel = get_guga_offdiag_tJ(nI, ex(:,1), tpar)
+! 
+!         else if (ic == 2) then 
+!             hel = get_guga_offdiag_heiseneberg(nI, ex, tPar)
+! 
+!         else 
+!             hel = h_cast(0.0_dp) 
+! 
+!         end if
+!     end function get_guga_tJ_helement_ex_mat
+! 
+!     function get_guga_tJ_helement_general(nI, nJ, ic_ret) result(hel) 
+!         integer, intent(in) :: nI(nel), nJ(nel)
+!         integer, intent(inout), optional :: ic_ret 
+!         HElement_t(dp) :: hel 
+! 
+!         integer :: ic, ex(2,2)
+!         logical :: tPar
+!         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
+!         type(excitationInformation) :: excitInfo
+! 
+!         call EncodeBitDet(nI, ilutI)
+!         call EncodeBitDet(nJ, ilutJ)
+! 
+!         if (DetBitEQ(ilutI, ilutJ)) then 
+!             hel = get_guga_diag_heisenberg(nI) 
+!             return
+!         end if
+! 
+!         excitInfo = identify_excitation(ilutI, ilutJ)
+! 
+!         ! if other than singles and exchange, return with 0.
+!         if (.not. (excitInfo%typ == 0 .or. excitInfo == 23)) then 
+!             hel = 0.0_dp
+!             return 
+!         end if
+! 
+!         ! make this the general calculation, without information 
+!         ! about the involved CSFs. 
+!         ! thats the case of an rdm-matrix calculation here i do not 
+!         ! have any information on both CSFs. so i have to recalculate 
+!         ! everything 
+!         ! write the function above with a optional occupation number 
+!         ! output, since it is not much effort to also calc that 
+!         call calc_csf_info(ilutI, temp_step_i, temp_b, temp_occ_i)
+! 
+!         temp_b_real_i = real(temp_b,dp)
+! 
+!         call calc_csf_info(ilutJ, temp_step_j, temp_b, temp_occ) 
+! 
+!         temp_delta_b = int(temp_b_real_i) - temp_b
+! 
+!         if (excitInfo%typ == 0) then 
+! 
+!             hel = get_guga_offdiag_tJ_ilut(ilutI, ilutJ, excitInfo)
+! 
+!         else if (excitInfo%typ == 23) then 
+!             hel = get_guga_offdiag_heiseneberg_ilut(ilutI, ilutJ, excitInfo)
+! 
+!         end if
+! 
+!     end function get_guga_tJ_helement_general
+! 
+! 
+!     subroutine gen_excit_guga_heisenberg (nI, ilutI, nJ, ilutJ, exFlag, ic, &
+!                                       ex, tParity, pGen, hel, store, run)
+! 
+!         integer, intent(in) :: nI(nel), exFlag
+!         integer(n_int), intent(in) :: ilutI(0:NIfTot)
+!         integer, intent(out) :: nJ(nel), ic, ex(2,2)
+!         integer(n_int), intent(out) :: ilutJ(0:NifTot)
+!         real(dp), intent(out) :: pGen
+!         logical, intent(out) :: tParity
+!         HElement_t(dp), intent(out) :: hel
+!         type(excit_gen_store_type), intent(inout), target :: store
+!         integer, intent(in), optional :: run
+! 
+!         character(*), parameter :: this_routine = "gen_excit_guga_heisenberg"
+! 
+! 
+!         ASSERT(associated(lat))
+!         ASSERT(nel == nbasis / 2)
+! 
+!         ! for the heisenberg model, we only have exchange type excitations 
+! 
+!         ! since we also need that for the t-J model write a general 
+!         ! subroutine
+! 
+!         ic = 2
+!         call generate_guga_exchange(nI, ilutI, nJ, ilutJ, ex, tParity, pgen)
+! 
+! 
+!     end subroutine gen_excit_guga_heisenberg
+! 
 
 end module tJ_model

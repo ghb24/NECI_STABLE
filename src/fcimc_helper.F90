@@ -163,9 +163,7 @@ contains
 
         ! this surely does not work - run has to be passed as an argument
         run = part_type_to_run(part_type)
-#ifdef __DEBUG
         ASSERT(sum(abs(child))-sum(abs(child(min_part_type(run):max_part_type(run)))) < 1.0e-12_dp)
-#endif
 
         ! Determine which processor the particle should end up on in the
         ! DirectAnnihilation algorithm.

@@ -11,7 +11,7 @@ module FciMCParMod
                           tGen_guga_mixed, t_guga_mixed_init, t_guga_mixed_semi, &
                           tReal, t_mixed_excits, tgen_nosym_guga, & 
                           t_crude_exchange_noninits, t_approx_exchange_noninits, &
-                          is_init_guga, tGen_sym_guga_ueg
+                          is_init_guga, tGen_sym_guga_ueg, t_guga_unit_tests
 
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
@@ -113,7 +113,7 @@ module FciMCParMod
     use excit_gen_5, only: gen_excit_4ind_weighted2
 
 #ifndef __CMPLX
-    use guga_testsuite, only: run_test_excit_gen_det
+    use guga_testsuite, only: run_test_excit_gen_det, runTestsGUGA
     use guga_excitations, only: deallocate_projE_list, init_csf_information, &
                                 generate_excitation_guga
 #endif
@@ -134,7 +134,8 @@ module FciMCParMod
     use tau_search_hist, only: print_frequency_histograms, deallocate_histograms
     use back_spawn, only: init_back_spawn
     use real_space_hubbard, only: init_real_space_hubbard, gen_excit_rs_hubbard
-    use tJ_model, only: init_tJ_model, init_heisenberg_model
+    use tJ_model, only: init_tJ_model, init_heisenberg_model, &
+                        init_guga_heisenberg_model, init_guga_tj_model
     use k_space_hubbard, only: init_k_space_hubbard, gen_excit_k_space_hub_transcorr, & 
                                gen_excit_uniform_k_space_hub_transcorr, &
                                gen_excit_mixed_k_space_hub_transcorr
@@ -241,10 +242,18 @@ module FciMCParMod
             call init_real_space_hubbard()
         end if
         if (t_tJ_model) then 
-            call init_tJ_model()
+            if (tGUGA) then
+                call init_guga_tj_model()
+            else
+                call init_tJ_model()
+            end if
         end if
         if (t_heisenberg_model) then 
-            call init_heisenberg_model()
+            if (tGUGA) then 
+                call init_guga_heisenberg_model()
+            else
+                call init_heisenberg_model()
+            end if
         end if
         ! try to call this earlier..
         ! just do it twice for now.. 
@@ -269,6 +278,17 @@ module FciMCParMod
         ! In the normal case this is run between iterations, but it is
         ! helpful to do it here.
         call population_check()
+ 
+#ifndef __CMPLX
+          ! call guga test routine here, so everything is correctly set up,
+          ! or atleast should be. only temporarily here.
+          if (tGUGA) then
+              ! only run guga - testsuite if flag is provided
+              if (t_guga_unit_tests) call runTestsGUGA()
+                  
+          end if
+#endif
+
 #ifndef __CMPLX
          if ((tGen_4ind_2 .or. tGen_4ind_weighted .or. tLatticeGens) .and. t_test_excit_gen) then
              call run_test_excit_gen_det()
@@ -335,7 +355,7 @@ module FciMCParMod
         end if
         ! Put a barrier here so all processes synchronise before we begin.
         call MPIBarrier(error)
-        
+       
         ! Start MC simulation...
         !
         ! If tIncrument is true, it means that when it comes out of the loop,

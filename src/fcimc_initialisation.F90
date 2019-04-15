@@ -222,7 +222,8 @@ module fcimc_initialisation
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
     use cepa_shifts, only: t_cepa_shift, init_cepa_shifts
 
-    use tj_model, only: init_get_helement_tj, init_get_helement_heisenberg
+    use tj_model, only: init_get_helement_tj, init_get_helement_heisenberg, &
+                        init_get_helement_heisenberg_guga, init_get_helement_tj_guga
 
     use k_space_hubbard, only: init_get_helement_k_space_hub, init_k_space_hubbard
 
@@ -836,9 +837,17 @@ contains
 
         if (t_lattice_model) then 
             if (t_tJ_model) then 
-                call init_get_helement_tj()
+                if (tGUGA) then 
+                    call init_get_helement_tj_guga()
+                else
+                    call init_get_helement_tj()
+                end if
             else if (t_heisenberg_model) then 
-                call init_get_helement_heisenberg() 
+                if (tGUGA) then 
+                    call init_get_helement_heisenberg_guga
+                else
+                    call init_get_helement_heisenberg() 
+                end if
             else if (t_new_real_space_hubbard) then
                 call init_get_helement_hubbard()
             else if (t_k_space_hubbard) then 

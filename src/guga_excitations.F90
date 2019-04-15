@@ -5,7 +5,7 @@
 module guga_excitations
     ! modules
     use CalcData, only: t_guga_mat_eles
-    use SystemData, only: nEl, nBasis, t_guga_unit_tests, ElecPairs, G1, nmaxx, &
+    use SystemData, only: nEl, nBasis, ElecPairs, G1, nmaxx, &
                           nmaxy, nmaxz, OrbECutoff, tOrbECutoff, nSpatOrbs, &
                           current_stepvector, currentOcc_ilut, currentOcc_int, &
                           currentB_ilut, currentB_int, current_cum_list, &
@@ -15,7 +15,7 @@ module guga_excitations
                           tgen_guga_mixed, t_new_hubbard, t_new_real_space_hubbard, &
                           t_crude_exchange, t_crude_exchange_noninits, & 
                           t_approx_exchange, t_approx_exchange_noninits, & 
-                          is_init_guga
+                          is_init_guga, t_heisenberg_model, t_tJ_model
 
     use constants, only: dp, n_int, bits_n_int, lenof_sign, Root2, THIRD, HEl_zero, &
                          EPS, bni_, bn2_, iout, int64, inum_runs
@@ -88,6 +88,10 @@ module guga_excitations
     use MemoryManager, only: LogMemAlloc, LogMemDealloc
 
     use sym_mod, only: MomPbcSym
+
+!     use lattice_mod, only: lat
+! 
+!     use tJ_model, only: setup_exchange_matrix
 
 !     use excit_gen_5, only: gen_excit_4ind_weighted2
 
@@ -325,6 +329,7 @@ module guga_excitations
 
 contains
 
+
     function calc_off_diag_guga_ref_direct(ilut, run, exlevel) result(hel)
         integer(n_int), intent(in) :: ilut(0:niftot)
         integer, intent(in), optional :: run 
@@ -463,6 +468,8 @@ contains
 
             call convert_ilut_toGUGA(ilutI, tmp_i)
             
+            ! i think I should do a change here for the Heisenberg or 
+            ! tJ model..
             mat_ele = calcDiagMatEleGUGA_ilut(tmp_i)
 
             return
@@ -500,6 +507,22 @@ contains
                 end if
             end if
         endif
+
+        ! make the adjustment for the Heisenberg model 
+        if (t_heisenberg_model) then 
+            if (excitInfo%typ /= 23) then 
+                mat_ele = 0.0_dp 
+                return
+            end if
+        end if
+
+        if (t_tJ_model) then 
+            if (.not. (excitInfo%typ == 0 .or. excitInfo%typ == 23)) then 
+                mat_ele = 0.0_dp 
+                return 
+            end if
+        end if
+
 
         ! depending on the type of usage i have to init some csf information 
         select case (calc_type) 
@@ -805,7 +828,8 @@ contains
 
             if (abs(mat_ele) < EPS) return 
 
-            if (.not. t_new_real_space_hubbard) then
+            if (.not. (t_new_real_space_hubbard .or. t_heisenberg_model & 
+                .or. t_tJ_model)) then
                 integral = integral + get_umat_el(i,iOrb,j,iOrb) * temp_occ_i(iOrb) 
 
                 integral = integral + get_umat_el(i,iOrb,iOrb,j) * &
@@ -838,7 +862,8 @@ contains
         currentB_int = int(currentB_ilut)
 
         ! i think i could also exclude the treal case here.. try!
-        if (.not. (treal .or. t_new_real_space_hubbard)) then
+        if (.not. (treal .or. t_new_real_space_hubbard .or. &
+            t_heisenberg_model .or. t_tJ_model)) then
             call calc_integral_contribution_single(ilutI, ilutJ, i, j, st, en, integral)
         end if
 
@@ -2502,13 +2527,7 @@ contains
         integer(n_int) :: ilutG(0:nifguga)
         integer(n_int), pointer :: excitations(:,:)
         integer :: nExcit, ierr, i
-!         type(timer), save :: proc_timer
 
-        ! since i have a timer in my exact Hamiltonian routine, 
-        ! timing here does not make much sense..
-!         proc_timer%timer_name = this_routine
-!         call set_timer(proc_timer)
-        
         ! convert ilut to guga format 
         if (present(ilutN)) then
             call convert_ilut_toGUGA(ilutN, ilutG)
@@ -2805,7 +2824,6 @@ contains
             
             do i = 1, nexcit
                 if (.not. generated_list(i)) then
-!                     call writebitdet(6, det_list(:,i), .true.)
                     call convert_ilut_toGUGA(det_list(:,i), ilutG)
                     call write_det_guga(6, ilutG)
                 end if
@@ -3547,7 +3565,7 @@ contains
             IC = 1
             call createStochasticExcitation_single(ilut, nI, excitation, pgen)
             pgen = pgen * pSingles
-
+            
         else 
 
             IC = 2
@@ -3555,9 +3573,6 @@ contains
             pgen = pgen * pDoubles
         
         end if
-
-!         call write_det_guga(6, excitation)
-
 
         ! for now add a sanity check to compare the stochastic obtained 
         ! matrix elements with the exact calculation.. 
@@ -3679,6 +3694,12 @@ contains
 !             call print_excitInfo(global_excitInfo)
 
             call decode_bit_det(nJ, ilutJ)
+        
+!             if (all(nJ == [1,4, 5, 7, 10, 12])) then 
+!                 print *, "===="
+!                 print *, "pgen:", pgen
+!                 call print_excitInfo(global_excitInfo)
+!             end if
 
             if (tHub .and. .not. treal) then 
                 if (.not.(IsMomentumAllowed(nJ))) then
@@ -4176,9 +4197,6 @@ contains
         end if
 
 
-        !deallocate(currentB_ilut)
-        !deallocate(currentOcc_ilut)
-!         if (t_guga_unit_tests) 
         global_excitInfo = excitInfo
 
     end subroutine createStochasticExcitation_double
@@ -4204,9 +4222,6 @@ contains
         ASSERT(.not.isZero(ilut,excitInfo%fullEnd))
         ASSERT(.not.isThree(ilut,excitInfo%fullEnd))
 
-!         if (.not. present(posSwitches)) then
-!             call calcRemainingSwitches(ilut, excitInfo, posSwitches, negSwitches)
-!         end if
 
         if (present(opt_weight)) then
             weights = opt_weight 
@@ -4235,11 +4250,7 @@ contains
         ! and this can be 0 at the full-start already -> so check that here
         ! and in case abort
         ! should i do that in the mixedFullStartStochastic routine 
-!         if (extract_matrix_element(t, 2) == 0.0_dp) then
-!             probWeight = 0.0_dp
-!             t = 0
-!             return
-!         end if
+
         ! do that x1 matrix element in the routine and only check probWeight here
         if (branch_pgen < EPS) return
 
@@ -4472,19 +4483,14 @@ contains
         type(weight_obj) :: weights
         logical :: above_flag, below_flag
         real(dp) :: temp_int
+        type(excitationInformation) :: tmp_excitInfo
+
+        tmp_excitInfo = excitInfo
 
         ! also need the pgen contributions from all other index combinations
         ! shich could lead to this excitation
         first = findFirstSwitch(ilut, t, excitInfo%fullStart, excitInfo%fullEnd)
         last = findLastSwitch(ilut, t, first, excitInfo%fullEnd)
-
-!         print *, "Test on type 23 excitations:"
-!         call write_det_guga(6,ilut)
-!         call write_det_guga(6,t)
-!         call print_excitInfo(excitInfo)
-! 
-!         print *, "first: ", first
-!         print *, "last: ", last
 
         below_flag = .false.
         above_flag = .false.
@@ -4531,6 +4537,7 @@ contains
 
         do j = last, nSpatOrbs 
             if (currentOcc_int(j) /= 1) cycle
+
             ! calculate the remaining switches once for each (j) but do it 
             ! for the worst case until i = 1
 
@@ -4556,36 +4563,46 @@ contains
 
             do i = first, 1, -1
                 if (currentOcc_int(i) /= 1) cycle
-         
-                temp_int = 0.0_dp
+        
+
+                if (below_flag) exit
+
                 ! this is the only difference for molecular/hubbard/ueg 
                 ! calculations 
                 call calc_orbital_pgen_contr(ilut, [2*i, 2*j], above_cpt, &
                     below_cpt) 
 
-!                 print *, "calc orb pgen", i,j, (above_cpt + below_cpt) / real(ElecPairs,dp)
                 ! yes they can, and then this orbital does not contribute to the 
                 ! obtained excitaiton -> cycle..
                 ! only from the names.. shouldnt here be below_cpt?
                 ! ah ok below is the below_flag! 
-                if (above_cpt < EPS) cycle
 
                 ! if the bottom stepvector d = 1 and b = 1 there is no 
                 ! additional contribution from below, since the x1 matrix 
                 ! element is 0 
                 ! same if d = 2 and b = 0 for fullstop stepvector 
-!                 if (isOne(ilut,i)) then
                 if (current_stepvector(i) == 1 .and. currentB_int(i) == 1) then
                     below_flag = .true.
                 end if
+
+                if (above_cpt < EPS) cycle
+
                 if (below_cpt < EPS) cycle
+
                 ! calculate the branch probability
-  
+   
+                temp_int = (get_umat_el(i,j,j,i) + get_umat_el(j,i,i,j))/2.0_dp
+
+                if (t_heisenberg_model .or. t_tJ_model) then 
+                    ! in the heisenberg and t-J i never pick combinations, 
+                    ! with 0 matrix element.. 
+                    if (abs(temp_int) < EPS) cycle
+                end if
+
                 zeroWeight = weights%proc%zero(negSwitches(i), &
                     posSwitches(i), currentB_ilut(i), weights%dat)
 
                 ! deal with the start seperately:
-!                 if (isOne(ilut,i)) then
                 if (current_stepvector(i) == 1) then
                     plusWeight = weights%proc%plus(posSwitches(i), &
                         currentB_ilut(i), weights%dat)
@@ -4605,7 +4622,6 @@ contains
                 end if
                 
                 ! get the starting matrix element
-!                 step1 = getStepvalue(ilut,i)
                 step1 = current_stepvector(i)
                 step2 = getStepvalue(t,i)
                 call getDoubleMatrixElement(step2,step1,-1,-1,+1,&
@@ -4685,7 +4701,6 @@ contains
                    ! in this region i know, that the matrix element is 
                    ! definetly not 0, since otherwise the excitation would 
                    ! have been aborted before
-!                     if (deltaB(k-1) == 0) then
                     ! combine stepvalue and deltaB info in select statement
 
                     if (currentOcc_int(k) /= 1) cycle
@@ -4694,10 +4709,7 @@ contains
                         posSwitches(k), currentB_ilut(k), weights%dat)
 
                     select case (deltaB(k-1) + current_stepvector(k))
-!                     case (0)
 
-!                         if (isOne(ilut,k)) then
-!                         if (current_stepvector(k) == 1) then
                     case (1)
                         ! d=1 + b=0 : 1
                         plusWeight = weights%proc%plus(posSwitches(k), &
@@ -4710,7 +4722,6 @@ contains
                                 zeroWeight,plusWeight,currentB_ilut(k)))
                         end if
 
-!                         else
                     case (2)
                         ! d=2 + b=0 : 2
                         minusWeight = weights%proc%minus(negSwitches(k), &
@@ -4724,12 +4735,8 @@ contains
                                 zeroWeight,minusWeight,currentB_ilut(k)))
                         end if
 
-!                         end if
-!                     else if (deltaB(k-1) == -2 ) then
                     case (-1)
                         ! d=1 + b=-2 : -1
-!                         if (isOne(ilut,k)) then
-!                         if (current_stepvector(k) == 1) then
                         minusWeight = weights%proc%minus(negSwitches(k), &
                             currentB_ilut(k), weights%dat)
 
@@ -4741,31 +4748,23 @@ contains
                                 minusWeight, zeroWeight, currentB_ilut(k)))
                         end if
 
-!                         end if
-!                     else if (deltaB(k-1) == 2 ) then
                     case (4)
                         ! d=2 + b=2 : 4
-!                         if( isTwo(ilut,k)) then
-!                         if( current_stepvector(k) == 2) then
-                            zeroWeight = weights%proc%zero(negSwitches(k), &
-                                posSwitches(k), currentB_ilut(k), weights%dat)
+                        zeroWeight = weights%proc%zero(negSwitches(k), &
+                            posSwitches(k), currentB_ilut(k), weights%dat)
 
-                            plusWeight = weights%proc%plus(posSwitches(k), &
-                                currentB_ilut(k), weights%dat)
+                        plusWeight = weights%proc%plus(posSwitches(k), &
+                            currentB_ilut(k), weights%dat)
 
-                            if (isTwo(t,k)) then
-                                branch_weight = branch_weight * calcStayingProb(plusWeight, &
-                                    zeroWeight, currentB_ilut(k))
-                            else
-                                branch_weight = branch_weight*(1.0_dp-calcStayingProb(&
-                                    plusWeight,zeroWeight,currentB_ilut(k)))
-                            end if
-!                         end if
-!                     case default
-!                         call stop_all(this_routine, "wrong delta b value!")
+                        if (isTwo(t,k)) then
+                            branch_weight = branch_weight * calcStayingProb(plusWeight, &
+                                zeroWeight, currentB_ilut(k))
+                        else
+                            branch_weight = branch_weight*(1.0_dp-calcStayingProb(&
+                                plusWeight,zeroWeight,currentB_ilut(k)))
+                        end if
 
                     end select
-!                     end if
 
                 end do
 
@@ -4839,29 +4838,31 @@ contains
 
                 ! and handle fullend 
                 ! and then do the the end value at j
-!                 step1 = getStepvalue(ilut,j)
                 step1 = current_stepvector(j)
                 step2 = getStepvalue(t,j)
                 call getMixedFullStop(step2,step1,deltaB(j-1),currentB_ilut(j),&
                     x1_element = tempWeight_1)
 
-                temp_int = tempWeight * tempWeight_1 * inter * &
-                    (get_umat_el(i,j,j,i) + get_umat_el(j,i,i,j))/2.0_dp
+                temp_int = tempWeight * tempWeight_1 * inter * temp_int
 
-
+                
                 ! and multiply and add up all contribution elements
                 integral = integral + temp_int
-!                 integral = integral + tempWeight * tempWeight_1 * inter * &
-!                     (get_umat_el(i,j,j,i) + get_umat_el(j,i,i,j))/2.0_dp
 
                 ! add up pgen contributions.. 
-
-                ! quick fix: only consider non-zero contributions!
 !                 if (abs(temp_int) > EPS) then
                     pgen = pgen + (below_cpt + above_cpt) * branch_weight
 !                 end if
 
-!                 print *, "calc bra pgen", i, j, branch_weight
+!                 if (i == 1 .and. j == 6 .and. t(0) == 2649) then 
+!                     print *, "================"
+!                     call write_det_guga(6, t)
+!                     print *, t
+!                     print *, branch_weight, pgen, below_cpt, above_cpt
+!                     print *, temp_int
+!                     print *, below_flag, above_flag
+!                     call print_excitInfo(tmp_excitInfo)
+!                 end if
 
                 ! check if i deal with that correctly...
                 if (below_flag) exit
@@ -4873,10 +4874,9 @@ contains
         end do
 
         ! multiply by always same probability to pick the 2 electrons
-        pgen = pgen / real(ElecPairs,dp)
-
-!         print *, "pgen: ", pgen
-!         print *, "integral: ", integral
+        if (.not. (t_heisenberg_model .or. t_tJ_model)) then 
+            pgen = pgen / real(ElecPairs,dp)
+        end if
 
     end subroutine calc_mixed_contr_sym
 
@@ -4904,13 +4904,9 @@ contains
         do i = 1, first
             do j = last, nSpatOrbs
                 ! can cycle over 0 or 3 stepvalues
-!                 flag = notSingle(ilut,i)
-!                 if (notSingle(ilut,j) .or. flag) then
                 if (currentOcc_int(i) /= 1 .or. currentOcc_int(j) /= 1) then
                     cycle
                 end if
-!                 if (isThree(ilut,i) .or. isZero(ilut,i) .or. &
-!                     isThree(ilut,j) .or. isZero(ilut,j)) cycle
 
                 excitInfo%fullStart = i
                 excitInfo%secondStart = i
@@ -4926,7 +4922,6 @@ contains
                     posSwitches(i), currentB_ilut(i), weights%dat)
 
                 ! deal with the start seperately:
-!                 if (isOne(ilut,i)) then
                 if (current_stepvector(i) == 1) then
                     plusWeight = weights%proc%plus(posSwitches(i), &
                         currentB_ilut(i), weights%dat)
@@ -4947,20 +4942,14 @@ contains
 
                 ! loop over excitation range
                 do k = i + 1, j - 1
-!                     if (isThree(ilut,k) .or. isZero(ilut,k)) cycle
-!                     if (notSingle(ilut,k)) then
                     if (currentOcc_int(k) /= 1) then
                         cycle
                     end if
 
-!                     if (deltaB(k-1) == 0) then
                     ! combine both deltaB and stepvalue info in the select 
                     ! case statement
                     select case(deltaB(k-1) + current_stepvector(k))
-!                     case(0)
 
-!                         if (isOne(ilut,k)) then
-!                         if (current_stepvector(k) == 1) then
                     case (1)
                         ! d=1 + b=0 : 1
 
@@ -4982,7 +4971,7 @@ contains
                             call getDoubleMatrixElement(2,1,0,-1,1, &
                                 currentB_ilut(k),1.0_dp,x1_element = tempWeight)
                         end if
-!                         else
+
                     case (2)
                         ! d=2 + b=0 : 2
 
@@ -5002,11 +4991,7 @@ contains
                             call getDoubleMatrixElement(1,2,0,-1,1, &
                                 currentB_ilut(k),1.0_dp,x1_element = tempWeight)
                         end if
-!                         end if
-!                     else if (deltaB(k-1) == -2) then
-!                     case(-2)
-!                         if (isOne(ilut,k)) then
-!                         if (current_stepvector(k) == 1) then
+
                     case (-1)
                         ! d=1 + b=-2 : -1
 
@@ -5027,12 +5012,9 @@ contains
                             call getDoubleMatrixElement(2,1,-2,-1,1, &
                                 currentB_ilut(k),1.0_dp,x1_element = tempWeight)
                         end if
-!                         end if
-!                     else if (deltaB(k-1) == 2.0_dp ) then
+
                     case(4)
                         ! d=2 + b=2 : 4
-!                         if( isTwo(ilut,k)) then
-!                         if (current_stepvector(k) == 2) then
 
                         zeroWeight = weights%proc%zero(negSwitches(k), &
                             posSwitches(k), currentB_ilut(k), weights%dat)
@@ -5051,10 +5033,7 @@ contains
                             call getDoubleMatrixElement(1,2,2,-1,1, &
                                 currentB_ilut(k),1.0_dp,x1_element = tempWeight)
                         end if
-!                         end if
-!                     end if
-!                     case default
-!                         call stop_all(this_routine, "wrong delta b value!")
+
                     end select
 
                     if (abs(tempWeight) < EPS) then
@@ -5071,9 +5050,7 @@ contains
         end do
 
         ! and modify with the general 2*p(iijj)p(i)p(j|i) prob. 
-!         pgen = pgen * 2.0_dp/real((nSpatOrbs)**2 * (nSpatOrbs-1) * (&
-!             count(currentOcc_ilut == 1.0_dp) - 1),dp)
-        
+       
         pgen = pgen * orb_pgen_contrib_type_2()
 
         ! this above must also be adjusted for the use of the pExcit4/3 etc.
@@ -5087,7 +5064,7 @@ contains
         real(dp) :: integral
         character(*), parameter :: this_routine = "calcMixedContribution"
 
-        real(dp) :: inter, tempWeight, tempWeight_1
+        real(dp) :: inter, tempWeight, tempWeight_1, temp_int
         integer :: i, j, k, step1, step2, bVector(nSpatOrbs), first, last
         ! do it differently... since its always a mixed double overlap region
         ! and only 2 indices are involved.. just recalc all possible 
@@ -5106,11 +5083,8 @@ contains
         integral = 0.0_dp
 
         do i = first + 1, last - 1
-!             if (isThree(ilut,i) .or. isZero(ilut,i)) cycle
-            if (currentOcc_int(i) /= 1) then
-                cycle
-            end if
-!             step1 = getStepvalue(ilut,i)
+            if (currentOcc_int(i) /= 1) cycle
+
             step1 = current_stepvector(i)
             step2 = getStepvalue(t,i)
             call getDoubleMatrixElement(step2,step1,bVector(i-1),-1,1,&
@@ -5122,18 +5096,16 @@ contains
         ! and then add up all the possible integral contribs
 
         do i = 1, first 
-!             if (isThree(ilut,i) .or. isZero(ilut,i)) cycle
-            if (currentOcc_int(i) /= 1) then
-                cycle
-            end if
+            if (currentOcc_int(i) /= 1) cycle
+
             do j = last, nSpatOrbs
-!                 if (isThree(ilut,j) .or. isZero(ilut,j)) cycle
-!                 if (notSingle(ilut,j)) then
-                if (currentOcc_int(j) /= 1) then
-                    cycle
-                end if
+                if (currentOcc_int(j) /= 1) cycle
+
+                temp_int = (get_umat_el(i,j,j,i) + get_umat_el(j,i,i,j))/2.0_dp
+
+                if (abs(temp_int) < EPS) cycle
+
                 ! get the starting matrix element
-!                 step1 = getStepvalue(ilut,i)
                 step1 = current_stepvector(i)
                 step2 = getStepvalue(t,i)
                 call getDoubleMatrixElement(step2,step1,-1,-1,+1,&
@@ -5141,12 +5113,8 @@ contains
 
                 ! then calc. the product:
                 do k = i + 1, first
-!                     if (isThree(ilut,k) .or. isZero(ilut,k)) cycle
-!                     if (notSingle(ilut,k)) then
-                    if (currentOcc_int(k) /= 1) then
-                        cycle
-                    end if
-!                     step1 = getStepvalue(ilut,k)
+                    if (currentOcc_int(k) /= 1) cycle
+
                     step1 = current_stepvector(k)
                     step2 = getStepvalue(t,k)
                     ! only 0 branch here
@@ -5158,12 +5126,8 @@ contains
                 end do
 
                 do k = last, j - 1
-!                     if (isThree(ilut,k) .or. isZero(ilut,k)) cycle
-!                     if (notSingle(ilut,k)) then
-                    if (currentOcc_int(k) /= 1) then
-                        cycle
-                    end if
-!                     step1 = getStepvalue(ilut,k)
+                    if (currentOcc_int(k) /= 1) cycle
+
                     step1 = current_stepvector(k)
                     step2 = getStepvalue(t,k)
                     call getDoubleMatrixElement(step2,step1, bVector(k-1),-1,+1,&
@@ -5173,15 +5137,13 @@ contains
                 end do
 
                 ! and then do the the end value at j
-!                 step1 = getStepvalue(ilut,j)
                 step1 = current_stepvector(j)
                 step2 = getStepvalue(t,j)
                 call getMixedFullStop(step2,step1,bVector(j-1),currentB_ilut(j),&
                     x1_element = tempWeight_1)
 
                 ! and multiply and add up all contribution elements
-                integral = integral + tempWeight * tempWeight_1 * inter * &
-                    (get_umat_el(i,j,j,i) + get_umat_el(j,i,i,j))/2.0_dp
+                integral = integral + tempWeight * tempWeight_1 * inter * temp_int
 
             end do
         end do
@@ -12375,7 +12337,8 @@ contains
         ! hubbard model here? or should i write a more efficient 
         ! single-excitation creator? i guess i should.. 
         ! and also for the matrix element calculation maybe..
-        if (.not. (treal .or. t_new_real_space_hubbard)) then
+        if (.not. (treal .or. t_new_real_space_hubbard .or. &
+            t_heisenberg_model .or. t_tJ_model)) then
             call calc_integral_contribution_single(ilut, exc, i, j,st, en, integral)
         end if
 
@@ -12390,7 +12353,6 @@ contains
         !deallocate(currentOcc_ilut)
 
         ! store the most recent excitation information
-!         if (t_guga_unit_tests) 
         global_excitInfo = excitInfo
 
     end subroutine createStochasticExcitation_single
@@ -13791,7 +13753,6 @@ contains
         integer :: i, j, k, l, nExcits, nMax, ierr
         integer(n_int), pointer :: tempExcits(:,:)
         logical :: t_temp_singles
-!         real(dp) :: diagEle
         integer :: n
 
         if (.not. present(t_singles_only)) then
@@ -13830,51 +13791,20 @@ contains
         ! also for excitations where the indices are known! 
         ! and fot those pescy non-overlap excitations!
         
-!         write(iout,*) "nmax: ", nMax
-
         allocate(tmp_all_excits(0:nifguga,nMax), stat = ierr)
         call LogMemAlloc('tmp_all_excits',(nifguga+1)*nMax,8,this_routine,tag_tmp_excits)
 
 
         ! maybe have to set to zero here then, or initialize somehow different
 
-        ! diagonal element:
-!         diagEle = calcDiagMatEleGUGA_ilut(ilut)
-        
-        ! fill in the first one
-!         excitations(:,1) = ilut
-        ! do not need to encode diagonal element actually..
-        ! better encode tmat or umat/2 when needed
-!         call encode_matrix_element(excitations(:,1), diagEle, 1)
         nTot = 0
-
-!         ! allocate and calc. b and occupation out here
-!         if (allocated(currentB_ilut)) deallocate(currentB_ilut)
-!         if (allocated(currentOcc_ilut)) deallocate(currentOcc_ilut)
-!         if (allocated(current_stepvector)) deallocate(current_stepvector)
-!         if (allocated(currentOcc_int)) deallocate(currentOcc_int)
-!         if (allocated(currentB_int)) deallocate(currentB_int)
-! 
-!         allocate(currentB_ilut(nSpatOrbs), stat = ierr)
-!         allocate(currentOcc_ilut(nSpatOrbs), stat = ierr)
-!         allocate(current_stepvector(nSpatOrbs), stat = ierr)
-!         allocate(currentOcc_int(nSpatOrbs), stat = ierr)
-!         allocate(currentB_int(nSpatOrbs), stat = ierr)
 
         call init_csf_information(ilut(0:nifd))
 
-!         write(iout, "(A)") "toto csf info?"
-!         currentB_ilut = calcB_vector_ilut(ilut(0:nifd))
-!         currentOcc_ilut = calcOcc_vector_ilut(ilut(0:nifd))
-!         current_stepvector = calcStepvector(ilut(0:nifd))
-!         currentOcc_int = calcOcc_vector_int(ilut(0:nifd))
-!         currentB_int = calcB_vector_int(ilut(0:nifd))
-
         ! single excitations:
-!         if (pSingles > 0.0_dp) then
         ! does it help to not calculate stuff if not necessary.. 
         ! probably yes.. 
-        if (.not.(thub .and. .not.treal)) then
+        if (.not.((thub .and. .not.treal) .or. t_heisenberg_model)) then
         do i = 1, nSpatOrbs
             do j = 1, nSpatOrbs
                 if (i == j) cycle ! do not calc. diagonal elements here
@@ -13884,9 +13814,6 @@ contains
                 ! and i might have to loop over created excitations here too 
                 ! to multiply with the integrals... better to do that 
                 ! within the excitation creation!
-! 
-!                 print *, "single excitations for i = ", i, "and j = ", j, " on:"
-!                 call write_det_guga(6,ilut)
 
                 ! have to think where and when to allocate excitations
                 ! or maybe call the routine below with a dummy variable. 
@@ -13897,14 +13824,6 @@ contains
                     ASSERT(isProperCSF_ilut(tempExcits(:,n),.true.))
                 end do
 #endif
-! 
-!                 call write_guga_list(6, tempExcits(:,1:nExcits))
-! 
-!                 print *, " full list BEFORE update. nTot = ", nTot
-!                 call write_guga_list(6, excitations(:,1:nTot))
-! 
-!                 print *, "nEx: ", nExcits
-!                 print *, "nTot: ", nTot
 
                 ! merge created lists.. think how that will be implemented
                 if (nExcits > 0) then
@@ -13912,27 +13831,24 @@ contains
                     ! nTot gets automatically updated too
                 end if
 
-!                 print *, "full list AFTER update. nTot = ", nTot
-!                 call write_guga_list(6, excitations(:,1:nTot)) 
 
             end do
         end do
         end if
 
 !         write(iout,"(A)") "singles done!"
-        ! print out all single excitations:
+!         ! print out all single excitations:
 ! #ifdef __DEBUG
 !         print *, " all single excitations for ilut. nTot: ", nTot
 !         call write_det_guga(6, ilut)
-!         call write_guga_list(6, excitations(:,1:nTot))
+!         call write_guga_list(6, tmp_all_excits(:,1:nTot))
 ! 
 !         call stop_all(this_routine, "for no")
-
+! 
 ! #endif
 
         ! double excitations 
         ! do it really primitive for now. -> make it more elaborate later
-!         if (pDoubles > 0.0_dp) then
         if (.not. t_temp_singles) then
         if (.not. (thub .and. treal)) then
         do i = 1, nSpatOrbs
@@ -13950,52 +13866,12 @@ contains
                         ! i would count these terms to often, as they are 
                         ! already taken into account in the diagonal term
                         ! calculation 
-! ! 
-!                         write(iout,*) "double excitations: ", i,j,k,l
-!                         call neci_flush(iout)
-!                         print *, "for ilut: "
-!                         call write_det_guga(6,ilut)
-
-!                         if (i == 2 .and. j == 26 .and. k == 5 .and. l == 3) then 
-!                             print *, "ntot, nmax: ", nTot, nMax 
-!                             call neci_flush(iout)
-!                         end if
 
                         ! integral contributions 
                         call calcAllExcitations(ilut, i, j, k, l, tempExcits, &
                             nExcits)
-! 
-!                         if (i == 2 .and. j == 26 .and. k == 5 .and. l == 3) then 
-!                             print *, "DE done? nexcit: ", nExcits
-!                             call neci_flush(iout)
-!                         end if
-
-!                         if ((i == 8 .and. j == 6 .and. k == 9 .and. l == 7) .or. &
-!                             (i == 9 .and. j == 7 .and. k == 8 .and. l == 6) .or. &
-!                             (i == 9 .and. j == 6 .and. k == 8 .and. l == 7) .or. &
-!                             (i == 8 .and. j == 7 .and. k == 9 .and. l == 6)) then
-! 
-!                             print *, "any excitation for ijkl:", i,j,k,l
-!                             print *, "nExcits: ", nExcits
-!                             do n = 1, nExcits
-!                                 call write_guga_list(6,tempExcits(:,1:nExcits))
-!                             end do
-!                         end if
-! 
-!                         if ((i == 6 .and. j == 8 .and. k == 7 .and. l == 9) .or. &
-!                             (i == 7 .and. j == 9 .and. k == 6 .and. l == 8) .or. &
-!                             (i == 6 .and. j == 9 .and. k == 7 .and. l == 8) .or. &
-!                             (i == 7 .and. j == 8 .and. k == 6 .and. l == 9)) then
-! 
-!                             print *, "any excitation for ijkl:", i,j,k,l
-!                             print *, "nExcits: ", nExcits
-!                             do n = 1, nExcits
-!                                 call write_guga_list(6,tempExcits(:,1:nExcits))
-!                             end do
-!                         end if
 
 
-!                         call write_guga_list(6, tempExcits(:,1:nExcits))
 #ifdef __DEBUG
                         do n = 1, nExcits
                             if (.not. isProperCSF_ilut(tempExcits(:,n),.true.)) then
@@ -14027,27 +13903,12 @@ contains
 
                             end if
                         else 
-                           ! just add the lists normally
-! 
-!                             if (i == 2 .and. j == 26 .and. k == 5 .and. l == 3) then
-!                                 print *, "add lists?"
-! 
-!                                 call write_guga_list(6, tempExcits(:,1:nExcits))
-! 
-!                                 print *, "size tempexcits:", size(tempExcits,1), size(tempExcits,2)
-!                             end if
                             if (nExcits > 0) then
                                 call add_guga_lists(nTot, nExcits, tmp_all_excits, &
                                     tempExcits)
                             end if
 
-!                             if (i == 2 .and. j == 26 .and. k == 5 .and. l == 3) then
-!                                 print *, "success"
-!                             end if
                         end if
-! 
-!                         print *, "list AFTER update: nTot = ", nTot
-!                         call write_guga_list(6,excitations(:,1:nTot))
 
                     end do
                 end do
@@ -14056,8 +13917,6 @@ contains
         end if
         end if
 
-!         write(iout, "(A)") "doubles done!"
-!         call neci_flush(iout)
         ! do an additional check if matrix element is 0
 
         j = 1
@@ -14209,131 +14068,103 @@ contains
                 allocate(excitations(0,0), stat = ierr)
                 return
             end if
-        end if
-! 
-!             if (isThree(ilut, i)) then
-!                 ! in this case no single excitation possible
-!                 ! should i allocate to zero then? and leave? for now yes
-!                 allocate(excitations(0,0), stat = ierr)
-!                 return
-!             end if
-!             if (isZero(ilut, j)) then
-!                 allocate(excitations(0,0), stat = ierr)
-!                 return
-!             end if
-!         end if
-!         else
-            ! also check necessary ending restrictions and probability weights
-            ! to check if no excitation is possible
-            call calcRemainingSwitches(ilut, excitInfo, posSwitches, negSwitches)
 
-            ! change it here to also use the functions involving 
-            ! the weight_obj objects.. to efficiently determine 
-            ! if excitations have to aborted
-            ! and to make the whole code more general
-            weights = init_singleWeight(ilut, excitInfo%fullEnd)
-            plusWeight = weights%proc%plus(posSwitches(excitInfo%fullStart), &
-                currentB_ilut(excitInfo%fullStart), weights%dat)
-            minusWeight = weights%proc%minus(negSwitches(excitInfo%fullStart),&
-                currentB_ilut(excitInfo%fullStart), weights%dat)
-
-            ! calc total weight functions of all possible branches
-            ! if that is zero no excitation possible.. 
-            ! do not need exact weight, but only knowledge if it is zero...
-            ! so I do not yet need the bVector 
-!             if (minusWeight + plusWeight < EPS) then                
-!                 ! hopefully this works
-!                 allocate(excitations(0,0), stat = ierr)
-!                 return
-! 
-!             else 
-                ! now we have to really calculate the excitations
-                ! but also use the stochastic weight functions to not 
-                ! calculate unnecessary excitations...
-                ! maybe here allocate arrays with the maximum number of 
-                ! possible excitations, and fill it up step after step 
-                ! 2^|i-j| is more then the maximum number of excitations..
-                ! this could be a problem with this kind of implementation 
-                ! actually... -> since for every possible number of 
-                ! i,j index pair( and for double even i,j,k,l) this gets 
-                ! out of hand for big systems. maybe i have to switch back 
-                ! to determine the kind of excitations between to arbitrarily
-                ! given CSFs and then calc. the overlap between them... 
-                ! wait and talk to Ali about that...
-
-                ! should calculate bVector beforehand, and maybe store whole 
-                ! b vector for all excitation calculation (i,j) for a given 
-                ! CSF, since always the same and needed...
-                
-                ! when i use the remaining switches and end restrictions 
-                ! correctly i should not need to delete already created 
-                ! excitations. -> so i can fill up the excitation list step
-                ! by step. -> and maybe use top most value as indication of 
-                ! delta b value... so i dont need two lists or some more 
-                ! advanced data-structure... but when i do it ilut format 
-                ! maybe i can use the already provided flag structure which 
-                ! is usually used for the sign of the walkers on a given CSF.
-                ! have to figure out how to access and effectively adress 
-                ! them
-
-                ! do it again in this kind of fashion: 
-                
-                st = excitInfo%fullStart
-                ! check compatibility of chosen indices
-!                 if ((minusWeight + plusWeight < EPS)) then
-!                     allocate(excitations(0,0), stat = ierr)
-!                     return
-!                 end if
-
-                if ((current_stepvector(st) == 1 .and. plusWeight < EPS) .or.&
-                    (current_stepvector(st) == 2 .and. minusWeight < EPS).or.&
-                    (minusWeight + plusWeight < EPS)) then
+            if (t_tJ_model) then
+                ! restrict hops to singly occupied orbitals in t-J model
+                if (currentOcc_int(i) == 1) then 
                     allocate(excitations(0,0), stat = ierr)
                     return
                 end if
+            end if
+        end if
 
-!                 if (isOne(ilut,st)) then
-!                     if (plusWeight<EPS) then
-!                         allocate(excitations(0,0), stat = ierr)
-!                         return
-!                     end if
-!                 end if
-!                 if (isTwo(ilut,st)) then
-!                     if (minusWeight < EPS) then
-!                         allocate(excitations(0,0), stat = ierr)
-!                         return
-!                     end if
-!                 end if
+        ! also check necessary ending restrictions and probability weights
+        ! to check if no excitation is possible
+        call calcRemainingSwitches(ilut, excitInfo, posSwitches, negSwitches)
 
-                ! have to give probabilistic weight object as input, to deal 
-                call createSingleStart(ilut, excitInfo, posSwitches, &
-                    negSwitches, weights, tempExcits, nExcits)
+        ! change it here to also use the functions involving 
+        ! the weight_obj objects.. to efficiently determine 
+        ! if excitations have to aborted
+        ! and to make the whole code more general
+        weights = init_singleWeight(ilut, excitInfo%fullEnd)
+        plusWeight = weights%proc%plus(posSwitches(excitInfo%fullStart), &
+            currentB_ilut(excitInfo%fullStart), weights%dat)
+        minusWeight = weights%proc%minus(negSwitches(excitInfo%fullStart),&
+            currentB_ilut(excitInfo%fullStart), weights%dat)
 
-                ! to not call getTmatEl again in createSingleStart loop over 
-                ! the atmost two excitations here and multiply with tmat
+        ! calc total weight functions of all possible branches
+        ! if that is zero no excitation possible.. 
+        ! do not need exact weight, but only knowledge if it is zero...
+        ! so I do not yet need the bVector 
 
-                do iEx = 1, nExcits
-                    call update_matrix_element(tempExcits(:,iEx), tmat, 1)
-                end do
+        ! now we have to really calculate the excitations
+        ! but also use the stochastic weight functions to not 
+        ! calculate unnecessary excitations...
+        ! maybe here allocate arrays with the maximum number of 
+        ! possible excitations, and fill it up step after step 
+        ! 2^|i-j| is more then the maximum number of excitations..
+        ! this could be a problem with this kind of implementation 
+        ! actually... -> since for every possible number of 
+        ! i,j index pair( and for double even i,j,k,l) this gets 
+        ! out of hand for big systems. maybe i have to switch back 
+        ! to determine the kind of excitations between to arbitrarily
+        ! given CSFs and then calc. the overlap between them... 
+        ! wait and talk to Ali about that...
+
+        ! should calculate bVector beforehand, and maybe store whole 
+        ! b vector for all excitation calculation (i,j) for a given 
+        ! CSF, since always the same and needed...
+        
+        ! when i use the remaining switches and end restrictions 
+        ! correctly i should not need to delete already created 
+        ! excitations. -> so i can fill up the excitation list step
+        ! by step. -> and maybe use top most value as indication of 
+        ! delta b value... so i dont need two lists or some more 
+        ! advanced data-structure... but when i do it ilut format 
+        ! maybe i can use the already provided flag structure which 
+        ! is usually used for the sign of the walkers on a given CSF.
+        ! have to figure out how to access and effectively adress 
+        ! them
+
+        ! do it again in this kind of fashion: 
+        
+        st = excitInfo%fullStart
+        ! check compatibility of chosen indices
+
+        if ((current_stepvector(st) == 1 .and. plusWeight < EPS) .or.&
+            (current_stepvector(st) == 2 .and. minusWeight < EPS).or.&
+            (minusWeight + plusWeight < EPS)) then
+            allocate(excitations(0,0), stat = ierr)
+            return
+        end if
 
 
-                do iOrb = excitInfo%fullStart + 1, excitInfo%fullEnd - 1
-                    call singleUpdate(ilut, iOrb, excitInfo, posSwitches, &
-                        negSwitches, weights, tempExcits, nExcits)
-                end do
+        ! have to give probabilistic weight object as input, to deal 
+        call createSingleStart(ilut, excitInfo, posSwitches, &
+            negSwitches, weights, tempExcits, nExcits)
 
-                call singleEnd(ilut, excitInfo, tempExcits, &
-                    nExcits, excitations)
+        ! to not call getTmatEl again in createSingleStart loop over 
+        ! the atmost two excitations here and multiply with tmat
 
-                ! encode IC = 1 in the deltB information of the GUGA 
-                ! excitation to handle it in the remaining NECI code 
-                ! correctly 
-                do iEx = 1, nExcits
-                    call setDeltaB(1, excitations(:,iEx))
-                end do
+        do iEx = 1, nExcits
+            call update_matrix_element(tempExcits(:,iEx), tmat, 1)
+        end do
 
-!             end if
-!         end if
+
+        do iOrb = excitInfo%fullStart + 1, excitInfo%fullEnd - 1
+            call singleUpdate(ilut, iOrb, excitInfo, posSwitches, &
+                negSwitches, weights, tempExcits, nExcits)
+        end do
+
+        call singleEnd(ilut, excitInfo, tempExcits, &
+            nExcits, excitations)
+
+        ! encode IC = 1 in the deltB information of the GUGA 
+        ! excitation to handle it in the remaining NECI code 
+        ! correctly 
+        do iEx = 1, nExcits
+            call setDeltaB(1, excitations(:,iEx))
+        end do
 
 
     end subroutine calcAllExcitations_single
