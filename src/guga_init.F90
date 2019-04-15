@@ -57,7 +57,8 @@ module guga_init
 
     use tj_model, only: pick_orbitals_guga_heisenberg, calc_orbital_pgen_contr_heisenberg, &
                         init_get_helement_tj_guga, init_get_helement_heisenberg_guga, &
-                        init_guga_tJ_model, init_guga_heisenberg_model
+                        init_guga_tJ_model, init_guga_heisenberg_model, &
+                        pick_orbitals_guga_tJ
     ! variable declaration
     implicit none
 
@@ -122,8 +123,11 @@ contains
             calc_orbital_pgen_contr => calc_orbital_pgen_contr_heisenberg
             calc_mixed_contr => calc_mixed_contr_sym
 
-        else if (t_tJ_model) then 
-            !TODO
+        else if (t_tJ_model) then
+            pickOrbitals_single => pick_orbitals_guga_tJ
+            pickOrbitals_double => pick_orbitals_guga_heisenberg
+            calc_mixed_contr => calc_mixed_contr_sym
+            calc_orbital_pgen_contr => calc_orbital_pgen_contr_heisenberg
 
         else ! standardly also use nosymmetry version
             pickOrbitals_single => pickOrbitals_nosym_single

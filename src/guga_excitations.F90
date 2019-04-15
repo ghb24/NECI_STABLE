@@ -3565,7 +3565,6 @@ contains
             IC = 1
             call createStochasticExcitation_single(ilut, nI, excitation, pgen)
             pgen = pgen * pSingles
-
             
         else 
 
@@ -3574,9 +3573,6 @@ contains
             pgen = pgen * pDoubles
         
         end if
-
-!         call write_det_guga(6, excitation)
-
 
         ! for now add a sanity check to compare the stochastic obtained 
         ! matrix elements with the exact calculation.. 
@@ -4226,9 +4222,6 @@ contains
         ASSERT(.not.isZero(ilut,excitInfo%fullEnd))
         ASSERT(.not.isThree(ilut,excitInfo%fullEnd))
 
-!         if (.not. present(posSwitches)) then
-!             call calcRemainingSwitches(ilut, excitInfo, posSwitches, negSwitches)
-!         end if
 
         if (present(opt_weight)) then
             weights = opt_weight 
@@ -4257,11 +4250,7 @@ contains
         ! and this can be 0 at the full-start already -> so check that here
         ! and in case abort
         ! should i do that in the mixedFullStartStochastic routine 
-!         if (extract_matrix_element(t, 2) == 0.0_dp) then
-!             probWeight = 0.0_dp
-!             t = 0
-!             return
-!         end if
+
         ! do that x1 matrix element in the routine and only check probWeight here
         if (branch_pgen < EPS) return
 
@@ -4548,6 +4537,7 @@ contains
 
         do j = last, nSpatOrbs 
             if (currentOcc_int(j) /= 1) cycle
+
             ! calculate the remaining switches once for each (j) but do it 
             ! for the worst case until i = 1
 
@@ -4574,6 +4564,7 @@ contains
             do i = first, 1, -1
                 if (currentOcc_int(i) /= 1) cycle
         
+
                 if (below_flag) exit
 
                 ! this is the only difference for molecular/hubbard/ueg 
@@ -13846,14 +13837,14 @@ contains
         end if
 
 !         write(iout,"(A)") "singles done!"
-        ! print out all single excitations:
+!         ! print out all single excitations:
 ! #ifdef __DEBUG
 !         print *, " all single excitations for ilut. nTot: ", nTot
 !         call write_det_guga(6, ilut)
-!         call write_guga_list(6, excitations(:,1:nTot))
+!         call write_guga_list(6, tmp_all_excits(:,1:nTot))
 ! 
 !         call stop_all(this_routine, "for no")
-
+! 
 ! #endif
 
         ! double excitations 
@@ -14077,131 +14068,103 @@ contains
                 allocate(excitations(0,0), stat = ierr)
                 return
             end if
-        end if
-! 
-!             if (isThree(ilut, i)) then
-!                 ! in this case no single excitation possible
-!                 ! should i allocate to zero then? and leave? for now yes
-!                 allocate(excitations(0,0), stat = ierr)
-!                 return
-!             end if
-!             if (isZero(ilut, j)) then
-!                 allocate(excitations(0,0), stat = ierr)
-!                 return
-!             end if
-!         end if
-!         else
-            ! also check necessary ending restrictions and probability weights
-            ! to check if no excitation is possible
-            call calcRemainingSwitches(ilut, excitInfo, posSwitches, negSwitches)
 
-            ! change it here to also use the functions involving 
-            ! the weight_obj objects.. to efficiently determine 
-            ! if excitations have to aborted
-            ! and to make the whole code more general
-            weights = init_singleWeight(ilut, excitInfo%fullEnd)
-            plusWeight = weights%proc%plus(posSwitches(excitInfo%fullStart), &
-                currentB_ilut(excitInfo%fullStart), weights%dat)
-            minusWeight = weights%proc%minus(negSwitches(excitInfo%fullStart),&
-                currentB_ilut(excitInfo%fullStart), weights%dat)
-
-            ! calc total weight functions of all possible branches
-            ! if that is zero no excitation possible.. 
-            ! do not need exact weight, but only knowledge if it is zero...
-            ! so I do not yet need the bVector 
-!             if (minusWeight + plusWeight < EPS) then                
-!                 ! hopefully this works
-!                 allocate(excitations(0,0), stat = ierr)
-!                 return
-! 
-!             else 
-                ! now we have to really calculate the excitations
-                ! but also use the stochastic weight functions to not 
-                ! calculate unnecessary excitations...
-                ! maybe here allocate arrays with the maximum number of 
-                ! possible excitations, and fill it up step after step 
-                ! 2^|i-j| is more then the maximum number of excitations..
-                ! this could be a problem with this kind of implementation 
-                ! actually... -> since for every possible number of 
-                ! i,j index pair( and for double even i,j,k,l) this gets 
-                ! out of hand for big systems. maybe i have to switch back 
-                ! to determine the kind of excitations between to arbitrarily
-                ! given CSFs and then calc. the overlap between them... 
-                ! wait and talk to Ali about that...
-
-                ! should calculate bVector beforehand, and maybe store whole 
-                ! b vector for all excitation calculation (i,j) for a given 
-                ! CSF, since always the same and needed...
-                
-                ! when i use the remaining switches and end restrictions 
-                ! correctly i should not need to delete already created 
-                ! excitations. -> so i can fill up the excitation list step
-                ! by step. -> and maybe use top most value as indication of 
-                ! delta b value... so i dont need two lists or some more 
-                ! advanced data-structure... but when i do it ilut format 
-                ! maybe i can use the already provided flag structure which 
-                ! is usually used for the sign of the walkers on a given CSF.
-                ! have to figure out how to access and effectively adress 
-                ! them
-
-                ! do it again in this kind of fashion: 
-                
-                st = excitInfo%fullStart
-                ! check compatibility of chosen indices
-!                 if ((minusWeight + plusWeight < EPS)) then
-!                     allocate(excitations(0,0), stat = ierr)
-!                     return
-!                 end if
-
-                if ((current_stepvector(st) == 1 .and. plusWeight < EPS) .or.&
-                    (current_stepvector(st) == 2 .and. minusWeight < EPS).or.&
-                    (minusWeight + plusWeight < EPS)) then
+            if (t_tJ_model) then
+                ! restrict hops to singly occupied orbitals in t-J model
+                if (currentOcc_int(i) == 1) then 
                     allocate(excitations(0,0), stat = ierr)
                     return
                 end if
+            end if
+        end if
 
-!                 if (isOne(ilut,st)) then
-!                     if (plusWeight<EPS) then
-!                         allocate(excitations(0,0), stat = ierr)
-!                         return
-!                     end if
-!                 end if
-!                 if (isTwo(ilut,st)) then
-!                     if (minusWeight < EPS) then
-!                         allocate(excitations(0,0), stat = ierr)
-!                         return
-!                     end if
-!                 end if
+        ! also check necessary ending restrictions and probability weights
+        ! to check if no excitation is possible
+        call calcRemainingSwitches(ilut, excitInfo, posSwitches, negSwitches)
 
-                ! have to give probabilistic weight object as input, to deal 
-                call createSingleStart(ilut, excitInfo, posSwitches, &
-                    negSwitches, weights, tempExcits, nExcits)
+        ! change it here to also use the functions involving 
+        ! the weight_obj objects.. to efficiently determine 
+        ! if excitations have to aborted
+        ! and to make the whole code more general
+        weights = init_singleWeight(ilut, excitInfo%fullEnd)
+        plusWeight = weights%proc%plus(posSwitches(excitInfo%fullStart), &
+            currentB_ilut(excitInfo%fullStart), weights%dat)
+        minusWeight = weights%proc%minus(negSwitches(excitInfo%fullStart),&
+            currentB_ilut(excitInfo%fullStart), weights%dat)
 
-                ! to not call getTmatEl again in createSingleStart loop over 
-                ! the atmost two excitations here and multiply with tmat
+        ! calc total weight functions of all possible branches
+        ! if that is zero no excitation possible.. 
+        ! do not need exact weight, but only knowledge if it is zero...
+        ! so I do not yet need the bVector 
 
-                do iEx = 1, nExcits
-                    call update_matrix_element(tempExcits(:,iEx), tmat, 1)
-                end do
+        ! now we have to really calculate the excitations
+        ! but also use the stochastic weight functions to not 
+        ! calculate unnecessary excitations...
+        ! maybe here allocate arrays with the maximum number of 
+        ! possible excitations, and fill it up step after step 
+        ! 2^|i-j| is more then the maximum number of excitations..
+        ! this could be a problem with this kind of implementation 
+        ! actually... -> since for every possible number of 
+        ! i,j index pair( and for double even i,j,k,l) this gets 
+        ! out of hand for big systems. maybe i have to switch back 
+        ! to determine the kind of excitations between to arbitrarily
+        ! given CSFs and then calc. the overlap between them... 
+        ! wait and talk to Ali about that...
+
+        ! should calculate bVector beforehand, and maybe store whole 
+        ! b vector for all excitation calculation (i,j) for a given 
+        ! CSF, since always the same and needed...
+        
+        ! when i use the remaining switches and end restrictions 
+        ! correctly i should not need to delete already created 
+        ! excitations. -> so i can fill up the excitation list step
+        ! by step. -> and maybe use top most value as indication of 
+        ! delta b value... so i dont need two lists or some more 
+        ! advanced data-structure... but when i do it ilut format 
+        ! maybe i can use the already provided flag structure which 
+        ! is usually used for the sign of the walkers on a given CSF.
+        ! have to figure out how to access and effectively adress 
+        ! them
+
+        ! do it again in this kind of fashion: 
+        
+        st = excitInfo%fullStart
+        ! check compatibility of chosen indices
+
+        if ((current_stepvector(st) == 1 .and. plusWeight < EPS) .or.&
+            (current_stepvector(st) == 2 .and. minusWeight < EPS).or.&
+            (minusWeight + plusWeight < EPS)) then
+            allocate(excitations(0,0), stat = ierr)
+            return
+        end if
 
 
-                do iOrb = excitInfo%fullStart + 1, excitInfo%fullEnd - 1
-                    call singleUpdate(ilut, iOrb, excitInfo, posSwitches, &
-                        negSwitches, weights, tempExcits, nExcits)
-                end do
+        ! have to give probabilistic weight object as input, to deal 
+        call createSingleStart(ilut, excitInfo, posSwitches, &
+            negSwitches, weights, tempExcits, nExcits)
 
-                call singleEnd(ilut, excitInfo, tempExcits, &
-                    nExcits, excitations)
+        ! to not call getTmatEl again in createSingleStart loop over 
+        ! the atmost two excitations here and multiply with tmat
 
-                ! encode IC = 1 in the deltB information of the GUGA 
-                ! excitation to handle it in the remaining NECI code 
-                ! correctly 
-                do iEx = 1, nExcits
-                    call setDeltaB(1, excitations(:,iEx))
-                end do
+        do iEx = 1, nExcits
+            call update_matrix_element(tempExcits(:,iEx), tmat, 1)
+        end do
 
-!             end if
-!         end if
+
+        do iOrb = excitInfo%fullStart + 1, excitInfo%fullEnd - 1
+            call singleUpdate(ilut, iOrb, excitInfo, posSwitches, &
+                negSwitches, weights, tempExcits, nExcits)
+        end do
+
+        call singleEnd(ilut, excitInfo, tempExcits, &
+            nExcits, excitations)
+
+        ! encode IC = 1 in the deltB information of the GUGA 
+        ! excitation to handle it in the remaining NECI code 
+        ! correctly 
+        do iEx = 1, nExcits
+            call setDeltaB(1, excitations(:,iEx))
+        end do
 
 
     end subroutine calcAllExcitations_single

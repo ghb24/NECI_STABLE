@@ -54,7 +54,7 @@ module tJ_model
 
 #ifndef __CMPLX
     use guga_excitations, only: calc_guga_matrix_element, generate_excitation_guga, &
-                                assign_excitInfo_values_double
+                                assign_excitInfo_values_double, assign_excitInfo_values_single
 
     use guga_data, only: excitationInformation
 
@@ -929,6 +929,106 @@ contains
         pgen = p_elec * p_orb
 
     end function calc_pgen_tJ_model
+
+    subroutine pick_orbitals_guga_tJ(ilut, nI, excitInfo, orb_pgen)
+        ! orbital picking routine for the GUGA t-J model. 
+        ! the most effective way would be to pick a hole first, instead 
+        ! of an random electron, so the chance of a succesful hop 
+        ! increases.. but I might be too lazy for now to do that 
+        ! actually. 
+        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(in) :: nI(nel)
+        type(excitationInformation), intent(out) :: excitInfo 
+        real(dp), intent(out) :: orb_pgen
+        character(*), parameter :: this_routine = "pick_orbitals_guga_tJ"
+
+        integer :: elec, id, ind, tgt
+        real(dp) :: p_elec, cum_sum, r, p_orb
+        integer, allocatable :: neighbors(:)
+        real(dp), allocatable :: cum_arr(:)
+
+        elec = 1 + int(genrand_real2_dsfmt() * nel)
+        p_elec = 1.0_dp / real(nel, dp)
+
+        id = gtID(nI(elec))
+
+        neighbors = lat%get_neighbors(id)
+
+        call gen_guga_tJ_cum_list(id, cum_arr)
+
+        cum_sum = cum_arr(size(neighbors))
+
+        if (cum_sum < EPS) then 
+            excitInfo%valid = .false. 
+            orb_pgen = 0.0_dp
+            return
+        end if
+
+        r = genrand_real2_dsfmt() * cum_sum 
+        ind = binary_search_first_ge(cum_arr, r)
+
+        tgt = neighbors(ind)
+
+        if (ind == 1) then 
+            p_orb = cum_arr(1) / cum_sum 
+        else 
+            p_orb = (cum_arr(ind) - cum_arr(ind - 1)) / cum_sum
+        end if
+
+        if (tgt < id) then 
+            excitInfo = assign_excitInfo_values_single(1, tgt, id, tgt, id)
+        else
+            excitInfo = assign_excitInfo_values_single(-1, tgt, id, id, tgt)
+        end if
+
+        orb_pgen = p_elec * p_orb
+
+    end subroutine pick_orbitals_guga_tJ
+
+    subroutine gen_guga_tJ_cum_list(id, cum_arr, tgt, tgt_pgen)
+        integer, intent(in) :: id
+        real(dp), allocatable, intent(out) :: cum_arr(:)
+        integer, intent(in), optional :: tgt 
+        real(dp), intent(out), optional :: tgt_pgen
+        character(*), parameter :: this_routine = "gen_guga_tJ_cum_list"
+
+        integer, allocatable :: neighbors(:)
+        integer :: i, n
+        real(dp) :: cum_sum, tmp
+
+        neighbors = lat%get_neighbors(id) 
+
+        allocate(cum_arr(size(neighbors)), source = 0.0_dp)
+
+        cum_sum = 0.0_dp 
+        tmp = 0.0_dp
+
+        if (present(tgt)) then 
+            tgt_pgen = 0.0_dp 
+
+            do i = 1, size(neighbors)
+
+                n = neighbors(i)
+
+                if (current_stepvector(n) == 0) then 
+                    tmp = 1.0_dp
+                    cum_sum = cum_sum + tmp
+                    if (tgt == n) tgt_pgen = tmp
+                end if
+            end do
+        else
+            do i = 1, size(neighbors)
+                n = neighbors(i)
+
+                if (current_stepvector(n) == 0) then 
+                    cum_sum = cum_sum + 1.0_dp 
+                end if
+
+                cum_arr(i) = cum_sum
+            end do
+        end if
+        
+    end subroutine gen_guga_tJ_cum_list
 
     subroutine pick_orbitals_guga_heisenberg(ilut, nI, excitInfo, orb_pgen)
         ! i "just" need to implement a custom orbital picker for the 
