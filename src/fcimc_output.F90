@@ -197,6 +197,9 @@ contains
         INTEGER :: i, j, run
         real(dp),dimension(inum_runs) :: FracFromSing
 
+        ! get the offset for the projected energy (i.e. reference energy)
+        call getProjEOffset()
+
         ! What is the current value of S2
         if (tCalcInstantS2) then
             if (mod(iter / StepsSft, instant_s2_multiplier) == 0) then
