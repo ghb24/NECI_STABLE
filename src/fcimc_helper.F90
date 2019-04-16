@@ -72,6 +72,7 @@ module fcimc_helper
                                get_neg_spawns, get_pos_spawns
     use searching, only: BinSearchParts2
     use back_spawn, only: setup_virtual_mask
+    use kMatRef, only: addRefContrib
     implicit none
     save
 

@@ -324,6 +324,7 @@ contains
         do i=1,nel-1
             do j=i+1,nel
                hel_doub = hel_doub + get_2d_umat_el(id(j),id(i))
+               write(iout,*) "From orbs", nI(i), nI(j), get_2d_umat_el(id(j),id(i))
             enddo
         enddo
                 
@@ -336,7 +337,7 @@ contains
                     ! Exchange contribution is zero if I,J are alpha/beta
                     if ((G1(nI(i))%Ms == G1(nI(j))%Ms).or.tReltvy) then
                         hel_tmp = hel_tmp - get_2d_umat_el_exch (id(j),id(i))
-!                         write(6,*) idN,idX,idX,idN,get_umat_el (idN,idX,idX,idN)
+!                         write(6,*) i,j,get_umat_el (id(j),id(i),id(i),id(j))
                     endif
                 enddo
             enddo
