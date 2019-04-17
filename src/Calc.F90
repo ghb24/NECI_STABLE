@@ -1328,8 +1328,8 @@ contains
                 end do
             case("FCI-CORE")
                 ss_space_in%tFCI = .true.
-            case("HEISENBERG-FCI-CORE")
-                ss_space_in%tHeisenbergFCI = .true.
+            !case("HEISENBERG-FCI-CORE")
+            !    ss_space_in%tHeisenbergFCI = .true.
             case("HF-CORE")
                 ss_space_in%tHF = .true.
             case("POPS-CORE")
@@ -1435,8 +1435,8 @@ contains
                 trial_space_in%read_filename = 'TRIALSPACE'
             case("FCI-TRIAL")
                 trial_space_in%tFCI = .true.
-            case("HEISENBERG-FCI-TRIAL")
-                trial_space_in%tHeisenbergFCI = .true.
+            !case("HEISENBERG-FCI-TRIAL")
+            !    trial_space_in%tHeisenbergFCI = .true.
             case("TRIAL-BIN-SEARCH")
                 tTrialHash = .false.
                 write(iout,*) "WARNING: Disabled trial hashtable. Load balancing "//&
@@ -1510,9 +1510,9 @@ contains
                 init_trial_in%tFCI = .true.
                 tStartSinglePart = .false.
                 tTrialInit = .true.
-            case("HEISENBERG-FCI-INIT")
-                init_trial_in%tHeisenbergFCI = .true.
-                tTrialInit = .true.
+            !case("HEISENBERG-FCI-INIT")
+            !    init_trial_in%tHeisenbergFCI = .true.
+            !    tTrialInit = .true.
             case("START-FROM-HF")
                 tStartCoreGroundState = .false.
 
@@ -1568,8 +1568,8 @@ contains
                 end do
             case("FCI-INITIATOR")
                 i_space_in%tFCI = .true.
-            case("HEISENBERG-FCI-INITIATOR")
-                i_space_in%tHeisenbergFCI = .true.
+            !case("HEISENBERG-FCI-INITIATOR")
+            !    i_space_in%tHeisenbergFCI = .true.
             case("HF-INITIATOR")
                 i_space_in%tHF = .true.
             case("POPS-INITIATOR")

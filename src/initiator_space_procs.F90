@@ -156,8 +156,8 @@ contains
             else
                 call generate_fci_core(SpawnedParts, ndets_this_proc)
             end if
-        else if (space_in%tHeisenbergFCI) then
-            call generate_heisenberg_fci(SpawnedParts, ndets_this_proc)
+        !else if (space_in%tHeisenbergFCI) then
+            !call generate_heisenberg_fci(SpawnedParts, ndets_this_proc)
         end if
 
         ! If two different spaces have been called then there may be some

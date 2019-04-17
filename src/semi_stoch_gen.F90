@@ -259,8 +259,8 @@ contains
                 else
                     call generate_fci_core(SpawnedParts, space_size)
                 end if
-            else if (core_in%tHeisenbergFCI) then
-                call generate_heisenberg_fci(SpawnedParts, space_size)
+            !else if (core_in%tHeisenbergFCI) then
+            !    call generate_heisenberg_fci(SpawnedParts, space_size)
             end if
         else if (tCSFCore) then
             if (core_in%tDoubles) then
@@ -1375,76 +1375,76 @@ contains
 
     end subroutine enumerate_sing_doub_kpnt
 
-    subroutine generate_heisenberg_fci(ilut_list, space_size)
+    !subroutine generate_heisenberg_fci(ilut_list, space_size)
 
-        ! In/Out: ilut_list - List of determinants generated.
-        ! In/Out: space_size - Number of determinants in the generated space.
-        !             If ilut_list is not empty on input and you want to keep
-        !             the states already in it, then on input space_size should
-        !             be equal to the number of states to be kept in ilut_list,
-        !             and new states will be added in from space_size+1.
-        !             Otherwise, space_size must equal 0 on input.
-        !             On output space_size will equal the total number of
-        !             generated plus what space_size was on input.
+    !    ! In/Out: ilut_list - List of determinants generated.
+    !    ! In/Out: space_size - Number of determinants in the generated space.
+    !    !             If ilut_list is not empty on input and you want to keep
+    !    !             the states already in it, then on input space_size should
+    !    !             be equal to the number of states to be kept in ilut_list,
+    !    !             and new states will be added in from space_size+1.
+    !    !             Otherwise, space_size must equal 0 on input.
+    !    !             On output space_size will equal the total number of
+    !    !             generated plus what space_size was on input.
 
-        use SystemData, only: nel, nbasis
+    !    use SystemData, only: nel, nbasis
 
-        integer(n_int), intent(inout) :: ilut_list(0:,:)
-        integer, intent(inout) :: space_size
+    !    integer(n_int), intent(inout) :: ilut_list(0:,:)
+    !    integer, intent(inout) :: space_size
 
-        integer :: nsites, nup
-        integer :: up_spins(nel/2+1)
+    !    integer :: nsites, nup
+    !    integer :: up_spins(nel/2+1)
 
-        nsites = nbasis/2
-        nup = nel/2
-        call generate_heisenberg_fci_r(1, up_spins, nsites, nup, ilut_list, space_size)
+    !    nsites = nbasis/2
+    !    nup = nel/2
+    !    call generate_heisenberg_fci_r(1, up_spins, nsites, nup, ilut_list, space_size)
 
-    end subroutine generate_heisenberg_fci
+    !end subroutine generate_heisenberg_fci
 
-    recursive subroutine generate_heisenberg_fci_r(ispin, up_spins, nsites, nup, ilut_list, space_size)
+    !recursive subroutine generate_heisenberg_fci_r(ispin, up_spins, nsites, nup, ilut_list, space_size)
 
-        use SystemData, only: nel
+    !    use SystemData, only: nel
 
-        integer, value :: ispin
-        integer, intent(inout) :: up_spins(nel/2+1)
-        integer, intent(in) :: nsites, nup
-        integer(n_int), intent(inout) :: ilut_list(0:,:)
-        integer, intent(inout) :: space_size
+    !    integer, value :: ispin
+    !    integer, intent(inout) :: up_spins(nel/2+1)
+    !    integer, intent(in) :: nsites, nup
+    !    integer(n_int), intent(inout) :: ilut_list(0:,:)
+    !    integer, intent(inout) :: space_size
 
-        integer :: i, isite, counter, starting_site
-        integer :: alpha_ind, beta_ind, pos
-        integer(n_int) :: ilut(0:NIfTot)
+    !    integer :: i, isite, counter, starting_site
+    !    integer :: alpha_ind, beta_ind, pos
+    !    integer(n_int) :: ilut(0:NIfTot)
 
-        starting_site = 1
-        if (ispin > 1) starting_site = up_spins(ispin-1) + 1
+    !    starting_site = 1
+    !    if (ispin > 1) starting_site = up_spins(ispin-1) + 1
 
-        do isite = starting_site, nsites
-            counter = 1
-            ilut = 0_n_int
-            up_spins(ispin) = isite
-            ! If we're on the last spin.
-            if (ispin == nup) then
-                do i = 1, nsites
-                    ! If this site has been chosen to have an up spin on it.
-                    if (i == up_spins(counter)) then
-                        alpha_ind = 2*i
-                        pos = (alpha_ind - 1)/bits_n_int
-                        ilut(pos) = ibset(ilut(pos), mod(alpha_ind-1, bits_n_int))
-                        ! Consider the next up spin on the next loop.
-                        counter = counter + 1
-                    else
-                        beta_ind = 2*i-1
-                        pos = (beta_ind - 1)/bits_n_int
-                        ilut(pos) = ibset(ilut(pos), mod(beta_ind-1, bits_n_int))
-                    end if
-                end do
-                call add_state_to_space(ilut, ilut_list, space_size)
-            else
-                call generate_heisenberg_fci_r(ispin+1, up_spins, nsites, nup, ilut_list, space_size)
-            end if
-        end do 
-        
-    end subroutine generate_heisenberg_fci_r
+    !    do isite = starting_site, nsites
+    !        counter = 1
+    !        ilut = 0_n_int
+    !        up_spins(ispin) = isite
+    !        ! If we're on the last spin.
+    !        if (ispin == nup) then
+    !            do i = 1, nsites
+    !                ! If this site has been chosen to have an up spin on it.
+    !                if (i == up_spins(counter)) then
+    !                    alpha_ind = 2*i
+    !                    pos = (alpha_ind - 1)/bits_n_int
+    !                    ilut(pos) = ibset(ilut(pos), mod(alpha_ind-1, bits_n_int))
+    !                    ! Consider the next up spin on the next loop.
+    !                    counter = counter + 1
+    !                else
+    !                    beta_ind = 2*i-1
+    !                    pos = (beta_ind - 1)/bits_n_int
+    !                    ilut(pos) = ibset(ilut(pos), mod(beta_ind-1, bits_n_int))
+    !                end if
+    !            end do
+    !            call add_state_to_space(ilut, ilut_list, space_size)
+    !        else
+    !            call generate_heisenberg_fci_r(ispin+1, up_spins, nsites, nup, ilut_list, space_size)
+    !        end if
+    !    end do 
+    !    
+    !end subroutine generate_heisenberg_fci_r
 
     subroutine generate_fci_core(ilut_list, space_size)
 
