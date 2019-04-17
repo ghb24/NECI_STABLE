@@ -3,7 +3,7 @@ module constants
 !All use of mpi routines come from this module
 #ifdef PARALLEL
 #ifndef CBINDMPI 
-uSE mpi
+use mpi
 #endif
 #endif
 implicit none

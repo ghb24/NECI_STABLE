@@ -2,8 +2,8 @@
 &POPSHEAD Pop64Bit=T
 PopHPHF=F,PopLz=F,PopLensign= 2,PopNEl=  6,
 PopTotwalk=             68,PopSft=    0.000000000000,
- PopSumNoatHF=   622.624736068869      ,
- PopSumENum=  -62.9836557137312      ,
+ PopMultiSumNoatHF=   622.624736068869 622.624736068869      ,
+ PopMultiSumENum=  -62.9836557137312  -62.9836557137312     ,
 PopCyc=             100,PopNIfD= 0,PopNIfY= 0,PopNIfSgn= 2,
 PopNIfFlag= 1,PopNIfTot= 3,PopTau=    0.010000000000,
 PopiBlockingIter=               0

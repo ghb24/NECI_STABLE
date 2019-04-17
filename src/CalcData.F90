@@ -31,6 +31,9 @@ type subspace_in
     logical :: tHF = .false.
     ! Use the most populated states in CurrentDets.
     logical :: tPops = .false.
+    ! Automatically choosing 10% of the total initiator space, if this number
+    ! is larger than 50000, then use npops = 50000
+    logical :: tPopsAuto = .false.
     ! Read states from a file.
     logical :: tRead = .false.
     ! Use the space of all single and double excitations from the
@@ -81,7 +84,7 @@ type subspace_in
     ! kept on each processor, 1 =< nApproxSpace =< nProcessors. The larger nApproxSpace, the more  
     ! memory is consumed and the slower (but more accurate) is the semi-stochastic initialisation   
     ! (see subroutine generate_space_most_populated).
-    integer :: nApproxSpace = 100
+    integer :: nApproxSpace = 10
     ! When using the tMP1Core option, this specifies how many determinants to keep.
     integer :: mp1_ndets = 0
 
@@ -106,9 +109,14 @@ LOGICAL :: TStartSinglePart,TRegenExcitgens
 LOGICAL :: TUnbiasPGeninProjE, tCheckHighestPopOnce
 LOGICAL :: tCheckHighestPop,tRestartHighPop,tChangeProjEDet
 LOGICAL :: tRotoAnnihil,tSpawnAsDet
-LOGICAL :: tTruncCAS,tTruncInitiator,tAddtoInitiator    !Truncation the FCIMC excitation space by CAS
+LOGICAL :: tTruncCAS ! Truncation of the FCIMC excitation space by a CAS
+logical :: tTruncInitiator, tAddtoInitiator, tInitCoherentRule, tGlobalInitFlag
+logical :: tSTDInits
+logical :: tEN2, tEN2Init, tEN2Truncated, tEN2Started
+LOGICAL :: tSeniorInitiators !If a det. has lived long enough (called a senior det.), it is added to the initiator space.
 LOGICAL :: tInitIncDoubs,tWalkContGrow,tAnnihilatebyRange
 logical :: tReadPopsRestart, tReadPopsChangeRef, tInstGrowthRate
+logical :: tL2GrowRate
 logical :: tAllRealCoeff, tUseRealCoeffs
 logical :: tRealSpawnCutoff
 logical :: tRealCoeffByExcitLevel
@@ -117,7 +125,12 @@ real(dp) :: RealSpawnCutoff, OccupiedThresh
 logical :: tRPA_QBA     !RPA calculation with QB approximation
 logical :: tStartCAS    !Start FCIMC dynamic with walkers distributed according to CAS diag.
 logical :: tShiftonHFPop    !Adjust shift in order to keep the population on HF constant, rather than total pop.
-
+logical :: tFixedN0 !Fix the reference population by using projected energy as shift.
+logical :: tTrialShift !Fix the overlap with trial wavefunction by using trial energy as shift.
+logical :: tSkipRef(1:inum_runs_max) !Skip spawing onto reference det and death/birth on it. One flag for each run.
+logical :: tFixTrial(1:inum_runs_max) !Fix trial overlap by determinstically updating one det. One flag for each run.
+integer :: N0_Target !The target reference population in fixed-N0 mode
+real(dp) :: TrialTarget !The target for trial overlap in trial-shift mode
 ! Base hash values only on spatial orbitals
 ! --> All dets with same spatial structure on the same processor.
 logical :: tSpatialOnlyHash
@@ -141,7 +154,8 @@ integer :: iPopsFileNoRead, iPopsFileNoWrite,iRestartWalkNum
 real(dp) :: iWeightPopRead
 real(dp) :: MaxWalkerBloom   !Max number of walkers allowed in one bloom before reducing tau
 INTEGER(int64) :: HFPopThresh
-real(dp) :: InitWalkers, maxnoathf, InitiatorWalkNo
+real(dp) :: InitWalkers, maxnoathf, InitiatorWalkNo, ErrThresh
+real(dp) :: SeniorityAge !A threshold on the life time of a determinat (measured in its halftime) to become a senior determinant.
 
 ! The average number of excitations to be performed from each walker.
 real(dp) :: AvMCExcits
@@ -204,6 +218,8 @@ logical :: tUniqueHFNode
 
 ! Options relating to the semi-stochastic code.
 logical :: tSemiStochastic ! Performing a semi-stochastic simulation if true.
+logical :: tDynamicCoreSpace, tStaticCore, tIntervalSet ! update the corespace
+integer :: coreSpaceUpdateCycle, semistochStartIter
 ! Input type describing which space(s) type to use.
 type(subspace_in) :: ss_space_in
 
@@ -239,6 +255,10 @@ logical :: tStartTrialLater = .false.
 ! of trial estimators?
 integer :: trial_shift_iter
 
+! Update the trial wf?
+logical :: tDynamicTrial
+integer :: trialSpaceUpdateCycle
+
 ! If false then create the trial wave function by diagonalising the
 ! Hamiltonian in the trial subspace.
 ! If true then create the trial wave function by taking the weights from the
@@ -263,6 +283,7 @@ integer :: pops_norm_unit
 logical :: tOrthogonaliseReplicas, tReplicaSingleDetStart
 logical :: tOrthogonaliseSymmetric
 integer :: orthogonalise_iter
+logical :: tAVReps, tReplicaCoherentInits, tRCCheck
 ! Information on a trial space to create trial excited states with.
 type(subspace_in) :: init_trial_in
 
@@ -295,7 +316,7 @@ integer, allocatable :: trial_init_reorder(:)
 logical :: tPrintReplicaOverlaps = .true.
 
 ! Keep track of when the calculation began (globally)
-real(sp) :: s_global_start
+real(dp) :: s_global_start
 
 ! Use continuous time FCIQMC
 logical :: tContTimeFCIMC, tContTimeFull
@@ -377,6 +398,8 @@ logical :: t_test_hist_tau = .false.
 
 ! and i also need to truncate the spawns maybe: 
 logical :: t_truncate_spawns = .false. 
+logical :: t_truncate_unocc, t_truncate_multi
+logical :: t_prone_walkers, t_activate_decay
 real(dp) :: n_truncate_spawns = 3.0_dp
 
 ! integer :: above_max_singles = 0, above_max_para = 0, above_max_anti = 0, &
@@ -407,5 +430,10 @@ logical :: t_back_spawn_flex = .false., t_back_spawn_flex_option = .false.
 ! change now: we also want to enable to increase the excitation by possibly 
 ! 1 -> maybe I should rename this than so that minus indicates de-excitation?!
 integer :: occ_virt_level = 0
+
+! If true, then when using the pops-core option, don't allow the
+! pops-core-approx option to take over, even in the default case
+! where it has been decided that it is efficient and appropriate.
+logical :: tForceFullPops
 
 end module CalcData

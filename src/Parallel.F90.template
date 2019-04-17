@@ -81,9 +81,9 @@ mpitype=MPI_DOUBLE_COMPLEX
 type1=integer(int32), dimension(:,:,:)
 mpitype=MPI_INTEGER4
 mpiprt=ubound(v,1),lbound(v,1),ubound(v,2),lbound(v,2),ubound(v,3),lbound(v,3)
-mpilen=((ubound(v,1)-lbound(v,1)+1)*(ubound(v,2)-lbound(v,2)+1)*& 
+mpilen=((ubound(v,1)-lbound(v,1)+1)*(ubound(v,2)-lbound(v,2)+1)*&
  (ubound(v,3)-lbound(v,3)+1))
-mpilen2=((ubound(ret,1)-lbound(ret,1)+1)*(ubound(ret,2)-lbound(ret,2)+1)*& 
+mpilen2=((ubound(ret,1)-lbound(ret,1)+1)*(ubound(ret,2)-lbound(ret,2)+1)*&
  (ubound(ret,3)-lbound(ret,3)+1))
 ndim=3
 arr_shp=, (/1,1,1/)
@@ -102,11 +102,11 @@ mpitype=MPI_DOUBLE_COMPLEX
 [arr4_int]
 type1=integer(int32), dimension(:,:,:,:)
 mpitype=MPI_INTEGER4
-mpiprt=ubound(v,1),lbound(v,1),ubound(v,2),lbound(v,2),ubound(v,3),& 
+mpiprt=ubound(v,1),lbound(v,1),ubound(v,2),lbound(v,2),ubound(v,3),&
  lbound(v,3),ubound(v,4),lbound(v,4)
-mpilen=((ubound(v,1)-lbound(v,1)+1)*(ubound(v,2)-lbound(v,2)+1)*& 
+mpilen=((ubound(v,1)-lbound(v,1)+1)*(ubound(v,2)-lbound(v,2)+1)*&
  (ubound(v,3)-lbound(v,3)+1)*(ubound(v,4)-lbound(v,4)+1))
-mpilen2=((ubound(ret,1)-lbound(ret,1)+1)*(ubound(ret,2)-lbound(ret,2)+1)*& 
+mpilen2=((ubound(ret,1)-lbound(ret,1)+1)*(ubound(ret,2)-lbound(ret,2)+1)*&
  (ubound(ret,3)-lbound(ret,3)+1)*(ubound(ret,4)-lbound(ret,4)+1))
 ndim=4
 arr_shp=, (/1,1,1,1/)
@@ -141,7 +141,7 @@ mpitype=MPI_INTEGER8
 !#ifdef CBINDMPI
 !#define cbind_loc loc_neci
 !#else
-!#define cbind_loc 
+!#define cbind_loc
 !#endif
 
 
@@ -337,6 +337,7 @@ module par_internal
     end interface
 #endif
 
+
 contains
 
     subroutine MPIReduce_len (v, iLen, iType, Ret, Node)
@@ -356,7 +357,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: Comm, rt, ierr
         character(*), parameter :: t_r = "MPIReduce"
-           
+
 #ifdef PARALLEL
 #ifdef CBINDMPI
 #ifdef __GFORTRAN__
@@ -384,7 +385,7 @@ contains
 
     subroutine MPIReduce_auto (v, iType, Ret, Node)
 
-        ! The same as MPIReduce_len, without the iLen specification. The 
+        ! The same as MPIReduce_len, without the iLen specification. The
         ! number of elements is determined automatically.
 
         %(type1)s, intent(in), target :: v()
@@ -560,7 +561,7 @@ contains
 
 !    subroutine MPIAllReduce_inplace (v, iType, Node)
 !
-!        ! The same as MPIAllReduce_len, but the length of array Value (and 
+!        ! The same as MPIAllReduce_len, but the length of array Value (and
 !        ! thus Ret) is determinend automagically
 !
 !        %%%%%%%%(type1)s, intent(inout), target :: v()
@@ -604,7 +605,7 @@ contains
         !      dtype - Data type to pass to MPI (e.g. MPI_2INTEGER)
         !
         ! Out: Ret   - Reduced array.
-        
+
         %(type1)s, intent(in), target :: v()
         %(type1)s, intent(out), target :: Ret()
         integer(MPIArg), intent(in) :: dtype, itype
@@ -640,13 +641,13 @@ contains
 
     subroutine MPISumAll_len (v, iLen, Ret, Node)
 
-        ! Sum data on different processors, leaving the result in Ret on all 
+        ! Sum data on different processors, leaving the result in Ret on all
         ! of the processors
         !
         ! In:  v   - Array of data to contribute to the sum
         !      iLen     - Number of data elements in v
         !
-        ! Out: Ret      - An array of the same size as v to contain the 
+        ! Out: Ret      - An array of the same size as v to contain the
         !                 summed v
 
         %(type1)s, intent(in) :: v()
@@ -677,7 +678,7 @@ contains
 
 !    subroutine MPISumAll_inplace (v, Node)
 !
-!        ! The same as MPISumAll, but returning the results destructively 
+!        ! The same as MPISumAll, but returning the results destructively
 !        ! in v
 !
 !        %%%%%%%%(type1)s, intent(inout) :: v()
@@ -714,7 +715,7 @@ contains
     subroutine MPISum_auto(v, Ret, Node)
 
         ! Sum data on different processors, leaving the result only on the
-        ! root node. (Or the node specified). We don't need to specify the 
+        ! root node. (Or the node specified). We don't need to specify the
         ! length.
         !
         ! In:  v  - Array of data to contribute to the sum
@@ -791,7 +792,7 @@ contains
         integer(MPIArg) :: ierr, comm, rt
         type(CommI), intent(in), optional :: Node
         character(*), parameter :: t_r = 'MPIBcast'
-        
+
 #ifdef PARALLEL
 #ifdef CBINDMPI
 #ifdef __GFORTRAN__
@@ -816,7 +817,7 @@ contains
 
     subroutine MPIBCast_auto (v, Node)
 
-        ! The same as MPIBcast_len, but the number of elements in v is 
+        ! The same as MPIBcast_len, but the number of elements in v is
         ! determined automagically
         !
         ! In:    Root   - The processor to broadcast from
@@ -852,7 +853,7 @@ contains
 
     subroutine MPIBCast_logic (v, tMe, Node)
 
-        ! The same as MPIBcast_len, but the number of elements in v is 
+        ! The same as MPIBcast_len, but the number of elements in v is
         ! determined automagically
         !
         ! In: tMe - Set to be true by the processor which is sending the info
@@ -1117,7 +1118,7 @@ contains
 
         LengthIn = int(%(mpilen)s &
          * (ubound(v,%(ndim)s+1)-lbound(v,%(ndim)s+1)+1),MPIArg)
-        
+
         call MPI_AllGatherV (val_in, LengthIn, &
                 %(mpitype)s, &
                 val_out, lengthsN, dispsN, &
@@ -1245,7 +1246,7 @@ contains
 
         LengthIn = int(%(mpilen)s &
          * (ubound(v,%(ndim)s+1)-lbound(v,%(ndim)s+1)+1),MPIArg)
-        
+
         call MPI_GatherV (val_in, LengthIn, &
                 %(mpitype)s, &
                 val_out, lengthsN, dispsN, &
@@ -1261,8 +1262,8 @@ contains
 
 
     ! This scatters an array into another array with the same number of dims.
-    ! SendSizes are the lengths to send to each proc and Disps are the 
-    ! displacements of the data in SendBuf.  Each processor should know its 
+    ! SendSizes are the lengths to send to each proc and Disps are the
+    ! displacements of the data in SendBuf.  Each processor should know its
     ! own Length
     subroutine MPIScatterV_len2 (v, SendSizes, Disps, Ret, Length, &
                                  ierr, Node)
@@ -1437,7 +1438,6 @@ end module
 
 
 supermodule par_internal
-
 !
 ! n.b HACK
 ! We need to be able to do a bit of hackery when using C-based MPI
@@ -1454,7 +1454,7 @@ supermodule par_internal
 ! MPI interface and helper routines for parallel work.
 ! If compiled without the PARALLEL c pre-processing statement, then
 ! contains dummy routines to enable the parallel calculation algorithms to
-! be used in serial.  This is useful for testing, development and as (in some 
+! be used in serial.  This is useful for testing, development and as (in some
 ! cases) the parallel algorithms are much more efficient that the serial
 ! analogues, as the latter are much more general.
 
@@ -1476,7 +1476,7 @@ supermodule par_internal
 ! parallelize high-vertex graph code, so each parallel routine must be
 ! specifically written.
 
-! FCIMC is parallelized over determinants, using a hashing routine.  This is 
+! FCIMC is parallelized over determinants, using a hashing routine.  This is
 ! not dealt with here
 
 ! It is highly advised that the following routines are used in parallel work,
@@ -1490,13 +1490,13 @@ supermodule par_internal
 !    MPIStopAll  Abort all processors
 !    MPIBarrier  Wait until all processors have synched.
 
-! These routines exist for all types specified in the header. (Ah the beauty 
+! These routines exist for all types specified in the header. (Ah the beauty
 ! of templates!)
 !    MPISum      Sum data among all processors, and give the results to all
-!    MPISumRoot  Sum data among all processors, and give the results to the 
+!    MPISumRoot  Sum data among all processors, and give the results to the
 !                root
 !    MPIBCast    Send from processor Root to all other processors
-!    MPIAllReduceDatatype Like MPIAllReduce, but allows a custom datatype 
+!    MPIAllReduceDatatype Like MPIAllReduce, but allows a custom datatype
 !                (like MPI_2INTEGER) to be specified
 !    MPIAllGather Gathers data from all tasks and sends it to all.
 !    MPIRecv     Receive data from a single node
@@ -1521,184 +1521,180 @@ supermodule par_internal
     end interface
     save
     integer :: iProcMinE, iProcMaxE, nProcessors
+    logical :: neci_MPIInit_called, neci_MPINodes_called
 
 contains
 
     subroutine MPIInit (tExternal)
+        use SystemData, only : tMolcas
 #ifdef MOLPRO
         USE molpro_options, only : molpro_helper_server
+#endif
+        implicit none
+#ifdef MOLPRO
         integer :: iglobal_worker_comm
 #endif
-
-        ! Determine the number of processors, and fork each off to its own 
+        ! Determine the number of processors, and fork each off to its own
         ! NodeFile output file
         !
         ! In:
-        !   tExternal True if using VASP/CPMD's MPI interface, so we don't 
+        !   tExternal True if using VASP/CPMD's MPI interface, so we don't
         ! have to initialise our own.
 
         logical, intent(in) :: tExternal
-        integer(MPIArg) :: iProcInd, nProcess, ierr
+        integer(MPIArg) :: iProcInd, nProcess
+        integer(MPIArg) :: ierr
         integer :: a, g
         character(len=20) NodeFile
-        logical, save :: initialised=.false.
+        logical(MPIArg) :: initialised
         character(*), parameter :: t_r = 'MPIInit'
-
-#ifdef _MOLCAS_
         character(8) :: MCPUs
-#endif
-
 #ifdef MOLPRO
         integer :: MolpComm
-        character(8) :: MCPUs
 #endif
 
+    if (neci_MPIInit_called) return
+    neci_MPIInit_called = .true.
 #ifdef PARALLEL
-        if (.not.initialised) then
-            initialised = .true. !GLM added it for compatibility with Molcas loops
-            nNodes = 0  !Indicate we haven't setup nodes yet
-            
-            if(tExternal) then
-                write(6,*) 'Using external MPI configuration'
-            else 
-#if !(defined(MOLPRO) || defined(_MOLCAS_))
-#ifdef __DEBUG
-                write(6,*) 'Initing MPI'
-#endif
+        nNodes = 0  !Indicate we haven't setup nodes yet
 
-                call MPI_Init (ierr)
-                if (ierr /= MPI_SUCCESS) &
-                    call stop_all (t_r, 'MPI Error. Terminating.')
-#endif
-            endif
+        call MPI_Initialized(initialised, ierr)
+        if (ierr /= MPI_SUCCESS) &
+            call stop_all (t_r, 'MPI Error. Terminating.')
 
-#ifdef CBINDMPI
-            ! Extract the value of MPI_COMM_WORLD from the C-bindings.
-            ! It doesn't have to be zero (c.f. gfortran w/ openmpi).
-            MPI_COMM_WORLD = mpicommworld_c2f()
-#endif
-
-#ifdef MOLPRO
-            ! Obtain the communicator for MOLPRO
-            MolpComm = iglobal_worker_comm()
-            CommGlobal = int(MolpComm, MPIArg)
-#else
-            ! If we are using the C bindings, this just sets it to 0
-            CommGlobal = MPI_COMM_WORLD
-#endif
-
-            call MPI_Comm_rank (CommGlobal, iProcInd, ierr)
-            iProcIndex = iProcInd
+        if (.not. initialised) then
+            call MPI_Init (ierr)
             if (ierr /= MPI_SUCCESS) &
                 call stop_all (t_r, 'MPI Error. Terminating.')
-
-            call MPI_Comm_size (CommGlobal, nProcess, ierr)
-	    
-            !initialize intra node and inter node communicators
-#ifdef __SHARED_MEM
-            !the 'intra' range is the full node for now.
-            call MPI_Comm_split_type(CommGlobal,MPI_COMM_TYPE_SHARED,0,MPI_INFO_NULL,mpi_comm_intra,ierr)
-            call MPI_Comm_rank(mpi_comm_intra,iProcIndex_intra,ierr)
-             
-            call MPI_Comm_split(CommGlobal,iProcIndex_intra,iProcIndex,mpi_comm_inter,ierr)
-            call MPI_Comm_rank(mpi_comm_inter,iProcIndex_inter,ierr)
-#else
-	    !no sharing between tasks, i.e. the 'intra' task range is 1
-            mpi_comm_intra=MPI_COMM_SELF
-            iProcIndex_intra=0
-             
-            mpi_comm_inter=MPI_COMM_WORLD
-            iProcIndex_inter=iProcIndex
-#endif
-#ifdef _MOLCAS_
-            ! call getenvf('MOLCAS_CPUS',MCPUs) replaced by the newer env variable MOLCAS_NPROCS
-            call getenvf('MOLCAS_NPROCS',MCPUs)
-            Read(MCPUS,*) nProcess
-#endif
-            nProcessors = nProcess
-            if (ierr /= MPI_SUCCESS) &
-                call stop_all (t_r, 'MPI Error. Terminating.')
-            if (iProcIndex == 0) &
-                write(6,*) 'Number of processors: ', nProcessors
-
-            mpiInfoNull = MPI_INFO_NULL
-
-#ifdef MOLPRO
-#ifdef CBINDMPI
-            if(molpro_helper_server.and.(nProcessors.gt.1)) then
-                write(6,"(A)") "********************************************************************"
-                write(6,"(A)") "***************************  WARNING  ******************************"
-                write(6,"(A)") "********************************************************************"
-                write(6,"(A)") "***                                                              ***"
-                write(6,"(A)") "*** FCIQMC module run in parallel, but 'no-helper-server' option ***"
-                write(6,"(A)") "*** not invoked on command line. This is highly recommended when ***"
-                write(6,"(A)") "*** running with more than one MPI thread, since one processor   ***"
-                write(6,"(A)") "*** is now entirely idle. If running with multiple processes,    ***"
-                write(6,"(A)") "*** recommend re-running with 'no-helper-server' command line    ***"
-                write(6,"(A)") "*** option.                                                      ***"
-                write(6,"(A)") "***                                                              ***"
-                write(6,"(A)") "********************************************************************"
-            endif
-#endif
-#endif
-
-            if(tExternal) then
-                write(6,*) "NECI Processor ",iProcIndex+1,'/',nProcessors
-            else
-
-    !Test if I/O is allowed on all processors - get res, the attribute attached to the communicator concerning I/O
-    !This does not seem to work...
-    !      CALL MPI_Comm_get_attr(MPI_COMM_SELF,MPI_IO,res,flag,ierr)
-    !flag will say if can do I/O
-    !      Local_IO=(ierr.eq.MPI_SUCCESS.and.flag.and.res.ne.MPI_PROC_NULL)
-    !      IF(.not.Local_IO) THEN
-    !          WRITE(6,*) ierr,Local_IO,flag,res
-    !          CALL Stop_All('MPIInit',"IO not possible on this processor")
-    !      ELSE
-    !          WRITE(6,*) "IO possible on this processor"
-    !          CALL neci_flush(6)
-    !      ENDIF
-
-                if (iProcIndex == 0) then
-                    write(6,*) "Processor ", iProcIndex+1, '/', nProcessors, &
-                               ' as head node.'
-                else
-#ifdef __DEBUG
-                    write(6,*) "Processor ", iProcIndex+1, '/', nProcessors, &
-                               ' moving to local output.'
-#endif
-
-                    write(NodeFile, &
-                        '("NodeFile",' // int_fmt(iProcIndex+1) // ')') &
-                        iProcIndex + 1
-
-#ifdef __DEBUG
-                    write(6,*) "outfile=", NodeFile
-#endif
-                    close(6, status="keep")
-                    open(6, file=NodeFile, recl=8192)
-#ifdef __DEBUG
-                    write(6,*) "Processor ", iProcIndex+1, '/', nProcessors, &
-                               ' on local output.'
-#endif
-                endif
-
-                call GetProcElectrons (iProcIndex, iProcMinE, iProcMaxE) 
-              
-                ! Just synchronize everything briefly
-                a = iProcIndex+1
-                call MPISumAll (a, 1, g)
-                write(6,*) "Sum: ", g
-            endif
-
-#ifndef CBINDMPI
-            ! Don't bother with this if using c bindings (probably
-            ! should though)
-            call MPI_ERRHANDLER_SET(CommGlobal,MPI_ERRORS_RETURN,ierr)
-#endif
         end if
 
-#else 
+#ifdef CBINDMPI
+        ! Extract the value of MPI_COMM_WORLD from the C-bindings.
+        ! It doesn't have to be zero (c.f. gfortran w/ openmpi).
+        MPI_COMM_WORLD = mpicommworld_c2f()
+#endif
+
+#ifdef MOLPRO
+        ! Obtain the communicator for MOLPRO
+        MolpComm = iglobal_worker_comm()
+        CommGlobal = int(MolpComm, MPIArg)
+#else
+        ! If we are using the C bindings, this just sets it to 0
+        CommGlobal = MPI_COMM_WORLD
+#endif
+
+        call MPI_Comm_rank (CommGlobal, iProcInd, ierr)
+        iProcIndex = iProcInd
+        if (ierr /= MPI_SUCCESS) &
+            call stop_all (t_r, 'MPI Error. Terminating.')
+
+        call MPI_Comm_size (CommGlobal, nProcess, ierr)
+        if (tMolcas) then
+            call GET_ENVIRONMENT_VARIABLE('MOLCAS_NPROCS', MCPUs)
+            Read(MCPUS,*) nProcess
+        end if
+
+        !initialize intra node and inter node communicators
+#ifdef __SHARED_MEM
+        !the 'intra' range is the full node for now.
+        call MPI_Comm_split_type(CommGlobal,MPI_COMM_TYPE_SHARED,0_MPIArg,MPI_INFO_NULL,mpi_comm_intra,ierr)
+        call MPI_Comm_rank(mpi_comm_intra,iProcIndex_intra,ierr)
+
+        call MPI_Comm_split(CommGlobal,iProcIndex_intra,int(iProcIndex,MPIArg),mpi_comm_inter,ierr)
+        call MPI_Comm_rank(mpi_comm_inter,iProcIndex_inter,ierr)
+#else
+! no sharing between tasks, i.e. the 'intra' task range is 1
+        mpi_comm_intra=MPI_COMM_SELF
+        iProcIndex_intra=0
+
+        mpi_comm_inter=MPI_COMM_WORLD
+        iProcIndex_inter=iProcIndex
+#endif
+        nProcessors = nProcess
+        if (ierr /= MPI_SUCCESS) &
+            call stop_all (t_r, 'MPI Error. Terminating.')
+        if (iProcIndex == 0) &
+            write(6,*) 'Number of processors: ', nProcessors
+
+        mpiInfoNull = MPI_INFO_NULL
+
+#ifdef MOLPRO
+#ifdef CBINDMPI
+        if(molpro_helper_server.and.(nProcessors.gt.1)) then
+            write(6,"(A)") "********************************************************************"
+            write(6,"(A)") "***************************  WARNING  ******************************"
+            write(6,"(A)") "********************************************************************"
+            write(6,"(A)") "***                                                              ***"
+            write(6,"(A)") "*** FCIQMC module run in parallel, but 'no-helper-server' option ***"
+            write(6,"(A)") "*** not invoked on command line. This is highly recommended when ***"
+            write(6,"(A)") "*** running with more than one MPI thread, since one processor   ***"
+            write(6,"(A)") "*** is now entirely idle. If running with multiple processes,    ***"
+            write(6,"(A)") "*** recommend re-running with 'no-helper-server' command line    ***"
+            write(6,"(A)") "*** option.                                                      ***"
+            write(6,"(A)") "***                                                              ***"
+            write(6,"(A)") "********************************************************************"
+        endif
+#endif
+#endif
+
+        if(tExternal) then
+            write(6,*) "NECI Processor ",iProcIndex+1,'/',nProcessors
+        else
+
+!Test if I/O is allowed on all processors - get res, the attribute attached to the communicator concerning I/O
+!This does not seem to work...
+!      CALL MPI_Comm_get_attr(MPI_COMM_SELF,MPI_IO,res,flag,ierr)
+!flag will say if can do I/O
+!      Local_IO=(ierr.eq.MPI_SUCCESS.and.flag.and.res.ne.MPI_PROC_NULL)
+!      IF(.not.Local_IO) THEN
+!          WRITE(6,*) ierr,Local_IO,flag,res
+!          CALL Stop_All('MPIInit',"IO not possible on this processor")
+!      ELSE
+!          WRITE(6,*) "IO possible on this processor"
+!          CALL neci_flush(6)
+!      ENDIF
+
+            if (iProcIndex == 0) then
+                write(6,*) "Processor ", iProcIndex+1, '/', nProcessors, &
+                           ' as head node.'
+            else
+#ifdef __DEBUG
+                write(6,*) "Processor ", iProcIndex+1, '/', nProcessors, &
+                           ' moving to local output.'
+#endif
+
+                write(NodeFile, &
+                    '("NodeFile",' // int_fmt(iProcIndex+1) // ')') &
+                    iProcIndex + 1
+
+#ifdef __DEBUG
+                write(6,*) "outfile=", NodeFile
+#endif
+                close(6, status="keep")
+#ifdef __DEBUG
+                open(6, file=NodeFile, recl=8192)
+                write(6,*) "Processor ", iProcIndex+1, '/', nProcessors, &
+                           ' on local output.'
+#else
+                open(6, file="/dev/null", recl=8192)
+#endif
+            endif
+
+            call GetProcElectrons (iProcIndex, iProcMinE, iProcMaxE)
+
+            ! Just synchronize everything briefly
+            a = iProcIndex+1
+            call MPISumAll (a, 1, g)
+            write(6,*) "Sum: ", g
+        endif
+
+#ifndef CBINDMPI
+        ! Don't bother with this if using c bindings (probably
+        ! should though)
+        call MPI_ERRHANDLER_SET(CommGlobal,MPI_ERRORS_RETURN,ierr)
+#endif
+
+#else
 
 #if defined(_MOLCAS_MPP_)
         write(6,"(A)") "********************************************************************"
@@ -1707,8 +1703,8 @@ contains
         write(6,"(A)") "***                                                              ***"
         write(6,"(A)") "*** FCIQMC module run in parallel, but Molcas not compiled with  ***"
         write(6,"(A)") "*** MPI. FCIQMC module cannot support compilation with Global    ***"
-        write(6,"(A)") "*** Arrays with TCGMSG, and so will now run in serial mode       ***" 
-        write(6,"(A)") "*** instead. Recompilation of molpro with linking to MPI module  ***" 
+        write(6,"(A)") "*** Arrays with TCGMSG, and so will now run in serial mode       ***"
+        write(6,"(A)") "*** instead. Recompilation of molpro with linking to MPI module  ***"
         write(6,"(A)") "*** recommended.                                                 ***"
         write(6,"(A)") "***                                                              ***"
         write(6,"(A)") "********************************************************************"
@@ -1719,38 +1715,38 @@ contains
        nProcessors = 1
        nNodes = 1
 #endif
-       
+
     end subroutine
 
 
 
     ! Create communicators for within and between each of the nodes
-    ! As yet a work in progress, but hopefully the structure is there and 
+    ! As yet a work in progress, but hopefully the structure is there and
     ! usale. ParallelHelper.F90 contains various globals for this work.
 
-    ! A parallel job is parallellized over many cores (denoted processors 
-    ! here). Various parallel architectures make it useful to introduce the 
-    ! concept of nodes, which are a group of processors with a (fast-access) 
+    ! A parallel job is parallellized over many cores (denoted processors
+    ! here). Various parallel architectures make it useful to introduce the
+    ! concept of nodes, which are a group of processors with a (fast-access)
     ! shared memory space. These may be physical nodes (in which case all the
     ! cores on all the physical CPUs sharing the same motherboard and memory)
     ! would be grouped together into a node, or alternatively, may be
     ! subgroups of this set.
-    
-    ! Currently nodes are determined as those cores which have the same 
-    ! hostname. This is not overly portable, and will need to be customized 
+
+    ! Currently nodes are determined as those cores which have the same
+    ! hostname. This is not overly portable, and will need to be customized
     ! for different parallel architectures.
 
     ! Each node has a node root core designated.
-    
-    ! With the concept of nodes comes the introduction of different levels 
+
+    ! With the concept of nodes comes the introduction of different levels
     ! of communicators.
     !
-    !   CommGlobal      is a synonym for MPI_COMM_WORLD and communicates 
+    !   CommGlobal      is a synonym for MPI_COMM_WORLD and communicates
     !                   between all cores
     !   CommNodes(i)    is the communicator for node i (zero-based)
     !   CommRoots       is the communicator between roots of all nodes
     !
-    ! Explicit use of these should be avoided, as almost all the MPI... 
+    ! Explicit use of these should be avoided, as almost all the MPI...
     ! functions in this module take some optional arguments to make the
     ! communicator selction easier.
     !
@@ -1758,10 +1754,10 @@ contains
     !    !The following work for most MPI... functions
     !    integer :: i
     !    MPIBCast(i)            ! This will broadcast with CommGlobal
-    !    MPIBCast(i,Node)       ! This will broadcast with the communicator 
+    !    MPIBCast(i,Node)       ! This will broadcast with the communicator
     !                             within each node
     !    if(bNodeRoot) then
-    !       MPIBCast(i,Roots)   ! Broadcast between roots of all nodes.  
+    !       MPIBCast(i,Roots)   ! Broadcast between roots of all nodes.
     !                             Remember the IF, otherwise horrors occur.
     !    endif
     ! (TODO: Perhaps the if should be put inside the MPIBCast?)
@@ -1769,12 +1765,12 @@ contains
     !
     !    !Now for BCast-specfic ones.
     !    MPIBCast(i,.true.)     ! Broadcast to all cores from this core
-    !    ! MPIBCast(i,.false.)  ! This should be on the other cores 
+    !    ! MPIBCast(i,.false.)  ! This should be on the other cores
     !                             otherwise more horrors
     !    MPIBCast(i,.true.,Node)!Broadcast to the node from this code
     !    ! etc
     !
-    !    Node is of the TYPE(CommI) which allows overloading of these 
+    !    Node is of the TYPE(CommI) which allows overloading of these
     !    functions. For actual indices, use
     !      iProcIndex       ! index of this Core.  0...(nProcessors-1)
     !      iNodeIndex       ! index of this node.  0...(nNodes-1)
@@ -1782,17 +1778,17 @@ contains
     !                         0...(NodeLengths(iNodeIndex)-1)
     !      ProcNode(i)      ! The node which Core i is on
     !
-    ! Currently FCIMCPar is setup to allocate one core per node.  This is a 
+    ! Currently FCIMCPar is setup to allocate one core per node.  This is a
     ! hack for the moment. There's a more sophisticated system of logical
     ! nodes, specified by CALC/LOGICALNODESIZE.
     !
-    ! Shared memory has been modified to deal with this.  If shared memory 
+    ! Shared memory has been modified to deal with this.  If shared memory
     ! within only a logical node is required use a form like
     !
     !   call shared_allocate_iluts ("DetList", DetList, (/nIfTot,nMaxAmpl/), &
     !                               iNodeIndex)
     !
-    !  where iNodeIndex is the logical node.  Otherwise shared memory is 
+    !  where iNodeIndex is the logical node.  Otherwise shared memory is
     !  over physical nodes, irrespective of the logical node structure.
 
     subroutine MPINodes (tUseProcsAsNodes)
@@ -1806,11 +1802,10 @@ contains
         integer, allocatable :: NodesDum(:)
         integer(c_size_t) length
         character(len=30) :: nm, nm2, nms(0:nProcessors-1)
-        logical, save :: initialised=.false.
 
-        ! Onli initialise once
-        if(initialised) return
-        initialised=.true.
+        ! Only initialise once
+        if (neci_MPINodes_called) return
+        neci_MPINodes_called = .true.
 
         ! Allocate (temporary) memory
         if(.not.allocated(Nodes)) allocate(Nodes(0:nProcessors-1))
@@ -1843,7 +1838,7 @@ contains
 #endif
                 enddo
             endif
-        else 
+        else
             call MPICommGroup(CommGlobal, GroupDum, ierr)
             Group = GroupDum
             length = 30
@@ -1873,7 +1868,7 @@ contains
                                 NodeLengths(j) = NodeLengths(j)+1
                                 exit
                             endif
-                        endif 
+                        endif
                     enddo
                     if (Nodes(i)%n == -1) then
                         NodeRoots(nNodes) = i
@@ -1890,7 +1885,7 @@ contains
         allocate(NodesDum(0:nProcessors-1))
 
         do i = 0, nProcessors-1
-        !Due to type checking, it now doesn't like being passed an array of 
+        !Due to type checking, it now doesn't like being passed an array of
         ! CommI's. Revert them to integers, and broadcast
             NodesDum(i) = Nodes(i)%n
         enddo
@@ -1927,7 +1922,7 @@ contains
             n = 0
             do j = 0, nProcessors-1
                 if (Nodes(j)%n == i) then
-                    if (j == iProcIndex) iIndexInNode = n 
+                    if (j == iProcIndex) iIndexInNode = n
                     n = n + 1
                     GroupProc(n) = j
                 endif
@@ -1996,11 +1991,12 @@ contains
 
 
     subroutine MPIStopAll(error_str)
+    use MolproPlugin, only : MolproPluginTerm
 
         !  Abort all processors.
-        !  
+        !
         !  In:
-        !     error_str: parameter string containing error used as argument 
+        !     error_str: parameter string containing error used as argument
         !                to STOP.
 
         character(3) :: error_str
@@ -2008,6 +2004,7 @@ contains
 
         error_code=0
 #ifdef PARALLEL
+        CALL MolproPluginTerm(-1)
 
         ! errorcode: Error returned to invoking environment.
         ! ierror: error status (of abort: was abort successful?)

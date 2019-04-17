@@ -7,7 +7,7 @@ module kp_fciqmc
     use kp_fciqmc_procs
 
     use AnnihilationMod, only: DirectAnnihilation
-    use bit_rep_data, only: NIfTot, NOffFlag, tUseFlags, test_flag
+    use bit_rep_data, only: NIfTot, NOffFlag, test_flag
     use bit_reps, only: flag_deterministic, flag_determ_parent, set_flag
     use bit_reps, only: extract_bit_rep
     use CalcData, only: AvMCExcits, tSemiStochastic, tTruncInitiator, StepsSft
@@ -157,7 +157,8 @@ contains
                             call extract_bit_rep(ilut_parent, nI_parent, parent_sign, unused_flags, &
                                                   fcimc_excit_gen_store)
 
-                            ex_level_to_ref = FindBitExcitLevel(iLutRef, ilut_parent, max_calc_ex_level)
+                            ex_level_to_ref = FindBitExcitLevel(iLutRef(:,1), ilut_parent, &
+                                 max_calc_ex_level)
                             if(tRef_Not_HF) then
                                 ex_level_to_hf = FindBitExcitLevel (iLutHF_true, ilut_parent, max_calc_ex_level)
                             else
@@ -193,7 +194,7 @@ contains
                             ! The current diagonal matrix element is stored persistently.
                             parent_hdiag = det_diagH(idet)
 
-                            if (tTruncInitiator) call CalcParentFlag(idet, parent_flags, parent_hdiag)
+                            if (tTruncInitiator) call CalcParentFlag(idet, parent_flags)
 
                             call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
                                                parent_hdiag, 1.0_dp, tPairedReplicas, idet)
@@ -216,7 +217,7 @@ contains
 
                                 do ireplica = 1, lenof_sign
 
-                                    call decide_num_to_spawn(parent_sign(ireplica), AvMCExcits, nspawn)
+                                    call decide_num_to_spawn(parent_sign(ireplica), parent_hdiag, AvMCExcits, nspawn)
                                     
                                     do ispawn = 1, nspawn
 
@@ -231,7 +232,7 @@ contains
                                         if (.not. IsNullDet(nI_child)) then
 
                                             call encode_child (ilut_parent, ilut_child, ic, ex)
-                                            if (tUseFlags) ilut_child(nOffFlag) = 0_n_int
+                                            ilut_child(nOffFlag) = 0_n_int
 
                                             if (tSemiStochastic) then
                                                 tChildIsDeterm = is_core_state(ilut_child, nI_child)
@@ -518,7 +519,8 @@ contains
                         call extract_bit_rep(ilut_parent, nI_parent, parent_sign, unused_flags, &
                                               fcimc_excit_gen_store)
 
-                        ex_level_to_ref = FindBitExcitLevel(iLutRef, ilut_parent, max_calc_ex_level)
+                        ex_level_to_ref = FindBitExcitLevel(iLutRef(:,1), ilut_parent, &
+                             max_calc_ex_level)
                         if(tRef_Not_HF) then
                             ex_level_to_hf = FindBitExcitLevel (iLutHF_true, ilut_parent, max_calc_ex_level)
                         else
@@ -554,7 +556,7 @@ contains
                         ! The current diagonal matrix element is stored persistently.
                         parent_hdiag = det_diagH(idet)
 
-                        if (tTruncInitiator) call CalcParentFlag(idet, parent_flags, parent_hdiag)
+                        if (tTruncInitiator) call CalcParentFlag(idet, parent_flags)
 
                         call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
                                            parent_hdiag, 1.0_dp, tPairedReplicas, idet)
@@ -567,7 +569,7 @@ contains
 
                         do ireplica = 1, lenof_sign
 
-                            call decide_num_to_spawn(parent_sign(ireplica), AvMCExcits, nspawn)
+                            call decide_num_to_spawn(parent_sign(ireplica), parent_hdiag, AvMCExcits, nspawn)
                             
                             do ispawn = 1, nspawn
 
@@ -582,7 +584,7 @@ contains
                                 if (.not. IsNullDet(nI_child)) then
 
                                     call encode_child(ilut_parent, ilut_child, ic, ex)
-                                    if (tUseFlags) ilut_child(nOffFlag) = 0_n_int
+                                    ilut_child(nOffFlag) = 0_n_int
 
                                     if (tSemiStochastic) then
                                         tChildIsDeterm = is_core_state(ilut_child, nI_child)

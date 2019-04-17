@@ -1,8 +1,11 @@
 
 # List the files that ought to be compiled
 
-set( SRC_FILES 
+set( SRC_FILES
 
+    adi_references.F90
+    adi_initiators.F90
+    adi_data.F90
     Annihilation.F90
     bit_rep_data.F90
     BitReps.F90
@@ -89,6 +92,9 @@ set( SRC_FILES
     Logging.F90
     Makefile
     matmul.F
+    molcas_interface.F90
+    MolproPlugin.F90
+    PluginGuest.cpp
     NatOrbs.F90
     NECICore.F90
     neci_intfce.F90
@@ -156,6 +162,7 @@ set( SRC_FILES
     System_neci.F90
     tau_search.F90
     trial_wf_gen.F90
+    trial_ht_procs.F90
     UMatCache.F90
     vasp_init.F90
     vasp_interface.F90
@@ -207,9 +214,6 @@ set( TEMPLATED_SRC_FILES
 # Don't use generator expressions for including libraries, as this causes problems when there are list
 # expansions.
 set( _conditional_libraries "" )
-if (HAVE_MPI)
-    list(APPEND _conditional_libraries ${MPI_NECI_Fortran_LIBRARIES} )
-endif()
 if (HAVE_FFTW)
     list(APPEND _conditional_libraries ${FFTW_LIBRARIES} )
 endif()
@@ -222,7 +226,9 @@ endif()
 set( _library_link_libs
     "${LAPACK_NECI_LIBRARIES}"
     "${LIBRT_LIBRARIES}"
-    "${_conditional_libraries}" )
+    "${_conditional_libraries}"
+    "${MPI_NECI_LIBRARIES}"
+    "${MPI_NECI_Fortran_LIBRARIES}")
 
 if( HAVE_SHARED )
     set( _link_type SHARED )
@@ -241,7 +247,7 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
     message(STATUS "Adding library for configuration ${_config}")
     message(STATUS "Library definitions: ${${PROJECT_NAME}_${_config}_DEFINITIONS}")
     neci_add_library(
-    
+
         TARGET lib${_config}
         TYPE ${_link_type}
         OUTPUT_NAME ${_config}

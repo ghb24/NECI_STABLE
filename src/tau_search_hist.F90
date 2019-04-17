@@ -401,19 +401,22 @@ contains
             ! the value obtained to restrict the maximum death-factor to 1.0.
             call MPIAllReduce (max_death_cpt, MPI_MAX, mpi_tmp)
             max_death_cpt = mpi_tmp
-            tau_death = 1.0_dp / max_death_cpt
+            ! again, this only makes sense if there has been some death
+            if(max_death_cpt > EPS) then
+               tau_death = 1.0_dp / max_death_cpt
 
-            ! If this actually constrains tau, then adjust it!
-            if (tau_death < tau) then
-                tau = tau_death
-
-                root_print "******"
-                root_print "WARNING: Updating time step due to particle death &
-                           &magnitude"
-                root_print "This occurs despite variable shift mode"
-                root_print "Updating time-step. New time-step = ", tau
-                root_print "******"
-            end if
+               ! If this actually constrains tau, then adjust it!
+               if (tau_death < tau) then
+                  tau = tau_death
+                  
+                  root_print "******"
+                  root_print "WARNING: Updating time step due to particle death &
+                       &magnitude"
+                  root_print "This occurs despite variable shift mode"
+                  root_print "Updating time-step. New time-step = ", tau
+                  root_print "******"
+               end if
+            endif
 
             ! Condition met --> no need to do this again next iteration
             tSearchTauDeath = .false.
@@ -592,10 +595,15 @@ contains
                     ! and if this is somehow cool in the histogramming 
                     ! approach.. this again is some kind of worst case 
                     ! adaptation.. hm.. todo
-                    tau_new = max_permitted_spawn * min(&
-                        pSingles / ratio_singles, &
-                        pDoubles * pParallel / ratio_para, &
-                        pDoubles * (1.0_dp - pParallel) / ratio_anti)
+                    if(abs(ratio_singles) > EPS .or. abs(ratio_para) > EPS &
+                         .or. abs(ratio_anti) > EPS) then
+                       tau_new = max_permitted_spawn * min(&
+                            pSingles / max(EPS,ratio_singles), &
+                            pDoubles * pParallel / max(EPS,ratio_para), &
+                            pDoubles * (1.0_dp - pParallel) / max(EPS,ratio_anti))
+                    else 
+                       tau_new = tau
+                    endif
 
                 end if
 
@@ -652,9 +660,12 @@ contains
 
                 else 
                     psingles_new = pSingles
-                    tau_new = max_permitted_spawn * & 
-                        min(pSingles / ratio_singles, pDoubles / ratio_doubles)
-
+                    if(abs(ratio_singles) > EPS .or. abs(ratio_doubles) > EPS) then
+                       tau_new = max_permitted_spawn * & 
+                            min(pSingles / max(EPS,ratio_singles), pDoubles / max(EPS,ratio_doubles))
+                    else 
+                       tau_new = tau
+                    endif
                 end if
             end if
         end if
@@ -664,14 +675,17 @@ contains
         ! the value obtained to restrict the maximum death-factor to 1.0.
         call MPIAllReduce (max_death_cpt, MPI_MAX, mpi_tmp)
         max_death_cpt = mpi_tmp
-        tau_death = 1.0_dp / max_death_cpt
-
-        if (tau_death < tau_new) then
-            if (t_min_tau) then
-                root_print "time-step reduced, due to death events! reset min_tau to:", tau_death
-                min_tau_global = tau_death
-            end if
-            tau_new = tau_death
+        ! again, only count deaths if any occured
+        if(abs(max_death_cpt) > EPS) then
+           tau_death = 1.0_dp / max_death_cpt
+           
+           if (tau_death < tau_new) then
+              if (t_min_tau) then
+                 root_print "time-step reduced, due to death events! reset min_tau to:", tau_death
+                 min_tau_global = tau_death
+              end if
+              tau_new = tau_death
+           end if
         end if
 
         ! And a last sanity check/hard limit

@@ -1,7 +1,7 @@
 #image: dobrautz/neci_base:14.04
 # i have two more images, which mimick the office setting, prepared now: 
 #image: dobrautz/neci_base:opensuse13.2
-image: dobrautz/neci_base:opensuse42.2
+image: dobrautz/neci_base:opensuse42.3
 
 pipelines:
  default: 
@@ -26,7 +26,7 @@ pipelines:
       - echo "running limited test_suite(to save build-minutes)"
       - useradd temp
       - cd ../test_suite
-      - su -c "/testcode/bin/testcode.py -c dneci/double_occ/hub_2x2 -c kmneci/Rn_lanczos_dci_init -c kneci/C_221_int -c mneci/cfqmc/HeHe_5_states -c neci/parallel/C_Solid" -s /bin/sh temp
+      - su -c "/testcode/bin/testcode.py -c dneci/double_occ/hub_2x2 -c kmneci/Rn_lanczos_fci -c kneci/C_221_int -c mneci/cfqmc/HeHe_5_states -c neci/parallel/C_Solid" -s /bin/sh temp
 
 # [W.D.] ignore the stuff below for now, will clean up later
  custom:
@@ -170,7 +170,7 @@ pipelines:
         - echo "unit tests passed"
         - echo "running limited test_suite(to save build-minutes)"
         - adduser temp
-        - su -c "/testcode/bin/testcode.py -c dneci/double_occ/hub_2x2 -c kmneci/Rn_lanczos_dci_init -c kneci/C_221_int -c mneci/cfqmc/HeHe_5_states -c neci/parallel/C_Solid" -s /bin/sh temp
+        - su -c "/testcode/bin/testcode.py -c dneci/double_occ/hub_2x2 -c kmneci/Rn_lanczos_fci -c kneci/C_221_int -c mneci/cfqmc/HeHe_5_states -c neci/parallel/C_Solid" -s /bin/sh temp
 
 
 

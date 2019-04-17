@@ -19,9 +19,10 @@ contains
         ! We run the specified number of replicas in parallel.
         !
         ! This is initialisation of _global_ data that depends on the number
-        ! of 
+        ! of
 
         character(*), parameter :: this_routine = 'init_replica_arrays'
+        character(120) :: error_message
         integer :: ierr
 
         if (inum_runs > inum_runs_max .or. lenof_sign > lenof_sign_max) then
@@ -81,6 +82,8 @@ contains
                  iRefProc(inum_runs), proje_ref_energy_offsets(inum_runs), &
                  iHighestPop(inum_runs), &
                  replica_overlaps_real(inum_runs, inum_runs), &
+                 all_norms(inum_runs), &
+                 all_overlaps(inum_runs, inum_runs), &
 #ifdef __CMPLX
                  replica_overlaps_imag(inum_runs, inum_runs), &
 #endif
@@ -98,7 +101,7 @@ contains
 
                  ! Overall wavefunction properties
                  norm_psi(inum_runs), norm_psi_squared(inum_runs), &
-                 all_norm_psi_squared(inum_runs), &
+                 all_norm_psi_squared(inum_runs), old_norm_psi(inum_runs), &
                  norm_semistoch(inum_runs), norm_semistoch_squared(inum_runs),&
                  curr_S2(inum_runs), curr_S2_init(inum_runs), &
 
@@ -109,6 +112,8 @@ contains
                  AbsProjE(inum_runs), &
                  trial_numerator(inum_runs), tot_trial_numerator(inum_runs), &
                  trial_denom(inum_runs), tot_trial_denom(inum_runs), &
+                 trial_num_inst(inum_runs), tot_trial_num_inst(inum_runs), &
+                 trial_denom_inst(inum_runs), tot_trial_denom_inst(inum_runs), &
                  sum_proje_denominator(inum_runs), &
                  all_sum_proje_denominator(inum_runs), &
                  cyc_proje_denominator(inum_runs), &
@@ -124,10 +129,16 @@ contains
                  InstShift(inum_runs), &
                  AvDiagSft(inum_runs), SumDiagSft(inum_runs), &
                  DiagSft(inum_runs), &
-                 hdf5_diagsft(inum_runs), & 
+                 hdf5_diagsft(inum_runs), &
                  DiagSftRe(inum_runs), &
                  DiagSftIm(inum_runs), &
                  tSinglePartPhase(inum_runs), stat=ierr)
+
+        if (ierr /= MPI_SUCCESS) then
+            write(error_message, '(A, I0)') &
+                'Error during allocation. ierr = ', ierr
+            call Stop_All(this_routine, error_message)
+        end if
 
         ! Variables which are only used conditionally.
         ! NB, NFrozen has not been subtracted from NEl yet!
@@ -151,13 +162,14 @@ contains
     subroutine clean_replica_arrays()
 
         ! The reverse of the above routine...
-
         deallocate(InstNoatHF, &
                    SumNoatHF, AllSumNoatHF, &
                    NoatHF, AllNoatHF, OldAllNoatHF, &
                    iRefProc, proje_ref_energy_offsets, &
                    iHighestPop, &
                    replica_overlaps_real, &
+                   all_norms, &
+                   all_overlaps, &
 #ifdef __CMPLX
                    replica_overlaps_imag, &
 #endif
@@ -202,14 +214,16 @@ contains
                    OldAllAvWalkersCyc, &
 
                    norm_psi, norm_psi_squared, &
-                   all_norm_psi_squared, &
+                   all_norm_psi_squared, old_norm_psi, &
                    norm_semistoch, norm_semistoch_squared, &
                    curr_S2, curr_S2_init, &
-                   
+
                    SumENum, AllSumENum, ProjectionE, &
                    proje_iter, AbsProjE, &
                    trial_numerator, tot_trial_numerator, &
                    trial_denom, tot_trial_denom, &
+                   trial_num_inst, tot_trial_num_inst, &
+                   trial_denom_inst, tot_trial_denom_inst, &
                    sum_proje_denominator, all_sum_proje_denominator, &
                    cyc_proje_denominator, all_cyc_proje_denominator, &
 
@@ -223,6 +237,9 @@ contains
                    InstShift, &
                    AvDiagSft, SumDiagSft, &
                    DiagSft, &
+                   hdf5_diagsft, &
+                   DiagSftRe, &
+                   DiagSftIm, &
                    tSinglePartPhase, &
 
                    ! KPFCIQMC
@@ -249,6 +266,9 @@ contains
                  iter_data%update_growth(lenof_sign), &
                  iter_data%update_growth_tot(lenof_sign), &
                  iter_data%tot_parts_old(lenof_sign), stat=ierr)
+
+        ! initialize to 0
+        iter_data%update_growth_tot = 0.0_dp
 
     end subroutine
 
@@ -331,13 +351,13 @@ contains
         AllNoAbortedOld(:) = 0.0_dp
 
         iter_data_fciqmc%tot_parts_old = AllTotParts
-        
+
         do run = 1, inum_runs
 
             ! Calculate the projected energy for this iteration.
             if (ARR_RE_OR_CPLX(AllSumNoAtHF,run) /= 0) &
                 ProjectionE(run) = AllSumENum(run) / ARR_RE_OR_CPLX(AllSumNoatHF,run)
-            
+
             ! Keep track of where the particles are
             if (iProcIndex == iRefProc(run)) then
                 SumNoatHF(run) = AllSumNoatHF(run)
@@ -345,7 +365,7 @@ contains
                 InstNoatHF(run) = NoatHF(run)
             end if
 
-        enddo 
+        enddo
 
     end subroutine set_initial_global_data
 

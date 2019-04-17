@@ -1,0 +1,38 @@
+title
+
+system hubbard
+electrons 3
+B -1
+U 8
+cell 2 1 1
+real
+nonuniformrandexcits nosymgen
+spin-restrict 1
+endsys
+
+calc
+methods
+method vertex fcimc
+endmethods
+
+totalwalkers 200
+nmcyc 8000
+shiftdamp 0.1
+truncinitiator
+addtoinitiator 0
+stepsshift 10
+allrealcoeff
+realspawncutoff 1
+proje-changeref 1.2
+tau 0.0001
+startsinglepart 20
+diagshift 1.0
+all-doubs-initiators
+trial-wavefunction 10
+pops-trial 1
+endcalc
+
+logging 
+popsfile -1
+endlog
+end

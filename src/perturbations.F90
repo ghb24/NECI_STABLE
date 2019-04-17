@@ -52,7 +52,7 @@ contains
         integer(n_int), intent(in) :: dets_in(0:,:) ! First dimension must be 0:NIfTot
         integer(n_int), intent(out) :: dets_out(0:,:) ! First dimension must be 0:NIfTot
 
-        integer :: i, ndets_init, ndets_pert_1, ndets_pert_2
+        integer :: i, ndets_init, ndets_pert_1, ndets_pert_2, ierr
         integer(n_int), allocatable :: temp_dets_1(:,:), temp_dets_2(:,:)
 
         ndets_init = ndets
@@ -138,7 +138,7 @@ contains
             else
                 call decode_bit_det(nI, ilut)
                 proc = DetermineDetNode(nel,nI,0)
-                SpawnedParts(:, ValidSpawnedList(proc)) = ilut
+                SpawnedParts(0:NIfTot, ValidSpawnedList(proc)) = ilut
                 ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
             end if
         end do
@@ -158,7 +158,7 @@ contains
 
         ! Now move the contents of SpawnedParts to ilut_list.
         do i = 1, ndets
-            dets_out(:,i) = SpawnedParts(:,i)
+            dets_out(:,i) = SpawnedParts(0:NIfTot,i)
         end do
 
         call sort(dets_out(:, 1:ndets), ilut_lt, ilut_gt)

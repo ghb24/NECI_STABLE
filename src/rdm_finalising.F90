@@ -17,21 +17,20 @@ module rdm_finalising
 
 contains
 
-    subroutine finalise_rdms(rdm_defs, one_rdms, two_rdms, rdm_recv, rdm_recv_2, spawn, rdm_estimates)
+    subroutine finalise_rdms(rdm_defs, one_rdms, two_rdms, rdm_recv, rdm_recv_2, en_pert, spawn, rdm_estimates)
 
         ! Wrapper routine, called at the end of a simulation, which in turn
         ! calls all required finalisation routines.
 
-#ifdef _MOLCAS_
-        use EN2MOLCAS, only: NECI_E
-#endif
+        use EN2MOLCAS, only : NECI_E
+        use SystemData, only : tMolcas
         use LoggingData, only: tBrokenSymNOs, occ_numb_diff, RDMExcitLevel, tExplicitAllRDM
         use LoggingData, only: tPrint1RDM, tDiagRDM, tDumpForcesInfo
         use LoggingData, only: tDipoles, tWrite_normalised_RDMs
         use Parallel_neci, only: iProcIndex, MPIBarrier, MPIBCast
         use rdm_data, only: tRotatedNos, FinaliseRDMs_Time, tOpenShell, print_2rdm_est
         use rdm_data, only: rdm_list_t, rdm_spawn_t, one_rdm_t, rdm_estimates_t
-        use rdm_data, only: rdm_definitions_t
+        use rdm_data, only: rdm_definitions_t, en_pert_t
         use rdm_estimators, only: calc_2rdm_estimates_wrapper, write_rdm_estimates
         use rdm_nat_orbs, only: find_nat_orb_occ_numbers, BrokenSymNo
         use util_mod, only: set_timer, halt_timer
@@ -40,6 +39,7 @@ contains
         type(one_rdm_t), intent(inout) :: one_rdms(:)
         type(rdm_list_t), intent(in) :: two_rdms
         type(rdm_list_t), intent(inout) :: rdm_recv, rdm_recv_2
+        type(en_pert_t), intent(in) :: en_pert
         type(rdm_spawn_t), intent(inout) :: spawn
         type(rdm_estimates_t), intent(inout) :: rdm_estimates
 
@@ -65,7 +65,7 @@ contains
             ! Calculate the RDM estmimates from the final few iterations,
             ! since it was last calculated. But only do this if they're
             ! actually to be printed.
-            call calc_2rdm_estimates_wrapper(rdm_defs, rdm_estimates, two_rdms)
+            call calc_2rdm_estimates_wrapper(rdm_defs, rdm_estimates, two_rdms, en_pert)
 
             ! Output the final 2-RDMs themselves, in all forms desired.
             call output_2rdm_wrapper(rdm_defs, rdm_estimates, two_rdms, rdm_recv, rdm_recv_2, spawn)
@@ -122,14 +122,12 @@ contains
         if (RDMExcitLevel /= 1 .and. iProcIndex == 0) then
             call write_rdm_estimates(rdm_defs, rdm_estimates, .true., print_2rdm_est)
         end if
-#ifdef _MOLCAS_
-        if (print_2rdm_est) then
-            NECI_E = rdm_estimates%rdm_energy_tot_accum(1)
+        if (print_2rdm_est .and. tMolcas) then
+            NECI_E = rdm_estimates%energy_num(1) / rdm_estimates%norm(1)
             call MPIBarrier(ierr)
             call MPIBCast(NECI_E)
-            write(6,*) 'NECI_E at rdm_general.f90 ', NECI_E
+            write(6,*) 'NECI_E at rdm_finalising.F90 ', NECI_E
         end if
-#endif
 
         call halt_timer(FinaliseRDMs_Time)
 
@@ -659,8 +657,8 @@ contains
         ! Only print non-transition RDMs, for now.
         nrdms_to_print = rdm_defs%nrdms_standard
         call print_rdms_with_spin(rdm_defs, nrdms_to_print, rdm_recv_2, rdm_trace, open_shell)
-        ! intermediate hack: 
-        if (t_calc_double_occ) then 
+        ! intermediate hack:
+        if (t_calc_double_occ) then
             call calc_double_occ_from_rdm(rdm_recv_2, rdm_trace, nrdms_to_print)
         end if
 
@@ -1186,7 +1184,7 @@ contains
             end do
 
             if (RDMExcitLevel == 1) then
-                ! Only non-transition RDMs should be hermitian and obey the 
+                ! Only non-transition RDMs should be hermitian and obey the
                 ! Cauchy-Schwarz inequalityo.
                 do irdm = 1, rdm_defs%nrdms_standard
                     call make_1e_rdm_hermitian(one_rdms(irdm)%matrix, norm_1rdm(irdm))

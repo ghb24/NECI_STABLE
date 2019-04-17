@@ -34,8 +34,10 @@ contains
         use FciMCData, only: determ_sizes, determ_displs, full_determ_vecs, full_determ_vecs_av
         use FciMCData, only: partial_determ_vecs, determ_space_size, determ_space_size_int
         use FciMCData, only: TotWalkers, TotWalkersOld, indices_of_determ_states, SpawnedParts
-        use FciMCData, only: FDetermTag, FDetermAvTag, PDetermTag, IDetermTag, SemiStoch_Init_Time
-        use FciMCData, only: tStartCoreGroundState, iter_data_fciqmc
+        use FciMCData, only: FDetermTag, FDetermAvTag, PDetermTag, IDetermTag
+        use FciMCData, only: tStartCoreGroundState, iter_data_fciqmc, SemiStoch_Init_Time
+        use FciMCData, only: NoInitDets, AllNoInitDets
+        use FciMCData, only: tFillingStochRdmOnFly
         use load_balance, only: adjust_load_balance
         use load_balance_calcnodes, only: tLoadBalanceBlocks
         use sort_mod, only: sort
@@ -43,7 +45,7 @@ contains
 
         type(subspace_in) :: core_in
 
-        integer :: i, j, ierr
+        integer :: i, j, ierr, run
         integer :: nI(nel)
         integer(MPIArg) :: mpi_temp
         character (len=*), parameter :: t_r = "init_semi_stochastic"
@@ -51,7 +53,7 @@ contains
         ! If we are load balancing, this gets disabled once semi stochastic
         ! has been initialised. Therefore we should do a last-gasp load
         ! adjustment at this point.
-        if (tLoadBalanceBlocks) then
+        if (tLoadBalanceBlocks .and. .not. tFillingStochRDMOnFly) then
             call adjust_load_balance(iter_data_fciqmc)
         end if
 
@@ -62,7 +64,7 @@ contains
         call MPIBarrier(ierr, tTimeIn=.false.)
 
         call set_timer(SemiStoch_Init_Time)
-
+        
         write(6,'(/,12("="),1x,a30,1x,12("="))') "Semi-stochastic initialisation"; call neci_flush(6)
 
         allocate(determ_sizes(0:nProcessors-1))
@@ -72,7 +74,8 @@ contains
 
         if (.not. (tStartCAS .or. core_in%tPops .or. core_in%tDoubles .or. core_in%tCAS .or. core_in%tRAS .or. &
                    core_in%tOptimised .or. core_in%tLowE .or. core_in%tRead .or. core_in%tMP1 .or. &
-                   core_in%tFCI .or. core_in%tHeisenbergFCI .or. core_in%tHF)) then
+                   core_in%tFCI .or. core_in%tHeisenbergFCI .or. core_in%tHF .or. &
+               core_in%tPopsAuto)) then
             call stop_all("init_semi_stochastic", "You have not selected a semi-stochastic core space to use.")
         end if
         if (.not. tUseRealCoeffs) call stop_all(t_r, "To use semi-stochastic you must also use real coefficients.")
@@ -81,6 +84,23 @@ contains
         ! SpawnedParts on the correct processor. As they do this, they count the size of the
         ! deterministic space (on their own processor only).
         write(6,'("Generating the deterministic space...")'); call neci_flush(6)
+        if (core_in%tPopsAuto) then
+            write(6,'("Choosing 10% of initiator space as core space, if this number is larger than 50000, then use 50000")')
+            call neci_flush(6)
+            ! from my understanding npops refers to the total core space size
+            do run = 1, inum_runs
+                write(6,'("Estimated size of core space:",1X,i5)') int(AllNoInitDets(run)*0.1)
+                call neci_flush(6)
+                if (int(AllNoInitDets(run)*0.1) > 50000) then
+                    core_in%npops = 50000
+                else
+                    core_in%npops = int(AllNoInitDets(run)*0.1)
+                end if
+            end do
+            ! might also need to check if the total space is too large so that
+            ! tApproxSpace should be used instead...
+        end if
+
         if (core_in%tApproxSpace) write(6,'(" ... approximately using the factor of",1X,i5)') core_in%nApproxSpace
         call generate_space(core_in)
 
@@ -119,10 +139,10 @@ contains
         ! to the first index position in the vector (i.e. the array disps in MPI routines).
         determ_displs(0) = 0
         do i = 1, nProcessors-1
-            determ_displs(i) = sum(determ_sizes(:i-1))
+            determ_displs(i) = determ_displs(i-1) + determ_sizes(i-1)
         end do
 
-        call sort(spawnedparts(:,1:determ_sizes(iprocindex)), ilut_lt, ilut_gt)
+        call sort(spawnedparts(0:NIfTot,1:determ_sizes(iprocindex)), ilut_lt, ilut_gt)
 
         ! Do a check that no states are in the deterministic space twice. The list is sorted
         ! already so simply check states next to each other in the list.
@@ -165,7 +185,7 @@ contains
         SpawnedParts = 0_n_int
         TotWalkersOld = TotWalkers
 
-        if (tStartCoreGroundState .and. (.not. tReadPops)) &
+        if (tStartCoreGroundState .and. (.not. tReadPops) .and. tStaticCore) &
             call start_walkers_from_core_ground(tPrintInfo = .true.)
 
         ! Call MPIBarrier here so that Semistoch_Init_Time will give the
@@ -264,7 +284,7 @@ contains
 
         ! If requested, remove high energy orbitals so that the space size is below some max.
         if (core_in%tLimitSpace) then
-            call remove_high_energy_orbs(SpawnedParts(:, 1:space_size), space_size, &
+            call remove_high_energy_orbs(SpawnedParts(0:NIfTot, 1:space_size), space_size, &
                                            core_in%max_size, .true.)
             determ_sizes(iProcIndex) = int(space_size, MPIArg)
         end if
@@ -311,7 +331,7 @@ contains
 
         space_size = space_size + 1
         ilut_list(:, space_size) = 0_n_int
-        ilut_list(0:NIfDBO, space_size) = ilut(0:NIfDBO)
+        ilut_list(0:NIfTot, space_size) = ilut(0:NIfTot)
 
     end subroutine add_state_to_space
 
@@ -381,7 +401,6 @@ contains
                 end if
                 call add_state_to_space(ilut, ilut_list, space_size, nI)
             end do
-
         end if
 
     end subroutine generate_sing_doub_determinants
@@ -823,7 +842,8 @@ contains
             sendcounts = int(proc_space_sizes*(NIfTot+1),MPIArg)
             disps(0) = 0
             do i = 1, nProcessors-1
-                disps(i) = int(sum(proc_space_sizes(0:i-1))*(NIfTot+1),MPIArg)
+                disps(i) = int(disps(i-1) + proc_space_sizes(i-1)*(NIfTot+1),MPIArg)
+!               disps(i) = int(sum(proc_space_sizes(0:i-1))*(NIfTot+1),MPIArg)
             end do
         end if
 
@@ -891,6 +911,7 @@ contains
 
         n_pops_keep = target_space_size
 
+
         ! Quickly loop through and find the number of determinants with
         ! zero sign.
         nzero_dets = 0
@@ -910,6 +931,7 @@ contains
             length_this_proc = min( int(n_pops_keep, MPIArg), int(TotWalkers-nzero_dets,MPIArg) )
         end if
 
+
         call MPIAllGather(length_this_proc, lengths, ierr)
         total_length = sum(lengths)
         if (total_length < n_pops_keep) then
@@ -919,21 +941,23 @@ contains
             n_pops_keep = total_length
         end if
 
+
         ! Allocate necessary arrays and log the memory used.
-        allocate(amps_this_proc(length_this_proc))
+        allocate(amps_this_proc(length_this_proc), stat = ierr)
         call LogMemAlloc("amps_this_proc", int(length_this_proc, sizeof_int), 8, t_r, TagA, ierr)
-        allocate(amps_all_procs(total_length))
+        allocate(amps_all_procs(total_length), stat = ierr)
         call LogMemAlloc("amps_all_procs", int(total_length, sizeof_int), 8, t_r, TagB, ierr)
-        allocate(indices_to_keep(n_pops_keep))
+        allocate(indices_to_keep(n_pops_keep), stat = ierr)
         call LogMemAlloc("indices_to_keep", n_pops_keep, sizeof_int, t_r, TagC, ierr)
-        allocate(largest_states(0:NIfTot, length_this_proc))
+        allocate(largest_states(0:NIfTot, length_this_proc), stat = ierr)
         call LogMemAlloc("largest_states", int(length_this_proc,sizeof_int)*(NIfTot+1), &
                          size_n_int, t_r, TagD, ierr)
 
         disps(0) = 0_MPIArg
-        do i = 0, nProcessors-1
-            disps(i) = sum(lengths(:i-1))
+        do i = 1, nProcessors-1
+            disps(i) = disps(i-1) + lengths(i-1)
         end do
+        
 
         ! Return the most populated states in CurrentDets on *this* processor.
         call return_most_populated_states(int(length_this_proc,sizeof_int), largest_states)
@@ -947,10 +971,8 @@ contains
 
         ! Now we want to combine all the most populated states from each processor to find
         ! how many states to keep from each processor.
-
         ! Take the top length_this_proc states from each processor.
         call MPIAllGatherV(amps_this_proc(1:length_this_proc), amps_all_procs(1:total_length), lengths, disps)
-
         ! This routine returns indices_to_keep, which will store the indices in amps_all_procs
         ! of those amplitudes which are among the n_pops_keep largest (but not sorted).
         call return_largest_indices(n_pops_keep, int(total_length, sizeof_int), amps_all_procs, indices_to_keep)
@@ -974,15 +996,13 @@ contains
             end do
 
         end do
-
         ! Add the states to the ilut_list array.
         temp_ilut = 0_n_int
         do i = 1, n_states_this_proc
             ! The states in largest_states are sorted from smallest to largest.
-            temp_ilut(0:NIfDBO) = largest_states(0:NIfDBO, length_this_proc-i+1)
+            temp_ilut(0:NIfTot) = largest_states(0:NIfTot, length_this_proc-i+1)
             call add_state_to_space(temp_ilut, ilut_list, space_size)
         end do
-
         deallocate(amps_this_proc)
         call LogMemDealloc(t_r, TagA, ierr)
         deallocate(amps_all_procs)
@@ -1336,7 +1356,7 @@ contains
 
         use SystemData, only: nel
 
-        integer, intent(in) :: ispin
+        integer, value :: ispin
         integer, intent(inout) :: up_spins(nel/2+1)
         integer, intent(in) :: nsites, nup
         integer(n_int), intent(inout) :: ilut_list(0:,:)
@@ -1476,5 +1496,51 @@ contains
         end do
 
     end subroutine write_most_pop_core_at_end
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine refresh_semistochastic_space()
+      use FciMCData, only: iter_data_fciqmc
+      use semi_stoch_procs, only: end_semistoch
+      implicit none
+
+      ! The reinitialization of the semistochastic space can affect population
+      ! because of stochastic rounds. To log this correctly, set the iter_data to 0 here
+      iter_data_fciqmc%nborn = 0.0_dp
+      iter_data_fciqmc%nremoved = 0.0_dp
+      tStaticCore = .false.
+
+      ! as the important determinants might change over time, this
+      ! resets the semistochastic space taking the current population to get a new one
+      call end_semistoch()
+      ! the flag_deterministic flag has to be cleared from all determinants as it is
+      ! assumed that no states have that flag when init_semi_stochastic starts
+      call reset_core_space()
+      ! Now, generate the new deterministic space
+      call init_semi_stochastic(ss_space_in)
+
+      ! Changing the semi-stochastic space can involve some roundings
+      ! if determinants with population < realSpawnCutoff stop being 
+      ! in the corespace. Then, we need to log these events.
+      iter_data_fciqmc%update_growth = iter_data_fciqmc%update_growth + iter_data_fciqmc%nborn &
+           - iter_data_fciqmc%nremoved
+
+    end subroutine refresh_semistochastic_space
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine reset_core_space()
+      use bit_reps, only: clr_flag
+      use FciMCData, only: MaxWalkersPart
+      implicit none
+      integer :: i
+      
+      do i=1, MaxWalkersPart
+         call clr_flag(CurrentDets(:,i),flag_deterministic)
+      enddo
+      
+    end subroutine reset_core_space
+
+!------------------------------------------------------------------------------------------!
 
 end module semi_stoch_gen

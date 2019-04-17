@@ -13,7 +13,7 @@ C  ========================================================
       complex(dp) ZIA(-NMESHX/2:NMESHX/2,NMAX,NMAX) 
       real(dp) :: ALPHA,OMEGA
       real(dp) A(3),t3
-      real(sp) t(2),t1,t2
+      real(dp) t(2),t1,t2
       LOGICAL TALPHA
       INTEGER , SAVE :: IFIRST=0
 C..

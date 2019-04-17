@@ -206,7 +206,7 @@ contains
         num_states_tot = int(sum(num_states), sizeof_int)
         disps(0) = 0
         do i = 1, nProcessors-1
-            disps(i) = sum(num_states(:i-1))
+            disps(i) = disps(i-1) + num_states(i-1)
         end do
 
         safe_realloc_e(sparse_ham, (num_states(iProcIndex)), ierr)

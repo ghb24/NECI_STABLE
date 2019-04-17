@@ -1,6 +1,6 @@
 #include "macros.h"
 MODULE HFCalc
-   use constants, only: dp, int64
+   use constants, only: dp, int64, MPIArg
    implicit none
    save
    contains
@@ -23,7 +23,7 @@ MODULE HFCalc
       character(25), parameter :: this_routine='HFDoCalc'
       HElement_t(dp),ALLOCATABLE :: HFBASIS(:),HFE(:)
       HElement_t(dp),pointer :: UMat2(:)
-      INTEGER:: umat2_win
+      INTEGER(MPIArg):: umat2_win
       HElement_t(dp),pointer :: TMat2D2(:,:)
       integer i
       integer nOrbUsed

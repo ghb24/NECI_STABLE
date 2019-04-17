@@ -106,7 +106,7 @@ contains
 
         space_displs(0) = 0_MPIArg
         do i = 1, nProcessors-1
-            space_displs(i) = sum(space_sizes(:i-1))
+            space_displs(i) = space_displs(i-1) + space_sizes(i-1)
         end do
 
         call sort(trial_iluts(:,1:ndets_this_proc), ilut_lt, ilut_gt)
@@ -291,12 +291,13 @@ contains
 
         space_displs(0) = 0_MPIArg
         do i = 1, nProcessors-1
-            space_displs(i) = sum(space_sizes(:i-1))
+            space_displs(i) = space_displs(i-1) + space_sizes(i-1)
         end do
 
         ! [W.D. 15.5.2017:]
         ! is the sort behaving different, depending on the compiler? 
         ! since different references for different compilers..??
+
         call sort(trial_iluts(:,1:ndets_this_proc), ilut_lt, ilut_gt)
 
         if (iProcIndex == root) then
@@ -441,6 +442,8 @@ contains
 
         ! Send the components to the correct processors using the following
         ! array as temporary space.
+
+
         allocate(evecs_this_proc(nexcit, ndets_this_proc), stat=ierr)
         call MPIScatterV(evecs_transpose, sndcnts, displs, evecs_this_proc, rcvcnts, ierr)
         if (ierr /= 0) call stop_all(t_r, "Error in MPIScatterV call.")

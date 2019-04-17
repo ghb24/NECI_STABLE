@@ -66,6 +66,10 @@ module ParallelHelper
             use iso_c_hack
             integer(c_int), intent(out) :: ierr
         end subroutine
+        subroutine MPI_Initialized (flag, ierr) bind(c, name='mpi_initialized_wrap')
+            use iso_c_hack
+            integer(c_int), intent(out) :: flag, ierr
+        end subroutine
         subroutine MPI_Finalize (ierr) bind(c, name='mpi_finalize_wrap')
             use iso_c_hack
             integer(c_int), intent(out) :: ierr
@@ -193,8 +197,8 @@ module ParallelHelper
 
    ! Communicator/indices for MPI3 version of shared memory communication. 
    ! Probably this can eventually be merged with the variables above
-   integer:: mpi_comm_inter, mpi_comm_intra
-   integer:: iProcIndex_inter, iProcIndex_intra
+   integer(MPIArg):: mpi_comm_inter, mpi_comm_intra
+   integer(MPIArg):: iProcIndex_inter, iProcIndex_intra
 
    ! A null-info structure
    integer(MPIArg)      :: mpiInfoNull

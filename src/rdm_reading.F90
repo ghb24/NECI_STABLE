@@ -287,10 +287,10 @@ contains
         ! Wrapper function to calculate and print 1-RDMs from 2-RDMs, as might
         ! be useful if the user forgot to print 1-RDMs in a calculation.
 
-        use Parallel_neci, only: MPISumAll
+        use Parallel_neci, only: MPISumAll, iProcIndex
         use rdm_data, only: rdm_definitions_t, one_rdm_t, rdm_list_t
         use rdm_estimators, only: calc_rdm_trace
-        use rdm_finalising, only: calc_1rdms_from_2rdms, write_1rdm
+        use rdm_finalising, only: calc_1rdms_from_2rdms, write_1rdm, finalise_1e_rdm
         use SystemData, only: nel
 
         type(rdm_definitions_t), intent(in) :: rdm_defs
@@ -300,7 +300,7 @@ contains
 
         integer :: irdm
         real(dp) :: rdm_trace(two_rdms%sign_length), rdm_trace_all(two_rdms%sign_length)
-        real(dp) :: rdm_norm_all(two_rdms%sign_length), norm_1rdm
+        real(dp) :: rdm_norm_all(two_rdms%sign_length), norm_1rdm(size(one_rdms))
         character(len=*), parameter :: t_r = 'print_1rdms_from_2rdms_wrapper'
 
         if (size(one_rdms) == 0) then
@@ -316,12 +316,18 @@ contains
 
         ! The read-in spinfree 2-RDMs should already be normalised.
         rdm_norm_all = 1.0_dp
+        norm_1rdm = 1.0_dp
 
         call calc_1rdms_from_2rdms(rdm_defs, one_rdms, two_rdms, rdm_norm_all, open_shell)
 
-        do irdm = 1, size(one_rdms)
-            call write_1rdm(rdm_defs, one_rdms(irdm)%matrix, irdm, 1.0_dp, .true., .false.)
-        end do
+        ! we need to finalise the 1rdms
+        call finalise_1e_rdm(rdm_defs, one_rdms, norm_1rdm, .false.)
+
+        if(iProcIndex==0) then
+           do irdm = 1, size(one_rdms)
+              call write_1rdm(rdm_defs, one_rdms(irdm)%matrix, irdm, norm_1rdm(irdm), .true., .false.)
+           end do
+        endif
 
     end subroutine print_1rdms_from_2rdms_wrapper
 
