@@ -1,20 +1,24 @@
 [int]
 type1=integer(int32)
+name=int
 mpitype=MPI_INTEGER4
 sizeb=4
 
 [int64]
 type1=integer(int64)
+name=int64
 mpitype=MPI_INTEGER8
 sizeb=8
 
 [doub]
 type1=real(dp)
+name=doub
 mpitype=MPI_DOUBLE_PRECISION
 sizeb=dp
 
 [comp]
 type1=complex(dp)
+name=comp
 mpitype=MPI_DOUBLE_COMPLEX
 sizeb=(2*dp)
 
@@ -27,24 +31,8 @@ module scalar_shared_memory_mpi
 
 ! interface for the variadic allocation used when the shared memory option is disabled
   interface variadic_allocate
-      module procedure variadic_allocate_1
-      module procedure variadic_allocate_2
-  end interface
-
-! delegate this to a submodule as we cannot directly interface an interface
-  interface
-      module subroutine variadic_allocate_1(p_shm, dims)
-         implicit none
-         %(type1)s, dimension(:), pointer :: p_shm
-         integer(int64) :: dims(1)
-      end subroutine
-
-      module subroutine variadic_allocate_2(p_shm, dims)
-         implicit none
-         %(type1)s, dimension(:,:), pointer :: p_shm
-         integer(int64) :: dims(2)
-      end subroutine
-
+      module procedure variadic_allocate_1_%(name)s
+      module procedure variadic_allocate_2_%(name)s
   end interface
 
   contains
