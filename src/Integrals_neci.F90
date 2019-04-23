@@ -49,6 +49,8 @@ module Integrals_neci
     use real_space_hubbard, only: init_umat_rs_hub_transcorr, & 
                                   init_hopping_transcorr
 
+    use LoggingData, only: tLogKMatProjE
+    use kMatProjE, only: readKMat, freeKMat
     implicit none
 
 contains
@@ -700,6 +702,8 @@ contains
 
       if(t_mol_3_body) call readLMat()
 
+      if(tLogKMatProjE) call readKMat()
+
     End Subroutine IntInit
 
     ! initialize auxiliary buffers for certain integrals appearing often
@@ -846,6 +850,8 @@ contains
         character(*), parameter :: this_routine = 'IntCleanup'
 
         call freeIntBuffers()
+
+        if(tLogKMatProjE) call freeKMat()
 
         if(t_mol_3_body) call freeLMat()
 

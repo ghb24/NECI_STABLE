@@ -78,7 +78,7 @@ set( SRC_FILES
     IntegralsData.F90
     Integrals_neci.F90
     ISKRandExcit.F90
-    kMatRef.F90
+    kMatProjE.F90
     kp_fciqmc_data.F90
     kp_fciqmc.F90
     kp_fciqmc_init.F90

@@ -925,6 +925,45 @@ contains
 
     end function neci_etime
 
+    subroutine open_new_file(funit,filename)
+      implicit none
+      integer, intent(in) :: funit
+      character(*), intent(in) :: filename
+      logical :: exists
+      integer :: ierr, i
+      character(43) :: filename2
+      character(12) :: num
+      character(*), parameter :: t_r = 'open_new_file'
+      
+      ! If we are doing a normal calculation, move existing fciqmc_stats
+      ! files so that they are not overwritten, and then create a new one
+      inquire(file=filename, exist=exists)
+
+      if (exists) then
+
+         ! Loop until we find an available spot to move the existing
+         ! file to.
+         i = 1
+         do while(exists)
+            write(num, '(i12)') i
+            filename2 = trim(adjustl(filename)) // "." // &
+                 trim(adjustl(num))
+            inquire(file=filename2, exist=exists)
+            if (i > 10000) &
+                 call stop_all(t_r, 'Error finding free fciqmc_stats.*')
+            i = i + 1
+         end do
+
+         ! Move the file
+         call rename(filename, filename2)
+
+      end if
+
+      ! And finally open the file
+      open(funit, file=filename, status='unknown', iostat=ierr)
+
+    end subroutine open_new_file
+
 end module
 
 !Hacks for compiler specific system calls.

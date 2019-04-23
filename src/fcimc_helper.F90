@@ -33,7 +33,7 @@ module fcimc_helper
                            nHistEquilSteps, tCalcFCIMCPsi, StartPrintOrbOcc, &
                            HistInitPopsIter, tHistInitPops, iterRDMOnFly, &
                            FciMCDebug, tLogEXLEVELStats, maxInitExLvlWrite, &
-                           initsPerExLvl
+                           initsPerExLvl, tLogKMatProjE
     use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, tReplicaCoherentInits, &
                         tAddToInitiator, InitiatorWalkNo, tAvReps, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
@@ -72,7 +72,7 @@ module fcimc_helper
                                get_neg_spawns, get_pos_spawns
     use searching, only: BinSearchParts2
     use back_spawn, only: setup_virtual_mask
-    use kMatRef, only: addRefContrib
+    use kMatProjE, only: addProjEContrib
     implicit none
     save
 
@@ -614,6 +614,8 @@ contains
                   NoatDoubs(run) = NoatDoubs(run) + abs(RealwSign(run))
 #endif
                enddo
+               ! add the k-matrix contribution
+               if(tLogKMatProjE) call addProjEContrib(ProjEDet(:,1),nI,RealWSign)
             end if
             ! Obtain off-diagonal element
             if (tHPHF) then

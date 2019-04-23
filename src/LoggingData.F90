@@ -190,4 +190,8 @@ module LoggingData
 !     logical :: t_spatial_double_occ = .false.
 
     logical :: t_print_core_info = .false.
+
+    ! for transcorrelated approach: do we separately keep track of the TC part of
+    ! the correlation energy
+    logical :: tLogKMatProjE
 end module LoggingData
