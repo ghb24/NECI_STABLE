@@ -71,6 +71,10 @@ macro( neci_add_executable )
 
     set_property( TARGET ${_p_TARGET} PROPERTY RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin )
 
+    # Molpro plugin requires c++11
+    
+    set_property( TARGET ${_p_TARGET} PROPERTY CXX_STANDARD 11)
+
     # Global dependencies
 
     if ( DEFINED ${PROJECT_NAME}_GLOBAL_DEPENDENCIES AND NOT ${PROJECT_NAME}_GLOBAL_DEPENDENCIES STREQUAL "" )

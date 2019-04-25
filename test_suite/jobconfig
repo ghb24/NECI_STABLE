@@ -66,6 +66,11 @@ tolerance = (5e-10, None, 'energy_summed')
 program = neci
 tolerance = (5e-10, None, 'energy_summed')
 
+[dneci/rdm/BeH_open_shell_dyn_core/]
+program = dneci
+nprocs = 2
+tolerance = (2e-9, None, '1_rdm_diag_sum'),(5e-10, None, 'energy_rdm_1'),(1e-5,None,'sum_error_rdm_1')
+
 [mneci/kpfciqmc/fci_all_sym/]
 program = mneci
 tolerance = (2e-8, None, 'overlap_sum')

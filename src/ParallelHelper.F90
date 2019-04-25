@@ -66,6 +66,10 @@ module ParallelHelper
             use iso_c_hack
             integer(c_int), intent(out) :: ierr
         end subroutine
+        subroutine MPI_Initialized (flag, ierr) bind(c, name='mpi_initialized_wrap')
+            use iso_c_hack
+            integer(c_int), intent(out) :: flag, ierr
+        end subroutine
         subroutine MPI_Finalize (ierr) bind(c, name='mpi_finalize_wrap')
             use iso_c_hack
             integer(c_int), intent(out) :: ierr

@@ -1,7 +1,7 @@
 
 # List the files that ought to be compiled
 
-set( SRC_FILES 
+set( SRC_FILES
 
     adi_references.F90
     adi_initiators.F90
@@ -96,6 +96,9 @@ set( SRC_FILES
     Logging.F90
     Makefile
     matmul.F
+    molcas_interface.F90
+    MolproPlugin.F90
+    PluginGuest.cpp
     NatOrbs.F90
     NECICore.F90
     neci_intfce.F90
@@ -137,7 +140,6 @@ set( SRC_FILES
     searching.F90
     semi_stoch_gen.F90
     semi_stoch_procs.F90
-    shared_memory_mpi.F90
     sltcnd.F90
     sparse_arrays.F90
     spectral_data.F90
@@ -203,6 +205,8 @@ set( TEMPLATED_SRC_FILES
 
     BinSearch.F90.template
     Parallel.F90.template
+    shared_memory_mpi.F90.template
+    scalar_shared_memory_mpi.F90.template
     lib/quicksort.F90.template
     lib/util_mod_byte_size.F90.template
     lib/util_mod_comparisons.F90.template
@@ -216,9 +220,6 @@ set( TEMPLATED_SRC_FILES
 # Don't use generator expressions for including libraries, as this causes problems when there are list
 # expansions.
 set( _conditional_libraries "" )
-if (HAVE_MPI)
-    list(APPEND _conditional_libraries ${MPI_NECI_Fortran_LIBRARIES} )
-endif()
 if (HAVE_FFTW)
     list(APPEND _conditional_libraries ${FFTW_LIBRARIES} )
 endif()
@@ -231,7 +232,9 @@ endif()
 set( _library_link_libs
     "${LAPACK_NECI_LIBRARIES}"
     "${LIBRT_LIBRARIES}"
-    "${_conditional_libraries}" )
+    "${_conditional_libraries}"
+    "${MPI_NECI_LIBRARIES}"
+    "${MPI_NECI_Fortran_LIBRARIES}")
 
 if( HAVE_SHARED )
     set( _link_type SHARED )
@@ -250,7 +253,7 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
     message(STATUS "Adding library for configuration ${_config}")
     message(STATUS "Library definitions: ${${PROJECT_NAME}_${_config}_DEFINITIONS}")
     neci_add_library(
-    
+
         TARGET lib${_config}
         TYPE ${_link_type}
         OUTPUT_NAME ${_config}

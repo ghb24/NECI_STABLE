@@ -162,6 +162,9 @@ contains
             write(*,*) "No memory slots available for this spawn."
             write(*,*) "Please increase MEMORYFACSPAWN"
 #endif
+            ! give a note on the counter-intuitive scaling behaviour
+            if(MaxSpawned/nProcessors < 0.1*TotWalkers) write(iout,*) &
+                 "Memory available for spawns is too low, number of processes might be too high for the given walker number" 
             call stop_all(this_routine, "Out of memory for spawned particles")
         end if
 
@@ -2337,41 +2340,5 @@ contains
         write(6,*) 'Calculated instantaneous projected energy', proje_iter
 
     end subroutine
-
-
-    subroutine replica_coherence_check(ilut,sgn,exLvl)
-
-      ! do a check if a determinant has sign consistent walkers across replicas
-      ! input: 
-      ! ilut = determinant + population in ilut-format
-      ! sgn = sign of ilut (i.e. #walkers)
-      ! exLvl = excitation level of ilut for logging purposes
-      ! this logs the number of conflicts per excitation level
-      implicit none
-      integer(n_int), intent(inout) :: ilut(0:NIfTot)
-      real(dp), intent(inout) :: sgn(lenof_sign)
-      integer, intent(in) :: exLvl
-      
-      integer :: run
-      real(dp) :: avSign
-
-#ifdef __CMPLX
-#else
-      ! check if there are any sign changes within sgn
-      if(any(sgn*sgn(1) < 0)) then
-         avSign = sum(sgn)/inum_runs
-         ! log the change in population
-         do run = 1, inum_runs
-            ! are we looking at an erroneous sign?
-            if(sgn(run)*avSign < 0) then
-               ! log the conflict
-               avSigns = avSigns + abs(sgn(run))
-               if(exLvl < maxConflictExLvl) ConflictExLvl(exLvl) = ConflictExLvl(exLvl) + 1
-            endif
-         end do
-      endif
-#endif
-    end subroutine replica_coherence_check
-
     
 end module

@@ -70,8 +70,8 @@ contains
 
     subroutine make_double (nI, nJ, elec1, elec2, tgt1, tgt2, ex, tParity)
 
-        integer, intent(in) :: nI(nel), elec1, elec2, tgt1, tgt2
-        integer, intent(out) :: ex(2,2), nJ(nel)
+        integer, intent(in) :: nI(:), elec1, elec2, tgt1, tgt2
+        integer, intent(inout) :: ex(2,2), nJ(:)
         logical, intent(out) :: tParity
 #ifdef __DEBUG
         character(*), parameter :: this_routine = 'make_double'
@@ -150,7 +150,7 @@ contains
 
 #ifdef __DEBUG
         ! This is a useful (but O[N]) check to test the generated determinant.
-        if (.not. SymAllowedExcit(nI, nJ, 2, ex)) then 
+        if (.not. SymAllowedExcit(nI, nJ, 2, ex)) then
             print *, "nI: ", nI
             print *, "nJ: ", nJ
             print *, "elecs: ", ex(1,:)

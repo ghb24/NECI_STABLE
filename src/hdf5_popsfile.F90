@@ -215,7 +215,7 @@ contains
         !      for initialising perturbations, etc.
         integer(n_int), intent(out) :: dets(:, :)
         integer(int64) :: CurrWalkers
-        character(*), parameter :: t_r = 'write_popsfile_hdf5'
+        character(*), parameter :: t_r = 'read_popsfile_hdf5'
 #ifdef __USE_HDF
         integer(hid_t) :: err, file_id, plist_id
         integer :: ierr
@@ -242,6 +242,7 @@ contains
         ! Open the popsfile
         call h5fopen_f(filename, H5F_ACC_RDONLY_F, file_id, err, &
                        access_prp=plist_id)
+        if(err.ne.0) call stop_all(t_r,"No popsfile.h5 found")
 
         call read_metadata(file_id)
         call read_walkers(file_id, dets, CurrWalkers)
@@ -952,7 +953,7 @@ contains
         call LogMemAlloc('temp_ilut',size(temp_ilut),sizeof(temp_ilut(1,1)),'read_walkers',temp_ilut_tag,ierr)
 
         allocate(temp_sgns(int(tmp_lenof_sign),int(this_block_size)),stat=ierr)
-        call LogMemAlloc('temp_sgns',size(temp_sgns),sizeof(temp_sgns(1,1)),'read_walkers',temp_sgns_tag,ierr)
+        call LogMemAlloc('temp_sgns',size(temp_sgns),lenof_sign,'read_walkers',temp_sgns_tag,ierr)
 
         do while (any_running)
 
@@ -962,6 +963,12 @@ contains
                 this_block_size = block_end - block_start + 1
             else
                 this_block_size = 0
+            end if
+
+            ! if we resized the sign, we need to go back to the original buffer size now
+            if(tmp_lenof_sign /= lenof_sign) then
+               deallocate(temp_sgns)
+               allocate(temp_sgns(int(tmp_lenof_sign),int(this_block_size)),stat=ierr)        
             end if
 
             call read_walker_block_buff(ds_ilut, ds_sgns, block_start, &

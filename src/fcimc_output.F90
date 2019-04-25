@@ -7,7 +7,7 @@ module fcimc_output
                            instant_s2_multiplier, tPrintFCIMCPsi, &
                            iWriteHistEvery, tDiagAllSpaceEver, OffDiagMax, &
                            OffDiagBinRange, tCalcVariationalEnergy, &
-                           iHighPopWrite, tLogEXLEVELStats, tWriteConflictLvls
+                           iHighPopWrite, tLogEXLEVELStats
     use hist_data, only: Histogram, AllHistogram, InstHist, AllInstHist, &
                          BeforeNormHist, iNoBins, BinRange, HistogramEnergy, &
                          AllHistogramEnergy
@@ -133,11 +133,16 @@ contains
                   &20.ProjE.ThisIter  21.HFInstShift  22.TotInstShift  &
                   &23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE &
                   &26.HF weight    27.|Psi|     28.Inst S^2 29.Inst S^2 30.AbsProjE &
-                  &31.|Semistoch|/|Psi|   32.PartsDiffProc"
+                  &31.PartsDiffProc    32.|Semistoch|/|Psi|     33.MaxCycSpawn"
            if (tTrialWavefunction .or. tStartTrialLater) then 
                   write(fcimcstats_unit2, "(A)", advance = 'no') &
-                  "  33.TrialNumerator  34.TrialDenom  35.TrialOverlap"
+                  "  34.TrialNumerator  35.TrialDenom  36.TrialOverlap"
+              trunc_caption = "  37. TruncWeight"
+           else
+              trunc_caption = "  34. TruncWeight"
            end if
+           if(t_truncate_spawns) write(fcimcstats_unit2, "(A)", advance = 'no') &
+                trunc_caption
 
            write(fcimcstats_unit2, "()", advance = 'yes')
 #endif
@@ -346,6 +351,9 @@ contains
                     (tot_trial_denom(2) / StepsSft), &
                     abs(tot_trial_denom(2) / (norm_psi(2)*StepsSft))
                 end if
+                if(t_truncate_spawns) then
+                   write(fcimcstats_unit2, "(1X,es18.11)", advance = 'no') AllTruncatedWeight
+                endif
                 
                 write(fcimcstats_unit2, "()", advance = 'yes')
 #endif
@@ -534,7 +542,6 @@ contains
         ! Use a state type to keep things compact and tidy below.
         type(write_state_t), save :: state
         type(write_state_t), save :: state_i
-        type(write_state_t), save :: state_cl
         logical, save :: inited = .false.
         character(5) :: tmpc, tmpc2
         integer :: p, q
@@ -544,11 +551,9 @@ contains
         if (present(initial)) then
             state%init = initial
             if (tTruncInitiator) state_i%init = initial
-            if(tWriteConflictLvls) state_cl%init = initial
         else
             state%init = .false.
             if (tTruncInitiator) state_i%init = .false.
-            if(tWriteConflictLvls) state_cl%init = .false.
         end if
 
         ! If the output file hasn't been opened yet, then create it.
@@ -560,11 +565,6 @@ contains
               state_i%funit = get_free_unit()
               call open_create_stats('initiator_stats',state_i%funit)
             end if
-
-            if(tWriteConflictLvls) then
-               state_cl%funit = get_free_unit()
-               call open_create_stats('conflicts_stats',state_cl%funit)
-            endif
 
             inited = .true.
         end if
@@ -580,7 +580,6 @@ contains
 
             call write_padding_init(state)
             call write_padding_init(state_i)
-            call write_padding_init(state_cl)
 
             ! And output the actual data!
             state%cols = 0
@@ -759,26 +758,12 @@ contains
                 end do
             end if
 
-            ! gather sign conflict statistics
-            if(tWriteConflictLvls) then
-               call stats_out(state_cl, .false., Iter + PreviousCycles, 'Iter')
-               call stats_out(state_cl, .false., sum(conflictExLvl), 'confl. Dets')
-               do p = 1, maxConflictExLvl
-                  ! write the number of conflicts of this excitation lvl
-                  write(tmpc,('(i5)')) p
-                  call stats_out(state_cl, .false., ConflictExLvl(p), 'confl. (ex = '//&
-                       trim(adjustl(tmpc)) // ")")
-               end do
-            endif
-
             ! And we are done
             write(state%funit, *)
             if (tTruncInitiator) write(state_i%funit, *)
-            if(tWriteConflictLvls) write(state_cl%funit,*)
             if (tMCOutput) write(iout, *)
             call neci_flush(state%funit)
             if (tTruncInitiator) call neci_flush(state_i%funit)
-            if(tWriteConflictLvls) call neci_flush(state_cl%funit)
             call neci_flush(iout)
 
         end if
@@ -1338,6 +1323,8 @@ contains
         integer(n_int) , allocatable :: GlobalLargestWalkers(:,:)
         integer(n_int) :: HighestDet(0:NIfTot)
         integer, allocatable :: GlobalProc(:), tmp_ni(:)
+        character(100) :: bufEnd, bufStart
+        integer :: lenEnd, lenStart
         character(len=*), parameter :: t_r='PrintHighPops'
 
         !Allocate memory to hold highest iHighPopWrite determinants
@@ -1451,14 +1438,16 @@ contains
                     if (nel /= nel_pre_freezing) &
                         tmp_ni(nel+1:nel_pre_freezing) = frozen_orb_list
                     call sort(tmp_ni)
-                    do i = 1, nel_pre_freezing
-                        write(6, '(i3," ")', advance='no') tmp_ni(i)
-                    end do
+                    call writeDefDet(tmp_ni, nel_pre_freezing)
+!                    do i = 1, nel_pre_freezing
+!                        write(6, '(i3," ")', advance='no') tmp_ni(i)
+!                    end do
                     deallocate(tmp_ni)
                 else
-                    do i = 1, nel
-                        write(6, '(i3," ")', advance='no') ProjEDet(i, run)
-                    end do
+                   call writeDefDet(ProjEDet(:,run), nel)
+!                    do i = 1, nel
+!                        write(6, '(i3," ")', advance='no') ProjEDet(i, run)
+!                    end do
                 end if
                 do i = 1, nel
                     full_orb = ProjEDet(i, run)
@@ -1538,6 +1527,51 @@ contains
         endif
 
         deallocate(LargestWalkers)
+        
+        contains 
+
+          subroutine writeDefDet(defdet, numEls)
+            implicit none
+            integer, intent(in) :: numEls
+            integer, intent(in) :: defdet(:)
+            logical :: nextInRange, previousInRange
+
+            do i = 1, numEls
+               ! if the previous orbital is in the same contiguous range
+               if(i.eq.1) then
+                  ! for the first one, there is no previous one
+                  previousInRange = .false.
+               else
+                  previousInRange = defdet(i).eq.defdet(i-1)+1
+               endif
+
+               ! if the following orbital is in the same contiguous range
+               if(i.eq.numEls) then
+                  ! there is no following orbital
+                  nextInRange = .false.
+               else
+                  nextInRange = defdet(i).eq.defdet(i+1)-1
+               endif
+               ! there are three cases that need output: 
+               
+               ! the last orbital of a contigous range of orbs
+               if(previousInRange .and. .not.nextInRange) then
+                  write(bufEnd,'(i3)') defdet(i)
+                  lenEnd = len_trim(bufEnd)
+                  bufStart(lenStart+2:lenStart+lenEnd+1) = adjustl(trim(bufEnd))
+                  write(iout,'(A7)',advance='no') trim(adjustl(bufStart))
+               ! the first orbital of a contiguous range of orbs
+               else if(.not.previousInRange .and. nextInRange) then
+                  write(bufStart,'(i3)') defdet(i)
+                  lenStart = len_trim(bufStart)
+                  bufStart(lenStart+1:lenStart+1) = "-"
+               ! and an orbital not in any range
+               else if(.not.previousInRange .and. .not.nextInRange) then
+                  write(iout,'(i3," ")', advance='no') defdet(i)
+               endif
+            end do
+
+          end subroutine writeDefDet
 
     END SUBROUTINE PrintHighPops
             

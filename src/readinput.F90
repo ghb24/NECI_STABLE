@@ -35,7 +35,7 @@ MODULE ReadInput_neci
 !        Integer :: iargc
 !#endif
     !  INPUT/OUTPUT params
-        Character(len=64)  cFilename    !Input  filename or "" if we check arg list or stdin
+        Character(len=*)  cFilename    !Input  filename or "" if we check arg list or stdin
         Integer             ios         !Output 0 if no error or nonzero iostat if error
 
         Character(len=255)  cInp         !temp storage for command line params

@@ -3,7 +3,8 @@ MODULE Determinants
     use constants, only: dp, n_int, bits_n_int
     use SystemData, only: BasisFN, tCSF, nel, G1, Brr, ECore, ALat, NMSH, &
                           nBasis, nBasisMax, tStoreAsExcitations, tHPHFInts, &
-                          tCSF, tCPMD, tPickVirtUniform, LMS, modk_offdiag
+                          tCSF, tCPMD, tPickVirtUniform, LMS, modk_offdiag, &
+                          nClosedOrbs, nOccOrbs, nIrreps, tspn, irrepOrbOffset
     use IntegralsData, only: UMat, FCK, NMAX
     use csf, only: det_to_random_csf, iscsf, csf_orbital_mask, &
                    csf_yama_bit, CSFGetHelement
@@ -59,9 +60,10 @@ contains
         use sym_mod
         use util_mod, only: NECI_ICOPY
         use sltcnd_mod, only: CalcFockOrbEnergy 
-        integer ierr, ms
-        integer i,Lz,OrbOrder(8,2),FDetTemp(NEl)
+        integer ierr, ms, iEl, flagAlpha
+        integer i,j,Lz,OrbOrder(8,2),FDetTemp(NEl),lmsMax
         type(BasisFn) s
+        logical :: tGenFDet
         HElement_t(dp) :: OrbE
         character(25), parameter :: this_routine='DetPreFreezeInit'
         Allocate(FDet(nEl), stat=ierr)
@@ -82,15 +84,42 @@ contains
                               &SPIN-RESTRICT")
             end if
             tRef_Not_HF = .true.
-        ELSE
-             CALL GENFDET(FDET)
-             IF(tUEGSpecifyMomentum) THEN
-                WRITE(6,*) 'Defining FDet according to a momentum input'
-                CALL ModifyMomentum(FDET)
-            ENDIF
-            tRef_Not_HF = .false.
+        else
+           tGenFDet = .true.
+           lmsMax = sum(nOccOrbs) - sum(nClosedOrbs)
+           if((sum(nOccOrbs) + sum(nClosedOrbs)) .eq. nel &
+                .and. (.not. TSPN .or. abs(LMS).eq.lmsMax)) then
+              tGenFDet = .false.
+              if(LMS<0) then
+                 flagAlpha = 0
+              else
+                 flagAlpha = 1
+              endif
+              iEl = 1
+              do i = 1, nIrreps
+                 ! nClosedOrbs is the number of alpha/beta orbs (the ones with minority spin)
+                 do j = 1, nClosedOrbs(i)
+                    FDet(iEl) = irrepOrbOffset(i) + 2*j - flagAlpha
+                    iEl = iEl + 1
+                 end do
+                 ! nOccOrbs is the number of majority spin orbs (per irrep)
+                 do j = 1, nOccOrbs(i)
+                    FDet(iEl) = irrepOrbOffset(i) + 2*j - (1-flagAlpha)
+                    iEl = iEl + 1
+                 end do
+              end do
+              call sort(FDet)
+           endif
+           if(tGenFDet) then
+              CALL GENFDET(FDET)
+              IF(tUEGSpecifyMomentum) THEN
+                 WRITE(6,*) 'Defining FDet according to a momentum input'
+                 CALL ModifyMomentum(FDET)
+              ENDIF
+              tRef_Not_HF = .false.
+           endif
         ENDIF
-!      ENDIF
+        !      ENDIF
       WRITE(6,"(A)",advance='no') " Fermi det (D0):"
       call write_det (6, FDET, .true.)
       Call GetSym(FDet,nEl,G1,nBasisMax,s)
@@ -132,6 +161,7 @@ contains
 
       ! Store the value of Ms for use in other areas
       calculated_ms = sum(get_spin_pn(fdet(1:nel)))
+       
     End Subroutine DetPreFreezeInit
 
     

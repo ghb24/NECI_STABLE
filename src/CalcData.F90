@@ -31,6 +31,9 @@ type subspace_in
     logical :: tHF = .false.
     ! Use the most populated states in CurrentDets.
     logical :: tPops = .false.
+    ! Automatically choosing 10% of the total initiator space, if this number
+    ! is larger than 50000, then use npops = 50000
+    logical :: tPopsAuto = .false.
     ! Read states from a file.
     logical :: tRead = .false.
     ! Use the space of all single and double excitations from the
@@ -83,7 +86,7 @@ type subspace_in
     ! kept on each processor, 1 =< nApproxSpace =< nProcessors. The larger nApproxSpace, the more  
     ! memory is consumed and the slower (but more accurate) is the semi-stochastic initialisation   
     ! (see subroutine generate_space_most_populated).
-    integer :: nApproxSpace = 100
+    integer :: nApproxSpace = 10
     ! When using the tMP1Core option, this specifies how many determinants to keep.
     integer :: mp1_ndets = 0
 
@@ -469,5 +472,10 @@ real(dp) :: pSinglesIn, pParallelIn
 
 ! If true then allow set_initial_run_references to be called
 logical :: tSetInitialRunRef
+
+! If true, then when using the pops-core option, don't allow the
+! pops-core-approx option to take over, even in the default case
+! where it has been decided that it is efficient and appropriate.
+logical :: tForceFullPops
 
 end module CalcData

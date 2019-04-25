@@ -827,7 +827,9 @@ contains
     end subroutine find_next_comb
 
     function neci_etime(time) result(ret)
-
+#ifndef __IFORT
+      use mpi
+#endif
         ! Return elapsed time for timing and calculation ending purposes.
 
         real(dp), intent(out) :: time(2)
