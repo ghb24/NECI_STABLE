@@ -811,7 +811,7 @@ module FciMCParMod
                         en2_pert_all(i)/rep_est_overlap_all(i)
                 end if
                 if (tEN2Rigorous) then
-                    write(iout, '(1x,"New EN2 estimate from replica_estimates:",1x,es20.13)') &
+                    write(iout, '(1x,"EN2 New estimate from replica_estimates:",1x,es20.13)') &
                         en2_new_all(i)/rep_est_overlap_all(i)
                 end if
                 write(iout, '(1x,"Preconditioned energy from replica_estimates:",1x,es20.13,/)') &

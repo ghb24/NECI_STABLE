@@ -38,7 +38,7 @@ test_data = [
     ['rep_est_var','Variational energy from replica_estimates', -1, True],
     ['rep_est_e_squ','Energy squared from replica_estimates', -1, True],
     ['rep_est_en2','EN2 estimate from replica_estimates', -1, True],
-    ['rep_est_en2_new','New EN2 estimate from replica_estimates', -1, True],
+    ['rep_est_en2_new','EN2 New estimate from replica_estimates', -1, True],
     ['rep_est_precond','Preconditioned energy from replica_estimates', -1, True],
 ]
 
