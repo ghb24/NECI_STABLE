@@ -2,7 +2,7 @@
 
 module global_det_data
 
-    use CalcData, only: tContTimeFCIMC, tContTimeFull, tPairedReplicas
+    use CalcData, only: tContTimeFCIMC, tContTimeFull, tPairedReplicas, tReplicaEstimates
     use LoggingData, only: tRDMonFly, tExplicitAllRDM, tTransitionRDMs
     use FciMCData, only: MaxWalkersPart
     use constants
@@ -103,6 +103,14 @@ contains
 
     subroutine init_global_det_data(nrdms_standard, nrdms_transition)
 
+        use FciMCData, only: var_e_num, rep_est_overlap
+        use FciMCData, only: var_e_num_all, rep_est_overlap_all
+        use FciMCData, only: e_squared_num, e_squared_num_all
+        use FciMCData, only: en2_pert, en2_pert_all
+        use FciMCData, only: en2_new, en2_new_all
+        use FciMCData, only: precond_e_num, precond_denom
+        use FciMCData, only: precond_e_num_all, precond_denom_all
+
         ! Initialise the global storage of determinant specific persistent
         ! data
         !
@@ -174,6 +182,23 @@ contains
             replica_est_len = lenof_sign/2
         else
             replica_est_len = lenof_sign
+        end if
+
+        if (tReplicaEstimates) then
+            allocate(var_e_num(replica_est_len), stat=ierr)
+            allocate(rep_est_overlap(replica_est_len), stat=ierr)
+            allocate(var_e_num_all(replica_est_len), stat=ierr)
+            allocate(rep_est_overlap_all(replica_est_len), stat=ierr)
+            allocate(e_squared_num(replica_est_len), stat=ierr)
+            allocate(e_squared_num_all(replica_est_len), stat=ierr)
+            allocate(en2_pert(replica_est_len), stat=ierr)
+            allocate(en2_pert_all(replica_est_len), stat=ierr)
+            allocate(en2_new(replica_est_len), stat=ierr)
+            allocate(en2_new_all(replica_est_len), stat=ierr)
+            allocate(precond_e_num(replica_est_len), stat=ierr)
+            allocate(precond_denom(replica_est_len), stat=ierr)
+            allocate(precond_e_num_all(replica_est_len), stat=ierr)
+            allocate(precond_denom_all(replica_est_len), stat=ierr)
         end if
 
         ! Allocate and log the required memory (globally)

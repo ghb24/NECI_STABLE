@@ -177,23 +177,18 @@ module replica_estimates
         real(dp) :: hdiag, mean_energy(replica_est_len)
         logical :: tCoreDet, tSuccess, abort(lenof_sign)
 
-        real(dp) :: var_e_num(replica_est_len),         overlap(replica_est_len)
-        real(dp) :: var_e_num_all(replica_est_len),     overlap_all(replica_est_len)
-        real(dp) :: e_squared_num(replica_est_len),     e_squared_num_all(replica_est_len)
-        real(dp) :: en2_pert(replica_est_len),          en2_pert_all(replica_est_len)
-        real(dp) :: en2_new(replica_est_len),           en2_new_all(replica_est_len)
-        real(dp) :: precond_e_num(replica_est_len),     precond_denom(replica_est_len)
-        real(dp) :: precond_e_num_all(replica_est_len), precond_denom_all(replica_est_len)
-
         ! Allow room to send up to 1000 elements.
         real(dp) :: send_arr(6*replica_est_len)
         ! Allow room to receive up to 1000 elements.
         real(dp) :: recv_arr(6*replica_est_len)
 
         var_e_num = 0.0_dp
-        overlap = 0.0_dp
+        rep_est_overlap = 0.0_dp
         var_e_num_all = 0.0_dp
-        overlap_all(1) = 0.0_dp
+        rep_est_overlap_all(1) = 0.0_dp
+
+        e_squared_num = 0.0_dp
+        e_squared_num_all = 0.0_dp
 
         en2_pert = 0.0_dp
         en2_pert_all = 0.0_dp
@@ -219,7 +214,7 @@ module replica_estimates
             hdiag = det_diagH(i) + Hii
             call extract_sign(CurrentDets(:, i), cursign)
             do j = 1, replica_est_len
-                overlap(j) = overlap(j) + cursign(2*j-1) * cursign(2*j)
+                rep_est_overlap(j) = rep_est_overlap(j) + cursign(2*j-1) * cursign(2*j)
                 var_e_num(j) = var_e_num(j) + hdiag * cursign(2*j-1) * cursign(2*j)
                 e_squared_num(j) = e_squared_num(j) + (hdiag**2) * cursign(2*j-1) * cursign(2*j)
             end do
@@ -342,7 +337,7 @@ module replica_estimates
 
         ! ---- MPI communication --------------------------------
         send_arr(0*replica_est_len+1:1*replica_est_len) = var_e_num
-        send_arr(1*replica_est_len+1:2*replica_est_len) = overlap
+        send_arr(1*replica_est_len+1:2*replica_est_len) = rep_est_overlap
         send_arr(2*replica_est_len+1:3*replica_est_len) = en2_pert
         send_arr(3*replica_est_len+1:4*replica_est_len) = precond_e_num
         send_arr(4*replica_est_len+1:5*replica_est_len) = precond_denom
@@ -351,12 +346,12 @@ module replica_estimates
         call MPIBarrier(ierr)
         call MPISumAll(send_arr, recv_arr)
 
-        var_e_num_all     = recv_arr(0*replica_est_len+1:1*replica_est_len)
-        overlap_all       = recv_arr(1*replica_est_len+1:2*replica_est_len)
-        en2_pert_all      = recv_arr(2*replica_est_len+1:3*replica_est_len)
-        precond_e_num_all = recv_arr(3*replica_est_len+1:4*replica_est_len)
-        precond_denom_all = recv_arr(4*replica_est_len+1:5*replica_est_len)
-        e_squared_num_all = recv_arr(5*replica_est_len+1:6*replica_est_len)
+        var_e_num_all       = recv_arr(0*replica_est_len+1:1*replica_est_len)
+        rep_est_overlap_all = recv_arr(1*replica_est_len+1:2*replica_est_len)
+        en2_pert_all        = recv_arr(2*replica_est_len+1:3*replica_est_len)
+        precond_e_num_all   = recv_arr(3*replica_est_len+1:4*replica_est_len)
+        precond_denom_all   = recv_arr(4*replica_est_len+1:5*replica_est_len)
+        e_squared_num_all   = recv_arr(5*replica_est_len+1:6*replica_est_len)
         ! -------------------------------------------------------
 
         ! Use a slightly more rigorous expression for the variational plus
@@ -364,7 +359,7 @@ module replica_estimates
         if (tEN2Rigorous) then
             en2_new = 0.0_dp
             en2_new_all = 0.0_dp
-            mean_energy = var_e_num_all / overlap_all
+            mean_energy = var_e_num_all / rep_est_overlap_all
 
             do i = 1, int(TotWalkers, sizeof_int)
                 hdiag = det_diagH(i) + Hii
@@ -429,7 +424,7 @@ module replica_estimates
                 if (tEN2Rigorous) then
                     write(replica_est_unit, '(1(3x,es20.13))', advance='no') en2_new_all(j)
                 end if
-                write(replica_est_unit, '(1(3x,es20.13))', advance='no') overlap_all(j)
+                write(replica_est_unit, '(1(3x,es20.13))', advance='no') rep_est_overlap_all(j)
                 write(replica_est_unit, '(2(3x,es20.13))', advance='no') precond_e_num_all(j), precond_denom_all(j)
             end do
             write(replica_est_unit,'()')
@@ -457,8 +452,8 @@ module replica_estimates
         logical :: tCoreDet, tSuccess, abort(lenof_sign)
         character(len=*), parameter :: t_r = 'calc_ests_simple_initiator'
 
-        real(dp) :: var_e_num(replica_est_len),         overlap(replica_est_len)
-        real(dp) :: var_e_num_all(replica_est_len),     overlap_all(replica_est_len)
+        real(dp) :: var_e_num(replica_est_len),         rep_est_overlap(replica_est_len)
+        real(dp) :: var_e_num_all(replica_est_len),     rep_est_overlap_all(replica_est_len)
         real(dp) :: e_squared_num(replica_est_len),     e_squared_num_all(replica_est_len)
         real(dp) :: en2_pert(replica_est_len),          en2_pert_all(replica_est_len)
         real(dp) :: en2_new(replica_est_len),           en2_new_all(replica_est_len)
@@ -473,12 +468,15 @@ module replica_estimates
         real(dp) :: recv_arr(6*replica_est_len)
 
         var_e_num = 0.0_dp
-        overlap = 0.0_dp
+        rep_est_overlap = 0.0_dp
         var_e_num_all = 0.0_dp
-        overlap_all(1) = 0.0_dp
+        rep_est_overlap_all(1) = 0.0_dp
 
         en2_pert = 0.0_dp
         en2_pert_all = 0.0_dp
+
+        e_squared_num = 0.0_dp
+        e_squared_num_all = 0.0_dp
 
         precond_e_num = 0.0_dp
         precond_denom = 0.0_dp
@@ -501,7 +499,7 @@ module replica_estimates
             hdiag = det_diagH(i) + Hii
             call extract_sign(CurrentDets(:, i), cursign)
             do j = 1, replica_est_len
-                overlap(j) = overlap(j) + cursign(2*j-1) * cursign(2*j)
+                rep_est_overlap(j) = rep_est_overlap(j) + cursign(2*j-1) * cursign(2*j)
                 var_e_num(j) = var_e_num(j) + hdiag * cursign(2*j-1) * cursign(2*j)
                 e_squared_num(j) = e_squared_num(j) + (hdiag**2) * cursign(2*j-1) * cursign(2*j)
             end do
@@ -640,7 +638,7 @@ module replica_estimates
 
         ! ---- MPI communication --------------------------------
         send_arr(0*replica_est_len+1:1*replica_est_len) = var_e_num
-        send_arr(1*replica_est_len+1:2*replica_est_len) = overlap
+        send_arr(1*replica_est_len+1:2*replica_est_len) = rep_est_overlap
         send_arr(2*replica_est_len+1:3*replica_est_len) = en2_pert
         send_arr(3*replica_est_len+1:4*replica_est_len) = precond_e_num
         send_arr(4*replica_est_len+1:5*replica_est_len) = precond_denom
@@ -649,12 +647,12 @@ module replica_estimates
         call MPIBarrier(ierr)
         call MPISumAll(send_arr, recv_arr)
 
-        var_e_num_all     = recv_arr(0*replica_est_len+1:1*replica_est_len)
-        overlap_all       = recv_arr(1*replica_est_len+1:2*replica_est_len)
-        en2_pert_all      = recv_arr(2*replica_est_len+1:3*replica_est_len)
-        precond_e_num_all = recv_arr(3*replica_est_len+1:4*replica_est_len)
-        precond_denom_all = recv_arr(4*replica_est_len+1:5*replica_est_len)
-        e_squared_num_all = recv_arr(5*replica_est_len+1:6*replica_est_len)
+        var_e_num_all       = recv_arr(0*replica_est_len+1:1*replica_est_len)
+        rep_est_overlap_all = recv_arr(1*replica_est_len+1:2*replica_est_len)
+        en2_pert_all        = recv_arr(2*replica_est_len+1:3*replica_est_len)
+        precond_e_num_all   = recv_arr(3*replica_est_len+1:4*replica_est_len)
+        precond_denom_all   = recv_arr(4*replica_est_len+1:5*replica_est_len)
+        e_squared_num_all   = recv_arr(5*replica_est_len+1:6*replica_est_len)
         ! -------------------------------------------------------
 
         ! Use a slightly more rigorous expression for the variational plus
@@ -667,7 +665,7 @@ module replica_estimates
             c_term = 0.0_dp
             c_term_all = 0.0_dp
 
-            mean_energy = var_e_num_all / overlap_all
+            mean_energy = var_e_num_all / rep_est_overlap_all
 
             do i = 1, int(TotWalkers, sizeof_int)
                 hdiag = det_diagH(i) + Hii
@@ -780,7 +778,7 @@ module replica_estimates
                 if (tEN2Rigorous) then
                     write(replica_est_unit, '(1(3x,es20.13))', advance='no') en2_new_all(j)
                 end if
-                write(replica_est_unit, '(1(3x,es20.13))', advance='no') overlap_all(j)
+                write(replica_est_unit, '(1(3x,es20.13))', advance='no') rep_est_overlap_all(j)
                 if (tEN2Rigorous) then
                     write(replica_est_unit, '(2(3x,es20.13))', advance='no') b_term_all(j), c_term_all(j)
                 end if

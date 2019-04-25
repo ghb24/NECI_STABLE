@@ -634,4 +634,13 @@ MODULE FciMCData
 
       ! -----------------------------------------------------------------
 
+      ! Data for the replica_estimates option
+      real(dp), allocatable, dimension(:) :: var_e_num,         rep_est_overlap
+      real(dp), allocatable, dimension(:) :: var_e_num_all,     rep_est_overlap_all
+      real(dp), allocatable, dimension(:) :: e_squared_num,     e_squared_num_all
+      real(dp), allocatable, dimension(:) :: en2_pert,          en2_pert_all
+      real(dp), allocatable, dimension(:) :: en2_new,           en2_new_all
+      real(dp), allocatable, dimension(:) :: precond_e_num,     precond_denom
+      real(dp), allocatable, dimension(:) :: precond_e_num_all, precond_denom_all
+
 end module FciMCData

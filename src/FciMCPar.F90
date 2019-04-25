@@ -61,9 +61,6 @@ module FciMCParMod
     use PopsFileMod, only: WriteToPopsFileParOneArr
     use AnnihilationMod, only: DirectAnnihilation, communicate_and_merge_spawns, &
                                rm_non_inits_from_spawnedparts
-    use replica_estimates, only: replica_est_unit, get_proj_e_for_preconditioner, &
-                                 calc_ests_and_set_init_flags, get_ests_from_spawns, &
-                                 get_ests_from_spawns_simple
     use exact_spectrum, only: get_exact_spectrum
     use determ_proj, only: perform_determ_proj, perform_determ_proj_approx_ham
     use cont_time, only: iterate_cont_time
@@ -79,6 +76,7 @@ module FciMCParMod
          update_reference_space
     use fcimc_initialisation
     use fcimc_iter_utils
+    use replica_estimates
     use neci_signals
     use fcimc_helper
     use fcimc_output
@@ -797,6 +795,30 @@ module FciMCParMod
             write(iout,"(A,F20.8,A,G15.6)") " Total shift energy     ", &
                 mean_shift+Hii," +/- ",shift_err
         endif
+
+        ! Output replica_estimates data for the test suite
+        if (tReplicaEstimates) then
+            write(iout,'(/,1x,"THE FOLLOWING IS FOR TEST SUITE USE ONLY!",/)')
+            do i = 1, replica_est_len
+                write(iout,'(1x,"REPLICA ESTIMATES FOR STATE",1x,'//int_fmt(i)//',":",)') i
+
+                write(iout, '(1x,"Variational energy from replica_estimates:",1x,es20.13)') &
+                    var_e_num_all(i)/rep_est_overlap_all(i)
+                write(iout, '(1x,"Energy squared from replica_estimates:",1x,es20.13)') &
+                    e_squared_num_all(i)/rep_est_overlap_all(i)
+                if (tEN2Init) then
+                    write(iout, '(1x,"EN2 estimate from replica_estimates:",1x,es20.13)') &
+                        en2_pert_all(i)/rep_est_overlap_all(i)
+                end if
+                if (tEN2Rigorous) then
+                    write(iout, '(1x,"New EN2 estimate from replica_estimates:",1x,es20.13)') &
+                        en2_new_all(i)/rep_est_overlap_all(i)
+                end if
+                write(iout, '(1x,"Preconditioned energy from replica_estimates:",1x,es20.13,/)') &
+                    precond_e_num_all(i)/precond_denom_all(i)
+            end do
+        end if
+
 #ifdef MOLPRO
         call output_result('FCIQMC','ENERGY',BestEnergy,iroot,isymh)
         if (iroot.eq.1) call clearvar('ENERGY')
