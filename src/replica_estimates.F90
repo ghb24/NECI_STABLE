@@ -452,15 +452,8 @@ module replica_estimates
         logical :: tCoreDet, tSuccess, abort(lenof_sign)
         character(len=*), parameter :: t_r = 'calc_ests_simple_initiator'
 
-        real(dp) :: var_e_num(replica_est_len),         rep_est_overlap(replica_est_len)
-        real(dp) :: var_e_num_all(replica_est_len),     rep_est_overlap_all(replica_est_len)
-        real(dp) :: e_squared_num(replica_est_len),     e_squared_num_all(replica_est_len)
-        real(dp) :: en2_pert(replica_est_len),          en2_pert_all(replica_est_len)
-        real(dp) :: en2_new(replica_est_len),           en2_new_all(replica_est_len)
-        real(dp) :: b_term(replica_est_len),            b_term_all(replica_est_len)
-        real(dp) :: c_term(replica_est_len),            c_term_all(replica_est_len)
-        real(dp) :: precond_e_num(replica_est_len),     precond_denom(replica_est_len)
-        real(dp) :: precond_e_num_all(replica_est_len), precond_denom_all(replica_est_len)
+        real(dp) :: b_term(replica_est_len), b_term_all(replica_est_len)
+        real(dp) :: c_term(replica_est_len), c_term_all(replica_est_len)
 
         ! Allow room to send up to 1000 elements.
         real(dp) :: send_arr(6*replica_est_len)
