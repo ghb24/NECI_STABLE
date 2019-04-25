@@ -2854,6 +2854,9 @@ contains
             case("NO-INIT-REF-CHANGE")
                 tSetInitialRunRef = .false.
 
+            case("DEATH-BEFORE-COMMS")
+                tDeathBeforeComms = .true.
+
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)
