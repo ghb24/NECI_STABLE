@@ -98,6 +98,7 @@ contains
                  AllGrowRate(inum_runs), &
                  SumWalkersCyc(inum_runs), AllSumWalkersCyc(Inum_runs), &
                  OldAllAvWalkersCyc(inum_runs), &
+                 proj_e_for_precond(lenof_sign), &
 
                  ! Overall wavefunction properties
                  norm_psi(inum_runs), norm_psi_squared(inum_runs), &
@@ -212,6 +213,7 @@ contains
                    AllGrowRate, &
                    SumWalkersCyc, AllSumWalkersCyc, &
                    OldAllAvWalkersCyc, &
+                   proj_e_for_precond, &
 
                    norm_psi, norm_psi_squared, &
                    all_norm_psi_squared, old_norm_psi, &

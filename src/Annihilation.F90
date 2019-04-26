@@ -7,7 +7,8 @@ module AnnihilationMod
                           tTrialWavefunction, tKP_FCIQMC, tContTimeFCIMC, &
                           tContTimeFull, InitiatorWalkNo, tau, tEN2, tEN2Init, &
                           tEN2Started, tEN2Truncated, tInitCoherentRule, t_truncate_spawns, &
-                          n_truncate_spawns, t_prone_walkers, t_truncate_unocc
+                          n_truncate_spawns, t_prone_walkers, t_truncate_unocc, &
+                          tPreCond, tReplicaEstimates, tSimpleInit, tAllConnsPureInit
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -22,7 +23,8 @@ module AnnihilationMod
                         flag_initiator, encode_part_sign, &
                         extract_part_sign, extract_bit_rep, &
                         nullify_ilut_part, clr_flag, get_num_spawns,&
-                        encode_flags, bit_parent_zero, get_initiator_flag
+                        encode_flags, bit_parent_zero, get_initiator_flag, &
+                        extract_spawn_hdiag, any_run_is_initiator
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData, only: tNoNewRDMContrib
     use load_balance, only: DetermineDetNode, AddNewHashDet, &
@@ -31,59 +33,71 @@ module AnnihilationMod
     use hash
     use global_det_data, only: det_diagH
     use procedure_pointers, only: scaleFunction
-    use Determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement
     use rdm_data, only: rdm_estimates, en_pert_main
     use rdm_data_utils, only: add_to_en_pert_t
     use fcimc_helper, only: CheckAllowedTruncSpawn
+    use initiator_space_procs, only: is_in_initiator_space, set_conn_init_space_flags_slow
 
     implicit none
 
     contains
 
-    subroutine DirectAnnihilation(TotWalkersNew, iter_data, tSingleProc)
+    subroutine DirectAnnihilation(TotWalkersNew, MaxIndex, iter_data)
 
-        integer, intent(inout) :: TotWalkersNew
+        integer, intent(inout) :: TotWalkersNew, MaxIndex
         type(fcimc_iter_data), intent(inout) :: iter_data
-        integer :: MaxIndex
-        integer(kind=n_int), pointer :: PointTemp(:,:)
+
+        ! If the semi-stochastic approach is being used then the following routine performs the
+        ! annihilation of the deterministic states. These states are subsequently skipped in the
+        ! AnnihilateSpawnedParts routine.
+        if (tSemiStochastic) call deterministic_annihilation(iter_data)
+
+        ! Binary search the main list and copy accross/annihilate determinants which are found.
+        ! This will also remove the found determinants from the spawnedparts lists.
+        call AnnihilateSpawnedParts(MaxIndex, TotWalkersNew, iter_data)
+
+        call set_timer(Sort_Time, 30)
+        call CalcHashTableStats(TotWalkersNew, iter_data)
+        call halt_timer(Sort_Time)
+
+    end subroutine DirectAnnihilation
+
+    subroutine communicate_and_merge_spawns(MaxIndex, iter_data, tSingleProc)
+
+        integer, intent(out) :: MaxIndex
+        type(fcimc_iter_data), intent(inout) :: iter_data
         logical, intent(in) :: tSingleProc
+        integer(kind=n_int), pointer :: PointTemp(:,:)
         type(timer), save :: Compress_time
 
         ! This routine will send all the newly-spawned particles to their
         ! correct processor. 
-
-        call SendProcNewParts(MaxIndex,tSingleProc)
+        call SendProcNewParts(MaxIndex, tSingleProc)
 
         ! CompressSpawnedList works on SpawnedParts arrays, so swap the pointers around.
         PointTemp => SpawnedParts2
         SpawnedParts2 => SpawnedParts
         SpawnedParts => PointTemp
 
-        Compress_time%timer_name='Compression interface'
-        call set_timer(Compress_time,20)
+        Compress_time%timer_name = 'Compression interface'
+        call set_timer(Compress_time, 20)
 
         ! Now we want to order and compress the spawned list of particles. 
         ! This will also annihilate the newly spawned particles amongst themselves.
         ! MaxIndex will change to reflect the final number of unique determinants in the newly-spawned list, 
         ! and the particles will end up in the spawnedSign/SpawnedParts lists.
-        call CompressSpawnedList(MaxIndex, iter_data)  
+        if (tSimpleInit) then
+            call CompressSpawnedList_simple(MaxIndex, iter_data)
+        else
+            call CompressSpawnedList(MaxIndex, iter_data)
+        end if
+
+        if (tAllConnsPureInit) call set_conn_init_space_flags_slow(SpawnedParts, MaxIndex)
 
         call halt_timer(Compress_time)
-         ! If the semi-stochastic approach is being used then the following routine performs the
-         ! annihilation of the deterministic states. These states are subsequently skipped in the
-         ! AnnihilateSpawnedParts routine.
-         if (tSemiStochastic) call deterministic_annihilation(iter_data)
 
-        ! Binary search the main list and copy accross/annihilate determinants which are found.
-        ! This will also remove the found determinants from the spawnedparts lists.
-        call AnnihilateSpawnedParts(MaxIndex,TotWalkersNew, iter_data)  
-
-        CALL set_timer(Sort_Time,30)
-        call CalcHashTableStats(TotWalkersNew, iter_data) 
-        CALL halt_timer(Sort_Time)
-
-    end subroutine DirectAnnihilation
+    end subroutine communicate_and_merge_spawns
 
     subroutine SendProcNewParts(MaxIndex,tSingleProc)
 
@@ -199,6 +213,9 @@ module AnnihilationMod
         integer(n_int) :: cum_det(0:nifbcast), temp_det(0:nifbcast)
         character(len=*), parameter :: t_r = 'CompressSpawnedList'
         type(timer), save :: Sort_time
+
+        integer :: nI_spawn(nel)
+        HElement_t(dp) :: hdiag
 
         ! We want to sort the list of newly spawned particles, in order for
         ! quicker binary searching later on. They should remain sorted after
@@ -335,7 +352,11 @@ module AnnihilationMod
             ! Reset the cumulative determinant
             cum_det = 0_n_int
             cum_det (0:nifdbo) = SpawnedParts(0:nifdbo, BeginningBlockDet)
-        
+
+            if (tPreCond .or. tReplicaEstimates) then
+                cum_det(nOffSpawnHDiag) = SpawnedParts(nOffSpawnHDiag, BeginningBlockDet)
+            end if
+
             if (tFillingStochRDMonFly .and. (.not.tNoNewRDMContrib)) then
                 ! This is the first Dj determinant - set the index for the
                 ! beginning of where the parents for this Dj can be found in
@@ -351,21 +372,22 @@ module AnnihilationMod
 
 
             do i = BeginningBlockDet, EndBlockDet
-               ! if logged, accumulate the number of spawn events
-               if(tLogNumSpawns) then
-                  cum_det(nSpawnOffset) = cum_det(nSpawnOffset) + &
-                       SpawnedParts(nSpawnOffset,i)
-               end if
-               ! Annihilate in this block seperately for walkers of different types.
-               do part_type = 1, lenof_sign
+                ! if logged, accumulate the number of spawn events
+                if(tLogNumSpawns) then
+                   cum_det(nSpawnOffset) = cum_det(nSpawnOffset) + &
+                        SpawnedParts(nSpawnOffset,i)
+                end if
+                ! Annihilate in this block seperately for walkers of different types.
+                do part_type = 1, lenof_sign
                     if (tHistSpawn) then
                         call extract_sign (SpawnedParts(:,i), SpawnedSign)
                         call extract_sign (SpawnedParts(:,BeginningBlockDet), temp_sign)
                         call HistAnnihilEvent (SpawnedParts, SpawnedSign, temp_sign, part_type)
                     end if
+
                     call FindResidualParticle (cum_det, SpawnedParts(:,i), part_type, iter_data, &
                                                     VecInd, Parent_Array_Ind)
-                end do
+                end do ! Over all spawns to the same determinant
 
             end do ! Loop over particle type.
 
@@ -384,7 +406,11 @@ module AnnihilationMod
                 ! the sign here.  Also getting rid of them here would make the
                 ! biased sign of Ci slightly wrong.
 
-                SpawnedParts2(0:NIfTot,VecInd) = cum_det(0:NIfTot)
+                SpawnedParts2(0:NIfTot, VecInd) = cum_det(0:NIfTot)
+                if (tPreCond .or. tReplicaEstimates) then
+                    SpawnedParts2(nOffSpawnHDiag, VecInd) = cum_det(nOffSpawnHDiag)
+                end if
+
                 VecInd = VecInd + 1
                 DetsMerged = DetsMerged + EndBlockDet - BeginningBlockDet
 
@@ -457,7 +483,7 @@ module AnnihilationMod
             InstAnnihil(part_type,PartIndex) = InstAnnihil(part_type,PartIndex) + &
                 2*(min(abs(Sign1(part_type)), abs(Sign2(part_type))))
         else
-            call stop_all("CompressSpawnedList", "Cannot find corresponding FCI determinant when histogramming")
+            call stop_all("HistAnnihilEvent", "Cannot find corresponding FCI determinant when histogramming")
         end if
 
     end subroutine HistAnnihilEvent
@@ -530,6 +556,287 @@ module AnnihilationMod
         end if
 
     end subroutine FindResidualParticle
+
+    subroutine CompressSpawnedList_simple(ValidSpawned, iter_data)
+
+        ! This sorts and compresses the spawned list to make it easier for the
+        ! rest of the annihilation process. This is not essential, but should
+        ! prove worthwhile.
+
+        type(fcimc_iter_data), intent(inout) :: iter_data
+        integer :: VecInd, ValidSpawned, DetsMerged, i, BeginningBlockDet, FirstInitIndex, CurrentBlockDet
+        real(dp) :: SpawnedSign(lenof_sign), temp_sign(lenof_sign), temp_sign_2(lenof_sign)
+        integer :: EndBlockDet, part_type, Parent_Array_Ind
+        integer :: No_Spawned_Parents
+        integer(n_int), pointer :: PointTemp(:,:)
+        integer(n_int) :: cum_det(0:nifbcast), cum_det_cancel(0:nifbcast)
+        logical :: any_allow, any_cancel
+        character(len=*), parameter :: t_r = 'CompressSpawnedList_simple'
+        type(timer), save :: Sort_time
+
+        if (.not. bNodeRoot) return
+
+        Sort_time%timer_name='Compress Sort interface'
+        call set_timer(Sort_time, 20)
+
+        call sort(SpawnedParts(0:NIfBCast,1:ValidSpawned), ilut_lt, ilut_gt)
+
+        call halt_timer(Sort_time)
+
+        if (tHistSpawn) HistMinInd2(1:NEl)=FCIDetIndex(1:NEl)
+
+        !write(6,*) "SpawnedParts before:"
+        !do i = 1, ValidSpawned
+        !    call extract_sign (SpawnedParts(:, i), temp_sign)
+        !    write(6,'(i7, 4x, i16, 4x, f18.7, 4x, l1)') i, SpawnedParts(0,i), temp_sign, &
+        !        test_flag(SpawnedParts(:,i), get_initiator_flag(1))
+        !end do
+
+        ! First, we compress the list of spawned particles, so that they are
+        ! only specified at most once in each processors list. During this, we
+        ! transfer the particles from SpawnedParts to SpawnedParts2. If we are
+        ! working with complex walkers, we essentially do the same thing twice,
+        ! annihilating real and imaginary particles seperately.
+
+        ! This is the index in the SpawnedParts2 array to copy the compressed
+        ! walkers into.
+        VecInd = 1
+        ! BeginningBlockDet will indicate the index of the first entry for a
+        ! given determinant in SpawnedParts.
+        BeginningBlockDet = 1
+        DetsMerged = 0
+        Parent_Array_Ind = 1
+        Spawned_Parts_Zero = 0
+
+        do while (BeginningBlockDet <= ValidSpawned)
+
+            ! Loop in blocks of the same determinant to the end of the list of
+            ! walkers.
+
+            FirstInitIndex = 0
+            CurrentBlockDet = BeginningBlockDet + 1
+
+            do while (CurrentBlockDet <= ValidSpawned)
+                if (.not. (DetBitEQ(SpawnedParts(:, BeginningBlockDet), &
+                                    SpawnedParts(:, CurrentBlockDet)))) exit
+                ! Loop over walkers on the same determinant in SpawnedParts.
+                CurrentBlockDet = CurrentBlockDet + 1
+            end do
+
+            ! EndBlockDet indicates that we have reached the end of the block
+            ! of similar dets.
+            EndBlockDet = CurrentBlockDet - 1
+
+            if (EndBlockDet == BeginningBlockDet) then
+                ! Optimisation: This block only consists of one entry. Simply
+                !               copy it across rather than explicitly searching
+                !               the list.
+
+                ! If this one entry has no amplitude then don't add it to the
+                ! compressed list, but just cycle.
+                call extract_sign (SpawnedParts(:, BeginningBlockDet), temp_sign)
+                if ( (sum(abs(temp_sign)) < 1.e-12_dp) ) then
+                    DetsMerged = DetsMerged + 1
+                    BeginningBlockDet = CurrentBlockDet
+                    cycle
+                end if
+
+                ! Transfer all info to the other array.
+                SpawnedParts2(:, VecInd) = SpawnedParts(:, BeginningBlockDet)
+
+                VecInd = VecInd + 1
+                ! Move onto the next block of determinants.
+                BeginningBlockDet = CurrentBlockDet
+                cycle ! Skip the rest of this block.
+            end if
+
+            ! Reset the cumulative determinant
+            cum_det = 0_n_int
+            cum_det(0:nifdbo) = SpawnedParts(0:nifdbo, BeginningBlockDet)
+
+            ! This will only get used with the pure-initiator-space option.
+            ! In this case, some spawnings to a site can be accepted, while
+            ! others are rejected. The following is used to hold the rejected
+            ! ones which can be used for constructing estimates later.
+            cum_det_cancel = 0_n_int
+            cum_det_cancel(0:nifdbo) = SpawnedParts(0:nifdbo, BeginningBlockDet)
+
+            if (tPreCond .or. tReplicaEstimates) then
+                cum_det(nOffSpawnHDiag) = SpawnedParts(nOffSpawnHDiag, BeginningBlockDet)
+                cum_det_cancel(nOffSpawnHDiag) = SpawnedParts(nOffSpawnHDiag, BeginningBlockDet)
+            end if
+
+            do i = BeginningBlockDet, EndBlockDet
+                ! if logged, accumulate the number of spawn events
+                if(tLogNumSpawns) then
+                   cum_det(nSpawnOffset) = cum_det(nSpawnOffset) + &
+                        SpawnedParts(nSpawnOffset,i)
+                end if
+                ! Annihilate in this block seperately for walkers of different types.
+                do part_type = 1, lenof_sign
+                    if (tHistSpawn) then
+                        call extract_sign (SpawnedParts(:,i), SpawnedSign)
+                        call extract_sign (SpawnedParts(:,BeginningBlockDet), temp_sign)
+                        call HistAnnihilEvent (SpawnedParts, SpawnedSign, temp_sign, part_type)
+                    end if
+
+                    ! If using a pure initiator space, then some spawnings to
+                    ! a site can be accepted while others are rejected, unlike
+                    ! the normal initiator approach. Here, check if this
+                    ! particular spawning needs to be rejected.
+                    if (test_flag(SpawnedParts(:,i), get_initiator_flag(part_type))) then
+                        call FindResidualParticle_simple(cum_det, SpawnedParts(:,i), part_type, iter_data)
+                    else
+                        call FindResidualParticle_simple(cum_det_cancel, SpawnedParts(:,i), part_type, iter_data)
+                    end if
+                end do ! Over all spawns to the same determinant
+
+            end do ! Loop over particle type.
+
+            ! Copy details into the final array.
+            call extract_sign (cum_det, temp_sign)
+            call extract_sign (cum_det_cancel, temp_sign_2)
+
+            any_allow = sum(abs(temp_sign)) > 1.e-12_dp
+            any_cancel = sum(abs(temp_sign_2)) > 1.e-12_dp
+
+            if ( any_allow .and. any_cancel ) then
+                SpawnedParts2(0:NIfTot, VecInd) = cum_det(0:NIfTot)
+                SpawnedParts2(0:NIfTot, VecInd+1) = cum_det_cancel(0:NIfTot)
+                if (tPreCond .or. tReplicaEstimates) then
+                    SpawnedParts2(nOffSpawnHDiag, VecInd) = cum_det(nOffSpawnHDiag)
+                    SpawnedParts2(nOffSpawnHDiag, VecInd+1) = cum_det_cancel(nOffSpawnHDiag)
+                end if
+
+                VecInd = VecInd + 2
+                DetsMerged = DetsMerged + EndBlockDet - BeginningBlockDet - 1
+            else if ( any_allow .and. (.not. any_cancel) ) then
+                SpawnedParts2(0:NIfTot, VecInd) = cum_det(0:NIfTot)
+                if (tPreCond .or. tReplicaEstimates) then
+                    SpawnedParts2(nOffSpawnHDiag, VecInd) = cum_det(nOffSpawnHDiag)
+                end if
+
+                VecInd = VecInd + 1
+                DetsMerged = DetsMerged + EndBlockDet - BeginningBlockDet
+            else if ( (.not. any_allow) .and. any_cancel ) then
+                SpawnedParts2(0:NIfTot, VecInd) = cum_det_cancel(0:NIfTot)
+                if (tPreCond .or. tReplicaEstimates) then
+                    SpawnedParts2(nOffSpawnHDiag, VecInd) = cum_det_cancel(nOffSpawnHDiag)
+                end if
+
+                VecInd = VecInd + 1
+                DetsMerged = DetsMerged + EndBlockDet - BeginningBlockDet
+            else
+                ! All particles from block have been annihilated.
+                DetsMerged = DetsMerged + EndBlockDet - BeginningBlockDet + 1
+            end if
+
+            ! Move onto the next block of determinants.
+            BeginningBlockDet = CurrentBlockDet
+
+        end do
+
+        ! This is the new number of unique spawned determinants on the processor.
+        ValidSpawned = ValidSpawned - DetsMerged
+        if (ValidSpawned /= (VecInd-1)) then
+            call stop_all(t_r, "Error in compression of spawned list")
+        end if
+
+        ! Want the compressed list in spawnedparts at the end of it - swap
+        ! pointers around.
+        PointTemp => SpawnedParts2
+        SpawnedParts2 => SpawnedParts
+        SpawnedParts => PointTemp
+
+        !write(6,*) "SpawnedParts after:"
+        !do i = 1, ValidSpawned
+        !    if (SpawnedParts(0,i) == SpawnedParts(0,i+1)) write(6,*) "Here!"
+        !    call extract_sign (SpawnedParts(:, i), temp_sign)
+        !    write(6,'(i7, 4x, i16, 4x, f18.7, 4x, l1)') i, SpawnedParts(0,i), temp_sign, &
+        !        test_flag(SpawnedParts(:,i), get_initiator_flag(1))
+        !end do
+
+    end subroutine CompressSpawnedList_simple
+
+    subroutine FindResidualParticle_simple(cum_det, new_det, part_type, iter_data)
+
+        ! This routine is called whilst compressing the spawned list during
+        ! annihilation. It considers the sign and flags from two particles
+        ! on the same determinant, and calculates the correct sign/flags
+        ! for the compressed particle.
+        !
+        ! --> The information is stored within the first particle in a block
+        ! --> Should be called for real/imaginary particles seperately
+
+        integer(n_int), intent(inout) :: cum_det(0:nIfTot)
+        integer(n_int), intent(in) :: new_det(0:niftot+nifdbo+2)
+        integer, intent(in) :: part_type
+        !integer, intent(inout) :: Parent_Array_Ind
+        type(fcimc_iter_data), intent(inout) :: iter_data
+
+        real(dp) :: new_sgn, cum_sgn, updated_sign
+        !real(dp) :: sgn_prod
+        integer :: run
+
+        new_sgn = extract_part_sign (new_det, part_type)
+        cum_sgn = extract_part_sign (cum_det, part_type)
+
+        ! If the cumulative and new signs for this replica are both non-zero
+        ! then there have been at least two spawning events to this site, so
+        ! set the initiator flag.
+        if (tTruncInitiator) then
+            if (test_flag(new_det, get_initiator_flag(part_type))) &
+                call set_flag(cum_det, get_initiator_flag(part_type))
+        end if
+
+        !sgn_prod = cum_sgn * new_sgn
+
+        ! Update annihilation statistics.
+        !if (sgn_prod < 0.0_dp) then
+        !    run = part_type_to_run(part_type)
+        !    Annihilated(run) = Annihilated(run) + 2*min(abs(cum_sgn), abs(new_sgn))
+        !    iter_data%nannihil(part_type) = iter_data%nannihil(part_type)&
+        !        + 2 * min(abs(cum_sgn), abs(new_sgn))
+        !end if
+
+        ! Update the cumulative sign count.
+        updated_sign = cum_sgn + new_sgn
+        call encode_part_sign (cum_det, updated_sign, part_type)
+
+    end subroutine FindResidualParticle_simple
+
+    subroutine rm_non_inits_from_spawnedparts(ValidSpawned)
+
+        ! Overwrite (and therefore remove) any determinants in SpawnedParts
+        ! which are not initiators. When using the pure-initiator-space
+        ! option, any walkers which will survive already have their initiator
+        ! flag set. So those that do not can be removed now.
+
+        integer, intent(inout) :: ValidSpawned
+        integer :: i, length_new
+
+        real(dp) :: temp_sign(lenof_sign)
+
+        length_new = 0
+
+        do i = 1, ValidSpawned
+            if ( any_run_is_initiator(SpawnedParts(:,i)) ) then
+                length_new = length_new + 1
+                SpawnedParts(:,length_new) = SpawnedParts(:,i)
+            end if
+        end do
+
+        ValidSpawned = length_new
+
+        !write(6,*) "SpawnedParts final:"
+        !do i = 1, ValidSpawned
+        !    if (SpawnedParts(0,i) == SpawnedParts(0,i+1)) write(6,*) "ERROR!"
+        !    call extract_sign (SpawnedParts(:, i), temp_sign)
+        !    write(6,'(i7, 4x, i16, 4x, f18.7, 4x, l1)') i, SpawnedParts(0,i), temp_sign, &
+        !        test_flag(SpawnedParts(:,i), get_initiator_flag(1))
+        !end do
+
+    end subroutine rm_non_inits_from_spawnedparts
 
     subroutine deterministic_annihilation(iter_data)
 
@@ -615,8 +922,7 @@ module AnnihilationMod
             ! for scaled walkers, truncation is done here
             t_truncate_this_det = t_truncate_spawns .and. tEScaleWalkers
 
-
-!            WRITE(6,*) 'i,SpawnedParts(:,i)',i,SpawnedParts(:,i)
+            ! WRITE(6,*) 'i,SpawnedParts(:,i)',i,SpawnedParts(:,i)
 
             if (tSuccess) then
 
@@ -662,11 +968,12 @@ module AnnihilationMod
                                     ! Walkers came from outside initiator space.
                                     NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
                                     iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
+                                    !call encode_part_sign (CurrentDets(:,PartInd), CurrentSign(run), j)
                                     call encode_part_sign (CurrentDets(:,PartInd), 0.0_dp, j)
                                 end if
                             end if
                         end if
-                            
+
 
                         if (SignProd(j) < 0) then
                             ! This indicates that the particle has found the
@@ -1004,7 +1311,6 @@ module AnnihilationMod
         real(dp) :: contrib_sign(en_pert_main%sign_length)
         logical :: pert_contrib(en_pert_main%sign_length)
         real(dp) :: trial_contrib(lenof_sign)
-        HElement_t(dp) :: h_diag
 
         ! RDM-energy-based estimate:
         ! Only add a contribution if we've started accumulating this estimate.

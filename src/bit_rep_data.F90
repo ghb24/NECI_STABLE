@@ -47,6 +47,9 @@ module bit_rep_data
     ! position of the number of spawns in the broadcast
     integer :: nSpawnOffset
 
+    ! position of the diagonal Hamiltonian element  of the spawning
+    integer :: NOffSpawnHDiag
+
     ! Flags which we can store
     integer :: flag_counter
     integer, parameter :: flag_deterministic = 0, &
