@@ -2219,6 +2219,17 @@ system: do
                      print *, " periodic boundary conditions: ", lat%is_periodic()
                      print *, "Real space basis: ", t_new_real_space_hubbard
                  end if
+
+              else if (t_heisenberg_model .or. t_tJ_model) then
+                  root_print "New tJ/Heisenberg Implementation! " 
+                  root_print "lattice used: " 
+                  if (iprocindex == root) then
+                      call lat%print_lat()
+                  end if
+                  omega = real(lat%get_nsites(), dp)
+                  root_print " periodic boundary conditions: ", lat%is_periodic()
+                  rs = 1.0_dp
+
              else 
                  WRITE(6,*) ' X-LENGTH OF HUBBARD CHAIN:', NMAXX
                  WRITE(6,*) ' Y-LENGTH OF HUBBARD CHAIN:', NMAXY
@@ -2233,6 +2244,8 @@ system: do
              ENDIF
              end if
              RS=1.0_dp
+
+
           ELSE
              OMEGA=ALAT(1)*ALAT(2)*ALAT(3)
              RS=(3.0_dp*OMEGA/(4.0_dp*PI*NEL))**THIRD
@@ -2289,6 +2302,12 @@ system: do
                     NBASISMAX(3,3) = 0
                 end if
 
+              else if (t_heisenberg_model .or. t_tJ_model) then
+
+                  len = 2*lat%get_nsites()
+                  nBasisMax(1,3) = 4
+                  nBasisMax(3,3) = 0
+
               else
                  IF(TTILT) THEN
                     CALL SETBASISLIM_HUBTILT(NBASISMAX,NMAXX,NMAXY,NMAXZ,LEN,TPBC,ITILTX,ITILTY)
@@ -2298,6 +2317,7 @@ system: do
                     CALL SETBASISLIM_HUB(NBASISMAX,NMAXX,NMAXY,NMAXZ,LEN,TPBC,TREAL)
                  ENDIF
              end if
+
           ELSEIF(TUEG) THEN
              NBASISMAX(1,1)=-NMAXX
              NBASISMAX(1,2)=NMAXX
@@ -2426,6 +2446,29 @@ system: do
                 G1(2*i)%Sym = TotSymRep()
                 ! and in the k-space i still need to 
             end do
+
+        else if (t_heisenberg_model .or. t_tJ_model) then
+            BRR = [(i, i = 1, 2*lat%get_nsites())]
+            IG = 2*lat%get_nsites()
+            ARR = 0.0_dp 
+
+            do i = 1, lat%get_nsites()
+                ! todo: not sure if i really should set up the k-vectors 
+                ! for the real-space! maybe the convention actually is to 
+                ! set them all to 0! check that!
+                ! do i still want to save the "real-space positions" in the 
+                ! k-vectors? i could.. but do i need it? 
+                G1(2*i-1)%k = lat%get_k_vec(i)
+                G1(2*i-1)%ms = -1 
+                G1(2*i-1)%Sym = TotSymRep()
+
+                G1(2*i)%k = lat%get_k_vec(i)
+                G1(2*i)%ms = 1 
+                G1(2*i)%Sym = TotSymRep()
+                ! and in the k-space i still need to 
+            end do
+
+
         else
          IG=0
          DO I=NBASISMAX(1,1),NBASISMAX(1,2)
