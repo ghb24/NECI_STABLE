@@ -37,10 +37,10 @@ contains
         real(dp), allocatable, dimension(:) :: ham_times_wf
         real(dp) :: var_e_num, var_e_denom, energy_num, energy_denom
         real(dp) :: tot_var_e_num, tot_var_e_denom, tot_e_num, tot_e_denom
-        character(*), parameter :: t_r = 'perform_determ_proj'
+        character(*), parameter :: this_routine = 'perform_determ_proj'
 
         if ((.not. tSemiStochastic) .or. (.not. allocated(sparse_core_ham))) &
-            call stop_all(t_r, "You must use the semi-stochastic &
+            call stop_all(this_routine, "You must use the semi-stochastic &
                 &option and define a core space to use the determ-proj option.")
 
         allocate(wavefunction(determ_sizes(iProcIndex)))
@@ -136,10 +136,10 @@ contains
         real(dp), allocatable, dimension(:) :: ham_times_wf
         real(dp) :: var_e_num, var_e_denom, energy_num, energy_denom
         real(dp) :: tot_var_e_num, tot_var_e_denom, tot_e_num, tot_e_denom
-        character(*), parameter :: t_r = 'perform_determ_proj'
+        character(*), parameter :: this_routine = 'perform_determ_proj'
 
         if ((.not. tSemiStochastic) .or. (.not. allocated(sparse_core_ham))) &
-            call stop_all(t_r, "You must use the semi-stochastic &
+            call stop_all(this_routine, "You must use the semi-stochastic &
                 &option and define a core space to use the determ-proj option.")
 
         allocate(wavefunction(determ_sizes(iProcIndex)))
