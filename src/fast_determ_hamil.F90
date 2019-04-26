@@ -514,6 +514,13 @@ contains
         allocate(num_conns(determ_space_size), stat=ierr)
         num_conns = 0
 
+        if (ierr == 0) then
+            write(6,'("Arrays for Hamiltonian successfully allocated...")'); call neci_flush(6)
+        else
+            write(6,'("Arrays for Hamiltonian *not* successfully allocated")'); call neci_flush(6)
+            write(6,'("error code:",1X,i8)') ierr; call neci_flush(6)
+        end if
+
         ! Loop over the determinants on this process
         do i = 1, determ_sizes(iProcIndex)
             ! Find the index in the *full* list of determinants
@@ -582,8 +589,8 @@ contains
 
                         ! Finally, check if this paired determiannt is connected to this one
                         ! that we've just generated
-                        tmp = ieor(ilut_paired, core_space(0:NIfD,ind_j))
-                        tmp = iand(ilut_paired, tmp)
+                        tmp = ieor(ilut_paired(0:NIfD), core_space(0:NIfD,ind_j))
+                        tmp = iand(ilut_paired(0:NIfD), tmp)
                         IC = CountBits(tmp, NIfD)
                         if (IC <= 2) then
                             hel = hphf_off_diag_special_case(nI_paired, ilut_paired, core_space(:,ind_j), IC, OpenOrbsI)
@@ -652,8 +659,8 @@ contains
 
                         ! Finally, check if this paired determiannt is connected to this one
                         ! that we've just generated
-                        tmp = ieor(ilut_paired, core_space(0:NIfD,ind_j))
-                        tmp = iand(ilut_paired, tmp)
+                        tmp = ieor(ilut_paired(0:NIfD), core_space(0:NIfD,ind_j))
+                        tmp = iand(ilut_paired(0:NIfD), tmp)
                         IC = CountBits(tmp, NIfD)
                         if (IC <= 2) then
                             hel = hphf_off_diag_special_case(nI_paired, ilut_paired, core_space(:,ind_j), IC, OpenOrbsI)
@@ -1233,6 +1240,13 @@ contains
 
         allocate(num_conns(determ_space_size), stat=ierr)
         num_conns = 0
+
+        if (ierr == 0) then
+            write(6,'("Arrays for Hamiltonian successfully allocated...")'); call neci_flush(6)
+        else
+            write(6,'("Arrays for Hamiltonian *not* successfully allocated")'); call neci_flush(6)
+            write(6,'("error code:",1X,i8)') ierr; call neci_flush(6)
+        end if
 
         ! Loop over the determinants on this process
         do i = 1, determ_sizes(iProcIndex)

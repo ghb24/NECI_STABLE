@@ -245,7 +245,7 @@ module davidson_semistoch
                                           this%full_vector, this%sizes, this%displs)
 
         if (space_size_this_proc > 0) then
-            if (all(abs(this%multiplied_basis_vectors(:,1)-core_ham_diag(hfindex)*this%davidson_eigenvector) < 1.0e-12_dp)) then
+            if (all(abs(this%multiplied_basis_vectors(:,1)-hf_elem*this%davidson_eigenvector) < 1.0e-12_dp)) then
                 skip_calc = .true.
             end if
         else
