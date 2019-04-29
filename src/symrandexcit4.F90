@@ -811,6 +811,7 @@ contains
             be_req = 1
             pgen = (1.0_dp - pBiasIntern) / real(AB_elec_pairs, dp)
             r = ((r - pParallel) / (1.0_dp - pParallel)) * AB_elec_pairs
+!           r = ((r - pBiasIntern) / (1.0_dp - pBiasIntern)) * AB_elec_pairs
             idx = floor(r)
             al_num(1) = 1 + mod(idx, nOccAlpha)
             be_num(1) = 1 + floor(idx / real(nOccAlpha, dp))
@@ -858,6 +859,71 @@ contains
                                          SpinOrbSymLabel(src(2)))
 
     end subroutine
+
+    subroutine pick_oppspin_elecs(nI, elecs, src, sym_prod, ispn, sum_ml, pgen)
+
+        integer, intent(in) :: nI(nel)
+        integer, intent(out) :: elecs(2), src(2), sym_prod, ispn, sum_ml
+        real(dp), intent(out) :: pgen
+
+        real(dp) :: ntot, r
+        integer :: al_req, be_req, al_num(2), be_num(2), elecs_found, i, idx
+        integer :: al_count, be_count
+
+        ! Pick elentrons with opposite spins
+
+        iSpn = 2
+        al_req = 1
+        be_req = 1
+        pgen = 1.0_dp / real(AB_elec_pairs, dp)
+        r = genrand_real2_dSFMT()
+        r = r * AB_elec_pairs
+        idx = floor(r)
+        al_num(1) = 1 + mod(idx, nOccAlpha)
+        be_num(1) = 1 + floor(idx / real(nOccAlpha, dp))
+
+        ! Loop through the determiant, and select the relevant orbitals from
+        ! it.
+        ! This is not as clean as the implementation in PickElecPair, which
+        ! doesn't consider the spins. Would work MUCH better in an
+        ! environment where the alpha/beta spins were stored seperately...
+        al_count = 0
+        be_count = 0
+        elecs_found = 0
+        do i = 1, nel
+            if (is_alpha(nI(i))) then
+                al_count = al_count + 1
+                if (al_req > 0) then
+                    if (al_count == al_num(al_req)) then
+                        elecs_found = elecs_found + 1
+                        elecs(elecs_found) = i
+                        al_req = al_req - 1
+                    end if
+                end if
+            else
+                be_count = be_count + 1
+                if (be_req > 0) then
+                    if (be_count == be_num(be_req)) then
+                        elecs_found = elecs_found + 1
+                        elecs(elecs_found) = i
+                        be_req = be_req - 1
+                    end if
+                end if
+            end if
+            if (al_req == 0 .and. be_req == 0) exit
+        end do
+
+        ! Generate the orbitals that are being considered
+        src = nI(elecs)
+
+        ! The Ml value is obtained from the orbitals
+        sum_ml = sum(G1(src)%Ml)
+
+        ! Get the symmetries
+        sym_prod = RandExcitSymLabelProd(SpinOrbSymLabel(src(1)), &
+                                         SpinOrbSymLabel(src(2)))
+
+    end subroutine pick_oppspin_elecs
 
 
     subroutine pgen_select_orb (ilut, src, orb_pair, tgt, cpt, cum_sum)

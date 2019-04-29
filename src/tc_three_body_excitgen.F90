@@ -2,7 +2,7 @@
 module tc_three_body_excitgen
   use constants
   use SystemData, only: nel, nOccAlpha, nOccBeta, nBasis, G1,t_ueg_3_body,&
-                        tTrcorrExgen,tTrcorrRandExgen,tLatticeGens
+                        tTrcorrExgen,tTrcorrRandExgen,tLatticeGens, tContact
 
   use lattice_mod, only: sort_unique
   use bit_rep_data, only: NIfTot
@@ -12,7 +12,7 @@ module tc_three_body_excitgen
   use CalcData, only: p_doubles_input
   use dSFMT_interface, only: genrand_real2_dSFMT
   use lattice_models_utils, only: make_ilutJ
-  use excit_gens_int_weighted, only: pick_biased_elecs
+  use excit_gens_int_weighted, only: pick_oppspin_elecs, pick_biased_elecs
   use GenRandSymExcitNUMod, only: calc_pgen_symrandexcit2, ScratchSize, &
        createSingleExcit, createDoubExcit, construct_class_counts,      &
        gen_rand_excit 
@@ -212,9 +212,18 @@ module tc_three_body_excitgen
        pSingles = pSingles * (1.0_dp-pTriples)
        pDoubles = pDoubles * (1.0_dp-pTriples)
       end if
-      p0A = 0.25
-      p0B = 0.25
-      p2B = 0.25
+      if (tContact) then
+!       We do not have those kind of excitations for triples, where all the
+!       fermions are up or down.
+        p0A = 0.0_dp
+        p0B = 0.0_dp
+!       We determine the rate uniformly between all the possible exciations 
+        p2B = dfloat(nOccBeta-1)/dfloat(nel-2)
+      else
+        p0A = 0.25
+        p0B = 0.25
+        p2B = 0.25
+      endif
       p1B = 1.0_dp - p0A - p0B - p2B
     end subroutine init_mol_tc_biases
 
@@ -285,8 +294,13 @@ module tc_three_body_excitgen
       real(dp) :: r
       logical :: pickAlpha
 
-      call pick_biased_elecs(nI, elecs(1:2), src(1:2), sym_prod, ispn, sum_ml, &
+      if (tContact) then
+        call pick_oppspin_elecs(nI, elecs(1:2), src(1:2), sym_prod, ispn, sum_ml, pgen)
+      else
+        call pick_biased_elecs(nI, elecs(1:2), src(1:2), sym_prod, ispn, sum_ml, &
            pgen,p0B+p0A,p0B)
+      endif
+
       if(ispn .eq. 3 .or. ispn .eq. 1) then
          ! all elecs have the same spin
          pickAlpha = ispn .eq. 3
