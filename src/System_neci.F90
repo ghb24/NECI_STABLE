@@ -590,7 +590,6 @@ system: do
            t_non_hermitian = .true.
             do while(item < nitems) 
                call readu(w)
-                write(6,*) item, nitems, w
                select case(w)
                case("3-BODY")
                   t_ueg_3_body = .true.
