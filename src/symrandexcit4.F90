@@ -871,16 +871,15 @@ contains
         integer :: al_count, be_count
 
         ! Pick elentrons with opposite spins
-
         iSpn = 2
         al_req = 1
         be_req = 1
         pgen = 1.0_dp / real(AB_elec_pairs, dp)
         r = genrand_real2_dSFMT()
-        r = r * AB_elec_pairs
+        r = r * real(AB_elec_pairs, dp)
         idx = floor(r)
         al_num(1) = 1 + mod(idx, nOccAlpha)
-        be_num(1) = 1 + floor(idx / real(nOccAlpha, dp))
+        be_num(1) = 1 + floor(real(idx, dp) / real(nOccAlpha, dp))
 
         ! Loop through the determiant, and select the relevant orbitals from
         ! it.
