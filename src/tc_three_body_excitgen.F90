@@ -34,6 +34,7 @@ module tc_three_body_excitgen
 
       real(dp) :: r
 
+
       pDoubNew = pDoubles
 
       r = genrand_real2_dSFMT()
