@@ -605,8 +605,8 @@ contains
         if (tHistSpawn .or. &
             (tCalcFCIMCPsi .and. tFCIMC) .or. tHistEnergies .or. &
             tHistSpinDist .or. tPrintOrbOcc) &
-            call stop_all(this_routine, "Not yet supported")
-
+            call stop_all(this_routine, "Not yet supported: Turn off HISTSPAWN,&
+                   & PRINTFCIMCPSI, PRINTORBOCCS, HISTPARTENERGIES, HIST-SPIN-DIST")
 
         ! Add in the contributions to the numerator and denominator of the trial
         ! estimator, if it is being used.
