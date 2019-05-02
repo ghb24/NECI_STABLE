@@ -5,7 +5,7 @@ module fcimc_pointed_fns
     use SystemData, only: nel, tGen_4ind_2, tGen_4ind_weighted, tHub, tUEG, &
                           tGen_4ind_reverse,  nBasis, t_3_body_excits, & 
                           t_k_space_hubbard, t_new_real_space_hubbard, & 
-                          t_trans_corr_2body, t_trans_corr_hop, tHPHF, nBasis
+                          t_trans_corr_2body, t_trans_corr_hop, tHPHF, nBasis, G1
 
     use LoggingData, only: tHistExcitToFrom, FciMCDebug
 
@@ -30,6 +30,9 @@ module fcimc_pointed_fns
     use rdm_general, only: calc_rdmbiasfac
     use hist, only: add_hist_excit_tofrom
     use searching, only: BinSearchParts2
+    use UMatCache, only: UMatInd, gtID
+    use kMatProjE, only: kMat
+    use tc_three_body_data, only: tDampKMat
     use util_mod
     use FciMCData
     use constants
@@ -175,6 +178,7 @@ module fcimc_pointed_fns
         integer :: ispn
 
         integer :: temp_ex(2,ic)
+        integer :: id(2,ic)
         ! Just in case
         child = 0.0_dp
 
@@ -203,6 +207,16 @@ module fcimc_pointed_fns
 #else
         rh_used = rh
 #endif
+        
+        ! if the option to damp the kmatrix for parallel spin excitaitons is used, to it here
+        if(tDampKMat) then
+           if(ic.eq.2 .and. G1(ex(1,1))%MS.eq.G1(ex(1,2))%MS) then
+              id = gtID(ex)
+              rh_used = rh_used - 0.5*kMat(UMatInd(id(1,1),id(1,2),id(2,1),id(2,2))) &
+                   + 0.5*kMat(UMatInd(id(1,2),id(1,1),id(2,1),id(2,2)))
+           endif
+        endif
+
         ! assign the matrix element
         HElGen = abs(rh)
         ! [W.D.]

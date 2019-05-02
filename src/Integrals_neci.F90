@@ -51,6 +51,7 @@ module Integrals_neci
 
     use LoggingData, only: tLogKMatProjE
     use kMatProjE, only: readKMat, freeKMat
+    use tc_three_body_data, only: tDampKMat
     implicit none
 
 contains
@@ -702,7 +703,7 @@ contains
 
       if(t_mol_3_body) call readLMat()
 
-      if(tLogKMatProjE) call readKMat()
+      if(tLogKMatProjE .or. tDampKMat) call readKMat()
 
     End Subroutine IntInit
 
@@ -851,7 +852,7 @@ contains
 
         call freeIntBuffers()
 
-        if(tLogKMatProjE) call freeKMat()
+        if(tLogKMatProjE .or. tDampKMat) call freeKMat()
 
         if(t_mol_3_body) call freeLMat()
 

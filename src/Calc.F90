@@ -57,6 +57,7 @@ MODULE Calc
     use bit_reps, only: decode_bit_det
     use cepa_shifts, only: t_cepa_shift, cepa_method
     use cc_amplitudes, only: t_cc_amplitudes, cc_order, cc_delay
+    use tc_three_body_data, only: tDampKMat
 
     implicit none
 
@@ -458,6 +459,9 @@ contains
           tNonInitsForRDMs = .true.
           tOutputInitsRDM = .false.
           tNonVariationalRDMs = .false.
+
+          ! apply the tc two-body integrals differently for same-spin excitations?
+          tDampKMat = .false.
 
         end subroutine SetCalcDefaults
 
@@ -2926,6 +2930,10 @@ contains
                     ! to do the amplitude sampling
                     cc_delay = 1000
                 end if
+
+             case("DAMP-KMAT")
+                ! multiply kmat with a factor of 0.5 for same-spin
+                tDampKMat = .true.
 
 
              case("ALL-DOUBS-INITIATORS")

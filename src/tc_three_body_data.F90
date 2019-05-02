@@ -11,4 +11,7 @@ module tc_three_body_data
   ! number of empty alpha/beta electrons
   integer :: nUnoccAlpha, nUnoccBeta
 
+  ! option to reduce the k-matrix element for same-spin excitations
+  logical :: tDampKMat
+
 end module tc_three_body_data

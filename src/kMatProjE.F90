@@ -16,7 +16,7 @@ module kMatProjE
   ! size of the arrays kMat and kMatProjEContrib
   integer :: kMatSize
  
-  private :: kMat, kMatProjEContrib, kMatSize
+  private :: kMatProjEContrib, kMatSize
 
   contains
 
