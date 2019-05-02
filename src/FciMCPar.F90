@@ -1346,7 +1346,7 @@ module FciMCParMod
                         else
                             call create_particle (nJ, iLutnJ, child, part_type, err, & 
                                                   CurrentDets(:,j), SignCurr, p, &
-                                                  RDMBiasFacCurr, WalkersToSpawn, abs(HElGen), j)
+                                                  RDMBiasFacCurr, WalkersToSpawn, abs(HElGen), j, ic, ex)
                         end if
                         if(err.ne.0) then
                            ! exit the fcimc calculation in a soft manner

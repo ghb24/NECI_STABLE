@@ -46,7 +46,8 @@ module fcimc_helper
                         initMaxSenior, tSeniorityInits, tLogAverageSpawns, &
                         spawnSgnThresh, minInitSpawns, tTimedDeaths, &
                         tAutoAdaptiveShift, tAAS_MatEle, tAAS_MatEle2, tAAS_Reverse,&
-                        tAAS_Reverse_Weighted, tAAS_MatEle3, tAAS_MatEle4, AAS_DenCut
+                        tAAS_Reverse_Weighted, tAAS_MatEle3, tAAS_MatEle4, AAS_DenCut, &
+                        tAAS_SpinScaled, AAS_SameSpin, AAS_OppSpin
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
          tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
@@ -104,7 +105,7 @@ contains
 
 
     subroutine create_particle (nJ, iLutJ, child, part_type, err, ilutI, SignCurr, &
-                                WalkerNo, RDMBiasFacCurr, WalkersToSpawn, matel, ParentPos)
+                                WalkerNo, RDMBiasFacCurr, WalkersToSpawn, matel, ParentPos, ic, ex)
         ! Create a child in the spawned particles arrays. We spawn particles
         ! into a separate array, but non-contiguously. The processor that the
         ! newly-spawned particle is going to be sent to has to be determined,
@@ -123,6 +124,7 @@ contains
         integer, intent(in), optional :: WalkersToSpawn
         real(dp), intent(in), optional :: matel
         integer, intent(in), optional :: ParentPos
+        integer, intent(in), optional :: ic, ex(2,2)
         integer :: proc, j, run
         real(dp) :: r
         integer, parameter :: flags = 0
@@ -225,6 +227,20 @@ contains
                 weight_acc = 1.0_dp
                 weight_rej = 1.0_dp
             end if
+
+            if(tAAS_SpinScaled)then
+                if(ic==2)then
+                    if (is_alpha(ex(1,1)) .eqv. is_alpha(ex(1,2))) then
+                        weight_acc = weight_acc * AAS_SameSpin
+                        weight_rej = weight_rej * AAS_SameSpin
+!                        write(6, *) "SameSpin", AAS_SameSpin
+                    else
+                        weight_acc = weight_acc * AAS_OppSpin
+                        weight_rej = weight_rej * AAS_OppSpin
+!                        write(6, *) "OppSpin", AAS_OppSpin
+                    end if
+                end if 
+            end if
             !Enocde weight, which is real, as an integer
             SpawnInfo(SpawnWeightAcc, ValidSpawnedList(proc)) = transfer(weight_acc, SpawnInfo(SpawnWeightAcc, ValidSpawnedList(proc)))
             SpawnInfo(SpawnWeightRej, ValidSpawnedList(proc)) = transfer(weight_rej, SpawnInfo(SpawnWeightRej, ValidSpawnedList(proc)))
@@ -252,6 +268,15 @@ contains
                 if(tAAS_Reverse_Weighted)then
                     weight_rev = weight_rev/mag_of_run(SignCurr, run)
                 endif
+                if(tAAS_SpinScaled)then
+                    if(ic==2)then
+                        if (is_alpha(ex(1,1)) .eqv. is_alpha(ex(1,2))) then
+                            weight_rev = weight_rev * AAS_SameSpin
+                        else
+                            weight_rev = weight_rev * AAS_OppSpin
+                        end if
+                    end if 
+                end if
                 !Enocde weight, which is real, as an integer
                 SpawnInfo(SpawnWeightRev, ValidSpawnedList(proc)) = transfer(weight_rev, SpawnInfo(SpawnWeightRev, ValidSpawnedList(proc)))
             end if
