@@ -18,26 +18,26 @@ module replica_estimates
 
     contains
 
-    subroutine get_ests_from_spawns(ValidSpawned, proj_e_for_precond)
+    subroutine get_ests_from_spawns(ValidSpawned, proj_energy)
 
         use CalcData, only: tPreCond, tReplicaEstimates, tTruncInitiator
         use CalcData, only: tSetInitFlagsBeforeDeath
         use fcimc_helper, only: set_init_flag_spawns_to_occ
 
         integer, intent(in) :: ValidSpawned
-        real(dp), intent(out) :: proj_e_for_precond(lenof_sign)
+        real(dp), intent(out) :: proj_energy(lenof_sign)
 
         if (tPreCond .or. tReplicaEstimates) then
             ! The preconditioned energy is used in perturbative estimates
             ! (and also when performing preconditioned FCIQMC).
             call set_timer(proj_e_time, 30)
-            call get_proj_e_for_preconditioner(ValidSpawned, proj_e_for_precond)
+            call get_proj_e_for_preconditioner(ValidSpawned, proj_energy)
             call halt_timer(proj_e_time)
         end if
 
         if (tReplicaEstimates) then
             call set_timer(precond_e_time, 30)
-            call calc_ests_and_set_init_flags(ValidSpawned, proj_e_for_precond)
+            call calc_ests_and_set_init_flags(ValidSpawned, proj_energy)
             call halt_timer(precond_e_time)
         end if
 
@@ -55,26 +55,26 @@ module replica_estimates
 
     end subroutine get_ests_from_spawns
 
-    subroutine get_ests_from_spawns_simple(ValidSpawned, proj_e_for_precond)
+    subroutine get_ests_from_spawns_simple(ValidSpawned, proj_energy)
 
         use CalcData, only: tPreCond, tReplicaEstimates, tTruncInitiator
         use CalcData, only: tSetInitFlagsBeforeDeath
         use fcimc_helper, only: set_init_flag_spawns_to_occ
 
         integer, intent(in) :: ValidSpawned
-        real(dp), intent(out) :: proj_e_for_precond(lenof_sign)
+        real(dp), intent(out) :: proj_energy(lenof_sign)
 
         if (tPreCond .or. tReplicaEstimates) then
             ! The preconditioned energy is used in perturbative estimates
             ! (and also when performing preconditioned FCIQMC).
             call set_timer(proj_e_time, 30)
-            call get_proj_e_for_preconditioner(ValidSpawned, proj_e_for_precond)
+            call get_proj_e_for_preconditioner(ValidSpawned, proj_energy)
             call halt_timer(proj_e_time)
         end if
 
         if (tReplicaEstimates) then
             call set_timer(precond_e_time, 30)
-            call calc_ests_simple_initiator(ValidSpawned, proj_e_for_precond)
+            call calc_ests_simple_initiator(ValidSpawned, proj_energy)
             call halt_timer(precond_e_time)
         end if
 

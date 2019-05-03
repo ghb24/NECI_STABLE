@@ -158,6 +158,8 @@ contains
         ! Hacky bugfixes, for variables that aren't clearly set elsewhere.
         VaryShiftIter = 0
 
+        proj_e_for_precond = 0.0_dp
+
     end subroutine
 
     subroutine clean_replica_arrays()

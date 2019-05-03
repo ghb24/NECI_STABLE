@@ -531,11 +531,13 @@ module AnnihilationMod
         sgn_prod = cum_sgn * new_sgn
 
         ! Update annihilation statistics.
-        if (sgn_prod < 0.0_dp) then
-            run = part_type_to_run(part_type)
-            Annihilated(run) = Annihilated(run) + 2*min(abs(cum_sgn), abs(new_sgn))
-            iter_data%nannihil(part_type) = iter_data%nannihil(part_type)&
-                + 2 * min(abs(cum_sgn), abs(new_sgn))
+        if (.not. tPrecond) then
+            if (sgn_prod < 0.0_dp) then
+                run = part_type_to_run(part_type)
+                Annihilated(run) = Annihilated(run) + 2*min(abs(cum_sgn), abs(new_sgn))
+                iter_data%nannihil(part_type) = iter_data%nannihil(part_type)&
+                    + 2 * min(abs(cum_sgn), abs(new_sgn))
+            end if
         end if
 
         ! Update the cumulative sign count.
@@ -775,7 +777,7 @@ module AnnihilationMod
         type(fcimc_iter_data), intent(inout) :: iter_data
 
         real(dp) :: new_sgn, cum_sgn, updated_sign
-        !real(dp) :: sgn_prod
+        real(dp) :: sgn_prod
         integer :: run
 
         new_sgn = extract_part_sign (new_det, part_type)
@@ -789,15 +791,17 @@ module AnnihilationMod
                 call set_flag(cum_det, get_initiator_flag(part_type))
         end if
 
-        !sgn_prod = cum_sgn * new_sgn
+        sgn_prod = cum_sgn * new_sgn
 
         ! Update annihilation statistics.
-        !if (sgn_prod < 0.0_dp) then
-        !    run = part_type_to_run(part_type)
-        !    Annihilated(run) = Annihilated(run) + 2*min(abs(cum_sgn), abs(new_sgn))
-        !    iter_data%nannihil(part_type) = iter_data%nannihil(part_type)&
-        !        + 2 * min(abs(cum_sgn), abs(new_sgn))
-        !end if
+        if (.not. tPrecond) then
+            if (sgn_prod < 0.0_dp) then
+                run = part_type_to_run(part_type)
+                Annihilated(run) = Annihilated(run) + 2*min(abs(cum_sgn), abs(new_sgn))
+                iter_data%nannihil(part_type) = iter_data%nannihil(part_type)&
+                    + 2 * min(abs(cum_sgn), abs(new_sgn))
+            end if
+        end if
 
         ! Update the cumulative sign count.
         updated_sign = cum_sgn + new_sgn
@@ -805,7 +809,7 @@ module AnnihilationMod
 
     end subroutine FindResidualParticle_simple
 
-    subroutine rm_non_inits_from_spawnedparts(ValidSpawned)
+    subroutine rm_non_inits_from_spawnedparts(ValidSpawned, iter_data)
 
         ! Overwrite (and therefore remove) any determinants in SpawnedParts
         ! which are not initiators. When using the pure-initiator-space
@@ -814,8 +818,9 @@ module AnnihilationMod
 
         integer, intent(inout) :: ValidSpawned
         integer :: i, length_new
+        type(fcimc_iter_data), intent(inout) :: iter_data
 
-        real(dp) :: temp_sign(lenof_sign)
+        real(dp) :: spawned_sign(lenof_sign)
 
         length_new = 0
 
@@ -823,6 +828,9 @@ module AnnihilationMod
             if ( any_run_is_initiator(SpawnedParts(:,i)) ) then
                 length_new = length_new + 1
                 SpawnedParts(:,length_new) = SpawnedParts(:,i)
+            else
+                call extract_sign(SpawnedParts(:,i), spawned_sign)
+                iter_data%naborted = iter_data%naborted + abs(spawned_sign)
             end if
         end do
 
@@ -831,8 +839,8 @@ module AnnihilationMod
         !write(6,*) "SpawnedParts final:"
         !do i = 1, ValidSpawned
         !    if (SpawnedParts(0,i) == SpawnedParts(0,i+1)) write(6,*) "ERROR!"
-        !    call extract_sign (SpawnedParts(:, i), temp_sign)
-        !    write(6,'(i7, 4x, i16, 4x, f18.7, 4x, l1)') i, SpawnedParts(0,i), temp_sign, &
+        !    call extract_sign (SpawnedParts(:, i), spawned_sign)
+        !    write(6,'(i7, 4x, i16, 4x, f18.7, 4x, l1)') i, SpawnedParts(0,i), spawned_sign, &
         !        test_flag(SpawnedParts(:,i), get_initiator_flag(1))
         !end do
 

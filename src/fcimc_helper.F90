@@ -258,12 +258,14 @@ contains
             ! If the new child has an opposite sign to that of walkers already
             ! on the site, then annihilation occurs. The stats for this need
             ! accumulating.
-            sgn_prod = real_sign_old * child_sign
-            do i = 1, lenof_sign
-                if (sgn_prod(i) < 0.0_dp) then
-                    iter_data%nannihil(i) = iter_data%nannihil(i) + 2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
-                end if
-            end do
+            if (.not. tPrecond) then
+                sgn_prod = real_sign_old * child_sign
+                do i = 1, lenof_sign
+                    if (sgn_prod(i) < 0.0_dp) then
+                        iter_data%nannihil(i) = iter_data%nannihil(i) + 2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
+                    end if
+                end do
+            end if
 
             ! Find the total new sign.
             real_sign_new = real_sign_old + child_sign
@@ -1876,10 +1878,11 @@ contains
 
     end subroutine decide_num_to_spawn
 
-    subroutine rescale_spawns(ValidSpawned, proj_energy)
+    subroutine rescale_spawns(ValidSpawned, proj_energy, iter_data)
 
         integer, intent(in) :: ValidSpawned
         real(dp), intent(in) :: proj_energy(lenof_sign)
+        type(fcimc_iter_data), intent(inout) :: iter_data
 
         integer :: i
         real(dp) :: spwnsign(lenof_sign), hdiag
@@ -1898,6 +1901,8 @@ contains
             call extract_sign(SpawnedParts(:,i), spwnsign)
             spwnsign = spwnsign / (hdiag - proj_energy - proje_ref_energy_offsets - Hii)
             call encode_sign(SpawnedParts(:,i), spwnsign)
+
+            iter_data%nborn = iter_data%nborn + abs(spwnsign)
         end do
 
     end subroutine rescale_spawns
