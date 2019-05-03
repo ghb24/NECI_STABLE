@@ -201,7 +201,7 @@ MODULE ReadInput_neci
                               tGen_4ind_weighted, tGen_4ind_reverse, &
                               tMultiReplicas, tGen_4ind_part_exact, &
                               tGen_4ind_lin_exact, tGen_4ind_2, &
-                              tComplexOrbs_RealInts, tLatticeGens
+                              tComplexOrbs_RealInts, tLatticeGens, tHistSpinDist
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
@@ -214,7 +214,7 @@ MODULE ReadInput_neci
                             tAllRealCoeff, tUseRealCoeffs, tChangeProjEDet, &
                             tOrthogonaliseReplicas, tReadPops, tStartMP1, &
                             tStartCAS, tUniqueHFNode, tContTimeFCIMC, &
-                            tContTimeFull
+                            tContTimeFull, tFCIMC, tPreCond, tOrthogonaliseReplicas, tMultipleInitialStates
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
@@ -225,7 +225,8 @@ MODULE ReadInput_neci
                            tCalcInstantS2, tDiagAllSpaceEver, &
                            tCalcVariationalEnergy, tCalcInstantS2Init, &
                            tPopsFile, tRDMOnFly, tExplicitAllRDM, &
-                           tHDF5PopsRead, tHDF5PopsWrite
+                           tHDF5PopsRead, tHDF5PopsWrite, tCalcFcimcPsi, &
+                           tHistEnergies, tPrintOrbOcc
         use DetCalc, only: tEnergy, tCalcHMat, tFindDets, tCompressDets
         use load_balance_calcnodes, only: tLoadBalanceBlocks
         use input_neci
@@ -366,6 +367,15 @@ MODULE ReadInput_neci
         if (tDiscoNodes .and. .not. tDiagNodes) then
             call report("DISCONNECTED NODES ONLY POSSIBLE IF NODAL SET IN &
                         &METHOD",.true.)
+        endif
+
+        if(tMultipleInitialStates .or. tOrthogonaliseReplicas .or. &
+             tPreCond) then
+           if (tHistSpawn .or. &
+                (tCalcFCIMCPsi .and. tFCIMC) .or. tHistEnergies .or. &
+                tHistSpinDist .or. tPrintOrbOcc) &
+                call report("HistSpawn and PrintOrbOcc not yet supported for multi-replica with different references"&
+                ,.true.)
         endif
         
         !.. We still need a specdet space even if we don't have a specdet.

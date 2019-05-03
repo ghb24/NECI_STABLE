@@ -196,8 +196,8 @@ module fcimc_pointed_fns
         rh_used = conjg(rh)
 #else
         rh_used = rh
-#endif
-        
+#endif        
+
         ! [W.D.]
         ! if the matrix element happens to be zero, i guess i should 
         ! abort as early as possible? so check that here already, or even 
