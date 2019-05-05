@@ -5,6 +5,20 @@ project(NECI Fortran CXX C)
 # Get access to custom cmake modules
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
+if (CMAKE_VERSION VERSION_LESS "3.1")
+  # do an extra check just for old gnu compilers: does the compiler support c++11?
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+       execute_process(COMMAND ${CMAKE_CXX_COMPILER} -dumpversion OUTPUT_VARIABLE GXX_VERSION)
+       if(GXX_VERSION VERSION_LESS 4.7)
+         message(FATAL_ERROR "C++ compiler does not support c++11 standard")
+       endif()
+  endif()
+  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+else ()
+  set (CMAKE_CXX_STANDARD 11)
+endif ()
+
+
 include(neci_system)
 
 # TODO:
@@ -16,14 +30,10 @@ include(neci_system)
 # toolchain on archer
 # PGI
 
+find_package( MPI_NECI REQUIRED )
+
 # Declare options that this project uses
 # <Package>_NECI has a custom finder that does a bit more work than normal...
-
-neci_add_option(
-    FEATURE MPI
-    DEFAULT ON
-    DESCRIPTION "Use MPI for parallel compilation"
-    REQUIRED_PACKAGES MPI_NECI )
 
 neci_add_option(
     FEATURE FFTW
@@ -66,15 +76,13 @@ find_package( LAPACK_NECI REQUIRED )
 
 # Build-type configuration
 
-set(${PROJECT_NAME}_CONFIGURATIONS neci kneci dneci mneci kdneci kmneci rneci)
+set(${PROJECT_NAME}_CONFIGURATIONS neci kneci dneci mneci kdneci kmneci)
 set(${PROJECT_NAME}_neci_DEFINITIONS HElement_t=real)
 set(${PROJECT_NAME}_kneci_DEFINITIONS HElement_t=complex __CMPLX)
 set(${PROJECT_NAME}_dneci_DEFINITIONS HElement_t=real __DOUBLERUN)
 set(${PROJECT_NAME}_mneci_DEFINITIONS HElement_t=real __PROG_NUMRUNS)
 set(${PROJECT_NAME}_kdneci_DEFINITIONS HElement_t=complex __CMPLX __DOUBLERUN)
 set(${PROJECT_NAME}_kmneci_DEFINITIONS HElement_t=complex __CMPLX __PROG_NUMRUNS)
-# RT_M_Merge: Added rneci target in the newer version
-set(${PROJECT_NAME}_rneci_DEFINITIONS HElement_t=complex __CMPLX __REALTIME __PROG_NUMRUNS)
 
 # Global (always on) defines
 
@@ -109,7 +117,7 @@ list(APPEND NECI_GLOBAL_DEFINES
 )
 
 # Add the source directory as an include path for everything
-include_directories( ${CMAKE_SOURCE_DIR}/src )
+include_directories( ${PROJECT_SOURCE_DIR}/src )
 
 # Include source directory
 

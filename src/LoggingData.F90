@@ -34,7 +34,7 @@ module LoggingData
     ! Logical(4) datatypes for compilation with builds of openmpi that don't
     ! have support for logical(8). Gah.
     logical :: tExplicitAllRDM, tChangeVarsRDM
-
+    logical :: tPopAutoAdaptiveShift
     LOGICAL tSaveBlocking !Do not overwrite blocking files
     INTEGER iWriteBlockingEvery !How often to write out blocking files
     INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs
@@ -89,6 +89,9 @@ module LoggingData
                tDumpHamilOverlap
     logical :: tFCIMCStats2
 
+    ! if we write out info on the unocc, but stored dets
+    logical :: tWriteUnocc
+    
     !If we want to force the Cauchy--Schwarz inequality (e.g. if we know the 1RDM is undersampled)
     logical :: tForceCauchySchwarz
     ! If we'd like to rotate the NOs again so as to obtain broken symmetry NOs
@@ -143,6 +146,10 @@ module LoggingData
     ! behavior in the future
     logical :: t_print_frq_histograms = .true.
 
+    ! up to which exLvl we track the number of initiators per exLvl
+    integer :: maxInitExLvlWrite
+    integer, allocatable :: initsPerExLvl(:), allInitsPerExLvl(:)
+
     ! if this is true, force moving fcimcstats and initiatorstats files, and accumulate stats in new files
     logical :: t_no_append_stats = .false.
 
@@ -172,6 +179,9 @@ module LoggingData
     ! for the output of the references in the adi-mode
     logical :: tWriteRefs
     character(255) :: ref_filename
+    ! for the histogramming of the acceptance rates used in the adaptive shift mode
+    logical :: t_hist_fvals
+    integer :: enGrid, arGrid
 
     ! spatial resolved double occupancy and spin difference measurements
     logical :: t_spin_measurements = .false.
@@ -180,4 +190,8 @@ module LoggingData
 !     logical :: t_spatial_double_occ = .false.
 
     logical :: t_print_core_info = .false.
+
+    ! for transcorrelated approach: do we separately keep track of the TC part of
+    ! the correlation energy
+    logical :: tLogKMatProjE
 end module LoggingData

@@ -3,7 +3,8 @@ MODULE System
 
     use SystemData
     use CalcData, only: TAU, tTruncInitiator, InitiatorWalkNo, &
-                        occCASorbs, virtCASorbs, tPairedReplicas
+                        occCASorbs, virtCASorbs, tPairedReplicas, tInitializeCSF, &
+                        S2Init
     use FciMCData, only: tGenMatHEl
     use sort_mod
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
@@ -15,7 +16,7 @@ MODULE System
     use k_space_hubbard, only: setup_symmetry_table
     use breathing_Hub, only: setupMomIndexTable, setupBreathingCont
     use ParallelHelper, only: iprocindex, root
-
+ 
     IMPLICIT NONE
 
     contains
@@ -47,6 +48,7 @@ MODULE System
       tRotatedOrbsReal=.false.  !This is set if compiled in real, but reading in a complex FCIDUMP.
       tISKFuncs=.false.       !This is for kpoint symmetry with inversion so that determinants can be combined.
       tKPntSym=.false.        !This is for k-point symmetry with the symrandexcit2 excitation generators.
+      tNoSinglesPossible = .false.
       t_mol_3_body = .false.
       tMCSizeSpace=.false.
       CalcDetPrint=1000
@@ -83,6 +85,7 @@ MODULE System
       LMS=0
       TSPN=.false.
       TCSF=.false.
+      tInitializeCSF = .false.
       TCSFOLD = .false.
       csf_trunc_level = 0
       tTruncateCSF = .false.
@@ -190,6 +193,7 @@ MODULE System
       t_ueg_3_body = .false.
       t_ueg_transcorr = .false.
       t_ueg_dump = .false.
+      t_exclude_3_body_excits = .false.
       tMultiReplicas = .false.
       tGiovannisBrokenInit = .false.
       ! by default, excitation generation already creates matrix elements
@@ -205,6 +209,8 @@ MODULE System
       TUnitary=.false.
       tTrcorrExgen = .true.                
       tTrCorrRandExgen = .false.                
+      t12FoldSym = .false.
+      tHDF5LMat = .false.
 
 #ifdef __PROG_NUMRUNS
       inum_runs = 1
@@ -378,6 +384,8 @@ system: do
            tRIIntegrals = .true.
         case("READCACHEINTS")
            tCacheFCIDUMPInts=.true.
+        case("HDF5-INTEGRALS")
+           tHDF5LMat = .true.
         case("ELECTRONS","NEL")
             call geti(NEL)
         case("SPIN-RESTRICT")
@@ -387,6 +395,9 @@ system: do
                LMS=0
             endif
             TSPN = .true.
+        case("INITIAL-SPIN")
+           call getf(S2Init)
+           tInitializeCSF = .true.
         case("CSF")
             if(item.lt.nitems) then
                call geti(STOT)
@@ -549,6 +560,7 @@ system: do
         case('MOLECULAR-TRANSCORR')
             t_non_hermitian = .true.
             ! optionally supply the three-body integrals of the TC Hamiltonian
+            t_3_body_excits = .true.
             if(item < nitems) then
                call readu(w)
                select case(w)
@@ -558,10 +570,16 @@ system: do
                   ! this uses a uniform excitation generator, switch off matrix
                   ! element computation for HPHF
                   tGenMatHEl = .false.
+               case("UEG")
+                  t_mol_3_body = .true.
+                  tGenMatHEl = .false.
+                  t12FoldSym = .true.
+                  tNoSinglesPossible = .true.
                case default
                   t_mol_3_body = .false.
                end select
             endif
+            if(t_mol_3_body) max_ex_level = 3
        
        case('UEG-TRANSCORR')
            t_ueg_transcorr = .true.
@@ -595,6 +613,10 @@ system: do
 
        case('UEG-DUMP')
            t_ueg_dump = .true.
+
+       case('EXCLUDE-3-BODY-EX')
+          ! Do not generate 3-body excitations, even in the molecular-transcorr mode
+          t_exclude_3_body_excits = .true.
 
        case ('TRANSCORRELATED', 'TRANSCORR', 'TRANS-CORR')
            ! activate the transcorrelated Hamiltonian idea from hongjun for 
@@ -1510,6 +1532,14 @@ system: do
 !      TRHOIJND=.false.
       proc_timer%timer_name='SysInit   '
       call set_timer(proc_timer)
+
+      ! if a total spin was set, set the spin projection if unspecified
+      if(tInitializeCSF .and. .not. TSPN) then
+         ! S is physical spin, LMS is an integer (-2*Ms)
+         LMS = 2*S2Init
+         TSPN = .true.
+         write(iout,*) 'Spin projection unspecified, assuming Ms=S'
+      end if
 
 !C ==-------------------------------------------------------------------==
 !C..Input parameters

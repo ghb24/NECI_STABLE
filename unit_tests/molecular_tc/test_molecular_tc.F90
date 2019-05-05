@@ -6,8 +6,11 @@ program test_molecular_tc
   use bit_rep_data, only: NIfTot
   use LMat_mod
   use fruit
-  
+  use Parallel_neci, only: MPIInit, MPIEnd
+
   implicit none
+
+  call MPIInit(.false.)
 
   call init_fruit()
   
@@ -15,6 +18,8 @@ program test_molecular_tc
   
   call fruit_summary()
   call fruit_finalize()
+
+  call MPIEnd(.false.)
 
   contains
 
@@ -43,7 +48,7 @@ program test_molecular_tc
 
       nBasis = 14
       tStoreSpinOrbs = .false.
-      nel = 3
+      nel = 6
 
       allocate(G1(nBasis))
       G1 = nullBasisFn
@@ -63,11 +68,11 @@ program test_molecular_tc
 
       call init_dummy()
 
-      nOccAlpha = 2
-      nOccBeta = 1
-      pParallel = 0.5
-      AA_elec_pairs = nOccAlpha**2
-      BB_elec_pairs = nOccBeta**2
+      nOccAlpha = 3
+      nOccBeta = 3
+      pParallel = 0.4
+      AA_elec_pairs = nOccAlpha*(nOccAlpha-1)/2
+      BB_elec_pairs = nOccBeta*(nOccBeta-1)/2
       AB_elec_pairs = nOccAlpha*nOccBeta
       par_elec_pairs = AA_elec_pairs + BB_elec_pairs
 
@@ -85,6 +90,7 @@ program test_molecular_tc
     subroutine run_lmat_test()
       implicit none
 
+      tDebugLMat = .true.
       call readLMat()
     end subroutine run_lmat_test
    
@@ -96,16 +102,16 @@ program test_molecular_tc
       integer :: nI(nel), nJ(nel)
       HElement_t(dp) :: matel
       
-      nI = (/2,4,6/)
+      nI = (/2,4,6,11,13,14/)
 
-      nJ = (/8,10,14/)
+      nJ = (/8,10,11,12,13,14/)
       matel = sltcnd_compat(nI,nJ,3)
       print *, "Triple matrix element", matel
       
-      nJ = (/4,10,14/)
+      nJ = (/4,10,11,12,13,14/)
       print *, "Double matrix element", sltcnd_compat(nI,nJ,2)
 
-      nJ = (/2,4,14/)
+      nJ = (/2,4,11,12,13,14/)
       print *, "Single matrix element", sltcnd_compat(nI,nJ,1)
 
       print *, "Diagonal matrix element", sltcnd_compat(nI,nI,0)
@@ -123,25 +129,30 @@ program test_molecular_tc
       HElement_t(dp) :: helgen
       type(excit_gen_store_type), target :: store
       integer(n_int) :: ilut(0:NIfTot), ilutJ(0:NIfTot)
+      integer :: i
+      integer, parameter :: nTest = 100
      
-      nI = (/1,2,4/)
+      nI = (/1,2,4,11,13,14/)
       call setup_mol_tc_excitgen(nI)
       pTriples = 1.0
 
-      call assert_equals(pgen0B,0.0_dp)
-      call assert_equals(pgen1B,1.0/60.0_dp)
-      call assert_equals(pgen2B,0.0_dp)
-      call assert_equals(pgen3B,0.0_dp)
+      ! exact values for pgenXB for (6,7) ms=0
+      call assert_equals(pgen0B,0.25_dp)
+      call assert_equals(pgen1B,1.0/216.0_dp)
+      call assert_equals(pgen2B,1.0/216.0_dp)
+      call assert_equals(pgen3B,0.25_dp)
 
-      ilut = 0_n_int
-      ilutJ = 0_n_int
-      call gen_excit_mol_tc(nI, ilut, nJ, ilutJ, exFlag, ic, ExcitMat, &
-           tParity, pgen, helgen, store)
+      do i = 1, nTest
+         ilut = 0_n_int
+         ilutJ = 0_n_int
+         call gen_excit_mol_tc(nI, ilut, nJ, ilutJ, exFlag, ic, ExcitMat, &
+              tParity, pgen, helgen, store)
 
-      print *, "Generated: ", nJ
-      print *, "Prob: ", pgen
+         print *, "Generated: ", nJ
+         print *, "Prob: ", pgen
 
-      call assert_equals(pgen,calc_pgen_triple(nI,ExcitMat))
+         call assert_true(abs(pgen-calc_pgen_triple(nI,ExcitMat)) < eps)
+      end do
     end subroutine run_excitgen_test
 
     subroutine init_dummy()

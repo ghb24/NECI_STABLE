@@ -8,7 +8,8 @@ module tau_search
                           nOccAlpha, nOccBeta, tUEG, tGen_4ind_2, tReltvy, & 
                           t_3_body_excits, t_k_space_hubbard, t_trans_corr_2body, &
                           t_uniform_excits, t_new_real_space_hubbard, & 
-                          t_trans_corr, tHub, t_trans_corr_hop,t_ueg_3_body
+                          t_trans_corr, tHub, t_trans_corr_hop, tNoSinglesPossible, &
+                          t_exclude_3_body_excits,t_ueg_3_body
 
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow, t_min_tau, min_tau_global, &
@@ -298,8 +299,12 @@ contains
             ! k-space hubbard model, where there are still no single 
             ! excitations -> so reuse the quantities for the the singles 
             ! instead of introducing yet more variables
-            tmp_prob = prob / pTriples
-            tmp_gamma = abs(matel) / tmp_prob
+           if(.not. t_exclude_3_body_excits) then
+              tmp_prob = prob / pTriples
+              tmp_gamma = abs(matel) / tmp_prob
+           else
+              tmp_gamma = 0.0_dp
+           end if
 
             if (tmp_gamma > gamma_trip) gamma_trip = tmp_gamma
             ! And keep count!
@@ -429,15 +434,17 @@ contains
                 call MPIAllLORLogical(enough_par, mpi_ltmp)
                 enough_par = mpi_ltmp
 
-                if (enough_sing .and. enough_doub) then
+                if (checkS + checkD + checkT > 1) then
                     pparallel_new = gamma_par / (gamma_opp + gamma_par)
                     psingles_new = gamma_sing * pparallel_new &
-                                 / (gamma_par + gamma_sing * pparallel_new)
+                                 / (gamma_par + gamma_sing * pparallel_new + gamma_trip)
+                    pTriples_new = gamma_trip / (gamma_par + gamma_sing * pparallel_new + gamma_trip)
                     tau_new = psingles_new * max_permitted_spawn &
                                   / gamma_sing
                 else
                     pparallel_new = pParallel
                     psingles_new = pSingles
+                    pTriples_new = pTriples
                     if(gamma_sing > EPS .and. gamma_par > EPS .and. gamma_opp > EPS) then 
                        tau_new = max_permitted_spawn * &
                             min(pSingles / gamma_sing, &
@@ -575,39 +582,44 @@ contains
 
         ! Make sure that we have at least some of both singles and doubles
         ! before we allow ourselves to change the probabilities too much...
-        if ((checkS + checkD + checkT > 1) .and. psingles_new > 1e-5_dp &
-            .and. psingles_new < (1.0_dp - 1e-5_dp) .and. &
-            min(pTriples_new,(1.0_dp-pTriples_new))>1e-5_dp) then
+        if ((checkS + checkD + checkT > 1)) then
+           if((psingles_new > 1e-5_dp .or. tNoSinglesPossible) &
+                .and. psingles_new < (1.0_dp - 1e-5_dp) .and. &
+                (t_3_body_excits .and. min(pTriples_new,(1.0_dp-pTriples_new))>1e-5_dp .or. &
+                t_exclude_3_body_excits)) then
 
-            if (abs(psingles - psingles_new) / psingles > 0.0001_dp) then
-                if (tReltvy) then 
+              if (abs(psingles - psingles_new) / psingles > 0.0001_dp) then
+                 if (tReltvy) then 
                     root_print "Updating spin-excitation class biases. pSingles(s->s) = ", &
-                        psingles_new, ", pSingles(s->s') = ", psing_spindiff1_new, &
-                        ", pDoubles(st->st) = ", 1.0_dp - pSingles - pSing_spindiff1_new - pDoub_spindiff1_new - pDoub_spindiff2, &
-                        ", pDoubles(st->s't) = ", pDoub_spindiff1_new, &
-                        ", pDoubles(st->s't') = ", pDoub_spindiff2_new
-                else
+                         psingles_new, ", pSingles(s->s') = ", psing_spindiff1_new, &
+                         ", pDoubles(st->st) = ", 1.0_dp - pSingles - pSing_spindiff1_new - pDoub_spindiff1_new - pDoub_spindiff2, &
+                         ", pDoubles(st->s't) = ", pDoub_spindiff1_new, &
+                         ", pDoubles(st->s't') = ", pDoub_spindiff2_new
+                 else
                     root_print "Updating singles/doubles bias. pSingles = ", psingles_new
                     root_print " pDoubles = ", 1.0_dp - pSingles_new - pTriples_new
-                endif
-            end if
+                 endif
+              end if
 
-            if(abs(pTriples_new - pTriples) / pTriples > 0.0001_dp) then
-               root_print "Updating triple-excitation bias. pTriples =", pTriples_new
-            endif
+              if(t_exclude_3_body_excits) then 
+                 pTriples_new = 0.0_dp
+              else if(abs(pTriples_new - pTriples) / pTriples > 0.0001_dp) then
+                 root_print "Updating triple-excitation bias. pTriples =", pTriples_new
+              endif
 
-            pSingles = pSingles_new
-            pTriples = pTriples_new
-            if (tReltvy) then
-                pSing_spindiff1 = max(pSing_spindiff1_new, prob_min_thresh)
-                pDoub_spindiff1 = max(pDoub_spindiff1_new, prob_min_thresh)
-                pDoub_spindiff2 = max(pDoub_spindiff2_new, prob_min_thresh)
-                pDoubles = max(1.0_dp - pSingles - pSing_spindiff1_new - pDoub_spindiff1_new - pDoub_spindiff2_new, prob_min_thresh)
-                ASSERT(pDoubles-gamma_doub/gamma_sum < prob_min_thresh)
-            else
-                pDoubles = 1.0_dp - pSingles - pTriples
-            endif
-        end if
+              pSingles = pSingles_new
+              pTriples = pTriples_new
+              if (tReltvy) then
+                 pSing_spindiff1 = max(pSing_spindiff1_new, prob_min_thresh)
+                 pDoub_spindiff1 = max(pDoub_spindiff1_new, prob_min_thresh)
+                 pDoub_spindiff2 = max(pDoub_spindiff2_new, prob_min_thresh)
+                 pDoubles = max(1.0_dp - pSingles - pSing_spindiff1_new - pDoub_spindiff1_new - pDoub_spindiff2_new, prob_min_thresh)
+                 ASSERT(pDoubles-gamma_doub/gamma_sum < prob_min_thresh)
+              else
+                 pDoubles = 1.0_dp - pSingles - pTriples
+              endif
+           end if
+        endif
 
 
 !        write(*,*) "pSingles", pSingles

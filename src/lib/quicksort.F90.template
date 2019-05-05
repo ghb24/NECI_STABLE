@@ -215,8 +215,19 @@ op_gt = .arrgt.
 op_lt = .arrlt.
 conditional_enable = !defined(SX)
 
+[a_i_a_i_custom]
+custom_comparisons = custom_lt, custom_gt,
+custom_compare_prefix = 
+op_gt = .localgt.
+op_lt = .locallt.
+conditional_enable = !defined(SX)
+
 [a_i_a_d]
 type2 = real(dp), dimension(:)
+custom_comparisons =
+custom_compare_prefix = !
+op_gt = .arrgt.
+op_lt = .arrlt.
 conditional_enable = !defined(SX)
 
 [a_i_i]
@@ -236,8 +247,18 @@ type2 = integer(kind=int64), dimension(:)
 op_gt = .arrgt.
 op_lt = .arrlt.
 
+[a_i64_a_i64_custom]
+custom_comparisons = custom_lt, custom_gt,
+custom_compare_prefix = 
+op_gt = .localgt.
+op_lt = .locallt.
+
 [a_i64_a_d]
 type2 = real(dp), dimension(:)
+custom_comparisons =
+custom_compare_prefix = !
+op_gt = .arrgt.
+op_lt = .arrlt.
 
 [a_i64_a_d_custom]
 custom_comparisons = custom_lt, custom_gt,
@@ -537,13 +558,6 @@ contains
         ! n.b. This will produce spurious warnings if run in valgrind, as
         !      a is not initialised. Not a problem in optimised build.
         i = 0
-#ifdef __DEBUG
-        ! it IS a problem in debug build, however
-        ! *** HACK MOD ***
-        !to prevent crashes in debug mode
-        if((ubound(arr,%(dim-arr)s) - lbound(arr,%(dim-arr)s) + 1) &
-        > 0 ) a = arr(1)
-#endif
         %(custom_compare_prefix)s if (custom_lt(a, a)) i = i
         %(custom_compare_prefix)s if (custom_gt(a, a)) i = i
 

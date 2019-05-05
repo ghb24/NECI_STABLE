@@ -168,7 +168,7 @@ contains
                    end do
                    call encode_sign(ilut,tmp_sign)
                 endif
-                SpawnedParts(:, ValidSpawnedList(proc)) = ilut
+                SpawnedParts(0:NIfTot, ValidSpawnedList(proc)) = ilut
                 ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
                 call checkValidSpawnedList(proc,this_routine)
             end if
@@ -194,7 +194,7 @@ contains
 
         ! Now move the contents of SpawnedParts to ilut_list.
         do i = 1, ndets
-            dets_out(:,i) = SpawnedParts(:,i)
+            dets_out(:,i) = SpawnedParts(0:NIfTot,i)
         end do
         call sort(dets_out(:, 1:ndets), ilut_lt, ilut_gt)
 

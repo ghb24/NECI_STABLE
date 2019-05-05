@@ -5,7 +5,7 @@ module fcimc_pointed_fns
     use SystemData, only: nel, tGen_4ind_2, tGen_4ind_weighted, tHub, tUEG, &
                           tGen_4ind_reverse,  nBasis, t_3_body_excits, & 
                           t_k_space_hubbard, t_new_real_space_hubbard, & 
-                          t_trans_corr_2body, t_trans_corr_hop
+                          t_trans_corr_2body, t_trans_corr_hop, tHPHF, nBasis
 
     use LoggingData, only: tHistExcitToFrom, FciMCDebug
 
@@ -14,12 +14,15 @@ module fcimc_pointed_fns
                         tRealCoeffByExcitLevel, InitiatorWalkNo, &
                         t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, & 
                         t_matele_cutoff, matele_cutoff, tEN2Truncated, &
-                        tTruncInitiator, tSkipRef, t_consider_par_bias
-
+                        tTruncInitiator, tSkipRef, t_truncate_unocc, t_consider_par_bias, &
+                        tAdaptiveShift, AdaptiveShiftSigma, AdaptiveShiftF1, AdaptiveShiftF2, &
+                        tAutoAdaptiveShift, AdaptiveShiftThresh, AdaptiveShiftExpo, AdaptiveShiftCut, &
+                        tAAS_Add_Diag
     use DetCalcData, only: FciDetIndex, det
 
     use procedure_pointers, only: get_spawn_helement
     use fcimc_helper, only: CheckAllowedTruncSpawn
+    use load_balance, only: scaleFunction
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
     use bit_rep_data, only: NIfTot, test_flag
     use bit_reps, only: get_initiator_flag
@@ -30,10 +33,6 @@ module fcimc_pointed_fns
     use util_mod
     use FciMCData
     use constants
-#ifdef __REALTIME
-    use real_time_data, only: NoBorn_1, SpawnFromSing_1, bloom_count_1, &
-                              bloom_sizes_1, runge_kutta_step
-#endif
     
     use tau_search_hist, only: fill_frequency_histogram_4ind, &
                                fill_frequency_histogram_sd, &
@@ -41,6 +40,9 @@ module fcimc_pointed_fns
 
     use excit_gen_5, only: pgen_select_a_orb
     use cepa_shifts, only: t_cepa_shift, cepa_shift
+    use hphf_integrals, only: hphf_diag_helement
+    use Determinants, only: get_helement
+    use global_det_data, only: get_tot_spawns, get_acc_spawns
 
     implicit none
 
@@ -61,7 +63,7 @@ module fcimc_pointed_fns
         real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
         logical :: tAllowForEN2Calc
-        HElement_t(dp), intent(in) :: HElGen
+        HElement_t(dp), intent(inout) :: HElGen
 
         ! If tEN2Truncated is true, then we want to allow the otherwise
         ! truncated spawning to allow an EN2 correction to be calculated,
@@ -116,7 +118,8 @@ module fcimc_pointed_fns
         real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
         logical :: tAllowForEN2Calc
-        HElement_t(dp) , intent(in) :: HElGen
+        ! make sure that HElgen is assigned on return
+        HElement_t(dp) , intent(inout) :: HElGen
 
         call EncodeBitDet (nJ, iLutnJ)
 
@@ -145,7 +148,8 @@ module fcimc_pointed_fns
 
     function attempt_create_normal (DetCurr, iLutCurr, &
                                     RealwSign, nJ, iLutnJ, prob, HElGen, ic, ex, tParity,&
-                                    walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr) result(child)
+                                    walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr &
+                                    ) result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel)
         integer, intent(in) :: part_type    ! odd = Real parent particle, even = Imag parent particle
@@ -158,7 +162,7 @@ module fcimc_pointed_fns
         real(dp), dimension(lenof_sign) :: child
         real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
-        HElement_t(dp) , intent(in) :: HElGen
+        HElement_t(dp) , intent(inout) :: HElGen
         character(*), parameter :: this_routine = 'attempt_create_normal'
 
         real(dp) :: rat, r, walkerweight, pSpawn, nSpawn, MatEl, p_spawn_rdmfac
@@ -191,11 +195,7 @@ module fcimc_pointed_fns
 
         rh = get_spawn_helement (nJ, DetCurr, ilutnJ, iLutCurr,  ic, temp_ex, &
                                  tParity, HElGen)
-
-!         if (abs(rh) > EPS) then
-!             print *, "HElGen: ", rh
-!             print *, "prob: ", prob
-!         end if
+            
         ! We actually want to calculate Hji - take the complex conjugate, 
         ! rather than swap around DetCurr and nJ.
 #ifdef __CMPLX
@@ -203,7 +203,8 @@ module fcimc_pointed_fns
 #else
         rh_used = rh
 #endif
-        
+        ! assign the matrix element
+        HElGen = abs(rh)
         ! [W.D.]
         ! if the matrix element happens to be zero, i guess i should 
         ! abort as early as possible? so check that here already, or even 
@@ -246,7 +247,7 @@ module fcimc_pointed_fns
                 call fill_frequency_histogram(abs(rh_used), prob / AvMCExcits)
 
             else 
-                if (t_consider_par_bias) then
+                if (t_consider_par_bias .and. ic > 1) then
                     t_par = (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2)))
 
                     ! not sure about the AvMCExcits!! TODO
@@ -342,11 +343,14 @@ module fcimc_pointed_fns
 !            write(66,*) part_type, nspawn, RealSpawnCutoff, RealSpawnCutoff, stochastic_round (nSpawn / RealSpawnCutoff)
             ! [Werner Dobrautz 4.4.2017:]
             ! apply the spawn truncation, when using histogramming tau-search
-            if (t_truncate_spawns .and. abs(nspawn) > n_truncate_spawns) then
+            if ((t_truncate_spawns .and. .not. t_truncate_unocc)  .and. abs(nspawn) > &
+                 n_truncate_spawns .and. .not. tEScaleWalkers) then
+               ! does not work with scaled walkers, as the scaling factor is not
+               ! computed here for performance reasons (it was a huge performance bottleneck)
                 ! TODO: add some additional output if this event happens
-!                 write(iout,*) "Truncating spawn magnitude from: ", abs(nspawn), " to ", n_truncate_spawns
+                 write(iout,*) "Truncating spawn magnitude from: ", abs(nspawn), " to ", n_truncate_spawns
+                truncatedWeight = truncatedWeight + abs(nSpawn) - n_truncate_spawns
                 nSpawn = sign(n_truncate_spawns, nspawn)
-
 
             end if
             
@@ -368,7 +372,6 @@ module fcimc_pointed_fns
             
             if (tRealSpawning) then
                 ! Continuous spawning. Add in acceptance probabilities.
-                
                 if (tRealSpawnCutoff .and. &
                     abs(nSpawn) < RealSpawnCutoff) then
                     p_spawn_rdmfac=abs(nSpawn)/RealSpawnCutoff
@@ -531,33 +534,9 @@ module fcimc_pointed_fns
         ! Count the number of children born
         ! in the real-time fciqmc, it is probably good to keep track of the 
         ! stats of the 2 distinct RK loops .. use a global variable for the step
-        ! RT_M_Merge: Merge conflict with master due to introduction of kmneci resolved. 
-        ! For rmneci, the __REALTIME case will have to be adapted to inum_runs>1
 
         ! rmneci_setup: Added multirun support for real-time case
-#if defined(__REALTIME) 
-        do run = 1, inum_runs
-           if (runge_kutta_step == 1) then
-              NoBorn_1(run) = NoBorn_1(run) + sum(abs(child))
-              if (ic == 1) SpawnFromSing_1(run) = SpawnFromSing_1(run) + sum(abs(child))
-
-              if (sum(abs(child)) > InitiatorWalkNo) then
-                 bloom_count_1(ic) = bloom_count_1(ic) + 1
-                 bloom_sizes_1(ic) = max(real(sum(abs(child)),dp), bloom_sizes_1(ic))
-              end if
-
-           else if (runge_kutta_step == 2) then
-              NoBorn(run) = NoBorn(run) + sum(abs(child))
-              if (ic == 1) SpawnFromSing(run) = SpawnFromSing(run) + sum(abs(child))
-
-              ! Count particle blooms, and their sources
-              if (sum(abs(child)) > InitiatorWalkNo) then
-                 bloom_count(ic) = bloom_count(ic) + 1
-                 bloom_sizes(ic) = max(real(sum(abs(child)), dp), bloom_sizes(ic))
-              end if
-           end if
-        enddo
-#elif defined( __CMPLX) && !defined(__REALTIME)
+#if defined( __CMPLX)
         do run = 1, inum_runs
             NoBorn(run) = NoBorn(run) + sum(abs(child(min_part_type(run):max_part_type(run))))
             if (ic == 1) SpawnFromSing(run) = SpawnFromSing(run) + sum(abs(child(min_part_type(run):max_part_type(run))))
@@ -588,7 +567,7 @@ module fcimc_pointed_fns
 
     end subroutine
 
-    function attempt_die_normal (DetCurr, Kii, realwSign, WalkExcitLevel) result(ndie)
+    function attempt_die_normal (DetCurr, Kii, realwSign, WalkExcitLevel, DetPosition) result(ndie)
         
         ! Should we kill the particle at determinant DetCurr. 
         ! The function allows multiple births (if +ve shift), or deaths from
@@ -607,6 +586,7 @@ module fcimc_pointed_fns
         real(dp), intent(in) :: Kii
         real(dp), dimension(lenof_sign) :: ndie
         integer, intent(in) :: WalkExcitLevel
+        integer, intent(in), optional :: DetPosition
         character(*), parameter :: t_r = 'attempt_die_normal'
 
         real(dp) :: probsign, r
@@ -617,6 +597,7 @@ module fcimc_pointed_fns
 #else
         real(dp) :: rat(1)
 #endif        
+        real(dp) :: shift, population, slope, tot, acc, tmp
 
 
         do i=1, inum_runs
@@ -629,11 +610,51 @@ module fcimc_pointed_fns
                 !If we are fixing the population of reference det, skip death/birth
                 fac(i)=0.0
             else
-                fac(i)=tau*(Kii-DiagSft(i))
+                if(tAdaptiveShift .and. .not. tAutoAdaptiveShift)then
+                    population = mag_of_run(realwSign, i)
+                    if(population>InitiatorWalkNo)then
+                        shift = DiagSft(i)
+                    elseif(population<AdaptiveShiftSigma)then
+                        shift = 0.0
+                    else
+                        if(InitiatorWalkNo==AdaptiveShiftSigma)then
+                            !In this case the slope is ill-defined.
+                            !Since initiators are strictly large than InitiatorWalkNo, set shift to zero
+                            shift = 0.0
+                        else
+                            !Apply linear modifcation that equals F1 at Sigma and F2 at InitatorWalkNo
+                            slope = (AdaptiveShiftF2-AdaptiveShiftF1)/(InitiatorWalkNo-AdaptiveShiftSigma)
+                            shift = DiagSft(i)*(AdaptiveShiftF1+(population-AdaptiveShiftSigma)*slope)
+                        end if
+                    end if
+                elseif(tAutoAdaptiveShift)then
+                    population = mag_of_run(realwSign, i)
+                    tot = get_tot_spawns(DetPosition, i)
+                    acc = get_acc_spawns(DetPosition, i)
+                    if(tAAS_Add_Diag)then
+                        tot = tot + Kii*tau
+                        acc = acc + Kii*tau
+                    end if
+                    if(population>InitiatorWalkNo)then
+                        tmp = 1.0
+                    elseif(tot>AdaptiveShiftThresh)then
+                        tmp = acc/tot
+                    else
+                        tmp = 0.0
+                    endif 
+                    !The factor is actually never zero, because at least the parent is occupied
+                    !As a heuristic, we use the connectivity of HF
+                    if(tmp<AdaptiveShiftCut)then
+                        tmp = AdaptiveShiftCut
+                    endif
+                    shift = DiagSft(i)*tmp**AdaptiveShiftExpo
+                else
+                    shift = DiagSft(i)
+                endif
+                fac(i)=tau*(Kii-shift)
                 ! And for tau searching purposes
-                call log_death_magnitude (Kii - DiagSft(i))
-            end if
-
+                call log_death_magnitude (Kii - shift)
+            endif
         enddo
 
         if(any(fac > 1.0_dp)) then
@@ -648,10 +669,10 @@ module fcimc_pointed_fns
                         fac(i) = min(2.0_dp, fac(i))
                     end do
                 else
-                    print *, "nI: ", DetCurr
-                    print *, "Kii: ", Kii 
-                    print *, "weight: ", realwSign
-                    print *, "excit_level: ", WalkExcitLevel
+                   print *, "Acc spawns", acc
+                   print *, "Tot spawns", tot
+                   print *, "Diag sft", DiagSft
+                   print *, "Death probability", fac
                     call stop_all(t_r, "Death probability > 2: Algorithm unstable. Reduce timestep.")
                 end if
             else
@@ -700,5 +721,50 @@ module fcimc_pointed_fns
         iUnused = DetCurr(1)
 
     end function
+
+!------------------------------------------------------------------------------------------!
+
+    function powerScaleFunction(hdiag) result(Si)
+      implicit none
+      
+      real(dp), intent(in) :: hdiag
+      real(dp) :: Si
+
+      Si = 1.0 / ( (sFAlpha * (hdiag) + 1)**sFBeta )
+    end function powerScaleFunction
+
+!------------------------------------------------------------------------------------------!
+
+    function expScaleFunction(hdiag) result(Si)
+      implicit none
+      
+      real(dp), intent(in) :: hdiag
+      real(dp) :: Si
+
+      Si = 1.0/( sfBeta*exp(sFAlpha*hdiag) )
+    end function expScaleFunction
+
+!------------------------------------------------------------------------------------------!
+
+    function expCOScaleFunction(hdiag) result(Si)
+      implicit none
+      
+      real(dp), intent(in) :: hdiag
+      real(dp) :: Si
+
+      Si = (1 - sFbeta)/( exp(sFAlpha*hdiag) ) + sFbeta
+    end function expCOScaleFunction
+
+!------------------------------------------------------------------------------------------!
+
+    function negScaleFunction(hdiag) result(Si)
+      implicit none
+
+      real(dp), intent(in) :: hdiag
+      real(dp) :: Si
+
+      Si = -1
+      
+    end function negScaleFunction
 
 end module

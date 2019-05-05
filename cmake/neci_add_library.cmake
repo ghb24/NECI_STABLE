@@ -94,11 +94,11 @@ macro( neci_add_library )
       set( _template_dir ${CMAKE_BINARY_DIR}/templated/${_p_TARGET} )
       file( MAKE_DIRECTORY ${_template_dir} )
 
-      get_filename_component( _templater_tool ${CMAKE_SOURCE_DIR}/tools/f90_template.py ABSOLUTE )
+      get_filename_component( _templater_tool ${PROJECT_SOURCE_DIR}/tools/f90_template.py ABSOLUTE )
 
       foreach(_templated_file ${_p_TEMPLATED_SOURCES})
         get_filename_component( _templated_file_base ${_templated_file} NAME_WE )
-        get_filename_component( _templated_file_absolute ${_templated_file} ABSOLUTE) 
+        get_filename_component( _templated_file_absolute ${_templated_file} ABSOLUTE)
         set( _templated_target_file ${_template_dir}/${_templated_file_base}.F90 )
         list( APPEND ${_p_TARGET}_TEMPLATED_SOURCES ${_templated_target_file} )
         add_custom_command(
@@ -144,6 +144,10 @@ macro( neci_add_library )
             endif()
         endforeach()
     endif()
+
+    # We need c++11 for the molpro plugin
+
+    set_property(TARGET ${_p_TARGET} PROPERTY CXX_STANDARD 11)
 
     # Add the link libraries
 

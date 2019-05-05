@@ -7,15 +7,16 @@ module fcimc_output
                            instant_s2_multiplier, tPrintFCIMCPsi, &
                            iWriteHistEvery, tDiagAllSpaceEver, OffDiagMax, &
                            OffDiagBinRange, tCalcVariationalEnergy, &
-                           iHighPopWrite, tLogEXLEVELStats
+                           iHighPopWrite, tLogEXLEVELStats, &
+                           maxInitExLvlWrite, AllInitsPerExLvl
     use hist_data, only: Histogram, AllHistogram, InstHist, AllInstHist, &
                          BeforeNormHist, iNoBins, BinRange, HistogramEnergy, &
                          AllHistogramEnergy
     use CalcData, only: tTruncInitiator, tTrialWavefunction, tReadPops, &
                         DiagSft, tSpatialOnlyHash, tOrthogonaliseReplicas, &
                         StepsSft, tPrintReplicaOverlaps, tStartTrialLater, tEN2, &
-                        tSemiStochastic, allCorespaceWalkers
-
+                        tSemiStochastic, allCorespaceWalkers, &
+                        tGlobalInitFlag, t_truncate_spawns, tTimedDeaths
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
     use IntegralsData, only: frozen_orb_list, frozen_orb_reverse_map, &
@@ -35,30 +36,39 @@ module fcimc_output
     use constants
     use sort_mod
     use util_mod
-    use real_time_data, only: AllNoBorn_1, AllNoAborted_1, AllAnnihilated_1, &
-                              AllNoDied_1, AllTotWalkers_1, nspawned_tot_1,  gf_count, &
-                              AllTotParts_1, AccRat_1, AllGrowRate_1, normsize, snapShotOrbs, &
-                              current_overlap, t_real_time_fciqmc, elapsedRealTime, &
-                              elapsedImagTime, overlap_real, overlap_imag, dyn_norm_psi,&
-                              dyn_norm_red, real_time_info, allPopSnapshot, numSnapshotOrbs
     implicit none
 
 contains
 
     SUBROUTINE WriteFciMCStatsHeader()
-        integer i, j, k, run
+        integer i, j, k, run, offset
         character(256) label
         character(32) tchar_r, tchar_i, tchar_j, tchar_k
+        character(17) trunc_caption
 
         IF(iProcIndex.eq.root) THEN
 !Print out initial starting configurations
             WRITE(iout,*) ""
             IF(tTruncInitiator) THEN
-                WRITE(initiatorstats_unit,"(A2,A17,15A23)") "# ","1.Step","2.TotWalk","3.Annihil","4.Died", &
-                & "5.Born","6.TotUniqDets",&
-&               "7.InitDets","8.NonInitDets","9.InitWalks","10.NonInitWalks","11.AbortedWalks", &
-               "12. Removed Dets",  "13. Insufficiently connected", "14. Coherent Doubles", &
-               "15. Incoherent Dets"
+               WRITE(initiatorstats_unit,"(A2,A17,15A23)", advance = 'no') &
+                    "# ","1.Step","2.TotWalk","3.Annihil","4.Died", &
+                    & "5.Born","6.TotUniqDets",&
+                    &               "7.InitDets","8.NonInitDets","9.InitWalks","10.NonInitWalks","11.AbortedWalks", &
+                    "12. Removed Dets",  "13. Initiator Proj.E"
+               offset = 13            
+               if(tTrialWavefunction .or. tStartTrialLater) then
+                  write(initiatorstats_unit,"(A)", advance = 'no') &
+                  "14. TrialNumerators (inits)   15. TrialDenom (inits)"
+                  offset = 15
+               end if
+                do k = 1, maxInitExLvlWrite
+                   write(tchar_k,*) k+offset
+                   write(tchar_r,*) k
+                   tchar_r = trim(adjustl(tchar_k))//'. Inits on ex. lvl '//trim(adjustl(tchar_r))
+                   write(initiatorstats_unit,'(1x,a)', advance = 'no') &
+                        trim(adjustl(tchar_r))
+                end do
+                write(initiatorstats_unit,'()', advance = 'yes')
             ENDIF
             IF(tLogComplexPops) THEN
                 WRITE(complexstats_unit,"(A)") '#   1.Step  2.Shift     3.RealShift     4.ImShift   5.TotParts      " &
@@ -173,9 +183,14 @@ contains
                   &29.Inst S^2   30.AbsProjE   31.PartsDiffProc &
                   &32.|Semistoch|/|Psi|  33.MaxCycSpawn"
            if (tTrialWavefunction .or. tStartTrialLater) then 
-                  write(fcimcstats_unit, "(A)", advance = 'no') &
-                  "  34.TrialNumerator  35.TrialDenom  36.TrialOverlap"
+              write(fcimcstats_unit, "(A)", advance = 'no') &
+                   "  34.TrialNumerator  35.TrialDenom  36.TrialOverlap"
+              trunc_caption = "  37. TruncWeight"
+           else
+              trunc_caption = "  34. TruncWeight"
            end if
+           if(t_truncate_spawns) write(fcimcstats_unit, "(A)", advance = 'no') &
+                trunc_caption
 
            write(fcimcstats_unit, "()", advance = 'yes')
 
@@ -188,6 +203,7 @@ contains
     subroutine WriteFCIMCStats()
         INTEGER :: i, j, run
         real(dp),dimension(inum_runs) :: FracFromSing
+        real(dp) :: projE(inum_runs)
 
         ! What is the current value of S2
         if (tCalcInstantS2) then
@@ -291,12 +307,20 @@ contains
                     IterTime
             endif
             if (tTruncInitiator) then
-               write(initiatorstats_unit,"(I12,4G16.7,3I20,7G16.7)")&
+               write(initiatorstats_unit,"(I12,4G16.7,3I20,4G16.7,F16.9,2G16.7,2I20,1G16.7)", &
+                    advance = 'no')&
                    Iter + PreviousCycles, sum(AllTotParts), &
                    AllAnnihilated(1), AllNoDied(1), AllNoBorn(1), AllTotWalkers,&
                    AllNoInitDets(1), AllNoNonInitDets(1), AllNoInitWalk(1), &
                    AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1), &
-                   AllConnection, AllCoherentDoubles, AllIncoherentDets
+                   inits_proje_iter(1) + Hii
+               if(tTrialWavefunction .or. tStartTrialLater) &
+                    write(initiatorstats_unit, "(2G16.7)", advance = 'no') &
+                    tot_init_trial_numerator(1)/StepsSft, tot_init_trial_denom(1)/StepsSft
+               do j = 1, maxInitExLvlWrite
+                  write(initiatorstats_unit,'(1I20)', advance ='no') AllInitsPerExLvl(j)/StepsSft
+               end do
+               write(initiatorstats_unit,'()', advance = 'yes')
             endif
             if (tLogComplexPops) then
                 write (complexstats_unit,"(I12,6G16.7)") &
@@ -391,6 +415,9 @@ contains
                     (tot_trial_denom(1) / StepsSft), &                  ! 35.
                     abs((tot_trial_denom(1) / (norm_psi(1)*StepsSft)))  ! 36.
                 end if
+                if(t_truncate_spawns) then
+                   write(fcimcstats_unit, "(1X,es18.11)", advance = 'no') AllTruncatedWeight
+                endif
                 write(fcimcstats_unit, "()", advance = 'yes')
 
             if(tMCOutput) then
@@ -421,12 +448,20 @@ contains
                     IterTime
             endif
             if (tTruncInitiator) then
-               write(initiatorstats_unit,"(I12,4G16.7,3I20,7G16.7)")&
+               write(initiatorstats_unit,"(I12,4G16.7,3I20,4G16.7,F16.9,2G16.7,2I20,1G16.7)", &
+                    advance = 'no')&
                    Iter + PreviousCycles, AllTotParts(1), &
                    AllAnnihilated(1), AllNoDied(1), AllNoBorn(1), AllTotWalkers,&
                    AllNoInitDets(1), AllNoNonInitDets(1), AllNoInitWalk(1), &
                    AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1), &
-                   AllConnection, AllCoherentDoubles, AllIncoherentDets
+                   inits_proje_iter(1) + Hii
+               if(tTrialWavefunction .or. tStartTrialLater) &
+                    write(initiatorstats_unit, "(2G16.7)", advance = 'no') &
+                    tot_init_trial_numerator(1)/StepsSft, tot_init_trial_denom(1)/StepsSft
+               do j = 1, maxInitExLvlWrite
+                  write(initiatorstats_unit,'(1I20)', advance ='no') AllInitsPerExLvl(j)
+               end do
+               write(initiatorstats_unit,'()', advance = 'yes')
             endif
 #endif
             if (tLogEXLEVELStats) then
@@ -456,122 +491,37 @@ contains
     end subroutine WriteFCIMCStats
 
 
-    subroutine open_create_fciqmc_stats(funit)
+    subroutine open_create_stats(stem,funit)
 
         integer, intent(in) :: funit
+        character(*), intent(in) :: stem
         character(*), parameter :: t_r = 'open_create_fciqmc_stats'
 
         character(30) :: filename
         character(43) :: filename2
         character(12) :: num
-        integer :: i, ierr
-        logical :: exists
 
         ! If we are using Molpro, then append the molpro ID to uniquely
         ! identify the output
         if (tMolpro .and. .not. tMolproMimic) then
-            filename = 'fciqmc_stats_' // adjustl(MolproID)
+            filename = stem // adjustl(MolproID)
         else
-            filename = 'fciqmc_stats'
-        end if
-
-
-        if (tReadPops .and. .not. t_real_time_fciqmc) then
-
-            ! If we are reading from a POPSFILE, then we want to continue an
-            ! existing fciqmc_stats file if it exists.
-            open(funit, file=filename, status='unknown', position='append')
-        else
-
-            ! If we are doing a normal calculation, move existing fciqmc_stats
-            ! files so that they are not overwritten, and then create a new one
-            inquire(file=filename, exist=exists)
-
-            if (exists) then
-
-                ! Loop until we find an available spot to move the existing
-                ! file to.
-                i = 1
-                do while(exists)
-                    write(num, '(i12)') i
-                    filename2 = trim(adjustl(filename)) // "." // &
-                                trim(adjustl(num))
-                    inquire(file=filename2, exist=exists)
-                    if (i > 10000) &
-                        call stop_all(t_r, 'Error finding free fciqmc_stats.*')
-                    i = i + 1
-                end do
-
-                ! Move the file
-                call rename(filename, filename2)
-
-            end if
-
-            ! And finally open the file
-            open(funit, file=filename, status='unknown', iostat=ierr)
-
-        end if
-
-    end subroutine open_create_fciqmc_stats
-
-    subroutine open_create_initiator_stats(funit)
-
-        integer, intent(in) :: funit
-        character(*), parameter :: t_r = 'open_create_initiator_stats'
-
-        character(30) :: filename
-        character(43) :: filename2
-        character(12) :: num
-        integer :: i, ierr
-        logical :: exists
-
-        ! If we are using Molpro, then append the molpro ID to uniquely
-        ! identify the output
-        if (tMolpro .and. .not. tMolproMimic) then
-            filename = 'initiator_stats_' // adjustl(MolproID)
-        else
-            filename = 'initiator_stats'
+            filename = stem
         end if
 
 
         if (tReadPops) then
 
             ! If we are reading from a POPSFILE, then we want to continue an
-            ! existing initiator_stats file if it exists.
+            ! existing fciqmc_stats file if it exists.
             open(funit, file=filename, status='unknown', position='append')
-
         else
 
-            ! If we are doing a normal calculation, move existing initiator_stats
-            ! files so that they are not overwritten, and then create a new one
-            inquire(file=filename, exist=exists)
-            if (exists) then
-
-                ! Loop until we find an available spot to move the existing
-                ! file to.
-                i = 1
-                do while(exists)
-                    write(num, '(i12)') i
-                    filename2 = trim(adjustl(filename)) // "." // &
-                                trim(adjustl(num))
-                    inquire(file=filename2, exist=exists)
-                    if (i > 10000) &
-                        call stop_all(t_r, 'Error finding free initiator_stats.*')
-                    i = i + 1
-                end do
-
-                ! Move the file
-                call rename(filename, filename2)
-
-            end if
-
-            ! And finally open the file
-            open(funit, file=filename, status='unknown', iostat=ierr)
+           call open_new_file(funit, filename)
 
         end if
 
-    end subroutine open_create_initiator_stats
-
+    end subroutine open_create_stats
 
     subroutine write_fcimcstats2(iter_data, initial)
 
@@ -592,7 +542,6 @@ contains
         integer :: p, q, iGf, run
         logical :: init
         real(dp) :: l1_norm
-
         ! Provide default 'initial' option
         if (present(initial)) then
             state%init = initial
@@ -604,15 +553,11 @@ contains
 
         ! If the output file hasn't been opened yet, then create it.
         if (iProcIndex == Root .and. .not. inited) then
-            state%funit = get_free_unit()
-            call open_create_fciqmc_stats(state%funit)
-            ! For the initiator stats file here:
-            if (tTruncInitiator) then
-              state_i%funit = get_free_unit()
-              call open_create_initiator_stats(state_i%funit)
-            end if
+           call open_state_file('fciqmc_stats',state)
+           ! For the initiator stats file here:
+           if (tTruncInitiator) call open_state_file('initiator_stats',state_i)
 
-            inited = .true.
+           inited = .true.
         end if
 
         ! ------------------------------------------------
@@ -624,42 +569,21 @@ contains
 
             ! Only do the actual outputting on the head node.
 
-            ! Don't treat the header line as data. Add padding to align the
-            ! other columns. We do not add a # to the first line of data 
-            ! since we also need that datapoint for Green's functions
-           if (state%init) then
-              write(state%funit, '("#")', advance='no')
-              if (tMCOutput) write(iout, '(" ")', advance='no')
-           else
-              write(state%funit, '(" ")', advance='no')
-              if (tMCOutput) write(iout, '(" ")', advance='no')
-           end if
+            call write_padding_init(state)
+            call write_padding_init(state_i)
 
             ! And output the actual data!
             state%cols = 0
             state%cols_mc = 0
             state%mc_out = tMCOutput
 
-#ifdef __REALTIME
-            l1_norm = 0.0
-            do run = 1, inum_runs
-               l1_norm = l1_norm + abs(cmplx(AllTotParts(min_part_type(run)), &
-                    AllTotParts(max_part_type(run))))
-            end do
-#endif            
             call stats_out(state,.true., iter + PreviousCycles, 'Iter.')
             if (.not. tOrthogonaliseReplicas) then
                ! note that due to the averaging, the printed value is not necessarily
                ! an integer
                 call stats_out(state,.true., sum(abs(AllTotParts))/inum_runs, &
                      'Tot. parts real')
-#ifdef __REALTIME 
-                call stats_out(state,.true., real_time_info%time_angle,'Time rot. angle')
-                call stats_out(state,.false., l1_norm/inum_runs ,'L1 Norm')
-#else
                 call stats_out(state,.true., sum(abs(AllNoatHF))/inum_runs, 'Tot. ref')
-#endif
-#ifndef __REALTIME
 #ifdef __CMPLX
                 call stats_out(state,.false., real(proje_iter_tot), 'Re Proj. E')
                 call stats_out(state,.false., aimag(proje_iter_tot), 'Im Proj. E')
@@ -667,11 +591,7 @@ contains
                 call stats_out(state,.false., proje_iter_tot, 'Proj. E (cyc)')
 #endif
 #endif
-#endif
                 call stats_out(state,.true., sum(DiagSft)/inum_runs, 'Shift. (cyc)')
-#ifdef __REALTIME
-                call stats_out(state, .true., real(sum(dyn_norm_psi))/normsize, '|psi|^2')
-#endif
                 if(.not. tSemiStochastic) then
                    call stats_out(state,.false., sum(AllNoBorn), 'No. born')
                 else
@@ -679,15 +599,9 @@ contains
                         'Walkers in corespace')
                 endif
                 call stats_out(state,.false., sum(AllNoInitDets), 'No. Inits')
-#ifdef __REALTIME
-                call stats_out(state,.false., TotImagTime, 'Elapsed complex time')
-                call stats_out(state,.false., real_time_info%damping, 'eta')
-                call stats_out(state,.false., IterTime, 'Iter. time')
-#else
                 call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')
                 call stats_out(state,.false., sum(AllSumWalkersCyc), 'SumWalkersCyc')
                 call stats_out(state,.false., sum(AllNoAborted), 'No aborted')
-#endif
 #ifdef __CMPLX
                 call stats_out(state,.true., real(proje_iter_tot) + Hii, &
                                'Tot. Proj. E')
@@ -702,17 +616,8 @@ contains
             call stats_out(state,.false., AllTotWalkers, 'Dets occ.')
             call stats_out(state,.false., nspawned_tot, 'Dets spawned')
             call stats_out(state,.false., Hii, 'reference energy')
-#ifdef __REALTIME
-            call stats_out(state,.false., real(sum(dyn_norm_red(:,1))/normsize),'GF normalization')
-#else
             call stats_out(state,.false., IterTime, 'Iter. time')
-#endif
-#ifdef __REALTIME 
-            call stats_out(state, .true., elapsedRealTime, 'Re. time')
-            call stats_out(state, .true., elapsedImagTime, 'Im. time')
-#else
             call stats_out(state,.true., TotImagTime, 'Im. time')
-#endif
 
             ! Put the conditional columns at the end, so that the column
             ! numbers of the data are as stable as reasonably possible (for
@@ -720,38 +625,13 @@ contains
             ! frequently).
             ! This also makes column contiguity on resumes as likely as
             ! possible.
-        if(t_real_time_fciqmc .or. tLogGreensfunction) then
-            ! also output the overlaps and norm.. 
-            do iGf = 1, gf_count
-               write(tmgf, '(i5)') iGf
-               call stats_out(state,.true., overlap_real(iGf), 'Re. <y_i(0)|y(t)> (i=' // &
-                    trim(adjustl(tmgf)) // ')' )
-               call stats_out(state,.true., overlap_imag(iGf), 'Im. <y_i(0)|y(t)> (i=' // &
-                    trim(adjustl(tmgf)) // ')' )
-            enddo
-            do iGf = 1, gf_count
-               write(tmgf, '(i5)') iGf
-               do p = 1, normsize
-                  write(tmpc, '(i5)') p
-                  call stats_out(state,.false.,real(current_overlap(p,iGf)), 'Re. <y(0)|y(t)>(rep ' // &
-                       trim(adjustl(tmpc)) // ' i=' // trim(adjustl(tmgf)) //  ')')
-                  call stats_out(state,.false.,aimag(current_overlap(p,iGf)), 'Im. <y(0)|y(t)>(rep ' // &
-                       trim(adjustl(tmpc)) // ' i=' // trim(adjustl(tmgf)) //')')
-               enddo
-            enddo
-#ifdef __REALTIME
-            do p = 1, numSnapshotOrbs
-               ! if any orbitals are monitored, output their population
-               write(tmpc, '(i5)') snapShotOrbs(p)
-               call stats_out(state,.false.,allPopSnapshot(p),'Population of ' &
-                    // trim(adjustl(tmpc)))
-            end do
-#endif
-        endif
-
+            
+            ! if we truncate walkers, print out the total truncated weight here
+            if(t_truncate_spawns) call stats_out(state, .false., AllTruncatedWeight, &
+                 'trunc. Weight')
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these
-#if defined __PROG_NUMRUNS && !defined __REALTIME
+#if defined __PROG_NUMRUNS
             do p = 1, inum_runs
                 write(tmpc, '(i5)') p
                 call stats_out (state, .false., AllTotParts(p), &
@@ -877,7 +757,6 @@ contains
                     call stats_out(state_i, .false., AllNoNonInitWalk(p), 'NonInitWalks (' // trim(adjustl(tmpc)) // ")")
                 end do
             end if
-
             ! And we are done
             write(state%funit, *)
             if (tTruncInitiator) write(state_i%funit, *)
@@ -890,6 +769,33 @@ contains
         end if
 
     end subroutine write_fcimcstats2
+
+    subroutine open_state_file(filename,state)
+      implicit none
+      character(*), intent(in) :: filename
+      type(write_state_t), intent(inout) :: state
+      ! mini-subroutine for opening a file and assigning it to a state
+      state%funit = get_free_unit()
+      call open_create_stats(filename,state%funit)
+
+    end subroutine open_state_file
+
+    subroutine write_padding_init(state)
+      implicit none
+      type(write_state_t), intent(inout) :: state
+
+      ! Don't treat the header line as data. Add padding to align the
+      ! other columns. We also add a # to the first line of data, so
+      ! that there aren't repeats if starting from POPSFILES
+      if (state%init .or. state%prepend) then
+         write(state%funit, '("#")', advance='no')
+         if (tMCOutput) write(iout, '("#")', advance='no')
+         state%prepend = state%init
+      else if (.not. state%prepend) then
+         write(state%funit, '(" ")', advance='no')
+         if (tMCOutput) write(iout, '(" ")', advance='no')
+      end if
+    end subroutine write_padding_init
 
     subroutine writeMsWalkerCountsAndCloseUnit()
         integer :: i, ms, tempni(1:nel)
@@ -1427,6 +1333,8 @@ contains
         integer(n_int) , allocatable :: GlobalLargestWalkers(:,:)
         integer(n_int) :: HighestDet(0:NIfTot)
         integer, allocatable :: GlobalProc(:), tmp_ni(:)
+        character(100) :: bufEnd, bufStart
+        integer :: lenEnd, lenStart
         character(len=*), parameter :: t_r='PrintHighPops'
 
         character(1024) :: header
@@ -1533,7 +1441,7 @@ contains
                 write(iout,'(A)') "Current reference: "
                 call write_det (iout, ProjEDet(:,1), .true.)
                 if(tSetupSIs) call print_reference_notification(&
-                     1,nRefs,"Used Superinitiators",.true.)
+                     1,nRefs,"Used Superinitiator",.true.)
                 write(iout,*) "Number of superinitiators", nRefs
             end if
             
@@ -1547,14 +1455,16 @@ contains
                     if (nel /= nel_pre_freezing) &
                         tmp_ni(nel+1:nel_pre_freezing) = frozen_orb_list
                     call sort(tmp_ni)
-                    do i = 1, nel_pre_freezing
-                        write(6, '(i3," ")', advance='no') tmp_ni(i)
-                    end do
+                    call writeDefDet(tmp_ni, nel_pre_freezing)
+!                    do i = 1, nel_pre_freezing
+!                        write(6, '(i3," ")', advance='no') tmp_ni(i)
+!                    end do
                     deallocate(tmp_ni)
                 else
-                    do i = 1, nel
-                        write(6, '(i3," ")', advance='no') ProjEDet(i, run)
-                    end do
+                   call writeDefDet(ProjEDet(:,run), nel)
+!                    do i = 1, nel
+!                        write(6, '(i3," ")', advance='no') ProjEDet(i, run)
+!                    end do
                 end if
                 do i = 1, nel
                     full_orb = ProjEDet(i, run)
@@ -1661,8 +1571,192 @@ contains
         endif
 
         deallocate(LargestWalkers)
+        
+        contains 
+
+          subroutine writeDefDet(defdet, numEls)
+            implicit none
+            integer, intent(in) :: numEls
+            integer, intent(in) :: defdet(:)
+            logical :: nextInRange, previousInRange
+
+            do i = 1, numEls
+               ! if the previous orbital is in the same contiguous range
+               if(i.eq.1) then
+                  ! for the first one, there is no previous one
+                  previousInRange = .false.
+               else
+                  previousInRange = defdet(i).eq.defdet(i-1)+1
+               endif
+
+               ! if the following orbital is in the same contiguous range
+               if(i.eq.numEls) then
+                  ! there is no following orbital
+                  nextInRange = .false.
+               else
+                  nextInRange = defdet(i).eq.defdet(i+1)-1
+               endif
+               ! there are three cases that need output: 
+               
+               ! the last orbital of a contigous range of orbs
+               if(previousInRange .and. .not.nextInRange) then
+                  write(bufEnd,'(i3)') defdet(i)
+                  lenEnd = len_trim(bufEnd)
+                  bufStart(lenStart+2:lenStart+lenEnd+1) = adjustl(trim(bufEnd))
+                  write(iout,'(A7)',advance='no') trim(adjustl(bufStart))
+               ! the first orbital of a contiguous range of orbs
+               else if(.not.previousInRange .and. nextInRange) then
+                  write(bufStart,'(i3)') defdet(i)
+                  lenStart = len_trim(bufStart)
+                  bufStart(lenStart+1:lenStart+1) = "-"
+               ! and an orbital not in any range
+               else if(.not.previousInRange .and. .not.nextInRange) then
+                  write(iout,'(i3," ")', advance='no') defdet(i)
+               endif
+            end do
+
+          end subroutine writeDefDet
 
     END SUBROUTINE PrintHighPops
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine print_fval_hist(enPoints, arPoints)
+      use CalcData, only: tAutoAdaptiveShift
+      implicit none
+      integer, intent(in) :: enPoints, arPoints ! number of points in the histogram's axes
+      integer, allocatable :: hist(:,:), allHist(:,:)
+      real(dp), allocatable :: histEnergy(:), histAccRate(:)
+      integer :: hist_unit
+      integer :: j, i
+      character, parameter :: tab = char(9)
+
+      if(tAutoAdaptiveShift) then
+         ! allocate the buffers
+         allocate(histAccRate(aRPoints))
+         allocate(histEnergy(enPoints))
+         allocate(hist(enPoints,arPoints))
+         allocate(allHist(enPoints, arPoints))
+         ! generate the histogram
+         
+         call generate_fval_histogram(hist, histEnergy, histAccRate, enPoints, &
+              aRPoints ,allHist)
+
+         if(iProcIndex == root) then 
+            ! output the histogram
+            hist_unit = get_free_unit()
+            open(hist_unit, file = 'AccRateHistogram', status = 'unknown')
+            write(hist_unit, *) "# Acc. Rate",tab,tab,"Tot. Occ.",tab,tab,"Occ./Energy"
+            write(hist_unit, '("#",36X)', advance = 'no')
+            do j = 1, enPoints
+               write(hist_unit, '(G17.5)', advance = 'no') histEnergy(j)
+            end do
+            write(hist_unit, '()', advance = 'yes')
+            do i = 1, aRPoints
+               write(hist_unit, '(2G17.5)', advance = 'no') histAccRate(i), sum(allHist(:,i))
+               do j = 1, enPoints
+                  write(hist_unit, '(G17.5)', advance = 'no') allHist(j,i)
+               end do
+               write(hist_unit, '()', advance = 'yes')
+            end do
+
+            close(hist_unit)
+         endif
+
+         ! deallocate the buffers
+         if(allocated(allHist)) deallocate(allHist)
+         if(allocated(hist)) deallocate(hist)
+         if(allocated(histEnergy)) deallocate(histEnergy)
+         if(allocated(histAccRate)) deallocate(histAccRate)
+      endif
+    end subroutine print_fval_hist
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine generate_fval_histogram(hist, histEnergy, histAccRate, &
+         enPoints, accRatePoints, allHist)
+      use global_det_data, only: det_diagH, get_acc_spawns, get_tot_spawns
+      ! count the acceptance ratio per energy and create
+      ! a histogram hist(:,:) with axes histEnergy(:), histAccRate(:)
+      ! entries of hist(:,:) : numer of occurances
+      ! entries of histEnergy(:) : energies of histogram entries (with tolerance, second dimension)
+      ! entries of histAccRate(:) : acc. rates of histogram entries (first dimension)
+      implicit none
+      ! number of energy/acc rate windows in the histogram
+      integer, intent(in) :: enPoints, accRatePoints
+      integer, intent(out) :: hist(enPoints,accRatePoints)
+      integer, intent(out) :: allHist(:,:)
+      real(dp), intent(out) :: histEnergy(enPoints), histAccRate(accRatePoints)
+      integer :: i, run
+      integer :: enInd, arInd
+      real(dp) :: minEn, maxEn, enWindow, arWindow, locMinEn, locMaxEn, totSpawn
+
+      ! get the energy window size (the acc. rate window size is just 1.0/(accRatePoints+1))
+      locMinEn = det_diagH(1)
+      locMaxEn = det_diagH(1)
+      do i = 2, TotWalkers
+         if(det_diagH(i) > locMaxEn) locMaxEn = det_diagH(i)
+         if(det_diagH(i) < locMinEn) locMinEn = det_diagH(i)
+      end do
+      ! communicate the energy window
+      call MPIAllReduce(locMinEn, MPI_MIN, minEn)
+      call MPIAllReduce(locMaxEn, MPI_MAX, maxEn)
+      enWindow = (maxEn - minEn) / real(enPoints,dp)
+
+      if(enWindow > eps) then
+         ! set up the histogram axes
+         arWindow = 1.0_dp / real(accRatePoints,dp)
+         do i = 1, accRatePoints
+            histAccRate(i) = ((i-1)+1.0_dp/2.0_dp)*arWindow
+         end do
+
+         do i = 1, enPoints
+            histEnergy(i) = minEn + (i-1)*enWindow + enWindow/2.0_dp
+         end do
+
+         ! then, fill the histogram itself      
+         hist = 0
+         do i = 1, TotWalkers
+            do run = 1, inum_runs
+               totSpawn = get_tot_spawns(i,run)
+               if(abs(totSpawn) > eps) then
+                  enInd = getHistIndex(det_diagH(i), minEn, enPoints, enWindow)
+                  arInd = getHistIndex(get_acc_spawns(i,run)/totSpawn, &
+                       0.0_dp, accRatePoints, arWindow)
+                  hist(enInd, arInd) = hist(enInd, arInd) + 1
+               end if
+            end do
+         end do
+
+         ! communicate the histogram
+         call MPISum(hist, allHist)
+      else
+         write(iout,*) "WARNING: Empty histogram of acceptance rates"
+      endif
+
+    contains
+
+      function getHistIndex(val, minVal, nPoints, windowSize) result(ind)
+        ! for a given energy, get the position in the histogram
+        implicit none
+        real(dp), intent(in) :: val, minVal, windowSize
+        integer, intent(in) :: nPoints
+        integer :: ind
+
+        if(abs(val - minVal) < eps) then 
+           ! val == minval would else yield 0, but it still belongs to index 1
+           ind = 1
+        else if(abs(val - (minVal + nPoints*windowSize)) < eps) then
+           ! val == maxVal would else yield nPoints + 1, but it still belongs to the last index
+           ind = nPoints
+        else
+           ind = ceiling((val - minVal) / windowSize)
+        endif
+      end function getHistIndex
+
+    end subroutine generate_fval_histogram
+
+!------------------------------------------------------------------------------------------!
             
     subroutine end_iteration_print_warn (totWalkersNew)
         

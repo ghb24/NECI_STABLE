@@ -8,7 +8,7 @@ contains
 
     pure function one_elec_int(i, j) result(integral)
 
-        use OneEInts, only: GetTMatEl
+      use OneEInts, only: GetTMatEl
 
         integer, intent(in) :: i, j
         real(dp) :: integral

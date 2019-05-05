@@ -15,6 +15,7 @@ character(12) :: MolproID
 
 logical :: tNoSingExcits    !True if there are no single excitations in the system
 logical :: t_mol_3_body,t_ueg_transcorr, t_ueg_dump, t_ueg_3_body     ! using molecular 3-body transcorr. matels
+logical :: t_exclude_3_body_excits
 logical :: tStarBin, tReadInt, tHFOrder, tDFRead, tPBC, tUEG, tUEG2, tCPMD, tHUB, tHeisenberg
 logical :: tHPHF, tHPHFInts, tUHF, tSPN, tParity, tUseBrillouin, tExch, tReal
 logical :: tTilt, tOneElIntMax, tOnePartOrbEnMax, tROHF, tBrillouinsDefault
@@ -55,6 +56,8 @@ logical :: tComplexWalkers_RealInts !We are using real orbitals, but complex wal
 integer :: iParity(5), nMaxX, nMaxY, nMaxZ, nMSH, coulDampOrb, elecPairs
 integer :: roIterMax, iRanLuxLev, DiagMaxMinFac, OneElmaxMinFac, iState
 integer :: iTiltX, iTiltY, nOccAlpha, nOccBeta, ShakeIterMax, ShakeStart
+integer, parameter :: nIrreps = 8
+integer :: nClosedOrbs(nIrreps), nOccOrbs(nIrreps), irrepOrbOffset(nIrreps)
 integer :: MaxMinFac, MaxABPairs
 real(dp) :: BOX, BOA, COA, fUEGRs, fRc, OrbECutoff, UHUB, BHUB, btHub
 real(dp) :: Diagweight, OffDiagWeight, OrbEnMaxAlpha, Alpha, fCoulDampBeta
@@ -285,10 +288,14 @@ real(dp) :: trans_corr_param_2body = 0.0_dp
 ! real-space hubbard. it comes from a hopping correlation form in real-space
 ! reuse the trans_corr_param variable though!
 logical :: t_trans_corr_hop = .false. 
+logical :: t12FoldSym = .false.
  
 ! and the other lattice models: 
 logical :: t_tJ_model = .false. 
 logical :: t_heisenberg_model = .false. 
+
+! if the hamiltonian supports singles
+logical :: tNoSinglesPossible = .false.
 
 ! and also the exchange strength
 real(dp) :: exchange_j = 0.0_dp
@@ -306,6 +313,7 @@ real(dp), allocatable :: excit_cache(:,:,:)
 
 ! also use an additional flag to indicate that 3-body excitations are possible
 logical :: t_3_body_excits = .false. 
+logical :: tHDF5LMat = .false.
 
 ! make a general Flag to indicat a non-hermitian Hamiltonian
 logical :: t_non_hermitian = .false.

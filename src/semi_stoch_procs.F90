@@ -19,7 +19,6 @@ module semi_stoch_procs
     use Determinants, only: get_helement
     use timing_neci
     use unit_test_helpers, only: eig
-
     use bit_reps, only: encode_sign
     use hamiltonian_linalg, only: parallel_sparse_hamil_type
     use davidson_neci, only: DavidsonCalcType, perform_davidson, DestroyDavidsonCalc
@@ -31,6 +30,8 @@ module semi_stoch_procs
     use sparse_arrays, only: core_ht, SparseCoreHamilTags
     use sparse_arrays, only: SparseHamilTags, allocate_sparse_ham_row
     use unit_test_helpers, only: print_matrix
+    use adi_data, only: tSignedRepAv
+    use global_det_data, only: set_tot_acc_spawns
 
     implicit none
 
@@ -672,7 +673,7 @@ contains
                 ! If there is only one state in CurrentDets to check then BinSearchParts doesn't
                 ! return the desired value for PartInd, so do this separately...
                 if (MinInd == nwalkers) then
-                    comp = DetBitLT(CurrentDets(:,MinInd), SpawnedParts(:,i), NIfDBO)
+                    comp = DetBitLT(CurrentDets(:,MinInd), SpawnedParts(0:NIfTot,i), NIfDBO)
                     if (comp == 0) then
                         tSuccess = .true.
                         PartInd = MinInd
@@ -702,7 +703,7 @@ contains
             else
                 ! Move all states below PartInd down one and insert the new state in the slot.
                 CurrentDets(:, PartInd+2:nwalkers+1) = CurrentDets(:, PartInd+1:nwalkers)
-                CurrentDets(:, PartInd+1) = SpawnedParts(:,i)
+                CurrentDets(:, PartInd+1) = SpawnedParts(0:NIfTot,i)
                 nwalkers = nwalkers + 1
                 MinInd = PartInd + 1
             end if
@@ -745,8 +746,10 @@ contains
         real(dp) :: walker_sign(lenof_sign)
         type(ll_node), pointer :: temp_node
         logical :: tSuccess
+        integer :: ierr
         character(*), parameter :: this_routine = 'add_core_states_currentdet'
-        
+        real(dp), allocatable :: fvals(:,:)
+
         nwalkers = int(TotWalkers,sizeof_int)
         ! Test that SpawnedParts is going to be big enough
         if (determ_sizes(iProcIndex) > MaxSpawned) then
@@ -761,6 +764,16 @@ contains
 #endif
             call stop_all(this_routine, "Insufficient memory assigned")
         end if
+
+        ! we need to reorder the adaptive shift data, too
+        if(tAutoAdaptiveShift) then
+           ! the maximally required buffer size is the current size of the
+           ! determinant list plus the size of the semi-stochastic space (in case
+           ! all core-dets are new)
+           allocate(fvals(2*inum_runs,(nwalkers+determ_sizes(iProcIndex))), stat = ierr)  
+           if(ierr.ne.0) call stop_all(this_routine, &
+                "Failed to allocate buffer for adaptive shift data")
+        endif
 
         ! First find which CurrentDet states are in the core space.
         ! The warning above refers to this bit of code: If a core determinant is not in the
@@ -789,13 +802,15 @@ contains
                 ! Copy the amplitude of the state across to SpawnedParts.
                 call extract_sign(CurrentDets(:,PartInd), walker_sign)
                 call encode_sign(SpawnedParts(:,i), walker_sign)
+                if(tAutoAdaptiveShift) call cache_fvals(i,PartInd)
             else
                 ! This will be a new state added to CurrentDets.
-               nwalkers = nwalkers + 1
+                nwalkers = nwalkers + 1
+                ! no auto-adaptive shift data available
+                if(tAutoAdaptiveShift) fvals(:,i) = 0.0_dp
             end if
 
         end do
-
         ! Next loop through CurrentDets and move all non-core states to after the last
         ! core state slot in SpawnedParts.
         i_non_core = determ_sizes(iProcIndex)
@@ -819,14 +834,16 @@ contains
                 end if
                 
                 SpawnedParts(0:NIfTot,i_non_core) = CurrentDets(:,i)
+                if(tAutoAdaptiveShift) call cache_fvals(i_non_core,i)
             end if
         end do
-
         ! Now copy all the core states in SpawnedParts into CurrentDets.
         ! Note that the amplitude in CurrentDets was copied across, so this is fine.
         do i = 1, nwalkers
-           CurrentDets(:,i) = SpawnedParts(0:NIfTot,i)
+            CurrentDets(:,i) = SpawnedParts(0:NIfTot,i)
+            ! also re-order the adaptive shift data if auto-adapive shift is used
         end do
+        if(tAutoAdaptiveShift) call set_tot_acc_spawns(fvals, nwalkers)
 
         call clear_hash_table(HashIndex)
 
@@ -857,6 +874,20 @@ contains
         end do
 
         TotWalkers = int(nwalkers, int64)
+
+        contains
+
+          subroutine cache_fvals(i,j)
+            use global_det_data, only: get_acc_spawns, get_tot_spawns
+            implicit none
+            integer, intent(in) :: i,j
+            integer :: run
+
+            do run = 1, inum_runs
+               fvals(run,i) = get_acc_spawns(j,run)
+               fvals(run+inum_runs,i) = get_tot_spawns(j,run)
+            end do
+          end subroutine cache_fvals
 
     end subroutine add_core_states_currentdet_hash
 
@@ -891,7 +922,11 @@ contains
 #ifdef __CMPLX
             sign_curr_real = sqrt(sum(abs(sign_curr(1::2)))**2 + sum(abs(sign_curr(2::2)))**2)
 #else
-            sign_curr_real = sum(real(abs(sign_curr),dp))
+            if(tSignedRepAv) then
+               sign_curr_real = real(abs(sum(sign_curr)),dp)
+            else
+               sign_curr_real = sum(real(abs(sign_curr),dp))
+            endif
 #endif
             if (present(norm)) norm = norm + (sign_curr_real**2.0)
 
@@ -1131,7 +1166,7 @@ contains
             e_values = 0.0_dp
             e_vectors = 0.0_dp
 
-            call eig(full_H, e_values, e_vectors)
+            call eig(real(full_H,dp), e_values, e_vectors)
 
             ! maybe we also want to start from a different eigenvector in 
             ! this case? this would be practial for the hubbard problem case..
@@ -1194,7 +1229,7 @@ contains
             proc = DetermineDetNode(nel,nI,0)
             if (proc == iProcIndex) then
                 ncore = ncore + 1
-                SpawnedParts(:,ncore) = core_space(:,i)
+                SpawnedParts(0:NIfTot,ncore) = core_space(:,i)
             end if
         end do
 

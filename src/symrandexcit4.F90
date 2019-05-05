@@ -36,6 +36,7 @@ module excit_gens_int_weighted
     use util_mod
     use LoggingData, only: t_log_ija, ija_bins_para, ija_bins_anti, ija_thresh, &
                            ija_orbs_para, ija_orbs_anti, ija_bins_sing, ija_orbs_sing
+    use Parallel_neci, only: iProcIndex
 
     implicit none
     save
@@ -313,6 +314,11 @@ contains
                 pgen = 0
                 return
             else
+               if(abs(cpt_tgt)<eps) then
+                  write(iout,*) "Error: ", cpt_tgt, "invalid excitation input"
+                  cc_j = get_paired_cc_ind(cc_i_final, sym_product, sum_ml, iSpn)
+                  write(iout,*) "Namely", cc_i_final, "to", cc_j, "(should be", cc_j_final, ")"
+               endif
                 pgen = pgen * cpt_tgt / cum_sum
             end if
 
@@ -771,16 +777,18 @@ contains
         else
            pBiasIntern = pParallel
         endif
-        
+                
         r = genrand_real2_dSFMT()
         if (r < pBiasIntern) then
             ! Same spin case
-            pgen = pBiasIntern / real(par_elec_pairs, dp)
+            ! pgen = pBiasIntern / real(par_elec_pairs, dp)
             ! map the random number either to get a uniform random parallel
             ! excitation or a parallel excitation biased towards A/B spin
             ! if a bias is present, use it to round r
             if(present(pAA)) then
-               if(r < pBiasIntern * pAA) then
+               ! probability for AA is pAA/(pAA+pBB)=pAA/pBias
+               ! => compare r < pBias * pAA/pBias
+               if(r < pAA) then
                   r = (r / pBiasIntern * AA_elec_pairs)
                else
                   r = (r / pBiasIntern * (par_elec_pairs - AA_elec_pairs)) + AA_elec_pairs
@@ -796,6 +804,11 @@ contains
                 iSpn = 3
                 al_num(1) = ceiling((1 + sqrt(9 + 8*real(idx, dp))) / 2)
                 al_num(2) = idx + 1 - ((al_num(1) - 1) * (al_num(1) - 2)) / 2
+                if(present(pAA)) then
+                   pgen = pAA / real(AA_elec_pairs,dp)
+                else
+                   pgen = pBiasIntern / real(par_elec_pairs,dp)
+                endif
             else
                 al_req = 0
                 be_req = 2
@@ -803,6 +816,11 @@ contains
                 idx = idx - AA_elec_pairs
                 be_num(1) = ceiling((1 + sqrt(9 + 8*real(idx, dp))) / 2)
                 be_num(2) = idx + 1 - ((be_num(1) - 1) * (be_num(1) - 2)) / 2
+                if(present(pAA)) then
+                   pgen = (pBiasIntern-pAA) / real(par_elec_pairs - AA_elec_pairs,dp)
+                else
+                   pgen = pBiasIntern / real(par_elec_pairs,dp)
+                endif
             end if
         else
             ! Opposite spin case
@@ -810,8 +828,7 @@ contains
             al_req = 1
             be_req = 1
             pgen = (1.0_dp - pBiasIntern) / real(AB_elec_pairs, dp)
-            r = ((r - pParallel) / (1.0_dp - pParallel)) * AB_elec_pairs
-!           r = ((r - pBiasIntern) / (1.0_dp - pBiasIntern)) * AB_elec_pairs
+            r = ((r - pBiasIntern) / (1.0_dp - pBiasIntern)) * AB_elec_pairs
             idx = floor(r)
             al_num(1) = 1 + mod(idx, nOccAlpha)
             be_num(1) = 1 + floor(idx / real(nOccAlpha, dp))
@@ -2147,14 +2164,15 @@ contains
         ! Enumerate possibilities for the first electron, and select the
         ! relevant orbitals.
         inds = gtID(nI)
-        ind1 = gtID(orbs)
+        ind1 = gtID(orbs)        
+        cpt = 1.0_dp
         if (tlinear) then
             cum_sum1 = 0
             cum_sum2 = 0
             do i = 1, nel
 
                 ! Contributions for selection of electron 1
-                if (.not. tlinear) then
+                if (.not. tlinear) then ! ??? What is this ???
                     cpt = abs(get_umat_el(inds(i), inds(i), inds(i), inds(i)))
                     cum_sum1 = cum_sum1 + cpt
                 end if

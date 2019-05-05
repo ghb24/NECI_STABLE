@@ -460,6 +460,7 @@ MODULE UMatCache
          ELSE
             TUMAT2D=.TRUE.
             Allocate(UMat2D(nStates,nStates),STAT=ierr)
+            UMat2D = 0.0_dp
             call LogMemAlloc('UMat2D',nStates**2,8*HElement_t_size,thisroutine,tagUMat2D,ierr)
             CALL CPMDANTISYMINTEL(G1,UMAT2D,HarInt,NSTATES)
          ENDIF
@@ -479,6 +480,7 @@ MODULE UMatCache
          ELSE
             TUMAT2D=.TRUE.
             Allocate(UMat2D(nStates,nStates),STAT=ierr)
+            UMat2D = 0.0_dp
 !            WRITE(6,*) "nStates for UMat2D: ",nStates
             call LogMemAlloc('UMat2D',nStates**2,8*HElement_t_size,thisroutine,tagUMat2D,ierr)
             IF(tRIIntegrals.or.tCacheFCIDUMPInts) THEN
@@ -1413,8 +1415,8 @@ MODULE UMatCache
         integer :: nBI, i, j, idX, idN
         
         nBI = numBasisIndices(nBasis)
-        allocate(UMat2D(nBI,nBI))
-        allocate(UMat2DExch(nBI,nBI))
+        if(.not.associated(UMat2D)) allocate(UMat2D(nBI,nBI))
+        if(.not.associated(UMat2DExch)) allocate(UMat2DExch(nBI,nBI))
         
         do i = 1, nBI
            do j = 1, nBI
@@ -1437,8 +1439,8 @@ MODULE UMatCache
         implicit none
         
         ! deallocate auxiliary arrays storing the integrals <ij|ij> and <ij|ji>
-        deallocate(UMat2dExch)
-        deallocate(UMat2d)
+        if(associated(UMat2dExch)) deallocate(UMat2dExch)
+        if(associated(UMat2d)) deallocate(UMat2d)
       end subroutine freeUmat2d_dense
 
       !------------------------------------------------------------------------------------------!

@@ -243,6 +243,34 @@ contains
          RETURN
       END SUBROUTINE NECI_ICOPY
 
+      subroutine addToIntArray(arr,ind,elem)
+        implicit none
+        integer, intent(inout), allocatable :: arr(:)
+        integer, intent(in) :: ind, elem
+
+        integer, allocatable :: tmp(:)
+        integer :: nelems
+
+        if(allocated(arr)) then
+           nelems = size(arr)
+
+           if(ind > nelems) then
+              ! resize the array
+              allocate(tmp(nelems))
+              tmp = arr
+              deallocate(arr)
+              allocate(arr(ind), source = 0)
+              arr(1:nelems) = tmp(1:nelems)
+           endif
+        else
+           allocate(arr(ind), source = 0)
+        endif
+
+        arr(ind) = elem           
+           
+      end subroutine addToIntArray
+
+
 !--- Numerical utilities ---
 
     ! If all of the compilers supported ieee_arithmetic
@@ -867,29 +895,74 @@ contains
     end subroutine find_next_comb
 
     function neci_etime(time) result(ret)
-
+#ifndef __IFORT
+      use mpi
+#endif
         ! Return elapsed time for timing and calculation ending purposes.
 
-        real(sp), intent(out) :: time(2)
-        real(sp) :: ret
+        real(dp), intent(out) :: time(2)
+        real(dp) :: ret
 
 #ifdef __IFORT
+        ! intels etime takes a real(4)
+        real(4) :: ioTime(2)
         ! Ifort defines etime directly in its compatibility modules. 
         ! Avoid timing inaccuracies from using cpu_time on cerebro.
-        ret = etime(time)
+        ret = real(etime(ioTime),dp)
+        time = real(ioTime,dp)
 #else
 #ifdef BLUEGENE_HACKS
-        time = 0
-        ret = 0
+        time = 0.0_dp
+        ret = 0.0_dp
 #else
-        ! Use Fortran95 timing intrinsic
-        call cpu_time(ret)
+        ! use MPI_WTIME - etime returns wall-clock time on multi-processor
+        ! environments, so keep it consistent
+        ret = MPI_WTIME()
         time(1) = ret
-        time(2) = real(0.0,sp)
+        time(2) = real(0.0,dp)
 #endif
 #endif
 
     end function neci_etime
+
+    subroutine open_new_file(funit,filename)
+      implicit none
+      integer, intent(in) :: funit
+      character(*), intent(in) :: filename
+      logical :: exists
+      integer :: ierr, i
+      character(43) :: filename2
+      character(12) :: num
+      character(*), parameter :: t_r = 'open_new_file'
+      
+      ! If we are doing a normal calculation, move existing fciqmc_stats
+      ! files so that they are not overwritten, and then create a new one
+      inquire(file=filename, exist=exists)
+
+      if (exists) then
+
+         ! Loop until we find an available spot to move the existing
+         ! file to.
+         i = 1
+         do while(exists)
+            write(num, '(i12)') i
+            filename2 = trim(adjustl(filename)) // "." // &
+                 trim(adjustl(num))
+            inquire(file=filename2, exist=exists)
+            if (i > 10000) &
+                 call stop_all(t_r, 'Error finding free fciqmc_stats.*')
+            i = i + 1
+         end do
+
+         ! Move the file
+         call rename(filename, filename2)
+
+      end if
+
+      ! And finally open the file
+      open(funit, file=filename, status='unknown', iostat=ierr)
+
+    end subroutine open_new_file
 
 end module
 

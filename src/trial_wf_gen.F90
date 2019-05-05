@@ -27,6 +27,8 @@ contains
         use FciMCData, only: MaxWalkersPart, tTrialHash, tIncCancelledInitEnergy
         use FciMCData, only: con_space_vecs, ntrial_excits, trial_numerator, trial_denom
         use FciMCData, only: tot_trial_numerator, tot_trial_denom, HashIndex
+        use FciMCData, only: tot_init_trial_numerator, tot_init_trial_denom
+        use FciMCData, only: init_trial_numerator, init_trial_denom
         use initial_trial_states, only: calc_trial_states_lanczos, calc_trial_states_qmc, calc_trial_states_direct
         use LoggingData, only: tWriteTrial, tCompareTrialAmps
         use MemoryManager, only: LogMemAlloc, LogMemDealloc
@@ -86,8 +88,13 @@ contains
                                        trial_space_size, trial_space, trial_wfs, trial_counts, trial_displs)
 #endif
         else
-            call calc_trial_states_lanczos(trial_in, nexcit_calc, trial_space_size, trial_space, temp_wfs, &
-                                           temp_energies, trial_counts, trial_displs, trial_est_reorder)
+           if(allocated(trial_est_reorder)) then
+              call calc_trial_states_lanczos(trial_in, nexcit_calc, trial_space_size, trial_space, temp_wfs, &
+                   temp_energies, trial_counts, trial_displs, trial_est_reorder)
+           else
+              call calc_trial_states_lanczos(trial_in, nexcit_calc, trial_space_size, trial_space, temp_wfs, &
+                   temp_energies, trial_counts, trial_displs)
+           endif
         end if
 
         write(6,'("Size of trial space on this processor:",1X,i8)') trial_space_size; call neci_flush(6)
@@ -120,7 +127,7 @@ contains
                            SpawnedParts(0:NIfTot, 1:tot_trial_space_size), trial_counts, trial_displs)
 
         call sort(SpawnedParts(0:NIfTot, 1:tot_trial_space_size), ilut_lt, ilut_gt)
-        
+
         call assign_elements_on_procs(tot_trial_space_size, min_elem, max_elem, num_elem)
 
         ! set the size of the entries in con_ht
@@ -216,7 +223,7 @@ contains
 !        call remove_list1_states_from_list2(SpawnedParts, con_space, tot_trial_space_size, con_space_size)
 
         call MPISumAll(con_space_size, tot_con_space_size)
-        ! get the sizes of the connected/trial space on the other procs, for 
+        ! get the sizes of the connected/trial space on the other procs, for
         ! estimating the max size of the buffer
         call MPIAllGather(con_space_size,con_counts,ierr)
         ! allocate buffer for communication of con_ht
@@ -235,7 +242,7 @@ contains
         allocate(trial_wfs_all_procs(nexcit_keep, tot_trial_space_size), stat=ierr)
         call MPIAllGatherV(trial_wfs, trial_wfs_all_procs, trial_counts, trial_displs)
 
-        call sort_space_by_proc(SpawnedParts(:, 1:tot_trial_space_size), tot_trial_space_size, trial_counts)
+        call sort_space_by_proc(SpawnedParts(0:NIfTot, 1:tot_trial_space_size), tot_trial_space_size, trial_counts)
 
         write(6,'("Generating the vector \sum_j H_{ij} \psi^T_j...")'); call neci_flush(6)
         allocate(con_space_vecs(nexcit_keep, con_space_size), stat=ierr)
@@ -255,10 +262,15 @@ contains
 
         ! Set these to zero, to prevent junk being printed in the initial report.
         trial_numerator = 0.0_dp
-        tot_trial_numerator = 0.0_dp
+        tot_trial_numerator = 0.0_dp        
         trial_denom = 0.0_dp
         tot_trial_denom = 1.0_dp
-
+        
+        init_trial_numerator = 0.0_dp
+        tot_init_trial_numerator = 0.0_dp
+        init_trial_denom = 0.0_dp
+        tot_init_trial_denom = 0.0_dp
+        
         call halt_timer(Trial_Init_Time)
 
         if (.not. qmc_trial_wf) then
@@ -426,7 +438,7 @@ contains
 
 
     subroutine remove_states_not_on_proc(ilut_list, ilut_list_size, update_trial_vector)
-        
+
         use FciMCData, only: trial_wfs
         use load_balance_calcnodes, only: DetermineDetNode
 
@@ -608,8 +620,8 @@ contains
                     if(.not.texist) call stop_all(t_r,'"TRIALSPACE" file not found')
                     open(iunit, file='TRIALSPACE', status='old', position='append')
                 end if
-                
-                do j = 1, trial_space_size 
+
+                do j = 1, trial_space_size
                     do k = 0, NIfDBO
                         write(iunit, '(i24)', advance = 'no') trial_space(k,j)
                     end do
@@ -677,7 +689,7 @@ contains
                         open(iunit, file='TRIALCOMPARE', status='old', position='append')
                     end if
 
-                    do j = 1, trial_space_size 
+                    do j = 1, trial_space_size
                         write(iunit, '(es15.8,3x)', advance = 'no') trial_wfs(1,j)
 
                         call BinSearchParts(trial_space(:,j), MinInd, n_walkers, PartInd, tSuccess)
@@ -772,7 +784,7 @@ contains
         use MemoryManager, only: LogMemDealloc
 
         integer, intent(in) :: nexcit
-    
+
         integer :: i, nclash, hash_val, mode, ierr
         integer :: nI(nel)
 #ifdef __CMPLX
@@ -930,7 +942,7 @@ contains
       type(subspace_in) :: trial_in
       integer, intent(in) :: nexcit_calc, nexcit_keep
       logical, intent(in) :: replica_pairs
-      
+
       ! first, clear the current trial wavefunction
       call end_trial_wf()
       ! then, remove the flag from all determinants

@@ -1,3 +1,4 @@
+#include "macros.h"
 module adi_initiators
   use adi_data, only: ilutRefAdi, nRefs, tAllDoubsInitiators, tAllSingsInitiators, tAdiActive, &
        nExChecks, nExCheckFails
@@ -53,6 +54,8 @@ contains
     integer, intent(in) :: nI(nel), ex
     integer :: ir
 
+    ! this part has to be done independently for each run, since the coherence
+    ! criterium depends on the exact population
     do ir = 1, inum_runs
        call set_adi_flags_run(ilut, nI, sgn, ex, ir)
     end do
@@ -92,9 +95,9 @@ contains
   function adi_criterium(ilut, nI, sgn, ex, run) result(staticInit)
     ! This is the adi-initiator criterium expansion
     ! I expect it to grow further
-    use adi_references, only: giovannis_check, initialize_c_caches,update_coherence_check, &
+    use adi_references, only:initialize_c_caches,update_coherence_check, &
          eval_coherence
-    use adi_data, only: tInitiatorsSubspace, tWeakCoherentDoubles, tAvCoherentDoubles, &
+    use adi_data, only: tWeakCoherentDoubles, tAvCoherentDoubles, &
          tUseCaches, exLvlRef
     use DetBitOps, only: FindBitExcitLevel
     implicit none
@@ -109,12 +112,6 @@ contains
     integer :: connections
 
     staticInit = .false.
-    ! This is Giovanni's CAS-initiator criterium
-    if(tInitiatorsSubspace) then
-       if(giovannis_check(ilut)) then
-          staticInit = .true.
-       endif
-    endif
     tCCache = tWeakCoherentDoubles .or. tAvCoherentDoubles
     
     exLevel = 0
@@ -139,7 +136,7 @@ contains
                   return
 
              if(tCCache)&
-                  call update_coherence_check(ilut, nI, i, run, &
+                  call update_coherence_check(ilut, nI, i, &
                   signedCache, unsignedCache, connections)
 
              ! Set the doubles to initiators
