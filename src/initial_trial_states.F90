@@ -6,8 +6,9 @@ module initial_trial_states
     use constants
     use kp_fciqmc_data_mod
     use SystemData, only: t_non_hermitian
+#if !defined(__CMPLX)
     use unit_test_helpers, only: eig, print_matrix
-
+#endif
     implicit none
 
     ! if the space is smaller than this parameter, use LAPACK instead

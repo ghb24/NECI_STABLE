@@ -267,8 +267,10 @@ contains
                           min_part_type(run):max_part_type(run))))
                   enddo
 
+                  !Cast from complex number to real number in AddNewHashDet 
+                  !in real_time_procs.F90 might affect calcs using complex walkers.
                   call AddNewHashDet(TotWalkersNew, DiagParts(:,i), DetHash, nJ, &
-                      get_helement(nJ,nJ,0), temp_ind)
+                      real(get_helement(nJ,nJ,0),dp), temp_ind)
 
                end if
             end if

@@ -18,7 +18,9 @@ module semi_stoch_procs
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use Determinants, only: get_helement
     use timing_neci
+#if !defined(__CMPLX)
     use unit_test_helpers, only: eig
+#endif
 
     use bit_reps, only: encode_sign
     use hamiltonian_linalg, only: parallel_sparse_hamil_type
@@ -1012,7 +1014,6 @@ contains
         end do
 
     end subroutine return_largest_indices
-
     subroutine start_walkers_from_core_ground(tPrintInfo)
 
         logical, intent(in) :: tPrintInfo
@@ -1027,8 +1028,9 @@ contains
             root_print "Using the deterministic ground state as initial walker configuration."
         end if
 
-!         if (t_non_hermitian) then
             root_print "Performing full diagonalisation..."
+#if !defined(__CMPLX)
+!         if (t_non_hermitian) then
             call diagonalize_core_non_hermitian(e_values, e_vectors)
 
 !         if_root
@@ -1040,6 +1042,9 @@ contains
                 root_print " ground-state energy: ", e_values(1)
                 gs_vector = e_vectors(:,1)
             end if
+#else
+            call diagonalize_core(gs_energy, gs_vector)
+#endif
 !         end_if_root
 
 !         else
@@ -1138,7 +1143,7 @@ contains
 
     end subroutine create_sparse_ham_from_core
 
-
+#if !defined(__CMPLX)
     subroutine diagonalize_core_non_hermitian(e_values, e_vectors)
         real(dp), allocatable, intent(out) :: e_values(:), e_vectors(:,:)
         HElement_t(dp), allocatable :: full_H(:,:)
@@ -1167,6 +1172,7 @@ contains
 !         end if
 
     end subroutine diagonalize_core_non_hermitian
+#endif
 
     subroutine calc_determin_hamil_full(hamil)
         HElement_t(dp), allocatable, intent(out) :: hamil(:,:)

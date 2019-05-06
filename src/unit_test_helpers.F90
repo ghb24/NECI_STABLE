@@ -100,6 +100,7 @@ contains
 
     end function calc_eigenvalues
 
+#if !defined(__CMPLX)
     subroutine eig(matrix, e_values, e_vectors, t_left_ev) 
         ! for very restricted matrices do a diag routine here! 
         real(dp), intent(in) :: matrix(:,:) 
@@ -195,6 +196,7 @@ contains
         end if
 
     end subroutine eig
+#endif
 
     subroutine eig_sym(matrix, e_values, e_vectors) 
         real(dp), intent(in) :: matrix(:,:)
@@ -421,7 +423,7 @@ contains
         end do
         
     end subroutine find_degeneracies
-
+#if !defined(__CMPLX)
     function similarity_transform(H, t_mat_opt) result(trans_H)
         HElement_t(dp), intent(in) :: H(:,:)
         real(dp), intent(in), optional :: t_mat_opt(:,:)
@@ -439,6 +441,7 @@ contains
         trans_H = blas_matmul(blas_matmul(matrix_exponential(-t_mat), H), matrix_exponential(t_mat))
 
     end function similarity_transform
+#endif
 
     function create_all_spin_flips(nI_in) result(spin_flips)
         ! takes a given spin-configuration in nI representation and 
@@ -582,6 +585,7 @@ contains
 
     end function find_open_shell_indices
 
+#if !defined(__CMPLX)
     function get_tranformation_matrix(hamil, n_pairs) result(t_matrix)
         ! n_pairs is actually also a global system dependent quantitiy.. 
         ! which actually might be helpful.. but input it here! 
@@ -608,6 +612,7 @@ contains
         t_matrix = trans_corr_param_2body/omega * t_matrix
 
     end function get_tranformation_matrix
+#endif
 
     real(dp) function det(matrix) 
         real(dp), intent(in) :: matrix(:,:)
