@@ -188,13 +188,13 @@ contains
             end do
         end do
 
-        allocate(beta_m1_list(0:NIfD, nbeta*(nOccBeta-1)), stat=ierr)
-        allocate(nbeta_m1_contribs(nbeta*(nOccBeta-1)), stat=ierr)
-        allocate(alpha_m1_list(0:NIfD, nalpha*(nOccAlpha-1)), stat=ierr)
-        allocate(nalpha_m1_contribs(nalpha*(nOccAlpha-1)), stat=ierr)
+        allocate(beta_m1_list(0:NIfD, nbeta*nOccBeta), stat=ierr)
+        allocate(nbeta_m1_contribs(nbeta*nOccBeta), stat=ierr)
+        allocate(alpha_m1_list(0:NIfD, nalpha*nOccAlpha), stat=ierr)
+        allocate(nalpha_m1_contribs(nalpha*nOccAlpha), stat=ierr)
 
-        hash_size_2 = max(10, int(nbeta*(nOccBeta-1)/10.0))
-        hash_size_3 = max(10, int(nalpha*(nOccAlpha-1)/10.0))
+        hash_size_2 = max(10, int(nbeta*nOccBeta/10.0))
+        hash_size_3 = max(10, int(nalpha*nOccAlpha/10.0))
 
         allocate(beta_m1_ht( hash_size_2 ), stat=ierr)
         call init_hash_table(beta_m1_ht)
@@ -938,13 +938,13 @@ contains
         end do
 
         ! Allocate beta-1 and alpha-1 arrays
-        allocate(beta_m1_list(0:NIfD, nbeta*(nOccBeta-1)), stat=ierr)
-        allocate(nbeta_m1_contribs(nbeta*(nOccBeta-1)), stat=ierr)
-        allocate(alpha_m1_list(0:NIfD, nalpha*(nOccAlpha-1)), stat=ierr)
-        allocate(nalpha_m1_contribs(nalpha*(nOccAlpha-1)), stat=ierr)
+        allocate(beta_m1_list(0:NIfD, nbeta*nOccBeta), stat=ierr)
+        allocate(nbeta_m1_contribs(nbeta*nOccBeta), stat=ierr)
+        allocate(alpha_m1_list(0:NIfD, nalpha*nOccAlpha), stat=ierr)
+        allocate(nalpha_m1_contribs(nalpha*nOccAlpha), stat=ierr)
 
-        hash_size_2 = max(10, int(nbeta*(nOccBeta-1)/10.0))
-        hash_size_3 = max(10, int(nalpha*(nOccAlpha-1)/10.0))
+        hash_size_2 = max(10, int(nbeta*nOccBeta/10.0))
+        hash_size_3 = max(10, int(nalpha*nOccAlpha/10.0))
 
         allocate(beta_m1_ht( hash_size_2 ), stat=ierr)
         call init_hash_table(beta_m1_ht)
@@ -1479,15 +1479,15 @@ contains
         allocate(nbeta_dets(determ_space_size), stat=ierr)
         allocate(alpha_list(0:NIfD, determ_space_size), stat=ierr)
         allocate(nalpha_dets(determ_space_size), stat=ierr)
-        allocate(alpha_m1_list(0:NIfD, determ_space_size*(nOccAlpha-1)), stat=ierr)
-        allocate(nalpha_m1_dets(determ_space_size*(nOccAlpha-1)), stat=ierr)
+        allocate(alpha_m1_list(0:NIfD, determ_space_size*nOccAlpha), stat=ierr)
+        allocate(nalpha_m1_dets(determ_space_size*nOccAlpha), stat=ierr)
 
         allocate(beta_ht(determ_space_size), stat=ierr)
         call init_hash_table(beta_ht)
         allocate(alpha_ht(determ_space_size), stat=ierr)
         call init_hash_table(alpha_ht)
 
-        allocate(alpha_m1_ht(determ_space_size*(nOccAlpha-1)), stat=ierr)
+        allocate(alpha_m1_ht(determ_space_size*nOccAlpha), stat=ierr)
         call init_hash_table(alpha_m1_ht)
 
         ! --- Set up auxiliary arrays ------------------------------
