@@ -82,7 +82,7 @@ module davidson_semistoch
 
         if (print_info) write(6,'(1X,"Iteration",4X,"Residual norm",12X,"Energy",7X,"Time")'); call neci_flush(6)
 
-        do i = 2, max_num_davidson_iters
+        do i = 2, min(max_num_davidson_iters, this%space_size)
 
             start_time = MPI_WTIME()
 
