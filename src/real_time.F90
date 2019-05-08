@@ -49,7 +49,7 @@ module real_time
     use constants, only: int64, sizeof_int, n_int, lenof_sign, dp, EPS, inum_runs, bits_n_int, &
          iout
     use AnnihilationMod, only: DirectAnnihilation, AnnihilateSpawnedParts, &
-         deterministic_annihilation
+         deterministic_annihilation, communicate_and_merge_spawns
     use bit_reps, only: extract_bit_rep, decode_bit_det
     use SystemData, only: nel, tRef_Not_HF, tAllSymSectors, nOccAlpha, nOccBeta, &
                           nbasis
@@ -62,7 +62,7 @@ module real_time
                             SumEContrib, end_iter_stats, check_semistoch_flags
     use procedure_pointers, only: generate_excitation, encode_child, &
                                   attempt_create, new_child_stats
-    use bit_rep_data, only: tUseFlags, nOffFlag, niftot, extract_sign
+    use bit_rep_data, only:  nOffFlag, niftot, extract_sign
     use bit_reps, only: set_flag, flag_deterministic, flag_determ_parent, test_flag
     use fcimc_iter_utils, only: update_iter_data, collate_iter_data, iter_diagnostics, &
                                 population_check, update_shift, calculate_new_shift_wrapper
@@ -232,7 +232,7 @@ contains
 
         character(*), parameter :: this_routine = "perform_real_time_fciqmc"
         integer :: j, i, iterRK
-        real(sp) :: s_start, s_end, tstart(2), tend(2)
+        real(dp) :: s_start, s_end, tstart(2), tend(2)
         real(dp) :: totalTime
         complex(dp), allocatable :: overlap_buf(:)
         complex(dp), allocatable :: norm_buf(:)
@@ -515,7 +515,7 @@ contains
         ! routine to check if somthing wrong happened during the main 
         ! real-time fciqmc loop or the external CHANGEVARS utility does smth
         character(*), parameter :: this_routine = "check_real_time_iteration"
-        logical :: tSingBiasChange, tWritePopsFound
+        logical :: tSingBiasChange, tWritePopsFound, tStartedFromCoreGround
 
         if (mod(iter, StepsSft) == 0) then
             call ChangeVars(tSingBiasChange, tWritePopsFound)
@@ -529,7 +529,7 @@ contains
         if(semistoch_shift_iter/=0) then
            if(Iter == semistoch_shift_iter + 1) then
               tSemiStochastic = .true.
-              call init_semi_stochastic(ss_space_in)
+              call init_semi_stochastic(ss_space_in, tStartedFromCoreGround)
            endif
         endif
 
@@ -609,7 +609,7 @@ contains
         logical :: tParentIsDeterm, tParentUnoccupied, tParity, break
         HElement_t(dp) :: HelGen
         integer :: determ_index
-        real(dp) :: prefactor
+        real(dp) :: prefactor, unused_fac
 
         ! declare this is the second runge kutta step
         runge_kutta_step = 2
@@ -691,7 +691,7 @@ contains
             if(.not. tGZero) then ! skip this if we only want the corespace-evolution
                do ireplica = 1, lenof_sign
 
-                  call decide_num_to_spawn(parent_sign(ireplica), AvMCExcits, nspawn)
+                  call decide_num_to_spawn(parent_sign(ireplica), parent_hdiag, AvMCExcits, nspawn)
                   !call merge_spawn(nspawn,prefactor)
                   do ispawn = 1, nspawn
 
@@ -704,7 +704,7 @@ contains
                      if (.not. IsNullDet(nI_child)) then
 
                         call encode_child (CurrentDets(:,idet), ilut_child, ic, ex)
-                        if (tUseFlags) ilut_child(nOffFlag) = 0_n_int
+                        ilut_child(nOffFlag) = 0_n_int
 
                         if (tSemiStochastic) then
                            break = check_semistoch_flags(ilut_child, nI_child, tParentIsDeterm)
@@ -714,7 +714,7 @@ contains
                         ! unbias if the number of spawns was truncated
                         child_sign = attempt_create (nI_parent, CurrentDets(:,idet), parent_sign, &
                              nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
-                             ex_level_to_ref, ireplica, unused_sign, unused_rdm_real)
+                             ex_level_to_ref, ireplica, unused_sign, unused_rdm_real, unused_fac)
                         child_sign = prefactor*child_sign
                      else
                         child_sign = 0.0_dp
@@ -784,7 +784,8 @@ contains
                     unused_sign(lenof_sign), prefactor, unused_rdm_real
         logical :: tParentIsDeterm, tParentUnoccupied, tParity, break
         HElement_t(dp) :: HelGen
-        integer :: TotWalkersNew, run, determ_index
+        integer :: TotWalkersNew, run, determ_index, MaxIndex
+        real(dp) :: unused_fac
 
         ! declare this is the first runge kutta step
         runge_kutta_step = 1
@@ -865,7 +866,7 @@ contains
             ! cycle.. since this is only input dependent..
             do ireplica = 1, lenof_sign
 
-                call decide_num_to_spawn(parent_sign(ireplica), AvMCExcits, nspawn)
+                call decide_num_to_spawn(parent_sign(ireplica), parent_hdiag, AvMCExcits, nspawn)
                 !call merge_spawn(nspawn,prefactor)
                 do ispawn = 1, nspawn
 
@@ -880,7 +881,7 @@ contains
                     if (.not. IsNullDet(nI_child)) then
 
                         call encode_child (CurrentDets(:,idet), ilut_child, ic, ex)
-                        if (tUseFlags) ilut_child(nOffFlag) = 0_n_int
+                        ilut_child(nOffFlag) = 0_n_int
 
                         if (tSemiStochastic) then
                            break = check_semistoch_flags(ilut_child, nI_child, tParentIsDeterm)
@@ -889,7 +890,8 @@ contains
 
                         child_sign = attempt_create (nI_parent, CurrentDets(:,idet), parent_sign, &
                                             nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
-                                            ex_level_to_ref, ireplica, unused_sign, unused_rdm_real)
+                                            ex_level_to_ref, ireplica, unused_sign, & 
+                                            unused_rdm_real, unused_fac)
                         child_sign = child_sign*prefactor
                     else
                         child_sign = 0.0_dp
@@ -952,8 +954,8 @@ contains
 
         ! the number TotWalkersNew changes below in annihilation routine
         ! Annihilation is done after loop over walkers
-
-        call DirectAnnihilation (TotWalkersNew, iter_data_fciqmc, .false.)
+        call communicate_and_merge_spawns(MaxIndex, iter_data_fciqmc, .false.)
+        call DirectAnnihilation (TotWalkersNew, MaxIndex, iter_data_fciqmc)
 
 
         TotWalkers = int(TotWalkersNew, sizeof_int)
@@ -965,7 +967,7 @@ contains
       implicit none
         character(*), parameter :: this_routine = "perform_real_time_iteration"
         
-        integer :: TotWalkersNew, run
+        integer :: TotWalkersNew, run, MaxIndex
         real(dp) :: tmp_sign(lenof_sign), tau_real_tmp, tau_imag_tmp
         logical :: both, rkone, rktwo
         rkone = .true.
@@ -1077,11 +1079,12 @@ endif
         enddo
 
         call DirectAnnihilation_diag(TotWalkersNew, second_spawn_iter_data)
-         TotWalkersNew = int(TotWalkersNew, sizeof_int)
+        TotWalkersNew = int(TotWalkersNew, sizeof_int)
         
         ! and then do the "normal" annihilation with the SpawnedParts array!
         ! Annihilation is done after loop over walkers
-        call DirectAnnihilation (TotWalkersNew, second_spawn_iter_data, .false.)
+        call communicate_and_merge_spawns(MaxIndex, second_spawn_iter_data, .false.) 
+        call DirectAnnihilation (TotWalkersNew, MaxIndex, second_spawn_iter_data)
 
 #ifdef __DEBUG
         call check_update_growth(second_spawn_iter_data,"Error in second RK step")

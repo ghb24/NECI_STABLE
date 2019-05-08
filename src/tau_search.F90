@@ -474,7 +474,7 @@ contains
                    ! else, we had to have some singles
                    tau_new = max_permitted_spawn * pSingles / gamma_sing
                 else
-                   tau_new = MaxTau
+                   tau_new = tau
                 endif
             end if
 

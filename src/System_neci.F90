@@ -3,7 +3,7 @@ MODULE System
 
     use SystemData
     use CalcData, only: TAU, tTruncInitiator, InitiatorWalkNo, &
-                        occCASorbs, virtCASorbs, tPairedReplicas
+                        occCASorbs, virtCASorbs, tPairedReplicas, pSinglesIn
 
     use sort_mod
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
@@ -285,6 +285,7 @@ MODULE System
                   else
                       lattice_type = 'read'
                   end if
+
               case ('momentum-space','k-space','momentum')
                   ! reuse most of the old initialisation for the k-space 
                   ! hubbard. one has to be really careful to initialize all 
@@ -1307,6 +1308,9 @@ system: do
 
       if(NEL.eq.0)                                                    &
    &     call report("Number of electrons cannot be zero.",.true.)
+
+      ! use a better suited default for real-space lattice models for the excitation bias
+      if(tReal) pSinglesIn = 0.9
 
       if (.not. tUEG2) then
           if(THUB.OR.TUEG.OR..NOT.(TREADINT.OR.TCPMD.or.tVASP)) then

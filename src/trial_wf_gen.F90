@@ -20,7 +20,7 @@ contains
 
         use DetBitOps, only: ilut_lt, ilut_gt
         use enumerate_excitations, only: generate_connected_space
-        use FciMCData, only: trial_space, trial_space_size, con_space, con_space_size, trial_wfs
+        use FciMCData, only: trial_space, trial_space_size, con_space, con_space_size, trial_wfs, tot_trial_space_size
         use FciMCData, only: trial_energies, ConTag, ConVecTag, TempTag, TrialTag, TrialWFTag
         use FciMCData, only: TrialTempTag, ConTempTag, OccTrialTag, Trial_Init_Time
         use FciMCData, only: OccConTag, CurrentTrialTag, current_trial_amps
@@ -41,7 +41,7 @@ contains
         logical, intent(in) :: replica_pairs
 
         integer :: i, ierr, num_states_on_proc, con_space_size_old
-        integer :: excit, tot_trial_space_size, tot_con_space_size
+        integer :: excit, tot_con_space_size
         integer :: con_counts(0:nProcessors-1)
         integer :: min_elem, max_elem, num_elem
         integer(MPIArg) :: trial_counts(0:nProcessors-1), trial_displs(0:nProcessors-1)
@@ -86,8 +86,13 @@ contains
                                        trial_space_size, trial_space, trial_wfs, trial_counts, trial_displs)
 #endif
         else
-            call calc_trial_states_lanczos(trial_in, nexcit_calc, trial_space_size, trial_space, temp_wfs, &
-                                           temp_energies, trial_counts, trial_displs, trial_est_reorder)
+           if(allocated(trial_est_reorder)) then
+              call calc_trial_states_lanczos(trial_in, nexcit_calc, trial_space_size, trial_space, temp_wfs, &
+                   temp_energies, trial_counts, trial_displs, trial_est_reorder)
+           else
+              call calc_trial_states_lanczos(trial_in, nexcit_calc, trial_space_size, trial_space, temp_wfs, &
+                   temp_energies, trial_counts, trial_displs)
+           endif
         end if
 
         write(6,'("Size of trial space on this processor:",1X,i8)') trial_space_size; call neci_flush(6)
@@ -120,7 +125,7 @@ contains
                            SpawnedParts(0:NIfTot, 1:tot_trial_space_size), trial_counts, trial_displs)
 
         call sort(SpawnedParts(0:NIfTot, 1:tot_trial_space_size), ilut_lt, ilut_gt)
-        
+
         call assign_elements_on_procs(tot_trial_space_size, min_elem, max_elem, num_elem)
 
         ! set the size of the entries in con_ht
@@ -163,6 +168,9 @@ contains
             con_sendcounts = 0
             allocate(con_space(0,0),stat=ierr)
             write(6,'("This processor will not search for connected states.")'); call neci_flush(6)
+            !Although the size is zero, we should allocate it, because the rest of the code use it.
+            !Otherwise, we get segmentation fault later.
+            allocate(con_space(0:NIfTot, con_space_size), stat=ierr)
         end if
 
         write(6,'("Performing MPI communication of connected states...")'); call neci_flush(6)
@@ -213,7 +221,7 @@ contains
 !        call remove_list1_states_from_list2(SpawnedParts, con_space, tot_trial_space_size, con_space_size)
 
         call MPISumAll(con_space_size, tot_con_space_size)
-        ! get the sizes of the connected/trial space on the other procs, for 
+        ! get the sizes of the connected/trial space on the other procs, for
         ! estimating the max size of the buffer
         call MPIAllGather(con_space_size,con_counts,ierr)
         ! allocate buffer for communication of con_ht
@@ -232,7 +240,7 @@ contains
         allocate(trial_wfs_all_procs(nexcit_keep, tot_trial_space_size), stat=ierr)
         call MPIAllGatherV(trial_wfs, trial_wfs_all_procs, trial_counts, trial_displs)
 
-        call sort_space_by_proc(SpawnedParts(:, 1:tot_trial_space_size), tot_trial_space_size, trial_counts)
+        call sort_space_by_proc(SpawnedParts(0:NIfTot, 1:tot_trial_space_size), tot_trial_space_size, trial_counts)
 
         write(6,'("Generating the vector \sum_j H_{ij} \psi^T_j...")'); call neci_flush(6)
         allocate(con_space_vecs(nexcit_keep, con_space_size), stat=ierr)
@@ -386,7 +394,7 @@ contains
 
 
     subroutine remove_states_not_on_proc(ilut_list, ilut_list_size, update_trial_vector)
-        
+
         use FciMCData, only: trial_wfs
         use load_balance_calcnodes, only: DetermineDetNode
 
@@ -566,8 +574,8 @@ contains
                     if(.not.texist) call stop_all(t_r,'"TRIALSPACE" file not found')
                     open(iunit, file='TRIALSPACE', status='old', position='append')
                 end if
-                
-                do j = 1, trial_space_size 
+
+                do j = 1, trial_space_size
                     do k = 0, NIfDBO
                         write(iunit, '(i24)', advance = 'no') trial_space(k,j)
                     end do
@@ -635,7 +643,7 @@ contains
                         open(iunit, file='TRIALCOMPARE', status='old', position='append')
                     end if
 
-                    do j = 1, trial_space_size 
+                    do j = 1, trial_space_size
                         write(iunit, '(es15.8,3x)', advance = 'no') trial_wfs(1,j)
 
                         call BinSearchParts(trial_space(:,j), MinInd, n_walkers, PartInd, tSuccess)
@@ -730,7 +738,7 @@ contains
         use MemoryManager, only: LogMemDealloc
 
         integer, intent(in) :: nexcit
-    
+
         integer :: i, nclash, hash_val, mode, ierr
         integer :: nI(nel)
 #ifdef __CMPLX
@@ -888,7 +896,7 @@ contains
       type(subspace_in) :: trial_in
       integer, intent(in) :: nexcit_calc, nexcit_keep
       logical, intent(in) :: replica_pairs
-      
+
       ! first, clear the current trial wavefunction
       call end_trial_wf()
       ! then, remove the flag from all determinants

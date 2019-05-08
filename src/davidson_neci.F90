@@ -61,12 +61,12 @@ module davidson_neci
     contains
 
     subroutine perform_davidson(this, hamil_type_in, print_info_in)
-
+      use mpi
         integer, intent(in) :: hamil_type_in
         logical, intent(in) :: print_info_in
         logical :: print_info
         integer :: i
-        real(sp) :: start_time, end_time
+        real(dp) :: start_time, end_time
         type(DavidsonCalcType), intent(inout) :: this
 
         ! Only let the root processor print information.
@@ -80,7 +80,7 @@ module davidson_neci
 
             if (this%super%skip_calc) exit
 
-            call cpu_time(start_time)
+            start_time = MPI_WTIME()
 
             if (iProcIndex == root) call subspace_expansion(this, i)
 
@@ -92,7 +92,7 @@ module davidson_neci
 
             call calculate_residual_norm(this)
 
-            call cpu_time(end_time)
+            end_time = MPI_WTIME()
 
             if (print_info) write(6,'(8X,i2,3X,f14.9,2x,f16.10,2x,f9.3)') i-1, this%residual_norm, &
                 this%davidson_eigenvalue, end_time-start_time; call neci_flush(6)
@@ -211,7 +211,6 @@ module davidson_neci
         end if
         if (hamil_type == parallel_sparse_hamil_type) call mpibcast(skip_calc)
         if (skip_calc) return
-
         ! calculate the intial residual vector.
         call calculate_residual(this, 1)
         call calculate_residual_norm(this)
@@ -220,6 +219,7 @@ module davidson_neci
         this%super%skip_calc = skip_calc
 
         end associate
+
     end subroutine InitDavidsonCalc
 
     subroutine subspace_expansion(this, basis_index)
@@ -354,6 +354,7 @@ module davidson_neci
         else
             call multiply_hamil_and_vector(this%super, this%temp_in, this%temp_out)
         end if
+
     end subroutine project_hamiltonian
 
     subroutine calculate_residual(this, basis_index)
@@ -379,6 +380,7 @@ module davidson_neci
     end subroutine calculate_residual
 
     subroutine calculate_residual_norm(this)
+
         type(DavidsonCalcType), intent(inout) :: this
         ! This subroutine calculates the Euclidean norm of the reisudal vector, r:
         ! residual_norm^2 = \sum_i r_i^2

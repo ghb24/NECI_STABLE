@@ -14,15 +14,15 @@ module FciMCParMod
                         tOrthogonaliseReplicas, orthogonalise_iter, &
                         tDetermHFSpawning, use_spawn_hash_table, &
                         ss_space_in, s_global_start, tContTimeFCIMC, &
-                        trial_shift_iter, tStartTrialLater,  &
+                        trial_shift_iter, tStartTrialLater, tAVReps, &
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
                         t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
-                        t_back_spawn_flex, t_back_spawn_flex_option, &
+                        t_back_spawn_flex, t_back_spawn_flex_option, tSimpleInit, &
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
-                        DiagSft, tSpinProject, &
-                        tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
-                        tSkipRef
-
+                        DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
+                        tSkipRef, tFixTrial, tTrialShift, t_activate_decay, &
+                        tEN2Init, tEN2Rigorous, tDeathBeforeComms, tSetInitFlagsBeforeDeath, &
+                        tDetermProjApproxHamil
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
                         tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
                         SIUpdateInterval, tSuppressSIOutput, nRefUpdateInterval, &
@@ -56,7 +56,8 @@ module FciMCParMod
     use semi_stoch_gen, only: write_most_pop_core_at_end, init_semi_stochastic, &
          refresh_semistochastic_space
     use semi_stoch_procs, only: is_core_state, check_determ_flag, &
-                                determ_projection, average_determ_vector
+                                determ_projection, average_determ_vector, &
+                                determ_projection_no_death
     use trial_wf_gen, only: update_compare_trial_file, init_trial_wf, refresh_trial_wf
     use hist, only: write_zero_hist_excit_tofrom, write_clear_hist_spin_dist
     use orthogonalise, only: orthogonalise_replicas, calc_replica_overlaps, &
@@ -65,16 +66,17 @@ module FciMCParMod
     use bit_reps, only: set_flag, clr_flag, add_ilut_lists, get_initiator_flag
     use exact_diag, only: perform_exact_diag_all_symmetry
     use spectral_lanczos, only: perform_spectral_lanczos
-    use bit_rep_data, only: nOffFlag, flag_determ_parent, test_flag
+    use bit_rep_data, only: nOffFlag, flag_determ_parent, test_flag, flag_prone
     use errors, only: standalone_errors, error_analysis
     use PopsFileMod, only: WriteToPopsFileParOneArr
-    use AnnihilationMod, only: DirectAnnihilation
+    use AnnihilationMod, only: DirectAnnihilation, communicate_and_merge_spawns, &
+                               rm_non_inits_from_spawnedparts
     use exact_spectrum, only: get_exact_spectrum
-    use determ_proj, only: perform_determ_proj
+    use determ_proj, only: perform_determ_proj, perform_determ_proj_approx_ham
     use cont_time, only: iterate_cont_time
     use global_det_data, only: det_diagH, reset_tau_int, get_all_spawn_pops, &
                                reset_shift_int, update_shift_int, &
-                               update_tau_int, set_spawn_pop
+                               update_tau_int, set_spawn_pop, replica_est_len
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
     use ftlm_neci, only: perform_ftlm
@@ -84,6 +86,7 @@ module FciMCParMod
          update_reference_space
     use fcimc_initialisation
     use fcimc_iter_utils
+    use replica_estimates
     use neci_signals
     use fcimc_helper
     use fcimc_output
@@ -97,6 +100,8 @@ module FciMCParMod
 
     use bit_reps, only: decode_bit_det    
 
+    use hdiag_from_excit, only: get_hdiag_from_excit, get_hdiag_bare_hphf
+
     use double_occ_mod, only: get_double_occupancy, inst_double_occ, &
                         rezero_double_occ_stats, write_double_occ_stats, & 
                         sum_double_occ, sum_norm_psi_squared
@@ -108,11 +113,16 @@ module FciMCParMod
     use k_space_hubbard, only: init_k_space_hubbard, gen_excit_k_space_hub_transcorr, & 
                                gen_excit_uniform_k_space_hub_transcorr
 
+    use sltcnd_mod, only: sltcnd_excit
+
 #ifdef MOLPRO
     use outputResult
 #endif
 
     implicit none
+
+    !array for timings of the main compute loop
+    real(dp),dimension(100) :: lt_arr
 
     contains
 
@@ -122,6 +132,7 @@ module FciMCParMod
         use rdm_data, only: two_rdm_spawn, one_rdms, rdm_definitions, en_pert_main
         use rdm_estimators, only: calc_2rdm_estimates_wrapper, write_rdm_estimates
         use rdm_estimators_old, only: rdm_output_wrapper_old, write_rdm_estimates_old
+        USE MolproPlugin, only : MolproPluginResult
 
         real(dp), intent(out), allocatable :: energy_final_output(:)
 
@@ -132,7 +143,7 @@ module FciMCParMod
         real(dp) :: Weight, Energyxw, BestEnergy
         INTEGER :: error, irdm
         LOGICAL :: TIncrement, tWritePopsFound, tSingBiasChange, tPrintWarn
-        REAL(sp) :: s_start, s_end, tstart(2), tend(2), totaltime
+        REAL(dp) :: s_start, s_end, tstart(2), tend(2), totaltime
         real(dp) :: TotalTime8
         INTEGER(int64) :: MaxWalkers, MinWalkers
         real(dp) :: AllTotWalkers,MeanWalkers, Inpair(2), Outpair(2)
@@ -145,6 +156,12 @@ module FciMCParMod
         logical :: tNoProjEValue, tNoShiftValue
         real(dp) :: BestErr
         real(dp) :: start_time, stop_time
+        logical :: tStartedFromCoreGround
+        real(dp),dimension(100) :: lt_sum, lt_max
+
+        real(dp):: lt_imb
+        integer:: rest
+
 #ifdef MOLPRO
         real(dp) :: get_scalar
         include "common/molen"
@@ -172,6 +189,10 @@ module FciMCParMod
             return
         endif
 
+        ProjE_Err_re = 1.0_dp
+        ProjE_Err_im = 1.0_dp
+        shift_err = 1.0_dp
+
         TDebug = .false.  ! Set debugging flag
                     
 !OpenMPI does not currently support MPI_Comm_set_errhandler - a bug in its F90 interface code.
@@ -184,13 +205,13 @@ module FciMCParMod
         tPopsAlreadyRead = .false.
 
         call SetupParameters()
+
+        call init_fcimc_fn_pointers() 
         call InitFCIMCCalcPar()
 
         if(tLogGreensfunction .and. .not. t_real_time_fciqmc) then
            call init_overlap_buffers()
         endif
-
-        call init_fcimc_fn_pointers() 
 
         if (t_new_real_space_hubbard) then 
             call init_real_space_hubbard()
@@ -229,7 +250,11 @@ module FciMCParMod
 
         if (tDetermProj) then
             ! If performing a deterministic projection instead of an FCIQMC calc:
-            call perform_determ_proj()
+            if (tDetermProjApproxHamil) then
+                call perform_determ_proj_approx_ham()
+            else
+                call perform_determ_proj()
+            end if
             return
         else if (tFTLM) then
             ! If performing a finite-temperature Lanczos method job instead of FCIQMC:
@@ -290,6 +315,11 @@ module FciMCParMod
 
         ! In we go - start the timer for scaling curve!
         start_time = neci_etime(tstart)
+        lt_imb=0.
+        lt_max=0.
+        lt_sum=0.
+        ! For calculations with only few iterations
+        lt_arr=0.
 
         do while (.true.)
 !Main iteration loop...
@@ -316,7 +346,8 @@ module FciMCParMod
             if (semistoch_shift_iter /= 0 .and. all(.not. tSinglePartPhase)) then
                 if ((Iter - maxval(VaryShiftIter)) == semistoch_shift_iter + 1) then
                     tSemiStochastic = .true.
-                    call init_semi_stochastic(ss_space_in)
+                    call init_semi_stochastic(ss_space_in, tStartedFromCoreGround)
+                    if (tStartedFromCoreGround) call set_initial_run_references()
                     ! Count iterations for corespace updates from here
                     semistochStartIter = iter
                     ! and switch how iterations for SI updates are counted
@@ -336,16 +367,9 @@ module FciMCParMod
                endif
                write(6,*) "Refreshing trial wavefunction at iteration ", iter
             endif
-            ! Update the semistochastic space if requested
-            if(tSemiStochastic .and. tDynamicCoreSpace .and. &
-                 mod(iter-semistochStartIter, &
-                 coreSpaceUpdateCycle) == 0) then
-               call refresh_semistochastic_space()
-               write(6,*) "Refreshing semistochastic space at iteration ", iter
-            end if
            
             if(((Iter - maxval(VaryShiftIter)) == allDoubsInitsDelay + 1 &
-                 .and. all(.not. tSinglePartPhase)).or.all(tSkipRef)) then
+                 .and. all(.not. tSinglePartPhase))) then
                ! Start the all-doubs-initiator procedure
                if(tDelayAllDoubsInits) call enable_adi()
                ! And/or the all-sings-initiator procedure
@@ -436,7 +460,7 @@ module FciMCParMod
                 .not. tSemiStochastic .and. .not. tFillingStochRDMOnFly) then
                 call adjust_load_balance(iter_data_fciqmc)
             end if
-
+            
             if(SIUpdateInterval > 0) then
                ! Regular update of the superinitiators. Use with care as it 
                ! is still rather expensive if secondary superinitiators are used
@@ -661,6 +685,14 @@ module FciMCParMod
                 endif
             endif
 
+            ! Compute the time lost due to load imbalance - aggregation done for 100 iterations 
+            ! at a time to avoid unnecessary synchronisation points            
+            if (mod(Iter,100).eq.0) then
+               call MPIReduce(lt_arr,MPI_SUM,lt_sum)
+               call MPIReduce(lt_arr,MPI_MAX,lt_max)
+               lt_imb=lt_imb+sum(lt_max-lt_sum/nProcessors)
+            end if
+
             Iter=Iter+1
             if(tFillingStochRDMonFly) iRDMSamplingIter = iRDMSamplingIter + 1 
 
@@ -674,7 +706,17 @@ module FciMCParMod
         stop_time = neci_etime(tend)
         write(iout,*) '- - - - - - - - - - - - - - - - - - - - - - - -'
         write(iout,*) 'Total loop-time: ', stop_time - start_time
+
+        !add load imbalance from remaining iterations (if any)
+        rest=mod(Iter-1,100)
+        if (rest.gt.0) then
+           call MPIReduce(lt_arr,MPI_SUM,lt_sum)
+           call MPIReduce(lt_arr,MPI_MAX,lt_max)
+           lt_imb=lt_imb+sum(lt_max(1:rest)-lt_sum(1:rest)/nProcessors)
+        end if
+        if (iProcIndex.eq.0) write(iout,*) 'Time lost due to load imbalance: ', lt_imb
         write(iout,*) '- - - - - - - - - - - - - - - - - - - - - - - -'
+
 
         ! [Werner Dobrautz 4.4.2017] 
         ! for now always print out the frequency histograms for the 
@@ -763,6 +805,10 @@ module FciMCParMod
         if(tDiagWalkerSubspace) then
             close(unitWalkerDiag)
         endif
+
+        if (tReplicaEstimates .and. iProcIndex == 0) then
+            close(replica_est_unit)
+        end if
 
         ! Print out some load balancing stats nicely to end.
         CALL MPIReduce(TotWalkers,MPI_MAX,MaxWalkers)
@@ -861,6 +907,30 @@ module FciMCParMod
             write(iout,"(A,F20.8,A,G15.6)") " Total shift energy     ", &
                 mean_shift+Hii," +/- ",shift_err
         endif
+
+        ! Output replica_estimates data for the test suite
+        if (tReplicaEstimates) then
+            write(iout,'(/,1x,"THE FOLLOWING IS FOR TEST SUITE USE ONLY!",/)')
+            do i = 1, replica_est_len
+                write(iout,'(1x,"REPLICA ESTIMATES FOR STATE",1x,'//int_fmt(i)//',":",)') i
+
+                write(iout, '(1x,"Variational energy from replica_estimates:",1x,es20.13)') &
+                    var_e_num_all(i)/rep_est_overlap_all(i)
+                write(iout, '(1x,"Energy squared from replica_estimates:",1x,es20.13)') &
+                    e_squared_num_all(i)/rep_est_overlap_all(i)
+                if (tEN2Init) then
+                    write(iout, '(1x,"EN2 estimate from replica_estimates:",1x,es20.13)') &
+                        en2_pert_all(i)/rep_est_overlap_all(i)
+                end if
+                if (tEN2Rigorous) then
+                    write(iout, '(1x,"EN2 New estimate from replica_estimates:",1x,es20.13)') &
+                        en2_new_all(i)/rep_est_overlap_all(i)
+                end if
+                write(iout, '(1x,"Preconditioned energy from replica_estimates:",1x,es20.13,/)') &
+                    precond_e_num_all(i)/precond_denom_all(i)
+            end do
+        end if
+
 #ifdef MOLPRO
         call output_result('FCIQMC','ENERGY',BestEnergy,iroot,isymh)
         if (iroot.eq.1) call clearvar('ENERGY')
@@ -884,6 +954,8 @@ module FciMCParMod
 !            energ(i) = get_scalar("FCIQMC_ERR")
         endif
 #endif
+        CALL MolproPluginResult('ENERGY',[BestEnergy])
+        CALL MolproPluginResult('FCIQMC_ERR',[min(ProjE_Err_re,shift_err)])
         write(iout,"(/)")
 
         ! Deallocate memory
@@ -892,7 +964,7 @@ module FciMCParMod
     end subroutine FciMCPar
 
     subroutine PerformFCIMCycPar(iter_data)
-
+      use mpi
         use global_det_data, only: get_iter_occ_tot, get_av_sgn_tot
         use global_det_data, only: set_av_sgn_tot, set_iter_occ_tot
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
@@ -906,26 +978,32 @@ module FciMCParMod
         ! Now the local, iteration specific, variables
         integer :: j, p, error, proc_temp, i, HFPartInd,isym
         integer :: DetCurr(nel), nJ(nel), FlagsCurr, parent_flags
-        real(dp), dimension(lenof_sign) :: SignCurr, child, SpawnSign
+        real(dp), dimension(lenof_sign) :: SignCurr, child, child_for_stats, SpawnSign
         integer(kind=n_int) :: iLutnJ(0:niftot)
         integer :: IC, walkExcitLevel, walkExcitLevel_toHF, ex(2,3), TotWalkersNew, part_type, run
         integer(int64) :: tot_parts_tmp(lenof_sign)
         logical :: tParity, tSuccess, tCoreDet
-        real(dp) :: prob, HDiagCurr, TempTotParts, Di_Sign_Temp
+        real(dp) :: prob, HDiagCurr, EnergyCurr, hdiag_bare, TempTotParts, Di_Sign_Temp
         real(dp) :: RDMBiasFacCurr
+        real(dp) :: lstart
         real(dp) :: AvSignCurr(len_av_sgn_tot), IterRDMStartCurr(len_iter_occ_tot)
         real(dp) :: av_sign(len_av_sgn_tot), iter_occ(len_iter_occ_tot)
-        HElement_t(dp) :: HDiagTemp,HElGen
+        HElement_t(dp) :: HDiagTemp, HElGen
         character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
         HElement_t(dp), dimension(inum_runs) :: delta
         integer :: proc, pos, determ_index, irdm
         real(dp) :: r, sgn(lenof_sign), prob_extra_walker
-        integer :: DetHash, FinalVal, clash, PartInd, k, y
+        integer :: DetHash, FinalVal, clash, PartInd, k, y, MaxIndex
         type(ll_node), pointer :: TempNode
+
+        real(dp) :: precond_fac
+        HElement_t(dp) :: hdiag_spawn, h_diag_correct
 
         integer :: ms
         logical :: signChanged, newlyOccupied
         real(dp) :: currArg, spawnArg
+        ! how many entries were added to (the end of) CurrentDets in the last iteration
+        integer, save :: detGrowth = 0
 
         call set_timer(Walker_Time,30)
 
@@ -966,6 +1044,8 @@ module FciMCParMod
         ! It would be nice to fix this properly
         if (tCSF) exFlag = 7
 
+        precond_fac = 1.0_dp
+
         IFDEBUGTHEN(FCIMCDebug,iout)
             write(iout,"(A)") "Hash Table: "
             write(iout,"(A)") "Position in hash table, Position in CurrentDets"
@@ -1003,7 +1083,7 @@ module FciMCParMod
                 IterLastRDMFill = mod((Iter+PreviousCycles - IterRDMStart + 1), RDMEnergyIter)
             endif
         endif
-
+        lstart=mpi_wtime()
         do j = 1, int(TotWalkers,sizeof_int)
 
             ! N.B. j indicates the number of determinants, not the number
@@ -1033,8 +1113,28 @@ module FciMCParMod
             call extract_bit_rep_avsign(rdm_definitions, CurrentDets(:,j), j, DetCurr, SignCurr, FlagsCurr, &
                                         IterRDMStartCurr, AvSignCurr, fcimc_excit_gen_store)
 
-            !call test_sym_excit_ExMag(DetCurr,100000000)
-            !call stop_all(this_routine, "Test complete")
+            ! if we CurrentDets is almost full, make some space
+            if(t_activate_decay) then
+               if(test_flag(CurrentDets(:,j), flag_prone)) then
+                  ! kill a prone determinant with probability given by the
+                  ! ratio of how many space we probably need to how many prone dets exist
+                  ! (prone dets always have only a single scaled walker)
+                  r = genrand_real2_dSFMT()
+                  if(n_prone_dets > 0) then
+                     if(r < detGrowth / n_prone_dets) then
+                        ! log the removal
+                        iter_data%nremoved = iter_data%nremoved + abs(SignCurr)
+                        ! remove all walkers here (this will be counted as unocc. later 
+                        ! and thus become an empty slot)
+                        SignCurr = 0.0_dp
+                        ! kill all walkers on the determinant
+                        call nullify_ilut(CurrentDets(:,j))
+                        ! and remove it from the hashtable
+                        call remove_hash_table_entry(HashIndex, DetCurr, j)
+                     endif
+                  endif
+               end if
+            endif
 
             ! We only need to find out if determinant is connected to the
             ! reference (so no ex. level above 2 required, 
@@ -1101,6 +1201,7 @@ module FciMCParMod
 
             ! The current diagonal matrix element is stored persistently.
             HDiagCurr = det_diagH(j)
+            EnergyCurr = det_diagH(j) + Hii
 
             if (tSeniorInitiators) then
                 SpawnSign = get_all_spawn_pops(j)
@@ -1135,7 +1236,7 @@ module FciMCParMod
             end if
 
             if (tTruncInitiator) then
-                call CalcParentFlag (j, parent_flags)
+                call CalcParentFlag (j, DetCurr, WalkExcitLevel, parent_flags)
             end if
 
             !Debug output.
@@ -1161,10 +1262,6 @@ module FciMCParMod
                 endif
             ENDIFDEBUG
 
-            ! Sum in any energy contribution from the determinant, including 
-            ! other parameters, such as excitlevel info.
-            ! This is where the projected energy is calculated.
-            call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, CurrentDets(:,j), HDiagCurr, 1.0_dp, tPairedReplicas, j)
 
             ! double occupancy measurement: quick and dirty for now
             if (t_calc_double_occ) then
@@ -1173,10 +1270,23 @@ module FciMCParMod
 
             end if
 
+            call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, CurrentDets(:,j), HDiagCurr, 1.0_dp, tPairedReplicas, j)
+
             ! If we're on the Hartree-Fock, and all singles and doubles are in
             ! the core space, then there will be no stochastic spawning from
             ! this determinant, so we can the rest of this loop.
             if (tSemiStochastic .and. ss_space_in%tDoubles .and. walkExcitLevel_toHF == 0 .and. tDetermHFSpawning) cycle
+
+            ! For HPHFs, get the diagonal Hamiltonian element without the
+            ! cross-term correction. This will make calculating the diagonal
+            ! elements for new spawnins more efficient
+            if (tPreCond .or. tReplicaEstimates) then
+                if (tHPHF) then
+                    hdiag_bare = get_hdiag_bare_hphf(DetCurr, CurrentDets(:,j), EnergyCurr)
+                else
+                    hdiag_bare = EnergyCurr
+                end if
+            end if
 
             ! Loop over the 'type' of particle. 
             ! lenof_sign == 1 --> Only real particles
@@ -1197,7 +1307,7 @@ module FciMCParMod
                 ! determinant. CurrentSign gives number of walkers. Multiply 
                 ! up by AvMCExcits if attempting multiple excitations from 
                 ! each walker (default 1.0_dp).
-                call decide_num_to_spawn(SignCurr(part_type), AvMCExcits, WalkersToSpawn)
+                call decide_num_to_spawn(SignCurr(part_type), HDiagCurr, AvMCExcits, WalkersToSpawn)
                 do p = 1, WalkersToSpawn
 
                     ! Zero the bit representation, to ensure no extraneous
@@ -1257,11 +1367,20 @@ module FciMCParMod
 
                         end if
 
+                        if (tPreCond .or. tReplicaEstimates) then
+                            hdiag_spawn = get_hdiag_from_excit(DetCurr, nJ, iLutnJ, ic, ex, hdiag_bare)
+
+                            if (tPreCond) then
+                                precond_fac = hdiag_spawn - proj_e_for_precond(part_type) - &
+                                               proje_ref_energy_offsets(part_type) - Hii
+                            end if
+                        end if
+
                         child = attempt_create (DetCurr, &
                                             CurrentDets(:,j), SignCurr, &
                                             nJ,iLutnJ, Prob, HElGen, IC, ex, &
-                                            tParity, walkExcitLevel,part_type, &
-                                            AvSignCurr,RDMBiasFacCurr)     
+                                            tParity, walkExcitLevel, part_type, &
+                                            AvSignCurr, RDMBiasFacCurr, precond_fac)
                                             ! Note these last two, AvSignCurr and 
                                             ! RDMBiasFacCurr are not used unless we're 
                                             ! doing an RDM calculation.
@@ -1302,45 +1421,62 @@ module FciMCParMod
                             call clr_flag(iLutnJ, flag_connected)
                         end if
 
+                        ! If using a preconditioner, update the child weight for statistics
+                        ! (mainly for blooms and hence updating the time step).
+                        ! Note, the final preconiditoner is applied in annihilation, once
+                        ! the exact projected energy is know.
+                        child_for_stats = child
+
+                        if (tPreCond) child_for_stats = child_for_stats/precond_fac
+
                         call new_child_stats (iter_data, CurrentDets(:,j), &
                                               nJ, iLutnJ, ic, walkExcitLevel, &
-                                              child, parent_flags, part_type)
+                                              child_for_stats, parent_flags, part_type)
 
                         if (use_spawn_hash_table) then
                             call create_particle_with_hash_table (nJ, ilutnJ, child, part_type, &
                                                                    CurrentDets(:,j), iter_data)
                         else
-                            call create_particle (nJ, iLutnJ, child, part_type, & 
+                            call create_particle (nJ, iLutnJ, child, part_type, hdiag_spawn, & 
                                                   CurrentDets(:,j), SignCurr, p, &
                                                   RDMBiasFacCurr, WalkersToSpawn)
                         end if
 
-                    endif ! (child /= 0), Child created.
+                    end if ! (child /= 0), Child created.
 
-                enddo ! Cycling over mulitple particles on same determinant.
+                end do ! Cycling over mulitple particles on same determinant.
 
-            enddo   ! Cycling over 'type' of particle on a given determinant.
+            end do   ! Cycling over 'type' of particle on a given determinant.
 
-            !If we are fixing the population of reference det, skip death/birth
-            if(tSkipRef(run) .and. DetBitEQ(CurrentDets(:,j),iLutRef(:,run),nIfD)) then
-                cycle
-            endif
-                ! If we are performing a semi-stochastic simulation and this state
-                ! is in the deterministic space, then the death step is performed
-                ! deterministically later. Otherwise, perform the death step now.
-                if (.not. tCoreDet) call walker_death (iter_data, DetCurr, CurrentDets(:,j), &
-                                                       HDiagCurr, SignCurr, j, WalkExcitLevel)
+            ! If we are performing a semi-stochastic simulation and this state
+            ! is in the deterministic space, then the death step is performed
+            ! deterministically later. Otherwise, perform the death step now.
+            ! If using a preconditioner, then death is done in the annihilation
+            ! routine, after the energy has been calculated.
+            if (tDeathBeforeComms .and. (.not. tCoreDet)) then
+                call walker_death (iter_data, DetCurr, CurrentDets(:,j), &
+                                   HDiagCurr, SignCurr, j, WalkExcitLevel)
+            end if
 
-        enddo ! Loop over determinants.
+        end do ! Loop over determinants.
+
+        !loop timing for this iteration on this MPI rank
+        lt_arr(mod(Iter-1,100)+1)=mpi_wtime()-lstart
+
         IFDEBUGTHEN(FCIMCDebug,2) 
             write(iout,*) 'Finished loop over determinants'
             write(iout,*) "Holes in list: ", iEndFreeSlot
         ENDIFDEBUG
+
         if (tSemiStochastic) then
             ! For semi-stochastic calculations only: Gather together the parts
             ! of the deterministic vector stored on each processor, and then
             ! perform the multiplication of the exact projector on this vector.
-            call determ_projection()
+            if (tDeathBeforeComms) then
+                call determ_projection()
+            else
+                call determ_projection_no_death()
+            end if
 
             if (tFillingStochRDMonFly) then
                 ! For RDM calculations, add the current core amplitudes into the
@@ -1377,11 +1513,44 @@ module FciMCParMod
         !HolesInList is returned from direct annihilation with the number of unoccupied determinants in the list
         !They have already been removed from the hash table though.
 
-        call DirectAnnihilation (totWalkersNew, iter_data, .false.) !.false. for not single processor
+        call communicate_and_merge_spawns(MaxIndex, iter_data, .false.)
+
+        if (tSimpleInit) then
+            call get_ests_from_spawns_simple(MaxIndex, proj_e_for_precond)
+        else
+            call get_ests_from_spawns(MaxIndex, proj_e_for_precond)
+        end if
+
+        if (tSimpleInit) call rm_non_inits_from_spawnedparts(MaxIndex, iter_data)
+
+        ! If performing FCIQMC with preconditioning, then apply the
+        ! the preconditioner to the spawnings, and perform the death step.
+        if (tPreCond) then
+            call set_timer(rescale_time, 30)
+            call rescale_spawns(MaxIndex, proj_e_for_precond, iter_data)
+            call halt_timer(rescale_time)
+        end if
+
+        ! If we haven't performed the death step yet, then do it now.
+        if (.not. tDeathBeforeComms) then
+            call set_timer(death_time, 30)
+            call perform_death_all_walkers(iter_data)
+            call halt_timer(death_time)
+        end if
+
+        call DirectAnnihilation (TotWalkersNew, MaxIndex, iter_data)
+
+        ! The growth in the size of the occupied part of CurrentDets
+        ! this is important for the purpose of prone_walkers
+        detGrowth = TotWalkersNew - TotWalkers
 
         ! This indicates the number of determinants in the list + the number
         ! of holes that have been introduced due to annihilation.
         TotWalkers = TotWalkersNew
+
+        ! if we still have plenty of empty slots in the list, deactivate the decay
+        if(t_activate_decay .and. TotWalkers < 0.95_dp * real(MaxWalkersPart,dp)) &
+             t_activate_decay = .false.
 
         ! The superinitiators are now the same as they will be at the beginning of
         ! the next cycle (this flag is reset if they change)
@@ -1402,6 +1571,10 @@ module FciMCParMod
         if (tFillingStochRDMonFly) then
             if (tOldRDMs) call fill_rdm_diag_wrapper_old(rdms, one_rdms_old, CurrentDets, int(TotWalkers, sizeof_int))
             call fill_rdm_diag_wrapper(rdm_definitions, two_rdm_spawn, one_rdms, CurrentDets, int(TotWalkers, sizeof_int))
+        end if
+
+        if(tTrialWavefunction .and. tTrialShift)then
+            call fix_trial_overlap(iter_data)
         end if
 
         call update_iter_data(iter_data)

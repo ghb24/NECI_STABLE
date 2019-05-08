@@ -7,7 +7,9 @@ MODULE Logging
     use MemoryManager, only: LogMemAlloc, LogMemDealloc,TagIntType
     use SystemData, only: nel, LMS, nbasis, tHistSpinDist, nI_spindist, &
                           hist_spin_dist_iter
-    use CalcData, only: tCheckHighestPop, semistoch_shift_iter, trial_shift_iter, tPairedReplicas
+    use FciMCData, only: maxConflictExLvl
+    use CalcData, only: tCheckHighestPop, semistoch_shift_iter, trial_shift_iter, &
+                        tPairedReplicas, tReplicaEstimates
     use constants, only: n_int, size_n_int, bits_n_int
     use bit_rep_data, only: NIfTot, NIfD
     use DetBitOps, only: EncodeBitDet
@@ -167,7 +169,7 @@ MODULE Logging
       tHDF5PopsRead = .false.
       tHDF5PopsWrite = .false.
       tWriteRefs = .false.
-
+      maxConflictExlvl = 8
 #ifdef __PROG_NUMRUNS
       tFCIMCStats2 = .true.
 #else
@@ -513,6 +515,12 @@ MODULE Logging
             tHistInitPops=.true.
             call readi(HistInitPopsIter)
 
+#if defined(__PROG_NUMRUNS)
+        case("PAIRED-REPLICAS")
+            tPairedReplicas = .true.
+            nreplicas = 2
+#endif
+
         case("UNPAIRED-REPLICAS")
             tUseOnlySingleReplicas = .true.
 #if defined(__PROG_NUMRUNS)
@@ -520,6 +528,13 @@ MODULE Logging
             nreplicas = 1
 #elif defined(__DOUBLERUN)
             call stop_all(t_r, "The unpaired-replicas option cannot be used with the dneci.x executable.")
+#endif
+
+#if defined(__PROG_NUMRUNS)
+        case("REPLICA-ESTIMATES")
+            tReplicaEstimates = .true.
+            tPairedReplicas = .true.
+            nreplicas = 2
 #endif
 
         case("CALCRDMONFLY")
@@ -1095,7 +1110,7 @@ MODULE Logging
 
         case("DOUBLE-OCCUPANCY")
             ! new functionality to measure the mean double occupancy 
-            ! as this is a only diagonal quantitity i decided to detach it 
+            ! as this is a only diagonal quantitity I decided to detach it 
             ! from the RDM calculation, although it could be calculated 
             ! from the RDMs and this should be used to test this functionality!
             ! Also, as it is a diagonal quantity, we need to unbias the 

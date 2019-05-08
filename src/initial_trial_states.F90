@@ -33,7 +33,6 @@ contains
         use lanczos_general, only: LanczosCalcType, DestroyLanczosCalc
         use lanczos_general, only: perform_lanczos
 
-        use davidson_neci, only: DavidsonCalcType, perform_davidson, DestroyDavidsonCalc
         use lanczos_general, only: LanczosCalcType, perform_lanczos, DestroyLanczosCalc
 
 

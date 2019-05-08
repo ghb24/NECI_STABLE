@@ -1,7 +1,7 @@
 
 # List the files that ought to be compiled
 
-set( SRC_FILES 
+set( SRC_FILES
 
     adi_references.F90
     adi_initiators.F90
@@ -23,6 +23,7 @@ set( SRC_FILES
     csf.F90
     csf_old.F
     davidson_neci.F90
+    davidson_semistoch.F90
     default_sets.F90
     DetBitOps.F90
     DetCalcData.F90
@@ -39,6 +40,7 @@ set( SRC_FILES
     exact_spectrum.F90
     excit.F
     excit_parity.F90
+    fast_determ_hamil.F90
     FciMCData.F90
     fcimc_helper.F90
     fcimc_initialisation.F90
@@ -61,6 +63,7 @@ set( SRC_FILES
     hamiltonian_linalg.F90
     hdf5_popsfile.F90
     hdiag.F
+    hdiag_from_excit.F90
     HElem.F90
     hfbasis.F
     HFCalc.F90
@@ -74,6 +77,7 @@ set( SRC_FILES
     init_coul2D.F
     init_coul.F
     initial_trial_states.F90
+    initiator_space_procs.F90
     input.F90
     IntegralsData.F90
     Integrals_neci.F90
@@ -94,6 +98,9 @@ set( SRC_FILES
     Makefile
     matmul.F
     modifiedHub.F90
+    molcas_interface.F90
+    MolproPlugin.F90
+    PluginGuest.cpp
     NatOrbs.F90
     NECICore.F90
     neci_intfce.F90
@@ -130,6 +137,7 @@ set( SRC_FILES
     real_time_read_input.F90
     readri.F90
     replica_data.F90
+    replica_estimates.F90
     rhodiag.F
     RhoElement.F90
     rootfind.F
@@ -140,7 +148,6 @@ set( SRC_FILES
     searching.F90
     semi_stoch_gen.F90
     semi_stoch_procs.F90
-    shared_memory_mpi.F90
     sltcnd.F90
     sparse_arrays.F90
     spectral_data.F90
@@ -212,6 +219,8 @@ set( TEMPLATED_SRC_FILES
 
     BinSearch.F90.template
     Parallel.F90.template
+    shared_memory_mpi.F90.template
+    scalar_shared_memory_mpi.F90.template
     lib/quicksort.F90.template
     lib/util_mod_byte_size.F90.template
     lib/util_mod_comparisons.F90.template
@@ -225,9 +234,6 @@ set( TEMPLATED_SRC_FILES
 # Don't use generator expressions for including libraries, as this causes problems when there are list
 # expansions.
 set( _conditional_libraries "" )
-if (HAVE_MPI)
-    list(APPEND _conditional_libraries ${MPI_NECI_Fortran_LIBRARIES} )
-endif()
 if (HAVE_FFTW)
     list(APPEND _conditional_libraries ${FFTW_LIBRARIES} )
 endif()
@@ -240,7 +246,9 @@ endif()
 set( _library_link_libs
     "${LAPACK_NECI_LIBRARIES}"
     "${LIBRT_LIBRARIES}"
-    "${_conditional_libraries}" )
+    "${_conditional_libraries}"
+    "${MPI_NECI_LIBRARIES}"
+    "${MPI_NECI_Fortran_LIBRARIES}")
 
 if( HAVE_SHARED )
     set( _link_type SHARED )
@@ -259,7 +267,7 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
     message(STATUS "Adding library for configuration ${_config}")
     message(STATUS "Library definitions: ${${PROJECT_NAME}_${_config}_DEFINITIONS}")
     neci_add_library(
-    
+
         TARGET lib${_config}
         TYPE ${_link_type}
         OUTPUT_NAME ${_config}

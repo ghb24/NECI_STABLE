@@ -33,6 +33,8 @@ MODULE FciMCData
       integer :: Tot_Unique_Dets_Unit 
       integer :: EXLEVELStats_unit ! EXLEVELStats
 
+      integer :: replica_est_unit ! Variational estimates
+
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: WalkVecDets(:,:)                !Contains determinant list
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVec(:,:),SpawnVec2(:,:)
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVecKP(:,:), SpawnVecKP2(:,:)
@@ -94,6 +96,11 @@ MODULE FciMCData
     real(dp), allocatable :: NoAborted(:), AllNoAborted(:), AllNoAbortedOld(:)
     real(dp), allocatable :: NoRemoved(:), AllNoRemoved(:), AllNoRemovedOld(:)
     integer(int64), allocatable :: NoAddedInitiators(:), NoInitDets(:), NoNonInitDets(:)
+    integer :: NoInitsConflicts, NoSIInitsConflicts, AllNoInitsConflicts, AllNoSIInitsConflicts
+    integer :: NoConflicts
+    integer :: maxConflictExLvl
+    integer, allocatable :: ConflictExLvl(:)
+    real(dp) :: avSigns, AllAvSigns
     real(dp), allocatable :: NoInitWalk(:), NoNonInitWalk(:)
     integer(int64), allocatable :: NoExtraInitDoubs(:), InitRemoved(:)
 
@@ -131,7 +138,7 @@ MODULE FciMCData
       real(dp), allocatable :: norm_psi_squared(:)
       real(dp), allocatable :: norm_semistoch_squared(:)
       real(dp), allocatable :: all_norm_psi_squared(:)
-      real(dp), allocatable :: norm_psi(:)
+      real(dp), allocatable :: norm_psi(:), old_norm_psi(:)
       ! The norm of the wavefunction in just the semi-stochastic space.
       real(dp), allocatable :: norm_semistoch(:)
 
@@ -141,6 +148,16 @@ MODULE FciMCData
       type(ll_node), pointer :: HashIndex(:) 
       integer :: nWalkerHashes    ! The length of hash table.
       real(dp) :: HashLengthFrac
+
+      ! scaling of walker-units
+      integer :: sfTag
+      real(dp) :: sFAlpha, sFBeta
+      logical :: tEScaleWalkers
+      ! flag to indicate that the number of spawns shall be tracked
+      logical :: tLogNumSpawns
+      ! total truncated weight
+      real(dp) :: truncatedWeight, AllTruncatedWeight
+      
 
 !The following variables are calculated as per processor, but at the end of each update cycle, 
 !are combined to the root processor
@@ -266,9 +283,14 @@ MODULE FciMCData
                            BinSearch_time, SemiStoch_Comms_Time, &
                            SemiStoch_Multiply_Time, Trial_Search_Time, &
                            SemiStoch_Init_Time, Trial_Init_Time, &
+                           SemiStoch_Hamil_Time, SemiStoch_Davidson_Time, &
                            kp_generate_time, Stats_Comms_Time, &
                            subspace_hamil_time, exact_subspace_h_time, &
-                           subspace_spin_time
+                           subspace_spin_time, sign_correction_time, &
+                           var_e_time, precond_e_time, proj_e_time, &
+                           rescale_time, death_time, hash_test_time, &
+                           hii_test_time, init_flag_time, &
+                           InitSpace_Init_Time
       
       ! Store the current value of S^2 between update cycles
       real(dp), allocatable :: curr_S2(:), curr_S2_init(:)
@@ -363,6 +385,10 @@ MODULE FciMCData
       INTEGER :: QuadDetsEst !Estimate of the number of symmetry allowed determinants at excit level 4
       INTEGER :: DoubDetsEst !Estimate of the number of symmetry allowed determinants at excit level 2
       logical :: tReplicaReferencesDiffer
+      
+      ! This data is for reducing the occupied determinants drastically when hitting 
+      ! the memory limit
+      integer :: n_prone_dets
 
       integer, allocatable :: ProjEDet(:, :)
       integer(n_int), allocatable :: HighestPopDet(:,:), iLutRef(:, :)
@@ -396,6 +422,8 @@ MODULE FciMCData
       ! Diag shift from the input file, if it needed to be reset after restart
       real(dp), allocatable :: InputDiagSft(:)
       
+      ! Projected energy used in preconditioner
+      real(dp), allocatable :: proj_e_for_precond(:)
 
       ! ********************** FCIMCPar control variables *****************
       ! Store data from one fcimc iteration
@@ -474,6 +502,10 @@ MODULE FciMCData
       ! total number of core states on all processors up to processor i.
       ! (determ_displs(1) == 0).
       integer(MPIArg), allocatable, dimension(:) :: determ_displs
+      ! determ_last(i) holds the final index belonging process i.
+      integer(MPIArg), allocatable, dimension(:) :: determ_last
+      ! The first and last indices on this process.
+      integer :: s_first_ind, s_last_ind
       ! The total size of the core space on all processors.
       integer(MPIArg) :: determ_space_size
       ! determ_space_size_int is identical to determ_space_size, but converted
@@ -487,6 +519,11 @@ MODULE FciMCData
       ! will start from the ground state of the core space
       logical :: tStartCoreGroundState
 
+      ! If tDetermSpawnedTo(i) is true, then the i'th deterministic state on
+      ! this processor was spawned to in the current iteration. This is only
+      ! allocated and used, currently, if replica estimates are being calculated.
+      logical, allocatable :: tDetermSpawnedTo(:)
+
       ! Trial wavefunction data.
 
       ! This list stores the iluts from which the trial wavefunction is formed,
@@ -494,6 +531,7 @@ MODULE FciMCData
       integer(n_int), allocatable, dimension(:,:) :: trial_space
       ! The number of states in the trial vector space.
       integer :: trial_space_size = 0
+      integer :: tot_trial_space_size = 0
       ! This list stores the iluts from which the trial wavefunction is formed,
       ! but only those that reside on this processor.
       integer(n_int), allocatable, dimension(:,:) :: con_space
@@ -589,5 +627,31 @@ MODULE FciMCData
       ! counting the total walker population all determinants of each ms value
       real(dp), allocatable :: walkPopByMsReal(:), walkPopByMsImag(:)
 
+      ! --- Data for when using the determ-proj-approx-hamil option -----
+
+      ! The 'main' space in which the entire Hamiltonian is stored.
+      integer(n_int), allocatable, dimension(:,:) :: var_space
+
+      ! Temporary space for storing the variational space states when they
+      ! are first generated.
+      integer(n_int), allocatable, dimension(:,:) :: temp_var_space
+
+      integer(MPIArg) :: var_size_this_proc
+      integer(MPIArg) :: var_space_size
+      integer :: var_space_size_int
+
+      integer(MPIArg), allocatable, dimension(:) :: var_sizes
+      integer(MPIArg), allocatable, dimension(:) :: var_displs
+
+      ! -----------------------------------------------------------------
+
+      ! Data for the replica_estimates option
+      real(dp), allocatable, dimension(:) :: var_e_num,         rep_est_overlap
+      real(dp), allocatable, dimension(:) :: var_e_num_all,     rep_est_overlap_all
+      real(dp), allocatable, dimension(:) :: e_squared_num,     e_squared_num_all
+      real(dp), allocatable, dimension(:) :: en2_pert,          en2_pert_all
+      real(dp), allocatable, dimension(:) :: en2_new,           en2_new_all
+      real(dp), allocatable, dimension(:) :: precond_e_num,     precond_denom
+      real(dp), allocatable, dimension(:) :: precond_e_num_all, precond_denom_all
 
 end module FciMCData

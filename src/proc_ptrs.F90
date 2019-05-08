@@ -34,9 +34,9 @@ module procedure_pointers
 
         !
         ! Generic attempt create routine
-        function attempt_create_t (nI, ilutI, wSign, nJ, ilutJ, prob, HElGen,&
+        function attempt_create_t (nI, ilutI, wSign, nJ, ilutJ, prob, HElGen, &
                                    ic, ex, tPar, exLevel, part_type, &
-                                   AvSignCurr, RDMBiasFacCurr) result(child)
+                                   AvSignCurr, RDMBiasFacCurr, precond_fac) result(child)
 
             use SystemData, only: nel
             use bit_rep_data, only: NIfTot
@@ -52,8 +52,9 @@ module procedure_pointers
             real(dp), intent(inout) :: prob
             real(dp), dimension(lenof_sign), intent(in) :: AvSignCurr
             real(dp), intent(out) :: RDMBiasFacCurr
+            real(dp), intent(in) :: precond_fac
             HElement_t(dp), intent(in) :: HElGen
-            real(dp) :: child(lenof_sign)    
+            real(dp) :: child(lenof_sign)
 
         end function
 
@@ -210,14 +211,14 @@ module procedure_pointers
 
         end function
 
-!         subroutine generate_all_excits_t(nI, n_excits, det_list) 
-!             use SystemData, only: nel 
-!             use constants, only: n_int
-!             integer, intent(in) :: nI(nel) 
-!             integer, intent(out) :: n_excits
-!             integer(n_int), intent(out), allocatable :: det_list(:,:)
-!         end subroutine generate_all_excits_t
+        function scale_function_t(hdiag) result(Si)
+          use constants
+          implicit none
 
+          real(dp), intent(in) :: hdiag
+          real(dp) :: Si
+
+        end function scale_function_t
 
     end interface
 
@@ -240,5 +241,8 @@ module procedure_pointers
     ! 'stacking' scheme is in use (i.e. caching, memoization etc.)
     procedure(get_umat_el_t), pointer :: get_umat_el
     procedure(get_umat_el_t), pointer :: get_umat_el_secondary
+
+    ! the function used to scale the walkers
+    procedure(scale_function_t), pointer :: scaleFunction
 
 end module

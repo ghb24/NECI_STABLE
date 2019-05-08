@@ -6,8 +6,8 @@ module kp_fciqmc
     use kp_fciqmc_proj_est
     use kp_fciqmc_procs
 
-    use AnnihilationMod, only: DirectAnnihilation
-    use bit_rep_data, only: NIfTot, NOffFlag, tUseFlags, test_flag
+    use AnnihilationMod, only: DirectAnnihilation, communicate_and_merge_spawns
+    use bit_rep_data, only: NIfTot, NOffFlag, test_flag
     use bit_reps, only: flag_deterministic, flag_determ_parent, set_flag
     use bit_reps, only: extract_bit_rep
     use CalcData, only: AvMCExcits, tSemiStochastic, tTruncInitiator, StepsSft
@@ -52,13 +52,13 @@ contains
         integer :: iconfig, irepeat, ivec, nlowdin
         integer :: nspawn, parent_flags, unused_flags
         integer :: ex_level_to_ref, ex_level_to_hf
-        integer :: TotWalkersNew, determ_ind, ic, ex(2,2), ms_parent
+        integer :: TotWalkersNew, MaxIndex, determ_ind, ic, ex(2,2), ms_parent
         integer :: nI_parent(nel), nI_child(nel)
         integer(n_int) :: ilut_child(0:NIfTot)
         integer(n_int), pointer :: ilut_parent(:)
         real(dp) :: prob, unused_rdm_real, parent_hdiag
         real(dp) :: child_sign(lenof_sign), parent_sign(lenof_sign)
-        real(dp) :: unused_sign(lenof_sign)
+        real(dp) :: unused_sign(lenof_sign), precond_fac
         real(dp), allocatable :: lowdin_evals(:,:)
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied
         logical :: tParity, tSingBiasChange, tWritePopsFound
@@ -77,6 +77,9 @@ contains
         integer(n_int) :: int_sign(lenof_all_signs)
         real(dp) :: test_sign(lenof_all_signs)
         type(ll_node), pointer :: temp_node
+
+        ! Unused factor
+        precond_fac = 1.0_dp
 
         call init_kp_fciqmc(kp)
         if (.not. tAllSymSectors) ms_parent = lms
@@ -217,7 +220,7 @@ contains
 
                                 do ireplica = 1, lenof_sign
 
-                                    call decide_num_to_spawn(parent_sign(ireplica), AvMCExcits, nspawn)
+                                    call decide_num_to_spawn(parent_sign(ireplica), parent_hdiag, AvMCExcits, nspawn)
                                     
                                     do ispawn = 1, nspawn
 
@@ -232,7 +235,7 @@ contains
                                         if (.not. IsNullDet(nI_child)) then
 
                                             call encode_child (ilut_parent, ilut_child, ic, ex)
-                                            if (tUseFlags) ilut_child(nOffFlag) = 0_n_int
+                                            ilut_child(nOffFlag) = 0_n_int
 
                                             if (tSemiStochastic) then
                                                 tChildIsDeterm = is_core_state(ilut_child, nI_child)
@@ -249,7 +252,8 @@ contains
 
                                             child_sign = attempt_create (nI_parent, ilut_parent, parent_sign, &
                                                                 nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
-                                                                ex_level_to_ref, ireplica, unused_sign, unused_rdm_real)
+                                                                ex_level_to_ref, ireplica, unused_sign, &
+                                                                unused_rdm_real, precond_fac)
 
                                         else
                                             child_sign = 0.0_dp
@@ -292,7 +296,8 @@ contains
 
                         call set_timer(annihil_time)
 
-                        call DirectAnnihilation (TotWalkersNew, iter_data_fciqmc, .false.)
+                        call communicate_and_merge_spawns(MaxIndex, iter_data_fciqmc, .false.)
+                        call DirectAnnihilation (TotWalkersNew, MaxIndex, iter_data_fciqmc)
 
                         TotWalkers = int(TotWalkersNew, int64)
 
@@ -375,13 +380,13 @@ contains
         integer :: iconfig, irepeat, ireport, nlowdin
         integer :: nspawn, parent_flags, unused_flags
         integer :: ex_level_to_ref, ex_level_to_hf
-        integer :: TotWalkersNew, determ_ind, ic, ex(2,2)
+        integer :: TotWalkersNew, MaxIndex, determ_ind, ic, ex(2,2)
         integer :: nI_parent(nel), nI_child(nel), unused_vecslot
         integer(n_int) :: ilut_child(0:NIfTot)
         integer(n_int), pointer :: ilut_parent(:)
         real(dp) :: prob, unused_rdm_real, parent_hdiag
         real(dp) :: child_sign(lenof_sign), parent_sign(lenof_sign)
-        real(dp) :: unused_sign(lenof_sign)
+        real(dp) :: unused_sign(lenof_sign), precond_fac
         real(dp), allocatable :: lowdin_evals(:,:), lowdin_spin(:,:)
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied
         logical :: tParity, tSingBiasChange, tWritePopsFound
@@ -400,6 +405,9 @@ contains
 
         ! Variables to hold information output for the test suite.
         real(dp) :: s_sum, h_sum
+
+        ! Unused factor
+        precond_fac = 1.0_dp
 
         call init_kp_fciqmc(kp)
 
@@ -569,7 +577,7 @@ contains
 
                         do ireplica = 1, lenof_sign
 
-                            call decide_num_to_spawn(parent_sign(ireplica), AvMCExcits, nspawn)
+                            call decide_num_to_spawn(parent_sign(ireplica), parent_hdiag, AvMCExcits, nspawn)
                             
                             do ispawn = 1, nspawn
 
@@ -584,7 +592,7 @@ contains
                                 if (.not. IsNullDet(nI_child)) then
 
                                     call encode_child(ilut_parent, ilut_child, ic, ex)
-                                    if (tUseFlags) ilut_child(nOffFlag) = 0_n_int
+                                    ilut_child(nOffFlag) = 0_n_int
 
                                     if (tSemiStochastic) then
                                         tChildIsDeterm = is_core_state(ilut_child, nI_child)
@@ -601,7 +609,8 @@ contains
 
                                     child_sign = attempt_create (nI_parent, ilut_parent, parent_sign, &
                                                         nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
-                                                        ex_level_to_ref, ireplica, unused_sign, unused_rdm_real)
+                                                        ex_level_to_ref, ireplica, unused_sign, &
+                                                        unused_rdm_real, precond_fac)
                                 else
                                     child_sign = 0.0_dp
                                 end if
@@ -642,7 +651,8 @@ contains
 
                     call set_timer(annihil_time)
 
-                    call DirectAnnihilation (TotWalkersNew, iter_data_fciqmc, .false.)
+                    call communicate_and_merge_spawns(MaxIndex, iter_data_fciqmc, .false.)
+                    call DirectAnnihilation (TotWalkersNew, MaxIndex, iter_data_fciqmc)
 
                     TotWalkers = int(TotWalkersNew, int64)
 

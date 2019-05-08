@@ -63,8 +63,9 @@ if ( HAVE_BUILD_HDF5 )
 		hdf5
 		# -- Download step ---
 		PREFIX ${HDF_DIR}-prefix
+		#URL https://support.hdfgroup.org/ftp/HDF5/current18/src/hdf5-1.8.20.tar.gz
+		URL https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8/hdf5-1.8.20/src/hdf5-1.8.20.tar.gz
 
-		URL https://support.hdfgroup.org/ftp/HDF5/current18/src/hdf5-1.8.20.tar.gz
 		URL_MD5 7f2d3fd67106968eb45d133f5a22150f
 
 		# -- Configure step --
@@ -84,7 +85,7 @@ if ( HAVE_BUILD_HDF5 )
     set( ${PROJECT_NAME}_GLOBAL_DEPENDENCIES ${${PROJECT_NAME}_GLOBAL_DEPENDENCIES} hdf5 )
 
     # Add the appropriate variable components
-    
+
     set( HDF5_FOUND on )
     # [W.D]: here is a problem.. on some configurations the libs get installes to lib64/ with the new 1.8.19 hdf5..
     # but how do i detect this beforehand? or try to add both?? or make sure it gets installed to the same place all the time?
@@ -101,6 +102,11 @@ else() # Not building hdf5 ...
 	#      was produced with a compatible compiler. As such, we test this
 	#      manually, and explicitly, by building a test file contained in tools/
 
+    # If NECI is a git submodule of other programs e.g. MOLCAS,
+    # that don't use the Fortran compoments, we want to make sure,
+    # that find_package does not use the cached values, but really makes
+    # a new search.
+    set (HDF5_FOUND OFF)
 	find_package(HDF5 COMPONENTS Fortran)
 	if (${HDF5_FOUND})
 		execute_process(
@@ -118,7 +124,6 @@ else() # Not building hdf5 ...
 			set (HDF5_FOUND false)
 		endif()
 	endif()
-
 endif()
 
 

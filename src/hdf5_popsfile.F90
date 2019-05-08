@@ -215,7 +215,7 @@ contains
         !      for initialising perturbations, etc.
         integer(n_int), intent(out) :: dets(:, :)
         integer(int64) :: CurrWalkers
-        character(*), parameter :: t_r = 'write_popsfile_hdf5'
+        character(*), parameter :: t_r = 'read_popsfile_hdf5'
 #ifdef __USE_HDF
         integer(hid_t) :: err, file_id, plist_id
         integer :: ierr
@@ -242,6 +242,7 @@ contains
         ! Open the popsfile
         call h5fopen_f(filename, H5F_ACC_RDONLY_F, file_id, err, &
                        access_prp=plist_id)
+        if(err.ne.0) call stop_all(t_r,"No popsfile.h5 found")
 
         call read_metadata(file_id)
         call read_walkers(file_id, dets, CurrWalkers)
@@ -894,8 +895,9 @@ contains
 
         if (sum(counts) /= all_count .or. any(counts < 0)) &
             call stop_all(t_r, "Invalid particles counts")
-        do proc = 0, nProcessors - 1
-            offsets(proc) = sum(counts(0:proc-1))
+        offsets(0) = 0
+        do proc = 1, nProcessors - 1
+            offsets(proc) = offsets(proc-1) + counts(proc-1)
         end do
 
         write(6,*) 'Reading in ', counts(iProcIndex), &
@@ -951,7 +953,7 @@ contains
         call LogMemAlloc('temp_ilut',size(temp_ilut),sizeof(temp_ilut(1,1)),'read_walkers',temp_ilut_tag,ierr)
 
         allocate(temp_sgns(int(tmp_lenof_sign),int(this_block_size)),stat=ierr)
-        call LogMemAlloc('temp_sgns',size(temp_sgns),sizeof(temp_sgns(1,1)),'read_walkers',temp_sgns_tag,ierr)
+        call LogMemAlloc('temp_sgns',size(temp_sgns),lenof_sign,'read_walkers',temp_sgns_tag,ierr)
 
         do while (any_running)
 
@@ -961,6 +963,12 @@ contains
                 this_block_size = block_end - block_start + 1
             else
                 this_block_size = 0
+            end if
+
+            ! if we resized the sign, we need to go back to the original buffer size now
+            if(tmp_lenof_sign /= lenof_sign) then
+               deallocate(temp_sgns)
+               allocate(temp_sgns(int(tmp_lenof_sign),int(this_block_size)),stat=ierr)        
             end if
 
             call read_walker_block_buff(ds_ilut, ds_sgns, block_start, &
@@ -1328,30 +1336,6 @@ contains
         AllTotParts = all_parts
 
     end subroutine
-#endif
-
-    !
-    ! This is only here for dependency circuit breaking
-    subroutine add_pops_norm_contrib(ilut)
-
-        use bit_rep_data, only: NIfTot
-        use bit_reps, only: extract_sign
-        use CalcData, only: pops_norm
-
-        integer(n_int), intent(in) :: ilut(0:NIfTot)
-        real(dp) :: real_sign(lenof_sign)
-
-        call extract_sign(ilut, real_sign)
-
-#ifdef __DOUBLERUN
-        pops_norm = pops_norm + real_sign(1)*real_sign(2)
-#elif __CMPLX
-        pops_norm = pops_norm + real_sign(1)**2 + real_sign(2)**2
-#else
-        pops_norm = pops_norm + real_sign(1)*real_sign(1)
-#endif
-
-    end subroutine add_pops_norm_contrib
 
 !------------------------------------------------------------------------------------------!
 #ifdef __USE_HDF
@@ -1449,5 +1433,32 @@ contains
 
       deallocate(tmp)
     end subroutine resize_attribute
+
+!------------------------------------------------------------------------------------------!
+
+#endif
+
+    !
+    ! This is only here for dependency circuit breaking
+    subroutine add_pops_norm_contrib(ilut)
+
+        use bit_rep_data, only: NIfTot
+        use bit_reps, only: extract_sign
+        use CalcData, only: pops_norm
+
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        real(dp) :: real_sign(lenof_sign)
+
+        call extract_sign(ilut, real_sign)
+
+#ifdef __DOUBLERUN
+        pops_norm = pops_norm + real_sign(1)*real_sign(2)
+#elif __CMPLX
+        pops_norm = pops_norm + real_sign(1)**2 + real_sign(2)**2
+#else
+        pops_norm = pops_norm + real_sign(1)*real_sign(1)
+#endif
+
+    end subroutine add_pops_norm_contrib
 
 end module

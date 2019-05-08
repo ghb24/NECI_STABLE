@@ -28,7 +28,7 @@ module real_time_procs
                          sizeof_int, MPIArg
     use bit_reps, only: decode_bit_det, test_flag, encode_sign, &
                         set_flag, encode_bit_rep, extract_bit_rep, &
-                        flag_has_been_initiator, flag_deterministic, encode_part_sign, &
+                        flag_deterministic, encode_part_sign, &
                         get_initiator_flag, get_initiator_flag_by_run, &
                         clr_flag
     use util_mod, only: get_free_unit, get_unique_filename
@@ -69,7 +69,7 @@ module real_time_procs
     use Parallel_neci
     use LoggingData, only: tNoNewRDMContrib
     use AnnihilationMod, only: test_abort_spawn
-    use load_balance, only: AddNewHashDet, CalcHashTableStats, test_hash_table
+    use load_balance, only: AddNewHashDet, CalcHashTableStats, test_hash_table, get_diagonal_matel
     use semi_stoch_gen, only: generate_space_most_populated
     implicit none
 
@@ -125,6 +125,7 @@ contains
         integer :: PartInd, i, j
         real(dp), dimension(lenof_sign) :: CurrentSign, SpawnedSign, SignTemp
         real(dp), dimension(lenof_sign) :: SignProd
+        real(dp) :: HDiag
         integer :: DetHash, nJ(nel)
         logical :: tSuccess, tDetermState
         integer :: run       
@@ -268,8 +269,9 @@ contains
                   do run=1, inum_runs
                      NoBorn(run) = NoBorn(run) + sum(abs(SignTemp(&
                           min_part_type(run):max_part_type(run))))
-                  enddo
-                  call AddNewHashDet(TotWalkersNew, DiagParts(:,i), DetHash, nJ)
+                  enddo         
+                  HDiag = get_diagonal_matel(nJ, DiagParts(:,i))
+                  call AddNewHashDet(TotWalkersNew, DiagParts(:,i), DetHash, nJ, HDiag)
 
                end if
             end if
@@ -675,7 +677,7 @@ contains
 
     function attempt_create_realtime(DetCurr, iLutCurr, RealwSign, nJ, iLutnJ,&
             prob, HElGen, ic, ex, tParity, walkExcitLevel, part_type, AvSignCurr,&
-            RDMBiasFacCurr) result(child)
+            RDMBiasFacCurr, precond_fac) result(child)
 
         ! create a specific attempt_create function for the real-time fciqmc
         ! to avoid preprocessor flag jungle..
@@ -691,6 +693,7 @@ contains
         real(dp), dimension(lenof_sign) :: child
         real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
+        real(dp), intent(in) :: precond_fac
         HElement_t(dp) , intent(in) :: HElGen
         character(*), parameter :: this_routine = 'attempt_create_realtime'
 
@@ -1336,13 +1339,14 @@ contains
       use semi_stoch_gen, only: init_semi_stochastic
       use semi_stoch_procs, only: end_semistoch
       implicit none
+      logical :: tStartedFromCoreGround
       ! as the important determinants might change during time evolution, this
       ! resets the semistochastic space taking the current population to get a new one
       call end_semistoch()
       ! the flag_deterministic flag has to be cleared from all determinants as it is
       ! assumed that no states have that flag when init_semi_stochastic starts
       call reset_core_space()
-      call init_semi_stochastic(ss_space_in)
+      call init_semi_stochastic(ss_space_in, tStartedFromCoreGround)
 
     end subroutine refresh_semistochastic_space
 

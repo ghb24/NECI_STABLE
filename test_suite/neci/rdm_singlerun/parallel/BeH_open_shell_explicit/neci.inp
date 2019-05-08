@@ -4,7 +4,7 @@ system read
 nonuniformrandexcits 4ind-weighted
 rohf
 electrons 5
-spin-restrict 1
+spin-restrict -1
 molpromimic
 freeformat
 endsys
@@ -22,7 +22,7 @@ walkcontgrow
 diagshift 0.0
 stepsshift 10
 totalwalkers 1000
-tau 0.05 search
+tau 0.1
 startsinglepart
 shiftdamp 0.1
 nmcyc 7000
@@ -32,6 +32,7 @@ stochastic-hf-spawning
 allrealcoeff
 realspawncutoff 0.5
 load-balance-blocks off
+no-init-ref-change
 endcalc
 
 integral

@@ -14,7 +14,8 @@ module fcimc_output
     use CalcData, only: tTruncInitiator, tTrialWavefunction, tReadPops, &
                         DiagSft, tSpatialOnlyHash, tOrthogonaliseReplicas, &
                         StepsSft, tPrintReplicaOverlaps, tStartTrialLater, &
-                        tSemiStochastic, allCorespaceWalkers, tEN2
+                        tSemiStochastic, allCorespaceWalkers, tEN2, &
+                        tGlobalInitFlag, t_truncate_spawns
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
     use IntegralsData, only: frozen_orb_list, frozen_orb_reverse_map, &
@@ -48,6 +49,7 @@ contains
         integer i, j, k, run
         character(256) label
         character(32) tchar_r, tchar_i, tchar_j, tchar_k
+        character(17) trunc_caption
 
         IF(iProcIndex.eq.root) THEN
 !Print out initial starting configurations
@@ -137,11 +139,16 @@ contains
                   &20.ProjE.ThisIter  21.HFInstShift  22.TotInstShift  &
                   &23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE &
                   &26.HF weight    27.|Psi|     28.Inst S^2 29.Inst S^2 30.AbsProjE &
-                  &31.|Semistoch|/|Psi|   32.PartsDiffProc"
+                  &31.PartsDiffProc    32.|Semistoch|/|Psi|     33.MaxCycSpawn"
            if (tTrialWavefunction .or. tStartTrialLater) then 
                   write(fcimcstats_unit2, "(A)", advance = 'no') &
-                  "  33.TrialNumerator  34.TrialDenom  35.TrialOverlap"
+                  "  34.TrialNumerator  35.TrialDenom  36.TrialOverlap"
+              trunc_caption = "  37. TruncWeight"
+           else
+              trunc_caption = "  34. TruncWeight"
            end if
+           if(t_truncate_spawns) write(fcimcstats_unit2, "(A)", advance = 'no') &
+                trunc_caption
 
            write(fcimcstats_unit2, "()", advance = 'yes')
 #endif
@@ -172,9 +179,14 @@ contains
                   &29.Inst S^2   30.AbsProjE   31.PartsDiffProc &
                   &32.|Semistoch|/|Psi|  33.MaxCycSpawn"
            if (tTrialWavefunction .or. tStartTrialLater) then 
-                  write(fcimcstats_unit, "(A)", advance = 'no') &
-                  "  34.TrialNumerator  35.TrialDenom  36.TrialOverlap"
+              write(fcimcstats_unit, "(A)", advance = 'no') &
+                   "  34.TrialNumerator  35.TrialDenom  36.TrialOverlap"
+              trunc_caption = "  37. TruncWeight"
+           else
+              trunc_caption = "  34. TruncWeight"
            end if
+           if(t_truncate_spawns) write(fcimcstats_unit, "(A)", advance = 'no') &
+                trunc_caption
 
            write(fcimcstats_unit, "()", advance = 'yes')
 
@@ -290,12 +302,13 @@ contains
                     IterTime
             endif
             if (tTruncInitiator) then
-               write(initiatorstats_unit,"(I12,4G16.7,3I20,7G16.7)")&
+               write(initiatorstats_unit,"(I12,4G16.7,3I20,7G16.7,2I20,1G16.7)")&
                    Iter + PreviousCycles, sum(AllTotParts), &
                    AllAnnihilated(1), AllNoDied(1), AllNoBorn(1), AllTotWalkers,&
                    AllNoInitDets(1), AllNoNonInitDets(1), AllNoInitWalk(1), &
                    AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1), &
-                   AllConnection, AllCoherentDoubles, AllIncoherentDets
+                   AllConnection, AllCoherentDoubles, AllIncoherentDets, &
+                   AllNoInitsConflicts, AllNoSIInitsConflicts, AllAvSigns
             endif
             if (tLogComplexPops) then
                 write (complexstats_unit,"(I12,6G16.7)") &
@@ -344,6 +357,9 @@ contains
                     (tot_trial_denom(2) / StepsSft), &
                     abs(tot_trial_denom(2) / (norm_psi(2)*StepsSft))
                 end if
+                if(t_truncate_spawns) then
+                   write(fcimcstats_unit2, "(1X,es18.11)", advance = 'no') AllTruncatedWeight
+                endif
                 
                 write(fcimcstats_unit2, "()", advance = 'yes')
 #endif
@@ -390,6 +406,9 @@ contains
                     (tot_trial_denom(1) / StepsSft), &                  ! 35.
                     abs((tot_trial_denom(1) / (norm_psi(1)*StepsSft)))  ! 36.
                 end if
+                if(t_truncate_spawns) then
+                   write(fcimcstats_unit, "(1X,es18.11)", advance = 'no') AllTruncatedWeight
+                endif
                 write(fcimcstats_unit, "()", advance = 'yes')
 
             if(tMCOutput) then
@@ -420,12 +439,13 @@ contains
                     IterTime
             endif
             if (tTruncInitiator) then
-               write(initiatorstats_unit,"(I12,4G16.7,3I20,7G16.7)")&
+               write(initiatorstats_unit,"(I12,4G16.7,3I20,7G16.7,2I20,1G16.7)")&
                    Iter + PreviousCycles, AllTotParts(1), &
                    AllAnnihilated(1), AllNoDied(1), AllNoBorn(1), AllTotWalkers,&
                    AllNoInitDets(1), AllNoNonInitDets(1), AllNoInitWalk(1), &
                    AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1), &
-                   AllConnection, AllCoherentDoubles, AllIncoherentDets
+                   AllConnection, AllCoherentDoubles, AllIncoherentDets, &
+                   AllNoInitsConflicts, AllNoSIInitsConflicts, AllAvSigns
             endif
 #endif
             if (tLogEXLEVELStats) then
@@ -455,9 +475,10 @@ contains
     end subroutine WriteFCIMCStats
 
 
-    subroutine open_create_fciqmc_stats(funit)
+    subroutine open_create_stats(stem,funit)
 
         integer, intent(in) :: funit
+        character(*), intent(in) :: stem
         character(*), parameter :: t_r = 'open_create_fciqmc_stats'
 
         character(30) :: filename
@@ -469,9 +490,9 @@ contains
         ! If we are using Molpro, then append the molpro ID to uniquely
         ! identify the output
         if (tMolpro .and. .not. tMolproMimic) then
-            filename = 'fciqmc_stats_' // adjustl(MolproID)
+            filename = stem // adjustl(MolproID)
         else
-            filename = 'fciqmc_stats'
+            filename = stem
         end if
 
 
@@ -511,66 +532,7 @@ contains
 
         end if
 
-    end subroutine open_create_fciqmc_stats
-
-    subroutine open_create_initiator_stats(funit)
-
-        integer, intent(in) :: funit
-        character(*), parameter :: t_r = 'open_create_initiator_stats'
-
-        character(30) :: filename
-        character(43) :: filename2
-        character(12) :: num
-        integer :: i, ierr
-        logical :: exists
-
-        ! If we are using Molpro, then append the molpro ID to uniquely
-        ! identify the output
-        if (tMolpro .and. .not. tMolproMimic) then
-            filename = 'initiator_stats_' // adjustl(MolproID)
-        else
-            filename = 'initiator_stats'
-        end if
-
-
-        if (tReadPops) then
-
-            ! If we are reading from a POPSFILE, then we want to continue an
-            ! existing initiator_stats file if it exists.
-            open(funit, file=filename, status='unknown', position='append')
-
-        else
-
-            ! If we are doing a normal calculation, move existing initiator_stats
-            ! files so that they are not overwritten, and then create a new one
-            inquire(file=filename, exist=exists)
-            if (exists) then
-
-                ! Loop until we find an available spot to move the existing
-                ! file to.
-                i = 1
-                do while(exists)
-                    write(num, '(i12)') i
-                    filename2 = trim(adjustl(filename)) // "." // &
-                                trim(adjustl(num))
-                    inquire(file=filename2, exist=exists)
-                    if (i > 10000) &
-                        call stop_all(t_r, 'Error finding free initiator_stats.*')
-                    i = i + 1
-                end do
-
-                ! Move the file
-                call rename(filename, filename2)
-
-            end if
-
-            ! And finally open the file
-            open(funit, file=filename, status='unknown', iostat=ierr)
-
-        end if
-
-    end subroutine open_create_initiator_stats
-
+    end subroutine open_create_stats
 
     subroutine write_fcimcstats2(iter_data, initial)
 
@@ -604,11 +566,11 @@ contains
         ! If the output file hasn't been opened yet, then create it.
         if (iProcIndex == Root .and. .not. inited) then
             state%funit = get_free_unit()
-            call open_create_fciqmc_stats(state%funit)
+            call open_create_stats('fciqmc_stats',state%funit)
             ! For the initiator stats file here:
             if (tTruncInitiator) then
               state_i%funit = get_free_unit()
-              call open_create_initiator_stats(state_i%funit)
+              call open_create_stats('initiator_stats',state_i%funit)
             end if
 
             inited = .true.
@@ -648,17 +610,8 @@ contains
         if (iProcIndex == root) then
 
             ! Only do the actual outputting on the head node.
-
-            ! Don't treat the header line as data. Add padding to align the
-            ! other columns. We do not add a # to the first line of data 
-            ! since we also need that datapoint for Green's functions
-           if (state%init) then
-              write(state%funit, '("#")', advance='no')
-              if (tMCOutput) write(iout, '(" ")', advance='no')
-           else
-              write(state%funit, '(" ")', advance='no')
-              if (tMCOutput) write(iout, '(" ")', advance='no')
-           end if
+            call write_padding_init(state)
+            call write_padding_init(state_i)
 
             ! And output the actual data!
             state%cols = 0
@@ -892,6 +845,11 @@ endif
             if (tTruncInitiator) then
                 call stats_out(state_i, .false., Iter + PreviousCycles, 'Iter.')
                 call stats_out(state_i, .false., AllTotWalkers, 'TotDets.')
+                call stats_out(state_i, .false., AllNoInitsConflicts/inum_runs,&
+                     'Inc. Inits (normal)')
+                call stats_out(state_i, .false., AllNoSIInitsConflicts/inum_runs,&
+                     'Inc. Inits (SI)')
+                call stats_out(state_i, .false., AllAvSigns, 'Replica-averaged Sign')
                 do p = 1, inum_runs
                     write(tmpc, '(i5)') p
                     call stats_out(state_i, .false., AllTotParts(p), 'TotWalk. (' // trim(adjustl(tmpc)) // ")")
@@ -919,6 +877,23 @@ endif
         end if
 
     end subroutine write_fcimcstats2
+
+    subroutine write_padding_init(state)
+      implicit none
+      type(write_state_t), intent(inout) :: state
+
+      ! Don't treat the header line as data. Add padding to align the
+      ! other columns. We also add a # to the first line of data, so
+      ! that there aren't repeats if starting from POPSFILES
+      if (state%init .or. state%prepend) then
+         write(state%funit, '("#")', advance='no')
+         if (tMCOutput) write(iout, '("#")', advance='no')
+         state%prepend = state%init
+      else if (.not. state%prepend) then
+         write(state%funit, '(" ")', advance='no')
+         if (tMCOutput) write(iout, '(" ")', advance='no')
+      end if
+    end subroutine write_padding_init
 
     subroutine writeMsWalkerCountsAndCloseUnit()
         integer :: i, ms, tempni(1:nel)
@@ -1456,6 +1431,8 @@ endif
         integer(n_int) , allocatable :: GlobalLargestWalkers(:,:)
         integer(n_int) :: HighestDet(0:NIfTot)
         integer, allocatable :: GlobalProc(:), tmp_ni(:)
+        character(100) :: bufEnd, bufStart
+        integer :: lenEnd, lenStart
         character(len=*), parameter :: t_r='PrintHighPops'
 
         !Allocate memory to hold highest iHighPopWrite determinants
@@ -1556,7 +1533,7 @@ endif
                 write(iout,'(A)') "Current reference: "
                 call write_det (iout, ProjEDet(:,1), .true.)
                 if(tSetupSIs) call print_reference_notification(&
-                     1,nRefs,"Used Superinitiators",.true.)
+                     1,nRefs,"Used Superinitiator",.true.)
                 write(iout,*) "Number of superinitiators", nRefs
             end if
             
@@ -1570,14 +1547,16 @@ endif
                     if (nel /= nel_pre_freezing) &
                         tmp_ni(nel+1:nel_pre_freezing) = frozen_orb_list
                     call sort(tmp_ni)
-                    do i = 1, nel_pre_freezing
-                        write(6, '(i3," ")', advance='no') tmp_ni(i)
-                    end do
+                    call writeDefDet(tmp_ni, nel_pre_freezing)
+!                    do i = 1, nel_pre_freezing
+!                        write(6, '(i3," ")', advance='no') tmp_ni(i)
+!                    end do
                     deallocate(tmp_ni)
                 else
-                    do i = 1, nel
-                        write(6, '(i3," ")', advance='no') ProjEDet(i, run)
-                    end do
+                   call writeDefDet(ProjEDet(:,run), nel)
+!                    do i = 1, nel
+!                        write(6, '(i3," ")', advance='no') ProjEDet(i, run)
+!                    end do
                 end if
                 do i = 1, nel
                     full_orb = ProjEDet(i, run)
@@ -1657,6 +1636,51 @@ endif
         endif
 
         deallocate(LargestWalkers)
+        
+        contains 
+
+          subroutine writeDefDet(defdet, numEls)
+            implicit none
+            integer, intent(in) :: numEls
+            integer, intent(in) :: defdet(:)
+            logical :: nextInRange, previousInRange
+
+            do i = 1, numEls
+               ! if the previous orbital is in the same contiguous range
+               if(i.eq.1) then
+                  ! for the first one, there is no previous one
+                  previousInRange = .false.
+               else
+                  previousInRange = defdet(i).eq.defdet(i-1)+1
+               endif
+
+               ! if the following orbital is in the same contiguous range
+               if(i.eq.numEls) then
+                  ! there is no following orbital
+                  nextInRange = .false.
+               else
+                  nextInRange = defdet(i).eq.defdet(i+1)-1
+               endif
+               ! there are three cases that need output: 
+               
+               ! the last orbital of a contigous range of orbs
+               if(previousInRange .and. .not.nextInRange) then
+                  write(bufEnd,'(i3)') defdet(i)
+                  lenEnd = len_trim(bufEnd)
+                  bufStart(lenStart+2:lenStart+lenEnd+1) = adjustl(trim(bufEnd))
+                  write(iout,'(A7)',advance='no') trim(adjustl(bufStart))
+               ! the first orbital of a contiguous range of orbs
+               else if(.not.previousInRange .and. nextInRange) then
+                  write(bufStart,'(i3)') defdet(i)
+                  lenStart = len_trim(bufStart)
+                  bufStart(lenStart+1:lenStart+1) = "-"
+               ! and an orbital not in any range
+               else if(.not.previousInRange .and. .not.nextInRange) then
+                  write(iout,'(i3," ")', advance='no') defdet(i)
+               endif
+            end do
+
+          end subroutine writeDefDet
 
     END SUBROUTINE PrintHighPops
             

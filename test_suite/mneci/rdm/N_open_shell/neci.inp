@@ -4,7 +4,7 @@ system read
 nonuniformrandexcits 4ind-weighted
 rohf
 electrons 7
-spin-restrict 3
+spin-restrict -3
 molpromimic
 freeformat
 endsys
@@ -31,6 +31,7 @@ realspawncutoff 0.5
 proje-changeref 1.2
 load-balance-blocks off
 maxwalkerbloom 3.0
+death-before-comms
 endcalc
 
 integral

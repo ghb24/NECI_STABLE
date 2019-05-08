@@ -1,11 +1,11 @@
 #include "macros.h"
 
 module bit_reps
-    use FciMCData, only: CurrentDets, WalkVecDets, MaxWalkersPart, blank_det
+    use FciMCData, only: CurrentDets, WalkVecDets, MaxWalkersPart, tLogNumSpawns, blank_det
     use SystemData, only: nel, tCSF, tTruncateCSF, nbasis, csf_trunc_level
     use CalcData, only: tTruncInitiator, tUseRealCoeffs, tSemiStochastic, &
                         tCSFCore, tTrialWavefunction, semistoch_shift_iter, &
-                        tStartTrialLater
+                        tStartTrialLater, tPreCond, tReplicaEstimates
     use csf_data, only: csf_yama_bit, csf_test_bit
     use constants, only: lenof_sign, end_n_int, bits_n_int, n_int, dp,sizeof_int
     use DetBitOps, only: count_open_orbs, CountBits
@@ -190,13 +190,6 @@ contains
         ! The number of integers used for sorting / other bit manipulations
         NIfDBO = NIfD + NIfY
 
-        ! Do we have any flags to store?
-        if (tTruncInitiator .or. tSemiStochastic .or. tTrialWavefunction .or. &
-                tStartTrialLater .or. (semistoch_shift_iter /= 0) .or. tGenerateCoreSpace) then
-            tUseFlags = .true.
-        else
-            tUseFlags = .false.
-        end if
 #ifdef __PROG_NUMRUNS
         if (lenof_sign_max /= 20) then
             call stop_all(this_routine, "Invalid build configuration. Update &
@@ -208,15 +201,13 @@ contains
 ! If we are using programattic lenofsign, then we also need to use separate
 ! integers for the flags, as the number of initiator/parent flags increases
 ! dramatically!
-        if (tUseFlags) then
-            ! If there are other options which require flags, then this 
-            ! criteria must be extended. However, do not increase this value 
-            ! from one, since we should only need max one integer for flags, !
-            ! and this is hardcoded in elsewhere.
-            NIfFlag = 1
-        else
-            NIfFlag = 0
-        endif
+        
+        ! K.G. 24.08.18 
+        ! Flags are being used in basically every calculation, 
+        ! considering recent developments, the possibility not to 
+        ! use flags is obsolete
+        NIfFlag = 1
+
         NOffFlag = NOffSgn + NIfSgn
 
         ! N.B. Flags MUST be last!!!!!
@@ -243,7 +234,24 @@ contains
         nIfParentCoeff = 0
 
         NIfBCast = NIfTot + nIfParentCoeff
-         
+
+        ! sometimes, we also need to store the number of spawn events
+        ! in this iteration
+        NSpawnOffset = NIfTot + 1
+        if(tLogNumSpawns) then
+            ! then, there is an extra integer in spawnedparts just behind
+            ! the ilut noting the number of spawn events
+            nOffParentCoeff = nOffParentCoeff + 1
+            NIfBCast = NIfBCast + 1
+        end if
+
+        ! If we need to communicate the diagonal Hamiltonian element
+        ! for the spawning
+        if (tPreCond .or. tReplicaEstimates) then
+            NOffSpawnHDiag = NIfBCast + 1
+            NIfBCast = NIfBCast + 1
+        end if
+
     end subroutine
 
     subroutine extract_bit_rep (ilut, nI, real_sgn, flags, store)
@@ -269,7 +277,7 @@ contains
         sgn = iLut(NOffSgn:NOffSgn+lenof_sign-1)
         real_sgn = transfer(sgn, real_sgn)
 
-        if (tUseFlags) flags = int(iLut(NOffFlag), sizeof_int)
+        flags = int(iLut(NOffFlag), sizeof_int)
 
     end subroutine extract_bit_rep
 
@@ -278,11 +286,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:nIfTot)
         integer :: flags
 
-        if (tUseFlags) then
-            flags = int(ilut(NOffFlag), sizeof_int)
-        else
-            flags = 0
-        end if
+        flags = int(ilut(NOffFlag), sizeof_int)
 
     end function extract_flags
 
@@ -320,7 +324,7 @@ contains
         sgn = transfer(real_sgn, sgn)
         iLut(NOffSgn:NOffSgn+NIfSgn-1) = sgn
 
-        if (tUseFlags) ilut(NOffFlag) = int(flag,n_int)
+        ilut(NOffFlag) = int(flag,n_int)
 
     end subroutine encode_bit_rep
 
@@ -371,7 +375,7 @@ contains
 
         integer(n_int), intent(inout) :: ilut(0:niftot)
 
-        if (tUseFlags) ilut(NOffFlag) = 0_n_int
+        ilut(NOffFlag) = 0_n_int
 
     end subroutine clear_all_flags
 
@@ -625,6 +629,55 @@ contains
         coeff = transfer(ilut(nOffParentCoeff), coeff)
 
     end function
+
+    subroutine encode_spawn_hdiag(ilut, hel)
+
+        integer(n_int), intent(inout) :: ilut(0:NIfBCast)
+        HElement_t(dp), intent(in) :: hel
+
+        ilut(nOffSpawnHDiag) = transfer(hel, ilut(nOffSpawnHDiag))
+
+    end subroutine encode_spawn_hdiag
+
+    function extract_spawn_hdiag(ilut) result(hel)
+
+        integer(n_int), intent(in) :: ilut(0:nIfBCast)
+
+        HElement_t(dp) :: hel
+
+        hel = transfer(ilut(nOffSpawnHDiag), hel)
+
+    end function extract_spawn_hdiag
+
+    subroutine log_spawn(ilut)
+
+      ! set the spawn counter to 1
+      implicit none
+      integer(n_int), intent(inout) :: ilut(0:NIfBCast)
+
+      ilut(NSpawnOffset) = 1
+    end subroutine log_spawn
+    
+    subroutine increase_spawn_counter(ilut)
+      ! increase the spawn counter by 1
+      implicit none
+      integer(n_int), intent(inout) :: ilut(0:NIfBCast)
+
+      ilut(NSPawnOffset) = ilut(NSpawnOffset) + 1
+
+    end subroutine increase_spawn_counter
+    
+    function get_num_spawns(ilut) result(nSpawn)
+      ! read the number of spawns to this det so far
+      implicit none
+      integer(n_int), intent(inout) :: ilut(0:NIfBCast)
+      integer :: nSpawn
+
+      nSpawn = ilut(nSpawnOffset)
+
+    end function get_num_spawns
+
+    
 
     ! function test_flag is in bit_rep_data
     ! This avoids a circular dependence with DetBitOps.

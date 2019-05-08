@@ -2,7 +2,7 @@
 
 module global_det_data
 
-    use CalcData, only: tContTimeFCIMC, tContTimeFull
+    use CalcData, only: tContTimeFCIMC, tContTimeFull, tPairedReplicas, tReplicaEstimates
     use LoggingData, only: tRDMonFly, tExplicitAllRDM, tTransitionRDMs
     use FciMCData, only: MaxWalkersPart
     use constants
@@ -47,6 +47,9 @@ module global_det_data
     integer :: len_av_sgn_tot, len_iter_occ_tot
 
     integer :: pos_spawn_rate, len_spawn_rate
+
+    ! Legth of arrays storing estimates to be written to the replica_est file
+    integer :: replica_est_len
 
     ! And somewhere to store the actual data.
     real(dp), pointer :: global_determinant_data(:,:) => null()
@@ -99,6 +102,14 @@ module global_det_data
 contains
 
     subroutine init_global_det_data(nrdms_standard, nrdms_transition)
+
+        use FciMCData, only: var_e_num, rep_est_overlap
+        use FciMCData, only: var_e_num_all, rep_est_overlap_all
+        use FciMCData, only: e_squared_num, e_squared_num_all
+        use FciMCData, only: en2_pert, en2_pert_all
+        use FciMCData, only: en2_new, en2_new_all
+        use FciMCData, only: precond_e_num, precond_denom
+        use FciMCData, only: precond_e_num_all, precond_denom_all
 
         ! Initialise the global storage of determinant specific persistent
         ! data
@@ -165,7 +176,30 @@ contains
         pos_iter_occ_transition = pos_iter_occ + len_iter_occ
         pos_spawn_rate = pos_iter_occ_transition + len_iter_occ_transition
 
-        tot_len = len_hel + len_spawn_pop + len_tau_int + len_shift_int + len_av_sgn_tot + len_iter_occ_tot + len_spawn_rate
+        tot_len = len_hel + len_spawn_pop + len_tau_int + len_shift_int + len_av_sgn_tot + len_iter_occ_tot
+
+        if (tPairedReplicas) then
+            replica_est_len = lenof_sign/2
+        else
+            replica_est_len = lenof_sign
+        end if
+
+        if (tReplicaEstimates) then
+            allocate(var_e_num(replica_est_len), stat=ierr)
+            allocate(rep_est_overlap(replica_est_len), stat=ierr)
+            allocate(var_e_num_all(replica_est_len), stat=ierr)
+            allocate(rep_est_overlap_all(replica_est_len), stat=ierr)
+            allocate(e_squared_num(replica_est_len), stat=ierr)
+            allocate(e_squared_num_all(replica_est_len), stat=ierr)
+            allocate(en2_pert(replica_est_len), stat=ierr)
+            allocate(en2_pert_all(replica_est_len), stat=ierr)
+            allocate(en2_new(replica_est_len), stat=ierr)
+            allocate(en2_new_all(replica_est_len), stat=ierr)
+            allocate(precond_e_num(replica_est_len), stat=ierr)
+            allocate(precond_denom(replica_est_len), stat=ierr)
+            allocate(precond_e_num_all(replica_est_len), stat=ierr)
+            allocate(precond_denom_all(replica_est_len), stat=ierr)
+        end if
 
         ! Allocate and log the required memory (globally)
         allocate(global_determinant_data(tot_len, MaxWalkersPart), stat=ierr)
