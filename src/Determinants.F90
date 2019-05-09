@@ -355,12 +355,13 @@ contains
                           &integrals from here.")
 
         ! nobody actually uses Simons old CSF implementations..
-!         if (tCSF) then
-!             if (iscsf(nI) .or. iscsf(nJ)) then
-!                 hel = CSFGetHelement (nI, nJ)
-!                 return
-!             endif
-!         endif
+        ! there is a test in the test suite that does....
+         if (tCSF) then
+             if (iscsf(nI) .or. iscsf(nJ)) then
+                 hel = CSFGetHelement (nI, nJ)
+                 return
+             endif
+         endif
         
         if (t_lattice_model) then 
             temp_ic = ic 
