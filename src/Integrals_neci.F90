@@ -51,7 +51,7 @@ module Integrals_neci
 
     use LoggingData, only: tLogKMatProjE
     use kMatProjE, only: readKMat, freeKMat
-    use tc_three_body_data, only: tDampKMat
+    use tc_three_body_data, only: tDampKMat, tUseKMat
     implicit none
 
 contains
@@ -702,8 +702,13 @@ contains
       call init_getumatel_fn_pointers ()
 
       if(t_mol_3_body) call readLMat()
-
-      if(tLogKMatProjE .or. tDampKMat) call readKMat()
+      
+      tUseKMat = tDampKMat .or. tLogKMatProjE
+      if(tUseKMat) then
+         ! the k-Matrix can be read in separated into different contributions, 
+         ! or all at one, we leave this to the kMat module
+         call readKMat()
+      endif
 
     End Subroutine IntInit
 
@@ -852,7 +857,7 @@ contains
 
         call freeIntBuffers()
 
-        if(tLogKMatProjE .or. tDampKMat) call freeKMat()
+        if(tUseKMat) call freeKMat()
 
         if(t_mol_3_body) call freeLMat()
 

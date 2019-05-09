@@ -207,16 +207,7 @@ module fcimc_pointed_fns
 #else
         rh_used = rh
 #endif
-        
-        ! if the option to damp the kmatrix for parallel spin excitaitons is used, to it here
-        if(tDampKMat) then
-           if(ic.eq.2 .and. G1(ex(1,1))%MS.eq.G1(ex(1,2))%MS) then
-              id = gtID(ex)
-              rh_used = rh_used - 0.5*kMat(UMatInd(id(1,1),id(1,2),id(2,1),id(2,2))) &
-                   + 0.5*kMat(UMatInd(id(1,2),id(1,1),id(2,1),id(2,2)))
-           endif
-        endif
-
+       
         ! assign the matrix element
         HElGen = abs(rh)
         ! [W.D.]

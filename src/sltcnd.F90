@@ -11,7 +11,7 @@ module sltcnd_mod
     ! TODO: It would be nice to reduce the number of variants of sltcnd_...
     !       which are floating around.
     use constants, only: dp,n_int
-    use UMatCache, only: GTID, get_2d_umat_el_exch, get_2d_umat_el
+    use UMatCache, only: GTID, get_2d_umat_el_exch, get_2d_umat_el, UMatInd
     use IntegralsData, only: UMAT
     use OneEInts, only: GetTMatEl, TMat2D
     use procedure_pointers, only: get_umat_el, sltcnd_0, sltcnd_1, sltcnd_2, sltcnd_3
@@ -20,6 +20,7 @@ module sltcnd_mod
     use timing_neci
     use bit_reps, only: NIfTot
     use LMat_mod, only: get_lmat_el
+    use tc_three_body_data, only: kMat, tDampKMat
     implicit none
 
 contains
@@ -324,7 +325,8 @@ contains
         do i=1,nel-1
             do j=i+1,nel
                hel_doub = hel_doub + get_2d_umat_el(id(j),id(i))
-               write(iout,*) "From orbs", nI(i), nI(j), get_2d_umat_el(id(j),id(i))
+               if(tDampKMat .and. G1(nI(i))%Ms == G1(nI(j))%Ms) &
+                    hel_doub = hel_doub - 0.5*kMat(UMatInd(id(i),id(j),id(i),id(j)))
             enddo
         enddo
                 
@@ -337,6 +339,7 @@ contains
                     ! Exchange contribution is zero if I,J are alpha/beta
                     if ((G1(nI(i))%Ms == G1(nI(j))%Ms).or.tReltvy) then
                         hel_tmp = hel_tmp - get_2d_umat_el_exch (id(j),id(i))
+                        if(tDampKMat) hel_tmp = hel_tmp + 0.5*kMat(UMatInd(id(i),id(j),id(j),id(i)))
 !                         write(6,*) i,j,get_umat_el (id(j),id(i),id(i),id(j))
                     endif
                 enddo
@@ -379,6 +382,8 @@ contains
             if (ex(1) /= nI(i)) then
                id = gtID(nI(i))
                hel = hel + get_umat_el (id_ex(1), id, id_ex(2), id)
+               if(tDampKMat .and. G1(ex(1))%Ms == G1(nI(i))%Ms) &
+                    hel = hel - 0.5*kMat(UMatInd(id_ex(1),id,id_ex(2),id))
             endif
          enddo
       endif
@@ -391,6 +396,8 @@ contains
                if (tReltvy.or.(G1(ex(1))%Ms == G1(nI(i))%Ms)) then
                   id = gtID(nI(i))
                   hel = hel - get_umat_el (id_ex(1), id, id, id_ex(2))
+                  if(tDampKMat) &
+                       hel = hel + 0.5*kMat(UMatInd(id_ex(1),id,id,id_ex(2)))
                endif
             endif
          enddo
@@ -437,6 +444,11 @@ contains
            (G1(ex(1,2))%Ms == G1(Ex(2,1))%Ms)) ) then
          hel = hel - get_umat_el (id(1,1), id(1,2), id(2,2), id(2,1))
       endif
+
+      if(tDampKMat .and. G1(ex(1,1))%Ms == G1(ex(1,2))%Ms .and. &
+           G1(ex(1,2))%Ms == G1(ex(2,2))%Ms .and. G1(ex(1,1))%Ms == G1(ex(2,1))%Ms) &
+           hel = hel - 0.5*kMat(UMatInd(id(1,1),id(1,2),id(2,1),id(2,2))) &
+           + 0.5*kMat(UMatInd(id(1,2),id(1,1),id(2,1),id(2,2)))
     end function sltcnd_2_kernel
 
   !------------------------------------------------------------------------------------------!

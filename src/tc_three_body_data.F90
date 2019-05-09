@@ -13,5 +13,11 @@ module tc_three_body_data
 
   ! option to reduce the k-matrix element for same-spin excitations
   logical :: tDampKMat
+  ! the two-index tc integrals K
+  real(dp), pointer :: kMat(:), kMatLin(:), kMatQuad(:)
+  integer(MPIArg) :: kMat_win, kMatLin_win, kMatQuad_win
+  
+  ! if kMatrix is used
+  logical :: tUseKMat
 
 end module tc_three_body_data

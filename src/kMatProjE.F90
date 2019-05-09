@@ -6,17 +6,20 @@ module kMatProjE
   use util_mod, only: get_free_unit, open_new_file
   use UMatCache, only: gtID
   use FciMCData, only: all_sum_proje_denominator
+  use tc_three_body_data, only: kMatLin, kMatQuad, kMatLin_win, kMatQuad_win
+  use shared_memory_mpi, only: shared_allocate_mpi, shared_deallocate_mpi
+  use ParallelHelper, only: iProcIndex_intra
+  use Parallel_neci
 
   implicit none
 
-  ! the two-index tc integrals K
-  real(dp), allocatable :: kMat(:)
   ! their contribution to the reference energy (stored for each double excit)
   real(dp), allocatable :: kMatProjEContrib(:)
   ! size of the arrays kMat and kMatProjEContrib
-  integer :: kMatSize
+  integer(int64) :: kMatSize
+  logical :: tSizeSet = .false.
  
-  private :: kMatProjEContrib, kMatSize
+  private :: kMatProjEContrib, kMatSize, tSizeSet
 
   contains
 
@@ -66,6 +69,7 @@ module kMatProjE
       integer :: iunit, nBI
       integer :: i,j,k,l
       real(dp) :: tmp
+      integer(MPIArg) :: ierror
       
 ! TODO Externalize the spinorb check
       if(tStoreSpinOrbs) then
@@ -74,71 +78,93 @@ module kMatProjE
          nBI = nBasis/2
       endif
 
-! open the file
-      iunit = get_free_unit()
-      call open_new_file(iunit, refFilename)
+! I/O only done by root
+      if(iProcIndex.eq.root) then
+         ! do an in-place reduction to save memory
+         call MPI_Reduce(MPI_IN_PLACE,kMatProjEContrib,kMatSize,MPI_DOUBLE_PRECISION,&
+              root,MPI_SUM,MPI_COMM_WORLD,ierror)
+         ! open the file
+         iunit = get_free_unit()
+         call open_new_file(iunit, refFilename)
 
-! for each possible double excit, print the contribution
-! TODO: In principle, we only need to loop over i,j occ and k,l virtual
-      do i = 1, nBI
-         do j = i, nBI
-            do k = 1, nBI
-               do l = k, nBI
-                  tmp = kMatProjEContrib(UMatInd(i,j,k,l))
-                  if(abs(tmp)>eps) then
-                     ! stored is the full accumulated contribution, but we are
-                     ! only interested in the average
-                     tmp = tmp / sum(all_sum_proje_denominator)
-                     write(iunit,*) i,j,k,l,tmp
-                  endif
+         ! for each possible double excit, print the contribution
+         ! TODO: In principle, we only need to loop over i,j occ and k,l virtual
+         do i = 1, nBI
+            do j = i, nBI
+               do k = 1, nBI
+                  do l = k, nBI
+                     tmp = kMatProjEContrib(UMatInd(i,j,k,l))
+                     if(abs(tmp)>eps) then
+                        ! stored is the full accumulated contribution, but we are
+                        ! only interested in the average
+                        tmp = tmp / sum(all_sum_proje_denominator)
+                        write(iunit,*) i,j,k,l,tmp
+                     endif
+                  end do
                end do
             end do
          end do
-      end do
 
-      tmp = sum(kMatProjEContrib)/sum(all_sum_proje_denominator)
-      write(iout,*) "Total transcorrelated 2-Body correlation energy", tmp
+         tmp = sum(kMatProjEContrib)/sum(all_sum_proje_denominator)
+         write(iout,*) "Total transcorrelated 2-Body correlation energy", tmp
+      else
+         call MPI_Reduce(kMatProjEContrib,kMatProjEContrib,kMatSize,MPI_DOUBLE_PRECISION,&
+              root,MPI_SUM,MPI_COMM_WORLD,ierror)
+      endif
     end subroutine printProjEContrib
 
 !------------------------------------------------------------------------------!    
 
-! read in the transcorrelated part of the two-body integrals
     subroutine readKMat()
       implicit none
-      integer :: iunit, ierr
-      integer :: i,j,k,l
-      real(dp) :: matel
-      character(*), parameter :: kMatFilename = "KDUMP"
-      character(*), parameter :: t_r = "readKMat"
-      
-      ! allocate the containers
-      call setupKMat()
 
-      ! open the file
-      iunit = get_free_unit()
-      open(iunit,file = kMatFilename, status = 'old')
-      ! read the integrals
-      do 
-         read(iunit,*,iostat = ierr) matel, i, k, j, l
-         if(ierr < 0) then
-            exit
-         else if(ierr > 0) then
-            call stop_all(t_r, "Error reading KDUMP file")
-         else
-            ! store the matrix element
-            kMat(UMatInd(i,j,k,l)) = matel
-         end if
-      end do
+      call determineKMatSize()
+      call readKMatComponent(kMatLin_win, kMatLin, "KDUMPLIN")
+      call readKMatComponent(kMatQuad_win, KMatQuad, "KDUMPQUAD")
+
     end subroutine readKMat
 
 !------------------------------------------------------------------------------!    
 
-! allocate the container for the transcorrelated two-body terms
-! and the container for the reference energy contributions
-    subroutine setupKMat()
+! read in the transcorrelated part of the two-body integrals
+    subroutine readKMatComponent(kMatArr_win, kMatArr, filename)
       implicit none
-      integer :: nBI, ierr
-      character(*), parameter :: t_r = "setupKMat"
+      real(dp), pointer :: kMatArr(:)
+      integer(MPIArg), intent(in) :: kMatArr_win
+      character(*) :: filename
+      integer :: iunit, ierr
+      integer :: i,j,k,l
+      real(dp) :: matel
+      character(*), parameter :: t_r = "readKMatComponent"
+      
+      ! allocate the containers
+      call setupKMat(kMatArr_win, kMatArr)
+
+      ! only have root read per node
+      if(iProcIndex_intra.eq.0) then
+         ! open the file
+         iunit = get_free_unit()
+         open(iunit,file = filename, status = 'old')
+         ! read the integrals
+         do 
+            read(iunit,*,iostat = ierr) matel, i, k, j, l
+            if(ierr < 0) then
+               exit
+            else if(ierr > 0) then
+               call stop_all(t_r, "Error reading KDUMP file")
+            else
+               ! store the matrix element
+               kMatArr(UMatInd(i,j,k,l)) = matel
+            end if
+         end do
+      endif
+    end subroutine readKMatComponent
+
+!------------------------------------------------------------------------------!
+
+    subroutine determineKMatSize()
+      implicit none
+      integer :: nBI
 
       if(tStoreSpinOrbs) then
          nBI = nBasis
@@ -149,10 +175,22 @@ module kMatProjE
 ! kmat has the same access pattern as umat, so use UMatInd as indexing function
 ! the index of the largest element
       kMatSize = UMatInd(nBI,nBI,nBI,nBI)
+      tSizeSet = .true.
+    end subroutine determineKMatSize
 
-      allocate(kMat(kMatSize), stat = ierr)
-      kMat = 0.0_dp
-      if(ierr.ne.0) call stop_all(t_r,"Allocation failed")
+!------------------------------------------------------------------------------!    
+
+! allocate the container for the transcorrelated two-body terms
+! and the container for the reference energy contributions
+    subroutine setupKMat(kMatArr_win, kMatArr)
+      implicit none
+      real(dp), pointer :: kMatArr(:)
+      integer(MPIArg), intent(in) :: kMatArr_win
+      integer :: ierr
+      character(*), parameter :: t_r = "setupKMat"
+
+      call shared_allocate_mpi(kmatArr_win, kMatArr, (/kMatSize/)) 
+      kMatArr = 0.0_dp
       allocate(kMatProjEContrib(kMatSize), stat = ierr)
       kMatProjEContrib = 0.0_dp
       if(ierr.ne.0) call stop_all(t_r,"Allocation failed")
@@ -164,9 +202,20 @@ module kMatProjE
     subroutine freeKMat()
       implicit none
       
-      if(allocated(kMat)) deallocate(kMat)
+      if(associated(kMatLin)) call shared_deallocate_mpi(kMatLin_win, kMatLin)
+      if(associated(kMatQuad)) call shared_deallocate_mpi(kMatQuad_win, kMatQuad)
       if(allocated(kMatProjEContrib)) deallocate(kMatProjEContrib)
     end subroutine freeKMat
+
+!------------------------------------------------------------------------------!    
+
+    function kMat(index) result(val)
+      implicit none
+      integer(int64), intent(in) :: index
+      real(dp) :: val
+      
+      val = kMatLin(index) + kMatQuad(index)
+    end function kMat
 
 !------------------------------------------------------------------------------!    
     
