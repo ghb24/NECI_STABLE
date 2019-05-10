@@ -1425,13 +1425,13 @@ module FciMCParMod
             call get_ests_from_spawns(MaxIndex, proj_e_for_precond)
         end if
 
-        if (tSimpleInit) call rm_non_inits_from_spawnedparts(MaxIndex)
+        if (tSimpleInit) call rm_non_inits_from_spawnedparts(MaxIndex, iter_data)
 
         ! If performing FCIQMC with preconditioning, then apply the
         ! the preconditioner to the spawnings, and perform the death step.
         if (tPreCond) then
             call set_timer(rescale_time, 30)
-            call rescale_spawns(MaxIndex, proj_e_for_precond)
+            call rescale_spawns(MaxIndex, proj_e_for_precond, iter_data)
             call halt_timer(rescale_time)
         end if
 

@@ -1101,7 +1101,7 @@ MODULE Logging
 
         case("DOUBLE-OCCUPANCY")
             ! new functionality to measure the mean double occupancy 
-            ! as this is a only diagonal quantitity i decided to detach it 
+            ! as this is a only diagonal quantitity I decided to detach it 
             ! from the RDM calculation, although it could be calculated 
             ! from the RDMs and this should be used to test this functionality!
             ! Also, as it is a diagonal quantity, we need to unbias the 

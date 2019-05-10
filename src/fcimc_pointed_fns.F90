@@ -10,7 +10,7 @@ module fcimc_pointed_fns
                         tRealCoeffByExcitLevel, InitiatorWalkNo, &
                         t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, & 
                         t_matele_cutoff, matele_cutoff, tEN2Truncated, &
-                        tTruncInitiator, tSkipRef, t_truncate_unocc
+                        tTruncInitiator, tSkipRef, t_truncate_unocc, tPrecond
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement
     use fcimc_helper, only: CheckAllowedTruncSpawn
@@ -196,8 +196,8 @@ module fcimc_pointed_fns
         rh_used = conjg(rh)
 #else
         rh_used = rh
-#endif
-        
+#endif        
+
         ! [W.D.]
         ! if the matrix element happens to be zero, i guess i should 
         ! abort as early as possible? so check that here already, or even 
@@ -532,7 +532,7 @@ module fcimc_pointed_fns
             bloom_sizes(ic) = max(real((abs(child(part_type))), dp), bloom_sizes(ic))
         end if
 #endif
-        iter_data%nborn = iter_data%nborn + abs(child)
+        if (.not. tPrecond) iter_data%nborn = iter_data%nborn + abs(child)
 
         ! Histogram the excitation levels as required
         if (tHistExcitToFrom) &

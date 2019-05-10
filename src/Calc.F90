@@ -1545,6 +1545,7 @@ contains
                 tTrialInit = .true.
             case("READ-INIT")
                 init_trial_in%tRead = .true.
+                init_trial_in%read_filename = 'INITSPACE'
                 tTrialInit = .true.
             case("FCI-INIT")
                 init_trial_in%tFCI = .true.

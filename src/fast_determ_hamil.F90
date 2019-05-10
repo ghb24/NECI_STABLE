@@ -188,13 +188,13 @@ contains
             end do
         end do
 
-        allocate(beta_m1_list(0:NIfD, nbeta*(nOccBeta-1)), stat=ierr)
-        allocate(nbeta_m1_contribs(nbeta*(nOccBeta-1)), stat=ierr)
-        allocate(alpha_m1_list(0:NIfD, nalpha*(nOccAlpha-1)), stat=ierr)
-        allocate(nalpha_m1_contribs(nalpha*(nOccAlpha-1)), stat=ierr)
+        allocate(beta_m1_list(0:NIfD, nbeta*nOccBeta), stat=ierr)
+        allocate(nbeta_m1_contribs(nbeta*nOccBeta), stat=ierr)
+        allocate(alpha_m1_list(0:NIfD, nalpha*nOccAlpha), stat=ierr)
+        allocate(nalpha_m1_contribs(nalpha*nOccAlpha), stat=ierr)
 
-        hash_size_2 = max(10, int(nbeta*(nOccBeta-1)/10.0))
-        hash_size_3 = max(10, int(nalpha*(nOccAlpha-1)/10.0))
+        hash_size_2 = max(10, int(nbeta*nOccBeta/10.0))
+        hash_size_3 = max(10, int(nalpha*nOccAlpha/10.0))
 
         allocate(beta_m1_ht( hash_size_2 ), stat=ierr)
         call init_hash_table(beta_m1_ht)
@@ -514,6 +514,13 @@ contains
         allocate(num_conns(determ_space_size), stat=ierr)
         num_conns = 0
 
+        if (ierr == 0) then
+            write(6,'("Arrays for Hamiltonian successfully allocated...")'); call neci_flush(6)
+        else
+            write(6,'("Arrays for Hamiltonian *not* successfully allocated")'); call neci_flush(6)
+            write(6,'("error code:",1X,i8)') ierr; call neci_flush(6)
+        end if
+
         ! Loop over the determinants on this process
         do i = 1, determ_sizes(iProcIndex)
             ! Find the index in the *full* list of determinants
@@ -582,8 +589,8 @@ contains
 
                         ! Finally, check if this paired determiannt is connected to this one
                         ! that we've just generated
-                        tmp = ieor(ilut_paired, core_space(0:NIfD,ind_j))
-                        tmp = iand(ilut_paired, tmp)
+                        tmp = ieor(ilut_paired(0:NIfD), core_space(0:NIfD,ind_j))
+                        tmp = iand(ilut_paired(0:NIfD), tmp)
                         IC = CountBits(tmp, NIfD)
                         if (IC <= 2) then
                             hel = hphf_off_diag_special_case(nI_paired, ilut_paired, core_space(:,ind_j), IC, OpenOrbsI)
@@ -652,8 +659,8 @@ contains
 
                         ! Finally, check if this paired determiannt is connected to this one
                         ! that we've just generated
-                        tmp = ieor(ilut_paired, core_space(0:NIfD,ind_j))
-                        tmp = iand(ilut_paired, tmp)
+                        tmp = ieor(ilut_paired(0:NIfD), core_space(0:NIfD,ind_j))
+                        tmp = iand(ilut_paired(0:NIfD), tmp)
                         IC = CountBits(tmp, NIfD)
                         if (IC <= 2) then
                             hel = hphf_off_diag_special_case(nI_paired, ilut_paired, core_space(:,ind_j), IC, OpenOrbsI)
@@ -931,13 +938,13 @@ contains
         end do
 
         ! Allocate beta-1 and alpha-1 arrays
-        allocate(beta_m1_list(0:NIfD, nbeta*(nOccBeta-1)), stat=ierr)
-        allocate(nbeta_m1_contribs(nbeta*(nOccBeta-1)), stat=ierr)
-        allocate(alpha_m1_list(0:NIfD, nalpha*(nOccAlpha-1)), stat=ierr)
-        allocate(nalpha_m1_contribs(nalpha*(nOccAlpha-1)), stat=ierr)
+        allocate(beta_m1_list(0:NIfD, nbeta*nOccBeta), stat=ierr)
+        allocate(nbeta_m1_contribs(nbeta*nOccBeta), stat=ierr)
+        allocate(alpha_m1_list(0:NIfD, nalpha*nOccAlpha), stat=ierr)
+        allocate(nalpha_m1_contribs(nalpha*nOccAlpha), stat=ierr)
 
-        hash_size_2 = max(10, int(nbeta*(nOccBeta-1)/10.0))
-        hash_size_3 = max(10, int(nalpha*(nOccAlpha-1)/10.0))
+        hash_size_2 = max(10, int(nbeta*nOccBeta/10.0))
+        hash_size_3 = max(10, int(nalpha*nOccAlpha/10.0))
 
         allocate(beta_m1_ht( hash_size_2 ), stat=ierr)
         call init_hash_table(beta_m1_ht)
@@ -1234,6 +1241,13 @@ contains
         allocate(num_conns(determ_space_size), stat=ierr)
         num_conns = 0
 
+        if (ierr == 0) then
+            write(6,'("Arrays for Hamiltonian successfully allocated...")'); call neci_flush(6)
+        else
+            write(6,'("Arrays for Hamiltonian *not* successfully allocated")'); call neci_flush(6)
+            write(6,'("error code:",1X,i8)') ierr; call neci_flush(6)
+        end if
+
         ! Loop over the determinants on this process
         do i = 1, determ_sizes(iProcIndex)
             ! Find the index in the *full* list of determinants
@@ -1465,15 +1479,15 @@ contains
         allocate(nbeta_dets(determ_space_size), stat=ierr)
         allocate(alpha_list(0:NIfD, determ_space_size), stat=ierr)
         allocate(nalpha_dets(determ_space_size), stat=ierr)
-        allocate(alpha_m1_list(0:NIfD, determ_space_size*(nOccAlpha-1)), stat=ierr)
-        allocate(nalpha_m1_dets(determ_space_size*(nOccAlpha-1)), stat=ierr)
+        allocate(alpha_m1_list(0:NIfD, determ_space_size*nOccAlpha), stat=ierr)
+        allocate(nalpha_m1_dets(determ_space_size*nOccAlpha), stat=ierr)
 
         allocate(beta_ht(determ_space_size), stat=ierr)
         call init_hash_table(beta_ht)
         allocate(alpha_ht(determ_space_size), stat=ierr)
         call init_hash_table(alpha_ht)
 
-        allocate(alpha_m1_ht(determ_space_size*(nOccAlpha-1)), stat=ierr)
+        allocate(alpha_m1_ht(determ_space_size*nOccAlpha), stat=ierr)
         call init_hash_table(alpha_m1_ht)
 
         ! --- Set up auxiliary arrays ------------------------------
