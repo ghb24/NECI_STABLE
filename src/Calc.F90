@@ -1701,6 +1701,9 @@ contains
 !DiagSft and InitWalkers will be overwritten with the values in that file.
                 TReadPops=.true.
                 tStartSinglePart=.false.
+                if(.not. tWalkContGrow)then
+                        tSkipRef = .true.
+                 end if                
                 if (item.lt.nitems) then
                     call readi(iPopsFileNoRead)
                     iPopsFileNoWrite = iPopsFileNoRead
@@ -1741,6 +1744,7 @@ contains
 !this value.  Without this keyword, when a popsfile is read in, the number of walkers is kept at the number
 !in the POPSFILE regardless of whether the shift had been allowed to change in the previous calc.
                 tWalkContGrow=.true.
+                tSkipRef = .false.                
             case("SCALEWALKERS")
 !For FCIMC, if this is a way to scale up the number of walkers, after having read in a POPSFILE
                 call getf(ScaleWalkers)
