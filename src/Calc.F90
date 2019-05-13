@@ -23,6 +23,7 @@ MODULE Calc
                        tFindDets
     use DetCalcData, only: B2L, nKry, nEval, nBlk, nCycle
     use IntegralsData, only: tNeedsVirts
+    use rdm_data, only: tApplyLC
     use FciMCData, only: tTimeExit,MaxTimeExit, InputDiagSft, tSearchTau, &
                          nWalkerHashes, HashLengthFrac, tSearchTauDeath, &
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
@@ -156,6 +157,7 @@ contains
           tAAS_Add_Diag = .false.
           tInitsRDMRef = .false.
           tInitsRDM = .false.
+          tApplyLC = .true.
           NEquilSteps=0
           NShiftEquilSteps=1000
           TRhoElems=.false.
@@ -666,6 +668,11 @@ contains
                 ! only take into account initiators when calculating RDMs
                 tOutputInitsRDM = .true.
                 tInitsRDM = .true.
+             case("NO-LAGRANGIAN-RDMS")
+                ! use the default rdms even for adaptive-shift
+                ! this is mainly for debugging/testing purposes, it should not be used in
+                ! production (as the resulting RDMs are flawed)
+                tApplyLC = .false.
              case("STRICT-INITS-RDM")
                 tNonInitsForRDMs = .false.
              case("NON-VARIATIONAL-RDMS")
