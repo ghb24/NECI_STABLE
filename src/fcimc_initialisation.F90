@@ -39,7 +39,7 @@ module fcimc_initialisation
                         t_back_spawn_option, t_back_spawn_flex_option, tRCCheck, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
                         maxKeepExLvl, tAutoAdaptiveShift, AdaptiveShiftCut, tAAS_Reverse, &
-                        tInitializeCSF, S2Init
+                        tInitializeCSF, S2Init, tWalkContGrow, tSkipRef
     use adi_data, only: tReferenceChanged, tAdiActive, &
          nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
@@ -1233,6 +1233,7 @@ contains
             write(iout, '("Truncating determinant space at a maximum of ",i3," &
                     &unpaired electrons.")') trunc_nopen_max
         endif
+
         
 !        SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.0_dp)
 !        TotDets=1.0_dp
@@ -1648,7 +1649,15 @@ contains
 
         ! in fixed-n0, the variable shift mode and everything connected is
         ! controlled over the reference population
-        if(tFixedN0) tSinglePartPhase = .true.
+        if(tFixedN0) then
+            if(tReadPops .and. .not. tWalkContGrow) then
+                tSkipRef = .true.
+                tSinglePartPhase = .false.
+            else
+                tSkipRef = .false.
+                tSinglePartPhase = .true.
+            end if
+        end if
 
          if(tRDMonFly .and. tDynamicCoreSpace) call sync_rdm_sampling_iter()
 
