@@ -1566,7 +1566,6 @@ contains
                 call stop_all (t_r, 'MPI Error. Terminating.')
 
             if (.not. initialised) then
-                write(6,*) 'Initing MPI'
                 call MPI_Init (ierr)
                 if (ierr /= MPI_SUCCESS) &
                     call stop_all (t_r, 'MPI Error. Terminating.')

@@ -6,23 +6,155 @@ module kMatProjE
   use util_mod, only: get_free_unit, open_new_file
   use UMatCache, only: gtID
   use FciMCData, only: all_sum_proje_denominator
-  use tc_three_body_data, only: kMatLin, kMatQuad, kMatLin_win, kMatQuad_win
   use shared_memory_mpi, only: shared_allocate_mpi, shared_deallocate_mpi
   use ParallelHelper, only: iProcIndex_intra
   use Parallel_neci
+  use LoggingData, only: tLogKMatProjE
 
   implicit none
 
   ! their contribution to the reference energy (stored for each double excit)
   real(dp), allocatable :: kMatProjEContrib(:)
-  ! size of the arrays kMat and kMatProjEContrib
-  integer(int64) :: kMatSize
-  logical :: tSizeSet = .false.
+  real(dp), parameter :: kMatLinFac = 0.25
+  real(dp), parameter :: kMatSqFac = 0.375
+  real(dp), parameter :: kMatParFac = 0.5
  
-  private :: kMatProjEContrib, kMatSize, tSizeSet
+  private :: kMatProjEContrib
+
+  type :: kMat_t
+     private
+     ! mpi shared memory window
+     integer(MPIArg) :: shm_win
+     ! pointer to the allocated array
+     real(dp), pointer :: kMat_p(:)
+     ! size of the array
+     integer(int64) :: kMatSize
+
+     ! member functions
+     contains
+       ! initialization routines
+       procedure, public :: readKMatFromFile
+       procedure, public :: setupKMat
+       ! finalization routine (should be a destructor)
+       procedure, public :: freeMemory
+       ! exchange/direct matrix elements
+       procedure, public :: directElement
+       procedure, public :: exchElement
+
+       ! getter for elements of kMat_p
+       procedure, public :: elementAccess
+  end type kMat_t
+
+  type(kMat_t) :: kMatLin, kMatSq
 
   contains
 
+
+!------------------------------------------------------------------------------!  
+
+    subroutine freeMemory(this) 
+      implicit none
+      class(kMat_t) :: this
+      
+      if(associated(this%kMat_p)) call shared_deallocate_mpi(this%shm_win, this%kMat_p)
+    end subroutine freeMemory
+
+!------------------------------------------------------------------------------!    
+
+    function directElement(this, i,j,k,l) result(matel)
+      implicit none
+      class(kMat_t) :: this
+      integer, intent(in) :: i,j,k,l
+      real(dp) :: matel
+      
+      matel = this%kMat_p(UMatInd(i,j,k,l))
+    end function directElement
+
+!------------------------------------------------------------------------------!    
+
+    function exchElement(this, i,j,k,l) result(matel)
+      implicit none
+      class(kMat_t) :: this
+      integer, intent(in) :: i,j,k,l
+      real(dp) :: matel
+      
+      matel = this%kMat_p(UMatInd(i,j,l,k))
+    end function exchElement
+
+!------------------------------------------------------------------------------!      
+
+! read in the transcorrelated part of the two-body integrals
+    subroutine readKMatFromFile(this, filename)
+      implicit none
+      class(kMat_t) :: this
+      character(*) :: filename
+      integer :: iunit, ierr
+      integer :: i,j,k,l
+      real(dp) :: matel
+      character(*), parameter :: t_r = "readKMatFromFile"
+      
+      ! allocate the containers
+      call this%setupKMat()
+
+      ! only have root read per node
+      if(iProcIndex_intra.eq.0) then
+         ! open the file
+         iunit = get_free_unit()
+         open(iunit,file = filename, status = 'old')
+         ! read the integrals
+         do 
+            read(iunit,*,iostat = ierr) matel, i, k, j, l
+            if(ierr < 0) then
+               exit
+            else if(ierr > 0) then
+               call stop_all(t_r, "Error reading KDUMP file")
+            else
+               ! store the matrix element
+               this%kMat_p(UMatInd(i,j,k,l)) = matel
+            end if
+         end do
+      endif
+    end subroutine readKMatFromFile
+
+!------------------------------------------------------------------------------!    
+
+! allocate the container for the transcorrelated two-body terms
+! and the container for the reference energy contributions
+    subroutine setupKMat(this)
+      implicit none
+      class(kMat_t) :: this
+      character(*), parameter :: t_r = "setupKMat"
+
+      this%kMatSize = determineKMatSize()
+      call shared_allocate_mpi(this%shm_win, this%kMat_p, (/this%kMatSize/)) 
+      this%kMat_p = 0.0_dp
+    end subroutine setupKMat
+
+!------------------------------------------------------------------------------!    
+
+    subroutine freeKMat()
+      implicit none
+      
+      call kMatLin%freeMemory()
+      call kMatSq%freeMemory()
+      if(allocated(kMatProjEContrib)) deallocate(kMatProjEContrib)
+    end subroutine freeKMat
+
+!------------------------------------------------------------------------------!    
+! Specific member functions for direct element access
+!------------------------------------------------------------------------------!    
+
+    function elementAccess(this, index) result(kMatel)
+      implicit none
+      class(kMat_t) :: this
+      integer(int64), intent(in) :: index
+      real(dp) :: kMatel
+      
+      kMatel = this%kMat_p(index)
+    end function elementAccess
+
+!------------------------------------------------------------------------------!    
+! Generic non-member functions used for the projected energy estimate
 !------------------------------------------------------------------------------!    
 
     subroutine addProjEContrib(nI,nJ,sgn)
@@ -70,6 +202,7 @@ module kMatProjE
       integer :: i,j,k,l
       real(dp) :: tmp
       integer(MPIArg) :: ierror
+      integer :: kMatSize
       
 ! TODO Externalize the spinorb check
       if(tStoreSpinOrbs) then
@@ -77,6 +210,7 @@ module kMatProjE
       else
          nBI = nBasis/2
       endif
+      kMatSize = determineKMatSize()
 
 ! I/O only done by root
       if(iProcIndex.eq.root) then
@@ -117,53 +251,26 @@ module kMatProjE
 
     subroutine readKMat()
       implicit none
+      character(*), parameter :: t_r = "readKMat"
+      integer :: ierr, kMatSize
+      call kMatLin%readKMatFromFile("KDUMPLIN")
+      call kMatSq%readKMatFromFile("KDUMPSQ")
 
-      call determineKMatSize()
-      call readKMatComponent(kMatLin_win, kMatLin, "KDUMPLIN")
-      call readKMatComponent(kMatQuad_win, KMatQuad, "KDUMPQUAD")
+      ! now, take care of the projected energy contribution if required
+      if(tLogKMatProjE) then
+         kMatSize = determineKMatSize()
+         allocate(kMatProjEContrib(kMatSize), stat = ierr)
+         kMatProjEContrib = 0.0_dp
+         if(ierr.ne.0) call stop_all(t_r,"Allocation failed")
+      endif
 
     end subroutine readKMat
 
-!------------------------------------------------------------------------------!    
-
-! read in the transcorrelated part of the two-body integrals
-    subroutine readKMatComponent(kMatArr_win, kMatArr, filename)
-      implicit none
-      real(dp), pointer :: kMatArr(:)
-      integer(MPIArg), intent(in) :: kMatArr_win
-      character(*) :: filename
-      integer :: iunit, ierr
-      integer :: i,j,k,l
-      real(dp) :: matel
-      character(*), parameter :: t_r = "readKMatComponent"
-      
-      ! allocate the containers
-      call setupKMat(kMatArr_win, kMatArr)
-
-      ! only have root read per node
-      if(iProcIndex_intra.eq.0) then
-         ! open the file
-         iunit = get_free_unit()
-         open(iunit,file = filename, status = 'old')
-         ! read the integrals
-         do 
-            read(iunit,*,iostat = ierr) matel, i, k, j, l
-            if(ierr < 0) then
-               exit
-            else if(ierr > 0) then
-               call stop_all(t_r, "Error reading KDUMP file")
-            else
-               ! store the matrix element
-               kMatArr(UMatInd(i,j,k,l)) = matel
-            end if
-         end do
-      endif
-    end subroutine readKMatComponent
-
 !------------------------------------------------------------------------------!
 
-    subroutine determineKMatSize()
+    function determineKMatSize() result(kMatSize)
       implicit none
+      integer(int64) :: kMatSize
       integer :: nBI
 
       if(tStoreSpinOrbs) then
@@ -175,37 +282,7 @@ module kMatProjE
 ! kmat has the same access pattern as umat, so use UMatInd as indexing function
 ! the index of the largest element
       kMatSize = UMatInd(nBI,nBI,nBI,nBI)
-      tSizeSet = .true.
-    end subroutine determineKMatSize
-
-!------------------------------------------------------------------------------!    
-
-! allocate the container for the transcorrelated two-body terms
-! and the container for the reference energy contributions
-    subroutine setupKMat(kMatArr_win, kMatArr)
-      implicit none
-      real(dp), pointer :: kMatArr(:)
-      integer(MPIArg), intent(in) :: kMatArr_win
-      integer :: ierr
-      character(*), parameter :: t_r = "setupKMat"
-
-      call shared_allocate_mpi(kmatArr_win, kMatArr, (/kMatSize/)) 
-      kMatArr = 0.0_dp
-      allocate(kMatProjEContrib(kMatSize), stat = ierr)
-      kMatProjEContrib = 0.0_dp
-      if(ierr.ne.0) call stop_all(t_r,"Allocation failed")
-
-    end subroutine setupKMat
-
-!------------------------------------------------------------------------------!    
-
-    subroutine freeKMat()
-      implicit none
-      
-      if(associated(kMatLin)) call shared_deallocate_mpi(kMatLin_win, kMatLin)
-      if(associated(kMatQuad)) call shared_deallocate_mpi(kMatQuad_win, kMatQuad)
-      if(allocated(kMatProjEContrib)) deallocate(kMatProjEContrib)
-    end subroutine freeKMat
+    end function determineKMatSize
 
 !------------------------------------------------------------------------------!    
 
@@ -214,9 +291,34 @@ module kMatProjE
       integer(int64), intent(in) :: index
       real(dp) :: val
       
-      val = kMatLin(index) + kMatQuad(index)
+      val = kMatLin%elementAccess(index) + kMatSq%elementAccess(index)
     end function kMat
 
 !------------------------------------------------------------------------------!    
+
+    function kMatOppSpinCorrection(i,j,k,l) result(matel)
+      implicit none
+      integer, intent(in) :: i,j,k,l
+      real(dp) :: matel
+
+      matel = - kMatLinFac * kMatLin%directElement(i,j,k,l) &
+           - kMatSqFac * kMatSq%directElement(i,j,k,l) &
+           + kMatLinFac * kMatLin%exchElement(i,j,k,l) &
+           + kMatSqFac * kMatSq%exchElement(i,j,k,l)
+    end function kMatOppSpinCorrection
+
+!------------------------------------------------------------------------------!    
+
+    function kMatParSpinCorrection(i,j,k,l) result(matel)
+      implicit none
+      integer, intent(in) :: i,j,k,l
+      real(dp) :: matel
+
+      matel = - kMatParFac * kMat(UMatInd(i,j,k,l))
+    end function kMatParSpinCorrection
+
+!------------------------------------------------------------------------------!    
+
+
     
 end module kMatProjE

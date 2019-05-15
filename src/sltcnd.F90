@@ -20,7 +20,8 @@ module sltcnd_mod
     use timing_neci
     use bit_reps, only: NIfTot
     use LMat_mod, only: get_lmat_el
-    use tc_three_body_data, only: kMat, tDampKMat
+    use tc_three_body_data, only: tDampKMat
+    use kMatProjE, only: kMatParSpinCorrection, kMatOppSpinCorrection
     implicit none
 
 contains
@@ -325,8 +326,15 @@ contains
         do i=1,nel-1
             do j=i+1,nel
                hel_doub = hel_doub + get_2d_umat_el(id(j),id(i))
-               if(tDampKMat .and. G1(nI(i))%Ms == G1(nI(j))%Ms) &
-                    hel_doub = hel_doub - 0.5*kMat(UMatInd(id(i),id(j),id(i),id(j)))
+               if(tDampKMat) then
+                  ! same-spin correction: a factor of 0.5
+                  if(G1(nI(i))%Ms == G1(nI(j))%Ms) then
+                     hel_doub = hel_doub + kMatParSpinCorrection(id(i),id(j),id(i),id(j))
+                  ! opposite-spin correction (if different orbs)
+                  else if(id(i).ne.id(j)) then
+                     hel_doub = hel_doub + kMatOppSpinCorrection(id(i),id(j),id(i),id(j))
+                  endif
+               endif
             enddo
         enddo
                 
@@ -339,7 +347,8 @@ contains
                     ! Exchange contribution is zero if I,J are alpha/beta
                     if ((G1(nI(i))%Ms == G1(nI(j))%Ms).or.tReltvy) then
                         hel_tmp = hel_tmp - get_2d_umat_el_exch (id(j),id(i))
-                        if(tDampKMat) hel_tmp = hel_tmp + 0.5*kMat(UMatInd(id(i),id(j),id(j),id(i)))
+                        if(tDampKMat) &
+                             hel_tmp = hel_tmp - kMatParSpinCorrection(id(i),id(j),id(j),id(i))
 !                         write(6,*) i,j,get_umat_el (id(j),id(i),id(i),id(j))
                     endif
                 enddo
@@ -382,8 +391,14 @@ contains
             if (ex(1) /= nI(i)) then
                id = gtID(nI(i))
                hel = hel + get_umat_el (id_ex(1), id, id_ex(2), id)
-               if(tDampKMat .and. G1(ex(1))%Ms == G1(nI(i))%Ms) &
-                    hel = hel - 0.5*kMat(UMatInd(id_ex(1),id,id_ex(2),id))
+               if(tDampKMat) then
+                  if(G1(ex(1))%Ms == G1(nI(i))%Ms) then
+                    hel = hel + kMatParSpinCorrection(id_ex(1), id, id_ex(2), id)
+                  else
+                     ! opposite spin correction only for different orbs, which is given here
+                    hel = hel + kMatOppSpinCorrection(id_ex(1), id, id_ex(2), id)
+                  endif
+               endif
             endif
          enddo
       endif
@@ -397,7 +412,9 @@ contains
                   id = gtID(nI(i))
                   hel = hel - get_umat_el (id_ex(1), id, id, id_ex(2))
                   if(tDampKMat) &
-                       hel = hel + 0.5*kMat(UMatInd(id_ex(1),id,id,id_ex(2)))
+                       ! only parallel spin excits can have exchange terms entering in the one-body
+                       ! matrix element -> no need for opposite spin correction
+                       hel = hel - kMatParSpinCorrection(id_ex(1),id,id,id_ex(2))
                endif
             endif
          enddo
@@ -445,10 +462,21 @@ contains
          hel = hel - get_umat_el (id(1,1), id(1,2), id(2,2), id(2,1))
       endif
 
-      if(tDampKMat .and. G1(ex(1,1))%Ms == G1(ex(1,2))%Ms .and. &
+      if(tDampKMat) then
+         ! same-spin excitations have only half of KMat acting
+         if(G1(ex(1,1))%Ms == G1(ex(1,2))%Ms .and. &
            G1(ex(1,2))%Ms == G1(ex(2,2))%Ms .and. G1(ex(1,1))%Ms == G1(ex(2,1))%Ms) &
-           hel = hel - 0.5*kMat(UMatInd(id(1,1),id(1,2),id(2,1),id(2,2))) &
-           + 0.5*kMat(UMatInd(id(1,2),id(1,1),id(2,1),id(2,2)))
+           hel = hel + kMatParSpinCorrection(id(1,1), id(1,2), id(2,1), id(2,2)) &
+           - kMatParSpinCorrection(id(1,1), id(1,2), id(2,2), id(2,1))
+         ! opposite-spin excitations of different orbitals have a different weighting of
+         ! normal vs exchange term (not relevant for same-orbtial excits, for lack of exchange)
+         if(G1(ex(1,1))%MS .ne. G1(ex(1,2))%MS .and. id(1,1) .ne. id(1,2)) then
+            if(G1(ex(1,1))%MS == G1(ex(2,1))%MS) &
+                 hel = hel - kMatOppSpinCorrection(id(1,1),id(1,2),id(2,1),id(2,2))
+            if(G1(ex(1,1))%MS == G1(ex(2,2))%MS) &
+                 hel = hel + kMatOppSpinCorrection(id(1,1),id(1,2),id(2,2),id(2,1))
+         endif
+      endif
     end function sltcnd_2_kernel
 
   !------------------------------------------------------------------------------------------!
