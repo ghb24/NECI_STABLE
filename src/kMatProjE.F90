@@ -301,10 +301,10 @@ module kMatProjE
       integer, intent(in) :: i,j,k,l
       real(dp) :: matel
 
-      matel = - kMatLinFac * kMatLin%directElement(i,j,k,l) &
-           - kMatSqFac * kMatSq%directElement(i,j,k,l) &
-           + kMatLinFac * kMatLin%exchElement(i,j,k,l) &
-           + kMatSqFac * kMatSq%exchElement(i,j,k,l)
+      matel = kMatLinFac * kMatLin%directElement(i,j,k,l) &
+           + kMatSqFac * kMatSq%directElement(i,j,k,l) &
+           - kMatLinFac * kMatLin%exchElement(i,j,k,l) &
+           - kMatSqFac * kMatSq%exchElement(i,j,k,l)
     end function kMatOppSpinCorrection
 
 !------------------------------------------------------------------------------!    
@@ -314,7 +314,7 @@ module kMatProjE
       integer, intent(in) :: i,j,k,l
       real(dp) :: matel
 
-      matel = - kMatParFac * kMat(UMatInd(i,j,k,l))
+      matel = kMatParFac * kMat(UMatInd(i,j,k,l))
     end function kMatParSpinCorrection
 
 !------------------------------------------------------------------------------!    
