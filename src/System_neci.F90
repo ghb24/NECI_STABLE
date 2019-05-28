@@ -76,7 +76,7 @@ MODULE System
       tHeisenberg = .false.
       tLatticeGens =.false.
       tNoFailAb=.false.
-      LMS=0
+      LMS=-mod(Nel,2)
       TSPN=.false.
       TCSF=.false.
       TCSFOLD = .false.
