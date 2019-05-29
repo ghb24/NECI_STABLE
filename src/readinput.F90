@@ -238,6 +238,7 @@ MODULE ReadInput_neci
         use hist_data, only: tHistSpawn
         use Parallel_neci, only: nNodes,nProcessors
         use UMatCache, only: tDeferred_Umat2d
+        use tc_three_body_data, only: tDampLMat, tDampKMat, tSpinCorrelator
 
         implicit none
 
@@ -271,6 +272,12 @@ MODULE ReadInput_neci
 
         ! We need to have found the dets before calculating the H mat.
         if (tCalcHMat) tFindDets = .true.
+
+        ! If the correlator is spin-dependent, there is no damping of K/L
+        if(tSpinCorrelator) then
+           tDampLMat = .false.
+           tDampKMat = .false.
+        endif
 
         ! If we are using TNoSameExcit, then we have to start with the star -
         ! the other random graph algorithm cannot remove same excitation 

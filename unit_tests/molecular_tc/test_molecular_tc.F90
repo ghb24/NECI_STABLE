@@ -7,6 +7,7 @@ program test_molecular_tc
   use LMat_mod
   use fruit
   use Parallel_neci, only: MPIInit, MPIEnd
+  use tc_three_body_data, only: tSymBrokenLMat
 
   implicit none
 
@@ -29,7 +30,7 @@ program test_molecular_tc
 
       call run_lmat_test()
       call run_sltcnd_test()
-      call run_excitgen_test()
+      !call run_excitgen_test()
 
       call clear_resources()
     end subroutine molecular_tc_test_driver
@@ -46,7 +47,7 @@ program test_molecular_tc
 
       integer :: i
 
-      nBasis = 14
+      nBasis = 28
       tStoreSpinOrbs = .false.
       nel = 6
 
@@ -85,6 +86,8 @@ program test_molecular_tc
       pSingles = 0.0_dp
       pDoubles = 0.0_dp
       pTriples = 1.0_dp
+
+      tSymBrokenLMat = .true.
     end subroutine setup_tests
 
     subroutine run_lmat_test()
@@ -96,13 +99,18 @@ program test_molecular_tc
    
     subroutine run_sltcnd_test()
       use sltcnd_mod
+      use tc_three_body_excitgen, only: setup_mol_tc_excitgen
       use, INTRINSIC :: IEEE_ARITHMETIC
       implicit none
       
       integer :: nI(nel), nJ(nel)
       HElement_t(dp) :: matel
-      
       nI = (/2,4,6,11,13,14/)
+      call setup_mol_tc_excitgen(nI)
+
+      print *, "Direct matrix element", get_lmat_el(1,2,3,1,2,3)
+      print *, "Exchange matrix el (should be the same)", get_lmat_el(2,1,3,2,1,3)
+      print *, "Exchange matrix el (should be the same)", get_lmat_el(3,1,2,3,1,2)
 
       nJ = (/8,10,11,12,13,14/)
       matel = sltcnd_compat(nI,nJ,3)
@@ -115,6 +123,7 @@ program test_molecular_tc
       print *, "Single matrix element", sltcnd_compat(nI,nJ,1)
 
       print *, "Diagonal matrix element", sltcnd_compat(nI,nI,0)
+
     end subroutine run_sltcnd_test
 
     subroutine run_excitgen_test()
@@ -133,7 +142,6 @@ program test_molecular_tc
       integer, parameter :: nTest = 100
      
       nI = (/1,2,4,11,13,14/)
-      call setup_mol_tc_excitgen(nI)
       pTriples = 1.0
 
       ! exact values for pgenXB for (6,7) ms=0

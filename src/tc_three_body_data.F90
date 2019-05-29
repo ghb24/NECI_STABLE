@@ -12,9 +12,14 @@ module tc_three_body_data
   integer :: nUnoccAlpha, nUnoccBeta
 
   ! option to reduce the k-matrix element for same-spin excitations
-  logical :: tDampKMat
+  logical :: tDampKMat = .false.
+  logical :: tDampLMat = .false.
   
   ! if kMatrix is used
   logical :: tUseKMat
+  
+  ! if lMat does not have permutational symmetry (required for spin-projection)
+  logical :: tSymBrokenLMat = .false.
+  logical :: tSpinCorrelator = .false.
 
 end module tc_three_body_data

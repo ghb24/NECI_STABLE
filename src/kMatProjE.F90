@@ -46,6 +46,7 @@ module kMatProjE
   end type kMat_t
 
   type(kMat_t) :: kMatLin, kMatSq
+  type(kMat_t) :: kMatAA, kMatAB
 
   contains
 
@@ -266,6 +267,15 @@ module kMatProjE
 
     end subroutine readKMat
 
+!------------------------------------------------------------------------------!    
+
+    subroutine readSpinKMat()
+      implicit none
+      
+      call kMatAA%readKMatFromFile("KDUMPAA")
+      call kMatAB%readKMatFromFile("KDUMPAB")
+    end subroutine readSpinKMat
+
 !------------------------------------------------------------------------------!
 
     function determineKMatSize() result(kMatSize)
@@ -316,6 +326,20 @@ module kMatProjE
 
       matel = kMatParFac * kMat(UMatInd(i,j,k,l))
     end function kMatParSpinCorrection
+
+!------------------------------------------------------------------------------!    
+
+    function spinKMatContrib(i,j,k,l,s1,s2) result(matel)
+      implicit none
+      integer, intent(in) :: i,j,k,l,s1,s2
+      real(dp) :: matel
+
+      if(s1.eq.s2) then
+         matel = kMatAA%directElement(i,j,k,l)
+      else
+         matel = kMatAB%directElement(i,j,k,l)
+      endif
+    end function spinKMatContrib
 
 !------------------------------------------------------------------------------!    
 

@@ -211,6 +211,17 @@ module procedure_pointers
 
         end function
 
+        ! generic lMat element routine (3e integrals)
+        function get_lmat_el_t(a,b,c,i,j,k) result(hel)
+          use constants
+          implicit none
+
+            integer, value :: a,b,c
+            integer, intent(in) :: i,j,k
+            HElement_t(dp) :: hel
+
+        end function
+
 !         subroutine generate_all_excits_t(nI, n_excits, det_list) 
 !             use SystemData, only: nel 
 !             use constants, only: n_int
@@ -266,6 +277,14 @@ module procedure_pointers
 
         end function scale_function_t
 
+        function LMatInd_t(a,b,c,i,j,k) result(index)
+          use constants, only: int64
+          implicit none
+          integer(int64), intent(in) :: a,b,c ! occupied orb indices
+          integer(int64), intent(in) :: i,j,k ! unoccupied orb
+          integer(int64) :: index
+        end function LMatInd_t
+
     end interface
 
     !
@@ -295,5 +314,10 @@ module procedure_pointers
     procedure(sltcnd_3_t), pointer :: sltcnd_3
     ! the function used to scale the walkers
     procedure(scale_function_t), pointer :: scaleFunction
+
+    ! indexing function of the six-index integrals
+    procedure(LMatInd_t), pointer :: lMatInd
+    procedure(get_lmat_el_t), pointer :: get_lmat_el
+    procedure(get_lmat_el_t), pointer :: get_lmat_el_symInternal
 
 end module

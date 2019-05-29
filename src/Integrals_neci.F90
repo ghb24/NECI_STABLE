@@ -50,8 +50,8 @@ module Integrals_neci
                                   init_hopping_transcorr
 
     use LoggingData, only: tLogKMatProjE
-    use kMatProjE, only: readKMat, freeKMat
-    use tc_three_body_data, only: tDampKMat, tUseKMat
+    use kMatProjE, only: readKMat, freeKMat, readSpinKMat
+    use tc_three_body_data, only: tDampKMat, tUseKMat, tSpinCorrelator
     implicit none
 
 contains
@@ -709,6 +709,8 @@ contains
          ! or all at one, we leave this to the kMat module
          call readKMat()
       endif
+
+      if(tSpinCorrelator) call readSpinKMat()
 
     End Subroutine IntInit
 

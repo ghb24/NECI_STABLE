@@ -20,8 +20,9 @@ module sltcnd_mod
     use timing_neci
     use bit_reps, only: NIfTot
     use LMat_mod, only: get_lmat_el
-    use tc_three_body_data, only: tDampKMat
-    use kMatProjE, only: kMatParSpinCorrection, kMatOppSpinCorrection
+    use tc_three_body_data, only: tDampKMat, tSpinCorrelator
+    use kMatProjE, only: kMatParSpinCorrection, kMatOppSpinCorrection, spinKMatContrib, &
+         kMatAA
     implicit none
 
 contains
@@ -326,6 +327,10 @@ contains
         do i=1,nel-1
             do j=i+1,nel
                hel_doub = hel_doub + get_2d_umat_el(id(j),id(i))
+               if(tSpinCorrelator) then
+                  hel_doub = hel_doub &
+                       + spinKMatContrib(id(i),id(j),id(i),id(j),G1(nI(i))%MS,G1(nI(j))%MS)
+               endif
                if(tDampKMat) then
                   ! same-spin correction: a factor of 0.5
                   if(G1(nI(i))%Ms == G1(nI(j))%Ms) then
@@ -347,6 +352,9 @@ contains
                     ! Exchange contribution is zero if I,J are alpha/beta
                     if ((G1(nI(i))%Ms == G1(nI(j))%Ms).or.tReltvy) then
                         hel_tmp = hel_tmp - get_2d_umat_el_exch (id(j),id(i))
+                        if(tSpinCorrelator) &
+                             ! here, i and j always have the same spin
+                             hel_tmp = hel_tmp - kMatAA%exchElement(id(i),id(j),id(i),id(j))
                         if(tDampKMat) &
                              hel_tmp = hel_tmp - kMatParSpinCorrection(id(i),id(j),id(j),id(i))
 !                         write(6,*) i,j,get_umat_el (id(j),id(i),id(i),id(j))
@@ -391,6 +399,10 @@ contains
             if (ex(1) /= nI(i)) then
                id = gtID(nI(i))
                hel = hel + get_umat_el (id_ex(1), id, id_ex(2), id)
+               if(tSpinCorrelator) then
+                  hel = hel &
+                       + spinKMatContrib(id_ex(1),id,id_ex(2),id,G1(ex(1))%MS,G1(nI(i))%MS)
+               endif
                if(tDampKMat) then
                   if(G1(ex(1))%Ms == G1(nI(i))%Ms) then
                     hel = hel + kMatParSpinCorrection(id_ex(1), id, id_ex(2), id)
@@ -411,6 +423,8 @@ contains
                if (tReltvy.or.(G1(ex(1))%Ms == G1(nI(i))%Ms)) then
                   id = gtID(nI(i))
                   hel = hel - get_umat_el (id_ex(1), id, id, id_ex(2))
+                  if(tSpinCorrelator) &
+                       hel = hel - kMatAA%exchElement(id_ex(1),id,id_ex(2),id)
                   if(tDampKMat) &
                        ! only parallel spin excits can have exchange terms entering in the one-body
                        ! matrix element -> no need for opposite spin correction
@@ -454,12 +468,18 @@ contains
       if ( tReltvy.or.((G1(ex(1,1))%Ms == G1(ex(2,1))%Ms) .and. &
            (G1(ex(1,2))%Ms == G1(ex(2,2))%Ms)) ) then
          hel = get_umat_el (id(1,1), id(1,2), id(2,1), id(2,2))
+         if(tSpinCorrelator) then
+            hel = hel + spinKMatContrib(id(1,1),id(1,2),id(2,1),id(2,2),G1(ex(1,1))%MS,G1(ex(1,2))%MS)
+         endif
       else
          hel = (0)
       endif
       if ( tReltvy.or.((G1(ex(1,1))%Ms == G1(ex(2,2))%Ms) .and. &
            (G1(ex(1,2))%Ms == G1(Ex(2,1))%Ms)) ) then
          hel = hel - get_umat_el (id(1,1), id(1,2), id(2,2), id(2,1))
+         if(tSpinCorrelator) then
+            hel = hel + spinKMatContrib(id(1,1),id(1,2),id(2,2),id(2,1),G1(ex(1,1))%MS,G1(ex(1,2))%MS)
+         endif
       endif
 
       if(tDampKMat) then

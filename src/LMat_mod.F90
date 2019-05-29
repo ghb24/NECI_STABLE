@@ -7,22 +7,25 @@ module LMat_mod
   use shared_memory_mpi
   use sort_mod
   use ParallelHelper, only: iProcIndex_intra
+  use tc_three_body_data, only: tDampKMat, tDampLMat, tSymBrokenLMat, tSpinCorrelator
+  use procedure_pointers, only: LMatInd, get_lmat_el, get_lmat_el_symInternal
 #ifdef __USE_HDF5
   use hdf5
 #endif
   implicit none
 
-  ! this is likely to be stored in a hashtable long term
-  HElement_t(dp), pointer :: LMat(:)
-  integer :: LMatTag
-  integer, allocatable :: n2Ind(:), n3Ind(:)
-  integer(MPIarg) :: LMatWin
+  HElement_t(dp), pointer :: LMat(:), LMatAB(:)
+  integer :: LMatTag, LMatABTag
+  integer(MPIarg) :: LMatWin, LMatABWin
   integer(int64) :: nBI
   logical :: tDebugLMat
 
+  ! for the symmetry broken index function
+  integer :: strideInner, strideOuter
+
   contains
 
-    function get_lmat_el(a,b,c,i,j,k) result(matel)
+    function get_lmat_el_base(a,b,c,i,j,k) result(matel)
       use SystemData, only: G1
       use UMatCache, only: gtID
       ! Gets an entry of the 3-body tensor L:
@@ -32,7 +35,12 @@ module LMat_mod
       integer, intent(in) :: i,j,k
       HElement_t(dp) :: matel
       integer :: ida, idb, idc, idi, idj, idk
+      logical :: tSameSpin
 
+      ! initialize spin-correlator check: if all spins are the same, use LMat, else LMatAB
+      ! without spin-dependent correlator, always use LMat
+      tSameSpin = .not. tSpinCorrelator .or. (G1(i)%MS==G1(j)%ms .and. G1(i)%MS==G1(k)%MS)
+      
       ! convert to spatial orbs if required
       ida = gtID(a)
       idb = gtID(b)
@@ -43,51 +51,26 @@ module LMat_mod
 
       matel = 0
       ! only add the contribution if the spins match
-      if(tDebugLMat) then
-         call addAllMatelConts(a,b,c,1)
-         call addAllMatelConts(b,c,a,1)
-         call addAllMatelConts(c,a,b,1)
-         call addAllMatelConts(b,a,c,-1)
-         call addAllMatelConts(a,c,b,-1)
-         call addAllMatelConts(c,b,a,-1)
-         matel = matel/2.0_dp
-      else
-         call addMatelContribution(i,j,k,idi,idj,idk,1)         
-         call addMatelContribution(j,k,i,idj,idk,idi,1)
-         call addMatelContribution(k,i,j,idk,idi,idj,1)
-         call addMatelContribution(j,i,k,idj,idi,idk,-1)
-         call addMatelContribution(i,k,j,idi,idk,idj,-1)
-         call addMatelContribution(k,j,i,idk,idj,idi,-1)
+     
+      call addMatelContribution(i,j,k,idi,idj,idk,1)         
+      call addMatelContribution(j,k,i,idj,idk,idi,1)
+      call addMatelContribution(k,i,j,idk,idi,idj,1)
+      call addMatelContribution(j,i,k,idj,idi,idk,-1)
+      call addMatelContribution(i,k,j,idi,idk,idj,-1)
+      call addMatelContribution(k,j,i,idk,idj,idi,-1)
+
+      ! spin-projector for the tc terms - apply heuristically for three-body terms
+      if(tDampKMat) then
+         ! same-spin contributions are divided by 4 (this is exact)
+         if(G1(a)%MS .eq. G1(b)%MS .and. G1(b)%MS .eq. G1(c)%MS) then
+            matel = matel/4.0_dp
+         else
+            ! opposite-spin contributions are divided by 2 (this is a guess, the
+            ! exact form has an admixture of exchange terms)
+            matel = matel/2.0_dp
+         endif
       endif
       contains 
-
-        subroutine addAllMatelConts(aI,bI,cI,sgn)
-          implicit none
-          integer, value :: aI,bI,cI
-          integer, intent(in) :: sgn
-          integer :: ab, bb, cb
-          
-          ab = a
-          bb = b
-          cb = c
-          
-          a = aI
-          b = bI
-          c = cI
-          
-          ida = gtID(a)
-          idb = gtID(b)
-          idc = gtID(c)
-          call addMatelContribution(i,j,k,idi,idj,idk,sgn)
-          call addMatelContribution(j,k,i,idj,idk,idi,sgn)
-          call addMatelContribution(k,i,j,idk,idi,idj,sgn)
-          call addMatelContribution(j,i,k,idj,idi,idk,-sgn)
-          call addMatelContribution(i,k,j,idi,idk,idj,-sgn)
-          call addMatelContribution(k,j,i,idk,idj,idi,-sgn)    
-          c = cb
-          a = ab
-          b = bb
-        end subroutine addAllMatelConts
 
         subroutine addMatelContribution(p,q,r,idp,idq,idr,sgn)
           implicit none
@@ -95,38 +78,114 @@ module LMat_mod
           integer, intent(in) :: sgn
           
           if(G1(p)%ms == G1(a)%ms .and. G1(q)%ms == G1(b)%ms .and. G1(r)%ms == G1(c)%ms) then
-             matel = matel + sgn * real(LMat(LMatInd(int(ida,int64),int(idb,int64),&
-                  int(idc,int64),int(idp,int64),int(idq,int64),int(idr,int64))),dp)
+             if(tSameSpin) then
+                matel = matel + sgn * real(LMat(LMatInd(int(ida,int64),int(idb,int64),&
+                     int(idc,int64),int(idp,int64),int(idq,int64),int(idr,int64))),dp)
+             else
+                matel = matel + sgn * real(LMatAB(LMatInd(int(ida,int64),int(idb,int64),&
+                     int(idc,int64),int(idp,int64),int(idq,int64),int(idr,int64))),dp)
+             endif
           endif
         end subroutine addMatelContribution
         
-    end function get_lmat_el
+      end function get_lmat_el_base
 
 !------------------------------------------------------------------------------------------!
 
-    function LMatInd(a,b,c,i,j,k) result(index)
+      function get_lmat_el_symmetrized(a,b,c,i,j,k) result(matel)
+        ! post-symmetrized access when storing non-symmetrized lMat
+        implicit none
+        integer, value :: a,b,c
+        integer, intent(in) :: i,j,k
+        HElement_t(dp) :: matel
+
+        matel = 0.0_dp
+        
+        ! get_lmat_el_base is not symmetric in this case => symmetrize w.r. 
+        ! to exchange of electrons
+        matel = matel + get_lmat_el_symInternal(a,b,c,i,j,k)
+        matel = matel + get_lmat_el_symInternal(b,c,a,j,k,i)
+        matel = matel + get_lmat_el_symInternal(c,a,b,k,i,j)
+        ! + spin correction (get_lmat_el_base(ap,bp,cp,ip,jp,kp) with ap etc being the 
+        ! spin-swapped indices)
+        matel = matel / 3.0_dp
+        
+      end function get_lmat_el_symmetrized
+
+!------------------------------------------------------------------------------------------!
+      
+      function get_lmat_el_spinProj(a,b,c,i,j,k) result(matel)
+        ! get the spin-projected matel
+        implicit none
+        integer, value :: a,b,c
+        integer, intent(in) :: i,j,k
+        HElement_t(dp) :: matel
+
+        ! auxiliary, spin-swapped indices
+        integer :: ap, bp, cp, ip, jp, kp
+        ! prefactors for the different parts
+        real(dp), parameter :: directFac = 0.5625_dp
+        real(dp), parameter :: swapFac = -0.1875_dp
+        real(dp), parameter :: permFac = 0.0625_dp
+        
+        matel = 0.0_dp
+        matel = matel + directFac * get_lmat_el_base(a,b,c,i,j,k)
+        call resetAux()
+        call swapSpins(ap,bp,ip,jp)
+        matel = matel + swapFac * get_lmat_el_base(ap,bp,cp,ip,jp,kp)
+        call resetAux()
+        call swapSpins(ap,cp,ip,kp)
+        matel = matel + swapFac * get_lmat_el_base(ap,bp,cp,ip,jp,kp)
+        call resetAux()
+        call swapSpins(ap,cp,ip,kp)
+        call swapSpins(ap,bp,ip,jp)
+        matel = matel + swapFac * get_lmat_el_base(ap,bp,cp,ip,jp,kp)
+      
+      contains
+
+        subroutine resetAux()
+          implicit none
+          ! reset the auxiliary variables
+          ap = a
+          bp = b
+          cp = c
+          ip = i
+          jp = j
+          kp = k
+        end subroutine resetAux
+
+        subroutine swapSpins(src1, src2, tgt1, tgt2)
+          implicit none
+          integer, intent(inout) :: src1, src2, tgt1, tgt2
+          integer :: mst1, mst2, mss1, mss2
+
+          ! get the spin values
+          mss1 = mod(src1,2)
+          mss2 = mod(src2,2)
+          mst1 = mod(tgt1,2)
+          mst2 = mod(tgt2,2)
+
+          ! swap two spins
+          src1 = src1 + mss1 - mss2
+          src2 = src2 + mss2 - mss1
+          tgt1 = tgt1 + mst1 - mst2
+          tgt2 = tgt2 + mst2 - mst1
+        end subroutine swapSpins
+      end function get_lmat_el_spinProj
+
+!------------------------------------------------------------------------------------------!
+
+    function LMatIndSym(a,b,c,i,j,k) result(index)
       implicit none
       integer(int64), intent(in) :: a,b,c ! occupied orb indices
       integer(int64), intent(in) :: i,j,k ! unoccupied orb
       integer(int64) :: index
 
       integer(int64) :: ai,bj,ck
-
-      if(t12FoldSym) then
-         index = oldLMatInd(a,b,c,i,j,k)
-      else
-
-         ai = fuseIndex(a,i)
-         bj = fuseIndex(b,j)
-         ck = fuseIndex(c,k)
-
-         index = LMatIndFused(ai,bj,ck)
-      endif
-    end function LMatInd
-
-    function LMatIndFused(ai,bj,ck) result(index)
-      integer(int64) :: ai,bj,ck
-      integer(int64) :: index
+      
+      ai = fuseIndex(a,i)
+      bj = fuseIndex(b,j)
+      ck = fuseIndex(c,k)
 
       ! sort the indices
       if(ai > bj) call intswap(ai,bj)
@@ -134,8 +193,7 @@ module LMat_mod
       if(ai > bj) call intswap(ai,bj)
 
       index = ai + bj*(bj-1)/2 + ck*(ck-1)*(ck+1)/6
-      
-    end function LMatIndFused
+    end function LMatIndSym
 
     function fuseIndex(x,y) result(xy)
       implicit none
@@ -193,6 +251,58 @@ module LMat_mod
 
 !------------------------------------------------------------------------------------------!
 
+    function lMatIndSymBroken(a,b,c,i,j,k) result(index)
+      ! broken-symmetry index function that operates on LMat without permutational
+      ! symmetry between ai, bj, ck
+      implicit none
+      integer(int64), intent(in) :: a,b,c ! occupied orb indices
+      integer(int64), intent(in) :: i,j,k ! unoccupied orb
+      integer(int64) :: index
+
+      integer(int64) :: ai,bj,ck
+
+      ai = fuseIndex(a,i)
+      bj = fuseIndex(b,j)
+      ck = fuseIndex(c,k)
+
+      index = ai + strideInner*bj + strideOuter * ck
+      
+    end function lMatIndSymBroken
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine initializeLMatInd()
+      implicit none
+     
+      ! set the LMatInd function pointer
+      if(t12FoldSym) then
+         LMatInd => oldLMatInd
+      else if(tSymBrokenLMat) then
+         ! also need to set the size of the blocks
+         strideInner = fuseIndex(nBI,nBI)
+         strideOuter = strideInner**2
+         LMatInd => lMatIndSymBroken
+      else
+         LMatInd => LMatIndSym
+      endif
+
+      ! set the get_lmat_el function pointer
+      if(tSymBrokenLMat) then
+         get_lmat_el => get_lmat_el_symmetrized
+      else
+         get_lmat_el => get_lmat_el_base
+      endif
+
+      ! the internal pointer of get_lmat_el_symmetrized
+      if(tDampLMat) then
+         get_lmat_el_symInternal => get_lmat_el_spinProj
+      else
+         get_lmat_el_symInternal => get_lmat_el_base
+      endif
+    end subroutine initializeLMatInd
+
+!------------------------------------------------------------------------------------------!
+
     pure subroutine intswap(a,b)
       integer(int64), intent(inout) :: a,b
       integer(int64) :: tmp
@@ -205,21 +315,8 @@ module LMat_mod
 !------------------------------------------------------------------------------------------!
 
     subroutine readLMat()
-      use ParallelHelper, only: mpi_comm_intra
-      use HElem, only: Helement_t_sizeB
       use SystemData, only: nel
       implicit none
-      character(*), parameter :: LMatFileName = "TCDUMP"
-      integer :: iunit, ierr
-      integer(int64) :: LMatSize
-      integer(int64) :: a,b,c,i,j,k
-      HElement_t(dp) :: matel
-      character(*), parameter :: t_r = "readLMat"
-      integer :: counter
-      integer(int64) :: iChunk, chunkSize
-      integer :: iNodeSize, iProcInNode
-      integer :: dummy(6)
-      integer(MPIArg) :: err
 
       ! we need at least three electrons to make use of the six-index integrals
       ! => for less electrons, this can be skipped
@@ -231,7 +328,36 @@ module LMat_mod
          nBI = nBasis / 2
       endif
 
-      call initializeNInd()
+      call initializeLMatInd()
+
+      ! now, read lmat from file
+      call readLMatArray(LMat,LMatTag,LMatWin,"TCDUMP","tcdump.h5")
+      ! for spin-dependent LMat, also read the opp. spin matrix
+      if(tSpinCorrelator) call readLMatArray(LMatAB,LMatABTag,LMatABWin,"TCDUMPAB","tcdumpAB.h5")
+    end subroutine readLMat
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine readLMatArray(LMatLoc, LMatLocTag, LMatLocWin, LMatFileName, h5Filename)
+      use ParallelHelper, only: mpi_comm_intra
+      use HElem, only: Helement_t_sizeB
+      implicit none
+      HElement_t(dp), pointer, intent(inout) :: LMatLoc(:)
+      integer, intent(inout) :: LMatLocTag
+      integer(MPIArg), intent(inout) :: LMatLocWin
+      character(*), intent(in) :: LMatFileName
+      character(*), intent(in) :: h5Filename
+      integer :: iunit, ierr
+      integer(int64) :: LMatSize
+      integer(int64) :: a,b,c,i,j,k
+      HElement_t(dp) :: matel
+      character(*), parameter :: t_r = "readLMat"
+      integer :: counter
+      integer(int64) :: iChunk, chunkSize
+      integer :: iNodeSize, iProcInNode
+      integer :: dummy(6)
+      integer(MPIArg) :: err
+
 
       ! The size is given by the largest index (LMatInd is monotonous in all arguments)
       LMatSize = LMatInd(nBI,nBI,nBI,nBI,nBI,nBI)
@@ -239,8 +365,8 @@ module LMat_mod
       write(iout,*) "Allocating LMat, memory required:", LMatSize*HElement_t_sizeB/(2.0_dp**30), "GB"
 
       ! allocate LMat (shared memory)
-      call shared_allocate_mpi(LMatWin, LMat, (/LMatSize/))
-      call LogMemAlloc("LMat", int(LMatSize), HElement_t_SizeB, t_r, LMatTag)
+      call shared_allocate_mpi(LMatLocWin, LMatLoc, (/LMatSize/))
+      call LogMemAlloc("LMat", int(LMatSize), HElement_t_SizeB, t_r, LMatLocTag)
 !      call MPI_Comm_Size(mpi_comm_intra,iNodeSize,err)
 !      call MPI_Comm_Rank(mpi_comm_intra,iProcInNode,err)
 !      chunkSize = LMatSize / int(iNodeSize,int64)
@@ -249,7 +375,7 @@ module LMat_mod
 
       if(iProcIndex_intra.eq.0) then
          do k = 1, LMatSize
-            LMat(k) = 0.0_dp
+            LMatLoc(k) = 0.0_dp
          end do
       endif
 
@@ -259,7 +385,7 @@ module LMat_mod
 
       if(tHDF5LMat) then
 #ifdef __USE_HDF
-         call readHDF5LMat()
+         call readHDF5LMat(LMatLoc,LMatLocWin,LMatLocTag,h5filename)
 #else
          call stop_all(t_r, "HDF5 integral files disabled at compile time")
 #endif
@@ -284,7 +410,7 @@ module LMat_mod
                      write(iout,*) "Warning, exceeding size" 
                   endif
 
-                  LMat(LMatInd(a,b,c,i,j,k)) = 3.0_dp * matel
+                  LMatLoc(LMatInd(a,b,c,i,j,k)) = 3.0_dp * matel
                   if(abs(matel)> 0.0_dp) counter = counter + 1
                endif
 
@@ -300,61 +426,50 @@ module LMat_mod
 
       call MPI_Barrier(mpi_comm_intra, err)
       
-    end subroutine readLMat
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine initializeNInd()
-      implicit none
-      integer :: i
-      ! prepare an array containing the offset of certain blocks in the
-      ! LMat array
-      
-      allocate(n2Ind(nBI))
-      n2Ind(1) = 0
-      do i = 2, nBI
-         n2Ind(i) = n2Ind(i-1) + (nBI + 2 - i)**2
-      end do
-
-      allocate(n3Ind(nBI))
-      n3Ind(1) = 1
-      do i = 1, nBI-1
-         n3Ind(nBI-i) = n3Ind(nBI-i+1) + (nBI+1-i)**2
-      end do
-    end subroutine initializeNInd
+    end subroutine readLMatArray
 
 !------------------------------------------------------------------------------------------!
 
     subroutine freeLMat()
       implicit none
       character(*), parameter :: t_r = "freeLMat"
-      
-      if(associated(LMat)) then
-         call shared_deallocate_mpi(LMatWin,LMat)
-         call LogMemDealloc(t_r, LMatTag)
-         LMAt => null()
-      end if
-      if(allocated(n3Ind)) deallocate(n3Ind)
-      if(allocated(n2Ind)) deallocate(n2Ind)
-      
-    end subroutine freeLMat
+
+      call deallocLMatArray(LMat,LMatWin,LMatTag)
+      call deallocLMatArray(LMatAB,LMatABWin,LMatABTag)
+
+      contains 
+
+        subroutine deallocLMatArray(LMatPtr,shm_win,tag)
+          implicit none
+          HElement_t(dp), pointer :: LMatPtr(:)
+          integer(MPIArg) :: shm_win
+          integer :: tag
+
+          if(associated(LMat)) then
+             call shared_deallocate_mpi(LMatWin,LMat)
+             call LogMemDealloc(t_r, LMatTag)
+             LMAt => null()
+          end if
+        end subroutine deallocLMatArray
+      end subroutine freeLMat
 
 !------------------------------------------------------------------------------------------!
 
 #ifdef __USE_HDF
-    subroutine readHDF5LMat()
+    subroutine readHDF5LMat(LMatPtr, filename)
       use hdf5
       use hdf5_util
       use ParallelHelper, only: mpi_comm_inter, mpiInfoNull, iProcIndex, &
            mpi_comm_intra
       use Parallel_neci, only: nProcessors
       implicit none
+      HElement_t(dp), pointer :: LMatPtr(:)
+      character(*), intent(in) :: filename
       integer :: proc, i
       integer(hid_t) :: err, file_id, plist_id, grp_id, ds_vals, ds_inds
       integer(hsize_t) :: nInts, rest, blocksize, blockstart, blockend, this_blocksize, countsEnd
       integer(hsize_t), allocatable :: counts(:), offsets(:)
       integer(hsize_t), allocatable :: indices(:,:), entries(:,:)
-      character(*), parameter :: filename = 'tcdump.h5'
       character(*), parameter :: nm_grp = "tcdump", nm_nInts = "nInts", nm_vals = "values", nm_indices = "indices"
       integer(MPIArg) :: procs_per_node, ierr
       real(dp) :: rVal
@@ -390,7 +505,7 @@ module LMat_mod
       call h5dopen_f(grp_id, nm_indices, ds_inds, err)
 
       ! reserve max. 100MB buffer size for dumpfile I/O
-      blocksize = 100000000/(7*sizeof(LMat(1)))
+      blocksize = 100000000/(7*sizeof(LMatPtr(1)))
       blockstart = offsets(iProcIndex_intra)
 
       ! the last element to read on each proc
@@ -428,7 +543,7 @@ module LMat_mod
 
          ! assign LMat entries
          do i = 1, this_blocksize
-            LMat(LMatInd(int(indices(1,i),int64),int(indices(2,i),int64),int(indices(3,i),int64),&
+            LMatPtr(LMatInd(int(indices(1,i),int64),int(indices(2,i),int64),int(indices(3,i),int64),&
                  int(indices(4,i),int64),int(indices(5,i),int64),int(indices(6,i),int64))) &
                  = 3.0_dp * transfer(entries(1,i),rVal)
          end do

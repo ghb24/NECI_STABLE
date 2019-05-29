@@ -57,7 +57,7 @@ MODULE Calc
     use bit_reps, only: decode_bit_det
     use cepa_shifts, only: t_cepa_shift, cepa_method
     use cc_amplitudes, only: t_cc_amplitudes, cc_order, cc_delay
-    use tc_three_body_data, only: tDampKMat
+    use tc_three_body_data, only: tDampKMat, tDampLMat
 
     implicit none
 
@@ -462,6 +462,7 @@ contains
 
           ! apply the tc two-body integrals differently for same-spin excitations?
           tDampKMat = .false.
+          tDampLMat = .false.
 
         end subroutine SetCalcDefaults
 
@@ -2935,6 +2936,9 @@ contains
                 ! multiply kmat with a factor of 0.5 for same-spin
                 tDampKMat = .true.
 
+             case("DAMP-CORRELATOR")
+                tDampLMat = .true.
+                tDampKMat = .true.
 
              case("ALL-DOUBS-INITIATORS")
                 ! Set all doubles to be treated as initiators
