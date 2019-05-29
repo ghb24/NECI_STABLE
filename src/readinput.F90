@@ -412,6 +412,14 @@ MODULE ReadInput_neci
             write(6,*) "Random excitations WILL have to be renormalised, &
                        &since an excitation weighting has been detected."
         ENDIF
+
+        ! if the LMS value specified is not reachable with the number of electrons,
+        ! fix this
+        if(mod(abs(lms),2).ne.mod(nel,2)) then
+           write(6,*) "WARNING: LMS Value is not reachable with the given number of electrons."
+           write(6,*) "Resetting LMS"
+           LMS = -mod(nel,2)
+        endif
   
         ! Check details for spin projection
         if (tSpinProject) then
