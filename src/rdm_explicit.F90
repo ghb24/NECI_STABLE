@@ -11,7 +11,8 @@ module rdm_explicit
 
     use bit_rep_data, only: NIfTot
     use constants
-    use SystemData, only : tReltvy, t_3_body_excits
+    use SystemData, only : tReltvy, t_3_body_excits, tGUGA
+    use guga_rdm, only: gen_exc_djs_guga
 
     implicit none
 
@@ -167,7 +168,13 @@ contains
 
         ! Out of here we will get a filled ExcDjs array with all the single or
         ! double excitations from Dj, this will be done for each proc. 
-        if (.not. blank_det) call GenExcDjs(iLutnI)
+        if (.not. blank_det) then 
+            if (tGUGA) then 
+                call gen_exc_djs_guga(ilutnI)
+            else
+                call GenExcDjs(iLutnI)
+            end if
+        end if
 
         ! We then need to send the excitations to the relevant processors.
         ! This routine then calls SearchOccDets which takes each excitation

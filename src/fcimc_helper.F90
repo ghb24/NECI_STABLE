@@ -2373,6 +2373,7 @@ contains
             ! We have reached the iteration where we want to start filling the RDM.
             if (tExplicitAllRDM) then
                 ! Explicitly calculating all connections - expensive...
+                ! TODO: why are explicit RDMs not working with replicas?
                 if (tPairedReplicas) call stop_all('check_start_rdm',"Cannot yet do replica RDM sampling with explicit RDMs. &
                     & e.g Hacky bit in Gen_Hist_ExcDjs to make it compile.")
                 
