@@ -17002,24 +17002,6 @@ contains
         ! first check two-particle integral
         umat = get_umat_el(i,k,j,l)
 
-!         if ((i == 8 .and. j == 6 .and. k == 9 .and. l == 7) .or. &
-!             (i == 9 .and. j == 7 .and. k == 8 .and. l == 6) .or. &
-!             (i == 9 .and. j == 6 .and. k == 8 .and. l == 7) .or. &
-!             (i == 8 .and. j == 7 .and. k == 9 .and. l == 6)) then
-! 
-!             print *, "U(ijkl):", i,j,k,l,umat
-!         end if
-! 
-!         if ((i == 6 .and. j == 8 .and. k == 7 .and. l == 9) .or. &
-!             (i == 7 .and. j == 9 .and. k == 6 .and. l == 8) .or. &
-!             (i == 6 .and. j == 9 .and. k == 7 .and. l == 8) .or. &
-!             (i == 7 .and. j == 8 .and. k == 6 .and. l == 9)) then
-! 
-!             print *, "U(ijkl):", i,j,k,l,umat
-!         end if
-
-
-
         if (abs(umat) < EPS) then
             allocate(excitations(0,0), stat = ierr)
             return
@@ -17035,25 +17017,6 @@ contains
         ! calulated to check if the probabilistic weights fit... maybe but 
         ! that out and reuse.. to not waste any effort.
         call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
-!         print *,"compatible: ", compFlag
-
-!         if ((i == 6 .and. j == 8 .and. k == 7 .and. l == 9) .or. &
-!             (i == 7 .and. j == 9 .and. k == 6 .and. l == 8) .or. &
-!             (i == 6 .and. j == 9 .and. k == 7 .and. l == 8) .or. &
-!             (i == 7 .and. j == 8 .and. k == 6 .and. l == 9)) then
-! 
-!             print *, "comp?", compFlag
-!             call print_excitInfo(excitInfo)
-!         end if
-! 
-!         if ((i == 8 .and. j == 6 .and. k == 9 .and. l == 7) .or. &
-!             (i == 9 .and. j == 7 .and. k == 8 .and. l == 6) .or. &
-!             (i == 9 .and. j == 6 .and. k == 8 .and. l == 7) .or. &
-!             (i == 8 .and. j == 7 .and. k == 9 .and. l == 6)) then
-! 
-!             print *, "comp?", compFlag
-!             call print_excitInfo(excitInfo)
-!         end if
 
         if (.not.compFlag) then
             allocate(excitations(0,0), stat = ierr)
@@ -17222,63 +17185,15 @@ contains
             exlevel = 2
 
         end select
-! 
-!         if (excitInfo%typ == 17 .or. excitInfo%typ == 20) then
-!             print *, "ijkl: ", i,j,k,l
-!             print *, "comp: ", compFlag
-!             call write_guga_list(6, excitations(:,1:nExcits))
-!             print *, "gen1, gen2:", excitInfo%gen1, excitInfo%gen2
-!             print *, "fGen,lGen:", excitInfo%firstGen, excitInfo%lastGen
-!             print *, "start,sStart,fEnd,end:" ,excitInfo%fullStart, excitInfo%secondStart, &
-!                 excitInfo%firstEnd,excitInfo%fullEnd
-!         end if
-! 
-!         if (excitInfo%typ == 4) then
-!             print *, "ijkl", excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l
-!             print *, "valid: ", compFlag
-!             call write_guga_list(6, excitations(:,1:nExcits))
-!         end if
-
-!         if (excitInfo%fullstart == 1 .and. excitInfo%fullEnd == 4) then
-!             call write_guga_list(6, excitations(:,1:nExcits))
-!             print *, "ijkl:", excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l
-!         end if
-
-!         if ((i == 6 .and. j == 8 .and. k == 7 .and. l == 9) .or. &
-!             (i == 7 .and. j == 9 .and. k == 6 .and. l == 8) .or. &
-!             (i == 6 .and. j == 9 .and. k == 7 .and. l == 8) .or. &
-!             (i == 7 .and. j == 8 .and. k == 6 .and. l == 9)) then
-! 
-!             print *, "guga matele:"
-!             print *, extract_matrix_element(excitations(:,1),1)
-!         end if
-! 
-!         if ((i == 8 .and. j == 6 .and. k == 9 .and. l == 7) .or. &
-!             (i == 9 .and. j == 7 .and. k == 8 .and. l == 6) .or. &
-!             (i == 9 .and. j == 6 .and. k == 8 .and. l == 7) .or. &
-!             (i == 8 .and. j == 7 .and. k == 9 .and. l == 6)) then
-! 
-!             print *, "guga matele:"
-!             print *, extract_matrix_element(excitations(:,1),1)
-!         end if
 
 
-
-!         call EncodeBitDet([1,2,3,4,5,6,7,8,9,10,11,15,16,17],tmp_ilut)
         ! for checking purposes encode umat/2 here to compare with sandeeps 
         ! results for now..
         do n = 1, nExcits
 
-!             if (DetBitEQ(excitations(0:0,n),tmp_ilut(0:0))) then
-!                 print *, "guga matele:"
-!                 print *, extract_matrix_element(excitations(:,n),1)
-!             end if
-
             call update_matrix_element(excitations(:,n), umat/2.0_dp, 1)
             ! and also use the deltaB value for finished excitations to 
             ! indicate the level of excitation IC for the remaining NECI code
-            !
-!             call setDeltaB(exlevel, excitations(:,n))
             excitations(nifguga,n) = exlevel 
 
         end do
