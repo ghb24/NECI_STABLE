@@ -5,7 +5,7 @@ inputs_args = ('*.inp', '')
 extract_program = ./tools/extract.py
 
 [mneci]
-exe = ../build/bin/mneci
+exe = ../benchmark_build/bin/mneci
 vcs = git
 inputs_args = ('*.inp', '')
 extract_program = ./tools/extract.py

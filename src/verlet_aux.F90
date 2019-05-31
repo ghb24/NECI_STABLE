@@ -191,7 +191,7 @@ module verlet_aux
          fcimc_excit_gen_store%tFilled = .false.
          unused_flags = 0
 
-         call extract_bit_rep(population(:,idet), nI, parent_sign, unused_flags, &
+         call extract_bit_rep(population(:,idet), nI, parent_sign, unused_flags, idet, &
               fcimc_excit_gen_store)
 
          tEmptyDet = IsUnoccDet(parent_sign)
@@ -247,6 +247,7 @@ module verlet_aux
       real(dp) :: prob, child_sign(lenof_sign), unused_rdm_real, unused_sign(nel)
       real(dp) :: unused_precond_fac
       logical :: tParity, break
+      integer :: err
       HElement_t(dp) :: HElGen
       
       unused_ex_level = 0
@@ -280,7 +281,8 @@ module verlet_aux
             
             if ((any(abs(child_sign) > EPS)) .and. (ic /= 0) .and. (ic <= 2)) then               
                call create_particle_with_hash_table (nI_child, ilut_child, child_sign, &
-                    part, ilut_parent, iter_data_fciqmc)
+                    part, ilut_parent, iter_data_fciqmc, err)
+               if(err.ne.0) return
             end if ! If a child was spawned.
 
          end do ! Over mulitple particles on same determinant.

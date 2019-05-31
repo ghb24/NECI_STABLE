@@ -128,7 +128,7 @@ contains
         real(dp) :: HDiag
         integer :: DetHash, nJ(nel)
         logical :: tSuccess, tDetermState
-        integer :: run       
+        integer :: run, err, pos
         
         ! rewrite the original Annihilation routine to fit the new 
         ! requirements here
@@ -271,7 +271,8 @@ contains
                           min_part_type(run):max_part_type(run))))
                   enddo         
                   HDiag = get_diagonal_matel(nJ, DiagParts(:,i))
-                  call AddNewHashDet(TotWalkersNew, DiagParts(:,i), DetHash, nJ, HDiag)
+                  call AddNewHashDet(TotWalkersNew, DiagParts(:,i), DetHash, nJ, HDiag, pos, err)
+                  if(err.ne.0) exit
 
                end if
             end if
@@ -300,7 +301,7 @@ contains
 
             ilut_parent => CurrentDets(:,idet) 
 
-            call extract_bit_rep(ilut_parent, nI_parent, parent_sign, unused_flags, &
+            call extract_bit_rep(ilut_parent, nI_parent, parent_sign, unused_flags, idet, &
                 fcimc_excit_gen_store)
 
             if (IsUnoccDet(parent_sign)) then

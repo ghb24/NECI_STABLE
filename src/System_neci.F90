@@ -3,7 +3,8 @@ MODULE System
 
     use SystemData
     use CalcData, only: TAU, tTruncInitiator, InitiatorWalkNo, &
-                        occCASorbs, virtCASorbs, tPairedReplicas, pSinglesIn
+                        occCASorbs, virtCASorbs, tPairedReplicas, pSinglesIn, tInitializeCSF, &
+                             S2Init
 
     use sort_mod
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
@@ -84,6 +85,7 @@ MODULE System
       LMS=0
       TSPN=.false.
       TCSF=.false.
+      tInitializeCSF = .false.
       TCSFOLD = .false.
       csf_trunc_level = 0
       tTruncateCSF = .false.
@@ -370,6 +372,9 @@ system: do
                LMS=0
             endif
             TSPN = .true.
+        case("INITIAL-SPIN")
+           call getf(S2Init)
+           tInitializeCSF = .true.
         case("CSF")
             if(item.lt.nitems) then
                call geti(STOT)
@@ -1376,6 +1381,14 @@ system: do
 !      TRHOIJND=.false.
       proc_timer%timer_name='SysInit   '
       call set_timer(proc_timer)
+
+      ! if a total spin was set, set the spin projection if unspecified
+      if(tInitializeCSF .and. .not. TSPN) then
+         ! S is physical spin, LMS is an integer (-2*Ms)
+         LMS = 2*S2Init
+         TSPN = .true.
+         write(iout,*) 'Spin projection unspecified, assuming Ms=S'
+      end if
 
 !C ==-------------------------------------------------------------------==
 !C..Input parameters

@@ -31,6 +31,7 @@ doubles-core
 stochastic-hf-spawning
 allrealcoeff
 realspawncutoff 0.5
+auto-adaptive-shift
 load-balance-blocks off
 no-init-ref-change
 endcalc

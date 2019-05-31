@@ -58,7 +58,7 @@ module bit_rep_data
                           flag_trial = 2, &
                           flag_connected = 3, &
                           flag_prone = 4, &
-                          flag_multi_spawn = 5
+                          flag_large_matel = 5
 
 #ifdef __PROG_NUMRUNS
     integer, parameter :: flag_initiator(lenof_sign_max) &

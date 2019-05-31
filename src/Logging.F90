@@ -7,7 +7,6 @@ MODULE Logging
     use MemoryManager, only: LogMemAlloc, LogMemDealloc,TagIntType
     use SystemData, only: nel, LMS, nbasis, tHistSpinDist, nI_spindist, &
                           hist_spin_dist_iter
-    use FciMCData, only: maxConflictExLvl
     use CalcData, only: tCheckHighestPop, semistoch_shift_iter, trial_shift_iter, &
                         tPairedReplicas, tReplicaEstimates
     use constants, only: n_int, size_n_int, bits_n_int
@@ -17,11 +16,10 @@ MODULE Logging
     use errors, only: Errordebug 
     use LoggingData
     use spectral_data, only: tPrint_sl_eigenvecs
-
 ! RT_M_Merge: There seems to be no conflict here, so use both
     use real_time_data, only: n_real_time_copies, t_prepare_real_time, &
                               cnt_real_time_copies
-    use rdm_data, only: nrdms_transition_input, states_for_transition_rdm
+    use rdm_data, only: nrdms_transition_input, states_for_transition_rdm, tApplyLC
     use rdm_data, only: rdm_main_size_fac, rdm_spawn_size_fac, rdm_recv_size_fac
 
     IMPLICIT NONE
@@ -169,12 +167,17 @@ MODULE Logging
       tHDF5PopsRead = .false.
       tHDF5PopsWrite = .false.
       tWriteRefs = .false.
-      maxConflictExlvl = 8
+      maxInitExLvlWrite = 8
 #ifdef __PROG_NUMRUNS
       tFCIMCStats2 = .true.
 #else
       tFCIMCStats2 = .false.
 #endif
+      tWriteUnocc = .false.
+
+      t_hist_fvals = .true.
+      enGrid = 100
+      arGrid = 100
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -372,6 +375,10 @@ MODULE Logging
                 i = i+1
             enddo
 
+         case("ACC-RATE-POINTS")
+            ! number of grid points for 2d-histogramming the acc rate used for adaptive shift
+            if(item < nitems) call readi(arGrid)
+            if(item < nitems) call readi(enGrid)
 
         case("ROHISTOGRAMALL")
 !This option goes with the orbital rotation routine.  If this keyword is included, all possible histograms are included.
@@ -1014,6 +1021,9 @@ MODULE Logging
             tLogDets=.true.
         case("EXLEVEL")
             tLogEXLEVELStats=.true.
+         case("INITS-EXLVL-WRITE")
+            ! up to which excitation level the number of initiators is written out
+            if(item < nitems) call readi(maxInitExLvlWrite)
         case ("INSTANT-S2-FULL")
             ! Calculate an instantaneous value for S^2, and output it to the
             ! relevant column in the FCIMCStats file.

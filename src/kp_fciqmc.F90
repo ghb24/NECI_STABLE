@@ -48,7 +48,7 @@ contains
         use orthogonalise, only: calc_replica_overlaps
 
         type(kp_fciqmc_data), intent(inout) :: kp
-        integer :: iiter, idet, ireplica, ispawn, ierr
+        integer :: iiter, idet, ireplica, ispawn, ierr, err
         integer :: iconfig, irepeat, ivec, nlowdin
         integer :: nspawn, parent_flags, unused_flags
         integer :: ex_level_to_ref, ex_level_to_hf
@@ -158,7 +158,7 @@ contains
                             fcimc_excit_gen_store%tFilled = .false.
 
                             call extract_bit_rep(ilut_parent, nI_parent, parent_sign, unused_flags, &
-                                                  fcimc_excit_gen_store)
+                                                  idet, fcimc_excit_gen_store)
 
                             ex_level_to_ref = FindBitExcitLevel(iLutRef(:,1), ilut_parent, &
                                  max_calc_ex_level)
@@ -267,7 +267,7 @@ contains
                                                                   child_sign, parent_flags, ireplica)
 
                                             call create_particle_with_hash_table (nI_child, ilut_child, child_sign, &
-                                                                                   ireplica, ilut_parent, iter_data_fciqmc)
+                                                                                   ireplica, ilut_parent, iter_data_fciqmc, ierr)
 
                                         end if ! If a child was spawned.
 
@@ -297,7 +297,7 @@ contains
                         call set_timer(annihil_time)
 
                         call communicate_and_merge_spawns(MaxIndex, iter_data_fciqmc, .false.)
-                        call DirectAnnihilation (TotWalkersNew, MaxIndex, iter_data_fciqmc)
+                        call DirectAnnihilation (TotWalkersNew, MaxIndex, iter_data_fciqmc, err)
 
                         TotWalkers = int(TotWalkersNew, int64)
 
@@ -376,7 +376,7 @@ contains
 
         type(kp_fciqmc_data), intent(inout) :: kp
 
-        integer :: iiter, idet, ireplica, ispawn, ierr
+        integer :: iiter, idet, ireplica, ispawn, ierr, err
         integer :: iconfig, irepeat, ireport, nlowdin
         integer :: nspawn, parent_flags, unused_flags
         integer :: ex_level_to_ref, ex_level_to_hf
@@ -525,7 +525,7 @@ contains
                         fcimc_excit_gen_store%tFilled = .false.
 
                         call extract_bit_rep(ilut_parent, nI_parent, parent_sign, unused_flags, &
-                                              fcimc_excit_gen_store)
+                                              idet, fcimc_excit_gen_store)
 
                         ex_level_to_ref = FindBitExcitLevel(iLutRef(:,1), ilut_parent, &
                              max_calc_ex_level)
@@ -624,7 +624,7 @@ contains
 
 
                                     call create_particle_with_hash_table (nI_child, ilut_child, child_sign, &
-                                                                           ireplica, ilut_parent, iter_data_fciqmc)
+                                                                           ireplica, ilut_parent, iter_data_fciqmc, ierr)
 
                                 end if ! If a child was spawned.
 
@@ -652,7 +652,7 @@ contains
                     call set_timer(annihil_time)
 
                     call communicate_and_merge_spawns(MaxIndex, iter_data_fciqmc, .false.)
-                    call DirectAnnihilation (TotWalkersNew, MaxIndex, iter_data_fciqmc)
+                    call DirectAnnihilation (TotWalkersNew, MaxIndex, iter_data_fciqmc, err)
 
                     TotWalkers = int(TotWalkersNew, int64)
 

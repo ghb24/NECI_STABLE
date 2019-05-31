@@ -14,7 +14,10 @@ module fcimc_pointed_fns
                         tRealCoeffByExcitLevel, InitiatorWalkNo, &
                         t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, & 
                         t_matele_cutoff, matele_cutoff, tEN2Truncated, &
-                        tTruncInitiator, tSkipRef, t_truncate_unocc, tPrecond, t_consider_par_bias
+                        tTruncInitiator, tSkipRef, t_truncate_unocc, &
+                        tAdaptiveShift, AdaptiveShiftSigma, AdaptiveShiftF1, AdaptiveShiftF2, &
+                        tAutoAdaptiveShift, AdaptiveShiftThresh, AdaptiveShiftExpo, AdaptiveShiftCut, &
+                        tAAS_Add_Diag, tPrecond, t_consider_par_bias
     use DetCalcData, only: FciDetIndex, det
 
     use procedure_pointers, only: get_spawn_helement
@@ -42,6 +45,7 @@ module fcimc_pointed_fns
     use excit_gen_5, only: pgen_select_a_orb
     use hphf_integrals, only: hphf_diag_helement
     use Determinants, only: get_helement
+    use global_det_data, only: get_tot_spawns, get_acc_spawns
 
     implicit none
 
@@ -64,7 +68,7 @@ module fcimc_pointed_fns
         real(dp) , intent(out) :: RDMBiasFacCurr
         real(dp), intent(in) :: precond_fac
         logical :: tAllowForEN2Calc
-        HElement_t(dp), intent(in) :: HElGen
+        HElement_t(dp), intent(inout) :: HElGen
 
         ! If tEN2Truncated is true, then we want to allow the otherwise
         ! truncated spawning to allow an EN2 correction to be calculated,
@@ -122,7 +126,8 @@ module fcimc_pointed_fns
         real(dp) , intent(out) :: RDMBiasFacCurr
         real(dp), intent(in) :: precond_fac
         logical :: tAllowForEN2Calc
-        HElement_t(dp) , intent(in) :: HElGen
+        ! make sure that HElgen is assigned on return
+        HElement_t(dp) , intent(inout) :: HElGen
 
         call EncodeBitDet (nJ, iLutnJ)
 
@@ -168,7 +173,7 @@ module fcimc_pointed_fns
         real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
         real(dp), intent(in) :: precond_fac
-        HElement_t(dp) , intent(in) :: HElGen
+        HElement_t(dp) , intent(inout) :: HElGen
         character(*), parameter :: this_routine = 'attempt_create_normal'
 
         real(dp) :: rat, r, walkerweight, pSpawn, nSpawn, MatEl, p_spawn_rdmfac
@@ -212,8 +217,9 @@ module fcimc_pointed_fns
         rh_used = conjg(rh)
 #else
         rh_used = rh
-#endif        
-
+#endif
+        ! assign the matrix element
+        HElGen = abs(rh)
         ! [W.D.]
         ! if the matrix element happens to be zero, i guess i should 
         ! abort as early as possible? so check that here already, or even 
@@ -600,7 +606,7 @@ module fcimc_pointed_fns
 
     end subroutine
 
-    function attempt_die_normal (DetCurr, Kii, realwSign, WalkExcitLevel) result(ndie)
+    function attempt_die_normal (DetCurr, Kii, realwSign, WalkExcitLevel, DetPosition) result(ndie)
         
         ! Should we kill the particle at determinant DetCurr. 
         ! The function allows multiple births (if +ve shift), or deaths from
@@ -619,6 +625,7 @@ module fcimc_pointed_fns
         real(dp), intent(in) :: Kii
         real(dp), dimension(lenof_sign) :: ndie
         integer, intent(in) :: WalkExcitLevel
+        integer, intent(in), optional :: DetPosition
         character(*), parameter :: t_r = 'attempt_die_normal'
 
         real(dp) :: probsign, r
@@ -629,6 +636,7 @@ module fcimc_pointed_fns
 #else
         real(dp) :: rat(1)
 #endif        
+        real(dp) :: shift, population, slope, tot, acc, tmp
 
 
         do i=1, inum_runs
@@ -636,9 +644,50 @@ module fcimc_pointed_fns
             if(tSkipRef(i) .and. all(DetCurr==projEdet(:,i))) then
                 fac(i)=0.0
             else
-                fac(i)=tau*(Kii-DiagSft(i))
+                if(tAdaptiveShift .and. .not. tAutoAdaptiveShift)then
+                    population = mag_of_run(realwSign, i)
+                    if(population>InitiatorWalkNo)then
+                        shift = DiagSft(i)
+                    elseif(population<AdaptiveShiftSigma)then
+                        shift = 0.0
+                    else
+                        if(InitiatorWalkNo==AdaptiveShiftSigma)then
+                            !In this case the slope is ill-defined.
+                            !Since initiators are strictly large than InitiatorWalkNo, set shift to zero
+                            shift = 0.0
+                        else
+                            !Apply linear modifcation that equals F1 at Sigma and F2 at InitatorWalkNo
+                            slope = (AdaptiveShiftF2-AdaptiveShiftF1)/(InitiatorWalkNo-AdaptiveShiftSigma)
+                            shift = DiagSft(i)*(AdaptiveShiftF1+(population-AdaptiveShiftSigma)*slope)
+                        end if
+                    end if
+                elseif(tAutoAdaptiveShift)then
+                    population = mag_of_run(realwSign, i)
+                    tot = get_tot_spawns(DetPosition, i)
+                    acc = get_acc_spawns(DetPosition, i)
+                    if(tAAS_Add_Diag)then
+                        tot = tot + Kii*tau
+                        acc = acc + Kii*tau
+                    end if
+                    if(population>InitiatorWalkNo)then
+                        tmp = 1.0
+                    elseif(tot>AdaptiveShiftThresh)then
+                        tmp = acc/tot
+                    else
+                        tmp = 0.0
+                    endif 
+                    !The factor is actually never zero, because at least the parent is occupied
+                    !As a heuristic, we use the connectivity of HF
+                    if(tmp<AdaptiveShiftCut)then
+                        tmp = AdaptiveShiftCut
+                    endif
+                    shift = DiagSft(i)*tmp**AdaptiveShiftExpo
+                else
+                    shift = DiagSft(i)
+                endif
+                fac(i)=tau*(Kii-shift)
                 ! And for tau searching purposes
-                call log_death_magnitude (Kii - DiagSft(i))
+                call log_death_magnitude (Kii - shift)
             endif
         enddo
 
@@ -707,7 +756,7 @@ module fcimc_pointed_fns
 
     end function attempt_die_normal
 
-    function attempt_die_precond (DetCurr, Kii, realwSign, WalkExcitLevel) result(ndie)
+    function attempt_die_precond (DetCurr, Kii, realwSign, WalkExcitLevel, detPosition) result(ndie)
 
         ! Should we kill the particle at determinant DetCurr.
         ! The function allows multiple births (if +ve shift), or deaths from
@@ -724,6 +773,7 @@ module fcimc_pointed_fns
         integer, intent(in) :: DetCurr(nel)
         real(dp), dimension(lenof_sign), intent(in) :: RealwSign
         real(dp), intent(in) :: Kii
+        integer, optional, intent(in) :: detPosition
         real(dp), dimension(lenof_sign) :: ndie
         integer, intent(in) :: WalkExcitLevel
         character(*), parameter :: t_r = 'attempt_die_normal'

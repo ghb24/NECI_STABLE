@@ -25,12 +25,13 @@ MODULE Calc
                        tFindDets
     use DetCalcData, only: B2L, nKry, nEval, nBlk, nCycle
     use IntegralsData, only: tNeedsVirts
+    use rdm_data, only: tApplyLC
     use FciMCData, only: tTimeExit,MaxTimeExit, InputDiagSft, tSearchTau, &
                          nWalkerHashes, HashLengthFrac, tSearchTauDeath, &
                          tLogGreensfunction, &
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
-                         alloc_popsfile_dets, tSearchTauOption, &
+                         alloc_popsfile_dets, tSearchTauOption, tZeroRef, &
                          sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
          tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits, tSetDelayAllDoubsInits, &
@@ -144,6 +145,28 @@ contains
           tTrialShift = .false.
           tFixTrial(:) = .false.
           TrialTarget = 0.0
+          tAdaptiveShift = .false.
+          AdaptiveShiftSigma = 1.0
+          AdaptiveShiftF1 = 0.0
+          AdaptiveShiftF2 = 1.0
+          tAutoAdaptiveShift = .false.
+          AdaptiveShiftThresh = 10
+          AdaptiveShiftExpo = 1
+          AdaptiveShiftCut = -1 !If the user does not specify a value, this will be set to 1.0/HFConn later
+          tAAS_MatEle = .false. 
+          tAAS_MatEle2 = .false.
+          tAAS_MatEle3 = .false.
+          tAAS_MatEle4 = .false.
+          tAAS_SpinScaled = .false.
+          AAS_OppSpin = 1.0
+          AAS_SameSpin = 1.0
+          AAS_DenCut = 0.5
+          tAAS_Reverse = .false.
+          tAAS_Reverse_Weighted = .false.
+          tAAS_Add_Diag = .false.
+          tInitsRDMRef = .false.
+          tInitsRDM = .false.
+          tApplyLC = .true.
           NEquilSteps=0
           NShiftEquilSteps=1000
           TRhoElems=.false.
@@ -258,6 +281,12 @@ contains
           tMultiSpawnThreshold = .false.
           tAddtoInitiator=.false.
           tSTDInits = .false.
+          tActivateLAS = .false.
+          tLogAverageSpawns = .false.
+          spawnSgnThresh = 3.0_dp
+          minInitSpawns = 20
+          lingerTime = 300
+          tTimedDeaths = .false.
           tAVReps = .false.
           tGlobalInitFlag = .false.
           tInitCoherentRule=.true.
@@ -269,9 +298,10 @@ contains
           MaxNoatHF=0.0_dp
           HFPopThresh=0
           tSpatialOnlyHash = .false.
-          tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset
+          tStoredDets = .false.
+          tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset 
           !(by Calc readinput) if I_VMAX=1 and TENERGY is false
-
+          tZeroRef = .false.
           lNoTriples=.false.
           tReadPopsChangeRef = .false.
           tReadPopsRestart = .false.
@@ -305,6 +335,17 @@ contains
 
           ! Truncation based on number of unpaired electrons
           tTruncNOpen = .false.
+
+          ! initiators based on number of open orbs
+          tSeniorityInits = .false.
+          initMaxSenior = 0
+
+          ! keep spawns up to a given seniority + excitation level
+          tSpawnSeniorityBased = .false.
+          numMaxExLvlsSet = 0
+          allocate(maxKeepExLvl(0))
+          tLargeMatelSurvive = .false.
+          spawnMatelThresh = 1.0_dp
 
           ! trunaction for spawns/based on spawns
           t_truncate_unocc = .false.
@@ -441,6 +482,11 @@ contains
 
           tDetermProjApproxHamil = .false.
 
+          ! Giovannis option for RDMs without non-initiators
+          tNonInitsForRDMs = .true.
+          tOutputInitsRDM = .false.
+          tNonVariationalRDMs = .false.
+
         end subroutine SetCalcDefaults
 
         SUBROUTINE CalcReadInput()
@@ -457,7 +503,8 @@ contains
           use ras_data
           use global_utilities
           use Parallel_neci, only : nProcessors
-          use LoggingData, only: tLogDets
+          use util_mod, only: addToIntArray
+          use LoggingData, only: tLogDets, tWriteUnocc
           IMPLICIT NONE
           LOGICAL eof
           CHARACTER (LEN=100) w
@@ -468,6 +515,7 @@ contains
           logical :: tExitNow
           integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
           integer :: npops_pert, npert_spectral_left, npert_spectral_right
+          integer :: maxKeepNOpenBuf, maxKeepExLvlBuf
           real(dp) :: InputDiagSftSingle
 
           ! Allocate and set this default here, because we don't have inum_runs
@@ -653,6 +701,20 @@ contains
                     call report(trim(w)//" only valid for MC "        &
      &                 //"method",.true.)
                 end if
+
+             case("INITS-RDM")
+                ! only take into account initiators when calculating RDMs
+                tOutputInitsRDM = .true.
+                tInitsRDM = .true.
+             case("NO-LAGRANGIAN-RDMS")
+                ! use the default rdms even for adaptive-shift
+                ! this is mainly for debugging/testing purposes, it should not be used in
+                ! production (as the resulting RDMs are flawed)
+                tApplyLC = .false.
+             case("STRICT-INITS-RDM")
+                tNonInitsForRDMs = .false.
+             case("NON-VARIATIONAL-RDMS")
+                tNonVariationalRDMs = .true.
             case("VVDISALLOW")
                 TVVDISALLOW=.TRUE.
             case("MCDIRECTSUM")
@@ -1695,10 +1757,81 @@ contains
                 call stop_all(t_r, 'TRIAL-SHIFT currently not implemented for complex')
 #endif
                 if (item.lt.nitems) then
-                    call readf(TrialTarget)
+                    call getf(TrialTarget)
                 end if
                 tTrialShift = .true.
                 StepsSft = 1
+            case("ADAPTIVE-SHIFT")
+                if (item.lt.nitems) then
+                    call getf(AdaptiveShiftSigma)
+                end if
+                if (item.lt.nitems) then
+                    call getf(AdaptiveShiftF1)
+                    if(AdaptiveShiftF1<0.0 .or. AdaptiveShiftF1>1.0)then
+                        call stop_all(t_r, 'AdaptiveShiftF1 is a scaling parameter and should be between 0.0 and 1.0')
+                    end if
+                end if
+                if (item.lt.nitems) then
+                    call getf(AdaptiveShiftF2)
+                    if(AdaptiveShiftF2<0.0 .or. AdaptiveShiftF2>1.0)then
+                        call stop_all(t_r, 'AdaptiveShiftF2 is a scaling parameter and should be between 0.0 and 1.0')
+                    end if
+                end if
+                tAdaptiveShift = .true.
+            case("AUTO-ADAPTIVE-SHIFT")
+                tAutoAdaptiveShift = .true.
+                tAdaptiveShift = .true.
+                if (item.lt.nitems) then
+                    call getf(AdaptiveShiftThresh)
+                end if
+
+                if (item.lt.nitems) then
+                    call getf(AdaptiveShiftExpo)
+                end if
+
+                if (item.lt.nitems) then
+                    call getf(AdaptiveShiftCut)
+                end if
+            case("AAS-MATELE")
+                tAAS_MatEle = .true.
+                !When using the MatEle, the default value of 10 becomes meaningless
+                AdaptiveShiftThresh = 0.0
+            case("AAS-MATELE2")
+                tAAS_MatEle2 = .true.
+                !When using the MatEle, the default value of 10 becomes meaningless
+                AdaptiveShiftThresh = 0.0
+            case("AAS-MATELE3")
+                tAAS_MatEle3 = .true.
+                !When using the MatEle, the default value of 10 becomes meaningless
+                AdaptiveShiftThresh = 0.0
+            case("AAS-MATELE4")
+                tAAS_MatEle4 = .true.
+                !When using the MatEle, the default value of 10 becomes meaningless
+                AdaptiveShiftThresh = 0.0
+            case("AAS-DEN-CUT")
+                call getf(AAS_DenCut)
+            case("AAS-REVERSE")
+                tAAS_Reverse = .true.
+            case("AAS-REVERSE-WEIGHTED")
+                tAAS_Reverse = .true.
+                tAAS_Reverse_Weighted = .true.
+            case("AAS-ADD-DIAG")
+                tAAS_Add_Diag = .true.
+            case("AAS-SPIN-SCALED")
+                tAAS_SpinScaled = .true.
+                if (item.lt.nitems) then
+                    call getf(AAS_OppSpin)
+                end if
+                if (item.lt.nitems) then
+                    call getf(AAS_SameSpin)
+                end if
+             case("INITS-PROJE")
+                ! deprecated
+             case("INITS-GAMMA0")
+                ! use the density matrix obtained from the initiator space to 
+                ! correct for the adaptive shift
+                tInitsRDMRef = .true.
+                tInitsRDM = .true.
             case("EXITWALKERS")
 !For FCIMC, this is an exit criterion based on the total number of walkers in the system.
                 call getiLong(iExitWalkers)
@@ -1864,6 +1997,11 @@ contains
             case("PROJECTE-MP2")
 !This will find the energy by projection of the configuration of walkers onto the MP2 wavefunction.
                 TProjEMP2=.true.
+            case("ABSOLUTE-ENERGIES")
+! This will zero the reference energy and use absolute energies through the calculation
+! particularly useful for the hubbard model at high U, where no clear reference can be defined
+! and energies are close to 0
+               tZeroRef = .true.
             case("PROJE-CHANGEREF")
 
                 ! If there is a determinant larger than the current reference,
@@ -2032,6 +2170,19 @@ contains
 !determinants outside the active space, however if this is done, they
 !can only spawn back on to the determinant from which they came.  This is the star approximation from the CAS space.
                 tTruncInitiator=.true.
+             case("AVSPAWN-INITIATORS")
+! Create initiators based on the average spawn onto some determinant                
+                tActivateLAS = .true.
+                if(item < nitems) call getf(spawnSgnThresh)
+                if(item < nitems) call geti(minInitSpawns)
+                
+             case("DELAY-DEATHS")
+                ! have determinants persits for a number of iterations after their
+                ! occupation reached 0
+                tTimedDeaths = .true.
+                tWriteUnocc = .true.
+                ! read in said number of iterations
+                if(item < nitems) call geti(lingerTime)
 
              case("REPLICA-GLOBAL-INITIATORS")
 ! with this option, all replicas will use the same initiator flag, which is then set
@@ -2049,6 +2200,30 @@ contains
 
             case("NO-COHERENT-INIT-RULE")
                 tInitCoherentRule=.false.
+
+             case("ALL-SENIORITY-INITS")
+                ! make all determinants with at most initMaxSenior open orbitals initiators
+                tSeniorityInits = .true.
+                ! the maximum number of open orbs, default is 0
+                if(item < nitems) call getI(initMaxSenior)
+
+             case("ALL-SENIORITY-SURVIVE")
+                ! keep all spawns, regardless of initiator criterium, onto 
+                ! determinants up to a given Seniority level and excitation level
+                tSpawnSeniorityBased = .true.
+                do while(item < nitems) 
+                   ! Default: Max Seniority level 0
+                   call geti(maxKeepNOpenBuf)
+                   ! Default: Max excit level 8
+                   call geti(maxKeepExLvlBuf)
+                   call addToIntArray(maxKeepExLvl,maxKeepNOpenBuf+1,maxKeepExLvlBuf)
+                   numMaxExLvlsSet = maxKeepNOpenBuf+1
+                end do
+
+             case("LARGE-MATEL-SURVIVE")
+                ! keep all spawns with a matrix element larger than a given threshold
+                tLargeMatelSurvive = .true.
+                call getf(spawnMatelThresh)
 
 ! Epstein-Nesbet second-order perturbation using the stochastic spawnings to correct initiator error.
             case("EN2-INITIATOR")
@@ -2190,6 +2365,12 @@ contains
                 ! --> All determinants with the same spatial structure will
                 !     end up on the same processor
                 tSpatialOnlyHash = .true.
+
+             case("STORE-DETS")
+                ! store all determinants in their decoded form in memory
+                ! this gives a speed-up at the cost of the memory required for storing 
+                ! all of them
+                tStoredDets = .true.
 
             case("SPAWNASDETS")
 !This is a parallel FCIMC option, which means that the particles at the same determinant on each processor,
@@ -3081,6 +3262,10 @@ contains
           ! <ij|ab> and never need <ib|aj> for double excitations.  We do need
           ! them if we're doing a complete diagonalisation.
           gen2CPMDInts=MAXVAL(NWHTAY(3,:)).ge.3.or.TEnergy
+
+          if(tOutputInitsRDM .and. tInitsRDMRef) call stop_all(t_r, &
+               "Incompatible keywords INITS-GAMMA0 and INITS-RDM")
+
 
           contains
 

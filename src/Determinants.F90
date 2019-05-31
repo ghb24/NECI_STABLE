@@ -170,7 +170,6 @@ contains
       calculated_ms = sum(get_spin_pn(fdet(1:nel)))
        
     End Subroutine DetPreFreezeInit
-
     
     Subroutine DetInit()
      

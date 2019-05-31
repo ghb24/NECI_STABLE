@@ -886,7 +886,7 @@ contains
         integer, intent(in) :: nwalkers
         real(dp) :: nwalkers_per_site_init
         integer :: i, ireplica, excit, nattempts, DetHash
-        integer :: nspawns, ndets
+        integer :: nspawns, ndets, err
         integer(n_int) :: ilut(0:NIfTot)
         integer :: nI(nel)
         real(dp) :: r, walker_amp, walker_sign(lenof_sign_kp)
@@ -929,7 +929,7 @@ contains
             do ireplica = 1, inum_runs
                 walker_sign = 0.0_dp
                 walker_sign(ireplica) = walker_amp
-                call create_particle(nI, ilut, walker_sign, ireplica, hdiag_spawn)
+                call create_particle(nI, ilut, walker_sign, ireplica, hdiag_spawn, err)
             end do
         end do
 

@@ -7,7 +7,8 @@ module fcimc_output
                            instant_s2_multiplier, tPrintFCIMCPsi, &
                            iWriteHistEvery, tDiagAllSpaceEver, OffDiagMax, &
                            OffDiagBinRange, tCalcVariationalEnergy, &
-                           iHighPopWrite, tLogEXLEVELStats
+                           iHighPopWrite, tLogEXLEVELStats, &
+                           maxInitExLvlWrite, AllInitsPerExLvl
     use hist_data, only: Histogram, AllHistogram, InstHist, AllInstHist, &
                          BeforeNormHist, iNoBins, BinRange, HistogramEnergy, &
                          AllHistogramEnergy
@@ -15,7 +16,7 @@ module fcimc_output
                         DiagSft, tSpatialOnlyHash, tOrthogonaliseReplicas, &
                         StepsSft, tPrintReplicaOverlaps, tStartTrialLater, &
                         tSemiStochastic, allCorespaceWalkers, tEN2, &
-                        tGlobalInitFlag, t_truncate_spawns
+                        tGlobalInitFlag, t_truncate_spawns, tTimedDeaths
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
     use IntegralsData, only: frozen_orb_list, frozen_orb_reverse_map, &
@@ -26,7 +27,8 @@ module fcimc_output
     use bit_rep_data, only: niftot, nifd, flag_initiator
     use hist, only: calc_s_squared_star, calc_s_squared
     use fcimc_helper, only: LanczosFindGroundE
-    use Determinants, only: write_det
+    use hphf_integrals, only: hphf_diag_helement
+    use Determinants, only: write_det, get_helement
     use adi_data, only: AllCoherentDoubles, AllIncoherentDets, nRefs, &
          ilutRefAdi, tAdiActive, nConnection, AllConnection
     use rdm_data, only: en_pert_main
@@ -46,20 +48,36 @@ module fcimc_output
 contains
 
     SUBROUTINE WriteFciMCStatsHeader()
-        integer i, j, k, run
+        integer i, j, k, run, offset
         character(256) label
         character(32) tchar_r, tchar_i, tchar_j, tchar_k
         character(17) trunc_caption
+
+        call getProjEOffset()
 
         IF(iProcIndex.eq.root) THEN
 !Print out initial starting configurations
             WRITE(iout,*) ""
             IF(tTruncInitiator) THEN
-                WRITE(initiatorstats_unit,"(A2,A17,15A23)") "# ","1.Step","2.TotWalk","3.Annihil","4.Died", &
-                & "5.Born","6.TotUniqDets",&
-&               "7.InitDets","8.NonInitDets","9.InitWalks","10.NonInitWalks","11.AbortedWalks", &
-               "12. Removed Dets",  "13. Insufficiently connected", "14. Coherent Doubles", &
-               "15. Incoherent Dets"
+               WRITE(initiatorstats_unit,"(A2,A17,15A23)", advance = 'no') &
+                    "# ","1.Step","2.TotWalk","3.Annihil","4.Died", &
+                    & "5.Born","6.TotUniqDets",&
+                    &               "7.InitDets","8.NonInitDets","9.InitWalks","10.NonInitWalks","11.AbortedWalks", &
+                    "12. Removed Dets",  "13. Initiator Proj.E"
+               offset = 13            
+               if(tTrialWavefunction .or. tStartTrialLater) then
+                  write(initiatorstats_unit,"(A)", advance = 'no') &
+                  "14. TrialNumerators (inits)   15. TrialDenom (inits)"
+                  offset = 15
+               end if
+                do k = 1, maxInitExLvlWrite
+                   write(tchar_k,*) k+offset
+                   write(tchar_r,*) k
+                   tchar_r = trim(adjustl(tchar_k))//'. Inits on ex. lvl '//trim(adjustl(tchar_r))
+                   write(initiatorstats_unit,'(1x,a)', advance = 'no') &
+                        trim(adjustl(tchar_r))
+                end do
+                write(initiatorstats_unit,'()', advance = 'yes')
             ENDIF
             IF(tLogComplexPops) THEN
                 WRITE(complexstats_unit,"(A)") '#   1.Step  2.Shift     3.RealShift     4.ImShift   5.TotParts      " &
@@ -199,6 +217,10 @@ contains
     subroutine WriteFCIMCStats()
         INTEGER :: i, j, run
         real(dp),dimension(inum_runs) :: FracFromSing
+        real(dp) :: projE(inum_runs)
+
+        ! get the offset for the projected energy (i.e. reference energy)
+        call getProjEOffset()
 
         ! What is the current value of S2
         if (tCalcInstantS2) then
@@ -252,7 +274,7 @@ contains
                 aimag(projectionE), &                   !8.     Im   \sum[ nj H0j / n0 ]
                 real(proje_iter, dp), &                 !9.     
                 aimag(proje_iter), &                    !10.
-                real(proje_iter,dp) + Hii, &            !11.
+                real(proje_iter,dp) + OutputHii, &            !11.
                 AllNoatHF(1), &                         !12.
                 AllNoatHF(2), &                         !13.
                 AllNoatDoubs, &                         !14.
@@ -302,13 +324,20 @@ contains
                     IterTime
             endif
             if (tTruncInitiator) then
-               write(initiatorstats_unit,"(I12,4G16.7,3I20,7G16.7,2I20,1G16.7)")&
+               write(initiatorstats_unit,"(I12,4G16.7,3I20,4G16.7,F16.9,2G16.7,2I20,1G16.7)", &
+                    advance = 'no')&
                    Iter + PreviousCycles, sum(AllTotParts), &
                    AllAnnihilated(1), AllNoDied(1), AllNoBorn(1), AllTotWalkers,&
                    AllNoInitDets(1), AllNoNonInitDets(1), AllNoInitWalk(1), &
                    AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1), &
-                   AllConnection, AllCoherentDoubles, AllIncoherentDets, &
-                   AllNoInitsConflicts, AllNoSIInitsConflicts, AllAvSigns
+                   inits_proje_iter(1) + Hii
+               if(tTrialWavefunction .or. tStartTrialLater) &
+                    write(initiatorstats_unit, "(2G16.7)", advance = 'no') &
+                    tot_init_trial_numerator(1)/StepsSft, tot_init_trial_denom(1)/StepsSft
+               do j = 1, maxInitExLvlWrite
+                  write(initiatorstats_unit,'(1I20)', advance ='no') AllInitsPerExLvl(j)/StepsSft
+               end do
+               write(initiatorstats_unit,'()', advance = 'yes')
             endif
             if (tLogComplexPops) then
                 write (complexstats_unit,"(I12,6G16.7)") &
@@ -341,7 +370,7 @@ contains
                 0.0_dp, &                                  ! 20.
                 HFShift(2), &                              ! 21.
                 InstShift(2), &                            ! 22.
-                proje_iter(2) + Hii, &                     ! 23.
+                proje_iter(2) + OutputHii, &                     ! 23.
                 (AllHFCyc(2) / StepsSft), &                ! 24.
                 (AllENumCyc(2) / StepsSft), &              ! 25.
                 AllNoatHF(2) / norm_psi(2), &              ! 26.
@@ -390,7 +419,7 @@ contains
                 0.0_dp, &                                  ! 20.
                 HFShift(1), &                              ! 21.
                 InstShift(1), &                            ! 22.
-                proje_iter(1) + Hii, &                     ! 23.
+                proje_iter(1) + OutputHii, &                     ! 23.
                 (AllHFCyc(1) / StepsSft), &                ! 24.
                 (AllENumCyc(1) / StepsSft), &              ! 25.
                 AllNoatHF(1) / norm_psi(1), &              ! 26.
@@ -439,13 +468,20 @@ contains
                     IterTime
             endif
             if (tTruncInitiator) then
-               write(initiatorstats_unit,"(I12,4G16.7,3I20,7G16.7,2I20,1G16.7)")&
+               write(initiatorstats_unit,"(I12,4G16.7,3I20,4G16.7,F16.9,2G16.7,2I20,1G16.7)", &
+                    advance = 'no')&
                    Iter + PreviousCycles, AllTotParts(1), &
                    AllAnnihilated(1), AllNoDied(1), AllNoBorn(1), AllTotWalkers,&
                    AllNoInitDets(1), AllNoNonInitDets(1), AllNoInitWalk(1), &
                    AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1), &
-                   AllConnection, AllCoherentDoubles, AllIncoherentDets, &
-                   AllNoInitsConflicts, AllNoSIInitsConflicts, AllAvSigns
+                   inits_proje_iter(1) + Hii
+               if(tTrialWavefunction .or. tStartTrialLater) &
+                    write(initiatorstats_unit, "(2G16.7)", advance = 'no') &
+                    tot_init_trial_numerator(1)/StepsSft, tot_init_trial_denom(1)/StepsSft
+               do j = 1, maxInitExLvlWrite
+                  write(initiatorstats_unit,'(1I20)', advance ='no') AllInitsPerExLvl(j)
+               end do
+               write(initiatorstats_unit,'()', advance = 'yes')
             endif
 #endif
             if (tLogEXLEVELStats) then
@@ -554,6 +590,8 @@ contains
         logical :: init
         real(dp) :: l1_norm
 
+        call getProjEOffset()
+
         ! Provide default 'initial' option
         if (present(initial)) then
             state%init = initial
@@ -565,15 +603,11 @@ contains
 
         ! If the output file hasn't been opened yet, then create it.
         if (iProcIndex == Root .and. .not. inited) then
-            state%funit = get_free_unit()
-            call open_create_stats('fciqmc_stats',state%funit)
-            ! For the initiator stats file here:
-            if (tTruncInitiator) then
-              state_i%funit = get_free_unit()
-              call open_create_stats('initiator_stats',state_i%funit)
-            end if
+           call open_state_file('fciqmc_stats',state)
+           ! For the initiator stats file here:
+           if (tTruncInitiator) call open_state_file('initiator_stats',state_i)
 
-            inited = .true.
+           inited = .true.
         end if
 
         ! What is the current value of S2
@@ -667,13 +701,12 @@ contains
                 call stats_out(state,.false., sum(AllNoAborted), 'No aborted')
 #endif
 #ifdef __CMPLX
-                call stats_out(state,.true., real(proje_iter_tot) + Hii, &
-                               'Tot. Proj. E')
-                !call stats_out(state,.true., aimag(proje_iter_tot) + Hii, &
-                 !              'Im. Tot. Proj. E')
-                call stats_out(state,.false.,allDoubleSpawns,'Double spawns')
+                call stats_out(state,.true., real(proje_iter_tot) + OutputHii, &
+                               'Tot. Proj. E (real)')
+                call stats_out(state,.true., aimag(proje_iter_tot) + OutputHii, &
+                               'Tot. Proj. E (imag)')
 #else
-                call stats_out(state,.true., proje_iter_tot + Hii, &
+                call stats_out(state,.true., proje_iter_tot + OutputHii, &
                                'Tot. Proj. E')
 #endif
             end if
@@ -738,52 +771,52 @@ if(.not. t_real_time_fciqmc) then
       call stats_out (state, .false., DiagSft(p) + Hii, &
            'Shift (' // trim(adjustl(tmpc)) // ')')
 #ifdef __CMPLX
-      call stats_out (state, .false., real(proje_iter(p) + Hii), &
-           'Tot ProjE real (' // trim(adjustl(tmpc)) // ')')
-      call stats_out (state, .false., aimag(proje_iter(p) + Hii), &
-           'Tot ProjE imag (' // trim(adjustl(tmpc)) // ')')
+      call stats_out (state, .false., real(proje_iter(p) + OutputHii), &
+           'Tot ProjE real (' // trim(adjustl(tmpc)) // ")")
+      call stats_out (state, .false., aimag(proje_iter(p) + OutputHii), &
+           'Tot ProjE imag (' // trim(adjustl(tmpc)) // ")")
 
       call stats_out (state, .false., real(AllHFCyc(p) / StepsSft), &
-           'ProjE Denom real (' // trim(adjustl(tmpc)) // ')')
+           'ProjE Denom real (' // trim(adjustl(tmpc)) // ")")
       call stats_out (state, .false., aimag(AllHFCyc(p) / StepsSft), &
-           'ProjE Denom imag (' // trim(adjustl(tmpc)) // ')')
+           'ProjE Denom imag (' // trim(adjustl(tmpc)) // ")")
 
       call stats_out (state, .false., &
-           real((AllENumCyc(p) + Hii*AllHFCyc(p))) / StepsSft,&
-           'ProjE Num real (' // trim(adjustl(tmpc)) // ')')
+           real((AllENumCyc(p) + OutputHii*AllHFCyc(p))) / StepsSft,&
+           'ProjE Num real (' // trim(adjustl(tmpc)) // ")")
       call stats_out (state, .false., &
-           aimag((AllENumCyc(p) + Hii*AllHFCyc(p))) / StepsSft,&
-           'ProjE Num imag (' // trim(adjustl(tmpc)) // ')')
+           aimag((AllENumCyc(p) + OutputHii*AllHFCyc(p))) / StepsSft,&
+           'ProjE Num imag (' // trim(adjustl(tmpc)) // ")")
       if (tTrialWavefunction .or. tStartTrialLater) then
          call stats_out (state, .false., &
               real(tot_trial_numerator(p) / StepsSft), &
-              'TrialE Num real (' // trim(adjustl(tmpc)) // ')')
+              'TrialE Num real (' // trim(adjustl(tmpc)) // ")")
          call stats_out (state, .false., &
               aimag(tot_trial_numerator(p) / StepsSft), &
-              'TrialE Num imag (' // trim(adjustl(tmpc)) // ')')
+              'TrialE Num imag (' // trim(adjustl(tmpc)) // ")")
 
          call stats_out (state, .false., &
               real(tot_trial_denom(p) / StepsSft), &
-              'TrialE Denom real (' // trim(adjustl(tmpc)) // ')')
+              'TrialE Denom real (' // trim(adjustl(tmpc)) // ")")
          call stats_out (state, .false., &
               aimag(tot_trial_denom(p) / StepsSft), &
-              'TrialE Denom imag (' // trim(adjustl(tmpc)) // ')')
+              'TrialE Denom imag (' // trim(adjustl(tmpc)) // ")")
       end if
 #else
-      call stats_out (state, .false., proje_iter(p) + Hii, &
-           'Tot ProjE (' // trim(adjustl(tmpc)) // ')')
+      call stats_out (state, .false., proje_iter(p) + OutputHii, &
+           'Tot ProjE (' // trim(adjustl(tmpc)) // ")")
       call stats_out (state, .false., AllHFCyc(p) / StepsSft, &
-           'ProjE Denom (' // trim(adjustl(tmpc)) // ')')
+           'ProjE Denom (' // trim(adjustl(tmpc)) // ")")
       call stats_out (state, .false., &
-           (AllENumCyc(p) + Hii*AllHFCyc(p)) / StepsSft,&
-           'ProjE Num (' // trim(adjustl(tmpc)) // ')')
+           (AllENumCyc(p) + OutputHii*AllHFCyc(p)) / StepsSft,&
+           'ProjE Num (' // trim(adjustl(tmpc)) // ")")
       if (tTrialWavefunction .or. tStartTrialLater) then
          call stats_out (state, .false., &
               tot_trial_numerator(p) / StepsSft, &
-              'TrialE Num (' // trim(adjustl(tmpc)) // ')')
+              'TrialE Num (' // trim(adjustl(tmpc)) // ")")
          call stats_out (state, .false., &
               tot_trial_denom(p) / StepsSft, &
-              'TrialE Denom (' // trim(adjustl(tmpc)) // ')')
+              'TrialE Denom (' // trim(adjustl(tmpc)) // ")")
       end if
 #endif
 
@@ -845,11 +878,6 @@ endif
             if (tTruncInitiator) then
                 call stats_out(state_i, .false., Iter + PreviousCycles, 'Iter.')
                 call stats_out(state_i, .false., AllTotWalkers, 'TotDets.')
-                call stats_out(state_i, .false., AllNoInitsConflicts/inum_runs,&
-                     'Inc. Inits (normal)')
-                call stats_out(state_i, .false., AllNoSIInitsConflicts/inum_runs,&
-                     'Inc. Inits (SI)')
-                call stats_out(state_i, .false., AllAvSigns, 'Replica-averaged Sign')
                 do p = 1, inum_runs
                     write(tmpc, '(i5)') p
                     call stats_out(state_i, .false., AllTotParts(p), 'TotWalk. (' // trim(adjustl(tmpc)) // ")")
@@ -864,7 +892,6 @@ endif
                     call stats_out(state_i, .false., AllNoNonInitWalk(p), 'NonInitWalks (' // trim(adjustl(tmpc)) // ")")
                 end do
             end if
-
             ! And we are done
             write(state%funit, *)
             if (tTruncInitiator) write(state_i%funit, *)
@@ -877,6 +904,16 @@ endif
         end if
 
     end subroutine write_fcimcstats2
+
+    subroutine open_state_file(filename,state)
+      implicit none
+      character(*), intent(in) :: filename
+      type(write_state_t), intent(inout) :: state
+      ! mini-subroutine for opening a file and assigning it to a state
+      state%funit = get_free_unit()
+      call open_create_stats(filename,state%funit)
+
+    end subroutine open_state_file
 
     subroutine write_padding_init(state)
       implicit none
@@ -1683,6 +1720,145 @@ endif
           end subroutine writeDefDet
 
     END SUBROUTINE PrintHighPops
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine print_fval_hist(enPoints, arPoints)
+      use CalcData, only: tAutoAdaptiveShift
+      implicit none
+      integer, intent(in) :: enPoints, arPoints ! number of points in the histogram's axes
+      integer, allocatable :: hist(:,:), allHist(:,:)
+      real(dp), allocatable :: histEnergy(:), histAccRate(:)
+      integer :: hist_unit
+      integer :: j, i
+      character, parameter :: tab = char(9)
+
+      if(tAutoAdaptiveShift) then
+         ! allocate the buffers
+         allocate(histAccRate(aRPoints))
+         allocate(histEnergy(enPoints))
+         allocate(hist(enPoints,arPoints))
+         allocate(allHist(enPoints, arPoints))
+         ! generate the histogram
+         
+         call generate_fval_histogram(hist, histEnergy, histAccRate, enPoints, &
+              aRPoints ,allHist)
+
+         if(iProcIndex == root) then 
+            ! output the histogram
+            hist_unit = get_free_unit()
+            open(hist_unit, file = 'AccRateHistogram', status = 'unknown')
+            write(hist_unit, *) "# Acc. Rate",tab,tab,"Tot. Occ.",tab,tab,"Occ./Energy"
+            write(hist_unit, '("#",36X)', advance = 'no')
+            do j = 1, enPoints
+               write(hist_unit, '(G17.5)', advance = 'no') histEnergy(j)
+            end do
+            write(hist_unit, '()', advance = 'yes')
+            do i = 1, aRPoints
+               write(hist_unit, '(2G17.5)', advance = 'no') histAccRate(i), sum(allHist(:,i))
+               do j = 1, enPoints
+                  write(hist_unit, '(G17.5)', advance = 'no') allHist(j,i)
+               end do
+               write(hist_unit, '()', advance = 'yes')
+            end do
+
+            close(hist_unit)
+         endif
+
+         ! deallocate the buffers
+         if(allocated(allHist)) deallocate(allHist)
+         if(allocated(hist)) deallocate(hist)
+         if(allocated(histEnergy)) deallocate(histEnergy)
+         if(allocated(histAccRate)) deallocate(histAccRate)
+      endif
+    end subroutine print_fval_hist
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine generate_fval_histogram(hist, histEnergy, histAccRate, &
+         enPoints, accRatePoints, allHist)
+      use global_det_data, only: det_diagH, get_acc_spawns, get_tot_spawns
+      ! count the acceptance ratio per energy and create
+      ! a histogram hist(:,:) with axes histEnergy(:), histAccRate(:)
+      ! entries of hist(:,:) : numer of occurances
+      ! entries of histEnergy(:) : energies of histogram entries (with tolerance, second dimension)
+      ! entries of histAccRate(:) : acc. rates of histogram entries (first dimension)
+      implicit none
+      ! number of energy/acc rate windows in the histogram
+      integer, intent(in) :: enPoints, accRatePoints
+      integer, intent(out) :: hist(enPoints,accRatePoints)
+      integer, intent(out) :: allHist(:,:)
+      real(dp), intent(out) :: histEnergy(enPoints), histAccRate(accRatePoints)
+      integer :: i, run
+      integer :: enInd, arInd
+      real(dp) :: minEn, maxEn, enWindow, arWindow, locMinEn, locMaxEn, totSpawn
+
+      ! get the energy window size (the acc. rate window size is just 1.0/(accRatePoints+1))
+      locMinEn = det_diagH(1)
+      locMaxEn = det_diagH(1)
+      do i = 2, TotWalkers
+         if(det_diagH(i) > locMaxEn) locMaxEn = det_diagH(i)
+         if(det_diagH(i) < locMinEn) locMinEn = det_diagH(i)
+      end do
+      ! communicate the energy window
+      call MPIAllReduce(locMinEn, MPI_MIN, minEn)
+      call MPIAllReduce(locMaxEn, MPI_MAX, maxEn)
+      enWindow = (maxEn - minEn) / real(enPoints,dp)
+
+      if(enWindow > eps) then
+         ! set up the histogram axes
+         arWindow = 1.0_dp / real(accRatePoints,dp)
+         do i = 1, accRatePoints
+            histAccRate(i) = ((i-1)+1.0_dp/2.0_dp)*arWindow
+         end do
+
+         do i = 1, enPoints
+            histEnergy(i) = minEn + (i-1)*enWindow + enWindow/2.0_dp
+         end do
+
+         ! then, fill the histogram itself      
+         hist = 0
+         do i = 1, TotWalkers
+            do run = 1, inum_runs
+               totSpawn = get_tot_spawns(i,run)
+               if(abs(totSpawn) > eps) then
+                  enInd = getHistIndex(det_diagH(i), minEn, enPoints, enWindow)
+                  arInd = getHistIndex(get_acc_spawns(i,run)/totSpawn, &
+                       0.0_dp, accRatePoints, arWindow)
+                  hist(enInd, arInd) = hist(enInd, arInd) + 1
+               end if
+            end do
+         end do
+
+         ! communicate the histogram
+         call MPISum(hist, allHist)
+      else
+         write(iout,*) "WARNING: Empty histogram of acceptance rates"
+      endif
+
+    contains
+
+      function getHistIndex(val, minVal, nPoints, windowSize) result(ind)
+        ! for a given energy, get the position in the histogram
+        implicit none
+        real(dp), intent(in) :: val, minVal, windowSize
+        integer, intent(in) :: nPoints
+        integer :: ind
+
+        if(abs(val - minVal) < eps) then 
+           ! val == minval would else yield 0, but it still belongs to index 1
+           ind = 1
+        else if(abs(val - (minVal + nPoints*windowSize)) < eps) then
+           ! val == maxVal would else yield nPoints + 1, but it still belongs to the last index
+           ind = nPoints
+        else
+           ind = ceiling((val - minVal) / windowSize)
+        endif
+      end function getHistIndex
+
+    end subroutine generate_fval_histogram
+
+!------------------------------------------------------------------------------------------!
             
     subroutine end_iteration_print_warn (totWalkersNew)
         
@@ -1778,5 +1954,26 @@ endif
         endif
 
     end subroutine end_iteration_print_warn 
+
+    subroutine getProjEOffset()
+      ! get the offset of the projected energy versus the total energy, 
+      ! which is the reference energy
+
+      implicit none
+      ! if the reference energy is used as an offset to the hamiltonian (default behaviour)
+      ! just get it
+      if(.not.tZeroRef) then
+         OutputHii = Hii         
+      ! else, calculate the reference energy
+      else if (tHPHF) then
+         OutputHii = hphf_diag_helement (ProjEDet(:,1), &
+              iLutRef(:,1))
+      else
+         OutputHii = get_helement (ProjEDet(:,1), &
+              ProjEDet(:,1), 0)
+      endif
+
+
+    end subroutine getProjEOffset
 
 end module

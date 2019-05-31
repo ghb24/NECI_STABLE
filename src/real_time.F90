@@ -231,7 +231,7 @@ contains
         implicit none
 
         character(*), parameter :: this_routine = "perform_real_time_fciqmc"
-        integer :: j, i, iterRK
+        integer :: j, i, iterRK, err
         real(dp) :: s_start, s_end, tstart(2), tend(2)
         real(dp) :: totalTime
         complex(dp), allocatable :: overlap_buf(:)
@@ -357,11 +357,12 @@ contains
             if(iterRK .eq. 0) iter = iter + 1
             if(tVerletScheme .and. .not. tVerletSweep) iterRK = iterRK + 1            
             if(tVerletSweep) then
-               call perform_verlet_iteration()
+               call perform_verlet_iteration(err)
             else
-               call perform_real_time_iteration() 
+               call perform_real_time_iteration(err)
             endif
-
+            ! exit the calculation if something failed
+            if(err.ne.0) exit
             ! check if somthing happpened to stop the iteration or something
             call check_real_time_iteration()
 
@@ -589,12 +590,13 @@ contains
     end subroutine init_real_time_iteration
 
 
-    subroutine second_real_time_spawn()
+    subroutine second_real_time_spawn(err)
         ! routine for the second spawning step in the 2nd order RK method
         ! to create the k2 spawning list. An important change: 
         ! this "spawning" list also has to contain the diagonal death/cloning
         ! step influence to combine it with the original y(n) 
 !         integer, intent(inout) :: n_determ_states
+      integer, intent(out) :: err
         character(*), parameter :: this_routine = "second_real_time_spawn"
 
         ! mimic the most of this routine to the already written first
@@ -629,7 +631,7 @@ contains
             fcimc_excit_gen_store%tFilled = .false.
 
             call extract_bit_rep(CurrentDets(:,idet), nI_parent, parent_sign, unused_flags, &
-                                  fcimc_excit_gen_store)
+                                  idet, fcimc_excit_gen_store)
 
             ex_level_to_ref = FindBitExcitLevel(iLutRef, CurrentDets(:,idet), max_calc_ex_level)
             if(tRef_Not_HF) then
@@ -730,7 +732,7 @@ contains
                              child_sign, parent_flags, ireplica)
                         call create_particle_with_hash_table (nI_child, ilut_child, child_sign, &
                              ireplica, CurrentDets(:,idet), &
-                             second_spawn_iter_data)
+                             second_spawn_iter_data, err)
                      end if ! If a child was spawned.
 
                   end do ! Over mulitple particles on same determinant.
@@ -770,11 +772,12 @@ contains
 
     end subroutine second_real_time_spawn
 
-    subroutine first_real_time_spawn()
+    subroutine first_real_time_spawn(err)
         ! routine which first loops over the CurrentDets array and creates the 
         ! first spawning list k1 and combines it to y(n) + k1/2
 !         integer, intent(inout) :: n_determ_states
       implicit none
+      integer, intent(out) :: err
         character(*), parameter :: this_routine = "first_real_time_spawn"
         integer :: idet, parent_flags, nI_parent(nel), unused_flags, ex_level_to_ref, &
                    ireplica, nspawn, ispawn, nI_child(nel), ic, ex(2,2), &
@@ -804,7 +807,7 @@ contains
             fcimc_excit_gen_store%tFilled = .false.
 
             call extract_bit_rep(CurrentDets(:,idet), nI_parent, parent_sign, unused_flags, &
-                                  fcimc_excit_gen_store)
+                                  idet, fcimc_excit_gen_store)
 
             ex_level_to_ref = FindBitExcitLevel(iLutRef, CurrentDets(:,idet), max_calc_ex_level)
             if(tRef_Not_HF) then
@@ -908,7 +911,7 @@ contains
 
                         call create_particle_with_hash_table (nI_child, ilut_child, child_sign, &
                                                                ireplica, CurrentDets(:,idet), &
-                                                               iter_data_fciqmc)
+                                                               iter_data_fciqmc, err)
 
                     end if ! If a child was spawned.
 
@@ -955,16 +958,17 @@ contains
         ! the number TotWalkersNew changes below in annihilation routine
         ! Annihilation is done after loop over walkers
         call communicate_and_merge_spawns(MaxIndex, iter_data_fciqmc, .false.)
-        call DirectAnnihilation (TotWalkersNew, MaxIndex, iter_data_fciqmc)
+        call DirectAnnihilation (TotWalkersNew, MaxIndex, iter_data_fciqmc, err)
 
 
         TotWalkers = int(TotWalkersNew, sizeof_int)
 
     end subroutine first_real_time_spawn
 
-    subroutine perform_real_time_iteration()
+    subroutine perform_real_time_iteration(err)
         ! routine which performs one real-time fciqmc iteration
       implicit none
+      integer, intent(out) :: err
         character(*), parameter :: this_routine = "perform_real_time_iteration"
         
         integer :: TotWalkersNew, run, MaxIndex
@@ -995,7 +999,7 @@ if(both) then
         tau_real = tau_real/2.0
         tau_imag = tau_imag/2.0
 endif
-        call first_real_time_spawn()
+        call first_real_time_spawn(err)
 if(both) then
         tau_real = tau_real_tmp
         tau_imag = tau_imag_tmp
@@ -1038,7 +1042,7 @@ if(rktwo) then
         ! information into the spawned k2 list..
         ! quick solution would be to loop again over reloaded y(n)
         ! and do a death step for wach walker
-         call second_real_time_spawn()
+         call second_real_time_spawn(err)
 
         ! 3) 
         ! reload stored temp_det_list y(n) into CurrentDets 
@@ -1084,7 +1088,7 @@ endif
         ! and then do the "normal" annihilation with the SpawnedParts array!
         ! Annihilation is done after loop over walkers
         call communicate_and_merge_spawns(MaxIndex, second_spawn_iter_data, .false.) 
-        call DirectAnnihilation (TotWalkersNew, MaxIndex, second_spawn_iter_data)
+        call DirectAnnihilation (TotWalkersNew, MaxIndex, second_spawn_iter_data, err)
 
 #ifdef __DEBUG
         call check_update_growth(second_spawn_iter_data,"Error in second RK step")
@@ -1108,8 +1112,9 @@ endif
 
     end subroutine perform_real_time_iteration
 
-    subroutine perform_verlet_iteration
+    subroutine perform_verlet_iteration(err)
       implicit none
+      integer, intent(out) :: err
       integer :: TotWalkersNew
 
       call init_verlet_iteration()
@@ -1131,7 +1136,7 @@ endif
       call end_iter_stats(TotWalkersNew)
       ! for semistochastic method, we add in the core -> core spawns
       ! if(tSemiStochastic) call deterministic_annihilation(iter_data_fciqmc)
-      call AnnihilateSpawnedParts(spawnBufSize,TotWalkersNew,iter_data_fciqmc)
+      call AnnihilateSpawnedParts(spawnBufSize,TotWalkersNew,iter_data_fciqmc, err)
       ! Updating the statistics is usually done in the annihilation, but since we
       ! explicitly carry out the annihilation, this has to be included explicitly
       ! (We can not use DirectAnnihilation because we need the communicated spawnedParts

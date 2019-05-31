@@ -153,6 +153,8 @@ module davidson_neci
             if (iprocindex == root) davidson_eigenvalue = hamil_diag(1)
             call mpibcast(davidson_eigenvalue)
             skip_calc = .true.
+            call mpibcast(skip_calc)
+            this%super%skip_calc = skip_calc
             return
         end if
 
@@ -210,13 +212,13 @@ module davidson_neci
             end if
         end if
         if (hamil_type == parallel_sparse_hamil_type) call mpibcast(skip_calc)
+        this%super%skip_calc = skip_calc
         if (skip_calc) return
         ! calculate the intial residual vector.
         call calculate_residual(this, 1)
         call calculate_residual_norm(this)
 
         if (print_info) write(6,'(1x,"done.",/)'); call neci_flush(6)
-        this%super%skip_calc = skip_calc
 
         end associate
 

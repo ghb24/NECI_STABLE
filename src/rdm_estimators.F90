@@ -2,16 +2,18 @@
 
 module rdm_estimators
 
+    use CalcData, only: tAdaptiveShift
     use bit_rep_data, only: NIfTot
     use constants
     use rdm_data, only: rdm_list_t, rdm_spawn_t
-    use rdm_data_utils, only: calc_separate_rdm_labels, extract_sign_rdm
+    use rdm_data_utils, only: calc_separate_rdm_labels, extract_sign_rdm, calc_rdm_trace
 
     implicit none
 
 contains
 
-    subroutine init_rdm_estimates_t(est, nrdms_standard, nrdms_transition, open_output_file)
+    subroutine init_rdm_estimates_t(est, nrdms_standard, nrdms_transition, open_output_file, &
+         filename)
 
         ! Initialise an rdm_estimates_t object. Allocate arrays to be large
         ! enough to hold estimates for nrdms_srandard+nrdms_transition RDMs.
@@ -28,8 +30,10 @@ contains
         type(rdm_estimates_t), intent(out) :: est
         integer, intent(in) :: nrdms_standard, nrdms_transition
         logical, intent(in) :: open_output_file
+        character(*), intent(in), optional :: filename
 
         integer :: nrdms, ierr
+        character(255) :: rdm_filename
 
         nrdms = nrdms_standard + nrdms_transition
 
@@ -86,7 +90,13 @@ contains
         ! If appropriate, create a new RDMEstimates file.
         if (iProcIndex == 0 .and. open_output_file) then
             est%write_unit = get_free_unit()
-            call write_rdm_est_file_header(est%write_unit, nrdms_standard, nrdms_transition)
+            if(present(filename)) then
+               rdm_filename = filename
+            else
+               rdm_filename = "RDMEstimates"
+            endif
+            call write_rdm_est_file_header(est%write_unit, nrdms_standard, nrdms_transition, &
+                 rdm_filename)
         else
             ! If we don't have a file open with this unit, set it to something
             ! unique, so we can easily check, and which will cause an obvious
@@ -138,7 +148,8 @@ contains
 
     end subroutine dealloc_rdm_estimates_t
 
-    subroutine write_rdm_est_file_header(write_unit, nrdms_standard, nrdms_transition)
+    subroutine write_rdm_est_file_header(write_unit, nrdms_standard, nrdms_transition, &
+         filename)
 
         ! Open a new RDMEstimates file (overwriting any existing file), and
         ! write a header to it, appropriate for when we are sampling nrdms RDMs.
@@ -147,10 +158,11 @@ contains
         use LoggingData, only: tCalcPropEst, iNumPropToEst
 
         integer, intent(in) :: write_unit, nrdms_standard, nrdms_transition
+        character(255), intent(in) :: filename
 
         integer :: irdm, iprop
 
-        open(write_unit, file='RDMEstimates', status='unknown', position='append')
+        open(write_unit, file=trim(filename), status='unknown', position='append')
 
         write(write_unit, '("#", 4X, "Iteration")', advance='no')
 
@@ -281,7 +293,8 @@ contains
 
     end subroutine calc_2rdm_estimates_wrapper
 
-    subroutine write_rdm_estimates(rdm_defs, est, final_output, write_to_separate_file)
+    subroutine write_rdm_estimates(rdm_defs, est, final_output, write_to_separate_file, &
+         tInitsRDM)
 
         ! Write RDM estimates to the RDMEstimates file. Specifically, the
         ! numerator of the energy and spin^2 estimators are output, as is the
@@ -298,7 +311,7 @@ contains
 
         type(rdm_definitions_t), intent(in) :: rdm_defs
         type(rdm_estimates_t), intent(in) :: est
-        logical, intent(in) :: final_output, write_to_separate_file
+        logical, intent(in) :: final_output, write_to_separate_file, tInitsRDM
 
         integer :: irdm, iprop
 
@@ -366,7 +379,13 @@ contains
 
         if (final_output) then
             ! Banner for the start of the 2-RDM section in output.
-            write(6,'(1x,2("="),1x,"INFORMATION FOR FINAL 2-RDMS",1x,57("="),/)')
+           if(tInitsRDM) then
+              write(6,'(1x,2("="),1x,"INFORMATION FOR FINAL 2-RDMS (Initiators)",1x,57("="),/)')
+           else if(tAdaptiveShift) then
+              write(6,'(1x,2("="),1x,"INFORMATION FOR FINAL 2-RDMS (Lagrangian)",1x,57("="),/)')
+           else
+              write(6,'(1x,2("="),1x,"INFORMATION FOR FINAL 2-RDMS",1x,57("="),/)')
+           endif
 
             do irdm = 1, est%nrdms_standard
                 write(6,'(1x,"2-RDM ESTIMATES FOR STATE",1x,'//int_fmt(irdm)//',":",)') irdm
@@ -421,44 +440,6 @@ contains
         end if
 
     end subroutine write_rdm_estimates
-
-    subroutine calc_rdm_trace(rdm, rdm_trace)
-
-        ! Calculate trace of the 2-RDM in the rdm object, and output it to
-        ! rdm_trace.
-
-        ! This trace is defined as
-        !
-        ! rdm_trace = \sum_{ij} \Gamma_{ij,ij},
-        !
-        ! where \Gamma_{ij,kl} is the 2-RDM stored in rdm, and i and j are
-        ! spin orbital labels.
-
-        use rdm_data, only: rdm_spawn_t
-
-        type(rdm_list_t), intent(in) :: rdm
-        real(dp), intent(out) :: rdm_trace(rdm%sign_length)
-
-        integer(int_rdm) :: ijkl
-        integer :: ielem
-        integer :: ij, kl, i, j, k, l ! spin orbitals
-        real(dp) :: rdm_sign(rdm%sign_length)
-
-        rdm_trace = 0.0_dp
-
-        ! Loop over all RDM elements.
-        do ielem = 1, rdm%nelements
-            ijkl = rdm%elements(0,ielem)
-            call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
-
-            ! If this is a diagonal element, add the element to the trace.
-            if (ij == kl) then
-                call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
-                rdm_trace = rdm_trace + rdm_sign
-            end if
-        end do
-
-    end subroutine calc_rdm_trace
 
     subroutine calc_rdm_energy(rdm, rdm_energy_1, rdm_energy_2)
 
