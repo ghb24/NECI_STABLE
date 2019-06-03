@@ -14,6 +14,7 @@ module rdm_finalising
     use util_mod
     use CalcData, only: tAdaptiveShift
     use RotateOrbsMod, only: FourIndInts
+    use SystemData, only: tGUGA, nSpatorbs
 
     implicit none
 
@@ -1485,7 +1486,24 @@ contains
             end if
         end if
 
-        ! Currently always printing 1-RDM in spin orbitals.
+        if (tGUGA) then
+            do i = 1, nSpatorbs
+                do j = 1, nSpatorbs
+
+                    if (abs(one_rdm(ind(i),ind(j))) > EPS) then
+                        if (tNormalise .and. (i <= j .or. is_transition_rdm)) then 
+
+                            write(one_rdm_unit, "(2i6, g25.17)") i, j, &
+                                (one_rdm(ind(i),ind(j)) * norm_1rdm)
+
+                        else if (.not. tNormalise) then 
+                            write(one_rdm_unit) i, j, one_rdm(ind(i), ind(j))
+                        end if
+                    end if
+                end do
+            end do
+        else
+            ! Currently always printing 1-RDM in spin orbitals.
             do i = 1, nbasis
                 do j = 1, nbasis
                     if (tOpenShell) then
@@ -1519,6 +1537,7 @@ contains
                     end if
                 end do
             end do
+        end if
 
         close(one_rdm_unit)
 

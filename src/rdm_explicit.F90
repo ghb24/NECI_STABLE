@@ -12,7 +12,7 @@ module rdm_explicit
     use bit_rep_data, only: NIfTot
     use constants
     use SystemData, only : tReltvy, t_3_body_excits, tGUGA
-    use guga_rdm, only: gen_exc_djs_guga
+    use guga_rdm, only: gen_exc_djs_guga, send_proc_ex_djs
 
     implicit none
 
@@ -134,10 +134,13 @@ contains
         use Parallel_neci, only: nProcessors
         use rdm_data, only: Sing_ExcList, Doub_ExcList, Sing_InitExcSlots, Doub_InitExcSlots
         use rdm_data, only: Sing_ExcDjs, Doub_ExcDjs
+        use bit_rep_data, only: nifguga
+        use guga_bitRepOps, only: convert_ilut_toGUGA
 
         integer(n_int), intent(in) :: iLutnI(0:NIfTot)
         logical, intent(in) :: blank_det
         integer :: i
+        integer(n_int) :: ilutG(0:nifguga)
         
         ! Set up excitation arrays.
         ! These are blocked according to the processor the excitation would be
@@ -150,20 +153,38 @@ contains
         Sing_ExcList(:) = 0
         Sing_ExcList(:) = Sing_InitExcSlots(:)
 
-        do i = 0, nProcessors-1
-            Sing_ExcDjs(:,Sing_ExcList(i)) = iLutnI(:)
-            Sing_ExcList(i) = Sing_ExcList(i) + 1
-        end do
+        if (tGUGA) then 
+            call convert_ilut_toGUGA(ilutNi, ilutG)
+
+            do i = 0, nProcessors - 1
+                Sing_ExcDjs(:, Sing_ExcList(i)) = ilutG
+                Sing_ExcList(i) = Sing_ExcList(i) + 1
+            end do
+
+        else
+
+            do i = 0, nProcessors-1
+                Sing_ExcDjs(:,Sing_ExcList(i)) = iLutnI(:)
+                Sing_ExcList(i) = Sing_ExcList(i) + 1
+            end do
+        end if
 
         if (RDMExcitLevel /= 1) then
             Doub_ExcDjs(:,:) = 0
             Doub_ExcList(:) = 0
             Doub_ExcList(:) = Doub_InitExcSlots(:)
 
-            do i = 0,nProcessors-1
-                Doub_ExcDjs(:,Doub_ExcList(i)) = iLutnI(:)
-                Doub_ExcList(i) = Doub_ExcList(i) + 1
-            end do
+            if (tGUGA) then 
+                do i = 0, nProcessors - 1
+                    Doub_ExcDjs(:,Doub_ExcList(i)) = ilutG
+                    Doub_ExcList(i) = Doub_ExcList(i) + 1
+                end do
+            else
+                do i = 0,nProcessors-1
+                    Doub_ExcDjs(:,Doub_ExcList(i)) = iLutnI(:)
+                    Doub_ExcList(i) = Doub_ExcList(i) + 1
+                end do
+            end if
         end if
 
         ! Out of here we will get a filled ExcDjs array with all the single or
@@ -181,7 +202,11 @@ contains
         ! and and binary searches the occupied determinants for this. If found,
         ! we re-find the orbitals and parity involved in the excitation, and
         ! add the c_i*c_j contributions to the corresponding matrix element.
-        call SendProcExcDjs()
+        if (tGUGA) then 
+            call send_proc_ex_djs()
+        else
+            call SendProcExcDjs()
+        end if
 
     end subroutine Add_ExplicitRDM_Contrib
 

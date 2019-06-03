@@ -475,9 +475,6 @@ contains
             return
         end if
 
-!         call write_det_guga(6,ilutI,.true.)
-!         call write_det_guga(6,ilutJ,.true.)
-
         excitInfo = identify_excitation(ilutI, ilutJ)
 
         if (.not. excitInfo%valid) then 
@@ -13836,17 +13833,6 @@ contains
         end do
         end if
 
-!         write(iout,"(A)") "singles done!"
-!         ! print out all single excitations:
-! #ifdef __DEBUG
-!         print *, " all single excitations for ilut. nTot: ", nTot
-!         call write_det_guga(6, ilut)
-!         call write_guga_list(6, tmp_all_excits(:,1:nTot))
-! 
-!         call stop_all(this_routine, "for no")
-! 
-! #endif
-
         ! double excitations 
         ! do it really primitive for now. -> make it more elaborate later
         if (.not. t_temp_singles) then
@@ -15929,7 +15915,6 @@ contains
         ! still do it for now and check if its really always correct...
         select case (current_stepvector(ende))
         case (0)
-!         if (isZero(ilut,ende)) then 
             ! if it is zero it implies i have a lowering generator, otherwise
             ! i wouldnt even be here.
             do iEx = 1, nExcits
@@ -15959,7 +15944,6 @@ contains
             end do
 
         case (3)
-!         else if (isThree(ilut,ende)) then
             ! if d = 3, it implies a raising generator or otherwise we 
             ! would not be here ..
             do iEx = 1, nExcits
@@ -15987,7 +15971,6 @@ contains
             end do
 
         case (1)
-!         else if (isOne(ilut,ende)) then
             ! d=1 needs a deltaB -1 branch, so delete +1 excitations if they
             ! happen to get here. alhough that shouldnt happen with the correct
             ! use of probabilistic weight functions.
@@ -16005,7 +15988,6 @@ contains
                         nExcits = nExcits - 1
                         ! also make noise for now to indicate smth didnt work
                         ! as expected
-!                         print *, "removed excitation at end step!"
                         cycle
                     end if 
                     ! otherwise deal normally with them
@@ -16014,10 +15996,6 @@ contains
                     clr_orb(t, 2*ende - 1)
                     
                     ! matrix element is just 1 so dont do anything 
-!                     tempWeight = extract_part_sign(t, 1) * &
-!                         getSingleMatrixElement(0, 1, deltaB, gen, bVal)
-! 
-!                     call encode_part_sign(t, tempWeight, 1)
                     
                     tempExcits(:,cnt) = t
                     cnt = cnt + 1
@@ -16046,7 +16024,6 @@ contains
             end if
 
         case (2)
-!         else ! d = 2 at end -> needs deltab=+1 -> delete deltaB -1 branches
             cnt = 1
 
             if (gen == 1) then
@@ -16055,7 +16032,6 @@ contains
                     if (deltaB == -1) then
                         tempExcits(:,cnt) = tempExcits(:,nExcits)
                         nExcits = nExcits - 1
-!                         print *, "removed excitation at end step!"
                         cycle
                     end if
                     t = tempExcits(:,cnt)
@@ -16063,11 +16039,6 @@ contains
                     clr_orb(t, 2*ende)
 
                     ! matrix element is just 1 -> so dont do anything
-!                     tempWeight = extract_part_sign(t, 1) * &
-!                         getSingleMatrixElement(0, 2, deltaB, gen, bVal - 1.0_dp)
-! 
-!                     call encode_part_sign(t, tempWeight, 1)
-
                     tempExcits(:,cnt) = t
 
                     cnt = cnt + 1
@@ -16078,7 +16049,6 @@ contains
                     if (deltaB == -1) then
                         tempExcits(:,cnt) = tempExcits(:,nExcits)
                         nExcits = nExcits - 1
-!                         print *, "removed excitation at end step!"
                         cycle
                     end if
                     t = tempExcits(:,cnt)
@@ -16093,7 +16063,6 @@ contains
                     cnt = cnt + 1
                 end do
             end if
-!         end if
         end select
         ! now have to cut tempExcits to only necessary 
         ! and used entries and output it!

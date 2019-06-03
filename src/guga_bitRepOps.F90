@@ -22,12 +22,6 @@ module guga_bitRepOps
     implicit none
 
     ! interfaces
-    
-!     interface convert_ilut
-!         module procedure convert_ilut_toGUGA
-!         module procedure convert_ilut_toNECI
-!     end interface convert_ilut
-! 
     interface isProperCSF_ilut
         module procedure isProperCSF_b
         module procedure isProperCSF_sys
@@ -37,16 +31,6 @@ module guga_bitRepOps
         module procedure find_switches_ilut
         module procedure find_switches_stepvector
     end interface find_switches
-!     interface calcB_vector
-!         module procedure calcB_vector_nI
-!         module procedure calcB_vector_ilut
-!     end interface calcB_vector
-
-!     interface isProperCSF
-!         ! used to check if it is a proper csf (b>=0) etc. 
-!         module procedure isProperCSF_nI
-!         !module procedure isProperCSF_ilut
-!     end interface isProperCSF
 
 contains
 
@@ -230,23 +214,10 @@ contains
         ! actually for the double-change check i just need the change 
         ! in the doubly occupied orbitals.. so where both alpha and beta 
         ! orbitals are occupied
-!         mask_doubles = ieor(iand(ilutI,alpha_i),iand(ilutI,ishft(beta_i,+1)))
 
         ! the correct mask_doubles, atleast dn=+-2 or dn=0 & n=0,2
         mask_change_2 = iand(not(mask_change_1),not(mask_singles))
         mask_change_0 = iand(not(mask_change_1),mask_singles)
-
-!         mask_doubles = not(mask_singles)
-        
-!         mask_doubles = iand(not(mask_singles), iand(singles_i, ishft(singles_i,+1)))
-
-!         print *, "======================"
-!         print *, "change_1:, n_change_1: ", n_change_1
-!         call writedetbit(6, change_1, .true.)
-!         print *, "mask_singles:"
-!         call writedetbit(6, mask_singles, .true.)
-!         print *, "mask_change_2:"
-!         call writedetbit(6, mask_change_2, .true.)
 
         ! also determine the +-2 changes 
         ! should be enough to mask the positions of the 3 and 0 and then 
@@ -257,9 +228,6 @@ contains
         ! can i say something about the holes and electrons here? 
         ! i could check with the index of the change, if it is a 0 or a 3..
         
-!         print *, "change_2, n_change_2: ", n_change_2
-!         call writedetbit(6, change_2, .true.)
-!         print *, "======"
         ! so... what can i say about the validness of the excitation here .. 
         ! i still have to determine spin coupling changes outside the 
         ! index range of the excitation.. but it is probably better to do 
@@ -306,8 +274,6 @@ contains
         ! happen a lot and still represent a valid excitation
         ! so atleast check the double changes too.. 
 
-!         print *, "n_change_1, n_change_2", n_change_1, n_change_2
-
         if (n_change_1 + n_change_2 > 4) then 
             ! no possible excitation
             return 
@@ -316,9 +282,6 @@ contains
             ! could check spin-coupling here, since i need it in all cases 
             ! below.. 
             spin_change = ieor(iand(ilutI, mask_singles), iand(ilutJ, mask_singles))
-! 
-!             print *, "spin_change, n_spin_change:", sum(popcnt(spin_change))
-!             call writedetbit(6, spin_change, .true.)
 
             ! need the first and last index to check the indices 
             ! maybe i need to loop over the number of used integers to determine 
@@ -1545,70 +1508,6 @@ contains
             return
         end if
         ! make the spin_change bit-rep
-!         alpha_i = iand(iI(0:nifd), MaskAlpha)
-!         beta_i = iand (iI(0:nifd), MaskBeta) 
-!         alpha_i = ishft(alpha_i, -1) 
-!         alpha_i = ieor(alpha_i, beta_i) 
-! 
-!         alpha_j = iand(iJ(0:nifd), MaskAlpha)
-!         beta_j = iand(iJ(0:nifd), MaskBeta) 
-!         alpha_j = ishft(alpha_j, -1) 
-!         alpha_j = ieor(alpha_j, beta_j) 
-! 
-!         mask_singles = iand(alpha_i, alpha_j)
-!         mask_singles = ieor(mask_singles, ishft(mask_singles,+1))
-! 
-!         spin_change = ieor(iand(iI(0:nifd), mask_singles), iand(iJ(0:nifd),mask_singles))
-! 
-! !         if (start == 5 .and. semi == 6 .and. isTwo(iI,5) .and. isOne(iJ,5)) then
-! !             print *, "spin change before:"
-! !             call writedetbit(6,spin_change,.true.)
-! !         end if
-! 
-!         orb = 0
-! 
-!         ! stupid me... i have to only check in the overlap region.. or in 
-!         ! the region specified by the input.. not on the whole excitation..
-!         ! i always want to include the starting index, but exclude the 
-!         ! actually inputted semi index and only consider the spatial orbital
-!         ! one before!
-!         ind_2 = [2 * (start -1) / bits_n_int, mod(2 * (start - 1), bits_n_int)]
-!         ind_3 = [2 * (semi - 1) / bits_n_int, mod(2 * (semi - 1), bits_n_int)] 
-!         
-!         mask_2(ind_2(1)+1:nifd) = -1_n_int
-!         mask_2(0:ind_2(1)-1) = 0_n_int
-! 
-!         mask_3(0:ind_3(1)-1) = -1_n_int
-!         mask_3(ind_3(1)+1:nifd) = 0_n_int
-! 
-!         mask_2(ind_2(1)) = maskl(bits_n_int - ind_2(2), n_int)
-!         mask_3(ind_3(1)) = maskr(ind_3(2), n_int) 
-! 
-!         spin_change = iand(spin_change, iand(mask_2, mask_3))
-! 
-! !         if (start == 5 .and. semi == 6 .and. isTwo(iI,5) .and. isOne(iJ,5)) then
-! !             print *, "spin change:"
-! !             call writedetbit(6,spin_change,.true.)
-! !             print *, "mask_2:"
-! !             call writedetbit(6,mask_2,.true.)
-! !             print *, "mask_3:"
-! !             call writedetbit(6,mask_3,.true.)
-! ! ! 
-! !         end if
-!         do i = 0, nifd
-!             if (spin_change(i) == 0) cycle 
-! 
-!             orb = 1 + ishft(bits_n_int * i + trailz(spin_change(i)), -1)
-!             exit 
-!         end do
-! 
-!         ! only consider spin_changes below semi
-!         if (orb > semi - 1) orb = 0
-! 
-!         ! maybe i could do the check also with: 
-!         ! nah! because i want to check specifically in the overlap 
-!         ! region! or the region specified by start and semi! 
-!         if (orb < start) orb = 0
 
         ! todo check if this change worked!
         ! ok... i have two different goals here.. 
@@ -1653,87 +1552,13 @@ contains
 
         ! also implement this with the new fortran 2008 routines! 
         ! make the spin_change bit-rep
-!         alpha_i = iand(ilutI(0:nifd), MaskAlpha)
-!         beta_i = iand (ilutI(0:nifd), MaskBeta) 
-!         alpha_i = ishft(alpha_i, -1) 
-!         alpha_i = ieor(alpha_i, beta_i) 
-! 
-!         alpha_j = iand(ilutJ(0:nifd), MaskAlpha)
-!         beta_j = iand(ilutJ(0:nifd), MaskBeta) 
-!         alpha_j = ishft(alpha_j, -1) 
-!         alpha_j = ieor(alpha_j, beta_j) 
-! 
-!         mask_singles = iand(alpha_i, alpha_j)
-!         mask_singles = ieor(mask_singles, ishft(mask_singles,+1))
-! 
-!         spin_change = ieor(iand(ilutI(0:nifd), mask_singles), iand(ilutJ(0:nifd),mask_singles))
-! 
-! !         print *, "spin change before: "
-! !         call writedetbit(6,spin_change,.true.)
-! 
-!         orb = nSpatOrbs + 1
-! 
-!         ! i also have to reduce the spin change to the specified region here!
-!         ind_2 = [2 * semi / bits_n_int, mod(2 * semi, bits_n_int)]
-!         ind_3 = [2 * ende / bits_n_int, mod(2 * ende, bits_n_int)] 
-! 
-!         mask_2(ind_2(1)+1:nifd) = -1_n_int
-!         mask_2(0:ind_2(1)-1) = 0_n_int
-! 
-!         mask_3(0:ind_3(1)-1) = -1_n_int
-!         mask_3(ind_3(1)+1:nifd) = 0_n_int
-! 
-!         mask_2(ind_2(1)) = maskl(bits_n_int - ind_2(2), n_int)
-!         mask_3(ind_3(1)) = maskr(ind_3(2), n_int) 
-! 
-!         spin_change = iand(spin_change, iand(mask_2, mask_3))
-! 
-! !         print *, "mask_2"
-! !         call writedetbit(6,mask_2,.true.)
-! !         print *, "mask_3:"
-! !         call writedetbit(6,mask_3,.true.)
-! !         print *, "spin change after:"
-! !         call writedetbit(6,spin_change,.true.)
-! 
-!         if (.not. spin_change(nifd) == 0) then 
-!             i = nBasis 
-!             j = leadz(spin_change(nifd)) - (bits_n_int - mod(nBasis, bits_n_int))
-! 
-!             orb = ishft(i - j, -1) 
-! 
-!         else 
-!             res_orbs = mod(nBasis, bits_n_int)
-! 
-!             do i = nifd - 1, 0, -1 
-!                 if (spin_change(i) == 0) then 
-!                     res_orbs = res_orbs + bits_n_int
-!                     cycle
-!                 end if
-! 
-!                 j = nBasis 
-!                 k = leadz(spin_change(i)) 
-! 
-!                 orb = ishft(j - res_orbs - k, -1)
-! 
-!                 exit 
-!             end do
-!         end if
-! 
-!         ! only consider switches above semi! 
-!         if (orb < semi + 1) orb = nSpatOrbs + 1
-! 
-!         if (orb > ende) orb = nSpatOrbs + 1
-
-        ! todo check if this works as intended!
 
         orb = nSpatOrbs + 1
 
         do iOrb = ende, semi + 1, -1
             a = getStepvalue(ilutI,iOrb)
-!             a = current_stepvector(iOrb)
             b = getStepvalue(ilutJ,iOrb)
             if (a /= b) then
-!             if (getStepvalue(ilutI,iOrb) /= getStepvalue(ilutJ,iOrb)) then
                 orb = iOrb
                 return
             end if
@@ -1757,24 +1582,10 @@ contains
 
         abs_pos = 0
         min_ind = 1
-
-!         tmp_deb = 0
-
-!         if (nDets1 == 442465 .and. nDets2 == 393) then 
-!             print *, "add start?"
-!             tmp_deb = nDets1
-!             print *, "nifguga: ", nifguga
-!         end if
         
         do i = 1, nDets2
            
             pos = binary_search(list1(0:nifd,min_ind:ndets1), list2(0:nifd,i))
-!             pos = binary_search(list1(:,min_ind:ndets1), list2(:,i), nifd + 1)
-
-!             if (tmp_deb == 442465 .and. nDets2 == 393) then 
-!                 print *, "i, pos: ", i, pos
-!             end if
-
             if (pos > 0) then
                 ! try new implementation of that without the need of an extra
                 ! output list
@@ -1783,13 +1594,6 @@ contains
                 ! sublists
                 abs_pos = abs_pos + pos
 
-!                 if (tmp_deb == 442465 .and. nDets2 == 393) then 
-!                     print *, "abs_pos, min_ind: ", abs_pos, min_ind
-!                     print *, "size list1:", size(list1,1), size(list1,2)
-!                     print *, "size+1:", nDets1 + 1, size(list1,2) + 1
-!                 end if
-! 
-! 
                 ! when element found just update the matrix element and update
                 ! the indices 
                 call encode_matrix_element(list1(:,abs_pos), &
@@ -1800,50 +1604,19 @@ contains
                 min_ind = min_ind + pos
 
 
-!                 listOut(:,nDetsOut+1:nDetsOut + pos -1) = list1(:,min_ind:min_ind+pos-2)
-! 
-!                 nDetsOut = nDetsOut + pos
-! 
-!                 weight = extract_matrix_element(list1(:,min_ind+pos-1), 1)
-! 
-!                 weight = weight + extract_matrix_element(list2(:,i), 1)
-! 
-!                 listOut(:, nDetsOut) = list2(:,i)
-! 
-!                 call encode_matrix_element(listOut(:,nDetsOut), weight, 1)
-! 
-!                 min_ind = min_ind + pos
-
             else
                 ! if the entry is not in list1 i have to move down all 
                 ! subsequent elements after the found position and insert the 
                 ! new entry at the indicated absolute position
                 abs_pos = abs_pos - pos
 
-!                 if (tmp_deb == 442465 .and. nDets2 == 393) then 
-!                     print *, "abs_pos, min_ind: ", abs_pos, min_ind
-!                     print *, "size list1:", size(list1,1), size(list1,2)
-!                     print *, "size+1:", nDets1 + 1, size(list1,2) + 1
-!                     print *, "ndets1: ", nDets1
-!                 end if
-
                 ! is this too big to copy in one go?? 
                 do j = nDets1, abs_pos,-1
-!                     if (tmp_deb == 442465 .and. nDets2 == 393) then 
-!                         print *, "j: ", j
-!                     end if
                     list1(:,j+1) = list1(:,j)
                 end do
-!                 list1(0:nifguga,(abs_pos+1):(nDets1+1)) = list1(0:nifguga,abs_pos:nDets1)
-!                 if (tmp_deb == 442465 .and. nDets2 == 393) then 
-!                     print *, "does the move work??"
-!                 end if
                 ! and add the new entry
                 list1(:,abs_pos) = list2(:,i)
 
-!                 if (tmp_deb == 442465 .and. nDets2 == 393) then 
-!                     print *, "or the input?"
-!                 end if
                 ! the minimum index to search from now on should not include 
                 ! the inserted element, since there should be no repetitions 
                 ! in both lists
@@ -1851,14 +1624,6 @@ contains
 
                 ! and i have to update the number of determinants in list1
                 nDets1 = nDets1 + 1
-
-!                 listOut(:,nDetsOut+1:nDetsOut-pos-1) = list1(:,min_ind:min_ind-pos-2)
-! 
-!                 nDetsOut = nDetsOut - pos
-! 
-!                 listOut(:,nDetsOut) = list2(:,i)
-! 
-!                 min_ind = min_ind - pos - 1
 
             end if
         end do
@@ -2000,24 +1765,6 @@ contains
                 nOpen = nOpen + 1
             end if
         end do
-! 
-!         if (i < j) then
-!             mask = getExcitationRangeMask(i, j)
-!             mask = iand(ilut, mask)
-!             beta = iand(mask, MaskBeta)
-!             alpha = iand(mask, MaskAlpha)
-! 
-!             alpha = ishft(alpha,-1_n_int)
-! 
-!             beta = iand(ieor(alpha,beta),beta)
-! 
-!             nOpen = CountBits(beta, nifd)
-!         else if (i == j) then
-!             if (isOne(ilut,i)) then
-!                 nOpen = 1
-!             end if
-!         end if
-
     end function count_beta_orbs_ij
 
     function count_alpha_orbs_ij(ilut, i, j) result(nOpen)
@@ -2044,34 +1791,6 @@ contains
             end if 
         end do
 ! 
-!         if (i < j) then
-!             mask = getExcitationRangeMask(i, j)
-!             if ( i == 2 .and. j == 16) then
-!                 print *, "mask bef: ", mask
-!             end if
-!             mask = iand(ilut, mask)
-!             alpha = iand(mask, MaskAlpha)
-!             beta = iand(mask, MaskBeta)
-! 
-!             beta = ishft(beta,+1_n_int)
-! 
-!             alpha = iand(ieor(beta,alpha),alpha)
-! 
-!             nOpen = CountBits(alpha, nifd)
-!         else if (i == j) then
-!             if (isTwo(ilut,i)) then
-!                 nOpen = 1
-!             end if
-!         end if
-! ! 
-!         if (i == 2 .and. j == 16) then 
-!             print *, "nOpen: ", nOpen
-!             print *, "ilut: ", ilut
-!             print *, "mask:" , mask
-!             print *, "alpha: ", alpha
-!             print *, "beta: ", beta
-!         end if
-
     end function count_alpha_orbs_ij
 
     function count_open_orbs_ij(i, j, L) result(nOpen)
@@ -2112,23 +1831,6 @@ contains
                 end if
             end do
         end if
-
-!         if (i < j) then
-! 
-!             ! first have to create a integer mask were every bit between 
-!             ! correspongin spin orbitals for i and j is set. and then i can give
-!             ! it to the already provided open orbital counting function
-!             mask = getExcitationRangeMask(i, j)
-! 
-!             ! use it to indicate only these orbitals
-!             nOpen = count_open_orbs(iand(L, mask))
-!         else if (i == j) then
-!             ! have to do this to avoid too long lines...
-!             flag = isOne(L,i)
-!             if (flag .or. isTwo(L,i)) then
-!                 nOpen = 1
-!             end if
-!         end if
 
     end function count_open_orbs_ij
 
@@ -2186,31 +1888,9 @@ contains
         character(*), parameter :: this_routine = "getDeltaB"
 
         ! check if flags are correctly set
-!         ASSERT(.not.(test_flag(ilut, flag_deltaB_double) .and. test_flag(ilut, flag_deltaB_single)))
-
         
         ! and this should now jsut be:
         deltaB = ilut(nIfGUGA)
-
-!         if (test_flag(ilut, flag_deltaB_double)) then
-!             if (test_flag(ilut, flag_deltaB_sign)) then
-!                 deltaB = -2
-!             else
-!                 deltaB = 2
-!             end if
-! 
-!         else 
-!             if (test_flag(ilut, flag_deltaB_single)) then
-!                 if (test_flag(ilut, flag_deltaB_sign)) then
-!                     deltaB = -1
-!                 else
-!                     deltaB = 1
-!                 end if
-! 
-!             else 
-!                 deltaB = 0
-!             end if
-!         end if
 
     end function getDeltaB
 
