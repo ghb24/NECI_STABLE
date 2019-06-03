@@ -22,6 +22,8 @@ MODULE Logging
 
     IMPLICIT NONE
 
+    logical, public :: RDMlinspace_in_inp, calcrdmonfly_in_inp
+
     contains
 
     subroutine SetLogDefaults()
@@ -535,6 +537,7 @@ MODULE Logging
 !This starts at IterRDMonFly iterations after the shift changes.
 !If RDMExcitLevel = 1, only the 1 electron RDM is found, if RDMExcitLevel = 2,
 ! only the 2 electron RDM is found and if RDMExcitLevel = 3, both are found.
+            calcrdmonfly_in_inp = .true.
             tRDMonFly=.true.
             tCheckHighestPop = .true.
             call readi(RDMExcitLevel)
@@ -560,8 +563,9 @@ MODULE Logging
 
         case("RDMLINSPACE")
 !> This keyword is an improved way to specify the RDM sampling intervals.
-!> The syntax is ``RDMlinspace start  n_samples  step``.
+!> The syntax is ``RDMlinspace  start n_samples  step``.
 !> The RDMExcitLevel is set to three in this routine.
+            RDMlinspace_in_inp = .true.
             tRDMonFly=.true.
             tCheckHighestPop = .true.
 

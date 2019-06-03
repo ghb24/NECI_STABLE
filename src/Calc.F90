@@ -47,6 +47,8 @@ MODULE Calc
 
     implicit none
 
+    logical, public :: RDMsamplingiters_in_inp
+
 contains
 
     subroutine SetCalcDefaults()
@@ -628,6 +630,7 @@ contains
 
             case("RDMSAMPLINGITERS")
                 !How many iterations do we want to sample the RDM for?
+                RDMsamplingiters_in_inp = .true.
                 call readi(iSampleRDMIters)
 
             case("CYCLES")
