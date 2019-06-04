@@ -385,7 +385,7 @@ module LMat_mod
 
       if(tHDF5LMat) then
 #ifdef __USE_HDF
-         call readHDF5LMat(LMatLoc,LMatLocWin,LMatLocTag,h5filename)
+         call readHDF5LMat(LMatLoc,h5filename)
 #else
          call stop_all(t_r, "HDF5 integral files disabled at compile time")
 #endif
@@ -474,6 +474,7 @@ module LMat_mod
       integer(MPIArg) :: procs_per_node, ierr
       real(dp) :: rVal
       logical :: running, any_running
+      integer :: counter, allCounter, LMatSize
       rVal = 0.0_dp
 
       call h5open_f(err)
@@ -546,6 +547,7 @@ module LMat_mod
             LMatPtr(LMatInd(int(indices(1,i),int64),int(indices(2,i),int64),int(indices(3,i),int64),&
                  int(indices(4,i),int64),int(indices(5,i),int64),int(indices(6,i),int64))) &
                  = 3.0_dp * transfer(entries(1,i),rVal)
+            if(abs(transfer(entries(1,i),rVal) > 1e-9)) counter = counter + 1
          end do
 
          ! set the size/offset for the next block
@@ -570,6 +572,12 @@ module LMat_mod
       call h5pclose_f(plist_id, err)
       call h5fclose_f(file_id, err)
       call h5close_f(err)
+
+      ! get the number of nonzero elements and the sparsity of LMat
+      call MPISum(counter, allCounter)
+      LMatSize = LMatInd(nBI,nBI,nBI,nBI,nBI,nBI)
+      write(iout,*) "Sparsity of LMat", real(nInts)/real(LMatSize)
+      write(iout,*) "Entries above threshold", real(allCounter)/real(LMatSize)
       
     end subroutine readHDF5LMat
 #endif

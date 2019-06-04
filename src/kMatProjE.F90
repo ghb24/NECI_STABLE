@@ -334,10 +334,11 @@ module kMatProjE
       integer, intent(in) :: i,j,k,l,s1,s2
       real(dp) :: matel
 
+      ! kMat enters the Hamiltonian with a negative sign - add here
       if(s1.eq.s2) then
-         matel = kMatAA%directElement(i,j,k,l)
+         matel = - kMatAA%directElement(i,j,k,l)
       else
-         matel = kMatAB%directElement(i,j,k,l)
+         matel = - kMatAB%directElement(i,j,k,l)
       endif
     end function spinKMatContrib
 
