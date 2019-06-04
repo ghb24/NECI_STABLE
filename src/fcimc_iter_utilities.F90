@@ -1131,9 +1131,6 @@ contains
         cont_spawn_attempts = 0
         cont_spawn_success = 0
 
-        ! reset the number of conflicts
-        ConflictExLvl = 0
-
         ! reset the truncated weight
         truncatedWeight = 0.0_dp
 
