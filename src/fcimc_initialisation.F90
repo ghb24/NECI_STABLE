@@ -923,10 +923,6 @@ contains
            endif
         endif
            
-
-        allocate(ConflictExLvl(maxConflictExLvl))
-        ConflictExLvl = 0
-
         IF(tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC)) THEN
             ALLOCATE(HistMinInd(NEl))
             ALLOCATE(HistMinInd2(NEl))
@@ -1832,8 +1828,6 @@ contains
 
         deallocate(FreeSlot,stat=ierr)
         if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
-
-        if(allocated(ConflictExLvl)) deallocate(ConflictExLvl)
 
         IF(tHistSpawn.or.tCalcFCIMCPsi) THEN
             DEALLOCATE(Histogram)

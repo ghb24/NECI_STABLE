@@ -7,7 +7,6 @@ MODULE Logging
     use MemoryManager, only: LogMemAlloc, LogMemDealloc,TagIntType
     use SystemData, only: nel, LMS, nbasis, tHistSpinDist, nI_spindist, &
                           hist_spin_dist_iter
-    use FciMCData, only: maxConflictExLvl
     use CalcData, only: tCheckHighestPop, semistoch_shift_iter, trial_shift_iter, &
                         tPairedReplicas, tReplicaEstimates, iSampleRDMIters
     use constants, only: n_int, size_n_int, bits_n_int
@@ -162,7 +161,6 @@ MODULE Logging
       tHDF5PopsRead = .false.
       tHDF5PopsWrite = .false.
       tWriteRefs = .false.
-      maxConflictExlvl = 8
 #ifdef __PROG_NUMRUNS
       tFCIMCStats2 = .true.
 #else
