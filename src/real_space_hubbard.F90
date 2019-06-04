@@ -38,7 +38,7 @@ module real_space_hubbard
                         excit_gen_store_type
 
     use CalcData, only: t_hist_tau_search, t_hist_tau_search_option, tau, & 
-                        t_fill_frequency_hists, p_singles_input, matele_cutoff
+                        t_fill_frequency_hists, pSinglesIn, matele_cutoff
 
     use dsfmt_interface, only: genrand_real2_dsfmt
 
@@ -173,7 +173,7 @@ contains
 
         if (t_trans_corr_hop) then 
             ! we have double excitations with the hopping correlation! 
-            pSingles = p_singles_input 
+            pSingles = pSinglesIn 
             pDoubles = 1.0_dp - pSingles
         else
             ! and i have to point to the new hubbard excitation generator

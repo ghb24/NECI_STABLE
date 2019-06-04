@@ -33,7 +33,6 @@ contains
 
         use hamiltonian_linalg, only: sparse_hamil_type, parallel_sparse_hamil_type
 
-        use davidson_neci, only: DavidsonCalcType, perform_davidson, DestroyDavidsonCalc
         use lanczos_general, only: LanczosCalcType, perform_lanczos, DestroyLanczosCalc
 
 

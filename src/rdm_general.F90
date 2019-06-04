@@ -1032,7 +1032,7 @@ contains
         real(dp), intent(out) :: RDMBiasFacCurr
         real(dp), intent(in) :: p_spawn_rdmfac
         real(dp) :: p_notlist_rdmfac, p_spawn, p_not_spawn, p_max_walktospawn
-        character(len=*), parameter :: t_r = 'attempt_create_normal'
+        character(len=*), parameter :: t_r = 'calc_rdmbiasfac'
 
         ! We eventually turn this real bias factor into an integer to be passed
         ! around with the spawned children and their parents - this only works

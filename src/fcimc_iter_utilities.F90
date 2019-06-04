@@ -1156,10 +1156,15 @@ contains
         call MPIBcast (SumDiagSft)
         call MPIBcast (AvDiagSft)
 
-        do run=1,inum_runs
-            if(.not.tSinglePartPhase(run)) then
+        do run = 1, inum_runs
+            if (.not. tSinglePartPhase(run)) then
                 TargetGrowRate(run)=0.0_dp
-                tSearchTau=.false.
+
+                if (tPreCond) then
+                    if (iter > 80) tSearchTau = .false.
+                else
+                    tSearchTau = .false.
+                end if
             endif
         enddo
        
