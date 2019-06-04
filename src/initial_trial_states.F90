@@ -431,8 +431,6 @@ contains
                 call eig(H_tmp, evals_all, evecs_all,.true.)
 !                 call eig(H_tmp, evals_all, evecs_all)
                 ! is it sorted by energy? 
-                root_print "eigenvalues: ", evals_all
-                root_print "eigenvectors: "
 
                 if_root
                     call print_matrix(evecs_all)

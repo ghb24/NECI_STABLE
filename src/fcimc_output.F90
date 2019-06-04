@@ -15,7 +15,7 @@ module fcimc_output
     use CalcData, only: tTruncInitiator, tTrialWavefunction, tReadPops, &
                         DiagSft, tSpatialOnlyHash, tOrthogonaliseReplicas, &
                         StepsSft, tPrintReplicaOverlaps, tStartTrialLater, tEN2, &
-                        tSemiStochastic, allCorespaceWalkers, &
+                        tSemiStochastic, &
                         tGlobalInitFlag, t_truncate_spawns, tTimedDeaths
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
@@ -600,12 +600,7 @@ contains
 #endif
 #endif
                 call stats_out(state,.true., sum(DiagSft)/inum_runs, 'Shift. (cyc)')
-                if(.not. tSemiStochastic) then
-                   call stats_out(state,.false., sum(AllNoBorn), 'No. born')
-                else
-                   call stats_out(state,.false., allCorespaceWalkers/inum_runs, &
-                        'Walkers in corespace')
-                endif
+                call stats_out(state,.false., sum(AllNoBorn), 'No. born')
                 call stats_out(state,.false., sum(AllNoInitDets), 'No. Inits')
                 call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')
                 call stats_out(state,.false., sum(AllSumWalkersCyc), 'SumWalkersCyc')

@@ -1137,7 +1137,7 @@ contains
             ! Is this determinant more populated than the smallest? First in
             ! the list is always the smallest.
             if (sign_curr_real > smallest_sign) then
-                largest_walkers(:,smallest_pos) = CurrentDets(:,i)
+                largest_walkers(:,smallest_pos) = source(:,i)
 
                 ! Instead of resorting, just find new smallest sign and position.
                 call extract_sign(largest_walkers(:,1),low_sign)
@@ -1271,8 +1271,6 @@ contains
             end if
         end if
 
-        root_print "eigenvector: ", gs_vector
-
         allocate(temp_determ_vec(determ_sizes(iProcIndex)))
         ! i hope the order of the components did not get messed up.. 
         call MPIScatterV(real(gs_vector,dp), determ_sizes, determ_displs, &
@@ -1353,11 +1351,6 @@ contains
         ! build the full Hamiltonian
 !         if (iProcIndex == root) then
             call calc_determin_hamil_full(full_H)
-
-            root_print "deterministic hamiltonian:"
-            if_root
-                call print_matrix(full_H)
-            end_if_root
 
             allocate(e_values(size(full_H,1)))
             allocate(e_vectors(size(full_H,1),size(full_H,1)))

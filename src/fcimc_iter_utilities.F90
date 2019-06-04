@@ -12,8 +12,8 @@ module fcimc_iter_utils
                         nShiftEquilSteps, TargetGrowRateWalk, tContTimeFCIMC, &
                         tContTimeFull, pop_change_min, tPositiveHFSign, &
                         qmc_trial_wf, nEquilSteps, t_hist_tau_search, &
-                        t_hist_tau_search_option, corespaceWalkers, &
-                        allCorespaceWalkers, tSpinProject, &
+                        t_hist_tau_search_option, &
+                        tSpinProject, &
                         tFixedN0, tSkipRef, N0_Target, &
                         tTrialShift, tFixTrial, TrialTarget, tEN2
 
@@ -1253,7 +1253,6 @@ contains
         if(tRestart) return
         call population_check ()
         call update_shift (iter_data)
-        if(tSemiStochastic) call getCoreSpaceWalkers()
         if (tPrintDataTables) then
             if (tFCIMCStats2) then
                 call write_fcimcstats2(iter_data_fciqmc)
@@ -1298,24 +1297,6 @@ contains
       enddo
       
     end function get_occ_dets
-
-    subroutine getCoreSpaceWalkers
-      use semi_stoch_procs, only: check_determ_flag
-
-      implicit none
-      integer :: i
-      real(dp) :: sgn(lenof_sign)
-
-      corespaceWalkers = 0.0_dp
-      do i = 1, TotWalkers
-         if(check_determ_flag(CurrentDets(:,i))) then
-            call extract_sign(CurrentDets(:,i),sgn)
-            ! Just sum up all walkers
-            corespaceWalkers = corespaceWalkers + sum(abs(sgn))
-         endif
-      enddo
-            
-    end subroutine getCoreSpaceWalkers
 
     !Fix the overlap with trial wavefunction by enforcing the value of a random determinant of the trial space
     !As long as the shift equals the trial energy, this should still give the right dynamics.

@@ -263,7 +263,6 @@ logical :: tDynamicCoreSpace, tStaticCore, tIntervalSet ! update the corespace
 integer :: coreSpaceUpdateCycle, semistochStartIter
 ! Input type describing which space(s) type to use.
 type(subspace_in) :: ss_space_in
-real(dp) :: corespaceWalkers, allCorespaceWalkers
 
 ! Options regarding splitting the space into core and non-core elements. Needed, for example when performing a
 ! semi-stochastic simulation, to specify the deterministic space.

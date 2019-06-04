@@ -46,7 +46,7 @@ module fcimc_initialisation
                         t_back_spawn_option, t_back_spawn_flex_option, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
                         maxKeepExLvl, tAutoAdaptiveShift, AdaptiveShiftCut, tAAS_Reverse, &
-                        tInitializeCSF, S2Init, corespacewalkers, tSpinProject, &
+                        tInitializeCSF, S2Init, tSpinProject, &
                         tReplicaEstimates, tDeathBeforeComms, pSinglesIn, pParallelIn, &
                         tSetInitFlagsBeforeDeath, tSetInitialRunRef, tEn2Init, i_space_in, &
                         tInitiatorSpace
@@ -957,6 +957,7 @@ contains
         AllENumCyc(:)=0.0_dp
         AllENumCycAbs = 0.0_dp
         AllHFCyc(:)=0.0_dp
+        all_cyc_proje_denominator = 1.0_dp
 !        AllDetsNorm=0.0_dp
         AllNoAborted=0
         AllNoRemoved=0
@@ -984,8 +985,6 @@ contains
 
         ! Set the flag to indicate that no shift adjustment has been made
         tfirst_cycle = .true.
-
-        corespaceWalkers = 0.0_dp
 
         ! Initialise the fciqmc counters
         iter_data_fciqmc%update_growth = 0.0_dp
