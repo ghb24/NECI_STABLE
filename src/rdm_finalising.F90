@@ -15,6 +15,7 @@ module rdm_finalising
     use CalcData, only: tAdaptiveShift
     use RotateOrbsMod, only: FourIndInts
     use SystemData, only: tGUGA, nSpatorbs
+    use guga_rdm, only: calc_1rdms_from_2rdms_guga
 
     implicit none
 
@@ -84,7 +85,11 @@ contains
 
             ! Calculate the 1-RDMs from the 2-RDMS, if required.
             if (RDMExcitLevel == 3 .or. tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
-                call calc_1rdms_from_2rdms(rdm_defs, one_rdms, two_rdms, rdm_estimates%norm, tOpenShell)
+                if (tGUGA) then 
+                    call calc_1rdms_from_2rdms_guga(rdm_defs, one_rdms, two_rdms, rdm_estimates%norm, tOpenShell)
+                else
+                    call calc_1rdms_from_2rdms(rdm_defs, one_rdms, two_rdms, rdm_estimates%norm, tOpenShell)
+                end if
                 ! The 1-RDM will have been constructed to be normalised already.
                 norm_1rdm = 1.0_dp
             end if
@@ -176,9 +181,18 @@ contains
 
         call calc_hermitian_errors(rdm, rdm_recv, spawn, est%norm, est%max_error_herm, est%sum_error_herm)
 
-        if (tWriteSpinFreeRDM) call print_spinfree_2rdm_wrapper(rdm_defs, rdm, rdm_recv, spawn, est%norm)
-        if (tWrite_Normalised_RDMs) call print_rdms_spin_sym_wrapper(rdm_defs, rdm, rdm_recv, rdm_recv_2, &
-                                                                     spawn, est%norm, tOpenShell)
+        if (tGUGA) then
+            call print_spinfree_2rdm(rdm_defs, rdm_recv, est%norm)
+        end if
+
+        if (tWriteSpinFreeRDM .and. .not. tGUGA) then
+            call print_spinfree_2rdm_wrapper(rdm_defs, rdm, rdm_recv, spawn, est%norm)
+        end if
+
+        if (tWrite_Normalised_RDMs .and. .not. tGUGA) then
+            call print_rdms_spin_sym_wrapper(rdm_defs, rdm, rdm_recv, rdm_recv_2, &
+                                             spawn, est%norm, tOpenShell)
+        end if
 
     end subroutine output_2rdm_wrapper
 
@@ -1121,7 +1135,9 @@ contains
 
                 ! Loop over all RDMs beings sampled.
                 do irdm = 1, rdm_defs%nrdms
-                    if (state_labels(1,irdm) == state_labels(2,irdm)) then
+                    if (tGUGA) then
+                        rdm_filename = "2-RDM-GUGA"
+                    else if (state_labels(1,irdm) == state_labels(2,irdm)) then
                        write(rdm_filename, '("spinfree_",'//trim(rdm_defs%output_file_prefix)//',".",'&
                              //int_fmt(state_labels(1,irdm),0)//')') irdm
                     else

@@ -1095,6 +1095,7 @@ contains
         ! Loop over all RDM elements.
         do ielem = 1, rdm%nelements
             ijkl = rdm%elements(0,ielem)
+
             call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
 
             ! If this is a diagonal element, add the element to the trace.

@@ -7,6 +7,7 @@ module rdm_estimators
     use constants
     use rdm_data, only: rdm_list_t, rdm_spawn_t
     use rdm_data_utils, only: calc_separate_rdm_labels, extract_sign_rdm, calc_rdm_trace
+    use SystemData, only: tGUGA
 
     implicit none
 
@@ -168,7 +169,9 @@ contains
 
         do irdm = 1, nrdms_standard
             write(write_unit, '(4x,"Energy numerator",1x,i2)', advance='no') irdm
-            write(write_unit, '(4x,"Spin^2 numerator",1x,i2)', advance='no') irdm
+            if (.not. tGUGA) then
+                write(write_unit, '(4x,"Spin^2 numerator",1x,i2)', advance='no') irdm
+            end if
             if (tEN2) then
                 write(write_unit, '(7x,"EN2 numerator",1x,i2)', advance='no') irdm
                 write(write_unit, '(3x,"Var+EN2 numerator",1x,i2)', advance='no') irdm
@@ -256,8 +259,10 @@ contains
 
         ! Estimate of the expectation value of the spin squared operator
         ! (equal to S(S+1) for spin quantum number S).
-        call calc_rdm_spin(rdm, rdm_norm, rdm_spin)
-        call MPISumAll(rdm_spin, est%spin_num)
+        if (.not. tGUGA) then
+            call calc_rdm_spin(rdm, rdm_norm, rdm_spin)
+            call MPISumAll(rdm_spin, est%spin_num)
+        end if
 
         if (tCalcPropEst) then 
             ! Estimate of the properties using different property integrals
@@ -321,8 +326,13 @@ contains
             if (tRDMInstEnergy) then
                 write(est%write_unit, '(1x,i13)', advance='no') Iter+PreviousCycles
                 do irdm = 1, est%nrdms_standard
-                    write(est%write_unit, '(2(3x,es20.13))', advance='no') &
-                        est%energy_num_inst(irdm), est%spin_num_inst(irdm)
+                    write(est%write_unit, '(3x,es20.13)', advance='no') &
+                        est%energy_num_inst(irdm)
+                    
+                    if (.not. tGUGA) then
+                        write(est%write_unit, '(3x,es20.13)', advance='no') &
+                            est%spin_num_inst(irdm)
+                    end if
                     if (tEN2) then
                         write(est%write_unit,'(2(3x,es20.13))', advance='no') &
                             est%energy_pert_inst(irdm), est%energy_pert_inst(irdm) + est%energy_num_inst(irdm)
@@ -348,8 +358,12 @@ contains
             else
                 write(est%write_unit, '(1x,i13)', advance='no') Iter+PreviousCycles
                 do irdm = 1, est%nrdms_standard
-                    write(est%write_unit, '(2(3x,es20.13))', advance='no') &
-                        est%energy_num(irdm), est%spin_num(irdm)
+                    write(est%write_unit, '(3x,es20.13)', advance='no') &
+                        est%energy_num(irdm)
+                    if (.not. tGUGA) then
+                        write(est%write_unit, '(3x,es20.13)', advance='no') &
+                            est%spin_num(irdm)
+                    end if
                     if (tEN2) then
                         write(est%write_unit,'(2(3x,es20.13))', advance='no') &
                             est%energy_pert(irdm), est%energy_pert(irdm) + est%energy_num(irdm)
@@ -710,10 +724,14 @@ contains
 
             ! If in the lower half of the RDM, reflect to the upper half and
             ! include with a minus sign.
-            if (ij > kl) then
-                call add_to_rdm_spawn_t(spawn, k, l, i, j, -rdm_sign, .false., nearly_full)
-            else if (ij < kl) then
-                call add_to_rdm_spawn_t(spawn, i, j, k, l, rdm_sign, .false., nearly_full)
+            if (tGUGA) then 
+                call add_to_rdm_spawn_t(spawn, i, j, k, l, rdm_sign, .true., nearly_full)
+            else
+                if (ij > kl) then
+                    call add_to_rdm_spawn_t(spawn, k, l, i, j, -rdm_sign, .false., nearly_full)
+                else if (ij < kl) then
+                    call add_to_rdm_spawn_t(spawn, i, j, k, l, rdm_sign, .false., nearly_full)
+                end if
             end if
         end do
 

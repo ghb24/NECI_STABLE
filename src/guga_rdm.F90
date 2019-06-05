@@ -11,7 +11,7 @@ module guga_rdm
     use LoggingData, only: RDMExcitLevel
     use rdm_data, only: one_rdms, two_rdm_spawn, rdmCorrectionFactor
     use rdm_data, only: Sing_ExcDjs, Doub_ExcDjs, rdm_spawn_t, one_rdm_t
-    use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2
+    use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, rdm_list_t
     use rdm_data, only: Sing_ExcList, Doub_ExcList, OneEl_Gap, TwoEl_Gap
     use DetBitOps, only: EncodeBitDet, count_open_orbs
     use load_balance_calcnodes, only: DetermineDetNode
@@ -44,6 +44,8 @@ module guga_rdm
     use CalcData, only: tAdaptiveShift
     use Parallel_neci, only: nProcessors, MPIArg, MPIAlltoAll, MPIAlltoAllv
     use searching, only: BinSearchParts_rdm
+    use rdm_data_utils, only: add_to_rdm_spawn_t, calc_combined_rdm_label, &
+                              calc_separate_rdm_labels
 
     implicit none
 
@@ -72,30 +74,28 @@ contains
             call fill_spawn_rdm_diag_guga(two_rdm_spawn, nI, full_sign)
         end if
 
-        call convert_ilut_toGUGA(ilutI, ilutG)
-
-        ! one-rdm is always calculated 
-        ! calculate the excitations here
-        call calc_explicit_1_rdm_guga(ilutG, n_singles, excits)
-
-        ! and then sort them correctly in the communicated array
-        call assign_excits_to_proc_guga(n_singles, excits, 1)
-
-        deallocate(excits) 
-        call LogMemDealloc(this_routine, tag_excitations)
+!         call convert_ilut_toGUGA(ilutI, ilutG)
+! 
+!         ! one-rdm is always calculated 
+!         ! calculate the excitations here
+!         call calc_explicit_1_rdm_guga(ilutG, n_singles, excits)
+! 
+!         ! and then sort them correctly in the communicated array
+!         call assign_excits_to_proc_guga(n_singles, excits, 1)
+! 
+!         deallocate(excits) 
+!         call LogMemDealloc(this_routine, tag_excitations)
 
         ! now to double excitations if requsted: 
-        if (RDMExcitLevel /= 1) then 
-
-            deallocate(excits)
-
-            call calc_explicit_2_rdm_guga(ilutG, n_doubles, excits)
-
-            call assign_excits_to_proc_guga(n_doubles, excits, 2)
-
-            deallocate(excits) 
-            call LogMemDealloc(this_routine, tag_excitations)
-        end if
+!         if (RDMExcitLevel /= 1) then 
+! 
+!             call calc_explicit_2_rdm_guga(ilutG, n_doubles, excits)
+! 
+!             call assign_excits_to_proc_guga(n_doubles, excits, 2)
+! 
+!             deallocate(excits) 
+!             call LogMemDealloc(this_routine, tag_excitations)
+!         end if
 
     end subroutine gen_exc_djs_guga
 
@@ -106,6 +106,11 @@ contains
         integer, intent(in) :: nI(nel)
         real(dp), intent(in) :: full_sign(spawn%rdm_send%sign_length)
         character(*), parameter :: this_routine = "fill_spawn_rdm_diag_guga"
+
+        integer :: i, s_orbs(nel), s, inc_i, j, inc_j, p
+        integer :: ssss, spsp, sp, sp2, a,b,c,d
+
+        real(dp) :: occ_i, occ_j
 
         ! i have to figure out what exactly contributes to here..
         ! according to the paper about the two-RDM labels the 
@@ -128,8 +133,11 @@ contains
                 occ_i = 2.0_dp 
                 inc_i = 2
 
-                ! TODO i think here i have to put the full diagonal 
+                ! i think here i have to put the full diagonal 
                 ! D_{ii,ii} entry, which counts double occupancies
+                ! and i will try for now to reuse the following routine:
+                ! put with the spatial orbital s
+                call add_to_rdm_spawn_t(spawn, s, s, s, s, occ_i * full_sign, .true.)
 
             else
                 occ_i = 1.0_dp 
@@ -146,9 +154,12 @@ contains
                     occ_j = 2.0_dp
                     inc_j = 2
                 else
-                    occ_j = 1.0
+                    occ_j = 1.0_dp
                     inc_j = 1
                 end if
+
+                call add_to_rdm_spawn_t(spawn, s, s, p, p, & 
+                    occ_i * occ_j * full_sign, .true.)
 
                 j = j + inc_j
             end do
@@ -278,11 +289,101 @@ contains
         call singles_search_guga(sing_recvcounts, sing_recvdisps)
 
         if (RDMExcitLevel /= 1) then
-            !TODO
+
+            do i = 0, nProcessors-1
+                ! Sendcounts is the number of singly excited determinants we
+                ! want to send for each processor (but goes from 1, not 0).
+                sendcounts(i+1) = int(Doub_ExcList(i)-(nint(TwoEl_Gap*i)+1),MPIArg)
+
+                ! disps is the first slot for each processor - 1.            
+                disps(i+1) = nint(TwoEl_Gap*i,MPIArg)
+            end do
+
+            MaxSendIndex = Doub_ExcList(nProcessors-1) - 1
+
+            ! We now need to calculate the recvcounts and recvdisps -
+            ! this is a job for AlltoAll
+            doub_recvcounts(1:nProcessors) = 0
+            call MPIAlltoAll(sendcounts, 1, doub_recvcounts, 1, error)
+
+            ! We can now get recvdisps from recvcounts, since we want the data
+            ! to be contiguous after the move.
+            doub_recvdisps(1) = 0
+            do i = 2, nProcessors
+                doub_recvdisps(i) = doub_recvdisps(i-1) + doub_recvcounts(i-1)
+            end do
+
+            MaxIndex = doub_recvdisps(nProcessors)+doub_recvcounts(nProcessors)
+            ! But the actual number of integers we need to send is the
+            ! calculated values * NIfTot+1.
+            do i = 1, nProcessors
+                sendcounts(i) = sendcounts(i)*(int(nifguga+1,MPIArg))
+                disps(i) = disps(i)*(int(nifguga+1,MPIArg))
+                doub_recvcounts(i) = doub_recvcounts(i)*(int(nifguga+1,MPIArg))
+                doub_recvdisps(i) = doub_recvdisps(i)*(int(nifguga+1,MPIArg))
+            end do
+
+            ! This is the main send of all the single excitations to the
+            ! corresponding processors.
+#ifdef PARALLEL
+            call MPIAlltoAllv(Doub_ExcDjs(:,1:MaxSendIndex), sendcounts, disps,&
+                                    Doub_ExcDjs2, doub_recvcounts, doub_recvdisps, error)
+#else
+            Doub_ExcDjs2(0:nifguga,1:MaxIndex) = Doub_ExcDjs(0:nifguga,1:MaxSendIndex)
+#endif
+
+            call doubles_search_guga(doub_recvcounts, doub_recvdisps)
 
         end if
 
     end subroutine send_proc_ex_djs
+
+    subroutine doubles_search_guga(recvcounts, recvdisps)
+        ! this is the adapted explicit doubles search for the 
+        ! GUGA-RDMs. 
+        integer(MPIArg), intent(in) :: recvcounts(nProcessors), recvdisps(nProcessors)
+        character(*), parameter :: this_routine = "doubles_search_guga"
+
+        integer :: i, NoDets, StartDets, nI(nel), nJ(nel), PartInd, FlagsDj
+        integer :: rdm_ind, j, ab, cd, a, b, c, d
+        integer(n_int) :: ilutJ(0:niftot)
+        real(dp) :: mat_ele, sign_i(lenof_sign), sign_j(lenof_sign)
+        logical :: tDetFound
+
+        do i = 1, nProcessors
+
+            NoDets = recvcounts(i) / (nifguga + 1)
+            StartDets = (recvdisps(i) / (nifguga + 1)) + 1
+
+            if (NoDets > 1) then 
+
+                sign_i = extract_matrix_element(Doub_ExcDjs2(:,StartDets), 2)
+
+                do j = StartDets + 1, (NoDets + StartDets - 1)
+
+                    call convert_ilut_toNECI(Doub_ExcDjs2(:,j), ilutJ)
+
+                    call BinSearchParts_rdm(ilutJ, 1, int(TotWalkers, sizeof_int), &
+                        PartInd, tDetFound)
+
+                    if (tDetFound) then 
+
+                        call extract_bit_rep(CurrentDets(:,PartInd), nJ, sign_j, FlagsDj)
+
+                        mat_ele = extract_matrix_element(Doub_ExcDjs2(:,j), 1)
+                        rdm_ind = getDeltaB(Doub_ExcDjs2(:,j))
+
+                        call calc_separate_rdm_labels(rdm_ind, ab, cd, a, b, c, d)
+
+                        call add_to_rdm_spawn_t(two_rdm_spawn, a, b, c, d, & 
+                            sign_i * sign_j * mat_ele, .true.)
+
+                    end if
+                end do
+            end if
+        end do
+
+    end subroutine doubles_search_guga
 
     subroutine singles_search_guga(recvcounts, recvdisps)
         ! make a tailored GUGA search for explicit single excitations
@@ -335,7 +436,15 @@ contains
                             call fill_sings_1rdm_guga(one_rdms, sign_i, sign_j, &
                                 mat_ele, rdm_ind, t_test_sym_fill)
                         else
-                            call Stop_All(this_routine, "TODO")
+
+                            ! i am not sure, if I have to do that, since 
+                            ! in my double excitation generator I also 
+                            ! create double excitations, which contract to 
+                            ! singles.. so maybe this is not even 
+                            ! necessary.. so return for now..
+                            return
+
+
                         end if
                     end if
                 end do
@@ -505,47 +614,88 @@ contains
 
         call init_csf_information(ilut)
 
-        nMax = 6 + 4 * (nSpatOrbs)**4 * (count_open_orbs(ilut) + 1)
+        nMax = 6 + 4 * (nSpatOrbs)**2 * (count_open_orbs(ilut) + 1)
         allocate(tmp_all_excits(0:nifguga,nMax), stat = ierr)
         call LogMemAlloc('tmp_all_excits',(nifguga+1)*nMax,8,this_routine,tag_tmp_excits)
 
         n_tot = 0
 
-        do i = 1, nSpatOrbs
-            do j = 1, nSpatOrbs
-                do k = 1, nSpatOrbs
-                    do l = 1, nSpatOrbs
+        if (.not. t_test_sym_fill) then
+            do i = 1, nSpatOrbs
+                do j = 1, nSpatOrbs
+                    do k = 1, nSpatOrbs
+                        do l = 1, nSpatOrbs
 
-                        ! pure diagonal contribution:
-                        if (i == j .and. k == l) cycle
+                            ! pure diagonal contribution:
+                            if (i == j .and. k == l) cycle
 
-                        call calc_all_excits_guga_rdm_doubles(ilut, i, j, k, l, &
-                            temp_excits, n_excits)
+                            call calc_all_excits_guga_rdm_doubles(ilut, i, j, k, l, &
+                                temp_excits, n_excits)
 
 #ifdef __DEBUG
-                        do n = 1, n_excits
-                            ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
-                        end do
+                            do n = 1, n_excits
+                                ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
+                            end do
 #endif
 
-                        ! exclude possible diagonal terms, but do not 
-                        ! forget to account for those in the diagonal 
-                        ! contributions! 
-                        if (i == l .and. k == j) then 
-                            if (n_excits > 1) then 
-                                call add_guga_lists(n_tot, n_excits - 1, &
-                                    tmp_all_excits, temp_excits(:,2:))
+                            ! exclude possible diagonal terms, but do not 
+                            ! forget to account for those in the diagonal 
+                            ! contributions! 
+                            if (i == l .and. k == j) then 
+                                if (n_excits > 1) then 
+                                    call add_guga_lists(n_tot, n_excits - 1, &
+                                        tmp_all_excits, temp_excits(:,2:))
+                                end if
+                            else
+                                if (n_excits > 0) then 
+                                    call add_guga_lists(n_tot, n_excits, tmp_all_excits, temp_excits)
+                                end if
                             end if
-                        else
-                            if (n_excits > 0) then 
-                                call add_guga_lists(n_tot, n_excits, tmp_all_excits, temp_excits)
-                            end if
-                        end if
 
+                            deallocate(temp_excits)
+
+                        end do
                     end do
                 end do
             end do
-        end do
+        else
+            do i = 1, nSpatOrbs - 1
+                do j = i + 1, nSpatOrbs
+                    do k = 1, nSpatOrbs - 1
+                        do l = 1, nSpatOrbs 
+
+                            call calc_all_excits_guga_rdm_doubles(ilut, i, j, k, l, &
+                                temp_excits, n_excits)
+
+#ifdef __DEBUG
+                            do n = 1, n_excits
+                                ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
+                            end do
+#endif
+
+                            ! exclude possible diagonal terms, but do not 
+                            ! forget to account for those in the diagonal 
+                            ! contributions! 
+                            if (i == l .and. k == j) then 
+                                ! not so sure about this yet.. maybe it does 
+                                ! contribute.. it has to at least somewhere..
+                                if (n_excits > 1) then 
+                                    call add_guga_lists(n_tot, n_excits - 1, &
+                                        tmp_all_excits, temp_excits(:,2:))
+                                end if
+                            else
+                                if (n_excits > 0) then 
+                                    call add_guga_lists(n_tot, n_excits, tmp_all_excits, temp_excits)
+                                end if
+                            end if
+
+                            deallocate(temp_excits)
+
+                        end do
+                    end do
+                end do
+            end do
+        end if
 
         j = 1
         do i = 1, n_tot
@@ -613,6 +763,9 @@ contains
                     if (n_excits > 0) then 
                         call add_guga_lists(n_tot, n_excits, tmp_all_excits, temp_excits)
                     end if
+
+                    deallocate(temp_excits)
+
                 end do
             end do
 
@@ -632,6 +785,9 @@ contains
                     if (n_excits > 0) then 
                         call add_guga_lists(n_tot, n_excits, tmp_all_excits, temp_excits)
                     end if
+
+                    deallocate(temp_excits)
+
                 end do
             end do
         end if
@@ -673,8 +829,8 @@ contains
         integer :: ierr, n, exlevel
         type(excitationInformation) :: excitInfo
         logical :: compFlag
-
         integer(n_int) :: tmp_ilut(0:niftot)
+        integer(int_rdm) :: ijkl
 
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(i > 0 .and. i <= nSpatOrbs)
@@ -870,7 +1026,9 @@ contains
 
 
         ! indicate the level of excitation IC for the remaining NECI code
-        excits(nifguga,:) = exlevel 
+        call calc_combined_rdm_label(i,j,k,l, ijkl)
+
+        excits(nifguga,:) = ijkl
 
     end subroutine calc_all_excits_guga_rdm_doubles
 
@@ -939,6 +1097,43 @@ contains
 
     end subroutine calc_all_excits_guga_rdm_singles
 
+    subroutine calc_1rdms_from_2rdms_guga(rdm_defs, one_rdms, two_rdms, rdm_trace, open_shell)
+
+        ! this is the GUGA version of this routine in rdm_finalising
+        ! For each 2-RDM in two_rdms, if open_shell is true then calculate the
+        ! full spinned 1-RDM, otherwise calculate the spinfree 1-RDM. The
+        ! former case is defined by:
+        !
+        ! \gamma_{i,j} = \frac{1}{N-1} \sum_k \Gamma_{ik,jk}
+        !
+        ! Here, i, j and k are spatial labels. N is the number of electrons.
+        !
+        ! The spinfree case is then a contraction over the spin labels of the
+        ! spinned 1-RDM:
+        !
+        ! \gamma^{spinfree}_{p,q} = \gamma_{p\alpha,q\alpha) + \gamma_{p\beta,q\beta)
+        !
+        ! where p and q are spatial labels.
+
+        ! The output 1-RDM elements are sorted in the standard form: elements
+        ! are indexed using the SymLabelListInv_rot array, so that the 1-RDMs
+        ! will be in block-diagonal form, with elements within each symmetry
+        ! block stored together.
+
+        use Parallel_neci, only: MPISumAll
+        use rdm_data, only: rdm_definitions_t
+        use RotateOrbsData, only: SymLabelListInv_rot
+        use SystemData, only: nel
+        use UMatCache, only: spatial
+
+        type(rdm_definitions_t), intent(in) :: rdm_defs
+        type(one_rdm_t), intent(inout) :: one_rdms(:)
+        type(rdm_list_t), intent(in) :: two_rdms
+        real(dp), intent(in) :: rdm_trace(:)
+        logical, intent(in) :: open_shell
+
+        !TODO
+    end subroutine calc_1rdms_from_2rdms_guga
 
 end module guga_rdm
 
