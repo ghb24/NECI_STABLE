@@ -74,28 +74,32 @@ contains
             call fill_spawn_rdm_diag_guga(two_rdm_spawn, nI, full_sign)
         end if
 
-!         call convert_ilut_toGUGA(ilutI, ilutG)
-! 
-!         ! one-rdm is always calculated 
-!         ! calculate the excitations here
-!         call calc_explicit_1_rdm_guga(ilutG, n_singles, excits)
-! 
-!         ! and then sort them correctly in the communicated array
-!         call assign_excits_to_proc_guga(n_singles, excits, 1)
-! 
-!         deallocate(excits) 
-!         call LogMemDealloc(this_routine, tag_excitations)
+        call convert_ilut_toGUGA(ilutI, ilutG)
+
+        ! one-rdm is always calculated 
+        ! calculate the excitations here
+        ! but with my general two-body excitation routine i do not need 
+        ! to calculate this in case of more than singles:
+        if (RDMExcitLevel == 1) then
+            call calc_explicit_1_rdm_guga(ilutG, n_singles, excits)
+
+            ! and then sort them correctly in the communicated array
+            call assign_excits_to_proc_guga(n_singles, excits, 1)
+
+            deallocate(excits) 
+            call LogMemDealloc(this_routine, tag_excitations)
+        end if
 
         ! now to double excitations if requsted: 
-!         if (RDMExcitLevel /= 1) then 
-! 
-!             call calc_explicit_2_rdm_guga(ilutG, n_doubles, excits)
-! 
-!             call assign_excits_to_proc_guga(n_doubles, excits, 2)
-! 
-!             deallocate(excits) 
-!             call LogMemDealloc(this_routine, tag_excitations)
-!         end if
+        if (RDMExcitLevel /= 1) then 
+
+            call calc_explicit_2_rdm_guga(ilutG, n_doubles, excits)
+
+            call assign_excits_to_proc_guga(n_doubles, excits, 2)
+
+            deallocate(excits) 
+            call LogMemDealloc(this_routine, tag_excitations)
+        end if
 
     end subroutine gen_exc_djs_guga
 
@@ -253,40 +257,42 @@ contains
         integer(MPIArg) :: sing_recvdisps(nProcessors)
         integer(MPIArg) :: doub_recvcounts(nProcessors),doub_recvdisps(nProcessors)
 
-        do i = 0, nProcessors - 1
-            sendcounts(i+1) = int(Sing_ExcList(i)-(nint(OneEl_Gap*i)+1), MPIArg)
-            disps(i+1) = nint(OneEl_Gap*i, MPIArg)
-        end do
+        if (RDMExcitLevel == 1) then
+            do i = 0, nProcessors - 1
+                sendcounts(i+1) = int(Sing_ExcList(i)-(nint(OneEl_Gap*i)+1), MPIArg)
+                disps(i+1) = nint(OneEl_Gap*i, MPIArg)
+            end do
 
-        MaxSendIndex = Sing_ExcList(nProcessors-1) - 1
+            MaxSendIndex = Sing_ExcList(nProcessors-1) - 1
 
-        sing_recvcounts(1:nProcessors) = 0
-        call MPIAlltoAll(sendcounts, 1, sing_recvcounts, 1, error)
+            sing_recvcounts(1:nProcessors) = 0
+            call MPIAlltoAll(sendcounts, 1, sing_recvcounts, 1, error)
 
-        sing_recvdisps(1) = 0
-        do i = 2, nProcessors
-            sing_recvdisps(i) = sing_recvdisps(i-1) + sing_recvcounts(i-1)
-        end do
+            sing_recvdisps(1) = 0
+            do i = 2, nProcessors
+                sing_recvdisps(i) = sing_recvdisps(i-1) + sing_recvcounts(i-1)
+            end do
 
-        MaxIndex = sing_recvdisps(nProcessors) + sing_recvcounts(nProcessors)
+            MaxIndex = sing_recvdisps(nProcessors) + sing_recvcounts(nProcessors)
 
-        do i = 1, nProcessors
-            sendcounts(i) = sendcounts(i)*(int(nifguga+1,MPIArg))
-            disps(i) = disps(i)*(int(nifguga+1,MPIArg))
-            sing_recvcounts(i) = sing_recvcounts(i)*(int(nifguga+1,MPIArg))
-            sing_recvdisps(i) = sing_recvdisps(i)*(int(nifguga+1,MPIArg))
-        end do
+            do i = 1, nProcessors
+                sendcounts(i) = sendcounts(i)*(int(nifguga+1,MPIArg))
+                disps(i) = disps(i)*(int(nifguga+1,MPIArg))
+                sing_recvcounts(i) = sing_recvcounts(i)*(int(nifguga+1,MPIArg))
+                sing_recvdisps(i) = sing_recvdisps(i)*(int(nifguga+1,MPIArg))
+            end do
 
 
 #ifdef PARALLEL
-        call MPIAlltoAllv(Sing_ExcDjs(:,1:MaxSendIndex), sendcounts, disps,&
-                            Sing_ExcDjs2, sing_recvcounts, sing_recvdisps, error)
+            call MPIAlltoAllv(Sing_ExcDjs(:,1:MaxSendIndex), sendcounts, disps,&
+                                Sing_ExcDjs2, sing_recvcounts, sing_recvdisps, error)
 #else
-        Sing_ExcDjs2(0:nifguga,1:MaxIndex) = Sing_ExcDjs(0:nifguga,1:MaxSendIndex)
+            Sing_ExcDjs2(0:nifguga,1:MaxIndex) = Sing_ExcDjs(0:nifguga,1:MaxSendIndex)
 #endif
 
-        ! and also write a new routine for the search of occ. dets
-        call singles_search_guga(sing_recvcounts, sing_recvdisps)
+            ! and also write a new routine for the search of occ. dets
+            call singles_search_guga(sing_recvcounts, sing_recvdisps)
+        end if
 
         if (RDMExcitLevel /= 1) then
 
@@ -435,16 +441,6 @@ contains
                         if (RDMExcitLevel == 1) then 
                             call fill_sings_1rdm_guga(one_rdms, sign_i, sign_j, &
                                 mat_ele, rdm_ind, t_test_sym_fill)
-                        else
-
-                            ! i am not sure, if I have to do that, since 
-                            ! in my double excitation generator I also 
-                            ! create double excitations, which contract to 
-                            ! singles.. so maybe this is not even 
-                            ! necessary.. so return for now..
-                            return
-
-
                         end if
                     end if
                 end do

@@ -16,6 +16,7 @@ module rdm_data_utils
     use Parallel_neci, only: iProcIndex, nProcessors
     use rdm_data, only: rdm_list_t, rdm_spawn_t, one_rdm_t, en_pert_t
     use util_mod
+    use SystemData, only: tGUGA
 
     implicit none
 
@@ -540,7 +541,11 @@ contains
             if (.not. spinfree) then
                 call calc_combined_rdm_label(i, j, k, l, ijkl)
             else
-                call calc_combined_rdm_label(k, l, j, i, ijkl)
+                if (tGUGA) then
+                    call calc_combined_rdm_label(j, l, i, k, ijkl)
+                else
+                    call calc_combined_rdm_label(k, l, j, i, ijkl)
+                end if
             end if
 
             ! Search to see if this RDM element is already in the RDM array.

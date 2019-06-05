@@ -725,7 +725,7 @@ contains
             ! If in the lower half of the RDM, reflect to the upper half and
             ! include with a minus sign.
             if (tGUGA) then 
-                call add_to_rdm_spawn_t(spawn, i, j, k, l, rdm_sign, .true., nearly_full)
+                call add_to_rdm_spawn_t(spawn, i, j, k, l, rdm_sign, .false., nearly_full)
             else
                 if (ij > kl) then
                     call add_to_rdm_spawn_t(spawn, k, l, i, j, -rdm_sign, .false., nearly_full)

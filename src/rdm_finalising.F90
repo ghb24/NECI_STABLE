@@ -16,6 +16,7 @@ module rdm_finalising
     use RotateOrbsMod, only: FourIndInts
     use SystemData, only: tGUGA, nSpatorbs
     use guga_rdm, only: calc_1rdms_from_2rdms_guga
+    use LoggingData, only: tWriteSpinFreeRDM
 
     implicit none
 
@@ -163,7 +164,7 @@ contains
         ! simulation usually), and this requires large parallel
         ! communications, as does the printing.
 
-        use LoggingData, only: tWrite_normalised_RDMs, tWriteSpinFreeRDM, tWrite_RDMs_to_read
+        use LoggingData, only: tWrite_normalised_RDMs, tWrite_RDMs_to_read
         use rdm_data, only: rdm_definitions_t, rdm_estimates_t, rdm_list_t, rdm_spawn_t, tOpenShell
         use rdm_estimators, only: calc_hermitian_errors
 
@@ -187,7 +188,9 @@ contains
 
         if (tWriteSpinFreeRDM .and. .not. tGUGA) then
             call print_spinfree_2rdm_wrapper(rdm_defs, rdm, rdm_recv, spawn, est%norm)
+
         end if
+
 
         if (tWrite_Normalised_RDMs .and. .not. tGUGA) then
             call print_rdms_spin_sym_wrapper(rdm_defs, rdm, rdm_recv, rdm_recv_2, &
@@ -1137,15 +1140,18 @@ contains
                 do irdm = 1, rdm_defs%nrdms
                     if (tGUGA) then
                         rdm_filename = "2-RDM-GUGA"
-                    else if (state_labels(1,irdm) == state_labels(2,irdm)) then
-                       write(rdm_filename, '("spinfree_",'//trim(rdm_defs%output_file_prefix)//',".",'&
-                             //int_fmt(state_labels(1,irdm),0)//')') irdm
-                    else
-                        write(rdm_filename, '("spinfree_",'//trim(rdm_defs%output_file_prefix)//&
-                             ',".",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
-                             //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
-                             state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
+                    else 
+                        rdm_filename = "spin-free-2-RDM"
                     end if
+!                     else if (state_labels(1,irdm) == state_labels(2,irdm)) then
+!                        write(rdm_filename, '("spinfree_",'//trim(rdm_defs%output_file_prefix)//',".",'&
+!                              //int_fmt(state_labels(1,irdm),0)//')') irdm
+!                     else
+!                         write(rdm_filename, '("spinfree_",'//trim(rdm_defs%output_file_prefix)//&
+!                              ',".",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
+!                              //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
+!                              state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
+!                     end if
 
                     ! Open the file to be written to.
                     iunit = get_free_unit()
@@ -1159,7 +1165,11 @@ contains
                     do ielem = 1, rdm%nelements
                         pqrs = rdm%elements(0,ielem)
                         ! Obtain spin orbital labels.
-                        call calc_separate_rdm_labels(pqrs, pq, rs, r, s, q, p)
+                        if (tGUGA) then
+                            call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
+                        else
+                            call calc_separate_rdm_labels(pqrs, pq, rs, r, s, q, p)
+                        end if
                         call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
                         ! Normalise.
                         rdm_sign = rdm_sign/rdm_trace
@@ -1436,7 +1446,7 @@ contains
         logical, intent(in) :: tNormalise, tOldRDMs
         logical, intent(in), optional :: tInitsRDM
 
-        integer :: i, j, iSpat, jSpat, one_rdm_unit
+        integer :: i, j, iSpat, jSpat, one_rdm_unit, one_rdm_unit_spinfree
         logical :: is_transition_rdm
         character(20) :: filename
         character(20) :: filename_prefix
@@ -1457,6 +1467,11 @@ contains
                   ind => SymLabelListInv_rot)
 
         is_transition_rdm = state_labels(1,irdm) /= state_labels(2,irdm)
+
+        if (tWriteSpinFreeRDM) then 
+            one_rdm_unit_spinfree = get_free_unit()
+            open(one_rdm_unit_spinfree, file = "spin-free-1-RDM")
+        end if
 
         if (tNormalise) then
             ! Haven't got the capabilities to produce multiple 1-RDMs yet.
@@ -1553,9 +1568,27 @@ contains
                     end if
                 end do
             end do
+            ! if we want spin-free RDMs also print out the spin-free 1-RDM
+            if (tWriteSpinFreeRDM .and. tNormalise) then
+                do i = 1, nbasis/2
+                    do j = 1, nbasis/2
+                        print *, i,j,one_rdm(ind(i),ind(j))
+                        if (abs(one_rdm(ind(i),ind(j))) > EPS) then 
+                            if (tNormalise .and. (i <= j .or. is_transition_rdm)) then 
+                                write(one_rdm_unit_spinfree,"(2I6,G25.17)") i, j, &
+                                    one_rdm(ind(i), ind(j)) * norm_1rdm
+                            else if (.not. tNormalise) then
+                                write(one_rdm_unit_spinfree) i, j, one_rdm(ind(i), ind(j))
+                            end if
+                        end if
+                    end do
+                end do
+            end if
         end if
 
         close(one_rdm_unit)
+        
+        if (tWriteSpinFreeRDM) close(one_rdm_unit_spinfree)
 
         end associate
 
