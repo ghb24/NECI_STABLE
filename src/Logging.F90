@@ -178,6 +178,7 @@ MODULE Logging
       t_hist_fvals = .true.
       enGrid = 100
       arGrid = 100
+      tHistLMat = .false.
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -374,6 +375,9 @@ MODULE Logging
                 call geti(nI_spindist(i))
                 i = i+1
             enddo
+
+         case("HIST-INTEGRALS")
+            tHistLMat = .true.
 
          case("ACC-RATE-POINTS")
             ! number of grid points for 2d-histogramming the acc rate used for adaptive shift

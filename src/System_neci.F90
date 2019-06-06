@@ -15,7 +15,7 @@ MODULE System
     use lattice_mod, only: lattice, lat
     use k_space_hubbard, only: setup_symmetry_table
     use breathing_Hub, only: setupMomIndexTable, setupBreathingCont
-    use tc_three_body_data, only: tSymBrokenLMat, tSpinCorrelator
+    use tc_three_body_data, only: tSymBrokenLMat, tSpinCorrelator, LMatEps, tSparseLMat
     use ParallelHelper, only: iprocindex, root
  
     IMPLICIT NONE
@@ -64,6 +64,8 @@ MODULE System
       tHPHF=.false.
       tMaxHLGap=.false.
       UMatEps = 1.0e-8
+      LMatEps = 1.0e-10
+      tSparseLMat = .false.
       tExactSizeSpace=.false.
       tSymBrokenLMat = .false.
       iRanLuxLev=3      !This is the default level of quality for the random number generator.
@@ -372,6 +374,8 @@ system: do
            tCacheFCIDUMPInts=.true.
         case("HDF5-INTEGRALS")
            tHDF5LMat = .true.
+        case("SPARSE-LMAT")
+           tSparseLMat = .true.
         case("UNSYMMETRIC-INTEGRALS")
            ! the 6-index integrals are not symmetrized yet (has to be done
            ! on the fly then)
@@ -1284,6 +1288,10 @@ system: do
             !
             ! By default, this parameter is 10-e8, but it can be changed here.
             call readf(UMatEps)
+
+         case("LMATEPSILON")
+            ! Six-index integrals are screened, too, with the default being 1e-10
+            call readf(LMatEps)
 
         case("NOSINGEXCITS")
 !This will mean that no single excitations are ever attempted to be generated.

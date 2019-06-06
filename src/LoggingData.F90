@@ -194,4 +194,6 @@ module LoggingData
     ! for transcorrelated approach: do we separately keep track of the TC part of
     ! the correlation energy
     logical :: tLogKMatProjE
+    ! histogram the matrix elements of the six-index operator
+    logical :: tHistLMat
 end module LoggingData

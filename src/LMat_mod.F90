@@ -1,27 +1,45 @@
 module LMat_mod
   use constants
+  use FciMCData, only: ll_node
   use HElem, only: HElement_t_SizeB
   use SystemData, only: tStoreSpinOrbs, nBasis, tHDF5LMat, t12FoldSym
   use MemoryManager, only: LogMemAlloc, LogMemDealloc
   use util_mod, only: get_free_unit
   use shared_memory_mpi
   use sort_mod
+  use hash, only: add_hash_table_entry
   use ParallelHelper, only: iProcIndex_intra
-  use tc_three_body_data, only: tDampKMat, tDampLMat, tSymBrokenLMat, tSpinCorrelator
+  use tc_three_body_data, only: tDampKMat, tDampLMat, tSymBrokenLMat, tSpinCorrelator, LMatEps, &
+       lMat_t, tSparseLMat
   use procedure_pointers, only: LMatInd, get_lmat_el, get_lmat_el_symInternal
+  use LoggingData, only: tHistLMat
 #ifdef __USE_HDF5
   use hdf5
 #endif
   implicit none
 
-  HElement_t(dp), pointer :: LMat(:), LMatAB(:)
-  integer :: LMatTag, LMatABTag
-  integer(MPIarg) :: LMatWin, LMatABWin
+
+  type(lMat_t) :: LMat, LMatAB
   integer(int64) :: nBI
   logical :: tDebugLMat
 
   ! for the symmetry broken index function
   integer :: strideInner, strideOuter
+
+  ! access function for lMat
+  abstract interface
+     function lmat_access_t(lMatObj, index) result(matel)
+       use constants
+       use tc_three_body_data, only: lMat_t
+       implicit none
+       type(lMat_t), intent(in) :: lMatObj
+       integer(int64), intent(in) :: index
+       HElement_t(dp) :: matel
+     end function lmat_access_t
+  end interface
+
+  procedure(lmat_access_t), pointer :: lMatAccess
+
 
   contains
 
@@ -79,10 +97,10 @@ module LMat_mod
           
           if(G1(p)%ms == G1(a)%ms .and. G1(q)%ms == G1(b)%ms .and. G1(r)%ms == G1(c)%ms) then
              if(tSameSpin) then
-                matel = matel + sgn * real(LMat(LMatInd(int(ida,int64),int(idb,int64),&
+                matel = matel + sgn * real(lMatAccess(lMat,LMatInd(int(ida,int64),int(idb,int64),&
                      int(idc,int64),int(idp,int64),int(idq,int64),int(idr,int64))),dp)
              else
-                matel = matel + sgn * real(LMatAB(LMatInd(int(ida,int64),int(idb,int64),&
+                matel = matel + sgn * real(lMatAccess(LMatAB,LMatInd(int(ida,int64),int(idb,int64),&
                      int(idc,int64),int(idp,int64),int(idq,int64),int(idr,int64))),dp)
              endif
           endif
@@ -299,6 +317,12 @@ module LMat_mod
       else
          get_lmat_el_symInternal => get_lmat_el_base
       endif
+
+      if(tSparseLMat) then
+         lMatAccess => lMatHashedAccess
+      else
+         lMatAccess => lMatDirectAccess
+      endif
     end subroutine initializeLMatInd
 
 !------------------------------------------------------------------------------------------!
@@ -331,20 +355,17 @@ module LMat_mod
       call initializeLMatInd()
 
       ! now, read lmat from file
-      call readLMatArray(LMat,LMatTag,LMatWin,"TCDUMP","tcdump.h5")
+      call readLMatArray(LMat,"TCDUMP","tcdump.h5")
       ! for spin-dependent LMat, also read the opp. spin matrix
-      if(tSpinCorrelator) call readLMatArray(LMatAB,LMatABTag,LMatABWin,"TCDUMPAB","tcdumpAB.h5")
+      if(tSpinCorrelator) call readLMatArray(LMatAB,"TCDUMPAB","tcdumpab.h5")
     end subroutine readLMat
 
 !------------------------------------------------------------------------------------------!
 
-    subroutine readLMatArray(LMatLoc, LMatLocTag, LMatLocWin, LMatFileName, h5Filename)
+    subroutine readLMatArray(LMatLoc, LMatFileName, h5Filename)
       use ParallelHelper, only: mpi_comm_intra
-      use HElem, only: Helement_t_sizeB
       implicit none
-      HElement_t(dp), pointer, intent(inout) :: LMatLoc(:)
-      integer, intent(inout) :: LMatLocTag
-      integer(MPIArg), intent(inout) :: LMatLocWin
+      type(lMat_t), intent(inout) :: LMatLoc
       character(*), intent(in) :: LMatFileName
       character(*), intent(in) :: h5Filename
       integer :: iunit, ierr
@@ -358,30 +379,16 @@ module LMat_mod
       integer :: dummy(6)
       integer(MPIArg) :: err
 
+      if(.not.tSparseLMat) then
+         ! for sparse storage, we first need to get the number of integrals
+         ! this works differently for hdf5 and non-hdf5 dumpfiles, so it is
+         ! done directly in the respective code
 
-      ! The size is given by the largest index (LMatInd is monotonous in all arguments)
-      LMatSize = LMatInd(nBI,nBI,nBI,nBI,nBI,nBI)
+         ! The size is given by the largest index (LMatInd is monotonous in all arguments)
+         LMatSize = LMatInd(nBI,nBI,nBI,nBI,nBI,nBI)
 
-      write(iout,*) "Allocating LMat, memory required:", LMatSize*HElement_t_sizeB/(2.0_dp**30), "GB"
-
-      ! allocate LMat (shared memory)
-      call shared_allocate_mpi(LMatLocWin, LMatLoc, (/LMatSize/))
-      call LogMemAlloc("LMat", int(LMatSize), HElement_t_SizeB, t_r, LMatLocTag)
-!      call MPI_Comm_Size(mpi_comm_intra,iNodeSize,err)
-!      call MPI_Comm_Rank(mpi_comm_intra,iProcInNode,err)
-!      chunkSize = LMatSize / int(iNodeSize,int64)
-!      iChunk = int(iProcInNode,int64)*chunkSize
-!      print *, "On proc", iProcInNode, "on node", iNodeSize, "slice", iChunk+1, iChunk+chunkSize 
-
-      if(iProcIndex_intra.eq.0) then
-         do k = 1, LMatSize
-            LMatLoc(k) = 0.0_dp
-         end do
+         call allocLMat(LMatLoc,LMatSize)
       endif
-
-      write(iout,*) "Successfully allocated LMat"
-
-      call MPI_Barrier(mpi_comm_intra, err)
 
       if(tHDF5LMat) then
 #ifdef __USE_HDF
@@ -391,6 +398,7 @@ module LMat_mod
 #endif
       else
 
+         if(tSparseLMat) call stop_all(t_r,"Sparse storage requires hdf5-integrals")
          if(iProcIndex_intra .eq. 0) then
             iunit = get_free_unit()
             open(iunit,file = LMatFileName,status = 'old')
@@ -409,8 +417,8 @@ module LMat_mod
                      counter = LMatInd(a,b,c,i,j,k)
                      write(iout,*) "Warning, exceeding size" 
                   endif
-
-                  LMatLoc(LMatInd(a,b,c,i,j,k)) = 3.0_dp * matel
+                  if(abs(3.0_dp*matel) > LMatEps) &
+                       LMatLoc%LMatPtr(LMatInd(a,b,c,i,j,k)) = 3.0_dp * matel
                   if(abs(matel)> 0.0_dp) counter = counter + 1
                endif
 
@@ -422,11 +430,35 @@ module LMat_mod
             write(iout, *), "Nonzero elements in LMat", counter
             write(iout, *), "Allocated size of LMat", LMatSize
          endif
+         LMatLoc%nInts = counter
       end if
 
-      call MPI_Barrier(mpi_comm_intra, err)
+      if(tHistLMat) call histogramLMat(LMatLoc)
       
     end subroutine readLMatArray
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine allocLMat(LMatLoc,LMatSize)
+      use HElem, only: Helement_t_sizeB
+      implicit none
+      type(lMat_t) :: LMatLoc
+      integer(int64), intent(in) :: LMatSize
+      integer :: k
+      character(*), parameter :: t_r = "allocLMat"
+      
+      write(iout,*) "Allocating LMat, memory required:", LMatSize*HElement_t_sizeB/(2.0_dp**30), "GB"
+      LMatLoc%nInts = LMatSize
+      ! allocate LMat (shared memory)
+      call shared_allocate_mpi(LMatLoc%shm_win, LMatLoc%LMatPtr, (/LMatSize/))
+      call LogMemAlloc("LMat", int(LMatSize), HElement_t_SizeB, t_r, LMatLoc%tag)
+      if(iProcIndex_intra.eq.0) then
+         do k = 1, LMatSize
+            LMatLoc%LMatPtr(k) = 0.0_dp
+         end do
+      endif
+      write(iout,*) "Successfully allocated LMat"
+    end subroutine allocLMat
 
 !------------------------------------------------------------------------------------------!
 
@@ -434,36 +466,126 @@ module LMat_mod
       implicit none
       character(*), parameter :: t_r = "freeLMat"
 
-      call deallocLMatArray(LMat,LMatWin,LMatTag)
-      call deallocLMatArray(LMatAB,LMatABWin,LMatABTag)
+      call deallocLMatArray(LMat)
+      call deallocLMatArray(LMatAB)
 
       contains 
 
-        subroutine deallocLMatArray(LMatPtr,shm_win,tag)
+        subroutine deallocLMatArray(LMatLoc)
           implicit none
-          HElement_t(dp), pointer :: LMatPtr(:)
-          integer(MPIArg) :: shm_win
-          integer :: tag
+          type(LMat_t) :: LMatLoc
 
-          if(associated(LMat)) then
-             call shared_deallocate_mpi(LMatWin,LMat)
-             call LogMemDealloc(t_r, LMatTag)
-             LMAt => null()
+          if(associated(LMatLoc%LMatPtr)) then
+             call shared_deallocate_mpi(LMatLoc%shm_win,LMatLoc%LMatPtr)
+             call LogMemDealloc(t_r, LMatLoc%tag)
+             LMatLoc%LMatPtr => null()
           end if
+
+          if(associated(LMatLoc%indexPtr)) then
+             call shared_deallocate_mpi(LMatLoc%index_win,LMatLoc%indexPtr)
+             LMatLoc%indexPtr => null()
+          endif
         end subroutine deallocLMatArray
+
       end subroutine freeLMat
 
 !------------------------------------------------------------------------------------------!
+! For huge LMats, a sparse storage scheme is required. Since we still need to access
+! the matrix elements, we use a hash table and re-use the hash.F90 module
+!------------------------------------------------------------------------------------------!
+
+      subroutine initLMatHash(lMatCtr)
+        implicit none
+        type(LMat_t), intent(in) :: lMatCtr
+        integer :: i
+        integer(int64) :: hashVal
+
+        allocate(lMatCtr%htable(lMatCtr%htSize))
+
+        ! for each entry, store the index at the position in the hashtable given
+        ! by its hash value
+        do i = 1, lMatCtr%nInts
+           hashVal = LMatHash(lMatCtr%indexPtr(i), lMatCtr%htSize)
+           call add_hash_table_entry(lMatCtr%htable, i, hashVal)
+        end do
+      end subroutine initLMatHash
+
+
+!------------------------------------------------------------------------------------------!
+
+      function LMatHash(index, htSize) result(hashVal)
+        implicit none
+        integer(int64), intent(in) :: index
+        integer, intent(in) :: htSize
+        integer(int64) :: hashVal
+
+! TODO: Implement an actual hash function
+        hashVal = mod(index-1,htSize)+1
+      end function LMatHash
+
+!------------------------------------------------------------------------------------------!
+
+      function lMatHashedAccess(lMatCtr,index) result(matel)
+        implicit none
+        type(LMat_t), intent(in) :: lMatCtr
+        integer(int64), intent(in) :: index
+        HElement_t(dp) :: matel
+
+        integer(int64) :: hashVal
+        type(ll_node), pointer :: tmp_node
+        logical :: found
+        
+        hashVal = LMatHash(index, lMatCtr%htSize)
+        ! this is the kernel of hash_table_lookup from the hash module
+        found = .false.
+        tmp_node => lMatCtr%htable(hashVal)
+        if(tmp_node%ind /= 0) then
+           do while(associated(tmp_node))
+              if(index==lMatCtr%indexPtr(tmp_node%ind)) then
+                 found = .true.
+                 exit
+              endif
+              tmp_node => tmp_node%next
+           end do
+        end if
+        
+        ! now, tmp_node%ind is the index of the element we wanted to have
+        if(found) then 
+           matel = lMatCtr%LMatPtr(tmp_node%ind)
+        else
+           ! if not found, the matrix element is 0
+           matel = 0.0_dp
+        endif
+
+        nullify(tmp_node)
+      end function lMatHashedAccess
+
+!------------------------------------------------------------------------------------------!
+
+      ! direct (dense) access function
+      function lMatDirectAccess(lMatCtr, index) result(matel)
+        implicit none
+        type(lMat_t), intent(in) :: lMatCtr
+        integer(int64), intent(in) :: index
+        HElement_t(dp) :: matel
+        
+        matel = lMatCtr%lMatPtr(index)
+      end function lMatDirectAccess
+
+!------------------------------------------------------------------------------------------!
+! HDF5 Functionality
+!------------------------------------------------------------------------------------------!
+
 
 #ifdef __USE_HDF
-    subroutine readHDF5LMat(LMatPtr, filename)
+    subroutine readHDF5LMat(LMatLoc, filename)
       use hdf5
       use hdf5_util
       use ParallelHelper, only: mpi_comm_inter, mpiInfoNull, iProcIndex, &
            mpi_comm_intra
       use Parallel_neci, only: nProcessors
       implicit none
-      HElement_t(dp), pointer :: LMatPtr(:)
+      type(lMat_t) :: LMatLoc
       character(*), intent(in) :: filename
       integer :: proc, i
       integer(hid_t) :: err, file_id, plist_id, grp_id, ds_vals, ds_inds
@@ -474,7 +596,8 @@ module LMat_mod
       integer(MPIArg) :: procs_per_node, ierr
       real(dp) :: rVal
       logical :: running, any_running
-      integer :: counter, allCounter, LMatSize
+      integer :: this_nEntries, counter, sparseBlock
+      integer, allocatable :: all_nEntries(:)
       rVal = 0.0_dp
 
       call h5open_f(err)
@@ -490,10 +613,21 @@ module LMat_mod
       call read_int64_attribute(grp_id, nm_nInts, nInts, required=.true.)
       write(iout,*) "Reading", nInts, "integrals"
 
+      ! if the LMat is stored sparse, we can allocate now
+      if(tSparseLMat) then
+         call allocLMat(LMatLoc,nInts)
+         ! also, allocate the index array
+         call shared_allocate_mpi(LMatLoc%index_win, LMatLoc%indexPtr, (/int(nInts,int64)/))
+         ! come up with some reasonable size
+         LMatLoc%htSize = nInts / 100.0
+      endif
+
       ! how many entries does each proc get?
       call MPI_Comm_Size(mpi_comm_intra, procs_per_node, ierr)
       allocate(counts(0:procs_per_node-1))
       allocate(offsets(0:procs_per_node-1))
+      ! the number of entries read in per node - required for sparse storage
+      if(tSparseLMat) allocate(all_nEntries(0:procs_per_node-1))
       counts = nInts / int(procs_per_node, hsize_t)
       rest = mod(nInts, procs_per_node)
       if(rest>0) counts(0:rest-1) = counts(0:rest-1) + 1
@@ -506,7 +640,7 @@ module LMat_mod
       call h5dopen_f(grp_id, nm_indices, ds_inds, err)
 
       ! reserve max. 100MB buffer size for dumpfile I/O
-      blocksize = 100000000/(7*sizeof(LMatPtr(1)))
+      blocksize = 100000000/(7*sizeof(LMatLoc%LMatPtr(1)))
       blockstart = offsets(iProcIndex_intra)
 
       ! the last element to read on each proc
@@ -525,6 +659,8 @@ module LMat_mod
          else
             this_blocksize = 0
          end if
+         ! number of integrals read in this block
+         counter = 0
 
          allocate(indices(6,this_blocksize), source = 0_int64)
          allocate(entries(1,this_blocksize), source = 0_int64)
@@ -542,12 +678,39 @@ module LMat_mod
               [0_hsize_t, blockstart], &
               [0_hsize_t, 0_hsize_t])
 
+         ! for a sparse format, we need to know NOW, how many nonzero entries each
+         ! processor contributes
+         if(tSparseLMat) then
+            this_nEntries = count_entries(entries)
+            ! communicate the number of nonzeros
+            call MPI_AllGather(this_nEntries,1,MPI_INT,all_nEntries,1,MPI_INT,mpi_comm_intra,ierr)
+            ! the window we write to with this proc starts with this offset
+            sparseBlock = 0
+            do i = 0, iProcIndex_intra-1
+               sparseBlock = sparseBlock + all_nEntries(i)
+            end do
+         endif
+
          ! assign LMat entries
          do i = 1, this_blocksize
-            LMatPtr(LMatInd(int(indices(1,i),int64),int(indices(2,i),int64),int(indices(3,i),int64),&
-                 int(indices(4,i),int64),int(indices(5,i),int64),int(indices(6,i),int64))) &
-                 = 3.0_dp * transfer(entries(1,i),rVal)
-            if(abs(transfer(entries(1,i),rVal) > 1e-9)) counter = counter + 1
+            ! truncate down to lMatEps
+            rVal = 3.0_dp * transfer(entries(1,i),rVal)
+            if(abs(rVal)>lMatEps) then
+               if(tSparseLMat) then
+                  ! increase the number of read-in integrals
+                  counter = counter + 1
+                  ! write to the local window within the shared memory
+                  LMatLoc%LMatPtr(sparseBlock+counter) = rVal
+                  LMatLoc%indexPtr(sparseBlock+counter) = LMatInd(int(indices(1,i),int64),int(indices(2,i),int64),&
+                       int(indices(3,i),int64),&
+                       int(indices(4,i),int64),int(indices(5,i),int64),int(indices(6,i),int64))
+               else
+                  LMatLoc%LMatPtr(LMatInd(int(indices(1,i),int64),int(indices(2,i),int64),&
+                       int(indices(3,i),int64),&
+                       int(indices(4,i),int64),int(indices(5,i),int64),int(indices(6,i),int64))) &
+                       = rVal
+               endif
+            endif
          end do
 
          ! set the size/offset for the next block
@@ -573,13 +736,60 @@ module LMat_mod
       call h5fclose_f(file_id, err)
       call h5close_f(err)
 
-      ! get the number of nonzero elements and the sparsity of LMat
-      call MPISum(counter, allCounter)
-      LMatSize = LMatInd(nBI,nBI,nBI,nBI,nBI,nBI)
-      write(iout,*) "Sparsity of LMat", real(nInts)/real(LMatSize)
-      write(iout,*) "Entries above threshold", real(allCounter)/real(LMatSize)
-      
+      if(tSparseLMat) call initLMatHash(LMatLoc)
+
+      contains 
+
+        function count_entries(entries) result(nEntries)
+          integer(hsize_t), intent(in) :: entries(:,:)
+          integer :: blocksize, j
+          integer :: nEntries
+
+          blocksize = size(entries,2)
+          nEntries = 0
+          ! loop over the matrix elements in entries and count the number of
+          ! non-truncated matrix elements
+          do j = 1, blocksize
+             if(abs(3.0*transfer(entries(1,j),rVal)) > lMatEps) nEntries = nEntries + 1
+          end do
+             
+        end function count_entries
+
     end subroutine readHDF5LMat
 #endif
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine histogramLMat(lMatObj)
+      implicit none
+      type(lMat_t), intent(in) :: lMatObj
+      integer :: i,thresh
+      integer, parameter :: minExp = 10
+      integer :: histogram(0:minExp)
+      real :: ratios(0:minExp)
+      
+      histogram = 0
+      do i = 1, lMatObj%nInts
+         do thresh = minExp,1,-1
+            ! in each step, count all matrix elements that are below the threshold and
+            ! have not been counted yet
+            if(lMatObj%LMatPtr(i)<0.1**(thresh)) then
+               histogram(thresh) = histogram(thresh) + 1
+               ! do not count this one again
+               exit
+            endif
+            ! the last check has a different form: everything that is bigger than 0.1 counts here
+            if(lMatObj%LMatPtr(i) > 0.1) histogram(0) = histogram(0) + 1
+         end do
+      end do
+
+      ratios(:) = real(histogram(:))/real(lMatObj%nInts)
+      ! print the ratios
+      write(iout,*) "Matrix elements below", 0.1**(minExp), ":", ratios(minExp)
+      do i = minExp-1,1,-1
+         write(iout,*) "Matrix elements from", 0.1**(i+1),"to",0.1**(i),":",ratios(i)
+      end do
+      write(iout,*) "Matrix elements above", 0.1,":",ratios(0)
+    end subroutine histogramLMat
 
 end module LMat_mod
