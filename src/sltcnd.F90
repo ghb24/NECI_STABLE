@@ -824,6 +824,7 @@ contains
 !        heltc = heltc + get_lmat_el_ua(ex(1,1),ex(1,2),nI(i),ex(2,1),ex(2,2),nI(i))
 !       endif
 !     end do
+!         hel=heltc
 !         heltc=0.d0
           heltc = sltcnd_2_kernel_ua_3b(nI,ex)
 !       if(dabs(hel-heltc).gt.0.000000001) then
