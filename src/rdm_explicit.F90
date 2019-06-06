@@ -11,8 +11,10 @@ module rdm_explicit
 
     use bit_rep_data, only: NIfTot
     use constants
-    use SystemData, only : tReltvy, t_3_body_excits, tGUGA
+    use SystemData, only : tReltvy, t_3_body_excits, tGUGA, nel
+    use guga_bitRepOps, only: encode_matrix_element
     use guga_rdm, only: gen_exc_djs_guga, send_proc_ex_djs
+    use bit_reps, only: extract_bit_rep, decode_bit_det
 
     implicit none
 
@@ -139,8 +141,9 @@ contains
 
         integer(n_int), intent(in) :: iLutnI(0:NIfTot)
         logical, intent(in) :: blank_det
-        integer :: i
+        integer :: i, ni(nel), FlagsDi
         integer(n_int) :: ilutG(0:nifguga)
+        real(dp) :: SignDi(lenof_sign)
         
         ! Set up excitation arrays.
         ! These are blocked according to the processor the excitation would be
@@ -155,6 +158,10 @@ contains
 
         if (tGUGA) then 
             call convert_ilut_toGUGA(ilutNi, ilutG)
+
+            call extract_bit_rep(iLutnI, nI, SignDi, FlagsDi)
+
+            call encode_matrix_element(ilutG, SignDi(1), 2)
 
             do i = 0, nProcessors - 1
                 Sing_ExcDjs(:, Sing_ExcList(i)) = ilutG
@@ -271,7 +278,6 @@ contains
         ! processor they would be on if occupied, and puts them in the
         ! SingExcDjs array according to that processor.
 
-        use bit_reps, only: extract_bit_rep
         use DetBitOps, only: EncodeBitDet
         use load_balance_calcnodes, only: DetermineDetNode
         use LoggingData, only: RDMExcitLevel
@@ -404,7 +410,6 @@ contains
         ! processor they would be on if occupied, and puts them in the
         ! SingExcDjs array according to that processor.
 
-        use bit_reps, only: extract_bit_rep
         use DetBitOps, only: EncodeBitDet
         use hist_data, only: AllHistogram
         use load_balance_calcnodes, only: DetermineDetNode
@@ -763,7 +768,6 @@ contains
         ! is recvcounts(i), and the first 2 have information about the
         ! determinant Di from which the Dj's are single excitations (and it's sign).
 
-        use bit_reps, only: extract_bit_rep
         use FciMCData, only: CurrentDets, TotWalkers
         use LoggingData, only: RDMExcitLevel
         use Parallel_neci, only: nProcessors, MPIArg
@@ -854,7 +858,6 @@ contains
         ! recvcounts(i), and the first 2 have information  about the determinant
         ! Di from which the Dj's are single excitations (and it's sign).
 
-        use bit_reps, only: extract_bit_rep
         use FciMCData, only: CurrentDets, TotWalkers
         use Parallel_neci, only: nProcessors, MPIArg
         use rdm_data, only: Doub_ExcDjs, Doub_ExcDjs2, two_rdm_spawn
@@ -934,7 +937,6 @@ contains
         ! is recvcounts(i), and the first 2 have information about the
         ! determinant Di from which the Dj's are single excitations (and it's sign).
 
-        use bit_reps, only: extract_bit_rep, decode_bit_det
         use DetBitOps, only: FindBitExcitLevel
         use FciMCData, only: ilutHF_True, TotWalkers
         use hist, only: find_hist_coeff_explicit
@@ -1042,7 +1044,6 @@ contains
         ! and the first 2 have information about the determinant Di from which
         ! the Dj's are single excitations (and it's sign).
 
-        use bit_reps, only: extract_bit_rep, decode_bit_det
         use DetBitOps, only: FindBitExcitLevel
         use FciMCData, only: ilutHF_True, TotWalkers
         use hist, only: find_hist_coeff_explicit

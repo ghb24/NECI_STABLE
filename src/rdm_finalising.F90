@@ -15,8 +15,9 @@ module rdm_finalising
     use CalcData, only: tAdaptiveShift
     use RotateOrbsMod, only: FourIndInts
     use SystemData, only: tGUGA, nSpatorbs
-    use guga_rdm, only: calc_1rdms_from_2rdms_guga
+    use guga_rdm, only: calc_1rdms_from_2rdms_guga, t_test_sym_fill
     use LoggingData, only: tWriteSpinFreeRDM
+    use unit_test_helpers, only: print_matrix
 
     implicit none
 
@@ -1243,7 +1244,9 @@ contains
                 ! Only non-transition RDMs should be hermitian and obey the
                 ! Cauchy-Schwarz inequalityo.
                 do irdm = 1, rdm_defs%nrdms_standard
-                    call make_1e_rdm_hermitian(one_rdms(irdm)%matrix, norm_1rdm(irdm))
+                    if (t_test_sym_fill) then 
+                        call make_1e_rdm_hermitian(one_rdms(irdm)%matrix, norm_1rdm(irdm))
+                    end if
                     if (tForceCauchySchwarz) call Force_Cauchy_Schwarz(one_rdms(irdm)%matrix)
                 end do
             end if
@@ -1518,11 +1521,18 @@ contains
         end if
 
         if (tGUGA) then
+
             do i = 1, nSpatorbs
                 do j = 1, nSpatorbs
 
                     if (abs(one_rdm(ind(i),ind(j))) > EPS) then
-                        if (tNormalise .and. (i <= j .or. is_transition_rdm)) then 
+                        if (.not. t_test_sym_fill .and. tNormalise) then 
+
+
+                            write(one_rdm_unit, "(2i6, g25.17)") i, j, &
+                                (one_rdm(ind(i),ind(j)) * norm_1rdm)
+
+                        else if (tNormalise .and. (i <= j .or. is_transition_rdm)) then 
 
                             write(one_rdm_unit, "(2i6, g25.17)") i, j, &
                                 (one_rdm(ind(i),ind(j)) * norm_1rdm)
