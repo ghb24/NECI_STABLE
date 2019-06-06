@@ -500,7 +500,7 @@ module tc_three_body_excitgen
          ! then we start taking ms = -1
             msOrb = -1
          endif
-        
+       
         do i=1,3
          k1(i)=G1(src(1))%k(i)
          k2(i)=G1(src(2))%k(i)

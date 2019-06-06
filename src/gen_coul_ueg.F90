@@ -666,6 +666,7 @@ contains
         k = idk
         l = idl
 
+        if(dimen==3) then
         ! The Uniform Electron Gas
         a = G1(j)%k(1) - G1(l)%k(1)
         b = G1(j)%k(2) - G1(l)%k(2)
@@ -690,6 +691,30 @@ contains
                         endif
 
          endif !abc
+
+        elseif(dimen==1) then
+
+         a = G1(j)%k(1) - G1(l)%k(1)
+
+         if ( G1(k)%k(1) - G1(i)%k(1) == a) then
+
+                        kmax=TranscorrCutoff
+                        kveclength=dabs(dfloat(a))
+                        prefack=2*PI/ALAT(1)
+                        hel=0
+                        if(kveclength.ge.kmax) then
+                           G2 = kveclength*prefack
+                           if(G1(i)%Ms.eq.-1) then
+                                                nsigma=nOccAlpha
+                           else
+                                                nsigma=nOccBeta
+                           endif
+                         hel=-nsigma*PotentialStrength**2/G2**2/ALAT(1)
+                        endif
+
+          endif !a
+
+        endif !dimen
 
 
    end function
@@ -730,15 +755,16 @@ contains
 
         endif
 
-        alkvec(1:3)=G1(i)%k(1:3)
-        bekvec(1:3)=G1(j)%k(1:3)
-        alexkvec(1:3)=G1(k)%k(1:3)
-        beexkvec(1:3)=G1(l)%k(1:3)
-                
-        ! The Uniform Electron Gas
-        kkvec(1:3) = beexkvec(1:3) - bekvec(1:3)
+        if(dimen==3) then
 
-        if ( ((alkvec(1) - alexkvec(1)) == kkvec(1)) .and. &
+          alkvec(1:3)=G1(i)%k(1:3)
+          bekvec(1:3)=G1(j)%k(1:3)
+          alexkvec(1:3)=G1(k)%k(1:3)
+          beexkvec(1:3)=G1(l)%k(1:3)
+                
+          kkvec(1:3) = beexkvec(1:3) - bekvec(1:3)
+
+          if ( ((alkvec(1) - alexkvec(1)) == kkvec(1)) .and. &
              ((alkvec(2) - alexkvec(2)) == kkvec(2)) .and. &
              ((alkvec(3) - alexkvec(3)) == kkvec(3)) ) then
 
@@ -794,7 +820,55 @@ contains
                           hel=hel-prefac*sprod/(difflength*diff2length)**3
                         enddo !sumind
 
-         endif !abc
+           endif !abc
+
+        elseif(dimen==1) then
+
+          alkvec(1)=G1(i)%k(1)
+          bekvec(1)=G1(j)%k(1)
+          alexkvec(1)=G1(k)%k(1)
+          beexkvec(1)=G1(l)%k(1)
+
+          kkvec(1) = beexkvec(1) - bekvec(1)
+
+          if ( (alkvec(1) - alexkvec(1)) == kkvec(1)) then
+
+                        prefac=Potentialstrength**2/ALAT(1)/(4.d0*PI**2)
+                        do sumind=1, nel
+                          qocc=nI(sumind)
+                          qocckvec(1)=G1(qocc)%k(1)
+
+                          if(is_beta(qocc)) then
+                            if(qocc.eq.j) cycle
+
+                            diffvec(1)=qocckvec(1)-bekvec(1)
+                            difflength=dabs(dfloat(diffvec(1)))
+                            if(difflength.lt.TranscorrCutoff) cycle
+
+
+                            diff2vec(1)=qocckvec(1)-beexkvec(1)
+                            diff2length=dabs(dfloat(diff2vec(1)))
+                            if(diff2length.lt.TranscorrCutoff) cycle
+
+                          else
+                            if(qocc.eq.i) cycle
+                            diffvec(1)=qocckvec(1)-alkvec(1)
+                            difflength=dabs(dfloat(diffvec(1)))
+                            if(difflength.lt.TranscorrCutoff) cycle
+
+
+                            diff2vec(1)=qocckvec(1)-alexkvec(1)
+                            diff2length=dabs(dfloat(diff2vec(1)))
+                            if(diff2length.lt.TranscorrCutoff) cycle
+
+                          endif
+
+                          hel=hel-prefac/(diffvec(1)*diff2vec(1))
+                        enddo !sumind
+
+           endif !a
+
+        endif!dimen
 
 
    end function
@@ -1420,85 +1494,85 @@ contains
     do j=-m_cut,m_cut
     do k=-m_cut,m_cut
      
-     ii=i*i+j*j+k*k
-     a=dsqrt(ii*ALAT(1)*ALAT(1))
-     if(ii>0)then
-      sum=sum+exp(-pi*ii)/pi/ii*(ALAT(1))**2
-     end if
-    end do
-    end do
-    end do
-    
-    sum=(sum-pi/kapa/kapa)/(ALAT(1))**3
-    
-    
-    do i=-m_cut,m_cut
-    do j=-m_cut,m_cut
-    do k=-m_cut,m_cut
-    
-     ii=i*i+j*j+k*k
-     if(ii>0)then
-      r=sqrt(1.0*ii)*ALAT(1) 
-      sum=sum+erfc(kapa*r)/r
-     end if
-    end do
-    end do
-    end do
-    sum=sum-2*kapa/sqrt(pi)
-    
-    else !============================ dimen=2
-    
-    kapa=sqrt(pi)/ALAT(1)
-    m_cut=20
-    
-    sum=0.0
-    
-    do i=-m_cut,m_cut
-    do j=-m_cut,m_cut
-     
-     ii=i*i+j*j
-     if(ii>0)then
-      a=sqrt(1.0*ii)*2*pi/ALAT(1)
-      sum=sum+erfc(a/2/kapa)/a
-     end if
-    end do
-    end do
-    
-    
-    sum=(sum*2*pi-2*dsqrt(pi)/kapa)/(ALAT(1))**2
-    
-    
-    do i=-m_cut,m_cut
-    do j=-m_cut,m_cut
-    
-     ii=i*i+j*j
-     if(ii>0)then
-      r=sqrt(1.0*ii)*ALAT(1) 
-      sum=sum+erfc(kapa*r)/r
-     end if
-    end do
-    end do
-    sum=sum-2*kapa/sqrt(pi)
-    
-    
-    end if !========================= not yet for other dimensions
-    
-    
-    
-    open(10,file='MadelungTerm.dat', status='unknown')
-    write(10,*)sum*Nel/2
-    close(10)
-    
-    end subroutine
-    
-!   prepare FCIDUMP for UEG, Debug    
-    subroutine prep_ueg_dump
+        ii=i*i+j*j+k*k
+a=dsqrt(ii*ALAT(1)*ALAT(1))
+        if(ii>0)then
+        sum=sum+exp(-pi*ii)/pi/ii*(ALAT(1))**2
+        end if
+        end do
+        end do
+        end do
+
+        sum=(sum-pi/kapa/kapa)/(ALAT(1))**3
+
+
+        do i=-m_cut,m_cut
+        do j=-m_cut,m_cut
+        do k=-m_cut,m_cut
+
+        ii=i*i+j*j+k*k
+        if(ii>0)then
+r=sqrt(1.0*ii)*ALAT(1) 
+        sum=sum+erfc(kapa*r)/r
+        end if
+        end do
+        end do
+        end do
+sum=sum-2*kapa/sqrt(pi)
+
+        else !============================ dimen=2
+
+kapa=sqrt(pi)/ALAT(1)
+        m_cut=20
+
+        sum=0.0
+
+        do i=-m_cut,m_cut
+        do j=-m_cut,m_cut
+
+        ii=i*i+j*j
+        if(ii>0)then
+a=sqrt(1.0*ii)*2*pi/ALAT(1)
+        sum=sum+erfc(a/2/kapa)/a
+        end if
+        end do
+        end do
+
+
+        sum=(sum*2*pi-2*dsqrt(pi)/kapa)/(ALAT(1))**2
+
+
+        do i=-m_cut,m_cut
+        do j=-m_cut,m_cut
+
+        ii=i*i+j*j
+        if(ii>0)then
+r=sqrt(1.0*ii)*ALAT(1) 
+        sum=sum+erfc(kapa*r)/r
+        end if
+        end do
+        end do
+sum=sum-2*kapa/sqrt(pi)
+
+
+        end if !========================= not yet for other dimensions
+
+
+
+        open(10,file='MadelungTerm.dat', status='unknown')
+        write(10,*)sum*Nel/2
+close(10)
+
+        end subroutine
+
+        !   prepare FCIDUMP for UEG, Debug    
+        subroutine prep_ueg_dump
 
         use SystemData, only: tUEG2, kvec, k_lattice_constant, dimen
         use util_mod, only: get_free_unit
         HElement_t(dp) :: hel
         integer :: i, j, k, l, a, b, c, iss, id1, id2, id3, id4,ms2,nelec,i0,norb,i_unit
-        integer :: l1,l2,l3,r1,r2,r3,k1(3),k2(3),k3(3)
+integer :: l1,l2,l3,r1,r2,r3,k1(3),k2(3),k3(3)
         real(dp) :: G, G2,energy,ak(3),bk(3),ck(3),a2,b2,c2
         real(dp) :: k_tc(3), pq_tc(3), u_tc, gamma_RPA, gamma_kmax
         logical :: tCoulomb, tExchange  
@@ -1506,147 +1580,144 @@ contains
         namelist /FCI/ NORB,nelec,MS2
 
         if(iProcIndex == root) then
-        
+
         ms2=0
         nelec=nel 
         norb=nBasis/2
-       i_unit=get_free_unit() 
-      open(i_unit,file='FCIDUMP',status='unknown')
-      write(i_unit,FCI)
-      do id1=1,norb
-       do id2=1,norb
+i_unit=get_free_unit() 
+        open(i_unit,file='FCIDUMP',status='unknown')
+write(i_unit,FCI)
+        do id1=1,norb
+        do id2=1,norb
         do id3=1,norb
-         do id4=1,norb
-          hel=get_ueg_umat_el (id1, id2, id3, id4)
-          if(abs(hel).gt.1.d-30)then
-            write(i_unit,'(1x,e23.16,4I4)')hel,id1,id3,id2,id4
-          end if
-         end do
+        do id4=1,norb
+hel=get_ueg_umat_el (id1, id2, id3, id4)
+        if(abs(hel).gt.1.d-30)then
+        write(i_unit,'(1x,e23.16,4I4)')hel,id1,id3,id2,id4
+        end if
         end do
-       end do
-      end do
-      i0=0
-      do i=1,norb
-      do j=i,i
-       
-          id1=(i-1)*2+1
-                   
-         a = G1(id1)%k(1) 
-         b = G1(id1)%k(2) 
-         c = G1(id1)%k(3)
-         
-         hel=a*a/2.0+b*b/2.0+c*c/2.0
-         hel=hel*(2*pi/ALAT(1))**2
-         
-       if(abs(hel).gt.1.d-30)then
-       write(i_unit,'(1x,e23.16,4I4)')hel,i,j,i0,i0
-       end if
-      end do
-      end do
-      energy=0.0
-      write(i_unit,'(1x,e23.16,4I4)')energy,i0,i0,i0,i0
-      close(i_unit)
-     
-!========= L mat ========================
-     if(.not.t_ueg_3_body)stop
-       i_unit=get_free_unit() 
-       open(i_unit,file='TCDUMP',status='unknown',access='append')
-      do l1=1,norb
-      do l2=l1,norb
-      do l3=l2,norb
-      do r1=1,norb
-      do r2=2,norb
-      do r3=3,norb
+        end do
+        end do
+        end do
+        i0=0
+        do i=1,norb
+        do j=i,i
 
-        hel=get_lmat_ueg(l1,l2,l3,r1,r2,r3)
-           if(dabs(hel)>1.d-8)then
-            write(i_unit,'(1x,e23.16,6I4)')hel,l1,l2,l3,r1,r2,r3
- !           print '(1x,e23.16,6I4)', hel,l1,l2,l3,r1,r2,r3
-           end if
-      
-      end do
-      end do
-      end do
-      end do
-      end do
-      end do
-      
-           
+        id1=(i-1)*2+1
 
-       
-      close(i_unit)
-     end if
-     stop
-    end subroutine 
-    
-    function get_lmat_ueg (l1,l2,l3,r1,r2,r3) result(hel)
+        a = G1(id1)%k(1) 
+        b = G1(id1)%k(2) 
+c = G1(id1)%k(3)
+
+        hel=a*a/2.0+b*b/2.0+c*c/2.0
+        hel=hel*(2*pi/ALAT(1))**2
+
+        if(abs(hel).gt.1.d-30)then
+        write(i_unit,'(1x,e23.16,4I4)')hel,i,j,i0,i0
+        end if
+        end do
+        end do
+        energy=0.0
+        write(i_unit,'(1x,e23.16,4I4)')energy,i0,i0,i0,i0
+close(i_unit)
+
+        !========= L mat ========================
+        if(.not.t_ueg_3_body)stop
+i_unit=get_free_unit() 
+        open(i_unit,file='TCDUMP',status='unknown',access='append')
+        do l1=1,norb
+        do l2=l1,norb
+        do l3=l2,norb
+        do r1=1,norb
+        do r2=2,norb
+        do r3=3,norb
+
+hel=get_lmat_ueg(l1,l2,l3,r1,r2,r3)
+        if(dabs(hel)>1.d-8)then
+        write(i_unit,'(1x,e23.16,6I4)')hel,l1,l2,l3,r1,r2,r3
+        !           print '(1x,e23.16,6I4)', hel,l1,l2,l3,r1,r2,r3
+        end if
+
+        end do
+        end do
+        end do
+        end do
+        end do
+        end do
+
+
+
+
+close(i_unit)
+        end if
+        stop
+        end subroutine 
+
+function get_lmat_ueg (l1,l2,l3,r1,r2,r3) result(hel)
 
         use SystemData, only: dimen
         integer, intent(in) :: l1,l2,l3,r1,r2,r3
-        integer :: i,j,k,a,b,c,k1(3),k2(3),k3(3)
+integer :: i,j,k,a,b,c,k1(3),k2(3),k3(3)
         real(dp) :: hel,ak(3),bk(3),ck(3),a2,b2,c2
-          i=(l1-1)*2+1
-          j=(l2-1)*2+1
-          k=(l3-1)*2+1
-          a=(r1-1)*2+1
-          b=(r2-1)*2+1
-          c=(r3-1)*2+1
-          
-          
-!============ copy from above
-        
-     if(dimen==3)then
+        i=(l1-1)*2+1
+        j=(l2-1)*2+1
+        k=(l3-1)*2+1
+        a=(r1-1)*2+1
+        b=(r2-1)*2+1
+        c=(r3-1)*2+1
+
+
+        !============ copy from above
+
+        if(dimen==3)then
         ! The Uniform Electron Gas
         k1(1) = G1(i)%k(1) - G1(a)%k(1)
         k1(2) = G1(i)%k(2) - G1(a)%k(2)
-        k1(3) = G1(i)%k(3) - G1(a)%k(3)
-        
+k1(3) = G1(i)%k(3) - G1(a)%k(3)
+
         k2(1) = G1(j)%k(1) - G1(b)%k(1)
         k2(2) = G1(j)%k(2) - G1(b)%k(2)
-        k2(3) = G1(j)%k(3) - G1(b)%k(3)
-        
+k2(3) = G1(j)%k(3) - G1(b)%k(3)
+
         k3(1) = G1(k)%k(1) - G1(c)%k(1)
         k3(2) = G1(k)%k(2) - G1(c)%k(2)
-        k3(3) = G1(k)%k(3) - G1(c)%k(3)
-       
-        if(all((k1+k2+k3)==0)) then
-           ak(1) = -2 * PI * k1(1) / ALAT(1)
-           ak(2) = -2 * PI * k1(2) / ALAT(2)                
-           ak(3) = -2 * PI * k1(3) / ALAT(3)
-           bk(1) = -2 * PI * k2(1) / ALAT(1)
-           bk(2) = -2 * PI * k2(2) / ALAT(2)                
-           bk(3) = -2 * PI * k2(3) / ALAT(3)
-           ck(1) = -2 * PI * k3(1) / ALAT(1)
-           ck(2) = -2 * PI * k3(2) / ALAT(2)                
-           ck(3) = -2 * PI * k3(3) / ALAT(3)
-           
-           
-           a2=ak(1)*ak(1)+ak(2)*ak(2)+ak(3)*ak(3)
-           b2=bk(1)*bk(1)+bk(2)*bk(2)+bk(3)*bk(3)
-           c2=ck(1)*ck(1)+ck(2)*ck(2)+ck(3)*ck(3)
-           
-           hel= uu_tc(a2)*uu_tc(b2)*(ak(1)*bk(1)+ak(2)*bk(2)+ak(3)*bk(3))&
-               +uu_tc(a2)*uu_tc(c2)*(ak(1)*ck(1)+ak(2)*ck(2)+ak(3)*ck(3))&
-               +uu_tc(b2)*uu_tc(c2)*(bk(1)*ck(1)+bk(2)*ck(2)+bk(3)*ck(3))
-!           hel=hel/(ALAT(1) * ALAT(2) * ALAT(3))**2/3
-! a permutation factor 3 is missing in other place, so here we ignore the /3
-           hel=hel/(ALAT(1) * ALAT(2) * ALAT(3))**2
+k3(3) = G1(k)%k(3) - G1(c)%k(3)
 
-         else
-           hel=0.0
-         end if
-      else
-       print *, 'at moment Lmat is only available for 3D UEG'
-       stop
-      end if
-            
-    end function
+        if(all((k1+k2+k3)==0)) then
+        ak(1) = -2 * PI * k1(1) / ALAT(1)
+        ak(2) = -2 * PI * k1(2) / ALAT(2)                
+        ak(3) = -2 * PI * k1(3) / ALAT(3)
+        bk(1) = -2 * PI * k2(1) / ALAT(1)
+        bk(2) = -2 * PI * k2(2) / ALAT(2)                
+        bk(3) = -2 * PI * k2(3) / ALAT(3)
+        ck(1) = -2 * PI * k3(1) / ALAT(1)
+        ck(2) = -2 * PI * k3(2) / ALAT(2)                
+ck(3) = -2 * PI * k3(3) / ALAT(3)
+
+
+        a2=ak(1)*ak(1)+ak(2)*ak(2)+ak(3)*ak(3)
+        b2=bk(1)*bk(1)+bk(2)*bk(2)+bk(3)*bk(3)
+c2=ck(1)*ck(1)+ck(2)*ck(2)+ck(3)*ck(3)
+
+        hel= uu_tc(a2)*uu_tc(b2)*(ak(1)*bk(1)+ak(2)*bk(2)+ak(3)*bk(3))&
+        +uu_tc(a2)*uu_tc(c2)*(ak(1)*ck(1)+ak(2)*ck(2)+ak(3)*ck(3))&
++uu_tc(b2)*uu_tc(c2)*(bk(1)*ck(1)+bk(2)*ck(2)+bk(3)*ck(3))
+        !           hel=hel/(ALAT(1) * ALAT(2) * ALAT(3))**2/3
+        ! a permutation factor 3 is missing in other place, so here we ignore the /3
+        hel=hel/(ALAT(1) * ALAT(2) * ALAT(3))**2
+
+        else
+        hel=0.0
+        end if
+        else
+        print *, 'at moment Lmat is only available for 3D UEG'
+        stop
+        end if
+
+        end function
 
 function get_lmat_ua (l1,l2,l3,r1,r2,r3) result(hel)
-!I have a strong feeling that it can be faster if the if condition to the 2 up
-!and one down spins or two down and oen up spins would be brought to one or two
-!subroutine up.
-        use SystemData, only: dimen, TranscorrCutoff
+        use SystemData, only: dimen, TranscorrCutoff, PotentialStrength
         integer, intent(in) :: l1,l2,l3,r1,r2,r3
         integer :: i,j,k,a,b,c,k1(3),k2(3),k3(3)
         real(dp) :: hel,ak(3),bk(3),ck(3),a3,b3,c3,klength1, klength2
@@ -1654,35 +1725,6 @@ function get_lmat_ua (l1,l2,l3,r1,r2,r3) result(hel)
 
 
      if(dimen==3)then
-
-!       if(G1(l1)%Ms.eq.G1(l2)%Ms.and.G1(l1)%Ms.ne.G1(l3)%Ms) then
-!         i=l1
-!         j=l2
-!         k=l3
-!         a=r1
-!         b=r2
-!         c=r3
-!         tSpinCorrect=.true.
-!       elseif(G1(l1)%Ms.eq.G1(l3)%Ms.and.G1(l1)%Ms.ne.G1(l2)%Ms) then
-!         i=l1
-!         j=l3
-!         k=l2
-!         a=r1
-!         b=r3
-!         c=r2
-!         tSpinCorrect=.true.
-!       elseif(G1(l2)%Ms.eq.G1(l3)%Ms.and.G1(l1)%Ms.ne.G1(l2)%Ms) then
-!         i=l3
-!         j=l2
-!         k=l1
-!         a=r3
-!         b=r2
-!         c=r1
-!         tSpinCorrect=.true.
-!       else
-!         tSpinCorrect=.false.
-!       endif
-!       if(tSpinCorrect) then
 
 !       The spin has been set before in get_lmat_el_ua l1,l2,r1,r2 have the same
 !       spin. l3 and r3 have the opposite spin.
@@ -1728,13 +1770,44 @@ function get_lmat_ua (l1,l2,l3,r1,r2,r3) result(hel)
                hel=0.d0
          end if
 
-!       endif !G1(i)%Ms.eq.G1(j)%Ms.and.G1(i)%Ms.ne.G1(k)%Ms
+        hel=hel/(ALAT(1) * ALAT(2) * ALAT(3))**2
+      elseif(dimen==1) then
+
+        i=l1
+        j=l2
+        k=l3
+        a=r1
+        b=r2
+        c=r3
+
+        k1(1) = G1(i)%k(1) - G1(a)%k(1)
+
+        klength1=dabs(dfloat(k1(1)))
+
+        k2(1) = G1(b)%k(1) - G1(j)%k(1)
+
+        klength2=dabs(dfloat(k2(1)))
+
+        k3(1) = G1(c)%k(1) - G1(k)%k(1)
+
+        if(k2(1)-k1(1)+k3(1)==0.and.klength1.ge.TranscorrCutoff.and.klength2.ge.TranscorrCutoff) then
+           ak(1) = 2 * PI * k1(1) / ALAT(1)
+           bk(1) = 2 * PI * k2(1) / ALAT(1)
+
+
+           hel=-PotentialStrength**2/(ak(1)*bk(1))/2.d0 !&
+
+         else
+
+               hel=0.d0
+         end if
+                
+        hel=hel/ALAT(1)
       else
-       print *, 'at moment Lmat is only available for 3D contact interaction'
+       print *, 'at moment Lmat is only available for 1D and 3D contact interactions'
        stop
       end if
 
-        hel=hel/(ALAT(1) * ALAT(2) * ALAT(3))**2
 
     end function
 
