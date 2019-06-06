@@ -6,6 +6,7 @@ image: dobrautz/neci_base:opensuse42.3
 pipelines:
  default: 
   - step: 
+     size: 2x
      script: 
         # first do the debug build + hdf5 
       #- echo "building debug version + hdf5!"
