@@ -30,7 +30,7 @@ module tc_three_body_data
   type lMat_t
      HElement_t(dp), pointer :: LMatPtr(:)
      integer(int64), pointer :: indexPtr(:)
-     integer :: tag
+     integer :: tag, indexTag
      integer(MPIArg) :: shm_win, index_win
      integer :: nInts
      type(ll_node), pointer :: hTable(:)

@@ -553,6 +553,10 @@ system: do
            end if
            t_non_hermitian = .true. 
 
+        case("NONHERMITIAN")
+           ! just use a non-hermitian Hamiltonian, no additional tweaks
+           t_non_hermitian = .true.
+
         case('MOLECULAR-TRANSCORR')
             t_non_hermitian = .true.
             ! optionally supply the three-body integrals of the TC Hamiltonian

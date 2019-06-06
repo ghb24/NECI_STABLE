@@ -7,7 +7,7 @@ module LMat_mod
   use util_mod, only: get_free_unit
   use shared_memory_mpi
   use sort_mod
-  use hash, only: add_hash_table_entry
+  use hash, only: add_hash_table_entry, clear_hash_table
   use ParallelHelper, only: iProcIndex_intra
   use tc_three_body_data, only: tDampKMat, tDampLMat, tSymBrokenLMat, tSpinCorrelator, LMatEps, &
        lMat_t, tSparseLMat
@@ -483,8 +483,15 @@ module LMat_mod
 
           if(associated(LMatLoc%indexPtr)) then
              call shared_deallocate_mpi(LMatLoc%index_win,LMatLoc%indexPtr)
+             call LogMemDealloc(t_r, LMatLoc%indexTag)
              LMatLoc%indexPtr => null()
           endif
+
+          if(associated(LMatLoc%htable)) then
+             call clear_hash_table(LMatLoc%htable)
+             deallocate(LMatLoc%htable)
+          endif
+
         end subroutine deallocLMatArray
 
       end subroutine freeLMat
@@ -598,6 +605,7 @@ module LMat_mod
       logical :: running, any_running
       integer :: this_nEntries, counter, sparseBlock
       integer, allocatable :: all_nEntries(:)
+      character(*), parameter :: t_r = "readHDF5LMat"
       rVal = 0.0_dp
 
       call h5open_f(err)
@@ -618,6 +626,7 @@ module LMat_mod
          call allocLMat(LMatLoc,nInts)
          ! also, allocate the index array
          call shared_allocate_mpi(LMatLoc%index_win, LMatLoc%indexPtr, (/int(nInts,int64)/))
+         call LogMemAlloc("LMat Indices", int(nInts), sizeof_int64, t_r, LMatLoc%indexTag)
          ! come up with some reasonable size
          LMatLoc%htSize = nInts / 100.0
       endif
