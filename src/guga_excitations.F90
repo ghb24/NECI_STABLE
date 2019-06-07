@@ -13972,7 +13972,9 @@ contains
         if (tmatFlag) then
             tmat = getTmatEl(2*excitInfo%i, 2*excitInfo%j)
             if (abs(tmat)<EPS) then
-!                 call abort_excitation() !todo
+                nExcits = 0
+                allocate(excitations(0,0))
+                return
             end if
         else
             tmat = 1.0_dp
@@ -16066,7 +16068,6 @@ contains
         end select
         ! now have to cut tempExcits to only necessary 
         ! and used entries and output it!
-        allocate(excitations(0:nifguga, nExcits), stat = ierr)
 
         cnt = 1
         ! fill up the excitations and store matrix element
@@ -16075,13 +16076,17 @@ contains
             ! elements
             if (abs(extract_matrix_element(tempExcits(:,iEx),1))<EPS) cycle
 
-            excitations(:,cnt) = tempExcits(:,iEx)
+            tempExcits(:,cnt) = tempExcits(:,iEx)
             
             cnt = cnt + 1
 
         end do
         ! also update nExcits one final time if something gets cut
         nExcits = cnt - 1
+
+        allocate(excitations(0:nifguga, nExcits), stat = ierr)
+
+        excitations = tempExcits(:,1:nExcits)
 
         ! and get rid of container variables
         deallocate(tempExcits)
@@ -17215,8 +17220,6 @@ contains
         ! change weights... maybe need both single and double type weights
         ! maybe semistart is wrong here..
         weights = weights%ptr
-!         weights = init_fullStartWeight(ilut, ende1, ende2, negSwitches(ende1), &
-!             posSwitches(ende1), currentB_ilut(ende1))
 
         minusWeight = weights%proc%minus(negSwitches(start2), currentB_ilut(start2),weights%dat)
         plusWeight = weights%proc%plus(posSwitches(start2), currentB_ilut(start2),weights%dat)
@@ -17235,7 +17238,6 @@ contains
 
         ! update weights again: 
         weights = weights%ptr
-!         weights = init_singleWeight(ilut, ende2)
         minusWeight = weights%proc%minus(negSwitches(ende1), currentB_ilut(ende1),weights%dat)
         plusWeight = weights%proc%plus(posSwitches(ende1), currentB_ilut(ende1),weights%dat)
 
@@ -17305,8 +17307,6 @@ contains
         ! change weights... maybe need both single and double type weights
         ! then do lowering semi start
         weights = weights%ptr
-!         weights = init_fullStartWeight(ilut, ende1, ende2, negSwitches(ende1), &
-!             posSwitches(ende1), currentB_ilut(ende1))
 
         minusWeight = weights%proc%minus(negSwitches(start2), currentB_ilut(start2),weights%dat)
         plusWeight = weights%proc%plus(posSwitches(start2), currentB_ilut(start2),weights%dat)
@@ -17325,7 +17325,6 @@ contains
 
         ! update weights again: todo
         weights = weights%ptr
-!         weights = init_singleWeight(ilut, ende2)
         minusWeight = weights%proc%minus(negSwitches(ende1), currentB_ilut(ende1),weights%dat)
         plusWeight = weights%proc%plus(posSwitches(ende1), currentB_ilut(ende1),weights%dat)
 
@@ -17403,8 +17402,6 @@ contains
         end do
         
         weights = weights%ptr
-!         weights = init_fullStartWeight(ilut, ende1, ende2, negSwitches(ende1), &
-!             posSwitches(ende1), currentB_ilut(ende1))
 
         minusWeight = weights%proc%minus(negSwitches(start2), currentB_ilut(start2),weights%dat)
         plusWeight = weights%proc%plus(posSwitches(start2), currentB_ilut(start2),weights%dat)
@@ -17425,7 +17422,6 @@ contains
 
         ! update weights again: 
         weights = weights%ptr
-!         weights = init_singleWeight(ilut, ende2)
         minusWeight = weights%proc%minus(negSwitches(ende1), currentB_ilut(ende1),weights%dat)
         plusWeight = weights%proc%plus(posSwitches(ende1), currentB_ilut(ende1),weights%dat)
 
@@ -17496,13 +17492,6 @@ contains
         call createSingleStart(ilut, excitInfo, posSwitches, negSwitches, &
             weights, tempExcits, nExcits)
 
-!         if (excitInfo%fullstart == 6 .and. start2 == 7 .and. ende1 == 8 .and. ende2 == 9) then
-!             print *, "step:", current_stepvector(1:10)
-!             print *, "b:", currentB_ilut(1:10)
-!             print *, "singlestart", extract_matrix_element(tempExcits(:,1),1)
-!             call write_det_guga(6,tempExcits(:,1),.true.)
-!         end if
-
         ! and single update until semi start
         do iOrb = excitInfo%fullStart + 1, excitInfo%secondStart - 1
             call singleUpdate(ilut, iOrb, excitInfo, posSwitches, negSwitches, &
@@ -17512,8 +17501,6 @@ contains
         ! change weights... maybe need both single and double type weights
         ! then do lowering semi start
         weights = weights%ptr
-!         weights = init_fullStartWeight(ilut, ende1, ende2, negSwitches(ende1), &
-!             posSwitches(ende1), currentB_ilut(ende1))
 
         minusWeight = weights%proc%minus(negSwitches(start2), currentB_ilut(start2),weights%dat)
         plusWeight = weights%proc%plus(posSwitches(start2), currentB_ilut(start2),weights%dat)
@@ -17523,11 +17510,6 @@ contains
         call calcLoweringSemiStart(ilut, excitInfo, &
             tempExcits, nExcits, plusWeight, minusWeight, zeroWeight)
 
-!         if (excitInfo%fullstart == 6 .and. start2 == 7 .and. ende1 == 8 .and. ende2 == 9) then
-!             print *,"semistart:", extract_matrix_element(tempExcits(:,1),1), &
-!                 extract_matrix_element(tempExcits(:,1),2)
-!             call write_det_guga(6,tempExcits(:,1),.true.)
-!         end if
 
         ! then do double excitation over double excitation region
         do iOrb = excitInfo%secondStart + 1, excitInfo%firstEnd - 1
@@ -17536,7 +17518,6 @@ contains
         end do
 
         ! update weights again: 
-!         weights = init_singleWeight(ilut, ende2)
         weights = weights%ptr
         minusWeight = weights%proc%minus(negSwitches(ende1), currentB_ilut(ende1),weights%dat)
         plusWeight = weights%proc%plus(posSwitches(ende1), currentB_ilut(ende1),weights%dat)
@@ -17545,12 +17526,6 @@ contains
         call calcLoweringSemiStop(ilut, excitInfo, tempExcits, nExcits, plusWeight, &
             minusWeight)
 
-!         if (excitInfo%fullstart == 6 .and. start2 == 7 .and. ende1 == 8 .and. ende2 == 9) then
-!             print *,"semistop:", extract_matrix_element(tempExcits(:,1),1), &
-!                 extract_matrix_element(tempExcits(:,1),2)
-!             call write_det_guga(6,tempExcits(:,1),.true.)
-!         endif
-            
         ! have to set the used generators correctly to handle more versions
 
         ! and then do final single region again 
@@ -17562,11 +17537,6 @@ contains
         ! and finally end step
         call singleEnd(ilut, excitInfo, tempExcits, nExcits, excitations)
         
-!         if (excitInfo%fullstart == 6 .and. start2 == 7 .and. ende1 == 8 .and. ende2 == 9) then
-!             print *, "end:", extract_matrix_element(excitations(:,1),1)
-!         end if
-        ! that should be it...
-
     end subroutine calcDoubleLowering
 
 
@@ -17679,7 +17649,6 @@ contains
         character(*), parameter :: this_routine = "calcFullStartR2L"
 
         integer :: nMax, ierr, iOrb, start, ende, semi, gen, start2
-!         integer(n_int) :: t(0:nifguga)
         real(dp) :: tempWeight
         type(weight_obj) :: weights
         real(dp) :: minusWeight, plusWeight, zeroWeight
@@ -17713,7 +17682,6 @@ contains
         ! then do pseudo double until semi stop
         ! should check for LR(3) start here, have to do nothing if a 3 at 
         ! the full start since all matrix elements are one..
-!         if (.not.isThree(ilut,start)) then
 
         if (current_stepvector(start) /= 3) then
             do iOrb = start + 1, semi - 1 
@@ -17727,7 +17695,6 @@ contains
         ! then reset weights !
         ! do i only need single weight here? 
         weights = weights%ptr
-!         weights = init_singleWeight(ilut, ende)
 
         plusWeight = weights%proc%plus(posSwitches(semi), currentB_ilut(semi),&
             weights%dat)
@@ -17773,9 +17740,6 @@ contains
         semi = excitInfo%firstEnd
         gen = excitInfo%firstGen    
         
-!         write(iout,*) "init weights?"
-!         call neci_flush(iout)
-
         ! create correct weights:
         weights = init_fullStartWeight(ilut, semi, ende, negSwitches(semi), &
             posSwitches(semi), currentB_ilut(semi))
@@ -17785,8 +17749,6 @@ contains
         zeroWeight = weights%proc%zero(negSwitches(start), posSwitches(start), &
             currentB_ilut(start), weights%dat)
 
-!         write(iout,*) "start?"
-!         call neci_flush(iout)
         ! check if first value is 3, so only 0 branch is compatible
         call mixedFullStart(ilut, excitInfo, plusWeight, minusWeight,zeroWeight, tempExcits,&
             nExcits)
@@ -17794,9 +17756,6 @@ contains
         ! then do pseudo double until semi stop
         ! should check for LR(3) start here, have to do nothing if a 3 at 
         ! the full start since all matrix elements are one..
-!         if (.not.isThree(ilut,start)) then
-!         write(iout,*) "double updates?"
-!         call neci_flush(iout)
         if (current_stepvector(start) /= 3) then
             do iOrb = start + 1, semi - 1 
                 call doubleUpdate(ilut, iOrb, excitInfo, weights, tempExcits, nExcits, &
@@ -17804,20 +17763,13 @@ contains
             end do
         end if
 
-!         write(iout,*) "new weight?"
-!         call neci_flush(iout)
-
         ! then deal with the specific semi-stop here
         ! but todo update weights here..
         weights = weights%ptr
-!         weights = init_singleWeight(ilut, ende)
         plusWeight = weights%proc%plus(posSwitches(semi), currentB_ilut(semi),&
             weights%dat)
         minusWeight = weights%proc%minus(negSwitches(semi), currentB_ilut(semi), &
             weights%dat)
-
-!         write(iout,*) "semistop?"
-!         call neci_flush(iout)
 
         call calcLoweringSemiStop(ilut, excitInfo, tempExcits, nExcits, plusWeight, &
             minusWeight)
@@ -17831,8 +17783,6 @@ contains
                 weights, tempExcits, nExcits)
         end do
 
-!         write(iout,*) "end?"
-!         call neci_flush(iout)
         ! and normal single end
         call singleEnd(ilut, excitInfo, tempExcits, nExcits, excitations)
 
@@ -19079,7 +19029,6 @@ contains
 
         call encode_matrix_element(t, 0.0_dp, 2)
 
-!         if (isThree(ilut,semi)) then
         select case (current_stepvector(semi))
         case (3)
             ! have to check a few things with 3 semi stop
@@ -19141,18 +19090,16 @@ contains
 
             end if
 
-!         else
-!             if (isOne(ilut,semi)) then
         case (1)
-                ! only one excitation possible, which also has to have 
-                ! non-zero weight or otherwise i wouldnt even be here
-                ! and reuse already provided t
-                ! 1 -> 0
-                clr_orb(t, 2*semi-1)
+            ! only one excitation possible, which also has to have 
+            ! non-zero weight or otherwise i wouldnt even be here
+            ! and reuse already provided t
+            ! 1 -> 0
+            clr_orb(t, 2*semi-1)
 
-                call getDoubleMatrixElement(0,1,0,1,1,bVal,1.0_dp,tempWeight)
+            call getDoubleMatrixElement(0,1,0,1,1,bVal,1.0_dp,tempWeight)
 
-                call setDeltaB(1, t)
+            call setDeltaB(1, t)
 
             ! encode fullstart contribution and pseudo overlap region here 
             ! too in one go. one additional -1 due to semistop
@@ -19164,17 +19111,14 @@ contains
 
             nExcits = 1
 
-!             else if isTwo(ilut,semi) then
         case (2)
-                ! here we have 
-                ! 2 -> 0
-                clr_orb(t, 2*semi)
+            ! here we have 
+            ! 2 -> 0
+            clr_orb(t, 2*semi)
 
-                call getDoubleMatrixElement(0,2,0,1,1,bVal,1.0_dp,tempWeight)
+            call getDoubleMatrixElement(0,2,0,1,1,bVal,1.0_dp,tempWeight)
 
-                call setDeltaB(-1,t)
-
-!             end if
+            call setDeltaB(-1,t)
 
             ! encode fullstart contribution and pseudo overlap region here 
             ! too in one go. one additional -1 due to semistop
@@ -19186,7 +19130,6 @@ contains
 
             nExcits = 1
 
-!         end if
         end select 
 
         ! and then we have to do just a regular single excitation
@@ -19268,7 +19211,6 @@ contains
 
         call encode_matrix_element(t, 0.0_dp, 2)
 
-!         if (isZero(ilut,semi)) then
         select case (current_stepvector(semi))
         case (0)
             ! have to check a few things with 0 start
@@ -19336,8 +19278,6 @@ contains
 
             end if
 
-!         else
-!             if (isOne(ilut,semi)) then
         case (1)
                 ! only one excitation possible, which also has to have 
                 ! non-zero weight or otherwise i wouldnt even be here
@@ -19355,7 +19295,6 @@ contains
 
             nExcits = 1
 
-!             else if isTwo(ilut,semi) then
         case (2)
                 ! here we have 
                 ! 2 -> 3
@@ -19363,7 +19302,6 @@ contains
 
                 call setDeltaB(-1,t)
 
-!             end if
 
             ! encode fullstart contribution and pseudo overlap region here 
             ! too in one go. one additional -1 due to semistop
@@ -19373,7 +19311,6 @@ contains
 
             nExcits = 1
 
-!         end if
         end select
 
         ! and then we have to do just a regular single excitation
@@ -19432,10 +19369,8 @@ contains
         ! other types of excitations?
         ! have to init specific prob. weights 
         weights = weights%ptr
-!         weights = init_doubleWeight(ilut, en)
         ! depending if there is a 3 at the fullend there can be no switching 
         ! possible
-!         if (isThree(ilut, en)) then
         if (current_stepvector(en) == 3) then
             zeroWeight = weights%proc%zero(0.0_dp, 0.0_dp, currentB_ilut(se), weights%dat)
             ! is plus and minus weight zero then? i think so
@@ -19452,7 +19387,6 @@ contains
         call calcLoweringSemiStart(ilut,excitInfo, tempExcits, nExcits, &
             plusWeight, minusWeight, zeroWeight)
 
-!         if (isThree(ilut,en)) then
         if (current_stepvector(en) == 3) then
             ! in mixed generator case there is no sign coming from the 
             ! overlap region, so only finish up the excitation, by just 
@@ -19460,7 +19394,6 @@ contains
 
             ! and have to check if non-zero and store in final 
             ! excitations list
-            allocate(excitations(0:nifguga,nExcits), stat = ierr)
 
             cnt = 1
             do iEx = 1, nExcits
@@ -19472,11 +19405,14 @@ contains
                 call update_matrix_element(t, Root2, 1)
                 call encode_matrix_element(t, 0.0_dp, 2)
 
-                excitations(:,cnt) = t
+                tempExcits(:,cnt) = t
                 cnt = cnt + 1
             end do
 
             nExcits = cnt - 1
+
+            allocate(excitations(0:nifguga,nExcits), stat = ierr)
+            excitations = tempExcits(:,1:nExcits)
 
             deallocate(tempExcits)
 
@@ -19536,8 +19472,6 @@ contains
         ! do i have to give them posSwitches and negSwitches or could I 
         ! just put in actual weight values?
         weights = weights%ptr
-!         weights = init_doubleWeight(ilut, en)
-!         if (isThree(ilut, en)) then
         if (current_stepvector(en) == 3) then
             minusWeight = 0.0_dp
             plusWeight = 0.0_dp
@@ -19553,7 +19487,6 @@ contains
             plusWeight, minusWeight, zeroWeight)
 
 
-!         if (isThree(ilut,en)) then
         if (current_stepvector(en) == 3) then
             ! in mixed generator case there is no sign coming from the 
             ! overlap region, so only finish up the excitation, by just 
@@ -19561,7 +19494,6 @@ contains
 
             ! and have to check if non-zero and store in final 
             ! excitations list
-            allocate(excitations(0:nifguga,nExcits), stat = ierr)
 
             cnt = 1
             do iEx = 1, nExcits
@@ -19573,11 +19505,14 @@ contains
                 call update_matrix_element(t, Root2, 1)
                 call encode_matrix_element(t, 0.0_dp, 2)
 
-                excitations(:,cnt) = t
+                tempExcits(:,cnt) = t
                 cnt = cnt + 1
             end do
 
             nExcits = cnt - 1
+
+            allocate(excitations(0:nifguga,nExcits), stat = ierr)
+            excitations = tempExcits(:,1:nExcits)
 
             deallocate(tempExcits)
 
@@ -19618,7 +19553,6 @@ contains
 
         select case (current_stepvector(ende))
         case (1)
-!         if (isOne(ilut,ende)) then
             ! ending for -2 and 0 branches
             do iEx = 1, nExcits
                 t = tempExcits(:,iEx) 
@@ -19653,7 +19587,6 @@ contains
 
             end do
 
-!         else if (isTwo(ilut,ende)) then
         case (2)
             ! ending for 0 and +2 branches
             do iEx = 1, nExcits
@@ -19683,7 +19616,6 @@ contains
 
             end do
 
-!         else if (isThree(ilut,ende)) then
         case (3)
             ! not sure if i ever access this function with 3 at end but 
             ! nevertheless implement it for now...
@@ -19700,23 +19632,25 @@ contains
 
                 tempExcits(:,iEx) = t
             end do
-!         end if
         end select
 
-        ! do finishing up stuff..
-        allocate(excitations(0:nifguga,nExcits), stat = ierr)
 
         ! check again if there are maybe zero matrix elements
         cnt = 1
         do iEx = 1, nExcits 
             if (abs(extract_matrix_element(tempExcits(:,iEx),1))<EPS) cycle
 
-            excitations(:,cnt) = tempExcits(:,iEx)
+            tempExcits(:,cnt) = tempExcits(:,iEx)
 
             cnt = cnt + 1
         end do
 
         nExcits = cnt -1
+
+        ! do finishing up stuff..
+        allocate(excitations(0:nifguga,nExcits), stat = ierr)
+
+        excitations = tempExcits(:,1:nExcits)
 
         deallocate(tempExcits)
 
@@ -21123,7 +21057,6 @@ contains
 
         select case (current_stepvector(iOrb))
         case (1)
-!         if (isOne(ilut,iOrb)) then
             ! only delta -1 branches can lead to deltaB=0 in overlap here 
             do iEx = 1, nExcits
                 ! correct use of weight gens should exclude this, but check:
@@ -21146,7 +21079,6 @@ contains
                 tempExcits(:,iEx) = t
             end do
 
-!         else if (isTwo(ilut,iOrb)) then
         case (2)
             ! only deltaB=+1 branches lead to a 0 branch
             do iEx = 1, nExcits 
@@ -21168,7 +21100,6 @@ contains
                 tempExcits(:,iEx) = t
             end do
 
-!         else 
         case (3)
             ! has to be a 3 in the lowering case. 
             ASSERT(isThree(ilut,iOrb))
@@ -21209,7 +21140,6 @@ contains
                 tempExcits(:,iEx) = t
 
             end do
-!         end if
         end select
 
         ! continue on with double excitation region, only the 0 branch
@@ -21244,9 +21174,11 @@ contains
 
         end do
 
+        nExcits = cnt - 1
+
         ! have to put it in excitations stupid!
-        allocate(excitations(0:nifguga,cnt), stat = ierr)
-        excitations = tempExcits(:,1:cnt)
+        allocate(excitations(0:nifguga,nExcits), stat = ierr)
+        excitations = tempExcits(:,1:nExcits)
         deallocate(tempExcits)
 
     end subroutine calcFullstopLowering
@@ -21289,7 +21221,6 @@ contains
 
         select case (current_stepvector(iOrb))
         case (1)
-!         if (isOne(ilut,iOrb)) then
             ! only delta -1 branches can lead to deltaB=0 in overlap here 
             do iEx = 1, nExcits
                 ! correct use of weight gens should exclude this, but check:
@@ -21311,7 +21242,6 @@ contains
                 tempExcits(:,iEx) = t
             end do
 
-!         else if (isTwo(ilut,iOrb)) then
         case (2)
             ! only deltaB=+1 branches lead to a 0 branch
             do iEx = 1, nExcits 
@@ -21333,7 +21263,6 @@ contains
                 tempExcits(:,iEx) = t
             end do
 
-!         else 
         case (0)
             ! has to be a 0 in the raising case. 
             ASSERT(isZero(ilut,iOrb))
@@ -21373,7 +21302,6 @@ contains
                 tempExcits(:,iEx) = t
 
             end do
-!         end if
         end select
 
         ! continue on with double excitation region, only the 0 branch
@@ -21404,9 +21332,11 @@ contains
             cnt = cnt + 1
 
         end do
+
+        nExcits = cnt - 1
         
-        allocate(excitations(0:nifguga,cnt), stat = ierr)
-        excitations = tempExcits(:,1:cnt)
+        allocate(excitations(0:nifguga,nExcits), stat = ierr)
+        excitations = tempExcits(:,1:nExcits)
         deallocate(tempExcits)
 
     end subroutine calcFullstopRaising
@@ -21450,7 +21380,6 @@ contains
         ! two lowerings
 
         ! has only forced switches at switch possibilities
-!         if (isOne(ilut,ss)) then
         if (current_stepvector(ss) == 1) then
             ! switch deltaB = -1 branches
             do iEx = 1, nExcits
@@ -21469,7 +21398,6 @@ contains
                 end if
             end do
 
-!         else if (isTwo(ilut,ss)) then
         else if (current_stepvector(ss) == 2) then
             ! switch deltaB = +1
             do iEx = 1, nExcits
@@ -21491,7 +21419,6 @@ contains
 
         ! update weights here?
         weights = weights%ptr
-!         weights = init_singleWeight(ilut, excitInfo%fullEnd)
 
         ! continue with secon region normally
         do i = excitInfo%secondStart + 1, excitInfo%fullEnd - 1
@@ -21655,7 +21582,6 @@ contains
         ASSERT(plusWeight + minusWeight > 0.0_dp)
 
         ! do special stuff at single overlap raising site
-!         if (isOne(ilut,se)) then
         if (current_stepvector(se) == 1) then
             ! in this case there should come a deltaB=+1 branch, nevertheless
             ! check for now.. 
@@ -21705,7 +21631,6 @@ contains
                 end if
             end do
 
-!         else if (isTwo(ilut,se)) then
         else if (current_stepvector(se) == 2) then
             ! in this case always a switch, and i b allows also a stay
             ! how are the probs here...
@@ -21760,7 +21685,6 @@ contains
 
         ! continue with secon region normally
         ! have to reset weight object here to use "normal" single excitation
-!         weightObj = init_singleWeight(ilut, ende)
         ! also no change in generator type since alike generators
         excitInfo%currentGen = excitInfo%lastGen
 
@@ -21878,8 +21802,8 @@ contains
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcNonOverlapDouble"
         
-        integer(n_int), pointer :: tempExcits(:,:), tempExcits2(:,:)
-        integer :: tmpNum, iEx, tmpNum2, nOpen1, nOpen2, ierr, iEx2, nMax
+        integer(n_int), pointer :: tempExcits(:,:), tempExcits2(:,:), tmp_excitations(:,:)
+        integer :: tmpNum, iEx, tmpNum2, nOpen1, nOpen2, ierr, iEx2, nMax, i, j
         type(excitationInformation) :: tmpInfo
         
         ! plan is to first calculate all lower excitation, and for each state 
@@ -21906,16 +21830,16 @@ contains
         nOpen2 = count_open_orbs_ij(excitInfo%secondStart,excitInfo%fullEnd, ilut(0:nifd))
 
         nMax = 4 + 2**(nOpen1 + nOpen2 + 2)
-        allocate(excitations(0:nifguga, nMax), stat = ierr)
+        allocate(tmp_excitations(0:nifguga, nMax), stat = ierr)
 
         ! and for all created excitations i have to calc. all possible tops
         do iEx = 1, tmpNum
             call calcAllExcitations(tempExcits(:,iEx), tmpInfo, posSwitches, &
-                negSwitches, .false., tempExcits2, tmpNum)
+                negSwitches, .false., tempExcits2, tmpNum2)
 
             ! have to reencode matrix element of tempexcits(:,iEx) as it is 
             ! overwritten in the call allexcitation routine
-            do iEx2 = 1, tmpNum
+            do iEx2 = 1, tmpNum2
                 call update_matrix_element(tempExcits2(:,iEx2), &
                     extract_matrix_element(tempExcits(:,iEx), 1), 1)
                 
@@ -21926,11 +21850,28 @@ contains
 
             ! and add it up to one list (maybe i can set sorted to true? 
             ! since no repetitions in both...
-            call add_guga_lists(nExcits, tmpNum, excitations, tempExcits2)
+            call add_guga_lists(nExcits, tmpNum2, tmp_excitations, tempExcits2)
         end do
 
         deallocate(tempExcits)
         deallocate(tempExcits2)
+
+        j = 1
+        do i = 1, nExcits 
+            if (abs(extract_matrix_element(tmp_excitations(:,i),1)) < EPS) cycle
+
+            tmp_excitations(:,j) = tmp_excitations(:,i)
+
+            j = j + 1
+        end do
+
+        nExcits = j - 1
+
+        allocate(excitations(0:nifguga, nExcits), stat = ierr)
+        excitations = tmp_excitations(:,1:nExcits)
+
+        deallocate(tmp_excitations)
+
 
     end subroutine calcNonOverlapDouble
 
@@ -21960,10 +21901,9 @@ contains
         if ((excitInfo%weight /= excitInfo%fullStart) .and. (excitInfo%weight &
             /= excitInfo%fullEnd)) then
             if (isThree(ilut,we)) then
-
-            do iEx = 1, nExcits
-                call update_matrix_element(excitations(:,iEx), 2.0_dp, 1)
-            end do
+                do iEx = 1, nExcits
+                    call update_matrix_element(excitations(:,iEx), 2.0_dp, 1)
+                end do
             end if
         end if
 

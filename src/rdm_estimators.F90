@@ -752,6 +752,7 @@ contains
         do ielem = 1, rdm_recv%nelements
             call extract_sign_rdm(rdm_recv%elements(:,ielem), rdm_sign)
             call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+            if (ij == kl) cycle
             rdm_sign = abs(rdm_sign)
             max_error_herm = max(max_error_herm, rdm_sign)
             sum_error_herm = sum_error_herm + rdm_sign

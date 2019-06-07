@@ -5,15 +5,14 @@ module guga_rdm
     ! RDM module specifically for the GUGA spin-adapted implementation 
     
     use constants, only: n_int, dp, lenof_sign, EPS, sizeof_int, int_rdm
-    use bit_rep_data, only: niftot
     use SystemData, only: nel, nSpatOrbs, current_stepvector, currentB_ilut
-    use bit_reps, only: extract_bit_rep, decode_bit_det
+    use bit_reps, only: extract_bit_rep, decode_bit_det, niftot, nifdbo
     use LoggingData, only: RDMExcitLevel
     use rdm_data, only: one_rdms, two_rdm_spawn, rdmCorrectionFactor
     use rdm_data, only: Sing_ExcDjs, Doub_ExcDjs, rdm_spawn_t, one_rdm_t
     use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, rdm_list_t
     use rdm_data, only: Sing_ExcList, Doub_ExcList, OneEl_Gap, TwoEl_Gap
-    use DetBitOps, only: EncodeBitDet, count_open_orbs
+    use DetBitOps, only: EncodeBitDet, count_open_orbs, DetBitEq
     use load_balance_calcnodes, only: DetermineDetNode
     use guga_excitations, only: init_csf_information, excitationIdentifier
     use guga_excitations, only: init_singleWeight, calcRemainingSwitches
@@ -32,8 +31,8 @@ module guga_rdm
     use guga_data, only: excitationInformation, tag_tmp_excits, tag_excitations
     use guga_types, only: weight_obj
     use guga_bitRepOps, only: update_matrix_element, setDeltaB, extract_matrix_element
-    use guga_bitRepOps, only: add_guga_lists, isProperCSF_ilut, isDouble
-    use guga_bitRepOps, only: write_guga_list
+    use guga_bitRepOps, only: isProperCSF_ilut, isDouble
+    use guga_bitRepOps, only: write_guga_list, write_det_guga
     use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI, getDeltaB
     use MemoryManager, only: LogMemAlloc, LogMemDealloc
     use bit_reps, only: nifguga
@@ -52,6 +51,7 @@ module guga_rdm
     ! test the symmetric filling of the GUGA-RDM, if the assumptions about 
     ! the hermiticity are correct..
     logical :: t_test_sym_fill = .false.
+    logical :: t_test_diagonal = .false.
 
 contains 
 
@@ -141,7 +141,7 @@ contains
                 ! D_{ii,ii} entry, which counts double occupancies
                 ! and i will try for now to reuse the following routine:
                 ! put with the spatial orbital s
-                call add_to_rdm_spawn_t(spawn, s, s, s, s, occ_i * full_sign, .true.)
+                call add_to_rdm_spawn_t(spawn, s, s, s, s, 2.0_dp * full_sign, .true.)
 
             else
                 occ_i = 1.0_dp 
@@ -164,6 +164,13 @@ contains
 
                 call add_to_rdm_spawn_t(spawn, s, s, p, p, & 
                     occ_i * occ_j * full_sign, .true.)
+
+                ! i could also just multiply by 2 here, since this will 
+                ! get strored in the same D_{ij,ij} RDM element! 
+                if (.not. t_test_sym_fill) then 
+                    call add_to_rdm_spawn_t(spawn, p, p, s, s, & 
+                        occ_i * occ_j * full_sign, .true.)
+                end if
 
                 j = j + inc_j
             end do
@@ -610,13 +617,35 @@ contains
 
         call init_csf_information(ilut)
 
-        nMax = 6 + 4 * (nSpatOrbs)**2 * (count_open_orbs(ilut) + 1)
+        nMax = 6 + 4 * (nSpatOrbs)**3 * (count_open_orbs(ilut) + 1)
         allocate(tmp_all_excits(0:nifguga,nMax), stat = ierr)
         call LogMemAlloc('tmp_all_excits',(nifguga+1)*nMax,8,this_routine,tag_tmp_excits)
 
         n_tot = 0
 
-        if (.not. t_test_sym_fill) then
+        if (t_test_diagonal) then 
+            do i = 1, nSpatOrbs 
+                do j = 1, nSpatOrbs
+
+                    if (i == j) cycle
+
+                    call calc_all_excits_guga_rdm_doubles(ilut, j, i, i, j, &
+                        temp_excits, n_excits)
+
+#ifdef __DEBUG
+                    do n = 1, n_excits
+                        ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
+                    end do
+#endif
+                    if (n_excits > 0) then 
+                        call add_guga_lists_rdm(n_tot, n_excits, tmp_all_excits, temp_excits)
+                    end if
+
+                    deallocate(temp_excits)
+                end do
+            end do
+
+        else if (.not. t_test_sym_fill) then
             do i = 1, nSpatOrbs
                 do j = 1, nSpatOrbs
                     do k = 1, nSpatOrbs
@@ -634,18 +663,8 @@ contains
                             end do
 #endif
 
-                            ! exclude possible diagonal terms, but do not 
-                            ! forget to account for those in the diagonal 
-                            ! contributions! 
-                            if (i == l .and. k == j) then 
-                                if (n_excits > 1) then 
-                                    call add_guga_lists(n_tot, n_excits - 1, &
-                                        tmp_all_excits, temp_excits(:,2:))
-                                end if
-                            else
-                                if (n_excits > 0) then 
-                                    call add_guga_lists(n_tot, n_excits, tmp_all_excits, temp_excits)
-                                end if
+                            if (n_excits > 0) then 
+                                call add_guga_lists_rdm(n_tot, n_excits, tmp_all_excits, temp_excits)
                             end if
 
                             deallocate(temp_excits)
@@ -668,21 +687,8 @@ contains
                                 ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
                             end do
 #endif
-
-                            ! exclude possible diagonal terms, but do not 
-                            ! forget to account for those in the diagonal 
-                            ! contributions! 
-                            if (i == l .and. k == j) then 
-                                ! not so sure about this yet.. maybe it does 
-                                ! contribute.. it has to at least somewhere..
-                                if (n_excits > 1) then 
-                                    call add_guga_lists(n_tot, n_excits - 1, &
-                                        tmp_all_excits, temp_excits(:,2:))
-                                end if
-                            else
-                                if (n_excits > 0) then 
-                                    call add_guga_lists(n_tot, n_excits, tmp_all_excits, temp_excits)
-                                end if
+                            if (n_excits > 0) then 
+                                call add_guga_lists_rdm(n_tot, n_excits, tmp_all_excits, temp_excits)
                             end if
 
                             deallocate(temp_excits)
@@ -757,7 +763,7 @@ contains
 #endif
 
                     if (n_excits > 0) then 
-                        call add_guga_lists(n_tot, n_excits, tmp_all_excits, temp_excits)
+                        call add_guga_lists_rdm(n_tot, n_excits, tmp_all_excits, temp_excits)
                     end if
 
                     deallocate(temp_excits)
@@ -779,7 +785,7 @@ contains
 #endif
 
                     if (n_excits > 0) then 
-                        call add_guga_lists(n_tot, n_excits, tmp_all_excits, temp_excits)
+                        call add_guga_lists_rdm(n_tot, n_excits, tmp_all_excits, temp_excits)
                     end if
 
                     deallocate(temp_excits)
@@ -1093,43 +1099,22 @@ contains
 
     end subroutine calc_all_excits_guga_rdm_singles
 
-    subroutine calc_1rdms_from_2rdms_guga(rdm_defs, one_rdms, two_rdms, rdm_trace, open_shell)
+    subroutine add_guga_lists_rdm(n_dets_tot, n_dets, list_tot, list)
+        ! i need a new guga list addition for RDMs as I must not add 
+        ! identical excitations coming from different RDM index combinations
+        ! otherwise I loose the information of those excitations!
+        integer, intent(inout) ::        n_dets_tot
+        integer, intent(in) ::           n_dets
+        integer(n_int), intent(inout) :: list_tot(0:,1:), list(0:,1:)
+        character(*), parameter :: this_routine = "add_guga_lists_rdm"
 
-        ! this is the GUGA version of this routine in rdm_finalising
-        ! For each 2-RDM in two_rdms, if open_shell is true then calculate the
-        ! full spinned 1-RDM, otherwise calculate the spinfree 1-RDM. The
-        ! former case is defined by:
-        !
-        ! \gamma_{i,j} = \frac{1}{N-1} \sum_k \Gamma_{ik,jk}
-        !
-        ! Here, i, j and k are spatial labels. N is the number of electrons.
-        !
-        ! The spinfree case is then a contraction over the spin labels of the
-        ! spinned 1-RDM:
-        !
-        ! \gamma^{spinfree}_{p,q} = \gamma_{p\alpha,q\alpha) + \gamma_{p\beta,q\beta)
-        !
-        ! where p and q are spatial labels.
+        ! here I essentially only need to append the list to the total 
+        ! list and add the number of new elements to n_dets_tot
+ 
+        list_tot(:,n_dets_tot+1:n_dets_tot+n_dets) = list
+        n_dets_tot = n_dets_tot + n_dets
 
-        ! The output 1-RDM elements are sorted in the standard form: elements
-        ! are indexed using the SymLabelListInv_rot array, so that the 1-RDMs
-        ! will be in block-diagonal form, with elements within each symmetry
-        ! block stored together.
-
-        use Parallel_neci, only: MPISumAll
-        use rdm_data, only: rdm_definitions_t
-        use RotateOrbsData, only: SymLabelListInv_rot
-        use SystemData, only: nel
-        use UMatCache, only: spatial
-
-        type(rdm_definitions_t), intent(in) :: rdm_defs
-        type(one_rdm_t), intent(inout) :: one_rdms(:)
-        type(rdm_list_t), intent(in) :: two_rdms
-        real(dp), intent(in) :: rdm_trace(:)
-        logical, intent(in) :: open_shell
-
-        !TODO
-    end subroutine calc_1rdms_from_2rdms_guga
+    end subroutine add_guga_lists_rdm
 
 end module guga_rdm
 

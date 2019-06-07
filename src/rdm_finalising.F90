@@ -15,7 +15,7 @@ module rdm_finalising
     use CalcData, only: tAdaptiveShift
     use RotateOrbsMod, only: FourIndInts
     use SystemData, only: tGUGA, nSpatorbs
-    use guga_rdm, only: calc_1rdms_from_2rdms_guga, t_test_sym_fill
+    use guga_rdm, only: t_test_sym_fill
     use LoggingData, only: tWriteSpinFreeRDM
     use unit_test_helpers, only: print_matrix
 
@@ -88,7 +88,7 @@ contains
             ! Calculate the 1-RDMs from the 2-RDMS, if required.
             if (RDMExcitLevel == 3 .or. tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
                 if (tGUGA) then 
-                    call calc_1rdms_from_2rdms_guga(rdm_defs, one_rdms, two_rdms, rdm_estimates%norm, tOpenShell)
+                    call calc_1rdms_from_spinfree_2rdms(one_rdms, two_rdms, rdm_estimates%norm)
                 else
                     call calc_1rdms_from_2rdms(rdm_defs, one_rdms, two_rdms, rdm_estimates%norm, tOpenShell)
                 end if
@@ -248,7 +248,11 @@ contains
         do ielem = 1, two_rdms%nelements
             pqrs = two_rdms%elements(0,ielem)
             ! Obtain spin orbital labels and the RDM element.
-            call calc_separate_rdm_labels(pqrs, pq, rs, r, s, q, p)
+            if (tGUGA) then 
+                call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
+            else
+                call calc_separate_rdm_labels(pqrs, pq, rs, r, s, q, p)
+            end if
 
             call extract_sign_rdm(two_rdms%elements(:,ielem), rdm_sign)
 
@@ -270,6 +274,10 @@ contains
             call MPISumAll(one_rdms(irdm)%matrix, temp_rdm)
             ! Copy summed RDM back to the main array, and normalise.
             one_rdms(irdm)%matrix = temp_rdm / (rdm_trace(irdm)*real(nel-1,dp))
+            if (tGUGA) then 
+                ! the GUGA rdms have a different normalisation
+                one_rdms(irdm)%matrix = 2.0_dp * one_rdms(irdm)%matrix
+            end if
         end do
 
         deallocate(temp_rdm, stat=ierr)
@@ -1582,7 +1590,6 @@ contains
             if (tWriteSpinFreeRDM .and. tNormalise) then
                 do i = 1, nbasis/2
                     do j = 1, nbasis/2
-                        print *, i,j,one_rdm(ind(i),ind(j))
                         if (abs(one_rdm(ind(i),ind(j))) > EPS) then 
                             if (tNormalise .and. (i <= j .or. is_transition_rdm)) then 
                                 write(one_rdm_unit_spinfree,"(2I6,G25.17)") i, j, &

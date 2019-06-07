@@ -13,7 +13,7 @@ module rdm_explicit
     use constants
     use SystemData, only : tReltvy, t_3_body_excits, tGUGA, nel
     use guga_bitRepOps, only: encode_matrix_element
-    use guga_rdm, only: gen_exc_djs_guga, send_proc_ex_djs
+    use guga_rdm, only: gen_exc_djs_guga, send_proc_ex_djs, t_test_diagonal
     use bit_reps, only: extract_bit_rep, decode_bit_det
 
     implicit none
@@ -160,7 +160,6 @@ contains
             call convert_ilut_toGUGA(ilutNi, ilutG)
 
             call extract_bit_rep(iLutnI, nI, SignDi, FlagsDi)
-
             call encode_matrix_element(ilutG, SignDi(1), 2)
 
             do i = 0, nProcessors - 1
@@ -310,6 +309,7 @@ contains
             call fill_spawn_rdm_diag(two_rdm_spawn, nI, full_sign)
         end if
 
+        if (.not. t_test_diagonal) then 
         ! Zeros in ExcitMat3 starts off at the first single excitation.
         ExcitMat3(:,:) = 0
 
@@ -399,6 +399,7 @@ contains
                     call Stop_All('GenExcDjs','Too many excitations for space available.')
                 end if
             end do
+        end if
         end if
 
     end subroutine GenExcDjs

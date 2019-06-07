@@ -167,13 +167,9 @@ contains
         ! first check if it is not the same ilut! 
         if (DetBitEQ(ilutI, ilutJ)) then 
             ! do diagonal element or return if i do not need the diagonals.. 
-!             print *, "or ever here?"
             return
         else
 
-!         print *, "======"
-!         call write_det_guga(6, ilutI, .true.)
-!         call write_det_guga(6, ilutJ, .true.)
         ! i have to create the singles and non-singles mask and 
         ! convert the 2 iluts to 1 -> 1, 2 -> 1, 0 -> 0, 3 -> 0 
         alpha_i = iand(ilutI, MaskAlpha) 
@@ -189,7 +185,6 @@ contains
 
         singles_j = ieor(alpha_j, beta_j) 
 
-!         print *, "======"
         ! with those 2 integers i can determine the +-1 occupation changes 
         change_1 = ieor(singles_i, singles_j) 
         ! can i tell something about the holes or electrons here
@@ -1682,7 +1677,7 @@ contains
                 write(nunit, "(A,i3)", advance = 'no') ") ", ilut(nifguga)
             end if
         else
-            write(nunit, "(A,i3)", advance = 'yes') ") ", ilut(nifguga)
+            write(nunit, "(A,i8)", advance = 'yes') ") ", ilut(nifguga)
         end if
 
     end subroutine write_det_guga
