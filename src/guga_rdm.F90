@@ -44,7 +44,9 @@ module guga_rdm
     use Parallel_neci, only: nProcessors, MPIArg, MPIAlltoAll, MPIAlltoAllv
     use searching, only: BinSearchParts_rdm
     use rdm_data_utils, only: add_to_rdm_spawn_t, calc_combined_rdm_label, &
-                              calc_separate_rdm_labels
+                              calc_separate_rdm_labels, extract_sign_rdm
+    use OneEInts, only: GetTMatEl
+    use procedure_pointers, only: get_umat_el
 
     implicit none
 
@@ -723,7 +725,6 @@ contains
 
     end subroutine calc_explicit_2_rdm_guga
 
-
     subroutine calc_explicit_1_rdm_guga(ilut, n_tot, excitations)
         ! routine to calculate the one-RDM explicitly in the GUGA formalism
         ! the one RDM is given by rho_ij = <Psi|E_ij|Psi> 
@@ -1115,6 +1116,48 @@ contains
         n_dets_tot = n_dets_tot + n_dets
 
     end subroutine add_guga_lists_rdm
+
+    subroutine calc_rdm_energy_guga(rdm, rdm_energy_1, rdm_energy_2)
+        ! the GUGA RDM version of the energy calculator
+
+        type(rdm_list_t), intent(in) :: rdm
+        real(dp), intent(out) :: rdm_energy_1(rdm%sign_length)
+        real(dp), intent(out) :: rdm_energy_2(rdm%sign_length)
+        character(*), parameter :: this_routine = "calc_rdm_energy_guga"
+
+        integer(int_rdm) :: ijkl
+        integer :: ielem, ij, kl, i, j, k, l
+        real(dp) :: rdm_sign(rdm%sign_length)
+
+        rdm_energy_1 = 0.0_dp
+        rdm_energy_2 = 0.0_dp
+
+        ! Loop over all elements in the 2-RDM.
+        do ielem = 1, rdm%nelements
+            ijkl = rdm%elements(0,ielem)
+            call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
+
+            ! Decode pqrs label into p, q, r and s labels.
+            call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+
+            ! D_{ij,kl} corresponds to V_{ki,lj} * e_{ki,lj} i believe..
+            rdm_energy_2 = rdm_energy_2 + rdm_sign * get_umat_el(k,i,l,j)
+
+            if (.not. t_test_sym_fill) then
+                if (i == k) then
+                    rdm_energy_1 = rdm_energy_1 + rdm_sign * GetTMatEl(2*j,2*l) / real(nel-1,dp)
+                end if
+                if (j == l) then 
+                    rdm_energy_1 = rdm_energy_1 + rdm_sign * GetTMatEl(2*i,2*k) / real(nel-1,dp)
+                end if
+            else
+                if (j == l) then 
+                    rdm_energy_1 = rdm_energy_1 + 2.0_dp * rdm_sign * GetTMatEl(2*i,2*k) / real(nel-1,dp)
+                end if
+            end if
+        end do
+
+    end subroutine calc_rdm_energy_guga
 
 end module guga_rdm
 

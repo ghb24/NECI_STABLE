@@ -263,6 +263,14 @@ contains
                         one_rdms(irdm)%matrix(ind(p), ind(r)) = one_rdms(irdm)%matrix(ind(p), ind(r)) + rdm_sign(irdm)
                     end do
                 end if
+                if (tGUGA .and. .not. t_test_sym_fill) then
+                    if (p == r) then 
+                        do irdm = 1, size(one_rdms)
+                            one_rdms(irdm)%matrix(ind(q),ind(s)) = &
+                                one_rdms(irdm)%matrix(ind(q),ind(s)) + rdm_sign(irdm)
+                        end do
+                    end if
+                end if
             end associate
         end do
 
@@ -274,7 +282,7 @@ contains
             call MPISumAll(one_rdms(irdm)%matrix, temp_rdm)
             ! Copy summed RDM back to the main array, and normalise.
             one_rdms(irdm)%matrix = temp_rdm / (rdm_trace(irdm)*real(nel-1,dp))
-            if (tGUGA) then 
+            if (tGUGA .and. t_test_sym_fill) then 
                 ! the GUGA rdms have a different normalisation
                 one_rdms(irdm)%matrix = 2.0_dp * one_rdms(irdm)%matrix
             end if
