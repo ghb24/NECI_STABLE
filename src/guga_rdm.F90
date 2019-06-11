@@ -1141,7 +1141,7 @@ contains
             call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
 
             ! D_{ij,kl} corresponds to V_{ki,lj} * e_{ki,lj} i believe..
-            rdm_energy_2 = rdm_energy_2 + rdm_sign * get_umat_el(k,i,l,j)
+            rdm_energy_2 = rdm_energy_2 + rdm_sign * get_umat_el(k,i,l,j) / 2.0_dp
 
             if (.not. t_test_sym_fill) then
                 if (i == k) then
