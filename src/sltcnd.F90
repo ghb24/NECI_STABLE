@@ -354,7 +354,7 @@ contains
                         hel_tmp = hel_tmp - get_2d_umat_el_exch (id(j),id(i))
                         if(tSpinCorrelator) &
                              ! here, i and j always have the same spin
-                             hel_tmp = hel_tmp - kMatAA%exchElement(id(i),id(j),id(i),id(j))
+                             hel_tmp = hel_tmp + kMatAA%exchElement(id(i),id(j),id(i),id(j))
                         if(tDampKMat) &
                              hel_tmp = hel_tmp - kMatParSpinCorrection(id(i),id(j),id(j),id(i))
 !                         write(6,*) i,j,get_umat_el (id(j),id(i),id(i),id(j))
@@ -424,7 +424,7 @@ contains
                   id = gtID(nI(i))
                   hel = hel - get_umat_el (id_ex(1), id, id, id_ex(2))
                   if(tSpinCorrelator) &
-                       hel = hel - kMatAA%exchElement(id_ex(1),id,id_ex(2),id)
+                       hel = hel + kMatAA%exchElement(id_ex(1),id,id_ex(2),id)
                   if(tDampKMat) &
                        ! only parallel spin excits can have exchange terms entering in the one-body
                        ! matrix element -> no need for opposite spin correction
