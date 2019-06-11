@@ -100,7 +100,7 @@ module LMat_mod
                 matel = matel + sgn * real(lMatAccess(lMat,LMatInd(int(ida,int64),int(idb,int64),&
                      int(idc,int64),int(idp,int64),int(idq,int64),int(idr,int64))),dp)
              else
-                matel = matel + sgn * real(lMatAccess(LMatAB,LMatInd(int(ida,int64),int(idb,int64),&
+                matel = matel + sgn * real(lMatAccess(lMatAB,LMatInd(int(ida,int64),int(idb,int64),&
                      int(idc,int64),int(idp,int64),int(idq,int64),int(idr,int64))),dp)
              endif
           endif
@@ -601,9 +601,10 @@ module LMat_mod
       integer(hsize_t), allocatable :: indices(:,:), entries(:,:)
       character(*), parameter :: nm_grp = "tcdump", nm_nInts = "nInts", nm_vals = "values", nm_indices = "indices"
       integer(MPIArg) :: procs_per_node, ierr
+      integer :: sparseBlockStart
       real(dp) :: rVal
       logical :: running, any_running
-      integer :: this_nEntries, counter, sparseBlock
+      integer :: this_nEntries, counter, sparseBlock, allCounter
       integer, allocatable :: all_nEntries(:)
       character(*), parameter :: t_r = "readHDF5LMat"
       rVal = 0.0_dp
@@ -628,7 +629,9 @@ module LMat_mod
          call shared_allocate_mpi(LMatLoc%index_win, LMatLoc%indexPtr, (/int(nInts,int64)/))
          call LogMemAlloc("LMat Indices", int(nInts), sizeof_int64, t_r, LMatLoc%indexTag)
          ! come up with some reasonable size
-         LMatLoc%htSize = nInts / 100.0
+         LMatLoc%htSize = nInts
+         ! start filling LMat at the first entry
+         sparseBlockStart = 0
       endif
 
       ! how many entries does each proc get?
@@ -694,7 +697,7 @@ module LMat_mod
             ! communicate the number of nonzeros
             call MPI_AllGather(this_nEntries,1,MPI_INT,all_nEntries,1,MPI_INT,mpi_comm_intra,ierr)
             ! the window we write to with this proc starts with this offset
-            sparseBlock = 0
+            sparseBlock = sparseBlockStart
             do i = 0, iProcIndex_intra-1
                sparseBlock = sparseBlock + all_nEntries(i)
             end do
@@ -734,6 +737,12 @@ module LMat_mod
 
          call MPIAllLORLogical(running, any_running)
 
+         ! communicate how many nonzero entries have been read and set the starting point 
+         ! for the next write
+         if(tSparseLMat) then
+            call MPISumAll(counter,allCounter)
+            sparseBlockStart = sparseBlockStart + allCounter
+         endif
       end do
       deallocate(offsets)
       deallocate(counts)
@@ -745,7 +754,10 @@ module LMat_mod
       call h5fclose_f(file_id, err)
       call h5close_f(err)
 
-      if(tSparseLMat) call initLMatHash(LMatLoc)
+      if(tSparseLMat) then
+         LMatLoc%nInts = sparseBlockStart
+         call initLMatHash(LMatLoc)
+      endif
 
       contains 
 
@@ -782,13 +794,13 @@ module LMat_mod
          do thresh = minExp,1,-1
             ! in each step, count all matrix elements that are below the threshold and
             ! have not been counted yet
-            if(lMatObj%LMatPtr(i)<0.1**(thresh)) then
+            if(abs(lMatObj%LMatPtr(i))<0.1**(thresh)) then
                histogram(thresh) = histogram(thresh) + 1
                ! do not count this one again
                exit
             endif
             ! the last check has a different form: everything that is bigger than 0.1 counts here
-            if(lMatObj%LMatPtr(i) > 0.1) histogram(0) = histogram(0) + 1
+            if(abs(lMatObj%LMatPtr(i)) > 0.1) histogram(0) = histogram(0) + 1
          end do
       end do
 
@@ -799,6 +811,7 @@ module LMat_mod
          write(iout,*) "Matrix elements from", 0.1**(i+1),"to",0.1**(i),":",ratios(i)
       end do
       write(iout,*) "Matrix elements above", 0.1,":",ratios(0)
+      write(iout,*), "Total number of logged matrix elements", lMatObj%nInts
     end subroutine histogramLMat
 
 end module LMat_mod
