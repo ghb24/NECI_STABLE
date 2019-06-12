@@ -395,15 +395,11 @@ contains
                             sign_i * sign_j * mat_ele, .true.)
 
                         if (t_test_sym_fill) then 
+                            ! i only calculate excitations with ab < cd in this case
+                            ! so fill in the missing ones
                             call add_to_rdm_spawn_t(two_rdm_spawn, b, a, d, c, & 
                                 sign_i * sign_j * mat_ele, .true.)
 
-                            if (ab > cd) then 
-                                call add_to_rdm_spawn_t(two_rdm_spawn, c, d, a, b, & 
-                                    sign_i * sign_j * mat_ele, .true.)
-                                call add_to_rdm_spawn_t(two_rdm_spawn, d, c, b, a, & 
-                                    sign_i * sign_j * mat_ele, .true.)
-                            end if
                         end if
                     end if
                 end do
@@ -689,10 +685,10 @@ contains
                 end do
             end do
         else
-            do i = 1, nSpatOrbs - 1
-                do j = 1, nSpatOrbs - 1
-                    do k = i + 1, nSpatOrbs
-                        do l = j + 1, nSpatOrbs
+            do i = 1, nSpatOrbs
+                do j = 1, nSpatOrbs
+                    do k = 1, nSpatOrbs
+                        do l = 1, nSpatOrbs
 
                             if (i == j .and. k == l) cycle
 
