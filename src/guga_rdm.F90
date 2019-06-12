@@ -27,7 +27,8 @@ module guga_rdm
                                 calcFullStopR2L, calcFullStartLowering, &
                                 calcFulLStartRaising, calcFullStartL2R, &
                                 calcFullStartR2L, calcFullStartFullStopAlike, &
-                                calcFullStartFullStopMixed
+                                calcFullStartFullStopMixed, &
+                                calcRemainingSwitches_excitInfo_double
     use guga_data, only: excitationInformation, tag_tmp_excits, tag_excitations
     use guga_types, only: weight_obj
     use guga_bitRepOps, only: update_matrix_element, setDeltaB, extract_matrix_element
@@ -862,7 +863,14 @@ contains
         ! that out and reuse.. to not waste any effort.
         call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
 
-        if (.not.compFlag) then
+
+        ! for mixed type full starts and/or full stops i have to consider 
+        ! the possible diagonal/single excitations here!
+        ! although I think the full-stops are already correctly taken into 
+        ! account..
+        ! and also the the full-starts are maybe correct already.. 
+        ! so it was just the full-start into full-stop mixed!
+        if (.not.compFlag .and. .not. excitInfo%typ == 23) then
             allocate(excits(0,0), stat = ierr)
             return
         end if
@@ -1029,9 +1037,10 @@ contains
 
 
         ! indicate the level of excitation IC for the remaining NECI code
-        call calc_combined_rdm_label(i,j,k,l, ijkl)
-
-        excits(nifguga,:) = ijkl
+        if (n_excits > 0) then 
+            call calc_combined_rdm_label(i,j,k,l, ijkl)
+            excits(nifguga,:) = ijkl
+        end if
 
     end subroutine calc_all_excits_guga_rdm_doubles
 
@@ -1141,7 +1150,8 @@ contains
             call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
 
             ! D_{ij,kl} corresponds to V_{ki,lj} * e_{ki,lj} i believe..
-            rdm_energy_2 = rdm_energy_2 + rdm_sign * get_umat_el(k,i,l,j) / 2.0_dp
+            ! i have to figure out if the problem is here or somewhere else..
+            rdm_energy_2 = rdm_energy_2 + rdm_sign * get_umat_el(k,l,i,j)
 
             if (.not. t_test_sym_fill) then
                 if (i == k) then

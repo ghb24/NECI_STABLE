@@ -17605,10 +17605,25 @@ contains
         ! compatibility check and excitation type determination?
         ! probably yes! -> so assume such an excitation is not coming
 
-        ASSERT(.not.isThree(ilut,excitInfo%fullStart))
-        ASSERT(.not.isThree(ilut,excitInfo%fullEnd))
-        ASSERT(.not.isZero(ilut,excitInfo%fullStart))
-        ASSERT(.not.isZero(ilut,excitInfo%fullEnd))
+        if (current_stepvector(excitInfo%fullStart) == 0 .or. &
+            current_stepvector(excitInfo%fullEnd) == 0) then 
+            nExcits = 0
+            allocate(excitations(0,0))
+            return
+        end if
+
+        if (current_stepvector(excitInfo%fullStart) == 3 .or. & 
+            current_stepvector(excitInfo%fullEnd) == 3) then 
+            nExcits = 1
+            allocate(excitations(0:nifguga,nExcits))
+            excitations(:,1) = ilut
+            call encode_matrix_element(excitations(:,1), 0.0_dp, 2)
+            call encode_matrix_element(excitations(:,1), & 
+                -real(currentOcc_int(excitInfo%fullStart) * &
+                      currentOcc_int(excitInfo%fullEnd),dp)/2.0_dp, 1)
+
+            return
+        end if
 
         ! so only have to deal with 1, or 2 at start and end -> write this 
         ! function specifically for these cases.
@@ -18799,7 +18814,6 @@ contains
 
         select case (current_stepvector(st))
         case (3)
-!         if (isThree(ilut,st)) then
             ! only deltaB 0 branch possible, and even no change in stepvector
             call encode_matrix_element(t, -Root2, 1)
             call encode_matrix_element(t, 0.0_dp, 2)
@@ -18809,7 +18823,6 @@ contains
             nExcits = 1
 
         ! do the mixed fullstart new with all weights contributed for
-!         else if (isOne(ilut, st)) then
         case (1)
             ASSERT(zeroWeight + plusWeight > 0.0_dp)
             if (zeroWeight > 0.0_dp .and. plusWeight > 0.0_dp) then
@@ -18883,7 +18896,6 @@ contains
                 call stop_all(this_routine, "something went wrong. should not be here!")
             end if
 
-!         else if (isTwo(ilut,st)) then
         case (2)
             ! here b value is never a problem so i just have to check for 
             ! minusWeight
@@ -18955,7 +18967,6 @@ contains
                 call stop_all(this_routine, "both starting branch weights are 0")
 
             end if
-!         end if
         end select
 
     end subroutine mixedFullStart
@@ -21937,7 +21948,6 @@ contains
         integer ::  we, st, ss, fe, en, i,j,k,lO
         type(weight_obj) :: weights
         
-
         ! also include probabilistic weights
         call calcRemainingSwitches_excitInfo_double(L, excitInfo, 1, posSwitches, &
             negSwitches)
@@ -21963,17 +21973,6 @@ contains
                     flag = .false.
                     return
                 end if
-!                 fl0 = isZero(L,we)
-!                 fl2 = isThree(L,st)
-!                 if (fl0.or.fl2.or.isZero(L,en)) then
-!                     flag = .false.
-!                     return
-!                 end if
-! !                 if ((we==en).and.(.not.isThree(L,en))) then
-!                 if ((we==en).and.current_stepvector(en) /= 3) then
-!                     flag = .false.
-!                     return
-!                 end if
 
                 weights = init_singleWeight(L, en)
                 mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
@@ -21985,23 +21984,9 @@ contains
                     flag = .false.
                     return
                 end if
-!                 if (isOne(L,st).and.pw==0.0_dp)then
-!                     flag = .false.
-!                     return
-!                 end if
-! !                 if (isTwo(L,st) .and. mw < EPS)then
-!                     flag = .false.
-!                     return
-!                 end if
 
             ! weight + lowering generator:
             case(2)
-!                 fl0 = isZero(L,we)
-!                 fl2 = isThree(L,en)
-!                 if (fl0.or.isZero(L,st).or.fl2) then
-!                     flag = .false.
-!                     return
-!                 end if
                 
                 if (current_stepvector(we) == 0 .or. current_stepvector(en) ==&
                     3 .or. current_stepvector(st) == 0 .or. (we==st .and. &
@@ -22010,106 +21995,61 @@ contains
                     return
                 end if
 
-!                 if ((we==st).and.(.not.isThree(L,st))) then
-!                     flag = .false.
-!                     return
-!                 end if
-
                 weights = init_singleWeight(L, en)
                 mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
                 pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
 
 
-!                 if (pw <EPS .and. mw <EPS) flag = .false.
-!                 if (isOne(L,st).and.pw < EPS) then
                 if ((current_stepvector(st) == 1 .and.pw < EPS) .or. &
                     (current_stepvector(st) == 2 .and. mw < EPS) .or. &
                     (pw < EPS .and. mw < EPS)) then
                     flag = .false.
                     return
                 end if
-!                 if (isTwo(L,st).and.mw < EPS) then
-!                 if (current_stepvector(st) == 2 .and.mw < EPS) then
-!                     flag = .false. 
-!                     return
-!                 end if
 
             ! no overlap:
             case(3)
+
                 i = excitInfo%i
                 j = excitInfo%j
                 k = excitInfo%k
                 lO = excitInfo%l
-                
-!                 fl0 = isZero(L,j)
-!                 fl2 = isThree(L,i)
+                    
+                if (current_stepvector(i) == 3 .or. current_stepvector(j) == 0 .or.&
+                    current_stepvector(k) == 3 .or. current_stepvector(lO) == 0)then
+                    flag = .false.
+                    return
+                end if
 
-            ! i can do the usual i,j check up here
-!             if (fl2.or.fl0.or.isThree(L,k)) then
-!                 flag = .false. 
-!                 return
-!             end if
-!             if (isZero(L,lO)) then
-!                 flag = .false. 
-!                 return
-!             end if
+                weights = init_singleWeight(L, fe)
 
-            if (current_stepvector(i) == 3 .or. current_stepvector(j) == 0 .or.&
-                current_stepvector(k) == 3 .or. current_stepvector(lO) == 0)then
-                flag = .false.
-                return
-            end if
-
-            weights = init_singleWeight(L, fe)
-
-            mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
-            pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
+                mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+                pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
 
 
-            ! first check lower range
-            if ((pw <EPS .and. mw <EPS) .or. &
-                (current_stepvector(st) == 1 .and. pw < EPS) .or. &
-                (current_stepvector(st) == 2 .and. mw < EPS)) then
-                flag = .false.
-                return
-            end if
-! 
-!             if (isOne(L,st) .and. pw <EPS) then
-!                 flag = .false.
-!             end if
-!             if (isTwo(L,st) .and. mw <EPS) then
-!                 flag = .false.
-!             end if
+                ! first check lower range
+                if ((pw <EPS .and. mw <EPS) .or. &
+                    (current_stepvector(st) == 1 .and. pw < EPS) .or. &
+                    (current_stepvector(st) == 2 .and. mw < EPS)) then
+                    flag = .false.
+                    return
+                end if
 
-            ! then second
- 
-            weights = init_singleWeight(L, en)
+                ! then second
+                weights = init_singleWeight(L, en)
 
-            mw = weights%proc%minus(negSwitches(ss), currentB_ilut(ss), weights%dat)
-            pw = weights%proc%plus(posSwitches(ss), currentB_ilut(ss), weights%dat)
+                mw = weights%proc%minus(negSwitches(ss), currentB_ilut(ss), weights%dat)
+                pw = weights%proc%plus(posSwitches(ss), currentB_ilut(ss), weights%dat)
 
-            if ((pw <EPS .and. mw <EPS) .or. & 
-                (current_stepvector(ss) == 1 .and. pw < EPS) .or. &
-                (current_stepvector(ss) == 2 .and. mw < EPS)) then
-                flag = .false. 
-                return
-            end if
-
-!             if (isOne(L,ss) .and. pw <EPS) then
-!                 flag = .false.
-!             end if
-!             if (isTwo(L,ss) .and. mw <EPS) then
-!                 flag = .false.
-!             end if
+                if ((pw <EPS .and. mw <EPS) .or. & 
+                    (current_stepvector(ss) == 1 .and. pw < EPS) .or. &
+                    (current_stepvector(ss) == 2 .and. mw < EPS)) then
+                    flag = .false. 
+                    return
+                end if
 
             ! single overlap lowering
             case(4)
-!                 fl0 = isZero(L,fe)
-!                 fl2 = isThree(L,en)
-!                 ! have to check with generators here
-!                 if (fl0.or.isZero(L,st).or.fl2) then
-!                     flag = .false.
-!                 end if
 
                 if (current_stepvector(fe) == 0 .or. current_stepvector(en) ==&
                     3 .or. current_stepvector(st) == 0) then
@@ -22134,24 +22074,12 @@ contains
                     return
                 end if
 
-!                 if (isOne(L,st) .and. pw <EPS) then
-!                     flag = .false.
-!                 end if
-!                 if (isTwo(L,st) .and. mw <EPS) then
-!                     flag = .false.
-!                 end if
-
                 ! todo: one of the two alike gens single overlap excits has 
                 ! additional constraints i believe
 
 
             ! single overlap raising
             case(5)
-!                 fl0 = isZero(L,fe)
-!                 fl2 = isThree(L,st)
-!                 if (fl0.or.fl2.or. isZero(L,en)) then
-!                     flag = .false.
-!                 end if
 
                 if (current_stepvector(fe) == 0 .or. current_stepvector(st) ==&
                     3 .or. current_stepvector(en) == 0) then
@@ -22171,22 +22099,9 @@ contains
                     flag = .false.
                     return
                 end if
-! 
-!                 if (isOne(L,st) .and. pw <EPS) then
-!                     flag = .false.
-!                 end if
-!                 if (isTwo(L,st) .and. mw <EPS) then
-!                     flag = .false.
-!                 end if
-
 
             ! single overlap lowering into raising
             case(6)
-!                 fl0 = isZero(L,st)
-!                 fl2 = .not.isZero(L,fe)
-!                 if (fl2.or.fl0.or.isZero(L, en)) then
-!                     flag = .false.
-!                 end if
 
                 if (current_stepvector(st) == 0 .or. current_stepvector(fe) /=&
                     0 .or. current_stepvector(en) == 0) then
@@ -22204,21 +22119,9 @@ contains
                     flag = .false. 
                     return
                 end if
-! 
-!                 if (isOne(L,st) .and. pw <EPS) then
-!                     flag = .false.
-!                 end if
-!                 if (isTwo(L,st) .and. mw <EPS) then
-!                     flag = .false.
-!                 end if
 
             ! single overlap raising into lowering
             case(7)
-!                 fl0 = .not.isThree(L,fe)
-!                 fl2 = isThree(L,st)
-!                 if (fl0.or.fl2.or.isThree(L,en)) then
-!                     flag = .false.
-!                 end if
 
                 if (current_stepvector(fe) /= 3 .or. current_stepvector(st) == &
                     3 .or. current_stepvector(en) == 3) then
@@ -22237,23 +22140,9 @@ contains
                     return
                 end if
 
-!                 if (isOne(L,st) .and. pw <EPS) then
-!                     flag = .false.
-!                 end if
-!                 if (isTwo(L,st) .and. mw <EPS) then
-!                     flag = .false.
-!                 end if
 
             ! normal double two lowering
             case(8)
-!                 fl0 = isZero(L,st)
-!                 fl2 = isThree(L,fe)
-!                 if (fl0.or.isThree(L,en)) then
-!                     flag = .false.
-!                 end if
-!                 if (isZero(L,ss).or.fl2) then
-!                     flag = .false.
-!                 end if
 
                 if (current_stepvector(st) == 0 .or. current_stepvector(fe) == &
                     3 .or. current_stepvector(en) == 3 .or. &
@@ -22277,23 +22166,9 @@ contains
                     return
                 end if
 
-!                 if (isOne(L,st) .and. pw <EPS) then
-!                     flag = .false.
-!                 end if
-!                 if (isTwo(L,st) .and. mw <EPS ) then
-!                     flag = .false.
-!                 end if
 
             ! normal double two raising
             case(9)
-!                 fl0 = isZero(L,en)
-!                 fl2 = isThree(L,ss)
-!                 if (isThree(L,st).or.fl0)  then
-!                     flag = .false.
-!                 end if
-!                 if (fl2.or.isZero(L,fe)) then
-!                     flag = .false.
-!                 end if
 
                 if (current_stepvector(en) == 0 .or. current_stepvector(ss) == &
                     3 .or. current_stepvector(st) == 3 .or. &
@@ -22316,23 +22191,9 @@ contains
                     return
                 end if
 
-!                 if (isOne(L,st).and.pw<EPS) then
-!                     flag = .false.
-!                 end if
-!                 if (isTwo(L,st).and.mw<EPS) then
-!                     flag = .false.
-!                 end if
 
             ! lowering into raising into lowering
             case(10)
-!                 fl0 = isZero(L,st)
-!                 fl2 = isThree(L,ss)
-!                 if (fl0.or.isThree(L,en)) then
-!                     flag = .false.
-!                 end if
-!                 if (fl2.or.isZero(L,fe)) then
-!                     flag = .false.
-!                 end if
                 
                 if (current_stepvector(st) == 0 .or. current_stepvector(ss) == &
                     3 .or. current_stepvector(en) == 3 .or. &
@@ -22354,24 +22215,9 @@ contains
                     flag = .false.
                     return
                 end if
-! 
-!                 if (isOne(L,st).and.pw<EPS) then
-!                     flag = .false.
-!                 end if
-!                 if (isTwo(L,st).and.mw <EPS ) then
-!                     flag = .false.
-!                 end if
 
             ! raising into lowering into raising
             case(11)
-!                 fl0 = isZero(L,en)
-!                 fl2 = isThree(L,fe)
-!                 if (isThree(L,st).or.fl0) then
-!                     flag = .false.
-!                 end if
-!                 if (isZero(L,ss).or.fl2) then
-!                     flag = .false.
-!                 end if
 
                 if (current_stepvector(en) == 0 .or. current_stepvector(fe) == &
                     3 .or. current_stepvector(st) == 3 .or. &
@@ -22393,24 +22239,9 @@ contains
                     flag = .false. 
                     return
                 end if
-! 
-!                 if (isOne(L,st) .and. pw < EPS) then
-!                     flag = .false.
-!                 end if
-!                 if (isTwo(L,st) .and. mw < EPS) then
-!                     flag = .false.
-!                 end if
 
             ! lowering into raising double
             case(12)
-!                 fl0 = isZero(L,st)
-!                 fl2 = isThree(L,ss)
-!             if (fl0.or.isZero(L,en)) then
-!                 flag = .false.
-!             end if
-!             if(fl2.or.isThree(L,fe)) then
-!                 flag = .false.
-!             end if
 
                 if (current_stepvector(st) == 0 .or. current_stepvector(ss) == 3 &
                     .or. current_stepvector(en) == 0 .or. &
@@ -22432,24 +22263,9 @@ contains
                     flag = .false. 
                     return
                 end if
-! 
-!                 if (isOne(L,st).and.pw < EPS) then
-!                     flag = .false.
-!                 end if
-!                 if (isTwo(L,st).and. mw <EPS) then
-!                     flag = .false.
-!                 end if
-! 
+
             ! raising into lowering double
             case(13)
-!                 fl0 = isZero(L,ss)
-!                 fl2 = isThree(L,st)
-!             if (fl2.or.isThree(L,en)) then
-!                 flag = .false.
-!             end if
-!             if (fl0.or.isZero(L,fe)) then
-!                 flag = .false.
-!             end if
 
                 if (current_stepvector(ss) == 0 .or. current_stepvector(st) == 3 &
                     .or. current_stepvector(en) == 3 .or. &
@@ -22471,32 +22287,15 @@ contains
                     flag = .false.
                     return
                 end if
-! 
-!                 if (isOne(L,st) .and. pw < EPS) then
-!                     flag = .false.
-!                 end if
-!                 if (isTwo(L,st) .and. mw <EPS) then
-!                     flag = .false.
-!                 end if
 
             ! full stop two lowering
             case(14)
-!                 fl0 = isZero(L,st)
-!                 fl2 = .not.isZero(L,en)
-!             if (fl0.or.isZero(L,ss).or.fl2) then
-!                 flag = .false.
-!             end if
 
                 if (current_stepvector(st) == 0 .or. current_stepvector(en) /= 0 &
                     .or. current_stepvector(ss) == 0) then
                     flag = .false.
                     return
                 endif
-
-
-    !             weights = init_semiStartWeight(L, ss, &
-    !                 en, negSwitches(ss), &
-    !                 posSwitches(ss), currentB_ilut(ss))
 
                 weights = init_singleWeight(L, ss)
 
@@ -22509,22 +22308,10 @@ contains
                     flag = .false. 
                     return
                 end if
-! 
-!                 if (isOne(L,st) .and. pw <EPS) then
-!                     flag = .false.
-!                 end if
-!                 if (isTwo(L,st) .and. mw <EPS) then
-!                     flag = .false.
-!                 end if
 
 
             ! full stop two raising
             case(15)
-!                 fl2 = isThree(L,st)
-!                 fl0 = .not.isThree(L,en)
-!             if (fl2.or.isThree(L,ss).or.fl0) then
-!                 flag = .false.
-!             end if
 
                 if (current_stepvector(st) == 3 .or. current_stepvector(en) /= 3 .or. &
                     current_stepvector(ss) == 3) then 
@@ -22532,37 +22319,21 @@ contains
                     return
                 end if
 
-!             weights = init_semiStartWeight(L, ss, &
-!                 en, negSwitches(ss), &
-!                 posSwitches(ss), currentB_ilut(ss))
 
-            weights = init_singleWeight(L, ss)
+                weights = init_singleWeight(L, ss)
 
-            pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
-            mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+                pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
+                mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
 
-            if ((mw < EPS.and. pw < EPS) .or. & 
-                (current_stepvector(st) == 1 .and. pw < EPS) .or. &
-                (current_stepvector(st) == 2 .and. mw < EPS)) then
-                flag = .false.
-                return
-            end if
-! 
-!             if (isOne(L,st) .and. pw <EPS) then
-!                 flag = .false.
-!             end if
-!             if (isTwo(L,st) .and. mw < EPS) then
-!                 flag = .false.
-!             end if
-
+                if ((mw < EPS.and. pw < EPS) .or. & 
+                    (current_stepvector(st) == 1 .and. pw < EPS) .or. &
+                    (current_stepvector(st) == 2 .and. mw < EPS)) then
+                    flag = .false.
+                    return
+                end if
 
             ! full stop lowering into raising
             case(16)
-!                 fl0 = isZero(L,st)
-!                 fl2 = isThree(L,ss)
-!             if (fl0.or.fl2.or.isZero(L,en)) then
-!                 flag = .false.
-!             end if
 
                 if (current_stepvector(st) == 0 .or. current_stepvector(ss) == 3 &
                     .or. current_stepvector(en) == 0) then
@@ -22600,21 +22371,9 @@ contains
                     flag = .false.
                     return
                 end if
-    ! 
-    !                 if (isOne(L,st) .and. pw <EPS) then
-    !                     flag = .false.
-    !                 end if
-    !                 if (isTwo(L,st) .and. mw <EPS ) then
-    !                     flag = .false.
-    !                 end if
-
+   
             ! full stop raising into lowering
             case(17)
-!                 fl0 = isZero(L,ss)
-!                 fl2 = isThree(L,st)
-!             if (fl0.or.fl2.or.isZero(L,en)) then
-!                 flag = .false.
-!             end if
 
                 if (current_stepvector(ss) == 0 .or. current_stepvector(st) == 3 &
                     .or. current_stepvector(en) == 0) then
@@ -22644,22 +22403,10 @@ contains
                     flag = .false. 
                     return
                 end if
-! 
-!                 if (isOne(L,st) .and. pw < EPS) then
-!                     flag = .false.
-!                 end if
-!                 if (isTwo(L,st) .and. mw < EPS ) then
-!                     flag = .false.
-!                 end if
 
 
             ! full start two lowering
             case(18)
-!                 fl0 = .not.isThree(L,st)
-!                 fl2 = isThree(L,fe)
-!             if (fl0.or.fl2.or.isThree(L,en)) then
-!                 flag = .false.
-!             end if
 
                 if (current_stepvector(st) /= 3 .or. current_stepvector(fe) == 3 &
                     .or. current_stepvector(en) == 3) then
@@ -22670,8 +22417,6 @@ contains
                 ! in the actual excitation generation i use the the 
                 ! single weights here.. and this make more sense i must 
                 ! admit. 
-!                 weights = init_fullStartWeight(L, fe, en, negSwitches(fe), posSwitches(fe), &
-!                     currentB_ilut(fe))
                 weights = init_singleWeight(L, en)
 
                 ! update! here i shouldnt use the real available switches for 
@@ -22681,12 +22426,10 @@ contains
                 ! the non-overlap region? 
                 ! and no.. i should check the weights of the single excitation
                 ! region.. 
-!                 zw = weights%proc%zero(0.0_dp, 0.0_dp, currentB_ilut(st), weights%dat)
                 pw = weights%proc%plus(posSwitches(fe), currentB_ilut(fe), weights%dat)
                 mw = weights%proc%minus(negSwitches(fe), currentB_ilut(fe), weights%dat)
                 
                 ! only 0 deltab branch valid
-!                 if (zw < EPS) flag = .false.
                 if ((mw < EPS .and. pw < EPS) .or. & 
                     (current_stepvector(fe) == 1 .and. pw < EPS) .or. &
                     (current_stepvector(fe) == 2 .and. mw < EPS)) then 
@@ -22696,11 +22439,6 @@ contains
 
             ! full start two raising
             case(19)
-!                 fl2 = .not.isZero(L,st)
-!                 fl0 = isZero(L,fe)
-!             if (fl2.or.fl0.or.isZero(L,en)) then
-!                 flag = .false.
-!             end if
 
                 if (current_stepvector(st) /= 0 .or. current_stepvector(fe) == 0 &
                     .or. current_stepvector(en) == 0) then
@@ -22709,14 +22447,6 @@ contains
                 end if
 
                 ! i can actually use just the singles weight.. 
-!                 weights = init_fullStartWeight(L, fe, en, negSwitches(fe), posSwitches(fe), &
-!                     currentB_ilut(fe))
-! 
-!                 ! same as above with switches
-!                 zw = weights%proc%zero(0.0_dp, 0.0_dp, currentB_ilut(st), weights%dat)
-! 
-!                 ! only 0 deltab branch valid
-!                 if (zw < EPS) flag = .false.
 
                 weights = init_singleWeight(L, en)
 
@@ -22724,7 +22454,6 @@ contains
                 mw = weights%proc%minus(negSwitches(fe), currentB_ilut(fe), weights%dat)
                 
                 ! only 0 deltab branch valid
-!                 if (zw < EPS) flag = .false.
                 if ((mw < EPS .and. pw < EPS) .or. & 
                     (current_stepvector(fe) == 1 .and. pw < EPS) .or. &
                     (current_stepvector(fe) == 2 .and. mw < EPS)) then 
@@ -22736,11 +22465,6 @@ contains
 
             ! full start lowering into raising
             case(20)
-!                 fl0 = isZero(L,st)
-!                 fl2 = isThree(L,fe)
-!             if (fl0.or.fl2.or.isZero(L,en)) then
-!                 flag = .false.
-!             end if
 
                 if (current_stepvector(st) == 0 .or. current_stepvector(fe) == 3 &
                     .or. current_stepvector(en) == 0) then 
@@ -22751,25 +22475,12 @@ contains
                 weights = init_fullStartWeight(L, fe, en, negSwitches(fe), posSwitches(fe), &
                     currentB_ilut(fe))
 
-!                 if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
-!                     ! for the full-starts the weights do not have to be 
-!                     ! changed, but the conditions for a valid excitation 
-!                     ! change a bit, since a change is enforced at the 
-!                     ! full-start! 
-!                     ! todo!
-!                     call stop_all(this_routine, "todo")
-! 
-!                 else
-                    ! if its a 3 start no switches in overlap region are possible
-    !                 if (isThree(L,st)) then
                     ! then it is actually not a proper double excitation.. 
                     ! and should not be considered here, as it is already 
                     ! contained in the single excitations
                     if (current_stepvector(st) == 3) then
                         ! but i need them for the exact excitation 
                         ! generation
-!                         flag = .false.
-!                         return
                         zw = weights%proc%zero(0.0_dp,0.0_dp, currentB_ilut(st), weights%dat)
                         pw = 0.0_dp
                         mw = 0.0_dp
@@ -22789,26 +22500,9 @@ contains
                         flag = .false.
                         return
                     end if
-!                 end if
-
-!                 if (isOne(L,st).and.zw+pw<EPS) then
-!                     flag = .false.
-!                 end if
-!                 if(isTwo(L,st).and.zw+mw<EPS) then
-!                     flag = .false.
-!                 end if
-!                 if (isThree(L,st).and.zw<EPS) then
-!                     flag = .false.
-!                 end if
 
             ! full start raising into lowering
             case(21)
-!                 fl0 = isZero(L,st)
-!                 fl2 = isThree(L,en)
-!             if (fl0.or.isZero(L,fe).or.fl2) then
-!                 flag = .false.
-!                 return
-!             end if
 
                 if (current_stepvector(st) == 0 .or. current_stepvector(en) == 3 &
                     .or. current_stepvector(fe) == 0) then
@@ -22819,18 +22513,9 @@ contains
                 weights = init_fullStartWeight(L, fe, en, negSwitches(fe), posSwitches(fe), &
                     currentB_ilut(fe))
 
-!                 if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
-!                     ! todo logic
-!                     call stop_all(this_routine, "todo")
-! 
-!                 else
 
                     ! if its a 3 start no switches in overlap region are possible
-    !                 if (isThree(L,st)) then
                     if (current_stepvector(st) == 3) then
-!                         flag = .false.
-!                         return
-! 
                         zw = weights%proc%zero(0.0_dp,0.0_dp, currentB_ilut(st), weights%dat)
                         pw = 0.0_dp
                         mw = 0.0_dp
@@ -22849,28 +22534,12 @@ contains
                         flag = .false.
                         return
                     end if
-!                 end if
-
-!                 if(isOne(L,st).and.zw+pw<EPS) then
-!                     flag = .false.
-!                 end if
-!                 if(isTwo(L,st).and.zw+mw<EPS) then
-!                     flag = .false.
-!                 end if
-!                 if (isThree(L,st).and.zw<EPS) then
-!                     flag = .false.
-!                 end if
 
 
             ! full start into full stop alike 
             case(22)
                 i = excitInfo%i
                 j = excitInfo%j
-!                 fl0 = .not.isThree(L,j)
-!                 fl2 = .not.isZero(L,i)
-!             if (fl0 .or. fl2) then
-!                 flag = .false.
-!             end if
 
                 if (current_stepvector(j) /= 3 .or. current_stepvector(i) /= 0) then
                     flag = .false.
@@ -22891,18 +22560,6 @@ contains
 
             ! full start into full stop mixed
             case (23) 
-!                 fl0 = isZero(L,st)
-!             if (fl0 .or. isZero(L,en)) then
-!                 flag = .false.
-!             end if
-! 
-!             ! make the decision here to not treat excitations with a stepvector
-!             ! of 3 at the fullstart or fullstop as excitations, but as part 
-!             ! of the diagonal matrix element. which they are essentially
-!             fl2 = isThree(L,st)
-!             if (fl2 .or. isThree(L,en)) then
-!                 flag = .false.
-!             end if
 
                 if (current_stepvector(st) == 0 .or. current_stepvector(en) == 0 &
                     .or. current_stepvector(st) == 3 .or. &
@@ -22915,8 +22572,6 @@ contains
                     ! the weights also change for fully-exchange type
                     weights = init_forced_end_exchange_weight(L, en)
 
-!                     ! todo logic
-!                     call stop_all(this_routine, "todo")
 
                 else
             
@@ -22931,7 +22586,6 @@ contains
                 ! if only the 0 branch is non-zero, and both + and - branch are
                 ! zero, we should abort too, since this means we would produce a
                 ! diagonal contribution.. 
-!                 if ((mw < EPS .and. pw < EPS .and. zw < EPS) .or. &
                 if ((mw < EPS .and. pw < EPS) .or. &
                     (current_stepvector(st) == 1 .and. zw + pw < EPS) .or. &
                     (current_stepvector(st) == 2 .and. zw + mw < EPS) .or. &
@@ -22939,17 +22593,7 @@ contains
                     flag = .false.
                     return
                 end if
-!                 end if
 
-!                 if (isOne(L,st).and.zw+pw<EPS) then 
-!                     flag = .false.
-!                 end if
-!                 if (isTwo(L,st).and.zw+mw<EPS) then
-!                     flag = .false.
-!                 end if
-!                 if (isThree(L,st).and.zw <EPS) then
-!                     flag = .false.
-!                 end if
 
         end select
 
@@ -22958,14 +22602,6 @@ contains
         end if
 
     end subroutine checkCompatibility
-
-!     subroutine startDoubleExcitation(ilut, excitInfo, excitations, nExcits)
-!         ! depending on the typ of excitation, determined in the 
-!         ! excitationIdentifier start the exciation in the specific way
-! 
-!     
-!     end subroutine startDoubleExcitation
-!     
 
     function get_excit_level_from_excitInfo(excitInfo) result(ic)
         type(excitationInformation), intent(in) :: excitInfo
