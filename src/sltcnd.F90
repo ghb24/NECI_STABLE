@@ -478,7 +478,7 @@ contains
            (G1(ex(1,2))%Ms == G1(Ex(2,1))%Ms)) ) then
          hel = hel - get_umat_el (id(1,1), id(1,2), id(2,2), id(2,1))
          if(tSpinCorrelator) then
-            hel = hel + spinKMatContrib(id(1,1),id(1,2),id(2,2),id(2,1),G1(ex(1,1))%MS,G1(ex(1,2))%MS)
+            hel = hel - spinKMatContrib(id(1,1),id(1,2),id(2,2),id(2,1),G1(ex(1,1))%MS,G1(ex(1,2))%MS)
          endif
       endif
 
