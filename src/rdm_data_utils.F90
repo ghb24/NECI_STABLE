@@ -398,7 +398,7 @@ contains
 
     end subroutine clear_one_rdms
 
-    pure subroutine calc_combined_rdm_label(i, j, k, l, ijkl)
+    pure subroutine calc_combined_rdm_label(i, j, k, l, ijkl, ij_out, kl_out)
 
         ! Combine the four 2-RDM orbital labels into unique integers. i and j
         ! are combined into one number, ij. k and l are combined into one
@@ -421,6 +421,7 @@ contains
 
         integer, intent(in) :: i, j, k, l ! spin or spatial orbitals
         integer(int_rdm), intent(out) :: ijkl
+        integer, intent(out), optional :: ij_out, kl_out
         integer :: ij, kl
 
         ! maybe I need a change for the GUGA implementation, since 
@@ -429,6 +430,11 @@ contains
         ij = (i-1)*nbasis + j
         kl = (k-1)*nbasis + l
         ijkl = (ij-1)*(int(nbasis, int_rdm)**2) + kl
+
+        if (present(ij_out) .and. present(kl_out)) then
+            ij_out = ij 
+            kl_out = kl
+        end if
 
     end subroutine calc_combined_rdm_label
 

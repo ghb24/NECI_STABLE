@@ -53,7 +53,7 @@ module guga_rdm
 
     ! test the symmetric filling of the GUGA-RDM, if the assumptions about 
     ! the hermiticity are correct..
-    logical :: t_test_sym_fill = .false.
+    logical :: t_test_sym_fill = .true.
     logical :: t_test_diagonal = .false.
 
 contains 
@@ -170,10 +170,10 @@ contains
 
                 ! i could also just multiply by 2 here, since this will 
                 ! get strored in the same D_{ij,ij} RDM element! 
-                if (.not. t_test_sym_fill) then 
+!                 if (.not. t_test_sym_fill) then 
                     call add_to_rdm_spawn_t(spawn, p, p, s, s, & 
                         occ_i * occ_j * full_sign, .true.)
-                end if
+!                 end if
 
                 j = j + inc_j
             end do
@@ -394,6 +394,17 @@ contains
                         call add_to_rdm_spawn_t(two_rdm_spawn, a, b, c, d, & 
                             sign_i * sign_j * mat_ele, .true.)
 
+                        if (t_test_sym_fill) then 
+                            call add_to_rdm_spawn_t(two_rdm_spawn, b, a, d, c, & 
+                                sign_i * sign_j * mat_ele, .true.)
+
+                            if (ab > cd) then 
+                                call add_to_rdm_spawn_t(two_rdm_spawn, c, d, a, b, & 
+                                    sign_i * sign_j * mat_ele, .true.)
+                                call add_to_rdm_spawn_t(two_rdm_spawn, d, c, b, a, & 
+                                    sign_i * sign_j * mat_ele, .true.)
+                            end if
+                        end if
                     end if
                 end do
             end if
@@ -615,8 +626,9 @@ contains
         integer(n_int), intent(out), pointer :: excitations(:,:)
         character(*), parameter :: this_routine = "calc_explicit_2_rdm_guga"
 
-        integer :: i, j, k, l, nMax, ierr, n, n_excits
+        integer :: i, j, k, l, nMax, ierr, n, n_excits, jl,ik
         integer(n_int), pointer :: temp_excits(:,:), tmp_all_excits(:,:)
+        integer(int_rdm) :: ijkl
 
         call init_csf_information(ilut)
 
@@ -678,9 +690,15 @@ contains
             end do
         else
             do i = 1, nSpatOrbs - 1
-                do j = i + 1, nSpatOrbs
-                    do k = 1, nSpatOrbs - 1
-                        do l = 1, nSpatOrbs 
+                do j = 1, nSpatOrbs - 1
+                    do k = i + 1, nSpatOrbs
+                        do l = j + 1, nSpatOrbs
+
+                            if (i == j .and. k == l) cycle
+
+                            call calc_combined_rdm_label(j,l,i,k,ijkl,jl,ik)
+
+                            if (jl > ik) cycle
 
                             call calc_all_excits_guga_rdm_doubles(ilut, i, j, k, l, &
                                 temp_excits, n_excits)
