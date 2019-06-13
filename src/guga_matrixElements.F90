@@ -161,7 +161,6 @@ contains
 
         hElement = calcDiagMatEleGUGA_nI(nI)
 
-        ! todo
     end function calcDiagMatEleGuga_ilut
 
     function calcDiagExchangeGUGA_nI(iOrb, jOrb, nI) result(exchange)

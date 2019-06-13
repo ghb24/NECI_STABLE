@@ -48,6 +48,7 @@ module guga_rdm
                               calc_separate_rdm_labels, extract_sign_rdm
     use OneEInts, only: GetTMatEl
     use procedure_pointers, only: get_umat_el
+    use guga_matrixElements, only: calcDiagExchangeGUGA_nI
 
     implicit none
 
@@ -117,7 +118,7 @@ contains
         integer :: i, s_orbs(nel), s, inc_i, j, inc_j, p
         integer :: ssss, spsp, sp, sp2, a,b,c,d
 
-        real(dp) :: occ_i, occ_j
+        real(dp) :: occ_i, occ_j, x0, x1
 
         ! i have to figure out what exactly contributes to here..
         ! according to the paper about the two-RDM labels the 
@@ -184,15 +185,27 @@ contains
 
                 ! but for open-shell to open-shell exchange excitations 
                 ! I have to calculate the correct x1 matrix element..
-                if (inc_i == inc_j .and. inc_i == 1) then 
-                    ! todo
+                
+                ! x0 matrix element is easy
+                x0 = -occ_i * occ_j / 2.0_dp 
+
+                if (inc_i == 1 .and. inc_j == 1) then 
+                    ! if we have open-shell to open chell 
+                    x1 = calcDiagExchangeGUGA_nI(i, j, nI) / 2.0_dp
+
+                    call add_to_rdm_spawn_t(spawn, s, p, p, s, &
+                       (x0 - x1) * full_sign, .true.)
+
+                    call add_to_rdm_spawn_t(spawn, p, s, s, p, &
+                       (x0 - x1) * full_sign, .true.)
+
                 else
                     call add_to_rdm_spawn_t(spawn, s, p, p, s, &
-                        -occ_i * occ_j / 2.0_dp * full_sign, .true.)
+                        x0 * full_sign, .true.)
 
                     ! and the symmetric version:
                     call add_to_rdm_spawn_t(spawn, p, s, s, p, &
-                        -occ_i * occ_j / 2.0_dp * full_sign, .true.)
+                        x0 * full_sign, .true.)
                 end if
 
                 j = j + inc_j
@@ -695,19 +708,27 @@ contains
                                 ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
                             end do
 #endif
-!                             if (i == l .and. j == k) then 
-!                                 ! exclude the diagonal exchange here, 
-!                                 ! as it is already accounted for in the 
-!                                 ! diagonal contribution routine
-!                                 if (n_excits > 1) then
-!                                     call add_guga_lists_rdm(n_tot, n_excits - 1, &
-!                                         tmp_all_excits, temp_excits(:,2:))
-!                                 end if
-!                             else
+                            if (i == l .and. j == k) then 
+                                ! exclude the diagonal exchange here, 
+                                ! as it is already accounted for in the 
+                                ! diagonal contribution routine
+#ifdef __DEBUG
+                                if (n_excits > 0) then
+                                    if (.not. DetBitEQ(ilut, temp_excits(:,1), nifdbo)) then
+                                        print *, "not equal!"
+                                    end if
+                                end if
+#endif
+
+                                if (n_excits > 1) then
+                                    call add_guga_lists_rdm(n_tot, n_excits - 1, &
+                                        tmp_all_excits, temp_excits(:,2:))
+                                end if
+                            else
                                 if (n_excits > 0) then 
                                     call add_guga_lists_rdm(n_tot, n_excits, tmp_all_excits, temp_excits)
                                 end if
-!                             end if
+                            end if
 
                             deallocate(temp_excits)
 
@@ -735,16 +756,24 @@ contains
                                 ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
                             end do
 #endif
-!                             if (i == l .and. j == k) then 
-!                                 if (n_excits > 1) then
-!                                     call add_guga_lists_rdm(n_tot, n_excits - 1, &
-!                                         tmp_all_excits, temp_excits(:,2:))
-!                                 end if
-!                             else
+                            if (i == l .and. j == k) then 
+#ifdef __DEBUG
+                                if (n_excits > 0) then
+                                    if (.not. DetBitEQ(ilut, temp_excits(:,1), nifdbo)) then
+                                        print *, "not equal!"
+                                    end if
+                                end if
+#endif
+                                if (n_excits > 1) then
+
+                                    call add_guga_lists_rdm(n_tot, n_excits - 1, &
+                                        tmp_all_excits, temp_excits(:,2:))
+                                end if
+                            else
                                 if (n_excits > 0) then 
                                     call add_guga_lists_rdm(n_tot, n_excits, tmp_all_excits, temp_excits)
                                 end if
-!                             end if
+                            end if
 
                             deallocate(temp_excits)
 
