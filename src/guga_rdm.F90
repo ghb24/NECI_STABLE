@@ -132,6 +132,9 @@ contains
         i = 1
         s_orbs = gtID(nI)
 
+        ! TODO: I could also try to add the diagonal exchange 
+        ! contributions directly here! so this routine would be 
+        ! applicable in the stochastic spawning already 
         do while (i <= nel) 
 
             s = s_orbs(i)
@@ -170,10 +173,20 @@ contains
 
                 ! i could also just multiply by 2 here, since this will 
                 ! get strored in the same D_{ij,ij} RDM element! 
-!                 if (.not. t_test_sym_fill) then 
-                    call add_to_rdm_spawn_t(spawn, p, p, s, s, & 
-                        occ_i * occ_j * full_sign, .true.)
-!                 end if
+                ! but for now I decided to fill in all disting 2-RDM 
+                ! elements
+                call add_to_rdm_spawn_t(spawn, p, p, s, s, & 
+                    occ_i * occ_j * full_sign, .true.)
+
+                ! i can also add the fully diagonal exchange contributions 
+                ! here. this is also necessary to do, if I want to use 
+                ! this routine in the stochastic sampling
+                call add_to_rdm_spawn_t(spawn, s, p, p, s, &
+                    -occ_i * occ_j / 2.0_dp * full_sign, .true.)
+
+                ! and the symmetric version:
+                call add_to_rdm_spawn_t(spawn, p, s, s, p, &
+                    -occ_i * occ_j / 2.0_dp * full_sign, .true.)
 
                 j = j + inc_j
             end do
@@ -399,6 +412,7 @@ contains
                             ! so fill in the missing ones
                             call add_to_rdm_spawn_t(two_rdm_spawn, b, a, d, c, & 
                                 sign_i * sign_j * mat_ele, .true.)
+
 
                         end if
                     end if
@@ -648,8 +662,9 @@ contains
                         ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
                     end do
 #endif
-                    if (n_excits > 0) then 
-                        call add_guga_lists_rdm(n_tot, n_excits, tmp_all_excits, temp_excits)
+                    if (n_excits > 1) then 
+                        call add_guga_lists_rdm(n_tot, n_excits-1, & 
+                            tmp_all_excits, temp_excits(:,2:))
                     end if
 
                     deallocate(temp_excits)
@@ -673,9 +688,18 @@ contains
                                 ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
                             end do
 #endif
-
-                            if (n_excits > 0) then 
-                                call add_guga_lists_rdm(n_tot, n_excits, tmp_all_excits, temp_excits)
+                            if (i == l .and. j == k) then 
+                                ! exclude the diagonal exchange here, 
+                                ! as it is already accounted for in the 
+                                ! diagonal contribution routine
+                                if (n_excits > 1) then
+                                    call add_guga_lists_rdm(n_tot, n_excits - 1, &
+                                        tmp_all_excits, temp_excits(:,2:))
+                                end if
+                            else
+                                if (n_excits > 0) then 
+                                    call add_guga_lists_rdm(n_tot, n_excits, tmp_all_excits, temp_excits)
+                                end if
                             end if
 
                             deallocate(temp_excits)
@@ -704,8 +728,15 @@ contains
                                 ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
                             end do
 #endif
-                            if (n_excits > 0) then 
-                                call add_guga_lists_rdm(n_tot, n_excits, tmp_all_excits, temp_excits)
+                            if (i == l .and. j == k) then 
+                                if (n_excits > 1) then
+                                    call add_guga_lists_rdm(n_tot, n_excits - 1, &
+                                        tmp_all_excits, temp_excits(:,2:))
+                                end if
+                            else
+                                if (n_excits > 0) then 
+                                    call add_guga_lists_rdm(n_tot, n_excits, tmp_all_excits, temp_excits)
+                                end if
                             end if
 
                             deallocate(temp_excits)
@@ -884,7 +915,7 @@ contains
         ! account..
         ! and also the the full-starts are maybe correct already.. 
         ! so it was just the full-start into full-stop mixed!
-        if (.not.compFlag .and. .not. excitInfo%typ == 23) then
+        if (.not.compFlag) then !.and. .not. excitInfo%typ == 23) then
             allocate(excits(0,0), stat = ierr)
             return
         end if
