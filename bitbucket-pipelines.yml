@@ -17,10 +17,10 @@ pipelines:
       #- make -j neci mneci kneci kmneci dneci
       #- echo "done building debug version. clean up!"
       #- rm -rf * 
-      - echo "building release version + hdf5!"
-      - cmake -DENABLE_BUILD_HDF5=ON -DENABLE_HDF5=ON ..
+      - echo "building release version"
+      - cmake ..
       - make -j 
-      - echo "done building release version + hdf5!"
+      - echo "done building release version"
       - echo "running unit tests"
       - ctest
       - echo "unit tests passed"
