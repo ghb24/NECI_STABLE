@@ -54,8 +54,10 @@ module guga_rdm
 
     ! test the symmetric filling of the GUGA-RDM, if the assumptions about 
     ! the hermiticity are correct..
-    logical :: t_test_sym_fill = .true.
+    logical :: t_test_sym_fill = .false.
     logical :: t_test_diagonal = .false.
+    logical :: t_direct_exchange = .false.
+    logical :: t_more_sym = .false.
 
 contains 
 
@@ -186,26 +188,28 @@ contains
                 ! but for open-shell to open-shell exchange excitations 
                 ! I have to calculate the correct x1 matrix element..
                 
-                ! x0 matrix element is easy
-                x0 = -occ_i * occ_j / 2.0_dp 
+                if (t_direct_exchange) then
+                    ! x0 matrix element is easy
+                    x0 = -occ_i * occ_j / 2.0_dp 
 
-                if (inc_i == 1 .and. inc_j == 1) then 
-                    ! if we have open-shell to open chell 
-                    x1 = calcDiagExchangeGUGA_nI(i, j, nI) / 2.0_dp
+                    if (inc_i == 1 .and. inc_j == 1) then 
+                        ! if we have open-shell to open chell 
+                        x1 = calcDiagExchangeGUGA_nI(i, j, nI) / 2.0_dp
 
-                    call add_to_rdm_spawn_t(spawn, s, p, p, s, &
-                       (x0 - x1) * full_sign, .true.)
+                        call add_to_rdm_spawn_t(spawn, s, p, p, s, &
+                           (x0 - x1) * full_sign, .true.)
 
-                    call add_to_rdm_spawn_t(spawn, p, s, s, p, &
-                       (x0 - x1) * full_sign, .true.)
+                        call add_to_rdm_spawn_t(spawn, p, s, s, p, &
+                           (x0 - x1) * full_sign, .true.)
 
-                else
-                    call add_to_rdm_spawn_t(spawn, s, p, p, s, &
-                        x0 * full_sign, .true.)
+                    else
+                        call add_to_rdm_spawn_t(spawn, s, p, p, s, &
+                            x0 * full_sign, .true.)
 
-                    ! and the symmetric version:
-                    call add_to_rdm_spawn_t(spawn, p, s, s, p, &
-                        x0 * full_sign, .true.)
+                        ! and the symmetric version:
+                        call add_to_rdm_spawn_t(spawn, p, s, s, p, &
+                            x0 * full_sign, .true.)
+                    end if
                 end if
 
                 j = j + inc_j
@@ -433,7 +437,16 @@ contains
                             call add_to_rdm_spawn_t(two_rdm_spawn, b, a, d, c, & 
                                 sign_i * sign_j * mat_ele, .true.)
 
+                            if (t_more_sym) then 
+                                call  Stop_All(this_routine, &
+                                    "have to correct for the additional symmetry!")
 
+                                call add_to_rdm_spawn_t(two_rdm_spawn, b, a, c, d, & 
+                                    sign_i * sign_j * mat_ele, .true.)
+
+                                call add_to_rdm_spawn_t(two_rdm_spawn, c, d,b, a, &
+                                    sign_i * sign_j * mat_ele, .true.)
+                            end if
                         end if
                     end if
                 end do
@@ -708,7 +721,7 @@ contains
                                 ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
                             end do
 #endif
-                            if (i == l .and. j == k) then 
+                            if (t_direct_exchange .and. (i == l .and. j == k)) then 
                                 ! exclude the diagonal exchange here, 
                                 ! as it is already accounted for in the 
                                 ! diagonal contribution routine
@@ -736,6 +749,51 @@ contains
                     end do
                 end do
             end do
+        else if (t_more_sym) then
+            do i = 1, nSpatOrbs
+                do j = 1, nSpatOrbs
+                    do k = 1, nSpatOrbs
+                        do l = j, nSpatOrbs
+
+                            if (i == j .and. k == l) cycle
+
+                            call calc_combined_rdm_label(j,l,i,k,ijkl,jl,ik)
+
+                            if (jl > ik) cycle
+
+                            call calc_all_excits_guga_rdm_doubles(ilut, i, j, k, l, &
+                                temp_excits, n_excits)
+
+#ifdef __DEBUG
+                            do n = 1, n_excits
+                                ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
+                            end do
+#endif
+                            if (t_direct_exchange .and. (i == l .and. j == k)) then 
+#ifdef __DEBUG
+                                if (n_excits > 0) then
+                                    if (.not. DetBitEQ(ilut, temp_excits(:,1), nifdbo)) then
+                                        print *, "not equal!"
+                                    end if
+                                end if
+#endif
+                                if (n_excits > 1) then
+                                    call add_guga_lists_rdm(n_tot, n_excits - 1, &
+                                        tmp_all_excits, temp_excits(:,2:))
+                                end if
+                            else
+                                if (n_excits > 0) then 
+                                    call add_guga_lists_rdm(n_tot, n_excits, tmp_all_excits, temp_excits)
+                                end if
+                            end if
+
+                            deallocate(temp_excits)
+
+                        end do
+                    end do
+                end do
+            end do
+
         else
             do i = 1, nSpatOrbs
                 do j = 1, nSpatOrbs
@@ -756,7 +814,7 @@ contains
                                 ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
                             end do
 #endif
-                            if (i == l .and. j == k) then 
+                            if (t_direct_exchange .and. (i == l .and. j == k)) then 
 #ifdef __DEBUG
                                 if (n_excits > 0) then
                                     if (.not. DetBitEQ(ilut, temp_excits(:,1), nifdbo)) then
@@ -951,9 +1009,16 @@ contains
         ! account..
         ! and also the the full-starts are maybe correct already.. 
         ! so it was just the full-start into full-stop mixed!
-        if (.not.compFlag) then !.and. .not. excitInfo%typ == 23) then
-            allocate(excits(0,0), stat = ierr)
-            return
+        if (.not. t_direct_exchange) then 
+            if (.not.compFlag .and. .not. excitInfo%typ == 23) then
+                allocate(excits(0,0), stat = ierr)
+                return
+            end if
+        else
+            if (.not.compFlag) then 
+                allocate(excits(0,0), stat = ierr)
+                return
+            end if
         end if
 
         select case(excitInfo%typ)

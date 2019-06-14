@@ -31,6 +31,8 @@ MODULE Logging
                            t_pop_symmetry_states, symmetry_states, &
                            symmetry_weights, symmetry_states_ilut
 
+    use guga_rdm, only: t_test_sym_fill, t_direct_exchange, t_more_sym
+
     IMPLICIT NONE
 
     contains
@@ -226,6 +228,16 @@ MODULE Logging
             ! in this case print the frequency histograms to analyze the 
             ! matrix element vs. pgen ratios
             t_print_frq_histograms = .true.
+
+        case ("TEST-SYM-FILL")
+            t_test_sym_fill = .true.
+
+        case ("MORE-SYM")
+            t_test_sym_fill = .true. 
+            t_more_sym = .true.
+
+        case ("DIRECT-EXCHANGE")
+            t_direct_exchange = .true.
 
         case("REBLOCKSHIFT")
             !Abort all other calculations, and just block data again with given equilibration time (in iterations)

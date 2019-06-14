@@ -5200,8 +5200,6 @@ contains
         ! change weights... maybe need both single and double type weights
         ! then do lowering semi start
         weights = weights%ptr
-!         weights = init_fullStartWeight(ilut, ende1, ende2, negSwitches(ende1), &
-!             posSwitches(ende1), currentB_ilut(ende1))
 
         call calcLoweringSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, branch_pgen)
@@ -5364,8 +5362,6 @@ contains
         ! change weights... maybe need both single and double type weights
         ! then do lowering semi start
         weights = weights%ptr
-!         weights = init_fullStartWeight(ilut, ende1, ende2, negSwitches(ende1), &
-!             posSwitches(ende1), currentB_ilut(ende1))
 
         call calcRaisingSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, branch_pgen)
@@ -5504,8 +5500,6 @@ contains
         ! change weights... maybe need both single and double type weights
         ! then do lowering semi start
         weights = weights%ptr
-!         weights = init_fullStartWeight(ilut, ende1, ende2, negSwitches(ende1), &
-!             posSwitches(ende1), currentB_ilut(ende1))
 
         call calcRaisingSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, branch_pgen)
@@ -5664,8 +5658,6 @@ contains
         ! then do lowering semi start
         ! just point to the next weight:
         weights = weights%ptr
-!         weights = init_fullStartWeight(ilut, ende1, ende2, negSwitches(ende1), &
-!             posSwitches(ende1), currentB_ilut(ende1))
 
         call calcRaisingSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, branch_pgen)
@@ -5791,8 +5783,6 @@ contains
         ! change weights... maybe need both single and double type weights
         ! then do lowering semi start
         weights = weights%ptr
-!         weights = init_fullStartWeight(ilut, ende1, ende2, negSwitches(ende1), &
-!             posSwitches(ende1), currentB_ilut(ende1))
 
         call calcLoweringSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, branch_pgen)
@@ -5939,16 +5929,8 @@ contains
         ! change weights... maybe need both single and double type weights
         ! then do lowering semi start
         ! can i just do: 
-!         weights_ptr => weights%ptr
-!         print *, "is null?", .not.associated(weights_ptr)
-!         print *, "is null %ptr?", .not.associated(weights%ptr)
-!         print *, "+", weights%proc%plus(2.0,2.0,weights%dat)
-!         print *, "+", weights%ptr%proc%plus(2.0,2.0,weights%ptr%dat)
-
         weights = weights%ptr
 
-!         weights = init_fullStartWeight(ilut, ende1, ende2, negSwitches(ende1), &
-!             posSwitches(ende1), currentB_ilut(ende1))
 
         ! branch_pgen gets update insde the routine!
         call calcLoweringSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
@@ -22475,31 +22457,31 @@ contains
                 weights = init_fullStartWeight(L, fe, en, negSwitches(fe), posSwitches(fe), &
                     currentB_ilut(fe))
 
-                    ! then it is actually not a proper double excitation.. 
-                    ! and should not be considered here, as it is already 
-                    ! contained in the single excitations
-                    if (current_stepvector(st) == 3) then
-                        ! but i need them for the exact excitation 
-                        ! generation
-                        zw = weights%proc%zero(0.0_dp,0.0_dp, currentB_ilut(st), weights%dat)
-                        pw = 0.0_dp
-                        mw = 0.0_dp
-                    else
+                ! then it is actually not a proper double excitation.. 
+                ! and should not be considered here, as it is already 
+                ! contained in the single excitations
+                if (current_stepvector(st) == 3) then
+                    ! but i need them for the exact excitation 
+                    ! generation
+                    zw = weights%proc%zero(0.0_dp,0.0_dp, currentB_ilut(st), weights%dat)
+                    pw = 0.0_dp
+                    mw = 0.0_dp
+                else
 
-                        zw = weights%proc%zero(negSwitches(st), posSwitches(st), currentB_ilut(st), &
-                            weights%dat)
+                    zw = weights%proc%zero(negSwitches(st), posSwitches(st), currentB_ilut(st), &
+                        weights%dat)
 
-                        pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
-                        mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
-                    end if
+                    pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
+                    mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+                end if
 
-                    if ((mw < EPS .and.pw < EPS .and. zw < EPS) .or. &
-                        (current_stepvector(st) == 1 .and. zw + pw < EPS) .or. &
-                        (current_stepvector(st) == 2 .and. zw + mw < EPS) .or. &
-                        (current_stepvector(st) == 3 .and. zw < EPS)) then
-                        flag = .false.
-                        return
-                    end if
+                if ((mw < EPS .and.pw < EPS .and. zw < EPS) .or. &
+                    (current_stepvector(st) == 1 .and. zw + pw < EPS) .or. &
+                    (current_stepvector(st) == 2 .and. zw + mw < EPS) .or. &
+                    (current_stepvector(st) == 3 .and. zw < EPS)) then
+                    flag = .false.
+                    return
+                end if
 
             ! full start raising into lowering
             case(21)
@@ -22514,26 +22496,26 @@ contains
                     currentB_ilut(fe))
 
 
-                    ! if its a 3 start no switches in overlap region are possible
-                    if (current_stepvector(st) == 3) then
-                        zw = weights%proc%zero(0.0_dp,0.0_dp, currentB_ilut(st), weights%dat)
-                        pw = 0.0_dp
-                        mw = 0.0_dp
-                    else
-                        zw = weights%proc%zero(negSwitches(st), posSwitches(st), currentB_ilut(st), &
-                            weights%dat)
+                ! if its a 3 start no switches in overlap region are possible
+                if (current_stepvector(st) == 3) then
+                    zw = weights%proc%zero(0.0_dp,0.0_dp, currentB_ilut(st), weights%dat)
+                    pw = 0.0_dp
+                    mw = 0.0_dp
+                else
+                    zw = weights%proc%zero(negSwitches(st), posSwitches(st), currentB_ilut(st), &
+                        weights%dat)
 
-                        pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
-                        mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
-                    end if        
-                    
-                    if ((pw + mw + zw < EPS) .or. &
-                        (current_stepvector(st) == 1 .and. zw + pw < EPS) .or. &
-                        (current_stepvector(st) == 2 .and. zw + mw < EPS) .or. &
-                        (current_stepvector(st) == 3 .and. zw < EPS)) then
-                        flag = .false.
-                        return
-                    end if
+                    pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
+                    mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+                end if        
+                
+                if ((pw + mw + zw < EPS) .or. &
+                    (current_stepvector(st) == 1 .and. zw + pw < EPS) .or. &
+                    (current_stepvector(st) == 2 .and. zw + mw < EPS) .or. &
+                    (current_stepvector(st) == 3 .and. zw < EPS)) then
+                    flag = .false.
+                    return
+                end if
 
 
             ! full start into full stop alike 
