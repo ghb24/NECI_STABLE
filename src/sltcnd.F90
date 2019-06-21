@@ -291,7 +291,6 @@ contains
                 idX = max(id(i), id(j))
                 idN = min(id(i), id(j))
                 hel_doub = hel_doub + get_umat_el (idN, idX, idN, idX)
-!                 write(6,*) idN,idX,idN,idX,get_umat_el (idN,idX,idN,idX)
             enddo
         enddo
                 
@@ -306,7 +305,6 @@ contains
                         idX = max(id(i), id(j))
                         idN = min(id(i), id(j))
                         hel_tmp = hel_tmp - get_umat_el (idN, idX, idX, idN)
-!                         write(6,*) idN,idX,idX,idN,get_umat_el (idN,idX,idX,idN)
                     endif
                 enddo
             enddo
