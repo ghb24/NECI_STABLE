@@ -334,6 +334,9 @@ logical :: t_iiaa = .false., t_ratio = .false.
 ! spin-dependent transcorrelation 
 logical :: t_spin_dependent_transcorr = .false.
 
+! some changes in matrix elements for mixed hubbard basis
+logical :: t_mixed_hubbard = .false.
+
 ! Operators for type(symmetry)
 interface assignment (=)
     module procedure SymAssign

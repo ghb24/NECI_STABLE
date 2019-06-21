@@ -7,7 +7,8 @@ module excit_gens_int_weighted
                           AB_elec_pairs, par_elec_pairs, AA_hole_pairs, &
                           par_hole_pairs, AB_hole_pairs, iMaxLz, &
                           tGen_4ind_part_exact, tGen_4ind_lin_exact, &
-                          tGen_4ind_unbound, t_iiaa, t_ratio, UMatEps
+                          tGen_4ind_unbound, t_iiaa, t_ratio, UMatEps, &
+                          t_mixed_hubbard
     use CalcData, only: matele_cutoff, t_matele_cutoff
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcitDataMod, only: SymLabelList2, SymLabelCounts2, OrbClassCount, &
@@ -518,15 +519,17 @@ contains
             if (IsNotOcc(ilutI, orb)) then
                 hel = 0
                 id_tgt = gtID(orb)
-                do j = 1, nel
-                    if (nI(j) == src) cycle
-                    hel = hel + get_umat_el (id_src, n_id(j), id_tgt, &
-                                             n_id(j))
-                    if (is_beta(src) .eqv. is_beta(nI(j))) then
-                        hel = hel - get_umat_el (id_src, n_id(j), n_id(j),&
-                                                  id_tgt)
-                    end if
-                end do
+                if (.not. t_mixed_hubbard) then
+                    do j = 1, nel
+                        if (nI(j) == src) cycle
+                        hel = hel + get_umat_el (id_src, n_id(j), id_tgt, &
+                                                 n_id(j))
+                        if (is_beta(src) .eqv. is_beta(nI(j))) then
+                            hel = hel - get_umat_el (id_src, n_id(j), n_id(j),&
+                                                      id_tgt)
+                        end if
+                    end do
+                end if
                 hel = hel + GetTMATEl(src, orb)
                 cpt = abs_l1(hel)
 
@@ -595,12 +598,14 @@ contains
                 ! This is based on an extract from sltcnd_1. We can assume
                 ! tExch, and SymLabelList2 ensures the spins are equal
                 id = gtID(orb)
-                do j = 1, nel
-                    if (nI(j) == src) cycle
-                    hel = hel + get_umat_el (id_src, n_id(j), id, n_id(j))
-                    if (is_beta(src) .eqv. is_beta(nI(j))) &
-                        hel = hel - get_umat_el (id_src, n_id(j), n_id(j), id)
-                end do
+                if (.not. t_mixed_hubbard) then
+                    do j = 1, nel
+                        if (nI(j) == src) cycle
+                        hel = hel + get_umat_el (id_src, n_id(j), id, n_id(j))
+                        if (is_beta(src) .eqv. is_beta(nI(j))) &
+                            hel = hel - get_umat_el (id_src, n_id(j), n_id(j), id)
+                    end do
+                end if
                 hel = hel + GetTMATEl(src, orb)
 
             end if

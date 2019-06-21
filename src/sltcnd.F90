@@ -2,7 +2,7 @@
 
 module sltcnd_mod
     use SystemData, only: nel, nBasisMax, tExch, G1, ALAT, tReltvy, t_3_body_excits
-    use SystemData, only: nBasis!, iSpinSkip
+    use SystemData, only: nBasis, t_mixed_hubbard
     ! HACK - We use nBasisMax(2,3) here rather than iSpinSkip, as it appears
     !        to be more reliably set (see for example test H2O_RI)
     ! TODO: We need to sort this out so that they are consistent
@@ -331,27 +331,29 @@ contains
         ! Coulomb term only included if Ms values of ex(1) and ex(2) are the
         ! same.
         hel = (0)
-        if (tReltvy.or.(G1(ex(1))%Ms == G1(ex(2))%Ms)) then
-            do i=1,nel
-                if (ex(1) /= nI(i)) then
-                    id = gtID(nI(i))
-                    hel = hel + get_umat_el (id_ex(1), id, id_ex(2), id)
-                endif
-            enddo
-        endif
-        ! Exchange contribution is only considered if tExch set.
-        ! This is only separated from the above loop to keep "if (tExch)" out
-        ! of the tight loop for efficiency.
-        if (tExch .and. ((G1(ex(1))%Ms == G1(ex(2))%Ms).or.tReltvy)) then
-            do i=1,nel
-                if (ex(1) /= nI(i)) then
-                    if (tReltvy.or.(G1(ex(1))%Ms == G1(nI(i))%Ms)) then
+        if (.not. t_mixed_hubbard) then 
+            if (tReltvy.or.(G1(ex(1))%Ms == G1(ex(2))%Ms)) then
+                do i=1,nel
+                    if (ex(1) /= nI(i)) then
                         id = gtID(nI(i))
-                        hel = hel - get_umat_el (id_ex(1), id, id, id_ex(2))
+                        hel = hel + get_umat_el (id_ex(1), id, id_ex(2), id)
                     endif
-                endif
-            enddo
-        endif
+                enddo
+            endif
+            ! Exchange contribution is only considered if tExch set.
+            ! This is only separated from the above loop to keep "if (tExch)" out
+            ! of the tight loop for efficiency.
+            if (tExch .and. ((G1(ex(1))%Ms == G1(ex(2))%Ms).or.tReltvy)) then
+                do i=1,nel
+                    if (ex(1) /= nI(i)) then
+                        if (tReltvy.or.(G1(ex(1))%Ms == G1(nI(i))%Ms)) then
+                            id = gtID(nI(i))
+                            hel = hel - get_umat_el (id_ex(1), id, id, id_ex(2))
+                        endif
+                    endif
+                enddo
+            endif
+        end if
         ! consider the non-diagonal part of the kinetic energy -
         ! <psi_a|T|psi_a'> where a, a' are the only basis fns that differ in
         ! nI, nJ
@@ -372,25 +374,25 @@ contains
         ! Obtain spatial rather than spin indices if required
         id = gtID(ex)
 
+        ! for the mixed hubbard basis there are no spin-parallel 
+        ! excitations! 
+        if (t_mixed_hubbard .and. (G1(ex(1,1))%ms == G1(ex(1,2))%ms)) then 
+            hel = 0.0_dp
+            return
+        end if
         ! Only non-zero contributions if Ms preserved in each term (consider
         ! physical notation).
-!>>>!        write(6, '("---> ")', advance='no')
         if ( tReltvy.or.((G1(ex(1,1))%Ms == G1(ex(2,1))%Ms) .and. &
              (G1(ex(1,2))%Ms == G1(ex(2,2))%Ms)) ) then
              hel = get_umat_el (id(1,1), id(1,2), id(2,1), id(2,2))
         else
             hel = (0)
         endif
-!>>>!        write(6,'(f10.6)', advance='no') hel
 
         if ( tReltvy.or.((G1(ex(1,1))%Ms == G1(ex(2,2))%Ms) .and. &
              (G1(ex(1,2))%Ms == G1(Ex(2,1))%Ms)) ) then
              hel = hel - get_umat_el (id(1,1), id(1,2), id(2,2), id(2,1))
-!>>>!            write(6,'(f10.6)', advance='no') - get_umat_el (id(1,1), id(1,2), id(2,2), id(2,1))
-!>>>!        else
-!>>>!            write(6,'(f10.6)', advance='no') 0.0
         endif
-!>>>!        write(6,*) hel
 
         if (tSign) hel = -hel
     end function sltcnd_2

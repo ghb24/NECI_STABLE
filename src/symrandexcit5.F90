@@ -2,6 +2,7 @@
 
 module excit_gen_5
 
+    use SystemData, only: t_mixed_hubbard, nOccAlpha, nOccBeta
     use excit_gens_int_weighted, only: gen_single_4ind_ex, pgen_single_4ind, &
                                        get_paired_cc_ind, select_orb, &
                                        opp_spin_pair_contrib, &
@@ -147,7 +148,11 @@ contains
             end if
 
             ! Select a pair of electrons in a weighted fashion
-            pgen = pgen * pgen_weighted_elecs(nI, src)
+            if (t_mixed_hubbard) then 
+                pgen = pgen / real(nOccAlpha * nOccBeta, dp)
+            else
+                pgen = pgen * pgen_weighted_elecs(nI, src)
+            end if
 
             ! Obtain the probability components of picking the electrons in
             ! either A--B or B--A order.
@@ -216,6 +221,7 @@ contains
 
         use GenRandSymExcitNUMod, only: RandExcitSymLabelProd
         use SymExcitDataMod, only: SpinOrbSymLabel
+        use lattice_models_utils, only: pick_spin_opp_elecs
 
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
@@ -239,8 +245,17 @@ contains
         integer :: loc
 
         ! Pick the electrons in a weighted fashion
-        call pick_weighted_elecs(nI, elecs, src, sym_product, ispn, sum_ml, &
+        if (t_mixed_hubbard) then
+            call pick_spin_opp_elecs(nI, elecs, pgen)
+            src = nI(elecs)
+            sym_product = RandExcitSymLabelProd(SpinOrbSymLabel(src(1)), &
+                                         SpinOrbSymLabel(src(2)))
+            sum_ml = sum(G1(src)%Ml)
+            ispn = 2
+        else
+            call pick_weighted_elecs(nI, elecs, src, sym_product, ispn, sum_ml, &
                                  pgen)
+         end if
 
         ! then first pick (a) orbital: 
         ! for opposite spin excitations (a) is restricted to be a beta orbital! 

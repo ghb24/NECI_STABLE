@@ -426,6 +426,9 @@ system: do
                 end select
             end if
 
+        case ("MIXED-HUBBARD")
+            t_mixed_hubbard = .true.
+
         case("SYM")
             TPARITY = .true.
             do I = 1,4

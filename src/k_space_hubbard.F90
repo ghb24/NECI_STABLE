@@ -264,20 +264,9 @@ contains
             G1(2*i-1)%Sym = SymLabels(i)
             G1(2*i)%Sym = SymLabels(i)
 
-!             k_i = lat%get_k_vec(i) 
-! 
-!             k_inv = lat%map_k_vec(-k_i)
-! 
-!             print *, "i, k_i, k_inv: ", i, k_i, k_inv
-! 
-!             j = lat%get_orb_from_k_vec(k_inv)
-! 
-!             print *, j
             ! find the orbital of -k 
             j = lat%get_orb_from_k_vec(-lat%get_k_vec(i))
 
-!             print *, "i, k(i): ", i, lat%get_k_vec(i)
-!             print *, "j, k(j): ", j, lat%get_k_vec(j)
 
             ! since i have a linear encoding of the symmetries i do not need 
             ! to use SymClasses here.. 
@@ -385,20 +374,12 @@ contains
         ! i could set this on the site level! 
         if (SymTable(lat%get_sym(i),lat%get_sym(j))%S == & 
             SymTable(lat%get_sym(k),lat%get_sym(l))%S) then 
-!         if (SymTable(G1(2*i)%sym%s,G1(2*j)%sym%s)%S ==  & 
-!             SymTable(G1(2*k)%sym%s,G1(2*l)%sym%s)%S) then 
             hel = Umat(1)
         else 
             hel = 0.0_dp
         end if
         
         ! old implo: 
-!         if (all(lat%map_k_vec(lat%get_k_vec(i)+lat%get_k_vec(j)) == & 
-!                 lat%map_k_vec(lat%get_k_vec(k)+lat%get_k_vec(l)))) then 
-!             hel = UMat(1) 
-!         else
-!             hel = 0.0_dp
-!         end if
 
     end function get_umat_kspace
 
