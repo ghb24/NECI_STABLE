@@ -89,26 +89,14 @@ module guga_excitations
 
     use sym_mod, only: MomPbcSym
 
-!     use lattice_mod, only: lat
-! 
-!     use tJ_model, only: setup_exchange_matrix
-
-!     use excit_gen_5, only: gen_excit_4ind_weighted2
 
     ! variables
     implicit none
     ! use a "global" bVector variable here so that a b vector only has to be 
     ! initialized once, for a given CSF when calculating all or only one 
     ! excitations from it
-!     real(dp), allocatable :: currentB_nI(:), currentB_ilut(:)
     ! also use a "global" occupation number vector, as it is needed in 
     ! the matrix element calculation. 
-!     real(dp), allocatable :: currentOcc_ilut(:)
-
-    ! also probably helpful to have this as an integer for if-statements
-!     integer, allocatable :: currentOcc_int(:)
-
-!     integer, allocatable :: currentB_int(:)
 
     ! use a global excitationInformation type variable to store information
     ! about the last generated excitation to analyze matrix elements and 
@@ -122,67 +110,6 @@ module guga_excitations
             real(dp) :: pgen
         end function calc_pgen_general
     end interface
-
-    ! for my probabilistic weight functions i need abstract interfaces here
-!     abstract interface 
-
-!         function singleWeightDummy(nSwitches, bVal, single) result(weight)
-!             use guga_data, only: singleWeight_data
-!             use constants, only: dp
-!             implicit none
-!             real(dp), intent(in) :: nSwitches, bVal
-!             type(singleWeight_data), intent(in) :: single
-!             real(dp) :: weight
-!         end function singleWeightDummy
-! 
-!         function doubleWeightZeroDummy(posSwitches, negSwitches, bVal, double) &
-!                 result(weight)
-!             use guga_data, only: singleWeight_data
-!             use constants, only: dp
-!             implicit none
-!             real(dp), intent(in) :: posSwitches, negSwitches, bVal
-!             type(singleWeight_data), intent(in) :: double
-!             real(dp) :: weight
-!         end function doubleWeightZeroDummy
-! 
-!         function fullStartDummy(nSwitches, bVal, fullStart) result(weight)
-!             use guga_data, only: fullStartWeight_data
-!             use constants, only: dp
-!             implicit none
-!             real(dp), intent(in) :: nSwitches, bVal
-!             type(fullStartWeight_data), intent(in) :: fullStart
-!             real(dp) :: weight
-!         end function fullStartDummy
-! 
-!         function fullStartZeroDummy(posSwitches, negSwitches, bVal, fullStart) &
-!                 result(weight)
-!             use guga_data, only: fullStartWeight_data
-!             use constants, only: dp
-!             implicit none
-!             real(dp), intent(in) :: posSwitches, negSwitches, bVal
-!             type(fullStartWeight_data), intent(in) :: fullStart
-!             real(dp) :: weight
-!         end function fullStartZeroDummy
-! 
-!         function semiStartDummy(nSwitches, bVal, semiStart) result(weight)
-!             use guga_data, only: doubleWeight_data
-!             use constants, only: dp
-!             implicit none
-!             real(dp), intent(in) :: nSwitches, bVal
-!             type(doubleWeight_data), intent(in) :: semiStart
-!             real(dp) :: weight
-!         end function semiStartDummy
-! 
-!         function singleOverlapDummy(nSwitches, bVal, singleOverlap) result(weight)
-!             use guga_data, only: singleWeight_data
-!             use constants, only: dp
-!             implicit none
-!             real(dp), intent(in) :: nSwitches, bVal
-!             type(singleWeight_data), intent(in) :: singleOverlap
-!             real(dp) :: weight
-!         end function singleOverlapDummy
-! 
-!     end interface
     
     abstract interface 
         ! to make the recalculation of the branch-weights for mixed full-stop 
@@ -205,69 +132,7 @@ module guga_excitations
         procedure(branch_weight_function), pointer, nopass :: ptr => null()
     end type branch_weight_arr
 
-    ! need type definitions of the procedure pointers here, since those and 
-    ! the data need to be in seperate modules.
-!     type :: singleWeight_proc
-!         procedure(singleWeightDummy), pointer, nopass :: minus, plus
-!     end type singleWeight_proc
-! 
-!     ! and also store data and procedures in one general type
-!     type :: singleWeightObj
-!         logical :: initialized 
-!         type(singleWeight_data) :: dat
-!         type(singleWeight_proc) :: proc
-!     end type singleWeightObj
-! 
-!     type :: doubleWeight_proc
-!         procedure(singleWeightDummy), pointer, nopass :: minus, plus
-!         procedure(doubleWeightZeroDummy), pointer, nopass :: zero
-!     end type doubleWeight_proc
-! 
-!     type :: doubleWeightObj
-!         logical :: initialized
-!         type(singleWeight_data) :: dat
-!         type(doubleWeight_proc) :: proc
-!     end type doubleWeightObj
-! 
-!     type :: fullStartWeight_proc
-!         procedure(fullStartDummy), pointer, nopass :: minus, plus
-!         procedure(fullStartZeroDummy), pointer, nopass :: zero
-!     end type fullStartWeight_proc
-! 
-!     type :: fullStartWeightObj
-!         logical :: initialized
-!         type(fullStartWeight_data) :: dat
-!         type(fullStartWeight_proc) :: proc
-!     end type fullStartWeightObj
-! 
-!     type :: semiStartWeight_proc
-!         procedure(semiStartDummy), pointer, nopass :: minus, plus
-!     end type semiStartWeight_proc
-! 
-!     type :: semiStartWeightObj
-!         logical :: initialized
-!         type(doubleWeight_data) :: dat
-!         type(semiStartWeight_proc) :: proc
-!     end type semiStartWeightObj
-! 
-!     type :: singleOverlapWeight_proc
-!         procedure(singleOverlapDummy), pointer, nopass :: minus, plus
-!     end type singleOverlapWeight_proc
-! 
-!     type :: singleOverlapWeightObj
-!         logical :: intialized
-!         type(singleOverlapWeight_data) :: dat
-!         type(singleOverlapWeight_proc) :: proc
-!     end type singleOverlapWeightObj
-
-    ! interfaces
-!     interface calcAllSinglesGUGA
-!         ! not sure if needed, since excitation calculation from nI 
-!         ! representation not quite useful, since I also need info of empty orbs
-!         !module procedure calcAllSinglesGUGA_nI
-!         module procedure calcAllSinglesGUGA_ilut
-!     end interface calcAllSinglesGUGA
-
+ 
     
     interface calc_pgen_guga_crude
         module procedure calc_pgen_guga_crude_iluts
@@ -279,19 +144,6 @@ module guga_excitations
         module procedure assign_excitInfo_values_double
     end interface assign_excitInfo_values
 
-!     interface pickOrbitals
-!         module procedure pickOrbitals_single
-!         module procedure pickOrbitals_double
-!     end interface pickOrbitals
-
-!     interface pickRandomOrb
-!         module procedure pickRandomOrb_scalar
-!         module procedure pickRandomOrb_vector
-!         module procedure pickRandomOrb_forced
-!         module procedure pickRandomOrb_restricted
-!         module procedure pickRandomOrb_restricted_index
-!     end interface pickRandomOrb
-
     interface calcRemainingSwitches
         module procedure calcRemainingSwitches_single
         module procedure calcRemainingSwitches_double
@@ -302,25 +154,14 @@ module guga_excitations
     interface excitationIdentifier
         module procedure excitationIdentifier_single
         module procedure excitationIdentifier_double
-!         module procedure excitationIdentifier_ilut
     end interface excitationIdentifier
 
     interface calcAllExcitations
         module procedure calcAllExcitations_single
         module procedure calcAllExcitations_double
         module procedure calcAllExcitations_excitInfo_single
-!         module procedure calcAllExcitations_excitInfo_double
     end interface calcAllExcitations
 
-!     interface singleUpdate
-!         module procedure singleUpdate
-!         module procedure singleUpdate_weight
-!     end interface singleUpdate
-
-!     interface createSingleStart
-!         module procedure createSingleStart_noWeight
-!         module procedure createSingleStart_weight
-!     end interface createSingleStart
 
     ! use some temporary permanently stored variables for the CSF matrix 
     ! calculation 
@@ -12469,36 +12310,6 @@ contains
         ! i should be able to formulate that in terms of st and en.. 
         integral = integral + get_umat_el(i,i,j,i) * currentOcc_ilut(i) 
         integral = integral + get_umat_el(i,j,j,j) * (currentOcc_ilut(j) - 1.0_dp)
-
-!         if (i < j) then
-!             ! raising + weight
-!             ! st = i, en = j 
-!             integral = integral + get_umat_el(i,i,j,i) * currentOcc_ilut(st)
-!             integral = integral + get_umat_el(i,j,j,j) * &
-!                 (currentOcc_ilut(en) - 1.0_dp)
-!         else
-!             ! lowering + weight:
-!             ! st = j, en = i 
-!             integral = integral + get_umat_el(i,i,j,i) * &
-!                 (currentOcc_ilut(en))
-!             integral = integral + get_umat_el(i,j,j,j) * (currentOcc_ilut(st)-1.0_dp)
-!         end if
-! 
-!         if (i < j) then
-!             ! its a raising start so n' = n + 1
-!             integral = integral + get_umat_el(i, j, i, i)*currentOcc_ilut(start) &
-!                 + get_umat_el(i,i,i,j) * (currentOcc_ilut(start))
-! 
-!             ! do the end part also at the same time
-!             integral = integral + get_umat_el(i,j,j,j)*currentOcc_ilut(ende) &
-!                 + get_umat_el(i,j,j,j)*(currentOcc_ilut(ende)-1.0_dp)
-!         else 
-!             integral = integral + get_umat_el(i, j, i, i)*currentOcc_ilut(start) &
-!                 + get_umat_el(i,i,i,j) * (currentOcc_ilut(start)-1.0_dp)
-! 
-!             integral = integral + get_umat_el(i,j,j,j)*currentOcc_ilut(ende) &
-!                 + get_umat_el(i,j,j,j)*(currentOcc_ilut(ende))
-!         end if
 
         ! have to reset prod here!!!
         

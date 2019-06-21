@@ -31,7 +31,8 @@ MODULE Logging
                            t_pop_symmetry_states, symmetry_states, &
                            symmetry_weights, symmetry_states_ilut
 
-    use guga_rdm, only: t_test_sym_fill, t_direct_exchange, t_more_sym
+    use guga_rdm, only: t_test_sym_fill, t_direct_exchange, t_more_sym, &
+                        t_mimic_stochastic
 
     IMPLICIT NONE
 
@@ -238,6 +239,9 @@ MODULE Logging
 
         case ("DIRECT-EXCHANGE")
             t_direct_exchange = .true.
+
+        case ("MIMIC-STOCHASTIC")
+            t_mimic_stochastic = .true.
 
         case("REBLOCKSHIFT")
             !Abort all other calculations, and just block data again with given equilibration time (in iterations)

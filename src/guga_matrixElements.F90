@@ -222,15 +222,6 @@ contains
 
     end function calcDiagExchangeGUGA_nI
 
-!     function calcDiagExchangeGUGA_ilut(ilut) result (exchange)
-!         ! calculates the exchange contribution to the diagonal matrix elements
-!         ! if a CSF is provided in ilut format
-!         integer(n_int), intent(in) :: ilut
-!         real(dp) :: exchange
-! 
-!         ! todo
-!     end function calcDiagExchangeGUGA_ilut
-
     function functionA(bValue, x, y) result(r)
         ! calculated the "A" function used for Shavitts matrix element calc.
         real(dp), intent(in) :: bValue, x, y

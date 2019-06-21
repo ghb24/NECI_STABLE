@@ -58,6 +58,7 @@ module guga_rdm
     logical :: t_test_diagonal = .false.
     logical :: t_direct_exchange = .false.
     logical :: t_more_sym = .false.
+    logical :: t_mimic_stochastic = .false.
 
 contains 
 
@@ -98,6 +99,19 @@ contains
 
         ! now to double excitations if requsted: 
         if (RDMExcitLevel /= 1) then 
+
+            if (t_mimic_stochastic) then 
+                ! if i want to mimic stochastic RDM sampling I also 
+                ! have to explicitly create single excitations, but 
+                ! store them in the according 2-RDM entries
+                call calc_explicit_1_rdm_guga(ilutG, n_singles, excits)
+
+                ! and then sort them correctly in the communicated array
+                call assign_excits_to_proc_guga(n_singles, excits, 1)
+
+                deallocate(excits) 
+                call LogMemDealloc(this_routine, tag_excitations)
+            end if
 
             call calc_explicit_2_rdm_guga(ilutG, n_doubles, excits)
 
@@ -304,7 +318,7 @@ contains
         integer(MPIArg) :: sing_recvdisps(nProcessors)
         integer(MPIArg) :: doub_recvcounts(nProcessors),doub_recvdisps(nProcessors)
 
-        if (RDMExcitLevel == 1) then
+        if (RDMExcitLevel == 1 .or. (t_mimic_stochastic .and. RDMExcitLevel == 3)) then
             do i = 0, nProcessors - 1
                 sendcounts(i+1) = int(Sing_ExcList(i)-(nint(OneEl_Gap*i)+1), MPIArg)
                 disps(i+1) = nint(OneEl_Gap*i, MPIArg)
@@ -465,7 +479,7 @@ contains
 
         integer :: i, NoDets, StartDets, nI(nel), nJ(nel), PartInd, FlagsDj
         integer :: rdm_ind, j
-        integer(n_int) :: ilutJ(0:niftot), ilutG
+        integer(n_int) :: ilutJ(0:nifguga), ilutI(0:nifguga)
         real(dp) :: mat_ele, sign_i(lenof_sign), sign_j(lenof_sign)
         logical :: tDetFound
 
@@ -484,14 +498,17 @@ contains
                 ! in the x0 matrix element and the sign of Di in the 
                 ! x1 element. and the combined RDM index in the 
                 ! Delta B value position! 
-                sign_i = extract_matrix_element(Sing_ExcDjs2(:,StartDets),2)
+                ilutI = Sing_ExcDjs2(:,StartDets)
+
+                sign_i = extract_matrix_element(ilutI,2)
 
                 do j = StartDets + 1, (NoDets + StartDets - 1)
 
                     ! apparently D_i is in the first spot and all 
                     ! excitations come here afterwards.. 
 
-                    call convert_ilut_toNECI(Sing_ExcDjs2(:,j), ilutJ)
+!                     call convert_ilut_toNECI(Sing_ExcDjs2(:,j), ilutJ)
+                    ilutJ = Sing_ExcDjs2(:,j)
 
                     call BinSearchParts_rdm(ilutJ,1,int(TotWalkers,sizeof_int),PartInd,tDetFound)
 
@@ -505,6 +522,11 @@ contains
                         if (RDMExcitLevel == 1) then 
                             call fill_sings_1rdm_guga(one_rdms, sign_i, sign_j, &
                                 mat_ele, rdm_ind, t_test_sym_fill)
+
+                        else if (t_mimic_stochastic .and. RDMExcitLevel == 3) then
+                            call fill_sings_2rdm_guga(two_rdm_spawn, sign_i, sign_j, &
+                                mat_ele, rdm_ind, t_test_sym_fill)
+
                         end if
                     end if
                 end do
@@ -541,6 +563,24 @@ contains
         end do
 
     end subroutine fill_sings_1rdm_guga
+
+    subroutine fill_sings_2rdm_guga(spawn, ilutI, ilutJ, sign_i, sign_j, mat_ele, rdm_ind)
+        ! this is the routine where I test the filling of 2-RDM based on 
+        ! single excitations to mimic the workflow in the stochastic 
+        ! RDM sampling
+        type(rdm_spawn_t), intent(inout) :: spawn
+        integer(n_int), intent(in) :: ilutI(0:nifguga), ilutJ(0:nifguga)
+        real(dp), intent(in) :: sign_i(:), sign_j(:), mat_ele
+        integer, intent(in) :: rdm_ind
+        character(*), parameter :: this_routine = "fill_sings_2rdm_guga"
+
+        ! here I have to fill W + R/L, single overlap RR/LL 
+        ! and full-start/stop RL with no change in the double overlap region
+        ! i also have to correct the coupling coefficient here effifiently
+        
+        ! for this it would be best to have both CSFs I and J involved.
+
+    end subroutine fill_sings_2rdm_guga
 
     subroutine extract_1_rdm_ind(rdm_ind, i, a)
         ! the converstion routine between the combined and explicit rdm 
