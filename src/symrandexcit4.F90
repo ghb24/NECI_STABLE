@@ -623,17 +623,6 @@ contains
 
         end do
 
-        !  for testing purposes: 
-!         if (cum_sum < UMatEps) then 
-!             print *, "===================================="
-!             print *, "single excitation: "
-!             print *, "norb: ", norb 
-!             print *, "cum_sum: ", cum_sum
-!             print *, " cumulative_arr: ", cumulative_arr
-!             print *, "nI: ", nI 
-!             print *, "src: ", src
-!         end if
-
         ! Select a particular orbital to use, or abort.
         ! ok i really think we have to be consistent with this matrix element 
         ! cutoff.. because i think by ignoring some, we allow other excitations 
@@ -943,34 +932,14 @@ contains
         else
             ! Include the contribution of this term sqrt(<ia|ia>)
             inda = gtID(orba)
-!             
-!             if (t_iiaa .and. t_ratio) then 
-!                 ! ok.. maybe i have to talk to ali about that, what he 
-!                 ! meant with this splitting of p(a|ij) = p(j)*p(a|i) 
-!                 ! because i am not sure about that ..
-!                 ! althoug i should be carefull if we do not divide by 
-!                 ! 0 here.. 
-!                 ! NOTE: by testing it was seen that the ratio approach causes the 
-!                 ! pgens to be much too low and thus the H_ij/pgen ratios to 
-!                 ! explode
-! 
-!                 contrib = sqrt(abs(get_umat_el(indi, inda, indi, inda) / & 
-!                            max(abs(get_umat_el(indj, inda, indj, inda)), 0.0001_dp))) &
-!                         + sqrt(abs(get_umat_el(indj, inda, indi, inda) / & 
-!                            max(abs(get_umat_el(indi, inda, indj, inda)), 0.0001_dp)))
 
-            if (t_iiaa) then 
+            if (t_mixed_hubbard) then
+                ! just to be save do it uniformly here..
+                contrib = 1.0_dp
+
+            else if (t_iiaa) then 
                 
                 contrib = sqrt(abs(get_umat_el(indi, inda, indi, inda)))
-
-!             else if (t_ratio) then 
-!                 ! also here i have to check if i actually should take care 
-!                 ! of the indj influence.. 
-! 
-!                 contrib = sqrt(abs(UMat2D(max(indi, inda), min(indi, inda))) / & 
-!                            max(abs(UMat2D(max(indj, inda), min(indj, inda))), 0.0001_dp)) &
-!                         + sqrt(abs(UMat2D(max(indj, inda), min(indj, inda))) / & 
-!                            max(abs(UMat2D(max(indi, inda), min(indi, inda))), 0.0001_dp))
 
             else 
 
@@ -1194,21 +1163,7 @@ contains
 
             end if
         end if
-        
-!         if (cum_sum < 1.0e-4_dp) then 
-!             print *, "========================================"
-!             if (t_par) then 
-!                 print *, "parallel double excitation: "
-!             else 
-!                 print *, "opposite double excitation: "
-!             end if
-!             print *, "norb: ", norb
-!             print *, "cum_sum: ", cum_sum
-!             print *, "cumulative_arr: ", cumulative_arr
-!             print *, "(i,j): ", src
-!             print *, "(a): ", orb_pair
-!         end if
-
+       
         ! Binary search within this list to choose a value.
         r = genrand_real2_dSFMT() * cum_sum
         orb_index = binary_search_first_ge(cumulative_arr(1:norb), r)

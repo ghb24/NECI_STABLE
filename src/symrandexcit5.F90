@@ -246,12 +246,7 @@ contains
 
         ! Pick the electrons in a weighted fashion
         if (t_mixed_hubbard) then
-            call pick_spin_opp_elecs(nI, elecs, pgen)
-            src = nI(elecs)
-            sym_product = RandExcitSymLabelProd(SpinOrbSymLabel(src(1)), &
-                                         SpinOrbSymLabel(src(2)))
-            sum_ml = sum(G1(src)%Ml)
-            ispn = 2
+            call pick_biased_elecs(nI, elecs, src, sym_product, ispn, sum_ml, pgen)
         else
             call pick_weighted_elecs(nI, elecs, src, sym_product, ispn, sum_ml, &
                                  pgen)
@@ -399,10 +394,6 @@ contains
             cum_arr(orb) = cum_sum
         end do
 
-!         if (srcid(1) == 2 .and. srcid(2) == 3 .and. parallel) then
-!             print *, "cum_sum(a|ij): ", cum_arr
-!         end if
-
     end subroutine
 
     function pick_a_orb(ilut, src, ispn, cpt, cum_sum, cum_arr) result(orb)
@@ -431,7 +422,6 @@ contains
         call gen_a_orb_cum_list(ilut, src, ispn, cum_arr)
         cum_sum = cum_arr(nbasis)
         ! ok this equivalence is also not good.. 
-!         if (cum_sum == 0) then
         if (cum_sum < EPS) then 
             orb = 0
             return
