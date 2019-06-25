@@ -2,7 +2,7 @@
 
 module excit_gen_5
 
-    use SystemData, only: t_mixed_hubbard, nOccAlpha, nOccBeta
+    use SystemData, only: t_mixed_hubbard, nOccAlpha, nOccBeta, AB_elec_pairs
     use excit_gens_int_weighted, only: gen_single_4ind_ex, pgen_single_4ind, &
                                        get_paired_cc_ind, select_orb, &
                                        opp_spin_pair_contrib, &
@@ -11,7 +11,8 @@ module excit_gen_5
                                        pick_weighted_elecs, select_orb, &
                                        pgen_select_orb, pgen_weighted_elecs
     use SymExcitDataMod, only: SpinOrbSymLabel, SymInvLabel, ScratchSize
-    use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, projedet
+    use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, projedet, &
+                         pParallel
     use SystemData, only: G1, tUHF, tStoreSpinOrbs, nbasis, nel, &
                           tGen_4ind_part_exact, tGen_4ind_2_symmetric, tHPHF
     use SymExcit3, only: CountExcitations3, GenExcitations3
@@ -149,7 +150,7 @@ contains
 
             ! Select a pair of electrons in a weighted fashion
             if (t_mixed_hubbard) then 
-                pgen = pgen / real(nOccAlpha * nOccBeta, dp)
+                pgen = pgen * (1.0_dp - pParallel) / AB_elec_pairs
             else
                 pgen = pgen * pgen_weighted_elecs(nI, src)
             end if

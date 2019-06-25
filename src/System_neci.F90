@@ -428,7 +428,6 @@ system: do
 
         case ("MIXED-HUBBARD")
             t_mixed_hubbard = .true.
-            texch = .false.
             tNoBrillouin=.true.
             tBrillouinsDefault=.false.
 

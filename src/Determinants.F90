@@ -456,14 +456,6 @@ contains
             call stop_all (this_routine, "Should not be calling HPHF &
                           &integrals from here.")
 
-        ! nobody actually uses Simons old CSF implementations..
-!         if (tCSF) then
-!             if (iscsf(nI) .or. iscsf(nJ)) then
-!                 hel = CSFGetHelement (nI, nJ)
-!                 return
-!             endif
-!         endif
-        
         if (t_lattice_model) then 
             temp_ic = ic 
             hel = get_helement_lattice(nI, nJ, temp_ic) 
