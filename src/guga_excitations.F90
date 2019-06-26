@@ -2378,8 +2378,6 @@ contains
                     call write_det_guga(6,excitations(:,i))
                     print *, "actHamiltonian result: ", helgen
                     print *, "calc_guga_matrix_element result: ", temp_mat
-!                     call stop_all(this_routine, &
-!                         "actHamiltonian and calc_guga_matrix_element give different result!")
                 end if
             end if
         end do
@@ -3270,7 +3268,6 @@ contains
 #ifdef __DEBUG 
         if (.not. pgen < EPS) then
             call convert_ilut_toNECI(excitation, ilutJ, HElgen)
-    ! 
             call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, tmp_mat, &
                 .true., 2)
 
@@ -5904,16 +5901,13 @@ contains
         ! for pgen contributions first initialize the orbitals pgen funcitons
         ! we know its a L2R fullstop so some stepvalues at st and se
         ! are impossible
-!         if (isThree(ilut,st)) then
         if (current_stepvector(st) == 3) then
-!             if (isZero(ilut,se)) then
             if (current_stepvector(se) == 0) then
                 calc_pgen_yix => calc_pgen_yix_end_02
             else
                 calc_pgen_yix => calc_pgen_yix_end_21
             end if
         else
-!             if (isZero(ilut,se)) then
             if (current_stepvector(se) == 0) then
                 calc_pgen_yix => calc_pgen_yix_end_01
             else
@@ -5926,7 +5920,6 @@ contains
         ! initialize pgen with the original index contribution
         ! maybe not even do that due to the mess this pgen contribution
         ! calculation seems to be...
-!         pgen = probWeight * calc_pgen_yix(e)
 
         ! reinitalize weights
         ! damn have to reinitialize the weights and remaining switches 
@@ -5938,21 +5931,17 @@ contains
         if (e < nSpatOrbs) then
 
             ! top contribution:
-!             if (isOne(ilut,e)) then
             if (current_stepvector(e) == 1) then
                 if (isOne(t,e)) then
                     topCont = -Root2*sqrt((currentB_ilut(e) + 2.0_dp)/&
                         currentB_ilut(e))
                     
                 else if (isTwo(t,e)) then
-!                     topCont = -Root2/(currentB_ilut(e) + 2.0_dp)
                     topCont = -Root2/sqrt(currentB_ilut(e)*(currentB_ilut(e)+2.0_dp))
 
                 end if
-!             else if (isTwo(ilut,e)) then
             else if (current_stepvector(e) == 2) then
                 if (isOne(t,e)) then
-!                     topCont = -Root2/currentB_ilut(e)
                     topCont = -Root2/sqrt(currentB_ilut(e)*(currentB_ilut(e)+2.0_dp))
 
                 else if (isTwo(t,e)) then
@@ -5962,70 +5951,49 @@ contains
             end if
 
             if (abs(topCont) > EPS) then
-!                 umat = (get_umat_el(e,st,se,e) + &
-!                     get_umat_el(se,e,e,st))/2.0_dp
-!                 call update_matrix_element(t, umat, 1)
-!                 return
 
+                do i = e + 1, nSpatOrbs
+                    if (currentOcc_int(i) /= 1) then
+                        cycle
+                    end if
 
-            do i = e + 1, nSpatOrbs
-!                 if (isZero(ilut,i) .or. isThree(ilut,i)) cycle
-!                 if (notSingle(ilut,i)) then
-                if (currentOcc_int(i) /= 1) then
-                    cycle
-                end if
+                    tempWeight = 1.0_dp
+                    ! calc product
+                    do j = e + 1, i - 1
+                        step = current_stepvector(j)
+                        call getDoubleMatrixElement(step,step,0,-1,1,currentB_ilut(j),&
+                            1.0_dp,x1_element = tempWeight_1)
 
-                tempWeight = 1.0_dp
-                ! calc product
-                do j = e + 1, i - 1
-!                     step = getStepvalue(ilut,j)
-                    step = current_stepvector(j)
-                    call getDoubleMatrixElement(step,step,0,-1,1,currentB_ilut(j),&
-                        1.0_dp,x1_element = tempWeight_1)
+                        tempWeight = tempWeight * tempWeight_1
+
+                    end do
+
+                    step = current_stepvector(i)
+
+                    ! get the end contribution
+                    call getMixedFullStop(step,step,0,currentB_ilut(i),x1_element = tempWeight_1)
 
                     tempWeight = tempWeight * tempWeight_1
 
+                    integral = integral + tempWeight * (get_umat_el(i,se,st,i) + &
+                        get_umat_el(se,i,i,st))/2.0_dp
+
                 end do
 
-!                 step = getStepvalue(ilut,i)
-                step = current_stepvector(i)
-
-                ! get the end contribution
-                call getMixedFullStop(step,step,0,currentB_ilut(i),x1_element = tempWeight_1)
-
-                tempWeight = tempWeight * tempWeight_1
-
-                integral = integral + tempWeight * (get_umat_el(i,se,st,i) + &
-                    get_umat_el(se,i,i,st))/2.0_dp
-
-            end do
-
-            integral = integral * topCont
-
-!             call update_matrix_element(t, (get_umat_el(e,st,se,e) + &
-!                 get_umat_el(se,e,e,st))/2.0_dp + topCont * integral,1)
-! 
-!             if (extract_matrix_element(t,1) == 0.0_dp) then
-!                 probWeight = 0.0_dp
-!                 t = 0
-!             end if
+                integral = integral * topCont
             end if
         end if
 
 !         ! determine last switch
         sw = findLastSwitch(ilut,t,se,e)
-!         ASSERT(sw > se)
 
         ! already set above
-!         pgen = 0.0_dp
 
         deltaB = int(currentB_ilut - calcB_vector_ilut(t(0:nifd)))
         ! fuck that to a new loop for the pgen contributions 
         do i = sw, nSpatOrbs
 
             ! can cycle if non-open orbitals
-!             if (isThree(ilut,i) .or. isZero(ilut,i)) cycle
-!             if (notSingle(ilut,i)) then
             if (currentOcc_int(i) /= 1) then
                 cycle
             end if
@@ -6045,7 +6013,6 @@ contains
             ! calc st prob cont.:o
             ! we know its a L2R excitation so, lowering st -> only a 
             ! decision if its a 3 at st
-!             if (isThree(ilut,st)) then
             if (current_stepvector(st) == 3) then
                 minusWeight = weights%proc%minus(negSwitches(st), &
                     currentB_ilut(st), weights%dat)
@@ -6060,19 +6027,15 @@ contains
             end if
 
             do j = st + 1, se - 1
-!                 if (isThree(ilut,j) .or. isZero(ilut,j)) cycle
-!                 if (notSingle(ilut,j)) then
                 if (currentOcc_int(j) /= 1) then
                     cycle
                 end if
 
                 ! do i need delta B value too? i think so... fuck!!
-!                 if (isOne(ilut,j) ) then
                 ! also combine both delta b and stepvalue info here
                 select case (current_stepvector(j) + deltaB(j-1))
                 case (0)
                     ! d=1 + b=-1 : 0
-!                     if (deltaB(j-1) == -1) then
 
                         ! is its a 1 or 2 check stepvalues to get probability
                         minusWeight = weights%proc%minus(negSwitches(j), &
@@ -6088,11 +6051,8 @@ contains
                             probWeight = probWeight*(1.0_dp - calcStayingProb( &
                                 minusWeight, plusWeight, currentB_ilut(j)))
                         end if
-!                     end if
-!                 else if (isTwo(ilut,j)) then
                 case (3)
                     ! d=2 + b=1 : 3
-!                     if ( deltaB(j-1) == +1) then
 
                         ! is its a 1 or 2 check stepvalues to get probability
                         minusWeight = weights%proc%minus(negSwitches(j), &
@@ -6107,9 +6067,7 @@ contains
                             probWeight = probWeight * (1.0_dp - calcStayingProb( &
                                 plusWeight, minusWeight, currentB_ilut(j)))
                         end if
-!                     end if
                 end select
-!                 end if
             end do
             ! do se-st seperately
             ! its a L2R excitations -> so we know its a raising st here
@@ -6117,9 +6075,6 @@ contains
 
             ! reinit double weights
             weights = weights%ptr
-!             weights = init_doubleWeight(ilut, i)
-
-!             if (isZero(ilut,se)) then
             if (current_stepvector(se) == 0) then
                 zeroWeight = weights%proc%zero(negSwitches(se), &
                     posSwitches(se), currentB_ilut(se), weights%dat)
@@ -6151,8 +6106,6 @@ contains
 
             ! loop over double region
             do j = se + 1, i - 1
-!                 if (isThree(ilut,j) .or. isZero(ilut, j)) cycle
-!                 if (notSingle(ilut,j)) then
                 if (currentOcc_int(j) /= 1) then
                     cycle
                 end if
@@ -6162,13 +6115,9 @@ contains
                 zeroWeight = weights%proc%zero(negSwitches(j), posSwitches(j), &
                     currentB_ilut(j), weights%dat)
 
-!                 if (deltaB(j-1) == 0.0_dp) then
                 ! combine deltab and stepvalue information in a single select 
                 ! case statement
                 select case (deltaB(j-1) + current_stepvector(j))
-!                 case (0)
-!                     if (isOne(ilut,j)) then
-!                     if (current_stepvector(j) == 1) then
                 case (1)
                     ! d=1 + b=0 :1 
                     plusWeight = weights%proc%plus(posSwitches(j), &
@@ -6184,7 +6133,6 @@ contains
                         call getDoubleMatrixElement(2, 1, 0, -1, 1, &
                             currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
                     end if
-!                     else
                 case (2)
                     ! d=2 + b=0 : 2
                     minusWeight = weights%proc%minus(negSwitches(j), &
@@ -6200,11 +6148,6 @@ contains
                         call getDoubleMatrixElement(1, 2, 0, -1, 1, &
                             currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
                     end if
-!                     end if
-!                 else if (deltaB(j-1) == -2.0_dp) then
-!                 case (-2)
-!                     if (isOne(ilut, j)) then
-!                     if (current_stepvector(j) == 1) then
                 case (-1)
                     ! d=1 + b=-2 : -1
                     minusWeight = weights%proc%minus(negSwitches(j), &
@@ -6220,11 +6163,6 @@ contains
                         call getDoubleMatrixElement(2, 1, -2, -1, 1, &
                             currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
                     end if
-!                     end if
-!                 else if (deltaB(j-1) == 2.0_dp ) then
-!                 case (2)
-!                     if (isTwo(ilut, j)) then
-!                     if (current_stepvector(j) == 2) then
                 case (4)
                     ! d=2 + b=2 : 4
                     plusWeight = weights%proc%plus(posSwitches(j), &
@@ -6240,12 +6178,7 @@ contains
                         call getDoubleMatrixElement(1, 2, 2, -1, 1, &
                             currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
                     end if 
-!                     end if
-!                 case default 
-!                     call stop_all(this_routine, "wrong delta b value!")
-
                 end select
-!                 end if
 
                 if (abs(tempWeight_1) < EPS) then
                     probWeight = 0.0_dp
@@ -6253,7 +6186,6 @@ contains
                 ! that should be it...
             end do
 
-!             step = getStepvalue(ilut,i)
             step = current_stepvector(i)
             step2 = getStepvalue(t, i)
 
@@ -6273,7 +6205,6 @@ contains
         if (sw < e) then
             ! get inverse of fullstop 
             
-!             step = getStepvalue(ilut,e)
             step = current_stepvector(e)
 
             call getMixedFullStop(step,step,0,currentB_ilut(e),x1_element = tempWeight)
@@ -6282,17 +6213,13 @@ contains
 
             do i = e-1, sw+1, -1
                 ! should i cycle here too if 0 or 3 stepvector? i guess...
-!                 if (isZero(ilut,i) .or. isThree(ilut,i)) cycle
-!                 if (notSingle(ilut,i)) then
                 if (currentOcc_int(i) /= 1) then
                     cycle
                 end if
 
                 ! i cant go up until the switch in this case since at the 
                 ! switch the deltaB value can be different...
-!                 step = getStepvalue(ilut,i)
                 step = current_stepvector(i)
-!                 step2 = getStepvalue(t, i)
 
                 ! update inverse product
                 call getDoubleMatrixElement(step,step,0,-1,1,currentB_ilut(i),&
@@ -6311,7 +6238,6 @@ contains
 
             ! do switch specifically! determine deltaB!
             ! how?
-!             if (isOne(ilut,sw)) then
             select case (current_stepvector(sw))
             case (1)
                 ! then a -2 branch arrived!
@@ -6322,7 +6248,6 @@ contains
 
                 call getMixedFullStop(2,1,-2,currentB_ilut(sw),x1_element = tempWeight_1)
 
-!             else if (isTwo(ilut,sw)) then
             case (2)
                 ! +2 branch arrived!
 
@@ -6334,7 +6259,6 @@ contains
                 call getMixedFullStop(1,2,2,currentB_ilut(sw), x1_element = tempWeight_1)
 
             end select
-!             end if
 
             tempWeight_1 = tempWeight * tempWeight_1
 
@@ -7039,9 +6963,7 @@ contains
 
         ! for pgen contributions first initialize the orbitals pgen funcitons
         ! its a R2L fullstop -> some stepvalues at start and semi impossible
-!         if (isZero(ilut,st)) then
         if (current_stepvector(st) == 0) then
-!             if (isThree(ilut,se)) then
             if (current_stepvector(se) == 3) then
                 calc_pgen_yix => calc_pgen_yix_end_02
             else
@@ -7049,7 +6971,6 @@ contains
             end if
         else
             if (current_stepvector(se) == 3) then
-!             if (isThree(ilut,se)) then
                 calc_pgen_yix => calc_pgen_yix_end_21
             else
                 calc_pgen_yix => calc_pgen_yix_end_11
@@ -7061,13 +6982,11 @@ contains
 
             ! top contribution:
             if (current_stepvector(en) == 1) then
-!             if (isOne(ilut,en)) then
                 if (isOne(t,en)) then
                     topCont = -Root2*sqrt((currentB_ilut(en) + 2.0_dp)/&
                         currentB_ilut(en))
                     
                 else if (isTwo(t,en)) then
-!                     topCont = -Root2/(currentB_ilut(en) + 2.0_dp)
                     topCont = -Root2/sqrt(currentB_ilut(en)*(currentB_ilut(en)+2.0_dp))
 
                 end if
@@ -8883,16 +8802,13 @@ contains
         en = excitInfo%fullEnd
 
         ! we know its a R2L full-st so some stepvalues are impossble:
-!         if (isThree(ilut,se)) then
         if (current_stepvector(se) == 3) then
-!             if (isZero(ilut,en)) then
             if (current_stepvector(en) == 0) then
                 calc_pgen_yix_start => calc_pgen_yix_start_02
             else
                 calc_pgen_yix_start => calc_pgen_yix_start_21
             end if
         else
-!             if (isZero(ilut,en)) then
             if (current_stepvector(en) == 0) then
                 calc_pgen_yix_start => calc_pgen_yix_start_01
             else
@@ -8923,7 +8839,6 @@ contains
             origWeight = weights%proc%zero(negSwitches(st), &
                 posSwitches(st), currentB_ilut(st), weights%dat)
 
-!             if (isOne(ilut,st)) then
             if (current_stepvector(st) == 1) then
 
                 switchWeight = weights%proc%plus(posSwitches(st), &
@@ -8948,7 +8863,6 @@ contains
                     origWeight = switchWeight / (origWeight + switchWeight)
 
                 end if
-!             else if (isTwo(ilut,st)) then
             else if (current_stepvector(st) == 2) then
 
                 switchWeight = weights%proc%minus(negSwitches(st), &
@@ -8978,19 +8892,13 @@ contains
 #endif
             end if
 
-!             origWeight = origWeight/(origWeight + switchWeight)
 
             ! rename that, so i can use the startProb further down, where 
             ! it is also needed
-!             startProb = currentB_ilut(st)*origWeight/&
-!                 (origWeight*(currentB_ilut(st) - 1.0_dp) + 1.0_dp)
 
             ! also need the remaining switches for the whole range....
             ! not only until original fullstart...
             ! already did that above..
-!             excitInfo%fullStart = 1
-!             excitInfo%secondStart = 1
-!             call calcRemainingSwitches(ilut, excitInfo,1, posSwitches, negSwitches)
 
             ! the rest all gets modified by botCont.. so if it is zero do not 
             ! continue ( do not forget to encode the umat!
@@ -8999,14 +8907,11 @@ contains
             ! then loop from 1 to start-1
             do i = 1, st - 1
                 ! no contributions if 0 or 3
-!                 if (isZero(ilut,i) .or. isThree(ilut,i)) cycle
-!                 if (notSingle(ilut,i)) then
                 if (currentOcc_int(i) /= 1) then
                     cycle
                 end if
 
                 ! first get the fullstart elements 
-!                 step = getStepvalue(ilut,i)
                 step = current_stepvector(i)
 
                 call getDoubleMatrixElement(step,step,-1,1,-1,currentB_ilut(i),&
@@ -9020,7 +8925,6 @@ contains
                 zeroWeight = weights%proc%zero(negSwitches(i), &
                     posSwitches(i), currentB_ilut(i), weights%dat)
 
-!                 if (isOne(ilut,i)) then
                 if (step == 1) then
                     switchWeight = weights%proc%plus(posSwitches(i), &
                         currentB_ilut(i), weights%dat)
@@ -9033,7 +8937,6 @@ contains
 
                 ! then calc. the product
                 do j = i + 1, st-1
-!                     step = getStepvalue(ilut,j)
                     step = current_stepvector(j)
                     ! its always the 0 branch!
                     call getDoubleMatrixElement(step, step,0,1,-1,currentB_ilut(j),&
@@ -9042,8 +8945,6 @@ contains
                     tempWeight = tempWeight * tempWeight_1
  
                     ! no change in pgen if 3 or 0 stepvalue
-!                     if (isThree(ilut,j) .or. isZero(ilut,j)) cycle
-!                     if (notSingle(ilut,j)) then
                     if (currentOcc_int(j) /= 1) then
                         cycle
                     end if
@@ -9051,7 +8952,6 @@ contains
                     zeroWeight = weights%proc%zero(negSwitches(j), &
                         posSwitches(j), currentB_ilut(j), weights%dat)
 
-!                     if (isOne(ilut,j)) then
                     if (step == 1) then
                         switchWeight = weights%proc%plus(posSwitches(j), &
                             currentB_ilut(j), weights%dat)
@@ -9086,27 +8986,19 @@ contains
 
             ! cant check that here since there could be additional contributions
             ! from other integrals
-!             if (extract_matrix_element(t, 1) == 0.0_dp) then
-!                 probWeight = 0.0_dp
-!                 t = 0
-!             end if
             end if
         end if
 
         ! have to determine the first stepvector change in the overlap region
         sw = findFirstSwitch(ilut,t, st, se)
-!         ASSERT(sw < se)
         ! for test purposes:
-!         sw = 2
         ! if the first sw did not happen at the fullstart loop until the 
         ! sw
 
         if (sw > st) then
             ! need the inverse parts of the original excitation, start with 
             ! the starting element
-!             integral = 0.0_dp
 
-!             step = getStepvalue(ilut,st)
             step = current_stepvector(st)
 
             call getDoubleMatrixElement(step,step,-1,-1,1,currentB_ilut(st),&
@@ -9117,15 +9009,11 @@ contains
             branch_pgen = branch_pgen/origWeight
 
             do i = st +1, sw - 1
-!                 if (isZero(ilut,i) .or. isThree(ilut,i)) cycle
-!                 if (notSingle(ilut,i)) then
                 if (currentOcc_int(i) /= 1) then
                     cycle
                 end if
                 ! until switch only 0 branch
-!                 step = getStepvalue(ilut,i)
                 step = current_stepvector(i)
-!                 step2 = getStepvalue(t,i)
 
                 ! update inverse product
                 call getDoubleMatrixElement(step,step,0,-1,+1,currentB_ilut(i),&
@@ -11737,7 +11625,6 @@ contains
             ! too in one go. one additional -1 due to semistop
 
         end select
-!         end if 
 
         call encode_matrix_element(t, Root2 * tempWeight * umat * (-1.0_dp)**nOpen, 1)
         call encode_matrix_element(t, 0.0_dp, 2)
@@ -11841,7 +11728,7 @@ contains
         j = excitInfo%j 
         ! first the "normal" contribution
         ! not sure if i have to subtract that element or not...
-        integral = getTmatEl(2*i, 2*j)! - get_umat_el(i,i,j,j)
+        integral = getTmatEl(2*i, 2*j)
 
         ! then calculate the remaing switche given indices
         call calcRemainingSwitches(ilut, excitInfo, posSwitches, negSwitches)
@@ -11922,13 +11809,10 @@ contains
 
         call update_matrix_element(exc, integral, 1)
 
-
         if (abs(extract_matrix_element(exc, 1)) < EPS) then
             pgen = 0.0_dp
             exc = 0
         end if
-        !deallocate(currentB_ilut)
-        !deallocate(currentOcc_ilut)
 
         ! store the most recent excitation information
         global_excitInfo = excitInfo
@@ -22376,7 +22260,6 @@ contains
         ! -> since twice the chance to pick that orbital then! 
 
         ! pick associated "spin orbital"
-!         call decode_bit_det(nI,ilut)
         orb_i = nI(elec)
 
         ! get the symmetry index:
@@ -22720,7 +22603,7 @@ contains
         ! still not quite sure how to effectively include that...
         nOrb = OrbClassCount(cc_i)
         label_index = SymLabelCounts2(1, cc_i)
-!         call decode_bit_det(nI,ilut)
+
         n_id = gtID(nI)
         id_i = gtID(orb_i)
 
@@ -22761,7 +22644,6 @@ contains
                     ! loop below
 
                     ! if depending on the type of generator
-!                     gen = sign(1,s_orb - id_i)
                     ! either the topCont sign (if L) 
                     ! or botCont sign (if R) 
                     ! is unknown! -> so for every k < st if R 
@@ -22776,23 +22658,24 @@ contains
                     ! "good" thing is, i do not need to consider, so many 
                     ! different possibilities
                     
-                    do j = 1, nEl
-                        
-                        ! todo: finish all contributions later for now only do 
-                        ! those which are the same for all
-                        ! exclude initial orbital, since this case gets 
-                        ! contributed already outside of loop over electrons!
-                        ! but only spin-orbital or spatial??
-!                         if (nI(j) == orb_i) cycle
-                        if (n_id(j) == id_i) cycle
-                        hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
+                    if (.not. t_mixed_hubbard) then
+                        do j = 1, nEl
+                            
+                            ! todo: finish all contributions later for now only do 
+                            ! those which are the same for all
+                            ! exclude initial orbital, since this case gets 
+                            ! contributed already outside of loop over electrons!
+                            ! but only spin-orbital or spatial??
+                            if (n_id(j) == id_i) cycle
+                            hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
 
-                        ! now depending on generator and relation of j to
-                        ! st and en -> i know sign or don't 
-                        
-                        hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
+                            ! now depending on generator and relation of j to
+                            ! st and en -> i know sign or don't 
+                            
+                            hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
 
-                    end do
+                        end do
+                    end if
 
                 case (1)
                     ! here i have to somehow find out if there is a 
@@ -22807,13 +22690,37 @@ contains
                         hel = hel + abs(GetTMatEl(orb_i, 2*s_orb))
 
                         ! also need the weight contribution at start 
+
+                        if (.not. t_mixed_hubbard) then
+                            hel = hel + abs(get_umat_el(id_i, s_orb, s_orb, s_orb))
+
+                            ! do the loop over all the other electrons 
+                            ! (is this always symmetrie allowed?..)
+                           
+                            do j = 1, nEl
+                                
+                                ! todo: finish all contributions later for now only do 
+                                ! those which are the same for all
+                                if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
+                                hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
+
+                                hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
+
+                            end do
+                        end if
+                    end if
+
+
+                case (2) 
+                    ! no restrictions for 2 -> 1 excitations
+                    hel = hel + abs(GetTMatEl(orb_i, 2*s_orb))
+                    ! do the loop over all the other electrons 
+                    ! (is this always symmetrie allowed?..)
+
+                    if (.not. t_mixed_hubbard) then
                         hel = hel + abs(get_umat_el(id_i, s_orb, s_orb, s_orb))
 
-                        ! do the loop over all the other electrons 
-                        ! (is this always symmetrie allowed?..)
-                       
                         do j = 1, nEl
-                            
                             ! todo: finish all contributions later for now only do 
                             ! those which are the same for all
                             if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
@@ -22823,24 +22730,6 @@ contains
 
                         end do
                     end if
-
-
-                case (2) 
-                    ! no restrictions for 2 -> 1 excitations
-                    hel = hel + abs(GetTMatEl(orb_i, 2*s_orb))
-                    ! do the loop over all the other electrons 
-                    ! (is this always symmetrie allowed?..)
-                    hel = hel + abs(get_umat_el(id_i, s_orb, s_orb, s_orb))
-
-                    do j = 1, nEl
-                        ! todo: finish all contributions later for now only do 
-                        ! those which are the same for all
-                        if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
-                        hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
-
-                        hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
-
-                    end do
 
                 case (3)
                     ! do nothing in this case! 
@@ -22873,7 +22762,6 @@ contains
         ! still not quite sure how to effectively include that...
         nOrb = OrbClassCount(cc_i)
         label_index = SymLabelCounts2(1, cc_i)
-!         call decode_bit_det(nI,ilut)
         n_id = gtID(nI)
         id_i = gtID(orb_i)
 
@@ -22903,15 +22791,17 @@ contains
                     ! do the loop over all the other electrons 
                     ! (is this always symmetrie allowed?..)
                    
-                    do j = 1, nEl
-                        
-                        ! todo: finish all contributions later for now only do 
-                        ! those which are the same for all
-                        if (n_id(j) == id_i) cycle
-                        hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
-                        hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
+                    if (.not. t_mixed_hubbard) then 
+                        do j = 1, nEl
+                            
+                            ! todo: finish all contributions later for now only do 
+                            ! those which are the same for all
+                            if (n_id(j) == id_i) cycle
+                            hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
+                            hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
 
-                    end do
+                        end do
+                    end if
 
                 case (1)
                     ! no restrictions for 1 -> 2 excitations
@@ -22920,17 +22810,19 @@ contains
 
                     ! do the loop over all the other electrons 
                     ! (is this always symmetrie allowed?..)
-                    hel = hel + abs(get_umat_el(id_i, s_orb, s_orb, s_orb))
+                    if (.not. t_mixed_hubbard) then
+                        hel = hel + abs(get_umat_el(id_i, s_orb, s_orb, s_orb))
 
-                    do j = 1, nEl
-                        
-                        ! todo: finish all contributions later for now only do 
-                        ! those which are the same for all
-                        if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
-                        hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
-                        hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
+                        do j = 1, nEl
+                            
+                            ! todo: finish all contributions later for now only do 
+                            ! those which are the same for all
+                            if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
+                            hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
+                            hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
 
-                    end do
+                        end do
+                    end if
 
                 case (2) 
                     ! here i have to somehow find out if there is a 
@@ -22945,17 +22837,19 @@ contains
                         hel = hel + abs(GetTMatEl(orb_i, 2*s_orb))
                         ! do the loop over all the other electrons 
                         ! (is this always symmetrie allowed?..)
-                        hel = hel + abs(get_umat_el(id_i, s_orb, s_orb, s_orb))
-                       
-                        do j = 1, nEl
-                            
-                            ! todo: finish all contributions later for now only do 
-                            ! those which are the same for all
-                            if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
-                            hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
-                            hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
+                        if (.not. t_mixed_hubbard) then
+                            hel = hel + abs(get_umat_el(id_i, s_orb, s_orb, s_orb))
+                           
+                            do j = 1, nEl
+                                
+                                ! todo: finish all contributions later for now only do 
+                                ! those which are the same for all
+                                if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
+                                hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
+                                hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
 
-                        end do
+                            end do
+                        end if
                     end if
 
                 case (3)
@@ -22987,7 +22881,6 @@ contains
         nOrb = OrbClassCount(cc_i)
         label_index = SymLabelCounts2(1, cc_i)
 
-!         call decode_bit_det(nI, ilut)
         n_id = gtID(nI)
         id_i = gtID(orb_i)
 
@@ -23019,41 +22912,45 @@ contains
 
                     ! here a contribution from orbital id_i 
 
-                    hel = hel + abs(get_umat_el(id_i, id_i, s_orb, id_i))
+                    if (.not. t_mixed_hubbard) then
+                        hel = hel + abs(get_umat_el(id_i, id_i, s_orb, id_i))
 
-                    ! do the loop over all the other electrons 
-                    ! (is this always symmetrie allowed?..)
-                    do j = 1, nEl
-                        
-                        ! todo: finish all contributions later for now only do 
-                        ! those which are the same for all
-                        ! have to exclude both electrons at spatial orb i
-                        if (n_id(j) == id_i) cycle
-                        hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
+                        ! do the loop over all the other electrons 
+                        ! (is this always symmetrie allowed?..)
+                        do j = 1, nEl
+                            
+                            ! todo: finish all contributions later for now only do 
+                            ! those which are the same for all
+                            ! have to exclude both electrons at spatial orb i
+                            if (n_id(j) == id_i) cycle
+                            hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
 
-                        hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
+                            hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
 
-                    end do
+                        end do
+                    end if
 
                 case (1)
                     
                     hel = hel + abs(GetTMatEl(orb_i, 2*s_orb))
 
-                    ! now contribution for both start and end
-                    hel = hel + abs(get_umat_el(id_i, id_i, s_orb, id_i))
-                    hel = hel + abs(get_umat_el(id_i, s_orb, s_orb, s_orb))
+                    if (.not. t_mixed_hubbard) then
+                        ! now contribution for both start and end
+                        hel = hel + abs(get_umat_el(id_i, id_i, s_orb, id_i))
+                        hel = hel + abs(get_umat_el(id_i, s_orb, s_orb, s_orb))
 
-                    ! do the loop over all the other electrons 
-                    ! (is this always symmetrie allowed?..)
-                    do j = 1, nEl
-                        
-                        ! todo: finish all contributions later for now only do 
-                        ! those which are the same for all
-                        if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
-                        hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
-                        hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
+                        ! do the loop over all the other electrons 
+                        ! (is this always symmetrie allowed?..)
+                        do j = 1, nEl
+                            
+                            ! todo: finish all contributions later for now only do 
+                            ! those which are the same for all
+                            if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
+                            hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
+                            hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
 
-                    end do
+                        end do
+                    end if
 
                 case (2)
                  
@@ -23061,19 +22958,21 @@ contains
                     ! do the loop over all the other electrons 
                     ! (is this always symmetrie allowed?..)
 
-                    hel = hel + abs(get_umat_el(id_i, id_i, s_orb, id_i))
-                    hel = hel + abs(get_umat_el(id_i, s_orb, s_orb, s_orb))
+                    if (.not. t_mixed_hubbard) then
+                        hel = hel + abs(get_umat_el(id_i, id_i, s_orb, id_i))
+                        hel = hel + abs(get_umat_el(id_i, s_orb, s_orb, s_orb))
 
-                    do j = 1, nEl
-                        
-                        ! todo: finish all contributions later for now only do 
-                        ! those which are the same for all
-                        if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
+                        do j = 1, nEl
+                            
+                            ! todo: finish all contributions later for now only do 
+                            ! those which are the same for all
+                            if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
 
-                        hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
-                        hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
+                            hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
+                            hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
 
-                    end do
+                        end do
+                    end if
 
                 case (3) 
                     ! do nothing actually
@@ -23088,51 +22987,6 @@ contains
             cum_arr(i) = cum_sum
 
         end do
-
-!             if () then
-! 
-!                 ! single particle contribution:
-!                 hel = hel + GetTMatEl(orb_i,orb)
-! 
-!                 ! double particle contribution:
-!                 ! looping only over electrons avoids checking non-occupied 
-!                 ! orbitals! 
-!                 id = gtID(orb)
-!                 do j = 1, nel
-!                     ! avoid already picked orbital (i)
-!                     if (nI(j) == orb_i) cycle
-! 
-!                     ! weight-contribution: 
-!                     hel = hel + get_umat_el(id_i, n_id(j), id, n_id(j)) 
-! 
-!                     ! mixed generator contribution: 
-!                     ! this is a more involved than in the determinant case! 
-!                     ! i cycle over the electrons -> so i would visit doubly 
-!                     ! oocupied spatial orbitals twice also visit orbital I 
-!                     ! once if its doubly occupied!
-!                     ! i also visit orbital A once, if it happens to be 
-!                     ! singly occupied.
-!                     if (is_in_pair(j,orb_i)) cycle ! no additional contribution
-! 
-!                     ! one part of the contribs is always the same! 
-!                     hel = hel - get_umat_el(id_i, n_id(j), n_id(j), id)/2.0_dp
-! 
-!                     ! todo, or check if this "approximation" is enough..
-!                     ! fucking annoying to implement...
-!                     ! for other cases one has to take a more careful look 
-!                     ! into stepvalues..
-! !                     if (IsDoub(ilut,nI(j))) then
-!                         ! depending on type of generator have to check stepvalue 
-!                         ! at start or end 
-! !                         if (nI(j) < orb_i) then
-!                             ! raising generator
-!                             
-! 
-!                 end do
-!             end if
-            ! sum and store contributions 
-!             cpt_arr(i) = abs_l1(hel)
-
 
     end subroutine gen_cum_list_guga_single_3
 
@@ -26105,8 +25959,6 @@ contains
         ind(2) = ceiling((1 + sqrt(1 + 8 * real(i,dp))) / 2)
         ind(1) = i - ((ind(2) - 1) * (ind(2) - 2)) / 2
 
-!         call decode_bit_det(nI, ilut)
-
         spin_orbs = nI(ind)
 
         sym_prod = RandExcitSymLabelProd(SpinOrbSymLabel(spin_orbs(1)), &
@@ -26278,37 +26130,8 @@ contains
         real(dp) :: r, temp_pgen, temp_pgen2, temp_pgen3, nDouble, nSingle, &
             nEmpty, nOrbs
 
-        ! this below has to be changed, if i change the probabilities on the 
-        ! fly
-!         ! if orb (i) is picked, chance to pick i again 1/nOrbs
-!         if (genrand_real2_dSFMT() < 1.0_dp/real(nSpatOrbs,dp)) then
-!             ! here choose between picking j also twice or not
-!             ! one orbitals has to be excluded
-!             if (genrand_real2_dSFMT() < 1.0_dp/real(nSpatOrbs - 1, dp)) then
-!                 ! (ii,jj)
-!                 excit_lvl = 2
-!             else
-!                 ! (ii,jk):
-!                 excit_lvl = 3
-!             end if
-!         else
-!             ! (ij,kl):
-!             excit_lvl = 4
-!         end if
-
-        ! pick first orbital at total random and set pgen uniformly to 
-!         ! 1/nOrbs
-!         i = 1 + floor( genrand_real2_dSFMT() * real(nSpatOrbs,dp))
-!         pgen = 1.0_dp/real(nSpatOrbs,dp)
-
         ! change to different excitation type biasing: 
         call pick_first_orbital(i, pgen, excit_lvl, excit_typ)
-
-! #ifdef __DEBUG
-!         print *, "picking double orbitals for ilut of type:", typ
-!         call write_det_guga(6, ilut)
-!         print *, "orb i: ", i, ", d(i): ", getStepvalue(ilut,i)
-! #endif
 
         ! new way to determine pgen..
         temp_pgen = 1.0_dp
@@ -26318,7 +26141,6 @@ contains
         select case (excit_lvl)
         ! since this case is always like a single excitation this is never 
         ! reached here so remove! 
-!         case (1)
             ! (iii,j) excitation type: single excitation + weight at start/end
             ! choose 2 indices with single excitation picker,... not quite
             ! because there are additional restrictions in the start and end 
@@ -26336,67 +26158,6 @@ contains
             ! UPDATE: new insight... cant choose single excitation-like 
             ! excitation in the double excitation 
             ! so never access this function with this type of excitation
-!             if (nDouble == 0 .or. nSingle == 0) return !todo
-! !             i = pickRandomOrb(!=0)
-!             
-!             ! the good thing, due to one of d(i) or d(j) being doubly occupied
-!             ! is that one always has an all-generating start or all accepting
-!             ! end -> todo: maybe think about restricted starts due to b value
-!             if (isThree(ilut,i)) then 
-!                 ! switch to other kind of generator.
-! !                 j = pickRandomOrb(!=0 & != 3, !=i)
-!                 ! open question is if it should be iii,j or jjj,i -> lead to 
-!                 ! same excitation so i have to add it up anyway in the 
-!                 ! excitation creation. 
-!                 ! todo: think about index distribution a bit more
-!                 if (i > j) then 
-!                     excitInfo%gen1 = 1
-!                     excitInfo%gen2 = 0
-!                     excitInfo%currentGen = 1
-!                     excitInfo%i = i
-!                     excitInfo%j = j
-!                     excitInfo%fullStart = i
-!                     excitInfo%fullEnd = j
-!                     excitInfo%typ = 1
-!                     excitInfo%weight = i
-!                 else
-!                     excitInfo%gen1 = -1
-!                     excitInfo%gen2 = 0
-!                     excitInfo%currentGen = -1
-!                     excitInfo%i = i
-!                     excitInfo%j = j
-!                     excitInfo%fullStart = j
-!                     excitInfo%fullEnd = i
-!                     excitInfo%typ = 2
-!                     excitInfo%weight = i
-!                 end if
-! 
-!             else 
-!                 ! pick i = {1,2} was picked -> so pick a double occupation now
-! !                 j = pickRandomOrb(==3)
-!                 ! stick to original generator combination
-!                 if (j > i) then 
-!                     excitInfo%gen1 = 1
-!                     excitInfo%gen2 = 0
-!                     excitInfo%currentGen = 1
-!                     excitInfo%i = i
-!                     excitInfo%j = j
-!                     excitInfo%fullStart = i
-!                     excitInfo%fullEnd = j
-!                     excitInfo%typ = 1
-!                     excitInfo%weight = i
-!                 else
-!                     excitInfo%gen1 = -1
-!                     excitInfo%gen2 = 0
-!                     excitInfo%currentGen = -1
-!                     excitInfo%i = i
-!                     excitInfo%j = j
-!                     excitInfo%fullStart = j
-!                     excitInfo%fullEnd = i
-!                     excitInfo%typ = 2
-!                     excitInfo%weight = i
-!                 end if
-!             end if
 
         case (2)
             ! (ii,jj) leaves full start into full stop with alike and mixed 
@@ -26417,9 +26178,7 @@ contains
             
             ! have to adjust pgen with the probability that 2 identical indices
             ! pairs got chosen 
-!             pgen = pgen / real((nBasis/2)**2 - (nBasis/2), dp)
 
-!             if (isZero(ilut,i)) then
             select case (currentOcc_int(i))
             case (0)
                 ! so there is a fullstart RR(i) or a fullStop(i)
@@ -26428,7 +26187,6 @@ contains
                 ! atelast one doubly and one empty orbital... 
                 ! we know that there is one empty one since we picked one,
                 ! but if there is no doubly -> have to cancel here
-!                 if (nDouble == 0) return ! todo
 
                 call pickRandomOrb_forced(2, temp_pgen, j)
 
@@ -26440,7 +26198,6 @@ contains
                 ! if ni = 0 temp_pgen = 1/n2 = p(j|i)
                 ! so p(i|j) = 1/n0
                 temp_pgen2 = 1.0_dp/real(count(currentOcc_int == 0),dp)
-! 
 
                 ! i cannot do that here so generally, when using tau-search
                 ! for the non-weighted guga excitation generator 
@@ -26450,11 +26207,6 @@ contains
                 ! pick_first_orbital routine! 
 
                 pgen = pgen * (temp_pgen + temp_pgen2)
-
-!                 pgen = pgen * (1.0_dp - pExcit4) * pExcit2 * pExcit2_same * &
-!                         (temp_pgen + temp_pgen2)
-
-!                 pgen = pgen**2/real(nSpatOrbs - 1,dp) * (temp_pgen + temp_pgen2)
 
                 if (j > i) then 
                     ! _RR_(i) -> ^RR^(j)
@@ -28782,11 +28534,9 @@ contains
 
             end if
 
-!         else if (excit_lvl == 2) then
         case (2)
 
             if (any([i,j] == 0)) then
-!                 print *, excit_lvl, excit_typ
 
                 excitInfo%valid = .false.
 
@@ -28797,12 +28547,10 @@ contains
                     excitInfo%excitLvl = 0
                 else
                     excitInfo%excitLvl = 1
-!                     print *, "here?, excitL"
                 end if
 
             end if
         end select
-!         end if
 
     end subroutine pickOrbitals_nosym_double
 

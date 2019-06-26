@@ -1185,18 +1185,6 @@ contains
                     call decode_bit_det(nI, core_space(:,i))
                     print *, nI
                 end do
-                ex(1,1) = 2
-                call GetBitExcitation (core_space(:,1), core_space(:,5), ex, tSign)
-                print *, "ex(1,1), ex(1,2), ex(2,1), ex(2,2)", ex(1,1), ex(1,2), ex(2,1), ex(2,2)
-                print *, "sign:", tsign
-                print *, "ex(1,1)ms, ex(1,2)%ms", G1(ex(1,1))%ms, G1(ex(1,2))%ms
-                call decode_bit_det(nI, core_space(:,1))
-                call decode_bit_det(nJ, core_space(:,5))
-
-!                 print *, "mat_ele: ", get_helement(nI, nJ, core_space(:,1), core_space(:,5))
-                print *, "U(1,2,3,4)", get_umat_el(1,2,3,4)
-                print *, "U(1,2,4,3)", get_umat_el(1,2,4,3)
-
             end_if_root
 
             root_print "deterministic hamiltonian:"
