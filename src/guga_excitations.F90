@@ -42,7 +42,7 @@ module guga_excitations
                         count_beta_orbs_ij, findFirstSwitch, findLastSwitch, &
                         calcStepvector, find_switches, convert_ilut_toNECI, &
                         calcB_vector_int, calcOcc_vector_int, EncodeBitDet_guga, &
-                        identify_excitation
+                        identify_excitation, init_csf_information, calc_csf_info
 
     use guga_matrixElements, only: calcDiagMatEleGUGA_ilut, calcDiagMatEleGuga_nI, &
                                    calc_off_diag_guga_ref_list
@@ -1786,154 +1786,6 @@ contains
 
     end subroutine Detham_guga
 
-    subroutine calc_csf_info(ilut, step_vector, b_vector, occ_vector)
-        ! routine to calculate the csf information for specific outputted 
-        ! information 
-        integer(n_int), intent(in) :: ilut(0:niftot) 
-        integer, intent(out) :: step_vector(nSpatOrbs), b_vector(nSpatOrbs) 
-        real(dp), intent(out) :: occ_vector(nSpatOrbs) 
-        character(*), parameter :: this_routine = "calc_csf_info" 
-
-        integer :: b_int, i, step
-        ! copy the stuff from below.. when do i want to allocate the objects?
-        ! hm.. 
-        step_vector = 0
-        b_vector = 0
-        occ_vector = 0.0_dp
-
-        b_int = 0
-
-        do i = 1, nSpatOrbs
-
-            step = getStepvalue(ilut,i) 
-
-            step_vector(i) = step 
-
-            select case (step) 
-
-            case (1) 
-                
-                occ_vector(i) = 1.0_dp
-
-                b_int = b_int + 1
-
-            case (2) 
-
-                occ_vector(i) = 1.0_dp
-
-                b_int = b_int - 1
-
-            case (3) 
-
-                occ_vector(i) = 2.0_dp
-
-            end select 
-
-            b_vector(i) = b_int 
-            
-        end do
-
-    end subroutine calc_csf_info
-
-    subroutine init_csf_information(ilut)
-        ! routine which sets up all the additional csf information, like 
-        ! stepvector, b vector, occupation etc. in various formats in one 
-        ! place 
-        ! and combine all the necessary calcs. into one loop instead of 
-        ! the seperate ones..
-        integer(n_int), intent(in) :: ilut(0:nifguga)
-        character(*), parameter :: this_routine = "init_csf_information"
-
-        integer :: i, ierr, step, b_int
-        real(dp) :: b_real, cum_sum
-
-        ASSERT(isProperCSF_ilut(ilut))
-        ASSERT(allocated(current_stepvector))
-        ASSERT(allocated(currentB_ilut))
-        ASSERT(allocated(currentOcc_ilut))
-        ASSERT(allocated(currentB_int))
-        ASSERT(allocated(currentOcc_int))
-
-        ! remove allocs and deallocs, since the size of these quantities 
-        ! never change.. do the allocation in guga_init
-        ! and maybe think about other improvements of this code...
-        ! what would be a neat way to calc all those quantities faster??
-
-        current_stepvector = 0
-        currentB_ilut = 0.0_dp
-        currentOcc_ilut = 0.0_dp
-        currentB_int = 0
-        currentOcc_int = 0
-
-        b_real = 0.0_dp
-        b_int = 0
-
-        ! also create a fake cum-list of the non-doubly occupied orbitals
-        current_cum_list = 0.0_dp
-        cum_sum = 0.0_dp
-
-        do i = 1, nSpatOrbs 
-            
-            step = getStepvalue(ilut,i)
-
-            current_stepvector(i) = step
-
-            select case (step)
-
-            case (0)
-
-                currentOcc_ilut(i) = 0.0_dp
-                currentOcc_int(i) = 0
-
-                cum_sum = cum_sum + 1.0_dp
-
-            case (1)
-
-                currentOcc_ilut(i) = 1.0_dp
-                currentOcc_int(i) = 1
-
-                b_real = b_real + 1.0_dp
-                b_int = b_int + 1
-
-                cum_sum = cum_sum + 1.0_dp
-
-            case (2) 
-
-                currentOcc_ilut(i) = 1.0_dp
-                currentOcc_int(i) = 1 
-
-                b_real = b_real - 1.0_dp
-                b_int = b_int - 1
-
-                cum_sum = cum_sum + 1.0_dp
-
-            case (3) 
-
-                currentOcc_ilut(i) = 2.0_dp
-                currentOcc_int(i) = 2
-
-            end select
-
-            currentB_ilut(i) = b_real
-            currentB_int(i) = b_int
-
-            current_cum_list(i) = cum_sum
-
-        end do
-
-    end subroutine init_csf_information
-
-    subroutine deinit_csf_information
-        ! deallocate the currently stored csf information
-
-        if (allocated(current_stepvector)) deallocate(current_stepvector)
-        if (allocated(currentB_ilut))      deallocate(currentB_ilut)
-        if (allocated(currentOcc_ilut))    deallocate(currentOcc_ilut)
-        if (allocated(currentB_int))       deallocate(currentB_int)
-        if (allocated(currentOcc_int))     deallocate(currentOcc_int)
-
-    end subroutine deinit_csf_information
-
 
     function plus_start_single(weights, bVal, negSwitches, posSwitches) result (prob)
         type(weight_obj), intent(in) :: weights
@@ -3450,60 +3302,14 @@ contains
                 call print_excitInfo(excitInfo)
                 call neci_flush(6)
             end if
-    ! 
         end if
 #endif
 
-
-!         ! also add a sanity check for excitations from the reference 
-!         ! determinant..
-!         ! what is wrong now with the 2nd index of ilutref?? it does not seem
-!         ! to know ilutref here.. not initiatlized yet??
-!         if (DetBitEq(ilutI,ilutHF(0:niftot,1))) then
-!             tmp_mat = calc_off_diag_guga_ref_direct(ilutJ, exlevel = tmp_ex1)
-!             tmp_mat1 = calc_off_diag_guga_ref_list(ilutJ, exlevel = tmp_ex2)
-! 
-!             diff = abs(HElGen - tmp_mat) 
-! 
-!             if (diff > 1.0e-10_dp .or. tmp_ex1 > 2) then 
-!                 print *, "WARNING: error in new ref matrix elements!"
-!                 call write_det_guga(6, ilutI, .true.)
-!                 call write_det_guga(6, ilutJ, .true.)
-!                 print *, "mat eles and diff:", HElGen, tmp_mat, diff
-!                 print *, "excitlvl:", tmp_ex1
-!                 call print_excitInfo(excitInfo)
-!             end if
-! 
-!             diff = abs(HElGen - tmp_mat1)
-! 
-!             if (diff > 1.0e-10_dp .or. tmp_ex2 > 2) then 
-!                 print *, "WARNING: error in old ref matrix elements!"
-!                 call write_det_guga(6, ilutI, .true.)
-!                 call write_det_guga(6, ilutJ, .true.)
-!                 print *, "mat eles and diff:", HElGen, tmp_mat1, diff
-!                 print *, "excitlvl:", tmp_ex2
-!                 call print_excitInfo(excitInfo)
-!             end if
-! 
-!             ! and at last to a sanity check between old and new
-!             diff = abs(tmp_mat - tmp_mat1)
-! 
-!             if (diff > 1.0e-10_dp .or. (tmp_ex2 /= tmp_ex1)) then 
-!                 print *, "WARNING: error between old and new ref matrix elements!"
-!                 call write_det_guga(6, ilutI, .true.)
-!                 call write_det_guga(6, ilutJ, .true.)
-!                 print *, "mat eles and diff:", tmp_mat, tmp_mat1, diff
-!                 print *, "excitlvl:", tmp_ex2, tmp_ex1
-!                 call print_excitInfo(excitInfo)
-!             end if
-!         end if
-! 
 
         ! check if excitation generation was successful
         if (pgen < EPS) then
             ! indicate NullDet to skip spawn step
             nJ(1) = 0
-!             HElGen = HEl_zero
             HElGen = 0.0_dp
 
         else
@@ -3517,60 +3323,18 @@ contains
             ! and only do it in debug mode.. 
             ! i just have to be sure that no wrong csfs are created..
 
-!             if (.not. isProperCSF_ilut(excitation,.true.)) then
-!                 call write_det_guga(6, ilut)
-!                 call write_det_guga(6, excitation)
-!                 call print_excitInfo(global_excitInfo)
-!             end if
-
             ASSERT(isProperCSF_ilut(excitation, .true.))
             ! otherwise extract H element and convert to 0
+
             call convert_ilut_toNECI(excitation, ilutJ, HElgen)
-
-!             call write_det_guga(6,ilut)
-!             call write_det_guga(6,excitation)
-!             call print_excitInfo(global_excitInfo)
-
             call decode_bit_det(nJ, ilutJ)
         
-!             if (all(nJ == [1,4, 5, 7, 10, 12])) then 
-!                 print *, "===="
-!                 print *, "pgen:", pgen
-!                 call print_excitInfo(global_excitInfo)
-!             end if
-
             if (tHub .and. .not. treal) then 
                 if (.not.(IsMomentumAllowed(nJ))) then
                     call write_det_guga(6, excitation)
-!                     call stop_all(this_routine, "Momentum not allowed!")
                 end if
             end if
         end if
-
-
-!         deallocate(currentB_ilut)
-!         deallocate(currentOcc_ilut)
-!         deallocate(current_stepvector)
-
-! #ifdef __DEBUG
-!         print *, "current det guga:"
-!         call write_det_guga(6, ilut)
-!         print *, "spawned det guga: "
-!         call write_det_guga(6, excitation)
-! 
-!         if (nJ(1) /= 0) then
-!             print *, "current det NECI: "
-!             call write_bit_rep(6, ilut, .true.)
-!             print *, "spawned det NECI: "
-!             call write_bit_rep(6, excitation, .true.)
-!         else
-!             print *, "no valid excitation created!"
-!         end if
-! #endif
-
-        ! that should be it...
-        ! it shouldnt happen but maybe for some reason the matrix element is 0
-!         ASSERT(HElGen /= HEl_zero)
 
     end subroutine generate_excitation_guga
 
@@ -3590,10 +3354,10 @@ contains
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
         real(dp) :: orb_pgen, branch_pgen, mat_ele
         type(weight_obj) :: weights
-! #ifdef __DEBUG
+
         logical :: compFlag
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
-! #endif
+
         ASSERT(isProperCSF_ilut(ilut))
 
         ! do that in the calling interface funcition already.. 

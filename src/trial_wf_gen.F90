@@ -13,7 +13,7 @@ module trial_wf_gen
 #ifndef __CMPLX 
     use guga_data, only: excitationInformation
     use guga_excitations, only: calc_guga_matrix_element
-    use guga_bitrepops, only: write_det_guga
+    use guga_bitrepops, only: write_det_guga, init_csf_information
 #endif
     use FciMCData, only: con_send_buf, NConEntry
 

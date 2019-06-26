@@ -27,8 +27,9 @@ module sparse_arrays
 #ifndef __CMPLX
     use SystemData, only: tGUGA
     use guga_excitations, only: calc_off_diag_guga_gen, actHamiltonian, &
-                                calc_guga_matrix_element, init_csf_information
-    use guga_bitRepOps, only: convert_ilut_toGUGA, extract_matrix_element
+                                calc_guga_matrix_element
+    use guga_bitRepOps, only: convert_ilut_toGUGA, extract_matrix_element, &
+                              init_csf_information
     use util_mod, only: binary_search
     use guga_data, only: tag_excitations, excitationInformation
     use guga_matrixElements, only: calcDiagMatEleGuga_nI

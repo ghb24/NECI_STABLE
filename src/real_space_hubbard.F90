@@ -69,8 +69,8 @@ module real_space_hubbard
 #ifndef __CMPLX
     use guga_data, only: excitationInformation, excitationInformation, tNewDet
     use guga_excitations, only: calc_guga_matrix_element, generate_excitation_guga, &
-                               init_csf_information, global_excitinfo
-    use guga_bitRepOps, only: isProperCSF_ilut, convert_ilut_toGUGA
+                               global_excitinfo
+    use guga_bitRepOps, only: isProperCSF_ilut, convert_ilut_toGUGA, init_csf_information
 #endif
 
     implicit none 

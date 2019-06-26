@@ -8,7 +8,9 @@
 #ifndef __CMPLX
 module guga_bitRepOps
 
-    use SystemData, only: nEl, Stot, nSpatOrbs, current_stepvector
+    use SystemData, only: nEl, Stot, nSpatOrbs, &
+                          current_stepvector, currentOcc_ilut, currentOcc_int, &
+                          currentB_ilut, currentB_int, current_cum_list
     use guga_data ! get explicit here too!
     use constants, only: dp, n_int, bits_n_int, bni_, bn2_
     use DetBitOps, only: return_ms, count_set_bits, MaskAlpha, &
@@ -2322,18 +2324,154 @@ contains
 
     end function convert_guga_to_ni
 
+    subroutine calc_csf_info(ilut, step_vector, b_vector, occ_vector)
+        ! routine to calculate the csf information for specific outputted 
+        ! information 
+        integer(n_int), intent(in) :: ilut(0:niftot) 
+        integer, intent(out) :: step_vector(nSpatOrbs), b_vector(nSpatOrbs) 
+        real(dp), intent(out) :: occ_vector(nSpatOrbs) 
+        character(*), parameter :: this_routine = "calc_csf_info" 
 
-! 
-! 
-!     function calcMeanB(nI) result(meanB)
-!         ! function to calculate mean value of the b-vector, used in 
-!         ! the branching probabilities for future switches
-!         integer, intent(in) :: nI(nReps)
-!         real(dp) :: meanB
-! 
-!         meanB = sum(nI)/(max(1,nReps))
-! 
-!     end function calcMeanB
-! 
+        integer :: b_int, i, step
+        ! copy the stuff from below.. when do i want to allocate the objects?
+        ! hm.. 
+        step_vector = 0
+        b_vector = 0
+        occ_vector = 0.0_dp
+
+        b_int = 0
+
+        do i = 1, nSpatOrbs
+
+            step = getStepvalue(ilut,i) 
+
+            step_vector(i) = step 
+
+            select case (step) 
+
+            case (1) 
+                
+                occ_vector(i) = 1.0_dp
+
+                b_int = b_int + 1
+
+            case (2) 
+
+                occ_vector(i) = 1.0_dp
+
+                b_int = b_int - 1
+
+            case (3) 
+
+                occ_vector(i) = 2.0_dp
+
+            end select 
+
+            b_vector(i) = b_int 
+            
+        end do
+
+    end subroutine calc_csf_info
+
+    subroutine init_csf_information(ilut)
+        ! routine which sets up all the additional csf information, like 
+        ! stepvector, b vector, occupation etc. in various formats in one 
+        ! place 
+        ! and combine all the necessary calcs. into one loop instead of 
+        ! the seperate ones..
+        integer(n_int), intent(in) :: ilut(0:nifguga)
+        character(*), parameter :: this_routine = "init_csf_information"
+
+        integer :: i, ierr, step, b_int
+        real(dp) :: b_real, cum_sum
+
+        ASSERT(isProperCSF_ilut(ilut))
+        ASSERT(allocated(current_stepvector))
+        ASSERT(allocated(currentB_ilut))
+        ASSERT(allocated(currentOcc_ilut))
+        ASSERT(allocated(currentB_int))
+        ASSERT(allocated(currentOcc_int))
+
+        ! remove allocs and deallocs, since the size of these quantities 
+        ! never change.. do the allocation in guga_init
+        ! and maybe think about other improvements of this code...
+        ! what would be a neat way to calc all those quantities faster??
+
+        current_stepvector = 0
+        currentB_ilut = 0.0_dp
+        currentOcc_ilut = 0.0_dp
+        currentB_int = 0
+        currentOcc_int = 0
+
+        b_real = 0.0_dp
+        b_int = 0
+
+        ! also create a fake cum-list of the non-doubly occupied orbitals
+        current_cum_list = 0.0_dp
+        cum_sum = 0.0_dp
+
+        do i = 1, nSpatOrbs 
+            
+            step = getStepvalue(ilut,i)
+
+            current_stepvector(i) = step
+
+            select case (step)
+
+            case (0)
+
+                currentOcc_ilut(i) = 0.0_dp
+                currentOcc_int(i) = 0
+
+                cum_sum = cum_sum + 1.0_dp
+
+            case (1)
+
+                currentOcc_ilut(i) = 1.0_dp
+                currentOcc_int(i) = 1
+
+                b_real = b_real + 1.0_dp
+                b_int = b_int + 1
+
+                cum_sum = cum_sum + 1.0_dp
+
+            case (2) 
+
+                currentOcc_ilut(i) = 1.0_dp
+                currentOcc_int(i) = 1 
+
+                b_real = b_real - 1.0_dp
+                b_int = b_int - 1
+
+                cum_sum = cum_sum + 1.0_dp
+
+            case (3) 
+
+                currentOcc_ilut(i) = 2.0_dp
+                currentOcc_int(i) = 2
+
+            end select
+
+            currentB_ilut(i) = b_real
+            currentB_int(i) = b_int
+
+            current_cum_list(i) = cum_sum
+
+        end do
+
+    end subroutine init_csf_information
+
+    subroutine deinit_csf_information
+        ! deallocate the currently stored csf information
+
+        if (allocated(current_stepvector)) deallocate(current_stepvector)
+        if (allocated(currentB_ilut))      deallocate(currentB_ilut)
+        if (allocated(currentOcc_ilut))    deallocate(currentOcc_ilut)
+        if (allocated(currentB_int))       deallocate(currentB_int)
+        if (allocated(currentOcc_int))     deallocate(currentOcc_int)
+
+    end subroutine deinit_csf_information
+
+
 end module guga_bitRepOps
 #endif

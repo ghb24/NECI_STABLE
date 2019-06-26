@@ -199,9 +199,11 @@ module fcimc_initialisation
 #ifndef __CMPLX
     use guga_data, only: bVectorRef_ilut, bVectorRef_nI, projE_replica
     use guga_bitRepOps, only: calcB_vector_nI, calcB_vector_ilut, convert_ilut_toNECI, &
-                              convert_ilut_toGUGA, getDeltaB, write_det_guga, write_guga_list
+                              convert_ilut_toGUGA, getDeltaB, write_det_guga, write_guga_list, &
+                              calc_csf_info
+
     use guga_excitations, only: generate_excitation_guga, create_projE_list, &
-                                actHamiltonian, calc_csf_info
+                                actHamiltonian
     use guga_matrixElements, only: calcDiagMatEleGUGA_ilut, calcDiagMatEleGUGA_nI
 #endif
 

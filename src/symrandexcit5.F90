@@ -35,9 +35,10 @@ module excit_gen_5
     use back_spawn, only: pick_virtual_electrons_double, pick_occupied_orbital, &
                           check_electron_location, pick_second_occupied_orbital
 
-    use guga_bitRepOps, only: isProperCSF_ilut, convert_ilut_toGUGA, write_det_guga
+    use guga_bitRepOps, only: isProperCSF_ilut, convert_ilut_toGUGA, write_det_guga, &
+                              init_csf_information
     use guga_data, only: excitationInformation, tNewDet
-    use guga_excitations, only: calc_guga_matrix_element, init_csf_information, &
+    use guga_excitations, only: calc_guga_matrix_element, &
                                 global_excitinfo, print_excitInfo
 
     implicit none

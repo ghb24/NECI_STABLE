@@ -87,9 +87,9 @@ module fcimc_helper
 
 #ifndef __CMPLX
     use guga_procedure_pointers, only: calc_off_diag_guga_ref
-    use guga_excitations, only: create_projE_list, calc_csf_info
+    use guga_excitations, only: create_projE_list
     use guga_matrixElements, only: calc_off_diag_guga_ref_list
-    use guga_bitrepops, only: write_det_guga
+    use guga_bitrepops, only: write_det_guga, calc_csf_info
 #endif
     use real_time_data, only: t_complex_ints, acceptances_1, runge_kutta_step, tVerletSweep,&
                         NoInitDets_1, NoNonInitDets_1, NoInitWalk_1, NoNonInitWalk_1, &

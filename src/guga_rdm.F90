@@ -14,7 +14,7 @@ module guga_rdm
     use rdm_data, only: Sing_ExcList, Doub_ExcList, OneEl_Gap, TwoEl_Gap
     use DetBitOps, only: EncodeBitDet, count_open_orbs, DetBitEq
     use load_balance_calcnodes, only: DetermineDetNode
-    use guga_excitations, only: init_csf_information, excitationIdentifier
+    use guga_excitations, only: excitationIdentifier
     use guga_excitations, only: init_singleWeight, calcRemainingSwitches
     use guga_excitations, only: createSingleStart, singleUpdate, singleEnd
     use guga_excitations, only: checkCompatibility
@@ -32,7 +32,7 @@ module guga_rdm
     use guga_data, only: excitationInformation, tag_tmp_excits, tag_excitations
     use guga_types, only: weight_obj
     use guga_bitRepOps, only: update_matrix_element, setDeltaB, extract_matrix_element
-    use guga_bitRepOps, only: isProperCSF_ilut, isDouble
+    use guga_bitRepOps, only: isProperCSF_ilut, isDouble, init_csf_information
     use guga_bitRepOps, only: write_guga_list, write_det_guga
     use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI, getDeltaB
     use MemoryManager, only: LogMemAlloc, LogMemDealloc

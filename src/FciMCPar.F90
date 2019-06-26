@@ -114,8 +114,8 @@ module FciMCParMod
 
 #ifndef __CMPLX
     use guga_testsuite, only: run_test_excit_gen_det, runTestsGUGA
-    use guga_excitations, only: deallocate_projE_list, init_csf_information, &
-                                generate_excitation_guga
+    use guga_excitations, only: deallocate_projE_list, generate_excitation_guga
+    use guga_bitrepops, only: init_csf_information
 #endif
     use real_time_data, only: t_prepare_real_time, n_real_time_copies, &    
                               cnt_real_time_copies    

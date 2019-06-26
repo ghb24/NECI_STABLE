@@ -13,9 +13,9 @@
 
 #ifndef __CMPLX
       use guga_matrixElements, only: calcDiagMatEleGuga_nI
-      use guga_excitations, only: calc_guga_matrix_element, 
-     &                            init_csf_information
+      use guga_excitations, only: calc_guga_matrix_element
       use guga_data, only: excitationInformation
+      use guga_bitrepops, only: init_csf_information
 #endif
       use lattice_mod, only: get_helement_lattice
       IMPLICIT NONE

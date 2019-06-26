@@ -406,17 +406,23 @@ contains
         ! GUGA implementation: 
 #ifndef __CMPLX
         if (tGUGA) then
-            if (present(ilutI) .and. present(ilutJ)) then 
+
+!             if (present(ilutI) .and. present(ilutJ)) then 
 !                 call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, hel, &
 !                     .true., 2)
-
-            else
-                call EncodeBitDet(nI, t_i)
-                call EncodeBitDet(nJ, t_J)
+! 
+!             else
+!                 call EncodeBitDet(nI, t_i)
+!                 call EncodeBitDet(nJ, t_J)
 !                 call calc_guga_matrix_element(t_i, t_j, excitInfo, hel, &
 !                     .true., 2)
-            endif
+!             endif
             
+            if (all(nI == nJ)) then 
+                hel =  calcDiagMatEleGUGA_nI(nI)
+            else
+                call stop_all(this_routine, "TODO: refactor guga matrix elements!")
+            end if
             return
         end if
 #endif
@@ -472,20 +478,27 @@ contains
         ! GUGA implementation: 
 #ifndef __CMPLX
         if (tGUGA) then
-            if (present(ilutI) .and. present(ilutJ)) then 
+            
+            if (all(nI == nJ)) then 
+                hel =  calcDiagMatEleGUGA_nI(nI)
+            else
+                call stop_all(this_routine, "TODO: refactor guga matrix elements!")
+            end if
+            return
+! 
+!             if (present(ilutI) .and. present(ilutJ)) then 
 !                 call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, hel, &
 !                     .true., 2)
-
-            else
-                call EncodeBitDet(nI, t_i)
-                call EncodeBitDet(nJ, t_J)
+! 
+!             else
+!                 call EncodeBitDet(nI, t_i)
+!                 call EncodeBitDet(nJ, t_J)
 !                 call calc_guga_matrix_element(t_i, t_j, excitInfo, hel, &
 !                     .true., 2)
-            endif
-
-            if (present(ICret)) ICret = excitInfo%excitLvl
+!             endif
+! 
+!             if (present(ICret)) ICret = excitInfo%excitLvl
             
-            return
         end if
 #endif
 
@@ -577,13 +590,20 @@ contains
 #ifndef __CMPLX
         ! GUGA implementation: 
         if (tGUGA) then
-            call EncodeBitDet(nI, ilutI)
-            call EncodeBitDet(nJ, ilutJ)
+            if (all(nI == nJ)) then 
+                hel =  calcDiagMatEleGUGA_nI(nI)
+            else
+                call stop_all(this_routine, "TODO: refactor guga matrix elements!")
+            end if
+            return
 
+!             call EncodeBitDet(nI, ilutI)
+!             call EncodeBitDet(nJ, ilutJ)
+! 
 !             call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, hel, &
 !                 .true., 2)
-
-            return
+! 
+!             return
         end if
 #endif
 
@@ -641,10 +661,16 @@ contains
         ! GUGA implementation: 
 #ifndef __CMPLX
         if (tGUGA) then
+            if (all(nI == nJ)) then 
+                hel =  calcDiagMatEleGUGA_nI(nI)
+            else
+                call stop_all(this_routine, "TODO: refactor guga matrix elements!")
+            end if
+            return
+
 !             call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, hel, &
 !                 .true., 2)
 
-            return
         end if
 #endif
 
