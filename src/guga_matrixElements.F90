@@ -80,8 +80,6 @@ contains
         integer :: iOrb, jOrb, ind, inc1, inc2, sOrb, pOrb
         real(dp) :: exchange, nOcc1, nOcc2
 
-!         ASSERT(isProperCSF_nI(nI))
-
         hel_ret = ECore
 
         iOrb = 1

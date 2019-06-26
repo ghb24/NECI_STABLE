@@ -15,7 +15,7 @@ module guga_excitations
                           tgen_guga_mixed, t_new_hubbard, t_new_real_space_hubbard, &
                           t_crude_exchange, t_crude_exchange_noninits, & 
                           t_approx_exchange, t_approx_exchange_noninits, & 
-                          is_init_guga, t_heisenberg_model, t_tJ_model
+                          is_init_guga, t_heisenberg_model, t_tJ_model, t_mixed_hubbard
 
     use constants, only: dp, n_int, bits_n_int, lenof_sign, Root2, THIRD, HEl_zero, &
                          EPS, bni_, bn2_, iout, int64, inum_runs
@@ -667,7 +667,7 @@ contains
             if (abs(mat_ele) < EPS) return 
 
             if (.not. (t_new_real_space_hubbard .or. t_heisenberg_model & 
-                .or. t_tJ_model)) then
+                .or. t_tJ_model .or. t_mixed_hubbard)) then
                 integral = integral + get_umat_el(i,iOrb,j,iOrb) * temp_occ_i(iOrb) 
 
                 integral = integral + get_umat_el(i,iOrb,iOrb,j) * &
@@ -701,7 +701,7 @@ contains
 
         ! i think i could also exclude the treal case here.. try!
         if (.not. (treal .or. t_new_real_space_hubbard .or. &
-            t_heisenberg_model .or. t_tJ_model)) then
+            t_heisenberg_model .or. t_tJ_model .or. t_mixed_hubbard)) then
             call calc_integral_contribution_single(ilutI, ilutJ, i, j, st, en, integral)
         end if
 
@@ -1745,7 +1745,7 @@ contains
                     temp_hamil(cum_rows + n_row(i)) = hel
 
                 else 
-                    ! here i have to binary_search in the exciations 
+                    ! here i have to binary_search in the excitation 
 
                     call EncodeBitDet(det_list(:,j), ilutJ)
 
@@ -5928,7 +5928,7 @@ contains
         ! do the specific double update to ensure a switch
         ! although switch can also happen at end only...
         ! actually that would be, in the full-stop case, temporary measure...
-        ! but would unjust favor certain types of excitaitons..
+        ! but would unjust favor certain types of excitations..
         do i = se + 1, e -1
             call doubleUpdateStochastic(ilut, i, excitInfo, &
                 weights, negSwitches, posSwitches, t, branch_pgen)
@@ -6658,7 +6658,7 @@ contains
         ! do the specific double update to ensure a switch
         ! although switch can also happen at end only...
         ! actually that would be, in the full-stop case, temporary measure...
-        ! but would unjust favor certain types of excitaitons..
+        ! but would unjust favor certain types of excitations..
         do i = se + 1, en -1
             call doubleUpdateStochastic(ilut, i, excitInfo, &
                 weights, negSwitches, posSwitches, t, branch_pgen)
@@ -12016,12 +12016,6 @@ contains
        
         ASSERT(isProperCSF_ilut(ilut))
 
-        !allocate(currentB_ilut(nBasis/2), stat = ierr)
-        !currentB_ilut = calcB_vector_ilut(ilut)
-
-        !allocate(currentOcc_ilut(nBasis/2), stat = ierr)
-        !currentOcc_ilut = calcOcc_vector_ilut(ilut)
-
         ! first pick possible orbitals: 
         ! todo: combine that with integrals elements... otherwise it does not 
         ! make too much sense
@@ -12104,7 +12098,6 @@ contains
         end if
 
         ! update at last...
-!         pgen = pgen * probWeight
 
         gen = excitInfo%currentGen
         
@@ -12124,7 +12117,8 @@ contains
 
             ! how to modifiy the values? 
             ! one of it is just additional
-            if (.not. (treal .or. t_new_real_space_hubbard)) then
+            if (.not. (treal .or. t_new_real_space_hubbard .or. t_mixed_hubbard &
+                .or. t_tJ_model)) then
                 integral = integral + get_umat_el(i,iO,j,iO) * currentOcc_ilut(iO)
 
                 ! but the r_k part confuses me a bit ... 
@@ -12158,7 +12152,7 @@ contains
         ! single-excitation creator? i guess i should.. 
         ! and also for the matrix element calculation maybe..
         if (.not. (treal .or. t_new_real_space_hubbard .or. &
-            t_heisenberg_model .or. t_tJ_model)) then
+            t_heisenberg_model .or. t_tJ_model .or. t_mixed_hubbard)) then
             call calc_integral_contribution_single(ilut, exc, i, j,st, en, integral)
         end if
 
@@ -12809,7 +12803,7 @@ contains
             plusWeight = weights%proc%plus(posSwitches(st), bVal, weights%dat)
             
 
-            ! if both weights an b value allow both excitaitons, have to choose
+            ! if both weights an b value allow both excitations, have to choose
             ! one stochastically
 
             ! also have to consider, that i might not actually can assure 
@@ -13278,7 +13272,7 @@ contains
 
         ASSERT(nSwitches >= 0.0_dp) 
 !         ASSERT(bVal > 0.0_dp)
-        ! change b value treatment, by just checking if excitaitons is 
+        ! change b value treatment, by just checking if excitations is 
         ! technically possible if b == 0
         if (bVal < EPS) then
             minusWeight = semiStart%F*semiStart%zero + semiStart%G*semiStart%minus + &
@@ -13665,7 +13659,7 @@ contains
                             ! exclude the possible diagonal term
                             ! i assume for now that this term is always there
                             ! atleast the x0-matrix element is never zero for 
-                            ! these diagonal excitaitons -> so check if it 
+                            ! these diagonal excitations -> so check if it 
                             ! stays in the same position: yes it stays in 
                             ! first position always..
                             ! for non-open orbitals i 
@@ -14193,7 +14187,7 @@ contains
 !                 ! in this case staying on branch is possible for +1 and a 
 !                 ! -1 branch would have a zero weight, so just update matrix 
 !                 ! elements in this case todo
-!                 ! but no additional excitaitons...
+!                 ! but no additional excitations...
 ! 
 !                 do iEx = 1, nExcits
 ! #ifdef __DEBUG
@@ -15210,7 +15204,7 @@ contains
         ! 0 and the -1 weight depending on the switch possibilities and the 
         ! end value i could somehow include that?!
         ! have the bValue restriction now included in the weight calc.
-        ! atleast for pure single excitaitons... have to additionally do that
+        ! atleast for pure single excitations... have to additionally do that
         ! for the more complicated excitation types too
         plusWeight = weightObj%proc%plus(posSwitches(sOrb), bVal, weightObj%dat)
         minusWeight = weightObj%proc%minus(negSwitches(sOrb), bVal, weightObj%dat)
@@ -15363,7 +15357,7 @@ contains
                 ! update on spot stay
                 ! in this case staying on branch is possible for +1 and a 
                 ! -1 branch would have a zero weight, so just update matrix 
-                ! but no additional excitaitons...
+                ! but no additional excitations...
 
                 do iEx = 1, nExcits
 #ifdef __DEBUG
@@ -15618,7 +15612,7 @@ contains
 !                 ! in this case staying on branch is possible for +1 and a 
 !                 ! -1 branch would have a zero weight, so just update matrix 
 !                 ! elements in this case todo
-!                 ! but no additional excitaitons...
+!                 ! but no additional excitations...
 ! 
 !                 do iEx = 1, nExcits
 ! #ifdef __DEBUG
@@ -15669,7 +15663,7 @@ contains
 !     end subroutine singleOverlapLoweringUpdate
 
     subroutine singleEnd(ilut, excitInfo, tempExcits, nExcits, excitations)
-        ! end function to calculate all single excitaitons of a given CSF
+        ! end function to calculate all single excitations of a given CSF
         ! ilut
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer(n_int), intent(inout), pointer :: tempExcits(:,:)
@@ -15927,7 +15921,7 @@ contains
         bVal = currentB_ilut(st)
 
         ! first have to allocate both arrays for the determinant and weight list
-        ! worse then worst case for single excitations are 2^|i-j| excitaitons
+        ! worse then worst case for single excitations are 2^|i-j| excitations
         ! for a given CSF -> for now use that to allocate the arrays first 
         ! update only need the number of open orbitals between i and j, and 
         ! some additional room if 0/3 at start
@@ -16124,7 +16118,7 @@ contains
 !         gen = excitInfo%firstGen
 !         bVal = currentB_ilut(start)
 !         ! first have to allocate both arrays for the determinant and weight list
-!         ! worse then worst case for single excitations are 2^|i-j| excitaitons
+!         ! worse then worst case for single excitations are 2^|i-j| excitations
 !         ! for a given CSF -> for now use that to allocate the arrays first 
 !         ! update only need the number of open orbitals between i and j, and 
 !         ! some additional room if 0/3 at start
@@ -16320,7 +16314,7 @@ contains
 !         gen = excitInfo%firstGen
 !         bVal = currentB_ilut(start)
 !         ! first have to allocate both arrays for the determinant and weight list
-!         ! worse then worst case for single excitations are 2^|i-j| excitaitons
+!         ! worse then worst case for single excitations are 2^|i-j| excitations
 !         ! for a given CSF -> for now use that to allocate the arrays first 
 !         ! update only need the number of open orbitals between i and j, and 
 !         ! some additional room if 0/3 at start
@@ -16792,6 +16786,16 @@ contains
 
         ! with the more involved excitation identification, i should write 
         ! really specific double excitation creators
+
+        ! maybe I should adapt this here also for other type of lattice 
+        ! models with restricted 2-body interaction..
+        if (t_mixed_hubbard) then 
+            select case(excitInfo%typ)
+            case(0,1,2,4,5)
+                allocate(excitations(0,0), stat = ierr)
+                return
+            end select
+        end if
 
         select case(excitInfo%typ)
         case(0)
@@ -17474,6 +17478,14 @@ contains
         ! set up weights
         start2 = excitInfo%secondStart
 
+        if (t_mixed_hubbard) then 
+            if (current_stepvector(start) == 3) then 
+                nExcits = 0
+                allocate(excitations(0,0), stat = ierr)
+                return
+            end if
+        end if
+
         ! create correct weights:
         weights = init_fullStartWeight(ilut, semi, ende, negSwitches(semi), &
             posSwitches(semi), currentB_ilut(semi))
@@ -17534,7 +17546,6 @@ contains
         character(*), parameter :: this_routine = "calcFullStartL2R"
 
         integer :: nMax, ierr, iOrb, start, ende, semi, gen
-!         integer(n_int) :: t(0:niftot)
         real(dp) :: tempWeight, minusWeight, plusWeight, zeroWeight
         type(weight_obj) :: weights
         integer(n_int), pointer :: tempExcits(:,:)
@@ -17557,6 +17568,14 @@ contains
         zeroWeight = weights%proc%zero(negSwitches(start), posSwitches(start), &
             currentB_ilut(start), weights%dat)
 
+        if (t_mixed_hubbard) then 
+            if (current_stepvector(start) == 3) then 
+                nExcits = 0
+                allocate(excitations(0,0), stat = ierr)
+                return
+            end if
+        end if
+
         ! check if first value is 3, so only 0 branch is compatible
         call mixedFullStart(ilut, excitInfo, plusWeight, minusWeight,zeroWeight, tempExcits,&
             nExcits)
@@ -17569,6 +17588,10 @@ contains
                 call doubleUpdate(ilut, iOrb, excitInfo, weights, tempExcits, nExcits, &
                     negSwitches, posSwitches)
             end do
+        end if
+
+        if (t_mixed_hubbard) then
+            ! TODO abort x0 branch..
         end if
 
         ! then deal with the specific semi-stop here
@@ -17693,7 +17716,7 @@ contains
                 ! three case -> branching possibilities according to b an weights
                 if (currentB_int(se) > 0 .and. plusWeight > 0.0_dp &
                     .and. minusWeight > 0.0_dp) then
-                    ! both excitaitons are possible then
+                    ! both excitations are possible then
                     do iEx = 1, nExcits
                         t = tempExcits(:,iEx)
 
@@ -17793,7 +17816,7 @@ contains
 
                 else if (minusWeight <EPS .and. currentB_int(se) == 0) then
                     ! in this case no excitaiton is possible due to b value todo
-                    call stop_all(this_routine, "implement cancelled excitaitons")
+                    call stop_all(this_routine, "implement cancelled excitations")
 
                 else 
                     ! shouldnt be here... 
@@ -18187,7 +18210,7 @@ contains
                 ! zero case -> branching possibilities according to b an weights
                 if (currentB_int(se) > 0 .and. plusWeight > 0.0_dp &
                     .and. minusWeight > 0.0_dp) then
-                    ! both excitaitons are possible then
+                    ! both excitations are possible then
                     do iEx = 1, nExcits
                         t = tempExcits(:,iEx)
 
@@ -18275,7 +18298,7 @@ contains
 
                 else if (minusWeight <EPS .and. currentB_int(se) == 0) then
                     ! in this case no excitaiton is possible due to b value todo
-                    call stop_all(this_routine, "implement cancelled excitaitons")
+                    call stop_all(this_routine, "implement cancelled excitations")
 
                 else 
                     ! shouldnt be here... 
@@ -18567,7 +18590,6 @@ contains
                 end if
 
             end select
-!             end if
         end if
         
     end subroutine calcLoweringSemiStop
@@ -18790,7 +18812,7 @@ contains
         gen = excitInfo%lastGen
         bVal = currentB_ilut(semi)
         ! first have to allocate both arrays for the determinant and weight list
-        ! worse then worst case for single excitations are 2^|i-j| excitaitons
+        ! worse then worst case for single excitations are 2^|i-j| excitations
         ! for a given CSF -> for now use that to allocate the arrays first 
         ! update only need the number of open orbitals between i and j, and 
         ! some additional room if 0/3 at start
@@ -18977,7 +18999,7 @@ contains
         gen = excitInfo%firstGen
         bVal = currentB_ilut(semi)
         ! first have to allocate both arrays for the determinant and weight list
-        ! worse then worst case for single excitations are 2^|i-j| excitaitons
+        ! worse then worst case for single excitations are 2^|i-j| excitations
         ! for a given CSF -> for now use that to allocate the arrays first 
         ! update only need the number of open orbitals between i and j, and 
         ! some additional room if 0/3 at start
@@ -19180,6 +19202,12 @@ contains
             ! is plus and minus weight zero then? i think so
             minusWeight = 0.0_dp
             plusWeight = 0.0_dp
+
+            if (t_mixed_hubbard) then
+                nExcits = 0
+                allocate(excitations(0,0), stat = ierr)
+                return
+            end if
         else 
             minusWeight = weights%proc%minus(negSwitches(se), currentB_ilut(se),weights%dat)
             plusWeight = weights%proc%plus(posSwitches(se), currentB_ilut(se),weights%dat)
@@ -19280,6 +19308,13 @@ contains
             minusWeight = 0.0_dp
             plusWeight = 0.0_dp
             zeroWeight = weights%proc%zero(0.0_dp, 0.0_dp, currentB_ilut(se), weights%dat)
+
+            if (t_mixed_hubbard) then 
+                allocate(excitations(0,0), stat = ierr)
+                nExcits = 0
+                return
+            end if
+                
         else
             minusWeight = weights%proc%minus(negSwitches(se), currentB_ilut(se),weights%dat)
             plusWeight = weights%proc%plus(posSwitches(se), currentB_ilut(se),weights%dat)
@@ -19443,6 +19478,12 @@ contains
         cnt = 1
         do iEx = 1, nExcits 
             if (abs(extract_matrix_element(tempExcits(:,iEx),1))<EPS) cycle
+
+            if (t_mixed_hubbard) then
+                ! for mixed hubbard (and maybe other lattice systems, 
+                ! i do not want single excitations here (i guess.)
+                if (abs(extract_matrix_element(tempExcits(:,iEx),1)) > EPS) cycle
+            end if
 
             tempExcits(:,cnt) = tempExcits(:,iEx)
 
@@ -20095,7 +20136,7 @@ contains
 ! 
 !                 else if ((minusWeight + plusWeight <EPS) .or. &
 !                     (minusWeight <EPS .and. currentB_ilut(sOrb) <= 1.0_dp)) then
-!                     ! only 0 exciations possible
+!                     ! only 0 excitation possible
 !                     do iEx = 1, nExcits
 !                         t = tempExcits(:,iEx)
 ! 
@@ -20777,7 +20818,7 @@ contains
 ! 
 !                 else if ((minusWeight + plusWeight <EPS) .or. &
 !                     (minusWeight <EPS .and. currentB_ilut(sOrb) <= 1.0_dp)) then
-!                     ! only 0 exciations possible
+!                     ! only 0 excitation possible
 !                     do iEx = 1, nExcits
 !                         t = tempExcits(:,iEx)
 ! 
@@ -21598,7 +21639,7 @@ contains
 
     subroutine calcNonOverlapDouble(ilut, excitInfo, excitations, nExcits, &
             posSwitches, negSwitches)
-        ! specific subroutine to calculate the non overlap double excitaitons
+        ! specific subroutine to calculate the non overlap double excitations
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(in) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
@@ -26922,7 +26963,7 @@ contains
                 ! created alongside the matrix element calculation
 
                 ! UPDATE: have to only choose excitations which cant be 
-                ! mimicked by single excitaitons -> and in this case 
+                ! mimicked by single excitations -> and in this case 
                 ! there are a lot which could do that...
                 ! for a mixed full-start or full stop i have to ensure
                 ! somehow that the deltaB=0 branch is not taken

@@ -524,8 +524,8 @@ contains
                                 mat_ele, rdm_ind, t_test_sym_fill)
 
                         else if (t_mimic_stochastic .and. RDMExcitLevel == 3) then
-                            call fill_sings_2rdm_guga(two_rdm_spawn, sign_i, sign_j, &
-                                mat_ele, rdm_ind, t_test_sym_fill)
+                            call fill_sings_2rdm_guga(two_rdm_spawn, ilutI, &
+                                ilutJ, sign_i, sign_j, mat_ele, rdm_ind)
 
                         end if
                     end if
