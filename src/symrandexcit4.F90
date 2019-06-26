@@ -8,7 +8,9 @@ module excit_gens_int_weighted
                           par_hole_pairs, AB_hole_pairs, iMaxLz, &
                           tGen_4ind_part_exact, tGen_4ind_lin_exact, &
                           tGen_4ind_unbound, t_iiaa, t_ratio, UMatEps, tGUGA, &
-                          tgen_guga_crude, tGen_guga_weighted, tgen_guga_mixed
+                          tgen_guga_crude, tGen_guga_weighted, tgen_guga_mixed, & 
+                          t_mixed_hubbard
+
     use CalcData, only: matele_cutoff, t_matele_cutoff
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcitDataMod, only: SymLabelList2, SymLabelCounts2, OrbClassCount, &
@@ -468,15 +470,17 @@ contains
             if (IsNotOcc(ilutI, orb)) then
                 hel = 0
                 id_tgt = gtID(orb)
-                do j = 1, nel
-                    if (nI(j) == src) cycle
-                    hel = hel + get_umat_el (id_src, n_id(j), id_tgt, &
-                                             n_id(j))
-                    if (is_beta(src) .eqv. is_beta(nI(j))) then
-                        hel = hel - get_umat_el (id_src, n_id(j), n_id(j),&
-                                                  id_tgt)
-                    end if
-                end do
+                if (.not. t_mixed_hubbard) then
+                    do j = 1, nel
+                        if (nI(j) == src) cycle
+                        hel = hel + get_umat_el (id_src, n_id(j), id_tgt, &
+                                                 n_id(j))
+                        if (is_beta(src) .eqv. is_beta(nI(j))) then
+                            hel = hel - get_umat_el (id_src, n_id(j), n_id(j),&
+                                                      id_tgt)
+                        end if
+                    end do
+                end if
                 hel = hel + GetTMATEl(src, orb)
                 cpt = abs_l1(hel)
 
@@ -545,19 +549,21 @@ contains
                 ! This is based on an extract from sltcnd_1. We can assume
                 ! tExch, and SymLabelList2 ensures the spins are equal
                 id = gtID(orb)
-                do j = 1, nel
-                    if (nI(j) == src) cycle
-                    if (tgen_guga_crude .or. tgen_guga_mixed) then 
-                        ! for guga we are not sure about the sign.. 
-                        hel = hel + abs(get_umat_el (id_src, n_id(j), id, n_id(j)))
-                        hel = hel + abs(get_umat_el (id_src, n_id(j), n_id(j), id))
-                    else
-                        hel = hel + get_umat_el (id_src, n_id(j), id, n_id(j))
-                        if (is_beta(src) .eqv. is_beta(nI(j))) then
-                            hel = hel - get_umat_el (id_src, n_id(j), n_id(j), id)
+                if (.not. t_mixed_hubbard) then
+                    do j = 1, nel
+                        if (nI(j) == src) cycle
+                        if (tgen_guga_crude .or. tgen_guga_mixed) then 
+                            ! for guga we are not sure about the sign.. 
+                            hel = hel + abs(get_umat_el (id_src, n_id(j), id, n_id(j)))
+                            hel = hel + abs(get_umat_el (id_src, n_id(j), n_id(j), id))
+                        else
+                            hel = hel + get_umat_el (id_src, n_id(j), id, n_id(j))
+                            if (is_beta(src) .eqv. is_beta(nI(j))) then
+                                hel = hel - get_umat_el (id_src, n_id(j), n_id(j), id)
+                            end if
                         end if
-                    end if
-                end do
+                    end do
+                end if
 
                 if (tgen_guga_crude .or. tgen_guga_mixed) then 
                     hel = hel + abs(GetTMATEl(src, orb))
@@ -579,17 +585,6 @@ contains
             cumulative_arr(i) = cum_sum
 
         end do
-
-        !  for testing purposes:
-!         if (cum_sum < UMatEps) then
-!             print *, "===================================="
-!             print *, "single excitation: "
-!             print *, "norb: ", norb
-!             print *, "cum_sum: ", cum_sum
-!             print *, " cumulative_arr: ", cumulative_arr
-!             print *, "nI: ", nI
-!             print *, "src: ", src
-!         end if
 
         ! Select a particular orbital to use, or abort.
         ! ok i really think we have to be consistent with this matrix element
@@ -923,36 +918,16 @@ contains
         else
             ! Include the contribution of this term sqrt(<ia|ia>)
             inda = gtID(orba)
-!
-!             if (t_iiaa .and. t_ratio) then
-!                 ! ok.. maybe i have to talk to ali about that, what he
-!                 ! meant with this splitting of p(a|ij) = p(j)*p(a|i)
-!                 ! because i am not sure about that ..
-!                 ! althoug i should be carefull if we do not divide by
-!                 ! 0 here..
-!                 ! NOTE: by testing it was seen that the ratio approach causes the
-!                 ! pgens to be much too low and thus the H_ij/pgen ratios to
-!                 ! explode
-!
-!                 contrib = sqrt(abs(get_umat_el(indi, inda, indi, inda) / &
-!                            max(abs(get_umat_el(indj, inda, indj, inda)), 0.0001_dp))) &
-!                         + sqrt(abs(get_umat_el(indj, inda, indi, inda) / &
-!                            max(abs(get_umat_el(indi, inda, indj, inda)), 0.0001_dp)))
 
-            if (t_iiaa) then
+            if (t_mixed_hubbard) then
+                ! just to be save do it uniformly here..
+                contrib = 1.0_dp
 
+            else if (t_iiaa) then 
+                
                 contrib = sqrt(abs(get_umat_el(indi, inda, indi, inda)))
 
-!             else if (t_ratio) then
-!                 ! also here i have to check if i actually should take care
-!                 ! of the indj influence..
-!
-!                 contrib = sqrt(abs(UMat2D(max(indi, inda), min(indi, inda))) / &
-!                            max(abs(UMat2D(max(indj, inda), min(indj, inda))), 0.0001_dp)) &
-!                         + sqrt(abs(UMat2D(max(indj, inda), min(indj, inda))) / &
-!                            max(abs(UMat2D(max(indi, inda), min(indi, inda))), 0.0001_dp))
-
-            else
+            else 
 
                 contrib = sqrt(abs_l1(UMat2D(max(indi, inda), min(indi, inda))))
 
@@ -1198,20 +1173,6 @@ contains
 
             end if
         end if
-
-!         if (cum_sum < 1.0e-4_dp) then
-!             print *, "========================================"
-!             if (t_par) then
-!                 print *, "parallel double excitation: "
-!             else
-!                 print *, "opposite double excitation: "
-!             end if
-!             print *, "norb: ", norb
-!             print *, "cum_sum: ", cum_sum
-!             print *, "cumulative_arr: ", cumulative_arr
-!             print *, "(i,j): ", src
-!             print *, "(a): ", orb_pair
-!         end if
 
         ! Binary search within this list to choose a value.
         r = genrand_real2_dSFMT() * cum_sum

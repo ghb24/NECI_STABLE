@@ -2,6 +2,7 @@
 
 module excit_gen_5
 
+    use SystemData, only: t_mixed_hubbard, nOccAlpha, nOccBeta, AB_elec_pairs
     use excit_gens_int_weighted, only: gen_single_4ind_ex, pgen_single_4ind, &
                                        get_paired_cc_ind, select_orb, &
                                        opp_spin_pair_contrib, &
@@ -10,7 +11,8 @@ module excit_gen_5
                                        pick_weighted_elecs, select_orb, &
                                        pgen_select_orb, pgen_weighted_elecs
     use SymExcitDataMod, only: SpinOrbSymLabel, SymInvLabel, ScratchSize
-    use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, projedet
+    use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, projedet, &
+                         pParallel
     use SystemData, only: G1, tUHF, tStoreSpinOrbs, nbasis, nel, &
                           tGen_4ind_part_exact, tGen_4ind_2_symmetric, tHPHF, &
                           tGen_guga_crude
@@ -197,7 +199,11 @@ contains
             end if
 
             ! Select a pair of electrons in a weighted fashion
-            pgen = pgen * pgen_weighted_elecs(nI, src)
+            if (t_mixed_hubbard) then 
+                pgen = pgen * (1.0_dp - pParallel) / AB_elec_pairs
+            else
+                pgen = pgen * pgen_weighted_elecs(nI, src)
+            end if
 
             ! Obtain the probability components of picking the electrons in
             ! either A--B or B--A order.
@@ -266,6 +272,7 @@ contains
 
         use GenRandSymExcitNUMod, only: RandExcitSymLabelProd
         use SymExcitDataMod, only: SpinOrbSymLabel
+        use lattice_models_utils, only: pick_spin_opp_elecs
 
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
@@ -289,8 +296,12 @@ contains
         integer :: loc
 
         ! Pick the electrons in a weighted fashion
-        call pick_weighted_elecs(nI, elecs, src, sym_product, ispn, sum_ml, &
+        if (t_mixed_hubbard) then
+            call pick_biased_elecs(nI, elecs, src, sym_product, ispn, sum_ml, pgen)
+        else
+            call pick_weighted_elecs(nI, elecs, src, sym_product, ispn, sum_ml, &
                                  pgen)
+         end if
 
         ! then first pick (a) orbital: 
         ! for opposite spin excitations (a) is restricted to be a beta orbital! 
@@ -436,10 +447,6 @@ contains
             cum_arr(orb) = cum_sum
         end do
 
-!         if (srcid(1) == 2 .and. srcid(2) == 3 .and. parallel) then
-!             print *, "cum_sum(a|ij): ", cum_arr
-!         end if
-
     end subroutine
 
     function pick_a_orb(ilut, src, ispn, cpt, cum_sum, cum_arr) result(orb)
@@ -468,7 +475,6 @@ contains
         call gen_a_orb_cum_list(ilut, src, ispn, cum_arr)
         cum_sum = cum_arr(nbasis)
         ! ok this equivalence is also not good.. 
-!         if (cum_sum == 0) then
         if (cum_sum < EPS) then 
             orb = 0
             return

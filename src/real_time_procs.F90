@@ -270,10 +270,10 @@ contains
 
                   if (tHPHF) then 
                       call AddNewHashDet(TotWalkersNew, DiagParts(:,i), DetHash, &
-                          nJ, hphf_diag_helement(nJ,DiagParts(:,i)), temp_ind)
+                          nJ, real(hphf_diag_helement(nJ,DiagParts(:,i)),dp), temp_ind)
                   else
                       call AddNewHashDet(TotWalkersNew, DiagParts(:,i), DetHash, &
-                          nJ, get_helement(nJ,nJ,0), temp_ind)
+                          nJ, real(get_helement(nJ,nJ,0),dp), temp_ind)
                   end if
 
                end if

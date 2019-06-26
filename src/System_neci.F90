@@ -502,6 +502,11 @@ system: do
                 end select
             end if
 
+        case ("MIXED-HUBBARD")
+            t_mixed_hubbard = .true.
+            tNoBrillouin=.true.
+            tBrillouinsDefault=.false.
+
         case("SYM")
             TPARITY = .true.
             do I = 1,4

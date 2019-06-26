@@ -21,7 +21,7 @@ module semi_stoch_procs
 
     use sparse_arrays, only: sparse_core_ham
 
-    use SystemData, only: nel, t_non_hermitian, tHPHF, tGUGA
+    use SystemData, only: nel, t_non_hermitian, tHPHF, tGUGA, g1
 
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
 
@@ -29,7 +29,9 @@ module semi_stoch_procs
 
     use timing_neci
 
+#if !defined(__CMPLX)
     use unit_test_helpers, only: eig
+#endif
 
     use bit_reps, only: encode_sign
 
@@ -55,6 +57,7 @@ module semi_stoch_procs
 
     use adi_data, only: tSignedRepAv
     use global_det_data, only: set_tot_acc_spawns
+    use LoggingData, only: t_print_core_info
 
     implicit none
 
@@ -1055,8 +1058,9 @@ contains
             root_print "Using the deterministic ground state as initial walker configuration."
         end if
 
-!         if (t_non_hermitian) then
             root_print "Performing full diagonalisation..."
+#if !defined(__CMPLX)
+!         if (t_non_hermitian) then
             call diagonalize_core_non_hermitian(e_values, e_vectors)
 
 !         if_root
@@ -1068,18 +1072,9 @@ contains
                 root_print " ground-state energy: ", e_values(1)
                 gs_vector = e_vectors(:,1)
             end if
-!         end_if_root
-
-!         else
-! 
-!             if (tPrintInfo) then
-!                 write(6,'(a34)') "Performing Davidson calculation..."
-!                 call neci_flush(6)
-!             end if
-! 
-!             call diagonalize_core(gs_energy, gs_vector)
-! 
-!         end if
+#else
+            call diagonalize_core(gs_energy, gs_vector)
+#endif
 
         if (iProcIndex == root) then
             eigenvec_pop = 0.0_dp
@@ -1166,48 +1161,76 @@ contains
 
     end subroutine create_sparse_ham_from_core
 
-
+#if !defined(__CMPLX)
     subroutine diagonalize_core_non_hermitian(e_values, e_vectors)
+
+        use procedure_pointers, only: get_umat_el
+
         real(dp), allocatable, intent(out) :: e_values(:), e_vectors(:,:)
         HElement_t(dp), allocatable :: full_H(:,:)
+        
+        integer :: ni(nel), i, ex(2,2), nJ(nel)
+        logical :: tsign
+
 
         ! if the Hamiltonian is non-hermitian we cannot use the 
         ! standard Lanzcos or Davidson routines. so:
         ! build the full Hamiltonian
-!         if (iProcIndex == root) then
-            call calc_determin_hamil_full(full_H)
+        call calc_determin_hamil_full(full_H)
+
+        if (t_print_core_info) then
+            root_print "semistochastic basis:"
+            if_root
+                do i = 1, determ_space_size
+                    call decode_bit_det(nI, core_space(:,i))
+                    print *, nI
+                end do
+                ex(1,1) = 2
+                call GetBitExcitation (core_space(:,1), core_space(:,5), ex, tSign)
+                print *, "ex(1,1), ex(1,2), ex(2,1), ex(2,2)", ex(1,1), ex(1,2), ex(2,1), ex(2,2)
+                print *, "sign:", tsign
+                print *, "ex(1,1)ms, ex(1,2)%ms", G1(ex(1,1))%ms, G1(ex(1,2))%ms
+                call decode_bit_det(nI, core_space(:,1))
+                call decode_bit_det(nJ, core_space(:,5))
+
+!                 print *, "mat_ele: ", get_helement(nI, nJ, core_space(:,1), core_space(:,5))
+                print *, "U(1,2,3,4)", get_umat_el(1,2,3,4)
+                print *, "U(1,2,4,3)", get_umat_el(1,2,4,3)
+
+            end_if_root
 
             root_print "deterministic hamiltonian:"
             if_root
                 call print_matrix(full_H)
             end_if_root
+        end if
 
-            allocate(e_values(size(full_H,1)))
-            allocate(e_vectors(size(full_H,1),size(full_H,1)))
-            e_values = 0.0_dp
-            e_vectors = 0.0_dp
+        allocate(e_values(size(full_H,1)))
+        allocate(e_vectors(size(full_H,1),size(full_H,1)))
+        e_values = 0.0_dp
+        e_vectors = 0.0_dp
 
-            call eig(full_H, e_values, e_vectors)
+        call eig(full_H, e_values, e_vectors)
 
-            ! maybe we also want to start from a different eigenvector in 
-            ! this case? this would be practial for the hubbard problem case..
-            root_print "Full diagonalisation for non-hermitian Hamiltonian completed!"
-!         end if
+        ! maybe we also want to start from a different eigenvector in 
+        ! this case? this would be practial for the hubbard problem case..
+        root_print "Full diagonalisation for non-hermitian Hamiltonian completed!"
 
     end subroutine diagonalize_core_non_hermitian
+#endif
 
     subroutine calc_determin_hamil_full(hamil)
+        use guga_data, only: excitationInformation
+        use guga_excitations, only: calc_guga_matrix_element
+
         HElement_t(dp), allocatable, intent(out) :: hamil(:,:)
         integer :: i, j, nI(nel), nJ(nel)
+        type(excitationInformation) :: excitInfo
 
         allocate(hamil(determ_space_size,determ_space_size))
 
         hamil = h_cast(0.0_dp)
 
-        if (tGUGA) then 
-            call stop_all("calc_determin_hamil_full", &
-                "modify get_helement for GUGA")
-        end if
         do i = 1, determ_space_size
             call decode_bit_det(nI, core_space(:,i))
 
@@ -1226,7 +1249,10 @@ contains
                 if (tHPHF) then
                     hamil(i,j) = hphf_off_diag_helement(nI, nJ, &
                         core_space(:,i), core_space(:,j))
-                else
+                else if (tGUGA) then 
+                    call calc_guga_matrix_element(core_space(:,i), core_space(:,j), &
+                        excitInfo, hamil(i,j), .true., 2)
+                else 
                     hamil(i,j) = get_helement(nI, nJ, core_space(:,i), core_space(:,j))
                 end if
 

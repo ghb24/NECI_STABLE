@@ -264,20 +264,9 @@ contains
             G1(2*i-1)%Sym = SymLabels(i)
             G1(2*i)%Sym = SymLabels(i)
 
-!             k_i = lat%get_k_vec(i) 
-! 
-!             k_inv = lat%map_k_vec(-k_i)
-! 
-!             print *, "i, k_i, k_inv: ", i, k_i, k_inv
-! 
-!             j = lat%get_orb_from_k_vec(k_inv)
-! 
-!             print *, j
             ! find the orbital of -k 
             j = lat%get_orb_from_k_vec(-lat%get_k_vec(i))
 
-!             print *, "i, k(i): ", i, lat%get_k_vec(i)
-!             print *, "j, k(j): ", j, lat%get_k_vec(j)
 
             ! since i have a linear encoding of the symmetries i do not need 
             ! to use SymClasses here.. 
@@ -385,20 +374,12 @@ contains
         ! i could set this on the site level! 
         if (SymTable(lat%get_sym(i),lat%get_sym(j))%S == & 
             SymTable(lat%get_sym(k),lat%get_sym(l))%S) then 
-!         if (SymTable(G1(2*i)%sym%s,G1(2*j)%sym%s)%S ==  & 
-!             SymTable(G1(2*k)%sym%s,G1(2*l)%sym%s)%S) then 
             hel = Umat(1)
         else 
             hel = 0.0_dp
         end if
         
         ! old implo: 
-!         if (all(lat%map_k_vec(lat%get_k_vec(i)+lat%get_k_vec(j)) == & 
-!                 lat%map_k_vec(lat%get_k_vec(k)+lat%get_k_vec(l)))) then 
-!             hel = UMat(1) 
-!         else
-!             hel = 0.0_dp
-!         end if
 
     end function get_umat_kspace
 
@@ -2699,8 +2680,6 @@ contains
 
         ij = get_spatial(src)
         ab = get_spatial(tgt)
-!         ij = gtid(src)
-!         ab = gtid(tgt) 
         ! that about the spin?? must spin(a) be equal spin(i) and same for 
         ! b and j? does this have an effect on the sign of the matrix element? 
 
@@ -2724,9 +2703,6 @@ contains
         if (t_trans_corr) then 
             ! do something 
             ! here the one-body term with out (-t) is necessary
-!             hel = hel * exp(trans_corr_param/2.0_dp * & 
-!                 (epsilon_kvec(G1(src(1))%k) + epsilon_kvec(G1(src(2))%k) & 
-!                 - epsilon_kvec(G1(tgt(1))%k) - epsilon_kvec(G1(tgt(2))%k)))
 
             ! optimized version: 
             hel = hel * exp(trans_corr_param/2.0_dp * & 
@@ -2760,8 +2736,6 @@ contains
                 ! with one of the orbital spins. 
                 ! i think it doesnt matter, which one. 
                 ! although for the sign it maybe does.. check thate
-!                 hel = same_spin_transcorr_factor(nI, G1(ex(1,1))%k - G1(ex(2,1))%k, spin) &
-!                     - same_spin_transcorr_factor(nI, G1(ex(1,2))%k - G1(ex(2,1))%k, spin)
                 ! TODO: i am not sure about the sign here... 
                 ! with a + i get nice symmetric results.. but i am really
                 ! not sure damn.. ask ALI!
@@ -2772,31 +2746,14 @@ contains
                 src = [minval(src),maxval(src)]
                 tgt = [minval(tgt),maxval(tgt)]
 
-!                 k_vec_a = lat%subtract_k_vec(G1(src(1))%k, G1(tgt(1))%k)
-!                 k_vec_b = lat%subtract_k_vec(G1(src(1))%k, G1(tgt(2))%k)
 
                 k_sym_a = SymTable(G1(src(1))%sym%s, SymConjTab(G1(tgt(1))%sym%s))
                 k_sym_b = SymTable(G1(src(1))%sym%s, SymConjTab(G1(tgt(2))%sym%s))
-                ! old:
-!                 k_vec_a = G1(src(1))%k - G1(tgt(1))%k 
-!                 k_vec_b = (G1(src(1))%k - G1(tgt(2))%k)
-! 
-!                 call mompbcsym(k_vec_a, nBasisMax)
-!                 call mompbcsym(k_vec_b, nBasisMax)
-!                 call mompbcsym(k_vec_c, nBasisMax)
-!                 call mompbcsym(k_vec_d, nBasisMax)
-!                 print *, "ka: ", k_vec_a(1)
-!                 print *, "kb: ", k_vec_b(1)
-!                 print *, "kc: ", k_vec_c(1)
-!                 print *, "kd: ", k_vec_d(1)
 
-                ! fuck.. i am really not sure how to deal with that.. 
                 ! yes this is it below! i just have to be sure that src and 
                 ! tgt are ordered.. we need a convention for these matrix 
                 ! elements!
                 spin = get_spin_pn(src(1))
-!                 hel = (same_spin_transcorr_factor(nI, k_vec_a, spin) & 
-!                     - same_spin_transcorr_factor(nI, k_vec_b, spin))
 
                 hel = (same_spin_transcorr_factor(nI, k_sym_a, spin) & 
                     - same_spin_transcorr_factor(nI, k_sym_b, spin))! &
@@ -2838,13 +2795,10 @@ contains
                     sgn = -1.0_dp
                 end if
 
-!                 print *, "sgn hel:", sgn
 
                 hel = hel + sgn*(two_body_transcorr_factor(G1(src(1))%sym, k_sym_c) & 
                           + two_body_transcorr_factor(G1(src(2))%sym, k_sym_d))
 
-!                 print *, "two-body hel: ", sgn*(two_body_transcorr_factor(G1(src(1))%sym, k_sym_c) & 
-!                           + two_body_transcorr_factor(G1(src(2))%sym, k_sym_d))
 
                 ! and now the 3-body contribution: 
                 ! which also needs the third involved mometum, which then 
@@ -2863,16 +2817,11 @@ contains
                           + three_body_transcorr_fac(nI, G1(src(2))%sym, & 
                                 G1(src(1))%sym, k_sym_d, get_spin_pn(src(2))))
 
-!                 print *, "3-body hel:", sgn*(three_body_transcorr_fac(nI, G1(src(1))%sym, & 
-!                                 G1(src(2))%sym, k_sym_c, get_spin_pn(src(1))) & 
-!                           + three_body_transcorr_fac(nI, G1(src(2))%sym, & 
-!                                 G1(src(1))%sym, k_sym_d, get_spin_pn(src(2))))
             end if
         end if
 
         if (tpar) hel = -hel 
 
-!         if (abs(hel - 1.0_dp/3.0_dp) > 1e-8) print *, "hel: ", hel
 
     end function get_offdiag_helement_k_sp_hub
 

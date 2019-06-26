@@ -23,6 +23,8 @@ MODULE Determinants
 
 #ifndef __CMPLX
     use guga_matrixElements, only: calcDiagMatEleGUGA_nI
+!     use guga_excitations, only: calc_guga_matrix_element
+    use guga_data, only: excitationInformation
 #endif
 
     use lattice_mod, only: get_helement_lattice
@@ -394,6 +396,8 @@ contains
         character(*), parameter :: this_routine = 'get_helement_compat'
 
         integer :: temp_ic
+        type(excitationInformation) :: excitInfo
+        integer(n_int) :: t_i(0:NIfTot), t_j(0:NIfTot)
 
         if (tHPHFInts) &
             call stop_all (this_routine, "Should not be calling HPHF &
@@ -402,22 +406,21 @@ contains
         ! GUGA implementation: 
 #ifndef __CMPLX
         if (tGUGA) then
-            if (.not.all(nI == nJ)) then
-                call stop_all(this_routine,&
-                    "get_helement in GUGA should only be called for diagonal elements!")
-            end if
-            hel = calcDiagMatEleGUGA_nI(nI)
+            if (present(ilutI) .and. present(ilutJ)) then 
+!                 call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, hel, &
+!                     .true., 2)
+
+            else
+                call EncodeBitDet(nI, t_i)
+                call EncodeBitDet(nJ, t_J)
+!                 call calc_guga_matrix_element(t_i, t_j, excitInfo, hel, &
+!                     .true., 2)
+            endif
+            
             return
         end if
 #endif
 
-        if (tCSF) then
-            if (iscsf(nI) .or. iscsf(nJ)) then
-                hel = CSFGetHelement (nI, nJ)
-                return
-            endif
-        endif
-        
         if (t_lattice_model) then 
             temp_ic = ic 
             hel = get_helement_lattice(nI, nJ, temp_ic) 
@@ -459,20 +462,29 @@ contains
         character(*), parameter :: this_routine = 'get_helement_normal'
         integer :: ex(2,2), IC
         integer(kind=n_int) :: ilut(0:NIfTot,2)
+        integer(n_int) :: t_i(0:niftot), t_j(0:niftot)
+        type(excitationInformation) :: excitInfo
 
         if (tHPHFInts) &
             call stop_all (this_routine, "Should not be calling HPHF &
                           &integrals from here.")
 
-#ifndef __CMPLX
         ! GUGA implementation: 
+#ifndef __CMPLX
         if (tGUGA) then
-            hel = calcDiagMatEleGUGA_nI(nI)
-            ! make a check, that this is only called for diagonal elements.. 
-            if (.not.all(nI == nJ)) then
-                call stop_all(this_routine,&
-                    "get_helement in GUGA should only be called for diagonal elements!")
-            end if
+            if (present(ilutI) .and. present(ilutJ)) then 
+!                 call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, hel, &
+!                     .true., 2)
+
+            else
+                call EncodeBitDet(nI, t_i)
+                call EncodeBitDet(nJ, t_J)
+!                 call calc_guga_matrix_element(t_i, t_j, excitInfo, hel, &
+!                     .true., 2)
+            endif
+
+            if (present(ICret)) ICret = excitInfo%excitLvl
+            
             return
         end if
 #endif
@@ -549,6 +561,7 @@ contains
         HElement_t(dp) :: hel
 
         character(*), parameter :: this_routine = 'get_helement_excit'
+        integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
 
         ! intermediately put the special call to the hubbard matrix elements 
         ! here. Although I want to change that in the whole code to have 
@@ -561,18 +574,18 @@ contains
             return 
         end if
 
-! #ifndef __CMPLX
-!         ! GUGA implementation: 
-!         if (tGUGA) then
-!             hel = calcDiagMatEleGUGA_nI(nI)
-!             ! make a check, that this is only called for diagonal elements.. 
-!             if (.not.all(nI == nJ)) then
-!                 call stop_all(this_routine,&
-!                     "get_helement in GUGA should only be called for diagonal elements!")
-!             end if
-!             return
-!         end if
-! #endif
+#ifndef __CMPLX
+        ! GUGA implementation: 
+        if (tGUGA) then
+            call EncodeBitDet(nI, ilutI)
+            call EncodeBitDet(nJ, ilutJ)
+
+!             call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, hel, &
+!                 .true., 2)
+
+            return
+        end if
+#endif
 
 
         ! If we are using CSFs, then call the csf routine.
@@ -622,21 +635,19 @@ contains
 
         ! Eliminate compiler warnings
         integer(n_int) :: iUnused; integer :: iUnused2; HElement_t(dp) :: hUnused
-	character(*), parameter :: this_routine = "get_helement_det_only"
+        character(*), parameter :: this_routine = "get_helement_det_only"
         iUnused=iLutJ(1); iUnused=iLutI(1); iUnused2=nJ(1); hUnused = helgen
 
-#ifndef __CMPLX
         ! GUGA implementation: 
+#ifndef __CMPLX
         if (tGUGA) then
-            hel = calcDiagMatEleGUGA_nI(nI)
-            ! make a check, that this is only called for diagonal elements.. 
-            if (.not.all(nI == nJ)) then
-                call stop_all("get_helement_det_only",&
-                    "get_helement in GUGA should only be called for diagonal elements!")
-            end if
+!             call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, hel, &
+!                 .true., 2)
+
             return
         end if
 #endif
+
 
         ! switch to lattice matrix element:
         if (t_lattice_model) then 

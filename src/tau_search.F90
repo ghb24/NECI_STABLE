@@ -8,7 +8,8 @@ module tau_search
                           nOccAlpha, nOccBeta, tUEG, tGen_4ind_2, tReltvy, & 
                           t_3_body_excits, t_k_space_hubbard, t_trans_corr_2body, &
                           t_uniform_excits, t_new_real_space_hubbard, & 
-                          t_trans_corr, tHub, t_trans_corr_hop, umateps, tGUGA
+                          t_trans_corr, tHub, t_trans_corr_hop, umateps, tGUGA, &
+                          t_mixed_hubbard
 
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow, t_min_tau, min_tau_global, &
@@ -201,6 +202,10 @@ contains
             enough_par = .true.
             call stop_all(this_routine, & 
                 "do we really need a tau-search for 2 electrons?")
+        end if
+
+        if (t_mixed_hubbard) then 
+            pParallel = 0.0_dp
         end if
 
         prob_min_thresh = 1e-8_dp
