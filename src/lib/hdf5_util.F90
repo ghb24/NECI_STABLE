@@ -65,17 +65,18 @@ contains
         character(*), intent(in) :: nm
         integer(int32), intent(in) :: val
 
-        integer(hid_t) :: dataspace, attribute, err
+        integer(hid_t) :: dataspace, attribute
+        integer :: err
 
         ! Create a scalar dataspace
         call h5screate_f(H5S_SCALAR_F, dataspace, err)
 
         ! Create the attribute with the correct type
-        call h5acreate_f(parent, nm, H5T_NATIVE_INTEGER_4, dataspace, &
+        call h5acreate_f(parent, nm, H5T_NATIVE_INTEGER, dataspace, &
                          attribute, err)
 
         ! Write the data
-        call h5awrite_f(attribute, H5T_NATIVE_INTEGER_4, val, [1_hsize_t], err)
+        call h5awrite_f(attribute, H5T_NATIVE_INTEGER, val, [1_hsize_t], err)
 
         ! Close the residual handles
         call h5aclose_f(attribute, err)
@@ -89,14 +90,15 @@ contains
         character(*), intent(in) :: nm
         integer(int64), intent(in) :: val
 
-        integer(hid_t) :: dataspace, attribute, err
+        integer(hid_t) :: dataspace, attribute
+        integer :: err
         integer(int32), pointer :: ptr
 
         call h5screate_f(H5S_SCALAR_F, dataspace, err)
-        call h5acreate_f(parent, nm, H5T_NATIVE_INTEGER_8, dataspace, &
+        call h5acreate_f(parent, nm, H5T_NATIVE_INTEGER, dataspace, &
                          attribute, err)
         call ptr_abuse_scalar(val, ptr)
-        call h5awrite_f(attribute, H5T_NATIVE_INTEGER_8, ptr, [1_hsize_t], err)
+        call h5awrite_f(attribute, H5T_NATIVE_INTEGER, ptr, [1_hsize_t], err)
         call h5aclose_f(attribute, err)
         call h5sclose_f(dataspace, err)
 
@@ -115,15 +117,16 @@ contains
         integer(int64), intent(in), optional :: default
         character(*), parameter :: t_r = 'read_int64_attribute'
 
-        integer(hid_t) :: attribute, err
-        logical(hid_t) :: exists_
+        integer(hid_t) :: attribute
+        integer :: err
+        logical :: exists_
         integer(int32), pointer :: ptr
 
         call h5aexists_f(parent, nm, exists_, err)
         if (exists_) then
             call h5aopen_f(parent, nm, attribute, err)
             call ptr_abuse_scalar(val, ptr)
-            call h5aread_f(attribute, H5T_NATIVE_INTEGER_8, ptr, &
+            call h5aread_f(attribute, H5T_NATIVE_INTEGER, ptr, &
                            [1_hsize_t], err)
             call h5aclose_f(attribute, err)
         end if
@@ -145,7 +148,8 @@ contains
         character(*), intent(in) :: nm
         character(*), intent(in) :: val
 
-        integer(hid_t) :: dataspace, attribute, type_id, err
+        integer(hid_t) :: dataspace, attribute, type_id
+        integer :: err
 
         ! Create an HDF type associated with a fortran string of _exactly_
         ! this length
@@ -168,14 +172,15 @@ contains
         character(*), intent(in) :: nm
         real(dp), intent(in) :: val(:)
 
-        integer(hid_t) :: dataspace, attribute, err
+        integer(hid_t) :: dataspace, attribute
+        integer :: err
         integer(hsize_t) :: dims(1)
 
         dims = [size(val)]
-        call h5screate_simple_f(1_hid_t, dims, dataspace, err)
-        call h5acreate_f(parent, nm, H5T_NATIVE_REAL_8, dataspace, attribute, &
+        call h5screate_simple_f(1, dims, dataspace, err)
+        call h5acreate_f(parent, nm, H5T_NATIVE_DOUBLE, dataspace, attribute, &
                          err)
-        call h5awrite_f(attribute, H5T_NATIVE_REAL_8, val, dims, err)
+        call h5awrite_f(attribute, H5T_NATIVE_DOUBLE, val, dims, err)
         call h5aclose_f(attribute, err)
         call h5sclose_f(dataspace, err)
 
@@ -193,16 +198,17 @@ contains
         real(dp), intent(in), optional :: default
         character(*), parameter :: t_r = 'read_dp_1d_attribute'
 
-        integer(hid_t) :: attribute, err
+        integer(hid_t) :: attribute
+        integer :: err
         integer(hsize_t) :: dims(1)
-        logical(hid_t) :: exists_
+        logical :: exists_
 
         call h5aexists_f(parent, nm, exists_, err)
         if (exists_) then
             call h5aopen_f(parent, nm, attribute, err)
             dims = [size(val)]
             call check_attribute_params(attribute, nm, 8_hsize_t, H5T_FLOAT_F, dims)
-            call h5aread_f(attribute, H5T_NATIVE_REAL_8, val, dims, err)
+            call h5aread_f(attribute, H5T_NATIVE_DOUBLE, val, dims, err)
             call h5aclose_f(attribute, err)
         end if
 
@@ -223,13 +229,14 @@ contains
         character(*), intent(in) :: nm
         real(dp), intent(in) :: val
 
-        integer(hid_t) :: dataspace, dataset, err
+        integer(hid_t) :: dataspace, dataset
+        integer :: err
 
         ! Create a scalar dataspace, and dataset. Then write to it.
         call h5screate_f(H5S_SCALAR_F, dataspace, err)
-        call h5dcreate_f(parent, nm, H5T_NATIVE_REAL_8, dataspace, &
+        call h5dcreate_f(parent, nm, H5T_NATIVE_DOUBLE, dataspace, &
                          dataset, err)
-        if(iProcIndex.eq.0) call h5dwrite_f(dataset, H5T_NATIVE_REAL_8, val, [1_hsize_t], err)
+        if(iProcIndex.eq.0) call h5dwrite_f(dataset, H5T_NATIVE_DOUBLE, val, [1_hsize_t], err)
         call h5dclose_f(dataset, err)
         call h5sclose_f(dataspace, err)
 
@@ -245,14 +252,15 @@ contains
         real(dp), intent(in), optional :: default
         character(*), parameter :: t_r = 'read_dp_scalar'
 
-        integer(hid_t) :: dataset, err
-        logical(hid_t) :: exists_
+        integer(hid_t) :: dataset
+        integer :: err
+        logical :: exists_
 
         ! Test if the relevant key exists
         call h5lexists_f(parent, nm, exists_, err)
         if (exists_) then
             call h5dopen_f(parent, nm, dataset, err)
-            call h5dread_f(dataset, H5T_NATIVE_REAL_8, val, [1_hsize_t], err)
+            call h5dread_f(dataset, H5T_NATIVE_DOUBLE, val, [1_hsize_t], err)
             if (err /= 0) &
                 call stop_all(t_r, 'Read error')
             call h5dclose_f(dataset, err)
@@ -277,7 +285,8 @@ contains
         character(*), intent(in) :: nm
         logical(int32), intent(in) :: val
 
-        integer(hid_t) :: dataspace, dataset, err
+        integer(hid_t) :: dataspace, dataset
+        integer :: err
         integer(int32) :: tmp
 
         ! Store this as an integral value!
@@ -289,9 +298,9 @@ contains
 
         ! Create a scalar dataspace, and dataset. Then write to it.
         call h5screate_f(H5S_SCALAR_F, dataspace, err)
-        call h5dcreate_f(parent, nm, H5T_NATIVE_INTEGER_4, dataspace, &
+        call h5dcreate_f(parent, nm, H5T_NATIVE_INTEGER, dataspace, &
                          dataset, err)
-        if(iProcIndex.eq.0) call h5dwrite_f(dataset, H5T_NATIVE_INTEGER_4, tmp, [1_hsize_t], err)
+        if(iProcIndex.eq.0) call h5dwrite_f(dataset, H5T_NATIVE_INTEGER, tmp, [1_hsize_t], err)
         call h5dclose_f(dataset, err)
         call h5sclose_f(dataspace, err)
 
@@ -321,15 +330,16 @@ contains
         logical(int32), intent(in), optional :: default
         character(*), parameter :: t_r = 'read_log_scalar_4'
 
-        integer(hid_t) :: dataset, err
-        logical(hid_t) :: exists_
+        integer(hid_t) :: dataset
+        integer :: err
+        logical :: exists_
         integer(int32) :: tmp
 
         ! Test if the relevant key exists
         call h5lexists_f(parent, nm, exists_, err)
         if (exists_) then
             call h5dopen_f(parent, nm, dataset, err)
-            call h5dread_f(dataset, H5T_NATIVE_INTEGER_4, tmp, [1_hsize_t], err)
+            call h5dread_f(dataset, H5T_NATIVE_INTEGER, tmp, [1_hsize_t], err)
             if (err /= 0) &
                 call stop_all(t_r, 'Read error')
             if (tmp == 0) then
@@ -381,15 +391,16 @@ contains
         character(*), intent(in) :: nm
         integer(int64), intent(in) :: val
 
-        integer(hid_t) :: dataspace, dataset, err
+        integer(hid_t) :: dataspace, dataset
+        integer :: err
         integer(int32), pointer :: ptr
 
         ! Create a scalar dataspace, and dataset. Then write to it.
         call h5screate_f(H5S_SCALAR_F, dataspace, err)
-        call h5dcreate_f(parent, nm, H5T_NATIVE_INTEGER_8, dataspace, &
+        call h5dcreate_f(parent, nm, H5T_NATIVE_INTEGER, dataspace, &
                          dataset, err)
         call ptr_abuse_scalar(val, ptr)
-        if(iProcIndex.eq.0) call h5dwrite_f(dataset, H5T_NATIVE_INTEGER_8, ptr, [1_hsize_t], err)
+        if(iProcIndex.eq.0) call h5dwrite_f(dataset, H5T_NATIVE_INTEGER, ptr, [1_hsize_t], err)
         call h5dclose_f(dataset, err)
         call h5sclose_f(dataspace, err)
 
@@ -415,8 +426,9 @@ contains
         integer(int64), intent(in), optional :: default
         character(*), parameter :: t_r = 'read_int64_scalar'
 
-        integer(hid_t) :: dataset, err
-        logical(hid_t) :: exists_
+        integer(hid_t) :: dataset
+        integer :: err
+        logical :: exists_
         integer(int32), pointer :: ptr
 
         ! Test if the relevant key exists
@@ -424,7 +436,7 @@ contains
         if (exists_) then
             call h5dopen_f(parent, nm, dataset, err)
             call ptr_abuse_scalar(val, ptr)
-            call h5dread_f(dataset, H5T_NATIVE_INTEGER_8, ptr, [1_hsize_t], err)
+            call h5dread_f(dataset, H5T_NATIVE_INTEGER, ptr, [1_hsize_t], err)
             if (err /= 0) &
                 call stop_all(t_r, 'Read error')
             call h5dclose_f(dataset, err)
@@ -471,21 +483,22 @@ contains
         character(*), intent(in) :: nm
         integer(int64), intent(in), target :: val(:)
 
-        integer(hid_t) :: dataspace, dataset, err
+        integer(hid_t) :: dataspace, dataset
+        integer :: err
         integer(hsize_t) :: dims(1)
         integer(int32), pointer :: ptr(:)
 
         ! Create the appropriate dataspace
         dims = [size(val)]
-        call h5screate_simple_f(1_hid_t, dims, dataspace, err)
+        call h5screate_simple_f(1, dims, dataspace, err)
 
         ! Create the dataset with the correct type
-        call h5dcreate_f(parent, nm, H5T_NATIVE_INTEGER_8, dataspace, &
+        call h5dcreate_f(parent, nm, H5T_NATIVE_INTEGER, dataspace, &
                          dataset, err)
 
         ! write the data
         call ptr_abuse_1d(val, ptr)
-        if(iProcIndex.eq.0) call h5dwrite_f(dataset, H5T_NATIVE_INTEGER_8, ptr, dims, err)
+        if(iProcIndex.eq.0) call h5dwrite_f(dataset, H5T_NATIVE_INTEGER, ptr, dims, err)
 
         ! Close the residual handles
         call h5dclose_f(dataset, err)
@@ -511,19 +524,20 @@ contains
         character(*), intent(in) :: nm
         real(dp), intent(in), target :: val(:)
 
-        integer(hid_t) :: dataspace, dataset, err
+        integer(hid_t) :: dataspace, dataset
+        integer :: err
         integer(hsize_t) :: dims(1)
 
         ! Create the appropriate dataspace
         dims = [size(val)]
-        call h5screate_simple_f(1_hid_t, dims, dataspace, err)
+        call h5screate_simple_f(1, dims, dataspace, err)
 
         ! Create the dataset with the correct type
-        call h5dcreate_f(parent, nm, H5T_NATIVE_REAL_8, dataspace, &
+        call h5dcreate_f(parent, nm, H5T_NATIVE_DOUBLE, dataspace, &
                          dataset, err)
 
         ! write the data
-        if(iProcIndex.eq.0) call h5dwrite_f(dataset, H5T_NATIVE_REAL_8, val, dims, err)
+        if(iProcIndex.eq.0) call h5dwrite_f(dataset, H5T_NATIVE_DOUBLE, val, dims, err)
 
         ! Close the residual handles
         call h5dclose_f(dataset, err)
@@ -541,9 +555,10 @@ contains
         real(dp), intent(in), optional :: default(:)
         character(*), parameter :: t_r = 'read_dp_1d_dataset'
 
-        integer(hid_t) :: dataset, err, type_id
+        integer(hid_t) :: dataset, type_id
+        integer :: err
         integer(hsize_t) :: dims(1)
-        logical(hid_t) :: exists_
+        logical :: exists_
         real(dp), allocatable :: buf(:)
 
         call h5lexists_f(parent, nm, exists_, err)
@@ -641,13 +656,13 @@ contains
 
         ! Construct a datatype for complex numbers (dp)
         integer(hid_t), intent(out) :: dtype
-        integer(hid_t) :: err
+        integer :: err
 
         ! Complex numbers are two 8-byte floating points long
         call h5tcreate_f(H5T_COMPOUND_F, 16_hsize_t, dtype, err)
-        call h5tinsert_f(dtype, "real", 0_hsize_t, H5T_NATIVE_REAL_8, err)
-        call h5tinsert_f(dtype, "real", 0_hsize_t, H5T_NATIVE_REAL_8, err)
-        call h5tinsert_f(dtype, "imag", 8_hsize_t, H5T_NATIVE_REAL_8, err)
+        call h5tinsert_f(dtype, "real", 0_hsize_t, H5T_NATIVE_DOUBLE, err)
+        call h5tinsert_f(dtype, "real", 0_hsize_t, H5T_NATIVE_DOUBLE, err)
+        call h5tinsert_f(dtype, "imag", 8_hsize_t, H5T_NATIVE_DOUBLE, err)
 
     end subroutine
 
@@ -657,13 +672,14 @@ contains
         character(*), intent(in) :: nm
         complex(dp), intent(in), target :: val(:)
 
-        integer(hid_t) :: dataspace, dataset, dtype, err
+        integer(hid_t) :: dataspace, dataset, dtype
+        integer :: err
         integer(hsize_t) :: dims(1)
         integer(int32), pointer :: ptr(:)
 
         ! Create the appropriate dataspace
         dims = [size(val)]
-        call h5screate_simple_f(1_hid_t, dims, dataspace, err)
+        call h5screate_simple_f(1, dims, dataspace, err)
 
         ! Create the dataset with the correct type
         call h5t_complex_t(dtype)
@@ -690,10 +706,11 @@ contains
         complex(dp), intent(in), optional :: default(:)
         character(*), parameter :: t_r = 'read_dp_1d_dataset'
 
-        integer(hid_t) :: dataset, err, type_id
+        integer(hid_t) :: dataset, type_id
+        integer :: err
         integer(hsize_t) :: dims(1)
         integer(int32), pointer :: ptr(:)
-        logical(hid_t) :: exists_
+        logical :: exists_
 
         call h5lexists_f(parent, nm, exists_, err)
         if (exists_) then
@@ -749,16 +766,18 @@ contains
         integer(hsize_t), intent(in) :: dataspace_dims(2), dataspace_offset(2)
 
         integer(hsize_t) :: buff_dims(2)
-        integer(hid_t) :: memspace, dataspace, dataset, plist_id, err
+        integer(hid_t) :: memspace, dataspace, dataset, plist_id
+        integer :: err
         integer(hsize_t), dimension(:,:), allocatable :: arr_buff
         integer(hsize_t) :: block_start, block_end, block_size, this_block_size
         type(c_ptr) :: cptr
         integer(int32), pointer :: ptr(:)
-        integer:: arr_buff_tag, ierr
+        integer(TagIntType) :: arr_buff_tag
+        integer :: ierr
 
         ! Create an array in the target file with the size of the total amount
         ! to be written out, across the processors
-        call h5screate_simple_f(2_hid_t, dataspace_dims, dataspace, err)
+        call h5screate_simple_f(2, dataspace_dims, dataspace, err)
 
         ! Create a property list to do multi-process writes
         call h5pcreate_f(H5P_DATASET_XFER_F, plist_id, err)
@@ -775,11 +794,11 @@ contains
         buff_dims=[mem_dims(1), block_size]
 
         ! Create the source (memory) dataspace
-        call h5screate_simple_f(2_hid_t, buff_dims, memspace, err)
+        call h5screate_simple_f(2, buff_dims, memspace, err)
 
         allocate(arr_buff(mem_dims(1),block_size),stat = ierr)
         if(block_size.gt.0) &
-             call LogMemAlloc('arr_buff',size(arr_buff),sizeof(arr_buff(1,1)),&
+             call LogMemAlloc('arr_buff',size(arr_buff),int(sizeof(arr_buff(1,1))),&
              'write_2d_multi',arr_buff_tag,ierr)
         block_start=1
         block_end=min(block_start+block_size-1,mem_dims(2))
@@ -827,7 +846,8 @@ contains
         integer(int64), intent(out) :: val(:,:)
         integer(hsize_t), intent(in) :: dims(2), src_offset(2), tgt_offset(2)
 
-        integer(hid_t) :: plist_id, dataspace, memspace, err
+        integer(hid_t) :: plist_id, dataspace, memspace
+        integer :: err
         integer(hsize_t) :: mem_dims(2)
         integer(int32), pointer :: ptr(:,:)
 
@@ -843,7 +863,7 @@ contains
         ! Create the target (memory) dataspace, and select the appropriate
         ! hyperslab inside it.
         mem_dims = [size(val, 1), size(val, 2)]
-        call h5screate_simple_f(2_hid_t, mem_dims, memspace, err)
+        call h5screate_simple_f(2, mem_dims, memspace, err)
         call h5sselect_hyperslab_f(memspace, H5S_SELECT_SET_F, tgt_offset, &
                                    dims, err)
 
@@ -876,13 +896,14 @@ contains
         integer(int32), intent(in), optional :: default
         character(*), parameter :: t_r = 'read_int32_attribute_main'
 
-        integer(hid_t) :: attribute, err
-        logical(hid_t) :: exists_
+        integer(hid_t) :: attribute
+        integer :: err
+        logical :: exists_
 
         call h5aexists_f(parent, nm, exists_, err)
         if (exists_) then
             call h5aopen_f(parent, nm, attribute, err)
-            call h5aread_f(attribute, H5T_NATIVE_INTEGER_4, val, &
+            call h5aread_f(attribute, H5T_NATIVE_INTEGER, val, &
                            [1_hsize_t], err)
             call h5aclose_f(attribute, err)
         end if
@@ -931,9 +952,10 @@ contains
         logical, intent(in), optional :: required
         character(*), parameter :: t_r = 'read_string_attribute'
 
-        integer(hid_t) :: attribute, err, type_id
+        integer(hid_t) :: attribute, type_id
+        integer :: err
         integer(hsize_t) :: sz, buf_sz
-        logical(hid_t) :: exists_
+        logical :: exists_
 
         call h5aexists_f(parent, nm, exists_, err)
         if (exists_) then
@@ -1001,9 +1023,10 @@ contains
         integer(int64), intent(in), optional :: default(:)
         character(*), parameter :: t_r = 'read_int64_1d_dataset_8'
 
-        integer(hid_t) :: dataset, err, type_id
+        integer(hid_t) :: dataset, type_id
+        integer :: err
         integer(hsize_t) :: dims(1)
-        logical(hid_t) :: exists_
+        logical :: exists_
         integer(int32), pointer :: ptr(:)
 
         call h5lexists_f(parent, nm, exists_, err)
@@ -1040,15 +1063,17 @@ contains
         ! Check that a dataset has the character that is required of it
         ! before reading in.
 
-        integer(hid_t), intent(in) :: dataset, class_id
+        integer(hid_t), intent(in) :: dataset
+        integer :: class_id
         character(*), intent(in) :: nm
         integer(hsize_t), intent(in) :: sz
         integer(hsize_t), intent(in) :: dims(:)
         character(*), parameter :: t_r = 'check_dataset_params'
 
-        integer(hid_t) :: rank, type_id, ds_class
+        integer(hid_t) :: rank, type_id
         
-        integer(hid_t) :: ds_rank, dataspace, err
+        integer(hid_t) :: dataspace
+        integer :: err, ds_class, ds_rank
         integer(hsize_t) :: ds_dims(size(dims)), ds_max_dims(size(dims)), ds_sz
 
         ! Get the type associated with the dataset. Check that it is an
@@ -1089,48 +1114,50 @@ contains
         ! Check that a attribute has the character that is required of it
         ! before reading in.
 
-        integer(hid_t), intent(in) :: attribute, class_id
-        character(*), intent(in) :: nm
-        integer(hsize_t), intent(in) :: sz
-        integer(hsize_t), intent(in) :: dims(:)
-        character(*), parameter :: t_r = 'check_attribute_params'
+      integer(hid_t), intent(in) :: attribute
+      integer, intent(in) :: class_id
+      character(*), intent(in) :: nm
+      integer(hsize_t), intent(in) :: sz
+      integer(hsize_t), intent(in) :: dims(:)
+      character(*), parameter :: t_r = 'check_attribute_params'
+      
+      integer(hid_t) :: rank, type_id
 
-        integer(hid_t) :: rank, type_id, ds_class
-        
-        integer(hid_t) :: ds_rank, dataspace, err
-        integer(hsize_t) :: ds_dims(size(dims)), ds_max_dims(size(dims)), ds_sz
+      integer(hid_t) :: dataspace
+      integer :: err, ds_class, ds_rank
+      integer(hsize_t) :: ds_dims(size(dims)), ds_max_dims(size(dims)), ds_sz
 
-        ! Get the type associated with the attribute. Check that it is an
-        ! array with components that have the right number of bytes, and the
-        ! correct base class type
-        call h5aget_type_f(attribute, type_id, err)
-        call h5tget_size_f(type_id, ds_sz, err)
-        call h5tget_class_f(type_id, ds_class, err)
-        call h5tclose_f(type_id, err)
+      ! Get the type associated with the attribute. Check that it is an
+      ! array with components that have the right number of bytes, and the
+      ! correct base class type
+      call h5aget_type_f(attribute, type_id, err)
+      call h5tget_size_f(type_id, ds_sz, err)
+      call h5tget_class_f(type_id, ds_class, err)
+      call h5tclose_f(type_id, err)
 
-        if (ds_sz /= sz .or. ds_class /= class_id) then
-            write(6,*) 'Attribute name: ', nm
-            call stop_all(t_r, "Invalid attribute type information found")
-        end if
+      if (ds_sz /= sz .or. ds_class /= class_id) then
+         write(6,*) 'Attribute name: ', nm
+         call stop_all(t_r, "Invalid attribute type information found")
+      end if
 
-        ! Get the dataspace for the attribute. Check that the attribute has the
-        ! requested dimensions
-        call h5aget_space_f(attribute, dataspace, err)
-        call h5sget_simple_extent_ndims_f(dataspace, ds_rank, err)
+      ! Get the dataspace for the attribute. Check that the attribute has the
+      ! requested dimensions
+      call h5aget_space_f(attribute, dataspace, err)
+      call h5sget_simple_extent_ndims_f(dataspace, ds_rank, err)
 
-        rank = size(dims)
-        if (rank /= ds_rank) then
-            write(6,*) 'Attribute name: ', nm
-            write(6,*) 'ranks', rank, ds_rank
-            call stop_all(t_r, "Invalid attribute rank found")
-        end if
+      rank = size(dims)
+      if (rank /= ds_rank) then
+         write(6,*) 'Attribute name: ', nm
+         write(6,*) 'ranks', rank, ds_rank
+         call stop_all(t_r, "Invalid attribute rank found")
+      end if
 
-        call h5sget_simple_extent_dims_f(dataspace, ds_dims, ds_max_dims, err)
-        if (.not. all(dims == ds_dims)) then
-            write(6,*) 'Attribute name: ', nm
-            call stop_all(t_r, "Invalid attribute dimensions found")
-        end if
-        call h5sclose_f(dataspace, err)
+      call h5sget_simple_extent_dims_f(dataspace, ds_dims, ds_max_dims, err)
+      if (.not. all(dims == ds_dims)) then
+         write(6,*) 'Attribute name: ', nm
+         call stop_all(t_r, "Invalid attribute dimensions found")
+      end if
+      call h5sclose_f(dataspace, err)
 
     end subroutine check_attribute_params
 #endif
