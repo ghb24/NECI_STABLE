@@ -325,6 +325,7 @@ contains
 
         ! what does this assert do?  do i have to pick the electrons in a 
         ! certain order??
+        
         ASSERT((.not. (is_beta(orbs(2)) .and. .not. is_beta(orbs(1)))) .or. tGen_4ind_2_symmetric)
         if (any(orbs == 0)) then
             nJ(1) = 0

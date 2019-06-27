@@ -17,6 +17,7 @@ MODULE System
     use k_space_hubbard, only: setup_symmetry_table
     use breathing_Hub, only: setupMomIndexTable, setupBreathingCont
     use ParallelHelper, only: iprocindex, root
+    use fcimcdata, only: pParallel
 
 
     IMPLICIT NONE
@@ -506,6 +507,8 @@ system: do
             t_mixed_hubbard = .true.
             tNoBrillouin=.true.
             tBrillouinsDefault=.false.
+            pParallel = 0.0_dp
+
 
         case("SYM")
             TPARITY = .true.
