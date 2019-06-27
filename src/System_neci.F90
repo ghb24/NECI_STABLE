@@ -509,6 +509,12 @@ system: do
             tBrillouinsDefault=.false.
             pParallel = 0.0_dp
 
+        case ("OLLE-HUBBARD")
+            t_olle_hubbard = .true.
+            tNoBrillouin=.true.
+            tBrillouinsDefault=.false.
+            pParallel = 0.0_dp
+
 
         case("SYM")
             TPARITY = .true.

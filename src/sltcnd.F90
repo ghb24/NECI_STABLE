@@ -2,7 +2,7 @@
 
 module sltcnd_mod
     use SystemData, only: nel, nBasisMax, tExch, G1, ALAT, tReltvy, t_3_body_excits
-    use SystemData, only: nBasis, t_mixed_hubbard
+    use SystemData, only: nBasis, t_mixed_hubbard, t_olle_hubbard
     ! HACK - We use nBasisMax(2,3) here rather than iSpinSkip, as it appears
     !        to be more reliably set (see for example test H2O_RI)
     ! TODO: We need to sort this out so that they are consistent
@@ -374,7 +374,8 @@ contains
 
         ! for the mixed hubbard basis there are no spin-parallel 
         ! excitations! 
-        if (t_mixed_hubbard .and. (G1(ex(1,1))%ms == G1(ex(1,2))%ms)) then 
+        if ((t_mixed_hubbard .or. t_olle_hubbard) & 
+            .and. (G1(ex(1,1))%ms == G1(ex(1,2))%ms)) then 
             hel = 0.0_dp
             return
         end if

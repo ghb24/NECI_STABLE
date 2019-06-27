@@ -9,7 +9,7 @@ module excit_gens_int_weighted
                           tGen_4ind_part_exact, tGen_4ind_lin_exact, &
                           tGen_4ind_unbound, t_iiaa, t_ratio, UMatEps, tGUGA, &
                           tgen_guga_crude, tGen_guga_weighted, tgen_guga_mixed, & 
-                          t_mixed_hubbard
+                          t_mixed_hubbard, t_olle_hubbard
 
     use CalcData, only: matele_cutoff, t_matele_cutoff
     use SymExcit3, only: CountExcitations3, GenExcitations3
@@ -919,7 +919,7 @@ contains
             ! Include the contribution of this term sqrt(<ia|ia>)
             inda = gtID(orba)
 
-            if (t_mixed_hubbard) then
+            if (t_mixed_hubbard .or. t_olle_hubbard) then
                 ! just to be save do it uniformly here..
                 contrib = 1.0_dp
 

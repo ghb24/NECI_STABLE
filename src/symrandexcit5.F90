@@ -2,7 +2,8 @@
 
 module excit_gen_5
 
-    use SystemData, only: t_mixed_hubbard, nOccAlpha, nOccBeta, AB_elec_pairs
+    use SystemData, only: t_mixed_hubbard, nOccAlpha, nOccBeta, AB_elec_pairs, &
+                          t_olle_hubbard
     use excit_gens_int_weighted, only: gen_single_4ind_ex, pgen_single_4ind, &
                                        get_paired_cc_ind, select_orb, &
                                        opp_spin_pair_contrib, &
@@ -200,7 +201,7 @@ contains
             end if
 
             ! Select a pair of electrons in a weighted fashion
-            if (t_mixed_hubbard) then 
+            if (t_mixed_hubbard .or. t_olle_hubbard) then 
                 pgen = pgen * (1.0_dp - pParallel) / AB_elec_pairs
             else
                 pgen = pgen * pgen_weighted_elecs(nI, src)
@@ -297,7 +298,7 @@ contains
         integer :: loc
 
         ! Pick the electrons in a weighted fashion
-        if (t_mixed_hubbard) then
+        if (t_mixed_hubbard .or. t_olle_hubbard) then
             call pick_biased_elecs(nI, elecs, src, sym_product, ispn, sum_ml, pgen)
         else
             call pick_weighted_elecs(nI, elecs, src, sym_product, ispn, sum_ml, &

@@ -7,7 +7,8 @@ module tau_search_hist
                           UMatEps, nBasis, tGen_sym_guga_mol, tGen_nosym_guga, &
                           tReal, t_k_space_hubbard, t_trans_corr_2body, & 
                           t_trans_corr, t_new_real_space_hubbard, t_3_body_excits, &
-                          t_trans_corr_hop, tGUGA, tgen_guga_crude, t_mixed_hubbard
+                          t_trans_corr_hop, tGUGA, tgen_guga_crude, t_mixed_hubbard, &
+                          t_olle_hubbard
                           
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow, &                
@@ -284,7 +285,7 @@ contains
             pParallel = 0.0_dp
         end if
         
-        if (t_mixed_hubbard) then 
+        if (t_mixed_hubbard .or. t_olle_hubbard) then 
             pParallel = 0.0_dp
         end if
 

@@ -10,7 +10,7 @@ MODULE Calc
                           nholes, UMATEPS, tHub, t_lattice_model, t_tJ_model, & 
                           t_new_real_space_hubbard, t_heisenberg_model, & 
                           t_k_space_hubbard, tHPHF, t_non_hermitian, &
-                          tGUGA, t_mixed_hubbard
+                          tGUGA, t_mixed_hubbard, t_olle_hubbard
     use Determinants, only: write_det
     use spin_project, only: spin_proj_interval, &
                             spin_proj_gamma, spin_proj_shift, &
@@ -405,7 +405,7 @@ contains
           tLogGreensfunction = .false.
           tOverlapPert = .false.
 
-          if (t_mixed_hubbard) then
+          if (t_mixed_hubbard .or. t_olle_hubbard) then
               pParallel = 0.0_dp
           else
               pParallel = 0.5_dp

@@ -9,7 +9,7 @@ module tau_search
                           t_3_body_excits, t_k_space_hubbard, t_trans_corr_2body, &
                           t_uniform_excits, t_new_real_space_hubbard, & 
                           t_trans_corr, tHub, t_trans_corr_hop, umateps, tGUGA, &
-                          t_mixed_hubbard
+                          t_mixed_hubbard, t_olle_hubbard
 
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow, t_min_tau, min_tau_global, &
@@ -204,7 +204,7 @@ contains
                 "do we really need a tau-search for 2 electrons?")
         end if
 
-        if (t_mixed_hubbard) then 
+        if (t_mixed_hubbard .or. t_olle_hubbard) then 
             pParallel = 0.0_dp
         end if
 
