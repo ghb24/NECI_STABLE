@@ -22595,7 +22595,7 @@ contains
         character(*), parameter :: this_routine = "gen_cum_list_guga_single_1"
 
         integer :: nOrb, i, label_index, j, n_id(nEl), id_i, id, &
-                   lower, upper, s_orb, st, en, gen
+                   lower, upper, s_orb, st, en, gen, spin
         real(dp) :: cum_sum, hel
         
         ! if d(i) = 1 -> i can only pick d(a) = 1 if there is a switch possib
@@ -22613,6 +22613,12 @@ contains
         ! to GUGA restrictions?.. 
         call find_switches(id_i, lower, upper)
 
+        if (is_beta(orb_i)) then 
+            spin = 1
+        else
+            spin = 0
+        end if
+
         do i = 1, nOrb
             s_orb = sym_label_list_spat(label_index + i - 1) 
 
@@ -22626,101 +22632,80 @@ contains
             select case (current_stepvector(s_orb)) 
 
             ! include here the guga restrictions... 
-                case (0)
-                    ! no restrictions if 0 since both branches allowed
+            case (0)
+                ! no restrictions if 0 since both branches allowed
 
-                    ! single particle matrix element: 
-                    hel = hel + abs(GetTMatEl(orb_i, 2*s_orb))
-                    ! do the loop over all the other electrons 
-                    ! (is this always symmetrie allowed?..)
-                   
-                    
-                    ! i know both occupation numbers! of start and end! 
-                    ! -> calc. the specific U(i,i,j,i)n(i) and U(i,j,j,j)n(j)
-                    ! specifically
-                    ! in case d=0 -> no influence for WR_(s_orb) and WL^(s_orb)
-                    ! and it can only be one of those 
-                    ! also n(id_i) = 1 which is also 0 -> so exclude this from
-                    ! loop below
+                ! single particle matrix element: 
+                hel = hel + abs(GetTMatEl(orb_i, 2*s_orb - spin))
 
-                    ! if depending on the type of generator
-                    ! either the topCont sign (if L) 
-                    ! or botCont sign (if R) 
-                    ! is unknown! -> so for every k < st if R 
-                    ! or k > en if L the sign of the two-particle matrix 
-                    ! elements is unkown! and has to be added in terms of 
-                    ! absolute value! 
+                ! do the loop over all the other electrons 
+                ! (is this always symmetrie allowed?..)
+               
+                
+                ! i know both occupation numbers! of start and end! 
+                ! -> calc. the specific U(i,i,j,i)n(i) and U(i,j,j,j)n(j)
+                ! specifically
+                ! in case d=0 -> no influence for WR_(s_orb) and WL^(s_orb)
+                ! and it can only be one of those 
+                ! also n(id_i) = 1 which is also 0 -> so exclude this from
+                ! loop below
 
-                    ! problem is, if i do not know, all the signs correctly i 
-                    ! have to add up all matrix element contributions with 
-                    ! there absolute value.. otherwise the order of summing
-                    ! influences the result, and thus cannot be true! 
-                    ! "good" thing is, i do not need to consider, so many 
-                    ! different possibilities
-                    
-                    if (.not. t_mixed_hubbard) then
-                        do j = 1, nEl
-                            
-                            ! todo: finish all contributions later for now only do 
-                            ! those which are the same for all
-                            ! exclude initial orbital, since this case gets 
-                            ! contributed already outside of loop over electrons!
-                            ! but only spin-orbital or spatial??
-                            if (n_id(j) == id_i) cycle
-                            hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
+                ! if depending on the type of generator
+                ! either the topCont sign (if L) 
+                ! or botCont sign (if R) 
+                ! is unknown! -> so for every k < st if R 
+                ! or k > en if L the sign of the two-particle matrix 
+                ! elements is unkown! and has to be added in terms of 
+                ! absolute value! 
 
-                            ! now depending on generator and relation of j to
-                            ! st and en -> i know sign or don't 
-                            
-                            hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
+                ! problem is, if i do not know, all the signs correctly i 
+                ! have to add up all matrix element contributions with 
+                ! there absolute value.. otherwise the order of summing
+                ! influences the result, and thus cannot be true! 
+                ! "good" thing is, i do not need to consider, so many 
+                ! different possibilities
+                
+                if (.not. t_mixed_hubbard) then
+                    do j = 1, nEl
+                        
+                        ! todo: finish all contributions later for now only do 
+                        ! those which are the same for all
+                        ! exclude initial orbital, since this case gets 
+                        ! contributed already outside of loop over electrons!
+                        ! but only spin-orbital or spatial??
+                        if (n_id(j) == id_i) cycle
+                        hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
 
-                        end do
-                    end if
+                        ! now depending on generator and relation of j to
+                        ! st and en -> i know sign or don't 
+                        
+                        hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
 
-                case (1)
-                    ! here i have to somehow find out if there is a 
-                    ! (2) between s_orb and id_i
-                    ! how to do that? 
-                    ! could also use the loop over nEl to check if there 
-                    ! is a switch between (i) and (a) ->  and set matrix 
-                    ! element to 0 otherwise... -> would make effor O(n) again
-                    if (s_orb < lower .or. s_orb > upper) then
-                        ! only allowed if possible switch
-                           
-                        hel = hel + abs(GetTMatEl(orb_i, 2*s_orb))
+                    end do
+                end if
 
-                        ! also need the weight contribution at start 
+            case (1)
+                ! here i have to somehow find out if there is a 
+                ! (2) between s_orb and id_i
+                ! how to do that? 
+                ! could also use the loop over nEl to check if there 
+                ! is a switch between (i) and (a) ->  and set matrix 
+                ! element to 0 otherwise... -> would make effor O(n) again
+                if (s_orb < lower .or. s_orb > upper) then
+                    ! only allowed if possible switch
+                       
+                    hel = hel + abs(GetTMatEl(orb_i, 2*s_orb - spin))
 
-                        if (.not. t_mixed_hubbard) then
-                            hel = hel + abs(get_umat_el(id_i, s_orb, s_orb, s_orb))
-
-                            ! do the loop over all the other electrons 
-                            ! (is this always symmetrie allowed?..)
-                           
-                            do j = 1, nEl
-                                
-                                ! todo: finish all contributions later for now only do 
-                                ! those which are the same for all
-                                if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
-                                hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
-
-                                hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
-
-                            end do
-                        end if
-                    end if
-
-
-                case (2) 
-                    ! no restrictions for 2 -> 1 excitations
-                    hel = hel + abs(GetTMatEl(orb_i, 2*s_orb))
-                    ! do the loop over all the other electrons 
-                    ! (is this always symmetrie allowed?..)
+                    ! also need the weight contribution at start 
 
                     if (.not. t_mixed_hubbard) then
                         hel = hel + abs(get_umat_el(id_i, s_orb, s_orb, s_orb))
 
+                        ! do the loop over all the other electrons 
+                        ! (is this always symmetrie allowed?..)
+                       
                         do j = 1, nEl
+                            
                             ! todo: finish all contributions later for now only do 
                             ! those which are the same for all
                             if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
@@ -22730,13 +22715,35 @@ contains
 
                         end do
                     end if
+                end if
 
-                case (3)
-                    ! do nothing in this case! 
 
-                case default 
-                    ! should not be here! 
-                    call stop_all(this_routine, "stepvalue /= {0,1,2,3}! something is wrong!")
+            case (2) 
+                ! no restrictions for 2 -> 1 excitations
+                hel = hel + abs(GetTMatEl(orb_i, 2*s_orb - spin))
+                ! do the loop over all the other electrons 
+                ! (is this always symmetrie allowed?..)
+
+                if (.not. t_mixed_hubbard) then
+                    hel = hel + abs(get_umat_el(id_i, s_orb, s_orb, s_orb))
+
+                    do j = 1, nEl
+                        ! todo: finish all contributions later for now only do 
+                        ! those which are the same for all
+                        if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
+                        hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
+
+                        hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
+
+                    end do
+                end if
+
+            case (3)
+                ! do nothing in this case! 
+
+            case default 
+                ! should not be here! 
+                call stop_all(this_routine, "stepvalue /= {0,1,2,3}! something is wrong!")
 
             end select
             cum_sum = cum_sum + abs_l1(hel)
@@ -22754,7 +22761,7 @@ contains
         character(*), parameter :: this_routine = "gen_cum_list_guga_single_2"
 
         integer :: nOrb, i, label_index, j, n_id(nEl), id_i, id, &
-                   lower, upper, s_orb
+                   lower, upper, s_orb, spin
         real(dp) :: cum_sum, hel
         
         ! if d(i) = 2 -> i can only pick d(a) = 2 if there is a switch possib
@@ -22771,6 +22778,12 @@ contains
         ! to GUGA restrictions?.. 
         call find_switches(id_i, lower, upper)
 
+        if (is_beta(orb_i)) then
+            spin = 1
+        else
+            spin = 0
+        end if
+
         do i = 1, nOrb
             s_orb = sym_label_list_spat(label_index + i - 1)
 
@@ -22784,35 +22797,61 @@ contains
             select case (current_stepvector(s_orb)) 
 
             ! include here the guga restrictions... 
-                case (0)
-                    ! no restrictions if 0 since both branches allowed
+            case (0)
+                ! no restrictions if 0 since both branches allowed
 
-                    hel = hel + abs(GetTMatEl(orb_i, 2*s_orb))
-                    ! do the loop over all the other electrons 
-                    ! (is this always symmetrie allowed?..)
-                   
-                    if (.not. t_mixed_hubbard) then 
-                        do j = 1, nEl
-                            
-                            ! todo: finish all contributions later for now only do 
-                            ! those which are the same for all
-                            if (n_id(j) == id_i) cycle
-                            hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
-                            hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
+                hel = hel + abs(GetTMatEl(orb_i, 2*s_orb - spin))
+                ! do the loop over all the other electrons 
+                ! (is this always symmetrie allowed?..)
+               
+                if (.not. t_mixed_hubbard) then 
+                    do j = 1, nEl
+                        ! todo: finish all contributions later for now only do 
+                        ! those which are the same for all
+                        if (n_id(j) == id_i) cycle
+                        hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
+                        hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
 
-                        end do
-                    end if
+                    end do
+                end if
 
-                case (1)
-                    ! no restrictions for 1 -> 2 excitations
+            case (1)
+                ! no restrictions for 1 -> 2 excitations
 
-                    hel = hel + abs(GetTMatEl(orb_i, 2*s_orb))
+                hel = hel + abs(GetTMatEl(orb_i, 2*s_orb - spin))
 
+                ! do the loop over all the other electrons 
+                ! (is this always symmetrie allowed?..)
+                if (.not. t_mixed_hubbard) then
+                    hel = hel + abs(get_umat_el(id_i, s_orb, s_orb, s_orb))
+
+                    do j = 1, nEl
+                        
+                        ! todo: finish all contributions later for now only do 
+                        ! those which are the same for all
+                        if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
+                        hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
+                        hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
+
+                    end do
+                end if
+
+            case (2) 
+                ! here i have to somehow find out if there is a 
+                ! (1) between s_orb and id_i
+                ! how to do that? 
+                ! could also use the loop over nEl to check if there 
+                ! is a switch between (i) and (a) ->  and set matrix 
+                ! element to 0 otherwise... -> would make effor O(n) again
+                if (s_orb < lower .or. s_orb > upper) then
+                    ! only allowed if possible switch
+                       
+                    hel = hel + abs(GetTMatEl(orb_i, 2*s_orb - spin))
                     ! do the loop over all the other electrons 
                     ! (is this always symmetrie allowed?..)
                     if (.not. t_mixed_hubbard) then
                         hel = hel + abs(get_umat_el(id_i, s_orb, s_orb, s_orb))
-
+                       
                         do j = 1, nEl
                             
                             ! todo: finish all contributions later for now only do 
@@ -22823,41 +22862,14 @@ contains
 
                         end do
                     end if
+                end if
 
-                case (2) 
-                    ! here i have to somehow find out if there is a 
-                    ! (1) between s_orb and id_i
-                    ! how to do that? 
-                    ! could also use the loop over nEl to check if there 
-                    ! is a switch between (i) and (a) ->  and set matrix 
-                    ! element to 0 otherwise... -> would make effor O(n) again
-                    if (s_orb < lower .or. s_orb > upper) then
-                        ! only allowed if possible switch
-                           
-                        hel = hel + abs(GetTMatEl(orb_i, 2*s_orb))
-                        ! do the loop over all the other electrons 
-                        ! (is this always symmetrie allowed?..)
-                        if (.not. t_mixed_hubbard) then
-                            hel = hel + abs(get_umat_el(id_i, s_orb, s_orb, s_orb))
-                           
-                            do j = 1, nEl
-                                
-                                ! todo: finish all contributions later for now only do 
-                                ! those which are the same for all
-                                if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
-                                hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
-                                hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
+            case (3)
+                ! do nothing in this case! 
 
-                            end do
-                        end if
-                    end if
-
-                case (3)
-                    ! do nothing in this case! 
-
-                case default 
-                    ! should not be here! 
-                    call stop_all(this_routine, "stepvalue /= {0,1,2,3}! something is wrong!")
+            case default 
+                ! should not be here! 
+                call stop_all(this_routine, "stepvalue /= {0,1,2,3}! something is wrong!")
 
             end select
             cum_sum = cum_sum + abs_l1(hel)
@@ -22874,7 +22886,7 @@ contains
         real(dp), intent(out) :: cum_arr(OrbClassCount(cc_i))
         character(*), parameter :: this_routine = "gen_cum_list_guga_single_3"
 
-        integer :: nOrb, i, label_index, j, n_id(nEl), id_i, id, s_orb
+        integer :: nOrb, i, label_index, j, n_id(nEl), id_i, id, s_orb, spin
         real(dp) :: cum_sum, hel
         ! in the case of a 3 there are actually no additional, restrictions
 
@@ -22885,6 +22897,13 @@ contains
         id_i = gtID(orb_i)
 
         cum_sum = 0.0_dp
+
+        if (is_beta(orb_i)) then 
+            spin = 1
+        else 
+            spin = 0
+        end if
+
         do i = 1, nOrb
             ! ich glaub es ist besser ueber spatial orbitals zu loopen, 
             ! sonst ist das so doof mit dem ignorieren der spin symmetrie..
@@ -22906,80 +22925,80 @@ contains
             ! this routine only is called in the case of d(i) = 3 it makes 
             ! it much easier to determine the sign of the two-particle 
             ! contribution to the single excitation matrix element!
-                case (0)
+            case (0)
 
-                    hel = hel + abs(GetTMatEl(orb_i, 2*s_orb))
+                hel = hel + abs(GetTMatEl(orb_i, 2*s_orb - spin))
 
-                    ! here a contribution from orbital id_i 
+                ! here a contribution from orbital id_i 
 
-                    if (.not. t_mixed_hubbard) then
-                        hel = hel + abs(get_umat_el(id_i, id_i, s_orb, id_i))
+                if (.not. t_mixed_hubbard) then
+                    hel = hel + abs(get_umat_el(id_i, id_i, s_orb, id_i))
 
-                        ! do the loop over all the other electrons 
-                        ! (is this always symmetrie allowed?..)
-                        do j = 1, nEl
-                            
-                            ! todo: finish all contributions later for now only do 
-                            ! those which are the same for all
-                            ! have to exclude both electrons at spatial orb i
-                            if (n_id(j) == id_i) cycle
-                            hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
-
-                            hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
-
-                        end do
-                    end if
-
-                case (1)
-                    
-                    hel = hel + abs(GetTMatEl(orb_i, 2*s_orb))
-
-                    if (.not. t_mixed_hubbard) then
-                        ! now contribution for both start and end
-                        hel = hel + abs(get_umat_el(id_i, id_i, s_orb, id_i))
-                        hel = hel + abs(get_umat_el(id_i, s_orb, s_orb, s_orb))
-
-                        ! do the loop over all the other electrons 
-                        ! (is this always symmetrie allowed?..)
-                        do j = 1, nEl
-                            
-                            ! todo: finish all contributions later for now only do 
-                            ! those which are the same for all
-                            if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
-                            hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
-                            hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
-
-                        end do
-                    end if
-
-                case (2)
-                 
-                    hel = hel + abs(GetTMatEl(orb_i, 2*s_orb))
                     ! do the loop over all the other electrons 
                     ! (is this always symmetrie allowed?..)
+                    do j = 1, nEl
+                        
+                        ! todo: finish all contributions later for now only do 
+                        ! those which are the same for all
+                        ! have to exclude both electrons at spatial orb i
+                        if (n_id(j) == id_i) cycle
+                        hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
 
-                    if (.not. t_mixed_hubbard) then
-                        hel = hel + abs(get_umat_el(id_i, id_i, s_orb, id_i))
-                        hel = hel + abs(get_umat_el(id_i, s_orb, s_orb, s_orb))
+                        hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
 
-                        do j = 1, nEl
-                            
-                            ! todo: finish all contributions later for now only do 
-                            ! those which are the same for all
-                            if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
+                    end do
+                end if
 
-                            hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
-                            hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
+            case (1)
+                
+                hel = hel + abs(GetTMatEl(orb_i, 2*s_orb - spin))
 
-                        end do
-                    end if
+                if (.not. t_mixed_hubbard) then
+                    ! now contribution for both start and end
+                    hel = hel + abs(get_umat_el(id_i, id_i, s_orb, id_i))
+                    hel = hel + abs(get_umat_el(id_i, s_orb, s_orb, s_orb))
 
-                case (3) 
-                    ! do nothing actually
+                    ! do the loop over all the other electrons 
+                    ! (is this always symmetrie allowed?..)
+                    do j = 1, nEl
+                        
+                        ! todo: finish all contributions later for now only do 
+                        ! those which are the same for all
+                        if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
+                        hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
+                        hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
 
-                case default
-                    ! error happend 
-                    call stop_all(this_routine,"stepvalue /= {0,1,2,3}! something's wrong!")
+                    end do
+                end if
+
+            case (2)
+             
+                hel = hel + abs(GetTMatEl(orb_i, 2*s_orb - spin))
+                ! do the loop over all the other electrons 
+                ! (is this always symmetrie allowed?..)
+
+                if (.not. t_mixed_hubbard) then
+                    hel = hel + abs(get_umat_el(id_i, id_i, s_orb, id_i))
+                    hel = hel + abs(get_umat_el(id_i, s_orb, s_orb, s_orb))
+
+                    do j = 1, nEl
+                        
+                        ! todo: finish all contributions later for now only do 
+                        ! those which are the same for all
+                        if (n_id(j) == id_i .or. n_id(j) == s_orb) cycle
+
+                        hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
+                        hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
+
+                    end do
+                end if
+
+            case (3) 
+                ! do nothing actually
+
+            case default
+                ! error happend 
+                call stop_all(this_routine,"stepvalue /= {0,1,2,3}! something's wrong!")
 
             end select
 

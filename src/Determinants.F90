@@ -592,18 +592,13 @@ contains
         if (tGUGA) then
             if (all(nI == nJ)) then 
                 hel =  calcDiagMatEleGUGA_nI(nI)
+                return
             else
-                call stop_all(this_routine, "TODO: refactor guga matrix elements!")
+!                 print *, "nI: ", ni
+!                 print *, "nj: ", nJ
+!                 call stop_all(this_routine, "TODO: refactor guga matrix elements!")
             end if
-            return
 
-!             call EncodeBitDet(nI, ilutI)
-!             call EncodeBitDet(nJ, ilutJ)
-! 
-!             call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, hel, &
-!                 .true., 2)
-! 
-!             return
         end if
 #endif
 
