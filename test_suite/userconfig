@@ -1,5 +1,5 @@
 [neci]
-exe = ../build/bin/neci
+exe = ../hdf5_build/bin/neci
 vcs = git
 inputs_args = ('*.inp', '')
 extract_program = ./tools/extract.py

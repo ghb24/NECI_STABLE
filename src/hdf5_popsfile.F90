@@ -766,7 +766,7 @@ contains
         !complicated hyperslabs + collective buffering
         ! Write out the determinant bit-representations
         call write_2d_multi_arr_chunk_buff( &
-                wfn_grp_id, nm_ilut, H5T_NATIVE_INTEGER, &
+                wfn_grp_id, nm_ilut, H5T_NATIVE_INTEGER_8, &
                 CurrentDets, arr_2d_dims(CurrentDets), &
                 [int(nifd+1, hsize_t), int(TotWalkers, hsize_t)], & ! dims
                 [0_hsize_t, 0_hsize_t], & ! offset
@@ -779,7 +779,7 @@ contains
 !            call stop_all(t_r, "This could go badly...")
 
         call write_2d_multi_arr_chunk_buff( &
-                wfn_grp_id, nm_sgns, H5T_NATIVE_REAL, &
+                wfn_grp_id, nm_sgns, H5T_NATIVE_REAL_8, &
                 CurrentDets, arr_2d_dims(CurrentDets), &
                 [int(lenof_sign, hsize_t), int(TotWalkers, hsize_t)], & ! dims
                 [int(nOffSgn, hsize_t), 0_hsize_t], & ! offset
@@ -1045,13 +1045,13 @@ contains
 #ifdef __INT64
 
         call read_2d_multi_chunk( &
-                ds_ilut, temp_ilut, H5T_NATIVE_INTEGER, &
+                ds_ilut, temp_ilut, H5T_NATIVE_INTEGER_8, &
                 [int(bit_rep_width, hsize_t), block_size], &
                 [0_hsize_t, block_start], &
                 [0_hsize_t, 0_hsize_t])
 
         call read_2d_multi_chunk( &
-             ds_sgns, temp_sgns, H5T_NATIVE_REAL, &
+             ds_sgns, temp_sgns, H5T_NATIVE_REAL_8, &
              [int(tmp_lenof_sign, hsize_t), block_size], &
              [0_hsize_t, block_start], &
              [0_hsize_t, 0_hsize_t])
