@@ -1663,20 +1663,23 @@ r_loop: do while(.not.tStoreDet)
     end subroutine ReadPopsHeadv4
     
     !NOTE: This should only be used for the v3 POPSFILEs, since we only open the POPSFILE on the head node.
-    subroutine open_pops_head(iunithead,formpops,binpops,identifier)
+    subroutine open_pops_head(iunithead,formpops,binpops,filename_stem)
         integer , intent(out) :: iunithead
         logical, intent(out) :: formpops,binpops
         character(255) :: popsfile
-        character(*), intent(in), optional :: identifier
+        character(255), intent(in), optional :: filename_stem
+        character(255) :: identifier
+
+        if(present(filename_stem)) then
+           identifier = filename_stem
+        else
+           identifier = "POPSFILE"
+        endif
 
         if(iProcIndex.eq.root) then
             iunithead=get_free_unit()
-            if(.not. present(identifier)) then
-               call get_unique_filename('POPSFILE',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
-            else
                call get_unique_filename(trim(identifier),tIncrementPops,.false.,&
                     iPopsFileNoRead,popsfile)
-            endif
             inquire(file=popsfile,exist=formpops)
             
             if(formpops) then

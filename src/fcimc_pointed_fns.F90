@@ -215,7 +215,6 @@ module fcimc_pointed_fns
 #else
         rh_used = rh
 #endif
-       
         ! assign the matrix element
         HElGen = abs(rh)
         ! [W.D.]

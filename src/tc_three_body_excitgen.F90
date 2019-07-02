@@ -60,7 +60,6 @@ module tc_three_body_excitgen
             ic = 1
          endif
       endif
-
     end subroutine gen_excit_mol_tc
 
 !------------------------------------------------------------------------------------------!
