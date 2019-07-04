@@ -843,7 +843,6 @@ contains
         NoNonInitDets=0
         NoSIInitsConflicts = 0
         NoInitsConflicts = 0
-        NoConflicts = 0
         avSigns = 0.0_dp
         NoInitWalk(:)=0.0_dp
         NoNonInitWalk(:)=0.0_dp
