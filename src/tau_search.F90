@@ -200,7 +200,7 @@ contains
                 gamma_sing = tmp_gamma
             
             ! And keep count!
-            if (.not. enough_sing) then
+            if (.not. enough_sing .and. gamma_sing > 0) then
                 cnt_sing = cnt_sing + 1
                 if (cnt_sing > cnt_threshold) enough_sing = .true.
             endif
@@ -214,7 +214,7 @@ contains
                 gamma_sing_spindiff1 = tmp_gamma
             
             ! And keep count!
-            if (.not. enough_sing) then
+            if (.not. enough_sing .and. tmp_gamma > 0) then
                 cnt_sing = cnt_sing + 1
                 if (cnt_sing > cnt_threshold) enough_sing = .true.
             endif
@@ -273,7 +273,7 @@ contains
             if (tmp_gamma > gamma_doub_spindiff1) &
                 gamma_doub_spindiff1 = tmp_gamma
             ! And keep count
-            if (.not. enough_doub) then
+            if (.not. enough_doub .and. tmp_gamma > 0) then
                 cnt_doub = cnt_doub + 1
                 if (cnt_doub > cnt_threshold) enough_doub = .true.
             endif
@@ -288,7 +288,7 @@ contains
             if (tmp_gamma > gamma_doub_spindiff2) &
                 gamma_doub_spindiff2 = tmp_gamma
             ! And keep count
-            if (.not. enough_doub) then
+            if (.not. enough_doub .and. tmp_gamma > 0) then
                 cnt_doub = cnt_doub + 1
                 if (cnt_doub > cnt_threshold) enough_doub = .true.
             endif
