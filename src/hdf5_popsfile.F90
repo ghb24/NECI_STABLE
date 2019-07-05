@@ -206,7 +206,7 @@ contains
 
         call h5garbage_collect_f(err)
 
-        call MPIBarrier(ierr)
+        call MPIBarrier(err)
         write(6,*) "popsfile write successful"
 #else
         call stop_all(t_r, 'HDF5 support not enabled at compile time')
