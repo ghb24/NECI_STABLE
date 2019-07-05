@@ -27,15 +27,19 @@ program test_molecular_tc
     subroutine molecular_tc_test_driver()
       implicit none
       call setup_tests()
-
+      ! three things to test:
+      ! the sixindex initialization
       call run_lmat_test()
+      ! the tc slater condon rules
       call run_sltcnd_test()
-      !call run_excitgen_test()
+      ! and the three-body excitation generator
+      call run_excitgen_test()
 
       call clear_resources()
     end subroutine molecular_tc_test_driver
     
     subroutine setup_tests()
+      ! initialization of the tests: mimic the environment of a NECI calculation
       use procedure_pointers, only: get_umat_el
       use sltcnd_mod, only: nullUMat, initSltCndPtr
       use SystemData, only: nOccAlpha, nOccBeta, AA_elec_pairs, AB_elec_pairs, &
@@ -46,7 +50,7 @@ program test_molecular_tc
       implicit none
 
       integer :: i
-
+      
       nBasis = 28
       tStoreSpinOrbs = .false.
       nel = 6
@@ -65,6 +69,8 @@ program test_molecular_tc
       get_umat_el => nullUMat
 
       t_mol_3_body = .true.
+      ! the slater condon rules in the TC are routed via procedure pointers, they have to
+      ! be assigned
       call initSltCndPtr()
 
       call init_dummy()
@@ -80,7 +86,7 @@ program test_molecular_tc
       tNoSymGenRandExcits = .true.
 
       NIfTot = 2
-
+      ! random number generator initialization
       call dSFMT_init(4)
       
       pSingles = 0.0_dp
@@ -88,16 +94,25 @@ program test_molecular_tc
       pTriples = 1.0_dp
 
       tSymBrokenLMat = .true.
+
+      ! assign the the sixindex access functions
+      t12FoldSym = .false.
+      tSymBrokenLMat = .false.
+      tDampLMat = .false.
+      tSparseLMat = .false.
+      call initializeLMatInd()
     end subroutine setup_tests
 
     subroutine run_lmat_test()
       implicit none
 
       tDebugLMat = .true.
+      ! we read an exemplary sixindex integral file
       call readLMat()
     end subroutine run_lmat_test
    
     subroutine run_sltcnd_test()
+      ! check the slater condon rules by computing some exemplary matrix elements of H
       use sltcnd_mod
       use tc_three_body_excitgen, only: setup_mol_tc_excitgen
       use, INTRINSIC :: IEEE_ARITHMETIC
@@ -105,9 +120,11 @@ program test_molecular_tc
       
       integer :: nI(nel), nJ(nel)
       HElement_t(dp) :: matel
+      ! the example determinant
       nI = (/2,4,6,11,13,14/)
       call setup_mol_tc_excitgen(nI)
 
+      ! get_lmat_el already accounts for all permutations/exchange terms
       print *, "Direct matrix element", get_lmat_el(1,2,3,1,2,3)
       print *, "Exchange matrix el (should be the same)", get_lmat_el(2,1,3,2,1,3)
       print *, "Exchange matrix el (should be the same)", get_lmat_el(3,1,2,3,1,2)
@@ -127,6 +144,8 @@ program test_molecular_tc
     end subroutine run_sltcnd_test
 
     subroutine run_excitgen_test()
+      ! TODO: Scrap this scrap and use the proper excitation generator unit test
+      ! (as in the framework of k-space-hubbard/umat-hash)
       use tc_three_body_excitgen
       use tc_three_body_data, only: pgen3B, pgen2B, pgen1B, pgen0B, pTriples
       use DeterminantData, only: write_det
