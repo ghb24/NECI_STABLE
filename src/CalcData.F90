@@ -200,7 +200,7 @@ integer :: multiSpawnThreshold
 
 ! The average number of excitations to be performed from each walker.
 real(dp) :: AvMCExcits
-
+logical :: tDynamicAvMCEx
 integer :: iReadWalkersRoot !The number of walkers to read in on the head node in each batch during a popsread
 
 real(dp) :: g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ

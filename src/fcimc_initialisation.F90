@@ -1004,6 +1004,11 @@ contains
         rdmCorrectionFactor = 0.0_dp
         InstRDMCorrectionFactor = 0.0_dp
         ThisRDMIter = 0.0_dp
+        ! initialize excitation number trackers
+        nInvalidExcits = 0
+        nValidExcits = 0
+        allNInvalidExcits = 0
+        allNValidExcits = 0
 !            if (tReltvy) then
 !                ! write out the column headings for the MSWALKERCOUNTS
 !                open(mswalkercounts_unit, file='MSWALKERCOUNTS', status='UNKNOWN')

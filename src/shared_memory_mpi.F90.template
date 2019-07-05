@@ -1,3 +1,7 @@
+#####################
+# Scalar values
+#####################
+
 [int]
 dim=:
 rank=1
@@ -17,7 +21,7 @@ dim=:
 rank=1
 type1=real(dp)
 mpitype=MPI_DOUBLE_PRECISION
-sizeb=dp
+sizeb=sizeof_dp
 
 [comp]
 dim=:
@@ -31,7 +35,21 @@ dim=:,:
 rank=2
 type1=complex(dp)
 mpitype=MPI_DOUBLE_COMPLEX
-sizeb=(2*dp)
+sizeb=(2*sizeof_dp)
+
+#####################
+# 1-D Arrays
+#####################
+
+[arr_int]
+type1=integer(int32), dimension(:)
+mpitype=MPI_INTEGER4
+sizeb=4
+
+[arr_int64]
+type1=integer(int64), dimension(:)
+mpitype=MPI_INTEGER8
+sizeb=8
 
 ===================
 
@@ -47,6 +65,7 @@ contains
       subroutine shared_allocate_mpi (win_shm, p_shm, dims)
       use HElem
       integer(MPIArg):: win_shm
+
       %(type1)s, dimension(%(dim)s), pointer :: p_shm
       integer(int64):: dims(%(rank)s)
 
@@ -119,5 +138,18 @@ contains
       integer(MPIArg):: win_shm
     end subroutine shared_sync_mpi
 #endif
+
+    subroutine MPIBCast_inter_byte(p_shm,nbytes)
+      HElement_t(dp):: p_shm
+      integer:: nbytes
+      integer(MPIArg):: ierr
+
+      !only task 0 of each shared memory task range does the MPI communication
+      if (iProcIndex_intra.eq.0) then
+         call mpi_bcast(p_shm,int(nbytes,MPIArg), &
+              MPI_BYTE,0_MPIArg,mpi_comm_inter,ierr)
+      end if
+
+    end subroutine
 
 end supermodule

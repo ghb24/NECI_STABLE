@@ -13,7 +13,7 @@ module fcimc_iter_utils
                         tContTimeFull, pop_change_min, tPositiveHFSign, &
                         qmc_trial_wf, nEquilSteps, t_hist_tau_search, &
                         t_hist_tau_search_option, &
-                        tSpinProject, &
+                        tSpinProject, AvMCExcits, tDynamicAvMCEx, &
                         tFixedN0, tSkipRef, N0_Target, &
                         tTrialShift, tFixTrial, TrialTarget, tEN2
 
@@ -162,6 +162,14 @@ contains
                   write(EXLEVELStats_unit,'("#")', advance='no')
             return
         endif
+        
+        ! update the number of spawning attempts per walker
+        if(tDynamicAvMCEx) then
+           if(allNValidExcits /= 0) then
+              AvMCExcits = (allNValidExcits + allNInvalidExcits)/(allNValidExcits)
+              write(6,*) "Now spawning ", AvMCExcits, " times per walker"
+           endif
+        end if
 
     end subroutine iter_diagnostics
 
@@ -481,6 +489,9 @@ contains
         sizes(34) = 1
         ! inits per ex lvl
         sizes(35) = size(initsPerExLvl)
+        ! number of successful/invalid excits
+        sizes(36) = 1
+        sizes(37) = 1
 
         if (sum(sizes(1:NoArrs)) > real_arr_size) call stop_all(t_r, &
              "No space left in arrays for communication of estimates. Please increase &
@@ -534,7 +545,9 @@ contains
         low = upp + 1; upp = low + sizes(34) - 1; send_arr(low:upp) = truncatedWeight;        
         ! initiators per excitation level
         low = upp + 1; upp = low + sizes(35) - 1; send_arr(low:upp) = initsPerExLvl;     
-
+        ! excitation number trackers
+        low = upp + 1; upp = low + sizes(36) - 1; send_arr(low:upp) = nInvalidExcits;        
+        low = upp + 1; upp = low + sizes(37) - 1; send_arr(low:upp) = nValidExcits;        
 
         ! Perform the communication.
         call MPISumAll (send_arr(1:upp), recv_arr(1:upp))
@@ -592,7 +605,9 @@ contains
         low = upp + 1; upp = low + sizes(34) - 1; AllTruncatedWeight = recv_arr(low);
         ! initiators per excitation level
         low = upp + 1; upp = low + sizes(35) - 1; AllInitsPerExLvl = recv_arr(low:upp);
-
+        ! excitation number trackers
+        low = upp + 1; upp = low + sizes(36) - 1; allNInvalidExcits = recv_arr(low);
+        low = upp + 1; upp = low + sizes(37) - 1; allNValidExcits = recv_arr(low);
         ! Communicate HElement_t variables:
 
         low = 0; upp = 0;
@@ -1235,8 +1250,14 @@ contains
         ! reset the truncated weight
         truncatedWeight = 0.0_dp
 
+
         ! reset the logged number of initiators
         initsPerExLvl = 0
+
+        ! and the number of excits
+        nInvalidExcits = 0
+        nValidExcits = 0
+
 
     end subroutine rezero_iter_stats_update_cycle
 

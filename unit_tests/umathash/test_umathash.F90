@@ -12,7 +12,7 @@ program test_umat_hash
   use SystemData, only: nel, nBasis, UMatEps, tStoreSpinOrbs, tReadFreeFormat, tCSF, &
        tReadInt
   use System, only: SysInit, SetSysDefaults
-  use Parallel_neci, only: MPIInit
+  use Parallel_neci, only: MPIInit, MPIEnd
   use UMatCache, only: GetUMatSize, tTransGTID
   use OneEInts, only: Tmat2D
   use bit_rep_data, only: NIfTot, NIfDBO, NOffSgn, NIfSgn, extract_sign
@@ -21,6 +21,7 @@ program test_umat_hash
   use SymExcit3, only: countExcitations3, GenExcitations3
   use dSFMT_interface, only: dSFMT_init
   use FciMCData, only: pSingles, pDoubles, pParallel
+  use SymExcitDataMod, only: excit_gen_store_type
   use Calc, only: CalcInit, SetCalcDefaults
   use Determinants, only: DetInit, DetPreFreezeInit, get_helement_normal
 
@@ -40,7 +41,6 @@ contains
     integer :: nBasisMax(5,3), lms
     integer(int64) :: umatsize
     real(dp) :: ecore
-    integer :: ierr
     umatsize = 0
     nel = 5
     NIfDBO = 0
@@ -65,6 +65,7 @@ contains
     get_umat_el => get_umat_el_normal
 
     call initfromfcid(nel,nbasismax,nBasis,lms,.false.)
+    lms = -1
 
     call GetUMatSize(nBasis, nel, umatsize)
 
@@ -87,12 +88,15 @@ contains
     call initializeSparseUMat()
 
     !call test_splitIndex()
+    write(iout,*) "Starting tests" 
+    !call test_aliasSampling()
+    !call test_linearSearch()
     call test_cached_exgen()
 
     deallocate(TMat2D)
     call shared_deallocate_mpi(umat_win, UMat)
 
-    call MPI_finalize(ierr)
+    call MPIEnd(.false.)
 
   end subroutine umat_hash_test_driver
 
@@ -124,6 +128,68 @@ contains
     end do
     nStoreBasis = backup
   end subroutine test_splitIndex
+
+  subroutine test_aliasSampling()
+    implicit none
+    integer, parameter :: numTries = 200000
+    integer, parameter :: numPQ = 1
+    integer :: ind(numTries), pq, startPQ, endPQ, j, i
+    real(dp) :: thresh, error, pI
+    integer :: maxInd, numRS
+    integer, allocatable :: hist(:)
+    maxInd = fuseIndex(nStoreBasis,nStoreBasis)
+
+    do j = 1, numPQ
+       error = 0.0_dp
+       pq = 1!int(genrand_real2_dSFMT()*maxInd)+1
+       numRS = nPQ(pq)
+       startPQ = posPQ(pq)
+       endPQ = startPQ + numRS - 1
+       allocate(hist(numRS))
+       hist = 0
+       do i = 1, numTries
+          ind(i) = aliasSampling(biasTable(startPQ:endPQ), aliasTable(startPQ:endPQ))
+          hist(ind(i)) = hist(ind(i)) + 1
+       end do
+       do i = 1, numRS
+          if(i > 1) then
+             pI = (CumSparseUMat(startPQ + i - 1) - CumSparseUMat(startPQ + i - 2)) / &
+                  CumSparseUMat(endPQ)
+          else
+             pI = CumSparseUMat(startPQ) / CumSparseUMat(endPQ)
+          endif
+          error = error + (pI - (real(hist(i),dp)/real(numTries,dp)))**2
+       end do       
+       call assert_true(error < 1.0e-5_dp)
+       deallocate(hist)
+    end do
+
+  end subroutine test_aliasSampling
+
+  subroutine test_linearSearch()
+    implicit none
+    integer, parameter :: numTries = 100
+    integer :: ind, pq, startPQ, endPQ, j
+    real(dp) :: thresh
+    integer :: maxInd 
+    maxInd = fuseIndex(nStoreBasis,nStoreBasis)
+
+    do j = 1, numTries
+       pq = int(genrand_real2_dSFMT()*maxInd)+1
+
+       startPQ = posPQ(pq)
+       endPQ = startPQ + nPQ(pq) - 1
+
+       thresh = genrand_real2_dSFMT()*CumSparseUMat(endPQ)
+
+       ind = cacheLineSearch(CumSparseUMat(startPQ:endPQ), thresh) + startPQ - 1
+
+       call assert_true(CumSparseUMat(ind) > thresh)
+       if(ind > startPQ) then
+          call assert_true(CumSparseUMat(ind-1) < thresh)
+       endif
+    end do
+  end subroutine test_linearSearch
   
 
   subroutine test_cached_exgen()
@@ -137,7 +203,9 @@ contains
     integer(n_int), allocatable :: allEx(:,:)
     integer, parameter :: sampleSize = 1000000
     real(dp) :: pgenArr(lenof_sign), pTot, pNull
-    logical :: exDone(nel,nel,nBasis,nBasis)
+    real(dp) :: matel, matelN
+    type(excit_gen_store_type) :: store
+    logical :: exDone(1:nel,1:nel,0:nBasis,0:nBasis)
     
     exDone = .false.
 
@@ -163,6 +231,8 @@ contains
        allEx(0:NIfDBO,numEx) = ilutJ(0:NIfDBO)
     end do
 
+    print *, "In total", numEx, "excitations"
+
     ! set the biases for excitation generation
     pParallel = 0.5_dp
     pSingles = 0.1_dp
@@ -170,7 +240,8 @@ contains
     
     pNull = 0.0_dp
     do i = 1, sampleSize
-       call generate_double_cached(nI,ilut,nJ,ilutJ,ex,pgen,tpar)
+       store%tFilled = .false.
+       call generate_double_cached(nI,ilut,nJ,ilutJ,ex,pgen,store,tpar)
        ! lookup the excitation
        tFound = .false.
        do j = 1, numEx
@@ -185,7 +256,7 @@ contains
        if(.not. tFound .and. .not. all(nJ==0)) then
           call decode_bit_det(nJ,ilutJ)
           write(iout,*) "Error: Invalid excitation", nJ
-          exit
+          stop
        endif
        if(nJ(1) == 0) then
           if(.not. exDone(ex(1,1),ex(1,2),ex(2,1),ex(2,2)))then
@@ -195,20 +266,33 @@ contains
        endif
     end do
 
+    matelN = 0.0_dp
+    do i = 1, numEx
+       call decode_bit_det(nJ,allEx(:,i))
+       matelN = matelN + abs(get_helement_normal(nJ,nI))
+    end do
     ! check that all excits have been generated and all pGens are right
     ! probability normalization
     pTot = pNull
     do i = 1, numEx
        call extract_sign(allEx(:,i),pgenArr)
        call decode_bit_det(nJ,allEx(:,i))
-       write(iout,*) i, pgenArr(1), real(allEx(NIfTot+1,i))/real(sampleSize)
-!       write(iout,*), nJ
-       if(pgenArr(1) < eps) &
-           write(iout,*) "UMAT el ", get_helement_normal(nJ,(/1,2,3,4,5/))
+       matel = abs(get_helement_normal(nJ,nI))
+       if(pgenArr(1) > eps) then
+          write(iout,*) i, pgenArr(1), real(allEx(NIfTot+1,i))/real(sampleSize), &
+               matel/(pgenArr(1)*matelN)
+       endif
+!       if(pgenArr(1) < eps .and. abs(matel) > eps) then 
+!          write(iout,*), nJ
+!          write(iout,*) "UMAT el ", matel
+!       endif
        pTot = pTot + pgenArr(1)
     end do
     write(iout,*) "Total prob. ", pTot
     write(iout,*) "pNull ", pNull
 
+    call assert_true(abs(pTot-1.0_dp) < 1.0e-5_dp)
+
   end subroutine test_cached_exgen
+
 end program test_umat_hash

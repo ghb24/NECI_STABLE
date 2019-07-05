@@ -6,9 +6,14 @@ module UMatHash
   use sltcnd_mod, only: sltcnd_2
   use IntegralsData, only: UMat
   use util_mod_numerical
+  use shared_memory_mpi
   use UMatCache, only: UMatInd, getUMatSize, numBasisIndices
   use sort_mod
   implicit none
+
+  ! tables for the alias method - should replace the cumulative sums once tested
+  real(dp), pointer :: biasTable(:), biasTablePar(:)
+  integer, pointer :: aliasTable(:), aliasTablePar(:)
 
   ! the cumulative sum only contains the absolute values, it 
   ! is always real
@@ -29,7 +34,8 @@ module UMatHash
   integer :: numPQPairs
   integer :: numPQPairsPar
   ! mpi windows for shared memory allocation
-  integer(MPIArg) :: nPQWin
+  integer, parameter :: nShmWins = 8 ! number of shared memory windows
+  integer(MPIArg) :: PQshmWins(nShmWins), PQshmWinsPar(nShmWins)
 
   contains 
 
@@ -39,104 +45,121 @@ module UMatHash
       nStoreBasis = numBasisIndices(nBasis)
 
       call setupCumulativeSparseUMat(CumSparseUMat,TotalCumWeights,nPQ,nLargePQ,rsPQ,&
-           posPQ, numPQPairs, .false.)
+           posPQ, numPQPairs, biasTable, aliasTable, PQShmWins, .false.)
       call setupCumulativeSparseUMat(CumSparseUMatPar, TotalCumWeightsPar, nPQPar, nLargePQPar, &
-           rsPQPar, posPQPar, numPQPairsPar, .true.)
+           rsPQPar, posPQPar, numPQPairsPar, biasTablePar, aliasTablePar, PQshmWinsPar, .true.)
+
     end subroutine initializeSparseUMat
 
     !------------------------------------------------------------------------------------------!
 
     subroutine setupCumulativeSparseUMat(CumSparseUMatLoc,TotalCumWeightsLoc, &
-         nPQLoc,nLargePQLoc,rsPQLoc,posPQLoc,numPQPairsLoc,tPar)
+         nPQLoc,nLargePQLoc,rsPQLoc,posPQLoc,numPQPairsLoc, biasTableLoc, &
+         aliasTableLoc, shmWins, tPar)
       implicit none
       real(dp), intent(out), pointer :: CumSparseUMatLoc(:), TotalCumWeightsLoc(:)
       integer, intent(out), pointer :: nPQLoc(:), nLargePQLoc(:), rsPQLoc(:,:)
       integer, intent(out), pointer :: posPQLoc(:)
       integer, intent(out) :: numPQPairsLoc
+      real(dp), intent(out), pointer :: biasTableLoc(:)
+      integer, intent(out), pointer :: aliasTableLoc(:)
+      integer(MPIArg), intent(out) :: shmWins(nShmWins)
       logical, intent(in) :: tPar      
-      integer :: nnz
-      integer :: p,q,r,s,pq, offset
+      integer(int64) :: nnz
+      integer :: p,q,r,s,pq
+      integer(int64) :: nPQP_64
       ! current matrix element
       real(dp) :: matel
-     
-      ! offset controls if we consider p==q/r==s?
-      if(tPar) then
-         offset = 1
-      else
-         offset = 0
-      endif
 
+      ! temporary counters for aligning the sub-arrays of CumSparseUMatLoc
+      integer :: nnzPQ
+     
       ! number of pq-values
       numPQPairsLoc = fuseIndex(nStoreBasis,nStoreBasis)
+      ! 64-bit version
+      nPQP_64 = int(numPQPairsLoc,int64)
 
-      !call shared_allocate_mpi(nPQLWin,nPQLoc,numPQPairsLoc)
-      allocate(nPQLoc(numPQPairsLoc))
-      allocate(nLargePQLoc(numPQPairsLoc))
-      allocate(posPQLoc(numPQPairsLoc))
-      allocate(TotalCumWeightsLoc(numPQPairsLoc))
+      call shared_allocate_mpi(shmWins(1),nPQLoc,(/nPQP_64/))
+      call shared_allocate_mpi(shmWins(2),nLargePQLoc,(/nPQP_64/))
+      call shared_allocate_mpi(shmWins(3),posPQLoc,(/nPQP_64/))
+      call shared_allocate_mpi(shmWins(4),TotalCumWeightsLoc,(/nPQP_64/))
 
       ! count the number of nonzero elements in umat
       nnz = 0
-      do p = 1, nStoreBasis
-         do q = p, nStoreBasis
+      do pq = 1, numPQPairsLoc
+         ! add empty entries to align to 64 byte
+!         call roundTo64(nnz)
+         ! get the indices p,q
+         call splitIndex(pq,p,q)
+         do r = 1, nStoreBasis
+            do s = minInd(r), nStoreBasis
+               if(umatel(p,q,r,s) > eps) nnz = nnz + 1
+            end do
+         end do
+      end do
+
+      call shared_allocate_mpi(shmWins(5),rsPQLoc,(/2_int64,nnz/))
+      call shared_allocate_mpi(shmWins(6),CumSparseUMatLoc,(/nnz/))
+      call shared_allocate_mpi(shmWins(7),biasTableLoc,(/nnz/))
+      call shared_allocate_mpi(shmWins(8),aliasTableLoc,(/nnz/))
+      
+      ! this is only done on the root of the intra-node communicator
+      if(iProcIndex_intra .eq. 0) then
+         nnz = 0
+         do pq = 1, numPQPairsLoc
+            ! align to 64 byte
+!            call roundTo64(nnz)
+            ! recover the indices p,q from pq
+            call splitIndex(pq,p,q)         
+            ! store the starting position of the values for this pq
+            posPQLoc(pq) = nnz + 1
+
             do r = 1, nStoreBasis
+               ! as we consider spatial orbs in general, we allow for s==r
                do s = minInd(r), nStoreBasis
-                  if(umatel(p,q,r,s) > eps) nnz = nnz + 1
+                  matel = umatel(p,q,r,s)
+                  if(matel > eps) then
+                     nnz = nnz + 1
+                     CumSparseUMatLoc(nnz) = matel
+                     rsPQLoc(1,nnz) = r
+                     rsPQLoc(2,nnz) = s
+                  endif
                end do
             end do
+
+            ! number of matrix elements for this pq
+            nPQLoc(pq) = nnz - posPQLoc(pq) + 1
+            ! so far, we got the unordered matrix elements for pq
+            ! with their respective r,s
+            ! now, sort the entries + rsPQ entries
+            ! remember to only act on the slice belonging to the current PQ
+            ! last index belonging to this pq is nnz
+            if(nPQLoc(pq) > 0) then            
+               call sort(CumSparseUMatLoc(posPQLoc(pq):nnz),rsPQLoc(:,posPQLoc(pq):nnz))
+
+               ! ordering is increasing now, but we want it to be decreasing
+               CumSparseUMatLoc(posPQLoc(pq):nnz) = CumSparseUMatLoc(nnz:posPQLoc(pq):-1)
+               rsPQLoc(:,posPQLoc(pq):nnz) = rsPQLoc(:,nnz:posPQLoc(pq):-1)
+
+               call setupAliasTables(CumSparseUMatLoc(posPQLoc(pq):nnz), &
+                    biasTableLoc(posPQLoc(pq):nnz), aliasTableLoc(posPQLoc(pq):nnz))
+
+               ! accumulate the values of CumSparseUMat
+               call accumulateValues(CumSparseUMatLoc(posPQLoc(pq):nnz))
+
+               nLargePQLoc(pq) = binary_search_first_ge(CumSparseUMatLoc(posPQLoc(pq):nnz),&
+                    0.5*CumSparseUMatLoc(nnz))
+
+               TotalCumWeightsLoc(pq) = CumSparseUMatLoc(nnz)
+            else
+               ! if there are no excitations with this pq, posPQ(pq) is set to the position
+               ! of the next pq with valid excitations and the number nPQ/nPQLarge is set to 0
+               nPQLoc(pq) = 0
+               nLargePQLoc(pq) = 0
+               TotalCumWeightsLoc(pq) = 0.0_dp
+            end if
          end do
-      end do
-      allocate(rsPQLoc(2,nnz))
-      allocate(CumSparseUMatLoc(nnz))
-
-      nnz = 0
-      do pq = 1, numPQPairsLoc
-         ! recover the indices p,q from pq
-         call splitIndex(pq,p,q)
-         ! store the starting position of the values for this pq
-         posPQLoc(pq) = nnz + 1
-         do r = 1, nStoreBasis
-            ! as we consider spatial orbs in general, we allow for s==r
-            do s = minInd(r), nStoreBasis
-               matel = umatel(p,q,r,s)
-               if(matel > eps) then
-                  nnz = nnz + 1
-                  CumSparseUMatLoc(nnz) = matel
-                  rsPQLoc(1,nnz) = r
-                  rsPQLoc(2,nnz) = s
-               endif
-            end do
-         end do
-        
-         ! number of matrix elements for this pq
-         nPQLoc(pq) = nnz - posPQLoc(pq) + 1
-         ! so far, we got the unordered matrix elements for pq
-         ! with their respective r,s
-         ! now, sort the entries + rsPQ entries
-         ! remember to only act on the slice belonging to the current PQ
-         ! last index belonging to this pq is nnz
-         if(nPQLoc(pq) > 0) then
-            call sort(CumSparseUMatLoc(posPQLoc(pq):nnz),rsPQLoc(:,posPQLoc(pq):nnz))
-
-            ! ordering is increasing now, but we want it to be decreasing
-            CumSparseUMatLoc(posPQLoc(pq):nnz) = CumSparseUMatLoc(nnz:posPQLoc(pq):-1)
-            rsPQLoc(:,posPQLoc(pq):nnz) = rsPQLoc(:,nnz:posPQLoc(pq):-1)
-
-            ! accumulate the values of CumSparseUMat
-            call accumulateValues(CumSparseUMatLoc(posPQLoc(pq):nnz))
-
-            nLargePQLoc(pq) = binary_search_first_ge(CumSparseUMatLoc(posPQLoc(pq):nnz),&
-                 0.5*CumSparseUMatLoc(nnz))
-
-            TotalCumWeightsLoc(pq) = CumSparseUMatLoc(nnz)
-         else
-            ! if there are no excitations with this pq, posPQ(pq) is set to the position
-            ! of the next pq with valid excitations and the number nPQ/nPQLarge is set to 0
-            nPQLoc(pq) = 0
-            nLargePQLoc(pq) = 0
-            TotalCumWeightsLoc(pq) = 0.0_dp
-         end if
-      end do
+      endif
 
     contains
 
@@ -166,6 +189,96 @@ module UMatHash
       end function minInd
 
     end subroutine setupCumulativeSparseUMat
+
+    !------------------------------------------------------------------------------------------!
+
+    subroutine setupAliasTables(arr, biasTable, aliasTable)
+      real(dp), intent(in) :: arr(:)
+      real(dp), intent(out) :: biasTable(:)
+      integer, intent(out) :: aliasTable(:)
+
+      integer :: i,j,cV, cU, arrSize
+      integer, allocatable :: overfull(:), underfull(:)
+      ! initialize the probabilities
+      arrSize = size(arr)
+      biasTable = arr/sum(arr)*arrSize
+
+      ! indices of subarrays
+      allocate(overfull(arrSize))
+      allocate(underfull(arrSize))
+      
+      cV = 0
+      cU = 0
+      do i = 1, arrSize
+         call assignLabel(i)
+      end do
+      ! we now labeled each entry
+      
+      ! it is more efficient to start with the largest biases
+      ! -> reverse overfull
+      overfull(1:cV) = overfull(cV:1:-1)
+      do 
+         if((cV .eq. 0) .or. (cU .eq. 0)) then            
+            exit
+         end if
+         ! pick one overfull and one underfull index
+         i = overfull(cV)
+         j = underfull(cU)
+         ! set the alias of the underfull to be the other
+         aliasTable(j) = i
+         ! correct the bias
+         biasTable(i) = biasTable(i) + biasTable(j) - 1
+
+         ! unmark j
+         cU = cU - 1
+         ! reassign i based on the new bias
+         cV = cV - 1
+         call assignLabel(i)
+      end do
+
+      ! make sure we do not leave anything unfilled
+      call roundTo1(overfull,cV)
+      call roundTo1(underfull,cU)
+
+      contains 
+
+        subroutine assignLabel(i)
+          integer, intent(in) :: i
+
+          if(biasTable(i) > 1) then
+             cV = cV + 1
+             overfull(cV) = i
+          else
+             cU = cU + 1
+             underfull(cU) = i
+          end if
+        end subroutine assignLabel
+
+        subroutine roundTo1(labels,cI)
+          integer, intent(in) :: labels(:)
+          integer, intent(in) :: cI
+
+          ! if, due to floating point errors, one of the categories is not empty, empty it
+          ! (error is negligible then)
+          if(cI > 0) then
+             do i = 1, cI
+                biasTable(labels(i)) = 1.0_dp
+                aliasTable(labels(i)) = labels(i)
+             end do
+          endif
+          
+        end subroutine roundTo1
+      
+    end subroutine setupAliasTables
+
+    !------------------------------------------------------------------------------------------!
+
+    subroutine roundTo64(pos)
+      implicit none
+      integer(int64), intent(inout) :: pos
+
+      if(mod(pos,cLineSize) .ne. 0) pos = pos + cLineSize - mod(pos,cLineSize)
+    end subroutine roundTo64
 
     !------------------------------------------------------------------------------------------!
 
@@ -231,17 +344,21 @@ module UMatHash
       end do
     end subroutine accumulateValues
 
-    !-----------------------------------------------------------------------------------------!-
+    !------------------------------------------------------------------------------------------!
 
     subroutine freeCumulativeSparseUMat()
       implicit none
 
+      if(associated(biasTable)) deallocate(biasTable)
+      if(associated(aliasTable)) deallocate(aliasTable)
       if(associated(CumSparseUMat)) deallocate(CumSparseUMat)
       if(associated(TotalCumWeights)) deallocate(TotalCumWeights)
       if(associated(posPQ)) deallocate(posPQ)
       if(associated(rsPQ)) deallocate(rsPQ)
       if(associated(nPQ)) deallocate(nPQ)
 
+      if(associated(biasTablePar)) deallocate(biasTablePar)
+      if(associated(aliasTablePar)) deallocate(aliasTablePar)
       if(associated(CumSparseUMatPar)) deallocate(CumSparseUMatPar)
       if(associated(TotalCumWeightsPar)) deallocate(TotalCumWeightsPar)
       if(associated(posPQPar)) deallocate(posPQPar)
@@ -276,15 +393,15 @@ module UMatHash
     ! we will answer this by generating multiple excitations, such that 1 valid one
     ! is generated on average
     subroutine selectRSFromCSUM(p,q,rs,pgen,CumSparseUMatLoc, &
-         nPQLoc,rsPQLoc,posPQLoc)
+         nPQLoc,rsPQLoc,posPQLoc, biasTableLoc, aliasTableLoc)
       implicit none
       ! input p,q
       integer, intent(in) :: p,q
       ! output r,s
       integer, intent(out) :: rs(2)
-      real(dp), intent(inout) :: pgen
-      real(dp), intent(in) :: CumSparseUMatLoc(:)
-      integer, intent(in) :: nPQLoc(:), rsPQLoc(:,:), posPQLoc(:)
+      real(dp), intent(out) :: pgen
+      real(dp), intent(in) :: CumSparseUMatLoc(:), biasTableLoc(:)
+      integer, intent(in) :: nPQLoc(:), rsPQLoc(:,:), posPQLoc(:), aliasTableLoc(:)
 
       real(dp) :: randThresh
       ! positions and aux indices
@@ -298,9 +415,10 @@ module UMatHash
       if(endPQ > startPQ) then
          ! choose the HElement
          ! random factor between 0 and 1 times total cumulated value
-         randThresh = genrand_real2_dSFMT()*CumSparseUMatLoc(endPQ)
 
-         pos = binary_search_first_ge(CumSparseUMatLoc(startPQ:endPQ), randThresh) + startPQ - 1
+!         randThresh = genrand_real2_dSFMT()*CumSparseUMatLoc(endPQ)
+!         pos = binary_search_first_ge(CumSparseUMatLoc(startPQ:endPQ), randThresh) + startPQ - 1
+         pos = aliasSampling(biasTableLoc(startPQ:endPQ), aliasTableLoc(startPQ:endPQ)) + startPQ - 1
 
          if(pos > startPQ) then
             pgen = pgen * (CumSparseUMatLoc(pos) - CumSparseUMatLoc(pos-1))/CumSparseUMatLoc(endPQ)
@@ -353,5 +471,126 @@ module UMatHash
       ! i has the value of the larger index
       q = i
     end subroutine splitIndex
+
+    !------------------------------------------------------------------------------------------!
+
+    function linearSearch(arr, thresh) result(ind)
+      implicit none
+      real(dp), intent(in) :: arr(:)
+      real(dp), intent(in) :: thresh
+      integer :: ind
+
+      ind = 1
+      do 
+         if(arr(ind) > thresh) return
+         ind = ind + 1
+      end do
+
+    end function linearSearch
+
+    !------------------------------------------------------------------------------------------!
+
+    function linearSearch_old(arr, thresh) result(ind)
+      implicit none
+      real(dp), intent(in) :: arr(:)
+      real(dp), intent(in) :: thresh
+      integer :: ind
+      
+      ! left and right point of extrapolation
+      integer :: a, b
+      real(dp) :: fa, fb, fx
+      real(dp), parameter :: scale = 0.5
+      
+      a = 0
+      b = size(arr)
+      ! for 1-sized arrays, the search does not work
+      if(size(arr) < 2) then
+         ind = 1
+         return
+      endif
+      fa = -thresh
+      fb = arr(b) - thresh
+      
+      do 
+         if(abs(a-b)==1) then
+            ind = max(a,b)
+            return
+         endif
+         ind = ceiling(a - (fa)/(fb-fa)*(b-a))
+         fx = arr(ind) - thresh
+         if(fx*fb < 0) then
+            a = b
+            fa = fb
+         else
+            fa = fa * scale
+         endif
+         b = ind
+         fb = fx
+      end do
+    end function linearSearch_old
+
+    !------------------------------------------------------------------------------------------!
+
+    function cacheLineSearch(arr, thresh) result(ind)
+      implicit none
+      real(dp), intent(in) :: arr(:)
+      real(dp), intent(in) :: thresh
+      integer :: ind
+
+      integer :: i, iStartLinSearch, modulus, nReads
+      real(dp) :: fb, fa
+
+      iStartLinSearch = 1
+      nReads = cLineSize - 1
+      do 
+         ! do a secant search using cache-line length blocks of data
+         ind = iStartLinSearch
+         fa = arr(ind)
+         if(fa > thresh) return
+         do i = 1, nReads
+            ind = i + iStartLinSearch
+            fb = arr(ind)
+            if(fb > thresh) return
+         end do
+         iStartLinSearch = (thresh - fa)/(fb-fa)*(i-1) + iStartLinSearch
+         
+         ! align to 64 byte
+         modulus = mod(iStartLinSearch-1,cLineSize)
+         if(modulus .ne. 0) then
+            nReads = 7 - modulus
+            if(nReads .eq. 0) nReads = cLineSize
+         endif
+      end do
+   
+
+    end function cacheLineSearch
+
+    !------------------------------------------------------------------------------------------!
+
+    function aliasSampling(arr, aliasArr) result(ind)
+      implicit none
+      real(dp), intent(in) :: arr(:)
+      integer, intent(in) :: aliasArr(:)
+      integer :: ind
+      
+      real(dp) :: r, bias
+      integer :: sizeArr, pos
+      
+      sizeArr = size(arr)
+
+      ! random number between 0 and 1
+      r = genrand_real2_dSFMT()
+      ! random position in arr
+      pos = int(sizeArr*r)+1
+      ! remainder of the integer conversion
+      bias = sizeArr*r + 1 - pos
+
+      if(bias < arr(pos)) then
+         ind = pos
+      else
+         ind = aliasArr(pos)
+      endif
+      
+    end function aliasSampling
 
 end module UMatHash
