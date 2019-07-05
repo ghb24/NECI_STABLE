@@ -16,7 +16,7 @@ module fcimc_initialisation
                           t_k_space_hubbard, t_3_body_excits, omega, breathingCont, &
                           momIndexTable, t_trans_corr_2body, t_non_hermitian, &
                           t_uniform_excits, t_mol_3_body, nClosedOrbs, irrepOrbOffset, nIrreps, &
-                          nOccOrbs, tNoSinglesPossible
+                          nOccOrbs, tNoSinglesPossible, tCachedExcits
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
 
     use dSFMT_interface, only: dSFMT_init
@@ -148,6 +148,7 @@ module fcimc_initialisation
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
     use initiator_space_procs, only: init_initiator_space
+    use cachedExcitgen, only: gen_excit_hel_cached
     use kp_fciqmc_data_mod, only: tExcitedStateKP
     use sym_general_mod, only: ClassCountInd
     use trial_wf_gen, only: init_trial_wf, end_trial_wf
@@ -170,9 +171,10 @@ module fcimc_initialisation
     use get_excit, only: make_double
 
     use sltcnd_mod, only: sltcnd_0
+
     use rdm_data, only: nrdms_transition_input, rdmCorrectionFactor, InstRDMCorrectionFactor, &
          ThisRDMIter
-
+    use UMatHash, only: initializeSparseUMat
     use Parallel_neci
 
     use FciMCData
@@ -1827,11 +1829,16 @@ contains
                                         &error as the initiator method is not in use.")
         end if
 
+         if(tCachedExcits) call initializeSparseUMat()
+
+
+
     end subroutine InitFCIMCCalcPar
 
     subroutine init_fcimc_fn_pointers()
       character(*), parameter :: t_r = 'init_fcimc_fn_pointers'
         ! Select the excitation generator.
+      
       if(t_mol_3_body) then
          generate_excitation => gen_excit_mol_tc
       else if(t_3_body_excits) then
@@ -1841,54 +1848,57 @@ contains
             generate_excitation => gen_excit_k_space_hub_transcorr
          endif
       elseif (tHPHF) then
-            generate_excitation => gen_hphf_excit
-         elseif ((t_back_spawn_option .or. t_back_spawn_flex_option)) then 
-            if (tHUB .and. tLatticeGens) then 
-                ! for now the hubbard + back-spawn still uses the old 
-                ! genrand excit gen
-                generate_excitation => gen_excit_back_spawn_hubbard
-            else if (tUEGNewGenerator .and. tLatticeGens) then 
-                generate_excitation => gen_excit_back_spawn_ueg_new
-            else if (tUEG .and. tLatticeGens) then 
-                generate_excitation => gen_excit_back_spawn_ueg
-            else 
-                generate_excitation => gen_excit_back_spawn
-            end if
-        elseif (tUEGNewGenerator) then
-            generate_excitation => gen_ueg_excit
-        elseif (tCSF) then
-            generate_excitation => gen_csf_excit
-        elseif (tPickVirtUniform) then
-            ! pick-uniform-random-mag is on
-            if (tReltvy) then
-                generate_excitation => gen_rand_excit_Ex_Mag
-            else
-                generate_excitation => gen_rand_excit3
-            endif
-        elseif (tGenHelWeighted) then
-            generate_excitation => gen_excit_hel_weighted
-        elseif (tGen_4ind_2) then
-            generate_excitation => gen_excit_4ind_weighted2
-        elseif (tGen_4ind_weighted) then
-            generate_excitation => gen_excit_4ind_weighted
-        elseif (tGen_4ind_reverse) then
-            generate_excitation => gen_excit_4ind_reverse
-        else
-            generate_excitation => gen_rand_excit
-        endif
-        ! In the main loop, we only need to find out if a determinant is
-        ! connected to the reference det or not (so no ex. level above 2 is
-        ! required). Except in some cases where we need to know the maximum
-        ! excitation level
-        if (tTruncSpace .or. tHistSpawn .or. tCalcFCIMCPsi) then
-            max_calc_ex_level = nel
-        else
-            if (t_3_body_excits) then 
-                max_calc_ex_level = 3
-            else 
-                max_calc_ex_level = 2
-            end if
-        endif
+         generate_excitation => gen_hphf_excit
+      elseif(tCachedExcits) then
+         generate_excitation => gen_excit_hel_cached
+
+      elseif ((t_back_spawn_option .or. t_back_spawn_flex_option)) then 
+         if (tHUB .and. tLatticeGens) then 
+            ! for now the hubbard + back-spawn still uses the old 
+            ! genrand excit gen
+            generate_excitation => gen_excit_back_spawn_hubbard
+         else if (tUEGNewGenerator .and. tLatticeGens) then 
+            generate_excitation => gen_excit_back_spawn_ueg_new
+         else if (tUEG .and. tLatticeGens) then 
+            generate_excitation => gen_excit_back_spawn_ueg
+         else 
+            generate_excitation => gen_excit_back_spawn
+         end if
+      elseif (tUEGNewGenerator) then
+         generate_excitation => gen_ueg_excit
+      elseif (tCSF) then
+         generate_excitation => gen_csf_excit
+      elseif (tPickVirtUniform) then
+         ! pick-uniform-random-mag is on
+         if (tReltvy) then
+            generate_excitation => gen_rand_excit_Ex_Mag
+         else
+            generate_excitation => gen_rand_excit3
+         endif
+      elseif (tGenHelWeighted) then
+         generate_excitation => gen_excit_hel_weighted
+      elseif (tGen_4ind_2) then
+         generate_excitation => gen_excit_4ind_weighted2
+      elseif (tGen_4ind_weighted) then
+         generate_excitation => gen_excit_4ind_weighted
+      elseif (tGen_4ind_reverse) then
+         generate_excitation => gen_excit_4ind_reverse
+      else
+         generate_excitation => gen_rand_excit
+      endif
+      ! In the main loop, we only need to find out if a determinant is
+      ! connected to the reference det or not (so no ex. level above 2 is
+      ! required). Except in some cases where we need to know the maximum
+      ! excitation level
+      if (tTruncSpace .or. tHistSpawn .or. tCalcFCIMCPsi) then
+         max_calc_ex_level = nel
+      else
+         if (t_3_body_excits) then 
+            max_calc_ex_level = 3
+         else 
+            max_calc_ex_level = 2
+         end if
+      endif
 
         ! How many children should we spawn given an excitation?
         if (tTruncCas .or. tTruncSpace .or. &

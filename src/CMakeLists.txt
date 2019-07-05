@@ -9,6 +9,7 @@ set( SRC_FILES
     Annihilation.F90
     bit_rep_data.F90
     BitReps.F90
+    cachedExcitgen.F90
     CalcData.F90
     Calc.F90
     calcrho.F
@@ -175,6 +176,7 @@ set( SRC_FILES
     trial_wf_gen.F90
     trial_ht_procs.F90
     UMatCache.F90
+    UMatHash.F90
     vasp_init.F90
     vasp_interface.F90
     vasp_neci_interface_stub.F90
