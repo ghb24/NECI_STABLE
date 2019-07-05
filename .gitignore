@@ -57,3 +57,4 @@ double_occupancy_stat*
 UMAT
 popsfile.h5*
 RDM_POPSFILE
+replica_estimates

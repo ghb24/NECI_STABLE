@@ -17,7 +17,7 @@ module cont_time
     use Determinants, only: get_helement, write_det
     use orthogonalise, only: orthogonalise_replicas
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use AnnihilationMod, only: DirectAnnihilation
+    use AnnihilationMod, only: DirectAnnihilation, communicate_and_merge_spawns
     use bit_reps, only: nullify_ilut, encode_sign
     use fcimc_iter_utils, only: update_iter_data
     use hphf_integrals, only: hphf_diag_helement
@@ -44,7 +44,8 @@ contains
 
         real(dp) :: sgn(lenof_sign), rate, hdiag
         integer :: sgn_abs, iunused, flags, det(nel), j, p, TotWalkersNew
-        integer :: part_type, ic_hf, nopen, err
+
+        integer :: part_type, ic_hf, nopen, err, MaxIndex
         logical :: survives
 
         if (lenof_sign /= 1) then
@@ -153,7 +154,9 @@ contains
 
         ! Send walkers to the correct nodes, and annihilate
         call set_timer(annihil_time)
-        call DirectAnnihilation(TotWalkersNew, iter_data, .false.,err)
+        call communicate_and_merge_spawns(MaxIndex, iter_data, .false.)
+        call DirectAnnihilation(TotWalkersNew, MaxIndex, iter_data, err)
+
         TotWalkers = TotWalkersNew
         call halt_timer(annihil_time)
         IFDEBUG(FCIMCDebug, 2) write(iout, '("Finished annihilation")')
@@ -187,7 +190,7 @@ contains
         integer :: nspawn, spawn_sgn, det_spwn(nel), ic, i, y, nopen_spwn, err
         integer(n_int) :: ilut_spwn(0:NIfTot)
         logical :: child_survives
-        HElement_t(dp) :: hoffdiag, htmp
+        HElement_t(dp) :: hoffdiag, htmp, hdiag_spawn
 
         ! A quick sanity check that we have calculated the spawning rate
         ! reasonably
@@ -308,7 +311,7 @@ contains
                                          part_type, ilut, iter_data, err)
                     else
                         call create_particle(det_spwn, ilut_spwn, child, &
-                                             part_type, err, ilut)
+                                             part_type, hdiag_spawn, err, ilut)
                     end if
                 end if
 

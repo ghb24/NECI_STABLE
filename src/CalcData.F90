@@ -54,6 +54,8 @@ type subspace_in
     ! each iteration to find which states to keep, we keep the states
     ! with the lowest energies.
     logical :: tLowE = .false.
+    ! Actually use the space of all connections to the chosen space
+    logical :: tAllConnCore = .false.
     ! Use the entire FCI space.
     logical :: tFCI = .false.
     ! Use the entire FCI space in Heisenberg model calculations.
@@ -102,6 +104,7 @@ LOGICAL :: TInitStar,TNoSameExcit,TLanczos,TStarTrips
 LOGICAL :: TMaxExcit,TOneExcitConn,TSinglesExcitSpace,TFullDiag
 LOGICAL ::THDiag,TMCStar,TReadPops,TBinCancel,TFCIMC,TMCDets,tDirectAnnihil
 LOGICAL :: tDetermProj, tFTLM, tSpecLanc, tExactSpec, tExactDiagAllSym
+LOGICAL :: tDetermProjApproxHamil
 LOGICAL :: TFullUnbias,TNoAnnihil,tStartMP1
 LOGICAL :: TRhoElems,TReturnPathMC,TSignShift
 LOGICAL :: THFRetBias,TProjEMP2,TFixParticleSign
@@ -112,7 +115,7 @@ LOGICAL :: tRotoAnnihil,tSpawnAsDet
 LOGICAL :: tTruncCAS ! Truncation of the FCIMC excitation space by a CAS
 logical :: tTruncInitiator, tAddtoInitiator, tInitCoherentRule, tGlobalInitFlag
 logical :: tSTDInits
-logical :: tEN2, tEN2Init, tEN2Truncated, tEN2Started
+logical :: tEN2, tEN2Init, tEN2Truncated, tEN2Started, tEN2Rigorous
 LOGICAL :: tSeniorInitiators !If a det. has lived long enough (called a senior det.), it is added to the initiator space.
 LOGICAL :: tInitIncDoubs,tWalkContGrow,tAnnihilatebyRange
 logical :: tReadPopsRestart, tReadPopsChangeRef, tInstGrowthRate
@@ -306,6 +309,20 @@ integer :: trialSpaceUpdateCycle
 ! wave function is turned on.
 logical :: qmc_trial_wf = .false.
 
+! Define a space in which all determinants are initiators
+logical :: tInitiatorSpace
+type(subspace_in) :: i_space_in
+
+! If true then initiators can only be those determinants in the defined fixed space.
+logical :: tPureInitiatorSpace
+
+! Run FCIQMC in the truncated space of all connections to the initiator space
+logical :: tAllConnsPureInit
+
+! If this is true, don't allow non-initiators to spawn to another non-initiator,
+! even if it is occupied.
+logical :: tSimpleInit
+
 ! True if running a kp-fciqmc calculation.
 logical :: tKP_FCIQMC
 
@@ -326,6 +343,9 @@ integer :: orthogonalise_iter
 logical :: tAVReps, tReplicaCoherentInits, tRCCheck
 ! Information on a trial space to create trial excited states with.
 type(subspace_in) :: init_trial_in
+
+! Start wave function from solutions with a trial space
+logical :: tTrialInit
 
 ! If true then a hash table is kept for the spawning array and is used when
 ! new spawnings are added to the spawned list, to prevent adding the same
@@ -365,6 +385,11 @@ real(dp) :: cont_time_max_overspawn
 ! Are we doing an mneci run where each state is represented by two FCIQMC
 ! replicas?
 logical :: tPairedReplicas = .false.
+
+! Calculate and print estimates which use the replica approach to a file
+logical :: tReplicaEstimates
+
+logical :: tSetInitFlagsBeforeDeath
 
 ! If true then swap the sign of the FCIQMC wave function if the sign of the
 ! Hartree-Fock population becomes negative.
@@ -477,6 +502,23 @@ logical :: t_back_spawn_flex = .false., t_back_spawn_flex_option = .false.
 ! change now: we also want to enable to increase the excitation by possibly 
 ! 1 -> maybe I should rename this than so that minus indicates de-excitation?!
 integer :: occ_virt_level = 0
+
+! Use a Jacobi preconditioner in evolution equation
+logical :: tPreCond
+
+! Do we perform the death step before the communication of spawnings, or after?
+! If tReplicaEstimates is is true, then it is essential that tDeathBeforeComms
+! is false. To calculate these replica-based estimates, we use the summed-together
+! spawnings (i.e. after communication), and the current walkers *before* death
+! has been performed. So if tReplicaEstimates = .true., then we *must* have
+! tDeathBeforeComms = .false.
+logical :: tDeathBeforeComms
+
+! Allow the user to input the following values for the excitation generator
+real(dp) :: pSinglesIn, pParallelIn
+
+! If true then allow set_initial_run_references to be called
+logical :: tSetInitialRunRef
 
 ! If true, then when using the pops-core option, don't allow the
 ! pops-core-approx option to take over, even in the default case

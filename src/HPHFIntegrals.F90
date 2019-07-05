@@ -6,7 +6,7 @@ module hphf_integrals
     use HPHFRandExcitMod, only: FindDetSpinSym, FindExcitBitDetSym
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel, &
                          TestClosedShellDet, CalcOpenOrbs
-    use sltcnd_mod, only: sltcnd, sltcnd_excit
+    use sltcnd_mod, only: sltcnd, sltcnd_knowIC, sltcnd_excit
     use bit_reps, only: NIfD, NIfTot, NIfDBO
     implicit none
 
@@ -156,6 +156,160 @@ module hphf_integrals
         endif
     end function
 
+    function hphf_off_diag_helement_opt (nI, iLutnI, iLutnJ, IC, CS_I, CS_J) result(hel)
+
+        ! In:  nI             - Determinant to consider
+        !      iLutnI, iLutnJ - Bit representations of I,J
+        !      IC             - Excitation level between I and J
+        !      CS_I, CS_J     - Whether I and J are closed shell or not
+        ! Ret: hel            - The calculated matrix element
+
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: iLutnI(0:NIfTot), iLutnJ(0:NIfTot)
+        integer, intent(in) :: IC
+        logical, intent(in) :: CS_I, CS_J
+        HElement_t(dp) :: hel
+
+        integer :: nI2(nel)
+        integer(n_int) :: iLutnI2(0:NIfTot)
+        integer :: ExcitLevel, OpenOrbsI, OpenOrbsJ, Ex(2,2)
+        HElement_t(dp) :: MatEl2
+        logical :: tSign
+
+        hel = 0.0_dp
+
+        if (IC <= 2) hel = sltcnd_knowIC(nI, iLutnI, iLutnJ, IC)
+
+        if (CS_I) then
+            if(tOddS_HPHF) then
+                !For odd S states, all matrix elements to CS determinants should be 0
+                hel = 0.0_dp
+            elseif (.not. CS_J) then
+                ! Closed shell --> Open shell, <X|H|Y> = 1/sqrt(2) [Hia + Hib]
+                ! or with minus if iLutnJ has an odd number of spin orbitals.
+                ! OTHERWISE Closed shell -> closed shell. Both the alpha and
+                ! beta of the same orbital have been moved to the same new
+                ! orbital. The matrix element is the same as before.
+                hel = hel * (sqrt(2.0_dp))
+            endif
+        else
+            if (CS_J) then
+                if(tOddS_HPHF) then
+                    !For odd S states, all matrix elements to CS determinants should be 0
+                    hel = 0.0_dp
+                else
+                    ! Open shell -> Closed shell. If one of
+                    ! the determinants is connected, then the other is connected
+                    ! with the same IC & matrix element
+                    hel = hel * sqrt(2.0_dp)
+                endif
+            else
+                ! Open shell -> Open shell. Find the spin pair of nJ.
+                call FindExcitBitDetSym(iLutnI, iLutnI2)
+                ExcitLevel = FindBitExcitLevel(iLutnI2, ilutnJ, 2)
+
+                if (ExcitLevel.le.2) then
+                    ! We need to find out whether the nJ HPHF wavefunction is
+                    ! symmetric or antisymmetric. This is dependant on the
+                    ! number of open shell orbitals and total spin of the wavefunction.
+                    call FindDetSpinSym(nI, nI2, nel)
+                    call CalcOpenOrbs(iLutnJ, OpenOrbsJ)
+
+                    ! Original HPHF is antisymmetric if OpenOrbs is odd (and S even),
+                    ! or symmetric if it is even.
+                    ! If S is odd, then HPHF is Symmetric if OpenOrbs is odd, and
+                    ! antisymmetric if it is even.
+                    call CalcOpenOrbs(iLutnI,OpenOrbsI)
+                    Ex(1,1)=ExcitLevel
+                    call GetBitExcitation(iLutnI2,iLutnJ,Ex,tSign)
+
+                    MatEl2 = sltcnd_excit (nI2, ExcitLevel, Ex, tSign)
+
+                    if(tOddS_HPHF) then
+                        if (((mod(OpenOrbsI,2) == 1).and.(mod(OpenOrbsJ,2) == 1))&
+                            .or. ((mod(OpenOrbsI,2) == 1) .and. &
+                                  (mod(OpenOrbsJ,2) == 0))) then
+                            hel = hel + MatEl2
+                        else
+                            hel = hel - MatEl2
+                        endif
+                    else
+                        if (((mod(OpenOrbsI,2) == 0).and.(mod(OpenOrbsJ,2) == 0))&
+                            .or. ((mod(OpenOrbsI,2) == 0) .and. &
+                                  (mod(OpenOrbsJ,2) == 1))) then
+                            hel = hel + MatEl2
+                        else
+                            hel = hel - MatEl2
+                        endif
+                    endif
+                endif
+            endif
+        endif
+
+    end function
+
+    function hphf_off_diag_special_case (nI2, iLutnI2, iLutnJ, ExcitLevel, OpenOrbsI) result(hel)
+
+        ! This calculates the off-diagonal H element between two HPHFs for a
+        ! special case: where we know that the two 'unpaired' determinants
+        ! (i.e. the ones we actually store) have no connection, but where
+        ! we know that the paired and unpaired combination *is* connected,
+        ! and we know that the corresponding excitation level is ExcitLevel.
+
+        ! This has been implemented especiallly for the fast Hamiltonian
+        ! generation, where this case comes up and is performance critical.
+        ! It's hard to imagine that it will be required elsewhere.
+
+        ! In:  nI2             - The 'paired' Determinant to consider
+        !      iLutnI2, iLutnJ - Bit representations of nI2 and nJ
+        !      ExcitLevel      - Excitation level between nI2 and nJ
+        !      OpenOrbs        - The number of open orbitals in nI
+        ! Ret: hel             - The calculated matrix element
+
+        integer, intent(in) :: nI2(nel)
+        integer(n_int), intent(in) :: iLutnI2(0:NIfTot), iLutnJ(0:NIfTot)
+        integer, intent(in) :: ExcitLevel, OpenOrbsI
+        HElement_t(dp) :: hel
+
+        integer :: OpenOrbsJ, Ex(2,2)
+        HElement_t(dp) :: MatEl2
+        logical :: tSign
+
+        ! We need to find out whether the nJ HPHF wavefunction is
+        ! symmetric or antisymmetric. This is dependant on the
+        ! number of open shell orbitals and total spin of the wavefunction.
+        !call FindDetSpinSym(nI, nI2, nel)
+        call CalcOpenOrbs(iLutnJ, OpenOrbsJ)
+
+        ! Original HPHF is antisymmetric if OpenOrbs is odd (and S even),
+        ! or symmetric if it is even.
+        ! If S is odd, then HPHF is Symmetric if OpenOrbs is odd, and
+        ! antisymmetric if it is even.
+        !call CalcOpenOrbs(iLutnI,OpenOrbsI)
+        Ex(1,1) = ExcitLevel
+        call GetBitExcitation(iLutnI2, iLutnJ, Ex, tSign)
+
+        MatEl2 = sltcnd_excit(nI2, ExcitLevel, Ex, tSign)
+
+        if (tOddS_HPHF) then
+            if (((mod(OpenOrbsI,2) == 1).and.(mod(OpenOrbsJ,2) == 1)) &
+                .or. ((mod(OpenOrbsI,2) == 1) .and. &
+                      (mod(OpenOrbsJ,2) == 0))) then
+                hel = MatEl2
+            else
+                hel = -MatEl2
+            endif
+        else
+            if (((mod(OpenOrbsI,2) == 0).and.(mod(OpenOrbsJ,2) == 0)) &
+                .or. ((mod(OpenOrbsI,2) == 0) .and. &
+                      (mod(OpenOrbsJ,2) == 1))) then
+                hel = MatEl2
+            else
+                hel = -MatEl2
+            endif
+        endif
+
+    end function
 
     function hphf_diag_helement (nI, iLutnI) result(hel)
 
