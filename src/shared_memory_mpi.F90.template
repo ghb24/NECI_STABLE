@@ -132,24 +132,11 @@ contains
 
       call mpi_win_sync(win_shm,ierr)
       call mpi_barrier(mpi_comm_intra,ierr)
-    end	subroutine shared_sync_mpi
+    end	   subroutine shared_sync_mpi
 #else
     subroutine shared_sync_mpi(win_shm)
       integer(MPIArg):: win_shm
     end subroutine shared_sync_mpi
 #endif
-
-    subroutine MPIBCast_inter_byte(p_shm,nbytes)
-      HElement_t(dp):: p_shm
-      integer:: nbytes
-      integer(MPIArg):: ierr
-
-      !only task 0 of each shared memory task range does the MPI communication
-      if (iProcIndex_intra.eq.0) then
-         call mpi_bcast(p_shm,int(nbytes,MPIArg), &
-              MPI_BYTE,0_MPIArg,mpi_comm_inter,ierr)
-      end if
-
-    end subroutine
 
 end supermodule

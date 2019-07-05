@@ -20,7 +20,7 @@ module cachedExcitgen
       
       integer, intent(in) :: nI(nel), exFlag
       integer(n_int), intent(in) :: ilutI(0:NIfTot)
-      integer, intent(out) :: nJ(nel), ic, ex(2,2)
+      integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
       integer(n_int), intent(out) :: ilutJ(0:NIfTot)
       logical, intent(out) :: tpar
       real(dp), intent(out) :: pGen

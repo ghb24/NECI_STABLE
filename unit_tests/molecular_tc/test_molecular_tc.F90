@@ -7,7 +7,7 @@ program test_molecular_tc
   use LMat_mod
   use fruit
   use Parallel_neci, only: MPIInit, MPIEnd
-  use tc_three_body_data, only: tSymBrokenLMat
+  use tc_three_body_data, only: tSparseLMat
 
   implicit none
 
@@ -93,12 +93,8 @@ program test_molecular_tc
       pDoubles = 0.0_dp
       pTriples = 1.0_dp
 
-      tSymBrokenLMat = .true.
 
       ! assign the the sixindex access functions
-      t12FoldSym = .false.
-      tSymBrokenLMat = .false.
-      tDampLMat = .false.
       tSparseLMat = .false.
       call initializeLMatInd()
     end subroutine setup_tests
