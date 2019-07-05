@@ -28,6 +28,12 @@ max_nprocs = 2
 program = neci
 max_nprocs = 1
 
+[neci/tc/*/]
+program = neci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
 [neci/parallel/*/]
 program = neci
 nprocs = 2
@@ -109,6 +115,12 @@ min_nprocs = 2
 max_nprocs = 2
 
 [hdf5/neci/*/]
+program = neci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
+[hdf5/neci/tc/*/]
 program = neci
 nprocs = 2
 min_nprocs = 2
