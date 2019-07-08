@@ -192,7 +192,7 @@ contains
     subroutine init_cepa_shifts_test
         use SystemData, only: nel
         use replica_data, only: diagsft
-        use FciMCData, only: projedet
+        use FciMCData, only: ilutref
         use DetBitOps, only: EncodeBitDet
         use bit_rep_data, only: niftot
 
@@ -204,9 +204,9 @@ contains
         diagsft(1) = 1.0
         diagsft(2) = 2.0
 
-        allocate(projedet(0:niftot,2))
-        call EncodeBitDet([(i, i = 1,nel)], projedet(:,1))
-        call EncodeBitDet([(i, i = 1,nel)], projedet(:,2))
+        allocate(ilutref(:niftot,2))
+        call EncodeBitDet([(i, i = 1,nel)], ilutref(:,1))
+        call EncodeBitDet([(i, i = 1,nel)], ilutref(:,2))
 
         print *, "" 
         print *, "testing init_cepa_shifts" 
