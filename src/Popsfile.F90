@@ -279,7 +279,7 @@ contains
            ! store the determinant 
            if(tStoredDets) then
               call decode_bit_det(TempnI,Dets(:,i))
-              call store_decoding(i,TempnI)
+              call store_decoding(int(i),TempnI)
            end if
         end do
 
@@ -561,7 +561,7 @@ contains
 
         endif
 
-        if(tAutoAdaptiveShift) call set_tot_acc_spawns(fvals, CurrWalkers)
+        if(tAutoAdaptiveShift) call set_tot_acc_spawns(fvals, int(CurrWalkers))
         deallocate(fvals)
         deallocate(BatchRead)
 
@@ -736,7 +736,7 @@ r_loop: do while (.not. tReadAllPops)
                         fvals(:,1:(recvcount/(2*inum_runs))), &
                                   recvcount, err, Roots)
                    call set_tot_acc_spawns(fvals,(recvcount/(2*inum_runs)),&
-                        CurrWalkers+1)
+                        int(CurrWalkers)+1)
                    deallocate(fvals)
                 endif
 
@@ -1917,7 +1917,7 @@ r_loop: do while(.not.tStoreDet)
         nMaxDets = int(maxval(node_write_attempts), sizeof_int)
         if(tAutoAdaptiveShift) then
            allocate(fvals(2*inum_runs,nMaxDets), stat=error)
-           call writeFFunc(ndets, fvals)
+           call writeFFunc(int(ndets), fvals)
         else
            ! when not using auto-adaptive shift, no fvals are written, but the 
            ! array is passed and later deallocated, so allocate empty

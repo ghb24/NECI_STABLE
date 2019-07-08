@@ -749,7 +749,8 @@ module fcimc_pointed_fns
         real(dp), dimension(lenof_sign), intent(in) :: RealwSign
         real(dp), intent(in) :: Kii
         real(dp), dimension(lenof_sign) :: ndie
-        integer, intent(in) :: WalkExcitLevel, DetPosition
+        integer, intent(in) :: WalkExcitLevel
+        integer, intent(in), optional :: DetPosition
         character(*), parameter :: t_r = 'attempt_die_normal'
 
         real(dp) :: probsign, r
