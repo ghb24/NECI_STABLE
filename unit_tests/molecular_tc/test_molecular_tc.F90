@@ -111,7 +111,6 @@ program test_molecular_tc
       ! check the slater condon rules by computing some exemplary matrix elements of H
       use sltcnd_mod
       use tc_three_body_excitgen, only: setup_mol_tc_excitgen
-      use, INTRINSIC :: IEEE_ARITHMETIC
       implicit none
       
       integer :: nI(nel), nJ(nel)

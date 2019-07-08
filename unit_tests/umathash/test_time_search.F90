@@ -107,9 +107,9 @@ contains
   subroutine time_search(searchAlg)
     implicit none
     integer, parameter :: numTries = 1000000
-    integer :: ind, pq, startPQ, endPQ, j
+    integer:: ind, pq, startPQ, endPQ, j
     real(dp) :: t1, t2
-    integer :: maxInd, checksum
+    integer(int64) :: maxInd, checksum
 
     interface 
        function searchAlg(startPQ, endPQ)
@@ -122,7 +122,7 @@ contains
     maxInd = fuseIndex(nStoreBasis,nStoreBasis)
 
     call cpu_time(t1)
-    checksum = 0
+    checksum = 0_int64
     do j = 1, numTries
        pq = int(genrand_real2_dSFMT()*maxInd)+1
 
@@ -130,7 +130,7 @@ contains
        endPQ = startPQ + nPQ(pq) - 1
 
        ind = searchAlg(startPQ,endPQ) + startPQ - 1
-       checksum = mod(checksum + ind,2**31)
+       checksum = mod(checksum + int(ind,int64),2_int64**31)
     end do
     call cpu_time(t2)
     write(iout,*) "Time taken: ", t2-t1
