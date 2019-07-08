@@ -1105,7 +1105,7 @@ contains
         use DetBitOps, only: sign_lt, sign_gt
         use sort_mod, only: sort
 
-        integer, intent(in) :: source_size
+        integer(int64), intent(in) :: source_size
         integer(n_int), intent(in) :: source(0:NIfTot, source_size)
         integer, intent(in) :: n_keep
         integer(n_int), intent(out) :: largest_walkers(0:NIfTot, n_keep)

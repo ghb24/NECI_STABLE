@@ -990,7 +990,8 @@ contains
 
         use bit_reps, only: extract_sign
 
-        integer, intent(in) :: target_space_size, nApproxSpace, source_size
+        integer, intent(in) :: target_space_size, nApproxSpace
+        integer(int64) :: source_size
         integer(n_int), intent(in) :: source(0:NIfTot,source_size)
         logical, intent(in) :: tApproxSpace
         integer(n_int), intent(inout) :: ilut_list(0:,:)
