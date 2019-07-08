@@ -165,7 +165,8 @@ module kMatProjE
 
       integer :: ex(2,2)
       logical :: tPar
-      integer :: id(2,2), ind
+      integer :: id(2,2)
+      integer(int64) :: ind
 
       ! kMat reference energy contributions are coming from double excitations
       ex(1,1) = 2
