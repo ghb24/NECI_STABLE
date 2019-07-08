@@ -225,12 +225,20 @@ module LMat_mod
       endif
     end function fuseIndex
 
-    function oldLMatInd(a,b,c,i,j,k) result(index)
+    function oldLMatInd(aI,bI,cI,iI,jI,kI) result(index)
       implicit none
-      integer(int64), value :: a,b,c ! occupied orb indices
-      integer(int64), value :: i,j,k ! unoccupied orb
+      integer(int64), intent(in) :: aI,bI,cI ! occupied orb indices
+      integer(int64), intent(in) :: iI,jI,kI ! unoccupied orb
       integer(int64) :: index
+      integer(int64) :: a,b,c,i,j,k
 
+      ! guarantee pass-by-value without changing the signature to value
+      aI = a
+      bI = b
+      cI = c
+      iI = i
+      jI = j
+      kI = k
       ! we store the permutation where a < b < c (regardless of i,j,k)
       ! or i < j < k, depending on (permuted) a < i
       ! sort such that the ordered indices start with the smallest index
@@ -373,7 +381,7 @@ module LMat_mod
       integer(int64) :: a,b,c,i,j,k
       HElement_t(dp) :: matel
       character(*), parameter :: t_r = "readLMat"
-      integer :: counter
+      integer(int64) :: counter
       integer(int64) :: iChunk, chunkSize
       integer :: iNodeSize, iProcInNode
       integer :: dummy(6)
@@ -505,7 +513,7 @@ module LMat_mod
         implicit none
         type(LMat_t), intent(inout) :: lMatCtr
         integer :: i
-        integer(int64) :: hashVal
+        integer :: hashVal
 
         allocate(lMatCtr%htable(lMatCtr%htSize))
 
@@ -524,10 +532,10 @@ module LMat_mod
         implicit none
         integer(int64), intent(in) :: index
         integer, intent(in) :: htSize
-        integer(int64) :: hashVal
+        integer :: hashVal
 
 ! TODO: Implement an actual hash function
-        hashVal = mod(index-1,htSize)+1
+        hashVal = mod(int(index)-1,htSize)+1
       end function LMatHash
 
 !------------------------------------------------------------------------------------------!
