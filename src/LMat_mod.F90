@@ -233,12 +233,13 @@ module LMat_mod
       integer(int64) :: a,b,c,i,j,k
 
       ! guarantee pass-by-value without changing the signature to value
-      aI = a
-      bI = b
-      cI = c
-      iI = i
-      jI = j
-      kI = k
+      a = aI
+      b = bI
+      c = cI
+      i = iI
+      j = jI
+      k = kI
+     
       ! we store the permutation where a < b < c (regardless of i,j,k)
       ! or i < j < k, depending on (permuted) a < i
       ! sort such that the ordered indices start with the smallest index
