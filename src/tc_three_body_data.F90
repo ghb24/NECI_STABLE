@@ -32,7 +32,7 @@ module tc_three_body_data
      integer(int64), pointer :: indexPtr(:)
      integer :: tag, indexTag
      integer(MPIArg) :: shm_win, index_win
-     integer :: nInts
+     integer(int64) :: nInts
      type(ll_node), pointer :: hTable(:)
      integer :: htSize
   end type lMat_t

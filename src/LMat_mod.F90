@@ -503,7 +503,7 @@ module LMat_mod
 
       subroutine initLMatHash(lMatCtr)
         implicit none
-        type(LMat_t), intent(in) :: lMatCtr
+        type(LMat_t), intent(inout) :: lMatCtr
         integer :: i
         integer(int64) :: hashVal
 
