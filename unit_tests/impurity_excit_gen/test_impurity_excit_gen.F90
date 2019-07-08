@@ -121,14 +121,14 @@ program test_impurity_excit_gen
 
     subroutine test_single_excitation
       use FciMCData, only: pBath, nImp
-      use constants, only: dp
+      use constants, only: dp, maxExcit
       use bit_rep_data, only: niftot
       use DetBitOps, only: FindBitExcitLevel
       use SystemData, only: nel
 
       implicit none
       integer(n_int) :: ilut(0:niftot), ilutnJ(0:niftot)
-      integer :: nI(nel), nJ(nel), ExcitMat(2,2)
+      integer :: nI(nel), nJ(nel), ExcitMat(2,maxExcit)
       logical :: tParity
       real(dp) :: pGen
       
@@ -142,7 +142,7 @@ program test_impurity_excit_gen
 !------------------------------------------------------------------------------------------!
 
     subroutine test_double_excitation
-      use constants, only: dp
+      use constants, only: dp, maxExcit
       use bit_rep_data, only: niftot
       use SystemData, only: nel
       use DetBitOps, only: FindBitExcitLevel
@@ -150,7 +150,7 @@ program test_impurity_excit_gen
       
       implicit none
       integer(n_int) :: ilut(0:niftot), ilutnJ(0:niftot)
-      integer :: nI(nel), nJ(nel), ex(2,2)
+      integer :: nI(nel), nJ(nel), ex(2,maxExcit)
       logical :: tParity
       real(dp) :: pGen
 
@@ -164,7 +164,7 @@ program test_impurity_excit_gen
 !------------------------------------------------------------------------------------------!
 
     subroutine test_gen_excit_impurity_model
-      use constants, only: dp
+      use constants, only: dp, maxExcit
       use bit_rep_data, only: niftot
       use SystemData, only: nel
       use FciMCData, only: pSingles
@@ -172,7 +172,7 @@ program test_impurity_excit_gen
       implicit none
 
       integer(n_int) :: ilut(0:niftot), ilutnJ(0:niftot)
-      integer :: nI(nel), nJ(nel), ex(2,2), IC, exFlag
+      integer :: nI(nel), nJ(nel), ex(2,maxExcit), IC, exFlag
       logical :: tParity
       real(dp) :: pGen
       HElement_t(dp) :: HElGen

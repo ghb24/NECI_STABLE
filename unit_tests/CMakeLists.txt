@@ -25,9 +25,9 @@ add_subdirectory( fruit_src )
 add_subdirectory( det_bit_ops )
 
 # finally get unit testing integrated in software projects 
-add_subdirectory( real_space_hubbard )
+#add_subdirectory( real_space_hubbard )
 
-add_subdirectory( lattice_mod )
+#add_subdirectory( lattice_mod )
 
 
 add_subdirectory( impurity_excit_gen )
@@ -43,9 +43,9 @@ add_subdirectory( umathash )
 
 add_subdirectory( ueg_excit_gens )
 
-add_subdirectory( tJ_model )
+#add_subdirectory( tJ_model )
 
-add_subdirectory( k_space_hubbard )
+#add_subdirectory( k_space_hubbard )
 
 add_subdirectory( lattice_models_utils )
 

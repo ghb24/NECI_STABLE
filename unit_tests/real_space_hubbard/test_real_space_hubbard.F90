@@ -1658,26 +1658,26 @@ contains
         print *, ""
         print *, "testing: get_offdiag_helement_rs_hub" 
 
-        call assert_equals(h_cast(-1.0_dp), get_offdiag_helement_rs_hub([1,2],[2,4],.false.))
-        call assert_equals(h_cast(1.0_dp), get_offdiag_helement_rs_hub([1,2],[1,3],.true.))
-        call assert_equals(h_cast(0.0_dp), get_offdiag_helement_rs_hub([1,2],[1,5],.true.))
+        call assert_equals(-1.0_d), real(get_offdiag_helement_rs_hub([1,2],[2,4],.false.)))
+        call assert_equals(1.0_dp, real(get_offdiag_helement_rs_hub([1,2],[1,3],.true.)))
+        call assert_equals(0.0_dp, real(get_offdiag_helement_rs_hub([1,2],[1,5],.true.)))
 
         t_trans_corr_2body = .true.
 
-        call assert_equals(h_cast(exp(-1.0_dp)), get_offdiag_helement_rs_hub([1,2],[1,3],.true.))
-        call assert_equals(h_cast(exp(-1.0_dp)), get_offdiag_helement_rs_hub([1,2],[2,4],.true.))
-        call assert_equals(h_cast(1.0_dp), get_offdiag_helement_rs_hub([1,3],[1,3],.true.))
-        call assert_equals(h_cast(1.0_dp), get_offdiag_helement_rs_hub([1,3],[2,4],.true.))
+        call assert_equals(exp(-1.0_dp), real(get_offdiag_helement_rs_hub([1,2],[1,3],.true.)))
+        call assert_equals(exp(-1.0_dp), real(get_offdiag_helement_rs_hub([1,2],[2,4],.true.)))
+        call assert_equals(1.0_dp, real(get_offdiag_helement_rs_hub([1,3],[1,3],.true.)))
+        call assert_equals(1.0_dp, real(get_offdiag_helement_rs_hub([1,3],[2,4],.true.)))
 
-        call assert_equals(h_cast(exp(1.0_dp)), get_offdiag_helement_rs_hub([1,4],[1,3],.true.))
+        call assert_equals((exp(1.0_dp)), real(get_offdiag_helement_rs_hub([1,4],[1,3],.true.)))
 
         t_trans_corr = .true. 
         trans_corr_param = 1.0
 
-        call assert_equals(h_cast(1.0_dp), get_offdiag_helement_rs_hub([1,4],[1,3],.true.))
+        call assert_equals((1.0_dp), real(get_offdiag_helement_rs_hub([1,4],[1,3],.true.)))
 
-        call assert_equals(h_cast(-1.0_dp), get_offdiag_helement_rs_hub([1,2],[1,3],.false.))
-        call assert_equals(h_cast(-1.0_dp), get_offdiag_helement_rs_hub([1,2],[2,4],.false.))
+        call assert_equals((-1.0_dp), real(get_offdiag_helement_rs_hub([1,2],[1,3],.false.)))
+        call assert_equals((-1.0_dp), real(get_offdiag_helement_rs_hub([1,2],[2,4],.false.)))
 
         t_trans_corr = .false. 
         t_trans_corr_2body = .false. 
@@ -1720,18 +1720,18 @@ contains
         call init_tmat(lat)
         call init_get_helement_hubbard()
 
-        call assert_equals(h_cast(0.0_dp), get_helement([1,2],[1,2],0))
-        call assert_equals(h_cast(0.0_dp), get_helement([1,2],[1,2]))
+        call assert_equals((0.0), real(get_helement([1,2],[1,2],0)))
+        call assert_equals((0.0), real(get_helement([1,2],[1,2])))
 
         uhub = 1.0
-        call assert_equals(h_cast(1.0_dp), get_helement([1,2],[1,2],0))
-        call assert_equals(h_cast(1.0_dp), get_helement([1,2],[1,2]))
+        call assert_equals((1.0), real(get_helement([1,2],[1,2],0)))
+        call assert_equals((1.0), real(get_helement([1,2],[1,2])))
 
-        call assert_equals(h_cast(1.0_dp), get_helement([1,2],[1,4],1))
-        call assert_equals(h_cast(-1.0_dp), get_helement([1,2],[2,3],1))
+        call assert_equals((1.0), real(get_helement([1,2],[1,4],1)))
+        call assert_equals((-1.0), real(get_helement([1,2],[2,3],1)))
 
-        call assert_equals(h_cast(1.0_dp), get_helement([1,2],[1,4]))
-        call assert_equals(h_cast(-1.0_dp), get_helement([1,2],[2,3]))
+        call assert_equals((1.0), real(get_helement([1,2],[1,4])))
+        call assert_equals((-1.0), real(get_helement([1,2],[2,3])))
 
         nbasis = 6 
         deallocate(g1)
@@ -1742,14 +1742,14 @@ contains
         lat => lattice('chain', 3, 1, 1, .true., .true., .true.)
         call init_tmat(lat)
 
-        call assert_equals(h_cast(0.0_dp), get_helement([1,3],[1,3],0))
-        call assert_equals(h_cast(0.0_dp), get_helement([1,3],[1,3]))
+        call assert_equals((0.0), real(get_helement([1,3],[1,3],0)))
+        call assert_equals((0.0), real(get_helement([1,3],[1,3])))
 
-        call assert_equals(h_cast(1.0_dp), get_helement([1,3],[1,5],1))
-        call assert_equals(h_cast(-1.0_dp), get_helement([1,3],[3,5],1))
+        call assert_equals((1.0), real(get_helement([1,3],[1,5],1)))
+        call assert_equals((-1.0), real(get_helement([1,3],[3,5],1)))
 
-        call assert_equals(h_cast(1.0_dp), get_helement([1,3],[1,5]))
-        call assert_equals(h_cast(-1.0_dp), get_helement([1,3],[3,5]))
+        call assert_equals((1.0), real(get_helement([1,3],[1,5])))
+        call assert_equals((-1.0), real(get_helement([1,3],[3,5])))
 
         niftot = 0
         nifd = 0
@@ -1759,28 +1759,28 @@ contains
         call encodebitdet([1,2],ilutI)
         call encodebitdet([1,2],ilutJ)
 
-        call assert_equals(h_cast(1.0_dp), get_helement([1,2],[1,2],ilutI,ilutJ))
+        call assert_equals((1.0), real(get_helement([1,2],[1,2],ilutI,ilutJ)))
 
         call encodebitdet([2,4],ilutJ)
-        call assert_equals(h_cast(0.0_dp), get_helement([1,2],[2,4],ilutI,ilutJ))
+        call assert_equals((0.0), real(get_helement([1,2],[2,4],ilutI,ilutJ)))
 
         call encodebitdet([2,3],ilutJ)
-        call assert_equals(h_cast(-1.0_dp), get_helement([1,2],[2,3],ilutI,ilutJ))
+        call assert_equals((-1.0), real(get_helement([1,2],[2,3],ilutI,ilutJ)))
 
         call encodebitdet([1,4],ilutJ)
-        call assert_equals(h_cast(1.0_dp), get_helement([1,2],[1,4],ilutJ,ilutJ))
+        call assert_equals((1.0), real(get_helement([1,2],[1,4],ilutJ,ilutJ)))
 
         nel = 4 
-        call assert_equals(h_cast(2.0_dp), get_helement([1,2,3,4],[1,2,3,4]))
-        call assert_equals(h_cast(2.0_dp), get_helement([1,2,3,4],[1,2,3,4],0))
+        call assert_equals((2.0), real(get_helement([1,2,3,4],[1,2,3,4])))
+        call assert_equals((2.0), real(get_helement([1,2,3,4],[1,2,3,4],0)))
 
-        call assert_equals(h_cast(1.0_dp), get_helement([1,2,3,4],[1,2,3,6]))
-        call assert_equals(h_cast(1.0_dp), get_helement([1,2,3,4],[1,2,3,6],1))
+        call assert_equals((1.0), real(get_helement([1,2,3,4],[1,2,3,6])))
+        call assert_equals((1.0), real(get_helement([1,2,3,4],[1,2,3,6],1)))
 
-        call assert_equals(h_cast(1.0_dp), get_helement([1,2,3,4],[1,3,4,6],1))
-        call assert_equals(h_cast(1.0_dp), get_helement([1,2,3,4],[1,3,4,6]))
-        call assert_equals(h_cast(-1.0_dp), get_helement([1,2,3,4],[2,3,4,5],1))
-        call assert_equals(h_cast(-1.0_dp), get_helement([1,2,3,4],[2,3,4,5]))
+        call assert_equals((1.0), real(get_helement([1,2,3,4],[1,3,4,6],1)))
+        call assert_equals((1.0), real(get_helement([1,2,3,4],[1,3,4,6])))
+        call assert_equals((-1.0), real(get_helement([1,2,3,4],[2,3,4,5],1)))
+        call assert_equals((-1.0), real(get_helement([1,2,3,4],[2,3,4,5])))
 
         ! for a 2x2 square lattice 
         lat => lattice('square', 2,2,1,.true.,.true.,.true.)
@@ -1793,24 +1793,24 @@ contains
         g1(1:7:2)%ms = -1 
         g1(2:8:2)%ms = 1 
 
-        call assert_equals(h_cast(1.0_dp), get_helement([1,2],[1,2]))
-        call assert_equals(h_cast(1.0_dp), get_helement([1,2],[1,4]))
-        call assert_equals(h_cast(1.0_dp), get_helement([1,2],[1,6]))
-        call assert_equals(h_cast(0.0_dp), get_helement([1,2],[1,8]))
-        call assert_equals(h_cast(-1.0_dp), get_helement([1,2],[2,3]))
+        call assert_equals((1.0), real(get_helement([1,2],[1,2])))
+        call assert_equals((1.0), real(get_helement([1,2],[1,4])))
+        call assert_equals((1.0), real(get_helement([1,2],[1,6])))
+        call assert_equals((0.0), real(get_helement([1,2],[1,8])))
+        call assert_equals((-1.0), real(get_helement([1,2],[2,3])))
 
         print *, "" 
         print *, "and now for transcorrelated hamiltonian with K = 1" 
         t_trans_corr = .true.
         trans_corr_param = 1.0
-        call assert_equals(h_cast(1.0 * exp(1.0_dp)), get_helement([1,2],[1,4]))
-        call assert_equals(h_cast(1.0 * exp(-1.0_dp)), get_helement([1,4],[1,2]))
-        call assert_equals(h_cast(-1.0 * exp(1.0_dp)), get_helement([1,2],[2,3]))
-        call assert_equals(h_cast(-1.0 * exp(-1.0_dp)), get_helement([2,3],[1,2]))
-        call assert_equals(h_cast(0.0_dp), get_helement([2,3],[2,5]))
-        call assert_equals(h_cast(1.0_dp), get_helement([2,3],[2,7]))
-        call assert_equals(h_cast(0.0_dp), get_helement([2,3],[3,8]))
-        call assert_equals(h_cast(-1.0_dp), get_helement([2,3],[3,6]))
+        call assert_equals((1.0 * exp(1.0)), real(get_helement([1,2],[1,4])))
+        call assert_equals((1.0 * exp(-1.0)), real(get_helement([1,4],[1,2])))
+        call assert_equals((-1.0 * exp(1.0)), real(get_helement([1,2],[2,3])))
+        call assert_equals((-1.0 * exp(-1.0)), real(get_helement([2,3],[1,2])))
+        call assert_equals((0.0), real(get_helement([2,3],[2,5])))
+        call assert_equals((1.0), real(get_helement([2,3],[2,7])))
+        call assert_equals((0.0), real(get_helement([2,3],[3,8])))
+        call assert_equals((-1.0), real(get_helement([2,3],[3,6])))
 
         print *, ""
 
@@ -1839,18 +1839,18 @@ contains
 
         call init_tmat(lat)
 
-        call assert_equals([h_cast(0.0), h_cast(0.0), h_cast(1.0), h_cast(0.0), &
-            h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(0.0)], h_cast(real(tmat2d(1,:))), 8)
-        call assert_equals([h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(1.0), &
-            h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(0.0)], h_cast(real(tmat2d(2,:))), 8)
-        call assert_equals([h_cast(1.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), &
-            h_cast(1.0), h_cast(0.0), h_cast(0.0), h_cast(0.0)], h_cast(real(tmat2d(3,:))), 8)
-        call assert_equals([h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(0.0), & 
-            h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(0.0)], h_cast(real(tmat2d(4,:))), 8)
-        call assert_equals([h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), &
-            h_cast(1.0), h_cast(0.0), h_cast(0.0), h_cast(0.0)], h_cast(real(tmat2d(7,:))), 8)
-        call assert_equals([h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), &
-            h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(0.0)], h_cast(real(tmat2d(8,:))), 8)
+        call assert_equals([(0.0), (0.0), (1.0), (0.0), &
+            (0.0), (0.0), (0.0), (0.0)], (real(tmat2d(1,:))), 8)
+        call assert_equals([(0.0), (0.0), (0.0), (1.0), &
+            (0.0), (0.0), (0.0), (0.0)], (real(tmat2d(2,:))), 8)
+        call assert_equals([(1.0), (0.0), (0.0), (0.0), &
+            (1.0), (0.0), (0.0), (0.0)], (real(tmat2d(3,:))), 8)
+        call assert_equals([(0.0), (1.0), (0.0), (0.0), & 
+            (0.0), (1.0), (0.0), (0.0)], (real(tmat2d(4,:))), 8)
+        call assert_equals([(0.0), (0.0), (0.0), (0.0), &
+            (1.0), (0.0), (0.0), (0.0)], (real(tmat2d(7,:))), 8)
+        call assert_equals([(0.0), (0.0), (0.0), (0.0), &
+            (0.0), (1.0), (0.0), (0.0)], (real(tmat2d(8,:))), 8)
 
         print *, ""
         print *, "for a 4 site periodic chain geometry: "
@@ -1858,18 +1858,18 @@ contains
 
         call init_tmat(lat)
 
-        call assert_equals([h_cast(0.0), h_cast(0.0), h_cast(1.0), h_cast(0.0), &
-            h_cast(0.0), h_cast(0.0), h_cast(1.0), h_cast(0.0)], h_cast(real(tmat2d(1,:))), 8)
-        call assert_equals([h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(1.0),&
-            h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(1.0)], h_cast(real(tmat2d(2,:))), 8)
-        call assert_equals([h_cast(1.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), &
-            h_cast(1.0), h_cast(0.0), h_cast(0.0), h_cast(0.0)], h_cast(real(tmat2d(3,:))), 8)
-        call assert_equals([h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(0.0), &
-            h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(0.0)], h_cast(real(tmat2d(4,:))), 8)
-        call assert_equals([h_cast(1.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), &
-            h_cast(1.0), h_cast(0.0), h_cast(0.0), h_cast(0.0)], h_cast(real(tmat2d(7,:))), 8)
-        call assert_equals([h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(0.0), &
-            h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(0.0)], h_cast(real(tmat2d(8,:))), 8)
+        call assert_equals([(0.0), (0.0), (1.0), (0.0), &
+            (0.0), (0.0), (1.0), (0.0)], (real(tmat2d(1,:))), 8)
+        call assert_equals([(0.0), (0.0), (0.0), (1.0),&
+            (0.0), (0.0), (0.0), (1.0)], (real(tmat2d(2,:))), 8)
+        call assert_equals([(1.0), (0.0), (0.0), (0.0), &
+            (1.0), (0.0), (0.0), (0.0)], (real(tmat2d(3,:))), 8)
+        call assert_equals([(0.0), (1.0), (0.0), (0.0), &
+            (0.0), (1.0), (0.0), (0.0)], (real(tmat2d(4,:))), 8)
+        call assert_equals([(1.0), (0.0), (0.0), (0.0), &
+            (1.0), (0.0), (0.0), (0.0)], (real(tmat2d(7,:))), 8)
+        call assert_equals([(0.0), (1.0), (0.0), (0.0), &
+            (0.0), (1.0), (0.0), (0.0)], (real(tmat2d(8,:))), 8)
 
         ! todo: more tests for other lattices later!
 
@@ -1879,14 +1879,14 @@ contains
 
         call init_tmat(lat) 
 
-        call assert_equals([h_cast(0.0), h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(0.0), h_cast(0.0)], h_cast(real(tmat2d(1,:))), 8)
-        call assert_equals([h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(0.0)], h_cast(real(tmat2d(2,:))), 8)
-        call assert_equals([h_cast(1.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(1.0), h_cast(0.0)], h_cast(real(tmat2d(3,:))), 8)
-        call assert_equals([h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(1.0)], h_cast(real(tmat2d(4,:))), 8)
-        call assert_equals([h_cast(1.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(1.0), h_cast(0.0)], h_cast(real(tmat2d(5,:))), 8)
-        call assert_equals([h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(1.0)], h_cast(real(tmat2d(6,:))), 8)
-        call assert_equals([h_cast(0.0), h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(0.0), h_cast(0.0)], h_cast(real(tmat2d(7,:))), 8)
-        call assert_equals([h_cast(0.0), h_cast(0.0), h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(1.0), h_cast(0.0), h_cast(0.0)], h_cast(real(tmat2d(8,:))), 8)
+        call assert_equals([(0.0), (0.0), (1.0), (0.0), (1.0), (0.0), (0.0), (0.0)], (real(tmat2d(1,:))), 8)
+        call assert_equals([(0.0), (0.0), (0.0), (1.0), (0.0), (1.0), (0.0), (0.0)], (real(tmat2d(2,:))), 8)
+        call assert_equals([(1.0), (0.0), (0.0), (0.0), (0.0), (0.0), (1.0), (0.0)], (real(tmat2d(3,:))), 8)
+        call assert_equals([(0.0), (1.0), (0.0), (0.0), (0.0), (0.0), (0.0), (1.0)], (real(tmat2d(4,:))), 8)
+        call assert_equals([(1.0), (0.0), (0.0), (0.0), (0.0), (0.0), (1.0), (0.0)], (real(tmat2d(5,:))), 8)
+        call assert_equals([(0.0), (1.0), (0.0), (0.0), (0.0), (0.0), (0.0), (1.0)], (real(tmat2d(6,:))), 8)
+        call assert_equals([(0.0), (0.0), (1.0), (0.0), (1.0), (0.0), (0.0), (0.0)], (real(tmat2d(7,:))), 8)
+        call assert_equals([(0.0), (0.0), (0.0), (1.0), (0.0), (1.0), (0.0), (0.0)], (real(tmat2d(8,:))), 8)
 
         nbasis = -1 
         bhub = 0.0
@@ -1917,14 +1917,14 @@ contains
         uhub = 1.0
         nbasis = 8
         
-        call assert_equals(h_cast(1.0_dp), get_umat_el_hub(1,1,1,1))
-        call assert_equals(h_cast(1.0_dp), get_umat_el_hub(2,2,2,2))
-        call assert_equals(h_cast(1.0_dp), get_umat_el_hub(3,3,3,3))
-        call assert_equals(h_cast(1.0_dp), get_umat_el_hub(4,4,4,4))
-        call assert_equals(h_cast(0.0_dp), get_umat_el_hub(1,2,3,4))
-        call assert_equals(h_cast(0.0_dp), get_umat_el_hub(1,1,1,4))
-        call assert_equals(h_cast(0.0_dp), get_umat_el_hub(2,2,3,4))
-        call assert_equals(h_cast(0.0_dp), get_umat_el_hub(3,2,3,4))
+        call assert_equals((1.0), get_umat_el_hub(1,1,1,1))
+        call assert_equals((1.0), get_umat_el_hub(2,2,2,2))
+        call assert_equals((1.0), get_umat_el_hub(3,3,3,3))
+        call assert_equals((1.0), get_umat_el_hub(4,4,4,4))
+        call assert_equals((0.0), get_umat_el_hub(1,2,3,4))
+        call assert_equals((0.0), get_umat_el_hub(1,1,1,4))
+        call assert_equals((0.0), get_umat_el_hub(2,2,3,4))
+        call assert_equals((0.0), get_umat_el_hub(3,2,3,4))
 
         uhub = 0.0
         nbasis = -1

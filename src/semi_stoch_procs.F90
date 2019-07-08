@@ -1224,9 +1224,10 @@ contains
         logical, intent(in) :: tPrintInfo
         integer :: i, counter, ierr
         real(dp) :: eigenvec_pop, eigenvec_pop_tot, pop_sign(lenof_sign)
-        real(dp), allocatable :: temp_determ_vec(:)
+        HElement_t(dp), allocatable :: temp_determ_vec(:)
         character(len=*), parameter :: t_r = "start_walkers_from_core_ground"
-        real(dp), allocatable :: e_values(:), e_vectors(:,:), gs_vector(:)
+        real(dp), allocatable :: e_values(:)
+        HElement_t(dp), allocatable :: e_vectors(:,:), gs_vector(:)
         real(dp) :: gs_energy
 
         if (tPrintInfo) then
@@ -1273,15 +1274,20 @@ contains
 
         allocate(temp_determ_vec(determ_sizes(iProcIndex)))
         ! i hope the order of the components did not get messed up.. 
-        call MPIScatterV(real(gs_vector,dp), determ_sizes, determ_displs, &
+        call MPIScatterV(gs_vector, determ_sizes, determ_displs, &
             temp_determ_vec, determ_sizes(iProcIndex), ierr)
 
         ! Then copy these amplitudes across to the corresponding states in CurrentDets.
         counter = 0
         do i = 1, int(TotWalkers, sizeof_int)
             if (test_flag(CurrentDets(:,i), flag_deterministic)) then
-                counter = counter + 1
+               counter = counter + 1
+#ifdef __CMPLX               
+                pop_sign(1:lenof_sign:2) = real(temp_determ_vec(counter))
+                pop_sign(2:lenof_sign:2) = aimag(temp_determ_vec(counter))
+#else
                 pop_sign = temp_determ_vec(counter)
+#endif
                 call encode_sign(CurrentDets(:,i), pop_sign)
             end if
         end do
@@ -1290,7 +1296,7 @@ contains
 
     subroutine diagonalize_core(e_value, e_vector)
         real(dp), intent(out)  :: e_value
-        real(dp), intent(out), allocatable :: e_vector(:)
+        HElement_t(dp), intent(out), allocatable :: e_vector(:)
         type(DavidsonCalcType) :: davidsonCalc
         integer :: ierr
         character(*), parameter :: t_r = "diagonalize_core"
@@ -1343,7 +1349,8 @@ contains
 
 
     subroutine diagonalize_core_non_hermitian(e_values, e_vectors)
-        real(dp), allocatable, intent(out) :: e_values(:), e_vectors(:,:)
+        real(dp), allocatable, intent(out) :: e_values(:)
+        HElement_t(dp), allocatable :: e_vectors(:,:)
         HElement_t(dp), allocatable :: full_H(:,:)
 
         ! if the Hamiltonian is non-hermitian we cannot use the 
@@ -1357,7 +1364,7 @@ contains
             e_values = 0.0_dp
             e_vectors = 0.0_dp
 
-            call eig(real(full_H,dp), e_values, e_vectors)
+            call eig(full_H, e_values, e_vectors)
 
             ! maybe we also want to start from a different eigenvector in 
             ! this case? this would be practial for the hubbard problem case..
