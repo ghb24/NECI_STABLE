@@ -19,9 +19,10 @@ contains
         ! We run the specified number of replicas in parallel.
         !
         ! This is initialisation of _global_ data that depends on the number
-        ! of 
+        ! of
 
         character(*), parameter :: this_routine = 'init_replica_arrays'
+        character(120) :: error_message
         integer :: ierr
 
         if (inum_runs > inum_runs_max .or. lenof_sign > lenof_sign_max) then
@@ -97,6 +98,7 @@ contains
                  AllGrowRate(inum_runs), &
                  SumWalkersCyc(inum_runs), AllSumWalkersCyc(Inum_runs), &
                  OldAllAvWalkersCyc(inum_runs), &
+                 proj_e_for_precond(lenof_sign), &
 
                  ! Overall wavefunction properties
                  norm_psi(inum_runs), norm_psi_squared(inum_runs), &
@@ -132,10 +134,16 @@ contains
                  InstShift(inum_runs), &
                  AvDiagSft(inum_runs), SumDiagSft(inum_runs), &
                  DiagSft(inum_runs), &
-                 hdf5_diagsft(inum_runs), & 
+                 hdf5_diagsft(inum_runs), &
                  DiagSftRe(inum_runs), &
                  DiagSftIm(inum_runs), &
                  tSinglePartPhase(inum_runs), stat=ierr)
+
+        if (ierr /= MPI_SUCCESS) then
+            write(error_message, '(A, I0)') &
+                'Error during allocation. ierr = ', ierr
+            call Stop_All(this_routine, error_message)
+        end if
 
         ! Variables which are only used conditionally.
         ! NB, NFrozen has not been subtracted from NEl yet!
@@ -154,12 +162,13 @@ contains
         ! Hacky bugfixes, for variables that aren't clearly set elsewhere.
         VaryShiftIter = 0
 
+        proj_e_for_precond = 0.0_dp
+
     end subroutine
 
     subroutine clean_replica_arrays()
 
         ! The reverse of the above routine...
-
         deallocate(InstNoatHF, &
                    SumNoatHF, AllSumNoatHF, &
                    NoatHF, AllNoatHF, OldAllNoatHF, &
@@ -211,12 +220,13 @@ contains
                    AllGrowRate, &
                    SumWalkersCyc, AllSumWalkersCyc, &
                    OldAllAvWalkersCyc, &
+                   proj_e_for_precond, &
 
                    norm_psi, norm_psi_squared, &
-                   all_norm_psi_squared, &
+                   all_norm_psi_squared, old_norm_psi, &
                    norm_semistoch, norm_semistoch_squared, &
                    curr_S2, curr_S2_init, &
-                   
+
                    SumENum, AllSumENum, ProjectionE, &
                    proje_iter, AbsProjE, &
                    inits_proje_iter, &
@@ -237,6 +247,9 @@ contains
                    InstShift, &
                    AvDiagSft, SumDiagSft, &
                    DiagSft, &
+                   hdf5_diagsft, &
+                   DiagSftRe, &
+                   DiagSftIm, &
                    tSinglePartPhase, &
 
                    ! KPFCIQMC
@@ -348,13 +361,13 @@ contains
         AllNoAbortedOld(:) = 0.0_dp
 
         iter_data_fciqmc%tot_parts_old = AllTotParts
-        
+
         do run = 1, inum_runs
 
             ! Calculate the projected energy for this iteration.
             if (ARR_RE_OR_CPLX(AllSumNoAtHF,run) /= 0) &
                 ProjectionE(run) = AllSumENum(run) / ARR_RE_OR_CPLX(AllSumNoatHF,run)
-            
+
             ! Keep track of where the particles are
             if (iProcIndex == iRefProc(run)) then
                 SumNoatHF(run) = AllSumNoatHF(run)
@@ -362,7 +375,7 @@ contains
                 InstNoatHF(run) = NoatHF(run)
             end if
 
-        enddo 
+        enddo
 
     end subroutine set_initial_global_data
 

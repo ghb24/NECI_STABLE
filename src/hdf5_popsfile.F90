@@ -160,8 +160,8 @@ contains
 
         character(*), parameter :: t_r = 'write_popsfile_hdf5'
 #ifdef __USE_HDF
-        integer(hid_t) :: plist_id, file_id, err
-        integer :: ierr
+        integer(hid_t) :: plist_id, file_id
+        integer :: err
         character(255) :: filename
 
         ! Get a unique filename for this popsfile. This needs to be done on
@@ -192,11 +192,11 @@ contains
         write(6,*) "writing calc_data"
         call write_calc_data(file_id)
 
-        call MPIBarrier(ierr)
+        call MPIBarrier(err)
         write(6,*) "writing walkers"
         call write_walkers(file_id)
 
-        call MPIBarrier(ierr)
+        call MPIBarrier(err)
         write(6,*) "closing popsfile"
         ! And we are done!
         call h5fclose_f(file_id, err)
@@ -227,8 +227,8 @@ contains
         integer(int64) :: CurrWalkers
         character(*), parameter :: t_r = 'read_popsfile_hdf5'
 #ifdef __USE_HDF
-        integer(hid_t) :: err, file_id, plist_id
-        integer :: ierr
+        integer(hid_t) :: file_id, plist_id
+        integer :: err
         character(255) :: filename
 
         ! Get the name for the popsfile to read in
@@ -264,7 +264,7 @@ contains
         call h5close_f(err)
 
         call neci_flush(6)
-        call MPIBarrier(ierr)
+        call MPIBarrier(err)
 #else
         CurrWalkers = 0
         call stop_all(t_r, 'HDF5 support not enabled at compile time')
@@ -351,7 +351,8 @@ contains
         use CalcData, only: DiagSft
 
         integer(hid_t), intent(in) :: parent
-        integer(hid_t) :: calc_grp, err
+        integer(hid_t) :: calc_grp
+        integer :: err
 
         ! Firstly create the group for storing calculation-related data
         call h5gcreate_f(parent, nm_calc_grp, calc_grp, err)
@@ -386,7 +387,8 @@ contains
         use CalcData, only: tau, t_hist_tau_search_option, t_previous_hist_tau
 
         integer(hid_t), intent(in) :: parent
-        integer(hid_t) :: tau_grp, err
+        integer(hid_t) :: tau_grp
+        integer :: err
 
         real(dp) :: max_gam_sing, max_gam_doub, max_gam_opp, max_gam_par
         real(dp) :: max_max_death_cpt
@@ -473,7 +475,8 @@ contains
         use FciMCData, only: AllSumNoatHF, AllSumENum
 
         integer(hid_t), intent(in) :: parent
-        integer(hid_t) :: acc_grp, err
+        integer(hid_t) :: acc_grp
+        integer :: err
 
         ! Create group
         call h5gcreate_f(parent, nm_acc_grp, acc_grp, err)
@@ -502,7 +505,8 @@ contains
         use CalcData, only: DiagSft, tWalkContGrow, tau, t_hist_tau_search, &
                             hdf5_diagsft
         integer(hid_t), intent(in) :: parent
-        integer(hid_t) :: grp_id, err
+        integer(hid_t) :: grp_id
+        integer :: err
         logical :: exists
 
         call h5gopen_f(parent, nm_calc_grp, grp_id, err)
@@ -597,7 +601,8 @@ contains
         ! TODO: Add an option to reset these values...
 
         integer(hid_t), intent(in) :: parent
-        integer(hid_t) :: grp_id, err
+        integer(hid_t) :: grp_id
+        integer :: err
         logical :: ppar_set, tau_set, hist_tau, temp_previous
 
         real(dp) :: temp_tau
@@ -681,7 +686,8 @@ contains
         use FciMCData, only: AllSumNoatHF, AllSumENum
 
         integer(hid_t), intent(in) :: parent
-        integer(hid_t) :: grp_id, err
+        integer(hid_t) :: grp_id
+        integer :: err
 
         call h5gopen_f(parent, nm_acc_grp, grp_id, err)
         call read_dp_1d_dataset(grp_id, nm_sum_no_ref, AllSumNoatHF, &
@@ -716,7 +722,8 @@ contains
 
         character(*), parameter :: t_r = 'write_walkers'
 
-        integer(hid_t) :: wfn_grp_id, dataspace, dataset, err, memspace
+        integer(hid_t) :: wfn_grp_id, dataspace, dataset, memspace
+        integer :: err
         integer(hid_t) :: plist_id
 
         integer(hsize_t) :: counts(0:nProcessors-1)
@@ -842,8 +849,10 @@ contains
         character(*), parameter :: t_r = 'read_walkers'
 
         integer :: proc, nreceived
-        integer(hid_t) :: grp_id, err
+        integer(hid_t) :: grp_id
+        integer :: err
         integer(hid_t) :: ds_sgns, ds_ilut, ds_fvals
+
         integer(int64) :: nread_walkers
         integer :: ierr
 
@@ -962,8 +971,9 @@ contains
 
         ! Check that these datasets look like we expect them to.
         call check_dataset_params(ds_ilut, nm_ilut, 8_hsize_t, H5T_INTEGER_F, &
-                                  [int(bit_rep_width, hsize_t), all_count])
+                                  [int(bit_rep_width,hsize_t), all_count])
         call check_dataset_params(ds_sgns, nm_sgns, 8_hsize_t, H5T_FLOAT_F, &
+
                                   [int(tmp_lenof_sign, hsize_t), all_count])
         if(tReadFVals) then
            call check_dataset_params(ds_fvals, nm_fvals, 8_hsize_t, H5T_FLOAT_F, &
@@ -1005,7 +1015,7 @@ contains
         any_running = .true.
 
         allocate(temp_ilut(int(bit_rep_width),int(this_block_size)),stat=ierr)
-        call LogMemAlloc('temp_ilut',size(temp_ilut),sizeof(temp_ilut(1,1)),'read_walkers',temp_ilut_tag,ierr)
+        call LogMemAlloc('temp_ilut',size(temp_ilut),int(sizeof(temp_ilut(1,1))),'read_walkers',temp_ilut_tag,ierr)
 
         allocate(temp_sgns(int(tmp_lenof_sign),int(this_block_size)),stat=ierr)
         call LogMemAlloc('temp_sgns',size(temp_sgns),lenof_sign,'read_walkers',temp_sgns_tag,ierr)
@@ -1306,7 +1316,7 @@ contains
            write(6,*) 'Allocating additional buffer for communication on Processor ', iProcIndex, 'with ', &
                 num_received*size(SpawnedParts,1)*sizeof(SpawnedParts(1,1))/1000000, 'MB'
            allocate(receivebuff(size(SpawnedParts,1),num_received))
-           call LogMemAlloc('receivebuff',size(receivebuff),sizeof(receivebuff(1,1)),&
+           call LogMemAlloc('receivebuff',size(receivebuff),int(sizeof(receivebuff(1,1))),&
                 'communicate_read_walkers',receivebuff_tag,ierr)
            call MPIAllToAllV(SpawnedParts, sendcountsScaled, dispsScaled, receivebuff, &
                 recvcountsScaled, recvdispsScaled, ierr)

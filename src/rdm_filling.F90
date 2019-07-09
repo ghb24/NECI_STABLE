@@ -177,7 +177,7 @@ contains
            if (tHPHF) then
               if (.not. TestClosedShellDet(iLutnI)) then
                  if (RDMExcitLevel == 1) then
-                    call fill_diag_1rdm(one_rdms, nI, av_sign/sqrt(2.0_dp), tCoreSpaceDet, IterRDM_new)
+                    call fill_diag_1rdm(one_rdms, nI, av_sign/sqrt(2.0_dp), tCoreSpaceDet, IterRDM_new,tLC)
                  else
                     full_sign = IterRDM_new*av_sign(1::2)*av_sign(2::2)/2.0_dp
                     call fill_spawn_rdm_diag(spawn, nI, full_sign)
@@ -193,7 +193,7 @@ contains
 
                  if (RDMExcitLevel == 1) then
                     call fill_diag_1rdm(one_rdms, nSpinCoup, real(SignFac,dp)*av_sign/sqrt(2.0_dp), &
-                         tCoreSpaceDet, IterRDM_new)
+                         tCoreSpaceDet, IterRDM_new, tLC)
                  else
                     full_sign = IterRDM_new*av_sign(1::2)*av_sign(2::2)/2.0_dp
                     call applyRDMCorrection()
@@ -217,7 +217,7 @@ contains
 
                  ! HPHFs on, but determinant closed shell.
                  if (RDMExcitLevel == 1) then
-                    call fill_diag_1rdm(one_rdms, nI, av_sign, tCoreSpaceDet, IterRDM_new)
+                    call fill_diag_1rdm(one_rdms, nI, av_sign, tCoreSpaceDet, IterRDM_new, tLC)
                  else
                     full_sign = IterRDM_new*av_sign(1::2)*av_sign(2::2)
                     call applyRDMCorrection()
@@ -236,9 +236,7 @@ contains
                     full_sign = IterRDM_new*av_sign(1::2)*av_sign(2::2)
                     ! in adaptive shift mode, the reference contribution is rescaled
                     ! projEDet has to be the same on all runs
-                    if(tAdaptiveShift .and. DetBitEq(ilutRef(:,1), ilutnI) .and. &
-                         tNonInitsForRDMs .and. .not. tInitsRDMRef .and. tLC) &
-                         full_sign = full_sign + IterRDM_new * rdmCorrectionFactor
+                    call applyRDMCorrection()
                     call fill_spawn_rdm_diag(spawn, nI, full_sign)
                  end if
               end if
@@ -758,7 +756,7 @@ contains
 ! THESE NEXT ROUTINES ARE GENERAL TO BOTH STOCHASTIC AND EXPLICIT    
 ! =======================================================================================    
 
-    subroutine fill_diag_1rdm(one_rdms, nI, contrib_sign, tCoreSpaceDetIn, RDMItersIn)
+    subroutine fill_diag_1rdm(one_rdms, nI, contrib_sign, tCoreSpaceDetIn, RDMItersIn, tLagrCorr)
 
         ! Add the contribution to the diagonal elements of the 1-RDM from
         ! determinant nI, with the corresponding sign(s) from an FCIQMC
@@ -781,11 +779,18 @@ contains
         real(dp), intent(in) :: contrib_sign(:)
         logical, optional, intent(in) :: tCoreSpaceDetIn
         integer, optional, intent(in) :: RDMItersIn(:)
+        logical, optional, intent(in) :: tLagrCorr
 
         integer :: i, ind, irdm
         integer :: RDMIters(size(one_rdms))
         real(dp) :: ScaleContribFac, final_contrib(size(one_rdms))
-        logical :: tCoreSpaceDet
+        logical :: tCoreSpaceDet, tLC
+
+        if(present(tLagrCorr)) then
+           tLC = tLagrCorr
+        else
+           tLC = .true.
+        endif
 
         ScaleContribFac = 1.0_dp
 
@@ -816,7 +821,8 @@ contains
             final_contrib = contrib_sign(1::2) * contrib_sign(2::2) * RDMIters * ScaleContribFac
             ! in adaptive shift mode, the reference contribution is rescaled
             ! we assume that projEDet is the same on all runs, else there is no point
-            if(tAdaptiveShift .and. all(nI == projEDet(:,1))) &
+            if(tAdaptiveShift .and. all(nI == projEDet(:,1)) &
+                 .and. tNonInitsForRDMs .and. .not. tInitsRDMRef .and. tLC) &
                  final_contrib = final_contrib + RDMIters * ScaleContribFac * rdmCorrectionFactor
             do irdm = 1, size(one_rdms)
                 one_rdms(irdm)%matrix(ind,ind) = one_rdms(irdm)%matrix(ind,ind) + final_contrib(irdm)

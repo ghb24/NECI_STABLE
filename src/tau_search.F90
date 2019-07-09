@@ -152,7 +152,7 @@ contains
                 gamma_sing = tmp_gamma
             
             ! And keep count!
-            if (.not. enough_sing) then
+            if (.not. enough_sing .and. gamma_sing > 0) then
                 cnt_sing = cnt_sing + 1
                 if (cnt_sing > cnt_threshold) enough_sing = .true.
             endif
@@ -166,7 +166,7 @@ contains
                 gamma_sing_spindiff1 = tmp_gamma
             
             ! And keep count!
-            if (.not. enough_sing) then
+            if (.not. enough_sing .and. tmp_gamma > 0) then
                 cnt_sing = cnt_sing + 1
                 if (cnt_sing > cnt_threshold) enough_sing = .true.
             endif
@@ -181,7 +181,7 @@ contains
             if (tmp_gamma > gamma_doub) &
                 gamma_doub = tmp_gamma
             ! And keep count
-            if (.not. enough_doub) then
+            if (.not. enough_doub .and. tmp_gamma > 0) then
                 cnt_doub = cnt_doub + 1
                 if (cnt_doub > cnt_threshold) enough_doub = .true.
             endif
@@ -195,7 +195,7 @@ contains
             if (tmp_gamma > gamma_doub_spindiff1) &
                 gamma_doub_spindiff1 = tmp_gamma
             ! And keep count
-            if (.not. enough_doub) then
+            if (.not. enough_doub .and. tmp_gamma > 0) then
                 cnt_doub = cnt_doub + 1
                 if (cnt_doub > cnt_threshold) enough_doub = .true.
             endif
@@ -210,7 +210,7 @@ contains
             if (tmp_gamma > gamma_doub_spindiff2) &
                 gamma_doub_spindiff2 = tmp_gamma
             ! And keep count
-            if (.not. enough_doub) then
+            if (.not. enough_doub .and. tmp_gamma > 0) then
                 cnt_doub = cnt_doub + 1
                 if (cnt_doub > cnt_threshold) enough_doub = .true.
             endif
@@ -227,7 +227,7 @@ contains
                     gamma_par = tmp_gamma
         
                 ! And keep count
-                if (.not. enough_par) then
+                if (.not. enough_par ) then
                     cnt_par = cnt_par + 1
                     if (cnt_par > cnt_threshold) enough_par = .true.
                         if (enough_opp .and. enough_par) enough_doub = .true.
@@ -239,7 +239,7 @@ contains
                     gamma_opp = tmp_gamma
         
                 ! And keep count
-                if (.not. enough_opp) then
+                if (.not. enough_opp .and. tmp_gamma > 0) then
                     cnt_opp = cnt_opp + 1
                     if (cnt_opp > cnt_threshold) enough_opp = .true.
                     if (enough_opp .and. enough_par) enough_doub = .true.
@@ -253,7 +253,7 @@ contains
             gamma_doub = tmp_gamma
         
             ! And keep count
-            if (.not. enough_doub) then
+            if (.not. enough_doub .and. tmp_gamma > 0) then
                 cnt_doub = cnt_doub + 1
                 if (cnt_doub > cnt_threshold) enough_doub = .true.
             end if

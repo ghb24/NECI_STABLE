@@ -23,6 +23,7 @@ set( SRC_FILES
     csf.F90
     csf_old.F
     davidson_neci.F90
+    davidson_semistoch.F90
     default_sets.F90
     DetBitOps.F90
     DetCalcData.F90
@@ -39,6 +40,7 @@ set( SRC_FILES
     exact_spectrum.F90
     excit.F
     excit_parity.F90
+    fast_determ_hamil.F90
     FciMCData.F90
     fcimc_helper.F90
     fcimc_initialisation.F90
@@ -62,6 +64,7 @@ set( SRC_FILES
 	hamiltonian_linalg.F90
     hdf5_popsfile.F90
     hdiag.F
+    hdiag_from_excit.F90
     HElem.F90
     hfbasis.F
     HFCalc.F90
@@ -74,6 +77,7 @@ set( SRC_FILES
     init_coul2D.F
     init_coul.F
     initial_trial_states.F90
+    initiator_space_procs.F90
     input.F90
     IntegralsData.F90
     Integrals_neci.F90
@@ -126,6 +130,7 @@ set( SRC_FILES
     read_psi.F
     readri.F90
     replica_data.F90
+    replica_estimates.F90
     rhodiag.F
     RhoElement.F90
     rootfind.F
@@ -136,7 +141,6 @@ set( SRC_FILES
     searching.F90
     semi_stoch_gen.F90
     semi_stoch_procs.F90
-    shared_memory_mpi.F90
     sltcnd.F90
     sparse_arrays.F90
     spectral_data.F90
@@ -202,6 +206,8 @@ set( TEMPLATED_SRC_FILES
 
     BinSearch.F90.template
     Parallel.F90.template
+    shared_memory_mpi.F90.template
+    scalar_shared_memory_mpi.F90.template
     lib/quicksort.F90.template
     lib/util_mod_byte_size.F90.template
     lib/util_mod_comparisons.F90.template

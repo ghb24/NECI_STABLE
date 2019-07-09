@@ -3,7 +3,7 @@
 !               If Filename=="" then we check to see if there's a filename on the command line.
 !               Failing that, we use stdin
 !   ios is an Integer which is set to 0 on a successful return, or is non-zero if a file error has occurred, where it is the iostat.
-MODULE ReadInput_neci 
+MODULE ReadInput_neci
     Implicit none
 !   Used to specify which default set of inputs to use
 !    An enum would be nice, but is sadly not supported
@@ -50,7 +50,7 @@ MODULE ReadInput_neci
         logical, intent(in) :: tOverride_input  !If running through molpro, is this an override input?
         integer, allocatable :: tmparr(:)
         type(kp_fciqmc_data), intent(inout) :: kp
-        
+
         cTitle=""
         idDef=idDefault                 !use the Default defaults (pre feb08)
         ir=get_free_unit()              !default to a free unit which we'll open below
@@ -87,9 +87,9 @@ MODULE ReadInput_neci
         Else
             ir=5                    !file descriptor 5 is stdin
             Write(6,*) "Reading from STDIN"
-            ! Save the input to a temporary file so we can scan for the 
+            ! Save the input to a temporary file so we can scan for the
             ! defaults option and then re-read it for all other options.
-            open(7,status='scratch',iostat=ios) 
+            open(7,status='scratch',iostat=ios)
         Endif
         Call input_options(echo_lines=.false.,skip_blank_lines=.true.)
 
@@ -100,7 +100,7 @@ MODULE ReadInput_neci
             If(tEof) Exit
             Call readu(w)
             Select case(w)
-            Case("DEFAULTS")    
+            Case("DEFAULTS")
                 call readu(x)
                 select case(x)
 !Add default options here
@@ -201,7 +201,7 @@ MODULE ReadInput_neci
                               tGen_4ind_weighted, tGen_4ind_reverse, &
                               tMultiReplicas, tGen_4ind_part_exact, &
                               tGen_4ind_lin_exact, tGen_4ind_2, &
-                              tComplexOrbs_RealInts, tLatticeGens
+                              tComplexOrbs_RealInts, tLatticeGens, tHistSpinDist
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
@@ -210,12 +210,12 @@ MODULE ReadInput_neci
                             tSpatialOnlyHash, InitWalkers, tUniqueHFNode, &
                             tCheckHighestPop, &
                             tKP_FCIQMC, &
-                            tAddToInitiator, &
                             tRealCoeffByExcitLevel, &
                             tAllRealCoeff, tUseRealCoeffs, tChangeProjEDet, &
                             tOrthogonaliseReplicas, tReadPops, tStartMP1, &
                             tStartCAS, tUniqueHFNode, tContTimeFCIMC, &
-                            tContTimeFull
+                            tContTimeFull, tFCIMC, tPreCond, tOrthogonaliseReplicas, tMultipleInitialStates
+        use Calc, only : RDMsamplingiters_in_inp
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
@@ -226,7 +226,9 @@ MODULE ReadInput_neci
                            tCalcInstantS2, tDiagAllSpaceEver, &
                            tCalcVariationalEnergy, tCalcInstantS2Init, &
                            tPopsFile, tRDMOnFly, tExplicitAllRDM, &
-                           tHDF5PopsRead, tHDF5PopsWrite
+                           tHDF5PopsRead, tHDF5PopsWrite, tCalcFcimcPsi, &
+                           tHistEnergies, tPrintOrbOcc
+        use Logging, only : calcrdmonfly_in_inp, RDMlinspace_in_inp
         use DetCalc, only: tEnergy, tCalcHMat, tFindDets, tCompressDets
         use load_balance_calcnodes, only: tLoadBalanceBlocks
         use input_neci
@@ -272,7 +274,7 @@ MODULE ReadInput_neci
         if (tCalcHMat) tFindDets = .true.
 
         ! If we are using TNoSameExcit, then we have to start with the star -
-        ! the other random graph algorithm cannot remove same excitation 
+        ! the other random graph algorithm cannot remove same excitation
         ! links yet.
         if (tNoSameExcit .and. .not. tInitStar) then
             call report ("If we are using TNoSameExcit, then we have to start&
@@ -280,7 +282,7 @@ MODULE ReadInput_neci
                          &cannot remove same excitation links yet.", .true.)
         endif
 
-        ! The MoveDets and Biasing algorithms cannot both be used in the 
+        ! The MoveDets and Biasing algorithms cannot both be used in the
         ! GraphMorph Algorithm.
         if (tBiasing .and. tMoveDets) then
             call report("Biasing algorithm and MoveDets algorithm cannot both&
@@ -299,14 +301,14 @@ MODULE ReadInput_neci
                         &cannot both be used as they are both different &
                         &options with diagstarstars", .true.)
         endif
-      
+
         !..ExcitStarsRootChange must be used with TDiagStarStars
         if (tExcitStarsRootChange .and. .not. tDiagStarStars) then
             call report("ExcitStarsRootChange can only with used with &
                         &DiagStarStars currently", .true.)
         endif
-        
-        ! ..TDiagStarStars must be used with TStarStars, and cannot be used 
+
+        ! ..TDiagStarStars must be used with TStarStars, and cannot be used
         ! with TCalcExcitStar
         if (tDiagStarStars .and. .not. tStarStars) then
             call report("DiagStarStars must be used with StarStars", .true.)
@@ -319,56 +321,65 @@ MODULE ReadInput_neci
             call report("NoDoubs/JustQuads cannot be used with DiagStarStars &
                         &- try CalcExcitStar")
         endif
-  
-        ! ..TNoDoubs is only an option which applied to TCalcExcitStar, and 
+
+        ! ..TNoDoubs is only an option which applied to TCalcExcitStar, and
         ! cannot occurs with TJustQuads.
         if (tNoDoubs .and. .not. tCalcExcitStar) then
             call report("STARNODOUBS is only an option which applied to &
                         &TCalcExcitStar", .true.)
         endif
-  
+
         if (tNoDoubs .and. tJustQuads) then
             call report("STARNODOUBS and STARQUADEXCITS cannot be applied &
                         &together!", .true.)
         endif
-        
+
         ! .. TJustQuads is only an option which applies to TCalcExcitStar
         if (tJustQuads.and..not.tCalcExcitStar) then
             call report("STARQUADEXCITS is only an option which applies to &
                         &tCalcExcitStar",.true.)
         endif
-        
+
         !.. tCalcExcitStar can only be used with tStarStars
         if (tCalcExcitStar.and..not.tStarStars) then
             call report("CalcExcitStar can only be used with StarStars set", &
                         .true.)
         endif
-  
+
         !.. Brillouin Theorem must be applied when using TStarStars
         if (tStarStars.and..not.tUseBrillouin) then
             call report("Brillouin Theorem must be used when using &
                         &CalcExcitStar", .true.)
         endif
-  
+
         !.. TQuadValMax and TQuadVecMax can only be used if TLINESTARSTARS set
         if ((tQuadValMax .or. tQuadVecMax) .and. .not. tStarStars) then
             call report("TQuadValMax or TQuadVecMax can only be specified if &
                         &STARSTARS specified in method line", .true.)
         endif
-  
+
         !.. TQuadValMax and TQuadVecMax cannot both be set
         if (tQuadValMax.and.tQuadVecMax) then
             call report("TQuadValMax and TQuadVecMax cannot both be set", &
                         .true.)
         endif
-        
-        !.. TDISCONODES can only be set if NODAL is set in the star methods 
+
+        !.. TDISCONODES can only be set if NODAL is set in the star methods
         ! section
         if (tDiscoNodes .and. .not. tDiagNodes) then
             call report("DISCONNECTED NODES ONLY POSSIBLE IF NODAL SET IN &
                         &METHOD",.true.)
         endif
-        
+
+        if(tMultipleInitialStates .or. tOrthogonaliseReplicas .or. &
+             tPreCond) then
+           if (tHistSpawn .or. &
+                (tCalcFCIMCPsi .and. tFCIMC) .or. tHistEnergies .or. &
+                tHistSpinDist .or. tPrintOrbOcc) &
+                call report("HistSpawn and PrintOrbOcc not yet supported for multi-replica with different references"&
+                ,.true.)
+        endif
+
         !.. We still need a specdet space even if we don't have a specdet.
 #ifndef _MOLCAS_
         if (.not. associated(SPECDET)) then
@@ -376,44 +387,52 @@ MODULE ReadInput_neci
             call LogMemAlloc('SPECDET', nel-nFrozen, 4, t_r, tagSPECDET, ierr)
         endif
 #endif
-  
+
         !..   Testing ILOGGING
         !     ILOGGING = 0771
         if (I_VMAX == 0 .and. nPaths /= 0 .and. (.not. tKP_FCIQMC)) then
             call report ('NPATHS!=0 and I_VMAX=0.  VERTEX SUM max level not &
                          &set', .true.)
         endif
-  
+
         !Ensure beta is set.
         if (beta < 1.0e-6_dp .and. .not. tMP2Standalone) then
             call report("No beta value provided.", .true.)
         endif
-        
+
         do vv=2,I_VMAX
             g_VMC_ExcitWeights(:,vv)=g_VMC_ExcitWeights(:,1)
             G_VMC_EXCITWEIGHT(vv)=G_VMC_EXCITWEIGHT(1)
         enddo
-  
+
         !IF THERE IS NO WEIGHTING FUNCTION, ExcitFuncs(10)=.true.
         do vv=1,9
             IF(EXCITFUNCS(vv)) EXCITFUNCS(10)=.false.
         enddo
-  
+
         if (tNoRenormRandExcits .and. (.not.ExcitFuncs(10))) then
             write(6,*) "Random excitations WILL have to be renormalised, &
                        &since an excitation weighting has been detected."
         ENDIF
-  
+
+        ! if the LMS value specified is not reachable with the number of electrons,
+        ! fix this
+        if(mod(abs(lms),2).ne.mod(nel,2)) then
+           write(6,*) "WARNING: LMS Value is not reachable with the given number of electrons."
+           write(6,*) "Resetting LMS"
+           LMS = -mod(nel,2)
+        endif
+
         ! Check details for spin projection
         if (tSpinProject) then
             if (tCSF) &
                 call stop_all (t_r, "Spin projection must not be used with &
                                     &CSFs")
-        
+
             if (.not. tSpn) &
                 call stop_all (t_r, "SPIN-RESTRICT must be used with SPIN-&
                                     &PROJECT to set the value of S, Ms")
-            
+
             ! Unless specified, apply spin projection to ALL determinants.
             if (spin_proj_nopen_max == -1) &
                 spin_proj_nopen_max = nel
@@ -421,7 +440,7 @@ MODULE ReadInput_neci
             ! Set the value of STOT as required
             STOT = LMS
         endif
-  
+
         if (tCalcInstantS2 .or. tCalcInstantS2Init) then
             if (tUHF) &
                 call stop_all (t_r, 'Cannot calculate instantaneous values of&
@@ -469,9 +488,9 @@ MODULE ReadInput_neci
             tMultiReplicas = .true.
 #ifdef __CMPLX
             lenof_sign = 4
-#else            
+#else
             lenof_sign = 2
-#endif            
+#endif
             inum_runs = 2
 
             ! Correct the size of InputDiagSft:
@@ -520,6 +539,11 @@ MODULE ReadInput_neci
         if (tAllRealCoeff .and. tRealCoeffByExcitLevel) then
             call stop_all(t_r, 'Options ALLREALCOEFF and REALCOEFFBYEXCITLEVEL&
                                & are incompatibile')
+        end if
+
+        if (RDMlinspace_in_inp .and. (RDMsamplingiters_in_inp .or. calcrdmonfly_in_inp)) then
+            call stop_all(t_r, 'RDMlinspace and (RDMsamplingiters + calcrdmonfly) &
+                               &are mutually exclusive')
         end if
 
         if (tOrthogonaliseReplicas) then
@@ -575,7 +599,7 @@ MODULE ReadInput_neci
             write(6,*)
             call stop_all(t_r, 'Options incompatible')
         end if
-        
+
         if (tLatticeGens) then
             if (tGen_4ind_2 .or. tGen_4ind_weighted .or. tGen_4ind_reverse) then
                 call stop_all(t_r, "Invalid excitation options")

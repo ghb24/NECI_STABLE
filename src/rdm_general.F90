@@ -51,11 +51,11 @@ contains
         integer, intent(in) :: nrdms_standard, nrdms_transition
 
         integer :: nrdms
-        integer(kind=int64) :: rdm_nrows, nhashes_rdm_main, nhashes_rdm_spawn
-        integer(kind=int64) :: standard_spawn_size, min_spawn_size
-        integer(kind=int64) :: max_nelems_main, max_nelems_spawn, max_nelems_recv, max_nelems_recv_2
-        integer(kind=int64) :: memory_alloc, main_mem, spawn_mem, recv_mem
-        integer(kind=int64) :: ndets_en_pert, nhashes_en_pert
+        integer :: rdm_nrows, nhashes_rdm_main, nhashes_rdm_spawn
+        integer :: standard_spawn_size, min_spawn_size
+        integer :: max_nelems_main, max_nelems_spawn, max_nelems_recv, max_nelems_recv_2
+        integer :: memory_alloc, main_mem, spawn_mem, recv_mem
+        integer :: ndets_en_pert, nhashes_en_pert
         integer :: irdm, iproc, ierr
         character(len=*), parameter :: t_r = 'init_rdms'
 
@@ -1032,7 +1032,7 @@ contains
         real(dp), intent(out) :: RDMBiasFacCurr
         real(dp), intent(in) :: p_spawn_rdmfac
         real(dp) :: p_notlist_rdmfac, p_spawn, p_not_spawn, p_max_walktospawn
-        character(len=*), parameter :: t_r = 'attempt_create_normal'
+        character(len=*), parameter :: t_r = 'calc_rdmbiasfac'
 
         ! We eventually turn this real bias factor into an integer to be passed
         ! around with the spawned children and their parents - this only works
