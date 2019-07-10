@@ -2,7 +2,7 @@ module LMat_mod
   use constants
   use FciMCData, only: ll_node
   use HElem, only: HElement_t_SizeB
-  use SystemData, only: tStoreSpinOrbs, nBasis, tHDF5LMat, t12FoldSym
+  use SystemData, only: tStoreSpinOrbs, nBasis, tHDF5LMat, t12FoldSym, G1
   use MemoryManager, only: LogMemAlloc, LogMemDealloc
   use util_mod, only: get_free_unit
   use shared_memory_mpi
@@ -19,7 +19,7 @@ module LMat_mod
   implicit none
 
 
-  type(lMat_t) :: LMat, LMatAB
+  type(lMat_t) :: LMat, LMatABB, LMatBAB, LMatBBA
   integer(int64) :: nBI
   logical :: tDebugLMat
 
@@ -44,21 +44,25 @@ module LMat_mod
   contains
 
     function get_lmat_el_base(a,b,c,i,j,k) result(matel)
-      use SystemData, only: G1
       use UMatCache, only: gtID
       ! Gets an entry of the 3-body tensor L:
       ! L_{abc}^{ijk} - triple excitation from abc to ijk
       implicit none
       integer, value :: a,b,c
-      integer, intent(in) :: i,j,k
+      integer, value :: i,j,k
       HElement_t(dp) :: matel
       integer :: ida, idb, idc, idi, idj, idk
       logical :: tSameSpin
 
-      ! initialize spin-correlator check: if all spins are the same, use LMat, else LMatAB
+      ! initialize spin-correlator check: if all spins are the same, use LMat
       ! without spin-dependent correlator, always use LMat
-      tSameSpin = .not. tSpinCorrelator .or. (G1(i)%MS==G1(j)%ms .and. G1(i)%MS==G1(k)%MS)
       
+      ! for matrix elements involving different spins, there are three cases:
+      ! each of the orbitals i,j,k can have the different spin
+      ! The position is important because the spinCorrelator breaks permutation symmetry
+      ! w.r.t spin -> we fix the differing spin
+      tSameSpin = .not. tSpinCorrelator .or. (G1(a)%MS==G1(b)%ms .and. G1(a)%MS==G1(c)%MS)
+         
       ! convert to spatial orbs if required
       ida = gtID(a)
       idb = gtID(b)
@@ -69,7 +73,9 @@ module LMat_mod
 
       matel = 0
       ! only add the contribution if the spins match
-     
+
+      ! TODO: Use sameSpin to determine which contributions can appear - no need for
+      ! any further checks (remember to tweak for sameSpin!= possible without tSpinCorrelator)
       call addMatelContribution(i,j,k,idi,idj,idk,1)         
       call addMatelContribution(j,k,i,idj,idk,idi,1)
       call addMatelContribution(k,i,j,idk,idi,idj,1)
@@ -94,19 +100,65 @@ module LMat_mod
           implicit none
           integer, value :: idp,idq,idr,p,q,r
           integer, intent(in) :: sgn
+          integer(int64) :: index
+          integer :: spinPos
           
           if(G1(p)%ms == G1(a)%ms .and. G1(q)%ms == G1(b)%ms .and. G1(r)%ms == G1(c)%ms) then
-             if(tSameSpin) then
-                matel = matel + sgn * real(lMatAccess(lMat,LMatInd(int(ida,int64),int(idb,int64),&
-                     int(idc,int64),int(idp,int64),int(idq,int64),int(idr,int64))),dp)
+             index = LMatInd(int(ida,int64),int(idb,int64),&
+                  int(idc,int64),int(idp,int64),int(idq,int64),int(idr,int64))
+             if(tSameSpin) then 
+                matel = matel + sgn * real(lMatAccess(lMat,index),dp)
              else
-                matel = matel + sgn * real(lMatAccess(lMatAB,LMatInd(int(ida,int64),int(idb,int64),&
-                     int(idc,int64),int(idp,int64),int(idq,int64),int(idr,int64))),dp)
+                spinPos = diffSpinPos(p,q,r,a,b,c)
+                select case(spinPos)
+                case(1)
+                   matel = matel + sgn * real(lMatAccess(lMatABB,index),dp)
+                case(2)
+                   matel = matel + sgn * real(lMatAccess(lMatBAB,index),dp)
+                case(3)
+                   matel = matel + sgn * real(lMatAccess(lMatBBA,index),dp)
+                end select
              endif
           endif
         end subroutine addMatelContribution
         
       end function get_lmat_el_base
+
+!------------------------------------------------------------------------------------------!
+
+      function diffSpinPos(i,j,k,a,b,c) result(pos)
+        ! given three excitations (i,a), (j,b), (k,c), find the position of the one with
+        ! different spin in the ordering a'<b'<c' where a'=min(a,i) etc.
+        implicit none
+        integer, intent(in) :: i,j,k,a,b,c
+        integer :: pos
+        integer :: ap, bp, cp
+        integer :: tmp(3)
+
+        ! the minimum of each pair to be sorted
+        ap = min(a,i)
+        bp = min(b,j)
+        cp = min(c,k)
+        tmp = (/ap,bp,cp/)
+
+        ! at this point, both indices of a pair have the same spin, so we just use the one
+        ! of the primed indices
+        if(G1(minval(tmp))%MS.ne.G1(maxval(tmp))%MS) then
+           ! either the first or the last is different
+           ! do a check if the first entry has different spin: subtract its spin from the
+           ! total spin
+           if(abs(G1(ap)%MS+G1(bp)%MS+G1(cp)%MS-G1(minval(tmp))%MS)==2) then
+              ! if this is 2, minval(tmp) has different spin than the other two
+              pos = 1
+           else
+              ! else, maxval(tmp) has the different spin
+              pos = 3
+           endif
+        else
+           pos = 2
+        endif
+        
+      end function diffSpinPos
 
 !------------------------------------------------------------------------------------------!
 
@@ -214,6 +266,7 @@ module LMat_mod
     end function LMatIndSym
 
     function fuseIndex(x,y) result(xy)
+      ! create a composite index out of two indices
       implicit none
       integer(int64), intent(in) :: x,y
       integer(int64) :: xy
@@ -365,8 +418,16 @@ module LMat_mod
 
       ! now, read lmat from file
       call readLMatArray(LMat,"TCDUMP","tcdump.h5")
-      ! for spin-dependent LMat, also read the opp. spin matrix
-      if(tSpinCorrelator) call readLMatArray(LMatAB,"TCDUMPAB","tcdumpab.h5")
+      ! for spin-dependent LMat, also read the opp. spin matrices 
+      if(tSpinCorrelator) then
+         ! they break permutational symmetry w.r.t spin, so the cheapest solution is
+         ! to have three instances, one for each spin-permutation
+         ! (the alternatives are: spin-orbitals with full symmetry or spatial orbitals
+         ! without spin symmetry - both more expensive)
+         call readLMatArray(LMatABB,"TCDUMPABB","tcdumpabb.h5")
+         call readLMatArray(LMatBAB,"TCDUMPBAB","tcdumpbab.h5")
+         call readLMatArray(LMatBBA,"TCDUMPBBA","tcdumpbba.h5")
+      end if
     end subroutine readLMat
 
 !------------------------------------------------------------------------------------------!
@@ -475,8 +536,10 @@ module LMat_mod
       implicit none
       character(*), parameter :: t_r = "freeLMat"
 
+      call deallocLMatArray(LMatBBA)
+      call deallocLMatArray(LMatBAB)
+      call deallocLMatArray(LMatABB)
       call deallocLMatArray(LMat)
-      call deallocLMatArray(LMatAB)
 
       contains 
 
