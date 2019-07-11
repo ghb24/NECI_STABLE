@@ -10,7 +10,7 @@ module LMat_mod
   use hash, only: add_hash_table_entry, clear_hash_table
   use ParallelHelper, only: iProcIndex_intra
   use tc_three_body_data, only: tDampKMat, tDampLMat, tSymBrokenLMat, tSpinCorrelator, LMatEps, &
-       lMat_t, tSparseLMat
+       lMat_t, tSparseLMat, lMat, lMatABB, lMatBBA, lMatBAB, nBI
   use procedure_pointers, only: LMatInd, get_lmat_el, get_lmat_el_symInternal
   use LoggingData, only: tHistLMat
 #ifdef __USE_HDF5
@@ -18,9 +18,6 @@ module LMat_mod
 #endif
   implicit none
 
-
-  type(lMat_t) :: LMat, LMatABB, LMatBAB, LMatBBA
-  integer(int64) :: nBI
   logical :: tDebugLMat
 
   ! for the symmetry broken index function
@@ -42,14 +39,21 @@ module LMat_mod
 
 
   contains
+    
+!------------------------------------------------------------------------------------------!    
 
+    ! this is the common logic of all lmat-acceses
     function get_lmat_el_base(a,b,c,i,j,k) result(matel)
+      ! Input: a,b,c - indices of orbitals to excite to
+      !        i,j,k - indices of orbitals to excite from
+      ! Output: matel - matrix element of this excitation
       use UMatCache, only: gtID
       ! Gets an entry of the 3-body tensor L:
       ! L_{abc}^{ijk} - triple excitation from abc to ijk
       implicit none
       integer, value :: a,b,c
       integer, value :: i,j,k
+      procedure(lMatAccess_t) :: lMatBaseAccess
       HElement_t(dp) :: matel
       integer :: ida, idb, idc, idi, idj, idk
       logical :: tSameSpin
@@ -62,7 +66,7 @@ module LMat_mod
       ! The position is important because the spinCorrelator breaks permutation symmetry
       ! w.r.t spin -> we fix the differing spin
       tSameSpin = .not. tSpinCorrelator .or. (G1(a)%MS==G1(b)%ms .and. G1(a)%MS==G1(c)%MS)
-         
+      
       ! convert to spatial orbs if required
       ida = gtID(a)
       idb = gtID(b)
@@ -83,17 +87,7 @@ module LMat_mod
       call addMatelContribution(i,k,j,idi,idk,idj,-1)
       call addMatelContribution(k,j,i,idk,idj,idi,-1)
 
-      ! spin-projector for the tc terms - apply heuristically for three-body terms
-      if(tDampKMat) then
-         ! same-spin contributions are divided by 4 (this is exact)
-         if(G1(a)%MS .eq. G1(b)%MS .and. G1(b)%MS .eq. G1(c)%MS) then
-            matel = matel/4.0_dp
-         else
-            ! opposite-spin contributions are divided by 2 (this is a guess, the
-            ! exact form has an admixture of exchange terms)
-            matel = matel/2.0_dp
-         endif
-      endif
+      if(tDampKMat) call dampLMatel(a,b,c,matel)
       contains 
 
         subroutine addMatelContribution(p,q,r,idp,idq,idr,sgn)
@@ -123,42 +117,6 @@ module LMat_mod
         end subroutine addMatelContribution
         
       end function get_lmat_el_base
-
-!------------------------------------------------------------------------------------------!
-
-      function diffSpinPos(i,j,k,a,b,c) result(pos)
-        ! given three excitations (i,a), (j,b), (k,c), find the position of the one with
-        ! different spin in the ordering a'<b'<c' where a'=min(a,i) etc.
-        implicit none
-        integer, intent(in) :: i,j,k,a,b,c
-        integer :: pos
-        integer :: ap, bp, cp
-        integer :: tmp(3)
-
-        ! the minimum of each pair to be sorted
-        ap = min(a,i)
-        bp = min(b,j)
-        cp = min(c,k)
-        tmp = (/ap,bp,cp/)
-
-        ! at this point, both indices of a pair have the same spin, so we just use the one
-        ! of the primed indices
-        if(G1(minval(tmp))%MS.ne.G1(maxval(tmp))%MS) then
-           ! either the first or the last is different
-           ! do a check if the first entry has different spin: subtract its spin from the
-           ! total spin
-           if(abs(G1(ap)%MS+G1(bp)%MS+G1(cp)%MS-G1(minval(tmp))%MS)==2) then
-              ! if this is 2, minval(tmp) has different spin than the other two
-              pos = 1
-           else
-              ! else, maxval(tmp) has the different spin
-              pos = 3
-           endif
-        else
-           pos = 2
-        endif
-        
-      end function diffSpinPos
 
 !------------------------------------------------------------------------------------------!
 
@@ -265,6 +223,8 @@ module LMat_mod
       index = ai + bj*(bj-1)/2 + ck*(ck-1)*(ck+1)/6
     end function LMatIndSym
 
+!------------------------------------------------------------------------------------------!    
+
     function fuseIndex(x,y) result(xy)
       ! create a composite index out of two indices
       implicit none
@@ -278,6 +238,8 @@ module LMat_mod
       endif
     end function fuseIndex
 
+!------------------------------------------------------------------------------------------!
+    
     function oldLMatInd(aI,bI,cI,iI,jI,kI) result(index)
       implicit none
       integer(int64), intent(in) :: aI,bI,cI ! occupied orb indices
@@ -350,6 +312,8 @@ module LMat_mod
     end function lMatIndSymBroken
 
 !------------------------------------------------------------------------------------------!
+! Auxiliary functions for indexing and accessing the LMat    
+!------------------------------------------------------------------------------------------!
 
     subroutine initializeLMatInd()
       implicit none
@@ -389,6 +353,59 @@ module LMat_mod
 
 !------------------------------------------------------------------------------------------!
 
+    subroutine dampLMatel(a,b,c,matel)
+      integer, intent(in) :: a,b,c
+      HElement_t(dp), intent(inout) :: matel
+      ! spin-projector for the tc terms - apply heuristically for three-body terms
+      
+      ! same-spin contributions are divided by 4 (this is exact)
+      if(G1(a)%MS .eq. G1(b)%MS .and. G1(b)%MS .eq. G1(c)%MS) then
+         matel = matel/4.0_dp
+      else
+         ! opposite-spin contributions are divided by 2 (this is a guess, the
+         ! exact form has an admixture of exchange terms)
+         matel = matel/2.0_dp
+      endif
+    end subroutine dampLMatel
+
+!------------------------------------------------------------------------------------------!
+    
+    function diffSpinPos(i,j,k,a,b,c) result(pos)
+        ! given three excitations (i,a), (j,b), (k,c), find the position of the one with
+        ! different spin in the ordering a'<b'<c' where a'=min(a,i) etc.
+        implicit none
+        integer, intent(in) :: i,j,k,a,b,c
+        integer :: pos
+        integer :: ap, bp, cp
+        integer :: tmp(3)
+
+        ! the minimum of each pair to be sorted
+        ap = min(a,i)
+        bp = min(b,j)
+        cp = min(c,k)
+        tmp = (/ap,bp,cp/)
+
+        ! at this point, both indices of a pair have the same spin, so we just use the one
+        ! of the primed indices
+        if(G1(minval(tmp))%MS.ne.G1(maxval(tmp))%MS) then
+           ! either the first or the last is different
+           ! do a check if the first entry has different spin: subtract its spin from the
+           ! total spin
+           if(abs(G1(ap)%MS+G1(bp)%MS+G1(cp)%MS-G1(minval(tmp))%MS)==2) then
+              ! if this is 2, minval(tmp) has different spin than the other two
+              pos = 1
+           else
+              ! else, maxval(tmp) has the different spin
+              pos = 3
+           endif
+        else
+           pos = 2
+        endif
+        
+      end function diffSpinPos
+
+!------------------------------------------------------------------------------------------!
+
     pure subroutine intswap(a,b)
       integer(int64), intent(inout) :: a,b
       integer(int64) :: tmp
@@ -398,6 +415,93 @@ module LMat_mod
       b = tmp
     end subroutine intswap
 
+!------------------------------------------------------------------------------------------!
+! For huge LMats, a sparse storage scheme is required. Since we still need to access
+! the matrix elements, we use a hash table and re-use the hash.F90 module
+!------------------------------------------------------------------------------------------!
+
+      subroutine initLMatHash(lMatCtr)
+        implicit none
+        type(LMat_t), intent(inout) :: lMatCtr
+        integer :: i
+        integer :: hashVal
+
+        allocate(lMatCtr%htable(lMatCtr%htSize))
+
+        ! for each entry, store the index at the position in the hashtable given
+        ! by its hash value
+        do i = 1, lMatCtr%nInts
+           hashVal = LMatHash(lMatCtr%indexPtr(i), lMatCtr%htSize)
+           call add_hash_table_entry(lMatCtr%htable, i, hashVal)
+        end do
+      end subroutine initLMatHash
+
+
+!------------------------------------------------------------------------------------------!
+
+      function LMatHash(index, htSize) result(hashVal)
+        implicit none
+        integer(int64), intent(in) :: index
+        integer, intent(in) :: htSize
+        integer :: hashVal
+
+! TODO: Implement an actual hash function
+        hashVal = mod(int(index)-1,htSize)+1
+      end function LMatHash
+
+!------------------------------------------------------------------------------------------!
+! Functions that access single entries of the LMat array      
+!------------------------------------------------------------------------------------------!
+
+      function lMatHashedAccess(lMatCtr,index) result(matel)
+        implicit none
+        type(LMat_t), intent(in) :: lMatCtr
+        integer(int64), intent(in) :: index
+        HElement_t(dp) :: matel
+
+        integer(int64) :: hashVal
+        type(ll_node), pointer :: tmp_node
+        logical :: found
+        
+        hashVal = LMatHash(index, lMatCtr%htSize)
+        ! this is the kernel of hash_table_lookup from the hash module
+        found = .false.
+        tmp_node => lMatCtr%htable(hashVal)
+        if(tmp_node%ind /= 0) then
+           do while(associated(tmp_node))
+              if(index==lMatCtr%indexPtr(tmp_node%ind)) then
+                 found = .true.
+                 exit
+              endif
+              tmp_node => tmp_node%next
+           end do
+        end if
+        
+        ! now, tmp_node%ind is the index of the element we wanted to have
+        if(found) then 
+           matel = lMatCtr%LMatPtr(tmp_node%ind)
+        else
+           ! if not found, the matrix element is 0
+           matel = 0.0_dp
+        endif
+
+        nullify(tmp_node)
+      end function lMatHashedAccess
+
+!------------------------------------------------------------------------------------------!
+
+      ! direct (dense) access function
+      function lMatDirectAccess(lMatCtr, index) result(matel)
+        implicit none
+        type(lMat_t), intent(in) :: lMatCtr
+        integer(int64), intent(in) :: index
+        HElement_t(dp) :: matel
+        
+        matel = lMatCtr%lMatPtr(index)
+      end function lMatDirectAccess    
+
+!------------------------------------------------------------------------------------------!
+! Six-index integral I/O functions    
 !------------------------------------------------------------------------------------------!
 
     subroutine readLMat()
@@ -508,13 +612,16 @@ module LMat_mod
     end subroutine readLMatArray
 
 !------------------------------------------------------------------------------------------!
-
+! Memory management for the LMat_t objects    
+!------------------------------------------------------------------------------------------!
+    
     subroutine allocLMat(LMatLoc,LMatSize)
       use HElem, only: Helement_t_sizeB
       implicit none
       type(lMat_t) :: LMatLoc
       integer(int64), intent(in) :: LMatSize
       integer :: k
+      integer(int64) :: fiveIndexSize
       character(*), parameter :: t_r = "allocLMat"
       
       write(iout,*) "Allocating LMat, memory required:", LMatSize*HElement_t_sizeB/(2.0_dp**30), "GB"
@@ -527,6 +634,20 @@ module LMat_mod
             LMatLoc%LMatPtr(k) = 0.0_dp
          end do
       endif
+
+      if(tSparseLMat) then
+         ! also, allocate the index array
+         call shared_allocate_mpi(LMatLoc%index_win, LMatLoc%indexPtr, (/LMatSize/))
+         call LogMemAlloc("LMat Indices", int(nInts), sizeof_int64, t_r, LMatLoc%indexTag)
+         ! come up with some reasonable size
+         LMatLoc%htSize = nInts
+
+         ! the five-index part is still stored densely, for faster access (this makes a huge
+         ! difference)
+         fiveIndexSize = lMatFiveInd(nBI,nBI,nBI,nBI,nBI,3)
+         call shared_allocate_mpi(LMatLoc%fiveInd_win, LMatLoc%fiveIndexPtr, (/fiveIndexSize/))
+      endif
+
       write(iout,*) "Successfully allocated LMat"
     end subroutine allocLMat
 
@@ -567,90 +688,6 @@ module LMat_mod
         end subroutine deallocLMatArray
 
       end subroutine freeLMat
-
-!------------------------------------------------------------------------------------------!
-! For huge LMats, a sparse storage scheme is required. Since we still need to access
-! the matrix elements, we use a hash table and re-use the hash.F90 module
-!------------------------------------------------------------------------------------------!
-
-      subroutine initLMatHash(lMatCtr)
-        implicit none
-        type(LMat_t), intent(inout) :: lMatCtr
-        integer :: i
-        integer :: hashVal
-
-        allocate(lMatCtr%htable(lMatCtr%htSize))
-
-        ! for each entry, store the index at the position in the hashtable given
-        ! by its hash value
-        do i = 1, lMatCtr%nInts
-           hashVal = LMatHash(lMatCtr%indexPtr(i), lMatCtr%htSize)
-           call add_hash_table_entry(lMatCtr%htable, i, hashVal)
-        end do
-      end subroutine initLMatHash
-
-
-!------------------------------------------------------------------------------------------!
-
-      function LMatHash(index, htSize) result(hashVal)
-        implicit none
-        integer(int64), intent(in) :: index
-        integer, intent(in) :: htSize
-        integer :: hashVal
-
-! TODO: Implement an actual hash function
-        hashVal = mod(int(index)-1,htSize)+1
-      end function LMatHash
-
-!------------------------------------------------------------------------------------------!
-
-      function lMatHashedAccess(lMatCtr,index) result(matel)
-        implicit none
-        type(LMat_t), intent(in) :: lMatCtr
-        integer(int64), intent(in) :: index
-        HElement_t(dp) :: matel
-
-        integer(int64) :: hashVal
-        type(ll_node), pointer :: tmp_node
-        logical :: found
-        
-        hashVal = LMatHash(index, lMatCtr%htSize)
-        ! this is the kernel of hash_table_lookup from the hash module
-        found = .false.
-        tmp_node => lMatCtr%htable(hashVal)
-        if(tmp_node%ind /= 0) then
-           do while(associated(tmp_node))
-              if(index==lMatCtr%indexPtr(tmp_node%ind)) then
-                 found = .true.
-                 exit
-              endif
-              tmp_node => tmp_node%next
-           end do
-        end if
-        
-        ! now, tmp_node%ind is the index of the element we wanted to have
-        if(found) then 
-           matel = lMatCtr%LMatPtr(tmp_node%ind)
-        else
-           ! if not found, the matrix element is 0
-           matel = 0.0_dp
-        endif
-
-        nullify(tmp_node)
-      end function lMatHashedAccess
-
-!------------------------------------------------------------------------------------------!
-
-      ! direct (dense) access function
-      function lMatDirectAccess(lMatCtr, index) result(matel)
-        implicit none
-        type(lMat_t), intent(in) :: lMatCtr
-        integer(int64), intent(in) :: index
-        HElement_t(dp) :: matel
-        
-        matel = lMatCtr%lMatPtr(index)
-      end function lMatDirectAccess
-
 !------------------------------------------------------------------------------------------!
 ! HDF5 Functionality
 !------------------------------------------------------------------------------------------!
@@ -697,11 +734,6 @@ module LMat_mod
       ! if the LMat is stored sparse, we can allocate now
       if(tSparseLMat) then
          call allocLMat(LMatLoc,nInts)
-         ! also, allocate the index array
-         call shared_allocate_mpi(LMatLoc%index_win, LMatLoc%indexPtr, (/int(nInts,int64)/))
-         call LogMemAlloc("LMat Indices", int(nInts), sizeof_int64, t_r, LMatLoc%indexTag)
-         ! come up with some reasonable size
-         LMatLoc%htSize = nInts
          ! start filling LMat at the first entry
          sparseBlockStart = 0
       endif
@@ -859,6 +891,7 @@ module LMat_mod
       integer :: i,thresh
       integer, parameter :: minExp = 10
       integer :: histogram(0:minExp)
+
       real :: ratios(0:minExp)
       
       histogram = 0
