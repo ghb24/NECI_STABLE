@@ -1064,7 +1064,7 @@ contains
         ! before reading in.
 
         integer(hid_t), intent(in) :: dataset
-        integer :: class_id
+        integer(hdf_err) :: class_id
         character(*), intent(in) :: nm
         integer(hsize_t), intent(in) :: sz
         integer(hsize_t), intent(in) :: dims(:)
