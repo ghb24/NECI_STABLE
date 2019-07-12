@@ -36,7 +36,7 @@ contains
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
         use rdm_data, only: nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time, states_for_transition_rdm
         use rdm_data, only: rdm_main_size_fac, rdm_spawn_size_fac, rdm_recv_size_fac
-        use rdm_data, only: rdm_definitions, en_pert_main, inits_estimates
+        use rdm_data, only: rdm_definitions, en_pert_main, inits_estimates, tOpenSpatialOrbs
         use rdm_data_utils, only: init_rdm_spawn_t, init_rdm_list_t, init_one_rdm_t
         use rdm_data_utils, only: init_rdm_definitions_t, clear_one_rdms, clear_rdm_list_t
         use rdm_data_utils, only: init_en_pert_t
@@ -51,11 +51,11 @@ contains
         integer, intent(in) :: nrdms_standard, nrdms_transition
 
         integer :: nrdms
-        integer(kind=int64) :: rdm_nrows, nhashes_rdm_main, nhashes_rdm_spawn
-        integer(kind=int64) :: standard_spawn_size, min_spawn_size
-        integer(kind=int64) :: max_nelems_main, max_nelems_spawn, max_nelems_recv, max_nelems_recv_2
-        integer(kind=int64) :: memory_alloc, main_mem, spawn_mem, recv_mem
-        integer(kind=int64) :: ndets_en_pert, nhashes_en_pert
+        integer :: rdm_nrows, nhashes_rdm_main, nhashes_rdm_spawn
+        integer :: standard_spawn_size, min_spawn_size
+        integer :: max_nelems_main, max_nelems_spawn, max_nelems_recv, max_nelems_recv_2
+        integer :: memory_alloc, main_mem, spawn_mem, recv_mem
+        integer :: ndets_en_pert, nhashes_en_pert
         integer :: irdm, iproc, ierr
         character(len=*), parameter :: t_r = 'init_rdms'
 
@@ -75,6 +75,9 @@ contains
         else
             tOpenShell = .false.
         end if
+        ! it is possible to have open-shell systems with spatial orbitals, 
+        ! these have to be indexed differently
+        tOpenSpatialOrbs = tOpenShell .and. .not.tStoreSpinOrbs
 
         if (tExplicitAllRDM) then
             write(6,'(1X,"Explicitly calculating the reduced density matrices from the FCIQMC wavefunction.")')
@@ -668,7 +671,7 @@ contains
                 if(tinitsRDM) call dealloc_one_rdm_t(inits_one_rdms(irdm))
             end do
             deallocate(one_rdms)
-            if(tinitsRDM) deallocate(inits_one_rdms)
+            if(tinitsRDM .and. allocated(inits_one_rdms)) deallocate(inits_one_rdms)
         end if
 
         if (tExplicitAllRDM) then
@@ -1008,7 +1011,7 @@ contains
       real(dp), intent(in) :: fmu
       real(dp) :: fmup
       real(dp) :: eCorr, e0Inits, enOffset
-      if(tInitsRDMRef .and. tSetupInitsEst .and. sum(proje_iter) > eps) then
+      if(tInitsRDMRef .and. tSetupInitsEst .and. sum(abs(proje_iter)) > eps) then
          ! initiator-only reference energy
          e0Inits = inits_estimates%energy_num(1)/inits_estimates%norm(1)
          ! correlation energy
@@ -1029,7 +1032,7 @@ contains
         real(dp), intent(out) :: RDMBiasFacCurr
         real(dp), intent(in) :: p_spawn_rdmfac
         real(dp) :: p_notlist_rdmfac, p_spawn, p_not_spawn, p_max_walktospawn
-        character(len=*), parameter :: t_r = 'attempt_create_normal'
+        character(len=*), parameter :: t_r = 'calc_rdmbiasfac'
 
         ! We eventually turn this real bias factor into an integer to be passed
         ! around with the spawned children and their parents - this only works

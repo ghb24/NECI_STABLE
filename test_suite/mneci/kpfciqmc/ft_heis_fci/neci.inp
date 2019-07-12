@@ -19,7 +19,8 @@ realspawncutoff 0.01
 averagemcexcits 10
 definedet 1 4 5 8 10 11 14 15 17 20 21 24 26 27 30 31
 semi-stochastic
-heisenberg-fci-core
+(heisenberg-fci-core
+read-core
 seed 92391
 jump-shift off
 load-balance-blocks off

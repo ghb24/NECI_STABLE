@@ -13,6 +13,7 @@ module rdm_finalising
     use rdm_data_utils, only: communicate_rdm_spawn_t_wrapper
     use util_mod
     use CalcData, only: tAdaptiveShift
+    use RotateOrbsMod, only: FourIndInts
 
     implicit none
 
@@ -104,7 +105,7 @@ contains
 
                     if (RDMExcitLevel == 1 .or. tPrint1RDM) then
                         ! Write out the final, normalised, hermitian OneRDM.
-                        call write_1rdm(rdm_defs, one_rdms(irdm)%matrix, irdm, norm_1rdm(irdm), .true., .false.)
+                        call write_1rdm(rdm_defs, one_rdms(irdm)%matrix, irdm, norm_1rdm(irdm), .true., .false.,tInitsRDMs)
                     end if
                 end do
             end if
@@ -1395,7 +1396,7 @@ contains
 
     end subroutine make_1e_rdm_hermitian
 
-    subroutine write_1rdm(rdm_defs, one_rdm, irdm, norm_1rdm, tNormalise, tOldRDMs)
+    subroutine write_1rdm(rdm_defs, one_rdm, irdm, norm_1rdm, tNormalise, tOldRDMs, tInitsRDM)
 
         ! This routine writes out the OneRDM. If tNormalise is true, we are
         ! printing the normalised, hermitian matrix. Otherwise, norm_1rdm is
@@ -1413,10 +1414,23 @@ contains
         integer, intent(in) :: irdm
         real(dp), intent(in) :: norm_1rdm
         logical, intent(in) :: tNormalise, tOldRDMs
+        logical, intent(in), optional :: tInitsRDM
 
         integer :: i, j, iSpat, jSpat, one_rdm_unit
         logical :: is_transition_rdm
         character(20) :: filename
+        character(20) :: filename_prefix
+        character(*), parameter :: default_prefix = "OneRDM."
+
+        if(present(tInitsRDM)) then
+           if(tInitsRDM) then
+              filename_prefix = "InitsOneRDM."
+           else
+              filename_prefix = default_prefix
+           endif
+        else
+           filename_prefix = default_prefix
+        endif
 
         associate(state_labels => rdm_defs%state_labels, &
                   repeat_label => rdm_defs%repeat_label, &
@@ -1437,11 +1451,13 @@ contains
                 open(one_rdm_unit, file=trim(filename), status='unknown')
             else
                 if (is_transition_rdm) then
-                    write(filename, '("OneRDM.",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
-                                                 //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
-                                        state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
+                    write(filename, '("'//trim(filename_prefix)//'",'&
+                         //int_fmt(state_labels(1,irdm),0)//',"_",'&
+                         //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
+                         state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
                 else
-                    write(filename, '("OneRDM.",'//int_fmt(state_labels(1,irdm),0)//')') irdm
+                    write(filename, '("'//trim(filename_prefix)//'",'&
+                         //int_fmt(state_labels(1,irdm),0)//')') irdm
                 end if
                 open(one_rdm_unit, file=trim(filename), status='unknown')
             end if

@@ -175,7 +175,7 @@ module hamiltonian_linalg
 
 
         if (print_info) then
-            write(6,'(1x,"number of determinants on this process:",'//int_fmt(space_size,1)//')') space_size; call neci_flush(6)
+            write(6,'(1x,"number of determinants in total:",'//int_fmt(space_size,1)//')') space_size; call neci_flush(6)
         end if
 
         hfindex = maxloc((-hamil_diag),1)

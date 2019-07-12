@@ -325,7 +325,7 @@ module rdm_data
 
     ! Variable used in RDM calculations to specify that an open shell system
     ! is being studied.
-    logical :: tOpenShell
+    logical :: tOpenShell, tOpenSpatialOrbs
 
     ! Logical for natural orbital caluculation, to speficy whether orbitals
     ! have been rotated yet.
@@ -340,6 +340,7 @@ module rdm_data
     ! the reference contribution
 
     real(dp) :: rdmCorrectionFactor, InstRDMCorrectionFactor, ThisRDMIter
+    logical :: tApplyLC = .true.
 
     ! ---- Data for the explicit RDM code -----------------------------
 

@@ -13,7 +13,7 @@ module fcimc_pointed_fns
                         tTruncInitiator, tSkipRef, t_truncate_unocc, &
                         tAdaptiveShift, AdaptiveShiftSigma, AdaptiveShiftF1, AdaptiveShiftF2, &
                         tAutoAdaptiveShift, AdaptiveShiftThresh, AdaptiveShiftExpo, AdaptiveShiftCut, &
-                        tAAS_Add_Diag
+                        tAAS_Add_Diag, tPrecond
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement
     use fcimc_helper, only: CheckAllowedTruncSpawn
@@ -45,7 +45,8 @@ module fcimc_pointed_fns
     function attempt_create_trunc_spawn (DetCurr,&
                                          iLutCurr, RealwSign, nJ, iLutnJ, prob, HElGen, &
                                          ic, ex, tparity, walkExcitLevel, part_type, &
-                                         AvSignCurr, RDMBiasFacCurr) result(child)
+                                         AvSignCurr, RDMBiasFacCurr, precond_fac) result(child)
+
         integer, intent(in) :: DetCurr(nel), nJ(nel), part_type 
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
@@ -56,6 +57,7 @@ module fcimc_pointed_fns
         real(dp), dimension(lenof_sign) :: child
         real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
+        real(dp), intent(in) :: precond_fac
         logical :: tAllowForEN2Calc
         HElement_t(dp), intent(inout) :: HElGen
 
@@ -71,14 +73,16 @@ module fcimc_pointed_fns
             if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
                 child = attempt_create_normal (DetCurr, &
                                    iLutCurr, RealwSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
-                                   tParity, walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr)
+                                   tParity, walkExcitLevel, part_type, AvSignCurr, &
+                                   RDMBiasFacCurr, precond_fac)
             else
                 child = 0
             endif
         else
             child = attempt_create_normal (DetCurr, &
                                iLutCurr, RealwSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
-                               tParity, walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr)
+                               tParity, walkExcitLevel, part_type, AvSignCurr, &
+                               RDMBiasFacCurr, precond_fac)
         end if
     end function
 
@@ -99,7 +103,7 @@ module fcimc_pointed_fns
     function att_create_trunc_spawn_enc (DetCurr,&
                                          iLutCurr, RealwSign, nJ, iLutnJ, prob, HElGen, &
                                          ic, ex, tparity, walkExcitLevel, part_type, &
-                                         AvSignCurr,RDMBiasFacCurr) result(child)
+                                         AvSignCurr,RDMBiasFacCurr, precond_fac) result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel), part_type 
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
@@ -111,6 +115,7 @@ module fcimc_pointed_fns
         real(dp), dimension(lenof_sign) :: child
         real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
+        real(dp), intent(in) :: precond_fac
         logical :: tAllowForEN2Calc
         ! make sure that HElgen is assigned on return
         HElement_t(dp) , intent(inout) :: HElGen
@@ -129,21 +134,23 @@ module fcimc_pointed_fns
             if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
                 child = attempt_create_normal (DetCurr, &
                                    iLutCurr, RealwSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
-                                   tParity, walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr)
+                                   tParity, walkExcitLevel, part_type, AvSignCurr, &
+                                   RDMBiasFacCurr, precond_fac)
             else
                 child = 0
             endif
         else
             child = attempt_create_normal (DetCurr, &
                                iLutCurr, RealwSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
-                               tParity, walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr)
+                               tParity, walkExcitLevel, part_type, AvSignCurr, &
+                               RDMBiasFacCurr, precond_fac)
         end if
     end function
 
     function attempt_create_normal (DetCurr, iLutCurr, &
-                                    RealwSign, nJ, iLutnJ, prob, HElGen, ic, ex, tParity,&
-                                    walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr &
-                                    ) result(child)
+                                    RealwSign, nJ, iLutnJ, prob, HElGen, ic, ex, tParity, &
+                                    walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr, &
+                                    precond_fac) result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel)
         integer, intent(in) :: part_type    ! odd = Real parent particle, even = Imag parent particle
@@ -156,7 +163,9 @@ module fcimc_pointed_fns
         real(dp), dimension(lenof_sign) :: child
         real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
+        real(dp), intent(in) :: precond_fac
         HElement_t(dp) , intent(inout) :: HElGen
+
         character(*), parameter :: this_routine = 'attempt_create_normal'
 
         real(dp) :: rat, r, walkerweight, pSpawn, nSpawn, MatEl, p_spawn_rdmfac
@@ -196,6 +205,7 @@ module fcimc_pointed_fns
 #endif
         ! assign the matrix element
         HElGen = abs(rh)
+
         ! [W.D.]
         ! if the matrix element happens to be zero, i guess i should 
         ! abort as early as possible? so check that here already, or even 
@@ -230,18 +240,18 @@ module fcimc_pointed_fns
         ! [Werner Dobrautz 4.4.2017:]
         if (t_fill_frequency_hists) then 
             if (tHUB .or. tUEG) then 
-                call fill_frequency_histogram(abs(rh_used), prob / AvMCExcits)
+                call fill_frequency_histogram(abs(rh_used / precond_fac), prob)
             else 
                 if (tGen_4ind_2 .or. tGen_4ind_weighted .or. tGen_4ind_reverse) then 
                     t_par = (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2)))
 
                     ! not sure about the AvMCExcits!! TODO
-                    call fill_frequency_histogram_4ind(abs(rh_used), prob / AvMCExcits, &
+                    call fill_frequency_histogram_4ind(abs(rh_used / precond_fac), prob, &
                         ic, t_par, ex)
 
                 else
 
-                    call fill_frequency_histogram_sd(abs(rh_used), prob / AvMCExcits, ic)
+                    call fill_frequency_histogram_sd(abs(rh_used / precond_fac), prob, ic)
                     
                 end if
             end if
@@ -343,8 +353,7 @@ module fcimc_pointed_fns
                 ! back, to be sure the time-step covers the changed 
                 ! non-initiators spawns! 
 
-                call log_spawn_magnitude (ic, ex, matel, prob)
-
+                call log_spawn_magnitude (ic, ex, matel/precond_fac, prob)
             end if
 
             ! Keep track of the biggest spawn this cycle
@@ -531,7 +540,7 @@ module fcimc_pointed_fns
             bloom_sizes(ic) = max(real((abs(child(part_type))), dp), bloom_sizes(ic))
         end if
 #endif
-        iter_data%nborn = iter_data%nborn + abs(child)
+        if (.not. tPrecond) iter_data%nborn = iter_data%nborn + abs(child)
 
         ! Histogram the excitation levels as required
         if (tHistExcitToFrom) &
@@ -602,7 +611,7 @@ module fcimc_pointed_fns
                     acc = get_acc_spawns(DetPosition, i)
                     if(tAAS_Add_Diag)then
                         tot = tot + Kii*tau
-                        acc = tot + Kii*tau
+                        acc = acc + Kii*tau
                     end if
                     if(population>InitiatorWalkNo)then
                         tmp = 1.0
@@ -689,7 +698,81 @@ module fcimc_pointed_fns
         ! Avoid compiler warnings
         iUnused = DetCurr(1)
 
-    end function
+    end function attempt_die_normal
+
+    function attempt_die_precond (DetCurr, Kii, realwSign, WalkExcitLevel, DetPos) result(ndie)
+
+        ! Should we kill the particle at determinant DetCurr.
+        ! The function allows multiple births (if +ve shift), or deaths from
+        ! the same particle. The returned number is the number of deaths if
+        ! positive, and the
+        !
+        ! In:  DetCurr - The determinant to consider
+        !      Kii     - The diagonal matrix element of DetCurr (-Ecore)
+        !      wSign   - The sign of the determinant being considered. If
+        !                |wSign| > 1, attempt to die multiple particles at
+        !                once (multiply probability of death by |wSign|)
+        ! Ret: ndie    - The number of deaths (if +ve), or births (If -ve).
+
+        integer, intent(in) :: DetCurr(nel)
+        real(dp), dimension(lenof_sign), intent(in) :: RealwSign
+        real(dp), intent(in) :: Kii
+        real(dp), dimension(lenof_sign) :: ndie
+        integer, intent(in) :: WalkExcitLevel
+        integer, intent(in), optional :: DetPos
+        character(*), parameter :: t_r = 'attempt_die_normal'
+
+        real(dp) :: probsign, r
+        real(dp), dimension(inum_runs) :: fac
+        integer :: i, run, iUnused
+#ifdef __CMPLX
+        real(dp) :: rat(2)
+#else
+        real(dp) :: rat(1)
+#endif
+
+        do i=1, inum_runs
+            fac(i)=tau
+
+            ! And for tau searching purposes
+            call log_death_magnitude (1.0_dp)
+        enddo
+
+        if ((tRealCoeffByExcitLevel .and. (WalkExcitLevel .le. RealCoeffExcitThresh)) &
+            .or. tAllRealCoeff ) then
+            do run=1, inum_runs
+                ndie(min_part_type(run))=fac(run)*abs(realwSign(min_part_type(run)))
+#ifdef __CMPLX
+                ndie(max_part_type(run))=fac(run)*abs(realwSign(max_part_type(run)))
+#endif
+            enddo
+        else
+            do run = 1, inum_runs
+
+                ! Subtract the current value of the shift, and multiply by tau.
+                ! If there are multiple particles, scale the probability.
+
+                rat(:) = fac(run) * abs(realwSign(min_part_type(run):max_part_type(run)))
+
+                ndie(min_part_type(run):max_part_type(run)) = real(int(rat), dp)
+                rat(:) = rat(:) - ndie(min_part_type(run):max_part_type(run))
+
+                ! Choose to die or not stochastically
+                r = genrand_real2_dSFMT() 
+                if (abs(rat(1)) > r) ndie(min_part_type(run)) = &
+                    ndie(min_part_type(run)) + real(nint(sign(1.0_dp, rat(1))), dp)
+#ifdef __CMPLX
+                r = genrand_real2_dSFMT() 
+                if (abs(rat(2)) > r) ndie(max_part_type(run)) = &
+                    ndie(max_part_type(run)) + real(nint(sign(1.0_dp, rat(2))), dp)
+#endif
+            enddo
+        endif
+
+        ! Avoid compiler warnings
+        iUnused = DetCurr(1)
+
+    end function attempt_die_precond
 
 !------------------------------------------------------------------------------------------!
 

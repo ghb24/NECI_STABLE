@@ -98,6 +98,7 @@ contains
                  AllGrowRate(inum_runs), &
                  SumWalkersCyc(inum_runs), AllSumWalkersCyc(Inum_runs), &
                  OldAllAvWalkersCyc(inum_runs), &
+                 proj_e_for_precond(lenof_sign), &
 
                  ! Overall wavefunction properties
                  norm_psi(inum_runs), norm_psi_squared(inum_runs), &
@@ -161,6 +162,8 @@ contains
         ! Hacky bugfixes, for variables that aren't clearly set elsewhere.
         VaryShiftIter = 0
 
+        proj_e_for_precond = 0.0_dp
+
     end subroutine
 
     subroutine clean_replica_arrays()
@@ -217,6 +220,7 @@ contains
                    AllGrowRate, &
                    SumWalkersCyc, AllSumWalkersCyc, &
                    OldAllAvWalkersCyc, &
+                   proj_e_for_precond, &
 
                    norm_psi, norm_psi_squared, &
                    all_norm_psi_squared, old_norm_psi, &

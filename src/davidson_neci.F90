@@ -153,6 +153,8 @@ module davidson_neci
             if (iprocindex == root) davidson_eigenvalue = hamil_diag(1)
             call mpibcast(davidson_eigenvalue)
             skip_calc = .true.
+            call mpibcast(skip_calc)
+            this%super%skip_calc = skip_calc
             return
         end if
 
@@ -210,15 +212,16 @@ module davidson_neci
             end if
         end if
         if (hamil_type == parallel_sparse_hamil_type) call mpibcast(skip_calc)
+        this%super%skip_calc = skip_calc
         if (skip_calc) return
         ! calculate the intial residual vector.
         call calculate_residual(this, 1)
         call calculate_residual_norm(this)
 
         if (print_info) write(6,'(1x,"done.",/)'); call neci_flush(6)
-        this%super%skip_calc = skip_calc
 
         end associate
+
     end subroutine InitDavidsonCalc
 
     subroutine subspace_expansion(this, basis_index)
@@ -353,6 +356,7 @@ module davidson_neci
         else
             call multiply_hamil_and_vector(this%super, this%temp_in, this%temp_out)
         end if
+
     end subroutine project_hamiltonian
 
     subroutine calculate_residual(this, basis_index)
@@ -378,6 +382,7 @@ module davidson_neci
     end subroutine calculate_residual
 
     subroutine calculate_residual_norm(this)
+
         type(DavidsonCalcType), intent(inout) :: this
         ! This subroutine calculates the Euclidean norm of the reisudal vector, r:
         ! residual_norm^2 = \sum_i r_i^2

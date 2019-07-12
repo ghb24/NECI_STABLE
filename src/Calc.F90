@@ -23,11 +23,12 @@ MODULE Calc
                        tFindDets
     use DetCalcData, only: B2L, nKry, nEval, nBlk, nCycle
     use IntegralsData, only: tNeedsVirts
+    use rdm_data, only: tApplyLC
     use FciMCData, only: tTimeExit,MaxTimeExit, InputDiagSft, tSearchTau, &
                          nWalkerHashes, HashLengthFrac, tSearchTauDeath, &
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
-                         alloc_popsfile_dets, tSearchTauOption, &
+                         alloc_popsfile_dets, tSearchTauOption, tZeroRef, &
                          sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
          tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits, tSetDelayAllDoubsInits, &
@@ -46,6 +47,8 @@ MODULE Calc
     use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
 
     implicit none
+
+    logical, public :: RDMsamplingiters_in_inp
 
 contains
 
@@ -147,12 +150,16 @@ contains
           tAAS_MatEle2 = .false.
           tAAS_MatEle3 = .false.
           tAAS_MatEle4 = .false.
+          tAAS_SpinScaled = .false.
+          AAS_OppSpin = 1.0
+          AAS_SameSpin = 1.0
           AAS_DenCut = 0.5
           tAAS_Reverse = .false.
           tAAS_Reverse_Weighted = .false.
           tAAS_Add_Diag = .false.
           tInitsRDMRef = .false.
           tInitsRDM = .false.
+          tApplyLC = .true.
           NEquilSteps=0
           NShiftEquilSteps=1000
           TRhoElems=.false.
@@ -284,9 +291,8 @@ contains
           tSpatialOnlyHash = .false.
           tStoredDets = .false.
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset
-          tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset
           !(by Calc readinput) if I_VMAX=1 and TENERGY is false
-
+          tZeroRef = .false.
           lNoTriples=.false.
           tReadPopsChangeRef = .false.
           tReadPopsRestart = .false.
@@ -439,6 +445,27 @@ contains
           tEN2Init = .false.
           tEN2Truncated = .false.
           tEN2Started = .false.
+          tEN2Rigorous = .false.
+
+          tTrialInit = .false.
+
+          tPreCond = .false.
+          tReplicaEstimates = .false.
+
+          tDeathBeforeComms = .false.
+          tSetInitFlagsBeforeDeath = .false.
+
+          pSinglesIn = 0.0_dp
+          pParallelIn = 0.0_dp
+
+          tSetInitialRunRef = .true.
+
+          tInitiatorSpace = .false.
+          tPureInitiatorSpace = .false.
+          tSimpleInit = .false.
+          tAllConnsPureInit = .false.
+
+          tDetermProjApproxHamil = .false.
 
           ! Giovannis option for RDMs without non-initiators
           tNonInitsForRDMs = .true.
@@ -651,7 +678,9 @@ contains
 
             case("RDMSAMPLINGITERS")
                 !How many iterations do we want to sample the RDM for?
+                RDMsamplingiters_in_inp = .true.
                 call readi(iSampleRDMIters)
+
             case("CYCLES")
                 call readi(NWHTAY(1,1))
                 if ( I_HMAX .ne. -7.and.                              &
@@ -664,6 +693,11 @@ contains
                 ! only take into account initiators when calculating RDMs
                 tOutputInitsRDM = .true.
                 tInitsRDM = .true.
+             case("NO-LAGRANGIAN-RDMS")
+                ! use the default rdms even for adaptive-shift
+                ! this is mainly for debugging/testing purposes, it should not be used in
+                ! production (as the resulting RDMs are flawed)
+                tApplyLC = .false.
              case("STRICT-INITS-RDM")
                 tNonInitsForRDMs = .false.
              case("NON-VARIATIONAL-RDMS")
@@ -1340,6 +1374,8 @@ contains
                 tCSFCore = .true.
                 tCSF = .true.
                 LMS = STOT
+            case("ALL-CONN-CORE")
+                ss_space_in%tAllConnCore = .true.
             case("DOUBLES-CORE")
                 ss_space_in%tDoubles = .true.
             case("HF-CONN-CORE")
@@ -1380,8 +1416,8 @@ contains
                 end do
             case("FCI-CORE")
                 ss_space_in%tFCI = .true.
-            case("HEISENBERG-FCI-CORE")
-                ss_space_in%tHeisenbergFCI = .true.
+            !case("HEISENBERG-FCI-CORE")
+            !    ss_space_in%tHeisenbergFCI = .true.
             case("HF-CORE")
                 ss_space_in%tHF = .true.
             case("POPS-CORE")
@@ -1425,6 +1461,9 @@ contains
                 tIntervalSet = .true.
             case("STOCHASTIC-HF-SPAWNING")
                 tDetermHFSpawning = .false.
+            case("DETERM-PROJ-APPROX-HAMIL")
+                tDetermProjApproxHamil = .true.
+                ss_space_in%tAllConnCore = .true.
 
             case("TRIAL-WAVEFUNCTION")
                 if (item == nitems) then
@@ -1502,8 +1541,8 @@ contains
                 trial_space_in%read_filename = 'TRIALSPACE'
             case("FCI-TRIAL")
                 trial_space_in%tFCI = .true.
-            case("HEISENBERG-FCI-TRIAL")
-                trial_space_in%tHeisenbergFCI = .true.
+            !case("HEISENBERG-FCI-TRIAL")
+            !    trial_space_in%tHeisenbergFCI = .true.
             case("TRIAL-BIN-SEARCH")
                 tTrialHash = .false.
                 write(iout,*) "WARNING: Disabled trial hashtable. Load balancing "//&
@@ -1523,13 +1562,16 @@ contains
             case("MP1-INIT")
                 init_trial_in%tMP1 = .true.
                 call geti(init_trial_in%mp1_ndets)
+                tTrialInit = .true.
             case("DOUBLES-INIT")
                 init_trial_in%tDoubles = .true.
+                tTrialInit = .true.
             case("CAS-INIT")
                 init_trial_in%tCAS = .true.
                 tSpn = .true.
                 call geti(init_trial_in%occ_cas) ! Number of electrons in CAS
                 call geti(init_trial_in%virt_cas) ! Number of virtual spin-orbitals in CAS
+                tTrialInit = .true.
             case("RAS-INIT")
                 init_trial_in%tRAS = .true.
                 call geti(ras_size_1)  ! Number of spatial orbitals in RAS1.
@@ -1542,8 +1584,10 @@ contains
                 init_trial_in%ras%size_3 = int(ras_size_3,sp)
                 init_trial_in%ras%min_1 = int(ras_min_1,sp)
                 init_trial_in%ras%max_3 = int(ras_max_3,sp)
+                tTrialInit = .true.
             case("OPTIMISED-INIT")
                 init_trial_in%tOptimised = .true.
+                tTrialInit = .true.
             case("OPTIMISED-INIT-CUTOFF-AMP")
                 init_trial_in%opt_data%tAmpCutoff = .true.
                 init_trial_in%opt_data%ngen_loops = nitems - 1
@@ -1560,18 +1604,98 @@ contains
                 end do
             case("HF-INIT")
                 init_trial_in%tHF = .true.
+                tTrialInit = .true.
             case("POPS-INIT")
                 init_trial_in%tPops = .true.
                 call geti(init_trial_in%npops)
+                tTrialInit = .true.
             case("READ-INIT")
                 init_trial_in%tRead = .true.
+                init_trial_in%read_filename = 'INITSPACE'
+                tTrialInit = .true.
             case("FCI-INIT")
                 init_trial_in%tFCI = .true.
                 tStartSinglePart = .false.
-            case("HEISENBERG-FCI-INIT")
-                init_trial_in%tHeisenbergFCI = .true.
+                tTrialInit = .true.
+            !case("HEISENBERG-FCI-INIT")
+            !    init_trial_in%tHeisenbergFCI = .true.
+            !    tTrialInit = .true.
             case("START-FROM-HF")
                 tStartCoreGroundState = .false.
+
+            case("INITIATOR-SPACE")
+                tTruncInitiator=.true.
+                tInitiatorSpace = .true.
+            case("PURE-INITIATOR-SPACE")
+                tTruncInitiator=.true.
+                tInitiatorSpace = .true.
+                tPureInitiatorSpace = .true.
+                tInitCoherentRule = .false.
+            case("SIMPLE-INITIATOR")
+                tSimpleInit = .true.
+            CASE("INITIATOR-SPACE-CONNS")
+                tAllConnsPureInit = .true.
+            case("DOUBLES-INITIATOR")
+                i_space_in%tDoubles = .true.
+            case("HF-CONN-INITIATOR")
+                i_space_in%tDoubles = .true.
+                i_space_in%tHFConn = .true.
+            case("CAS-INITIATOR")
+                i_space_in%tCAS = .true.
+                tSpn = .true.
+                call geti(i_space_in%occ_cas)  !Number of electrons in CAS
+                call geti(i_space_in%virt_cas)  !Number of virtual spin-orbitals in CAS
+            case("RAS-INITIATOR")
+                i_space_in%tRAS = .true.
+                call geti(ras_size_1)  ! Number of spatial orbitals in RAS1.
+                call geti(ras_size_2)  ! Number of spatial orbitals in RAS2.
+                call geti(ras_size_3)  ! Number of spatial orbitals in RAS3.
+                call geti(ras_min_1)  ! Min number of electrons (alpha and beta) in RAS1 orbs.
+                call geti(ras_max_3)  ! Max number of electrons (alpha and beta) in RAS3 orbs.
+                i_space_in%ras%size_1 = int(ras_size_1,sp)
+                i_space_in%ras%size_2 = int(ras_size_2,sp)
+                i_space_in%ras%size_3 = int(ras_size_3,sp)
+                i_space_in%ras%min_1 = int(ras_min_1,sp)
+                i_space_in%ras%max_3 = int(ras_max_3,sp)
+            case("OPTIMISED-INITIATOR")
+                i_space_in%tOptimised = .true.
+            case("OPTIMISED-INITIATOR-CUTOFF-AMP")
+                i_space_in%opt_data%tAmpCutoff = .true.
+                i_space_in%opt_data%ngen_loops = nitems - 1
+                allocate(i_space_in%opt_data%cutoff_amps(i_space_in%opt_data%ngen_loops))
+                do I = 1, i_space_in%opt_data%ngen_loops
+                    call getf(i_space_in%opt_data%cutoff_amps(I))
+                end do
+            case("OPTIMISED-INITIATOR-CUTOFF-NUM")
+                i_space_in%opt_data%tAmpCutoff = .false.
+                i_space_in%opt_data%ngen_loops = nitems - 1
+                allocate(i_space_in%opt_data%cutoff_nums(i_space_in%opt_data%ngen_loops))
+                do I = 1, i_space_in%opt_data%ngen_loops
+                    call geti(i_space_in%opt_data%cutoff_nums(I))
+                end do
+            case("FCI-INITIATOR")
+                i_space_in%tFCI = .true.
+            !case("HEISENBERG-FCI-INITIATOR")
+            !    i_space_in%tHeisenbergFCI = .true.
+            case("HF-INITIATOR")
+                i_space_in%tHF = .true.
+            case("POPS-INITIATOR")
+                i_space_in%tPops = .true.
+                call geti(i_space_in%npops)
+            case("POPS-INITIATOR-APPROX")
+                i_space_in%tPops = .true.
+                i_space_in%tApproxSpace = .true.
+                call geti(i_space_in%npops)
+                if(item.lt.nitems) then
+                   call geti(i_space_in%nApproxSpace)
+                endif
+            case("MP1-INITIATOR")
+                i_space_in%tMP1 = .true.
+                call geti(i_space_in%mp1_ndets)
+            case("READ-INITIATOR")
+                i_space_in%tRead = .true.
+                i_space_in%read_filename = 'INITIATOR_SPACE'
+
             case("INC-CANCELLED-INIT-ENERGY")
 !If true, include the spawnings cancelled due the the initiator criterion in the trial energy.
                 tIncCancelledInitEnergy = .true.
@@ -1663,6 +1787,14 @@ contains
                 tAAS_Reverse_Weighted = .true.
             case("AAS-ADD-DIAG")
                 tAAS_Add_Diag = .true.
+            case("AAS-SPIN-SCALED")
+                tAAS_SpinScaled = .true.
+                if (item.lt.nitems) then
+                    call getf(AAS_OppSpin)
+                end if
+                if (item.lt.nitems) then
+                    call getf(AAS_SameSpin)
+                end if
              case("INITS-PROJE")
                 ! deprecated
              case("INITS-GAMMA0")
@@ -1829,6 +1961,11 @@ contains
             case("PROJECTE-MP2")
 !This will find the energy by projection of the configuration of walkers onto the MP2 wavefunction.
                 TProjEMP2=.true.
+            case("ABSOLUTE-ENERGIES")
+! This will zero the reference energy and use absolute energies through the calculation
+! particularly useful for the hubbard model at high U, where no clear reference can be defined
+! and energies are close to 0
+               tZeroRef = .true.
             case("PROJE-CHANGEREF")
 
                 ! If there is a determinant larger than the current reference,
@@ -1933,6 +2070,12 @@ contains
                 ! processor, this is the factor of InitWalkers which will be
                 ! used for the size
                 call getf(MemoryFacInit)
+            case("MEMORYFACHASH")
+                ! Determine the absolute length of the hash table relative to
+                ! the target number of walkers (InitWalkers)
+                !
+                ! By default this value is 0.7 (see above)
+                call getf(HashLengthFrac)
             case("REGENEXCITGENS")
 !An FCIMC option. With this, the excitation generators for the walkers will NOT be stored, and regenerated
 !each time. This will be slower, but save on memory.
@@ -2057,6 +2200,10 @@ contains
             case("EN2-TRUNCATED")
                 tEN2 = .true.
                 tEN2Truncated = .true.
+
+            case("EN2-RIGOROUS")
+                tEN2 = .true.
+                tEN2Rigorous = .true.
 
             case("KEEPDOUBSPAWNS")
 !This means that two sets of walkers spawned on the same determinant with the same sign will live,
@@ -2923,6 +3070,23 @@ contains
              case("TARGET-REFERENCE-POP")
                 tVariableNRef = .true.
                 if(item < nItems) call readi(targetRefPop)
+
+            case("PRECOND")
+                tPreCond = .true.
+
+                call getf(InitialPart)
+                InitWalkers = nint(real(InitialPart, dp) / real(nProcessors, dp), int64)
+
+            case("PSINGLES")
+                call getf(pSinglesIn)
+            case("PPARALLEL")
+                call getf(pParallelIn)
+
+            case("NO-INIT-REF-CHANGE")
+                tSetInitialRunRef = .false.
+
+            case("DEATH-BEFORE-COMMS")
+                tDeathBeforeComms = .true.
 
             case default
                 call report("Keyword "                                &
