@@ -51,6 +51,7 @@ set( SRC_FILES
     FciMCPar.F90
     fcimc_pointed_fns.F90
     fcoul.F
+    fiveIndexLMat.F90
     frsblk.F
     ftlm_neci.F90
     gen_coul.F
@@ -93,6 +94,8 @@ set( SRC_FILES
     lanczos_wrapper.F90
     legacy_data.F90
     lineup.F
+    LMat_aux.F90
+    LMat_indexing.F90
     LMat_mod.F90
     load_balance_calcnodes.F90
     load_balancer.F90

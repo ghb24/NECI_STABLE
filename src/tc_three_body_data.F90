@@ -28,7 +28,7 @@ module tc_three_body_data
   logical :: tSparseLMat
 
   ! Number of entries in a UMat obj.
-  integer(int64) :: twoIndexSize
+  integer(int64) :: twoIndexSize, fourIndexSize
   integer(int64) :: nBI
 
   type lMat_t

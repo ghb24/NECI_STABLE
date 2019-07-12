@@ -9,53 +9,64 @@ module LMat_mod
   use sort_mod
   use hash, only: add_hash_table_entry, clear_hash_table
   use ParallelHelper, only: iProcIndex_intra
-  use tc_three_body_data, only: tDampKMat, tDampLMat, tSymBrokenLMat, tSpinCorrelator, LMatEps, &
+  use tc_three_body_data, only: tDampKMat, tDampLMat, tSymBrokenLMat, tSpinCorrelator, lMatEps, &
        lMat_t, tSparseLMat, lMat, lMatABB, lMatBBA, lMatBAB, nBI
-  use procedure_pointers, only: LMatInd, get_lmat_el, get_lmat_el_symInternal
+  use procedure_pointers, only: lMatInd, get_lmat_el, get_lmat_el_symInternal, lMatInd_t, &
+       get_lmat_el_five_ind
   use LoggingData, only: tHistLMat
+  use LMat_aux, only: fuseIndex, intswap, diffSpinPos, dampLMatel
+  use LMat_indexing, only: lMatIndSym, lMatIndSymBroken, oldLMatInd, strideInner, strideOuter
+  use fiveIndexLMat, only: lMatFiveInd, isFiveIndex, initFiveIndexAccess, &
+       assignFiveIndexElem, get_lmat_el_five_ind_sparse
 #ifdef __USE_HDF5
   use hdf5
 #endif
   implicit none
 
-  logical :: tDebugLMat
-
-  ! for the symmetry broken index function
-  integer :: strideInner, strideOuter
-
   ! access function for lMat
   abstract interface
-     function lmat_access_t(lMatObj, index) result(matel)
+     function lMatAccess_t(lMatObj, index) result(matel)
        use constants
        use tc_three_body_data, only: lMat_t
        implicit none
        type(lMat_t), intent(in) :: lMatObj
        integer(int64), intent(in) :: index
        HElement_t(dp) :: matel
-     end function lmat_access_t
+     end function lMatAccess_t
+     
   end interface
 
-  procedure(lmat_access_t), pointer :: lMatAccess
-
+  procedure(lMatAccess_t), pointer :: lMatAccess
 
   contains
-    
-!------------------------------------------------------------------------------------------!    
 
-    ! this is the common logic of all lmat-acceses
+!------------------------------------------------------------------------------------------!    
+! Access function for six-index integrals: get a matrix element given the spin-orbitals
+!------------------------------------------------------------------------------------------!
+
+    function get_lmat_el_five_ind_dense(a,b,i,j,n) result(matel)
+      implicit none
+      integer, intent(in) :: a,b,i,j,n
+      HElement_t(dp) :: matel
+
+      matel = get_lmat_el_base(a,b,n,i,j,n)
+    end function get_lmat_el_five_ind_dense
+
+!------------------------------------------------------------------------------------------!  
+    
+    ! this is the common logic of all 6-index lmat-acceses
     function get_lmat_el_base(a,b,c,i,j,k) result(matel)
       ! Input: a,b,c - indices of orbitals to excite to
       !        i,j,k - indices of orbitals to excite from
-      ! Output: matel - matrix element of this excitation
+      ! Output: matel - matrix element of this excitation, including all exchange terms
       use UMatCache, only: gtID
       ! Gets an entry of the 3-body tensor L:
       ! L_{abc}^{ijk} - triple excitation from abc to ijk
       implicit none
       integer, value :: a,b,c
       integer, value :: i,j,k
-      procedure(lMatAccess_t) :: lMatBaseAccess
       HElement_t(dp) :: matel
-      integer :: ida, idb, idc, idi, idj, idk
+      integer(int64) :: ida, idb, idc, idi, idj, idk
       logical :: tSameSpin
 
       ! initialize spin-correlator check: if all spins are the same, use LMat
@@ -80,26 +91,30 @@ module LMat_mod
 
       ! TODO: Use sameSpin to determine which contributions can appear - no need for
       ! any further checks (remember to tweak for sameSpin!= possible without tSpinCorrelator)
-      call addMatelContribution(i,j,k,idi,idj,idk,1)         
+      ! here, we add up all the exchange terms
+      call addMatelContribution(i,j,k,idi,idj,idk,1)
       call addMatelContribution(j,k,i,idj,idk,idi,1)
       call addMatelContribution(k,i,j,idk,idi,idj,1)
       call addMatelContribution(j,i,k,idj,idi,idk,-1)
       call addMatelContribution(i,k,j,idi,idk,idj,-1)
       call addMatelContribution(k,j,i,idk,idj,idi,-1)
+      ! if a heuristic spin-projection is done, it happens here
+      if(tDampKMat .and. .not. tDampLMat) call dampLMatel(a,b,c,matel)
 
-      if(tDampKMat) call dampLMatel(a,b,c,matel)
       contains 
 
         subroutine addMatelContribution(p,q,r,idp,idq,idr,sgn)
+          ! get a single entry of the LMat array and add it to the matrix element
           implicit none
-          integer, value :: idp,idq,idr,p,q,r
+          integer(int64), value :: idp,idq,idr
+          integer, value :: p,q,r
           integer, intent(in) :: sgn
           integer(int64) :: index
           integer :: spinPos
           
           if(G1(p)%ms == G1(a)%ms .and. G1(q)%ms == G1(b)%ms .and. G1(r)%ms == G1(c)%ms) then
-             index = LMatInd(int(ida,int64),int(idb,int64),&
-                  int(idc,int64),int(idp,int64),int(idq,int64),int(idr,int64))
+             index = lMatInd(ida,idb,idc,idp,idq,idr)
+             print *, "Asking for entry", ida, idb, idc, idp, idq, idr
              if(tSameSpin) then 
                 matel = matel + sgn * real(lMatAccess(lMat,index),dp)
              else
@@ -113,6 +128,7 @@ module LMat_mod
                    matel = matel + sgn * real(lMatAccess(lMatBBA,index),dp)
                 end select
              endif
+             print *, "matel is now", matel                          
           endif
         end subroutine addMatelContribution
         
@@ -201,115 +217,7 @@ module LMat_mod
         end subroutine swapSpins
       end function get_lmat_el_spinProj
 
-!------------------------------------------------------------------------------------------!
 
-    function LMatIndSym(a,b,c,i,j,k) result(index)
-      implicit none
-      integer(int64), intent(in) :: a,b,c ! occupied orb indices
-      integer(int64), intent(in) :: i,j,k ! unoccupied orb
-      integer(int64) :: index
-
-      integer(int64) :: ai,bj,ck
-      
-      ai = fuseIndex(a,i)
-      bj = fuseIndex(b,j)
-      ck = fuseIndex(c,k)
-
-      ! sort the indices
-      if(ai > bj) call intswap(ai,bj)
-      if(bj > ck) call intswap(bj,ck)
-      if(ai > bj) call intswap(ai,bj)
-
-      index = ai + bj*(bj-1)/2 + ck*(ck-1)*(ck+1)/6
-    end function LMatIndSym
-
-!------------------------------------------------------------------------------------------!    
-
-    function fuseIndex(x,y) result(xy)
-      ! create a composite index out of two indices
-      implicit none
-      integer(int64), intent(in) :: x,y
-      integer(int64) :: xy
-
-      if(x < y) then
-         xy = x + y*(y-1)/2
-      else
-         xy = y + x*(x-1)/2
-      endif
-    end function fuseIndex
-
-!------------------------------------------------------------------------------------------!
-    
-    function oldLMatInd(aI,bI,cI,iI,jI,kI) result(index)
-      implicit none
-      integer(int64), intent(in) :: aI,bI,cI ! occupied orb indices
-      integer(int64), intent(in) :: iI,jI,kI ! unoccupied orb
-      integer(int64) :: index
-      integer(int64) :: a,b,c,i,j,k
-
-      ! guarantee pass-by-value without changing the signature to value
-      a = aI
-      b = bI
-      c = cI
-      i = iI
-      j = jI
-      k = kI
-     
-      ! we store the permutation where a < b < c (regardless of i,j,k)
-      ! or i < j < k, depending on (permuted) a < i
-      ! sort such that the ordered indices start with the smallest index
-      if(minval((/a,b,c/)) > minval((/i,j,k/))) then
-         call intswap(a,i)
-         call intswap(b,j)
-         call intswap(c,k)
-      endif
-      ! -> create the ordered permutation on ap,bp,cp
-      call sort2Els(a,b,i,j)
-      call sort2Els(b,c,j,k)
-      call sort2Els(a,b,i,j)
-
-      ! indexing function: there are three ordered indices (ap,bp,cp)
-      ! and three larger indices (ip,jp,kp)
-      ! the last larger index kp, it is the contigous index, then follow (jp,cp) 
-      ! then (ip,bp) and then the smallest index ap
-      index = k + nBI*(j-1) + nBI**2*(i-1) + nBI**3*(a-1) + nbI**3*(b-1)*b/2+&
-           nBI**3*(c+1)*(c-1)*c/6
-
-      contains
-
-        ! sorts the indices a,b and i,j with respect to the 
-        ! ordering selected in iPermute
-        pure subroutine sort2Els(r,s,p,q)
-          implicit none
-          integer(int64), intent(inout) :: r,s,p,q
-
-          if(r > s) then
-             call intswap(r,s)
-             call intswap(p,q)
-          end if
-        end subroutine sort2Els
-      
-    end function oldLMatInd
-
-!------------------------------------------------------------------------------------------!
-
-    function lMatIndSymBroken(a,b,c,i,j,k) result(index)
-      ! broken-symmetry index function that operates on LMat without permutational
-      ! symmetry between ai, bj, ck
-      implicit none
-      integer(int64), intent(in) :: a,b,c ! occupied orb indices
-      integer(int64), intent(in) :: i,j,k ! unoccupied orb
-      integer(int64) :: index
-
-      integer(int64) :: ai,bj,ck
-
-      ai = fuseIndex(a,i)
-      bj = fuseIndex(b,j)
-      ck = fuseIndex(c,k)
-
-      index = ai + strideInner*bj + strideOuter * ck
-      
-    end function lMatIndSymBroken
 
 !------------------------------------------------------------------------------------------!
 ! Auxiliary functions for indexing and accessing the LMat    
@@ -317,17 +225,23 @@ module LMat_mod
 
     subroutine initializeLMatInd()
       implicit none
+
+      if(tStoreSpinOrbs) then
+         nBI = nBasis
+      else
+         nBI = nBasis / 2
+      endif
      
       ! set the LMatInd function pointer
       if(t12FoldSym) then
-         LMatInd => oldLMatInd
+         lMatInd => oldLMatInd
       else if(tSymBrokenLMat) then
          ! also need to set the size of the blocks
          strideInner = fuseIndex(nBI,nBI)
          strideOuter = strideInner**2
-         LMatInd => lMatIndSymBroken
+         lMatInd => lMatIndSymBroken
       else
-         LMatInd => LMatIndSym
+         lMatInd => lMatIndSym
       endif
 
       ! set the get_lmat_el function pointer
@@ -346,74 +260,13 @@ module LMat_mod
 
       if(tSparseLMat) then
          lMatAccess => lMatHashedAccess
+         get_lmat_el_five_ind => get_lmat_el_five_ind_sparse
+         call initFiveIndexAccess()
       else
          lMatAccess => lMatDirectAccess
+         get_lmat_el_five_ind => get_lmat_el_five_ind_dense
       endif
     end subroutine initializeLMatInd
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine dampLMatel(a,b,c,matel)
-      integer, intent(in) :: a,b,c
-      HElement_t(dp), intent(inout) :: matel
-      ! spin-projector for the tc terms - apply heuristically for three-body terms
-      
-      ! same-spin contributions are divided by 4 (this is exact)
-      if(G1(a)%MS .eq. G1(b)%MS .and. G1(b)%MS .eq. G1(c)%MS) then
-         matel = matel/4.0_dp
-      else
-         ! opposite-spin contributions are divided by 2 (this is a guess, the
-         ! exact form has an admixture of exchange terms)
-         matel = matel/2.0_dp
-      endif
-    end subroutine dampLMatel
-
-!------------------------------------------------------------------------------------------!
-    
-    function diffSpinPos(i,j,k,a,b,c) result(pos)
-        ! given three excitations (i,a), (j,b), (k,c), find the position of the one with
-        ! different spin in the ordering a'<b'<c' where a'=min(a,i) etc.
-        implicit none
-        integer, intent(in) :: i,j,k,a,b,c
-        integer :: pos
-        integer :: ap, bp, cp
-        integer :: tmp(3)
-
-        ! the minimum of each pair to be sorted
-        ap = min(a,i)
-        bp = min(b,j)
-        cp = min(c,k)
-        tmp = (/ap,bp,cp/)
-
-        ! at this point, both indices of a pair have the same spin, so we just use the one
-        ! of the primed indices
-        if(G1(minval(tmp))%MS.ne.G1(maxval(tmp))%MS) then
-           ! either the first or the last is different
-           ! do a check if the first entry has different spin: subtract its spin from the
-           ! total spin
-           if(abs(G1(ap)%MS+G1(bp)%MS+G1(cp)%MS-G1(minval(tmp))%MS)==2) then
-              ! if this is 2, minval(tmp) has different spin than the other two
-              pos = 1
-           else
-              ! else, maxval(tmp) has the different spin
-              pos = 3
-           endif
-        else
-           pos = 2
-        endif
-        
-      end function diffSpinPos
-
-!------------------------------------------------------------------------------------------!
-
-    pure subroutine intswap(a,b)
-      integer(int64), intent(inout) :: a,b
-      integer(int64) :: tmp
-      
-      tmp = a
-      a = b 
-      b = tmp
-    end subroutine intswap
 
 !------------------------------------------------------------------------------------------!
 ! For huge LMats, a sparse storage scheme is required. Since we still need to access
@@ -498,7 +351,7 @@ module LMat_mod
         HElement_t(dp) :: matel
         
         matel = lMatCtr%lMatPtr(index)
-      end function lMatDirectAccess    
+      end function lMatDirectAccess
 
 !------------------------------------------------------------------------------------------!
 ! Six-index integral I/O functions    
@@ -511,12 +364,6 @@ module LMat_mod
       ! we need at least three electrons to make use of the six-index integrals
       ! => for less electrons, this can be skipped
       if(nel<=2) return
-
-      if(tStoreSpinOrbs) then
-         nBI = nBasis
-      else
-         nBI = nBasis / 2
-      endif
 
       call initializeLMatInd()
 
@@ -537,7 +384,6 @@ module LMat_mod
 !------------------------------------------------------------------------------------------!
 
     subroutine readLMatArray(LMatLoc, LMatFileName, h5Filename)
-      use ParallelHelper, only: mpi_comm_intra
       implicit none
       type(lMat_t), intent(inout) :: LMatLoc
       character(*), intent(in) :: LMatFileName
@@ -548,10 +394,6 @@ module LMat_mod
       HElement_t(dp) :: matel
       character(*), parameter :: t_r = "readLMat"
       integer(int64) :: counter
-      integer(int64) :: iChunk, chunkSize
-      integer :: iNodeSize, iProcInNode
-      integer :: dummy(6)
-      integer(MPIArg) :: err
 
       if(.not.tSparseLMat) then
          ! for sparse storage, we first need to get the number of integrals
@@ -559,7 +401,7 @@ module LMat_mod
          ! done directly in the respective code
 
          ! The size is given by the largest index (LMatInd is monotonous in all arguments)
-         LMatSize = LMatInd(nBI,nBI,nBI,nBI,nBI,nBI)
+         LMatSize = lMatInd(nBI,nBI,nBI,nBI,nBI,nBI)
 
          call allocLMat(LMatLoc,LMatSize)
       endif
@@ -587,12 +429,12 @@ module LMat_mod
                   call stop_all(t_r,"Error reading TCDUMP file")
                else
                   ! else assign the matrix element
-                  if(LMatInd(a,b,c,i,j,k) > LMatSize) then
-                     counter = LMatInd(a,b,c,i,j,k)
+                  if(lMatInd(a,b,c,i,j,k) > LMatSize) then
+                     counter = lMatInd(a,b,c,i,j,k)
                      write(iout,*) "Warning, exceeding size" 
                   endif
                   if(abs(3.0_dp*matel) > LMatEps) &
-                       LMatLoc%LMatPtr(LMatInd(a,b,c,i,j,k)) = 3.0_dp * matel
+                       LMatLoc%LMatPtr(lMatInd(a,b,c,i,j,k)) = 3.0_dp * matel
                   if(abs(matel)> 0.0_dp) counter = counter + 1
                endif
 
@@ -638,14 +480,16 @@ module LMat_mod
       if(tSparseLMat) then
          ! also, allocate the index array
          call shared_allocate_mpi(LMatLoc%index_win, LMatLoc%indexPtr, (/LMatSize/))
-         call LogMemAlloc("LMat Indices", int(nInts), sizeof_int64, t_r, LMatLoc%indexTag)
+         call LogMemAlloc("LMat Indices", int(LMatSize), sizeof_int64, t_r, LMatLoc%indexTag)
          ! come up with some reasonable size
-         LMatLoc%htSize = nInts
+         LMatLoc%htSize = LMatSize
 
          ! the five-index part is still stored densely, for faster access (this makes a huge
          ! difference)
          fiveIndexSize = lMatFiveInd(nBI,nBI,nBI,nBI,nBI,3)
+         write(iout,*) "Five index integrals require", fiveIndexSize*HElement_t_sizeB/(2.0_dp**30), "GB"
          call shared_allocate_mpi(LMatLoc%fiveInd_win, LMatLoc%fiveIndexPtr, (/fiveIndexSize/))
+         LMatLoc%fiveIndexPtr = 0.0_dp
       endif
 
       write(iout,*) "Successfully allocated LMat"
@@ -806,7 +650,6 @@ module LMat_mod
                sparseBlock = sparseBlock + all_nEntries(i)
             end do
          endif
-
          ! assign LMat entries
          do i = 1, this_blocksize
             ! truncate down to lMatEps
@@ -817,15 +660,22 @@ module LMat_mod
                   counter = counter + 1
                   ! write to the local window within the shared memory
                   LMatLoc%LMatPtr(sparseBlock+counter) = rVal
-                  LMatLoc%indexPtr(sparseBlock+counter) = LMatInd(int(indices(1,i),int64),int(indices(2,i),int64),&
+                  LMatLoc%indexPtr(sparseBlock+counter) = lMatInd(int(indices(1,i),int64),int(indices(2,i),int64),&
                        int(indices(3,i),int64),&
                        int(indices(4,i),int64),int(indices(5,i),int64),int(indices(6,i),int64))
+
+                  ! store the five-index object
+                  if(isFiveIndex(int(indices(:,i)))) call assignFiveIndexElem(&
+                       LMatLoc%fiveIndexPtr,rVal,indices(1,i),indices(2,i),indices(3,i),&
+                       indices(4,i),indices(5,i),indices(6,i))
+
                else
-                  LMatLoc%LMatPtr(LMatInd(int(indices(1,i),int64),int(indices(2,i),int64),&
+                  LMatLoc%LMatPtr(lMatInd(int(indices(1,i),int64),int(indices(2,i),int64),&
                        int(indices(3,i),int64),&
                        int(indices(4,i),int64),int(indices(5,i),int64),int(indices(6,i),int64))) &
                        = rVal
                endif
+
             endif
          end do
 

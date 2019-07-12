@@ -2,7 +2,7 @@
 #include "macros.h"
 program test_molecular_tc
   use constants
-  use SystemData, only: nBasis, tStoreSpinOrbs, nel, G1, nullBasisFn
+  use SystemData, only: nBasis, tStoreSpinOrbs, nel, G1, nullBasisFn, tHDF5LMat
   use bit_rep_data, only: NIfTot
   use LMat_mod
   use fruit
@@ -31,9 +31,9 @@ program test_molecular_tc
       ! the sixindex initialization
       call run_lmat_test()
       ! the tc slater condon rules
-      call run_sltcnd_test()
+!      call run_sltcnd_test()
       ! and the three-body excitation generator
-      call run_excitgen_test()
+!      call run_excitgen_test()
 
       call clear_resources()
     end subroutine molecular_tc_test_driver
@@ -95,16 +95,21 @@ program test_molecular_tc
 
 
       ! assign the the sixindex access functions
-      tSparseLMat = .false.
+      tSparseLMat = .true.
+      tHDF5LMat = .true.
       call initializeLMatInd()
     end subroutine setup_tests
 
     subroutine run_lmat_test()
       implicit none
-
-      tDebugLMat = .true.
+      integer, parameter :: a=13,b=28,c=2,i=1,j=6,k=2
+      
       ! we read an exemplary sixindex integral file
       call readLMat()
+
+      ! now, check whether accessing directly and via 5-index yields the same
+      call assert_equals(get_lmat_el_five_ind(a,b,i,j,k),get_lmat_el_base(a,b,c,i,j,k))
+      call assert_equals(get_lmat_el_five_ind(a,b,i,i,k),get_lmat_el_base(a,b,c,i,i,k))
     end subroutine run_lmat_test
    
     subroutine run_sltcnd_test()
@@ -139,7 +144,7 @@ program test_molecular_tc
     end subroutine run_sltcnd_test
 
     subroutine run_excitgen_test()
-      ! TODO: Scrap this scrap and use the proper excitation generator unit test
+      ! TODO: Scrap this crap and use the proper excitation generator unit test
       ! (as in the framework of k-space-hubbard/umat-hash)
       use tc_three_body_excitgen
       use tc_three_body_data, only: pgen3B, pgen2B, pgen1B, pgen0B, pTriples
