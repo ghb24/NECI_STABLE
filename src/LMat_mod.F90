@@ -114,7 +114,7 @@ module LMat_mod
           
           if(G1(p)%ms == G1(a)%ms .and. G1(q)%ms == G1(b)%ms .and. G1(r)%ms == G1(c)%ms) then
              index = lMatInd(ida,idb,idc,idp,idq,idr)
-             print *, "Asking for entry", ida, idb, idc, idp, idq, idr
+
              if(tSameSpin) then 
                 matel = matel + sgn * real(lMatAccess(lMat,index),dp)
              else
@@ -128,7 +128,7 @@ module LMat_mod
                    matel = matel + sgn * real(lMatAccess(lMatBBA,index),dp)
                 end select
              endif
-             print *, "matel is now", matel                          
+
           endif
         end subroutine addMatelContribution
         
@@ -666,8 +666,7 @@ module LMat_mod
 
                   ! store the five-index object
                   if(isFiveIndex(int(indices(:,i)))) call assignFiveIndexElem(&
-                       LMatLoc%fiveIndexPtr,rVal,indices(1,i),indices(2,i),indices(3,i),&
-                       indices(4,i),indices(5,i),indices(6,i))
+                       LMatLoc%fiveIndexPtr,rVal,int(indices(:,i),int64))
 
                else
                   LMatLoc%LMatPtr(lMatInd(int(indices(1,i),int64),int(indices(2,i),int64),&

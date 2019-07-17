@@ -103,6 +103,7 @@ program test_molecular_tc
     subroutine run_lmat_test()
       implicit none
       integer, parameter :: a=13,b=28,c=2,i=1,j=6,k=2
+      integer, parameter :: ap=21,bp=22,cp=1,ip=5,jp=6,kp=1
       
       ! we read an exemplary sixindex integral file
       call readLMat()
@@ -110,6 +111,7 @@ program test_molecular_tc
       ! now, check whether accessing directly and via 5-index yields the same
       call assert_equals(get_lmat_el_five_ind(a,b,i,j,k),get_lmat_el_base(a,b,c,i,j,k))
       call assert_equals(get_lmat_el_five_ind(a,b,i,i,k),get_lmat_el_base(a,b,c,i,i,k))
+      call assert_equals(get_lmat_el_five_ind(ap,bp,ip,jp,kp),get_lmat_el_base(ap,bp,cp,ip,jp,kp))
     end subroutine run_lmat_test
    
     subroutine run_sltcnd_test()
