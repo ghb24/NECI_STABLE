@@ -855,14 +855,9 @@ contains
 
         integer :: proc, nreceived
         integer(hid_t) :: grp_id
-<<<<<<< HEAD
-        integer :: err
+        integer(hdf_err) :: err
         integer(hid_t) :: ds_sgns, ds_ilut, ds_fvals
 
-=======
-        integer(hdf_err) :: err
-        integer(hid_t) :: ds_sgns, ds_ilut
->>>>>>> 47a5f23919ecb74119900a45915db3a31b3ed4c5
         integer(int64) :: nread_walkers
         integer :: ierr
 
@@ -908,7 +903,6 @@ contains
         call read_int32_attribute(grp_id, nm_sgn_len, read_lenof_sign)
         ! as lenof_sign is of type int, do not force tmp_lenof_sign to be int32
         tmp_lenof_sign = int(read_lenof_sign)
-<<<<<<< HEAD
         ! assign the tmp_inum_runs accordingly
 #ifdef __CMPLX
         tmp_inum_runs = tmp_lenof_sign/2
@@ -923,9 +917,6 @@ contains
         call read_log_scalar(grp_id, nm_tauto, tPopAutoAdaptiveShift, &
              default = .false._int32, required=.false.)
         
-=======
-
->>>>>>> 47a5f23919ecb74119900a45915db3a31b3ed4c5
         ! these variables are for consistency-checks
         allocate(pops_norm_sqr(tmp_lenof_sign), stat = ierr)
         allocate(pops_num_parts(tmp_lenof_sign), stat = ierr)
@@ -1053,7 +1044,7 @@ contains
             ! if we resized the sign, we need to go back to the original buffer size now
             if(tmp_lenof_sign /= lenof_sign) then
                deallocate(temp_sgns)
-<<<<<<< HEAD
+
                allocate(temp_sgns(int(tmp_lenof_sign),int(this_block_size)),stat=ierr)        
                if(tReadFVals) then
                   deallocate(temp_fvals)
@@ -1071,16 +1062,6 @@ contains
                if(tReadFVals) &
                     call clone_signs(temp_fvals,2*tmp_inum_runs,2*inum_runs, this_block_size)
             endif
-=======
-               allocate(temp_sgns(int(tmp_lenof_sign),int(this_block_size)),stat=ierr)
-            end if
-
-            call read_walker_block_buff(ds_ilut, ds_sgns, block_start, &
-                                   this_block_size, bit_rep_width, temp_ilut, temp_sgns)
-
-            if(tmp_lenof_sign /= lenof_sign) call clone_signs(temp_sgns,&
-                 tmp_lenof_sign, lenof_sign, this_block_size)
->>>>>>> 47a5f23919ecb74119900a45915db3a31b3ed4c5
 
             call distribute_and_add_walkers(this_block_size, temp_ilut, temp_sgns, &
                  temp_fvals, dets, nreceived, CurrWalkers, norm, parts)
