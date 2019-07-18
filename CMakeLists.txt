@@ -107,6 +107,8 @@ list(APPEND NECI_GLOBAL_DEFINES
 
     # Is this a debug build
     $<$<STREQUAL:${CMAKE_BUILD_TYPE},DEBUG>:__DEBUG>
+    # Errors treated as warnings
+    $<$<STREQUAL:${CMAKE_BUILD_TYPE},DEBUG>:__STRICT>
 
     # Global defines that depend on options
     $<$<BOOL:${HAVE_MPI}>:PARALLEL>

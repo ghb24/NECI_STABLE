@@ -880,7 +880,9 @@ contains
         call h5sclose_f(memspace, err)
         call h5sclose_f(dataspace, err)
         call h5pclose_f(plist_id, err)
-
+#ifdef __STRICT
+       val = 0_int64
+#endif
     end subroutine
 
     subroutine read_int32_attribute_main(parent, nm, val, exists, default, &

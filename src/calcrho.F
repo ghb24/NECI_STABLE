@@ -108,10 +108,10 @@ C               IC=IC+1
             IF(NI(I).EQ.NJ(J)) THEN
                I=I+1
                J=J+1
-            ENDIF            
+            ENDIF
          ENDDO
          IC=IC+(NEL+1-I)
-         IGETEXCITLEVEL_=IC 
+         IGETEXCITLEVEL_=IC
          RETURN
       END
 
@@ -126,7 +126,7 @@ C               IC=IC+1
         USE SystemData , only : Arr
         IMPLICIT NONE
         INTEGER i,NEl,nI(NEl),IC
-        
+
         IC=NEl
         do i=1,NEl
             IF(Arr(nI(i),2).lt.ChemPot) IC=IC-1
@@ -136,13 +136,14 @@ C               IC=IC+1
         RETURN
 
       END FUNCTION iGetExcitLevelwrtHF
-      
+
       SUBROUTINE  CALCRHOIIMAX(BETA,I_P,NEL,
      &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,NTAY,
      &           RHOMAX,ECORE)
          use constants, only: dp
-         INTEGER IDET(NEL),I_P,NEL
-         real(dp) :: Beta,RhoMax,ECore
+         INTEGER :: NEL,IDET(NEL),I_P
+         integer :: nBasisMax, nBasis, nMSH, nMax, nTay
+         real(dp) :: Beta,RhoMax,ECore, G1, BRR, FCK, ALAT
          CALL CALCRHOIIMAXR(BETA,I_P,NEL,
      &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,NTAY,
      &           RHOMAX,IDET,1,0,ECORE)
@@ -154,8 +155,9 @@ C               IC=IC+1
      &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,NTAY,
      &           RHOMAX,IDET,NTHISEL,ILASTBASIS,ECORE)
          use constants, only : dp
-         INTEGER IDET(NEL),NTHISEL,I,ILASTBASIS
-         real(dp) RH,RHOMAX,BETA,ECORE
+         INTEGER :: nEl, IDET(NEL),NTHISEL,I,ILASTBASIS, nBasis,
+     &      I_P, nBasisMax, nMsh, nMax, nTay
+         real(dp) :: RH,RHOMAX,BETA,ECORE, G1, BRR, FCK, Alat
          CHARACTER(*), PARAMETER :: t_r="CALCRHOIIMAXR"
          DO I=ILASTBASIS+1,NBASIS
             IDET(NTHISEL)=I
@@ -172,7 +174,7 @@ C               IC=IC+1
          ENDDO
          RETURN
       END
- 
+
 C.. GETHELEMENT
 C.. Get matrix element of the hamiltonian
       FUNCTION GETHELEMENT(II,IJ,HAMIL,LAB,NROW,NDET)
