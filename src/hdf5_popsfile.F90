@@ -205,8 +205,6 @@ contains
 
         call h5garbage_collect_f(err)
 
-        call MPIBarrier(ierr)
-
         call MPIBarrier(mpi_err)
 
         write(6,*) "popsfile write successful"
