@@ -57,7 +57,7 @@ module hdf5_popsfile
     !     /tot_imag_time/    - Total amount of imaginary time completed
     !     /shift/            - The diagshift value (absolute, invarient to a
     !                          change of reference)
-    ! 
+    !
     ! /wavefunction/         - Details of a determinental Hilbert space
     !     A: width           - Width of the bit-rep in 64-bit integers
     !     A: num_dets        - Number of determinants in the file
@@ -118,14 +118,14 @@ module hdf5_popsfile
             nm_pdoubles = 'pdoubles', &
             nm_pparallel = 'pparallel', &
             nm_tau = 'tau', &
-            ! [W.D.]: 
+            ! [W.D.]:
             ! can i just add another entry without breaking anything?
             nm_hist_tau = 'hist_tau_search', &
 
             nm_acc_grp = 'accumulators', &
             nm_sum_no_ref = 'sum_no_ref', &
             nm_sum_enum = 'sum_enum', &
-            
+
             nm_wfn_grp = 'wavefunction', &
             nm_rep_width = 'width', &
             nm_sgn_len = 'lenof_sign', &
@@ -161,7 +161,8 @@ contains
         character(*), parameter :: t_r = 'write_popsfile_hdf5'
 #ifdef __USE_HDF
         integer(hid_t) :: plist_id, file_id
-        integer :: err
+        integer(hdf_err) :: err
+        integer :: mpi_err
         character(255) :: filename
 
         ! Get a unique filename for this popsfile. This needs to be done on
@@ -192,11 +193,11 @@ contains
         write(6,*) "writing calc_data"
         call write_calc_data(file_id)
 
-        call MPIBarrier(err)
+        call MPIBarrier(mpi_err)
         write(6,*) "writing walkers"
         call write_walkers(file_id)
 
-        call MPIBarrier(err)
+        call MPIBarrier(mpi_err)
         write(6,*) "closing popsfile"
         ! And we are done!
         call h5fclose_f(file_id, err)
@@ -205,6 +206,9 @@ contains
         call h5garbage_collect_f(err)
 
         call MPIBarrier(ierr)
+
+        call MPIBarrier(mpi_err)
+
         write(6,*) "popsfile write successful"
 #else
         call stop_all(t_r, 'HDF5 support not enabled at compile time')
@@ -228,7 +232,8 @@ contains
         character(*), parameter :: t_r = 'read_popsfile_hdf5'
 #ifdef __USE_HDF
         integer(hid_t) :: file_id, plist_id
-        integer :: err
+        integer(hdf_err) :: err
+        integer :: mpi_err
         character(255) :: filename
 
         ! Get the name for the popsfile to read in
@@ -264,7 +269,7 @@ contains
         call h5close_f(err)
 
         call neci_flush(6)
-        call MPIBarrier(err)
+        call MPIBarrier(mpi_err)
 #else
         CurrWalkers = 0
         call stop_all(t_r, 'HDF5 support not enabled at compile time')
@@ -352,7 +357,7 @@ contains
 
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: calc_grp
-        integer :: err
+        integer(hdf_err) :: err
 
         ! Firstly create the group for storing calculation-related data
         call h5gcreate_f(parent, nm_calc_grp, calc_grp, err)
@@ -378,7 +383,7 @@ contains
     end subroutine
 
     subroutine write_tau_opt(parent)
-    
+
         use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
                               enough_sing, enough_doub, enough_opp, &
                               enough_par, cnt_sing, cnt_doub, cnt_opp, &
@@ -388,7 +393,7 @@ contains
 
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: tau_grp
-        integer :: err
+        integer(hdf_err) :: err
 
         real(dp) :: max_gam_sing, max_gam_doub, max_gam_opp, max_gam_par
         real(dp) :: max_max_death_cpt
@@ -458,9 +463,9 @@ contains
         call write_dp_scalar(tau_grp, nm_tau, all_tau)
 
         ! [W.D.]:
-        ! for the new hist-tau search i essentially only need to indicat 
-        ! that a histogramming tau-search was used: 
-        if (t_hist_tau_search_option .or. t_previous_hist_tau) then 
+        ! for the new hist-tau search i essentially only need to indicat
+        ! that a histogramming tau-search was used:
+        if (t_hist_tau_search_option .or. t_previous_hist_tau) then
             call write_log_scalar(tau_grp, nm_hist_tau, .true.)
         end if
 
@@ -476,7 +481,7 @@ contains
 
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: acc_grp
-        integer :: err
+        integer(hdf_err) :: err
 
         ! Create group
         call h5gcreate_f(parent, nm_acc_grp, acc_grp, err)
@@ -506,7 +511,7 @@ contains
                             hdf5_diagsft
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: grp_id
-        integer :: err
+        integer(hdf_err) :: err
         logical :: exists
 
         call h5gopen_f(parent, nm_calc_grp, grp_id, err)
@@ -537,23 +542,23 @@ contains
             write(6,*) 'Initial shift: ', DiagSft
         else
             tSinglePartPhase = .true.
-            
-            ! i still want to capture the diagshift in a temporary file 
-            ! atleast 
+
+            ! i still want to capture the diagshift in a temporary file
+            ! atleast
             call read_dp_1d_dataset(grp_id, nm_shift, hdf5_diagsft, required=.true.)
             hdf5_diagsft = hdf5_diagsft - Hii
 
         end if
 
         ! [W.D.]:
-        ! i think i also want to read in pSingles etc. even if we do not 
+        ! i think i also want to read in pSingles etc. even if we do not
         ! tau-search anymore in a restarted run..
-        ! but i guess i have to be careful to set the appropriate 
+        ! but i guess i have to be careful to set the appropriate
         ! default, if no tau-search was used and then is restarted..
-        ! well, even if the tau-search is not turned on, the 
-        ! values are written anyway.. so i can also read them in, but 
-        ! not use the read-in tau, but the one specified in the input! 
-        ! except the hist_tau was used the we want to use the 
+        ! well, even if the tau-search is not turned on, the
+        ! values are written anyway.. so i can also read them in, but
+        ! not use the read-in tau, but the one specified in the input!
+        ! except the hist_tau was used the we want to use the
         ! one in the popsfile all the time
 !         if (tSearchTauOption) then
         call read_tau_opt(grp_id)
@@ -561,9 +566,9 @@ contains
 !             write(6,*) 'Skipping tau optimisation data as tau optimisation is &
 !                        &disabled'
 !         end if
-        ! and also output some info: 
+        ! and also output some info:
         write(6,*) "read-in tau optimization data: "
-        write(6,*) "time-step: ", tau 
+        write(6,*) "time-step: ", tau
         write(6,*) "pSingles: ", pSingles
         write(6,*) "pDoubles: ", pDoubles
         write(6,*) "pParallel: ", pParallel
@@ -590,7 +595,7 @@ contains
                               enough_par, cnt_sing, cnt_doub, cnt_opp, &
                               cnt_par, max_death_cpt, update_tau
         use FciMCData, only: pSingles, pDoubles, pParallel, tSearchTau, &
-                             tSearchTauOption 
+                             tSearchTauOption
         use CalcData, only: tau, t_previous_hist_tau, t_restart_hist_tau, &
                             t_hist_tau_search, t_hist_tau_search_option, &
                             t_fill_frequency_hists
@@ -602,7 +607,7 @@ contains
 
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: grp_id
-        integer :: err
+        integer(hdf_err) :: err
         logical :: ppar_set, tau_set, hist_tau, temp_previous
 
         real(dp) :: temp_tau
@@ -628,7 +633,7 @@ contains
         call read_dp_scalar(grp_id, nm_psingles, psingles)
         call read_dp_scalar(grp_id, nm_pdoubles, pdoubles)
         call read_dp_scalar(grp_id, nm_pparallel, pparallel, exists=ppar_set)
-        ! here i want to make the distinction if we want to tau-search 
+        ! here i want to make the distinction if we want to tau-search
         ! or not
         call read_dp_scalar(grp_id, nm_tau, temp_tau, exists=tau_set)
 
@@ -638,13 +643,13 @@ contains
         call h5gclose_f(grp_id, err)
 
         if (tSearchTauOption .and. tau_set) then
-           tau = temp_tau 
+           tau = temp_tau
         end if
 
         ! also set if previous hist-tau
         if (hist_tau) then
             tau = temp_tau
-            ! and turn off if i dont want to force restart! 
+            ! and turn off if i dont want to force restart!
             if (.not. t_restart_hist_tau) then
                 t_previous_hist_tau = temp_previous
 
@@ -665,7 +670,7 @@ contains
         end if
 
         ! if tau is 0, because no input provided, use the one here too
-        if (tau < EPS .and. (.not. temp_tau < EPS)) then 
+        if (tau < EPS .and. (.not. temp_tau < EPS)) then
             tau = temp_tau
         end if
 
@@ -687,7 +692,7 @@ contains
 
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: grp_id
-        integer :: err
+        integer(hdf_err) :: err
 
         call h5gopen_f(parent, nm_acc_grp, grp_id, err)
         call read_dp_1d_dataset(grp_id, nm_sum_no_ref, AllSumNoatHF, &
@@ -701,7 +706,7 @@ contains
 #endif
 
         call h5gclose_f(grp_id, err)
-        
+
     end subroutine
 
     subroutine write_walkers(parent)
@@ -723,7 +728,7 @@ contains
         character(*), parameter :: t_r = 'write_walkers'
 
         integer(hid_t) :: wfn_grp_id, dataspace, dataset, memspace
-        integer :: err
+        integer(hdf_err) :: err
         integer(hid_t) :: plist_id
 
         integer(hsize_t) :: counts(0:nProcessors-1)
@@ -850,9 +855,14 @@ contains
 
         integer :: proc, nreceived
         integer(hid_t) :: grp_id
+<<<<<<< HEAD
         integer :: err
         integer(hid_t) :: ds_sgns, ds_ilut, ds_fvals
 
+=======
+        integer(hdf_err) :: err
+        integer(hid_t) :: ds_sgns, ds_ilut
+>>>>>>> 47a5f23919ecb74119900a45915db3a31b3ed4c5
         integer(int64) :: nread_walkers
         integer :: ierr
 
@@ -898,6 +908,7 @@ contains
         call read_int32_attribute(grp_id, nm_sgn_len, read_lenof_sign)
         ! as lenof_sign is of type int, do not force tmp_lenof_sign to be int32
         tmp_lenof_sign = int(read_lenof_sign)
+<<<<<<< HEAD
         ! assign the tmp_inum_runs accordingly
 #ifdef __CMPLX
         tmp_inum_runs = tmp_lenof_sign/2
@@ -912,6 +923,9 @@ contains
         call read_log_scalar(grp_id, nm_tauto, tPopAutoAdaptiveShift, &
              default = .false._int32, required=.false.)
         
+=======
+
+>>>>>>> 47a5f23919ecb74119900a45915db3a31b3ed4c5
         ! these variables are for consistency-checks
         allocate(pops_norm_sqr(tmp_lenof_sign), stat = ierr)
         allocate(pops_num_parts(tmp_lenof_sign), stat = ierr)
@@ -1039,6 +1053,7 @@ contains
             ! if we resized the sign, we need to go back to the original buffer size now
             if(tmp_lenof_sign /= lenof_sign) then
                deallocate(temp_sgns)
+<<<<<<< HEAD
                allocate(temp_sgns(int(tmp_lenof_sign),int(this_block_size)),stat=ierr)        
                if(tReadFVals) then
                   deallocate(temp_fvals)
@@ -1056,12 +1071,22 @@ contains
                if(tReadFVals) &
                     call clone_signs(temp_fvals,2*tmp_inum_runs,2*inum_runs, this_block_size)
             endif
+=======
+               allocate(temp_sgns(int(tmp_lenof_sign),int(this_block_size)),stat=ierr)
+            end if
+
+            call read_walker_block_buff(ds_ilut, ds_sgns, block_start, &
+                                   this_block_size, bit_rep_width, temp_ilut, temp_sgns)
+
+            if(tmp_lenof_sign /= lenof_sign) call clone_signs(temp_sgns,&
+                 tmp_lenof_sign, lenof_sign, this_block_size)
+>>>>>>> 47a5f23919ecb74119900a45915db3a31b3ed4c5
 
             call distribute_and_add_walkers(this_block_size, temp_ilut, temp_sgns, &
                  temp_fvals, dets, nreceived, CurrWalkers, norm, parts)
 
             nread_walkers = nread_walkers + nreceived
-            
+
             ! And update for the next block
             if (running) then
                 block_start = block_end + 1
@@ -1223,7 +1248,7 @@ contains
 
         sizeilut=size(temp_ilut,1)
 
-        ! Iterate through walkers in temp_ilut+temp_sgns and determine the target processor. 
+        ! Iterate through walkers in temp_ilut+temp_sgns and determine the target processor.
         onepart=0
         sendcount=0
         do j = 1, block_size
@@ -1235,7 +1260,7 @@ contains
             targetproc(j)=proc
             sendcount(proc)=sendcount(proc)+1
         end do
-        
+
         ! Write the elements to SpawnedParts in the correct order for sending
         index=1
         index2=1
@@ -1245,7 +1270,7 @@ contains
 #else
            if (.false.) then
 #endif
-              !elements that don't have to be communicated are written to SpawnedParts2 
+              !elements that don't have to be communicated are written to SpawnedParts2
               do j = 1, block_size
                  if(targetproc(j).eq.p) then
                     onepart(0:sizeilut-1)=temp_ilut(:,j)
@@ -1257,7 +1282,7 @@ contains
                  end if
               end do
            else
-              !elements that have to be sent to other procs are written to SpawnedParts 
+              !elements that have to be sent to other procs are written to SpawnedParts
               do j = 1, block_size
                  if(targetproc(j).eq.p) then
                     onepart(0:sizeilut-1)=temp_ilut(:,j)
@@ -1369,14 +1394,14 @@ contains
 
             ! TODO: inum_runs == 2, PopNIfSgn == 1
         if (allocated(receivebuff)) then
-           
+
            do j = 1, nreceived
-              
+
               ! Check that the site is occupied, and passes the relevant
               ! thresholds before adding it to the system.
               call extract_sign(receivebuff(: ,j), sgn)
               if (any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) then
-                 
+
                  ! Add this site to the main list
                  CurrWalkers = CurrWalkers + 1
                  dets(:, CurrWalkers) = receivebuff(:, j)
@@ -1391,12 +1416,12 @@ contains
            end do
         else
            do j = 1, nreceived
-              
+
               ! Check that the site is occupied, and passes the relevant
               ! thresholds before adding it to the system.
               call extract_sign(SpawnedParts2(: ,j), sgn)
               if (any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) then
-                 
+
                  ! Add this site to the main list
                  CurrWalkers = CurrWalkers + 1
                  dets(:, CurrWalkers) = SpawnedParts2(:, j)
@@ -1409,7 +1434,7 @@ contains
                       call set_tot_acc_spawn_hdf5Int(fvals_write(:,j),CurrWalkers)
               end if
            end do
-           
+
         endif
         ! TODO: Add check that we have read in the correct number of parts
     end subroutine
@@ -1474,13 +1499,13 @@ contains
 
         ! If the absolute sum, and the sum of the squares is correct, we can
         ! be fairly confident that they have all been read in!...
-        
+
         ! [W.D.]
-        ! on behalf of sasha bring back the feature that turns off the walker 
-        ! grow even if walkcontgrow was set unintentionally but the number of 
-        ! read-in walkers already exceeds or is close to the target number 
-        ! so i guess it is enough to set the global AllTotParts here 
-        ! of walkers 
+        ! on behalf of sasha bring back the feature that turns off the walker
+        ! grow even if walkcontgrow was set unintentionally but the number of
+        ! read-in walkers already exceeds or is close to the target number
+        ! so i guess it is enough to set the global AllTotParts here
+        ! of walkers
         AllTotParts = all_parts
 
     end subroutine
@@ -1493,7 +1518,7 @@ contains
       integer(hsize_t), allocatable, intent(inout) :: tmp_sgns(:,:)
       integer(hsize_t), intent(in) :: num_signs
       integer, intent(in) :: tmp_lenof_sign, lenof_sign
-      
+
       ! a temporary buffer to store the old signs while reallocating tmp_sgns
       integer(hsize_t), allocatable :: sgn_store(:,:)
       integer :: ierr, i
@@ -1502,7 +1527,7 @@ contains
          ! copy the signs to a temporary
          allocate(sgn_store(tmp_lenof_sign,num_signs),stat=ierr)
          sgn_store(:,:) = tmp_sgns(:,:)
-      
+
          ! now, resize tmp_sgns
          deallocate(tmp_sgns)
          allocate(tmp_sgns(lenof_sign,num_signs),stat=ierr)
@@ -1523,18 +1548,18 @@ contains
          write(6,*) "WARNING: Attempted to adjust lenof_sign for an empty input"
          ! throw a warning
       endif
-      
+
     end subroutine clone_signs
 
 !------------------------------------------------------------------------------------------!
 
     subroutine shrink_sign(out_sgn, out_size, in_sgn, in_size)
       implicit none
-      
+
       integer, intent(in) :: out_size, in_size
       integer(hsize_t), intent(out) :: out_sgn(out_size)
       integer(hsize_t), intent(in) :: in_sgn(in_size)
-      
+
       ! remove the last entries from the input
       out_sgn(1:out_size) = in_sgn(1:out_size)
     end subroutine shrink_sign
@@ -1547,7 +1572,7 @@ contains
       integer, intent(in) :: out_size, in_size
       integer(hsize_t), intent(out) :: out_sgn(out_size)
       integer(hsize_t), intent(in) :: in_sgn(in_size)
-      
+
       ! copy the last replica to fill up to the desired number
       out_sgn(1:in_size) = in_sgn(1:in_size)
       out_sgn(in_size+1:out_size) = in_sgn(in_size)
@@ -1570,7 +1595,7 @@ contains
 
       deallocate(attribute)
       allocate(attribute(new_size), stat = ierr)
-      
+
       ! resize
       if(old_size < new_size) then
          attribute(1:old_size) = tmp(1:old_size)
