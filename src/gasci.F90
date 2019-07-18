@@ -300,7 +300,11 @@ module gasci
       tgt = 0
       ! the first hole is chosen randomly from the first active space
       tgt(1) = pick_hole_from_active_space(ilutI, nI, srcGAS(1), ms, r, pgen_pick1)
-
+      if(tgt(1)==0) then
+         call zeroResult()
+         return
+      endif
+      
       if(tExchange) then
          ! we picked the first spin randomly, now the second elec has the opposite spin
          ms = 3 - ms
@@ -382,8 +386,13 @@ module gasci
       real(dp) :: pgenVal
       integer :: nEmpty
       nEmpty = gasSize(srcGASInd) - sum(popCnt(iand(ilut(0:NIfD),gasSpinOrbs(0:NIfD,srcGASInd,ms))))
-      ! adjust pgen
-      pgenVal = 1.0_dp / real(nEmpty,dp)
+      ! if the excitation is not possible, pgen is void
+      if(nEmpty==0) then
+         pgenVal = 1.0_dp
+      else
+         ! adjust pgen
+         pgenVal = 1.0_dp / real(nEmpty,dp)
+      endif
     end function get_pgen_pick_hole_from_active_space
 
 !------------------------------------------------------------------------------------------!
@@ -487,7 +496,16 @@ module gasci
       integer :: tgt
       integer :: nEmpty, nOrb
 
+      ! this sum only converts an array of size 1 to a scalar
       nEmpty = gasSize(srcGASInd) - sum(popCnt(iand(ilutI(0:NIfD),gasSpinOrbs(0:NIfD,srcGASInd,ms))))
+
+      ! if there are no empyty orbitals in this gas (can happen when allowing for
+      ! spin-exchange), the excitation is invalid
+      if(nEmpty==0) then
+         tgt = 0
+         pGen = 1.0_dp
+         return
+      endif
       ! adjust pgen
       pgen = 1.0_dp / real(nEmpty,dp)
       ! TODO: check if there are enough empty orbs
