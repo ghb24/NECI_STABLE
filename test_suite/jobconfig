@@ -46,6 +46,9 @@ min_nprocs = 2
 max_nprocs = 2
 tolerance = (1e-9, None, 'final_energy_1')
 
+# Jobs to test the various spaces in use for semi-stochastic and trial
+# wavefunctions.
+# Specify non-default tolerances.
 [neci/determ_and_trial_spaces/*/]
 nprocs = 2
 min_nprocs = 2
@@ -89,10 +92,6 @@ tolerance = (5e-8, None, 'sum_error_rdm_2'), (5e-8, None, 'sum_diff_trdm_1_2(1)'
 [kmneci/Rn_lanczos_dci_init/]
 program = kmneci
 tolerance = (1e-7, None, 'final_energy_2')
-
-[mneci/en2_with_rdm/Ne_avdz/]
-program = mneci
-tolerance = (1e-8, None, 'max_error_rdm_2'), (3e-7, None, 'sum_error_rdm_2'), (8e-9, None, '1_rdm_diag_sum'), (2e-8, None, 'energy_rdm_2'), (1e-9, None, 'en2_energy_2'), (2e-8, None, 'en2_tot_energy_2')
 
 [mneci/rdm/HeHe_SS/]
 program = mneci
