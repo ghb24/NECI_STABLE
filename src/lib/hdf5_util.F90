@@ -880,7 +880,7 @@ contains
         call h5sclose_f(memspace, err)
         call h5sclose_f(dataspace, err)
         call h5pclose_f(plist_id, err)
-#ifdef __STRICT
+#ifdef _WARNING_WORKAROUND_
        val = 0_int64
 #endif
     end subroutine

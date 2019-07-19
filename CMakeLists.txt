@@ -88,7 +88,6 @@ set(${PROJECT_NAME}_mneci_DEFINITIONS HElement_t=real __PROG_NUMRUNS)
 set(${PROJECT_NAME}_kdneci_DEFINITIONS HElement_t=complex __CMPLX __DOUBLERUN)
 set(${PROJECT_NAME}_kmneci_DEFINITIONS HElement_t=complex __CMPLX __PROG_NUMRUNS)
 
-
 # Global (always on) defines
 
 list(APPEND NECI_GLOBAL_DEFINES
@@ -107,8 +106,6 @@ list(APPEND NECI_GLOBAL_DEFINES
 
     # Is this a debug build
     $<$<STREQUAL:${CMAKE_BUILD_TYPE},DEBUG>:__DEBUG>
-    # Errors treated as warnings
-    $<$<STREQUAL:${CMAKE_BUILD_TYPE},DEBUG>:__STRICT>
 
     # Global defines that depend on options
     $<$<BOOL:${HAVE_MPI}>:PARALLEL>
