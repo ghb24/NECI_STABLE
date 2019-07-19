@@ -234,6 +234,8 @@ contains
                    trial_denom, tot_trial_denom, &
                    trial_num_inst, tot_trial_num_inst, &
                    trial_denom_inst, tot_trial_denom_inst, &
+                   init_trial_denom, init_trial_numerator, &
+                   tot_init_trial_denom, tot_init_trial_numerator, &
                    sum_proje_denominator, all_sum_proje_denominator, &
                    cyc_proje_denominator, all_cyc_proje_denominator, &
 
