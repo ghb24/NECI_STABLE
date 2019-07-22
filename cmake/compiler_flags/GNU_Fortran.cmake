@@ -13,7 +13,7 @@ set( ${PROJECT_NAME}_Fortran_LINKER_FLAGS_CLUSTER "-flto" )
 # Warning flags ...
 set( ${PROJECT_NAME}_Fortran_WARNING_FLAGS "-Wall -Wextra" )
 # Treat errors as warnings
-set( ${PROJECT_NAME}_CXX_WARN_ERROR_FLAG "-Werror")
+set( ${PROJECT_NAME}_Fortran_WARN_ERROR_FLAG "-Werror")
 
 # Treat 32bit/64bit compilation differently
 
