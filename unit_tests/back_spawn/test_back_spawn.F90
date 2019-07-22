@@ -439,7 +439,7 @@ contains
         allocate(projedet(1,1));        projedet(1,1) = 2
         allocate(ilutref(0:niftot,1));  ilutref = 0_n_int
 
-        call EncodeBitDet(projedet, ilutref)
+        call EncodeBitDet(projedet(:,1), ilutref(:,1))
 
         nel = 1
 
@@ -467,7 +467,7 @@ contains
         call dSFMT_init(123)
 
         projedet(1,1) = 1
-        call EncodeBitDet(projedet, ilutref)
+        call EncodeBitDet(projedet(:,1), ilutref(:,1))
 
         ! but to a test where there is a fixed result
         call pick_occupied_orbital_single(nI, ilut, src, cc_index, run, pgen, orb)
@@ -506,7 +506,7 @@ contains
         allocate(projedet(1,1)); projedet(1,1) = 1
         allocate(ilutref(0:niftot,1))
 
-        call EncodeBitDet(projedet, ilutref)
+        call EncodeBitDet(projedet(:,1), ilutref(:,1))
 
         allocate(ilutI(0:niftot)); ilutI = 0_n_int
         call EncodeBitDet(nI, ilutI)
@@ -560,7 +560,7 @@ contains
         nbasis = 2
         allocate(projedet(1,1)); projedet(1,1) = 1
         allocate(ilutref(0:niftot,1)) 
-        call EncodeBitDet(projedet, ilutref)
+        call EncodeBitDet(projedet(:,1), ilutref(:,1))
 
         print *, "" 
         print *, "testing: pick_occupied_orbital() "
@@ -592,7 +592,7 @@ contains
         ! nah i am just entering the first if-statement of the routine with 
         ! these settings.. 
         projedet(1,1) = 2
-        call EncodeBitDet(projedet, ilutref)
+        call EncodeBitDet(projedet(:,1), ilutref(:,1))
 
         ispn = 1
         call pick_occupied_orbital(nI, ilutI, src, ispn, run, pgen, cum_sum, orb)
@@ -609,7 +609,7 @@ contains
 
         ! and a succesful one.. 
         projedet(1,1) = 1
-        call EncodeBitDet(projedet, ilutref)
+        call EncodeBitDet(projedet(:,1), ilutref(:,1))
 
         nI = 2
         call EncodeBitDet(nI, ilutI)
@@ -654,7 +654,7 @@ contains
         allocate(projedet(1,1));        projedet(1,1) = 1
 
         allocate(ilutref(0:niftot,1))
-        call EncodeBitDet(projedet, ilutref)
+        call EncodeBitDet(projedet(:,1), ilutref(:,1))
 
         print *, "" 
         print *, "testing: pick_second_occupied_orbital() " 
@@ -843,7 +843,7 @@ contains
         nBasis = 2
         allocate(projedet(1,1)); projedet = 1
         allocate(ilutref(0:niftot,1)) 
-        call EncodeBitDet(projedet, ilutref)
+        call EncodeBitDet(projedet(:,1), ilutref(:,1))
 
         ! i also want to include k-point restriction in picking orbital a!
         src = [1,2]
@@ -896,7 +896,7 @@ contains
         ! nah i am just entering the first if-statement of the routine with 
         ! these settings.. 
         projedet(1,1) = 2
-        call EncodeBitDet(projedet, ilutref)
+        call EncodeBitDet(projedet(:,1), ilutref(:,1))
 
         ispn = 1
         call pick_occupied_orbital_ueg(nI, ilutI, src, ispn, run, pgen, cum_sum, orb)
@@ -914,7 +914,7 @@ contains
 
         ! and a succesful one.. 
         projedet(1,1) = 1
-        call EncodeBitDet(projedet, ilutref)
+        call EncodeBitDet(projedet(:,1), ilutref(:,1))
 
         nI = 2
         call EncodeBitDet(nI, ilutI)
