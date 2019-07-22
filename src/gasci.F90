@@ -20,7 +20,7 @@ module gasci
   integer, allocatable :: gasSpinOrbList(:,:,:), gasSize(:)
   ! lookup table containing the active space for each orbital
   integer, allocatable :: gasTable(:)
-  
+
   contains
 
     subroutine loadGAS()
@@ -76,7 +76,7 @@ module gasci
          write(iout, *) "Number of orbs in GAS", iOrb, "is", sum(popCnt(gasOrbs(:,iOrb)))
       end do
 
-      contains 
+      contains
 
         subroutine splitLine(line,vals,n)
           implicit none
@@ -85,9 +85,9 @@ module gasci
           integer, intent(out) :: n
 
           integer :: status, buffer(1000)
-          
+
           n = 1
-          do 
+          do
              ! use a buffer to catch exceptions
              read(line,'(A)',iostat=status) buffer(1:n)
              if(status.ne.0) exit
@@ -113,17 +113,15 @@ module gasci
 !------------------------------------------------------------------------------------------!
 
     subroutine clearGAS()
-      implicit none
-      
-      deallocate(gasSize)
-      deallocate(gasSpinOrbList)
-      deallocate(gasTable)
-      deallocate(gasSpinOrbs)
-      deallocate(gasOrbs)
+      if (allocated(gasSize)) deallocate(gasSize)
+      if (allocated(gasSpinOrbList)) deallocate(gasSpinOrbList)
+      if (allocated(gasTable)) deallocate(gasTable)
+      if (allocated(gasSpinOrbs)) deallocate(gasSpinOrbs)
+      if (allocated(gasOrbs)) deallocate(gasOrbs)
     end subroutine clearGAS
 
 !------------------------------------------------------------------------------------------!
-    
+
     function isValidExcit(ilutI,ilutJ) result(valid)
       ! check if the excitation from ilutI to ilutJ is valid within the GAS
       implicit none
@@ -157,18 +155,18 @@ module gasci
          endif
       end do
 
-      contains 
-        
+      contains
+
         function gasComponent(ilut, i) result(gasIlut)
           integer(n_int), intent(in) :: ilut(0:NIfTot)
           integer, intent(in) :: i
-          
+
           integer(n_int) :: gasIlut(0:NIfD)
-          
+
           gasIlut = iand(ilut(0:NIfD),gasOrbs(0:NIfD,i))
-          
+
         end function gasComponent
-        
+
     end function isValidExcit
 
 !------------------------------------------------------------------------------------------!
@@ -275,7 +273,7 @@ module gasci
       ! pick two random electrons (we would not include a full/empty space, so
       ! the assumption is very mild)
       call pick_biased_elecs(nI, elecs, src, sym_product, ispn, sum_ml, pgen)
-      
+
       ! active spaces we consider
       srcGAS = gasTable(src)
 
@@ -286,7 +284,7 @@ module gasci
       r = genrand_real2_dSFMT()
       ! get the spin of the target orbital
       if(tExchange) then
-         if(r>0.5_dp) then 
+         if(r>0.5_dp) then
             ms = 1
             r = 2*(r-0.5_dp)
          else
@@ -304,7 +302,7 @@ module gasci
          call zeroResult()
          return
       endif
-      
+
       if(tExchange) then
          ! we picked the first spin randomly, now the second elec has the opposite spin
          ms = 3 - ms
@@ -338,7 +336,7 @@ module gasci
       set_orb (ilutJ, tgt(2))
 
       contains
-        
+
         subroutine zeroResult()
           implicit none
           pgen = pgen * pgen_pick1
@@ -356,7 +354,7 @@ module gasci
       implicit none
       integer, intent(in) :: nI(nel)
       integer, intent(in) :: src1, src2, tgt1, tgt2
-      
+
       real(dp) :: pgenVal
       real(dp) :: cSum(gasSize(gasTable(tgt2)))
       integer :: gasList(gasSize(gasTable(tgt2))), nOrbs
@@ -382,7 +380,7 @@ module gasci
       implicit none
       integer(n_int), intent(in) :: ilut(0:NIfD)
       integer, intent(in) :: srcGASInd, ms
-      
+
       real(dp) :: pgenVal
       integer :: nEmpty
       nEmpty = gasSize(srcGASInd) - sum(popCnt(iand(ilut(0:NIfD),gasSpinOrbs(0:NIfD,srcGASInd,ms))))
@@ -443,7 +441,7 @@ module gasci
       ! pick a hole of nI with spin ms from the active space with index srcGASInd
       ! the random number is to be supplied as r
       ! nI is the source determinant, nJBase the one from which we obtain the ket of
-      ! the matrix element by single excitation 
+      ! the matrix element by single excitation
       integer, intent(in) :: nI(nel)
       integer, intent(in) :: src1, src2, tgt1, ic, ms, srcGASInd
       real(dp), intent(inout) :: pgen
@@ -452,20 +450,20 @@ module gasci
       real(dp) :: r
       real(dp) :: cSum(gasSize(srcGASInd))
       integer :: gasList(gasSize(srcGASInd))
-      
+
       ! initialize auxiliary variables
       nOrbs = gasSize(srcGASInd)
       gasList = gasSpinOrbList(1:nOrbs,srcGASInd,ms)
       ! build the cumulative list of matrix elements <src|H|tgt>
       cSum = get_cumulative_list(gasList, nI, src1, src2, tgt1, ic)
-      
+
       ! now, pick with the weight from the cumulative list
       r = genrand_real2_dSFMT() * cSum(nOrbs)
 
       ! there might not be such an excitation
       if(cSum(nOrbs) > 0) then
          ! find the index of the target orbital in the gasList
-         tgt = binary_search_first_ge(cSum,r) 
+         tgt = binary_search_first_ge(cSum,r)
 
          ! adjust pgen with the probability for picking tgt from the cumulative list
          if(tgt==1) then
@@ -479,7 +477,7 @@ module gasci
       else
          tgt = 0
       endif
-      
+
     end function pick_weighted_hole
 
 !------------------------------------------------------------------------------------------!
@@ -517,7 +515,7 @@ module gasci
       nOrb = gasSpinOrbList(nOrb,srcGASInd,ms)
       tgt = nOrb
 
-    contains 
+    contains
 
       subroutine skipOrb(nOrb,gasIlut)
         ! convert an unoccupied active space orbital index to an
@@ -530,7 +528,7 @@ module gasci
         do j = 1, nel
            globalOrbIndex = gasSpinOrbList(nOrb,srcGASInd,ms)
            if(nI(j) > globalOrbIndex) return
-           ! check if an occ. orb is in the target active space           
+           ! check if an occ. orb is in the target active space
            if(validTarget(nI(j),gasIlut)) &
                 ! if yes, we skip this orbital, increase nOrb by 1
                 nOrb = nOrb + 1
@@ -542,7 +540,7 @@ module gasci
         implicit none
         integer, intent(in) :: orb
         integer(n_int), intent(in) :: gasIlut(0:NIfD)
-        
+
         logical :: valid
 
         ! is the orbital in the acitve space?
@@ -553,7 +551,7 @@ module gasci
 !------------------------------------------------------------------------------------------!
 
     function sort_unique(list) result(output)
-      ! sorts an array of unique integers, 
+      ! sorts an array of unique integers,
       ! written by Werner Dobrautz
         integer, intent(in) :: list(:)
         integer, allocatable :: output(:)
@@ -561,14 +559,14 @@ module gasci
         integer :: i, min_val,  max_val, unique(size(list))
 
         unique = 0
-        i = 0 
+        i = 0
         min_val = minval(list) - 1
-        max_val = maxval(list) 
+        max_val = maxval(list)
 
-        do while (min_val < max_val) 
-            i = i + 1 
-            min_val = minval(list, mask=list>min_val) 
-            unique(i) = min_val 
+        do while (min_val < max_val)
+            i = i + 1
+            min_val = minval(list, mask=list>min_val)
+            unique(i) = min_val
         end do
         allocate(output(i), source=unique(1:i))
 
