@@ -309,6 +309,7 @@ contains
                 enddo
             enddo
         endif
+
         hel = hel_doub + hel_tmp + hel_sing
 
     end function sltcnd_0
@@ -332,6 +333,7 @@ contains
         if (.not. t_mixed_hubbard) then 
             if (tReltvy.or.(G1(ex(1))%Ms == G1(ex(2))%Ms)) then
                 do i=1,nel
+                    if (t_olle_hubbard .and. same_spin(ex(1),nI(i))) cycle
                     if (ex(1) /= nI(i)) then
                         id = gtID(nI(i))
                         hel = hel + get_umat_el (id_ex(1), id, id_ex(2), id)
@@ -341,7 +343,8 @@ contains
             ! Exchange contribution is only considered if tExch set.
             ! This is only separated from the above loop to keep "if (tExch)" out
             ! of the tight loop for efficiency.
-            if (tExch .and. ((G1(ex(1))%Ms == G1(ex(2))%Ms).or.tReltvy)) then
+            if (tExch .and. ((G1(ex(1))%Ms == G1(ex(2))%Ms).or.tReltvy) & 
+                .and. .not. t_olle_hubbard) then
                 do i=1,nel
                     if (ex(1) /= nI(i)) then
                         if (tReltvy.or.(G1(ex(1))%Ms == G1(nI(i))%Ms)) then

@@ -561,6 +561,7 @@ contains
                             if (is_beta(src) .eqv. is_beta(nI(j))) then
                                 hel = hel - get_umat_el (id_src, n_id(j), n_id(j), id)
                             end if
+
                         end if
                     end do
                 end if

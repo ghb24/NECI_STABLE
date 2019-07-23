@@ -198,7 +198,7 @@ contains
         pDoubles = 1.0_dp - pSingles
 
         ! here i also have to set the parallel and ant
-        if (t_mixed_hubbard) then
+        if (t_mixed_hubbard .or. t_olle_hubbard) then
             pParallel = 0.0_dp
         else
             pParallel = 0.5_dp
