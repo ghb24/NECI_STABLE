@@ -46,7 +46,7 @@ module fcimc_initialisation
                         t_back_spawn_option, t_back_spawn_flex_option, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
                         maxKeepExLvl, tAutoAdaptiveShift, AdaptiveShiftCut, tAAS_Reverse, &
-                        tInitializeCSF, S2Init, tSpinProject, &
+                        tInitializeCSF, S2Init, tSpinProject, tWalkContGrow, tSkipRef, &
                         tReplicaEstimates, tDeathBeforeComms, pSinglesIn, pParallelIn, &
                         tSetInitFlagsBeforeDeath, tSetInitialRunRef, tEn2Init, i_space_in, &
                         tInitiatorSpace
@@ -804,8 +804,11 @@ contains
             end if
         end if
 
-!Calculate Hii
-        IF(tHPHF) THEN
+!Calculate Hii (unless suppressed)
+        if(tZeroRef) then
+           TempHii = 0.0_dp
+        else IF(tHPHF) THEN
+
             TempHii = hphf_diag_helement (HFDet, iLutHF)
         ELSE
             TempHii = get_helement (HFDet, HFDet, 0)
@@ -1022,7 +1025,6 @@ contains
               RealSpawnCutoff = sFBeta
            endif
         endif
-
         tNoSinglesPossible = t_k_space_hubbard .or. tUEG .or. tNoSinglesPossible
 
         if(.not. allocated(allInitsPerExLvl)) allocate(allInitsPerExLvl(maxInitExLvlWrite))
@@ -1350,6 +1352,7 @@ contains
             write(iout, '("Truncating determinant space at a maximum of ",i3," &
                     &unpaired electrons.")') trunc_nopen_max
         endif
+
         
 !        SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.0_dp)
 !        TotDets=1.0_dp
@@ -1782,7 +1785,15 @@ contains
 
         ! in fixed-n0, the variable shift mode and everything connected is
         ! controlled over the reference population
-        if(tFixedN0) tSinglePartPhase = .true.
+        if(tFixedN0) then
+            if(tReadPops .and. .not. tWalkContGrow) then
+                tSkipRef = .true.
+                tSinglePartPhase = .false.
+            else
+                tSkipRef = .false.
+                tSinglePartPhase = .true.
+            end if
+        end if
 
         if(tRDMonFly .and. tDynamicCoreSpace) call sync_rdm_sampling_iter()
 
@@ -2263,7 +2274,7 @@ contains
                ! the spin-flipped version is stored
                if(DetBitLT(initSpace(:,i),ilutJ,NIfD).eq.1) cycle
             endif
-            call AddNewHashDet(TotWalkersTmp,initSpace(:,i),DetHash,nI,pos,HDiag)
+            call AddNewHashDet(TotWalkersTmp,initSpace(:,i),DetHash,nI,HDiag,pos,err)
             TotWalkers = TotWalkersTmp
          end if
          ! reset the reference?
@@ -2447,6 +2458,7 @@ contains
 
         integer :: run, DetHash
         real(dp) , dimension(lenof_sign) :: InitialSign
+        real(dp) :: h_temp
 
         if (tOrthogonaliseReplicas) then
             call InitFCIMC_HF_orthog()
@@ -2484,8 +2496,18 @@ contains
             ! deterministic space.
             if (tSemiStochastic) call set_flag (CurrentDets(:,1), flag_deterministic)
 
-            ! HF energy is equal to 0 (by definition)
-            call set_det_diagH(1, 0.0_dp)
+            ! if no reference energy is used, explicitly get the HF energy
+            if(tZeroRef) then
+               if(tHPHF) then
+                  h_temp = hphf_diag_helement(HFDet, ilutHF)
+               else
+                  h_temp = get_helement(HFDet,HFDet,0)
+               endif
+            else
+               ! HF energy is equal to 0 (when used as reference energy)
+               h_temp = 0.0_dp
+            end if
+            call set_det_diagH(1, h_temp)
             HFInd = 1
 
             call store_decoding(1,HFDet)

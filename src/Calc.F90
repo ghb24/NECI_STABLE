@@ -25,11 +25,12 @@ MODULE Calc
                        tFindDets
     use DetCalcData, only: B2L, nKry, nEval, nBlk, nCycle
     use IntegralsData, only: tNeedsVirts
+    use rdm_data, only: tApplyLC
     use FciMCData, only: tTimeExit,MaxTimeExit, InputDiagSft, tSearchTau, &
                          nWalkerHashes, HashLengthFrac, tSearchTauDeath, &
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
-                         alloc_popsfile_dets, tSearchTauOption, &
+                         alloc_popsfile_dets, tSearchTauOption, tZeroRef, &
                          sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
          tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits, tSetDelayAllDoubsInits, &
@@ -163,12 +164,16 @@ contains
           tAAS_MatEle2 = .false.
           tAAS_MatEle3 = .false.
           tAAS_MatEle4 = .false.
+          tAAS_SpinScaled = .false.
+          AAS_OppSpin = 1.0
+          AAS_SameSpin = 1.0
           AAS_DenCut = 0.5
           tAAS_Reverse = .false.
           tAAS_Reverse_Weighted = .false.
           tAAS_Add_Diag = .false.
           tInitsRDMRef = .false.
           tInitsRDM = .false.
+          tApplyLC = .true.
           NEquilSteps=0
           NShiftEquilSteps=1000
           TRhoElems=.false.
@@ -305,7 +310,7 @@ contains
           tStoredDets = .false.
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset 
           !(by Calc readinput) if I_VMAX=1 and TENERGY is false
-
+          tZeroRef = .false.
           lNoTriples=.false.
           tReadPopsChangeRef = .false.
           tReadPopsRestart = .false.
@@ -722,6 +727,11 @@ contains
                 ! only take into account initiators when calculating RDMs
                 tOutputInitsRDM = .true.
                 tInitsRDM = .true.
+             case("NO-LAGRANGIAN-RDMS")
+                ! use the default rdms even for adaptive-shift
+                ! this is mainly for debugging/testing purposes, it should not be used in
+                ! production (as the resulting RDMs are flawed)
+                tApplyLC = .false.
              case("STRICT-INITS-RDM")
                 tNonInitsForRDMs = .false.
              case("NON-VARIATIONAL-RDMS")
@@ -1891,6 +1901,14 @@ contains
                 tAAS_Reverse_Weighted = .true.
             case("AAS-ADD-DIAG")
                 tAAS_Add_Diag = .true.
+            case("AAS-SPIN-SCALED")
+                tAAS_SpinScaled = .true.
+                if (item.lt.nitems) then
+                    call getf(AAS_OppSpin)
+                end if
+                if (item.lt.nitems) then
+                    call getf(AAS_SameSpin)
+                end if
              case("INITS-PROJE")
                 ! deprecated
              case("INITS-GAMMA0")
@@ -2063,6 +2081,11 @@ contains
             case("PROJECTE-MP2")
 !This will find the energy by projection of the configuration of walkers onto the MP2 wavefunction.
                 TProjEMP2=.true.
+            case("ABSOLUTE-ENERGIES")
+! This will zero the reference energy and use absolute energies through the calculation
+! particularly useful for the hubbard model at high U, where no clear reference can be defined
+! and energies are close to 0
+               tZeroRef = .true.
             case("PROJE-CHANGEREF")
 
                 ! If there is a determinant larger than the current reference,

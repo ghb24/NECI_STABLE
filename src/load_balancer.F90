@@ -340,8 +340,9 @@ contains
     subroutine move_block(block, tgt_proc)
         implicit none
         integer, intent(in) :: block, tgt_proc
+
         integer :: src_proc, ierr, nsend, nelem, j, k, det_block, hash_val, PartInd
-        integer :: det(nel), TotWalkersTmp, nconsend, clashes, ntrial, ncon
+        integer :: det(nel), TotWalkersTmp, nconsend, clashes, ntrial, ncon, err
         integer(n_int) :: con_state(0:NConEntry)
         real(dp) :: sgn(lenof_sign)
         real(dp) :: HDiag
@@ -437,7 +438,7 @@ contains
                 ! Calculate the diagonal hamiltonian matrix element for the new particle to be merged.
                 HDiag = get_diagonal_matel(det, SpawnedParts(:,j))
                 call AddNewHashDet(TotWalkersTmp, SpawnedParts(:, j), &
-                                   hash_val, det, PartInd, HDiag)
+                                   hash_val, det, HDiag, PartInd, err)
                 TotWalkers = TotWalkersTmp
             end do
 
@@ -481,8 +482,7 @@ contains
 
     end subroutine
 
-    subroutine AddNewHashDet(TotWalkersNew, iLutCurr, DetHash, nJ, DetPosition, HDiagInput)
-
+    subroutine AddNewHashDet(TotWalkersNew, iLutCurr, DetHash, nJ, HDiag, DetPosition, err)
         ! Add a new determinant to the main list. This involves updating the
         ! list length, copying it across, updating its flag, adding its diagonal
         ! helement (if neccessary). We also need to update the hash table to
@@ -491,13 +491,14 @@ contains
         integer(n_int), intent(inout) :: iLutCurr(0:NIfTot)
         integer, intent(in) :: DetHash, nJ(nel)
         integer, intent(out) :: DetPosition
-        real(dp), intent(in), optional :: HDiagInput
-        real(dp) :: HDiag
+        real(dp), intent(in) :: HDiag
+        integer, intent(out) :: err
         HElement_t(dp) :: trial_amps(ntrial_excits)
         logical :: tTrial, tCon
         real(dp), dimension(lenof_sign) :: SignCurr
         character(len=*), parameter :: t_r = "AddNewHashDet"
 
+        err = 0
         if (iStartFreeSlot <= iEndFreeSlot) then
             ! We can slot it into a free slot in the main list, rather than increase its length
             DetPosition = FreeSlot(iStartFreeSlot)
@@ -507,29 +508,19 @@ contains
             TotWalkersNew = TotWalkersNew + 1
             DetPosition = TotWalkersNew
             if (TotWalkersNew >= MaxWalkersPart) then
-               write(6,*) "Memory available:", MaxWalkersPart, " Required:", TotWalkersNew
-                call stop_all(t_r, "Not enough memory to merge walkers into main list. Increase MemoryFacPart")
-             end if
+               ! return with an error
+               err = 1
+               return
+            end if
+            CurrentDets(:,DetPosition) = iLutCurr(:)
+            
+            ! if the list is almost full, activate the walker decay
+            if(t_prone_walkers .and. TotWalkersNew > 0.95_dp * real(MaxWalkersPart,dp)) then
+               t_activate_decay = .true.
+               write(iout,*) "Warning: Starting to randomly kill singly-spawned walkers"
+            endif
         end if
         CurrentDets(:,DetPosition) = iLutCurr(:)
-
-        ! Calculate the diagonal hamiltonian matrix element for the new particle to be merged.
-        if(present(HDiagInput)) then
-           HDiag = HDiagInput
-        else
-           if (tHPHF) then
-              HDiag = hphf_diag_helement (nJ,CurrentDets(:,DetPosition))
-           else
-              HDiag = get_helement (nJ, nJ, 0)
-           endif
-        endif
-        CurrentDets(:,DetPosition) = iLutCurr(:)
-            
-        ! if the list is almost full, activate the walker decay
-        if(t_prone_walkers .and. TotWalkersNew > 0.95_dp * real(MaxWalkersPart,dp)) then
-           t_activate_decay = .true.
-           write(iout,*) "Warning: Starting to randomly kill singly-spawned walkers"
-        endif
 
         ! For the RDM code we need to set all of the elements of CurrentH to 0,
         ! except the first one, holding the diagonal Hamiltonian element.
@@ -598,8 +589,6 @@ contains
         ! Add the new determinant to the hash table.
 
         call add_hash_table_entry(HashIndex, DetPosition, DetHash)
-
-        
 
     end subroutine AddNewHashDet
 

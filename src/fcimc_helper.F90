@@ -15,6 +15,7 @@ module fcimc_helper
                         flag_trial, flag_connected, flag_deterministic, &
                         extract_part_sign, encode_part_sign, decode_bit_det, &
                         get_initiator_flag, get_initiator_flag_by_run, &
+
                         log_spawn, increase_spawn_counter, all_runs_are_initiator, &
                         encode_spawn_hdiag, extract_spawn_hdiag, flag_static_init
     use bit_rep_data, only: flag_determ_parent
@@ -49,8 +50,8 @@ module fcimc_helper
                         spawnSgnThresh, minInitSpawns, tTimedDeaths, &
                         tAutoAdaptiveShift, tAAS_MatEle, tAAS_MatEle2, tAAS_Reverse,&
                         tAAS_Reverse_Weighted, tAAS_MatEle3, tAAS_MatEle4, AAS_DenCut, &
-                        tPreCond, tReplicaEstimates, tInitiatorSpace, tPureInitiatorSpace, &
-                        tSimpleInit
+                        tAAS_SpinScaled, AAS_SameSpin, AAS_OppSpin, tPrecond, &
+                        tReplicaEstimates, tInitiatorSpace, tPureInitiatorSpace, tSimpleInit
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
          tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
@@ -110,8 +111,8 @@ contains
 
     end function TestMCExit
 
-    subroutine create_particle (nJ, iLutJ, child, part_type, hdiag_spawn, ilutI, SignCurr, &
-                                WalkerNo, RDMBiasFacCurr, WalkersToSpawn, matel, ParentPos)
+    subroutine create_particle (nJ, iLutJ, child, part_type, hdiag_spawn, err, ilutI, SignCurr, &
+                                WalkerNo, RDMBiasFacCurr, WalkersToSpawn, matel, ParentPos, ic, ex)
         ! Create a child in the spawned particles arrays. We spawn particles
         ! into a separate array, but non-contiguously. The processor that the
         ! newly-spawned particle is going to be sent to has to be determined,
@@ -122,6 +123,7 @@ contains
         integer, intent(in) :: nJ(nel), part_type
         integer(n_int), intent(in) :: iLutJ(0:niftot)
         real(dp), intent(in) :: child(lenof_sign)
+        integer, intent(out) :: err
         HElement_t(dp), intent(in) :: hdiag_spawn
         integer(n_int), intent(in), optional :: ilutI(0:niftot)
         real(dp), intent(in), optional :: SignCurr(lenof_sign)
@@ -130,6 +132,7 @@ contains
         integer, intent(in), optional :: WalkersToSpawn
         real(dp), intent(in), optional :: matel
         integer, intent(in), optional :: ParentPos
+        integer, intent(in), optional :: ic, ex(2,2)
         integer :: proc, j, run
         real(dp) :: r
         integer, parameter :: flags = 0
@@ -139,6 +142,8 @@ contains
         logical :: parent_init
         real(dp)  :: weight_acc, weight_rej, weight_rev, weight_den, weight_den2
 
+        ! error flag to indicate if the attempt was successful
+        err = 0
         !Ensure no cross spawning between runs - run of child same as run of
         !parent
         run = part_type_to_run(part_type)
@@ -150,12 +155,10 @@ contains
         ! DirectAnnihilation algorithm.
         proc = DetermineDetNode(nel,nJ,0)    ! (0 -> nNodes-1)
 
-        ! Check that the position described by ValidSpawnedList is acceptable.
-        ! If we have filled up the memory that would be acceptable, then
-        ! kill the calculation hard (i.e. stop_all) with a descriptive
-        ! error message.
-        call checkValidSpawnedList(proc,this_routine)
-
+        if(checkValidSpawnedList(proc)) then
+           err = 1
+           return
+        endif
         !We initially encode no flags
         call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ, &
                             child, flags)
@@ -206,6 +209,20 @@ contains
                 weight_acc = 1.0_dp
                 weight_rej = 1.0_dp
             end if
+
+            if(tAAS_SpinScaled)then
+                if(ic==2)then
+                    if (is_alpha(ex(1,1)) .eqv. is_alpha(ex(1,2))) then
+                        weight_acc = weight_acc * AAS_SameSpin
+                        weight_rej = weight_rej * AAS_SameSpin
+!                        write(6, *) "SameSpin", AAS_SameSpin
+                    else
+                        weight_acc = weight_acc * AAS_OppSpin
+                        weight_rej = weight_rej * AAS_OppSpin
+!                        write(6, *) "OppSpin", AAS_OppSpin
+                    end if
+                end if 
+            end if
             !Enocde weight, which is real, as an integer
             SpawnInfo(SpawnWeightAcc, ValidSpawnedList(proc)) = transfer(weight_acc, SpawnInfo(SpawnWeightAcc, ValidSpawnedList(proc)))
             SpawnInfo(SpawnWeightRej, ValidSpawnedList(proc)) = transfer(weight_rej, SpawnInfo(SpawnWeightRej, ValidSpawnedList(proc)))
@@ -233,6 +250,15 @@ contains
                 if(tAAS_Reverse_Weighted)then
                     weight_rev = weight_rev/mag_of_run(SignCurr, run)
                 endif
+                if(tAAS_SpinScaled)then
+                    if(ic==2)then
+                        if (is_alpha(ex(1,1)) .eqv. is_alpha(ex(1,2))) then
+                            weight_rev = weight_rev * AAS_SameSpin
+                        else
+                            weight_rev = weight_rev * AAS_OppSpin
+                        end if
+                    end if 
+                end if
                 !Enocde weight, which is real, as an integer
                 SpawnInfo(SpawnWeightRev, ValidSpawnedList(proc)) = transfer(weight_rev, SpawnInfo(SpawnWeightRev, ValidSpawnedList(proc)))
             end if
@@ -280,13 +306,14 @@ contains
 
     end subroutine create_particle
 
-    subroutine create_particle_with_hash_table (nI_child, ilut_child, child_sign, part_type, ilut_parent, iter_data, matel)
 
+    subroutine create_particle_with_hash_table (nI_child, ilut_child, child_sign, part_type, ilut_parent, iter_data, err, matel)
         use hash, only: hash_table_lookup, add_hash_table_entry
         integer, intent(in) :: nI_child(nel), part_type
         integer(n_int), intent(in) :: ilut_child(0:NIfTot), ilut_parent(0:NIfTot)
         real(dp), intent(in) :: child_sign(lenof_sign)
         type(fcimc_iter_data), intent(inout) :: iter_data
+        integer, intent(out) :: err
         real(dp), intent(in), optional :: matel
 
         integer :: proc, ind, hash_val_cd, hash_val, i, run
@@ -298,6 +325,7 @@ contains
         integer, parameter :: flags = 0
         character(*), parameter :: this_routine = 'create_particle_with_hash_table'
         
+        err = 0
         ! Only one element of child should be non-zero
         ASSERT((sum(abs(child_sign))-maxval(abs(child_sign)))<1.0e-12_dp)
 
@@ -359,7 +387,10 @@ contains
             ! If we have filled up the memory that would be acceptable, then
             ! kill the calculation hard (i.e. stop_all) with a descriptive
             ! error message.
-            call checkValidSpawnedList(proc,this_routine)
+            if(checkValidSpawnedList(proc)) then
+               err = 1
+               return
+            endif
 
             call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), ilut_child(0:NIfDBO), child_sign, flags)
 
@@ -397,11 +428,13 @@ contains
 
     end subroutine create_particle_with_hash_table
 
-    subroutine checkValidSpawnedList(proc,source)
+    function checkValidSpawnedList(proc) result(list_full)
+      ! Check that the position described by ValidSpawnedList is acceptable.
+      ! If we have filled up the memory that would be acceptable, then
+      ! end the calculation, i.e. throw an error
       implicit none
-      character(*), intent(in) :: source
-      integer, intent(in) :: proc
       logical :: list_full
+      integer, intent(in) :: proc
       list_full = .false.
       if (proc == nNodes - 1) then
          if (ValidSpawnedList(proc) > MaxSpawned) list_full = .true.
@@ -421,9 +454,8 @@ contains
          write(*,*) "No memory slots available for this spawn."
          write(*,*) "Please increase MEMORYFACSPAWN"
 #endif
-         call stop_all(source, "Out of memory for spawned particles")
       end if
-    end subroutine checkValidSpawnedList
+    end function checkValidSpawnedList
 
     ! This routine sums in the energy contribution from a given walker and 
     ! updates stats such as mean excit level AJWT added optional argument 
@@ -1147,34 +1179,6 @@ contains
 
         end if       
 
-        contains
-
-          function spawn_criterium(idx) result(spawnInit)
-            implicit none
-            ! makes something an initiator if the sign of spawns is sufficiently unique
-            integer, intent(in) :: idx
-            logical :: spawnInit
-            
-            real(dp) :: negSpawn(lenof_sign), posSpawn(lenof_sign)
-
-            if(tLogAverageSpawns) then
-               negSpawn = get_neg_spawns(idx)
-               posSpawn = get_pos_spawns(idx)
-               if(any((negSpawn + posSpawn) .ge. minInitSpawns)) then
-                  if(all(min(negSpawn,posSpawn) > eps)) then
-                     spawnInit = all(max(negSpawn,posSpawn)/min(negSpawn,posSpawn) > spawnSgnThresh)
-                  else
-                     spawnInit = .true.
-                  endif
-               else
-                  spawnInit = .false.
-               endif
-            else
-               spawnInit = .false.
-            endif
-
-          end function spawn_criterium
-
       end function TestInitiator_explicit
 
       function TestInitiator_pure_space(ilut, nI, site_idx, initiator_before, run) result(initiator)
@@ -1221,8 +1225,23 @@ contains
         else
            scaledInitiatorWalkNo = InitiatorWalkNo
         endif
-        
-        
+
+
+        ! option to use the average population instead of the local one
+        ! for purpose of initiator threshold
+        if(tGlobalInitFlag) then
+           ! we can use a signed or unsigned sum
+           if(tSignedRepAv) then
+              tot_sgn = real(abs(sum(sign)),dp)/inum_runs
+           else
+              tot_sgn = av_pop(sign)
+           endif
+        else
+           tot_sgn = mag_of_run(sign,run)
+        endif
+        ! make it an initiator 
+        init_flag = (tot_sgn > scaledInitiatorWalkNo)
+
         ! option to use the average population instead of the local one
         ! for purpose of initiator threshold
         if(tGlobalInitFlag) then
@@ -1240,7 +1259,33 @@ contains
 
       end function initiator_criterium
 
-    subroutine rezero_iter_stats_each_iter(iter_data, rdm_defs)
+      function spawn_criterium(idx) result(spawnInit)
+        implicit none
+        ! makes something an initiator if the sign of spawns is sufficiently unique
+        integer, intent(in) :: idx
+        logical :: spawnInit
+
+        real(dp) :: negSpawn(lenof_sign), posSpawn(lenof_sign)
+
+        if(tLogAverageSpawns) then
+           negSpawn = get_neg_spawns(idx)
+           posSpawn = get_pos_spawns(idx)
+           if(any((negSpawn + posSpawn) .ge. minInitSpawns)) then
+              if(all(min(negSpawn,posSpawn) > eps)) then
+                 spawnInit = all(max(negSpawn,posSpawn)/min(negSpawn,posSpawn) > spawnSgnThresh)
+              else
+                 spawnInit = .true.
+              endif
+           else
+              spawnInit = .false.
+           endif
+        else
+           spawnInit = .false.
+        endif
+
+      end function spawn_criterium
+
+      subroutine rezero_iter_stats_each_iter(iter_data, rdm_defs)
 
         use global_det_data, only: len_av_sgn_tot
         use rdm_data, only: rdm_definitions_t
@@ -2441,7 +2486,9 @@ contains
         if (run == 1) then
 
             old_Hii = Hii
-            if (tHPHF) then
+            if(tZeroRef) then
+               h_tmp = 0.0_dp
+            else if (tHPHF) then
                 h_tmp = hphf_diag_helement (ProjEDet(:,1), &
                                             iLutRef(:,1))
             else

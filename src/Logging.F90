@@ -16,7 +16,7 @@ MODULE Logging
     use errors, only: Errordebug
     use LoggingData
     use spectral_data, only: tPrint_sl_eigenvecs
-    use rdm_data, only: nrdms_transition_input, states_for_transition_rdm
+    use rdm_data, only: nrdms_transition_input, states_for_transition_rdm, tApplyLC
     use rdm_data, only: rdm_main_size_fac, rdm_spawn_size_fac, rdm_recv_size_fac
     use cc_amplitudes, only: t_plot_cc_amplitudes
 

@@ -206,7 +206,8 @@ contains
 
         call h5garbage_collect_f(err)
 
-        call MPIBarrier(err)
+        call MPIBarrier(mpi_err)
+
         write(6,*) "popsfile write successful"
 #else
         call stop_all(t_r, 'HDF5 support not enabled at compile time')
@@ -906,7 +907,6 @@ contains
         call read_int32_attribute(grp_id, nm_sgn_len, read_lenof_sign)
         ! as lenof_sign is of type int, do not force tmp_lenof_sign to be int32
         tmp_lenof_sign = int(read_lenof_sign)
-
         ! assign the tmp_inum_runs accordingly
 #ifdef __CMPLX
         tmp_inum_runs = tmp_lenof_sign/2
@@ -1188,7 +1188,6 @@ contains
 !#undef localfirst
 #ifdef localfirst
       nlocal=sendcount(iProcIndex)
-
       call add_new_parts(dets, nlocal, CurrWalkers, norm, parts, fvals_loc)      
       sendcount(iProcIndex)=0
 #endif

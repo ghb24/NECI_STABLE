@@ -24,7 +24,8 @@ module FciMCParMod
                         tFixTrial, tTrialShift, t_activate_decay, tEn2Init, &
                         tLogAverageSpawns, tActivateLAS, tTimedDeaths, lingerTime, &
                         tEn2Rigorous, tDeathBeforeComms, tSetInitFlagsBeforeDeath, &
-                        tDetermProjApproxHamil
+                        tDetermProjApproxHamil, tActivateLAS, tLogAverageSpawns, &
+                        tTimedDeaths, lingerTime
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
                         tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
                         SIUpdateInterval, tSuppressSIOutput, nRefUpdateInterval, &
@@ -42,7 +43,8 @@ module FciMCParMod
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
                             attempt_die_spin_proj
     use rdm_data, only: print_2rdm_est, ThisRDMIter, inits_one_rdms, two_rdm_inits_spawn, &
-         two_rdm_inits, rdm_inits_defs, RDMCorrectionFactor, inits_estimates, tSetupInitsEst
+         two_rdm_inits, rdm_inits_defs, RDMCorrectionFactor, inits_estimates, tSetupInitsEst, &
+         tApplyLC
     use rdm_data_old, only: rdms, one_rdms_old, rdm_estimates_old
 
     use rdm_finalising, only: finalise_rdms
@@ -77,8 +79,9 @@ module FciMCParMod
     use cont_time, only: iterate_cont_time
     use global_det_data, only: det_diagH, reset_tau_int, get_all_spawn_pops, &
                                reset_shift_int, update_shift_int, &
-                               update_tau_int, set_spawn_pop, get_death_timer, replica_est_len, &
-                               clock_death_timer, mark_death, get_tot_spawns, get_acc_spawns
+                               update_tau_int, set_spawn_pop, get_death_timer, &
+                               clock_death_timer, mark_death, get_tot_spawns, get_acc_spawns, &
+                               replica_est_len
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
     use ftlm_neci, only: perform_ftlm
@@ -163,7 +166,7 @@ module FciMCParMod
         real(dp),dimension(100) :: lt_sum, lt_max
 
         real(dp):: lt_imb
-        integer:: rest
+        integer:: rest, err, allErr
 
 #ifdef MOLPRO
         real(dp) :: get_scalar
@@ -187,7 +190,7 @@ module FciMCParMod
             call Standalone_Errors()
             return
         endif
-
+        err = 0
         ProjE_Err_re = 1.0_dp
         ProjE_Err_im = 1.0_dp
         shift_err = 1.0_dp
@@ -440,7 +443,7 @@ module FciMCParMod
                 call iterate_cont_time(iter_data_fciqmc)
             else
                 if (.not. (tSpinProject .and. spin_proj_interval == -1)) &
-                    call PerformFciMCycPar(iter_data_fciqmc)
+                    call PerformFciMCycPar(iter_data_fciqmc, err)
             end if
 
             ! Are we projecting the spin out between iterations?
@@ -457,7 +460,8 @@ module FciMCParMod
                 attempt_die => attempt_die_spin_proj
 
                 do i = 1, max(spin_proj_iter_count, 1)
-                    call PerformFciMCycPar (iter_data_spin_proj)
+                    call PerformFciMCycPar (iter_data_spin_proj, err)
+                    if(err.ne.0) exit
                 enddo
 
                 ! Return to prior config
@@ -465,6 +469,8 @@ module FciMCParMod
                 get_spawn_helement => gs_tmp
                 attempt_die => ad_tmp
             endif
+            ! if the iteration failed, stop the calculation now
+            if(err.ne.0) exit
 
             if(iProcIndex.eq.root) then
                 s_end=neci_etime(tend)
@@ -889,10 +895,13 @@ module FciMCParMod
             energy_final_output = ProjectionE + Hii
         end if
         
+        ! get the value of OutputHii - the offset used for the projected energy
+        ! (not necessarily the one used for the Shift!)
+        call getProjEOffset()
         iroot=1
         CALL GetSym(ProjEDet(:,1),NEl,G1,NBasisMax,RefSym)
         isymh=int(RefSym%Sym%S,sizeof_int)+1
-        write (iout,'('' Current reference energy'',T52,F19.12)') Hii 
+        write (iout,'('' Current reference energy'',T52,F19.12)') OutputHii 
         if(tNoProjEValue) then
             write (iout,'('' Projected correlation energy'',T52,F19.12)') real(ProjectionE(1),dp)
             write (iout,"(A)") " No automatic errorbar obtained for projected energy"
@@ -925,28 +934,28 @@ module FciMCParMod
                     & //"within approximate errorbars: EDiff = ",EnergyDiff
             endif
             if(ProjE_Err_re.lt.shift_err) then
-                BestEnergy = mean_ProjE_re + Hii
+                BestEnergy = mean_ProjE_re + OutputHii
                 BestErr = ProjE_Err_re
             else
                 BestEnergy = mean_shift + Hii
                 BestErr = shift_err
             endif
         elseif(tNoShiftValue.and.(.not.tNoProjEValue)) then
-            BestEnergy = mean_ProjE_re + Hii
+            BestEnergy = mean_ProjE_re + OutputHii
             BestErr = ProjE_Err_re
         elseif(tNoProjEValue.and.(.not.tNoShiftValue)) then
             BestEnergy = mean_shift + Hii
             BestErr = shift_err 
         else
-            BestEnergy = ProjectionE(1) + Hii
+            BestEnergy = ProjectionE(1) + OutputHii
             BestErr = 0.0_dp
         endif
         write(iout,"(A)")
         if(tNoProjEValue) then
-            write(iout,"(A,F20.8)") " Total projected energy ",real(ProjectionE(1),dp) + Hii
+            write(iout,"(A,F20.8)") " Total projected energy ",real(ProjectionE(1),dp) + OutputHii
         else
             write(iout,"(A,F20.8,A,G15.6)") " Total projected energy ", &
-                mean_ProjE_re+Hii," +/- ",ProjE_Err_re
+                mean_ProjE_re+OutputHii," +/- ",ProjE_Err_re
         endif
         if(.not.tNoShiftValue) then
             write(iout,"(A,F20.8,A,G15.6)") " Total shift energy     ", &
@@ -1008,7 +1017,7 @@ module FciMCParMod
 
     end subroutine FciMCPar
 
-    subroutine PerformFCIMCycPar(iter_data)
+    subroutine PerformFCIMCycPar(iter_data, err)
       use mpi
         use global_det_data, only: get_iter_occ_tot, get_av_sgn_tot
         use global_det_data, only: set_av_sgn_tot, set_iter_occ_tot
@@ -1020,6 +1029,7 @@ module FciMCParMod
         use symrandexcit_Ex_Mag, only: test_sym_excit_ExMag 
         ! Iteration specific data
         type(fcimc_iter_data), intent(inout) :: iter_data
+        integer, intent(out) :: err
 
         ! Now the local, iteration specific, variables
         integer :: j, p, error, proc_temp, i, HFPartInd,isym
@@ -1037,15 +1047,17 @@ module FciMCParMod
         HElement_t(dp) :: HDiagTemp, HElGen
         character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
         HElement_t(dp), dimension(inum_runs) :: delta
-        integer :: proc, pos, determ_index, irdm, err
+        integer :: proc, pos, determ_index, irdm
         real(dp) :: r, sgn(lenof_sign), prob_extra_walker
         integer :: DetHash, FinalVal, clash, PartInd, k, y, MaxIndex
         type(ll_node), pointer :: TempNode
 
+
+        integer :: ms, allErr
+
         real(dp) :: precond_fac
         HElement_t(dp) :: hdiag_spawn, h_diag_correct
 
-        integer :: ms
         logical :: signChanged, newlyOccupied
         real(dp) :: currArg, spawnArg, tau_dead
         ! how many entries were added to (the end of) CurrentDets in the last iteration
@@ -1054,7 +1066,8 @@ module FciMCParMod
         real(dp) :: inst_rdm_occ
 
         call set_timer(Walker_Time,30)
-
+        err = 0
+        allErr = 0
         MaxInitPopPos=0.0_dp
         MaxInitPopNeg=0.0_dp
         HighPopNeg=1
@@ -1226,7 +1239,7 @@ module FciMCParMod
                          CurrentDets(:,j), DetCurr, walkExcitLevel_toHF, av_sign, iter_occ, &
                          tCoreDet,.false.)                    
                     call fill_rdm_diag_currdet(two_rdm_spawn, one_rdms, CurrentDets(:,j), &
-                         DetCurr, walkExcitLevel_toHF, av_sign, iter_occ, tCoreDet)
+                         DetCurr, walkExcitLevel_toHF, av_sign, iter_occ, tCoreDet, tApplyLC)
                 endif
             endif
 
@@ -1504,11 +1517,15 @@ module FciMCParMod
 
                         if (use_spawn_hash_table) then
                             call create_particle_with_hash_table (nJ, ilutnJ, child, part_type, &
-                                                                   CurrentDets(:,j), iter_data, abs(HElGen))
+                                                                   CurrentDets(:,j), iter_data, err, abs(HElGen))
                         else
                             call create_particle (nJ, iLutnJ, child, part_type, hdiag_spawn, & 
-                                                  CurrentDets(:,j), SignCurr, p, &
-                                                  RDMBiasFacCurr, WalkersToSpawn, abs(HElGen), j)
+                            err, CurrentDets(:,j), SignCurr, p, &
+                            RDMBiasFacCurr, WalkersToSpawn, abs(HElGen), j, ic, ex)
+                        end if
+                        if(err.ne.0) then
+                           ! exit the fcimc calculation in a soft manner
+                           exit
                         end if
 
                     end if ! (child /= 0), Child created.
@@ -1527,7 +1544,14 @@ module FciMCParMod
                                    HDiagCurr, SignCurr, j, WalkExcitLevel)
             end if
 
-        end do ! Loop over determinants.
+
+        enddo ! Loop over determinants.
+        ! if any proc ran out of memory, terminate
+        call MPISumAll(err,allErr)
+        if(allErr.ne.0) then
+           err = allErr
+           return
+        endif
 
         !loop timing for this iteration on this MPI rank
         lt_arr(mod(Iter-1,100)+1)=mpi_wtime()-lstart
@@ -1611,7 +1635,14 @@ module FciMCParMod
             call halt_timer(death_time)
         end if
 
-        call DirectAnnihilation (TotWalkersNew, MaxIndex, iter_data)
+        call DirectAnnihilation (TotWalkersNew, MaxIndex, iter_data, err)
+
+        ! if any proc ran out of memory, terminate
+        call MPISumAll(err,allErr)
+        if(allErr.ne.0) then
+           err = allErr
+           return 
+        endif
 
         ! The growth in the size of the occupied part of CurrentDets
         ! this is important for the purpose of prone_walkers
@@ -1645,8 +1676,8 @@ module FciMCParMod
             if (tOldRDMs) call fill_rdm_diag_wrapper_old(rdms, one_rdms_old, CurrentDets, int(TotWalkers, sizeof_int))
             ! if we use the initiator-only rdms as gamma_0, get them in their own entity
             if(tInitsRDM) call fill_rdm_diag_wrapper(rdm_inits_defs, two_rdm_inits_spawn, &
-                 inits_one_rdms, CurrentDets, int(TotWalkers, sizeof_int), .false.)
-            call fill_rdm_diag_wrapper(rdm_definitions, two_rdm_spawn, one_rdms, CurrentDets, int(TotWalkers, sizeof_int))
+                 inits_one_rdms, CurrentDets, int(TotWalkers, sizeof_int), .false.,.false.)
+            call fill_rdm_diag_wrapper(rdm_definitions, two_rdm_spawn, one_rdms, CurrentDets, int(TotWalkers, sizeof_int),.true.,tApplyLC)
         end if
 
         if(tTrialWavefunction .and. tTrialShift)then
