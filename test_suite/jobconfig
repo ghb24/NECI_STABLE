@@ -52,10 +52,15 @@ min_nprocs = 2
 max_nprocs = 2
 tolerance = (1e-9, None, 'final_energy_1')
 
+[loop/*]
+program = test_loop
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
 # Jobs to test the various spaces in use for semi-stochastic and trial
 # wavefunctions.
 # Specify non-default tolerances.
-
 [neci/determ_and_trial_spaces/*/]
 nprocs = 2
 min_nprocs = 2

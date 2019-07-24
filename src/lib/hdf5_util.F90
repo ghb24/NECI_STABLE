@@ -66,7 +66,7 @@ contains
         integer(int32), intent(in) :: val
 
         integer(hid_t) :: dataspace, attribute
-        integer :: err
+        integer(hdf_err) :: err
 
         ! Create a scalar dataspace
         call h5screate_f(H5S_SCALAR_F, dataspace, err)
@@ -91,7 +91,7 @@ contains
         integer(int64), intent(in) :: val
 
         integer(hid_t) :: dataspace, attribute
-        integer :: err
+        integer(hdf_err) :: err
         integer(int32), pointer :: ptr
 
         call h5screate_f(H5S_SCALAR_F, dataspace, err)
@@ -118,8 +118,8 @@ contains
         character(*), parameter :: t_r = 'read_int64_attribute'
 
         integer(hid_t) :: attribute
-        integer :: err
-        logical :: exists_
+        integer(hdf_err) :: err
+        logical(hdf_log) :: exists_
         integer(int32), pointer :: ptr
 
         call h5aexists_f(parent, nm, exists_, err)
@@ -149,7 +149,7 @@ contains
         character(*), intent(in) :: val
 
         integer(hid_t) :: dataspace, attribute, type_id
-        integer :: err
+        integer(hdf_err) :: err
 
         ! Create an HDF type associated with a fortran string of _exactly_
         ! this length
@@ -173,7 +173,7 @@ contains
         real(dp), intent(in) :: val(:)
 
         integer(hid_t) :: dataspace, attribute
-        integer :: err
+        integer(hdf_err) :: err
         integer(hsize_t) :: dims(1)
 
         dims = [size(val)]
@@ -199,9 +199,9 @@ contains
         character(*), parameter :: t_r = 'read_dp_1d_attribute'
 
         integer(hid_t) :: attribute
-        integer :: err
+        integer(hdf_err) :: err
         integer(hsize_t) :: dims(1)
-        logical :: exists_
+        logical(hdf_log) :: exists_
 
         call h5aexists_f(parent, nm, exists_, err)
         if (exists_) then
@@ -230,7 +230,7 @@ contains
         real(dp), intent(in) :: val
 
         integer(hid_t) :: dataspace, dataset
-        integer :: err
+        integer(hdf_err) :: err
 
         ! Create a scalar dataspace, and dataset. Then write to it.
         call h5screate_f(H5S_SCALAR_F, dataspace, err)
@@ -253,8 +253,8 @@ contains
         character(*), parameter :: t_r = 'read_dp_scalar'
 
         integer(hid_t) :: dataset
-        integer :: err
-        logical :: exists_
+        integer(hdf_err) :: err
+        logical(hdf_log) :: exists_
 
         ! Test if the relevant key exists
         call h5lexists_f(parent, nm, exists_, err)
@@ -286,7 +286,7 @@ contains
         logical(int32), intent(in) :: val
 
         integer(hid_t) :: dataspace, dataset
-        integer :: err
+        integer(hdf_err) :: err
         integer(int32) :: tmp
 
         ! Store this as an integral value!
@@ -331,8 +331,8 @@ contains
         character(*), parameter :: t_r = 'read_log_scalar_4'
 
         integer(hid_t) :: dataset
-        integer :: err
-        logical :: exists_
+        integer(hdf_err) :: err
+        logical(hdf_log) :: exists_
         integer(int32) :: tmp
 
         ! Test if the relevant key exists
@@ -392,7 +392,7 @@ contains
         integer(int64), intent(in) :: val
 
         integer(hid_t) :: dataspace, dataset
-        integer :: err
+        integer(hdf_err) :: err
         integer(int32), pointer :: ptr
 
         ! Create a scalar dataspace, and dataset. Then write to it.
@@ -427,8 +427,8 @@ contains
         character(*), parameter :: t_r = 'read_int64_scalar'
 
         integer(hid_t) :: dataset
-        integer :: err
-        logical :: exists_
+        integer(hdf_err) :: err
+        logical(hdf_log) :: exists_
         integer(int32), pointer :: ptr
 
         ! Test if the relevant key exists
@@ -484,7 +484,7 @@ contains
         integer(int64), intent(in), target :: val(:)
 
         integer(hid_t) :: dataspace, dataset
-        integer :: err
+        integer(hdf_err) :: err
         integer(hsize_t) :: dims(1)
         integer(int32), pointer :: ptr(:)
 
@@ -525,7 +525,7 @@ contains
         real(dp), intent(in), target :: val(:)
 
         integer(hid_t) :: dataspace, dataset
-        integer :: err
+        integer(hdf_err) :: err
         integer(hsize_t) :: dims(1)
 
         ! Create the appropriate dataspace
@@ -556,9 +556,9 @@ contains
         character(*), parameter :: t_r = 'read_dp_1d_dataset'
 
         integer(hid_t) :: dataset, type_id
-        integer :: err
+        integer(hdf_err) :: err
         integer(hsize_t) :: dims(1)
-        logical :: exists_
+        logical(hdf_log) :: exists_
         real(dp), allocatable :: buf(:)
 
         call h5lexists_f(parent, nm, exists_, err)
@@ -579,7 +579,7 @@ contains
 
             ! and move the data to val
             call move_dp_1d_dataset_buffer(val,buf)
-            
+
             call h5tclose_f(type_id, err)
             call h5dclose_f(dataset, err)
 
@@ -601,7 +601,7 @@ contains
       implicit none
       real(dp), allocatable, intent(out) :: buf(:)
       real(dp), target, intent(in) :: val(:)
-      
+
       integer :: dims, ierr
 
       dims = size(val)
@@ -622,7 +622,7 @@ contains
       implicit none
       real(dp), allocatable, intent(inout) :: buf(:)
       real(dp), target, intent(inout) :: val(:)
-      
+
       integer dimsVal, dimsBuf, ierr
 
       ! if buf is unallocated, this is not going anywhere
@@ -630,7 +630,7 @@ contains
          write(iout,*) "WARNING: Trying to move data from empty buffer"
          return
       endif
-      
+
       ! we need to check if the buffer can be copied 1:1
       dimsVal = size(val)
       dimsBuf = size(buf)
@@ -649,14 +649,14 @@ contains
       endif
 
       deallocate(buf)
-      
+
     end subroutine move_dp_1d_dataset_buffer
 
     subroutine h5t_complex_t(dtype)
 
         ! Construct a datatype for complex numbers (dp)
         integer(hid_t), intent(out) :: dtype
-        integer :: err
+        integer(hdf_err) :: err
 
         ! Complex numbers are two 8-byte floating points long
         call h5tcreate_f(H5T_COMPOUND_F, 16_hsize_t, dtype, err)
@@ -673,7 +673,7 @@ contains
         complex(dp), intent(in), target :: val(:)
 
         integer(hid_t) :: dataspace, dataset, dtype
-        integer :: err
+        integer(hdf_err) :: err
         integer(hsize_t) :: dims(1)
         integer(int32), pointer :: ptr(:)
 
@@ -707,10 +707,10 @@ contains
         character(*), parameter :: t_r = 'read_dp_1d_dataset'
 
         integer(hid_t) :: dataset, type_id
-        integer :: err
+        integer(hdf_err) :: err
         integer(hsize_t) :: dims(1)
         integer(int32), pointer :: ptr(:)
-        logical :: exists_
+        logical(hdf_log) :: exists_
 
         call h5lexists_f(parent, nm, exists_, err)
         if (exists_) then
@@ -767,7 +767,7 @@ contains
 
         integer(hsize_t) :: buff_dims(2)
         integer(hid_t) :: memspace, dataspace, dataset, plist_id
-        integer :: err
+        integer(hdf_err) :: err
         integer(hsize_t), dimension(:,:), allocatable :: arr_buff
         integer(hsize_t) :: block_start, block_end, block_size, this_block_size
         type(c_ptr) :: cptr
@@ -813,7 +813,7 @@ contains
 
            call h5sselect_hyperslab_f(dataspace, H5S_SELECT_SET_F, &
                 [dataspace_offset(1),dataspace_offset(2)+block_start-1], [buff_dims(1),this_block_size], err)
-           
+
            ! Get access to a pointer to the array that will always be considered
            ! to have a valid type by the HDF5 library. For some reason the
            ! 64-bit, 2d array is not always given an interface...
@@ -847,15 +847,15 @@ contains
         integer(hsize_t), intent(in) :: dims(2), src_offset(2), tgt_offset(2)
 
         integer(hid_t) :: plist_id, dataspace, memspace
-        integer :: err
+        integer(hdf_err) :: err
         integer(hsize_t) :: mem_dims(2)
         integer(int32), pointer :: ptr(:,:)
 
         ! Create a property list to do multi-process reads
         call h5pcreate_f(H5P_DATASET_XFER_F, plist_id, err)
-        ! We use independent reads to contiguous buffers, which is the most 
-        ! reliable/scalable option. We use explicit buffering because there 
-        ! is a massive performance problem when writing directly to a 
+        ! We use independent reads to contiguous buffers, which is the most
+        ! reliable/scalable option. We use explicit buffering because there
+        ! is a massive performance problem when writing directly to a
         ! (non-contiguous) hyperslab in SpawnedParts. Buffering by collective
         ! MPI-IO can create performance and memory problems for large task counts
         call h5pset_dxpl_mpio_f(plist_id, H5FD_MPIO_INDEPENDENT_F, err)
@@ -897,8 +897,8 @@ contains
         character(*), parameter :: t_r = 'read_int32_attribute_main'
 
         integer(hid_t) :: attribute
-        integer :: err
-        logical :: exists_
+        integer(hdf_err) :: err
+        logical(hdf_log) :: exists_
 
         call h5aexists_f(parent, nm, exists_, err)
         if (exists_) then
@@ -953,9 +953,9 @@ contains
         character(*), parameter :: t_r = 'read_string_attribute'
 
         integer(hid_t) :: attribute, type_id
-        integer :: err
+        integer(hdf_err) :: err
         integer(hsize_t) :: sz, buf_sz
-        logical :: exists_
+        logical(hdf_log) :: exists_
 
         call h5aexists_f(parent, nm, exists_, err)
         if (exists_) then
@@ -1024,9 +1024,9 @@ contains
         character(*), parameter :: t_r = 'read_int64_1d_dataset_8'
 
         integer(hid_t) :: dataset, type_id
-        integer :: err
+        integer(hdf_err) :: err
         integer(hsize_t) :: dims(1)
-        logical :: exists_
+        logical(hdf_log) :: exists_
         integer(int32), pointer :: ptr(:)
 
         call h5lexists_f(parent, nm, exists_, err)
@@ -1064,16 +1064,16 @@ contains
         ! before reading in.
 
         integer(hid_t), intent(in) :: dataset
-        integer :: class_id
+        integer(hdf_err), intent(in) :: class_id
         character(*), intent(in) :: nm
         integer(hsize_t), intent(in) :: sz
         integer(hsize_t), intent(in) :: dims(:)
         character(*), parameter :: t_r = 'check_dataset_params'
 
         integer(hid_t) :: rank, type_id
-        
+
         integer(hid_t) :: dataspace
-        integer :: err, ds_class, ds_rank
+        integer(hdf_err) :: err, ds_class, ds_rank
         integer(hsize_t) :: ds_dims(size(dims)), ds_max_dims(size(dims)), ds_sz
 
         ! Get the type associated with the dataset. Check that it is an
@@ -1115,16 +1115,16 @@ contains
         ! before reading in.
 
       integer(hid_t), intent(in) :: attribute
-      integer, intent(in) :: class_id
+      integer(hdf_err), intent(in) :: class_id
       character(*), intent(in) :: nm
       integer(hsize_t), intent(in) :: sz
       integer(hsize_t), intent(in) :: dims(:)
       character(*), parameter :: t_r = 'check_attribute_params'
-      
+
       integer(hid_t) :: rank, type_id
 
       integer(hid_t) :: dataspace
-      integer :: err, ds_class, ds_rank
+      integer(hdf_err) :: err, ds_class, ds_rank
       integer(hsize_t) :: ds_dims(size(dims)), ds_max_dims(size(dims)), ds_sz
 
       ! Get the type associated with the attribute. Check that it is an
