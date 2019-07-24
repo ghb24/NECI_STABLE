@@ -1,5 +1,6 @@
 program neci_loop_test
   use mpi
+  use constants
   implicit none
   integer :: i
   character(64) :: dummy1, dummy2
