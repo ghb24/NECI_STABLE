@@ -4,7 +4,7 @@ program neci_loop_test
   integer :: i
   character(64) :: dummy1, dummy2
   integer, parameter :: nLoop = 3
-  integer :: err
+  integer(MPIArg) :: err
 
   dummy1 = ' '
   dummy2 = ' '
