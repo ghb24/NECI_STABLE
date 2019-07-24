@@ -10,7 +10,7 @@ module LMat_mod
   use hash, only: add_hash_table_entry, clear_hash_table
   use ParallelHelper, only: iProcIndex_intra
   use tc_three_body_data, only: tDampKMat, tDampLMat, tSymBrokenLMat, tSpinCorrelator, lMatEps, &
-       lMat_t, tSparseLMat, lMat, lMatABB, lMatBBA, lMatBAB, nBI
+       lMat_t, tSparseLMat, lMat, lMatABB, lMatBBA, lMatBAB, nBI, tDenseFiveInd
   use procedure_pointers, only: lMatInd, get_lmat_el, get_lmat_el_symInternal, lMatInd_t, &
        get_lmat_el_five_ind
   use LoggingData, only: tHistLMat
@@ -183,7 +183,7 @@ module LMat_mod
         call resetAux()
         call swapSpins(ap,cp,ip,kp)
         call swapSpins(ap,bp,ip,jp)
-        matel = matel + swapFac * get_lmat_el_base(ap,bp,cp,ip,jp,kp)
+        matel = matel + permFac * get_lmat_el_base(ap,bp,cp,ip,jp,kp)
       
       contains
 
@@ -260,8 +260,12 @@ module LMat_mod
 
       if(tSparseLMat) then
          lMatAccess => lMatHashedAccess
-         get_lmat_el_five_ind => get_lmat_el_five_ind_sparse
-         call initFiveIndexAccess()
+         if(tDenseFiveInd) then
+            get_lmat_el_five_ind => get_lmat_el_five_ind_sparse
+            call initFiveIndexAccess()
+         else
+            get_lmat_el_five_ind => get_lmat_el_five_ind_dense
+         endif
       else
          lMatAccess => lMatDirectAccess
          get_lmat_el_five_ind => get_lmat_el_five_ind_dense
@@ -488,8 +492,10 @@ module LMat_mod
          ! difference)
          fiveIndexSize = lMatFiveInd(nBI,nBI,nBI,nBI,nBI,3)
          write(iout,*) "Five index integrals require", fiveIndexSize*HElement_t_sizeB/(2.0_dp**30), "GB"
-         call shared_allocate_mpi(LMatLoc%fiveInd_win, LMatLoc%fiveIndexPtr, (/fiveIndexSize/))
-         LMatLoc%fiveIndexPtr = 0.0_dp
+         if(tDenseFiveInd) then
+            call shared_allocate_mpi(LMatLoc%fiveInd_win, LMatLoc%fiveIndexPtr, (/fiveIndexSize/))
+            LMatLoc%fiveIndexPtr = 0.0_dp
+         endif
       endif
 
       write(iout,*) "Successfully allocated LMat"
@@ -663,11 +669,11 @@ module LMat_mod
                   LMatLoc%indexPtr(sparseBlock+counter) = lMatInd(int(indices(1,i),int64),int(indices(2,i),int64),&
                        int(indices(3,i),int64),&
                        int(indices(4,i),int64),int(indices(5,i),int64),int(indices(6,i),int64))
-
-                  ! store the five-index object
-                  if(isFiveIndex(int(indices(:,i)))) call assignFiveIndexElem(&
-                       LMatLoc%fiveIndexPtr,rVal,int(indices(:,i),int64))
-
+                  if(tDenseFiveInd) then
+                     ! store the five-index object
+                     if(isFiveIndex(int(indices(:,i)))) call assignFiveIndexElem(&
+                          LMatLoc%fiveIndexPtr,rVal,int(indices(:,i),int64))
+                  endif
                else
                   LMatLoc%LMatPtr(lMatInd(int(indices(1,i),int64),int(indices(2,i),int64),&
                        int(indices(3,i),int64),&

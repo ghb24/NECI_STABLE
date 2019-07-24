@@ -26,6 +26,7 @@ module tc_three_body_data
 
   ! using a sparse format to store the 6-index integrals
   logical :: tSparseLMat
+  logical :: tDenseFiveInd
 
   ! Number of entries in a UMat obj.
   integer(int64) :: twoIndexSize, fourIndexSize
