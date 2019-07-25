@@ -58,6 +58,7 @@ module guga_rdm
     logical :: t_test_diagonal = .false.
     logical :: t_direct_exchange = .false.
     logical :: t_more_sym = .false.
+    logical :: t_mimic_stochastic = .false.
 
 contains 
 

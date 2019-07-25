@@ -17522,7 +17522,7 @@ contains
                     if (t_no_singles) then 
                         if (abs(extract_matrix_element(t,1)) > EPS) then 
                             ASSERT(DeltaB == 0) 
-                            call encode_matrix_element(t, 0.0. 1)
+                            call encode_matrix_element(t, 0.0, 1)
                             call encode_matrix_element(t, 0.0, 2)
 
                             cycle
@@ -17561,7 +17561,7 @@ contains
                     if (t_no_singles) then 
                         if (abs(extract_matrix_element(t,1)) > EPS) then 
                             ASSERT(DeltaB == 0) 
-                            call encode_matrix_element(t, 0.0. 1)
+                            call encode_matrix_element(t, 0.0, 1)
                             call encode_matrix_element(t, 0.0, 2)
 
                             cycle
@@ -17605,7 +17605,7 @@ contains
                         if (t_no_singles) then 
                             if (abs(extract_matrix_element(t,1)) > EPS) then 
                                 ASSERT(DeltaB == 0) 
-                                call encode_matrix_element(t, 0.0. 1)
+                                call encode_matrix_element(t, 0.0, 1)
                                 call encode_matrix_element(t, 0.0, 2)
 
                                 cycle
@@ -17706,7 +17706,7 @@ contains
                         if (t_no_singles) then 
                             if (abs(extract_matrix_element(t,1)) > EPS) then 
                                 ASSERT(DeltaB == 0) 
-                                call encode_matrix_element(t, 0.0. 1)
+                                call encode_matrix_element(t, 0.0, 1)
                                 call encode_matrix_element(t, 0.0, 2)
 
                                 cycle
@@ -17758,7 +17758,7 @@ contains
                         if (t_no_singles) then 
                             if (abs(extract_matrix_element(t,1)) > EPS) then 
                                 ASSERT(DeltaB == 0) 
-                                call encode_matrix_element(t, 0.0. 1)
+                                call encode_matrix_element(t, 0.0, 1)
                                 call encode_matrix_element(t, 0.0, 2)
 
                                 cycle
@@ -17817,17 +17817,19 @@ contains
     end subroutine calcRaisingSemiStop
 
     subroutine calcLoweringSemiStop(ilut, excitInfo, tempExcits, nExcits, plusWeight, &
-            minusWeight)
+            minusWeight, t_no_singles_opt)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation) :: excitInfo
         integer(n_int), intent(inout), pointer :: tempExcits(:,:)
         integer, intent(inout) :: nExcits
         real(dp), intent(in) :: plusWeight, minusWeight
+        logical, intent(in), optional :: t_no_singles_opt
         character(*), parameter :: this_routine = "calcLoweringSemiStop"
 
         integer :: se, iEx, deltaB, st, ss
         integer(n_int) :: t(0:nifguga), s(0:nifguga)
         real(dp) :: tempWeight, tempWeight_0, tempWeight_1, bVal
+        logical :: t_no_singles
 
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(.not.isThree(ilut,excitInfo%firstEnd))
@@ -17838,17 +17840,21 @@ contains
         bVal = currentB_ilut(se)
         st = excitInfo%fullStart
         ss = excitInfo%secondStart
-    
+     
+        if (present(t_no_singles_opt)) then 
+            t_no_singles = t_no_singles_opt
+        else
+            t_no_singles = .false.
+        end if
+
         ! do it similar to semi-starts and check if its a pseudo excit
         ! TODO!! have to make additional if here, to check i comes from 
         ! a full start, because i also want to use it for normal double 
         ! excitations, and there it doesnt matter what the stepvector value 
         ! at the fullstart is!!!
-!         if (isThree(ilut,st).and.ss==st) then
         if (current_stepvector(st) == 3 .and. ss == st) then
             ! only 0 branches in this case
             ! first do the non-branching possibs
-!             if (isOne(ilut,se)) then
             select case (current_stepvector(se))
             case (1)
                 ! 1 -> 3 switch
@@ -17864,7 +17870,6 @@ contains
 
                     ASSERT(getDeltaB(t) == 0)
                     ! also need to assert weight is non-zero as it should be
-!                     ASSERT(plusWeight > 0.0_dp)
                     ! for mixed full-starts or general double excitations 
                     ! i cant really guaruantee it comes here with 
                     ! a plusWeight > 0, since 0 branch is always a 
@@ -17885,7 +17890,6 @@ contains
 
                 end do
 
-!             else if (isTwo(ilut, se)) then
             case (2)
                 ! 2 -> 3 switch
                 if (minusWeight < EPS) then
@@ -17899,7 +17903,6 @@ contains
                     t = tempExcits(:,iEx)
 
                     ASSERT(getDeltaB(t) == 0)
-!                     ASSERT(minusWeight > 0.0_dp)
 
                     set_orb(t, 2*se - 1)
 
@@ -17915,7 +17918,6 @@ contains
 
                 end do
 
-!             else 
             case (0)
                 ! zero case -> branching possibilities according to b an weights
                 if (currentB_int(se) > 0 .and. plusWeight > 0.0_dp &
@@ -18014,13 +18016,11 @@ contains
                     ! shouldnt be here... 
                     call stop_all(this_routine, "somethin went wrong! shouldnt be here!")
                 end if
-!             end if
             end select
 
         else 
             ! also +2, and -2 branches arriving possible! 
             ! again the non-branching values first
-!             if (isOne(ilut,se)) then
             select case (current_stepvector(se))
             case (1)
                 ! 1 -> 3 for 0 and -2 branch
@@ -18031,19 +18031,21 @@ contains
                 do iEx = 1, nExcits
                     t = tempExcits(:,iEx)
                     deltaB = getDeltaB(t)
+
+                    if (t_no_singles) then 
+                        if (abs(extract_matrix_element(t,1)) > EPS) then 
+                            ASSERT(DeltaB == 0) 
+                            call encode_matrix_element(t, 0.0, 1)
+                            call encode_matrix_element(t, 0.0, 2)
+
+                            cycle
+                        end if
+                    end if
+
                     ! check if weights fit. 
                     ! do not need actually, since no choice in excitations...
                     ! and if dealt correctly until now it should be fine.
                     ! hopefully atleast
-! #ifdef __DEBUG
-!                     if (deltaB == 0) then
-!                         ASSERT(plusWeight > 0.0_dp)
-!                     end if
-!                     if (deltaB ==-2) then
-!                         ASSERT(minusWeight > 0.0_dp)
-!                     end if
-!                     ASSERT(deltaB /= 2)
-! #endif
 
                     ! do 1 -> 3
                     set_orb(t, 2*se)
@@ -18054,11 +18056,6 @@ contains
                         excitInfo%gen2,bVal, &
                         excitInfo%order1, tempWeight_0, tempWeight_1)
 
-!                     if (st == 6 .and. ss == 7 .and. se == 8 .and. excitInfo%fullEnd == 9) then
-!                         print *, "db gens and order:", deltaB, excitInfo%gen1, &
-!                             excitInfo%gen2, excitInfo%order1, bVal
-!                         print *, "in semistop: ", tempWeight_0, tempWeight_1
-!                     end if
                     ! after semi-stop i only need the sum of the matrix 
                     ! elements
 
@@ -18072,23 +18069,22 @@ contains
 
                 end do
 
-!             else if (isTwo(ilut,se)) then
             case (2)
                 ! 2 -> 3 for 0 and +2 branches
                 do iEx = 1, nExcits
                     t = tempExcits(:,iEx)
                     deltaB = getDeltaB(t)
 
-! #ifdef __DEBUG
-!                     if (deltaB == 0) then
-!                         ASSERT(minusWeight > 0.0_dp)
-!                     end if
-!                     if (deltaB == 2) then
-!                         ASSERT(plusWeight > 0.0_dp)
-!                     end if
-!                     ASSERT(deltaB /= -2)
-! #endif
-                        
+                    if (t_no_singles) then 
+                        if (abs(extract_matrix_element(t,1)) > EPS) then 
+                            ASSERT(DeltaB == 0) 
+                            call encode_matrix_element(t, 0.0, 1)
+                            call encode_matrix_element(t, 0.0, 2)
+
+                            cycle
+                        end if
+                    end if
+
                     ! do 2 -> 3
                     set_orb(t, 2*se - 1)
 
@@ -18108,7 +18104,6 @@ contains
 
                 end do
 
-!             else
             case (0)
                 ! 0 case -> have to check weights more thourougly
                 ! when a certain +-2 excitation comes to a 0 semi-stop
@@ -18123,6 +18118,16 @@ contains
                     do iEx = 1, nExcits
                         t = tempExcits(:,iEx)
                         deltaB = getDeltaB(t)
+
+                        if (t_no_singles) then 
+                            if (abs(extract_matrix_element(t,1)) > EPS) then 
+                                ASSERT(DeltaB == 0) 
+                                call encode_matrix_element(t, 0.0, 1)
+                                call encode_matrix_element(t, 0.0, 2)
+
+                                cycle
+                            end if
+                        end if
 
                         if (deltaB == 0) then
                             ! do 0 -> 1 first
@@ -18213,6 +18218,19 @@ contains
                     do iEx = 1, nExcits
                         t = tempExcits(:,iEx)
                         deltaB = getDeltaB(t)
+
+
+                        if (t_no_singles) then 
+                            if (abs(extract_matrix_element(t,1)) > EPS) then 
+                                ASSERT(DeltaB == 0) 
+                                call encode_matrix_element(t, 0.0, 1)
+                                call encode_matrix_element(t, 0.0, 2)
+
+                                cycle
+                            end if
+                        end if
+
+
                         ASSERT(deltaB /= 2)
                         if (deltaB == 0) then
                             ! do 0 -> 1 switch
@@ -18253,6 +18271,16 @@ contains
                     do iEx = 1, nExcits
                         t = tempExcits(:,iEx)
                         deltaB = getDeltaB(t)
+
+                        if (t_no_singles) then 
+                            if (abs(extract_matrix_element(t,1)) > EPS) then 
+                                ASSERT(DeltaB == 0) 
+                                call encode_matrix_element(t, 0.0, 1)
+                                call encode_matrix_element(t, 0.0, 2)
+
+                                cycle
+                            end if
+                        end if
 
                         ASSERT(deltaB /= -2)
                         
@@ -18893,7 +18921,7 @@ contains
         end if
 
         if (t_no_singles .and. current_stepvector(en) == 3) then
-            allocate(excitation(0,0), stat = ierr)
+            allocate(excitations(0,0), stat = ierr)
             nExcits = 0
             return 
         end if
@@ -19016,7 +19044,7 @@ contains
         end if
 
         if (t_no_singles .and. current_stepvector(en) == 3) then
-            allocate(excitation(0,0), stat = ierr)
+            allocate(excitations(0,0), stat = ierr)
             nExcits = 0
             return 
         end if
