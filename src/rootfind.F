@@ -14,18 +14,18 @@
          Z=0.9994_dp
          HIGHZ=0.99941_dp
          DELTA=0.0000001_dp
-!         WRITE(97,*) N," excitations" 
+!         WRITE(97,*) N," excitations"
 !         WRITE(97,*) "rhoii   rhoij"
 !         DO I=1,N
 !            WRITE(97,*) (A(I)), (B(I))
 !         ENDDO
 !         CALL neci_flush(97)
-         
+
          WRITE(66,*) "Z     STARVAL     PRODVAL    PRODVALALL"
          DO WHILE(Z.LE.HIGHZ)
             STAR=0.0_dp
             DO I=1,N
-                STAR=STAR+abs(B(I))**2/(Z-(A(I)))
+                STAR=STAR+abs(B(I))**2/(Z-(abs(A(I))))
             ENDDO
             STARPROD=0.0_dp
             DO I=1,N
@@ -41,10 +41,10 @@
             DO I=1,N
                 PROD2=0.0_dp
                 DO J=1,N
-                    PROD2=PROD2+ 
-     &                        abs(B(J))**2/(Z-((A(I))*(A(J))))
+                    PROD2=PROD2+
+     &                        abs(B(J))**2/(Z-((abs(A(I)))*(abs(A(J)))))
                 ENDDO
-                STARPROD2=STARPROD2+abs(B(I))**2/(Z-(A(I))-PROD2)
+                STARPROD2=STARPROD2+abs(B(I))**2/(Z-abs(A(I))-PROD2)
             ENDDO
             Z=Z+DELTA
             WRITE(66,"(4F14.10)") Z,STAR,STARPROD,STARPROD2
@@ -52,8 +52,8 @@
          CALL neci_flush(66)
          RETURN
       END
-                
-            
+
+
 
 C.. A procedure to use the regular falsi (false descent) method
 C.. to find the roots of a polynomial in the form
@@ -96,7 +96,7 @@ C.. The value at XHIGH is always bigger than at XLOW
 !  When I=0, there is no min.
 !I points to the root we're finding, starting from the highest, NROOTS, and working down.
          DO WHILE(I.GT.0)
-             
+
 !            WRITE(76,*),I,A(I+NMIN),B(I+NMIN)
             VAL=1.0_dp
             J=0
@@ -179,8 +179,8 @@ C.. The value at XHIGH is always bigger than at XLOW
                 X=XHIGH
                 VAL=VALHIGH
             ENDIF
-            
-!            WRITE(55,*) "END OF BISECTION, XHIGH/XLOW MOVED BY", 
+
+!            WRITE(55,*) "END OF BISECTION, XHIGH/XLOW MOVED BY",
 !     &            (INITHIGH-XHIGH),(XLOW-INITLOW)
 !            WRITE(55,*) "XHIGH/XLOW NOW: ", XHIGH,XLOW
 !             WRITE(55,*) "END OF BISECTION - ", J," STEPS NEEDED"
@@ -223,8 +223,8 @@ C.. Now polish off with some Newton Raphson
 !                WRITE(55,*) I,J,VAL,X,OX,X-OX,DERIV
 !                WRITE(55,*) "X = ",X
                 CALL CALCSTARPOLYDERIV(N,A,B,X,DERIV)
-               
-                
+
+
                 !If DERIV too small, then revert to regula falsi
                 !Also if DERIV too large, z~=rho_jj and error large
                 !Also errors if DERIV is inf
@@ -259,7 +259,7 @@ C.. Now polish off with some Newton Raphson
 !                       WRITE(55,*) "RFNEW XHIGH/LOW= ",XHIGH,", ",XLOW
                      ENDDO
                  ENDIF
-                      
+
                  !Perform NR calculation
 !                 WRITE(55,*) "VAL, DERIV = ", VAL,DERIV
 !                WRITE(76,"(4G23.15)") X,VAL,DERIV
@@ -291,7 +291,7 @@ C.. Now polish off with some Newton Raphson
      &                   .LT.NRCONV).OR.(J.GT.NRSTEPSMAX)) THEN
                           GOTO 123
                       ENDIF
-                 
+
                  ELSE
                     IF(VAL.GT.0.0_dp) THEN
                         XLOW=X
@@ -304,15 +304,15 @@ C.. Now polish off with some Newton Raphson
             ENDDO
 
 
-123         CONTINUE            
+123         CONTINUE
 !            WRITE(55,*) "FINISHED NR WITH J= ", J, " and K= ",K
 !            WRITE(55,*) ""
 !            WRITE(55,*) "Number of steps with wrong deriv= ", K
 !            CALL neci_flush(55)
 !            JTOT=JTOT+J
-            
+
 !  If this STOP is reached then we've likely hit a pole with a very small numerator, so the root is very close to it.
-!    Try increasing the value for NRSTEPSMAX.  Setting a RhoEpsilon might help 
+!    Try increasing the value for NRSTEPSMAX.  Setting a RhoEpsilon might help
             IF(J.GT.(NRSTEPSMAX-1)) THEN
                 call stop_all(this_routine,
      &                   "Newton Raphson failed to converge.")
@@ -387,7 +387,7 @@ C.. The value at XHIGH is always bigger than at XLOW
          IROOT=N
          DO WHILE(I.GE.0)
 C            WRITE(6,*),I,A(I),B(I)
-            
+
             CALL CALCSTARPOLYVALUE2(N,A,B,XHIGH,NR,XVHIGH,.FALSE.)
             CALL CALCSTARPOLYVALUE2(N,A,B,XLOW,NR,XVLOW,.TRUE.)
 C            WRITE(6,*) "HIGH:",XHIGH,VAL
@@ -511,8 +511,8 @@ C               WRITE(6,*),I,A(I),B(I)
          ENDDO
          IRMIN=IROOT+1
          RETURN
-      END         
-         
+      END
+
 
       SUBROUTINE CALCSTARPOLYVALUE2(N,A,B,X,NR,VAL,TABOVE)
          use constants, only: dp
@@ -528,10 +528,10 @@ C               WRITE(6,*),I,A(I),B(I)
             VAL=VAL+NR(I)*B(I)*B(I)/(X-A(I))
             IF(X.EQ.A(I)) OV=OV+NR(I)*B(I)*B(I)
          ENDDO
-         IF(OV.NE.0.0_dp) THEN 
+         IF(OV.NE.0.0_dp) THEN
 C.. We're actually on a root.
 C. if above, it then x-a >0, so just the sign of OV
-C            VAL=1.D10*OV   
+C            VAL=1.D10*OV
 C            IF(.NOT.TABOVE) VAL=-VAL
             IF(TABOVE) THEN
                DX=1.0e-16_dp
