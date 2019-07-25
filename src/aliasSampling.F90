@@ -171,6 +171,9 @@ contains
 
   function getRand(this) result(ind)
     ! Draw a random number from an alias table created with the corresponding probabilities
+    ! A bit tricky: this cannot be pure because a random number has to be drawn from
+    ! the rng
+    ! (maybe can be resolved, but current implementation requires side-effects for random numbers)
     ! output: ind - random number between 1 and the size of the array used to create the
     !               aliasTable object
     implicit none    
