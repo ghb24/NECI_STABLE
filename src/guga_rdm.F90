@@ -58,7 +58,6 @@ module guga_rdm
     logical :: t_test_diagonal = .false.
     logical :: t_direct_exchange = .false.
     logical :: t_more_sym = .false.
-    logical :: t_mimic_stochastic = .false.
 
 contains 
 
@@ -580,6 +579,10 @@ contains
         
         ! for this it would be best to have both CSFs I and J involved.
 
+        ! and i have to figure out all correct index combinations here 
+        ! for all the entries the singles contribute to.
+        call Stop_All(this_routine, "todo")
+
     end subroutine fill_sings_2rdm_guga
 
     subroutine extract_1_rdm_ind(rdm_ind, i, a)
@@ -1061,6 +1064,19 @@ contains
             end if
         end if
 
+        if (t_mimic_stochastic) then 
+            select case(excitInfo%typ)
+
+            case(1,2,4,5)
+                ! in the case of mimicking stochasitic
+                ! excitation generation, we should abort here for 
+                ! these type of excitations!
+                allocate(excits(0,0), stat = ierr)
+                n_excits = 0
+                return
+
+            end select
+        end if
         select case(excitInfo%typ)
         case(0)
             ! shouldnt be here.. onyl single excits and full weight gens
@@ -1070,6 +1086,7 @@ contains
         case(1) ! weight + lowering gen.
             ! can be treated almost like a single excitation 
             ! essentially the same, except if d(w) == 3 in the excitaton regime
+
             call calcDoubleExcitation_withWeight(ilut, excitInfo, excits,&
                 n_excits, posSwitches, negSwitches)
 
@@ -1166,16 +1183,26 @@ contains
 
         case (16) ! full stop lowering into raising 
             call calcFullStopL2R(ilut, excitInfo, excits, n_excits, &
-                posSwitches, negSwitches)
+                posSwitches, negSwitches, t_mimic_stochastic)
 
             ! in this case there is also the possibility for one single-like 
             ! excitation if there is no change in the double overlap region! 
             ! todo! how to fix that? is that so important? its only max. 1 
+
+            ! depending on the full-stop step-value: 
+            ! if it is 3, all excitations are single like, and should be 
+            ! disregarded if we mimic stochastic sampling. 
+
+            ! if the end step value is 1 or 2, there is on Delta B = 0 
+            ! branch with ofc. multiple possible singles 
+            ! associated with it. 
+            ! i think i should use a optional flag to indicate that I want 
+            ! to mimick stochastic exctiations generation
             exlevel = 2
 
         case (17) ! full stop raising into lowering 
             call calcFullStopR2L(ilut, excitInfo, excits, n_excits, &
-                posSwitches, negSwitches)
+                posSwitches, negSwitches, t_mimic_stochastic)
 
             ! same as for 16
             exlevel = 2
@@ -1194,14 +1221,14 @@ contains
 
         case (20) ! full start lowering into raising
             call calcFullStartL2R(ilut, excitInfo, excits, n_excits, &
-                posSwitches, negSwitches)
+                posSwitches, negSwitches, t_mimic_stochastic)
 
             ! same as for 16
             exlevel = 2
 
         case (21) ! full start raising into lowering
             call calcFullStartR2L(ilut, excitInfo, excits, n_excits, &
-                posSwitches, negSwitches)
+                posSwitches, negSwitches, t_mimic_stochastic)
 
             ! same as for 16
             exlevel = 2

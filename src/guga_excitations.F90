@@ -17100,12 +17100,13 @@ contains
     end subroutine calcFullStartFullStopMixed
 
     subroutine calcFullStartR2L(ilut, excitInfo, excitations, nExcits, &
-                posSwitches, negSwitches)
+                posSwitches, negSwitches, t_no_singles_opt)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits 
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+        logical, intent(in), optional :: t_no_singles_opt
         character(*), parameter :: this_routine = "calcFullStartR2L"
 
         integer :: nMax, ierr, iOrb, start, ende, semi, gen, start2
@@ -17113,6 +17114,7 @@ contains
         type(weight_obj) :: weights
         real(dp) :: minusWeight, plusWeight, zeroWeight
         integer(n_int), pointer :: tempExcits(:,:)
+        logical :: t_no_singles 
 
         ASSERT(.not.isZero(ilut,excitInfo%fullStart))
         ASSERT(isProperCSF_ilut(ilut))
@@ -17122,6 +17124,18 @@ contains
         ende = excitInfo%fullEnd
         semi = excitInfo%firstEnd
         gen = excitInfo%firstGen
+ 
+        if (present(t_no_singles_opt)) then 
+            t_no_singles = t_no_singles_opt
+        else
+            t_no_singles = .false.
+        end if
+
+        if (t_no_singles .and. current_stepvector(start) == 3) then 
+            nExcits = 0
+            allocate(excitations(0,0), stat = ierr)
+            return
+        end if
 
         ! set up weights
         start2 = excitInfo%secondStart
@@ -17185,18 +17199,20 @@ contains
     end subroutine calcFullStartR2L
 
     subroutine calcFullStartL2R(ilut, excitInfo, excitations, nExcits, &
-                posSwitches, negSwitches)
+                posSwitches, negSwitches, t_no_singles_opt)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits 
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+        logical, intent(in), optional :: t_no_singles_opt
         character(*), parameter :: this_routine = "calcFullStartL2R"
 
         integer :: nMax, ierr, iOrb, start, ende, semi, gen
         real(dp) :: tempWeight, minusWeight, plusWeight, zeroWeight
         type(weight_obj) :: weights
         integer(n_int), pointer :: tempExcits(:,:)
+        logical :: t_no_singles
 
         ASSERT(.not.isZero(ilut,excitInfo%fullStart))
         ASSERT(isProperCSF_ilut(ilut))
@@ -17206,7 +17222,19 @@ contains
         ende = excitInfo%fullEnd
         semi = excitInfo%firstEnd
         gen = excitInfo%firstGen    
-        
+         
+        if (present(t_no_singles_opt)) then 
+            t_no_singles = t_no_singles_opt
+        else
+            t_no_singles = .false.
+        end if
+
+        if (t_no_singles .and. current_stepvector(start) == 3) then 
+            nExcits = 0
+            allocate(excitations(0,0), stat = ierr)
+            return
+        end if
+
         ! create correct weights:
         weights = init_fullStartWeight(ilut, semi, ende, negSwitches(semi), &
             posSwitches(semi), currentB_ilut(semi))
@@ -17269,17 +17297,19 @@ contains
     end subroutine calcFullStartL2R
 
     subroutine calcRaisingSemiStop(ilut, excitInfo, tempExcits, nExcits, plusWeight, &
-            minusWeight)
+            minusWeight, t_no_singles_opt)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation) :: excitInfo
         integer(n_int), intent(inout), pointer :: tempExcits(:,:)
         integer, intent(inout) :: nExcits
         real(dp), intent(in) :: plusWeight, minusWeight
+        logical, intent(in), optional :: t_no_singles_opt
         character(*), parameter :: this_routine = "calcRaisingSemiStop"
 
         integer :: se, iEx, deltaB, st, ss
         integer(n_int) :: t(0:nifguga), s(0:nifguga)
         real(dp) :: tempWeight, tempWeight_0, tempWeight_1, bVal
+        logical :: t_no_singles
 
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(.not.isZero(ilut,excitInfo%firstEnd))
@@ -17290,7 +17320,13 @@ contains
         bVal = currentB_ilut(se)
         st = excitInfo%fullStart
         ss = excitInfo%secondStart
-    
+     
+        if (present(t_no_singles_opt)) then 
+            t_no_singles = t_no_singles_opt
+        else
+            t_no_singles = .false.
+        end if
+
         ! do it similar to semi-starts and check if its a pseudo excit
         ! TODO!! have to make additional if here, to check i comes from 
         ! a full start, because i also want to use it for normal double 
@@ -17298,11 +17334,10 @@ contains
         ! at the fullstart is!!!
         ! but for a double raising fullstart eg. there cant be a 3 at the 
         ! fullstart... -> how stupid
-!         if (isThree(ilut,st).and.st==ss) then
+
         if (current_stepvector(st) == 3 .and. st == ss) then
             ! only 0 branches in this case
             ! first do the non-branching possibs
-!             if (isOne(ilut,se)) then
             select case (current_stepvector(se))
             case (1)
                 ! 1 -> 0 switch
@@ -17329,7 +17364,6 @@ contains
 
                 end do
 
-!             else if (isTwo(ilut, se)) then
             case (2)
                 ! 2 -> 0 switch
 
@@ -17359,7 +17393,6 @@ contains
 
                 end do
 
-!             else 
             case (3)
                 ! three case -> branching possibilities according to b an weights
                 if (currentB_int(se) > 0 .and. plusWeight > 0.0_dp &
@@ -17470,13 +17503,11 @@ contains
                     ! shouldnt be here... 
                     call stop_all(this_routine, "somethin went wrong! shouldnt be here!")
                 end if
-!             end if
             end select
 
         else 
             ! also +2, and -2 branches arriving possible! 
             ! again the non-branching values first
-!             if (isOne(ilut,se)) then
             select case (current_stepvector(se))
             case (1)
                 ! 1 -> 0 for 0 and -2 branch
@@ -17487,17 +17518,18 @@ contains
                 do iEx = 1, nExcits
                     t = tempExcits(:,iEx)
                     deltaB = getDeltaB(t)
-                    ! check if weights fit. 
-! #ifdef __DEBUG
-!                     if (deltaB == 0) then
-!                         ASSERT(plusWeight > 0.0_dp)
-!                     end if
-!                     if (deltaB ==-2) then
-!                         ASSERT(minusWeight > 0.0_dp)
-!                     end if
-!                     ASSERT(deltaB /= 2)
-! #endif
 
+                    if (t_no_singles) then 
+                        if (abs(extract_matrix_element(t,1)) > EPS) then 
+                            ASSERT(DeltaB == 0) 
+                            call encode_matrix_element(t, 0.0. 1)
+                            call encode_matrix_element(t, 0.0, 2)
+
+                            cycle
+                        end if
+                    end if
+
+                    ! check if weights fit. 
                     ! do 1 -> 0
                     clr_orb(t, 2*se-1)
 
@@ -17520,23 +17552,22 @@ contains
 
                 end do
 
-!             else if (isTwo(ilut,se)) then
             case (2)
                 ! 2 -> 0 for 0 and +2 branches
                 do iEx = 1, nExcits
                     t = tempExcits(:,iEx)
                     deltaB = getDeltaB(t)
 
-! #ifdef __DEBUG
-!                     if (deltaB == 0) then
-!                         ASSERT(minusWeight > 0.0_dp)
-!                     end if
-!                     if (deltaB == 2) then
-!                         ASSERT(plusWeight > 0.0_dp)
-!                     end if
-!                     ASSERT(deltaB /= -2)
-! #endif
-                        
+                    if (t_no_singles) then 
+                        if (abs(extract_matrix_element(t,1)) > EPS) then 
+                            ASSERT(DeltaB == 0) 
+                            call encode_matrix_element(t, 0.0. 1)
+                            call encode_matrix_element(t, 0.0, 2)
+
+                            cycle
+                        end if
+                    end if
+
                     ! do 2 -> 0
                     clr_orb(t, 2*se)
 
@@ -17556,7 +17587,6 @@ contains
 
                 end do
 
-!             else
             case (3)
                 ! 3 case -> have to check weights more thourougly
                 ! when a certain +-2 excitation comes to a 0 semi-stop
@@ -17571,6 +17601,16 @@ contains
                     do iEx = 1, nExcits
                         t = tempExcits(:,iEx)
                         deltaB = getDeltaB(t)
+
+                        if (t_no_singles) then 
+                            if (abs(extract_matrix_element(t,1)) > EPS) then 
+                                ASSERT(DeltaB == 0) 
+                                call encode_matrix_element(t, 0.0. 1)
+                                call encode_matrix_element(t, 0.0, 2)
+
+                                cycle
+                            end if
+                        end if
 
                         if (deltaB == 0) then
                             ! do 3 -> 1 first
@@ -17661,7 +17701,20 @@ contains
                     do iEx = 1, nExcits
                         t = tempExcits(:,iEx)
                         deltaB = getDeltaB(t)
+
+
+                        if (t_no_singles) then 
+                            if (abs(extract_matrix_element(t,1)) > EPS) then 
+                                ASSERT(DeltaB == 0) 
+                                call encode_matrix_element(t, 0.0. 1)
+                                call encode_matrix_element(t, 0.0, 2)
+
+                                cycle
+                            end if
+                        end if
+
                         ASSERT(deltaB /= 2)
+
                         if (deltaB == 0) then
                             ! do 3 -> 1 switch
                             clr_orb(t, 2*se)
@@ -17701,6 +17754,16 @@ contains
                     do iEx = 1, nExcits
                         t = tempExcits(:,iEx)
                         deltaB = getDeltaB(t)
+
+                        if (t_no_singles) then 
+                            if (abs(extract_matrix_element(t,1)) > EPS) then 
+                                ASSERT(DeltaB == 0) 
+                                call encode_matrix_element(t, 0.0. 1)
+                                call encode_matrix_element(t, 0.0, 2)
+
+                                cycle
+                            end if
+                        end if
 
                         ASSERT(deltaB /= -2)
                         
@@ -17747,7 +17810,6 @@ contains
                     call stop_all(this_routine, "something went wrong. shouldnt be here!")
                 end if
 
-!             end if
             end select
         end if
 
@@ -18803,12 +18865,13 @@ contains
     end subroutine calcFullStartLowering
 
     subroutine calcFullStopR2L(ilut, excitInfo, excitations, nExcits, &
-            posSwitches, negSwitches)
+            posSwitches, negSwitches, t_no_singles_opt)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits 
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+        logical, intent(in), optional :: t_no_singles_opt
         character(*), parameter :: this_routine = "calcFullStopR2L"
         
         ! not sure if single or double weight is necessary here...
@@ -18817,10 +18880,23 @@ contains
         integer(n_int) :: t(0:nifguga)
         integer :: iOrb, iEx, deltaB, cnt, st, se, en, ierr
         real(dp) :: tempWeight, minusWeight, plusWeight, zeroWeight
+        logical :: t_no_singles
 
         st = excitInfo%fullStart
         se = excitInfo%secondStart
         en = excitInfo%fullEnd
+
+        if (present(t_no_singles_opt)) then 
+            t_no_singles = t_no_singles_opt
+        else
+            t_no_singles = .false.
+        end if
+
+        if (t_no_singles .and. current_stepvector(en) == 3) then
+            allocate(excitation(0,0), stat = ierr)
+            nExcits = 0
+            return 
+        end if
 
         ! init weights
         weights = init_semiStartWeight(ilut, se, en, negSwitches(se), &
@@ -18912,12 +18988,13 @@ contains
     end subroutine calcFullStopR2L
 
     subroutine calcFullStopL2R(ilut, excitInfo, excitations, nExcits, &
-            posSwitches, negSwitches)
+            posSwitches, negSwitches, t_no_singles_opt)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits 
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+        logical, intent(in), optional :: t_no_singles_opt
         character(*), parameter :: this_routine = "calcFullStopL2R"
         
         ! not sure if single or double weight is necessary here...
@@ -18926,10 +19003,23 @@ contains
         integer(n_int) :: t(0:nifguga)
         integer :: iOrb, iEx, deltaB, cnt, st, se, en, ierr
         real(dp) :: tempWeight, minusWeight, plusWeight, zeroWeight
+        logical :: t_no_singles
 
         st = excitInfo%fullStart
         se = excitInfo%secondStart
         en = excitInfo%fullEnd
+
+        if (present(t_no_singles_opt)) then 
+            t_no_singles = t_no_singles_opt
+        else
+            t_no_singles = .false.
+        end if
+
+        if (t_no_singles .and. current_stepvector(en) == 3) then
+            allocate(excitation(0,0), stat = ierr)
+            nExcits = 0
+            return 
+        end if
 
         ! init weights
         weights = init_semiStartWeight(ilut, se, en, negSwitches(se), &
@@ -19018,22 +19108,32 @@ contains
 
     end subroutine calcFullStopL2R
 
-    subroutine mixedFullStop(ilut, excitInfo, tempExcits, nExcits, excitations)
+    subroutine mixedFullStop(ilut, excitInfo, tempExcits, nExcits, excitations, &
+            t_no_singles_opt)
         ! full stop routine for mixed generators
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(in) :: excitInfo
         integer(n_int), intent(inout), pointer :: tempExcits(:,:)
         integer, intent(inout) :: nExcits
         integer(n_int), intent(out), pointer :: excitations(:,:)
+        logical, intent(in), optional :: t_no_singles_opt
         character(*), parameter :: this_routine = "mixedFullStop"
 
         integer :: iEx, ende, cnt, ierr, deltaB
         real(dp) :: bVal, tempWeight_0, tempWeight_1
         integer(n_int) :: t(0:nifguga)
+        logical :: t_no_singles
     
         ASSERT(.not.isZero(ilut,excitInfo%fullEnd))
         ! not sure if i should check if ilut is not 3... since i could handle
         ! that differently
+
+
+        if (present(t_no_singles_opt)) then
+            t_no_singles = t_no_singles_opt
+        else
+            t_no_singles = .false.
+        end if
 
         ende = excitInfo%fullEnd
         bVal = currentB_ilut(ende)
@@ -19042,8 +19142,29 @@ contains
         case (1)
             ! ending for -2 and 0 branches
             do iEx = 1, nExcits
+
                 t = tempExcits(:,iEx) 
                 deltaB = getDeltaB(t)
+
+                if (t_no_singles) then
+                    ! check if the x0 is greater than 0, which indicates 
+                    ! purely delta-b = 0 route.., which should be disregarded
+                    ! if we do not want to take singles into account. 
+                    if (abs(extract_matrix_element(t,1)) > EPS) then
+                        ! just to be sure this should also mean: 
+                        ASSERT(DeltaB == 0)
+
+                        ! encode 0 matrix element, which then the loop at 
+                        ! the bottom should take care of and throw it out
+                        call encode_matrix_element(t, 0.0, 1)
+                        call encode_matrix_element(t, 0.0, 2)
+
+                        tempExcits(:,iEx) = t
+
+                        cycle
+
+                    end if 
+                end if
 
                 ! a +2 branch shouldnt arrive here
                 ASSERT(deltaB /= 2) 
@@ -19079,6 +19200,26 @@ contains
             do iEx = 1, nExcits
                 t = tempExcits(:,iEx)
                 deltaB = getDeltaB(t)
+
+                if (t_no_singles) then
+                    ! check if the x0 is greater than 0, which indicates 
+                    ! purely delta-b = 0 route.., which should be disregarded
+                    ! if we do not want to take singles into account. 
+                    if (abs(extract_matrix_element(t,1)) > EPS) then
+                        ! just to be sure this should also mean: 
+                        ASSERT(DeltaB == 0)
+
+                        ! encode 0 matrix element, which then the loop at 
+                        ! the bottom should take care of and throw it out
+                        call encode_matrix_element(t, 0.0, 1)
+                        call encode_matrix_element(t, 0.0, 2)
+
+                        tempExcits(:,iEx) = t
+
+                        cycle
+
+                    end if 
+                end if
 
                 ASSERT(deltaB /= -2)
 
