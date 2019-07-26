@@ -4,7 +4,7 @@
 module guga_rdm
     ! RDM module specifically for the GUGA spin-adapted implementation 
     
-    use constants, only: n_int, dp, lenof_sign, EPS, sizeof_int, int_rdm
+    use constants, only: n_int, dp, lenof_sign, EPS, sizeof_int, int_rdm, bn2_
     use SystemData, only: nel, nSpatOrbs, current_stepvector, currentB_ilut
     use bit_reps, only: extract_bit_rep, decode_bit_det, niftot, nifdbo
     use LoggingData, only: RDMExcitLevel
@@ -30,11 +30,15 @@ module guga_rdm
                                 calcFullStartFullStopMixed, &
                                 calcRemainingSwitches_excitInfo_double
     use guga_data, only: excitationInformation, tag_tmp_excits, tag_excitations
+    use guga_data, only: getDoubleMatrixElement, funA_0_2overR2, funA_m1_1_overR2, &
+                         funA_3_1_overR2, funA_2_0_overR2, minFunA_2_0_overR2, & 
+                         minFunA_0_2_overR2, getDoubleContribution, getMixedFullStop
     use guga_types, only: weight_obj
     use guga_bitRepOps, only: update_matrix_element, setDeltaB, extract_matrix_element
     use guga_bitRepOps, only: isProperCSF_ilut, isDouble, init_csf_information
-    use guga_bitRepOps, only: write_guga_list, write_det_guga
+    use guga_bitRepOps, only: write_guga_list, write_det_guga, getSpatialOccupation
     use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI, getDeltaB
+    use guga_bitRepOps, only: calc_csf_info
     use MemoryManager, only: LogMemAlloc, LogMemDealloc
     use bit_reps, only: nifguga
     use FciMCData, only: projEDet, CurrentDets, TotWalkers
@@ -574,6 +578,13 @@ contains
         integer, intent(in) :: rdm_ind
         character(*), parameter :: this_routine = "fill_sings_2rdm_guga"
 
+        integer :: i, a, n, st, en, step_i(nSpatOrbs), step_j(nSpatOrbs), &
+                   delta_b(nSpatOrbs), gen, d_i, d_j, delta, &
+                   b_i(nSpatOrbs), b_j(nSpatOrbs)
+        real(dp) :: occ_n, occ_i(nSpatOrbs), occ_j(nSpatOrbs)
+        real(dp) :: botCont, topCont, tempWeight, prod, StartCont, EndCont
+        integer :: iO, jO, step
+
         ! here I have to fill W + R/L, single overlap RR/LL 
         ! and full-start/stop RL with no change in the double overlap region
         ! i also have to correct the coupling coefficient here effifiently
@@ -582,7 +593,293 @@ contains
 
         ! and i have to figure out all correct index combinations here 
         ! for all the entries the singles contribute to.
-        call Stop_All(this_routine, "todo")
+
+        ! ok this is the final routine i need to consider i guess.. 
+        ! or hope.. I need the matrix elements and indices, to which a 
+        ! certain type of single excitations contributes to.. 
+        ! I need to effectively recalculate the correct matrix element 
+        ! and store it in the correct RDM place. 
+
+        ! essentially I need to loop over the contracted index and 
+        ! correctly take the coupling coefficient into account. 
+        call extract_1_rdm_ind(rdm_ind, i, a)
+
+        st = min(i,a)
+        en = max(i,a)
+
+        ! do i have access to current_stepvector here? I think so..
+        ! no I dont! or just to be save
+        
+        ! this is essentially a mimic of the function 
+        ! calc_integral_contribution_single in guga_excitations
+
+        ! but wait a minute.. 
+        ! in the stochastic excitation generation, I calculate the 
+        ! full Hamiltonian matrix element.. 
+        ! I do not have access to the coupling coefficient for 
+        ! i, a anymore.. damn.. 
+        ! and in general, I always calculate the full matrix element.. 
+        ! i have to take this into account! 
+        ! or change the stochastic excitation generation, to also yield 
+        ! this information..
+        ! or "just" recalculate everything..
+        ! i could use the x1 element storage for this quantity.. 
+        ! this would simplify things!
+
+        ! for simplicity it is best to have these quantities:
+        call calc_csf_info(ilutI, step_i, b_i, occ_i)
+        call calc_csf_info(ilutJ, step_j, b_j, occ_j)
+
+        delta_b = b_i - b_j
+
+        ! calculate the bottom contribution depending on the excited stepvalue
+        select case (step_i(st))
+        case (0)
+            ! this implicates a raising st:
+            if (isOne(ilutJ,st)) then
+                call getDoubleMatrixElement(1,0,0,-1,1, real(b_i(st),dp), &
+                    1.0_dp,x1_element = botCont)
+
+            else 
+                call getDoubleMatrixElement(2,0,0,-1,1, real(b_i(st),dp), &
+                    1.0_dp, x1_element = botCont)
+            end if
+
+            StartCont = 0.0_dp
+            gen = 1
+
+        case (3)
+            ! implies lowering st
+            if (isOne(ilutJ,st)) then
+                ! need tA(0,2)
+                botCont = funA_0_2overR2(real(b_i(st),dp))
+
+            else
+                ! need -tA(2,0)
+                botCont = minFunA_2_0_overR2(real(b_i(st),dp))
+            end if
+
+            StartCont = 1.0_dp
+            gen = -1
+
+        case (1)
+            botCont = funA_m1_1_overR2(real(b_i(st),dp))
+            ! check which generator
+            if (isZero(ilutJ,st)) then 
+                botCont = -botCont
+
+                StartCont = 0.0_dp
+                gen = -1
+            else
+                StartCont = 1.0_dp
+                gen = 1
+            endif
+
+
+        case (2)
+            botCont = funA_3_1_overR2(real(b_i(st),dp))
+            if (isThree(ilutJ,st)) then
+                botCont = -botCont
+
+                StartCont = 1.0_dp
+                gen = 1
+            else
+                StartCont = 0.0_dp
+                gen = -1
+            end if
+
+        end select
+
+        ! do top contribution also already
+
+        select case (step_i(en))
+        case (0)
+            if (isOne(ilutJ,en)) then
+                topCont = funA_2_0_overR2(real(b_i(en),dp))
+            else
+                topCont = minFunA_0_2_overR2(real(b_i(en),dp))
+            end if
+
+            EndCont = 0.0_dp 
+
+        case (3)
+            if (isOne(ilutJ,en)) then
+                topCont = minFunA_2_0_overR2(real(b_i(en),dp))
+            else 
+                topCont = funA_0_2overR2(real(b_i(en),dp))
+            end if
+
+            EndCont = 1.0_dp
+
+        case (1)
+            topCont = funA_2_0_overR2(real(b_i(en),dp))
+            if (isThree(ilutJ,en)) then 
+                topCont = -topCont
+
+                EndCont = 1.0_dp
+            else
+                EndCont = 0.0_dp
+            end if
+
+        case (2)
+            topCont = funA_0_2overR2(real(b_i(en),dp))
+            if (isZero(ilutJ,en)) then 
+                topCont = -topCont
+
+                EndCont = 0.0_dp
+            else
+                EndCont = 1.0_dp
+            end if
+
+        end select
+
+        ! depending on i and j calulate the corresponding single and double 
+        ! integral weights and check if they are non-zero...
+        ! gets quite involved... :( need to loop over all orbitals
+        ! have to reset prod inside the loop each time! 
+
+        do iO = 1, st - 1
+            ! no contribution if not occupied. 
+            if (step_i(iO) == 0) cycle 
+            ! else it gets a contrbution weighted with orbital occupation
+            ! first easy part: 
+            
+            ! W + R/L contribution
+            call add_to_rdm_spawn_t(spawn, iO, iO, i, a, & 
+                occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
+
+            call add_to_rdm_spawn_t(spawn, i, a, iO, iO, & 
+                occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
+
+            ! exchange contribution: 
+            if (step_i(iO) == 3 .or. b_i(iO) == 0) then 
+                ! then it is easy: 
+                ! just figure out correct indices
+                call add_to_rdm_spawn_t(spawn, i, iO, iO, a, & 
+                    -occ_i(iO)/2.0 * sign_i * sign_j * mat_ele, .true.)
+                call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &
+                    -occ_i(iO)/2.0 * sign_i * sign_j * mat_ele, .true.)
+
+            else
+                ! otherwise i have to recalc the x1 element
+
+                step = step_i(iO)
+                call getDoubleMatrixElement(step,step,-1,-1,+1,real(b_i(iO), dp), &
+                    1.0_dp,x1_element = prod)
+
+                ! and then do the remaining:
+                do jO = iO + 1, st - 1
+                    ! need the stepvalue entries to correctly access the mixed
+                    ! generator matrix elements 
+                    step = step_i(jO)
+                    call getDoubleMatrixElement(step, step, 0, -1, +1,&
+                        real(b_i(jO),dp), 1.0_dp, x1_element = tempWeight)
+
+                    prod = prod * tempWeight
+                end do
+                prod = prod * botCont
+
+                call add_to_rdm_spawn_t(spawn, i, iO, iO, a, & 
+                    (prod - occ_i(iO)/2.0) * sign_i * sign_j * mat_ele, .true.)
+
+                call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &
+                    (prod - occ_i(iO)/2.0) * sign_i * sign_j * mat_ele, .true.)
+
+            end if
+        end do
+
+        ! start segment: only W + R/L
+        ! but this depends on the type of excitation here.. or?
+        call add_to_rdm_spawn_t(spawn, st, st, st, en, & 
+            StartCont * sign_i * sign_j * mat_ele, .true.)
+        call add_to_rdm_spawn_t(spawn, st, en, st, st, &
+            StartCont * sign_i * sign_j * mat_ele, .true.)
+
+        ! loop over excitation range: 
+
+        do iO = st + 1, en - 1
+
+            ! W + R/L
+            call add_to_rdm_spawn_t(spawn, iO, iO, i, a, & 
+                occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
+            call add_to_rdm_spawn_t(spawn, i, a, iO, iO, &
+                occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
+
+            ! exchange type: 
+            ! oh damn I need the delta-B value here.. 
+            d_i = step_i(iO)
+            d_j = step_j(iO)
+            delta = delta_b(iO)
+
+            prod = getDoubleContribution(d_j, d_i, delta, gen, real(b_i(iO),dp))
+
+            call add_to_rdm_spawn_t(spawn, i, iO, iO, a, & 
+                prod * sign_i * sign_j * mat_ele, .true.)
+            call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &
+                prod * sign_i * sign_j * mat_ele, .true.)
+
+        end do
+        
+        ! end contribution
+        call add_to_rdm_spawn_t(spawn, en, en, st, en, & 
+            EndCont * sign_i * sign_j * mat_ele, .true.)
+        call add_to_rdm_spawn_t(spawn, st, en, en, en, &
+            EndCont * sign_i * sign_j * mat_ele, .true.)
+
+        ! loop above: 
+        do iO = en + 1, nSpatOrbs
+
+            if (step_i(iO) == 0) cycle
+
+            ! W + R/L contribution
+            call add_to_rdm_spawn_t(spawn, iO, iO, i, a, & 
+                occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
+
+            call add_to_rdm_spawn_t(spawn, i, a, iO, iO, & 
+                occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
+
+            ! exchange 
+            if (step_i(iO) == 3 .or. (b_i(iO) == 1 .and. step_i(iO) == 1)) then 
+                ! only x0 contribution
+                ! then it is easy: 
+                ! just figure out correct indices
+                call add_to_rdm_spawn_t(spawn, i, iO, iO, a, & 
+                    -occ_i(iO)/2.0 * sign_i * sign_j * mat_ele, .true.)
+                call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &
+                    -occ_i(iO)/2.0 * sign_i * sign_j * mat_ele, .true.)
+
+            else
+
+                prod = 1.0_dp
+
+                do jO = en + 1, iO - 1
+
+                    step = step_i(iO)
+
+                    call getDoubleMatrixElement(step,step,0,-1,+1,real(b_i(iO), dp),&
+                        1.0_dp,x1_element = tempWeight)
+
+                    prod = prod * tempWeight
+
+                end do
+
+                step = step_i(iO)
+
+                call getMixedFullStop(step, step, 0, real(b_i(iO), dp), &
+                    x1_element = tempWeight)
+
+                prod = prod * tempWeight
+
+                prod = prod * topCont
+
+                call add_to_rdm_spawn_t(spawn, i, iO, iO, a, & 
+                    (prod - occ_i(iO)/2.0) * sign_i * sign_j * mat_ele, .true.)
+
+                call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &
+                    (prod - occ_i(iO)/2.0) * sign_i * sign_j * mat_ele, .true.)
+
+            end if
+        end do
 
     end subroutine fill_sings_2rdm_guga
 

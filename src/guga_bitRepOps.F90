@@ -2051,7 +2051,6 @@ contains
 
     end function calcB_vector_nI
 
-
     function isDouble(nI, iOrb) result(flag)
         ! returns a logical .true. if spinorbital iOrb is doubly occupied 
         ! and .false. elsewise.
@@ -2071,17 +2070,13 @@ contains
         if (iOrb == 1) then
             ! special conditions if iOrb is 1
             flag = (nI(2) == pair)
-
         else if (iOrb == nEl) then
             flag = (nI(nEl-1) == pair)
-
         else
             flag = ( (nI(iOrb-1) == pair) .or. (nI(iOrb+1) == pair))
-
         end if
 
     end function isDouble
-
 
     function calcStepvector(ilut) result(stepVector)
         ! function to calculate stepvector of length nReps, corresponding

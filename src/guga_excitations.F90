@@ -11753,7 +11753,7 @@ contains
         gen = excitInfo%currentGen
         
         ! then do the stochastic updates..
-        do iO = st + 1, en- 1
+        do iO = st + 1, en - 1
             
             ! need the ongoing deltaB value to access the multFactor table in 
             ! the same way as single and double excitations..
@@ -11892,7 +11892,6 @@ contains
         ! integral weights and check if they are non-zero...
         ! gets quite involved... :( need to loop over all orbitals
         ! have to reset prod inside the loop each time! 
-!         prod = 1.0_dp
 
         do iO = 1, st - 1
             ! no contribution if not occupied. 
