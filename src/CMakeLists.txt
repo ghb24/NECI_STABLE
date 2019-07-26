@@ -132,7 +132,6 @@ set( SRC_FILES
     replica_estimates.F90
     rhodiag.F
     RhoElement.F90
-    rootfind.F
     RotateOrbsData.F90
     RotateOrbs.F90
     RPA.F90
