@@ -208,6 +208,12 @@ contains
     real(dp), intent(in) :: arr(:)
 
     integer(int64) :: arrSize
+    character(*), parameter :: t_r = "setupSampler"
+    ! if all weights are 0, throw an error
+    if(sum(arr) < eps) then
+       call stop_all(t_r, "Trying to initialize sampler with empty probability distribution")
+    endif
+    
     ! initialize the alias table
     call this%table%setupTable(arr)
     arrSize = size(arr)

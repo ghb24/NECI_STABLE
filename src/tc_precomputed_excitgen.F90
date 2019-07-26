@@ -1,5 +1,5 @@
 #include "macros.h"
-module tc_precomputed_excitgen
+module pcpp_excitgen
   use constants
   use tc_three_body_data
   use aliasSampling
@@ -10,6 +10,7 @@ module tc_precomputed_excitgen
   use dSFMT_interface , only : genrand_real2_dSFMT
   use sltcnd_mod, only: sltcnd_excit
   use util_mod, only: binary_search_first_ge
+  use get_excit, only: make_double, make_single
   implicit none
 
   ! these are the samplers used for generating single excitations
@@ -35,7 +36,7 @@ contains
 
   ! this is the interface routine that calls the corresponding generator to create
   ! a single/double or potentially triple excitation
-  subroutine gen_ran_excit_pcpp(nI, ilut, nJ, ilutnJ, exFlag, ic, ExcitMat, tParity, pGen, &
+  subroutine gen_rand_excit_pcpp(nI, ilut, nJ, ilutnJ, exFlag, ic, ExcitMat, tParity, pGen, &
        HElGen, store, part_type)
     implicit none
     ! The interface is common to all excitation generators, see proc_ptrs.F90
@@ -65,8 +66,8 @@ contains
        IC = 1
        pGen = pGen * pSingles
     endif
-    
-  end subroutine gen_ran_excit_pcpp
+
+  end subroutine gen_rand_excit_pcpp
 
   !------------------------------------------------------------------------------------------!
 
@@ -118,7 +119,7 @@ contains
     elec1 = binary_search_first_ge(nI,src1)
     elec2 = binary_search_first_ge(nI,src2)
     call make_double(nI, nJ, elec1, elec2, tgt1, tgt2, ExcitMat, tParity)
-       
+
   contains
 
     function abort_excit(tgt) result(abort)
@@ -135,7 +136,7 @@ contains
          ExcitMat = 0
          tParity = .false.
       endif
-      
+
     end function abort_excit
   end subroutine generate_double_pcpp
 
@@ -158,10 +159,10 @@ contains
 
     ! get a random electron
     call single_elec_sampler%sample(src,pGen)
-    
+
     ! map the electron to the current determinant    
     src = map_elec_from_ref(ilut, src)
-    
+
     ! get a random associated orbital    
     call single_hole_sampler(src)%sample(tgt,pHole)
 
@@ -176,7 +177,7 @@ contains
     endif
     ! add the probability to find this hole from this electron
     pGen = pGen * pHole
-    
+
   end subroutine generate_single_pcpp
 
   !------------------------------------------------------------------------------------------!
@@ -226,22 +227,22 @@ contains
     integer, intent(in) :: iOrb
     integer :: tgt
   end function map_orb_from_ref
-  
+
   !------------------------------------------------------------------------------------------!
   ! Initialization routines for the pcpp excitation generator
   !------------------------------------------------------------------------------------------!
 
   subroutine init_pcpp_excitgen()
     implicit none
-    
+
     allocate(refDet(nel))
     refDet = projEDet(:,1)
-    
+
     call init_pcpp_doubles_excitgen()
     call init_pcpp_singles_excitgen()
-   
+
   end subroutine init_pcpp_excitgen
-  
+
   !------------------------------------------------------------------------------------------!
 
   subroutine init_pcpp_doubles_excitgen()
@@ -265,7 +266,7 @@ contains
       do iEl = 1, nel
          w(iEl) = 0
          do jEl = 1, nel
-            if(i.ne.j) then
+            if(iEl.ne.jEl) then
                i = refDet(iEl)
                j = refDet(jEl)
                do a = 1, nBasis
@@ -296,7 +297,7 @@ contains
       integer :: aerr
       integer :: i,j,a,b
       integer :: jEl
-      
+
       allocate(double_elec_two_sampler(nBasis))
       do i = 1, nBasis
          w = 0.0_dp
@@ -355,13 +356,13 @@ contains
       ! generate precomputed probabilities for picking hole number 2 given a selected electron
       ! this is for picking the second hole where symmetry restrictions apply
       implicit none
-      real(dp) :: w(nBasis,symmax)
+      real(dp) :: w(nBasis,0:symmax-1)
       integer :: j,b,iSym
       logical :: tPar
       integer :: aerr        
 
       ! there is one table for each symmetry and each starting orbital
-      allocate(double_hole_two_sampler(nBasis,symmax), stat = aerr)
+      allocate(double_hole_two_sampler(nBasis,0:symmax-1), stat = aerr)
       do j = 1, nBasis
          w = 0.0_dp
          do b = 1, nBasis
@@ -370,7 +371,7 @@ contains
                  w(b,G1(b)%Sym%s) = pp_weight_function(j,b)
          end do
 
-         do iSym = 1, symmax
+         do iSym = 0, symmax-1
             call double_hole_two_sampler(j,iSym)%setupSampler(w(:,iSym))
          end do
       end do
@@ -384,8 +385,8 @@ contains
       integer, intent(out) :: ex(2,2)
       integer, intent(in) :: i,j,a,b
 
-      ex(1,1) = refDet(i)
-      ex(1,2) = refDet(j)
+      ex(1,1) = i
+      ex(1,2) = j
       ex(2,1) = a
       ex(2,2) = b
     end subroutine set_ex
@@ -402,16 +403,16 @@ contains
 
     call setup_elecs_sampler()
     call setup_holes_sampler()
-    
+
   contains
 
-  !------------------------------------------------------------------------------------------!
+    !------------------------------------------------------------------------------------------!
 
     subroutine setup_elecs_sampler()
       ! the probability distribution for selection of electrons
       ! creates a sampler for electron indices within the reference determinant
       ! these later have to be transferred to the current determinant
-      
+
       ! even though strictly speaking, these are sums of the hole probabilities,
       ! expressing them in terms of the latter would be an unwanted dependency,
       ! since this relation is merely a matter of choice of the algorithm and should not
@@ -421,7 +422,7 @@ contains
       integer :: i, a
       integer :: aerr
       integer :: refOrb
-      
+
       do i = 1, nel
          w(i) = 0
          refOrb = refDet(i)
@@ -433,7 +434,7 @@ contains
       end do
       ! load the probabilites for electron selection into the alias table
       call single_elec_sampler%setupSampler(w)
-      
+
     end subroutine setup_elecs_sampler
 
     !------------------------------------------------------------------------------------------!
@@ -464,7 +465,7 @@ contains
     end subroutine setup_holes_sampler
 
     !------------------------------------------------------------------------------------------!
-    
+
     function acc_doub_matel(src, tgt) result(prob)
       ! Accumulate all single excitation matrix elements connecting
       ! D_(j,src)^(b,tgt) for all (j,b), where D is the reference
@@ -504,22 +505,22 @@ contains
             endif
          end do
       endif
-      
+
     end function acc_doub_matel
-  !------------------------------------------------------------------------------------------!
+    !------------------------------------------------------------------------------------------!
   end subroutine init_pcpp_singles_excitgen
 
   !------------------------------------------------------------------------------------------!
   ! Finalization routines
   !------------------------------------------------------------------------------------------!
-  
+
   subroutine finalize_pcpp_excitgen()
     implicit none
     integer :: j,k
     deallocate(refDet)
 
     call single_elec_sampler%samplerDestructor()
-    
+
     call clear_sampler_array(single_hole_sampler)
     call double_elec_one_sampler%samplerDestructor()
     call clear_sampler_array(double_elec_two_sampler)
@@ -529,7 +530,7 @@ contains
           call double_hole_two_sampler(j,k)%samplerDestructor()
        end do
     end do
-    call deallocate(double_hole_two_sampler)
+    deallocate(double_hole_two_sampler)
   contains
 
     subroutine clear_sampler_array(arr)
@@ -537,15 +538,15 @@ contains
       type(aliasSampler_t), allocatable :: arr(:)
 
       integer :: i
-      
+
       do i = 1, size(arr)
          call arr(i)%samplerDestructor()
       end do
       deallocate(arr)
     end subroutine clear_sampler_array
-    
+
   end subroutine finalize_pcpp_excitgen
-  
+
 
   !------------------------------------------------------------------------------------------!
   ! Auxiliary functions
@@ -579,11 +580,11 @@ contains
     do i = 1, size(w)
        w(i) = max(w(i),mVal)
     end do
-    
+
   end subroutine apply_lower_bound
 
   !------------------------------------------------------------------------------------------!
-  
+
   function pp_weight_function(i,a) result(w)
     ! Given an excitation, return the power-pitzer weights
     ! Can be tweaked to handle 3-body excitations
@@ -591,7 +592,7 @@ contains
     !        a - possible orbital to excite to
     ! Output: w - approximate weight of this excitation
     implicit none
-    
+
     integer, intent(in) :: i,a
     real(dp) :: w
     integer :: ex(2,2)
@@ -602,16 +603,16 @@ contains
     ex(2,2) = a
     w = sqrt(abs(sltcnd_excit(refDet,2,ex,.false.)))
   end function pp_weight_function
-  
-!------------------------------------------------------------------------------------------!
 
-    pure subroutine intswap(a,b)
-      integer, intent(inout) :: a,b
-      integer :: tmp
-      
-      tmp = a
-      a = b 
-      b = tmp
-    end subroutine intswap
-  
-end module tc_precomputed_excitgen
+  !------------------------------------------------------------------------------------------!
+
+  pure subroutine intswap(a,b)
+    integer, intent(inout) :: a,b
+    integer :: tmp
+
+    tmp = a
+    a = b 
+    b = tmp
+  end subroutine intswap
+
+end module pcpp_excitgen
