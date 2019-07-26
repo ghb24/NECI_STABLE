@@ -101,16 +101,21 @@ contains
           if(DetBitEQ(ilutJ,allEx(:,j))) then
              pgenArr = pgen
              call encode_sign(allEx(:,j),pgenArr)
+             ! increase its counter by 1
              allEx(NIfTot+1,j) = allEx(NIfTot+1,j) + 1
              tFound = .true.
              exit
           end if
        end do
+       ! if it was not found, and is not marked as invalid, we have a problem: this is not
+       ! an excitaion
        if(.not. tFound .and. .not. nJ(1)==0) then
           call decode_bit_det(nJ,ilutJ)
           write(iout,*) "Error: Invalid excitation", nJ
           stop
        endif
+       ! check if the generated excitation is invalid, if it is, mark this specific constellation
+       ! so we do not double-count when calculating pNull
        if(nJ(1) == 0) then
           if(ic.eq.2) then
              if(.not. exDoneDouble(ex(1,1),ex(1,2),ex(2,1),ex(2,2)))then

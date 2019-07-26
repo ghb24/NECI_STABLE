@@ -114,7 +114,7 @@ contains
 
     ! Update the generation probability
     pGen = pGen * pTGen2
-    if(abort_excit(tgt2)) return
+    if(abort_excit(tgt1,tgt2)) return
 
     elec1 = binary_search_first_ge(nI,src1)
     elec2 = binary_search_first_ge(nI,src2)
@@ -122,18 +122,26 @@ contains
 
   contains
 
-    function abort_excit(tgt) result(abort)
+    function abort_excit(tgt,tgt2) result(abort)
       ! check if the target orbital is valid
       ! Input: tgt - orbital we want to know about: Is an excitation to this possible
       ! Output: abort - true if there is no allowed excitation
       implicit none
       integer, intent(in) :: tgt
+      integer, optional, intent(in) :: tgt2
       logical :: abort
 
       abort = IsOcc(ilut,tgt)      
       if(abort) then
          nJ = 0
-         ExcitMat = 0
+         ExcitMat(1,1) = src1
+         ExcitMat(1,2) = src2
+         ExcitMat(2,1) = tgt         
+         if(present(tgt2)) then
+            ExcitMat(2,2) = tgt2
+         else
+            ExcitMat(2,2) = 0
+         endif
          tParity = .false.
       endif
 
@@ -170,6 +178,8 @@ contains
        ! invalidate the excitation, we hit an occupied orbital
        nJ = 0
        excitMat = 0
+       excitMat(1,1) = src
+       excitMat(2,1) = tgt
        tParity = .false.
     else
        elec = binary_search_first_ge(nI,src)
