@@ -975,11 +975,6 @@ contains
         firstgen = excitInfo%firstgen
         lastgen = excitInfo%lastgen
 
-!         call write_det_guga(6,ilutI,.true.)
-!         call write_det_guga(6,ilutJ,.true.)
-!         print *, "I:", temp_step_i
-!         print *, "J:", temp_step_j
-
         ! depending on which type of excitation the non-overlap has a specific 
         ! tbd generator! i should deal with that in the starting if statement
         ! according to my stochastic implementation it is not so hard luckily.. 

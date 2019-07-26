@@ -630,7 +630,7 @@ contains
         call calc_csf_info(ilutI, step_i, b_i, occ_i)
         call calc_csf_info(ilutJ, step_j, b_j, occ_j)
 
-        delta_b = b_i - b_j
+        delta_b = b_j - b_i
 
         ! calculate the bottom contribution depending on the excited stepvalue
         select case (step_i(st))
