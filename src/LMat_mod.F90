@@ -454,7 +454,7 @@ module LMat_mod
       end if
 
       if(tHistLMat) call histogramLMat(LMatLoc)
-      
+
     end subroutine readLMatArray
 
 !------------------------------------------------------------------------------------------!
@@ -570,7 +570,7 @@ module LMat_mod
 
       call h5open_f(err)
       call h5pcreate_f(H5P_FILE_ACCESS_F, plist_id, err)
-      call h5pset_fapl_mpio_f(plist_id, mpi_comm_inter, mpiInfoNull, err)
+      call h5pset_fapl_mpio_f(plist_id, mpi_comm_intra, mpiInfoNull, err)
 
       ! open the file
       call h5fopen_f(filename, H5F_ACC_RDONLY_F, file_id, err, access_prp=plist_id)
@@ -694,12 +694,13 @@ module LMat_mod
          deallocate(entries)
          deallocate(indices)
 
-         call MPIAllLORLogical(running, any_running)
+         ! once all procs on this node are done reading, we can exit
+         call MPI_ALLREDUCE(running, any_running, 1, MPI_LOGICAL, MPI_LOR, mpi_comm_intra, ierr)
 
          ! communicate how many nonzero entries have been read and set the starting point 
          ! for the next write
          if(tSparseLMat) then
-            call MPISumAll(counter,allCounter)
+            call MPI_ALLREDUCE(counter,allCounter,1,MPI_INT,MPI_SUM,mpi_comm_intra,ierr)
             sparseBlockStart = sparseBlockStart + allCounter
          endif
       end do
@@ -717,7 +718,7 @@ module LMat_mod
          LMatLoc%nInts = sparseBlockStart
          call initLMatHash(LMatLoc)
       endif
-
+     
       contains 
 
         function count_entries(entries) result(nEntries)
@@ -773,5 +774,23 @@ module LMat_mod
       write(iout,*) "Matrix elements above", 0.1,":",ratios(0)
       write(iout,*), "Total number of logged matrix elements", lMatObj%nInts
     end subroutine histogramLMat
+
+!------------------------------------------------------------------------------------------!
+
+    ! last resort in debugging: Write out the lmat from memory
+    subroutine write_lmat_debug()
+      implicit none
+      integer :: i
+      character(*), parameter :: lmatfilename = "LMAT_FILE"
+      integer :: iunit
+      
+      iunit = get_free_unit()
+      open(iunit,file=lmatfilename,status='UNKNOWN')
+      do i = 1, size(LMat%LMatPtr)
+         write(iunit,*) LMat%LMatPtr(i)
+      end do
+      close(iunit)
+      
+    end subroutine write_lmat_debug
 
 end module LMat_mod
