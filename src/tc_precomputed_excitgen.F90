@@ -510,6 +510,41 @@ contains
   end subroutine init_pcpp_singles_excitgen
 
   !------------------------------------------------------------------------------------------!
+  ! Finalization routines
+  !------------------------------------------------------------------------------------------!
+  
+  subroutine finalize_pcpp_excitgen()
+    implicit none
+    integer :: j
+    deallocate(refDet)
+
+    call single_elec_sampler%samplerDestructor()
+    
+    call clear_sampler_array(single_hole_sampler)
+    call double_elec_one_sampler%samplerDestructor()
+    call clear_sampler_array(double_elec_two_sampler)
+    call clear_sampler_array(double_hole_one_sampler)
+    do j = 1, size(double_hole_two_sampler)
+       call clear_sampler_array(double_hole_two_sampler(:,j))
+    end do
+  contains
+
+    subroutine clear_sampler_array(arr)
+      ! call the destructor on all elements of an array, then deallocate it
+      type(aliasSampler_t), allocatable :: arr(:)
+
+      integer :: i
+      
+      do i = 1, size(arr)
+         call arr(i)%samplerDestructor()
+      end do
+      deallocate(arr)
+    end subroutine clear_sampler_array
+    
+  end subroutine finalize_pcpp_excitgen
+  
+
+  !------------------------------------------------------------------------------------------!
   ! Auxiliary functions
   !------------------------------------------------------------------------------------------!
 
