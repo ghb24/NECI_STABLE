@@ -515,7 +515,7 @@ contains
   
   subroutine finalize_pcpp_excitgen()
     implicit none
-    integer :: j
+    integer :: j,k
     deallocate(refDet)
 
     call single_elec_sampler%samplerDestructor()
@@ -524,9 +524,12 @@ contains
     call double_elec_one_sampler%samplerDestructor()
     call clear_sampler_array(double_elec_two_sampler)
     call clear_sampler_array(double_hole_one_sampler)
-    do j = 1, size(double_hole_two_sampler)
-       call clear_sampler_array(double_hole_two_sampler(:,j))
+    do j = 1, size(double_hole_two_sampler,1)
+       do k = 1, size(double_hole_two_sampler,2)
+          call double_hole_two_sampler(j,k)%samplerDestructor()
+       end do
     end do
+    call deallocate(double_hole_two_sampler)
   contains
 
     subroutine clear_sampler_array(arr)
