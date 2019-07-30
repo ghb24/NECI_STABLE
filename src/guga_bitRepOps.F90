@@ -1674,9 +1674,9 @@ contains
 
         if (present(flag)) then
             if (flag) then
-                write(nunit, "(A,i3)", advance = 'yes') ") ", ilut(nifguga)
+                write(nunit, "(A,i8)", advance = 'yes') ") ", ilut(nifguga)
             else
-                write(nunit, "(A,i3)", advance = 'no') ") ", ilut(nifguga)
+                write(nunit, "(A,i8)", advance = 'no') ") ", ilut(nifguga)
             end if
         else
             write(nunit, "(A,i8)", advance = 'yes') ") ", ilut(nifguga)

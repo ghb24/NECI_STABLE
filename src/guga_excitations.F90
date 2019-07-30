@@ -8617,9 +8617,7 @@ contains
         ! i also could use the fact that the single weights are already 
         ! initialized within the fullstart weights or?
         ! and then use smth like
-!         weights = weights%single
         weights = weights%ptr
-!         weights = init_singleWeight(ilut, en)
 
         call calcRaisingSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, branch_pgen)
@@ -8661,13 +8659,10 @@ contains
             call calc_mixed_start_r2l_contr(ilut, t, excitInfo, branch_pgen, pgen,&
                 integral)
         end if
-!
+
         ! and finally update the matrix element with all contributions
         call update_matrix_element(t, (get_umat_el(st,en,se,st) + &
             get_umat_el(en,st,st,se))/2.0_dp + integral, 1)
-
-!         print *, "mat_ele: ", extract_matrix_element(t,1)
-!         call neci_flush(6)
 
     end subroutine calcFullStartR2L_stochastic
 

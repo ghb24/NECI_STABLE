@@ -17,7 +17,7 @@ module guga_rdm
     use guga_excitations, only: excitationIdentifier
     use guga_excitations, only: init_singleWeight, calcRemainingSwitches
     use guga_excitations, only: createSingleStart, singleUpdate, singleEnd
-    use guga_excitations, only: checkCompatibility
+    use guga_excitations, only: checkCompatibility, print_excitInfo
     use guga_excitations, only: calcDoubleExcitation_withWeight, &
                                 calcNonOverlapDouble, calcSingleOverlapLowering, &
                                 calcSingleOverlapRaising, calcSingleOverlapMixed, &
@@ -38,7 +38,7 @@ module guga_rdm
     use guga_bitRepOps, only: isProperCSF_ilut, isDouble, init_csf_information
     use guga_bitRepOps, only: write_guga_list, write_det_guga, getSpatialOccupation
     use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI, getDeltaB
-    use guga_bitRepOps, only: calc_csf_info
+    use guga_bitRepOps, only: calc_csf_info, add_guga_lists
     use MemoryManager, only: LogMemAlloc, LogMemDealloc
     use bit_reps, only: nifguga
     use FciMCData, only: projEDet, CurrentDets, TotWalkers
@@ -417,7 +417,7 @@ contains
 
         integer :: i, NoDets, StartDets, nI(nel), nJ(nel), PartInd, FlagsDj
         integer :: rdm_ind, j, ab, cd, a, b, c, d
-        integer(n_int) :: ilutJ(0:niftot)
+        integer(n_int) :: ilutJ(0:nifguga), ilutI(0:nifguga)
         real(dp) :: mat_ele, sign_i(lenof_sign), sign_j(lenof_sign)
         logical :: tDetFound
 
@@ -428,11 +428,13 @@ contains
 
             if (NoDets > 1) then 
 
-                sign_i = extract_matrix_element(Doub_ExcDjs2(:,StartDets), 2)
+                ilutI = Doub_ExcDjs2(:,StartDets)
+
+                sign_i = extract_matrix_element(ilutI, 2)
 
                 do j = StartDets + 1, (NoDets + StartDets - 1)
 
-                    call convert_ilut_toNECI(Doub_ExcDjs2(:,j), ilutJ)
+                    ilutJ = Doub_ExcDjs2(:,j)
 
                     call BinSearchParts_rdm(ilutJ, 1, int(TotWalkers, sizeof_int), &
                         PartInd, tDetFound)
@@ -441,13 +443,20 @@ contains
 
                         call extract_bit_rep(CurrentDets(:,PartInd), nJ, sign_j, FlagsDj)
 
-                        mat_ele = extract_matrix_element(Doub_ExcDjs2(:,j), 1)
-                        rdm_ind = getDeltaB(Doub_ExcDjs2(:,j))
+                        mat_ele = extract_matrix_element(ilutJ, 1)
+                        rdm_ind = getDeltaB(ilutJ)
 
                         call calc_separate_rdm_labels(rdm_ind, ab, cd, a, b, c, d)
 
-                        call add_to_rdm_spawn_t(two_rdm_spawn, a, b, c, d, & 
-                            sign_i * sign_j * mat_ele, .true.)
+                        ! if we mimic stochastic, we have to deal with the 
+                        ! mixed full-start/stops
+                        if (t_mimic_stochastic .and. (a == d .or. b == c)) then 
+                            call fill_mixed_2rdm_guga(two_rdm_spawn, ilutI, & 
+                                ilutJ, sign_i, sign_j, mat_ele, rdm_ind)
+                        else 
+                            call add_to_rdm_spawn_t(two_rdm_spawn, a, b, c, d, & 
+                                sign_i * sign_j * mat_ele, .true.)
+                        end if
 
                         if (t_test_sym_fill) then 
                             ! i only calculate excitations with ab < cd in this case
@@ -511,7 +520,6 @@ contains
                     ! apparently D_i is in the first spot and all 
                     ! excitations come here afterwards.. 
 
-!                     call convert_ilut_toNECI(Sing_ExcDjs2(:,j), ilutJ)
                     ilutJ = Sing_ExcDjs2(:,j)
 
                     call BinSearchParts_rdm(ilutJ,1,int(TotWalkers,sizeof_int),PartInd,tDetFound)
@@ -567,6 +575,64 @@ contains
         end do
 
     end subroutine fill_sings_1rdm_guga
+
+    subroutine fill_mixed_2rdm_guga(spawn, ilutI, ilutJ, sign_i, sign_j, mat_ele, & 
+            rdm_ind, excitInfo_opt)
+        ! this is the routine where I test the filling of 2-RDM based on 
+        ! single excitations to mimic the workflow in the stochastic 
+        ! RDM sampling
+        type(rdm_spawn_t), intent(inout) :: spawn
+        integer(n_int), intent(in) :: ilutI(0:nifguga), ilutJ(0:nifguga)
+        real(dp), intent(in) :: sign_i(:), sign_j(:), mat_ele
+        integer, intent(in) :: rdm_ind
+        type(excitationInformation), intent(in), optional :: excitInfo_opt
+        character(*), parameter :: this_routine = "fill_mixed_2rdm_guga"
+
+        type(excitationInformation) :: excitInfo
+        integer :: ij, kl, i, j, k, l
+        ! mimic the stochastic processes for the explicit excitation 
+        ! generation
+        
+        ! for the explicit code, I first need to recalculate the type 
+        ! of excitation.. I am not sure how the indices will be encoded..
+        if (present(excitInfo_opt)) then 
+            excitInfo = excitInfo_opt
+        else
+            call calc_separate_rdm_labels(rdm_ind, ij, kl, i, j, k, l)
+
+            excitInfo = excitationIdentifier(i, j, k, l)
+        end if
+
+        print *, "========="
+        call write_det_guga(6, ilutI, .true.)
+        call write_det_guga(6, ilutJ, .true.)
+        call print_excitInfo(excitInfo)
+        print *, "ijkl: ", i,j,k,l
+
+        select case (excitInfo%typ)
+
+        case (16)
+            call fill_mixed_end_l2r()
+
+        case (17)
+            call fill_mixed_end_r2l()
+
+        case (20)
+            call fill_mixed_start_l2r()
+
+        case (21)
+            call fill_mixed_start_r2l()
+
+        case (23) 
+            call fill_mixed_start_end()
+
+        case default
+            call print_excitInfo(excitInfo)
+            call Stop_All(this_routine, "wrong excitation type here")
+
+        end select
+
+    end subroutine fill_mixed_2rdm_guga
 
     subroutine fill_sings_2rdm_guga(spawn, ilutI, ilutJ, sign_i, sign_j, mat_ele, rdm_ind)
         ! this is the routine where I test the filling of 2-RDM based on 
@@ -1057,12 +1123,6 @@ contains
                             call calc_all_excits_guga_rdm_doubles(ilut, i, j, k, l, &
                                 temp_excits, n_excits)
 
-!                             if (i == 7 .and. j == 1 .and. k == 5 .and. l == 7) then 
-!                                 print *, "==============="
-!                                 call write_det_guga(6, ilut, .true.)
-!                                 call write_guga_list(6, temp_excits(:,1:n_excits))
-!                             end if
-
 #ifdef __DEBUG
                             do n = 1, n_excits
                                 if (.not. isProperCSF_ilut(temp_excits(:,n),.true.)) then 
@@ -1087,12 +1147,21 @@ contains
 #endif
 
                                 if (n_excits > 1) then
-                                    call add_guga_lists_rdm(n_tot, n_excits - 1, &
-                                        tmp_all_excits, temp_excits(:,2:))
+!                                     if (t_mimic_stochastic) then 
+!                                         call add_guga_lists(n_tot, n_excits - 1, &
+!                                             tmp_all_excits, temp_excits(:,2:))
+!                                     else
+                                        call add_guga_lists_rdm(n_tot, n_excits - 1, &
+                                            tmp_all_excits, temp_excits(:,2:))
+!                                     end if
                                 end if
                             else
                                 if (n_excits > 0) then 
-                                    call add_guga_lists_rdm(n_tot, n_excits, tmp_all_excits, temp_excits)
+!                                     if (t_mimic_stochastic) then
+!                                         call add_guga_lists(n_tot, n_excits, tmp_all_excits, temp_excits)
+!                                     else
+                                        call add_guga_lists_rdm(n_tot, n_excits, tmp_all_excits, temp_excits)
+!                                     end if
                                 end if
                             end if
 
