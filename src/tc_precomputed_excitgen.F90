@@ -90,22 +90,33 @@ contains
     ! mapping electrons in the reference to orbitals in the current det is not 1-to-1
     ! so we need to remove an orbital after it has been mapped to, this is what ilutEx is for
     integer(n_int) :: ilutEx(0:NIfTot)
+    character(*), parameter :: t_r = "generate_double_pcpp"
 
     call double_elec_one_sampler%sample(src1,pSGen1)
     src1 = map_elec_from_ref(ilut, src1)
+    
+    pGen = pSGen1
+    ! in very rare cases, no mapping is possible in the first place
+    ! then, abort
+    if(invalid_mapping(src1)) return
+    
     call double_elec_two_sampler(src1)%sample(src2,pSGen2)
-
     ! we use ilutEx for the second mapping: remove the already-mapped-to orbital, so we
     ! cannot map to it a second time
     ilutEx = ilut
     clr_orb(ilutEx,src1)
     src2 = map_elec_from_ref(ilutEx, src2)
+    
+    pGen = pGen * pSGen2
+    ! it is possible to not be able to map the second electron if
+    ! the first mapping occupied the only available slot
+    if(invalid_mapping(src2)) return
 
     if(src2 < src1) call intSwap(src1,src2)
 
     call double_hole_one_sampler(src1)%sample(tgt1,pTGen1)
     ! generation probability  so far to ensure it has a valid value on return in any case
-    pGen = pSGen1 * pSGen2 * pTGen1
+    pGen = pGen * pTGen1
     if(abort_excit(tgt1)) return
     ! we need a specific symmetry now
     tgtSym = symprod(G1(src1)%Sym,G1(src2)%Sym)
@@ -114,7 +125,7 @@ contains
 
     ! Update the generation probability
     pGen = pGen * pTGen2
-    if(abort_excit(tgt1,tgt2)) return
+    if(abort_excit(tgt2,tgt1)) return
 
     elec1 = binary_search_first_ge(nI,src1)
     elec2 = binary_search_first_ge(nI,src2)
@@ -122,16 +133,38 @@ contains
 
   contains
 
+    function invalid_mapping(src,src2) result(abort)
+      ! check if the mapping was successful
+      ! Input: src - electron we want to know about: did the mapping succeed?
+      !        src2 - other chosen electron
+      ! Output: abort - true if the mapping failed
+      implicit none
+
+      integer, intent(in) :: src
+      integer, optional, intent(in) :: src2
+      logical :: abort
+
+      abort = src.eq.0
+      if(abort) then
+         nJ = 0
+         tParity = .false.
+         ExcitMat = 0
+         if(present(src2)) ExcitMat(1,1) = src2
+      endif
+      
+    end function invalid_mapping
+
     function abort_excit(tgt,tgt2) result(abort)
       ! check if the target orbital is valid
       ! Input: tgt - orbital we want to know about: Is an excitation to this possible
+      !        tgt2 - second target orbital if already obtained
       ! Output: abort - true if there is no allowed excitation
       implicit none
       integer, intent(in) :: tgt
       integer, optional, intent(in) :: tgt2
       logical :: abort
-
-      abort = IsOcc(ilut,tgt)      
+      
+      abort = IsOcc(ilut,tgt)
       if(abort) then
          nJ = 0
          ExcitMat(1,1) = src1
@@ -194,7 +227,7 @@ contains
   ! Functions that map orbital and electron indices between reference and current determinant
   !------------------------------------------------------------------------------------------!  
 
-  pure function map_elec_from_ref(ilut, iElec) result(src)
+  function map_elec_from_ref(ilut, iElec) result(src)
     ! Transfer an electron index within the reference to an orbital index
     ! within the current determinant nI
     ! Input: nI - current determinant
@@ -215,6 +248,8 @@ contains
        src = refOrb
        return
     endif
+    ! if the mapping is not possible, return 0
+    src = 0
 
     ! count through the orbitals in energy order
     ! - BRR from SystemData.F90 is a list of the orbitals in energy order
@@ -224,9 +259,11 @@ contains
        if(IsOcc(ilut,BRR(iOrb)) .and. .not.IsOcc(ilutReference,BRR(iOrb)) .and. &
             same_spin(BRR(iOrb),refOrb)) then
           src = BRR(iOrb)
+          print *, "Mapping:", refOrb, "to", src
           return
        endif
     end do
+    print *, "Mapping:", refOrb, "to", src
 
   end function map_elec_from_ref
 

@@ -29,7 +29,7 @@ contains
     call init_pcpp_excitgen()
 
     ! run the test: do nSamples excitations, and compare them with all possible excits
-    !call test_excitation_generator(nSamples,pTot,pNull)
+    call test_excitation_generator(nSamples,pTot,pNull)
     call free_ref()
     call finalize_excitgen_test()    
   end subroutine pcpp_test_driver

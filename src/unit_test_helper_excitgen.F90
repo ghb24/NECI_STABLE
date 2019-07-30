@@ -49,8 +49,8 @@ contains
     real(dp) :: pgenArr(lenof_sign)
     real(dp) :: matel, matelN
     type(excit_gen_store_type) :: store
-    logical :: exDoneDouble(1:nel,1:nel,0:nBasis,0:nBasis)
-    logical :: exDoneSingle(1:nel,0:nBasis)
+    logical :: exDoneDouble(0:nBasis,0:nBasis,0:nBasis,0:nBasis)
+    logical :: exDoneSingle(0:nBasis,0:nBasis)
     integer :: ic, part
     HElement_t(dp) :: HEl
     exDoneDouble = .false.
@@ -60,7 +60,7 @@ contains
     ! defeat the purpose
     do i = 1, nel
        if(2*i < nBasis) then
-          nI(i) = 2*i
+          nI(i) = 2*i-mod(i,2)
        else
           nI(i) = i
        endif
