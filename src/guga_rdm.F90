@@ -630,7 +630,7 @@ contains
         call calc_csf_info(ilutI, step_i, b_i, occ_i)
         call calc_csf_info(ilutJ, step_j, b_j, occ_j)
 
-        delta_b = b_j - b_i
+        delta_b = b_i - b_j
 
         ! calculate the bottom contribution depending on the excited stepvalue
         select case (step_i(st))
@@ -790,9 +790,9 @@ contains
 
         ! start segment: only W + R/L
         ! but this depends on the type of excitation here.. or?
-        call add_to_rdm_spawn_t(spawn, st, st, st, en, & 
+        call add_to_rdm_spawn_t(spawn, st, st, i, a, & 
             StartCont * sign_i * sign_j * mat_ele, .true.)
-        call add_to_rdm_spawn_t(spawn, st, en, st, st, &
+        call add_to_rdm_spawn_t(spawn, i, a, st, st, &
             StartCont * sign_i * sign_j * mat_ele, .true.)
 
         ! loop over excitation range: 
@@ -809,7 +809,7 @@ contains
             ! oh damn I need the delta-B value here.. 
             d_i = step_i(iO)
             d_j = step_j(iO)
-            delta = delta_b(iO)
+            delta = delta_b(iO-1)
 
             prod = getDoubleContribution(d_j, d_i, delta, gen, real(b_i(iO),dp))
 
@@ -821,9 +821,9 @@ contains
         end do
         
         ! end contribution
-        call add_to_rdm_spawn_t(spawn, en, en, st, en, & 
+        call add_to_rdm_spawn_t(spawn, en, en, i, a, & 
             EndCont * sign_i * sign_j * mat_ele, .true.)
-        call add_to_rdm_spawn_t(spawn, st, en, en, en, &
+        call add_to_rdm_spawn_t(spawn, i, a, en, en, &
             EndCont * sign_i * sign_j * mat_ele, .true.)
 
         ! loop above: 
@@ -854,9 +854,9 @@ contains
 
                 do jO = en + 1, iO - 1
 
-                    step = step_i(iO)
+                    step = step_i(jO)
 
-                    call getDoubleMatrixElement(step,step,0,-1,+1,real(b_i(iO), dp),&
+                    call getDoubleMatrixElement(step,step,0,-1,+1,real(b_i(jO), dp),&
                         1.0_dp,x1_element = tempWeight)
 
                     prod = prod * tempWeight
@@ -1057,8 +1057,20 @@ contains
                             call calc_all_excits_guga_rdm_doubles(ilut, i, j, k, l, &
                                 temp_excits, n_excits)
 
+!                             if (i == 7 .and. j == 1 .and. k == 5 .and. l == 7) then 
+!                                 print *, "==============="
+!                                 call write_det_guga(6, ilut, .true.)
+!                                 call write_guga_list(6, temp_excits(:,1:n_excits))
+!                             end if
+
 #ifdef __DEBUG
                             do n = 1, n_excits
+                                if (.not. isProperCSF_ilut(temp_excits(:,n),.true.)) then 
+                                    print *, "===="
+                                    call write_det_guga(6, ilut, .true.)
+                                    call write_det_guga(6, temp_excits(:,n),.true.)
+                                    print *, i,j,k,l
+                                end if
                                 ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
                             end do
 #endif
@@ -1375,6 +1387,7 @@ contains
 
             end select
         end if
+
         select case(excitInfo%typ)
         case(0)
             ! shouldnt be here.. onyl single excits and full weight gens

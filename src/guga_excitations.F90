@@ -13429,19 +13429,6 @@ contains
 
     end subroutine calcAllExcitations_excitInfo_single
 
-!     subroutine calcAllExcitations_excitInfo_double(ilut, excitInfo, doubleFlag, &
-!             excitations, nExcits)
-!         ! excitation calculation if excitInfo is already calculated
-!         integer(n_int), intent(in) :: ilut(0:nifguga)
-!         type(excitationInformation), intent(in) :: excitInfo
-!         integer, intent(in) :: doubleFlag
-!         integer(n_int), intent(out), pointer :: excitations(:,:)
-!         integer, intent(out) :: nExcits
-! 
-!         ! to do combine (i.j,k.l) version and this one
-! 
-!     end subroutine calcAllExcitations_excitInfo_double
-
     subroutine calcAllExcitations_single(ilut, i, j, excitations, nExcits)
         ! function to calculate all possible single excitation for a CSF 
         ! given in (ilut) format and indices (i,j). used to calculated 
@@ -13586,299 +13573,6 @@ contains
 
     end subroutine calcAllExcitations_single
 
-
-!     subroutine singleUpdate(ilut, sOrb, excitInfo, posSwitches, negSwitches, &
-!             tempExcits, nExcits)
-!         ! update function for calculation of all single excitations of a 
-!         ! given CSF ilut. 
-!         integer(n_int), intent(in) :: ilut(0:nifguga)
-!         integer, intent(in) :: sOrb
-!         type(excitationInformation), intent(in) :: excitInfo
-!         real(dp), intent(in) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
-!         integer(n_int), intent(inout) :: tempExcits(:,:)
-!         integer, intent(inout) :: nExcits
-!         character(*), parameter :: this_routine = "singleUpdate"
-!         integer(n_int) :: t(0:nifguga)
-!         integer :: iEx, cnt, deltaB, gen
-!         real(dp) :: plusWeight, minusWeight, tempWeight, bVal
-! 
-!         ASSERT(isProperCSF_ilut(ilut))
-!         ASSERT(sOrb > 0 .and. sOrb <= nBasis/2)
-! 
-! 
-!         if (isZero(ilut, sOrb)) then
-!             ! do nothin actually.. not even change matrix elements
-!             return
-! 
-!         else if (isThree(ilut, sOrb)) then
-!             ! only change matrix element to negative one
-!             do iEx = 1, nExcits
-!                 call update_matrix_element(tempExcits(:,iEx), -1.0_dp, 1)   
-!             end do 
-!             return
-! 
-!         end if
-! 
-!         ! to generally use this function i need to define a current generator...
-!         ! TODO
-!         gen = excitInfo%currentGen
-!         bVal = currentB_ilut(sOrb)
-! 
-!         if (isOne(ilut, sOrb)) then
-!             ! if 1 or 2 as stepvalue need probWeight
-!             ! but only calc. it if the bValue fits..
-!             ! to avoid divison by 0
-!             call calcSingleProbWeight(ilut, sOrb, excitInfo%fullEnd, posSwitches(sOrb), &
-!                 negSwitches(sOrb), plusWeight, minusWeight)
-! 
-!             ! if its a deltaB = -1 this is a switch possib, indepentent 
-!             ! of the b-vector.. 
-!             ! have to loop over already created excitations
-! 
-!             ! maybe check if weight is positive before loop, as it is always 
-!             ! the same and then do an according update..
-!             ! is positive weight is 0, negative weight has to be >0
-!             ! or else we wouldn be here -> no switches just update -1 branches
-!             if (plusWeight == 0.0_dp) then 
-!                 ! no switches lead to  a nonzero excitation, just update 
-!                 ! matrix element and stay on track
-!                 do iEx = 1, nExcits 
-!                     ! just update matrix elements, todo
-!                     ! need deltaB value
-! #ifdef __DEBUG
-!                     deltaB = getDeltaB(tempExcits(:,iEx))
-!                     ! check if a +1 is encountert
-!                     ASSERT(deltaB == -1)
-! #endif
-! 
-!                     tempWeight = extract_part_sign(tempExcits(:,iEx), 1) * &
-!                         getSingleMatrixElement(1,1,-1, gen, bVal )
-! 
-!                     call encode_part_sign(tempExcits(:,iEx), tempWeight, 1)
-! 
-!                 end do
-!             ! when negative weight is 0, positiv weight has to be > 0
-!             ! so update positive branches and switch negative ones
-!             else if (minusWeight == 0.0_dp) then
-!                 do iEx = 1, nExcits
-!                     t = tempExcits(:,iEx)
-!                     deltaB = getDeltaB(t)
-!                     tempWeight = extract_part_sign(t, 1)
-!                     
-!                     if (deltaB == 1) then
-!                          ! only encode new matrix element in this case
-!                          call encode_part_sign(t, tempWeight * &
-!                              getSingleMatrixElement(1,1,deltaB,gen,bVal),1)
-! 
-!                     else
-!                         ! switch also 1 -> 2
-!                         clr_orb(t, 2*sOrb -1)
-!                         set_orb(t, 2*sOrb)
-!                         
-!                         call setDeltaB(1, t)
-! 
-!                         call encode_part_sign(t, tempWeight * &
-!                             getSingleMatrixElement(2,1,deltaB,gen,bVal),1)
-! 
-!                     end if
-!                     tempExcits(:,iEx) = t
-!                 end do
-!             ! both weights are positiv, staying on track and switching possib
-!             else 
-!                 ! check if deltaB=-1
-!                 do iEx = 1, nExcits
-!                     ! staying on track possible for all excitations. calculate
-!                     ! matrix element for those todo:
-!                     deltaB = getDeltaB(tempExcits(:,iEx))
-! 
-!                     tempWeight = extract_part_sign(tempExcits(:,iEx), 1)
-!                     
-!                     call encode_part_sign(tempExcits(:,iEx), tempWeight * &
-!                         getSingleMatrixElement(1,1,deltaB,gen,bVal), 1)
-! 
-!                     if (deltaB == -1) then
-!                         ! for deltaB=-1 branch a 1 is a switch possibility, if 
-!                         ! weight of positive branch is non-zero. 
-!                         ! new excitations get appended at the end of tempExcits
-!                         nExcits = nExcits + 1
-!                         t = tempExcits(:,iEx)
-!                         ! have to change corresponding bits
-!                         clr_orb(t, 2*sOrb - 1)
-!                         set_orb(t, 2*sOrb)
-! 
-!                         ! update matrix element and deltaB flag on new branch
-!                         call setDeltaB(1, t)
-!                         ! forgot the decision with which deltaB i should access
-!                         ! the matrix elements then... todo
-!                         call encode_part_sign(t, tempWeight * &
-!                             getSingleMatrixElement(2,1,deltaB,gen,bVal),1)
-! 
-!                         ! and fill into list with correct deltaB
-!                         tempExcits(:, nExcits) = t
-! 
-! 
-!                     end if
-!                 end do
-!             end if
-! 
-!         else 
-!             ! if it is a 2, it gets a bit more complicated, with the forced 
-!             ! switches and non-possible stayings...
-!             ! if it is a forcesd switch but the negative weight is zero 
-!             ! i should set the matrix element to zero and move on
-!             ! if the weight is not zero but its still a forced switch 
-!             ! i should update it on the spot, and not add any additional 
-!             ! excitations. but if switch is possible and weights is 
-!             ! bigger then zero do it as above
-! 
-!             ! if b < 1 there is always a forced switch for +1 branch,
-!             ! but this situation is not covered by my probWeights... 
-!             ! hence here i have to additionally check and it could lead to 
-!             ! no excitations at all. 
-! 
-!             ! did some bullshit thinking here....
-!             
-!             ! have to rewrite that... 
-!             ! but essentially this whole function is deprecated
-! !             if (bVal == 0.0_dp) then
-! !                 ! dont calc weights... or else div. by zero...
-! !                 ! here need to check if there are remaining neg. switches if
-! !                 ! there has to be a +1 end.. or else abort the excitation
-! !                 ! but which index do i access here? could be fullEnd, semiStop
-! !                 ! etc.. fuck
-! !                 ! use weight object %fx elements etc.. there the right 
-! !                 ! value is initialized all the time
-! !                 if (negSwitches(sOrb) == 0.0_dp .and. endFx(ilut,excitInfo
-! ! 
-! !             else 
-! !                 ! if 1 or 2 as stepvalue need probWeight
-! !                 ! but only calc. it if the bValue fits..
-! !                 ! to avoid divison by 0
-! !                 call calcSingleProbWeight(ilut, sOrb, excitInfo%fullEnd, posSwitches(sOrb), &
-! !                     negSwitches(sOrb), plusWeight, minusWeight)
-! ! 
-! !             end if
-! 
-! 
-!             if (bVal <= 1.0_dp .and. minusWeight == 0.0_dp) then
-!                 ! delete excitations
-!                 ! have to adjust the amount of excitations processed manually, 
-!                 ! since i have to delete some maybe
-!                 ! update: actually i have to delete the whole excitation in 
-!                 ! this case, since forces switches not handled in my 
-!                 ! weight calculations...
-!                 ! todo how to implement that... have to assert that in 
-!                 ! the above function too
-! !                 cnt = 1
-! !                 do iEx = 1, nExcits
-! !                     if (getDeltaB(tempExcits(:,cnt)) == 1) then
-! !                         ! how to efficiently delete? 
-! !                         ! delete current det by just overwriting it with last
-! !                         ! one in list and reprocessing that one 
-! !                         tempExcits(:,cnt) = tempExcits(:,nExcits)
-! !                         nExcits = nExcits - 1
-! !                         cycle
-! !                     end if
-! !                     ! if not +1 branch:
-! !                     ! update matrix elements and increase cnt
-! !                     tempWeight = extract_part_sign(tempExcits(:,cnt), 1) * &
-! !                         getSingleMatrixElement(2, 2, 1, gen, bVal - 1.0_dp)
-! ! 
-! !                     call encode_part_sign(tempExcits(:,cnt), tempWeight, 1)
-! !                     
-! ! 
-! !                     cnt = cnt + 1
-! !                 end do
-! 
-!             else if ((bVal > 1.0_dp .and. plusWeight == 0.0_dp) .or. &
-!                 (bVal <= 1.0_dp .and. minusWeight > 0.0_dp)) then
-!                 ! update on spot and switch
-!                 ! in this case all +1 branches HAVE to switch, but leave them 
-!                 ! in same position
-!                 do iEx = 1, nExcits
-!                     if (getDeltaB(tempExcits(:,iEx)) == 1) then
-!                         
-!                         ! change stepvectors and branch
-!                         t = tempExcits(:,iEx)
-!                         
-!                         set_orb(t, 2*sOrb -1)
-!                         clr_orb(t, 2*sOrb)
-!                         
-!                         call setDeltaB(-1, t)
-!                         !todo figure out how deltaB should be accessed
-!                         tempWeight = extract_part_sign(t, 1) * &
-!                             getSingleMatrixElement(1, 2, 1, gen, bVal)
-! 
-!                         call encode_part_sign(t, tempWeight, 1)
-! 
-!                         tempExcits(:,iEx) = t
-! 
-!                         
-!                     else
-!                         ! else just update the matrix elements todo:
-!                         tempWeight = extract_part_sign(tempExcits(:,iEx), 1)* &
-!                             getSingleMatrixElement(2, 2, -1, gen, bVal )
-! 
-!                         call encode_part_sign(tempExcits(:,iEx), tempWeight, 1)
-! 
-!                     end if
-!                 end do
-! 
-!             else if (bVal > 1.0_dp .and. minusWeight == 0.0_dp) then
-!                 ! update on spot stay
-!                 ! in this case staying on branch is possible for +1 and a 
-!                 ! -1 branch would have a zero weight, so just update matrix 
-!                 ! elements in this case todo
-!                 ! but no additional excitations...
-! 
-!                 do iEx = 1, nExcits
-! #ifdef __DEBUG
-!                     deltaB = getDeltaB(tempExcits(:, iEx))
-!                     ASSERT(deltaB == +1)
-! #endif
-! 
-!                     tempWeight = extract_part_sign(tempExcits(:,iEx), 1) * &
-!                         getSingleMatrixElement(2, 2, 1, gen, bVal )
-! 
-!                 end do
-! 
-!             else if (bVal > 1.0_dp .and. minusWeight > 0.0_dp .and. plusWeight > 0.0_dp) then
-!                 ! update stay on spot and add additional excitations
-!                 do iEx = 1, nExcits
-!                     ! first update matrix elements from staying excitations
-!                     deltaB = getDeltaB(tempExcits(:,iEx))
-! 
-!                     tempWeight = extract_part_sign(tempExcits(:,iEx), 1)
-! 
-!                     call encode_part_sign(tempExcits(:,iEx), tempWeight * &
-!                         getSingleMatrixElement(2,2,deltaB,gen,bVal),1)
-! 
-!                     if (deltaB == 1) then
-!                         ! for deltaB +1 branches switch possibility
-!                         nExcits = nExcits + 1
-!                         ! change bits and branch and store at end
-!                         t = tempExcits(:,iEx)
-! 
-!                         set_orb(t, 2*sOrb - 1)
-!                         clr_orb(t, 2*sOrb)
-! 
-!                         call setDeltaB(-1, t)
-!                         !todo how to index with deltaB
-!                         call encode_part_sign(t, tempWeight * &
-!                             getSingleMatrixElement(1,2,-1,gen,bVal),1)
-! 
-!                         tempExcits(:, nExcits) = t
-! 
-!                     end if
-!                 end do
-!             else 
-!                 ! something went wrong in this case
-!                 call stop_all(this_routine, &
-!                     "something went wrong in the excitation generation, shouldnt be here!")
-!             end if
-!         end if
-! 
-!     end subroutine singleUpdate
 
 
     subroutine doubleUpdate(ilut, sO, excitInfo, weights, tempExcits, nExcits,&
@@ -15050,260 +14744,7 @@ contains
         end if
 
     end subroutine singleUpdate
-    
-!     subroutine singleOverlapLoweringUpdate(ilut, sOrb, excitInfo, posSwitches, negSwitches, &
-!             tempExcits, nExcits)
-!         ! update function for calculation of all single excitations of a 
-!         ! given CSF ilut. 
-!         integer(n_int), intent(in) :: ilut(0:nifguga)
-!         integer, intent(in) :: sOrb
-!         type(excitationInformation), intent(in) :: excitInfo
-!         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nBasis/2)
-!         integer(n_int), intent(inout) :: tempExcits(:,:)
-!         integer, intent(inout) :: nExcits
-!         character(*), parameter :: this_routine = "singleOverlapLoweringUpdate"
-!         integer(n_int) :: t(0:nifguga)
-!         integer :: iEx, cnt, deltaB, gen
-!         real(dp) :: plusWeight, minusWeight, tempWeight, bVal
-! 
-!         ASSERT(isProperCSF_ilut(ilut))
-!         ASSERT(sOrb > 0 .and. sOrb <= nBasis/2)
-! 
-!         if (isZero(ilut, sOrb)) then
-!             ! do nothin actually.. not even change matrix elements
-!             return
-! 
-!         else if (isThree(ilut, sOrb)) then
-!             ! only change matrix element to negative one
-!             do iEx = 1, nExcits
-!                 tempWeight = -extract_part_sign(tempExcits(:,iEx), 1) 
-! 
-!                 call encode_part_sign(tempExcits(:,iEx), tempWeight, 1)
-!             end do 
-!             return
-! 
-!         end if
-!         ! if 1 or 2 as stepvalue need probWeight
-!         call singleOverlapLoweringWeight(ilut, sOrb, excitInfo%secondStart,&
-!             excitInfo%fullEnd, posSwitches, negSwitches, plusWeight, minusWeight)
-! 
-!         ! to generally use this function i need to define a current generator...
-!         ! TODO
-!         gen = excitInfo%currentGen
-!         bVal = currentB_ilut(sOrb)
-! 
-!         if (isOne(ilut, sOrb)) then
-!             ! if its a deltaB = -1 this is a switch possib, indepentent 
-!             ! of the b-vector.. 
-!             ! have to loop over already created excitations
-! 
-!             ! maybe check if weight is positive before loop, as it is always 
-!             ! the same and then do an according update..
-!             if (plusWeight == 0.0_dp) then
-!                 ! no switches lead to  a nonzero excitation, just update 
-!                 ! matrix element and stay on track
-!                 do iEx = 1, nExcits 
-!                     ! need deltaB value
-! #ifdef __DEBUG
-!                     deltaB = getDeltaB(tempExcits(:,iEx))
-!                     ASSERT(deltaB == -1)
-! #endif
-! 
-!                     tempWeight = extract_part_sign(tempExcits(:,iEx), 1) * &
-!                         getSingleMatrixElement(1,1,-1, gen, bVal)
-! 
-!                     call encode_part_sign(tempExcits(:,iEx), tempWeight, 1)
-! 
-!                 end do
-!             else if (minusWeight == 0.0_dp) then
-!                 do iEx = 1, nExcits
-!                     t = tempExcits(:,iEx)
-!                     deltaB = getDeltaB(t)
-!                     tempWeight = extract_part_sign(t, 1)
-!                     
-!                     if (deltaB == 1) then
-!                          ! only encode new matrix element in this case
-!                          call encode_part_sign(t, tempWeight * &
-!                              getSingleMatrixElement(1,1,deltaB,gen,bVal),1)
-! 
-!                     else
-!                         ! switch also 1 -> 2
-!                         clr_orb(t, 2*sOrb -1)
-!                         set_orb(t, 2*sOrb)
-!                         
-!                         call setDeltaB(1, t)
-! 
-!                         call encode_part_sign(t, tempWeight * &
-!                             getSingleMatrixElement(2,1,deltaB,gen,bVal),1)
-! 
-!                     end if
-!                     tempExcits(:,iEx) = t
-!                 end do
-!             ! both weights are positiv, staying on track and switching possib
-!             else
-!                 ! check if deltaB=-1
-!                 do iEx = 1, nExcits
-!                     ! staying on track possible for all excitations. calculate
-!                     deltaB = getDeltaB(tempExcits(:,iEx))
-! 
-!                     tempWeight = extract_part_sign(tempExcits(:,iEx), 1)
-!                     
-!                     call encode_part_sign(tempExcits(:,iEx), tempWeight * &
-!                         getSingleMatrixElement(1,1,deltaB,gen,bVal), 1)
-! 
-!                     if (deltaB == -1) then
-!                         ! for deltaB=-1 branch a 1 is a switch possibility, if 
-!                         ! weight of positive branch is non-zero. 
-!                         ! new excitations get appended at the end of tempExcits
-!                         nExcits = nExcits + 1
-!                         t = tempExcits(:,iEx)
-!                         ! have to change corresponding bits
-!                         clr_orb(t, 2*sOrb - 1)
-!                         set_orb(t, 2*sOrb)
-! 
-!                         ! update matrix element and deltaB flag on new branch
-!                         call setDeltaB(1, t)
-!                         ! forgot the decision with which deltaB i should access
-!                         call encode_part_sign(t, tempWeight * &
-!                             getSingleMatrixElement(2,1,deltaB,gen,bVal),1)
-! 
-!                         ! and fill into list with correct deltaB
-!                         tempExcits(:, nExcits) = t
-! 
-! 
-!                     end if
-!                 end do
-!             end if
-! 
-!         else 
-!             ! if it is a 2, it gets a bit more complicated, with the forced 
-!             ! switches and non-possible stayings...
-!             ! if it is a forcesd switch but the negative weight is zero 
-!             ! i should set the matrix element to zero and move on
-!             ! if the weight is not zero but its still a forced switch 
-!             ! i should update it on the spot, and not add any additional 
-!             ! excitations. but if switch is possible and weights is 
-!             ! bigger then zero do it as above
-! 
-!           if (bVal <= 1.0_dp .and. minusWeight == 0.0_dp) then
-!                 ! delete excitations
-!                 ! have to adjust the amount of excitations processed manually, 
-!                 ! since i have to delete some maybe
-!                 ! update: actually i have to delete the whole excitation in 
-!                 ! this case, since forces switches not handled in my 
-!                 ! weight calculations...
-!                 ! todo how to implement that... have to assert that in 
-!                 ! the above function too
-! !                 cnt = 1
-! !                 do iEx = 1, nExcits
-! !                     if (getDeltaB(tempExcits(:,cnt)) == 1) then
-! !                         ! how to efficiently delete? 
-! !                         ! delete current det by just overwriting it with last
-! !                         ! one in list and reprocessing that one 
-! !                         tempExcits(:,cnt) = tempExcits(:,nExcits)
-! !                         nExcits = nExcits - 1
-! !                         cycle
-! !                     end if
-! !                     ! if not +1 branch:
-! !                     ! update matrix elements and increase cnt
-! !                     tempWeight = extract_part_sign(tempExcits(:,cnt), 1) * &
-! !                         getSingleMatrixElement(2, 2, 1, gen, bVal - 1.0_dp)
-! ! 
-! !                     call encode_part_sign(tempExcits(:,cnt), tempWeight, 1)
-! !                     
-! ! 
-! !                     cnt = cnt + 1
-! !                 end do
-! 
-!             else if ((bVal > 1.0_dp .and. plusWeight == 0.0_dp) .or. &
-!                 (bVal <= 1.0_dp .and. minusWeight > 0.0_dp)) then
-!                 ! update on spot and switch
-!                 ! in this case all +1 branches HAVE to switch, but leave them 
-!                 ! in same position
-!                 do iEx = 1, nExcits
-!                     if (getDeltaB(tempExcits(:,iEx)) == 1) then
-!                         
-!                         ! change stepvectors and branch
-!                         t = tempExcits(:,iEx)
-!                         
-!                         set_orb(t, 2*sOrb -1)
-!                         clr_orb(t, 2*sOrb)
-!                         
-!                         call setDeltaB(-1, t)
-!                         !todo figure out how deltaB should be accessed
-!                         tempWeight = extract_part_sign(t, 1) * &
-!                             getSingleMatrixElement(2, 1, 1, gen, bVal)
-! 
-!                         call encode_part_sign(t, tempWeight, 1)
-! 
-!                         tempExcits(:,iEx) = t
-! 
-!                         
-!                     else
-!                         ! else just update the matrix elements todo:
-!                         tempWeight = extract_part_sign(tempExcits(:,iEx), 1)* &
-!                             getSingleMatrixElement(2, 2, 1, gen, bVal )
-! 
-!                         call encode_part_sign(tempExcits(:,iEx), tempWeight, 1)
-! 
-!                     end if
-!                 end do
-! 
-!             else if (bVal > 1.0_dp .and. minusWeight == 0.0_dp) then
-!                 ! update on spot stay
-!                 ! in this case staying on branch is possible for +1 and a 
-!                 ! -1 branch would have a zero weight, so just update matrix 
-!                 ! elements in this case todo
-!                 ! but no additional excitations...
-! 
-!                 do iEx = 1, nExcits
-! #ifdef __DEBUG
-!                     deltaB = getDeltaB(tempExcits(:, iEx))
-!                     ASSERT(deltaB == +1)
-! #endif
-! 
-!                     tempWeight = extract_part_sign(tempExcits(:,iEx), 1) * &
-!                         getSingleMatrixElement(2, 2, 1, gen, bVal)
-! 
-!                 end do
-! 
-!             else if (bVal > 1.0_dp .and. minusWeight > 0.0_dp .and. plusWeight > 0.0_dp) then
-!                 ! update stay on spot and add additional excitations
-!                 do iEx = 1, nExcits
-!                     ! first update matrix elements from staying excitations
-!                     deltaB = getDeltaB(tempExcits(:,iEx))
-! 
-!                     tempWeight = extract_part_sign(tempExcits(:,iEx), 1)
-! 
-!                     call encode_part_sign(tempExcits(:,iEx), tempWeight * &
-!                         getSingleMatrixElement(2,2,deltaB,gen,bVal),1)
-! 
-!                     if (deltaB == 1) then
-!                         ! for deltaB +1 branches switch possibility
-!                         nExcits = nExcits + 1
-!                         ! change bits and branch and store at end
-!                         t = tempExcits(:,iEx)
-! 
-!                         set_orb(t, 2*sOrb - 1)
-!                         clr_orb(t, 2*sOrb)
-! 
-!                         call setDeltaB(-1, t)
-!                         !todo how to index with deltaB
-!                         call encode_part_sign(t, tempWeight * &
-!                             getSingleMatrixElement(1,2,1,gen,bVal),1)
-! 
-!                         tempExcits(:, nExcits) = t
-! 
-!                     end if
-!                 end do
-!             else 
-!                 ! something went wrong in this case
-!                 call stop_all(this_routine, &
-!                     "something went wrong in the excitation generation, shouldnt be here!")
-!             end if
-!         end if
-!     end subroutine singleOverlapLoweringUpdate
-
+ 
     subroutine singleEnd(ilut, excitInfo, tempExcits, nExcits, excitations)
         ! end function to calculate all single excitations of a given CSF
         ! ilut
@@ -15438,7 +14879,6 @@ contains
                     if (deltaB == 1) then
                         tempExcits(:,cnt) = tempExcits(:,nExcits)
                         nExcits = nExcits - 1
-!                         print *, "removed excitation at end step!"
                         cycle
                     end if
                     t = tempExcits(:,cnt)
@@ -17178,7 +16618,7 @@ contains
             weights%dat)
 
         call calcRaisingSemiStop(ilut, excitInfo, tempExcits, nExcits, plusWeight, &
-            minusWeight)
+            minusWeight, t_no_singles)
 
         excitInfo%currentGen = excitInfo%lastGen
         ! and continue on with single excitation region
@@ -17273,7 +16713,7 @@ contains
             weights%dat)
 
         call calcLoweringSemiStop(ilut, excitInfo, tempExcits, nExcits, plusWeight, &
-            minusWeight)
+            minusWeight, t_no_singles)
 
         ! then reset weights todo!
         excitInfo%currentGen = excitInfo%lastGen
@@ -17513,16 +16953,6 @@ contains
                     t = tempExcits(:,iEx)
                     deltaB = getDeltaB(t)
 
-                    if (t_no_singles) then 
-                        if (abs(extract_matrix_element(t,1)) > EPS) then 
-                            ASSERT(DeltaB == 0) 
-                            call encode_matrix_element(t, 0.0, 1)
-                            call encode_matrix_element(t, 0.0, 2)
-
-                            cycle
-                        end if
-                    end if
-
                     ! check if weights fit. 
                     ! do 1 -> 0
                     clr_orb(t, 2*se-1)
@@ -17535,6 +16965,15 @@ contains
 
                     ! after semi-stop i only need the sum of the matrix 
                     ! elements
+
+                    if (t_no_singles) then 
+                        if (abs(extract_matrix_element(t,1)) > EPS) then 
+                            ASSERT(DeltaB == 0) 
+                            call encode_matrix_element(t, 0.0, 1)
+                            call encode_matrix_element(t, 0.0, 2)
+
+                        end if
+                    end if
 
                     tempWeight = extract_matrix_element(t,1)*tempWeight_0 + &
                         extract_matrix_element(t,2)*tempWeight_1
@@ -17552,16 +16991,6 @@ contains
                     t = tempExcits(:,iEx)
                     deltaB = getDeltaB(t)
 
-                    if (t_no_singles) then 
-                        if (abs(extract_matrix_element(t,1)) > EPS) then 
-                            ASSERT(DeltaB == 0) 
-                            call encode_matrix_element(t, 0.0, 1)
-                            call encode_matrix_element(t, 0.0, 2)
-
-                            cycle
-                        end if
-                    end if
-
                     ! do 2 -> 0
                     clr_orb(t, 2*se)
 
@@ -17570,6 +16999,15 @@ contains
                     call getDoubleMatrixElement(0,2,deltaB,excitInfo%gen1,&
                         excitInfo%gen2, bVal, &
                         excitInfo%order1, tempWeight_0, tempWeight_1)
+
+                    if (t_no_singles) then 
+                        if (abs(extract_matrix_element(t,1)) > EPS) then 
+                            ASSERT(DeltaB == 0) 
+                            call encode_matrix_element(t, 0.0, 1)
+                            call encode_matrix_element(t, 0.0, 2)
+
+                        end if
+                    end if
 
                     tempWeight = extract_matrix_element(t,1)*tempWeight_0 + &
                         extract_matrix_element(t,2)*tempWeight_1
@@ -17602,7 +17040,8 @@ contains
                                 call encode_matrix_element(t, 0.0, 1)
                                 call encode_matrix_element(t, 0.0, 2)
 
-                                cycle
+                                call encode_matrix_element(tempExcits(:,iex), 0.0, 1)
+                                call encode_matrix_element(tempExcits(:,iex), 0.0, 2)
                             end if
                         end if
 
@@ -17703,7 +17142,6 @@ contains
                                 call encode_matrix_element(t, 0.0, 1)
                                 call encode_matrix_element(t, 0.0, 2)
 
-                                cycle
                             end if
                         end if
 
@@ -17755,7 +17193,6 @@ contains
                                 call encode_matrix_element(t, 0.0, 1)
                                 call encode_matrix_element(t, 0.0, 2)
 
-                                cycle
                             end if
                         end if
 
@@ -18031,8 +17468,6 @@ contains
                             ASSERT(DeltaB == 0) 
                             call encode_matrix_element(t, 0.0, 1)
                             call encode_matrix_element(t, 0.0, 2)
-
-                            cycle
                         end if
                     end if
 
@@ -18074,8 +17509,6 @@ contains
                             ASSERT(DeltaB == 0) 
                             call encode_matrix_element(t, 0.0, 1)
                             call encode_matrix_element(t, 0.0, 2)
-
-                            cycle
                         end if
                     end if
 
@@ -18119,7 +17552,9 @@ contains
                                 call encode_matrix_element(t, 0.0, 1)
                                 call encode_matrix_element(t, 0.0, 2)
 
-                                cycle
+                                call encode_matrix_element(tempExcits(:,iex), 0.0, 1)
+                                call encode_matrix_element(tempExcits(:,iex), 0.0, 2)
+
                             end if
                         end if
 
@@ -18220,7 +17655,6 @@ contains
                                 call encode_matrix_element(t, 0.0, 1)
                                 call encode_matrix_element(t, 0.0, 2)
 
-                                cycle
                             end if
                         end if
 
@@ -18272,7 +17706,6 @@ contains
                                 call encode_matrix_element(t, 0.0, 1)
                                 call encode_matrix_element(t, 0.0, 2)
 
-                                cycle
                             end if
                         end if
 
@@ -19003,7 +18436,8 @@ contains
             end do
 
             ! and then do a mixed fullstop. also write a general function for that
-            call mixedFullStop(ilut, excitInfo, tempExcits, nExcits, excitations)
+            call mixedFullStop(ilut, excitInfo, tempExcits, nExcits, excitations, &
+                t_no_singles)
 
         end if
 
@@ -19124,7 +18558,8 @@ contains
             end do
 
             ! and then do a mixed fullstop. also write a general function for that
-            call mixedFullStop(ilut, excitInfo, tempExcits, nExcits, excitations)
+            call mixedFullStop(ilut, excitInfo, tempExcits, nExcits, excitations, &
+                t_no_singles)
 
         end if
 
@@ -19283,7 +18718,6 @@ contains
                 tempExcits(:,iEx) = t
             end do
         end select
-
 
         ! check again if there are maybe zero matrix elements
         cnt = 1
@@ -21087,103 +20521,6 @@ contains
         call singleEnd(ilut, excitInfo, tempExcits, nExcits, excitations)
 
     end subroutine calcSingleOverlapLowering
-
-!     subroutine calcSingleOverlap(ilut, excitInfo, excitations, nExcits, &
-!             posSwitches, negSwitches)
-!         ! special function to calculate all excitations for a single overlap 
-!         ! double excitations with any kind of generators. although thats not
-!         ! using the correct probabilistic weights... do specific ones
-!         integer(n_int), intent(in) :: ilut(0:niftot)
-!         type(excitationInformation), intent(in) :: excitInfo
-!         integer(n_int), intent(out), pointer :: excitations(:,:)
-!         integer, intent(out) :: nExcits
-!         real(dp), intent(in) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
-!         character(*), parameter :: this_routine = "calcSingleOverlap"
-! 
-!         integer(n_int), pointer :: tempExcits(:,:)
-!         integer(n_int) :: t(0:niftot)
-!         integer :: iOrb, iEx, deltaB
-!         ! i know everything about the excitation essentially, so tailor it!
-!         ! to be save some asserts:
-! 
-! 
-!         ! since everything is checked already i can start right away with 
-!         ! the creation
-!         call createSingleStart(ilut, excitInfo, posSwitches, negSwitches, &
-!             tempExcits, nExcits)
-! 
-!         ! do normal update until single overlap
-!         do iOrb = excitInfo%fullStart + 1, excitInfo%secondStart - 1
-!             call singleUpdate(ilut, iOrb, excitInfo, posSwitches, negSwitches, &
-!                 tempExcits, nExcits)
-!         end do
-! 
-!         ! do the special single overlap part
-!         ! would not need to do a check here since i already know... but easier
-!         ! to keep everything in one function
-!         if (excitInfo%gen1 == -1 .and. excitInfo%gen2 == -1) then
-!             ! two lowerings
-! 
-!             ASSERT(.not.isZero(ilut,excitInfo%secondStart))
-! 
-!             ! has only forced switches at switch possibilities
-!             if (isOne(ilut,excitInfo%secondStart)) then
-!                 ! switch deltaB = -1 branches
-!                 do iEx = 1, nExcits
-!                     deltaB = getDeltaB(tempExcits(:,iEx))
-!                     if (deltaB == -1) then
-!                         ! switch 1 - > 2 
-!                         t = tempExcits(:,iEx)
-!                         clr_orb(t, 2*excitInfo%secondStart - 1)
-!                         set_orb(t, 2*excitInfo%secondStart)
-! 
-!                         call setDeltaB(1, t)
-! 
-!                         tempExcits(:, iEx) = t
-! 
-!                         ! no change in matrix elements
-!                     end if
-!                 end do
-! 
-!             else if (isTwo(ilut,excitInfo%secondStart)) then
-!                 ! switch deltaB = +1
-!                 do iEx = 1, nExcits
-!                     deltaB = getDeltaB(tempExcits(:,iEx))
-!                     if (deltaB == 1) then
-!                         ! switch 2 -> 1
-!                         t = tempExcits(:,iEx)
-!                         clr_orb(t, 2*excitInfo%secondStart)
-!                         set_orb(t, 2*excitInfo%secondStart - 1)
-! 
-!                         call setDeltaB(-1, t)
-! 
-!                         tempExcits(:,iEx) = t
-!                     end if
-!                 end do
-!             end if
-! 
-!         else if (excitInfo%gen1 == 1 .and. excitInfo%gen2 == 1) then
-!             ! two raisings
-!             ! has forced ends at 1/2 at single overlap for certain deltaB...
-!             ! have to make a special one for that.. to correctly take 
-!             ! probabilistic weights into account..
-! 
-!         else 
-!             ! mixed case
-! 
-!         end if
-! 
-!         ! do the second part of the excitation
-!         do iOrb = excitInfo%secondStart + 1, excitInfo%fullEnd - 1
-!             call singleUpdate(ilut, iOrb, excitInfo, posSwitches, negSwitches, &
-!                 tempExcits, nExcits)
-!         end do
-! 
-!         ! normal end step
-!         call singleEnd(ilut, excitInfo, tempExcits, nExcits, excitations)
-! 
-!         
-!     end subroutine calcSingleOverlap
                 
 
     subroutine calcSingleOverlapRaising(ilut, excitInfo, excitations, &
