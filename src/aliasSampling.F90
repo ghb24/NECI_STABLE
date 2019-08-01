@@ -50,6 +50,8 @@ module aliasSampling
      procedure :: samplerDestructor
      ! get a random element and the generation probability
      procedure :: sample
+     ! get the probability to produce a given value
+     procedure :: getProb
   end type aliasSampler_t
  
 contains
@@ -257,6 +259,18 @@ contains
     ! and its probability
     prob = this%probs(tgt)
   end subroutine sample
+
+    !------------------------------------------------------------------------------------------!
+
+  pure function getProb(this, tgt) result(prob)
+    ! Returns the probability to draw tgt from this sampler
+    implicit none
+    class(aliasSampler_t), intent(in) :: this
+    integer, intent(in) :: tgt
+    real(dp) :: prob
+
+    prob = this%probs(tgt)
+  end function getProb
   
   !------------------------------------------------------------------------------------------!
   ! Auxiliary functions to prevent code duplication

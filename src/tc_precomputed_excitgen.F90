@@ -6,6 +6,7 @@ module pcpp_excitgen
   use bit_reps, only: niftot
   use SystemData, only: nel, nBasis, G1, BRR, symmax, Symmetry
   use sym_mod, only: symprod, symconj
+  use DetBitOps, only: EncodeBitDet
   use FciMCData, only: excit_gen_store_type, pDoubles, pSingles, projEDet, ilutRef
   use dSFMT_interface , only : genrand_real2_dSFMT
   use sltcnd_mod, only: sltcnd_excit
@@ -67,6 +68,10 @@ contains
        pGen = pGen * pSingles
     endif
 
+    ! assign ilutnJ
+    call EncodeBitDet(nJ,ilutnJ)
+
+
   end subroutine gen_rand_excit_pcpp
 
   !------------------------------------------------------------------------------------------!
@@ -82,56 +87,101 @@ contains
     integer, intent(out) :: ExcitMat(2,2)
     logical, intent(out) :: tParity
     real(dp), intent(out) :: pGen
+    ! temporary storage for the probabilities in each step
     real(dp) :: pSGen1, pSGen2, pTGen1, pTGen2
+    ! temporary storage for the probabilities in the swapped steps
+    real(dp) :: pSSwap1, pSSwap2, pTSwap1, pTSwap2
+    ! temporary storage for the unmapped electrons
+    integer :: umElec1, umElec2, swapOrb1
+    ! chosen source/target orbitals
     integer :: src1, src2
     integer :: tgt1, tgt2
     integer :: elec1, elec2
+    ! symmetry to enforce for the last orbital
     type(Symmetry) :: tgtSym
     ! mapping electrons in the reference to orbitals in the current det is not 1-to-1
     ! so we need to remove an orbital after it has been mapped to, this is what ilutEx is for
     integer(n_int) :: ilutEx(0:NIfTot)
     character(*), parameter :: t_r = "generate_double_pcpp"
 
-    call double_elec_one_sampler%sample(src1,pSGen1)
-    src1 = map_elec_from_ref(ilut, src1)
+    call double_elec_one_sampler%sample(umElec1,pSGen1)
+    src1 = map_elec_from_ref(ilut, umElec1)
     
-    pGen = pSGen1
     ! in very rare cases, no mapping is possible in the first place
     ! then, abort
-    if(invalid_mapping(src1)) return
+    if(invalid_mapping(src1)) then
+       ! the pgen here is just for bookkeeping purpose, it is never
+       ! used
+       pGen = pSGen1
+       return
+    endif
     
-    call double_elec_two_sampler(src1)%sample(src2,pSGen2)
+    call double_elec_two_sampler(src1)%sample(umElec2,pSGen2)
     ! we use ilutEx for the second mapping: remove the already-mapped-to orbital, so we
     ! cannot map to it a second time
     ilutEx = ilut
     clr_orb(ilutEx,src1)
-    src2 = map_elec_from_ref(ilutEx, src2)
+    src2 = map_elec_from_ref(ilutEx, umElec2)
     
-    pGen = pGen * pSGen2
     ! it is possible to not be able to map the second electron if
     ! the first mapping occupied the only available slot
-    if(invalid_mapping(src2)) return
+    if(invalid_mapping(src2,src1)) then
+       pGen = pSGen1 * pSGen2
+       return
+    endif
 
     if(src2 < src1) call intSwap(src1,src2)
 
+    ! we could also have drawn the electrons the other way around
+    pSSwap1 = double_elec_one_sampler%getProb(umElec2)
+    swapOrb1 = map_elec_from_ref(ilut, umElec2)
+    pSSwap2 = double_elec_two_sampler(swapOrb1)%getProb(umElec1)
+    ! we now have industuingishible src1/src2, add the probabilites
+    ! for drawing them either way
+    pGen = pSGen1 * pSGen2 + pSSwap1 * pSSwap2
+
     call double_hole_one_sampler(src1)%sample(tgt1,pTGen1)
     ! generation probability  so far to ensure it has a valid value on return in any case
-    pGen = pGen * pTGen1
-    if(abort_excit(tgt1)) return
+    if(abort_excit(tgt1)) then
+       pGen = pGen * pTGen1
+       return
+    endif
     ! we need a specific symmetry now
-    tgtSym = symprod(G1(src1)%Sym,G1(src2)%Sym)
-    tgtSym = symprod(tgtSym,symconj(G1(tgt1)%Sym))
+    tgtSym = getTgtSym(tgt1)
     call double_hole_two_sampler(src2,tgtSym%s)%sample(tgt2,pTGen2)
 
+    if(abort_excit(tgt2,tgt1)) then
+       pGen = pGen * pTGen1 * pTGen2
+       return
+    endif
     ! Update the generation probability
-    pGen = pGen * pTGen2
-    if(abort_excit(tgt2,tgt1)) return
+    ! We could have drawn the target orbitals the other way around
+    ! -> adapt pGen
+    pTSwap1 = double_hole_one_sampler(src1)%getProb(tgt2)
+    tgtSym = getTgtSym(tgt2)
+    pTSwap2 = double_hole_two_sampler(src2,tgtSym%s)%getProb(tgt1)
+    pGen = pGen * (pTGen1 * pTGen2 + pTSwap1 * pTSwap2)
 
+    ! generate the output determinant
     elec1 = binary_search_first_ge(nI,src1)
     elec2 = binary_search_first_ge(nI,src2)
     call make_double(nI, nJ, elec1, elec2, tgt1, tgt2, ExcitMat, tParity)
 
   contains
+
+    function getTgtSym(tgt) result(sym)
+      ! return the symmetry of the last target orbital given a first
+      ! target orbital tgt
+      ! Input: tgt - first target orbital
+      ! Output: sym - symmetry of the missing orbital
+      implicit none
+      integer, intent(in) :: tgt
+      type(symmetry) :: sym
+
+      sym= symprod(G1(src1)%Sym,G1(src2)%Sym)
+      sym = symprod(sym,symconj(G1(tgt)%Sym))
+      
+    end function getTgtSym
 
     function invalid_mapping(src,src2) result(abort)
       ! check if the mapping was successful
@@ -149,7 +199,8 @@ contains
          nJ = 0
          tParity = .false.
          ExcitMat = 0
-         if(present(src2)) ExcitMat(1,1) = src2
+         ExcitMat(1,1) = src
+         if(present(src2)) ExcitMat(1,2) = src2
       endif
       
     end function invalid_mapping
@@ -165,6 +216,7 @@ contains
       logical :: abort
       
       abort = IsOcc(ilut,tgt)
+      if(present(tgt2)) abort = abort .or. tgt==tgt2
       if(abort) then
          nJ = 0
          ExcitMat(1,1) = src1
@@ -227,7 +279,7 @@ contains
   ! Functions that map orbital and electron indices between reference and current determinant
   !------------------------------------------------------------------------------------------!  
 
-  function map_elec_from_ref(ilut, iElec) result(src)
+  pure function map_elec_from_ref(ilut, iElec) result(src)
     ! Transfer an electron index within the reference to an orbital index
     ! within the current determinant nI
     ! Input: nI - current determinant
@@ -259,11 +311,9 @@ contains
        if(IsOcc(ilut,BRR(iOrb)) .and. .not.IsOcc(ilutReference,BRR(iOrb)) .and. &
             same_spin(BRR(iOrb),refOrb)) then
           src = BRR(iOrb)
-          print *, "Mapping:", refOrb, "to", src
           return
        endif
     end do
-    print *, "Mapping:", refOrb, "to", src
 
   end function map_elec_from_ref
 

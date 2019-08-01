@@ -20,7 +20,7 @@ module unit_test_helper_excitgen
   use SymExcitDataMod, only: excit_gen_store_type
   use Calc, only: CalcInit, SetCalcDefaults
   use dSFMT_interface, only: dSFMT_init, genrand_real2_dSFMT
-  use Determinants, only: DetInit, DetPreFreezeInit, get_helement_normal
+  use Determinants, only: DetInit, DetPreFreezeInit, get_helement
   use util_mod, only: get_free_unit
   implicit none
 
@@ -51,7 +51,7 @@ contains
     type(excit_gen_store_type) :: store
     logical :: exDoneDouble(0:nBasis,0:nBasis,0:nBasis,0:nBasis)
     logical :: exDoneSingle(0:nBasis,0:nBasis)
-    integer :: ic, part
+    integer :: ic, part, nFound, nullExcits
     HElement_t(dp) :: HEl
     exDoneDouble = .false.
     exDoneSingle = .false.
@@ -84,14 +84,12 @@ contains
        allEx(0:NIfDBO,numEx) = ilutJ(0:NIfDBO)
     end do
 
-    print *, "In total", numEx, "excitations"
-
     ! set the biases for excitation generation
     pParallel = 0.5_dp
     pSingles = 0.1_dp
     pDoubles = 0.9_dp
-
     pNull = 0.0_dp
+    nullExcits = 0
     do i = 1, sampleSize
        store%tFilled = .false.
        call generate_excitation(nI,ilut,nJ,ilutJ,exFlag,ic,ex,tPar,pgen,HEl,store,part)
@@ -117,6 +115,7 @@ contains
        ! check if the generated excitation is invalid, if it is, mark this specific constellation
        ! so we do not double-count when calculating pNull
        if(nJ(1) == 0) then
+          nullExcits = nullExcits + 1
           if(ic.eq.2) then
              if(.not. exDoneDouble(ex(1,1),ex(1,2),ex(2,1),ex(2,2)))then
                 exDoneDouble(ex(1,1),ex(1,2),ex(2,1),ex(2,2)) = .true.
@@ -131,25 +130,31 @@ contains
        endif
     end do
 
-    matelN = 0.0_dp
-    do i = 1, numEx
-       call decode_bit_det(nJ,allEx(:,i))
-       matelN = matelN + abs(get_helement_normal(nJ,nI))
-    end do
     ! check that all excits have been generated and all pGens are right
     ! probability normalization
     pTot = pNull
+    matelN = 0.0
+    do i = 1, numEx
+       call decode_bit_det(nJ,allEx(:,i))
+       matelN = matelN + abs(get_helement(nI,nJ))
+    end do
+    nFound = 0
     do i = 1, numEx
        call extract_sign(allEx(:,i),pgenArr)
        call decode_bit_det(nJ,allEx(:,i))
        if(pgenArr(1) > eps) then
+          nFound = nFound + 1
+          matel = get_helement(nI,nJ)
           write(iout,*) i, pgenArr(1), real(allEx(NIfTot+1,i))/real(sampleSize), &
-               matel/(pgenArr(1)*matelN)
+               abs(matel)/(pgenArr(1)*matelN)
        endif
        pTot = pTot + pgenArr(1)
     end do
     write(iout,*) "Total prob. ", pTot
     write(iout,*) "pNull ", pNull
+    write(iout,*) "Null ratio", nullExcits / real(sampleSize)
+    write(iout,*) "In total", numEx, "excitations"
+    write(iout,*) "Found", nFound, "excitations"
 
   end subroutine test_excitation_generator
 
