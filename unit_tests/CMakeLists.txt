@@ -54,3 +54,6 @@ add_subdirectory( cc_amplitudes )
 add_subdirectory( cepa_shifts )
 
 add_subdirectory( analyse_wf_symmetry )
+
+add_subdirectory( pcpp_excitgen)
+
