@@ -4,7 +4,8 @@
 module guga_rdm
     ! RDM module specifically for the GUGA spin-adapted implementation 
     
-    use constants, only: n_int, dp, lenof_sign, EPS, sizeof_int, int_rdm, bn2_
+    use constants, only: n_int, dp, lenof_sign, EPS, sizeof_int, int_rdm, bn2_, &
+                         Root2
     use SystemData, only: nel, nSpatOrbs, current_stepvector, currentB_ilut
     use bit_reps, only: extract_bit_rep, decode_bit_det, niftot, nifdbo
     use LoggingData, only: RDMExcitLevel
@@ -39,6 +40,7 @@ module guga_rdm
     use guga_bitRepOps, only: write_guga_list, write_det_guga, getSpatialOccupation
     use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI, getDeltaB
     use guga_bitRepOps, only: calc_csf_info, add_guga_lists
+    use guga_bitRepOps, only: findFirstSwitch, findLastSwitch
     use MemoryManager, only: LogMemAlloc, LogMemDealloc
     use bit_reps, only: nifguga
     use FciMCData, only: projEDet, CurrentDets, TotWalkers
@@ -593,6 +595,8 @@ contains
         ! mimic the stochastic processes for the explicit excitation 
         ! generation
         
+        if (DetBitEQ(ilutI, ilutJ, nifdbo)) return
+
         ! for the explicit code, I first need to recalculate the type 
         ! of excitation.. I am not sure how the indices will be encoded..
         if (present(excitInfo_opt)) then 
@@ -603,28 +607,25 @@ contains
             excitInfo = excitationIdentifier(i, j, k, l)
         end if
 
-        print *, "========="
-        call write_det_guga(6, ilutI, .true.)
-        call write_det_guga(6, ilutJ, .true.)
-        call print_excitInfo(excitInfo)
-        print *, "ijkl: ", i,j,k,l
+!         print *, "========="
+!         call write_det_guga(6, ilutI, .true.)
+!         call write_det_guga(6, ilutJ, .true.)
+!         call print_excitInfo(excitInfo)
+!         print *, "ijkl: ", i,j,k,l
 
         select case (excitInfo%typ)
 
-        case (16)
-            call fill_mixed_end_l2r()
+        case (16, 17)
+            call fill_mixed_end(spawn, ilutI, ilutJ, sign_i, sign_j, &
+                mat_ele, excitInfo)
 
-        case (17)
-            call fill_mixed_end_r2l()
-
-        case (20)
-            call fill_mixed_start_l2r()
-
-        case (21)
-            call fill_mixed_start_r2l()
+        case (20, 21)
+            call fill_mixed_start(spawn, ilutI, ilutJ, sign_i, sign_j, &
+                mat_ele, excitInfo)
 
         case (23) 
-            call fill_mixed_start_end()
+            call fill_mixed_start_end(spawn, ilutI, ilutJ, sign_i, sign_j, &
+                mat_ele, excitInfo)
 
         case default
             call print_excitInfo(excitInfo)
@@ -633,6 +634,567 @@ contains
         end select
 
     end subroutine fill_mixed_2rdm_guga
+
+    subroutine fill_mixed_end(spawn, ilutI, ilutJ, sign_i, sign_j, &
+            mat_ele, excitInfo)
+        type(rdm_spawn_t), intent(inout) :: spawn
+        integer(n_int), intent(in) :: ilutI(0:nifguga), ilutJ(0:nifguga)
+        real(dp), intent(in) :: sign_i(:), sign_j(:), mat_ele
+        type(excitationInformation), intent(in) :: excitInfo
+        character(*), parameter :: this_routine = "fill_mixed_end"
+
+        integer :: st, se, en, step, sw, elecInd, holeInd, i, j
+        integer :: step_i(nSpatOrbs), b_i(nSpatOrbs), int_occ(nSpatOrbs)
+        real(dp) :: top_cont, tmp_mat, stay_mat, end_mat, real_b(nSpatOrbs)
+        real(dp) :: occ_i(nSpatOrbs)
+        logical :: above_flag
+
+        ! do as much stuff as possible beforehand
+        st = excitInfo%fullStart
+        se = excitInfo%secondStart
+        en = excitInfo%fullEnd
+        if (excitInfo%typ == 16) then
+            elecInd = st
+            holeInd = se
+        else if (excitInfo%typ == 17) then
+            elecInd = se
+            holeInd = st
+        else
+            call stop_all(this_routine, "should not be here!")
+        end if
+
+
+        sw = findLastSwitch(ilutI, ilutJ , se, en)
+
+        call calc_csf_info(ilutI, step_i, b_i, occ_i)
+        int_occ = int(occ_i)
+
+        step = step_i(en)
+
+        real_b = real(b_i, dp)
+        
+        if (en < nSpatOrbs) then
+            select case (step)
+            case (1)
+                if (isOne(ilutJ, en)) then
+                    top_cont = -Root2*sqrt((real_b(en) + 2.0_dp)/&
+                        real_b(en))
+                    
+                else 
+                    top_cont = -Root2/sqrt(real_b(en)*(real_b(en)+2.0_dp))
+
+                end if
+            case (2)
+                if (isOne(ilutJ,en)) then
+                    top_cont = -Root2/sqrt(real_b(en)*(real_b(en)+2.0_dp))
+
+                else 
+                    top_cont = Root2*sqrt(real_b(en)/&
+                        (real_b(en) + 2.0_dp))
+                end if
+
+            case default 
+                call stop_all(this_routine, "wrong stepvalues!")
+
+            end select
+
+            if (abs(top_cont) > EPS) then
+
+                above_flag = .false.
+                tmp_mat = 1.0_dp
+
+                do i = en + 1, nSpatOrbs
+                    if (int_occ(i) /= 1) cycle
+
+                    ! then check if thats the last step
+                    if (step_i(i) == 2 .and. b_i(i) == 0) then
+                        above_flag = .true.
+                    end if
+
+                    ! should be able to do that without second loop too! 
+                    ! figure out! 
+                    step = step_i(i)
+
+                    call getDoubleMatrixElement(step,step,0,-1,1,real_b(i),&
+                        1.0_dp,x1_element = stay_mat)
+
+                    call getMixedFullStop(step,step,0,real_b(i), & 
+                        x1_element = end_mat)
+
+                    ! this check should never be true, but just to be sure
+                    if (abs(stay_mat) < EPS) above_flag = .true.
+
+                    if (abs(end_mat) > EPS) then
+
+                        call add_to_rdm_spawn_t(spawn, holeInd, i, i, elecInd, &
+                            top_cont * end_mat * tmp_mat * sign_i * sign_j * mat_ele, .true.)
+                        call add_to_rdm_spawn_t(spawn, i, elecInd, holeInd, i, &
+                            top_cont * end_mat * tmp_mat * sign_i * sign_j * mat_ele, .true.)
+! 
+!                         integral = integral + end_mat * mat_ele * &
+!                             (get_umat_el(i,holeInd,elecInd,i) +  &
+!                             get_umat_el(holeInd,i,i,elecInd))/2.0_dp
+
+                    end if
+
+                    if (above_flag) exit
+
+                    ! otherwise update your running pgen and matrix element vars
+                    tmp_mat = tmp_mat * stay_mat
+
+                end do
+
+                ! have to figure out what to do with this here:!
+!                 integral = integral * top_cont
+            end if
+        end if
+
+        if (sw < en) then
+            
+            step = step_i(en)
+
+            ! inverse fullstop matrix element 
+            call getMixedFullStop(step,step,0,real_b(en),x1_element = tmp_mat)
+
+            tmp_mat = 1.0_dp / tmp_mat
+
+            ! have to change the switches before the first cycle: 
+            ! but for cycling backwards, thats not so easy.. need todo
+            
+            do i = en - 1, sw + 1, -1
+ 
+                if (int_occ(i) /= 1) cycle
+
+                step = step_i(i) 
+                ! update inverse product
+                call getDoubleMatrixElement(step,step,0,-1,1,real_b(i),&
+                    1.0_dp, x1_element = stay_mat)
+
+                call getMixedFullStop(step,step,0,real_b(i), x1_element = end_mat)
+
+                ! update matrix element
+                tmp_mat = tmp_mat / stay_mat 
+
+                if (abs(end_mat) > EPS) then
+
+                    call add_to_rdm_spawn_t(spawn, holeInd, i, i, elecInd, &
+                        end_mat * tmp_mat * sign_i * sign_j * mat_ele, .true.)
+                    call add_to_rdm_spawn_t(spawn, i, elecInd, holeInd, i, &
+                        end_mat * tmp_mat * sign_i * sign_j * mat_ele, .true.)
+
+!                     integral = integral + end_mat * tmp_mat * &
+!                         (get_umat_el(i, holeInd, elecInd, i) + &
+!                         get_umat_el(holeInd, i, i, elecInd)) / 2.0_dp
+   
+                end if
+
+            end do
+
+            ! deal with switch specifically: 
+
+            step = step_i(sw) 
+
+            if (step == 1) then 
+                ! then a -2 branch arrived!
+                call getDoubleMatrixElement(2,1,-2,-1,1,real_b(sw), &
+                    1.0_dp, x1_element = stay_mat)
+
+                call getMixedFullStop(2,1,-2,real_b(sw),x1_element = end_mat)
+
+            else 
+                ! +2 branch arrived!
+
+                call getDoubleMatrixElement(1,2,2,-1,1,real_b(sw), &
+                    1.0_dp, x1_element = stay_mat)
+
+                call getMixedFullStop(1,2,2,real_b(sw), x1_element = end_mat)
+            end if
+
+            tmp_mat = tmp_mat * end_mat / stay_mat
+
+            call add_to_rdm_spawn_t(spawn, holeInd, sw, sw, elecInd, &
+                tmp_mat * sign_i * sign_j * mat_ele, .true.)
+            call add_to_rdm_spawn_t(spawn, sw, elecInd, holeInd, sw, &
+                tmp_mat * sign_i * sign_j * mat_ele, .true.)
+
+!             integral = integral + tmp_mat * (get_umat_el(sw,holeInd,elecInd,sw) + &
+!                 get_umat_el(holeInd,sw,sw,elecInd))/2.0_dp
+
+        end if
+
+
+    end subroutine fill_mixed_end
+
+    subroutine fill_mixed_start(spawn, ilutI, ilutJ, sign_i, sign_j, &
+            mat_ele, excitInfo)
+        type(rdm_spawn_t), intent(inout) :: spawn
+        integer(n_int), intent(in) :: ilutI(0:nifguga), ilutJ(0:nifguga)
+        real(dp), intent(in) :: sign_i(:), sign_j(:), mat_ele
+        type(excitationInformation), intent(in) :: excitInfo
+        character(*), parameter :: this_routine = "fill_mixed_start"
+
+        integer :: sw, i, st, se, step, en, elecInd, holeInd
+        integer :: step_i(nSpatOrbs), b_i(nSpatOrbs), int_occ(nSpatOrbs)
+        real(dp) :: bot_cont, tmp_mat, stay_mat, start_mat, real_b(nSpatOrbs)
+        real(dp) :: occ_i(nSpatOrbs)
+        logical :: below_flag
+
+        st = excitInfo%fullStart
+        se = excitInfo%firstEnd
+        en = excitInfo%fullEnd
+        ! depending on the type of excitaiton, calculation of orbital pgens 
+        ! change 
+        if (excitInfo%typ == 20) then
+            elecInd = en
+            holeInd = se
+        else if (excitInfo%typ == 21) then
+            elecInd = se
+            holeInd = en
+        else
+            call stop_all(this_routine,"should not be here!")
+        end if
+
+        sw = findFirstSwitch(ilutI,ilutJ, st, se)
+
+        call calc_csf_info(ilutI, step_i, b_i, occ_i)
+        real_b = real(b_i, dp)
+        int_occ = int(occ_i)
+
+        step = step_i(st)
+
+        if (step == 1) then
+            if (isOne(ilutJ, st)) then
+                bot_cont = Root2 * sqrt((real_b(st) - 1.0_dp)/ &
+                    (real_b(st) + 1.0_dp))
+            else 
+                bot_cont = -sqrt(2.0_dp/((real_b(st) - 1.0_dp) * &
+                    (real_b(st) + 1.0_dp)))
+            end if
+        else
+            if (isOne(ilutJ,st)) then
+                bot_cont = -sqrt(2.0_dp/((real_b(st) + 1.0_dp) * &
+                    (real_b(st) + 3.0_dp)))
+            else 
+                bot_cont = -Root2 * sqrt((real_b(st) + 3.0_dp)/ &
+                    (real_b(st) + 1.0_dp))
+            end if
+        end if
+
+        if (abs(bot_cont) > EPS) then
+
+            tmp_mat = 1.0_dp
+            below_flag = .false.
+
+            do i = st - 1, 1, -1 
+                if (int_occ(i) /= 1) cycle
+
+                ! then check if thats the last stepvalue to consider
+                if (step_i(i) == 1 .and. b_i(i) == 1) then
+                    below_flag = .true.
+                end if
+ 
+                ! then deal with the matrix element and branching probabilities
+                step = step_i(i)
+
+                ! get both start and staying matrix elements -> and update 
+                ! matrix element contributions on the fly to avoid second loop! 
+                call getDoubleMatrixElement(step,step,-1,1,-1,real_b(i),&
+                    1.0_dp, x1_element = start_mat)
+
+                call getDoubleMatrixElement(step,step,0,1,-1,real_b(i),&
+                    1.0_dp, x1_element = stay_mat)
+
+                if (abs(stay_mat) < EPS) below_flag = .true.
+
+                if (abs(start_mat) > EPS) then
+
+                    call add_to_rdm_spawn_t(spawn, holeInd, i, i, elecInd, &
+                        bot_cont * start_mat * tmp_mat * sign_i * sign_j * mat_ele, .true.)
+                    call add_to_rdm_spawn_t(spawn, i, elecInd, holeInd, i, &
+                        bot_cont * start_mat * tmp_mat * sign_i * sign_j * mat_ele, .true.)
+
+!                     integral = integral + start_mat * tmp_mat *  & 
+!                         (get_umat_el(i,holeInd,elecInd,i) &
+!                         + get_umat_el(holeInd,i,i,elecInd))/2.0_dp
+
+                end if
+
+                ! also update matrix element on the fly
+                tmp_mat = stay_mat * tmp_mat
+
+            end do
+
+            ! and update matrix element finally with bottom contribution
+!             integral = integral * bot_cont
+
+        end if
+
+        step = step_i(st)
+
+        ! calculate the necarry values needed to formulate everything in terms
+        ! of the already calculated quantities:
+        call getDoubleMatrixElement(step,step,-1,-1,1,real_b(st),&
+            1.0_dp, x1_element = tmp_mat)
+
+        ! and calc. x1^-1
+        ! keep tempWweight as the running matrix element which gets updated 
+        ! every iteration
+        tmp_mat = 1.0_dp / tmp_mat
+
+        do i = st + 1, sw - 1 
+            ! the good thing here is, i do not need to loop a second time, 
+            ! since i can recalc. the matrix elements and pgens on-the fly
+            ! here the matrix elements should not be 0 or otherwise the 
+            ! excitation wouldnt have happended anyways 
+            if (int_occ(i) /= 1) cycle
+
+            step = step_i(i)
+
+            ! update inverse product
+            call getDoubleMatrixElement(step,step,0,-1,+1,real_b(i),&
+                1.0_dp, x1_element = stay_mat)
+
+            tmp_mat = tmp_mat / stay_mat
+
+            ! and also get starting contribution 
+            call getDoubleMatrixElement(step,step,-1,-1,+1,real_b(i),&
+                1.0_dp, x1_element = start_mat)
+
+            ! because the rest of the matrix element is still the same in
+            ! both cases...
+            if (abs(start_mat) > EPS) then
+
+                call add_to_rdm_spawn_t(spawn, holeInd, i, i, elecInd, &
+                    start_mat * tmp_mat * sign_i * sign_j * mat_ele, .true.)
+                call add_to_rdm_spawn_t(spawn, i, elecInd, holeInd, i, &
+                    start_mat * tmp_mat * sign_i * sign_j * mat_ele, .true.)
+
+!                 integral = integral + tmp_mat * start_mat * & 
+!                     (get_umat_el(holeInd,i,i,elecInd) + &
+!                     get_umat_el(i,holeInd,elecInd,i))/2.0_dp
+            end if
+
+        end do
+
+        ! handle switch seperately (but only if switch > start) 
+        if (sw > st) then
+
+            step = step_i(sw)
+
+            ! on the switch the original probability is: 
+            if (step == 1) then
+
+                call getDoubleMatrixElement(2,1,0,-1,+1,real_b(sw),&
+                    1.0_dp, x1_element = stay_mat)
+
+                call getDoubleMatrixElement(2,1,-1,-1,+1,real_b(sw),&
+                    1.0_dp, x1_element = start_mat)
+
+            else
+                
+                call getDoubleMatrixElement(1,2,0,-1,+1,real_b(sw),&
+                    1.0_dp, x1_element = stay_mat)
+
+                call getDoubleMatrixElement(1,2,-1,-1,+1,real_b(sw),&
+                    1.0_dp, x1_element = start_mat)
+
+            end if
+
+            ! update inverse product
+            ! and also get starting contribution 
+            tmp_mat = tmp_mat * start_mat / stay_mat
+
+            ! because the rest of the matrix element is still the same in
+            ! both cases...
+
+            call add_to_rdm_spawn_t(spawn, holeInd, sw, sw, elecInd, &
+                tmp_mat * sign_i * sign_j * mat_ele, .true.)
+            call add_to_rdm_spawn_t(spawn, sw, elecInd, holeInd, sw, &
+                tmp_mat * sign_i * sign_j * mat_ele, .true.)
+
+!             integral = integral + tmp_mat *(get_umat_el(holeInd,sw,sw,elecInd) + &
+!                 get_umat_el(sw,holeInd,elecInd,sw))/2.0_dp
+
+        end if
+
+    end subroutine fill_mixed_start
+
+    subroutine fill_mixed_start_end(spawn, ilutI, ilutJ, sign_i, sign_j, &
+            mat_ele, excitInfo)
+        type(rdm_spawn_t), intent(inout) :: spawn
+        integer(n_int), intent(in) :: ilutI(0:nifguga), ilutJ(0:nifguga)
+        real(dp), intent(in) :: sign_i(:), sign_j(:), mat_ele
+        type(excitationInformation), intent(in) :: excitInfo
+        character(*), parameter :: this_routine = "fill_mixed_start_end"
+
+        integer :: first, last, deltaB(nSpatOrbs), i, j, k, step1, step2
+        integer :: step_i(nSpatOrbs), b_i(nSpatOrbs), int_occ(nSpatOrbs)
+        integer :: step_j(nSpatOrbs), b_j(nSpatOrbs)
+        logical :: above_flag, below_flag
+        real(dp) :: inter, tempWeight_1, real_b(nSpatOrbs), tempWeight
+        real(dp) :: occ_i(nSpatOrbs), occ_j(nSpatOrbs)
+
+
+        first = findFirstSwitch(ilutI, ilutJ, excitInfo%fullStart, excitInfo%fullEnd)
+        last = findLastSwitch(ilutI, ilutJ, first, excitInfo%fullEnd)
+
+        call calc_csf_info(ilutI, step_i, b_i, occ_i)
+        call calc_csf_info(ilutJ, step_j, b_j, occ_j)
+        real_b = real(b_i, dp)
+        int_occ = int(occ_i)
+
+        below_flag = .false.
+        above_flag = .false.
+
+        deltaB = b_i - b_j
+
+        inter = 1.0_dp
+
+        ! calculate the always involved intermediate matrix element from 
+        ! first switch to last switch
+        do i = first + 1, last - 1
+            if (int_occ(i) /= 1) cycle
+
+            step1 = step_i(i)
+            step2 = step_j(i)
+            call getDoubleMatrixElement(step2,step1,deltaB(i-1),-1,1,&
+                real_b(i),1.0_dp,x1_element = tempWeight)
+
+            inter = inter * tempWeight
+        end do
+
+        do j = last, nSpatOrbs 
+            if (int_occ(j) /= 1) cycle
+
+            ! calculate the remaining switches once for each (j) but do it 
+            ! for the worst case until i = 1
+
+            ! check if this is the last end needed to consider 
+            if (step_i(j) == 2 .and. b_i(j) == 0) then
+                above_flag = .true.
+            end if
+
+            ! i have to reset the below flag each iteration of j..
+            below_flag = .false.
+
+            do i = first, 1, -1
+                if (int_occ(i) /= 1) cycle
+        
+                if (below_flag) exit
+
+                ! if the bottom stepvector d = 1 and b = 1 there is no 
+                ! additional contribution from below, since the x1 matrix 
+                ! element is 0 
+                ! same if d = 2 and b = 0 for fullstop stepvector 
+                if (step_i(i) == 1 .and. b_i(i) == 1) then
+                    below_flag = .true.
+                end if
+
+                ! get the starting matrix element
+                step1 = step_i(i)
+                step2 = step_j(i)
+                call getDoubleMatrixElement(step2,step1,-1,-1,+1,&
+                    real_b(i),1.0_dp,x1_element = tempWeight)
+
+                ! loop over excitation range
+                ! distinguish between different regimes 
+                ! if i do it until switch - 1 -> i know that dB = 0 and 
+                ! the 2 stepvalues are always the same..
+                do k = i + 1, first - 1
+                    if (int_occ(k) /= 1) cycle
+
+                    step1 = step_i(k)
+                    ! only 0 branch here
+                    call getDoubleMatrixElement(step1,step1,0,-1,+1,&
+                        real_b(k),1.0_dp,x1_element = tempWeight_1)
+
+                    tempWeight = tempWeight * tempWeight_1
+
+                end do
+
+                ! then do first switch site seperately, if (i) is not first 
+                ! and what if (i) is first??
+                if (i /= first) then
+                    step1 = step_i(first) 
+
+                    if (step1 == 1) then
+                        ! i know that step2 = 2 
+                        call getDoubleMatrixElement(2,1,0,-1,+1,&
+                            real_b(first),1.0_dp,x1_element = tempWeight_1)
+
+                    else
+                        ! i know that step2 = 1
+                        call getDoubleMatrixElement(1,2,0,-1,+1,real_b(first),&
+                            1.0_dp, x1_element = tempWeight_1)
+
+                    end if
+
+                    tempWeight = tempWeight * tempWeight_1
+
+                end if
+
+                ! more efficient to do "last" step seperately, since i have to 
+                ! check deltaB value and also have to consider matrix element
+                ! but only of (j) is not last or otherwise already dealt with
+                if (j /= last) then
+
+                    if (step_i(last) == 1) then
+                        ! then i know step2 = 2 & dB = -2! 
+                        call getDoubleMatrixElement(2,1, -2,-1,+1,&
+                            real_b(last),1.0_dp,x1_element = tempWeight_1)
+                    else
+                        ! i know step2 == 1 and dB = +2
+                        call getDoubleMatrixElement(1,2, +2, -1, +1,&
+                            real_b(last),1.0_dp,x1_element = tempWeight_1)
+
+                    end if
+
+                    tempWeight = tempWeight * tempWeight_1
+                end if
+
+                ! then do remaining top range, where i know stepvalues are 
+                ! the same again and dB = 0 always!
+                do k = last + 1, j - 1
+                    if (int_occ(k) /= 1) cycle
+
+                    step1 = step_i(k)
+                    ! only 0 branch here
+                    call getDoubleMatrixElement(step1,step1,0,-1,+1,&
+                        real_b(k),1.0_dp,x1_element = tempWeight_1)
+
+                    tempWeight = tempWeight * tempWeight_1
+
+                end do
+
+                ! and handle fullend 
+                ! and then do the the end value at j
+                step1 = step_i(j)
+                step2 = step_j(j)
+                call getMixedFullStop(step2,step1,deltaB(j-1),real_b(j),&
+                    x1_element = tempWeight_1)
+
+
+                call add_to_rdm_spawn_t(spawn, i, j, j, i, &
+                    tempWeight * tempWeight_1 * inter * sign_i * sign_j, .true.)
+                call add_to_rdm_spawn_t(spawn, j, i, i, j, &
+                    tempWeight * tempWeight_1 * inter * sign_i * sign_j, .true.)
+
+
+                ! maybe i have to recalc. here smth..
+!                 temp_int = tempWeight * tempWeight_1 * inter * temp_int
+
+                ! check if i deal with that correctly...
+                if (below_flag) exit
+            end do
+            ! todo: i cant use tthat like that.. or else some combinations 
+            ! of i and j get left out! i have to reinit it somehow..
+            ! not yet sure how..
+            if (above_flag) exit
+        end do
+
+
+
+    end subroutine fill_mixed_start_end
 
     subroutine fill_sings_2rdm_guga(spawn, ilutI, ilutJ, sign_i, sign_j, mat_ele, rdm_ind)
         ! this is the routine where I test the filling of 2-RDM based on 

@@ -4444,19 +4444,7 @@ contains
                 integral = integral + temp_int
 
                 ! add up pgen contributions.. 
-!                 if (abs(temp_int) > EPS) then
-                    pgen = pgen + (below_cpt + above_cpt) * branch_weight
-!                 end if
-
-!                 if (i == 1 .and. j == 6 .and. t(0) == 2649) then 
-!                     print *, "================"
-!                     call write_det_guga(6, t)
-!                     print *, t
-!                     print *, branch_weight, pgen, below_cpt, above_cpt
-!                     print *, temp_int
-!                     print *, below_flag, above_flag
-!                     call print_excitInfo(tmp_excitInfo)
-!                 end if
+                pgen = pgen + (below_cpt + above_cpt) * branch_weight
 
                 ! check if i deal with that correctly...
                 if (below_flag) exit
@@ -6517,26 +6505,6 @@ contains
             end select
 !             end if
         end do
-!         
-!         ! the last switch is the only remaining special case: 
-!         if (current_stepvector(sw) == 1) then 
-!             ! a dB = -2 arrived and switched to the dB = 0 branch 
-!             weight_funcs(sw)%ptr => minus_switching_double
-!         else
-!             ! a dB = 2 arrived and switched to the dB = 0 branch
-!             weight_funcs(sw)%ptr => plus_switching_double
-!         end if
-! 
-!         ! all the remaining singly occupied orbitals stay on the dB = 0 branch
-!         do i = sw + 1, nSpatOrbs - 1
-!             if (currentOcc_int(i) /= 1) cycle
-! 
-!             if (current_stepvector(i) == 1) then 
-!                 weight_funcs(i)%ptr => zero_plus_staying_double
-!             else 
-!                 weight_funcs(i)%ptr => zero_minus_staying_double
-!             end if
-!         end do
 
     end subroutine setup_weight_funcs
 
@@ -6591,13 +6559,8 @@ contains
         ! after last switch only dB = 0 branches! consider that 
         call setup_weight_funcs(ilut, t, st, se, sw, weight_funcs)
 
-!         do i = 1, nSpatOrbs
-!             print *, associated(weight_funcs(i)%ptr)
-!         end do
-
         if (en < nSpatOrbs) then
             select case (step)
-!             if (step == 1 ) then 
             case (1)
                 if (isOne(t, en)) then
                     top_cont = -Root2*sqrt((currentB_ilut(en) + 2.0_dp)/&
@@ -6607,7 +6570,6 @@ contains
                     top_cont = -Root2/sqrt(currentB_ilut(en)*(currentB_ilut(en)+2.0_dp))
 
                 end if
-!             else 
             case (2)
                 if (isOne(t,en)) then
                     top_cont = -Root2/sqrt(currentB_ilut(en)*(currentB_ilut(en)+2.0_dp))
@@ -6621,7 +6583,6 @@ contains
                 call stop_all(this_routine, "wrong stepvalues!")
 
             end select
-!             end if
 
             if (abs(top_cont) > EPS) then
 
@@ -6697,32 +6658,23 @@ contains
                                 currentB_ilut(st), tmp_neg(st), tmp_pos(st))
                         end if
 
-!                         print *, "i: ", i
-!                         call write_det_guga(6,t)
-
-!                         print *, "st: ", new_pgen
-
                         do j = st + 1, se - 1
                             ! can and do i have to cycle here if its not 
                             ! singly occupied??
                             if (currentOcc_int(j) /= 1) cycle
 
-!                             print *, "j: ", j
                             new_pgen = new_pgen * weight_funcs(j)%ptr(weights, &
                                 currentB_ilut(j), tmp_neg(j), tmp_pos(j)) 
                         end do
 
                         ! then need to reinit double weight 
                         weights = weights%ptr
-!                         weights = init_doubleWeight(ilut,i)
 
                         ! and also with the semi-start
                         if (currentOcc_int(se) /= 1) then
                             new_pgen = new_pgen * weight_funcs(se)%ptr(weights, &
                                 currentB_ilut(se), tmp_neg(se), tmp_pos(se))
                         end if
-
-!                         print *, "se: ", new_pgen
 
                         do j = se + 1, i - 1
                             if (currentOcc_int(j) /= 1) cycle
@@ -6753,7 +6705,6 @@ contains
             end if
         end if
 
-!         print *, "toto"
         if (sw < en) then
             
             step = current_stepvector(en)
@@ -6766,7 +6717,6 @@ contains
             ! have to change the switches before the first cycle: 
             ! but for cycling backwards, thats not so easy.. need todo
             
-!             print *, "toto"
             do i = en - 1, sw + 1, -1
 
                 if (currentOcc_int(i) /= 1) cycle
@@ -6831,7 +6781,6 @@ contains
 
                     ! then need to reinit double weight 
                     weights = weights%ptr
-!                     weights = init_doubleWeight(ilut,i)
 
                     ! and also with the semi-start
                     if (currentOcc_int(se) /= 1) then
@@ -6858,7 +6807,6 @@ contains
             call calc_orbital_pgen_contrib_end(ilut, [2*elecInd, 2*sw], holeInd, &
                 orb_pgen)
 
-!             print *, "toto"
             if (orb_pgen > EPS) then
 
                 step = current_stepvector(sw) 
@@ -6912,7 +6860,6 @@ contains
                 end do
                 
                 weights = weights%ptr
-!                 weights = init_doubleWeight(ilut, sw)
 
                 ! and also with the semi-start
                 if (currentOcc_int(se) /= 1) then
@@ -8756,12 +8703,6 @@ contains
 
         ! maybe I need to deal with the pgens here, if they are not 
         ! correctly considered outside..
-!         ! i also need to consider the electron pair picking probability.. 
-!         pgen = pgen / real(ElecPairs, dp) 
-! 
-!         ! and if the second electron is in a double occupied orbital I have 
-!         ! to modify it with 2 
-!         if (current_stepvector(elecInd) == 3) pgen = pgen * 2.0_dp
 
     end subroutine calc_mixed_start_contr_approx
 
@@ -9631,21 +9572,6 @@ contains
 
         sw = findFirstSwitch(ilut,t, st, se)
 
-!         print *, "Test on type 20 and 21 excitations:"
-!         call write_det_guga(6,ilut)
-!         call write_det_guga(6,t)
-!         call print_excitInfo(excitInfo)
-! 
-!         print *, "switch: ", sw
-!         print *, "initial branch_pgen: ", branch_pgen
-        
-! 
-!         if (st == 5 .and. se == 6 .and. isTwo(ilut,5) .and. isOne(t,5)) then 
-!             call write_det_guga(6,ilut,.true.)
-!             call write_det_guga(6,t,.true.)
-!             print *, "switch:", sw
-!         end if
-
         ! what can i precalculate beforehand?
         step = current_stepvector(st)
 
@@ -9728,13 +9654,10 @@ contains
 
         ! divide out the original starting weight: 
         branch_pgen = branch_pgen / start_weight
-!         if (st == 1 .and. sw == 3) print *, "orig start weight:", start_weight
 
         ! loop from start backwards so i can abort at a d=1 & b=1 stepvalue
         ! also consider if bot_cont < EPS to avoid unnecarry calculations
         if (abs(bot_cont) > EPS) then
-
-!             if (st == 1 .and. sw == 3) print *, "am i here??"
 
             mat_ele = 1.0_dp
             below_flag = .false.
@@ -9798,36 +9721,6 @@ contains
                 ! i think i could avoid the second loop over j 
                 ! if i express everything in terms of already calculated 
                 ! quantities! 
-
-!                 ! then calc. the product
-!                 do j = i + 1, st - 1
-!                     if (currentOcc_ilut(j) /= 1.0_dp) cycle
-! 
-!                     step = current_stepvector(j)
-!                     ! its always the 0 branch!
-!                     call getDoubleMatrixElement(step, step,0,1,-1,currentB_ilut(j),&
-!                         1.0_dp,x1_element = tempWeight_1)
-! 
-!                     tempWeight = tempWeight * tempWeight_1
-!                    
-!                     zeroWeight = weights%proc%zero(negSwitches(j), &
-!                         posSwitches(j), currentB_ilut(j), weights%dat)
-! 
-!                     if (step == 1) then
-!                         switchWeight = weights%proc%plus(posSwitches(j), &
-!                             currentB_ilut(j), weights%dat)
-!                     else 
-!                         switchWeight = weights%proc%minus(negSwitches(j), &
-!                             currentB_ilut(j), weights%dat)
-!                     end if
-! 
-!                     zeroWeight = calcStayingProb(zeroWeight, switchWeight, &
-!                         currentB_ilut(j)) 
-! 
-!                     startWeight = startWeight * zeroWeight
-! 
-!                 end do
-! 
                 ! "normally" matrix element shouldnt be 0 anymore... still check
                 if (abs(start_mat) > EPS) then
                     integral = integral + start_mat * mat_ele * (get_umat_el(i,holeInd,elecInd,i) &
@@ -9888,7 +9781,6 @@ contains
             ! check if orb_pgen is non-zero
             ! still have to update matrix element in this case..
             ! so do the cycle only afterwards..
-!             if (st == 1 .and. sw == 3) print *, "orb_pgen(2): ", orb_pgen
 
             if (orb_pgen < EPS) cycle
 
@@ -9921,7 +9813,6 @@ contains
             start_weight = zero_weight/(zero_weight + switch_weight)
 
             ! and update probWeight
-!             branch_pgen = branch_pgen * start_weight / stay_weight
             ! i think i should not put in the intermediate start_weight 
             ! permanently..
             branch_pgen = branch_pgen / stay_weight
@@ -9931,18 +9822,12 @@ contains
 
         end do
 
-!         if (st == 1 .and. sw == 3) then
-!             print *, "pgen(2): ", pgen
-!             print *, "branch_pgen(2): ", branch_pgen
-!         end if
-
         ! handle switch seperately (but only if switch > start) 
         if (sw > st) then
 
             ! check orb_pgen otherwise no influencce
             call calc_orbital_pgen_contrib_start(ilut, [2*sw, 2*elecInd], holeInd,&
                 orb_pgen)
-!             if (st == 1 .and. sw == 3) print *, "orb_pgen(3): ", orb_pgen
 
 
             if (orb_pgen > EPS) then
@@ -9992,19 +9877,9 @@ contains
 
                 pgen = pgen + orb_pgen * branch_pgen * start_weight / stay_weight
 
-!                 if (st == 1 .and. sw == 3) then
-!                     print *, "branch_pgen(3): ",branch_pgen * start_weight / stay_weight
-!                     print *, "start_weight(3): ", start_weight
-!                     print *, "stay_weight(3): ", stay_weight
-!                     print *, "zero weight(3): ", zero_weight
-!                     print *, "switch_weight(3): ", switch_weight
-!                     print *, "staying prob: ", calcStayingProb(zero_weight,switch_weight, &
-!                         currentB_ilut(sw))
-!                 end if
             end if
         end if
 
-!         print *, "pgen: ", pgen
         ! i also need to consider the electron pair picking probability.. 
         pgen = pgen / real(ElecPairs, dp) 
 
