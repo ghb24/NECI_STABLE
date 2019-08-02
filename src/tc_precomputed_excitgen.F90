@@ -1,7 +1,6 @@
 #include "macros.h"
 module pcpp_excitgen
   use constants
-  use tc_three_body_data
   use aliasSampling
   use bit_reps, only: niftot
   use SystemData, only: nel, nBasis, G1, BRR, symmax, Symmetry
@@ -58,6 +57,8 @@ contains
 
     real(dp) :: r
     integer :: elec_map(nel)
+
+    HElgen = 0.0
 
     ! create the map for the electrons
     if(.not.store%tFilled) then
@@ -144,7 +145,7 @@ contains
     pGen = pSGen1 * pSGen2 + pSSwap1 * pSSwap2
 
     call double_hole_one_sampler(src1)%sample(tgt1,pTGen1)
-    ! generation probability  so far to ensure it has a valid value on return in any case
+    ! update generation probability so far to ensure it has a valid value on return in any case
     if(abort_excit(tgt1)) then
        pGen = pGen * pTGen1
        return
@@ -270,6 +271,7 @@ contains
        excitMat = 0
        excitMat(1,1) = src
        excitMat(2,1) = tgt
+       ! report the failure
        tParity = .false.
     else
        elec = binary_search_first_ge(nI,src)
@@ -543,9 +545,11 @@ contains
       do i = 1, nBasis
          w = 0.0_dp
          do a = 1, nBasis
-            ! store the accumulated matrix elements (= un-normalized probability) with
-            ! the corresponding symmetry (if spins of a/i are different, w is 0)
-            w(a) = acc_doub_matel(i,a)            
+            ! we never want to sample the source orbital
+            if(i.ne.a) &
+                 ! store the accumulated matrix elements (= un-normalized probability) with
+                 ! the corresponding symmetry (if spins of a/i are different, w is 0)            
+                 w(a) = acc_doub_matel(i,a)            
          end do
 
          call single_hole_sampler(i)%setupSampler(w)
