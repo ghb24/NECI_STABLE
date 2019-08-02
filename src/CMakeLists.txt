@@ -51,7 +51,6 @@ set( SRC_FILES
     FciMCPar.F90
     fcimc_pointed_fns.F90
     fcoul.F
-    fiveIndexLMat.F90
     frsblk.F
     ftlm_neci.F90
     gen_coul.F

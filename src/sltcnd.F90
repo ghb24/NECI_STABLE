@@ -14,8 +14,7 @@ module sltcnd_mod
     use UMatCache, only: GTID, get_2d_umat_el_exch, get_2d_umat_el, UMatInd
     use IntegralsData, only: UMAT
     use OneEInts, only: GetTMatEl, TMat2D
-    use procedure_pointers, only: get_umat_el, sltcnd_0, sltcnd_1, sltcnd_2, sltcnd_3, &
-         get_lmat_el_five_ind
+    use procedure_pointers, only: get_umat_el, sltcnd_0, sltcnd_1, sltcnd_2, sltcnd_3
     use DetBitOps, only: count_open_orbs, FindBitExcitLevel
     use csf_data, only: csf_sort_det_block
     use timing_neci
@@ -564,7 +563,7 @@ contains
       ! and the 3-body term
       do i = 1, nel     
          if(ex(1,1).ne.nI(i) .and. ex(1,2).ne.nI(i)) &
-         hel = hel + get_lmat_el_five_ind(ex(1,1),ex(1,2),ex(2,1),ex(2,2),nI(i))
+         hel = hel + get_lmat_el(ex(1,1),ex(1,2),nI(i),ex(2,1),ex(2,2),nI(i))
       end do
 
       ! take fermi sign into account
