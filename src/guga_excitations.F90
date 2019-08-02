@@ -22536,7 +22536,6 @@ contains
 
         ! for legacy compatibility
         z_ind = ubound(kPointToBasisFn, 3)
-        print *, "z: ", z_ind
 
         ki = G1(occ_orbs(1))%k
         kj = G1(occ_orbs(2))%k
@@ -23099,8 +23098,6 @@ contains
         ! change that! (but maybe reuse it for 3 3 case
         ! aber vl. doch spatial orbitals...
         do a = 1, i - 1
-
-!             print *, "orb_a: ", a
 
             contrib = 0.0_dp
             excitInfo%valid = .false.
