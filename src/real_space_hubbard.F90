@@ -21,7 +21,8 @@ module real_space_hubbard
                           t_trans_corr, trans_corr_param, t_trans_corr_2body, & 
                           trans_corr_param_2body, tHPHF, t_trans_corr_new, & 
                           t_trans_corr_hop, t_uniform_excits, t_hole_focus_excits, pholefocus,&
-                          t_spin_dependent_transcorr, tNoBrillouin, tUseBrillouin
+                          t_spin_dependent_transcorr, tNoBrillouin, tUseBrillouin, &
+                          t_twisted_bc, twisted_bc
 
     use lattice_mod, only: lattice, determine_optimal_time_step, lat, &
                     get_helement_lattice, get_helement_lattice_ex_mat, & 
@@ -189,6 +190,10 @@ contains
         ! and i have to calculate the optimal time-step for the hubbard models. 
         ! where i need the connectivity of the lattice i guess? 
         if (t_trans_corr_hop .and. .not. tHPHF) then 
+            if (t_twisted_bc) then 
+                call stop_all(this_routine, & 
+                    "twisted BC + Transcorr not yet implemented!")
+            end if
 !             ASSERT(.not. tHPHF)
             if(t_hole_focus_excits)then 
                 generate_excitation => gen_excit_rs_hubbard_transcorr_hole_focus
@@ -840,7 +845,10 @@ contains
         ! this also depends on the boundary conditions
         character(*), parameter :: this_routine = "init_tmat"
 
-        integer :: i, ind, iunit
+        integer :: i, ind, iunit, r_i(3), r_j(3), diff(3), j
+        HElement_t(dp) :: mat_el
+        complex(dp) :: imag 
+
         ! depending on the input i either create tmat2d here or is have to 
         ! set it up, so it can be used to create the lattice.. 
         ! but for the beginning i think i want to set it up here from the 
@@ -849,44 +857,145 @@ contains
         ! that it was build-in created and tmat has to be calculated from it 
         ! now!
         if (present(lat)) then 
-            ! what do i need to do? 
-            ! loop over the indices in the lattice and get the neighbors
-            ! and i have to store it in spin-indices remember that!
-            if (associated(tmat2d)) deallocate(tmat2d)
-            allocate(tmat2d(nbasis,nbasis))
-            tmat2d = 0.0_dp
 
-            if (t_print_tmat) then 
-                iunit = get_free_unit()
-                open(iunit, file = 'TMAT')
+            if (t_twisted_bc) then 
+                ! this is the twist implementation with complex hopping 
+                ! elements
+                if (associated(tmat2d)) deallocate(tmat2d)
+                allocate(tmat2d(nbasis,nbasis))
+                tmat2d = 0.0_dp
+
+                if (t_print_tmat) then 
+                    iunit = get_free_unit()
+                    open(iunit, file = 'TMAT')
+                end if
+
+                do i = 1, lat%get_nsites() 
+                    ind = lat%get_site_index(i)
+
+                    r_i = lat%get_r_vec(i)
+
+                    associate(next => lat%get_neighbors(i))
+
+                        do j = 1, size(next)
+
+                            r_j = lat%get_r_vec(next(j))
+
+                            diff = r_i - r_j
+
+                            ! x-hopping 
+                            if (abs(diff(1)) /= 0) then 
+                                if (abs(diff(1)) == 1) then 
+                                    ! no hop over boundary
+                                    if (diff(1) == 1) then 
+                                        ! then we hop left 
+                                        mat_el = bhub * exp( -imag * twisted_bc(1))
+
+                                    else if (diff(1) == -1) then 
+                                        mat_el = bhub * exp( imag * twisted_bc(1))
+
+                                    else
+                                        call stop_all(this_routine, "something wrong!")
+                                    end if
+                                else 
+                                    ! hopping over boundary 
+                                    ! directions are otherwise
+                                    if (diff(1) > 0) then 
+                                        mat_el = bhub * exp( imag * twisted_bc(1))
+                                    else 
+                                        mat_el = bhub * exp( -imag * twisted_bc(1))
+                                    end if
+                                end if
+                            end if
+
+                            if (lat%get_ndim() > 1) then 
+                                ! y-hopping 
+                                if (abs(diff(2)) /= 0) then 
+                                    if (abs(diff(2)) == 1) then 
+                                        ! no hop over boundary
+                                        if (diff(2) == 1) then 
+                                            ! then we hop left 
+                                            mat_el = bhub * exp( -imag * twisted_bc(2))
+
+                                        else if (diff(2) == -1) then 
+                                            mat_el = bhub * exp( imag * twisted_bc(2))
+
+                                        else
+                                            call stop_all(this_routine, "something wrong!")
+                                        end if
+                                    else 
+                                        ! hopping over boundary 
+                                        ! directions are otherwise
+                                        if (diff(2) > 0) then 
+                                            mat_el = bhub * exp( imag * twisted_bc(2))
+                                        else 
+                                            mat_el = bhub * exp( -imag * twisted_bc(2))
+                                        end if
+                                    end if
+                                end if
+                            end if
+
+                            if (lat%get_ndim() > 2) then 
+                                call stop_all(this_routine, & 
+                                    "twisted BCs only implemented up to 2D")
+                            end if
+
+                            ! beta orbitals:
+                            tmat2d(2*ind - 1, 2*next(j) - 1) = mat_el 
+                            ! alpha: 
+                            tmat2d(2*ind, 2*next(j)) = mat_el
+
+                        end do
+                        
+                        ASSERT(all(next > 0))
+                        ASSERT(all(next <= nbasis/2))
+
+                        if (t_print_tmat) then
+                            write(iunit,*) 2*i - 1, 2*next - 1, mat_el
+                            write(iunit,*) 2*i, 2*next, mat_el
+                        end if
+                    end associate
+                    ASSERT(lat%get_nsites() == nbasis/2)
+                    ASSERT(ind > 0) 
+                    ASSERT(ind <= nbasis/2)
+                
+                end do
+
+            else 
+                ! what do i need to do? 
+                ! loop over the indices in the lattice and get the neighbors
+                ! and i have to store it in spin-indices remember that!
+                if (associated(tmat2d)) deallocate(tmat2d)
+                allocate(tmat2d(nbasis,nbasis))
+                tmat2d = 0.0_dp
+
+                if (t_print_tmat) then 
+                    iunit = get_free_unit()
+                    open(iunit, file = 'TMAT')
+                end if
+
+                do i = 1, lat%get_nsites() 
+                    ind = lat%get_site_index(i)
+                    associate(next => lat%get_neighbors(i))
+                        ! beta orbitals:
+                        tmat2d(2*ind - 1, 2*next - 1) = bhub 
+                        ! alpha: 
+                        tmat2d(2*ind, 2*next) = bhub
+                        
+                        ASSERT(all(next > 0))
+                        ASSERT(all(next <= nbasis/2))
+
+                        if (t_print_tmat) then
+                            write(iunit,*) 2*i - 1, 2*next - 1, bhub
+                            write(iunit,*) 2*i, 2*next, bhub
+                        end if
+                    end associate
+                    ASSERT(lat%get_nsites() == nbasis/2)
+                    ASSERT(ind > 0) 
+                    ASSERT(ind <= nbasis/2)
+                
+                end do
             end if
-!             if (t_trans_corr_hop) then 
-                ! for the new transcorrelation term, we have modified 
-                ! one-body matrix elements.. but these are dependent on the 
-                ! determinant!! so we cannot setup the matrix element 
-                ! beforehand
-
-            do i = 1, lat%get_nsites() 
-                ind = lat%get_site_index(i)
-                associate(next => lat%get_neighbors(i))
-                    ! beta orbitals:
-                    tmat2d(2*ind - 1, 2*next - 1) = bhub 
-                    ! alpha: 
-                    tmat2d(2*ind, 2*next) = bhub
-                    
-                    ASSERT(all(next > 0))
-                    ASSERT(all(next <= nbasis/2))
-
-                    if (t_print_tmat) then
-                        write(iunit,*) 2*i - 1, 2*next - 1, bhub
-                        write(iunit,*) 2*i, 2*next, bhub
-                    end if
-                end associate
-                ASSERT(lat%get_nsites() == nbasis/2)
-                ASSERT(ind > 0) 
-                ASSERT(ind <= nbasis/2)
-            
-            end do
 
         else
             ! this indicates that tmat has to be created from an fcidump 
@@ -1692,6 +1801,7 @@ contains
         ASSERT(same_spin(ex(1),ex(2)))
 
         hel = GetTMatEl(ex(1),ex(2))
+
         if (t_trans_corr_hop) then 
             hel = hel + get_2_body_contrib_transcorr_hop(nI,ex)
         else if (t_spin_dependent_transcorr .and. is_alpha(ex(1))) then 
@@ -2239,7 +2349,6 @@ contains
 
         ! like niklas, choose the alpha spins to be the correlated ones
         if (t_spin_dependent_transcorr .and. is_alpha(ex(1))) then 
-!             hel = hel + tmat_rs_hub_spin_transcorr(ex(1),ex(2))
             hel = hel + get_1_body_contrib_spin_transcorr(nI,ex)
         end if
 
