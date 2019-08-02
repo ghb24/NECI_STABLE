@@ -71,6 +71,10 @@ contains
     integer :: i,j,cV, cU
     integer(int64) :: arrSize
     integer, allocatable :: overfull(:), underfull(:)
+    character(*), parameter :: t_r = "setupTable"
+
+    if(sum(arr) < eps) call stop_all(t_r,&
+         "Trying to setup empty alias table")
 
     ! allocate the shared memory segment for the alias table
     arrSize = size(arr)
@@ -210,10 +214,11 @@ contains
     real(dp), intent(in) :: arr(:)
 
     integer(int64) :: arrSize
-    character(*), parameter :: t_r = "setupSampler"
     ! if all weights are 0, throw an error
     if(sum(arr) < eps) then
-       call stop_all(t_r, "Trying to initialize sampler with empty probability distribution")
+       write(iout,*) &
+            "Warning: trying to initialize sampler with empty probability distribution"
+       return
     endif
     
     ! initialize the alias table
@@ -252,7 +257,9 @@ contains
 
     ! in debug, do a sanity check: is this initialized?
     if(.not.associated(this%probs)) then
-       call stop_all("Sample","Trying to call routines of an unitialized sampler object")
+       tgt = 0
+       prob = 0.0
+       return
     end if
     ! get the drawn number from the alias table
     tgt = this%table%getRand()

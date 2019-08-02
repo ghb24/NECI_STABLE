@@ -59,6 +59,7 @@ MODULE SymExcitDataMod
         logical :: tFilled
         integer, pointer :: dorder_i (:) => null()
         integer, pointer :: dorder_j (:) => null()
+        integer, pointer :: elec_map (:) => null()
         integer :: nopen
     end type
 

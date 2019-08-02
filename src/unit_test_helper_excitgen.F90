@@ -6,7 +6,7 @@ module unit_test_helper_excitgen
   use Integrals_neci, only: IntInit, get_umat_el_normal
   use procedure_pointers, only: get_umat_el, generate_excitation
   use SystemData, only: nel, nBasis, UMatEps, tStoreSpinOrbs, tReadFreeFormat, tCSF, &
-       tReadInt
+       tReadInt, t_pcpp_excitgen
   use sort_mod
   use System, only: SysInit, SetSysDefaults
   use Parallel_neci, only: MPIInit, MPIEnd
@@ -16,8 +16,10 @@ module unit_test_helper_excitgen
   use bit_reps, only: encode_sign, decode_bit_det
   use DetBitOps, only: EncodeBitDet, DetBitEq
   use SymExcit3, only: countExcitations3, GenExcitations3
-  use FciMCData, only: pSingles, pDoubles, pParallel, ilutRef, projEDet
+  use FciMCData, only: pSingles, pDoubles, pParallel, ilutRef, projEDet, &
+       fcimc_excit_gen_store
   use SymExcitDataMod, only: excit_gen_store_type
+  use GenRandSymExcitNUMod, only: init_excit_gen_store
   use Calc, only: CalcInit, SetCalcDefaults
   use dSFMT_interface, only: dSFMT_init, genrand_real2_dSFMT
   use Determinants, only: DetInit, DetPreFreezeInit, get_helement
@@ -48,7 +50,6 @@ contains
     integer(n_int), allocatable :: allEx(:,:)
     real(dp) :: pgenArr(lenof_sign)
     real(dp) :: matel, matelN
-    type(excit_gen_store_type) :: store
     logical :: exDoneDouble(0:nBasis,0:nBasis,0:nBasis,0:nBasis)
     logical :: exDoneSingle(0:nBasis,0:nBasis)
     integer :: ic, part, nFound, nullExcits
@@ -91,8 +92,8 @@ contains
     pNull = 0.0_dp
     nullExcits = 0
     do i = 1, sampleSize
-       store%tFilled = .false.
-       call generate_excitation(nI,ilut,nJ,ilutJ,exFlag,ic,ex,tPar,pgen,HEl,store,part)
+       fcimc_excit_gen_store%tFilled = .false.
+       call generate_excitation(nI,ilut,nJ,ilutJ,exFlag,ic,ex,tPar,pgen,HEl,fcimc_excit_gen_store,part)
        ! lookup the excitation
        tFound = .false.
        do j = 1, numEx
@@ -139,6 +140,7 @@ contains
        matelN = matelN + abs(get_helement(nI,nJ))
     end do
     nFound = 0
+    write(iout,*) "Exciting from", nI
     do i = 1, numEx
        call extract_sign(allEx(:,i),pgenArr)
        call decode_bit_det(nJ,allEx(:,i))
@@ -147,6 +149,10 @@ contains
           matel = get_helement(nI,nJ)
           write(iout,*) i, pgenArr(1), real(allEx(NIfTot+1,i))/real(sampleSize), &
                abs(matel)/(pgenArr(1)*matelN)
+       else if(i < nSingles) then
+          write(iout,*) "Unfound single excitation", nJ
+       else
+          write(iout,*) "Unfound double excitation", nJ, matel
        endif
        pTot = pTot + pgenArr(1)
     end do
@@ -154,6 +160,7 @@ contains
     write(iout,*) "pNull ", pNull
     write(iout,*) "Null ratio", nullExcits / real(sampleSize)
     write(iout,*) "In total", numEx, "excitations"
+    write(iout,*) "With", nSingles, "single excitation"
     write(iout,*) "Found", nFound, "excitations"
 
   end subroutine test_excitation_generator
@@ -210,6 +217,8 @@ contains
     call DetPreFreezeInit()
 
     call CalcInit()
+    t_pcpp_excitgen = .true.
+    call init_excit_gen_store(fcimc_excit_gen_store)
   end subroutine init_excitgen_test
   
   !------------------------------------------------------------------------------------------!
@@ -270,9 +279,9 @@ contains
   ! set the reference to the determinant with the first nel orbitals occupied
   subroutine set_ref()
     integer :: i
-    allocate(projEDet(nel,1))
+    allocate(projEDet(nel,1))    
     do i = 1, nel
-       projEDet(i,1) = i
+       projEDet(i,1) = i + 2
     end do
     allocate(ilutRef(0:NifTot,1))
     call encodeBitDet(projEDet(:,1),ilutRef(:,1))

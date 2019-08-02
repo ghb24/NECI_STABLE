@@ -12,7 +12,7 @@ module fcimc_initialisation
                           tHistSpinDist, tPickVirtUniform, tGen_4ind_reverse, &
                           tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
                           tUEGNewGenerator, tGen_4ind_2, tReltvy, nOccOrbs, &
-                          nClosedOrbs, irrepOrbOffset, nIrreps
+                          nClosedOrbs, irrepOrbOffset, nIrreps, t_pcpp_excitgen
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use dSFMT_interface, only: dSFMT_init
     use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
@@ -142,6 +142,7 @@ module fcimc_initialisation
     use ueg_excit_gens, only: gen_ueg_excit
     use gndts_mod, only: gndts
     use excit_gen_5, only: gen_excit_4ind_weighted2
+    use pcpp_excitgen, only: gen_rand_excit_pcpp, init_pcpp_excitgen
     use csf, only: get_csf_helement
     use tau_search, only: init_tau_search, max_death_cpt
     use fcimc_helper, only: CalcParentFlag, update_run_reference
@@ -1580,6 +1581,9 @@ contains
         ! Initialise excitation generation storage
         call init_excit_gen_store (fcimc_excit_gen_store)
 
+        ! initialize excitation generator
+        if(t_pcpp_excitgen) call init_pcpp_excitgen()
+
         IF((NMCyc.ne.0).and.(tRotateOrbs.and.(.not.tFindCINatOrbs))) then 
             CALL Stop_All(this_routine,"Currently not set up to rotate and then go straight into a spawning &
             & calculation.  Ordering of orbitals is incorrect.  This may be fixed if needed.")
@@ -1762,8 +1766,10 @@ contains
         elseif (tGen_4ind_weighted) then
             generate_excitation => gen_excit_4ind_weighted
         elseif (tGen_4ind_reverse) then
-            generate_excitation => gen_excit_4ind_reverse
-        else
+           generate_excitation => gen_excit_4ind_reverse
+        elseif (t_pcpp_excitgen) then
+           generate_excitation => gen_rand_excit_pcpp
+         else
             generate_excitation => gen_rand_excit
         endif
         ! In the main loop, we only need to find out if a determinant is

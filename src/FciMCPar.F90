@@ -974,7 +974,7 @@ module FciMCParMod
 
 
         integer :: ms, allErr
-
+        integer :: nullcount
         real(dp) :: precond_fac
         HElement_t(dp) :: hdiag_spawn, h_diag_correct
 
@@ -991,6 +991,7 @@ module FciMCParMod
         HighPopNeg=1
         HighPopPos=1
         FlagsCurr=0
+        nullcount = 0
         ! Synchronise processors
 !        CALL MPIBarrier(error)
 
@@ -1320,7 +1321,7 @@ module FciMCParMod
                 ! determinant. CurrentSign gives number of walkers. Multiply 
                 ! up by AvMCExcits if attempting multiple excitations from 
                 ! each walker (default 1.0_dp).
-                call decide_num_to_spawn(SignCurr(part_type), HDiagCurr, AvMCExcits, WalkersToSpawn)
+               call decide_num_to_spawn(SignCurr(part_type), HDiagCurr, AvMCExcits, WalkersToSpawn)
 
                 do p = 1, WalkersToSpawn
 
@@ -1336,6 +1337,9 @@ module FciMCParMod
                     
 
 
+                    if( IsNullDet(nJ)) then
+                       nullcount = nullcount + 1
+                    endif
                     ! If a valid excitation, see if we should spawn children.
                     if (.not. IsNullDet(nJ)) then
 
@@ -1548,7 +1552,7 @@ module FciMCParMod
            err = allErr
            return 
         endif
-
+        write(iout,*) "Null-ratio:", nullcount/real(TotWalkers)
         ! The growth in the size of the occupied part of CurrentDets
         ! this is important for the purpose of prone_walkers
         detGrowth = TotWalkersNew - TotWalkers

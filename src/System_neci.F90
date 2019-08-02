@@ -985,6 +985,10 @@ system: do
                         tGen_4ind_2 = .true.
                         tGen_4ind_part_exact = .true.
                         tGen_4ind_2_symmetric = .true.
+
+                    case("PCPP")
+                       ! the precomputed power-pitzer excitation generator
+                       t_pcpp_excitgen = .true.
                     case("UEG")
                         ! Use the new UEG excitation generator.
                         ! TODO: This probably isn't the best way to do this
