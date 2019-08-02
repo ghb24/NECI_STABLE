@@ -16837,8 +16837,8 @@ contains
                     if (t_no_singles) then 
                         if (abs(extract_matrix_element(t,1)) > EPS) then 
                             ASSERT(DeltaB == 0) 
-                            call encode_matrix_element(t, 0.0, 1)
-                            call encode_matrix_element(t, 0.0, 2)
+                            call encode_matrix_element(t, 0.0_dp, 1)
+                            call encode_matrix_element(t, 0.0_dp, 2)
 
                         end if
                     end if
@@ -16871,8 +16871,8 @@ contains
                     if (t_no_singles) then 
                         if (abs(extract_matrix_element(t,1)) > EPS) then 
                             ASSERT(DeltaB == 0) 
-                            call encode_matrix_element(t, 0.0, 1)
-                            call encode_matrix_element(t, 0.0, 2)
+                            call encode_matrix_element(t, 0.0_dp, 1)
+                            call encode_matrix_element(t, 0.0_dp, 2)
 
                         end if
                     end if
@@ -16905,11 +16905,11 @@ contains
                         if (t_no_singles) then 
                             if (abs(extract_matrix_element(t,1)) > EPS) then 
                                 ASSERT(DeltaB == 0) 
-                                call encode_matrix_element(t, 0.0, 1)
-                                call encode_matrix_element(t, 0.0, 2)
+                                call encode_matrix_element(t, 0.0_dp, 1)
+                                call encode_matrix_element(t, 0.0_dp, 2)
 
-                                call encode_matrix_element(tempExcits(:,iex), 0.0, 1)
-                                call encode_matrix_element(tempExcits(:,iex), 0.0, 2)
+                                call encode_matrix_element(tempExcits(:,iex), 0.0_dp, 1)
+                                call encode_matrix_element(tempExcits(:,iex), 0.0_dp, 2)
                             end if
                         end if
 
@@ -17007,8 +17007,8 @@ contains
                         if (t_no_singles) then 
                             if (abs(extract_matrix_element(t,1)) > EPS) then 
                                 ASSERT(DeltaB == 0) 
-                                call encode_matrix_element(t, 0.0, 1)
-                                call encode_matrix_element(t, 0.0, 2)
+                                call encode_matrix_element(t, 0.0_dp, 1)
+                                call encode_matrix_element(t, 0.0_dp, 2)
 
                             end if
                         end if
@@ -17058,8 +17058,8 @@ contains
                         if (t_no_singles) then 
                             if (abs(extract_matrix_element(t,1)) > EPS) then 
                                 ASSERT(DeltaB == 0) 
-                                call encode_matrix_element(t, 0.0, 1)
-                                call encode_matrix_element(t, 0.0, 2)
+                                call encode_matrix_element(t, 0.0_dp, 1)
+                                call encode_matrix_element(t, 0.0_dp, 2)
 
                             end if
                         end if
@@ -17334,8 +17334,8 @@ contains
                     if (t_no_singles) then 
                         if (abs(extract_matrix_element(t,1)) > EPS) then 
                             ASSERT(DeltaB == 0) 
-                            call encode_matrix_element(t, 0.0, 1)
-                            call encode_matrix_element(t, 0.0, 2)
+                            call encode_matrix_element(t, 0.0_dp, 1)
+                            call encode_matrix_element(t, 0.0_dp, 2)
                         end if
                     end if
 
@@ -17375,8 +17375,8 @@ contains
                     if (t_no_singles) then 
                         if (abs(extract_matrix_element(t,1)) > EPS) then 
                             ASSERT(DeltaB == 0) 
-                            call encode_matrix_element(t, 0.0, 1)
-                            call encode_matrix_element(t, 0.0, 2)
+                            call encode_matrix_element(t, 0.0_dp, 1)
+                            call encode_matrix_element(t, 0.0_dp, 2)
                         end if
                     end if
 
@@ -17417,11 +17417,11 @@ contains
                         if (t_no_singles) then 
                             if (abs(extract_matrix_element(t,1)) > EPS) then 
                                 ASSERT(DeltaB == 0) 
-                                call encode_matrix_element(t, 0.0, 1)
-                                call encode_matrix_element(t, 0.0, 2)
+                                call encode_matrix_element(t, 0.0_dp, 1)
+                                call encode_matrix_element(t, 0.0_dp, 2)
 
-                                call encode_matrix_element(tempExcits(:,iex), 0.0, 1)
-                                call encode_matrix_element(tempExcits(:,iex), 0.0, 2)
+                                call encode_matrix_element(tempExcits(:,iex), 0.0_dp, 1)
+                                call encode_matrix_element(tempExcits(:,iex), 0.0_dp, 2)
 
                             end if
                         end if
@@ -17520,8 +17520,8 @@ contains
                         if (t_no_singles) then 
                             if (abs(extract_matrix_element(t,1)) > EPS) then 
                                 ASSERT(DeltaB == 0) 
-                                call encode_matrix_element(t, 0.0, 1)
-                                call encode_matrix_element(t, 0.0, 2)
+                                call encode_matrix_element(t, 0.0_dp, 1)
+                                call encode_matrix_element(t, 0.0_dp, 2)
 
                             end if
                         end if
@@ -17571,8 +17571,8 @@ contains
                         if (t_no_singles) then 
                             if (abs(extract_matrix_element(t,1)) > EPS) then 
                                 ASSERT(DeltaB == 0) 
-                                call encode_matrix_element(t, 0.0, 1)
-                                call encode_matrix_element(t, 0.0, 2)
+                                call encode_matrix_element(t, 0.0_dp, 1)
+                                call encode_matrix_element(t, 0.0_dp, 2)
 
                             end if
                         end if
@@ -18481,8 +18481,8 @@ contains
 
                         ! encode 0 matrix element, which then the loop at 
                         ! the bottom should take care of and throw it out
-                        call encode_matrix_element(t, 0.0, 1)
-                        call encode_matrix_element(t, 0.0, 2)
+                        call encode_matrix_element(t, 0.0_dp, 1)
+                        call encode_matrix_element(t, 0.0_dp, 2)
 
                         tempExcits(:,iEx) = t
 
@@ -18536,8 +18536,8 @@ contains
 
                         ! encode 0 matrix element, which then the loop at 
                         ! the bottom should take care of and throw it out
-                        call encode_matrix_element(t, 0.0, 1)
-                        call encode_matrix_element(t, 0.0, 2)
+                        call encode_matrix_element(t, 0.0_dp, 1)
+                        call encode_matrix_element(t, 0.0_dp, 2)
 
                         tempExcits(:,iEx) = t
 
