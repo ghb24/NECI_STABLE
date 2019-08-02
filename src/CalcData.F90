@@ -154,6 +154,8 @@ logical :: tAAS_Reverse !Add weights in the opposite direction i.e. to the modif
 logical :: tAAS_Reverse_Weighted !Scale the reverse weights down by the number of walkers on the parent
 real(dp) :: AAS_DenCut !Threshold on the denominators of MatEles
 logical :: tAAS_Add_Diag !Add the diagonal term (Hii-E0)*tau to the weights
+logical :: tAAS_SpinScaled !Scale AAS weights of same-spin excitations different from opposit-spin
+real(dp) :: AAS_SameSpin, AAS_OppSpin
 ! Giovannis option for using only initiators for the RDMs (off by default)
 logical :: tOutputInitsRDM = .false.
 logical :: tNonInitsForRDMs = .true.

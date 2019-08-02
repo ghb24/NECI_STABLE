@@ -49,10 +49,11 @@ module AnnihilationMod
 
     contains
 
-    subroutine DirectAnnihilation(TotWalkersNew, MaxIndex, iter_data)
+    subroutine DirectAnnihilation(TotWalkersNew, MaxIndex, iter_data, err)
 
-        integer, intent(inout) :: TotWalkersNew, MaxIndex
-        type(fcimc_iter_data), intent(inout) :: iter_data
+      integer, intent(inout) :: TotWalkersNew, MaxIndex
+      integer, intent(out) :: err
+      type(fcimc_iter_data), intent(inout) :: iter_data
 
         ! If the semi-stochastic approach is being used then the following routine performs the
         ! annihilation of the deterministic states. These states are subsequently skipped in the
@@ -61,7 +62,7 @@ module AnnihilationMod
 
         ! Binary search the main list and copy accross/annihilate determinants which are found.
         ! This will also remove the found determinants from the spawnedparts lists.
-        call AnnihilateSpawnedParts(MaxIndex, TotWalkersNew, iter_data)
+        call AnnihilateSpawnedParts(MaxIndex, TotWalkersNew, iter_data, err)
 
         call set_timer(Sort_Time, 30)
         call CalcHashTableStats(TotWalkersNew, iter_data)
@@ -425,7 +426,6 @@ module AnnihilationMod
                    run = SpawnInfo(SpawnRun, i)
                    weights_rev(run) = weights_rev(run) + weight_rev
                end if
-
             end do ! Loop over particle type.
 
 
@@ -919,7 +919,7 @@ module AnnihilationMod
 
     end subroutine deterministic_annihilation
     
-    subroutine AnnihilateSpawnedParts(ValidSpawned, TotWalkersNew, iter_data)
+    subroutine AnnihilateSpawnedParts(ValidSpawned, TotWalkersNew, iter_data, err)
 
         ! In this routine we want to search through the list of spawned
         ! particles. For each spawned particle, we search the list of particles
@@ -938,7 +938,8 @@ module AnnihilationMod
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer, intent(inout) :: TotWalkersNew
-        integer, intent(in) :: ValidSpawned 
+        integer, intent(inout) :: ValidSpawned 
+        integer, intent(out) :: err
         integer :: PartInd, i, j, PartIndex, m, run
         real(dp), dimension(lenof_sign) :: CurrentSign, SpawnedSign, SignTemp
         real(dp), dimension(lenof_sign) :: TempCurrentSign, SignProd
@@ -981,7 +982,6 @@ module AnnihilationMod
            ! WRITE(6,*) 'i,SpawnedParts(:,i)',i,SpawnedParts(:,i)
 
            if (tSuccess) then
-
               ! Our SpawnedParts determinant is found in CurrentDets.
 
               call extract_sign(CurrentDets(:,PartInd),CurrentSign)
@@ -1026,7 +1026,7 @@ module AnnihilationMod
                           end if
                        end if
                     end if
-                    
+
                     !If we are fixing the population of reference det, skip spawing into it.
                     if(tSkipRef(run) .and. DetBitEQ(CurrentDets(:,PartInd),iLutRef(:,run),nIfD)) then
                        NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
@@ -1034,6 +1034,7 @@ module AnnihilationMod
                        call encode_part_sign (SpawnedParts(:,i), 0.0_dp, j)
                        SpawnedSign(j) = 0.0_dp
                     end if
+
 
                     if (SignProd(j) < 0) then
                        ! This indicates that the particle has found the
@@ -1111,11 +1112,10 @@ module AnnihilationMod
                        call update_acc_spawns(PartInd, run, 0.5 * weight_rev)
                     end do
                  end if
-              end if
-           end if
-
-           if ( (.not.tSuccess) .or. ((tSuccess .and. IsUnoccDet(CurrentSign) .and. (.not. tDetermState))) ) then
-
+              endif
+           else
+              
+              
               ! Determinant in newly spawned list is not found in CurrentDets.
               ! Usually this would mean the walkers just stay in this list and
               ! get merged later - but in this case we want to check where the
@@ -1145,7 +1145,6 @@ module AnnihilationMod
                        ! If this option is on, include the walker to be
                        ! cancelled in the trial energy estimate.
                        if (tIncCancelledInitEnergy) call add_trial_energy_contrib(SpawnedParts(:,i), SpawnedSign(j), j)
-
                        ! Walkers came from outside initiator space.
                        NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
                        iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
@@ -1158,7 +1157,7 @@ module AnnihilationMod
                        call encode_part_sign (SpawnedParts(:,i), SpawnedSign(j), j)
 
                     end if
-
+                    ! truncate to a minimum population given by the scale factor
                  end do
 
                  if(t_prone_walkers) then
@@ -1182,7 +1181,9 @@ module AnnihilationMod
                        ! same one as was generated at the beginning of the loop.
                        if(.not. tEScaleWalkers) diagH = get_diagonal_matel(nJ, SpawnedParts(:,i))
                        call AddNewHashDet(TotWalkersNew, SpawnedParts(0:NIfTot,i), DetHash, nJ, &
-                            PartInd, diagH)
+                            diagH, PartInd, err)
+                       ! abort upon error
+                       if(err.ne.0) return
                        if(tAutoAdaptiveShift .and. tAAS_Reverse)then
                           do run = 1, inum_runs
                              weight_rev = transfer(SpawnInfo(run, i), weight_rev)
@@ -1192,7 +1193,6 @@ module AnnihilationMod
                        end if
                     end if
                  end if
-
               else
                  ! Running the full, non-initiator scheme.
                  ! Determinant in newly spawned list is not found in
@@ -1229,7 +1229,9 @@ module AnnihilationMod
                        ! same one as was generated at the beginning of the loop.
                        if(.not. tEScaleWalkers) diagH = get_diagonal_matel(nJ, SpawnedParts(:,i))
                        call AddNewHashDet(TotWalkersNew, SpawnedParts(:,i), DetHash, nJ, &
-                            PartInd, diagH)
+                            diagH, PartInd, err)
+                       ! abort annihilation upon error
+                       if(err.ne.0) return
                        if(tAutoAdaptiveShift .and. tAAS_Reverse)then
                           do run = 1, inum_runs
                              weight_rev = transfer(SpawnInfo(run, i), weight_rev)
@@ -1241,6 +1243,9 @@ module AnnihilationMod
                  end if
               end if
 
+           ! store the spawn in the global data
+           if(tLogAverageSpawns) call store_spawn(PartInd, SpawnedSign)
+
               if (tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) then
                  ! We must use the instantaneous value for the off-diagonal contribution.
                  if (tOldRDMs) call check_fillRDM_DiDj_old(rdms, one_rdms_old, i, SpawnedParts(0:NifTot,i), SpawnedSign)
@@ -1251,20 +1256,18 @@ module AnnihilationMod
                       inits_one_rdms, i, SpawnedParts(0:NIfTot,i), SpawnedSign,.false.)
               end if
            end if
-
            ! store the spawn in the global data
            if(tLogAverageSpawns) call store_spawn(PartInd, SpawnedSign)
-
         end do
 
         call halt_timer(BinSearch_time)
 
         ! Update remaining number of holes in list for walkers stats.
         if ((iStartFreeSlot > iEndFreeSlot) .or. tTimedDeaths) then
-            ! All slots filled
-            HolesInList = 0
+           ! All slots filled
+           HolesInList = 0
         else
-            HolesInList = iEndFreeSlot - (iStartFreeSlot-1)
+           HolesInList = iEndFreeSlot - (iStartFreeSlot-1)
         endif
 
         call halt_timer(AnnMain_time)
@@ -1498,7 +1501,6 @@ module AnnihilationMod
         end do
 
     end subroutine add_en2_pert_for_trunc_calc
-
 
     subroutine SendSpawnInfo(tSingleProc)
         logical, intent(in) :: tSingleProc

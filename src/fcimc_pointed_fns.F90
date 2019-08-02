@@ -731,8 +731,8 @@ module fcimc_pointed_fns
 
     end function attempt_die_normal
 
-    function attempt_die_precond (DetCurr, Kii, realwSign, WalkExcitLevel, DetPosition) result(ndie)
 
+    function attempt_die_precond (DetCurr, Kii, realwSign, WalkExcitLevel, DetPos) result(ndie)
         ! Should we kill the particle at determinant DetCurr.
         ! The function allows multiple births (if +ve shift), or deaths from
         ! the same particle. The returned number is the number of deaths if
@@ -750,7 +750,8 @@ module fcimc_pointed_fns
         real(dp), intent(in) :: Kii
         real(dp), dimension(lenof_sign) :: ndie
         integer, intent(in) :: WalkExcitLevel
-        integer, intent(in), optional :: DetPosition
+
+        integer, intent(in), optional :: DetPos
         character(*), parameter :: t_r = 'attempt_die_normal'
 
         real(dp) :: probsign, r

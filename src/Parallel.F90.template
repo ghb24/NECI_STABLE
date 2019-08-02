@@ -1529,7 +1529,6 @@ supermodule par_internal
 contains
 
     subroutine MPIInit (tExternal)
-        use SystemData, only : tMolcas
 #ifdef MOLPRO
         USE molpro_options, only : molpro_helper_server
 #endif
@@ -1551,7 +1550,6 @@ contains
         character(len=20) NodeFile
         logical(MPIArg) :: initialised
         character(*), parameter :: t_r = 'MPIInit'
-        character(8) :: MCPUs
 #ifdef MOLPRO
         integer :: MolpComm
 #endif
@@ -1592,11 +1590,7 @@ contains
             call stop_all (t_r, 'MPI Error. Terminating.')
 
         call MPI_Comm_size (CommGlobal, nProcess, ierr)
-        if (tMolcas) then
-            call GET_ENVIRONMENT_VARIABLE('MOLCAS_NPROCS', MCPUs)
-            Read(MCPUS,*) nProcess
-        end if
-
+	
         !initialize intra node and inter node communicators
 #ifdef __SHARED_MEM
         !the 'intra' range is the full node for now.
