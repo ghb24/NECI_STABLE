@@ -265,6 +265,15 @@ contains
         else if (t_tJ_model) then 
             pSingles = 0.1_dp 
             pDoubles = 1.0 - pSingles
+
+        else if (t_k_space_hubbard) then 
+            pSingles = 0.0_dp
+            pDoubles = 1.0_dp
+
+        else if (t_new_real_space_hubbard) then 
+            pSingles = 1.0_dp
+            pDoubles = 0.0_dp
+
         else
             pSingles = 0.1_dp
             pDoubles = 1.0_dp - pSingles

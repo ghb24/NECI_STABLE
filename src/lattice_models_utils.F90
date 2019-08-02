@@ -1760,7 +1760,6 @@ contains
         
         n_excits = 1 
 
-!         n_bound = nel*(nel-1)*(nbasis-nel)*(nbasis-nel-1)
         ! i think a more correct estimat is:
         n_bound = max(int(nel*(nel-1)*(nBasis - nel)/4), 10)
 

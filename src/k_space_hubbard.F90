@@ -16,7 +16,8 @@ module k_space_hubbard
                     omega, bhub, nBasisMax, G1, BasisFN, NullBasisFn, TSPINPOLAR, & 
                     treal, ttilt, tExch, ElecPairs, MaxABPairs, Symmetry, SymEq, &
                     t_new_real_space_hubbard, SymmetrySize, tNoBrillouin, tUseBrillouin, &
-                    excit_cache, t_uniform_excits, brr, uhub, lms, t_mixed_excits
+                    excit_cache, t_uniform_excits, brr, uhub, lms, t_mixed_excits, & 
+                    tGUGA, tgen_guga_mixed, tgen_guga_crude, t_approx_exchange
 
     use lattice_mod, only: get_helement_lattice_ex_mat, get_helement_lattice_general, &
                            determine_optimal_time_step, lattice, sort_unique, lat, &
@@ -86,6 +87,9 @@ module k_space_hubbard
 
     use unit_test_helpers, only: print_matrix
                                     
+#ifndef __CMPLX
+    use guga_excitations, only: generate_excitation_guga, generate_excitation_guga_crude
+#endif
 
     implicit none 
 
@@ -423,6 +427,12 @@ contains
         if(t_uniform_excits) then 
             generate_excitation => gen_excit_uniform_k_space_hub
         end if 
+
+        if (tGUGA) then 
+!             call Stop_All(this_routine, & 
+!                 "use old-style Hubbard k-space with GUGA!")
+            generate_excitation => generate_excitation_guga
+        end if
 
         tau_opt = determine_optimal_time_step() 
 

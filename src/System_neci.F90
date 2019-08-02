@@ -398,6 +398,10 @@ system: do
             endif
             tGUGA = .true.
 
+            if (t_new_hubbard) then 
+                t_guga_noreorder = .true.
+            end if
+
         ! also set LMS value to the inputted STOT to misuse the reference 
         ! determinant creation for a fixed LMS also for the GUGA approach...
             LMS = STOT
