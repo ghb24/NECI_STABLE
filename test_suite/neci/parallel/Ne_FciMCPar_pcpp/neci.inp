@@ -10,7 +10,7 @@ methods
 method vertex fcimc 
 endmethods
 
-nmcyc 5000
+nmcyc 8000
 seed 8
 max-tau 0.02
 totalwalkers 20000
