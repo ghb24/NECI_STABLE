@@ -972,7 +972,6 @@ module FciMCParMod
         integer :: DetHash, FinalVal, clash, PartInd, k, y, MaxIndex
         type(ll_node), pointer :: TempNode
 
-        integer :: nullcount
         integer :: ms, allErr
         real(dp) :: precond_fac
         HElement_t(dp) :: hdiag_spawn, h_diag_correct
@@ -991,8 +990,6 @@ module FciMCParMod
         HighPopPos=1
         FlagsCurr=0
 
-        ! auxiliary null-count
-        nullcount = 0
         ! Synchronise processors
 !        CALL MPIBarrier(error)
 
@@ -1338,9 +1335,6 @@ module FciMCParMod
                     
 
 
-                    if( IsNullDet(nJ)) then
-                       nullcount = nullcount + 1
-                    endif
                     ! If a valid excitation, see if we should spawn children.
                     if (.not. IsNullDet(nJ)) then
 
