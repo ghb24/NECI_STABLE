@@ -7,7 +7,7 @@ module gen_coul_ueg_mod
                           btHub, momIndexTable, breathingCont, tmodHub,&
                           ALAT,OrbECutoff,t_ueg_transcorr,t_ueg_3_body,&
                           tTranscorr,tContact,trpa_tc,tInfSumTCCalc,&
-                          tInfSumTCPrint,tInfSumTCRead
+                          tInfSumTCPrint,tInfSumTCRead, Tperiodicinmom
     use IntegralsData, only: UMat, FCK
     use global_utilities
     use constants, only: sp, dp, pi, pi2, THIRD
@@ -648,11 +648,11 @@ contains
 !  occupied orbitals
     function get_contact_umat_el_3b_sp(idi, idj, idk, idl) result(hel)
 
-        use SystemData, only: kvec,dimen,PotentialStrength,TranscorrCutoff,nOccAlpha,nOccBeta
+        use SystemData, only: kvec,dimen,PotentialStrength,TranscorrCutoff,nOccAlpha,nOccBeta,TranscorrGaussCutoff,t_trcorr_gausscutoff
         integer, intent(in) :: idi, idj, idk, idl
         HElement_t(dp) :: hel
         integer :: i, j, k, l, a, b, c, kmax,nsigma
-        real(dp) ::  G2,prefack
+        real(dp) ::  G2,prefack,GaussCutoff,GaussCutoff2,Gaussfact
         real(dp) :: kveclength
         character(*), parameter :: this_routine = 'get_contact_umat_el_3b'
 
@@ -698,18 +698,25 @@ contains
 
          if ( G1(k)%k(1) - G1(i)%k(1) == a) then
 
+            Gaussfact=1.d0
+            if(t_trcorr_gausscutoff.and.a.ne.0) then
+              GaussCutoff=TranscorrGaussCutoff*2.d0*PI/ALAT(1)
+              GaussCutoff2=GaussCutoff**2
+              Gaussfact=(1.d0-dexp(-GaussCutoff2*dfloat(a**2)))**2
+            endif
+
                         kmax=TranscorrCutoff
                         kveclength=dabs(dfloat(a))
                         prefack=2*PI/ALAT(1)
                         hel=0
-                        if(kveclength.ge.kmax) then
+                        if(kveclength.ge.kmax.or.t_trcorr_gausscutoff) then
                            G2 = kveclength*prefack
                            if(G1(i)%Ms.eq.-1) then
                                                 nsigma=nOccAlpha
                            else
                                                 nsigma=nOccBeta
                            endif
-                         hel=-nsigma*PotentialStrength**2/G2**2/ALAT(1)
+                         hel=-nsigma*PotentialStrength**2/G2**2/ALAT(1)*Gaussfact
                         endif
 
           endif !a
@@ -726,13 +733,14 @@ contains
 !  occupied orbitals
     function get_contact_umat_el_3b_sap(idi, idj, idk, idl,nI) result(hel)
 
-        use SystemData, only:kvec,dimen,PotentialStrength,TranscorrCutoff,nOccAlpha,nOccBeta
+        use SystemData, only:kvec,dimen,PotentialStrength,TranscorrCutoff,nOccAlpha,nOccBeta,TranscorrGaussCutoff,t_trcorr_gausscutoff
         integer, intent(in) :: idi, idj, idk, idl, nI(nel)
         HElement_t(dp) :: hel
         integer :: i, j, k, l, a, b, c, sumind,sumind2,qocc,sumval
         integer :: alkvec(3), alexkvec(3), bekvec(3), beexkvec(3), kkvec(3), qocckvec(3)
         integer :: diffvec(3), diff2vec(3)
         real(dp) ::  G2,prefac, kveclength, sprod, difflength, diff2length
+        real(dp) :: GaussCutoff,GaussCutoff2,Gaussfact
         character(*), parameter :: this_routine = 'get_contact_umat_el_3b'
 
 
@@ -824,6 +832,11 @@ contains
 
         elseif(dimen==1) then
 
+         if(t_trcorr_gausscutoff.and.kkvec(1).ne.0) then
+               GaussCutoff=TranscorrGaussCutoff*2.d0*PI/ALAT(1)
+               GaussCutoff2=GaussCutoff**2
+         endif
+
           alkvec(1)=G1(i)%k(1)
           bekvec(1)=G1(j)%k(1)
           alexkvec(1)=G1(k)%k(1)
@@ -843,27 +856,37 @@ contains
 
                             diffvec(1)=qocckvec(1)-bekvec(1)
                             difflength=dabs(dfloat(diffvec(1)))
-                            if(difflength.lt.TranscorrCutoff) cycle
+                            if(.not.t_trcorr_gausscutoff.and.difflength.lt.TranscorrCutoff) cycle
+                            
 
 
                             diff2vec(1)=qocckvec(1)-beexkvec(1)
                             diff2length=dabs(dfloat(diff2vec(1)))
-                            if(diff2length.lt.TranscorrCutoff) cycle
+                            if(.not.t_trcorr_gausscutoff.and.diff2length.lt.TranscorrCutoff) cycle
 
                           else
                             if(qocc.eq.i) cycle
                             diffvec(1)=qocckvec(1)-alkvec(1)
                             difflength=dabs(dfloat(diffvec(1)))
-                            if(difflength.lt.TranscorrCutoff) cycle
+                            if(.not.t_trcorr_gausscutoff.and.difflength.lt.TranscorrCutoff) cycle
 
 
                             diff2vec(1)=qocckvec(1)-alexkvec(1)
                             diff2length=dabs(dfloat(diff2vec(1)))
-                            if(diff2length.lt.TranscorrCutoff) cycle
+                            if(.not.t_trcorr_gausscutoff.and.diff2length.lt.TranscorrCutoff) cycle
 
                           endif
 
-                          hel=hel-prefac/(diffvec(1)*diff2vec(1))
+                
+                        if(diffvec(1).ne.0.and.diff2vec(1).ne.0) then
+                          Gaussfact=1.d0
+                          if(t_trcorr_gausscutoff) then
+                                Gaussfact=(1.d0-dexp(-GaussCutoff2*dfloat(diffvec(1)**2)))*(1.d0-dexp(-GaussCutoff2*dfloat(diff2vec(1)**2)))
+                          endif
+
+                          hel=hel-prefac/(diffvec(1)*diff2vec(1))*Gaussfact
+                        endif !diffvec(1).ne.0.and.diff2vec(1).ne.0
+
                         enddo !sumind
 
            endif !a
@@ -878,13 +901,14 @@ contains
 !  the following fun is modified for transcorrelated Hamiltonian under RPA approx     
     function get_contact_umat_el (idi, idj, idk, idl) result(hel)
 
-        use SystemData, only: kvec, dimen,PotentialStrength,TranscorrCutoff,nOccAlpha,nOccBeta
+        use SystemData, only: kvec, dimen,PotentialStrength,TranscorrCutoff,nOccAlpha,nOccBeta,TranscorrGaussCutoff,t_trcorr_gausscutoff,Tperiodicinmom
         integer, intent(in) :: idi, idj, idk, idl
         HElement_t(dp) :: hel
         integer :: i, j, k, l, a, b, c, kmax,nsigma,sumind
-        real(dp) ::  G2,prefack,sprod
+        real(dp) :: G2,prefack,sprod
         real(dp) :: k_tc(3), pq_tc(3), u_tc,kveclength
-        logical :: tparallel
+        real(dp) :: Gaussfact,GaussCutoff,GaussCutoff2
+        logical :: tparallel, tmomconserv
         character(*), parameter :: this_routine = 'get_contact_umat_el'
 
 
@@ -986,13 +1010,34 @@ contains
                 kmax=abs(NBASISMAX(1,2))
         endif
 
-        if ( ((G1(k)%k(1) - G1(i)%k(1)) == a)) then
+        if(Tperiodicinmom) then
+                tmomconserv=mod(G1(k)%k(1) - G1(i)%k(1)-a,nbasis/2) == 0
+                if(abs(a).gt.abs(NBASISMAX(1,2))) then
+                        if(a.gt.0) then
+                                a=a-nbasis/2
+                        else
+                                a=a+nbasis/2
+                        endif
+                endif
+        else
+                tmomconserv=((G1(k)%k(1) - G1(i)%k(1)) == a)
+        endif
+
+        if ( tmomconserv) then
+         
+          Gaussfact=1.d0
+          if(t_trcorr_gausscutoff.and.a.ne.0) then
+            GaussCutoff=TranscorrGaussCutoff*2.d0*PI/ALAT(1)
+            GaussCutoff2=GaussCutoff**2
+            Gaussfact=(1.d0-dexp(-GaussCutoff2*dfloat(a**2)))
+          endif
 
          if(tparallel) then
 
            hel=0
 
-           if(t_ueg_transcorr.and.abs(a).ge.kmax) then
+           if(t_ueg_transcorr) then
+              if(abs(a).ge.kmax.or.(t_trcorr_gausscutoff.and.a.ne.0)) then
                 k_tc(1) = 2 * PI * a / ALAT(1)
                 G2 = k_tc (1) * k_tc (1)
                 if(G1(i)%Ms.eq.-1) then
@@ -1000,7 +1045,8 @@ contains
                 else
                         nsigma=nOccBeta
                 endif
-                hel=hel-nsigma*PotentialStrength**2/G2/ALAT(1)
+                hel=hel-nsigma*PotentialStrength**2/G2/ALAT(1)*Gaussfact**2
+              endif
            endif
 
 
@@ -1014,12 +1060,11 @@ contains
 
                   k_tc(1) = 2 * PI * a / ALAT(1)
                   G2 = k_tc (1) * k_tc (1)
-                  if( abs(a).ge.kmax ) then
+                  if( abs(a).ge.kmax.or.(t_trcorr_gausscutoff.and.a.ne.0) ) then
                       pq_tc(1) = (G1(k)%k(1) - G1(l)%k(1))*2*PI/ ALAT(1)
                       u_tc = -PotentialStrength/G2 !/PI
 
-                      hel = hel - PotentialStrength - pq_tc(1)*k_tc(1)*u_tc
-
+                      hel=hel-(PotentialStrength+pq_tc(1)*k_tc(1)*u_tc)*Gaussfact
 
                   end if
            end if
@@ -1043,12 +1088,12 @@ contains
     
       subroutine GEN_Umat_TC_Contact
         use SystemData, only: dimen,PotentialStrength,TranscorrCutoff,TranscorrIntCutoff
-        use SystemData, only: tUnitary
+        use SystemData, only: tUnitary,t_trcorr_gausscutoff,TranscorrGaussCutoff
 !       use Determinants, only: FDet
         use sym_mod, only: roundsym, addelecsym, setupsym, lchksym
         type(BasisFn) :: ka, kb
         integer :: i,j,k,shifti,shiftj,shiftk,diffi,diffj,diffk,sprodi,sprodij
-        real(dp) :: sprod,length,difflength
+        real(dp) :: sprod,length,difflength,GaussCutoff,GaussCutoff2
         integer :: AllocateStatus,kmax,kmaxcutoff
         integer :: maxj,mink,maxk,maxshiftj,maxshiftk,twokmax,signk
         integer :: shiftmaxj, shiftmaxk
@@ -1065,10 +1110,15 @@ contains
         call set_timer (proc_timer)
 
 
-
-
       kmax=abs(NBASISMAX(1,2))
       twokmax=2*kmax
+      if(t_trcorr_gausscutoff) then
+        GaussCutoff=TranscorrGaussCutoff*2.d0*PI/ALAT(1)
+        GaussCutoff2=GaussCutoff**2
+        !It only calcualtes the value of the Gauss function 
+        !if it is smaller then 1.e-12.
+        TranscorrCutoff=ceiling(5.25652176976/GaussCutoff)+1
+      endif
       if(TranscorrCutoff.gt.0) then
                 kmaxcutoff=TranscorrCutoff
       else
@@ -1082,7 +1132,7 @@ contains
         prefactk=-ALAT(1)*PotentialStrength**2/2.d0/PI**2
 
 !       k=0
-        summasumma=PI**2/6
+        summasumma=PI**2/6.d0
         do i=1, kmaxcutoff-1
            summasumma=summasumma-1.d0/dfloat(i)**2
         enddo !i
@@ -1113,9 +1163,18 @@ contains
           enddo !i
         endif
 
-!        write(6,*)'Umat TC'
-!        write(6,*)kmax
-!        write(6,*)UMAT_TC2_Contact(0:2*kmax)
+         if(t_trcorr_gausscutoff) then
+            do i=0, 2*kmax
+                 summasumma=0.d0
+                 do j=-kmaxcutoff-i+1,kmaxcutoff+i-1
+                    if(j.ne.0.and.j.ne.i) then
+                       k=i-j
+                       if(abs(j).lt.kmaxcutoff.or.abs(k).lt.kmaxcutoff) summasumma=summasumma+(1.d0-dexp(-GaussCutoff2*dfloat(j**2)))*(1.d0-dexp(-GaussCutoff2*dfloat(k**2)))/dfloat(j*k)
+                    endif
+                 enddo !j
+                 UMAT_TC2_Contact(i)=UMAT_TC2_Contact(i)-summasumma/2.d0
+            enddo  
+         endif 
 
          UMAT_TC2_Contact(0:2*kmax)=prefactk*UMAT_TC2_Contact(0:2*kmax)
 
@@ -1196,7 +1255,8 @@ contains
 
                 read(32,*)dummyword, trcutoffread
                 if(trcutoffread.ne.kmaxcutoff) then
-                        stop "The value of TrCutoff is different in TranscorrInfSum."
+                        write(6,*) "From TranscorrInfSum: ", trcutoffread, " From the input file:", kmaxcutoff
+                        stop  "The value of TrCutoff is different in TranscorrInfSum."
                 endif
 
                 read(32,*)dummyword, trintcutoffread
@@ -1717,10 +1777,11 @@ c2=ck(1)*ck(1)+ck(2)*ck(2)+ck(3)*ck(3)
         end function
 
 function get_lmat_ua (l1,l2,l3,r1,r2,r3) result(hel)
-        use SystemData, only: dimen, TranscorrCutoff, PotentialStrength
+        use SystemData, only: dimen, TranscorrCutoff,PotentialStrength,TranscorrGaussCutoff,t_trcorr_gausscutoff
         integer, intent(in) :: l1,l2,l3,r1,r2,r3
         integer :: i,j,k,a,b,c,k1(3),k2(3),k3(3)
         real(dp) :: hel,ak(3),bk(3),ck(3),a3,b3,c3,klength1, klength2
+        real(dp) :: GaussCutoff,GaussCutoff2,Gaussfact
 !       logical :: tSpinCorrect
 
 
@@ -1773,6 +1834,7 @@ function get_lmat_ua (l1,l2,l3,r1,r2,r3) result(hel)
         hel=hel/(ALAT(1) * ALAT(2) * ALAT(3))**2
       elseif(dimen==1) then
 
+
         i=l1
         j=l2
         k=l3
@@ -1790,12 +1852,20 @@ function get_lmat_ua (l1,l2,l3,r1,r2,r3) result(hel)
 
         k3(1) = G1(c)%k(1) - G1(k)%k(1)
 
-        if(k2(1)-k1(1)+k3(1)==0.and.klength1.ge.TranscorrCutoff.and.klength2.ge.TranscorrCutoff) then
+        if(k2(1)-k1(1)+k3(1)==0.and.((klength1.ge.TranscorrCutoff.and.klength2.ge.TranscorrCutoff).or.(t_trcorr_gausscutoff.and.(k1(1).ne.0.and.k2(1).ne.0)))) then
+
+           Gaussfact=1.d0
+           if(t_trcorr_gausscutoff) then
+            GaussCutoff=TranscorrGaussCutoff*2.d0*PI/ALAT(1)
+            GaussCutoff2=GaussCutoff**2
+            Gaussfact=(1.d0-dexp(-GaussCutoff2*dfloat(k1(1)**2)))*(1.d0-dexp(-GaussCutoff2*dfloat(k2(1)**2)))
+           endif
+
            ak(1) = 2 * PI * k1(1) / ALAT(1)
            bk(1) = 2 * PI * k2(1) / ALAT(1)
 
 
-           hel=-PotentialStrength**2/(ak(1)*bk(1))/2.d0 !&
+           hel=-PotentialStrength**2/(ak(1)*bk(1))/2.d0*Gaussfact
 
          else
 

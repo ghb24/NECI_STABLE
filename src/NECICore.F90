@@ -319,7 +319,7 @@ subroutine NECICalcInit(iCacheFlag)
 !                  LogAlloc(ierr, 'UMat_TC3', int(UMatInt),HElement_t_SizeB, tagUMat)
 !                  UMat_TC3 = 0.0_dp
 !                  WRITE(6,*) "Size of UMat_TC3 is: ",UMATINT
-                  
+                
                  If(tContact) then
                       call GEN_Umat_TC_contact
                  else
