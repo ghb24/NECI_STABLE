@@ -23136,7 +23136,6 @@ contains
                     ! with momentum conservation.. todo!
                     if (current_stepvector(a) == 0) then
                         !todo: remove this possibility then! 
-                        print *, "is this actually reached?"
                         ! _RR_(ab) > ^RR^(ij)
                         excitInfo = assign_excitInfo_values(22,1,1,1,1,1,&
                             a,i,a,i,a,a,i,i,0,2,1.0_dp,1.0_dp)
@@ -23237,7 +23236,6 @@ contains
                     !todo: i think with momentum conservation this below is not
                     ! even possible, if really not -> remove it
                     if (current_stepvector(a) == 0) then
-                        print *, "is this actually possible?"
                         ! _LL_(ij) > ^LL^(ab) 
                         excitInfo = assign_excitInfo_values(22,-1,-1,-1,-1,-1,&
                             a,i,a,i,i,i,a,a,0,2,1.0_dp,1.0_dp)
