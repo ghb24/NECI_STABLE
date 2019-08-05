@@ -252,13 +252,9 @@ contains
 !             call update_run_reference(ilut_neel, 1)
 
         end if
-        ! do not set that here, due to circular dependencies
-!         max_death_cpt = 0.0_dp
 
         ! i need to setup the necessary stuff for the new hopping 
         ! transcorrelated real-space hubbard! 
-!         call init_hopping_transcorr() 
-
         call init_get_helement_hubbard()
 
     end subroutine init_real_space_hubbard
@@ -277,11 +273,6 @@ contains
 
         call init_dispersion_rel_cache() 
 
-!         print *, "e(k)"
-!         do i = 1, lat%get_nsites()
-!             print *, i, "|", lat%get_k_vec(i), "|", epsilon_kvec(i)
-!         end do
-
         ! i also need a umat array now! 
         if (t_trans_corr_hop) then
             call init_umat_rs_hub_transcorr()
@@ -290,31 +281,6 @@ contains
         end if
 
     end subroutine init_hopping_transcorr
-
-!     real(dp) function spin_trancorr_factor(J, r_vec) 
-!         ! similar to hopping transcorr factor with spin-dependent 
-!         ! hopping only 
-!         real(dp), intent(in) :: J
-!         integer, intent(in) :: r_vec(3)
-! #ifdef __DEBUG
-!         character(*), parameter :: this_routine = "spin_trancorr_factor"
-! #endif 
-!         complex(dp) :: temp 
-!         integer :: i, n_sites, k_vec(3)
-! 
-!         ASSERT(associated(lat))
-! 
-!         n_sites = lat%get_nsites()
-! 
-!         temp = 0.0_dp 
-! 
-!         do i = 1, n_sites
-!             k_vec = lat%get_k_vec(i)
-! 
-!             temp = temp + exp(
-! 
-! 
-!     end function spin_trancorr_factor
 
     real(dp) function hop_transcorr_factor(J, r_vec)
         ! compute \sum_p exp(i*p*r) exp(J,r) for the 2-body term in the 
@@ -337,33 +303,17 @@ contains
         ! vectors... 
         do i = 1, n_sites
             k_vec = lat%get_k_vec(i)
-!             temp = temp + exp(complex(0.0,1.0) * 2.0*pi/real(n_sites,dp) * &
-!                 dot_product(k_vec, r_vec)) * exp(-J * epsilon_kvec(i))
             temp = temp + exp(imag_unit * lat%dot_prod(k_vec, r_vec)) * & 
                 exp(-J * epsilon_kvec(i))
-
-!             print *, "k: ", k_vec, "|", exp(complex(0.0,1.0) * 2.0*pi/real(n_sites,dp)* &
-!                 dot_product(k_vec, r_vec))
 
         end do
 
         hop_transcorr_factor = real(temp) / real(n_sites,dp)
 
-!         print *, "hop_transcorr_factor(r): ",r_vec, temp/real(n_sites,dp)
         ! will this be ever comlex? check the size 
         ASSERT(abs(aimag(temp)) < EPS) 
 
     end function hop_transcorr_factor
-
-    ! i actually do not need this i guess.. since the factors are the same
-!     subroutine init_spin_transcorr_fac_cached(J_fac, in_lat)
-!         real(dp), intent(in) :: J_fac 
-!         class(lattice), intent(in) :: in_lat
-! #ifdef __DEBUG 
-!         character(*), parameter :: this_routine = "init_spin_transcorr_fac_cached"
-! #endif
-! 
-!     end subroutine init_spin_transcorr_fac_cached
 
     subroutine init_hop_trancorr_fac_cached(J_fac, in_lat)
         ! also store the hopping transcorrelation factor in a cache, 
@@ -755,18 +705,6 @@ contains
             root_print "Done"
         end if
 
-! #ifdef __DEBUG 
-!         ! also check if the distance is figured out correctly.. 
-!         r1 = lat%get_r_vec(1)
-!         print *, "matrix elements from r1: ", r1, "umat(1,1,1,i), umat(1,1,i,i), umat(1,i,1,i), umat(1,i,i,i)"
-!         do i = 2, lat%get_nsites()
-!             ri = lat%get_r_vec(i)
-!             print *, ri, "|", umat_rs_hub_trancorr_hop(1,1,1,i), &
-!                               umat_rs_hub_trancorr_hop(1,1,i,i), &
-!                               umat_rs_hub_trancorr_hop(1,i,1,i), &
-!                               umat_rs_hub_trancorr_hop(1,i,i,i)
-!         end do
-! #endif
     end subroutine init_umat_rs_hub_transcorr
 
     subroutine init_get_helement_hubbard
@@ -889,10 +827,15 @@ contains
                                     ! no hop over boundary
                                     if (diff(1) == 1) then 
                                         ! then we hop left 
-                                        mat_el = bhub * exp( -imag * twisted_bc(1))
+                                        ! twisted BCs are given in units of 
+                                        ! 2pi/L so a twist of 1 corresponds to 
+                                        ! the same system!
+                                        mat_el = bhub * exp( -cmplx(0.0, & 
+                                            2 * pi / lat%get_length(1) * twisted_bc(1),dp))
 
                                     else if (diff(1) == -1) then 
-                                        mat_el = bhub * exp( imag * twisted_bc(1))
+                                        mat_el = bhub * exp( cmplx(0.0,  & 
+                                            2 * pi / lat%get_length(1) * twisted_bc(1),dp))
 
                                     else
                                         call stop_all(this_routine, "something wrong!")
@@ -901,9 +844,11 @@ contains
                                     ! hopping over boundary 
                                     ! directions are otherwise
                                     if (diff(1) > 0) then 
-                                        mat_el = bhub * exp( imag * twisted_bc(1))
+                                        mat_el = bhub * exp( cmplx(0.0, & 
+                                            2 * pi / lat%get_length(1) * twisted_bc(1),dp))
                                     else 
-                                        mat_el = bhub * exp( -imag * twisted_bc(1))
+                                        mat_el = bhub * exp( -cmplx(0.0,  & 
+                                            2 * pi / lat%get_length(1) * twisted_bc(1),dp))
                                     end if
                                 end if
                             end if
@@ -915,10 +860,12 @@ contains
                                         ! no hop over boundary
                                         if (diff(2) == 1) then 
                                             ! then we hop left 
-                                            mat_el = bhub * exp( -imag * twisted_bc(2))
+                                            mat_el = bhub * exp( -cmplx(0.0,  & 
+                                                2 * pi / lat%get_length(2) * twisted_bc(2),dp))
 
                                         else if (diff(2) == -1) then 
-                                            mat_el = bhub * exp( imag * twisted_bc(2))
+                                            mat_el = bhub * exp( cmplx(0.0, & 
+                                                2 * pi / lat%get_length(2) * twisted_bc(2),dp))
 
                                         else
                                             call stop_all(this_routine, "something wrong!")
@@ -927,9 +874,11 @@ contains
                                         ! hopping over boundary 
                                         ! directions are otherwise
                                         if (diff(2) > 0) then 
-                                            mat_el = bhub * exp( imag * twisted_bc(2))
+                                            mat_el = bhub * exp( cmplx(0.0, & 
+                                                2 * pi / lat%get_length(2) * twisted_bc(2),dp))
                                         else 
-                                            mat_el = bhub * exp( -imag * twisted_bc(2))
+                                            mat_el = bhub * exp( -cmplx(0.0, & 
+                                                2 * pi / lat%get_length(2) * twisted_bc(2),dp))
                                         end if
                                     end if
                                 end if
@@ -945,15 +894,15 @@ contains
                             ! alpha: 
                             tmat2d(2*ind, 2*next(j)) = mat_el
 
+                            if (t_print_tmat) then
+                                write(iunit,*) 2*i - 1, 2*next(j) - 1, mat_el
+                                write(iunit,*) 2*i, 2*next(j), mat_el
+                            end if
+
                         end do
                         
                         ASSERT(all(next > 0))
                         ASSERT(all(next <= nbasis/2))
-
-                        if (t_print_tmat) then
-                            write(iunit,*) 2*i - 1, 2*next - 1, mat_el
-                            write(iunit,*) 2*i, 2*next, mat_el
-                        end if
                     end associate
                     ASSERT(lat%get_nsites() == nbasis/2)
                     ASSERT(ind > 0) 
@@ -986,8 +935,10 @@ contains
                         ASSERT(all(next <= nbasis/2))
 
                         if (t_print_tmat) then
-                            write(iunit,*) 2*i - 1, 2*next - 1, bhub
-                            write(iunit,*) 2*i, 2*next, bhub
+                            do j = 1, size(next)
+                                write(iunit,*) 2*i - 1, 2*next(j) - 1, bhub
+                                write(iunit,*) 2*i, 2*next(j), bhub
+                            end do
                         end if
                     end associate
                     ASSERT(lat%get_nsites() == nbasis/2)
@@ -2145,8 +2096,11 @@ contains
 
             else if (ic_ret == 1) then 
                 ex(1,1) = 1
-                call GetExcitation(nI, nJ, nel, ex, tpar)
-                hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar) 
+                ! exchange for fix with twisted BCs
+!                 call GetExcitation(nI, nJ, nel, ex, tpar)
+!                 hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar) 
+                call GetExcitation(nJ, nI, nel, ex, tpar)
+                hel = get_offdiag_helement_rs_hub(nJ, ex(:,1), tpar) 
 
             else if (ic_ret == 2 .and. t_trans_corr_hop) then 
 
@@ -2167,9 +2121,11 @@ contains
                     hel = get_diag_helemen_rs_hub(nI)
                 else if (ic_ret == 1) then 
                     ex(1,1) = 1
-                    call GetBitExcitation(ilutI, ilutJ, ex, tpar)
-
-                    hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar)
+                    ! exchange for fix with twisted BCs
+!                     call GetBitExcitation(ilutI, ilutJ, ex, tpar)
+!                     hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar)
+                    call GetBitExcitation(ilutJ, ilutI, ex, tpar)
+                    hel = get_offdiag_helement_rs_hub(nJ, ex(:,1), tpar)
 
                 else if (ic_ret == 2 .and. t_trans_corr_hop) then 
                     ex(1,1) = 2
@@ -2194,8 +2150,11 @@ contains
                 hel = get_diag_helemen_rs_hub(nI)
             else if (ic == 1) then 
                 ex(1,1) = 1
-                call GetBitExcitation(ilutI, ilutJ, ex, tpar)
-                hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar) 
+                ! exchange for fix with twisted BCs
+!                 call GetBitExcitation(ilutI, ilutJ, ex, tpar)
+!                 hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar) 
+                call GetBitExcitation(ilutJ, ilutI, ex, tpar)
+                hel = get_offdiag_helement_rs_hub(nJ, ex(:,1), tpar) 
 
             else if (ic == 2 .and. t_trans_corr_hop) then 
                 ex(1,1) = 2

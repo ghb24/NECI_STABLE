@@ -2173,7 +2173,6 @@ contains
                 else if (ic_ret == 2) then 
                     ex_2(1,1) = 2 
                     call GetBitExcitation(ilutI, ilutJ, ex_2, tpar) 
-
                     hel = get_offdiag_helement_k_sp_hub(nI, ex_2, tpar) 
 
                 else if (ic_ret == 3 .and. t_trans_corr_2body) then 
@@ -2198,8 +2197,8 @@ contains
                 hel = get_diag_helement_k_sp_hub(nI)
             else if (ic == 2) then
                 ex_2(1,1) = 2 
-                call GetBitExcitation(ilutI, ilutJ, ex_2, tpar) 
 
+                call GetBitExcitation(ilutI, ilutJ, ex_2, tpar) 
                 hel = get_offdiag_helement_k_sp_hub(nI, ex_2, tpar) 
 
             else if (ic == 3 .and. t_trans_corr_2body) then 

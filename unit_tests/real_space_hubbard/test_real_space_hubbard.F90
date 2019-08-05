@@ -58,6 +58,7 @@ program test_real_space_hubbard
     call init_fruit()
     ! run the test-driver 
     call exact_test()
+    call stop_all("here", "for now")
     call real_space_hubbard_test_driver()
     call fruit_summary()
     call fruit_finalize() 
@@ -118,8 +119,8 @@ contains
         logical :: t_start_neel, t_flip, t_input_nel, t_input_lattice
 
         t_optimize_corr_param  = .false.
-        t_do_diag_elements = .true.
-        t_do_exact_transcorr = .true.
+        t_do_diag_elements = .false.
+        t_do_exact_transcorr = .false.
         t_do_exact_double_occ = .false.
         t_j_vec = .true.
         t_input_U = .true.
@@ -129,6 +130,8 @@ contains
         phase = 1.0_dp
         t_input_nel = .true.
         t_input_lattice = .true. 
+        t_twisted_bc = .true.
+        twisted_bc(1) = 0.1_dp
 
         if (t_input_lattice) then 
             print *, "input lattice type: (chain,square,rectangle,tilted)"
@@ -153,7 +156,7 @@ contains
             t_start_neel = .true. 
         end if
 
-        t_trans_corr_hop = .true.
+        t_trans_corr_hop = .false.
         lat => lattice(lattice_type, length_x, length_y, 1,.true.,.true.,.true.)
         t_trans_corr_hop = .false.
 
@@ -199,7 +202,8 @@ contains
         end do
 
         call setup_arr_brr(lat)
-        call init_hopping_transcorr()
+
+!         call init_hopping_transcorr()
 !         call setup_symmetry_table()
 !         call setup_k_space_hub_sym(lat) 
 !         call init_dispersion_rel_cache()
@@ -286,12 +290,15 @@ contains
         print *, "size hilbert: ", size(hilbert_space, 2)
         hamil = create_hamiltonian(hilbert_space)
 
-        call eig(hamil, e_orig, e_vecs)
-
+        print *, "hamil:"
+        call print_matrix(hamil)
 !         print *, "orig: e-values:"
 !         do i = 1, size(hilbert_space,2)
 !             print *, e_orig(i)
 !         end do
+
+#ifndef __CMPLX
+        call eig(hamil, e_orig, e_vecs)
 
         ! first create the exact similarity transformation 
         allocate(t_mat(size(hamil,1),size(hamil,2)), source = hamil) 
@@ -392,6 +399,7 @@ contains
             call optimize_correlation_parameters()
         end if
 
+#endif
         call stop_all("here","now")
 
     end subroutine exact_test
@@ -505,6 +513,7 @@ contains
 
     end function calc_exact_double_occ
 
+#ifndef __CMPLX
     subroutine exact_transcorrelation(lat, nI, J, U, hilbert_space)
         class(lattice), intent(in) :: lat 
         integer, intent(in) :: nI(nel) 
@@ -560,7 +569,7 @@ contains
         allocate(gs_vec(n_states));          gs_vec = 0.0_dp
         do i = 1, size(hamil,1)
             do k = 1, size(hamil,2)
-                if (isnan(hamil(i,k)) .or. is_inf(hamil(i,k))) print *, i,k,hamil(i,k)
+                if (isnan(real(hamil(i,k))) .or. is_inf(real(hamil(i,k)))) print *, i,k,hamil(i,k)
             end do
         end do
         call eig(hamil, e_values, e_vec) 
@@ -936,6 +945,7 @@ contains
         t_trans_corr_hop = .false.
 
     end subroutine exact_transcorrelation
+#endif
 
     subroutine init_realspace_tests
 

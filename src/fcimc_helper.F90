@@ -708,9 +708,14 @@ contains
             if (tHPHF) then
                 HOffDiag(1:inum_runs) = hphf_off_diag_helement (ProjEDet(:,1), nI, &
                                                                 iLutRef(:,1), ilut)
+!                 HOffDiag(1:inum_runs) = hphf_off_diag_helement (nI, ProjEDet(:,1), & 
+!                                                                 ilut, ilutRef(:,1))
+                                                                
             else
                 HOffDiag(1:inum_runs) = get_helement (ProjEDet(:,1), nI, &
                                                       ExcitLevel, ilutRef(:,1), ilut)
+!                 HOffDiag(1:inum_runs) = get_helement (nI, ProjEDet(:,1), &
+!                                                       ExcitLevel, ilut, ilutRef(:,1))
             endif
 
         else if (ExcitLevel_local == 3 .and. t_3_body_excits) then 
@@ -718,6 +723,7 @@ contains
             ! hphf not yet implemented! 
             ASSERT(.not. tHPHF) 
             HOffDiag(1:inum_runs) = get_helement( ProjEDet(:,1), nI, ilutRef(:,1), ilut) 
+!             HOffDiag(1:inum_runs) = get_helement( nI, ProjEDet(:,1), ilut, ilutRef(:,1))
 
 
         endif ! ExcitLevel_local == 1, 2, 3
@@ -983,15 +989,20 @@ contains
                 if (tHPHF) then
                     hoffdiag = hphf_off_diag_helement(ProjEDet(:,run), nI, &
                                                       iLutRef(:,run), ilut)
+!                     HOffDiag = hphf_off_diag_helement (nI, ProjEDet(:,run), & 
+!                                                                 ilut, ilutRef(:,run))
                 else
                     hoffdiag = get_helement (ProjEDet(:,run), nI, exlevel, &
                                              ilutRef(:,run), ilut)
+!                     HOffDiag = get_helement (nI, ProjEDet(:,run), &
+!                                              exlevel, ilut, ilutRef(:,run))
                 endif
 
             else if (exlevel == 3 .and. t_3_body_excits) then 
                 ASSERT(.not. tHPHF) 
                 hoffdiag = get_helement(ProjEDet(:,run), nI, exlevel, &
                     iLutRef(:,run), ilut)
+!                 HOffDiag = get_helement( nI, ProjEDet(:,run), ilut, ilutRef(:,run))
 
             end if
 
