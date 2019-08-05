@@ -7,6 +7,9 @@ module aliasSampling
   use dSFMT_interface , only : genrand_real2_dSFMT  
   implicit none
 
+  private
+  public :: aliasSampler_t
+  
   ! type for tables: contains everything you need to get a random number
   ! with given biases
   type aliasTable_t
@@ -53,7 +56,7 @@ module aliasSampling
      ! get the probability to produce a given value
      procedure :: getProb
   end type aliasSampler_t
- 
+
 contains
 
   !------------------------------------------------------------------------------------------!
