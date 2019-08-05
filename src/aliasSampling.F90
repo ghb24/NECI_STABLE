@@ -8,7 +8,7 @@ module aliasSampling
   implicit none
 
   private
-  public :: aliasSampler_t
+  public :: aliasSampler_t, aliasTable_t
   
   ! type for tables: contains everything you need to get a random number
   ! with given biases
