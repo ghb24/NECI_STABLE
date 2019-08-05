@@ -193,6 +193,7 @@ MODULE System
       t_exclude_3_body_excits = .false.
       t_ueg_3_body = .false.
       t_ueg_transcorr = .false.
+      t_trcorr_gausscutoff = .false.
       t_ueg_dump = .false.
       tMultiReplicas = .false.
       tGiovannisBrokenInit = .false.
@@ -207,8 +208,10 @@ MODULE System
       PotentialStrength=1.0_dp
       TranscorrCutoff=0
       TranscorrIntCutoff=0
+      TranscorrGaussCutoff=1.d0
       TContact=.false.
       TUnitary=.false.
+      Tperiodicinmom=.false.
       tTrcorrExgen = .true.                
       tTrCorrRandExgen = .false.                
 
@@ -699,16 +702,33 @@ system: do
         ! Options for transcorrelated method (only: UEG 2D 3D, Homogeneous 1D 3D
         ! gas with contact interaction)
          case("TRANSCORRCUTOFF")
-           call geti(TranscorrCutoff)
-           if(tContact.and.dimen.eq.3) then
-                tInfSumTCCalc=.true.
-                call geti(TranscorrIntCutoff)
+           if(item < nitems) then
+                call readu(w)
+                select case(w)
+                  case("GAUSS")
+                    if(dimen.ne.1) stop 'Gauss cutoff is developed only for 1D!'
+                    call getf(TranscorrGaussCutoff)
+                    t_trcorr_gausscutoff = .true.
+
+                  case("STEP")
+                    t_trcorr_gausscutoff = .false.
+                    call geti(TranscorrCutoff)
+                    if(tContact.and.dimen.eq.3) then
+                       tInfSumTCCalc=.true.
+                       call geti(TranscorrIntCutoff)
+                    endif
+
+                end select
+
            endif
 
        !Options for turn off the RPA term(only: transcorrelated homogeneous 1D
        !gas with contact interaction)
          case("NORPATC")
            tRPA_tc=.false.
+
+         case("PERIODICINMOMSPACE")
+           Tperiodicinmom=.true.
 
        ! Contact interaction for homogenous one dimensional Fermi gas is applied
          case("CONTACTINTERACTION")

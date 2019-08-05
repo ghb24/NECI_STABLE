@@ -1143,12 +1143,12 @@ contains
         HElement_t(dp), allocatable :: full_H(:,:)
         integer i, nI(nel)
 
-!       root_print "The determinants are"
+       root_print "The determinants are"
 
-!      do i=1, determ_space_size
-!       call decode_bit_det(nI, core_space(:,i))
-!       root_print i, nI(1:nel)
-!      enddo
+      do i=1, determ_space_size
+       call decode_bit_det(nI, core_space(:,i))
+       root_print i, nI(1:nel)
+      enddo
 
         ! if the Hamiltonian is non-hermitian we cannot use the 
         ! standard Lanzcos or Davidson routines. so:
@@ -1156,7 +1156,7 @@ contains
 !         if (iProcIndex == root) then
             call calc_determin_hamil_full(full_H)
 
-!           root_print "deterministic hamiltonian:"
+           root_print "deterministic hamiltonian:"
 !         if_root
 !             call print_matrix(full_H)
 !         end_if_root
