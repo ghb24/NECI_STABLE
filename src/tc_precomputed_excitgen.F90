@@ -1,7 +1,7 @@
 #include "macros.h"
 module pcpp_excitgen
   use constants
-  use aliasSampling
+  use aliasSampling, only: aliasSampler_t
   use bit_reps, only: niftot
   use SystemData, only: nel, nBasis, G1, BRR, symmax, Symmetry
   use sym_mod, only: symprod, symconj
