@@ -64,7 +64,7 @@ contains
   !------------------------------------------------------------------------------------------!
 
   subroutine setupTable(this, arr)
-    ! pseudo-constructor for alias tables
+    ! pseudo-constructor for alias tables      
     ! Input: arr - array containing the (not necessarily normalized) probabilities we
     !              want to use for sampling
     implicit none
@@ -212,6 +212,8 @@ contains
 
   subroutine setupSampler(this, arr)
     ! load the probability distribution from arr into this
+    ! Input: arr - array containing the (not necessarily normalized) probabilities we
+    !              want to use for sampling
     implicit none
     class(aliasSampler_t) :: this
     real(dp), intent(in) :: arr(:)
@@ -252,7 +254,9 @@ contains
   !------------------------------------------------------------------------------------------!
   
   subroutine sample(this, tgt, prob)
-    ! draw a random element from 1:size(prob) with the probabilities listed in prob
+    ! draw a random element from 1:size(this%probs) with the probabilities listed in prob
+    ! Input: tgt - on return, this is a random number in the sampling range of this
+    !        prob - on return, the probability of picking tgt
     implicit none
     class(aliasSampler_t) :: this
     integer, intent(out) :: tgt
@@ -274,6 +278,8 @@ contains
 
   pure function getProb(this, tgt) result(prob)
     ! Returns the probability to draw tgt from this sampler
+    ! Input: tgt - the number for which we request the probability of sampling
+    ! Output: prob - the probability of drawing tgt with the sample routine
     implicit none
     class(aliasSampler_t), intent(in) :: this
     integer, intent(in) :: tgt
@@ -286,8 +292,11 @@ contains
   ! Auxiliary functions to prevent code duplication
   !------------------------------------------------------------------------------------------!
 
-  ! wrapper for shared_allocate_mpi that tests if the pointer is associated
   subroutine safe_shared_memory_alloc(win,ptr,size)
+    ! wrapper for shared_allocate_mpi that tests if the pointer is associated          
+    ! Input: win - MPI shared memory window for internal MPI usage
+    !        ptr - pointer to be allocated, on return points to a shared memory segment of given size
+    !        size - size of the memory segment to be allocated
     implicit none
     integer(MPIArg) :: win
     real(dp), pointer :: ptr(:)
@@ -301,12 +310,17 @@ contains
 
   !------------------------------------------------------------------------------------------!
 
-  ! wrapper for shared_deallocate_mpi that tests if the pointer is associated
   subroutine safe_shared_memory_dealloc(win,ptr)
+    ! wrapper for shared_deallocate_mpi that tests if the pointer is associated
+    ! Input: win - MPI shared memory window for internal MPI usage
+    !        ptr - pointer to be deallocated (if associated)
+    ! WARNING: THIS ASSUMES THAT IF ptr IS ASSOCIATED, IT POINTS TO AN MPI SHARED MEMORY
+    !          WINDOW win
     implicit none
     integer(MPIArg) :: win
     real(dp), pointer :: ptr(:)
 
+    ! assume that if ptr is associated, it points to mpi shared memory
     if(associated(ptr)) call shared_deallocate_mpi(win, ptr)    
   end subroutine safe_shared_memory_dealloc
   

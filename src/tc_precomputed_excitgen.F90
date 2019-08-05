@@ -90,6 +90,13 @@ contains
     ! given the initial determinant (both as nI and ilut), create a random single excitation
     ! given by nJ/ilutnJ/excitMat with probability pGen. tParity indicates the fermi sign
     ! picked up by applying the excitation operator
+    ! Input: nI - determinant to excite from
+    !        elec_map - map to translate electron picks to orbitals
+    !        ilut - determinant to excite from in ilut format
+    !        nJ - on return, excited determinant
+    !        excitMat - on return, excitation matrix nI -> nJ
+    !        tParity - on return, the parity of the excitation nI -> nJ
+    !        pGen - on return, the probability of generating the excitation nI -> nJ
     integer, intent(in) :: nI(nel)
     integer, intent(in) :: elec_map(nel)
     integer(n_int), intent(in) :: ilut(0:NIfTot)
@@ -245,6 +252,14 @@ contains
     ! given the initial determinant (both as nI and ilut), create a random double excitation
     ! given by nJ/ilutnJ/excitMat with probability pGen. tParity indicates the fermi sign
     ! picked up by applying the excitation operator
+    ! Input: nI - determinant to excite from
+    !        elec_map - map to translate electron picks to orbitals
+    !        ilut - determinant to excite from in ilut format
+    !        nJ - on return, excited determinant
+    !        excitMat - on return, excitation matrix nI -> nJ
+    !        tParity - on return, the parity of the excitation nI -> nJ
+    !        pGen - on return, the probability of generating the excitation nI -> nJ
+    
     integer, intent(in) :: nI(nel)
     integer, intent(in) :: elec_map(nel)
     integer(n_int), intent(in) :: ilut(0:NIfTot)
@@ -706,12 +721,15 @@ contains
   end function pp_weight_function
 
   !------------------------------------------------------------------------------------------!
-
+  
   function symAllowed(a,b) result(allowed)
+    ! Check if a transition from a to be is symmetry-allowed
+    ! Input: a,b - orbitals to check
+    ! Output: allowed - true if and only if a,b have the same symmetries
     implicit none
     integer, intent(in) :: a,b
     logical :: allowed
-    
+
     allowed = same_spin(a,b) .and. (G1(a)%Sym%s.eq.G1(b)%Sym%s)
   end function symAllowed
 
@@ -719,6 +737,8 @@ contains
 
 
   pure subroutine intswap(a,b)
+    ! Swap two integers a and b
+    ! Input: a,b - integers to swapp (on return, a has the value of b on call and vice versa)
     integer, intent(inout) :: a,b
     integer :: tmp
 
