@@ -7,7 +7,8 @@ options:
   docker: true
 
 pipelines:
-  # default setup: only build for all branches and run unit tests, do not do any testsuite runs!
+  # default setup: only build neci for all branches and run neci unit tests, do not do any testsuite runs!
+  #   to save pipeline minutes
  default: 
   - step: 
      size: 2x
@@ -17,13 +18,14 @@ pipelines:
       - cd build 
       - echo "building release version"
       - cmake ..
-      - make -j 
+      - make -j neci test_neci
       - echo "done building release version"
       - echo "running unit tests"
-      - ctest
+      - ctest -I 1,25,6
       - echo "unit tests passed"
 
  branches:
+   # for the master branch pushes run the full compilation, unit tests and part of the testsuite
    master:
     - step: 
        size: 2x
