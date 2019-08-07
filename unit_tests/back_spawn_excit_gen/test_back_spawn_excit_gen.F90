@@ -65,7 +65,7 @@ contains
 
         allocate(projedet(nel,1)); projedet(:,1) = [1,2]
         allocate(ilutref(0:niftot,1))
-        call encodebitdet(projedet, ilutref)
+        call encodebitdet(projedet(:,1), ilutref(:,1))
  
         G1(1)%k = [1,0,0]
         G1(2)%k = [0,1,0]
@@ -148,7 +148,7 @@ contains
         ic = 2
         deallocate(projedet); allocate(projedet(nel,1)); projedet(:,1) = [3,4,5,6]
         deallocate(ilutref);  allocate(ilutref(0:niftot,1)); 
-        call encodebitdet(projedet, ilutref)
+        call encodebitdet(projedet(:,1), ilutref(:,1))
 
         ! so this is now same as the above beta pgen
         call assert_equals(1.0_dp/6.0_dp, calc_pgen_back_spawn_ueg(nI, ilut, ex, ic, run))
@@ -250,7 +250,7 @@ contains
 
         allocate(projedet(nel,1)); projedet(:,1) = [1,2]
         allocate(ilutref(0:niftot,1))
-        call encodebitdet(projedet, ilutref)
+        call encodebitdet(projedet(:,1), ilutref(:,1))
  
         print *, ""
         print *, "testing: calc_pgen_back_spawn_hubbard "
@@ -308,7 +308,7 @@ contains
         ic = 2
         deallocate(projedet); allocate(projedet(nel,1)); projedet(:,1) = [3,4,5,6]
         deallocate(ilutref);  allocate(ilutref(0:niftot,1)); 
-        call encodebitdet(projedet, ilutref)
+        call encodebitdet(projedet(:,1), ilutref(:,1))
 
         call assert_equals(1.0_dp/8.0_dp, calc_pgen_back_spawn_hubbard(nI, ilut, ex, ic, run))
 
