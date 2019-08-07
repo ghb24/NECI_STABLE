@@ -43,7 +43,7 @@ contains
     ! The interface is common to all excitation generators, see proc_ptrs.F90
     integer, intent(in) :: nI(nel), exFlag
     integer(n_int), intent(in) :: iLut(0:niftot)
-    integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
+    integer, intent(out) :: nJ(nel), IC, ExcitMat(2,maxExcit)
     logical, intent(out) :: tParity
     real(dp), intent(out) :: pGen
     type(excit_gen_store_type), intent(inout), target :: store

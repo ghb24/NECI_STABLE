@@ -40,7 +40,7 @@ contains
     integer, intent(in) :: sampleSize
     real(dp), intent(out) :: pTot, pNull
     integer :: nI(nel), nJ(nel)
-    integer :: i, ex(2,2), exflag
+    integer :: i, ex(2,maxExcit), exflag
     integer(n_int) :: ilut(0:NIfTot), ilutJ(0:NIfTot)
     real(dp) :: pgen
     logical :: tPar, tAllExFound, tFound
