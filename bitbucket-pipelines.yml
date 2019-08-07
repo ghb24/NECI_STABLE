@@ -45,3 +45,24 @@ pipelines:
         - cd ../test_suite
         - su -c "/testcode/bin/testcode.py -c dneci/double_occ/hub_2x2 -c kmneci/Rn_lanczos_fci -c kneci/C_221_int -c mneci/cfqmc/HeHe_5_states -c neci/parallel/C_Solid -vvv" -s /bin/sh temp
 
+
+ custom:
+   # this is an optional full run, if one chooses to test a specific branch fully
+  - step: 
+     size: 2x
+     script: 
+      - rm -rf build 
+      - mkdir build 
+      - cd build 
+      - echo "building release version"
+      - cmake ..
+      - make -j 
+      - echo "done building release version"
+      - echo "running unit tests"
+      - ctest
+      - echo "unit tests passed"
+      - echo "running limited test_suite(to save build-minutes)"
+      - useradd temp
+      - cd ../test_suite
+      - su -c "/testcode/bin/testcode.py -c dneci/double_occ/hub_2x2 -c kmneci/Rn_lanczos_fci -c kneci/C_221_int -c mneci/cfqmc/HeHe_5_states -c neci/parallel/C_Solid -vvv" -s /bin/sh temp
+
