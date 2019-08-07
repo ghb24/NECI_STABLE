@@ -32,7 +32,7 @@ module unit_test_helper_excitgen
   
 contains
 
-  subroutine test_excitation_generator(sampleSize, pTot, pNull)
+  subroutine test_excitation_generator(sampleSize, pTot, pNull, numEx, nFound)
     ! Test an excitation generator by creating a large number of excitations and
     ! compare the generated excits with a precomputed list of all excitations
     ! We thus make sure that
@@ -41,18 +41,19 @@ contains
     implicit none
     integer, intent(in) :: sampleSize
     real(dp), intent(out) :: pTot, pNull
+    integer, intent(out) :: numEx, nFound
     integer :: nI(nel), nJ(nel)
     integer :: i, ex(2,2), exflag
     integer(n_int) :: ilut(0:NIfTot), ilutJ(0:NIfTot)
     real(dp) :: pgen
     logical :: tPar, tAllExFound, tFound
-    integer :: j, numEx, nSingles, nDoubles
+    integer :: j, nSingles, nDoubles
     integer(n_int), allocatable :: allEx(:,:)
     real(dp) :: pgenArr(lenof_sign)
     real(dp) :: matel, matelN
     logical :: exDoneDouble(0:nBasis,0:nBasis,0:nBasis,0:nBasis)
     logical :: exDoneSingle(0:nBasis,0:nBasis)
-    integer :: ic, part, nFound, nullExcits
+    integer :: ic, part, nullExcits
     HElement_t(dp) :: HEl
     exDoneDouble = .false.
     exDoneSingle = .false.
@@ -72,6 +73,7 @@ contains
     call EncodeBitDet(nI,ilut)
 
     exflag = 3
+    ex = 0
     ! create a list of all singles and doubles for reference
     call CountExcitations3(nI,exflag,nSingles,nDoubles)
     allocate(allEx(0:(NIfTot+1),nSingles+nDoubles), source = 0_n_int)
@@ -162,7 +164,7 @@ contains
     write(iout,*) "In total", numEx, "excitations"
     write(iout,*) "With", nSingles, "single excitation"
     write(iout,*) "Found", nFound, "excitations"
-
+    
   end subroutine test_excitation_generator
 
   !------------------------------------------------------------------------------------------!
@@ -267,10 +269,11 @@ contains
        do j = 1, i
           r = genrand_real2_dSFMT()
           if(r < sparseT) then
-             write(iunit,*) r, i,j
+             write(iunit,*) r, i,j,0,0
           endif
        end do
     end do
+    close(iunit)
 
   end subroutine generate_random_integrals
 
