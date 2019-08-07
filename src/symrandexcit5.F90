@@ -90,14 +90,14 @@ contains
 
         end if
 
+        if (nJ(1) == 0) then 
+            pgen = 0.0_dp
+            return
+        end if
+
         ! try implementing the crude guga excitation approximation via the 
         ! determinant excitation generator
         if (tGen_guga_crude) then 
-
-            if (nJ(1) == 0) then 
-                pgen = 0.0_dp
-                return
-            end if
 
             call convert_ilut_toGUGA(ilutJ, ilutGj)
 
@@ -136,10 +136,7 @@ contains
         if (.not. IsNullDet(nJ)) then
              pgen2 = calc_pgen_4ind_weighted2(nI, ilutI, ExcitMat, ic)
             if (abs(pgen - pgen2) > 1.0e-6_dp) then
-                if (tHPHF) then
-                    print *, "due to circular dependence, no matrix element calc possible!"
-    !                 temp_hel = hphf_off_diag_helement(nI,nJ,ilutI,ilutJ)
-                else
+                if (.not. tHPHF) then
                     temp_hel = get_helement(nI, nJ, ilutI, ilutJ)
                 end if
 

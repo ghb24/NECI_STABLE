@@ -63,7 +63,7 @@ module k_space_hubbard
 
     use IntegralsData, only: UMat
 
-    use bit_reps, only: decode_bit_det
+    use bit_reps, only: decode_bit_det, nifguga
 
     use global_utilities, only: LogMemDealloc, LogMemAlloc
 
@@ -88,7 +88,11 @@ module k_space_hubbard
     use unit_test_helpers, only: print_matrix
                                     
 #ifndef __CMPLX
-    use guga_excitations, only: generate_excitation_guga, generate_excitation_guga_crude
+    use guga_excitations, only: generate_excitation_guga, generate_excitation_guga_crude, &
+                                calc_guga_matrix_element, global_excitinfo, print_excitInfo
+    use guga_bitRepOps, only: convert_ilut_toGUGA, init_csf_information, &
+                              isProperCSF_ilut
+    use guga_data, only: excitationInformation, tNewDet
 #endif
 
     implicit none 
@@ -429,9 +433,11 @@ contains
         end if 
 
         if (tGUGA) then 
-!             call Stop_All(this_routine, & 
-!                 "use old-style Hubbard k-space with GUGA!")
-            generate_excitation => generate_excitation_guga
+            if (tgen_guga_crude) then 
+                generate_excitation => gen_excit_k_space_hub
+            else
+                generate_excitation => generate_excitation_guga
+            end if
         end if
 
         tau_opt = determine_optimal_time_step() 
@@ -568,6 +574,8 @@ contains
         real(dp) :: p_elec, p_orb
         integer :: elecs(2), orbs(2), src(2)
         logical :: isvaliddet
+        type(excitationInformation) :: excitInfo
+        integer(n_int) :: ilutGi(0:nifguga), ilutGj(0:nifguga)
 
         ! i first have to choose an electron pair (ij) at random 
         ! but with the condition that they have to have opposite spin! 
@@ -594,6 +602,42 @@ contains
         ! probability to pick them
         ! already modified in the orbital picker.. 
         pgen = p_elec * p_orb
+
+        ! try implementing the crude guga excitation approximation via the 
+        ! determinant excitation generator
+        if (tGen_guga_crude) then 
+
+            call convert_ilut_toGUGA(ilutJ, ilutGj)
+
+            if (.not. isProperCSF_ilut(ilutGJ, .true.)) then 
+                nJ(1) = 0
+                pgen = 0.0_dp
+                return
+            end if
+
+            if (tNewDet) then
+                call convert_ilut_toGUGA(ilutI, ilutGi)
+                ! use new setup function for additional CSF informtation
+                ! instead of calculating it all seperately..
+                call init_csf_information(ilutGi(0:nifd))
+
+                ! then set tNewDet to false and only set it after the walker loop
+                ! in FciMCPar
+                tNewDet = .false.
+
+            end if
+
+            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, HelGen, .true., 2)
+
+            if (abs(HelGen) < EPS) then 
+                nJ(1) = 0
+                pgen = 0.0_dp 
+            end if
+
+            global_excitinfo = excitInfo
+
+            return
+        end if
 
 #ifdef __DEBUG
         if (.not. isvaliddet(nI,nel)) then
