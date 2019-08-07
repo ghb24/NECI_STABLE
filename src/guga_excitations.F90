@@ -3953,12 +3953,11 @@ contains
         j = gtID(occ_orbs(2))
 
         cum_sum = 0.0_dp
-! 
+
         if (tGen_guga_weighted) then
             do orb = 1, i - 1
                 ! calc. the p(a) 
                 if (current_stepvector(orb) /= 3) then
-    !                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
                     cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
 
                 end if
@@ -3967,43 +3966,35 @@ contains
         end if
 
         ! deal with orb (i) in specific way: 
-!         cpt_a = get_guga_integral_contrib(occ_orbs, i, i)
         cpt_a = get_guga_integral_contrib(occ_orbs, i, -1)
-!         cpt_a = 1.0_dp
         
         cum_sum = cum_sum + cpt_a
 
         ! also get p(b|a)
         ! did i get that the wrong way around?? 
         call pgen_select_orb_guga_mol(ilut, occ_orbs, i, j, cpt_ba, ba_sum, i, .true.)
-!         call pgen_select_orb_guga_mol(ilut, occ_orbs, i, j, cpt_ab, ab_sum, i, .true.)
 
         if (tGen_guga_weighted) then
             do orb = i + 1, j - 1
                 if (current_stepvector(orb) /= 3) then
-    !                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
                     cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
                 end if
             end do
         end if
 
         ! deal with j also speciallly
-!         cpt_b = get_guga_integral_contrib(occ_orbs, j, j) 
         cpt_b = get_guga_integral_contrib(occ_orbs, j, -1)
-!         cpt_b = 1.0_dp
 
         cum_sum = cum_sum + cpt_b
 
         ! and get p(a|b)
         call pgen_select_orb_guga_mol(ilut, occ_orbs, j, i, cpt_ab, ab_sum, -j, .true.)
-!         call pgen_select_orb_guga_mol(ilut, occ_orbs, j, i, cpt_ba, ba_sum, -j, .true.)
 
         ! and deal with rest: 
 
         if (tGen_guga_weighted) then
             do orb = j + 1, nSpatOrbs 
                 if (current_stepvector(orb) /= 3) then 
-    !                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
                     cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
                 end if
             end do
@@ -9907,7 +9898,6 @@ contains
             do orb = 1, orb_a - 1
                 ! calc. the p(a) 
                 if (current_stepvector(orb) /= 3) then
-    !                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
                     cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
 
                 end if
@@ -9916,9 +9906,7 @@ contains
         end if
 
         ! deal with orb (a) in specific way: 
-!         cpt_a = get_guga_integral_contrib(occ_orbs, orb_a, orb_a)
         cpt_a = get_guga_integral_contrib(occ_orbs, orb_a, -1)
-!         cpt_a = 1.0_dp
         
         cum_sum = cum_sum + cpt_a
 
@@ -9926,11 +9914,9 @@ contains
         ! depending if its a r2l or l2r full-stop: 
         if (i < orb_a) then
             ! its a L2R -> so no restrictions 
-!             call pgen_select_orb_guga_mol(ilut, occ_orbs, j, orb_a, cpt_ba, ba_sum)
             call pgen_select_orb_guga_mol(ilut, occ_orbs, orb_a, j, cpt_ba, ba_sum)
         else
             ! its a R2L so orbital i is off-limits 
-!             call pgen_select_orb_guga_mol(ilut, occ_orbs, j, orb_a, cpt_ba, ba_sum, i)
             call pgen_select_orb_guga_mol(ilut, occ_orbs, orb_a, j, cpt_ba, ba_sum, i)
         end if
 
@@ -9939,29 +9925,24 @@ contains
         if (tGen_guga_weighted) then
             do orb = orb_a + 1, j - 1
                 if (current_stepvector(orb) /= 3) then
-    !                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
                     cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
                 end if
             end do
         end if
-    ! 
+
         ! deal with j also speciallly
-!         cpt_b = get_guga_integral_contrib(occ_orbs, orb_a, orb_a) 
         cpt_b = get_guga_integral_contrib(occ_orbs, j, -1)
-!         cpt_b = 1.0_dp
 
         cum_sum = cum_sum + cpt_b
 
         ! and get p(a|b)
         ! only orbitals below j are allowed! 
-!         call pgen_select_orb_guga_mol(ilut, occ_orbs, orb_a, i, cpt_ab, ab_sum, -j, .true.)
         call pgen_select_orb_guga_mol(ilut, occ_orbs, j, orb_a, cpt_ab, ab_sum, -j, .true.)
 
-!         ! and deal with rest: 
+        ! and deal with rest: 
         if (tGen_guga_weighted) then
             do orb = j + 1, nSpatOrbs 
                 if (current_stepvector(orb) /= 3) then 
-    !                 cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, orb)
                     cum_sum = cum_sum + get_guga_integral_contrib(occ_orbs, orb, -1)
                 end if
             end do
@@ -9999,7 +9980,7 @@ contains
         i = gtID(occ_orbs(1))
         j = gtID(occ_orbs(2))
 
-!         ! damn... i need the probability of the elec-pair picking too or?
+        ! damn... i need the probability of the elec-pair picking too or?
         
         cum_sum = 0.0_dp
         if (tGen_guga_weighted) then
@@ -10011,10 +9992,9 @@ contains
 
             end do
         end if
-! 
+
         ! deal with orb (i) in specific way: 
         cpt_a = get_guga_integral_contrib(occ_orbs, i, -1)
-!         cpt_a = 1.0_dp
         
         cum_sum = cum_sum + cpt_a
 
@@ -10026,7 +10006,6 @@ contains
         ! taking i and j here is wrong! i is the open orbital, but j 
         ! is the already picked electron! it has to be orb_a here or?
         call pgen_select_orb_guga_mol(ilut, occ_orbs, i, orb_a, cpt_ba, ba_sum, i, .true.)
-!         call pgen_select_orb_guga_mol(ilut, occ_orbs, orb_a, i, cpt_ba, ba_sum, i, .true.)
 
         ! change to the fullstart into fullstop: loop until orbital a 
         if (tGen_guga_weighted) then
@@ -10036,10 +10015,9 @@ contains
                 end if
             end do
         end if
-! 
+
         ! deal with a also speciallly
         cpt_b = get_guga_integral_contrib(occ_orbs, orb_a, -1) 
-!         cpt_b = 1.0_dp
 
         cum_sum = cum_sum + cpt_b
 
@@ -10048,15 +10026,13 @@ contains
         ! play! 
         if (orb_a > j) then
             ! then orb_j is off-limits 
-!             call pgen_select_orb_guga_mol(ilut, occ_orbs, i, orb_a, cpt_ab, ab_sum, j)
             call pgen_select_orb_guga_mol(ilut, occ_orbs, orb_a, i, cpt_ab, ab_sum, j)
         else
             ! in this case there is no restriction guga-wise..
-!             call pgen_select_orb_guga_mol(ilut, occ_orbs, i, orb_a, cpt_ab, ab_sum)
             call pgen_select_orb_guga_mol(ilut, occ_orbs, orb_a, i, cpt_ab, ab_sum)
         end if
-! 
-!         ! and deal with rest: 
+
+        ! and deal with rest: 
         if (tGen_guga_weighted) then
             do orb = orb_a + 1, nSpatOrbs 
                 if (current_stepvector(orb) /= 3) then 
@@ -10114,15 +10090,12 @@ contains
         ! we know its a L2R fullstart -> so some stepvalues at semi and end 
         ! are impossible
         if (current_stepvector(se) == 0) then
-!         if (isZero(ilut, se)) then
             if (current_stepvector(en) == 3) then
-!             if isThree(ilut, en) then
                 calc_pgen_yix_start => calc_pgen_yix_start_02
             else
                 calc_pgen_yix_start => calc_pgen_yix_start_01
             end if
         else
-!             if (isThree(ilut,en)) then
             if (current_stepvector(en) == 3) then
                 calc_pgen_yix_start => calc_pgen_yix_start_21
             else
@@ -10157,7 +10130,6 @@ contains
             origWeight = weights%proc%zero(negSwitches(st), &
                 posSwitches(st), currentB_ilut(st), weights%dat)
 
-!             if (isOne(ilut,st)) then
             if (current_stepvector(st) == 1) then
 
                 switchWeight = weights%proc%plus(posSwitches(st), &
@@ -10183,7 +10155,6 @@ contains
 
                 end if
             else if (current_stepvector(st) == 2) then
-!             else if (isTwo(ilut,st)) then
 
                 switchWeight = weights%proc%minus(negSwitches(st), &
                     currentB_ilut(st), weights%dat)
@@ -10214,12 +10185,9 @@ contains
             end if
 
 
-!             origWeight = origWeight/(origWeight + switchWeight)
 
             ! rename that, so i can use the startProb further down, where 
             ! it is also needed
-!             startProb = currentB_ilut(st)*origWeight/&
-!                 (origWeight*(currentB_ilut(st) - 1.0_dp) + 1.0_dp)
 
             ! also need the remaining switches for the whole range....
             ! not only until original fullstart...
@@ -10236,14 +10204,11 @@ contains
 
                 ! i can cycle here if there is no open orbitals or? 
                 ! since those excitations cant even lead to a desired one..
-!                 if (isThree(ilut,i) .or. isZero(ilut,i)) cycle
                 if (currentOcc_int(i) /= 1) then
-!                 if (notSingle(ilut,i)) then
                     cycle
                 end if
 
                 ! first get the fullstart elements 
-!                 step = getStepvalue(ilut,i)
                 step = current_stepvector(i)
 
                 call getDoubleMatrixElement(step,step,-1,1,-1,currentB_ilut(i),&
@@ -10260,7 +10225,6 @@ contains
                 zeroWeight = weights%proc%zero(negSwitches(i), &
                     posSwitches(i), currentB_ilut(i), weights%dat)
 
-!                 if (isOne(ilut,i)) then
                 if (step == 1) then
                     switchWeight = weights%proc%plus(posSwitches(i), &
                         currentB_ilut(i), weights%dat)
@@ -10273,7 +10237,6 @@ contains
 
                 ! then calc. the product
                 do j = i + 1, st-1
-!                     step = getStepvalue(ilut,j)
                     step = current_stepvector(j)
                     ! its always the 0 branch!
                     call getDoubleMatrixElement(step, step,0,1,-1,currentB_ilut(j),&
@@ -10282,8 +10245,6 @@ contains
                     tempWeight = tempWeight * tempWeight_1
                     
                     ! no change in pgen if 3 or 0 stepvalue
-!                     if (isThree(ilut,j) .or. isZero(ilut,j)) cycle
-!                     if (notSingle(ilut,j)) then
                     if (currentOcc_int(j) /= 1) then
                         cycle
                     end if
@@ -10291,7 +10252,6 @@ contains
                     zeroWeight = weights%proc%zero(negSwitches(j), &
                         posSwitches(j), currentB_ilut(j), weights%dat)
 
-!                     if (isOne(ilut,j)) then
                     if (step == 1) then
                         switchWeight = weights%proc%plus(posSwitches(j), &
                             currentB_ilut(j), weights%dat)
@@ -10325,27 +10285,19 @@ contains
             ! and update the final matrix element 
             integral = integral * botCont
 
-!             if (extract_matrix_element(t, 1) == 0.0_dp) then
-!                 branch_pgen = 0.0_dp
-!                 t = 0
-!             end if
             end if
         end if
 
         ! have to determine the first stepvector change in the overlap region
         sw = findFirstSwitch(ilut,t, st, se)
-!         ASSERT(sw < se)
         ! for test purposes:
-!         switch = 2
         ! if the first switch did not happen at the fullstart loop until the 
         ! switch
 
         if (sw > st) then
             ! need the inverse parts of the original excitation, start with 
             ! the starting element
-!             integral = 0.0_dp
 
-!             step = getStepvalue(ilut,st)
             step = current_stepvector(st)
 
             call getDoubleMatrixElement(step,step,-1,-1,1,currentB_ilut(st),&
@@ -10361,15 +10313,11 @@ contains
 
             ! change to loop until switch - 1 again so pgen get easier to calc
             do i = st + 1, sw - 1
-!                 if (isZero(ilut,i) .or. isThree(ilut,i)) cycle
-!                 if (notSingle(ilut,i)) then
                 if (currentOcc_int(i) /= 1) then
                     cycle
                 end if
                 ! until switch only 0 branch
-!                 step = getStepvalue(ilut,i)
                 step = current_stepvector(i)
-!                 step2 = getStepvalue(t,i)
 
                 ! update inverse product
                 call getDoubleMatrixElement(step,step,0,-1,+1,currentB_ilut(i),&
@@ -10393,7 +10341,6 @@ contains
                 zeroWeight = weights%proc%zero(negSwitches(i), &
                     posSwitches(i), currentB_ilut(i), weights%dat)
 
-!                 if (isOne(ilut,i)) then
                 if (step == 1) then
                     switchWeight = weights%proc%plus(posSwitches(i), &
                         currentB_ilut(i), weights%dat)
@@ -10424,7 +10371,6 @@ contains
 
             end do
             ! do switch seperately again to also handle the pgens easier
-!             step = getStepvalue(ilut,sw)
             step = current_stepvector(sw)
             step2 = getStepvalue(t,sw)
 
@@ -10449,7 +10395,6 @@ contains
                 currentB_ilut(sw), weights%dat)
 
             ! on the switch the original probability is: 
-!             if (isOne(ilut,sw)) then
             if (step == 1) then
                 switchWeight = weights%proc%plus(posSwitches(sw), &
                     currentB_ilut(sw), weights%dat) 
@@ -10472,15 +10417,11 @@ contains
         end if
 
         ! modify the pgen with the general 2*p(iijk)*p(i)*p(x|i) factor
-!         pgen = pgen * real((nSpatOrbs - 2),dp)/real(((nSpatOrbs)*(nSpatOrbs-1))**2,dp)
 
         ! UPDATE: 17.03.2016: only figured that out now.. damn, for the 
         ! on the fly adaptation of the time-step depending on the chosen 
         ! type of excitation, i have to consider pExcit4, pExcit2 etc. 
         ! also have to differentiate if i consider t_consider_diff_bias ..
-
-!         pgen = pgen * (1.0_dp - pExcit4) * (1.0_dp - pExcit2)/real(nSpatOrbs*(nSpatOrbs-1),dp)
-!         print *, "here?:", pExcit4, pExcit2
 
         pgen = pgen * orb_pgen_contrib_type_3()
         

@@ -1278,8 +1278,13 @@ system: do
                         ! try a crude excitation approximation, where no 
                         ! spin-flips in the excitation range are allowed 
                         tgen_guga_crude = .true. 
-                        tgen_guga_weighted = .true.
-                        tGen_sym_guga_mol = .true.
+
+                        if (t_k_space_hubbard) then 
+                            tGen_sym_guga_ueg = .true.
+                        else
+                            tgen_guga_weighted = .true.
+                            tGen_sym_guga_mol = .true.
+                        end if
 
                     case('GUGA-MIXED')
                         ! try a mix of the crude and full implementation: 
@@ -1287,8 +1292,13 @@ system: do
                         ! only spawn in the crude approximation 
                         tgen_guga_mixed = .true. 
                         tgen_guga_crude = .true.
-                        tGen_sym_guga_mol = .true.
-                        tgen_guga_weighted = .true. 
+
+                        if (t_k_space_hubbard) then 
+                            tGen_sym_guga_ueg = .true.
+                        else
+                            tgen_guga_weighted = .true.
+                            tGen_sym_guga_mol = .true.
+                        end if
 
                         if (item < nitems) then
                             call readu(w)
@@ -1306,9 +1316,14 @@ system: do
                         ! chosen indices of exchange type and 3-ind 
                         ! excitations to reduce the complexity of the 
                         ! algorithm
-                        tGen_sym_guga_mol = .true.
-                        tgen_guga_weighted = .true.
                         t_approx_exchange = .true.
+
+                        if (t_k_space_hubbard) then 
+                            tGen_sym_guga_ueg = .true.
+                        else
+                            tgen_guga_weighted = .true.
+                            tGen_sym_guga_mol = .true.
+                        end if
 
                         if (item < nitems) then 
                             call readu(w)
@@ -1326,9 +1341,14 @@ system: do
                         ! determinants.. for all states, initiators and 
                         ! non-inits (also for 3-index excitation of 
                         ! mixed type)
-                        tGen_sym_guga_mol = .true.
-                        tgen_guga_weighted = .true.
                         t_crude_exchange = .true.
+
+                        if (t_k_space_hubbard) then 
+                            tGen_sym_guga_ueg = .true.
+                        else
+                            tgen_guga_weighted = .true.
+                            tGen_sym_guga_mol = .true.
+                        end if
 
                         if (item < nitems) then 
                             call readu(w)
@@ -1341,14 +1361,6 @@ system: do
 
                             end select 
                         end if
-
-!                     case ('GUGA-EXCHANGE')
-!                         ! only truncate the troublesome exchange excitations
-!                         ! for non-initiators
-!                         tgen_guga_mixed = .true.
-!                         tGen_sym_guga_mol = .true.
-!                         tgen_guga_weighted = .true.
-!                         tgen_guga_exchange = .true.
 
                     case("CYCLETHRUORBS")
                         tCycleOrbs=.true.

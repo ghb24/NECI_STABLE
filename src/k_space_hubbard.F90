@@ -466,7 +466,7 @@ contains
         ! and I also want to check if i got the excitation weighting correct 
         ! in the transcorrelated case or if i messed it up due to the 
         ! non-hermitian character of the hamiltonian 
-        if (.not. (t_trans_corr_2body .or. t_trans_corr)) then 
+        if (.not. (t_trans_corr_2body .or. t_trans_corr .or. tGUGA)) then 
             ! but in the "normal" hubbard model, still turn it off as it is 
             ! unnecessary! 
             tsearchtau = .false. 
@@ -627,9 +627,9 @@ contains
 
             end if
 
-            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, HelGen, .true., 2)
+            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, hel, .true., 2)
 
-            if (abs(HelGen) < EPS) then 
+            if (abs(hel) < EPS) then 
                 nJ(1) = 0
                 pgen = 0.0_dp 
             end if

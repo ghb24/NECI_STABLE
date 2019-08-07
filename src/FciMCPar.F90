@@ -138,7 +138,8 @@ module FciMCParMod
                         init_guga_heisenberg_model, init_guga_tj_model
     use k_space_hubbard, only: init_k_space_hubbard, gen_excit_k_space_hub_transcorr, & 
                                gen_excit_uniform_k_space_hub_transcorr, &
-                               gen_excit_mixed_k_space_hub_transcorr
+                               gen_excit_mixed_k_space_hub_transcorr, &
+                               gen_excit_k_space_hub
     use cc_amplitudes, only: t_cc_amplitudes, init_cc_amplitudes, cc_delay, &
                             t_plot_cc_amplitudes, print_cc_amplitudes
 
@@ -1458,9 +1459,12 @@ module FciMCParMod
                     if (tGen_sym_guga_mol) then
                         generate_excitation => gen_excit_4ind_weighted2
 
-                    else if (tGen_sym_guga_ueg .and. t_new_real_space_hubbard) then 
-                        generate_excitation => gen_excit_rs_hubbard
-
+                    else if (tGen_sym_guga_ueg) then
+                        if (t_new_real_space_hubbard) then 
+                            generate_excitation => gen_excit_rs_hubbard
+                        else if (t_k_space_hubbard) then 
+                            generate_excitation => gen_excit_k_space_hub
+                        end if
                     end if
 
                 end if

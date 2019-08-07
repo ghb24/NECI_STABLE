@@ -197,7 +197,6 @@ contains
         ! and i have to calculate the optimal time-step for the hubbard models. 
         ! where i need the connectivity of the lattice i guess? 
         if (t_trans_corr_hop .and. .not. tHPHF) then 
-!             ASSERT(.not. tHPHF)
             if(t_hole_focus_excits)then 
                 generate_excitation => gen_excit_rs_hubbard_transcorr_hole_focus
             else if (t_uniform_excits) then 
