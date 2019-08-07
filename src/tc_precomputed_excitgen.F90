@@ -706,12 +706,6 @@ contains
     integer, intent(in) :: i,a
     real(dp) :: w
     integer :: ex(2,2)
-!    if(G1(a)%MS.eq.G1(i)%MS) then
-!       w = sqrt(abs(get_umat_el(gtID(i),gtID(a),gtID(a),gtID(i))))
-!    else
-!       w = 0.0_dp
-!    endif
-
 
     ex(1,1) = i
     ex(1,2) = a

@@ -223,6 +223,7 @@ contains
     if(sum(arr) < eps) then
        write(iout,*) &
             "Warning: trying to initialize sampler with empty probability distribution"
+       ! probs defaults to null(), so it is not associated at this point (i.e. in a well-defined state)
        return
     endif
     
@@ -262,10 +263,10 @@ contains
     integer, intent(out) :: tgt
     real(dp), intent(out) :: prob
 
-    ! in debug, do a sanity check: is this initialized?
+    ! empty samplers don't return anything - since probs defaults to null(), this check is safe
     if(.not.associated(this%probs)) then
        tgt = 0
-       prob = 0.0
+       prob = 1.0
        return
     end if
     ! get the drawn number from the alias table
