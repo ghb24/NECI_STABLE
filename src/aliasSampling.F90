@@ -82,8 +82,10 @@ contains
     ! allocate the shared memory segment for the alias table
     arrSize = size(arr)
 
-    call safe_shared_memory_alloc(this%biasTableShmw, this%biasTable, arrSize)  
-    call safe_shared_memory_alloc(this%aliasTableShmw, this%aliasTable, arrSize)
+    call safe_shared_memory_alloc(this%biasTableShmw, this%biasTable, arrSize)
+    if(associated(this%aliasTable)) &
+         call shared_deallocate_mpi(this%aliasTableShmw, this%aliasTable)    
+    call shared_allocate_mpi(this%aliasTableShmw, this%aliasTable, (/arrSize/))
 
     ! as this is shared memory, only node-root has to do this
     if(iProcIndex_intra .eq. 0) then
@@ -167,7 +169,8 @@ contains
     implicit none
     class(aliasTable_t) :: this
 
-    call safe_shared_memory_dealloc(this%aliasTableShmw, this%aliasTable)
+    if(associated(this%aliasTable)) &
+         call shared_deallocate_mpi(this%aliasTableShmw, this%aliasTable)
     call safe_shared_memory_dealloc(this%biasTableShmw, this%biasTable)
   end subroutine tableDestructor
 
