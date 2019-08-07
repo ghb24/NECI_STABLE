@@ -322,6 +322,9 @@ character(20) :: lattice_type
 
 ! i need 
 integer :: length_x = 1, length_y = 1, length_z = 1
+! flag for the pre-computed power-pitzer excitaion generator
+logical :: t_pcpp_excitgen = .false.
+
 ! also implement a next-nearest neighbor Hubbard model implementation: 
 ! for k-space hubbard, this only affects the diagonal part! 
 real(dp) :: nn_bhub = 0.0_dp

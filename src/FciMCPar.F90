@@ -1052,9 +1052,7 @@ module FciMCParMod
         integer :: DetHash, FinalVal, clash, PartInd, k, y, MaxIndex
         type(ll_node), pointer :: TempNode
 
-
         integer :: ms, allErr
-
         real(dp) :: precond_fac
         HElement_t(dp) :: hdiag_spawn, h_diag_correct
 
@@ -1073,6 +1071,7 @@ module FciMCParMod
         HighPopNeg=1
         HighPopPos=1
         FlagsCurr=0
+
         ! Synchronise processors
 !        CALL MPIBarrier(error)
 
@@ -1412,7 +1411,7 @@ module FciMCParMod
                 ! determinant. CurrentSign gives number of walkers. Multiply 
                 ! up by AvMCExcits if attempting multiple excitations from 
                 ! each walker (default 1.0_dp).
-                call decide_num_to_spawn(SignCurr(part_type), HDiagCurr, AvMCExcits, WalkersToSpawn)
+               call decide_num_to_spawn(SignCurr(part_type), HDiagCurr, AvMCExcits, WalkersToSpawn)
                 do p = 1, WalkersToSpawn
 
                     ! Zero the bit representation, to ensure no extraneous
@@ -1643,7 +1642,6 @@ module FciMCParMod
            err = allErr
            return 
         endif
-
         ! The growth in the size of the occupied part of CurrentDets
         ! this is important for the purpose of prone_walkers
         detGrowth = TotWalkersNew - TotWalkers

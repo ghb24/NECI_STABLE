@@ -1,14 +1,15 @@
 #include "macros.h"
 module pcpp_excitgen
   use constants
-  use tc_three_body_data
-  use aliasSampling
+  use aliasSampling, only: aliasSampler_t
   use bit_reps, only: niftot
   use SystemData, only: nel, nBasis, G1, BRR, symmax, Symmetry
   use sym_mod, only: symprod, symconj
   use DetBitOps, only: EncodeBitDet
   use FciMCData, only: excit_gen_store_type, pDoubles, pSingles, projEDet, ilutRef
   use dSFMT_interface , only : genrand_real2_dSFMT
+  use Integrals_neci, only: get_umat_el
+  use UMatCache, only: gtID
   use sltcnd_mod, only: sltcnd_excit
   use util_mod, only: binary_search_first_ge
   use get_excit, only: make_double, make_single
@@ -55,15 +56,24 @@ contains
     integer, intent(in), optional :: part_type
 
     real(dp) :: r
+    integer :: elec_map(nel)
 
+    HElgen = 0.0
+
+    ! create the map for the electrons
+    if(.not.store%tFilled) then
+       store%elec_map = create_elec_map(ilut)
+       store%tFilled = .true.
+    endif
+    elec_map = store%elec_map
     ! decide whether to generate a single or double excitation
     r = genrand_real2_dSFMT()
     if(r < pDoubles) then
-       call generate_double_pcpp(nI, ilut, nJ, excitMat, tParity, pGen)
+       call generate_double_pcpp(nI, elec_map, ilut, nJ, excitMat, tParity, pGen)
        IC = 2
        pGen = pGen * pDoubles
     else
-       call generate_single_pcpp(nI, ilut, nJ, excitMat, tParity, pGen)
+       call generate_single_pcpp(nI, elec_map, ilut, nJ, excitMat, tParity, pGen)
        IC = 1
        pGen = pGen * pSingles
     endif
@@ -71,17 +81,24 @@ contains
     ! assign ilutnJ
     call EncodeBitDet(nJ,ilutnJ)
 
-
   end subroutine gen_rand_excit_pcpp
 
   !------------------------------------------------------------------------------------------!
 
-  subroutine generate_double_pcpp(nI, ilut, nJ, excitMat, tParity, pGen)
+  subroutine generate_double_pcpp(nI, elec_map, ilut, nJ, excitMat, tParity, pGen)
     implicit none
     ! given the initial determinant (both as nI and ilut), create a random single excitation
     ! given by nJ/ilutnJ/excitMat with probability pGen. tParity indicates the fermi sign
     ! picked up by applying the excitation operator
+    ! Input: nI - determinant to excite from
+    !        elec_map - map to translate electron picks to orbitals
+    !        ilut - determinant to excite from in ilut format
+    !        nJ - on return, excited determinant
+    !        excitMat - on return, excitation matrix nI -> nJ
+    !        tParity - on return, the parity of the excitation nI -> nJ
+    !        pGen - on return, the probability of generating the excitation nI -> nJ
     integer, intent(in) :: nI(nel)
+    integer, intent(in) :: elec_map(nel)
     integer(n_int), intent(in) :: ilut(0:NIfTot)
     integer, intent(out) :: nJ(nel)
     integer, intent(out) :: ExcitMat(2,2)
@@ -99,13 +116,11 @@ contains
     integer :: elec1, elec2
     ! symmetry to enforce for the last orbital
     type(Symmetry) :: tgtSym
-    ! mapping electrons in the reference to orbitals in the current det is not 1-to-1
-    ! so we need to remove an orbital after it has been mapped to, this is what ilutEx is for
-    integer(n_int) :: ilutEx(0:NIfTot)
+    ! map between reference and current der for electrons
     character(*), parameter :: t_r = "generate_double_pcpp"
 
     call double_elec_one_sampler%sample(umElec1,pSGen1)
-    src1 = map_elec_from_ref(ilut, umElec1)
+    src1 = elec_map(umElec1)
     
     ! in very rare cases, no mapping is possible in the first place
     ! then, abort
@@ -117,11 +132,7 @@ contains
     endif
     
     call double_elec_two_sampler(src1)%sample(umElec2,pSGen2)
-    ! we use ilutEx for the second mapping: remove the already-mapped-to orbital, so we
-    ! cannot map to it a second time
-    ilutEx = ilut
-    clr_orb(ilutEx,src1)
-    src2 = map_elec_from_ref(ilutEx, umElec2)
+    src2 = elec_map(umElec2)
     
     ! it is possible to not be able to map the second electron if
     ! the first mapping occupied the only available slot
@@ -134,14 +145,14 @@ contains
 
     ! we could also have drawn the electrons the other way around
     pSSwap1 = double_elec_one_sampler%getProb(umElec2)
-    swapOrb1 = map_elec_from_ref(ilut, umElec2)
+    swapOrb1 = elec_map(umElec2)
     pSSwap2 = double_elec_two_sampler(swapOrb1)%getProb(umElec1)
     ! we now have industuingishible src1/src2, add the probabilites
     ! for drawing them either way
     pGen = pSGen1 * pSGen2 + pSSwap1 * pSSwap2
 
     call double_hole_one_sampler(src1)%sample(tgt1,pTGen1)
-    ! generation probability  so far to ensure it has a valid value on return in any case
+    ! update generation probability so far to ensure it has a valid value on return in any case
     if(abort_excit(tgt1)) then
        pGen = pGen * pTGen1
        return
@@ -195,6 +206,7 @@ contains
       logical :: abort
 
       abort = src.eq.0
+      if(present(src2)) abort = abort .or. (src.eq.src2)
       if(abort) then
          nJ = 0
          tParity = .false.
@@ -215,7 +227,7 @@ contains
       integer, optional, intent(in) :: tgt2
       logical :: abort
       
-      abort = IsOcc(ilut,tgt)
+      abort = IsOcc(ilut,tgt) .or. (tgt.eq.0)
       if(present(tgt2)) abort = abort .or. tgt==tgt2
       if(abort) then
          nJ = 0
@@ -235,12 +247,21 @@ contains
 
   !------------------------------------------------------------------------------------------!
 
-  subroutine generate_single_pcpp(nI, ilut, nJ, excitMat, tParity, pGen)
+  subroutine generate_single_pcpp(nI, elec_map, ilut, nJ, excitMat, tParity, pGen)
     implicit none
     ! given the initial determinant (both as nI and ilut), create a random double excitation
     ! given by nJ/ilutnJ/excitMat with probability pGen. tParity indicates the fermi sign
     ! picked up by applying the excitation operator
+    ! Input: nI - determinant to excite from
+    !        elec_map - map to translate electron picks to orbitals
+    !        ilut - determinant to excite from in ilut format
+    !        nJ - on return, excited determinant
+    !        excitMat - on return, excitation matrix nI -> nJ
+    !        tParity - on return, the parity of the excitation nI -> nJ
+    !        pGen - on return, the probability of generating the excitation nI -> nJ
+    
     integer, intent(in) :: nI(nel)
+    integer, intent(in) :: elec_map(nel)
     integer(n_int), intent(in) :: ilut(0:NIfTot)
     integer, intent(out) :: nJ(nel)
     integer, intent(out) :: ExcitMat(2,2)
@@ -254,7 +275,7 @@ contains
     call single_elec_sampler%sample(src,pGen)
 
     ! map the electron to the current determinant    
-    src = map_elec_from_ref(ilut, src)
+    src = elec_map(src)
 
     ! get a random associated orbital    
     call single_hole_sampler(src)%sample(tgt,pHole)
@@ -265,6 +286,7 @@ contains
        excitMat = 0
        excitMat(1,1) = src
        excitMat(2,1) = tgt
+       ! report the failure
        tParity = .false.
     else
        elec = binary_search_first_ge(nI,src)
@@ -279,51 +301,43 @@ contains
   ! Functions that map orbital and electron indices between reference and current determinant
   !------------------------------------------------------------------------------------------!  
 
-  pure function map_elec_from_ref(ilut, iElec) result(src)
-    ! Transfer an electron index within the reference to an orbital index
-    ! within the current determinant nI
+  pure function create_elec_map(ilut) result(map)
+    ! Create a map to transfer orbitals between the current det (nI)
+    ! and the reference determinant
     ! Input: nI - current determinant
-    !        iElec - index of the electron to be mapped within the reference
-    ! Output: src - orbital of the mapped electron
+    ! Output: map - list of orbitals where the n-th electron goes to
     implicit none
-    integer(n_int), intent(in) :: ilut(0:NIfTot)
-    integer, intent(in) :: iElec
-    integer :: src
-    integer(n_int) :: ilutReference(0:NIfTot)
-    integer :: refOrb
-    integer :: iOrb
+    integer(n_int), intent(in) :: ilut(0:NifTot)
+    integer :: map(nel)
+    integer :: i, j
+    integer :: ms
+    integer(n_int) :: excitedOrbs(0:NifTot)
 
-    ilutReference = ilutRef(:,1)
-    refOrb = refDet(iElec)
-    ! if the corresponding orbital is occupied in ilut, no mapping is required
-    if(IsOcc(ilut,refOrb)) then
-       src = refOrb
-       return
-    endif
-    ! if the mapping is not possible, return 0
-    src = 0
+    ! an ilut of orbitals present in ilut and not in ref
+    excitedOrbs = iand(ilut,not(ilutRef(:,1)))
 
-    ! count through the orbitals in energy order
-    ! - BRR from SystemData.F90 is a list of the orbitals in energy order
-    do iOrb = 1, nBasis
-       ! we pick the first orbital that is occupied in ilut, unoccupied in ref and
-       ! has the same spin as the unmapped orbital
-       if(IsOcc(ilut,BRR(iOrb)) .and. .not.IsOcc(ilutReference,BRR(iOrb)) .and. &
-            same_spin(BRR(iOrb),refOrb)) then
-          src = BRR(iOrb)
-          return
+    do i = 1, nel
+       ! occupied orbitals get mapped to themselves
+       if(IsOcc(ilut,refDet(i))) then
+          map(i) = refDet(i)
+       else
+          ! unoccupied orbitals get mapped to the next occupied orbital
+          ! only look at orbitals with the right spin
+          ms = (3 + G1(refDet(i))%MS)/2
+          do j = ms, nBasis, 2
+             ! we check the orbitals in energetical order
+             ! utilize that BRR(j) has the same spin as j
+             if(IsOcc(excitedOrbs,BRR(j))) then
+                map(i) = BRR(j)
+                ! remove the selected orb from the candidates
+                clr_orb(excitedOrbs,BRR(j))
+                exit
+             endif
+          end do
        endif
     end do
-
-  end function map_elec_from_ref
-
-  pure function map_orb_from_ref(nI, iOrb) result(tgt)
-    ! UNUSED
-    implicit none
-    integer, intent(in) :: nI(nel)
-    integer, intent(in) :: iOrb
-    integer :: tgt
-  end function map_orb_from_ref
+    
+  end function create_elec_map
 
   !------------------------------------------------------------------------------------------!
   ! Initialization routines for the pcpp excitation generator
@@ -371,7 +385,7 @@ contains
                      do b = 1, nBasis
                         if(.not.any(b.eq.(/a,i,j/))) then
                            call set_ex(ex,i,j,a,b)
-                           w(i) = w(i) + abs(sltcnd_excit(refDet,2,ex,tPar))
+                           w(iEl) = w(iEl) + abs(sltcnd_excit(refDet,2,ex,tPar))
                         endif
                      end do
                   end if
@@ -417,12 +431,9 @@ contains
          ! to prevent bias, a lower bound for the probabilities is set
          call apply_lower_bound(w)
 
-         ! except for picking the same electron twice, that is actually forbidden
-         do jEl = 1, nEl
-            if(refDet(jEl).eq.i) w(jEl) = 0.0_dp
-         end do
          call double_elec_two_sampler(i)%setupSampler(w)
       end do
+
     end subroutine setup_elec_two_sampler
     !------------------------------------------------------------------------------------------!
 
@@ -518,15 +529,13 @@ contains
       real(dp) :: w(nel)
       integer :: i, a
       integer :: aerr
-      integer :: refOrb
+      integer :: iEl
 
-      do i = 1, nel
-         w(i) = 0
-         refOrb = refDet(i)
+      do iEl = 1, nel
+         w(iEl) = 0
+         i = refDet(iEl)
          do a = 1, nBasis
-            if(G1(a)%Sym%s.eq.G1(refOrb)%Sym%s) then
-               w(i) = w(i) + acc_doub_matel(refOrb,a)
-            end if
+            w(iEl) = w(iEl) + acc_doub_matel(i,a)
          end do
       end do
       ! load the probabilites for electron selection into the alias table
@@ -551,9 +560,11 @@ contains
       do i = 1, nBasis
          w = 0.0_dp
          do a = 1, nBasis
-            ! store the accumulated matrix elements (= un-normalized probability) with
-            ! the corresponding symmetry (if spins of a/i are different, w is 0)
-            w(a) = acc_doub_matel(i,a)
+            ! we never want to sample the source orbital
+            if(i.ne.a) &
+                 ! store the accumulated matrix elements (= un-normalized probability) with
+                 ! the corresponding symmetry (if spins of a/i are different, w is 0)            
+                 w(a) = acc_doub_matel(i,a)            
          end do
 
          call single_hole_sampler(i)%setupSampler(w)
@@ -576,6 +587,7 @@ contains
       ! <D_j^b|H|D_(j,src)^(b,tgt)> := h_src^tgt + sum_(k occ in D_j^b) <tgt k|src k> - <tgt k|k src>
       ! That is, the left side is to be understood symbolic, there is no actual excitation
       ! from src to tgt
+      ! symmetry has to be preserved
       implicit none
       integer, intent(in) :: src, tgt
       real(dp) :: prob
@@ -585,19 +597,20 @@ contains
 
       prob = 0
 
-      if(same_spin(src,tgt)) then
+      if(symAllowed(src,tgt)) then
          do b = 1, nBasis
             ! loop over all non-occupied orbitals
             if(.not.any(b.eq.refDet(:))) then
                do j = 1, nel
                   ! get the excited determinant D_j^b used for the matrix element
-                  call make_single(refDet(:), nI, j, b, ex, tPar)
-
-                  ! this is a symbolic excitation, we do NOT require src to be occupied
-                  ! we just use the formula for excitation matrix elements
-                  ex(1,1) = src
-                  ex(2,1) = tgt
-                  prob = prob + abs(sltcnd_excit(nI,1,ex,tPar))
+                  if(symAllowed(refDet(j),b)) then
+                     call make_single(refDet(:), nI, j, b, ex, tPar)
+                     ! this is a symbolic excitation, we do NOT require src to be occupied
+                     ! we just use the formula for excitation matrix elements
+                     ex(1,1) = src
+                     ex(2,1) = tgt
+                     prob = prob + abs(sltcnd_excit(nI,1,ex,tPar))
+                  endif
                end do
             endif
          end do
@@ -693,6 +706,12 @@ contains
     integer, intent(in) :: i,a
     real(dp) :: w
     integer :: ex(2,2)
+!    if(G1(a)%MS.eq.G1(i)%MS) then
+!       w = sqrt(abs(get_umat_el(gtID(i),gtID(a),gtID(a),gtID(i))))
+!    else
+!       w = 0.0_dp
+!    endif
+
 
     ex(1,1) = i
     ex(1,2) = a
@@ -702,8 +721,24 @@ contains
   end function pp_weight_function
 
   !------------------------------------------------------------------------------------------!
+  
+  function symAllowed(a,b) result(allowed)
+    ! Check if a transition from a to be is symmetry-allowed
+    ! Input: a,b - orbitals to check
+    ! Output: allowed - true if and only if a,b have the same symmetries
+    implicit none
+    integer, intent(in) :: a,b
+    logical :: allowed
+
+    allowed = same_spin(a,b) .and. (G1(a)%Sym%s.eq.G1(b)%Sym%s)
+  end function symAllowed
+
+    !------------------------------------------------------------------------------------------!
+
 
   pure subroutine intswap(a,b)
+    ! Swap two integers a and b
+    ! Input: a,b - integers to swapp (on return, a has the value of b on call and vice versa)
     integer, intent(inout) :: a,b
     integer :: tmp
 

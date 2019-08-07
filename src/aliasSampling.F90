@@ -7,6 +7,9 @@ module aliasSampling
   use dSFMT_interface , only : genrand_real2_dSFMT  
   implicit none
 
+  private
+  public :: aliasSampler_t, aliasTable_t
+  
   ! type for tables: contains everything you need to get a random number
   ! with given biases
   type aliasTable_t
@@ -53,7 +56,7 @@ module aliasSampling
      ! get the probability to produce a given value
      procedure :: getProb
   end type aliasSampler_t
- 
+
 contains
 
   !------------------------------------------------------------------------------------------!
@@ -61,7 +64,7 @@ contains
   !------------------------------------------------------------------------------------------!
 
   subroutine setupTable(this, arr)
-    ! pseudo-constructor for alias tables
+    ! pseudo-constructor for alias tables      
     ! Input: arr - array containing the (not necessarily normalized) probabilities we
     !              want to use for sampling
     implicit none
@@ -71,14 +74,16 @@ contains
     integer :: i,j,cV, cU
     integer(int64) :: arrSize
     integer, allocatable :: overfull(:), underfull(:)
+    character(*), parameter :: t_r = "setupTable"
+
+    if(sum(arr) < eps) call stop_all(t_r,&
+         "Trying to setup empty alias table")
 
     ! allocate the shared memory segment for the alias table
     arrSize = size(arr)
 
-    call safe_shared_memory_alloc(this%biasTableShmw, this%biasTable, arrSize)
-    if(associated(this%aliasTable)) &
-         call shared_deallocate_mpi(this%aliasTableShmw, this%aliasTable)    
-    call shared_allocate_mpi(this%aliasTableShmw, this%aliasTable, (/arrSize/))
+    call safe_shared_memory_alloc(this%biasTableShmw, this%biasTable, arrSize)  
+    call safe_shared_memory_alloc(this%aliasTableShmw, this%aliasTable, arrSize)
 
     ! as this is shared memory, only node-root has to do this
     if(iProcIndex_intra .eq. 0) then
@@ -162,8 +167,7 @@ contains
     implicit none
     class(aliasTable_t) :: this
 
-    if(associated(this%aliasTable)) &
-         call shared_deallocate_mpi(this%aliasTableShmw, this%aliasTable)
+    call safe_shared_memory_dealloc(this%aliasTableShmw, this%aliasTable)
     call safe_shared_memory_dealloc(this%biasTableShmw, this%biasTable)
   end subroutine tableDestructor
 
@@ -205,15 +209,18 @@ contains
 
   subroutine setupSampler(this, arr)
     ! load the probability distribution from arr into this
+    ! Input: arr - array containing the (not necessarily normalized) probabilities we
+    !              want to use for sampling
     implicit none
     class(aliasSampler_t) :: this
     real(dp), intent(in) :: arr(:)
 
     integer(int64) :: arrSize
-    character(*), parameter :: t_r = "setupSampler"
     ! if all weights are 0, throw an error
     if(sum(arr) < eps) then
-       call stop_all(t_r, "Trying to initialize sampler with empty probability distribution")
+       write(iout,*) &
+            "Warning: trying to initialize sampler with empty probability distribution"
+       return
     endif
     
     ! initialize the alias table
@@ -244,7 +251,9 @@ contains
   !------------------------------------------------------------------------------------------!
   
   subroutine sample(this, tgt, prob)
-    ! draw a random element from 1:size(prob) with the probabilities listed in prob
+    ! draw a random element from 1:size(this%probs) with the probabilities listed in prob
+    ! Input: tgt - on return, this is a random number in the sampling range of this
+    !        prob - on return, the probability of picking tgt
     implicit none
     class(aliasSampler_t) :: this
     integer, intent(out) :: tgt
@@ -252,7 +261,9 @@ contains
 
     ! in debug, do a sanity check: is this initialized?
     if(.not.associated(this%probs)) then
-       call stop_all("Sample","Trying to call routines of an unitialized sampler object")
+       tgt = 0
+       prob = 0.0
+       return
     end if
     ! get the drawn number from the alias table
     tgt = this%table%getRand()
@@ -264,6 +275,8 @@ contains
 
   pure function getProb(this, tgt) result(prob)
     ! Returns the probability to draw tgt from this sampler
+    ! Input: tgt - the number for which we request the probability of sampling
+    ! Output: prob - the probability of drawing tgt with the sample routine
     implicit none
     class(aliasSampler_t), intent(in) :: this
     integer, intent(in) :: tgt
@@ -276,8 +289,11 @@ contains
   ! Auxiliary functions to prevent code duplication
   !------------------------------------------------------------------------------------------!
 
-  ! wrapper for shared_allocate_mpi that tests if the pointer is associated
   subroutine safe_shared_memory_alloc(win,ptr,size)
+    ! wrapper for shared_allocate_mpi that tests if the pointer is associated          
+    ! Input: win - MPI shared memory window for internal MPI usage
+    !        ptr - pointer to be allocated, on return points to a shared memory segment of given size
+    !        size - size of the memory segment to be allocated
     implicit none
     integer(MPIArg) :: win
     real(dp), pointer :: ptr(:)
@@ -291,12 +307,17 @@ contains
 
   !------------------------------------------------------------------------------------------!
 
-  ! wrapper for shared_deallocate_mpi that tests if the pointer is associated
   subroutine safe_shared_memory_dealloc(win,ptr)
+    ! wrapper for shared_deallocate_mpi that tests if the pointer is associated
+    ! Input: win - MPI shared memory window for internal MPI usage
+    !        ptr - pointer to be deallocated (if associated)
+    ! WARNING: THIS ASSUMES THAT IF ptr IS ASSOCIATED, IT POINTS TO AN MPI SHARED MEMORY
+    !          WINDOW win
     implicit none
     integer(MPIArg) :: win
     real(dp), pointer :: ptr(:)
 
+    ! assume that if ptr is associated, it points to mpi shared memory
     if(associated(ptr)) call shared_deallocate_mpi(win, ptr)    
   end subroutine safe_shared_memory_dealloc
   

@@ -16,7 +16,7 @@ module fcimc_initialisation
                           t_k_space_hubbard, t_3_body_excits, omega, breathingCont, &
                           momIndexTable, t_trans_corr_2body, t_non_hermitian, &
                           t_uniform_excits, t_mol_3_body, nClosedOrbs, irrepOrbOffset, nIrreps, &
-                          nOccOrbs, tNoSinglesPossible, tCachedExcits
+                          nOccOrbs, tNoSinglesPossible, tCachedExcits, t_pcpp_excitgen
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
 
     use dSFMT_interface, only: dSFMT_init
@@ -157,6 +157,7 @@ module fcimc_initialisation
     use gndts_mod, only: gndts
     use excit_gen_5, only: gen_excit_4ind_weighted2
     use tc_three_body_excitgen, only: gen_excit_mol_tc, setup_mol_tc_excitgen
+    use pcpp_excitgen, only: gen_rand_excit_pcpp, init_pcpp_excitgen
     use csf, only: get_csf_helement
 
     use tau_search, only: init_tau_search, max_death_cpt
@@ -1692,6 +1693,9 @@ contains
         ! Initialise excitation generation storage
         call init_excit_gen_store (fcimc_excit_gen_store)
 
+        ! initialize excitation generator
+        if(t_pcpp_excitgen) call init_pcpp_excitgen()
+
         IF((NMCyc.ne.0).and.(tRotateOrbs.and.(.not.tFindCINatOrbs))) then 
             CALL Stop_All(this_routine,"Currently not set up to rotate and then go straight into a spawning &
             & calculation.  Ordering of orbitals is incorrect.  This may be fixed if needed.")
@@ -1899,6 +1903,8 @@ contains
          generate_excitation => gen_excit_4ind_weighted
       elseif (tGen_4ind_reverse) then
          generate_excitation => gen_excit_4ind_reverse
+      elseif (t_pcpp_excitgen) then
+         generate_excitation => gen_rand_excit_pcpp         
       else
          generate_excitation => gen_rand_excit
       endif

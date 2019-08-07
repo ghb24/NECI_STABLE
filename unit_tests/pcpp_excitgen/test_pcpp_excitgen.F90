@@ -5,7 +5,7 @@ program test_pcpp_excitgen
   use unit_test_helper_excitgen
   use procedure_pointers, only: generate_excitation
   implicit none
-
+  
   call init_fruit()
   call pcpp_test_driver()
   call fruit_summary()
@@ -18,7 +18,7 @@ contains
   subroutine pcpp_test_driver()
     implicit none
     real(dp) :: pTot, pNull
-    integer, parameter :: nSamples = 500000
+    integer, parameter :: nSamples = 100000
 
     ! set the excitation we want to test
     generate_excitation => gen_rand_excit_pcpp
@@ -42,24 +42,24 @@ contains
     implicit none
     ! map to a determinant that has 2 electrons excited
     integer :: nI(nel)
+    integer :: elec_map(nel)
     integer(n_int) :: ilut(0:NIfTot)
-    integer :: ex(2,2)
-    logical :: tPar
     ! create the excited determinant
-    nI = projEDet(:,1)
-    ex(1,1) = 1
-    ex(1,2) = 2
-    ex(2,1) = nel + 1
-    ex(2,2) = nel + 2    
-    call FindExcitDet(ex,nI,2,tPar)
-    call EncodeBitDet(nI,ilut)
+    nI = (/1,4,5,8,9/)
+    ! create the map between this det and the ref
+    call encodeBitDet(nI,ilut)
+    elec_map = create_elec_map(ilut)
     ! now map eletrons: start with the first electron
     ! account for spin-conservation: is nel+1 odd or even?
-    call assert_equals(nel+1+mod(nel,2),map_elec_from_ref(ilut,1))
+    call assert_equals(1,elec_map(1))
     ! the second
-    call assert_equals(nel+2-mod(nel,2),map_elec_from_ref(ilut,2))
+    call assert_equals(4,elec_map(2))
     ! the third
-    call assert_equals(projEDet(3,1),map_elec_from_ref(ilut,3))
+    call assert_equals(5,elec_map(3))
+    ! the fourth
+    call assert_equals(8,elec_map(4))
+    ! the fifth
+    call assert_equals(9,elec_map(5))
     
   end subroutine test_elec_mapping
   
