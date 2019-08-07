@@ -26,7 +26,6 @@ module tc_three_body_data
 
   ! using a sparse format to store the 6-index integrals
   logical :: tSparseLMat
-  logical :: tDenseFiveInd
 
   ! Number of entries in a UMat obj.
   integer(int64) :: twoIndexSize, fourIndexSize
@@ -34,12 +33,9 @@ module tc_three_body_data
 
   type lMat_t
      HElement_t(dp), pointer :: LMatPtr(:)
-     ! this is for the sparse storage format: the five-index part is still
-     ! stored densely
-     HElement_t(dp), pointer :: fiveIndexPtr(:)
      integer(int64), pointer :: indexPtr(:)
      integer :: tag, indexTag
-     integer(MPIArg) :: shm_win, index_win, fiveInd_win
+     integer(MPIArg) :: shm_win, index_win
      integer(int64) :: nInts
      type(ll_node), pointer :: hTable(:)
      integer :: htSize

@@ -15,8 +15,7 @@ MODULE System
     use lattice_mod, only: lattice, lat
     use k_space_hubbard, only: setup_symmetry_table
     use breathing_Hub, only: setupMomIndexTable, setupBreathingCont
-    use tc_three_body_data, only: tSymBrokenLMat, tSpinCorrelator, LMatEps, tSparseLMat, &
-         tDenseFiveInd
+    use tc_three_body_data, only: tSymBrokenLMat, tSpinCorrelator, LMatEps, tSparseLMat
     use ParallelHelper, only: iprocindex, root
  
     IMPLICIT NONE
@@ -67,7 +66,6 @@ MODULE System
       UMatEps = 1.0e-8
       LMatEps = 1.0e-10
       tSparseLMat = .false.
-      tDenseFiveInd = .false.
       tExactSizeSpace=.false.
       tSymBrokenLMat = .false.
       iRanLuxLev=3      !This is the default level of quality for the random number generator.
@@ -379,8 +377,6 @@ system: do
            tHDF5LMat = .true.
         case("SPARSE-LMAT")
            tSparseLMat = .true.
-        case("DENSE-FIVEIND")
-           tDenseFiveInd = .true.
         case("UNSYMMETRIC-INTEGRALS")
            ! the 6-index integrals are not symmetrized yet (has to be done
            ! on the fly then)

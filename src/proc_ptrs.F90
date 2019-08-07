@@ -223,15 +223,6 @@ module procedure_pointers
 
         end function get_lmat_el_t
 
-        ! generic lMat element routine (3e integrals, 5index access for contractions)
-        function get_lmat_el_five_ind_t(a,b,i,j,n) result(hel)
-          use constants
-          implicit none
-          integer, intent(in) :: a,b,i,j,n
-          HElement_t(dp) :: hel
-
-        end function get_lmat_el_five_ind_t
-
 !         subroutine generate_all_excits_t(nI, n_excits, det_list) 
 !             use SystemData, only: nel 
 !             use constants, only: n_int
@@ -329,6 +320,5 @@ module procedure_pointers
     procedure(lMatInd_t), pointer :: lMatInd
     procedure(get_lmat_el_t), pointer :: get_lmat_el
     procedure(get_lmat_el_t), pointer :: get_lmat_el_symInternal
-    procedure(get_lmat_el_five_ind_t), pointer :: get_lmat_el_five_ind
 
 end module

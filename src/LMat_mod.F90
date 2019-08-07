@@ -10,14 +10,11 @@ module LMat_mod
   use hash, only: add_hash_table_entry, clear_hash_table
   use ParallelHelper, only: iProcIndex_intra
   use tc_three_body_data, only: tDampKMat, tDampLMat, tSymBrokenLMat, tSpinCorrelator, lMatEps, &
-       lMat_t, tSparseLMat, lMat, lMatABB, lMatBBA, lMatBAB, nBI, tDenseFiveInd
-  use procedure_pointers, only: lMatInd, get_lmat_el, get_lmat_el_symInternal, lMatInd_t, &
-       get_lmat_el_five_ind
+       lMat_t, tSparseLMat, lMat, lMatABB, lMatBBA, lMatBAB, nBI
+  use procedure_pointers, only: lMatInd, get_lmat_el, get_lmat_el_symInternal, lMatInd_t
   use LoggingData, only: tHistLMat
   use LMat_aux, only: fuseIndex, intswap, diffSpinPos, dampLMatel
   use LMat_indexing, only: lMatIndSym, lMatIndSymBroken, oldLMatInd, strideInner, strideOuter
-  use fiveIndexLMat, only: lMatFiveInd, isFiveIndex, initFiveIndexAccess, &
-       assignFiveIndexElem, get_lmat_el_five_ind_sparse
 #ifdef __USE_HDF5
   use hdf5
 #endif
@@ -43,14 +40,6 @@ module LMat_mod
 !------------------------------------------------------------------------------------------!    
 ! Access function for six-index integrals: get a matrix element given the spin-orbitals
 !------------------------------------------------------------------------------------------!
-
-    function get_lmat_el_five_ind_dense(a,b,i,j,n) result(matel)
-      implicit none
-      integer, intent(in) :: a,b,i,j,n
-      HElement_t(dp) :: matel
-
-      matel = get_lmat_el_base(a,b,n,i,j,n)
-    end function get_lmat_el_five_ind_dense
 
 !------------------------------------------------------------------------------------------!  
     
@@ -260,15 +249,8 @@ module LMat_mod
 
       if(tSparseLMat) then
          lMatAccess => lMatHashedAccess
-         if(tDenseFiveInd) then
-            get_lmat_el_five_ind => get_lmat_el_five_ind_sparse
-            call initFiveIndexAccess()
-         else
-            get_lmat_el_five_ind => get_lmat_el_five_ind_dense
-         endif
       else
          lMatAccess => lMatDirectAccess
-         get_lmat_el_five_ind => get_lmat_el_five_ind_dense
       endif
     end subroutine initializeLMatInd
 
@@ -450,6 +432,7 @@ module LMat_mod
             write(iout, *), "Nonzero elements in LMat", counter
             write(iout, *), "Allocated size of LMat", LMatSize
          endif
+         call MPIBcast(counter)
          LMatLoc%nInts = counter
       end if
 
@@ -467,7 +450,6 @@ module LMat_mod
       type(lMat_t) :: LMatLoc
       integer(int64), intent(in) :: LMatSize
       integer :: k
-      integer(int64) :: fiveIndexSize
       character(*), parameter :: t_r = "allocLMat"
       
       write(iout,*) "Allocating LMat, memory required:", LMatSize*HElement_t_sizeB/(2.0_dp**30), "GB"
@@ -487,15 +469,6 @@ module LMat_mod
          call LogMemAlloc("LMat Indices", int(LMatSize), sizeof_int64, t_r, LMatLoc%indexTag)
          ! come up with some reasonable size
          LMatLoc%htSize = LMatSize
-
-         ! the five-index part is still stored densely, for faster access (this makes a huge
-         ! difference)
-         fiveIndexSize = lMatFiveInd(nBI,nBI,nBI,nBI,nBI,3)
-         write(iout,*) "Five index integrals require", fiveIndexSize*HElement_t_sizeB/(2.0_dp**30), "GB"
-         if(tDenseFiveInd) then
-            call shared_allocate_mpi(LMatLoc%fiveInd_win, LMatLoc%fiveIndexPtr, (/fiveIndexSize/))
-            LMatLoc%fiveIndexPtr = 0.0_dp
-         endif
       endif
 
       write(iout,*) "Successfully allocated LMat"
@@ -669,11 +642,6 @@ module LMat_mod
                   LMatLoc%indexPtr(sparseBlock+counter) = lMatInd(int(indices(1,i),int64),int(indices(2,i),int64),&
                        int(indices(3,i),int64),&
                        int(indices(4,i),int64),int(indices(5,i),int64),int(indices(6,i),int64))
-                  if(tDenseFiveInd) then
-                     ! store the five-index object
-                     if(isFiveIndex(int(indices(:,i)))) call assignFiveIndexElem(&
-                          LMatLoc%fiveIndexPtr,rVal,int(indices(:,i),int64))
-                  endif
                else
                   LMatLoc%LMatPtr(lMatInd(int(indices(1,i),int64),int(indices(2,i),int64),&
                        int(indices(3,i),int64),&
