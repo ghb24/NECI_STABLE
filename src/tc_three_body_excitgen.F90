@@ -14,6 +14,7 @@ module tc_three_body_excitgen
   use GenRandSymExcitNUMod, only: calc_pgen_symrandexcit2, ScratchSize, &
        createSingleExcit, createDoubExcit, construct_class_counts
   use SymExcitDataMod, only: pDoubNew
+  use procedure_pointers, only: generate_two_body_excitation
   contains
 
     subroutine gen_excit_mol_tc(nI, ilut, nJ, ilutJ, exFlag, ic, ExcitMat, &
@@ -32,8 +33,6 @@ module tc_three_body_excitgen
 
       real(dp) :: r
 
-      pDoubNew = pDoubles
-
       r = genrand_real2_dSFMT()
       ! select if a triple shall be generate
       if(r < pTriples) then
@@ -42,23 +41,9 @@ module tc_three_body_excitgen
          pGen = pGen * pTriples
          IC = 3
       else
-         HElGen = 0.0_dp
-
-         ! create the store%classcounts
-         if(.not. store%tFilled) then
-            call construct_class_counts(nI, store%ClassCountOcc, store%ClassCountUnocc)
-            store%tFilled = .true.
-         end if
-         ! if no triple is generated, fall back to the normal excitation generation
-         ! we need a uniform excitgen as evaluating matrix elements is too expensive
-         if(r < (pTriples + pDoubles)) then
-            call CreateDoubExcit(nI,nJ,store%ClassCountUnocc,ilut,ExcitMat,tParity,pGen)
-            ic = 2
-         else
-            call CreateSingleExcit(nI,nJ,store%ClassCountOcc, store%ClassCountUnocc, &
-                 ilut, ExcitMat, tParity, pGen)
-            ic = 1
-         endif
+         call generate_two_body_excitation(nI, ilut, nJ, ilutJ, exFlag, ic, ExcitMat, &
+              tParity, pGen, HelGen, store, part_type)
+         pGen = pGen * (1.0 - pTriples)
       endif
     end subroutine gen_excit_mol_tc
 
@@ -191,15 +176,10 @@ module tc_three_body_excitgen
          pTriples = 0.0_dp
          return
       endif
-      ! rescale pSingles/pDoubles
-      ! only required if not continuing a run w rescaled values
-      if(.not.tReadPTriples) then
-         pSingles = pSingles * (1.0_dp-pTriples)
-         pDoubles = pDoubles * (1.0_dp-pTriples)
-         write(iout,*) "Reset pSingles to ", pSingles
-         write(iout,*) "Reset pDoubles to ", pDoubles    
-      endif
       write(iout,*) "pTriples set to ", pTriples
+      ! pSingles and pDoubles add to 1, and pTriples is an additional bias not to do
+      ! a two-body excitation
+      
       ! scale the probabilities with the number of possible picks
       normalization = choose(nel,3)
       p0A = choose(nOccBeta,3)/normalization

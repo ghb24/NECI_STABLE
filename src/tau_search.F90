@@ -450,7 +450,7 @@ contains
                 if (checkS + checkD + checkT > 1) then
                     pparallel_new = gamma_par / (gamma_opp + gamma_par)
                     psingles_new = gamma_sing * pparallel_new &
-                                 / (gamma_par + gamma_sing * pparallel_new + gamma_trip)
+                                 / (gamma_par + gamma_sing * pparallel_new)
                     pTriples_new = gamma_trip / (gamma_par + gamma_sing * pparallel_new + gamma_trip)
                     tau_new = psingles_new * max_permitted_spawn &
                                   / gamma_sing
@@ -629,7 +629,7 @@ contains
                  pDoubles = max(1.0_dp - pSingles - pSing_spindiff1_new - pDoub_spindiff1_new - pDoub_spindiff2_new, prob_min_thresh)
                  ASSERT(pDoubles-gamma_doub/gamma_sum < prob_min_thresh)
               else
-                 pDoubles = 1.0_dp - pSingles - pTriples
+                 pDoubles = 1.0_dp - pSingles
               endif
            end if
         endif

@@ -106,7 +106,8 @@ module fcimc_initialisation
                                   get_spawn_helement, encode_child, &
                                   attempt_die, extract_bit_rep_avsign, &
                                   fill_rdm_diag_currdet_old, fill_rdm_diag_currdet, &
-                                  new_child_stats, get_conn_helement, scaleFunction
+                                  new_child_stats, get_conn_helement, scaleFunction, &
+                                  generate_two_body_excitation
     use symrandexcit3, only: gen_rand_excit3
     use symrandexcit_Ex_Mag, only: gen_rand_excit_Ex_Mag
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
@@ -1859,9 +1860,7 @@ contains
       character(*), parameter :: t_r = 'init_fcimc_fn_pointers'
         ! Select the excitation generator.
       
-      if(t_mol_3_body) then
-         generate_excitation => gen_excit_mol_tc
-      else if(t_3_body_excits) then
+      if(t_3_body_excits.and..not.t_mol_3_body) then
          if (t_uniform_excits) then 
             generate_excitation => gen_excit_uniform_k_space_hub_transcorr
          else
@@ -1908,6 +1907,14 @@ contains
       else
          generate_excitation => gen_rand_excit
       endif
+      ! if we are using the 3-body excitation generator, embed the chosen excitgen
+      ! in the three-body one
+      if(t_mol_3_body) then
+         ! yes, fortran pointers work this way
+         generate_two_body_excitation => generate_excitation
+         generate_excitation => gen_excit_mol_tc
+      endif
+      
       ! In the main loop, we only need to find out if a determinant is
       ! connected to the reference det or not (so no ex. level above 2 is
       ! required). Except in some cases where we need to know the maximum

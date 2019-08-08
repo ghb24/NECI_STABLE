@@ -291,6 +291,7 @@ module procedure_pointers
     !
     ! And here are the stored procedure pointers (for use in FCIQMC)
     procedure(generate_excitation_t), pointer :: generate_excitation
+    procedure(generate_excitation_t), pointer :: generate_two_body_excitation
     procedure(attempt_create_t), pointer :: attempt_create
     procedure(get_spawn_helement_t), pointer :: get_spawn_helement
     procedure(get_spawn_helement_t), pointer :: get_conn_helement
