@@ -6,6 +6,7 @@ image: dobrautz/neci_base:opensuse42.3
 options:
   docker: true
 
+
 pipelines:
   # default setup: only build neci for all branches and run neci unit tests, do not do any testsuite runs!
   #   to save pipeline minutes
