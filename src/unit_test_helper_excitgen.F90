@@ -238,7 +238,18 @@ contains
     real(dp), parameter :: sparse = 0.9
     real(dp), parameter :: sparseT = 0.1    
     integer :: i,j,k,l, iunit
-    real(dp) :: r
+    real(dp) :: r, matel
+    ! we get random matrix elements from the cauchy-schwartz inequalities, so
+    ! only <ij|ij> are random -> random 2d matrix
+    real(dp) :: umatRand(nBasisBase,nBasisBase)
+
+    do i = 1, nBasisBase
+       do j = 1, nBasisBase
+          r = genrand_real2_dSFMT()
+          if(r < sparse) &
+               umatRand(i,j) = r*r
+       end do
+    end do
 
     ! write the canonical FCIDUMP header
     iunit = get_free_unit()
@@ -256,10 +267,8 @@ contains
        do j = 1, i
           do k = i, nBasisBase
              do l = 1, k
-                r = genrand_real2_dSFMT()
-                if(r < sparse) then
-                   write(iunit, *) r*r, i,j,k,l
-                endif
+                matel = sqrt(umatRand(i,k)*umatRand(j,l))
+                if(matel > eps) write(iunit, *) matel,i,j,k,l
              end do
           end do
        end do
