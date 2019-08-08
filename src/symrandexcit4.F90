@@ -599,9 +599,9 @@ contains
                 ! for transcorrelation, change the order of the indices!
                 do j = 1, nel
                     if (nI(j) == src) cycle
-                    hel = hel + get_umat_el (id, n_id(j), id_src, n_id(j))
+                    hel = hel + get_umat_el (id_src, n_id(j), id, n_id(j))
                     if (is_beta(src) .eqv. is_beta(nI(j))) &
-                        hel = hel - get_umat_el (id, n_id(j), n_id(j), id_src)
+                        hel = hel - get_umat_el (id_src, n_id(j), n_id(j), id)
                 end do
                 hel = hel + GetTMATEl(src, orb)
 
