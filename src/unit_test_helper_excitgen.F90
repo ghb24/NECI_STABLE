@@ -3,7 +3,7 @@ module unit_test_helper_excitgen
   use read_fci, only: readfciint, initfromfcid, fcidump_name
   use shared_memory_mpi, only: shared_allocate_mpi, shared_deallocate_mpi
   use IntegralsData, only: UMat, umat_win
-  use Integrals_neci, only: IntInit, get_umat_el_normal
+  use Integrals_neci, only: IntInit, get_umat_el_normal, initIntBuffers
   use procedure_pointers, only: get_umat_el, generate_excitation
   use SystemData, only: nel, nBasis, UMatEps, tStoreSpinOrbs, tReadFreeFormat, tCSF, &
        tReadInt, t_pcpp_excitgen
@@ -32,7 +32,7 @@ module unit_test_helper_excitgen
   
 contains
 
-  subroutine test_excitation_generator(sampleSize, pTot, pNull)
+  subroutine test_excitation_generator(sampleSize, pTot, pNull, numEx, nFound)
     ! Test an excitation generator by creating a large number of excitations and
     ! compare the generated excits with a precomputed list of all excitations
     ! We thus make sure that
@@ -41,18 +41,19 @@ contains
     implicit none
     integer, intent(in) :: sampleSize
     real(dp), intent(out) :: pTot, pNull
+    integer, intent(out) :: numEx, nFound
     integer :: nI(nel), nJ(nel)
     integer :: i, ex(2,maxExcit), exflag
     integer(n_int) :: ilut(0:NIfTot), ilutJ(0:NIfTot)
     real(dp) :: pgen
     logical :: tPar, tAllExFound, tFound
-    integer :: j, numEx, nSingles, nDoubles
+    integer :: j, nSingles, nDoubles
     integer(n_int), allocatable :: allEx(:,:)
     real(dp) :: pgenArr(lenof_sign)
     real(dp) :: matel, matelN
     logical :: exDoneDouble(0:nBasis,0:nBasis,0:nBasis,0:nBasis)
     logical :: exDoneSingle(0:nBasis,0:nBasis)
-    integer :: ic, part, nFound, nullExcits
+    integer :: ic, part, nullExcits
     HElement_t(dp) :: HEl
     exDoneDouble = .false.
     exDoneSingle = .false.
@@ -72,6 +73,7 @@ contains
     call EncodeBitDet(nI,ilut)
 
     exflag = 3
+    ex = 0
     ! create a list of all singles and doubles for reference
     call CountExcitations3(nI,exflag,nSingles,nDoubles)
     allocate(allEx(0:(NIfTot+1),nSingles+nDoubles), source = 0_n_int)
@@ -162,7 +164,7 @@ contains
     write(iout,*) "In total", numEx, "excitations"
     write(iout,*) "With", nSingles, "single excitation"
     write(iout,*) "Found", nFound, "excitations"
-
+    
   end subroutine test_excitation_generator
 
   !------------------------------------------------------------------------------------------!
@@ -208,6 +210,8 @@ contains
     call shared_allocate_mpi(umat_win, umat, (/umatsize/))
 
     call readfciint(UMat,umat_win,nBasis,ecore,.false.)    
+    ! load additional storage for some common parts of the integrals to be stored densely
+    call initIntBuffers()
     call SysInit()
     ! required: set up the spin info
     
@@ -236,7 +240,18 @@ contains
     real(dp), parameter :: sparse = 0.9
     real(dp), parameter :: sparseT = 0.1    
     integer :: i,j,k,l, iunit
-    real(dp) :: r
+    real(dp) :: r, matel
+    ! we get random matrix elements from the cauchy-schwartz inequalities, so
+    ! only <ij|ij> are random -> random 2d matrix
+    real(dp) :: umatRand(nBasisBase,nBasisBase)
+
+    do i = 1, nBasisBase
+       do j = 1, nBasisBase
+          r = genrand_real2_dSFMT()
+          if(r < sparse) &
+               umatRand(i,j) = r*r
+       end do
+    end do
 
     ! write the canonical FCIDUMP header
     iunit = get_free_unit()
@@ -254,10 +269,8 @@ contains
        do j = 1, i
           do k = i, nBasisBase
              do l = 1, k
-                r = genrand_real2_dSFMT()
-                if(r < sparse) then
-                   write(iunit, *) r*r, i,j,k,l
-                endif
+                matel = sqrt(umatRand(i,k)*umatRand(j,l))
+                if(matel > eps) write(iunit, *) matel,i,j,k,l
              end do
           end do
        end do
@@ -267,10 +280,11 @@ contains
        do j = 1, i
           r = genrand_real2_dSFMT()
           if(r < sparseT) then
-             write(iunit,*) r, i,j
+             write(iunit,*) r, i,j,0,0
           endif
        end do
     end do
+    close(iunit)
 
   end subroutine generate_random_integrals
 
