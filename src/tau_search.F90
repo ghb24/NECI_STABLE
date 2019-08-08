@@ -197,9 +197,10 @@ contains
             ! Log the details if necessary!
             tmp_prob = prob / pSingles
             tmp_gamma = abs(matel) / tmp_prob
-            if (tmp_gamma > gamma_sing) &
-                gamma_sing = tmp_gamma
-            
+            if (tmp_gamma > gamma_sing) then
+               gamma_sing = tmp_gamma
+               write(iout,*) "New gamma_sing", gamma_sing, abs(matel), ex
+            endif
             ! And keep count!
             if (.not. enough_sing .and. gamma_sing > 0) then
                 cnt_sing = cnt_sing + 1
@@ -610,7 +611,7 @@ contains
                          ", pDoubles(st->s't') = ", pDoub_spindiff2_new
                  else
                     root_print "Updating singles/doubles bias. pSingles = ", psingles_new
-                    root_print " pDoubles = ", 1.0_dp - pSingles_new - pTriples_new
+                    root_print " pDoubles = ", (1.0_dp - pSingles_new)*(1.0 - pTriples_new)
                  endif
               end if
 

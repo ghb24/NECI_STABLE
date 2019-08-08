@@ -37,6 +37,7 @@ module excit_gens_int_weighted
     use LoggingData, only: t_log_ija, ija_bins_para, ija_bins_anti, ija_thresh, &
                            ija_orbs_para, ija_orbs_anti, ija_bins_sing, ija_orbs_sing
     use Parallel_neci, only: iProcIndex
+    use LMat_mod, only: get_lmat_el
 
     implicit none
     save
@@ -491,7 +492,7 @@ contains
         real(dp) :: pgen
         character(*), parameter :: this_routine = "pgen_single_4ind"
 
-        integer :: cc_index, label_index, norb, n_id(nel), id_src, id_tgt
+        integer :: cc_index, label_index, norb, ex(2), id_src, id_tgt
         integer :: i, j, orb
         real(dp) :: cum_sum, cpt, cpt_tgt
         HElement_t(dp) :: hel
@@ -509,27 +510,17 @@ contains
 
         ! Some ids for utility
         id_src = gtID(src)
-        n_id = gtID(nI)
-
+        ex(1) = src
+        
         ! Generate the cumulative sum, as used in the excitation generator,
         ! and store the relevant term for generating the excitation.
         cum_sum = 0
         do i = 1, norb
             orb = SymLabelList2(label_index + i - 1)
             if (IsNotOcc(ilutI, orb)) then
-                hel = 0
-                id_tgt = gtID(orb)
-                do j = 1, nel
-                    if (nI(j) == src) cycle
-                    hel = hel + get_umat_el (id_src, n_id(j), id_tgt, &
-                                             n_id(j))
-                    if (is_beta(src) .eqv. is_beta(nI(j))) then
-                        hel = hel - get_umat_el (id_src, n_id(j), n_id(j),&
-                                                  id_tgt)
-                    end if
-                end do
-                hel = hel + GetTMATEl(src, orb)
-                cpt = abs_l1(hel)
+               ex(2) = orb
+               hel = sltcnd_1(nI,ex,.false.)
+               cpt = abs_l1(hel)
 
                 if (t_matele_cutoff) then
                     if (cpt < matele_cutoff) then
@@ -563,7 +554,7 @@ contains
         real(dp) :: cum_sum, cumulative_arr(OrbClassCount(cc_index)), r
         real(dp) :: cpt_arr(OrbClassCount(cc_index))
         integer :: orb, norb, label_index, orb_index, i, j
-        integer :: n_id(nel), id_src, id
+        integer :: id_src, id, ex(2)
         HElement_t(dp) :: hel
         real(dp) :: cpt
 
@@ -572,8 +563,8 @@ contains
         label_index = SymLabelCounts2(1, cc_index)
 
         ! Spatial orbital IDs
-        n_id = gtID(nI)
         id_src = gtID(src)
+        ex(1) = src
         ASSERT(tExch)
 
         ! Construct the cumulative list of strengths
@@ -593,18 +584,10 @@ contains
                 !cum_sum = cum_sum &
                 !        + abs_l1(GetTMATEl(src, orb))
 
-                ! This is based on an extract from sltcnd_1. We can assume
-                ! tExch, and SymLabelList2 ensures the spins are equal
-                id = gtID(orb)
-                ! for transcorrelation, change the order of the indices!
-                do j = 1, nel
-                    if (nI(j) == src) cycle
-                    hel = hel + get_umat_el (id_src, n_id(j), id, n_id(j))
-                    if (is_beta(src) .eqv. is_beta(nI(j))) &
-                        hel = hel - get_umat_el (id_src, n_id(j), n_id(j), id)
-                end do
-                hel = hel + GetTMATEl(src, orb)
-
+                ! This is based on an extract from sltcnd_1.
+                ! set the excitation we consider
+                ex(2) = orb
+                hel = sltcnd_1(nI,ex,.false.)
             end if
 
             ! And store the values for later searching
@@ -1081,7 +1064,7 @@ contains
 
 
                 contrib = sqrt(abs_l1(UMat2D(max(indi, inda), min(indi, inda))))&
-                        + sqrt(abs_l1(UMat2D(max(indj, inda), min(indj, inda))))
+                     + sqrt(abs_l1(UMat2D(max(indj, inda), min(indj, inda))))
             end if
             !sqrt(abs_l1(get_umat_el(srcid(1), srcid(1), inda, inda))) + &
             !sqrt(abs_l1(get_umat_el(srcid(2), srcid(2), inda, inda)))
@@ -1139,7 +1122,7 @@ contains
                 orb = SymLabelList2(label_index + i - 1)
                 if (IsNotOcc(ilut, orb) .and. orb /= orb_pair) then
                     cum_sum = cum_sum + same_spin_pair_contrib(&
-                                             srcid(1), srcid(2), orb, orb_pair)
+                         srcid(1), srcid(2), orb, orb_pair)
                 end if
                 cumulative_arr(i) = cum_sum
 
