@@ -25,10 +25,13 @@ module pcpp_excitgen
   type(aliasSampler_t) :: double_elec_one_sampler
   type(aliasSampler_t), allocatable :: double_elec_two_sampler(:)
 
-  type(aliasSampler_t), allocatable :: double_hole_one_sampler(:)
-  type(aliasSampler_t), allocatable :: double_hole_two_sampler(:,:)
+  type(aliasSampler_t), allocatable :: double_hole_one_sampler(:,:) 
+  ! there is one sampler per spin/symmetry of the last electron
+  type(aliasSampler_t), allocatable :: double_hole_two_sampler(:,:,:)
 
   integer, allocatable :: refDet(:)
+  ! maximal value of getSpinIndex
+  integer, parameter :: spinMax = 1
 
 contains
 
@@ -44,7 +47,7 @@ contains
     ! The interface is common to all excitation generators, see proc_ptrs.F90
     integer, intent(in) :: nI(nel), exFlag
     integer(n_int), intent(in) :: iLut(0:niftot)
-    integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
+   integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
     logical, intent(out) :: tParity
     real(dp), intent(out) :: pGen
     type(excit_gen_store_type), intent(inout), target :: store
@@ -114,10 +117,9 @@ contains
     integer :: src1, src2
     integer :: tgt1, tgt2
     integer :: elec1, elec2
-    ! symmetry to enforce for the last orbital
+    ! symmetry + spin to enforce for the last orbital
     type(Symmetry) :: tgtSym
-    ! map between reference and current der for electrons
-    character(*), parameter :: t_r = "generate_double_pcpp"
+    integer :: tgt1MS, tgt2MS
 
     call double_elec_one_sampler%sample(umElec1,pSGen1)
     src1 = elec_map(umElec1)
@@ -151,7 +153,17 @@ contains
     ! for drawing them either way
     pGen = pSGen1 * pSGen2 + pSSwap1 * pSSwap2
 
-    call double_hole_one_sampler(src1)%sample(tgt1,pTGen1)
+    ! decide which spins the tgt orbs shall have
+    ! default to: src1 has the same spin as tgt1
+    tgt1MS = getSpinIndex(src1)
+    tgt2MS = getSpinIndex(src2)
+    ! if we have opposite spins, chose their distribution randomly
+    if(G1(src1)%MS.ne.G1(src2)%MS) then
+       if(genrand_real2_dSFMT() < 0.5) call intswap(tgt1MS,tgt2MS)
+       pGen = pGen * 0.5
+    endif
+
+    call double_hole_one_sampler(src1,tgt1MS)%sample(tgt1,pTGen1)
     ! update generation probability so far to ensure it has a valid value on return in any case
     if(abort_excit(tgt1)) then
        pGen = pGen * pTGen1
@@ -159,7 +171,7 @@ contains
     endif
     ! we need a specific symmetry now
     tgtSym = getTgtSym(tgt1)
-    call double_hole_two_sampler(src2,tgtSym%s)%sample(tgt2,pTGen2)
+    call double_hole_two_sampler(src2,tgtSym%s,tgt2MS)%sample(tgt2,pTGen2)
 
     if(abort_excit(tgt2,tgt1)) then
        pGen = pGen * pTGen1 * pTGen2
@@ -168,9 +180,9 @@ contains
     ! Update the generation probability
     ! We could have drawn the target orbitals the other way around
     ! -> adapt pGen
-    pTSwap1 = double_hole_one_sampler(src1)%getProb(tgt2)
+    pTSwap1 = double_hole_one_sampler(src1,tgt2MS)%getProb(tgt2)
     tgtSym = getTgtSym(tgt2)
-    pTSwap2 = double_hole_two_sampler(src2,tgtSym%s)%getProb(tgt1)
+    pTSwap2 = double_hole_two_sampler(src2,tgtSym%s,tgt1MS)%getProb(tgt1)
     pGen = pGen * (pTGen1 * pTGen2 + pTSwap1 * pTSwap2)
 
     ! generate the output determinant
@@ -194,6 +206,25 @@ contains
       
     end function getTgtSym
 
+    function getTgtSpin(tgt) result(ms)
+      ! return the spin of the last target orbital given a first target orbital
+      ! Input: tgt - first target orbital
+      ! Output: ms - spin index of the missing orbital:
+      !              0 - alpha
+      !              1 - beta
+      implicit none
+      integer, intent(in) :: tgt
+      integer :: ms
+
+      ! if the electrons have the same spin, return the spin index of tgt
+      if(G1(src1)%MS.eq.G1(src2)%MS) then
+         ms = getSpinIndex(tgt)
+      else
+         ! else, the opposite spin index
+         ms = 1 - getSpinIndex(tgt)
+      endif
+    end function getTgtSpin
+      
     function invalid_mapping(src,src2) result(abort)
       ! check if the mapping was successful
       ! Input: src - electron we want to know about: did the mapping succeed?
@@ -409,7 +440,7 @@ contains
       integer :: i,j,a,b
       integer :: jEl
 
-      allocate(double_elec_two_sampler(nBasis))
+      allocate(double_elec_two_sampler(nBasis), stat = aerr)
       do i = 1, nBasis
          w = 0.0_dp
          do jEl = 1, nel
@@ -441,20 +472,22 @@ contains
       ! generate precomputed probabilities for picking a hole given a selected electron
       ! this is for picking the first hole where no symmetry restrictions apply
       implicit none
-      real(dp) :: w(nBasis)
-      integer :: i,a
-      logical :: tPar
+      real(dp) :: w(nBasis,0:spinMax)
+      integer :: i,a,iSpin
       integer :: aerr
 
-      allocate(double_hole_one_sampler(nBasis), stat = aerr)
+      allocate(double_hole_one_sampler(nBasis,0:spinMax), stat = aerr)
       do i = 1, nBasis
          w = 0.0_dp
          do a = 1, nBasis
-            ! only same-spin excitations from i -> a
-            if(a.ne.i.and.same_spin(a,i)) &
-                 w(a) = pp_weight_function(i,a)
+            ! we will be requesting orbitals with a defined spin, store it along
+            if(a.ne.i) &
+                 w(a, getSpinIndex(a)) = pp_weight_function(i,a)
          end do
-         call double_hole_one_sampler(i)%setupSampler(w)
+
+         do iSpin = 0, spinMax
+            call double_hole_one_sampler(i,iSpin)%setupSampler(w(:,iSpin))
+         end do
       end do
     end subroutine setup_hole_one_sampler
 
@@ -464,23 +497,24 @@ contains
       ! generate precomputed probabilities for picking hole number 2 given a selected electron
       ! this is for picking the second hole where symmetry restrictions apply
       implicit none
-      real(dp) :: w(nBasis,0:symmax-1)
-      integer :: j,b,iSym
-      logical :: tPar
+      real(dp) :: w(nBasis,0:symmax-1,0:spinMax)
+      integer :: j,b,iSym,iSpin
       integer :: aerr        
 
       ! there is one table for each symmetry and each starting orbital
-      allocate(double_hole_two_sampler(nBasis,0:symmax-1), stat = aerr)
+      allocate(double_hole_two_sampler(nBasis,0:symmax-1,0:spinMax), stat = aerr)
       do j = 1, nBasis
          w = 0.0_dp
          do b = 1, nBasis
             ! only same-spin and symmetry-allowed excitations from j -> b
-            if(b.ne.j.and.same_spin(b,j)) &
-                 w(b,G1(b)%Sym%s) = pp_weight_function(j,b)
+            if(b.ne.j) &
+                 w(b,G1(b)%Sym%s,getSpinIndex(b)) = pp_weight_function(j,b)
          end do
 
-         do iSym = 0, symmax-1
-            call double_hole_two_sampler(j,iSym)%setupSampler(w(:,iSym))
+         do iSpin = 0, spinMax
+            do iSym = 0, symmax-1
+               call double_hole_two_sampler(j,iSym,iSpin)%setupSampler(w(:,iSym,iSpin))
+            end do
          end do
       end do
 
@@ -528,7 +562,6 @@ contains
       implicit none
       real(dp) :: w(nel)
       integer :: i, a
-      integer :: aerr
       integer :: iEl
 
       do iEl = 1, nel
@@ -626,7 +659,7 @@ contains
 
   subroutine finalize_pcpp_excitgen()
     implicit none
-    integer :: j,k
+    integer :: j,k,l
     deallocate(refDet)
 
     call single_elec_sampler%samplerDestructor()
@@ -634,10 +667,16 @@ contains
     call clear_sampler_array(single_hole_sampler)
     call double_elec_one_sampler%samplerDestructor()
     call clear_sampler_array(double_elec_two_sampler)
-    call clear_sampler_array(double_hole_one_sampler)
+    do j = 1, size(double_hole_one_sampler,1)
+       do k = 1, size(double_hole_one_sampler,2)
+          call double_hole_one_sampler(j,k)%samplerDestructor()
+       end do
+    end do
     do j = 1, size(double_hole_two_sampler,1)
        do k = 1, size(double_hole_two_sampler,2)
-          call double_hole_two_sampler(j,k)%samplerDestructor()
+          do l = 1, size(double_hole_two_sampler,3)
+             call double_hole_two_sampler(j,k,l)%samplerDestructor()
+          end do
        end do
     end do
     deallocate(double_hole_two_sampler)
@@ -705,13 +744,8 @@ contains
 
     integer, intent(in) :: i,a
     real(dp) :: w
-    integer :: ex(2,2)
 
-    ex(1,1) = i
-    ex(1,2) = a
-    ex(2,1) = i
-    ex(2,2) = a
-    w = sqrt(abs(sltcnd_excit(refDet,2,ex,.false.)))
+    w = sqrt(abs(get_umat_el(gtID(i),gtID(a),gtID(a),gtID(i))))
   end function pp_weight_function
 
   !------------------------------------------------------------------------------------------!
@@ -727,8 +761,22 @@ contains
     allowed = same_spin(a,b) .and. (G1(a)%Sym%s.eq.G1(b)%Sym%s)
   end function symAllowed
 
-    !------------------------------------------------------------------------------------------!
+  !------------------------------------------------------------------------------------------!
 
+  function getSpinIndex(orb) result(ms)
+    ! return a spin index of the orbital orb which can be used to address arrays
+    ! Input: orb - spin orbital
+    ! Output: ms - spin index of orb with the following values:
+    !              0 - alpha
+    !              1 - beta
+    implicit none
+    integer, intent(in) :: orb
+    integer :: ms
+
+    ms = mod(orb,2)
+  end function getSpinIndex
+  
+  !------------------------------------------------------------------------------------------!
 
   pure subroutine intswap(a,b)
     ! Swap two integers a and b
