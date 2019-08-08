@@ -493,7 +493,7 @@ contains
       use hdf5
       implicit none
       integer(hsize_t), intent(in) :: fvals(:)
-      integer, intent(in) :: j
+      integer(int64), intent(in) :: j
 
       integer :: run
       real(dp) :: realVal = 0.0_dp
@@ -507,7 +507,7 @@ contains
 
     subroutine writeFFuncAsInt(ndets, fvals)
       implicit none
-      integer, intent(in) :: ndets
+      integer(int64), intent(in) :: ndets
       integer(n_int), intent(inout) :: fvals(:,:)
 
       integer :: j, k
@@ -526,7 +526,7 @@ contains
 
     subroutine writeFFunc(ndets, fvals)
       implicit none
-      integer, intent(in) :: ndets
+      integer(int64), intent(in) :: ndets
       real(dp), intent(inout) :: fvals(:,:)
 
       integer :: j, k
