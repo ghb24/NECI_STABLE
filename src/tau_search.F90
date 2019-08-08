@@ -107,6 +107,7 @@ contains
         enough_doub = .false.
         enough_opp = .false.
         enough_par = .false.
+        enough_trip = .false.
 
         ! Unless it is already specified, set an initial value for tau
         if (.not. tRestart .and. .not. tReadPops .and. tau == 0) then
@@ -223,47 +224,17 @@ contains
             ! We need to unbias the probability for pDoubles
             tmp_prob = prob / pDoubles
 
-            if (consider_par_bias) then 
-                if (same_spin(ex(1,1),ex(1,2))) then 
-                    tmp_prob = tmp_prob / pParallel
-                    tmp_gamma = abs(matel) / tmp_prob
-                    if (tmp_gamma > gamma_par) then
-                        gamma_par = tmp_gamma
-                    end if
-            
-                    ! And keep count
-                    if (.not. enough_par) then
-                        cnt_par = cnt_par + 1
-                        if (cnt_par > cnt_threshold) enough_par = .true.
-                        if (enough_opp .and. enough_par) enough_doub = .true.
-                    end if
-                else
-                    tmp_prob = tmp_prob / (1.0_dp - pParallel)
-                    tmp_gamma = abs(matel) / tmp_prob
-                    if (tmp_gamma > gamma_opp) then
-                        gamma_opp = tmp_gamma
-                    end if
-        
-                    ! And keep count
-                    if (.not. enough_opp) then
-                        cnt_opp = cnt_opp + 1
-                        if (cnt_opp > cnt_threshold) enough_opp = .true.
-                        if (enough_opp .and. enough_par) enough_doub = .true.
-                    end if
-                end if
-            else
-                ! We are not playing around with the same/opposite spin bias
-                ! then we should just treat doubles like the singles
-                tmp_gamma = abs(matel) / tmp_prob
-                if (tmp_gamma > gamma_doub) gamma_doub = tmp_gamma
-            
-                ! And keep count
-                if (.not. enough_doub) then
-                    cnt_doub = cnt_doub + 1
-                    if (cnt_doub > cnt_threshold) enough_doub = .true.
-                end if
+            ! We are not playing around with the same/opposite spin bias
+            ! then we should just treat doubles like the singles
+            tmp_gamma = abs(matel) / tmp_prob
+            if (tmp_gamma > gamma_doub) gamma_doub = tmp_gamma
+
+            ! And keep count
+            if (.not. enough_doub .and. tmp_gamma > 0) then
+               cnt_doub = cnt_doub + 1
+               if (cnt_doub > cnt_threshold) enough_doub = .true.
             end if
-     
+
         case(4) 
             ! We need to unbias the probability for pDoubles
             tmp_prob = prob / pDoub_spindiff1
@@ -313,7 +284,49 @@ contains
                 if (cnt_trip > cnt_threshold) enough_trip = .true.
             endif
 
-        end select
+         end select
+
+         ! We need to deal with the doubles
+         if (getExcitationType(ex, ic)==2 .and. consider_par_bias) then
+            ! In this case, distinguish between parallel and oppisite spins
+            if (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2))) then
+               tmp_prob = tmp_prob / pParallel
+               tmp_gamma = abs(matel) / tmp_prob
+               if (tmp_gamma > gamma_par) &
+                    gamma_par = tmp_gamma
+
+               ! And keep count
+               if (.not. enough_par ) then
+                  cnt_par = cnt_par + 1
+                  if (cnt_par > cnt_threshold) enough_par = .true.
+                  if (enough_opp .and. enough_par) enough_doub = .true.
+               end if
+            else
+               tmp_prob = tmp_prob / (1.0_dp - pParallel)
+               tmp_gamma = abs(matel) / tmp_prob
+               if (tmp_gamma > gamma_opp) &
+                    gamma_opp = tmp_gamma
+
+               ! And keep count
+               if (.not. enough_opp .and. tmp_gamma > 0) then
+                  cnt_opp = cnt_opp + 1
+                  if (cnt_opp > cnt_threshold) enough_opp = .true.
+                  if (enough_opp .and. enough_par) enough_doub = .true.
+               end if
+            end if
+         else
+            ! We are not playing around with the same/opposite spin bias
+            ! then we should just treat doubles like the singles
+            tmp_gamma = abs(matel) / tmp_prob
+            if (tmp_gamma > gamma_doub) &
+                 gamma_doub = tmp_gamma
+
+            ! And keep count
+            if (.not. enough_doub .and. tmp_gamma > 0) then
+               cnt_doub = cnt_doub + 1
+               if (cnt_doub > cnt_threshold) enough_doub = .true.
+            end if
+         end if
 
      end subroutine
 
@@ -585,7 +598,7 @@ contains
         if ((checkS + checkD + checkT > 1)) then
            if((psingles_new > 1e-5_dp .or. tNoSinglesPossible) &
                 .and. psingles_new < (1.0_dp - 1e-5_dp) .and. &
-                (t_3_body_excits .and. min(pTriples_new,(1.0_dp-pTriples_new))>1e-5_dp .or. &
+                (.not.t_3_body_excits .or. min(pTriples_new,(1.0_dp-pTriples_new))>1e-5_dp .or. &
                 t_exclude_3_body_excits)) then
 
               if (abs(psingles - psingles_new) / psingles > 0.0001_dp) then
