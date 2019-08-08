@@ -3,7 +3,7 @@ module unit_test_helper_excitgen
   use read_fci, only: readfciint, initfromfcid, fcidump_name
   use shared_memory_mpi, only: shared_allocate_mpi, shared_deallocate_mpi
   use IntegralsData, only: UMat, umat_win
-  use Integrals_neci, only: IntInit, get_umat_el_normal
+  use Integrals_neci, only: IntInit, get_umat_el_normal, initIntBuffers
   use procedure_pointers, only: get_umat_el, generate_excitation
   use SystemData, only: nel, nBasis, UMatEps, tStoreSpinOrbs, tReadFreeFormat, tCSF, &
        tReadInt, t_pcpp_excitgen
@@ -210,6 +210,8 @@ contains
     call shared_allocate_mpi(umat_win, umat, (/umatsize/))
 
     call readfciint(UMat,umat_win,nBasis,ecore,.false.)    
+    ! load additional storage for some common parts of the integrals to be stored densely
+    call initIntBuffers()
     call SysInit()
     ! required: set up the spin info
     
