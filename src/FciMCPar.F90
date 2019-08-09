@@ -1482,6 +1482,12 @@ module FciMCParMod
 
             end if
 
+            if (t_guga_back_spawn) then 
+
+                is_init_guga = any_run_is_initiator(CurrentDets(:,j))
+
+            end if
+
             do part_type = 1, lenof_sign
 
                 run = part_type_to_run(part_type)

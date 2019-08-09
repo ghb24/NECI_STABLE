@@ -334,10 +334,6 @@ contains
         ! The Ml value is obtained from the orbitals
         sum_ml = sum(G1(src)%Ml)
 
-        ! And the spatial symmetries
-!         sym_prod = RandExcitSymLabelProd(SpinOrbSymLabel(src(1)), &
-!                                          SpinOrbSymLabel(src(2)))
-
     end subroutine pick_virtual_electrons_double
     
 
@@ -369,7 +365,6 @@ contains
         do i = 1, norb 
             orb = SymLabelList2(label_index + i - 1)
             if (is_in_ref(orb,part_type) .and. IsNotOcc(ilut,orb)) then
-!             if (any(orb == projedet(:,part_type_to_run(part_type))) .and. IsNotOcc(ilut,orb)) then 
 
                 ASSERT(SpinOrbSymLabel(orb) == SpinOrbSymLabel(src))
 
@@ -377,18 +372,6 @@ contains
                 j = j + 1
             end if 
         end do
-
-!         do i = 1, nel
-!             if (.not. any(projedet(i,1) == nI)) then 
-!                 ! i also have to check spin and symmetry now.. 
-!                 if (is_beta(src) .eqv. is_beta(projedet(i,1)) .and. &
-!                     SpinOrbSymLabel(src) == SpinOrbSymLabel(projedet(i,1))) then
-! 
-!                     occ_orbs(j) = projedet(i,1)
-!                     j = j + 1
-!                 end if
-!             end if
-!         end do
 
         n_valid = j - 1
 

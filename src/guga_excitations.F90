@@ -2424,9 +2424,6 @@ contains
                 call write_det_guga(6, ilutG)
                 call write_det_guga(6, tgt_ilut(0:nifd))
                 call print_excitInfo(global_excitInfo)
-!                 write(6,*) det
-!                 write(6,'(b64)') tgt_ilut(0)
-!                 call writebitdet(6, tgt_ilut, .true.)
                 print *, "<i|H|j> = ", helgen
                 call stop_all(this_routine, 'Unexpected determinant generated')
             else
@@ -3387,6 +3384,14 @@ contains
             excitation = 0
             pgen = 0.0_dp
             return
+        end if
+
+        if (t_guga_back_spawn) then
+            if (increase_ex_levl(ilut, nI, excitInfo) .and. .not. is_init_guga) then 
+                call create_crude_guga_double()
+
+                return
+            end if
         end if
 
         if (tgen_guga_crude .and. .not. tgen_guga_mixed) then
@@ -11450,6 +11455,18 @@ contains
             return
         end if
 
+        if (t_guga_back_spawn) then 
+            ! do smth like this: 
+            ! if i find to increase the excit-lvl with the chosen 
+            ! orbitals and the current CSF is a non-initiator -> 
+            ! perform a crude excitation
+            if (increase_ex_levl(ilut, nI, excitInfo) .and. .not. is_init_guga) then 
+                call create_crude_guga_single()
+                
+                return
+            end if
+        end if        
+        
         ! do the crude approximation here for now..
         if (tgen_guga_crude .and. .not. tgen_guga_mixed) then
 
