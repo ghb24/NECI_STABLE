@@ -610,4 +610,7 @@ logical :: t_trunc_guga_matel = .false.
 real(dp) :: trunc_guga_pgen = 1.0e-4_dp
 real(dp) :: trunc_guga_matel = 1.0e-4_dp
 
+! try this truncation also only for noninits
+logical :: t_trunc_guga_pgen_noninits = .false.
+
 end module CalcData

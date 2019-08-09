@@ -1289,6 +1289,21 @@ contains
                     call getf(trunc_guga_pgen)
                 end if
 
+            case('TRUNC-GUGA-PGEN-NONINITS')
+                ! truncate GUGA excitation with a pgen below a chosen 
+                ! threshold 
+                if (.not. t_k_space_hubbard) then 
+                    call stop_all(this_routine, &
+                        "pgen truncation for now only implemented for k-space hubbard")
+                end if
+
+                t_trunc_guga_pgen_noninits = .true.
+
+                if (item < nitems) then 
+                    call getf(trunc_guga_pgen)
+                end if
+
+
             case('TRUNC-GUGA-MATEL')
                 ! truncate GUGA excitations with a coupling coefficient below
                 ! a chosen threshold

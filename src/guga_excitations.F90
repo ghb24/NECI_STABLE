@@ -5,7 +5,7 @@
 module guga_excitations
     ! modules
     use CalcData, only: t_guga_mat_eles, t_trunc_guga_pgen, t_trunc_guga_matel, & 
-                        trunc_guga_pgen, trunc_guga_matel
+                        trunc_guga_pgen, trunc_guga_matel, t_trunc_guga_pgen_noninits
 
     use SystemData, only: nEl, nBasis, ElecPairs, G1, nmaxx, &
                           nmaxy, nmaxz, OrbECutoff, tOrbECutoff, nSpatOrbs, &
@@ -3752,7 +3752,7 @@ contains
         ! what if probWeight is 0 for some reason? shouldnt be..
         ! yes it could be since i indicate zero-values excitations in this way
 
-        if (t_trunc_guga_pgen) then 
+        if (t_trunc_guga_pgen .or. (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then 
             if (branch_pgen < trunc_guga_pgen) then
                 pgen = 0.0_dp
                 excitation = 0_n_int
@@ -4441,7 +4441,8 @@ contains
                 ! and multiply and add up all contribution elements
                 integral = integral + temp_int
 
-                if (t_trunc_guga_pgen) then 
+                if (t_trunc_guga_pgen .or. & 
+                    (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then 
                     if (branch_weight < trunc_guga_pgen) then 
                         branch_weight = 0.0_dp
                     end if
@@ -11528,7 +11529,8 @@ contains
             ! also get the double contribution during this loop
             ! depends on both stepvalues...
 
-            if (t_trunc_guga_pgen) then 
+            if (t_trunc_guga_pgen .or. & 
+                (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then 
                 if (branch_pgen < trunc_guga_pgen) then 
                     pgen = 0.0_dp
                     exc = 0_n_int

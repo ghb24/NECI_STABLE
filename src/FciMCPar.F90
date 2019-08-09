@@ -27,7 +27,7 @@ module FciMCParMod
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
                         DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
                         tSkipRef, tFixTrial, tTrialShift, tSpinProject, t_activate_decay, &
-                        t_guga_mat_eles, &
+                        t_guga_mat_eles, t_trunc_guga_pgen_noninits, &
                         tLogAverageSpawns, tActivateLAS, tTimedDeaths, lingerTime
 
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
@@ -1471,6 +1471,12 @@ module FciMCParMod
             end if
 
             if (t_crude_exchange_noninits .or. t_approx_exchange_noninits) then 
+
+                is_init_guga = any_run_is_initiator(CurrentDets(:,j))
+
+            end if
+
+            if (t_trunc_guga_pgen_noninits) then
 
                 is_init_guga = any_run_is_initiator(CurrentDets(:,j))
 
