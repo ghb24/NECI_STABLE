@@ -4,7 +4,9 @@
 #ifndef __CMPLX
 module guga_excitations
     ! modules
-    use CalcData, only: t_guga_mat_eles
+    use CalcData, only: t_guga_mat_eles, t_trunc_guga_pgen, t_trunc_guga_matel, & 
+                        trunc_guga_pgen, trunc_guga_matel
+
     use SystemData, only: nEl, nBasis, ElecPairs, G1, nmaxx, &
                           nmaxy, nmaxz, OrbECutoff, tOrbECutoff, nSpatOrbs, &
                           current_stepvector, currentOcc_ilut, currentOcc_int, &
@@ -3671,6 +3673,9 @@ contains
             ! matrix element? 
             ! yes since D(b=1,0) and d(b=0,1) can be zero
 
+            ! to use t_trunc_guga_pgen
+            branch_pgen = 1.0_dp
+
             deallocate(excitations)
 
         case (23) ! full-start into full-stop mixed
@@ -3743,18 +3748,23 @@ contains
 
         end select
 
-        ! multiply up the probabilities
-        ! not anymore... 
-!         probWeight = probWeight * pgen
 
         ! what if probWeight is 0 for some reason? shouldnt be..
         ! yes it could be since i indicate zero-values excitations in this way
+
+        if (t_trunc_guga_pgen) then 
+            if (branch_pgen < trunc_guga_pgen) then
+                pgen = 0.0_dp
+                excitation = 0_n_int
+                return
+            end if
+        end if
 
         ! check if for some reason the matrix element of the excitation is 0
         if (abs(extract_matrix_element(excitation, 1)) < EPS) then
             pgen = 0.0_dp
             excitation = 0
-!             if (excitInfo%excitLvl == 1) print *, "0 matrix ele!"
+
         else
             ! also store information of type of excitation for automated tau-search
             ! for the non-weighted guga-excitation-generator
@@ -4427,10 +4437,21 @@ contains
                     x1_element = tempWeight_1)
 
                 temp_int = tempWeight * tempWeight_1 * inter * temp_int
-
                 
                 ! and multiply and add up all contribution elements
                 integral = integral + temp_int
+
+                if (t_trunc_guga_pgen) then 
+                    if (branch_weight < trunc_guga_pgen) then 
+                        branch_weight = 0.0_dp
+                    end if
+                end if
+
+                if (t_trunc_guga_matel) then 
+                    if (abs(tempWeight * tempWeight_1 * inter) < trunc_guga_matel) then
+                        branch_weight = 0.0_dp
+                    end if
+                end if
 
                 ! add up pgen contributions.. 
                 pgen = pgen + (below_cpt + above_cpt) * branch_weight
@@ -5199,10 +5220,6 @@ contains
         start2 = excitInfo%secondStart
         ende1 = excitInfo%firstEnd
         ende2 = excitInfo%fullEnd
-! 
-!         if (.not. present(posSwitches)) then
-!             call calcRemainingSwitches(ilut, excitInfo,1,  posSwitches, negSwitches)
-!         end if
 
         ! : create correct weights:
         if (present(opt_weight))then 
@@ -5243,6 +5260,7 @@ contains
             call doubleUpdateStochastic(ilut, iOrb, excitInfo, weights, negSwitches, &
                 posSwitches, t, branch_pgen)
             ! check validity
+
             if (branch_pgen < EPS) return
 
         end do
@@ -5568,12 +5586,6 @@ contains
             get_umat_el(ende1,ende2,start1,start2) + get_umat_el(ende2,ende1,start2,start1) - &
             get_umat_el(ende2,ende1,start1,start2) - get_umat_el(ende1,ende2,start2,start1)))/2.0_dp
 
-!         integral = (extract_matrix_element(t,1)*(get_umat_el(ende1,ende2,start1,start2) + &
-!             get_umat_el(ende2,ende1,start2,start1) + get_umat_el(ende2,ende1,start1,start2) + &
-!             get_umat_el(ende1,ende2,start2,start1)) + extract_matrix_element(t,2)*( &
-!             -get_umat_el(ende1,ende2,start1,start2) - get_umat_el(ende2,ende1,start2,start1) + &
-!             get_umat_el(ende2,ende1,start1,start2) + get_umat_el(ende1,ende2,start2,start1)))/2.0_dp
-
         if (abs(integral)<EPS) then
             branch_pgen = 0.0_dp
             t = 0
@@ -5606,10 +5618,6 @@ contains
         st = excitInfo%fullStart
         se = excitInfo%secondStart
         e = excitInfo%fullEnd
-
-!         if (.not. present(posSwitches)) then
-!             call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
-!         end if
 
         ! init weights
         if (present(opt_weight)) then
@@ -5648,7 +5656,6 @@ contains
         ! do the specific se-st
         ! try the new reusing of the weights object.. 
         weights = weights%ptr
-!         weights = init_doubleWeight(ilut, e)
 
         if (excitInfo%typ == 0) print *, ""
 
@@ -5674,7 +5681,6 @@ contains
         call mixedFullStopStochastic(ilut, excitInfo, t)
 
         ! check if matrix element is non-zero and if a switch happened
-!         if (extract_matrix_element(t,1) /= 0.0_dp) then
         if (abs(extract_matrix_element(t,1)) > EPS) then
             t = 0_n_int
             pgen = 0.0_dp
@@ -5690,14 +5696,6 @@ contains
         end if
 
         call encode_matrix_element(t, extract_matrix_element(t,2), 1)
-! 
-!         switchFlag = checkForSwitch(ilut,t,se+1, e)
-! 
-!         if (.not. switchFlag) then
-!             probWeight = 0.0_dp
-!             t = 0
-!             return
-!         end if
 
         ! todo other contributing integrals:
 
@@ -5716,11 +5714,6 @@ contains
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
             call calc_mixed_end_contr_approx(ilut, t, excitInfo, integral)
 
-!             if (getDeltaB(t) == 0) then
-!                 call print_excitInfo(excitInfo) 
-!                 call write_det_guga(6, ilut)
-!                 call write_det_guga(6, t)
-!             end if
         else
             call calc_mixed_end_l2r_contr(ilut, t, excitInfo, branch_pgen, pgen, &
                 integral)
@@ -5734,7 +5727,6 @@ contains
         ! compared to mol_sym mode? fuck...
         ! no that was definetly a bug that this was done here.. since it is 
         ! not done in the other similar routines... damn..
-!         pgen = pgen * real((nSpatOrbs - 2),dp)/real(((nSpatOrbs)*(nSpatOrbs-1))**2,dp)
 
     end subroutine calcFullStopL2R_stochastic
 
@@ -6351,13 +6343,6 @@ contains
         ! the x1-element is still encoded in the second entry..
         ! move it to the first elemen
         call encode_matrix_element(t, extract_matrix_element(t,2), 1)
-!         switchFlag = checkForSwitch(ilut,t,semi+1, en)
-! 
-!         if (.not. switchFlag) then
-!             probWeight = 0.0_dp
-!             t = 0
-!             return
-!         end if
 
         if (abs(extract_matrix_element(t,1)) < EPS) then
             t = 0
@@ -6368,11 +6353,6 @@ contains
 
             call calc_mixed_end_contr_approx(ilut, t, excitInfo, integral)
 
-!             if (getDeltaB(t) == 0) then
-!                 call print_excitInfo(excitInfo)
-!                 call write_det_guga(6, ilut)
-!                 call write_det_guga(6, t)
-!             end if
         else
             call calc_mixed_end_r2l_contr(ilut, t, excitInfo, branch_pgen, pgen, integral)
         end if
@@ -6381,7 +6361,7 @@ contains
             get_umat_el(st,en,en,se))/2.0_dp + integral, 1)
 
     end subroutine calcFullStopR2L_stochastic
-! 
+
     subroutine setup_weight_funcs(ilut, t, st, se, sw, weight_funcs)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
         integer, intent(in) :: st, se, sw
@@ -6392,7 +6372,6 @@ contains
 
         delta_b = int(currentB_ilut - calcB_vector_ilut(t(0:nifd)))
 
-!         print *, "dB: ", delta_b
         ! i know that a start was possible -> only check what the excitation 
         ! stepvalue is 
         ! damn.. where are my notes? im not sure about that..
@@ -6400,7 +6379,6 @@ contains
             weight_funcs(st)%ptr => minus_start_single
         else if (isTwo(t,st)) then
             weight_funcs(st)%ptr => plus_start_single
-!         else
             ! i also need to consider an non-choosing start or deal with 
             ! that in the routines above..
         end if
@@ -7343,8 +7321,6 @@ contains
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(s > 0 .and. s <= nSpatOrbs)
 
-!         if (isZero(ilut,s) .or. isThree(ilut,s)) then
-!         if (notSingle(ilut,s)) then
         if (currentOcc_int(s) /= 1) then
             ! no change in stepvector or matrix element in this case 
             return
@@ -7356,21 +7332,16 @@ contains
         bVal = currentB_ilut(s)
         ! stupid! only need at order at semistarts and semistops and not for 
         ! the overlap region
-!         order = excitInfo%order
         order = 1.0_dp
 
         deltaB = getDeltaB(t)
 
-!         if (isOne(ilut,s)) then
         ! new idea: make the combination stepvalue + deltaB !
         ! this give me 6 distinct integer quantities which i can choose 
         ! from in a select case statement!
 
         select case (current_stepvector(s) + deltaB)
-!         case (1)
             ! depending on the deltaB value different possibs
-!             if (deltaB == 2) then
-!             select case (deltaB)
             case (3)
             ! d=1 + b=2 = 3
                 ! only staying 
@@ -7379,7 +7350,6 @@ contains
 
                 tempWeight_0 = 0.0_dp
 
-!             else if (deltaB == -2) then
             case (-1)
                 ! d=1 + b=-2 = -1
                 ! both 0 and -2 branches are possible
@@ -7423,7 +7393,6 @@ contains
 
                 end if
 
-!             else
             case (1)
                 ! d=1 + b=0 = 1
                 ! 0 branch arrives -> have to check b value
@@ -7473,9 +7442,6 @@ contains
                         probWeight = probWeight * (1.0_dp - zeroWeight)
                     end if
                 end if
-!             end if
-!         else if (isTwo(ilut,s)) then
-!             if (deltaB == -2) then
             case(0)
                 ! d=2 + b=-2 : 0
                 ! only staying
@@ -7484,7 +7450,6 @@ contains
 
                 tempWeight_0 = 0.0_dp
 
-!             else if (deltaB == 0) then
             case (2)
                 ! d=2 + b=0 : 2
                 ! always -2 and 0 branching possible
@@ -7533,7 +7498,6 @@ contains
                     
                 end if
 
-!             else if (deltaB == 2) then
             case (4)
                 ! d=2 + b=2 : 4
 
@@ -7592,26 +7556,25 @@ contains
 
                     end if
                 end if
-!             end if
-!         end if
         end select
 
         call update_matrix_element(t, tempWeight_0, 1)
         call update_matrix_element(t, tempWeight_1, 2)
 
-!         tempWeight_0 = tempWeight_0 * extract_part_sign(t, 1)
-!         tempWeight_1 = tempWeight_1 * extract_part_sign(t, 1)
-! 
-!         ! store x1 matrix element in imaginary part. ask simon
-!         call encode_part_sign(t, tempWeight_0, 1)
-!         call encode_part_sign(t, tempWeight_1, 2)
 
         if (abs(tempWeight_0)<EPS .and. abs(tempWeight_1)<EPS) then
             probWeight = 0.0_dp
             t = 0
+            return
         end if
-!         ASSERT(abs(tempWeight_0) + abs(tempWeight_1) > 0.0_dp)
 
+        if (t_trunc_guga_matel) then 
+            if (abs(extract_matrix_element(t,1)) < trunc_guga_matel .and. & 
+                abs(extract_matrix_element(t,2)) < trunc_guga_matel) then 
+                probWeight = 0.0_dp
+                t = 0_n_int
+            end if
+        end if
     end subroutine doubleUpdateStochastic
 
     subroutine mixedFullStopStochastic(ilut, excitInfo, t)
@@ -9478,11 +9441,6 @@ contains
         compFlag = isProperCSF_ilut(excitation, .true.)
 
         if (.not. compFlag) then 
-!             call write_det_guga(6,ilut)
-!             call write_det_guga(6,excitation)
-!             call print_excitInfo(excitInfo)
-!             call stop_all(this_routine, "here")
-
             return 
         end if
 
@@ -11570,6 +11528,14 @@ contains
             ! also get the double contribution during this loop
             ! depends on both stepvalues...
 
+            if (t_trunc_guga_pgen) then 
+                if (branch_pgen < trunc_guga_pgen) then 
+                    pgen = 0.0_dp
+                    exc = 0_n_int
+                    return
+                end if
+            end if
+
             ! how to modifiy the values? 
             ! one of it is just additional
             if (.not. (treal .or. t_new_real_space_hubbard .or. t_mixed_hubbard &
@@ -11932,13 +11898,11 @@ contains
         call update_matrix_element(t, tempWeight, 1)
         call update_matrix_element(t, tempWeight, 2)
 
-!         call encode_matrix_element(t, tempWeight, 1)
 
         ! do excitaiton abortion
         if (abs(extract_matrix_element(t,1))<EPS .and. &
             abs(extract_matrix_element(t,2))<EPS) then
-!             probWeight = 0.0_dp
-            t = 0
+            t = 0_n_int
         end if
 
     end subroutine singleStochasticEnd
@@ -11969,19 +11933,16 @@ contains
 
         select case (current_stepvector(s))
         case (0)
-!         if (isZero(ilut, s)) then
             ! do nothin actually.. not even change matrix elements
             return
 
         case (3)
-!         else if (isThree(ilut, s)) then
             ! only change matrix element to negative one
             call update_matrix_element(t, -1.0_dp, 1)
             call update_matrix_element(t, -1.0_dp, 2)
             return
 
         end select
-!         end if
         
         ! to generally use this function i need to define a current generator...
         gen = excitInfo%currentGen
@@ -11995,7 +11956,6 @@ contains
         select case (current_stepvector(s) + deltaB)
         case (0)
             ! d=1 + b=-1 : 0
-!         if (isOne(ilut,s) .and. deltaB == -1 ) then
             ! no bValue restrictions here, so that should be handlebar
             plusWeight = weights%proc%plus(posSwitches(s), bVal, weights%dat)
             minusWeight = weights%proc%minus(negSwitches(s), bVal, weights%dat)
@@ -12006,7 +11966,6 @@ contains
                 t = 0
                 return
             end if
-!             ASSERT(plusWeight + minusWeight > 0.0_dp)
 
             ! calc. staying probabiliy
             probWeight = calcStayingProb(minusWeight, plusWeight, bVal)
@@ -12030,7 +11989,6 @@ contains
 
         case (3)
             ! d=2 + b=1 : 3
-!         else if (isTwo(ilut,s).and.deltaB==+1) then
             ! do i need bValue check here? 
             ! probably... to distinguish forced switches
            if (currentB_int(s) > 0) then
@@ -12043,7 +12001,6 @@ contains
                     t = 0
                     return
                 end if
-!                 ASSERT(plusWeight + minusWeight > 0.0_dp)
 
                 probWeight = calcStayingProb(plusWeight, minusWeight, bVal)
 
@@ -12053,14 +12010,7 @@ contains
                     tempWeight =  getSingleMatrixElement(2, 2, deltaB, gen, bVal)
 
                 else 
-!                     if (.not. minusWeight > 0.0_dp) then
-!                         print *, "+", plusWeight
-!                         print *, "-", minusWeight
-! 
-!                         call write_det_guga(6, ilut)
-!                         call write_det_guga(6, t)
-!                         call print_excitInfo(excitInfo)
-!                     end if
+
                     ASSERT(minusWeight > 0.0_dp)
                     ! do the 2 -> 1 switch
                     clr_orb(t, 2*s)
@@ -12106,10 +12056,8 @@ contains
         case (1,2)
             ! d=1 + b=1:  2
             ! d=2 + b=-1: 1
-!         case default
-!         else
-            ! just staying possibility... 
 
+            ! just staying possibility... 
             
             if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
                 plusWeight = weights%proc%plus(posSwitches(s), bVal, weights%dat)
@@ -12139,17 +12087,21 @@ contains
             ! can i efficiently code that up? 
             ! deltaB stays the same.., stepvector stays the same.. essentiall 
             ! only matrix element changes.. -> need deltaB, generators and stepvalue
-!             step = getStepvalue(ilut,s)
             step = current_stepvector(s)
 
             ! to get correct bValue use it for next spatial orbital..
             tempWeight = getSingleMatrixElement(step,step,deltaB, gen, bVal)
             
         end select
-!         end if
         
         call update_matrix_element(t, tempWeight, 1)
         call update_matrix_element(t, tempWeight, 2)
+        if (t_trunc_guga_matel) then 
+            if (abs(extract_matrix_element(t,1)) < trunc_guga_matel) then
+                probWeight = 0.0_dp
+                t = 0_n_int
+            end if
+        end if
 
     end subroutine singleStochasticUpdate
 

@@ -603,4 +603,11 @@ logical :: tSpinProject
 ! where it has been decided that it is efficient and appropriate.
 logical :: tForceFullPops
 
+! work on a new approximation for GUGA where I truncate based on the 
+! pgens or matrix elements during the excitation generation
+logical :: t_trunc_guga_pgen = .false.
+logical :: t_trunc_guga_matel = .false.
+real(dp) :: trunc_guga_pgen = 1.0e-4_dp
+real(dp) :: trunc_guga_matel = 1.0e-4_dp
+
 end module CalcData
