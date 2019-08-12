@@ -3718,7 +3718,6 @@ contains
                 end if
 
             else
-
                 
                 call calcFullStartFullStopMixedStochastic(ilut, excitInfo, &
                     excitation, branch_pgen, posSwitches, negSwitches, weights)
@@ -3823,7 +3822,7 @@ contains
         character(*), parameter :: this_routine = "calcFullStartFullStopMixedStochastic"
 
         type(weight_obj) :: weights
-        real(dp) ::  integral, branch_pgen
+        real(dp) ::  integral, branch_pgen, temp_pgen
         integer :: iOrb
         
         ASSERT(.not.isZero(ilut,excitInfo%fullStart))
@@ -3863,9 +3862,22 @@ contains
         ! do that x1 matrix element in the routine and only check probWeight here
         if (branch_pgen < EPS) return
 
+        temp_pgen = 1.0_dp
+
         do iOrb = excitInfo%fullStart + 1, excitInfo%fullEnd - 1
             call doubleUpdateStochastic(ilut, iOrb, excitInfo, weights, negSwitches, &
                 posSwitches, t, branch_pgen)
+
+            if (t_trunc_guga_pgen .or. & 
+                (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then 
+                temp_pgen = branch_pgen * temp_pgen
+
+                if (temp_pgen < trunc_guga_pgen) then 
+                    pgen = 0.0_dp
+                    t = 0_n_int
+                    return
+                end if
+            end if
 
             ! zero x1 - elements can also happen in the double update
             if (abs(extract_matrix_element(t, 2)) < EPS .or. branch_pgen < EPS) then
@@ -3884,7 +3896,6 @@ contains
             return
         end if
 
-!         print *, "orig bra pgen", excitInfo%fullStart, excitInfo%fullEnd, branch_pgen
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
 
             if (getDeltaB(t) == 0) then 
@@ -3898,11 +3909,6 @@ contains
 
             ! just to be save that a switch always happens at the end 
             ! print that out for now 
-!             if (getDeltaB(t) == 0) then
-!                 call print_excitInfo(excitInfo)
-!                 call write_det_guga(6, ilut) 
-!                 call write_det_guga(6, t)
-!             end if
         else
             call calc_mixed_contr(ilut, t, excitInfo, pgen, integral)
         end if
@@ -6656,6 +6662,13 @@ contains
                                 currentB_ilut(j), tmp_neg(j), tmp_pos(j))
                         end do
 
+                        if (t_trunc_guga_pgen .or. & 
+                            (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then
+                            if (new_pgen < trunc_guga_pgen) then 
+                                new_pgen = 0.0_dp
+                            end if
+                        end if
+
                         pgen = pgen + new_pgen * orb_pgen
 
                     end if
@@ -6768,6 +6781,13 @@ contains
                             currentB_ilut(j), negSwitches(j), posSwitches(j))
                     end do
 
+                    if (t_trunc_guga_pgen .or. & 
+                        (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then
+                        if (new_pgen < trunc_guga_pgen) then 
+                            new_pgen = 0.0_dp
+                        end if
+                    end if
+
                     pgen = pgen + new_pgen * orb_pgen
                     
                 end if
@@ -6846,8 +6866,16 @@ contains
                     new_pgen = new_pgen * weight_funcs(j)%ptr(weights, &
                         currentB_ilut(j), negSwitches(j), posSwitches(j))
                 end do
-  
+
+                if (t_trunc_guga_pgen .or. & 
+                    (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then
+                    if (new_pgen < trunc_guga_pgen) then 
+                        new_pgen = 0.0_dp
+                    end if
+                end if
+
                 pgen = pgen + new_pgen * orb_pgen
+
             end if
         end if
 
@@ -9679,10 +9707,25 @@ contains
                     integral = integral + start_mat * mat_ele * (get_umat_el(i,holeInd,elecInd,i) &
                         + get_umat_el(holeInd,i,i,elecInd))/2.0_dp
 
+                    if (t_trunc_guga_pgen .or. & 
+                        (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then
+                        if (new_pgen < trunc_guga_pgen) then 
+                            new_pgen = 0.0_dp
+                        end if
+                    end if
+
                     pgen = pgen + orb_pgen * start_weight * new_pgen
                 end if
 
                 if (below_flag) exit
+
+                if (t_trunc_guga_pgen .or. & 
+                    (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then
+                    if (new_pgen < trunc_guga_pgen) then 
+                        new_pgen = 0.0_dp
+                    end if
+                end if
+
                 ! update new_pgen for next cycle
                 new_pgen = stay_weight * new_pgen
 
@@ -9770,8 +9813,16 @@ contains
             ! permanently..
             branch_pgen = branch_pgen / stay_weight
 
-            ! and add up correctly 
-            pgen = pgen + orb_pgen * branch_pgen * start_weight
+            if (t_trunc_guga_pgen .or. & 
+                (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then 
+
+                if (branch_pgen * start_weight > trunc_guga_pgen) then 
+                    pgen = pgen + orb_pgen * branch_pgen * start_weight
+                end if
+            else
+                ! and add up correctly 
+                pgen = pgen + orb_pgen * branch_pgen * start_weight
+            end if
 
         end do
 
@@ -9828,7 +9879,16 @@ contains
                 ! and the new startProb is also the non-b=0 branch
                 start_weight = switch_weight/(zero_weight + switch_weight)
 
-                pgen = pgen + orb_pgen * branch_pgen * start_weight / stay_weight
+                if (t_trunc_guga_pgen .or. & 
+                    (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then
+                    if (branch_pgen * start_weight / start_weight > trunc_guga_pgen) then 
+                        pgen = pgen + orb_pgen * branch_pgen * start_weight / stay_weight
+                    end if
+
+                else
+                    pgen = pgen + orb_pgen * branch_pgen * start_weight / stay_weight
+                end if
+
 
             end if
         end if

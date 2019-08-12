@@ -526,11 +526,6 @@ contains
             ! here i could implement the summing in the case of Hubbard 
             ! and UEG models.. although I could "just" implement the 
             ! optimal time-step in the case of Hubbard models! 
-!             if (tHub) then
-!                 call stop_all(this_routine, &
-!                     "in the case of the Hubbard model there is a optimal time-step &
-!                     &analytically calculatable! So do this!")
-!             end if
             ! for UEG not i guess.. 
             call integrate_frequency_histogram_spec(frequency_bins, ratio)
 
