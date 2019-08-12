@@ -11,7 +11,8 @@ module FciMCParMod
                           tGen_guga_mixed, t_guga_mixed_init, t_guga_mixed_semi, &
                           tReal, t_mixed_excits, tgen_nosym_guga, & 
                           t_crude_exchange_noninits, t_approx_exchange_noninits, &
-                          is_init_guga, tGen_sym_guga_ueg, t_guga_unit_tests
+                          is_init_guga, tGen_sym_guga_ueg, t_guga_unit_tests, &
+                          t_guga_back_spawn_noninits
 
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
@@ -1482,7 +1483,7 @@ module FciMCParMod
 
             end if
 
-            if (t_guga_back_spawn) then 
+            if (t_guga_back_spawn_noninits) then 
 
                 is_init_guga = any_run_is_initiator(CurrentDets(:,j))
 

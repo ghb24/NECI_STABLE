@@ -430,8 +430,6 @@ contains
 
         pgen = pgen / real(nel, dp)
 
-!         print *, "pgen single: ", pgen
-
     end subroutine
 
 

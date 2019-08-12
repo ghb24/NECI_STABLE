@@ -17,7 +17,8 @@ module guga_excitations
                           tgen_guga_mixed, t_new_hubbard, t_new_real_space_hubbard, &
                           t_crude_exchange, t_crude_exchange_noninits, & 
                           t_approx_exchange, t_approx_exchange_noninits, & 
-                          is_init_guga, t_heisenberg_model, t_tJ_model, t_mixed_hubbard
+                          is_init_guga, t_heisenberg_model, t_tJ_model, t_mixed_hubbard, &
+                          t_guga_back_spawn, t_guga_back_spawn_noninits
 
     use constants, only: dp, n_int, bits_n_int, lenof_sign, Root2, THIRD, HEl_zero, &
                          EPS, bni_, bn2_, iout, int64, inum_runs
@@ -2657,14 +2658,614 @@ contains
 
     end subroutine generate_excitation_guga_crude
 
-    subroutine create_crude_guga_double(ilut, nI, exc, pgen)
+    subroutine create_crude_guga_double(ilut, nI, exc, pgen, excitInfo_in)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(out) :: exc(0:nifguga)
         real(dp), intent(out) :: pgen
+        type(excitationInformation), intent(in), optional :: excitInfo_in
         character(*), parameter :: this_routine = "create_crude_guga_double"
 
+        type(excitationInformation) :: excitInfo
+
+        if (present(excitInfo_in)) then 
+            excitInfo = excitInfo_in
+        else
+            call stop_all(this_routine, "not yet implemented for no excitInfo_in")
+        end if
+
     end subroutine create_crude_guga_double
+
+    subroutine create_random_spin_orbs(ilut, excitInfo, elecs, orbs, pgen)
+        ! a subroutine to create random spin-orbitals from chosen 
+        ! spatial orbital of a GUGA excitation. 
+        ! this is needed in the crude back-spawn approximation to 
+        ! create determinant-like excitations
+        integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(excitationInformation), intent(in) :: excitInfo
+        integer, intent(out) :: elecs(2)
+        integer, intent(out) :: orbs(2)
+        real(dp), intent(out) :: pgen
+        character(*), parameter :: this_routine = "create_random_spin_orbs"
+
+        integer :: elec_1, orb_1, elec_2, orb_2, d_elec, s_elec, d_orb, s_orb
+        real(dp) :: r
+
+        ! i essentially need electron and empty spin-orbitals to 
+        ! create the excitation. the validity of the CSF will be checked 
+        ! afterwards and then maybe thrown away..
+
+        elecs = 0
+        orbs  = 0
+        pgen = 1.0_dp
+
+        if (excitInfo%typ == 0) then 
+            ! the case of a single excitation 
+            elec_1 = excitInfo%j
+            orb_1  = excitInfo%i 
+
+            select case (current_stepvector(elec_1))
+
+            case (0)
+                call stop_all(this_routine, "empty elec index")
+
+            case (1)
+                ! 1 corresponds to a beta orbital 
+                elecs(1) = 2 * elec_1 - 1
+                orbs(1)  = 2 * orb_1  - 1
+
+            case (2) 
+                ! 2 corresponds to alpha orbitals
+                elecs(1) = 2 * elec_1 
+                orbs(1)  = 2 * orb_1
+
+            case (3) 
+                select case (current_stepvector(orb_1))
+                case (0)
+                    ! now we can have two possibilities 
+                    r = genrand_real2_dSFMT()
+
+                    if (r < 0.5_dp) then 
+                        elecs(1) = 2 * elec_1 - 1
+                        orbs(1)  = 2 * orb_1  - 1
+                    else
+                        elecs(1) = 2 * elec_1 
+                        orbs(1)  = 2 * orb_1
+                    end if
+
+                    pgen = 0.5_dp 
+
+                case (1) 
+                    elecs(1) = 2 * elec_1 
+                    orbs(1)  = 2 * orb_1
+
+                case (2) 
+                    elecs(1) = 2 * elec_1 - 1
+                    orbs(1)  = 2 * orb_1  - 1
+
+                end select
+            end select
+
+        else
+            elec_1 = excitInfo%j
+            elec_2 = excitInfo%l
+
+            orb_1  = excitInfo%i
+            orb_2  = excitInfo%k
+
+            ASSERT(current_stepvector(elec_1) /= 0)
+            ASSERT(current_stepvector(elec_2) /= 0)
+            ASSERT(current_stepvector(orb_1) /= 3)
+            ASSERT(current_stepvector(orb_2) /= 3)
+
+            select case (excitInfo%typ)
+            case(6, 14, 19)
+                ! here i know the orbital indices are identical 
+               
+                ASSERT(orb_1 == orb_2)
+                orbs(1) = 2*orb_1 - 1
+                orbs(2) = 2*orb_1 
+
+                ! write a general function which gives me valid spin-orbs
+                ! for GUGA CSFs (mayb as an input the 'neutral' number 3 here.c.
+                call  get_valid_two_index(elec_1, elec_2, pgen, 3, 3, orbs)
+
+            case (7, 15, 18)
+                ! here i know the electron indices are the same 
+                ASSERT(elec_1 == elec_2)
+
+                elecs(1) = 2*elec_1 - 1
+                elecs(2) = 2*elec_1
+
+                call get_valid_two_index(orb_1, orb_2, pgen, 0, 0, elecs)
+
+            case (16, 17, 20, 21) 
+                ! here i know one electron and hole index are the same 
+                ASSERT(elec_1 /= elec_2)
+                ASSERT(orb_1  /= orb_2)
+                ASSERT(current_stepvector(orb_2) /= 3)
+                ASSERT(current_stepvector(elec_2) /= 0)
+
+                ! this case is very restrictive..
+                if (elec_1 == orb_1) then 
+
+                    s_elec = elec_1
+                    s_orb = orb_1
+
+                    d_elec = elec_2 
+                    d_orb =  orb_2
+                    
+                else if (elec_1 == orb_2) then 
+
+                    s_elec = elec_1
+                    s_orb = orb_1
+
+                    d_elec = elec_2
+                    d_orb = orb_1
+
+                else if (elec_2 == orb_1) then 
+
+                    s_elec = elec_2
+                    s_orb = orb_1
+
+                    d_elec = elec_1 
+                    d_orb = orb_2
+
+                else if (elec_2 == orb_2) then 
+                    
+                    s_elec = elec_2 
+                    s_orb = orb_2
+
+                    d_elec = elec_1 
+                    d_orb = orb_1
+#ifdef __DEBUG
+                else
+                    call stop_all(this_routine, "something went wrong")
+#endif
+                end if
+
+
+                ASSERT(currentOcc_int(s_elec) == 1) 
+
+                if (current_stepvector(s_elec) == 1) then 
+                    if (IsOcc(ilut, 2 * d_elec) .and. IsNotOcc(ilut, 2 * d_orb - 1)) then 
+                        ! this is the only case this is possible
+                        elecs(1) = 2 * s_elec - 1
+                        elecs(2) = 2 * d_elec 
+
+                        orbs(1) = 2 * s_orb 
+                        orbs(2) = 2 * d_orb - 1
+
+                    else 
+                        pgen = 0.0_dp
+                    end if
+                else if (current_stepvector(s_elec) == 2) then 
+                    if (IsOcc(ilut, 2 * d_elec - 1) .and. IsNotOcc(ilut, 2 * d_orb)) then 
+                        elecs(1) = 2 * s_elec 
+                        elecs(2) = 2 * d_elec - 1
+
+                        orbs(1) = 2 * s_orb - 1
+                        orbs(2) = 2 * d_orb
+                    else
+                        pgen = 0.0_dp
+                    end if
+                end if
+
+            case (23) 
+                ! full start full stop mixed
+                ASSERT(elec_1 /= elec_2)
+                ASSERT(orb_1 /= orb_2)
+                ASSERT(currentOcc_int(elec_1) == 1)
+                ASSERT(currentOcc_int(elec_2) == 1)
+
+                if (current_stepvector(elec_1) == current_stepvector(elec_2)) then 
+                    pgen = 0.0_dp
+                else if (current_stepvector(elec_1) == 1) then 
+                    elecs(1) = 2 * elec_1 - 1
+                    elecs(2) = 2 * elec_2 
+
+                    orbs(1)  = 2 * elec_2 - 1
+                    orbs(2)  = 2 * elec_1
+
+                else if (current_stepvector(elec_1) == 2) then 
+                    elecs(1) = 2 * elec_1 
+                    elecs(2) = 2 * elec_2 - 1
+
+                    orbs(1) = 2 * elec_2 
+                    orbs(2) = 2 * elec_1 - 1
+                end if
+
+            case (22)
+                ! full-start full-stop alike 
+                ASSERT(elec_1 == elec_2) 
+                ASSERT(orb_1 == orb_2)
+
+                elecs(1) = 2 * elec_1 - 1
+                elecs(2) = 2 * elec_1 
+
+                orbs(1)  = 2 * orb_1 - 1
+                orbs(2)  = 2 * orb_1 
+
+            case default 
+                ! now the general 4-index double excitations.. 
+                ! this can be nasty again.. 
+
+                call pick_random_4ind(elec_1, elec_2, orb_1, orb_2, elecs, orbs, pgen)
+
+!                 select case (current_stepvector(elec_1))
+!                 case (1)
+!                     elecs(1) = 2 * elec_1 - 1
+! 
+!                     select case (current_stepvector(elec_2))
+! 
+!                     case (1)
+! 
+!                         if (.not. ((current_stepvector(orb_1) == 2 .and. & 
+!                             current_stepvector(orb_2) == 2) .or. & 
+!                             (current_stepvector(orb_1) == 0  .and. & 
+!                             current_stepvector(orb_2) == 0))) then 
+!                             pgen = 0.0_dp 
+!                             
+!                             elecs = 0
+!                         else
+!                             elecs(2) = 2 * elec_2 - 1
+!                             orbs(1) = 2 * orb_1 - 1
+!                             orbs(2) = 2 * orb_2 - 1
+!                         end if
+! 
+!                     case (2)
+!                         if (.not. ((current_stepvector(orb_1) == 0 .and. & 
+!                             current_stepvector(orb_2) == 0) .or. & 
+!                             (currentOcc_int(orb_1) == 1 .and. & 
+!                             currentOcc_int(orb_2) == 1 .and. & 
+!                             current_stepvector(orb_1) /= current_stepvector(orb_2)))) then 
+!                             pgen = 0.0_dp
+!                             elecs = 0
+!                         else
+!                             elecs(2) = 2 * elec_2 
+! 
+!                             if (current_stepvector(orb_1) == 0) then 
+!                                 ! then I know both are 0
+!                                 r = genrand_real2_dSFMT()
+! 
+!                                 if (r < 0.5_dp) then 
+!                                     orbs(1) = 2 * orb_1 - 1
+!                                     orbs(2) = 2 * orb_2 
+!                                 else
+!                                     orbs(1) = 2 * orb_1 
+!                                     orbs(2) = 2 * orb_1 - 1
+!                                 end if
+!                                 pgen = 0.5_dp 
+! 
+!                             else if (current_stepvector(orb_1) == 1) then 
+!                                 ! then i know the second is 2 
+!                                 orbs(1) = 2 * orb_1 
+!                                 orbs(2) = 2 * orb_2 - 1
+! 
+!                             else if (current_stepvector(orb_1) == 2) then 
+!                                 orbs(1) = 2 * orb_1 - 1
+!                                 orbs(2) = 2 * orb_2
+!                                 
+!                             end if
+!                         end if
+! 
+!                     case (3)
+!                         ! thats too fucking tedious.. 
+!                         ! just pick random spin-orbs and see if they fit.. 
+! 
+!                 end select
+
+            end select
+        end if
+
+
+    end subroutine create_random_spin_orbs
+
+    subroutine get_valid_two_index(ind_1, ind_2, pgen, res_1, res_2, out_ind)
+        integer, intent(in) :: ind_1, ind_2, res_1, res_2
+        real(dp), intent(out) :: pgen 
+        integer, intent(out) :: out_ind(2)
+
+    end subroutine get_valid_two_index
+
+    subroutine pick_random_4ind(elec_1, elec_2, orb_1, orb_2, elecs, orbs, pgen)
+        integer, intent(in) :: elec_1, elec_2, orb_1, orb_2
+        integer, intent(out) :: elecs(2), orbs(2)
+        real(dp), intent(out) :: pgen
+        character(*), parameter :: this_routine = "pick_random_4ind"
+
+        real(dp) :: r
+
+        elecs = 0
+        orbs = 0
+
+        pgen = 1.0_dp
+
+        select case (current_stepvector(elec_1))
+        case (1)
+            elecs(1) = 2 * elec_1 - 1
+
+        case (2) 
+            elecs(1) = 2 * elec_1
+
+        case (3)
+            r = genrand_real2_dSFMT()
+
+            if (r < 0.5_dp) then 
+                elecs(1) = 2 * elec_1 - 1
+            else
+                elecs(1) = 2 * elec_1
+            end if
+
+            pgen = 0.5_dp
+
+        end select
+
+        select case(current_stepvector(elec_2))
+        case (1)
+            elecs(2) = 2 * elec_2 - 1
+
+        case (2) 
+            elecs(2) = 2 * elec_2
+
+        case (3) 
+            r = genrand_real2_dSFMT() 
+
+            if (r < 0.5_dp) then 
+                elecs(2) = 2 * elec_2 - 1
+            else
+                elecs(2) = 2 * elec_2
+            end if
+
+            pgen = pgen * 0.5_dp
+
+        end select
+
+        select case (current_stepvector(orb_1)) 
+        case (0)
+            if (same_spin(elecs(1),elecs(2))) then 
+                if (is_beta(elecs(1))) then 
+                    orbs(1) = 2 * orb_1 - 1
+                else 
+                    orbs(1) = 2 * orb_1 
+                end if
+            else
+                r = genrand_real2_dSFMT()
+
+                if (r < 0.5_dp) then 
+                    orbs(1) = 2 * orb_1 - 1
+                else
+                    orbs(1) = 2 * orb_1
+                end if
+
+                pgen = 0.5_dp * pgen 
+            end if
+
+        case (1) 
+            orbs(1) = 2 * orb_1 
+
+        case (2) 
+            orbs(1) = 2 * orb_1 - 1
+
+        end select 
+
+        ! i think i can restrict the last one or?.. 
+
+        if (same_spin(elecs(1),elecs(2))) then 
+            if (is_beta(elecs(1))) then 
+                if (current_stepvector(orb_2) == 1) then 
+                    pgen = 0.0_dp
+                    elecs = 0
+                    orbs = 0
+                    return
+                else
+                    orbs(2) = 2 * orb_2 - 1
+                end if
+            else 
+                if (current_stepvector(orb_2) == 2) then 
+                    pgen = 0.0_dp
+                    elecs = 0
+                    orbs = 0
+                    return
+                else
+                    orbs(2) = 2 * orb_2
+                end if
+            end if
+        else
+            if (is_beta(orbs(1))) then 
+                if (current_stepvector(orb_2) == 2) then 
+                    pgen = 0.0_dp 
+                    elecs = 0
+                    orbs = 0
+                    return
+                else
+                    orbs(2) = 2 * orb_2 
+                end if
+            else
+                if (current_stepvector(orb_2) == 1) then 
+                    pgen = 0.0_dp
+                    elecs = 0
+                    orbs = 0
+                    return
+                else
+                    orbs(2) = 2 * orb_2 - 1
+                end if
+            end if
+        end if
+
+    end subroutine pick_random_4ind
+
+    subroutine create_crude_single_overlap_l2r(ilut, exc, pgen, excitInfo)
+        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer(n_int), intent(out) :: exc(0:nifguga)
+        real(dp), intent(out) :: pgen
+        type(excitationInformation), intent(in) :: excitInfo
+        character(*), parameter :: this_routine = "create_crude_single_overlap_l2r"
+
+        integer :: st, en, mid, start_d, end_d
+        real(dp) :: r
+
+        st = excitInfo%fullStart
+        en = excitInfo%fullEnd
+        mid = excitInfo%secondStart
+
+        start_d = current_stepvector(st)
+        end_d = current_stepvector(en)
+
+        ASSERT(start_d /= 0) 
+        ASSERT(end_d /= 0)
+        ASSERT(current_stepvector(mid) == 0)
+
+        associate(b => currentB_int)
+
+            if (start_d == 3) then 
+                if (end_d == 3) then 
+                    if (all(b(st:en-1) > 0)) then 
+
+                        r = genrand_real2_dSFMT()
+
+                        if (r < 0.5_dp) then 
+                            ! make 3 > 1 and 3 > 2
+
+                        else
+                            ! make 3 > 2 and 3 > 1
+                        end if
+                    else
+                        ! make 3 > 1 and 3 > 2
+                        
+                    end if
+                else if (end_d == 1) then 
+                    ! make 3 > 1 and 1 > 0 
+
+                else if (end_d == 2) then 
+                    if (all(b(st:en-1) > 0)) then 
+                        ! make 3 > 2 and 2 > 0 
+                    else
+                        pgen = 0.0_dp
+                        exc = 0_n_int 
+                        return
+                    end if
+                end if
+            else if (start_d == 1) then 
+                if (all(b(st:en-1) > 0) .and. end_d /= 1) then 
+                    if (end_d == 3) then 
+                        ! make 1 > 0 and 3 > 1 
+
+                    else if (end_d == 2) then 
+                        ! make 1 > 0 and 2 > 0 
+
+                    end if
+                else
+                    pgen = 0.0_dp
+                    exc = 0_n_int
+                    return 
+                end if
+
+            else if (start_d == 2) then 
+                if (end_d == 1) then 
+                    ! make 2 > 0 and 1 > 0 
+
+                else if (end_d == 3) then 
+                    ! make 2 > 0 and 3 > 2
+
+                else if (end_d == 2) then 
+                    pgen = 0.0_dp
+                    exc = 0_n_int
+                    return
+                end if
+            end if
+
+        end associate
+
+        ! make the 0 > 3 at mid!
+
+
+
+    end subroutine create_crude_single_overlap_l2r
+
+    subroutine create_crude_single_overlap_r2l(ilut, exc, pgen, excitInfo)
+        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer(n_int), intent(out) :: exc(0:nifguga)
+        real(dp), intent(out) :: pgen
+        type(excitationInformation), intent(in) :: excitInfo
+        character(*), parameter :: this_routine = "create_crude_single_overlap_r2l"
+
+        integer :: st, en, mid, start_d, end_d
+        real(dp) :: r
+
+        st = excitInfo%fullStart
+        en = excitInfo%fullEnd
+        mid = excitInfo%secondStart
+
+        start_d = current_stepvector(st)
+        end_d = current_stepvector(en)
+
+        ASSERT(start_d /= 3) 
+        ASSERT(end_d /= 3)
+        ASSERT(current_stepvector(mid) == 3)
+
+        associate(b => currentB_int)
+
+            if (start_d == 0) then 
+                if (end_d == 0) then 
+                    if (all(b(st:en-1) > 0)) then 
+                        r = genrand_real2_dSFMT()
+
+                        if (r < 0.5_dp) then 
+                            ! make 0 > 1 and 0 > 2
+                            
+                        else
+                            ! make 0 > 2 and 0 > 1
+                            
+                        end if
+                    else 
+                        ! make 0 > 1 and 0 > 2
+                    end if
+                else if (end_d == 1) then 
+                    ! make 0 > 1 and 1 > 0
+
+                else if (end_d == 2) then 
+                    if (all(b(st:en-1) > 0)) then 
+                        ! make 0 > 2 and 2 > 0
+
+                    else 
+                        pgen = 0.0_dp
+                        exc = 0_n_int
+                        return
+                    end if
+                end if
+            else if (start_d == 1) then 
+                if (all(b(st:en-1) > 0) .and. end_d /= 1) then 
+                    if (end_d == 0) then 
+                        ! make 1 > 3 and 0 > 1 
+
+                    else if (end_d == 2) then 
+                        ! make 1 > 3 and 2 > 3 
+
+                    end if
+                else 
+                    pgen = 0.0_dp
+                    exc = 0_n_int
+                    return
+                end if
+            else if (start_d == 2) then 
+                if (end_d == 0) then 
+                    ! make 2 > 3 and 0 > 2
+
+                else if (end_d == 1) then 
+                    ! make 2 > 3 and 1 > 3 
+
+                else 
+                    pgen = 0.0_dp
+                    exc = 0_n_int
+                    return
+                end if
+            end if
+        end associate
+
+        ! make 3 > 0 at mid 
+
+    end subroutine create_crude_single_overlap_r2l
 
     function calc_pgen_guga_crude_iluts(ilutI, nI, ilutJ, nJ, excitInfo_in) result(pgen)
         integer, intent(in) :: nI(nel), nJ(nel)
@@ -2703,22 +3304,28 @@ contains
 
     end function calc_pgen_guga_crude_exmat
 
-    subroutine create_crude_guga_single(ilut, nI, exc, pgen)
+    subroutine create_crude_guga_single(ilut, nI, exc, pgen, excitInfo_in)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(out) :: exc(0:nifguga)
         real(dp), intent(out) :: pgen
+        type(excitationInformation), intent(in), optional :: excitInfo_in
         character(*), parameter :: this_routine = "create_crude_guga_single"
 
         type(excitationInformation) :: excitInfo
-        integer :: i, j
-        real(dp) :: integral, orb_pgen
+        integer :: i, j, st, en, start_d, end_d, gen
+        real(dp) :: integral, orb_pgen, r
 
         ASSERT(isProperCSF_ilut(ilut))
 
         ! can i use the original orbital picker? no.. since it allows for 
         ! switches..
-        call pick_orbitals_single_crude(ilut, nI, excitInfo, orb_pgen)
+
+        if (present(excitInfo_in)) then 
+            excitInfo = excitInfo_in
+        else
+            call pick_orbitals_single_crude(ilut, nI, excitInfo, orb_pgen)
+        end if
 
         if ( .not. excitInfo%valid ) then
             ! if no valid indices were picked, return 0 excitation and return
@@ -2730,21 +3337,176 @@ contains
         ! reimplement it from scratch
         i = excitInfo%i
         j = excitInfo%j 
-        ! first the "normal" contribution
-        ! not sure if i have to subtract that element or not...
-        integral = getTmatEl(2*i, 2*j)! - get_umat_el(i,i,j,j)
 
+        ! try to make a valid, determinant-like single excitation, 
+        ! respecting the spin-character of the CSF
+        st = excitInfo%fullStart
+        en = excitInfo%fullEnd
+        gen = excitInfo%currentGen
+        start_d = current_stepvector(st)
+        end_d = current_stepvector(en)
+
+
+        pgen = 1.0_dp
+
+        associate (b => currentB_int)
+            if (start_d == 3) then 
+                ! here we now it is a lowering generator with d_j = 1 or 2 
+                ! with restrictions however 
+                ! here a d_j = 2 is theoretically possible 
+                ASSERT(gen == -1)
+                ASSERT(end_d /= 3)
+                if (end_d == 0) then 
+                    if (all(b(st:en-1) > 0)) then 
+                    ! in this case both starts are possible!
+                        r = genrand_real2_dSFMT() 
+
+                        if (r < 0.5_dp) then 
+                            ! make a 3 -> 1 and 0 -> 2
+                            
+                        else
+                            ! make 3 -> 2 and 0 -> 1
+
+                        end if
+                        pgen = 0.5_dp
+                    else 
+                        ! here only 3 > 1 and 0 > 2 is possible 
+                        ! make 
+                    end if
+                    
+                else if (end_d == 1) then 
+                    ! then only the 3 > 1 start is possible and b is irrelevant
+                    ! make 3 > 1 and 1 > 3
+
+                else if (end_d == 2) then 
+                    ! this is only possible if all b are > 0 
+                    if (all(b(st:en-1) > 0)) then 
+                        ! make 3 > 2 and 2  > 3
+
+                    else
+                        pgen = 0.0_dp 
+                        exc = 0_n_int
+                        return 
+                    end if
+                end if
+
+            else if (start_d == 0) then 
+                ! here we know it is a raising generator
+                ASSERT(gen == 1)
+                ASSERT(end_d /= 0)
+                if (end_d == 3) then 
+                    if (all(b(st:en-1) > 0)) then 
+                        r = genrand_real2_dSFMT()
+
+                        if (r < 0.5_dp) then 
+                            ! make 0 > 1 and  3 > 2
+
+                        else
+                            ! make 0 > 2 and 3 > 1
+
+                        end if
+                        pgen = 0.5_dp 
+                    else 
+                        ! make > 0 > 1 and 3 > 2
+
+                    end if
+
+                else if (end_d == 1) then 
+                    ! make 0 > 1 and 1 > 0 
+
+                else if (end_d == 2) then 
+                    if (all(b(st:en-1) > 0)) then 
+                        ! make 0 > 2 and 2 > 0 
+
+                    else 
+                        pgen = 0.0_dp 
+                        exc = 0_n_int 
+                        return 
+                    end if
+                end if
+            else if (start_d == 1) then 
+                if (all(b(st:en-1) > 0) .and. end_d /= 1) then 
+                    ! only in this case it is possible 
+                    if (end_d == 2) then 
+                        if (gen == 1) then 
+                            ! make 1 > 3 and 2 > 0
+
+                        else if (gen == -1) then 
+                            ! make 1 > 0 and 2 > 3
+
+                        end if
+
+                    else if (end_d == 3) then 
+                        ASSERT(gen == 1)
+                        ! make 1 > 3 and 3 > 1
+
+                    else if (end_d == 0) then 
+                        ASSERT(gen == -1)
+                        ! make 1 > 0 and 0 > 1
+
+                    end if
+                else
+                    pgen = 0.0_dp
+                    exc = 0_n_int
+                    return
+                end if
+                
+            else if (start_d == 2) then 
+                ! here I do not have a b restriction or? 
+                if (end_d == 0) then 
+                    ASSERT(gen == -1)
+                    ! make 2 > 0 and 0 > 2
+                    
+                else if (end_d == 3) then 
+                    ASSERT(gen == 1) 
+                    ! make 2 > 3 and 3 > 2
+
+                else if (end_d == 1) then 
+                    if (gen == 1) then 
+                        ! make 2 > 3 and 1 > 0
+
+                    else if (gen == -1) then 
+                        ! make 2 > 0 and 1 > 3
+
+                    end if
+                else if (end_d == 2) then
+                    pgen = 0.0_dp
+                    exc = 0_n_int
+                    return 
+                end if
+            end if 
+        end associate
+                
 
     end subroutine create_crude_guga_single
 
      
-    subroutine create_crude_double(ilut, excitInfo, exc, branch_pgen)
+    function increase_ex_levl(ilut, nI, excitInfo) result(flag)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(in) :: nI(nel)
         type(excitationInformation), intent(in) :: excitInfo
+        logical :: flag
+
+        flag = .true.
+
+    end function increase_ex_levl
+
+    subroutine create_crude_double(ilut, nI, exc, branch_pgen, excitInfo_in)
+        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(in) :: ni(nel)
         integer(n_int), intent(inout) :: exc(0:nifguga)
         real(dp), intent(out) :: branch_pgen
+        type(excitationInformation), intent(in), optional :: excitInfo_in
         character(*), parameter :: this_routine = "create_crude_double"
 
+        type(excitationInformation) :: excitInfo
+
+
+        if (present(excitInfo_in)) then 
+            excitInfo = excitInfo_in
+        else
+            call stop_all(this_routine, "not yet implemented without excitInfo_in")
+        end if
         
         ! i think i still have to reuse the excitInfo information of the 
         ! excitation type.. do I still know where the holes and electrons are 
@@ -2768,13 +3530,15 @@ contains
 
     end subroutine create_crude_double
 
-    subroutine create_crude_single(ilut, excitInfo, exc, branch_pgen)
+    subroutine create_crude_single(ilut, nI, exc, branch_pgen, excitInfo_in)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        integer, intent(in) :: ni(nel)
         integer(n_int), intent(inout) :: exc(0:nifguga)
         real(dp), intent(out) :: branch_pgen
+        type(excitationInformation), intent(in), optional :: excitInfo_in
         character(*), parameter :: this_routine = "create_crude_single"
 
+        type(excitationInformation) :: excitInfo
         integer :: elec, orb
         real(dp) :: r
 
@@ -2790,6 +3554,12 @@ contains
             ASSERT(.not.isZero(ilut,excitInfo%fullStart))
         end if
 #endif
+
+        if (present(excitInfo_in)) then 
+            excitInfo = excitInfo_in
+        else
+            call stop_all(this_routine, "not yet implemented without excitInfo_in")
+        end if
 
         elec = excitInfo%j
         orb = excitInfo%i
@@ -3388,7 +4158,9 @@ contains
 
         if (t_guga_back_spawn) then
             if (increase_ex_levl(ilut, nI, excitInfo) .and. .not. is_init_guga) then 
-                call create_crude_guga_double()
+                call create_crude_guga_double(ilut, nI, excitation, branch_pgen, excitInfo)
+
+                pgen = orb_pgen * branch_pgen
 
                 return
             end if
@@ -3401,7 +4173,7 @@ contains
             ! this includes the change, that I always switch at mixed 
             ! start and ends too! 
 
-            call create_crude_double(ilut, excitInfo, excitation, branch_pgen)
+            call create_crude_double(ilut, nI, excitation, branch_pgen, excitInfo)
 
             if (branch_pgen < EPS) then 
                 excitation = 0
@@ -11521,7 +12293,12 @@ contains
             ! orbitals and the current CSF is a non-initiator -> 
             ! perform a crude excitation
             if (increase_ex_levl(ilut, nI, excitInfo) .and. .not. is_init_guga) then 
-                call create_crude_guga_single()
+                call create_crude_guga_single(ilut, nI, exc, branch_pgen, excitInfo)
+                ! there is also this routine I already wrote: 
+                ! I should combine those two as they do the same job
+!                 call create_crude_single(ilut, nI, exc, branch_pgen, excitInfo)
+
+                pgen = orb_pgen * branch_pgen
                 
                 return
             end if
@@ -11530,7 +12307,7 @@ contains
         ! do the crude approximation here for now..
         if (tgen_guga_crude .and. .not. tgen_guga_mixed) then
 
-            call create_crude_single(ilut, excitInfo, exc, branch_pgen)
+            call create_crude_single(ilut, nI, exc, branch_pgen, excitInfo)
 
             if (branch_pgen < EPS) then 
                 exc = 0
