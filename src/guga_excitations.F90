@@ -4640,17 +4640,6 @@ contains
             call doubleUpdateStochastic(ilut, iOrb, excitInfo, weights, negSwitches, &
                 posSwitches, t, branch_pgen)
 
-            if (t_trunc_guga_pgen .or. & 
-                (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then 
-                temp_pgen = branch_pgen * temp_pgen
-
-                if (temp_pgen < trunc_guga_pgen) then 
-                    pgen = 0.0_dp
-                    t = 0_n_int
-                    return
-                end if
-            end if
-
             ! zero x1 - elements can also happen in the double update
             if (abs(extract_matrix_element(t, 2)) < EPS .or. branch_pgen < EPS) then
                 t = 0
@@ -8374,6 +8363,14 @@ contains
             return
         end if
 
+        if (t_trunc_guga_pgen .or. & 
+            (t_trunc_guga_pgen_noninits  .and. .not. is_init_guga)) then 
+            if (probWeight < trunc_guga_pgen) then 
+                probWeight = 0.0_dp
+                t = 0_n_int
+            end if
+        end if
+
         if (t_trunc_guga_matel) then 
             if (abs(extract_matrix_element(t,1)) < trunc_guga_matel .and. & 
                 abs(extract_matrix_element(t,2)) < trunc_guga_matel) then 
@@ -9312,6 +9309,7 @@ contains
 
             ! check validity 
             if (abs(extract_matrix_element(t,2)) < EPS .or. branch_pgen < EPS) then
+                pgen = 0.0_dp
                 t = 0
                 return
             end if
@@ -9337,8 +9335,21 @@ contains
                 negSwitches, t, temp_pgen)
             branch_pgen = branch_pgen * temp_pgen
             
+            if (t_trunc_guga_pgen .or. & 
+                (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then 
+                if (branch_pgen < trunc_guga_pgen) then 
+                    pgen = 0.0_dp
+                    t = 0_n_int
+                    return
+                end if
+            end if
+
             ! check validity
-            if (branch_pgen < EPS) return
+            if (branch_pgen < EPS) then 
+                pgen = 0.0_dp
+                t = 0_n_int
+                return
+            end if
         end do
 
         call singleStochasticEnd(ilut, excitInfo, t)
@@ -9921,10 +9932,6 @@ contains
         se = excitInfo%firstEnd
         gen = excitInfo%lastGen
         
-!         if (.not. present(posSwitches)) then
-!             call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
-!         end if
-
         ! create correct weights:
         if (present(opt_weight)) then 
             weights = opt_weight
@@ -9970,7 +9977,6 @@ contains
         ! then deal with specific semi-stop
         ! and update weights here
         weights = weights%ptr
-!         weights = init_singleWeight(ilut, en)
 
         call calcLoweringSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, branch_pgen)
@@ -9984,8 +9990,22 @@ contains
             call singleStochasticUpdate(ilut, i, excitInfo, weights, posSwitches, &
                 negSwitches, t, temp_pgen)
             branch_pgen = branch_pgen * temp_pgen
+
+            if (t_trunc_guga_pgen .or. & 
+                (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then 
+                if (branch_pgen < trunc_guga_pgen) then 
+                    pgen = 0.0_dp
+                    t = 0_n_int
+                    return
+                end if
+            end if
+
             ! check validity
-            if (branch_pgen < EPS) return
+            if (branch_pgen < EPS) then
+                pgen = 0.0_dp
+                t = 0_n_int
+                return
+            end if
         end do
 
         call singleStochasticEnd(ilut, excitInfo, t)
@@ -9999,12 +10019,6 @@ contains
         ! region, or else its just a single-like excitation:
         ! todo write a routine for that
         ! switchFlag = checkForSwitch(ilut, t, st, se-1)
-! 
-!         if (.not. switchFlag) then
-!             probWeight = 0.0_dp
-!             t = 0
-!             return
-!         end if
 
         ! if a switch happened i have to calculated the additional contributing
         ! matrix elements from all indices below the fullstart
@@ -10031,9 +10045,6 @@ contains
         ! and finally update the matrix element with all contributions
         call update_matrix_element(t, (get_umat_el(st,se,en,st) + &
             get_umat_el(se,st,st,en))/2.0_dp + integral, 1)
-
-!         print *, "mat_ele: ", extract_matrix_element(t,1)
-!         call neci_flush(6)
 
     end subroutine calcFullStartL2R_stochastic
 
