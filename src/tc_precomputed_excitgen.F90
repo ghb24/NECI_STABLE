@@ -744,6 +744,13 @@ contains
 
     integer, intent(in) :: i,a
     real(dp) :: w
+    !integer :: ex(2,2)
+
+    !ex(1,1) = i
+    !ex(2,1) = i
+    !ex(1,2) = a
+    !ex(2,2) = a
+    !w = sqrt(abs(sltcnd_excit(refDet,2,ex,.false.)))
 
     w = sqrt(abs(get_umat_el(gtID(i),gtID(a),gtID(a),gtID(i))))
   end function pp_weight_function

@@ -583,7 +583,7 @@ module LMat_mod
       blockstart = offsets(iProcIndex_intra)
 
       ! the last element to read on each proc
-      if(iProcIndex_intra.eq.nProcessors - 1) then
+      if(iProcIndex_intra.eq.procs_per_node - 1) then
          countsEnd = nInts - 1
       else
          countsEnd = offsets(iProcIndex_intra + 1) - 1

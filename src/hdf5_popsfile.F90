@@ -635,7 +635,7 @@ contains
 
         call read_dp_scalar(grp_id, nm_psingles, psingles)
         call read_dp_scalar(grp_id, nm_pdoubles, pdoubles)
-        call read_dp_scalar(grp_id, nm_ptriples, ptriples, exists = tReadPTriples, default = 0.9_dp, &
+        call read_dp_scalar(grp_id, nm_ptriples, ptriples, exists = tReadPTriples, default = 0.1_dp, &
              required = .false.)
         call read_dp_scalar(grp_id, nm_pparallel, pparallel, exists=ppar_set)
         ! here i want to make the distinction if we want to tau-search
