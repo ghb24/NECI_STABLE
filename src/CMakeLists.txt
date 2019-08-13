@@ -1,7 +1,7 @@
 
 # List the files that ought to be compiled
 
-set( SRC_FILES
+set( SRC_FILES 
 
     adi_references.F90
     adi_initiators.F90
