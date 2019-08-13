@@ -14,7 +14,7 @@ module guga_init
                           ref_stepvector, ref_b_vector_int, ref_occ_vector, &
                           ref_b_vector_real, treal, tHUB, t_guga_noreorder, tgen_guga_crude, &
                           t_new_real_space_hubbard, t_heisenberg_model, &
-                          t_tJ_model
+                          t_tJ_model, t_guga_back_spawn
 
     use CalcData, only: tUseRealCoeffs, tRealCoeffByExcitLevel, RealCoeffExcitThresh, &
                         t_guga_mat_eles, t_hist_tau_search, tSpinProject
@@ -59,6 +59,9 @@ module guga_init
                         init_get_helement_tj_guga, init_get_helement_heisenberg_guga, &
                         init_guga_tJ_model, init_guga_heisenberg_model, &
                         pick_orbitals_guga_tJ
+
+    use back_spawn, only: setup_virtual_mask
+
     ! variable declaration
     implicit none
 
@@ -283,26 +286,10 @@ contains
             calc_off_diag_guga_ref => calc_off_diag_guga_ref_list
 
         end if
-! 
-!         if (t_tJ_model) then 
-!             call init_get_helement_tj_guga
-!             call init_guga_tJ_model()
-!         end if
-! 
-!         if (t_heisenberg_model) then 
-!             call init_get_helement_heisenberg_guga
-!             call init_guga_heisenberg_model
-!         end if
 
-
-        ! also if i restart from a POPSFILE in the GUGA case, always 
-        ! read in the pSingles etc. quantities, as a default
-        ! is there anycase, where i do not want to do this? hm.. 
-        ! i think when i want to tau-search again.. although i never 
-        ! actually use that.. but just to be safe, but this in
-        ! UPDATE: changed the default behavior to always read those 
-        ! probabilities except turned off in the input!
-!         if (.not. t_hist_tau_search) t_read_probs = .true.
+        if (t_guga_back_spawn) then 
+            call setup_virtual_mask()
+        end if
 
     end subroutine init_guga
   

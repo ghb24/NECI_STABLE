@@ -355,7 +355,6 @@ contains
                     k = leadz(spin_change(i))
 
                     last_spin = ishft(j - res_orbs - k, -1)
-!                     last_spin = ishft(nBasis - res_orbs - leadz(spin_change(i)),-1)
 
                     ! then i can exit 
                     exit 
@@ -429,8 +428,6 @@ contains
                     ! i could use the isOne etc. macros with the indices 
                     ! identified 
                     ! determine the other indices.. 
-!                     second_occ = leadz(ibclr(change_1,first_occ))
-!                     third_occ = trailz(ibclr(change_1,last_occ)) 
 
                     ! i could also check if there is a spin-change in the 
                     ! double overlap range, since if it is, there is no 
@@ -459,12 +456,10 @@ contains
                     ind_3 = [2 * (third_occ-1) / bits_n_int, mod(2 * (third_occ-1), bits_n_int)]
                     ! for the third index i have to put to 1 everyhing right 
                     ! for the second, everything to the left 
-!                     mask_2(ind_2(1)+1:nifd) = huge(0_n_int) 
                     ! actually -1 has all bits set
                     mask_2(ind_2(1)+1:nifd) = -1_n_int
                     mask_2(0:ind_2(1)-1) = 0_n_int
 
-!                     mask_3(0:ind_3(1)-1) = huge(0_n_int)
                     mask_3(0:ind_3(1)-1) = -1_n_int
                     mask_3(ind_3(1)+1:nifd) = 0_n_int
 
@@ -909,8 +904,6 @@ contains
                             else 
                                 ! it is a valid fullstop alike excitation 
                                 ! still have to check spin-coupling change 
-!                                 overlap = iand(spin_change, iand(maskl(occ_double,n_int), &
-!                                     maskr(last_occ,n_int)))
                                 ind_2 = [2 * last_occ / bits_n_int, mod(2 * last_occ, bits_n_int)]
                                 ind_3 = [2 * (occ_double-1) / bits_n_int, mod(2 * (occ_double-1), bits_n_int)]
                                 ! for the third index i have to put to 1 everyhing right 
@@ -1216,7 +1209,6 @@ contains
         real(dp), intent(in) :: order, order1
         logical, intent(in) :: spin_change
         type(excitationInformation) :: excitInfo
-!         character(*), parameter :: this_routine = "assign_excitInfo_values_double"
 
         ! todo: asserts!
         excitInfo%typ = typ
@@ -1513,9 +1505,7 @@ contains
         ! ok i really only need spin-changes.. so change the testsuite
         orb = 0
         do i = start, semi - 1
-!             if (getStepvalue(iI,i) /= getStepvalue(iJ,i)) then
             a = getStepvalue(iI,i)
-!             a = current_stepvector(i)
             b = getStepvalue(iJ,i)
             if (a /= b) then
                 orb = i
@@ -1757,7 +1747,6 @@ contains
         ! do i always call that for the current det the excitation is 
         ! calculated for?  i think so..
         do k = i, j
-!             if (isOne(ilut,k)) then 
             if (current_stepvector(k) == 1) then
                 nOpen = nOpen + 1
             end if
@@ -1782,12 +1771,11 @@ contains
 
         ! quick fix for now to see if thats the problem: loop and check! 
         do k = i, j
-!             if (isTwo(ilut,k)) then
             if (current_stepvector(k) == 2) then
                 nOpen = nOpen + 1
             end if 
         end do
-! 
+
     end function count_alpha_orbs_ij
 
     function count_open_orbs_ij(i, j, L) result(nOpen)
@@ -1804,7 +1792,6 @@ contains
 
         ASSERT(i > 0 .and. i <= nSpatOrbs)
         ASSERT(j > 0 .and. j <= nSpatOrbs)
-!         ASSERT(i < j)
         ! scrap this assert and change in that way to output 0 if the indices
         ! dont fit or are reversed. to deal with to short overlap ranges
 
@@ -1894,7 +1881,6 @@ contains
     subroutine convert_ilut_toNECI(ilutG, ilutN, HElement)
         integer(n_int), intent(in) :: ilutG(0:nifguga)
         integer(n_int), intent(inout) :: ilutN(0:niftot)
-!         HElement_t(dp), intent(out), optional :: HElement
         real(dp), intent(out), optional :: HElement
         character(*), parameter :: this_routine = "convert_ilut_toNECI"
 
@@ -2116,16 +2102,7 @@ contains
         integer :: i
 
         do i = 1, nSpatOrbs
-
             occVector(i) = getSpatialOccupation(ilut,i)
-! 
-!             if (isZero(ilut,i)) then
-!                 occVector(i) = 0
-!             else if (isThree(ilut,i)) then
-!                 occVector(i) = 2
-!             else
-!                 occVector(i) = 1
-!             end if
         end do
 
     end function calcOcc_vector_int

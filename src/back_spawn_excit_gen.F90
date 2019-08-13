@@ -84,7 +84,6 @@ contains
                 if (abs(pgen - pgen2) > 1.0e-6_dp) then 
                     if (tHPHF) then 
                         print *, "due to circular dependence, no matrix element calc possible!"
-!                         temp_hel = hphf_off_diag_helement(nI,nJ,ilutI,ilutJ)
                         temp_hel = 0.0_dp
                     else
                         temp_hel = get_helement(nI,nJ,ilutI,ilutJ)

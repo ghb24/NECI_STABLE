@@ -18,7 +18,7 @@ module guga_excitations
                           t_crude_exchange, t_crude_exchange_noninits, & 
                           t_approx_exchange, t_approx_exchange_noninits, & 
                           is_init_guga, t_heisenberg_model, t_tJ_model, t_mixed_hubbard, &
-                          t_guga_back_spawn, t_guga_back_spawn_noninits
+                          t_guga_back_spawn, n_guga_back_spawn_lvl
 
     use constants, only: dp, n_int, bits_n_int, lenof_sign, Root2, THIRD, HEl_zero, &
                          EPS, bni_, bn2_, iout, int64, inum_runs
@@ -91,7 +91,11 @@ module guga_excitations
     use MemoryManager, only: LogMemAlloc, LogMemDealloc
 
     use sym_mod, only: MomPbcSym
+    
+    use back_spawn, only: check_electron_location, check_orbital_location, &
+        check_electron_location_spatial, check_orbital_location_spatial
 
+    use lattice_models_utils, only: make_ilutJ
 
     ! variables
     implicit none
@@ -2667,11 +2671,78 @@ contains
         character(*), parameter :: this_routine = "create_crude_guga_double"
 
         type(excitationInformation) :: excitInfo
+        logical :: compFlag
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+        real(dp) :: branch_pgen, orb_pgen
+        HElement_t(dp) :: mat_ele
+        integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
+        type(weight_obj) :: weights
+        integer :: ex(2,2), elecs(2), orbs(2)
 
         if (present(excitInfo_in)) then 
             excitInfo = excitInfo_in
         else
-            call stop_all(this_routine, "not yet implemented for no excitInfo_in")
+            call pickOrbitals_double(ilut, nI, excitInfo, orb_pgen)
+
+            if ( .not. excitInfo%valid ) then
+                ! if no valid indices were picked, return 0 excitation and return
+                exc = 0_n_int
+                pgen = 0.0_dp
+                return
+            end if
+            call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches, &
+                weights)
+
+            if (.not.compFlag) then
+                exc = 0_n_int
+                pgen = 0.0_dp
+                return
+            end if
+
+        end if
+
+        ! here I have to do the actual crude double excitation..
+        ! my idea for now is to create pseudo random spin-orbital from the 
+        ! picked spatial orbitals 
+        call create_random_spin_orbs(ilut, excitInfo, elecs, orbs, branch_pgen)
+
+        ex(1,:) = elecs
+        ex(2,:) = orbs
+
+        exc = make_ilutJ(ilut, ex, 2)
+
+        ! this check is the same at the end of singles:
+        ! maybe I also need to do this only if no excitInfo_in is provided..
+        ! we also want to check if we produced a valid CSF here 
+        if (.not. isProperCSF_ilut(exc, .true.)) then 
+            exc = 0_n_int
+            pgen = 0.0_dp
+            return
+        end if
+
+        ! we also need to calculate the matrix element here!
+        call convert_ilut_toNECI(ilut, ilutI)
+        call convert_ilut_toNECI(exc, ilutJ)
+        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, .true., 2)
+
+        if (abs(mat_ele) < EPS) then 
+            exc = 0_n_int
+            pgen = 0.0_dp
+            return
+        end if
+
+        call encode_matrix_element(exc, mat_ele, 1)
+        call encode_matrix_element(exc, 0.0_dp, 2)
+
+        global_excitInfo = excitInfo
+
+        if (present(excitInfo_in)) then
+            ! then the orbitals were already picked before and we only want 
+            ! to give the branch_pgen here 
+            pgen = branch_pgen
+        else
+            ! otherwise we want the full pgen 
+            pgen = orb_pgen * branch_pgen
         end if
 
     end subroutine create_crude_guga_double
@@ -2768,7 +2839,58 @@ contains
 
                 ! write a general function which gives me valid spin-orbs
                 ! for GUGA CSFs (mayb as an input the 'neutral' number 3 here.c.
-                call  get_valid_two_index(elec_1, elec_2, pgen, 3, 3, orbs)
+                ! maybe later..
+!                 call  get_valid_two_index(elec_1, elec_2, pgen, 3, 3, orbs)
+
+                if ((current_stepvector(elec_1) == current_stepvector(elec_2)) & 
+                    .and. currentOcc_int(elec_1) == 1) then 
+                    ! in this case no crude excitation is possible
+                    pgen = 0.0_dp
+                    elecs = 0
+                    orbs = 0
+                    return
+                end if
+
+                select case (current_stepvector(elec_1))
+
+                case (0)
+                    call stop_all(this_routine, "something wrong happened")
+
+                case (1)
+
+                    elecs(1) = 2 * elec_1 - 1
+                    ! then the second must be of 'opposite' spin
+                    elecs(2) = 2 * elec_2
+
+                case (2)
+                    elecs(1) = 2 * elec_1
+                    elecs(2) = 2 * elec_2 - 1
+
+                case (3)
+                    if (current_stepvector(elec_2) == 3) then 
+                        ! here we have a choice
+                        r = genrand_real2_dSFMT()
+
+                        if (r < 0.5_dp) then 
+                            elecs(1) = 2 * elec_1 - 1
+                            elecs(2) = 2 * elec_2 
+                        else
+                            elecs(1) = 2 * elec_1 
+                            elecs(2) = 2 * elec_2 - 1
+                        end if
+
+                        pgen = 0.5_dp
+                    else if (current_stepvector(elec_2) == 1) then 
+                        elecs(2) = 2 * elec_2 - 1
+                        elecs(1) = 2 * elec_1
+
+                    else if (current_stepvector(elec_2) == 2) then 
+                        elecs(2) = 2 * elec_2
+                        elecs(1) = 2 * elec_1 - 1
+
+                    end if
+                end select
+
 
             case (7, 15, 18)
                 ! here i know the electron indices are the same 
@@ -2777,14 +2899,14 @@ contains
                 elecs(1) = 2*elec_1 - 1
                 elecs(2) = 2*elec_1
 
-                call get_valid_two_index(orb_1, orb_2, pgen, 0, 0, elecs)
+!                 call get_valid_two_index(orb_1, orb_2, pgen, 0, 0, elecs)
+
+                ! do the same as above, just for two hole indices!
 
             case (16, 17, 20, 21) 
                 ! here i know one electron and hole index are the same 
                 ASSERT(elec_1 /= elec_2)
                 ASSERT(orb_1  /= orb_2)
-                ASSERT(current_stepvector(orb_2) /= 3)
-                ASSERT(current_stepvector(elec_2) /= 0)
 
                 ! this case is very restrictive..
                 if (elec_1 == orb_1) then 
@@ -2818,6 +2940,7 @@ contains
 
                     d_elec = elec_1 
                     d_orb = orb_1
+
 #ifdef __DEBUG
                 else
                     call stop_all(this_routine, "something went wrong")
@@ -2961,12 +3084,27 @@ contains
 
     end subroutine create_random_spin_orbs
 
-    subroutine get_valid_two_index(ind_1, ind_2, pgen, res_1, res_2, out_ind)
-        integer, intent(in) :: ind_1, ind_2, res_1, res_2
-        real(dp), intent(out) :: pgen 
-        integer, intent(out) :: out_ind(2)
-
-    end subroutine get_valid_two_index
+!     subroutine get_valid_two_index(ind_1, ind_2, pgen, res_1, res_2, out_ind)
+!         integer, intent(in) :: ind_1, ind_2, res_1, res_2
+!         real(dp), intent(out) :: pgen 
+!         integer, intent(out) :: out_ind(2)
+!         character(*), parameter :: this_routine = "get_valid_two_index"
+! 
+!         ! this is very similar to the picking of single excitation spin-orbitals
+!         ! but depending on the type of excitation res_1 and res_2 are 
+!         ! different
+! 
+!         select case (current_stepvector(ind_1))
+!         case (0)
+!             if (res_1 == 3) then 
+!                 call stop_all(this_routine, "something wrong happened!")
+!             end if
+! 
+!         case (1) 
+! 
+! 
+! 
+!     end subroutine get_valid_two_index
 
     subroutine pick_random_4ind(elec_1, elec_2, orb_1, orb_2, elecs, orbs, pgen)
         integer, intent(in) :: elec_1, elec_2, orb_1, orb_2
@@ -3314,7 +3452,9 @@ contains
 
         type(excitationInformation) :: excitInfo
         integer :: i, j, st, en, start_d, end_d, gen
-        real(dp) :: integral, orb_pgen, r
+        real(dp) :: integral, orb_pgen, r, branch_pgen
+        HElement_t(dp) :: mat_ele
+        integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
 
         ASSERT(isProperCSF_ilut(ilut))
 
@@ -3346,9 +3486,9 @@ contains
         start_d = current_stepvector(st)
         end_d = current_stepvector(en)
 
+        branch_pgen = 1.0_dp
 
-        pgen = 1.0_dp
-
+        exc = ilut
         associate (b => currentB_int)
             if (start_d == 3) then 
                 ! here we now it is a lowering generator with d_j = 1 or 2 
@@ -3363,25 +3503,47 @@ contains
 
                         if (r < 0.5_dp) then 
                             ! make a 3 -> 1 and 0 -> 2
+                            set_zero(exc, st)
+                            set_one(exc, st)
+
+                            set_two(exc, en)
                             
                         else
                             ! make 3 -> 2 and 0 -> 1
+                            set_zero(exc, st)
+                            set_two(exc, st)
+
+                            set_one(exc, en)
 
                         end if
-                        pgen = 0.5_dp
+                        branch_pgen = 0.5_dp
                     else 
                         ! here only 3 > 1 and 0 > 2 is possible 
                         ! make 
+                        set_zero(exc,st)
+                        set_one(exc, st)
+
+                        set_two(exc,en)
+
                     end if
                     
                 else if (end_d == 1) then 
                     ! then only the 3 > 1 start is possible and b is irrelevant
                     ! make 3 > 1 and 1 > 3
+                    set_zero(exc,st)
+                    set_one(exc,st)
+
+                    set_three(exc,en)
+
 
                 else if (end_d == 2) then 
                     ! this is only possible if all b are > 0 
                     if (all(b(st:en-1) > 0)) then 
                         ! make 3 > 2 and 2  > 3
+                        set_zero(exc,st)
+                        set_two(exc,st)
+
+                        set_three(exc,en)
 
                     else
                         pgen = 0.0_dp 
@@ -3400,23 +3562,42 @@ contains
 
                         if (r < 0.5_dp) then 
                             ! make 0 > 1 and  3 > 2
+                            set_one(exc,st)
+                            
+                            set_zero(exc,en)
+                            set_two(exc,en)
 
                         else
                             ! make 0 > 2 and 3 > 1
+                            set_two(exc,st)
+                            
+                            set_zero(exc,en)
+                            set_one(exc,en)
 
                         end if
-                        pgen = 0.5_dp 
+                        branch_pgen = 0.5_dp 
                     else 
-                        ! make > 0 > 1 and 3 > 2
+                        ! make  0 > 1 and 3 > 2
+                        set_one(exc,st)
+
+                        set_zero(exc,en)
+                        set_two(exc,en)
 
                     end if
 
                 else if (end_d == 1) then 
                     ! make 0 > 1 and 1 > 0 
 
+                    set_one(exc,st)
+
+                    set_zero(exc,en)
+
                 else if (end_d == 2) then 
                     if (all(b(st:en-1) > 0)) then 
                         ! make 0 > 2 and 2 > 0 
+                        set_two(exc,st)
+
+                        set_zero(exc,en)
 
                     else 
                         pgen = 0.0_dp 
@@ -3430,19 +3611,32 @@ contains
                     if (end_d == 2) then 
                         if (gen == 1) then 
                             ! make 1 > 3 and 2 > 0
+                            set_three(exc,st)
+
+                            set_zero(exc,en)
 
                         else if (gen == -1) then 
                             ! make 1 > 0 and 2 > 3
+                            set_zero(exc,st)
+
+                            set_three(exc,en)
 
                         end if
 
                     else if (end_d == 3) then 
                         ASSERT(gen == 1)
                         ! make 1 > 3 and 3 > 1
+                        set_three(exc,st)
+
+                        set_zero(exc,en)
+                        set_one(exc,en)
 
                     else if (end_d == 0) then 
                         ASSERT(gen == -1)
                         ! make 1 > 0 and 0 > 1
+                        set_zero(exc,st)
+                        
+                        set_one(exc,en)
 
                     end if
                 else
@@ -3456,17 +3650,30 @@ contains
                 if (end_d == 0) then 
                     ASSERT(gen == -1)
                     ! make 2 > 0 and 0 > 2
+                    set_zero(exc,st)
+                    
+                    set_two(exc,en)
                     
                 else if (end_d == 3) then 
                     ASSERT(gen == 1) 
                     ! make 2 > 3 and 3 > 2
+                    set_three(exc,st)
+
+                    set_zero(exc,en)
+                    set_two(exc,en)
 
                 else if (end_d == 1) then 
                     if (gen == 1) then 
                         ! make 2 > 3 and 1 > 0
+                        set_three(exc,st)
+
+                        set_zero(exc,en)
 
                     else if (gen == -1) then 
                         ! make 2 > 0 and 1 > 3
+                        set_zero(exc,st)
+
+                        set_three(exc,en)
 
                     end if
                 else if (end_d == 2) then
@@ -3476,20 +3683,320 @@ contains
                 end if
             end if 
         end associate
-                
+
+        ! we also want to check if we produced a valid CSF here 
+        if (.not. isProperCSF_ilut(exc, .true.)) then 
+            exc = 0_n_int
+            pgen = 0.0_dp
+            return
+        end if
+
+        ! we also need to calculate the matrix element here!
+        ! i think calc_guga_matrix_element also work with guga iluts, but 
+        ! just to be super safe here:
+        call convert_ilut_toNECI(ilut, ilutI)
+        call convert_ilut_toNECI(exc, ilutJ)
+        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, .true., 2)
+
+        if (abs(mat_ele) < EPS) then 
+            exc = 0_n_int
+            pgen = 0.0_dp
+            return
+        end if
+
+        call encode_matrix_element(exc, mat_ele, 1)
+        call encode_matrix_element(exc, 0.0_dp, 2)
+
+        global_excitInfo = excitInfo
+
+        if (present(excitInfo_in)) then
+            ! then the orbitals were already picked before and we only want 
+            ! to give the branch_pgen here 
+            pgen = branch_pgen
+        else
+            ! otherwise we want the full pgen 
+            pgen = orb_pgen * branch_pgen
+        end if
 
     end subroutine create_crude_guga_single
 
-     
-    function increase_ex_levl(ilut, nI, excitInfo) result(flag)
-        integer(n_int), intent(in) :: ilut(0:nifguga)
-        integer, intent(in) :: nI(nel)
+    function increase_ex_levl(excitInfo) result(flag)
         type(excitationInformation), intent(in) :: excitInfo
         logical :: flag
+        character(*), parameter :: this_routine = "increase_ex_levl"
+
+        integer :: elec_1, elec_2, orb_1, orb_2, orbs(2), elecs(2)
+        integer :: d_elec, s_elec, d_orb, s_orb
+        integer :: loc_elec, loc_orb
 
         flag = .true.
 
+        ! first i need to check the location of the picked electrons. 
+        ! which also has to be adapted for chosen spatial orbitals 
+        if (excitInfo%typ == 0) then 
+            ! single excitation 
+            elec_1 = excitInfo%j
+            orb_1  = excitInfo%i
+
+            ! be general here and maybe a bit too cautious and check if 
+            ! any spin-orbtial in the reference is occupied 
+            loc_elec = check_electron_location_spatial([elec_1,0], 1, 1)
+
+            ! now we also want to check if the orbitals are in the 
+            ! virtual space of the reference det. 
+            loc_orb = check_orbital_location_spatial([orb_1,0], 1, 1)
+
+            flag = test_increase_on_loc(loc_elec, loc_orb, 1)
+
+        else 
+            ! double excitations 
+            elec_1 = excitInfo%j
+            elec_2 = excitInfo%l
+
+            orb_1 = excitInfo%i
+            orb_2 = excitInfo%k
+
+            ! there is now a difference depending on some type of 
+            ! excitations 
+            select case (excitInfo%typ)
+            case (6, 14, 19)
+                ! here i know the spatial orbital indices are the same 
+                ASSERT(orb_1 == orb_2)
+                ASSERT(current_stepvector(orb_1) == 0)
+
+                ! here check for spin-orbital as we know the occupation
+                orbs = [2*orb_1, 2*orb_1 -1]
+                loc_orb = check_orbital_location(orbs, 2, 1)
+
+                ! the electrons need to be specified generally 
+                ! but are there any spin-restrictions in this case? 
+                ! due to the possible spin-recouplings in CSFs maybe not.. 
+                ! use a testing function for spatial orbitals 
+                loc_elec = check_electron_location_spatial([elec_1,elec_2],2,1)
+
+                flag = test_increase_on_loc(loc_elec, loc_orb, 2)
+
+            case (7, 15, 18) 
+                ! here i know both spatial electon indices are the same
+                ASSERT(elec_1 == elec_2)
+                ASSERT(current_stepvector(elec_1) == 3)
+
+                elecs = [2 * elec_1, 2 * elec_1 - 1]
+
+                loc_elec = check_electron_location(elecs, 2, 1)
+
+                loc_orb = check_orbital_location_spatial([orb_1,orb_2],2,1)
+
+                flag = test_increase_on_loc(loc_elec, loc_orb, 2)
+
+            case (16, 17, 20, 21)
+                ! here i know one electron and one hole index are the same
+                ASSERT(elec_1 /= elec_2)
+                ASSERT(orb_1 /= orb_2)
+
+                ! the occupation in the overlap index does not change.. 
+                ! so we could treat the differing indices as a single 
+                ! excitation or? 
+                if (elec_1 == orb_1) then 
+
+                    s_elec = elec_1
+                    s_orb = orb_1
+
+                    d_elec = elec_2 
+                    d_orb =  orb_2
+                    
+                else if (elec_1 == orb_2) then 
+
+                    s_elec = elec_1
+                    s_orb = orb_1
+
+                    d_elec = elec_2
+                    d_orb = orb_1
+
+                else if (elec_2 == orb_1) then 
+
+                    s_elec = elec_2
+                    s_orb = orb_1
+
+                    d_elec = elec_1 
+                    d_orb = orb_2
+
+                else if (elec_2 == orb_2) then 
+                    
+                    s_elec = elec_2 
+                    s_orb = orb_2
+
+                    d_elec = elec_1 
+                    d_orb = orb_1
+
+                end if
+
+                loc_elec = check_electron_location_spatial([d_elec,0],1,1)
+                loc_orb = check_orbital_location_spatial([d_orb,0],1,1)
+
+                flag = test_increase_on_loc(loc_elec, loc_orb, 1)
+
+            case (23) 
+                ! here i do not change the 'orbital excitation level' 
+                if (n_guga_back_spawn_lvl < 0) then 
+                    flag = .true.
+
+                else 
+                    flag = .false.
+                end if
+
+            case default 
+                ! the general 4-index excitations.. 
+                loc_elec = check_electron_location_spatial([elec_1,elec_2],2,1)
+                loc_orb = check_orbital_location_spatial([orb_1,orb_2],2,1)
+
+                flag = test_increase_on_loc(loc_elec, loc_orb, 2)
+
+            end select
+        end if
+
+
     end function increase_ex_levl
+
+
+    function test_increase_on_loc(loc_elec, loc_orb, ic) result(flag)
+        ! test if the excitation increases the excit-lvl based on the 
+        ! restriction and type of excitation
+        integer, intent(in) :: loc_elec, loc_orb, ic
+        logical :: flag
+        character(*), parameter :: this_routine = "test_increase_on_loc"
+
+        if (ic == 1) then 
+            ! now the global restriction of n_guga_back_spawn_lvl comes into
+            ! play
+            select case (n_guga_back_spawn_lvl)
+            case (-2) 
+                ! we want to treat double excitation decreasing the 
+                ! excit-lvl by 2 fully .. 
+                ! so single excitations from non-initiators (make this 
+                ! default!) are always subjected to the approximation
+                flag = .true. 
+
+            case (-1)
+                ! if this excitation decreases the excit-lvl by 1 we 
+                ! treat it fully 
+                ! for this to happen the electron must be in the 
+                ! virtual space of the reference and the orbital must be 
+                ! in the occupied space of the reference 
+                if (loc_elec == 0 .and. loc_orb == 0) then 
+                    flag = .false.
+                else
+                    flag = .true. 
+                end if
+            case(0)
+                ! here we want to only restrict excitation increasing the 
+                ! excitation lvl with the approximation 
+                ! this happens if the electron is in the occupied space of 
+                ! the reference and the orbital in the virtual space 
+                if (loc_elec == 2 .and. loc_orb == 2) then 
+                    flag = .true. 
+                else 
+                    flag = .false. 
+                end if
+            case (1) 
+                ! in this case we treat all single excitation fully
+                flag = .false. 
+
+            end select 
+        else if (ic == 2) then 
+            ! maybe i need specific restriction for different types of 
+            ! GUGA excitations.. figure that out!
+
+            select case (n_guga_back_spawn_lvl)
+            case (-2) 
+                ! only doubles reducing ex-lvl by two get treated fully
+                if (loc_elec == 0 .and. loc_orb == 0) then 
+                    flag = .false. 
+                else
+                    ! everything else gets treated fully
+                    flag = .true.
+                end if
+
+            case (-1) 
+                ! also doubles which increase the excit-lvl by 1 
+                ! get treated fully .. 
+                ! how does this happen?
+                ! at least one electron must hope from the reference 
+                ! virtuals to the occupied reference space..
+                if (loc_elec == 0) then 
+                    ! both electrons are in the virtual, so atleast 
+                    ! one orbital must be in the reference 
+                    if (loc_orb < 2) then 
+                        flag = .false. 
+                    else
+                        flag = .true. 
+                    end if
+                else if (loc_elec == 1) then 
+                    ! one electron in occupied and one in virtual 
+                    ! then both holes must be in the occupied to decrease 
+                    if (loc_orb == 0) then 
+                        flag = .false. 
+                    else
+                        flag = .true. 
+                    end if
+                else
+                    ! if both electrons are in the occupied space 
+                    ! it is not possible
+                    flag = .true. 
+                end if
+                
+            case (0)
+                ! here we also treat excitation leaving the excit-lvl 
+                ! the same fully..
+                if (loc_elec == 0) then 
+                    ! if both electron are in the virtual space we can not 
+                    ! increase the excit-lvl
+                    flag = .false. 
+                    
+                else if (loc_elec == 1) then 
+                    ! if one of the electrons is in the occupied space 
+                    ! atleast one orbital must also be in the virtual space
+                    if (loc_orb == 2) then 
+                        flag = .true. 
+                    else
+                        flag = .false. 
+                    end if
+
+                else if (loc_elec == 2) then 
+                    ! if both electrons are in occupied space 
+                    ! both orbital must also be in the occupied space 
+                    if (loc_orb == 0) then 
+                        flag = .false.
+                    else
+                        flag = .true. 
+                    end if
+                end if
+
+            case (1)
+                ! here we also want to treat excitation increasing the 
+                ! excitation lvl by up to 1 fully 
+
+                ! if both electrons are in the virtual space 
+                ! we do not increase the excit-lvl
+                flag = .false. 
+                
+                ! if only one electron is in the occupied space 
+                ! we at most increase it by 1, which is fine here
+                flag = .false. 
+
+                ! if both electrons are in the virtual space 
+                ! we increase by more than 1 only if both orbs are in 
+                ! the virtual space 
+
+                if (loc_elec == 2 .and. loc_orb == 2) then 
+                    flag = .true. 
+                else
+                    flag = .false.
+                end if
+            end select
+        end if
+
+    end function test_increase_on_loc
 
     subroutine create_crude_double(ilut, nI, exc, branch_pgen, excitInfo_in)
         integer(n_int), intent(in) :: ilut(0:nifguga)
@@ -4131,8 +4638,6 @@ contains
         if ( .not. excitInfo%valid ) then
             excitation = 0
             pgen = 0.0_dp
-            !deallocate(currentB_ilut)
-            !deallocate(currentOcc_ilut)
             return
         end if
 
@@ -4157,7 +4662,7 @@ contains
         end if
 
         if (t_guga_back_spawn) then
-            if (increase_ex_levl(ilut, nI, excitInfo) .and. .not. is_init_guga) then 
+            if (increase_ex_levl(excitInfo) .and. .not. is_init_guga) then 
                 call create_crude_guga_double(ilut, nI, excitation, branch_pgen, excitInfo)
 
                 pgen = orb_pgen * branch_pgen
@@ -12303,7 +12808,7 @@ contains
             ! if i find to increase the excit-lvl with the chosen 
             ! orbitals and the current CSF is a non-initiator -> 
             ! perform a crude excitation
-            if (increase_ex_levl(ilut, nI, excitInfo) .and. .not. is_init_guga) then 
+            if (increase_ex_levl(excitInfo) .and. .not. is_init_guga) then 
                 call create_crude_guga_single(ilut, nI, exc, branch_pgen, excitInfo)
                 ! there is also this routine I already wrote: 
                 ! I should combine those two as they do the same job

@@ -79,6 +79,9 @@
 #define set_two(ilut, spat) set_orb(ilut, 2*spat)
 #define clr_two(ilut, spat) clr_orb(ilut, 2*spat)
 
+#define set_zero(ilut, spat) clr_orb(ilut, 2*spat);  clr_orb(ilut, 2*spat-1)
+#define set_three(ilut,spat) set_orb(ilut, 2*spat);  set_orb(ilut, 2*spat-1)
+
 ! Useful for fixing things. Requires this_routine to be defined
 #ifdef __DEBUG
 #define ASSERT(x) \

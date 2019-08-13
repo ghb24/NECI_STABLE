@@ -1276,7 +1276,8 @@ system: do
 
                     case ('GUGA-BACK-SPAWN')
                         ! treat excitiation, which increase the excit-lvl 
-                        ! by the crude approximation 
+                        ! by the crude approximation for non-initiators
+                        t_guga_back_spawn = .true.
 
                         if (item < nitems) then 
                             ! this integer indicates if we want to 
@@ -1286,13 +1287,6 @@ system: do
                             !  1    also treat singly excits increasing excit-lvl up to 1 full
 
                             ! default = 0
-                            call geti(n_guga_back_spawn_lvl)
-                        end if
-
-                    case ('GUGA-BACK-SPAWN-NONINITS')
-                        ! apply the above approx. only for the non-initiators
-
-                        if (item < nitems) then 
                             call geti(n_guga_back_spawn_lvl)
                         end if
 

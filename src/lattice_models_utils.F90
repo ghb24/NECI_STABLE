@@ -195,10 +195,6 @@ contains
 
         ! if we have HPHF turned on we want to "spin-purify" the excitation 
         ! list 
-!         print *, "un-purified basis: "
-!         do i = 1, n_excits
-!             call writebitdet(6, det_list(:,i), .true.)
-!         end do
         if (tHPHF) then 
             save_excits = n_excits
 
@@ -210,10 +206,6 @@ contains
 
         end if
 
-!         print *, "purified basis: "
-!         do i = 1, n_excits
-!             call writebitdet(6, det_list(:,i), .true.)
-!         end do
     end subroutine gen_all_excits_r_space_hubbard
 
     subroutine spin_purify(n_excits_in, det_list_in, n_excits_out, det_list_out)
@@ -303,7 +295,6 @@ contains
 
                         elem = abs(get_helement_lattice(nI, 2, ex, .false.))
                         if (elem > EPS) then
-!                         if (abs(get_double_helem_rs_hub_transcorr(nI, ex, .false.)) > EPS) then
 
                             ilutJ = make_ilutJ(ilut, ex, 2)
                             ! actually a search is not really necessary.. since 
@@ -381,7 +372,6 @@ contains
                 if (same_spin(src,a) .and. IsNotOcc(ilut,a)) then 
                     ex(2,1) = a
                     elem = abs(get_helement_lattice(nI, 1, ex, .false.))
-!                     elem = abs(get_single_helem_rs_hub_transcorr(nI, ex, .false.))
 
                     if (elem > EPS) then 
 
@@ -466,10 +456,8 @@ contains
                     ! but to be sure, check the matrix element: 
                     ! but use the lattice get_helement_lattice to 
                     ! avoid circular dependencies
-!                     elem = abs(get_offdiag_helement_rs_hub(nI,ex,.false.))
                     call make_single(nI, nJ, i, neighbors(j),ex, tpar)
                     elem = get_helement_lattice(nI,nJ)
-!                     elem = abs(get_helement_lattice(nI, 1, ex, .false.))
 
                     if (abs(elem) > EPS) then 
 
@@ -487,7 +475,6 @@ contains
                             end if
                             temp_list(:,n_excits) = ilutJ
                             call sort(temp_list(:,1:n_excits),temp_sign(1:n_excits))
-!                             call sort(temp_list(:,1:n_excits),ilut_lt,ilut_gt)
                             n_excits = n_excits + 1
                             ! damn.. i have to sort everytime i guess..
                         end if
@@ -946,10 +933,6 @@ contains
         ! a ordered fashion.
 
         ! the number of ways to distribute alpha spins on the lattice 
-!         n_alpha = binomial(nbasis/2, nOccAlpha)
-
-!         num_open_shell_dets = n_alpha * binomial(nbasis/2 - nOccAlpha, nOccBeta) 
-
         ! maybe the number of determinants with one double occupancy is 
         ! also of interest.. (those are the single excitations from the 
         ! fully open shell dets(in the case off-half-filling it could a
@@ -957,14 +940,11 @@ contains
         ! these are already covered.
         ! one beta electron MUST reside in a orbital with a alpha spin (thats 
         ! just nOccAlpha) and the rest (nOccBeta-1) is on an empty orbital
-!         num_one_double_occ = n_alpha * nOccAlpha * & 
-!             binomial(nbasis/2 - nOccAlpha, nOccBeta - 1)
 
         ! just for the fun of it: i could calculate the size of each of 
         ! those space(1 double occ, 2 double occ.. etc. 
 
         ! only do that for less equal half-filling! 
-!         ASSERT(n_alpha + n_beta <= n_orbs)
 
         n_max = max(n_alpha, n_beta) 
         n_min = min(n_alpha, n_beta)
@@ -1136,12 +1116,9 @@ contains
 
         ! make this independent of the lattice mod, to call it as early 
         ! as possible in the initialization
-!         ASSERT(associated(lat))
 
         ! also assert that we have at most half-filling.. otherwise it does 
         ! not make so much sense to do this 
-!         ASSERT(nel <= nBasis/2)
-!         ASSERT(nel <= lat%get_nsites())
         ! there is no neel state for all lattice, but atleast something 
         ! similar to it.. 
         ! atleast for the lattice where there is a neel state, i should 
@@ -1354,7 +1331,6 @@ contains
             k_vec_in = lat%add_k_vec(k_vec_in, G1(nI(i))%k)
 
             ! a sanity check to see if it remained.. can be removed later! 
-!             k_vec_in = lat%map_k_vec(k_vec_in + G1(nI(i))%k)
             
         end do
 
@@ -1383,7 +1359,6 @@ contains
                 sym_prod = symtable(sym_prod%s, G1(nJ(j))%Sym%s)
                 k_vec = lat%add_k_vec(k_vec, G1(nJ(j))%k)
 
-!                 k_vec = lat%map_k_vec(k_vec + G1(nJ(j))%k)
             end do
             if (sym_prod%s == sym_in%s) then 
                 ! if the symmetry fits: 
@@ -1433,15 +1408,12 @@ contains
         ! momentum conservation: ka + kb + kc = ki + kj + kk
         ! to this better with the symmetry table or a new addition 
         ! functionality for k-vectors, to never leave the first BZ
-!         kc = G1(src(1))%k + G1(src(2))%k + G1(src(3))%k - G1(orb_a)%k - G1(orb_b)%k 
         ! do something like: 
         ! and write two routines, interfaced, one take a vector of 
         ! k-values the other takes the encoded symmetry symbol
         ! and setup a symmetry table and inverse symmetry list like in the 
         ! sym mod
-!         kc = lat%add_k_vec(lat%add_k_vec(G1(src(1))%k, G1(src(2))%k), G1(src(3))%k)
         kc_sym = SymTable(G1(src(1))%sym%s, SymTable(G1(src(2))%sym%s, G1(src(3))%sym%s)%s)
-!         kc = lat%subtract_k_vec(kc, lat%add_k_vec(G1(orb_a)%k,G1(orb_b)%k))
         kc_sym = SymTable(kc_sym%s, SymConjTab(SymTable(G1(orb_a)%sym%s,G1(orb_b)%sym%s)%s))
 
         kc = lat%sym_to_k(kc_sym%s,:)
@@ -1454,7 +1426,6 @@ contains
                 ! use the new lattice implementation
                 ! with the above correct addition it should still be in the 
                 ! first BZ.. 
-!                 kc = lat%map_k_vec(kc)
             else
                 call mompbcsym(kc, nBasisMax) 
             end if
@@ -1677,7 +1648,6 @@ contains
         ! todo: an estimate for the upper bound of number of triple excitations.. 
         ! this gets too high for big lattices.. 
 
-!         n_bound = nel*(nel-1)*(nel-2) * (nbasis - nel)*(nbasis - nel -1)*(nbasis-nel-2)
         ! i think a more correct estimat is:
         n_bound = int(nel*(nel-1)*(nel-2) * (nbasis - nel)*(nbasis - nel - 1)/8)
 
@@ -1710,7 +1680,6 @@ contains
                                             ex(2,:) = [a,b,c] 
                                             ! should i check the matrix element too?
                                             ! and also be sure that the momentum fits
-!                                             if (abs(get_3_body_helement_ks_hub(nI,ex,.false.)) > EPS) then 
                                             elem = abs(get_helement_lattice(nI, 3, ex, .false.))
                                             if (elem > EPS) then
                                                 ilutJ = make_ilutJ(ilut, ex,3)
