@@ -14,7 +14,7 @@ module guga_init
                           ref_stepvector, ref_b_vector_int, ref_occ_vector, &
                           ref_b_vector_real, treal, tHUB, t_guga_noreorder, tgen_guga_crude, &
                           t_new_real_space_hubbard, t_heisenberg_model, &
-                          t_tJ_model, t_guga_back_spawn
+                          t_tJ_model
 
     use CalcData, only: tUseRealCoeffs, tRealCoeffByExcitLevel, RealCoeffExcitThresh, &
                         t_guga_mat_eles, t_hist_tau_search, tSpinProject
@@ -285,10 +285,6 @@ contains
             ! use the "old" with the projected energy list 
             calc_off_diag_guga_ref => calc_off_diag_guga_ref_list
 
-        end if
-
-        if (t_guga_back_spawn) then 
-            call setup_virtual_mask()
         end if
 
     end subroutine init_guga

@@ -5,7 +5,9 @@
 module guga_excitations
     ! modules
     use CalcData, only: t_guga_mat_eles, t_trunc_guga_pgen, t_trunc_guga_matel, & 
-                        trunc_guga_pgen, trunc_guga_matel, t_trunc_guga_pgen_noninits
+                        trunc_guga_pgen, trunc_guga_matel, t_trunc_guga_pgen_noninits, &
+                          t_guga_back_spawn, n_guga_back_spawn_lvl
+
 
     use SystemData, only: nEl, nBasis, ElecPairs, G1, nmaxx, &
                           nmaxy, nmaxz, OrbECutoff, tOrbECutoff, nSpatOrbs, &
@@ -17,8 +19,7 @@ module guga_excitations
                           tgen_guga_mixed, t_new_hubbard, t_new_real_space_hubbard, &
                           t_crude_exchange, t_crude_exchange_noninits, & 
                           t_approx_exchange, t_approx_exchange_noninits, & 
-                          is_init_guga, t_heisenberg_model, t_tJ_model, t_mixed_hubbard, &
-                          t_guga_back_spawn, n_guga_back_spawn_lvl
+                          is_init_guga, t_heisenberg_model, t_tJ_model, t_mixed_hubbard
 
     use constants, only: dp, n_int, bits_n_int, lenof_sign, Root2, THIRD, HEl_zero, &
                          EPS, bni_, bn2_, iout, int64, inum_runs
@@ -94,8 +95,6 @@ module guga_excitations
     
     use back_spawn, only: check_electron_location, check_orbital_location, &
         check_electron_location_spatial, check_orbital_location_spatial
-
-    use lattice_models_utils, only: make_ilutJ
 
     ! variables
     implicit none
@@ -2095,117 +2094,6 @@ contains
 
     end function calc_off_diag_guga_gen
 
-
-!     subroutine sum_E_contrib_GUGA(ilut, excitLevel, RealWSign)
-!         ! problem here is dont quite know which quantities excactly have to be
-!         ! updated ... probably have to ask simon...
-!         ! but the idea is to search if the current determinant is in the list 
-!         ! of excitation from the reference determinant and in this case count 
-!         ! the contribution 
-!         character(*), parameter :: this_routine = "sum_E_contrib_GUGA"
-!         integer :: pos
-! 
-!         ! do similar stuff then the original sumEcontrib
-! 
-!         ! update numbers at HF if excitlevel is 0
-!         if (excitLevel == 0) then
-!             ! update summed contribtion only after equlibrium time
-!             if (iter > nEquilSteps) then
-!                 SumNoatHF(1:lenof_sign) = SumNoatHF(1:lenof_sign) + RealwSign
-!             end if
-!             ! and add the current contribs all the time
-!             NoatHF(1:lenof_sign) = NoatHF(1:lenof_sign) + RealwSign
-!             ! Number at HF * sign over course of update cycle
-!             HFCyc(1:lenof_sign) = HFCyc(1:lenof_sign) + RealwSign
-! 
-!             
-! 
-! 
-! 
-! 
-! 
-!         pos = binary_search(ref_exc_list, ilut, nifdbo + 1)
-! 
-!         ! if positive found and gives the position
-!         if (pos > 0) then
-!             ! take the matrix elements and current occupation of the given ilut
-!             ! and add that to the reference energy
-!             E = extract_part_sign(ilut,1) * &
-!                 extract_matrix_element(ref_exc_list(:,pos))
-!             ! or smth like that 
-!         end if
-! 
-!     end subroutine sum_E_contrib_GUGA
-
-! 
-!     ! write an own guga function to calculated the projected energy contribution
-!     ! implementation idea: everytime the reference determinant is changed, 
-!     ! also calulate the action of the hamiltonian on this reference and 
-!     ! persistenly store this list of excitation and matrix elements
-!     ! for projected energy calculation only check if the current determinant 
-!     ! in the main NECI cycle is in this list and add energy contribution if yes
-!     subroutine create_reference_excitations()
-!         character(*), parameter :: this_routine = "create_reference_excitations"
-!         integer(n_int) :: ilut(0:nifguga)
-!         integer :: nTot, ierr, i
-!         integer(n_int) :: excitations(:,;)
-!         
-!         ! deallocate if a old reference excitations list is already allocated
-!         if (allocated(ref_exc_list)) then
-!             deallocate(ref_exc_list)
-!         end if
-!         ! i only need to convert the NECI represensted reference det to the 
-!         ! guga format 
-! 
-!         ilut = ilutRef
-! 
-!         ! then call actHamiltonian
-!         call actHamiltonian(ilut, excitations, nTot)
-! 
-!         ! and then fill up the list with the matrix elements, where the 
-!         ! occupation is stored
-!         ! but what if no real coefficients are used?
-!         ! or define a new structure for that because i only need the orbitals 
-!         ! and 1 real entry for the matrix element ... 
-!         ! so essentially nifguga-2
-!         allocate(ref_exc_list(0:nifguga-2, nTot), stat = ierr)
-! 
-!         ! full up the entries (is in ordered form since the add_ilut_list 
-!         ! to add the contributions of the hamiltonian sorts the lists!
-!         do i = 1, nTot
-!             ! fill up
-!             ref_exc_list(:,i) = excitations(0:nifguga-2,i)
-!         end do
-! 
-!     end subroutine create_reference_excitations
-! 
-    ! need an API interfacing function for attempt_create to the rest of NECI
-    ! actually i probably do not need an extra function but can use the 
-    ! already implemented one..
-!     function attempt_create_guga(nI, ilutI, realwSign, nJ, ilutJ, pgen, &
-!             HElGen, IC, excitMat, tParity, walkExcitLevel, part_type, &
-!             AvSignCurr, RDMBiasFacCurr) result(child)
-!         integer, intent(in) :: nI(nEl), nJ(nEl), part_type, IC, excitMat(2,2),&
-!                                walkExcitLevel
-!         integer(n_int), intent(in) :: ilutI(0:niftot)
-!         integer(n_int), intent(inout) :: ilutJ(0:niftot)
-!         real(dp), intent(in) :: realwSign(lenof_sign), AvSignCurr(lenof_sign
-!         logical, intent(in) :: tParity
-!         real(dp), intent(inout) :: pgen
-!         real(dp), intent(out) :: RDMBiasFacCurr
-!         HElement_t, intent(in) :: HElGen
-!         character(*), parameter :: this_routine = "attempt_create_guga"
-! 
-! 
-!         ! actually unused variables for GUGA:
-!         ! IC, 
-!         pgen = pgen * AvMCExcits
-! 
-! 
-! 
-! 
-!     end function attempt_create_guga
-
     subroutine create_projE_list(run, ilutN)
         ! creates a list of determinants and matrix elements connnected to
         ! the determinant ilutRef
@@ -2706,10 +2594,25 @@ contains
         ! picked spatial orbitals 
         call create_random_spin_orbs(ilut, excitInfo, elecs, orbs, branch_pgen)
 
-        ex(1,:) = elecs
-        ex(2,:) = orbs
+        if (any(elecs == 0) .or. any(orbs == 0)) then 
+            exc = 0_n_int
+            pgen = 0.0_dp
+            return 
+        end if
 
-        exc = make_ilutJ(ilut, ex, 2)
+        if (branch_pgen < EPS) then 
+            exc = 0_n_int
+            pgen = 0.0_dp
+            return
+        end if
+
+        exc = ilut
+
+        clr_orb(exc,elecs(1))
+        clr_orb(exc,elecs(2))
+        set_orb(exc,orbs(1))
+        set_orb(exc,orbs(2))
+
 
         ! this check is the same at the end of singles:
         ! maybe I also need to do this only if no excitInfo_in is provided..
@@ -2840,7 +2743,6 @@ contains
                 ! write a general function which gives me valid spin-orbs
                 ! for GUGA CSFs (mayb as an input the 'neutral' number 3 here.c.
                 ! maybe later..
-!                 call  get_valid_two_index(elec_1, elec_2, pgen, 3, 3, orbs)
 
                 if ((current_stepvector(elec_1) == current_stepvector(elec_2)) & 
                     .and. currentOcc_int(elec_1) == 1) then 
@@ -2899,7 +2801,51 @@ contains
                 elecs(1) = 2*elec_1 - 1
                 elecs(2) = 2*elec_1
 
-!                 call get_valid_two_index(orb_1, orb_2, pgen, 0, 0, elecs)
+                if ((current_stepvector(orb_1) == current_stepvector(orb_2)) &
+                    .and. currentOcc_int(orb_1) == 1) then 
+                    pgen = 0
+                    elecs = 0
+                    orbs = 0
+                    return
+                end if
+
+                select case (current_stepvector(orb_1))
+                case (3) 
+                    call stop_all(this_routine, "something went wrong")
+
+                case (1) 
+                    
+                    orbs(1) = 2 * orb_1 
+                    orbs(2) = 2 * orb_2 - 1
+
+                case (2) 
+                    
+                    orbs(1) = 2 * orb_1 - 1
+                    orbs(2) = 2 * orb_2
+
+                case (0)
+                    if (current_stepvector(orb_2) == 0) then 
+                        r = genrand_real2_dSFMT()
+
+                        if (r < 0.5_dp) then 
+                            orbs(1) = 2 * orb_1 - 1
+                            orbs(2) = 2 * orb_2
+                        else
+                            orbs(1) = 2 * orb_1
+                            orbs(2) = 2 * orb_2 - 1
+                        end if
+                        pgen = 0.5_dp 
+
+                    else if (current_stepvector(orb_2) == 1) then 
+                        orbs(2) = 2 * orb_2 
+                        orbs(1) = 2 * orb_1 - 1
+
+                    else if (current_stepvector(orb_2) == 2) then 
+                        orbs(2) = 2 * orb_2 - 1
+                        orbs(1) = 2 * orb_1 
+
+                    end if
+                end select
 
                 ! do the same as above, just for two hole indices!
 
@@ -3015,96 +2961,12 @@ contains
 
                 call pick_random_4ind(elec_1, elec_2, orb_1, orb_2, elecs, orbs, pgen)
 
-!                 select case (current_stepvector(elec_1))
-!                 case (1)
-!                     elecs(1) = 2 * elec_1 - 1
-! 
-!                     select case (current_stepvector(elec_2))
-! 
-!                     case (1)
-! 
-!                         if (.not. ((current_stepvector(orb_1) == 2 .and. & 
-!                             current_stepvector(orb_2) == 2) .or. & 
-!                             (current_stepvector(orb_1) == 0  .and. & 
-!                             current_stepvector(orb_2) == 0))) then 
-!                             pgen = 0.0_dp 
-!                             
-!                             elecs = 0
-!                         else
-!                             elecs(2) = 2 * elec_2 - 1
-!                             orbs(1) = 2 * orb_1 - 1
-!                             orbs(2) = 2 * orb_2 - 1
-!                         end if
-! 
-!                     case (2)
-!                         if (.not. ((current_stepvector(orb_1) == 0 .and. & 
-!                             current_stepvector(orb_2) == 0) .or. & 
-!                             (currentOcc_int(orb_1) == 1 .and. & 
-!                             currentOcc_int(orb_2) == 1 .and. & 
-!                             current_stepvector(orb_1) /= current_stepvector(orb_2)))) then 
-!                             pgen = 0.0_dp
-!                             elecs = 0
-!                         else
-!                             elecs(2) = 2 * elec_2 
-! 
-!                             if (current_stepvector(orb_1) == 0) then 
-!                                 ! then I know both are 0
-!                                 r = genrand_real2_dSFMT()
-! 
-!                                 if (r < 0.5_dp) then 
-!                                     orbs(1) = 2 * orb_1 - 1
-!                                     orbs(2) = 2 * orb_2 
-!                                 else
-!                                     orbs(1) = 2 * orb_1 
-!                                     orbs(2) = 2 * orb_1 - 1
-!                                 end if
-!                                 pgen = 0.5_dp 
-! 
-!                             else if (current_stepvector(orb_1) == 1) then 
-!                                 ! then i know the second is 2 
-!                                 orbs(1) = 2 * orb_1 
-!                                 orbs(2) = 2 * orb_2 - 1
-! 
-!                             else if (current_stepvector(orb_1) == 2) then 
-!                                 orbs(1) = 2 * orb_1 - 1
-!                                 orbs(2) = 2 * orb_2
-!                                 
-!                             end if
-!                         end if
-! 
-!                     case (3)
-!                         ! thats too fucking tedious.. 
-!                         ! just pick random spin-orbs and see if they fit.. 
-! 
-!                 end select
 
             end select
         end if
 
 
     end subroutine create_random_spin_orbs
-
-!     subroutine get_valid_two_index(ind_1, ind_2, pgen, res_1, res_2, out_ind)
-!         integer, intent(in) :: ind_1, ind_2, res_1, res_2
-!         real(dp), intent(out) :: pgen 
-!         integer, intent(out) :: out_ind(2)
-!         character(*), parameter :: this_routine = "get_valid_two_index"
-! 
-!         ! this is very similar to the picking of single excitation spin-orbitals
-!         ! but depending on the type of excitation res_1 and res_2 are 
-!         ! different
-! 
-!         select case (current_stepvector(ind_1))
-!         case (0)
-!             if (res_1 == 3) then 
-!                 call stop_all(this_routine, "something wrong happened!")
-!             end if
-! 
-!         case (1) 
-! 
-! 
-! 
-!     end subroutine get_valid_two_index
 
     subroutine pick_random_4ind(elec_1, elec_2, orb_1, orb_2, elecs, orbs, pgen)
         integer, intent(in) :: elec_1, elec_2, orb_1, orb_2
@@ -3317,8 +3179,6 @@ contains
 
         ! make the 0 > 3 at mid!
 
-
-
     end subroutine create_crude_single_overlap_l2r
 
     subroutine create_crude_single_overlap_r2l(ilut, exc, pgen, excitInfo)
@@ -3469,7 +3329,7 @@ contains
 
         if ( .not. excitInfo%valid ) then
             ! if no valid indices were picked, return 0 excitation and return
-            exc = 0
+            exc = 0_n_int
             pgen = 0.0_dp
             return
         end if
@@ -4652,6 +4512,7 @@ contains
         !the posSwitches and negSwitches quantitites..
         ! or just dont do a compatibility check, since it will get aborted
         ! anyway if it does not work in the excitation generation.. 
+
         call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches, &
             weights)
 
@@ -12809,7 +12670,9 @@ contains
             ! orbitals and the current CSF is a non-initiator -> 
             ! perform a crude excitation
             if (increase_ex_levl(excitInfo) .and. .not. is_init_guga) then 
+
                 call create_crude_guga_single(ilut, nI, exc, branch_pgen, excitInfo)
+
                 ! there is also this routine I already wrote: 
                 ! I should combine those two as they do the same job
 !                 call create_crude_single(ilut, nI, exc, branch_pgen, excitInfo)
@@ -23712,18 +23575,6 @@ contains
             if (current_stepvector(gtID(occ_orbs(1))) == 3) pgen = pgen * 2.0_dp
             if (current_stepvector(gtID(occ_orbs(2))) == 3) pgen = pgen * 2.0_dp
         end if
-! 
-!         if (is_in_pair(occ_orbs(1), occ_orbs(2))) then 
-!             print *, "i:", gtID(occ_orbs(1))
-!             print *, "a:", orb
-!             print *, "cum_arr: ", cum_arr
-!             print *, "pelec:", pelec
-!             print *, "pgen: ", pgen
-!         end if
-! 
-!         if (is_in_pair(occ_orbs(1), occ_orbs(2))) then
-!             pgen = pgen * 2.0_dp
-!         end if
 
     end subroutine pickOrbs_sym_uniform_ueg_double
 

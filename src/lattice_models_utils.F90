@@ -1928,7 +1928,6 @@ contains
 #endif
 
         ilutJ = ilutI 
-        
 
         ij = get_src(ex)
         ab = get_tgt(ex)

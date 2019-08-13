@@ -11,8 +11,7 @@ module FciMCParMod
                           tGen_guga_mixed, t_guga_mixed_init, t_guga_mixed_semi, &
                           tReal, t_mixed_excits, tgen_nosym_guga, & 
                           t_crude_exchange_noninits, t_approx_exchange_noninits, &
-                          is_init_guga, tGen_sym_guga_ueg, t_guga_unit_tests, &
-                          t_guga_back_spawn
+                          is_init_guga, tGen_sym_guga_ueg, t_guga_unit_tests
 
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
@@ -29,7 +28,8 @@ module FciMCParMod
                         DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
                         tSkipRef, tFixTrial, tTrialShift, tSpinProject, t_activate_decay, &
                         t_guga_mat_eles, t_trunc_guga_pgen_noninits, &
-                        tLogAverageSpawns, tActivateLAS, tTimedDeaths, lingerTime
+                        tLogAverageSpawns, tActivateLAS, tTimedDeaths, lingerTime, &
+                        t_guga_back_spawn
 
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
                         tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &

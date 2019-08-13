@@ -405,16 +405,6 @@ logical :: t_mixed_hubbard = .false.
 
 logical :: t_olle_hubbard = .false.
 
-! try a back-spawn like idea for the guga approximations
-logical :: t_guga_back_spawn = .false. 
-
-! this integer indicates if we want to 
-! -2    only treat double excitations, decreasing the excit-lvl by 2 fully 
-! -1    treat single and doubly excits decreasing excit-lvl by 1 or 1 fully 
-!  0    treat all excitations leaving the excit-lvl unchanged or lowering fully
-!  1    also treat excits increasing excit-lvl up to 1 full
-integer :: n_guga_back_spawn_lvl = 0
-
 
 ! Operators for type(symmetry)
 interface assignment (=)

@@ -1951,14 +1951,22 @@ contains
 
     end function isProperCSF_b
 
-    function isProperCSF_sys(ilut, sysFlag) result(flag)
+    function isProperCSF_sys(ilut, sysFlag, t_print_in) result(flag)
         ! function to check if provided CSF in ilut format is a proper CSF
         ! checks b vector positivity and is total S is correct
         integer(n_int), intent(in) :: ilut(0:nifguga)
         logical, intent(in):: sysFlag
+        logical, intent(in), optional :: t_print_in
         logical :: flag
 
         integer(n_int) :: tmp_ilut(0:niftot)
+        logical :: t_print 
+        
+        if (present(t_print_in)) then 
+            t_print = t_print_in
+        else
+            t_print = .false.
+        end if
 
         flag = .true.
 
@@ -1979,18 +1987,22 @@ contains
         ! concerning total S and the number of electrons
         if (sysFlag) then
             if (abs(return_ms(tmp_ilut)) /= STOT) then
-                print *, "CSF does not have correct total spin!:"
-                call write_det_guga(6,ilut)
-                print *, "System S: ", STOT
-                print *, "CSF S: ", abs(return_ms(tmp_ilut))
+                if (t_print) then 
+                    print *, "CSF does not have correct total spin!:"
+                    call write_det_guga(6,ilut)
+                    print *, "System S: ", STOT
+                    print *, "CSF S: ", abs(return_ms(tmp_ilut))
+                end if
                 flag = .false.
             end if
 
             if (int(sum(calcOcc_vector_ilut(ilut(0:nifd)))) /= nEl) then
-                print *, "CSF does not have right number of electrons!:"
-                call write_det_guga(6,ilut)
-                print *, "System electrons: ", nEl
-                print *, "CSF electrons: ", int(sum(calcOcc_vector_ilut(ilut(0:nifd))))
+                if (t_print) then
+                    print *, "CSF does not have right number of electrons!:"
+                    call write_det_guga(6,ilut)
+                    print *, "System electrons: ", nEl
+                    print *, "CSF electrons: ", int(sum(calcOcc_vector_ilut(ilut(0:nifd))))
+                end if
                 flag = .false.
             end if
         end if

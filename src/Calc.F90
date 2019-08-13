@@ -1303,6 +1303,24 @@ contains
                     call getf(trunc_guga_matel)
                 end if
 
+
+            case ('GUGA-BACK-SPAWN')
+                ! treat excitiation, which increase the excit-lvl 
+                ! by the crude approximation for non-initiators
+                t_guga_back_spawn = .true.
+
+                if (item < nitems) then 
+                    ! this integer indicates if we want to 
+                    ! -2    only treat double excitations, decreasing the excit-lvl by 2 fully 
+                    ! -1    treat single and doubly excits decreasing excit-lvl by 1 or 1 fully 
+                    !  0    treat all excitations leaving the excit-lvl unchanged or lowering fully
+                    !  1    also treat singly excits increasing excit-lvl up to 1 full
+
+                    ! default = 0
+                    call geti(n_guga_back_spawn_lvl)
+                end if
+
+
             case("KEEPTAUFIXED")
                 ! option for a restarted run to keep the tau, read in from the
                 ! POPSFILE and other parameters, as pSingles, pParallel

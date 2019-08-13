@@ -18,9 +18,8 @@ module fcimc_initialisation
                           t_lattice_model, t_tJ_model, t_heisenberg_model, & 
                           t_k_space_hubbard, t_3_body_excits, omega, breathingCont, &
                           momIndexTable, t_trans_corr_2body, t_non_hermitian, &
-                          tgen_guga_crude, &
-                          nOccOrbs, &
-                          nClosedOrbs, irrepOrbOffset, nIrreps
+                          tgen_guga_crude, nOccOrbs, nClosedOrbs, irrepOrbOffset, &
+                          nIrreps
 
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
 
@@ -54,7 +53,7 @@ module fcimc_initialisation
                         ScaleWalkers, tSpinProject, tFixedN0, tRCCheck, &
                         t_trunc_nopen_diff, maxKeepExLvl, &
                         tAutoAdaptiveShift, AdaptiveShiftCut, tAAS_Reverse, &
-                        tInitializeCSF, S2Init
+                        tInitializeCSF, S2Init, t_guga_back_spawn
 
     use spin_project, only: init_yama_store, clean_yama_store
 
@@ -216,7 +215,7 @@ module fcimc_initialisation
     use tau_search_hist, only: init_hist_tau_search
     use double_occ_mod, only: init_spin_measurements
 
-    use back_spawn, only: init_back_spawn
+    use back_spawn, only: init_back_spawn, setup_virtual_mask
 
     use real_space_hubbard, only: init_real_space_hubbard, init_get_helement_hubbard
 
@@ -1258,6 +1257,10 @@ contains
         ! or otherwise some pgens get calculated incorrectly
         if (t_back_spawn .or. t_back_spawn_flex) then 
             call init_back_spawn()
+        end if
+
+        if (t_guga_back_spawn) then 
+            call setup_virtual_mask()
         end if
 
         ! also i should warn the user if this is a restarted run with a 
