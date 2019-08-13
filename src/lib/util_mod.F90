@@ -1,3 +1,5 @@
+#include "macros.h"
+
 module util_mod
     use util_mod_comparisons
     use util_mod_numerical
@@ -8,12 +10,23 @@ module util_mod
     use constants
     use iso_c_hack
 
-    ! We want to use the builtin etime intrinsic with ifort to 
+    ! We want to use the builtin etime intrinsic with ifort to
     ! work around some broken behaviour.
 #ifdef __IFORT
     use ifport, only: etime
 #endif
     implicit none
+    private
+    public :: neci_etime,&
+        NECI_ICOPY, get_unique_filename, get_free_unit, int_fmt,&
+        strlen_wrap, record_length,&
+        find_next_comb,&
+        swap, binary_search_custom,&
+        tbs_, abs_sign,&
+        error_function, error_function_c,&
+        get_nan,&
+        isclose, operator(.isclose.), near_zero,&
+        operator(.arrlt.), operator(.arrgt.)
 
     interface
         pure function strlen_wrap (str) result(len) bind(c)
@@ -47,6 +60,10 @@ module util_mod
         module procedure abs_l1_sp
         module procedure abs_l1_cdp
         module procedure abs_l1_csp
+    end interface
+
+    interface operator (.isclose.)
+        module procedure isclose_for_operator
     end interface
 
 
@@ -89,7 +106,7 @@ contains
 
     function stochastic_round_r (num, r) result(i)
 
-        ! Perform the stochastic rounding of the above function where the 
+        ! Perform the stochastic rounding of the above function where the
         ! random number is already specified.
 
         real(dp), intent(in) :: num, r
@@ -131,15 +148,15 @@ contains
 
     end subroutine
 
-    ! routine to calculation the absolute magnitude of a complex integer 
+    ! routine to calculation the absolute magnitude of a complex integer
     ! variable (to nearest integer)
     pure real(dp) function abs_int4_sign(sgn)
         integer(int32), intent(in) :: sgn(lenof_sign/inum_runs)
 
 #ifdef __CMPLX
             abs_int4_sign=real(int(sqrt(real(sgn(1),dp)**2+real(sgn(2),dp)**2)),dp)
-            ! The integerisation here is an approximation, but one that is 
-            ! used in the integer algorithm, so is retained in this real 
+            ! The integerisation here is an approximation, but one that is
+            ! used in the integer algorithm, so is retained in this real
             ! version of the algorithm
 #else
             abs_int4_sign=abs(sgn(1))
@@ -266,8 +283,8 @@ contains
            allocate(arr(ind), source = 0)
         endif
 
-        arr(ind) = elem           
-           
+        arr(ind) = elem
+
       end subroutine addToIntArray
 
 
@@ -780,8 +797,8 @@ contains
 
         use constants, only: dp
         use iso_c_hack
-        implicit none 
-      
+        implicit none
+
         real(dp), intent(in) :: argument
         real(dp) :: res
 
@@ -801,11 +818,11 @@ contains
 
 
     function error_function(argument) result(res)
-        
+
         use constants, only: dp
         use iso_c_hack
-        implicit none 
-      
+        implicit none
+
         real(dp), intent(in) :: argument
         real(dp) :: res
 
@@ -866,7 +883,7 @@ contains
 #ifdef __IFORT
         ! intels etime takes a real(4)
         real(4) :: ioTime(2)
-        ! Ifort defines etime directly in its compatibility modules. 
+        ! Ifort defines etime directly in its compatibility modules.
         ! Avoid timing inaccuracies from using cpu_time on cerebro.
         ret = real(etime(ioTime),dp)
         time = real(ioTime,dp)
@@ -884,6 +901,54 @@ contains
 #endif
 
     end function neci_etime
+
+!>  @brief
+!>  Returns a boolean array where two arrays are element-wise equal within a tolerance.
+!>
+!>  @author Oskar Weser
+!>
+!>  @details
+!>  Evaluates according to::
+!>
+!>  absolute(a - b) <= (atol + rtol * absolute(b))
+!>
+!>  The above equation is not symmetric in a and b
+!>  – >  it assumes b is the reference value –
+!>  so that isclose(a, b) might be different from isclose(b, a).
+!>
+!>  @paramin[in] a Input arrays to compare.
+!>  @paramin[in] b Input arrays to compare.
+!>  @paramin[in] rtol The relative tolerance parameter (default 1d-5)
+!>  @paramin[in] atol The absolute tolerance parameter (default 1d-8)
+    logical elemental function isclose(a, b, atol, rtol)
+        real(dp), intent(in) :: a, b
+        real(dp), intent(in), optional :: atol, rtol
+
+        real(dp) :: atol_, rtol_
+
+        def_default(rtol_, rtol, 1d-5)
+        def_default(atol_, atol, 1d-8)
+
+        isclose = abs(a - b) <= (atol + rtol * abs(b))
+    end function
+
+!> Operator functions may only have two arguments.
+    logical elemental function isclose_for_operator(a, b)
+        real(dp), intent(in) :: a, b
+
+        isclose_for_operator = isclose(a, b)
+    end function
+
+    logical elemental function near_zero(x, epsilon)
+        real(dp), intent(in) :: x
+        real(dp), intent(in), optional :: epsilon
+
+        real(dp) :: epsilon_
+
+        def_default(epsilon_, epsilon, EPS)
+
+        near_zero = abs(x) < epsilon_
+    end function
 
 end module
 
@@ -1052,9 +1117,8 @@ end module
 
         integer, target :: var
         type(c_ptr) :: addr
-        
+
         addr = c_loc(var)
 
     end function
 #endif
-
