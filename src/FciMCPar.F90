@@ -28,7 +28,8 @@ module FciMCParMod
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, tOldRDMs, &
                            write_end_core_size, t_calc_double_occ, t_calc_double_occ_av, &
-                           equi_iter_double_occ, t_print_frq_histograms, ref_filename
+                           equi_iter_double_occ, t_print_frq_histograms, ref_filename, &
+                           t_store_ci_coeff, n_iter_after_equ 
     use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
@@ -90,6 +91,8 @@ module FciMCParMod
 
     use tau_search_hist, only: print_frequency_histograms, deallocate_histograms
     use back_spawn, only: init_back_spawn
+    use sdt_amplitudes, only : print_snapshot_ci_coeff, print_averaged_ci_coeff, &
+                               storeCiCoeffs,storeCiCoefficients,print_storeCiCoefficients 
 
     use sltcnd_mod, only: sltcnd_excit
 
@@ -560,6 +563,19 @@ module FciMCParMod
                 CALL WriteHistogram()
             ENDIF
 
+
+            ![E.V. 13.08.2019]
+            if ((t_store_ci_coeff).and.(n_iter_after_equ.ge.0) .and. all(.not. tSinglePartPhase)) then
+               if ((iter - maxval(VaryShiftIter)) .eq. n_iter_after_equ + 1) then
+                  write(iout,*) 'START AVERAGING CI COEFFICIENTS'
+                  call storeCiCoeffs()
+!                  call storeCiCoefficients()
+               else if ((iter - maxval(VaryShiftIter)) .gt. n_iter_after_equ + 1) then
+                  call storeCiCoeffs()
+!                  call storeCiCoefficients()
+               end if
+            end if
+
             if (tRDMonFly .and. all(.not. tSinglePartPhase)) then
                 ! If we wish to calculate the energy, have started accumulating the RDMs, 
                 ! and this is an iteration where the energy should be calculated, do so.
@@ -640,6 +656,14 @@ module FciMCParMod
         end if
         if (iProcIndex.eq.0) write(iout,*) 'Time lost due to load imbalance: ', lt_imb
         write(iout,*) '- - - - - - - - - - - - - - - - - - - - - - - -'
+
+
+        ![E.V. 13.08.2019]                                                                                                       
+        if(t_store_ci_coeff) then
+           call print_snapshot_ci_coeff()
+           call print_averaged_ci_coeff()
+!           call print_storeCiCoefficients()
+        end if
 
 
         ! [Werner Dobrautz 4.4.2017] 

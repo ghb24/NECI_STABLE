@@ -59,7 +59,8 @@ module fcimc_initialisation
                            HistInitPops, AllHistInitPops, OffDiagMax, &
                            OffDiagBinRange, iDiagSubspaceIter, tOldRDMs, &
                            AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead, &
-                           tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats
+                           tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats,&
+                           t_store_ci_coeff
     use DetCalcData, only: NMRKS, tagNMRKS, FCIDets, NKRY, NBLK, B2L, nCycle, &
                            ICILevel, det
     use IntegralsData, only: tPartFreezeCore, nHolesFrozen, tPartFreezeVirt, &
@@ -157,6 +158,7 @@ module fcimc_initialisation
     use back_spawn, only: init_back_spawn
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
+    use sdt_amplitudes, only: init_ciCoeff, init_storeCiCoeff
 
     implicit none
 
@@ -1112,6 +1114,12 @@ contains
             if (nOccAlpha == 1 .and. nOccBeta == 1) then
                 pParallel = 0.0_dp
             end if
+        end if
+
+        ![E.V. 13.08.2019]
+        if (t_store_ci_coeff) then
+           call init_ciCoeff()
+!           call init_storeCiCoeff()
         end if
 
         IF(abs(StepsSftImag) > 1.0e-12_dp) THEN

@@ -172,4 +172,9 @@ module LoggingData
     logical :: tWriteRefs
     character(255) :: ref_filename
 
+    ![E.V. 13.08.2019]
+    logical :: t_store_ci_coeff = .false.
+    integer :: n_store_ci_level = 3
+    integer :: n_iter_after_equ = 100
+
 end module LoggingData
