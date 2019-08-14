@@ -365,7 +365,7 @@ contains
         do run = 1, inum_runs
 
             ! Calculate the projected energy for this iteration.
-            if (ARR_RE_OR_CPLX(AllSumNoAtHF,run) /= 0) &
+            if (.not. near_zero(ARR_RE_OR_CPLX(AllSumNoAtHF,run))) &
                 ProjectionE(run) = AllSumENum(run) / ARR_RE_OR_CPLX(AllSumNoatHF,run)
 
             ! Keep track of where the particles are
