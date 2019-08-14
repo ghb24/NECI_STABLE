@@ -1,0 +1,61 @@
+[comp]
+type = complex(kind=dp)
+
+[real]
+type = real(kind=sp)
+
+[doub]
+type = real(kind=dp)
+
+=========================
+
+module util_mod_epsilon_close
+    use constants
+    implicit none
+
+    private
+    public :: operator(.isclose.), near_zero
+
+    interface isclose
+        module procedure isclose_%(name)s
+    end interface
+
+    interface operator (.isclose.)
+        module procedure isclose_for_operator_%(name)s
+    end interface
+
+    interface near_zero_%(name)s
+        module procedure near_zero_%(name)s
+    end interface
+contains
+
+    logical elemental function isclose(a, b, atol, rtol)
+        %(type)s, intent(in) :: a, b
+        real(dp), intent(in), optional :: atol, rtol
+
+        real(dp) :: atol_, rtol_
+
+        def_default(rtol_, rtol, 1d-5)
+        def_default(atol_, atol, 1d-8)
+
+        isclose = abs(a - b) <= (atol + rtol * abs(b))
+    end function
+
+!> Operator functions may only have two arguments.
+    logical elemental function isclose_for_operator(a, b)
+        %(type)s, intent(in) :: a, b
+
+        isclose_for_operator = isclose(a, b)
+    end function
+
+    logical elemental function near_zero(x, epsilon)
+        %(type)s, intent(in) :: x
+        real(dp), intent(in), optional :: epsilon
+
+        real(dp) :: epsilon_
+
+        def_default(epsilon_, epsilon, EPS)
+
+        near_zero = abs(x) < epsilon_
+    end function
+end module
