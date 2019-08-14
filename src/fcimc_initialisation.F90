@@ -158,7 +158,7 @@ module fcimc_initialisation
     use back_spawn, only: init_back_spawn
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
-    use sdt_amplitudes, only: init_ciCoeff, init_storeCiCoeff
+    use sdt_amplitudes, only: init_ciCoeff
 
     implicit none
 
@@ -1119,7 +1119,6 @@ contains
         ![E.V. 13.08.2019]
         if (t_store_ci_coeff) then
            call init_ciCoeff()
-!           call init_storeCiCoeff()
         end if
 
         IF(abs(StepsSftImag) > 1.0e-12_dp) THEN

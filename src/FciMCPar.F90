@@ -92,7 +92,7 @@ module FciMCParMod
     use tau_search_hist, only: print_frequency_histograms, deallocate_histograms
     use back_spawn, only: init_back_spawn
     use sdt_amplitudes, only : print_snapshot_ci_coeff, print_averaged_ci_coeff, &
-                               storeCiCoeffs,storeCiCoefficients,print_storeCiCoefficients 
+                               storeCiCoeffs
 
     use sltcnd_mod, only: sltcnd_excit
 
@@ -569,10 +569,8 @@ module FciMCParMod
                if ((iter - maxval(VaryShiftIter)) .eq. n_iter_after_equ + 1) then
                   write(iout,*) 'START AVERAGING CI COEFFICIENTS'
                   call storeCiCoeffs()
-!                  call storeCiCoefficients()
                else if ((iter - maxval(VaryShiftIter)) .gt. n_iter_after_equ + 1) then
                   call storeCiCoeffs()
-!                  call storeCiCoefficients()
                end if
             end if
 
@@ -662,7 +660,6 @@ module FciMCParMod
         if(t_store_ci_coeff) then
            call print_snapshot_ci_coeff()
            call print_averaged_ci_coeff()
-!           call print_storeCiCoefficients()
         end if
 
 
