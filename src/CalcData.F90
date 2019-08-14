@@ -615,6 +615,7 @@ logical :: t_trunc_guga_pgen_noninits = .false.
 
 ! try a back-spawn like idea for the guga approximations
 logical :: t_guga_back_spawn = .false. 
+logical :: t_guga_back_spawn_trunc = .false.
 
 ! this integer indicates if we want to 
 ! -2    only treat double excitations, decreasing the excit-lvl by 2 fully 

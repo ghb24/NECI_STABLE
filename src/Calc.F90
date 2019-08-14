@@ -1320,6 +1320,14 @@ contains
                     call geti(n_guga_back_spawn_lvl)
                 end if
 
+                if (item < nitems) then 
+                    call readu(w)
+                    select case (w)
+                    case ('TRUNC')
+                        t_guga_back_spawn_trunc = .true. 
+                    end select
+                end if
+
 
             case("KEEPTAUFIXED")
                 ! option for a restarted run to keep the tau, read in from the

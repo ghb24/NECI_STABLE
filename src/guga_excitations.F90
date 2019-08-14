@@ -6,7 +6,7 @@ module guga_excitations
     ! modules
     use CalcData, only: t_guga_mat_eles, t_trunc_guga_pgen, t_trunc_guga_matel, & 
                         trunc_guga_pgen, trunc_guga_matel, t_trunc_guga_pgen_noninits, &
-                          t_guga_back_spawn, n_guga_back_spawn_lvl
+                        t_guga_back_spawn, n_guga_back_spawn_lvl, t_guga_back_spawn_trunc
 
 
     use SystemData, only: nEl, nBasis, ElecPairs, G1, nmaxx, &
@@ -4524,6 +4524,13 @@ contains
 
         if (t_guga_back_spawn) then
             if (increase_ex_levl(excitInfo) .and. .not. is_init_guga) then 
+
+                if (t_guga_back_spawn_trunc) then
+                    pgen = 0.0_dp 
+                    excitation = 0_n_int
+                    return
+                end if
+
                 call create_crude_guga_double(ilut, nI, excitation, branch_pgen, excitInfo)
 
                 pgen = orb_pgen * branch_pgen
@@ -12670,6 +12677,14 @@ contains
             ! orbitals and the current CSF is a non-initiator -> 
             ! perform a crude excitation
             if (increase_ex_levl(excitInfo) .and. .not. is_init_guga) then 
+
+                if (t_guga_back_spawn_trunc) then
+                    ! a 2 indicated we want to cancel excit-lvl increasing 
+                    ! excitations.
+                    pgen = 0.0_dp
+                    exc = 0_n_int
+                    return
+                end if
 
                 call create_crude_guga_single(ilut, nI, exc, branch_pgen, excitInfo)
 
