@@ -80,7 +80,8 @@ module cachedExcitgen
          store%nel_alpha = ispn
          ! TODO bias towards large/small
       endif
-      
+
+      ! src is ordered 
       ! convert to spatial orbitals if required
       srcID = gtID(src)
 
@@ -96,8 +97,8 @@ module cachedExcitgen
       endif
 
       ! TODO: CHECK THAT 1<->2 IS NOT ANOTHER EXCITATION, i.e. that orbs(1) can be both
-      ! alpha and beta, and src is not ordered
-      ! convert the spatial orbitals picked from the cached CSUM to spin orbs
+      ! alpha and beta, and src is ordered
+      ! convert the spatial orbitals picked from the alias table to spin orbs
       orbs(1) = getSpinOrb(orbs(1),G1(src(1))%ms)
       orbs(2) = getSpinOrb(orbs(2),G1(src(2))%ms)      
 

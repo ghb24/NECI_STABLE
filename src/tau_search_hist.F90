@@ -69,7 +69,8 @@ module tau_search_hist
     ! do i need to communicate this?
     ! if i have to communicate this i just have to do it at the end.. 
     ! so i do not need to keep track of this during simulation
-    integer :: zero_singles, zero_para, zero_anti, zero_doubles, zero_triples
+    ! this can easily exceed 2**31 -> needs 8-byte integer
+    integer(int64) :: zero_singles, zero_para, zero_anti, zero_doubles, zero_triples
 
     ! also do keep track of the maximum H_ij/pgen ratios here too, just to 
     ! be able to efficiently compare it with the old implementation! 
@@ -2037,7 +2038,8 @@ contains
            character(255), intent(in) :: histname
            integer, intent(in) :: frequency_bins_loc(:)
            real(dp), intent(in) :: gamma_loc, min_loc
-           integer, intent(in) :: zero_loc, above_max_loc, below_thresh_loc
+           integer(int64), intent(in) :: zero_loc
+           integer, intent(in) :: above_max_loc, below_thresh_loc
            
            all_frequency_bins_spec = 0
            call MPIAllReduce(frequency_bins_loc, MPI_SUM, all_frequency_bins_spec) 
