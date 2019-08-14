@@ -330,7 +330,7 @@ contains
         ! If this condition is met then RDM energies were added in on the
         ! previous iteration. We now want to start a new averaging block so
         ! that the same contributions aren't added in again later.
-        if (mod(Iter+PreviousCycles-IterRDMStart, RDMEnergyIter) == 0) then 
+        if (mod(Iter+PreviousCycles-IterRDMStart, RDMEnergyIter) == 0) then
             full_determ_vecs_av = 0.0_dp
             write(6,*) "Reset fdv av at iteration ", iter
         end if
@@ -401,7 +401,7 @@ contains
     end function core_space_pos
 
     function check_determ_flag(ilut) result (core_state)
-    
+
         ! The reason for using this instead of just using test_flag is that test_flag
         ! crashes if flags are not being used. Calling this function therefore makes
         ! things neater!
@@ -475,7 +475,7 @@ contains
             ! The number of non-zero elements in this array will be almost the same as in
             ! the core Hamiltonian array, except the diagonal element is not considered,
             ! so there will actually be one less.
-            allocate(core_connections(i)%elements(sparse_core_ham(i)%num_elements-1)) 
+            allocate(core_connections(i)%elements(sparse_core_ham(i)%num_elements-1))
             allocate(core_connections(i)%positions(sparse_core_ham(i)%num_elements-1))
 
             ! The total number of non-zero elements in row i.
@@ -776,7 +776,7 @@ contains
         end do
 
         do i = 1, ilut_list_size
-            counter(proc_list(i)) = counter(proc_list(i)) + 1 
+            counter(proc_list(i)) = counter(proc_list(i)) + 1
             temp_list(0:NIfTot, counter(proc_list(i))) = ilut_list(0:NIfTot,i)
         end do
 
@@ -801,7 +801,7 @@ contains
         integer :: nI(nel)
         real(dp) :: tmpH
 
-        do i = 1, TotWalkers
+        do i = 1, int(TotWalkers)
             call decode_bit_det(nI, CurrentDets(:,i))
 
             if (tHPHF) then
@@ -967,7 +967,7 @@ contains
            ! the maximally required buffer size is the current size of the
            ! determinant list plus the size of the semi-stochastic space (in case
            ! all core-dets are new)
-           allocate(fvals(2*inum_runs,(nwalkers+determ_sizes(iProcIndex))), stat = ierr)  
+           allocate(fvals(2*inum_runs,(nwalkers+determ_sizes(iProcIndex))), stat = ierr)
            if(ierr.ne.0) call stop_all(this_routine, &
                 "Failed to allocate buffer for adaptive shift data")
         endif
@@ -1029,7 +1029,7 @@ contains
 #endif
                     call stop_all(this_routine, 'Insufficient memory assigned')
                 end if
-                
+
                 SpawnedParts(0:NIfTot,i_non_core) = CurrentDets(:,i)
                 if(tAutoAdaptiveShift) call cache_fvals(i_non_core,i)
             end if
@@ -1090,7 +1090,7 @@ contains
 
     subroutine return_most_populated_states(n_keep, largest_walkers, norm)
 
-        ! Return the most populated states in CurrentDets on *this* processor only. 
+        ! Return the most populated states in CurrentDets on *this* processor only.
         ! Also return the norm of these states, if requested.
 
         use bit_reps, only: extract_sign
@@ -1337,7 +1337,7 @@ contains
         end if
 
         ! If the relevant excitation from the Hartree-Fock takes electrons from orbitals
-        ! (i,j) to (a,b), then denom will be equal to 
+        ! (i,j) to (a,b), then denom will be equal to
         ! \epsilon_a + \epsilon_b - \epsilon_i - \epsilon_j
         ! as required in the denominator of the MP1 amplitude and MP2 energy.
         denom = Fii - H0tmp
@@ -1368,7 +1368,7 @@ contains
         use searching, only: hash_search_trial, bin_search_trial
         use SystemData, only: nel
 
-        integer :: i
+        integer(int64) :: i
         integer :: nI(nel)
         HElement_t(dp) :: trial_amps(ntrial_excits)
         logical :: tTrial, tCon
@@ -1469,5 +1469,5 @@ contains
         end if
 
     end subroutine end_semistoch
-    
+
 end module semi_stoch_procs

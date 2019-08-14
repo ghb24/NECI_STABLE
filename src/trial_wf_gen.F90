@@ -261,15 +261,15 @@ contains
 
         ! Set these to zero, to prevent junk being printed in the initial report.
         trial_numerator = 0.0_dp
-        tot_trial_numerator = 0.0_dp        
+        tot_trial_numerator = 0.0_dp
         trial_denom = 0.0_dp
         tot_trial_denom = 1.0_dp
-        
+
         init_trial_numerator = 0.0_dp
         tot_init_trial_numerator = 0.0_dp
         init_trial_denom = 0.0_dp
         tot_init_trial_denom = 0.0_dp
-        
+
         call halt_timer(Trial_Init_Time)
 
         if (.not. qmc_trial_wf) then
@@ -916,9 +916,9 @@ contains
     subroutine reset_trial_space()
       use bit_reps, only: clr_flag
       implicit none
-      integer :: i
+      integer(int64) :: i
 
-      do i=1, TotWalkers
+      do i = 1_int64, TotWalkers
          ! remove the trial flag from all determinants
          call clr_flag(CurrentDets(:,i),flag_trial)
       enddo

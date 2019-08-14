@@ -34,8 +34,8 @@ contains
         use SystemData, only: nbasis, tAllSymSectors, nOccAlpha, nOccBeta, nel
         use SystemData, only: tKPntSym, tUseBrillouin
         use timing_neci, only: set_timer, halt_timer
-        use util_mod, only: stochastic_round
-        
+        use util_mod, only: stochastic_round, near_zero
+
         integer, intent(in) :: nvecs
         integer(n_int), intent(in) :: krylov_array(0:,:)
         type(ll_node), pointer, intent(in) :: krylov_ht(:)
@@ -171,7 +171,7 @@ contains
             else
 
                 nspawn = stochastic_round(av_mc_excits_kp*tot_pop)
-                
+
                 do ispawn = 1, nspawn
 
                     ! Zero the bit representation, to ensure no extraneous data gets through.
@@ -200,7 +200,7 @@ contains
                     end if
 
                     ! If any (valid) children have been spawned.
-                    if ((any(child_sign /= 0)) .and. (ic /= 0) .and. (ic <= 2)) then
+                    if (.not. (any(near_zero(child_sign)) .or. ic == 0 .or. ic > 2)) then
 
                         call create_particle_kp_estimates(nI_child, ilut_child, child_sign, tNearlyFull)
 
@@ -343,7 +343,7 @@ contains
 
                         ! Now for the more tricky bit - 'spawning' to
                         ! different determinants.
-                        
+
                         ! First check if the two electrons are in the same
                         ! spatial orbital. If they are then this will actually
                         ! 'spawn' to the same determinant, so just add the
@@ -590,7 +590,7 @@ contains
     end subroutine calc_contribs_spawn
 
     subroutine calc_hamil_contribs_diag(nvecs, krylov_array, ndets, h_matrix, h_diag)
-    
+
         use bit_rep_data, only: NOffSgn
         use FciMCData, only: determ_sizes, Hii
         use global_det_data, only: det_diagH
@@ -648,7 +648,7 @@ contains
         use FciMCData, only: determ_sizes
         use Parallel_neci, only: iProcIndex
         use SystemData, only: nel
-    
+
         integer, intent(in) :: nvecs
         integer(n_int), intent(in) :: krylov_array(0:,:)
         real(dp), intent(inout) :: h_matrix(:,:)

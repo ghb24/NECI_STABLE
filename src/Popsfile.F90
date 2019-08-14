@@ -977,7 +977,7 @@ r_loop: do while(.not.tStoreDet)
         integer :: run, ReadBatch
         logical :: apply_pert
         integer :: TotWalkersIn
-        integer :: l
+        integer(int64) :: l
         real(dp) :: TempSign(lenof_sign)
 
         if (iReadWalkersRoot == 0) then
@@ -1018,7 +1018,7 @@ r_loop: do while(.not.tStoreDet)
 
         if(abs(ScaleWalkers - 1) > 1.0e-12_dp) then
             WRITE(6,*) "Rescaling walkers by a factor of: ",ScaleWalkers
-            do l=1,TotWalkers
+            do l = 1, TotWalkers
                 call extract_sign(CurrentDets(:,l),TempSign)
                 !do j = 1, lenof_sign
                     !IntegerPart=int(ScaleWalkers*TempSign(j))

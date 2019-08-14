@@ -2085,7 +2085,7 @@ contains
       ! workspace query, get how much tmp memory we need
       call dgeev('N','V',count,S2,count,eigs,eigsImag,void,count,evs,count,work,-1,err)
       ! allocate work array
-      lwork = work(1)
+      lwork = int(work(1))
       deallocate(work)
       allocate(work(lwork))
       ! diagonalize S2
@@ -2118,7 +2118,7 @@ contains
          if(iProcIndex.eq.proc) then
             HDiag = get_diagonal_matel(nI,initSpace(:,i))
             DetHash = FindWalkerHash(nI,size(HashIndex))
-            TotWalkersTmp = TotWalkers
+            TotWalkersTmp = int(TotWalkers)
             tmpSgn = eigs(i)
             call encode_sign(initSpace(:,i),tmpSgn)
             if(tHPHF) then
@@ -2553,7 +2553,10 @@ contains
         ! Use the code generated for the KPFCIQMC excited state calculations
         ! to initialise the FCIQMC simulation.
 
-        integer :: nexcit, ndets_this_proc, i, det(nel)
+!         integer :: nexcit, ndets_this_proc, i, det(nel)
+        integer :: nexcit, ndets_this_proc, det(nel)
+        integer(int64) :: i
+
         type(basisfn) :: sym
         real(dp) :: evals(inum_runs/nreplicas)
         HElement_t(dp), allocatable :: evecs_this_proc(:,:)
@@ -2602,7 +2605,9 @@ contains
 
         HElement_t(dp) :: largest_coeff, sgn
         integer(n_int) :: largest_det(0:NIfTot)
-        integer :: run, j
+!         integer :: run, j
+        integer(int64) :: j
+        integer :: run
         integer(int32) :: proc_highest
         integer(n_int) :: ilut(0:NIfTot)
         integer(int32) :: int_tmp(2)

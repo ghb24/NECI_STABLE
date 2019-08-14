@@ -308,7 +308,8 @@ contains
         integer(int64), intent(in) :: ndets
         integer(n_int), intent(inout) :: ilut_list(0:NIfTot,ndets)
 
-        integer :: i, run
+        integer :: run
+        integer(int64) :: i
         real(dp) :: real_sign(lenof_sign)
         character(*), parameter :: t_r = 'set_initial_global_data'
 

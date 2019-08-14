@@ -1005,7 +1005,7 @@ contains
 
              do while(start_ind <= UMatSize)
                 !use MPI_BYTE for transfer to be independent of the data type of UMat
-                bytecount=int(end_ind-start_ind+1,sizeof_int)*sizeof(UMat(1))
+                bytecount = int(end_ind - start_ind + 1_int64) * int(sizeof(UMat(1)))
                 call MPIBCast_inter_byte(UMat(start_ind),bytecount)
                 start_ind = end_ind + 1
                 end_ind = min(UMatSize, end_ind + chunk_size)

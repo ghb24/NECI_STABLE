@@ -244,6 +244,7 @@ MODULE SymExcit2
          use procedure_pointers, only: get_umat_el
          use SystemData, only: BasisFN
          use global_utilities
+         use util_mod, only: near_zero
          IMPLICIT NONE
          INTEGER nBasisMax(5,*),NBASIS
 !  We fake ISS
@@ -254,7 +255,7 @@ MODULE SymExcit2
          real(dp) WEIGHT,W2
          HElement_t(dp) W
          real(dp) Arr(nBasis,2)
-         IF(G_VMC_EXCITWEIGHT(CUR_VERT).EQ.0.0_dp) THEN
+         IF(near_zero(G_VMC_EXCITWEIGHT(CUR_VERT))) THEN
             WEIGHT=1.0_dp
          ELSE
 !            proc_timer%timer_name='UMATELWT'

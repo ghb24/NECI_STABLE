@@ -42,7 +42,8 @@ module fcimc_output
 contains
 
     SUBROUTINE WriteFciMCStatsHeader()
-        integer i, j, k, run, offset
+        integer :: j, k, run, offset
+        integer(int64) :: i
         character(256) label
         character(32) tchar_r, tchar_i, tchar_j, tchar_k
         character(17) trunc_caption
@@ -58,7 +59,7 @@ contains
                     & "5.Born","6.TotUniqDets",&
                     &               "7.InitDets","8.NonInitDets","9.InitWalks","10.NonInitWalks","11.AbortedWalks", &
                     "12. Removed Dets",  "13. Initiator Proj.E"
-               offset = 13            
+               offset = 13
                if(tTrialWavefunction .or. tStartTrialLater) then
                   write(initiatorstats_unit,"(A)", advance = 'no') &
                   "14. TrialNumerators (inits)   15. TrialDenom (inits)"
@@ -152,7 +153,7 @@ contains
                   &23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE &
                   &26.HF weight    27.|Psi|     28.Inst S^2 29.Inst S^2 30.AbsProjE &
                   &31.PartsDiffProc    32.|Semistoch|/|Psi|     33.MaxCycSpawn"
-           if (tTrialWavefunction .or. tStartTrialLater) then 
+           if (tTrialWavefunction .or. tStartTrialLater) then
                   write(fcimcstats_unit2, "(A)", advance = 'no') &
                   "  34.TrialNumerator  35.TrialDenom  36.TrialOverlap"
               trunc_caption = "  37. TruncWeight"
@@ -190,7 +191,7 @@ contains
                   &26.HF weight    27.|Psi|     28.Inst S^2 &
                   &29.Inst S^2   30.AbsProjE   31.PartsDiffProc &
                   &32.|Semistoch|/|Psi|  33.MaxCycSpawn"
-           if (tTrialWavefunction .or. tStartTrialLater) then 
+           if (tTrialWavefunction .or. tStartTrialLater) then
               write(fcimcstats_unit, "(A)", advance = 'no') &
                    "  34.TrialNumerator  35.TrialDenom  36.TrialOverlap"
               trunc_caption = "  37. TruncWeight"
@@ -203,7 +204,7 @@ contains
            write(fcimcstats_unit, "()", advance = 'yes')
 
 #endif
-            
+
         ENDIF
 
     END SUBROUTINE WriteFciMCStatsHeader
@@ -244,7 +245,7 @@ contains
 
         !To prevent /0 problems
         do run=1,inum_runs
-            if(AllNoBorn(run).ne.0) then
+            if(.not. near_zero(AllNoBorn(run))) then
                 FracFromSing(run)=real(AllSpawnFromSing(run),dp) / real(AllNoBorn(run),dp)
             else
                 FracFromSing(run)=0.0_dp
@@ -266,7 +267,7 @@ contains
                 AllTotParts(2), &                       !6.
                 real(ProjectionE, dp), &                !7.     real \sum[ nj H0j / n0 ]
                 aimag(projectionE), &                   !8.     Im   \sum[ nj H0j / n0 ]
-                real(proje_iter, dp), &                 !9.     
+                real(proje_iter, dp), &                 !9.
                 aimag(proje_iter), &                    !10.
                 real(proje_iter,dp) + OutputHii, &            !11.
                 AllNoatHF(1), &                         !12.
@@ -383,7 +384,7 @@ contains
                 if(t_truncate_spawns) then
                    write(fcimcstats_unit2, "(1X,es18.11)", advance = 'no') AllTruncatedWeight
                 endif
-                
+
                 write(fcimcstats_unit2, "()", advance = 'yes')
 #endif
 #ifndef __CMPLX
@@ -499,7 +500,7 @@ contains
             call neci_flush(fcimcstats_unit)
             if (inum_runs.eq.2) call neci_flush(fcimcstats_unit2)
             if (tLogEXLEVELStats) call neci_flush(EXLEVELStats_unit)
-            
+
         endif
 
     end subroutine WriteFCIMCStats
@@ -607,7 +608,7 @@ contains
         ! This is where any calculation that needs multiple nodes should go
         ! ------------------------------------------------
         ! ------------------------------------------------
-    
+
         if (iProcIndex == root) then
 
             ! Only do the actual outputting on the head node.
@@ -657,7 +658,7 @@ contains
             ! frequently).
             ! This also makes column contiguity on resumes as likely as
             ! possible.
-            
+
             ! if we truncate walkers, print out the total truncated weight here
             if(t_truncate_spawns) call stats_out(state, .false., AllTruncatedWeight, &
                  'trunc. Weight')
@@ -753,7 +754,7 @@ contains
                                        '<psi_' // trim(adjustl(tmpc)) // '|' &
                                        // 'psi_' // trim(adjustl(tmpc2)) &
                                        // '> (imag)')
-            
+
 #else
                         call stats_out(state, .false.,  replica_overlaps_real(p, q),&
                                        '<psi_' // trim(adjustl(tmpc)) // '|' &
@@ -826,10 +827,12 @@ contains
     end subroutine write_padding_init
 
     subroutine writeMsWalkerCountsAndCloseUnit()
-        integer :: i, ms, tempni(1:nel)
+!         integer :: i, ms, tempni(1:nel)
+        integer :: ms, tempni(1:nel)
+        integer(int64) :: i
         real(dp) :: totWalkPopByMsReal(nel+1), totWalkPopByMsImag(nel+1), &
                     tempSign(lenof_sign)
-        
+
         do i=1,TotWalkers
             call extract_sign(WalkVecDets(:,i),TempSign)
             call decode_bit_det(TempnI, WalkVecDets(:,i))
@@ -895,13 +898,13 @@ contains
         IF(tPrintFCIMCPsi) THEN
 !Order and print wavefunction
 
-            
+
             IF(iProcIndex.eq.0) THEN
 
                 ! We now want to order AllHistogram, taking the corresponding
                 ! element(s) of FCIDets with it...
                 call sort (AllHistogram, FCIDets)
-                
+
                 OPEN(iunit,FILE='FCIMCPsi',STATUS='UNKNOWN')
 
                 norm=0.0_dp
@@ -967,7 +970,7 @@ contains
         CALL MPIReduce(AvAnnihil,MPI_SUM,AllAvAnnihil)
 
         BeforeNormHist(:) = AllHistogram(1,:)
-        
+
         IF(iProcIndex.eq.0) THEN
 
             norm=0.0_dp
@@ -1007,16 +1010,16 @@ contains
 #else
                     AllHistogram(j,i)=AllHistogram(j,i)/norm(j)
                     AllInstHist(j,i)=AllInstHist(j,i)/norm1(j)
-                    IF(norm2(j).ne.0.0_dp) THEN
+                    IF(.not. near_zero(norm2(j))) THEN
                         AllInstAnnihil(j,i)=AllInstAnnihil(1,i)/norm2(j)
                     ENDIF
-                    IF(norm3(j).ne.0.0_dp) THEN
+                    IF(.not. near_zero(norm3(j))) THEN
                     AllAvAnnihil(j,i)=AllAvAnnihil(j,i)/norm3(j)
                     ENDIF
 #endif
                 enddo
             enddo
-            
+
             io1 = get_free_unit()
             OPEN(io1,FILE=abstr,STATUS='UNKNOWN')
 
@@ -1046,7 +1049,7 @@ contains
                     WRITE(io2,"(I13,3G25.16)") Iter,DiagSft,AllENumCyc/AllHFCyc,SUM(AllTotPartsOld)
                 ENDIF
 #else
-                IF(AllHFCyc(1).eq.0.0_dp) THEN
+                IF(near_zero(AllHFCyc(1))) THEN
                     WRITE(io2,"(I13,3G25.16)") Iter,DiagSft(1),AllERead,AllTotPartsOld(1)
                 ELSE
                     WRITE(io2,"(I13,3G25.16)") Iter,DiagSft(1),AllENumCyc(1)/AllHFCyc(1),AllTotPartsOld(1)
@@ -1099,7 +1102,7 @@ contains
                           AllAvAnnihil(1,i), norm1(1)
 #endif
                 ENDIF
-                IF(AllHistogram(1,i).ne.0.0_dp) Tot_No_Unique_Dets = Tot_No_Unique_Dets + 1
+                IF(.not. near_zero(AllHistogram(1,i))) Tot_No_Unique_Dets = Tot_No_Unique_Dets + 1
             enddo
             if(tCalcVariationalEnergy) then
                 !Calculate the variational FCIMC energy
@@ -1120,7 +1123,7 @@ contains
 
                 call my_hpsi(Det,1,NROW,LAB,HAMIL,HOrderedHist,CKN,.true.)
                 AvVarEnergy = DDOT(Det,HOrderedHist,1,CKN,1)
-                
+
                 CKN = 0.0_dp
                 call my_hpsi(Det,1,NROW,LAB,HAMIL,HOrderedInstHist,CKN,.true.)
                 VarEnergy = DDOT(Det,HOrderedInstHist,1,CKN,1)
@@ -1132,7 +1135,7 @@ contains
                     allocate(ExpandedWalkerDets(NEl,Tot_No_Unique_Dets),stat=ierr)
                     val=1
                     do i=1,Det
-                        if(AllHistogram(1,i).ne.0.0_dp) then
+                        if(.not. near_zero(AllHistogram(1,i))) then
                             call decode_bit_det(ExpandedWalkerDets(:,val),FCIDets(0:NIfTot,i))
                             val=val+1
                         endif
@@ -1151,7 +1154,7 @@ contains
                     allocate(ExpandedWalkerDets(NEl,Tot_No_Unique_Dets),stat=ierr)
                     val=1
                     do i=1,Det
-                        if(AllHistogram(1,i).ne.0.0_dp) then
+                        if(.not. near_zero(AllHistogram(1,i))) then
                             call decode_bit_det(ExpandedWalkerDets(:,val),FCIDets(0:NIfTot,i))
                             val=val+1
                         endif
@@ -1195,7 +1198,7 @@ contains
 
         CALL MPIReduce(HistHamil,MPI_SUM,AllHistHamil)
         CALL MPIReduce(AvHistHamil,MPI_SUM,AllAvHistHamil)
-        
+
         IF(iProcIndex.eq.0) THEN
 !How do we normalise this!
             iunit = get_free_unit()
@@ -1261,7 +1264,7 @@ contains
             do i=1,iOffDiagNoBins
                 AllSinglesHist(i)=AllSinglesHist(i)/Norm
             enddo
- 
+
 !            Norm=0.0_dp
 !            do i=1,iOffDiagNoBins
 !                Norm=Norm+AllSinglesHistOccOcc(i)
@@ -1291,7 +1294,7 @@ contains
                 AllSinglesHistVirtVirt(i)=AllSinglesHistVirtVirt(i)/Norm
             enddo
 
- 
+
             io(1) = get_free_unit()
             OPEN(io(1),FILE='EVERYENERGYHIST',STATUS='UNKNOWN')
             io(2) = get_free_unit()
@@ -1399,7 +1402,7 @@ contains
             do j=iHighPopWrite,1,-1
                 call extract_sign (LargestWalkers(:,j), SignCurr)
                 if (any(LargestWalkers(:,j) /= 0)) then
-                    
+
 #ifdef __CMPLX
                     HighSign = sqrt(sum(abs(SignCurr(1::2)))**2 + sum(abs(SignCurr(2::2)))**2)
 #else
@@ -1432,7 +1435,7 @@ contains
 !                call sort(LargestWalkers(:,1:iHighPopWrite), sign_lt, sign_gt)
             endif
         enddo
-        
+
         ! This has to be done by all procs
         if(tAdiActive) call update_ref_signs()
         if(iProcIndex.eq.Root) then
@@ -1465,7 +1468,7 @@ contains
                      1,nRefs,"Used Superinitiator",.true.)
                 write(iout,*) "Number of superinitiators", nRefs
             end if
-            
+
             write(iout,*)
             write(iout,'("Input DEFINEDET line (includes frozen orbs):")')
             do run = 1, inum_runs
@@ -1499,12 +1502,12 @@ contains
 
             write(iout,*) ""
             write(iout,"(A,I10,A)") "Most occupied ",counter," determinants as excitations from reference: "
-            write(iout,*) 
+            write(iout,*)
             if(lenof_sign.eq.1) then
                 if(tHPHF) then
-                    write(iout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   Proc  Spin-Coup?"    
+                    write(iout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   Proc  Spin-Coup?"
                 else
-                    write(iout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   Proc"    
+                    write(iout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   Proc"
                 endif
             else
                 if(tHPHF) then
@@ -1531,7 +1534,7 @@ contains
 #else
                 HighSign=sum(real(abs(SignCurr),dp))
 #endif
-                if(tHPHF.and.(.not.TestClosedShellDet(GlobalLargestWalkers(:,i)))) then 
+                if(tHPHF.and.(.not.TestClosedShellDet(GlobalLargestWalkers(:,i)))) then
                     !Weight is proportional to (nw/sqrt(2))**2
                     write(iout,"(F9.5)",advance='no') ((HighSign/sqrt(2.0_dp))/norm )
                 else
@@ -1548,7 +1551,7 @@ contains
                         endif
                     endif
                 enddo
-                if(tHPHF.and.(.not.TestClosedShellDet(GlobalLargestWalkers(:,i)))) then 
+                if(tHPHF.and.(.not.TestClosedShellDet(GlobalLargestWalkers(:,i)))) then
                     write(iout,"(I7)",advance='no') GlobalProc(i)
                     write(iout,"(A3)") "*"
                 else
@@ -1565,8 +1568,8 @@ contains
         endif
 
         deallocate(LargestWalkers)
-        
-        contains 
+
+        contains
 
           subroutine writeDefDet(defdet, numEls)
             implicit none
@@ -1590,8 +1593,8 @@ contains
                else
                   nextInRange = defdet(i).eq.defdet(i+1)-1
                endif
-               ! there are three cases that need output: 
-               
+               ! there are three cases that need output:
+
                ! the last orbital of a contigous range of orbs
                if(previousInRange .and. .not.nextInRange) then
                   write(bufEnd,'(i3)') defdet(i)
@@ -1632,11 +1635,11 @@ contains
          allocate(hist(enPoints,arPoints))
          allocate(allHist(enPoints, arPoints))
          ! generate the histogram
-         
+
          call generate_fval_histogram(hist, histEnergy, histAccRate, enPoints, &
               aRPoints ,allHist)
 
-         if(iProcIndex == root) then 
+         if(iProcIndex == root) then
             ! output the histogram
             hist_unit = get_free_unit()
             open(hist_unit, file = 'AccRateHistogram', status = 'unknown')
@@ -1688,7 +1691,7 @@ contains
       ! get the energy window size (the acc. rate window size is just 1.0/(accRatePoints+1))
       locMinEn = det_diagH(1)
       locMaxEn = det_diagH(1)
-      do i = 2, TotWalkers
+      do i = 2, int(TotWalkers)
          if(det_diagH(i) > locMaxEn) locMaxEn = det_diagH(i)
          if(det_diagH(i) < locMinEn) locMinEn = det_diagH(i)
       end do
@@ -1708,9 +1711,9 @@ contains
             histEnergy(i) = minEn + (i-1)*enWindow + enWindow/2.0_dp
          end do
 
-         ! then, fill the histogram itself      
+         ! then, fill the histogram itself
          hist = 0
-         do i = 1, TotWalkers
+         do i = 1, int(TotWalkers)
             do run = 1, inum_runs
                totSpawn = get_tot_spawns(i,run)
                if(abs(totSpawn) > eps) then
@@ -1737,7 +1740,7 @@ contains
         integer, intent(in) :: nPoints
         integer :: ind
 
-        if(abs(val - minVal) < eps) then 
+        if(abs(val - minVal) < eps) then
            ! val == minval would else yield 0, but it still belongs to index 1
            ind = 1
         else if(abs(val - (minVal + nPoints*windowSize)) < eps) then
@@ -1751,10 +1754,10 @@ contains
     end subroutine generate_fval_histogram
 
 !------------------------------------------------------------------------------------------!
-            
+
     subroutine end_iteration_print_warn (totWalkersNew)
-        
-        ! Worker function for PerformFciMCycPar. Prints warnings about 
+
+        ! Worker function for PerformFciMCycPar. Prints warnings about
         ! particle blooms and memory usage.
         integer, intent(in) :: totWalkersNew
         integer :: i
@@ -1845,17 +1848,17 @@ contains
             endif
         endif
 
-    end subroutine end_iteration_print_warn 
+    end subroutine end_iteration_print_warn
 
     subroutine getProjEOffset()
-      ! get the offset of the projected energy versus the total energy, 
+      ! get the offset of the projected energy versus the total energy,
       ! which is the reference energy
 
       implicit none
       ! if the reference energy is used as an offset to the hamiltonian (default behaviour)
       ! just get it
       if(.not.tZeroRef) then
-         OutputHii = Hii         
+         OutputHii = Hii
       ! else, calculate the reference energy
       else if (tHPHF) then
          OutputHii = hphf_diag_helement (ProjEDet(:,1), &
