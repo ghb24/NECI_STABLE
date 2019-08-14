@@ -5,6 +5,7 @@ module util_mod
     use util_mod_numerical
     use util_mod_byte_size
     use util_mod_cpts
+    use util_mod_epsilon_close
     use fmt_utils
     use dSFMT_interface, only: genrand_real2_dSFMT
     use constants
@@ -16,17 +17,32 @@ module util_mod
     use ifport, only: etime
 #endif
     implicit none
-    private
-    public :: neci_etime,&
-        NECI_ICOPY, get_unique_filename, get_free_unit, int_fmt,&
-        strlen_wrap, record_length,&
-        find_next_comb,&
-        swap, binary_search_custom,&
-        tbs_, abs_sign,&
-        error_function, error_function_c,&
-        get_nan,&
-        isclose, operator(.isclose.), near_zero,&
-        operator(.arrlt.), operator(.arrgt.)
+
+
+    ! sds: It would be nice to use a proper private/public interface here,
+    !      BUT PGI throws a wobbly on using the public definition on
+    !      a new declared operator. --> "Empty Operator" errors!
+    !      to fix when compilers work!
+!    private
+
+!    public :: swap, arr_lt, arr_gt, operator(.arrlt.), operator(.arrgt.)
+!    public :: factrl, choose, int_fmt, binary_search
+!    public :: append_ext, get_unique_filename, get_nan, isnan_neci
+
+
+!     private
+!     public :: neci_etime,&
+!         NECI_ICOPY, get_unique_filename, get_free_unit, int_fmt,&
+!         strlen_wrap, record_length,&
+!         find_next_comb,&
+!         swap, choose
+!     public :: binary_search, binary_search_custom, binary_search_first_ge
+!     public :: abs_l1
+!     public :: tbs_, abs_sign,&
+!         error_function, error_function_c,&
+!         get_nan,&
+!         isclose, operator(.isclose.), near_zero,&
+!         operator(.arrlt.), operator(.arrgt.)
 
     interface
         pure function strlen_wrap (str) result(len) bind(c)
@@ -61,22 +77,6 @@ module util_mod
         module procedure abs_l1_cdp
         module procedure abs_l1_csp
     end interface
-
-    interface operator (.isclose.)
-        module procedure isclose_for_operator
-    end interface
-
-
-    ! sds: It would be nice to use a proper private/public interface here,
-    !      BUT PGI throws a wobbly on using the public definition on
-    !      a new declared operator. --> "Empty Operator" errors!
-    !      to fix when compilers work!
-!    private
-
-!    public :: swap, arr_lt, arr_gt, operator(.arrlt.), operator(.arrgt.)
-!    public :: factrl, choose, int_fmt, binary_search
-!    public :: append_ext, get_unique_filename, get_nan, isnan_neci
-
 contains
 
     function stochastic_round (r) result(i)
@@ -901,55 +901,6 @@ contains
 #endif
 
     end function neci_etime
-
-!>  @brief
-!>  Returns a boolean array where two arrays are element-wise equal within a tolerance.
-!>
-!>  @author Oskar Weser
-!>
-!>  @details
-!>  Evaluates according to::
-!>
-!>  absolute(a - b) <= (atol + rtol * absolute(b))
-!>
-!>  The above equation is not symmetric in a and b
-!>  – >  it assumes b is the reference value –
-!>  so that isclose(a, b) might be different from isclose(b, a).
-!>
-!>  @paramin[in] a Input arrays to compare.
-!>  @paramin[in] b Input arrays to compare.
-!>  @paramin[in] rtol The relative tolerance parameter (default 1d-5)
-!>  @paramin[in] atol The absolute tolerance parameter (default 1d-8)
-    logical elemental function isclose(a, b, atol, rtol)
-        real(dp), intent(in) :: a, b
-        real(dp), intent(in), optional :: atol, rtol
-
-        real(dp) :: atol_, rtol_
-
-        def_default(rtol_, rtol, 1d-5)
-        def_default(atol_, atol, 1d-8)
-
-        isclose = abs(a - b) <= (atol + rtol * abs(b))
-    end function
-
-!> Operator functions may only have two arguments.
-    logical elemental function isclose_for_operator(a, b)
-        real(dp), intent(in) :: a, b
-
-        isclose_for_operator = isclose(a, b)
-    end function
-
-    logical elemental function near_zero(x, epsilon)
-        real(dp), intent(in) :: x
-        real(dp), intent(in), optional :: epsilon
-
-        real(dp) :: epsilon_
-
-        def_default(epsilon_, epsilon, EPS)
-
-        near_zero = abs(x) < epsilon_
-    end function
-
 end module
 
 !Hacks for compiler specific system calls.
