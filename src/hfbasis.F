@@ -120,6 +120,7 @@ C.. Generic spatial symmetry
          USE UMatCache , only : UMatInd,GTID
          use constants, only: dp
          use global_utilities
+         use util_mod, only: near_zero
          IMPLICIT NONE
          INTEGER NBASIS,ISS
          real(dp) UMAT(*)
@@ -207,7 +208,7 @@ C.. Thus the sum1 A+C must be even, as must B+D
            DO C=1,NORBUSED
             DO D=1,NORBUSED
              LSPN=(MOD(A+C,2).EQ.0).AND.(MOD(B+D,2).EQ.0)
-             IF(LSPN.AND.UMAT2(UMatInd(A,B,C,D)).EQ.0.0_dp) THEN
+             IF(LSPN.AND.near_zero(UMAT2(UMatInd(A,B,C,D)))) THEN
               SUM1=0.0_dp
               DO L=1,NHG
                ID4 = GTID(L)

@@ -809,6 +809,7 @@ C.. (and is independent of which spatial orbitals SORDER and DORDER
 C..  refer to as long as they are always ordered)
       SUBROUTINE CSFGETDETCOEFF(SORDER,DORDER,NOPEN,COEFF)
          use constants, only: dp
+         use util_mod, only: near_zero
          IMPLICIT NONE
          real(dp) COEFF,CG
          INTEGER NOPEN,SORDER(NOPEN),DORDER(NOPEN)
