@@ -103,8 +103,9 @@ C       WRITE(6,*) ' TOTAL SIGN CHANGE:',IPTOT
       END
 C==============================================================
       SUBROUTINE SCATTER_neci(N,NBASIS,LIST,LE)
-      integer :: n, nBasis, i
-      real :: LIST(N),LE(NBASIS)
+      integer :: n, nBasis, LIST(N),LE(NBASIS)
+
+      integer :: i
       LE(1:NBASIS)=0
       DO I=1,N
         LE(LIST(I))=1

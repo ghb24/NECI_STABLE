@@ -38,6 +38,7 @@ module kp_fciqmc
     use SystemData, only: nel, lms, nbasis, tAllSymSectors, nOccAlpha, nOccBeta
     use SystemData, only: tRef_Not_HF
     use timing_neci, only: set_timer, halt_timer
+    use util_mod, only: near_zero
 
     implicit none
 
@@ -221,7 +222,7 @@ contains
                                 do ireplica = 1, lenof_sign
 
                                     call decide_num_to_spawn(parent_sign(ireplica), parent_hdiag, AvMCExcits, nspawn)
-                                    
+
                                     do ispawn = 1, nspawn
 
                                         ! Zero the bit representation, to ensure no extraneous data gets through.
@@ -260,7 +261,7 @@ contains
                                         end if
 
                                         ! If any (valid) children have been spawned.
-                                        if ((any(child_sign /= 0)) .and. (ic /= 0) .and. (ic <= 2)) then
+                                        if (.not. (any(near_zero(child_sign) .or. ic == 0 .or. ic > 2))) then
 
                                             call new_child_stats (iter_data_fciqmc, ilut_parent, &
                                                                   nI_child, ilut_child, ic, ex_level_to_ref, &
@@ -578,7 +579,7 @@ contains
                         do ireplica = 1, lenof_sign
 
                             call decide_num_to_spawn(parent_sign(ireplica), parent_hdiag, AvMCExcits, nspawn)
-                            
+
                             do ispawn = 1, nspawn
 
                                 ! Zero the bit representation, to ensure no extraneous data gets through.
@@ -616,7 +617,7 @@ contains
                                 end if
 
                                 ! If any (valid) children have been spawned.
-                                if ((any(child_sign /= 0)) .and. (ic /= 0) .and. (ic <= 2)) then
+                                if (.not. (any(near_zero(child_sign) .or. ic == 0 .or. ic > 2))) then
 
                                     call new_child_stats (iter_data_fciqmc, ilut_parent, &
                                                           nI_child, ilut_child, ic, ex_level_to_ref,&

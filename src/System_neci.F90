@@ -11,7 +11,8 @@ MODULE System
     use constants
     use iso_c_hack
     use read_fci, only: FCIDUMP_name
-    use util_mod, only: error_function, error_function_c
+    use util_mod, only: error_function, error_function_c,&
+        near_zero, operator(.isclose.)
 
     IMPLICIT NONE
 
@@ -1106,7 +1107,7 @@ system: do
             &        call report("Must specify CELL "                          &
             &        //"- the number of basis functions in each dim.",         &
             &        .true.)
-            if(.NOT.THUB.AND.BOX.EQ.0.0_dp)                                &
+            if(.NOT.THUB.AND. near_zero(BOX))                                &
             &        call report("Must specify BOX size.",.true.)
             if(TTILT.AND..NOT.THUB)                                      &
             &        call report("TILT can only be specified with HUBBARD.",.true.)
@@ -1168,7 +1169,7 @@ system: do
       ! if a total spin was set, set the spin projection if unspecified
       if(tInitializeCSF .and. .not. TSPN) then
          ! S is physical spin, LMS is an integer (-2*Ms)
-         LMS = 2*S2Init
+         LMS = int(2 * S2Init)
          TSPN = .true.
          write(iout,*) 'Spin projection unspecified, assuming Ms=S'
       end if
@@ -1385,7 +1386,7 @@ system: do
            WRITE(6,*) " Fermi Energy EF=",FKF*FKF/2
            write(6,*) " Unscaled fermi vector kF=", FKF/k_lattice_constant
            WRITE(6,*) " Unscaled Fermi Energy nmax**2=",(FKF*FKF/2)/(0.5*(2*PI/ALAT(5))**2)
-           IF(OrbECutoff.ne.1e-20_dp) WRITE(6,*) " Orbital Energy Cutoff:",OrbECutoff
+           IF(.not. (OrbECutoff .isclose. 1e-20_dp)) WRITE(6,*) " Orbital Energy Cutoff:",OrbECutoff
            WRITE(6,'(1X,A,F19.5)') '  VOLUME : ' , OMEGA
            WRITE(6,*) ' TALPHA : ' , TALPHA
            WRITE(6,'(1X,A,F19.5)') '  ALPHA : ' , ALPHA
@@ -1629,9 +1630,9 @@ system: do
               call  CalcTau
           end if
 
-          if(tMadelung .AND. Madelung == 0.0_dp .AND. dimen ==3) then
+          if(tMadelung .AND. near_zero(Madelung) .AND. dimen == 3) then
              Madelung=calc_madelung()
-          else if (tMadelung .AND. Madelung == 0.0_dp .AND. dimen .ne. 3) then
+          else if (tMadelung .AND. near_zero(Madelung) .AND. dimen /= 3) then
               call stop_all (this_routine, "Calculation of Madelung constant works in 3D only!")
           end if
 
@@ -1650,7 +1651,7 @@ system: do
                  nBasisMax(2,3) = 1
                  tStoreSpinOrbs = .true.
              end if
-             IF(FUEGRS.NE.0.0_dp) THEN
+             IF (.not. near_zero(FUEGRS)) THEN
                 WRITE(6,'(A,F20.16)') '  Electron Gas Rs set to ',FUEGRS
                 OMEGA=BOX*BOX*BOX*BOA*COA
 !C.. required density is (3/(4 pi rs^3))
@@ -1726,7 +1727,7 @@ system: do
           ALAT(1)=BOX
           ALAT(2)=BOX*BOA
           ALAT(3)=BOX*COA
-          IF(fRc.EQ.0.0.AND.iPeriodicDampingType.NE.0) THEN
+          IF(near_zero(fRc) .AND. iPeriodicDampingType /= 0) THEN
              ALAT(4)=BOX*((BOA*COA)/(4*PI/3))**THIRD
           ELSE
              ALAT(4)=fRc
@@ -1764,7 +1765,7 @@ system: do
              WRITE(6,*) " Fermi Energy EF=",FKF*FKF/2
              WRITE(6,*) " Unscaled Fermi Energy nmax**2=",(FKF*FKF/2)/(0.5*(2*PI/ALAT(5))**2)
           ENDIF
-          IF(OrbECutoff.ne.1e-20_dp) WRITE(6,*) " Orbital Energy Cutoff:",OrbECutoff
+          IF(.not. (OrbECutoff .isclose. 1e-20_dp)) WRITE(6,*) " Orbital Energy Cutoff:",OrbECutoff
           WRITE(6,'(1X,A,F19.5)') '  VOLUME : ' , OMEGA
           WRITE(6,*) ' TALPHA : ' , TALPHA
           WRITE(6,'(1X,A,F19.5)') '  ALPHA : ' , ALPHA
@@ -2303,7 +2304,7 @@ END SUBROUTINE CalcTau
                     tvecZ=r_lattice_vectors(1,3)*i1+r_lattice_vectors(2,3)*i2+r_lattice_vectors(3,3)*i3
                     n2=tvecX**2+tvecY**2+tvecZ**2
                     t1 =r_lattice_constant*sqrt(real(n2, dp))
-                    if (t1.ne.0.0_dp) then
+                    if (.not. near_zero(t1)) then
                         er2=error_function_c(kappa*t1)/t1
                         realsum2=realsum2+er2
                     endif
