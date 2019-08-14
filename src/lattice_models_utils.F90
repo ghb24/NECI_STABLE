@@ -195,10 +195,6 @@ contains
 
         ! if we have HPHF turned on we want to "spin-purify" the excitation 
         ! list 
-!         print *, "un-purified basis: "
-!         do i = 1, n_excits
-!             call writebitdet(6, det_list(:,i), .true.)
-!         end do
         if (tHPHF) then 
             save_excits = n_excits
 
@@ -210,10 +206,6 @@ contains
 
         end if
 
-!         print *, "purified basis: "
-!         do i = 1, n_excits
-!             call writebitdet(6, det_list(:,i), .true.)
-!         end do
     end subroutine gen_all_excits_r_space_hubbard
 
     subroutine spin_purify(n_excits_in, det_list_in, n_excits_out, det_list_out)
@@ -303,7 +295,6 @@ contains
 
                         elem = abs(get_helement_lattice(nI, 2, ex, .false.))
                         if (elem > EPS) then
-!                         if (abs(get_double_helem_rs_hub_transcorr(nI, ex, .false.)) > EPS) then
 
                             ilutJ = make_ilutJ(ilut, ex, 2)
                             ! actually a search is not really necessary.. since 
@@ -466,10 +457,8 @@ contains
                     ! but to be sure, check the matrix element: 
                     ! but use the lattice get_helement_lattice to 
                     ! avoid circular dependencies
-!                     elem = abs(get_offdiag_helement_rs_hub(nI,ex,.false.))
                     call make_single(nI, nJ, i, neighbors(j),ex, tpar)
                     elem = get_helement_lattice(nI,nJ)
-!                     elem = abs(get_helement_lattice(nI, 1, ex, .false.))
 
                     if (abs(elem) > EPS) then 
 
@@ -482,12 +471,14 @@ contains
 
                         if (pos < 0) then 
 
+                            temp_list(:,n_excits) = ilutJ
+
                             if (t_sign) then 
                                 temp_sign(n_excits) = sign(1.0_dp, elem)
+                                call sort(temp_list(:,1:n_excits),temp_sign(1:n_excits))
+                            else 
+                                call sort(temp_list(:,1:n_excits),ilut_lt,ilut_gt)
                             end if
-                            temp_list(:,n_excits) = ilutJ
-                            call sort(temp_list(:,1:n_excits),temp_sign(1:n_excits))
-!                             call sort(temp_list(:,1:n_excits),ilut_lt,ilut_gt)
                             n_excits = n_excits + 1
                             ! damn.. i have to sort everytime i guess..
                         end if
@@ -1284,7 +1275,7 @@ contains
         integer :: n_triples, save_excits
         real(dp), allocatable :: sign_list(:)
 
-        call gen_all_doubles_k_space(nI, n_excits, det_list, sign_list)
+        call gen_all_doubles_k_space(nI, n_excits, det_list)!, sign_list)
 
         if (t_trans_corr_2body) then 
             save_excits = n_excits
@@ -1810,14 +1801,14 @@ contains
 
                                 if (pos < 0) then 
 
-                                    
+                                    temp_list(:,n_excits) = ilutJ
+
                                     if (t_sign) then 
                                          temp_sign(n_excits) = sign(1.0_dp, elem)
-                                         
+                                        call sort(temp_list(:,1:n_excits),temp_sign(1:n_excits))
+                                    else
+                                        call sort(temp_list(:,1:n_excits),ilut_lt,ilut_gt)
                                     end if
-                                    temp_list(:,n_excits) = ilutJ
-                                    !call sort(temp_list(:,1:n_excits),ilut_lt,ilut_gt)
-                                    call sort(temp_list(:,1:n_excits),temp_sign(1:n_excits))
 
                                     n_excits = n_excits + 1
                                     ! damn.. i have to sort everytime i guess..
@@ -1844,17 +1835,8 @@ contains
         allocate(det_list(0:NIfTot,n_excits), source = temp_list(:,1:n_excits))
 
         if (t_sign) then 
-
             allocate(sign_list(n_excits), source = temp_sign(1:n_excits))
-	    !print *, "before:"
-	    !do i = 1, n_excits
-		!print *, det_list(:,i), sign_list(i)
- 	    !end do
-	    !print *, "after:"
             call sort(det_list, sign_list)!, ilut_lt, ilut_gt)
-	    !do i = 1, n_excits
-		!print *, det_list(:,i), sign_list(i)
- 	    !end do
         else 
             call sort(det_list, ilut_lt, ilut_gt)
         end if

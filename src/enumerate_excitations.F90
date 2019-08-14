@@ -2,7 +2,7 @@
 
 module enumerate_excitations
 
-    use SystemData, only : tReltvy, t_k_space_hubbard
+    use SystemData, only : tReltvy, t_k_space_hubbard, t_new_real_space_hubbard
 
     use bit_rep_data, only: NIfD, NIfTot
 
@@ -33,7 +33,8 @@ module enumerate_excitations
     use SystemData, only: nel, nBasis, G1, tFixLz, Arr, Brr, tHPHF, tHub, &
                           tUEG, tKPntSym, tReal, tUseBrillouin, tReltvy
 
-    use lattice_models_utils, only: gen_all_excits_k_space_hubbard
+    use lattice_models_utils, only: gen_all_excits_k_space_hubbard, & 
+                                    gen_all_excits_r_space_hubbard
 
     implicit none
 
@@ -376,6 +377,8 @@ contains
         integer, allocatable :: excit_gen(:)
         integer :: nStore(6)
         logical :: tAllExcitFound, tStoreConnSpace, tSinglesOnly, tTempUseBrill
+        integer :: n_excits 
+        integer(n_int), allocatable :: temp_dets(:,:)
 
 
         if (present(connected_space)) then
@@ -394,23 +397,37 @@ contains
         ! Over all the states in the original list:
         do i = 1, original_space_size
 
-            call NewParentDet(session)
-
             call decode_bit_det(nI, original_space(0:NIfTot,i))
 
-            call init_generate_connected_space(nI, ex_flag, tAllExcitFound, excit, excit_gen, nstore, tTempUseBrill)
-            if (tSinglesOnly) ex_flag = 1
-            
-            do while(.true.)
+            if (t_new_real_space_hubbard) then 
 
-                call generate_connection_normal(nI, original_space(:,i), nJ, ilutJ, ex_flag, excit, &
-                                                 tAllExcitFound, ncon=connected_space_size)
-                if (tAllExcitFound) exit
+                call gen_all_excits_r_space_hubbard(nI, n_excits, temp_dets)
+ 
+                if (tStoreConnSpace) then 
+                    connected_space(0:nifd,connected_space_size+1:connected_space_size+n_excits) & 
+                        = temp_dets(0:nifd,:)
 
-                if (tStoreConnSpace) connected_space(0:NIfD, connected_space_size) = ilutJ(0:NIfD)
+                end if
 
-            end do
+                connected_space_size = connected_space_size + n_excits
 
+            else
+
+                call NewParentDet(session)
+
+                call init_generate_connected_space(nI, ex_flag, tAllExcitFound, excit, excit_gen, nstore, tTempUseBrill)
+                if (tSinglesOnly) ex_flag = 1
+                
+                do while(.true.)
+
+                    call generate_connection_normal(nI, original_space(:,i), nJ, ilutJ, ex_flag, excit, &
+                                                     tAllExcitFound, ncon=connected_space_size)
+                    if (tAllExcitFound) exit
+
+                    if (tStoreConnSpace) connected_space(0:NIfD, connected_space_size) = ilutJ(0:NIfD)
+
+                end do
+            end if
         end do
 
     end subroutine generate_connected_space_normal
