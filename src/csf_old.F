@@ -218,9 +218,10 @@ C.. it must have gone to an empty then
       END
       SUBROUTINE SYMGETSSZ(SSYM,S,SZ)
          use legacy_data, only: CSF_NBSTART
+         use util_mod, only: operator(.div.)
          IMPLICIT NONE
          INTEGER SSYM,S,SZ
-         S=(SSYM+CSF_NBSTART/3)/CSF_NBSTART
+         S=(SSYM + (CSF_NBSTART .div. 3))/CSF_NBSTART
          SZ=SSYM-S*CSF_NBSTART
          RETURN
       END

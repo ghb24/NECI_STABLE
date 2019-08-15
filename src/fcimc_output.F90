@@ -36,6 +36,7 @@ module fcimc_output
     use constants
     use sort_mod
     use util_mod
+    use fortran_strings, only: str
 
     implicit none
 
@@ -949,9 +950,7 @@ contains
         character(len=*), parameter :: t_r='WriteHistogram'
 
 !This will open a file called SpawnHist-"Iter" on unit number 17.
-        abstr=''
-        write(abstr,'(I12)') Iter
-        abstr='SpawnHist-'//adjustl(abstr)
+        abstr = 'SpawnHist-'//str(Iter)
         IF(iProcIndex.eq.0) THEN
             WRITE(iout,*) "Writing out the average wavevector up to iteration number: ", Iter
             CALL neci_flush(iout)
@@ -1023,13 +1022,9 @@ contains
             io1 = get_free_unit()
             OPEN(io1,FILE=abstr,STATUS='UNKNOWN')
 
-            abstr=''
-            write(abstr,'(I12)') Iter-iWriteHistEvery
-            abstr='Energies-'//adjustl(abstr)
+            abstr = 'Energies-'//str(Iter - iWriteHistEvery)
+            abstr2 = 'Energies-'//str(Iter)
 
-            abstr2=''
-            write(abstr2,'(I12)') Iter
-            abstr2='Energies-'//adjustl(abstr2)
             io2 = get_free_unit()
             OPEN(io2,FILE=abstr2,STATUS='UNKNOWN')
 
@@ -1183,9 +1178,7 @@ contains
         CHARACTER(len=22) :: abstr
 
 !This will open a file called HamilHist-"Iter" on unit number 17.
-        abstr=''
-        write(abstr,'(I12)') Iter
-        abstr='HamilHist-'//adjustl(abstr)
+        abstr = 'HamilHist-'//str(Iter)
         IF(iProcIndex.eq.0) THEN
             WRITE(iout,*) "Writing out the average hamiltonian up to iteration number: ", Iter
             CALL neci_flush(iout)

@@ -155,6 +155,7 @@ module fcimc_initialisation
     use Parallel_neci
     use FciMCData
     use util_mod
+    use fortran_strings, only: str
     use sort_mod
     use sym_mod
     use HElem
@@ -178,7 +179,7 @@ contains
         real(dp) :: UpperTau,r
         CHARACTER(len=*), PARAMETER :: t_r='SetupParameters'
         CHARACTER(len=12) :: abstr
-        character(len=24) :: filename, filename2
+        character(len=40) :: filename, filename2
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped,tAlreadyOcc
         INTEGER :: HFLz,ChosenOrb,step,SymFinal, run
         integer(int64) :: SymHF
@@ -234,10 +235,8 @@ contains
 
         IF(TDebug) THEN
 !This will open a file called LOCALPOPS-"iprocindex" on unit number 11 on every node.
-            abstr=''
-            write(abstr,'(I2)') iProcIndex
-            abstr='LOCALPOPS-'//adjustl(abstr)
-            OPEN(11,FILE=abstr,STATUS='UNKNOWN')
+            abstr = 'LOCALPOPS-'//str(iProcIndex)
+            OPEN(11, FILE=abstr, STATUS='UNKNOWN')
         ENDIF
 
         IF(iProcIndex.eq.Root) THEN
@@ -3946,23 +3945,21 @@ contains
         endif
         if(exists) then
             !We already have an FCIMCStats file - move it to the end of the list of FCIMCStats files.
-
-            extension=1
+            extension = 1
             do while(.true.)
-                abstr=''
-                write(abstr,'(I12)') extension
-                if(tMolpro) then
-                    abstr='FCIQMCStats.'//adjustl(abstr)
+                if (tMolpro) then
+                    abstr = 'FCIQMCStats.'//str(extension)
                 else
-                    abstr='FCIMCStats.'//adjustl(abstr)
-                endif
-                inquire(file=trim(adjustl(abstr)),exist=exists)
-                if(.not.exists) exit
-                extension=extension+1
-                if(extension.gt.10000) then
-                    call stop_all(t_r,"Error finding free FCIMCStats name")
-                endif
+                    abstr = 'FCIMCStats.'//str(extension)
+                end if
+                inquire(file=trim(adjustl(abstr)), exist=exists)
+                if (.not. exists) exit
+                extension = extension + 1
+                if (extension > 10000) then
+                    call stop_all(t_r, "Error finding free FCIMCStats name")
+                end if
             enddo
+
 
             !We have got a unique filename
             !Do not use system call

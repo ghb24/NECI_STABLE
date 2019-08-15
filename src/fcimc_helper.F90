@@ -76,6 +76,7 @@ module fcimc_helper
     use searching, only: BinSearchParts2
     use back_spawn, only: setup_virtual_mask
     use initiator_space_procs, only: is_in_initiator_space
+    use fortran_strings, only: str
 
 
     implicit none
@@ -1938,9 +1939,7 @@ contains
             endif
 
             !Now write out...
-            abstr=''
-            write(abstr,'(I12)') Iter
-            abstr='TruncWavefunc-'//adjustl(abstr)
+            abstr = 'TruncWavefunc-'//str(Iter)
             ioTrunc = get_free_unit()
             open(ioTrunc,file=abstr,status='unknown')
             do i=1,Det
