@@ -1402,7 +1402,7 @@ contains
 
             if (tRDMOnFly) then
                 if (tPairedReplicas) then
-                    nrdms_standard = lenof_sign/2
+                    nrdms_standard = lenof_sign .div. 2
                 else
                     nrdms_standard = lenof_sign
                 end if
@@ -1635,7 +1635,7 @@ contains
         endif
         if (tTrialWavefunction) then
             if (tPairedReplicas) then
-                call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs/2, .true.)
+                call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs .div. 2, .true.)
             else
                 call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs, .false.)
             end if

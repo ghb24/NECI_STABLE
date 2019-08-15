@@ -5,6 +5,7 @@ module initial_trial_states
     use bit_rep_data
     use constants
     use kp_fciqmc_data_mod
+    use util_mod, only: operator(.div.)
 
     implicit none
 
@@ -483,7 +484,7 @@ contains
         character(len=*), parameter :: this_routine = "calc_trial_states_qmc"
 
         if (paired_replicas) then
-            ASSERT(nexcit == lenof_sign/2)
+            ASSERT(nexcit == (lenof_sign .div. 2))
         else
             ASSERT(nexcit == lenof_sign)
         end if
@@ -555,7 +556,7 @@ contains
         character(*), parameter :: this_routine = 'get_qmc_trial_weights'
 
         if (paired_replicas) then
-            ASSERT(nexcit == lenof_sign/2)
+            ASSERT(nexcit == (lenof_sign .div. 2))
         else
             ASSERT(nexcit == lenof_sign)
         end if

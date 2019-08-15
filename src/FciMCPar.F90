@@ -89,6 +89,7 @@ module FciMCParMod
     use fcimc_output
     use FciMCData
     use constants
+    use util_mod, only: operator(.div.)
     use bit_reps, only: decode_bit_det
     use hdiag_from_excit, only: get_hdiag_from_excit, get_hdiag_bare_hphf
     use double_occ_mod, only: get_double_occupancy, inst_double_occ, &
@@ -315,7 +316,7 @@ module FciMCParMod
                  mod(iter - trial_shift_iter, trialSpaceUpdateCycle) == 0) then
                if(tPairedReplicas) then
                   call refresh_trial_wf(trial_space_in,ntrial_ex_calc, &
-                       inum_runs/2,.true.)
+                       inum_runs .div. 2,.true.)
                else
                   call refresh_trial_wf(trial_space_in,ntrial_ex_calc, &
                        inum_runs,.false.)
@@ -365,7 +366,7 @@ module FciMCParMod
                     tTrialWavefunction = .true.
 
                     if (tPairedReplicas) then
-                        call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs/2, .true.)
+                        call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs .div. 2, .true.)
                     else
                         call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs, .false.)
                     end if

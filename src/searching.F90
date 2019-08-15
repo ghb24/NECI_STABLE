@@ -14,7 +14,7 @@ module searching
     use sparse_arrays, only: trial_ht, con_ht
     use SystemData, only: nel
     use timing_neci, only: set_timer, halt_timer
-    use util_mod, only: binary_search_custom
+    use util_mod, only: binary_search_custom, operator(.div.)
 
     implicit none
 
@@ -308,7 +308,7 @@ contains
                 hash_val = FindWalkerHash(nI, con_space_size)
                 do i = 1, con_ht(hash_val)%nclash
                     if (DetBitEq(con_ht(hash_val)%states(0:NIfDBO,i), ilut)) then
-                        do istate = 1, lenof_sign/2
+                        do istate = 1, lenof_sign .div. 2
                             amp(istate*2-1) = transfer(con_ht(hash_val)%states(NIfDBO+istate,i), amp(istate*2-1))
                             amp(istate*2) = amp(istate*2-1)
                         end do

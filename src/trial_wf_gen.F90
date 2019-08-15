@@ -9,7 +9,7 @@ module trial_wf_gen
     use semi_stoch_procs
     use sparse_arrays
     use SystemData, only: nel, tHPHF
-    use util_mod, only: get_free_unit, binary_search_custom
+    use util_mod, only: get_free_unit, binary_search_custom, operator(.div.)
     use FciMCData, only: con_send_buf, NConEntry
 
     implicit none
@@ -344,7 +344,7 @@ contains
             enddo
 #else
                 if (replica_pairs) then
-                    do i = 1, lenof_sign/2
+                    do i = 1, lenof_sign .div. 2
                         ! When using pairs of replicas, average their amplitudes.
                         fciqmc_amps_real(i) = sum(all_fciqmc_amps(2*i-1:2*i))/2.0_dp
                     end do
@@ -382,7 +382,7 @@ contains
         end do
 #else
         if (replica_pairs) then
-            do ireplica = 1, lenof_sign/2
+            do ireplica = 1, lenof_sign .div. 2
                 best_trial = maxloc(abs(all_overlaps_real(ireplica,:)))
                 trials_kept(ireplica,:) = trial_amps(best_trial(1),:)
                 energies_kept(ireplica) = energies(best_trial(1))

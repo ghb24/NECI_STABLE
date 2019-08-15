@@ -230,7 +230,7 @@ contains
              len_death_timer + len_occ_time
 
         if (tPairedReplicas) then
-            replica_est_len = lenof_sign/2
+            replica_est_len = lenof_sign .div. 2
         else
             replica_est_len = lenof_sign
         end if

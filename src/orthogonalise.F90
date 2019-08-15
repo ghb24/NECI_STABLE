@@ -269,7 +269,7 @@ contains
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer :: tgt_state, src_state, run, j, irep, imod1, imod2, TotWalkersNew
-        real(dp) :: norms(inum_runs/2), overlaps(inum_runs, inum_runs)
+        real(dp) :: norms(inum_runs .div. 2), overlaps(inum_runs, inum_runs)
         real(dp) :: sgn(lenof_sign), sgn_orig(2), delta, r
         logical :: tCoreDet
         character(len=*), parameter :: this_routine = "orthogonalise_replica_pairs"
