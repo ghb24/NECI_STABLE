@@ -199,7 +199,6 @@ contains
             tmp_gamma = abs(matel) / tmp_prob
             if (tmp_gamma > gamma_sing) then
                gamma_sing = tmp_gamma
-               write(iout,*) "New gamma_sing", gamma_sing, abs(matel), ex
             endif
             ! And keep count!
             if (.not. enough_sing .and. gamma_sing > 0) then
@@ -488,7 +487,7 @@ contains
             ! Get the probabilities and tau that correspond to the stored
             ! values
             if (checkS + checkD + checkT > 1) then
-                psingles_new = max(gamma_sing / gamma_sum, prob_min_thresh)
+                psingles_new = max(gamma_sing / (gamma_sing + gamma_doub), prob_min_thresh)
                 pTriples_new = max(gamma_trip / gamma_sum, prob_min_thresh)
                 if (tReltvy) then
                     pSing_spindiff1_new = gamma_sing_spindiff1/gamma_sum
@@ -599,7 +598,7 @@ contains
         if ((checkS + checkD + checkT > 1)) then
            if((psingles_new > 1e-5_dp .or. tNoSinglesPossible) &
                 .and. psingles_new < (1.0_dp - 1e-5_dp) .and. &
-                (.not.t_3_body_excits .or. min(pTriples_new,(1.0_dp-pTriples_new))>1e-5_dp .or. &
+                (.not.t_mol_3_body .or. min(pTriples_new,(1.0_dp-pTriples_new))>1e-5_dp .or. &
                 t_exclude_3_body_excits)) then
 
               if (abs(psingles - psingles_new) / psingles > 0.0001_dp) then
