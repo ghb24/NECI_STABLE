@@ -12,7 +12,8 @@ module fcimc_initialisation
                           tHistSpinDist, tPickVirtUniform, tGen_4ind_reverse, &
                           tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
                           tUEGNewGenerator, tGen_4ind_2, tReltvy, nOccOrbs, &
-                          nClosedOrbs, irrepOrbOffset, nIrreps, t_pcpp_excitgen
+                          nClosedOrbs, irrepOrbOffset, nIrreps, t_pcpp_excitgen, &
+                          t_pchb_excitgen
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use dSFMT_interface, only: dSFMT_init
     use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
@@ -153,6 +154,7 @@ module fcimc_initialisation
     use sltcnd_mod, only: sltcnd_0
     use rdm_data, only: nrdms_transition_input, rdmCorrectionFactor, InstRDMCorrectionFactor, &
          ThisRDMIter
+    use rdm_data, only: nrdms_transition_input
     use Parallel_neci
     use FciMCData
     use util_mod
@@ -165,7 +167,7 @@ module fcimc_initialisation
     use back_spawn, only: init_back_spawn
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
-
+    use pchb_excitgen, only: gen_rand_excit_pchb, init_pchb_excitgen
     implicit none
 
 contains
@@ -936,6 +938,12 @@ contains
         rdmCorrectionFactor = 0.0_dp
         InstRDMCorrectionFactor = 0.0_dp
         ThisRDMIter = 0.0_dp
+
+        ! initialize excitation number trackers
+        nInvalidExcits = 0
+        nValidExcits = 0
+        allNInvalidExcits = 0
+        allNValidExcits = 0
 !            if (tReltvy) then
 !                ! write out the column headings for the MSWALKERCOUNTS
 !                open(mswalkercounts_unit, file='MSWALKERCOUNTS', status='UNKNOWN')
@@ -1583,6 +1591,7 @@ contains
 
         ! initialize excitation generator
         if(t_pcpp_excitgen) call init_pcpp_excitgen()
+        if(t_pchb_excitgen) call init_pchb_excitgen()
 
         IF((NMCyc.ne.0).and.(tRotateOrbs.and.(.not.tFindCINatOrbs))) then 
             CALL Stop_All(this_routine,"Currently not set up to rotate and then go straight into a spawning &
@@ -1735,7 +1744,9 @@ contains
       character(*), parameter :: t_r = 'init_fcimc_fn_pointers'
         ! Select the excitation generator.
         if (tHPHF) then
-            generate_excitation => gen_hphf_excit
+           generate_excitation => gen_hphf_excit
+        elseif(t_pchb_excitgen) then
+           generate_excitation => gen_rand_excit_pchb
         elseif ((t_back_spawn_option .or. t_back_spawn_flex_option)) then 
             if (tHUB .and. tLatticeGens) then 
                 ! for now the hubbard + back-spawn still uses the old 

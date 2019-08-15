@@ -80,12 +80,15 @@ contains
     numEx = 0
     tAllExFound = .false.
     do
-       call GenExcitations3(nI,ilut,nJ,exflag,ex,tPar,tAllExFound,.false.)
+       call GenExcitations3(nI,ilut,nJ,exflag,ex,tPar,tAllExFound,.false.)       
        if(tAllExFound) exit
        call encodeBitDet(nJ,ilutJ)
        numEx = numEx + 1
        allEx(0:NIfDBO,numEx) = ilutJ(0:NIfDBO)
     end do
+    
+    write(iout,*) "In total", numEx, "excits, (", nSingles,nDoubles,")"
+    write(iout,*) "Exciting from", nI
 
     ! set the biases for excitation generation
     pParallel = 0.5_dp
@@ -112,7 +115,7 @@ contains
        ! an excitaion
        if(.not. tFound .and. .not. nJ(1)==0) then
           call decode_bit_det(nJ,ilutJ)
-          write(iout,*) "Error: Invalid excitation", nJ
+          write(iout,*) "Error: Invalid excitation", nJ, ilutJ
           stop
        endif
        ! check if the generated excitation is invalid, if it is, mark this specific constellation
@@ -142,19 +145,23 @@ contains
        matelN = matelN + abs(get_helement(nI,nJ))
     end do
     nFound = 0
-    write(iout,*) "Exciting from", nI
     do i = 1, numEx
        call extract_sign(allEx(:,i),pgenArr)
        call decode_bit_det(nJ,allEx(:,i))
+       matel = get_helement(nI,nJ)       
        if(pgenArr(1) > eps) then
           nFound = nFound + 1
-          matel = get_helement(nI,nJ)
           write(iout,*) i, pgenArr(1), real(allEx(NIfTot+1,i))/real(sampleSize), &
                abs(matel)/(pgenArr(1)*matelN)
-       else if(i < nSingles) then
-          write(iout,*) "Unfound single excitation", nJ
        else
-          write(iout,*) "Unfound double excitation", nJ, matel
+          ! excitations with zero matrix element are not required to be found
+          if(abs(matel) < eps) then
+             nFound = nFound + 1          
+          else if(i < nSingles) then
+             write(iout,*) "Unfound single excitation", nJ
+          else
+             write(iout,*) "Unfound double excitation", nJ, matel
+          endif
        endif
        pTot = pTot + pgenArr(1)
     end do
@@ -243,6 +250,7 @@ contains
     ! only <ij|ij> are random -> random 2d matrix
     real(dp) :: umatRand(nBasisBase,nBasisBase)
 
+    umatRand = 0.0_dp
     do i = 1, nBasisBase
        do j = 1, nBasisBase
           r = genrand_real2_dSFMT()

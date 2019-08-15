@@ -10,6 +10,7 @@ set( SRC_FILES
     Annihilation.F90
     bit_rep_data.F90
     BitReps.F90
+    cachedExcitgen.F90
     CalcData.F90
     Calc.F90
     calcrho.F
@@ -158,7 +159,7 @@ set( SRC_FILES
     symrandexcit1.F
     symrandexcit2.F90
     symrandexcit3.F90
-	symrandexcit_Ex_Mag.F90
+    symrandexcit_Ex_Mag.F90
     symrandexcit4.F90
     symrandexcit5.F90
     symrandexcit_csf.F90

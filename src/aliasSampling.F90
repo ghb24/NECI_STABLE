@@ -8,7 +8,7 @@ module aliasSampling
   implicit none
 
   private
-  public :: aliasSampler_t, aliasTable_t
+  public :: aliasSampler_t, aliasTable_t, clear_sampler_array
   
   ! type for tables: contains everything you need to get a random number
   ! with given biases
@@ -324,5 +324,22 @@ contains
     ! assume that if ptr is associated, it points to mpi shared memory
     if(associated(ptr)) call shared_deallocate_mpi(win, ptr)    
   end subroutine safe_shared_memory_dealloc
+
+  !------------------------------------------------------------------------------------------!
+  ! Public non-member function to deallocate 1d-arrays of samplers (common task)
+  !------------------------------------------------------------------------------------------!
+  
+    subroutine clear_sampler_array(arr)
+      ! call the destructor on all elements of an array, then deallocate it
+      type(aliasSampler_t), allocatable :: arr(:)
+
+      integer :: i
+
+      do i = 1, size(arr)
+         call arr(i)%samplerDestructor()
+      end do
+      deallocate(arr)
+    end subroutine clear_sampler_array
+  
   
 end module aliasSampling

@@ -656,7 +656,7 @@ contains
          integer, intent(in) :: NBASIS
          logical, intent(in) :: tReadFreezeInts
          real(dp), intent(out) :: ECORE
-         HElement_t(dp), intent(out) :: UMAT(:)
+         HElement_t(dp), intent(inout) :: UMAT(:)
          integer(MPIArg) :: umat_win
          HElement_t(dp) Z
          COMPLEX(dp) :: CompInt
