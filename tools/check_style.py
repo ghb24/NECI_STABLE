@@ -4,6 +4,7 @@ from collections import defaultdict
 from os import walk
 from os.path import join, abspath
 import re
+import sys
 
 
 class TabCharacter:
@@ -83,4 +84,10 @@ def get_files(start_dir):
 if __name__ == '__main__':
     STYLE_ERRORS = [TabCharacter(), TrailingSpace(), WriteStar()]
     files = get_files('../src')
-    output_errors(run_tests(files, STYLE_ERRORS))
+    errors = run_tests(files, STYLE_ERRORS)
+    output_errors(errors)
+    if errors:
+        sys.exit(1)
+    else:
+        sys.exit(0)
+
