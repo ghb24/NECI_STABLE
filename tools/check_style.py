@@ -2,9 +2,10 @@
 
 from collections import defaultdict
 from os import walk
-from os.path import join, abspath
+from os.path import join
 import re
 import sys
+import argparse
 
 
 class TabCharacter:
@@ -14,7 +15,7 @@ class TabCharacter:
 
     @staticmethod
     def report(file_path, line_number):
-        return f'Tab characters in {file_path}, line {line_number}'
+        return f'Tab characters in {file_path}:{line_number}'
 
     @staticmethod
     def defined_for(file_path):
@@ -29,7 +30,7 @@ class TrailingSpace:
 
     @staticmethod
     def report(file_path, line_number):
-        return f'Trailing blanks in {file_path}, line {line_number}'
+        return f'Trailing blanks in {file_path}:{line_number}'
 
     @staticmethod
     def defined_for(file_path):
@@ -44,7 +45,7 @@ class WriteStar:
 
     @staticmethod
     def report(file_path, line_number):
-        return f'"write(*" in {file_path}, line {line_number}'
+        return f'"write(*" in {file_path}:{line_number}'
 
     @staticmethod
     def defined_for(file_path):
@@ -65,7 +66,9 @@ def run_tests_per_file(file_path, style_errors):
 def run_tests(files, style_errors):
     errors = {}
     for file_path in files:
-        errors[file_path] = run_tests_per_file(file_path, style_errors)
+        errors_per_file = run_tests_per_file(file_path, style_errors)
+        if errors_per_file:
+            errors[file_path] = errors_per_file
     return errors
 
 
@@ -77,17 +80,24 @@ def output_errors(errors):
 
 
 def get_files(start_dir):
-    return (abspath(join(dname, fname)) for dname, dirs, fnames
+    return (join(dname, fname) for dname, dirs, fnames
             in walk(start_dir) for fname in fnames)
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='src dir')
+    parser.add_argument('src_dir', type=str, help='src directory to check')
+    args = parser.parse_args()
+    return args.src_dir
 
 
 if __name__ == '__main__':
     STYLE_ERRORS = [TabCharacter(), TrailingSpace(), WriteStar()]
-    files = get_files('../src')
+    src_dir = parse_args()
+    files = get_files(src_dir)
     errors = run_tests(files, STYLE_ERRORS)
     output_errors(errors)
     if errors:
         sys.exit(1)
     else:
         sys.exit(0)
-
