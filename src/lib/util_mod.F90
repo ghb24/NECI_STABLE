@@ -42,7 +42,10 @@ module util_mod
 !         error_function, error_function_c,&
 !         get_nan,&
 !         isclose, operator(.isclose.), near_zero,&
-!         operator(.arrlt.), operator(.arrgt.)
+!         operator(.arrlt.), operator(.arrgt.), operator(.div.)
+!     public :: stochastic_round_r
+!     public :: pDoubles, pSingles
+!     public :: set_timer, halt_timer
 
     interface
         pure function strlen_wrap (str) result(len) bind(c)
@@ -63,6 +66,10 @@ module util_mod
             real(c_double), intent(in) :: x
             real(c_double) :: ec
         end function
+    end interface
+
+    interface operator(.div.)
+        module procedure div_int32, div_int64
     end interface
 
     interface abs_sign
@@ -355,6 +362,24 @@ contains
             enddo
         endif
     end function choose
+
+    elemental integer(int32) function div_int32(a, b)
+        integer(int32), intent(in) :: a, b
+#ifdef _WARNING_WORKAROUND_
+        div_int32 = int(real(a, kind=sp) / real(b, kind=sp), kind=int32)
+#else
+        div_int32 = a / b
+#endif
+    end function
+
+    elemental integer(int64) function div_int64(a, b)
+        integer(int64), intent(in) :: a, b
+#ifdef _WARNING_WORKAROUND_
+        div_int64 = int(real(a, kind=dp) / real(b, kind=dp), kind=int64)
+#else
+        div_int64 = a / b
+#endif
+    end function
 
 !--- Comparison of subarrays ---
 
