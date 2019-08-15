@@ -1,14 +1,14 @@
 module MI_integrals
     use constants, only: dp,n_int,sizeof_int
-    use MomInv, only: IsBitMomSelfInv, InvertMomDet, ReturnMomAllowedDet, InvertMomBitDet 
+    use MomInv, only: IsBitMomSelfInv, InvertMomDet, ReturnMomAllowedDet, InvertMomBitDet
     use MomInv, only: IsMomSelfInv, CalcMomAllowedBitDet
     use SystemData, only: NEl, G1, nBasis, tAntisym_MI, Ecore, modk_offdiag
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel
     use sltcnd_mod, only: sltcnd, sltcnd_excit
     use bit_reps, only: NIfD, NIfTot, NIfDBO, decode_bit_det
     implicit none
-    
-    
+
+
     interface MI_off_diag_helement
         module procedure MI_off_diag_helement_norm
         module procedure MI_off_diag_helement_spawn
@@ -57,8 +57,8 @@ module MI_integrals
 
     function MI_off_diag_helement_norm (nI, nJ, iLutnI, iLutnJ) result(hel)
 
-        ! Find the  between two momentum coupled            
-        ! determinants (different ones). NI and nJ have to be uniquely 
+        ! Find the  between two momentum coupled
+        ! determinants (different ones). NI and nJ have to be uniquely
         ! chosen, so that their spin-coupled determinant will not arise.
         !
         ! In:  nI, nJ         - Determinants to consider
@@ -76,13 +76,13 @@ module MI_integrals
         logical :: tSign
 
         if (DetBitEQ(iLutnI, iLutnJ, NIfDBO)) then
-            ! Do not allow a 'diagonal' matrix element. The problem is 
-            ! that the HPHF excitation generator can generate the same HPHF 
+            ! Do not allow a 'diagonal' matrix element. The problem is
+            ! that the HPHF excitation generator can generate the same HPHF
             ! function. We do not want to allow spawns here.
             hel = (0.0_dp)
             return
         endif
-        
+
         hel = sltcnd (nI, iLutnI, iLutnJ)
         if (IsMomSelfInv(nI,iLutnI)) then
             if(tAntisym_MI) then
@@ -90,8 +90,8 @@ module MI_integrals
                 hel = 0.0_dp
             elseif (.not. IsMomSelfInv(nJ,iLutnJ)) then
                 ! SelfInv MI --> Mom-paired MI, <X|H|Y> = 1/sqrt(2) [Hia + Hib]
-                ! OTHERWISE Closed shell -> closed shell. Both the alpha and 
-                ! beta of the same orbital have been moved to the same new 
+                ! OTHERWISE Closed shell -> closed shell. Both the alpha and
+                ! beta of the same orbital have been moved to the same new
                 ! orbital. The matrix element is the same as before.
                 hel = hel * (sqrt(2.0_dp))
             endif
@@ -102,7 +102,7 @@ module MI_integrals
                     hel = 0.0_dp
                 else
                     ! Mom-paired MI -> SelfInv MI. If one of
-                    ! the determinants is connected, then the other is connected 
+                    ! the determinants is connected, then the other is connected
                     ! with the same IC & matrix element
                     hel = hel * sqrt(2.0_dp)
                 endif
@@ -114,7 +114,7 @@ module MI_integrals
 
                 !Cross-term present
                 if (ExcitLevel.le.2) then
-                    
+
                     !Calculate cross-term matrix element
                     Ex(1,1)=ExcitLevel
                     call GetBitExcitation(iLutnI2,iLutnJ,Ex,tSign)
@@ -137,7 +137,7 @@ module MI_integrals
 
         ! Finds the diagonal HElement for a momentum inverted
         ! function (potentially two momentum coupled determinants)
-        integer, intent(in) :: nI(nel) 
+        integer, intent(in) :: nI(nel)
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot)
         HElement_t :: hel
 
