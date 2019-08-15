@@ -26,7 +26,7 @@ class TrailingSpace:
     blanks = re.compile(r'[ \t\r\f\v]+$')
 
     def test(self, line):
-        return bool(self.blanks.search(line.strip('\n')))
+        return self.blanks.search(line.strip('\n'))
 
     @staticmethod
     def report(file_path, line_number):
