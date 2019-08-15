@@ -938,7 +938,7 @@ subroutine getRange(w, start, end)
   character(*), intent(inout) :: w
   integer, intent(out) :: start, end
   integer :: index
-  
+
   w = adjustl(trim(w))
   index = scan(w,"-")
   read(w(1:index-1),*) start

@@ -147,7 +147,7 @@ contains
             end do
 
             ! Now we know the number of non-zero elements in this row of the Hamiltonian, so allocate it.
-            call allocate_sparse_ham_row(sparse_ham, i, sparse_row_sizes(i), "sparse_ham", SparseHamilTags(:,i)) 
+            call allocate_sparse_ham_row(sparse_ham, i, sparse_row_sizes(i), "sparse_ham", SparseHamilTags(:,i))
 
             sparse_ham(i)%elements = 0.0_dp
             sparse_ham(i)%positions = 0
@@ -276,7 +276,7 @@ contains
             end if
 
             ! Now we know the number of non-zero elements in this row of the Hamiltonian, so allocate it.
-            call allocate_sparse_ham_row(sparse_ham, i, row_size, "sparse_ham", SparseHamilTags(:,i)) 
+            call allocate_sparse_ham_row(sparse_ham, i, row_size, "sparse_ham", SparseHamilTags(:,i))
 
             sparse_ham(i)%elements = 0.0_dp
             sparse_ham(i)%positions = 0

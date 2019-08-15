@@ -75,7 +75,7 @@ subroutine stop_all (sub_name, error_msg)
     call MPIStopAll(error_str)
 #else
 !    stop error_str
-    stop 
+    stop
 #endif
 
 end subroutine stop_all
