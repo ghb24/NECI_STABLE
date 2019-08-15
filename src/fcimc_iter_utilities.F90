@@ -497,7 +497,6 @@ contains
              "No space left in arrays for communication of estimates. Please increase &
              & the size of the send_arr and recv_arr arrays in the source code.")
 
-
         low = upp + 1; upp = low + sizes(1 ) - 1; send_arr(low:upp) = SpawnFromSing;
         low = upp + 1; upp = low + sizes(2 ) - 1; send_arr(low:upp) = iter_data%update_growth;
         low = upp + 1; upp = low + sizes(3 ) - 1; send_arr(low:upp) = NoBorn;
@@ -1250,14 +1249,12 @@ contains
         ! reset the truncated weight
         truncatedWeight = 0.0_dp
 
-
         ! reset the logged number of initiators
         initsPerExLvl = 0
 
         ! and the number of excits
         nInvalidExcits = 0
         nValidExcits = 0
-
 
     end subroutine rezero_iter_stats_update_cycle
 

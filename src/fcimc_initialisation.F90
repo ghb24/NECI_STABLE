@@ -16,7 +16,8 @@ module fcimc_initialisation
                           t_k_space_hubbard, t_3_body_excits, omega, breathingCont, &
                           momIndexTable, t_trans_corr_2body, t_non_hermitian, &
                           t_uniform_excits, t_mol_3_body, nClosedOrbs, irrepOrbOffset, nIrreps, &
-                          nOccOrbs, tNoSinglesPossible, tCachedExcits, t_pcpp_excitgen
+                          nOccOrbs, tNoSinglesPossible, t_pcpp_excitgen, &
+                          t_pchb_excitgen
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
 
     use dSFMT_interface, only: dSFMT_init
@@ -149,7 +150,6 @@ module fcimc_initialisation
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
     use initiator_space_procs, only: init_initiator_space
-    use cachedExcitgen, only: gen_excit_hel_cached
     use kp_fciqmc_data_mod, only: tExcitedStateKP
     use sym_general_mod, only: ClassCountInd
     use trial_wf_gen, only: init_trial_wf, end_trial_wf
@@ -173,10 +173,9 @@ module fcimc_initialisation
     use get_excit, only: make_double
 
     use sltcnd_mod, only: sltcnd_0
-
     use rdm_data, only: nrdms_transition_input, rdmCorrectionFactor, InstRDMCorrectionFactor, &
          ThisRDMIter
-    use UMatHash, only: initializeSparseUMat
+    use rdm_data, only: nrdms_transition_input
     use Parallel_neci
 
     use FciMCData
@@ -212,6 +211,7 @@ module fcimc_initialisation
     use OneEInts, only: tmat2d
 
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard
+    use pchb_excitgen, only: gen_rand_excit_pchb, init_pchb_excitgen
     implicit none
 
 contains
@@ -1696,6 +1696,7 @@ contains
 
         ! initialize excitation generator
         if(t_pcpp_excitgen) call init_pcpp_excitgen()
+        if(t_pchb_excitgen) call init_pchb_excitgen()
 
         IF((NMCyc.ne.0).and.(tRotateOrbs.and.(.not.tFindCINatOrbs))) then 
             CALL Stop_All(this_routine,"Currently not set up to rotate and then go straight into a spawning &
@@ -1850,10 +1851,6 @@ contains
                                         &error as the initiator method is not in use.")
         end if
 
-         if(tCachedExcits) call initializeSparseUMat()
-
-
-
     end subroutine InitFCIMCCalcPar
 
     subroutine init_fcimc_fn_pointers()
@@ -1868,9 +1865,6 @@ contains
          endif
       elseif (tHPHF) then
          generate_excitation => gen_hphf_excit
-      elseif(tCachedExcits) then
-         generate_excitation => gen_excit_hel_cached
-
       elseif ((t_back_spawn_option .or. t_back_spawn_flex_option)) then 
          if (tHUB .and. tLatticeGens) then 
             ! for now the hubbard + back-spawn still uses the old 
@@ -1903,7 +1897,9 @@ contains
       elseif (tGen_4ind_reverse) then
          generate_excitation => gen_excit_4ind_reverse
       elseif (t_pcpp_excitgen) then
-         generate_excitation => gen_rand_excit_pcpp         
+         generate_excitation => gen_rand_excit_pcpp
+      elseif (t_pchb_excitgen) then
+         generate_excitation => gen_rand_excit_pchb
       else
          generate_excitation => gen_rand_excit
       endif

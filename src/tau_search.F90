@@ -9,7 +9,7 @@ module tau_search
                           t_3_body_excits, t_k_space_hubbard, t_trans_corr_2body, &
                           t_uniform_excits, t_new_real_space_hubbard, & 
                           t_trans_corr, tHub, t_trans_corr_hop, tNoSinglesPossible, &
-                          t_exclude_3_body_excits
+                          t_exclude_3_body_excits, t_mol_3_body
 
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow, t_min_tau, min_tau_global, &
@@ -615,7 +615,7 @@ contains
                  endif
               end if
 
-              if(t_exclude_3_body_excits) then 
+              if(t_exclude_3_body_excits.or..not.t_mol_3_body) then 
                  pTriples_new = 0.0_dp
               else if(abs(pTriples_new - pTriples) / pTriples > 0.0001_dp) then
                  root_print "Updating triple-excitation bias. pTriples =", pTriples_new

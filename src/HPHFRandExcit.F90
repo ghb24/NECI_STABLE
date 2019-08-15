@@ -15,8 +15,8 @@ MODULE HPHFRandExcitMod
                           tUEG, tUEGNewGenerator, t_new_real_space_hubbard, & 
                           t_tJ_model, t_heisenberg_model, t_lattice_model, &
                           t_k_space_hubbard, t_3_body_excits, t_uniform_excits, &
-                          t_trans_corr_hop, t_spin_dependent_transcorr, t_mol_3_body
-
+                          t_trans_corr_hop, t_spin_dependent_transcorr, t_mol_3_body, &
+                          t_pchb_excitgen, t_pcpp_excitgen
     use IntegralsData, only: UMat, fck, nMax
 
     use SymData, only: nSymLabels
@@ -49,7 +49,7 @@ MODULE HPHFRandExcitMod
     use SymExcitDataMod, only: excit_gen_store_type
 
     use excit_gen_5, only: calc_pgen_4ind_weighted2, gen_excit_4ind_weighted2
-
+    use pchb_excitgen, only: calc_pgen_pchb, gen_rand_excit_pchb
     use sort_mod
 
     use HElem
@@ -92,14 +92,14 @@ MODULE HPHFRandExcitMod
         integer, intent(in) :: nI(nel)
         integer(kind=n_int), intent(in) :: iLutnI(0:niftot),iLutnJ(0:niftot)
         integer, intent(in) :: ClassCount(ScratchSize),ClassCountUnocc(ScratchSize)
-        integer, intent(in) :: nJ(nel),ex(2,2)
+        integer, intent(in) :: nJ(nel),ex(2,maxExcit)
         real(dp), intent(in) :: pDoubles
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tSameFunc
         logical :: tSign,tSwapped
         real(dp) :: pGen2
         integer :: ic
-        integer :: Ex2(2,2),nJ_loc(nel),nJ2(nel)
+        integer :: Ex2(2,maxExcit),nJ_loc(nel),nJ2(nel)
         integer(kind=n_int) :: iLutnJ_loc(0:niftot),iLutnJ2(0:niftot)
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "CalcPGenHPHF"
@@ -273,6 +273,9 @@ MODULE HPHFRandExcitMod
             call gen_excit_4ind_weighted2(nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
                                           ExcitMat, tSignOrig, pGen, Hel, &
                                           store)
+        else if (t_pchb_excitgen) then
+            call gen_rand_excit_pchb(nI, ilutnI, nJ, iLutnJ, exFlag, IC, ExcitMat,&
+                 tSignOrig, pGen, HEl, store)
         else
             call gen_rand_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat,&
                                  tSignOrig, pGen, HEl, store)
@@ -1245,7 +1248,7 @@ MODULE HPHFRandExcitMod
         use bit_reps, only: get_initiator_flag
         use bit_rep_data, only: test_flag
 
-        integer, intent(in) :: nI(nel), ex(2,2), ic
+        integer, intent(in) :: nI(nel), ex(2,maxExcit), ic
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(in) :: ClassCount2(ScratchSize)
         integer, intent(in) :: ClassCountUnocc2(ScratchSize)
@@ -1306,7 +1309,6 @@ MODULE HPHFRandExcitMod
                                                 ClassCountUnocc2)
             else if (tGen_4ind_reverse) then
                 pgen = calc_pgen_4ind_reverse (nI, ilutI, ex, ic)
-
             else if (t_new_real_space_hubbard) then 
                 if (t_trans_corr_hop) then 
                     if (t_uniform_excits) then 
@@ -1337,6 +1339,8 @@ MODULE HPHFRandExcitMod
                 else
                     pgen = calc_pgen_k_space_hubbard(nI, ilutI, ex, ic)
                 end if
+            else if (t_pchb_excitgen) then
+                pgen = calc_pgen_pchb(nI, ex, ic, ClassCount2, ClassCountUnocc2)
             else
                 ! Here we assume that the normal excitation generators in
                 ! symrandexcit2.F90 are being used.

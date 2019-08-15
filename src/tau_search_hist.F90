@@ -25,7 +25,7 @@ module tau_search_hist
 
     use ParallelHelper, only: iprocindex, root
 
-    use constants, only: dp, EPS, iout, maxExcit
+    use constants, only: dp, EPS, iout, maxExcit, int64
 
     use tau_search, only: FindMaxTauDoubs
 
@@ -1515,6 +1515,7 @@ contains
         ! sashas tip: why do i not just use a real as summation?
         real(dp) :: sum_all
         integer :: tmp_int, j, k
+        integer(int64) :: tmp_int_64
         real(dp) :: cnt, threshold
         real(dp) :: max_tmp, min_tmp
         real(dp) :: temp_bins(n_frequency_bins)
@@ -1580,14 +1581,14 @@ contains
 
             end if
 
-            tmp_int = 0
-            call mpisum(zero_doubles,  tmp_int)
+            tmp_int_64 = 0
+            call mpisum(zero_doubles,  tmp_int_64)
 
             if (iProcIndex == root) then
-                write(iout,*) "Number of zero-valued excitations: ", tmp_int
+                write(iout,*) "Number of zero-valued excitations: ", tmp_int_64
                 write(iout,*) "Number of valid excitations: ", sum_all
                 write(iout,*), "ratio of zero-valued excitations: ", &
-                    real(tmp_int, dp) / sum_all
+                    real(tmp_int_64, dp) / sum_all
                 ! i guess i should also output the number of excitations 
                 ! above the threshold! 
                 ! this is not really working.. 
@@ -1692,14 +1693,14 @@ contains
 
                 end if
 
-                tmp_int = 0
-                call MPISum(zero_para, tmp_int)
+                tmp_int_64 = 0
+                call MPISum(zero_para, tmp_int_64)
 
                 if (iProcIndex == root) then
-                    write(iout,*) "Number of zero-valued parallel excitations: ", tmp_int
+                    write(iout,*) "Number of zero-valued parallel excitations: ", tmp_int_64
                     write(iout,*) "Number of valid parallel excitations: ", sum_all
                     write(iout,*) "ratio of zero-valued parallel excitations: ", &
-                        real(tmp_int, dp) / sum_all
+                        real(tmp_int_64, dp) / sum_all
                 end if
 
                 tmp_int = 0
@@ -1771,14 +1772,14 @@ contains
                     write(iout,*) "Done!"
                 end if
 
-                tmp_int = 0
-                call MPISum(zero_anti, tmp_int)
+                tmp_int_64 = 0
+                call MPISum(zero_anti, tmp_int_64)
 
                 if (iProcIndex == root) then 
-                    write(iout,*) "Number of zero-valued anti-parallel excitations: ", tmp_int
+                    write(iout,*) "Number of zero-valued anti-parallel excitations: ", tmp_int_64
                     write(iout,*) "Number of valid anti-parallel excitations: ", sum_all
                     write(iout,*) "ratio of zero-valued anti-parallel excitations: ", &
-                        real(tmp_int, dp) / sum_all
+                        real(tmp_int_64, dp) / sum_all
                 end if
 
                 tmp_int = 0
@@ -1854,14 +1855,14 @@ contains
                     write(iout,*) "Done!"
                 end if
 
-                tmp_int = 0
-                call MPISUM(zero_doubles, tmp_int)
+                tmp_int_64 = 0
+                call MPISUM(zero_doubles, tmp_int_64)
 
                 if (iprocindex == root) then
-                    write(iout,*) "Number of zero-valued double excitations: ", tmp_int
+                    write(iout,*) "Number of zero-valued double excitations: ", tmp_int_64
                     write(iout,*) "Number of valid double excitations: ", sum_all
                     write(iout,*) "ratio of zero-valued double excitations: ", &
-                        real(tmp_int, dp) / sum_all
+                        real(tmp_int_64, dp) / sum_all
                 end if
 
                 tmp_int = 0
@@ -2076,15 +2077,15 @@ contains
            endif
 
 
-            tmp_int = 0
-            call mpisum(zero_loc, tmp_int)
+            tmp_int_64 = 0
+            call mpisum(zero_loc, tmp_int_64)
 
             if (iProcIndex == root) then
-                write(iout,*) "Number of zero-valued "//trim(histname)//" excitations: ", tmp_int
+                write(iout,*) "Number of zero-valued "//trim(histname)//" excitations: ", tmp_int_64
                 ! maybe also check the number of valid excitations
                 write(iout,*) "Number of valid "//trim(histname)//" excitations: ", sum_all
                 write(iout,*) "ratio of zero-valued "//trim(histname)//" excitations: ", &
-                    real(tmp_int,dp) / sum_all
+                    real(tmp_int_64,dp) / sum_all
 
             end if
 

@@ -71,7 +71,6 @@ MODULE System
       iRanLuxLev=3      !This is the default level of quality for the random number generator.
       tNoSymGenRandExcits=.false.
       tNonUniRandExcits=.true. 
-      tCachedExcits = .false.
       tCycleOrbs=.false.
       TSTARBIN=.false.
       TREADINT=.false.
@@ -195,6 +194,10 @@ MODULE System
       t_uniform_excits = .false.
       t_mol_3_body = .false.
       t_exclude_3_body_excits = .false.
+
+      t_pcpp_excitgen = .false.
+      t_pchb_excitgen = .false.
+
       tMultiReplicas = .false.
       tGiovannisBrokenInit = .false.
       ! by default, excitation generation already creates matrix elements
@@ -1153,8 +1156,6 @@ system: do
             CALL GetiLong(CalcDetCycles)
             CALL GetiLong(CalcDetPrint)
 
-         case("SPARSE-EXCITGEN")
-            tCachedExcits = .true.
 !            tDynamicAvMCEx = .true.
 
         case("NONUNIFORMRANDEXCITS")
@@ -1277,6 +1278,10 @@ system: do
                     case("PCPP")
                        ! the precomputed power-pitzer excitation generator
                        t_pcpp_excitgen = .true.
+
+                    case("PCHB")
+                       ! the precomputed heat-bath excitation generator (uniform singles)
+                       t_pchb_excitgen = .true.
                     case("UEG")
                         ! Use the new UEG excitation generator.
                         ! TODO: This probably isn't the best way to do this

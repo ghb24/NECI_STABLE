@@ -10,7 +10,6 @@ set( SRC_FILES
     Annihilation.F90
     bit_rep_data.F90
     BitReps.F90
-    cachedExcitgen.F90
     CalcData.F90
     Calc.F90
     calcrho.F
@@ -116,6 +115,7 @@ set( SRC_FILES
     Parallel_Calc.F90
     ParallelHelper.F90
     parallel_workarounds.F90
+    pchb_excitgen.F90
     perturbations.F90
     Popsfile.F90
     proc_ptrs.F90
@@ -179,7 +179,6 @@ set( SRC_FILES
     trial_wf_gen.F90
     trial_ht_procs.F90
     UMatCache.F90
-    UMatHash.F90
     tc_precomputed_excitgen.F90
     unit_test_helper_excitgen.F90
     vasp_init.F90
