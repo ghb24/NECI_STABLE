@@ -1745,8 +1745,6 @@ contains
         ! Select the excitation generator.
         if (tHPHF) then
            generate_excitation => gen_hphf_excit
-        elseif(t_pchb_excitgen) then
-           generate_excitation => gen_rand_excit_pchb
         elseif ((t_back_spawn_option .or. t_back_spawn_flex_option)) then 
             if (tHUB .and. tLatticeGens) then 
                 ! for now the hubbard + back-spawn still uses the old 
@@ -1780,6 +1778,8 @@ contains
            generate_excitation => gen_excit_4ind_reverse
         elseif (t_pcpp_excitgen) then
            generate_excitation => gen_rand_excit_pcpp
+        elseif(t_pchb_excitgen) then
+           generate_excitation => gen_rand_excit_pchb           
          else
             generate_excitation => gen_rand_excit
         endif

@@ -1,18 +1,20 @@
 #include "macros.h"
 module pchb_excitgen
   use constants
-  use SystemData, only: nel, nBasis, G1, tStoreSpinOrbs
+  use SystemData, only: nel, nBasis, G1, tStoreSpinOrbs, AB_elec_pairs, par_elec_pairs
   use bit_rep_data, only: NIfTot
   use dSFMT_interface, only: genrand_real2_dSFMT
   use get_excit, only: make_double, exciteIlut
   use excit_gens_int_weighted, only: pick_biased_elecs
-  use FciMCData, only: pSingles, excit_gen_store_type, nInvalidExcits, nValidExcits, projEDet
+  use FciMCData, only: pSingles, excit_gen_store_type, nInvalidExcits, nValidExcits, &
+       projEDet, pParallel, pDoubles
   use sltcnd_mod, only: sltcnd_excit
   use UMatCache, only: gtID
   use aliasSampling, only: aliasSampler_t, clear_sampler_array
   use util_mod, only: fuseIndex, linearIndex
-  use GenRandSymExcitNUMod, only: construct_class_counts, createSingleExcit
-  use SymExcitDataMod, only: pDoubNew
+  use GenRandSymExcitNUMod, only: construct_class_counts, createSingleExcit, &
+       calc_pgen_symrandexcit2
+  use SymExcitDataMod, only: pDoubNew, scratchSize
   implicit none
 
   type(aliasSampler_t), allocatable :: pchb_sampler(:)
@@ -135,6 +137,49 @@ module pchb_excitgen
 
   !------------------------------------------------------------------------------------------!
 
+    function calc_pgen_pchb(nI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
+      implicit none
+      integer, intent(in) :: nI(nel)
+      integer, intent(in) :: ex(2,2), ic
+      integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
+      
+      real(dp) :: pgen
+      
+      if(ic==1) then
+         ! single excitations are the job of the uniform excitgen
+         call calc_pgen_symrandexcit2(nI,ex,ic,ClassCount2, ClassCountUnocc2, pDoubles, pGen)
+      else if(ic==2) then
+         pGen = pDoubles * calc_double_pgen_pchb(ex)
+      else
+         pgen = 0.0_dp
+      endif
+
+    end function calc_pgen_pchb
+
+  !------------------------------------------------------------------------------------------!
+
+    function calc_double_pgen_pchb(ex) result(pgen)
+      implicit none
+      integer, intent(in) :: ex(2,2)
+      real(dp) :: pgen
+      integer :: ab, ij
+
+      ! the probability of picking the two electrons: they are chosen uniformly         
+      if (is_alpha(ex(1,1)) .eqv. is_alpha(ex(1,2))) then
+         pgen = pParallel / par_elec_pairs
+      else
+         pgen = (1.0_dp - pParallel) / AB_elec_pairs
+      end if
+
+      ! look up the probability for this excitation in the sampler
+      ij = fuseIndex(ex(1,1),ex(1,2))
+      ab = fuseIndex(ex(2,1),ex(2,2))
+      pgen = pgen * pchb_sampler(ij)%getProb(ab)
+      
+    end function calc_double_pgen_pchb
+
+  !------------------------------------------------------------------------------------------!
+
     subroutine init_pchb_excitgen()
       ! initialize the pchb excitation generator
       ! this does two things:
@@ -202,7 +247,6 @@ module pchb_excitgen
         deallocate(w)
       end subroutine setup_pchb_sampler
     end subroutine init_pchb_excitgen
-
     
   !------------------------------------------------------------------------------------------!
 

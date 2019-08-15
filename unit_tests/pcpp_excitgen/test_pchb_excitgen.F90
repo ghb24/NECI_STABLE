@@ -19,10 +19,11 @@ contains
     integer :: numEx, nFound
     ! There can be some excitations with really low matrix elements -> we need a lot
     ! of samples to hit all
-    integer, parameter :: nSamples = 10000000
+    integer, parameter :: nSamples = 5000000
 
     ! set the excitation generator to pchb
     generate_excitation => gen_rand_excit_pchb
+    calc_pgen => calc_pgen_pchb
     ! prepare an excitation generator test
     call init_excitgen_test()
 
@@ -31,7 +32,7 @@ contains
     call init_pchb_excitgen()
 
     ! test the excitation generator
-    call test_excitation_generator(nSamples,pTot,pNull,numEx,nFound)
+    call test_excitation_generator(nSamples,pTot,pNull,numEx,nFound,.true.)
     ! make sure all excits have been found
     call assert_equals(numEx,nFound)
     ! and the total prob is 1.0
