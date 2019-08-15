@@ -15,7 +15,7 @@ MODULE HFCalc
       Use Determinants, only: FDet, nUHFDet, write_det
       use IntegralsData, only: UMat, tagUMat, umat_win
       Use UMatCache, only: GetUMatSize
-      Use OneEInts, only: TMat2D, SetupTMat2, DestroyTMat
+      Use OneEInts, only: TMat2D, TMat2D2, SetupTMat2, DestroyTMat
       use sort_mod
       use shared_memory_mpi
       use HElem, only: helement_t_size, helement_t_sizeb
@@ -24,7 +24,6 @@ MODULE HFCalc
       HElement_t(dp),ALLOCATABLE :: HFBASIS(:),HFE(:)
       HElement_t(dp),pointer :: UMat2(:)
       INTEGER(MPIArg):: umat2_win
-      HElement_t(dp),pointer :: TMat2D2(:,:)
       integer i
       integer nOrbUsed
       integer TMatInt
