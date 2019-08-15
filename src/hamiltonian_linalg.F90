@@ -485,8 +485,10 @@ module hamiltonian_linalg
 
         do i = 1, this%space_sizes(iProcIndex)
             do j = 1, sparse_ham(i)%num_elements
+#ifdef __CMPLX
                 this%partial_H_ket(i) = this%partial_H_ket(i) + &
                     sparse_ham(i)%elements(j)*output_vector(sparse_ham(i)%positions(j))
+#endif
             end do
         end do
 #ifdef __CMPLX
