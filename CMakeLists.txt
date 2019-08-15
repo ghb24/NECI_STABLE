@@ -129,6 +129,11 @@ add_subdirectory(src)
 add_subdirectory(unit_tests)
 
 # And we are done
+if ( CMAKE_BUILD_TYPE STREQUAL "DEBUG")
+    set (HAVE_WARNINGS ON)
+    set (WARN_ERROR ON)
+endif()
+
 
 neci_print_summary()
 

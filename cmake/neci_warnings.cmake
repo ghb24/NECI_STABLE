@@ -4,7 +4,7 @@
 
 neci_add_option(
     FEATURE WARNINGS
-    DEFAULT ON
+    DEFAULT OFF
     DESCRIPTION "Enable compilation warnings (to the maximal degree)" )
 
 if ( HAVE_WARNINGS )
@@ -28,9 +28,8 @@ endif()
 
 neci_add_option(
     FEATURE WARN_ERROR
-    DEFAULT ON
+    DEFAULT OFF
     DESCRIPTION "Treat warnings as error.")
-
 
 if ( HAVE_WARN_ERROR)
     message( STATUS "Treat Warnings as errors." )
