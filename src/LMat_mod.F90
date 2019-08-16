@@ -129,7 +129,7 @@ module LMat_mod
         ! post-symmetrized access when storing non-symmetrized lMat
         implicit none
         integer, value :: a,b,c
-        integer, intent(in) :: i,j,k
+        integer, value :: i,j,k
         HElement_t(dp) :: matel
 
         matel = 0.0_dp
@@ -151,7 +151,7 @@ module LMat_mod
         ! get the spin-projected matel
         implicit none
         integer, value :: a,b,c
-        integer, intent(in) :: i,j,k
+        integer, value :: i,j,k
         HElement_t(dp) :: matel
 
         ! auxiliary, spin-swapped indices

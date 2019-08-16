@@ -218,7 +218,7 @@ module procedure_pointers
           implicit none
 
           integer, value :: a,b,c
-          integer, intent(in) :: i,j,k
+          integer, value :: i,j,k
           HElement_t(dp) :: hel
 
         end function get_lmat_el_t
