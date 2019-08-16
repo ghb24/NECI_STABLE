@@ -179,7 +179,6 @@ contains
            hel = sltcnd_3 (ex, tSign)
 
         case default
-            ASSERT(.not. t_3_body_excits)
             ! The determinants differ by more than two orbitals
             hel = 0
         endselect

@@ -50,7 +50,6 @@ module pchb_excitgen
          endif
          call createSingleExcit(nI,nJ,store%ClassCountOcc,store%classCountUnocc,ilutI,&
               ex,tPar,pGen)
-         pgen = pgen * pSingles
 
          ! set the output ilut
          ilutJ = ilutI

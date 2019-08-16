@@ -10,7 +10,7 @@ module unit_test_helper_excitgen
   use sort_mod
   use System, only: SysInit, SetSysDefaults
   use Parallel_neci, only: MPIInit, MPIEnd
-  use UMatCache, only: GetUMatSize, tTransGTID
+  use UMatCache, only: GetUMatSize, tTransGTID, setupUMat2d_dense
   use OneEInts, only: Tmat2D  
   use bit_rep_data, only: NIfTot, NIfDBO, NOffSgn, NIfSgn, extract_sign
   use bit_reps, only: encode_sign, decode_bit_det
@@ -255,7 +255,10 @@ contains
 
     call shared_allocate_mpi(umat_win, umat, (/umatsize/))
 
-    call readfciint(UMat,umat_win,nBasis,ecore,.false.)    
+    call readfciint(UMat,umat_win,nBasis,ecore,.false.)
+
+    ! init the umat2d storage
+    call setupUMat2d_dense(nBasis)
     call SysInit()
     ! required: set up the spin info
     
