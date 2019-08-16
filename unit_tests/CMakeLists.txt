@@ -1,17 +1,15 @@
 macro (add_unit_test test_name)
-      foreach( _config ${${PROJECT_NAME}_CONFIGURATIONS} )
 
           neci_add_test(
-    	    TARGET test_${_config}_${test_name}
+    	    TARGET test_neci_${test_name}
 	    SOURCES test_${test_name}.F90
-	    LIBS lib${_config} fruit
+	    LIBS libneci fruit
 	    LINKER_LANGUAGE Fortran
-	    META_TARGET test_${_config}
+	    META_TARGET test_neci
 	    DEFINITIONS
-	    	    "${${PROJECT_NAME}_${_config}_DEFINITIONS}"
+	    	    "${${PROJECT_NAME}_neci_DEFINITIONS}"
 	)
 
-	endforeach()
 endmacro()
 
 # Make some stuff available to all the tests
