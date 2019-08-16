@@ -1217,80 +1217,56 @@ contains
     end subroutine return_largest_indices
 
     subroutine start_walkers_from_core_ground(tPrintInfo)
-
         use bit_reps, only: encode_sign
         use davidson_semistoch, only: davidson_ss, perform_davidson_ss, destroy_davidson_ss
         use Parallel_neci, only: MPISumAll
+        implicit none
+      
         logical, intent(in) :: tPrintInfo
         integer :: i, counter, ierr
         real(dp) :: eigenvec_pop, eigenvec_pop_tot, pop_sign(lenof_sign)
-        HElement_t(dp), allocatable :: temp_determ_vec(:)
         character(len=*), parameter :: t_r = "start_walkers_from_core_ground"
-        real(dp), allocatable :: e_values(:)
-        HElement_t(dp), allocatable :: e_vectors(:,:), gs_vector(:)
-        real(dp) :: gs_energy
+        type(davidson_ss) :: dc
 
         if (tPrintInfo) then
-            root_print "Using the deterministic ground state as initial walker configuration."
+            write(6,'(a69)') "Using the deterministic ground state as initial walker configuration."
+            write(6,'(a34)') "Performing Davidson calculation..."
+            call neci_flush(6)
         end if
 
-!         if (t_non_hermitian) then
-            root_print "Performing full diagonalisation..."
-            call diagonalize_core_non_hermitian(e_values, e_vectors)
+        ! Call the Davidson routine to find the ground state of the core space.
+        call perform_davidson_ss(dc, .true.)
 
-!         if_root
-            if (t_choose_trial_state) then
-                root_print " chosen state: ", trial_excit_choice(1), &
-                    "with energy: ", e_values(trial_excit_choice(1))
-                gs_vector = e_vectors(:,trial_excit_choice(1))
-            else
-                root_print " ground-state energy: ", e_values(1)
-                gs_vector = e_vectors(:,1)
-            end if
-!         end_if_root
-
-!         else
-! 
-!             if (tPrintInfo) then
-!                 write(6,'(a34)') "Performing Davidson calculation..."
-!                 call neci_flush(6)
-!             end if
-! 
-!             call diagonalize_core(gs_energy, gs_vector)
-! 
-!         end if
-
-        if (iProcIndex == root) then
-            eigenvec_pop = 0.0_dp
-            do i = 1, determ_space_size
-                eigenvec_pop = eigenvec_pop + abs(gs_vector(i))
-            end do
-            if (tStartSinglePart) then 
-                gs_vector = gs_vector * InitialPart / eigenvec_pop
-            else
-                gs_vector = gs_vector * InitWalkers / eigenvec_pop
-            end if
+        if (tPrintInfo) then
+            write(6,'(a30)') "Davidson calculation complete."
+            write(6,'("Deterministic subspace correlation energy:",1X,f15.10)') dc%davidson_eigenvalue
+            call neci_flush(6)
         end if
 
-        allocate(temp_determ_vec(determ_sizes(iProcIndex)))
-        ! i hope the order of the components did not get messed up.. 
-        call MPIScatterV(gs_vector, determ_sizes, determ_displs, &
-            temp_determ_vec, determ_sizes(iProcIndex), ierr)
+        ! We need to normalise this vector to have the correct 'number of walkers'.
+        eigenvec_pop = 0.0_dp
+        do i = 1, determ_sizes(iProcIndex)
+            eigenvec_pop = eigenvec_pop + abs(dc%davidson_eigenvector(i))
+        end do
+        call MPISumAll(eigenvec_pop, eigenvec_pop_tot)
+
+        if (tStartSinglePart) then
+            dc%davidson_eigenvector = dc%davidson_eigenvector*InitialPart/eigenvec_pop_tot
+        else
+            dc%davidson_eigenvector = dc%davidson_eigenvector*InitWalkers/eigenvec_pop_tot
+        end if
 
         ! Then copy these amplitudes across to the corresponding states in CurrentDets.
         counter = 0
         do i = 1, int(TotWalkers, sizeof_int)
             if (test_flag(CurrentDets(:,i), flag_deterministic)) then
-               counter = counter + 1
-#ifdef __CMPLX               
-                pop_sign(1:lenof_sign:2) = real(temp_determ_vec(counter))
-                pop_sign(2:lenof_sign:2) = aimag(temp_determ_vec(counter))
-#else
-                pop_sign = temp_determ_vec(counter)
-#endif
+                counter = counter + 1
+                pop_sign = dc%davidson_eigenvector(counter)
                 call encode_sign(CurrentDets(:,i), pop_sign)
             end if
         end do
+
+        call destroy_davidson_ss(dc)
 
     end subroutine start_walkers_from_core_ground
 

@@ -1311,7 +1311,7 @@ contains
                 do k = 1, nintersec
                     ind_k = alpha_dets(ind_alpha_conn)%pos( intersec_inds(k) )
                     call decode_bit_det(nK, core_space(:,ind_k))
-                    hel = get_helement(nI, nK, 2, core_space(:,i_full), core_space(:,ind_k))
+                    hel = get_helement(nI, nK, core_space(:,i_full), core_space(:,ind_k))
                     if (abs(hel) > 0.0_dp) then
                         num_conns(i) = num_conns(i) + 1
                         hamil_pos(num_conns(i)) = ind_k
