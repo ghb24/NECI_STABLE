@@ -1546,15 +1546,15 @@ module FciMCParMod
 
          enddo ! Loop over determinants.
 
-         !loop timing for this iteration on this MPI rank
-         lt_arr(mod(Iter-1,100)+1)=mpi_wtime()-lstart
-
-         ! if any proc ran out of memory, terminate
-         call MPISumAll(err,allErr)
-         if(allErr.ne.0) then
-            err = allErr
-            return
-         endif
+        !loop timing for this iteration on this MPI rank
+        lt_arr(mod(Iter-1,100)+1)=mpi_wtime()-lstart
+         
+        ! if any proc ran out of memory, terminate
+        call MPISumAll(err,allErr)
+        if(allErr.ne.0) then
+           err = allErr
+           return
+        endif
 
         IFDEBUGTHEN(FCIMCDebug,2) 
             write(iout,*) 'Finished loop over determinants'
