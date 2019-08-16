@@ -217,7 +217,7 @@ module pchb_excitgen
         real(dp), allocatable :: w(:)
         ! number of possible source orbital pairs
         ijMax = fuseIndex(nBasis,nBasis)
-        call pchb_sampler%setupSamplerArray(ijMax,abMax)
+        call pchb_sampler%setupSamplerArray(int(ijMax,int64),int(abMax,int64))
 
         ! weights per 
         allocate(w(abMax), stat = aerr)        
