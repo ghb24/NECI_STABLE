@@ -33,12 +33,6 @@ vcs = git
 inputs_args = ('*.inp', '')
 extract_program = ./tools/extract.py
 
-[test_loop]
-exe = ../build/src/test_loop/test_mneci_loop
-vcs = git
-inputs_args = ('*.inp', '')
-extract_program = ./tools/extract.py
-
 [skip]
 exe = ./tools/skip.py
 vcs = git

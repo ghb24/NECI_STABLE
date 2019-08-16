@@ -994,13 +994,10 @@ contains
         if (iSpn == 1) then
             spnb = 1
         elseif (iSpn == 2) then
-            ! w.d: bug found by peter jeszenski and confirmed by 
-            ! simon! 
+            ! w.d: bug found by peter jeszenski and confirmed by simon! 
             ! i do not think this is so much more efficient than an 
             ! additional if-statement which is way more clear!
             ! messed up alpa and beta spin here.. 
-!             spnb = (-G1(orba)%Ms + 1)/2 + 1
-    !       spnb = (G1(orba)%Ms)/2 + 1
             if (is_beta(orba)) then 
                 spnb = 2
             else 
