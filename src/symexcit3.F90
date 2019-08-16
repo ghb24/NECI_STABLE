@@ -183,7 +183,17 @@ MODULE SymExcit3
 
 
 
-    ENDSUBROUTINE GenExcitations3
+      ENDSUBROUTINE GenExcitations3
+
+      subroutine GenTripleExcit(nI,ilut,nJ,ex,tAllExcitFound)
+        ! return the next excitation in a 
+        implicit none
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer, intent(out) :: nJ(nel)
+        integer, intent(inout) :: ex(2,3)
+        logical, intent(out) :: tAllExcitFound
+      end subroutine GenTripleExcit
 
 
 
