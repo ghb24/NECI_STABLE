@@ -1,6 +1,6 @@
 module lMat_indexing
   use constants, only: int64
-  use LMat_aux, only: intswap, fuseIndex
+  use util_mod, only: intSwap, fuseIndex
   use tc_three_body_data, only: nBI
   implicit none
 

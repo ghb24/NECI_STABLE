@@ -4,7 +4,7 @@ module LMat_mod
   use HElem, only: HElement_t_SizeB
   use SystemData, only: tStoreSpinOrbs, nBasis, tHDF5LMat, t12FoldSym, G1
   use MemoryManager, only: LogMemAlloc, LogMemDealloc
-  use util_mod, only: get_free_unit
+  use util_mod, only: get_free_unit, fuseIndex
   use shared_memory_mpi
   use sort_mod
   use hash, only: add_hash_table_entry, clear_hash_table
@@ -13,7 +13,7 @@ module LMat_mod
        lMat_t, tSparseLMat, lMat, lMatABB, lMatBBA, lMatBAB, nBI
   use procedure_pointers, only: lMatInd, get_lmat_el, get_lmat_el_symInternal, lMatInd_t
   use LoggingData, only: tHistLMat
-  use LMat_aux, only: fuseIndex, intswap, diffSpinPos, dampLMatel
+  use LMat_aux, only: diffSpinPos, dampLMatel
   use LMat_indexing, only: lMatIndSym, lMatIndSymBroken, oldLMatInd, strideInner, strideOuter
 #ifdef __USE_HDF5
   use hdf5

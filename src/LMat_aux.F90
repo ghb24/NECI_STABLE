@@ -61,44 +61,4 @@ module LMat_aux
 
     end function diffSpinPos
 
-!------------------------------------------------------------------------------------------!
-
-    pure subroutine intswap(a,b)
-      ! exchange the value of two integers a,b
-      integer(int64), intent(inout) :: a,b
-      integer(int64) :: tmp
-      
-      tmp = a
-      a = b 
-      b = tmp
-    end subroutine intswap
-
-!------------------------------------------------------------------------------------------!
-
-    pure subroutine pairSwap(a,i,b,j)
-      ! exchange a pair of integers
-      integer(int64), intent(inout) :: a,i,b,j
-
-      call intswap(a,b)
-      call intswap(i,j)
-    end subroutine pairSwap
-
-!------------------------------------------------------------------------------------------!
-
-    pure function fuseIndex(x,y) result(xy)
-      ! create a composite index out of two indices, assuming they are unordered
-      ! i.e. their ordering does not matter
-      implicit none
-      integer(int64), intent(in) :: x,y
-      integer(int64) :: xy
-
-      if(x < y) then
-         xy = x + y*(y-1)/2
-      else
-         xy = y + x*(x-1)/2
-      endif
-    end function fuseIndex
-
-!------------------------------------------------------------------------------------------!    
-
 end module LMat_aux

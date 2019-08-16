@@ -11,7 +11,7 @@ module pcpp_excitgen
   use Integrals_neci, only: get_umat_el
   use UMatCache, only: gtID
   use sltcnd_mod, only: sltcnd_excit
-  use util_mod, only: binary_search_first_ge
+  use util_mod, only: binary_search_first_ge, intSwap
   use get_excit, only: make_double, make_single
   implicit none
 
@@ -770,18 +770,5 @@ contains
 
     ms = mod(orb,2)
   end function getSpinIndex
-  
-  !------------------------------------------------------------------------------------------!
-
-  pure subroutine intswap(a,b)
-    ! Swap two integers a and b
-    ! Input: a,b - integers to swapp (on return, a has the value of b on call and vice versa)
-    integer, intent(inout) :: a,b
-    integer :: tmp
-
-    tmp = a
-    a = b 
-    b = tmp
-  end subroutine intswap
 
 end module pcpp_excitgen
