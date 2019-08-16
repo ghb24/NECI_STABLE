@@ -483,9 +483,6 @@ contains
         ! it should be the same as above.. 
         call assert_equals(1.0_dp/3.0_dp, calc_pgen_back_spawn_ueg_new(nI, ilut, ex, ic, run))
 
-        ex(1,:) = [1,4]
-        call assert_equals(1.0_dp/2.0_dp, calc_pgen_back_spawn_ueg_new(nI, ilut, ex, ic, run))
-
         ! those 2 fail now with the new implementation:
         ex(1,:) = [1,3]
         call assert_equals(0.0_dp, calc_pgen_back_spawn_ueg_new(nI, ilut, ex, ic, run))
