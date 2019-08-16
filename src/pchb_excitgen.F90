@@ -48,6 +48,7 @@ module pchb_excitgen
                  store%ClassCountUnocc)
             store%tFilled = .true.
          endif
+         pDoubNew = 1.0-pSingles
          call createSingleExcit(nI,nJ,store%ClassCountOcc,store%classCountUnocc,ilutI,&
               ex,tPar,pGen)
 
