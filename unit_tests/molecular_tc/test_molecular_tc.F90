@@ -31,9 +31,9 @@ program test_molecular_tc
       ! the sixindex initialization
       call run_lmat_test()
       ! the tc slater condon rules
-!      call run_sltcnd_test()
+      call run_sltcnd_test()
       ! and the three-body excitation generator
-!      call run_excitgen_test()
+      call run_excitgen_test()
 
       call clear_resources()
     end subroutine molecular_tc_test_driver
@@ -107,11 +107,6 @@ program test_molecular_tc
       
       ! we read an exemplary sixindex integral file
       call readLMat()
-
-      ! now, check whether accessing directly and via 5-index yields the same
-      call assert_equals(get_lmat_el_five_ind(a,b,i,j,k),get_lmat_el_base(a,b,c,i,j,k))
-      call assert_equals(get_lmat_el_five_ind(a,b,i,i,k),get_lmat_el_base(a,b,c,i,i,k))
-      call assert_equals(get_lmat_el_five_ind(ap,bp,ip,jp,kp),get_lmat_el_base(ap,bp,cp,ip,jp,kp))
     end subroutine run_lmat_test
    
     subroutine run_sltcnd_test()
