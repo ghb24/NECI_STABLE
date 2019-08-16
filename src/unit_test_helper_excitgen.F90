@@ -349,6 +349,6 @@ contains
   subroutine free_ref()
     deallocate(ilutRef)
     deallocate(projEDet)
-  end subroutine free_ref
+  end subroutine free_ref  
   
 end module unit_test_helper_excitgen

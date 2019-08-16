@@ -104,7 +104,8 @@ contains
                 i = i + nint(sign(1.0_dp, num))
         end if
 
-    end function
+      end function stochastic_round_r
+       
 
     subroutine print_cstr (str) bind(c, name='print_cstr')
 

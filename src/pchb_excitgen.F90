@@ -10,14 +10,14 @@ module pchb_excitgen
        projEDet, pParallel, pDoubles
   use sltcnd_mod, only: sltcnd_excit
   use UMatCache, only: gtID
-  use aliasSampling, only: aliasSampler_t, clear_sampler_array
+  use aliasSampling, only: aliasSamplerArray_t
   use util_mod, only: fuseIndex, linearIndex
   use GenRandSymExcitNUMod, only: construct_class_counts, createSingleExcit, &
        calc_pgen_symrandexcit2
   use SymExcitDataMod, only: pDoubNew, scratchSize
   implicit none
 
-  type(aliasSampler_t), allocatable :: pchb_sampler(:)
+  type(aliasSamplerArray_t) :: pchb_sampler
   integer, allocatable :: tgtOrbs(:,:)
 
   contains 
@@ -107,7 +107,7 @@ module pchb_excitgen
       ! use the sampler for this electron pair -> order of src electrons does not matter
       ij = fuseIndex(src(1),src(2))
       ! get a pair of orbitals using the precomputed weights
-      call pchb_sampler(ij)%sample(ab,pGenHoles)
+      call pchb_sampler%aSample(ij,ab,pGenHoles)
       ! split the index ab (using a table containing mapping ab -> (a,b))
       orbs = tgtOrbs(:,ab)
 
@@ -174,7 +174,7 @@ module pchb_excitgen
       ! look up the probability for this excitation in the sampler
       ij = fuseIndex(ex(1,1),ex(1,2))
       ab = fuseIndex(ex(2,1),ex(2,2))
-      pgen = pgen * pchb_sampler(ij)%getProb(ab)
+      pgen = pgen * pchb_sampler%aGetProb(ij,ab)
       
     end function calc_double_pgen_pchb
 
@@ -217,7 +217,7 @@ module pchb_excitgen
         real(dp), allocatable :: w(:)
         ! number of possible source orbital pairs
         ijMax = fuseIndex(nBasis,nBasis)
-        allocate(pchb_sampler(ijMax), stat = aerr)
+        call pchb_sampler%setupSamplerArray(ijMax,abMax)
 
         ! weights per 
         allocate(w(abMax), stat = aerr)        
@@ -240,7 +240,7 @@ module pchb_excitgen
                  end do
               end do
               ij = fuseIndex(i,j)
-              call pchb_sampler(ij)%setupSampler(w)
+              call pchb_sampler%setupEntry(ij,w)
            end do
         end do
 
@@ -254,7 +254,7 @@ module pchb_excitgen
       ! deallocate the sampler and the mapping ab -> (a,b)
       implicit none
 
-      call clear_sampler_array(pchb_sampler)
+      call pchb_sampler%samplerArrayDestructor()
       deallocate(tgtOrbs)
      
     end subroutine finalize_pchb_sampler
