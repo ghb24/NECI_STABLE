@@ -217,7 +217,7 @@ contains
       integer :: ms
 
       ! if the electrons have the same spin, return the spin index of tgt
-      if(G1(src1)%MS.eq.G1(src2)%MS) then
+      if(G1(src1)%MS == G1(src2)%MS) then
          ms = getSpinIndex(tgt)
       else
          ! else, the opposite spin index
@@ -236,8 +236,8 @@ contains
       integer, optional, intent(in) :: src2
       logical :: abort
 
-      abort = src.eq.0
-      if(present(src2)) abort = abort .or. (src.eq.src2)
+      abort = src == 0
+      if(present(src2)) abort = abort .or. (src == src2)
       if(abort) then
          nJ = 0
          tParity = .false.
@@ -258,7 +258,7 @@ contains
       integer, optional, intent(in) :: tgt2
       logical :: abort
       
-      abort = IsOcc(ilut,tgt) .or. (tgt.eq.0)
+      abort = IsOcc(ilut,tgt) .or. (tgt == 0)
       if(present(tgt2)) abort = abort .or. tgt==tgt2
       if(abort) then
          nJ = 0
@@ -412,9 +412,9 @@ contains
                i = refDet(iEl)
                j = refDet(jEl)
                do a = 1, nBasis
-                  if(.not.any(a.eq.(/i,j/))) then
+                  if(.not.any(a == (/i,j/))) then
                      do b = 1, nBasis
-                        if(.not.any(b.eq.(/a,i,j/))) then
+                        if(.not.any(b == (/a,i,j/))) then
                            call set_ex(ex,i,j,a,b)
                            w(iEl) = w(iEl) + abs(sltcnd_excit(refDet,2,ex,tPar))
                         endif
@@ -447,9 +447,9 @@ contains
             j = refDet(jEl)
             if(i.ne.j) then
                do a = 1, nBasis
-                  if(.not.any(a.eq.(/i,j/))) then
+                  if(.not.any(a == (/i,j/))) then
                      do b = 1, nBasis
-                        if(.not.any(b.eq.(/i,j,a/))) then
+                        if(.not.any(b == (/i,j,a/))) then
                            call set_ex(ex,i,j,a,b)
                            w(jEl) = w(jEl) + abs(sltcnd_excit(refDet,2,ex,tPar))
                         end if
@@ -633,7 +633,7 @@ contains
       if(symAllowed(src,tgt)) then
          do b = 1, nBasis
             ! loop over all non-occupied orbitals
-            if(.not.any(b.eq.refDet(:))) then
+            if(.not.any(b == refDet(:))) then
                do j = 1, nel
                   ! get the excited determinant D_j^b used for the matrix element
                   if(symAllowed(refDet(j),b)) then
@@ -758,7 +758,7 @@ contains
     integer, intent(in) :: a,b
     logical :: allowed
 
-    allowed = same_spin(a,b) .and. (G1(a)%Sym%s.eq.G1(b)%Sym%s)
+    allowed = same_spin(a,b) .and. (G1(a)%Sym%s == G1(b)%Sym%s)
   end function symAllowed
 
   !------------------------------------------------------------------------------------------!

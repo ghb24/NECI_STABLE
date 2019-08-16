@@ -72,6 +72,7 @@ contains
     real(dp), intent(in) :: arr(:)
 
     integer :: i,j,cV, cU
+    ! arrSize is used for shared mpi routines => use int64
     integer(int64) :: arrSize
     integer, allocatable :: overfull(:), underfull(:)
     character(*), parameter :: t_r = "setupTable"
@@ -88,7 +89,7 @@ contains
     call shared_allocate_mpi(this%aliasTableShmw, this%aliasTable, (/arrSize/))
 
     ! as this is shared memory, only node-root has to do this
-    if(iProcIndex_intra .eq. 0) then
+    if(iProcIndex_intra == 0) then
        ! initialize the probabilities
        this%biasTable = arr/sum(arr)*arrSize
 
@@ -98,7 +99,7 @@ contains
 
        cV = 0
        cU = 0
-       do i = 1, arrSize
+       do i = 1, int(arrSize)
           call assignLabel(i)
        end do
        ! we now labeled each entry
@@ -107,7 +108,7 @@ contains
        ! -> reverse overfull
        overfull(1:cV) = overfull(cV:1:-1)
        do 
-          if((cV .eq. 0) .or. (cU .eq. 0)) then            
+          if((cV == 0) .or. (cU == 0)) then            
              exit
           end if
           ! pick one overfull and one underfull index
@@ -234,7 +235,7 @@ contains
     ! allocate the probabilities
     call safe_shared_memory_alloc(this%probsShmw, this%probs, arrSize)
     ! the array is shared memory, so only node-root has to do this
-    if(iProcIndex_intra.eq.0) then
+    if(iProcIndex_intra == 0) then
        ! the probabilities are taken from input and normalized
        this%probs = arr / sum(arr)
     end if
