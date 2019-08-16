@@ -18,7 +18,7 @@ module semi_stoch_gen
     use semi_stoch_procs
     use sparse_arrays
     use timing_neci
-    use SystemData, only: t_non_hermitian
+    use SystemData, only: t_non_hermitian, nBasis
 
     implicit none
 
@@ -306,7 +306,9 @@ contains
                                     core_in%tApproxSpace, core_in%nApproxSpace, SpawnedParts, space_size, CurrentDets, TotWalkers)
         if (core_in%tRead) call generate_space_from_file(core_in%read_filename, SpawnedParts, space_size)
         if (.not. tCSFCore) then
-            if (core_in%tDoubles) call generate_sing_doub_determinants(SpawnedParts, space_size, core_in%tHFConn)
+           if (core_in%tDoubles) call generate_sing_doub_determinants(SpawnedParts, space_size, core_in%tHFConn)
+           if(core_in%tTriples) call generate_trip_determinants(SpawnedParts, space_size, &
+                core_in%tHFConn)
             if (core_in%tCAS) call generate_cas(core_in%occ_cas, core_in%virt_cas, SpawnedParts, space_size)
             if (core_in%tRAS) call generate_ras(core_in%ras, SpawnedParts, space_size)
             if (core_in%tOptimised) call generate_optimised_space(core_in%opt_data, core_in%tLimitSpace, &
@@ -496,8 +498,71 @@ contains
             end do
         end if
 
-    end subroutine generate_sing_doub_determinants
+      end subroutine generate_sing_doub_determinants
 
+!------------------------------------------------------------------------------------------!
+      
+      subroutine generate_trip_determinants(ilut_list, space_size, only_keep_conn)
+        use lattice_models_utils, only: make_ilutJ
+        use sym_general_mod, only: IsSymAllowedExcitMat
+        ! Generate a list of all singles, doubles and triples
+        implicit none
+        integer(n_int), intent(inout) :: ilut_list(0:,:)
+        integer, intent(inout) :: space_size
+        logical, intent(in) :: only_keep_conn
+
+        integer :: i,j,k
+        integer :: a,b,c
+        integer :: ex(2,3), nI(nel)
+        integer(n_int) :: ilut_ex(0:NifTot)
+        HElement_t(dp) :: HEl
+        ! add all triples of the HF
+        ! enumerate them as follows: take three electrons i,j,k
+        ! with i>j>k
+        ! then, pick three (unocc) orbitals a,b,c with a>b>c
+        ! => triple excitation
+        do i = 1, nel
+           ex(1,1) = HFDet(i)
+           do j = 1, i-1
+              ex(1,2) = HFDet(j)
+              do k = 1, j-1
+                 ex(1,3) = HFDet(k)
+                 do a = 1, nBasis
+                    ! for the target orbs, only take unoccupied
+                    if(IsNotOcc(ilutHF,a)) then
+                       ex(2,3) = a
+                       do b = 1, a-1
+                          if(IsNotOcc(ilutHF,b)) then
+                             ex(2,2) = b
+                             do c = 1, b-1
+                                if(IsNotOcc(ilutHF,c)) then
+                                   ex(2,1) = c
+                                   ! create the triple excitation with these elecs/orbs
+                                   ilut_ex = make_ilutJ(ilutHF, ex, 3)
+                                   ! if enabled, only keep connected determinants
+                                   if(only_keep_conn) then
+                                      HEl = get_helement(HFDet, nI, ilutHF, ilut_ex)
+                                      if(abs(HEl) < eps) cycle
+                                   endif
+
+                                   ! definitely keep only determinants in the same symmetry-sector
+                                   if(.not.IsSymAllowedExcitMat(ex,3)) cycle
+                                   call decode_bit_det(nI, ilut_ex)
+                                   call add_state_to_space(ilut_ex, ilut_list, space_size, nI)
+                                end if
+                             end do
+                          endif
+                       end do
+                    endif
+                 end do
+              end do
+           end do
+        end do
+
+      end subroutine generate_trip_determinants
+
+!------------------------------------------------------------------------------------------!
+      
     subroutine generate_sing_doub_csfs(ilut_list, space_size)
 
         ! In/Out: ilut_list - List of determinants generated.

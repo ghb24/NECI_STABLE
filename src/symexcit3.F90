@@ -185,18 +185,6 @@ MODULE SymExcit3
 
       ENDSUBROUTINE GenExcitations3
 
-      subroutine GenTripleExcit(nI,ilut,nJ,ex,tAllExcitFound)
-        ! return the next excitation in a 
-        implicit none
-        integer, intent(in) :: nI(nel)
-        integer(n_int), intent(in) :: ilut(0:NIfTot)
-        integer, intent(out) :: nJ(nel)
-        integer, intent(inout) :: ex(2,3)
-        logical, intent(out) :: tAllExcitFound
-      end subroutine GenTripleExcit
-
-
-
     SUBROUTINE GenSingleExcit(nI,iLut,nJ,exflag,ExcitMat3,tParity,tAllExcitFound,ti_lt_a_only)
 ! Despite being fed four indices, this routine finds single excitations.  Orbi -> Orba. (Orbj and Orbb remain 0).
 ! Feeding in 0 indices indicates it is the first excitation that needs to be found.

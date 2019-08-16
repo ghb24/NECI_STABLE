@@ -36,9 +36,10 @@ type subspace_in
     logical :: tPopsAuto = .false.
     ! Read states from a file.
     logical :: tRead = .false.
-    ! Use the space of all single and double excitations from the
+    ! Use the space of all single and double (+triple) excitations from the
     ! Hartree-Fock determinant (and also include the HF determinant).
     logical :: tDoubles = .false.
+    logical :: tTriples = .false.
     ! Use all connections to the Hartree-Fock.
     logical :: tHFConn = .false.
     ! Use a CAS space.

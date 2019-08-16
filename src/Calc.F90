@@ -1448,7 +1448,12 @@ contains
             case("ALL-CONN-CORE")
                 ss_space_in%tAllConnCore = .true.
             case("DOUBLES-CORE")
-                ss_space_in%tDoubles = .true.
+               ss_space_in%tDoubles = .true.
+            case("TRIPLES-CORE")
+               ! Triples-core is the core space consisting of all excitations up to
+               ! triple excitations -> include double-core
+               ss_space_in%tDoubles = .true.
+               ss_space_in%tTriples = .true.
             case("HF-CONN-CORE")
                 ss_space_in%tDoubles = .true.
                 ss_space_in%tHFConn = .true.

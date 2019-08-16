@@ -1266,7 +1266,7 @@ contains
                 tmp = ieor(core_space(0:NIfD,i_full), core_space(0:NIfD,ind_j))
                 tmp = iand(core_space(0:NIfD,i_full), tmp)
                 IC = CountBits(tmp, NIfD)
-                if (IC <= 2) then
+                if (IC <= maxExcit) then
                     call decode_bit_det(nJ, core_space(:,ind_j))
                     hel = get_helement(nI, nJ, IC, core_space(:,i_full), core_space(:,ind_j))
                     if (abs(hel) > 0.0_dp) then
@@ -1288,7 +1288,7 @@ contains
                 tmp = ieor(core_space(0:NIfD,i_full), core_space(0:NIfD,ind_j))
                 tmp = iand(core_space(0:NIfD,i_full), tmp)
                 IC = CountBits(tmp, NIfD)
-                if (IC <= 2) then
+                if (IC <= maxExcit) then
                     call decode_bit_det(nJ, core_space(:,ind_j))
                     hel = get_helement(nI, nJ, IC, core_space(:,i_full), core_space(:,ind_j))
                     if (abs(hel) > 0.0_dp) then
