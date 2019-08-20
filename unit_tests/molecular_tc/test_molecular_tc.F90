@@ -2,12 +2,12 @@
 #include "macros.h"
 program test_molecular_tc
   use constants
-  use SystemData, only: nBasis, tStoreSpinOrbs, nel, G1, nullBasisFn, tHDF5LMat
+  use SystemData, only: nBasis, tStoreSpinOrbs, nel, G1, nullBasisFn
   use bit_rep_data, only: NIfTot
   use LMat_mod
   use fruit
   use Parallel_neci, only: MPIInit, MPIEnd
-  use tc_three_body_data, only: tSparseLMat
+  use tc_three_body_data, only: tSparseLMat, tHDF5LMat
 
   implicit none
 
