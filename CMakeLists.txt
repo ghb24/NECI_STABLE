@@ -9,6 +9,11 @@ project(NECI Fortran CXX C)
 # Get access to custom cmake modules
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
+
+# install git hooks
+execute_process( COMMAND "${PROJECT_SOURCE_DIR}/tools/install_hooks.sh" ${PROJECT_SOURCE_DIR})
+
+
 if (CMAKE_VERSION VERSION_LESS "3.1")
   # do an extra check just for old gnu compilers: does the compiler support c++11?
   if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
