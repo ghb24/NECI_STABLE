@@ -3,7 +3,6 @@ TITLE
 SYSTEM READ NOORDER
 ELECTRONS 3
 NOBRILLOUINTHEOREM
-hdf5-integrals
 molecular-transcorr 3-body
 ENDSYS
  
@@ -29,6 +28,10 @@ AVGROWTHRATE
 startsinglepart 10
 definedet 1 2 3
 ENDCALC
+
+integral
+hdf5-integrals
+endint
  
 LOGGING
 popsfile -1

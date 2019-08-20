@@ -309,7 +309,6 @@ real(dp), allocatable :: excit_cache(:,:,:)
 
 ! also use an additional flag to indicate that 3-body excitations are possible
 logical :: t_3_body_excits = .false. 
-logical :: tHDF5LMat = .false.
 
 ! make a general Flag to indicat a non-hermitian Hamiltonian
 logical :: t_non_hermitian = .false.

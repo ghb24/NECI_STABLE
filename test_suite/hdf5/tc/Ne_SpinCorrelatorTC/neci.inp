@@ -3,7 +3,6 @@ TITLE
 SYSTEM READ NOORDER
 ELECTRONS   10
 NOBRILLOUINTHEOREM
-hdf5-integrals
 spin-correlator
 molecular-transcorr 3-body
 ENDSYS
@@ -30,6 +29,10 @@ AVGROWTHRATE
 startsinglepart 40
 definedet 1 2 3 4 5 6 7 8 9 10
 ENDCALC
+
+integral
+hdf5-integrals
+endint
  
 LOGGING
 popsfile -1

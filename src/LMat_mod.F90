@@ -2,15 +2,15 @@ module LMat_mod
   use constants
   use FciMCData, only: ll_node
   use HElem, only: HElement_t_SizeB
-  use SystemData, only: tStoreSpinOrbs, nBasis, tHDF5LMat, t12FoldSym, G1
+  use SystemData, only: tStoreSpinOrbs, nBasis, t12FoldSym, G1
   use MemoryManager, only: LogMemAlloc, LogMemDealloc
   use util_mod, only: get_free_unit, fuseIndex
   use shared_memory_mpi
   use sort_mod
   use hash, only: add_hash_table_entry, clear_hash_table
   use ParallelHelper, only: iProcIndex_intra
-  use tc_three_body_data, only: tDampKMat, tDampLMat, tSymBrokenLMat, tSpinCorrelator, lMatEps, &
-       lMat_t, tSparseLMat, lMat, lMatABB, lMatBBA, lMatBAB, nBI
+  use tc_three_body_data, only: tDampKMat, tDampLMat, tSpinCorrelator, lMatEps, &
+       lMat_t, lMat, lMatABB, lMatBBA, lMatBAB, nBI, tHDF5LMat, tSymBrokenLMat, tSparseLMat
   use procedure_pointers, only: lMatInd, get_lmat_el, get_lmat_el_symInternal, lMatInd_t
   use LoggingData, only: tHistLMat
   use LMat_aux, only: diffSpinPos, dampLMatel

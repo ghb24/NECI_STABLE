@@ -11,9 +11,13 @@ module LMat_aux
 !------------------------------------------------------------------------------------------!
     
     pure subroutine dampLMatel(a,b,c,matel)
+      ! spin-projector for the tc terms - apply heuristically for three-body terms
+      ! Input: a,b,c - Target orbital indices
+      ! Input/Output: matel - on input, the bare matrix element, on return, the
+      !                       matrix element including spin-correction
       integer, intent(in) :: a,b,c
       HElement_t(dp), intent(inout) :: matel
-      ! spin-projector for the tc terms - apply heuristically for three-body terms
+
 
       ! same-spin contributions are divided by 4 (this is exact)
       if(G1(a)%MS .eq. G1(b)%MS .and. G1(b)%MS .eq. G1(c)%MS) then
@@ -30,6 +34,10 @@ module LMat_aux
     function diffSpinPos(i,j,k,a,b,c) result(pos)
       ! given three excitations (i,a), (j,b), (k,c), find the position of the one with
       ! different spin in the ordering a'<b'<c' where a'=min(a,i) etc.
+      ! Input: i,j,k - occupied orbital indices
+      !        a,b,c - unoccupied orbital indices
+      ! Outpu: pos - 0 if all electrons have the same spin, the position of the one
+      !              with different spin else
       implicit none
       integer, intent(in) :: i,j,k,a,b,c
       integer :: pos

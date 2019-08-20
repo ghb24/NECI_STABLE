@@ -14,6 +14,12 @@ module lMat_indexing
 !------------------------------------------------------------------------------------------!
 
     pure function lMatIndSym(a,b,c,i,j,k) result(index)
+      ! Indexing function implementing 48-fold symmetry:
+      ! Symmetric with respect to permutation of pairs (a,i), (b,j) and (c,k) as well as
+      ! with respect to exchange of a<->i, b<->j and c<->k
+      ! Input: a,b,c - orbital indices of electrons
+      !        i,j,k - orbital indices of holes
+      ! Output: index - contiguous index I(a,b,c,i,j,k) with the aforementioned symmetry
       implicit none
       integer(int64), value :: a,b,c ! occupied orb indices
       integer(int64), value :: i,j,k ! unoccupied orb
@@ -35,21 +41,17 @@ module lMat_indexing
 
 !------------------------------------------------------------------------------------------!    
     
-    pure function oldLMatInd(aI,bI,cI,iI,jI,kI) result(index)
+    pure function oldLMatInd(a,b,c,i,j,k) result(index)
+      ! Indexing function with a 12-fold symmetry: symmetric with respect to
+      ! permuting (a,i), (b,j) and (c,k) and with exchange (a,b,c)<->(i,j,k)
+      ! Input: a,b,c - orbital indices of electrons
+      !        i,j,k - orbital indices of holes
+      ! Output: index - contiguous index I(a,b,c,i,j,k) with the aforementioned symmetry      
       implicit none
-      integer(int64), value :: aI,bI,cI ! occupied orb indices
-      integer(int64), value :: iI,jI,kI ! unoccupied orb
+      integer(int64), value :: a,b,c ! occupied orb indices
+      integer(int64), value :: i,j,k ! unoccupied orb
       integer(int64) :: index
-      integer(int64) :: a,b,c,i,j,k
 
-      ! guarantee pass-by-value without changing the signature to value
-      a = aI
-      b = bI
-      c = cI
-      i = iI
-      j = jI
-      k = kI
-     
       ! we store the permutation where a < b < c (regardless of i,j,k)
       ! or i < j < k, depending on (permuted) a < i
       ! sort such that the ordered indices start with the smallest index
@@ -91,6 +93,10 @@ module lMat_indexing
     pure function lMatIndSymBroken(a,b,c,i,j,k) result(index)
       ! broken-symmetry index function that operates on LMat without permutational
       ! symmetry between ai, bj, ck
+      ! A 6-fold symmetry remains: swapping of a<->i, b<->j and c<->k
+      ! Input: a,b,c - orbital indices of electrons
+      !        i,j,k - orbital indices of holes
+      ! Output: index - contiguous index I(a,b,c,i,j,k) with the aforementioned symmetry      
       implicit none
       integer(int64), value :: a,b,c ! occupied orb indices
       integer(int64), value :: i,j,k ! unoccupied orb

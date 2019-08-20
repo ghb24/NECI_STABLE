@@ -51,7 +51,8 @@ module Integrals_neci
 
     use LoggingData, only: tLogKMatProjE
     use kMatProjE, only: readKMat, freeKMat, readSpinKMat
-    use tc_three_body_data, only: tDampKMat, tUseKMat, tSpinCorrelator
+    use tc_three_body_data, only: tDampKMat, tUseKMat, tSpinCorrelator, tHDF5LMat, &
+         tSymBrokenLMat, tSparseLMat
     implicit none
 
 contains
@@ -111,7 +112,9 @@ contains
       HFRand=0.01_dp
       DMatEpsilon=0
       tPostFreezeHF=.false.
-
+      tSparseLMat = .false.
+      tSymBrokenLMat = .false.
+      tHDF5LMat = .false.      
 !Feb 08 defaults
       IF(Feb08) THEN
          NTAY(2)=3
@@ -364,7 +367,17 @@ contains
                call report("keyword "//trim(w)//" not recognized in DFMETHOD block",.true.)
             end select
         case("POSTFREEZEHF")
-          tPostFreezeHF=.true.
+           tPostFreezeHF=.true.
+
+        case("HDF5-INTEGRALS")
+           tHDF5LMat = .true.
+        case("SPARSE-LMAT")
+           tSparseLMat = .true.
+        case("UNSYMMETRIC-INTEGRALS")
+           ! the 6-index integrals are not symmetrized yet (has to be done
+           ! on the fly then)
+           tSymBrokenLMat = .true.
+           
         case("DMATEPSILON")
           call readf(DMatEpsilon)
         case("ENDINT")

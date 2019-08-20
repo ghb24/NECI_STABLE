@@ -65,9 +65,7 @@ MODULE System
       tMaxHLGap=.false.
       UMatEps = 1.0e-8
       LMatEps = 1.0e-10
-      tSparseLMat = .false.
       tExactSizeSpace=.false.
-      tSymBrokenLMat = .false.
       iRanLuxLev=3      !This is the default level of quality for the random number generator.
       tNoSymGenRandExcits=.false.
       tNonUniRandExcits=.true. 
@@ -203,7 +201,6 @@ MODULE System
       ! by default, excitation generation already creates matrix elements
       tGenMatHEl = .true.
       t12FoldSym = .false.
-      tHDF5LMat = .false.
       tSpinCorrelator = .false.
 
 #ifdef __PROG_NUMRUNS
@@ -376,14 +373,6 @@ system: do
            tRIIntegrals = .true.
         case("READCACHEINTS")
            tCacheFCIDUMPInts=.true.
-        case("HDF5-INTEGRALS")
-           tHDF5LMat = .true.
-        case("SPARSE-LMAT")
-           tSparseLMat = .true.
-        case("UNSYMMETRIC-INTEGRALS")
-           ! the 6-index integrals are not symmetrized yet (has to be done
-           ! on the fly then)
-           tSymBrokenLMat = .true.
         case("SPIN-CORRELATOR")           
            tSpinCorrelator = .true.
         case("ELECTRONS","NEL")
