@@ -7,6 +7,10 @@ neci_add_option(
     DEFAULT OFF
     DESCRIPTION "Enable compilation warnings (to the maximal degree)" )
 
+if( CMAKE_BUILD_TYPE STREQUAL "DEBUG" )
+    set( HAVE_WARNINGS ON)
+endif()
+
 if ( HAVE_WARNINGS )
 
     message( STATUS "Enabling compilation warnings" )
@@ -23,23 +27,4 @@ if ( HAVE_WARNINGS )
         endif()
       endif()
     endforeach()
-endif()
-
-
-neci_add_option(
-    FEATURE WARN_ERROR
-    DEFAULT OFF
-    DESCRIPTION "Treat warnings as error.")
-
-if ( HAVE_WARN_ERROR)
-    message( STATUS "Treat Warnings as errors." )
-    if( NOT HAVE_WARNINGS )
-        message(FATAL_ERROR "ENABLE_WARN_ERROR=ON requires ENABLE_WARNINGS=ON.")
-    endif()
-    foreach( _lang C CXX Fortran )
-        if( CMAKE_${_lang}_COMPILER_LOADED AND DEFINED ${PROJECT_NAME}_${_lang}_WARN_ERROR_FLAG )
-            set( CMAKE_${_lang}_FLAGS "${CMAKE_${_lang}_FLAGS} ${${PROJECT_NAME}_${_lang}_WARN_ERROR_FLAG}" )
-        endif()
-    endforeach()
-
 endif()
