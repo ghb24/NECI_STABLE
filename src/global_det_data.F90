@@ -514,7 +514,7 @@ contains
 
       ! write the acc. and tot. spawns per determinant in a contiguous array
       ! fvals(:,j) = (acc, tot) for determinant j (2*inum_runs in size)
-      do j = 1, nDets
+      do j = 1, int(nDets)
          do k = 1, inum_runs
             fvals(k,j) = transfer(get_acc_spawns(j,k), fvals(k,j))
          end do
@@ -533,7 +533,7 @@ contains
 
       ! write the acc. and tot. spawns per determinant in a contiguous array
       ! fvals(:,j) = (acc, tot) for determinant j (2*inum_runs in size)
-      do j = 1, nDets
+      do j = 1, int(nDets)
          do k = 1, inum_runs
             fvals(k,j) = get_acc_spawns(j,k)
          end do
