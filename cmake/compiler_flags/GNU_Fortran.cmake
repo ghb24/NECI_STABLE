@@ -1,7 +1,7 @@
 # Special defines for gnu fortran compiler
 
 set( ${PROJECT_NAME}_Fortran_FLAGS "-ffree-line-length-none" )
-set( ${PROJECT_NAME}_Fortran_FLAGS_DEBUG "-g -O0 -fbounds-check" )
+set( ${PROJECT_NAME}_Fortran_FLAGS_DEBUG "-g -O0 -fbounds-check -fcheck=all" )
 set( ${PROJECT_NAME}_Fortran_FLAGS_RELEASE "-O3" )
 set( ${PROJECT_NAME}_Fortran_FLAGS_CLUSTER "-flto" )
 set( ${PROJECT_NAME}_Fortran_LINKER_FLAGS_DEBUG "-rdynamic" )

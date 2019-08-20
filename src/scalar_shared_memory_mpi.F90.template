@@ -53,16 +53,14 @@ module scalar_shared_memory_mpi
     subroutine variadic_allocate_1(p_shm, dims)
       implicit none
       %(type1)s, pointer :: p_shm(:)
-      integer :: dims(1)
-
+      integer(int64) :: dims(1)
       allocate(p_shm(dims(1)))
     end subroutine
 
     subroutine variadic_allocate_2(p_shm, dims)
       implicit none
       %(type1)s, pointer :: p_shm(:,:)
-      integer :: dims(2)
-
+      integer(int64):: dims(2)
       allocate(p_shm(dims(1),dims(2)))
     end subroutine
 

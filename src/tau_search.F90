@@ -371,7 +371,7 @@ contains
                        tau_new = max_permitted_spawn * &
                             min(pSingles / gamma_sing, &
                             min(pDoubles * pParallel / gamma_par, &
-                            pDoubles * pParallel / gamma_opp))
+                            pDoubles * (1.0 - pParallel) / gamma_opp))
                     else
                        ! if no spawns happened, do nothing
                        tau_new = tau
