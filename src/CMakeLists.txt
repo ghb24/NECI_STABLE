@@ -272,6 +272,7 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
             "${HDF5_NECI_DEFINITIONS}"
 
         LIBS "${_library_link_libs}"
+	WARNERR ${${PROJECT_NAME}_${_config}_WARNERR}
     )
 
     message(STATUS "Adding executable for configuration ${_config}")

@@ -87,6 +87,8 @@ set(${PROJECT_NAME}_dneci_DEFINITIONS HElement_t=real __DOUBLERUN)
 set(${PROJECT_NAME}_mneci_DEFINITIONS HElement_t=real __PROG_NUMRUNS)
 set(${PROJECT_NAME}_kdneci_DEFINITIONS HElement_t=complex __CMPLX __DOUBLERUN)
 set(${PROJECT_NAME}_kmneci_DEFINITIONS HElement_t=complex __CMPLX __PROG_NUMRUNS)
+set(${PROJECT_NAME}_neci_WARNERR TRUE)
+set(${PROJECT_NAME}_dneci_WARNERR TRUE)
 
 # Global (always on) defines
 
@@ -129,11 +131,6 @@ add_subdirectory(src)
 add_subdirectory(unit_tests)
 
 # And we are done
-if ( CMAKE_BUILD_TYPE STREQUAL "DEBUG")
-    set (HAVE_WARNINGS ON)
-    set (WARN_ERROR ON)
-endif()
-
 
 neci_print_summary()
 
