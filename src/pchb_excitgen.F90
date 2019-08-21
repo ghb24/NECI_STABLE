@@ -8,13 +8,15 @@ module pchb_excitgen
   use excit_gens_int_weighted, only: pick_biased_elecs
   use FciMCData, only: pSingles, excit_gen_store_type, nInvalidExcits, nValidExcits, &
        projEDet, pParallel, pDoubles
-  use sltcnd_mod, only: sltcnd_excit
+  use sltcnd_mod, only: sltcnd_2_kernel
   use UMatCache, only: gtID
   use aliasSampling, only: aliasSamplerArray_t
   use util_mod, only: fuseIndex, linearIndex
   use GenRandSymExcitNUMod, only: construct_class_counts, createSingleExcit, &
        calc_pgen_symrandexcit2
   use SymExcitDataMod, only: pDoubNew, scratchSize
+  use sym_general_mod, only: IsSymAllowedExcitMat
+  use LMat_mod, only: getPCWeightOffset
   implicit none
 
   type(aliasSamplerArray_t) :: pchb_sampler
@@ -215,9 +217,12 @@ module pchb_excitgen
         integer :: ij, ijMax
         integer :: ex(2,2)
         real(dp), allocatable :: w(:)
+        real(dp) :: pcWeightOffset
         ! number of possible source orbital pairs
         ijMax = fuseIndex(nBasis,nBasis)
         call pchb_sampler%setupSamplerArray(int(ijMax,int64),int(abMax,int64))
+
+        pcWeightOffset = getPCWeightOffset()
 
         ! weights per 
         allocate(w(abMax), stat = aerr)        
@@ -235,8 +240,10 @@ module pchb_excitgen
                     ab = fuseIndex(a,b)
                     ! ex(2,:) is in ascending order
                     ex(2,1) = b
-                    ! use the actual matrix elements as weights
-                    w(ab) = abs(sltcnd_excit(projEDet(:,1),2,ex,.false.))
+                    ! use the double matrix elements as weights and add a constant
+                    ! approximating the 6-index contribution
+                    if(IsSymAllowedExcitMat(ex,2)) &
+                         w(ab) = abs(sltcnd_2_kernel(ex)) + pcWeightOffset
                  end do
               end do
               ij = fuseIndex(i,j)
@@ -246,6 +253,7 @@ module pchb_excitgen
 
         deallocate(w)
       end subroutine setup_pchb_sampler
+
     end subroutine init_pchb_excitgen
     
   !------------------------------------------------------------------------------------------!
