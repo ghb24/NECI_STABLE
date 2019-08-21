@@ -4,7 +4,8 @@ module Integrals_neci
     use SystemData, only: tStoreSpinOrbs, nBasisMax, iSpinSkip, &
                           tFixLz, Symmetry, tCacheFCIDUMPInts, &
                           tRIIntegrals, tVASP,tComplexOrbs_RealInts, LMS, ECore, &
-                          t_new_real_space_hubbard, t_trans_corr_hop, t_mol_3_body
+                          t_new_real_space_hubbard, t_trans_corr_hop, t_mol_3_body, &
+                          tStoreSpinOrbs, nBI
 
     use UmatCache, only: tUmat2D, UMatInd, UMatConj, umat2d, tTransFIndx, nHits, &
                          nMisses, GetCachedUMatEl, HasKPoints, TransTable, &
@@ -714,6 +715,13 @@ contains
 
       ! Setup the umatel pointers as well
       call init_getumatel_fn_pointers ()
+
+      ! number of discinct orbitals - used by both lmat and kmat
+      if(tStoreSpinOrbs) then
+         nBI = nBasis
+      else
+         nBI = nBasis / 2
+      endif      
 
       if(t_mol_3_body) call readLMat()
       

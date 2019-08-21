@@ -2,7 +2,7 @@ module LMat_mod
   use constants
   use FciMCData, only: ll_node
   use HElem, only: HElement_t_SizeB
-  use SystemData, only: tStoreSpinOrbs, nBasis, t12FoldSym, G1, t_mol_3_body, nel
+  use SystemData, only: nBasis, t12FoldSym, G1, t_mol_3_body, nel, nBI
   use MemoryManager, only: LogMemAlloc, LogMemDealloc
   use util_mod, only: get_free_unit, fuseIndex
   use shared_memory_mpi
@@ -10,7 +10,7 @@ module LMat_mod
   use hash, only: add_hash_table_entry, clear_hash_table
   use ParallelHelper, only: iProcIndex_intra
   use tc_three_body_data, only: tDampKMat, tDampLMat, tSpinCorrelator, lMatEps, &
-       lMat_t, lMat, lMatABB, lMatBBA, lMatBAB, nBI, tHDF5LMat, tSymBrokenLMat, tSparseLMat
+       tHDF5LMat, tSymBrokenLMat, tSparseLMat, lMat_t
   use procedure_pointers, only: get_lmat_el, get_lmat_el_symInternal
   use LoggingData, only: tHistLMat
   use LMat_aux, only: diffSpinPos, dampLMatel
@@ -33,6 +33,9 @@ module LMat_mod
      end function lMatAccess_t
      
   end interface
+
+  ! actual objects storing the 6-index integrals
+  type(lMat_t), target :: LMat, LMatABB, LMatBAB, LMatBBA  
 
   procedure(lMatAccess_t), pointer :: lMatAccess
 
@@ -224,12 +227,6 @@ module LMat_mod
 
     subroutine initializeLMatPtrs()
       implicit none
-
-      if(tStoreSpinOrbs) then
-         nBI = nBasis
-      else
-         nBI = nBasis / 2
-      endif
 
       ! some typical array dimensions useful in the indexing functions
       strideInner = fuseIndex(nBI,nBI)

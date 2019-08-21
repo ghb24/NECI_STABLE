@@ -2,6 +2,7 @@ module tc_three_body_data
   use constants
   use FciMCData, only: ll_node
   use procedure_pointers, only: lMatInd_t
+  use lMat_indexing, only: lMatIndSym  
   implicit none
 
   ! biases for 3-body excitation generation
@@ -32,7 +33,6 @@ module tc_three_body_data
 
   ! Number of entries in a UMat obj.
   integer(int64) :: twoIndexSize, fourIndexSize
-  integer(int64) :: nBI
 
   type lMat_t
      HElement_t(dp), pointer :: LMatPtr(:)
@@ -42,10 +42,8 @@ module tc_three_body_data
      integer(int64) :: nInts
      type(ll_node), pointer :: hTable(:)
      integer :: htSize
-     procedure(lMatInd_t), nopass, pointer :: indexFunc
-  end type lMat_t
-
-  ! actual objects storing the 6-index integrals
-  type(lMat_t), target :: LMat, LMatABB, LMatBAB, LMatBBA
+     procedure(lMatInd_t), nopass, pointer :: indexFunc => lMatIndSym
+  end type lMat_t  
+  
   
 end module tc_three_body_data

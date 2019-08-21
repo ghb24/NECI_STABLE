@@ -1,6 +1,6 @@
 #include "macros.h"
 module kMatProjE
-  use SystemData, only: nBasis, tStoreSpinOrbs, tReltvy, G1, nel
+  use SystemData, only: nBasis, tStoreSpinOrbs, tReltvy, G1, nel, nBI
   use UMatCache, only: UMatInd
   use constants
   use util_mod, only: get_free_unit, open_new_file
@@ -200,18 +200,12 @@ module kMatProjE
     subroutine printProjEContrib()
       implicit none
       character(*), parameter :: refFilename = "kMatProjE"
-      integer :: iunit, nBI
+      integer :: iunit
       integer :: i,j,k,l
       real(dp) :: tmp
       integer(MPIArg) :: ierror
       integer :: kMatSize
       
-! TODO Externalize the spinorb check
-      if(tStoreSpinOrbs) then
-         nBI = nBasis
-      else
-         nBI = nBasis/2
-      endif
       kMatSize = determineKMatSize()
 
 ! I/O only done by root
@@ -282,13 +276,6 @@ module kMatProjE
     function determineKMatSize() result(kMatSize)
       implicit none
       integer(int64) :: kMatSize
-      integer :: nBI
-
-      if(tStoreSpinOrbs) then
-         nBI = nBasis
-      else
-         nBI = nBasis / 2
-      end if
 
 ! kmat has the same access pattern as umat, so use UMatInd as indexing function
 ! the index of the largest element

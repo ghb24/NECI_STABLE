@@ -170,6 +170,7 @@ INTEGER :: nBasisMax(5,7) = 0
 real(dp) :: ALAT(5)
 real(dp) :: ECore
 INTEGER :: nBasis
+integer(int64) :: nBI
 integer :: nMax
 integer :: nnr
 integer :: nocc

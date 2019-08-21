@@ -1,7 +1,7 @@
 module lMat_indexing
   use constants, only: int64
   use util_mod, only: intSwap, fuseIndex
-  use tc_three_body_data, only: nBI
+  use SystemData, only: nBI
   implicit none
 
   ! for the symmetry broken index function
