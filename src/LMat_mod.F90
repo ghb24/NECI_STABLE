@@ -2,7 +2,7 @@ module LMat_mod
   use constants
   use FciMCData, only: ll_node
   use HElem, only: HElement_t_SizeB
-  use SystemData, only: tStoreSpinOrbs, nBasis, t12FoldSym, G1
+  use SystemData, only: tStoreSpinOrbs, nBasis, t12FoldSym, G1, t_mol_3_body, nel
   use MemoryManager, only: LogMemAlloc, LogMemDealloc
   use util_mod, only: get_free_unit, fuseIndex
   use shared_memory_mpi
@@ -11,10 +11,11 @@ module LMat_mod
   use ParallelHelper, only: iProcIndex_intra
   use tc_three_body_data, only: tDampKMat, tDampLMat, tSpinCorrelator, lMatEps, &
        lMat_t, lMat, lMatABB, lMatBBA, lMatBAB, nBI, tHDF5LMat, tSymBrokenLMat, tSparseLMat
-  use procedure_pointers, only: lMatInd, get_lmat_el, get_lmat_el_symInternal, lMatInd_t
+  use procedure_pointers, only: get_lmat_el, get_lmat_el_symInternal
   use LoggingData, only: tHistLMat
   use LMat_aux, only: diffSpinPos, dampLMatel
-  use LMat_indexing, only: lMatIndSym, lMatIndSymBroken, oldLMatInd, strideInner, strideOuter
+  use LMat_indexing, only: lMatIndSym, lMatIndSymBroken, oldLMatInd, strideInner, strideOuter, &
+       lMatIndABB, lMatIndBAB, lMatIndBBA
 #ifdef __USE_HDF5
   use hdf5
 #endif
@@ -100,23 +101,32 @@ module LMat_mod
           integer, intent(in) :: sgn
           integer(int64) :: index
           integer :: spinPos
+          type(lMat_t), pointer :: lMatPtr
           
           if(G1(p)%ms == G1(a)%ms .and. G1(q)%ms == G1(b)%ms .and. G1(r)%ms == G1(c)%ms) then
-             index = lMatInd(ida,idb,idc,idp,idq,idr)
 
-             if(tSameSpin) then 
-                matel = matel + sgn * real(lMatAccess(lMat,index),dp)
+             ! pick the lMat object used here according to the spin-relation
+             if(tSameSpin) then
+                lMatPtr => lMat
              else
+                ! for different spins, check which one is the different one and
+                ! pick the according lMat
                 spinPos = diffSpinPos(p,q,r,a,b,c)
                 select case(spinPos)
                 case(1)
-                   matel = matel + sgn * real(lMatAccess(lMatABB,index),dp)
+                   ! first spin is different
+                   lMatPtr => lMatABB
                 case(2)
-                   matel = matel + sgn * real(lMatAccess(lMatBAB,index),dp)
+                   ! second spin is different                   
+                   lMatPtr => lMatBAB
                 case(3)
-                   matel = matel + sgn * real(lMatAccess(lMatBBA,index),dp)
+                   ! third spin is different 
+                   lMatPtr => lMatBBA
                 end select
              endif
+             ! the indexing function is contained in the lMat object             
+             index = lMatPtr%indexFunc(ida,idb,idc,idp,idq,idr)
+             matel = matel + sgn * real(lMatAccess(lMatPtr,index),dp)             
 
           endif
         end subroutine addMatelContribution
@@ -212,7 +222,7 @@ module LMat_mod
 ! Auxiliary functions for indexing and accessing the LMat    
 !------------------------------------------------------------------------------------------!
 
-    subroutine initializeLMatInd()
+    subroutine initializeLMatPtrs()
       implicit none
 
       if(tStoreSpinOrbs) then
@@ -220,18 +230,23 @@ module LMat_mod
       else
          nBI = nBasis / 2
       endif
-     
+
+      ! some typical array dimensions useful in the indexing functions
+      strideInner = fuseIndex(nBI,nBI)
+      strideOuter = strideInner**2
       ! set the LMatInd function pointer
       if(t12FoldSym) then
-         lMatInd => oldLMatInd
+         lMat%indexFunc => oldLMatInd
       else if(tSymBrokenLMat) then
          ! also need to set the size of the blocks
-         strideInner = fuseIndex(nBI,nBI)
-         strideOuter = strideInner**2
-         lMatInd => lMatIndSymBroken
+         lMat%indexFunc => lMatIndSymBroken
       else
-         lMatInd => lMatIndSym
+         lMat%indexFunc => lMatIndSym
       endif
+      ! set the spin-correlator index functions
+      lMatABB%indexFunc => lMatIndABB
+      lMatBAB%indexFunc => lMatIndBAB
+      lMatBBA%indexFunc => lMatIndBBA
 
       ! set the get_lmat_el function pointer
       if(tSymBrokenLMat) then
@@ -252,7 +267,7 @@ module LMat_mod
       else
          lMatAccess => lMatDirectAccess
       endif
-    end subroutine initializeLMatInd
+    end subroutine initializeLMatPtrs
 
 !------------------------------------------------------------------------------------------!
 ! For huge LMats, a sparse storage scheme is required. Since we still need to access
@@ -274,7 +289,6 @@ module LMat_mod
            call add_hash_table_entry(lMatCtr%htable, i, hashVal)
         end do
       end subroutine initLMatHash
-
 
 !------------------------------------------------------------------------------------------!
 
@@ -351,7 +365,7 @@ module LMat_mod
       ! => for less electrons, this can be skipped
       if(nel<=2) return
 
-      call initializeLMatInd()
+      call initializeLMatPtrs()
 
       ! now, read lmat from file
       call readLMatArray(LMat,"TCDUMP","tcdump.h5")
@@ -375,9 +389,9 @@ module LMat_mod
       character(*), intent(in) :: LMatFileName
       character(*), intent(in) :: h5Filename
       integer :: iunit, ierr
-      integer(int64) :: LMatSize
       integer(int64) :: a,b,c,i,j,k
       HElement_t(dp) :: matel
+      integer(int64) :: LMatSize      
       character(*), parameter :: t_r = "readLMat"
       integer(int64) :: counter
 
@@ -387,7 +401,7 @@ module LMat_mod
          ! done directly in the respective code
 
          ! The size is given by the largest index (LMatInd is monotonous in all arguments)
-         LMatSize = lMatInd(nBI,nBI,nBI,nBI,nBI,nBI)
+         LMatSize = lMatLoc%indexFunc(nBI,nBI,nBI,nBI,nBI,nBI)
 
          call allocLMat(LMatLoc,LMatSize)
       endif
@@ -415,12 +429,12 @@ module LMat_mod
                   call stop_all(t_r,"Error reading TCDUMP file")
                else
                   ! else assign the matrix element
-                  if(lMatInd(a,b,c,i,j,k) > LMatSize) then
-                     counter = lMatInd(a,b,c,i,j,k)
+                  if(lMatLoc%indexFunc(a,b,c,i,j,k) > LMatSize) then
+                     counter = lMatLoc%indexFunc(a,b,c,i,j,k)
                      write(iout,*) "Warning, exceeding size" 
                   endif
                   if(abs(3.0_dp*matel) > LMatEps) &
-                       LMatLoc%LMatPtr(lMatInd(a,b,c,i,j,k)) = 3.0_dp * matel
+                       LMatLoc%LMatPtr(lMatLoc%indexFunc(a,b,c,i,j,k)) = 3.0_dp * matel
                   if(abs(matel)> 0.0_dp) counter = counter + 1
                endif
 
@@ -639,11 +653,11 @@ module LMat_mod
                   counter = counter + 1
                   ! write to the local window within the shared memory
                   LMatLoc%LMatPtr(sparseBlock+counter) = rVal
-                  LMatLoc%indexPtr(sparseBlock+counter) = lMatInd(int(indices(1,i),int64),int(indices(2,i),int64),&
+                  LMatLoc%indexPtr(sparseBlock+counter) = lMatLoc%indexFunc(int(indices(1,i),int64),int(indices(2,i),int64),&
                        int(indices(3,i),int64),&
                        int(indices(4,i),int64),int(indices(5,i),int64),int(indices(6,i),int64))
                else
-                  LMatLoc%LMatPtr(lMatInd(int(indices(1,i),int64),int(indices(2,i),int64),&
+                  LMatLoc%LMatPtr(lMatLoc%indexFunc(int(indices(1,i),int64),int(indices(2,i),int64),&
                        int(indices(3,i),int64),&
                        int(indices(4,i),int64),int(indices(5,i),int64),int(indices(6,i),int64))) &
                        = rVal
@@ -712,14 +726,14 @@ module LMat_mod
     subroutine histogramLMat(lMatObj)
       implicit none
       type(lMat_t), intent(in) :: lMatObj
-      integer :: i,thresh
+      integer(int64) :: i
+      integer :: thresh
       integer, parameter :: minExp = 10
       integer :: histogram(0:minExp)
-
       real :: ratios(0:minExp)
       
       histogram = 0
-      do i = 1, lMatObj%nInts
+      do i = 1, size(lMatObj%LMatPtr)
          do thresh = minExp,1,-1
             ! in each step, count all matrix elements that are below the threshold and
             ! have not been counted yet
@@ -742,6 +756,32 @@ module LMat_mod
       write(iout,*) "Matrix elements above", 0.1,":",ratios(0)
       write(iout,*), "Total number of logged matrix elements", lMatObj%nInts
     end subroutine histogramLMat
+
+!------------------------------------------------------------------------------------------!
+    
+    function getPCWeightOffset() result(offset)
+      ! get the offset used for generating precomputed weights
+      ! Output: offset - constant to be added to each weight of the precomputed-excitation generators
+      implicit none
+      real(dp) :: offset
+      integer :: i
+      real(dp) :: maxInts(nel-2)
+
+      if(t_mol_3_body.and.nel>2) then
+         maxInts = 0.0_dp
+         write(iout,*) "Scanning", lMat%nInts, "integrals"
+         ! we estimate the 6-index contribution with the maximum possible contribution
+         do i = 1, size(lMat%lMatPtr)
+            if(abs(lMat%LMatPtr(i)) > minval(maxInts)) then
+               maxInts(minloc(maxInts)) = abs(lMat%LMatPtr(i))
+            endif
+         end do
+         offset = sum(maxInts)
+         write(iout,*) "Excitgen is offset of", offset
+      else
+         offset = 0.0_dp
+      endif
+    end function getPCWeightOffset
 
 !------------------------------------------------------------------------------------------!
 

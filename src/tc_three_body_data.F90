@@ -1,6 +1,7 @@
 module tc_three_body_data
   use constants
   use FciMCData, only: ll_node
+  use procedure_pointers, only: lMatInd_t
   implicit none
 
   ! biases for 3-body excitation generation
@@ -12,7 +13,7 @@ module tc_three_body_data
   real(dp) :: pgen0B, pgen1B, pgen2B, pgen3B
   ! number of empty alpha/beta electrons
   integer :: nUnoccAlpha, nUnoccBeta
-
+  
   ! option to reduce the k-matrix element for same-spin excitations
   logical :: tDampKMat = .false.
   logical :: tDampLMat = .false.
@@ -41,9 +42,10 @@ module tc_three_body_data
      integer(int64) :: nInts
      type(ll_node), pointer :: hTable(:)
      integer :: htSize
+     procedure(lMatInd_t), nopass, pointer :: indexFunc
   end type lMat_t
 
   ! actual objects storing the 6-index integrals
-  type(lMat_t) :: LMat, LMatABB, LMatBAB, LMatBBA
+  type(lMat_t), target :: LMat, LMatABB, LMatBAB, LMatBBA
   
 end module tc_three_body_data

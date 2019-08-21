@@ -120,4 +120,59 @@ module lMat_indexing
       index = ai + strideInner*bj + strideOuter * ck
       
     end function lMatIndSymBroken
+
+!------------------------------------------------------------------------------------------!    
+
+    pure function lMatIndABB(i,j,k,a,b,c) result(index)
+      ! index function called from LMatABB -> see lMatIndSpin
+      ! disctinct spin is with (a,i)
+      integer(int64), value :: i,j,k
+      integer(int64), value :: a,b,c
+      integer(int64) :: index      
+      index = lMatIndSpin(i,j,k,a,b,c)
+    end function lMatIndABB
+    
+!------------------------------------------------------------------------------------------!
+    
+    pure function lMatIndBAB(i,j,k,a,b,c) result(index)
+      ! index function called from LMatBAB -> see lMatIndSpin
+      ! distinct spin is with (b,j)
+      integer(int64), value :: i,j,k
+      integer(int64), value :: a,b,c
+      integer(int64) :: index      
+      index = lMatIndSpin(j,i,k,b,a,c)
+    end function lMatIndBAB
+
+!------------------------------------------------------------------------------------------!
+
+    pure function lMatIndBBA(i,j,k,a,b,c) result(index)
+      ! index function called from LMatBBA -> see lMatIndSpin
+      ! distinct spin is with (c,k)
+      integer(int64), value :: i,j,k
+      integer(int64), value :: a,b,c
+      integer(int64) :: index      
+      index = lMatIndSpin(k,i,j,c,a,b)
+    end function lMatIndBBA
+
+!------------------------------------------------------------------------------------------!
+
+    pure function lMatIndSpin(i,j,k,a,b,c) result(index)
+      ! Index functions that is symmetric with respect to swapping a<->i, b<->j and c<->k,
+      ! as well as swapping (b,j)<->(c,k), but does not have the full ai,bj,ck, permutational
+      ! symmetry
+      ! Input: a,b,c - orbital indices of electrons
+      !        i,j,k - orbital indices of holes
+      ! Output: index - contiguous index I(a,b,c,i,j,k) with the aforementioned symmetry           
+      integer(int64), value :: i,j,k
+      integer(int64), value :: a,b,c
+      integer(int64) :: index
+      integer(int64) :: ai, bj, ck
+
+      ai = fuseIndex(a,i)
+      bj = fuseIndex(b,j)
+      ck = fuseIndex(c,k)
+
+      index = ai + strideInner * fuseIndex(bj,ck)
+    end function lMatIndSpin
+    
 end module lMat_indexing

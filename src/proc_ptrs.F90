@@ -318,7 +318,6 @@ module procedure_pointers
     procedure(scale_function_t), pointer :: scaleFunction
 
     ! indexing function of the six-index integrals
-    procedure(lMatInd_t), pointer :: lMatInd
     procedure(get_lmat_el_t), pointer :: get_lmat_el
     procedure(get_lmat_el_t), pointer :: get_lmat_el_symInternal
 
