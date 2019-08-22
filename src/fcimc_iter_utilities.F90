@@ -931,7 +931,7 @@ contains
 
                     ! How should the shift change for the entire ensemble of walkers
                     ! over all processors.
-                    if (.not. (tSinglePartPhase(run)
+                    if (.not. (tSinglePartPhase(run) &
                                .and. near_zero(TargetGrowRate(run)) &
                                .or. defer_update(run))) then
 
