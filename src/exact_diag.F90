@@ -67,7 +67,7 @@ contains
         write(6,'(1x,a9)') "Complete."
         call neci_flush(6)
 
-        expected_ndets_tot = choose(nbasis, nel)
+        expected_ndets_tot = int(choose(nbasis, nel))
         if (ndets_ed /= expected_ndets_tot) then
             write(6,*) "ndets counted:", ndets_ed, "ndets expected:", expected_ndets_tot
             call stop_all('t_r', 'The number of determinants generated is not &

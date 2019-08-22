@@ -1,17 +1,17 @@
 #include "macros.h"
 
 MODULE HPHFRandExcitMod
-!Half-projected HF wavefunctions are a linear combination of two HF determinants, 
+!Half-projected HF wavefunctions are a linear combination of two HF determinants,
 !where all alphas -> betas and betas -> alpha to create the pair.
 !In closed-shell systems, these two determinants have the same FCI amplitude, and so it is easier to treat them as a pair.
 !The probability of creating this HPHF where both are from pairs of spin-coupled determinants (i & j -> a & b):
 ![ P(i->a) + P(i->b) + P(j->a) + P(j->b) ]/2
-!We therefore need to find the excitation matrix between the determinant which wasn't 
+!We therefore need to find the excitation matrix between the determinant which wasn't
 !excited and the determinant which was created.
 
     use SystemData, only: nel, tCSF, Alat, G1, nbasis, nbasismax, nmsh, arr, &
                           tOddS_HPHF, modk_offdiag, tGen_4ind_weighted, &
-                          tGen_4ind_reverse, tLatticeGens, tGen_4ind_2, tHUB, & 
+                          tGen_4ind_reverse, tLatticeGens, tGen_4ind_2, tHUB, &
                           tUEG, tUEGNewGenerator
     use IntegralsData, only: UMat, fck, nMax
     use SymData, only: nSymLabels
@@ -35,8 +35,8 @@ MODULE HPHFRandExcitMod
     use sort_mod
     use HElem
     use CalcData, only: t_matele_cutoff, matele_cutoff, t_back_spawn, t_back_spawn_flex
-    use back_spawn_excit_gen, only: gen_excit_back_spawn, calc_pgen_back_spawn, & 
-                                    gen_excit_back_spawn_ueg, calc_pgen_back_spawn_ueg, & 
+    use back_spawn_excit_gen, only: gen_excit_back_spawn, calc_pgen_back_spawn, &
+                                    gen_excit_back_spawn_ueg, calc_pgen_back_spawn_ueg, &
                                     calc_pgen_back_spawn_hubbard, gen_excit_back_spawn_hubbard, &
                                     gen_excit_back_spawn_ueg_new, calc_pgen_back_spawn_ueg_new
     IMPLICIT NONE
@@ -71,7 +71,7 @@ MODULE HPHFRandExcitMod
             !nJ is CS, therefore, only one way of generating it.
             ic = FindBitExcitLevel(iLutnI, iLutnJ, 2)
             if(ic.eq.0) then
-                tSameFunc=.true. 
+                tSameFunc=.true.
                 return
             endif
             if(ic.le.2) then
@@ -82,11 +82,11 @@ MODULE HPHFRandExcitMod
             nJ_loc = nJ
             iLutnJ_loc = iLutnJ
             CALL ReturnAlphaOpenDet(nJ_loc,nJ2,iLutnJ_loc,iLutnJ2,.true.,.true.,tSwapped)
-            
+
             !First find nI -> nJ
             ic = FindBitExcitLevel(iLutnI, iLutnJ_loc, 2)
             if(ic.eq.0) then
-                tSameFunc=.true. 
+                tSameFunc=.true.
                 return
             endif
             if(ic.le.2) then
@@ -103,7 +103,7 @@ MODULE HPHFRandExcitMod
             !Now consider nI -> nJ2 and add the probabilities
             ic = FindBitExcitLevel(iLutnI, iLutnJ2, 2)
             if(ic.eq.0) then
-                tSameFunc=.true. 
+                tSameFunc=.true.
                 return
             endif
             if(ic.le.2) then
@@ -126,18 +126,18 @@ MODULE HPHFRandExcitMod
 
         use FciMCData, only: tGenMatHEl
 
-        ! Generate an HPHF excitation using only one of the determinants in 
+        ! Generate an HPHF excitation using only one of the determinants in
         ! the source HPHF function.
         !
         ! --> Relies on both determinants in the HPHF function being connected
         !     to all excited HPHF functions.
         ! --> nI will always need to be a unique choice of determinant within
-        !     each HPHF function, and then we nevver need to (explicitly) 
+        !     each HPHF function, and then we nevver need to (explicitly)
         !     refering to its spin-coupled partner.
         ! --> If tGenMatEl is true, the Hamiltonian matrix element between the
         !     two determinants will be calculated, and returned in Hel.
 
-        integer, intent(in) :: nI(nel) 
+        integer, intent(in) :: nI(nel)
         integer(kind=n_int), intent(in) :: iLutnI(0:niftot)
         integer, intent(in) :: exFlag
         integer, intent(out) :: nJ(nel)
@@ -151,7 +151,7 @@ MODULE HPHFRandExcitMod
         character(*), parameter :: this_routine = "gen_hphf_excit"
 
         integer(kind=n_int) :: iLutnJ2(0:niftot)
-        integer :: openOrbsI, openOrbsJ, nJ2(nel), ex2(2,2), excitLevel 
+        integer :: openOrbsI, openOrbsJ, nJ2(nel), ex2(2,2), excitLevel
         real(dp) :: pGen2
         HElement_t(dp) :: MatEl, MatEl2
         logical :: tSign, tSignOrig
@@ -160,22 +160,22 @@ MODULE HPHFRandExcitMod
         ! Avoid warnings
         tParity = .false.
 
-        ! [W.D] this whole hphf should be optimized.. and cleaned up 
-        ! because it is a mess really.. 
+        ! [W.D] this whole hphf should be optimized.. and cleaned up
+        ! because it is a mess really..
         ! Generate a normal excitation.
-        
-        if (t_back_spawn .or. t_back_spawn_flex) then 
-            if (tUEGNewGenerator .and. tLatticeGens) then 
-                call gen_excit_back_spawn_ueg_new(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
+
+        if (t_back_spawn .or. t_back_spawn_flex) then
+            if (tUEGNewGenerator .and. tLatticeGens) then
+                call gen_excit_back_spawn_ueg_new(nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
                                           ExcitMat, tSignOrig, pgen, Hel, store, part_type)
-            else if (tUEG .and. tLatticeGens) then 
-                call gen_excit_back_spawn_ueg(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
+            else if (tUEG .and. tLatticeGens) then
+                call gen_excit_back_spawn_ueg(nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
                                           ExcitMat, tSignOrig, pgen, Hel, store, part_type)
             else if (tHUB .and. tLatticeGens) then
                 call gen_excit_back_spawn_hubbard (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat,&
                                  tSignOrig, pGen, HEl, store, part_type)
             else
-                call gen_excit_back_spawn(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
+                call gen_excit_back_spawn(nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
                                           ExcitMat, tSignOrig, pgen, Hel, store, part_type)
             end if
 
@@ -208,7 +208,7 @@ MODULE HPHFRandExcitMod
         ! n.b. 4ind_weighted does this already.
         if (.not. (tGen_4ind_weighted .or. tGen_4ind_reverse .or. tGen_4ind_2)) &
             CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat)
-            
+
 !Test!
 !        CALL CalcNonUniPGen(ExcitMat,IC,ClassCount2,ClassCountUnocc2,pDoub,pGen2)
 !        IF(abs(pGen-pGen2).gt.1.0e-7_dp_dp) THEN
@@ -217,7 +217,7 @@ MODULE HPHFRandExcitMod
 !        ENDIF
 
         IF(TestClosedShellDet(iLutnJ)) THEN
-!There is only one way which we could have generated the excitation nJ since it has 
+!There is only one way which we could have generated the excitation nJ since it has
 !no spin-partner. Also, we will always return the 'correct' version.
             IF(tGenMatHEl) THEN
 !Generate matrix element -> HPHF to closed shell det.
@@ -305,19 +305,19 @@ MODULE HPHFRandExcitMod
 !                        ExcitLevel2 = FindBitExcitLevel(iLutnI2, iLutnJ, 2)
 
                         IF((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) THEN
-                            
+
                             CALL CalcOpenOrbs(iLutnJ,OpenOrbsJ)
                             CALL CalcOpenOrbs(iLutnI,OpenOrbsI)
 
                             IF(tSwapped) THEN
-                                IF((OpenOrbsJ+OpenOrbsI).eq.3) tSignOrig=.not.tSignOrig  
+                                IF((OpenOrbsJ+OpenOrbsI).eq.3) tSignOrig=.not.tSignOrig
  !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
 
                                 MatEl2 = sltcnd_excit (nI, IC, ExcitMat, &
                                                        tSignOrig)
                             ELSE
 !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
-                                IF((OpenOrbsJ+OpenOrbsI).eq.3) tSign=.not.tSign     
+                                IF((OpenOrbsJ+OpenOrbsI).eq.3) tSign=.not.tSign
 
                                 MatEl2 = sltcnd_excit (nI,  ExcitLevel, &
                                                        Ex2, tSign)
@@ -325,14 +325,14 @@ MODULE HPHFRandExcitMod
 
                             IF(tOddS_HPHF) THEN
 !again, since these can only be at max quads, then they can only have 1/2 open orbs...
-                                IF(OpenOrbsI.eq.2) THEN     
+                                IF(OpenOrbsI.eq.2) THEN
                                     MatEl=MatEl-MatEl2
                                 ELSE
                                     MatEl=MatEl+MatEl2
                                 ENDIF
                             ELSE
 !again, since these can only be at max quads, then they can only have 1/2 open orbs...
-                                IF(OpenOrbsI.eq.2) THEN     
+                                IF(OpenOrbsI.eq.2) THEN
                                     MatEl=MatEl+MatEl2
                                 ELSE
                                     MatEl=MatEl-MatEl2
@@ -341,13 +341,13 @@ MODULE HPHFRandExcitMod
 !                            WRITE(6,*) "MatEl2 NEW: ",MatEl2
                         ENDIF
                         HEl=MatEl
-                    
+
                     ENDIF   !Endif from open/closed shell det
                     if (IC /= 0 .and. modk_offdiag) hel = -abs(hel)
 
                 ENDIF   !Endif want to generate matrix element
 
-!                CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.false.,.false.,tSwapped)  
+!                CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.false.,.false.,tSwapped)
 !Here, we actually know nJ, so don't need to regenerate it...
 
             ELSEIF(ExcitLevel.eq.0) THEN
@@ -358,11 +358,11 @@ MODULE HPHFRandExcitMod
                 ENDIF
 
             ELSE    !Open-shell to Open-shell, but with no cross-connection.
-                
+
 !                CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.false.,.true.,tSwapped)
 
                 IF(tGenMatHEl) THEN
-!iLutnI MUST be open-shell here, since otherwise it would have been connected to 
+!iLutnI MUST be open-shell here, since otherwise it would have been connected to
 !iLutnJ2. Also, we know the cross connection (i.e. MatEl2 = 0)
                     IF(tSwapped) THEN
                         CALL CalcOpenOrbs(iLutnJ,OpenOrbsJ)
@@ -386,24 +386,24 @@ MODULE HPHFRandExcitMod
 
                     HEl=MatEl
                     if (IC /= 0 .and. modk_offdiag) hel = -abs(hel)
-                        
+
                 ENDIF
 
 
             ENDIF
-            
+
         ENDIF
 
         ! [W.D.]
-        ! i should also abort here already if the matrix element 
+        ! i should also abort here already if the matrix element
         ! if below a threshold to optimize the calculation
 !         if (abs(Hel) < EPS) then
 !             nJ(1) = 0
-!             pgen = 0.0_dp 
+!             pgen = 0.0_dp
 !             Hel = 0.0_dp
-!             return 
+!             return
 !         end if
-! 
+!
 !         if (t_matele_cutoff) then
 !             if (abs(Hel) < matele_cutoff) then
 !                 Hel = 0.0_dp
@@ -430,13 +430,13 @@ MODULE HPHFRandExcitMod
 
     end subroutine
 
-!This routine will take a determinant, and create the determinant whose final open-shell 
+!This routine will take a determinant, and create the determinant whose final open-shell
 !spatial orbital contains an alpha electron.
-!If the final open-shell electron is a beta orbital, then the balue of the bit-string 
+!If the final open-shell electron is a beta orbital, then the balue of the bit-string
 !will be smaller. We are interested in returning
-!the larger of the open-shell bit strings since this will correspond to the final 
+!the larger of the open-shell bit strings since this will correspond to the final
 !open-shell electron being an alpha.
-!This rationalization may well break down when it comes to the negative bit (32), 
+!This rationalization may well break down when it comes to the negative bit (32),
 !however, this may not matter, since all we really
 !need is a unique description of a HPHF...?
 !iLutnI (nI) is returned as this determinant, with iLutSym (nJ) being the other.
@@ -456,7 +456,7 @@ MODULE HPHFRandExcitMod
             CALL FindDetSpinSym(nI,nJ,NEl)
         ENDIF
 
-        ! iLutnI is 'less' than iLutSym, so iLutSym is the determinant with 
+        ! iLutnI is 'less' than iLutSym, so iLutSym is the determinant with
         ! the first open-shell = alpha. Swap them around.
         ! Only count up to NIfD to avoid Yamanouchi symbol etc.
         i=DetBitLT(iLutnI, iLutSym, NIfD)
@@ -477,7 +477,7 @@ MODULE HPHFRandExcitMod
 
     END SUBROUTINE ReturnAlphaOpenDet
 
-        
+
 !This create the spin-coupled determinant of nI in nJ in natural ordered form.
     PURE SUBROUTINE FindDetSpinSym(nI,nJ,NEl)
         INTEGER, intent(in) :: NEl,nI(NEl)
@@ -518,11 +518,11 @@ MODULE HPHFRandExcitMod
 
     END SUBROUTINE FindDetSpinSym
 
-!In closed-shell systems with equal number of alpha and beta strings, the amplitude of a 
+!In closed-shell systems with equal number of alpha and beta strings, the amplitude of a
 !determinant in the final CI wavefunction is the same
-!when the alpha and beta electrons are swapped (for S=0, see Helgakker for more details). 
+!when the alpha and beta electrons are swapped (for S=0, see Helgakker for more details).
 !It will sometimes be necessary to find this other
-!determinant when spawning. This routine will find the bit-representation of an excitation 
+!determinant when spawning. This routine will find the bit-representation of an excitation
 !by constructing the symmetric iLut from the its
 !symmetric partner, also in bit form.
     PURE SUBROUTINE FindExcitBitDetSym(iLut,iLutSym)
@@ -543,7 +543,7 @@ MODULE HPHFRandExcitMod
 
             iLutAlpha(i)=ISHFT(iLutAlpha(i),-1)  !Shift all alpha bits to the left by one.
             iLutBeta(i)=ISHFT(iLutBeta(i),1)   !Shift all beta bits to the right by one.
-            
+
             iLutSym(i)=IOR(iLutAlpha(i),iLutBeta(i))    !Combine the bit strings to give the final bit representation.
 
 !            WRITE(6,*) "ILut: "
@@ -569,10 +569,10 @@ MODULE HPHFRandExcitMod
 
     END SUBROUTINE FindExcitBitDetSym
 
-    
-!!This routine will take a HPHF nI, and find Iterations number of excitations of it. 
+
+!!This routine will take a HPHF nI, and find Iterations number of excitations of it.
 !It will then histogram these, summing in 1/pGen for every occurance of
-!!the excitation. This means that all excitations should be 0 or 1 after enough iterations. 
+!!the excitation. This means that all excitations should be 0 or 1 after enough iterations.
 !It will then count the excitations and compare the number to the
 !!number of excitations generated using the full enumeration excitation generation.
 !    SUBROUTINE TestGenRandHPHFExcit(nI,Iterations,pDoub)
@@ -646,7 +646,7 @@ MODULE HPHFRandExcitMod
 !        iMaxExcit=0
 !        nStore(1:6)=0
 !        DEALLOCATE(EXCITGEN)
-!        
+!
 !        CALL GenSymExcitIt2(nI2,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
 !        ALLOCATE(EXCITGEN(nExcitMemLen),stat=ierr)
 !        IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
@@ -716,8 +716,8 @@ MODULE HPHFRandExcitMod
 !        enddo
 !
 !        WRITE(6,*) "There are ",iUniqueHPHF," unique HPHF wavefunctions from the HPHF given."
-!        
-!        WRITE(6,*) "There are ",iUniqueBeta," unique HPHF wavefunctions from the spin-coupled 
+!
+!        WRITE(6,*) "There are ",iUniqueBeta," unique HPHF wavefunctions from the spin-coupled
 !determinant, which are not in a alpha version."
 !        IF(iUniqueBeta.ne.0) THEN
 !            WRITE(6,*) "HPHF from beta, but not from alpha!"
@@ -808,12 +808,12 @@ MODULE HPHFRandExcitMod
 !            ENDIF
 !
 !            Weights(PartInd)=Weights(PartInd)+(1.0_dp/pGen)
-!             
+!
 !!Check excitation
 !!            CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
 !
 !        enddo
-!        
+!
 !        iunit = get_free_unit()
 !        OPEN(iunit,FILE="PGenHist",STATUS="UNKNOWN")
 !
@@ -876,7 +876,7 @@ MODULE HPHFRandExcitMod
                 PartInd=N
                 RETURN
             ELSEIF((Comp.eq.1).and.(i.ne.N)) THEN
-!The value of the determinant at N is LESS than the determinant we're looking for. 
+!The value of the determinant at N is LESS than the determinant we're looking for.
 !Therefore, move the lower bound of the search up to N.
 !However, if the lower bound is already equal to N then the two bounds are consecutive and we have failed...
                 i=N
@@ -960,7 +960,7 @@ MODULE HPHFRandExcitMod
         integer, intent(in), optional :: part_type
         character(*), parameter :: this_routine = 'CalcNonUniPGen'
 
-        integer :: temp_part_type 
+        integer :: temp_part_type
 
         ! We need to consider which of the excitation generators are in use,
         ! and call the correct routine in each case.
@@ -969,32 +969,32 @@ MODULE HPHFRandExcitMod
         pgen = 0.0_dp
 
         ! i have to make sure to catch all this call to this function correctly
-        if (present(part_type)) then 
+        if (present(part_type)) then
             temp_part_type = part_type
         else
             temp_part_type = 1
         end if
 
         ! does it help to avoid recalculating for the reference?
-        ! do i need to  check if it is actually a non-initiator? 
-        ! i guess i do.. or i go the unnecessary way of checking again in 
-        ! the called back-spawn functions 
+        ! do i need to  check if it is actually a non-initiator?
+        ! i guess i do.. or i go the unnecessary way of checking again in
+        ! the called back-spawn functions
         if ((t_back_spawn .or. t_back_spawn_flex) .and. &
             (.not. DetBitEq(ilutI,ilutRef(:,temp_part_type),nifdbo)) .and. &
-            (.not. test_flag(ilutI, get_initiator_flag(temp_part_type)))) then 
-            ! i just realised this also has to be done for the hubbard 
-            ! and the ueg model.. -> create those functions! 
-            if (tHUB .and. tLatticeGens) then 
+            (.not. test_flag(ilutI, get_initiator_flag(temp_part_type)))) then
+            ! i just realised this also has to be done for the hubbard
+            ! and the ueg model.. -> create those functions!
+            if (tHUB .and. tLatticeGens) then
                 pgen = calc_pgen_back_spawn_hubbard(nI, ilutI, ex, ic, temp_part_type)
-            else if (tUEGNewGenerator .and. tLatticeGens) then 
+            else if (tUEGNewGenerator .and. tLatticeGens) then
                 pgen = calc_pgen_back_spawn_ueg_new(nI, ilutI, ex, ic, temp_part_type)
-            else if (tUEG .and. tLatticeGens) then 
+            else if (tUEG .and. tLatticeGens) then
                 pgen = calc_pgen_back_spawn_ueg(nI, ilutI, ex, ic, temp_part_type)
             else
                 pgen = calc_pgen_back_spawn(nI, ilutI, ex, ic, temp_part_type)
             end if
 
-        ! this if construct is not well setup.. this can fail.. 
+        ! this if construct is not well setup.. this can fail..
         else
             if (tLatticeGens) then
                 if (ic == 2) then

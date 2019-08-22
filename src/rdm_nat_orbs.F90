@@ -10,6 +10,7 @@ module rdm_nat_orbs
     use RotateOrbsData, only: SymLabelListInv_rotTag
     use rdm_data, only: tOpenSpatialOrbs, tOpenShell
     use UMATCache, only: gtID
+    use util_mod, only: near_zero
 
     implicit none
 
@@ -38,7 +39,7 @@ contains
 
         ierr=0
         if (iProcIndex .eq. 0) then
-            
+
             ! Diagonalises the 1-RDM. rdm%matrix goes in as the 1-RDM, comes out
             ! as the eigenvector of the 1-RDM (the matrix transforming the MO's
             ! into the NOs).
@@ -47,7 +48,7 @@ contains
             ! Writes out the NO occupation numbers and evectors to files.
             call write_evales_and_transform_mat(rdm, irdm, SumDiag)
 
-            if (tPrintRODump .and. tROHF) then               
+            if (tPrintRODump .and. tROHF) then
                 write(6,*) 'ROFCIDUMP not implemented for ROHF. Skip generation of ROFCIDUMP file.'
             else if (tPrintRODump) then
                 write(6,"(A,F10.5,A)") "This will require at least ",(real(NoOrbs,dp)**4)*8/10**9,"Gb to be available on head node"
@@ -112,8 +113,8 @@ contains
         write(evals_filename, '("NO_OCC_NUMEBRS.",'//int_fmt(irdm,0)//')') irdm
         open(Evalues_unit, file=trim(evals_filename), status='unknown')
 
-        write(Evalues_unit,'(A)') '# NOs (natural orbitals) ordered by occupation number' 
-        write(Evalues_unit,'(A)') '# MOs (HF orbitals) ordered by energy' 
+        write(Evalues_unit,'(A)') '# NOs (natural orbitals) ordered by occupation number'
+        write(Evalues_unit,'(A)') '# MOs (HF orbitals) ordered by energy'
         write(Evalues_unit,'(A1,A5,A30,A20,A30)') '#','NO','NO OCCUPATION NUMBER','MO','MO OCCUPATION NUMBER'
 
         tNegEvalue = .false.
@@ -148,9 +149,9 @@ contains
         close(Evalues_unit)
 
         write(6,'(1X,A45,F30.20)') 'SUM OF THE N LARGEST NO OCCUPATION NUMBERS: ',SumN_NO_Occ
-   
+
         write(6,'(1X,A20,F30.20)') 'CORRELATION ENTROPY', Corr_Entropy
-        write(6,'(1X,A33,F30.20)') 'CORRELATION ENTROPY PER ELECTRON', Corr_Entropy / real(NEl,dp) 
+        write(6,'(1X,A33,F30.20)') 'CORRELATION ENTROPY PER ELECTRON', Corr_Entropy / real(NEl,dp)
         if (tNegEvalue) write(6,'(1X,"WARNING: Negative NO occupation numbers found.")')
 
         ! Write out the evectors to file.
@@ -189,10 +190,10 @@ contains
                         end if
 
                         if (tWrittenEvalue) then
-                            if (rdm%matrix(arr_ind(jInd),i_no) .ne. 0.0_dp) &
+                            if (.not. near_zero(rdm%matrix(arr_ind(jInd),i_no))) &
                                 write(NatOrbs_unit,'(2I6,G35.17)') j, NO_Number, rdm%matrix(arr_ind(jInd),i_no)
                         else
-                            if (rdm%matrix(arr_ind(jInd),i_no) .ne. 0.0_dp) then
+                            if (.not. near_zero(rdm%matrix(arr_ind(jInd),i_no))) then
                                 write(NatOrbs_unit,'(2I6,2G35.17)') j, NO_Number, rdm%matrix(arr_ind(jInd),i_no), &
                                                                     rdm%evalues(i_no)/Norm_Evalues
                                 tWrittenEvalue = .true.
@@ -209,11 +210,11 @@ contains
                             ! in this case.
                             jSpat = gtID(j)
                             if (tWrittenEvalue) then
-                                if (rdm%matrix(arr_ind(jSpat),i_no) .ne. 0.0_dp) &
+                                if (.not. near_zero(rdm%matrix(arr_ind(jSpat),i_no))) &
                                     write(NatOrbs_unit,'(2I6,G35.17)') j, NO_Number, &
                                                                     rdm%matrix(arr_ind(jSpat),i_no)
                             else
-                                if (rdm%matrix(arr_ind(jSpat),i_no) .ne. 0.0_dp) then
+                                if (.not. near_zero(rdm%matrix(arr_ind(jSpat),i_no))) then
                                     write(NatOrbs_unit,'(2I6,2G35.17)') j, NO_Number, rdm%matrix(arr_ind(jSpat),i_no), &
                                                                         rdm%evalues(i_no)/Norm_Evalues
                                     tWrittenEvalue = .true.
@@ -240,7 +241,7 @@ contains
         ! order the orbitals so that all the alpha orbitals follow all the beta
         ! orbitals, with the occupied orbitals first, in terms of symmetry, and
         ! the virtual second, also ordered by symmetry. This gives us
-        ! flexibility w.r.t rotating only the occupied or only virtual and 
+        ! flexibility w.r.t rotating only the occupied or only virtual and
         ! looking at high spin states.
 
         use rdm_data, only: tOpenShell, one_rdm_t
@@ -280,7 +281,7 @@ contains
                     if (abs(rdm%matrix(i,j)).ge.1.0E-15_dp) then
                         write(6,'(6A8,A20)') 'i','j','Label i','Label j','Sym i',&
                                                                 'Sym j','Matrix value'
-                        if (tOpenShell) then                                                              
+                        if (tOpenShell) then
                             write(6,'(6I3,F40.20)') i,j,SymLabelList2_rot(i),SymLabelList2_rot(j),&
                                     int(G1(SymLabelList2_rot(i))%sym%S),&
                                     int(G1(SymLabelList2_rot(j))%sym%S),rdm%matrix(i,j)
@@ -310,7 +311,7 @@ contains
                     if (abs(rdm%matrix(i,j)).ge.1.0E-15_dp) then
                         write(6,'(6A8,A40)') 'i','j','Label i','Label j','Lz i',&
                                                                 'Lz j','Matrix value'
-                        if (tOpenShell) then                                                              
+                        if (tOpenShell) then
                             write(6,'(6I8,F40.20)') i,j,SymLabelList2_rot(i),SymLabelList2_rot(j),&
                                     int(G1(SymLabelList2_rot(i))%Ml),&
                                     int(G1(SymLabelList2_rot(j))%Ml),rdm%matrix(i,j)
@@ -334,7 +335,7 @@ contains
         ! If we want to maintain the symmetry, we cannot have all the orbitals
         ! jumbled up when the  diagonaliser reorders the eigenvectors. Must
         ! instead feed each symmetry block in separately. This means that
-        ! although the transformed orbitals are jumbled within the symmetry blocks, 
+        ! although the transformed orbitals are jumbled within the symmetry blocks,
         ! the symmetry labels are all that are relevant and these are unaffected.
         Sym = 0
         LWORK2 = -1
@@ -356,7 +357,7 @@ contains
             NoSymBlock = SymLabelCounts2_rot(2,Sym+1)
 
             SymStartInd = SymLabelCounts2_rot(1,Sym+1) - 1
-            ! This is one less than the index that the symmetry starts, so that when we 
+            ! This is one less than the index that the symmetry starts, so that when we
             ! run through i=1,..., we can start at SymStartInd+i.
 
             if (NoSymBlock .gt. 1) then
@@ -380,7 +381,7 @@ contains
                 end do
 
                 call dsyev('V', 'L', NoSymBlock, NOMSym, NoSymBlock, EvaluesSym, WORK2, LWORK2, ierr)
-                ! NOMSym goes in as the original NOMSym, comes out as the 
+                ! NOMSym goes in as the original NOMSym, comes out as the
                 ! eigenvectors (Coefficients).
                 ! EvaluesSym comes out as the eigenvalues in ascending order.
 
@@ -388,9 +389,9 @@ contains
                     rdm%evalues(SymStartInd+i) = EvaluesSym(NoSymBlock-i+1)
                 end do
 
-                ! CAREFUL if eigenvalues are put in ascending order, this may not be 
+                ! CAREFUL if eigenvalues are put in ascending order, this may not be
                 ! correct, with the labelling system.
-                ! may be better to just take coefficients and transform TMAT2DRot 
+                ! may be better to just take coefficients and transform TMAT2DRot
                 ! in transform2elints.
                 ! a check that comes out as diagonal is a check of this routine anyway.
 
@@ -399,7 +400,7 @@ contains
                         rdm%matrix(SymStartInd+i,SymStartInd+j) = NOMSym(i,NoSymBlock-j+1)
                     end do
                 end do
-                ! Directly fill the coefficient matrix with the eigenvectors from 
+                ! Directly fill the coefficient matrix with the eigenvectors from
                 ! the diagonalization.
 
                 deallocate(WORK2)
@@ -499,7 +500,7 @@ contains
                    rdm%matrix(1:NoOrbs, startSort:endSort), &
                    rdm%sym_list_no(startSort:endSort))
 
-        if (tOpenShell) then                  
+        if (tOpenShell) then
             StartSort = SpatOrbs + 1
             EndSort = nBasis
 
@@ -507,7 +508,7 @@ contains
                       rdm%matrix(1:NoOrbs, startSort:endSort), &
                       rdm%sym_list_no(startSort:endSort))
 
-        end if                       
+        end if
 
         ! We now have the NO's ordered according to the size of their Evalues
         ! (occupation numbers).  This will have jumbled up their symmetries.
@@ -533,7 +534,7 @@ contains
                 ! Want to move it to the position the NO's are in.
                 New_Pos = rdm%sym_list_inv_no(Orb)
 
-                ! But we also want to reverse the order of everything... 
+                ! But we also want to reverse the order of everything...
                 rdm%matrix(New_Pos, NoOrbs-i+1) = one_rdm_Temp(j,i)
             end do
         end do
@@ -573,7 +574,7 @@ contains
         call stop_all('Transform2ElIntsMemSave_RDM', &
                     'Rotating orbitals not implemented for complex orbitals.')
 #endif
-        
+
         ! Zero arrays from previous transform.
 
         allocate(Temp4indints(NoOrbs,NoOrbs),stat=ierr)
@@ -581,12 +582,12 @@ contains
                             'Transform2ElIntsMemSave_RDM',Temp4indintsTag,ierr)
         if (ierr .ne. 0) call Stop_All('Transform2ElIntsMemSave_RDM',&
                                     'Problem allocating memory to Temp4indints.')
- 
+
         FourIndInts(:,:,:,:) = 0.0_dp
 
         ! Calculating the two-transformed, four index integrals.
 
-        ! The untransformed <alpha beta | gamma delta> integrals are found from 
+        ! The untransformed <alpha beta | gamma delta> integrals are found from
         ! UMAT(UMatInd(i,j,k,l)
         ! All our arrays are in spin orbitals - if tStoreSpinOrbs is false,
         ! UMAT will be in spatial orbitals - need to account for this.
@@ -623,7 +624,7 @@ contains
                             FourIndInts(1:NoOrbs,1:NoOrbs,b,d), NoOrbs, 0.0_dp,&
                             Temp4indints(1:NoOrbs,1:NoOrbs), NoOrbs)
 
-                ! Temp4indints(i,g) comes out of here, so to transform g to k, 
+                ! Temp4indints(i,g) comes out of here, so to transform g to k,
                 ! we need the transpose of this.
 
                 call dgemm('T', 'T', NoOrbs, NoOrbs, NoOrbs, 1.0_dp, one_rdm, NoOrbs, &
@@ -632,7 +633,7 @@ contains
                 ! Get Temp4indits02(i,k).
             end do
         end do
-        
+
         ! Calculating the 3 transformed, 4 index integrals.
         ! 01=a untransformed,02=b,03=g,04=d.
         do i = 1, NoOrbs
@@ -651,7 +652,7 @@ contains
 
         deallocate(Temp4indints)
         call LogMemDeAlloc('Transform2ElIntsMemSave_RDM',Temp4indintsTag)
- 
+
     end subroutine Transform2ElIntsMemSave_RDM
 
     subroutine CalcFOCKMatrix_RDM(rdm)
@@ -681,12 +682,12 @@ contains
         allocate(ArrDiagNew(nBasis),stat=ierr)
         if (ierr .ne. 0) call Stop_All(t_r,'Problem allocating ArrDiagNew array,')
         call LogMemAlloc('ArrDiagNew',nBasis,8,t_r,ArrDiagNewTag,ierr)
-        ArrDiagNew(:)=0.0_dp                     
+        ArrDiagNew(:)=0.0_dp
 
         ! First calculate the sum of the diagonal elements, ARR.
         ! Check if this is already being done.
         FOCKDiagSumHF = 0.0_dp
-        do a = 1, nBasis        
+        do a = 1, nBasis
             FOCKDiagSumHF = FOCKDiagSumHF+Arr(a,2)
         end do
 
@@ -718,7 +719,7 @@ contains
                 FOCKDiagSumNew = FOCKDiagSumNew + (ArrDiagNew((2*l)-1))
             end if
         end do
-        ! If we are truncation the virtual space, only the unfrozen entries will 
+        ! If we are truncation the virtual space, only the unfrozen entries will
         ! be transformed.
 
         ! Refill ARR(:,1) (ordered in terms of energies), and ARR(:,2)
@@ -879,7 +880,7 @@ contains
 
         iunit = get_free_unit()
         open(iunit,file=filename,status='unknown') !'ROFCIDUMP',status='unknown')
-        
+
         write(iunit,'(2A6,I3,A7,I3,A5,I2,A)') '&FCI ','NORB=', NoOrbs, ',NELEC=', NEl, ',MS2=', LMS, ','
         write(iunit,'(A9)',advance='no') 'ORBSYM='
         do i=1,NoOrbs
@@ -921,12 +922,12 @@ contains
         end if
 
         write(iunit,'(A5)') '&end'
-       
+
         do i = 1, NoOrbs
             do j = 1, NoOrbs
                 do l = 1, j
-                    ! Potential to put symmetry in here, have currently taken it out, 
-                    ! because when we're only printing non-zero values, it is kind 
+                    ! Potential to put symmetry in here, have currently taken it out,
+                    ! because when we're only printing non-zero values, it is kind
                     ! of unnecessary - although it may be used to speed things up.
                     do k = 1, i
                         ! UMatInd is in physical notation <ij|kl>, but the indices
@@ -934,7 +935,7 @@ contains
                        if(tOpenSpatialOrbs) then
                           a = gtID(i)
                           b = gtID(j)
-                          g = gtID(k) 
+                          g = gtID(k)
                           d = gtID(l)
                        else
                           a = i
@@ -942,10 +943,10 @@ contains
                           g = k
                           d = l
                        endif
-                        if ((abs(real(UMat(UMatInd(a,b,g,d)),dp))).ne.0.0_dp) &
+                        if (.not. near_zero(real(UMat(UMatInd(a,b,g,d)),dp))) &
                                 write(iunit,'(F21.12,4I5)') &
-                                real(UMat(UMatInd(a,b,g,d)),dp), a, b, g, d 
- 
+                                real(UMat(UMatInd(a,b,g,d)),dp), a, b, g, d
+
                     end do
                 end do
            end do
@@ -956,8 +957,9 @@ contains
             ! Symmetry?
             do k=1,NoOrbs
                 if (tStoreSpinOrbs) then
-                    if ((real(TMAT2D(i,k),dp)).ne.0.0_dp) write(iunit,'(F21.12,4I5)') &
-                                                        real(TMAT2D(i,k),dp),i,k,0,0
+                    if (.not. near_zero(real(TMAT2D(i,k),dp))) then
+                        write(iunit,'(F21.12,4I5)') real(TMAT2D(i,k),dp),i,k,0,0
+                    end if
                 else
                    if(tOpenSpatialOrbs) then
                       a = gtID(i)
@@ -966,8 +968,12 @@ contains
                       a = i
                       b = k
                    endif
-                   if ((real(TMAT2D(2*a,2*b),dp)).ne.0.0_dp) write(iunit,'(F21.12,4I5)') &
-                        real(TMAT2D(2*a,2*b),dp),a,b,0,0
+                   if (.not. near_zero(real(TMAT2D(2*a,2*b),dp))) then
+                     write(iunit,'(F21.12,4I5)') real(TMAT2D(2*a,2*b),dp),a,b,0,0
+                   end if
+                   if (.not. near_zero(real(TMAT2D(2*a,2*b),dp))) then
+                     write(iunit,'(F21.12,4I5)') real(TMAT2D(2*a,2*b),dp),a,b,0,0
+                  end if
                 end if
             end do
         end do
@@ -990,7 +996,7 @@ contains
         end do
 
         write(iunit,'(F21.12,4I5)') ECore, 0, 0, 0, 0
-        
+
         call neci_flush(iunit)
 
         close(iunit)
@@ -1005,7 +1011,7 @@ contains
         ! numbers differ by a small relative threshold (occ_numb_diff) and
         ! rotates them by calling the Rotate2Orbs routine in order to
         ! break symmetry and maximally localise the NOs
-        ! We'd like to keep both the original NOs (Natural Orbitals) 
+        ! We'd like to keep both the original NOs (Natural Orbitals)
         ! and the broken maximally localised NOs for checking.
         ! This is not very (time-) efficient at the moment.
 
@@ -1052,9 +1058,9 @@ contains
             else
                 diffnorm = 2.0_dp*(SumDiag/dble(NEl))
             end if
-            
+
             trotatedNOs = .true.
-     
+
             if (tStoreSpinorbs) then
                 call Stop_all("BrokenSymNO", "Broken symmetry NOs currently not implemented for UHF")
             end if
@@ -1184,7 +1190,7 @@ contains
                     call Rotate2Orbs(iumat,jumat,trans_2orbs_coeffs,selfint(iumat),&
                         &selfint(jumat),localdelocal)
 
-                    ! The new NOs are 
+                    ! The new NOs are
                     ! phi_{i'} = cos a p_{i} + sin a p_{j}
                     ! phi_{j'} = -sin a p_{i} + cos a p_{j}
                     one_rdm(iumat,iumat) = trans_2orbs_coeffs(1,1)
@@ -1199,7 +1205,7 @@ contains
            end do
 
            ! Transform integral corresponding to rotated NO.
-           ! These are required for not printing out RPFCIDUMP or 
+           ! These are required for not printing out RPFCIDUMP or
            ! BSFCIDUMP every time.
            trotatedNOs = .true.
            call Transform2ElIntsMemSave_RDM(one_rdm, sym_list)
@@ -1240,7 +1246,7 @@ contains
                                     &trans_2orbs_coeffs,selfint(iumat),selfint(jumat)&
                                     &,localdelocal)
 
-                                ! The new NOs are 
+                                ! The new NOs are
                                 ! phi_{i'} = cos a p_{i} + sin a p_{j}
                                 ! phi_{j'} = -sin a p_{i} + cos a p_{j}
                                 one_rdm(iumat,iumat) = trans_2orbs_coeffs(1,1)
@@ -1310,7 +1316,7 @@ contains
                                     call Rotate2Orbs(iumat, jumat, trans_2orbs_coeffs, &
                                                      selfint(iumat), selfint(jumat), localdelocal)
 
-                                    ! The new NOs are 
+                                    ! The new NOs are
                                     ! phi_{i'} = cos a p_{i} + sin a p_{j}
                                     ! phi_{j'} = -sin a p_{i} + cos a p_{j}
                                     one_rdm(iumat,iumat) = trans_2orbs_coeffs(1,1)
@@ -1352,9 +1358,9 @@ contains
             write(6,*) '------------------------------------------------------'
             write(6,*) 'Writing out BSFCIDUMP...'
             write(6,*) '------------------------------------------------------'
-            
+
             call PrintROFCIDUMP_RDM("BSFCIDUMP")
- 
+
         end if
 
         deallocate(one_rdm)
@@ -1363,7 +1369,7 @@ contains
         deallocate(rotate_list)
         deallocate(rotorbs)
         deallocate(selfint)
-        
+
         if (tBreakSymNOs) then
             deallocate(RotNOs)
             call LogMemDealloc('BrokenSymNO',tagRotNOs)
@@ -1429,7 +1435,7 @@ contains
         do l1 = 10, 17
             alpha2(l1) = alpha2(l1-1) + (pi/4.0_dp)
         end do
-        
+
         ! second derivatives to find maximum (necessary since the minimum, i.e. fully delocalised
         ! orbitals satisfy the same conditions
         !secondderiv(1) = (4.0_dp*coeffsin*cos(4.0_dp*alpha(1))) - (4.0_dp*coeffcos*sin(4.0_dp*alpha(1)))
@@ -1437,7 +1443,7 @@ contains
 
         ! Compute selfinteractions to check which one is largest.
         ! This is a better measure than the second derivatives.
-        selfinteractions(:) = 0.0_dp 
+        selfinteractions(:) = 0.0_dp
 
         do l1 = 1, 17
             trans_2orbs_coeffs(1,1) = cos(alpha2(l1))
@@ -1488,7 +1494,7 @@ contains
         trans_2orbs_coeffs(2,1) =  sin(alpha2(maxangle(1)))
         trans_2orbs_coeffs(1,2) = -sin(alpha2(maxangle(1)))
         trans_2orbs_coeffs(2,2) =  cos(alpha2(maxangle(1)))
- 
+
         ! New self-interactions for transformed orbitals.
         selfintorb1 = 0.0_dp
         selfintorb2 = 0.0_dp

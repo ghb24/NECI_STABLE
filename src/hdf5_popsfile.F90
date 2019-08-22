@@ -810,7 +810,7 @@ contains
         if(tAutoAdaptiveShift) then
            allocate(fvals(2*inum_runs,TotWalkers))
            ! get the statistics of THIS processor
-           call writeFFuncAsInt(TotWalkers, fvals)
+           call writeFFuncAsInt(int(TotWalkers), fvals)
            call write_2d_multi_arr_chunk_buff(&
                 wfn_grp_id, nm_fvals, H5T_NATIVE_REAL_8, &
                 fvals, arr_2d_dims(fvals), &
@@ -914,7 +914,7 @@ contains
         ! (calcdata has to be read in after the walkers, ugh)
         call read_log_scalar(grp_id, nm_tauto, tPopAutoAdaptiveShift, &
              default = .false._int32, required=.false.)
-        
+
         ! these variables are for consistency-checks
         allocate(pops_norm_sqr(tmp_lenof_sign), stat = ierr)
         allocate(pops_num_parts(tmp_lenof_sign), stat = ierr)
@@ -1043,7 +1043,7 @@ contains
             if(tmp_lenof_sign /= lenof_sign) then
                deallocate(temp_sgns)
 
-               allocate(temp_sgns(int(tmp_lenof_sign),int(this_block_size)),stat=ierr)        
+               allocate(temp_sgns(int(tmp_lenof_sign),int(this_block_size)),stat=ierr)
                if(tReadFVals) then
                   deallocate(temp_fvals)
                   allocate(temp_fvals(int(2*tmp_inum_runs), int(this_block_size)), stat=ierr)
@@ -1053,7 +1053,7 @@ contains
             call read_walker_block_buff(ds_ilut, ds_sgns, ds_fvals, block_start, &
                                    this_block_size, bit_rep_width, temp_ilut, temp_sgns, &
                                    temp_fvals)
-                                
+
             if(tmp_lenof_sign /= lenof_sign) then
                call clone_signs(temp_sgns,tmp_lenof_sign, lenof_sign, this_block_size)
                ! resize the fvals in the same manner
@@ -1167,7 +1167,7 @@ contains
       integer :: nlocal=0
       integer :: ierr
       integer(hsize_t), allocatable :: fvals_comm(:,:), fvals_loc(:,:)
-      
+
       ! allocate the buffers for the fvals
       if(tReadFVals) then
          allocate(fvals_comm(2*inum_runs,MaxSpawned), stat=ierr)
@@ -1185,7 +1185,7 @@ contains
 !#undef localfirst
 #ifdef localfirst
       nlocal=sendcount(iProcIndex)
-      call add_new_parts(dets, nlocal, CurrWalkers, norm, parts, fvals_loc)      
+      call add_new_parts(dets, nlocal, CurrWalkers, norm, parts, fvals_loc)
       sendcount(iProcIndex)=0
 #endif
       !communicate the remaining elements
@@ -1334,8 +1334,8 @@ contains
            call MPIAllToAllV(SpawnedParts, sendcountsScaled, dispsScaled, SpawnedParts2, &
                 recvcountsScaled, recvdispsScaled, ierr)
         end if
-  
-        call scaleCounts(size(fvals_loc,1))        
+
+        call scaleCounts(size(fvals_loc,1))
 
         if(tReadFVals) then
            call MPIAllToAllV(fvals_comm, sendcountsScaled, dispsScaled, fvals_loc, &
@@ -1343,11 +1343,11 @@ contains
         endif
 
         contains
-          
+
           subroutine scaleCounts(argSize)
             implicit none
             integer, intent(in) :: argSize
-            
+
             recvcountsScaled = recvcounts * argSize
             recvdispsScaled = recvdisps * argSize
             sendcountsScaled = sendcounts * argSize
@@ -1390,7 +1390,7 @@ contains
                  parts = parts + abs(sgn)
 
                  if(tReadFVals) &
-                      call set_tot_acc_spawn_hdf5Int(fvals_write(:,j),CurrWalkers)
+                      call set_tot_acc_spawn_hdf5Int(fvals_write(:,j),int(CurrWalkers))
               end if
            end do
         else
@@ -1410,7 +1410,7 @@ contains
                  parts = parts + abs(sgn)
 
                  if(tReadFVals) &
-                      call set_tot_acc_spawn_hdf5Int(fvals_write(:,j),CurrWalkers)
+                      call set_tot_acc_spawn_hdf5Int(fvals_write(:,j),int(CurrWalkers))
               end if
            end do
 

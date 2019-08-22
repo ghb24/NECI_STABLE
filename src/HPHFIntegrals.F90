@@ -59,8 +59,8 @@ module hphf_integrals
 
     function hphf_off_diag_helement_norm (nI, nJ, iLutnI, iLutnJ) result(hel)
 
-        ! Find the  between two half-projected hartree-fock 
-        ! determinants (different ones). NI and nJ have to be uniquely 
+        ! Find the  between two half-projected hartree-fock
+        ! determinants (different ones). NI and nJ have to be uniquely
         ! chosen, so that their spin-coupled determinant will not arise.
         !
         ! In:  nI, nJ         - Determinants to consider
@@ -81,8 +81,8 @@ module hphf_integrals
         iUnused = nJ(1)
 
         if (DetBitEQ(iLutnI, iLutnJ, NIfDBO)) then
-            ! Do not allow a 'diagonal' matrix element. The problem is 
-            ! that the HPHF excitation generator can generate the same HPHF 
+            ! Do not allow a 'diagonal' matrix element. The problem is
+            ! that the HPHF excitation generator can generate the same HPHF
             ! function. We do not want to allow spawns here.
             hel = (0)
             return
@@ -96,8 +96,8 @@ module hphf_integrals
             elseif (.not. TestClosedShellDet(iLutnJ)) then
                 ! Closed shell --> Open shell, <X|H|Y> = 1/sqrt(2) [Hia + Hib]
                 ! or with minus if iLutnJ has an odd number of spin orbitals.
-                ! OTHERWISE Closed shell -> closed shell. Both the alpha and 
-                ! beta of the same orbital have been moved to the same new 
+                ! OTHERWISE Closed shell -> closed shell. Both the alpha and
+                ! beta of the same orbital have been moved to the same new
                 ! orbital. The matrix element is the same as before.
                 hel = hel * (sqrt(2.0_dp))
             endif
@@ -108,7 +108,7 @@ module hphf_integrals
                     hel = 0.0_dp
                 else
                     ! Open shell -> Closed shell. If one of
-                    ! the determinants is connected, then the other is connected 
+                    ! the determinants is connected, then the other is connected
                     ! with the same IC & matrix element
                     hel = hel * sqrt(2.0_dp)
                 endif
@@ -118,15 +118,15 @@ module hphf_integrals
                 ExcitLevel = FindBitExcitLevel(iLutnI2, ilutnJ, 2)
 
                 if (ExcitLevel.le.2) then
-                    ! We need to find out whether the nJ HPHF wavefunction is 
-                    ! symmetric or antisymmetric. This is dependant on the 
+                    ! We need to find out whether the nJ HPHF wavefunction is
+                    ! symmetric or antisymmetric. This is dependant on the
                     ! number of open shell orbitals and total spin of the wavefunction.
                     call FindDetSpinSym(nI, nI2, nel)
                     call CalcOpenOrbs(iLutnJ, OpenOrbsJ)
 
-                    ! Original HPHF is antisymmetric if OpenOrbs is odd (and S even), 
+                    ! Original HPHF is antisymmetric if OpenOrbs is odd (and S even),
                     ! or symmetric if it is even.
-                    ! If S is odd, then HPHF is Symmetric if OpenOrbs is odd, and 
+                    ! If S is odd, then HPHF is Symmetric if OpenOrbs is odd, and
                     ! antisymmetric if it is even.
                     call CalcOpenOrbs(iLutnI,OpenOrbsI)
                     Ex(1,1)=ExcitLevel
@@ -313,14 +313,14 @@ module hphf_integrals
 
     function hphf_diag_helement (nI, iLutnI) result(hel)
 
-        ! Find the diagonal HElment for a half-projected hartree-fock 
+        ! Find the diagonal HElment for a half-projected hartree-fock
         ! determinant.
         !
         ! In:  nI      - Determinant to consider
         !      iLutnI  - Bit representation of I
         ! Ret: hel   - The calculated matrix element
 
-        integer, intent(in) :: nI(nel) 
+        integer, intent(in) :: nI(nel)
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot)
         HElement_t(dp) :: hel
 
@@ -333,7 +333,7 @@ module hphf_integrals
         if (.not. TestClosedShellDet(iLutnI)) then
             ! <i|H|i> = <j|H|j>, so no need to calculate both.
             ! <X|H|X> = 1/2 [ <i|H|i> + <j|H|j> ] + <i|H|j> where i and j are
-            ! the two spin-coupled dets which make up X. In the case of the 
+            ! the two spin-coupled dets which make up X. In the case of the
             ! antisymmetric pair, the cross term is subtracted.
 
             ! See if there is a cross-term

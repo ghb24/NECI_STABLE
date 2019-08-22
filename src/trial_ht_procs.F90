@@ -1,13 +1,13 @@
 #include "macros.h"
 module trial_ht_procs
-  
+
   use FciMCData, only: NConEntry, CurrentDets, TotWalkers, con_send_buf
   use load_balance_calcnodes
   use searching, only: hash_search_trial
   use sparse_arrays, only: trial_hashtable
   use hash
   use constants
-  
+
   implicit none
 
 contains
@@ -54,7 +54,7 @@ contains
       type(trial_hashtable), intent(inout) :: source_ht(:)
       integer :: clashes
       character(*), parameter :: this_routine = "extract_trial_ht_entry"
-     
+
       ! get the stores state
       ht_entry = source_ht(hash_val)%states(:,i)
       ! then remove it from the table
@@ -71,7 +71,7 @@ contains
       integer(n_int), allocatable :: tmp(:,:)
       integer :: i, ierr
       character(*), parameter :: this_routine = "remove_trial_ht_entry"
-      
+
       ! first, copy the contnet of the source_ht entry to a temporary
       ! if there is any to be left
       if(clashes-1 > 0) then
@@ -105,7 +105,7 @@ contains
     end subroutine remove_trial_ht_entry
 
 !------------------------------------------------------------------------------------------!
-      
+
     subroutine add_trial_ht_entries(entries, n_entries, source_ht, source_ht_size)
       ! this adds n_entries entries to the source_ht hashtable
       implicit none
@@ -116,7 +116,7 @@ contains
       ! thus changing source_ht_size
       integer, intent(inout) :: source_ht_size
       integer :: i, hash_val, nI(nel), clashes
-      ! we need to be careful: if the source_ht happens to be empty, 
+      ! we need to be careful: if the source_ht happens to be empty,
       ! it needs to be resized, as lookups are not possible on
       ! empty hashtables and will throw an error
       if(source_ht_size == 0) then
@@ -129,7 +129,7 @@ contains
          ! just add them one by one
          call add_single_trial_ht_entry(entries(:,i),hash_val, source_ht)
       enddo
-    end subroutine add_trial_ht_entries    
+    end subroutine add_trial_ht_entries
 
 !------------------------------------------------------------------------------------------!
 
@@ -138,7 +138,7 @@ contains
       integer(n_int), intent(in) :: ht_entry(0:NConEntry)
       integer, intent(in) :: hash_val
       type(trial_hashtable), intent(inout) :: source_ht(:)
-      integer :: clashes, ntrial ,ncon 
+      integer :: clashes, ntrial ,ncon
       integer(n_int), allocatable :: tmp(:,:)
 
       ! add a single entry to trial_ht with hash_val
@@ -146,7 +146,7 @@ contains
       ! store the current entries in a temporary
       allocate(tmp(0:NConEntry,clashes+1))
       ! if there are any, copy them now
-      if(allocated(source_ht(hash_val)%states)) then 
+      if(allocated(source_ht(hash_val)%states)) then
          tmp(:,:clashes) = source_ht(hash_val)%states(:,:)
          ! then deallocate
          deallocate(source_ht(hash_val)%states)
@@ -201,7 +201,7 @@ contains
       do i = source_ht_size+1, new_size
          source_ht(i)%nclash = 0
       end do
-      
+
       ! finally, declare that source_ht is now of size new_size
       source_ht_size = new_size
     end subroutine resize_trial_ht
@@ -227,7 +227,9 @@ contains
       use FciMCData, only: ntrial_excits
       implicit none
       integer, intent(out) :: ntrial, ncon
-      integer :: i, nI(nel)
+!       integer :: i, nI(nel)
+      integer(int64) :: i
+      integer :: nI(nel)
       real(dp) :: sgn(lenof_sign)
       logical :: tTrial, tCon
       HElement_t(dp) :: amp(ntrial_excits)
@@ -242,7 +244,7 @@ contains
          if(tTrial) ntrial = ntrial + 1
          if(tCon) ncon = ncon + 1
       end do
-      
+
     end subroutine count_trial_this_proc
 
 end module trial_ht_procs

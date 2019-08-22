@@ -28,7 +28,7 @@ module sym_general_mod
     end interface
 
 contains
-    
+
 
     elemental function ClassCountInd_full_32(Spin, Sym, Mom) result(ind)
 
@@ -94,14 +94,14 @@ contains
 
     elemental function ClassCountInd_orb (orb) result(ind)
 
-        ! The same as ClassCountInd_full, only the values required are 
+        ! The same as ClassCountInd_full, only the values required are
         ! obtained for the spin orbital orb.
         !
         ! INTERFACED as ClassCountInd
 
         integer, intent(in) :: orb
         integer :: ind, spin, sym, mom
-        
+
         ! Extract the required values
         if (is_alpha(orb)) then
             spin = 1
@@ -114,7 +114,7 @@ contains
 
         sym = SpinOrbSymLabel(orb)
         mom = G1(orb)%Ml
-        
+
         ! To avoid cray compiler bug!
         if (spin == 2) spin = 2
 

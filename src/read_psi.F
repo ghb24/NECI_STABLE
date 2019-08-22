@@ -1,7 +1,7 @@
       SUBROUTINE READ_PSI(BOX,BOA,COA,NDET,NEVAL,
      &        NBASISMAX,NEL,CK,W)
 !      IMPLICIT real(dp) (A-H,O-Z)
-      use constants, only: dp
+      use constants, only: dp, EPS
       IMPLICIT NONE
       INTEGER nBasisMax(5,*)
       integer :: NEVAL,NDET,I,J,NEL,NDETCK,NEVALCK,NELCK
@@ -16,15 +16,16 @@ C..
       READ(10,*) BOXCK,BOACK,COACK
       IF(    NMAXCK.NE.NBASISMAX(1,2)
      &   .OR.NMAYCK.NE.NBASISMAX(2,2)
-     &   .OR.NMAZCK.NE.NBASISMAX(3,2)) 
+     &   .OR.NMAZCK.NE.NBASISMAX(3,2))
      &     call stop_all(this_routine, ' !!! DIFFERENT SIZE BASIS !!! ')
-      IF(NELCK.NE.NEL) call stop_all(this_routine, 
+      IF(NELCK.NE.NEL) call stop_all(this_routine,
      &                        ' !!! DIFFERENT NUMBER OF ELECTRONS !!! ')
       IF(NEVALCK.NE.NEVAL) call stop_all(this_routine,
      &                                      ' !!! NEVAL DIFFERENT !!! ')
-      IF(NDETCK.NE.NDET) call stop_all(this_routine, 
+      IF(NDETCK.NE.NDET) call stop_all(this_routine,
      &                             ' !!! DIFFERENT NUMBER OF DETS !!! ')
-      IF(BOXCK.NE.BOX.OR.BOACK.NE.BOA.OR.COACK.NE.COA) 
+      IF (abs(BOXCK - BOX) > EPS .or. abs(BOACK - BOA) > EPS
+     &    .or. abs(COACK - COA) > EPS)
      &    call stop_all(this_routine, ' !!! DIFFERENT SIZE CUBES !!! ' )
 C..
       DO I=1,NEVAL
@@ -47,7 +48,7 @@ C.. PSI_LONG doesn't exist.  what about PSI_COMP
       READ(10,*) BOXCK,BOACK,COACK
       IF(    NMAXCK.NE.NBASISMAX(1,2)
      &   .OR.NMAYCK.NE.NBASISMAX(2,2)
-     &   .OR.NMAZCK.NE.NBASISMAX(3,2)) 
+     &   .OR.NMAZCK.NE.NBASISMAX(3,2))
      &     call stop_all(this_routine, ' !!! DIFFERENT SIZE BASIS !!! ')
       IF(NELCK.NE.NEL) call stop_all(this_routine,
      &                        ' !!! DIFFERENT NUMBER OF ELECTRONS !!! ')
@@ -55,7 +56,8 @@ C.. PSI_LONG doesn't exist.  what about PSI_COMP
      &                                      ' !!! NEVAL DIFFERENT !!! ')
       IF(NDETCK.NE.NDET) call stop_all(this_routine,
      &                             ' !!! DIFFERENT NUMBER OF DETS !!! ')
-      IF(BOXCK.NE.BOX.OR.BOACK.NE.BOA.OR.COACK.NE.COA) 
+      IF (abs(BOXCK - BOX) > EPS .or. abs(BOACK - BOA) > EPS
+     &    .or. abs(COACK - COA) > EPS)
      &    call stop_all(this_routine, ' !!! DIFFERENT SIZE CUBES !!! ' )
 C..
       I=1
@@ -67,9 +69,9 @@ C..
          READ(10,*) W(I)
       ENDDO
       CLOSE(10)
-      
+
       END
-C ==----------------------------------------------------------------==   
+C ==----------------------------------------------------------------==
       SUBROUTINE WRITE_PSI(BOX,BOA,COA,NDET,NEVAL,
      &    NBASISMAX,NEL,CK,W)
       use constants, only: dp
@@ -81,7 +83,7 @@ C ==----------------------------------------------------------------==
 C..
       OPEN(10,FILE='PSI_LONG',STATUS='UNKNOWN')
       WRITE(10,*) NBASISMAX(1,2),NBASISMAX(2,2),NBASISMAX(3,2),
-     &      NEL,NEVAL,NDET 
+     &      NEL,NEVAL,NDET
       WRITE(10,*) BOX,BOA,COA
       DO I=1,NEVAL
         DO J=1,NDET
@@ -94,7 +96,7 @@ C..
       CLOSE(10)
 C..
       RETURN
-      END   
+      END
 
       SUBROUTINE WRITE_PSI_COMP(BOX,BOA,COA,NDET,NEVAL,
      &    NBASISMAX,NEL,CK,W)
@@ -107,7 +109,7 @@ C..
 C..
       OPEN(10,FILE='PSI_COMP',STATUS='UNKNOWN')
       WRITE(10,*) NBASISMAX(1,2),NBASISMAX(2,2),NBASISMAX(3,2),
-     &      NEL,NEVAL,NDET 
+     &      NEL,NEVAL,NDET
       WRITE(10,*) BOX,BOA,COA
       DO I=1,NEVAL
         DO J=1,NDET
@@ -124,4 +126,4 @@ C..
       CLOSE(10)
 C..
       RETURN
-      END   
+      END

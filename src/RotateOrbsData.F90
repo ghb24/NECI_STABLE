@@ -11,13 +11,13 @@ module RotateOrbsData
 
     ! This contains the transformation matrix which rotates the HF orbitals
     ! into their new basis.
-    real(dp), allocatable :: CoeffT1(:,:)  
+    real(dp), allocatable :: CoeffT1(:,:)
     integer(TagIntType) :: CoeffT1Tag
 
     integer :: MemAllocRot
 
-    ! These are the labelling arrays which allow us to separate the occupied and virtual 
-    ! orbitals, mix all together, use spin or spatial 
+    ! These are the labelling arrays which allow us to separate the occupied and virtual
+    ! orbitals, mix all together, use spin or spatial
     ! orbitals and maintain symmetry etc.
     integer :: NoSymLabelCounts
     integer, allocatable :: SymLabelList2_rot(:), SymLabelCounts2_rot(:,:)

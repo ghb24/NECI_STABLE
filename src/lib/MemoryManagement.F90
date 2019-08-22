@@ -1,19 +1,19 @@
 module MemoryManager
-use constants , only : sizeof_int,dp 
+use constants , only : sizeof_int,dp
 
-! JSS.  Memory book-keeping routines.  Contains a few elements of the initialisation, 
-! output and structure of the memory_manager module from CamCASP (formerly SITUS), 
+! JSS.  Memory book-keeping routines.  Contains a few elements of the initialisation,
+! output and structure of the memory_manager module from CamCASP (formerly SITUS),
 ! written by Alston Misquitta, with permission.
 
 !=====================================================================================
 
-! USAGE 
+! USAGE
 !
 ! See individual routines for more detail and optional arguments for
 ! error checking the allocation/deallocation.
 !
 ! 1. Initialise the logger:
-!      call InitMemoryManager(MemSize,print_err) 
+!      call InitMemoryManager(MemSize,print_err)
 !    where the optional arguments are:
 !      MemSize: max amount of memory available in MB. Default 1GB.
 !      print_err: print error messages. Default true.
@@ -21,7 +21,7 @@ use constants , only : sizeof_int,dp
 ! 2. For each array to be logged, define an integer "tag" with an initial value of 0.
 !      real(8), allocatable :: testarr(:)
 !      integer :: tag_testarr=0
-!    Make sure you save the tag (and the array!) if used for an array stored in a 
+!    Make sure you save the tag (and the array!) if used for an array stored in a
 !    module which can go out of scope between allocation and deallocation.
 !
 ! 3. At allocation, call the allocation logger:
@@ -70,7 +70,7 @@ private
 public :: MemoryLeft, MemoryUsed,MaxMemory,li,LookupPointer,PrintMemory
 ! Allow users to do the potentially dangerous thing of changing how the log is run.
 ! We'll hope they'll only use this for good...
-public :: CachingMemLog 
+public :: CachingMemLog
 ! Routines that need to be accessible.
 public :: InitMemoryManager,LogMemAlloc,LogMemDealloc,LeaveMemoryManager
 public :: TagIntType
@@ -80,8 +80,8 @@ public :: TagIntType
 integer, parameter :: TagIntType = sizeof_int   !This is for CPMD which needs to know what type of integer to pass as a tag
 ! Configuration.
 integer, parameter :: MaxLen = 500000   ! size of memory log (max number of arrays
-                                        ! that can be logged at any one time if 
-                                        ! CachingMemLog=.true., else max total number of 
+                                        ! that can be logged at any one time if
+                                        ! CachingMemLog=.true., else max total number of
                                         ! arrays that can be logged in a calculation).
 integer, parameter :: MaxWarn = 10     ! maximum number of low memory warning messages to be printed.
 integer, parameter :: nLargeObjects = 10 ! maximum number of the largest memory allocations remember.
@@ -224,7 +224,7 @@ contains
     !             If -1, then the log is full and it's not been stored.
     ! IN/OUT:
     !       nCalls (optional) -  increments nCalls: counts the number of times
-    !       a routine has called the LogMemAlloc routine (useful for tracking 
+    !       a routine has called the LogMemAlloc routine (useful for tracking
     !       repeated allocations in debugging).
 
     implicit none
@@ -235,7 +235,7 @@ contains
     integer(TagIntType), intent(out) :: tag
     integer, intent(in), optional :: err
     integer, intent(inout), optional :: nCalls
- 
+
     integer :: ObjectSizeBytes,ismallloc(1)
 
     if (present(nCalls)) nCalls=nCalls+1
@@ -330,7 +330,7 @@ contains
     else if(tag.gt.MaxLen.or.tag.lt.-1) then
         if (err_output) write (6,*) 'Warning: attempting to log deallocation but tag does not exist: ',tag
         tag=-1
-    else 
+    else
 
         if (MemoryUsed.eq.MaxMemoryUsed) then
             ! Are at peak memory usage.  Copy the memory log.
@@ -358,7 +358,7 @@ contains
                 ismallloc=minloc(LargeObjLog(:)%ObjectSize)
                 ismall=ismallloc(1)
             end if
-            
+
             if (CachingMemLog) then
                 ! Then we free up this slot and slots of all objects directly below it in
                 ! the log that have also been deallocated.  This is not the most
@@ -437,7 +437,7 @@ contains
     end if
 
     ! Copy the sizes to an integer array: we use maxloc on the copy.  This
-    ! allows us to check for arrays of the same size without writing over 
+    ! allows us to check for arrays of the same size without writing over
     ! information in our log.
     ObjectSizes(:)=AllMemEl(:)%ObjectSize
     iobjloc(:)=maxloc(ObjectSizes)
@@ -480,7 +480,7 @@ contains
 
     deallocate(ObjectSizes)
     deallocate(AllMemEl)
-    
+
     end subroutine LeaveMemoryManager
 
 
@@ -530,7 +530,7 @@ contains
 
     return
     end subroutine PrintMemory
-    
+
 
 
     subroutine WriteMemLogHeader(iunit)

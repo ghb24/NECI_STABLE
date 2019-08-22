@@ -9,7 +9,7 @@ module trial_wf_gen
     use semi_stoch_procs
     use sparse_arrays
     use SystemData, only: nel, tHPHF
-    use util_mod, only: get_free_unit, binary_search_custom
+    use util_mod, only: get_free_unit, binary_search_custom, operator(.div.)
     use FciMCData, only: con_send_buf, NConEntry
 
     implicit none
@@ -261,15 +261,15 @@ contains
 
         ! Set these to zero, to prevent junk being printed in the initial report.
         trial_numerator = 0.0_dp
-        tot_trial_numerator = 0.0_dp        
+        tot_trial_numerator = 0.0_dp
         trial_denom = 0.0_dp
         tot_trial_denom = 1.0_dp
-        
+
         init_trial_numerator = 0.0_dp
         tot_init_trial_numerator = 0.0_dp
         init_trial_denom = 0.0_dp
         tot_init_trial_denom = 0.0_dp
-        
+
         call halt_timer(Trial_Init_Time)
 
         if (.not. qmc_trial_wf) then
@@ -344,7 +344,7 @@ contains
             enddo
 #else
                 if (replica_pairs) then
-                    do i = 1, lenof_sign/2
+                    do i = 1, lenof_sign .div. 2
                         ! When using pairs of replicas, average their amplitudes.
                         fciqmc_amps_real(i) = sum(all_fciqmc_amps(2*i-1:2*i))/2.0_dp
                     end do
@@ -382,7 +382,7 @@ contains
         end do
 #else
         if (replica_pairs) then
-            do ireplica = 1, lenof_sign/2
+            do ireplica = 1, lenof_sign .div. 2
                 best_trial = maxloc(abs(all_overlaps_real(ireplica,:)))
                 trials_kept(ireplica,:) = trial_amps(best_trial(1),:)
                 energies_kept(ireplica) = energies(best_trial(1))
@@ -916,9 +916,9 @@ contains
     subroutine reset_trial_space()
       use bit_reps, only: clr_flag
       implicit none
-      integer :: i
+      integer(int64) :: i
 
-      do i=1, TotWalkers
+      do i = 1_int64, TotWalkers
          ! remove the trial flag from all determinants
          call clr_flag(CurrentDets(:,i),flag_trial)
       enddo

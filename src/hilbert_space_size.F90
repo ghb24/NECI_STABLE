@@ -30,7 +30,7 @@ contains
          integer(int64) :: ExcitBin(0:iMCCalcTruncLev),ExcitBinAll(0:iMCCalcTruncLev)
          real(dp) :: ExcitLevBias(0:iMCCalcTruncLev)
          real(dp) :: FullSpace,r,Frac,SymSpace
-         real(dp) :: SizeLevel(0:iMCCalcTruncLev) 
+         real(dp) :: SizeLevel(0:iMCCalcTruncLev)
          LOGICAL :: tDummy,tDummy2
 
          iExcitLevTest=iMCCalcTruncLev
@@ -65,7 +65,7 @@ contains
          AcceptAll=0
          TotalAttemptsAll=0
          TotalAttempts=0    !This is the total number of attempts at creating a sym-allowed det (including successful ones)
-         
+
          !Sz symmetry could be put in here to make it more efficient
          !(would be a little fiddly for OS systems though)
          FullSpace=Choose(NEl,iExcitLevTest)    !Pick 4 holes
@@ -102,7 +102,7 @@ contains
 
 !Add to correct bin for the excitation level
              ExcitBin(ExcitLev)=ExcitBin(ExcitLev)+1
-             
+
              IF(mod(i,int(CalcDetPrint,sizeof_int)).eq.0) THEN
                  !Write out statistics
                  call MPIReduce(Accept,MPI_SUM,AcceptAll)
@@ -161,7 +161,7 @@ contains
              WRITE(IUNIT,"(I5,F30.5)") j,SizeLevel(j)
          enddo
          CALL neci_flush(IUNIT)
-      
+
       END SUBROUTINE FindSymMCSizeExcitLevel
 
 !This routine calls CreateRandomExcitLevDet, but it returns an *unbiased* determinant from the excitation
@@ -175,7 +175,7 @@ contains
          INTEGER(n_int) :: FDetiLut(0:NIfTot),iLut(0:NIfTot)
          real(dp) :: pAcc,r
 
-         do while(.true.) 
+         do while(.true.)
 
              call CreateRandomExcitLevDet(iExcitLevTest,FDet,FDetiLut,iLut,ExcitLev,Attempts)
 
@@ -226,7 +226,7 @@ contains
         do i = 1, nsites
             ! If both alpha and beta bits are down, set the beta one up, to
             ! represent a down spin.
-            beta_ind = 2*i-1 
+            beta_ind = 2*i-1
             alpha_ind = 2*i
             elem = (alpha_ind - 1)/bits_n_int
             is_alpha = btest(ilut(elem), mod(alpha_ind-1, bits_n_int))
@@ -288,8 +288,8 @@ contains
                      !Electron picked must not be one which has been picked before
                      !i.e. it must be occupied in iLut
                      if(IsOcc(iLut,Orb)) then
-                        !Clear orbital to indicate it is gone. 
-                        clr_orb(iLut,Orb)   
+                        !Clear orbital to indicate it is gone.
+                        clr_orb(iLut,Orb)
                         tNotAllowed=.false.
                         !Deal with totting up the symmetry for the now unocc orbital
                         TotalSym=IEOR(TotalSym,INT((G1(Orb)%Sym%S),sizeof_int))
@@ -314,10 +314,10 @@ contains
 
                      if(IsNotOcc(iLut,Hole)) then
                          !Set orbital to indicate it is now occupied
-                         set_orb(iLut,Hole) 
+                         set_orb(iLut,Hole)
                          tNotAllowed=.false.
                          !Increase excitation level
-                         if(IsNotOcc(FDetiLut,Hole)) ExcitLev=ExcitLev+1    
+                         if(IsNotOcc(FDetiLut,Hole)) ExcitLev=ExcitLev+1
                          !Deal with totting up the symmetry for the now occ orbital
                          TotalSym=IEOR(TotalSym,INT((G1(Hole)%Sym%S),sizeof_int))
                          TotalMom=TotalMom-G1(Hole)%Ml
@@ -341,7 +341,7 @@ contains
              endif
 
              Attempts=Attempts+1
-             
+
          enddo
 
      END SUBROUTINE CreateRandomExcitLevDet
@@ -401,7 +401,7 @@ contains
          integer(int64) :: Accept,AcceptAll,i
          integer(int64) :: ExcitBin(0:NEl),ExcitBinAll(0:NEl)
          real(dp) :: FullSpace,r,Frac
-         real(dp) :: SizeLevel(0:NEl) 
+         real(dp) :: SizeLevel(0:NEl)
          LOGICAL :: truncate_space,tDummy,tDummy2
          LOGICAL :: tNotAllowed,tAcc
          type(Symmetry) :: FDetKPntMom,KPntMom
@@ -469,7 +469,7 @@ contains
          SpatOrbs=nBasis/2
 
          Accept=0
-         
+
          FullSpace=Choose(SpatOrbs,nOccAlpha)
          FullSpace=FullSpace*Choose(SpatOrbs,nOccBeta)
 
@@ -573,7 +573,7 @@ contains
                      ExcitLev=ExcitLev+1
                  ENDIF
 
-                 
+
                  !Test
 !                 IF((beta.lt.1).or.(beta.gt.(nBasis-1))) THEN
 !                     CALL Stop_All("FindSymMCSizeofSpace","Error "      &
@@ -649,7 +649,7 @@ contains
 !                             IF(truncate_space) THEN
 !                                 IF(ExcitLev.le.ICILevel) THEN
 !                                     IF(tUEG.or.tHub) THEN
-!                                         IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN 
+!                                         IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN
 !                                            Accept=Accept+1
 !                                            tAcc=.true.
 !                                         ENDIF
@@ -745,7 +745,7 @@ contains
                  ExcitBin(ExcitLev)=ExcitBin(ExcitLev)+1
              ENDIF
 
-             
+
              IF(mod(i,CalcDetPrint).eq.0) THEN
                  !Write out statistics
                  call MPIAllReduce(Accept,MPI_SUM,AcceptAll)
@@ -1035,19 +1035,19 @@ contains
          ClassCountsOcc(:)=0
          ClassCountsVirt(:)=0
 !First, we need to find the number of spatial orbitals in each symmetry irrep.
-!We need to separate this into occupied and virtual. 
+!We need to separate this into occupied and virtual.
          do i=1,NEl,1
              ClassCountsOcc(INT(G1(BRR(i))%Sym%S,sizeof_int))=                   &
                  ClassCountsOcc(INT(G1(BRR(i))%Sym%S,sizeof_int))+1
          enddo
- 
+
          do i=NEL+1,nBasis,1
              ClassCountsVirt(INT(G1(BRR(i))%Sym%S,sizeof_int))=                  &
                  ClassCountsVirt(INT(G1(BRR(i))%Sym%S,sizeof_int))+1
          enddo
 
-!These are still in spin orbitals, so check there are multiple of 2 values in 
-!each symmetry irrep and then divide by two because we deal with alpha and beta separately.         
+!These are still in spin orbitals, so check there are multiple of 2 values in
+!each symmetry irrep and then divide by two because we deal with alpha and beta separately.
          do i=0,7
          IF(mod((ClassCountsOcc(i)+ClassCountsVirt(i)),2).ne.0) THEN
              call stop_all(this_routine, 'Error counting determinants')
@@ -1056,7 +1056,7 @@ contains
          ClassCountsVirtMax(i)=CEILING(REAL(ClassCountsVirt(i),dp)/2.0_dp)
          ClassCountsOcc(i)=FLOOR(REAL(ClassCountsOcc(i),dp)/2.0_dp)
          ClassCountsVirt(i)=FLOOR(REAL(ClassCountsVirt(i),dp)/2.0_dp)
-         
+
 !         ClassCounts(i)=ClassCounts(i)/2
          enddo
 
@@ -1075,12 +1075,12 @@ contains
                  LimbVirt(i)=min(ICILevel,ClassCountsVirtMax(i))
              enddo
          ENDIF
- 
+
          Space=0.0_dp
 
 !Loop over each irrep twice, once for alpha electrons and once for beta.
 !a0 is the number of alpha electrons in symmetry 0.
-!b0 is the number of beta electrons in symmetry 0.         
+!b0 is the number of beta electrons in symmetry 0.
          do a0o=0,LimaOcc(0)
          do b0o=0,LimbOcc(0)
          do a0v=0,LimaVirt(0)

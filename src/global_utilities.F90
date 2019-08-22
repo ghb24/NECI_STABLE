@@ -11,8 +11,8 @@ module global_utilities
 !=
 !=    use global_utilities
 !=
-!= Note that global_utilities doesn't contain all the functionality of all 
-!= the utility modules, but rather access to the most common routines 
+!= Note that global_utilities doesn't contain all the functionality of all
+!= the utility modules, but rather access to the most common routines
 != required (e.g. it doesn't include initialisation and termination routines,
 != which are typically only required once).
 

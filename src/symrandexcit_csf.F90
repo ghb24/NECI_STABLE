@@ -72,7 +72,7 @@ contains
         CCUnS => store%scratch3
 
         ! Count the open shell electrons
-        nopen = count_open_orbs(iLut) 
+        nopen = count_open_orbs(iLut)
 
         ! If we are above the truncation level, then generate a normal,
         ! determinential, excitation rather than using CSF specific routines.
@@ -101,7 +101,7 @@ contains
                 ! light of the above, but it does get the correct Yama symbol,
                 ! and the singles having been shifted to betas.
                 call EncodeBitdet(nJ, iLutnJ)
-                
+
                 ! All of the cases where nopen will FALL below csf_trunc_level
                 ! require nopen to decrease. All of the possibilities for this
                 ! have no degenerate excitations giving the same spatial
@@ -193,7 +193,7 @@ contains
                                      ExcitMat, nopen, pDouble, pGen)
         use csf, only: iscsf
         use SymExcitDataMod, only: pDoubNew
-        integer, intent(in)  :: nI(nel), nopen 
+        integer, intent(in)  :: nI(nel), nopen
         integer(kind=n_int), intent(in) :: iLut(0:NIfTot)
         integer, intent(out) :: nJ(nel)
         integer, intent(inout) :: ExcitMat(2,2)
@@ -280,7 +280,7 @@ contains
         orbsWNoPair = 0
         if (.not. is_in_pair(orbs(1), orbs(2))) then
             do i=1,2
-                if (is_beta(orbs(i))) then 
+                if (is_beta(orbs(i))) then
                     orbsWNoPair = orbsWNoPair + 1
                 endif
             enddo
@@ -292,8 +292,8 @@ contains
             call stop_all (this_routine, 'Not implemented yet')
             ! TODO: Understand tFixLz here
         else
-            ! Loop over all sym indices for alpha elecs. If there are none, 
-            ! then we cannot excite to any orbitals (A) with the paired 
+            ! Loop over all sym indices for alpha elecs. If there are none,
+            ! then we cannot excite to any orbitals (A) with the paired
             ! symmetry (ind2)
             do i=0,nSymLabels-1
                 ind = CCIndS(i, 0)
@@ -317,7 +317,7 @@ contains
     subroutine CSFPickAOrb (nI, iLut, CCSglS, CCUnS, CCSglDelta, &
                             orbs, symProd, sumMl, orbA, sym, Ml, nopen)
         integer, intent(in) :: nI(nel),symProd
-        integer(kind=n_int), intent(in) :: iLut(0:NIfTot) 
+        integer(kind=n_int), intent(in) :: iLut(0:NIfTot)
         integer, intent(in) :: sumMl, orbs(2)
         integer, intent(in) :: CCSglS (ScratchSize/2)
         integer, intent(in) :: CCUnS (ScratchSize/2)
@@ -400,7 +400,7 @@ contains
     subroutine CSFPickBOrb  (nI, iLut, orbs, symProd, orbA, sym, Ml, orbB, &
                              nopen)
         integer, intent(in) :: nI(nel), symProd
-        integer(kind=n_int), intent(in) :: iLut(0:NIfTot) 
+        integer(kind=n_int), intent(in) :: iLut(0:NIfTot)
         integer, intent(in) :: orbs(2), orbA, sym(2), Ml(2)
         integer, intent(out) :: orbB
         integer, intent(inout) :: nopen
@@ -524,7 +524,7 @@ contains
         logical :: bSingle
 
         ! Pick two electrons randomly.
-        ! TODO: Remove the calculation of the effect on nopen here (do it in 
+        ! TODO: Remove the calculation of the effect on nopen here (do it in
         !       csf_get_excit_general).
         found = 0
         elec = 0
@@ -607,8 +607,8 @@ contains
     ! excitation matrix
     subroutine CSFCreateSingleExcit (nI, nJ, CCDblS, CCSglS, CCUnS, iLut, &
                                      ExcitMat, nopen, pSingle, pGen)
-        integer, intent(in)  :: nI(nel), nopen 
-        integer(kind=n_int), intent(in) :: iLut(0:NIfTot) 
+        integer, intent(in)  :: nI(nel), nopen
+        integer(kind=n_int), intent(in) :: iLut(0:NIfTot)
         integer, intent(out) :: nJ(nel)
         integer, intent(inout) :: ExcitMat(2,2)
         integer, intent(in)  :: CCUnS(ScratchSize/2), CCDblS(ScratchSize/2)
@@ -668,7 +668,7 @@ contains
             spn = 2
             if (G1(orb)%Ms == 1) spn = 1
             sym_ind = CCIndS(G1(orb)%Sym%S, G1(orb)%Ml)
-            
+
             ! Is this electron in a singly or doubly occupied orbital?
             ! Test if there are any allowed excitations
             orb2 = ieor((orb-1), 1)
@@ -708,7 +708,7 @@ contains
             orb2 = int(norbs*r)
             ind = SymLabelCounts2(1,symEx) + orb2
             orb2 = SymLabelList2(ind)
-            
+
             ! Cannot excite a single to itself
             if (bSingle .and. (orb2 == orb+1)) cycle
 
@@ -761,7 +761,7 @@ contains
         !                         lnopen, ncsf, .true.)
 
         ! Generation probability
-        pGen = pSingle / real(nexcit * (nel - elecsWNoExcits) * ncsf,dp) 
+        pGen = pSingle / real(nexcit * (nel - elecsWNoExcits) * ncsf,dp)
     end subroutine
 
     ! Generate three arrays indicating the number of spatial orbitals of
@@ -961,7 +961,7 @@ contains
                             endif
                         endif
                     endif
-                    
+
                     ! If not disallowed above, then add the current double.
                     if (bContinue) then
                         nJ(1,i:i+1) = nI(dpos:dpos+1)
@@ -999,7 +999,7 @@ contains
                         lnopen = lnopen + 1
                     endif
                 endif
-                
+
                 ! Consider adding existing singles from nI.
                 if (bContinue .and. spos <= nel) then
                     ! Is the next single in the list of singles to remove?
@@ -1068,7 +1068,7 @@ contains
                 enddo
             else if (tTruncateCSF .and. (lnopen > csf_trunc_level)) then
                 ! Use ncsf here to return number of determinants possible
-                ! rather than 
+                ! rather than
                 ncsf = csf_get_random_det (nJ, lnopen, LMS)
             else
                 call csf_apply_random_yama (nJ, lnopen, STOT, ncsf, .false.)
@@ -1091,7 +1091,7 @@ contains
     ! as 2x a single
     subroutine csf_find_excit_det (ExcitMat, nJ, iLut, nopen, nopen_new,&
                                    ncsf, bApplyYama, yama)
-        integer, intent(in) :: nopen, nopen_new 
+        integer, intent(in) :: nopen, nopen_new
         integer, intent(inout) :: ncsf
         integer(kind=n_int), intent(in) :: iLut(0:nIfTot)
         integer, intent(in), optional :: yama(ncsf, nopen_new)
@@ -1130,13 +1130,13 @@ contains
                 ins(1) = srbeta
                 call int_list_merge (nJ(1,nclosed+1:nel),ins(1:1),nopen-1,1)
 
-                ! Add the new double 
+                ! Add the new double
                 nJ(1,ExcitMat(1)-1:nclosed-2) = &
                         nJ(1,ExcitMat(1)+1:nclosed)
                 ins(1) = exbeta
                 ins(2) = exalpha
                 call int_list_merge (nJ(1,1:nclosed),ins(1:2),nclosed-2,2)
-                
+
             ! Exciting to vacant orbital
             else
                 !>>>! print*, 'exciting to vacant', sralpha, exbeta
@@ -1169,7 +1169,7 @@ contains
                 ! Remove orbital from singles, and insert a new one.
                 nJ(1,ExcitMat(1):nel-1) = nJ(1,ExcitMat(1)+1:nel)
                 inS(1) = ExcitMat(2)
-                call int_list_merge (nJ(1,nclosed+1:nel), ins(1:1), nopen-1,1)                    
+                call int_list_merge (nJ(1,nclosed+1:nel), ins(1:1), nopen-1,1)
             endif
         endif
 
@@ -1249,7 +1249,7 @@ contains
                         endif
                     endif
                 endif
-            ! elecB in open region, elecA in open or closed region (elecA 
+            ! elecB in open region, elecA in open or closed region (elecA
             ! needs to be incremented by one in either case, ether to new open
             ! position, or to the beta part of an AB pair.
             else
@@ -1327,7 +1327,7 @@ contains
         ! delta_nopen/2 [(lnopen - nopen)/2].
         integer :: numcsfs(-2:2), tmp_yama(nopen)
         integer, allocatable, dimension(:,:) :: csf0, csfp, csfm, csfpp, csfmm
-        
+
         ! Debugging parameters
         ! integer paircount, acount
         ! logical tAllowed
@@ -1484,7 +1484,7 @@ contains
             if (bSingle .or. bDouble) then
                 if ((ierr == 0) .and. (nopen < nel-1)) &
                     allocate(csfp(numcsfs(1), nopen+2), stat=ierr)
-                if ((ierr == 0) .and. (nopen > 1)) & 
+                if ((ierr == 0) .and. (nopen > 1)) &
                     allocate(csfm(numcsfs(-1), nopen-2), stat=ierr)
                 if (ierr /= 0) call stop_all(this_routine,"Allocation failed")
 
@@ -1520,7 +1520,7 @@ contains
                     spn = (3 - G1(orb)%Ms) / 2 ! alpha=1, beta=2
                     sym_ind = ClassCountInd(spn, G1(orb)%Sym%S, &
                                             G1(orb)%Ml)
-                                            
+
                     ! Is the source orbital doubly occupied?
                     orb2 = ieor((orb-1), 1) ! Spatial pair (zero based)
                     if (btest(iLut(orb2/bits_n_int), mod(orb2,bits_n_int))) then
@@ -1638,8 +1638,8 @@ contains
                         else
                             lnopen = lnopen + 1
                         endif
-                        
-                        ! What symmetry must the B orbital be to give the 
+
+                        ! What symmetry must the B orbital be to give the
                         ! correct symmetry product?
                         symA = int(G1(orb)%Sym%S)
                         symB = ieor(symA, symProd)
@@ -1662,7 +1662,7 @@ contains
                             if(IsOcc(ilut,orb2).and. &
                              IsOcc(ilut,ab_pair(orb2))) cycle
 
-                            ! If we are exciting from it, we cannot excite 
+                            ! If we are exciting from it, we cannot excite
                             ! to it.
                             if (is_in_pair(orbs(1), orb2) .or. &
                                 is_in_pair(orbs(2), orb2)) &
@@ -1776,7 +1776,7 @@ contains
                              nexcit, nK, .true.)
 
         ! Run the testing routine or all of the excitatitons of the starting
-        ! CSF. Currently counts the number of excitations frozen out if 
+        ! CSF. Currently counts the number of excitations frozen out if
         ! Freeze(2,0) is enabled.
         nFreeze = 0
         write (6, '(i5, " excitations found:")') nexcit
@@ -1939,7 +1939,7 @@ contains
                 endselect
             endif
 
-            ! Take the average contribution over all processors, and write 
+            ! Take the average contribution over all processors, and write
             ! out on node 0
             if (mod(i,writeInterval) == 0) then
                 avContribAll = 0
@@ -1986,7 +1986,7 @@ contains
                 enddo
             enddo
         enddo
- 
+
         ! Test if all of the possible excitations have been generated by the
         ! random routine.
         if (bTestList) then
@@ -2051,4 +2051,4 @@ subroutine csf_sym_setup ()
     ScratchSize3 = ScratchSize / 2
 
 end subroutine
-    
+

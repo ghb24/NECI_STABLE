@@ -1,7 +1,7 @@
 module timing_neci
 != JSS.  Routines for timing code blocks.
 
-!= To do: 
+!= To do:
 !=   *  parallel timing.  To be honest, I'm not sure how useful this will be,
 !=      nor what form it should take.  Some kind of collation?  Average time
 !=      over processors (mean/std deviation?)  Questions that can only be
@@ -11,7 +11,7 @@ module timing_neci
 != Usage:
 != 1. Start the global timer at the start of the calculation:
 !=       call init_timing()
-!= 
+!=
 != 2. For each procedure to be timed, declare a timer object and pass the
 !=    procedure name:
 !=       type(timer), save :: proc_timer
@@ -21,7 +21,7 @@ module timing_neci
 !=       [...]
 !=       call halt_timer(proc_timer)
 !=    This will time all the statements between the two timing calls.
-!=    If a procedure is called between the timing calls which is itself 
+!=    If a procedure is called between the timing calls which is itself
 !=    timed, then that is only included in one set of timings (in its own
 !=    timer).
 !=    The save is necessary for timing all calls to the same routine in one
@@ -65,7 +65,7 @@ type(timer_object),allocatable,target :: timers(:)
 real(dp) :: global_time=0.0
 ! If global_timing_on is true, then handle the total time differently in the timing output,
 ! as then have requested timing output without halting the global timer.
-logical :: global_timing_on=.false. 
+logical :: global_timing_on=.false.
 
 ! To see if errors were encountered.
 logical :: timer_error=.false.
@@ -143,7 +143,7 @@ contains
           ! Initialise global timer.
           call init_timing()
       end if
-      
+
       if (present(obj_level)) then
           timer_level=obj_level
       else
@@ -231,7 +231,7 @@ contains
       != Return the (current) total time for a given timed procedure.
       != By default this does not include the elapsed time of the current
       != run of proc_timer's routine, so if proc_timer is active then
-      != the default call to get_total_time returns the time dpent in 
+      != the default call to get_total_time returns the time dpent in
       != proc_timer%timer_name up to the most recent call.
       != In:
       !=   proc_timer: the timer object of the procedure.  Must be intialised by
@@ -267,8 +267,8 @@ contains
       != If the global timer has been turned off (ie end_timing has been
       != called), then also deallocate the timers array).
       != In:
-      !=    ntimer_objects (optional): the timing report prints out the objects 
-      !=    took the largest amount of time in total.  ntimer_objects gives the 
+      !=    ntimer_objects (optional): the timing report prints out the objects
+      !=    took the largest amount of time in total.  ntimer_objects gives the
       !=    number of objects to print out, in descending order of total time.
       !=    Default value: 10, as set in Logging module.
       !=    iunit (optional): file unit to which the timing  report is printed.
@@ -285,7 +285,7 @@ contains
       real(dp) :: sum_times(ntimer),total_cpu
       integer :: date_values(8)
 
-      ! Add on a small perturbation for the cases where the total time is 
+      ! Add on a small perturbation for the cases where the total time is
       ! zero to single-precision.  This forces the procedure times to be printed
       ! out, if required, even if they are 0.0000, by avoiding issues with
       ! maxloc as the elements of the sum_times array are set to zero.
@@ -299,14 +299,14 @@ contains
       end if
 
       write (io,'(/a65)') '================================================================'
-      
+
       write (io,'(a15/)') 'Timing report.'
       if (timer_error) write (io,'(a61/)') 'Timer encountered errors.  The following might be incorrect.'
       if (min(itimer,nobjs).gt.0) then
           write (io,'(a37)') 'Timing of most expensive procedures.'
           write (io,'(a65)') 'Procedure                                 Calls       total time'
           write (io,'(a65)') '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - '
-          
+
           total_cpu=0.0_dp
           do i=1,min(itimer,nobjs)
               ! Find i-th most expensive procedure.

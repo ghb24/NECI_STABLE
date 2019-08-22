@@ -15,7 +15,7 @@
 !
 !!        InitialSpawned=TotSpawned     !Initial spawned will store the original number of spawned particles, so that we can compare afterwards.
 !!        InitialSpawned=Annihilated
-!        
+!
 !        CALL CompressSpawnedList(ValidSpawned)
 !
 !!        CALL SortBitDets(ValidSpawned,SpawnedParts(0:NIfD,1:ValidSpawned),NIfD,SpawnedSign(1:ValidSpawned))
@@ -31,7 +31,7 @@
 !!        IF(Annihilated.ne.InitialSpawned) THEN
 !!            WRITE(6,*) "Have annihilated between newly-spawned...",Annihilated-InitialSpawned,Iter
 !!        ENDIF
-!            
+!
 !!We want to sort the list of newly spawned particles, in order for quicker binary searching later on. (this is not essential, but should proove faster)
 !!        CALL SortBitDets(ValidSpawned,SpawnedParts(0:NIfD,1:ValidSpawned),NIfD,SpawnedSign(1:ValidSpawned))
 !!        CALL CheckOrdering(SpawnedParts(:,1:ValidSpawned),SpawnedSign(1:ValidSpawned),ValidSpawned,.true.)
@@ -45,7 +45,7 @@
 !
 !!This RemoveInds is useful scratch space for the removal of particles from lists. It probably isn't essential, but keeps things simpler initially.
 !!        ALLOCATE(RemoveInds(MaxSpawned),stat=ierr)
-!        
+!
 !!This routine annihilates the processors set of newly-spawned particles, with the complete set of particles on the processor.
 !        CALL AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew)
 !
@@ -53,7 +53,7 @@
 !
 !!Allocate a buffer here to hold particles when using a buffered send...
 !!The buffer wants to be able to hold (MaxSpawned+1)x(NIfD+2) integers (*4 for in bytes). If we could work out the maximum ValidSpawned accross the determinants,
-!!it could get reduced to this... 
+!!it could get reduced to this...
 !        IF(nProcessors.ne.1) THEN
 !            ALLOCATE(mpibuffer(8*(MaxSpawned+1)*(2*NIfTot+2)),stat=ierr)
 !            IF(ierr.ne.0) THEN
@@ -93,7 +93,7 @@
 !#endif
 !            DEALLOCATE(mpibuffer)
 !        ENDIF
-!        
+!
 !!Test that we have annihilated the correct number here (from each lists), and calculate Annihilated for each processor.
 !!Now we insert the remaining newly-spawned particles back into the original list (keeping it sorted), and remove the annihilated particles from the main list.
 !        CALL set_timer(Sort_Time,30)
@@ -108,7 +108,7 @@
 !    END SUBROUTINE RotoAnnihilation
 !
 !
-!    
+!
 !    SUBROUTINE AnnihilateBetweenSpawnedOneProc(ValidSpawned)
 !        INTEGER(KIND=n_int) :: DetCurr(0:NIfTot)
 !        INTEGER :: ValidSpawned,i,j,k,LowBound,HighBound,WSign
@@ -155,7 +155,7 @@
 !    END SUBROUTINE AnnihilateBetweenSpawnedOneProc
 !
 !
-!!This routine wants to take the ValidSpawned particles in the SpawnedParts array and perform All-to-All communication so that 
+!!This routine wants to take the ValidSpawned particles in the SpawnedParts array and perform All-to-All communication so that
 !!we can annihilate all common particles with opposite signs.
 !!Particles are fed in on the SpawnedParts and SpawnedSign array, and are returned in the same arrays.
 !!It requires MaxSpawned*36 bytes of memory (on top of the memory of the arrays fed in...)
@@ -230,9 +230,9 @@
 !            ENDIF
 !
 !        ELSE
-!            ! We can try to sort the hashes by range, which may result in 
-!            ! worse load-balancing, but will remove the need for a second 
-!            ! sort of the hashes once they have been sent to the correct 
+!            ! We can try to sort the hashes by range, which may result in
+!            ! worse load-balancing, but will remove the need for a second
+!            ! sort of the hashes once they have been sent to the correct
 !            ! processor.
 !            call sort (HashArray1(1:ValidSpawned), &
 !                       IndexTable1(1:ValidSpawned), &
@@ -264,7 +264,7 @@
 !!                do j=1,ValidSpawned
 !!                    WRITE(6,*) Iter,j,HashArray1(j),SpawnedSign(j)
 !!                enddo
-!                    
+!
 !            ENDIF
 !        ENDIF
 !
@@ -308,7 +308,7 @@
 !        enddo
 !
 !        MaxIndex=recvdisps(nProcessors)+recvcounts(nProcessors)
-!!Max index is the largest occupied index in the array of hashes to be ordered in each processor 
+!!Max index is the largest occupied index in the array of hashes to be ordered in each processor
 !        IF(MaxIndex.gt.(0.93*MaxSpawned)) THEN
 !            CALL Warning("AnnihilateBetweenSpawned","Maximum index of annihilation array is close to maximum length. Increase MemoryFacSpawn")
 !            IF(tReadPops) CALL Warning("AnnihilateBetweenSpawned","When reading in a POPSFILE, MemoryFacSpawn must be greater than 1.0")
@@ -352,8 +352,8 @@
 !        CALL MPIAlltoAllvI(ProcessVec1(1:ValidSpawned),sendcounts,disps,ProcessVec2,recvcounts,recvdisps,error)
 !
 !        IF(.not.tAnnihilatebyrange) THEN
-!            ! The hashes now need to be sorted again - this time by their 
-!            ! number. This sorting would be redundant if we had initially 
+!            ! The hashes now need to be sorted again - this time by their
+!            ! number. This sorting would be redundant if we had initially
 !            ! sorted the hashes by range (ie tAnnihilatebyrange).
 !            call sort (HashArray2(1:MaxIndex), &
 !                       IndexTable2(1:MaxIndex), &
@@ -470,7 +470,7 @@
 !!All walkers in block want to be annihilated from now on.
 !                    IndexTable1(ToAnnihilateIndex)=IndexTable2(k)
 !                    ProcessVec1(ToAnnihilateIndex)=ProcessVec2(k)
-!                    SpawnedSign(ToAnnihilateIndex)=0   
+!                    SpawnedSign(ToAnnihilateIndex)=0
 !                    ToAnnihilateIndex=ToAnnihilateIndex+1
 !                    Annihilated=Annihilated+abs(SpawnedSign2(k))
 !!                    TotSpawned=TotSpawned-abs(SpawnedSign2(k))
@@ -526,7 +526,7 @@
 !!Is the list already ordered according to CPU? Is this further sort even necessary?
 !
 !        IF(ToAnnihilateIndex.gt.1) THEN
-!            ! Do not actually have to take indextable, hash2array or newsign 
+!            ! Do not actually have to take indextable, hash2array or newsign
 !            ! with it...
 !            call sort (ProcessVec1(1:ToAnnihilateIndex), &
 !                       IndexTable1(1:ToAnnihilateIndex), &
@@ -650,7 +650,7 @@
 !        DEALLOCATE(ProcessVec1)
 !        DEALLOCATE(ProcessVec2)
 !
-!!We also need to swap round the pointers to the two arrays, since the next annihilation steps take place on SpawnedParts, not SpawnedParts2 
+!!We also need to swap round the pointers to the two arrays, since the next annihilation steps take place on SpawnedParts, not SpawnedParts2
 !        IF(associated(SpawnedParts2,target=SpawnVec2)) THEN
 !            SpawnedParts2 => SpawnVec
 !            SpawnedSign2 => SpawnSignVec
@@ -669,7 +669,7 @@
 !
 !
 !
-!        
+!
 !!This rotates the spawned (and still alive particles) around the processors. Particles are sent to MOD(iProcIndex+1,nProcessors) and received from MOD(iProcIndex+nProcessors-1,nProcessors).
 !!Issues here:
 !!1) Want to avoid deadlock, but also want to avoid having to send data sequentially, therefore blocking is going to be necessary.
@@ -680,8 +680,8 @@
 !        use constants, only: MpiDetInt
 !        INTEGER :: error,ValidSpawned
 !#ifdef PARALLEL
-!        INTEGER, DIMENSION(MPI_STATUS_SIZE) :: Stat 
-!        
+!        INTEGER, DIMENSION(MPI_STATUS_SIZE) :: Stat
+!
 !        CALL set_timer(Comms_Time,30)
 !
 !!ValidSpawned is the number of particles spawned (and still alive) for this set of particles (index is iProcIndex-no.rotates)

@@ -218,9 +218,9 @@ contains
                 ! n.b. min/maxloc treat all arrays as starting at index 1. sigh
                 avg_parts = real(sum(proc_parts), dp) / real(nProcessors, dp)
                 min_proc = minloc(proc_parts, dim=1) - 1
-                min_parts = proc_parts(min_proc)
+                min_parts = int(proc_parts(min_proc))
                 max_proc = maxloc(proc_parts, dim=1) - 1
-                max_parts = proc_parts(max_proc)
+                max_parts = int(proc_parts(max_proc))
                 ASSERT(max_proc <= ubound(proc_parts, 1))
                 ASSERT(min_proc <= ubound(proc_parts, 1))
                 ASSERT(min_proc >= 0)
@@ -290,7 +290,7 @@ contains
         if(iBlockMoves.gt.0) then
             !Only redo hash table if blocks have been moved around
             !Not only is this an optimization, but it also seems to hide the fact
-            !that for gfortran and openmpi 1.6, going through this code at 
+            !that for gfortran and openmpi 1.6, going through this code at
             !the initialization step of the calculation starting from a single
             !walker seems to cause a race condition later on in the calculation,
             !even though this code has no mpi calls, and is not doing anything with
@@ -310,7 +310,7 @@ contains
 
     end subroutine
 
-        
+
     subroutine move_block(block, tgt_proc)
       implicit none
         integer, intent(in) :: block, tgt_proc
@@ -320,7 +320,7 @@ contains
         integer(n_int) :: con_state(0:NConEntry)
         real(dp) :: sgn(lenof_sign)
         real(dp) :: HDiag
-        
+
         ! A tag is used to identify this send/recv pair over any others
         integer, parameter :: mpi_tag_nsend = 223456
         integer, parameter :: mpi_tag_dets = 223457
@@ -369,9 +369,9 @@ contains
 
             ! we only communicate the trial hashtable
             if(tTrialWavefunction .and. tTrialHash) then
-               ! now get those connected determinants that need to be 
+               ! now get those connected determinants that need to be
                ! communicated (they might not be in currentdets)
-               nconsend = buffer_trial_ht_entries(block, con_ht, con_space_size)   
+               nconsend = buffer_trial_ht_entries(block, con_ht, con_space_size)
                ! And send the trial wavefunction connection information
                nelem = nconsend * (1 + NConEntry)
                call MPISend(nconsend,1,tgt_proc,mpi_tag_nconsend, ierr)
@@ -407,7 +407,7 @@ contains
 
                 ! n.b. Ensure that Totwalkers passed in always has the correct
                 !      type even on 32-bit machines
-                TotWalkersTmp = TotWalkers
+                TotWalkersTmp = int(TotWalkers)
 
                 ! Calculate the diagonal hamiltonian matrix element for the new particle to be merged.
                 HDiag = get_diagonal_matel(det, SpawnedParts(:,j))
@@ -464,7 +464,7 @@ contains
         ! helement (if neccessary). We also need to update the hash table to
         ! point at it correctly.
 
-        integer, intent(inout) :: TotWalkersNew 
+        integer, intent(inout) :: TotWalkersNew
         integer(n_int), intent(inout) :: iLutCurr(0:NIfTot)
         integer, intent(in) :: DetHash, nJ(nel)
         real(dp), intent(in) :: HDiag
@@ -491,7 +491,7 @@ contains
                return
             end if
             CurrentDets(:,DetPosition) = iLutCurr(:)
-            
+
             ! if the list is almost full, activate the walker decay
             if(t_prone_walkers .and. TotWalkersNew > 0.95_dp * real(MaxWalkersPart,dp)) then
                t_activate_decay = .true.
@@ -507,7 +507,7 @@ contains
         ! we reset the death timer, so this determinant can linger again if
         ! it died before
         call reset_death_timer(DetPosition)
-        
+
         ! we add the determinant to the cache
         call store_decoding(DetPosition, nJ)
 
@@ -593,7 +593,7 @@ contains
       if(tHPHF) then
          diagH = hphf_diag_helement(nI, ilut)
       else
-         diagH = get_helement(nI,nI,0) 
+         diagH = get_helement(nI,nI,0)
       endif
 
     end function get_diagonal_matel
@@ -604,7 +604,7 @@ contains
         use hphf_integrals, only: hphf_off_diag_helement
         use FciMCData, only: ProjEDet, CurrentDets, n_prone_dets
         use LoggingData, only: FCIMCDebug
-        use bit_rep_data, only: NOffSgn 
+        use bit_rep_data, only: NOffSgn
 
         integer, intent(inout) :: TotWalkersNew
         type(fcimc_iter_data), intent(inout) :: iter_data
@@ -636,9 +636,9 @@ contains
 
                 if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm) .and. &
                      .not. tTimedDeaths) then
-                    AnnihilatedDet = AnnihilatedDet + 1 
+                    AnnihilatedDet = AnnihilatedDet + 1
                 else
-                   
+
                    ! count the number of walkers that are single-spawns at the threshold
                    if(t_prone_walkers) then
                       if(test_flag(CurrentDets(:,i), flag_prone)) n_prone_dets = n_prone_dets + 1
@@ -686,13 +686,13 @@ contains
                     TotParts = TotParts + abs(CurrentSign)
 
                     call addNormContribution(CurrentSign, tIsStateDeterm)
-                    
+
                     if (tCheckHighestPop) then
-                        ! If this option is on, then we want to compare the 
-                        ! weight on each determinant to the weight at the HF 
+                        ! If this option is on, then we want to compare the
+                        ! weight on each determinant to the weight at the HF
                         ! determinant.
                         !
-                        ! Record the highest weighted determinant on each 
+                        ! Record the highest weighted determinant on each
                         ! processor. If double run, only consider set 1 to keep things simple.
                         do run = 1, inum_runs
                             lbnd = min_part_type(run)
@@ -728,7 +728,7 @@ contains
 
             end do
         end if
-        
+
         IFDEBUGTHEN(FCIMCDebug,6)
             write(6,*) "After annihilation: "
             write(6,*) "TotWalkersNew: ", TotWalkersNew
@@ -743,7 +743,7 @@ contains
                     write(iout, "(f16.3)", advance='no') CurrentSign(part_type)
                 end do
                 call WriteBitDet(iout,CurrentDets(:,j),.true.)
-                call neci_flush(iout) 
+                call neci_flush(iout)
             enddo
         ENDIFDEBUG
 

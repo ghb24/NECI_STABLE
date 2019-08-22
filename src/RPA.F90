@@ -1,5 +1,5 @@
 !TODO: Make sure everything has an ierr argument when allocating, and that everything is deallocated at end
-!TODO: Add symmetry information by using singles excitation generators (store excitations)? (Not urgent) 
+!TODO: Add symmetry information by using singles excitation generators (store excitations)? (Not urgent)
 !Module to non-iteratively calculate the RPA energy under the quasi-boson approximation
 module RPA_Mod
     use SystemData, only: nel, nBasis, Arr, Brr, G1, tReltvy
@@ -18,7 +18,7 @@ module RPA_Mod
     implicit none
 
     !input options
-    logical :: tStabilityAnalysis=.true. 
+    logical :: tStabilityAnalysis=.true.
     logical :: tDirectRPA
 
     !global variables
@@ -29,7 +29,7 @@ module RPA_Mod
     real(dp), allocatable :: A_mat(:,:)
     real(dp), allocatable :: B_mat(:,:)
     real(dp), allocatable :: OccNumbers(:)
-    
+
     contains
 
     subroutine RunRPA_QBA(Weight,Energy)
@@ -60,7 +60,7 @@ module RPA_Mod
         write(6,"(A)") "*   Entering FULL RPA calculation    *"
         endif
         write(6,"(A)") "**************************************"
-        write(6,"(A)") 
+        write(6,"(A)")
         call neci_flush(6)
 
         HDiagTemp = get_helement(fDet, fDet, 0)
@@ -77,7 +77,7 @@ module RPA_Mod
         Fii=real(HDiagTemp,dp)
 
         do while(.true.)
-            if (tReltvy) then 
+            if (tReltvy) then
                 call GenExcitations4(session, FDet, nJ, exFlag, Ex, tParity, tAllExcitsFound, .false.)
             else
                 call GenExcitations3(FDet,iLutHF,nJ,exflag,Ex,tParity,tAllExcitsFound,.false.)
@@ -120,12 +120,12 @@ module RPA_Mod
                 ex2(1,2)=Brr(n)
                 do i=1,nel
                     ex(2,1)=Brr(i)   !Third index in integral
-                    ex2(2,1)=Brr(i)  
+                    ex2(2,1)=Brr(i)
                     do m=virt_start,nBasis
                         mi_ind = ov_space_ind(m,i)
                         ex(1,1)=Brr(m)   !First index in integral
-                        ex2(1,1)=Brr(m) 
- 
+                        ex2(1,1)=Brr(m)
+
                         if(tDirectRPA) then
                             !No exchange interactions
                             ! Obtain spatial rather than spin indices if required
@@ -156,8 +156,8 @@ module RPA_Mod
                             !Full antisymmetrized integrals
                             HEl1 = sltcnd_2(ex,.false.)
                             HEl2 = sltcnd_2(ex2,.false.)
-                            A_mat(mi_ind,nj_ind) = real(HEl1,dp)           
-                            B_mat(mi_ind,nj_ind) = real(HEl2,dp)           
+                            A_mat(mi_ind,nj_ind) = real(HEl1,dp)
+                            B_mat(mi_ind,nj_ind) = real(HEl2,dp)
                         endif
 
                     enddo
@@ -184,7 +184,7 @@ module RPA_Mod
                 endif
                 if(abs(A_mat(i,j)-A_mat(j,i)).gt.1.0e-7_dp) then
                     write(6,*) i,j,A_mat(i,j), A_mat(j,i),abs(A_mat(i,j)-A_mat(j,i))
-                    
+
                     call stop_all(t_r,"A not hermitian")
                 endif
             enddo
@@ -195,7 +195,7 @@ module RPA_Mod
             !This should give identical results to other method, will be quite a bit slower, but also
             !gives information about the stability of the HF solution in all directions.
 
-            write(6,"(A)") 
+            write(6,"(A)")
             write(6,"(A)") "Calculating RPA from stability matrix..."
 
 #ifdef __CMPLX
@@ -210,7 +210,7 @@ module RPA_Mod
             Stability(1:ov_space,1:ov_space)=A_mat(1:ov_space,1:ov_space)
 !Assume all integrals real to start with
 !            Stability(ov_space+1:StabilitySize,1:ov_space)=conjg(B(1:ov_space,1:ov_space))
-            Stability(ov_space+1:StabilitySize,1:ov_space)=B_mat(1:ov_space,1:ov_space)    
+            Stability(ov_space+1:StabilitySize,1:ov_space)=B_mat(1:ov_space,1:ov_space)
             Stability(1:ov_space,ov_space+1:StabilitySize)=B_mat(1:ov_space,1:ov_space)
 !Assume all integrals real to start with
 !            Stability(ov_space+1:StabilitySize,ov_space+1:StabilitySize)=conjg(A_mat(1:ov_space,1:ov_space))
@@ -335,7 +335,7 @@ module RPA_Mod
 !                    write(6,*) j,temp2(j,i),temp2(j,StabilitySize-i+1)
 !                enddo
 !            enddo
-            
+
 !            call writematrix(temp2,'X Y // Y X',.true.)
             !temp2 should now be a matrix of (Y X)
 !                                            (X Y)
@@ -360,7 +360,7 @@ module RPA_Mod
                     Y_norm = Y_norm + Y_stab(i,mu)*Y_stab(i,mu)
                     X_norm = X_norm + X_stab(i,mu)*X_stab(i,mu)
                 enddo
-                if(norm.le.0.0_dp) then 
+                if(norm.le.0.0_dp) then
                     write(6,*) "Norm^2 for vector ",mu," is: ",norm
                     call stop_all(t_r,'norm undefined')
                 endif
@@ -378,9 +378,9 @@ module RPA_Mod
             enddo
 !            call writematrix(X_stab,'X',.true.)
 
-            !Now check orthogonality 
+            !Now check orthogonality
             call Check_XY_orthogonality(X_stab,Y_stab)
-            
+
 !            call writevector(W2,'Stab_eigenvalues')
 
             !Now check that we satisfy the original RPA equations
@@ -489,7 +489,7 @@ module RPA_Mod
 
             allocate(temp2(ov_space,ov_space))
             temp2(:,:) = 0.0_dp
-            !Find X^-1 
+            !Find X^-1
             call d_inv(X_stab,temp2)
 !            call writematrix(temp2,'X^-1',.true.)
             allocate(temp(ov_space,ov_space))
@@ -521,12 +521,12 @@ module RPA_Mod
             else
                 write(6,"(A,G25.10)") "Full RPA energy from stability analysis (Y-matrix): ",Energy_stab
             endif
-                
+
             deallocate(W2,W,temp,temp2,StabilityCopy,Stability)
 
         endif
 
-        write(6,*) 
+        write(6,*)
         write(6,"(A)") "Calculating RPA via Cholesky decomposition"
         !Now, we calculate the RPA amplitudes via consideration of the boson operators.
         !This will generally be quicker, and should give the same result.
@@ -717,7 +717,7 @@ module RPA_Mod
         allocate(Stability(StabilitySize,StabilitySize))
         Stability(:,:)=0.0_dp
         Stability(1:ov_space,1:ov_space)=A_mat(1:ov_space,1:ov_space)
-        Stability(ov_space+1:StabilitySize,1:ov_space)=B_mat(1:ov_space,1:ov_space)    
+        Stability(ov_space+1:StabilitySize,1:ov_space)=B_mat(1:ov_space,1:ov_space)
         Stability(1:ov_space,ov_space+1:StabilitySize)=B_mat(1:ov_space,1:ov_space)
         Stability(ov_space+1:StabilitySize,ov_space+1:StabilitySize)=A_mat(1:ov_space,1:ov_space)
         allocate(temp(StabilitySize,ov_space))
@@ -820,7 +820,7 @@ module RPA_Mod
             write(6,"(A,G25.10)") "Full RPA energy (plasmonic RPA-TDA excitation energies): ",  &
                 Energy2-real(HDiagTemp,dp)
         endif
-        
+
         Energy = 0.0_dp
         allocate(temp(ov_space,ov_space))
         allocate(temp2(ov_space,ov_space))
@@ -838,7 +838,7 @@ module RPA_Mod
             write(6,"(A,G25.10)") "Full RPA energy (Ring-CCD: 1/2 Tr[BZ]): ",Energy
         endif
         deallocate(temp,temp2)
-        
+
 
         HDiagTemp = get_helement(fDet, fDet, 0)
         Energy = real(HDiagTemp,dp)
@@ -915,14 +915,14 @@ module RPA_Mod
         matinv=0.0_dp
         do i=1,msize
             matinv(i,i)=1.0_dp
-        enddo  
-        info=0 
+        enddo
+        info=0
         call dGETRF(msize,nsize,matdum,nsize,ipiv,info)
 !        IF (INFO /= 0) STOP 'Error with d_inv 1'
         if(info /= 0) then
             write(6,*) 'Warning from d_inv 1', info
             call stop_all("d_inv","Warning from d_inv 1")
-        endif 
+        endif
         call dGETRS('n',msize,nsize,matdum,nsize,IPIV,matinv,msize,info)
         if(info.ne.0) call stop_all("d_inv",'Error with d_inv 2')
 
