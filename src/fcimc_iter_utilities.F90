@@ -931,9 +931,9 @@ contains
 
                     ! How should the shift change for the entire ensemble of walkers
                     ! over all processors.
-                    if (.not. tSinglePartPhase(run) &
-                        .or. .not. near_zero(TargetGrowRate(run)) &
-                        .and. .not. defer_update(run)) then
+                    if (.not. (tSinglePartPhase(run)
+                               .and. near_zero(TargetGrowRate(run)) &
+                               .or. defer_update(run))) then
 
                         !In case we want to continue growing, TargetGrowRate > 0.0_dp
                         ! New shift value
