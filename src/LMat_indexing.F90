@@ -121,39 +121,6 @@ module lMat_indexing
       
     end function lMatIndSymBroken
 
-!------------------------------------------------------------------------------------------!    
-
-    pure function lMatIndABB(i,j,k,a,b,c) result(index)
-      ! index function called from LMatABB -> see lMatIndSpin
-      ! disctinct spin is with (a,i)
-      integer(int64), value :: i,j,k
-      integer(int64), value :: a,b,c
-      integer(int64) :: index      
-      index = lMatIndSpin(i,j,k,a,b,c)
-    end function lMatIndABB
-    
-!------------------------------------------------------------------------------------------!
-    
-    pure function lMatIndBAB(i,j,k,a,b,c) result(index)
-      ! index function called from LMatBAB -> see lMatIndSpin
-      ! distinct spin is with (b,j)
-      integer(int64), value :: i,j,k
-      integer(int64), value :: a,b,c
-      integer(int64) :: index      
-      index = lMatIndSpin(j,i,k,b,a,c)
-    end function lMatIndBAB
-
-!------------------------------------------------------------------------------------------!
-
-    pure function lMatIndBBA(i,j,k,a,b,c) result(index)
-      ! index function called from LMatBBA -> see lMatIndSpin
-      ! distinct spin is with (c,k)
-      integer(int64), value :: i,j,k
-      integer(int64), value :: a,b,c
-      integer(int64) :: index      
-      index = lMatIndSpin(k,i,j,c,a,b)
-    end function lMatIndBBA
-
 !------------------------------------------------------------------------------------------!
 
     pure function lMatIndSpin(i,j,k,a,b,c) result(index)
