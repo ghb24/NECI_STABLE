@@ -94,6 +94,7 @@ set( SRC_FILES
     legacy_data.F90
     lineup.F
     LMat_aux.F90
+    LMat_calc.F90
     LMat_indexing.F90
     LMat_mod.F90
     load_balance_calcnodes.F90
