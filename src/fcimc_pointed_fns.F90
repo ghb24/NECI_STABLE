@@ -13,7 +13,7 @@ module fcimc_pointed_fns
                         tTruncInitiator, tSkipRef, t_truncate_unocc, &
                         tAdaptiveShift, AdaptiveShiftSigma, AdaptiveShiftF1, AdaptiveShiftF2, &
                         tAutoAdaptiveShift, AdaptiveShiftThresh, AdaptiveShiftExpo, AdaptiveShiftCut, &
-                        tAAS_Add_Diag, tPrecond
+                        tAAS_Add_Diag, tPrecond, AAS_Const
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement
     use fcimc_helper, only: CheckAllowedTruncSpawn
@@ -625,6 +625,7 @@ module fcimc_pointed_fns
                     if(tmp<AdaptiveShiftCut)then
                         tmp = AdaptiveShiftCut
                     endif
+                    tmp = (tmp+AAS_Const)/(1+AAS_Const)
                     shift = DiagSft(i)*tmp**AdaptiveShiftExpo
                 else
                     shift = DiagSft(i)

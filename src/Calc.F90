@@ -155,6 +155,7 @@ contains
           AAS_OppSpin = 1.0
           AAS_SameSpin = 1.0
           AAS_DenCut = 0.5
+          AAS_Const = 0.0
           tAAS_Reverse = .false.
           tAAS_Reverse_Weighted = .false.
           tAAS_Add_Diag = .false.
@@ -1796,6 +1797,8 @@ contains
                 if (item.lt.nitems) then
                     call getf(AAS_SameSpin)
                 end if
+            case("AAS-CONST")
+                call getf(AAS_Const)
              case("INITS-PROJE")
                 ! deprecated
              case("INITS-GAMMA0")
