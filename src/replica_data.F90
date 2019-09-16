@@ -308,7 +308,8 @@ contains
         integer(int64), intent(in) :: ndets
         integer(n_int), intent(inout) :: ilut_list(0:NIfTot,ndets)
 
-        integer :: i, run
+        integer :: run
+        integer(int64) :: i
         real(dp) :: real_sign(lenof_sign)
         character(*), parameter :: t_r = 'set_initial_global_data'
 
@@ -365,7 +366,7 @@ contains
         do run = 1, inum_runs
 
             ! Calculate the projected energy for this iteration.
-            if (ARR_RE_OR_CPLX(AllSumNoAtHF,run) /= 0) &
+            if (.not. near_zero(ARR_RE_OR_CPLX(AllSumNoAtHF,run))) &
                 ProjectionE(run) = AllSumENum(run) / ARR_RE_OR_CPLX(AllSumNoatHF,run)
 
             ! Keep track of where the particles are

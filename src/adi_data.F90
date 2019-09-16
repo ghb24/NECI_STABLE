@@ -5,13 +5,13 @@ module adi_data
   use FciMCData, only: ll_node
   implicit none
   save
-  
-  ! Number of references for all-doubs-initiators and (important) number of references 
+
+  ! Number of references for all-doubs-initiators and (important) number of references
   ! currently to check
   integer :: nRefs, nTZero, maxNRefs, nRefsSings, nRefsDoubs
   ! References for the purpose of the ADI scheme
   integer(n_int), allocatable :: ilutRefAdi(:,:)
-  ! Store the signs and determinants separately, so they dont need to be 
+  ! Store the signs and determinants separately, so they dont need to be
   ! reconstructed on each coherence check
   integer, allocatable :: nIRef(:,:), exLvlRef(:)
   real(dp), allocatable :: signsRef(:,:)

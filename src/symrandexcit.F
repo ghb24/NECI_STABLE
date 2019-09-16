@@ -38,7 +38,7 @@
      &             10*nSymLabels
              Pos3=SymClassSize*NEL+nBasis/32+4+15*nSymPairProds+
      &             10*nSymLabels+NEL*(NEL-1)
-            
+
             CALL SymGenRandExcitIt2(NI,NEL,NMEM(Pos1),DSTORE(1),
      &         NMEM(Pos3),DSTORE(SymClassSize*NEL+1),NMEM(Pos2),
      &         nMem(1),ISEED,NJ,IC,PGEN,EXCITMAT,TPARITY)
@@ -118,7 +118,7 @@ C.. This version is based on GenRandSymExcitIt2, but does not need values it ext
      &             10*nSymLabels
              Pos3=SymClassSize*NEL+nBasis/32+4+15*nSymPairProds+
      &             10*nSymLabels+NEL*(NEL-1)
-            
+
             CALL SymGenRandExcitIt2(NI,NEL,NMEM(Pos1),DSTORE(1),
      &         NMEM(Pos3),DSTORE(SymClassSize*NEL+1),NMEM(Pos2),
      &         nMem(1),ISEED,NJ,IC,PGEN,EXCITMAT,TPARITY)
@@ -210,7 +210,7 @@ C.. Actually generate a det
      &               CLASSES,
      &               SYMPRODIND,ILUT,ORBPAIRS,IEXCIT,ISPN,IFROM,ITO,
      &               I,J,K,L,ITOTAL,ISEED,
-     &               NK,IC,NBASISMAX,ARR,NBASIS,PGEN)      
+     &               NK,IC,NBASISMAX,ARR,NBASIS,PGEN)
       use constants, only: dp,sizeof_int
       USE symexcit2
       use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
@@ -221,7 +221,7 @@ C.. Actually generate a det
       INTEGER NBASIS
       INTEGER NEXCITTYPES
       INTEGER NEL,NI(NEL),EXCITTYPES(5,NEXCITTYPES)
-      
+
       INTEGER I,J,K,L
       INTEGER NK(NEL)
       TYPE(SymClass) CLASSES(*)
@@ -243,7 +243,7 @@ C.. Actually generate a det
       TYPE(ExcitWeight),pointer :: ews(:)
       real(dp) ARR(NBASIS,2)
       character(*), parameter :: this_routine = 'SYMGENRANDEXCITIT'
-!.. First generate a random excitation 
+!.. First generate a random excitation
       PGEN=1.0_dp/ITOTAL
       I=int(ITOTAL*RAN2(ISEED),sizeof_int)
       IEXCIT=1
@@ -276,9 +276,9 @@ C.. Actually generate a det
                   L1=IFROMSL.LT.NI(I).AND.J.LT.SYMLABELCOUNTS(2,IFROM)
                ENDDO
 !                  WRITE(6,*) I,J,SYMLABELCOUNTS(2,IFROM)
-               IF(J.LT.SYMLABELCOUNTS(2,IFROM).AND.IFROMSL.EQ.NI(I)) 
+               IF(J.LT.SYMLABELCOUNTS(2,IFROM).AND.IFROMSL.EQ.NI(I))
      &            THEN
-!.. We've found an orb in NI with the correct sym. 
+!.. We've found an orb in NI with the correct sym.
                   IF(K.EQ.0) THEN
                      ICOUNT=ICOUNT+1
                   ELSEIF(ICOUNT.EQ.0) THEN
@@ -319,7 +319,7 @@ C.. Actually generate a det
 !                     NK(I)=ITOSL
 !                     CALL NECI_SORTI(NEL,NK)
                      IF(.NOT.ISVALIDDET(NK,NEL)) THEN
-            
+
                        WRITE(6,*) "INVALID DET SYMGENRANDEXCITIT SINGLE"
                        call write_det (6, NK, .true.)
                        call write_det (6, NI, .true.)
@@ -369,10 +369,10 @@ C.. Actually generate a det
          DO WHILE (rCount.GT.0.0_dp)
             I=I+1
             rCount=rCount-ews(I)%Weight
-         ENDDO   
+         ENDDO
 !  I is the index of the specific SYM PAIR FROM
          pGen=pGen*ews(I)%Weight
-         
+
 !  pGen is the prob of choosing a specific FROM (given having chosen iExcit proportional to the number of excitations in each iExcit)
 !           times the prob of choosing iExcit
          deallocate(ews)
@@ -381,7 +381,7 @@ C.. Actually generate a det
 !  Allocate memory to store all weights and excitations in this category
          allocate(ews(EXCITTYPES(5,IEXCIT)/SYMPRODIND(2,ISPN,IFROM)))
 
-!.. Now go through the list of virtual pairs, excluding those with orbitals in NI 
+!.. Now go through the list of virtual pairs, excluding those with orbitals in NI
 !.. SYMPAIRPRODS(1:NSYMPAIRPRODS) contains the list of all SYMPRODs available, the number of pairs of
 !.. states (listed in SymStatePairs), and the index of the start of this list
 !.. For a given (unique) SymPairProds(J)%Sym, I=SymPairProds(J)%Index.
@@ -391,14 +391,14 @@ C.. Actually generate a det
 !  L is a loop variable.  We go through the loop once to count the number of possible excitations
 !  We then pick a random number up to that number, and choose that excitation
 !  This is modified to weight each excitation according to its U-matrix element, so each
-!  Excitation's weight is added to RCOUNT to give a normalization.  RCOUNT*RAND then corresponds to 
+!  Excitation's weight is added to RCOUNT to give a normalization.  RCOUNT*RAND then corresponds to
 !  a point in the sum of weights which is found by subtracting weights until we reach 0.
 !  This is only done for the excitations TO because we need to know the excitations FROM to generate the weight
          CALL EnumExcitWeights(EXCITTYPES(1,IEXCIT),I,ILUT,ews,OrbPairs,
      &      SymProdInd,RCOUNT,ICOUNT,NBASISMAX,ARR,NBASIS)
 
          pGen=pGen/rCount           ! Normalize for the sum of TOs
-         
+
 !  We've now got a list of iCount weights in ews, and total norm rCount.
 !  Select a random one
          rCount=rCount*RAN2(ISEED)
@@ -407,7 +407,7 @@ C.. Actually generate a det
          DO WHILE (rCount.GT.0.0_dp)
             K=K+1
             rCount=rCount-ews(K)%Weight
-         ENDDO   
+         ENDDO
 !  ews(K) is the excitation we've chosen
          PGEN=PGEN*ews(K)%Weight !weight with the weight of this TO
 !  pGen is the prob of choosing a specific TO (given the FROM, and the iExcit)
@@ -433,7 +433,7 @@ C.. Actually generate a det
          deallocate(ews)
          RETURN
       ENDIF
-      END 
+      END
 
 
 !Return the index of orbital to excit within nI into I. i.e. nI(I) will be excited.
@@ -454,7 +454,7 @@ C.. Actually generate a det
          INTEGER SpinOrb
          INTEGER J,OrbChosen,nOrbs
          LOGICAL InvalidOrb
-         real(dp) RAN2   
+         real(dp) RAN2
 
 !Algorithm is to simply keep drawing orbitals of the required symmetry at random, until we
 !pick one which is in NI.
@@ -512,7 +512,7 @@ C.. Actually generate a det
          INTEGER iFromSL
          INTEGER J,K
          LOGICAL L1
-         real(dp) RAN2   
+         real(dp) RAN2
          ICOUNT=0
 !  K is a loop variable.  We go through the loop once to count the number of possible excitations
 !  We then pick a random number up to that number, and choose that excitation
@@ -532,9 +532,9 @@ C.. Actually generate a det
                   L1=IFROMSL.LT.NI(I).AND.J.LT.SYMLABELCOUNTS(2,IFROM)
                ENDDO
 !                  WRITE(6,*) I,J,SYMLABELCOUNTS(2,IFROM)
-               IF(J.LT.SYMLABELCOUNTS(2,IFROM).AND.IFROMSL.EQ.NI(I)) 
+               IF(J.LT.SYMLABELCOUNTS(2,IFROM).AND.IFROMSL.EQ.NI(I))
      &            THEN
-!.. We've found an orb in NI with the correct sym. 
+!.. We've found an orb in NI with the correct sym.
                   IF(K.EQ.0) THEN
                      ICOUNT=ICOUNT+1
                   ELSEIF(ICOUNT.EQ.0) THEN
@@ -566,7 +566,7 @@ C.. Actually generate a det
          INTEGER J,State
          INTEGER NK(nEl)
          LOGICAL InDi,TParity
-         real(dp) RAN2   
+         real(dp) RAN2
 
 !Number of states with allowed symmetry is given by SymLabelCounts(2,Sym)
 !Draw an orbital at random from this number, and find its related orbital, given at index SymLabelCounts(1,Sym)+(DrawnOrb-1)
@@ -640,9 +640,9 @@ C.. Actually generate a det
          INTEGER J,K,L
          INTEGER NK(nEl)
          LOGICAL L2, lTmp
-      
+
          LOGICAL IsValidDet
-         real(dp) RAN2   
+         real(dp) RAN2
          character(*),parameter :: t_r='SymGenRandExcitIt2_Single_GetTo'
 ! Now go through the list of possible excitations of it
          ICOUNT=0
@@ -682,7 +682,7 @@ C.. Actually generate a det
 !                     CALL NECI_SORTI(NEL,NK)
                      CALL FindExcitDet(ExcitMat,NK,1,TParity)
                      IF(.NOT.ISVALIDDET(NK,NEL)) THEN
-            
+
                        WRITE(6,*) "INVALID DET SYMGENRANDEXCITIT SINGLE"
                        call write_det (6, NK, .true.)
                        call write_det (6, NI, .true.)
@@ -705,7 +705,7 @@ C.. Actually generate a det
       End Subroutine SymGenRandExcitIt2_Single_GetTo
 
 !.. Get the FROM pair.  Return as index I into the part of OrbPairs pointed to
-!.. by the SymProdInd correspnding to (iSpn,iFrom) 
+!.. by the SymProdInd correspnding to (iSpn,iFrom)
 !.. ExcitTypes is the whole excittypes array.iExcit the label the the interested type.
 !.. iSpn is the spin (1, 2 or 3)
 !.. iFrom is the symmetry label of the orbital pair to choose
@@ -729,7 +729,7 @@ C.. Actually generate a det
 !!.. SYMPRODS(I) in ORBPAIRS
 !!.. SYMPRODIND(2,ISPN,I) contains the number of such elements
 !.. Get the FROM pair.  Return as index I into the part of OrbPairs pointed to
-!.. by the SymProdInd correspnding to (iSpn,iFrom) 
+!.. by the SymProdInd correspnding to (iSpn,iFrom)
 !There are SymProdInd(2,iSpn,iFrom) excitations with the desired spin and symmetry.
 !There should be no reason why one should be preferred over another, therefore, just pick at random
 
@@ -762,7 +762,7 @@ C.. Actually generate a det
 
       Subroutine SymGenRandExcitIt2_Doub_GF(iSeed,ExcitTypes,
      &       iExcit,iSpn, iFrom,
-     &      OrbPairs, SymProdInd, iTotal, 
+     &      OrbPairs, SymProdInd, iTotal,
      &      I, pGen)
          USE symexcit2
          use SystemData, only: G1, nBasis, nBasisMax
@@ -780,7 +780,7 @@ C.. Actually generate a det
          INTEGER SymProdInd(2,3,1:*)
          INTEGER I
          real(dp) pGen
-         
+
          real(dp) rCount
          TYPE(ExcitWeight),pointer :: ews(:)
          INTEGER iCount
@@ -818,21 +818,21 @@ C.. Actually generate a det
          DO WHILE (rCount.GT.0.0_dp)
             I=I+1
             rCount=rCount-ews(I)%Weight
-         ENDDO   
+         ENDDO
 !  I is the index of the specific SYM PAIR FROM
          pGen=pGen*ews(I)%Weight
-         
+
 !         WRITE(6,*) "OrbPair: ", OrbPairs(1,I+SymProdInd(1,iSpn,iFrom)),
 !     &            OrbPairs(2,I+SymProdInd(1,iSpn,iFrom))
-         
-         
+
+
 !  pGen is the prob of choosing a specific FROM (given having chosen iExcit proportional to the number of excitations in each iExcit)
 !           times the prob of choosing iExcit
          deallocate(ews)
       End Subroutine SymGenRandExcitIt2_Doub_GF
-      
+
 !This is a routine to pick an allowed virtual pair of orbitals to excite to.
-!There is no weighting function, so it simply 
+!There is no weighting function, so it simply
       Subroutine SymGenRandExcitIt2_Doub_GT_NoW(iSeed,nI,
      &      ExcitTypes,iExcit,OrbPairs, SymProdInd,iSpn,iFrom,iLUT,
      &      I,nK,ExcitMat,TParity)
@@ -858,14 +858,14 @@ C.. Actually generate a det
          iTo=ExcitTypes(4,iExcit)   !This is the symmetry of the virtual pair type
 
          do while(.true.)   !Cycle until we find an acceptable virtual pair to excite to.
-             
+
 !We have an explicit list of state pairs and their symmetry, so we can just pick one at random.
 !The number of pairs with desired symmetry is given by SymPairsProds(ExcitTypes(4,iExcit))%nPairs.
              IF((iSpn.eq.1).or.(iSpn.eq.3)) THEN
 !Choose a state pair from the list at random
                 StatePair=INT(Ran2(iSeed)*
      &              SymPairProds(iTo)%nPairs)+1
-!Orb1/2 are the is the beta orbital corresponding to the a state in the state pair with the desired symmetry product             
+!Orb1/2 are the is the beta orbital corresponding to the a state in the state pair with the desired symmetry product
                 Index1=SymPairProds(iTo)%nIndex+StatePair-1
 
                 Orb1=SymStatePairs(1,Index1)*2-1
@@ -969,7 +969,7 @@ C.. Actually generate a det
 
          enddo  !End over loop until we find an allowed virtual pair
 
-!         WRITE(6,*) "OrbPair to vacate: ", 
+!         WRITE(6,*) "OrbPair to vacate: ",
 !     &            OrbPairs(1,I+SymProdInd(1,iSpn,iFrom)),
 !     &            OrbPairs(2,I+SymProdInd(1,iSpn,iFrom))
 !         WRITE(6,*) "Orbs to fill: ",
@@ -1026,7 +1026,7 @@ C.. Actually generate a det
          INTEGER iLUT(0:*)
          INTEGER I
          real(dp) pGen
-         INTEGER NK(nEl) 
+         INTEGER NK(nEl)
          TYPE(ExcitWeight),pointer :: ews(:)
          real(dp) rCount
          INTEGER iCount
@@ -1036,7 +1036,7 @@ C.. Actually generate a det
          allocate(ews(EXCITTYPES(5,IEXCIT)/SYMPRODIND(2,ISPN,IFROM)))
 !         WRITE(6,*)EXCITTYPES(5,IEXCIT)/SYMPRODIND(2,ISPN,IFROM),
 !     &         EXCITTYPES(5,IEXCIT),SYMPRODIND(2,ISPN,IFROM)
-!.. Now go through the list of virtual pairs, ng those with orbitals in NI 
+!.. Now go through the list of virtual pairs, ng those with orbitals in NI
 !.. SYMPAIRPRODS(1:NSYMPAIRPRODS) contains the list of all SYMPRODs available, the number of pairs of
 !.. states (listed in SymStatePairs), and the index of the start of this list
 !.. For a given (unique) SymPairProds(J)%Sym, I=SymPairProds(J)%Index.
@@ -1046,7 +1046,7 @@ C.. Actually generate a det
 !  L is a loop variable.  We go through the loop once to count the number of possible excitations
 !  We then pick a random number up to that number, and choose that excitation
 !  This is modified to weight each excitation according to its U-matrix element, so each
-!  Excitation's weight is added to RCOUNT to give a normalization.  RCOUNT*RAND then corresponds to 
+!  Excitation's weight is added to RCOUNT to give a normalization.  RCOUNT*RAND then corresponds to
 !  a point in the sum of weights which is found by subtracting weights until we reach 0.
 !  This is only done for the excitations TO because we need to know the excitations FROM to generate the weight
          CALL EnumExcitWeights(EXCITTYPES(1,IEXCIT),I,ILUT,ews,OrbPairs,
@@ -1054,7 +1054,7 @@ C.. Actually generate a det
 
 !         Write(6,*) "Doub To", iCount,rCount
          pGen=pGen/rCount           ! Normalize for the sum of TOs
-         
+
 !  We've now got a list of iCount weights in ews, and total norm rCount.
 !  Select a random one
          rCount=rCount*RAN2(ISEED)
@@ -1063,8 +1063,8 @@ C.. Actually generate a det
          DO WHILE (rCount.GT.0.0_dp)
             K=K+1
             rCount=rCount-ews(K)%Weight
-         ENDDO 
-!         WRITE(6,*) K,rCount  
+         ENDDO
+!         WRITE(6,*) K,rCount
 !  ews(K) is the excitation we've chosen
          PGEN=PGEN*ews(K)%Weight !weight with the weight of this TO
 !  pGen is the prob of choosing a specific TO (given the FROM, and the iExcit)

@@ -1,6 +1,6 @@
 module precision
 !define single and double precision REALs
-!USAGE: 
+!USAGE:
 !   USE precision
 !   real(dp) :: X
 !   X = 1.0e-12_dp

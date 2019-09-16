@@ -4,17 +4,17 @@ module aliasSampling
   use constants
   use shared_memory_mpi
   use ParallelHelper, only: iProcIndex_intra
-  use dSFMT_interface , only : genrand_real2_dSFMT  
+  use dSFMT_interface , only : genrand_real2_dSFMT
   implicit none
 
   private
   public :: aliasSampler_t, aliasTable_t
-  
+
   ! type for tables: contains everything you need to get a random number
   ! with given biases
   type aliasTable_t
      private
-     ! WARNING: DO NOT MANUALLY RE-ASSIGN THESE POINTERS, THIS WILL MOST LIKELY BREAK STUFF     
+     ! WARNING: DO NOT MANUALLY RE-ASSIGN THESE POINTERS, THIS WILL MOST LIKELY BREAK STUFF
      ! this is the table of bias
      real(dp), pointer :: biasTable(:) => null()
      ! this is the lookup table for the resulting random number
@@ -40,8 +40,8 @@ module aliasSampling
      private
      ! alias table used for sampling
      type(aliasTable_t) :: table
-     ! WARNING: DO NOT MANUALLY RE-ASSIGN THIS POINTER, THIS WILL MOST LIKELY BREAK STUFF          
-     ! the probabilities     
+     ! WARNING: DO NOT MANUALLY RE-ASSIGN THIS POINTER, THIS WILL MOST LIKELY BREAK STUFF
+     ! the probabilities
      real(dp), pointer :: probs(:) => null()
      ! the shm window for the probabilities
      integer(MPIArg) :: probsShmw
@@ -64,7 +64,7 @@ contains
   !------------------------------------------------------------------------------------------!
 
   subroutine setupTable(this, arr)
-    ! pseudo-constructor for alias tables      
+    ! pseudo-constructor for alias tables
     ! Input: arr - array containing the (not necessarily normalized) probabilities we
     !              want to use for sampling
     implicit none
@@ -85,7 +85,7 @@ contains
 
     call safe_shared_memory_alloc(this%biasTableShmw, this%biasTable, arrSize)
     if(associated(this%aliasTable)) &
-         call shared_deallocate_mpi(this%aliasTableShmw, this%aliasTable)    
+         call shared_deallocate_mpi(this%aliasTableShmw, this%aliasTable)
     call shared_allocate_mpi(this%aliasTableShmw, this%aliasTable, (/arrSize/))
 
     ! as this is shared memory, only node-root has to do this
@@ -107,8 +107,8 @@ contains
        ! it is more efficient to start with the largest biases
        ! -> reverse overfull
        overfull(1:cV) = overfull(cV:1:-1)
-       do 
-          if((cV == 0) .or. (cU == 0)) then            
+       do
+          if((cV == 0) .or. (cU == 0)) then
              exit
           end if
           ! pick one overfull and one underfull index
@@ -132,7 +132,7 @@ contains
 
     endif
 
-  contains 
+  contains
 
     subroutine assignLabel(i)
       integer, intent(in) :: i
@@ -160,7 +160,7 @@ contains
       endif
 
     end subroutine roundTo1
-    
+
   end subroutine setupTable
 
   !------------------------------------------------------------------------------------------!
@@ -183,10 +183,9 @@ contains
     ! Draw a random number from an alias table created with the corresponding probabilities
     ! A bit tricky: this cannot be pure because a random number has to be drawn from
     ! the rng
-    ! (maybe can be resolved, but current implementation requires side-effects for random numbers)
     ! output: ind - random number between 1 and the size of the array used to create the
     !               aliasTable object
-    implicit none    
+    implicit none
     class(aliasTable_t) :: this
     integer :: ind
     real(dp) :: r, bias
@@ -227,7 +226,7 @@ contains
        ! probs defaults to null(), so it is not associated at this point (i.e. in a well-defined state)
        return
     endif
-    
+
     ! initialize the alias table
     call this%table%setupTable(arr)
     arrSize = size(arr)
@@ -254,7 +253,7 @@ contains
   end subroutine samplerDestructor
 
   !------------------------------------------------------------------------------------------!
-  
+
   subroutine sample(this, tgt, prob)
     ! draw a random element from 1:size(this%probs) with the probabilities listed in prob
     ! Input: tgt - on return, this is a random number in the sampling range of this
@@ -289,13 +288,13 @@ contains
 
     prob = this%probs(tgt)
   end function getProb
-  
+
   !------------------------------------------------------------------------------------------!
   ! Auxiliary functions to prevent code duplication
   !------------------------------------------------------------------------------------------!
 
   subroutine safe_shared_memory_alloc(win,ptr,size)
-    ! wrapper for shared_allocate_mpi that tests if the pointer is associated          
+    ! wrapper for shared_allocate_mpi that tests if the pointer is associated
     ! Input: win - MPI shared memory window for internal MPI usage
     !        ptr - pointer to be allocated, on return points to a shared memory segment of given size
     !        size - size of the memory segment to be allocated
@@ -305,7 +304,7 @@ contains
     integer(int64) :: size
 
     ! if pointer was allocated prior, re-allocate the probabilities
-    ! WARNING: DO NOT MANUALLY RE-ASSIGN ptr, THIS WILL MOST LIKELY BREAK STUFF    
+    ! WARNING: DO NOT MANUALLY RE-ASSIGN ptr, THIS WILL MOST LIKELY BREAK STUFF
     call safe_shared_memory_dealloc(win,ptr)
     call shared_allocate_mpi(win, ptr, (/size/))
   end subroutine safe_shared_memory_alloc
@@ -323,7 +322,7 @@ contains
     real(dp), pointer :: ptr(:)
 
     ! assume that if ptr is associated, it points to mpi shared memory
-    if(associated(ptr)) call shared_deallocate_mpi(win, ptr)    
+    if(associated(ptr)) call shared_deallocate_mpi(win, ptr)
   end subroutine safe_shared_memory_dealloc
-  
+
 end module aliasSampling

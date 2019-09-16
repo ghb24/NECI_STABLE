@@ -11,7 +11,7 @@ contains
          use SystemData , only : nIrreps
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
          use Parallel_neci
-         use util_mod, only: get_free_unit
+         use util_mod, only: get_free_unit, near_zero
          IMPLICIT NONE
          logical, intent(in) :: tbin
          integer, intent(out) :: nBasisMax(5,*),LEN,LMS
@@ -42,7 +42,7 @@ contains
          CLOSED = -1
          FROZEN = -1
          ! [W.D. 15.5.2017:]
-         ! with the new relativistic calculations, withoug a ms value in the 
+         ! with the new relativistic calculations, withoug a ms value in the
          ! FCIDUMP, we have to set some more defaults..
          MS2 = 0
          IF(iProcIndex.eq.0) THEN
@@ -117,7 +117,7 @@ contains
 
 #ifndef __CMPLX
          if(PropBitLen.ne.0) then
-             !We have compiled the code in real, but we are looking at a complex FCIDUMP, potentially 
+             !We have compiled the code in real, but we are looking at a complex FCIDUMP, potentially
              !even with multiple k-points. However, these orbitals must be real, and ensure that the
              !integrals are read in as real.
              write(6,"(A)") "Neci compiled in real mode, but kpoints detected."
@@ -142,7 +142,7 @@ contains
                  WRITE(6,*) "** Turning point group symmetry off for rest of run **"
                  if(.not.(tFixLz.or.tKPntSym.or.tUEG.or.tHub)) then
                      WRITE(6,*) "** No symmetry at all will be used in excitation generators **"
-                     tNoSymGenRandExcits=.true. 
+                     tNoSymGenRandExcits=.true.
                  endif
                  lNoSymmetry=.true.
                  EXIT
@@ -166,14 +166,14 @@ contains
 
          IF(NELEC.NE.NEL) THEN
              WRITE(6,*)                                                 &
-     &      '*** WARNING: NEL in FCIDUMP differs from input file ***'   
+     &      '*** WARNING: NEL in FCIDUMP differs from input file ***'
             WRITE(6,*) ' NUMBER OF ELECTRONS : ' , NEL
          ENDIF
 !         NEL=NELEC
-         IF(LMS.NE.MS2) THEN   
+         IF(LMS.NE.MS2) THEN
             WRITE(6,*)                                                  &
-     &      '*** WARNING: LMS in FCIDUMP differs from input file ***'   
-            LMS=MS2                                                     
+     &      '*** WARNING: LMS in FCIDUMP differs from input file ***'
+            LMS=MS2
             WRITE(6,*) ' BASIS MS : ' , LMS
          ENDIF
          if(tMolpro) then
@@ -195,7 +195,7 @@ contains
          NBASISMAX(1,3)=2
          NBASISMAX(4,1)=-1
          NBASISMAX(4,2)=1
-         
+
 !the indicator of UHF (which becomes ISpinSkip or ISS later
          if(tMolpro) then
              if(tUHF) then
@@ -375,7 +375,7 @@ contains
 !                 endif
 !             enddo
 !         endif
-        
+
          !For Molpro, ISPINS should always be 2, and therefore NORB is spatial, and len is spin orbtials
          IF(LEN.NE.ISPINS*NORB) call stop_all(t_r, 'LEN .NE. NORB in GETFCIBASIS')
          G1(1:LEN)=NullBasisFn
@@ -409,7 +409,7 @@ contains
                 if(tMolpro) call stop_all(t_r,'UHF Bin read not functional through molpro')
                 IF(UHF.or.tROHF) call stop_all(t_r, 'UHF Bin read not functional')
                 MASK=(2**16)-1
-                
+
                 !IND contains all the indices in an integer(int64) - use mask of 16bit to extract them
 2               READ(iunit,END=99) Z,IND
                 L=int(iand(IND,MASK),sizeof_int)
@@ -424,7 +424,7 @@ contains
 !                J=Index(J)
 !                K=Index(K)
 !                L=Index(L)
-            
+
 !.. Each orbital in the file corresponds to alpha and beta spinorbitals
              !Fill ARR with the energy levels
                 IF(I.NE.0.AND.K.EQ.0.AND.I.EQ.J) THEN
@@ -446,7 +446,7 @@ contains
 
              ELSE   !Reading in formatted FCIDUMP file
 
-                 ! Can't use * as need to be backward compatible with existing 
+                 ! Can't use * as need to be backward compatible with existing
                  ! FCIDUMP files, some of which have more than 100 basis
                  ! functions and so the integer labels run into each other.
                  ! This means it won't work with more than 999 basis
@@ -456,7 +456,7 @@ contains
 #else
 1               CONTINUE
                 !It is possible that the FCIDUMP can be written out in complex notation, but still only
-                !have real orbitals. This occurs with solid systems, where all kpoints are at the 
+                !have real orbitals. This occurs with solid systems, where all kpoints are at the
                 !gamma point or BZ boundary and have been appropriately rotated. In this case, all imaginary
                 !components should be zero to numerical precision.
                 if(tRotatedOrbsReal) then
@@ -569,7 +569,7 @@ contains
          CALL MPIBCast(ISNMAX,1)
          CALL MPIBCast(ISYMNUM,1)
          CALL MPIBCast(Arr,LEN*2)
-         
+
          SYMMAX=1
          iMaxLz=0
          DO I=1,NORB
@@ -651,7 +651,7 @@ contains
          use Parallel_neci
          use shared_memory_mpi
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
-         use util_mod, only: get_free_unit
+         use util_mod, only: get_free_unit, near_zero
          IMPLICIT NONE
          integer, intent(in) :: NBASIS
          logical, intent(in) :: tReadFreezeInts
@@ -696,7 +696,7 @@ contains
          LzDisallowed=0
          NonZeroInt=0
          iunit = 0
-         
+
          IF(iProcIndex.eq.0) THEN
 #ifdef _MOLCAS_
            call f_Inquire('FCIDMP',tExists)
@@ -772,7 +772,7 @@ contains
                  iSpinType=0
              endif
              TMAT2D(:,:)=(0.0_dp)
-             ! Can't use * as need to be backward compatible with existing 
+             ! Can't use * as need to be backward compatible with existing
              ! FCIDUMP files, some of which have more than 100 basis
              ! functions and so the integer labels run into each other.
              ! This means it won't work with more than 999 basis
@@ -783,7 +783,7 @@ contains
 #else
 101          CONTINUE
              !It is possible that the FCIDUMP can be written out in complex notation, but still only
-             !have real orbitals. This occurs with solid systems, where all kpoints are at the 
+             !have real orbitals. This occurs with solid systems, where all kpoints are at the
              !gamma point or BZ boundary and have been appropriately rotated. In this case, all imaginary
              !components should be zero to numerical precision.
              if(tRotatedOrbsReal) then
@@ -909,7 +909,7 @@ contains
                     ! Have read in T_ij.  Check it's consistent with T_ji
                     ! (if T_ji has been read in).
                    diff = abs(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)-Z)
-                   IF(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1) /= 0.0_dp .and. diff > 1.0e-7_dp) then
+                   IF(.not. near_zero(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)) .and. diff > 1.0e-7_dp) then
                         WRITE(6,*) i,j,Z,TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)
                         CALL Stop_All("ReadFCIInt","Error filling TMAT - different values for same orbitals")
                    ENDIF
@@ -1002,15 +1002,15 @@ contains
              ! --> We need to loop around this
              start_ind = 1
              end_ind = min(UMatSize, chunk_size)
-             
+
              do while(start_ind <= UMatSize)
                 !use MPI_BYTE for transfer to be independent of the data type of UMat
-                bytecount=int(end_ind-start_ind+1,sizeof_int)*sizeof(UMat(1))
+                bytecount = int(end_ind - start_ind + 1_int64) * int(sizeof(UMat(1)))
                 call MPIBCast_inter_byte(UMat(start_ind),bytecount)
                 start_ind = end_ind + 1
                 end_ind = min(UMatSize, end_ind + chunk_size)
              end do
-             
+
              !make sure the shared memory data is synchronized on all tasks
              call shared_sync_mpi(umat_win)
          ENDIF
@@ -1029,7 +1029,7 @@ contains
                  LzDisallowed
          end if
          write(6,*) 'Number of non-zero integrals: ', NonZeroInt
-             
+
 
          IF(tCacheFCIDUMPInts) THEN
              WRITE(6,*) "Ordering cache..."
@@ -1088,7 +1088,7 @@ contains
 !         J=Index(J)
 !         K=Index(K)
 !         L=Index(L)
-         
+
 !.. Each orbital in the file corresponds to alpha and beta spinorbitalsa
          IF(I.EQ.0) THEN
 !.. Core energy
@@ -1126,13 +1126,13 @@ contains
       END SUBROUTINE READFCIINTBIN
 
       SUBROUTINE ReadPropInts(iProp,nBasis,iNumProp,PropFile,CoreVal,OneElInts)
- 
+
       use constants, only: dp, int64
       use util_mod, only: get_free_unit
       use SymData, only: PropBitLen,nProp
       use SystemData, only: UMatEps, tROHF, tReltvy
       use Parallel_neci, only : iProcIndex,MPIBcast
- 
+
       implicit none
       integer, intent(in) :: iProp, nBasis
       HElement_t(dp) :: OneElInts(nBasis,nBasis)
@@ -1149,14 +1149,14 @@ contains
       logical :: TREL,UHF
       character(*), parameter :: t_r='ReadPropInts'
       NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
- 
+
       ZeroedInt = 0
       UHF = .false.
- 
+
       if(iProcIndex.eq.0) then
           iunit = get_free_unit()
           file_name = PropFile
-          write(*,*) 'Reading integral from the file:', trim(file_name)
+          write(iout,*) 'Reading integral from the file:', trim(file_name)
           open(iunit,FILE=file_name,STATUS='OLD')
           read(iunit,FCI)
       end if
@@ -1178,11 +1178,11 @@ contains
       core = 0.0d0
       iSpins=2
       IF((UHF.and.(.not.tROHF)).or.tReltvy) ISPINS=1
- 
+
       if(iProcIndex.eq.0) then
 101       continue
           read(iunit,*,END=199) z,i,j,k,l
-  
+
           ! Remove integrals that are too small
           if (abs(z) < UMatEps) then
               if (ZeroedInt < 100) then
@@ -1197,7 +1197,7 @@ contains
               ZeroedInt = ZeroedInt + 1
               goto 101
           end if
- 
+
           if (i.eq.0) then
 ! Reading the zero-electron part of the integrals
               core=real(z,dp)
@@ -1211,7 +1211,7 @@ contains
                   write(6,*) i,j,z,OneElInts(iSpins*i-ispn+1,iSpins*j-ispn+1)
                   call Stop_All(t_R,"Error filling OneElInts - different values for same orbitals")
                   endif
- 
+
                   OneElInts(iSpins*I-ispn+1,iSpins*J-ispn+1)=z
 #ifdef __CMPLX
                   OneElInts(iSpins*J-ispn+1,iSpins*I-ispn+1)=conjg(z)

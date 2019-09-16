@@ -4,7 +4,7 @@
 !3rd June 2004
 !University of Cambridge
 !-----------------------
-!Routines to handle writing and reading of direct access un-formatted file 
+!Routines to handle writing and reading of direct access un-formatted file
 !that are arbritrarily large
 !USAGE:
 !------
@@ -16,7 +16,7 @@
 !
 !Then call routines as described below:
 !--------------------------------------
-!NOTE: All calls take the optional last argument 
+!NOTE: All calls take the optional last argument
 !      printinfo=.true. or .false.
 !This controls printing of comments.
 !
@@ -26,7 +26,7 @@
 !performs some queries on the file filename.
 !INPUT:
 !     filename = character(10)
-!OUTPUT: 
+!OUTPUT:
 !     (All optional)
 !     filestatus = 'NEW' or 'OLD'
 !     len_first_rec = length of the first record
@@ -50,7 +50,7 @@
 !      be 'NEW' in the write routine, and 'OLD' in the read routine).
 !
 !  (2) call write_record(filename,X,indicesX,labelX,info)
-!      where 
+!      where
 !         filename = character(10) string
 !         indexX = integer: the index of the data set to be written. This index
 !                  will be used to identify the data set while reading.
@@ -68,23 +68,23 @@
 !
 !  (3) call leave_record_handler(filename,info)
 !      where
-!           filename = character(10) filename. 
+!           filename = character(10) filename.
 !           info     = (OUTPUT) 0=normal exit, <0=error
 !      This MUST be called or else the record_handler doesn't know that you've
-!      completed writing into the file. 
+!      completed writing into the file.
 !
 !Once a file has been written, another can be written using the same set of
 !routines. However, multiple files cannot be written simultaneously.
-!           
+!
 !Reading data from a file
 !========================
 !  (1) call init_record_handler(filename,filestatus,info,num_records)
 !      where filename = character(10) string
 !            filestatus = OLD/old
-!                        This specified that the file exists and it is to 
+!                        This specified that the file exists and it is to
 !                        be read from disk (i.e., it is old)
-!                        ADD/add: add a file created by record_handler in an 
-!                        earlier run. 
+!                        ADD/add: add a file created by record_handler in an
+!                        earlier run.
 !            info     = (OUTPUT) 0=normal exit, <0=error
 !            num_records = number of records in file if file is OLD.
 !                        (optional argument)
@@ -98,7 +98,7 @@
 !           indexX = integer: The index of the data set that you wish to be read
 !                    in (it is used to figure out the record on which the data
 !                    set resides).
-!           labelX = character(8) label of the data set required. 
+!           labelX = character(8) label of the data set required.
 !           X = real(dp) array into which the data set will be put.
 !           info     = (OUTPUT) 0=normal exit, <0=error
 !     Once again, no packing/unpacking routines are employed. The indices saved
@@ -107,15 +107,15 @@
 !
 !  (3) call leave_record_handler(filename,info)
 !      where
-!           filename = character(10) filename. 
+!           filename = character(10) filename.
 !           info     = (OUTPUT) 0=normal exit, <0=error
 !      This MUST be called or else the record_handler doesn't know that you've
 !      completed reading the file and that it should release accumulated
 !      information about the file.
 !
-!***Multiple files can now be read/written simultaneously. 
+!***Multiple files can now be read/written simultaneously.
 !The number of files that can be handled by this module is determined by the
-!parameter maxfiles (see MODULE record_handler_arrays). 
+!parameter maxfiles (see MODULE record_handler_arrays).
 !
 !One drawback: At the moment there is no way of removing a file from the list of
 !files. So, during the course of the calling program, as the number of files
@@ -134,20 +134,20 @@
 !           call read_record(file2,...)
 !           etc.
 !this is wasteful as the TOC is erased and re-read at each read. Also, the
-!output of the code is quite a bit. 
+!output of the code is quite a bit.
 !
 !To Be Done: Some means of adding records to a file that already exists.
 !
 !A brief programming detail: The capacity of the code to handle multiple files
-!was carried out quite simply: 
-!   (1) Identify the variables that determine the status of a file. 
+!was carried out quite simply:
+!   (1) Identify the variables that determine the status of a file.
 !   (2) Make arrays of these variables - each entry in these arrays determines
 !   the variables for a given file.
 !   (3) On entry (at any of the four entry points), find out if the file is on
 !   list. If so, identify its position in the list. If not, add it to the list
 !   if there is space.
 !   (4) The using pointers, set the values of the variables identified in (1)
-!   using the arrays in (2). 
+!   using the arrays in (2).
 !   (5) Now use the code as before (i.e., as it was in the single-file
 !   implementation).
 !   (6) The full TOC is not replicated for each file, so this needs to be
@@ -191,7 +191,7 @@ module record_handler_pointers
 use precision
 SAVE
 integer :: file_indx         !index of the current file
-integer :: numfiles = 0      !number of files (should be  <= maxfiles) 
+integer :: numfiles = 0      !number of files (should be  <= maxfiles)
 integer, pointer :: fileunit
 !Logical flags for initialization etc.
 logical, pointer :: iam_init_toc
@@ -213,34 +213,34 @@ end module bookkeeper_pointers
 module record_handler
 !--------------------
 !A set of routines to read and write large direct-access files.
-!Records are assumed to be in a similar format as those used in the SAPT 
-!suite of codes. A linked-list like format is used. 
+!Records are assumed to be in a similar format as those used in the SAPT
+!suite of codes. A linked-list like format is used.
 !Each record is of the form:
 !
 ! next_rec len_rec label x(len_rec) n(len_rec)
 !    4        4      8     len_rec*(8 + 4)         + 8 (overhead)
-! 
-! This means 2728 elements of x() and n() can be written into one record. 
+!
+! This means 2728 elements of x() and n() can be written into one record.
 !
 !where
 !   next_rec = next record to be read in. If zero, then no more records left.
 !   len_rec  = number of elements to be read from present record.
 !   label    = character(8) label of current record
-!   x(len_rec) = real(dp) array 
-!   n(len_rec) = integer(4) indices of elements x(). This is needed as x(i) 
+!   x(len_rec) = real(dp) array
+!   n(len_rec) = integer(4) indices of elements x(). This is needed as x(i)
 !                could be the j^th element in an array A(). n(i) tells you the
 !                position of x(i) in array A(). This is useful to have as often
 !                not all elements of A() are stored. Only non-zero values. So we
 !                need some way of knowing which elements have been skipped and
 !                what the next non-zero element is.
 !
-!Record length: 32KB - 8 bytes= 32760 bytes 
+!Record length: 32KB - 8 bytes= 32760 bytes
 !               (NOTE: each record has 8 bytes of overhead storage required)
 !
 !The Table of Contents will be put starting at record 1. As many records as are
 !needed will be reserved for the table of contents. A linked-list is used to
 !expand the storage for the table of contents. See below for details.
-!                
+!
 use precision
 use record_handler_arrays
 use record_handler_pointers
@@ -251,7 +251,7 @@ SAVE
 public :: init_record_handler, write_record, read_record, leave_record_handler
 public :: query_record_handler
 !Pertaining to the Full Table of Contents (toc)
-integer(4), dimension(:), allocatable :: toc !The full Table of Contents 
+integer(4), dimension(:), allocatable :: toc !The full Table of Contents
 integer :: len_full_toc                   !length of the full TOC
 !Pertaining to each record (maxlen is set in record_handler_arrays)
 real(dp), dimension(maxlen) :: values    !values stored in record
@@ -263,7 +263,7 @@ contains
   subroutine init_record_handler(filename,filestatus,info,&
                                 & num_records,printinfo)
   !Read the Table of Contents of a direct access file
-  !INPUT: 
+  !INPUT:
   !    filename = character(10) file name
   !    filestatus = character(3): OLD/old or NEW/new or OVR/ovr or ADD/add
   !                 NEW: This is a new file to be opened
@@ -291,7 +291,7 @@ contains
   !must have some mechanism for expanding the TOC to arbritrary length. This
   !will be done by using the linked-list idea which is described next.
   !  Record no.     Contents
-  !     1           TOC(1) 
+  !     1           TOC(1)
   !     2           integrals
   !     ...         ...
   !    8189         integrals
@@ -303,7 +303,7 @@ contains
   !There are reclen = 32760 bytes in a record. Thus, each TOC can store 8190
   !integer(4) numbers. 8189 of these will point to records containing integrals.
   !The last, the 8190^th will contain the record of the next TOC. In this way
-  !the TOC can be expanded arbritrarliy. The user need not worry about this. 
+  !the TOC can be expanded arbritrarliy. The user need not worry about this.
   !
   implicit none
   character(10), intent(in) :: filename
@@ -318,7 +318,7 @@ contains
   logical :: overwrite_file, warn, initialize, add_file
   integer(4) :: reclenrat !used to fix differences in record lengths between compilers
   inquire(iolength=reclenrat) reclenrat
-!  AJWT 
+!  AJWT
 !  some compilers give reclenrat as 4, and others 1
 !  We want to count in bytes not words, so we change reclenrat to 4/reclenrat
 !  later we shall use reclen/reclenrat as our length scale
@@ -416,7 +416,7 @@ contains
       endif
     endif
     call getunit(fileunit)
-    
+
     open (fileunit,file=filename,status='unknown',access='direct',&
          & recl=reclen/reclenrat,form='unformatted',action='readwrite',iostat=stat)
     call io_check(filename,stat,info,openingfile=.true.)
@@ -445,7 +445,7 @@ contains
     else
       !if the file is opened, determine the unit number it is opened on
       inquire(file=filename,number=fileunit)
-    endif  
+    endif
     !Now read the TOC
     call read_toc(filename,info)
     !
@@ -465,7 +465,7 @@ contains
   !INPUT:
   !     filename = character(10)
   !     printinfo = T or F (optional)
-  !OUTPUT: 
+  !OUTPUT:
   !     info = 0  Normal exit
   !          < 0  Errors
   !     (All optional)
@@ -487,7 +487,7 @@ contains
   integer :: i
   integer(4) :: reclenrat !used to fix differences in record lengths between compilers
   inquire(iolength=reclenrat) reclenrat
-!  AJWT 
+!  AJWT
 !  some compilers give reclenrat as 4, and others 1
 !  We want to count in bytes not words, so we change reclenrat to 4/reclenrat
 !  later we shall use reclen/reclenrat as our length scale
@@ -553,7 +553,7 @@ contains
       else
         !if the file is opened, determine the unit number it is opened on
         inquire(file=filename,number=fileunit)
-      endif  
+      endif
       !
       call read_toc(filename,info)
       if (info.lt.0) return
@@ -603,7 +603,7 @@ contains
     write(6,*)' Index       filename'
     write(6,*)'---------------------'
     do i = 1, numfiles
-      write(6,*)i,ar_filename(i) 
+      write(6,*)i,ar_filename(i)
     enddo
     write(6,*)'====================='
   endif
@@ -615,7 +615,7 @@ contains
   !read in the entire linked-list TOC into memory. Since the total length of the
   !TOC is not known (unless you read it), we first perform a dummy read to
   !determine the number of elements in the TOC, and only then allocate space for
-  !the TOC and read it all in. 
+  !the TOC and read it all in.
   implicit none
   character(10), intent(in) :: filename
   integer, intent(out) :: info
@@ -645,7 +645,7 @@ contains
   !
   !set the index that states which file this is the toc of...
   toc_of_file_indx = file_indx
-  !  
+  !
   last = .false.
   entries_in_toc = 0
   record = 1
@@ -709,7 +709,7 @@ contains
       endif
     enddo entries2
     !
-    if (last) then 
+    if (last) then
       exit toc_loop2
     else
       !there is more to read. The next toc is located on record number
@@ -751,7 +751,7 @@ contains
   implicit none
   character(10), intent(in) :: filename       !file to be read from
   integer, intent(in) :: indexX               !position of record to be read in
-  character(8), intent(in) :: labelX          !label of the record 
+  character(8), intent(in) :: labelX          !label of the record
   real(dp), dimension(:), intent(out) :: X    !array to be filled up
   integer, intent(out) :: info
   logical, optional, intent(in) :: printinfo
@@ -801,7 +801,7 @@ contains
   endif
   !
   X = 0.0_dp
-  !first a check on indexX 
+  !first a check on indexX
   if ((indexX.le.0).or.(indexX.gt.len_full_toc)) then
     write(6,*)'ERROR: record_handler: Illegal value of record position',indexX
     write(6,*)'Number of records in file ',filename,' is ',len_full_toc
@@ -864,7 +864,7 @@ contains
   ! indicesX = integer array of indices of X
   ! info     = 0  Normal exit
   !          < 0  Errors
-  ! 
+  !
   implicit none
   character(10), intent(in) :: filename
   real(dp), dimension(:), intent(in) :: X
@@ -922,7 +922,7 @@ contains
   start_indx = 1    !starting index of X and indicesX to be written
   end_indx = maxlen !ending indx of X and indicesX to be written
   last = .false.    !flag signaling last record of the data set
-  Xloop : do 
+  Xloop : do
   if (last) exit Xloop
     !Initialize arrays that will be used to write info into records
     values = 0.0_dp
@@ -1081,7 +1081,7 @@ contains
     info = -1
     return
   case default
-    !nothing. 
+    !nothing.
   end select
   !
   return
@@ -1103,11 +1103,11 @@ contains
   !------------
   if (newold.eq.'NEW') then
     if (.not.iam_init_bookkeeper) then
-      !This is the beginning of a new type of data set to be written. 
+      !This is the beginning of a new type of data set to be written.
       !perform the initialization
       !Zero out the current TOC matrix
       curr_toc = 0
-      !the record that can be written into is the second one. 
+      !the record that can be written into is the second one.
       !The first is for the current TOC
       curr_rec = 2        !data can be written starting from record 2
       next_rec = 3        !next record available for writing
@@ -1119,19 +1119,19 @@ contains
     else
       !Perform the following tasks
       !(0) Update the curr_toc to specify the starting record for this data set
-      !(1) update the current record 
-      !(2) decide if there is more space in the current TOC or if a new one 
-      !    has to be created. 
-      !(3) If there is more space, update the next record position (next_rec) 
+      !(1) update the current record
+      !(2) decide if there is more space in the current TOC or if a new one
+      !    has to be created.
+      !(3) If there is more space, update the next record position (next_rec)
       !    that can be written to.
-      !(4) If a new current TOC needs to be created, write curr_toc to disk, 
+      !(4) If a new current TOC needs to be created, write curr_toc to disk,
       !    and update curr_rec and next_rec.
       !
       curr_rec = next_rec
       if (num_in_curr_toc.lt.max_in_curr_toc) then
         !we have space remaining in the current toc...
         next_rec = curr_rec + 1
-        num_in_curr_toc = num_in_curr_toc + 1 
+        num_in_curr_toc = num_in_curr_toc + 1
         !Put entry into the current TOC
         curr_toc(num_in_curr_toc) = curr_rec
       else
@@ -1187,7 +1187,7 @@ contains
     !------------
     character(10) :: filename
     !------------
-    ! 
+    !
     filename = ar_filename(file_indx)
     !
     write(fileunit,rec=rec_curr_toc,ERR=1) curr_toc
@@ -1201,7 +1201,7 @@ contains
     return
     !
     end subroutine write_curr_toc
-    
+
   end subroutine bookkeeper
 
   subroutine find_file(filename,file_indx,info,actual_file_status,query)
@@ -1261,7 +1261,7 @@ contains
       write(6,*)' Index       filename'
       write(6,*)'---------------------'
       do i = 1, maxfiles
-        write(6,*)i,ar_filename(i) 
+        write(6,*)i,ar_filename(i)
       enddo
       write(6,*)'====================='
       info = -1

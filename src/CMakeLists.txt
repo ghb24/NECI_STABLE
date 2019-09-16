@@ -133,7 +133,6 @@ set( SRC_FILES
     replica_estimates.F90
     rhodiag.F
     RhoElement.F90
-    rootfind.F
     RotateOrbsData.F90
     RotateOrbs.F90
     RPA.F90
@@ -197,6 +196,7 @@ set( SRC_FILES
     lib/timing.F90
     lib/util_mod.F90
     lib/util_mod_fmt.F90
+    lib/fortran_strings.f90
     rdms_old/rdm_data_old.F90
     rdms_old/rdm_estimators_old.F90
     rdms_old/rdm_filling_old.F90
@@ -215,6 +215,7 @@ set( TEMPLATED_SRC_FILES
     lib/util_mod_comparisons.F90.template
     lib/util_mod_cpts.F90.template
     lib/util_mod_numerical.F90.template
+    lib/util_mod_epsilon_close.F90.template
 )
 
 
@@ -274,6 +275,7 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
             "${HDF5_NECI_DEFINITIONS}"
 
         LIBS "${_library_link_libs}"
+	WARNERR ${${PROJECT_NAME}_${_config}_WARNERR}
     )
 
     message(STATUS "Adding executable for configuration ${_config}")

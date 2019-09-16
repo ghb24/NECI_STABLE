@@ -22,8 +22,8 @@ C         Marsaglia and Zaman, implemented by F. James with the name
 C         RCARRY in 1991, and later improved by Martin Luescher
 C         in 1993 to produce "Luxury Pseudorandom Numbers".
 C     Fortran 77 coded by F. James, 1993
-C          
-C       references: 
+C
+C       references:
 C  M. Luscher, Computer Physics Communications  79 (1994) 100
 C  F. James, Computer Physics Communications 79 (1994) 111
 C
@@ -49,7 +49,7 @@ C!!!      CALL RLUXGO(LUX,INT,K1,K2) initializes the generator from  ++
 C!!!               one 32-bit integer INT and sets Luxury Level LUX  ++
 C!!!               which is integer between zero and MAXLEV, or if   ++
 C!!!               LUX .GT. 24, it sets p=LUX directly.  K1 and K2   ++
-C!!!               should be set to zero unless restarting at a break++ 
+C!!!               should be set to zero unless restarting at a break++
 C!!!               point given by output of RLUXAT (see RLUXAT).     ++
 C!!!      CALL RLUXAT(LUX,INT,K1,K2) gets the values of four integers++
 C!!!               which can be used to restart the RANLUX generator ++
@@ -69,7 +69,7 @@ C!!! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       IMPLICIT NONE
       integer :: I,K,LP,JSEED,LENV,IZIP2,IZIP,ISK,INNER
       real(dp) :: RVEC(LENV)
-      real(dp) , save :: SEEDS(24) 
+      real(dp) , save :: SEEDS(24)
       integer :: ISEEDS(24), ISDEXT(25)
       integer , PARAMETER :: MAXLEV=4, LXDFLT=3
       integer , save :: NDSKIP(0:MAXLEV)
@@ -96,7 +96,7 @@ C  NOTYET is .TRUE. if no initialization has been performed yet.
 C              Default Initialization by Multiplicative Congruential
       IF (NOTYET) THEN
          NOTYET = .FALSE.
-         JSEED = JSDFLT  
+         JSEED = JSDFLT
          INSEED = JSEED
          WRITE(6,'(A,I12)') ' RANLUX DEFAULT INITIALIZATION: ',JSEED
          LUXLEV = LXDFLT
@@ -124,7 +124,7 @@ C              Default Initialization by Multiplicative Congruential
          I24 = 24
          J24 = 10
          CARRY = 0.
-         IF (SEEDS(24) .EQ. 0.) CARRY = TWOM24
+         IF (int(SEEDS(24)) == 0) CARRY = TWOM24
       ENDIF
 C
 C          The Generator proper: "Subtract-with-borrow",
@@ -132,7 +132,7 @@ C          as proposed by Marsaglia and Zaman,
 C          Florida State University, March, 1989
 C
       DO 100 IVEC= 1, LENV
-      UNI = SEEDS(J24) - SEEDS(I24) - CARRY 
+      UNI = SEEDS(J24) - SEEDS(I24) - CARRY
       IF (UNI .LT. 0.)  THEN
          UNI = UNI + 1.0
          CARRY = TWOM24
@@ -147,7 +147,7 @@ C  small numbers (with less than 12 "significant" bits) are "padded".
       IF (UNI .LT. TWOM12)  THEN
          RVEC(IVEC) = RVEC(IVEC) + TWOM24*SEEDS(J24)
 C        and zero is forbidden in case someone takes a logarithm
-         IF (RVEC(IVEC) .EQ. 0.)  RVEC(IVEC) = TWOM24*TWOM24
+         IF (int(RVEC(IVEC)) == 0)  RVEC(IVEC) = TWOM24*TWOM24
       ENDIF
 C        Skipping to luxury.  As proposed by Martin Luscher.
       IN24 = IN24 + 1
@@ -179,7 +179,7 @@ C           Entry to input and float integer seeds from previous run
       ENTRY RLUXIN(ISDEXT)
 *     IF block added by Phillip Helbig after correpondence with James
       IF (NOTYET) THEN
-         WRITE(6,'(A)')  ' PROPER RESULTS ONLY WITH INITIALISATION FROM 
+         WRITE(6,'(A)')  ' PROPER RESULTS ONLY WITH INITIALISATION FROM
      $25 INTEGERS OBTAINED WITH RLUXUT'
          NOTYET = .FALSE.
       ENDIF
@@ -260,7 +260,7 @@ C                    Entry to initialize from one or three integers
           WRITE (6,'(A,I5)') ' RANLUX P-VALUE SET BY RLUXGO TO:',LUXLEV
       ENDIF
       IN24 = 0
-      IF (INS .LT. 0)  WRITE (6,'(A)')   
+      IF (INS .LT. 0)  WRITE (6,'(A)')
      +   ' Illegal initialization by RLUXGO, negative input seed'
       IF (INS .GT. 0)  THEN
         JSEED = INS
@@ -289,7 +289,7 @@ C                    Entry to initialize from one or three integers
       I24 = 24
       J24 = 10
       CARRY = 0.
-      IF (SEEDS(24) .EQ. 0.) CARRY = TWOM24
+      IF (int(SEEDS(24)) == 0) CARRY = TWOM24
 C        If restarting at a break point, skip K1 + IGIGA*K2
 C        Note that this is the number of numbers delivered to
 C        the user PLUS the number skipped (if luxury .GT. 0).
@@ -300,7 +300,7 @@ C        the user PLUS the number skipped (if luxury .GT. 0).
           INNER = IGIGA
           IF (IOUTER .EQ. K2+1)  INNER = K1
           DO 450 ISK= 1, INNER
-            UNI = SEEDS(J24) - SEEDS(I24) - CARRY 
+            UNI = SEEDS(J24) - SEEDS(I24) - CARRY
             IF (UNI .LT. 0.)  THEN
                UNI = UNI + 1.0
                CARRY = TWOM24
@@ -321,7 +321,7 @@ C         Get the right value of IN24 by direct calculation
         ENDIF
 C       Now IN24 had better be between zero and 23 inclusive
         IF (IN24 .GT. 23) THEN
-           WRITE (6,'(A/A,3I11,A,I5)')  
+           WRITE (6,'(A/A,3I11,A,I5)')
      +    '  Error in RESTARTING with RLUXGO:','  The values', INS,
      +     K1, K2, ' cannot occur at luxury level', LUXLEV
            IN24 = 0

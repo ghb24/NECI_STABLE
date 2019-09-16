@@ -140,7 +140,7 @@ contains
 
                 ! The full address of string k.
                 full_ind_k = ras_excit(i)%excit_ind(excit_k)
-                
+
                 sym_k = ras_strings(-1,full_ind_k)
                 class_k = ras_strings(0,full_ind_k)
                 par_1 = ras_excit(i)%par(excit_k)
@@ -183,7 +183,7 @@ contains
 
                     ! The full address for string j.
                     full_ind_j = ras_excit(full_ind_k)%excit_ind(excit_j)
-                    
+
                     sym_j = ras_strings(-1,full_ind_j)
                     class_j = ras_strings(0,full_ind_j)
                     par_2 = ras_excit(full_ind_k)%par(excit_j)
@@ -238,7 +238,7 @@ contains
                         matmul(factors(class_k, sym_k)%elements, vec_in(class_k, class_j, sym_k)%elements(:,:))
 
                 end do ! Over all classes connected to string_j.
-                
+
             end do ! Over all classes connected to string_i.
 
         end do ! Over all strings.
@@ -269,7 +269,7 @@ contains
                     string_i = ras_strings(1:tot_nelec,i)
                     ilut_i = ras_iluts(:,i)
 
-                    ! This is the condition for (kl) to be an allowed excitation from the current string. 
+                    ! This is the condition for (kl) to be an allowed excitation from the current string.
                     if ( IsOcc(ilut_i,l) .and. &
                         (.not. (IsOcc(ilut_i,k) .and. k /= l)) ) then
                         ! Temporarily set these for get_excit_details to use.
@@ -321,7 +321,7 @@ contains
                     do excit_j = 1, ras_excit(i)%nexcit
 
                         full_ind_j = ras_excit(i)%excit_ind(excit_j)
-                        
+
                         class_j = ras_strings(0,full_ind_j)
                         par_1 = ras_excit(i)%par(excit_j)
                         ex2 = ras_excit(i)%orbs(:,excit_j)
@@ -546,7 +546,7 @@ contains
             pos = (string(i)-1)/bits_n_int
             ilut(pos) = ibset(ilut(pos), mod(string(i)-1, bits_n_int))
         end do
-                
+
     end subroutine encode_string
 
     subroutine gen_next_single_ex(string_i, ilut_i, nras1, nras3, ind, par, ex, ras, classes, gen_store, tgen, tcount)

@@ -3,10 +3,10 @@
 #############################################
 [int]
 type1 = integer(kind=int32)
-extra_arrs = 
+extra_arrs =
 op_gt = >
 op_lt = <
-custom_comparisons = 
+custom_comparisons =
 custom_compare_prefix = !
 type2 = !
 type3 = !
@@ -61,7 +61,7 @@ type1 = integer(kind=int64), dimension(:)
 
 [a_i64_custom]
 custom_comparisons = custom_lt, custom_gt,
-custom_compare_prefix = 
+custom_compare_prefix =
 op_gt = .localgt.
 op_lt = .locallt.
 
@@ -81,7 +81,7 @@ op_lt = .arrlt.
 [i_i]
 type1 = integer(kind=int32)
 type2 = integer(kind=int32)
-arr2_prefix = 
+arr2_prefix =
 extra_arrs = arr2,
 op_gt = >
 op_lt = <
@@ -160,7 +160,7 @@ type2 = complex(dp), dimension(:)
 type1 = integer(kind=int32)
 type2 = real(kind=dp)
 type3 = real(kind=dp)
-arr3_prefix = 
+arr3_prefix =
 extra_arrs = arr2, arr3,
 conditional_enable = !defined(SX)
 
@@ -175,7 +175,7 @@ type1 = integer(kind=int32)
 type2 = integer(kind=int32), dimension(:)
 type3 = real(kind=dp)
 type4 = integer(kind=int32)
-arr4_prefix = 
+arr4_prefix =
 extra_arrs = arr2, arr3, arr4,
 conditional_enable = !defined(SX)
 
@@ -207,7 +207,7 @@ conditional_enable = !defined(SX)
 type1 = integer(kind=int32), dimension(:)
 type2 = integer(kind=int32), dimension(:)
 extra_arrs = arr2,
-arr3_prefix = ! 
+arr3_prefix = !
 arr4_prefix = !
 type3 = !
 type4 = !
@@ -217,7 +217,7 @@ conditional_enable = !defined(SX)
 
 [a_i_a_i_custom]
 custom_comparisons = custom_lt, custom_gt,
-custom_compare_prefix = 
+custom_compare_prefix =
 op_gt = .localgt.
 op_lt = .locallt.
 conditional_enable = !defined(SX)
@@ -249,7 +249,7 @@ op_lt = .arrlt.
 
 [a_i64_a_i64_custom]
 custom_comparisons = custom_lt, custom_gt,
-custom_compare_prefix = 
+custom_compare_prefix =
 op_gt = .localgt.
 op_lt = .locallt.
 
@@ -262,12 +262,12 @@ op_lt = .arrlt.
 
 [a_i64_a_d_custom]
 custom_comparisons = custom_lt, custom_gt,
-custom_compare_prefix = 
+custom_compare_prefix =
 
 [a_i64_i]
 type2 = integer(kind=int32)
-custom_comparisons = 
-custom_compare_prefix = ! 
+custom_comparisons =
+custom_compare_prefix = !
 conditional_enable = !defined(SX)
 
 [a_i64_i64]
@@ -303,7 +303,7 @@ type2 = integer(kind=int64), dimension(:)
 type1 = integer(kind=int32), dimension(:)
 type2 = integer(kind=int32)
 type3 = real(kind=dp)
-arr3_prefix = 
+arr3_prefix =
 extra_arrs = arr2, arr3,
 conditional_enable = !defined(SX)
 
@@ -378,7 +378,7 @@ type1 = integer(kind=int32)
 type2 = integer(kind=int32)
 type3 = integer(kind=int64)
 type4 = integer(kind=int32)
-arr4_prefix = 
+arr4_prefix =
 extra_arrs = arr2, arr3, arr4,
 conditional_enable = !defined(SX)
 
@@ -440,7 +440,7 @@ type4 = integer(kind=int32)
 type5 = integer(kind=int32)
 op_gt = >
 op_lt = <
-arr5_prefix = 
+arr5_prefix =
 extra_arrs = arr2, arr3, arr4, arr5,
 conditional_enable = !defined(SX)
 
@@ -457,7 +457,7 @@ module sort_mod
     use symdata, only: SymPairProd, operator(.eq.), operator(.ne.), &
                        operator(.gt.), operator(.lt.), assignment(=)
     implicit none
-    
+
     private
     public :: sort
 
@@ -472,7 +472,7 @@ module sort_mod
 contains
     subroutine sort (arr, %(extra_arrs)s%(custom_comparisons)snskip, par)
 
-        ! Perform a quicksort on an array of integers, arr(n). Uses the 
+        ! Perform a quicksort on an array of integers, arr(n). Uses the
         ! sample code in NumericalRecipies as a base.
         ! Optionally sort arr2 in parallel (in the routines it is enabled)
 
@@ -483,16 +483,16 @@ contains
         %(custom_compare_prefix)s         %(type1)s, intent(in) :: b(:)
         %(custom_compare_prefix)s         %(type1)s, intent(in) :: c(:)
         %(custom_compare_prefix)s         logical :: ret
-        %(custom_compare_prefix)s     end function 
-        %(custom_compare_prefix)s end interface    
+        %(custom_compare_prefix)s     end function
+        %(custom_compare_prefix)s end interface
         %(custom_compare_prefix)s interface operator(.localgt.)
         %(custom_compare_prefix)s     pure function custom_gt (b, c) result (ret)
         %(custom_compare_prefix)s         use constants
         %(custom_compare_prefix)s         %(type1)s, intent(in) :: b(:)
         %(custom_compare_prefix)s         %(type1)s, intent(in) :: c(:)
         %(custom_compare_prefix)s         logical :: ret
-        %(custom_compare_prefix)s     end function 
-        %(custom_compare_prefix)s end interface    
+        %(custom_compare_prefix)s     end function
+        %(custom_compare_prefix)s end interface
 
 
         ! sort needs auxiliary storage of length 2*log_2(n).
@@ -543,7 +543,7 @@ contains
         %(tmp_init5)s(tmp5)
         %(tmp_init6)s(a6)
         %(tmp_init6)s(tmp6)
-        
+
         ! *** HACK ***
         ! Workaround for gfortran compiler bug
         ! n.b. This will produce spurious warnings if run in valgrind, as
@@ -561,8 +561,8 @@ contains
         ! Initialise parity calculation
         par_ = 1
 
-        ! The size of the array to sort. 
-        ! N.B. Use zero based indices. To obtain ! the entry into the actual 
+        ! The size of the array to sort.
+        ! N.B. Use zero based indices. To obtain ! the entry into the actual
         ! array, multiply indices by nskip and add ! 1 (hence zero based)
         ! **** See local macro srt_ind() ******
         lo = lbound(arr, %(dim-arr)s) - 1
@@ -572,7 +572,7 @@ contains
         nstack = 0
         do while (.true.)
             ! If the section/partition we are looking at is smaller than
-            ! nInsertSort then perform an insertion sort 
+            ! nInsertSort then perform an insertion sort
             if (hi - lo < nInsertionSort) then
                 do j = lo + 1, hi
                     a = arr(srt_ind(j))
@@ -604,10 +604,10 @@ contains
                 lo = stack(nstack-1)
                 nstack = nstack - 2
 
-            ! Otherwise start partitioning with quicksort. 
+            ! Otherwise start partitioning with quicksort.
             else
                 ! Pick a partitioning element, and arrange such that
-                ! arr(lo) <= arr(lo+1) <= arr(hi) 
+                ! arr(lo) <= arr(lo+1) <= arr(hi)
                 pivot = (lo + hi) / 2
                 tmp1 = arr(srt_ind(pivot))
                 arr(srt_ind(pivot)) = arr(srt_ind(lo + 1))
@@ -702,23 +702,23 @@ contains
                 %(arr5_prefix)s a5 = arr5(srt_ind(lo + 1))
                 %(arr6_prefix)s a6 = arr6(srt_ind(lo + 1))
                 do while (.true.)
-                    ! Scand down list to find element > a 
+                    ! Scand down list to find element > a
                     i = i + 1
                     do while (arr(srt_ind(i)) %(op_lt)s a)
                         i = i + 1
                     enddo
 
-                    ! Scan down list to find element < a 
+                    ! Scan down list to find element < a
                     j = j - 1
                     do while (arr(srt_ind(j)) %(op_gt)s a)
                         j = j - 1
                     enddo
 
-                    ! When the pointers crossed, partitioning is complete. 
+                    ! When the pointers crossed, partitioning is complete.
                     if (j < i) exit
 
                     ! Swap the elements, so that all elements < a end up
-                    ! in lower indexed variables. 
+                    ! in lower indexed variables.
                     tmp1 = arr(srt_ind(i))
                     arr(srt_ind(i)) = arr(srt_ind(j))
                     arr(srt_ind(j)) = tmp1
@@ -740,7 +740,7 @@ contains
                     par_ = -par_
                 enddo;
 
-                ! Insert partitioning element 
+                ! Insert partitioning element
                 arr(srt_ind(lo + 1)) = arr(srt_ind(j))
                 arr(srt_ind(j)) = a
                 %(arr2_prefix)s arr2(srt_ind(lo + 1)) = arr2(srt_ind(j))
@@ -757,7 +757,7 @@ contains
 
                 ! Push the larger of the partitioned sections onto the stack
                 ! of sections to look at later.
-                ! --> need fewest stack elements. 
+                ! --> need fewest stack elements.
                 nstack = nstack + 2
                 if (nstack > nStackMax) then
                         call stop_all (this_routine, &
@@ -810,5 +810,5 @@ contains
 
         bLt = real(a, dp) < real(b, dp)
     end function
-        
+
 end module

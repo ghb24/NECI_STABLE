@@ -10,13 +10,13 @@ module dSFMT_interface
     use iso_c_hack
     implicit none
 
-    ! It is much faster to generate random numbers in blocks. genrand_real2 
-    ! is a wrapper around accessing the random_store, filling it up again as 
+    ! It is much faster to generate random numbers in blocks. genrand_real2
+    ! is a wrapper around accessing the random_store, filling it up again as
     ! necessary.
 
-    ! Testing indicates that 50000 is a very good size for the array storing 
+    ! Testing indicates that 50000 is a very good size for the array storing
     ! the random numbers.  Testing was done standalone, so undoubtedly !
-    ! influenced by cache size and this might be different for real-world 
+    ! influenced by cache size and this might be different for real-world
     ! applications, but it's easy to change to allocatable later on.
 
     integer, parameter :: random_store_size = 5 * 10**4
@@ -80,7 +80,7 @@ contains
         end if
 
         r = random_store(current_element)
-        current_element = current_element + 1 
+        current_element = current_element + 1
 
     end function genrand_real2_dSFMT
 

@@ -57,8 +57,8 @@
             CALL ZGEMM('N','N',N,N,N,(1.0_dp,0.0_dp),R1,N,R2,N,(0.0_dp,0.0_dp),MAT,N)
          ENDIF
 ! and we should be done, with an orthoganal matrix in MAT
-      END SUBROUTINE LOWDIN_ORTH                      
- 
+      END SUBROUTINE LOWDIN_ORTH
+
       SUBROUTINE GRAMSCHMIDT_NECI(MAT,LEN)
 ! MAT(IELEMENT,IVECTOR)
          use constants, only: dp
@@ -81,13 +81,13 @@
                ENDDO
                DO K=1,LEN
                   MAT(K,I)=MAT(K,I)-MAT(K,J)*DOT
-               ENDDO 
+               ENDDO
             ENDDO
             NORM=0.0_dp
             DO K=1,LEN
                NORM=NORM+abs(MAT(K,I))**2
-            ENDDO        
-            SNORM=SQRT(NORM)    
+            ENDDO
+            SNORM=SQRT(NORM)
 !            WRITE(6,*) NORM
             DO K=1,LEN
 !               WRITE(6,*) MAT(K,I),MAT(K,I)/SNORM

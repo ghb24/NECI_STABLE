@@ -29,7 +29,7 @@ module davidson_semistoch
         integer(MPIArg), allocatable :: sizes(:)
         ! Displacements of each section of the vector across processes
         integer(MPIArg), allocatable :: displs(:)
-        ! All algorithms for solving large eigenproblems involve a unitary rotation of the 
+        ! All algorithms for solving large eigenproblems involve a unitary rotation of the
         ! Hamiltonian into a smaller basis. basis_vectors(:,i) is the ith such unit vector
         HElement_t(dp), allocatable, dimension(:,:) :: basis_vectors
         ! This array stores the basis vectors multiplied by H in its columns, i.e.
@@ -77,7 +77,7 @@ module davidson_semistoch
 
         ! Only let the root processor print information.
         print_info = print_info_in .and. (iProcIndex == root)
-        
+
         call init_davidson_ss(this, print_info)
 
         if (print_info) write(6,'(1X,"Iteration",4X,"Residual norm",12X,"Energy",7X,"Time")'); call neci_flush(6)
@@ -112,14 +112,14 @@ module davidson_semistoch
     end subroutine perform_davidson_ss
 
     subroutine init_davidson_ss(this, print_info)
-    
+
         ! This subroutine initialises the Davdison method by allocating the necessary arrays,
         ! defining the initial basis vector and projected Hamiltonian, and setting an initial
         ! guess at the ground state eigenvalue. It also calculates the corresponding residual
         ! which is needed to expand the space.
 
         use util_mod, only: int_fmt
-        
+
         type(davidson_ss), intent(inout) :: this
 
         logical, intent(in) :: print_info
@@ -384,7 +384,7 @@ module davidson_semistoch
                        this%davidson_eigenvector, &
                        1)
         end if
-        
+
     end subroutine subspace_extraction_ss
 
     subroutine project_hamiltonian_ss(this, basis_index)
@@ -455,7 +455,7 @@ module davidson_semistoch
             ! This routine calculates the residual, r, corresponding to the new estimate of the
             ! ground state, stored in davidson_eigenvector. This is defined as
             ! r = Hv - Ev,
-            ! where H is the Hamiltonian, v is the ground state vector estimate and E is the 
+            ! where H is the Hamiltonian, v is the ground state vector estimate and E is the
             ! ground state energy estimate.
 
             ! Calculate r = Hv - Ev:

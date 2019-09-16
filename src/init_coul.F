@@ -1,25 +1,25 @@
 C==========================================================
-C.. Routines needed for the initialisation of the Fourier 
+C.. Routines needed for the initialisation of the Fourier
 C.. Method of evaluating the Coulomb integrals
-C  ========================================================              
+C  ========================================================
       SUBROUTINE INITFOU(NMESHX,CK,NMAX,
      &     A,TALPHA,ALPHA,OMEGA,ZIA)
 !      IMPLICIT real(dp)(A-H,O-Z)
       use constants, only: dp,int64,sp
-      use util_mod, only: neci_etime
+      use util_mod, only : neci_etime
       IMPLICIT NONE
       integer :: NMESHX,NMAX
       complex(dp) CK(NMESHX,NMESHX,NMESHX)
-      complex(dp) ZIA(-NMESHX/2:NMESHX/2,NMAX,NMAX) 
+      complex(dp) ZIA(-NMESHX/2:NMESHX/2,NMAX,NMAX)
       real(dp) :: ALPHA,OMEGA
       real(dp) A(3),t3
       real(dp) t(2),t1,t2
       LOGICAL TALPHA
       INTEGER , SAVE :: IFIRST=0
 C..
-      IF(IFIRST.EQ.1) RETURN 
+      IF(IFIRST.EQ.1) RETURN
       IFIRST=1
-C..      
+C..
       T1 = neci_etime(t)
       CALL GEN_CK_FFT(NMESHX,CK,A,TALPHA,ALPHA,OMEGA)
       CALL GEN_ZIA(NMESHX,NMAX,ZIA)
@@ -27,16 +27,17 @@ C..
       T3=(T2-T1)
       WRITE(6,*) 'V0=',CK(NMESHX/2,NMESHX/2,NMESHX/2)
       WRITE(6,*) ' TIME FOR INITIALISATION:',T3/1000.
-C..      
-      RETURN 
+C..
+      RETURN
       END
 C =========================================================
       SUBROUTINE GEN_CK_FFT(N,DIST,A,TALPHA,ALPHA,OMEGA)
 !      IMPLICIT real(dp)(A-H,O-Z)
       use constants, only: dp,int64,pi
+      use util_mod, only : near_zero
 
       IMPLICIT NONE
-#if !defined(__alpha) || !defined(__SGI) 
+#if !defined(__alpha) || !defined(__SGI)
       !INTEGER FFTW_R2HC
       !PARAMETER (FFTW_R2HC=0)
       !INTEGER FFTW_HC2R
@@ -127,17 +128,17 @@ C..
             Y=real(J,dp)*HSTEPY
             Z=real(K,dp)*HSTEPZ
             AUX=X*X+Y*Y+Z*Z
-            IF(AUX.NE.0.0_dp) THEN
-              IF(TALPHA) THEN 
-                R=SQRT(AUX) 
+            IF(.not. near_zero(AUX)) THEN
+              IF(TALPHA) THEN
+                R=SQRT(AUX)
 #if !defined(NAGF95) && !defined(__GFORTRAN__) && !defined(BLUEGENE_HACKS)
                 AUX=1.0_dp/R*(-1)**(I+J+K)*DERF(R/ALPHA)
-#endif                
+#endif
               ELSE
                 AUX=1.0_dp/SQRT(AUX)*(-1)**(I+J+K)
               ENDIF
             ELSE
-              IF(TALPHA) THEN 
+              IF(TALPHA) THEN
                 AUX=2.0_dp/SQRT(PI)/ALPHA
               ELSE
                 AUX=real(N/2,dp)*(-1)**(I+J+K)
@@ -155,17 +156,17 @@ C..FFT parameters
       N2=N
       N3=N
       LA1=N1
-      LA2=N2 
+      LA2=N2
 C..Initialise FFT
       CALL ZFFT3DI( N1, N2, N3, COEFF)
-C..FORWARD TRANSFORM 
+C..FORWARD TRANSFORM
       CALL ZFFT3D(-1, N1, N2, N3, DIST, LA1, LA2, COEFF )
-#elif __alpha 
+#elif __alpha
       N1=N
       N2=N
       N3=N
       LA1=N1
-      LA2=N2 
+      LA2=N2
       CALL ZFFT_3D('C','C','F',DIST,DIST,N1,N2,N3,LA1,LA2,1,1,1)
 #else
       N1=N
@@ -181,17 +182,17 @@ C..FORWARD TRANSFORM
       call stop_all("gen_ck_fft","FFTW disabled")
 #endif
 #endif
-C..Shift origin and normalise 
+C..Shift origin and normalise
       DO I=-N/2,N/2-1
         DO J=-N/2,N/2-1
           DO K=-N/2,N/2-1
             DIST(I,J,K)=DIST(I,J,K)*(-1)**(i+j+k)/real(n1*n2*n3,dp)
           enddo
         enddo
-      enddo      
-C..the short-range correction for alpha 
-      IF(TALPHA) THEN 
-        OMEGAP=8.0_dp*OMEGA  
+      enddo
+C..the short-range correction for alpha
+      IF(TALPHA) THEN
+        OMEGAP=8.0_dp*OMEGA
         DO I=-N/2,N/2-1
           DO J=-N/2,N/2-1
             DO K=-N/2,N/2-1
@@ -199,20 +200,20 @@ C..the short-range correction for alpha
               GY=PI*J/A(2)
               GZ=PI*K/A(3)
               G2=GX*GX+GY*GY+GZ*GZ
-              IF(G2.NE.0.0_dp) THEN 
+              IF(.not. near_zero(G2)) THEN
 !                AUX=EXP(-G2*ALPHA2/4.0_dp)
                 SUM=4.0_dp*PI*(1.0_dp-AUX)/OMEGAP/G2
               ELSE
-                SUM=PI*ALPHA2/OMEGAP 
+                SUM=PI*ALPHA2/OMEGAP
               ENDIF
               DIST(I,J,K)=DIST(I,J,K)+CMPLX(SUM,0.0_dp,dp)
             ENDDO
           ENDDO
         ENDDO
       ENDIF
-C..Inverse transform 
+C..Inverse transform
 c      CALL ZFFT3D( 1, N1, N2, N3, DIST, LA1, LA2, COEFF )
-C.test fft 
+C.test fft
 c      X= .2
 c      Y= 0.9
 c      Z= -0.2
@@ -234,7 +235,7 @@ c        enddo
 c      enddo
 c      csum=csum/dfloat(n1*n2*n3)
 c      sum=sqrt(real(csum)**2+dimag(csum)**2)
-c      write(6,*) csum,1.0_dp/sqrt(x*x+y*y+z*z) 
+c      write(6,*) csum,1.0_dp/sqrt(x*x+y*y+z*z)
 c      write(6,*) sum
 c      st--op
       RETURN
@@ -261,14 +262,14 @@ C ============================================================
       use constants, only : dp,pi
       IMPLICIT NONE
       complex(dp) ZIO
-!      INTEGER , DATA , SAVE :: IFIRST/0/ 
+!      INTEGER , DATA , SAVE :: IFIRST/0/
 !      real(dp) :: SAVE PI
       INTEGER :: K
-!      IF(IFIRST.EQ.0) THEN 
+!      IF(IFIRST.EQ.0) THEN
 !        PI=ACOS(-1.0_dp)
 !        IFIRST=1
 !      ENDIF
-      IF(K.EQ.0) THEN 
+      IF(K.EQ.0) THEN
         ZIO=(1.0_dp,0.0_dp)
       ELSE
         ZIO=CMPLX(0.0_dp,-((-1.0_dp)**K-1.0_dp)/(REAL(K,dp)*PI),dp)

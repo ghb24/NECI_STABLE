@@ -42,7 +42,7 @@ C.. set the comparison det to an invalid one, so all dets are counted
             CALL  GENSYMDETS_R(NI,ISYM,NEL,G1,BRR,NBASIS,NMRKS,
      &            II,NLMAX,NJ,KJ,1,1,NBASISMAX)
             IF(II.NE.OII) THEN
-C.. we've found an occupied block 
+C.. we've found an occupied block
                I=I+1
                CALL GETSYMDEGEN(ISYM,NBASISMAX,IDEG)
                NDETTOT=NDETTOT+(II-OII)*IDEG
@@ -73,9 +73,9 @@ C.. we've found an occupied block
          IF(TCOUNT) CLOSE(14)
          IF(.NOT.TGENFDET) IFDET=1
          RETURN
-      END         
+      END
 
- 
+
 
       RECURSIVE SUBROUTINE GENSYMDETSSD_R(NI,KI,NEL,G1,BRR,NBASIS,LSTE,
      &                     NLIST,NLMAX,NJ,KJ,NELEC,NBF,NBASISMAX)
@@ -137,7 +137,7 @@ C.. singles and doubles of NI
      &                        NLMAX,NJ,KJ,1,1,NBASISMAX)
          RETURN
       END
- 
+
 
 C.. Generate determinants of the same symmetry as NI (including NI).
 C.. As they are generated, they are placed in LSTE, which is of length
@@ -207,7 +207,7 @@ C.. otherwise we need to add more electrons:
          RETURN
       END
 
-      
+
 C.. Generate determinants with a given symmetry, given by KI, as GENSYMDETS
       SUBROUTINE GENSYMDETSS(KI,NEL,G1,BRR,NBASIS,LSTE,NLIST,NBASISMAX)
          use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn

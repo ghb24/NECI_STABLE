@@ -25,7 +25,7 @@
       include "common/d2gen_cvb"
 
       write(iout,*) "Extracting dipole moment integrals from molpro..."
-          
+
       do i = 1,3
           do j = 1,isize
               pints(j,i) = 0.0d0
@@ -40,7 +40,7 @@
       enddo
       if(npr2.gt.0) then
           !Assume that we have done a prior mcscf/multi calculation for the dipole moment integrals.
-          !See: multi/muprop.F 
+          !See: multi/muprop.F
           write(iout,*) "Active space found. "
           write(iout,*) "Assuming prior mcscf/multi calc for integrals"
 
@@ -79,7 +79,7 @@
 
       return
       end subroutine GetDipMomInts
-  
+
       !Assume that we have done a prior CISD calculation for the dipole moment integrals.
       !See: ccsd/ccmp2.F
       subroutine GetDipMomInts_cisd(pints,isize,znuc,zcor,nt_frz,       &
@@ -115,7 +115,7 @@
       origin(3) = 0.0d0
 
       !For some reason, the code below doesn't seem to be able to get the sym blocked MO coefficients correctly.
-      !Why not?! For a start, ntqgcx is filled with rubbosh. I am just trying to reproduce the same 
+      !Why not?! For a start, ntqgcx is filled with rubbosh. I am just trying to reproduce the same
       !call in multiple places in the code, ie. ccsd/ccmp2.F, line 1842
       inquire(file='MOInts',exist=exists)
       if(.not.exists) then
@@ -170,7 +170,7 @@
       iscr=icorr(2*ntqgcx(1)+2*ntgx)  !Memory for integral transforms
 
       iints=icorr(2*ntqgcx(1)+2*ntgx)   !Get memory pointer for integrals
-      
+
       do i = 1,3
           !read the operators (in the AO basis)
           !1) Operator in AO basis

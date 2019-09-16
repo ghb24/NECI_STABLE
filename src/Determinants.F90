@@ -9,7 +9,7 @@ MODULE Determinants
     use csf, only: det_to_random_csf, iscsf, csf_orbital_mask, &
                    csf_yama_bit, CSFGetHelement
     use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_2, sltcnd_compat, &
-    sltcnd_knowIC, sltcnd_0, SumFock 
+    sltcnd_knowIC, sltcnd_0, SumFock
     use global_utilities
     use sort_mod
     use DetBitOps, only: EncodeBitDet, count_open_orbs, spatial_bit_det
@@ -59,7 +59,7 @@ contains
     use SystemData, only : tMolpro
     use sym_mod
     use util_mod, only: NECI_ICOPY
-    use sltcnd_mod, only: CalcFockOrbEnergy 
+    use sltcnd_mod, only: CalcFockOrbEnergy
     integer ierr, ms, iEl, flagAlpha, iIrrep, msTmp
     integer i,j,Lz,OrbOrder(8,2),FDetTemp(NEl),lmsMax
     type(BasisFn) s
@@ -68,7 +68,7 @@ contains
     character(25), parameter :: this_routine='DetPreFreezeInit'
     Allocate(FDet(nEl), stat=ierr)
     LogAlloc(ierr, 'FDet', nEl, 4, tagFDet)
-    IF(tDefineDet) THEN           
+    IF(tDefineDet) THEN
        WRITE(6,*) 'Defining FDet according to input'
        do i=1,NEl
           FDet(i)=DefDet(i)
@@ -91,7 +91,7 @@ contains
           iEl = 1
           msTmp = -1*lms
           do i = 1, nIrreps
-             ! doubly occupy the closed orbs 
+             ! doubly occupy the closed orbs
              do j = 1, nClosedOrbs(i)
                 FDet(iEl) = irrepOrbOffset(i) + 2*j - 1
                 iEl = iEl + 1
@@ -188,14 +188,14 @@ contains
     end subroutine assignOccOrbs
   End Subroutine DetPreFreezeInit
 
-    
+
     Subroutine DetInit()
         Use global_utilities
         use constants, only: dp,int64
         use SystemData, only: nel, G1, nBasis, Arr, tHub, tUEG
         use SymData , only : nSymLabels,SymLabelList,SymLabelCounts,TwoCycleSymGens
         use sym_mod
-      
+
       real(dp) DNDET
       integer i,j
       integer(int64) nDet
@@ -205,7 +205,7 @@ contains
 
       WRITE(6,*) "SYMMETRY MULTIPLICATION TABLE"
       CALL WRITESYMTABLE(6)
-   
+
       CALL GENSymStatePairs(NBASIS/2,.false.)
 
 
@@ -226,7 +226,7 @@ contains
 !C.. Work out a preliminary Fermi det
 !      IF(FDET(1).EQ.0) THEN
 
- 
+
 
 !C.. Check if we're blocking the hamiltonian
 !C      IF(THFBASIS.AND.TBLOCK) THEN
@@ -259,10 +259,10 @@ contains
         ELSE
 !         WRITE(6,*) ' NUMBER OF DETERMINANTS : ' , NDET
         ENDIF
-      
+
 !C      CALL TC(I_HMAX,I_P,NWHTAY)
 
-        
+
 !Check that the symmetry routines have set the symmetry up correctly...
         tSuccess=.true.
         tFoundOrbs(:)=.false.
@@ -311,7 +311,7 @@ contains
         ! symrandexcit2 excitation routines. These are not currently
         ! compatible with non-abelian symmetry groups, which CPMD jobs
         ! invariably used. To avoid this complication, this symmetry
-        ! setup will not be used with CPMD, and thus these excitation 
+        ! setup will not be used with CPMD, and thus these excitation
         ! generators won't work.
         IF(.not.tCPMD) THEN
             IF(.not.tSuccess) THEN
@@ -322,11 +322,11 @@ contains
                 WRITE(6,*) "Will attempt to set up the symmetry again, but now in terms of spin orbitals"
                 WRITE(6,*) "Old excitation generators will not work"
                 WRITE(6,*) "I strongly suggest you check that the reference energy is correct."
-                !CALL SpinOrbSymSetup() !.true.) 
+                !CALL SpinOrbSymSetup() !.true.)
             ELSE
                 WRITE(6,*) "Symmetry and spin of orbitals correctly set up for excitation generators."
                 WRITE(6,*) "Simply transferring this into a spin orbital representation."
-                !CALL SpinOrbSymSetup() !.false.) 
+                !CALL SpinOrbSymSetup() !.false.)
             ENDIF
 
             if (tCSF) then
@@ -353,7 +353,7 @@ contains
 
     function get_helement_compat (nI, nJ, IC, iLutI, iLutJ) result (hel)
         use constants, only: n_int
-       
+
         ! Get the matrix element of the hamiltonian. This assumes that we
         ! already know IC. We do not need to know iLutI, iLutJ (although
         ! they are helpful). This better fits the requirements of existing
@@ -399,7 +399,7 @@ contains
         end if
 
     end function
-    
+
     function get_helement_normal (nI, nJ, iLutI, iLutJ, ICret) result(hel)
         use constants, only: n_int
 
@@ -409,7 +409,7 @@ contains
         !      iLutI, iLutJ - Bit representations of I,J (optional, helpful)
         ! Out: ICret        - The number of orbitals I,J differ by
         ! Ret: hel          - The desired matrix element.
-        
+
         integer, intent(in) :: nI(nel), nJ(nel)
         integer(kind=n_int), intent(in), optional :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(out), optional :: ICret
@@ -429,7 +429,7 @@ contains
                 return
             endif
         endif
-         
+
         if (tStoreAsExcitations .and. nI(1) == -1 .and. nJ(1) == -1) then
             ! TODO: how to express requirement for double?
             !if (IC /= 2) &
@@ -491,7 +491,7 @@ contains
                 return
             endif
         endif
-         
+
         if (IC < 0) &
             call stop_all(this_routine, "get_helement_excit should only be &
                          &used if we know the number of excitations and the &
@@ -509,7 +509,7 @@ contains
 
     function get_helement_det_only (nI, nJ, iLutI, iLutJ, ic, ex, tParity, &
                                     HElGen) result (hel)
-        
+
         ! Calculate the Hamiltonian Matrix Element for a determinant as above.
         ! This function assumes that we have got it correct for determinants
         ! (i.e. no error checking), and no conditionals. It also has extra
@@ -566,7 +566,7 @@ contains
        ! energy.
        !  Note that GetH0Element{1,2} don't exist. The name is to be
        !  consistent with GetHElement3, i.e. offer the most abstraction possible.
-       ! In: 
+       ! In:
        !    nI(nEl)  list of occupied spin orbitals in the determinant.
        use constants, only: dp
        use SystemData, only: nEl,nBasis,Arr,ECore
@@ -578,12 +578,12 @@ contains
 
     Subroutine DetCleanup()
     End Subroutine DetCleanup
-   
+
     subroutine write_bit_rep(iUnit, iLut, lTerm)
        use bit_reps
        implicit none
        integer iUnit
-       logical lTerm 
+       logical lTerm
        integer(n_int), intent(in) :: iLut(0:NIfTot)
        integer :: nI(nel), flags,i
        real(dp) :: sgn(lenof_sign)
@@ -694,8 +694,8 @@ END MODULE Determinants
          real(dp) Arr(nBasis,2),ECore
          integer i
          if(tStoreAsExcitations.and.nI(1).eq.-1) then
-!The excitation storage starts with -1.  The next number is the excitation level,L .  
-!Next is the parity of the permutation required to lineup occupied->excited.  Then follows 
+!The excitation storage starts with -1.  The next number is the excitation level,L .
+!Next is the parity of the permutation required to lineup occupied->excited.  Then follows
 !a list of the indexes of the L occupied orbitals within the HFDET, and then L virtual spinorbitals.
             hEl=0.0_dp
             do i=4,nI(2)+4-1
@@ -838,7 +838,7 @@ END MODULE Determinants
          I=nEl-1
          nLeft=nDown
          Do WHILE(nLeft.GT.0.AND.I.Gt.0)
-      
+
             DO WHILE (I.GT.0.AND.ABS(ARR(I)-ARR(I+1)).LT.1.0e-5_dp)
                I=I-1
             ENDDO
@@ -847,7 +847,7 @@ END MODULE Determinants
          nActiveBasis(1)=I+1
          WRITE(6,*) "Active space:", nActiveBasis(1)," TO ",nActiveBasis(2)," (ordered labels)."
          WRITE(6,*) "Active space electrons:",nEl-nActiveBasis(1)+1
-         RETURN 
+         RETURN
       END
 
       SUBROUTINE GENRANDOMDET(NEL,NBASIS,MCDET)
@@ -907,17 +907,17 @@ END MODULE Determinants
       !END
     subroutine writedet_oldcsf (nunit, nI, nel, lTerm)
         use systemdata, only: tCSF, tCSFOLD
-        
+
         ! Write a human readable determinant to specified file unit. For use
         ! with old csf routines.
         ! Not easy to test, as both iscsf routines will return true sometimes.
         ! This is here for use if it becomes necessary (eg debugging)
         !
-        ! In: nunit    - File unit 
+        ! In: nunit    - File unit
         !     nI (nel) - Determinant to print
         !     nel      - Number of electrons
         !     lTerm    - Do we write an end-of-line character
-        
+
         use legacy_data, only: CSF_NBSTART
         implicit none
         integer, intent(in) :: nunit, nel, nI(nel)
@@ -1106,7 +1106,7 @@ END MODULE Determinants
         kminY=0
         kminZ=0
         kmaxZ=0
-        do i=1,nBasis 
+        do i=1,nBasis
             IF(G1(i)%k(1).gt.kmaxX) kmaxX=G1(i)%k(1)
             IF(G1(i)%k(1).lt.kminX) kminX=G1(i)%k(1)
             IF(G1(i)%k(2).gt.kmaxY) kmaxY=G1(i)%k(2)
@@ -1124,7 +1124,7 @@ END MODULE Determinants
         det_sorted=FDet
 
         ! Bubble sort to order det_sorted in order of kx of the corresponding electron
-        do 
+        do
             sorted=.true.
             do i=1,NEl-1
                 j=i+1
@@ -1152,7 +1152,7 @@ END MODULE Determinants
                 endif
                 iSpinIndex=(G1(j)%Ms+1)/2+1     ! Spin of the new orbital is the same as the old
 ! Finds basis number for the new momentum
-                det_sorted(j)=kPointToBasisFn(k_new,G1(det_sorted(j))%k(2),G1(det_sorted(j))%k(3),iSpinIndex) 
+                det_sorted(j)=kPointToBasisFn(k_new,G1(det_sorted(j))%k(2),G1(det_sorted(j))%k(3),iSpinIndex)
             enddo
         else if (delta_k(1).lt.0) then ! For the negative case, i must run through negative numbers
             do i=-1,delta_k(1),-1
@@ -1167,14 +1167,14 @@ END MODULE Determinants
                 endif
                 iSpinIndex=(G1(j)%Ms+1)/2+1 ! Spin of the new orbital is the same as the old
 ! Finds basis number for the new momentum
-                det_sorted(j)=kPointToBasisFn(k_new,G1(det_sorted(j))%k(2),G1(det_sorted(j))%k(3),iSpinIndex) 
+                det_sorted(j)=kPointToBasisFn(k_new,G1(det_sorted(j))%k(2),G1(det_sorted(j))%k(3),iSpinIndex)
             enddo
         endif
 
         FDet=det_sorted
-        
+
         !====ky treated as kx above
-        do 
+        do
             sorted=.true.
             do i=1,NEl-1
                 j=i+1
@@ -1202,7 +1202,7 @@ END MODULE Determinants
                 endif
                 iSpinIndex=(G1(j)%Ms+1)/2+1     ! Spin of the new orbital is the same as the old
 ! Finds basis number for the new momentum
-                det_sorted(j)=kPointToBasisFn(G1(det_sorted(j))%k(1),k_new,G1(det_sorted(j))%k(3),iSpinIndex) 
+                det_sorted(j)=kPointToBasisFn(G1(det_sorted(j))%k(1),k_new,G1(det_sorted(j))%k(3),iSpinIndex)
             enddo
         else if (delta_k(2).lt.0) then ! For the negative case, i must run through negative numbers
             do i=-1,delta_k(2),-1
@@ -1217,14 +1217,14 @@ END MODULE Determinants
                 endif
                 iSpinIndex=(G1(j)%Ms+1)/2+1 ! Spin of the new orbital is the same as the old
 ! Finds basis number for the new momentum
-                det_sorted(j)=kPointToBasisFn(G1(det_sorted(j))%k(1),k_new,G1(det_sorted(j))%k(3),iSpinIndex) 
+                det_sorted(j)=kPointToBasisFn(G1(det_sorted(j))%k(1),k_new,G1(det_sorted(j))%k(3),iSpinIndex)
             enddo
         endif
 
         FDet=det_sorted
-        
+
         !====kz treated as kx and ky above
-        do 
+        do
             sorted=.true.
             do i=1,NEl-1
                 j=i+1
@@ -1252,7 +1252,7 @@ END MODULE Determinants
                 endif
                 iSpinIndex=(G1(j)%Ms+1)/2+1     ! Spin of the new orbital is the same as the old
 ! Finds basis number for the new momentum
-                det_sorted(j)=kPointToBasisFn(G1(det_sorted(j))%k(1),G1(det_sorted(j))%k(2),k_new,iSpinIndex) 
+                det_sorted(j)=kPointToBasisFn(G1(det_sorted(j))%k(1),G1(det_sorted(j))%k(2),k_new,iSpinIndex)
             enddo
         else if (delta_k(3).lt.0) then ! For the negative case, i must run through negative numbers
             do i=-1,delta_k(3),-1
@@ -1267,14 +1267,14 @@ END MODULE Determinants
                 endif
                 iSpinIndex=(G1(j)%Ms+1)/2+1 ! Spin of the new orbital is the same as the old
                 ! Finds basis number for the new momentum
-                det_sorted(j)=kPointToBasisFn(G1(det_sorted(j))%k(1),G1(det_sorted(j))%k(2),k_new,iSpinIndex) 
+                det_sorted(j)=kPointToBasisFn(G1(det_sorted(j))%k(1),G1(det_sorted(j))%k(2),k_new,iSpinIndex)
             enddo
         endif
 
         FDet=det_sorted
-        
+
         ! Bubble sort to order FDet back into increasing order by number
-        do 
+        do
             sorted=.true.
             do i=1,NEl-1
                 j=i+1
