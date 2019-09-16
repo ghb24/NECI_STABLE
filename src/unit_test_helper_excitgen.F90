@@ -11,7 +11,7 @@ module unit_test_helper_excitgen
   use System, only: SysInit, SetSysDefaults
   use Parallel_neci, only: MPIInit, MPIEnd
   use UMatCache, only: GetUMatSize, tTransGTID
-  use OneEInts, only: Tmat2D  
+  use OneEInts, only: Tmat2D
   use bit_rep_data, only: NIfTot, NIfDBO, NOffSgn, NIfSgn, extract_sign
   use bit_reps, only: encode_sign, decode_bit_det
   use DetBitOps, only: EncodeBitDet, DetBitEq
@@ -29,7 +29,7 @@ module unit_test_helper_excitgen
   integer, parameter :: nelBase = 5
   integer, parameter :: nBasisBase = 12
   integer, parameter :: lmsBase = -1
-  
+
 contains
 
   subroutine test_excitation_generator(sampleSize, pTot, pNull, numEx, nFound)
@@ -164,7 +164,7 @@ contains
     write(iout,*) "In total", numEx, "excitations"
     write(iout,*) "With", nSingles, "single excitation"
     write(iout,*) "Found", nFound, "excitations"
-    
+
   end subroutine test_excitation_generator
 
   !------------------------------------------------------------------------------------------!
@@ -197,10 +197,10 @@ contains
     call SetSysDefaults()
     tReadInt = .true.
 
-    call generate_random_integrals()    
+    call generate_random_integrals()
 
     get_umat_el => get_umat_el_normal
-    
+
     call initfromfcid(nel,nbasismax,nBasis,lms,.false.)
     lms = lmsBase
     call GetUMatSize(nBasis, nel, umatsize)
@@ -209,20 +209,20 @@ contains
 
     call shared_allocate_mpi(umat_win, umat, (/umatsize/))
 
-    call readfciint(UMat,umat_win,nBasis,ecore,.false.)    
+    call readfciint(UMat,umat_win,nBasis,ecore,.false.)
     call SysInit()
     ! required: set up the spin info
-    
+
     call DetInit()
     ! call SpinOrbSymSetup()
-    
+
     call DetPreFreezeInit()
 
     call CalcInit()
     t_pcpp_excitgen = .true.
     call init_excit_gen_store(fcimc_excit_gen_store)
   end subroutine init_excitgen_test
-  
+
   !------------------------------------------------------------------------------------------!
 
   subroutine finalize_excitgen_test()
@@ -230,19 +230,20 @@ contains
     call shared_deallocate_mpi(umat_win, UMat)
     call MPIEnd(.false.)
   end subroutine finalize_excitgen_test
-  
+
   !------------------------------------------------------------------------------------------!
 
   ! generate an FCIDUMP file with random numbers with a given sparsity
   subroutine generate_random_integrals()
     real(dp), parameter :: sparse = 0.9
-    real(dp), parameter :: sparseT = 0.1    
+    real(dp), parameter :: sparseT = 0.1
     integer :: i,j,k,l, iunit
     real(dp) :: r, matel
     ! we get random matrix elements from the cauchy-schwartz inequalities, so
     ! only <ij|ij> are random -> random 2d matrix
     real(dp) :: umatRand(nBasisBase,nBasisBase)
 
+    umatRand = 0.0_dp
     do i = 1, nBasisBase
        do j = 1, nBasisBase
           r = genrand_real2_dSFMT()
@@ -286,12 +287,12 @@ contains
 
   end subroutine generate_random_integrals
 
-  !------------------------------------------------------------------------------------------!  
+  !------------------------------------------------------------------------------------------!
 
   ! set the reference to the determinant with the first nel orbitals occupied
   subroutine set_ref()
     integer :: i
-    allocate(projEDet(nel,1))    
+    allocate(projEDet(nel,1))
     do i = 1, nel
        projEDet(i,1) = i + 2
     end do
@@ -303,5 +304,5 @@ contains
     deallocate(ilutRef)
     deallocate(projEDet)
   end subroutine free_ref
-  
+
 end module unit_test_helper_excitgen
