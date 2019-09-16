@@ -1127,7 +1127,7 @@ contains
 
       SUBROUTINE ReadPropInts(iProp,nBasis,iNumProp,PropFile,CoreVal,OneElInts)
 
-      use constants, only: dp, int64
+      use constants, only: dp, int64, iout
       use util_mod, only: get_free_unit
       use SymData, only: PropBitLen,nProp
       use SystemData, only: UMatEps, tROHF, tReltvy
