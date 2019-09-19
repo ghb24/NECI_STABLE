@@ -423,6 +423,7 @@ contains
           tPureInitiatorSpace = .false.
           tSimpleInit = .false.
           tAllConnsPureInit = .false.
+          allowedSpawnSign = 0
 
           tDetermProjApproxHamil = .false.
 
@@ -1573,6 +1574,18 @@ contains
                 tSimpleInit = .true.
             CASE("INITIATOR-SPACE-CONNS")
                 tAllConnsPureInit = .true.
+            case("ALLOW-SIGNED-SPAWNS")
+                if(item < nitems) then
+                   call readu(w)
+                   select case(w)
+                   case("POS")
+                      allowedSpawnSign = 1
+                   case("NEG")
+                      allowedSpawnSign = -1
+                   end select
+                else
+                   allowedSpawnSign = 1
+                endif
             case("DOUBLES-INITIATOR")
                 i_space_in%tDoubles = .true.
             case("HF-CONN-INITIATOR")

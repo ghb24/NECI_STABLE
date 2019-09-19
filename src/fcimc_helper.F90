@@ -43,7 +43,8 @@ module fcimc_helper
                         t_back_spawn_flex, tau, DiagSft,  &
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule, &
                         tPreCond, tReplicaEstimates, tInitiatorSpace, &
-                        tPureInitiatorSpace, tSimpleInit
+                        tPureInitiatorSpace, tSimpleInit, &
+                        allowedSpawnSign
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
          tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
@@ -176,8 +177,14 @@ contains
         ! child, to allow it to survive.
         if (tTruncInitiator) then
            allowed_child = .false.
+           ! deprecated, please remove
            if(tAccessibleDoubles .or. tAccessibleSingles) &
                 allowed_child = test_ref_double(ilutJ, part_type_to_run(run))
+           ! optionally: allow all spawns with a given sign
+           if(allowedSpawnSign.ne.0) then
+              if(allowedSpawnSign * child(part_type) * SignCurr(part_type)> 0) &
+                   allowed_child = .true.
+           endif
             if (allowed_child .or. test_flag(ilutI, get_initiator_flag(part_type))) then
                 call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), get_initiator_flag(part_type))
             endif
