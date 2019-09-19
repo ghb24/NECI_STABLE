@@ -43,6 +43,8 @@ contains
 
    else
 
+    ! six-index integrals are only used for three and more
+    ! electrons
     if(t_mol_3_body.or.t_ueg_3_body .and. nel > 2) then
        sltcnd_0 => sltcnd_0_tc
        sltcnd_1 => sltcnd_1_tc

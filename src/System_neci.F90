@@ -190,6 +190,10 @@ MODULE System
       tmodHub = .false.
       t_uniform_excits = .false.
       t_mol_3_body = .false.
+      t_ueg_3_body = .false.
+      t_ueg_transcorr = .false.
+      t_trcorr_gausscutoff = .false.
+      t_ueg_dump = .false.
       t_exclude_3_body_excits = .false.
       t_ueg_3_body = .false.
       t_ueg_transcorr = .false.
@@ -199,6 +203,19 @@ MODULE System
       tGiovannisBrokenInit = .false.
       ! by default, excitation generation already creates matrix elements
       tGenMatHEl = .true.
+      tInfSumTCCalc= .false.
+      tInfSumTCPrint= .false.
+      tInfSumTCRead= .false.
+      tRPA_tc= .true.
+      PotentialStrength=1.0_dp
+      TranscorrCutoff=0
+      TranscorrIntCutoff=0
+      TranscorrGaussCutoff=1.d0
+      TContact=.false.
+      TUnitary=.false.
+      Tperiodicinmom=.false.
+      tTrcorrExgen = .true.                
+      tTrCorrRandExgen = .false.                
       t12FoldSym = .false.
       tHDF5LMat = .false.
       tInfSumTCCalc= .false.
@@ -583,6 +600,39 @@ system: do
                end select
             endif
             if(t_mol_3_body) max_ex_level = 3
+       
+       case('UEG-TRANSCORR')
+           t_ueg_transcorr = .true.
+           t_non_hermitian = .true.
+            do while(item < nitems) 
+               call readu(w)
+               select case(w)
+               case("3-BODY")
+                  t_ueg_3_body = .true.
+                  tGenMatHEl = .false.
+                  max_ex_level = 3
+                  tRPA_tc= .false.
+
+               case("TRCORR-EXCITGEN")
+                  tTrcorrExgen = .true.                
+
+               case("RAND-EXCITGEN")
+                  tTrCorrRandExgen = .true.                
+                  tTrcorrExgen = .false.                
+ 
+!              case default
+!                 t_ueg_3_body = .false.
+!                 tTrcorrExgen = .true.                
+!                 tTrCorrRandExgen = .false.                
+
+   
+               end select
+!               write(6,*) tTrcorrExgen, tTrCorrRandExgen, t_ueg_3_body
+            enddo
+!               call stop_all('debug stop')
+
+       case('UEG-DUMP')
+           t_ueg_dump = .true.
 
        case('EXCLUDE-3-BODY-EX')
           ! Do not generate 3-body excitations, even in the molecular-transcorr mode

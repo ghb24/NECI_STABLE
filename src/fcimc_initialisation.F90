@@ -15,11 +15,10 @@ module fcimc_initialisation
                           t_lattice_model, t_tJ_model, t_heisenberg_model, & 
                           t_k_space_hubbard, t_3_body_excits, omega, breathingCont, &
                           momIndexTable, t_trans_corr_2body, t_non_hermitian, &
-                          t_uniform_excits, t_mol_3_body, nClosedOrbs, irrepOrbOffset, nIrreps, &
-                          nOccOrbs, tNoSinglesPossible, &
-                          t_ueg_transcorr,t_ueg_3_body,tLatticeGens,tTrcorrExgen
+                          t_uniform_excits, t_mol_3_body,t_ueg_transcorr,t_ueg_3_body,tLatticeGens, &
+                          tTrcorrExgen, nClosedOrbs, irrepOrbOffset, nIrreps, &
+                          nOccOrbs, tNoSinglesPossible
     use tc_three_body_data, only: ptriples
-
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
 
     use dSFMT_interface, only: dSFMT_init
@@ -991,7 +990,6 @@ contains
         InstRDMCorrectionFactor = 0.0_dp
         ThisRDMIter = 0.0_dp
 !            if (tReltvy) then
-!                ! write out the column headings for the MSWALKERCOUNTS
 !                open(mswalkercounts_unit, file='MSWALKERCOUNTS', status='UNKNOWN')
 !                write(mswalkercounts_unit, "(A)") "# ms real    imag    magnitude"
 !            endif
@@ -1347,8 +1345,7 @@ contains
         ! for the (uniform) 3-body excitgen, the generation probabilities are uniquely given
         ! by the number of alpha and beta electrons and the number of orbitals
         ! and can hence be precomputed
-        if(t_ueg_3_body) call setup_mol_tc_excitgen(hfdet)
-
+        if(t_mol_3_body.or.t_ueg_3_body) call setup_mol_tc_excitgen(hfdet)
     END SUBROUTINE SetupParameters
 
     ! This initialises the calculation, by allocating memory, setting up the
