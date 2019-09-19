@@ -293,9 +293,6 @@ module LMat_mod
                   LMat(LMatInd(a,b,c,i,j,k)) = 3.0_dp * matel
                   if(abs(matel)> 0.0_dp) counter = counter + 1
                endif
-               LMat(LMatInd(a,b,c,i,j,k)) = 3.0_dp * matel
-               if(abs(matel)> 0.0_dp) counter = counter + 1
-            endif
 
             end do
 
