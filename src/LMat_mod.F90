@@ -1,11 +1,7 @@
 module LMat_mod
   use constants
   use HElem, only: HElement_t_SizeB
-<<<<<<< HEAD
-  use SystemData, only: tStoreSpinOrbs, nBasis, tHDF5LMat, t12FoldSym, t_ueg_3_body
-=======
-  use SystemData, only: tStoreSpinOrbs, nBasis,t_ueg_3_body, tHDF5LMat, t12FoldSym
->>>>>>> d7071038194d14f924cea43641317c8a36938c00
+  use SystemData, only: tStoreSpinOrbs, nBasis, t_ueg_3_body, tHDF5LMat, t12FoldSym
   use MemoryManager, only: LogMemAlloc, LogMemDealloc
   use util_mod, only: get_free_unit
   use gen_coul_ueg_mod, only: get_lmat_ueg, get_lmat_ua
@@ -353,63 +349,6 @@ module LMat_mod
       
     end subroutine freeLMat
 !------------------------------------------------------------------------------------------------
-!functions for contact interaction
-
-    function get_lmat_el_ua(a,b,c,i,j,k) result(matel)
-      use SystemData, only: G1
-      use UMatCache, only: gtID
-      ! Gets an entry of the 3-body tensor L:
-      ! L_{abc}^{ijk} - triple excitation from abc to ijk
-      implicit none
-      integer, value :: a,b,c
-      integer :: a2,b2,c2
-      integer, intent(in) :: i,j,k
-      HElement_t(dp) :: matel
-
-      ! convert to spatial orbs if required
-
-      matel = 0
-      
-      if(G1(a)%ms == G1(b)%ms .and. G1(a)%ms.ne.G1(c)%ms ) then
-         a2=a
-         b2=b
-         c2=c
-      elseif(G1(a)%ms == G1(c)%ms .and. G1(a)%ms.ne.G1(b)%ms ) then
-         a2=c
-         b2=a
-         c2=b
-      elseif(G1(b)%ms == G1(c)%ms .and. G1(a)%ms.ne.G1(b)%ms ) then
-         a2=b
-         b2=c
-         c2=a
-      else
-        return
-      endif
-
-      ! only add the contribution if the spins match
-         call addMatelContribution_ua(i,j,k,1)
-         call addMatelContribution_ua(j,k,i,1)
-         call addMatelContribution_ua(k,i,j,1)
-         call addMatelContribution_ua(j,i,k,-1)
-         call addMatelContribution_ua(i,k,j,-1)
-         call addMatelContribution_ua(k,j,i,-1)
-      contains
-
-        subroutine addMatelContribution_ua(p,q,r,sgn)
-          implicit none
-          integer, value :: p,q,r
-          integer, intent(in) :: sgn
-     !     integer(int64) :: ai,bj,ck
-
-          if(G1(p)%ms == G1(a2)%ms .and. G1(q)%ms == G1(b2)%ms .and. G1(r)%ms ==G1(c2)%ms) then
-             matel = matel + 2.d0 * sgn * get_lmat_ua(a2,b2,c2,p,q,r)
-          endif
-
-        end subroutine addMatelContribution_ua
-
-    end function get_lmat_el_ua
-
-!------------------------------------------------------------------------------------------!
 
 #ifdef __USE_HDF
     subroutine readHDF5LMat()

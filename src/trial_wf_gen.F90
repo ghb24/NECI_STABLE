@@ -548,7 +548,6 @@ contains
                         H_ij = get_helement(nI, nJ, con_space(:,i), trial_space(:,j))
                     else
                         H_ij = hphf_off_diag_helement(nI, nJ, con_space(:,i), trial_space(:,j))
->>>>>>> d7071038194d14f924cea43641317c8a36938c00
                     end if
                 end if
                 con_vecs(:,i) = con_vecs(:,i) + H_ij*trial_vecs(:,j)
