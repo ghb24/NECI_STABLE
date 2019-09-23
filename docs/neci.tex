@@ -1484,24 +1484,24 @@ and a range of other guidelines.
             module module_name
 
             	! To the extent possible, include statements should be at the
-              ! beginning of a module, and not elsewhere.
-              ! If possible they should import only actually used identifiers.
+                ! beginning of a module, and not elsewhere.
+                ! If possible they should import only actually used identifiers.
             	use SystemData, only: nel, tHPHF
             	use module_data
             	use constants
             	implicit none
 
-              ! To the extent possible, declare all identifiers of
-              !   a module as private by default
-              !   and export explicitly with the public keyword.
-              private
-              public :: sub_name, fn_name
+                ! To the extent possible, declare all identifiers of
+                !   a module as private by default
+                !   and export explicitly with the public keyword.
+                private
+                public :: sub_name, fn_name
 
                 ! Add an interface to an external (non-modularised) function
             	interface external_fn
-            		function splat_it(in_val) result(ret_val) &
+            	    function splat_it(in_val) result(ret_val) &
 											  bind(c, name='symbol_name')
-            			! n.b. interface statements shield from modular includes
+            		    ! n.b. interface statements shield from modular includes
             			import :: dp
             			implicit none
             			integer, intent(in) :: in_val
