@@ -154,6 +154,7 @@ contains
         ! update the number of spawning attempts per walker
         if(tDynamicAvMCEx) then
            if(allNValidExcits /= 0) then
+              ! we try to have approx. one valid excitation generated per walker
               AvMCExcits = (allNValidExcits + allNInvalidExcits)/(allNValidExcits)
               write(6,*) "Now spawning ", AvMCExcits, " times per walker"
            endif
