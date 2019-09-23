@@ -339,9 +339,9 @@ contains
         ! A wrapper function to call the correct generation routine.
 
         integer, intent(in) :: original_space_size
-        integer(n_int), intent(in) :: original_space(0:NIfTot, original_space_size)
+        integer(n_int), intent(in) :: original_space(0:,:)
         integer, intent(inout) :: connected_space_size
-        integer(n_int), optional, intent(out) :: connected_space(0:NIfTot, connected_space_size)
+        integer(n_int), optional, intent(out) :: connected_space(0:,:)
         logical, intent(in), optional :: tSinglesOnlyOpt
 
         if (tKPntSym) then
@@ -366,9 +366,9 @@ contains
         ! determinants.
 
         integer, intent(in) :: original_space_size
-        integer(n_int), intent(in) :: original_space(0:NIfTot, original_space_size)
+        integer(n_int), intent(in) :: original_space(0:,:)
         integer, intent(inout) :: connected_space_size
-        integer(n_int), optional, intent(out) :: connected_space(0:NIfTot, connected_space_size)
+        integer(n_int), optional, intent(out) :: connected_space(0:,:)
         logical, intent(in), optional :: tSinglesOnlyOpt
 
         integer(n_int) :: ilutJ(0:NIfTot)
@@ -406,7 +406,6 @@ contains
                 if (tStoreConnSpace) then 
                     connected_space(0:nifd,connected_space_size+1:connected_space_size+n_excits) & 
                         = temp_dets(0:nifd,:)
-
                 end if
 
                 connected_space_size = connected_space_size + n_excits
@@ -499,9 +498,9 @@ contains
         ! determinants.
 
         integer, intent(in) :: original_space_size
-        integer(n_int), intent(in) :: original_space(0:NIfTot, original_space_size)
+        integer(n_int), intent(in) :: original_space(0:,:)
         integer, intent(inout) :: connected_space_size
-        integer(n_int), optional, intent(out) :: connected_space(0:NIfTot, connected_space_size)
+        integer(n_int), optional, intent(out) :: connected_space(0:,:)
         logical, intent(in), optional :: tSinglesOnlyOpt
 
         integer(n_int) :: ilutJ(0:NIfTot)
@@ -530,7 +529,7 @@ contains
         ! Over all the states in the original list:
         do i = 1, original_space_size
 
-            call decode_bit_det(nI, original_space(:,i))
+            call decode_bit_det(nI, original_space(0:NIfTot,i))
 
 
             if (t_k_space_hubbard) then 
@@ -542,7 +541,6 @@ contains
                 if (tStoreConnSpace) then 
                     connected_space(0:nifd,connected_space_size+1:connected_space_size+n_excits) & 
                         = temp_dets(0:nifd,:)
-
                 end if
 
                 connected_space_size = connected_space_size + n_excits

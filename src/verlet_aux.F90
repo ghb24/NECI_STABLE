@@ -87,7 +87,7 @@ module verlet_aux
       ! build delta_psi as  psi(delta_t) - psi(0), where psi(delta_t) is the current population
       ! and psi(0) the backup stored in popsfile_dets
       if(allocated(popsfile_dets)) then
-         call add_ilut_lists(TotWalkers, backup_size,.true. , CurrentDets, popsfile_dets, &
+         call add_ilut_lists(int(TotWalkers), backup_size,.true. , CurrentDets, popsfile_dets, &
               dpsi_cache, dpsi_size, -1.0_dp)
       
          ! we do not need popsfile dets anymore
@@ -271,7 +271,7 @@ module verlet_aux
 
                child_sign = attempt_create(nI,iLut_parent,parent_sign,nI_child,iLut_child, &
                     prob, HElGen, ic, ex, tParity, unused_ex_level, part, &
-                    unused_sign, unused_rdm_real)
+                    unused_sign, unused_rdm_real, 1.0_dp)
             else
                child_sign = 0.0_dp
             endif

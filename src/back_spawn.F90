@@ -971,5 +971,46 @@ contains
 
     end function is_allowed_ueg_k_vector
 
+    function make_ilutJ(ilutI, ex, ic) result(ilutJ)
+        ! function similar to make_single and make_double to create the 
+        ! accompaning ilut form. 
+        integer(n_int), intent(in) :: ilutI(0:niftot) 
+        integer, intent(in) :: ex(2,2), ic 
+        integer(n_int) :: ilutJ(0:niftot) 
+
+        character(*), parameter :: this_routine = "make_ilutJ"
+
+        integer :: ij(2), ab(2)
+
+        ASSERT(ic == 1 .or. ic == 2) 
+        ! should this every be called with 0 orbitals.. i guess no.. 
+        ASSERT(ex(1,1) > 0) 
+        ASSERT(ex(2,1) > 0)
+        ASSERT(ex(1,1) <= nbasis)
+        ASSERT(ex(2,1) <= nbasis)
+
+        ilutJ = ilutI 
+        
+        ij = get_src(ex)
+        ab = get_tgt(ex)
+
+        clr_orb(ilutJ, ij(1))
+        set_orb(ilutJ, ab(1))
+
+        ! single excition done
+
+        if (ic == 2) then 
+
+            ASSERT(ex(1,2) > 0)
+            ASSERT(ex(2,2) > 0)
+            ASSERT(ex(1,2) <= nbasis)
+            ASSERT(ex(2,2) <= nbasis)
+
+            clr_orb(ilutJ, ij(2))
+            set_orb(ilutJ, ab(2))
+        end if
+
+    end function make_ilutJ
+
 end module back_spawn
 

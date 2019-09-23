@@ -947,7 +947,7 @@ contains
         real(dp) :: norm
 
         call return_most_populated_states(n_symmetry_states, &
-            largest_dets, CurrentDets, TotWalkers, norm)
+            largest_dets, CurrentDets, int(TotWalkers), norm)
 
         if (present(all_norm)) then
             call MpiSum(norm, all_norm)

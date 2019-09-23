@@ -49,7 +49,7 @@ module real_time
     use constants, only: int64, sizeof_int, n_int, lenof_sign, dp, EPS, inum_runs, bits_n_int, &
          iout
     use AnnihilationMod, only: DirectAnnihilation, AnnihilateSpawnedParts, &
-         deterministic_annihilation
+         deterministic_annihilation, communicate_and_merge_spawns
     use bit_reps, only: extract_bit_rep, decode_bit_det
     use SystemData, only: nel, tRef_Not_HF, tAllSymSectors, nOccAlpha, nOccBeta, &
                           nbasis
@@ -515,7 +515,7 @@ contains
         ! routine to check if somthing wrong happened during the main 
         ! real-time fciqmc loop or the external CHANGEVARS utility does smth
         character(*), parameter :: this_routine = "check_real_time_iteration"
-        logical :: tSingBiasChange, tWritePopsFound
+        logical :: tSingBiasChange, tWritePopsFound, tCG
 
         if (mod(iter, StepsSft) == 0) then
             call ChangeVars(tSingBiasChange, tWritePopsFound)
@@ -526,7 +526,7 @@ contains
         if(semistoch_shift_iter/=0) then
            if(Iter == semistoch_shift_iter + 1) then
               tSemiStochastic = .true.
-              call init_semi_stochastic(ss_space_in)
+              call init_semi_stochastic(ss_space_in, tCG)
            endif
         endif
 
@@ -711,7 +711,7 @@ contains
                         ! unbias if the number of spawns was truncated
                         child_sign = attempt_create (nI_parent, CurrentDets(:,idet), parent_sign, &
                              nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
-                             ex_level_to_ref, ireplica, unused_sign, unused_rdm_real)
+                             ex_level_to_ref, ireplica, unused_sign, unused_rdm_real, 1.0_dp)
                         child_sign = prefactor*child_sign
                      else
                         child_sign = 0.0_dp
@@ -781,7 +781,7 @@ contains
                     unused_sign(lenof_sign), prefactor, unused_rdm_real
         logical :: tParentIsDeterm, tParentUnoccupied, tParity, break
         HElement_t(dp) :: HelGen
-        integer :: TotWalkersNew, run, determ_index
+        integer :: TotWalkersNew, run, determ_index, MaxIndex
 
         ! declare this is the first runge kutta step
         runge_kutta_step = 1
@@ -886,7 +886,7 @@ contains
 
                         child_sign = attempt_create (nI_parent, CurrentDets(:,idet), parent_sign, &
                                             nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
-                                            ex_level_to_ref, ireplica, unused_sign, unused_rdm_real)
+                                            ex_level_to_ref, ireplica, unused_sign, unused_rdm_real, 1.0_dp)
                         child_sign = child_sign*prefactor
                     else
                         child_sign = 0.0_dp
@@ -949,9 +949,8 @@ contains
 
         ! the number TotWalkersNew changes below in annihilation routine
         ! Annihilation is done after loop over walkers
-
-        call DirectAnnihilation (TotWalkersNew, iter_data_fciqmc, .false.)
-
+        call communicate_and_merge_spawns(MaxIndex, iter_data_fciqmc, .false.)
+        call DirectAnnihilation (TotWalkersNew, MaxIndex, iter_data_fciqmc)
 
         TotWalkers = int(TotWalkersNew, sizeof_int)
 
@@ -961,8 +960,8 @@ contains
         ! routine which performs one real-time fciqmc iteration
       implicit none
         character(*), parameter :: this_routine = "perform_real_time_iteration"
-        
-        integer :: TotWalkersNew, run
+
+        integer :: TotWalkersNew, run, MaxIndex
         real(dp) :: tmp_sign(lenof_sign), tau_real_tmp, tau_imag_tmp
         logical :: both, rkone, rktwo
         rkone = .true.
@@ -1078,7 +1077,8 @@ endif
         
         ! and then do the "normal" annihilation with the SpawnedParts array!
         ! Annihilation is done after loop over walkers
-        call DirectAnnihilation (TotWalkersNew, second_spawn_iter_data, .false.)
+        call communicate_and_merge_spawns(MaxIndex, second_spawn_iter_data, .false.)
+        call DirectAnnihilation (TotWalkersNew, MaxIndex, second_spawn_iter_data)
 
 #ifdef __DEBUG
         call check_update_growth(second_spawn_iter_data,"Error in second RK step")

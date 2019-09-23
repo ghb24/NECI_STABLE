@@ -1,0 +1,439 @@
+ Number of processors:            2
+ Processor            1 /           2  as head node.
+ Sum:            3
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on Apr 25 2019 at 17:39:01
+ Compiled using configuration:
+     cmake-Intel-par-RELEASE
+ VCS BASE repository version:
+     c37652937ef7e01a1f3b3a88671cc9aca63764c8
+ Working directory: 
+     /home/nsb37/NECI_precond/test_suite/mneci/replica_estimates/water_sci_iqmc
+ Running on: magneto
+ Started running on 25/04/2019 at 17:49:31
+ ================================================================
+
+ Processing arguments
+ neci.inp                                                                       
+                                                                                
+                                                                                
+                   
+ Reading from file: neci.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+title
+
+system read noorder
+molpromimic
+symignoreenergies
+freeformat
+electrons 8
+spin-restrict 0
+sym 0 0 0 0
+nonuniformrandexcits 4ind-weighted
+nobrillouintheorem
+hphf 0
+system-replicas 2
+endsys
+
+calc
+methods
+method vertex fcimc
+endmethods
+memoryfacpart 10.0
+memoryfacspawn 100.0
+memoryfachash 5.0
+stepsshift 1
+nmcyc 20
+seed 7611
+shiftdamp 0.05
+maxwalkerbloom 3
+allrealcoeff
+realspawncutoff 0.0
+averagemcexcits 10.0
+en2-initiator
+tau 0.1 search
+semi-stochastic
+read-core
+pure-initiator-space
+read-initiator
+precond 50000
+endcalc
+
+integral
+endint
+
+logging
+replica-estimates
+paired-replicas
+popsfile -1
+endlog
+end
+
+****************************************************************
+
+ Allocating each processor as a separate node.
+ I am the node root for node            0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :     8
+  Restricting the spin state of the system, TSPN :  T
+  GLOBAL MS :            0
+  *** GENERIC SYSTEM ***  
+  NUMBER OF SPIN ORBITALS IN BASIS :    46
+*** CREATING BASIS FNs FROM FCIDUMP ***
+  Maximum number of symmetries:   4
+  Generating abelian symmetry table with  2 generators
+  Number of symmetry classes: 4
+*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***
+ UMatSize:                  38226
+Memory required for integral storage:     0.2916412353     Mb/Shared Memory
+Two-electron integrals with a magnitude over    0.1000000E-07 are screened
+ Number of non-zero integrals:                  20520
+ ECORE=  -52.1255487655516     
+ Setting normal GetUMatEl routine
+ N_alpha:4 ; N_beta:4 ; LMS:0 ; NEl:8
+ Fermi det (D0):(    1,    2,    3,    4,    5,    6,    7,    8)
+ Symmetry:  ( 0, 0, 0) 0
+NECI called from MOLPRO, so assuming orbitals ordered by occupation number.
+Calculating orbital energies...
+Reordering basis by orbital energies...
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0       -1.336447880       -1.336447880 #
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0       -1.336447880       -1.336447880 #
+      3      3      0      0      0     -1 ( 0, 0, 1) 1   0       -0.698951310       -0.698951310 #
+      4      4      0      0      0      1 ( 0, 0, 1) 1   0       -0.698951310       -0.698951310 #
+      5      5      0      0      0     -1 ( 0, 0, 0) 0   0       -0.566543295       -0.566543295 #
+      6      6      0      0      0      1 ( 0, 0, 0) 0   0       -0.566543295       -0.566543295 #
+      7      7      0      0      0     -1 ( 0, 0, 2) 2   0       -0.493120718       -0.493120718 #
+      8      8      0      0      0      1 ( 0, 0, 2) 2   0       -0.493120718       -0.493120718 #
+      9      9      0      0      0     -1 ( 0, 0, 0) 0   0        0.185474198        0.185474198
+     10     10      0      0      0      1 ( 0, 0, 0) 0   0        0.185474198        0.185474198
+     11     11      0      0      0     -1 ( 0, 0, 1) 1   0        0.256179449        0.256179449
+     12     12      0      0      0      1 ( 0, 0, 1) 1   0        0.256179449        0.256179449
+     13     13      0      0      0     -1 ( 0, 0, 1) 1   0        0.788824482        0.788824482
+     14     14      0      0      0      1 ( 0, 0, 1) 1   0        0.788824482        0.788824482
+     15     15      0      0      0     -1 ( 0, 0, 0) 0   0        0.853985752        0.853985752
+     16     16      0      0      0      1 ( 0, 0, 0) 0   0        0.853985752        0.853985752
+     17     17      0      0      0     -1 ( 0, 0, 0) 0   0        1.163569887        1.163569887
+     18     18      0      0      0      1 ( 0, 0, 0) 0   0        1.163569887        1.163569887
+     19     19      0      0      0     -1 ( 0, 0, 2) 2   0        1.200371853        1.200371853
+     20     20      0      0      0      1 ( 0, 0, 2) 2   0        1.200371853        1.200371853
+     21     21      0      0      0     -1 ( 0, 0, 1) 1   0        1.253367115        1.253367115
+     22     22      0      0      0      1 ( 0, 0, 1) 1   0        1.253367115        1.253367115
+     23     23      0      0      0     -1 ( 0, 0, 0) 0   0        1.444376516        1.444376516
+     24     24      0      0      0      1 ( 0, 0, 0) 0   0        1.444376516        1.444376516
+     25     25      0      0      0     -1 ( 0, 0, 3) 3   0        1.476233065        1.476233065
+     26     26      0      0      0      1 ( 0, 0, 3) 3   0        1.476233065        1.476233065
+     27     27      0      0      0     -1 ( 0, 0, 2) 2   0        1.674393451        1.674393451
+     28     28      0      0      0      1 ( 0, 0, 2) 2   0        1.674393451        1.674393451
+     29     29      0      0      0     -1 ( 0, 0, 0) 0   0        1.867339027        1.867339027
+     30     30      0      0      0      1 ( 0, 0, 0) 0   0        1.867339027        1.867339027
+     31     31      0      0      0     -1 ( 0, 0, 1) 1   0        1.934528518        1.934528518
+     32     32      0      0      0      1 ( 0, 0, 1) 1   0        1.934528518        1.934528518
+     33     33      0      0      0     -1 ( 0, 0, 1) 1   0        2.451577333        2.451577333
+     34     34      0      0      0      1 ( 0, 0, 1) 1   0        2.451577333        2.451577333
+     35     35      0      0      0     -1 ( 0, 0, 0) 0   0        2.489145005        2.489145005
+     36     36      0      0      0      1 ( 0, 0, 0) 0   0        2.489145005        2.489145005
+     37     37      0      0      0     -1 ( 0, 0, 2) 2   0        3.285380174        3.285380174
+     38     38      0      0      0      1 ( 0, 0, 2) 2   0        3.285380174        3.285380174
+     39     39      0      0      0     -1 ( 0, 0, 3) 3   0        3.338281990        3.338281990
+     40     40      0      0      0      1 ( 0, 0, 3) 3   0        3.338281990        3.338281990
+     41     41      0      0      0     -1 ( 0, 0, 0) 0   0        3.510010461        3.510010461
+     42     42      0      0      0      1 ( 0, 0, 0) 0   0        3.510010461        3.510010461
+     43     43      0      0      0     -1 ( 0, 0, 0) 0   0        3.865077120        3.865077120
+     44     44      0      0      0      1 ( 0, 0, 0) 0   0        3.865077120        3.865077120
+     45     45      0      0      0     -1 ( 0, 0, 1) 1   0        4.147109746        4.147109746
+     46     46      0      0      0      1 ( 0, 0, 1) 1   0        4.147109746        4.147109746
+ Fock operator energy:  -58.3156751712874     
+ Setting normal GetUMatEl routine
+ Calculation supports multiple parallel runs
+ Number of simultaneous walker distributions:            2
+ Number of sign components in bit representation of determinant:            2
+Setting integer length of determinants as bit-strings to:      4
+Setting integer bit-length of determinants as bit-strings to:     64
+ SYMMETRY MULTIPLICATION TABLE
+ No Symmetry table found.
+          10  Symmetry PAIRS
+           4  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ Not storing the H matrix.
+ <D0|H|D0>=  -76.0267720533921     
+ <D0|T|D0>=  -41.6123201699453     
+ FDet has     4 alpha electrons, and     4 beta electrons.
+                6  alpha-alpha occupied electron pairs
+                6  beta-beta occupied electron pairs
+               16  alpha-beta occupied electron pairs
+              171 alpha-alpha (vacant) hole pairs
+              171 beta-beta (vacant) hole pairs
+              361 alpha-beta (vacant) hole pairs
+ 
+ Performing Parallel FCIQMC....
+ 
+ Generated reference determinants:
+(    1,    2,    3,    4,    5,    6,    7,    8) E =    -76.026772053
+(    1,    2,    3,    4,    5,    6,    7,    8) E =    -76.026772053
+Symmetry of reference determinant is:          0
+Symmetry of reference determinant from spin orbital symmetry info is:          0
+*********** INITIATOR METHOD IN USE ***********
+Starting with only the reference determinant in the fixed initiator space.
+Value for seed is:         7611
+Running FCIQMC for              20 iterations.
+Reference Energy set to:       -76.0267720534
+Highest energy determinant is (approximately):     -45.1937631715183    
+Corresponding to a correlation energy of:      30.8330088818738    
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+   2056 double excitations, and      50 single excitations found from reference. This will be used to calculate pDoubles.
+ pDoubles set to:       0.976258
+ pSingles set to:       0.023742
+ Using initial time-step:   0.100000000000000     
+Will dynamically update timestep to limit spawning probability to   3.00000
+Initial Diagonal Shift:         0.0000000000
+ Connectivity of HF determinant is:         2106
+Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors
+Memory allocated for a maximum particle number per node of:         524288
+ Determinant related persistent storage requires:      28.000000 Mb / processor
+Spawning vectors allowing for a total of      5000000 particles to be spawned in any one iteration per core.
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:          125000
+Length of hash-table as a fraction of targetwalkers:              5.00000
+Reference processor is:        0
+Initial reference is: (    1,    2,    3,    4,    5,    6,    7,    8)
+Initial number of particles set to      50000 and shift will be held at     0.000 until particle number gets to           50000
+ Initial memory (without excitgens + temp arrays) consists of :     321.175781 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+ =============================================
+
+============ Semi-stochastic initialisation ============
+Generating the deterministic space...
+Total size of deterministic space:    26578
+Size of deterministic space on this processor:    13272
+Generating the Hamiltonian in the deterministic space...
+Time to create auxiliary arrays:    0.014
+Time to sort auxiliary arrays:    0.004
+Time to create the Hamiltonian:    0.943
+total_time:    0.960
+Using the deterministic ground state as initial walker configuration.
+Performing Davidson calculation...
+ allocating array to hold subspace vectors (2 mb).
+ allocating array to hold multiplied krylov vectors (2 mb).
+ allocating temporary vector (0 mb).
+
+ calculating the initial residual vector... done.
+
+ Iteration    Residual norm            Energy       Time
+         1      0.304283303     -0.1968149810      0.010
+         2      0.069934933     -0.2115890171      0.008
+         3      0.021936428     -0.2125247128      0.008
+         4      0.008299136     -0.2126336243      0.008
+         5      0.002299971     -0.2126475891      0.008
+         6      0.000906995     -0.2126488685      0.008
+         7      0.000330549     -0.2126490646      0.008
+         8      0.000139621     -0.2126490949      0.008
+         9      0.000046890     -0.2126490996      0.008
+        10      0.000016809     -0.2126491001      0.008
+        11      0.000005244     -0.2126491002      0.008
+        12      0.000001839     -0.2126491002      0.008
+        13      0.000000589     -0.2126491002      0.008
+        14      0.000000172     -0.2126491002      0.008
+        15      0.000000050     -0.2126491002      0.008
+
+ Final calculated energy:    -0.2126491002
+Davidson calculation complete.
+Deterministic subspace correlation energy:   -0.2126491002
+Total time (seconds) taken for Davidson calculation:    0.133
+Semi-stochastic initialisation complete.
+Time (seconds) taken for semi-stochastic initialisation:    0.188
+
+ Setting ref           1
+(    1,    2,    3,    4,    5,    6,    7,    8)
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    3,    4,    5,    6,    7,    8)
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -76.0267720533921    
+ Regenerating the stored diagonal HElements for all walkers.
+Recalculating diagonal elements of the core Hamiltonian.
+ Setting ref           2
+(    1,    2,    3,    4,    5,    6,    7,    8)
+Changing projected energy reference determinant for run  2 on the next update cycle to: (    1,    2,    3,    4,    5,    6,    7,    8)
+ Ensuring that Brillouin's theorem is no longer used.
+
+============ Initiator space initialisation ============
+Generating the initiator space...
+Total size of initiator space:    26578
+Size of initiator space on this processor:    13272
+Initialisation of initiator space complete.
+Total time (seconds) taken for initiator space initialisation:    0.037
+
+##  1. Iter.             2. Tot. parts        3. Tot. ref          4. Proj. E (cyc)     5. Shift. (cyc)      9. Tot. Proj. E      10. Dets occ.        11. Dets spawned     12. Iter. time       35. EN2 Dets.       
+##                0   100000.000000        100000.000000        0.00000000000        0.00000000000       -76.0267720534                     1               0   0.00000000000                    0
+ Updating parallel-spin bias; new pParallel =   0.175202141016348     
+ Updating time-step. New time-step =   0.641631501271229     
+ Updating singles/doubles bias. pSingles =   4.725788664311269E-002 , pDoubles =
+    0.952742113356887     
+Exiting the single particle growth phase on iteration:             1 - Shift can now change for population1
+Exiting the single particle growth phase on iteration:             1 - Shift can now change for population2
+                  1   114349.780913        9396.23254097      -0.212649100188        0.00000000000       -76.2394211536                 40678          608002  0.780000090599                    0
+Bloom of more than 3 on single excit: A max of       3.39 particles created.        2 blooms occurred.
+Bloom of more than 3 on double excit: A max of       3.24 particles created.        1 blooms occurred.
+ Updating parallel-spin bias; new pParallel =   0.164187874930510     
+ Updating time-step. New time-step =   0.598840477861882     
+ Updating singles/doubles bias. pSingles =   5.114650820582291E-002 , pDoubles =
+    0.948853491794177     
+                  2   197137.658831        9396.23254097      -0.212649068099      -0.111959486884E-001  -76.2394211215                110863          747654  0.947999954224                    0
+ Updating parallel-spin bias; new pParallel =   0.165848908305038     
+ Updating time-step. New time-step =   0.593236412953856     
+ Updating singles/doubles bias. pSingles =   5.815430560882474E-002 , pDoubles =
+    0.941845694391175     
+                  3   232047.782572        9396.23254097      -0.212770816631      -0.570998678273E-001  -76.2395428700                136085         1573075   1.83999991417                    0
+Bloom of more than 3 on single excit: A max of       7.20 particles created.        1 blooms occurred.
+ Updating parallel-spin bias; new pParallel =   0.161833022843787     
+ Updating time-step. New time-step =   0.536963321487527     
+ Updating singles/doubles bias. pSingles =   0.126340812052487      , pDoubles =
+    0.873659187947513     
+                  4   249774.451749        9396.23254097      -0.213647943259      -0.722818707240E-001  -76.2404199967                149257         1915769   2.09200000763                    0
+Bloom of more than 3 on double excit: A max of       3.18 particles created.        2 blooms occurred.
+ Updating parallel-spin bias; new pParallel =   0.170408510243709     
+ Updating time-step. New time-step =   0.446917306707361     
+ Updating singles/doubles bias. pSingles =   0.105154101202478      , pDoubles =
+    0.894845898797522     
+                  5   253752.736006        9396.23254097      -0.214128353158      -0.805177391898E-001  -76.2409004066                153374         2068955   2.08800029755                    0
+Bloom of more than 3 on double excit: A max of       4.23 particles created.        3 blooms occurred.
+ Updating parallel-spin bias; new pParallel =   0.192863446867557     
+ Updating time-step. New time-step =   0.366578438912236     
+ Updating singles/doubles bias. pSingles =   8.625136168482345E-002 , pDoubles =
+    0.913748638315176     
+                  6   253647.074198        9396.23254097      -0.214465728207      -0.826731021776E-001  -76.2412377816                154843         2114409   2.07999992371                    0
+                  7   252236.700010        9396.23254097      -0.214660141323      -0.826162958897E-001  -76.2414321947                155044         2119493   2.03199958801                    0
+                  8   251452.676675        9396.23254097      -0.214748743237      -0.818557688283E-001  -76.2415207966                154826         2106223   2.07600021362                    0
+                  9   250873.606220        9396.23254097      -0.214790123218      -0.814309738450E-001  -76.2415621766                154478         2098327   2.31200027466                    0
+Bloom of more than 3 on double excit: A max of       3.17 particles created.        1 blooms occurred.
+ Updating parallel-spin bias; new pParallel =   0.201401602823204     
+ Updating time-step. New time-step =   0.363031880176611     
+ Updating singles/doubles bias. pSingles =   8.541690038603417E-002 , pDoubles =
+    0.914583099613966     
+                 10   250840.792100        9396.23254097      -0.214830514122      -0.811133981227E-001  -76.2416025675                154503         2092225   2.34799957275                    0
+                 11   250849.743242        9396.23254097      -0.214874098646      -0.810947634223E-001  -76.2416461520                154578         2092128   2.50399971008                    0
+                 12   250813.869615        9396.23254097      -0.214847754924      -0.811002826867E-001  -76.2416198083                154583         2091973   2.29600143433                    0
+                 13   251155.420255        9396.23254097      -0.214801185842      -0.810806826389E-001  -76.2415732392                154764         2091855   2.38799858093                    0
+                 14   251058.098693        9396.23254097      -0.214819887576      -0.812682362959E-001  -76.2415919410                154818         2095202   2.40000152588                    0
+                 15   250930.839389        9396.23254097      -0.214857898813      -0.812148045437E-001  -76.2416299522                154511         2094708   2.39999961853                    0
+                 16   250807.140137        9396.23254097      -0.214858926412      -0.811450148012E-001  -76.2416309798                154548         2092597   2.47599983215                    0
+                 17   250386.593469        9396.23254097      -0.214818174403      -0.810771113770E-001  -76.2415902278                154252         2091406   2.74000167847                    0
+                 18   250140.133170        9396.23254097      -0.214787891577      -0.808459484887E-001  -76.2415599450                154145         2087449   2.49599838257                    0
+                 19   250135.511484        9396.23254097      -0.214833458082      -0.807102899793E-001  -76.2416055115                154221         2085598   2.09999847412                    0
+                 20   249945.006383        9396.23254097      -0.214876226638      -0.807077885101E-001  -76.2416482800                153922         2085601   2.14800262451                    0
+Total iteration number limit reached. Finishing FCIQMC loop...
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ Total loop-time:    42.5560013055801     
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ 
+Current references: 
+(    1,    2,    3,    4,    5,    6,    7,    8)
+1111111100000000000000000000000000000000000000
+(    1,    2,    3,    4,    5,    6,    7,    8)
+1111111100000000000000000000000000000000000000
+ 
+Input DEFINEDET line (includes frozen orbs):
+definedet   1   2   3   4   5   6   7   8 
+definedet   1   2   3   4   5   6   7   8 
+ 
+Most occupied         15 determinants as excitations from reference: 
+ 
+ Excitation   ExcitLevel Seniority  Walkers(Re)   Walkers(Im)  Weight   Init?(Re)   Init?(Im)   Proc  Spin-Coup?
+1111111100000000000000000000000000000000000000    0    0    4698.116        4698.116      0.96979  Y  Y      0
+1111110000000000001100000000000000000000000000    2    0   -243.4521       -243.5970      0.05027  Y  Y      1
+1111011000000000100100000000000000000000000000    2    4   -192.5438       -193.0927      0.02814  Y  Y      0  *
+1100111100001100000000000000000000000000000000    2    0   -174.2738       -174.5574      0.03600  Y  Y      1
+1111001100000000110000000000000000000000000000    2    0   -168.7534       -169.3400      0.03489  Y  Y      1
+1110110100000000001001000000000000000000000000    2    4    153.7838        153.6100      0.02243  Y  Y      1  *
+1110011100001001000000000000000000000000000000    2    4   -149.9739       -149.7833      0.02188  Y  Y      1  *
+1101111000100000000100000000000000000000000000    2    4   -148.5292       -148.7108      0.02169  Y  Y      0  *
+1100111100110000000000000000000000000000000000    2    0   -145.0814       -144.7592      0.02991  Y  Y      1
+1100111100100100000000000000000000000000000000    2    2   -143.5587       -143.2287      0.02093  Y  Y      1  *
+1100111100000011000000000000000000000000000000    2    0   -138.2088       -137.1833      0.02842  Y  Y      0
+1111101000000000010100000000000000000000000000    2    4    135.2560        135.2572      0.01974  Y  Y      1  *
+1100111100100000000001000000000000000000000000    2    2   -130.4982       -130.4050      0.01904  Y  Y      1  *
+1111001100001100000000000000000000000000000000    2    0   -125.3395       -125.1475      0.02585  Y  Y      1
+0111111010000000000100000000000000000000000000    2    4   -124.2127       -125.4584      0.01822  Y  Y      0  *
+ * = Spin-coupled function implicitly has time-reversed determinant with same weight.
+ 
+
+ Load balancing information based on the last iteration:
+ Mean number of determinants/process  101412.5000000000
+ Min number of determinants/process             101323
+ Max number of determinants/process             101502
+
+
+Calculating approximate errorbar for energy estimates...
+
+Attempting automatic reblocking analysis on data from iteration:            1
+ No FCIMCStats file found for error analysis
+ Current reference energy                             -76.026772053392
+ Projected correlation energy                          -0.214380632490
+ No automatic errorbar obtained for projected energy
+ No reliable averaged shift correlation energy could be obtained automatically
+
+ Total projected energy         -76.24115269
+
+ THE FOLLOWING IS FOR TEST SUITE USE ONLY!
+
+ REPLICA ESTIMATES FOR STATE 1:
+ Variational energy from replica_estimates: -7.6241506909150E+01
+ Energy squared from replica_estimates:  5.8127664901271E+03
+ EN2 estimate from replica_estimates: -1.6253671735337E-05
+ Preconditioned energy from replica_estimates: -7.6241403781792E+01
+
+
+
+ 
+ ================================================================
+ Memory usage
+ Maximum memory defined is (MB) :   99999.0
+ Maximum memory used is    (MB) :     427.3
+ 
+ Large memory allocations:
+ 
+ Name              Allocated in       Deallocated in         Size
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ arr               InitFCIMCPar       DeallocFciMCMemPar  190.7MB
+ arr               InitFCIMCPar       DeallocFciMCMemPar  190.7MB
+ arr               init_global_det_datclean_global_det_da  28.0MB
+ WalkVecDets       InitFCIMCPar       DeallocFciMCMemPar   16.0MB
+ core_space        store_whole_core_spend_semistoch       415.8KB
+ full_determ_vecs  init_semi_stochastiend_semistoch       415.3KB
+ full_determ_vecs_ainit_semi_stochastiend_semistoch       415.3KB
+ UMat              IntInit            IntCleanup          298.6KB
+ partial_determ_vecinit_semi_stochastiend_semistoch       207.4KB
+ indices_of_determ_init_semi_stochastiend_semistoch        51.8KB
+ ================================================================
+
+ ================================================================
+ Timing report.
+
+ Timing of most expensive procedures.
+ Procedure                                 Calls       total time
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ WalkerTime                                  20     30.65
+ Compress Sort interface                     20      5.22
+ AnnMainTime                                 20      2.55
+ PreCondEnergyTime                           20      2.00
+                                              1      0.94
+ Compression interface                       20      0.75
+ RescaleTime                                 20      0.30
+ StatsCommsTime                              20      0.29
+ CommsTime                                   20      0.27
+ NECICUBE                                     1      0.24
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ Total                                  43.20
+
+ Global wall clock time         44.44
+ ================================================================
+ Calculation ended 25/04/2019 at 17:50:16
+ ================================================================

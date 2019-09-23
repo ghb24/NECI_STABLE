@@ -22,7 +22,9 @@ module Parallel_neci
                     MPIAllGatherV, MPIGather, MPIGatherV, MPIScatterV, &
                     MPIAllReduceDatatype, MPIAllToAll, MPIAllToAllV, &
                     MPIStopAll, MPINodes, MPIInit, MPIEnd, clean_parallel, &
-                    MPISend, MPIRecv, GetProcElectrons, nProcessors
+                    MPISend, MPIRecv, GetProcElectrons, nProcessors, &
+                    neci_MPIInit_called, neci_MPINodes_called
+
     use constants
     implicit none
 

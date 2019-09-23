@@ -453,7 +453,7 @@ contains
             t_mat = get_tranformation_matrix(H, nOccAlpha*nOccBeta) 
         end if
 
-        trans_H = blas_matmul(blas_matmul(matrix_exponential(-t_mat), real(H)), matrix_exponential(t_mat))
+        trans_H = blas_matmul(blas_matmul(matrix_exponential(-t_mat), real(H,dp)), matrix_exponential(t_mat))
 
     end function similarity_transform
 ! #endif
@@ -618,7 +618,7 @@ contains
                     t_matrix(i,i) = n_pairs 
                 else 
                     if (abs(hamil(i,j)) > EPS) then 
-                        t_matrix(i,j) = sign(1.0_dp, real(hamil(i,j)))
+                        t_matrix(i,j) = sign(1.0_dp, real(hamil(i,j),dp))
                     end if
                 end if
             end do

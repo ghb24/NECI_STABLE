@@ -24,9 +24,8 @@ contains
         ! Wrapper routine, called at the end of a simulation, which in turn
         ! calls all required finalisation routines.
 
-#ifdef _MOLCAS_
-        use EN2MOLCAS, only: NECI_E
-#endif
+        use EN2MOLCAS, only : NECI_E
+        use SystemData, only : tMolcas
         use LoggingData, only: tBrokenSymNOs, occ_numb_diff, RDMExcitLevel, tExplicitAllRDM
         use LoggingData, only: tPrint1RDM, tDiagRDM, tDumpForcesInfo
         use LoggingData, only: tDipoles, tWrite_normalised_RDMs
@@ -135,18 +134,12 @@ contains
             call write_rdm_estimates(rdm_defs, rdm_estimates, .true., print_2rdm_est, &
                  tInitsRDMs)
         end if
-#ifdef _MOLCAS_
-        if (print_2rdm_est) then
-!            NECI_E = rdm_estimates%rdm_energy_tot_accum(1)
-            NECI_E = rdm_estimates%energy_num(1)/rdm_estimates%norm(1)
+        if (print_2rdm_est .and. tMolcas) then
+            NECI_E = rdm_estimates%energy_num(1) / rdm_estimates%norm(1)
             call MPIBarrier(ierr)
             call MPIBCast(NECI_E)
-            write(6,*) 'NECI_E at rdm_general.f90 ', NECI_E
+            write(6,*) 'NECI_E at rdm_finalising.F90 ', NECI_E
         end if
-#endif
-        ! this is allocated in find_nat_orb_occ_numbers and used later in
-        ! brokensymno, ugh. Have to deallocate it somewhere though
-        if(allocated(FourIndInts)) deallocate(FourIndInts)
 
         call halt_timer(FinaliseRDMs_Time)
 
@@ -1104,7 +1097,7 @@ contains
         use rdm_data, only: rdm_definitions_t
         use sort_mod, only: sort
         use util_mod, only: get_free_unit
-
+        implicit none
         type(rdm_definitions_t), intent(in) :: rdm_defs
         type(rdm_list_t), intent(inout) :: rdm
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
@@ -1125,7 +1118,7 @@ contains
                 ! Loop over all RDMs beings sampled.
                 do irdm = 1, rdm_defs%nrdms
                     if (state_labels(1,irdm) == state_labels(2,irdm)) then
-                       write(rdm_filename, '("spinfree_",'//trim(rdm_defs%output_file_prefix)//',".",'&
+                       write(rdm_filename, '("spinfree_TwoRDM.",'&
                              //int_fmt(state_labels(1,irdm),0)//')') irdm
                     else
                         write(rdm_filename, '("spinfree_",'//trim(rdm_defs%output_file_prefix)//&

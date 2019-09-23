@@ -339,6 +339,7 @@ contains
       ! this subroutine sets up everything required to compute green's functions
       integer :: ierr, j, i
       complex(dp), allocatable :: norm_buf(:)
+      logical :: tCG
 
       normsize = inum_runs**2      
       allocate(overlap_real(gf_count),overlap_imag(gf_count))
@@ -354,7 +355,7 @@ contains
       ! also need to create the perturbed ground state to calculate the 
       ! overlaps to |y(t)> 
       call create_perturbed_ground()
-      if(tSemiStochastic) call init_semi_stochastic(ss_space_in)
+      if(tSemiStochastic) call init_semi_stochastic(ss_space_in, tCG)
       ! If only the corespace time-evolution is to be taken, truncate the
       ! initial wavefunction to the corespace
       ! We currently do not truncate the overlap state too, but it might come
@@ -620,7 +621,7 @@ contains
                     read_psingles, read_pparallel
         HElement_t(dp) :: PopAllSumENum(inum_runs)
         integer :: ierr
-
+        logical :: tCG
         character(255) :: rtPOPSFILE_name
         character(*), parameter :: this_routine = "readTimeEvolvedState"
 
@@ -664,7 +665,7 @@ contains
         call set_initial_times(read_tau, TotImagTime,PopDiagSft(1))
 
         ! if we disabled semi-stochastic mode temporarily, reenable it now
-        if(tSemiStochastic) call init_semi_stochastic(ss_space_in)
+        if(tSemiStochastic) call init_semi_stochastic(ss_space_in, tCG)
       
     end subroutine readTimeEvolvedState
 

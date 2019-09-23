@@ -284,7 +284,7 @@ contains
            ! store the determinant 
            if(tStoredDets) then
               call decode_bit_det(TempnI,Dets(:,i))
-              call store_decoding(i,TempnI)
+              call store_decoding(int(i),TempnI)
            end if
         end do
 
@@ -567,7 +567,7 @@ contains
 
         endif
 
-        if(tAutoAdaptiveShift) call set_tot_acc_spawns(fvals, CurrWalkers)
+        if(tAutoAdaptiveShift) call set_tot_acc_spawns(fvals, int(CurrWalkers))
         deallocate(fvals)
         deallocate(BatchRead)
 
@@ -742,7 +742,7 @@ r_loop: do while (.not. tReadAllPops)
                         fvals(:,1:(recvcount/(2*inum_runs))), &
                                   recvcount, err, Roots)
                    call set_tot_acc_spawns(fvals,(recvcount/(2*inum_runs)),&
-                        CurrWalkers+1)
+                        int(CurrWalkers)+1)
                    deallocate(fvals)
                 endif
 
