@@ -15,3 +15,5 @@ add_subdirectory( back_spawn )
 add_subdirectory( back_spawn_excit_gen ) 
 
 add_subdirectory( ueg_excit_gens )
+
+add_subdirectory( pcpp_excitgen)

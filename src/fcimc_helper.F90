@@ -173,9 +173,9 @@ contains
             write(6,*) "No memory slots available for this spawn."
             write(6,*) "Please increase MEMORYFACSPAWN"
 #else
-            write(*,*) "Attempting to spawn particle onto processor: ", proc
-            write(*,*) "No memory slots available for this spawn."
-            write(*,*) "Please increase MEMORYFACSPAWN"
+            write(iout,*) "Attempting to spawn particle onto processor: ", proc
+            write(iout,*) "No memory slots available for this spawn."
+            write(iout,*) "Please increase MEMORYFACSPAWN"
 #endif
             ! give a note on the counter-intuitive scaling behaviour
             if(MaxSpawned / nProcessors < 0.1_dp * TotWalkers) write(iout,*) &
@@ -430,9 +430,9 @@ contains
                 write(6,*) "No memory slots available for this spawn."
                 write(6,*) "Please increase MEMORYFACSPAWN"
 #else
-                write(*,*) "Attempting to spawn particle onto processor: ", proc
-                write(*,*) "No memory slots available for this spawn."
-                write(*,*) "Please increase MEMORYFACSPAWN"
+                write(iout,*) "Attempting to spawn particle onto processor: ", proc
+                write(iout,*) "No memory slots available for this spawn."
+                write(iout,*) "Please increase MEMORYFACSPAWN"
 #endif
                 err = 1
                 return

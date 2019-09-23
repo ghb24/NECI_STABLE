@@ -271,6 +271,8 @@ contains
 #else
         CurrWalkers = 0
         call stop_all(t_r, 'HDF5 support not enabled at compile time')
+        ! just takes care of compiler warnings, this code is actually unreachable
+        dets = 0
 #endif
 
     end function

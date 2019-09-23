@@ -1127,7 +1127,7 @@ contains
 
       SUBROUTINE ReadPropInts(iProp,nBasis,iNumProp,PropFile,CoreVal,OneElInts)
 
-      use constants, only: dp, int64
+      use constants, only: dp, int64, iout
       use util_mod, only: get_free_unit
       use SymData, only: PropBitLen,nProp
       use SystemData, only: UMatEps, tROHF, tReltvy
@@ -1156,7 +1156,7 @@ contains
       if(iProcIndex.eq.0) then
           iunit = get_free_unit()
           file_name = PropFile
-          write(*,*) 'Reading integral from the file:', trim(file_name)
+          write(iout,*) 'Reading integral from the file:', trim(file_name)
           open(iunit,FILE=file_name,STATUS='OLD')
           read(iunit,FCI)
       end if
