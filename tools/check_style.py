@@ -1,4 +1,6 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
+
+from __future__ import print_function
 
 from collections import defaultdict
 from os import walk
@@ -15,7 +17,7 @@ class TabCharacter:
 
     @staticmethod
     def report(file_path, line_number):
-        return f'Tab characters in {file_path}:{line_number}'
+        return 'Tab characters in {}:{}'.format(file_path, line_number)
 
     @staticmethod
     def defined_for(file_path):
@@ -30,7 +32,7 @@ class TrailingSpace:
 
     @staticmethod
     def report(file_path, line_number):
-        return f'Trailing blanks in {file_path}:{line_number}'
+        return 'Trailing blanks in {}:{}'.format(file_path, line_number)
 
     @staticmethod
     def defined_for(file_path):
@@ -45,7 +47,7 @@ class WriteStar:
 
     @staticmethod
     def report(file_path, line_number):
-        return f'"write(*" in {file_path}:{line_number}'
+        return '"write(*" in {}:{}'.format(file_path, line_number)
 
     @staticmethod
     def defined_for(file_path):
@@ -55,11 +57,14 @@ class WriteStar:
 def run_tests_per_file(file_path, style_errors):
     errors = defaultdict(list)
     relevant = [x for x in style_errors if x.defined_for(file_path)]
-    with open(file_path, 'r') as f:
-        for line_number, line in enumerate(f):
-            for style_error in relevant:
-                if style_error.test(line):
-                    errors[line_number].append(style_error)
+    try:
+        with open(file_path, 'r') as f:
+            for line_number, line in enumerate(f):
+                for style_error in relevant:
+                    if style_error.test(line):
+                        errors[line_number].append(style_error)
+    except UnicodeDecodeError:
+        pass
     return dict(errors)
 
 
